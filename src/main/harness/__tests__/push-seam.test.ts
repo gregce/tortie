@@ -24,11 +24,15 @@ const electron = vi.hoisted(() => ({
   windows: 0,
   onceCalls: 0,
   hasSwitchCalls: 0,
-  getPathCalls: 0
+  getPathCalls: 0,
+  packaged: false
 }));
 
 vi.mock('electron', () => ({
   app: {
+    get isPackaged() {
+      return electron.packaged;
+    },
     getPath: () => {
       electron.getPathCalls += 1;
       return electron.userData;
@@ -97,7 +101,8 @@ const {
   pushSeamDir,
   watchPushCommands,
   PUSH_SEAM_POLL_MS,
-  PUSH_SEAM_TAG
+  PUSH_SEAM_TAG,
+  standInOnly
 } = await import('../push-seam');
 const { drivableMonitor } = await import('../../power/drivable-monitor');
 
@@ -562,5 +567,51 @@ describe('drivableMonitor, one copy for the power smoke and the push seam', () =
     monitor.on('resume', () => seen.push('second'));
     monitor.fire('resume');
     expect(seen).toEqual(['first', 'second']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 330: the seam pairs nothing unless Tailscale is the stand-in
+// ---------------------------------------------------------------------------
+
+describe('standInOnly, the seam\'s own refusal before it publishes anything', () => {
+  let scratch = '';
+  beforeEach(() => {
+    scratch = mkdtempSync(join(tmpdir(), 'p330-seam-'));
+    electron.packaged = false;
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    electron.packaged = false;
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  function executable(): string {
+    const path = join(scratch, 'tailscale-standin');
+    writeFileSync(path, '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    return path;
+  }
+
+  it('refuses with no override, because a development build would then resolve the real program', () => {
+    vi.stubEnv('GMUX_TAILSCALE_BIN', '');
+    expect(standInOnly()).toBe(false);
+  });
+
+  it('refuses an override that names no executable file, and never falls back', () => {
+    vi.stubEnv('GMUX_TAILSCALE_BIN', join(scratch, 'not-there'));
+    expect(standInOnly()).toBe(false);
+    vi.stubEnv('GMUX_TAILSCALE_BIN', 'tailscale-standin');
+    expect(standInOnly()).toBe(false);
+  });
+
+  it('refuses in a packaged build, which ignores the override', () => {
+    vi.stubEnv('GMUX_TAILSCALE_BIN', executable());
+    electron.packaged = true;
+    expect(standInOnly()).toBe(false);
+  });
+
+  it('allows a development build whose override is an absolute executable, the stand-in a probe names', () => {
+    vi.stubEnv('GMUX_TAILSCALE_BIN', executable());
+    expect(standInOnly()).toBe(true);
   });
 });

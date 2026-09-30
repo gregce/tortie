@@ -5,11 +5,8 @@
   Tortie tracks nobody, contacts no tracking domain and collects nothing. The
   app's own Swift calls none of Apple's required-reason APIs, which
   conformance:ios rule (o) reads from the source rather than from this file.
-  The Go runtime inside TailscaleKit does call two (FileTimestamp and
-  SystemBootTime); they are declared in the framework's OWN manifest, which
-  build/build-tailscalekit.mjs writes at each slice's root with the reasons he
-  decided (SPEC section 6 decision 8), because a manifest describes the bundle
-  it sits in.
+  Since Phase 330 the app carries no framework of anybody else's, so this is
+  the bundle's only manifest.
 -->
 <plist version="1.0">
 <dict>

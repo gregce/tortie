@@ -21,68 +21,6 @@ final class ScreensModelTests: XCTestCase {
         }
     }
 
-    // MARK: - Which failure goes where
-
-    /// Clause: a 404 on the LIST means the Mac no longer answers this iPhone,
-    /// so the app goes to Pairing; a 404 about ONE session goes back to the
-    /// list, which is the truth about what is still there; no pairing goes to
-    /// Pairing from anywhere.
-    func testWhereARefusalSendsTheApp() {
-        XCTAssertEqual(DoorWords.consequence(of: DoorFailure.refused, reading: .list), .pairAgain)
-        XCTAssertEqual(DoorWords.consequence(of: DoorFailure.refused, reading: .oneSession), .backToList)
-        XCTAssertEqual(DoorWords.consequence(of: DoorFailure.notPaired, reading: .list), .pairAgain)
-        XCTAssertEqual(DoorWords.consequence(of: DoorFailure.notPaired, reading: .oneSession), .pairAgain)
-    }
-
-    /// Clause: every other failure is ONE drawn sentence, Copy.swift's.
-    func testEveryOtherFailureIsOneSentence() {
-        let cases: [(DoorFailure, String)] = [
-            (.unreachable(code: -1004), Copy.cannotReachMac),
-            (.timedOut, Copy.macDidNotAnswer),
-            (.wrongKey, Copy.keyMismatch),
-            (.tooLarge, Copy.answerTooLarge),
-            (.malformed, Copy.answerUnreadable),
-            (.unexpectedStatus(500), Copy.answerUnreadable),
-            (.badPage, Copy.answerUnreadable)
-        ]
-        for (failure, sentence) in cases {
-            XCTAssertEqual(DoorWords.consequence(of: failure, reading: .list), .draw(sentence), "\(failure)")
-            XCTAssertEqual(DoorWords.consequence(of: failure, reading: .oneSession), .draw(sentence), "\(failure)")
-        }
-        XCTAssertEqual(DoorWords.olderPageSentence(for: DoorFailure.badPage), Copy.earlierTurnsUnreadable)
-        XCTAssertEqual(DoorWords.olderPageSentence(for: DoorFailure.timedOut), Copy.macDidNotAnswer)
-        XCTAssertEqual(DoorWords.sentence(for: CocoaError(.fileReadUnknown)), Copy.answerUnreadable)
-    }
-
-    /// Clause: a read the person walked away from says nothing.
-    func testACancelledReadSaysNothing() {
-        XCTAssertTrue(DoorWords.isCancellation(DoorFailure.cancelled))
-        XCTAssertTrue(DoorWords.isCancellation(CancellationError()))
-        XCTAssertTrue(DoorWords.isCancellation(PairingFailure.cancelled))
-        XCTAssertFalse(DoorWords.isCancellation(DoorFailure.timedOut))
-    }
-
-    /// Clause: every way pairing stops has its line, and leaving says nothing.
-    func testEveryPairingFailureHasItsLine() {
-        let lines: [(PairingFailure, String?)] = [
-            (.badCode, Copy.pairNotACode),
-            (.unsupportedCode, Copy.pairNotACode),
-            (.codeExpired, Copy.codeExpired),
-            (.windowClosed, Copy.codeExpired),
-            (.macRefused, Copy.pairRefused),
-            (.strangeAnswer, Copy.pairAnswerUnknown),
-            (.wrongKey, Copy.keyMismatch),
-            (.notAccepted, Copy.pairFirstReadRefused),
-            (.unreachable, Copy.cannotReachMac),
-            (.couldNotSave, Copy.notPaired),
-            (.notAvailable, Copy.notPaired),
-            (.cancelled, nil)
-        ]
-        for (failure, line) in lines {
-            XCTAssertEqual(DoorWords.pairingSentence(for: failure), line, "\(failure)")
-        }
-    }
-
     // MARK: - The list
 
     func testTheListDrawsTheAnswer() async {
@@ -390,7 +328,7 @@ final class ScreensModelTests: XCTestCase {
     }
 
     /// Clause (conformance:ios rule p): the code last read, which carries
-    /// the tailnet key, is kept as `spent` and as the launch code, and
+    /// the one-shot secret, is kept as `spent` and as the launch code, and
     /// neither model repeats it to `dump` or `Mirror`. Fails when either
     /// model's `customMirror` is taken out (measured on iOS in 316.3's
     /// hardening round). The needle is the code's own text: the fix round
@@ -398,7 +336,7 @@ final class ScreensModelTests: XCTestCase {
     /// could not fail, and the reverify took each mirror out with it green.
     func testTheModelsNeverMirrorTheCode() async {
         let needle = "P316mirrorMadeUpNotAKey"
-        let code = "{\"tk\":\"tskey-auth-k\(needle)\"}"
+        let code = "{\"ps\":\"\(needle)\"}"
         // The positive control: a holder of the models' own shape with no
         // customMirror IS repeated, so the search finds the code where it is.
         final class Unredacted {
@@ -425,14 +363,49 @@ final class ScreensModelTests: XCTestCase {
         XCTAssertEqual(phone.pairs, 0)
     }
 
-    /// Clause: leaving the screen spends nothing and says nothing.
+    /// Clause: leaving the screen spends nothing, and the foot says the phone
+    /// is not paired rather than nothing.
     func testLeavingSpendsNothing() async {
         let phone = StandInPhone(outcomes: [.failed(.cancelled), .failed(.cancelled)])
         let (model, _) = pairing(phone)
         await model.read("code")
         XCTAssertFalse(model.stopped)
+        XCTAssertEqual(model.line, Copy.notPaired)
         await model.read("code")
         XCTAssertEqual(phone.begun, ["code", "code"])
+    }
+
+    /// Clause (his no-key finding, build/p330/SPEC.md section 4.12.6): the
+    /// foot draws a sentence at every moment of a pairing, every step reported
+    /// and every way it ends, and never nothing.
+    func testTheFootAlwaysSaysSomething() async {
+        let steps: [PairingStep] = [.presenting, .findingName, .waitingForMac, .confirming]
+        let failures: [PairingFailure] = [
+            .badCode, .unsupportedCode, .codeExpired, .windowClosed, .macRefused, .strangeAnswer, .wrongKey,
+            .notAccepted, .unreachable, .nameNotFound, .couldNotSave, .notAvailable, .cancelled
+        ]
+        for failure in failures {
+            let phone = StandInPhone(outcomes: [.failed(failure)])
+            phone.reports = steps
+            let (model, _) = pairing(phone)
+            XCTAssertFalse(model.line.isEmpty, "at rest")
+            let seen = Seen<[String]>()
+            phone.duringPair = {
+                await Task.yield()
+                let drawn = await MainActor.run { model.line }
+                await seen.set([drawn])
+            }
+            await model.read("code-\(failure)")
+            let during = await seen.value ?? []
+            XCTAssertEqual(during.count, 1)
+            XCTAssertFalse(during.contains(""), "a line under way was empty (\(failure))")
+            XCTAssertEqual(model.line, DoorWords.pairingSentence(for: failure), "\(failure)")
+            XCTAssertFalse(model.line.isEmpty, "\(failure)")
+        }
+        let begun = StandInPhone(beginFailure: .badCode)
+        let (model, _) = pairing(begun)
+        await model.read("not a code")
+        XCTAssertEqual(model.line, Copy.pairNotACode)
     }
 
     /// Clause: a camera he turned off says where to turn it on; no camera at

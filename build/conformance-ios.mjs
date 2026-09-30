@@ -20,31 +20,35 @@
  *   (b) No user-visible string literal outside `Style/Copy.swift`: nothing
  *       inside a `Text`, `Label`, `Button`, `Section`, `.navigationTitle`,
  *       `.accessibilityLabel` or their kin, and no sentence anywhere else.
- *   (c) `URLSession`, `URLRequest`, `NWConnection`, `ProxyConfiguration`,
- *       `loopback(` and `tailscaleSession(` appear only in
- *       `Door/DoorClient.swift` and, from Phase 316.3, `Tailnet/Node.swift`;
- *       the client names `https` and no `http` literal exists in the app; a
- *       SOCKS proxy either file builds never fails over to a direct
- *       connection; and only the door client SENDS (`.data(for:`, a task, an
- *       `NWConnection(`), because the pin, the cap and the timeout are there.
- *       The node configures a route and hands it over; it asks nothing. Every
- *       `URLSessionConfiguration` the app builds is `.ephemeral` (316.3's fix
- *       round: never `.default`, never `.background(withIdentifier:)`), and
- *       from the hardening round however it is spelled: no
- *       `URLSession.shared`, every `configuration:` argument `.ephemeral` or
- *       the door client's own builder, and every value typed
- *       `URLSessionConfiguration` `.ephemeral`, a builder's `return` included.
- *   (d) Both DEBUG seams — the direct loopback transport and the pairing
- *       payload injection — exist and sit inside `#if DEBUG`: no launch
- *       argument is read, no loopback literal is written and no `Debug` or
- *       `Loopback` declaration is made outside one.
- *   (e) `Info.plist` has EXACTLY the one ATS exception of SPEC §3.2
- *       (`100.64.0.0/10` → `NSExceptionAllowsInsecureHTTPLoads`), no
- *       `NSAllowsArbitraryLoads` of any kind and no `UIBackgroundModes`, and
- *       the project injects neither through an `INFOPLIST_KEY_` setting.
- *       From Phase 316.3 also: no Background Modes capability in the project
- *       and no `BGTaskSchedulerPermittedIdentifiers`; the local network usage
- *       string, one sentence (research 128 §2, SPEC §4 S3); and NO
+ *   (c) THE ONE NETWORK FILE (Phase 330: an ordinary pinned TLS client over
+ *       Network.framework). `NWConnection`, `NWParameters`, `NWEndpoint`,
+ *       `NWProtocolTLS`/`TCP`, `sec_protocol_options_*`, `sec_identity_create`
+ *       and `import Network` appear only in `Door/DoorClient.swift`; there is
+ *       NO `URLSession`, `URLRequest`, `URLSessionConfiguration` or
+ *       `ProxyConfiguration` anywhere in the app, nor a lower-level socket
+ *       (`CFStream…ToHost`, `getStreamsToHost`, `socket(`); no `http://`
+ *       literal exists; and only the door client SENDS (`NWConnection(`,
+ *       `.send(content:`, a URL task), because the pin, the identity, the caps
+ *       and the timeout are there.
+ *   (d) The four DEBUG seams exist and sit inside `#if DEBUG`: the pairing
+ *       payload (`-TortieDebugPairingPayload`), the forget
+ *       (`-TortieDebugForgetPairing`), the still attention dot
+ *       (`-TortieDebugStill`) and, from Phase 330, the door endpoint
+ *       (`-TortieDebugDoorEndpoint`), which takes `127.0.0.1` and nothing else.
+ *       No launch argument is read, no `-TortieDebug…` argument, loopback
+ *       literal or `Debug`/`Loopback` declaration is written outside one. The
+ *       last clause also holds the client key store's `softwareKeyDebugSeam`
+ *       (Phase 330, after his ruling of 2026-09-29), a field a test sets so
+ *       the software path runs on a Simulator that has a Secure Enclave; it is
+ *       no launch argument, so nothing outside a test can set it.
+ *   (e) `Info.plist` has NO `NSAppTransportSecurity` and NO
+ *       `NSLocalNetworkUsageDescription` (Phase 330: the client is
+ *       Network.framework, which ATS does not govern, and it dials the Mac's
+ *       public name and nothing on the local network), by the name CFBundle
+ *       folds a key to, in any property list under ios/ and in any
+ *       `INFOPLIST_KEY_` setting. Still no `NSAllowsArbitraryLoads` of any
+ *       kind, no `UIBackgroundModes`, no Background Modes capability, no
+ *       `BGTaskSchedulerPermittedIdentifiers` and no
  *       `ITSAppUsesNonExemptEncryption`, because that answer is a legal one
  *       and his (SPEC §6 decision 7), so no agent writes it. Keys are read
  *       by the name CFBundle folds them to (316.3's fix round:
@@ -93,64 +97,57 @@
  *       `ARITHMETIC_NAMED`. Why it names every operator rather than looking for
  *       the door's is written at the rule.
  *
- *   PHASE 316.3, the tailnet node inside the app (SPEC §4 S3, research 128).
- *   S3's text calls these (k) to (n); the overflow round took (k) first, so
- *   they are (l) to (p), in S3's order, with the key rule the brief added,
- *   and (q), which the hardening round added for his ruling on the logs:
+ *   PHASE 316.3 added (l) to (q) for the tailnet node the app carried. PHASE
+ *   330 took the node out (build/p330/SPEC.md §6.4): (l), (m) and (q) became
+ *   ONE rule (l), (m) and (q) are retired with their fixtures, and (n), (o)
+ *   and (p) are read for what the app now holds:
  *
- *   (l) The node is started only in `Tailnet/Node.swift`: no other Swift file
- *       under ios/ (app or test) imports TailscaleKit or names
- *       `TailscaleNode`, nothing is `@_exported`, and every declaration there
- *       that names `TailscaleNode` is private, so the node cannot leave the
- *       file. It is `tortie-phone`, configured with `ephemeral: false`
- *       written out, and nothing keeps the app running in the background
- *       (no background task, no `BGTaskScheduler`, no
- *       `performExpiringActivity`, no background URLSession, no fetch
- *       interval, and from the hardening round no Core Location monitoring,
- *       which relaunches an app with no background mode). The project takes the
- *       framework from `build/vendor/tailscalekit/`, embeds it signed on copy,
- *       and its build phases only CHECK for it: none fetches or builds.
- *   (m) The node's state lives in Application Support/`tailnet`, never in
- *       Caches, tmp, Documents or a shared container, and it is excluded from
- *       backup in the same body that creates it.
+ *   (l) No Tailscale in the phone. No `ios/Tortie/Tailnet` directory; no
+ *       Swift file under ios/, app or test, imports TailscaleKit in any
+ *       spelling or names `TailscaleKit`, `TailscaleNode` or a `tailscale_`
+ *       symbol in its code; nothing is `@_exported`; the project names no
+ *       TailscaleKit, no `.xcframework` and no `vendor:tailscalekit`, and no
+ *       build phase fetches or builds anything; and nothing keeps the app
+ *       running in the background (no background task, no `BGTaskScheduler`,
+ *       no `performExpiringActivity`, no background URLSession, no fetch
+ *       interval, no Core Location monitoring, which relaunches an app with
+ *       no background mode), a clause carried from the old (l) rather than
+ *       dropped with the node.
  *   (n) Every Keychain item is `ThisDeviceOnly`, every file that writes one
- *       says so, and nothing is synchronised to his other devices.
- *   (o) Both privacy manifests exist and declare the categories: the app's
- *       own (every required-reason API its Swift names, derived from the
- *       text), and TailscaleKit's, whose committed source declares
- *       FileTimestamp C617.1 and SystemBootTime 35F9.1 (SPEC §3.6, §6
- *       decision 8). When the vendored framework is built here, every slice
- *       holds the same manifest at its root.
- *   (p) The tailnet key (`tk`) is never written anywhere. Text cannot follow
- *       a value (rule k's lesson), so every mention of the key's name in the
- *       app is proved by its shape to be a declaration, a label, a check, a
- *       nil test, a hand-off into another key-named place or the join itself
- *       (`authKey:` in Node.swift), or it is NAMED in `KEY_NAMED` with why; no
- *       encodable type holds a key field; no key literal is written in the
- *       app; and no file under ios/ or build/p316/ holds a string shaped like
- *       a real key unless it says it is made up (`p316`). From 316.3's fix
- *       round the RAW CODE is held to the same clauses under the names it
- *       travels by (`KEY_NAMES_IN`), each place a code enters binds it to one
- *       of them, and every type holding the key or the code mirrors itself
- *       without it, so `print`, `dump` and interpolation of a whole value,
- *       which read it through its mirror, never repeat it. The places a code
- *       enters (`CODE_SOURCES`) are an OPEN list, widened in the hardening
- *       round to Core Image, Vision's data, a deep link and the pasteboard.
- *
- *   (q) Tailscale's own diagnostic logs are off before every start (his
- *       ruling of 2026-09-23, "Turn them off"). The pinned build adds one
- *       export, `tailscale_no_logs_no_support()`
- *       (build/build-tailscalekit.mjs, NO_LOGS_PATCH); the node asks it only
- *       through a wrapper that checks it answered 0, outside every `#if`, and
- *       every `TailscaleNode(` is guarded by that wrapper before it, in the
- *       same block; nothing calls the C API to start a node itself; the
- *       script still patches the switch in; and each built slice, when it is
- *       here, declares it and holds it in its symbol table. From Phase 316.4,
- *       the switch's second cost: a tailnet that requires network flow logs
- *       turns such a node off, and the backend's words for it are named once
- *       in Node.swift, turned into their own error by the live node's up(),
- *       told apart from a refused key by the join, and held in every built
- *       slice, so the pairing names flow logs rather than the key.
+ *       says so, and nothing is synchronised to his other devices. From Phase
+ *       330, the CLIENT KEY (SPEC §4.7.1): made by `SecKeyCreateRandomKey`,
+ *       permanent and tagged under `tortie.client.`, in the Secure Enclave
+ *       only when `SecureEnclave.isAvailable`; and every pairing attempt that
+ *       ends without being paired deletes its key by its tag. It is
+ *       THISDEVICEONLY BY CONSTRUCTION ON BOTH PATHS (restated after his
+ *       ruling of 2026-09-29): the enclave path's access control names
+ *       `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` with `.privateKeyUsage`
+ *       and is made inside the `if` on `SecureEnclave.isAvailable` and nowhere
+ *       else; the software key says `kSecAttrAccessible:
+ *       kSecAttrAccessibleWhenUnlockedThisDeviceOnly` itself, in the function
+ *       that makes it. The fix round refused an access control with no flags
+ *       for a reason that was FALSE, and that clause is gone: a software key
+ *       made under one read back `aku`, and the `dk` it was blamed for was the
+ *       ENCLAVE key's own attribute, because the Simulator has a Secure
+ *       Enclave (the reverify's experiment, iOS 18.3.1 and 26.3.1). The
+ *       enclave key reads back the token `com.apple.setoken` and an access
+ *       control of `cku`, After First Unlock This Device Only, which he
+ *       accepted; `test:ios` holds both paths.
+ *   (o) The app's own privacy manifest exists and declares every
+ *       required-reason API its Swift names, derived from the text. It is the
+ *       bundle's only one: no framework of anybody else's ships.
+ *   (p) No tailnet key anywhere: no `tk`, `tailnetKey` or `authKey` in any
+ *       Swift under ios/, and no `tskey-` in any file under ios/. THE CODE AND
+ *       ITS ONE-SHOT SECRET ARE KEPT NOWHERE: text cannot follow a value (rule
+ *       k's lesson), so every mention of `secret`, `ps` or of a name the raw
+ *       code travels under (`KEY_NAMES_IN`) is proved by its shape to be a
+ *       declaration, a label, a nil test, a comparison with a watched value or
+ *       a hand-off into another watched place, or it is NAMED in `KEY_NAMED`
+ *       with where it goes; every place a code enters (`CODE_SOURCES`, an
+ *       OPEN list) binds it to a watched name; no encodable type holds a
+ *       watched field; and every type holding one mirrors itself without it,
+ *       so `print`, `dump` and interpolation never repeat it. No file under
+ *       ios/ or build/p316/ holds a string shaped like a real Tailscale key.
  *
  *   PHASE 316.4, the first TestFlight build (SPEC §4 S4):
  *
@@ -171,16 +168,43 @@
  *       Info.plist takes the bundle id and both versions from the project and
  *       shows "Tortie".
  *
+ *   PHASE 330, the phone off the tailnet (build/p330/SPEC.md §6.4):
+ *
+ *   (t) The client is pinned mutual TLS 1.3 to a public name. Every paired
+ *       read presents a local identity (`sec_protocol_options_set_local_identity`,
+ *       the signed path passing `door.identity`, which `PairedDoor` holds
+ *       non-optional) and `POST /pair` is the one exchange with none; the
+ *       verify block compares `DoorPin` to the pin and completes with that
+ *       answer, never `true`; TLS 1.3 is the minimum and nothing names an
+ *       older version or a maximum; every `NWParameters` is `NWParameters(tls:`;
+ *       the code's host is a `.ts.net` name and its port 8443 or 10000, checked
+ *       by the parse; the hand-written reader requires one `Content-Length`
+ *       and refuses any `Transfer-Encoding`, and the writer writes
+ *       `Connection: close`; and build/p316/hostile-door.mjs names the eight
+ *       HTTP arms (chunked, no length, two lengths, over 2 MiB, a 20 KiB header,
+ *       not HTTP/1.1, early close, a 200 that is not JSON), each ending in a
+ *       sentence Copy.swift holds.
+ *   (u) No Release configuration defines DEBUG: not in
+ *       `SWIFT_ACTIVE_COMPILATION_CONDITIONS`, `OTHER_SWIFT_FLAGS` or
+ *       `GCC_PREPROCESSOR_DEFINITIONS`, in the project or any xcconfig, and the
+ *       scheme archives Release (316.4's owed item 2: an optimised build hides
+ *       the seam's names from `strings`, so a DEBUG Release would ship the
+ *       seams with every other gate green; `test:ios --read-app` reads the
+ *       built binary for the seams' argument strings).
+ *   (v) The phone always draws a sentence (his no-key finding): `DoorWords`'
+ *       `pairingSentence` returns a non-optional `String` for every
+ *       `PairingFailure` case and `stepSentence` one for every `PairingStep`
+ *       case, neither answering nil or an empty string, and `PairingModel`'s
+ *       `line` is a non-optional `String` that is never assigned nil or empty.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
  * WHAT IT REFUSES TO DO. It spawns only the pinned tsx, through
  * build/p316/vectors.mjs, for (j), and /usr/bin/plutil, which every Mac has,
  * to read a property list (e, o, s). It decodes the icon and the master in
- * node (r). It needs no Xcode, no Go and no vendored
- * framework (rules o and q read the built framework only when it is there),
- * starts no Simulator, opens no socket and reads nothing under the person's
- * home.
+ * node (r). It needs no Xcode, starts no Simulator, opens no socket and reads
+ * nothing under the person's home.
  *
  *   node build/conformance-ios.mjs
  *   node build/conformance-ios.mjs --root <dir>   read <dir>/ios, <dir>/build, <dir>/src/renderer/styles/tokens.css and <dir>/docs/brand/tortie/master
@@ -524,7 +548,10 @@ const COPY_SWIFT = APP_FILE('Style/Copy.swift');
 const DOOR_CLIENT = APP_FILE('Door/DoorClient.swift');
 const TRANSPORT = APP_FILE('Door/Transport.swift');
 const CONTRACT = APP_FILE('Door/Contract.swift');
-const NODE = APP_FILE('Tailnet/Node.swift');
+const PAIRING = APP_FILE('Door/Pairing.swift');
+const KEYS = APP_FILE('Door/Keys.swift');
+const DOOR_WORDS = APP_FILE('Screens/DoorWords.swift');
+const PAIRING_SCREEN = APP_FILE('Screens/PairingScreen.swift');
 const INFO_PLIST = APP_FILE('Info.plist');
 const TOKENS_CSS = join(ROOT, 'src', 'renderer', 'styles', 'tokens.css');
 
@@ -682,30 +709,69 @@ export function ruleNoVisibleLiteral(name, source) {
   return findings;
 }
 
-const NETWORK_TOKENS = [/\bURLSession\b/, /\bURLRequest\b/, /\bNWConnection\b/, /\bProxyConfiguration\b/, /\bloopback\s*\(/, /\btailscaleSession\s*\(/];
+/**
+ * Rule (c). The network types, which only the door client may name: since
+ * Phase 330 it is Network.framework, so its types and the TLS options it sets.
+ * A lower-level socket or stream opened anywhere else would be a second network
+ * user with no pin, no identity and no caps.
+ */
+const NETWORK_TOKENS = [
+  /\bNWConnection\b/,
+  /\bNWParameters\b/,
+  /\bNWEndpoint\b/,
+  /\bNWProtocol(?:TLS|TCP|UDP|QUIC|WebSocket|Framer)\b/,
+  /\bNWListener\b/,
+  /\bNWBrowser\b/,
+  /\bsec_protocol_options_\w+/,
+  /\bsec_identity_create\b/,
+  /\bimport\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var|actor)\s+)?`?Network`?(?![A-Za-z0-9_])/,
+  /\bCFStreamCreatePairWithSocketToHost\b/,
+  /\bgetStreamsToHost\b/,
+  /\bstreamTask\s*\(/,
+  /(?<![A-Za-z0-9_.])socket\s*\(\s*(?:AF_|PF_|Int32\s*\()/
+];
 
-/** Rule (c), over one app file that is neither the door client nor the node: no network type. */
+/**
+ * Rule (c). The URL loading system, which NO app file may name (Phase 330:
+ * the door client is Network.framework, and the ephemeral-configuration rules
+ * 316.3 wrote for URLSession are this one refusal now).
+ */
+const URL_LOADING = [/\bURLSession\b/, /\bURLSessionConfiguration\b/, /\bURLRequest\b/, /\bProxyConfiguration\b/, /\bURLCredential\b/];
+
+/** Rule (c), over one app file that is not the door client: no network type. */
 export function ruleNetworkOnlyInClient(name, source) {
   const { bare } = lexSwift(source);
   const findings = [];
   for (const re of NETWORK_TOKENS) {
     for (const m of bare.matchAll(new RegExp(re.source, 'g'))) {
-      findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0].replace(/\s*\($/, '(')}, and only Door/DoorClient.swift and Tailnet/Node.swift may`);
+      findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0].trim().replace(/\s*\($/, '(')}, and only Door/DoorClient.swift may`);
+    }
+  }
+  return findings;
+}
+
+/** Rule (c), over every app file, the door client included: no URL loading at all. */
+export function ruleNoUrlLoading(name, source) {
+  const { bare } = lexSwift(source);
+  const findings = [];
+  for (const re of URL_LOADING) {
+    for (const m of bare.matchAll(new RegExp(re.source, 'g'))) {
+      findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}; the door client is Network.framework with its own pin and identity, and nothing in the app uses the URL loading system (Phase 330)`);
     }
   }
   return findings;
 }
 
 /**
- * What SENDS a request. The node may name the network types (it configures
- * the route the door client dials through), but a request made anywhere but
- * the door client would skip the pin, the 2 MiB cap and the 15 s timeout.
+ * What SENDS a request. A request made anywhere but the door client would skip
+ * the pin, the identity, the 2 MiB cap and the 15 s timeout.
  */
 const SENDS = [
   /\.\s*data\s*\(\s*(?:for|from)\s*:/,
   /\.\s*(?:dataTask|uploadTask|downloadTask|streamTask|webSocketTask)\s*\(/,
   /\.\s*(?:upload|download|bytes)\s*\(\s*(?:for|from|with)\s*:/,
-  /\bNWConnection\s*\(/
+  /\bNWConnection\s*\(/,
+  /\.\s*send\s*\(\s*content\s*:/
 ];
 
 /** Rule (c), over one app file that is not the door client: it sends nothing. */
@@ -714,110 +780,28 @@ export function ruleSendsOnlyFromClient(name, source) {
   const findings = [];
   for (const re of SENDS) {
     for (const m of bare.matchAll(new RegExp(re.source, 'g'))) {
-      findings.push(`${name}:${String(lineOf(bare, m.index))} sends a request itself (${m[0].replace(/\s+/g, '')}); only Door/DoorClient.swift sends, with the pin, the cap and the timeout, and the node only carries`);
+      findings.push(`${name}:${String(lineOf(bare, m.index))} sends a request itself (${m[0].replace(/\s+/g, '')}); only Door/DoorClient.swift sends, with the pin, the identity, the cap and the timeout`);
     }
   }
   return findings;
 }
 
-/**
- * Rule (c), the scheme half, over every app file. `role` is 'client' for the
- * door client, 'node' for the tailnet node and anything else otherwise (a
- * boolean `true` still means the client).
- */
-export function ruleHttpsOnly(name, source, role) {
+/** Rule (c), the scheme half, over every app file: no plain-text scheme is written. */
+export function ruleHttpsOnly(name, source) {
   const { bare, strings } = lexSwift(source);
   const findings = [];
-  const client = role === true || role === 'client';
   for (const s of strings) {
     if (/^http$/i.test(s.value) || /\bhttp:\/\//i.test(s.value) || /^ws$/i.test(s.value) || /\bws:\/\//i.test(s.value)) {
-      findings.push(`${name}:${String(lineOf(bare, s.start))} writes ${JSON.stringify(s.value.slice(0, 40))}; the door client builds https URLs only (SPEC §3.2)`);
+      findings.push(`${name}:${String(lineOf(bare, s.start))} writes ${JSON.stringify(s.value.slice(0, 40))}; the door is spoken to over TLS 1.3 and nothing else`);
     }
   }
-  if (client && !strings.some((s) => s.value === 'https')) findings.push(`${name} never names the https scheme`);
-  if ((client || role === 'node') && /\bProxyConfiguration\s*\(/.test(bare) && !/\ballowFailover\s*=\s*false\b/.test(bare)) {
-    findings.push(`${name} builds a proxy and never sets allowFailover = false, so a failed proxy could send a packet to the tailnet range directly`);
-  }
-  return findings;
-}
-
-/** The argument text after a `label:` at `from` (just past the colon), to the next `,` or `)` at its own depth. */
-function argumentAt(bare, from) {
-  let depth = 0;
-  let k = from;
-  for (; k < bare.length; k += 1) {
-    const c = bare[k];
-    if (c === '(' || c === '[' || c === '{') depth += 1;
-    else if (c === ')' || c === ']' || c === '}') {
-      if (depth === 0) break;
-      depth -= 1;
-    } else if (c === ',' && depth === 0) break;
-  }
-  return bare.slice(from, k).trim();
-}
-
-/** The functions a door client declares that return a URLSessionConfiguration: its own configuration builders. */
-export function configurationFunctions(clientSource) {
-  const { bare } = lexSwift(clientSource);
-  return [...bare.matchAll(/\bfunc\s+([A-Za-z_]\w*)\s*(?:<[^>{]*>)?\s*\([^{]*?\)\s*(?:throws\s*)?->\s*URLSessionConfiguration\b/g)].map((m) => m[1]);
-}
-
-/**
- * Rule (c), the configuration half, over one app file. Every session the app
- * builds is `.ephemeral`: no cache, no cookie jar, no credential store on
- * disk, and never a background session that iOS runs after the app has left
- * (316.3's verification planted `.background(withIdentifier:)` in the door
- * client with every rule green). `role` as for ruleHttpsOnly.
- *
- * The hardening round (the reverify made three more with this rule green,
- * none of them naming the type): `URLSession.shared` (a shared cache, cookie
- * jar and credential store); `URLSession(configuration: .default, …)`, an
- * implicit member; and `let c: URLSessionConfiguration = .default`, a typed
- * one. So `URLSession.shared` is refused, every `configuration:` argument is
- * `.ephemeral` or a call to one of the door client's own configuration
- * builders (`clientBuilders`, which must themselves return only ephemeral
- * ones), and every value TYPED URLSessionConfiguration, a builder's own
- * `return .x` included, is `.ephemeral`.
- */
-export function ruleEphemeralOnly(name, source, role, clientBuilders = []) {
-  const { bare } = lexSwift(source);
-  const findings = [];
-  const at = (i) => `${name}:${String(lineOf(bare, i))}`;
-  let ephemeral = 0;
-  for (const m of bare.matchAll(/\bURLSessionConfiguration\s*(?:\.\s*([A-Za-z_]\w*)|\()/g)) {
-    if (m[1] === 'ephemeral') {
-      ephemeral += 1;
-      continue;
-    }
-    findings.push(`${at(m.index)} builds a URLSessionConfiguration ${m[1] === undefined ? 'by its initialiser' : `as .${m[1]}`}; the door client's is .ephemeral and nothing else`);
-  }
-  for (const m of bare.matchAll(/\bURLSession\s*\.\s*shared\b/g)) {
-    findings.push(`${at(m.index)} uses URLSession.shared, which keeps a cache, cookies and credentials; the door client builds its own ephemeral session`);
-  }
-  const builders = clientBuilders.map((b) => b.replace(/[^A-Za-z0-9_]/g, '')).filter((b) => b !== '');
-  const builderCall = builders.length === 0 ? null : new RegExp(`^(?:(?:Self|DoorClient)\\s*\\.\\s*)?(?:${builders.join('|')})\\s*\\(`);
-  for (const m of bare.matchAll(/[(,]\s*configuration\s*:(?!:)/g)) {
-    const arg = argumentAt(bare, m.index + m[0].length).replace(/\s+/g, ' ');
-    if (/^(?:URLSessionConfiguration\s*)?\.\s*ephemeral$/.test(arg)) continue;
-    if (builderCall !== null && builderCall.test(arg) && matchForward(arg, arg.indexOf('(')) === arg.length - 1) continue;
-    findings.push(`${at(m.index)} passes configuration: ${JSON.stringify(arg.slice(0, 60))}; a session is built from .ephemeral or the door client's own builder${builders.length === 0 ? '' : ` (${builders.join(', ')})`}, and nothing else`);
-  }
-  for (const m of bare.matchAll(/:\s*URLSessionConfiguration\s*[?!]?\s*(?:=\s*|\{\s*(?:return\s+)?)\.\s*([A-Za-z_]\w*)/g)) {
-    if (m[1] !== 'ephemeral') findings.push(`${at(m.index)} types a URLSessionConfiguration as .${m[1]}; the door client's is .ephemeral and nothing else`);
-  }
-  for (const m of bare.matchAll(/->\s*URLSessionConfiguration\s*[?!]?\s*(?:where\b[^{]*)?\{/g)) {
-    const open = m.index + m[0].length - 1;
-    const close = matchForward(bare, open);
-    const body = bare.slice(open + 1, close === -1 ? bare.length : close);
-    for (const r of body.matchAll(/(?:^\s*|\breturn\s+)\.\s*([A-Za-z_]\w*)/g)) {
-      if (r[1] !== 'ephemeral') findings.push(`${at(open + 1 + r.index)} returns .${r[1]} as a URLSessionConfiguration; the door client's is .ephemeral and nothing else`);
-    }
-  }
-  if ((role === true || role === 'client') && ephemeral === 0) findings.push(`${name} never builds its configuration as URLSessionConfiguration.ephemeral`);
   return findings;
 }
 
 const LAUNCH_READS = [/\bProcessInfo\s*\.\s*processInfo\s*\.\s*(arguments|environment)\b/, /\bCommandLine\s*\.\s*(arguments|unsafeArgv|argc)\b/, /\blaunchArguments\b/];
+
+/** The four DEBUG seams' launch arguments (Phase 330 added the door endpoint). */
+export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebugForgetPairing', '-TortieDebugStill', '-TortieDebugDoorEndpoint'];
 
 /** Rule (d), over one app file. `seams` collects what the DEBUG regions hold. */
 export function ruleDebugSeams(name, source, seams) {
@@ -839,8 +823,15 @@ export function ruleDebugSeams(name, source, seams) {
     }
   }
   for (const s of strings) {
-    if (/(^|[^0-9])127\.0\.0\.1\b|\blocalhost\b|^::1$|\b0\.0\.0\.0\b/.test(s.value) && !at(s.start)) {
-      findings.push(`${name}:${String(lineOf(bare, s.start))} writes the loopback address ${JSON.stringify(s.value)} outside #if DEBUG`);
+    if (/(^|[^0-9])127\.0\.0\.1\b|\blocalhost\b|^::1$|\b0\.0\.0\.0\b/.test(s.value)) {
+      if (at(s.start)) (seams.loopback ??= []).push({ name, value: s.value });
+      else findings.push(`${name}:${String(lineOf(bare, s.start))} writes the loopback address ${JSON.stringify(s.value)} outside #if DEBUG`);
+    }
+    // A seam's argument is a DEBUG build's alone: written outside #if DEBUG,
+    // a Release build would carry the name a launch could hand it.
+    if (/^-TortieDebug/.test(s.value)) {
+      if (at(s.start)) (seams.arguments ??= []).push({ name, value: s.value, line: lineOf(bare, s.start) });
+      else findings.push(`${name}:${String(lineOf(bare, s.start))} writes the DEBUG seam argument ${JSON.stringify(s.value)} outside #if DEBUG`);
     }
   }
   for (const m of bare.matchAll(/\b(struct|class|enum|actor|protocol|func|extension|typealias|case|var|let)\s+([A-Za-z_][A-Za-z0-9_]*)/g)) {
@@ -855,8 +846,13 @@ export function ruleDebugSeams(name, source, seams) {
   return findings;
 }
 
-/** The keys rule (e) pins exactly; a modified spelling of one would stand beside the pinned value, unread. */
-const PINNED_PLIST_KEYS = new Set(['NSAppTransportSecurity', 'NSExceptionDomains', 'NSLocalNetworkUsageDescription']);
+/**
+ * The keys rule (e) pins exactly; a modified spelling of one would stand
+ * beside the pinned value, unread. Since Phase 330 none: the two it pinned
+ * (the ATS dictionary and the local network string) are refused outright, by
+ * the name CFBundle reads, which refuses every spelling of them.
+ */
+const PINNED_PLIST_KEYS = new Set([]);
 
 /** What CFBundle reads a key as, said after its path when that is not its spelling. */
 const readAs = (k) => (plistBaseKey(k.key) === k.key ? '' : ` (read as ${plistBaseKey(k.key)} at run time)`);
@@ -867,11 +863,14 @@ const readAs = (k) => (plistBaseKey(k.key) === k.key ? '' : ` (read as ${plistBa
  * property list under ios/, and in every `INFOPLIST_KEY_` build setting.
  */
 export function refusedPlistKey(base) {
+  if (base === 'NSAppTransportSecurity') return 'the door client is Network.framework over TLS 1.3 with its own pin, which App Transport Security does not govern, so there is nothing for an exception to allow (Phase 330, research 132 §9 condition 8)';
+  if (base === 'NSExceptionDomains') return 'an App Transport Security exception belongs to a dictionary the app does not carry (Phase 330)';
+  if (base === 'NSLocalNetworkUsageDescription') return 'the phone dials the Mac\'s public name and nothing on the network it is on, so iOS has nothing to ask (Phase 330)';
   if (/^NSAllowsArbitraryLoads/.test(base)) return 'NSAllowsArbitraryLoads stays refused (SPEC §3.2)';
   if (base === 'UIBackgroundModes') return 'the app has no background mode, ever (SPEC §4.0, §7)';
-  if (base === 'BGTaskSchedulerPermittedIdentifiers') return 'the node is up while the app is, and nothing is scheduled to run it in the background (research 128 §2, guideline 2.5.4)';
+  if (base === 'BGTaskSchedulerPermittedIdentifiers') return 'the app reads while it is on the screen, and nothing is scheduled to run it in the background (guideline 2.5.4)';
   if (base === 'NSAllowsLocalNetworking') return 'ATS already allows loopback and nothing else local is dialled';
-  if (base === 'ITSAppUsesNonExemptEncryption') return 'the export-compliance answer for an app carrying WireGuard is a legal one and his (SPEC §6 decision 7), so no agent writes it';
+  if (base === 'ITSAppUsesNonExemptEncryption') return 'the export-compliance answer is a legal one and his (SPEC §6 decision 7), so no agent writes it';
   return null;
 }
 
@@ -962,7 +961,7 @@ export function ruleInfoPlistSource(pbxproj, xcconfigs = []) {
     }
     for (const m of s.text.matchAll(/\bINFOPLIST_KEY_([A-Za-z0-9_]+)/g)) {
       const base = plistBaseKey(m[1]);
-      const why = refusedPlistKey(base) ?? (PINNED_PLIST_KEYS.has(base) && base !== 'NSLocalNetworkUsageDescription' ? 'rule (e) pins it in Info.plist' : null);
+      const why = refusedPlistKey(base) ?? (PINNED_PLIST_KEYS.has(base) ? 'rule (e) pins it in Info.plist' : null);
       if (why !== null) findings.push(`${s.name} names INFOPLIST_KEY_${m[1]} (at ${String(lineOf(s.text, m.index))}), which would put ${base} into the built Info.plist that the file does not show; ${why}`);
     }
     for (const m of s.text.matchAll(/NSAllowsArbitraryLoads\w*/g)) {
@@ -1031,45 +1030,17 @@ export function rulePlistSpelling(name, text, cf) {
  */
 export function rulePlist(plist, pbxproj, xcconfigs = []) {
   const findings = [];
-  const ats = plist?.NSAppTransportSecurity;
-  if (ats === undefined) findings.push('Info.plist has no NSAppTransportSecurity, so the one exception SPEC §3.2 measured is missing');
-  else {
-    const top = Object.keys(ats);
-    if (top.length !== 1 || top[0] !== 'NSExceptionDomains') findings.push(`NSAppTransportSecurity holds ${JSON.stringify(top)}; it holds NSExceptionDomains and nothing else`);
-    const domains = ats.NSExceptionDomains ?? {};
-    const names = Object.keys(domains);
-    if (names.length !== 1 || names[0] !== '100.64.0.0/10') findings.push(`NSExceptionDomains holds ${JSON.stringify(names)}; it holds exactly "100.64.0.0/10"`);
-    const one = domains['100.64.0.0/10'];
-    if (one !== undefined) {
-      const keys = Object.keys(one);
-      if (keys.length !== 1 || keys[0] !== 'NSExceptionAllowsInsecureHTTPLoads' || one.NSExceptionAllowsInsecureHTTPLoads !== true) {
-        findings.push(`the 100.64.0.0/10 exception holds ${JSON.stringify(one)}; it holds NSExceptionAllowsInsecureHTTPLoads = true and nothing else`);
-      }
-    }
-  }
+  if (plist === null || typeof plist !== 'object' || Array.isArray(plist)) return ['Info.plist is not a dictionary'];
   for (const k of plistKeys(plist)) {
-    // Compared by the name CFBundle reads, never by the spelling.
+    // Compared by the name CFBundle reads, never by the spelling, so
+    // `NSAppTransportSecurity~iphone` is the ATS dictionary on an iPhone.
     const base = plistBaseKey(k.key);
     const at = `${k.path}${readAs(k)}`;
     const why = refusedPlistKey(base);
     if (why !== null) findings.push(`Info.plist carries ${at}; ${why}`);
-    // A modified spelling of a key this rule pins exactly, or of anything
-    // inside the ATS dictionary, would be read on the device beside (or over)
-    // the one value the rule checked.
-    if (base !== k.key && (PINNED_PLIST_KEYS.has(base) || k.path.startsWith('NSAppTransportSecurity'))) {
+    if (base !== k.key && PINNED_PLIST_KEYS.has(base)) {
       findings.push(`Info.plist carries ${at}; a platform or device spelling of a key this rule pins would be read in place of the one it checked`);
     }
-  }
-  // Phase 316.3: the node's direct path to a Mac on the same Wi-Fi is a local
-  // network send, so iOS asks, and the app says why in one sentence
-  // (research 128 §2). In the plist itself: the hardening round requires
-  // GENERATE_INFOPLIST_FILE = NO, under which an INFOPLIST_KEY_ setting never
-  // reaches the built file.
-  const localWhy = plist?.NSLocalNetworkUsageDescription;
-  if (typeof localWhy !== 'string' || localWhy.trim() === '') {
-    findings.push('Info.plist has no NSLocalNetworkUsageDescription, so the prompt the node\'s direct path raises would go unexplained (SPEC §4 S3, research 128 §2)');
-  } else if (!/^[^\s].*[.]$/.test(localWhy.trim()) || /[.!?]\s+\S/.test(localWhy.trim().slice(0, -1)) || localWhy.length > 200) {
-    findings.push(`NSLocalNetworkUsageDescription is ${JSON.stringify(localWhy.slice(0, 80))}; it is one sentence, at most 200 characters, ending in a full stop`);
   }
   if (typeof pbxproj === 'string') {
     findings.push(...ruleInfoPlistSource(pbxproj, xcconfigs).findings);
@@ -1136,7 +1107,7 @@ export function ruleNoVpn(name, source) {
   };
   const { bare, strings } = bareOf();
   for (const re of swift ? VPN_TOKENS : [...VPN_TOKENS, NE_NAME]) {
-    for (const m of bare.matchAll(new RegExp(re.source, 'g'))) findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}; the phone carries a node, never a VPN (research 128 §3)`);
+    for (const m of bare.matchAll(new RegExp(re.source, 'g'))) findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}; the phone is an ordinary TLS client, never a VPN (research 128 §3)`);
   }
   if (!swift) {
     for (const m of bare.matchAll(new RegExp(SWIFT_PACKAGES.source, 'g'))) {
@@ -1303,18 +1274,14 @@ export const ARITHMETIC_NAMED = [
   { file: 'Screens/ListScreen.swift', line: 'generation += 1', ops: 2, why: 'the list model numbers its own reads, one per read' },
   { file: 'Screens/SessionScreen.swift', line: 'generation += 1', ops: 1, why: 'the session model numbers its own reads, one per read' },
   { file: 'Screens/ConversationScreen.swift', line: 'generation += 1', ops: 1, why: 'the conversation model numbers its own reads, one per read' },
-  { file: 'Door/Pairing.swift', line: 'attempts += 1', ops: 1, why: 'pairing counts its own presentations, one every 2 s inside a window of minutes' },
   { file: 'Door/Contract.swift', line: 'turns = turns.filter { $0.index < first.index } + page.turns', ops: 1, why: 'an ARRAY of turns joined to a page of them; the indexes inside are compared, never added' },
   { file: 'Door/Contract.swift', line: 'turns = page.turns + turns', ops: 1, why: 'an ARRAY of turns joined to the ones held' },
   { file: 'Screens/ListScreen.swift', line: 'for row in answer.rows + answer.others where !seen.insert(row.sessionId).inserted {', ops: 1, why: 'two ARRAYS of rows joined to look for a session listed twice' },
   { file: 'Screens/ListScreen.swift', line: 'RowView(row: row, last: endsList && offset == rows.count - 1) { open(row) }', ops: 1, why: 'the count of an array the phone holds, less one, compared with an offset into it; never a door number' },
-  { file: 'Door/DoorClient.swift', line: 'return Base64URL.encode(Data(SHA256.hash(data: SPKI.p256Header + point)))', ops: 1, why: 'two Data values joined into a key' },
-  { file: 'Door/DoorClient.swift', line: 'guard data.count + chunk.count <= cap else {', ops: 1, why: 'bytes held plus bytes arrived, both sizes of memory this process holds, checked against the 2 MiB cap before the append' },
+  { file: 'Door/DoorClient.swift', line: 'queue.asyncAfter(deadline: .now() + timeout, execute: timer)', ops: 1, why: 'the phone\'s own clock, a DispatchTime, plus its own 15 s TimeInterval: the whole exchange\'s deadline, never a door number' },
   { file: 'Door/Pairing.swift', line: 'date.timeIntervalSince1970 * 1000 < expiresAt', ops: 1, why: 'the phone\'s own clock, a Double, in milliseconds' },
   { file: 'Door/Pairing.swift', line: 'pairedAt: (now().timeIntervalSince1970 * 1000).rounded(.down),', ops: 1, why: 'the phone\'s own clock, a Double, in milliseconds' },
   { file: 'Door/Pairing.swift', line: 'guard out.utf16.count + String(character).utf16.count <= labelMaxUTF16 else { break }', ops: 1, why: 'the length of the label this phone is composing, checked against its 64 before a character is added' },
-  { file: 'Door/Pairing.swift', line: 'guard let flag = arguments.firstIndex(of: payloadArgument), arguments.indices.contains(flag + 1) else {', ops: 1, why: 'DEBUG only: an index into the launch arguments, which the test runner passes' },
-  { file: 'Door/Pairing.swift', line: 'return arguments[flag + 1]', ops: 1, why: 'DEBUG only: the same index, checked on the line above' },
   { file: 'Door/Signing.swift', line: 'standard.reserveCapacity(text.utf8.count + 3)', ops: 1, why: 'the length of a string being padded for base64, plus the padding' },
   { file: 'Door/Signing.swift', line: 'switch standard.utf8.count % 4 {', ops: 1, why: 'a string length, modulo a literal: never traps' },
   { file: 'Door/Signing.swift', line: 'guard chars.count % 2 == 0 else { return nil }', ops: 1, why: 'a string length, modulo a literal: never traps' },
@@ -1668,27 +1635,24 @@ export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED
 }
 
 // ---------------------------------------------------------------------------
-// Rules (l) to (p): the tailnet node (Phase 316.3, build/p316/SPEC.md §4 S3)
+// Rule (l): no Tailscale in the phone (Phase 330; (l), (m) and (q) of 316.3)
 // ---------------------------------------------------------------------------
 //
-// NO AGENT-RUN NODE EVER CONTACTS TAILSCALE'S SERVERS, AND NO AGENT HOLDS A
-// REAL KEY. These rules are the text half of that: the one file that can
-// start a node, what it is called, where its state lives and that the state
-// is never backed up, that nothing it keeps can leave the phone, that the
-// library's use of required-reason APIs is declared, and that the key he mints
-// by hand is never written down. What the node DOES is `test:ios` and
-// `probe:p316`'s.
+// Phase 316.3 carried a tailnet node inside the app, and rules (l), (m) and (q)
+// held the one file that could start it, its state directory and its logs.
+// Phase 330 took it out: the phone reaches the Mac's public name as an
+// ordinary pinned TLS client. So the three became this one, which holds that
+// the node stays out, and the background clause of the old (l), which is about
+// the app and not the node, is carried rather than dropped with it.
 
-/** The node's file, relative to ios/. */
-export const NODE_REL = 'Tortie/Tailnet/Node.swift';
-/** The node's name on his tailnet (SPEC §4 S3 B (c)). */
-export const NODE_HOSTNAME = 'tortie-phone';
-/** Where the project takes the framework from (SPEC §4 S3 A and B). */
-export const VENDORED_XCFRAMEWORK = '../build/vendor/tailscalekit/TailscaleKit.xcframework';
+/** Where the node lived, relative to the app folder. It is not there now. */
+export const TAILNET_DIR = 'Tailnet';
 
 // The module in backticks too (the hardening round: backticks are how Swift
-// escapes any identifier, and rule f's import pattern missed them).
+// escapes any identifier).
 const IMPORT_TAILSCALEKIT = /(?:^|[^\w.])import\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var|actor)\s+)?`?TailscaleKit(?![A-Za-z0-9_])/g;
+/** A Tailscale name in Swift code: the framework, its node, or a C symbol of libtailscale. */
+const TAILSCALE_NAMES = /\bTailscaleKit\b|\bTailscaleNode\b|\btailscale_\w+|\bTsnet\w+/g;
 const BACKGROUND_KEEPALIVE = [
   /\bbeginBackgroundTask\b/,
   /\bBGTaskScheduler\b/,
@@ -1730,43 +1694,6 @@ function innermostOpener(text, at) {
   return -1;
 }
 
-/** What the `{` at `open` opens: 'type' for a type or extension body, 'body' for anything else. */
-function braceKind(text, open) {
-  let h = open - 1;
-  while (h >= 0 && !';{}'.includes(text[h])) h -= 1;
-  const header = text.slice(h + 1, open);
-  if (/\b(?:class|struct|actor|enum|extension|protocol)\s+[A-Za-z_]/.test(header) && !/\b(?:func|init|deinit|subscript|let|var|get|set|willSet|didSet)\b|=/.test(header)) {
-    return 'type';
-  }
-  return 'body';
-}
-
-/** Where `at` sits: at file level, in a type's own body, or inside a function or closure body. */
-function scopeOf(text, at) {
-  let k = at;
-  for (;;) {
-    const open = innermostOpener(text, k);
-    if (open === -1) return 'file';
-    if (text[open] === '{') return braceKind(text, open);
-    k = open;
-  }
-}
-
-/** The `{` of the outermost function or closure body holding `at` (the member's own body), or -1. */
-function memberBody(text, at) {
-  let k = at;
-  let found = -1;
-  for (;;) {
-    const open = innermostOpener(text, k);
-    if (open === -1) return found;
-    if (text[open] === '{') {
-      if (braceKind(text, open) === 'type') return found;
-      found = open;
-    }
-    k = open;
-  }
-}
-
 /** A pbxproj string's value, unescaped. */
 const unescapePbx = (s) => s.replace(/\\(.)/g, (_, c) => (c === 'n' ? '\n' : c === 't' ? '\t' : c));
 
@@ -1782,189 +1709,57 @@ function shellCommands(script) {
 /** A command that fetches or builds, by bare name or full path (`/usr/bin/make`, `/opt/homebrew/bin/go`). */
 const BUILDS_OR_FETCHES = /(?:^|[\s;&|(`])(?:[\w.~-]*\/)*(curl|wget|git|go|gomobile|make|xcodebuild|xcrun|swift|npm|npx|node|pip3?|brew|ssh|scp|rsync|sh|bash|zsh)(?=$|[\s;&|)`])/m;
 
-/** Rule (l), the project half: the framework is the vendored build, embedded signed, and only checked for. */
-export function ruleVendoredFramework(pbxproj) {
-  const findings = [];
-  const said = { phases: 0 };
-  const refs = [...pbxproj.matchAll(/\{\s*isa\s*=\s*PBXFileReference;[^{}]*\}/g)].filter((m) => /TailscaleKit/.test(m[0]));
-  if (refs.length === 0) findings.push('project.pbxproj references no TailscaleKit.xcframework, so the app carries no node, or not the vendored one');
-  for (const r of refs) {
-    const path = /\bpath\s*=\s*"?([^";]+?)"?\s*;/.exec(r[0])?.[1] ?? null;
-    if (path !== VENDORED_XCFRAMEWORK) {
-      findings.push(`project.pbxproj takes TailscaleKit from ${String(path)}; it comes from ${VENDORED_XCFRAMEWORK}, built from pinned source by npm run vendor:tailscalekit`);
-    }
-  }
-  const embeds = [...pbxproj.matchAll(/\/\*\s*TailscaleKit\.xcframework in Embed Frameworks\s*\*\/\s*=\s*\{[^\n]*\}\s*;/g)];
-  if (embeds.length === 0) findings.push('project.pbxproj never embeds TailscaleKit.xcframework, so the app would launch without its node');
-  for (const e of embeds) {
-    if (!/\bCodeSignOnCopy\b/.test(e[0])) {
-      findings.push('project.pbxproj embeds TailscaleKit.xcframework without CodeSignOnCopy, so the framework, and the privacy manifest written into it, are not sealed with the app (research 128 §2: injecting a manifest is a signing step)');
-    }
-  }
-  const scripts = [...pbxproj.matchAll(/\bshellScript\s*=\s*"((?:[^"\\]|\\.)*)"\s*;/g)].map((m) => unescapePbx(m[1]));
-  said.phases = scripts.length;
-  if (!scripts.some((s) => /\bvendor:tailscalekit\b/.test(s))) {
-    findings.push('no build phase names npm run vendor:tailscalekit, so a missing framework would be a wall of linker errors rather than one sentence (SPEC §4 S3 B)');
-  }
-  for (const s of scripts) {
-    const bad = BUILDS_OR_FETCHES.exec(shellCommands(s));
-    if (bad !== null) {
-      findings.push(`a shell build phase in project.pbxproj runs ${bad[1]}; the build only CHECKS that the vendored framework is there, and never fetches or builds anything (SPEC §4 S3 B)`);
-    }
-  }
-  return { findings, said };
-}
-
 /**
  * Rule (l), over every Swift file under ios/ (`{ name, source }`, names
- * relative to ios/, so app files start `Tortie/`).
+ * relative to ios/, so app files start `Tortie/`), the project's text (or
+ * null), every xcconfig and whether the app folder still holds `Tailnet/`.
  */
-export function ruleNodeOnly(files, nodeRel = NODE_REL) {
+export function ruleNoTailscale(files, pbxproj, xcconfigs = [], tailnetDirExists = false) {
   const findings = [];
-  const said = { imports: 0, constructs: 0, configs: 0, privateDecls: 0 };
-  const node = files.find((f) => f.name === nodeRel);
-  if (node === undefined) findings.push(`ios/${nodeRel} does not exist, so the node has no file of its own`);
+  const said = { files: files.length, phases: 0 };
+  if (tailnetDirExists) findings.push(`ios/Tortie/${TAILNET_DIR}/ exists; the phone carries no tailnet node since Phase 330, and the folder it lived in is gone`);
   for (const f of files) {
     const { bare } = lexSwift(f.source);
-    const isNode = f === node;
-    const isApp = f.name.startsWith('Tortie/');
     const at = (m) => `ios/${f.name}:${String(lineOf(bare, m.index))}`;
+    const isApp = f.name.startsWith('Tortie/');
+    if (f.name.startsWith(`Tortie/${TAILNET_DIR}/`)) findings.push(`ios/${f.name} is in ${TAILNET_DIR}/, which the phone no longer has`);
     for (const m of bare.matchAll(/@_exported\b/g)) {
-      findings.push(`${at(m)} re-exports a module with @_exported, which would carry TailscaleKit's names into files that never import it`);
+      findings.push(`${at(m)} re-exports a module with @_exported, which would carry another module's names into files that never import it`);
     }
     for (const m of bare.matchAll(IMPORT_TAILSCALEKIT)) {
-      if (isNode) said.imports += 1;
-      else findings.push(`${at(m)} imports TailscaleKit; only ${nodeRel} may, so no other file, and no test, can start a node`);
+      findings.push(`${at(m)} imports TailscaleKit; the phone joins no tailnet and carries no Tailscale (Phase 330)`);
     }
-    if (!isNode) {
-      for (const m of bare.matchAll(/\bTailscaleNode\b/g)) findings.push(`${at(m)} names TailscaleNode; the node lives in ${nodeRel} and nowhere else`);
+    for (const m of bare.matchAll(TAILSCALE_NAMES)) {
+      findings.push(`${at(m)} names ${m[0]}; the phone joins no tailnet and carries no Tailscale (Phase 330)`);
     }
     if (isApp) {
       for (const re of BACKGROUND_KEEPALIVE) {
         for (const m of bare.matchAll(new RegExp(re.source, 'g'))) {
-          findings.push(`${at(m)} names ${m[0].replace(/\s+/g, ' ')}; the node is up while the app is and stops when it leaves the screen, and nothing keeps it running in the background (research 128 §2, guideline 2.5.4)`);
+          findings.push(`${at(m)} names ${m[0].replace(/\s+/g, ' ')}; the app reads while it is on the screen and nothing keeps it running in the background (guideline 2.5.4)`);
         }
       }
-      for (const m of bare.matchAll(/\bephemeral\s*[:=]\s*true\b/g)) {
-        findings.push(`${at(m)} makes the node ephemeral; it never is, because an ephemeral node vanishes and his one-off key cannot bring it back (research 128 §8 (v))`);
-      }
     }
   }
-  if (node === undefined) return { findings, said };
-
-  const { bare, code, strings } = lexSwift(node.source);
-  const inside = debugLines(code);
-  const where = (offset) => `ios/${nodeRel}:${String(lineOf(bare, offset))}`;
-  if (said.imports === 0) findings.push(`ios/${nodeRel} does not import TailscaleKit, so it starts no node and this rule would assert nothing`);
-  said.constructs = [...bare.matchAll(/\bTailscaleNode\s*\(/g)].length;
-  if (said.constructs === 0) findings.push(`ios/${nodeRel} never constructs a TailscaleNode, so this rule would assert nothing`);
-
-  // The node cannot leave the file: a declaration naming its type at file or
-  // type level is private (never `private(set)`, whose getter is not), or
-  // sits inside a type that is.
-  const privateHead = /\b(?:private|fileprivate)\b(?!\s*\()/;
-  const insidePrivateType = (offset) => {
-    let k = offset;
-    for (;;) {
-      const open = innermostOpener(bare, k);
-      if (open === -1) return false;
-      if (bare[open] === '{' && braceKind(bare, open) === 'type') {
-        let h = open - 1;
-        while (h >= 0 && !';{}'.includes(bare[h])) h -= 1;
-        if (privateHead.test(bare.slice(h + 1, open))) return true;
-      }
-      k = open;
-    }
-  };
-  for (const m of bare.matchAll(/\bTailscaleNode\b/g)) {
-    if (/^\s*[.(]/.test(bare.slice(m.index + 'TailscaleNode'.length))) continue;
-    if (scopeOf(bare, m.index) === 'body') continue;
-    const decl = [...bare.slice(0, m.index).matchAll(/\b(?:let|var|func|init|subscript|typealias|case)\b/g)].pop();
-    const lineStart = decl === undefined ? 0 : bare.lastIndexOf('\n', decl.index) + 1;
-    const head = decl === undefined ? '' : bare.slice(lineStart, decl.index);
-    if (privateHead.test(head) || insidePrivateType(m.index)) {
-      said.privateDecls += 1;
-      continue;
-    }
-    findings.push(`${where(m.index)} declares something of type TailscaleNode that is not private, so the node could be handed out of ${nodeRel} and started elsewhere`);
-  }
-
-  // Its name, written once, outside DEBUG, and never another name.
-  const named = strings.some((s) => s.value === NODE_HOSTNAME && s.interpolated === 0 && inside[lineOf(bare, s.start)] !== true);
-  if (!named) findings.push(`ios/${nodeRel} never writes the hostname "${NODE_HOSTNAME}" outside #if DEBUG (SPEC §4 S3 B (c))`);
-  for (const h of bare.matchAll(/\bhost[Nn]ame\s*[:=](?![:=])/g)) {
-    let v = h.index + h[0].length;
-    while (/\s/.test(bare[v] ?? '')) v += 1;
-    const literal = strings.find((s) => s.start === v);
-    if (literal !== undefined && literal.value !== NODE_HOSTNAME) {
-      findings.push(`${where(h.index)} names the node ${JSON.stringify(literal.value)}; it is ${JSON.stringify(NODE_HOSTNAME)}`);
+  const sources = [...(typeof pbxproj === 'string' ? [{ name: 'project.pbxproj', text: pbxproj }] : []), ...xcconfigs.map((x) => ({ name: x.name, text: xcconfigBare(x.text) }))];
+  for (const src of sources) {
+    for (const m of src.text.matchAll(/TailscaleKit|\.xcframework\b|vendor:tailscalekit|build\/vendor\//g)) {
+      findings.push(`${src.name}:${String(lineOf(src.text, m.index))} names ${m[0]}; the phone carries no framework of Tailscale's and no vendored build (Phase 330)`);
     }
   }
-
-  // Every TailscaleKit Configuration( is made with ephemeral: false written out.
-  for (const c of bare.matchAll(/\bConfiguration\s*\(/g)) {
-    const open = c.index + c[0].length - 1;
-    const close = closeParen(bare, open);
-    if (close === -1) continue;
-    said.configs += 1;
-    if (!/\bephemeral\s*:\s*false\b/.test(bare.slice(open, close + 1))) {
-      findings.push(`${where(c.index)} configures the node without ephemeral: false written out; it is never ephemeral, and saying so is what keeps an upstream default from changing it`);
+  if (typeof pbxproj === 'string') {
+    const scripts = [...pbxproj.matchAll(/\bshellScript\s*=\s*"((?:[^"\\]|\\.)*)"\s*;/g)].map((m) => unescapePbx(m[1]));
+    said.phases = scripts.length;
+    for (const script of scripts) {
+      const bad = BUILDS_OR_FETCHES.exec(shellCommands(script));
+      if (bad !== null) findings.push(`a shell build phase in project.pbxproj runs ${bad[1]}; no build phase fetches or builds anything`);
     }
   }
-  if (said.configs === 0) findings.push(`ios/${nodeRel} makes no TailscaleKit Configuration(, so the node's name and whether it is ephemeral cannot be read`);
   return { findings, said };
 }
 
-/** Where the node's state must never be kept, and why each is wrong. */
-const STATE_ELSEWHERE = [
-  /\.\s*(?:cachesDirectory|documentDirectory|documentsDirectory|temporaryDirectory|downloadsDirectory|itemReplacementDirectory|sharedPublicDirectory)\b/,
-  /\bNSTemporaryDirectory\s*\(/,
-  /\bNSHomeDirectory\s*\(/,
-  /\bcontainerURL\s*\(\s*forSecurityApplicationGroupIdentifier\b/
-];
-
-/** Rule (m): the node's state directory, over the node's source (or null) and every app file. */
-export function ruleStateDirectory(nodeName, nodeSource, appFiles) {
-  const findings = [];
-  const said = { creates: 0 };
-  for (const f of appFiles) {
-    const { bare } = lexSwift(f.source);
-    for (const m of bare.matchAll(/\bisExcludedFromBackup\s*=\s*false\b|\.\s*setResourceValue\s*\(\s*false\s*,\s*forKey\s*:\s*(?:URLResourceKey\s*)?\.\s*isExcludedFromBackupKey/g)) {
-      findings.push(`${f.name}:${String(lineOf(bare, m.index))} puts something back into his backups; the node's state is never backed up`);
-    }
-  }
-  if (nodeSource === null) return { findings: [...findings, `${nodeName} does not exist, so the node's state has no directory this rule can read`], said };
-  const { bare, code, strings } = lexSwift(nodeSource);
-  const inside = debugLines(code);
-  const where = (offset) => `${nodeName}:${String(lineOf(bare, offset))}`;
-  if (!/\.\s*applicationSupportDirectory\b/.test(bare)) {
-    findings.push(`${nodeName} never names .applicationSupportDirectory; the node's state lives in Application Support/tailnet/ (SPEC §4 S3 B (b))`);
-  }
-  if (!strings.some((s) => s.value === 'tailnet' && s.interpolated === 0 && inside[lineOf(bare, s.start)] !== true)) {
-    findings.push(`${nodeName} never names the folder "tailnet" outside #if DEBUG`);
-  }
-  for (const re of STATE_ELSEWHERE) {
-    for (const m of bare.matchAll(new RegExp(re.source, 'g'))) {
-      findings.push(`${where(m.index)} names ${m[0].replace(/\s+/g, '')}; the node's state is never kept where iOS purges it, backs it up or shares it, because losing it costs him a second hand-minted key (research 128 §8)`);
-    }
-  }
-  const excludes =
-    (/\bisExcludedFromBackup\s*=\s*true\b/.test(bare) && /\.\s*setResourceValues\s*\(/.test(bare)) ||
-    /\.\s*setResourceValue\s*\(\s*true\s*,\s*forKey\s*:\s*(?:URLResourceKey\s*)?\.\s*isExcludedFromBackupKey\s*\)/.test(bare);
-  if (!excludes) {
-    findings.push(`${nodeName} never sets isExcludedFromBackup = true through setResourceValues, so the node's state would go into his backups and could be restored onto another phone`);
-  }
-  for (const m of bare.matchAll(/\bcreateDirectory\s*\(/g)) {
-    said.creates += 1;
-    const open = memberBody(bare, m.index);
-    const close = open === -1 ? bare.length : matchForward(bare, open);
-    if (!/\.\s*setResourceValues?\s*\(/.test(bare.slice(m.index, close === -1 ? bare.length : close))) {
-      findings.push(`${where(m.index)} creates a directory and does not exclude it from backup after, in the same body, so a state directory deleted while the app runs would come back included`);
-    }
-  }
-  if (said.creates === 0) findings.push(`${nodeName} never creates the state directory, so its exclusion from backup would be set on a folder that may not exist`);
-  return { findings, said };
-}
+// ---------------------------------------------------------------------------
+// Rule (n): the Keychain, and the client key (Phase 330)
+// ---------------------------------------------------------------------------
 
 const ACCESSIBLE_THIS_DEVICE = new Set([
   'kSecAttrAccessibleWhenUnlockedThisDeviceOnly',
@@ -2007,6 +1802,105 @@ export function ruleKeychain(files) {
 }
 
 /**
+ * Does the `{` that most closely holds `at` open an `if` whose condition reads
+ * `SecureEnclave.isAvailable`, directly or through the name `guardName` it was
+ * bound to, and does not negate it? Only the condition after the block's own
+ * `if` is read, so a binding earlier in the function never stands in for it.
+ */
+function insideEnclaveIf(bare, at, guardName) {
+  let opener = innermostOpener(bare, at);
+  while (opener !== -1 && bare[opener] !== '{') opener = innermostOpener(bare, opener);
+  if (opener === -1) return false;
+  let h = opener - 1;
+  while (h >= 0 && !';{}'.includes(bare[h])) h -= 1;
+  const head = bare.slice(h + 1, opener);
+  const ifAt = head.search(/\bif\b(?![\s\S]*\bif\b)/);
+  if (ifAt === -1) return false;
+  const condition = head.slice(ifAt + 2);
+  const names = ['SecureEnclave\\s*\\.\\s*isAvailable\\b', ...(guardName === undefined ? [] : [`\\b${guardName}\\b`])];
+  const reads = names.some((n) => new RegExp(n).test(condition));
+  const negates = names.some((n) => new RegExp(`!\\s*\\(?\\s*${n}`).test(condition));
+  return reads && !negates;
+}
+
+/**
+ * Rule (n), the client key (build/p330/SPEC.md §4.7.1), over the files that
+ * make one (`SecKeyCreateRandomKey`) and the pairing flow's source. The key is
+ * permanent and tagged under `tortie.client.`; it is ThisDeviceOnly BY
+ * CONSTRUCTION ON BOTH PATHS (his ruling of 2026-09-29): the enclave path's
+ * access control is ThisDeviceOnly with `.privateKeyUsage` and is made inside
+ * the `if` on `SecureEnclave.isAvailable` alone, and the software key says its
+ * own accessibility; the Secure Enclave is asked for only when
+ * `SecureEnclave.isAvailable`; and every attempt that ends without being
+ * paired deletes its key by its tag.
+ */
+export function ruleClientKey(files, pairingName, pairingSource) {
+  const findings = [];
+  const said = { makers: 0 };
+  for (const f of files) {
+    const { bare, strings } = lexSwift(f.source);
+    const makes = [...bare.matchAll(/\bSecKeyCreateRandomKey\s*\(/g)];
+    if (makes.length === 0) continue;
+    said.makers += 1;
+    const at = (i) => `${f.name}:${String(lineOf(bare, i))}`;
+    const guardName = /\blet\s+([A-Za-z_]\w*)\s*=\s*SecureEnclave\s*\.\s*isAvailable\b/.exec(bare)?.[1];
+    const access = [...bare.matchAll(/\bSecAccessControlCreateWithFlags\s*\(/g)];
+    if (access.length === 0) findings.push(`${at(makes[0].index)} makes a key with no SecAccessControlCreateWithFlags, so nothing says it is ThisDeviceOnly or that the enclave may only use it`);
+    for (const a of access) {
+      const close = closeParen(bare, a.index + a[0].length - 1);
+      const call = bare.slice(a.index, close === -1 ? bare.length : close + 1);
+      if (!/\bkSecAttrAccessibleWhenUnlockedThisDeviceOnly\b/.test(call)) findings.push(`${at(a.index)} makes an access control that is not kSecAttrAccessibleWhenUnlockedThisDeviceOnly`);
+      if (!/\.\s*privateKeyUsage\b/.test(call)) findings.push(`${at(a.index)} makes an access control without .privateKeyUsage for the Secure Enclave path`);
+      // THE ACCESS CONTROL IS THE ENCLAVE PATH'S ALONE (restated after his
+      // ruling of 2026-09-29). Each path names its ThisDeviceOnly once: the
+      // enclave key's is this access control (read back `cku` on the
+      // Simulator's enclave, which he accepted), the software key's is its own
+      // kSecAttrAccessible (read back `aku`). An access control made where the
+      // software path also reaches it, which is the shape before the fix round
+      // (`enclave ? .privateKeyUsage : []`), puts the software key's class in a
+      // second place. It was NOT a leak: a software key under a flag-less
+      // access control read back `aku` too (the reverify's experiment); the
+      // `dk` once blamed on it was the enclave key's own attribute.
+      if (!insideEnclaveIf(bare, a.index, guardName)) findings.push(`${at(a.index)} makes an access control outside the if on SecureEnclave.isAvailable; the access control is the enclave path's alone and the software key says its own accessibility, so each path names its ThisDeviceOnly once (build/p330/SPEC.md §4.7.1)`);
+    }
+    // THE SOFTWARE PATH SAYS ITS ACCESSIBILITY ITSELF, in the function that
+    // makes the key (the certificate's own add elsewhere in the file does not
+    // count for it).
+    const maker = bare.slice(0, makes[0].index).lastIndexOf('func ');
+    const makerBody = maker === -1 ? '' : bodyAfter(bare, maker);
+    if (!/\bkSecAttrAccessible\s+as\s+String\s*(?:\]\s*=|:)\s*kSecAttrAccessibleWhenUnlockedThisDeviceOnly\b/.test(makerBody)) {
+      findings.push(`${at(makes[0].index)} makes a client key whose software path does not say kSecAttrAccessible: kSecAttrAccessibleWhenUnlockedThisDeviceOnly, so a phone with no Secure Enclave keeps a key that is not this device's only`);
+    }
+    if (!/\bkSecAttrIsPermanent\b[^,\n]*\btrue\b/.test(bare)) findings.push(`${at(makes[0].index)} makes a client key that is not kSecAttrIsPermanent: true, so no identity can be made of it`);
+    if (!/\bkSecAttrApplicationTag\b/.test(bare)) findings.push(`${at(makes[0].index)} makes a client key with no kSecAttrApplicationTag, so it cannot be deleted by its tag`);
+    if (!strings.some((s) => s.value === 'tortie.client.')) findings.push(`${f.name} never names the client key tag prefix "tortie.client."`);
+    const enclave = [...bare.matchAll(/\bkSecAttrTokenIDSecureEnclave\b/g)];
+    if (enclave.length === 0) findings.push(`${at(makes[0].index)} never asks for the Secure Enclave, so a device that has one keeps its client key in software`);
+    if (!/\bSecureEnclave\s*\.\s*isAvailable\b/.test(bare)) findings.push(`${at(makes[0].index)} asks for the Secure Enclave without asking SecureEnclave.isAvailable`);
+    for (const e of enclave) {
+      // The enclave token is set inside an `if` whose condition was read from
+      // SecureEnclave.isAvailable (by name or directly).
+      if (!insideEnclaveIf(bare, e.index, guardName)) findings.push(`${at(e.index)} sets kSecAttrTokenIDSecureEnclave outside an if on SecureEnclave.isAvailable`);
+    }
+  }
+  if (said.makers === 0) findings.push('no app file makes a client key (SecKeyCreateRandomKey), so the phone has nothing to present (Phase 330)');
+  if (pairingSource === null) findings.push(`${pairingName} does not exist, so nothing deletes a client key an attempt made`);
+  else {
+    const { bare } = lexSwift(pairingSource);
+    const run = /\bfunc\s+run\s*\(/.exec(bare);
+    const body = run === null ? '' : bodyAfter(bare, run.index);
+    if (!/\bif\s+case\s+\.failed\s*=\s*\w+\s*\{\s*[\w.]*clientKeys\s*\.\s*delete\s*\(\s*tag\s*:/.test(body)) {
+      findings.push(`${pairingName}'s run(_:) does not delete the attempt's client key by its tag on every ending that is not paired`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rule (o): the app's own privacy manifest
+// ---------------------------------------------------------------------------
+
+/**
  * Apple's five required-reason categories and the reasons each admits
  * (https://developer.apple.com/documentation/bundleresources/describing-use-of-required-reason-api).
  */
@@ -2016,18 +1910,6 @@ export const PRIVACY_REASONS = {
   NSPrivacyAccessedAPICategoryDiskSpace: ['85F4.1', 'E174.1', '7D9E.1', 'B728.1'],
   NSPrivacyAccessedAPICategoryActiveKeyboards: ['3EC4.1', '54BD.1'],
   NSPrivacyAccessedAPICategoryUserDefaults: ['CA92.1', '1C8F.1', 'C56D.1', 'AC6B.1']
-};
-
-/**
- * What TailscaleKit's manifest must declare: SPEC §3.6 measured `_stat`,
- * `_fstat`, `_lstat` (FileTimestamp) and `_mach_absolute_time`
- * (SystemBootTime) in the device framework's undefined symbols, all from the
- * Go runtime, and his decision 8 took C617.1 (files in the app's container)
- * and 35F9.1 (elapsed time) for them.
- */
-export const FRAMEWORK_DECLARES = {
-  NSPrivacyAccessedAPICategoryFileTimestamp: 'C617.1',
-  NSPrivacyAccessedAPICategorySystemBootTime: '35F9.1'
 };
 
 /** The app's own Swift, read for each required-reason API, so its manifest is judged against what the app calls. */
@@ -2099,121 +1981,27 @@ export function ruleManifest(label, plist, need) {
   return { findings, declared };
 }
 
-/**
- * TailscaleKit's manifest is written into the framework by
- * build/build-tailscalekit.mjs, under build/vendor/, which git ignores. The
- * gate reads its COMMITTED source, in this order: one `.xcprivacy` file under
- * build/ (not build/vendor/); else the pin, `build/tailscalekit-release.json`'s
- * `privacy.categories`, which is what the script renders into every slice (its
- * tracking, domain and collected-data fields are the script's own constants,
- * held by its --self-test and by the built product below); else the one
- * literal plist inside the script. Returns `{ label, plist }`,
- * `{ label, problem }`, or null when there is none.
- */
-export function frameworkManifestSource(root) {
-  const buildDir = join(root, 'build');
-  const found = [];
-  const look = (dir) => {
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) {
-        if (p === join(buildDir, 'vendor') || e.name === 'node_modules') continue;
-        look(p);
-      } else if (e.name.endsWith('.xcprivacy')) found.push(p);
-    }
-  };
-  look(buildDir);
-  const relOf = (p) => relative(root, p).split(sep).join('/');
-  const parsed = (label, text) => {
-    try {
-      return { label, plist: readPlistText(text) };
-    } catch (err) {
-      return { label, problem: `it could not be read as a plist: ${String(err?.message ?? err)}` };
-    }
-  };
-  if (found.length > 1) return { label: found.map(relOf).join(' and '), problem: 'two committed sources for one manifest; there is one' };
-  if (found.length === 1) return parsed(relOf(found[0]), readFileSync(found[0], 'utf8'));
-  const pinPath = join(buildDir, 'tailscalekit-release.json');
-  if (existsSync(pinPath)) {
-    const label = `${relOf(pinPath)} privacy.categories`;
-    let pin;
-    try {
-      pin = JSON.parse(readFileSync(pinPath, 'utf8'));
-    } catch (err) {
-      return { label, problem: `the pin is not JSON: ${String(err?.message ?? err)}` };
-    }
-    const categories = pin?.privacy?.categories;
-    if (categories === null || typeof categories !== 'object' || Array.isArray(categories)) {
-      return { label, problem: 'the pin holds no privacy.categories object, so the manifest the script writes has no source' };
-    }
-    return {
-      label,
-      plist: {
-        NSPrivacyTracking: false,
-        NSPrivacyTrackingDomains: [],
-        NSPrivacyCollectedDataTypes: [],
-        NSPrivacyAccessedAPITypes: Object.entries(categories).map(([cat, reasons]) => ({ NSPrivacyAccessedAPIType: cat, NSPrivacyAccessedAPITypeReasons: reasons }))
-      }
-    };
-  }
-  const script = join(buildDir, 'build-tailscalekit.mjs');
-  if (!existsSync(script)) return null;
-  const text = readFileSync(script, 'utf8');
-  const at = text.search(/<\?xml|<plist\b/);
-  const end = at === -1 ? -1 : text.indexOf('</plist>', at);
-  if (at === -1 || end === -1 || !text.includes('NSPrivacyAccessedAPITypes')) return null;
-  const body = text.slice(at, end + '</plist>'.length);
-  if (body.includes('${')) return { label: relOf(script), problem: 'its manifest is assembled from pieces this gate cannot read; keep its categories in the pin or write it as one literal plist' };
-  return parsed(`${relOf(script)} (the plist it writes)`, body.replace(/\\n/g, '\n').replace(/\\t/g, '\t'));
-}
+// ---------------------------------------------------------------------------
+// Rule (p): no tailnet key, and the code and its one-shot secret kept nowhere
+// ---------------------------------------------------------------------------
 
-/** Every `TailscaleKit.framework` directory inside a built xcframework. */
-function frameworkSlices(xcframework) {
-  const out = [];
-  const look = (dir, depth) => {
-    let entries;
-    try {
-      entries = readdirSync(dir, { withFileTypes: true });
-    } catch {
-      return;
-    }
-    for (const e of entries.sort((a, b) => a.name.localeCompare(b.name))) {
-      if (!e.isDirectory()) continue;
-      const p = join(dir, e.name);
-      if (e.name === 'TailscaleKit.framework') out.push(p);
-      else if (depth < 3) look(p, depth + 1);
-    }
-  };
-  look(xcframework, 0);
-  return out;
-}
+/** A tailnet key's names (Phases 316.3 and 316.4). None may appear under ios/ now. */
+const TAILNET_KEY_NAMES = /(?<![A-Za-z0-9_$])(?:tailnetKey|tk|authKey)(?![A-Za-z0-9_$])/g;
 
-const KEY_NAMES = ['tailnetKey', 'tk', 'authKey'];
+/** The one-shot secret's names: the QR's `ps` and the offer's `secret`. */
+const KEY_NAMES = ['secret', 'ps'];
 const KEY_ALT = KEY_NAMES.join('|');
 
 /**
- * THE NAMED ONES for rule (p): every mention of the key's name in the app
- * whose shape does not prove it goes nowhere. Same shape as ARITHMETIC_NAMED:
- * `line` is the line with its comments removed, trimmed and its spaces
- * collapsed; `uses` how many mentions on such lines in that file the entry
- * covers; `why` where the key goes from there. Empty at 316.2's head, because
- * every mention there is proved by its shape.
+ * THE NAMED ONES for rule (p): every mention of the one-shot secret, or of the
+ * raw code that carries it, whose shape does not prove it goes nowhere. Same
+ * shape as ARITHMETIC_NAMED: `line` is the line with its comments removed,
+ * trimmed and its spaces collapsed; `uses` how many mentions on such lines in
+ * that file the entry covers; `why` where it goes from there.
  */
 export const KEY_NAMED = [
-  {
-    file: 'App/TortieApp.swift',
-    line: 'try await client.transport.prepareToPair(host: pending.offer.address.host, key: pending.offer.tailnetKey)',
-    uses: 1,
-    why: "the pairing hands the code's key to its transport's prepareToPair(host:key:), whose `key` KEY_NAMES_IN reads as the key in Door/Transport.swift (the default does nothing with it) and Tailnet/Node.swift (the join, which ends it as TailscaleKit's authKey: and keeps it in no property, file or store)"
-  },
-  // The raw code (Phase 316.3's fix round): each hand-off from one watched
-  // name to another, and the parse that reads it.
+  // The raw code: each hand-off from one watched name to another, and the
+  // parse that reads it.
   {
     file: 'App/TortieApp.swift',
     line: 'let offer = try PairingOffer.parse(payload)',
@@ -2254,28 +2042,38 @@ export const KEY_NAMED = [
     file: 'Door/Pairing.swift',
     line: 'let wire = try? JSONDecoder().decode(Wire.self, from: Data(payload.utf8)) else {',
     uses: 1,
-    why: "the parse decodes the code into Wire, which holds `tk` for the checks below it, is never Encodable, and describes and mirrors itself without it (rule p's holders); the key leaves Wire only as the offer's tailnetKey"
+    why: "the parse decodes the code into Wire, which holds `ps` for the checks below it, is never Encodable, and mirrors itself without it (rule p's holders); the secret leaves Wire only as the offer's `secret`"
+  },
+  // The one-shot secret: decoded, measured, and handed to the two derivations
+  // that are its only readers.
+  {
+    file: 'Door/Pairing.swift',
+    line: 'let secret = Base64URL.decode(wire.ps), (16...64).contains(secret.count),',
+    uses: 2,
+    why: "the parse decodes `ps` into the offer's `secret` (bound on the same line, a declaration) and measures it: a count, nothing kept"
+  },
+  {
+    file: 'Door/Pairing.swift',
+    line: 'inputKeyMaterial: SymmetricKey(data: secret),',
+    uses: 2,
+    why: "the secret's two readers, HKDF-SHA256 for the seal key and for the window's challenge; each derived value lives in the call and is never kept"
   }
 ];
 
 /**
- * The files where the key travels under another name, and that name. Text
- * cannot follow a value from a caller into a callee, so a hand-off into one of
- * these files is NAMED above, and inside them the parameter is held to every
- * clause the key's own names are.
+ * The files where the raw code travels under another name, and that name.
+ * Text cannot follow a value from a caller into a callee, so a hand-off into
+ * one of these files is NAMED above, and inside them the parameter is held to
+ * every clause the secret's own names are.
  *
- * THE RAW CODE IS THE KEY TOO (Phase 316.3's fix round). The QR text carries
- * `tk`, so every name the code travels under before it is parsed is watched
- * here as the key is, WHOLE: `payload.utf8` is the code, not a field of it.
- * 316.3's verification wrote the raw code to the Keychain under an account of
- * its own with this rule green, because only the key's own names were read.
- * Where the code enters is CODE_SOURCES, and each one must be bound to a
- * watched name in the statement that reads it, so the set is closed: a code
- * can leave a watched name only by a shape the rule proves or a NAMED line.
+ * THE RAW CODE CARRIES THE ONE-SHOT SECRET (`ps`), so every name the code
+ * travels under before it is parsed is watched here, WHOLE: `payload.utf8` is
+ * the code, not a field of it. Where the code enters is CODE_SOURCES, and each
+ * one must be bound to a watched name in the statement that reads it, so the
+ * set is closed: a code can leave a watched name only by a shape the rule
+ * proves or a NAMED line.
  */
 export const KEY_NAMES_IN = {
-  'Door/Transport.swift': ['key'],
-  'Tailnet/Node.swift': ['key'],
   'Door/Pairing.swift': ['payload'],
   'Screens/DoorWords.swift': ['payload'],
   'Screens/PairingScreen.swift': ['payload', 'spent', 'code'],
@@ -2315,7 +2113,7 @@ function chainStart(view, at) {
   }
 }
 
-/** What one mention of a key name does, or null when its text does not prove it goes nowhere. */
+/** What one mention of a watched name does, or null when its text does not prove it goes nowhere. */
 export function keyMentionRole(view, at, name, alt = KEY_ALT) {
   const before = view.slice(0, at);
   const after = view.slice(at + name.length);
@@ -2330,8 +2128,6 @@ export function keyMentionRole(view, at, name, alt = KEY_ALT) {
   // A postfix `?` or `!` is attached to the name; a spaced `!` is `!=`.
   if (/^[?!]?\s*=(?!=)/.test(after)) return 'assigned to';
   const head = view.slice(0, chainStart(view, at));
-  if (/^[?!]?\s*\.\s*map\s*\(\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*\.\s*)?isTailnetKey\s*\)/.test(after)) return 'checked';
-  if (/\bisTailnetKey\s*\(\s*$/.test(head)) return 'checked';
   if (/^[?!]?\s*[!=]=\s*nil\b/.test(after) || /\bnil\s*[!=]=\s*$/.test(head)) return 'tested for nil';
   // Compared with another watched value, which is how the screen tells a
   // spent code from a new one: a Bool, nothing kept (Phase 316.3's fix round).
@@ -2342,9 +2138,9 @@ export function keyMentionRole(view, at, name, alt = KEY_ALT) {
   if (!member && /\{\s*(?:\[[^\]]*\]\s*)?\(?\s*(?:[A-Za-z_][A-Za-z0-9_]*\s*,\s*)*$/.test(before) && /^\s*(?:,\s*[A-Za-z_][A-Za-z0-9_]*\s*)*\)?\s*in\b/.test(after)) {
     return 'declared';
   }
-  if (new RegExp(`[(,]\\s*(?:${alt})\\s*:\\s*$`).test(head)) return 'handed to a key-named place';
+  if (new RegExp(`[(,]\\s*(?:${alt})\\s*:\\s*$`).test(head)) return 'handed to a watched place';
   if (new RegExp(`(?:^|[^=!<>+\\-*/%&|^.?\\w])(?:(?:let|var)\\s+)?(?:[A-Za-z_][A-Za-z0-9_]*\\s*\\.\\s*)*(?:${alt})\\s*(?::\\s*[A-Za-z_][A-Za-z0-9_?!.<>\\[\\] ]*)?=\\s*$`).test(head)) {
-    return 'bound to a key-named place';
+    return 'bound to a watched place';
   }
   return null;
 }
@@ -2362,13 +2158,27 @@ export function ruleNoRealKey(name, text) {
   return findings;
 }
 
-/**
- * Rule (p), over every app file (`{ name, source }`, names relative to the
- * app folder) and the named table.
- */
-export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Node.swift', namesIn = KEY_NAMES_IN) {
+/** Rule (p), the tailnet key half, over any text file under ios/: no tailnet key's name or shape. */
+export function ruleNoTailnetKey(name, text) {
   const findings = [];
-  const said = { mentions: 0, proved: 0, named: 0, joins: 0, holders: 0, sources: 0 };
+  if (name.endsWith('.swift')) {
+    const { bare, strings } = lexSwift(text);
+    for (const m of bare.matchAll(TAILNET_KEY_NAMES)) findings.push(`${name}:${String(lineOf(bare, m.index))} names ${m[0]}; the phone holds no tailnet key since Phase 330`);
+    for (const s of strings) if (/^(?:tk|tailnetKey)$/.test(s.value)) findings.push(`${name}:${String(lineOf(bare, s.start))} writes the field name ${JSON.stringify(s.value)}; the code carries no tailnet key since Phase 330`);
+  } else {
+    for (const m of text.matchAll(/\btailnetKey\b|"tk"\s*:/g)) findings.push(`${name}:${String(lineOf(text, m.index))} holds ${m[0]}; the code carries no tailnet key since Phase 330`);
+  }
+  for (const m of text.matchAll(/tskey-/g)) findings.push(`${name}:${String(lineOf(text, m.index))} holds tskey-; no key of Tailscale's is anywhere under ios/ since Phase 330`);
+  return findings;
+}
+
+/**
+ * Rule (p), the secret half, over every app file (`{ name, source }`, names
+ * relative to the app folder) and the named table.
+ */
+export function ruleSecretKept(files, named = KEY_NAMED, namesIn = KEY_NAMES_IN) {
+  const findings = [];
+  const said = { mentions: 0, proved: 0, named: 0, holders: 0, sources: 0 };
   const extensions = [];
   const unexplained = new Map();
   const encodable = new Set();
@@ -2383,7 +2193,6 @@ export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Nod
       const role = keyMentionRole(view, m.index, m[1], alt);
       if (role !== null) {
         said.proved += 1;
-        if (f.name === nodeName && m[1] === 'authKey' && role === 'a label') said.joins += 1;
         continue;
       }
       const line = lineOf(view, m.index);
@@ -2391,11 +2200,6 @@ export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Nod
       const key = `${f.name}\u0000${text}`;
       if (!unexplained.has(key)) unexplained.set(key, { file: f.name, text, line, count: 0 });
       unexplained.get(key).count += 1;
-    }
-    for (const s of strings) {
-      if (/^tskey/i.test(s.value) && s.value !== 'tskey-auth-') {
-        findings.push(`${f.name}:${String(lineOf(view, s.start))} writes a tailnet key into the app's source; the only key is the one he mints, carried in the pairing code`);
-      }
     }
     for (const m of bare.matchAll(/\b(struct|class|enum|actor)\s+([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>{]*>)?\s*(:[^{]*)?\{/g)) {
       const open = m.index + m[0].length - 1;
@@ -2426,14 +2230,14 @@ export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Nod
       if (bound === null || !watched.includes(bound[1])) {
         findings.push(
           `${f.name}:${String(lineOf(bare, m.index))} reads a pairing code (${m[0].replace(/\s*\($/, '(')}) without binding it to a name KEY_NAMES_IN watches in this file (${watched.join(', ') || 'none'})` +
-            `${bound === null ? '' : `; it is bound to ${bound[1]}`}; the code carries the tailnet key, so it enters only under a watched name`
+            `${bound === null ? '' : `; it is bound to ${bound[1]}`}; the code carries the one-shot secret, so it enters only under a watched name`
         );
       }
     }
   }
 
   // The values that hold it mirror themselves without it. A stored field (or
-  // an enum case's value) named by the key, or by the code in that file,
+  // an enum case's value) named by the secret, or by the code in that file,
   // makes its type a holder, and a holder declares `customMirror`, in its
   // body or an extension of it. That one member is what every door reads: a
   // value with no description is printed, interpolated, described and
@@ -2460,7 +2264,7 @@ export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Nod
     said.holders += 1;
     if (!declares('customMirror', d.name, body)) {
       findings.push(
-        `${d.file}:${String(lineOf(d.bare, d.open))} ${d.kind} ${d.name} holds ${field[1] ?? field[2]} and declares no customMirror, so print, dump or interpolation of a ${d.name} would repeat the tailnet key; declare a customMirror without it`
+        `${d.file}:${String(lineOf(d.bare, d.open))} ${d.kind} ${d.name} holds ${field[1] ?? field[2]} and declares no customMirror, so print, dump or interpolation of a ${d.name} would repeat the one-shot secret or the code; declare a customMirror without it`
       );
     }
   }
@@ -2471,194 +2275,303 @@ export function ruleTailnetKey(files, named = KEY_NAMED, nodeName = 'Tailnet/Nod
     for (const m of body.matchAll(new RegExp(`\\b(?:let|var)\\s+(${alt})\\b`, 'g'))) {
       const depth = [...body.slice(0, m.index)].reduce((n, c) => n + (c === '{' ? 1 : c === '}' ? -1 : 0), 0);
       if (depth !== 0) continue;
-      findings.push(`${d.file}:${String(lineOf(d.bare, d.open + 1 + m.index))} gives the encodable ${d.name} a field ${m[1]}, so the tailnet key could be written wherever ${d.name} is; it is kept nowhere`);
+      findings.push(`${d.file}:${String(lineOf(d.bare, d.open + 1 + m.index))} gives the encodable ${d.name} a field ${m[1]}, so the one-shot secret or the code could be written wherever ${d.name} is; it is kept nowhere`);
     }
   }
   const used = new Set();
   for (const u of unexplained.values()) {
     const entry = named.find((n) => n.file === u.file && n.line === u.text);
     if (entry === undefined) {
-      findings.push(`${u.file}:${String(u.line)} uses the tailnet key, or the code that carries it, in a way this rule cannot prove goes nowhere (${JSON.stringify(u.text.slice(0, 90))}); keep it to a check, a nil test, a comparison with a watched value or a hand-off into a watched place, or name the line in KEY_NAMED with where it goes`);
+      findings.push(`${u.file}:${String(u.line)} uses the one-shot secret, or the code that carries it, in a way this rule cannot prove goes nowhere (${JSON.stringify(u.text.slice(0, 90))}); keep it to a nil test, a comparison with a watched value or a hand-off into a watched place, or name the line in KEY_NAMED with where it goes`);
       continue;
     }
     used.add(entry);
     if (entry.uses !== u.count) {
-      findings.push(`${u.file}:${String(u.line)} mentions the key ${String(u.count)} time(s) on lines reading ${JSON.stringify(u.text)}, and KEY_NAMED names ${String(entry.uses)}; a new use on a named line is not named`);
+      findings.push(`${u.file}:${String(u.line)} mentions the secret or the code ${String(u.count)} time(s) on lines reading ${JSON.stringify(u.text)}, and KEY_NAMED names ${String(entry.uses)}; a new use on a named line is not named`);
       continue;
     }
     said.named += u.count;
   }
   for (const entry of named) {
-    if (!used.has(entry)) findings.push(`KEY_NAMED names ${entry.file} ${JSON.stringify(entry.line)}, which no longer mentions the key in a way this rule needs named; take the entry out`);
-  }
-  if (files.some((f) => f.name === nodeName) && said.joins === 0) {
-    findings.push(`${nodeName} never hands the key to TailscaleKit as authKey:, so the node joins with nothing, or the key reaches it some way this rule does not read`);
+    if (!used.has(entry)) findings.push(`KEY_NAMED names ${entry.file} ${JSON.stringify(entry.line)}, which no longer mentions the secret or the code in a way this rule needs named; take the entry out`);
   }
   return { findings, said };
 }
 
 // ---------------------------------------------------------------------------
-// Rule (q): Tailscale's own diagnostic logs, off before every start
+// Rule (t): pinned mutual TLS 1.3 to a public name (Phase 330)
 // ---------------------------------------------------------------------------
 //
-// HIS RULING, 2026-09-23: "Turn them off." tsnet uploads the node's own logs
-// to log.tailscale.com unless TS_NO_LOGS_NO_SUPPORT reads true when a node
-// starts, and an app cannot set that variable for itself (Go copied the
-// environment when the library loaded). So the pinned build adds one export,
-// `tailscale_no_logs_no_support()` (build/build-tailscalekit.mjs,
-// NO_LOGS_PATCH), and the node calls it through one wrapper whose answer it
-// checks, before every start, in every build. This rule holds each clause of
-// that as text; `test:ios` holds that the built framework answers it, and the
-// hardening round's Simulator run that a started node sent nothing to a log
-// host.
+// build/p330/SPEC.md §4.12 and §6.4 (t). What the phone's one network file
+// promises the door, held as text: the Mac destroys a connection whose client
+// key is not a paired phone's before its HTTP parser sees a byte, so every
+// paired read must present the phone's identity; the pin replaces the chain,
+// so the verify block must answer the pin's question and nothing else; TLS 1.3
+// keeps the client certificate off Funnel's relay; the code names a public
+// name and a Funnel port, never an address; and the hand-written reader holds
+// the door to what it writes (an explicit length, never a stream). What the
+// Swift DOES is test:ios's (P330TransportTests on the Simulator) and the macOS
+// harness's; the hostile answers are hostile-door.mjs's.
 
-/** The C switch the pinned build adds. */
-export const NO_LOGS_SWITCH = 'tailscale_no_logs_no_support';
+/** The eight HTTP arms (t) requires build/p316/hostile-door.mjs to name. */
+export const HOSTILE_HTTP_ARMS = ['chunked', 'no-length', 'two-lengths', 'over-cap', 'huge-header', 'not-http11', 'early-close', 'not-json'];
 
-/** For each line (1-based), whether it sits inside ANY `#if` region, whatever its condition. */
-export function conditionalLines(code) {
-  const lines = code.split('\n');
-  const inside = [false];
-  let depth = 0;
-  for (const line of lines) {
-    const t = line.trim();
-    if (/^#if\b/.test(t)) depth += 1;
-    else if (/^#endif\b/.test(t)) depth = Math.max(0, depth - 1);
-    inside.push(depth > 0 || /^#if\b/.test(t));
+/**
+ * The body of the function declared at `at` (its parameter list skipped, so a
+ * default closure in it is not taken for the body), or of the closure whose
+ * `{` follows `at`; '' when there is none.
+ */
+function bodyAfter(bare, at) {
+  let from = at;
+  if (/^\s*(?:(?:private|fileprivate|static|mutating|nonisolated)\s+)*func\b/.test(bare.slice(at, at + 80))) {
+    const paren = bare.indexOf('(', at);
+    const closed = paren === -1 ? -1 : closeParen(bare, paren);
+    if (closed !== -1) from = closed;
   }
-  return inside;
+  const open = bare.indexOf('{', from);
+  if (open === -1) return '';
+  const close = matchForward(bare, open);
+  return close === -1 ? '' : bare.slice(open, close + 1);
 }
 
 /**
- * Rule (q), over the node's source (or null), every other app file
- * (`{ name, source }`) and the vendoring script (`{ text, patch }`, its text
- * and its exported NO_LOGS_PATCH, or null).
+ * Rule (t), pure over the door client's source, the pairing flow's, the keys',
+ * every app file, hostile-door.mjs's text (or null) and Copy.swift's.
  */
-export function ruleLogsOff(nodeName, nodeSource, appFiles, script) {
+export function ruleClientTransport({ client, pairing, keys, files = [], hostile, copy }) {
   const findings = [];
-  const said = { wrappers: [], starts: 0, gated: 0, flowLogsWords: null };
-  for (const f of appFiles) {
-    const { bare } = lexSwift(f.source);
-    for (const m of bare.matchAll(/\btailscale_(?:new|start|up|loopback|listen|dial)\s*\(/g)) {
-      findings.push(`${f.name}:${String(lineOf(bare, m.index))} calls ${m[0].replace(/\s*\($/, '(')} itself; a node is started only through TailscaleNode, after the logs switch`);
-    }
-  }
-  if (nodeSource === null) return { findings: [...findings, `${nodeName} does not exist, so no node turns Tailscale's logs off`], said };
-  const { code, bare } = lexSwift(nodeSource);
-  const conditional = conditionalLines(code);
-  const where = (i) => `${nodeName}:${String(lineOf(bare, i))}`;
+  const said = { exchanges: 0, identityCalls: 0, arms: [] };
+  if (client === null) return { findings: ['Door/DoorClient.swift does not exist, so the phone has no client this rule can read'], said };
+  const c = lexSwift(client);
+  const at = (i) => `Door/DoorClient.swift:${String(lineOf(c.bare, i))}`;
 
-  // (q1) The switch is called only inside wrappers that CHECK its answer.
-  const wrappers = [];
-  for (const m of bare.matchAll(new RegExp(`\\b${NO_LOGS_SWITCH}\\s*\\(`, 'g'))) {
-    const open = memberBody(bare, m.index);
-    let h = open - 1;
-    while (h >= 0 && !';{}'.includes(bare[h])) h -= 1;
-    const head = open === -1 ? '' : bare.slice(h + 1, open);
-    const fn = /\bfunc\s+([A-Za-z_]\w*)\s*\(\s*\)\s*->\s*Bool\s*$/.exec(head.trim())?.[1];
-    const checked = new RegExp(`^${NO_LOGS_SWITCH}\\s*\\(\\s*\\)\\s*==\\s*0\\b`).test(bare.slice(m.index));
-    if (fn === undefined || !checked) {
-      findings.push(`${where(m.index)} calls ${NO_LOGS_SWITCH}() outside a function that returns whether it answered 0, so its answer could go unread`);
+  // (t1) A local identity on every paired connection; `POST /pair` alone has none.
+  if (!/\bsec_protocol_options_set_local_identity\s*\(/.test(c.bare)) findings.push('Door/DoorClient.swift never sets a local identity, so no connection presents the phone\'s client certificate and the door refuses every paired read');
+  const exchangeDecl = /\bfunc\s+exchange\s*\(/.exec(c.bare);
+  const calls = [...c.bare.matchAll(/(?<!func\s)\bexchange\s*\(/g)].filter((m) => exchangeDecl === null || m.index !== exchangeDecl.index + exchangeDecl[0].indexOf('exchange'));
+  said.exchanges = calls.length;
+  const presentAt = /\bfunc\s+present\s*\(/.exec(c.bare);
+  const presentBody = presentAt === null ? '' : bodyAfter(c.bare, presentAt.index);
+  const presentStart = presentAt === null ? -1 : c.bare.indexOf(presentBody, presentAt.index);
+  let nils = 0;
+  for (const call of calls) {
+    const close = closeParen(c.bare, c.bare.indexOf('(', call.index));
+    const args = c.bare.slice(call.index, close === -1 ? c.bare.length : close + 1);
+    const identity = /\bidentity\s*:\s*([^,)]+)/.exec(args)?.[1]?.trim();
+    if (identity === undefined) {
+      findings.push(`${at(call.index)} calls exchange( without naming identity:, so a connection could go out with no decision about what it presents`);
       continue;
     }
-    if (conditional[lineOf(bare, m.index)] === true) {
-      findings.push(`${where(m.index)} turns the logs off inside an #if, so some build would start a node with its logs on; every build, device and Simulator, Debug and Release`);
-      continue;
-    }
-    // The type the wrapper is declared in, read from the `{` that holds it.
-    const typeOpen = innermostOpener(bare, open);
-    let t = typeOpen - 1;
-    while (t >= 0 && !';{}'.includes(bare[t])) t -= 1;
-    const owner = typeOpen === -1 ? null : (/\b(?:enum|struct|class|actor|extension)\s+([A-Za-z_]\w*)/.exec(bare.slice(t + 1, typeOpen))?.[1] ?? null);
-    wrappers.push({ fn, owner });
+    if (identity === 'nil') {
+      nils += 1;
+      const inPresent = presentStart !== -1 && call.index > presentStart && call.index < presentStart + presentBody.length;
+      if (!inPresent) findings.push(`${at(call.index)} opens a connection with identity: nil outside present(_:to:); only POST /pair presents no certificate`);
+    } else said.identityCalls += 1;
   }
-  said.wrappers = wrappers.map((w) => (w.owner === null ? w.fn : `${w.owner}.${w.fn}`));
-  if (wrappers.length === 0) findings.push(`${nodeName} never asks ${NO_LOGS_SWITCH}() and checks that it answered 0, so every node it starts uploads its logs to log.tailscale.com`);
-
-  // (q2) Every start is gated by a wrapper, before it, in its own body.
-  for (const m of bare.matchAll(/\bTailscaleNode\s*\(/g)) {
-    said.starts += 1;
-    const open = memberBody(bare, m.index);
-    const before = open === -1 ? '' : bare.slice(open, m.index);
-    // A guard in the same block as the start, or one enclosing it: from the
-    // guard to the start the nesting never falls below the guard's own, so a
-    // guard in a sibling branch does not count.
-    const dominates = (at) => {
-      let depth = 0;
-      for (let k = at; k < before.length; k += 1) {
-        if (before[k] === '{') depth += 1;
-        else if (before[k] === '}') {
-          depth -= 1;
-          if (depth < 0) return false;
-        }
-      }
-      return true;
-    };
-    const gate = wrappers.some((w) =>
-      [...before.matchAll(new RegExp(`\\bguard\\s+(?:${w.owner === null ? 'Self' : w.owner}\\s*\\.\\s*)?${w.fn}\\s*\\(\\s*\\)\\s*else\\s*\\{`, 'g'))].some((g) => {
-        const elseClose = matchForward(before, g.index + g[0].length - 1);
-        return elseClose !== -1 && dominates(elseClose + 1);
-      })
-    );
-    if (!gate) {
-      findings.push(`${where(m.index)} starts a node (TailscaleNode) with no guard on the logs switch before it in the same body, so this node's logs could go to log.tailscale.com`);
-      continue;
-    }
-    if (conditional[lineOf(bare, m.index)] === true) {
-      findings.push(`${where(m.index)} starts a node inside an #if; the gate holds in every build only if the start is in every build`);
-      continue;
-    }
-    said.gated += 1;
+  if (nils !== 1) findings.push(`Door/DoorClient.swift opens ${String(nils)} connection(s) with identity: nil; exactly one does, POST /pair`);
+  const signedAt = /\bfunc\s+signedGet\b/.exec(c.bare);
+  if (signedAt === null || !/\bidentity\s*:\s*door\s*\.\s*identity\b/.test(bodyAfter(c.bare, signedAt.index))) {
+    findings.push('Door/DoorClient.swift\'s signedGet does not open its connection with identity: door.identity, so a signed read could go out with no certificate');
   }
-  if (said.starts === 0) findings.push(`${nodeName} starts no node, so this rule would assert nothing`);
+  if (keys === null || !/\blet\s+identity\s*:\s*ClientIdentity\s*$/m.test(lexSwift(keys).bare)) {
+    findings.push('Door/Keys.swift\'s PairedDoor does not hold `let identity: ClientIdentity`, non-optional, so a paired door could have nothing to present');
+  }
 
-  // (q3) The switch is in the pinned build: the vendoring script patches it
-  // in, and its patch, read as DATA from the script itself, still exports a
-  // function that sets tailscaled's own switch and answers what tsnet reads.
-  if (script === null) findings.push('build/build-tailscalekit.mjs does not exist, so nothing puts the logs switch into TailscaleKit');
+  // (t2) The verify block compares the pin and completes with that answer.
+  const verify = /\bsec_protocol_options_set_verify_block\s*\(/.exec(c.bare);
+  if (verify === null) findings.push('Door/DoorClient.swift sets no verify block, so the door\'s key is never compared with the pin');
   else {
-    const patch = Array.isArray(script.patch) ? script.patch : [];
-    const go = patch.filter((e) => e?.file === 'tailscale.go').map((e) => String(e.text)).join('');
-    const c = patch.filter((e) => e?.file === 'tailscale.c').map((e) => String(e.text)).join('');
-    for (const [clause, ok] of [
-      ['imports envknob', /\t"tailscale\.com\/envknob"\n/.test(go)],
-      [
-        "exports TsnetNoLogsNoSupport, which sets tailscaled's own switch and answers 0 only when tsnet reads it true",
-        /\/\/export TsnetNoLogsNoSupport\nfunc TsnetNoLogsNoSupport\(\) C\.int \{\n\tenvknob\.SetNoLogsNoSupport\(\)\n\tif !envknob\.NoLogsNoSupport\(\) \{\n\t\treturn -1\n\t\}\n\treturn 0\n\}/.test(go)
-      ],
-      ['wraps it in C', new RegExp(`int ${NO_LOGS_SWITCH}\\(void\\) \\{\\n\\treturn TsnetNoLogsNoSupport\\(\\);\\n\\}`).test(c)],
-      ['declares it in the header Swift reads', patch.some((e) => e?.file === 'swift/TailscaleKit/TailscaleKit.h' && String(e.text).includes(`extern int ${NO_LOGS_SWITCH}(void);`))],
-      ['applies the patch after it unpacks', /\bapplyNoLogsPatch\s*\(\s*srcDir\b/.test(script.text)]
-    ]) {
-      if (!ok) findings.push(`build/build-tailscalekit.mjs no longer ${clause}, so TailscaleKit has no working logs switch`);
+    const block = bodyAfter(c.bare, verify.index);
+    const pinned = /\blet\s+(\w+)\s*=\s*DoorPin\s*\.\s*(?:matches|of)\s*\(/.exec(block);
+    if (pinned === null) findings.push(`${at(verify.index)} the verify block never asks DoorPin, so it answers without the pin`);
+    const completes = [...block.matchAll(/\bcomplete\s*\(\s*([^)]*)\)/g)].map((m) => m[1].trim());
+    if (completes.length === 0) findings.push(`${at(verify.index)} the verify block never completes`);
+    for (const arg of completes) {
+      if (pinned === null || arg !== pinned[1]) findings.push(`${at(verify.index)} the verify block completes with ${JSON.stringify(arg)}, not the pin's answer; only the pinned key is the door`);
     }
   }
 
-  // (q4) Phase 316.4, the switch's second cost (SPEC "Owed to S4" item 2). A
-  // tailnet that requires network flow logs takes the key and then turns a
-  // node whose logs are off OFF, and tsnet's Up fails with the backend's own
-  // words (tailscale.com v1.94.1 ipn/ipnlocal/local.go 1771-1785). Without a
-  // clause of its own that failure is drawn as a refused key, and a new key
-  // fails the same way. The node writes the words once, as a plain literal
-  // (`flowLogsRefusal`, returned in `said.flowLogsWords` so the caller can
-  // hold every built slice to it), turns exactly TailscaleKit's error that
-  // carries them into TailnetFlowLogsRequired, and the join maps that to its
-  // own refusal rather than to keyRefused.
-  const { strings } = lexSwift(nodeSource);
-  const words = /\bstatic\s+let\s+flowLogsRefusal\s*=\s*"/.exec(bare);
-  const literal = words === null ? undefined : strings.find((s) => s.start >= words.index + words[0].length - 1 && s.start <= words.index + words[0].length);
-  said.flowLogsWords = literal !== undefined && !literal.interpolated && literal.value.trim().length >= 12 ? literal.value : null;
-  if (said.flowLogsWords === null) {
-    findings.push(`${nodeName} does not name the backend's flow logs refusal as one plain literal of at least 12 characters (static let flowLogsRefusal = "…"), so a tailnet that requires flow logs reads as a refused key`);
+  // (t3) TLS 1.3 at the least; nothing older, no maximum; TLS on every parameter set.
+  if (!/\bsec_protocol_options_set_min_tls_protocol_version\s*\([^)]*\.\s*TLSv13\s*\)/.test(c.bare)) findings.push('Door/DoorClient.swift does not set TLS 1.3 as the minimum; under 1.2 the phone\'s certificate crosses the relay in the clear');
+  for (const f of files) {
+    const { bare } = lexSwift(f.source);
+    for (const m of bare.matchAll(/\.\s*(?:TLSv1[012]|DTLSv1[02]?)\b|\btls_protocol_version_(?:TLSv1[012]|DTLSv1[02]?)\b|\bsec_protocol_options_set_max_tls_protocol_version\b|\bkTLSProtocol1[12]?\b|\bkSSLProtocol\w*/g)) {
+      findings.push(`${f.name}:${String(lineOf(bare, m.index))} names ${m[0].replace(/\s+/g, '')}; the door is spoken to over TLS 1.3 and nothing older`);
+    }
+    for (const m of bare.matchAll(/\bNWParameters\s*(?:\.\s*(\w+)|\(\s*(tls\s*:\s*nil|dtls|quic)?)/g)) {
+      if (m[1] !== undefined || (m[2] !== undefined && m[2] !== '')) findings.push(`${f.name}:${String(lineOf(bare, m.index))} builds NWParameters ${m[0].replace(/\s+/g, '')}; every connection is NWParameters(tls:) with the door's TLS`);
+    }
   }
-  if (!/\bcatch\s+TailscaleError\s*\.\s*internalError\s*\(\s*let\s+(\w+)\s*\)\s*where\s+TailnetFlowLogsRequired\s*\.\s*said\s*\(\s*\1\s*\)\s*\{\s*throw\s+TailnetFlowLogsRequired\s*\(\s*\)\s*\}/.test(bare)) {
-    findings.push(`${nodeName} no longer turns TailscaleKit's internalError carrying the flow logs refusal into TailnetFlowLogsRequired in the live node's up(), so that refusal reads as a refused key`);
+  if (!/\bNWParameters\s*\(\s*tls\s*:\s*\w+/.test(c.bare)) findings.push('Door/DoorClient.swift builds no NWParameters(tls:), so no connection is TLS');
+
+  // (t4) A public name and a Funnel port, never an address.
+  if (!/\bstatic\s+let\s+publicPorts\s*:\s*Set<Int>\s*=\s*\[\s*8443\s*,\s*10000\s*\]/.test(c.bare)) findings.push('Door/DoorClient.swift does not declare publicPorts: Set<Int> = [8443, 10000], the ports Funnel publishes Tortie on');
+  if (!c.strings.some((x) => x.value === '.ts.net')) findings.push('Door/DoorClient.swift never names the ".ts.net" suffix a Mac\'s public name ends in');
+  if (pairing === null) findings.push('Door/Pairing.swift does not exist, so nothing checks the code\'s host');
+  else {
+    const pb = lexSwift(pairing).bare;
+    const parse = /\bstatic\s+func\s+parse\s*\(/.exec(pb);
+    const body = parse === null ? '' : bodyAfter(pb, parse.index);
+    if (!/\bDoorEndpoint\s*\.\s*isPublicName\s*\(\s*wire\s*\.\s*host\s*\)/.test(body)) findings.push('Door/Pairing.swift\'s parse does not ask DoorEndpoint.isPublicName(wire.host), so a code could name an address');
+    if (!/\bDoorEndpoint\s*\.\s*publicPorts\s*\.\s*contains\s*\(\s*wire\s*\.\s*port\s*\)/.test(body)) findings.push('Door/Pairing.swift\'s parse does not ask DoorEndpoint.publicPorts.contains(wire.port)');
   }
-  if (!/\bstatic\s+func\s+said\s*\(\s*_\s+\w+\s*:\s*String\?\s*\)\s*->\s*Bool\s*\{\s*\w+\s*\?\s*\.\s*contains\s*\(\s*TailnetRules\s*\.\s*flowLogsRefusal\s*\)\s*\?\?\s*false\s*\}/.test(bare)) {
-    findings.push(`${nodeName}'s TailnetFlowLogsRequired.said no longer asks only whether the backend's words contain TailnetRules.flowLogsRefusal`);
+  for (const f of files) {
+    const { bare, strings } = lexSwift(f.source);
+    for (const m of bare.matchAll(/\bisIPv4Literal\b|\boctets\b/g)) findings.push(`${f.name}:${String(lineOf(bare, m.index))} names ${m[0]}; the door is a public name and never an address (Phase 330)`);
+    for (const x of strings) if (/^100\.(?:6[4-9]|[7-9]\d|1[01]\d|12[0-7])\./.test(x.value)) findings.push(`${f.name}:${String(lineOf(bare, x.start))} writes the tailnet address ${JSON.stringify(x.value)}; the phone reaches no tailnet (Phase 330)`);
   }
-  if (!/\bif\s+error\s+is\s+TailnetFlowLogsRequired\s*\{\s*throw\s+TailnetRefusal\s*\.\s*flowLogsRequired\s*\}\s*throw\s+TailnetRefusal\s*\.\s*keyRefused\b/.test(bare)) {
-    findings.push(`${nodeName}'s join no longer tells TailnetFlowLogsRequired apart, just before a refused key, so a tailnet that requires flow logs reads as a refused key`);
+
+  // (t5) The reader requires one Content-Length and refuses any Transfer-Encoding; the writer closes.
+  for (const [value, what] of [['content-length', 'the Content-Length it requires'], ['transfer-encoding', 'the Transfer-Encoding it refuses'], ['close', 'Connection: close']]) {
+    if (!c.strings.some((x) => x.value === value)) findings.push(`Door/DoorClient.swift never names ${JSON.stringify(value)}, ${what}`);
+  }
+  if (!/\bif\s+found\s*\[\s*DoorHTTP\s*\.\s*Read\s*\.\s*transferEncoding\s*\]\s*!=\s*nil\s*\{\s*throw\s+DoorFailure\s*\.\s*malformed\s*\}/.test(c.bare)) {
+    findings.push('Door/DoorClient.swift\'s reader does not refuse a Transfer-Encoding as malformed; the door never streams');
+  }
+  if (!/\bguard\s+let\s+(\w+)\s*=\s*found\s*\[\s*DoorHTTP\s*\.\s*Read\s*\.\s*contentLength\s*\]\s*,\s*\1\s*\.\s*count\s*==\s*1\s*,\s*let\s+\w+\s*=\s*DoorHTTP\s*\.\s*length\s*\(\s*\1\s*\[\s*0\s*\]\s*\)\s*else\s*\{\s*throw\s+DoorFailure\s*\.\s*malformed\s*\}/.test(c.bare)) {
+    findings.push('Door/DoorClient.swift\'s reader does not require exactly one Content-Length read through DoorHTTP.length, refusing anything else as malformed');
+  }
+  const lengthAt = /\bstatic\s+func\s+length\s*\([^)]*\)\s*->\s*Int\?/.exec(c.bare);
+  if (lengthAt === null || !/\bDoorNumber\s*\.\s*isCount\s*\(/.test(bodyAfter(c.bare, lengthAt.index))) findings.push('Door/DoorClient.swift\'s DoorHTTP.length does not take the length through DoorNumber.isCount (rule k)');
+  if ([...c.bare.matchAll(/\bNWConnection\s*\(/g)].length !== 1) findings.push('Door/DoorClient.swift makes a connection in more than one place (or none); one exchange, one connection, one request');
+
+  // (t6) The hostile door names the eight HTTP arms, each ending in a Copy sentence.
+  if (hostile === null) findings.push('build/p316/hostile-door.mjs does not exist, so no hostile HTTP answer is served to the phone');
+  else {
+    const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+    for (const arm of HOSTILE_HTTP_ARMS) {
+      const row = new RegExp(`(?:^|\\n)\\s*(?:'${arm}'|${arm.replace(/-/g, '_')}):\\s*\\{([^\\n]*)\\}`).exec(hostile);
+      if (row === null) {
+        findings.push(`build/p316/hostile-door.mjs names no HTTP arm ${JSON.stringify(arm)}`);
+        continue;
+      }
+      said.arms.push(arm);
+      if (!/\braw:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} is not written as raw HTTP bytes (raw: true)`);
+      if (!/\bends:\s*'sentence'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not end in a sentence`);
+      const expect = /\bexpect:\s*\[([^\]]*)\]/.exec(row[1])?.[1] ?? '';
+      const words = [...expect.matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+      if (words.length === 0) findings.push(`hostile-door.mjs's ${arm} names no Copy sentence it must end in`);
+      for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rule (u): no Release configuration defines DEBUG (316.4's owed item 2)
+// ---------------------------------------------------------------------------
+
+/** The settings that define a Swift or C condition. */
+const CONDITION_SETTINGS = ['SWIFT_ACTIVE_COMPILATION_CONDITIONS', 'OTHER_SWIFT_FLAGS', 'GCC_PREPROCESSOR_DEFINITIONS', 'OTHER_CFLAGS'];
+
+/** Does a setting's value define DEBUG, in any of the spellings Xcode passes on? */
+export function definesDebug(value) {
+  return /(?:^|[\s("',])(?:-D\s*)?DEBUG(?:=\S*)?(?=$|[\s)"',])/.test(value);
+}
+
+/**
+ * Rule (u), over the project, every xcconfig under ios/ and every scheme
+ * (`{ name, text }`). No Release configuration, the project's or a target's,
+ * defines DEBUG; no xcconfig does at all (which configuration takes an xcconfig
+ * is the project's to say, and none here needs one to); and every scheme
+ * archives Release.
+ */
+export function ruleNoDebugInRelease(pbxproj, xcconfigs = [], schemes = []) {
+  const findings = [];
+  const said = { release: 0, schemes: 0 };
+  if (typeof pbxproj !== 'string') return { findings: ['project.pbxproj cannot be read, so no Release configuration can be read'], said };
+  for (const c of allConfigurations(pbxproj).filter((x) => x.name === 'Release')) {
+    said.release += 1;
+    for (const setting of CONDITION_SETTINGS) {
+      for (const a of settingAssignments(c.settings, setting)) {
+        if (definesDebug(a.value)) findings.push(`${c.owner === 'the project' ? "the project's" : `${c.owner}'s`} Release configuration sets ${setting}${a.conditions} = ${JSON.stringify(a.value)}, which defines DEBUG, so every #if DEBUG seam would ship`);
+      }
+    }
+    // An array value spans lines: read the whole assignment's parentheses too.
+    for (const m of c.settings.matchAll(new RegExp(`\\b(${CONDITION_SETTINGS.join('|')})(\\[[^\\]]*\\])?\\s*=\\s*\\(([^)]*)\\)`, 'g'))) {
+      if (definesDebug(m[3])) findings.push(`${c.owner === 'the project' ? "the project's" : `${c.owner}'s`} Release configuration sets ${m[1]} to a list holding DEBUG`);
+    }
+  }
+  if (said.release === 0) findings.push('project.pbxproj has no Release configuration this rule can read');
+  for (const x of xcconfigs) {
+    const text = xcconfigBare(x.text);
+    for (const setting of CONDITION_SETTINGS) {
+      for (const a of settingAssignments(text, setting)) {
+        if (definesDebug(a.value)) findings.push(`${x.name} sets ${setting}${a.conditions} = ${JSON.stringify(a.value)}, which defines DEBUG; an xcconfig can be any configuration's base, Release's included`);
+      }
+    }
+  }
+  for (const sch of schemes) {
+    said.schemes += 1;
+    const archive = /<ArchiveAction\b[^>]*\bbuildConfiguration\s*=\s*"([^"]*)"/.exec(sch.text)?.[1];
+    if (archive !== undefined && archive !== 'Release') findings.push(`${sch.name} archives the ${archive} configuration; the archive he uploads is Release, where no seam exists`);
+    const profile = /<ProfileAction\b[^>]*\bbuildConfiguration\s*=\s*"([^"]*)"/.exec(sch.text)?.[1];
+    if (profile !== undefined && profile !== 'Release') findings.push(`${sch.name} profiles the ${profile} configuration`);
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rule (v): the phone always draws a sentence (his no-key finding)
+// ---------------------------------------------------------------------------
+
+/** The cases of `enum <name>` in a Swift source, in order. */
+export function enumCases(source, name) {
+  const { bare } = lexSwift(source);
+  const at = new RegExp(`\\benum\\s+${name}\\b[^{]*\\{`).exec(bare);
+  if (at === null) return null;
+  const open = at.index + at[0].length - 1;
+  const close = matchForward(bare, open);
+  const body = bare.slice(open + 1, close === -1 ? bare.length : close);
+  const out = [];
+  let depth = 0;
+  for (const line of body.split('\n')) {
+    if (depth === 0) {
+      const m = /^\s*case\s+(.+)$/.exec(line);
+      if (m !== null) for (const part of m[1].split(',')) out.push(part.trim().replace(/\(.*$/, '').trim());
+    }
+    for (const ch of line) depth += ch === '{' ? 1 : ch === '}' ? -1 : 0;
+  }
+  return out.filter((c) => /^[A-Za-z_]\w*$/.test(c));
+}
+
+/**
+ * Rule (v), pure over DoorWords.swift, PairingScreen.swift and Pairing.swift.
+ * `pairingSentence` and `stepSentence` return a non-optional String for every
+ * case of their enums, never nil or an empty string; PairingModel's `line` is a
+ * non-optional String, and every assignment to it is a sentence.
+ */
+export function rulePairingSentence(words, screen, pairing) {
+  const findings = [];
+  const said = { failures: 0, steps: 0, assignments: 0 };
+  if (words === null || screen === null || pairing === null) return { findings: ['DoorWords.swift, PairingScreen.swift or Pairing.swift does not exist, so what the pairing screen draws cannot be read'], said };
+  const w = lexSwift(words);
+  for (const [fn, enumName, key] of [['pairingSentence', 'PairingFailure', 'failures'], ['stepSentence', 'PairingStep', 'steps']]) {
+    const decl = new RegExp(`\\bstatic\\s+func\\s+${fn}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${enumName}\\s*\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
+    if (decl === null) {
+      findings.push(`Screens/DoorWords.swift declares no ${fn}(for: ${enumName})`);
+      continue;
+    }
+    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's ${fn} returns ${decl[1].trim()}; it returns String, so every case draws a sentence`);
+    const body = bodyAfter(w.bare, decl.index);
+    const bodyStart = w.bare.indexOf(body, decl.index);
+    for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, bodyStart + m.index))} ${fn} returns nil`);
+    for (const x of w.strings) {
+      if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} ${fn} returns an empty string`);
+    }
+    if (/\bdefault\s*:/.test(body)) findings.push(`Screens/DoorWords.swift's ${fn} has a default, so a new ${enumName} case would draw a line nobody chose`);
+    const cases = enumCases(pairing, enumName) ?? [];
+    if (cases.length === 0) findings.push(`Door/Pairing.swift declares no enum ${enumName} this rule can read`);
+    said[key] = cases.length;
+    for (const cs of cases) {
+      if (!new RegExp(`\\bcase\\b[^:]*\\.${cs}\\b[^:]*:\\s*return\\s+(?:Copy|DoorWords)\\s*\\.`).test(body)) findings.push(`Screens/DoorWords.swift's ${fn} draws no Copy sentence for .${cs}`);
+    }
+  }
+  const sc = lexSwift(screen);
+  if (!/\bprivate\s*\(\s*set\s*\)\s*var\s+line\s*:\s*String\s*=\s*(?:Copy|DoorWords)\s*\./.test(sc.bare)) findings.push('Screens/PairingScreen.swift\'s line is not `private(set) var line: String` starting as a sentence; an optional line is how the phone once drew nothing');
+  for (const m of sc.bare.matchAll(/(?<![\w.])line\s*=(?!=)\s*([^\n]*)/g)) {
+    said.assignments += 1;
+    if (!/^(?:Copy|DoorWords)\s*\./.test(m[1].trim())) findings.push(`Screens/PairingScreen.swift:${String(lineOf(sc.bare, m.index))} assigns line = ${m[1].trim().slice(0, 40)}; every line is a Copy sentence or DoorWords', never nil or empty`);
   }
   return { findings, said };
 }
@@ -2986,17 +2899,27 @@ const expect = (what, ok) => {
   expect('(b) leaves an SF Symbol name alone', ruleNoVisibleLiteral('F', 'Label(Copy.sessions, systemImage: "gearshape")\n').length === 0);
   expect('(b) leaves an identifier alone', ruleNoVisibleLiteral('F', 'x.accessibilityIdentifier("row-name")\n').length === 0);
   expect('(b) catches a sentence outside a Text', ruleNoVisibleLiteral('F', 'let why = "Your Mac did not answer."\n').length > 0);
-  expect('(c) catches URLSession outside the client', ruleNetworkOnlyInClient('F', 'let s = URLSession.shared\n').length > 0);
-  expect('(c) leaves URLSessionConfiguration alone', ruleNetworkOnlyInClient('F', 'let c: URLSessionConfiguration\n').length === 0);
-  expect('(c) catches an http literal', ruleHttpsOnly('F', 'c.scheme = "http"\n', false).length > 0);
+  expect('(c) catches URLSession anywhere in the app', ruleNoUrlLoading('F', 'let s = URLSession.shared\n').length > 0);
+  expect('(c) catches URLSession in the door client too', ruleNoUrlLoading('Door/DoorClient.swift', 'let r = URLRequest(url: u)\n').length > 0);
+  expect('(c) catches a proxy configuration', ruleNoUrlLoading('F', 'var p = ProxyConfiguration(socksv5Proxy: e)\n').length > 0);
+  expect('(c) catches NWConnection outside the client', ruleNetworkOnlyInClient('F', 'let c: NWConnection? = nil\n').length > 0);
+  expect('(c) catches the TLS options outside the client', ruleNetworkOnlyInClient('F', 'sec_protocol_options_set_verify_block(o, { _, _, c in c(true) }, q)\n').length > 0);
+  expect('(c) catches import Network outside the client', ruleNetworkOnlyInClient('F', 'import Network\n').length > 0);
+  expect('(c) catches a stream to a host outside the client', ruleNetworkOnlyInClient('F', 'Stream.getStreamsToHost(withName: h, port: p, inputStream: &i, outputStream: &o)\n').length > 0);
+  expect('(c) leaves import NetworkExtension to rule (f)', ruleNetworkOnlyInClient('F', 'import NetworkExtension\n').length === 0);
+  expect('(c) leaves a comment naming NWConnection alone', ruleNetworkOnlyInClient('F', '// NWConnection lives in DoorClient.swift\nlet x = 1\n').length === 0);
+  expect('(c) catches an http literal', ruleHttpsOnly('F', 'c.scheme = "http"\n').length > 0);
   const seams = { injection: [], transport: [], debugDecls: [] };
   expect('(d) catches a launch argument read outside DEBUG', ruleDebugSeams('F', 'let a = ProcessInfo.processInfo.arguments\n', seams).length > 0);
   expect('(d) leaves one inside DEBUG alone', ruleDebugSeams('F', '#if DEBUG\nlet a = ProcessInfo.processInfo.arguments\n#endif\n', seams).length === 0);
   expect('(d) catches a loopback literal outside DEBUG', ruleDebugSeams('F', 'let h = "127.0.0.1"\n', seams).length > 0);
   expect('(d) catches a Loopback type outside DEBUG', ruleDebugSeams('F', 'struct DirectLoopbackTransport {}\n', seams).length > 0);
+  expect('(d) catches a seam argument written outside DEBUG', ruleDebugSeams('F', 'let a = "-TortieDebugDoorEndpoint"\n', seams).length > 0);
+  const seamsIn = { injection: [], transport: [], debugDecls: [] };
+  expect('(d) collects a seam argument and its loopback inside DEBUG', ruleDebugSeams('F', '#if DEBUG\nlet a = "-TortieDebugDoorEndpoint"\nlet h = "127.0.0.1"\n#endif\n', seamsIn).length === 0 && seamsIn.arguments?.length === 1 && seamsIn.loopback?.length === 1);
   const okPlist = {
-    NSAppTransportSecurity: { NSExceptionDomains: { '100.64.0.0/10': { NSExceptionAllowsInsecureHTTPLoads: true } } },
-    NSLocalNetworkUsageDescription: 'Tortie reaches your Mac directly when both are on this network.'
+    NSCameraUsageDescription: 'Tortie uses the camera only to read the pairing code your Mac shows.',
+    UIUserInterfaceStyle: 'Dark'
   };
   // A project with one application target, built from Tortie/Info.plist in
   // both configurations with nothing generated (the hardening round reads the
@@ -3022,8 +2945,10 @@ const expect = (what, ok) => {
       appConfig('AAAA00000004', 'Release', releaseExtra),
       ''
     ].join('\n');
-  expect('(e) accepts the one exception', rulePlist(okPlist, pbxApp()).length === 0);
-  expect('(e) catches arbitrary loads', rulePlist({ ...okPlist, NSAppTransportSecurity: { ...okPlist.NSAppTransportSecurity, NSAllowsArbitraryLoads: true } }, pbxApp()).length > 0);
+  expect('(e) accepts a plist with no ATS and no local network string', rulePlist(okPlist, pbxApp()).length === 0);
+  expect('(e) catches the ATS dictionary brought back', rulePlist({ ...okPlist, NSAppTransportSecurity: { NSExceptionDomains: { 'ts.net': { NSIncludesSubdomains: true } } } }, pbxApp()).length > 0);
+  expect('(e) catches arbitrary loads', rulePlist({ ...okPlist, NSAppTransportSecurity: { NSAllowsArbitraryLoads: true } }, pbxApp()).length > 0);
+  expect('(e) catches the local network string brought back', rulePlist({ ...okPlist, NSLocalNetworkUsageDescription: 'Tortie reaches your Mac directly.' }, pbxApp()).length > 0);
   expect('(e) catches a background mode', rulePlist({ ...okPlist, UIBackgroundModes: ['fetch'] }, pbxApp()).length > 0);
   expect('(e) catches a background mode injected by the project', rulePlist(okPlist, pbxApp('        INFOPLIST_KEY_UIBackgroundModes = fetch;\n')).length > 0);
   expect('(f) catches NetworkExtension', ruleNoVpn('F.swift', 'import NetworkExtension\n').length > 0);
@@ -3107,104 +3032,42 @@ const expect = (what, ok) => {
   expect('(k) catches a bound that is not Number.MAX_SAFE_INTEGER', kRun('let x = 1\n', contractOk.replace('9_007_199_254_740_991', '9_223_372_036_854_775_807')).length > 0);
   expect('(k) catches a bounded decoder that asks no bound', kRun('let x = 1\n', contractOk.replace('        guard DoorNumber.isCount(n) else { throw Refused() }\n        return n\n    }\n    func nullableDoorNumber', '        return n\n    }\n    func nullableDoorNumber')).length > 0);
 
-  // (c), widened at 316.3.
-  expect('(c) catches a request sent from the node', ruleSendsOnlyFromClient('Tailnet/Node.swift', 'let (d, _) = try await s.data(for: r)\n').length > 0);
+  // (c), the sends.
+  expect('(c) catches a request sent from a screen', ruleSendsOnlyFromClient('Screens/F.swift', 'let (d, _) = try await s.data(for: r)\n').length > 0);
   expect('(c) catches a task made outside the client', ruleSendsOnlyFromClient('F', 'let t = s.dataTask(with: r)\n').length > 0);
   expect('(c) catches an NWConnection made outside the client', ruleSendsOnlyFromClient('F', 'let c = NWConnection(host: h, port: p, using: .tls)\n').length > 0);
+  expect('(c) catches a send outside the client', ruleSendsOnlyFromClient('F', 'c.send(content: d, completion: .idempotent)\n').length > 0);
   expect("(c) leaves a string's data(using:) alone", ruleSendsOnlyFromClient('F', 'let d = "x".data(using: .utf8)\n').length === 0);
-  expect('(c) holds the node to allowFailover = false', ruleHttpsOnly('N', 'var p = ProxyConfiguration(socksv5Proxy: e)\n', 'node').length > 0);
-  // (e), widened at 316.3.
+  // (e), widened at 316.3; the two keys refused at 330.
   const pbxOk = pbxApp();
-  expect('(e) catches a missing local network string', rulePlist({ NSAppTransportSecurity: okPlist.NSAppTransportSecurity }, pbxOk).length > 0);
-  expect(
-    '(e) does not take the local network string from a build setting, which GENERATE_INFOPLIST_FILE = NO never merges',
-    rulePlist({ NSAppTransportSecurity: okPlist.NSAppTransportSecurity }, pbxApp('        INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Tortie reaches your Mac directly.";\n')).length > 0
-  );
-  expect('(e) catches a local network string of two sentences', rulePlist({ ...okPlist, NSLocalNetworkUsageDescription: 'One thing. Another thing.' }, pbxOk).length > 0);
+  expect('(e) catches the local network string injected by a build setting', ruleInfoPlistSource(pbxApp('        INFOPLIST_KEY_NSLocalNetworkUsageDescription = "Tortie reaches your Mac directly.";\n')).findings.length > 0);
+  expect('(e) catches an ATS exception in another plist', refusedPlistKey(plistBaseKey('NSAppTransportSecurity~iphone')) !== null);
   expect('(e) catches the export-compliance key an agent may not write', rulePlist({ ...okPlist, ITSAppUsesNonExemptEncryption: false }, pbxOk).length > 0);
   expect('(e) catches a background task identifier', rulePlist({ ...okPlist, BGTaskSchedulerPermittedIdentifiers: ['x'] }, pbxOk).length > 0);
   expect('(e) catches the Background Modes capability in the project', rulePlist(okPlist, `${pbxOk} SystemCapabilities = { com.apple.BackgroundModes = { enabled = 1; }; };`).length > 0);
   expect('(f) catches the NetworkExtensions capability in the project', ruleNoVpn('project.pbxproj', 'SystemCapabilities = { com.apple.NetworkExtensions.iOS = { enabled = 1; }; };').length > 0);
 
-  // (l)
-  const nodeOk = [
-    'import Foundation',
-    'import TailscaleKit',
-    '',
-    'final class TailnetNode {',
-    '    static let hostName = "tortie-phone"',
-    '    private var node: TailscaleNode?',
-    '    private func make(_ dir: URL, key: String?) throws -> TailscaleNode {',
-    '        let config = Configuration(hostName: Self.hostName, path: dir.path, authKey: key, controlURL: kDefaultControlURL, ephemeral: false)',
-    '        let made: TailscaleNode = try TailscaleNode(config: config, logger: nil)',
-    '        return made',
-    '    }',
-    '    func start(key: String?) async throws {',
-    '        let dir = try prepare()',
-    '        let n = try make(dir, key: key)',
-    '        try await n.up()',
-    '        node = n',
-    '    }',
-    '    private func prepare() throws -> URL {',
-    '        let base = try FileManager.default.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)',
-    '        var dir = base.appendingPathComponent("tailnet", isDirectory: true)',
-    '        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)',
-    '        var values = URLResourceValues()',
-    '        values.isExcludedFromBackup = true',
-    '        try dir.setResourceValues(values)',
-    '        return dir',
-    '    }',
-    '}',
-    ''
-  ].join('\n');
-  const lRun = (node, others = []) =>
-    ruleNodeOnly([{ name: NODE_REL, source: node }, { name: 'Tortie/Screens/F.swift', source: 'let x = 1\n' }, ...others]).findings;
-  expect('(l) passes a node that is private, named, never ephemeral and alone', lRun(nodeOk).length === 0);
-  expect('(l) catches a missing node file', ruleNodeOnly([{ name: 'Tortie/Screens/F.swift', source: 'let x = 1\n' }]).findings.length > 0);
-  expect('(l) catches TailscaleKit imported by a screen', lRun(nodeOk, [{ name: 'Tortie/Screens/G.swift', source: 'import TailscaleKit\n' }]).length > 0);
-  expect('(l) catches TailscaleKit imported by a test', lRun(nodeOk, [{ name: 'TortieTests/T.swift', source: '@testable import TailscaleKit\n' }]).length > 0);
-  expect('(l) catches a single symbol imported from TailscaleKit', lRun(nodeOk, [{ name: 'Tortie/Screens/G.swift', source: 'import class TailscaleKit.TailscaleNode\n' }]).length > 0);
-  expect('(l) leaves TailscaleKit named in a comment alone', lRun(nodeOk, [{ name: 'Tortie/Screens/G.swift', source: '// import TailscaleKit is Node.swift\'s\nlet y = 2\n' }]).length === 0);
-  expect('(l) catches @_exported', lRun(nodeOk.replace('import TailscaleKit', '@_exported import TailscaleKit')).length > 0);
-  expect('(l) catches a node that can leave the file', lRun(nodeOk.replace('private var node: TailscaleNode?', 'var node: TailscaleNode?')).length > 0);
-  expect('(l) catches private(set), whose getter is not private', lRun(nodeOk.replace('private var node: TailscaleNode?', 'private(set) var node: TailscaleNode?')).length > 0);
-  expect('(l) catches a function handing the node out', lRun(nodeOk.replace('private func make(', 'func make(')).length > 0);
-  expect('(l) catches an ephemeral node', lRun(nodeOk.replace('ephemeral: false', 'ephemeral: true')).length > 0);
-  expect('(l) catches ephemeral left to the default', lRun(nodeOk.replace(', ephemeral: false', '')).length > 0);
-  expect('(l) catches another hostname', lRun(nodeOk.replace('"tortie-phone"', '"tortie-phone-2"')).length > 0);
-  expect('(l) catches a hostname literal passed straight in', lRun(nodeOk.replace('hostName: Self.hostName', 'hostName: "my-phone"')).length > 0);
-  expect('(l) catches a background task', lRun(nodeOk.replace('try await n.up()', 'try await n.up(); _ = UIApplication.shared.beginBackgroundTask { }')).length > 0);
-  expect('(l) catches a scheduled background refresh', lRun(nodeOk, [{ name: 'Tortie/App/A.swift', source: 'import BackgroundTasks\nlet s = BGTaskScheduler.shared\n' }]).length > 0);
-  expect('(l) catches TailscaleNode named outside the node', lRun(nodeOk, [{ name: 'Tortie/Screens/G.swift', source: 'var n: TailscaleNode?\n' }]).length > 0);
-  expect('(l) catches a node file that constructs no node', lRun(nodeOk.split('try TailscaleNode(').join('try Other(')).length > 0);
-  expect(
-    '(l) accepts the node held by a member of a private type',
-    lRun(`${nodeOk}private struct Live {\n    let node: TailscaleNode\n    func up() async throws { try await node.up() }\n}\n`).length === 0
-  );
-  expect('(l) catches the node held by a member of a type that is not private', lRun(`${nodeOk}struct Live {\n    let node: TailscaleNode\n}\n`).length > 0);
-  const pbxFramework = [
-    `316C1 /* TailscaleKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TailscaleKit.xcframework; path = ${VENDORED_XCFRAMEWORK}; sourceTree = SOURCE_ROOT; };`,
-    '316C3 /* TailscaleKit.xcframework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 316C1 /* TailscaleKit.xcframework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };',
-    'shellScript = "# a comment that says make and go\\nif [ ! -f \\"${SRCROOT}/../build/vendor/tailscalekit/TailscaleKit.xcframework/Info.plist\\" ]; then\\n  echo \\"error: Run npm run vendor:tailscalekit, then build again.\\"\\n  exit 1\\nfi\\n";'
-  ].join('\n');
-  expect('(l) passes the vendored framework, signed on copy, only checked for', ruleVendoredFramework(pbxFramework).findings.length === 0);
-  expect('(l) catches the framework taken from elsewhere', ruleVendoredFramework(pbxFramework.replace(VENDORED_XCFRAMEWORK, '../Frameworks/TailscaleKit.xcframework')).findings.length > 0);
-  expect('(l) catches the framework embedded unsigned', ruleVendoredFramework(pbxFramework.replace('CodeSignOnCopy, ', '')).findings.length > 0);
-  expect('(l) catches a build phase that builds the framework', ruleVendoredFramework(pbxFramework.replace('shellScript = "', 'shellScript = "make -C ../libtailscale/swift ios-fat\\n')).findings.length > 0);
-  expect('(l) catches a build phase that fetches', ruleVendoredFramework(pbxFramework.replace('shellScript = "', 'shellScript = "cd .. && npm run vendor:tailscalekit\\n')).findings.length > 0);
-  expect('(l) catches a build phase that runs make by its full path', ruleVendoredFramework(pbxFramework.replace('shellScript = "', 'shellScript = "have=$(/usr/bin/make -C x ios-fat)\\n')).findings.length > 0);
-  expect('(l) leaves plutil reading the pin alone', ruleVendoredFramework(pbxFramework.replace('shellScript = "', 'shellScript = "want=$(/usr/bin/plutil -extract commit raw -o - \\"$pin\\")\\n')).findings.length === 0);
-
-  // (m)
-  const mRun = (node, app = []) => ruleStateDirectory('Node.swift', node, app).findings;
-  expect('(m) passes state in Application Support, excluded where it is created', mRun(nodeOk).length === 0);
-  expect('(m) catches state that is backed up', mRun(nodeOk.replace('values.isExcludedFromBackup = true', 'values.isExcludedFromBackup = false')).length > 0);
-  expect('(m) catches state kept in Caches', mRun(nodeOk.replace('.applicationSupportDirectory', '.cachesDirectory')).length > 0);
-  expect('(m) catches state in the temporary directory', mRun(nodeOk.replace('let base = try', 'let tmp = NSTemporaryDirectory(); let base = try')).length > 0);
-  expect('(m) catches an exclusion that is never applied', mRun(nodeOk.replace('try dir.setResourceValues(values)', 'try dir.checkResourceIsReachable()')).length > 0);
-  expect('(m) catches a directory created where it is not excluded', mRun(nodeOk.replace('    func start(key: String?) async throws {\n', '    func start(key: String?) async throws {\n        try FileManager.default.createDirectory(at: URL(fileURLWithPath: ""), withIntermediateDirectories: true)\n')).length > 0);
-  expect('(m) accepts the NSURL form of the exclusion', mRun(nodeOk.replace('var values = URLResourceValues()\n        values.isExcludedFromBackup = true\n        try dir.setResourceValues(values)', 'try (dir as NSURL).setResourceValue(true, forKey: .isExcludedFromBackupKey)')).length === 0);
-  expect('(m) catches an app file taking the exclusion off', mRun(nodeOk, [{ name: 'F', source: 'v.isExcludedFromBackup = false\n' }]).length > 0);
+  // (l) no Tailscale in the phone.
+  const lRun = (files = [], pbx = null, xc = [], dir = false) => ruleNoTailscale([{ name: 'Tortie/Screens/F.swift', source: 'let x = 1\n' }, ...files], pbx, xc, dir).findings;
+  expect('(l) passes an app with no Tailscale in it', lRun().length === 0);
+  expect('(l) catches the Tailnet folder back', lRun([], null, [], true).length > 0);
+  expect('(l) catches a file in Tailnet/', lRun([{ name: 'Tortie/Tailnet/Node.swift', source: 'let y = 2\n' }]).length > 0);
+  expect('(l) catches TailscaleKit imported by a screen', lRun([{ name: 'Tortie/Screens/G.swift', source: 'import TailscaleKit\n' }]).length > 0);
+  expect('(l) catches TailscaleKit imported by a test', lRun([{ name: 'TortieTests/T.swift', source: '@testable import TailscaleKit\n' }]).length > 0);
+  expect('(l) catches a single symbol imported from TailscaleKit', lRun([{ name: 'Tortie/Screens/G.swift', source: 'import class TailscaleKit.TailscaleNode\n' }]).length > 0);
+  expect('(l) catches TailscaleKit imported in backticks', lRun([{ name: 'TortieTests/T.swift', source: '@testable import `TailscaleKit`\n' }]).length > 0);
+  expect('(l) catches TailscaleNode named', lRun([{ name: 'Tortie/Screens/G.swift', source: 'var n: TailscaleNode?\n' }]).length > 0);
+  expect('(l) catches a tailscale_ symbol called', lRun([{ name: 'Tortie/Door/G.swift', source: 'let h = tailscale_new()\n' }]).length > 0);
+  expect('(l) leaves TailscaleKit named in a comment or a string alone', lRun([{ name: 'Tortie/Screens/G.swift', source: '// no TailscaleKit\nlet s = "TailscaleKit"\n' }]).length === 0);
+  expect('(l) catches @_exported', lRun([{ name: 'Tortie/Screens/G.swift', source: '@_exported import Foundation\n' }]).length > 0);
+  expect('(l) catches a background task', lRun([{ name: 'Tortie/App/A.swift', source: 'let t = UIApplication.shared.beginBackgroundTask { }\n' }]).length > 0);
+  expect('(l) catches a scheduled background refresh', lRun([{ name: 'Tortie/App/A.swift', source: 'import BackgroundTasks\nlet s = BGTaskScheduler.shared\n' }]).length > 0);
+  expect('(l) catches the framework back in the project', lRun([], '316C1 /* TailscaleKit.xcframework */ = {isa = PBXFileReference; path = ../build/vendor/tailscalekit/TailscaleKit.xcframework; };').length > 0);
+  expect('(l) catches any xcframework in the project', lRun([], '316C1 /* Other.xcframework */ = {isa = PBXFileReference; path = Other.xcframework; };').length > 0);
+  expect('(l) catches a build phase that builds', lRun([], 'shellScript = "make -C ../x ios-fat\\n";').length > 0);
+  expect('(l) catches a build phase that runs make by its full path', lRun([], 'shellScript = "have=$(/usr/bin/make -C x)\\n";').length > 0);
+  expect('(l) leaves a build phase that only reads alone', lRun([], 'shellScript = "want=$(/usr/bin/plutil -extract v raw -o - \\"$f\\")\\n";').length === 0);
+  expect('(l) catches the vendoring named in an xcconfig', lRun([], null, [{ name: 'X.xcconfig', text: 'FRAMEWORK_SEARCH_PATHS = ../build/vendor/tailscalekit\n' }]).length > 0);
 
   // (n)
   const keysOk = 'q[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly\nlet s = SecItemAdd(q as CFDictionary, nil)\nlet d: [String: Any] = [kSecAttrSynchronizable as String: kCFBooleanFalse as Any]\n';
@@ -3218,80 +3081,106 @@ const expect = (what, ok) => {
   expect('(n) catches iCloud key-value storage', nRun(keysOk, 'let k = NSUbiquitousKeyValueStore.default\n').length > 0);
   expect('(n) catches no Keychain write at all', nRun('let x = 1\n').length > 0);
 
-  // (o)
-  const reasons = (cat, r) => ({ NSPrivacyAccessedAPIType: cat, NSPrivacyAccessedAPITypeReasons: [r] });
-  const fwOk = {
-    NSPrivacyTracking: false,
-    NSPrivacyTrackingDomains: [],
-    NSPrivacyCollectedDataTypes: [],
-    NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryFileTimestamp', 'C617.1'), reasons('NSPrivacyAccessedAPICategorySystemBootTime', '35F9.1')]
-  };
-  expect('(o) passes the framework manifest the measurement asks for', ruleManifest('M', fwOk, FRAMEWORK_DECLARES).findings.length === 0);
-  expect('(o) catches tracking', ruleManifest('M', { ...fwOk, NSPrivacyTracking: true }, FRAMEWORK_DECLARES).findings.length > 0);
-  expect('(o) catches a missing category', ruleManifest('M', { ...fwOk, NSPrivacyAccessedAPITypes: [fwOk.NSPrivacyAccessedAPITypes[0]] }, FRAMEWORK_DECLARES).findings.length > 0);
-  expect('(o) catches another reason than the one decided', ruleManifest('M', { ...fwOk, NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryFileTimestamp', 'DDA9.1'), fwOk.NSPrivacyAccessedAPITypes[1]] }, FRAMEWORK_DECLARES).findings.length > 0);
-  expect('(o) catches a reason from another category', ruleManifest('M', { ...fwOk, NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryFileTimestamp', '35F9.1')] }, {}).findings.length > 0);
-  expect('(o) catches an unknown category', ruleManifest('M', { ...fwOk, NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryMadeUp', 'C617.1')] }, {}).findings.length > 0);
-  expect('(o) catches collected data', ruleManifest('M', { ...fwOk, NSPrivacyCollectedDataTypes: [{ x: 1 }] }, {}).findings.length > 0);
-  expect('(o) reads the app\'s required-reason uses from its text', requiredCategories([{ name: 'F', source: 'let u = ProcessInfo.processInfo.systemUptime\nlet d = UserDefaults.standard\n' }]).size === 2);
-  expect('(o) leaves a required-reason name in a comment alone', requiredCategories([{ name: 'F', source: '// UserDefaults is never used\nlet x = 1\n' }]).size === 0);
-  const fwXml =
-    '<?xml version="1.0" encoding="UTF-8"?>\n<plist version="1.0"><dict><key>NSPrivacyTracking</key><false/><key>NSPrivacyAccessedAPITypes</key><array>' +
-    '<dict><key>NSPrivacyAccessedAPIType</key><string>NSPrivacyAccessedAPICategoryFileTimestamp</string><key>NSPrivacyAccessedAPITypeReasons</key><array><string>C617.1</string></array></dict>' +
-    '<dict><key>NSPrivacyAccessedAPIType</key><string>NSPrivacyAccessedAPICategorySystemBootTime</string><key>NSPrivacyAccessedAPITypeReasons</key><array><string>35F9.1</string></array></dict>' +
-    '</array></dict></plist>\n';
-  expect('(o) reads a manifest written as XML', ruleManifest('M', readPlistText(fwXml), FRAMEWORK_DECLARES).findings.length === 0);
-
-  // (p)
-  const offerOk = [
-    'struct PairingOffer: Sendable, Equatable, CustomReflectable {',
-    '    static let tailnetKeyPrefix = "tskey-auth-"',
-    '    let tailnetKey: String?',
-    '    var customMirror: Mirror { Mirror(self, children: [:]) }',
-    '    private struct Wire: Decodable, CustomReflectable {',
-    '        let tk: String?',
-    '        var customMirror: Mirror { Wire.empty(self) }',
+  // (n) the client key (Phase 330).
+  const mintOk = [
+    'struct K {',
+    '    func mint() throws {',
+    '        let tag = "tortie.client." + x',
+    '        let enclave = SecureEnclave.isAvailable',
+    '        var p: [String: Any] = [kSecAttrIsPermanent as String: true, kSecAttrApplicationTag as String: Data(tag.utf8)]',
+    '        if enclave {',
+    '            guard let access = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage, nil) else { throw E() }',
+    '            p[kSecAttrAccessControl as String] = access',
+    '        } else {',
+    '            p[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly',
+    '        }',
+    '        var a: [String: Any] = [kSecPrivateKeyAttrs as String: p]',
+    '        if enclave {',
+    '            a[kSecAttrTokenID as String] = kSecAttrTokenIDSecureEnclave',
+    '        }',
+    '        _ = SecKeyCreateRandomKey(a as CFDictionary, nil)',
     '    }',
-    '    static func parse(_ wire: Wire) throws -> PairingOffer {',
-    '        guard wire.tk.map(isTailnetKey) ?? true else { throw E() }',
-    '        return PairingOffer(',
-    '            tailnetKey: wire.tk',
-    '        )',
-    '    }',
-    '    static func isTailnetKey(_ key: String) -> Bool { key.hasPrefix(tailnetKeyPrefix) }',
     '}',
     ''
   ].join('\n');
-  const nodeJoin = 'final class N {\n    func start(tailnetKey: String?) {\n        guard let tailnetKey else { return }\n        let c = Configuration(hostName: "tortie-phone", authKey: tailnetKey, ephemeral: false)\n    }\n}\n';
-  const pRun = (offer, named = [], extra = []) =>
-    ruleTailnetKey([{ name: 'Door/Pairing.swift', source: offer }, { name: 'Tailnet/Node.swift', source: nodeJoin }, ...extra], named).findings;
-  expect('(p) passes a key that is parsed, checked and handed to the join', pRun(offerOk).length === 0);
-  expect('(p) catches the key logged', pRun(`${offerOk}func log(_ o: PairingOffer) { print(o.tailnetKey ?? "") }\n`).length > 0);
-  expect('(p) catches the key interpolated into a string', pRun(`${offerOk}func say(_ o: PairingOffer) -> String { "key \\(o.tailnetKey ?? "")" }\n`).length > 0);
-  expect('(p) catches the key through an alias', pRun(`${offerOk}func keep(_ o: PairingOffer) { let saved = o.tailnetKey; store(saved) }\n`).length > 0);
-  expect('(p) catches the key handed to a place that is not key-named', pRun(`${offerOk}func keep(_ o: PairingOffer) { stash(value: o.tailnetKey) }\n`).length > 0);
-  expect('(p) catches a comparison that is not a nil test', pRun(`${offerOk}func same(_ o: PairingOffer, _ k: String) -> Bool { o.tailnetKey != k }\n`).length > 0);
-  expect('(p) accepts a nil test', pRun(`${offerOk}func has(_ o: PairingOffer) -> Bool { o.tailnetKey != nil }\n`).length === 0);
-  expect('(p) catches an encodable type holding the key', pRun(offerOk.replace('private struct Wire: Decodable', 'private struct Wire: Codable')).length > 0);
-  expect('(p) catches an encodable extension over a type holding the key', pRun(`${offerOk}extension PairingOffer: Encodable {}\n`).length > 0);
-  expect('(p) catches a key literal in the app', pRun(`${offerOk}let k = "tskey-auth-kP316abc"\n`).length > 0);
-  expect('(p) accepts a named line and refuses one that grew', (() => {
-    const line = 'func keep(_ o: PairingOffer) { hand(o.tailnetKey) }';
-    const ok = pRun(`${offerOk}${line}\n`, [{ file: 'Door/Pairing.swift', line, uses: 1, why: 'x' }]).length === 0;
-    const grew = pRun(`${offerOk}func keep(_ o: PairingOffer) { hand(o.tailnetKey); hand(o.tailnetKey) }\n`, [{ file: 'Door/Pairing.swift', line: 'func keep(_ o: PairingOffer) { hand(o.tailnetKey); hand(o.tailnetKey) }', uses: 1, why: 'x' }]).length > 0;
-    return ok && grew;
-  })());
-  expect('(p) refuses a stale named entry', pRun(offerOk, [{ file: 'Door/Pairing.swift', line: 'gone(o.tailnetKey)', uses: 1, why: 'x' }]).length > 0);
-  expect('(p) catches a node that never joins with the key', ruleTailnetKey([{ name: 'Door/Pairing.swift', source: offerOk }, { name: 'Tailnet/Node.swift', source: 'let x = 1\n' }]).findings.length > 0);
-  const nodeKey = 'actor N {\n    func join(key: String?) async throws {\n        guard let key else { throw E() }\n        let c = Configuration(hostName: "tortie-phone", authKey: key, ephemeral: false)\n    }\n}\n';
-  const kIn = (node) => ruleTailnetKey([{ name: 'Door/Pairing.swift', source: offerOk }, { name: 'Tailnet/Node.swift', source: node }], [], 'Tailnet/Node.swift', { 'Tailnet/Node.swift': ['key'] }).findings;
-  expect('(p) follows the key under its parameter name inside the node', kIn(nodeKey).length === 0);
-  expect('(p) catches the parameter written somewhere inside the node', kIn(nodeKey.replace('guard let key else', 'let copy = key; stash(copy); guard let key else')).length > 0);
-  expect('(p) reads key as nothing special outside the files that carry it', ruleTailnetKey([{ name: 'Door/Pairing.swift', source: `${offerOk}func other(key: String) { stash(key) }\n` }, { name: 'Tailnet/Node.swift', source: nodeKey }], [], 'Tailnet/Node.swift', { 'Tailnet/Node.swift': ['key'] }).findings.length === 0);
+  const runOk = 'final class F {\n    func run(_ p: P) async -> O {\n        let outcome = await attempt(p)\n        if case .failed = outcome {\n            store.clientKeys.delete(tag: p.clientKey.tag)\n        }\n        return outcome\n    }\n}\n';
+  const ckRun = (src, run = runOk) => ruleClientKey([{ name: 'Door/Keys.swift', source: src }], 'Door/Pairing.swift', run).findings;
+  expect('(n) passes a client key made ThisDeviceOnly, tagged, in the enclave when it is there', ckRun(mintOk).length === 0);
+  expect('(n) catches the enclave path without privateKeyUsage', ckRun(mintOk.replace('ThisDeviceOnly, .privateKeyUsage, nil', 'ThisDeviceOnly, [], nil')).length > 0);
+  expect('(n) catches an access control that can leave the phone', ckRun(mintOk.replace('kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage', 'kSecAttrAccessibleWhenUnlocked, .privateKeyUsage')).length > 0);
+  const sharedAccess = '        guard let shared = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, enclave ? .privateKeyUsage : [], nil) else { throw E() }\n        p[kSecAttrAccessControl as String] = shared\n';
+  expect('(n) catches the shape before the fix round: one access control for both paths, made outside the enclave’s if', ckRun(mintOk.replace('        if enclave {\n            guard let access', `${sharedAccess}        if enclave {\n            guard let access`)).length > 0);
+  expect('(n) catches an access control made on the software path', ckRun(mintOk.replace('        } else {\n', `        } else {\n            p[kSecAttrAccessControl as String] = SecAccessControlCreateWithFlags(nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage, nil)\n`)).length > 0);
+  expect('(n) catches an access control under a negated enclave', ckRun(mintOk.replace('        if enclave {\n            guard let access', '        if !enclave {\n            guard let access')).length > 0);
+  expect('(n) does not take an earlier binding of isAvailable for the block’s own if', ckRun(mintOk.replace('        if enclave {\n            guard let access', '        if tag.isEmpty {\n            guard let access')).length > 0);
+  expect('(n) no longer refuses a flag-less access control inside the enclave’s if (the fix round’s reason was false)', ckRun(mintOk.replace('.privateKeyUsage, nil)', 'enclave ? .privateKeyUsage : [], nil)')).length === 0);
+  expect('(n) catches a software path that names no accessibility of its own', ckRun(mintOk.replace('            p[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly\n', '            p[kSecAttrLabel as String] = "k"\n')).length > 0);
+  expect('(n) does not take the certificate’s own accessibility for the key’s', ckRun(`${mintOk.replace('            p[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly\n', '            p[kSecAttrLabel as String] = "k"\n')}struct C {\n    func adopt() {\n        let q: [String: Any] = [kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly]\n        _ = SecItemAdd(q as CFDictionary, nil)\n    }\n}\n`).length > 0);
+  expect('(n) catches the enclave asked for without asking whether it is there', ckRun(mintOk.replace('        if enclave {\n            a[kSecAttrTokenID as String] = kSecAttrTokenIDSecureEnclave\n        }\n', '        a[kSecAttrTokenID as String] = kSecAttrTokenIDSecureEnclave\n')).length > 0);
+  expect('(n) catches a key that is not permanent', ckRun(mintOk.replace('kSecAttrIsPermanent as String: true', 'kSecAttrIsPermanent as String: false')).length > 0);
+  expect('(n) catches a key with no tag', ckRun(mintOk.replace(', kSecAttrApplicationTag as String: Data(tag.utf8)', '')).length > 0);
+  expect('(n) catches an attempt that keeps its key when it fails', ckRun(mintOk, runOk.replace('            store.clientKeys.delete(tag: p.clientKey.tag)\n', '')).length > 0);
+  expect('(n) catches no client key made at all', ckRun('let x = 1\n').length > 0);
+
+  // (o) the app's own manifest, the bundle's only one.
+  const reasons = (cat, r) => ({ NSPrivacyAccessedAPIType: cat, NSPrivacyAccessedAPITypeReasons: [r] });
+  const appOk = { NSPrivacyTracking: false, NSPrivacyTrackingDomains: [], NSPrivacyCollectedDataTypes: [], NSPrivacyAccessedAPITypes: [] };
+  expect('(o) passes a manifest that tracks nothing and uses no required-reason API', ruleManifest('M', appOk, {}).findings.length === 0);
+  expect('(o) catches tracking', ruleManifest('M', { ...appOk, NSPrivacyTracking: true }, {}).findings.length > 0);
+  expect('(o) catches a category the app uses and does not declare', ruleManifest('M', appOk, { NSPrivacyAccessedAPICategoryUserDefaults: null }).findings.length > 0);
+  expect('(o) catches a reason from another category', ruleManifest('M', { ...appOk, NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryFileTimestamp', '35F9.1')] }, {}).findings.length > 0);
+  expect('(o) catches an unknown category', ruleManifest('M', { ...appOk, NSPrivacyAccessedAPITypes: [reasons('NSPrivacyAccessedAPICategoryMadeUp', 'C617.1')] }, {}).findings.length > 0);
+  expect('(o) catches collected data', ruleManifest('M', { ...appOk, NSPrivacyCollectedDataTypes: [{ x: 1 }] }, {}).findings.length > 0);
+  expect('(o) reads the app\'s required-reason uses from its text', requiredCategories([{ name: 'F', source: 'let u = ProcessInfo.processInfo.systemUptime\nlet d = UserDefaults.standard\n' }]).size === 2);
+  expect('(o) leaves a required-reason name in a comment alone', requiredCategories([{ name: 'F', source: '// UserDefaults is never used\nlet x = 1\n' }]).size === 0);
+  expect('(o) reads a manifest written as XML', ruleManifest('M', readPlistText('<plist version="1.0"><dict><key>NSPrivacyTracking</key><false/><key>NSPrivacyAccessedAPITypes</key><array/></dict></plist>\n'), {}).findings.length === 0);
+
+  // (p) no tailnet key; the code and its one-shot secret kept nowhere.
+  const offerOk = [
+    'struct PairingOffer: Sendable, Equatable, CustomReflectable {',
+    '    let secret: Data',
+    '    var customMirror: Mirror { Mirror(self, children: [:]) }',
+    '    private struct Wire: Decodable, CustomReflectable {',
+    '        let ps: String',
+    '        var customMirror: Mirror { Mirror(self, children: [:]) }',
+    '    }',
+    '    static func parse(_ payload: String) throws -> PairingOffer {',
+    '        guard let wire = decoded(payload) else { throw E() }',
+    '        guard let secret = decode(b64: wire.ps) else { throw E() }',
+    '        return PairingOffer(secret: secret)',
+    '    }',
+    '    static func key(secret: Data) -> SymmetricKey { derive(secret: secret) }',
+    '}',
+    ''
+  ].join('\n');
+  const offerNamed = [
+    { file: 'Door/Pairing.swift', line: 'guard let wire = decoded(payload) else { throw E() }', uses: 1, why: 'x' },
+    { file: 'Door/Pairing.swift', line: 'guard let secret = decode(b64: wire.ps) else { throw E() }', uses: 1, why: 'x' }
+  ];
+  const pRun = (offer, named = offerNamed, extra = []) => ruleSecretKept([{ name: 'Door/Pairing.swift', source: offer }, ...extra], named).findings;
+  expect('(p) passes a secret that is parsed and handed to its derivation', pRun(offerOk).length === 0);
+  expect('(p) catches the secret logged', pRun(`${offerOk}func log(_ o: PairingOffer) { print(o.secret) }\n`).length > 0);
+  expect('(p) catches the secret interpolated into a string', pRun(`${offerOk}func say(_ o: PairingOffer) -> String { "s \\(o.secret)" }\n`).length > 0);
+  expect('(p) catches the secret through an alias', pRun(`${offerOk}func keep(_ o: PairingOffer) { let saved = o.secret; store(saved) }\n`).length > 0);
+  expect('(p) catches the secret written to a file', pRun(`${offerOk}func keep(_ o: PairingOffer, _ u: URL) throws { try o.secret.write(to: u) }\n`).length > 0);
+  expect('(p) catches the secret handed to a place that is not watched', pRun(`${offerOk}func keep(_ o: PairingOffer) { stash(value: o.secret) }\n`).length > 0);
+  expect('(p) accepts a nil test', pRun(`${offerOk}func has(_ o: PairingOffer?) -> Bool { o?.secret != nil }\n`).length === 0);
+  expect('(p) catches an encodable type holding the secret', pRun(offerOk.replace('private struct Wire: Decodable', 'private struct Wire: Codable')).length > 0);
+  expect('(p) catches an encodable extension over a type holding the secret', pRun(`${offerOk}extension PairingOffer: Encodable {}\n`).length > 0);
+  expect('(p) catches a struct holding the secret with no mirror', pRun(offerOk.replace('    var customMirror: Mirror { Mirror(self, children: [:]) }\n    private', '    private')).length > 0);
+  expect('(p) catches a nested type holding the secret with no mirror', pRun(offerOk.replace('        var customMirror: Mirror { Mirror(self, children: [:]) }\n', '')).length > 0);
+  expect('(p) catches a mirror that repeats the secret', pRun(offerOk.replace('var customMirror: Mirror { Mirror(self, children: [:]) }', 'var customMirror: Mirror { Mirror(self, children: ["s": secret]) }')).length > 0);
+  expect('(p) accepts a named line and refuses one that grew', pRun(offerOk.replace('decode(b64: wire.ps)', 'decode(b64: wire.ps + wire.ps)')).length > 0);
+  expect('(p) refuses a stale named entry', pRun(offerOk, [...offerNamed, { file: 'Door/Pairing.swift', line: 'gone(o.secret)', uses: 1, why: 'x' }]).length > 0);
   const madeUp = `tskey-auth-kQ7Rz${'CN'}TRL-Zx8Yw7Vu6Ts5Rq4P`;
   expect('(p) catches a string shaped like a real key', ruleNoRealKey('F', `// ${madeUp}\n`).length > 0);
   expect('(p) leaves a made-up key that says p316 alone', ruleNoRealKey('F', `let k = "tskey-auth-kP316X${'CN'}TRL-p316notarealkey00"\n`).length === 0);
   expect('(p) never repeats the key it found', !ruleNoRealKey('F', madeUp).join('').includes('Zx8Yw7'));
+  expect('(p) catches a tailnet key named in Swift', ruleNoTailnetKey('F.swift', 'let tailnetKey: String? = nil\n').length > 0);
+  expect('(p) catches tk read from a code', ruleNoTailnetKey('F.swift', 'let k = fields["tk"]\n').length > 0);
+  expect('(p) catches tskey- in any file', ruleNoTailnetKey('F.json', '{ "k": "tskey-auth-kx" }').length > 0);
+  expect('(p) catches tk in a fixture', ruleNoTailnetKey('F.json', '{"tk": "x"}').length > 0);
+  expect('(p) leaves a word that holds tk alone', ruleNoTailnetKey('F.swift', 'let tkt = 1 // tk\n').length === 0);
 
   // Phase 316.3's fix round: the shapes the verification walked past (e),
   // (f), (l), (c) and (p) with, and the coverage (i) now refuses.
@@ -3358,17 +3247,12 @@ const expect = (what, ok) => {
   expect('(i) accepts a plan with coverage off', ruleTestPlan('P', planOk).length === 0);
   expect('(i) catches a plan that leaves coverage to its default', ruleTestPlan('P', { defaultOptions: { ...planOk.defaultOptions, codeCoverage: undefined } }).length > 0);
   expect('(i) catches a configuration turning coverage back on', ruleTestPlan('P', { ...planOk, configurations: [{ name: 'c', options: { codeCoverage: true } }] }).length > 0);
-  // (c) the configuration.
-  expect('(c) accepts an ephemeral configuration in the client', ruleEphemeralOnly('C', 'let c = URLSessionConfiguration.ephemeral\n', 'client').length === 0);
-  expect('(c) catches a background session configuration', ruleEphemeralOnly('C', 'let c = URLSessionConfiguration.background(withIdentifier: "x")\n', 'client').length > 0);
-  expect('(c) catches a default configuration', ruleEphemeralOnly('C', 'let c = URLSessionConfiguration.default\nlet d = URLSessionConfiguration.ephemeral\n', 'client').length > 0);
-  expect('(c) catches a client with no ephemeral configuration', ruleEphemeralOnly('C', 'let x = 1\n', 'client').length > 0);
   // (l) the other ways to stay up.
-  expect('(l) catches performExpiringActivity', lRun(nodeOk.replace('try await n.up()', 'try await n.up(); ProcessInfo.processInfo.performExpiringActivity(withReason: "t") { _ in }')).length > 0);
-  expect('(l) catches a background URLSession', lRun(nodeOk, [{ name: 'Tortie/Door/C.swift', source: 'let c = URLSessionConfiguration.background(withIdentifier: "x")\n' }]).length > 0);
-  expect('(l) catches a background fetch interval', lRun(nodeOk, [{ name: 'Tortie/App/A.swift', source: 'UIApplication.shared.setMinimumBackgroundFetchInterval(60)\n' }]).length > 0);
-  // (p) the code that carries the key, and the values that hold it.
-  const pIn = (extra) => ruleTailnetKey([{ name: 'Door/Pairing.swift', source: offerOk }, { name: 'Tailnet/Node.swift', source: nodeJoin }, ...extra], []).findings;
+  expect('(l) catches performExpiringActivity', lRun([{ name: 'Tortie/Door/G.swift', source: 'ProcessInfo.processInfo.performExpiringActivity(withReason: "t") { _ in }\n' }]).length > 0);
+  expect('(l) catches a background URLSession', lRun([{ name: 'Tortie/Door/C.swift', source: 'let c = URLSessionConfiguration.background(withIdentifier: "x")\n' }]).length > 0);
+  expect('(l) catches a background fetch interval', lRun([{ name: 'Tortie/App/A.swift', source: 'UIApplication.shared.setMinimumBackgroundFetchInterval(60)\n' }]).length > 0);
+  // (p) the code that carries the secret, and the values that hold it.
+  const pIn = (extra) => ruleSecretKept([{ name: 'Door/Pairing.swift', source: offerOk }, ...extra], offerNamed).findings;
   const screen = (body) => ({ name: 'Screens/PairingScreen.swift', source: `final class M: CustomReflectable {\n    private var spent: String?\n    nonisolated var customMirror: Mirror { Mirror(self, children: [:]) }\n${body}\n}\n` });
   expect('(p) accepts a code compared, bound and handed to a watched label', pIn([screen('    func read(_ payload: String) {\n        guard payload != spent else { return }\n        spent = payload\n        stop(payload: payload)\n    }')]).length === 0);
   expect('(p) catches the raw code written to the Keychain', pIn([screen('    func read(_ payload: String) {\n        try? store.write(Data(payload.utf8), account: "last")\n    }')]).length > 0);
@@ -3377,17 +3261,14 @@ const expect = (what, ok) => {
   expect('(p) accepts a closure that names its code', pIn([screen('    func scan() {\n        onCode { code in\n            spent = code\n        }\n    }')]).length === 0);
   expect('(p) catches a class holding the code with no mirror', pIn([{ name: 'Screens/PairingScreen.swift', source: 'final class M {\n    private var spent: String?\n}\n' }]).length > 0);
   expect('(p) accepts the mirror declared in an extension', pIn([{ name: 'Screens/PairingScreen.swift', source: 'final class M {\n    private var spent: String?\n}\nextension M: CustomReflectable {\n    nonisolated var customMirror: Mirror { Mirror(self, children: [:]) }\n}\n' }]).length === 0);
-  expect('(p) catches a struct holding the key with no mirror', pRun(offerOk.replace('    var customMirror: Mirror { Mirror(self, children: [:]) }\n    private', '    private')).length > 0);
-  expect('(p) catches a nested type holding the key with no mirror', pRun(offerOk.replace('        var customMirror: Mirror { Wire.empty(self) }\n', '')).length > 0);
-  expect('(p) catches an enum case carrying the key with no mirror', pIn([{ name: 'Tailnet/Node.swift', source: `${nodeJoin}enum Step {\n    case join(authKey: String)\n}\n` }]).length > 0);
-  expect('(p) catches a mirror that repeats the key', pRun(offerOk.replace('var customMirror: Mirror { Mirror(self, children: [:]) }', 'var customMirror: Mirror { Mirror(self, children: ["k": tailnetKey as Any]) }')).length > 0);
-  expect('(p) catches a description that repeats the key', pRun(`${offerOk}extension PairingOffer: CustomStringConvertible {\n    var description: String { "PairingOffer \\(tailnetKey ?? "")" }\n}\n`).length > 0);
+  expect('(p) catches an enum case carrying the secret with no mirror', pIn([{ name: 'Door/Keys.swift', source: 'enum Step {\n    case present(secret: Data)\n}\n' }]).length > 0);
+  expect('(p) catches a description that repeats the secret', pIn([{ name: 'Door/Keys.swift', source: 'extension PairingOffer: CustomStringConvertible {\n    var description: String { "PairingOffer \\(secret)" }\n}\n' }]).length > 0);
   const camera = (bind) => ({ name: 'Screens/PairingScreen.swift', source: `final class S {\n    func out(_ objects: [AVMetadataObject]) {\n        guard let ${bind} = objects\n            .compactMap({ ($0 as? AVMetadataMachineReadableCodeObject)?.stringValue })\n            .first else { return }\n        _ = ${bind} == nil\n    }\n}\n` });
   expect('(p) accepts the camera reading bound to a watched name across a chain', pIn([camera('code')]).length === 0);
   expect('(p) catches the camera reading bound to a name it does not watch', pIn([camera('raw')]).length > 0);
   expect('(p) catches the launch code bound to a name it does not watch', pIn([{ name: 'App/TortieApp.swift', source: 'func launch() {\n    let raw = PairingDebugSeam.injectedPayload()\n    _ = raw\n}\n' }]).length > 0);
   expect('(p) accepts the launch code bound to a watched name', pIn([{ name: 'App/TortieApp.swift', source: 'func launch() {\n    var launchCode: String?\n    launchCode = PairingDebugSeam.injectedPayload()\n    _ = launchCode == nil\n}\n' }]).length === 0);
-  expect('(p) does not read the seam\'s own declaration as a source', pIn([{ name: 'Door/Pairing.swift', source: `${offerOk}enum Seam {\n    static func injectedPayload(_ a: [String]) -> String? { nil }\n}\n` }]).length === 0);
+  expect('(p) does not read the seam\'s own declaration as a source', pIn([{ name: 'Door/Keys.swift', source: 'enum Seam {\n    static func injectedPayload(_ a: [String]) -> String? { nil }\n}\n' }]).length === 0);
 
   // The hardening round: every shape the reverify walked past (c), (f), (l)
   // and (p) with.
@@ -3399,22 +3280,10 @@ const expect = (what, ok) => {
   expect('(f) leaves NEVER in a comment alone', ruleNoVpn('F.swift', '// NEVER a VPN\nlet x = 1\n').length === 0);
   expect('(f) catches a remote Swift package', ruleNoVpn('project.pbxproj', '316A1 /* XCRemoteSwiftPackageReference "x" */ = {isa = XCRemoteSwiftPackageReference; repositoryURL = "https://example.invalid/x"; };').length > 0);
   expect('(f) catches a local Swift package', ruleNoVpn('project.pbxproj', '316A2 /* XCLocalSwiftPackageReference "x" */ = {isa = XCLocalSwiftPackageReference; relativePath = ../x; };').length > 0);
-  // (l) the import in backticks, and Core Location's relaunches.
-  expect('(l) catches TailscaleKit imported in backticks by a test', lRun(nodeOk, [{ name: 'TortieTests/T.swift', source: '@testable import `TailscaleKit`\n' }]).length > 0);
-  expect('(l) catches significant-change location monitoring', lRun(nodeOk, [{ name: 'Tortie/Tailnet/W.swift', source: 'import CoreLocation\nlet m = CLLocationManager()\nfunc arm() { m.startMonitoringSignificantLocationChanges() }\n' }]).length > 0);
-  expect('(l) catches region monitoring', lRun(nodeOk, [{ name: 'Tortie/Tailnet/W.swift', source: 'func arm(_ m: CLLocationManager, _ r: CLRegion) { m.startMonitoring(for: r) }\n' }]).length > 0);
-  expect('(l) catches visit monitoring and CLMonitor', lRun(nodeOk, [{ name: 'Tortie/Tailnet/W.swift', source: 'func arm(_ m: CLLocationManager) async { m.startMonitoringVisits(); _ = await CLMonitor("x") }\n' }]).length > 0);
-  // (c) every session is ephemeral, however it is spelled.
-  const client = 'enum C {\n    static func configuration(_ r: Int) -> URLSessionConfiguration {\n        let c = URLSessionConfiguration.ephemeral\n        return c\n    }\n    func go() {\n        let s = URLSession(configuration: Self.configuration(1), delegate: nil, delegateQueue: nil)\n        _ = s\n    }\n}\n';
-  const cRun = (src) => ruleEphemeralOnly('C', src, 'client', configurationFunctions(src));
-  expect("(c) accepts the client's own builder and .ephemeral", cRun(client).length === 0 && cRun(client.replace('Self.configuration(1)', '.ephemeral')).length === 0);
-  expect('(c) finds the client\'s builders by their return type', configurationFunctions(client).join() === 'configuration');
-  expect('(c) catches URLSession.shared', cRun(client.replace('_ = s', '_ = URLSession.shared.dataTask(with: URL(string: "https://x")!)')).length > 0);
-  expect('(c) catches configuration: .default', cRun(client.replace('Self.configuration(1)', '.default')).length > 0);
-  expect('(c) catches a configuration passed under another name', cRun(client.replace('Self.configuration(1)', 'other')).length > 0);
-  expect('(c) catches a typed .default', cRun(client.replace('let c = URLSessionConfiguration.ephemeral', 'let d: URLSessionConfiguration = .default\n        let c = URLSessionConfiguration.ephemeral')).length > 0);
-  expect("(c) catches a builder that returns .default", cRun(client.replace('return c', 'return .default')).length > 0);
-  expect('(c) catches a computed property typed .default', cRun(`${client}var p: URLSessionConfiguration { .default }\n`).length > 0);
+  // (l) Core Location's relaunches.
+  expect('(l) catches significant-change location monitoring', lRun([{ name: 'Tortie/Door/W.swift', source: 'import CoreLocation\nlet m = CLLocationManager()\nfunc arm() { m.startMonitoringSignificantLocationChanges() }\n' }]).length > 0);
+  expect('(l) catches region monitoring', lRun([{ name: 'Tortie/Door/W.swift', source: 'func arm(_ m: CLLocationManager, _ r: CLRegion) { m.startMonitoring(for: r) }\n' }]).length > 0);
+  expect('(l) catches visit monitoring and CLMonitor', lRun([{ name: 'Tortie/Door/W.swift', source: 'func arm(_ m: CLLocationManager) async { m.startMonitoringVisits(); _ = await CLMonitor("x") }\n' }]).length > 0);
   // (p) the other ways a code comes in.
   const reader = (body) => ({ name: 'Screens/StillReader.swift', source: `enum StillReader {\n${body}\n}\n` });
   expect("(p) catches Core Image's QR reader bound to an unwatched name", pIn([reader('    static func read(_ f: CIQRCodeFeature) { let raw = f.messageString; keep(raw) }')]).length > 0);
@@ -3423,82 +3292,127 @@ const expect = (what, ok) => {
   expect('(p) catches the pasteboard read', pIn([reader('    static func read() { let raw = UIPasteboard.general.string; keep(raw) }')]).length > 0);
   expect('(p) accepts a deep link bound to a watched name', pIn([{ name: 'App/TortieApp.swift', source: 'struct V {\n    var body: some View { EmptyView().onOpenURL { code in _ = code == nil } }\n}\n' }]).length === 0);
 
-  // (q) Tailscale's own logs, off before every start.
-  const logsNode = [
-    'import TailscaleKit',
-    'enum TailnetLogs {',
-    '    static func off() -> Bool {',
-    '        tailscale_no_logs_no_support() == 0',
+  // (t) pinned mutual TLS 1.3 to a public name.
+  const clientOk = [
+    'struct DoorEndpoint {',
+    '    static let publicPorts: Set<Int> = [8443, 10000]',
+    '    static let nameSuffix = ".ts.net"',
+    '}',
+    'enum DoorHTTP {',
+    '    enum Read {',
+    '        static let contentLength = "content-length"',
+    '        static let transferEncoding = "transfer-encoding"',
+    '    }',
+    '    static let close = "close"',
+    '    static func length(_ text: String) -> Int? {',
+    '        guard let number = Int(text), DoorNumber.isCount(number) else { return nil }',
+    '        return number',
     '    }',
     '}',
-    'private struct Engine {',
-    '    func start() throws -> Any {',
-    '        guard TailnetLogs.off() else { throw E() }',
-    '        return try TailscaleNode(config: c, logger: nil)',
+    'final class DoorClient {',
+    '    func present(_ p: Data, to door: DoorEndpoint) async throws -> PairAnswer {',
+    '        let reply = try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
+    '        return try decode(reply)',
+    '    }',
+    '    private func signedGet(_ target: String, door: PairedDoor) async throws -> DoorReply {',
+    '        try await exchange(method: "GET", target: target, headers: [], body: nil, door: door.endpoint, identity: door.identity)',
+    '    }',
+    '    func exchange(method: String, target: String, headers: [(String, String)], body: Data?, door: DoorEndpoint, identity: ClientIdentity?) async throws -> DoorReply {',
+    '        let c = NWConnection(to: e, using: try Self.parameters(identity: identity))',
+    '        return try await run(c)',
+    '    }',
+    '    static func parameters(identity: ClientIdentity?) throws -> NWParameters {',
+    '        let tls = NWProtocolTLS.Options()',
+    '        let options = tls.securityProtocolOptions',
+    '        sec_protocol_options_set_min_tls_protocol_version(options, .TLSv13)',
+    '        sec_protocol_options_set_verify_block(options, { _, trust, complete in',
+    '            let matched = DoorPin.matches(sec_trust_copy_ref(trust).takeRetainedValue(), pin: pin)',
+    '            complete(matched)',
+    '        }, queue)',
+    '        if let identity { sec_protocol_options_set_local_identity(options, sec_identity_create(identity.identity)!) }',
+    '        return NWParameters(tls: tls, tcp: NWProtocolTCP.Options())',
     '    }',
     '}',
-    'enum TailnetRules {',
-    '    static let flowLogsRefusal = "tailnet requires logging to be enabled"',
-    '}',
-    'struct TailnetFlowLogsRequired: Error {',
-    '    static func said(_ message: String?) -> Bool {',
-    '        message?.contains(TailnetRules.flowLogsRefusal) ?? false',
-    '    }',
-    '}',
-    'actor Node {',
-    '    func join() throws {',
-    '        do { try up() } catch {',
-    '            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }',
-    '            throw TailnetRefusal.keyRefused',
-    '        }',
-    '    }',
-    '}',
-    'private struct Running {',
-    '    func up() async throws {',
-    '        do {',
-    '            try await node.up()',
-    '        } catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) {',
-    '            throw TailnetFlowLogsRequired()',
-    '        }',
+    'struct Reader {',
+    '    mutating func read(_ found: [String: [String]]) throws {',
+    '        if found[DoorHTTP.Read.transferEncoding] != nil { throw DoorFailure.malformed }',
+    '        guard let lengths = found[DoorHTTP.Read.contentLength], lengths.count == 1,',
+    '              let length = DoorHTTP.length(lengths[0]) else { throw DoorFailure.malformed }',
+    '        _ = length',
     '    }',
     '}',
     ''
   ].join('\n');
-  const goPatch = '//export TsnetNoLogsNoSupport\nfunc TsnetNoLogsNoSupport() C.int {\n\tenvknob.SetNoLogsNoSupport()\n\tif !envknob.NoLogsNoSupport() {\n\t\treturn -1\n\t}\n\treturn 0\n}\n';
-  const scriptOk = {
-    text: 'applyNoLogsPatch(srcDir, log);',
-    patch: [
-      { file: 'tailscale.go', text: '\t"tailscale.com/envknob"\n' },
-      { file: 'tailscale.go', text: goPatch },
-      { file: 'tailscale.c', text: 'int tailscale_no_logs_no_support(void) {\n\treturn TsnetNoLogsNoSupport();\n}\n' },
-      { file: 'swift/TailscaleKit/TailscaleKit.h', text: 'extern int tailscale_no_logs_no_support(void);\n' }
-    ]
-  };
-  const qRun = (node, others = [], script = scriptOk) => ruleLogsOff('N.swift', node, others, script).findings;
-  expect('(q) passes a node whose every start is guarded by the checked switch', qRun(logsNode).length === 0);
-  expect('(q) catches a start with no guard', qRun(logsNode.replace('        guard TailnetLogs.off() else { throw E() }\n', '')).length > 0);
-  expect('(q) catches the switch called and its answer dropped', qRun(logsNode.replace('        guard TailnetLogs.off() else { throw E() }\n', '        _ = TailnetLogs.off()\n')).length > 0);
-  expect('(q) catches a wrapper that does not check the answer', qRun(logsNode.replace('tailscale_no_logs_no_support() == 0', '_ = tailscale_no_logs_no_support(); return true')).length > 0);
-  expect('(q) catches the switch only in DEBUG', qRun(logsNode.replace('enum TailnetLogs {', '#if DEBUG\nenum TailnetLogs {').replace('    }\n}\nprivate struct', '    }\n}\n#endif\nprivate struct')).length > 0);
-  expect('(q) catches a guard in a branch the start is not in', qRun(logsNode.replace('        guard TailnetLogs.off() else { throw E() }\n', '        if flag {\n            guard TailnetLogs.off() else { throw E() }\n        }\n')).length > 0);
-  expect('(q) accepts a guard that encloses the start', qRun(logsNode.replace('        return try TailscaleNode(config: c, logger: nil)\n', '        if flag {\n            return try TailscaleNode(config: c, logger: nil)\n        }\n        throw E()\n')).length === 0);
-  expect('(q) catches a node started with the C API itself', qRun(logsNode, [{ name: 'F.swift', source: 'let h = tailscale_new()\n_ = tailscale_up(h)\n' }]).length > 0);
-  expect('(q) catches a patch that no longer sets the switch', qRun(logsNode, [], { ...scriptOk, patch: scriptOk.patch.map((e) => ({ ...e, text: e.text.replace('envknob.SetNoLogsNoSupport()', '_ = envknob.Bool("x")') })) }).length > 0);
-  expect('(q) catches a patch that answers 0 whatever tsnet reads', qRun(logsNode, [], { ...scriptOk, patch: scriptOk.patch.map((e) => ({ ...e, text: e.text.replace('\t\treturn -1\n', '\t\treturn 0\n') })) }).length > 0);
-  expect('(q) catches a script that never applies its patch', qRun(logsNode, [], { ...scriptOk, text: '// applyNoLogsPatch is not called' }).length > 0);
-  expect('(q) catches no vendoring script', qRun(logsNode, [], null).length > 0);
-  expect('(q) catches a node file with no start at all', qRun('enum TailnetLogs {\n    static func off() -> Bool { tailscale_no_logs_no_support() == 0 }\n}\n').length > 0);
-  // (q4) The flow logs refusal, Phase 316.4.
-  expect('(q4) reads the flow logs words from the fixture', ruleLogsOff('N.swift', logsNode, [], scriptOk).said.flowLogsWords === 'tailnet requires logging to be enabled');
-  expect('(q4) catches the words gone', qRun(logsNode.replace('    static let flowLogsRefusal = "tailnet requires logging to be enabled"\n', '')).length > 0);
-  expect('(q4) catches the words built by interpolation', qRun(logsNode.replace('"tailnet requires logging to be enabled"', '"tailnet requires \\(what)"')).length > 0);
-  expect('(q4) catches the words cut too short to mean anything', qRun(logsNode.replace('"tailnet requires logging to be enabled"', '"tailnet"')).length > 0);
-  expect('(q4) catches the live up() no longer turning the error into its own', qRun(logsNode.replace(' where TailnetFlowLogsRequired.said(message)', '')).length > 0);
-  expect('(q4) catches the live up() throwing something else for it', qRun(logsNode.replace('            throw TailnetFlowLogsRequired()\n', '            throw E()\n')).length > 0);
-  expect('(q4) catches said() answering true for everything', qRun(logsNode.replace('message?.contains(TailnetRules.flowLogsRefusal) ?? false', 'true')).length > 0);
-  expect('(q4) catches the join drawing it as a refused key', qRun(logsNode.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n', '')).length > 0);
-  expect('(q4) catches the join telling it apart only AFTER a refused key', qRun(logsNode.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n            throw TailnetRefusal.keyRefused\n', '            throw TailnetRefusal.keyRefused\n            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n')).length > 0);
-  expect('(q4) does not take a word inside a comment for the catch', qRun(logsNode.replace('        } catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) {\n            throw TailnetFlowLogsRequired()\n        }\n', '        } catch {}\n        // catch TailscaleError.internalError(let message) where TailnetFlowLogsRequired.said(message) { throw TailnetFlowLogsRequired() }\n')).length > 0);
+  const pairingOk = 'struct PairingOffer {\n    static func parse(_ payload: String) throws -> PairingOffer {\n        guard DoorEndpoint.isPublicName(wire.host),\n              DoorEndpoint.publicPorts.contains(wire.port) else { throw E() }\n        return x\n    }\n}\n';
+  const keysOk2 = 'struct PairedDoor {\n    let identity: ClientIdentity\n}\n';
+  const armLine = (name) => `  ${name.includes('-') ? `'${name}'` : name}: { what: 'x', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },`;
+  const hostileOk = `export const HOSTILE_ARMS = Object.freeze({\n${HOSTILE_HTTP_ARMS.map(armLine).join('\n')}\n});\n`;
+  const copyOk = 'enum Copy {\n    static let answerUnreadable = "Tortie could not read your Mac’s answer."\n}\n';
+  const tRun = ({ client = clientOk, pairing = pairingOk, keys = keysOk2, hostile = hostileOk, copy = copyOk } = {}) =>
+    ruleClientTransport({ client, pairing, keys, files: [{ name: 'Door/DoorClient.swift', source: client }], hostile, copy }).findings;
+  expect('(t) passes a pinned client with an identity on every paired read', tRun().length === 0);
+  expect('(t) catches no local identity', tRun({ client: clientOk.replace('        if let identity { sec_protocol_options_set_local_identity(options, sec_identity_create(identity.identity)!) }\n', '') }).length > 0);
+  expect('(t) catches a signed read with no identity', tRun({ client: clientOk.replace('identity: door.identity)', 'identity: nil)') }).length > 0);
+  expect('(t) catches an exchange that names no identity', tRun({ client: clientOk.replace(', door: door.endpoint, identity: door.identity)', ', door: door.endpoint)') }).length > 0);
+  expect('(t) catches a paired door whose identity is optional', tRun({ keys: 'struct PairedDoor {\n    let identity: ClientIdentity?\n}\n' }).length > 0);
+  expect('(t) catches a verify block that completes true', tRun({ client: clientOk.replace('complete(matched)', 'complete(true)') }).length > 0);
+  expect('(t) catches a verify block that never asks the pin', tRun({ client: clientOk.replace('let matched = DoorPin.matches(sec_trust_copy_ref(trust).takeRetainedValue(), pin: pin)', 'let matched = true') }).length > 0);
+  expect('(t) catches TLS 1.2 as the minimum', tRun({ client: clientOk.replace('.TLSv13)', '.TLSv12)') }).length > 0);
+  expect('(t) catches a maximum version set', tRun({ client: clientOk.replace('        return NWParameters(', '        sec_protocol_options_set_max_tls_protocol_version(options, .TLSv13)\n        return NWParameters(') }).length > 0);
+  expect('(t) catches parameters with no TLS', tRun({ client: clientOk.replace('return NWParameters(tls: tls, tcp: NWProtocolTCP.Options())', 'return NWParameters.tcp') }).length > 0);
+  expect('(t) catches another port set', tRun({ client: clientOk.replace('[8443, 10000]', '[8443, 10000, 443]') }).length > 0);
+  expect('(t) catches a parse that takes any host', tRun({ pairing: pairingOk.replace('DoorEndpoint.isPublicName(wire.host),', '!wire.host.isEmpty,') }).length > 0);
+  expect('(t) catches an IPv4 test back in the app', tRun({ client: `${clientOk}func isIPv4Literal(_ t: String) -> Bool { true }\n` }).length > 0);
+  expect('(t) catches Transfer-Encoding taken', tRun({ client: clientOk.replace('        if found[DoorHTTP.Read.transferEncoding] != nil { throw DoorFailure.malformed }\n', '') }).length > 0);
+  expect('(t) catches Content-Length not required once', tRun({ client: clientOk.replace('lengths.count == 1,', '!lengths.isEmpty,') }).length > 0);
+  expect('(t) catches a length not read through DoorNumber', tRun({ client: clientOk.replace('guard let number = Int(text), DoorNumber.isCount(number) else { return nil }', 'guard let number = Int(text) else { return nil }') }).length > 0);
+  expect('(t) catches a second connection made', tRun({ client: clientOk.replace('        return try await run(c)\n', '        let d = NWConnection(to: e, using: .tcp)\n        return try await run(c)\n') }).length > 0);
+  expect('(t) catches a hostile arm gone', tRun({ hostile: hostileOk.replace(armLine('early-close'), '') }).length > 0);
+  expect('(t) catches a hostile arm that ends in no sentence', tRun({ hostile: hostileOk.replace(`'not-json': { what: 'x', ends: 'sentence'`, `'not-json': { what: 'x', ends: 'drawn'`) }).length > 0);
+  expect('(t) catches a hostile arm expecting a word Copy lacks', tRun({ copy: 'enum Copy {}\n' }).length > 0);
+  expect('(t) catches no hostile door', tRun({ hostile: null }).length > 0);
+
+  // (u) no DEBUG in Release.
+  const adHocU = '        CODE_SIGN_IDENTITY = "-";\n';
+  const schemeOk = { name: 'Tortie.xcscheme', text: '<ArchiveAction buildConfiguration = "Release" revealArchiveInOrganizer = "YES">\n</ArchiveAction>\n' };
+  const pbxU = (projectRelease, appRelease) =>
+    [
+      '    CCCC00000001 /* Tortie */ = {',
+      '      isa = PBXNativeTarget;',
+      '      buildConfigurationList = CCCC00000002 /* Build configuration list for PBXNativeTarget "Tortie" */;',
+      '      productType = "com.apple.product-type.application";',
+      '    };',
+      '    CCCC00000002 /* Build configuration list for PBXNativeTarget "Tortie" */ = {\n      isa = XCConfigurationList;\n      buildConfigurations = (\n        CCCC00000003 /* Debug */,\n        CCCC00000004 /* Release */,\n      );\n    };',
+      '    CCCC00000010 /* Build configuration list for PBXProject "Tortie" */ = {\n      isa = XCConfigurationList;\n      buildConfigurations = (\n        CCCC00000011 /* Debug */,\n        CCCC00000012 /* Release */,\n      );\n    };',
+      '    CCCC00000003 /* Debug */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n        SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";\n      };\n      name = Debug;\n    };',
+      `    CCCC00000004 /* Release */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n${appRelease}      };\n      name = Release;\n    };`,
+      '    CCCC00000011 /* Debug */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n        GCC_PREPROCESSOR_DEFINITIONS = (\n          "DEBUG=1",\n          "$(inherited)",\n        );\n      };\n      name = Debug;\n    };',
+      `    CCCC00000012 /* Release */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n${projectRelease}      };\n      name = Release;\n    };`,
+      ''
+    ].join('\n');
+  const uRun = (projectRelease = adHocU, appRelease = adHocU, xc = [], schemes = [schemeOk]) => ruleNoDebugInRelease(pbxU(projectRelease, appRelease), xc, schemes).findings;
+  expect('(u) passes DEBUG in Debug alone', uRun().length === 0);
+  expect('(u) catches DEBUG in the app\'s Release conditions', uRun(adHocU, '        SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";\n').length > 0);
+  expect('(u) catches -DDEBUG in Release OTHER_SWIFT_FLAGS', uRun(adHocU, '        OTHER_SWIFT_FLAGS = "-D DEBUG";\n').length > 0);
+  expect('(u) catches DEBUG=1 in the project\'s Release preprocessor list', uRun('        GCC_PREPROCESSOR_DEFINITIONS = (\n          "DEBUG=1",\n          "$(inherited)",\n        );\n').length > 0);
+  expect('(u) catches DEBUG in Release for one SDK', uRun(adHocU, '        "SWIFT_ACTIVE_COMPILATION_CONDITIONS[sdk=iphoneos*]" = DEBUG;\n').length > 0);
+  expect('(u) catches an xcconfig defining DEBUG', uRun(adHocU, adHocU, [{ name: 'R.xcconfig', text: 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG\n' }]).length > 0);
+  expect('(u) leaves DEBUGGING and NDEBUG alone', uRun(adHocU, '        GCC_PREPROCESSOR_DEFINITIONS = "NDEBUG=1 P330_DEBUGGING=0";\n').length === 0);
+  expect('(u) catches a scheme that archives Debug', uRun(adHocU, adHocU, [], [{ name: 'S.xcscheme', text: '<ArchiveAction buildConfiguration = "Debug" revealArchiveInOrganizer = "YES">' }]).length > 0);
+
+  // (v) the phone always draws a sentence.
+  const pairingEnums = 'enum PairingFailure: Error {\n    case badCode\n    case cancelled\n}\nenum PairingStep: Equatable {\n    case presenting\n    case findingName\n}\n';
+  const wordsOk = 'enum DoorWords {\n    static func pairingSentence(for failure: PairingFailure) -> String {\n        switch failure {\n        case .badCode: return Copy.pairNotACode\n        case .cancelled: return Copy.notPaired\n        }\n    }\n    static func stepSentence(for step: PairingStep) -> String {\n        switch step {\n        case .presenting: return Copy.pairReaching\n        case .findingName: return Copy.pairNameNotYet\n        }\n    }\n}\n';
+  const screenOk = 'final class PairingModel {\n    private(set) var line: String = Copy.notPaired\n    func read() {\n        line = DoorWords.stepSentence(for: .presenting)\n    }\n    func stop(_ f: PairingFailure) {\n        line = DoorWords.pairingSentence(for: f)\n    }\n}\n';
+  const vRun = (words = wordsOk, screen = screenOk, pairing = pairingEnums) => rulePairingSentence(words, screen, pairing).findings;
+  expect('(v) passes a sentence for every failure and step', vRun().length === 0);
+  expect('(v) catches pairingSentence made optional again', vRun(wordsOk.replace('(for failure: PairingFailure) -> String {', '(for failure: PairingFailure) -> String? {').replace('case .cancelled: return Copy.notPaired', 'case .cancelled: return nil')).length > 0);
+  expect('(v) catches a failure with no sentence', vRun(wordsOk, screenOk, pairingEnums.replace('    case cancelled\n', '    case cancelled\n    case nameNotFound\n')).length > 0);
+  expect('(v) catches a step with no sentence', vRun(wordsOk.replace('        case .findingName: return Copy.pairNameNotYet\n', '        default: return Copy.pairReaching\n')).length > 0);
+  expect('(v) catches an empty sentence', vRun(wordsOk.replace('case .cancelled: return Copy.notPaired', 'case .cancelled: return ""')).length > 0);
+  expect('(v) catches line = nil', vRun(wordsOk, screenOk.replace('        line = DoorWords.stepSentence(for: .presenting)\n', '        line = nil\n')).length > 0);
+  expect('(v) catches line made optional', vRun(wordsOk, screenOk.replace('private(set) var line: String = Copy.notPaired', 'private(set) var line: String? = Copy.notPaired')).length > 0);
+  expect('(v) reads an enum\'s cases one or several to a line', (enumCases('enum E {\n    case a, b\n    case c(Int)\n    func f() { switch self { case .a: break } }\n}\n', 'E') ?? []).join() === 'a,b,c');
 
   // (r) The icon. Two-pixel pictures written here with filter 0, so the rule
   // is proved on bytes whose every field this block chose.
@@ -3609,6 +3523,9 @@ const expect = (what, ok) => {
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
+/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node. */
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v'];
+
 const results = {};
 const record = (id, title, findings, said) => {
   results[id] = { ok: findings.length === 0, title, findings, said };
@@ -3616,7 +3533,7 @@ const record = (id, title, findings, said) => {
 const missing = (path) => (existsSync(path) ? [] : [`${rel(path)} does not exist`]);
 
 if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
-  for (const id of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's']) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
+  for (const id of RULE_IDS) record(id, 'the app', [`${rel(IOS)} does not exist, so there is no app to read`], '');
 } else {
   const others = appSwift.filter((p) => p !== TOKENS_SWIFT);
   // (a)
@@ -3638,18 +3555,17 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   // (c)
   {
     const f = [...missing(DOOR_CLIENT)];
-    const builders = existsSync(DOOR_CLIENT) ? configurationFunctions(read(DOOR_CLIENT)) : [];
     for (const p of appSwift) {
-      if (p !== DOOR_CLIENT && p !== NODE) f.push(...ruleNetworkOnlyInClient(rel(p), read(p)));
+      if (p !== DOOR_CLIENT) f.push(...ruleNetworkOnlyInClient(rel(p), read(p)));
       if (p !== DOOR_CLIENT) f.push(...ruleSendsOnlyFromClient(rel(p), read(p)));
-      f.push(...ruleHttpsOnly(rel(p), read(p), p === DOOR_CLIENT ? 'client' : p === NODE ? 'node' : 'other'));
-      f.push(...ruleEphemeralOnly(rel(p), read(p), p === DOOR_CLIENT ? 'client' : 'other', builders));
+      f.push(...ruleNoUrlLoading(rel(p), read(p)));
+      f.push(...ruleHttpsOnly(rel(p), read(p)));
     }
     record(
       'c',
-      'the network is DoorClient.swift and the node, https only, and only the client sends',
+      'the network is DoorClient.swift, Network.framework over TLS, and only the client sends',
       f,
-      `URLSession, URLRequest, NWConnection, ProxyConfiguration, loopback( and tailscaleSession( only in Door/DoorClient.swift and Tailnet/Node.swift; every request sent from Door/DoorClient.swift, through an .ephemeral configuration and no other: no URLSession.shared, and every configuration: argument .ephemeral or the client's own builder (${builders.join(', ') || 'none'})`
+      `NWConnection, NWParameters, NWEndpoint, NWProtocolTLS, sec_protocol_options_* and import Network only in Door/DoorClient.swift; no URLSession, URLRequest, URLSessionConfiguration or ProxyConfiguration in ${String(appSwift.length)} app files; every send from Door/DoorClient.swift; no http:// literal`
     );
   }
   // (d)
@@ -3658,10 +3574,21 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const f = [...missing(TRANSPORT)];
     for (const p of appSwift) f.push(...ruleDebugSeams(rel(p), read(p), seams));
     if (existsSync(TRANSPORT) && !seams.transport.some((s) => s.startsWith(rel(TRANSPORT)))) {
-      f.push(`${rel(TRANSPORT)} holds no transport type inside #if DEBUG, so the direct loopback seam is missing or unguarded`);
+      f.push(`${rel(TRANSPORT)} holds no transport type inside #if DEBUG, so the door endpoint seam is missing or unguarded`);
     }
     if (seams.injection.length === 0) f.push('no launch argument is read inside #if DEBUG anywhere, so the pairing payload injection the Simulator needs is missing');
-    record('d', 'both DEBUG seams exist and sit inside #if DEBUG', f, `transport seam at ${seams.transport.join(', ') || 'nowhere'}; injection read at ${seams.injection.join(', ') || 'nowhere'}`);
+    const argued = seams.arguments ?? [];
+    for (const want of DEBUG_SEAM_ARGUMENTS) {
+      if (!argued.some((a) => a.value === want)) f.push(`no app file names the DEBUG seam ${want} inside #if DEBUG, so that seam is missing or unguarded`);
+    }
+    const endpoint = argued.find((a) => a.value === '-TortieDebugDoorEndpoint');
+    if (endpoint !== undefined) {
+      const loop = (seams.loopback ?? []).filter((l) => l.name === endpoint.name);
+      if (loop.length === 0 || loop.some((l) => l.value !== '127.0.0.1')) f.push(`${endpoint.name} holds the door endpoint seam without "127.0.0.1" as the one host it takes`);
+      const { bare } = lexSwift(read(join(ROOT, endpoint.name)));
+      if (!/==\s*loopbackHost\b|==\s*"127\.0\.0\.1"/.test(bare)) f.push(`${endpoint.name}'s door endpoint seam never compares the host it is handed with 127.0.0.1`);
+    }
+    record('d', 'the four DEBUG seams exist and sit inside #if DEBUG', f, `transport seam at ${seams.transport.join(', ') || 'nowhere'}; injection read at ${seams.injection.join(', ') || 'nowhere'}; ${String(argued.length)} seam argument(s) inside #if DEBUG (${[...new Set(argued.map((a) => a.value))].join(', ')})`);
   }
   // (e)
   {
@@ -3699,9 +3626,9 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     }
     record(
       'e',
-      'Info.plist has exactly the one ATS exception and no background mode',
+      'Info.plist has no ATS key, no local network string and no background mode',
       f,
-      `NSAppTransportSecurity → NSExceptionDomains → 100.64.0.0/10 → NSExceptionAllowsInsecureHTTPLoads = true, and nothing else; ${String(lists)} property list(s) read by CoreFoundation, every key written plainly; ${String(configurations)} app configuration(s), each built from ${APP_INFO_PLIST} with nothing generated or preprocessed into it`
+      `no NSAppTransportSecurity and no NSLocalNetworkUsageDescription, by the name CFBundle reads; ${String(lists)} property list(s) read by CoreFoundation, every key written plainly; ${String(configurations)} app configuration(s), each built from ${APP_INFO_PLIST} with nothing generated or preprocessed into it`
     );
   }
   // (f)
@@ -3778,47 +3705,41 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     );
   }
 
-  // Phase 316.3. Every Swift file under ios/, named relative to ios/, for
-  // (l); the app's own, named relative to the app folder, for (p) as for (k).
+  // Every Swift file under ios/, named relative to ios/, for (l); the app's
+  // own, named relative to the app folder, for (p) as for (k).
   const iosSwift = [...appSwift, ...testSwift].map((p) => ({ name: relative(IOS, p).split(sep).join('/'), source: read(p) }));
   const appFiles = appSwift.map((p) => ({ name: rel(p), source: read(p) }));
   const pbxPath = join(IOS, 'Tortie.xcodeproj', 'project.pbxproj');
   const pbx = existsSync(pbxPath) ? read(pbxPath) : null;
+  const xcconfigsAll = allText.filter((q) => q.endsWith('.xcconfig')).map((q) => ({ name: rel(q), text: read(q) }));
 
   // (l)
   {
-    const r = ruleNodeOnly(iosSwift);
+    const r = ruleNoTailscale(iosSwift, pbx, xcconfigsAll, existsSync(join(APP, TAILNET_DIR)));
     const f = [...r.findings];
-    let phases = 0;
-    if (pbx === null) f.push(`${rel(pbxPath)} does not exist, so the framework the node comes from cannot be read`);
-    else {
-      const v = ruleVendoredFramework(pbx);
-      f.push(...v.findings);
-      phases = v.said.phases;
-    }
+    if (pbx === null) f.push(`${rel(pbxPath)} does not exist, so the project cannot be read for a framework or a build phase`);
     record(
       'l',
-      'the node is started only in Tailnet/Node.swift, as tortie-phone, never ephemeral, never in the background',
+      'no Tailscale in the phone, and nothing keeps it running in the background',
       f,
-      `TailscaleKit imported ${String(r.said.imports)} time(s), only by ${NODE_REL}; ${String(r.said.constructs)} TailscaleNode( construction(s) there, ${String(r.said.privateDecls)} private declaration(s) of its type, ` +
-        `${String(r.said.configs)} TailscaleKit Configuration( with ephemeral: false written out, the hostname "${NODE_HOSTNAME}" and no other; the framework from ${VENDORED_XCFRAMEWORK}, signed on copy, ${String(phases)} build phase(s) that only check`
+      `no ios/Tortie/${TAILNET_DIR}/; ${String(r.said.files)} Swift file(s) under ios/ import and name no TailscaleKit, TailscaleNode or tailscale_ symbol, and nothing is @_exported; the project and ${String(xcconfigsAll.length)} xcconfig(s) name no TailscaleKit, .xcframework or vendored build; ${String(r.said.phases)} build phase(s), none of which fetches or builds; no background task, schedule or monitoring in the app`
     );
-  }
-  // (m)
-  {
-    const r = ruleStateDirectory(rel(NODE), existsSync(NODE) ? read(NODE) : null, appFiles);
-    record('m', 'the node\'s state is in Application Support/tailnet and excluded from backup', r.findings, `${String(r.said.creates)} place(s) create the state directory, each excluding it from backup in the same body`);
   }
   // (n)
   {
     const r = ruleKeychain(appFiles);
-    record('n', 'every Keychain item is ThisDeviceOnly and never synchronised', r.findings, `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other`);
+    const k = ruleClientKey(appFiles, rel(PAIRING), existsSync(PAIRING) ? read(PAIRING) : null);
+    record(
+      'n',
+      'every Keychain item is ThisDeviceOnly and never synchronised, and the client key is the enclave\'s where there is one',
+      [...r.findings, ...k.findings],
+      `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other; ${String(k.said.makers)} file(s) make a client key, ThisDeviceOnly by construction on both paths (the enclave's access control with .privateKeyUsage, made only inside the if on SecureEnclave.isAvailable; the software key's own kSecAttrAccessible), in the Secure Enclave only when it is available; every attempt that ends unpaired deletes its key by its tag`
+    );
   }
   // (o)
   {
     const f = [];
     const said = [];
-    // The app's own.
     const appManifests = walk(APP, (n) => n === 'PrivacyInfo.xcprivacy');
     if (appManifests.length === 0) f.push(`${rel(APP)} holds no PrivacyInfo.xcprivacy, so the app's own manifest is missing (SPEC §4 S3 B)`);
     if (appManifests.length > 1) f.push(`${rel(APP)} holds ${String(appManifests.length)} PrivacyInfo.xcprivacy files; the app has one`);
@@ -3842,109 +3763,28 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
         f.push('project.pbxproj copies no PrivacyInfo.xcprivacy into the app, so the app would ship without its manifest');
       }
     }
-    // TailscaleKit's: the committed source, then the built product when it is here.
-    const source = frameworkManifestSource(ROOT);
-    let sourceDeclared = null;
-    if (source === null) {
-      f.push("TailscaleKit's privacy manifest has no committed source: no .xcprivacy under build/ (outside build/vendor/), no privacy.categories in build/tailscalekit-release.json and no literal plist in build/build-tailscalekit.mjs (SPEC §4 S3 A, §3.6)");
-    } else if (source.problem !== undefined) {
-      f.push(`${source.label}: ${source.problem}`);
-    } else {
-      const r = ruleManifest(source.label, source.plist, FRAMEWORK_DECLARES);
-      f.push(...r.findings);
-      sourceDeclared = r.declared;
-      said.push(`${source.label} declares ${[...r.declared].map(([c, rs]) => `${c.replace('NSPrivacyAccessedAPICategory', '')} ${rs.join('/')}`).join(', ')}`);
-    }
-    const xcframework = join(ROOT, 'build', 'vendor', 'tailscalekit', 'TailscaleKit.xcframework');
-    if (!existsSync(xcframework)) said.push('the framework is not built here, so its slices were not read');
-    else {
-      const slices = frameworkSlices(xcframework);
-      if (slices.length === 0) f.push(`${rel(xcframework)} holds no TailscaleKit.framework, so the built product cannot be read; run npm run vendor:tailscalekit again`);
-      for (const s of slices) {
-        const m = join(s, 'PrivacyInfo.xcprivacy');
-        if (!existsSync(m)) {
-          f.push(`${rel(s)} has no PrivacyInfo.xcprivacy at its root, and an app carrying it would be refused at upload (ITMS-91053); run npm run vendor:tailscalekit again`);
-          continue;
-        }
-        try {
-          const r = ruleManifest(rel(m), readPlistFile(m), FRAMEWORK_DECLARES);
-          f.push(...r.findings);
-          const flat = (d) => JSON.stringify([...d].map(([c, rs]) => [c, [...rs].sort()]).sort());
-          if (sourceDeclared !== null && flat(r.declared) !== flat(sourceDeclared)) f.push(`${rel(m)} declares other categories or reasons than its committed source; run npm run vendor:tailscalekit again`);
-        } catch (err) {
-          f.push(`${rel(m)} could not be read: ${String(err?.message ?? err)}`);
-        }
-      }
-      said.push(`${String(slices.length)} built slice(s) each holding the same manifest at its root`);
-    }
-    record('o', 'both privacy manifests exist and declare the categories', f, said.join('; '));
+    record('o', "the app's own privacy manifest exists and declares every category its Swift uses", f, said.join('; '));
   }
   // (p)
   {
     const files = appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) }));
-    const r = ruleTailnetKey(files);
+    const r = ruleSecretKept(files);
     const f = [...r.findings];
+    for (const p of allText) f.push(...ruleNoTailnetKey(rel(p), read(p)));
     const scanned = [...allText, ...walk(join(ROOT, 'build', 'p316'), (n) => /\.(mjs|mts|ts|js|json|md|swift|txt)$/.test(n))];
     for (const p of scanned) f.push(...ruleNoRealKey(rel(p), read(p)));
     record(
       'p',
-      'the tailnet key is never written anywhere',
+      'no tailnet key anywhere, and the code and its one-shot secret are kept nowhere',
       f,
-      `${String(r.said.mentions)} mention(s) of the key's name, or of the code that carries it, in the app: ${String(r.said.proved)} proved by their shape (${String(r.said.joins)} of them authKey: in Tailnet/Node.swift), ${String(r.said.named)} named in ${String(KEY_NAMED.length)} entries; ` +
+      `${String(allText.length)} files under ios/ name no tk, tailnetKey or authKey and hold no tskey-; ${String(r.said.mentions)} mention(s) of the one-shot secret, or of the code that carries it, in the app: ${String(r.said.proved)} proved by their shape, ${String(r.said.named)} named in ${String(KEY_NAMED.length)} entries; ` +
         `${String(r.said.sources)} place(s) a code enters, each bound to a watched name; ${String(r.said.holders)} type(s) holding it, each mirroring itself without it; ` +
-        `no encodable type holds it, no key literal in the app, and ${String(scanned.length)} files under ios/ and build/p316/ hold nothing shaped like a real key`
-    );
-  }
-  // (q)
-  {
-    const scriptPath = join(ROOT, 'build', 'build-tailscalekit.mjs');
-    let script = null;
-    if (existsSync(scriptPath)) {
-      let patch = null;
-      try {
-        // The ROOT's own script, so a clone the ablation made is judged by its own patch.
-        patch = (await import(pathToFileURL(scriptPath).href)).NO_LOGS_PATCH ?? null;
-      } catch {
-        patch = null;
-      }
-      script = { text: read(scriptPath), patch };
-    }
-    const r = ruleLogsOff(rel(NODE), existsSync(NODE) ? read(NODE) : null, appFiles, script);
-    const f = [...r.findings];
-    const said = [];
-    // The built product, when it is here: each slice declares the switch in
-    // the header Swift reads and holds it in its binary's symbol table.
-    const xcframework = join(ROOT, 'build', 'vendor', 'tailscalekit', 'TailscaleKit.xcframework');
-    if (!existsSync(xcframework)) said.push('the framework is not built here, so its slices were not read');
-    else {
-      const slices = frameworkSlices(xcframework);
-      for (const sl of slices) {
-        const header = join(sl, 'Headers', 'TailscaleKit.h');
-        const binary = join(sl, 'TailscaleKit');
-        if (!existsSync(header) || !read(header).includes(`extern int ${NO_LOGS_SWITCH}(void);`)) f.push(`${rel(sl)}'s header does not declare ${NO_LOGS_SWITCH}; run npm run vendor:tailscalekit again`);
-        const bytes = existsSync(binary) ? readFileSync(binary) : Buffer.alloc(0);
-        for (const symbol of [`_${NO_LOGS_SWITCH}`, '_TsnetNoLogsNoSupport']) {
-          if (bytes.indexOf(Buffer.from(`${symbol}\0`)) === -1) f.push(`${rel(binary)} holds no symbol ${symbol}, so it is not the build that turns the logs off; run npm run vendor:tailscalekit again`);
-        }
-        // (q4) The backend's flow logs refusal, as Node.swift names it, is in
-        // the Go the slice was built from, so a pin that rewords it is refused
-        // here rather than drawn on his phone as a refused key.
-        if (r.said.flowLogsWords !== null && bytes.indexOf(Buffer.from(r.said.flowLogsWords)) === -1) {
-          f.push(`${rel(binary)} does not hold the words ${JSON.stringify(r.said.flowLogsWords)} that ${rel(NODE)} reads as the flow logs refusal, so on this build that refusal would read as a refused key`);
-        }
-      }
-      said.push(`${String(slices.length)} built slice(s) declaring it and holding _${NO_LOGS_SWITCH} and _TsnetNoLogsNoSupport${r.said.flowLogsWords === null ? '' : ' and the flow logs refusal\'s words'}`);
-    }
-    record(
-      'q',
-      "Tailscale's own diagnostic logs are off before every start",
-      f,
-      `${NO_LOGS_SWITCH}() asked only by ${r.said.wrappers.join(', ') || 'nothing'}, which checks it answered 0, outside every #if; ${String(r.said.gated)} of ${String(r.said.starts)} node start(s) guarded by it before, in the same block; build/build-tailscalekit.mjs patches it into the pinned source; a tailnet that requires flow logs is its own refusal; ${said.join('; ')}`
+        `no encodable type holds it, and ${String(scanned.length)} files under ios/ and build/p316/ hold nothing shaped like a real key`
     );
   }
 
-  // Phase 316.4. Every xcconfig under ios/, for (r) and (s).
-  const xcconfigs = allText.filter((q) => q.endsWith('.xcconfig')).map((q) => ({ name: rel(q), text: read(q) }));
+  // Phase 316.4. Every xcconfig under ios/, for (r), (s) and (u).
+  const xcconfigs = xcconfigsAll;
   // (r)
   {
     const f = [];
@@ -4016,6 +3856,35 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       `DEVELOPMENT_TEAM = ${RELEASE_TEAM} once, in the app's Release configuration, signed automatically as Apple Development with no profile named; ${String(r.said.debug)} Debug configuration(s) ad hoc with no team, of ${String(r.said.configurations)}; the app is ${PHONE_BUNDLE_ID}, one version in Debug and Release, and Info.plist takes all three from the project and shows "Tortie"`
     );
   }
+  // (t)
+  {
+    const hostilePath = join(ROOT, 'build', 'p316', 'hostile-door.mjs');
+    const r = ruleClientTransport({
+      client: existsSync(DOOR_CLIENT) ? read(DOOR_CLIENT) : null,
+      pairing: existsSync(PAIRING) ? read(PAIRING) : null,
+      keys: existsSync(KEYS) ? read(KEYS) : null,
+      files: appFiles,
+      hostile: existsSync(hostilePath) ? read(hostilePath) : null,
+      copy: existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null
+    });
+    record(
+      't',
+      'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
+      r.findings,
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence`
+    );
+  }
+  // (u)
+  {
+    const schemes = allText.filter((q) => q.endsWith('.xcscheme')).map((q) => ({ name: rel(q), text: read(q) }));
+    const r = ruleNoDebugInRelease(pbx, xcconfigs, schemes);
+    record('u', 'no Release configuration defines DEBUG', r.findings, `${String(r.said.release)} Release configuration(s) and ${String(xcconfigs.length)} xcconfig(s) define no DEBUG in ${CONDITION_SETTINGS.join(', ')}; ${String(r.said.schemes)} scheme(s) archive Release`);
+  }
+  // (v)
+  {
+    const r = rulePairingSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, existsSync(PAIRING_SCREEN) ? read(PAIRING_SCREEN) : null, existsSync(PAIRING) ? read(PAIRING) : null);
+    record('v', 'the phone always draws a sentence', r.findings, `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s)`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -4039,7 +3908,7 @@ if (JSON_OUT) {
   process.stdout.write(`CONFORMANCE_IOS:${JSON.stringify({ rules: brief, scannerFixturesFailed: selfFailures.length })}\n`);
 }
 if (red) {
-  process.stdout.write(`${TAG} FAIL. The phone app breaks a refusal build/p316/SPEC.md §4 S2 or S3 names, or a scanner here stopped working.\n`);
+  process.stdout.write(`${TAG} FAIL. The phone app breaks a refusal build/p316/SPEC.md §4 S2 to S4 or build/p330/SPEC.md §6.4 names, or a scanner here stopped working.\n`);
   process.exit(1);
 }
 process.stdout.write(`${TAG} PASS. ${String(Object.keys(results).length)} rules over ${String(appSwift.length)} app files, ${String(testSwift.length)} test files and ${String(allText.length)} files under ios/; every scanner proved on its own fixtures first.\n`);

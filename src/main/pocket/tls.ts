@@ -98,11 +98,19 @@ const MS_PER_DAY = 24 * 60 * 60 * 1000;
 // What a caller gets
 // ---------------------------------------------------------------------------
 
-/** The subject names a certificate is asked to cover. */
+/**
+ * The subject names a certificate is asked to cover.
+ *
+ * Since Phase 330 the door is reached by its PUBLIC NAME alone (the Mac's
+ * `*.ts.net` name, published through Tailscale Funnel), so `addresses` is
+ * empty and `dnsNames` is that one name. A phone pins the KEY and never reads
+ * a name out of the certificate, so a new public name renews the certificate
+ * from the same key and moves no pin.
+ */
 export interface DoorSubjectNames {
-  /** IPv4 literals, being the Mac's tailnet address. */
+  /** IPv4 literals. Empty since Phase 330: the door binds only loopback. */
   readonly addresses: readonly string[];
-  /** Names, being the MagicDNS name when one is known. */
+  /** Names, being the Mac's public name. */
   readonly dnsNames: readonly string[];
 }
 
@@ -156,7 +164,7 @@ export const IDENTITY_SENTENCES: Readonly<Record<IdentityRefusal, string>> = {
   'seal-write-failed':
     'Tortie could not seal the door’s new certificate, so it wrote nothing and the door is off.',
   'no-subject-names':
-    'Tortie has no tailnet address to put in the door’s certificate, so there is nothing to serve.'
+    'Tortie has no name to put in the door’s certificate, so there is nothing to serve.'
 };
 
 /** The seal, as a port, so a test can drive this module with no Electron. */
@@ -502,6 +510,120 @@ function issueCertificate(
     Buffer.concat([tbs, signatureAlgorithm(), derBitString(signature)])
   );
   return derToPem(certificate, 'CERTIFICATE');
+}
+
+// ---------------------------------------------------------------------------
+// The phone's client certificate (Phase 330, build/p330/SPEC.md §4.7.4)
+//
+// Mutual TLS, and THE PIN IS THE CHECK. The door requests a client
+// certificate on every handshake and admits a socket only when the key that
+// completed it hashes to a paired phone's pin (`./door/listener.ts`). There is
+// no certificate authority anywhere: nothing ever chains this certificate to
+// anything, and the Mac never reads its dates. It exists because a TLS client
+// cannot present a bare key, only a certificate over one, so the Mac issues
+// one over the key the phone PRESENTED and a person matched in six groups.
+//
+// It is PUBLIC MATERIAL. It names nothing, it grants nothing on its own (the
+// handshake still needs the private half, which never leaves the phone), and
+// it is never stored on this Mac: the pairing window holds it until its
+// deadline so every `allowed` answer carries the same bytes, and drops it.
+// ---------------------------------------------------------------------------
+
+const OID_CLIENT_AUTH = '1.3.6.1.5.5.7.3.2';
+
+/** The issuer, being the door. A person reads the fingerprint, not this. */
+const CLIENT_ISSUER_COMMON_NAME = 'Tortie';
+
+/** The subject. One spelling for every phone: the key is what differs. */
+const CLIENT_SUBJECT_COMMON_NAME = 'Tortie phone';
+
+/**
+ * `99991231235959Z`: RFC 5280 §4.1.2.5's "no well-defined expiration date".
+ * The Mac never reads the dates, because the pin is the check, and an expiry
+ * here would un-pair a phone on a date nobody chose.
+ */
+export const CLIENT_CERTIFICATE_NOT_AFTER = Date.UTC(9999, 11, 31, 23, 59, 59);
+
+/**
+ * Issue a phone's client certificate, as DER, signed by the door's own key.
+ *
+ * `clientKeySpkiB64u` must be a P-256 SubjectPublicKeyInfo in its canonical
+ * (uncompressed) DER, base64url, because the door's pin is sha256 over exactly
+ * the SPKI a handshake presents and Node always re-exports the uncompressed
+ * form: a key spelled any other way would make a certificate whose handshake
+ * never matches its own pin. Anything else throws, and nothing is issued.
+ */
+export function issueClientCertificate(
+  doorKeyPem: string,
+  clientKeySpkiB64u: string,
+  now: number
+): Buffer {
+  const signer = createPrivateKey(doorKeyPem);
+  const spki = Buffer.from(clientKeySpkiB64u, 'base64url');
+  if (!isP256SpkiDer(spki)) {
+    throw new Error('a client certificate is issued over a canonical P-256 key and nothing else');
+  }
+  const tbs = derSequence(
+    Buffer.concat([
+      derExplicit(0, derInteger(Buffer.from([2]))), // v3
+      derInteger(serialNumber()),
+      signatureAlgorithm(),
+      distinguishedName(CLIENT_ISSUER_COMMON_NAME),
+      derSequence(
+        Buffer.concat([derTime(now - NOT_BEFORE_SKEW_MS), derTime(CLIENT_CERTIFICATE_NOT_AFTER)])
+      ),
+      distinguishedName(CLIENT_SUBJECT_COMMON_NAME),
+      spki,
+      derExplicit(3, derSequence(Buffer.concat(clientExtensions())))
+    ])
+  );
+  const signature = createSign('SHA256').update(tbs).sign(signer);
+  return derSequence(Buffer.concat([tbs, signatureAlgorithm(), derBitString(signature)]));
+}
+
+/**
+ * The fixed 26-byte DER header of a P-256 SubjectPublicKeyInfo with an
+ * UNCOMPRESSED point: SEQUENCE { SEQUENCE { id-ecPublicKey, prime256v1 },
+ * BIT STRING (66 bytes, no unused bits) }. The phone's `SPKI.p256Header`.
+ */
+export const P256_SPKI_HEADER = Buffer.from(
+  '3059301306072a8648ce3d020106082a8648ce3d030107034200',
+  'hex'
+);
+
+/**
+ * Is this DER exactly a P-256 SubjectPublicKeyInfo in its one spelling: the
+ * header above, then `04` and the 64-byte point, 91 bytes in all, and a point
+ * OpenSSL accepts as on the curve? A compressed point is the same key spelled
+ * another way, and a pin is a hash of the SPELLING, so it is refused: one key,
+ * one pin, and the phone's own Secure Enclave export is always this form.
+ */
+export function isP256SpkiDer(der: Buffer): boolean {
+  // THE SPELLING: exactly the header, then `04` and 64 bytes. The header fixes
+  // the algorithm and the curve, so nothing about the key's kind is left to
+  // ask; a compressed point, another curve and another kind all differ here.
+  if (der.length !== UNCOMPRESSED_P256_PREFIX.length + 64) return false;
+  if (!der.subarray(0, UNCOMPRESSED_P256_PREFIX.length).equals(UNCOMPRESSED_P256_PREFIX)) return false;
+  // THE POINT: OpenSSL refuses one that is not on the curve.
+  try {
+    createPublicKey({ key: der, format: 'der', type: 'spki' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** {@link P256_SPKI_HEADER} and the uncompressed-point marker `04`. */
+const UNCOMPRESSED_P256_PREFIX = Buffer.concat([P256_SPKI_HEADER, Buffer.from([0x04])]);
+
+/** basicConstraints (critical, not a CA), keyUsage (critical), clientAuth. */
+function clientExtensions(): Buffer[] {
+  // cA FALSE is the DER default and is therefore OMITTED, which is what an
+  // empty SEQUENCE says (X.690 §11.5).
+  const basic = extension(OID_BASIC_CONSTRAINTS, true, derSequence(Buffer.alloc(0)));
+  const keyUsage = extension(OID_KEY_USAGE, true, der(0x03, Buffer.from([0x07, 0x80])));
+  const extended = extension(OID_EXT_KEY_USAGE, false, derSequence(derOid(OID_CLIENT_AUTH)));
+  return [basic, keyUsage, extended];
 }
 
 /** 16 random bytes, always positive. */

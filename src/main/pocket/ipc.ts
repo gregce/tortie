@@ -1,101 +1,86 @@
 /**
  * pocket:* — Settings then Phone, and the owner that holds the door together
- * (Phase 313).
+ * (Phase 313; published through Tailscale Funnel since Phase 330).
  *
  * ## Two doors, and it matters which is which
  *
  * The channels here are the RENDERER's door: a person pressing a button in
  * Tortie, on this Mac, inside a window Tortie created. They never leave the
  * machine and `../typed-ipc.ts` already refuses any sender Tortie did not make.
- * Three of them CHANGE something — allow a phone, remove one, withdraw the
+ * Some of them CHANGE something — allow a phone, remove one, withdraw the
  * agreement — and that is not a contradiction of "this phase has no write
- * route": the TAILNET door's route table is read only and holds none of them.
- * A phone can never reach anything in this file.
+ * route": the door's own route table is read only and holds none of them. A
+ * phone can never reach anything in this file.
  *
  * ## What this module assembles, and what it refuses to own
  *
- * Four modules, one lifetime. `./bind.ts` binds and presents the certificate;
- * `./server.ts` decides what a request may be; `./routes.ts` composes the three
+ * Five modules, one lifetime. `./bind.ts` starts the door process, which
+ * listens on loopback and holds the certificate; `./funnel.ts` publishes that
+ * listener to the internet through the Mac's own Tailscale; `./server.ts`
+ * decides what a forwarded request may be; `./routes.ts` composes the three
  * answers; `./pairing.ts` decides whose request it is. This file is the only
- * place they meet, because the door cannot bind without the confirmed fields,
- * the fields are the store's phones, the phones arrive through the pairing
- * window, and the verifier answers from the same phone set — so splitting them
- * would be four readers of one truth.
+ * place they meet, because the door cannot start without the confirmed fields,
+ * the fields are Tailscale's facts and the store's phones, the phones arrive
+ * through the pairing window, and the verifier answers from the same phone set
+ * — so splitting them would be five readers of one truth.
  *
- * IT OWNS NO SOCKET AND NO KEY. The listener is `./bind.ts`'s and the
- * certificate is `./tls.ts`'s, reached only through it.
+ * IT OWNS NO SOCKET AND NO KEY. The listener is the door process's and the
+ * certificate is `./tls.ts`'s, reached only to sign an allowed phone's client
+ * certificate. It spawns nothing itself: the one child is `./funnel.ts`'s and
+ * the one process is `./bind.ts`'s, and both are reached from {@link
+ * PocketHost.openNow} alone, behind the gate, inside the queue.
  *
- * ## The order of a pairing, and the last step is the person's
+ * ## The order a person switches it on in (Phase 330, build/p330/SPEC.md §1)
  *
- *   1. `pocket:beginPairing` opens a window of a few minutes and answers the
- *      QR. The one-shot secret in it lives in memory and dies with the window.
- *   2. The phone scans it and presents itself on `POST /pair`, sealed under a
- *      key derived from that secret. Presenting allows nothing.
- *   3. `pocket:pairingState` draws the phone's label and the short fingerprint
- *      BOTH screens show, and the lines the person is being asked to agree to.
- *   4. `pocket:allowPhone` is the person's press, and it is LAST. The
- *      acknowledgement sentence is supplied HERE, in main, by the handler the
- *      click reaches. It is never sent from the renderer and never read from a
- *      file, so it means "a person pressed the button in Tortie" and cannot
- *      mean anything else.
+ *   Pair (the switch on) → Tailscale is read once → the lines → Allow → the
+ *   door process listens on loopback → Funnel publishes it → listening → the
+ *   code shows
  *
- * ## Nothing here starts on a configuration change
+ * `pocket:setDoor` writes `enabled` and `bindAtLaunch` TOGETHER and queues a
+ * read of Tailscale, which chooses the public port and draws the lines. Those
+ * lines name the internet, the tailnet, the port and the program, and nothing
+ * starts until `pocket:confirmDoor` records the agreement (CLAUDE.md refusal
+ * 8). NEITHER CALL WAITS ON TAILSCALE: each returns once its job is queued and
+ * the sheet follows `pocket:changed`, so the switch stays pressable while
+ * Tailscale's approval page is open and an off press ends the child at once.
  *
- * `start()` is reached from a person's switch and from the launch arm when
- * `bindAtLaunch` is a CONFIRMED field, which is CLAUDE.md refusal 8's own
- * shape: binding a listener a person confirmed is not a process starting
- * because a file moved. A settings write that nobody confirmed moves the hash
- * and the gate refuses the bind with a sentence.
- *
- * ## The order a person switches it on in (Phase 316)
- *
- *   turn on → confirm → listening → pair
- *
- * `pocket:setDoor` writes `enabled` and `bindAtLaunch` TOGETHER, which moves a
- * confirmed field, so the sheet draws the lines {@link PocketHost.status}
- * carries and nothing listens until `pocket:confirmDoor`, which records the
- * agreement and then opens the door. A pairing window opens only on a door
- * that is listening, because the QR pins the key it is listening with.
- *
- * AND THE DOOR LISTENS ONLY WHILE ITS CURRENT FIELDS ARE THE CONFIRMED ONES.
- * Every press here that moves a hashed field — removing a phone, flipping the
- * alerts — closes a listening door until the person confirms again, so the
- * door running now and the door a relaunch would open are always the same
- * door. What moves a field from OUTSIDE (Tailscale re-addressing this Mac) is
- * not watched, by `./bind.ts`'s own rule; a relaunch refuses it with the
- * gate's sentence.
+ * AND THE DOOR IS PUBLISHED ONLY WHILE ITS CURRENT FIELDS ARE THE CONFIRMED
+ * ONES. Every press here that moves a hashed field — removing a phone,
+ * flipping the alerts — closes the door until the person confirms again. What
+ * moves a field from OUTSIDE (a different tailnet, a new name, a different
+ * program) is found by the read every start makes, and the door stays shut
+ * with the gate's sentence; a restart after an unexpected exit never restarts
+ * onto a moved field.
  *
  * ## The switch handles ONE PRESS AT A TIME (Phase 316.1, his ruling of
  * ## 2026-09-23)
  *
- * Every start and every stop of the door runs through ONE serial queue this
- * owner holds ({@link PocketHost.serially}), so no start is ever inside
- * `./bind.ts` while a stop runs, and no stop while a start does. And the LAST
+ * Every start and every stop of the door and of its Funnel child runs through
+ * ONE serial queue this owner holds ({@link PocketHost.serially}), and the LAST
  * press of the switch decides: each `setDoor` counts itself as it arrives, a
- * start that is superseded before it binds does not bind (a start waiting on
- * the sessions stops waiting at once), and a door that bound under a
- * superseded start is closed before the next press runs. Before this, on, off,
- * on, off inside one turn left the store and the sheet saying off and a door
- * LISTENING: the second on waited inside `./bind.ts` for the first on's
- * socket to let go, the second off found no door to stop, and the second on
- * then bound. A paired phone read it.
+ * start that is superseded before it forks or spawns does not, and a start
+ * that is superseded after closes what it opened before the next press runs.
  *
  * ## What this module does not do
  *
  * It reads no credential and names neither `main/credentials/` nor
- * `main/logins/`. It spawns nothing. It sets no status. It writes no tailnet
- * policy and holds no Tailscale credential, by refusal (research 128 §3.2).
+ * `main/logins/`. It sets no status. It writes no tailnet policy, holds no
+ * Tailscale credential and calls no LocalAPI, by refusal (research 128 §3.2).
+ * It opens one URL, Tailscale's approval page, only on a person's press and
+ * only after `./funnel.ts`'s check says it is Tailscale's own login host.
  */
 
-import { app, type IpcMain } from 'electron';
+import { shell, type IpcMain } from 'electron';
 
 import {
   EVT_POCKET_CHANGED,
+  POCKET_FUNNEL_RESTARTING,
   POCKET_ROUTE_IDS,
-  pocketGrantText,
+  pocketFunnelSentence,
   type PocketAllowInput,
   type PocketAllowResult,
-  type PocketPairingInput,
+  type PocketFunnelRefusal,
+  type PocketFunnelView,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketStatus,
@@ -107,19 +92,40 @@ import { getLog } from '../log';
 import { handle } from '../typed-ipc';
 import {
   DOOR_SENTENCES,
-  HARNESS_LOOPBACK_ENV,
-  chooseTailnetAddress,
+  onPocketDoorExit,
   pocketDoorStatus,
   pocketShutdownStarted,
   startPocketDoor,
-  stopPocketDoor
+  stopPocketDoor,
+  updatePocketDoor
 } from './bind';
+import type { DoorPin, DoorSpawner } from './door/wire';
+import {
+  FUNNEL_PORTS,
+  approvalOpens,
+  armFunnelRestart,
+  choosePublicPort,
+  defaultFunnelDeps,
+  funnelProgramOf,
+  funnelShutdownStarted,
+  nextRestartDelay,
+  portsHeld,
+  readServe,
+  readTailnet,
+  servesThisDoor,
+  startFunnel,
+  sweepFunnelOrphan,
+  type FunnelDeps,
+  type FunnelRun,
+  type TailnetRead
+} from './funnel';
 import {
   EMPTY_POCKET_FIELDS,
   POCKET_CONFIRM_ACKNOWLEDGEMENT,
   PocketPairing,
   PocketRequestVerifier,
   assertPocketDoorMayBind,
+  clientKeyPinOf,
   confirmPocketDoor,
   forgetPocketDoor,
   newIdentity,
@@ -136,7 +142,8 @@ import {
   type PocketIdentity,
   type PocketPhoneFields,
   type PocketPushDestination,
-  type PocketStore
+  type PocketStore,
+  type PocketTailnetFacts
 } from './pairing';
 import {
   createPocketRoutes,
@@ -145,35 +152,9 @@ import {
   type PocketRoute
 } from './routes';
 import { createPocketHandler } from './server';
+import { issueClientCertificate, pocketTlsMaterial } from './tls';
 
 const pocketLog = getLog('pocket');
-
-/** The port a phone is told, until a person chooses another and confirms it. */
-export const POCKET_DEFAULT_PORT = 8823;
-
-/**
- * The address the door's CONFIRMED FIELD names when the owner is not told one.
- *
- * Under the harness loopback override `./bind.ts` binds `127.0.0.1`, so the
- * field says the same, or the field a person confirmed and the address that
- * bound would be two different things and the door would refuse itself.
- * Otherwise it is exactly what `./bind.ts` binds: the tailnet address, or
- * `''` when this Mac has none. The override's two conditions — the variable,
- * and never in a packaged build — are `./bind.ts`'s own, spelled again here
- * because that module keeps its reader private.
- */
-export function pocketFieldAddress(): string {
-  if (process.env[HARNESS_LOOPBACK_ENV] === '1' && !packaged()) return '127.0.0.1';
-  return chooseTailnetAddress()?.address ?? '';
-}
-
-function packaged(): boolean {
-  try {
-    return app.isPackaged;
-  } catch {
-    return false; // not an Electron run
-  }
-}
 
 /** What the launch step did, as one word a test and a log line can read. */
 export type PocketLaunchOutcome = 'off' | 'refused' | 'opened';
@@ -201,24 +182,31 @@ export interface PocketHostDeps {
    */
   facts: PocketFacts;
   /**
-   * The address the door will bind, used for the CONFIRMED FIELD.
-   *
-   * It defaults to `chooseTailnetAddress()`, which is exactly what `./bind.ts`
-   * asks `os.networkInterfaces()`. UNDER THE HARNESS LOOPBACK OVERRIDE
-   * `./bind.ts` binds `127.0.0.1` instead, so a harness that sets that variable
-   * must pass `() => '127.0.0.1'` here too, or the field a person confirmed and
-   * the address that bound would be two different things.
-   */
-  bindAddress?: () => string;
-  /**
-   * Awaited after the gate and before the bind, every time the door opens —
-   * from the launch step and from a person's press alike (Phase 316). The
-   * composer passes the session core's boot, because every route reads the
+   * Awaited after the gate and before anything starts, every time the door
+   * opens — from the launch step and from a person's press alike (Phase 316).
+   * The composer passes the session core's boot, because every route reads the
    * core and a door must not answer before there is anything to answer from.
    * A throw keeps the door shut and says so.
    */
   beforeOpen?(): Promise<unknown>;
   now?(): number;
+  /**
+   * The Funnel child's seams (Phase 330). TESTS AND `../harness/push-seam.ts`
+   * ONLY (`conformance:pocket` U4); production takes `./funnel.ts`'s own.
+   */
+  tailscale?: FunnelDeps;
+  /**
+   * How the door process is started (Phase 330). TESTS AND
+   * `../harness/push-seam.ts` ONLY (`conformance:pocket` U4); production forks
+   * the real `utilityProcess` in `./bind.ts`.
+   */
+  door?: DoorSpawner;
+  /**
+   * The wake (Phase 330, SPEC §4.3): while the door is published, a resume
+   * queues one check that Tailscale still publishes it. The composer hands
+   * `WakeMark.onResume`. Returns the unsubscribe.
+   */
+  onResume?(cb: () => void): () => void;
 }
 
 /** What the sheet says when the door could not open because the sessions were not up. */
@@ -226,20 +214,41 @@ const SESSIONS_NOT_READY =
   'Tortie could not start its sessions, so the door did not open.';
 
 /**
- * What the sheet says when the address in the confirmed field is not the one
- * `./bind.ts` would bind. Only a composition that overrides `bindAddress`
- * without the matching bind can reach it; see {@link PocketHost.start}.
+ * What the sheet says, and `pocket:confirmDoor` answers, while the door's
+ * lines name no public name or no public port and no Tailscale read has
+ * failed to say why (the Phase 330 fix round): the lines were never read, so
+ * there is nothing to agree to. Try again is the press that reads them.
  */
-const ADDRESS_NOT_BOUND =
-  'This door was confirmed for another address than the one it would answer on, so it did not open.';
+const NOTHING_TO_ALLOW =
+  'Tortie has not read Tailscale for this door yet, so there is nothing to ' +
+  'allow. Press Try again. Nothing was changed.';
+
+/** What `beginPairing` says when the door is not published. */
+const NOT_PUBLISHED =
+  'The door is not answering, so there is no code to show. Turn it on and ' +
+  'allow it first. Nothing was opened.';
+
+/**
+ * Refusals that a restart after an unexpected exit tries again, because they
+ * can pass on their own: Tailscale restarting under an update (research 132
+ * O6), a busy serve config, the door process dying once. The rest need a
+ * person and are left on the sheet with their sentence.
+ */
+const RETRIED: ReadonlySet<PocketFunnelRefusal> = new Set([
+  'not-running',
+  'unreadable',
+  'busy',
+  'failed',
+  'no-tailscale'
+]);
 
 /**
  * One press of the door's switch, as a start remembers it (Phase 316.1).
  *
  * `n` is its place in the order the presses arrived in. `superseded` settles
- * the moment a LATER press arrives, so a start waiting on the sessions for a
- * press that is no longer the last one stops waiting at once, rather than
- * holding every press queued behind it for as long as the sessions take.
+ * the moment a LATER press arrives, so a start waiting on the sessions or on
+ * Tailscale's approval for a press that is no longer the last one stops
+ * waiting at once.
  */
 interface SwitchPress {
   readonly n: number;
@@ -255,19 +264,24 @@ function pressNumbered(n: number): { press: SwitchPress; supersede: () => void }
   return { press: { n, superseded }, supersede };
 }
 
+/** What one start came to. `retry` is a refusal a restart may try again. */
+type OpenOutcome = 'published' | 'stopped' | 'retry';
+
+type GoodRead = Extract<TailnetRead, { ok: true }>;
+
 /**
- * The owner: the store, the pairing window, the verifier and the handler.
+ * The owner: the store, the pairing window, the verifier, the handler, the
+ * door process and the Funnel child.
  */
 export class PocketHost {
   private store: PocketStore | null = null;
   private identity: PocketIdentity | null = null;
-  private lastRefusal: string | null = null;
+  /** Rows the last store read dropped for having no client key. */
+  private droppedPhones = 0;
   private readonly addedAt = new Map<string, number>();
   /**
    * The LAST press of the switch (Phase 316.1). Every `setDoor` that changes
-   * anything replaces it, synchronously, before its first await — even an off
-   * that could not be saved — so a start of an earlier press can tell it is no
-   * longer the one that decides.
+   * anything replaces it, synchronously, before its first await.
    */
   private lastPress = pressNumbered(0);
   /**
@@ -275,23 +289,57 @@ export class PocketHost {
    * It never rejects, so a job that failed cannot stop the next press.
    */
   private doorJobs: Promise<void> = Promise.resolve();
+  /** Door jobs queued or running that may start the door. */
+  private opening = 0;
+
+  private readonly funnel: FunnelDeps;
+  /** This run's last successful Tailscale read, or null before the first. */
+  private read: GoodRead | null = null;
+  /** The last Tailscale read's refusal, cleared by a read that succeeds. */
+  private readRefusal: PocketFunnelRefusal | null = null;
+  /** The last start's sentence: the listener's, Funnel's, or the sessions'. */
+  private startRefusal: string | null = null;
+  /** The Funnel child while the door is published. */
+  private run: FunnelRun | null = null;
+  private funnelState: PocketFunnelView['state'] = 'idle';
+  /** The approval URL the start is waiting on, held only for that wait. */
+  private approvalUrl: string | null = null;
+  /** Epoch ms of this run's last counted start. */
+  private publishedAt: number | null = null;
+  /** The restart's pending timer, and the spacing it was armed with. */
+  private restartCancel: (() => void) | null = null;
+  private restartDelay = 0;
+  /** The timer that tells the door process the window shut. */
+  private windowTimer: ReturnType<typeof setTimeout> | null = null;
 
   readonly pairing: PocketPairing;
   readonly verifier: PocketRequestVerifier;
-  /** The request handler `./bind.ts` is started with. */
+  /** The request handler the door process forwards to. */
   readonly handler: ReturnType<typeof createPocketHandler>;
 
   constructor(private readonly deps: PocketHostDeps) {
+    this.funnel = deps.tailscale ?? defaultFunnelDeps();
     this.pairing = new PocketPairing({
       identity: () => this.identityNow(),
       fieldsNow: () => this.fields(),
       savePhones: (phones) => this.savePhones(phones),
-      // THE PUBLIC KEY, NOT THE CERTIFICATE (QR v:2). And null unless the door
-      // is listening, which is what makes the window refuse to open on a door
-      // with nothing to pin.
+      // THE PUBLIC KEY, NOT THE CERTIFICATE. And null unless the door is
+      // published, which is what makes the window refuse to open on a door
+      // with nothing to pin or nothing a phone can reach.
       publicKeyPin: () => {
         const door = pocketDoorStatus();
-        return door.listening ? spkiPinOf(door.publicKeyFingerprint) : null;
+        return door.listening && this.published() ? spkiPinOf(door.publicKeyFingerprint) : null;
+      },
+      // The door's own key signs the allowed phone's client certificate. Only
+      // while it is listening: that is when main holds the material.
+      issueCertificate: (clientKey) => {
+        const material = pocketTlsMaterial();
+        if (material === null || !pocketDoorStatus().listening) return null;
+        try {
+          return issueClientCertificate(material.key, clientKey, this.now()).toString('base64url');
+        } catch {
+          return null;
+        }
       },
       ...(deps.now !== undefined ? { now: deps.now } : {})
     });
@@ -302,13 +350,17 @@ export class PocketHost {
     });
     const routes = createPocketRoutes(deps.facts);
     this.handler = createPocketHandler({
-      boundAddress: () => pocketDoorStatus().address,
-      boundPort: () => pocketDoorStatus().port,
       shuttingDown: () => pocketShutdownStarted(),
       pairingWindowOpen: () => this.pairing.windowOpen(),
-      present: (body, from) => this.pairing.present(body, from),
+      present: (presentation) => this.pairing.present(presentation),
       verify: (input) => {
-        const verdict = this.verifier.verify(input);
+        const verdict = this.verifier.verify({
+          method: input.method,
+          target: input.target,
+          body: input.body,
+          channel: input.channel,
+          headers: input.headers
+        });
         return verdict.ok
           ? { ok: true, phoneId: verdict.phone.id }
           : { ok: false, reason: verdict.reason };
@@ -316,15 +368,14 @@ export class PocketHost {
       // Asked again after the answer is composed and before it is sent (the
       // Phase 316.1 fix round): `removePhone` writes the store BEFORE its first
       // await, so a phone removed while its request was in flight is refused
-      // `unpaired` here rather than answered from the store as it stood after
-      // the press. A store that cannot be read answers no, which refuses.
+      // `unpaired` here rather than answered. A store that cannot be read
+      // answers no, which refuses.
       stillPaired: (phoneId) =>
         this.readStore()?.phones.some((p) => p.id === phoneId) === true,
       answer: async (route: PocketRoute, query) => {
         // The closed table, answered. There is no default arm: a route id this
         // switch does not name cannot exist, because `POCKET_ROUTES` is the
-        // only producer of the type, so a route added there without an arm
-        // here is a compile error rather than a route that answers nothing.
+        // only producer of the type.
         switch (route.id) {
           case 'blocked':
             return routes.blocked();
@@ -349,6 +400,18 @@ export class PocketHost {
         }
       }
     });
+    // THE DOOR PROCESS DIED UNASKED. The same path as the child exiting: the
+    // child is stopped first, then the whole door starts again.
+    onPocketDoorExit(() => {
+      if (this.run === null) return;
+      pocketLog.warn('the door process stopped unexpectedly');
+      this.unexpectedlyDown();
+    });
+    deps.onResume?.(() => this.wakeCheck());
+  }
+
+  private now(): number {
+    return this.deps.now?.() ?? Date.now();
   }
 
   // -------------------------------------------------------------------------
@@ -369,6 +432,7 @@ export class PocketHost {
     if (!read.sealKnown) return null;
     if (read.store !== null) {
       this.store = read.store;
+      this.droppedPhones = read.droppedPhones;
       this.identity = openIdentity(read.store.identity);
       for (const phone of read.store.phones) {
         if (!this.addedAt.has(phone.id)) this.addedAt.set(phone.id, 0);
@@ -377,12 +441,19 @@ export class PocketHost {
     return this.store;
   }
 
+  /** Write the store and hold it, or answer false and hold what was. */
+  private writeStore(next: PocketStore): boolean {
+    if (!writePocketStore(next)) return false;
+    this.store = next;
+    return true;
+  }
+
   /**
    * The identity, minted on first use and sealed at once.
    *
    * Minting it starts nothing: no socket opens, nothing is sent and nothing
-   * outside this Mac can be reached by it. The door still refuses to bind until
-   * a person has confirmed it.
+   * outside this Mac can be reached by it. The door still refuses to start
+   * until a person has confirmed it.
    */
   private identityNow(): PocketIdentity {
     const store = this.readStore();
@@ -391,7 +462,8 @@ export class PocketHost {
     const next: PocketStore = {
       identity: minted.sealed,
       phones: store?.phones ?? [],
-      port: store?.port ?? POCKET_DEFAULT_PORT,
+      publicPort: store?.publicPort ?? 0,
+      tailnetFacts: store?.tailnetFacts ?? null,
       bindAtLaunch: store?.bindAtLaunch ?? false,
       enabled: store?.enabled ?? false,
       pushAlerts: store?.pushAlerts ?? false,
@@ -412,27 +484,58 @@ export class PocketHost {
   private savePhones(phones: readonly PocketPhoneFields[]): boolean {
     const store = this.readStore();
     if (store === null) return false;
-    const next: PocketStore = { ...store, phones: [...phones] };
-    if (!writePocketStore(next)) return false;
-    this.store = next;
-    const now = this.deps.now?.() ?? Date.now();
+    if (!this.writeStore({ ...store, phones: [...phones] })) return false;
+    const now = this.now();
     for (const phone of phones) {
       if (!this.addedAt.has(phone.id)) this.addedAt.set(phone.id, now);
     }
+    // The door process admits the new phone's handshake from this line.
+    this.postPins();
     return true;
   }
 
-  private bindAddress(): string {
-    if (this.deps.bindAddress !== undefined) return this.deps.bindAddress();
-    return pocketFieldAddress();
+  /** The paired phones' client-key pins, as the door process checks them. */
+  private pins(): DoorPin[] {
+    return this.fields().phones.map((p) => ({
+      phoneId: p.id,
+      spkiSha256: clientKeyPinOf(p.clientKey)
+    }));
+  }
+
+  /**
+   * Hand the door process the pins as they stand now. A phone no longer in
+   * them has every open socket cut by the door process at once, before any
+   * queued close runs.
+   */
+  private postPins(): void {
+    if (!pocketDoorStatus().listening) return;
+    updatePocketDoor({ pins: this.pins() });
+  }
+
+  /**
+   * The facts the hash is computed from: this run's read when there is one,
+   * and otherwise the stored facts (SPEC §4.4).
+   */
+  private facts(): PocketTailnetFacts | null {
+    if (this.read !== null) {
+      return {
+        funnelProgram: this.read.funnelProgram,
+        tailnet: this.read.tailnet,
+        publicName: this.read.publicName
+      };
+    }
+    return this.readStore()?.tailnetFacts ?? null;
   }
 
   /** The door's execution bearing fields, as they are right now. */
   fields(): PocketExecutionFields {
     const store = this.readStore();
+    const facts = this.facts();
     return {
-      bindAddress: this.bindAddress(),
-      port: store?.port ?? POCKET_DEFAULT_PORT,
+      funnelProgram: facts?.funnelProgram ?? EMPTY_POCKET_FIELDS.funnelProgram,
+      tailnet: facts?.tailnet ?? EMPTY_POCKET_FIELDS.tailnet,
+      publicName: facts?.publicName ?? EMPTY_POCKET_FIELDS.publicName,
+      publicPort: store?.publicPort ?? EMPTY_POCKET_FIELDS.publicPort,
       bindAtLaunch: store?.bindAtLaunch ?? false,
       routes: pocketRouteIds(),
       phones: store?.phones ?? EMPTY_POCKET_FIELDS.phones,
@@ -444,51 +547,87 @@ export class PocketHost {
   // What the sheet draws
   // -------------------------------------------------------------------------
 
+  /**
+   * MAY THESE LINES BE AGREED TO NOW? (The Phase 330 fix round.) Only over a
+   * public name Tailscale gave and a public port Tortie chose, and never while
+   * the last Tailscale read or port choice failed: those lines name no
+   * address, or an address Tailscale just said it cannot publish, and a person
+   * is never asked to agree to them. ONE PREDICATE: `status().confirmable` is
+   * this, the sheet draws the lines and Allow only on it, and
+   * {@link confirmDoor} records nothing without it.
+   */
+  private confirmable(fields: PocketExecutionFields): boolean {
+    return (
+      fields.publicName.length > 0 &&
+      FUNNEL_PORTS.includes(fields.publicPort) &&
+      this.readRefusal === null
+    );
+  }
+
+  /** Why {@link confirmable} said no, as the one sentence the sheet draws. */
+  private unconfirmableSentence(fields: PocketExecutionFields): string {
+    return this.readRefusal !== null
+      ? pocketFunnelSentence(this.readRefusal, fields.publicPort)
+      : NOTHING_TO_ALLOW;
+  }
+
+  /** True while a counted start's child is alive. */
+  private published(): boolean {
+    return this.run !== null && this.run.alive && this.funnelState === 'publishing';
+  }
+
   status(): PocketStatus {
     const fields = this.fields();
     const gate = pocketConfirmStatus(fields);
     const door = pocketDoorStatus();
     const store = this.readStore();
-    const address = fields.bindAddress.length === 0 ? null : fields.bindAddress;
+    const listening = door.listening && this.published();
     const state: PocketStatus['state'] =
       store?.enabled !== true
         ? 'off'
-        : address === null
-          ? 'no-address'
-          : door.listening
-            ? 'listening'
+        : listening
+          ? 'listening'
+          : this.opening > 0 || this.funnelState === 'restarting'
+            ? 'opening'
             : 'refused';
+    // THE ORDER (SPEC §4.11): Tailscale's own refusal, then the gate's, then
+    // the last start's. Tailscale being off is never drawn as "this door
+    // changed", and lines that name nothing are never drawn as a door waiting
+    // to be allowed (the fix round). A door that is OFF composes no read
+    // sentence: the last read belongs to a press the person has since undone.
+    const confirmable = this.confirmable(fields);
+    const readSentence = state === 'off' || confirmable ? null : this.unconfirmableSentence(fields);
+    const waiting = this.funnelState === 'approval' ? this.approvalUrl : null;
+    const opens = approvalOpens(waiting);
     return {
       state,
-      address,
-      port: fields.port,
+      publicName: fields.publicName.length === 0 ? null : fields.publicName,
+      publicPort: fields.publicPort,
       bindAtLaunch: fields.bindAtLaunch,
       certificateFingerprint: door.certificateFingerprint,
       refusal:
         state === 'listening'
           ? null
-          : (gate.refusal ?? this.lastRefusal ?? door.sentence),
+          : (readSentence ?? gate.refusal ?? this.startRefusal ?? door.sentence),
       phones: fields.phones.map((p) =>
         phoneView(p, this.addedAt.get(p.id) ?? 0, new Set(store?.deadPushTokens ?? []))
       ),
+      droppedPhones: this.droppedPhones,
+      funnel: {
+        state: this.funnelState,
+        asksApproval: this.read?.asksApproval ?? false,
+        approvalOpens: opens,
+        approvalText: waiting !== null && !opens ? waiting : null,
+        publishedAt: this.publishedAt
+      },
       confirmState: gate.state,
       confirmLines: gate.lines,
       confirmHash: gate.hash,
+      confirmable,
       routes: POCKET_ROUTE_IDS,
-      pushAlerts: fields.pushAlerts,
-      grant: address === null ? null : pocketGrantText(address, fields.port)
+      pushAlerts: fields.pushAlerts
     };
   }
-
-  /** The text a person pastes into their OWN Tailscale admin console. */
-  grantText(): string {
-    const fields = this.fields();
-    return pocketGrantText(fields.bindAddress, fields.port);
-  }
-
-  // -------------------------------------------------------------------------
-  // Binding
-  // -------------------------------------------------------------------------
 
   // -------------------------------------------------------------------------
   // The switch's one queue (Phase 316.1, his ruling of 2026-09-23)
@@ -497,11 +636,10 @@ export class PocketHost {
   /**
    * Run one door job after every door job before it has settled.
    *
-   * THIS IS THE ONLY WAY THE DOOR IS STARTED OR STOPPED. {@link openNow} and
-   * {@link closeNow} are reached from inside a job and nowhere else, so a start
-   * is never inside `./bind.ts` while a stop runs, and a stop never finds the
-   * module between two doors. A job that rejects rejects its own caller and
-   * never the queue.
+   * THIS IS THE ONLY WAY THE DOOR OR ITS FUNNEL CHILD IS STARTED OR STOPPED.
+   * {@link openNow}, {@link recoverNow} and {@link closeNow} are reached from
+   * inside a job and nowhere else. A job that rejects rejects its own caller
+   * and never the queue.
    */
   private serially<T>(job: () => Promise<T>): Promise<T> {
     const run = this.doorJobs.then(job);
@@ -510,6 +648,19 @@ export class PocketHost {
       () => undefined
     );
     return run;
+  }
+
+  /**
+   * Resolves once the queue is empty, including any job a job queued. A TEST
+   * HELPER: no IPC answer waits on it, because a start may wait on Tailscale's
+   * approval for minutes.
+   */
+  async idle(): Promise<void> {
+    let tail: Promise<void> | null = null;
+    while (tail !== this.doorJobs) {
+      tail = this.doorJobs;
+      await tail;
+    }
   }
 
   /**
@@ -534,95 +685,372 @@ export class PocketHost {
    */
   async start(): Promise<void> {
     const press = this.lastPress.press;
-    await this.serially(() => this.openNow(press));
+    this.opening += 1;
+    try {
+      await this.serially(async () => {
+        const outcome = await this.openNow(press);
+        if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';
+      });
+    } finally {
+      this.opening -= 1;
+      this.changed();
+    }
+  }
+
+  /** The same start, queued and not awaited: the IPC answer never waits on it. */
+  private queueStart(): void {
+    void this.start();
+  }
+
+  /** The funnel's state, drawn at once. */
+  private setFunnel(state: PocketFunnelView['state']): void {
+    this.funnelState = state;
+    this.changed();
   }
 
   /**
-   * The start itself, run only inside a door job.
+   * THE ORPHAN SWEEP, then THE READ, the order every job that may spawn asks
+   * them in (SPEC §4.3 steps 5 and 6): an orphan of a crashed run still holds
+   * its port, and the read must not mistake it for somebody else's.
    *
-   * THE GATE IS ASKED FIRST, before `./bind.ts` is reached at all, so a door
-   * nobody confirmed never gets as far as a socket. AND THE PRESS IS ASKED
-   * BESIDE IT: a start whose press is no longer the last one binds nothing.
+   * A successful read replaces this run's facts, and the stored ones when they
+   * differ (observations: writing them confirms nothing).
    */
-  private async openNow(press: SwitchPress): Promise<void> {
-    if (this.superseded(press)) return;
-    if (!this.mayOpen()) return;
+  private async sweepAndRead(): Promise<GoodRead | null> {
+    if ((await sweepFunnelOrphan(this.funnel)) === 'still-running') {
+      this.orphanWouldNotEnd();
+      return null;
+    }
+    this.setFunnel('reading');
+    const read = await readTailnet(this.funnel);
+    if (!read.ok) {
+      this.readRefusal = read.reason;
+      pocketLog.warn(`Tailscale could not be read: ${read.reason}`);
+      return null;
+    }
+    this.readRefusal = null;
+    this.read = read;
+    const store = this.readStore();
+    const stored = store?.tailnetFacts ?? null;
+    if (
+      store !== null &&
+      (stored === null ||
+        stored.funnelProgram !== read.funnelProgram ||
+        stored.tailnet !== read.tailnet ||
+        stored.publicName !== read.publicName)
+    ) {
+      this.writeStore({
+        ...store,
+        tailnetFacts: {
+          funnelProgram: read.funnelProgram,
+          tailnet: read.tailnet,
+          publicName: read.publicName
+        }
+      });
+    }
+    return read;
+  }
+
+  /**
+   * A Funnel child a crashed run left publishing was proved ours by `ps` and
+   * would not end: its record is kept, and the start refuses `port-taken`.
+   */
+  private orphanWouldNotEnd(): void {
+    this.startRefusal = pocketFunnelSentence('port-taken', this.fields().publicPort);
+  }
+
+  /**
+   * The start itself, run only inside a door job (SPEC §4.3).
+   *
+   * THE GATE IS ASKED FIRST, before Tailscale is read at all, so a door nobody
+   * confirmed never gets as far as a program. AND THE PRESS IS ASKED BESIDE
+   * IT: a start whose press is no longer the last one forks and spawns
+   * nothing, and the statement IMMEDIATELY before the fork and before the spawn
+   * is that question (`conformance:pocket` L5).
+   */
+  private async openNow(press: SwitchPress): Promise<OpenOutcome> {
+    // 1, 2.
+    if (this.superseded(press)) return 'stopped';
+    if (!this.mayOpen()) return 'stopped';
+    // 3, 4.
     if (this.deps.beforeOpen !== undefined) {
       try {
-        // A LATER PRESS ENDS THE WAIT. The sessions keep coming up on their
-        // own; this start stops waiting for them, so the press behind it in the
-        // queue is not held for as long as they take.
+        // A LATER PRESS ENDS THE WAIT.
         await Promise.race([this.deps.beforeOpen(), press.superseded]);
       } catch {
-        if (this.superseded(press)) return;
-        this.lastRefusal = SESSIONS_NOT_READY;
-        pocketLog.warn('the tailnet door did not open: the sessions were not ready');
+        if (this.superseded(press)) return 'stopped';
+        this.startRefusal = SESSIONS_NOT_READY;
+        pocketLog.warn('the phone door did not open: the sessions were not ready');
         this.changed();
-        return;
+        return 'retry';
       }
-      // ASKED AGAIN AFTER THE AWAIT. The person may have switched the door off,
-      // or a field may have moved, while the sessions were coming up, and a
-      // bind on the answer from before the await would open a door nobody has
-      // on now.
-      if (this.superseded(press)) return;
-      if (!this.mayOpen()) return;
+      if (this.superseded(press)) return 'stopped';
+      if (!this.mayOpen()) return 'stopped';
+    }
+    // 5, 6. A read that moved a field moves the hash, and the gate refuses.
+    const read = await this.sweepAndRead();
+    if (this.superseded(press)) {
+      this.setFunnel('idle');
+      return 'stopped';
+    }
+    if (read === null) {
+      this.setFunnel('idle');
+      return this.readRefusal !== null && !RETRIED.has(this.readRefusal) ? 'stopped' : 'retry';
+    }
+    if (!this.mayOpen()) {
+      this.setFunnel('idle');
+      return 'stopped';
     }
     const fields = this.fields();
-    // THE FIELD AND THE BIND ARE ONE ADDRESS, OR NOTHING BINDS. `./bind.ts`
-    // chooses its own address and is not told the field's, so an owner built
-    // with a `bindAddress` override (the harness seams pass `127.0.0.1`)
-    // without the loopback override that makes `./bind.ts` agree would confirm
-    // loopback and then bind this Mac's REAL tailnet interface. Asked here,
-    // before the socket, of the same chooser `./bind.ts` asks.
-    if (fields.bindAddress !== pocketFieldAddress()) {
-      this.lastRefusal = ADDRESS_NOT_BOUND;
-      pocketLog.warn('the tailnet door did not open: its confirmed address is not the one it would bind');
-      this.changed();
-      return;
+    // NOTHING OPENS ONTO A NAME OR A PORT THAT IS NOT ONE (the fix round): a
+    // door process given port 0 is refused by the wire and was reported,
+    // fourteen seconds later, as a door that could not open. `confirmDoor`
+    // records no agreement over such fields; this is the same rule asked again
+    // by the one path that forks.
+    if (!this.confirmable(fields)) {
+      this.startRefusal = this.unconfirmableSentence(fields);
+      pocketLog.warn('the phone door did not open: it has no public name or port');
+      this.setFunnel('idle');
+      return 'stopped';
     }
-    // THE LAST PRESS, ASKED ONE LAST TIME, with nothing awaited between this
-    // and the bind. A press that arrived while this start waited has already
-    // said what the door is; this start says nothing.
-    if (this.superseded(press)) return;
-    const result = await startPocketDoor({
-      port: fields.port,
-      handle: this.handler
-    });
-    // A PRESS ARRIVED WHILE THE SOCKET WAS OPENING. The door that opened under
-    // it is closed here, inside this job, so it is closed before the next
-    // press runs; and a refusal the listen answered is not the person's.
+    // A CONFIRMED PORT THAT IS HELD REFUSES AND NEVER MOVES: a phone was told
+    // it. Only a person's switch chooses again.
+    if (portsHeld(read.serve).has(fields.publicPort)) {
+      this.startRefusal = pocketFunnelSentence('port-taken', fields.publicPort);
+      pocketLog.warn('the phone door did not open: port-taken');
+      this.setFunnel('idle');
+      return 'stopped';
+    }
+    // 7, 8. The door process listens on 127.0.0.1:0.
+    this.setFunnel('starting');
     if (this.superseded(press)) {
-      if (result.ok) await this.closeNow();
-      else this.changed();
+      this.setFunnel('idle');
+      return 'stopped';
+    }
+    const door = await startPocketDoor({
+      handle: this.handler,
+      publicHost: { name: fields.publicName, port: fields.publicPort },
+      pins: this.pins(),
+      windowOpen: this.pairing.windowOpen(),
+      ...(this.deps.door !== undefined ? { spawn: this.deps.door } : {})
+    });
+    // 9.
+    if (this.superseded(press)) {
+      if (door.ok) await stopPocketDoor();
+      this.setFunnel('idle');
+      return 'stopped';
+    }
+    if (!door.ok) {
+      this.startRefusal = door.sentence;
+      pocketLog.warn(`the phone door did not open: ${door.reason}`);
+      this.setFunnel('idle');
+      return door.reason === 'quitting' ? 'stopped' : 'retry';
+    }
+    // 10, 11. The approval wait lives here, raced against the press. Every
+    // way out but a counted start stops the child (inside `startFunnel`) and
+    // the door process (the `finally` below).
+    let outcome: OpenOutcome = 'retry';
+    try {
+      if (this.superseded(press)) {
+        outcome = 'stopped';
+        return outcome;
+      }
+      const started = await startFunnel(
+        this.funnel,
+        {
+          program: fields.funnelProgram,
+          publicName: fields.publicName,
+          publicPort: fields.publicPort,
+          localPort: door.localPort
+        },
+        press.superseded,
+        {
+          onApproval: (url) => {
+            this.approvalUrl = url;
+            this.setFunnel('approval');
+          },
+          onApproved: () => {
+            this.approvalUrl = null;
+            this.setFunnel('starting');
+          }
+        }
+      );
+      this.approvalUrl = null;
+      if (started.kind === 'superseded') {
+        outcome = 'stopped';
+        return outcome;
+      }
+      if (started.kind === 'refused') {
+        this.startRefusal = pocketFunnelSentence(started.reason, fields.publicPort);
+        outcome = RETRIED.has(started.reason) ? 'retry' : 'stopped';
+        return outcome;
+      }
+      if (this.superseded(press)) {
+        await started.run.stop();
+        outcome = 'stopped';
+        return outcome;
+      }
+      // 12. THE COUNTED START. The restart's spacing starts again at its floor.
+      this.adopt(started.run);
+      this.publishedAt = this.now();
+      this.startRefusal = null;
+      this.cancelRestart();
+      this.restartDelay = 0;
+      this.funnelState = 'publishing';
+      outcome = 'published';
+    } finally {
+      if (outcome !== 'published') {
+        this.funnelState = 'idle';
+        await stopPocketDoor();
+        this.changed();
+      }
+    }
+    pocketLog.info('the phone door is published');
+    // 13. A press that withdrew the agreement while this start was running (a
+    // Remove, the alerts flipped) found nothing published to close, so the
+    // door that just opened is asked again by the same rule and closes until
+    // the person confirms.
+    await this.closeNowUnlessConfirmed();
+    this.changed();
+    return this.published() ? 'published' : 'stopped';
+  }
+
+  /** Hold the published child, and hear if it exits unasked. */
+  private adopt(run: FunnelRun): void {
+    this.run = run;
+    run.onExit((unexpected) => {
+      if (!unexpected || this.run !== run) return;
+      this.run = null;
+      pocketLog.warn('the Funnel child stopped unexpectedly');
+      this.unexpectedlyDown();
+    });
+  }
+
+  /**
+   * The child, or the door process, went away unasked (SPEC §4.2.7). Nothing
+   * restarts during a quit or with the door switched off; otherwise the sheet
+   * says Tortie is trying again, and a restart is armed at the floor, doubling.
+   */
+  private unexpectedlyDown(): void {
+    if (funnelShutdownStarted() || pocketShutdownStarted()) return;
+    if (this.readStore()?.enabled !== true) return;
+    this.setFunnel('restarting');
+    this.armRestart();
+  }
+
+  private armRestart(): void {
+    if (this.restartCancel !== null) return;
+    const delay = nextRestartDelay(this.restartDelay);
+    this.restartDelay = delay;
+    const press = this.lastPress.press;
+    this.restartCancel = armFunnelRestart(this.funnel, delay, () => {
+      this.restartCancel = null;
+      void this.serially(() => this.recoverNow(press));
+    });
+  }
+
+  private cancelRestart(): void {
+    this.restartCancel?.();
+    this.restartCancel = null;
+  }
+
+  /**
+   * THE RESTART, run only inside a door job, and only while the press that
+   * armed it is still the last press (SPEC §4.2.7). The child is stopped first
+   * and then the door process, and the start is the ordinary {@link openNow},
+   * whose fresh read must return exactly the confirmed program, tailnet and
+   * name. A MOVED FIELD NEVER RESTARTS: the gate reads `changed`, the door
+   * stays closed and the sheet draws the new lines.
+   */
+  private async recoverNow(press: SwitchPress): Promise<void> {
+    if (this.superseded(press) || this.readStore()?.enabled !== true) {
+      if (this.funnelState === 'restarting') this.setFunnel('idle');
       return;
     }
-    this.lastRefusal = result.ok ? null : result.sentence;
-    if (!result.ok) {
-      pocketLog.warn(`the tailnet door did not open: ${result.reason}`);
+    await this.unpublish();
+    this.funnelState = 'restarting';
+    this.opening += 1;
+    let outcome: OpenOutcome = 'stopped';
+    try {
+      outcome = await this.openNow(press);
+    } finally {
+      this.opening -= 1;
     }
-    // A press that withdrew the agreement while the socket was opening (a
-    // Remove, the alerts flipped) found nothing listening to close, so the
-    // door that just opened is asked again, by the same rule every such press
-    // uses, and closes until the person confirms.
-    if (result.ok) await this.closeNowUnlessConfirmed();
+    if (outcome === 'retry' && !this.superseded(press) && !funnelShutdownStarted()) {
+      this.setFunnel('restarting');
+      this.armRestart();
+    } else if (outcome !== 'published') {
+      this.setFunnel('idle');
+    }
     this.changed();
+  }
+
+  /**
+   * On a wake, while the door is published: Tailscale must still publish it.
+   * One check job, and it spawns only when the door is on.
+   */
+  private wakeCheck(): void {
+    if (this.run === null || this.readStore()?.enabled !== true) return;
+    const press = this.lastPress.press;
+    void this.serially(async () => {
+      if (this.superseded(press) || this.run === null) return;
+      if (await this.stillPublished()) return;
+      await this.recoverNow(press);
+    });
+  }
+
+  /** Does Tailscale's own serve config still publish this door? */
+  private async stillPublished(): Promise<boolean> {
+    const run = this.run;
+    if (run === null || !run.alive) return false;
+    const program = funnelProgramOf(this.funnel.resolve());
+    if (!program.ok) return false;
+    const fields = this.fields();
+    const served = await readServe(this.funnel, program.path);
+    return (
+      served !== undefined &&
+      this.run === run &&
+      run.alive &&
+      servesThisDoor(served, {
+        publicName: fields.publicName,
+        publicPort: fields.publicPort,
+        localPort: pocketDoorStatus().localPort
+      })
+    );
   }
 
   /**
    * May the door open right now? Only when the person has it switched on AND
    * the gate says its fields are the confirmed ones. A refusal is remembered
-   * as the sheet's sentence. Nothing here binds.
+   * as the sheet's sentence. Nothing here starts anything.
    */
   private mayOpen(): boolean {
     if (this.readStore()?.enabled !== true) return false;
     try {
       assertPocketDoorMayBind(this.fields());
-    } catch (err) {
-      this.lastRefusal = err instanceof Error ? sentenceOf(err) : String(err);
+    } catch {
+      // The gate's sentence is drawn from the gate itself (`status()`), so it
+      // is not kept here: a kept copy would outlive the agreement it was about.
+      pocketLog.warn('the phone door did not open: its details are not the confirmed ones');
       this.changed();
       return false;
     }
     return true;
+  }
+
+  /**
+   * Stop publishing: the CHILD FIRST, so nothing on the internet reaches a
+   * door that is going, then the door process. The window stays: a restart
+   * serves the same key at the same name.
+   */
+  private async unpublish(): Promise<void> {
+    const run = this.run;
+    this.run = null;
+    try {
+      if (run !== null) await run.stop();
+    } finally {
+      await stopPocketDoor();
+    }
   }
 
   /**
@@ -635,17 +1063,20 @@ export class PocketHost {
 
   /** The stop itself, run only inside a door job. */
   private async closeNow(): Promise<void> {
-    await stopPocketDoor();
+    this.cancelRestart();
+    this.restartDelay = 0;
+    await this.unpublish();
+    this.funnelState = 'idle';
+    this.approvalUrl = null;
     this.verifier.clear();
-    this.pairing.cancel();
+    this.cancelWindow();
     this.changed();
   }
 
   /**
-   * Close a listening door whose current fields are no longer the confirmed
-   * ones. Called after every press that moves a hashed field, so the door that
-   * is answering is always a door a person agreed to. A closed door stays
-   * closed, and nothing here ever OPENS one. It waits its turn in the queue.
+   * Close a published door whose current fields are no longer the confirmed
+   * ones. Called after every press that moves a hashed field. A closed door
+   * stays closed, and nothing here ever OPENS one. It waits its turn.
    */
   private closeUnlessConfirmed(): Promise<void> {
     return this.serially(() => this.closeNowUnlessConfirmed());
@@ -653,7 +1084,7 @@ export class PocketHost {
 
   /** The same question, run only inside a door job. */
   private async closeNowUnlessConfirmed(): Promise<void> {
-    if (!pocketDoorStatus().listening) return;
+    if (!pocketDoorStatus().listening && this.run === null) return;
     if (pocketConfirmStatus(this.fields()).state === 'confirmed') return;
     await this.closeNow();
   }
@@ -661,29 +1092,27 @@ export class PocketHost {
   /**
    * The launch step (Phase 316), called once from `installMainCapabilities`.
    *
-   * IT BINDS ONLY ON CONFIRMED FIELDS. Nothing happens unless the sealed store
+   * IT STARTS ONLY ON CONFIRMED FIELDS. Nothing happens unless the sealed store
    * says the person turned the door on (`enabled`) AND asked for it at launch
-   * (`bindAtLaunch`), and even then the door opens only when the fields as they
-   * stand now hash to the agreement on record. A store written by anything but
-   * the sheet — `bindAtLaunch: true` with no confirm — moves the hash, so the
-   * door stays shut and the sheet says why in the gate's own sentence.
-   *
-   * The owner's `beforeOpen` (the session core's boot) is awaited only when
-   * the door is going to open, so a person who never turned it on pays one
-   * read of a file that is not there.
+   * (`bindAtLaunch`); a person who never turned it on pays one read of a file
+   * that is not there. Then the orphan sweep, whatever the gate says, and the
+   * start's own order: the gate on the stored facts, the sessions, the sweep
+   * again (no record reads nothing), the read, the gate again.
    */
   async openAtLaunch(): Promise<PocketLaunchOutcome> {
     const store = this.readStore();
     if (store === null || !store.enabled || !store.bindAtLaunch) return 'off';
-    const gate = pocketConfirmStatus(this.fields());
-    if (gate.state !== 'confirmed') {
-      this.lastRefusal = gate.refusal;
-      pocketLog.warn(`the tailnet door stayed shut at launch: its details are ${gate.state}`);
-      this.changed();
-      return 'refused';
-    }
+    // THE ORPHAN FIRST, WHATEVER THE GATE SAYS (SPEC §4.13): a child a crashed
+    // run left publishing is ended even when this launch will not open the
+    // door, because nothing else would ever end it. With no record this reads
+    // one missing file and runs nothing.
+    await this.serially(async () => {
+      if ((await sweepFunnelOrphan(this.funnel)) === 'still-running') this.orphanWouldNotEnd();
+    });
     await this.start();
-    return pocketDoorStatus().listening ? 'opened' : 'refused';
+    if (this.published()) return 'opened';
+    pocketLog.warn('the phone door stayed shut at launch');
+    return 'refused';
   }
 
   private changed(): void {
@@ -699,6 +1128,32 @@ export class PocketHost {
   }
 
   // -------------------------------------------------------------------------
+  // The pairing window's edge, told to the door process
+  // -------------------------------------------------------------------------
+
+  private cancelWindow(): void {
+    this.pairing.cancel();
+    if (this.windowTimer !== null) clearTimeout(this.windowTimer);
+    this.windowTimer = null;
+    if (pocketDoorStatus().listening) updatePocketDoor({ windowOpen: false });
+  }
+
+  /** At the deadline, the door process stops admitting a certificate-less socket. */
+  private armWindowTimer(expiresAt: number): void {
+    if (this.windowTimer !== null) clearTimeout(this.windowTimer);
+    this.windowTimer = setTimeout(
+      () => {
+        this.windowTimer = null;
+        if (this.pairing.windowOpen()) return;
+        if (pocketDoorStatus().listening) updatePocketDoor({ windowOpen: false });
+        this.changed();
+      },
+      Math.max(0, expiresAt - this.now()) + 50
+    );
+    this.windowTimer.unref?.();
+  }
+
+  // -------------------------------------------------------------------------
   // The person's presses
   // -------------------------------------------------------------------------
 
@@ -706,28 +1161,15 @@ export class PocketHost {
    * Turn the door on or off. The person's switch, and the first step of the
    * order in this module's header.
    *
-   * ON writes `enabled` and `bindAtLaunch` together, minting the door's keys on
-   * the way if this is the first time. That moves a confirmed field, so the
-   * answer draws the confirm lines and nothing listens until the person
-   * confirms them — unless these exact fields were confirmed before (the door
-   * was on, then off, and nothing else moved), in which case the person's
-   * switch opens the agreed door at once. During a quit it refuses and writes
-   * nothing, so the next launch does not open a door this press never saw
-   * open.
+   * ON writes `enabled` and `bindAtLaunch` together, minting the door's keys
+   * on the way if this is the first time, and QUEUES the press's job: the
+   * orphan sweep, one read of Tailscale, the public port chosen and written
+   * (this press confirms its port), and then, only when these exact fields
+   * were confirmed before, the start. It returns once the job is queued.
    *
-   * OFF IS RECORDED BEFORE ITS FIRST AWAIT, and then it stops the door (the
-   * Phase 316.1 fix round). It used to stop first and write after, and a
-   * switch-on already waiting on the sessions re-read the switch inside that
-   * stop, found it still on, and bound a door the sheet then called off. So the
-   * off counts itself as the last press and writes both fields false with
-   * nothing awaited, and a start in flight reads either and binds nothing. The
-   * stop still happens when the write cannot: stopping is the part that
-   * narrows what anybody can reach, so the refusal is said only after it.
-   *
-   * ONE PRESS AT A TIME (his ruling of 2026-09-23). Both halves reach the door
-   * only through {@link serially}, and each counts itself with
-   * {@link pressed} before its first await, so the last press decides what the
-   * door is however the presses interleave.
+   * OFF IS RECORDED BEFORE ITS FIRST AWAIT, counts itself as the last press —
+   * which ends a start that is waiting on Tailscale's approval at once — and
+   * then closes the door: the child first, then the door process.
    */
   async setDoor(input: PocketSwitchInput): Promise<PocketStatus> {
     const on = switchOf(input);
@@ -737,9 +1179,7 @@ export class PocketHost {
       try {
         const store = this.readStore();
         if (store !== null && (store.enabled || store.bindAtLaunch)) {
-          const next: PocketStore = { ...store, enabled: false, bindAtLaunch: false };
-          saved = writePocketStore(next);
-          if (saved) this.store = next;
+          saved = this.writeStore({ ...store, enabled: false, bindAtLaunch: false });
         }
       } catch {
         saved = false;
@@ -755,7 +1195,7 @@ export class PocketHost {
       this.changed();
       return this.status();
     }
-    if (pocketShutdownStarted()) {
+    if (pocketShutdownStarted() || funnelShutdownStarted()) {
       throw gmuxError('INVALID_INPUT', `${DOOR_SENTENCES.quitting} Nothing was changed.`);
     }
     this.identityNow();
@@ -768,42 +1208,98 @@ export class PocketHost {
       );
     }
     if (!store.enabled || !store.bindAtLaunch) {
-      const next: PocketStore = { ...store, enabled: true, bindAtLaunch: true };
-      if (!writePocketStore(next)) {
+      if (!this.writeStore({ ...store, enabled: true, bindAtLaunch: true })) {
         throw gmuxError(
           'INVALID_INPUT',
           'Tortie could not save the switch, so the door stays off. Nothing ' +
             'was changed.'
         );
       }
-      this.store = next;
     }
     // Counted only now: a press refused above changed nothing, so it
     // supersedes nothing either.
     const press = this.pressed();
-    await this.serially(async () => {
-      if (pocketConfirmStatus(this.fields()).state === 'confirmed') {
-        await this.openNow(press);
-      } else {
+    this.opening += 1;
+    void this.serially(async () => {
+      try {
+        if (this.superseded(press)) return;
+        if (this.published() && pocketConfirmStatus(this.fields()).state === 'confirmed') return;
+        // A person's press replaces a restart that was waiting its turn.
+        this.cancelRestart();
+        if (!(await this.readAtPress(press))) return;
+        if (this.superseded(press)) return;
+        if (pocketConfirmStatus(this.fields()).state === 'confirmed') {
+          const outcome = await this.openNow(press);
+          if (outcome !== 'published') this.setFunnel('idle');
+        } else {
+          this.setFunnel('idle');
+        }
+      } finally {
+        this.opening -= 1;
         this.changed();
       }
     });
+    this.changed();
     return this.status();
   }
 
   /**
-   * Open a pairing window and answer the QR. Refused unless the door is
-   * listening, so the QR always carries a key to pin, and refused for a
-   * tailnet key that is not one — each with a sentence that never repeats it.
+   * THE PRESS'S READ: the orphan sweep, Tailscale read once, and the public
+   * port chosen — the stored one while it is free, else 8443, else 10000 — and
+   * written, because this press confirms it. Never 443.
    */
-  beginPairing(input: PocketPairingInput): PocketPairingOffer {
-    const offer = this.pairing.open(input);
+  private async readAtPress(press: SwitchPress): Promise<boolean> {
+    const read = await this.sweepAndRead();
+    if (read === null || this.superseded(press)) {
+      this.setFunnel('idle');
+      return false;
+    }
+    const store = this.readStore();
+    if (store === null) return false;
+    const chosen = choosePublicPort(store.publicPort, portsHeld(read.serve), read.funnelPorts);
+    if (!chosen.ok) {
+      this.readRefusal = chosen.reason;
+      pocketLog.warn(`no public port: ${chosen.reason}`);
+      this.setFunnel('idle');
+      return false;
+    }
+    if (chosen.port !== store.publicPort && !this.writeStore({ ...store, publicPort: chosen.port })) {
+      this.startRefusal =
+        'Tortie could not save the port it chose, so the door stays shut. Nothing was changed.';
+      this.setFunnel('idle');
+      return false;
+    }
+    this.startRefusal = null;
+    return true;
+  }
+
+  /**
+   * Open a pairing window and answer the QR. Refused unless the door is
+   * published, and Tailscale's serve config is read back first (SPEC §4.3): a
+   * code is never drawn for a door Tailscale stopped publishing. When it has,
+   * the restart runs and the refusal says so.
+   */
+  async beginPairing(): Promise<PocketPairingOffer> {
+    if (!pocketDoorStatus().listening || !this.published()) {
+      throw gmuxError('INVALID_INPUT', NOT_PUBLISHED);
+    }
+    if (!(await this.stillPublished())) {
+      if (this.run !== null) {
+        const press = this.lastPress.press;
+        this.setFunnel('restarting');
+        void this.serially(() => this.recoverNow(press));
+      }
+      throw gmuxError('INVALID_INPUT', `${POCKET_FUNNEL_RESTARTING} No code was shown.`);
+    }
+    const offer = this.pairing.open();
+    if (pocketDoorStatus().listening) updatePocketDoor({ windowOpen: true });
+    this.armWindowTimer(offer.expiresAt);
     this.changed();
     return offer;
   }
 
   cancelPairing(): PocketPairingView {
-    this.pairing.cancel();
+    this.cancelWindow();
     this.changed();
     return this.pairing.view();
   }
@@ -820,7 +1316,7 @@ export class PocketHost {
       hashRead: input.hashRead
     });
     // An allow that recorded the agreement and then could not save the phone
-    // leaves the door's fields unconfirmed, and a listening door closes.
+    // leaves the door's fields unconfirmed, and a published door closes.
     if (!outcome.allowed) void this.closeUnlessConfirmed();
     this.changed();
     return {
@@ -831,20 +1327,33 @@ export class PocketHost {
   }
 
   /**
-   * Confirm the door's fields as they stand, and then open it if the person
-   * has it switched on. The second step of the order in this module's header.
+   * Confirm the door's fields as they stand — the lines the person read — and
+   * queue the start. The second step of the order in this module's header.
    *
-   * The record is written BEFORE the first await, so a caller that does not
-   * wait for the door still reads `confirmed` straight after.
+   * The record is written BEFORE anything is queued, so a caller that does not
+   * wait reads `confirmed` straight after. THE ANSWER DOES NOT WAIT ON
+   * TAILSCALE: the start's own read, the approval and the read-back follow
+   * through `pocket:changed`.
    */
   async confirmDoor(input: PocketAllowInput): Promise<PocketAllowResult> {
-    const record = confirmPocketDoor(this.fields(), {
+    const fields = this.fields();
+    // NO AGREEMENT TO LINES THAT NAME NOTHING (the fix round): before the read
+    // lands they read `https://:0`, and after a failed read or port choice they
+    // name what Tailscale just refused. Asked before the record, synchronously,
+    // so nothing is written and nothing is queued.
+    if (!this.confirmable(fields)) {
+      this.changed();
+      return { allowed: false, refusal: this.unconfirmableSentence(fields), status: this.status() };
+    }
+    const record = confirmPocketDoor(fields, {
       acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT,
       linesRead: input.linesRead,
       hashRead: input.hashRead
     });
     // `start` opens only a door the person has switched on.
-    if (record !== null) await this.start();
+    if (record !== null && this.readStore()?.enabled === true && !this.published()) {
+      this.queueStart();
+    }
     this.changed();
     return {
       allowed: record !== null,
@@ -861,26 +1370,21 @@ export class PocketHost {
    * Drop one phone. The others stand.
    *
    * The phone leaves the store AND the confirmation is withdrawn with it, so
-   * the door asks again before it answers anything: a removed phone is not a
-   * phone whose approval is still on record. Its spent nonces are forgotten
-   * too, because they are about a pairing that no longer exists.
+   * the door asks again before it answers anything. The door process is handed
+   * the pins at once, so the removed phone's open sockets are cut before any
+   * queued close runs, and its next handshake is refused before a byte of
+   * HTTP. Its spent nonces are forgotten too.
    */
   async removePhone(phoneId: string): Promise<PocketStatus> {
     const store = this.readStore();
     if (store === null) return this.status();
     const kept = store.phones.filter((p) => p.id !== phoneId);
     if (kept.length === store.phones.length) return this.status();
-    if (!writePocketStore({ ...store, phones: kept })) return this.status();
-    this.store = { ...store, phones: kept };
+    if (!this.writeStore({ ...store, phones: kept })) return this.status();
+    this.postPins();
     this.addedAt.delete(phoneId);
     this.verifier.forget(phoneId);
     forgetPocketDoor();
-    // The agreement is withdrawn, so a listening door closes until the person
-    // confirms again. The removed phone is refused `unpaired` from the write
-    // above, whatever it sends next — AND a request of its that was already in
-    // flight is refused at the handler's last check, after its answer was
-    // composed and before a byte left (the Phase 316.1 fix round), rather than
-    // answered inside the stop's join.
     await this.closeUnlessConfirmed();
     this.changed();
     return this.status();
@@ -893,6 +1397,19 @@ export class PocketHost {
     return this.status();
   }
 
+  /**
+   * Open Tailscale's approval page, on a person's press. ONLY the URL the
+   * start holds, and only after it is checked again: `https:` on exactly
+   * `login.tailscale.com`, no port, no credentials. False when there is
+   * nothing it will open.
+   */
+  async openApproval(): Promise<boolean> {
+    const url = this.approvalUrl;
+    if (this.funnelState !== 'approval' || url === null || !approvalOpens(url)) return false;
+    await shell.openExternal(url);
+    return true;
+  }
+
   // -------------------------------------------------------------------------
   // The push (Phase 314)
   // -------------------------------------------------------------------------
@@ -901,15 +1418,9 @@ export class PocketHost {
    * Turn the alerts through Apple on or off.
    *
    * THE SWITCH IS A HASHED FIELD, so either direction moves the door's hash and
-   * the door asks again, exactly as any other field does under this module's
-   * rule; the confirm that follows is the person's, through
+   * the door asks again; the confirm that follows is the person's, through
    * {@link confirmDoor}. Turning it OFF stops the push at once without waiting
-   * for that confirm, because {@link pushDestinations} reads the switch before
-   * anything else.
-   *
-   * Phase 314 reached it from the harness seam and the tests alone. Since
-   * Phase 316 a person reaches it from Settings then Phone, through
-   * `pocket:setPushAlerts`.
+   * for that confirm, because {@link pushDestinations} reads the switch first.
    */
   async setPushAlerts(on: boolean): Promise<PocketStatus> {
     let store: PocketStore | null;
@@ -922,13 +1433,9 @@ export class PocketHost {
       store = null;
     }
     if (store === null || store.pushAlerts === on) return this.status();
-    const next: PocketStore = { ...store, pushAlerts: on };
-    if (!writePocketStore(next)) return this.status();
-    this.store = next;
-    // A hashed field moved (Phase 316): a listening door closes until the
-    // person confirms, like every other such press. The store is written
-    // BEFORE this first await, so a caller that does not wait reads the
-    // switch at once.
+    if (!this.writeStore({ ...store, pushAlerts: on })) return this.status();
+    // A hashed field moved: a published door closes until the person confirms.
+    // The store is written BEFORE this first await.
     await this.closeUnlessConfirmed();
     this.changed();
     return this.status();
@@ -938,10 +1445,9 @@ export class PocketHost {
    * Where an alert may go RIGHT NOW, and it is usually nowhere.
    *
    * `[]` unless the switch is on AND the door's current fields are the ones a
-   * person confirmed, so a phone added, removed or re-tokened since the last
-   * confirm stops every push until he confirms again. A phone with no token,
-   * and a token Apple said is dead, are left out. It does not depend on the
-   * door LISTENING: the push reads the confirmed fields, never the socket.
+   * person confirmed. It does not depend on the door being PUBLISHED: the push
+   * reads the confirmed fields — the stored Tailscale facts when this run has
+   * not read Tailscale — and never the socket.
    *
    * The answer carries the token and it is main's alone: it is never logged,
    * never broadcast and never in any answer to the renderer.
@@ -969,20 +1475,9 @@ export class PocketHost {
 
   /**
    * Apple said this token is no longer good. Remember its digest so nothing is
-   * ever sent to it again, across restarts, and change nothing else.
-   *
-   * THE HASH DOES NOT MOVE. The dead list is not a hashed field: dropping a
-   * destination only narrows where a person's words go, which needs no human,
-   * and moving the hash here would switch the door off on every 410. Pairing
-   * the phone again with a NEW token is a new digest and is live; with the SAME
-   * token it stays dead.
-   *
-   * A SEAL THAT CANNOT BE WRITTEN STILL DROPS IT FOR THIS RUN (the fix round).
-   * Every other change here is written before it is believed, because it WIDENS
-   * where his words go and needs the confirm the write carries. This one only
-   * narrows, so the host believes it even when the sealed write failed: the
-   * token stops being answered now, and the next write that succeeds carries
-   * the dead list with it. Only a restart before that write forgets it.
+   * ever sent to it again, across restarts, and change nothing else. THE HASH
+   * DOES NOT MOVE, and a seal that cannot be written still drops it for this
+   * run (Phase 314).
    */
   dropPushToken(tokenDigest: string): void {
     if (!isPushTokenDigest(tokenDigest)) return;
@@ -998,17 +1493,6 @@ export class PocketHost {
   }
 }
 
-/** The sentence inside a structured main error, or the plain message. */
-function sentenceOf(err: Error): string {
-  try {
-    const payload = JSON.parse(err.message) as { message?: unknown };
-    if (typeof payload.message === 'string') return payload.message;
-  } catch {
-    // Not a structured error. Its own message is the sentence.
-  }
-  return err.message;
-}
-
 /**
  * Register the sheet's channels.
  *
@@ -1021,11 +1505,12 @@ export function registerPocketIpc(ipc: IpcMain, host: PocketHost): void {
   handle(ipc, 'pocket:setPushAlerts', (_event, input) =>
     host.setPushAlerts(switchOf(input))
   );
-  handle(ipc, 'pocket:beginPairing', (_event, input) => host.beginPairing(input));
+  handle(ipc, 'pocket:beginPairing', () => host.beginPairing());
   handle(ipc, 'pocket:cancelPairing', () => host.cancelPairing());
   handle(ipc, 'pocket:pairingState', () => host.pairing.view());
   handle(ipc, 'pocket:allowPhone', (_event, input) => host.allowPhone(input));
   handle(ipc, 'pocket:removePhone', (_event, phoneId) => host.removePhone(phoneId));
   handle(ipc, 'pocket:confirmDoor', (_event, input) => host.confirmDoor(input));
   handle(ipc, 'pocket:forgetDoor', () => host.forgetDoor());
+  handle(ipc, 'pocket:openApproval', () => host.openApproval());
 }

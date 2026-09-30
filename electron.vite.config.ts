@@ -91,7 +91,17 @@ export default defineConfig({
           // most six TRANSIENT for symbols, and no third resident pool
           // without deleting one of these). Emitted as
           // out/main/symbols-worker.js, loaded by src/main/symbols/pool.ts.
-          'symbols-worker': resolve(__dirname, 'src/main/symbols/worker.ts')
+          'symbols-worker': resolve(__dirname, 'src/main/symbols/worker.ts'),
+          // Phase 330: the phone's door, in its own `utilityProcess`, because
+          // Tailscale Funnel publishes it to the internet and a stranger's
+          // bytes must be parsed by a process that holds no credential
+          // (research 132 §7.1). Emitted as out/main/pocket-door.js, forked by
+          // src/main/pocket/bind.ts. A utilityProcess is a PROCESS and not a
+          // thread, so it is outside research 19 §O5's worker budget above.
+          // What it may import is held twice: by the allow-only wall in
+          // build/assert-import-boundaries.mjs over the source, and by
+          // conformance:pocket U5 over this entry's built chunks.
+          'pocket-door': resolve(__dirname, 'src/main/pocket/door-process.ts')
         }
       }
     }

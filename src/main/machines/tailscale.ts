@@ -29,6 +29,21 @@
  * output cap. It is reachable from one place, being the person pressing `Find
  * machines on your tailnet`. It is not on any boot path, not on any watcher
  * path, and not on any path that opens a session.
+ *
+ * ## The second caller, `src/main/pocket/funnel.ts` (Phase 330)
+ *
+ * The phone door is published through Tailscale Funnel, and the program that
+ * publishes it is {@link resolveTailscale}'s answer, for the same reason Add
+ * Machine runs it: a pinned absolute path, printed where a person reads it (the
+ * door's lines name it, and it is a hashed field), and never a bare name found
+ * through PATH. There is no second resolver. Funnel adds ONE RULE ON ITS OWN
+ * SIDE rather than changing this one: in a development build, a
+ * `GMUX_TAILSCALE_BIN` that is set but does not resolve REFUSES there, where
+ * this module falls back to the pinned path. For a read of the machine list
+ * the fallback is harmless; for Funnel it would run the person's real
+ * Tailscale on their tailnet the moment a probe's stand-in path was wrong.
+ * Funnel's reads, like this one, inherit the environment and use this module's
+ * deadline and output cap.
  */
 
 import { execFile } from 'node:child_process';

@@ -184,10 +184,11 @@ enum Copy {
     /// Phone: the promise that a person on the Mac allows every pairing.
     static let pairMatchNote = "Your Mac will ask you to allow this iPhone. Nothing is paired until you do."
 
-    /// Phone: the tailnet node the app carries (Phase 316.3,
-    /// Tailnet/Node.swift), so no VPN app and no profile is needed. No Mac
-    /// surface says it, because the Mac's node is his own Tailscale.
-    static let pairPrivateNetwork = "Tortie brings its own private network. There is nothing else to install."
+    /// Phone: the phone needs nothing beside Tortie: no Tailscale, no VPN, no
+    /// profile, no sign-in (Phase 330: the phone reaches the Mac's public name
+    /// as an ordinary TLS client). No Mac surface says it, because the Mac
+    /// has its own Tailscale.
+    static let pairPrivateNetwork = "There is nothing else to install."
 
     /// Mac: src/renderer/settings/PhoneSection.tsx ⟦CODE_EXPIRED = 'The code expired. Nothing was paired.'⟧
     static let codeExpired = "The code expired. Nothing was paired."
@@ -203,45 +204,41 @@ enum Copy {
     /// `answerUnreadable`) are for a phone that is already paired.
     static let pairAnswerUnknown = "Your Mac answered in a way Tortie does not know. Nothing was paired."
 
-    /// Phone: `allowed` is not success. The door answers it to any presenter
-    /// from the allowed phone's address (316.1's open nit P2b), so pairing is
-    /// done only when the first SIGNED read comes back, and this is the line
-    /// when it does not.
+    /// Phone: `allowed` is not success. Pairing is done only when the first
+    /// SIGNED read comes back over the phone's new identity, and this is the
+    /// line when the door refuses it.
     static let pairFirstReadRefused = "Your Mac refused this iPhone’s first read, so it is not paired."
 
-    /// Phone: what was read is not a QR v:2 pairing payload.
+    /// Phone: what was read is not a QR v:3 pairing payload. The TestFlight
+    /// build of 316.4 says this to a v:3 code too.
     static let pairNotACode = "That is not a Tortie pairing code."
 
     /// Phone: the camera is off for Tortie, so the code cannot be read.
     static let cameraOff = "Allow the camera for Tortie in your iPhone’s Settings to scan the code."
 
-    /// Phone: no pairing, the Mac removed this one, or the tailnet node this
-    /// pairing used is gone (a reinstall, or Tailscale forgot the node).
+    /// Phone: no pairing, the Mac removed this one, a pairing kept by an
+    /// earlier build, or the person left the pairing screen.
     static let notPaired = "This iPhone is not paired with a Mac."
 
-    /// Phone: the tailnet node has no state of its own and the code carries no
-    /// key to join with (Phase 316.3). The Mac's field for the key is named.
-    /// Names: src/renderer/settings/PhoneSection.tsx ⟦KEY_LABEL = 'Tailnet key'⟧
-    static let tailnetNoKey = "This code carries no Tailnet key. Nothing was paired."
+    /// Phone: presenting, the Mac has not answered yet (`PairingStep.presenting`).
+    static let pairReaching = "Reaching your Mac."
 
-    /// Phone: Tailscale refused the code's key: used already, expired, or not
-    /// a key for his tailnet (Phase 316.3).
-    /// Names: src/renderer/settings/PhoneSection.tsx ⟦KEY_LABEL = 'Tailnet key'⟧
-    static let tailnetKeyRefused = "Tailscale refused the Tailnet key. Nothing was paired."
+    /// Phone: the Mac's public name does not resolve yet and the phone tries
+    /// again inside the window (`PairingStep.findingName`). His measurement on
+    /// 2026-09-29: the name reached public DNS about 8 minutes after Tailscale
+    /// first published it.
+    static let pairNameNotYet = "Your Mac’s name is not on the internet yet. The first time, this can take several minutes."
 
-    /// Phone: Tailscale took the key, then turned the node off because his
-    /// tailnet requires network flow logs, which Tortie turns off with the
-    /// rest of Tailscale's logs (Phase 316.4). No Mac surface joins a tailnet,
-    /// so none says it.
-    static let tailnetFlowLogs = "Your tailnet requires network flow logs, which Tortie turns off. Nothing was paired."
+    /// Phone: the Mac has this iPhone and is asking him (`PairingStep.waitingForMac`).
+    static let pairWaitingForAllow = "Waiting for you to allow this iPhone on your Mac."
 
-    /// Phone: the node could not reach Tailscale to join inside its limit
-    /// (Phase 316.3). No Mac surface joins a tailnet, so none says it.
-    static let tailnetUnreachable = "Tortie could not reach Tailscale. Nothing was paired."
+    /// Phone: allowed; the first signed read is being made (`PairingStep.confirming`).
+    static let pairConfirming = "Checking with your Mac."
 
-    /// Phone: the node's state directory could not be made, or the node would
-    /// not start (Phase 316.3).
-    static let tailnetUnavailable = "Tortie could not start its private network. Nothing was paired."
+    /// Phone: the window shut while the Mac's name still did not resolve. The
+    /// Mac's button is named, because a new code is the way on.
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦BTN_PAIR = 'Pair'⟧
+    static let pairNameNotFound = "Your Mac’s name did not reach the internet before the code shut. Press Pair on your Mac again in a few minutes."
 
     /// Phone: the press that goes back to pairing.
     static let pairAgain = "Pair again"

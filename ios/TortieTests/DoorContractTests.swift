@@ -80,14 +80,24 @@ final class DoorContractTests: XCTestCase {
         XCTAssertTrue(decodes(try blocked(rows: [row(["blockedSince": 1_790_000_000_000.5])])))
     }
 
-    /// Clause: `/pair` answers one of three words, and nothing else decodes.
-    func testThePairAnswerIsOneOfThreeWords() throws {
-        for word in ["pending", "allowed", "refused"] {
-            XCTAssertEqual(try JSONDecoder().decode(PairAnswer.self, from: Data("{\"state\":\"\(word)\"}".utf8)).rawValue, word)
+    /// Clause: `/pair` answers one of three, `allowed` alone carries the
+    /// certificate and must, and nothing else decodes (build/p330/SPEC.md
+    /// section 4.8.3).
+    func testThePairAnswerIsOneOfThree() throws {
+        let decode = { (body: String) in try? JSONDecoder().decode(PairAnswer.self, from: Data(body.utf8)) }
+        XCTAssertEqual(decode(#"{"state":"pending"}"#), .pending)
+        XCTAssertEqual(decode(#"{"state":"refused"}"#), .refused)
+        XCTAssertEqual(decode(#"{"state":"allowed","cert":"AQID"}"#), .allowed(certificate: Data([1, 2, 3])))
+        for body in [
+            #"{"state":"allowed"}"#, #"{"state":"allowed","cert":""}"#, #"{"state":"allowed","cert":"AQ=="}"#,
+            #"{"state":"allowed","cert":"not base64url!"}"#, #"{"state":"allowed","cert":7}"#,
+            #"{"state":"pending","cert":"AQID"}"#, #"{"state":"refused","cert":"AQID"}"#,
+            #"{"state":"ALLOWED","cert":"AQID"}"#, #"{"state":"ok"}"#, #"{"state":1}"#, "{}", "[]", "allowed", ""
+        ] {
+            XCTAssertNil(decode(body), body)
         }
-        for body in ["{\"state\":\"ALLOWED\"}", "{\"state\":\"ok\"}", "{\"state\":1}", "{}", "[]", "allowed", ""] {
-            XCTAssertNil(try? JSONDecoder().decode(PairAnswer.self, from: Data(body.utf8)), body)
-        }
+        let huge = Base64URL.encode(Data(count: PairAnswer.certificateCap + 1))
+        XCTAssertNil(decode(#"{"state":"allowed","cert":"\#(huge)"}"#), "a certificate over the cap")
     }
 
     /// Clause: a turn with its ask missing, or its index a string, refuses

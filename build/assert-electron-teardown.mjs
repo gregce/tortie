@@ -295,8 +295,9 @@ const HELPER = 'electron-run.mjs';
  * PHASE 316.1 RAISED IT FROM 150 TO 151, for build/probe-p313.mjs
  * (`probe:p313`), the door switched on and read by a node phone: one Electron
  * at a time on ONE scratch profile under a harness directory, a scratch HOME and
- * the socket gmux-p313-<pid>, GMUX_POCKET_LOOPBACK=1 so the door binds
- * 127.0.0.1 and never a real interface, a /bin/sh `claude` printing the
+ * the socket gmux-p313-<pid>, the door on 127.0.0.1 and never a real
+ * interface (a loopback override then; since Phase 330 the door binds only
+ * 127.0.0.1 and is published through a stand-in Tailscale), a /bin/sh `claude` printing the
  * committed dialog fixture and planting the committed transcript fixture so no
  * vendor process runs and no token is spent, and three launches in sequence
  * (the order, the relaunch, and the relaunch with nothing confirmed), each
@@ -318,12 +319,22 @@ const HELPER = 'electron-run.mjs';
  * build/simulator-run.mjs, each shut down and deleted in its `finally`. Phase 321
  * raised the floor while this phase was built, so it lands at 153.
  *
+ * PHASE 330 RAISED IT FROM 153 TO 154, for build/p330/probe-p330.mjs
+ * (`probe:p330`), the door published through Tailscale Funnel with the Funnel
+ * driven through a STAND-IN Tailscale (build/p330/tailscale-standin.mjs, never
+ * the real program): ONE Electron for arms 1 to 10 on a scratch profile, a
+ * scratch HOME and the socket gmux-p330-<pid>, then two launches one after the
+ * other for the orphan, each ended by the helper's `finally`. The orphan arm
+ * SIGKILLs the app's MAIN pid, never the shim, so the helper's own teardown is
+ * what still ends the tree; the stand-in's children and the decoy are ended by
+ * pid in the probe's `finally`.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 153;
+const HELPER_USER_FLOOR = 154;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

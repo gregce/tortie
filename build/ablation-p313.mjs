@@ -1,14 +1,23 @@
 #!/usr/bin/env node
 /**
- * `npm run ablation:p313`. The attack on the door's two checks (Phase 313).
+ * `npm run ablation:p313`. The attack on the door's two checks (Phase 313;
+ * re-aimed at the door on the internet by Phase 330).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * thirty-one rules about `src/main/pocket/` — one `listen`, the address from the
- * allowlist function alone, the closed table, the refusals, the disposer owning
- * the listener — and `conformance:pocket:hostile` drives a live door. Every one
+ * forty-two rules about `src/main/pocket/` — one `listen`, on loopback, in the
+ * door process; the Funnel child's argv, program and death; mutual TLS before
+ * the parser; the closed table; the refusals; the disposer owning the door —
+ * and `conformance:pocket:hostile` drives a live door. Every one
  * of those rules is a clause a later round can delete in one line. THIS SCRIPT
  * BREAKS ONE CLAUSE AT A TIME IN THE SHIPPING SOURCE AND PROVES IT REDDENS THE
  * RULE THAT OWNS IT.
+ *
+ * THE SELF-ORIGIN ARMS WERE REMOVED BY PHASE 330 (`S2`, `S2b`, `S4`, `S4b`), with
+ * the rules they proved and the `isSelfOrigin` they broke: behind Funnel every
+ * connection arrives from 127.0.0.1, so a self-origin refusal refuses every
+ * phone. The tailnet-range arm (`L3`) and the tailnet-key arms (`K1a` to `K1d`)
+ * went with the address and the key; `L3` and `K2a` to `K2c` are new arms
+ * under the rules that replaced them.
  *
  * THE PAGE'S ARMS WERE REMOVED ON 2026-09-22, and this is the one place a later
  * round will look for them. `src/main/pocket/page/` was built, could not be
@@ -24,16 +33,20 @@
  *
  * ## THE ONES THAT MATTER MOST, SAID FIRST
  *
- * This domain is the first thing in Tortie that anything outside the Mac can
- * ask a question, and three of the entries below are the whole of the defence:
+ * Since Phase 330 this domain answers the internet, through a Funnel child it
+ * starts itself, and five of the entries below are the whole of the defence:
  *
  *   - `L2`, the bind. A door on `0.0.0.0` is a door on his home Wi-Fi, his
  *     hotel Wi-Fi and every network he ever joins. It is ONE STRING.
  *   - `R2`, the read-only table. A row whose method is not GET is a write
  *     however its handler is written today, and this phase has zero writes.
- *   - `S2`, the self refusal. Research 127 §7 item 10: a local process of his
- *     own user reaches this port and sends whatever header it likes, so the
- *     socket is destroyed before a header is read.
+ *   - `M1c`, THE PIN. `rejectUnauthorized` is false because the key pin is the
+ *     verification; without the pin every certificate a stranger makes reaches
+ *     the HTTP parser (research 132 §9 condition 1).
+ *   - `U1a`, `--bg`. The door published after Tortie quits, after every
+ *     reboot, with nobody holding it.
+ *   - `U2a`, the override that falls back. A probe's wrong wrapper path would
+ *     run HIS Tailscale and publish on HIS tailnet.
  *
  * ## IT NEVER WRITES INTO THE WORKING TREE
  *
@@ -84,12 +97,23 @@ const SERVER = 'src/main/pocket/server.ts';
 const ROUTES = 'src/main/pocket/routes.ts';
 const PAIRING = 'src/main/pocket/pairing.ts';
 const TLS = 'src/main/pocket/tls.ts';
-const PRELOAD = 'src/preload/index.ts';
 const HOSTILE = 'build/p313/hostile-client.mts';
 const IPC = 'src/main/pocket/ipc.ts';
 const SHARED = 'src/shared/ipc/pocket.ts';
 const FACTS = 'src/main/pocket/facts.ts';
 const CAPABILITIES = 'src/main/capabilities.ts';
+// PHASE 330: the door process's modules, the Funnel child, the bridge's
+// pocket member, the menu and the build's entry.
+const TABLE = 'src/main/pocket/door/table.ts';
+const LISTENER = 'src/main/pocket/door/listener.ts';
+const SEND = 'src/main/pocket/door/send.ts';
+const LIMITS = 'src/main/pocket/door/limits.ts';
+const WIRE = 'src/main/pocket/door/wire.ts';
+const DOOR_PROCESS = 'src/main/pocket/door-process.ts';
+const FUNNEL = 'src/main/pocket/funnel.ts';
+const PRELOAD_POCKET = 'src/preload/pocket.ts';
+const MENU = 'src/main/menu.ts';
+const VITE = 'electron.vite.config.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -108,62 +132,107 @@ const CHECKS = [
  */
 const ABLATIONS = [
   // -------------------------------------------------------------------------
-  // The bind. Mechanism 1, and the step change away from hooks.ts.
+  // The bind. Since Phase 330 the one listen is the door process's own, on
+  // loopback, on an ephemeral port.
   // -------------------------------------------------------------------------
   {
     n: 'L1',
     rule: 'L1',
     name: 'a second listen call in the domain',
-    why: 'two listeners is two binds, and the second one is the one nobody reviewed. The whole safety argument of this door rests on there being one address, decided in one place.',
-    file: BIND,
-    from: '        // THE ONE BIND CALL IN THIS MODULE.',
-    to: "        server.listen(0, '127.0.0.1');\n        // THE ONE BIND CALL IN THIS MODULE."
+    why: 'two listeners is two binds, and the second one is the one nobody reviewed. The door process is the only thing that listens, because a listener anywhere else parses a stranger’s bytes somewhere that holds his credentials.',
+    file: LISTENER,
+    from: '    // THE ONE LISTEN IN THE DOMAIN.',
+    to: "    server.listen(0, '127.0.0.1');\n    // THE ONE LISTEN IN THE DOMAIN.",
+    needs: ['gate']
   },
   {
     n: 'L2',
     rule: 'L2',
-    name: 'the bind falls back to every interface when the address is empty',
-    why: 'THIS IS THE ONE THAT MATTERS MOST. A door on 0.0.0.0 is a door on his home Wi-Fi, his hotel Wi-Fi and every network he ever joins. The entry says never 0.0.0.0, never a name resolved at run time, never a literal in a setting — and no address means NO DOOR rather than a wider one.',
-    file: BIND,
-    from: 'server.listen(input.port, address, () => {',
-    to: "server.listen(input.port, address === '' ? '0.0.0.0' : address, () => {"
+    name: 'the door binds every interface',
+    why: 'THIS IS ONE OF THE ONES THAT MATTER MOST. A door on 0.0.0.0 is a door on his home Wi-Fi, his hotel Wi-Fi and every network he ever joins, beside the one Funnel publishes. It is ONE STRING.',
+    file: LISTENER,
+    from: "server.listen(0, '127.0.0.1', () => {",
+    to: "server.listen(0, '0.0.0.0', () => {",
+    needs: ['gate']
+  },
+  {
+    n: 'L2b',
+    rule: 'L2',
+    name: 'the host is computed rather than the literal 127.0.0.1',
+    why: 'a host that is computed is a host nobody can read here, and the macOS Tailscale variants forward only to loopback (research 132 §3.8).',
+    file: LISTENER,
+    from: "server.listen(0, '127.0.0.1', () => {",
+    to: 'server.listen(0, host.name, () => {',
+    needs: ['gate']
   },
   {
     n: 'L3',
     rule: 'L3',
-    name: 'the tailnet range widened to a private range',
-    why: "the address is READ, never chosen, and what it is read against is Tailscale's documented 100.64.0.0/10. Widened to 10.0.0.0/8 the door binds whatever his router handed him, which is his LAN — the home Wi-Fi bind the entry defers to a later phase with his ruling.",
-    file: BIND,
-    from: "export const TAILNET_IPV4_RANGE = '100.64.0.0/10';",
-    to: "export const TAILNET_IPV4_RANGE = '10.0.0.0/8';"
+    name: 'the Funnel target is not loopback',
+    why: 'the child forwards the internet to its target. A target that is not the listener’s 127.0.0.1 forwards it to something that is not the door.',
+    file: FUNNEL,
+    from: '  return `127.0.0.1:${String(localPort)}`;',
+    to: '  return `127.0.0.2:${String(localPort)}`;',
+    needs: ['gate']
+  },
+  {
+    n: 'L3b',
+    rule: 'L3',
+    name: 'the Funnel target’s port is a stored field rather than the one the listener reported',
+    why: 'the local port is ephemeral and the listener reports it; a stored port is a port something else may hold, and the child would publish that instead.',
+    file: IPC,
+    from: '          localPort: door.localPort',
+    to: '          localPort: fields.publicPort',
+    needs: ['gate']
   },
   {
     n: 'L4',
     rule: 'L4',
-    name: "a taken port falls back to an ephemeral one, hooks.ts's own behaviour",
-    why: 'hooks.ts:230-243 moves to an ephemeral port when its preferred one is taken, and that is right for a server whose clients are told its port by the process that started them. A phone was TOLD a number. A door that silently moves is a door the phone can no longer find and, worse, a port another process now holds.',
-    file: BIND,
-    from: '        const onError = (err: NodeJS.ErrnoException): void => {\n          resolve({ ok: false, code: err.code ?? \'\' });\n        };',
-    to: '        const onError = (err: NodeJS.ErrnoException): void => {\n          server.listen(0, address);\n          resolve({ ok: false, code: err.code ?? \'\' });\n        };'
+    name: 'the listener takes a fixed port',
+    why: 'the phone is told the PUBLIC port; the local one is told to the Funnel child alone, and a fixed one is a setting nothing needs that something can squat.',
+    file: LISTENER,
+    from: "server.listen(0, '127.0.0.1', () => {",
+    to: "server.listen(8443, '127.0.0.1', () => {",
+    needs: ['gate']
+  },
+  {
+    n: 'L4b',
+    rule: 'L4',
+    name: 'port 443 becomes one of the door’s',
+    why: 'research 132 §9 condition 6: 8443, then 10000, and 443 is his.',
+    file: FUNNEL,
+    from: 'export const FUNNEL_PORTS: readonly number[] = POCKET_PUBLIC_PORTS;',
+    to: 'export const FUNNEL_PORTS: readonly number[] = [443, ...POCKET_PUBLIC_PORTS];',
+    needs: ['gate']
   },
   // -------------------------------------------------------------------------
-  // The table. Mechanism 4, and CLAUDE.md refusals 5 and 8 read into a domain.
+  // The table, in door/table.ts since Phase 330.
   // -------------------------------------------------------------------------
   {
     n: 'R1',
     rule: 'R1',
     name: 'the route table unfrozen',
-    why: 'a closed table that anything can push a row onto at run time is not closed. The freeze is what makes "no route but these" a property of the object rather than a promise about the file.',
-    file: ROUTES,
+    why: 'a closed table that anything can push a row onto at run time is not closed.',
+    file: TABLE,
     from: 'export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([',
     to: 'export const POCKET_ROUTES: readonly PocketRoute[] = (['
+  },
+  {
+    n: 'R1b',
+    rule: 'R1',
+    name: 'the module that re-exports the table grows a prefix match',
+    why: 'routes.ts answers the routes and re-exports the table; a prefix match there is the wildcard a closed table exists to refuse, whichever file it is in.',
+    file: ROUTES,
+    from: 'export function pocketTableIsReadOnly(): boolean {',
+    to: "export const nearly = (p: string): boolean => p.startsWith('/v1');\nexport function pocketTableIsReadOnly(): boolean {",
+    needs: ['gate']
   },
   {
     n: 'R2',
     rule: 'R2',
     name: 'a read route turned into a POST',
-    why: 'THE PHASE HAS ZERO WRITE ROUTES. No End, no message, no "seen it", no status, no rename, no restore, no remove. A method that is not GET is a write however its handler is written today, which is exactly why the method is in the table rather than in a handler.',
-    file: ROUTES,
+    why: 'THE PHASE HAS ZERO WRITE ROUTES. A method that is not GET is a write however its handler is written today.',
+    file: TABLE,
     from: "{ id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true }",
     to: "{ id: 'blocked', method: 'POST', path: '/v1/blocked', reads: true, windowOnly: false, signed: true }"
   },
@@ -171,8 +240,8 @@ const ABLATIONS = [
     n: 'R2b',
     rule: 'R2',
     name: 'a route declares reads: false',
-    why: "the `reads` field exists so that adding a write is a VISIBLE EDIT TO THE TABLE rather than a quiet change inside a handler. A field nothing reads is a comment.",
-    file: ROUTES,
+    why: 'the `reads` field exists so that adding a write is a VISIBLE EDIT TO THE TABLE.',
+    file: TABLE,
     from: "{ id: 'turns', method: 'GET', path: '/v1/turns', reads: true",
     to: "{ id: 'turns', method: 'GET', path: '/v1/turns', reads: false"
   },
@@ -180,261 +249,244 @@ const ABLATIONS = [
     n: 'R3',
     rule: 'R3',
     name: 'the domain names a status setter',
-    why: "CLAUDE.md refusal 5 read into this door: no configuration mechanism may set a session's status, and a phone is the least accountable configuration there is. `applyDetectedStatus` is one of the three names that would let it.",
-    file: ROUTES,
+    why: "CLAUDE.md refusal 5 read into this door: no configuration mechanism may set a session's status.",
+    file: TABLE,
     from: 'export const POCKET_ROUTES',
-    to: "const seen = 'applyDetectedStatus';\nexport const POCKET_ROUTES"
+    to: "const seen = 'applyDetectedStatus';\nexport const POCKET_ROUTES",
+    needs: ['gate']
   },
   {
     n: 'R3b',
     rule: 'R3',
     name: 'the domain imports the credentials domain',
-    why: "research 127 §5's door table promises an import wall row forbidding main/credentials/ and main/logins/: a door that can read a credential is a door that can hand one out.",
+    why: 'a door that can read a credential is a door that can hand one out.',
     file: ROUTES,
-    // RE-AIMED BY PHASE 314, whose `seenAtWake` added `blockedAge` and
-    // `WakeWindow` to this one import line. The clause is the same.
     from: "import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';",
     to: "import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';\nimport type { VaultSeal } from '../credentials/vault';"
   },
+  {
+    n: 'R3c',
+    rule: 'R3',
+    name: 'the door imports the push engine',
+    why: 'the door speaks to a phone and nothing else; a door that can name the sender is one edit away from sending.',
+    file: IPC,
+    from: "import { createPocketHandler } from './server';",
+    to: "import { createPocketHandler } from './server';\nimport '../push/engine';",
+    needs: ['gate']
+  },
+  {
+    n: 'R3d',
+    rule: 'R3',
+    name: 'main’s door module imports child_process',
+    why: 'CLAUDE.md refusal 8: the domain starts the program resolveTailscale answered and /bin/ps from funnel.ts, and the door process from bind.ts, and nothing else.',
+    file: BIND,
+    from: "import { join } from 'node:path';",
+    to: "import { join } from 'node:path';\nimport { execFile } from 'node:child_process';\nvoid execFile;",
+    needs: ['gate']
+  },
+  {
+    n: 'R3e',
+    rule: 'R3',
+    name: 'the Funnel child is spawned on a program that is not the one resolved',
+    why: 'THE SPAWN IS THE CONFIRMED FIELD. What runs is resolveTailscale’s answer, hashed; a literal program is a start nobody confirmed.',
+    file: FUNNEL,
+    from: '    child = deps.spawn(input.program, argv);',
+    to: "    child = deps.spawn('/bin/sh', argv);",
+    needs: ['gate']
+  },
+  {
+    n: 'R3f',
+    rule: 'R3',
+    name: 'the ps wrapper runs something that is not /bin/ps',
+    why: 'the record’s two reads are the one other program the domain runs, by its absolute path.',
+    file: FUNNEL,
+    from: "  const started = await execReal('/bin/ps', ['-p', String(pid), '-o', 'lstart='], { env });",
+    to: "  const started = await execReal('/bin/sh', ['-p', String(pid), '-o', 'lstart='], { env });",
+    needs: ['gate']
+  },
   // -------------------------------------------------------------------------
-  // Admission. Mechanism 5, and the adversary's first blocker.
+  // Admission.
   // -------------------------------------------------------------------------
   {
     n: 'A1',
     rule: 'A1',
     name: 'the door sets a cookie',
-    why: "research 127 §5's door table lists 'set a cookie' among the things this door can never do, and a cookie is the one credential a browser sends to whoever holds the origin next — which, while Tortie is down, is any process of his own user.",
-    file: SERVER,
+    why: 'a cookie is the one credential a browser sends to whoever holds the origin next.',
+    file: SEND,
     from: "  res.setHeader('Cache-Control', 'no-store');",
-    to: "  res.setHeader('Cache-Control', 'no-store');\n  res.setHeader('Set-Cookie', 'tortie=1');"
+    to: "  res.setHeader('Cache-Control', 'no-store');\n  res.setHeader('Set-Cookie', 'tortie=1');",
+    needs: ['gate']
   },
   {
     n: 'A1b',
     rule: 'A1',
     name: 'the door reads an Authorization header',
-    why: 'mechanism 5 answers the adversary by REMOVING THE THING: there is no bearer anywhere, because research 127 §7 item 11 measured that a bearer on a port is captured by whoever holds the port next.',
-    file: SERVER,
-    from: "const from = normalisePocketAddress(req.socket.remoteAddress);",
-    to: "const bearer = req.headers['authorization'];\n    const from = normalisePocketAddress(req.socket.remoteAddress);"
+    why: 'there is no bearer anywhere, because a bearer on a port is captured by whoever holds the port next.',
+    file: LISTENER,
+    from: '    // REFUSAL 2. Before the path, before the query, before the body.',
+    to: "    const bearer = req.headers['authorization'];\n    void bearer;\n    // REFUSAL 2. Before the path, before the query, before the body.",
+    needs: ['gate']
   },
   {
     n: 'A2',
     rule: 'A2',
     name: "the hook server's token-in-the-path shape appears on this door",
-    why: 'a URL-borne secret leaves by Referer the first time a client follows an outbound link, and a signature that has been sent somewhere else cannot be taken back. The table is a set of exact strings BECAUSE every value rides in the query.',
-    file: ROUTES,
-    from: "export function matchPocketRoute(",
-    to: "const TOKEN_PATH = /^\\/h\\/([0-9a-f]{32})$/;\nexport function matchPocketRoute("
+    why: 'a URL-borne secret leaves by Referer the first time a client follows an outbound link.',
+    file: TABLE,
+    from: 'export function matchPocketRoute(',
+    to: 'const TOKEN_PATH = /^\\/h\\/([0-9a-f]{32})$/;\nexport function matchPocketRoute(',
+    needs: ['gate']
   },
-  // A3 IS ABOUT THE HANDLER'S ORDER, NOT ABOUT THE TABLE'S FIELD, and this arm
-  // was aimed at the field until the integrator's round. Flipping the table's
-  // `windowOnly` to false reddens R2, which owns that field, and the hostile
-  // client — so the arm passed through A3 without ever testing it, and Builder C
-  // reported A3 as decoration. It is not: A3's sentence is "the window is checked
-  // BEFORE anything is read off the request", which lives in `server.ts`. This
-  // arm now reads the body first and asks the window afterwards, which is the one
-  // shape A3 exists to refuse: a dead route that has already read a stranger's
-  // bytes has told them it is there.
   {
     n: 'A3',
     rule: 'A3',
     name: 'the body is read before the pairing window is asked',
-    why: 'mechanism 3: /pair is dead outside a window of a few minutes, and a dead route reads nothing, because reading is what an attacker measures. A handler that reads the body first has done work for a request that does not exist.',
-    file: SERVER,
-    from: `    if (route.windowOnly && !deps.pairingWindowOpen()) {
-      return refuse(res, 'window');
-    }`,
-    to: `    const preRead = await readBody(req, POCKET_PAIR_BODY_CAP_BYTES);
-    if (preRead === null) return refuse(res, 'oversized');
-    if (route.windowOnly && !deps.pairingWindowOpen()) {
-      return refuse(res, 'window');
-    }`
+    why: 'mechanism 3: /pair is dead outside a window, and a dead route reads nothing, because reading is what an attacker measures.',
+    file: LISTENER,
+    from: "    if (route.windowOnly && !windowOpen) return refuseRequest(res, 'window');",
+    to: "    const early = await readCapped(req, POCKET_PAIR_BODY_CAP_BYTES);\n    void early;\n    if (route.windowOnly && !windowOpen) return refuseRequest(res, 'window');",
+    needs: ['gate']
   },
-  // And the field itself, which R2 owns. It is kept as its own arm, under the
-  // rule that actually goes red, so the pair of them says which file each half
-  // of "/pair is dead outside its window" lives in.
   {
     n: 'A3t',
     rule: 'R2',
     name: '/pair stops being window-only in the table',
-    why: 'mechanism 3: /pair is dead outside a window of a few minutes and the window is the only time it exists. A permanently live /pair is a permanently open door on a machine that runs many agent processes at once.',
-    file: ROUTES,
+    why: 'a permanently live /pair is a permanently open door.',
+    file: TABLE,
     from: "{ id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false }",
     to: "{ id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: false, signed: false }"
   },
   // -------------------------------------------------------------------------
-  // The socket, the shutdown and the log.
+  // The one writer, the shutdown and the log.
   // -------------------------------------------------------------------------
   {
     n: 'S1',
     rule: 'S1',
     name: 'Referrer-Policy emitted from a second place',
-    why: 'it is emitted on EVERY response from ONE place. A second emitter is a response that forgot, and the response that forgets is always the refusal nobody drew.',
-    file: SERVER,
+    why: 'one header, one place: a second emitter is a response that forgot.',
+    file: SEND,
     from: "  res.setHeader('Referrer-Policy', 'no-referrer');",
-    to: "  res.setHeader('Referrer-Policy', 'no-referrer');\n  if (status >= 400) res.setHeader('Referrer-Policy', 'no-referrer');"
-  },
-  {
-    n: 'S2',
-    rule: 'S2',
-    name: 'the self-origin socket refusal deleted',
-    why: 'THIS IS ONE OF THE FOUR THAT MATTER. Research 127 §7 item 10: a local process of his own user connects to this port directly and sends whatever header it likes, so identity in a header is worth nothing against it. The socket is destroyed before a header is read, which is the only place the question can be asked honestly.',
-    file: BIND,
-    from: '      if (this.refuseSelf && isSelfOrigin(socket.remoteAddress, address)) {\n        socket.destroy();\n      }',
-    to: '      if (false) {\n        socket.destroy();\n      }'
-  },
-  {
-    n: 'S2b',
-    rule: 'S2',
-    name: 'the self-origin branch kept and its destroy taken out',
-    why: 'the question is still asked and its answer is thrown away. The rule asked the whole file for a destroy until the checker read it, and the shutdown arm and the clientError listener each hold one, so this shape was green under the gate that exists to catch it.',
-    file: BIND,
-    from: '      if (this.refuseSelf && isSelfOrigin(socket.remoteAddress, address)) {\n        socket.destroy();\n      }',
-    to: '      if (this.refuseSelf && isSelfOrigin(socket.remoteAddress, address)) {\n        void socket;\n      }',
+    to: "  res.setHeader('Referrer-Policy', 'no-referrer');\n  if (status >= 400) res.setHeader('Referrer-Policy', 'no-referrer');",
     needs: ['gate']
   },
   {
     n: 'S3',
     rule: 'S3',
-    name: 'shutdown admission set AFTER an await instead of on the first line',
-    why: "hooks.ts:256-281 is the shape and the order is the point: admission closes on the FIRST LINE of the stop, before any await, and that is what makes this a resource owner rather than a socket somebody closed. One await before it and a request accepted in that window composes an answer from a door that is going away.",
+    name: 'main’s stop closes admission AFTER an await',
+    why: 'hooks.ts:256-281 is the shape: admission closes on the FIRST LINE of the stop, before any await. One await before it and a request forwarded in that window composes an answer from a door that is going away.',
     file: BIND,
-    from: '    this.shuttingDown = true;',
-    to: '    await Promise.resolve();\n    this.shuttingDown = true;',
-    all: false
+    from: "    const startedAt = Date.now();\n    this.shuttingDown = true;\n    this.post({ kind: 'shutdown' });",
+    to: "    const startedAt = Date.now();\n    await Promise.resolve();\n    this.shuttingDown = true;\n    this.post({ kind: 'shutdown' });",
+    needs: ['gate']
+  },
+  {
+    n: 'S3b',
+    rule: 'S3',
+    name: 'the door process’s stop closes admission AFTER an await',
+    why: 'the door is two processes now, and a stop that closed admission in one and awaited before the other would answer a request the person had switched off.',
+    file: LISTENER,
+    from: '    stopping = true;\n    shuttingDown = true;',
+    to: '    stopping = true;\n    await Promise.resolve();\n    shuttingDown = true;',
+    needs: ['gate']
   },
   {
     n: 'G1',
     rule: 'G1',
     name: "a refusal's log line carries the body",
-    why: "hooks.ts's rule, with its own measurement behind it: never a token, a body or a conversation line in the log. This door's bodies are his own words and the agent's, and app.log is capped at 2 MiB with one archive.",
+    why: "never a token, a body or a conversation line in the log: app.log is capped at 2 MiB with one archive.",
     file: SERVER,
-    from: 'pocketLog.warn(`refused a request on the tailnet door: ${reason}`);',
-    to: 'pocketLog.warn(`refused a request on the tailnet door: ${reason}`, { body });'
-  },
-  // -------------------------------------------------------------------------
-  // THE FOUR THE FIX ROUND ADDED, and each one of them was GREEN under every
-  // gate in this repository on 2026-09-22, which is why they are here. An
-  // ablation that leaves the check green is a hole in the check, and these four
-  // were the holes.
-  // -------------------------------------------------------------------------
-  {
-    n: 'S4',
-    rule: 'S4',
-    name: "the self-origin comparison inverted, one character",
-    why: 'S2 reads WHERE the destroy is and not which way the comparison points, so `===` to `!==` left the gate AND the hostile client green while a live door admitted the local socket — the drive went from a dead socket to a 404 with the whole handler run. This is the refusal that keeps every agent Tortie runs on this Mac off the door, and it is one character.',
-    file: BIND,
-    from: '  return stripped === bound;',
-    to: '  return stripped !== bound;',
-    needs: ['gate', 'hostile']
-  },
-  {
-    n: 'S4b',
-    rule: 'S4',
-    name: 'the unknown-source guard fails OPEN instead of closed',
-    why: 'a source address the door could not read is treated as THIS MACHINE, never as a stranger. Flipped, a socket whose remote address node did not give us is admitted — and that is exactly the socket nobody can reason about.',
-    file: BIND,
-    from: "  if (remote === undefined || remote.length === 0) return true; // fail closed",
-    to: "  if (remote === undefined || remote.length === 0) return false; // fail closed"
+    from: 'pocketLog.warn(`refused a request at the door: ${reason}`);',
+    to: 'pocketLog.warn(`refused a request at the door: ${reason}`, { body: reason });',
+    needs: ['gate']
   },
   {
     n: 'W1',
     rule: 'W1',
     name: 'the sealed identity written with no mode',
-    why: "the two sealed files in this domain were written at different modes — 0o600 and, measured, 0o644 — and dropping the stricter one left both gates green. The payload is safeStorage ciphertext behind the keychain's ACL so today it changes nothing; what it changes is the precedent the next write in the domain copies.",
+    why: 'one write in the domain that is looser than its sibling is the one a later round copies.',
     file: TLS,
     from: "  writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\\n`, {\n    encoding: 'utf8',\n    mode: 0o600\n  });",
-    to: "  writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\\n`, 'utf8');"
+    to: "  writeFileSync(tmp, `${JSON.stringify(file, null, 2)}\\n`, 'utf8');",
+    needs: ['gate']
   },
   {
     n: 'R4',
     rule: 'R4',
     name: 'a FOURTH read route added under an existing route id',
-    why: '"the route table is closed" is a promise about WHICH PATHS EXIST. R1 pins the table\'s shape and R2 pins each row\'s fields, and neither reads its membership: a fourth GET added under an existing id left conformance:pocket, the hostile client and gate:contract all green, because pocketRouteIdsAgree() compares only the id SET.',
-    file: ROUTES,
+    why: '"the route table is closed" is a promise about WHICH PATHS EXIST, and R4 pins the set by sha256.',
+    file: TABLE,
     from: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }",
     to: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },\n  { id: 'turns', method: 'GET', path: '/v1/everything', reads: true, windowOnly: false, signed: true }",
+    alsoRed: ['N1'],
     needs: ['gate']
   },
   {
     n: 'R5',
     rule: 'R5',
     name: 'the turn limit handed on unclamped',
-    why: "the one route that answers a person's own conversation. Unclamped, ?limit=999999999 was measured going straight through to the store, whose listTurns puts it into a SQL LIMIT ? with no clamp of its own — so the entry's own protection, that one wide range cannot read a whole session into memory, rested on a clamp that was nowhere. Nothing else in this phase's proof list would have caught it.",
+    why: "one wide range must not read a whole session into memory.",
     file: ROUTES,
     from: '          ? Math.min(Math.floor(asked), MAX_TURN_LIMIT)',
     to: '          ? Math.floor(asked)',
     needs: ['gate']
   },
-  // RE-AIMED BY PHASE 316.1. The arm used to plant the bridge's member where
-  // Phase 313 had left it out on purpose; 316.1 installs the member AND calls
-  // the registrar, so the shape that is now one line from the defect is the
-  // registrar's call, taken out with the member left in.
   {
     n: 'B1',
     rule: 'B1',
     name: 'the bridge installs a pocket member main no longer serves',
-    why: 'the one thing the Phase 313 build round did that was measurably WORSE than the build before it. window.gmux went 60 to 61 keys and all eight invokes rejected in the running app with "No handler registered for pocket:status", because registerPocketIpc was called from nowhere. The preload is the one part of this domain the bundler does not tree-shake, so it shipped.',
+    why: 'every invoke on that member rejects at run time with "No handler registered", which is a bridge advertising a surface that throws.',
     file: CAPABILITIES,
     from: '  registerPocketIpc(ipcMain, pocketHost);\n',
     to: '',
     needs: ['gate']
   },
-  // -------------------------------------------------------------------------
-  // The rule the operator added on 2026-09-22.
-  // -------------------------------------------------------------------------
+  {
+    n: 'B1b',
+    rule: 'B1',
+    name: 'the bridge drops pocket:openApproval while the contract and the host keep it',
+    why: 'eleven channels in three places: the one that is missing is the Open Tailscale button that throws.',
+    file: PRELOAD_POCKET,
+    from: "  openApproval: () => invoke('pocket:openApproval'),",
+    to: "  openApproval: () => Promise.resolve(false),",
+    needs: ['gate']
+  },
   {
     n: 'T1',
     rule: 'T1',
-    name: 'a check drives the door on a tailnet address instead of loopback',
-    why: "his rule: nothing in this repository binds a real interface. A check that passed a tailnet address would open his door on his own tailnet for as long as the check ran, on a machine that runs many agent processes at once — and it would do it on every commit.",
+    name: 'a check dials the door on a tailnet address instead of loopback',
+    why: "his rule: nothing in this repository binds or dials a real interface. The arm is read from the source and never run, so no packet leaves.",
     file: HOSTILE,
-    from: "'127.0.0.1'",
-    to: "'100.64.0.1'",
-    // THE GATE ALONE, since Phase 316.1. The arm used to RUN the mutated
-    // client, which then DIALLED 100.64.0.1 — a tailnet-range address off this
-    // machine — for every one of its arms until the runner's 90 s timeout
-    // killed it: packets towards a real address from the check whose whole
-    // point is that nothing does that, and a minute and a half of every
-    // ablation run. The rule this arm proves is T1, which is read from the
-    // source, so the source is all it needs to be shown.
+    from: "netConnect(localPort, '127.0.0.1')",
+    to: "netConnect(localPort, '100.64.0.1')",
     needs: ['gate']
   },
-  // -------------------------------------------------------------------------
-  // His ruling of 2026-09-22, "lets skip the web app".
-  // -------------------------------------------------------------------------
   {
     n: 'H1a',
     rule: 'H1',
     name: 'the door composes an HTML document again',
-    why: 'the page this phase built could not be reached: mechanism 5 asks every read for a signature a browser cannot make without script, a cookie or a token in the URL, and it refuses all three. He ruled it out. Without this arm a later round could rebuild the page with every gate green, because the rules that used to notice left with the page they judged.',
-    file: SERVER,
-    from: "  res.setHeader('Content-Type', 'application/json; charset=utf-8');",
-    to: "  const page = '<!doctype html><title>Tortie</title>';\n  void page;\n  res.setHeader('Content-Type', 'application/json; charset=utf-8');",
+    why: 'his ruling, "lets skip the web app": a page is not this phase to serve.',
+    file: SEND,
+    from: "  if (bytes !== null) res.setHeader('Content-Type', 'application/json; charset=utf-8');",
+    to: "  const page = '<!doctype html><title>Tortie</title>';\n  void page;\n  if (bytes !== null) res.setHeader('Content-Type', 'application/json; charset=utf-8');",
     needs: ['gate']
   },
   {
     n: 'H1b',
     rule: 'H1',
     name: 'an answer served as text/html',
-    why: 'every answer this door writes is JSON for the phone app. An answer served as text/html is a page by another name, and it is the first step of the same rebuild.',
-    file: SERVER,
-    from: "  res.setHeader('Content-Type', 'application/json; charset=utf-8');",
-    to: "  res.setHeader('Content-Type', 'text/html; charset=utf-8');",
+    why: 'every answer this door writes is JSON for the phone app.',
+    file: SEND,
+    from: "  if (bytes !== null) res.setHeader('Content-Type', 'application/json; charset=utf-8');",
+    to: "  if (bytes !== null) res.setHeader('Content-Type', 'text/html; charset=utf-8');",
     needs: ['gate']
   },
-  // -------------------------------------------------------------------------
-  // PHASE 314. The push reaches the phone through Apple and never through this
-  // door, and the device token has one way in, the sealed presentation, and no
-  // way out to the renderer. Three clauses, three arms.
-  // -------------------------------------------------------------------------
   {
     n: 'N1',
     rule: 'N1',
     alsoRed: ['R4'],
     name: 'a push route added to the table',
-    why: 'build/p314/SPEC.md §1.1 row 3: the device token rides inside the sealed pairing presentation, so no route is added, no path moves and R4’s pin does not move. A route that names the push is the door growing a way to be told where to send his words, and a token-refresh route is a write route with its own entry and its own tier.',
-    file: ROUTES,
+    why: 'the device token rides inside the sealed pairing presentation, so no route is added for the push.',
+    file: TABLE,
     from: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }",
     to: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },\n  { id: 'push', method: 'GET', path: '/v1/push', reads: true, windowOnly: false, signed: true }",
     needs: ['gate']
@@ -443,70 +495,51 @@ const ABLATIONS = [
     n: 'N2',
     rule: 'N2',
     name: 'a device token put on the view the renderer is handed',
-    why: 'the token is an address at Apple and decides where a person’s session names go, so it stays in main: the sheet reads `alerts` and nothing more, and PocketPushDestination lives in pairing.ts alone. A token on PocketPhoneView is a token in every broadcast of the door’s status.',
+    why: 'the token is an address at Apple and stays in main.',
     file: SHARED,
     from: "  alerts: 'none' | 'on' | 'stopped';",
     to: "  alerts: 'none' | 'on' | 'stopped';\n  pushToken: string;",
     needs: ['gate']
   },
-  {
-    n: 'R3c',
-    rule: 'R3',
-    name: 'the door imports the push engine',
-    why: 'the door speaks to a phone and nothing else. The push reads the door’s confirmed fields through a narrow host method and the door never reaches the other way, so a door that can name the sender is a door one edit away from sending.',
-    file: IPC,
-    from: "import { createPocketHandler } from './server';",
-    to: "import { createPocketHandler } from './server';\nimport '../push/engine';",
-    needs: ['gate']
-  },
   // -------------------------------------------------------------------------
-  // PHASE 316.1, the door switched on (build/p316/SPEC.md §4 S1 "Gates"). Six
-  // rules, and at least one clause of each broken here. The SPEC named two of
-  // them T1 and L1, which were already this gate's; they are T2 and L5.
+  // K2: no tailnet key anywhere under src/ (K1 became K2 in Phase 330).
   // -------------------------------------------------------------------------
   {
-    n: 'K1a',
-    rule: 'K1',
-    name: 'the window stops zeroing his tailnet key',
-    why: 'his key is his credential and it is held for one window and no longer. The shred is ONE line beside the secret’s, and without it cancel, expiry and allow each leave the bytes in memory for as long as the process lives.',
-    file: PAIRING,
-    from: '  w.secret.fill(0);\n  w.tailnetKey?.fill(0);\n}',
-    to: '  w.secret.fill(0);\n}'
-  },
-  {
-    n: 'K1b',
-    rule: 'K1',
-    name: 'a log line that carries the pasted key',
-    why: 'app.log is a file on his disk that he attaches to bug reports. G1 reads the words key and token at word boundaries, and `tailnetKey` has neither, so this line is green under G1 — which is why the key has a rule of its own.',
-    file: IPC,
-    from: '    const offer = this.pairing.open(input);',
-    to: '    pocketLog.info(`a pairing window opened for ${String(input.tailnetKey)}`);\n    const offer = this.pairing.open(input);',
-    needs: ['gate']
-  },
-  {
-    n: 'K1c',
-    rule: 'K1',
-    name: 'the sheet’s view carries the key',
-    why: 'the pairing view is answered to every Tortie window that asks and rides the status broadcast; a key on it is a key in every renderer. It goes in through one input and out through the one offer whose QR carries it.',
+    n: 'K2a',
+    rule: 'K2',
+    name: 'the sheet’s view carries a tailnet key again',
+    why: 'the phone never joins the tailnet, so no code carries its key; a field for one is the first line of bringing it back.',
     file: SHARED,
     from: 'export interface PocketPairingView {\n  state: PocketPairingState;',
     to: 'export interface PocketPairingView {\n  state: PocketPairingState;\n  tailnetKey: string | null;',
     needs: ['gate']
   },
   {
-    n: 'K1d',
-    rule: 'K1',
-    name: 'the tskey-auth- prefix no longer asked',
-    why: 'an API access token or an OAuth client secret pasted by mistake would ride to his phone in a QR and be handed to a tailnet node as a join key. The prefix is the one check that it is the thing he meant to paste.',
+    n: 'K2b',
+    rule: 'K2',
+    alsoRed: ['F2'],
+    name: 'the QR carries a tk again',
+    why: 'the v:2 code carried his tailnet key as plain JSON the iPhone Camera shows to whatever it offers to do with text (research 132 §10 item 1).',
     file: PAIRING,
-    from: '  if (!key.startsWith(TAILNET_AUTH_KEY_PREFIX) || key.length === TAILNET_AUTH_KEY_PREFIX.length) {',
-    to: '  if (key.length === TAILNET_AUTH_KEY_PREFIX.length) {'
+    from: '      exp: expiresAt\n    });',
+    to: '      exp: expiresAt,\n      tk: null\n    });',
+    needs: ['gate']
+  },
+  {
+    n: 'K2c',
+    rule: 'K2',
+    name: 'a tskey- prefix spelled in a production file',
+    why: 'Tortie holds no Tailscale credential of any kind (research 128 §3.2).',
+    file: ROUTES,
+    from: 'export function pocketTableIsReadOnly(): boolean {',
+    to: "export const KEY_SHAPE = 'tskey-auth-';\nexport function pocketTableIsReadOnly(): boolean {",
+    needs: ['gate']
   },
   {
     n: 'O1a',
     rule: 'O1',
     name: 'others is no longer capped',
-    why: 'a person with a thousand sessions would be handed an answer of unbounded size on a phone on a train. The cap is the contract’s number, and the count of what it left out is said.',
+    why: 'an answer of unbounded size on a phone on a train.',
     file: ROUTES,
     from: '        .slice(0, POCKET_OTHERS_MAX)',
     to: '        .slice(0)'
@@ -515,44 +548,59 @@ const ABLATIONS = [
     n: 'O1b',
     rule: 'O1',
     name: 'others stops being the complement of the blocked set',
-    why: 'his ruling, "Yes it should be able to open anything", makes others the way the phone FINDS a session. A filter that is not the blocked set’s negation draws a waiting session twice, once in each list.',
+    why: 'a waiting session drawn twice, once in each list.',
     file: ROUTES,
     from: '        .filter((s) => !blockedIds.has(s.id))',
     to: '        .filter((s) => s.id.length > 0)'
   },
+  // -------------------------------------------------------------------------
+  // F2: the QR (F1 became F2).
+  // -------------------------------------------------------------------------
   {
-    n: 'F1a',
-    rule: 'F1',
+    n: 'F2a',
+    rule: 'F2',
     name: 'the QR pins the CERTIFICATE again',
-    why: 'the certificate is renewed from the same key every 397 days, so a certificate pin un-pairs every phone thirteen months after it paired, with nothing on either screen saying why (build/p316/SPEC.md §2 row 24).',
+    why: 'the certificate is renewed every 397 days, so a certificate pin un-pairs every phone.',
     file: IPC,
-    from: 'return door.listening ? spkiPinOf(door.publicKeyFingerprint) : null;',
-    to: 'return door.listening ? spkiPinOf(door.certificateFingerprint) : null;',
+    from: 'spkiPinOf(door.publicKeyFingerprint)',
+    to: 'spkiPinOf(door.certificateFingerprint)',
     needs: ['gate']
   },
   {
-    n: 'F1b',
-    rule: 'F1',
-    name: 'the QR says v:1',
-    why: 'the version is how a phone knows the pin is the key’s. A v:2 build that says v:1 tells an older reader to pin something else.',
+    n: 'F2b',
+    rule: 'F2',
+    name: 'the QR says v:2',
+    why: 'a v:2 reader would look for fields v:3 does not carry and dial a name as if it were an address.',
     file: PAIRING,
-    from: 'export const POCKET_QR_VERSION = 2;',
-    to: 'export const POCKET_QR_VERSION = 1;'
+    from: 'export const POCKET_QR_VERSION = 3;',
+    to: 'export const POCKET_QR_VERSION = 2;',
+    needs: ['gate']
   },
   {
-    n: 'F1c',
-    rule: 'F1',
+    n: 'F2c',
+    rule: 'F2',
     name: 'a window opens with nothing to pin',
-    why: 'with no listening door the pin is null, and a QR carrying fp: null tells a phone to trust whatever answers.',
+    why: 'a QR carrying fp: null tells a phone to trust whatever answers.',
     file: PAIRING,
-    from: "      if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);\n",
-    to: ''
+    from: "    if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'F2d',
+    rule: 'F2',
+    name: 'the QR’s keys reordered',
+    why: 'the vectors pin the code byte for byte; the order is part of the format the phone was built against.',
+    file: PAIRING,
+    from: '      host: fields.publicName,\n      port: fields.publicPort,',
+    to: '      port: fields.publicPort,\n      host: fields.publicName,',
+    needs: ['gate']
   },
   {
     n: 'T2a',
     rule: 'T2',
     name: '/v1/turns reads the store without the refresh',
-    why: 'the store is written only when Catch Me Up opens a project, the fold runs or the counts are asked (SPEC §2 row 7), so a bare read answers what the conversation WAS — the phone would show a working session as stuck.',
+    why: 'a bare read answers what the conversation WAS.',
     file: ROUTES,
     from: '      await refresh(sessionId);\n      // AGAIN, after the yield (see `session`).',
     to: '      // AGAIN, after the yield (see `session`).'
@@ -561,7 +609,7 @@ const ABLATIONS = [
     n: 'T2b',
     rule: 'T2',
     name: 'a turn built without toTurnView',
-    why: 'toTurnView holds the one clip. A turn shaped anywhere else reaches the phone unclipped, and a 60,000-character answer is a phone that stops scrolling.',
+    why: 'toTurnView holds the one clip.',
     file: FACTS,
     from: "  const view = toTurnView(turn, turn.gitVerdict ?? 'nothing-to-check', false);",
     to: "  const view = { ...turn, git: 'nothing-to-check' as const, namedOnlyOutside: false, askClipped: false, answerClipped: false };"
@@ -570,17 +618,21 @@ const ABLATIONS = [
     n: 'T2c',
     rule: 'T2',
     name: 'the composer’s refresh stops going through the one read path',
-    why: 'the refresh is OPTIONAL on PocketFacts so the push seam need not supply one; the production composer must, through sessionActivity, or the routes ask it and nothing is brought up to date.',
+    why: 'the production composer must refresh through sessionActivity.',
     file: FACTS,
     from: '      const answer = await sessionActivity(deps.overview, { sessionIds: [sessionId] });',
     to: '      const answer = { sessions: [] as OverviewSessionActivity[] };',
     needs: ['gate']
   },
+  // -------------------------------------------------------------------------
+  // L5: the fork and the spawn, from the queued start, behind the gate, each
+  // right after the last-press check.
+  // -------------------------------------------------------------------------
   {
     n: 'L5a',
     rule: 'L5',
     name: 'the launch step stops asking for bindAtLaunch',
-    why: 'CLAUDE.md refusal 8. A person who turned the door on but never asked for it at launch would find it listening every time Tortie starts.',
+    why: 'CLAUDE.md refusal 8: a door switched on for the session would open every time Tortie starts.',
     file: IPC,
     from: "    if (store === null || !store.enabled || !store.bindAtLaunch) return 'off';",
     to: "    if (store === null || !store.enabled) return 'off';",
@@ -589,108 +641,41 @@ const ABLATIONS = [
   {
     n: 'L5b',
     rule: 'L5',
-    name: 'the gate is not asked again after the await',
-    why: 'the sessions come up in the await, and the person may switch the door off or a field may move while they do; a bind on the answer from before the await opens a door nobody has on now.',
+    name: 'the fork no longer follows the last-press check',
+    why: 'a start already past its gate forks a door process after the person switched the door off.',
     file: IPC,
-    from: '      if (this.superseded(press)) return;\n      if (!this.mayOpen()) return;\n    }',
-    to: '      if (this.superseded(press)) return;\n    }',
+    from: "    this.setFunnel('starting');\n    if (this.superseded(press)) {\n      this.setFunnel('idle');\n      return 'stopped';\n    }\n    const door = await startPocketDoor({",
+    to: "    this.setFunnel('starting');\n    const door = await startPocketDoor({",
+    needs: ['gate']
+  },
+  {
+    n: 'L5b2',
+    rule: 'L5',
+    name: 'the spawn no longer follows the last-press check',
+    why: 'a start already past its gate spawns the Funnel child — publishing the door to the internet — after the person switched it off.',
+    file: IPC,
+    from: "      if (this.superseded(press)) {\n        outcome = 'stopped';\n        return outcome;\n      }\n      const started = await startFunnel(",
+    to: '      const started = await startFunnel(',
     needs: ['gate']
   },
   {
     n: 'L5c',
     rule: 'L5',
     name: 'the capability starts the door rather than the launch step',
-    why: 'openAtLaunch is the one launch path that asks for enabled AND bindAtLaunch; a start from the capability skips the at-launch question and opens a door he only switched on for the session.',
+    why: 'openAtLaunch is the one launch path that asks for enabled AND bindAtLaunch.',
     file: CAPABILITIES,
     from: '  void pocketHost.openAtLaunch();',
     to: '  void pocketHost.start();',
     needs: ['gate']
   },
-  // -------------------------------------------------------------------------
-  // The 316.1 FIX ROUND: the last ask before a send (A4), and the switch-off
-  // recorded before its first await (L5). Each is one line a later round can
-  // delete, and the server and bind halves must redden the hostile client's
-  // Rm6 and 14c as well as the read, or the live arms prove nothing.
-  // -------------------------------------------------------------------------
-  {
-    n: 'A4a',
-    rule: 'A4',
-    alsoRed: ['hostile'],
-    name: 'the handler stops asking whether the verified phone is still paired',
-    why: 'the attack’s R1: a phone Removed while its request was inside the refresh was answered from the store as it stood after the press, because nothing asked about the phone again before the send.',
-    file: SERVER,
-    from: `    if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {
-      return refuse(res, 'unpaired');
-    }
-`,
-    to: '',
-    needs: ['gate', 'hostile']
-  },
-  {
-    n: 'A4s',
-    rule: 'hostile',
-    name: 'the phone is still asked about, but never for a signed route (the text of A4 holds)',
-    why: 'a guard whose condition can never be true reads exactly like a guard; only a live door with a phone removed mid-request tells them apart.',
-    file: SERVER,
-    from: 'if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {',
-    to: 'if (verifiedPhone === null && !deps.stillPaired(verifiedPhone)) {',
-    needs: ['gate', 'hostile']
-  },
-  {
-    n: 'A4b',
-    rule: 'A4',
-    alsoRed: ['hostile'],
-    name: 'the handler stops asking the door that accepted it after the answer is composed',
-    why: 'a stop JOINS the handlers it accepted rather than cutting them, so an answer composed inside a switch-off’s join left a door the person had closed.',
-    file: SERVER,
-    from: `      return refuse(res, 'unpaired');
-    }
-    if (closing()) return refuse(res, 'shutdown');`,
-    to: `      return refuse(res, 'unpaired');
-    }`,
-    needs: ['gate', 'hostile']
-  },
-  {
-    n: 'A4c',
-    rule: 'A4',
-    alsoRed: ['hostile'],
-    name: 'the listener stops handing the handler its door',
-    why: 'the module drops its door on the first line of a stop, so a handler that cannot ask the instance that accepted it is asking about no door at all.',
-    file: BIND,
-    from: 'Promise.resolve(input.handle(req, res, admission))',
-    to: 'Promise.resolve(input.handle(req, res))',
-    needs: ['gate', 'hostile']
-  },
-  {
-    n: 'A4d',
-    rule: 'A4',
-    name: 'the host answers every phone as still paired',
-    why: 'the handler’s last ask is only as good as the answer the host composes; a constant turns the refusal into decoration while every server-side arm stays green.',
-    file: IPC,
-    from: 'this.readStore()?.phones.some((p) => p.id === phoneId) === true,',
-    to: 'true,',
-    needs: ['gate']
-  },
-  {
-    n: 'A4e',
-    rule: 'A4',
-    name: 'a Remove awaits before it writes the phone out of the store',
-    why: 'the last ask reads the store; a Remove that yields before its write lets a request in flight be asked about a phone that is still there.',
-    file: IPC,
-    from: `    const kept = store.phones.filter((p) => p.id !== phoneId);`,
-    to: `    await Promise.resolve();
-    const kept = store.phones.filter((p) => p.id !== phoneId);`,
-    needs: ['gate']
-  },
   {
     n: 'L5d',
     rule: 'L5',
-    name: 'the bind stops asking whether a later press arrived while the start waited',
-    why: 'the attack’s X1 with a store that cannot be written: the off could not say so on disk, so only the press count stands between a start already past its gate and a door the sheet calls off.',
+    name: 'the gate is not asked again after Tailscale is read',
+    why: 'the read writes the facts it observed, which moves the hash; a fork on the gate’s answer from before the read opens a door on fields nobody confirmed.',
     file: IPC,
-    from: `    if (this.superseded(press)) return;
-    const result = await startPocketDoor({`,
-    to: `    const result = await startPocketDoor({`,
+    from: "    if (!this.mayOpen()) {\n      this.setFunnel('idle');\n      return 'stopped';\n    }\n    const fields = this.fields();",
+    to: '    const fields = this.fields();',
     needs: ['gate']
   },
   {
@@ -698,37 +683,124 @@ const ABLATIONS = [
     rule: 'L5',
     alsoRed: ['Q1'],
     name: 'the switch-off yields before it records itself',
-    why: 'the attack’s X1: the off stopped first and wrote after, and a switch-on waiting on the sessions re-read a switch that still said on inside that stop and bound.',
+    why: 'the attack’s X1: a switch-on waiting in the queue reads a switch that still says on.',
     file: IPC,
-    from: `      this.pressed();
-      let saved = true;`,
-    to: `      await this.stop();
-      this.pressed();
-      let saved = true;`,
+    from: '      this.pressed();\n      let saved = true;',
+    to: '      await this.serially(() => this.closeNow());\n      this.pressed();\n      let saved = true;',
     needs: ['gate']
   },
   // -------------------------------------------------------------------------
-  // HIS RULING OF 2026-09-23, "Yes, fix and land.": the switch handles one
-  // press at a time. The reverify drove on, off, on, off inside one turn and
-  // read the store and the sheet saying off beside a door a paired phone read
-  // 200 from. The queue is ONE line, and a queue that runs its job at once is
-  // every unit test that presses one switch at a time, still green.
+  // A4: refusal 7, by generation.
+  // -------------------------------------------------------------------------
+  {
+    n: 'A4a',
+    rule: 'A4',
+    alsoRed: ['hostile'],
+    name: 'the handler stops asking whether the verified phone is still paired',
+    why: 'the attack’s R1: a phone Removed while its request was inside the refresh was answered from the store as it stood after the press.',
+    file: SERVER,
+    from: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');\n",
+    to: '',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4s',
+    rule: 'hostile',
+    name: 'the phone is still asked about, but never when it matters (the text of A4 holds)',
+    why: 'a guard whose condition can never be true reads exactly like a guard; only a live door with a phone removed mid-request tells them apart.',
+    file: SERVER,
+    from: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');",
+    to: "    if (verifiedPhone.length === 0 && !deps.stillPaired(verifiedPhone)) return refuse('unpaired');",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'A4b',
+    rule: 'A4',
+    name: 'the handler stops asking the door that accepted it after the answer is composed',
+    why: 'the first of the two last asks; bind.ts’s generation check is the second, and each is one line a later round deletes.',
+    file: SERVER,
+    from: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');\n    if (closing()) return refuse('shutdown');",
+    to: "    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');",
+    needs: ['gate']
+  },
+  {
+    n: 'A4c',
+    rule: 'A4',
+    name: 'main posts a composed answer without asking its generation’s door again',
+    why: 'the second last ask, with nothing awaited before the post: an answer composed as its door began to stop is refused.',
+    file: BIND,
+    from: '      if (admission.stopping()) answer = REFUSED;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'A4d',
+    rule: 'A4',
+    name: 'a request for another generation, or a stopping door, reaches a handler',
+    why: 'a stopped door is never revived, and a request it forwarded is answered by nobody.',
+    file: BIND,
+    from: '    if (generation !== this.generation || admission === undefined || admission.stopping()) {',
+    to: '    if (admission === undefined) {',
+    needs: ['gate']
+  },
+  {
+    n: 'A4e',
+    rule: 'A4',
+    name: 'the host answers every phone as still paired',
+    why: 'the handler’s last ask is only as good as the answer the host composes.',
+    file: IPC,
+    from: '        this.readStore()?.phones.some((p) => p.id === phoneId) === true,',
+    to: '        true,',
+    needs: ['gate']
+  },
+  {
+    n: 'A4f',
+    rule: 'A4',
+    name: 'a Remove awaits before it writes the phone out of the store',
+    why: 'the last ask reads the store; a Remove that yields first lets a request in flight be asked about a phone that is still there.',
+    file: IPC,
+    from: '    const kept = store.phones.filter((p) => p.id !== phoneId);',
+    to: '    await Promise.resolve();\n    const kept = store.phones.filter((p) => p.id !== phoneId);',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // Q1: one press at a time, and the Funnel child inside the queue too.
   // -------------------------------------------------------------------------
   {
     n: 'Q1a',
     rule: 'Q1',
-    name: 'the switch’s queue runs each job at once instead of after the one before it',
-    why: 'the reverify’s X1c: two starts and two stops of one door interleaved inside the bind, the second stop found no door to stop, and the second start bound after the person’s last press said off. One press at a time is the whole of his ruling.',
+    name: 'the switch’s queue runs each job at once',
+    why: 'one press at a time is the whole of his ruling of 2026-09-23.',
     file: IPC,
     from: '    const run = this.doorJobs.then(job);',
     to: '    const run = job();',
     needs: ['gate']
   },
   {
+    n: 'Q1b',
+    rule: 'Q1',
+    name: 'the Funnel child is stopped from outside the queue',
+    why: 'a stop beside a start is a start publishing a child the stop does not know about.',
+    file: IPC,
+    from: "    if (this.readStore()?.enabled !== true) return;\n    this.setFunnel('restarting');",
+    to: "    if (this.readStore()?.enabled !== true) return;\n    void this.run?.stop();\n    this.setFunnel('restarting');",
+    needs: ['gate']
+  },
+  {
+    n: 'Q1c',
+    rule: 'Q1',
+    name: 'the door process is stopped from outside the queue',
+    why: 'the reverify’s X1c, with a process instead of a socket.',
+    file: IPC,
+    from: '    forgetPocketDoor();\n    await this.stop();',
+    to: '    forgetPocketDoor();\n    await stopPocketDoor();\n    await this.stop();',
+    needs: ['gate']
+  },
+  {
     n: 'H2a',
     rule: 'H2',
     name: 'the contract admits an ssh hand-off again',
-    why: 'the phone’s tailnet node is private to the app and the grant allows the door’s port alone, so an ssh link can reach nothing; a kind that can never work is a button that fails on his phone (SPEC §2 row 17).',
+    why: 'a kind that can never work is a button that fails on his phone.',
     file: SHARED,
     from: "  kind: 'claude';",
     to: "  kind: 'ssh' | 'claude';",
@@ -738,10 +810,448 @@ const ABLATIONS = [
     n: 'H2b',
     rule: 'H2',
     name: 'the composer hands off an ssh link',
-    why: 'Open in Claude is unmeasured (SPEC §2 row 20) and ssh cannot reach anything, so the hand-off answers null for every session in Phase 316.',
+    why: 'the hand-off answers null for every session.',
     file: FACTS,
     from: '    handoff: () => null,',
-    to: '    handoff: (session) => ({ kind: \'claude\', url: `ssh://p313.invalid/${session.id}`, label: session.name }),'
+    to: "    handoff: (session) => ({ kind: 'claude', url: `ssh://p313.invalid/${session.id}`, label: session.name }),"
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 330: the Funnel child (U1 to U5), mutual TLS (M1), the hash (M2),
+  // the PROXY source (P1), the length (C1), /pair (N3), the menu (MENU1) and
+  // the door's own import wall (W2). Each clause broken on its own.
+  // -------------------------------------------------------------------------
+  {
+    n: 'U1a',
+    rule: 'U1',
+    name: 'the funnel argv asks for --bg',
+    why: 'THIS IS ONE OF THE ONES THAT MATTER MOST. --bg outlives Tortie and comes back after every reboot: the door on the internet with nobody holding it.',
+    file: FUNNEL,
+    from: "  return ['funnel', `--tcp=${String(publicPort)}`,",
+    to: "  return ['funnel', '--bg', `--tcp=${String(publicPort)}`,",
+    needs: ['gate']
+  },
+  {
+    n: 'U1b',
+    rule: 'U1',
+    name: 'the status read carries his other devices’ names',
+    why: '--peers=false asks for this node alone; without it every read carries the names of his other devices.',
+    file: FUNNEL,
+    from: "['status', '--json', '--peers=false']",
+    to: "['status', '--json']",
+    needs: ['gate']
+  },
+  {
+    n: 'U1c',
+    rule: 'U1',
+    name: 'the serve read becomes serve reset',
+    why: 'research 132 §9 condition 5: never funnel reset or serve reset, which would take down whatever HE serves.',
+    file: FUNNEL,
+    from: "['serve', 'status', '--json']",
+    to: "['serve', 'reset']",
+    needs: ['gate']
+  },
+  {
+    n: 'U1d',
+    rule: 'U1',
+    name: 'a TLS-terminating flag spelled in main',
+    why: 'the TLS-terminating modes cannot be pinned: tailscaled makes a fresh key for every certificate (ipn/ipnlocal/cert.go:646).',
+    file: IPC,
+    from: "import { createPocketHandler } from './server';",
+    to: "import { createPocketHandler } from './server';\nexport const TERMINATE = '--https=443';",
+    needs: ['gate']
+  },
+  {
+    n: 'U2a',
+    rule: 'U2',
+    name: 'a set but unusable override falls back instead of refusing',
+    why: 'THIS IS THE ONE THAT KEEPS AN AGENT OFF HIS TAILNET. A probe whose wrapper path was wrong would run his real Tailscale and publish on his tailnet.',
+    file: FUNNEL,
+    from: "  if (resolved.overrideSet && resolved.resolution.source !== 'dev-override') {",
+    to: "  if (resolved.overrideSet && resolved.resolution.source === 'missing') {",
+    needs: ['gate']
+  },
+  {
+    n: 'U2b',
+    rule: 'U2',
+    name: 'a Tailscale program path written down in the domain',
+    why: 'the path is resolveTailscale’s answer, hashed as a confirmed field, and never a literal.',
+    file: FUNNEL,
+    from: "const MSG_SUCCESS = 'Success.';",
+    to: "const MSG_SUCCESS = 'Success.';\nexport const PINNED = '/Applications/Tailscale.app/Contents/MacOS/Tailscale';",
+    needs: ['gate']
+  },
+  {
+    n: 'U2c',
+    rule: 'U2',
+    name: 'the host hands the child a program that is not the confirmed field',
+    why: 'what runs is what the person confirmed, by hash.',
+    file: IPC,
+    from: '          program: fields.funnelProgram,',
+    to: "          program: 'tailscale',",
+    needs: ['gate']
+  },
+  {
+    n: 'U3a',
+    rule: 'U3',
+    name: 'the child’s SIGKILL moved out of the finally',
+    why: 'a throw inside the stop would leave the child publishing a port nobody holds.',
+    file: FUNNEL,
+    from: "      } finally {\n        if (!ended) {\n          this.signal('SIGKILL');",
+    to: "      } catch {\n        /* ablated */\n      }\n      {\n        if (!ended) {\n          this.signal('SIGKILL');",
+    needs: ['gate']
+  },
+  {
+    n: 'U3b',
+    rule: 'U3',
+    alsoRed: ['W1'],
+    name: 'the orphan record written wider than its owner',
+    why: 'the record names a pid Tortie will signal at its next launch; only he may write it.',
+    file: FUNNEL,
+    from: 'mode: 0o600 });',
+    to: 'mode: 0o644 });',
+    needs: ['gate']
+  },
+  {
+    n: 'U3c',
+    rule: 'U3',
+    name: 'the sweep ends a process that matches the start time alone',
+    why: 'fewer than both and it could end a process Tortie did not start: the orphan class CLAUDE.md records from 2026-09-02, the other way round.',
+    file: FUNNEL,
+    from: '  if (now.lstart !== record.lstart || now.command !== record.command) {',
+    to: '  if (now.lstart !== record.lstart) {',
+    needs: ['gate']
+  },
+  {
+    n: 'U3d',
+    rule: 'U3',
+    name: 'the record’s directory is no longer narrowed when it already exists',
+    why: 'mkdirSync’s mode applies only when it creates: the first build’s record sat at 0600 in a 0755 directory (lens 2, the Phase 330 fix round).',
+    file: FUNNEL,
+    from: '  chmodSync(dirname(path), 0o700);\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'U3e',
+    rule: 'U3',
+    name: 'the record moved back beside everything else in <userData>/gmux',
+    why: 'narrowing the record’s directory must never narrow the directory the rest of Tortie’s state sits in, so the record has a directory of its own.',
+    file: FUNNEL,
+    from: "'gmux', 'pocket-funnel', 'record.json')",
+    to: "'gmux', 'pocket-funnel.json')",
+    needs: ['gate']
+  },
+  {
+    n: 'U3f',
+    rule: 'U3',
+    name: 'the sweep no longer asks whether its record names the argv Tortie spawns',
+    why: 'the record is a file on his disk: one naming his shell, with its real start time and command, would have that shell ended at the next launch (the fix round after his ruling of 2026-09-29).',
+    file: FUNNEL,
+    from: "  if (!recordNamesFunnelChild(record.command)) {\n    log.warn('left a process alone: its record names no Funnel child');\n    deleteRecord(path);\n    return 'left-alone';\n  }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'U4a',
+    rule: 'U4',
+    name: 'production hands PocketHost a door spawner',
+    why: 'production forks the real door process; an injected one is a door nobody confirmed the shape of.',
+    file: CAPABILITIES,
+    from: '  pocketHost = new PocketHost({',
+    to: '  pocketHost = new PocketHost({\n    door: undefined,',
+    needs: ['gate']
+  },
+  {
+    n: 'U4b',
+    rule: 'U4',
+    name: 'the host stops falling back to the real Funnel deps',
+    why: 'what production runs must be what this gate reads.',
+    file: IPC,
+    from: 'deps.tailscale ?? defaultFunnelDeps()',
+    to: '(deps.tailscale as ReturnType<typeof defaultFunnelDeps>)',
+    needs: ['gate']
+  },
+  {
+    n: 'U5a',
+    rule: 'U5',
+    name: 'the build’s door entry points at main’s own module',
+    why: 'the door process is built from door-process.ts, which imports nothing but Node and the door; an entry at bind.ts would carry Electron into it.',
+    file: VITE,
+    from: "'pocket-door': resolve(__dirname, 'src/main/pocket/door-process.ts')",
+    to: "'pocket-door': resolve(__dirname, 'src/main/pocket/bind.ts')",
+    needs: ['gate']
+  },
+  {
+    n: 'M1a',
+    rule: 'M1',
+    alsoRed: ['hostile'],
+    name: 'the door stops asking for a client certificate',
+    why: 'THIS IS ONE OF THE ONES THAT MATTER MOST. Research 132 §9 condition 1: without the certificate there is no key to pin, and a stranger’s bytes reach the HTTP parser.',
+    file: LISTENER,
+    from: '      requestCert: true,',
+    to: '      requestCert: false,',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'M1b',
+    rule: 'M1',
+    name: 'the door accepts TLS 1.2',
+    why: 'under 1.2 the client certificate crosses Funnel’s relay in the clear and hands Tailscale a stable identifier for the phone.',
+    file: LISTENER,
+    from: "      minVersion: 'TLSv1.3',",
+    to: "      minVersion: 'TLSv1.2',",
+    needs: ['gate']
+  },
+  {
+    n: 'M1c',
+    rule: 'M1',
+    alsoRed: ['hostile'],
+    name: 'THE PIN CHECK REMOVED: any certificate is somebody’s',
+    why: 'rejectUnauthorized is false because the pin IS the verification. Without it every certificate, including one a stranger made, reaches the parser and names a channel.',
+    file: LISTENER,
+    from: "      const phoneId = pins.get(spki);\n      if (phoneId === undefined) {\n        refuseSocket(tlsSocket, 'unknown-key');\n        return;\n      }\n      channel = phoneId;",
+    to: "      const phoneId = pins.get(spki);\n      channel = phoneId ?? 'unpinned';",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'M1d',
+    rule: 'M1',
+    alsoRed: ['hostile'],
+    name: 'the socket handed to HTTP before the pin',
+    why: 'the hand-over is the moment a stranger’s bytes meet llhttp; before the pin, every stranger meets it.',
+    file: LISTENER,
+    from: "    counts.handshakes += 1;\n    tlsSocket.on('error', () => undefined);",
+    to: "    counts.handshakes += 1;\n    httpServer?.emit('connection', tlsSocket);\n    tlsSocket.on('error', () => undefined);",
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'M1e',
+    rule: 'M1',
+    alsoRed: ['hostile'],
+    name: 'a certificate-less connection reaches every route inside a window',
+    why: 'the window opens POST /pair to whoever holds the code, and nothing else.',
+    file: LISTENER,
+    from: "    if (state.channel === null && route.id !== 'pair') return refuseRequest(res, 'route');\n",
+    to: '',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'M2a',
+    rule: 'M2',
+    name: 'the tailnet leaves the hash',
+    why: 'research 132 §7.5: a profile switch could publish the door on another tailnet; the tailnet is a field a person confirmed.',
+    file: PAIRING,
+    from: '  tailnet: (v) => v,\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'M2b',
+    rule: 'M2',
+    name: 'the algorithm stays v2',
+    why: 'every record written before Phase 330 must read changed and ask again.',
+    file: PAIRING,
+    from: "export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v3';",
+    to: "export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v2';",
+    needs: ['gate']
+  },
+  {
+    n: 'M2c',
+    rule: 'M2',
+    name: 'a phone’s client key leaves the hash',
+    why: 'the key its handshake completes with is part of what the person allowed.',
+    file: PAIRING,
+    from: '        p.clientKey,\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'P1a',
+    rule: 'P1',
+    name: 'the listener reads the PROXY source',
+    why: 'any process on this Mac can write the header naming any address; read anywhere but the limiter, it becomes an identity it is not.',
+    file: LISTENER,
+    from: '      const release = limiter.admit(read.header);',
+    to: '      void read.header.addressBlock;\n      const release = limiter.admit(read.header);',
+    needs: ['gate']
+  },
+  {
+    n: 'P1b',
+    rule: 'P1',
+    name: 'a request main is handed carries a source',
+    why: 'research 132 §9 condition 3: the address leaves the hash and the verifier; it never reaches main.',
+    file: WIRE,
+    from: "      /** The phoneId whose pin completed THIS connection's handshake. */\n      readonly channel: string;",
+    to: "      /** The phoneId whose pin completed THIS connection's handshake. */\n      readonly channel: string;\n      readonly source: string;",
+    needs: ['gate']
+  },
+  {
+    n: 'P1c',
+    rule: 'P1',
+    name: 'a log line names a source',
+    why: 'the source is in no log line.',
+    file: BIND,
+    from: 'log.warn(`refused a connection at the door: ${message.word}`);',
+    to: 'log.warn(`refused a connection at the door: ${message.word}`, { source: message.word });',
+    needs: ['gate']
+  },
+  {
+    n: 'P1h',
+    rule: 'hostile',
+    name: 'the per-source cap raised out of reach',
+    why: 'three idle sockets a second keep the phone out when one source can hold every connection.',
+    file: LIMITS,
+    from: 'export const PER_SOURCE_MAX = 4;',
+    to: 'export const PER_SOURCE_MAX = 400;',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'C1a',
+    rule: 'C1',
+    name: 'the length set only when there is a body',
+    why: 'the phone’s reader requires a length on every answer, a 404 included, and refuses any transfer coding.',
+    file: SEND,
+    from: "  res.setHeader('Content-Length', String(bytes === null ? 0 : bytes.length));",
+    to: "  if (bytes !== null) res.setHeader('Content-Length', String(bytes.length));",
+    needs: ['gate']
+  },
+  {
+    n: 'C1b',
+    rule: 'C1',
+    name: 'the door names a transfer coding',
+    why: 'the door never sends one; the phone refuses any.',
+    file: SEND,
+    from: "  res.setHeader('Cache-Control', 'no-store');",
+    to: "  res.setHeader('Cache-Control', 'no-store');\n  res.setHeader('Transfer-Encoding', 'chunked');",
+    needs: ['gate']
+  },
+  {
+    n: 'N3a',
+    rule: 'N3',
+    name: 'main serialises what the pairing owner answered, whole',
+    why: 'a field the owner grows would reach every presenter.',
+    file: SERVER,
+    from: '      return { status: 200, body: pairBody(answer) };',
+    to: '      return { status: 200, body: JSON.stringify(answer) };',
+    needs: ['gate']
+  },
+  {
+    n: 'N3b',
+    rule: 'N3',
+    name: 'a certificate rides with pending',
+    why: 'the certificate is handed to the allowed phone alone.',
+    file: SERVER,
+    from: "  if (answer.state === 'pending') return JSON.stringify({ state: 'pending' });",
+    to: "  if (answer.state === 'pending') return JSON.stringify({ state: 'pending', cert: '' });",
+    needs: ['gate']
+  },
+  {
+    n: 'MENU1a',
+    rule: 'MENU1',
+    name: 'Pair a Phone… opens Settings at the top rather than at Phone',
+    why: 'the row is where a person finds the pairing; landing anywhere else is a row that does not do what it says.',
+    file: MENU,
+    from: "          click: () => openSettingsWindow('phone')",
+    to: '          click: () => openSettingsWindow()',
+    needs: ['gate']
+  },
+  {
+    n: 'MENU1b',
+    rule: 'MENU1',
+    name: 'Pair a Phone… moved from under Settings…',
+    why: 'the entry’s "Unchanged on purpose": the native menus did not move.',
+    file: MENU,
+    from: "          ...glyph('settings-gear'),\n          click: () => openSettingsWindow()\n        },",
+    to: "          ...glyph('settings-gear'),\n          click: () => openSettingsWindow()\n        },\n        { type: 'separator' },",
+    needs: ['gate']
+  },
+  {
+    n: 'W2a',
+    rule: 'W2',
+    name: 'the listener imports Electron',
+    why: 'research 132 §9 condition 2: the process a stranger reaches holds no credential and no Electron.',
+    file: LISTENER,
+    from: "import { createHash } from 'node:crypto';",
+    to: "import { createHash } from 'node:crypto';\nimport { app } from 'electron';\nvoid app;",
+    needs: ['gate']
+  },
+  {
+    n: 'W2b',
+    rule: 'W2',
+    name: 'the door process imports main’s logger',
+    why: 'a logger is electron-log, and electron-log is main’s alone.',
+    file: DOOR_PROCESS,
+    from: "import { createDoorListener } from './door/listener';",
+    to: "import { createDoorListener } from './door/listener';\nimport { getLog } from '../log';\nvoid getLog;",
+    needs: ['gate']
+  },
+  {
+    n: 'W2c',
+    rule: 'W2',
+    name: 'the limiter imports a builtin it does not need',
+    why: 'the wall is an allow-list: a builtin nobody listed is refused, not waved through.',
+    file: LIMITS,
+    from: "import type { ProxyHeader } from './proxy-v2';",
+    to: "import type { ProxyHeader } from './proxy-v2';\nimport { readFileSync } from 'node:fs';\nvoid readFileSync;",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // E1, the door process's environment (the Phase 330 fix round). Electron 43
+  // reads `env: {}` as unset, and lens 2 measured main's whole environment in
+  // the running door process with every gate green.
+  // -------------------------------------------------------------------------
+  {
+    n: 'E1a',
+    rule: 'E1',
+    name: 'the door is forked with env: {}',
+    why: 'THE SHAPE THAT SHIPPED IN THE FIRST BUILD. Electron reads an empty object as unset, so the door process held HOME, GMUX_TAILSCALE_BIN and, under npm run dev, every variable of his shell: in the one process the internet reaches.',
+    file: BIND,
+    from: "    env: { TORTIE_DOOR: '1' },",
+    to: '    env: {},',
+    needs: ['gate']
+  },
+  {
+    n: 'E1b',
+    rule: 'E1',
+    name: 'main’s environment spread into the door’s',
+    why: 'a spread of process.env is main’s environment by another spelling, one variable added to it.',
+    file: BIND,
+    from: "    env: { TORTIE_DOOR: '1' },",
+    to: "    env: { ...process.env, TORTIE_DOOR: '1' },",
+    needs: ['gate']
+  },
+  {
+    n: 'E1c',
+    rule: 'E1',
+    name: 'the door process reads its environment',
+    why: 'the door holds one variable of its own and reads none: what it needs from main arrives as a message, where it is validated.',
+    file: DOOR_PROCESS,
+    from: "const parentPort = (process as unknown as { parentPort?: ParentPortLike }).parentPort;",
+    to: "const parentPort = (process as unknown as { parentPort?: ParentPortLike }).parentPort;\nvoid process.env['HOME'];",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // THE HOSTILE CLIENT'S OWN: clauses the source reads cannot tell from a guard.
+  // -------------------------------------------------------------------------
+  {
+    n: 'X1',
+    rule: 'hostile',
+    name: 'the server-name check inverted (the refusal is still written)',
+    why: 'M1 reads that the refusal is there; only a handshake for another name tells whether it fires.',
+    file: LISTENER,
+    from: '    if (tlsSocket.servername !== host.name) {',
+    to: '    if (tlsSocket.servername === `${host.name}.`) {',
+    needs: ['gate', 'hostile']
+  },
+  {
+    n: 'X2',
+    rule: 'hostile',
+    name: 'the Host check inverted',
+    why: 'a request addressed to somebody else is not this door’s.',
+    file: LISTENER,
+    from: "    if (req.headers.host !== `${host.name}:${String(host.port)}`) return refuseRequest(res, 'host');",
+    to: "    if (req.headers.host === 'nobody.invalid') return refuseRequest(res, 'host');",
+    needs: ['gate', 'hostile']
   }
 ];
 
@@ -759,7 +1269,9 @@ function buildClone() {
   }
   // EVERY tsconfig: tsx resolves project references out of tsconfig.json and a
   // clone holding one alone dies on a missing sibling (ablation:p275's lesson).
-  for (const name of ['package.json', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
+  // AND electron.vite.config.ts, whose door entry conformance:pocket U5 reads
+  // (Phase 330).
+  for (const name of ['package.json', 'electron.vite.config.ts', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
     writeFileSync(join(scratch, name), readFileSync(join(REPO, name)));
   }
   symlinkSync(join(REPO, 'node_modules'), join(scratch, 'node_modules'));
@@ -811,7 +1323,7 @@ function runChecks(which = CHECKS.map(([name]) => name)) {
 function checksFor(entry) {
   if (entry.needs !== undefined) return entry.needs;
   if (entry.file === HOSTILE) return ['gate', 'hostile'];
-  if (entry.file === ROUTES || entry.file === PAIRING || entry.file === FACTS) return ['gate', 'hostile'];
+  if (entry.file === ROUTES || entry.file === PAIRING || entry.file === FACTS || entry.file === TABLE) return ['gate', 'hostile'];
   return ['gate'];
 }
 
@@ -955,5 +1467,5 @@ process.stdout.write(
   `\n${TAG} PASS in ${seconds} s. ${String(ran)} ablations, one clause each, and every one reddened THE RULE THAT ` +
     'OWNS IT, measured as a DELTA against the base. Every clone file was restored and proved by sha256, the ' +
     'worktree was never written, and the clone is gone. No Electron, no tmux, no ssh, no agent, no token, and no ' +
-    "listener but the two the hostile client opens on loopback and closes in its own finally.\n"
+    "listener but the door process's own, which the hostile client runs in-process on loopback and closes in its own finally.\n"
 );

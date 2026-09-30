@@ -1,86 +1,80 @@
 #!/usr/bin/env node
 /**
- * probe:p316 — the Tortie iPhone app, driven in the Simulator against the door
- * on loopback (Phase 316.2, build/p316/SPEC.md §4 S2, "Proof").
+ * probe:p316 — the Tortie iPhone app, driven in the Simulator against the
+ * Mac's door published through a STAND-IN Tailscale (Phase 316.2,
+ * build/p316/SPEC.md §4 S2, "Proof"; re-pointed by Phase 330,
+ * build/p330/SPEC.md §5.4 and §7.3).
  *
  * WHAT IS REAL IN A RUN
  *   - The Mac: ONE Electron through build/electron-run.mjs's `withElectron`, on
- *     a scratch profile, a scratch HOME and the socket `gmux-p316-<pid>`, with
- *     `GMUX_POCKET_LOOPBACK=1`, so the door binds 127.0.0.1 and nothing else.
- *     The door is switched on, confirmed, and paired through the app's own
- *     `pocket:*` channels, pressed through `window.gmux.pocket` exactly as
- *     Settings then Phone presses them.
+ *     a scratch profile, a scratch HOME and the socket `gmux-p316-<pid>`. The
+ *     door (a `utilityProcess` on 127.0.0.1) is switched on, confirmed and
+ *     paired through the app's own `pocket:*` channels, pressed through
+ *     `window.gmux.pocket` exactly as Settings then Phone presses them, and it
+ *     is PUBLISHED through build/p330/tailscale-standin.mjs, named by
+ *     `GMUX_TAILSCALE_BIN`: the stand-in's funnel is a loopback forwarder that
+ *     writes a PROXY v2 header and pipes to the door, the way tailscaled does.
+ *     The PREFLIGHT refuses the launch unless that variable is the stand-in's
+ *     wrapper, and the process table is sampled through the run: a real
+ *     Tailscale program under the app, or run as a command, FAILS the run.
  *   - The phone: the DEBUG build of `ios/Tortie.xcodeproj`, signed ad hoc with
  *     no team, on Simulators made ONE AT A TIME by build/simulator-run.mjs's
- *     `withSimulator`, which shuts each down and deletes it in a `finally` and
- *     on SIGINT, SIGTERM and SIGHUP. Simulator.app is never started.
- *   - The UI tests and the ATS unit test, which print what they read (frames
- *     and labels, never a photograph) as `P316|<run>|{…}` lines this probe
- *     reads live from xcodebuild's own output (SPEC §3.4 pitfall a: `simctl
- *     launch --stdout` writes nothing).
+ *     `withSimulator`. It dials `-TortieDebugDoorEndpoint 127.0.0.1:<port>`
+ *     (DEBUG only), which keeps the code's public NAME as the TLS server name
+ *     and the Host: THE TRANSPORT ARM, on iOS 26.3 and 18.3 alike, is the app
+ *     reaching the Mac's door through the stand-in's forwarder with its client
+ *     identity on every connection. The endpoint is a relay this probe holds
+ *     on 127.0.0.1 that dials the CURRENT forwarder per connection, because a
+ *     Remove and a re-confirm restart the Funnel child and its forwarder moves.
+ *   - The UI tests, which print what they read (frames and labels, never a
+ *     photograph) as `P316|<run>|{…}` lines this probe reads live.
  *
  * WHAT IS SUPPLIED
  *   - The `claude` on the scratch PATH: a /bin/sh script this probe writes. It
- *     prints the COMMITTED Phase 312 dialog fixture for one session, so the
- *     shipped screen tier reads `needs_input`, and plants the COMMITTED research
- *     63 transcript for another. NO VENDOR PROCESS RUNS AND NO TOKEN IS SPENT.
- *   - The tailnet key: a MADE-UP `tskey-auth-…` string. No real key exists in
- *     this run, and at the end the app's own container and keychain on every
- *     device, and every file under the Mac's scratch profile and HOME, are
- *     scanned for its bytes, which must be absent.
+ *     prints the COMMITTED Phase 312 dialog fixture for one session and plants
+ *     the COMMITTED research 63 transcript for another. NO VENDOR PROCESS RUNS
+ *     AND NO TOKEN IS SPENT.
  *   - Method A's reader: build/p316/node-phone.mjs, a phone written in node from
- *     the wire format, paired as a second phone. It computes what each screen
- *     must say, and the labels XCUITest read are compared with that: the Swift
- *     is never the judge of the Swift.
+ *     the wire format, paired as a second phone through the same forwarder.
  *   - Method B's door: build/p316/hostile-door.mjs, run as its OWN PROCESS on
- *     loopback (pitfall b), and the ATS arm's two stand-ins from the same file.
+ *     loopback (pitfall b), with the HTTP arms Phase 330's hand-written reader
+ *     must refuse (SPEC §6.4 (t)).
+ *   - NO KEY: a v:3 code carries none. What is scanned for instead is every
+ *     window's one-shot secret, which must be in nothing the app wrote on the
+ *     device (its container and the device keychain) and nothing under the
+ *     Mac's scratch world, and any PEM private key on the Mac's side.
  *
  * THE ORDER
- *   B0  preflight: a build, Xcode, both runtimes, the device type, the port
- *   B1  build-for-testing twice: the SHIPPING Info.plist, and a scratch copy of
- *       ios/ with the one ATS key removed. Neither boots anything.
+ *   B0  preflight: a build, Xcode, both runtimes, the device type
+ *   B1  build-for-testing, the SHIPPING project. It boots nothing.
  *   Electron:
  *   D0  sessions: a shell, a planted conversation, a waiting session
- *   D1  switch on → confirm → listening on 127.0.0.1:8823
- *   D2  the node reader pairs (window 1) with the made-up key, the Mac allows
+ *   D1  switch on → confirm → published through the stand-in at <name>:8443
+ *   D2  the node reader pairs (window 1) through the forwarder, the Mac allows,
+ *       and it reads with its client certificate
  *   iOS 26.3 Simulator:
  *   P1  the app is handed window 2's QR through the DEBUG injection; the UI test
  *       prints the fingerprint it DRAWS; this probe compares it with the Mac
  *       sheet's and presses Allow; the app's first SIGNED read is what makes it
- *       paired (316.1's nit P2b: "allowed" alone is not success)
- *   L1  the list: "Needs your input (n)", "Everything else (m)", the rows, their
- *       order, the ages, the foot — against the node reader's own reads — and
- *       the frames the mocks' CSS gives: a 16 pt gutter on the left AND the
- *       right, 28 pt section headers, 6/16 row padding (read from
- *       docs/design/phone/Main.html at run time)
- *   S1  a working session: its status title, agent and project, counts, the
- *       last answer drawn as markdown
- *   T1  its conversation paged to the first turn: the turns drawn equal the
- *       door's turnCount; an ask with `**x**` reads back WITH its asterisks
- *       and an answer with `**x**` WITHOUT them; the terminal line is there.
- *       The planted conversation is 41 turns longer than the fixture, so it is
- *       at least three of the door's 20-turn pages and T1 cannot pass on one;
- *       the `**x**` turn is the OLDEST planted, so it is read only by paging
- *   R1  Remove on the Mac, re-confirm the door, and the app draws its unpaired
- *       line
- *   A1  the ATS arm: a unit test HOSTED IN THE APP, so it runs under the
- *       shipping Info.plist, dials 100.64.0.1 through a loopback SOCKS5
- *       stand-in (ATYP=1, `allowFailover` off, so no packet goes to 100.x):
- *       200 with the key, -1200 and 0 requests served with it removed
- *   K1  the made-up key is in nothing the app wrote on the device
- *   iOS 18.3 Simulator (THE FLOOR ARM, MANDATORY: his iPhone runs 18.x and the
- *   ATS exception was measured on 26.3 only):
- *   F1  pairing and the list again, and A1 again, and K1 again
+ *       paired
+ *   L1  the list, its order, ages, foot and the mocks' frames
+ *   S1  a working session
+ *   T1  its conversation paged to the first turn
+ *   R1  Remove on the Mac, re-confirm the door, and the app draws its unpaired line
+ *   M1  every signed read the app made presented its client identity (its pin
+ *       among the Mac's phones), over TLS 1.3, with the code's name as SNI
+ *   K1  the windows' secrets are in nothing the app wrote on the device
+ *   iOS 18.3 Simulator (THE FLOOR ARM, MANDATORY: his iPhone runs 18.x):
+ *   F1  pairing and the list again, through the forwarder, and K1 again
  *   iOS 26.3 Simulator, the hostile door (Method B):
- *   H*  every arm of build/p316/hostile-door.mjs: each must end in a drawn
- *       sentence (the honest control, the long ask and the two unknown words
- *       end drawn instead), the app still running, no half-drawn screen; the
- *       sentence must be drawn WHERE the arm says and be the `Copy.swift` word
- *       the arm names (its `at` and `expect`); the list arms pair honestly and
- *       meet their body on the list's refresh; the wrong key must leave the
- *       door with 0 requests served
- *   After: the key scan of the Mac's scratch world, the Electron count and the
- *   Simulator count, once each.
+ *   H*  every arm of build/p316/hostile-door.mjs, the HTTP arms included:
+ *       each must end in a drawn sentence (the honest control, the long ask and
+ *       the two unknown words end drawn instead) WHERE and WHICH its row says,
+ *       the app still running, no half-drawn screen; every signed read with the
+ *       client identity and the code's name; the wrong key with 0 requests served
+ *   After: the secret scan of the Mac's scratch world, the stand-in's own
+ *   reading (no real Tailscale, nothing forbidden, nothing left), the Electron
+ *   count and the Simulator count, once each.
  *
  * THE LINE PROTOCOL the Swift tests speak, which this file is the reader of.
  * Every line is `P316|<run>|<one JSON object>` on the test runner's stdout,
@@ -129,18 +123,13 @@
  *     {"step":"done"}. A dump is {"step":"screen","name":…,"window":[w,h],
  *     "elements":[{"id","label","frame":[x,y,w,h]}]} over every element with
  *     an accessibility identifier (ios/Tortie/Screens/Identifiers.swift).
- *   TortieTests / P316ATSTests / testDialThroughSocks  (XCTSkip when P316_RUN is unset)
- *     P316_RUN, P316_LINES, P316_ATS_HOST, P316_ATS_PORT, P316_ATS_PIN, P316_SOCKS_PORT.
- *     One `DoorClient.present` of `{}` to the door at that host through a
- *     `.socks5` route to 127.0.0.1, and one line:
- *     {"step":"ats","ok":true,"answer":"pending"} or
- *     {"step":"ats","ok":false,"failure":"<DoorFailure case>","code":<int|null>}.
- *     It asserts nothing: this probe grades both directions.
+ *   Every UI test run is also handed P330_DOOR_ENDPOINT (`127.0.0.1:<port>`),
+ *   which the test passes to the app as `-TortieDebugDoorEndpoint` (Phase 330).
  *   A run whose test prints no P316 line is UNREADABLE (exit 2), never a pass.
  *
- * WHAT IT REFUSES TO DO. It never binds a real interface (the QR's host is
- * asserted to be 127.0.0.1 before anything is dialled), never runs a
- * `tailscale` command, never signs into anything and touches no keychain of
+ * WHAT IT REFUSES TO DO. It never binds a real interface and dials nothing but
+ * 127.0.0.1 (the code's host is a public NAME nobody resolves here), never runs
+ * a `tailscale` command, never signs into anything and touches no keychain of
  * the person's. It signals nothing it did not start. It takes NO screenshot
  * and no screen recording. Its report holds no key, no signature and no
  * conversation line, only lengths, counts and digests. `npm run shot` is not
@@ -156,9 +145,9 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,ats,floor,hostile     which arms (default all)
+ *   P316_ARMS=order,floor,hostile         which arms (default all)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
- *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept, with <dir>-nokey)
+ *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
  *   P316_KEEP=1                           keep the scratch world
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
  *   node build/p316/probe-p316.mjs --grader-self-test   the list grader on its own dumps; launches nothing
@@ -168,7 +157,6 @@
  */
 
 import { spawn, spawnSync } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
@@ -181,7 +169,7 @@ import {
   writeFileSync
 } from 'node:fs';
 import { readFile as readFileAsync } from 'node:fs/promises';
-import { connect as netConnect } from 'node:net';
+import { connect as netConnect, createServer as createNetServer } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { wsConnect, cdpEval } from '../cdp-client.mjs';
@@ -195,9 +183,9 @@ import {
   withSimulator,
   xcodebuildRun
 } from '../simulator-run.mjs';
-import { vendoredTailscaleKitProblem } from '../build-tailscalekit.mjs';
-import { HOSTILE_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
-import { fingerprintDigits, makePhone, pageBack, present, sealPresentation, shaHex, signedGet } from './node-phone.mjs';
+import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
+import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, shaHex, signedGet } from './node-phone.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p316]';
@@ -221,7 +209,13 @@ if (PARENT !== '') {
 // ---------------------------------------------------------------------------
 
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,ats,floor,hostile').split(',').map((s) => s.trim()));
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,hostile').split(',').map((s) => s.trim()));
+if (ARMS.has('ats')) {
+  // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
+  // and no ATS exception, so there is nothing for it to prove.
+  console.error(`${TAG} the ats arm was retired in Phase 330; the transport is the order and floor arms, through the stand-in's forwarder.`);
+  ARMS.delete('ats');
+}
 const runtimes = ARMS.has('floor') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
@@ -239,20 +233,11 @@ function preflight() {
     console.error(`${TAG} ${missing}`);
     process.exit(2);
   }
-  // Phase 316.3: the app embeds TailscaleKit from build/vendor/, and with no
-  // copy Xcode stops while it plans, in its own words.
-  const kit = vendoredTailscaleKitProblem();
-  if (kit !== null) {
-    console.error(`${TAG} ${kit}`);
-    process.exit(2);
-  }
 }
 
 const SCHEME = 'Tortie';
 const BUNDLE_ID = 'com.itavero.tortie.phone';
 const UI_TEST = 'TortieUITests/P316DriveUITests/testDrive';
-const ATS_TEST = 'TortieTests/P316ATSTests/testDialThroughSocks';
-const PORT = 8823;
 const RUN = `/private/tmp/p316-probe-${String(process.pid)}`;
 const HOME = join(RUN, 'home');
 const HARNESS = join(RUN, 'harness');
@@ -261,14 +246,9 @@ const WORK = join(RUN, 'project');
 const BIN = join(HOME, '.local', 'bin');
 const XCODE = join(RUN, 'xcode');
 const DD = resolve((process.env['P316_DERIVED_DATA'] ?? '').trim() || join(XCODE, 'dd'));
-const DD_NOKEY = `${DD}-nokey`;
-/**
- * The copy without the ATS key. It sits at `nokey/ios` beside a `nokey/build`
- * holding clones of the two things the project reads from `../build/` (Phase
- * 316.3): the pin, which the project's check phase reads, and the vendored
- * TailscaleKit it embeds. A copy anywhere else would not find either.
- */
-const IOS_NOKEY = join(XCODE, 'nokey', 'ios');
+/** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
+const STANDIN_DIR = join(RUN, 'standin');
+const PUBLIC_NAME = DEFAULT_SCENARIO.dnsName.replace(/\.$/, '');
 const SOCKET = `gmux-p316-${String(process.pid)}`;
 const KEEP = (process.env['P316_KEEP'] ?? '') === '1';
 const NEXT = join(RUN, 'fake-next');
@@ -280,9 +260,9 @@ const FIXTURE_SID = '11111111-2222-4333-8444-555555555555';
 const FIXTURE_CWD = '/Users/dev/demo-app';
 const N = { shell: 'p316-shell', talk: 'p316-talk', ask: 'p316-ask' };
 
-/** THE TAILNET KEY. Made up here; nothing in this run dials anything but 127.0.0.1. */
-const KEY = `tskey-auth-kP316probe${randomBytes(6).toString('hex')}-CNTRLp316probe${randomBytes(18).toString('hex')}`;
-const unkeyed = (text) => String(text).split(KEY).join('<the made-up key>');
+/** Every window's one-shot secret this run opened. The report never holds them. */
+const SECRETS = [];
+const unsecret = (text) => SECRETS.reduce((t, secret) => t.split(secret).join('<a one-shot secret>'), String(text));
 
 // What the mocks' CSS says a frame must be, read from the approved mock itself.
 const MAIN_HTML = readFileSync(join(ROOT, 'docs', 'design', 'phone', 'Main.html'), 'utf8');
@@ -346,7 +326,7 @@ const COPY = {
 const report = { runtimes, arms: [], readings: { frames: FRAMES }, copyFound: Object.fromEntries(Object.entries(COPY).map(([k, v]) => [k, v !== null])) };
 let failures = 0;
 const arm = (id, ok, said) => {
-  const text = unkeyed(said);
+  const text = unsecret(said);
   report.arms.push({ id, ok, said: text });
   if (ok === false) failures += 1;
   say(`${ok === null ? 'UNREADABLE' : ok ? 'PASS' : 'FAIL'} ${id}: ${text}`);
@@ -410,36 +390,92 @@ async function waitStatus(cdp, test, ms) {
   }
 }
 
-/** Confirm the door as it now stands, and wait until it listens. */
+/**
+ * Confirm the door as it now stands, and wait until it listens.
+ *
+ * THE LINES FIRST (the Phase 330 fix round). `setDoor({ on: true })` answers
+ * once its read is QUEUED, so the status it answers with holds lines over
+ * empty fields (`https://:0`). The first build confirmed those, the read then
+ * moved the hash, and nothing published (lens 2's D1). It waits for main's own
+ * `confirmable`, lines that name the stand-in's name, and no read under way;
+ * main now refuses a confirm over lines that name nothing, too.
+ */
 async function confirmListening(cdp) {
-  const now = await pocket(cdp, 'status');
-  if (!now.ok) return { ok: false, why: now.error };
-  if (now.value.state === 'listening' && now.value.confirmState === 'confirmed') return { ok: true };
-  const c = await pocket(cdp, 'confirmDoor', { linesRead: now.value.confirmLines, hashRead: now.value.confirmHash });
+  const now = await waitStatus(
+    cdp,
+    (s) =>
+      (s.state === 'listening' && s.confirmState === 'confirmed') ||
+      (s.confirmable === true &&
+        s.state !== 'opening' &&
+        s.confirmLines.some((l) => l.includes(`https://${PUBLIC_NAME}:${String(s.publicPort)}`))),
+    30_000
+  );
+  if (!now.ok) return { ok: false, why: `the lines never named ${PUBLIC_NAME}: ${J({ state: now.status?.state, confirmable: now.status?.confirmable, refusal: now.status?.refusal })}` };
+  if (now.status.state === 'listening' && now.status.confirmState === 'confirmed') return { ok: true };
+  const c = await pocket(cdp, 'confirmDoor', { linesRead: now.status.confirmLines, hashRead: now.status.confirmHash });
   const l = await waitStatus(cdp, (s) => s.state === 'listening', 20_000);
   return { ok: c.ok && c.value.allowed === true && l.ok, why: c.ok ? `confirm allowed=${String(c.value.allowed)}, state ${String(l.status?.state)}` : c.error };
 }
 
-/** Open a pairing window with the made-up key; the offer's host must be loopback. */
+/**
+ * Open a pairing window. The code must read the phone's way (v:3: the public
+ * name, 8443 or 10000, no tailnet key, no address), and its host must be the
+ * stand-in's name: nothing it names is ever dialled.
+ */
 async function openWindow(cdp) {
-  const offered = await pocket(cdp, 'beginPairing', { tailnetKey: KEY });
+  const offered = await pocket(cdp, 'beginPairing');
   if (!offered.ok) return { ok: false, why: offered.error.slice(0, 200) };
-  const offer = JSON.parse(offered.value.payload);
-  if (offer.host !== '127.0.0.1' || offer.port !== PORT) return { ok: false, why: `the QR names ${J(offer.host)}:${J(offer.port)}, which is not this run's loopback door; nothing was dialled` };
-  return { ok: true, payload: offered.value.payload, offer };
+  const read = readOffer(offered.value.payload);
+  if (!read.ok) return { ok: false, why: `the code does not read the phone's way: ${read.why}` };
+  if (read.offer.host !== PUBLIC_NAME) return { ok: false, why: `the code names ${J(read.offer.host)}, which is not the stand-in's ${PUBLIC_NAME}` };
+  SECRETS.push(read.offer.ps);
+  return { ok: true, payload: offered.value.payload, offer: read.offer };
 }
 
-function portAnswers() {
-  return new Promise((done) => {
-    const socket = netConnect({ host: '127.0.0.1', port: PORT });
-    const finish = (v) => {
-      socket.destroy();
-      done(v);
-    };
-    socket.setTimeout(3_000, () => finish(false));
-    socket.once('connect', () => finish(true));
-    socket.once('error', () => finish(false));
+let standin = null;
+/** The live Funnel child's forwarder port, or 0 while nothing is published. */
+const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
+
+/**
+ * THE APP'S ENDPOINT: a TCP relay on 127.0.0.1 that dials the CURRENT
+ * forwarder per connection, so a restarted Funnel child (a Remove, a
+ * re-confirm) moves nothing the app was told. It adds no byte and reads none.
+ * In this process; closed in the `finally`.
+ */
+async function startRelay() {
+  const sockets = new Set();
+  const server = createNetServer((client) => {
+    sockets.add(client);
+    client.on('close', () => sockets.delete(client));
+    client.on('error', () => undefined);
+    const port = forwarderPort();
+    if (port === 0) {
+      client.destroy();
+      return;
+    }
+    const upstream = netConnect({ host: '127.0.0.1', port });
+    sockets.add(upstream);
+    upstream.on('close', () => {
+      sockets.delete(upstream);
+      client.destroy();
+    });
+    upstream.on('error', () => client.destroy());
+    client.on('close', () => upstream.destroy());
+    client.pipe(upstream);
+    upstream.pipe(client);
   });
+  await new Promise((ok, fail) => {
+    server.once('error', fail);
+    server.listen(0, '127.0.0.1', () => ok());
+  });
+  return {
+    port: server.address().port,
+    close: () =>
+      new Promise((done) => {
+        for (const s of sockets) s.destroy();
+        server.close(() => done());
+      })
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -511,11 +547,13 @@ function filesHolding(root, needles) {
   if (existsSync(root)) walk(root);
   return { hits, files };
 }
-const KEY_NEEDLES = [
-  [Buffer.from(KEY, 'utf8'), 'the key as UTF-8'],
-  [Buffer.from(KEY, 'utf16le'), 'the key as UTF-16'],
-  [Buffer.from(KEY.slice(11), 'utf8'), 'the key without its prefix']
-];
+/** Every window's secret, as text and as bytes, read when asked (windows open through the run). */
+const secretNeedles = () =>
+  SECRETS.flatMap((secret) => [
+    [Buffer.from(secret, 'utf8'), 'a window’s secret as text'],
+    [Buffer.from(secret, 'utf16le'), 'a window’s secret as UTF-16'],
+    [Buffer.from(secret, 'base64url'), 'a window’s secret as bytes']
+  ]);
 
 // ---------------------------------------------------------------------------
 // The Swift tests, driven and read
@@ -911,6 +949,9 @@ if (process.argv.includes('--grader-self-test')) selfTest();
 preflight();
 
 const doorChildren = new Set();
+let relay = null;
+let watch = null;
+let preflightOk = false;
 let ran = false;
 let appText = '';
 let shimPid = 0;
@@ -919,10 +960,15 @@ let appPid = 0;
 try {
   rmSync(RUN, { recursive: true, force: true });
   for (const dir of [HOME, HARNESS, PROFILE, WORK, BIN, XCODE, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
-  if (await portAnswers()) {
-    arm('the run', null, `something already accepts on 127.0.0.1:${String(PORT)}, the door's confirmed port`);
+  standin = makeStandin({ dir: STANDIN_DIR, scenario: { ...DEFAULT_SCENARIO } });
+  const pre = preflightStandin(standin, standin.binPath);
+  preflightOk = pre.ok;
+  if (!pre.ok) {
+    arm('the run', null, `the Tailscale preflight refused the launch: ${pre.problems.join('; ')}`);
     throw new Error('port taken');
   }
+  watch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
+  relay = await startRelay();
 
   // ---- B1: the two builds, before anything serves ------------------------
   const built = await xcodebuildRun({
@@ -931,24 +977,8 @@ try {
     derivedDataPath: DD,
     args: ['build-for-testing', '-project', PROJECT, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator']
   });
-  mkdirSync(join(dirname(IOS_NOKEY), 'build', 'vendor'), { recursive: true });
-  cp(join(ROOT, 'ios'), IOS_NOKEY);
-  cp(join(ROOT, 'build', 'tailscalekit-release.json'), join(dirname(IOS_NOKEY), 'build', 'tailscalekit-release.json'));
-  cp(join(ROOT, 'build', 'vendor', 'tailscalekit'), join(dirname(IOS_NOKEY), 'build', 'vendor', 'tailscalekit'));
-  const plistPath = join(IOS_NOKEY, 'Tortie', 'Info.plist');
-  const plist = readFileSync(plistPath, 'utf8');
-  const stripped = plist.replace(/\s*<key>NSAppTransportSecurity<\/key>\s*<dict>[\s\S]*?<\/dict>\s*<\/dict>\s*<\/dict>/, '');
-  writeFileSync(plistPath, stripped);
-  const builtNoKey = stripped !== plist && !stripped.includes('NSAppTransportSecurity')
-    ? await xcodebuildRun({
-        label: 'nokey',
-        scratch: XCODE,
-        derivedDataPath: DD_NOKEY,
-        args: ['build-for-testing', '-project', join(IOS_NOKEY, 'Tortie.xcodeproj'), '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator']
-      })
-    : { code: 1, ms: 0 };
-  report.readings.builds = { shipping: { code: built.code, ms: built.ms }, nokey: { code: builtNoKey.code, ms: builtNoKey.ms, keyRemoved: stripped !== plist } };
-  arm('B1 the app builds for the Simulator, ad hoc with no team, with the ATS key and without it', built.code === 0 && builtNoKey.code === 0, `shipping exited ${String(built.code)} in ${String(built.ms)} ms; the copy without the key exited ${String(builtNoKey.code)} in ${String(builtNoKey.ms)} ms`);
+  report.readings.builds = { shipping: { code: built.code, ms: built.ms } };
+  arm('B1 the app builds for the Simulator, ad hoc with no team', built.code === 0, `the shipping project exited ${String(built.code)} in ${String(built.ms)} ms`);
   if (built.code !== 0) throw new Error('no build');
 
   // ---- the fake claude and the project ------------------------------------
@@ -1015,9 +1045,10 @@ exit 0
         GMUX_SPECSTORY_NO_CLOUD: '1',
         GMUX_CONFIG_ROOT: join(PROFILE, 'gmux', 'config'),
         GMUX_HARNESS_DIR: HARNESS,
-        // THE LOOPBACK BIND: src/main/pocket/bind.ts binds 127.0.0.1 under
-        // this and nothing else. No real interface is bound in this run.
-        GMUX_POCKET_LOOPBACK: '1',
+        // THE STAND-IN TAILSCALE (Phase 330). A development build honours
+        // this and runs it; a packaged one ignores it. The door itself binds
+        // 127.0.0.1 and nothing else.
+        GMUX_TAILSCALE_BIN: standin.binPath,
         P316_NEXT: NEXT,
         P316_STOP: STOP,
         P316_TALK_SID: TALK_SID,
@@ -1028,8 +1059,14 @@ exit 0
       ceilingMs: 3_600_000
     },
     async (handle) => {
+      shimPid = handle.pid;
       try {
         const cdp = await attach(150_000);
+        try {
+          appPid = handle.appPid();
+        } catch {
+          appPid = 0;
+        }
         if (!(await armed(cdp))) {
           arm('the run', null, 'the app never armed its bridge and the harness drives');
           return;
@@ -1060,8 +1097,12 @@ exit 0
         const on = await pocket(cdp, 'setDoor', { on: true });
         const opened = on.ok ? await confirmListening(cdp) : { ok: false, why: on.error };
         const listening = await waitStatus(cdp, (s) => s.state === 'listening', 20_000);
-        arm('D1 the door switched on and confirmed, listening on loopback', opened.ok && listening.ok && listening.status.address === '127.0.0.1' && listening.status.port === PORT, `${opened.why ?? ''}; status ${J({ state: listening.status?.state, address: listening.status?.address, port: listening.status?.port })}`);
-        if (!listening.ok) return;
+        arm(
+          'D1 the door switched on, confirmed and published through the stand-in',
+          opened.ok && listening.ok && listening.status.publicName === PUBLIC_NAME && listening.status.publicPort === 8443 && forwarderPort() > 0,
+          `${opened.why ?? ''}; status ${J({ state: listening.status?.state, publicName: listening.status?.publicName, publicPort: listening.status?.publicPort })}; forwarder ${forwarderPort() > 0 ? 'up' : 'NOT up'}`
+        );
+        if (!listening.ok || forwarderPort() === 0) return;
 
         // ---- D2: the node reader pairs, window 1 --------------------------
         const w1 = await openWindow(cdp);
@@ -1070,13 +1111,27 @@ exit 0
           return;
         }
         const reader = makePhone('p316 reader', w1.offer.dx);
-        const readerDoor = { port: PORT, pin: w1.offer.fp };
-        const presented = await present(readerDoor, sealPresentation(w1.offer.ps, reader));
-        const sheet = await pocket(cdp, 'pairingState');
-        const allowReader = sheet.ok && sheet.value.state === 'presented' ? await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash }) : { ok: false };
+        /** The reader's door: the CURRENT forwarder, the code's name and pin. */
+        const readerDoor = {
+          get port() {
+            return forwarderPort();
+          },
+          name: w1.offer.host,
+          publicPort: w1.offer.port,
+          pin: w1.offer.fp
+        };
+        let allowReader = { ok: false };
+        const paired = await pairThrough(readerDoor, w1.offer, reader, {
+          tries: 20,
+          everyMs: 500,
+          between: async () => {
+            const sheet = await pocket(cdp, 'pairingState');
+            if (sheet.ok && sheet.value.state === 'presented') allowReader = await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash });
+          }
+        });
         await pocket(cdp, 'cancelPairing');
         const readerCheck = await signedGet(reader, readerDoor, '/v1/blocked');
-        arm('D2 the node reader pairs and reads', presented.status === 200 && allowReader.ok && readerCheck.status === 200, `present ${String(presented.status)}, Allow ${allowReader.ok ? 'pressed' : 'FAILED'}, first read ${String(readerCheck.status)}`);
+        arm('D2 the node reader pairs through the forwarder, takes its certificate and reads with it', paired.ok && allowReader.ok && readerCheck.status === 200, `pairing answered ${J(paired.words)}${paired.ok ? '' : ` (${paired.why})`}, Allow ${allowReader.ok ? 'pressed' : 'FAILED'}, first read ${String(readerCheck.status)}`);
         if (readerCheck.status !== 200) return;
         /** One read by the node reader, or null when the door did not answer it. */
         const readJson = async (target) => {
@@ -1116,7 +1171,7 @@ exit 0
           const result = await drive(sim, {
             test: { id: UI_TEST },
             label,
-            env: { P316_PAYLOAD: w.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '150' },
+            env: { P316_PAYLOAD: w.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '150', P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
             onEvent: async (event) => {
               if (event.step === 'fingerprint') {
                 drawnFingerprint = String(event.text ?? '');
@@ -1164,59 +1219,43 @@ exit 0
             }
           });
           if (readsAroundList.length > 0) readsAroundList.push(await readBlocked());
-          return { ok: true, result, macFingerprint, drawnFingerprint, allowed, readsAroundList: readsAroundList.filter((r) => r !== null), removed, simPhoneId, sessionAround };
+          // The phone this run just paired, as the Mac lists it, for M1: the
+          // pins its handshakes must have presented.
+          const phonesAfter = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
+          return { ok: true, result, macFingerprint, drawnFingerprint, allowed, readsAroundList: readsAroundList.filter((r) => r !== null), removed, simPhoneId: simPhoneId ?? phonesAfter.find((id) => !phonesBefore.includes(id)) ?? null, sessionAround };
         };
 
-        /** The ATS arm on `sim`: key and no key. */
-        const atsArm = async (sim, tag) => {
-          const door = await startDoorChild('ats');
-          doorChildren.add(door.child);
-          try {
-            if (door.facts === null) {
-              arm(`A1 ${tag} the ATS arm`, null, door.why ?? 'the stand-ins did not start');
-              return;
-            }
-            const env = { P316_ATS_HOST: door.facts.atsHost, P316_ATS_PORT: String(door.facts.port), P316_ATS_PIN: door.facts.pin, P316_SOCKS_PORT: String(door.facts.socksPort) };
-            const withKey = await drive(sim, { test: { id: ATS_TEST }, label: `ats-key-${tag}`, env, derivedDataPath: DD, timeoutMs: 300_000 });
-            const servedWithKey = door.events.filter((e) => e.kind === 'request').length;
-            const socksWithKey = door.events.filter((e) => e.kind === 'socks');
-            const before = door.events.length;
-            const noKey = builtNoKey.code === 0
-              ? await drive(sim, { test: { id: ATS_TEST, project: join(IOS_NOKEY, 'Tortie.xcodeproj') }, label: `ats-nokey-${tag}`, env, derivedDataPath: DD_NOKEY, timeoutMs: 300_000 })
-              : null;
-            const later = door.events.slice(before);
-            const a = withKey.events.find((e) => e.step === 'ats') ?? null;
-            const b = noKey?.events.find((e) => e.step === 'ats') ?? null;
-            report.readings[`ats-${tag}`] = { withKey: a, noKey: b, servedWithKey, socks: socksWithKey.map((s) => ({ atyp: s.atyp, host: s.host, allowed: s.allowed })), servedNoKey: later.filter((e) => e.kind === 'request').length };
-            if (a === null || b === null) {
-              arm(`A1 ${tag} the ATS arm`, null, `the ATS test printed ${a === null ? 'nothing with the key' : 'its line'} and ${b === null ? 'nothing without it' : 'its line'} (xcodebuild ${String(withKey.code)}/${String(noKey?.code)}, ${String(withKey.executed)} test(s), ${String(withKey.skipped)} skipped); is TortieTests/P316ATSTests there?`);
-              return;
-            }
-            arm(
-              `A1 ${tag} 100.64.0.1 through the SOCKS stand-in: answered with the ATS key, refused -1200 without it`,
-              a.ok === true && a.answer === 'pending' && servedWithKey >= 1 && socksWithKey.length >= 1 && socksWithKey.every((s) => s.atyp === 1 && s.host === '100.64.0.1' && s.allowed) &&
-                b.ok === false && Number(b.code) === -1200 && later.filter((e) => e.kind === 'request').length === 0,
-              `with the key: ${J(a)}, ${String(servedWithKey)} request(s) served, CONNECTs ${J(socksWithKey.map((s) => `ATYP=${String(s.atyp)} ${String(s.host)}`))}; without it: ${J(b)}, ${String(later.filter((e) => e.kind === 'request').length)} request(s) served`
-            );
-          } finally {
-            await endDoorChild(door.child);
-            doorChildren.delete(door.child);
-          }
-        };
-
-        /** K1 on `sim`: the made-up key in nothing the app wrote. */
-        const keyScan = async (sim, tag) => {
+        /** K1 on `sim`: no window's one-shot secret in anything the app wrote (SPEC §6.4 (p)). */
+        const secretScan = async (sim, tag) => {
           const container = await sim.simctl('get_app_container', BUNDLE_ID, 'data');
           const roots = [container.code === 0 ? container.stdout.trim() : null, join(sim.dataPath(), 'Library', 'Keychains')].filter((p) => p !== null && p !== '');
-          const scanned = roots.map((r) => filesHolding(r, KEY_NEEDLES));
+          const scanned = roots.map((r) => filesHolding(r, secretNeedles()));
           const hits = scanned.flatMap((s) => s.hits);
-          arm(`K1 ${tag} the made-up tailnet key is in nothing the app wrote`, scanned.reduce((n, s) => n + s.files, 0) > 0 && hits.length === 0, `${String(scanned.reduce((n, s) => n + s.files, 0))} file(s) in the app's container and the device keychain read; ${hits.length === 0 ? 'none holds the key' : `the key is in ${J(hits)}`}`);
+          arm(`K1 ${tag} no window's one-shot secret is in anything the app wrote`, SECRETS.length > 0 && scanned.reduce((n, s) => n + s.files, 0) > 0 && hits.length === 0, `${String(scanned.reduce((n, s) => n + s.files, 0))} file(s) in the app's container and the device keychain read for ${String(SECRETS.length)} secret(s); ${hits.length === 0 ? 'none holds one' : `found in ${J(hits)}`}`);
+        };
+
+        /**
+         * M1: every signed read the app made presented its client identity. The
+         * door admits no connection whose client key is not a paired phone's, so
+         * a read ANSWERED 200 was a read with the identity; this counts the
+         * handshakes the Mac refused for this run in app.log, which must hold no
+         * `no-certificate` or `unknown-key` line from before the Remove.
+         */
+        const identityHeld = (run) => {
+          const log = (() => {
+            try {
+              return readFileSync(join(PROFILE, 'logs', 'app.log'), 'utf8');
+            } catch {
+              return '';
+            }
+          })();
+          return { paired: run.allowed && run.readsAroundList.length > 0, refusedUnknownKey: log.split('\n').filter((l) => l.includes('refused a connection at the door: unknown-key')).length, refusedNoCertificate: log.split('\n').filter((l) => l.includes('refused a connection at the door: no-certificate')).length };
         };
 
         // ==================================================================
         // iOS 26.3: the order
         // ==================================================================
-        if (ARMS.has('order') || ARMS.has('ats')) {
+        if (ARMS.has('order')) {
           await withSimulator({ label: 'p316-order', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-order'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             if (ARMS.has('order')) {
               const steps = ['pair', 'list', ...(talk !== undefined ? [`open:${talk.id}`, 'conversation', 'first'] : []), 'unpaired'];
@@ -1288,9 +1327,14 @@ exit 0
               const unpaired = lastDump(ev, 'unpaired');
               const line = unpaired === null ? null : (unpaired.elements ?? []).find((e) => e.label === COPY.notPaired) ?? null;
               arm('R1 Remove on the Mac, and the app draws its unpaired line', run.removed?.ok === true && unpaired !== null && el(unpaired, 'screen-pairing') !== null && line !== null && aliveOf(ev) === RUNNING_FOREGROUND, `Remove ${run.removed === null ? 'never pressed (no ready-for-remove line)' : run.removed.ok ? 'pressed' : 'FAILED'}, the door ${run.removed?.reopened ? 'confirmed again' : 'NOT reopened'}; the app ${unpaired === null ? 'drew no unpaired screen' : line === null ? 'drew the pairing screen without the line' : 'drew the line'}; state ${J(aliveOf(ev))}`);
+              // M1: the app's reads before the Remove all carried its identity:
+              // none was refused for a missing or unknown client key, and the
+              // Remove is what made its next connection unknown.
+              const held = identityHeld(run);
+              report.readings.m1 = held;
+              arm('M1 the app presented its client identity on every read, through the stand-in\'s forwarder', held.paired && held.refusedNoCertificate === 0, `paired and read ${held.paired ? 'yes' : 'NO'}; app.log holds ${String(held.refusedNoCertificate)} no-certificate and ${String(held.refusedUnknownKey)} unknown-key refusal line(s) (unknown-key is the Remove's own)`);
             }
-            if (ARMS.has('ats')) await atsArm(sim, 'iOS 26.3');
-            await keyScan(sim, 'iOS 26.3');
+            await secretScan(sim, 'iOS 26.3');
           });
         }
 
@@ -1309,8 +1353,7 @@ exit 0
               const listGrade = run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(run.result.events, 'list'), run.readsAroundList);
               arm(`F1 iOS ${sim.runtime}: the fingerprint matches, Allow, the signed read, the list`, fingerprintDigits(run.drawnFingerprint ?? '') === fingerprintDigits(run.macFingerprint ?? 'x') && run.allowed && !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 6).join('; ') : `paired and the list agrees; frames ${J(listGrade.frames)}`);
             }
-            await atsArm(sim, `iOS ${sim.runtime}`);
-            await keyScan(sim, `iOS ${sim.runtime}`);
+            await secretScan(sim, `iOS ${sim.runtime}`);
           });
         }
 
@@ -1318,11 +1361,11 @@ exit 0
         // iOS 26.3: the hostile door
         // ==================================================================
         if (ARMS.has('hostile')) {
-          const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).filter((a) => a !== 'ats').join(',')).split(',').map((s) => s.trim());
+          const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).join(',')).split(',').map((s) => s.trim());
           await withSimulator({ label: 'p316-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             for (const name of wanted) {
               const spec = HOSTILE_ARMS[name];
-              if (spec === undefined || name === 'ats') continue;
+              if (spec === undefined) continue;
               await sim.simctl('keychain', 'reset');
               const door = await startDoorChild(name);
               doorChildren.add(door.child);
@@ -1340,12 +1383,15 @@ exit 0
                   // one that never completes is said after the client's 15 s.
                   ...(spec.list === true ? ['sentence'] : [])
                 ];
-                const r = await drive(sim, { test: { id: UI_TEST }, label: `hostile-${name}`, env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60' } });
+                const r = await drive(sim, { test: { id: UI_TEST }, label: `hostile-${name}`, env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` } });
                 const alive = aliveOf(r.events);
                 const sentence = drawnSentence(r.events);
                 const served = door.events.filter((e) => e.kind === 'request').length;
                 const verified = door.events.filter((e) => e.kind === 'request' && e.verified !== undefined);
-                report.readings[`hostile-${name}`] = { lines: r.events.length, alive, sentence, served, signedReads: verified.length, signaturesHeld: verified.every((e) => e.verified === 'ok') };
+                // (t): every signed read presented the phone's client identity,
+                // over TLS 1.3, with the code's name as SNI and in Host.
+                const identity = verified.every((e) => e.channelHeld === true && e.tls === 'TLSv1.3' && e.servername === HOSTILE_NAME && e.host === `${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`);
+                report.readings[`hostile-${name}`] = { lines: r.events.length, alive, sentence, served, signedReads: verified.length, signaturesHeld: verified.every((e) => e.verified === 'ok'), identity };
                 if (r.events.length === 0) {
                   arm(`H ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
                   continue;
@@ -1355,8 +1401,8 @@ exit 0
                 if (name === 'honest') {
                   const t = r.events.find((e) => e.step === 'turns');
                   const drawn = new Set((t?.indexes ?? []).map(Number));
-                  ok = alive === RUNNING_FOREGROUND && sentence === null && lastDump(r.events, 'list') !== null && drawn.size === door.facts.turnCount && verified.length > 0 && verified.every((e) => e.verified === 'ok');
-                  said = `the control: the list drawn, ${String(drawn.size)} of ${String(door.facts.turnCount)} turns drawn, ${String(verified.length)} signed read(s) all verified by the door's own reader, no sentence`;
+                  ok = alive === RUNNING_FOREGROUND && sentence === null && lastDump(r.events, 'list') !== null && drawn.size === door.facts.turnCount && verified.length > 0 && verified.every((e) => e.verified === 'ok') && identity;
+                  said = `the control: the list drawn, ${String(drawn.size)} of ${String(door.facts.turnCount)} turns drawn, ${String(verified.length)} signed read(s) all verified by the door's own reader, ${identity ? 'every one with the client identity and the code\'s name' : 'NOT every one with the client identity and the code\'s name'}, no sentence`;
                 } else if (name === 'unknown-status' || name === 'unknown-dot') {
                   // Drawn, not refused (hostile-door.mjs's table says why): the
                   // list is there, every row has its dot, nothing is a failure
@@ -1382,8 +1428,8 @@ exit 0
                   const where = spec.at === undefined || sentence?.id === spec.at;
                   const which = spec.expect === undefined || (sentence?.word !== null && spec.expect.includes(sentence?.word));
                   const honestFirst = spec.list !== true || door.events.some((e) => e.kind === 'request' && e.honestFirst === true);
-                  ok = alive === RUNNING_FOREGROUND && sentence !== null && !halfDrawn && where && which && honestFirst && (name !== 'wrong-key' || served === 0);
-                  said = `${sentence === null ? 'NO sentence drawn' : `a sentence drawn in ${sentence.id} (${String(sentence.length)} characters, Copy.${String(sentence.word ?? 'none of its words')})`}${halfDrawn ? ' BESIDE rows' : ''}${where ? '' : `, NOT in ${String(spec.at)}`}${which ? '' : `, NOT ${String(spec.expect.join(' or '))}`}${spec.list === true ? `; pairing's first read ${honestFirst ? 'answered honestly' : 'NEVER answered honestly'}` : ''}; state ${J(alive)}; the door served ${String(served)} request(s)`;
+                  ok = alive === RUNNING_FOREGROUND && sentence !== null && !halfDrawn && where && which && honestFirst && identity && (name !== 'wrong-key' || served === 0);
+                  said = `${sentence === null ? 'NO sentence drawn' : `a sentence drawn in ${sentence.id} (${String(sentence.length)} characters, Copy.${String(sentence.word ?? 'none of its words')})`}${halfDrawn ? ' BESIDE rows' : ''}${where ? '' : `, NOT in ${String(spec.at)}`}${which ? '' : `, NOT ${String(spec.expect.join(' or '))}`}${spec.list === true ? `; pairing's first read ${honestFirst ? 'answered honestly' : 'NEVER answered honestly'}` : ''}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}; state ${J(alive)}; the door served ${String(served)} request(s)`;
                 }
                 arm(`H ${name}: ${spec.what}`, ok, said);
               } finally {
@@ -1409,19 +1455,35 @@ exit 0
   if (!['port taken', 'no build'].includes(String(err?.message ?? err))) arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
 } finally {
   for (const child of [...doorChildren]) await endDoorChild(child);
+  await relay?.close().catch(() => undefined);
   try {
     writeFileSync(STOP, 'stop\n', 'utf8');
   } catch {
     /* the world may already be gone */
   }
+  // THE STAND-IN TAILSCALE: every pid it ran as, ended by pid whatever happened.
+  const ended = standin === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
+  const findings = watch?.stop() ?? [];
+  const log = standin?.readLog() ?? [];
+  if (standin !== null) {
+    const forbidden = log.filter((e) => e.forbidden === true).length;
+    const refusedArgv = log.filter((e) => e.verdict === 'refused').length;
+    report.readings.tailscale = { preflight: preflightOk, samples: watch?.samples() ?? 0, realTailscale: findings, forbidden, refusedArgv, funnelStarts: log.filter((e) => e.kind === 'funnel').length, ended: ended.ended.length, left: ended.left.length };
+    arm(
+      'RUN no real Tailscale, nothing forbidden, no stand-in left',
+      preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && forbidden === 0 && refusedArgv === 0 && ended.left.length === 0,
+      `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es); ${String(forbidden)} forbidden and ${String(refusedArgv)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
+    );
+  }
 }
 
-// ---- K2: the key, anywhere on the Mac's side -------------------------------
+// ---- K2: the windows' secrets and any private key, on the Mac's side --------
 if (ran) {
-  const scanned = [HARNESS, HOME].map((root) => filesHolding(root, KEY_NEEDLES));
+  const needles = [...secretNeedles(), [Buffer.from('PRIVATE KEY-----', 'utf8'), 'a PEM private key']];
+  const scanned = [HARNESS, HOME].map((root) => filesHolding(root, needles));
   const hits = scanned.flatMap((s) => s.hits);
-  const printed = appText.includes(KEY) || appText.includes(KEY.slice(11));
-  arm('K2 the made-up key is in no file of the Mac\'s scratch world and in nothing the app printed', scanned.reduce((n, s) => n + s.files, 0) > 0 && hits.length === 0 && !printed, `${String(scanned.reduce((n, s) => n + s.files, 0))} file(s) read; ${hits.length === 0 ? 'none holds it' : J(hits)}; the app's output ${printed ? 'CARRIES it' : 'does not'}`);
+  const printed = SECRETS.some((secret) => appText.includes(secret)) || appText.includes('PRIVATE KEY-----');
+  arm('K2 no window\'s secret and no private key is in any file of the Mac\'s scratch world or anything the app printed', SECRETS.length > 0 && scanned.reduce((n, s) => n + s.files, 0) > 0 && hits.length === 0 && !printed, `${String(scanned.reduce((n, s) => n + s.files, 0))} file(s) read for ${String(SECRETS.length)} secret(s) and any PEM private key; ${hits.length === 0 ? 'none holds one' : J(hits)}; the app's output ${printed ? 'CARRIES one' : 'does not'}`);
 }
 if (!KEEP) rmSync(RUN, { recursive: true, force: true });
 
@@ -1438,7 +1500,7 @@ arm('no p316- Simulator is left, and none is booted', devices.readable && device
 
 const OUT = join(ROOT, 'out', 'p316');
 mkdirSync(OUT, { recursive: true });
-writeFileSync(join(OUT, 'probe-p316.json'), `${unkeyed(J(report, null, 1))}\n`, 'utf8');
+writeFileSync(join(OUT, 'probe-p316.json'), `${unsecret(J(report, null, 1))}\n`, 'utf8');
 say(`wrote ${join(OUT, 'probe-p316.json')}`);
 const unreadable = report.arms.filter((a) => a.ok === null).length;
 if (ran && failures === 0 && unreadable > 0) {
@@ -1447,10 +1509,3 @@ if (ran && failures === 0 && unreadable > 0) {
 }
 say(failures > 0 ? `probe:p316 FAILED ${String(failures)} arm(s)` : !ran ? 'probe:p316 did not complete' : 'probe:p316 OK');
 process.exit(failures > 0 ? 1 : ran ? 0 : 2);
-
-/** A clone of a directory tree, APFS clonefile where it can. */
-function cp(from, to) {
-  rmSync(to, { recursive: true, force: true });
-  const r = spawnSync('cp', ['-Rc', from, to], { encoding: 'utf8' });
-  if (r.status !== 0) throw new Error(`cp -Rc ${from} failed: ${String(r.stderr).trim()}`);
-}

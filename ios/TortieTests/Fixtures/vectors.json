@@ -1,5 +1,5 @@
 {
-  "about": "Written by build/p316/vectors.mjs from the shipping TypeScript. Test keys from public seeds; they pair with nothing. The tailnet key is made up.",
+  "about": "Written by build/p316/vectors.mjs from the shipping TypeScript. Test keys from public seeds; they pair with nothing. The public name, the tailnet and the program path are made up.",
   "keys": {
     "phoneSigningSeed": "86007efa214164db245bf10965b2ff97a7f70902227f01ed8a7f37d33ab1f540",
     "phoneExchangeSeed": "cf93dbe67d40e1f4e24a4e2f73ccc75c5509deb6f35de4a203e9d5ac84f6ddbb",
@@ -8,12 +8,16 @@
     "phoneSigningKey": "MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs",
     "phoneExchangeKey": "MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM",
     "macSigningKey": "MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk",
-    "macExchangeKey": "MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10"
+    "macExchangeKey": "MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10",
+    "clientKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECz6SKEYtLWRHtXHDzANBAu2qvztgdJpQSSWqVyxb1JAexjuPXSFkcLFJefISSX3XHIl4ZaCK8BqfTY3UOETceg",
+    "clientKeyX963": "040b3e9228462d2d6447b571c3cc034102edaabf3b60749a504925aa572c5bd4901ec63b8f5d216470b14979f212497dd71c897865a08af01a9f4d8dd43844dc7a1d0fce9a959ee130696f0591f2da62ea1ef87dde2c962c42d6a91f66fecbcc42",
+    "clientKeyPkcs8": "MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgHQ/OmpWe4TBpbwWR8tpi6h74fd4slixC1qkfZv7LzEKhRANCAAQLPpIoRi0tZEe1ccPMA0EC7aq/O2B0mlBJJapXLFvUkB7GO49dIWRwsUl58hJJfdcciXhloIrwGp9NjdQ4RNx6"
   },
   "identity": {
     "phoneId": "db02129e80870a7589f0748e8b57484a",
-    "fingerprint": "3c65 544e e06b c366 44a0 c425",
-    "binding": "02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28"
+    "fingerprint": "6ac8 b4e8 f7ea 1e93 de61 fb6f",
+    "binding": "02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+    "clientPin": "DfBvuUFXakUonKh5kViI3LP6l1w2i9bCWJEv9DW3NRo"
   },
   "requests": [
     {
@@ -86,47 +90,56 @@
   "pins": [
     {
       "name": "first",
-      "certificateDer": "MIIBZjCCAQygAwIBAgIQeZIPdn3CohV5Qxr5iKHn5zAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwHhcNMjYwOTIxMTQwODIwWhcNMjcxMDIzMTQxMzIwWjARMQ8wDQYDVQQDDAZUb3J0aWUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATOIYBbqqZhJWE9r9NjmZ77/twL4ZZuZFPFkztUMqrLjcXLAKaApALMd+sI9J8smzEKL7tafQxRlG5h829kEEt/o0YwRDAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHREECDAGhwR/AAABMAoGCCqGSM49BAMCA0gAMEUCIHP+dmgxGh5+sw8TQDqk/yyNZ3uk81Yidk/JXwFDqGUMAiEA5bo0WUov4WtKQMnWVMYSxBrra5D2Dv1D1g2fu7IwSLg=",
-      "certificateFingerprint": "01:2D:AA:E3:36:C9:92:D3:F7:67:02:BF:A5:C7:AF:5D:8C:35:8E:E6:2D:07:7B:E8:C0:B4:DC:45:09:83:EB:6B",
-      "publicKeyFingerprint": "9A:AB:2C:DC:7B:6A:07:DF:E8:C1:7E:F2:00:DF:A0:BF:08:73:D6:16:C9:6C:05:07:8E:23:CC:6A:F4:5A:76:30",
-      "pin": "mqss3HtqB9_owX7yAN-gvwhz1hbJbAUHjiPMavRadjA"
+      "certificateDer": "MIIBezCCASGgAwIBAgIQHkxaqDNmOWk1TxvA+LRGLzAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwHhcNMjYwOTIxMTQwODIwWhcNMjcxMDIzMTQxMzIwWjARMQ8wDQYDVQQDDAZUb3J0aWUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAASw4ov7TE4YHz/iiL/G5whV4dBuE1mJRz3tIb3F83H7AHLZVno6PBkWHTPXdLz5j+RHRk6LaezAeL7keFwk/521o1swWTAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAkBgNVHREEHTAbghlwMzMwLW1hYy50YWlsMDAwMDAudHMubmV0MAoGCCqGSM49BAMCA0gAMEUCIG6yYOQXAL60O3kE6v+iNBXIXQaXlkJqwnQJE5Sf+HiqAiEAvQVg80e4TY8env3LglhOmqY8oTyBasrOjBNorMCY/E4=",
+      "certificateFingerprint": "A3:77:46:E0:BC:71:6B:93:70:A2:5E:B3:CF:BD:BC:40:08:DE:CB:03:C5:0E:7D:A2:2D:F5:E3:9F:BB:91:04:CA",
+      "publicKeyFingerprint": "E8:3A:3A:78:AF:86:61:5A:EB:D6:59:22:9B:8B:C3:6D:01:50:5F:DE:13:1E:54:CA:51:09:32:9E:8F:33:48:CC",
+      "pin": "6Do6eK-GYVrr1lkim4vDbQFQX94THlTKUQkyno8zSMw"
     },
     {
       "name": "second",
-      "certificateDer": "MIIBZzCCAQygAwIBAgIQNVMQssTWK4QLylWKi6WYCTAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwHhcNMjYwOTIxMTQwODIwWhcNMjcxMDIzMTQxMzIwWjARMQ8wDQYDVQQDDAZUb3J0aWUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAATQEJZmFVe2Ug7TEBYmC9Fwdh185hkiqCG09Ze+4ZwkAb10f2M6JC39vE8yFldyXKsh5VqfZbDxgeeK0CfczjJbo0YwRDAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAPBgNVHREECDAGhwR/AAABMAoGCCqGSM49BAMCA0kAMEYCIQD7iXvsWLrhmPP80PtF0cFCP14y7PK/oKWex//rHHGyJAIhAIpd9YyY6JkA4zXyRArsqgcCzg+3Me5h9CYaN3y5mF8C",
-      "certificateFingerprint": "EE:15:9E:43:44:09:19:E8:B9:AA:5F:34:E8:88:92:83:9D:BF:AD:17:38:A6:BA:7C:FE:BE:C0:81:42:AC:31:A2",
-      "publicKeyFingerprint": "74:01:2D:5E:F4:5F:2D:52:48:3E:F6:F4:36:76:9B:6C:35:74:84:38:2A:69:C8:CF:E0:B3:9A:1A:01:55:9E:2E",
-      "pin": "dAEtXvRfLVJIPvb0NnabbDV0hDgqacjP4LOaGgFVni4"
+      "certificateDer": "MIIBezCCASGgAwIBAgIQAof7aHdYIdNRSeLX8CMvtDAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwHhcNMjYwOTIxMTQwODIwWhcNMjcxMDIzMTQxMzIwWjARMQ8wDQYDVQQDDAZUb3J0aWUwWTATBgcqhkjOPQIBBggqhkjOPQMBBwNCAARxc/udnfogUBYAEfAJcdHijH2aORXYmVCxSqixaKtBCWcVaxYUwotIj5Y5ocn07Nu/PdUZMgofCuI+8AoyPS++o1swWTAMBgNVHRMBAf8EAjAAMA4GA1UdDwEB/wQEAwIHgDATBgNVHSUEDDAKBggrBgEFBQcDATAkBgNVHREEHTAbghlwMzMwLW1hYy50YWlsMDAwMDAudHMubmV0MAoGCCqGSM49BAMCA0gAMEUCIDOvuxEABL22scIdaxN8SNqQ3lfy6ohI6g4lTxGY+vupAiEA53VIxo9pIn2+cR76tJjq+Dv3At/C8OtdVnzUJm+UUBA=",
+      "certificateFingerprint": "A4:0E:F9:A2:D6:0F:20:B8:10:BF:FE:A9:46:8F:9B:7D:5D:CF:38:8E:86:39:6D:09:AD:74:64:56:F4:2D:3E:F7",
+      "publicKeyFingerprint": "42:81:69:24:E3:5B:C8:AE:DE:CE:5F:3F:D0:B1:17:DB:F8:75:89:48:C0:09:FF:0F:F6:66:45:53:6E:90:7D:D5",
+      "pin": "QoFpJONbyK7ezl8_0LEX2_h1iUjACf8P9mZFU26QfdU"
     }
   ],
+  "client": {
+    "clientKey": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECz6SKEYtLWRHtXHDzANBAu2qvztgdJpQSSWqVyxb1JAexjuPXSFkcLFJefISSX3XHIl4ZaCK8BqfTY3UOETceg",
+    "certificateDer": "MIIBXDCCAQOgAwIBAgIQWjVWXDQZ6oADRQXF154HUDAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwIBcNMjYwOTIxMTQwODIwWhgPOTk5OTEyMzEyMzU5NTlaMBcxFTATBgNVBAMMDFRvcnRpZSBwaG9uZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABAs+kihGLS1kR7Vxw8wDQQLtqr87YHSaUEklqlcsW9SQHsY7j10hZHCxSXnyEkl91xyJeGWgivAan02N1DhE3HqjNTAzMAwGA1UdEwEB/wQCMAAwDgYDVR0PAQH/BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAoGCCqGSM49BAMCA0cAMEQCIFwiybtgCt7eGj/stnCFF4oKFA/6Us5smg6wm5RIwcz1AiAbGSPR2/0m5UMAY+ODAzaji/GbedJDmk4up1TyIE2G3g=="
+  },
   "seal": {
     "secret": "Imw5qPeywROln3TcYQxIhQ",
+    "challenge": "k93od8ByupaLiN48hyOJu_y0qtsxPwzhBurfwi5FwIw",
     "label": "Tortie’s iPhone",
     "fromDoor": {
-      "body": "{\"iv\":\"QsEkJTFZEkAGD2X3\",\"ct\":\"uBNpdu4LggvtuuCZNYjY_HL8Bj0NoQBR6xfLw6srv1Miq5Aa5eyS54BpbKv4AeFaIqwtXtX1iHybWNiJdnKTQGVekztze1yy3yf0O2mYHua0ULx8VIgV8FvdDCh8loWXsxbkNKynd9q3hMImnrwB12Yf4xeEB5y70t9vL-rYTobVZR2CUIUizk-zdRPawEEfuI1Lb2dvkTfkiLvugkBfR3U8Pw\",\"tag\":\"Vzn7LHt2c9h9APb95r8gKg\"}",
-      "plaintext": "{\"label\":\"Tortie’s iPhone\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"xk\":\"MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM\"}"
+      "body": "{\"ct\":\"cF01bWYk2_JoD36WHf-qpLOFhHNLrwsP83l4AZiP-uueLGjwGmVB4usrnCr8g84m4vph9csT6jambqJuPqnrThc5f9m2UAzHDsg49JwCUZ-0NF7nMvC7mjr1kzEM2_ojnahv9mjTAemrh4YBoj06WEJyY_9kgDsK1YL2CpavqKpQcTmoCcEPz_Sv-aWGAtP78tGSmN1wYCJpLPxHUUyr6wh5hVHx4ln2csAwJqX5Y0F4KmPVlwCCq1xVJfR4V6eBllwu0Bz0Sk-tOvWknIa7g3Ndbnsjyjx3UyULl_8-by40oQlCe60_hMdddAqajJ6LDJvrFgyBpimUP-rBqmYUr4wjRuV6Isj5WCbOyjVEgDPL5GOTaB0ERfOkkITEllETRBvDmEY\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"iv\":\"5N9VejxDtj2MJCrj\",\"sig\":\"OSZzQk5zCn6VzUx15Dkl5fczIUaHXqepLMYylXRA4Zj6PYaJAnw4LuetosZRia-OfeNrkRnHs9Ulw6t1XWQ0BQ\",\"tag\":\"-0F6uWJDYfYXDevcy_dsqg\"}",
+      "plaintext": "{\"ck\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECz6SKEYtLWRHtXHDzANBAu2qvztgdJpQSSWqVyxb1JAexjuPXSFkcLFJefISSX3XHIl4ZaCK8BqfTY3UOETceg\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"label\":\"Tortie’s iPhone\",\"xk\":\"MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM\"}"
     },
     "fromPhone": {
       "iv": "Zo34ITgDNdE8SxWv",
-      "plaintext": "{\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"label\":\"Tortie’s iPhone\",\"xk\":\"MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM\"}",
-      "body": "{\"ct\":\"Ng5s_-tqJMbrEsaMVPRcPEzLq8IsGo0XHyXonYzu_52Au9Pgw6LxrkDTyV8WEzQkWfu1-7jaPsNqXdlxjX70JwuuTmAZ4CJmABdPUeZinHL5kjNK_RzeyB5z_Z4G4cBSxYQN4HayKPyfXIHHozGUkQ_LfTOOrG1UmfOD_Kwc9PryZfu6f4tkyKWgWnZ8gUrBqVpFYev-C6baNHb5hPTdIvc-1w\",\"iv\":\"Zo34ITgDNdE8SxWv\",\"tag\":\"u3VCilyXeKuDLg18T9_n_g\"}"
+      "plaintext": "{\"ck\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECz6SKEYtLWRHtXHDzANBAu2qvztgdJpQSSWqVyxb1JAexjuPXSFkcLFJefISSX3XHIl4ZaCK8BqfTY3UOETceg\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"label\":\"Tortie’s iPhone\",\"xk\":\"MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM\"}",
+      "ct": "Ng5q_-tqJMbuFsaLcvRQPBHHlfk_b49jORfAj5Lxz4aH1N-S15b6t0DA1jEbFQJXV-qigqf-B8RWIe9_gFjFKSbvHTpB-CRgLws8OJdhglb0gzSZN8TIkB1Wxak7wokdq7ospyrZNuyoGJvesxnr-Tj9d3KJnGJGi4Xj674p9q_wMoHabdcvwea7Slp49SL3vUM-U__yB4DNVUf80ef_MMN9x9uB-URbIEoJAcDhm1yFrKMKxOO06gMxpJOZl3-0LwRmkchMCmzulnj4XDGHf1cayjgVKLpWtf-5hbvsHQANTSVJ-ifD0RrzPHMrDdZyUKK5DzSqc28uCl5_MG1OxCqXCHZw_OJKqlLBvs96HFliLqIjhkNW7X5V1EwbUTx7e_nAIPw",
+      "tag": "w7gvwNB_YO-0sIJ9RGTfjA",
+      "proof": "tortie-pocket-present-v1\nk93od8ByupaLiN48hyOJu_y0qtsxPwzhBurfwi5FwIw\nZo34ITgDNdE8SxWv\nNg5q_-tqJMbuFsaLcvRQPBHHlfk_b49jORfAj5Lxz4aH1N-S15b6t0DA1jEbFQJXV-qigqf-B8RWIe9_gFjFKSbvHTpB-CRgLws8OJdhglb0gzSZN8TIkB1Wxak7wokdq7ospyrZNuyoGJvesxnr-Tj9d3KJnGJGi4Xj674p9q_wMoHabdcvwea7Slp49SL3vUM-U__yB4DNVUf80ef_MMN9x9uB-URbIEoJAcDhm1yFrKMKxOO06gMxpJOZl3-0LwRmkchMCmzulnj4XDGHf1cayjgVKLpWtf-5hbvsHQANTSVJ-ifD0RrzPHMrDdZyUKK5DzSqc28uCl5_MG1OxCqXCHZw_OJKqlLBvs96HFliLqIjhkNW7X5V1EwbUTx7e_nAIPw\nw7gvwNB_YO-0sIJ9RGTfjA",
+      "sig": "-OSrArP1DQs32-cPma20kq2GIhLcQ8qP_LYNy9gkVyeD6mpiV4MWV3kh05VlZUzhPgB-gVqNn80MzE3DNzknDw",
+      "body": "{\"ct\":\"Ng5q_-tqJMbuFsaLcvRQPBHHlfk_b49jORfAj5Lxz4aH1N-S15b6t0DA1jEbFQJXV-qigqf-B8RWIe9_gFjFKSbvHTpB-CRgLws8OJdhglb0gzSZN8TIkB1Wxak7wokdq7ospyrZNuyoGJvesxnr-Tj9d3KJnGJGi4Xj674p9q_wMoHabdcvwea7Slp49SL3vUM-U__yB4DNVUf80ef_MMN9x9uB-URbIEoJAcDhm1yFrKMKxOO06gMxpJOZl3-0LwRmkchMCmzulnj4XDGHf1cayjgVKLpWtf-5hbvsHQANTSVJ-ifD0RrzPHMrDdZyUKK5DzSqc28uCl5_MG1OxCqXCHZw_OJKqlLBvs96HFliLqIjhkNW7X5V1EwbUTx7e_nAIPw\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"iv\":\"Zo34ITgDNdE8SxWv\",\"sig\":\"-OSrArP1DQs32-cPma20kq2GIhLcQ8qP_LYNy9gkVyeD6mpiV4MWV3kh05VlZUzhPgB-gVqNn80MzE3DNzknDw\",\"tag\":\"w7gvwNB_YO-0sIJ9RGTfjA\"}"
     }
   },
   "qr": [
     {
-      "name": "tailnet-with-key",
-      "payload": "{\"v\":2,\"host\":\"100.101.102.103\",\"port\":8823,\"fp\":\"mqss3HtqB9_owX7yAN-gvwhz1hbJbAUHjiPMavRadjA\",\"dk\":\"MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk\",\"dx\":\"MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10\",\"ps\":\"C9i-lGXZITthD8LoUtmGCw\",\"exp\":1790000180000,\"tk\":\"tskey-auth-kP316VECTOR-madeUpNotAKey0000000000000000\"}"
+      "name": "funnel-8443",
+      "payload": "{\"v\":3,\"host\":\"p330-mac.tail00000.ts.net\",\"port\":8443,\"fp\":\"6Do6eK-GYVrr1lkim4vDbQFQX94THlTKUQkyno8zSMw\",\"dk\":\"MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk\",\"dx\":\"MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10\",\"ps\":\"Jq8Vrk6ll6zPWBtcfhFHhg\",\"exp\":1790000180000}"
     },
     {
-      "name": "tailnet-no-key",
-      "payload": "{\"v\":2,\"host\":\"100.101.102.103\",\"port\":8823,\"fp\":\"mqss3HtqB9_owX7yAN-gvwhz1hbJbAUHjiPMavRadjA\",\"dk\":\"MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk\",\"dx\":\"MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10\",\"ps\":\"HKwVps01W_reiyx1tToDpA\",\"exp\":1790000180000}"
-    },
-    {
-      "name": "loopback",
-      "payload": "{\"v\":2,\"host\":\"127.0.0.1\",\"port\":8823,\"fp\":\"mqss3HtqB9_owX7yAN-gvwhz1hbJbAUHjiPMavRadjA\",\"dk\":\"MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk\",\"dx\":\"MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10\",\"ps\":\"KcjdSlOT18QFLr2-fNAY5g\",\"exp\":1790000180000}"
+      "name": "funnel-10000",
+      "payload": "{\"v\":3,\"host\":\"p330-mac.tail00000.ts.net\",\"port\":10000,\"fp\":\"6Do6eK-GYVrr1lkim4vDbQFQX94THlTKUQkyno8zSMw\",\"dk\":\"MCowBQYDK2VwAyEAw6BqdfBrIUsXFNYJpBBP1bhFA-e1CFISO6asMK7TNnk\",\"dx\":\"MCowBQYDK2VuAyEApqXxczTvRXd-MmpREPruVLFs9ahetovxp002GsTma10\",\"ps\":\"LZFx0j_g1vWNLByqAAZ3Gw\",\"exp\":1790000180000}"
     }
   ],
-  "madeUpTailnetKey": "tskey-auth-kP316VECTOR-madeUpNotAKey0000000000000000",
+  "pairAnswers": {
+    "pending": "{\"state\":\"pending\"}",
+    "refused": "{\"state\":\"refused\"}",
+    "allowed": "{\"state\":\"allowed\",\"cert\":\"MIIBXDCCAQOgAwIBAgIQWjVWXDQZ6oADRQXF154HUDAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwIBcNMjYwOTIxMTQwODIwWhgPOTk5OTEyMzEyMzU5NTlaMBcxFTATBgNVBAMMDFRvcnRpZSBwaG9uZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABAs-kihGLS1kR7Vxw8wDQQLtqr87YHSaUEklqlcsW9SQHsY7j10hZHCxSXnyEkl91xyJeGWgivAan02N1DhE3HqjNTAzMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAoGCCqGSM49BAMCA0cAMEQCIFwiybtgCt7eGj_stnCFF4oKFA_6Us5smg6wm5RIwcz1AiAbGSPR2_0m5UMAY-ODAzaji_GbedJDmk4up1TyIE2G3g\"}"
+  },
   "answers": {
     "blocked": {
       "json": "{\"rows\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\"}],\"others\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\"},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c03\",\"name\":\"quiet\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"idle\",\"statusTitle\":\"Idle\",\"statusDot\":\"idle\",\"question\":null,\"choices\":[],\"blockedSince\":1789913600000,\"seenAtWake\":false,\"ageText\":\"1h\"},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"name\":\"far-away\",\"project\":\"tortie\",\"machine\":\"Mac Pro\",\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"idle\",\"statusTitle\":\"Idle\",\"statusDot\":\"idle\",\"question\":null,\"choices\":[],\"blockedSince\":1789999400000,\"seenAtWake\":false,\"ageText\":\"10m\"},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c05\",\"name\":\"broken\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"failed (exit 1)\",\"statusTitle\":\"Failed (exit 1)\",\"statusDot\":\"failed\",\"question\":null,\"choices\":[],\"blockedSince\":1789999100000,\"seenAtWake\":false,\"ageText\":\"15m\"}],\"othersOmitted\":0,\"at\":1790000000000,\"emptyLine\":\"Nothing needs you\",\"ageNote\":\"Waits first seen after your Mac wakes or Tortie restarts are timed from then.\"}",

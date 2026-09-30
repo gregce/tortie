@@ -1,166 +1,111 @@
 /**
- * What a request is ALLOWED to be, and the one place a byte leaves this door
- * (Phase 313).
+ * What a request is ALLOWED to be, on main's side of the door (Phase 313;
+ * split across two processes by Phase 330, build/p330/SPEC.md §4.6).
  *
- * ## The split, and why there are not two doors
+ * ## The split, and why there are still not two doors
  *
- * `./bind.ts` owns the LISTENER: where it binds, the certificate it presents,
- * the connection caps, the shutdown, and the refusal of a socket whose source
- * is the address the door answers on. It takes the request handler as an
- * argument, so the listener imports no route and knows nothing about what it is
- * answering.
+ * Since Phase 330 the listener runs in its own process (`./door-process.ts`,
+ * over `./door/listener.ts`), because Tailscale Funnel publishes it to the
+ * internet and a stranger's bytes must be parsed by a process that holds no
+ * credential (research 132 §7.1). That process makes refusals 1 to 5 — the
+ * shutdown, the `Host`, the closed table, the window, the body cap — and
+ * parses `/pair`'s outer JSON, so nothing reaches main that is not a typed,
+ * bounded request (`./door/wire.ts`). This module is main's handler of those
+ * requests, and it owns what only main can know: whether the quit has begun,
+ * whether the signature holds, and whether the answer it composed may still
+ * leave.
  *
- * This module is that handler. It owns the question "may this request be
- * answered at all", and it answers it in a fixed order, cheapest first. The
- * division is deliberate: the listener is about sockets and the handler is
- * about requests, and neither spells the other's rules.
+ * ## The refusals main makes, in order
  *
- * ## The refusals, in the order they are made
- *
- * 0. **The source address equals the address this door answers on.** NOT HERE.
- *    `./bind.ts` destroys that socket on the `connection` event, before the TLS
- *    handshake and therefore before any header exists at all — which is earlier
- *    than research 127 section 10 asked for. It is not repeated here, because a
- *    second copy under the harness loopback bind would refuse every request the
- *    probe makes and the two answers would have to be kept in step forever.
- * 1. **The shutdown has begun.** Admission closes synchronously, so nothing
- *    accepted afterwards can reach main's state.
- * 2. **The `Host` header is not this door.** `../activity/hooks.ts`'s own
- *    check, made before anything else is read off the request.
- * 3. **The method and path are not in the closed table.** Equality on both. No
- *    default, no wildcard, no prefix, no trailing-slash forgiveness.
- * 4. **The route is the pairing route and no window is open.** `/pair` is dead
- *    outside a window a person opened, which is almost all of the door's life.
- * 5. **The body is over the cap.** Dropped WHOLE, never truncated and parsed,
- *    because half a body that parses is a body somebody else chose the shape
- *    of.
+ * 1. **The shutdown has begun**, asked AGAIN here because admission closes in
+ *    main first and the door process is told a turn later.
+ * 4. **`/pair` with no window**, asked again for the same reason: a window
+ *    that shut in main while the door process still thought it open.
  * 6. **The signature does not hold**, for every reason `./pairing.ts` names:
- *    missing headers, an unknown phone, an address that is not the paired one,
- *    a clock outside the window, a nonce already spent, a signature that does
- *    not verify.
- * 7. **The answer is admitted AGAIN before a byte of it leaves** (the Phase
- *    316.1 fix round). Composing an answer awaits the refresh, and a person can
- *    press Remove, or switch the door off, inside that await. So after the
- *    answer is composed the handler asks three things once more, with nothing
- *    awaited between the asking and the send: has the quit begun, is the phone
- *    this request was VERIFIED for still paired (`unpaired` if not), and has
- *    the door instance that ACCEPTED the request begun to stop. The last one is
- *    asked of the instance `./bind.ts` hands the handler, never of the module's
- *    current door, because a stop drops the module's door before it joins the
- *    handlers it accepted. Before this, a phone removed while its request was
- *    in flight was still answered, from the store as it stood AFTER the press.
+ *    missing headers, an unknown phone, a phone whose client key did not
+ *    complete THIS connection's handshake (`channel`), a clock outside the
+ *    window, a nonce already spent, a signature that does not verify.
+ * 7. **The answer is admitted AGAIN before it leaves** (the Phase 316.1 fix
+ *    round). Composing an answer awaits the refresh, and a person can press
+ *    Remove, or switch the door off, inside that await. So after the answer is
+ *    composed the handler asks three things once more, with nothing awaited
+ *    between the asking and the return: has the quit begun, is the phone this
+ *    request was VERIFIED for still paired (`unpaired` if not), and has the
+ *    door instance that ACCEPTED the request begun to stop. The last is asked
+ *    of the door `./bind.ts` hands the handler, by generation, never of the
+ *    module's current door; `./bind.ts` asks it once more before the post.
  *
- * EVERY REFUSAL ANSWERS THE SAME THING: 404, an empty body, and the same
- * headers. The reason is a WORD in a bounded log and never on the wire, because
- * a door that explains why it refused helps somebody work out what it would
- * accept. The log is bounded for `../activity/hooks.ts`'s measured reason: 500
- * anonymous posts wrote 500 log lines in 47 ms, `app.log` is capped at 2 MiB
- * with one archive, and the bound exists to stop diagnostic ERASURE rather than
- * disk fill. One line per reason per process, and there are twelve reasons.
- *
- * ## No bearer token, and one place emits `Referrer-Policy`
- *
- * Nothing this door accepts is a reusable secret and nothing it needs is in a
- * URL. {@link sendPocket} is the ONE function that writes a status, a header or
- * a byte of body, so `Referrer-Policy: no-referrer` is on every answer and
- * every refusal. A URL-borne secret leaks by `Referer` the first time a client
- * follows an outbound link, and a signature that has been sent somewhere else
- * cannot be taken back. There is nothing left in a URL to leak after this, so
- * the header is belt and braces rather than the mechanism.
+ * EVERY REFUSAL ANSWERS THE SAME THING: 404 and no body. The reason is a WORD
+ * in a bounded log and never on the wire, because a door that explains why it
+ * refused helps somebody work out what it would accept. One line per reason per
+ * process.
  *
  * ## What this module does not do
  *
- * It binds nothing and holds no key. It spawns nothing, reads no credential and
- * sets no status. It never logs a header value, a query value, a body or a line
- * of anybody's conversation.
+ * It binds nothing, parses no stranger's bytes and holds no key. It spawns
+ * nothing, reads no credential and sets no status. It never logs a header
+ * value, a query value, a body or a line of anybody's conversation.
  */
 
-import type { IncomingMessage, ServerResponse } from 'node:http';
-
 import { getLog } from '../log';
-import type { DoorAdmission } from './bind';
-import {
-  POCKET_PAIR_BODY_CAP_BYTES,
-  type PocketPairAnswer,
-  type PocketRefusalReason
-} from './pairing';
-import { matchPocketRoute, type PocketRoute } from './routes';
+import type { DoorAdmission, DoorAnswer, DoorRequestHandler } from './bind';
+import type { DoorPresentation, DoorSignatureHeaders } from './door/wire';
+import { POCKET_ROUTES, type PocketRoute } from './door/table';
+import type { PocketPairAnswer, PocketRefusalReason } from './pairing';
+
+export { POCKET_READ_BODY_CAP_BYTES } from './door/wire';
 
 const pocketLog = getLog('pocket');
 
-/** A signed read carries no body worth the name. Over this is dropped whole. */
-export const POCKET_READ_BODY_CAP_BYTES = 1024;
-
 /** What the handler asks of everything around it. Every member is a read. */
 export interface PocketHandlerDeps {
-  /** The address `./bind.ts` actually bound, for the `Host` check. */
-  boundAddress(): string | null;
-  /** The port it actually bound. */
-  boundPort(): number;
   /** True from the first line of the quit's admission close. */
   shuttingDown(): boolean;
   /** True only inside a pairing window a person opened. */
   pairingWindowOpen(): boolean;
-  /** Hand a sealed presentation to the pairing owner. Answers one word. */
-  present(body: Buffer, from: string): PocketPairAnswer;
+  /** Hand a presentation to the pairing owner. Answers its state. */
+  present(presentation: DoorPresentation): PocketPairAnswer;
   /**
-   * Does this signed request come from an allowed phone, right now, once? The
-   * answer names the phone it verified, so the handler can ask again after the
-   * answer is composed.
+   * Does this signed request come from an allowed phone, over that phone's own
+   * connection, right now, once? The answer names the phone it verified, so
+   * the handler can ask again after the answer is composed.
    */
   verify(input: {
     method: string;
     target: string;
     body: Buffer;
-    from: string;
-    headers: Readonly<Record<string, string | string[] | undefined>>;
+    channel: string | null;
+    headers: DoorSignatureHeaders;
   }): { ok: true; phoneId: string } | { ok: false; reason: PocketRefusalReason };
   /**
    * Is this phone still one the person allowed? Asked AFTER the answer is
-   * composed and before it is sent (refusal 7), so a Remove that landed while
-   * the request was in flight refuses it `unpaired`.
+   * composed (refusal 7), so a Remove that landed while the request was in
+   * flight refuses it `unpaired`.
    */
   stillPaired(phoneId: string): boolean;
   /** Answer one of the three reads. Null means there is nothing to answer. */
   answer(route: PocketRoute, query: URLSearchParams): Promise<unknown | null>;
 }
 
-/**
- * Normalise a socket address.
- *
- * Node reports an IPv4 peer on a dual-stack socket as `::ffff:100.64.0.1`, and
- * the address recorded when a phone paired is the plain form. This is the
- * handler's spelling, used for the ONE question "which phone is this"; the
- * listener's `isSelfOrigin` in `./bind.ts` answers the different question "is
- * this socket this machine" and owns its own reading of the same shape.
- */
-export function normalisePocketAddress(address: string | undefined): string {
-  if (address === undefined) return '';
-  return address.startsWith('::ffff:') ? address.slice(7) : address;
+/** The query of a target the door process already bounded, as parameters. */
+function queryOf(target: string): URLSearchParams {
+  const at = target.indexOf('?');
+  return new URLSearchParams(at === -1 ? '' : target.slice(at + 1));
+}
+
+/** The route a request names, from the one closed table. */
+function routeNamed(id: string): PocketRoute | null {
+  return POCKET_ROUTES.find((r) => r.id === id) ?? null;
 }
 
 /**
- * The ONE place a response leaves this door.
- *
- * Every answer and every refusal goes through it, so the headers below are on
- * every byte the door ever sends. `Referrer-Policy` in particular is emitted
- * here and nowhere else in the module.
+ * `/pair`'s answer, composed field by field so nothing but the state, and the
+ * certificate on `allowed` alone, can ever leave (`conformance:pocket` N3).
  */
-export function sendPocket(
-  res: ServerResponse,
-  status: number,
-  body: string | null
-): void {
-  res.statusCode = status;
-  res.setHeader('Referrer-Policy', 'no-referrer');
-  res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  if (body === null) {
-    res.end();
-    return;
-  }
-  res.setHeader('Content-Type', 'application/json; charset=utf-8');
-  res.end(body);
+function pairBody(answer: PocketPairAnswer): string {
+  if (answer.state === 'allowed') return JSON.stringify({ state: 'allowed', cert: answer.cert });
+  if (answer.state === 'pending') return JSON.stringify({ state: 'pending' });
+  return JSON.stringify({ state: 'refused' });
 }
 
 /**
@@ -169,121 +114,56 @@ export function sendPocket(
  * It owns its own bounded refusal log, so one process has one line per reason
  * however many times a door is opened and closed.
  */
-export function createPocketHandler(
-  deps: PocketHandlerDeps
-): (req: IncomingMessage, res: ServerResponse, door?: DoorAdmission) => Promise<void> {
+export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler {
   /** One line per reason per process. A WORD, and never a value. */
   const logged = new Set<string>();
-  const refuse = (res: ServerResponse, reason: PocketRefusalReason): void => {
+  const refuse = (reason: PocketRefusalReason): DoorAnswer => {
     if (!logged.has(reason)) {
       logged.add(reason);
-      pocketLog.warn(`refused a request on the tailnet door: ${reason}`);
+      pocketLog.warn(`refused a request at the door: ${reason}`);
     }
-    sendPocket(res, 404, null);
+    return { status: 404, body: null };
   };
 
-  return async function handle(
-    req: IncomingMessage,
-    res: ServerResponse,
-    door?: DoorAdmission
-  ): Promise<void> {
+  return async function handle(request, door: DoorAdmission): Promise<DoorAnswer> {
     // REFUSAL 1, asked of the quit AND of the door that accepted this request.
-    // `door` is `./bind.ts`'s; a handler driven without a listener (the unit
-    // tests' plain http server) has none, and the quit is then the only stop.
-    const closing = (): boolean => deps.shuttingDown() || door?.stopping() === true;
-    if (closing()) return refuse(res, 'shutdown');
-    const address = deps.boundAddress();
-    if (address === null) return refuse(res, 'shutdown');
-    const from = normalisePocketAddress(req.socket.remoteAddress);
+    const closing = (): boolean => deps.shuttingDown() || door.stopping();
+    if (closing()) return refuse('shutdown');
 
-    // REFUSAL 2. Before the path, before the query, before the body.
-    const host = req.headers.host ?? '';
-    const expected = `${address}:${String(deps.boundPort())}`;
-    if (host !== expected && host !== address) return refuse(res, 'host');
-
-    // REFUSAL 3. Equality against the closed table. `URL` is used to split the
-    // path from the query and for nothing else: what it yields is compared,
-    // never rewritten and never resolved against anything.
-    const url = new URL(req.url ?? '/', `https://${address}`);
-    const route = matchPocketRoute(req.method ?? '', url.pathname);
-    if (route === null) return refuse(res, 'route');
-
-    // REFUSAL 4. `/pair` is dead outside a window a person opened.
-    if (route.windowOnly && !deps.pairingWindowOpen()) {
-      return refuse(res, 'window');
-    }
-
-    // REFUSAL 5. Capped and dropped WHOLE.
-    const cap = route.signed
-      ? POCKET_READ_BODY_CAP_BYTES
-      : POCKET_PAIR_BODY_CAP_BYTES;
-    const read = await readBody(req, cap);
-    if (read === null) return refuse(res, 'oversized');
-
-    // Admission again, because the body read above is an await: a request that
-    // passed every check before the quit began reaches this line afterwards,
-    // and composing an answer here would read main's state during its own
-    // disposal.
-    if (closing()) return refuse(res, 'shutdown');
-
-    /** The phone this request was verified for, asked about again at refusal 7. */
-    let verifiedPhone: string | null = null;
-    if (route.signed) {
-      // REFUSAL 6.
-      const verdict = deps.verify({
-        method: req.method ?? '',
-        target: `${url.pathname}${url.search}`,
-        body: read,
-        from,
-        headers: req.headers
-      });
-      if (!verdict.ok) return refuse(res, verdict.reason);
-      verifiedPhone = verdict.phoneId;
-    }
-
-    if (route.id === 'pair') {
+    if (request.route === 'pair') {
+      // REFUSAL 4, again: main's window is the one a person opened.
+      if (!deps.pairingWindowOpen()) return refuse('window');
       // Presenting reads nothing of main's state and never reaches the route
-      // composer. It answers ONE WORD and nothing else, ever.
-      const answer = deps.present(read, from);
-      sendPocket(res, 200, JSON.stringify({ state: answer }));
-      return;
+      // composer. It answers a state, and a certificate only when allowed.
+      const answer = deps.present(request.presentation);
+      if (closing()) return refuse('shutdown');
+      return { status: 200, body: pairBody(answer) };
     }
 
-    const body = await deps.answer(route, url.searchParams);
-    // REFUSAL 7. Nothing is awaited from here to the send, so the answer that
+    const route = routeNamed(request.route);
+    if (route === null || !route.signed) return refuse('route');
+
+    // REFUSAL 6.
+    const verdict = deps.verify({
+      method: request.method,
+      target: request.target,
+      body: Buffer.from(request.body),
+      channel: request.channel,
+      headers: request.headers
+    });
+    if (!verdict.ok) return refuse(verdict.reason);
+    /** The phone this request was verified for, asked about again at refusal 7. */
+    const verifiedPhone = verdict.phoneId;
+
+    const body = await deps.answer(route, queryOf(request.target));
+    // REFUSAL 7. Nothing is awaited from here to the return, so the answer that
     // leaves is one the person had not withdrawn by the time it left. The phone
     // is asked before the door, so a Remove — which also stops the door — is
     // refused for the reason that is true of it.
-    if (deps.shuttingDown()) return refuse(res, 'shutdown');
-    if (verifiedPhone !== null && !deps.stillPaired(verifiedPhone)) {
-      return refuse(res, 'unpaired');
-    }
-    if (closing()) return refuse(res, 'shutdown');
-    if (body === null) return refuse(res, 'route');
-    sendPocket(res, 200, JSON.stringify(body));
+    if (deps.shuttingDown()) return refuse('shutdown');
+    if (!deps.stillPaired(verifiedPhone)) return refuse('unpaired');
+    if (closing()) return refuse('shutdown');
+    if (body === null) return refuse('route');
+    return { status: 200, body: JSON.stringify(body) };
   };
-}
-
-/**
- * Read at most `cap` bytes. Null when there were more, and in that case the
- * bytes already read are dropped rather than returned.
- */
-function readBody(req: IncomingMessage, cap: number): Promise<Buffer | null> {
-  return new Promise((resolve) => {
-    const chunks: Buffer[] = [];
-    let size = 0;
-    let over = false;
-    req.on('data', (chunk: Buffer) => {
-      if (over) return;
-      size += chunk.length;
-      if (size > cap) {
-        over = true;
-        chunks.length = 0;
-        return;
-      }
-      chunks.push(chunk);
-    });
-    req.on('end', () => resolve(over ? null : Buffer.concat(chunks)));
-    req.on('error', () => resolve(null));
-  });
 }

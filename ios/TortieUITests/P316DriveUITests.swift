@@ -113,6 +113,9 @@ private final class Drive {
     private let app = XCUIApplication()
     private let lines: ProbeLines
     private let payload: String
+    /// `127.0.0.1:<port>`, the stand-in funnel's forwarder on this Mac
+    /// (Phase 330), or nil to dial the code's own name.
+    private let endpoint: String?
     private let steps: [String]
     private let wait: TimeInterval
     /// Set when a step could not find its screen: nothing after it can run.
@@ -121,15 +124,20 @@ private final class Drive {
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
         payload = env["P316_PAYLOAD"] ?? ""
+        endpoint = env["P330_DOOR_ENDPOINT"].flatMap { $0.isEmpty ? nil : $0 }
         steps = (env["P316_STEPS"] ?? "").split(separator: ",").map { String($0).trimmingCharacters(in: .whitespaces) }
         wait = TimeInterval(env["P316_WAIT_S"] ?? "") ?? 60
     }
 
     func go() {
-        // The DEBUG seams the app reads (Door/Pairing.swift, Screens/Pieces.swift):
-        // start with no pairing kept, hold the attention dot still so XCUITest can
-        // see the app go idle, and take the Mac's code as the camera would.
-        app.launchArguments = ["-TortieDebugForgetPairing", "-TortieDebugStill", "-TortieDebugPairingPayload", payload]
+        // The DEBUG seams the app reads (Door/Pairing.swift, Screens/Pieces.swift,
+        // Door/Transport.swift): start with no pairing kept, hold the attention
+        // dot still so XCUITest can see the app go idle, take the Mac's code as
+        // the camera would, and open every connection to the stand-in funnel's
+        // forwarder on this Mac while the code's name stays the TLS name.
+        var arguments = ["-TortieDebugForgetPairing", "-TortieDebugStill", "-TortieDebugPairingPayload", payload]
+        if let endpoint { arguments += ["-TortieDebugDoorEndpoint", endpoint] }
+        app.launchArguments = arguments
         app.launch()
         for step in steps where !stuck {
             if step == "pair" {

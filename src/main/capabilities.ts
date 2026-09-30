@@ -118,6 +118,9 @@ import {
 // confirmed.
 import { beginPocketShutdown, joinPocketDoor } from './pocket/bind';
 import { createPocketFacts } from './pocket/facts';
+// PHASE 330: the Funnel child that publishes the door. Two lines in the
+// ordered disposer below, beside the door's own.
+import { beginFunnelShutdown, joinFunnel } from './pocket/funnel';
 import { PocketHost, registerPocketIpc } from './pocket/ipc';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
@@ -157,8 +160,8 @@ const FINISHED_SESSION_STATES: ReadonlySet<string> = new Set([
 
 /**
  * The door's owner (Phase 316), held so the disposer can shred an open pairing
- * window — the one-shot secret and any tailnet key beside it — at quit. Null
- * until `installMainCapabilities` has run.
+ * window — its one-shot secret, the code's only secret since Phase 330 — at
+ * quit. Null until `installMainCapabilities` has run.
  */
 let pocketHost: PocketHost | null = null;
 
@@ -324,9 +327,10 @@ export function installMainCapabilities(
   // presses in Settings. The other eight read memory, write one row, or write
   // one record.
   registerMachinesIpc(ipcMain);
-  // PHASE 316: the ONE `pocket:*` registrar, and the door's launch step. Ten
-  // channels, all Settings then Phone, and none of them reachable from the
-  // tailnet: the door's own route table is read only and holds none of them.
+  // PHASE 316: the ONE `pocket:*` registrar, and the door's launch step.
+  // Eleven channels since Phase 330, all Settings then Phone, and none of them
+  // reachable by a phone: the door's own route table is read only and holds
+  // none of them.
   // The launch step reads one sealed file and does nothing else unless the
   // person switched the door on AND the fields as they stand now hash to the
   // agreement on record (CLAUDE.md refusal 8): a store edited by hand moves
@@ -364,7 +368,10 @@ export function installMainCapabilities(
     beforeOpen: async () => {
       await firstWindow();
       pocketCore = await getGmuxCore();
-    }
+    },
+    // PHASE 330: on a wake, while the door is published, one check that
+    // Tailscale still publishes it. It spawns only when the door is on.
+    onResume: (cb) => wakes.onResume(() => cb())
   });
   registerPocketIpc(ipcMain, pocketHost);
   void pocketHost.openAtLaunch();
@@ -527,6 +534,11 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // It opens nothing, ends nothing and cannot throw; calling it twice is
   // calling it once.
   beginPocketShutdown();
+  // PHASE 330. And the Funnel child's, on the same synchronous line: no new
+  // child starts, every restart timer is cleared, and a start waiting on
+  // Tailscale's approval stops waiting. It ends nothing; `joinFunnel()` below
+  // does. Cannot throw; calling it twice is calling it once.
+  beginFunnelShutdown();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
@@ -601,6 +613,24 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // open. A quit with the door switched off walks a null and resolves in this
   // same tick. The one line it logs carries counts and a boolean only: never
   // an address, never a fingerprint, never a byte of what was being answered.
+  //
+  // PHASE 330: UNPUBLISHING COMES FIRST. The Funnel child is ended — SIGINT,
+  // then SIGTERM, then SIGKILL, bounded at three seconds — and its record is
+  // deleted, BEFORE the listener it forwards to is closed, so nothing on the
+  // internet is still pointed at a door that is going. A quit with the door
+  // off walks an empty set and resolves in this same tick. Its line carries
+  // counts only.
+  const funnel = await joinFunnel();
+  if (funnel.children > 0) {
+    getLog('quit').info(
+      `ended the Funnel child: ${funnel.ended} of ${funnel.children} after ${funnel.waitedMs} ms`,
+      {
+        children: funnel.children,
+        ended: funnel.ended,
+        waitedMs: funnel.waitedMs
+      }
+    );
+  }
   const pocket = await joinPocketDoor();
   if (pocket.accepted > 0) {
     getLog('quit').info(
@@ -614,8 +644,8 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
     );
   }
   // PHASE 316: and the pairing window, if one is open, is shredded — its
-  // one-shot secret and any tailnet key the person pasted beside it are zeroed
-  // now rather than left for the process's end. Synchronous, cannot throw.
+  // one-shot secret is zeroed now rather than left for the process's end.
+  // Synchronous, cannot throw.
   pocketHost?.pairing.cancel();
   pocketWakes?.dispose();
   // Phase 18.6: a clone in flight is cancelled the same way pressing

@@ -232,7 +232,7 @@ export * from './git';
 export * from './log';
 export * from './machines';
 export * from './overview';
-// Phase 313. The tailnet door's own answers, and Settings then Phone.
+// Phase 313. The phone's door's own answers, and Settings then Phone.
 export * from './pocket';
 export * from './projects';
 export * from './search';
@@ -326,7 +326,7 @@ export type GmuxInvokeChannelMap = InvokeChannelMap &
   // Phase 243. The durable baseline: read one at open, record a moved one.
   BaselinesInvokeChannelMap &
   // Phase 313. Settings then Phone: pair, see what is paired, revoke. None of
-  // these is a route on the tailnet door, whose own table is read only.
+  // these is a route on the phone's door, whose own table is read only.
   PocketInvokeChannelMap;
 
 export type GmuxInvokeChannel = keyof GmuxInvokeChannelMap;

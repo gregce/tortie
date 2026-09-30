@@ -1,5 +1,5 @@
 /*
- * Settings → Phone (Phase 316.1). Colocated with PhoneSection.tsx.
+ * Settings → Phone (Phase 316.1; Phase 330). Colocated with PhoneSection.tsx.
  *
  * Every colour and every measure is a token, with ONE deliberate exception
  * that is not in this file: the pairing code's ground and ink are the light
@@ -45,13 +45,6 @@
 .phone-warn {
   color: var(--status-attention);
 }
-
-/* ------------------------------------------------------------- the key */
-
-/* The field row, the field and its hint are the Machines sheet's own
-   (.mach-field-row, .mach-field-label, .mach-field and .mach-hint in
-   machines.css), so a pasted secret looks the same wherever Settings asks for
-   one. Nothing about them is restated here. */
 
 /* ------------------------------------------------------------ the code */
 
@@ -109,36 +102,16 @@
   font-family: var(--font-mono);
 }
 
-/* -------------------------------------------------------- the disclosure */
+/* ------------------------------------------------------ the approval page */
 
-.phone-grant-row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--space-3);
-  margin: var(--space-4) 0;
-}
-
-.phone-grant {
-  flex: 1;
-  min-width: 0;
+/* The approval URL Tortie will NOT open is drawn as text a person can select
+   and copy, never as a link (Phase 330, SPEC §4.10). */
+.phone-selectable {
   margin: 0;
-  padding: var(--space-3) var(--space-4);
-  overflow-x: auto;
-  background: var(--bg-raised);
-  border: 1px solid var(--border);
-  border-radius: var(--r-sm);
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  line-height: var(--lh-xs);
-  color: var(--text-primary);
-}
-
-.phone-code {
-  font-family: var(--font-mono);
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  user-select: text;
+  -webkit-user-select: text;
   font-size: var(--text-xs);
   color: var(--text-primary);
-}
-
-.phone-disclosure > .set-section-caption + .set-section-caption {
-  margin-top: var(--space-4);
 }

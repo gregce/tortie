@@ -1,5 +1,5 @@
 // Pairing: read the Mac's code, match the fingerprint, and wait for Allow
-// (Phase 316.2).
+// (Phase 316.2; the phone off the tailnet since Phase 330).
 //
 // docs/design/phone/Pairing.html, frame for frame, less one thing:
 //
@@ -8,16 +8,21 @@
 //     the foot draws this screen's one line instead, and `Pair again` in its
 //     button's shape once a pairing stopped.
 //
-// "Tortie brings its own private network. There is nothing else to install."
-// is drawn at the foot above that line since Phase 316.3, which carries the
-// tailnet node inside the app (Tailnet/Node.swift); in 316.2 it was not true.
+// "There is nothing else to install." is drawn at the foot above that line:
+// since Phase 330 the phone reaches the Mac's public name as an ordinary TLS
+// client, with no Tailscale, VPN or profile of its own.
 //
 // THE ORDER is Door/Pairing.swift's and the Mac's: read the code, draw the
-// fingerprint of this phone's new keys, present until the Mac answers, and be
-// paired ONLY when the first SIGNED read comes back whole. The door answers
-// `allowed` to any presenter from the allowed phone's address (316.1's nit
-// P2b), so `allowed` alone is not success; this screen hands the app a reader
-// only on `PairResult.paired`, which only that read produces.
+// fingerprint of this phone's three new keys, present until the Mac answers,
+// and be paired ONLY when the first SIGNED read comes back whole over the
+// phone's new identity. This screen hands the app a reader only on
+// `PairResult.paired`, which only that read produces.
+//
+// THE PHONE ALWAYS DRAWS A SENTENCE (his no-key finding, build/p330/SPEC.md
+// section 4.12.6). Pressing Pair on the Mac with its old key field empty showed
+// nothing at all here, because the foot's line was nil while a pairing was
+// under way. Now every step has its line, every way a pairing stops has its
+// line, and `line` is never empty (conformance:ios rule v).
 //
 // THE CODE ARRIVES ONE OF TWO WAYS. The camera (AVFoundation), in every build.
 // And, in a DEBUG build only, a launch argument, because the Simulator has no
@@ -39,8 +44,9 @@ final class PairingModel {
     private(set) var fingerprint: String?
     /// Where the pairing has got to, while one is under way.
     private(set) var step: PairingStep?
-    /// The one line at the foot: not paired, or why the last try stopped.
-    private(set) var line: String? = Copy.notPaired
+    /// The one line at the foot: not paired, where a pairing has got to, or
+    /// why the last try stopped. Never empty.
+    private(set) var line: String = Copy.notPaired
     /// True once a try stopped, so `Pair again` is offered.
     private(set) var stopped = false
     /// A line about the camera, drawn in the camera's box.
@@ -78,7 +84,7 @@ final class PairingModel {
         }
         fingerprint = pending.fingerprint
         step = .presenting
-        line = nil
+        line = DoorWords.stepSentence(for: .presenting)
         stopped = false
         let result = await door.pair(pending) { [weak self] step in
             Task { @MainActor in self?.advance(step) }
@@ -108,23 +114,22 @@ final class PairingModel {
     private func advance(_ next: PairingStep) {
         guard busy else { return }
         step = next
+        line = DoorWords.stepSentence(for: next)
     }
 
     private func stop(_ failure: PairingFailure, payload: String) {
         step = nil
         fingerprint = nil
-        guard let sentence = DoorWords.pairingSentence(for: failure) else {
-            // He left the screen. Nothing to say, and nothing is spent.
-            return
-        }
+        line = DoorWords.pairingSentence(for: failure)
+        // He left the screen: the not-paired line, and nothing is spent.
+        guard failure != .cancelled else { return }
         spent = payload
         stopped = true
-        line = sentence
     }
 }
 
 /// `dump` and `Mirror` would show `spent`, the last code read, which carries
-/// the tailnet key: the model mirrors itself with nothing in it
+/// the one-shot secret: the model mirrors itself with nothing in it
 /// (conformance:ios rule p).
 extension PairingModel: CustomReflectable {
     nonisolated var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .class) }
@@ -231,9 +236,9 @@ struct PairingScreen: View {
         .padding(.horizontal, Frame.gutter)
     }
 
-    /// `padding: 0 16px 32px; gap: 12px`: the private network line, the one
-    /// line, then `Pair again` in the shape of the mock's button once a try
-    /// stopped.
+    /// `padding: 0 16px 32px; gap: 12px`: the nothing-to-install line, the
+    /// one line, then `Pair again` in the shape of the mock's button once a
+    /// try stopped.
     private var foot: some View {
         VStack(alignment: .leading, spacing: Frame.cardGap) {
             Words(Copy.pairPrivateNetwork, .small, Tokens.textMuted, lines: nil)
@@ -243,10 +248,8 @@ struct PairingScreen: View {
                     .tint(Tokens.textMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
-            if let line = model.line {
-                Words(line, .small, Tokens.textMuted, lines: nil)
-                    .accessibilityIdentifier(ID.pairingLine)
-            }
+            Words(model.line, .small, Tokens.textMuted, lines: nil)
+                .accessibilityIdentifier(ID.pairingLine)
             if model.stopped {
                 Button { model.pairAgain() } label: {
                     Words(Copy.pairAgain, .body, Tokens.textMuted)

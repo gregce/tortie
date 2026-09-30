@@ -8,9 +8,10 @@
  * confirm.ts` is the pattern and this module follows it line for line: the
  * fields that decide what the door ANSWERS are hashed, a person confirms that
  * hash once by pressing a button in Tortie, and the confirmation is bound to
- * it. Move the bind address, the port, whether it comes up at launch, the route
- * table or the set of allowed phones, and the hash changes, so Tortie asks
- * again and the door refuses to bind until it is answered.
+ * it. Move the program that publishes the door, the tailnet, the public name,
+ * the public port, whether it comes up at launch, the route table or the set
+ * of allowed phones (each with its client key), and the hash changes, so
+ * Tortie asks again and the door refuses to start until it is answered.
  *
  * PHASE 314 ADDED THREE HASHED FACTS, all about where a person's words go
  * rather than what the door answers: the push switch, and each phone's Apple
@@ -52,12 +53,16 @@
  *     or in a path. A captured request proves only that that exact request was
  *     made, once, inside a small window, with a nonce that is now spent.
  *
- * ## What the QR carries (v:2, Phase 316), and the one credential in it
+ * ## What the QR carries (v:3, Phase 330), and there is NO credential in it
  *
- * The door's address and port; `fp`, the sha256 of the door's PUBLIC KEY
- * (SubjectPublicKeyInfo), base64url, which the phone pins; Tortie's two public
- * keys; the one-shot pairing secret; the window's deadline; and, only when the
- * person pasted one, `tk`, a tailnet auth key.
+ * The door's PUBLIC NAME (`<mac>.<tailnet>.ts.net`, published through
+ * Tailscale Funnel) and its public port; `fp`, the sha256 of the door's PUBLIC
+ * KEY (SubjectPublicKeyInfo), base64url, which the phone pins; Tortie's two
+ * public keys; the one-shot pairing secret; and the window's deadline. Phase
+ * 316's tailnet auth key, which the person pasted and the code carried, is GONE
+ * with the reason it existed: the phone never joins the tailnet (research 132
+ * Route 1), so there is no key to mint, paste, hold or zero, and nothing in the
+ * code is a credential for anything but this one window.
  *
  * `fp` PINS THE KEY AND NOT THE CERTIFICATE. v:1 carried the certificate's
  * hash, and `./tls.ts` renews that certificate from the same key every 397
@@ -67,21 +72,24 @@
  * listening door: {@link PocketPairing.open} refuses when the door has no key
  * to pin, so a QR can never carry `fp: null`.
  *
- * `tk` IS HIS CREDENTIAL, AND TORTIE NEVER MADE IT. Research 127 section 2
- * wanted Tortie to mint the key from a Tailscale API credential. Research 128
- * section 3.2 OVERRULED that and it stays overruled: Tortie holds no Tailscale
- * API credential, ever, because the OAuth client secret is itself a reusable
- * pre-approved auth key that never expires until revoked by hand, and it would
- * sit on the machine that runs every agent. So the person mints ONE one-off key
- * by hand in his own admin console and pastes it into the sheet, and the phone
- * joins his tailnet with it once. Main holds it ONLY inside the open window,
- * as bytes beside the one-shot secret, and zeroes them on cancel, on expiry,
- * on allow and when a new window replaces this one. It is never written to
- * `pocket.json` or anywhere else, never logged, and never in any answer but
- * the one offer whose QR carries it to the phone. The residual is stated
- * rather than hidden: the pasted string and that offer's payload are
- * JavaScript strings, which cannot be zeroed, and they live until the
- * collector takes them.
+ * Research 128 section 3.2 stands untouched: Tortie holds no Tailscale API
+ * credential, OAuth client, auth key or trust credential, ever.
+ *
+ * ## Mutual TLS, and the pin is the check (Phase 330)
+ *
+ * The door is on the public internet, so a stranger must never reach its HTTP
+ * parser. Every phone therefore presents a CLIENT KEY — a P-256 key it mints
+ * when it scans, in the Secure Enclave where the device has one — inside its
+ * sealed presentation, and signs the presentation with its signing key over a
+ * challenge only the window's secret can derive. When the person allows it,
+ * the Mac issues a certificate over that key (`./tls.ts`,
+ * `issueClientCertificate`), and from then on the door process admits a
+ * connection only when its handshake completed with a paired phone's client
+ * key ({@link clientKeyPinOf}). The verifier then asks that the signed phone
+ * IS the phone whose key completed the handshake (`channel`), so a thief needs
+ * the client key AND the signing key, which is still two secrets. The client
+ * key is a hashed field and it is in the six groups a person matches
+ * ({@link pairFingerprint}), so the Mac trusts no key a person did not see.
  *
  * ## Where the record lives, and why it is TWO answers rather than one
  *
@@ -113,6 +121,8 @@
  *
  * It spawns nothing and it has no import that could. It opens no socket, binds
  * nothing and reads no credential. It never sets a status. It composes no argv.
+ * It never reads the TLS key: the certificate a phone is issued is handed in by
+ * the owner, which holds the door.
  */
 
 import {
@@ -135,8 +145,8 @@ import { app } from 'electron';
 
 import {
   POCKET_CONFIRM_WARNING,
+  POCKET_PUBLIC_PORTS,
   POCKET_ROUTE_IDS,
-  type PocketPairingInput,
   type PocketPairingOffer,
   type PocketPairingState,
   type PocketPairingView,
@@ -144,6 +154,8 @@ import {
   type PocketRouteId
 } from '@shared/ipc/pocket';
 import { openSealedText, sealText } from '../config/seal';
+import { isP256SpkiDer } from './tls';
+import { DOOR_PINS_MAX } from './door/wire';
 import {
   readConfirmRecords,
   writeConfirmRecords,
@@ -180,8 +192,16 @@ export interface PocketPhoneFields {
   readonly signingKey: string;
   /** X25519 SPKI, base64url. The key the binding is derived from. */
   readonly exchangeKey: string;
-  /** The tailnet address it presented from, and the only one it may ask from. */
-  readonly address: string;
+  /**
+   * P-256 SPKI, base64url, in its canonical uncompressed DER (Phase 330): THE
+   * KEY ITS TLS HANDSHAKE MUST COMPLETE WITH. The door process admits a
+   * connection only when the peer's key hashes to {@link clientKeyPinOf} of a
+   * paired phone's `clientKey`, and the verifier asks that the phone a request
+   * is signed as is that connection's phone. It replaced Phase 313's
+   * `address`, which behind Funnel's loopback forward would read `127.0.0.1`
+   * for every phone and pin nothing.
+   */
+  readonly clientKey: string;
   /**
    * The phone's Apple device token, lowercase hex of 32 to 256 characters, or
    * `''` when it gave none (Phase 314). HASHED, because it decides WHERE a
@@ -209,10 +229,27 @@ export interface PocketPhoneFields {
  * that cannot hurt anybody.
  */
 export interface PocketExecutionFields {
-  /** The tailnet address the door binds. Never `0.0.0.0`, never a name. */
-  readonly bindAddress: string;
-  /** The port a phone was TOLD. A taken one refuses rather than moving. */
-  readonly port: number;
+  /**
+   * The absolute path of the Tailscale program the Funnel child runs,
+   * `resolveTailscale`'s answer (Phase 330). Hashed because it is WHAT RUNS:
+   * a different program answering at a different path is a different process
+   * starting, which is CLAUDE.md refusal 8 read literally.
+   */
+  readonly funnelProgram: string;
+  /** `CurrentTailnet.Name`: whose tailnet publishes the door. */
+  readonly tailnet: string;
+  /**
+   * `Self.DNSName`, the trailing dot dropped and lowercased: the name the door
+   * is reached at on the internet, and the name the QR tells a phone.
+   */
+  readonly publicName: string;
+  /**
+   * The public port a phone is TOLD, 8443 or 10000, and 0 when none is chosen.
+   * A confirmed one that is later held refuses rather than moving, which is
+   * Phase 313's rule 2 carried to the port a phone is now told. The door's own
+   * LOCAL port is ephemeral and is not a field: a phone never learns it.
+   */
+  readonly publicPort: number;
   /** Whether the door comes up with the app. */
   readonly bindAtLaunch: boolean;
   /**
@@ -247,14 +284,16 @@ type Normalizers = {
 };
 
 const NORMALIZE: Normalizers = {
-  bindAddress: (v) => v,
-  port: (v) => v,
+  funnelProgram: (v) => v,
+  tailnet: (v) => v,
+  publicName: (v) => v,
+  publicPort: (v) => v,
   bindAtLaunch: (v) => v,
   // Sorted, so the order this build happens to declare them in is not part of
   // the agreement. Adding one still moves the hash, which is the point.
   routes: (v) => [...v].sort(),
   // Sorted by the derived id, and every field of every phone is emitted. A
-  // phone whose address or label moved is a different agreement.
+  // phone whose client key or label moved is a different agreement.
   phones: (v) =>
     [...v]
       .sort((a, b) => (a.id < b.id ? -1 : 1))
@@ -263,7 +302,7 @@ const NORMALIZE: Normalizers = {
         p.label,
         p.signingKey,
         p.exchangeKey,
-        p.address,
+        p.clientKey,
         p.pushToken,
         p.pushEnvironment
       ]),
@@ -274,10 +313,13 @@ const NORMALIZE: Normalizers = {
  * Names the algorithm, so a record written by an older build fails loudly.
  *
  * `v2` since Phase 314, because the canonical text changed shape: the switch
- * and each phone's token and environment joined it. A record written under v1
- * reads as `changed`, which asks again, and that is the safe direction.
+ * and each phone's token and environment joined it. `v3` since Phase 330: the
+ * bind address and the port left, the Funnel program, the tailnet, the public
+ * name and the public port joined, and every phone's address became its client
+ * key. A record written under an older algorithm reads as `changed`, which
+ * asks again, and that is the safe direction.
  */
-export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v2';
+export const POCKET_EXECUTION_HASH_ALGORITHM = 'sha256-pocket-exec-v3';
 
 /**
  * The prefix on the record key AND on the hash input id, for the reason
@@ -290,8 +332,10 @@ export const POCKET_CONFIRM_RECORD_KEY = `${POCKET_CONFIRM_ID_PREFIX}door`;
 
 /** Everything an unconfigured door has. */
 export const EMPTY_POCKET_FIELDS: PocketExecutionFields = {
-  bindAddress: '',
-  port: 0,
+  funnelProgram: '',
+  tailnet: '',
+  publicName: '',
+  publicPort: 0,
   bindAtLaunch: false,
   routes: POCKET_ROUTE_IDS,
   phones: [],
@@ -356,8 +400,12 @@ export function describePocketDoor(
   fields: PocketExecutionFields
 ): PocketDoorSummary {
   const lines: string[] = [];
-  lines.push(`Answers on this Mac's tailnet address: ${fields.bindAddress}`);
-  lines.push(`Port: ${String(fields.port)}`);
+  lines.push(
+    `Answers on the internet at https://${fields.publicName}:${String(
+      fields.publicPort
+    )}, through Tailscale Funnel on ${fields.tailnet}`
+  );
+  lines.push(`Publishes it with ${fields.funnelProgram}`);
   lines.push(
     fields.bindAtLaunch
       ? 'Starts answering when Tortie starts'
@@ -371,9 +419,10 @@ export function describePocketDoor(
   );
   for (const phone of [...fields.phones].sort((a, b) => (a.id < b.id ? -1 : 1))) {
     lines.push(
-      `Allows the phone "${phone.label}" at ${phone.address}, key ${pairFingerprint(
+      `Allows the phone "${phone.label}", key ${pairFingerprint(
         phone.signingKey,
-        phone.exchangeKey
+        phone.exchangeKey,
+        phone.clientKey
       )}`
     );
     if (phone.pushToken.length > 0) {
@@ -411,7 +460,7 @@ export interface PocketConfirmRowStatus {
 
 function neverConfirmedRefusal(): string {
   return (
-    'Tortie will not answer from your tailnet, because nobody has confirmed ' +
+    'Tortie will not publish this door, because nobody has confirmed ' +
     'this door. Read what it will answer and confirm it in Tortie first. ' +
     'Nothing is listening.'
   );
@@ -419,7 +468,7 @@ function neverConfirmedRefusal(): string {
 
 function changedRefusal(): string {
   return (
-    'Tortie will not answer from your tailnet, because this door changed ' +
+    'Tortie will not publish this door, because this door changed ' +
     'after you confirmed it. Read the change and confirm it again if it is ' +
     'what you want. Nothing is listening.'
   );
@@ -428,7 +477,7 @@ function changedRefusal(): string {
 function sealUnknownRefusal(): string {
   return (
     'Tortie could not read its record of what you confirmed, so it will not ' +
-    'answer from your tailnet. Nothing is listening.'
+    'publish this door. Nothing is listening.'
   );
 }
 
@@ -542,7 +591,7 @@ export function confirmPocketDoor(
   const rows = { ...readState().rows, [POCKET_CONFIRM_RECORD_KEY]: record };
   if (!writeConfirmRecords(rows)) {
     pocketLog.warn(
-      'the OS keystore is unavailable, so the confirmation for the tailnet ' +
+      'the OS keystore is unavailable, so the confirmation for the phone ' +
         'door could not be recorded. It was not written.'
     );
     return null;
@@ -580,11 +629,35 @@ interface SealedIdentity {
   readonly exchangePrivate: string;
 }
 
+/**
+ * What the last successful Tailscale read said about this Mac (Phase 330).
+ *
+ * OBSERVATIONS, NOT CHOICES. Writing them confirms nothing: they are what the
+ * hashed fields are computed from when this run has not read Tailscale yet, so
+ * a relaunch with Tailscale off hashes to the door a person confirmed rather
+ * than to one with no name, and Phase 314's push, which reads the confirmed
+ * fields and never the socket, keeps going. A read that answers different facts
+ * replaces them, which moves the hash, and the gate asks again. None of them is
+ * a secret, and the store is sealed.
+ */
+export interface PocketTailnetFacts {
+  readonly funnelProgram: string;
+  readonly tailnet: string;
+  readonly publicName: string;
+}
+
 /** What `<userData>/gmux/pocket.json` holds, once the seal is opened. */
 export interface PocketStore {
   readonly identity: SealedIdentity;
   readonly phones: readonly PocketPhoneFields[];
-  readonly port: number;
+  /**
+   * The public port, 8443 or 10000, and 0 when none has been chosen (Phase
+   * 330). Written only by the press that confirms it — the switch turned on,
+   * and Allow — and never by a launch.
+   */
+  readonly publicPort: number;
+  /** The last successful Tailscale read's facts, or null before the first. */
+  readonly tailnetFacts: PocketTailnetFacts | null;
   readonly bindAtLaunch: boolean;
   readonly enabled: boolean;
   /** The push switch (Phase 314). A hashed field; see {@link PocketExecutionFields}. */
@@ -668,6 +741,12 @@ export function pocketStorePath(): string {
 export function readPocketStore(): {
   store: PocketStore | null;
   sealKnown: boolean;
+  /**
+   * How many phone rows were dropped WHOLE on this read (Phase 330): every row
+   * with no valid client key, which is every row Phase 316 wrote. The sheet
+   * says those phones must pair again.
+   */
+  droppedPhones: number;
 } {
   let raw: unknown = null;
   try {
@@ -681,8 +760,8 @@ export function readPocketStore(): {
       ? (raw as Record<string, unknown>)['sealed']
       : undefined;
   const opened = openSealedText(POCKET_STORE_SEAL_PREFIX, blob);
-  if (opened === null) return { store: null, sealKnown: false };
-  if (opened.length === 0) return { store: null, sealKnown: true };
+  if (opened === null) return { store: null, sealKnown: false, droppedPhones: 0 };
+  if (opened.length === 0) return { store: null, sealKnown: true, droppedPhones: 0 };
   try {
     const parsed = JSON.parse(opened) as PocketStore;
     if (
@@ -691,23 +770,48 @@ export function readPocketStore(): {
       typeof parsed.identity?.signPrivate !== 'string' ||
       typeof parsed.identity?.exchangePrivate !== 'string'
     ) {
-      return { store: null, sealKnown: true };
+      return { store: null, sealKnown: true, droppedPhones: 0 };
     }
+    const rows: readonly unknown[] = Array.isArray(parsed.phones) ? parsed.phones : [];
+    const phones = phoneRowsOf(rows);
     return {
       store: {
         identity: parsed.identity,
-        phones: Array.isArray(parsed.phones) ? phoneRowsOf(parsed.phones) : [],
-        port: typeof parsed.port === 'number' ? parsed.port : 0,
+        phones,
+        // A port that is not one the door may publish on is no choice at all.
+        // Phase 316's `port` (8823) is not read: the phone is never told a
+        // local port again.
+        publicPort: isPublicPort(parsed.publicPort) ? parsed.publicPort : 0,
+        tailnetFacts: tailnetFactsOf((parsed as { tailnetFacts?: unknown }).tailnetFacts),
         bindAtLaunch: parsed.bindAtLaunch === true,
         enabled: parsed.enabled === true,
         pushAlerts: parsed.pushAlerts === true,
         deadPushTokens: deadTokensOf((parsed as { deadPushTokens?: unknown }).deadPushTokens)
       },
-      sealKnown: true
+      sealKnown: true,
+      droppedPhones: rows.length - phones.length
     };
   } catch {
-    return { store: null, sealKnown: true };
+    return { store: null, sealKnown: true, droppedPhones: 0 };
   }
+}
+
+/** Is this a port the door may be published on? 8443 or 10000, never 443. */
+export function isPublicPort(value: unknown): value is number {
+  return typeof value === 'number' && (POCKET_PUBLIC_PORTS as readonly number[]).includes(value);
+}
+
+/** The stored facts, or null when any one of them is not a non-empty string. */
+function tailnetFactsOf(raw: unknown): PocketTailnetFacts | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const funnelProgram = r['funnelProgram'];
+  const tailnet = r['tailnet'];
+  const publicName = r['publicName'];
+  if (typeof funnelProgram !== 'string' || funnelProgram.length === 0) return null;
+  if (typeof tailnet !== 'string' || tailnet.length === 0) return null;
+  if (typeof publicName !== 'string' || publicName.length === 0) return null;
+  return { funnelProgram, tailnet, publicName };
 }
 
 /**
@@ -718,6 +822,11 @@ export function readPocketStore(): {
  * gave no token, `''` and `''`. A row whose push fields are PRESENT and wrong
  * is dropped whole like any other bad row: a token that is not the shape the
  * pairing accepts was not written by the pairing.
+ *
+ * A row with no valid P-256 `clientKey` is dropped whole too (Phase 330), and
+ * that is every row Phase 316 wrote: such a phone never presented a client key,
+ * so the door could never admit its handshake, and keeping it would be a phone
+ * drawn as paired that can reach nothing. {@link readPocketStore} counts them.
  */
 function phoneRowOf(row: unknown): PocketPhoneFields | null {
   if (row === null || typeof row !== 'object') return null;
@@ -730,8 +839,7 @@ function phoneRowOf(row: unknown): PocketPhoneFields | null {
     p['signingKey'].length > 0 &&
     typeof p['exchangeKey'] === 'string' &&
     p['exchangeKey'].length > 0 &&
-    typeof p['address'] === 'string' &&
-    p['address'].length > 0;
+    isClientKeySpki(p['clientKey']);
   if (!whole) return null;
   const hasToken = p['pushToken'] !== undefined;
   const hasEnvironment = p['pushEnvironment'] !== undefined;
@@ -749,7 +857,7 @@ function phoneRowOf(row: unknown): PocketPhoneFields | null {
     label: p['label'] as string,
     signingKey: p['signingKey'] as string,
     exchangeKey: p['exchangeKey'] as string,
-    address: p['address'] as string,
+    clientKey: p['clientKey'] as string,
     pushToken: push.pushToken,
     pushEnvironment: push.pushEnvironment
   };
@@ -876,16 +984,24 @@ export function newIdentity(): { identity: PocketIdentity; sealed: SealedIdentit
 // ---------------------------------------------------------------------------
 
 /**
- * Six groups of four hex characters over BOTH public keys.
+ * Six groups of four hex characters over ALL THREE of the phone's public keys.
  *
- * It covers both keys on purpose. A fingerprint of the phone's key alone would
- * be reproducible by anything holding that key, and what the person is being
+ * It covers every key on purpose. A fingerprint of one key alone would be
+ * reproducible by anything holding that key, and what the person is being
  * asked is not "is this the key I have" but "are these two ends the two ends I
- * think they are". It is a hash of public material and is not a secret.
+ * think they are". Since Phase 330 it covers the CLIENT key too (`v2`): the
+ * Mac trusts a TLS handshake completed with that key, and a key bound only by
+ * a signature the code checks would be a property only the code checks. The
+ * six groups a person compares cover every key the Mac will trust. It is a
+ * hash of public material and is not a secret.
  */
-export function pairFingerprint(signingKey: string, exchangeKey: string): string {
+export function pairFingerprint(
+  signingKey: string,
+  exchangeKey: string,
+  clientKey: string
+): string {
   const digest = createHash('sha256')
-    .update(`tortie-pocket-fp-v1\n${signingKey}\n${exchangeKey}`)
+    .update(`tortie-pocket-fp-v2\n${signingKey}\n${exchangeKey}\n${clientKey}`)
     .digest('hex');
   return (digest.slice(0, 24).match(/.{4}/g) ?? []).join(' ');
 }
@@ -898,68 +1014,52 @@ export function phoneIdOf(signingKey: string): string {
     .slice(0, 32);
 }
 
+/**
+ * The pin the door process admits a handshake by (Phase 330): base64url of
+ * sha256 over the client key's SPKI DER. The door computes the same digest
+ * over `getPeerX509Certificate().publicKey`'s SPKI export, which is why a
+ * client key is accepted only in its canonical form ({@link isClientKeySpki}).
+ */
+export function clientKeyPinOf(clientKey: string): string {
+  return b64u(createHash('sha256').update(unb64u(clientKey)).digest());
+}
+
+/**
+ * Is this a client key: a P-256 SubjectPublicKeyInfo, base64url, in its one
+ * spelling, the uncompressed point (`./tls.ts`'s `isP256SpkiDer`)?
+ *
+ * The canonical form is REQUIRED rather than normalised, because the pin is a
+ * hash of these bytes: one key must have one pin.
+ */
+export function isClientKeySpki(value: unknown): value is string {
+  if (typeof value !== 'string' || value.length === 0 || value.length > 256) return false;
+  const der = unb64u(value);
+  // One spelling of the base64url too: a string that decodes to the right
+  // bytes but is not their encoding would be two phones' worth of one key.
+  if (b64u(der) !== value) return false;
+  return isP256SpkiDer(der);
+}
+
 // ---------------------------------------------------------------------------
 // The pairing window
 // ---------------------------------------------------------------------------
 
 /**
- * How long a window lives. A few minutes, and one shot. The phone must join
- * the tailnet AND present inside it, which is what the sheet's line says.
+ * How long a window lives. A few minutes, and one shot.
+ *
+ * STILL THREE MINUTES in Phase 330, although his measurement (build/p330/
+ * SPEC.md M5) found the public name took about eight to resolve the first
+ * time: the entry refuses a longer window inside this phase, and the change is
+ * owed as its own entry. The phone says why a first scan fails, and the Mac
+ * says to press Pair again.
  */
 export const POCKET_PAIRING_WINDOW_MS = 3 * 60_000;
 
-/** The QR's version. v:2 pins the key rather than the certificate (Phase 316). */
-export const POCKET_QR_VERSION = 2;
-
 /**
- * Every tailnet AUTH key Tailscale mints begins with this (Phase 316). An API
- * access token, an OAuth client secret or anything else pasted by mistake does
- * not, and is refused before it reaches the window.
+ * The QR's version. v:2 pinned the key rather than the certificate (Phase
+ * 316); v:3 carries the public name and port and no tailnet key (Phase 330).
  */
-export const TAILNET_AUTH_KEY_PREFIX = 'tskey-auth-';
-
-/** The longest tailnet key the sheet accepts. Tailscale's are far shorter. */
-export const TAILNET_KEY_MAX_CHARS = 256;
-
-/**
- * The key a person pasted, as bytes the window can zero, or null for "the
- * phone needs no key". Throws with ONE SENTENCE that never repeats the value.
- *
- * Surrounding whitespace is a paste artefact and is dropped. Anything else
- * that is not printable ASCII — a space inside it, a line break, a control
- * byte — is not part of any key Tailscale mints and refuses the whole value,
- * because the QR is the phone's only copy and a mangled key fails on the
- * phone with nobody watching the Mac.
- */
-export function tailnetKeyOf(input: unknown): Buffer | null {
-  if (input === null || typeof input !== 'object') throw notAKey(KEY_NOT_READ);
-  const raw = (input as { tailnetKey?: unknown }).tailnetKey;
-  if (raw === null || raw === undefined) return null;
-  if (typeof raw !== 'string') throw notAKey(KEY_NOT_READ);
-  // Length FIRST, before any other work on the value, so a pasted megabyte is
-  // refused for what it is rather than walked.
-  if (raw.length > TAILNET_KEY_MAX_CHARS * 4) throw notAKey(KEY_TOO_LONG);
-  const key = raw.trim();
-  if (key.length === 0) return null;
-  if (key.length > TAILNET_KEY_MAX_CHARS) throw notAKey(KEY_TOO_LONG);
-  if (!key.startsWith(TAILNET_AUTH_KEY_PREFIX) || key.length === TAILNET_AUTH_KEY_PREFIX.length) {
-    throw notAKey(KEY_NOT_AUTH);
-  }
-  if (!/^[\x21-\x7e]+$/.test(key)) throw notAKey(KEY_NOT_AUTH);
-  return Buffer.from(key, 'utf8');
-}
-
-const KEY_NOT_READ =
-  'Tortie could not read that tailnet key. Nothing was opened.';
-const KEY_TOO_LONG =
-  'That is longer than any tailnet key Tailscale makes. Nothing was opened.';
-const KEY_NOT_AUTH =
-  'That is not a tailnet auth key. Mint one in your Tailscale admin console; ' +
-  'it starts with tskey-auth-. Nothing was opened.';
-
-function notAKey(sentence: string): Error {
-  return gmuxError('INVALID_INPUT', sentence);
-}
+export const POCKET_QR_VERSION = 3;
 
 /**
  * The QR's `fp`: sha256 over the door's SubjectPublicKeyInfo, base64url, from
@@ -977,47 +1077,111 @@ const NO_DOOR_TO_PIN =
   'The door is not listening, so there is no key for a phone to pin. Turn ' +
   'the door on and confirm it first. Nothing was opened.';
 
+const NO_PUBLIC_NAME =
+  'This door has no public name yet, so there is nothing for a phone to ' +
+  'reach. Nothing was opened.';
+
 /** The info string the pairing key is derived under. */
 const PAIRING_INFO = 'tortie-pocket-pair-v1';
 
-/** The most bytes `POST /pair` will read before dropping the request whole. */
-export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
+/** The info string the window's CHALLENGE is derived under (Phase 330). */
+const CHALLENGE_INFO = 'tortie-pocket-challenge-v1';
+
+/** The first line of the text a presentation's signature covers. */
+export const POCKET_PRESENT_ALGORITHM = 'tortie-pocket-present-v1';
+
+/**
+ * The window's challenge, base64url: HKDF-SHA256 over the one-shot secret,
+ * with an empty salt and its own info string. Only something that read the QR
+ * can derive it, and a signature over it proves the presenter holds the
+ * signing key it names (Phase 330, SPEC §4.7.2).
+ */
+export function pairingChallengeOf(secret: Buffer): string {
+  return b64u(Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), CHALLENGE_INFO, 32)));
+}
+
+/**
+ * The exact text a presentation's `sig` covers: the algorithm, the window's
+ * challenge, and the three base64url strings of the seal, one per line. One
+ * definition, read by the Mac and by the vectors the phone is held to.
+ */
+export function presentationProofText(
+  challenge: string,
+  iv: string,
+  ct: string,
+  tag: string
+): string {
+  return [POCKET_PRESENT_ALGORITHM, challenge, iv, ct, tag].join('\n');
+}
+
+/**
+ * What arrives on `POST /pair`, its outer JSON already parsed by the door
+ * process and every field held to its bound there (SPEC §4.5.2). Main never
+ * runs `JSON.parse` on a stranger's outer bytes. Structurally the door's
+ * `DoorPresentation`.
+ */
+export interface PocketSealedPresentation {
+  /** base64url, 12 bytes. */
+  readonly iv: string;
+  /** base64url, the AES-256-GCM ciphertext of the inner JSON. */
+  readonly ct: string;
+  /** base64url, 16 bytes. */
+  readonly tag: string;
+  /** The phone's Ed25519 SPKI, base64url: the key `sig` is checked under. */
+  readonly ek: string;
+  /** base64url Ed25519 signature over {@link presentationProofText}. */
+  readonly sig: string;
+}
 
 /** What a phone sealed and sent. */
 export interface PocketPresentation {
   readonly label: string;
   readonly signingKey: string;
   readonly exchangeKey: string;
+  /** `ck`, the P-256 key its TLS handshakes will complete with (Phase 330). */
+  readonly clientKey: string;
   /** `apt`, lowercase hex, or `''` when the phone asked for no alerts (Phase 314). */
   readonly pushToken: string;
   /** `ape`, the environment the token was minted in, or `''` with no token. */
   readonly pushEnvironment: '' | 'development' | 'production';
 }
 
-/** What `POST /pair` answers. One word, and nothing else ever. */
-export type PocketPairAnswer = 'pending' | 'allowed' | 'refused';
+/**
+ * What `POST /pair` answers (Phase 330). One state, and the phone's client
+ * certificate ONLY with `allowed`, only to the phone that was allowed.
+ */
+export type PocketPairAnswer =
+  | { readonly state: 'pending' | 'refused' }
+  | { readonly state: 'allowed'; readonly cert: string };
+
+const REFUSED: PocketPairAnswer = { state: 'refused' };
 
 interface OpenWindow {
   secret: Buffer;
   /**
-   * The tailnet key the person pasted, or null (Phase 316). Zeroed with the
-   * secret, at every place the secret is, and never read again after the QR
-   * was composed.
+   * The challenge derived from {@link secret} at open. KEPT PAST THE SHRED
+   * until the deadline, because the phone that was allowed proves itself over
+   * it once more to be handed its certificate.
    */
-  tailnetKey: Buffer | null;
+  challenge: string;
   expiresAt: number;
   presented: PocketPresentation | null;
-  presentedFrom: string | null;
   allowed: boolean;
+  /**
+   * The certificate issued at the allow, base64url DER, or null. Public
+   * material, held so every `allowed` answer carries the same bytes, and
+   * dropped with the window. Never stored.
+   */
+  certificate: string | null;
 }
 
 /**
  * The pairing window and the phone set, as one owner.
  *
- * It holds the ONE-SHOT secret in memory only, and since Phase 316 the tailnet
- * key the person pasted beside it. Nothing writes either to disk, nothing logs
- * either, and `cancel`, expiry, the allow and a replacing window all zero both,
- * which is what makes a photographed screen useless after the window shuts.
+ * It holds the ONE-SHOT secret in memory only. Nothing writes it to disk,
+ * nothing logs it, and `cancel`, expiry, the allow and a replacing window all
+ * zero it, which is what makes a photographed screen useless after the window
+ * shuts.
  */
 export class PocketPairing {
   private window: OpenWindow | null = null;
@@ -1035,6 +1199,13 @@ export class PocketPairing {
        * case no window opens.
        */
       publicKeyPin: () => string | null;
+      /**
+       * Issue the allowed phone's client certificate over its client key,
+       * base64url DER, or null when the door has no key to sign with. The
+       * owner holds the door, so the owner signs; this module never reads a
+       * TLS key.
+       */
+      issueCertificate: (clientKey: string) => string | null;
       now?: () => number;
     }
   ) {}
@@ -1048,12 +1219,9 @@ export class PocketPairing {
     const w = this.window;
     if (w === null) return;
     // THE DEADLINE IS THE WHOLE OF IT, and an allowed window is swept like any
-    // other. An earlier version kept an allowed window forever so that the
-    // phone could still be told it had been allowed, and the cost was that the
-    // sheet said "allowed" for the rest of the run and the secret's buffer
-    // outlived its use. The deadline does both jobs: the phone has minutes to
-    // ask, and afterwards the window is gone, the sheet is idle, and the
-    // photographed screen is worth nothing.
+    // other. The phone has minutes to ask for its certificate, and afterwards
+    // the window is gone, the sheet is idle, and the photographed screen is
+    // worth nothing.
     if (this.now() < w.expiresAt) return;
     shred(w);
     this.window = null;
@@ -1062,74 +1230,51 @@ export class PocketPairing {
   /**
    * Open a window and answer the QR. Any window already open is replaced.
    *
-   * EVERY REFUSAL COMES BEFORE ANYTHING MOVES: a bad key, no address and no
-   * listening door each leave the window that was open, open, and mint
-   * nothing. The order after that is the safety: the old window is shredded,
-   * then the new one is made.
+   * EVERY REFUSAL COMES BEFORE ANYTHING MOVES: no public name and no listening
+   * door each leave the window that was open, open, and mint nothing. The
+   * order after that is the safety: the old window is shredded, then the new
+   * one is made.
    */
-  open(input: PocketPairingInput): PocketPairingOffer {
-    const tailnetKey = tailnetKeyOf(input);
-    try {
-      const fields = this.deps.fieldsNow();
-      if (fields.bindAddress.length === 0) {
-        throw gmuxError(
-          'INVALID_INPUT',
-          'This Mac has no tailnet address, so there is nothing for a phone to ' +
-            'reach. Nothing was opened.'
-        );
-      }
-      const pin = this.deps.publicKeyPin();
-      if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);
-      const identity = this.deps.identity();
-      this.cancel();
-      const secret = randomBytes(16);
-      const expiresAt = this.now() + POCKET_PAIRING_WINDOW_MS;
-      this.window = {
-        secret,
-        tailnetKey,
-        expiresAt,
-        presented: null,
-        presentedFrom: null,
-        allowed: false
-      };
-      const payload = JSON.stringify({
-        v: POCKET_QR_VERSION,
-        host: fields.bindAddress,
-        port: fields.port,
-        fp: pin,
-        dk: identity.signPublic,
-        dx: identity.exchangePublic,
-        ps: b64u(secret),
-        exp: expiresAt,
-        ...(tailnetKey !== null ? { tk: tailnetKey.toString('utf8') } : {})
-      });
-      return { payload, expiresAt };
-    } catch (err) {
-      // A refusal after the key was read still zeroes the key: it never
-      // reached a window, so nothing else will.
-      if (tailnetKey !== null && this.window?.tailnetKey !== tailnetKey) {
-        tailnetKey.fill(0);
-      }
-      throw err;
+  open(): PocketPairingOffer {
+    const fields = this.deps.fieldsNow();
+    if (fields.publicName.length === 0 || !isPublicPort(fields.publicPort)) {
+      throw gmuxError('INVALID_INPUT', NO_PUBLIC_NAME);
     }
+    const pin = this.deps.publicKeyPin();
+    if (pin === null) throw gmuxError('INVALID_INPUT', NO_DOOR_TO_PIN);
+    const identity = this.deps.identity();
+    this.cancel();
+    const secret = randomBytes(16);
+    const expiresAt = this.now() + POCKET_PAIRING_WINDOW_MS;
+    this.window = {
+      secret,
+      challenge: pairingChallengeOf(secret),
+      expiresAt,
+      presented: null,
+      allowed: false,
+      certificate: null
+    };
+    // The key order is `JSON.stringify`'s, in exactly this order (SPEC §4.8.1),
+    // and these eight keys are the whole of it: no credential, no address.
+    const payload = JSON.stringify({
+      v: POCKET_QR_VERSION,
+      host: fields.publicName,
+      port: fields.publicPort,
+      fp: pin,
+      dk: identity.signPublic,
+      dx: identity.exchangePublic,
+      ps: b64u(secret),
+      exp: expiresAt
+    });
+    return { payload, expiresAt };
   }
 
-  /** Shut the window now and destroy the secret and the tailnet key. */
+  /** Shut the window now and destroy the secret. */
   cancel(): void {
     const w = this.window;
     if (w === null) return;
     shred(w);
     this.window = null;
-  }
-
-  /**
-   * Is a tailnet key held right now? For the tests and the gate that prove it
-   * is dropped: it answers a boolean and never the bytes.
-   */
-  holdsTailnetKey(): boolean {
-    this.sweep();
-    const w = this.window;
-    return w !== null && w.tailnetKey !== null && w.tailnetKey.some((b) => b !== 0);
   }
 
   /** True only inside an open, unexpired window. `/pair` is dead otherwise. */
@@ -1138,49 +1283,63 @@ export class PocketPairing {
     return this.window !== null;
   }
 
+  /** Epoch ms the open window shuts, or null. */
+  windowDeadline(): number | null {
+    this.sweep();
+    return this.window?.expiresAt ?? null;
+  }
+
   /**
-   * A phone presented itself. The body is AES-256-GCM sealed under a key
-   * derived from the QR's one-shot secret, so a body that will not open is a
-   * body that never saw the QR, and it is dropped whole with one word.
+   * A phone presented itself (Phase 330, SPEC §4.7.3).
    *
-   * IT ALLOWS NOTHING. Presenting only puts a name and two public keys in front
-   * of the person. The Mac asks them last.
+   * THE SIGNATURE FIRST, over the window's challenge, under the `ek` the body
+   * names: a body that does not prove it holds that signing key is refused
+   * before anything is opened, and so is one from outside a window.
+   *
+   * IT ALLOWS NOTHING. Presenting only puts a name and three public keys in
+   * front of the person. The Mac asks them last.
    *
    * IT IS ALSO HOW THE PHONE LEARNS IT WAS ALLOWED, and that is why it is
-   * idempotent. The pairing screen says "Your Mac will ask you to allow this
-   * iPhone. Nothing is paired until you do", so the phone is sitting on that
-   * sentence with nothing to do but ask again. Asking again inside the window
-   * answers `allowed` to the phone that was allowed, and `refused` to anything
-   * else — including a second phone that photographed the same screen, because
-   * the secret was destroyed by the allow and nothing it sends can be opened.
+   * idempotent. Asking again inside the window answers `allowed`, WITH THE
+   * CERTIFICATE, to the phone that was allowed and to nothing else: the proof
+   * must verify under the allowed phone's own signing key, so a second phone
+   * that photographed the same screen, or a stranger replaying a captured
+   * body, is refused.
    */
-  present(body: Buffer, from: string): PocketPairAnswer {
+  present(presentation: PocketSealedPresentation): PocketPairAnswer {
     this.sweep();
     const w = this.window;
-    if (w === null) return 'refused';
+    if (w === null) return REFUSED;
+    if (!isPublicKeyOfType(presentation.ek, 'ed25519')) return REFUSED;
+    if (!proofHolds(w.challenge, presentation)) return REFUSED;
     if (w.allowed) {
-      return w.presentedFrom === from ? 'allowed' : 'refused';
+      if (
+        w.presented === null ||
+        w.certificate === null ||
+        presentation.ek !== w.presented.signingKey
+      ) {
+        return REFUSED;
+      }
+      return { state: 'allowed', cert: w.certificate };
     }
-    const opened = this.openPresentation(w.secret, body);
-    if (opened === null) return 'refused';
+    const opened = this.openPresentation(w.secret, presentation);
+    if (opened === null) return REFUSED;
     // A second phone during one window replaces the first. The person has not
     // been asked yet, so nothing they agreed to is being overwritten, and the
     // sheet redraws with the fingerprint of whatever is actually in front of
     // it. Two phones cannot both be pending, so the sheet is never ambiguous.
     w.presented = opened;
-    w.presentedFrom = from;
-    return 'pending';
+    return { state: 'pending' };
   }
 
   private openPresentation(
     secret: Buffer,
-    body: Buffer
+    outer: PocketSealedPresentation
   ): PocketPresentation | null {
     try {
-      const outer = JSON.parse(body.toString('utf8')) as Record<string, unknown>;
-      const iv = unb64u(String(outer['iv'] ?? ''));
-      const ct = unb64u(String(outer['ct'] ?? ''));
-      const tag = unb64u(String(outer['tag'] ?? ''));
+      const iv = unb64u(outer.iv);
+      const ct = unb64u(outer.ct);
+      const tag = unb64u(outer.tag);
       if (iv.length !== 12 || tag.length !== 16 || ct.length === 0) return null;
       const key = Buffer.from(
         hkdfSync('sha256', secret, Buffer.alloc(0), PAIRING_INFO, 32)
@@ -1189,14 +1348,24 @@ export class PocketPairing {
       decipher.setAuthTag(tag);
       const plain = Buffer.concat([decipher.update(ct), decipher.final()]);
       const inner = JSON.parse(plain.toString('utf8')) as Record<string, unknown>;
+      if (inner === null || typeof inner !== 'object') return null;
       const label = String(inner['label'] ?? '').slice(0, 64);
       const signingKey = String(inner['ek'] ?? '');
       const exchangeKey = String(inner['xk'] ?? '');
+      const clientKey = inner['ck'];
       if (signingKey.length === 0 || exchangeKey.length === 0) return null;
-      // The keys must actually BE keys of the kinds this door signs and derives
-      // with, or a later verify would be deciding on something nobody checked.
+      // THE SEALED KEY IS THE SIGNED KEY. The outer `ek` is what the proof was
+      // checked under; the one inside the seal is what the phone is paired as.
+      if (signingKey !== outer.ek) return null;
+      // The keys must actually BE keys of the kinds this door signs, derives
+      // and admits handshakes with, or a later check would be deciding on
+      // something nobody checked.
       if (!isPublicKeyOfType(signingKey, 'ed25519')) return null;
       if (!isPublicKeyOfType(exchangeKey, 'x25519')) return null;
+      if (!isClientKeySpki(clientKey)) return null;
+      // A client key a paired phone already completes handshakes with would
+      // make two phones one channel.
+      if (this.deps.fieldsNow().phones.some((p) => p.clientKey === clientKey)) return null;
       // THE DEVICE TOKEN'S ONE DOOR IN (Phase 314). It rides inside this sealed
       // body because the route table is closed and gains no route for it. A
       // token or an environment that is not exactly the shape refuses the
@@ -1207,6 +1376,7 @@ export class PocketPairing {
         label: label.length > 0 ? label : 'A phone',
         signingKey,
         exchangeKey,
+        clientKey,
         pushToken: push.pushToken,
         pushEnvironment: push.pushEnvironment
       };
@@ -1251,7 +1421,8 @@ export class PocketPairing {
       label: w.presented.label,
       fingerprint: pairFingerprint(
         w.presented.signingKey,
-        w.presented.exchangeKey
+        w.presented.exchangeKey,
+        w.presented.clientKey
       ),
       lines: summary.lines,
       hash: summary.hash,
@@ -1264,15 +1435,13 @@ export class PocketPairing {
     this.sweep();
     const fields = this.deps.fieldsNow();
     const w = this.window;
-    if (w === null || w.presented === null || w.presentedFrom === null) {
-      return fields;
-    }
+    if (w === null || w.presented === null) return fields;
     const phone: PocketPhoneFields = {
       id: phoneIdOf(w.presented.signingKey),
       label: w.presented.label,
       signingKey: w.presented.signingKey,
       exchangeKey: w.presented.exchangeKey,
-      address: w.presentedFrom,
+      clientKey: w.presented.clientKey,
       pushToken: w.presented.pushToken,
       pushEnvironment: w.presented.pushEnvironment
     };
@@ -1286,15 +1455,18 @@ export class PocketPairing {
    * The person allowed the phone in front of them. This is the LAST step and
    * it happens on the Mac.
    *
-   * It records the confirmation against the hash the sheet was drawn from, and
-   * only then persists the phone. The order matters: a phone written before the
-   * agreement was recorded would be a phone the next load allows with nothing
-   * on record saying anybody agreed to it.
+   * THE CERTIFICATE IS ISSUED FIRST, before anything is recorded (Phase 330):
+   * a door with no key to sign with refuses here, with nothing written, rather
+   * than recording a phone that could never be handed a way in. Then it
+   * records the confirmation against the hash the sheet was drawn from, and
+   * only then persists the phone. That order matters: a phone written before
+   * the agreement was recorded would be a phone the next load allows with
+   * nothing on record saying anybody agreed to it.
    */
   allow(consent: PocketConfirmConsent): { allowed: boolean; refusal: string | null } {
     this.sweep();
     const w = this.window;
-    if (w === null || w.presented === null) {
+    if (w === null || w.presented === null || w.allowed) {
       return {
         allowed: false,
         refusal:
@@ -1303,6 +1475,27 @@ export class PocketPairing {
       };
     }
     const next = this.fieldsWithPending();
+    // THE DOOR PROCESS HOLDS AT MOST DOOR_PINS_MAX PINS (the Phase 330 fix
+    // round, lens 1): the wire refuses a start or an update that carries more,
+    // and a 65th phone surfaced as a door that "could not open". Refused here,
+    // before anything is signed or written, with a sentence that says why.
+    if (next.phones.length > DOOR_PINS_MAX) {
+      return {
+        allowed: false,
+        refusal:
+          `Tortie already allows ${String(DOOR_PINS_MAX)} phones, which is all ` +
+          'its door holds. Remove one, then pair this one. Nothing was changed.'
+      };
+    }
+    const certificate = this.deps.issueCertificate(w.presented.clientKey);
+    if (certificate === null) {
+      return {
+        allowed: false,
+        refusal:
+          'The door is not listening, so Tortie has nothing to sign this ' +
+          'phone’s key with. Nothing was changed.'
+      };
+    }
     const record = confirmPocketDoor(next, consent);
     if (record === null) {
       return {
@@ -1323,9 +1516,11 @@ export class PocketPairing {
       };
     }
     w.allowed = true;
-    // The window stays until its deadline so the phone can be told it was
-    // allowed, but what it held is spent: the secret and the tailnet key go now.
-    shred(w);
+    w.certificate = certificate;
+    // The window stays until its deadline so the phone can be handed its
+    // certificate, but what it held is spent: the secret goes now. The
+    // challenge stays, because the allowed phone proves itself over it again.
+    w.secret.fill(0);
     return { allowed: true, refusal: null };
   }
 }
@@ -1333,7 +1528,22 @@ export class PocketPairing {
 /** Zero what a window held. The window object itself is dropped by the caller. */
 function shred(w: OpenWindow): void {
   w.secret.fill(0);
-  w.tailnetKey?.fill(0);
+  w.certificate = null;
+}
+
+/** Does `sig` verify under `ek` over the window's proof text? Never throws. */
+function proofHolds(challenge: string, p: PocketSealedPresentation): boolean {
+  try {
+    const text = presentationProofText(challenge, p.iv, p.ct, p.tag);
+    return verifyWith(
+      null,
+      Buffer.from(text, 'utf8'),
+      createPublicKey({ key: unb64u(p.ek), format: 'der', type: 'spki' }),
+      unb64u(p.sig)
+    );
+  } catch {
+    return false;
+  }
 }
 
 /** Is this base64url SPKI really a public key of that kind? */
@@ -1434,9 +1644,15 @@ export function pairingBinding(
   ).toString('hex');
 }
 
-/** Every reason a request is refused. A WORD, and never a value. */
+/**
+ * Every reason a request is refused. A WORD, and never a value.
+ *
+ * Phase 330 took out `source-is-door` and `address`: the door binds loopback
+ * behind Funnel, so every source is this Mac and an address pins nothing. It
+ * added `channel`: the phone a request is signed as is not the phone whose
+ * client key completed this connection's handshake.
+ */
 export type PocketRefusalReason =
-  | 'source-is-door'
   | 'shutdown'
   | 'host'
   | 'route'
@@ -1444,10 +1660,22 @@ export type PocketRefusalReason =
   | 'oversized'
   | 'headers'
   | 'unpaired'
-  | 'address'
+  | 'channel'
   | 'stale'
   | 'replay'
   | 'signature';
+
+/**
+ * The four signature headers as the verifier reads them. The door process
+ * hands over exactly these and no other header value (SPEC §4.5.2); a plain
+ * `IncomingHttpHeaders` is the same shape, which is what the tests pass.
+ */
+export type PocketSignatureHeaders = {
+  readonly [K in (typeof POCKET_HEADERS)[keyof typeof POCKET_HEADERS]]?:
+    | string
+    | readonly string[]
+    | undefined;
+};
 
 export type PocketVerdict =
   | { ok: true; phone: PocketPhoneFields }
@@ -1457,9 +1685,11 @@ export type PocketVerdict =
  * Does this request come from a phone the person allowed, right now, once?
  *
  * The order is deliberate and each step costs less than the one after it: the
- * headers, then the phone, then the address, then the clock, then the nonce,
- * then the signature. The signature is last because it is the only expensive
- * one, and a request that fails any earlier check never reaches it.
+ * headers, then the phone, then the CHANNEL (Phase 330: the phone whose client
+ * key completed this connection's handshake must be the phone the request is
+ * signed as), then the clock, then the nonce, then the signature. The
+ * signature is last because it is the only expensive one, and a request that
+ * fails any earlier check never reaches it.
  */
 export class PocketRequestVerifier {
   /** phone id → spent nonces, oldest first. */
@@ -1481,10 +1711,15 @@ export class PocketRequestVerifier {
     method: string;
     target: string;
     body: Buffer;
-    from: string;
-    headers: Readonly<Record<string, string | string[] | undefined>>;
+    /**
+     * The phone id whose pin completed THIS connection's TLS handshake, as the
+     * door process reported it, or null for a connection that presented no
+     * certificate (admitted only to `POST /pair` inside a window).
+     */
+    channel: string | null;
+    headers: PocketSignatureHeaders;
   }): PocketVerdict {
-    const one = (name: string): string => {
+    const one = (name: (typeof POCKET_HEADERS)[keyof typeof POCKET_HEADERS]): string => {
       const v = input.headers[name];
       return typeof v === 'string' ? v : '';
     };
@@ -1503,7 +1738,9 @@ export class PocketRequestVerifier {
     }
     const phone = this.deps.phones().find((p) => p.id === phoneId);
     if (phone === undefined) return { ok: false, reason: 'unpaired' };
-    if (phone.address !== input.from) return { ok: false, reason: 'address' };
+    // THE CONNECTION IS THE PHONE'S OWN, or nothing is read. Asked straight
+    // after the phone is found, before any work a stranger could make cost.
+    if (input.channel !== phone.id) return { ok: false, reason: 'channel' };
     const at = Number(timestamp);
     if (!Number.isFinite(at)) return { ok: false, reason: 'headers' };
     if (Math.abs(this.now() - at) > POCKET_CLOCK_SKEW_MS) {
@@ -1592,13 +1829,17 @@ export function signAsPhone(
 }
 
 /**
- * Seal a presentation the way a phone does (Phase 314). Exported for the tests
- * and the harness ONLY, the way {@link signAsPhone} is, and it is what lets
- * the probe pair a phone through the SHIPPING `present` with no Swift.
+ * Seal and sign a presentation the way a phone does (Phase 314, v2 in Phase
+ * 330). Exported for the tests, the vectors and the harness ONLY, the way
+ * {@link signAsPhone} is, and it is what lets a probe pair a phone through the
+ * SHIPPING `present` with no Swift.
  *
  * Nothing in the shipping door calls it: main never seals a presentation, it
- * only opens one. `offerPayload` is the QR's own bytes, whose `ps` is the
- * one-shot secret the key is derived from.
+ * only opens one, and it never holds a phone's private key. `offerPayload` is
+ * the QR's own bytes, whose `ps` is the one-shot secret both the seal key and
+ * the challenge are derived from. It answers the `POST /pair` BODY, whose keys
+ * are sorted: `{"ct","ek","iv","sig","tag"}`, and the inner JSON's keys are
+ * sorted too (SPEC §4.7.2).
  */
 export function sealPresentationAsPhone(
   offerPayload: string,
@@ -1606,25 +1847,45 @@ export function sealPresentationAsPhone(
     label: string;
     signingKey: string;
     exchangeKey: string;
+    clientKey: string;
     pushToken?: string;
     pushEnvironment?: 'development' | 'production';
-  }
+  },
+  signingPrivateKey: KeyObject
 ): Buffer {
   const offer = JSON.parse(offerPayload) as Record<string, unknown>;
   const secret = unb64u(String(offer['ps'] ?? ''));
   const key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), PAIRING_INFO, 32));
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const inner = JSON.stringify({
-    label: presentation.label,
+  const fields: Record<string, string> = {
+    ck: presentation.clientKey,
     ek: presentation.signingKey,
-    xk: presentation.exchangeKey,
-    ...(presentation.pushToken !== undefined ? { apt: presentation.pushToken } : {}),
-    ...(presentation.pushEnvironment !== undefined ? { ape: presentation.pushEnvironment } : {})
-  });
+    label: presentation.label,
+    xk: presentation.exchangeKey
+  };
+  if (presentation.pushEnvironment !== undefined) fields['ape'] = presentation.pushEnvironment;
+  if (presentation.pushToken !== undefined) fields['apt'] = presentation.pushToken;
+  const inner = JSON.stringify(
+    Object.fromEntries(Object.keys(fields).sort().map((k) => [k, fields[k]]))
+  );
   const ct = Buffer.concat([cipher.update(inner, 'utf8'), cipher.final()]);
+  const sealed = { iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) };
+  const proof = presentationProofText(
+    pairingChallengeOf(secret),
+    sealed.iv,
+    sealed.ct,
+    sealed.tag
+  );
+  const sig = b64u(signWith(null, Buffer.from(proof, 'utf8'), signingPrivateKey));
   return Buffer.from(
-    JSON.stringify({ iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) }),
+    JSON.stringify({
+      ct: sealed.ct,
+      ek: presentation.signingKey,
+      iv: sealed.iv,
+      sig,
+      tag: sealed.tag
+    }),
     'utf8'
   );
 }
@@ -1642,9 +1903,8 @@ export function phoneView(
   return {
     id: phone.id,
     label: phone.label,
-    fingerprint: pairFingerprint(phone.signingKey, phone.exchangeKey),
+    fingerprint: pairFingerprint(phone.signingKey, phone.exchangeKey, phone.clientKey),
     addedAt,
-    address: phone.address,
     alerts:
       phone.pushToken.length === 0
         ? 'none'

@@ -178,6 +178,8 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
     private(set) var forgets = 0
     /// Run while the pairing is under way, before it answers.
     var duringPair: (@Sendable () async -> Void)?
+    /// The steps a pairing reports before it answers.
+    var reports: [PairingStep] = [.waitingForMac]
 
     init(kept: (any DoorReading)? = nil, beginFailure: PairingFailure? = nil, outcomes: [PairResult] = []) {
         self.kept = kept
@@ -201,18 +203,22 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
         if let failure { throw failure }
         let keys = PhoneKeys.generate()
         let offer = PairingOffer(
-            address: DoorAddress(host: "127.0.0.1", port: 8823, pin: "pin"),
+            door: DoorEndpoint(name: "p330-mac.tail00000.ts.net", port: 8443, pin: "pin"),
             macSigningKey: "dk",
             macExchangeKey: "dx",
             secret: Data(repeating: 7, count: 16),
-            expiresAt: 9_999_999_999_999,
-            tailnetKey: nil
+            expiresAt: 9_999_999_999_999
         )
-        return PendingPairing(offer: offer, keys: keys, label: label, fingerprint: "aaaa bbbb cccc dddd eeee ffff")
+        return PendingPairing(
+            offer: offer, keys: keys, clientKey: ClientKey(tag: "tortie.client.0000000000000000", spki: "ck"),
+            label: label, fingerprint: "aaaa bbbb cccc dddd eeee ffff"
+        )
     }
 
     func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult {
-        progress(.waitingForMac)
+        for step in reports {
+            progress(step)
+        }
         await duringPair?()
         return lock.withLock {
             pairs += 1

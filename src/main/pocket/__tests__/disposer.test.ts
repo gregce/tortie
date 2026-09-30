@@ -16,6 +16,12 @@
  *  3. It is also above `disposeOverviewIpc()`, because the turns route reads
  *     the overview store, and that store is closed in the race further down.
  *
+ * PHASE 330 adds the Funnel child's two lines, and the order between them and
+ * the door's is the point: `beginFunnelShutdown()` is synchronous and before
+ * the first await, beside `beginPocketShutdown()`, and `await joinFunnel()` is
+ * BEFORE `await joinPocketDoor()`, so nothing on the internet is still pointed
+ * at the listener while it closes. UNPUBLISHING COMES FIRST.
+ *
  * And one thing that must NOT be there: nothing in the composition root opens
  * a door BY ITSELF. Since Phase 316 the door opens at launch through exactly
  * one call, the owner's `openAtLaunch`, which binds only on fields a person
@@ -78,7 +84,7 @@ describe('the door in the quit', () => {
     expect(body.match(/beginPocketShutdown\(\)/g) ?? []).toHaveLength(1);
   });
 
-  it('shreds an open pairing window, and the tailnet key in it, at quit (Phase 316)', () => {
+  it('shreds an open pairing window at quit (Phase 316)', () => {
     expect(body.match(/pocketHost\?\.pairing\.cancel\(\)/g) ?? []).toHaveLength(1);
     // After the door is closed, so nothing can present into a window that is
     // being shredded.
@@ -104,5 +110,45 @@ describe('the door in the quit', () => {
     expect(line).not.toContain('address');
     expect(line).not.toContain('fingerprint');
     expect(line).not.toContain('body');
+  });
+});
+
+describe('the Funnel child in the quit (Phase 330)', () => {
+  const body = code(disposerBody());
+
+  it('closes the Funnel child’s admission on the same synchronous line, before anything is awaited', () => {
+    const begin = body.indexOf('beginFunnelShutdown()');
+    const firstAwait = body.indexOf('await ');
+    expect(begin).toBeGreaterThan(-1);
+    expect(begin).toBeLessThan(firstAwait);
+    expect(body.match(/beginFunnelShutdown\(\)/g) ?? []).toHaveLength(1);
+  });
+
+  it('joins the Funnel child BEFORE the door, and both before the core', () => {
+    const funnel = body.indexOf('await joinFunnel()');
+    const door = body.indexOf('await joinPocketDoor()');
+    const core = body.indexOf('shutdownGmuxCore()');
+    expect(funnel).toBeGreaterThan(-1);
+    expect(funnel).toBeLessThan(door);
+    expect(door).toBeLessThan(core);
+    expect(body).not.toContain('void joinFunnel()');
+    expect(body.match(/joinFunnel\(\)/g) ?? []).toHaveLength(1);
+  });
+
+  it('logs counts only, and nothing the child printed', () => {
+    const line = body.slice(body.indexOf('await joinFunnel()'), body.indexOf('await joinPocketDoor()'));
+    expect(line).toContain('funnel.children');
+    expect(line).toContain('funnel.ended');
+    for (const word of ['url', 'publicName', 'stdout', 'stderr', 'argv', 'command']) {
+      expect(line).not.toContain(word);
+    }
+  });
+
+  it('hands the door owner the wake, and composes no Funnel seam of its own', () => {
+    const all = code(src);
+    expect(all).toMatch(/onResume:\s*\(cb\)\s*=>\s*wakes\.onResume\(/);
+    // `tailscale` and `door` are test and harness seams only (U4).
+    expect(all).not.toMatch(/tailscale:\s/);
+    expect(all).not.toMatch(/\bdoor:\s*inProcessDoor/);
   });
 });

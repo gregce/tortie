@@ -1,34 +1,44 @@
-// DoorClient.swift — THE ONE NETWORK USER (Phase 316.2).
+// DoorClient.swift — THE ONE NETWORK FILE (Phase 316.2; an ordinary pinned TLS
+// client since Phase 330).
 //
 // Every byte the phone sends to or reads from the Mac passes through this
 // file, and no other file in the app names a network type (conformance:ios
-// rule c). What it does, and why each part is here:
+// rule c). Since Phase 330 the Mac publishes its door on the internet through
+// Tailscale Funnel as RAW TCP, so TLS still ends inside Tortie on the Mac, under
+// the key the QR pins, and the phone is an ordinary TLS client with no tailnet
+// of its own (build/p330/SPEC.md section 4.12, research 132 section 9). What
+// it does, and why each part is here:
 //
-//   HTTPS ONLY. `url(_:target:)` is the one place a URL is built, its scheme
-//   is written once as `https`, and its host must be an IPv4 literal. The one
-//   App Transport Security key the app carries (100.64.0.0/10) would also
-//   allow plain http to a tailnet address, so the client must never build one
-//   (build/p316/SPEC.md section 3.2).
+//   NWCONNECTION TO THE NAME. The door is `https://<publicName>:<publicPort>`,
+//   and the client dials the NAME, never an address, so Network.framework races
+//   every address the name resolves to (his measurement: one of Funnel's two
+//   ingress addresses did not answer from his Mac, SPEC section 2.2 O1). App
+//   Transport Security governs URLSession and not this, so the app carries no
+//   ATS key at all (research 132 section 9 condition 8).
+//
+//   TLS 1.3 AT THE LEAST, with the name as SNI. Under 1.2 the phone's client
+//   certificate would cross Funnel's relay in the clear.
 //
 //   THE PIN IS THE TRUST. The door's certificate is self-signed, so no
 //   certificate authority vouches for it. The QR carries `fp`, the sha256 of
-//   the door's public key (SubjectPublicKeyInfo), and the session delegate
-//   answers the server-trust challenge with the door's credential ONLY when
-//   the leaf's key hashes to it. Anything else cancels the challenge before a
-//   byte of the request is sent, which URLSession reports as -999 and this
-//   file reports as `wrongKey` (section 3.3 measured the hash: 112 of 112).
+//   the door's public key (SubjectPublicKeyInfo), and the verify block
+//   completes the handshake ONLY when the leaf's key hashes to it. Anything
+//   else completes it false before a byte of the request is written, and this
+//   file reports `wrongKey`.
 //
-//   ANSWERS ARE CAPPED AT 2 MiB. Counted as they arrive, and the task is
-//   cancelled the moment one goes over, so a door that sends ten mebibytes
-//   costs the phone two. A declared length over the cap is refused before its
-//   first byte.
+//   A LOCAL IDENTITY ON EVERY PAIRED CONNECTION. Once paired, every connection
+//   presents the phone's client certificate, which the Mac issued over the
+//   P-256 key the phone made (Door/Keys.swift). The Mac destroys a connection
+//   whose key is not a paired phone's before its HTTP parser sees a byte. The
+//   one connection with no certificate is `POST /pair`, inside a window a
+//   person opened.
 //
-//   15 SECONDS. Both the idle and the whole-request timeouts, so a door that
-//   answers nothing, or answers a byte a minute, ends in a sentence.
-//
-//   NOTHING ELSE IS FOLLOWED OR KEPT: no redirect, no cookie, no cache, no
-//   credential store, and no system proxy on the direct route. A SOCKS route
-//   never fails over to a direct connection.
+//   ONE REQUEST PER CONNECTION, `Connection: close`, and a hand-written,
+//   BOUNDED HTTP/1.1 exchange (`DoorHTTP`): the head is at most 16 KiB and 64
+//   lines, `Content-Length` is required and read through `DoorNumber`, any
+//   `Transfer-Encoding` is refused, an answer is at most 2 MiB, and the whole
+//   exchange has 15 seconds. The door always writes an explicit length and
+//   never streams (conformance:pocket C1).
 //
 //   EVERY READ IS SIGNED, exactly as src/main/pocket/server.ts verifies it:
 //   the target signed is the path and query exactly as sent, whose query
@@ -49,23 +59,30 @@ import Security
 /// Why the door gave no answer. The screens say each one in Copy.swift's
 /// words; nothing here is shown to a person as it is.
 enum DoorFailure: Error, Equatable, Sendable {
-    /// No pairing, or this build has no way to reach a Mac.
+    /// No pairing, or nothing this build can dial.
     case notPaired
     /// The door did not present the key the pairing pinned.
     case wrongKey
-    /// No connection: the URLSession error code (e.g. -1004 refused, -1200 a
-    /// TLS or App Transport Security refusal).
+    /// The Mac's public name did not resolve (`NWError.dns`). The first time
+    /// a Mac publishes, its name can take minutes to reach public DNS.
+    case nameNotFound
+    /// No connection: a POSIX or TLS status, or 0 when there is none.
     case unreachable(code: Int)
     /// No answer inside the timeout.
     case timedOut
-    /// The door answered 404, which is every refusal it makes: not paired any
-    /// more, a session it no longer has, a pairing window that is shut.
+    /// The door answered 404, which is every refusal it makes past the
+    /// handshake: not paired any more, a session it no longer has, a pairing
+    /// window that is shut.
     case refused
+    /// The handshake finished and the door closed the connection before one
+    /// byte of an answer. It is what the door does to a client key that is not
+    /// a paired phone's, and to no certificate outside a pairing window.
+    case closedBeforeAnswer
     /// A status the door never sends.
     case unexpectedStatus(Int)
     /// Over the 2 MiB cap.
     case tooLarge
-    /// Not the contract's shape.
+    /// Not HTTP the door writes, or not the contract's shape.
     case malformed
     /// Pages of the conversation that go backwards or overlap.
     case badPage
@@ -75,39 +92,60 @@ enum DoorFailure: Error, Equatable, Sendable {
 
 // MARK: - Where the door is
 
-/// A door: its IPv4 address, its port and the key it must present.
-struct DoorAddress: Equatable, Sendable {
-    let host: String
+/// A door: its PUBLIC NAME, its public port and the key it must present. Never
+/// an address (research 132 section 3.8).
+struct DoorEndpoint: Equatable, Sendable {
+    let name: String
     let port: Int
     /// base64url sha256 of the door's public key (the QR's `fp`).
     let pin: String
 
-    /// A dotted IPv4 literal: four decimal octets, 0 to 255, no leading zero.
-    /// The door binds IPv4 only (src/main/pocket/bind.ts).
-    static func isIPv4Literal(_ text: String) -> Bool {
-        let parts = text.split(separator: ".", omittingEmptySubsequences: false)
-        guard parts.count == 4 else { return false }
-        for part in parts {
-            guard (1...3).contains(part.count),
-                  part.utf8.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }),
-                  !(part.count > 1 && part.first == "0"),
-                  let value = Int(part), value <= 255 else { return false }
+    /// The ports Tortie publishes on through Funnel: 8443, then 10000. 443 is
+    /// the person's own (src/main/pocket/funnel.ts, research 132 section 9).
+    static let publicPorts: Set<Int> = [8443, 10000]
+    /// Every name Tailscale gives a Mac ends here.
+    static let nameSuffix = ".ts.net"
+    /// A DNS name's limits.
+    static let nameMaxBytes = 253
+    static let labelMaxBytes = 63
+    /// `<mac>.<tailnet>.ts.net` has four; nothing shorter than three is a Mac.
+    static let labelsAtLeast = 3
+
+    /// A lowercase DNS name under `.ts.net`: at most 253 bytes, at least three
+    /// labels, each `[a-z0-9-]{1,63}` that neither starts nor ends with `-`.
+    static func isPublicName(_ text: String) -> Bool {
+        guard text.utf8.count <= nameMaxBytes, text.hasSuffix(nameSuffix) else { return false }
+        let labels = text.split(separator: ".", omittingEmptySubsequences: false)
+        guard labels.count >= labelsAtLeast else { return false }
+        for label in labels {
+            guard (1...labelMaxBytes).contains(label.utf8.count),
+                  label.utf8.allSatisfy(isNameByte),
+                  label.first != "-", label.last != "-" else { return false }
         }
         return true
     }
 
-    /// The four octets, for the range checks pairing makes.
-    var octets: [Int]? {
-        guard Self.isIPv4Literal(host) else { return nil }
-        return host.split(separator: ".").compactMap { Int($0) }
+    private static func isNameByte(_ byte: UInt8) -> Bool {
+        switch byte {
+        case UInt8(ascii: "a")...UInt8(ascii: "z"), UInt8(ascii: "0")...UInt8(ascii: "9"), UInt8(ascii: "-"):
+            return true
+        default:
+            return false
+        }
+    }
+
+    /// A name and a port the phone may dial.
+    var isPublic: Bool {
+        Self.isPublicName(name) && Self.publicPorts.contains(port)
     }
 }
 
 /// The caps every exchange holds to.
 struct DoorLimits: Sendable {
-    /// The most bytes one answer may carry.
+    /// The most bytes one answer's body may carry.
     static let answerCap = 2 * 1024 * 1024
-    /// Seconds, for the idle timeout and the whole request alike.
+    /// Seconds, for the whole exchange: resolving, the handshake, the request
+    /// and the answer.
     static let timeout: TimeInterval = 15
 
     static let standard = DoorLimits(cap: answerCap, timeout: timeout)
@@ -117,15 +155,16 @@ struct DoorLimits: Sendable {
 }
 
 /// A status and a body that stayed under the cap.
-struct DoorReply: Sendable {
+struct DoorReply: Sendable, Equatable {
     let status: Int
     let body: Data
 }
 
 /// What pairing asks of the door, so its order can be tested without one.
 protocol DoorExchanging: Sendable {
-    /// `POST /pair` with a sealed presentation.
-    func present(_ sealed: Data, to door: DoorAddress) async throws -> PairAnswer
+    /// `POST /pair` with a sealed, signed presentation. The ONE connection
+    /// that presents no client certificate.
+    func present(_ presentation: Data, to door: DoorEndpoint) async throws -> PairAnswer
     /// The first signed read, which is what makes a pairing DONE.
     func blocked(_ door: PairedDoor) async throws -> PocketBlockedAnswer
 }
@@ -147,7 +186,7 @@ final class DoorClient: DoorExchanging {
         self.clock = clock
     }
 
-    // MARK: The three reads, each signed
+    // MARK: The three reads, each signed, each over the phone's identity
 
     /// `GET /v1/blocked`: every session waiting on him, then everything else.
     func blocked(_ door: PairedDoor) async throws -> PocketBlockedAnswer {
@@ -179,12 +218,14 @@ final class DoorClient: DoorExchanging {
 
     // MARK: Pairing
 
-    /// `POST /pair`. Unsigned, because a phone that has not paired has no key
-    /// the door knows; the body is sealed under the QR's one-shot secret
-    /// instead. The answer is one word.
-    func present(_ sealed: Data, to door: DoorAddress) async throws -> PairAnswer {
+    /// `POST /pair`. Unsigned by a request signature and with no client
+    /// certificate, because a phone that has not paired has neither; the body
+    /// is sealed under the QR's one-shot secret and signed over the window's
+    /// challenge instead (Door/Pairing.swift). The answer is one word, and
+    /// `allowed` carries the certificate.
+    func present(_ presentation: Data, to door: DoorEndpoint) async throws -> PairAnswer {
         let reply = try await exchange(
-            method: "POST", target: Self.pairTarget, headers: [], body: sealed, door: door
+            method: "POST", target: Self.pairTarget, headers: [], body: presentation, door: door, identity: nil
         )
         return try Self.decode(PairAnswer.self, from: reply)
     }
@@ -227,20 +268,6 @@ final class DoorClient: DoorExchanging {
         return String(decoding: out, as: UTF8.self)
     }
 
-    /// THE ONE URL BUILDER. `https`, an IPv4 literal, a port in range and an
-    /// absolute target, or nil.
-    static func url(_ door: DoorAddress, target: String) -> URL? {
-        guard DoorAddress.isIPv4Literal(door.host),
-              (1...65535).contains(door.port),
-              target.hasPrefix("/"),
-              !target.hasPrefix("//"),
-              !target.contains("#"),
-              !target.utf8.contains(where: { $0 <= 0x20 || $0 >= 0x7f }) else { return nil }
-        guard let url = URL(string: "https://\(door.host):\(door.port)\(target)"),
-              url.scheme == "https", url.host(percentEncoded: false) == door.host else { return nil }
-        return url
-    }
-
     // MARK: The exchange
 
     private func signedGet<T: Decodable>(_ type: T.Type, target: String, door: PairedDoor) async throws -> T {
@@ -255,86 +282,77 @@ final class DoorClient: DoorExchanging {
         } catch {
             throw DoorFailure.notPaired
         }
-        let reply = try await exchange(method: "GET", target: target, headers: headers, body: nil, door: door.address)
+        // A paired read ALWAYS presents the phone's identity (conformance:ios t).
+        let reply = try await exchange(
+            method: "GET", target: target, headers: headers, body: nil, door: door.endpoint, identity: door.identity
+        )
         return try Self.decode(type, from: reply)
     }
 
-    /// One request, one answer under the cap, or a `DoorFailure`. Every other
-    /// method reaches the network through here.
+    /// One request over one new connection, one answer under the caps, or a
+    /// `DoorFailure`. Every other method reaches the network through here.
+    /// `identity` is nil for `POST /pair` alone.
     func exchange(
         method: String,
         target: String,
         headers: [(name: String, value: String)],
         body: Data?,
-        door: DoorAddress
+        door: DoorEndpoint,
+        identity: ClientIdentity?
     ) async throws -> DoorReply {
-        guard let url = Self.url(door, target: target) else { throw DoorFailure.notPaired }
+        guard let request = DoorHTTP.request(
+            method: method, target: target, name: door.name, port: door.port, headers: headers, body: body
+        ) else { throw DoorFailure.notPaired }
         let route: DoorRoute
         do {
-            route = try await transport.route(to: door.host)
+            route = try transport.route(to: door)
         } catch let failure as DoorFailure {
             throw failure
         } catch {
             throw DoorFailure.notPaired
         }
+        guard (1...65535).contains(route.port),
+              let port = NWEndpoint.Port(rawValue: UInt16(clamping: route.port)) else { throw DoorFailure.notPaired }
         if Task.isCancelled { throw DoorFailure.cancelled }
-
-        var request = URLRequest(
-            url: url, cachePolicy: .reloadIgnoringLocalAndRemoteCacheData, timeoutInterval: limits.timeout
+        let exchange = try DoorExchange(
+            endpoint: .hostPort(host: NWEndpoint.Host(route.host), port: port),
+            serverName: door.name,
+            pin: door.pin,
+            identity: identity,
+            request: request,
+            limits: limits
         )
-        request.httpMethod = method
-        request.httpShouldHandleCookies = false
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        for header in headers {
-            request.setValue(header.value, forHTTPHeaderField: header.name)
-        }
-        if let body {
-            request.httpBody = body
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-
-        let exchange = DoorExchange(pin: door.pin, cap: limits.cap)
-        let session = URLSession(
-            configuration: Self.configuration(route, limits: limits),
-            delegate: exchange,
-            delegateQueue: nil
-        )
-        // The session holds its delegate until it is invalidated.
-        defer { session.finishTasksAndInvalidate() }
-        return try await exchange.run(session.dataTask(with: request))
+        return try await exchange.run()
     }
 
-    static func configuration(_ route: DoorRoute, limits: DoorLimits) -> URLSessionConfiguration {
-        let configuration = URLSessionConfiguration.ephemeral
-        configuration.timeoutIntervalForRequest = limits.timeout
-        configuration.timeoutIntervalForResource = limits.timeout
-        configuration.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-        configuration.urlCache = nil
-        configuration.httpCookieStorage = nil
-        configuration.httpShouldSetCookies = false
-        configuration.urlCredentialStorage = nil
-        configuration.waitsForConnectivity = false
-        configuration.httpMaximumConnectionsPerHost = 1
-        configuration.tlsMinimumSupportedProtocolVersion = .TLSv12
-        switch route {
-        case .direct:
-            // No system proxy: an empty dictionary, not nil, which would
-            // inherit the device's settings.
-            configuration.connectionProxyDictionary = [:]
-        case let .socks5(host, port, username, password):
-            let proxyPort = NWEndpoint.Port(rawValue: UInt16(clamping: port)) ?? .any
-            var proxy = ProxyConfiguration(
-                socksv5Proxy: .hostPort(host: NWEndpoint.Host(host), port: proxyPort)
-            )
-            // Never around the proxy: a failover would dial the door's
-            // tailnet address from the phone's own network.
-            proxy.allowFailover = false
-            if let username, let password {
-                proxy.applyCredential(username: username, password: password)
-            }
-            configuration.proxyConfigurations = [proxy]
+    /// The TLS the door is spoken to with: 1.3 at the least, the door's NAME
+    /// as SNI, a verify block that completes true ONLY for the pinned key, and
+    /// the phone's identity when it has one. `onPinRefused` is called on
+    /// `queue` when the leaf is not the pinned key.
+    static func parameters(
+        serverName: String,
+        pin: String,
+        identity: ClientIdentity?,
+        queue: DispatchQueue,
+        onPinRefused: @escaping @Sendable () -> Void
+    ) throws -> NWParameters {
+        let tls = NWProtocolTLS.Options()
+        let options = tls.securityProtocolOptions
+        sec_protocol_options_set_min_tls_protocol_version(options, .TLSv13)
+        sec_protocol_options_set_tls_server_name(options, serverName)
+        sec_protocol_options_set_verify_block(options, { _, trust, complete in
+            let matched = DoorPin.matches(sec_trust_copy_ref(trust).takeRetainedValue(), pin: pin)
+            if !matched { onPinRefused() }
+            complete(matched)
+        }, queue)
+        if let identity {
+            guard let presented = sec_identity_create(identity.identity) else { throw DoorFailure.notPaired }
+            sec_protocol_options_set_local_identity(options, presented)
         }
-        return configuration
+        let parameters = NWParameters(tls: tls, tcp: NWProtocolTCP.Options())
+        // No system proxy between the phone and the door.
+        parameters.preferNoProxies = true
+        return parameters
     }
 
     /// 200 decodes, 404 is the door's one refusal, anything else is a status
@@ -355,16 +373,24 @@ final class DoorClient: DoorExchanging {
         }
     }
 
-    /// A URLSession error as a failure. Only the URL loading system's own codes
-    /// are read; anything else is a connection that did not happen.
-    static func failure(for error: Error) -> DoorFailure {
-        let ns = error as NSError
-        guard ns.domain == NSURLErrorDomain else { return .unreachable(code: ns.code) }
-        switch ns.code {
-        case NSURLErrorCancelled: return .cancelled
-        case NSURLErrorTimedOut: return .timedOut
-        case NSURLErrorDataLengthExceedsMaximum: return .tooLarge
-        default: return .unreachable(code: ns.code)
+    /// A connection's error as a failure. `ready` is whether the handshake had
+    /// finished, `pinRefused` whether the verify block refused the leaf, and
+    /// `answered` whether a byte of the answer had arrived.
+    static func failure(for error: NWError, ready: Bool, pinRefused: Bool, answered: Bool) -> DoorFailure {
+        if pinRefused { return .wrongKey }
+        switch error {
+        case .dns:
+            return .nameNotFound
+        case .tls(let status):
+            return .unreachable(code: Int(status))
+        case .posix(let code):
+            if ready && !answered && (code == .ECONNRESET || code == .EPIPE || code == .ENOTCONN) {
+                return .closedBeforeAnswer
+            }
+            return .unreachable(code: Int(code.rawValue))
+        default:
+            // Wi-Fi Aware (iOS 26) and anything a later SDK adds.
+            return .unreachable(code: 0)
         }
     }
 }
@@ -377,13 +403,8 @@ enum DoorPin {
     /// a key that is not P-256, because the door's never is (`tls.ts`) and a
     /// pin over anything else would be a hash of a guess.
     static func of(_ certificate: SecCertificate) -> String? {
-        guard let key = SecCertificateCopyKey(certificate),
-              let attributes = SecKeyCopyAttributes(key) as? [String: Any],
-              attributes[kSecAttrKeyType as String] as? String == kSecAttrKeyTypeECSECPrimeRandom as String,
-              attributes[kSecAttrKeySizeInBits as String] as? Int == 256,
-              let point = SecKeyCopyExternalRepresentation(key, nil) as Data?,
-              point.count == 65, point.first == 0x04 else { return nil }
-        return Base64URL.encode(Data(SHA256.hash(data: SPKI.p256Header + point)))
+        guard let key = SecCertificateCopyKey(certificate), let spki = SPKI.p256(key) else { return nil }
+        return Base64URL.encode(Data(SHA256.hash(data: spki)))
     }
 
     /// Does the leaf of this trust carry the pinned key?
@@ -395,155 +416,351 @@ enum DoorPin {
     }
 }
 
-// MARK: - The answer buffer
+// MARK: - HTTP/1.1, by hand and bounded
 
-/// The cap, counted as the bytes arrive.
-struct AnswerBuffer: Sendable {
+/// The request the phone writes and the answer it reads, with no HTTP library
+/// between them: one request, one answer, then the connection is closed.
+enum DoorHTTP {
+    /// The most bytes the answer's head may take, and its most lines.
+    static let headCap = 16 * 1024
+    static let headLineCap = 64
+    /// Digits a length may have: far past 2 MiB, and far short of overflow.
+    static let lengthDigitsCap = 16
+
+    static let version = "HTTP/1.1"
+    static let lineEnd = "\r\n"
+    static let headEnd = Data("\r\n\r\n".utf8)
+
+    /// Header names as the phone writes them. The door reads names in any case.
+    enum Name {
+        static let host = "Host"
+        static let contentType = "Content-Type"
+        static let contentLength = "Content-Length"
+        static let connection = "Connection"
+    }
+
+    /// Header names as the phone reads them, lowercased.
+    enum Read {
+        static let contentLength = "content-length"
+        static let contentType = "content-type"
+        static let transferEncoding = "transfer-encoding"
+    }
+
+    static let json = "application/json"
+    static let close = "close"
+
+    /// The request's bytes, or nil when any part of it could not be written
+    /// as one line of plain ASCII.
+    static func request(
+        method: String,
+        target: String,
+        name: String,
+        port: Int,
+        headers: [(name: String, value: String)],
+        body: Data?
+    ) -> Data? {
+        guard isToken(method), isTarget(target), isFieldValue(name) else { return nil }
+        var lines = ["\(method) \(target) \(version)", "\(Name.host): \(name):\(port)"]
+        for header in headers {
+            guard isToken(header.name), isFieldValue(header.value) else { return nil }
+            lines.append("\(header.name): \(header.value)")
+        }
+        if let body {
+            lines.append("\(Name.contentType): \(json)")
+            lines.append("\(Name.contentLength): \(body.count)")
+        }
+        lines.append("\(Name.connection): \(close)")
+        var out = Data((lines.joined(separator: lineEnd) + lineEnd + lineEnd).utf8)
+        if let body { out.append(body) }
+        return out
+    }
+
+    /// An absolute path and query: no fragment, no space, no control byte and
+    /// nothing outside printable ASCII, so it cannot become another request.
+    static func isTarget(_ text: String) -> Bool {
+        text.hasPrefix("/") && !text.hasPrefix("//") && !text.contains("#")
+            && !text.utf8.contains(where: { $0 <= 0x20 || $0 >= 0x7f })
+    }
+
+    /// A header value the phone writes: printable ASCII, no line break.
+    static func isFieldValue(_ text: String) -> Bool {
+        !text.isEmpty && text.utf8.allSatisfy { $0 >= 0x21 && $0 <= 0x7e }
+    }
+
+    /// An RFC 9110 token: a method or a header name.
+    static func isToken(_ text: String) -> Bool {
+        !text.isEmpty && text.utf8.allSatisfy { byte in
+            switch byte {
+            case UInt8(ascii: "A")...UInt8(ascii: "Z"), UInt8(ascii: "a")...UInt8(ascii: "z"),
+                 UInt8(ascii: "0")...UInt8(ascii: "9"):
+                return true
+            default:
+                return Array("!#$%&'*+-.^_`|~".utf8).contains(byte)
+            }
+        }
+    }
+
+    /// A `Content-Length` value: digits only, a count `DoorNumber` holds, or
+    /// nil.
+    static func length(_ text: String) -> Int? {
+        guard (1...lengthDigitsCap).contains(text.utf8.count),
+              text.utf8.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }),
+              let number = Int(text), DoorNumber.isCount(number) else { return nil }
+        return number
+    }
+}
+
+/// The answer, read as its bytes arrive. Every refusal is a `DoorFailure` the
+/// moment the bytes make it one; nothing half-read is ever handed on.
+struct DoorResponseReader: Sendable {
     let cap: Int
-    private(set) var data = Data()
+    private var head = Data()
+    private var headRead = false
+    private var status = 0
+    private var expected = 0
+    private var body = Data()
+    /// Whether a byte of the answer arrived at all.
+    private(set) var answered = false
 
     init(cap: Int) {
         self.cap = cap
     }
 
-    /// False, and the buffer emptied, once the answer goes over the cap.
-    mutating func append(_ chunk: Data) -> Bool {
-        guard data.count + chunk.count <= cap else {
-            data = Data()
-            return false
-        }
-        data.append(chunk)
-        return true
+    /// The head is read, and the body holds exactly the declared length.
+    var isComplete: Bool {
+        headRead && body.count == expected
     }
 
-    /// A declared length over the cap is refused before its first byte. An
-    /// unknown length (-1) is counted as it arrives.
-    static func admits(declaredLength: Int64, cap: Int) -> Bool {
-        declaredLength <= Int64(cap)
+    /// More bytes. Throws as soon as they cannot be the door's answer.
+    mutating func feed(_ chunk: Data) throws {
+        guard !chunk.isEmpty else { return }
+        answered = true
+        guard headRead else {
+            head.append(chunk)
+            guard let end = head.range(of: DoorHTTP.headEnd) else {
+                if head.count > DoorHTTP.headCap { throw DoorFailure.malformed }
+                return
+            }
+            if end.lowerBound > DoorHTTP.headCap { throw DoorFailure.malformed }
+            let rest = Data(head[end.upperBound...])
+            try readHead(Data(head[head.startIndex..<end.lowerBound]))
+            headRead = true
+            head = Data()
+            try take(rest)
+            return
+        }
+        try take(chunk)
+    }
+
+    /// The answer once the connection ended: whole, or a failure.
+    func finish() throws -> DoorReply {
+        guard answered else { throw DoorFailure.closedBeforeAnswer }
+        guard headRead, body.count == expected else { throw DoorFailure.malformed }
+        return DoorReply(status: status, body: body)
+    }
+
+    private mutating func take(_ chunk: Data) throws {
+        body.append(chunk)
+        // More than the door said it would send is not the door.
+        if body.count > expected { throw DoorFailure.malformed }
+    }
+
+    private mutating func readHead(_ bytes: Data) throws {
+        // Printable ASCII, tabs and line ends: a head is nothing else.
+        guard bytes.allSatisfy({ $0 == 0x09 || $0 == 0x0d || $0 == 0x0a || ($0 >= 0x20 && $0 <= 0x7e) }),
+              let text = String(data: bytes, encoding: .ascii) else { throw DoorFailure.malformed }
+        let lines = text.components(separatedBy: DoorHTTP.lineEnd)
+        // A lone CR or LF inside a line is not a line the door wrote.
+        if lines.contains(where: { $0.utf8.contains(0x0d) || $0.utf8.contains(0x0a) }) { throw DoorFailure.malformed }
+        guard let statusLine = lines.first else { throw DoorFailure.malformed }
+        let fields = lines.dropFirst()
+        if fields.count > DoorHTTP.headLineCap { throw DoorFailure.malformed }
+        let code = try Self.statusCode(statusLine)
+
+        var found: [String: [String]] = [:]
+        for line in fields {
+            // No folding and no empty name.
+            guard let lead = line.first, lead != " ", lead != "\t",
+                  let colon = line.firstIndex(of: ":") else { throw DoorFailure.malformed }
+            let name = String(line[line.startIndex..<colon])
+            guard DoorHTTP.isToken(name) else { throw DoorFailure.malformed }
+            let value = line[line.index(after: colon)...].trimmingCharacters(in: CharacterSet(charactersIn: " \t"))
+            found[name.lowercased(), default: []].append(value)
+        }
+        // The door never streams (conformance:pocket C1), so any
+        // Transfer-Encoding is not the door.
+        if found[DoorHTTP.Read.transferEncoding] != nil { throw DoorFailure.malformed }
+        // Content-Length is required, once, and a count.
+        guard let lengths = found[DoorHTTP.Read.contentLength], lengths.count == 1,
+              let length = DoorHTTP.length(lengths[0]) else { throw DoorFailure.malformed }
+        if length > cap { throw DoorFailure.tooLarge }
+        switch code {
+        case 200:
+            // A 200 carries JSON, and says so once.
+            guard let types = found[DoorHTTP.Read.contentType], types.count == 1,
+                  types[0].split(separator: ";", maxSplits: 1).first?
+                      .trimmingCharacters(in: .whitespaces).lowercased() == DoorHTTP.json
+            else { throw DoorFailure.malformed }
+        case 404:
+            break
+        default:
+            throw DoorFailure.unexpectedStatus(code)
+        }
+        status = code
+        expected = length
+    }
+
+    /// `HTTP/1.1 <three digits>` and, optionally, a space and a reason.
+    private static func statusCode(_ line: String) throws -> Int {
+        let prefix = "\(DoorHTTP.version) "
+        guard line.hasPrefix(prefix) else { throw DoorFailure.malformed }
+        let rest = line.dropFirst(prefix.utf8.count)
+        let digits = rest.prefix(3)
+        guard digits.utf8.count == 3,
+              digits.utf8.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }),
+              let code = Int(digits) else { throw DoorFailure.malformed }
+        let reason = rest.dropFirst(3)
+        guard reason.isEmpty || reason.hasPrefix(" ") else { throw DoorFailure.malformed }
+        return code
     }
 }
 
-// MARK: - One exchange's delegate
+// MARK: - One exchange
 
-/// The session delegate for one request: the pin, the cap and the answer.
-/// URLSession calls it on its own serial queue; the lock is for `run`, which
-/// is called from the caller's.
-private final class DoorExchange: NSObject, URLSessionDataDelegate, @unchecked Sendable {
-    private let pin: String
-    private let lock = NSLock()
-    private var buffer: AnswerBuffer
-    private var status = 0
-    private var pinRefused = false
-    private var overCap = false
+/// One connection, one request, one answer. Everything it holds is touched
+/// only on its own serial queue, which is also the queue Network.framework
+/// calls it on; `run` hands the result to the caller's task.
+private final class DoorExchange: @unchecked Sendable {
+    private let queue: DispatchQueue
+    private let connection: NWConnection
+    private let request: Data
+    private let timeout: TimeInterval
+    private let refused: PinRefusal
+    private var reader: DoorResponseReader
     private var continuation: CheckedContinuation<DoorReply, Error>?
+    private var result: Result<DoorReply, Error>?
+    private var timer: DispatchWorkItem?
+    private var ready = false
 
-    init(pin: String, cap: Int) {
-        self.pin = pin
-        self.buffer = AnswerBuffer(cap: cap)
+    init(
+        endpoint: NWEndpoint,
+        serverName: String,
+        pin: String,
+        identity: ClientIdentity?,
+        request: Data,
+        limits: DoorLimits
+    ) throws {
+        let queue = DispatchQueue(label: "tortie.door.exchange")
+        let refused = PinRefusal()
+        let parameters = try DoorClient.parameters(
+            serverName: serverName, pin: pin, identity: identity, queue: queue, onPinRefused: { refused.mark() }
+        )
+        self.queue = queue
+        self.refused = refused
+        connection = NWConnection(to: endpoint, using: parameters)
+        self.request = request
+        timeout = limits.timeout
+        reader = DoorResponseReader(cap: limits.cap)
     }
 
-    func run(_ task: URLSessionDataTask) async throws -> DoorReply {
+    func run() async throws -> DoorReply {
         try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<DoorReply, Error>) in
-                lock.lock()
-                self.continuation = continuation
-                lock.unlock()
-                task.resume()
+                queue.async { self.start(continuation) }
             }
         } onCancel: {
-            task.cancel()
+            queue.async { self.finish(.failure(DoorFailure.cancelled)) }
         }
     }
 
-    // The door's certificate. Session level, where URLSession sends the
-    // server-trust challenge.
-    func urlSession(
-        _ session: URLSession,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        answer(challenge, completionHandler)
-    }
-
-    // Task level, so no challenge of any kind falls through to the default.
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        didReceive challenge: URLAuthenticationChallenge,
-        completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        answer(challenge, completionHandler)
-    }
-
-    private func answer(
-        _ challenge: URLAuthenticationChallenge,
-        _ completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void
-    ) {
-        guard challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust,
-              let trust = challenge.protectionSpace.serverTrust else {
-            // The door asks for nothing else. A client certificate or a
-            // password prompt is not the door.
-            completionHandler(.cancelAuthenticationChallenge, nil)
+    private func start(_ waiting: CheckedContinuation<DoorReply, Error>) {
+        if let result {
+            // Cancelled before it began.
+            waiting.resume(with: result)
             return
         }
-        if DoorPin.matches(trust, pin: pin) {
-            completionHandler(.useCredential, URLCredential(trust: trust))
-        } else {
-            lock.lock()
-            pinRefused = true
-            lock.unlock()
-            completionHandler(.cancelAuthenticationChallenge, nil)
+        continuation = waiting
+        let timer = DispatchWorkItem { [weak self] in self?.finish(.failure(DoorFailure.timedOut)) }
+        self.timer = timer
+        queue.asyncAfter(deadline: .now() + timeout, execute: timer)
+        connection.stateUpdateHandler = { [weak self] state in self?.changed(state) }
+        connection.start(queue: queue)
+    }
+
+    private func changed(_ state: NWConnection.State) {
+        switch state {
+        case .ready:
+            ready = true
+            send()
+        case .waiting(let error), .failed(let error):
+            // A connection that is waiting is not waited on: a name that does
+            // not resolve, or a Mac that does not answer, is said now.
+            finish(.failure(failure(error)))
+        case .cancelled:
+            finish(.failure(DoorFailure.cancelled))
+        default:
+            break
         }
     }
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        didReceive response: URLResponse,
-        completionHandler: @escaping @Sendable (URLSession.ResponseDisposition) -> Void
-    ) {
-        lock.lock()
-        status = (response as? HTTPURLResponse)?.statusCode ?? 0
-        let admitted = AnswerBuffer.admits(declaredLength: response.expectedContentLength, cap: buffer.cap)
-        if !admitted { overCap = true }
-        lock.unlock()
-        completionHandler(admitted ? .allow : .cancel)
+    private func failure(_ error: NWError) -> DoorFailure {
+        DoorClient.failure(for: error, ready: ready, pinRefused: refused.happened, answered: reader.answered)
     }
 
-    func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
-        lock.lock()
-        let kept = buffer.append(data)
-        if !kept { overCap = true }
-        lock.unlock()
-        if !kept { dataTask.cancel() }
+    private func send() {
+        connection.send(content: request, completion: .contentProcessed { [weak self] error in
+            guard let self else { return }
+            if let error {
+                self.finish(.failure(self.failure(error)))
+                return
+            }
+            self.receive()
+        })
     }
 
-    // Never followed: the door does not redirect, so a redirect is not the door.
-    func urlSession(
-        _ session: URLSession,
-        task: URLSessionTask,
-        willPerformHTTPRedirection response: HTTPURLResponse,
-        newRequest request: URLRequest,
-        completionHandler: @escaping @Sendable (URLRequest?) -> Void
-    ) {
-        completionHandler(nil)
+    private func receive() {
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, self.result == nil else { return }
+            if let data, !data.isEmpty {
+                do {
+                    try self.reader.feed(data)
+                } catch {
+                    self.finish(.failure(error))
+                    return
+                }
+                if self.reader.isComplete {
+                    self.finish(Result { try self.reader.finish() })
+                    return
+                }
+            }
+            if let error {
+                self.finish(.failure(self.failure(error)))
+                return
+            }
+            if isComplete {
+                self.finish(Result { try self.reader.finish() })
+                return
+            }
+            self.receive()
+        }
     }
 
-    func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
-        lock.lock()
+    private func finish(_ outcome: Result<DoorReply, Error>) {
+        guard result == nil else { return }
+        result = outcome
+        timer?.cancel()
+        timer = nil
+        connection.stateUpdateHandler = nil
+        connection.cancel()
         let waiting = continuation
         continuation = nil
-        let result: Result<DoorReply, Error>
-        if pinRefused {
-            result = .failure(DoorFailure.wrongKey)
-        } else if overCap {
-            result = .failure(DoorFailure.tooLarge)
-        } else if let error {
-            result = .failure(DoorClient.failure(for: error))
-        } else {
-            result = .success(DoorReply(status: status, body: buffer.data))
-        }
-        lock.unlock()
-        waiting?.resume(with: result)
+        waiting?.resume(with: outcome)
     }
+}
+
+/// Whether the verify block refused the leaf, set on the exchange's queue and
+/// read there.
+private final class PinRefusal: @unchecked Sendable {
+    private(set) var happened = false
+    func mark() { happened = true }
 }

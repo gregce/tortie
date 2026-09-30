@@ -56,13 +56,16 @@
  *    spawn. There is no `child_process`, no tmux, no ssh and no agent.
  * 3. **No route may read a credential.** Nothing here names
  *    `main/credentials/` or `main/logins/`, and the wall asserts it.
- * 4. **A request whose source address equals the bind address is refused
- *    before any header is read.** That one is NOT HERE and it is not
- *    `./server.ts`'s either: `./bind.ts` destroys the socket on the
- *    `connection` event, before the TLS handshake and therefore before any
- *    header exists. An earlier draft of this sentence named the handler, which
- *    was wrong in the file and in the moment; `./server.ts`'s own header says
- *    the same thing the right way round.
+ * 4. **A connection that is not a paired phone's never reaches a header.**
+ *    That one is NOT HERE and it is not `./server.ts`'s either. Since Phase
+ *    330 the door is published through Tailscale Funnel, every connection
+ *    arrives from `127.0.0.1`, and the source-address refusal this item used
+ *    to name (Phase 313's `isSelfOrigin`) is gone with the tailnet bind. Its
+ *    place is taken by the door process (`./door/listener.ts`): outside a
+ *    pairing window, a TLS handshake whose client key is not a paired phone's
+ *    is destroyed at `secureConnection`, before the HTTP parser is handed the
+ *    socket, and a connection with no certificate reaches `POST /pair` alone,
+ *    only while a window is open.
  *
  * ## What this module does not do
  *
@@ -102,59 +105,11 @@ import { MAX_TURN_LIMIT } from '../overview/turn-view';
 // The table
 // ---------------------------------------------------------------------------
 
-export interface PocketRoute {
-  readonly id: PocketRouteId;
-  readonly method: 'GET' | 'POST';
-  /** The exact path. No parameter, no prefix, no wildcard. */
-  readonly path: string;
-  /**
-   * True when answering this route changes nothing on this Mac.
-   *
-   * IT IS TRUE OF EVERY ROUTE IN THIS PHASE and `build/conformance-pocket.mjs`
-   * reads it: a route added with `reads: false` is a write route, and this
-   * phase has none. The field exists so that adding one is a visible edit to
-   * this table rather than a quiet change inside a handler.
-   */
-  readonly reads: boolean;
-  /** Alive only inside a pairing window a person opened. */
-  readonly windowOnly: boolean;
-  /** Whether the request must carry a signature from an allowed phone. */
-  readonly signed: boolean;
-}
-
-/**
- * Every route this door has.
- *
- * IT IS FROZEN, and that is not decoration. A closed table a later round can
- * `push` onto at run time is not a closed table, and "the route table is closed"
- * is one of this phase's promises rather than one of its comments. The freeze is
- * what makes the promise hold against code nobody has written yet.
- *
- * `pair` is the one route that is not signed, because a phone that has not
- * paired yet has no key to sign with. It is sealed instead, under a key derived
- * from the one-shot secret in the QR, and it is dead outside the window — so
- * for almost all of the door's life it is not a route at all.
- */
-export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
-  { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
-  { id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true },
-  { id: 'session', method: 'GET', path: '/v1/session', reads: true, windowOnly: false, signed: true },
-  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }
-]);
-
-/**
- * The route for this method and path, or null.
- *
- * Equality on both, and nothing else. A trailing slash, a different case, a
- * path that merely starts with one of these, or any method the table does not
- * name for that path, all answer null.
- */
-export function matchPocketRoute(method: string, pathname: string): PocketRoute | null {
-  for (const route of POCKET_ROUTES) {
-    if (route.method === method && route.path === pathname) return route;
-  }
-  return null;
-}
+// THE TABLE LIVES IN `./door/table.ts` since Phase 330, moved byte for byte, so
+// the door process can refuse a path that is not a route before main is told
+// anything. It is re-exported here so no importer moved.
+import { POCKET_ROUTES, matchPocketRoute, type PocketRoute } from './door/table';
+export { POCKET_ROUTES, matchPocketRoute, type PocketRoute };
 
 /** The table and the contract's id list are one list. Read by the gate. */
 export function pocketRouteIds(): readonly PocketRouteId[] {

@@ -1,18 +1,28 @@
 #!/usr/bin/env node
 /**
  * build/p316/hostile-door.mjs — a door that is not Tortie's, for `probe:p316`'s
- * attack (Phase 316.2, build/p316/SPEC.md §4 S2, Method B), and the loopback
- * stand-ins for its ATS arm.
+ * attack (Phase 316.2, build/p316/SPEC.md §4 S2, Method B), speaking the
+ * Phase 330 wire (build/p330/SPEC.md §4.6 to §4.8).
  *
  * WHY IT EXISTS. The phone app draws a person's words from a network answer it
  * must not trust. Tortie's own door never sends a 10 MiB row, an unknown
- * status word, pages that go backwards or an answer that never completes, so
- * the only way to see what the app does with one is a door that does. Paired
- * through the DEBUG payload injection, the app is pointed at this door instead
+ * status word, pages that go backwards, a chunked body or two lengths, so the
+ * only way to see what the app does with one is a door that does. Paired
+ * through the DEBUG payload injection and dialled through the DEBUG endpoint
+ * (`-TortieDebugDoorEndpoint 127.0.0.1:<port>`, which keeps the code's NAME as
+ * the TLS server name and the `Host`), the app is pointed at this door instead
  * of the Mac's, and every arm must end in a DRAWN SENTENCE with the app's
  * process still alive and no half-drawn screen. The honest arm is in the same
  * table: a door that refuses everything proves a client that is off, so the
  * control must draw the list.
+ *
+ * WHAT IT IS, from Phase 330. TLS 1.3 only, under a key issued by Tortie's own
+ * src/main/pocket/tls.ts for the code's made-up `.ts.net` name, asking every
+ * client for a certificate. `/pair` checks the presentation's proof, answers
+ * `pending` first and `allowed` with a client certificate (issued by tls.ts's
+ * `issueClientCertificate` over the phone's client key) after, and every
+ * request event records the SNI, the `Host` and the client key the handshake
+ * presented, so the probe can hold the app to mutual TLS and to its name.
  *
  * THE ARMS (`serve --arm <name>`):
  *   honest           the control. The answers `ios/TortieTests/Fixtures/vectors.json`
@@ -20,17 +30,27 @@
  *                    conversation paged honestly for any `to` and `limit`
  *
  *   THE LIST ARMS answer the FIRST signed `/v1/blocked` honestly and every one
- *   after it with their hostile body (Phase 316.2's fix round). The first
- *   signed read is the one pairing makes, and pairing already refuses any
- *   answer it cannot read with its own sentence; served there, these arms only
- *   ever drove the pairing screen, and the list's own failure path (a paired
- *   phone whose refresh comes back too large, unreadable or never) was never
- *   reached. So the app pairs, draws the list, and meets the body on its pull
- *   to refresh:
- *   huge-row         `/v1/blocked` is one row whose question is 10 MiB (a list
- *                    arm)
- *   unknown-status   a status word the Mac never says
- *   unknown-dot      a dot name that is not one of the five
+ *   after it with their hostile body, so the app pairs, draws the list, and
+ *   meets the body on its pull to refresh (Phase 316.2's fix round):
+ *   huge-row         one row whose question is 10 MiB
+ *   malformed        not JSON
+ *   missing-fields   rows lacking fields the contract requires
+ *   never-completes  its headers and part of a body, then nothing, forever
+ *
+ *   THE HTTP ARMS (Phase 330, SPEC §6.4 (t)): the phone's HTTP/1.1 reader is
+ *   hand-written and bounded, so each of these is written as RAW BYTES on the
+ *   TLS socket, on the list's refresh like the list arms:
+ *   chunked          `Transfer-Encoding: chunked`, a well-formed chunked body
+ *   no-length        no `Content-Length`, the body ended by the close
+ *   two-lengths      two `Content-Length` headers
+ *   over-cap         a `Content-Length` of 3 MiB, over the phone's 2 MiB
+ *   huge-header      one 20 KiB header line, over the phone's 16 KiB
+ *   not-http11       an `HTTP/1.0` status line
+ *   early-close      a `Content-Length` twice what is sent, then the close
+ *   not-json         a 200 whose `Content-Type` is `text/plain`
+ *
+ *   unknown-status   a status word the Mac never says (drawn as main wrote it)
+ *   unknown-dot      a dot name that is not one of the five (a neutral ring)
  *   wrong-key        the TLS key is not the one the QR pins: the app must stop at
  *                    the handshake, and the door must have served 0 requests
  *   pair-word        `/pair` answers a word that is not pending, allowed or refused
@@ -38,64 +58,61 @@
  *   pages-overlap    the older page repeats the newest page's first turn
  *   more-forever     `more: true` on an older page that adds nothing
  *   more-negative    `more: true` forever, every page as long as the `limit`
- *                    asked, so the page asked for below index 20 runs below zero
  *   long-ask         the newest turn's ask is one 4,000-character word (drawn
  *                    whole, not refused: it is a legal answer)
- *   malformed        `/v1/blocked` is not JSON (a list arm)
- *   missing-fields   `/v1/blocked`'s rows lack fields the contract requires (a
- *                    list arm)
- *   never-completes  `/v1/blocked` sends its headers and part of a body, then
- *                    nothing, forever (a list arm)
- *   ats              the ATS arm's two stand-ins: an https door whose
- *                    certificate names 100.64.0.1, issued by Tortie's own
- *                    src/main/pocket/tls.ts the way SPEC §3.2 measured it, on
- *                    127.0.0.1; and a SOCKS5 server on 127.0.0.1 that answers
- *                    a CONNECT to 100.64.0.1 (ATYP=1) and to nothing else by
- *                    splicing it to that door. With `allowFailover` off in the
- *                    app, no packet goes to the 100.64/10 range at all.
+ *
+ * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
+ * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
  * HOW IT RUNS. As its OWN PROCESS under the pinned tsx: `probe:p316` starts it
- * with `spawn`, reads one `P316_DOOR:{…}` line (the ports, the pin, the QR
+ * with `spawn`, reads one `P316_DOOR:{…}` line (the port, the pin, the QR
  * payload the app is handed), reads `P316_DOOR_EVENT:{…}` lines as requests
- * arrive, and ends it in a `finally`. A door in the probe's own process would
- * starve beside a synchronous exec (SPEC §3.4 pitfall b); a door in its own
- * process cannot. It ends itself on SIGTERM, SIGINT, SIGHUP, and when its
- * stdin closes, so a parent that dies cannot orphan it.
+ * arrive, and ends it in a `finally`. It ends itself on SIGTERM, SIGINT,
+ * SIGHUP, and when its stdin closes, so a parent that dies cannot orphan it.
  *
  * `--self-test` drives every arm with build/p316/node-phone.mjs — no Simulator
- * — and asserts the door serves what the arm claims, including the SOCKS5
- * stand-in refusing a CONNECT to anything but 100.64.0.1.
+ * — and asserts the door serves what the arm claims, reading the HTTP arms'
+ * answers as raw bytes.
  *
- * LOOPBACK ONLY: every listener binds 127.0.0.1, and the SOCKS5 stand-in dials
- * 127.0.0.1 and nothing else. It logs no key, no signature and no body: an
- * event names the method, the path, the arm, the signature's verdict as one
- * word, the status and the byte count. The tailnet key in its QR is made up.
+ * LOOPBACK ONLY: every listener binds 127.0.0.1. It logs no key, no signature
+ * and no body: an event names the method, the path, the arm, the signature's
+ * verdict as one word, the status, the byte count, the SNI and Host it saw and
+ * the client key pin the handshake presented. The name in its QR is made up.
  *
  *   node build/p316/hostile-door.mjs --self-test
  *   node build/p316/hostile-door.mjs serve --arm honest      (under tsx; the probe does this)
  */
 
 import { spawnSync } from 'node:child_process';
-import { generateKeyPairSync, randomBytes } from 'node:crypto';
+import { X509Certificate, createHash, createPrivateKey, generateKeyPairSync, randomBytes } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { createServer as createHttpsServer } from 'node:https';
-import { connect as netConnect, createServer as createNetServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tsxCli } from '../ts-runner.mjs';
 import {
+  adoptCertificate,
   b64u,
+  bindingOf,
+  challengeOf,
+  clientKeyPinOf,
+  doorFrom,
   fingerprintOf,
   makePhone,
   openPresentation,
   pageBack,
+  pairAnswerOf,
+  pairThrough,
+  phoneIdOf,
   pinOfPem,
-  pinOfPeer,
   present,
+  proofTextOf,
+  readOffer,
+  rawExchange,
   sealPresentation,
   signedGet,
-  socksTls,
+  signedHeaders,
   verifySigned
 } from './node-phone.mjs';
 
@@ -105,25 +122,25 @@ const TAG = '[p316 hostile door]';
 const INNER = 'P316_HOSTILE_INNER';
 const J = JSON.stringify;
 
+/** The made-up public name the hostile door's code names. No resolver has ever answered it. */
+export const HOSTILE_NAME = 'p316-hostile.tail00000.ts.net';
+/** The public port its code names. The app dials the loopback port through the DEBUG endpoint instead. */
+export const HOSTILE_PUBLIC_PORT = 8443;
+
 /**
  * The arms, and what each expects the app to end in. An arm that ends in a
  * sentence names WHERE it is drawn (`at`, an accessibility identifier from
  * ios/Tortie/Screens/Identifiers.swift) and WHICH it is (`expect`, the names of
  * the `Copy.swift` words it may be), so the probe judges the sentence itself
  * and not merely that one was drawn. `list: true` marks a list arm: its
- * hostile body waits for the list's second read.
+ * hostile body waits for the list's second read. `raw: true` marks an HTTP arm
+ * written as bytes.
  */
 export const HOSTILE_ARMS = Object.freeze({
   honest: { what: 'the control: an honest door', ends: 'drawn' },
   'huge-row': { what: 'a 10 MiB row on the list\'s refresh', ends: 'sentence', list: true, at: 'list-failure', expect: ['answerTooLarge'] },
-  // DRAWN, NOT REFUSED (integrator, Phase 316.2). The status word and its
-  // raised title are main's own words, and the phone draws main's words and
-  // computes nothing from them (SPEC §4.0), so a word this build has never seen
-  // is drawn as it arrived and an unknown dot is drawn as a ring with no colour
-  // of its own. Refusing the list over it would make every status word a later
-  // Mac adds a phone-breaking change. SPEC §4 S2's Method B listed both among
-  // the arms that "end in a drawn sentence"; build/p316/SPEC.md §As built — 316.2
-  // records the departure.
+  // DRAWN, NOT REFUSED (integrator, Phase 316.2): the status word and its title
+  // are main's own words, which the phone draws and computes nothing from.
   'unknown-status': { what: 'a status word the Mac never says, drawn as main wrote it', ends: 'drawn' },
   'unknown-dot': { what: 'a dot name that is not one of the five, drawn as a neutral ring', ends: 'drawn' },
   'wrong-key': { what: 'a public key that does not match the pin', ends: 'sentence', at: 'pairing-line', expect: ['keyMismatch'] },
@@ -137,12 +154,25 @@ export const HOSTILE_ARMS = Object.freeze({
   'missing-fields': { what: 'rows missing fields the contract requires, on the list\'s refresh', ends: 'sentence', list: true, at: 'list-failure', expect: ['answerUnreadable'] },
   // The client's 15 s limit, then the list's own words for it.
   'never-completes': { what: 'an answer that never completes, on the list\'s refresh', ends: 'sentence', list: true, at: 'list-failure', expect: ['macDidNotAnswer'] },
-  ats: { what: 'a door at 100.64.0.1 behind a loopback SOCKS5 stand-in', ends: 'ats' }
+  // THE HTTP ARMS (Phase 330, SPEC §4.12.3 and §6.4 (t)). The phone's reader
+  // turns each into `malformed`, `unexpectedStatus` or `tooLarge`, and its
+  // words for those are `answerUnreadable` and `answerTooLarge`.
+  chunked: { what: 'Transfer-Encoding: chunked on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  'no-length': { what: 'no Content-Length, ended by the close, on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  'two-lengths': { what: 'two Content-Length headers on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  'over-cap': { what: 'a Content-Length of 3 MiB on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerTooLarge'] },
+  'huge-header': { what: 'a 20 KiB header on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable', 'answerTooLarge'] },
+  'not-http11': { what: 'an HTTP/1.0 status line on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  'early-close': { what: 'a Content-Length twice what is sent, then the close, on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  'not-json': { what: 'a 200 whose Content-Type is text/plain on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] }
 });
 
-/** The made-up tailnet key the QR carries. No Tailscale server has ever seen it. */
-export const MADE_UP_KEY = `tskey-auth-kP316hostile-${'0'.repeat(24)}`;
+/** The names of the HTTP arms, as conformance:ios (t) reads them. */
+export const HTTP_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].raw === true));
+
 const HUGE_BYTES = 10 * 1024 * 1024;
+const OVER_CAP_BYTES = 3 * 1024 * 1024;
+const HUGE_HEADER_BYTES = 20 * 1024;
 /** The raised word the `unknown-status` arm sends; the probe looks for it on the drawn rows. */
 export const UNKNOWN_STATUS_TITLE = 'Levitating';
 const LONG_ASK = `p316${'w'.repeat(4_000 - 4)}`;
@@ -169,13 +199,17 @@ if (isMain && process.env[INNER] !== '1') {
   process.exit(r.status ?? 1);
 }
 
-/** One identity from src/main/pocket/tls.ts, covering `addresses`, sealed by nothing, in scratch. */
-async function issueIdentity(addresses, scratch, name) {
-  const tls = await import(pathToFileURL(join(ROOT, 'src', 'main', 'pocket', 'tls.ts')).href);
+async function tlsModule() {
+  return import(pathToFileURL(join(ROOT, 'src', 'main', 'pocket', 'tls.ts')).href);
+}
+
+/** One identity from src/main/pocket/tls.ts, naming `dnsName`, sealed by nothing, in scratch. */
+async function issueIdentity(dnsName, scratch, name) {
+  const tls = await tlsModule();
   const outcome = tls.ensureDoorIdentity({
     path: join(scratch, `${name}.json`),
     seal: { available: () => true, seal: (text) => text, open: (blob) => (typeof blob === 'string' ? blob : null) },
-    names: { addresses, dnsNames: [] }
+    names: { addresses: [], dnsNames: [dnsName] }
   });
   if (outcome.kind !== 'ready') throw new Error(`tls.ts refused to issue an identity: ${outcome.sentence}`);
   return { key: outcome.identity.keyPem, cert: outcome.identity.certPem, pin: pinOfPem(outcome.identity.certPem), sans: outcome.identity.subjectAltNames };
@@ -222,44 +256,101 @@ function honestPage(world, query) {
   return { sessionId: world.sessionId, turns: page, more, at: world.at, note: null };
 }
 
+/**
+ * The raw bytes an HTTP arm writes, for an honest body. Every one is a
+ * complete HTTP answer in some shape the phone's reader must refuse (SPEC
+ * §4.12.3). Exported so the self-test and conformance:ios can read the table.
+ */
+export function rawAnswerOf(arm, body) {
+  const json = Buffer.from(body, 'utf8');
+  const head = (lines) => Buffer.from(`${lines.join('\r\n')}\r\n\r\n`, 'utf8');
+  switch (arm) {
+    case 'chunked':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', 'Transfer-Encoding: chunked', 'Connection: close']), Buffer.from(`${json.length.toString(16)}\r\n`), json, Buffer.from('\r\n0\r\n\r\n')]);
+    case 'no-length':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', 'Connection: close']), json]);
+    case 'two-lengths':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', `Content-Length: ${String(json.length)}`, `Content-Length: ${String(json.length)}`, 'Connection: close']), json]);
+    case 'over-cap': {
+      const padded = Buffer.alloc(OVER_CAP_BYTES, 0x20);
+      json.copy(padded, 0);
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', `Content-Length: ${String(padded.length)}`, 'Connection: close']), padded]);
+    }
+    case 'huge-header':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', `X-P316-Padding: ${'a'.repeat(HUGE_HEADER_BYTES)}`, `Content-Length: ${String(json.length)}`, 'Connection: close']), json]);
+    case 'not-http11':
+      return Buffer.concat([head(['HTTP/1.0 200 OK', 'Content-Type: application/json; charset=utf-8', `Content-Length: ${String(json.length)}`, 'Connection: close']), json]);
+    case 'early-close':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: application/json; charset=utf-8', `Content-Length: ${String(json.length * 2)}`, 'Connection: close']), json]);
+    case 'not-json':
+      return Buffer.concat([head(['HTTP/1.1 200 OK', 'Content-Type: text/plain; charset=utf-8', `Content-Length: ${String(json.length)}`, 'Connection: close']), json]);
+    default:
+      throw new Error(`${arm} is not an HTTP arm`);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // The door
 // ---------------------------------------------------------------------------
 
 /**
  * Start one arm's door on 127.0.0.1. Returns its facts and a `close()`. `emit`
- * receives one event per request and per SOCKS CONNECT.
+ * receives one event per request and per handshake.
  */
 export async function startHostileDoor(arm, emit = () => undefined) {
   if (!Object.prototype.hasOwnProperty.call(HOSTILE_ARMS, arm)) throw new Error(`no arm named ${arm}; the arms are ${Object.keys(HOSTILE_ARMS).join(', ')}`);
   const scratch = mkdtempSync(join(tmpdir(), 'p316-hostile-'));
   const sockets = new Set();
   const servers = [];
-  const counts = { requests: 0, handshakes: 0, connects: 0 };
+  const counts = { requests: 0, handshakes: 0 };
   const closeAll = async () => {
     for (const s of sockets) s.destroy();
     await Promise.all(servers.map((s) => new Promise((r) => s.close(() => r()))));
     rmSync(scratch, { recursive: true, force: true });
   };
   try {
-    const world = arm === 'ats' ? null : honestWorld();
-    const pinned = await issueIdentity(arm === 'ats' ? ['100.64.0.1'] : ['127.0.0.1'], scratch, 'door');
-    const served = arm === 'wrong-key' ? await issueIdentity(['127.0.0.1'], scratch, 'impostor') : pinned;
+    const tls = await tlsModule();
+    const world = honestWorld();
+    const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
+    const served = arm === 'wrong-key' ? await issueIdentity(HOSTILE_NAME, scratch, 'impostor') : pinned;
     const doorSign = generateKeyPairSync('ed25519');
     const doorX = generateKeyPairSync('x25519');
     const dk = b64u(doorSign.publicKey.export({ type: 'spki', format: 'der' }));
     const dx = b64u(doorX.publicKey.export({ type: 'spki', format: 'der' }));
     const ps = b64u(randomBytes(16));
     let phone = null;
-    let presentations = 0;
+    let certificate = null;
+    /** How many times each signing key has presented a proof that held. */
+    const presentedBy = new Map();
     /** Signed `/v1/blocked` reads answered; a list arm answers the first honestly. */
     let blockedReads = 0;
 
+    /** What the handshake under this request presented: the SNI, the Host, the client key pin. */
+    const seenOf = (req) => {
+      const socket = req.socket;
+      let clientPin = null;
+      try {
+        const peer = socket.getPeerX509Certificate?.();
+        if (peer !== undefined) clientPin = b64u(createHash('sha256').update(peer.publicKey.export({ type: 'spki', format: 'der' })).digest());
+      } catch {
+        clientPin = null;
+      }
+      return { servername: typeof socket.servername === 'string' ? socket.servername : null, host: req.headers.host ?? null, clientPin, tls: socket.getProtocol?.() ?? null };
+    };
+
     const send = (res, status, body, event) => {
       const bytes = Buffer.byteLength(body);
-      res.writeHead(status, { 'content-type': 'application/json', 'content-length': String(bytes), 'cache-control': 'no-store' });
+      res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': String(bytes), 'cache-control': 'no-store' });
       res.end(body);
       emit({ kind: 'request', arm, ...event, status, bytes });
+    };
+    const sendRaw = (req, raw, event) => {
+      const socket = req.socket;
+      emit({ kind: 'request', arm, ...event, status: 'raw', bytes: raw.length });
+      socket.write(raw, () => {
+        if (arm === 'early-close') socket.destroy();
+        else socket.end();
+      });
     };
 
     const handler = (req, res) => {
@@ -270,19 +361,25 @@ export async function startHostileDoor(arm, emit = () => undefined) {
         const body = Buffer.concat(chunks);
         const url = new URL(req.url ?? '/', 'https://door.invalid');
         const route = `${req.method} ${url.pathname}`;
+        const seen = seenOf(req);
         if (route === 'POST /pair') {
-          presentations += 1;
-          if (arm === 'ats') return send(res, 200, J({ state: 'pending' }), { route });
           const opened = openPresentation(ps, body);
-          if (opened === null) return send(res, 200, J({ state: 'refused' }), { route, sealed: 'refused' });
-          phone = opened;
-          if (arm === 'pair-word') return send(res, 200, J({ state: 'granted' }), { route, sealed: 'opened' });
-          // The person "allows" on the second presentation, the way the real
-          // door answers `pending` until the Allow and `allowed` after it.
-          return send(res, 200, J({ state: presentations === 1 ? 'pending' : 'allowed' }), { route, sealed: 'opened', fingerprint: fingerprintOf(opened.signingKey, opened.exchangeKey) });
+          if (opened === null || !opened.proofOk) return send(res, 200, J({ state: 'refused' }), { route, ...seen, sealed: opened === null ? 'refused' : 'proof-refused' });
+          if (arm === 'pair-word') return send(res, 200, J({ state: 'granted' }), { route, ...seen, sealed: 'opened' });
+          // The person "allows" on a key's second presentation, the way the
+          // real door answers `pending` until the Allow and `allowed` after it.
+          const times = (presentedBy.get(opened.signingKey) ?? 0) + 1;
+          presentedBy.set(opened.signingKey, times);
+          if (phone === null || phone.signingKey !== opened.signingKey) {
+            phone = opened;
+            certificate = null;
+          }
+          if (times === 1) return send(res, 200, J({ state: 'pending' }), { route, ...seen, sealed: 'opened', fingerprint: fingerprintOf(opened.signingKey, opened.exchangeKey, opened.clientKey) });
+          certificate ??= b64u(tls.issueClientCertificate(pinned.key, opened.clientKey, Date.now()));
+          return send(res, 200, J({ state: 'allowed', cert: certificate }), { route, ...seen, sealed: 'opened' });
         }
-        if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns'].includes(url.pathname) || world === null) {
-          return send(res, 404, '{}', { route });
+        if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns'].includes(url.pathname)) {
+          return send(res, 404, '', { route, ...seen });
         }
         const verified = verifySigned({
           method: req.method,
@@ -293,14 +390,16 @@ export async function startHostileDoor(arm, emit = () => undefined) {
           doorExchangePrivate: doorX.privateKey,
           doorExchangeKey: dx
         });
-        if (verified !== 'ok') return send(res, 404, '{}', { route, verified });
-        const event = { route, verified };
+        const channelHeld = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+        const event = { route, ...seen, verified, channelHeld };
+        if (verified !== 'ok') return send(res, 404, '', event);
         if (url.pathname === '/v1/blocked') {
           blockedReads += 1;
           const answer = structuredClone(world.blocked);
           // The first signed read is pairing's: a list arm answers it
           // honestly, so the app pairs and its LIST meets the body.
           if (HOSTILE_ARMS[arm].list === true && blockedReads === 1) return send(res, 200, J(answer), { ...event, honestFirst: true });
+          if (HOSTILE_ARMS[arm].raw === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), event);
           if (arm === 'huge-row') {
             const row = { ...answer.rows[0], question: 'q'.repeat(HUGE_BYTES) };
             return send(res, 200, J({ ...answer, rows: [row] }), event);
@@ -318,7 +417,7 @@ export async function startHostileDoor(arm, emit = () => undefined) {
             }
           }
           if (arm === 'never-completes') {
-            res.writeHead(200, { 'content-type': 'application/json', 'content-length': '100000' });
+            res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': '100000' });
             res.write('{"rows":[');
             emit({ kind: 'request', arm, ...event, status: 200, bytes: 9, held: true });
             return;
@@ -328,7 +427,7 @@ export async function startHostileDoor(arm, emit = () => undefined) {
         if (url.pathname === '/v1/session') {
           if (url.searchParams.get('id') !== world.sessionId) {
             const other = [...world.blocked.rows, ...world.blocked.others].find((r) => r.sessionId === url.searchParams.get('id'));
-            if (other === undefined) return send(res, 404, '{}', event);
+            if (other === undefined) return send(res, 404, '', event);
             return send(res, 200, J({ session: { ...world.session.session, ...other }, at: world.at }), event);
           }
           return send(res, 200, J(world.session), event);
@@ -348,10 +447,6 @@ export async function startHostileDoor(arm, emit = () => undefined) {
           }
         }
         if (arm === 'more-negative') {
-          // Every page is as long as the `limit` asked for, so the page asked
-          // for below index `limit` runs below zero. (The first build cut each
-          // page to the honest page's length, which never goes below zero when
-          // the asker is the app: the app stopped quietly at index 0.)
           const to = first ? world.turns.length - 1 : Number(url.searchParams.get('to'));
           const limit = Math.max(1, Math.min(200, Number(url.searchParams.get('limit') ?? 20) || 20));
           page.turns = Array.from({ length: limit }, (_, k) => ({ ...world.turns[0], index: to - limit + 1 + k }));
@@ -361,9 +456,19 @@ export async function startHostileDoor(arm, emit = () => undefined) {
       });
     };
 
-    const door = createHttpsServer({ key: served.key, cert: served.cert, minVersion: 'TLSv1.2' }, handler);
-    door.on('secureConnection', () => {
+    // TLS 1.3 only, asking for a client certificate and checking it by PIN in
+    // the handler rather than by a chain, the way the real door does.
+    const door = createHttpsServer({ key: served.key, cert: served.cert, minVersion: 'TLSv1.3', requestCert: true, rejectUnauthorized: false }, handler);
+    door.on('secureConnection', (s) => {
       counts.handshakes += 1;
+      let clientPin = null;
+      try {
+        const peer = s.getPeerX509Certificate?.();
+        if (peer !== undefined) clientPin = b64u(createHash('sha256').update(peer.publicKey.export({ type: 'spki', format: 'der' })).digest());
+      } catch {
+        clientPin = null;
+      }
+      emit({ kind: 'handshake', arm, servername: typeof s.servername === 'string' ? s.servername : null, clientPin, tls: s.getProtocol?.() ?? null });
     });
     door.on('connection', (s) => {
       sockets.add(s);
@@ -376,99 +481,21 @@ export async function startHostileDoor(arm, emit = () => undefined) {
     });
     const port = door.address().port;
 
-    let socksPort = null;
-    if (arm === 'ats') {
-      // THE SOCKS5 STAND-IN. It answers exactly one destination, 100.64.0.1 at
-      // the door's own port, written as ATYP=1 (an IPv4 literal), and splices
-      // it to the door on 127.0.0.1. Anything else is refused with REP=2
-      // ("connection not allowed by ruleset") and never dialled.
-      const socks = createNetServer((client) => {
-        sockets.add(client);
-        client.on('close', () => sockets.delete(client));
-        client.on('error', () => undefined);
-        let buf = Buffer.alloc(0);
-        let stage = 'greet';
-        const onData = (chunk) => {
-          buf = Buffer.concat([buf, chunk]);
-          if (stage === 'greet') {
-            if (buf.length < 2 || buf.length < 2 + buf[1]) return;
-            const methods = buf.subarray(2, 2 + buf[1]);
-            buf = buf.subarray(2 + buf[1]);
-            if (!methods.includes(0)) {
-              client.end(Buffer.from([5, 0xff]));
-              return;
-            }
-            client.write(Buffer.from([5, 0]));
-            stage = 'request';
-          }
-          if (stage === 'request') {
-            if (buf.length < 4) return;
-            const atyp = buf[3];
-            let host = null;
-            let at = 4;
-            if (atyp === 1) {
-              if (buf.length < 10) return;
-              host = [...buf.subarray(4, 8)].join('.');
-              at = 8;
-            } else if (atyp === 3) {
-              if (buf.length < 5 || buf.length < 5 + buf[4] + 2) return;
-              host = buf.subarray(5, 5 + buf[4]).toString('utf8');
-              at = 5 + buf[4];
-            } else if (atyp === 4) {
-              if (buf.length < 22) return;
-              host = buf.subarray(4, 20).toString('hex');
-              at = 20;
-            }
-            const dport = buf.readUInt16BE(at);
-            const allowed = buf[1] === 1 && atyp === 1 && host === '100.64.0.1' && dport === port;
-            counts.connects += 1;
-            emit({ kind: 'socks', arm, atyp, host, port: dport, allowed });
-            client.removeListener('data', onData);
-            if (!allowed) {
-              client.end(Buffer.from([5, 2, 0, 1, 0, 0, 0, 0, 0, 0]));
-              return;
-            }
-            const upstream = netConnect({ host: '127.0.0.1', port }, () => {
-              client.write(Buffer.from([5, 0, 0, 1, 127, 0, 0, 1, (port >> 8) & 0xff, port & 0xff]));
-              const rest = buf.subarray(at + 2);
-              if (rest.length > 0) upstream.write(rest);
-              client.pipe(upstream);
-              upstream.pipe(client);
-            });
-            sockets.add(upstream);
-            upstream.on('close', () => {
-              sockets.delete(upstream);
-              client.destroy();
-            });
-            upstream.on('error', () => client.destroy());
-            stage = 'spliced';
-          }
-        };
-        client.on('data', onData);
-      });
-      servers.push(socks);
-      await new Promise((r, j) => {
-        socks.once('error', j);
-        socks.listen(0, '127.0.0.1', () => r());
-      });
-      socksPort = socks.address().port;
-    }
-
     const exp = Date.now() + 3 * 60_000;
-    const payload = arm === 'ats' ? null : J({ v: 2, host: '127.0.0.1', port, fp: pinned.pin, dk, dx, ps, exp, tk: MADE_UP_KEY });
+    const payload = J({ v: 3, host: HOSTILE_NAME, port: HOSTILE_PUBLIC_PORT, fp: pinned.pin, dk, dx, ps, exp });
     return {
       arm,
       port,
+      name: HOSTILE_NAME,
+      publicPort: HOSTILE_PUBLIC_PORT,
       pin: pinned.pin,
       servedPin: served.pin,
       sans: pinned.sans,
       payload,
       dx,
       ps,
-      socksPort,
-      atsHost: arm === 'ats' ? '100.64.0.1' : null,
-      sessionToOpen: world?.sessionId ?? null,
-      turnCount: world?.turns.length ?? null,
+      sessionToOpen: world.sessionId,
+      turnCount: world.turns.length,
       counts,
       phone: () => phone,
       close: closeAll
@@ -503,11 +530,11 @@ async function serve(arm) {
     `P316_DOOR:${J({
       arm,
       port: door.port,
+      name: door.name,
+      publicPort: door.publicPort,
       pin: door.pin,
       servedPin: door.servedPin,
       payload: door.payload,
-      socksPort: door.socksPort,
-      atsHost: door.atsHost,
       sessionToOpen: door.sessionToOpen,
       turnCount: door.turnCount
     })}`
@@ -518,63 +545,101 @@ async function serve(arm) {
 // --self-test: every arm driven by the node phone, no Simulator
 // ---------------------------------------------------------------------------
 
+/** Split a raw answer into its status line, its header lines and its body. */
+export function splitRaw(bytes) {
+  const at = bytes.indexOf('\r\n\r\n');
+  if (at === -1) return { status: bytes.toString('latin1').split('\r\n')[0], headers: [], body: Buffer.alloc(0), headBytes: bytes.length };
+  const lines = bytes.subarray(0, at).toString('latin1').split('\r\n');
+  return { status: lines[0], headers: lines.slice(1), body: bytes.subarray(at + 4), headBytes: at + 4 };
+}
+
+/**
+ * THE NODE PHONE AGAINST THE SHIPPING TYPESCRIPT. build/p316/node-phone.mjs is
+ * written from the SPEC's wire format and never from src/main/pocket/, and
+ * ios/TortieTests/Fixtures/vectors.json is what the SHIPPING pairing.ts and
+ * tls.ts wrote (build/p316/vectors.mjs). Where the two agree, the node phone
+ * every probe pairs with speaks the Mac's wire; where they do not, one of them
+ * is wrong, and the arm names which field.
+ */
+function vectorsAgree() {
+  const file = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json');
+  const v = JSON.parse(readFileSync(file, 'utf8'));
+  const x25519 = (seedHex) => createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b656e04220420', 'hex'), Buffer.from(seedHex, 'hex')]), format: 'der', type: 'pkcs8' });
+  const k = v.keys;
+  const opened = openPresentation(v.seal.secret, Buffer.from(v.seal.fromPhone.body, 'utf8'));
+  const offers = (v.qr ?? []).map((q) => readOffer(q.payload));
+  const allowed = pairAnswerOf({ body: v.pairAnswers.allowed });
+  // The phone's refusals of a code, on the shipping code's own bytes with one
+  // thing changed each (SPEC §4.8.1): an earlier version, an address for a
+  // host, a port that is not 8443 or 10000, a tailnet key, a host off ts.net.
+  const good = JSON.parse(v.qr[0].payload);
+  const variant = (patch) => readOffer(J({ ...good, ...patch })).ok;
+  const withTk = readOffer(J({ ...good, tk: 'tskey-auth-kMADEUP-0' })).ok;
+  const rows = [
+    ['a v:2 code is refused', variant({ v: 2 }) === false],
+    ['a code naming an address is refused', variant({ host: '100.64.0.1' }) === false],
+    ['a code naming port 443 is refused', variant({ port: 443 }) === false],
+    ['a code carrying a tailnet key is refused', withTk === false],
+    ['a code naming a host off ts.net is refused', variant({ host: 'p330-mac.example.com' }) === false],
+    ['the phone id', phoneIdOf(k.phoneSigningKey) === v.identity.phoneId],
+    ['the three-key fingerprint', fingerprintOf(k.phoneSigningKey, k.phoneExchangeKey, k.clientKey) === v.identity.fingerprint],
+    ['the binding', bindingOf(x25519(k.phoneExchangeSeed), k.macExchangeKey, k.macExchangeKey, k.phoneExchangeKey) === v.identity.binding],
+    ['the client-key pin', clientKeyPinOf(k.clientKey) === v.identity.clientPin],
+    ['the challenge', challengeOf(v.seal.secret) === v.seal.challenge],
+    ['the proof text', proofTextOf(v.seal.challenge, v.seal.fromPhone.iv, v.seal.fromPhone.ct, v.seal.fromPhone.tag) === v.seal.fromPhone.proof],
+    ['the presentation opens and its proof holds', opened !== null && opened.proofOk && opened.clientKey === k.clientKey && opened.label === v.seal.label],
+    ['every code reads the phone\'s way', offers.length > 0 && offers.every((o) => o.ok)],
+    ['the certificate names the client key', adoptCertificate({ clientKey: v.client.clientKey }, v.client.certificateDer).ok],
+    ['allowed carries the certificate and nothing else', allowed.state === 'allowed' && J(allowed.keys) === J(['cert', 'state'])]
+  ];
+  return { ok: rows.every(([, ok]) => ok), failed: rows.filter(([, ok]) => !ok).map(([name]) => name), count: rows.length };
+}
+
 async function selfTest() {
   const results = [];
   const check = (arm, ok, said) => {
     results.push({ arm, ok, said });
     process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${arm.padEnd(16)} ${said}\n`);
   };
-  /** Pair a node phone with this door the way the app would: present twice. */
-  const pairWith = async (door) => {
-    const qr = JSON.parse(door.payload);
-    const p = makePhone('p316 self-test phone', qr.dx);
-    const d = { port: qr.port, pin: qr.fp };
-    const first = await present(d, sealPresentation(qr.ps, p));
-    const second = await present(d, sealPresentation(qr.ps, p));
-    return { phone: p, door: d, words: [first, second].map((a) => { try { return JSON.parse(a.body).state; } catch { return `status ${String(a.status)} ${a.error ?? ''}`; } }) };
-  };
+  try {
+    const agreed = vectorsAgree();
+    check('vectors', agreed.ok, agreed.ok ? `the node phone agrees with the shipping TypeScript's vectors on all ${String(agreed.count)} fields` : `the node phone DISAGREES with the shipping TypeScript's vectors on ${J(agreed.failed)}`);
+  } catch (err) {
+    check('vectors', false, `the vectors could not be read: ${String(err?.message ?? err)}`);
+  }
   for (const arm of Object.keys(HOSTILE_ARMS)) {
     const events = [];
     let door = null;
     try {
       door = await startHostileDoor(arm, (e) => events.push(e));
-      if (arm === 'ats') {
-        const through = await socksTls({ socksPort: door.socksPort, ipv4: '100.64.0.1', port: door.port });
-        let status = 0;
-        if (through.ok) {
-          status = await new Promise((done) => {
-            through.tls.write(`POST /pair HTTP/1.1\r\nHost: 100.64.0.1\r\nContent-Type: application/json\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}`);
-            let text = '';
-            through.tls.on('data', (c) => (text += c.toString('utf8')));
-            through.tls.on('end', () => done(Number(/^HTTP\/1\.1 (\d+)/.exec(text)?.[1] ?? 0)));
-            through.tls.on('error', () => done(0));
-          });
-        }
-        const refused = await socksTls({ socksPort: door.socksPort, ipv4: '192.0.2.10', port: door.port });
-        const pinHolds = through.ok && pinOfPeer(through.peer) === door.pin;
-        const san = (door.sans ?? []).some((s) => s.includes('100.64.0.1'));
-        const socks = events.filter((e) => e.kind === 'socks');
-        check(
-          arm,
-          through.ok && status === 200 && pinHolds && san && !refused.ok && socks.length === 2 && socks[0].atyp === 1 && socks[0].allowed && !socks[1].allowed,
-          `through the stand-in to 100.64.0.1: TLS ${through.ok ? 'up' : `DOWN (${through.why})`}, pin ${pinHolds ? 'holds' : 'DOES NOT hold'}, the certificate ${san ? 'names 100.64.0.1' : 'does NOT name 100.64.0.1'}, POST /pair ${String(status)}; to 192.0.2.10: ${refused.ok ? 'SPLICED' : 'refused'}; ${String(socks.length)} CONNECT(s) seen, the first ATYP=${String(socks[0]?.atyp)}`
-        );
-        continue;
-      }
+      const qr = JSON.parse(door.payload);
+      const d = doorFrom(qr, door.port);
       if (arm === 'wrong-key') {
-        const qr = JSON.parse(door.payload);
         const p = makePhone('p316 self-test phone', qr.dx);
-        const got = await present({ port: qr.port, pin: qr.fp }, sealPresentation(qr.ps, p));
+        const got = await present(d, sealPresentation(qr.ps, p));
         check(arm, got.status === 0 && /not the pinned/.test(got.error ?? '') && door.counts.requests === 0 && door.pin !== door.servedPin, `the pinned client stopped at the handshake (${got.error ?? got.status}); the door served ${String(door.counts.requests)} request(s)`);
         continue;
       }
-      const { phone, door: d, words } = await pairWith(door);
+      const phone = makePhone('p316 self-test phone', qr.dx);
       if (arm === 'pair-word') {
-        check(arm, !['pending', 'allowed', 'refused'].includes(words[0]), `/pair answered ${J(words[0])}`);
+        const got = await present(d, sealPresentation(qr.ps, phone));
+        let word = null;
+        try {
+          word = JSON.parse(got.body).state;
+        } catch {
+          word = null;
+        }
+        check(arm, !['pending', 'allowed', 'refused'].includes(word), `/pair answered ${J(word)}`);
         continue;
       }
-      if (words[0] !== 'pending' || words[1] !== 'allowed') {
-        check(arm, false, `pairing answered ${J(words)}, not pending then allowed`);
+      // A presentation whose proof is signed by another key is refused, so the
+      // door checks the proof the phone must make.
+      const stranger = generateKeyPairSync('ed25519').privateKey;
+      const forged = await present(d, sealPresentation(qr.ps, phone, { signWith: stranger }));
+      const paired = await pairThrough(d, qr, phone, { tries: 3, everyMs: 50 });
+      const cert = paired.ok ? new X509Certificate(paired.cert.der) : null;
+      if (!paired.ok || JSON.parse(forged.body).state !== 'refused') {
+        check(arm, false, `pairing answered ${J(paired.words)} (${paired.why}); a proof by another key answered ${J(forged.body)}`);
         continue;
       }
       // A list arm answers pairing's first signed read honestly and the
@@ -592,6 +657,37 @@ async function selfTest() {
         check(arm, false, `the first signed read (pairing's) answered ${String(firstRead.status)} and ${firstBody === null ? 'does not parse' : 'parses without rows'}, not honestly`);
         continue;
       }
+      /** Every signed read so far presented the client identity, over TLS 1.3, with the name as SNI and Host; and there was one. */
+      const mtlsNow = () => {
+        const reads = events.filter((e) => e.kind === 'request' && e.verified !== undefined);
+        return reads.length > 0 && reads.every((e) => e.channelHeld === true && e.servername === HOSTILE_NAME && e.host === `${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}` && e.tls === 'TLSv1.3');
+      };
+      const first = listArm ? 'the first read honest and presenting its identity, then ' : '';
+      if (HOSTILE_ARMS[arm].raw === true) {
+        const target = '/v1/blocked';
+        const headers = signedHeaders(phone, target);
+        const request = Buffer.from(
+          [`GET ${target} HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`), 'Connection: close', '', ''].join('\r\n'),
+          'utf8'
+        );
+        const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+        const mtls = mtlsNow();
+        const { status, headers: lines, body, headBytes } = splitRaw(raw.bytes);
+        const lengths = lines.filter((l) => /^content-length:/i.test(l));
+        const declared = lengths.length === 1 ? Number(lengths[0].split(':')[1]) : null;
+        const says = {
+          chunked: lines.some((l) => /^transfer-encoding:\s*chunked$/i.test(l)) && lengths.length === 0,
+          'no-length': lengths.length === 0 && !lines.some((l) => /^transfer-encoding:/i.test(l)) && body.length > 0,
+          'two-lengths': lengths.length === 2,
+          'over-cap': declared !== null && declared > 2 * 1024 * 1024 && body.length === declared,
+          'huge-header': lines.some((l) => l.length >= HUGE_HEADER_BYTES) && headBytes > 16 * 1024,
+          'not-http11': /^HTTP\/1\.0 200 /.test(status),
+          'early-close': declared !== null && body.length < declared,
+          'not-json': status.startsWith('HTTP/1.1 200 ') && lines.some((l) => /^content-type:\s*text\/plain/i.test(l)) && declared === body.length
+        }[arm];
+        check(arm, raw.handshook && says === true && mtls, `${first}the raw answer: ${J(status)}, ${String(lines.length)} header line(s) (${lengths.length} Content-Length${declared === null ? '' : ` = ${String(declared)}`}), ${String(body.length)} body byte(s); every signed read over TLS 1.3 with the client identity, the name as SNI and Host: ${String(mtls)}`);
+        continue;
+      }
       const blocked = await signedGet(phone, d, '/v1/blocked', { timeoutMs: arm === 'never-completes' ? 3_000 : 20_000 });
       let body = null;
       try {
@@ -600,13 +696,14 @@ async function selfTest() {
         body = null;
       }
       const verified = events.filter((e) => e.kind === 'request' && e.verified !== undefined).every((e) => e.verified === 'ok');
-      const first = listArm ? 'the first read honest, then ' : '';
-      if (arm === 'huge-row') check(arm, blocked.bytes > HUGE_BYTES && verified, `${first}/v1/blocked sent ${String(blocked.bytes)} bytes`);
-      else if (arm === 'unknown-status') check(arm, body?.rows?.[0]?.statusLabel === 'levitating', `the first row's word is ${J(body?.rows?.[0]?.statusLabel)}`);
-      else if (arm === 'unknown-dot') check(arm, body?.rows?.[0]?.statusDot === 'plaid', `the first row's dot is ${J(body?.rows?.[0]?.statusDot)}`);
-      else if (arm === 'malformed') check(arm, blocked.status === 200 && body === null, `${first}/v1/blocked answered ${String(blocked.status)} and ${body === null ? 'does not parse' : 'PARSES'}`);
-      else if (arm === 'missing-fields') check(arm, body !== null && body.rows?.[0]?.statusLabel === undefined && body.rows?.[0]?.sessionId === undefined, `${first}the rows carry no statusLabel and no sessionId`);
-      else if (arm === 'never-completes') check(arm, blocked.status === 0 && /timed out|socket hang up/.test(blocked.error ?? ''), `${first}the read ended ${blocked.error ?? blocked.status} after the client's own limit`);
+      let mtls = mtlsNow();
+      const certNote = cert === null ? '' : `; the client certificate names the phone's key (${cert.subject.replace(/\n/g, ' ')})`;
+      if (arm === 'huge-row') check(arm, blocked.bytes > HUGE_BYTES && verified && mtls, `${first}/v1/blocked sent ${String(blocked.bytes)} bytes`);
+      else if (arm === 'unknown-status') check(arm, body?.rows?.[0]?.statusLabel === 'levitating' && mtls, `the first row's word is ${J(body?.rows?.[0]?.statusLabel)}`);
+      else if (arm === 'unknown-dot') check(arm, body?.rows?.[0]?.statusDot === 'plaid' && mtls, `the first row's dot is ${J(body?.rows?.[0]?.statusDot)}`);
+      else if (arm === 'malformed') check(arm, blocked.status === 200 && body === null && mtls, `${first}/v1/blocked answered ${String(blocked.status)} and ${body === null ? 'does not parse' : 'PARSES'}`);
+      else if (arm === 'missing-fields') check(arm, body !== null && body.rows?.[0]?.statusLabel === undefined && body.rows?.[0]?.sessionId === undefined && mtls, `${first}the rows carry no statusLabel and no sessionId`);
+      else if (arm === 'never-completes') check(arm, blocked.status === 0 && /timed out|socket hang up/.test(blocked.error ?? '') && mtls, `${first}the read ended ${blocked.error ?? blocked.status} after the client's own limit`);
       else {
         const paged = await pageBack(phone, d, door.sessionToOpen, 7, 12);
         const all = paged.pages.slice().reverse().flatMap((p) => p.turns);
@@ -614,7 +711,19 @@ async function selfTest() {
         const contiguous = indexes.every((ix, k) => k === 0 || ix === indexes[k - 1] + 1);
         const pagesForward = paged.pages.length > 1 && paged.pages[1].turns.length > 0 && paged.pages[1].turns[0].index >= paged.pages[0].turns[0].index;
         if (arm === 'honest') {
-          check(arm, blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified, `paired, the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified by the door's own reader`);
+          mtls = mtlsNow();
+          // Without the client identity, an honest door still answers (it is
+          // hostile, not strict), but its event records no client key: the
+          // probe grades the APP on presenting one, and this proves the event
+          // would show a read that did not.
+          const bare = { ...phone, certPem: null };
+          await signedGet(bare, d, '/v1/blocked');
+          const bareEvent = events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/blocked').pop();
+          check(
+            arm,
+            blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false,
+            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such${certNote}`
+          );
         } else if (arm === 'pages-backwards') {
           check(arm, pagesForward, `the older page starts at ${J(paged.pages[1]?.turns?.[0]?.index)} after a page that started at ${J(paged.pages[0]?.turns?.[0]?.index)}`);
         } else if (arm === 'pages-overlap') {
@@ -623,8 +732,6 @@ async function selfTest() {
         } else if (arm === 'more-forever') {
           check(arm, !paged.ok && /says more and carries nothing/.test(paged.why), `paging stopped: ${paged.why}`);
         } else if (arm === 'more-negative') {
-          // Paged again at the app's own page size (TurnPages.pageSize, 20),
-          // because that is the asker this arm must reach below zero.
           const asApp = await pageBack(phone, d, door.sessionToOpen, 20, 6);
           const asAppAll = asApp.pages.flatMap((p) => p.turns);
           check(arm, !paged.ok && all.some((t) => t.index < 0) && asAppAll.some((t) => t.index < 0), `paging did not end, and ${String(all.filter((t) => t.index < 0).length)} turn(s) came back below index 0 at a limit of 7, ${String(asAppAll.filter((t) => t.index < 0).length)} at the app's 20`);
@@ -636,7 +743,7 @@ async function selfTest() {
         }
       }
     } catch (err) {
-      check(arm, false, `threw: ${String(err?.message ?? err)}`);
+      check(arm, false, `threw: ${String(err?.stack ?? err)}`);
     } finally {
       await door?.close();
     }

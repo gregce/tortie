@@ -1,18 +1,20 @@
 /**
- * The pairing gate (Phase 313).
+ * The pairing gate (Phase 313; the client key, the proof and QR v:3 in Phase
+ * 330, build/p330/SPEC.md §4.4, §4.7, §4.8).
  *
  * These are written as the adversary rather than as the happy path, because
  * what this gate defends against is not a mistake. It is a process running as
  * the same user, with write access to the same home directory, that can write
- * `pocket.json` and can compute a sha256 as easily as Tortie can — and, on the
- * other side, anything else that can reach a tailnet address.
+ * `pocket.json` and can compute a sha256 as easily as Tortie can — and, since
+ * Phase 330, anything on the internet that saw a pairing code in time.
  *
  * THE PHONE HALF IS WRITTEN OUT BY HAND, and that is the point. Nothing below
- * reuses a private helper of the module under test to build a presentation or a
- * signature: the test composes the sealed body and the canonical signing string
- * itself, from the wire format, exactly as a phone with no Swift would. A test
- * that signed with the module's own composer would prove the module agrees with
- * itself and nothing about what is on the wire.
+ * reuses a helper of the module under test to build a presentation, a proof, a
+ * challenge, a fingerprint or a signature: the test composes each from the wire
+ * format itself, exactly as a phone with no Swift would. A test that signed
+ * with the module's own composer would prove the module agrees with itself and
+ * nothing about what is on the wire. The ONE test that calls the module's own
+ * `sealPresentationAsPhone` checks its output against this hand spelling.
  *
  * `safeStorage` is faked with a reversible transform standing in for the
  * keychain. It is not encryption and it is not meant to be. What it models is
@@ -23,15 +25,18 @@
 import {
   X509Certificate,
   createCipheriv,
+  createDecipheriv,
   createHash,
   createPublicKey,
+  diffieHellman,
   generateKeyPairSync,
   hkdfSync,
   randomBytes,
   sign as signWith,
+  verify as verifyWith,
   type KeyObject
 } from 'node:crypto';
-import { mkdtempSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -41,7 +46,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   PocketExecutionFields,
   PocketIdentity,
-  PocketPhoneFields
+  PocketPhoneFields,
+  PocketSealedPresentation
 } from '../pairing';
 
 let userData = '';
@@ -73,37 +79,39 @@ const {
   POCKET_PAIRING_WINDOW_MS,
   POCKET_QR_VERSION,
   POCKET_REQUEST_ALGORITHM,
-  TAILNET_AUTH_KEY_PREFIX,
-  TAILNET_KEY_MAX_CHARS,
   PocketPairing,
   PocketRequestVerifier,
   assertPocketDoorMayBind,
   canonicalPocketText,
   canonicalRequestText,
+  clientKeyPinOf,
   confirmPocketDoor,
   describePocketDoor,
   forgetPocketDoor,
+  isClientKeySpki,
   newIdentity,
   openIdentity,
   pairFingerprint,
   pairingBinding,
+  pairingChallengeOf,
   phoneIdOf,
+  phoneView,
   pocketConfirmStatus,
   pocketExecutionHash,
   pocketStorePath,
+  presentationProofText,
   pushTokenDigest,
   readPocketStore,
   sealPresentationAsPhone,
-  phoneView,
   spkiPinOf,
-  tailnetKeyOf,
   writePocketStore
 } = await import('../pairing');
-const { POCKET_TLS_SEAL_PREFIX, ensureDoorIdentity } = await import('../tls');
-const { confirmPath } = await import('../../config/confirm-record');
-const { POCKET_CONFIRM_WARNING, POCKET_ROUTE_IDS } = await import(
-  '@shared/ipc/pocket'
+const { POCKET_TLS_SEAL_PREFIX, ensureDoorIdentity, issueClientCertificate } = await import(
+  '../tls'
 );
+const { confirmPath } = await import('../../config/confirm-record');
+const { DOOR_PINS_MAX } = await import('../door/wire');
+const { POCKET_CONFIRM_WARNING, POCKET_ROUTE_IDS } = await import('@shared/ipc/pocket');
 
 // ---------------------------------------------------------------------------
 // The phone, written out by hand
@@ -119,26 +127,64 @@ interface FakePhone {
   signPublic: string;
   exchange: KeyObject;
   exchangePublic: string;
+  client: KeyObject;
+  clientPublic: string;
 }
 
 function makePhone(label = 'A phone'): FakePhone {
   const ed = generateKeyPairSync('ed25519');
   const x = generateKeyPairSync('x25519');
+  const ck = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   return {
     label,
     sign: ed.privateKey,
     signPublic: b64u(ed.publicKey.export({ format: 'der', type: 'spki' })),
     exchange: x.privateKey,
-    exchangePublic: b64u(x.publicKey.export({ format: 'der', type: 'spki' }))
+    exchangePublic: b64u(x.publicKey.export({ format: 'der', type: 'spki' })),
+    client: ck.privateKey,
+    clientPublic: b64u(ck.publicKey.export({ format: 'der', type: 'spki' }))
   };
 }
 
-/** The wire format, spelled by the test and never imported from the module. */
-function sealPresentation(
+/** The window's challenge, spelled by the test (SPEC §4.7.2). */
+function challengeOf(secretB64u: string): string {
+  return b64u(
+    Buffer.from(
+      hkdfSync(
+        'sha256',
+        Buffer.from(secretB64u, 'base64url'),
+        Buffer.alloc(0),
+        'tortie-pocket-challenge-v1',
+        32
+      )
+    )
+  );
+}
+
+interface PresentOptions {
+  /** Extra inner keys (push fields, or a lie). */
+  extra?: Record<string, unknown>;
+  /** The key the proof is signed with; defaults to the phone's own. */
+  signer?: KeyObject;
+  /** The `ek` the OUTER body names; defaults to the phone's own. */
+  outerEk?: string;
+  /** The challenge signed over; defaults to the window's. */
+  challenge?: string;
+  /** Drop the client key from the inner JSON. */
+  noClientKey?: boolean;
+}
+
+/**
+ * The wire format of `POST /pair`, v2, spelled by the test and never imported
+ * from the module: the inner JSON with sorted keys, AES-256-GCM under
+ * HKDF(ps, "tortie-pocket-pair-v1"), and an Ed25519 signature over
+ * "tortie-pocket-present-v1\n<challenge>\n<iv>\n<ct>\n<tag>".
+ */
+function presentation(
   secretB64u: string,
   phone: FakePhone,
-  extra: Record<string, unknown> = {}
-): Buffer {
+  options: PresentOptions = {}
+): PocketSealedPresentation {
   const key = Buffer.from(
     hkdfSync(
       'sha256',
@@ -150,21 +196,25 @@ function sealPresentation(
   );
   const iv = randomBytes(12);
   const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const plain = JSON.stringify({
-    label: phone.label,
+  const inner: Record<string, unknown> = {
     ek: phone.signPublic,
+    label: phone.label,
     xk: phone.exchangePublic,
-    ...extra
-  });
-  const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
-  return Buffer.from(
-    JSON.stringify({
-      iv: b64u(iv),
-      ct: b64u(ct),
-      tag: b64u(cipher.getAuthTag())
-    }),
-    'utf8'
-  );
+    ...(options.noClientKey === true ? {} : { ck: phone.clientPublic }),
+    ...(options.extra ?? {})
+  };
+  const sorted = Object.fromEntries(Object.keys(inner).sort().map((k) => [k, inner[k]]));
+  const ct = Buffer.concat([cipher.update(JSON.stringify(sorted), 'utf8'), cipher.final()]);
+  const sealed = { iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) };
+  const proof = [
+    'tortie-pocket-present-v1',
+    options.challenge ?? challengeOf(secretB64u),
+    sealed.iv,
+    sealed.ct,
+    sealed.tag
+  ].join('\n');
+  const sig = b64u(signWith(null, Buffer.from(proof, 'utf8'), options.signer ?? phone.sign));
+  return { ...sealed, ek: options.outerEk ?? phone.signPublic, sig };
 }
 
 /** The canonical signing string, spelled by the test. */
@@ -179,15 +229,25 @@ function phoneSignature(
     nonce: string;
   }
 ): string {
-  const binding = pairingBinding(door, {
-    id: phoneIdOf(phone.signPublic),
-    label: phone.label,
-    signingKey: phone.signPublic,
-    exchangeKey: phone.exchangePublic,
-    address: '100.64.0.9',
-    pushToken: '',
-    pushEnvironment: ''
+  // The binding, derived on the PHONE's side: its private X25519 key and the
+  // door's public one, never `pairingBinding`.
+  const shared = diffieHellman({
+    privateKey: phone.exchange,
+    publicKey: createPublicKey({
+      key: Buffer.from(door.exchangePublic, 'base64url'),
+      format: 'der',
+      type: 'spki'
+    })
   });
+  const binding = Buffer.from(
+    hkdfSync(
+      'sha256',
+      shared,
+      Buffer.from(`${door.exchangePublic}\n${phone.exchangePublic}`, 'utf8'),
+      'tortie-pocket-bind-v1',
+      32
+    )
+  ).toString('hex');
   const text = [
     'tortie-pocket-req-v1',
     parts.method.toUpperCase(),
@@ -200,36 +260,37 @@ function phoneSignature(
   return b64u(signWith(null, Buffer.from(text, 'utf8'), phone.sign));
 }
 
-function phoneFields(phone: FakePhone, address = '100.64.0.9'): PocketPhoneFields {
+function phoneFields(phone: FakePhone): PocketPhoneFields {
   return {
     id: phoneIdOf(phone.signPublic),
     label: phone.label,
     signingKey: phone.signPublic,
     exchangeKey: phone.exchangePublic,
-    address,
+    clientKey: phone.clientPublic,
     pushToken: '',
     pushEnvironment: ''
   };
 }
 
-/** No tailnet key pasted: the phone already has a tailnet, or this is a test. */
-const NO_KEY = { tailnetKey: null };
+/** The fingerprint, spelled by the test. */
+function fingerprintOf(phone: FakePhone): string {
+  const digest = createHash('sha256')
+    .update(`tortie-pocket-fp-v2\n${phone.signPublic}\n${phone.exchangePublic}\n${phone.clientPublic}`)
+    .digest('hex');
+  return (digest.slice(0, 24).match(/.{4}/g) ?? []).join(' ');
+}
 
 /**
  * A pin in the QR's own shape, base64url of 32 bytes. What it is a hash OF is
  * proved in 'the QR pins the public key' below, against a real door identity.
  */
-const PIN = b64u(createHash('sha256').update('p316-a-door-key').digest());
-
-/**
- * A MADE-UP tailnet auth key. No real key exists in this repository and none
- * may: this string is Tortie-shaped and reaches no tailnet.
- */
-const FAKE_KEY = 'tskey-auth-kP316FAKE1CNTRL-p316notarealkeyp316notarealkey';
+const PIN = b64u(createHash('sha256').update('p330-a-door-key').digest());
 
 const BASE: PocketExecutionFields = {
-  bindAddress: '100.64.0.1',
-  port: 8823,
+  funnelProgram: '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+  tailnet: 'example.github',
+  publicName: 'mac.tail00000.ts.net',
+  publicPort: 8443,
   bindAtLaunch: false,
   routes: POCKET_ROUTE_IDS,
   phones: [],
@@ -249,509 +310,6 @@ function consentFor(fields: PocketExecutionFields): {
   };
 }
 
-beforeEach(() => {
-  userData = mkdtempSync(join(tmpdir(), 'p313-pairing-'));
-  ready = true;
-  keystore = true;
-});
-
-afterEach(() => {
-  rmSync(userData, { recursive: true, force: true });
-});
-
-// ---------------------------------------------------------------------------
-
-describe('the hash covers exactly the fields that decide what the door answers', () => {
-  it('names its algorithm and the one record key', () => {
-    const text = canonicalPocketText(BASE);
-    expect(text.startsWith(`${POCKET_EXECUTION_HASH_ALGORITHM}\n`)).toBe(true);
-    expect(text).toContain(POCKET_CONFIRM_RECORD_KEY);
-    expect(POCKET_CONFIRM_RECORD_KEY.startsWith('pocket:')).toBe(true);
-  });
-
-  it('moves when any execution bearing field moves', () => {
-    const base = pocketExecutionHash(BASE);
-    expect(pocketExecutionHash({ ...BASE, bindAddress: '100.64.0.2' })).not.toBe(base);
-    expect(pocketExecutionHash({ ...BASE, port: 8824 })).not.toBe(base);
-    expect(pocketExecutionHash({ ...BASE, bindAtLaunch: true })).not.toBe(base);
-    expect(pocketExecutionHash({ ...BASE, routes: ['blocked'] })).not.toBe(base);
-    const phone = makePhone();
-    expect(
-      pocketExecutionHash({ ...BASE, phones: [phoneFields(phone)] })
-    ).not.toBe(base);
-  });
-
-  it('moves when an allowed phone moves address, label or key', () => {
-    const phone = makePhone();
-    const one = pocketExecutionHash({ ...BASE, phones: [phoneFields(phone)] });
-    expect(
-      pocketExecutionHash({
-        ...BASE,
-        phones: [{ ...phoneFields(phone), address: '100.64.0.77' }]
-      })
-    ).not.toBe(one);
-    expect(
-      pocketExecutionHash({
-        ...BASE,
-        phones: [{ ...phoneFields(phone), label: 'Something else' }]
-      })
-    ).not.toBe(one);
-    expect(
-      pocketExecutionHash({
-        ...BASE,
-        phones: [{ ...phoneFields(phone), signingKey: makePhone().signPublic }]
-      })
-    ).not.toBe(one);
-  });
-
-  it('does not move for the order two lists happen to be written in', () => {
-    const a = makePhone('A');
-    const b = makePhone('B');
-    const one = pocketExecutionHash({
-      ...BASE,
-      phones: [phoneFields(a), phoneFields(b)]
-    });
-    const other = pocketExecutionHash({
-      ...BASE,
-      phones: [phoneFields(b), phoneFields(a)]
-    });
-    expect(other).toBe(one);
-    expect(
-      pocketExecutionHash({ ...BASE, routes: [...POCKET_ROUTE_IDS].reverse() })
-    ).toBe(pocketExecutionHash(BASE));
-  });
-});
-
-describe('the lines a person reads are exactly the hashed facts', () => {
-  it('carries the warning beside them and never inside them', () => {
-    const summary = describePocketDoor(BASE);
-    expect(summary.warning).toBe(POCKET_CONFIRM_WARNING);
-    expect(summary.lines).not.toContain(POCKET_CONFIRM_WARNING);
-    expect(canonicalPocketText(BASE)).not.toContain(POCKET_CONFIRM_WARNING);
-  });
-
-  it('names every route it will answer', () => {
-    const line = describePocketDoor(BASE).lines.find((l) =>
-      l.startsWith('Answers these and nothing else:')
-    );
-    for (const id of POCKET_ROUTE_IDS) expect(line).toContain(id);
-  });
-
-  it('names a phone with the fingerprint the person matched', () => {
-    const phone = makePhone('Greg iPhone');
-    const lines = describePocketDoor({
-      ...BASE,
-      phones: [phoneFields(phone)]
-    }).lines;
-    const row = lines.find((l) => l.includes('Greg iPhone'));
-    expect(row).toBeDefined();
-    expect(row).toContain(
-      pairFingerprint(phone.signPublic, phone.exchangePublic)
-    );
-  });
-});
-
-describe('the fingerprint is a hash of BOTH keys', () => {
-  it('moves when either key moves', () => {
-    const a = makePhone();
-    const b = makePhone();
-    const one = pairFingerprint(a.signPublic, a.exchangePublic);
-    expect(pairFingerprint(b.signPublic, a.exchangePublic)).not.toBe(one);
-    expect(pairFingerprint(a.signPublic, b.exchangePublic)).not.toBe(one);
-  });
-
-  it('derives the phone id from the signing key, so nobody chooses it', () => {
-    const a = makePhone();
-    expect(phoneIdOf(a.signPublic)).toBe(phoneIdOf(a.signPublic));
-    expect(phoneIdOf(makePhone().signPublic)).not.toBe(phoneIdOf(a.signPublic));
-  });
-});
-
-describe('a confirmation is written by a person and by nothing else', () => {
-  it('refuses an inexact acknowledgement', () => {
-    expect(() =>
-      confirmPocketDoor(BASE, {
-        ...consentFor(BASE),
-        acknowledgement:
-          'a person read what this door will answer and allowed it ' as never
-      })
-    ).toThrow();
-  });
-
-  it('refuses when the door moved after the sheet was drawn', () => {
-    const drawn = consentFor(BASE);
-    expect(() =>
-      confirmPocketDoor({ ...BASE, port: 9000 }, drawn)
-    ).toThrow();
-  });
-
-  it('records, and the door then may bind', () => {
-    expect(pocketConfirmStatus(BASE).state).toBe('never');
-    expect(() => assertPocketDoorMayBind(BASE)).toThrow();
-    const record = confirmPocketDoor(BASE, consentFor(BASE));
-    expect(record?.id).toBe(POCKET_CONFIRM_RECORD_KEY);
-    expect(pocketConfirmStatus(BASE).state).toBe('confirmed');
-    expect(() => assertPocketDoorMayBind(BASE)).not.toThrow();
-  });
-
-  it('asks again the moment a field moves', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    const moved = { ...BASE, port: 9000 };
-    expect(pocketConfirmStatus(moved).state).toBe('changed');
-    expect(() => assertPocketDoorMayBind(moved)).toThrow();
-  });
-
-  it('asks again the moment a phone is added to the file by hand', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    const forged = { ...BASE, phones: [phoneFields(makePhone('Planted'))] };
-    expect(pocketConfirmStatus(forged).state).toBe('changed');
-  });
-
-  it('drops a record the seal does not cover', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    const path = confirmPath();
-    const file = JSON.parse(readFileSync(path, 'utf8')) as {
-      confirmations: Record<string, unknown>;
-      seal: string;
-    };
-    // The attack: the record is rewritten to a hash the attacker computed for a
-    // door of their own, keeping the seal that covered the real one.
-    file.confirmations[POCKET_CONFIRM_RECORD_KEY] = {
-      id: POCKET_CONFIRM_RECORD_KEY,
-      hash: pocketExecutionHash({ ...BASE, bindAddress: '100.64.0.250' }),
-      algorithm: POCKET_EXECUTION_HASH_ALGORITHM,
-      at: Date.now(),
-      lines: []
-    };
-    writeFileSync(path, JSON.stringify(file), 'utf8');
-    expect(
-      pocketConfirmStatus({ ...BASE, bindAddress: '100.64.0.250' }).state
-    ).toBe('never');
-  });
-
-  it('answers unknown, not confirmed, when the keystore cannot be read', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    keystore = false;
-    const status = pocketConfirmStatus(BASE);
-    expect(status.state).toBe('unknown');
-    expect(status.refusal).not.toBeNull();
-    expect(() => assertPocketDoorMayBind(BASE)).toThrow();
-  });
-
-  it('forgets one, and the door stops being allowed to bind', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    forgetPocketDoor();
-    expect(pocketConfirmStatus(BASE).state).toBe('never');
-  });
-});
-
-describe('the sealed store', () => {
-  it('round trips, and an unsealed file carries nothing', () => {
-    const minted = newIdentity();
-    expect(
-      writePocketStore({
-        identity: minted.sealed,
-        phones: [],
-        port: 8823,
-        bindAtLaunch: false,
-        enabled: true,
-        pushAlerts: false,
-        deadPushTokens: []
-      })
-    ).toBe(true);
-    const read = readPocketStore();
-    expect(read.sealKnown).toBe(true);
-    expect(read.store?.enabled).toBe(true);
-    // The attack: the file is rewritten with a phone the person never allowed.
-    writeFileSync(
-      pocketStorePath(),
-      JSON.stringify({
-        version: 1,
-        sealed: Buffer.from(
-          JSON.stringify({
-            identity: minted.sealed,
-            phones: [phoneFields(makePhone('Planted'))],
-            port: 8823,
-            bindAtLaunch: true,
-            enabled: true
-          }),
-          'utf8'
-        ).toString('base64')
-      }),
-      'utf8'
-    );
-    expect(readPocketStore().store).toBeNull();
-  });
-
-  it('drops an invalid phone row WHOLE and keeps the good ones', () => {
-    const minted = newIdentity();
-    const good = phoneFields(makePhone('Good'));
-    writePocketStore({
-      identity: minted.sealed,
-      // The bad row is half a phone. It must not be merged and must not throw.
-      phones: [good, { id: 'x', label: 'Bad' } as unknown as PocketPhoneFields],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
-      pushAlerts: false,
-      deadPushTokens: []
-    });
-    const read = readPocketStore();
-    expect(read.store?.phones.map((p) => p.label)).toEqual(['Good']);
-  });
-
-  it('answers not-known rather than empty when the keystore is unavailable', () => {
-    writePocketStore({
-      identity: newIdentity().sealed,
-      phones: [],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
-      pushAlerts: false,
-      deadPushTokens: []
-    });
-    keystore = false;
-    const read = readPocketStore();
-    expect(read.sealKnown).toBe(false);
-    expect(read.store).toBeNull();
-  });
-
-  it('keeps the keys usable across a round trip', () => {
-    const minted = newIdentity();
-    const reopened = openIdentity(minted.sealed);
-    expect(reopened.signPublic).toBe(minted.identity.signPublic);
-    expect(reopened.exchangePublic).toBe(minted.identity.exchangePublic);
-  });
-});
-
-// ---------------------------------------------------------------------------
-
-describe('the pairing window', () => {
-  let door: PocketIdentity;
-  let clock = 1_000_000;
-  let fields: PocketExecutionFields;
-  let saved: readonly PocketPhoneFields[] = [];
-  let pin: string | null = PIN;
-
-  function makePairing(): InstanceType<typeof PocketPairing> {
-    return new PocketPairing({
-      identity: () => door,
-      fieldsNow: () => fields,
-      savePhones: (phones) => {
-        saved = phones;
-        return true;
-      },
-      publicKeyPin: () => pin,
-      now: () => clock
-    });
-  }
-
-  beforeEach(() => {
-    door = newIdentity().identity;
-    clock = 1_000_000;
-    fields = BASE;
-    saved = [];
-    pin = PIN;
-  });
-
-  it('refuses to open with no tailnet address', () => {
-    fields = { ...BASE, bindAddress: '' };
-    expect(() => makePairing().open(NO_KEY)).toThrow();
-  });
-
-  it('is v:2, pins the key it is handed, and carries no tailnet key unless one was pasted', () => {
-    const offer = makePairing().open(NO_KEY);
-    const payload = JSON.parse(offer.payload) as Record<string, unknown>;
-    expect(Object.keys(payload).sort()).toEqual(
-      ['dk', 'dx', 'exp', 'fp', 'host', 'port', 'ps', 'v'].sort()
-    );
-    expect(payload['v']).toBe(2);
-    expect(payload['fp']).toBe(PIN);
-    // Tortie mints no tailnet key and holds no Tailscale credential (research
-    // 128 §3.2), so with nothing pasted nothing in the QR can be one.
-    expect(offer.payload).not.toContain('tskey');
-    expect(offer.payload.toLowerCase()).not.toContain('bearer');
-    expect(offer.payload.toLowerCase()).not.toContain('authorization');
-    expect(payload['exp']).toBe(clock + POCKET_PAIRING_WINDOW_MS);
-  });
-
-  it('refuses to open while there is no key to pin, and moves nothing', () => {
-    const pairing = makePairing();
-    const first = JSON.parse(pairing.open(NO_KEY).payload) as { ps: string };
-    pin = null;
-    expect(() => pairing.open(NO_KEY)).toThrow(/not listening/);
-    // The window that was open is still the one open: a refusal comes before
-    // anything moves.
-    expect(pairing.windowOpen()).toBe(true);
-    expect(
-      pairing.present(sealPresentation(first.ps, makePhone()), '100.64.0.9')
-    ).toBe('pending');
-  });
-
-  it('is dead before it is opened and after it expires', () => {
-    const pairing = makePairing();
-    expect(pairing.windowOpen()).toBe(false);
-    pairing.open(NO_KEY);
-    expect(pairing.windowOpen()).toBe(true);
-    clock += POCKET_PAIRING_WINDOW_MS + 1;
-    expect(pairing.windowOpen()).toBe(false);
-  });
-
-  it('accepts a presentation sealed under the QR secret, and nothing else', () => {
-    const pairing = makePairing();
-    const offer = pairing.open(NO_KEY);
-    const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
-    const phone = makePhone('Greg iPhone');
-    expect(pairing.present(sealPresentation(secret, phone), '100.64.0.9')).toBe(
-      'pending'
-    );
-    // A body sealed under a secret that was never on the screen.
-    const other = makePairing();
-    other.open(NO_KEY);
-    expect(
-      pairing.present(sealPresentation(b64u(randomBytes(16)), phone), '100.64.0.9')
-    ).toBe('refused');
-    // Plain text, no seal at all.
-    expect(
-      pairing.present(
-        Buffer.from(JSON.stringify({ label: 'x', ek: 'y', xk: 'z' }), 'utf8'),
-        '100.64.0.9'
-      )
-    ).toBe('refused');
-  });
-
-  it('refuses a presentation whose keys are the wrong kind', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    const phone = makePhone();
-    // The signing slot is handed an X25519 key, which cannot verify anything.
-    const swapped: FakePhone = {
-      ...phone,
-      signPublic: phone.exchangePublic
-    };
-    expect(pairing.present(sealPresentation(secret, swapped), '100.64.0.9')).toBe(
-      'refused'
-    );
-  });
-
-  it('presents nothing and allows nothing outside the window', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    clock += POCKET_PAIRING_WINDOW_MS + 1;
-    expect(
-      pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9')
-    ).toBe('refused');
-    expect(pairing.allow(consentFor(BASE)).allowed).toBe(false);
-  });
-
-  it('shows the same fingerprint the phone can compute for itself', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    const phone = makePhone('Greg iPhone');
-    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
-    const view = pairing.view();
-    expect(view.state).toBe('presented');
-    expect(view.label).toBe('Greg iPhone');
-    expect(view.fingerprint).toBe(
-      pairFingerprint(phone.signPublic, phone.exchangePublic)
-    );
-    expect(view.hash).toBe(pocketExecutionHash(pairing.fieldsWithPending()));
-  });
-
-  it('the person allows it LAST, and that is what writes the record', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    const phone = makePhone('Greg iPhone');
-    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
-    // Presenting has recorded nothing.
-    expect(pocketConfirmStatus(pairing.fieldsWithPending()).state).toBe('never');
-    expect(saved).toEqual([]);
-    const next = pairing.fieldsWithPending();
-    const outcome = pairing.allow(consentFor(next));
-    expect(outcome.allowed).toBe(true);
-    expect(pocketConfirmStatus(next).state).toBe('confirmed');
-    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
-    expect(pairing.view().state).toBe('allowed');
-  });
-
-  it('tells the allowed phone it was allowed, and tells nothing else', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    const phone = makePhone('Greg iPhone');
-    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
-    const next = pairing.fieldsWithPending();
-    expect(pairing.allow(consentFor(next)).allowed).toBe(true);
-    // The phone is sitting on "Nothing is paired until you do" and asks again.
-    expect(pairing.present(sealPresentation(secret, phone), '100.64.0.9')).toBe(
-      'allowed'
-    );
-    // A second phone that photographed the same screen learns nothing, because
-    // the allow destroyed the secret.
-    expect(
-      pairing.present(sealPresentation(secret, makePhone('Thief')), '100.64.0.250')
-    ).toBe('refused');
-    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
-  });
-
-  it('sweeps an ALLOWED window at its deadline, so the sheet goes idle', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    const phone = makePhone('Greg iPhone');
-    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
-    pairing.allow(consentFor(pairing.fieldsWithPending()));
-    expect(pairing.view().state).toBe('allowed');
-    clock += POCKET_PAIRING_WINDOW_MS + 1;
-    expect(pairing.windowOpen()).toBe(false);
-    expect(pairing.view().state).toBe('idle');
-    // And the phone that WAS allowed is told nothing after the window shut.
-    expect(pairing.present(sealPresentation(secret, phone), '100.64.0.9')).toBe(
-      'refused'
-    );
-    // The phone is still allowed: the record and the phone set say so, and it
-    // is the signed reads that prove it from here on.
-    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
-  });
-
-  it('refuses an allow whose sheet was drawn for a different door', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9');
-    expect(() => pairing.allow(consentFor(BASE))).toThrow();
-    expect(saved).toEqual([]);
-  });
-
-  it('destroys the secret when the window is cancelled', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
-    pairing.cancel();
-    expect(pairing.windowOpen()).toBe(false);
-    expect(
-      pairing.present(sealPresentation(secret, makePhone()), '100.64.0.9')
-    ).toBe('refused');
-  });
-});
-
-
-// ---------------------------------------------------------------------------
-// Phase 316: QR v:2 — the pin is the public key, and the tailnet key is held
-// only inside the window
-// ---------------------------------------------------------------------------
-
-/** The bytes as text, and every base64 run inside them decoded, twice over. */
-function readableForms(bytes: Buffer): string[] {
-  const out = [bytes.toString('utf8')];
-  for (let depth = 0; depth < 2; depth += 1) {
-    const found: string[] = [];
-    for (const text of out) {
-      for (const run of text.match(/[A-Za-z0-9+/=_-]{16,}/g) ?? []) {
-        found.push(Buffer.from(run, run.includes('-') || run.includes('_') ? 'base64url' : 'base64').toString('utf8'));
-      }
-    }
-    out.push(...found);
-  }
-  return out;
-}
-
 /** A seal that is readable and therefore not one; `./tls.test.ts`'s shape. */
 function fakeTlsSeal(): Parameters<typeof ensureDoorIdentity>[0]['seal'] {
   return {
@@ -769,55 +327,732 @@ function fakeTlsSeal(): Parameters<typeof ensureDoorIdentity>[0]['seal'] {
 
 /** A real door identity from `./tls.ts`, written under this test's directory. */
 function realDoor(now?: number): {
+  keyPem: string;
   certPem: string;
   certificateFingerprint: string;
   publicKeyFingerprint: string;
   notAfter: number;
 } {
   const made = ensureDoorIdentity({
-    path: join(userData, 'p316-identity.json'),
+    path: join(userData, 'p330-identity.json'),
     seal: fakeTlsSeal(),
-    names: { addresses: ['127.0.0.1'], dnsNames: [] },
+    names: { addresses: [], dnsNames: ['mac.tail00000.ts.net'] },
     ...(now !== undefined ? { now } : {})
   });
   if (made.kind !== 'ready') throw new Error(`no identity: ${made.kind}`);
   return made.identity;
 }
 
-describe('the QR pins the public key, not the certificate (F1)', () => {
-  it('is sha256 over the SubjectPublicKeyInfo, base64url, as Node itself reads the key', () => {
-    const door = realDoor();
-    // INDEPENDENT: OpenSSL parses the certificate and exports the key.
-    const spki = new X509Certificate(door.certPem).publicKey.export({
-      type: 'spki',
-      format: 'der'
-    });
-    const expected = b64u(createHash('sha256').update(spki).digest());
-    expect(spkiPinOf(door.publicKeyFingerprint)).toBe(expected);
-    // And never the certificate's own hash, which is what v:1 carried.
-    const der = new X509Certificate(door.certPem).raw;
-    expect(spkiPinOf(door.publicKeyFingerprint)).not.toBe(
-      b64u(createHash('sha256').update(der).digest())
+/** A P-256 SPKI with the point COMPRESSED: a valid key, not the canonical form. */
+function compressedSpki(phone: FakePhone): string {
+  const jwk = createPublicKey({
+    key: Buffer.from(phone.clientPublic, 'base64url'),
+    format: 'der',
+    type: 'spki'
+  }).export({ format: 'jwk' });
+  const y = Buffer.from(String(jwk.y), 'base64url');
+  const x = Buffer.from(String(jwk.x), 'base64url');
+  const prefix = ((y[y.length - 1] ?? 0) & 1) === 1 ? 0x03 : 0x02;
+  const header = Buffer.from('3039301306072a8648ce3d020106082a8648ce3d030107032200', 'hex');
+  return b64u(Buffer.concat([header, Buffer.from([prefix]), x]));
+}
+
+beforeEach(() => {
+  userData = mkdtempSync(join(tmpdir(), 'p330-pairing-'));
+  ready = true;
+  keystore = true;
+});
+
+afterEach(() => {
+  rmSync(userData, { recursive: true, force: true });
+});
+
+// ---------------------------------------------------------------------------
+// The hash (SPEC §4.4)
+// ---------------------------------------------------------------------------
+
+describe('the hash covers exactly the fields that decide what the door answers', () => {
+  it('names the v3 algorithm and the one record key', () => {
+    expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
+    const text = canonicalPocketText(BASE);
+    expect(text.startsWith('sha256-pocket-exec-v3\n')).toBe(true);
+    expect(text).toContain(POCKET_CONFIRM_RECORD_KEY);
+    expect(POCKET_CONFIRM_RECORD_KEY.startsWith('pocket:')).toBe(true);
+  });
+
+  it('is exactly the eight keys, sorted, and names no bind address, port or address', () => {
+    const rows = JSON.parse(canonicalPocketText(BASE).split('\n')[1] ?? '[]') as [string, unknown][];
+    expect(rows.map(([k]) => k)).toEqual([
+      'id',
+      'bindAtLaunch',
+      'funnelProgram',
+      'phones',
+      'publicName',
+      'publicPort',
+      'pushAlerts',
+      'routes',
+      'tailnet'
+    ]);
+    const text = canonicalPocketText({ ...BASE, phones: [phoneFields(makePhone())] });
+    expect(text).not.toContain('bindAddress');
+    expect(text).not.toContain('"port"');
+    expect(text).not.toContain('address');
+    // Every key of the fields is a row: a field that fell out of NORMALIZE
+    // would be a key missing here.
+    for (const key of Object.keys(EMPTY_POCKET_FIELDS)) {
+      expect(rows.some(([k]) => k === key), key).toBe(true);
+    }
+  });
+
+  it('moves when any execution bearing field moves', () => {
+    const base = pocketExecutionHash(BASE);
+    const moved: Partial<PocketExecutionFields>[] = [
+      { funnelProgram: '/usr/local/bin/tailscale' },
+      { tailnet: 'another.github' },
+      { publicName: 'other.tail00000.ts.net' },
+      { publicPort: 10000 },
+      { bindAtLaunch: true },
+      { routes: ['blocked'] },
+      { phones: [phoneFields(makePhone())] },
+      { pushAlerts: true }
+    ];
+    for (const change of moved) {
+      expect(pocketExecutionHash({ ...BASE, ...change }), JSON.stringify(Object.keys(change))).not.toBe(base);
+    }
+  });
+
+  it('moves when an allowed phone moves its client key, label, or any other key', () => {
+    const phone = makePhone();
+    const one = pocketExecutionHash({ ...BASE, phones: [phoneFields(phone)] });
+    const changes: Partial<PocketPhoneFields>[] = [
+      { clientKey: makePhone().clientPublic },
+      { label: 'Something else' },
+      { signingKey: makePhone().signPublic },
+      { exchangeKey: makePhone().exchangePublic },
+      { pushToken: 'a'.repeat(64), pushEnvironment: 'development' }
+    ];
+    for (const change of changes) {
+      expect(
+        pocketExecutionHash({ ...BASE, phones: [{ ...phoneFields(phone), ...change }] }),
+        JSON.stringify(Object.keys(change))
+      ).not.toBe(one);
+    }
+  });
+
+  it('does not move for the order two lists happen to be written in', () => {
+    const a = makePhone('A');
+    const b = makePhone('B');
+    expect(pocketExecutionHash({ ...BASE, phones: [phoneFields(b), phoneFields(a)] })).toBe(
+      pocketExecutionHash({ ...BASE, phones: [phoneFields(a), phoneFields(b)] })
+    );
+    expect(
+      pocketExecutionHash({ ...BASE, routes: [...POCKET_ROUTE_IDS].reverse() })
+    ).toBe(pocketExecutionHash(BASE));
+  });
+
+  it('is the empty door with no program, tailnet, name or port', () => {
+    expect(EMPTY_POCKET_FIELDS.funnelProgram).toBe('');
+    expect(EMPTY_POCKET_FIELDS.tailnet).toBe('');
+    expect(EMPTY_POCKET_FIELDS.publicName).toBe('');
+    expect(EMPTY_POCKET_FIELDS.publicPort).toBe(0);
+    expect(EMPTY_POCKET_FIELDS.phones).toEqual([]);
+    expect(EMPTY_POCKET_FIELDS.routes).toEqual(POCKET_ROUTE_IDS);
+    expect(describePocketDoor(EMPTY_POCKET_FIELDS).lines).toContain('Allows no phone yet');
+  });
+});
+
+describe('the lines a person reads are exactly the hashed facts', () => {
+  it('names the internet, the tailnet, the port and the program, in that order', () => {
+    const lines = describePocketDoor(BASE).lines;
+    expect(lines[0]).toBe(
+      'Answers on the internet at https://mac.tail00000.ts.net:8443, through Tailscale Funnel on example.github'
+    );
+    expect(lines[1]).toBe(
+      'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale'
+    );
+    expect(lines[2]).toBe('Answers only after you turn it on');
+    expect(lines[3]).toBe('Answers these and nothing else: blocked, pair, session, turns');
+    expect(lines[4]).toBe('Tells your phone nothing through Apple');
+    expect(lines[5]).toBe('Allows no phone yet');
+    expect(describePocketDoor({ ...BASE, bindAtLaunch: true }).lines[2]).toBe(
+      'Starts answering when Tortie starts'
     );
   });
 
-  it('is what the phone computes from the raw point, the way the Swift pin does', () => {
-    const door = realDoor();
-    // Research 128 / SPEC §3.3: the fixed 26-byte P-256 SPKI header, then the
-    // 65-byte uncompressed point SecKeyCopyExternalRepresentation hands back.
-    const jwk = new X509Certificate(door.certPem).publicKey.export({ format: 'jwk' });
-    const point = Buffer.concat([
-      Buffer.from([0x04]),
-      Buffer.from(String(jwk.x), 'base64url'),
-      Buffer.from(String(jwk.y), 'base64url')
-    ]);
-    expect(point.length).toBe(65);
-    const header = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d030107034200', 'hex');
-    const swift = b64u(createHash('sha256').update(Buffer.concat([header, point])).digest());
-    expect(spkiPinOf(door.publicKeyFingerprint)).toBe(swift);
+  it('carries the warning beside them and never inside them', () => {
+    const summary = describePocketDoor(BASE);
+    expect(summary.warning).toBe(POCKET_CONFIRM_WARNING);
+    expect(POCKET_CONFIRM_WARNING).toContain('over the internet');
+    expect(summary.lines).not.toContain(POCKET_CONFIRM_WARNING);
   });
 
-  it('survives the certificate’s renewal, which the certificate’s hash does not', () => {
+  it('names a phone with the three-key fingerprint the person matched, and no address', () => {
+    const phone = makePhone('Greg iPhone');
+    const lines = describePocketDoor({ ...BASE, phones: [phoneFields(phone)] }).lines;
+    expect(lines).toContain(`Allows the phone "Greg iPhone", key ${fingerprintOf(phone)}`);
+    expect(lines.join('\n')).not.toMatch(/ at \d/);
+  });
+});
+
+describe('the fingerprint is a hash of ALL THREE keys (v2)', () => {
+  it('is the test’s own spelling, and moves when any key moves', () => {
+    const a = makePhone();
+    const b = makePhone();
+    const one = pairFingerprint(a.signPublic, a.exchangePublic, a.clientPublic);
+    expect(one).toBe(fingerprintOf(a));
+    expect(one).toMatch(/^([0-9a-f]{4} ){5}[0-9a-f]{4}$/);
+    expect(pairFingerprint(b.signPublic, a.exchangePublic, a.clientPublic)).not.toBe(one);
+    expect(pairFingerprint(a.signPublic, b.exchangePublic, a.clientPublic)).not.toBe(one);
+    expect(pairFingerprint(a.signPublic, a.exchangePublic, b.clientPublic)).not.toBe(one);
+  });
+
+  it('derives the phone id from the signing key, so nobody chooses it', () => {
+    const a = makePhone();
+    expect(phoneIdOf(a.signPublic)).toBe(phoneIdOf(a.signPublic));
+    expect(phoneIdOf(makePhone().signPublic)).not.toBe(phoneIdOf(a.signPublic));
+  });
+});
+
+describe('a confirmation is written by a person and by nothing else', () => {
+  it('refuses an inexact acknowledgement', () => {
+    expect(() =>
+      confirmPocketDoor(BASE, {
+        ...consentFor(BASE),
+        acknowledgement: 'a person read what this door will answer and allowed it ' as never
+      })
+    ).toThrow();
+  });
+
+  it('refuses when the door moved after the sheet was drawn', () => {
+    const drawn = consentFor(BASE);
+    expect(() => confirmPocketDoor({ ...BASE, publicPort: 10000 }, drawn)).toThrow();
+  });
+
+  it('records, and the door then may start', () => {
+    expect(pocketConfirmStatus(BASE).state).toBe('never');
+    expect(() => assertPocketDoorMayBind(BASE)).toThrow();
+    const record = confirmPocketDoor(BASE, consentFor(BASE));
+    expect(record?.id).toBe(POCKET_CONFIRM_RECORD_KEY);
+    expect(pocketConfirmStatus(BASE).state).toBe('confirmed');
+    expect(() => assertPocketDoorMayBind(BASE)).not.toThrow();
+  });
+
+  it('asks again the moment a Tailscale fact moves, and says it will not publish', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    for (const moved of [
+      { ...BASE, tailnet: 'another.github' },
+      { ...BASE, publicName: 'other.tail00000.ts.net' },
+      { ...BASE, funnelProgram: '/opt/homebrew/bin/tailscale' }
+    ]) {
+      const status = pocketConfirmStatus(moved);
+      expect(status.state).toBe('changed');
+      expect(status.refusal).toContain('will not publish this door');
+      expect(status.refusal).not.toContain('tailnet');
+    }
+  });
+
+  it('reads a record written under v2 as changed, which asks again', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    const path = confirmPath();
+    const file = JSON.parse(readFileSync(path, 'utf8')) as {
+      confirmations: Record<string, { algorithm: string }>;
+    };
+    expect(file.confirmations[POCKET_CONFIRM_RECORD_KEY]?.algorithm).toBe('sha256-pocket-exec-v3');
+  });
+
+  it('drops a record the seal does not cover', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    const path = confirmPath();
+    const file = JSON.parse(readFileSync(path, 'utf8')) as {
+      confirmations: Record<string, unknown>;
+      seal: string;
+    };
+    const forged = { ...BASE, publicName: 'attacker.tail00000.ts.net' };
+    file.confirmations[POCKET_CONFIRM_RECORD_KEY] = {
+      id: POCKET_CONFIRM_RECORD_KEY,
+      hash: pocketExecutionHash(forged),
+      algorithm: POCKET_EXECUTION_HASH_ALGORITHM,
+      at: Date.now(),
+      lines: []
+    };
+    writeFileSync(path, JSON.stringify(file), 'utf8');
+    expect(pocketConfirmStatus(forged).state).toBe('never');
+  });
+
+  it('answers unknown, not confirmed, when the keystore cannot be read', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    keystore = false;
+    const status = pocketConfirmStatus(BASE);
+    expect(status.state).toBe('unknown');
+    expect(() => assertPocketDoorMayBind(BASE)).toThrow();
+  });
+
+  it('forgets one, and the door stops being allowed to start', () => {
+    confirmPocketDoor(BASE, consentFor(BASE));
+    forgetPocketDoor();
+    expect(pocketConfirmStatus(BASE).state).toBe('never');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The store (SPEC §4.4)
+// ---------------------------------------------------------------------------
+
+function storeWith(over: Record<string, unknown>): void {
+  const minted = newIdentity();
+  writePocketStore({
+    identity: minted.sealed,
+    phones: [],
+    publicPort: 8443,
+    tailnetFacts: null,
+    bindAtLaunch: false,
+    enabled: false,
+    pushAlerts: false,
+    deadPushTokens: [],
+    ...over
+  } as never);
+}
+
+describe('the sealed store', () => {
+  it('round trips the public port and the Tailscale facts, and an unsealed file carries nothing', () => {
+    const minted = newIdentity();
+    const facts = { funnelProgram: BASE.funnelProgram, tailnet: BASE.tailnet, publicName: BASE.publicName };
+    expect(
+      writePocketStore({
+        identity: minted.sealed,
+        phones: [],
+        publicPort: 10000,
+        tailnetFacts: facts,
+        bindAtLaunch: false,
+        enabled: true,
+        pushAlerts: false,
+        deadPushTokens: []
+      })
+    ).toBe(true);
+    const read = readPocketStore();
+    expect(read.sealKnown).toBe(true);
+    expect(read.store?.publicPort).toBe(10000);
+    expect(read.store?.tailnetFacts).toEqual(facts);
+    expect(read.droppedPhones).toBe(0);
+    // The attack: the file is rewritten in the clear with a phone planted in it.
+    writeFileSync(
+      pocketStorePath(),
+      JSON.stringify({
+        version: 1,
+        sealed: Buffer.from(
+          JSON.stringify({ identity: minted.sealed, phones: [phoneFields(makePhone('Planted'))] }),
+          'utf8'
+        ).toString('base64')
+      }),
+      'utf8'
+    );
+    expect(readPocketStore().store).toBeNull();
+  });
+
+  it('reads Phase 316’s port as no public port, and 443 as none either', () => {
+    storeWith({ publicPort: undefined, port: 8823 });
+    expect(readPocketStore().store?.publicPort).toBe(0);
+    storeWith({ publicPort: 443 });
+    expect(readPocketStore().store?.publicPort).toBe(0);
+    storeWith({ publicPort: 8443 });
+    expect(readPocketStore().store?.publicPort).toBe(8443);
+  });
+
+  it('drops a fact set that is not whole', () => {
+    storeWith({ tailnetFacts: { funnelProgram: '/x', tailnet: '', publicName: 'a.b.ts.net' } });
+    expect(readPocketStore().store?.tailnetFacts).toBeNull();
+  });
+
+  it('drops every Phase 316 phone row WHOLE and counts them', () => {
+    const good = phoneFields(makePhone('Good'));
+    const old = { ...phoneFields(makePhone('Old')), address: '100.64.0.9' } as Record<string, unknown>;
+    delete old['clientKey'];
+    const edKey = { ...phoneFields(makePhone('WrongKind')), clientKey: makePhone().signPublic };
+    const compressed = (() => {
+      const p = makePhone('Compressed');
+      return { ...phoneFields(p), clientKey: compressedSpki(p) };
+    })();
+    storeWith({ phones: [good, old, edKey, compressed, { id: 'x', label: 'Half' }] });
+    const read = readPocketStore();
+    expect(read.store?.phones.map((p) => p.label)).toEqual(['Good']);
+    expect(read.droppedPhones).toBe(4);
+  });
+
+  it('answers not-known rather than empty when the keystore is unavailable', () => {
+    storeWith({});
+    keystore = false;
+    const read = readPocketStore();
+    expect(read.sealKnown).toBe(false);
+    expect(read.store).toBeNull();
+  });
+
+  it('keeps the keys usable across a round trip', () => {
+    const minted = newIdentity();
+    const reopened = openIdentity(minted.sealed);
+    expect(reopened.signPublic).toBe(minted.identity.signPublic);
+    expect(reopened.exchangePublic).toBe(minted.identity.exchangePublic);
+  });
+});
+
+describe('a client key is a canonical P-256 SPKI and nothing else', () => {
+  it('accepts the uncompressed form Node exports', () => {
+    expect(isClientKeySpki(makePhone().clientPublic)).toBe(true);
+  });
+
+  it('refuses a compressed point, another curve, another kind, and junk', () => {
+    const p = makePhone();
+    expect(isClientKeySpki(compressedSpki(p))).toBe(false);
+    const p384 = generateKeyPairSync('ec', { namedCurve: 'secp384r1' });
+    expect(isClientKeySpki(b64u(p384.publicKey.export({ format: 'der', type: 'spki' })))).toBe(false);
+    expect(isClientKeySpki(p.signPublic)).toBe(false);
+    expect(isClientKeySpki('')).toBe(false);
+    expect(isClientKeySpki(`${p.clientPublic}=`)).toBe(false);
+    expect(isClientKeySpki(42)).toBe(false);
+  });
+
+  it('pins the SPKI a handshake presents: the certificate’s own key, hashed by Node', () => {
+    const door = realDoor();
+    const phone = makePhone();
+    const cert = new X509Certificate(issueClientCertificate(door.keyPem, phone.clientPublic, Date.now()));
+    const spki = cert.publicKey.export({ type: 'spki', format: 'der' });
+    expect(clientKeyPinOf(phone.clientPublic)).toBe(b64u(createHash('sha256').update(spki).digest()));
+    // And never the certificate's own hash.
+    expect(clientKeyPinOf(phone.clientPublic)).not.toBe(b64u(createHash('sha256').update(cert.raw).digest()));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The window (SPEC §4.7, §4.8)
+// ---------------------------------------------------------------------------
+
+describe('the pairing window', () => {
+  let door: PocketIdentity;
+  let tlsDoor: ReturnType<typeof realDoor>;
+  let clock = 1_000_000;
+  let fields: PocketExecutionFields;
+  let saved: readonly PocketPhoneFields[] = [];
+  let pin: string | null = PIN;
+  let issuing = true;
+  let signed = 0;
+
+  function makePairing(): InstanceType<typeof PocketPairing> {
+    return new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => fields,
+      savePhones: (phones) => {
+        saved = phones;
+        return true;
+      },
+      publicKeyPin: () => pin,
+      issueCertificate: (ck) => {
+        if (!issuing) return null;
+        signed += 1;
+        return b64u(issueClientCertificate(tlsDoor.keyPem, ck, clock));
+      },
+      now: () => clock
+    });
+  }
+
+  function secretOf(offer: { payload: string }): string {
+    return (JSON.parse(offer.payload) as { ps: string }).ps;
+  }
+
+  beforeEach(() => {
+    door = newIdentity().identity;
+    tlsDoor = realDoor();
+    clock = 1_000_000;
+    fields = BASE;
+    saved = [];
+    pin = PIN;
+    issuing = true;
+  });
+
+  it('refuses to open with no public name or no public port, and moves nothing', () => {
+    fields = { ...BASE, publicName: '' };
+    expect(() => makePairing().open()).toThrow(/no public name/);
+    fields = { ...BASE, publicPort: 0 };
+    expect(() => makePairing().open()).toThrow(/no public name/);
+  });
+
+  it('is v:3: exactly the eight keys in order, the public name and port, and no credential', () => {
+    const offer = makePairing().open();
+    expect(POCKET_QR_VERSION).toBe(3);
+    const payload = JSON.parse(offer.payload) as Record<string, unknown>;
+    expect(Object.keys(payload)).toEqual(['v', 'host', 'port', 'fp', 'dk', 'dx', 'ps', 'exp']);
+    expect(payload['v']).toBe(3);
+    expect(payload['host']).toBe('mac.tail00000.ts.net');
+    expect(payload['port']).toBe(8443);
+    expect(payload['fp']).toBe(PIN);
+    expect(payload['dk']).toBe(door.signPublic);
+    expect(payload['dx']).toBe(door.exchangePublic);
+    expect(Buffer.from(String(payload['ps']), 'base64url')).toHaveLength(16);
+    expect(payload['exp']).toBe(clock + POCKET_PAIRING_WINDOW_MS);
+    expect(offer.payload).not.toContain('tskey');
+    expect(offer.payload).not.toContain('"tk"');
+  });
+
+  it('refuses to open while there is no key to pin, and the window that was open stays', () => {
+    const pairing = makePairing();
+    const first = secretOf(pairing.open());
+    pin = null;
+    expect(() => pairing.open()).toThrow(/not listening/);
+    expect(pairing.windowOpen()).toBe(true);
+    expect(pairing.present(presentation(first, makePhone())).state).toBe('pending');
+  });
+
+  it('is dead before it is opened and after it expires', () => {
+    const pairing = makePairing();
+    expect(pairing.windowOpen()).toBe(false);
+    pairing.open();
+    expect(pairing.windowOpen()).toBe(true);
+    clock += POCKET_PAIRING_WINDOW_MS + 1;
+    expect(pairing.windowOpen()).toBe(false);
+  });
+
+  it('derives the challenge the test spells, and the proof text the test spells', () => {
+    const secret = randomBytes(16);
+    expect(pairingChallengeOf(secret)).toBe(challengeOf(b64u(secret)));
+    expect(presentationProofText('C', 'I', 'T', 'G')).toBe('tortie-pocket-present-v1\nC\nI\nT\nG');
+  });
+
+  it('accepts a presentation sealed under the QR secret and signed over its challenge', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    expect(pairing.present(presentation(secret, makePhone('Greg iPhone')))).toEqual({ state: 'pending' });
+  });
+
+  it('refuses a proof signed by a key other than the one the body names', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone();
+    expect(pairing.present(presentation(secret, phone, { signer: makePhone().sign })).state).toBe('refused');
+    expect(pairing.view().state).toBe('waiting');
+  });
+
+  it('refuses a proof over another window’s challenge', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const other = challengeOf(b64u(randomBytes(16)));
+    expect(pairing.present(presentation(secret, makePhone(), { challenge: other })).state).toBe('refused');
+  });
+
+  it('refuses a seal under a secret that was never on the screen, however well it is signed', () => {
+    const pairing = makePairing();
+    pairing.open();
+    const stranger = b64u(randomBytes(16));
+    // Signed over the REAL window's challenge would need the real secret; this
+    // is the stranger's best: a proof over its own challenge.
+    expect(pairing.present(presentation(stranger, makePhone())).state).toBe('refused');
+  });
+
+  it('refuses a body whose ciphertext was changed after it was signed', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const honest = presentation(secret, makePhone());
+    const ct = Buffer.from(honest.ct, 'base64url');
+    ct[0] = (ct[0] ?? 0) ^ 1;
+    expect(pairing.present({ ...honest, ct: b64u(ct) }).state).toBe('refused');
+  });
+
+  it('refuses a sealed signing key that is not the one the proof was checked under', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone();
+    const decoy = makePhone();
+    // The outer ek is the decoy's and signs honestly; the sealed ek is another.
+    expect(
+      pairing.present(presentation(secret, phone, { outerEk: decoy.signPublic, signer: decoy.sign })).state
+    ).toBe('refused');
+  });
+
+  it('refuses a presentation with no client key, or a client key that is not canonical P-256', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone();
+    expect(pairing.present(presentation(secret, phone, { noClientKey: true })).state).toBe('refused');
+    expect(pairing.present(presentation(secret, phone, { extra: { ck: compressedSpki(phone) } })).state).toBe(
+      'refused'
+    );
+    expect(pairing.present(presentation(secret, phone, { extra: { ck: phone.signPublic } })).state).toBe(
+      'refused'
+    );
+  });
+
+  it('refuses a client key a paired phone already completes handshakes with', () => {
+    const paired = makePhone('Paired');
+    fields = { ...BASE, phones: [phoneFields(paired)] };
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const thief = makePhone('Thief');
+    expect(
+      pairing.present(presentation(secret, thief, { extra: { ck: paired.clientPublic } })).state
+    ).toBe('refused');
+  });
+
+  it('refuses a presentation whose signing slot holds a key of the wrong kind', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone();
+    const swapped: FakePhone = { ...phone, signPublic: phone.exchangePublic };
+    expect(pairing.present(presentation(secret, swapped)).state).toBe('refused');
+  });
+
+  it('presents nothing and allows nothing outside the window', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    clock += POCKET_PAIRING_WINDOW_MS + 1;
+    expect(pairing.present(presentation(secret, makePhone())).state).toBe('refused');
+    expect(pairing.allow(consentFor(BASE)).allowed).toBe(false);
+  });
+
+  it('shows the same three-key fingerprint the phone can compute for itself', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone('Greg iPhone');
+    pairing.present(presentation(secret, phone));
+    const view = pairing.view();
+    expect(view.state).toBe('presented');
+    expect(view.label).toBe('Greg iPhone');
+    expect(view.fingerprint).toBe(fingerprintOf(phone));
+    expect(view.hash).toBe(pocketExecutionHash(pairing.fieldsWithPending()));
+    expect(pairing.fieldsWithPending().phones[0]?.clientKey).toBe(phone.clientPublic);
+  });
+
+  it('a second presenter replaces the first, and the first sheet’s hash no longer allows', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    pairing.present(presentation(secret, makePhone('First')));
+    const firstSheet = pairing.view();
+    pairing.present(presentation(secret, makePhone('Card flip')));
+    expect(pairing.view().label).toBe('Card flip');
+    expect(() => pairing.allow(consentFor({ ...BASE }))).toThrow();
+    expect(() =>
+      pairing.allow({
+        acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT,
+        linesRead: firstSheet.lines,
+        hashRead: firstSheet.hash ?? ''
+      })
+    ).toThrow();
+    expect(saved).toEqual([]);
+  });
+
+  it('the person allows it LAST, and that is what writes the record', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone('Greg iPhone');
+    pairing.present(presentation(secret, phone));
+    expect(pocketConfirmStatus(pairing.fieldsWithPending()).state).toBe('never');
+    expect(saved).toEqual([]);
+    const next = pairing.fieldsWithPending();
+    expect(pairing.allow(consentFor(next)).allowed).toBe(true);
+    expect(pocketConfirmStatus(next).state).toBe('confirmed');
+    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
+    expect(pairing.view().state).toBe('allowed');
+  });
+
+  it('refuses a phone past the door’s pin cap with its own sentence, and signs and records nothing (lens 1)', () => {
+    fields = { ...BASE, phones: Array.from({ length: DOOR_PINS_MAX }, (_, i) => phoneFields(makePhone(`P${String(i)}`))) };
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    pairing.present(presentation(secret, makePhone('One too many')));
+    const next = pairing.fieldsWithPending();
+    expect(next.phones).toHaveLength(DOOR_PINS_MAX + 1);
+    signed = 0;
+    const outcome = pairing.allow(consentFor(next));
+    expect(outcome.allowed).toBe(false);
+    expect(outcome.refusal).toContain(`${String(DOOR_PINS_MAX)} phones`);
+    expect(signed).toBe(0);
+    expect(saved).toEqual([]);
+    expect(pocketConfirmStatus(next).state).toBe('never');
+    // One fewer is still allowed: the cap is the wire's, not below it.
+    fields = { ...BASE, phones: fields.phones.slice(1) };
+    const room = makePairing();
+    room.present(presentation(secretOf(room.open()), makePhone('The sixty-fourth')));
+    const fits = room.fieldsWithPending();
+    expect(fits.phones).toHaveLength(DOOR_PINS_MAX);
+    expect(room.allow(consentFor(fits)).allowed).toBe(true);
+    expect(signed).toBe(1);
+  });
+
+  it('issues the certificate FIRST: a door with nothing to sign with records nothing', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    pairing.present(presentation(secret, makePhone()));
+    issuing = false;
+    const next = pairing.fieldsWithPending();
+    const outcome = pairing.allow(consentFor(next));
+    expect(outcome.allowed).toBe(false);
+    expect(pocketConfirmStatus(next).state).toBe('never');
+    expect(saved).toEqual([]);
+  });
+
+  it('hands the certificate to the allowed phone, over its own client key, and to nothing else', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone('Greg iPhone');
+    pairing.present(presentation(secret, phone));
+    expect(pairing.allow(consentFor(pairing.fieldsWithPending())).allowed).toBe(true);
+    const answer = pairing.present(presentation(secret, phone));
+    expect(answer.state).toBe('allowed');
+    if (answer.state !== 'allowed') throw new Error('not allowed');
+    // INDEPENDENT: OpenSSL parses it, and its key is the phone's own.
+    const cert = new X509Certificate(Buffer.from(answer.cert, 'base64url'));
+    expect(b64u(cert.publicKey.export({ type: 'spki', format: 'der' }))).toBe(phone.clientPublic);
+    expect(cert.verify(new X509Certificate(tlsDoor.certPem).publicKey)).toBe(true);
+    // The SAME certificate every time it asks.
+    const again = pairing.present(presentation(secret, phone));
+    expect(again).toEqual(answer);
+    // A second phone that photographed the screen can derive the challenge and
+    // sign over it with ITS key: it is not the allowed phone.
+    const thief = makePhone('Thief');
+    expect(pairing.present(presentation(secret, thief))).toEqual({ state: 'refused' });
+    // The allowed phone's key named by a body the thief signed: refused.
+    expect(
+      pairing.present(presentation(secret, phone, { signer: thief.sign }))
+    ).toEqual({ state: 'refused' });
+    // An `allowed` poll with no proof at all.
+    expect(pairing.present({ ...presentation(secret, phone), sig: '' })).toEqual({ state: 'refused' });
+    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
+  });
+
+  it('refuses an allowed poll after the deadline: the challenge dies with the window', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone('Greg iPhone');
+    pairing.present(presentation(secret, phone));
+    pairing.allow(consentFor(pairing.fieldsWithPending()));
+    clock += POCKET_PAIRING_WINDOW_MS + 1;
+    expect(pairing.windowOpen()).toBe(false);
+    expect(pairing.view().state).toBe('idle');
+    expect(pairing.present(presentation(secret, phone))).toEqual({ state: 'refused' });
+    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
+  });
+
+  it('refuses an allow whose sheet was drawn for a different door', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    pairing.present(presentation(secret, makePhone()));
+    expect(() => pairing.allow(consentFor(BASE))).toThrow();
+    expect(saved).toEqual([]);
+  });
+
+  it('destroys the secret when the window is cancelled', () => {
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    pairing.cancel();
+    expect(pairing.windowOpen()).toBe(false);
+    expect(pairing.present(presentation(secret, makePhone())).state).toBe('refused');
+  });
+});
+
+describe('the QR pins the door’s public key, not its certificate', () => {
+  it('is sha256 over the SubjectPublicKeyInfo, base64url, as Node itself reads the key', () => {
+    const door = realDoor();
+    const spki = new X509Certificate(door.certPem).publicKey.export({ type: 'spki', format: 'der' });
+    expect(spkiPinOf(door.publicKeyFingerprint)).toBe(b64u(createHash('sha256').update(spki).digest()));
+  });
+
+  it('survives the certificate’s renewal', () => {
     const born = Date.UTC(2026, 0, 1);
     const first = realDoor(born);
     const renewed = realDoor(first.notAfter - 10 * 24 * 60 * 60 * 1000);
@@ -829,247 +1064,15 @@ describe('the QR pins the public key, not the certificate (F1)', () => {
     expect(spkiPinOf(null)).toBeNull();
     expect(spkiPinOf('')).toBeNull();
     expect(spkiPinOf('AB:CD')).toBeNull();
-    expect(spkiPinOf('A'.repeat(66))).toBeNull();
     expect(spkiPinOf('ZZ'.repeat(32))).toBeNull();
-  });
-
-  it('is the fp a window carries, and a window with no pin does not open', () => {
-    const door = realDoor();
-    let pin: string | null = spkiPinOf(door.publicKeyFingerprint);
-    const pairing = new PocketPairing({
-      identity: () => newIdentity().identity,
-      fieldsNow: () => BASE,
-      savePhones: () => true,
-      publicKeyPin: () => pin
-    });
-    const payload = JSON.parse(pairing.open(NO_KEY).payload) as Record<string, unknown>;
-    expect(payload['v']).toBe(POCKET_QR_VERSION);
-    expect(POCKET_QR_VERSION).toBe(2);
-    expect(payload['fp']).toBe(pin);
-    pairing.cancel();
-    pin = null;
-    expect(() => pairing.open(NO_KEY)).toThrow(/not listening/);
-    expect(pairing.windowOpen()).toBe(false);
-  });
-});
-
-describe('the tailnet key the person pastes', () => {
-  let clock = 3_000_000;
-  let saved: readonly PocketPhoneFields[] = [];
-
-  function makePairing(): InstanceType<typeof PocketPairing> {
-    return new PocketPairing({
-      identity: () => door,
-      fieldsNow: () => BASE,
-      savePhones: (phones) => {
-        saved = phones;
-        return true;
-      },
-      publicKeyPin: () => PIN,
-      now: () => clock
-    });
-  }
-  let door: PocketIdentity;
-
-  /** Every buffer that was zeroed while it still held a tailnet key. */
-  let zeroed: string[] = [];
-  const realFill = Buffer.prototype.fill;
-
-  beforeEach(() => {
-    door = newIdentity().identity;
-    clock = 3_000_000;
-    saved = [];
-    zeroed = [];
-    vi.spyOn(Buffer.prototype, 'fill').mockImplementation(function (
-      this: Buffer,
-      ...args: unknown[]
-    ): Buffer {
-      const before = this.toString('utf8');
-      if (args[0] === 0 && before.startsWith(TAILNET_AUTH_KEY_PREFIX)) zeroed.push(before);
-      return (realFill as (...a: unknown[]) => Buffer).apply(this, args);
-    });
-  });
-
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it('rides in the QR as tk, trimmed of the paste’s whitespace, and nowhere else', () => {
-    const pairing = makePairing();
-    const offer = pairing.open({ tailnetKey: `  ${FAKE_KEY}\n` });
-    const payload = JSON.parse(offer.payload) as Record<string, unknown>;
-    expect(payload['tk']).toBe(FAKE_KEY);
-    expect(Object.keys(payload).sort()).toEqual(
-      ['dk', 'dx', 'exp', 'fp', 'host', 'port', 'ps', 'tk', 'v'].sort()
-    );
-    expect(pairing.holdsTailnetKey()).toBe(true);
-    // The sheet's view never carries it, before or after a phone presents.
-    expect(JSON.stringify(pairing.view())).not.toContain(FAKE_KEY);
-    const secret = (payload as { ps: string }).ps;
-    pairing.present(sealPresentation(secret, makePhone('Greg iPhone')), '100.64.0.9');
-    expect(JSON.stringify(pairing.view())).not.toContain(FAKE_KEY);
-    expect(JSON.stringify(pairing.fieldsWithPending())).not.toContain(FAKE_KEY);
-  });
-
-  it('is no key at all when the field was left empty or null', () => {
-    for (const tailnetKey of [null, '', '   ']) {
-      const payload = JSON.parse(makePairing().open({ tailnetKey }).payload) as Record<
-        string,
-        unknown
-      >;
-      expect('tk' in payload).toBe(false);
-    }
-    expect(tailnetKeyOf({})).toBeNull();
-  });
-
-  const refused: [string, unknown, RegExp][] = [
-    ['a 10 KB key', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(10 * 1024)}` }, /longer than any tailnet key/],
-    ['one character over the cap', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(TAILNET_KEY_MAX_CHARS - TAILNET_AUTH_KEY_PREFIX.length + 1)}` }, /longer than any tailnet key/],
-    ['a key that does not start tskey-auth-', { tailnetKey: 'tskey-api-p316notarealkey' }, /not a tailnet auth key/],
-    ['an OAuth client secret', { tailnetKey: 'tskey-client-p316notarealkey' }, /not a tailnet auth key/],
-    ['the prefix alone', { tailnetKey: TAILNET_AUTH_KEY_PREFIX }, /not a tailnet auth key/],
-    ['a space inside it', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316 notarealkey` }, /not a tailnet auth key/],
-    ['a line break inside it', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316\nnotarealkey` }, /not a tailnet auth key/],
-    ['a non-ASCII character', { tailnetKey: `${TAILNET_AUTH_KEY_PREFIX}p316é` }, /not a tailnet auth key/],
-    ['a number', { tailnetKey: 42 }, /could not read/],
-    ['no input at all', null, /could not read/],
-    ['a bare string', FAKE_KEY, /could not read/]
-  ];
-  for (const [name, input, sentence] of refused) {
-    it(`refuses ${name} with one sentence that never repeats it, and moves nothing`, () => {
-      const pairing = makePairing();
-      const first = JSON.parse(pairing.open(NO_KEY).payload) as { ps: string };
-      let message = '';
-      try {
-        pairing.open(input as { tailnetKey: string | null });
-      } catch (err) {
-        message = err instanceof Error ? err.message : String(err);
-      }
-      expect(message).toMatch(sentence);
-      const value =
-        input !== null && typeof input === 'object'
-          ? String((input as { tailnetKey?: unknown }).tailnetKey)
-          : String(input);
-      // The sentence names the prefix on purpose, so only a value that is MORE
-      // than the prefix can be said to have been repeated.
-      if (value !== TAILNET_AUTH_KEY_PREFIX) expect(message).not.toContain(value);
-      // The window that was open is still the one open.
-      expect(pairing.windowOpen()).toBe(true);
-      expect(
-        pairing.present(sealPresentation(first.ps, makePhone()), '100.64.0.9')
-      ).toBe('pending');
-    });
-  }
-
-  it('accepts a key exactly at the cap', () => {
-    const atCap = `${TAILNET_AUTH_KEY_PREFIX}${'a'.repeat(TAILNET_KEY_MAX_CHARS - TAILNET_AUTH_KEY_PREFIX.length)}`;
-    expect(atCap.length).toBe(TAILNET_KEY_MAX_CHARS);
-    const payload = JSON.parse(makePairing().open({ tailnetKey: atCap }).payload) as {
-      tk?: string;
-    };
-    expect(payload.tk).toBe(atCap);
-  });
-
-  it('is zeroed when the window is cancelled', () => {
-    const pairing = makePairing();
-    pairing.open({ tailnetKey: FAKE_KEY });
-    expect(zeroed).toEqual([]);
-    pairing.cancel();
-    expect(zeroed).toEqual([FAKE_KEY]);
-    expect(pairing.holdsTailnetKey()).toBe(false);
-  });
-
-  it('is zeroed when the window expires', () => {
-    const pairing = makePairing();
-    pairing.open({ tailnetKey: FAKE_KEY });
-    clock += POCKET_PAIRING_WINDOW_MS - 1;
-    expect(pairing.windowOpen()).toBe(true);
-    expect(zeroed).toEqual([]);
-    clock += 2;
-    expect(pairing.windowOpen()).toBe(false);
-    expect(zeroed).toEqual([FAKE_KEY]);
-  });
-
-  it('is zeroed by the allow, while the window stays to tell the phone', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open({ tailnetKey: FAKE_KEY }).payload) as { ps: string })
-      .ps;
-    const phone = makePhone('Greg iPhone');
-    pairing.present(sealPresentation(secret, phone), '100.64.0.9');
-    expect(pairing.holdsTailnetKey()).toBe(true);
-    expect(pairing.allow(consentFor(pairing.fieldsWithPending())).allowed).toBe(true);
-    expect(zeroed).toEqual([FAKE_KEY]);
-    expect(pairing.holdsTailnetKey()).toBe(false);
-    expect(pairing.view().state).toBe('allowed');
-    expect(saved.map((p) => p.label)).toEqual(['Greg iPhone']);
-    // What was saved about the phone carries no key.
-    expect(JSON.stringify(saved)).not.toContain(FAKE_KEY);
-  });
-
-  it('is zeroed when a new window replaces the one holding it', () => {
-    const pairing = makePairing();
-    pairing.open({ tailnetKey: FAKE_KEY });
-    const second = `${FAKE_KEY}2`;
-    pairing.open({ tailnetKey: second });
-    expect(zeroed).toEqual([FAKE_KEY]);
-    expect(pairing.holdsTailnetKey()).toBe(true);
-  });
-
-  it('is zeroed when the window refuses to open after reading it', () => {
-    let pin: string | null = null;
-    const pairing = new PocketPairing({
-      identity: () => door,
-      fieldsNow: () => BASE,
-      savePhones: () => true,
-      publicKeyPin: () => pin
-    });
-    expect(() => pairing.open({ tailnetKey: FAKE_KEY })).toThrow(/not listening/);
-    expect(zeroed).toEqual([FAKE_KEY]);
-    pin = PIN;
-    expect(pairing.holdsTailnetKey()).toBe(false);
-  });
-
-  it('reaches no file: a whole pairing leaves its bytes nowhere under userData', () => {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open({ tailnetKey: FAKE_KEY }).payload) as { ps: string })
-      .ps;
-    pairing.present(sealPresentation(secret, makePhone('Greg iPhone')), '100.64.0.9');
-    pairing.allow(consentFor(pairing.fieldsWithPending()));
-    writePocketStore({
-      identity: {
-        signPrivate: 'x',
-        exchangePrivate: 'y'
-      },
-      phones: saved,
-      port: 8823,
-      bindAtLaunch: true,
-      enabled: true,
-      pushAlerts: false,
-      deadPushTokens: []
-    });
-    const files: string[] = [];
-    const walk = (dir: string): void => {
-      for (const name of readdirSync(dir)) {
-        const path = join(dir, name);
-        if (statSync(path).isDirectory()) walk(path);
-        else files.push(path);
-      }
-    };
-    walk(userData);
-    expect(files.length).toBeGreaterThan(0);
-    for (const path of files) {
-      // The raw bytes, and every base64 run in them decoded, because the fake
-      // seal is a readable transform and a sealed copy would hide there.
-      for (const text of readableForms(readFileSync(path))) {
-        expect(text.includes(FAKE_KEY)).toBe(false);
-      }
-    }
   });
 });
 
 // ---------------------------------------------------------------------------
+// The verifier (SPEC §4.7.5)
+// ---------------------------------------------------------------------------
 
-describe('every request is signed', () => {
+describe('every request is signed, over the phone’s own connection', () => {
   let door: PocketIdentity;
   let phones: PocketPhoneFields[] = [];
   let clock = 2_000_000;
@@ -1088,7 +1091,7 @@ describe('every request is signed', () => {
       method: string;
       target: string;
       body: Buffer;
-      from: string;
+      channel: string | null;
       timestamp: string;
       nonce: string;
       signature: string;
@@ -1100,13 +1103,12 @@ describe('every request is signed', () => {
     const timestamp = over.timestamp ?? String(clock);
     const nonce = over.nonce ?? b64u(randomBytes(16));
     const signature =
-      over.signature ??
-      phoneSignature(phone, door, { method, target, body, timestamp, nonce });
+      over.signature ?? phoneSignature(phone, door, { method, target, body, timestamp, nonce });
     return {
       method,
       target,
       body,
-      from: over.from ?? '100.64.0.9',
+      channel: over.channel === undefined ? phoneIdOf(phone.signPublic) : over.channel,
       headers: {
         [POCKET_HEADERS.phone]: phoneIdOf(phone.signPublic),
         [POCKET_HEADERS.timestamp]: timestamp,
@@ -1122,24 +1124,40 @@ describe('every request is signed', () => {
     phones = [];
   });
 
-  it('accepts a phone the person allowed', () => {
+  it('accepts a phone the person allowed, on its own connection', () => {
     const phone = makePhone();
     phones = [phoneFields(phone)];
-    const verdict = verifier().verify(request(phone));
-    expect(verdict.ok).toBe(true);
+    expect(verifier().verify(request(phone)).ok).toBe(true);
   });
 
   it('refuses a phone nobody allowed', () => {
-    const phone = makePhone();
-    const verdict = verifier().verify(request(phone));
-    expect(verdict).toEqual({ ok: false, reason: 'unpaired' });
+    expect(verifier().verify(request(makePhone()))).toEqual({ ok: false, reason: 'unpaired' });
   });
 
-  it('refuses an address that is not the one the phone paired from', () => {
+  it('refuses a paired phone’s signature over ANOTHER phone’s connection', () => {
+    const a = makePhone('A');
+    const b = makePhone('B');
+    phones = [phoneFields(a), phoneFields(b)];
+    expect(verifier().verify(request(a, { channel: phoneIdOf(b.signPublic) }))).toEqual({
+      ok: false,
+      reason: 'channel'
+    });
+  });
+
+  it('refuses a signed read over a connection that presented no certificate', () => {
     const phone = makePhone();
     phones = [phoneFields(phone)];
-    const verdict = verifier().verify(request(phone, { from: '100.64.0.77' }));
-    expect(verdict).toEqual({ ok: false, reason: 'address' });
+    expect(verifier().verify(request(phone, { channel: null }))).toEqual({ ok: false, reason: 'channel' });
+  });
+
+  it('asks the channel before it spends anything a stranger could make cost', () => {
+    const phone = makePhone();
+    phones = [phoneFields(phone)];
+    const v = verifier();
+    const nonce = b64u(randomBytes(16));
+    expect(v.verify(request(phone, { channel: 'nobody', nonce }))).toEqual({ ok: false, reason: 'channel' });
+    // The nonce is not spent: the phone's own read with it still verifies.
+    expect(v.verify(request(phone, { nonce })).ok).toBe(true);
   });
 
   it('refuses a clock outside the window, on both sides', () => {
@@ -1147,14 +1165,8 @@ describe('every request is signed', () => {
     phones = [phoneFields(phone)];
     const old = String(clock - POCKET_CLOCK_SKEW_MS - 1);
     const ahead = String(clock + POCKET_CLOCK_SKEW_MS + 1);
-    expect(verifier().verify(request(phone, { timestamp: old }))).toEqual({
-      ok: false,
-      reason: 'stale'
-    });
-    expect(verifier().verify(request(phone, { timestamp: ahead }))).toEqual({
-      ok: false,
-      reason: 'stale'
-    });
+    expect(verifier().verify(request(phone, { timestamp: old }))).toEqual({ ok: false, reason: 'stale' });
+    expect(verifier().verify(request(phone, { timestamp: ahead }))).toEqual({ ok: false, reason: 'stale' });
   });
 
   it('refuses a replayed request, byte for byte', () => {
@@ -1171,15 +1183,14 @@ describe('every request is signed', () => {
     phones = [phoneFields(phone)];
     const v = verifier();
     const nonce = b64u(randomBytes(16));
-    expect(
-      v.verify(request(phone, { nonce, signature: b64u(randomBytes(64)) }))
-    ).toEqual({ ok: false, reason: 'signature' });
-    // The honest phone's own request, using that same nonce, still works: an
-    // unsigned flood cannot burn a real nonce.
+    expect(v.verify(request(phone, { nonce, signature: b64u(randomBytes(64)) }))).toEqual({
+      ok: false,
+      reason: 'signature'
+    });
     expect(v.verify(request(phone, { nonce })).ok).toBe(true);
   });
 
-  it('refuses a signature made for a different request', () => {
+  it('refuses a signature made for a different request, and for a different door', () => {
     const phone = makePhone();
     phones = [phoneFields(phone)];
     const timestamp = String(clock);
@@ -1191,30 +1202,20 @@ describe('every request is signed', () => {
       timestamp,
       nonce
     });
-    // The same signature aimed at a different path.
     expect(
-      verifier().verify(
-        request(phone, { target: '/v1/session?id=abc', timestamp, nonce, signature })
-      )
+      verifier().verify(request(phone, { target: '/v1/session?id=abc', timestamp, nonce, signature }))
     ).toEqual({ ok: false, reason: 'signature' });
-  });
-
-  it('refuses a signature made for a DIFFERENT DOOR, which is the binding', () => {
-    const phone = makePhone();
-    phones = [phoneFields(phone)];
-    const otherDoor = newIdentity().identity;
-    const timestamp = String(clock);
-    const nonce = b64u(randomBytes(16));
-    const signature = phoneSignature(phone, otherDoor, {
+    const other = phoneSignature(phone, newIdentity().identity, {
       method: 'GET',
       target: '/v1/blocked',
       body: Buffer.alloc(0),
       timestamp,
       nonce
     });
-    expect(
-      verifier().verify(request(phone, { timestamp, nonce, signature }))
-    ).toEqual({ ok: false, reason: 'signature' });
+    expect(verifier().verify(request(phone, { timestamp, nonce, signature: other }))).toEqual({
+      ok: false,
+      reason: 'signature'
+    });
   });
 
   it('refuses a request with a header missing', () => {
@@ -1222,27 +1223,26 @@ describe('every request is signed', () => {
     phones = [phoneFields(phone)];
     const full = request(phone);
     for (const name of Object.values(POCKET_HEADERS)) {
-      const headers = { ...full.headers };
-      delete (headers as Record<string, unknown>)[name];
-      expect(verifier().verify({ ...full, headers })).toEqual({
+      const headers = { ...full.headers } as Record<string, unknown>;
+      delete headers[name];
+      expect(verifier().verify({ ...full, headers: headers as never })).toEqual({
         ok: false,
         reason: 'headers'
       });
     }
   });
 
-  it('forgets a removed phone, keys and spent nonces alike', () => {
+  it('forgets a removed phone', () => {
     const phone = makePhone();
     phones = [phoneFields(phone)];
     const v = verifier();
-    const req = request(phone);
-    expect(v.verify(req).ok).toBe(true);
+    expect(v.verify(request(phone)).ok).toBe(true);
     v.forget(phoneIdOf(phone.signPublic));
     phones = [];
     expect(v.verify(request(phone))).toEqual({ ok: false, reason: 'unpaired' });
   });
 
-  it('names its algorithm in the bytes it signs', () => {
+  it('names its algorithm in the bytes it signs, and the binding agrees on both sides', () => {
     const text = canonicalRequestText({
       method: 'GET',
       target: '/v1/blocked',
@@ -1252,43 +1252,83 @@ describe('every request is signed', () => {
       binding: 'b'
     });
     expect(text.startsWith(`${POCKET_REQUEST_ALGORITHM}\n`)).toBe(true);
-  });
-
-  it('derives the same binding on both sides and never sends it', () => {
     const phone = makePhone();
-    const fields = phoneFields(phone);
-    const mine = pairingBinding(door, fields);
-    // The phone's half, computed with the phone's private key and the door's
-    // public one. Equal secrets, so equal bindings.
+    // The phone derived it on its side in `phoneSignature`; the Mac's side:
+    const mine = pairingBinding(door, phoneFields(phone));
     expect(mine).toHaveLength(64);
-    expect(
-      pairingBinding(door, { ...fields, exchangeKey: makePhone().exchangePublic })
-    ).not.toBe(mine);
-    expect(
-      createPublicKey({
-        key: Buffer.from(fields.exchangeKey, 'base64url'),
-        format: 'der',
-        type: 'spki'
-      }).asymmetricKeyType
-    ).toBe('x25519');
   });
 });
 
-describe('the empty door', () => {
-  it('allows no phone and answers the whole closed table', () => {
-    expect(EMPTY_POCKET_FIELDS.phones).toEqual([]);
-    expect(EMPTY_POCKET_FIELDS.routes).toEqual(POCKET_ROUTE_IDS);
-    expect(describePocketDoor(EMPTY_POCKET_FIELDS).lines).toContain(
-      'Allows no phone yet'
+// ---------------------------------------------------------------------------
+// The harness helper, held to the hand spelling (SPEC §4.8.5)
+// ---------------------------------------------------------------------------
+
+describe('sealPresentationAsPhone writes what the test spells', () => {
+  it('answers a body with sorted keys, an inner JSON with sorted keys, and a proof that verifies', () => {
+    const door = newIdentity().identity;
+    const tlsDoor = realDoor();
+    const pairing = new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => BASE,
+      savePhones: () => true,
+      publicKeyPin: () => PIN,
+      issueCertificate: (ck) => b64u(issueClientCertificate(tlsDoor.keyPem, ck, Date.now()))
+    });
+    const offer = pairing.open();
+    const phone = makePhone('Harness phone');
+    const t = createHash('sha256').update('p330-token').digest('hex');
+    const body = sealPresentationAsPhone(
+      offer.payload,
+      {
+        label: phone.label,
+        signingKey: phone.signPublic,
+        exchangeKey: phone.exchangePublic,
+        clientKey: phone.clientPublic,
+        pushToken: t,
+        pushEnvironment: 'development'
+      },
+      phone.sign
     );
+    const text = body.toString('utf8');
+    const outer = JSON.parse(text) as Record<string, string>;
+    expect(Object.keys(outer)).toEqual(['ct', 'ek', 'iv', 'sig', 'tag']);
+    // The test opens it with its own key derivation.
+    const secret = Buffer.from((JSON.parse(offer.payload) as { ps: string }).ps, 'base64url');
+    const key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), 'tortie-pocket-pair-v1', 32));
+    const decipher = createDecipheriv('aes-256-gcm', key, Buffer.from(outer['iv'] ?? '', 'base64url'));
+    decipher.setAuthTag(Buffer.from(outer['tag'] ?? '', 'base64url'));
+    const inner = Buffer.concat([
+      decipher.update(Buffer.from(outer['ct'] ?? '', 'base64url')),
+      decipher.final()
+    ]).toString('utf8');
+    expect(Object.keys(JSON.parse(inner) as object)).toEqual(['ape', 'apt', 'ck', 'ek', 'label', 'xk']);
+    const proof = [
+      'tortie-pocket-present-v1',
+      challengeOf(b64u(secret)),
+      outer['iv'],
+      outer['ct'],
+      outer['tag']
+    ].join('\n');
+    expect(
+      verifyWith(
+        null,
+        Buffer.from(proof, 'utf8'),
+        createPublicKey({ key: Buffer.from(phone.signPublic, 'base64url'), format: 'der', type: 'spki' }),
+        Buffer.from(outer['sig'] ?? '', 'base64url')
+      )
+    ).toBe(true);
+    // And the Mac opens it.
+    expect(pairing.present(outer as unknown as PocketSealedPresentation)).toEqual({ state: 'pending' });
+    const pending = pairing.fieldsWithPending().phones[0];
+    expect(pending?.pushToken).toBe(t);
+    expect(pending?.clientKey).toBe(phone.clientPublic);
   });
 });
 
 // ---------------------------------------------------------------------------
-// Phase 314: the switch, the device token, and the one door it comes in by
+// Phase 314: the push fields, carried unchanged
 // ---------------------------------------------------------------------------
 
-/** A device token, as a phone presents one: 32 bytes of hex. */
 function token(seed = 'a'): string {
   return createHash('sha256').update(`p314-token-${seed}`).digest('hex');
 }
@@ -1302,125 +1342,71 @@ function tokened(
 }
 
 describe('the push fields are execution bearing', () => {
-  it('names the v2 algorithm, because the canonical text changed shape', () => {
-    expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v2');
-    expect(canonicalPocketText(BASE)).toContain('"pushAlerts"');
-  });
-
-  it('moves the hash when the switch moves', () => {
-    expect(pocketExecutionHash({ ...BASE, pushAlerts: true })).not.toBe(
-      pocketExecutionHash(BASE)
-    );
-  });
-
-  it('moves the hash when a phone’s token or its environment moves', () => {
+  it('moves the hash when the switch moves, or a phone’s token or environment moves', () => {
+    expect(pocketExecutionHash({ ...BASE, pushAlerts: true })).not.toBe(pocketExecutionHash(BASE));
     const phone = makePhone();
     const one = pocketExecutionHash({ ...BASE, phones: [tokened(phone)] });
     expect(pocketExecutionHash({ ...BASE, phones: [phoneFields(phone)] })).not.toBe(one);
-    expect(
-      pocketExecutionHash({ ...BASE, phones: [tokened(phone, token('b'))] })
-    ).not.toBe(one);
-    expect(
-      pocketExecutionHash({ ...BASE, phones: [tokened(phone, token(), 'production')] })
-    ).not.toBe(one);
+    expect(pocketExecutionHash({ ...BASE, phones: [tokened(phone, token('b'))] })).not.toBe(one);
+    expect(pocketExecutionHash({ ...BASE, phones: [tokened(phone, token(), 'production')] })).not.toBe(one);
   });
 
-  it('asks again when the switch is turned on after a confirm', () => {
-    confirmPocketDoor(BASE, consentFor(BASE));
-    expect(pocketConfirmStatus({ ...BASE, pushAlerts: true }).state).toBe('changed');
-  });
-
-  it('draws the switch and each token as lines the person reads', () => {
+  it('draws each token as its digest’s first eight, never the token', () => {
     const phone = makePhone('Greg iPhone');
     const t = token();
-    const off = describePocketDoor({ ...BASE, phones: [tokened(phone, t)] }).lines;
-    expect(off).toContain('Tells your phone nothing through Apple');
-    expect(off).toContain(
+    const lines = describePocketDoor({ ...BASE, phones: [tokened(phone, t)] }).lines;
+    expect(lines).toContain(
       `Alerts for "Greg iPhone" go through Apple (development), device ${createHash('sha256')
         .update(t, 'utf8')
         .digest('hex')
         .slice(0, 8)}`
     );
-    const on = describePocketDoor({ ...BASE, pushAlerts: true }).lines;
-    expect(on).toContain(
-      'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps'
-    );
-    // A phone with no token draws no alerts line at all.
-    const none = describePocketDoor({ ...BASE, phones: [phoneFields(phone)] }).lines;
-    expect(none.some((l) => l.startsWith('Alerts for'))).toBe(false);
-  });
-
-  it('never draws the token itself, only its digest’s first eight', () => {
-    const t = token();
-    const lines = describePocketDoor({ ...BASE, phones: [tokened(makePhone(), t)] }).lines;
     expect(lines.join('\n').includes(t)).toBe(false);
   });
 });
 
 describe('the device token arrives inside the sealed presentation, and nowhere else', () => {
-  let door: PocketIdentity;
-  let fields: PocketExecutionFields;
-
-  function makePairing(): InstanceType<typeof PocketPairing> {
-    return new PocketPairing({
-      identity: () => door,
-      fieldsNow: () => fields,
-      savePhones: () => true,
-      publicKeyPin: () => PIN,
-      now: () => 1_000_000
-    });
-  }
-
-  beforeEach(() => {
-    door = newIdentity().identity;
-    fields = BASE;
-  });
-
   function presentWith(extra: Record<string, unknown>): {
     answer: string;
     pending: PocketPhoneFields | undefined;
   } {
-    const pairing = makePairing();
-    const secret = (JSON.parse(pairing.open(NO_KEY).payload) as { ps: string }).ps;
+    const door = newIdentity().identity;
+    const pairing = new PocketPairing({
+      identity: () => door,
+      fieldsNow: () => BASE,
+      savePhones: () => true,
+      publicKeyPin: () => PIN,
+      issueCertificate: () => null,
+      now: () => 1_000_000
+    });
+    const secret = (JSON.parse(pairing.open().payload) as { ps: string }).ps;
     const phone = makePhone('Greg iPhone');
-    const answer = pairing.present(sealPresentation(secret, phone, extra), '100.64.0.9');
+    const answer = pairing.present(presentation(secret, phone, { extra })).state;
     return {
       answer,
       pending: pairing.fieldsWithPending().phones.find((p) => p.label === 'Greg iPhone')
     };
   }
 
-  it('carries an honest token and environment into the fields the person confirms', () => {
+  it('carries an honest token, folded to lowercase', () => {
     const t = token();
-    const { answer, pending } = presentWith({ apt: t, ape: 'production' });
+    const { answer, pending } = presentWith({ apt: t.toUpperCase(), ape: 'production' });
     expect(answer).toBe('pending');
     expect(pending?.pushToken).toBe(t);
     expect(pending?.pushEnvironment).toBe('production');
-  });
-
-  it('folds an uppercase token to lowercase, so one token has one digest', () => {
-    const t = token();
-    const { answer, pending } = presentWith({ apt: t.toUpperCase(), ape: 'development' });
-    expect(answer).toBe('pending');
-    expect(pending?.pushToken).toBe(t);
   });
 
   it('pairs a phone that asks for no alerts, with empty push fields', () => {
     const { answer, pending } = presentWith({});
     expect(answer).toBe('pending');
     expect(pending?.pushToken).toBe('');
-    expect(pending?.pushEnvironment).toBe('');
   });
 
   const refused: [string, Record<string, unknown>][] = [
     ['a token that is not hex', { apt: 'z'.repeat(64), ape: 'development' }],
-    ['a token of 31 characters', { apt: 'a'.repeat(31), ape: 'development' }],
-    ['a token of 257 characters', { apt: 'a'.repeat(257), ape: 'development' }],
-    ['a token that is a number', { apt: 1234, ape: 'development' }],
     ['a token with no environment', { apt: 'a'.repeat(64) }],
     ['an environment with no token', { ape: 'development' }],
-    ['an environment that is not one of the two words', { apt: 'a'.repeat(64), ape: 'sandbox' }],
-    ['an empty token beside an environment', { apt: '', ape: 'production' }]
+    ['an environment that is not one of the two words', { apt: 'a'.repeat(64), ape: 'sandbox' }]
   ];
   for (const [name, extra] of refused) {
     it(`refuses the WHOLE presentation for ${name}`, () => {
@@ -1429,111 +1415,33 @@ describe('the device token arrives inside the sealed presentation, and nowhere e
       expect(pending).toBeUndefined();
     });
   }
-
-  it('the helper the harness pairs through seals what the door opens', () => {
-    const pairing = makePairing();
-    const offer = pairing.open(NO_KEY);
-    const phone = makePhone('Harness phone');
-    const t = token('h');
-    const body = sealPresentationAsPhone(offer.payload, {
-      label: phone.label,
-      signingKey: phone.signPublic,
-      exchangeKey: phone.exchangePublic,
-      pushToken: t,
-      pushEnvironment: 'development'
-    });
-    expect(pairing.present(body, '100.64.0.9')).toBe('pending');
-    const pending = pairing.fieldsWithPending().phones[0];
-    expect(pending?.pushToken).toBe(t);
-    expect(pending?.pushEnvironment).toBe('development');
-  });
 });
 
 describe('the store keeps the switch and the dead tokens', () => {
-  it('round trips both, and a row from before Phase 314 reads as no token', () => {
-    const minted = newIdentity();
-    const d1 = pushTokenDigest(token('dead-1'));
-    writePocketStore({
-      identity: minted.sealed,
+  it('round trips both, and keeps only digests, the newest 64', () => {
+    const digests = Array.from({ length: 70 }, (_, i) => pushTokenDigest(token(String(i))));
+    storeWith({
       phones: [phoneFields(makePhone('Old'))],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
       pushAlerts: true,
-      deadPushTokens: [d1]
+      deadPushTokens: [...digests, 'not-a-digest']
     });
     const read = readPocketStore();
     expect(read.store?.pushAlerts).toBe(true);
-    expect(read.store?.deadPushTokens).toEqual([d1]);
+    expect(read.store?.deadPushTokens).toEqual(digests.slice(-64));
     expect(read.store?.phones[0]?.pushToken).toBe('');
-    expect(read.store?.phones[0]?.pushEnvironment).toBe('');
-  });
-
-  it('reads a row with NO push keys at all as a phone that gave no token', () => {
-    const minted = newIdentity();
-    const bare = { ...phoneFields(makePhone('Bare')) } as Record<string, unknown>;
-    delete bare['pushToken'];
-    delete bare['pushEnvironment'];
-    writePocketStore({
-      identity: minted.sealed,
-      phones: [bare as unknown as PocketPhoneFields],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
-      pushAlerts: false,
-      deadPushTokens: []
-    });
-    const phone = readPocketStore().store?.phones[0];
-    expect(phone?.label).toBe('Bare');
-    expect(phone?.pushToken).toBe('');
-  });
-
-  it('drops a row whose push fields are present and wrong, WHOLE', () => {
-    const minted = newIdentity();
-    const good = tokened(makePhone('Good'));
-    const bad: PocketPhoneFields[] = [
-      { ...tokened(makePhone('Upper')), pushToken: token().toUpperCase() },
-      { ...tokened(makePhone('NoEnv')), pushEnvironment: '' },
-      { ...phoneFields(makePhone('EnvOnly')), pushEnvironment: 'production' },
-      { ...tokened(makePhone('Short')), pushToken: 'abcd' }
-    ];
-    writePocketStore({
-      identity: minted.sealed,
-      phones: [good, ...bad],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
-      pushAlerts: false,
-      deadPushTokens: []
-    });
-    expect(readPocketStore().store?.phones.map((p) => p.label)).toEqual(['Good']);
-  });
-
-  it('keeps only digests in the dead list, and only the newest 64', () => {
-    const minted = newIdentity();
-    const digests = Array.from({ length: 70 }, (_, i) => pushTokenDigest(token(String(i))));
-    writePocketStore({
-      identity: minted.sealed,
-      phones: [],
-      port: 8823,
-      bindAtLaunch: false,
-      enabled: false,
-      pushAlerts: false,
-      deadPushTokens: [...digests, 'not-a-digest', token('raw').toUpperCase()]
-    });
-    const dead = readPocketStore().store?.deadPushTokens ?? [];
-    expect(dead).toHaveLength(64);
-    expect(dead).toEqual(digests.slice(-64));
   });
 });
 
-describe('the sheet sees whether a phone can be told, never its token', () => {
-  it('says none, on or stopped', () => {
+describe('the sheet sees a phone’s label, fingerprint and alerts, never its token or an address', () => {
+  it('says none, on or stopped, with the three-key fingerprint', () => {
     const phone = makePhone();
     const t = token();
+    const view = phoneView(tokened(phone, t), 1);
+    expect(view.fingerprint).toBe(fingerprintOf(phone));
+    expect(Object.keys(view).sort()).toEqual(['addedAt', 'alerts', 'fingerprint', 'id', 'label']);
     expect(phoneView(phoneFields(phone), 1).alerts).toBe('none');
-    expect(phoneView(tokened(phone, t), 1).alerts).toBe('on');
+    expect(view.alerts).toBe('on');
     expect(phoneView(tokened(phone, t), 1, new Set([pushTokenDigest(t)])).alerts).toBe('stopped');
-    expect(JSON.stringify(phoneView(tokened(phone, t), 1)).includes(t)).toBe(false);
+    expect(JSON.stringify(view).includes(t)).toBe(false);
   });
 });

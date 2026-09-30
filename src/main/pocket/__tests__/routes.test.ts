@@ -35,6 +35,7 @@ import {
   type PocketRoute
 } from '../routes';
 import { POCKET_AGE_HONESTY, POCKET_OTHERS_MAX } from '@shared/ipc/pocket';
+import * as DOOR_TABLE from '../door/table';
 import { OUTCOME_REMOTE } from '@shared/overview-copy';
 import type { OverviewSessionActivity } from '@shared/overview';
 
@@ -140,6 +141,14 @@ function facts(over: Partial<PocketFacts> = {}): PocketFacts {
 // ---------------------------------------------------------------------------
 
 describe('the table is closed', () => {
+  // PHASE 330: the table moved to the door process's own module so it can
+  // refuse a path before main is told anything. This module re-exports it, and
+  // the two must be ONE table, not two that agree today.
+  it('is the door process’s own table, re-exported rather than copied', () => {
+    expect(POCKET_ROUTES).toBe(DOOR_TABLE.POCKET_ROUTES);
+    expect(matchPocketRoute).toBe(DOOR_TABLE.matchPocketRoute);
+  });
+
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());

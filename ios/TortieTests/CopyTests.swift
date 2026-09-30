@@ -107,7 +107,8 @@ final class CopyTests: XCTestCase {
             (pairing, Copy.pairStepScan),
             (pairing, Copy.pairMatchLabel),
             (pairing, Copy.pairMatchNote),
-            // Drawn since Phase 316.3, when the tailnet node is in the app.
+            // Since Phase 330 the phone installs nothing but Tortie; the mock
+            // says so in the same words.
             (pairing, Copy.pairPrivateNetwork),
         ]
         for (mock, line) in drawn {

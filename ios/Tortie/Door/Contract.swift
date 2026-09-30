@@ -432,24 +432,41 @@ extension PocketTurnsAnswer: Codable {
     }
 }
 
-/// `PocketPairAnswer`: what `POST /pair` answers, ONE of three words. Anything
-/// else fails to decode, and the pairing stops with a sentence.
-enum PairAnswer: String, Sendable, Equatable {
-    case pending, allowed, refused
+/// `PocketPairAnswer`: what `POST /pair` answers, ONE of three, and nothing
+/// else decodes (build/p330/SPEC.md section 4.8.3). `allowed` is the only one
+/// that carries anything: the certificate the Mac issued over this phone's
+/// client key, DER, base64url. A certificate on any other answer, or none on
+/// `allowed`, refuses the answer, and the pairing stops with a sentence.
+enum PairAnswer: Sendable, Equatable {
+    case pending
+    case refused
+    case allowed(certificate: Data)
+
+    /// Far above any certificate the Mac issues (a few hundred bytes).
+    static let certificateCap = 4096
 }
 
 extension PairAnswer: Decodable {
-    enum CodingKeys: String, CodingKey { case state }
+    enum CodingKeys: String, CodingKey { case state, cert }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         let word = try c.decode(String.self, forKey: .state)
-        guard let answer = PairAnswer(rawValue: word) else {
-            throw DecodingError.dataCorruptedError(
-                forKey: .state, in: c, debugDescription: "not one of pending, allowed, refused"
-            )
+        switch word {
+        case "pending", "refused":
+            guard !c.contains(.cert) else {
+                throw DecodingError.dataCorruptedError(forKey: .cert, in: c, debugDescription: "a certificate only comes with allowed")
+            }
+            self = word == "pending" ? .pending : .refused
+        case "allowed":
+            let text = try c.decode(String.self, forKey: .cert)
+            guard let der = Base64URL.decode(text), !der.isEmpty, der.count <= Self.certificateCap else {
+                throw DecodingError.dataCorruptedError(forKey: .cert, in: c, debugDescription: "not a certificate")
+            }
+            self = .allowed(certificate: der)
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .state, in: c, debugDescription: "not one of pending, allowed, refused")
         }
-        self = answer
     }
 }
 

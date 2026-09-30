@@ -1,139 +1,118 @@
 #!/usr/bin/env node
 /**
  * probe:p313 — the door SWITCHED ON, and read by a phone that is a node script
- * (Phase 316.1). Phase 313 named this probe and never wrote it; build/p316/SPEC.md
- * §4 "S1 — Proof" is where it is specified, and this file is that paragraph.
+ * (Phase 316.1; published through a STAND-IN Tailscale since Phase 330).
+ * Phase 313 named this probe and never wrote it; build/p316/SPEC.md §4 "S1 —
+ * Proof" is where it is specified, and build/p330/SPEC.md §5.4 re-points it.
  *
- * WHY IT EXISTS. Phase 313 built a door on the tailnet and nothing turned it on:
- * nothing called the registrar, nothing wrote `enabled`, there was no Settings
- * then Phone and the conversation store would have answered a stale page. Phase
- * 316.1 wires every one of those. What no plain-node check can reach is the
- * ORDER inside the real app — turn on, confirm, listening, pair, allow — over
- * the real registrar, the real sealed store and confirm record (mock keychain),
- * the real facts composer reading the real session list and the real overview
- * store, and the real launch step on a relaunch. This probe is that run.
+ * WHY IT EXISTS. What no plain-node check can reach is the ORDER inside the
+ * real app — turn on, confirm, publish, pair, allow — over the real registrar,
+ * the real sealed store and confirm record (mock keychain), the real facts
+ * composer reading the real session list and the real overview store, and the
+ * real launch step on a relaunch. This probe is that run.
  *
  * WHAT IS REAL IN A RUN
  *   - The app's own `pocket:*` channels, pressed through `window.gmux.pocket`
- *     exactly as Settings then Phone presses them, and the door they open.
- *   - The door's TLS, its closed route table, its signature check, its pairing
- *     window and its facts: the sessions are Tortie's own, the blocked row is
- *     the status monitor's own verdict, and the conversation is the overview
- *     store's own rows, brought up to date by the door's own refresh.
- *   - The launch step: the second launch must find the door listening with no
- *     press, and the third, whose agreement a Remove withdrew, must not.
+ *     exactly as Settings then Phone presses them, and the door they open: the
+ *     door process on 127.0.0.1, its mutual TLS, its closed route table, its
+ *     signature check, its pairing window and its facts.
+ *   - The Funnel child's start and stop, and the launch step: the second launch
+ *     must be publishing with no press, and the third, whose agreement a
+ *     Remove withdrew, must not.
  *
  * WHAT IS SUPPLIED, and it is exactly three things:
- *   - the PHONE, a node client written here from the wire format rather than
- *     imported from `src/main/pocket/`: its Ed25519 signature, its X25519
- *     binding, its sealed presentation, its phone id, its short fingerprint and
- *     its PIN are a second implementation, so the door cannot pass by checking
- *     what it happens to produce. The pin is the Swift shape exactly: the
- *     26-byte P-256 SubjectPublicKeyInfo header, then the leaf's 65-byte point,
- *     sha256, base64url (build/p316/SPEC.md §3.3);
+ *   - TAILSCALE, which is build/p330/tailscale-standin.mjs behind a /bin/sh
+ *     wrapper in the scratch world, named by `GMUX_TAILSCALE_BIN`. It answers
+ *     `status`, `serve status` and the one funnel shape, and its funnel is a
+ *     loopback FORWARDER that writes a PROXY v2 header and pipes to the door,
+ *     the way tailscaled does. The PREFLIGHT refuses the launch unless the
+ *     variable is that wrapper and the wrapper execs the stand-in byte for
+ *     byte, and the process table is sampled through the run: a real
+ *     Tailscale program under the app, or run as a command, FAILS the run;
+ *   - the PHONE, build/p316/node-phone.mjs, a third implementation of the wire
+ *     (the v:3 code, the proof, the three-key fingerprint, the client
+ *     certificate and mutual TLS), dialling the forwarder on 127.0.0.1 with
+ *     the code's public NAME as the TLS server name and the Host;
  *   - the `claude` on the scratch PATH, a /bin/sh script this probe writes. For
- *     one session it prints the COMMITTED Phase 312 dialog fixture
- *     (src/main/activity/__tests__/fixtures/claude-permission-prompt.txt), so
- *     the shipped screen tier reads `needs_input` with its numbered choices; for
- *     another it plants the COMMITTED research 63 transcript
- *     (docs/research/assets/63-fixtures/claude-session.jsonl) under the scratch
- *     HOME at the path its `--session-id` names. NO VENDOR PROCESS RUNS AND NO
- *     TOKEN IS SPENT;
- *   - THE TAILNET KEY, which is a MADE-UP `tskey-auth-…` string generated here.
- *     No real key exists in this run. It is pasted into the pairing window the
- *     way he would paste his, and at the end every file under the scratch
- *     profile, the harness directory and the scratch HOME, plus everything the
- *     app wrote to its console, is scanned for its bytes, which must be absent.
+ *     one session it prints the COMMITTED Phase 312 dialog fixture, so the
+ *     shipped screen tier reads `needs_input`; for another it plants the
+ *     COMMITTED research 63 transcript under the scratch HOME. NO VENDOR
+ *     PROCESS RUNS AND NO TOKEN IS SPENT.
  *
- * NO REAL INTERFACE, EVER. The app runs with `GMUX_POCKET_LOOPBACK=1`, so the
- * door binds 127.0.0.1, and this probe REFUSES to dial any host but 127.0.0.1:
- * the QR's `host` is asserted to be loopback BEFORE a byte is sent, and a QR
- * naming anything else ends the run. It never runs a `tailscale` command, never
- * opens an admin console and never binds 0.0.0.0.
+ * NO REAL INTERFACE, AND NO REAL TAILSCALE, EVER. The door binds 127.0.0.1
+ * only; the code's host is a made-up `.ts.net` name nobody resolves; this
+ * probe dials 127.0.0.1 and nothing else, and never runs a `tailscale` command.
  *
  * THE ORDER, one scratch world, three launches ONE AT A TIME
  *   Launch 1 (the order):
  *     C0  the channel census: every `pocket:*` channel of the contract answers
  *         from main (the parent reading is 0 and no `pocket` member at all)
- *     D0  pairing is refused while nothing listens, so the QR's pin can never
- *         be null; nothing is listening before the confirm
- *     D1  turn on: confirmState is not confirmed and nothing listens yet
- *     D2  confirm: listening on 127.0.0.1 and the default port
- *     K0  a 10 KB key and a key that does not start `tskey-auth-` are refused
- *         with a sentence, the refusal does not echo the key, and no window
- *         opened
- *     K1  the pairing offer is v:2 and carries the key as `tk`; the sheet's
- *         view and the status do not
+ *     D0  pairing is refused while nothing is published, so the QR's pin can
+ *         never be null
+ *     D1  turn on: the lines are drawn and nothing is published yet
+ *     D2  confirm: publishing through the stand-in at <name>:8443, the child's
+ *         forwarder answering
+ *     K1  the offer is v:3 read the phone's way: a public name, 8443, no `tk`
+ *         and no address; the sheet's view and the status carry no secret
  *     F1  the QR's `fp` is the PUBLIC KEY's hash, re-derived here from the leaf
- *         the door served, and not the certificate's
- *     P1  present, read the fingerprint on both sides, Allow, present again
- *     P2  after Allow the window no longer holds the key (the view says
- *         nothing of it) and a second phone with the photographed QR is refused
+ *         the door served through the forwarder, and not the certificate's
+ *     P1  present, read the three-key fingerprint on both sides, Allow,
+ *         present again and take the client certificate, which names the key
+ *     P2  after Allow a second phone with the photographed QR is refused, and
+ *         once the window shuts a phone with no certificate is closed after
+ *         the handshake
  *     B1  `/v1/blocked`: the waiting session is the one row, its title is the
  *         raised word, its age is main's own and re-derived here, it blocked
- *         AFTER it was created (`blockedSince > createdAt`), and `others` is
- *         exactly every listed session that is not blocked
+ *         AFTER it was created, and `others` is exactly every listed session
+ *         that is not blocked
  *     S1  `/v1/session` for the planted conversation: counts and a last answer
- *     T1  `/v1/turns` paged back to the first turn: pages never overlap, the
- *         indexes are contiguous, and the count drawn equals the turn count
- *     T2  ONE TURN APPENDED TO THE PLANTED RECORD, and the next `/v1/turns`
- *         shows it: the refresh runs before the read
- *     T3  a 4,000-character one-word ask comes back whole, and an unanswered
- *         turn carries one of the three absence sentences
+ *     T1  `/v1/turns` paged back to the first turn
+ *     T2  ONE TURN APPENDED TO THE PLANTED RECORD, and the next read shows it
+ *     T3  a 4,000-character one-word ask comes back whole
  *     A1  page indexes that go backwards, overlap, are negative or are 2^53
  *     A2  the id of a removed session, and a session with no record
  *   Launch 2 (the relaunch):
- *     R1  listening with no press, and the paired phone still reads
+ *     R1  publishing with no press, and the paired phone still reads through
+ *         the new child's forwarder
  *     A3  a Remove AFTER VERIFY AND BEFORE THE ANSWER IS WRITTEN (the 316.1
- *         reverify's nit 2): the composition is held on the app's own
- *         `sessionActivity` chain by a flood of `overview:activity` calls
- *         from the renderer, the request is sent twice with one nonce, and
- *         the Remove is pressed only after main prints that the second
- *         sending was refused `replay` — so the first had passed verify.
- *         THAT request must be refused (404) or cut, never answered, and
- *         main must print refusal 7's own reason, `unpaired`; a request
- *         refused before verify says `shutdown`, because the Remove stops the
- *         door in the same task. A run that cannot place the Remove is
- *         UNREADABLE, never a pass. At the pre-fix build this arm fails: the
- *         composed request is answered 200
+ *         reverify's nit 2), placed by a replay: that request must be refused
+ *         or cut, never answered, and main must print refusal 7's `unpaired`
  *   Launch 3 (nothing confirmed any more):
  *     L1  `enabled` and `bindAtLaunch` are still true and the agreement is
- *         gone, so the relaunch must NOT bind and must say why
- *     A4  `setDoor` during quit: the app exits, and nothing listens afterwards
+ *         gone, so the relaunch must NOT publish and must say why
+ *     A4  `setDoor` during quit: the app exits, and nothing is published after
  *   After:
- *     K2  the key's bytes are in no file under the profile, the harness
- *         directory or the HOME, and in nothing the app printed
- *     no Electron of this run is left
+ *     K2  the window's one-shot secret `ps` is in no file under the profile,
+ *         the harness directory or the HOME and in nothing the app printed,
+ *         and no PEM PRIVATE KEY lies under the profile or the HOME
+ *     RUN the preflight passed, no real Tailscale was sampled, no forbidden
+ *         or refused argv reached the stand-in, no stand-in process is left,
+ *         and no Electron of this run is left
  *
- * NOT DRIVEN HERE, and why. A REMOTE row's turns need a second machine, and no
- * harness here can make one; `conformance:pocket:hostile` drives the SHIPPING
- * composer's remote arm with a remote row in its facts. `blockedSince` for a
- * row first seen at a wake is Phase 314's (`probe:p314`, the wake arm).
+ * NOT DRIVEN HERE, and why. A REMOTE row's turns need a second machine;
+ * `conformance:pocket:hostile` drives the SHIPPING composer's remote arm.
+ * `blockedSince` for a row first seen at a wake is Phase 314's.
  *
  * WHAT IT WRITES. `out/p313/probe-p313.json`: per arm a verdict and a
  * sentence, with lengths, counts, digests and the probe's own synthetic
- * names — NEVER the key (it is written as its sha256), and never a signature,
- * a nonce or a private key. With `P313_KEEP=1` the scratch world is kept and
- * `rederive/answers.json` is written INSIDE it: every door answer this run
- * received, main's own session list, and the paths of the scratch profile's
- * databases, for the verifier's independent reader (SPEC S1, Method A), which
- * this file deliberately does not contain.
+ * names — never the one-shot secret (it is written as its sha256), a
+ * signature, a nonce or a private key. With `P313_KEEP=1` the scratch world is
+ * kept and `rederive/answers.json` is written INSIDE it for the verifier's
+ * independent reader, which this file deliberately does not contain.
  *
- * WHAT IT REFUSES TO DO. It signals nothing it did not start: every launch goes
- * through `build/electron-run.mjs`'s `withElectron`, whose kill is in a
- * `finally`, and it names its own scratch tmux socket (`gmux-p313-<pid>`, never
- * `gmux`), so the same teardown ends that server and every pane in it. It runs
- * no tmux command of its own, never runs `pkill`, installs nothing, spends no
- * token, passes no flag to any agent, reads no credential, keychain item or
- * conversation store of the person's, and writes nothing under the person's
- * home. `npm run shot` is not called.
+ * WHAT IT REFUSES TO DO. Every launch goes through build/electron-run.mjs's
+ * `withElectron`, whose kill is in a `finally`, on its own scratch tmux socket
+ * (`gmux-p313-<pid>`, never `gmux`). It signals nothing it did not start: the
+ * stand-in's processes are ended by pid in the `finally`, and only while their
+ * command line names the stand-in. It never runs `pkill`, installs nothing,
+ * spends no token, reads no credential, keychain item or conversation store of
+ * the person's, and writes nothing under the person's home. `npm run shot` is
+ * not called.
  *
- * VERIFIERS ONLY. It starts an Electron: take the orchestrator's Electron lock
- * first. Builders write it and never run it.
+ * VERIFIERS ONLY, under THE LOCK: it starts an Electron. Builders write it and
+ * never run it.
  *
- * BUILD FIRST. It carries no `npm run build &&` on purpose, because a run
- * against another checkout must not rebuild this one, and it refuses (exit 2)
- * when the checkout it is pointed at has no build.
+ * BUILD FIRST. It refuses (exit 2) when the checkout it is pointed at has no build.
  *
  *   npm run -s probe:p313
  *   P313_PARENT_CHECKOUT=/path/to/parent npm run -s probe:p313   the parent reading
@@ -145,38 +124,31 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import {
-  X509Certificate,
-  createCipheriv,
-  createHash,
-  createPublicKey,
-  diffieHellman,
-  generateKeyPairSync,
-  hkdfSync,
-  randomBytes,
-  sign as signWith
-} from 'node:crypto';
-import {
-  appendFileSync,
-  chmodSync,
-  existsSync,
-  lstatSync,
-  mkdirSync,
-  readFileSync,
-  readdirSync,
-  rmSync,
-  writeFileSync
-} from 'node:fs';
-import { request as httpsRequest } from 'node:https';
+import { X509Certificate, createHash, randomBytes } from 'node:crypto';
+import { appendFileSync, chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { connect as netConnect } from 'node:net';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from './electron-run.mjs';
 import { wsConnect, cdpEval } from './cdp-client.mjs';
 import { pickRendererTarget } from './cdp-target.mjs';
+import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
+import {
+  adoptCertificate,
+  b64u,
+  doorFrom,
+  makePhone,
+  pairAnswerOf,
+  pinOfPeer,
+  readOffer,
+  request,
+  sealPresentation,
+  signedGet as phoneGet,
+  signedHeaders
+} from './p316/node-phone.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-/** The checkout whose APP is launched. The helper and the phone are always this tree's. */
+/** The checkout whose APP is launched. The helper, the stand-in and the phone are always this tree's. */
 const CHECKOUT = resolve((process.env['P313_PARENT_CHECKOUT'] ?? '').trim() || ROOT);
 const AT_PARENT = CHECKOUT !== ROOT;
 const TAG = `[p313 ${AT_PARENT ? 'parent' : 'head'}]`;
@@ -191,8 +163,7 @@ if (!existsSync(join(CHECKOUT, 'out', 'main', 'index.js'))) {
 }
 
 // ---------------------------------------------------------------------------
-// What the SHIPPING source says, read out of it rather than copied, so no
-// comparison below can drift from what the app does.
+// What the SHIPPING source says, read out of it rather than copied.
 // ---------------------------------------------------------------------------
 
 function sourceOf(...files) {
@@ -211,27 +182,20 @@ function stringIn(text, name) {
   return hit === null ? null : hit[1];
 }
 
-const IPC_SRC = sourceOf('src/main/pocket/ipc.ts');
 const CONTRACT_SRC = sourceOf('src/shared/ipc/pocket.ts');
-const ROUTES_SRC = sourceOf('src/main/pocket/routes.ts');
+const ROUTES_SRC = sourceOf('src/main/pocket/door/table.ts', 'src/main/pocket/routes.ts');
 const COPY_SRC = sourceOf('src/shared/overview-copy.ts', 'src/renderer/overview/copy.ts');
-const PORT = numberIn(IPC_SRC, 'POCKET_DEFAULT_PORT') ?? 8823;
 const OTHERS_MAX = numberIn(CONTRACT_SRC, 'POCKET_OTHERS_MAX');
 const AGE_NOTE = stringIn(CONTRACT_SRC, 'POCKET_AGE_HONESTY');
-const ABSENCES = ['NOT_ANSWERED_YET', 'STOPPED_BEFORE_ANSWER', 'ANSWER_NOT_IN_RECORD']
-  .map((name) => stringIn(COPY_SRC, name))
-  .filter((s) => s !== null);
+const ABSENCES = ['NOT_ANSWERED_YET', 'STOPPED_BEFORE_ANSWER', 'ANSWER_NOT_IN_RECORD'].map((name) => stringIn(COPY_SRC, name)).filter((s) => s !== null);
 /** Every `pocket:*` channel the contract declares, from its channel map's own keys. */
 const CONTRACT_CHANNELS = [...CONTRACT_SRC.matchAll(/^\s*'(pocket:[A-Za-z]+)':\s*\{\s*req:/gm)].map((m) => m[1]);
 /** The route table's rows, read as literals, for the write-route count. */
-const ROUTE_ROWS = [
-  ...ROUTES_SRC.matchAll(/\{\s*id:\s*'(\w+)',\s*method:\s*'(\w+)',\s*path:\s*'([^']+)',\s*reads:\s*(true|false)/g)
-].map((m) => ({ id: m[1], method: m[2], path: m[3], reads: m[4] === 'true' }));
+const ROUTE_ROWS = [...ROUTES_SRC.matchAll(/\{\s*id:\s*'(\w+)',\s*method:\s*'(\w+)',\s*path:\s*'([^']+)',\s*reads:\s*(true|false)/g)].map((m) => ({ id: m[1], method: m[2], path: m[3], reads: m[4] === 'true' }));
 const WRITE_ROUTES = ROUTE_ROWS.filter((r) => !r.reads || (r.method !== 'GET' && r.path !== '/pair')).length;
 
 // ---------------------------------------------------------------------------
-// The scratch world. Outside the repository and outside the person's home,
-// which is what build/electron-run.mjs refuses a profile for.
+// The scratch world. Outside the repository and outside the person's home.
 // ---------------------------------------------------------------------------
 
 const RUN = resolve((process.env['P313_RUN'] ?? '').trim() || `/private/tmp/p313-probe-${String(process.pid)}`);
@@ -244,10 +208,11 @@ const HARNESS = join(RUN, 'harness');
 const PROFILE = join(HARNESS, 'profile');
 const PROJECT = join(RUN, 'project');
 const BIN = join(HOME, '.local', 'bin');
+/** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
+const STANDIN_DIR = join(RUN, 'standin');
 const SOCKET = `gmux-p313-${String(process.pid)}`;
 const KEEP = (process.env['P313_KEEP'] ?? '') === '1';
 
-/** The fake claude's control files. The probe owns the timing. */
 const NEXT = join(RUN, 'fake-next');
 const STOP = join(RUN, 'fake-stop');
 const TALK_SID = join(RUN, 'talk-sid');
@@ -261,35 +226,28 @@ for (const file of [DIALOG, STORE_SRC]) {
   process.exit(2);
 }
 
-/**
- * THE TAILNET KEY. MADE UP, here, for this run. It has the shape the door
- * checks and nothing else: no Tailscale server has ever seen it and none ever
- * will, because nothing in this run dials anything but 127.0.0.1. The report
- * names it only by its sha256.
- */
-const KEY = `tskey-auth-kP313probe${randomBytes(6).toString('hex')}-CNTRLp313probe${randomBytes(18).toString('hex')}`;
-const KEY_SHA = sha(KEY);
-/** Anything that goes into the report passes through this. */
-const unkeyed = (text) => String(text).split(KEY).join('<the made-up key>');
-
 /** The session names. Every one is this run's own. */
 const N = { shell: 'p313-shell', gone: 'p313-gone', talk: 'p313-talk', ask: 'p313-ask' };
+const PUBLIC_NAME = DEFAULT_SCENARIO.dnsName.replace(/\.$/, '');
 
 // ---------------------------------------------------------------------------
 // The report
 // ---------------------------------------------------------------------------
 
+/** Every one-shot secret a window of this run carried. The report never holds them. */
+const SECRETS = [];
+const unsecret = (text) => SECRETS.reduce((t, s) => t.split(s).join('<the one-shot secret>'), String(text));
+
 const report = {
   checkout: CHECKOUT,
   atParent: AT_PARENT,
-  keySha256: KEY_SHA,
-  constants: { PORT, OTHERS_MAX, AGE_NOTE, absences: ABSENCES.length, contractChannels: CONTRACT_CHANNELS, writeRoutes: WRITE_ROUTES },
+  constants: { OTHERS_MAX, AGE_NOTE, absences: ABSENCES.length, contractChannels: CONTRACT_CHANNELS, writeRoutes: WRITE_ROUTES },
   arms: [],
   readings: {}
 };
 let failures = 0;
 const arm = (id, ok, said) => {
-  const text = unkeyed(said);
+  const text = unsecret(said);
   report.arms.push({ id, ok, said: text });
   if (ok === false) failures += 1;
   say(`${ok === null ? 'UNREADABLE' : ok ? 'PASS' : 'FAIL'} ${id}: ${text}`);
@@ -298,63 +256,26 @@ const arm = (id, ok, said) => {
 const answers = [];
 
 // ---------------------------------------------------------------------------
-// The phone, written from the wire format and not from src/main/pocket/
+// The wire: the stand-in's forwarder on 127.0.0.1, and nothing else, ever
 // ---------------------------------------------------------------------------
 
-const b64u = (buf) => Buffer.from(buf).toString('base64url');
-/**
- * The DER header of a P-256 SubjectPublicKeyInfo, before its 65-byte point.
- * This is what the Swift client prepends to `SecKeyCopyExternalRepresentation`
- * (build/p316/SPEC.md §3.3), so the pin here is computed the phone's way.
- */
-const SPKI_P256_HEADER = Buffer.from('3059301306072a8648ce3d020106082a8648ce3d030107034200', 'hex');
-
-function makePhone(label, doorExchangePublic) {
-  const signing = generateKeyPairSync('ed25519');
-  const exchange = generateKeyPairSync('x25519');
-  const signingKey = b64u(signing.publicKey.export({ type: 'spki', format: 'der' }));
-  const exchangeKey = b64u(exchange.publicKey.export({ type: 'spki', format: 'der' }));
-  const shared = diffieHellman({
-    privateKey: exchange.privateKey,
-    publicKey: createPublicKey({ key: Buffer.from(doorExchangePublic, 'base64url'), format: 'der', type: 'spki' })
-  });
-  const binding = Buffer.from(
-    hkdfSync('sha256', shared, Buffer.from(`${doorExchangePublic}\n${exchangeKey}`, 'utf8'), 'tortie-pocket-bind-v1', 32)
-  ).toString('hex');
-  const id = sha(`tortie-pocket-id-v1\n${signingKey}`).slice(0, 32);
-  const fingerprint = (sha(`tortie-pocket-fp-v1\n${signingKey}\n${exchangeKey}`).slice(0, 24).match(/.{4}/g) ?? []).join(' ');
-  return { label, id, signingKey, exchangeKey, signPrivate: signing.privateKey, binding, fingerprint };
-}
-
-/** A presentation sealed under the QR's one-shot secret, the phone's way. */
-function sealPresentation(secretB64u, phone) {
-  const secret = Buffer.from(secretB64u, 'base64url');
-  const key = Buffer.from(hkdfSync('sha256', secret, Buffer.alloc(0), 'tortie-pocket-pair-v1', 32));
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const plain = Buffer.from(J({ label: phone.label, ek: phone.signingKey, xk: phone.exchangeKey }), 'utf8');
-  const ct = Buffer.concat([cipher.update(plain), cipher.final()]);
-  return Buffer.from(J({ iv: b64u(iv), ct: b64u(ct), tag: b64u(cipher.getAuthTag()) }), 'utf8');
-}
-
-/** The pin, the phone's way: header + the leaf's point, sha256, base64url. */
-function pinOf(peer) {
-  if (peer === undefined || peer === null || !Buffer.isBuffer(peer.pubkey) || peer.pubkey.length !== 65) return null;
-  return b64u(createHash('sha256').update(Buffer.concat([SPKI_P256_HEADER, peer.pubkey])).digest());
-}
-
-// ---------------------------------------------------------------------------
-// The wire. 127.0.0.1 and nothing else, ever.
-// ---------------------------------------------------------------------------
-
-let pinned = null;
+let standin = null;
+/** The QR this run pins, read the phone's way. */
+let offer = null;
 /** What the last handshake presented, for F1's re-derivation. */
 let lastLeaf = null;
 
-/** Is anything accepting on 127.0.0.1:PORT? A plain TCP connect, nothing sent. */
-function portAnswers() {
+/** The live Funnel child's forwarder, or null while nothing is published. */
+const forwarder = () => standin?.readFunnel()[0] ?? null;
+/** The door to dial: the forwarder now, with the code's name and pin. */
+const DOOR = () => (offer === null ? null : doorFrom(offer, forwarder()?.forwarderPort ?? 0));
+
+/** Is anything published, and does its forwarder accept? A plain TCP connect, nothing sent. */
+function published() {
+  const f = forwarder();
+  if (f === null) return Promise.resolve(false);
   return new Promise((done) => {
-    const socket = netConnect({ host: '127.0.0.1', port: PORT });
+    const socket = netConnect({ host: '127.0.0.1', port: f.forwarderPort });
     const finish = (value) => {
       socket.destroy();
       done(value);
@@ -365,137 +286,43 @@ function portAnswers() {
   });
 }
 
-/**
- * One request to the door. It never rejects: a refusal that arrives as a dead
- * socket is itself a reading. Nothing is accepted before the pin holds.
- */
-function ask(method, target, headers, body, { timeoutMs = 20_000 } = {}) {
-  return new Promise((done) => {
-    let settled = false;
-    const finish = (value) => {
-      if (settled) return;
-      settled = true;
-      done(value);
-    };
-    const req = httpsRequest(
-      {
-        host: '127.0.0.1',
-        port: PORT,
-        method,
-        path: target,
-        agent: false,
-        rejectUnauthorized: false,
-        headers
-      },
-      (res) => {
-        const chunks = [];
-        res.on('data', (c) => chunks.push(c));
-        res.on('end', () => finish({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') }));
-        res.on('error', (err) => finish({ status: 0, body: '', error: String(err?.message ?? err) }));
-      }
-    );
-    req.setTimeout(timeoutMs, () => {
-      req.destroy(new Error('timed out'));
-    });
-    req.on('socket', (socket) => {
-      socket.on('secureConnect', () => {
-        const peer = socket.getPeerCertificate?.();
-        lastLeaf = peer ?? null;
-        const pin = pinOf(peer);
-        if (pinned === null || pin !== pinned) {
-          socket.destroy();
-          finish({ status: 0, body: '', error: pinned === null ? 'nothing is pinned yet' : 'the door presented a key that is not the pinned one' });
-        }
-      });
-    });
-    req.on('error', (err) => finish({ status: 0, body: '', error: String(err?.message ?? err) }));
-    if (body !== null) req.write(body);
-    req.end();
-  });
+/** One request through the forwarder; a refusal that arrives as a dead socket is itself a reading. */
+function ask(method, target, headers, body, { identity = null, timeoutMs = 20_000, onWritten } = {}) {
+  const door = DOOR();
+  if (door === null || door.port === 0) return Promise.resolve({ status: 0, body: '', error: 'nothing is published' });
+  return request({ door, method, target, headers: body === null ? headers : { ...headers, 'content-length': String(body.length) }, body, identity, timeoutMs, onWritten }).then((a) => a);
 }
-
-/** A signed GET, from a phone that signs honestly. */
-function signedGet(phone, target, options) {
-  const timestamp = String(Date.now());
-  const nonce = randomBytes(16).toString('hex');
-  const canonical = ['tortie-pocket-req-v1', 'GET', target, sha(Buffer.alloc(0)), timestamp, nonce, phone.binding].join('\n');
-  const signature = b64u(signWith(null, Buffer.from(canonical, 'utf8'), phone.signPrivate));
-  return ask(
-    'GET',
-    target,
-    {
-      'x-tortie-phone': phone.id,
-      'x-tortie-timestamp': timestamp,
-      'x-tortie-nonce': nonce,
-      'x-tortie-signature': signature
-    },
-    null,
-    options
-  );
+function signedGet(phone, target, options = {}) {
+  const door = DOOR();
+  if (door === null || door.port === 0) return Promise.resolve({ status: 0, body: '', error: 'nothing is published' });
+  return phoneGet(phone, door, target, options);
 }
 
 /**
- * ONE signed GET whose headers can be sent TWICE (arm A3, the 316.1 reverify's
- * nit 2). The second sending is a replay: same timestamp, same nonce, same
- * signature. The door spends a nonce only AFTER the signature holds, so when it
- * refuses one of the two sendings `replay`, the other has passed verify and is
- * inside the composition — which is the one fact about the app's timing this
- * probe can read from outside it, and it reads the same at the parent.
+ * ONE signed GET whose headers can be sent TWICE (arm A3). The second sending
+ * is a replay: same timestamp, same nonce, same signature. The door spends a
+ * nonce only AFTER the signature holds, so when it refuses one of the two
+ * sendings `replay`, the other has passed verify and is inside the composition.
  */
 function signedTwice(phone, target) {
-  const timestamp = String(Date.now());
-  const nonce = randomBytes(16).toString('hex');
-  const canonical = ['tortie-pocket-req-v1', 'GET', target, sha(Buffer.alloc(0)), timestamp, nonce, phone.binding].join('\n');
-  const headers = {
-    'x-tortie-phone': phone.id,
-    'x-tortie-timestamp': timestamp,
-    'x-tortie-nonce': nonce,
-    'x-tortie-signature': b64u(signWith(null, Buffer.from(canonical, 'utf8'), phone.signPrivate))
-  };
-  /** One sending: its answer, and `written` once the request has left in full. */
+  const headers = signedHeaders(phone, target);
   const send = () => {
     const out = { settled: false, answer: null, written: null };
     let wrote = () => undefined;
     out.written = new Promise((done) => {
       wrote = done;
     });
-    out.answer = new Promise((done) => {
-      const finish = (value) => {
-        if (out.settled) return;
-        out.settled = true;
-        wrote();
-        done(value);
-      };
-      const req = httpsRequest(
-        { host: '127.0.0.1', port: PORT, method: 'GET', path: target, agent: false, rejectUnauthorized: false, headers },
-        (res) => {
-          const chunks = [];
-          res.on('data', (c) => chunks.push(c));
-          res.on('end', () => finish({ status: res.statusCode ?? 0, body: Buffer.concat(chunks).toString('utf8') }));
-          res.on('error', (err) => finish({ status: 0, body: '', error: String(err?.message ?? err) }));
-        }
-      );
-      req.setTimeout(30_000, () => req.destroy(new Error('timed out')));
-      req.on('socket', (socket) => {
-        socket.on('secureConnect', () => {
-          const pin = pinOf(socket.getPeerCertificate?.());
-          if (pinned === null || pin !== pinned) {
-            socket.destroy();
-            finish({ status: 0, body: '', error: 'the door presented a key that is not the pinned one' });
-          }
-        });
-      });
-      req.on('finish', () => wrote());
-      req.on('error', (err) => finish({ status: 0, body: '', error: String(err?.message ?? err) }));
-      req.end();
+    out.answer = ask('GET', target, headers, null, { identity: phone, timeoutMs: 30_000, onWritten: () => wrote() }).then((a) => {
+      out.settled = true;
+      wrote();
+      return a;
     });
     return out;
   };
   return { send };
 }
 
-const verdictOf = (answer) =>
-  answer.status === 200 ? 'ok' : answer.status === 0 ? `nosocket-${answer.error ?? '?'}` : `refused-${String(answer.status)}`;
+const verdictOf = (answer) => (answer.status === 200 ? 'ok' : answer.status === 0 ? `nosocket-${answer.error ?? '?'}` : `refused-${String(answer.status)}`);
 const parse = (answer) => {
   try {
     return JSON.parse(answer.body);
@@ -503,14 +330,11 @@ const parse = (answer) => {
     return null;
   }
 };
-/** A read the verifier will re-derive, kept in memory. */
 async function read(phone, target, label) {
   const answer = await signedGet(phone, target);
   answers.push({ label, target, status: answer.status, body: answer.body });
   return answer;
 }
-
-/** Every page of one session's conversation, newest first, to the first turn. */
 async function pageBack(phone, sessionId, limit, label) {
   const pages = [];
   let to = null;
@@ -528,15 +352,30 @@ async function pageBack(phone, sessionId, limit, label) {
   return { ok: false, pages, why: 'more than 400 pages' };
 }
 
+/** The door's leaf through the forwarder, for F1: one TLS handshake, no request. */
+async function leafThroughForwarder() {
+  const { connect } = await import('node:tls');
+  const door = DOOR();
+  return new Promise((done) => {
+    const s = connect({ host: '127.0.0.1', port: door.port, servername: door.name, minVersion: 'TLSv1.3', rejectUnauthorized: false });
+    s.setTimeout(10_000, () => {
+      s.destroy();
+      done(null);
+    });
+    s.once('secureConnect', () => {
+      const peer = s.getPeerCertificate();
+      s.destroy();
+      done(peer);
+    });
+    s.once('error', () => done(null));
+  });
+}
+
 // ---------------------------------------------------------------------------
 // The app, driven through its own bridge
 // ---------------------------------------------------------------------------
 
-const INHERITED_CLAUDE = Object.fromEntries(
-  Object.keys(process.env)
-    .filter((name) => /^(?:CLAUDECODE|CLAUDE_)/.test(name))
-    .map((name) => [name, undefined])
-);
+const INHERITED_CLAUDE = Object.fromEntries(Object.keys(process.env).filter((name) => /^(?:CLAUDECODE|CLAUDE_)/.test(name)).map((name) => [name, undefined]));
 
 async function attach(timeoutMs) {
   const started = Date.now();
@@ -557,8 +396,6 @@ async function attach(timeoutMs) {
     await sleep(300);
   }
 }
-
-/** The app's bridge, armed. */
 async function armed(cdp) {
   await cdp.call('Runtime.enable');
   for (let i = 0; i < 200; i += 1) {
@@ -568,26 +405,14 @@ async function armed(cdp) {
   }
   return false;
 }
-
-/** One press on `window.gmux.pocket`, answered as `{ ok, value }` or `{ ok: false, error }`. */
 async function pocket(cdp, method, arg) {
   const call = arg === undefined ? `window.gmux.pocket[${J(method)}]()` : `window.gmux.pocket[${J(method)}](${J(arg)})`;
-  const text = await cdpEval(
-    cdp,
-    `(async () => { try { const v = await ${call}; return JSON.stringify({ ok: true, value: v === undefined ? null : v }); } catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); } })()`
-  );
+  const text = await cdpEval(cdp, `(async () => { try { const v = await ${call}; return JSON.stringify({ ok: true, value: v === undefined ? null : v }); } catch (e) { return JSON.stringify({ ok: false, error: String((e && e.message) || e) }); } })()`);
   return JSON.parse(text);
 }
-
 async function mainSessions(cdp) {
-  return JSON.parse(
-    await cdpEval(
-      cdp,
-      'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, status: x.status, createdAt: x.createdAt, agent: x.agent, agentSessionId: x.agentSessionId ?? null }))))'
-    )
-  );
+  return JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, status: x.status, createdAt: x.createdAt, agent: x.agent, agentSessionId: x.agentSessionId ?? null }))))'));
 }
-
 async function waitStatus(cdp, test, ms) {
   const started = Date.now();
   let last = null;
@@ -615,41 +440,15 @@ function talkRecordPath() {
 /** One more exchange on the scratch COPY. The committed fixture is never touched. */
 function appendTurn(record, nth, askText, answerText) {
   const at = new Date().toISOString();
-  const base = {
-    isSidechain: false,
-    userType: 'external',
-    entrypoint: 'cli',
-    cwd: PROJECT,
-    sessionId: record.sid,
-    version: '2.1.238',
-    gitBranch: 'main'
-  };
+  const base = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: PROJECT, sessionId: record.sid, version: '2.1.238', gitBranch: 'main' };
   const pad = String(nth).padStart(4, '0');
-  const lines = [
-    J({
-      parentUuid: null,
-      ...base,
-      type: 'user',
-      message: { role: 'user', content: askText },
-      uuid: `3130${pad}-1111-4111-8111-111111111111`,
-      timestamp: at,
-      promptSource: 'typed',
-      promptId: `p313-${pad}`,
-      origin: { kind: 'human' }
-    })
-  ];
+  const lines = [J({ parentUuid: null, ...base, type: 'user', message: { role: 'user', content: askText }, uuid: `3130${pad}-1111-4111-8111-111111111111`, timestamp: at, promptSource: 'typed', promptId: `p313-${pad}`, origin: { kind: 'human' } })];
   if (answerText !== null) {
     lines.push(
       J({
         parentUuid: null,
         ...base,
-        message: {
-          model: 'claude-opus-5',
-          id: `msg_p313${pad}`,
-          type: 'message',
-          role: 'assistant',
-          content: [{ type: 'text', text: answerText }]
-        },
+        message: { model: 'claude-opus-5', id: `msg_p313${pad}`, type: 'message', role: 'assistant', content: [{ type: 'text', text: answerText }] },
         requestId: `req_p313${pad}`,
         type: 'assistant',
         uuid: `3131${pad}-1111-4111-8111-111111111111`,
@@ -661,7 +460,7 @@ function appendTurn(record, nth, askText, answerText) {
 }
 
 // ---------------------------------------------------------------------------
-// The scan for the key
+// The scan: the one-shot secret, and any private key
 // ---------------------------------------------------------------------------
 
 /** Every regular file under `root` whose bytes hold any needle. Symlinks are not followed. */
@@ -710,9 +509,12 @@ function filesHolding(root, needles) {
 // ---------------------------------------------------------------------------
 
 let appText = '';
-let shimPid = 0;
-let appPid = 0;
+const launches = [];
+let lastShim = 0;
+let lastApp = 0;
 let ran = false;
+let preflightOk = false;
+let watch = null;
 
 const launchOptions = (label) => ({
   label,
@@ -729,9 +531,10 @@ const launchOptions = (label) => ({
     GMUX_SPECSTORY_NO_CLOUD: '1',
     GMUX_CONFIG_ROOT: join(PROFILE, 'gmux', 'config'),
     GMUX_HARNESS_DIR: HARNESS,
-    // THE LOOPBACK BIND. src/main/pocket/bind.ts binds 127.0.0.1 under this and
-    // refuses it in a packaged build. Nothing in this run binds a real interface.
-    GMUX_POCKET_LOOPBACK: '1',
+    // THE STAND-IN TAILSCALE (Phase 330). A development build honours this and
+    // runs it; a packaged one ignores it, which is why no packaged Tortie is
+    // launched here. The door itself binds 127.0.0.1 and nothing else.
+    GMUX_TAILSCALE_BIN: standin.binPath,
     P313_NEXT: NEXT,
     P313_STOP: STOP,
     P313_TALK_SID: TALK_SID,
@@ -744,34 +547,43 @@ const launchOptions = (label) => ({
 
 /** Record what a launch printed and which pids it started, whatever happened. */
 async function launch(label, body) {
+  const pre = preflightStandin(standin, standin.binPath);
+  if (!pre.ok) throw new Error(`the preflight refused the launch: ${pre.problems.join('; ')}`);
   await withElectron(launchOptions(label), async (handle) => {
+    const rec = { shim: handle.pid, app: 0 };
+    launches.push(rec);
+    lastShim = handle.pid;
+    const appNow = () => {
+      try {
+        rec.app = handle.appPid() || rec.app;
+      } catch {
+        /* not up */
+      }
+      lastApp = rec.app;
+    };
     try {
-      await body(handle);
+      appNow();
+      await body(handle, appNow);
     } finally {
       appText += `\n${handle.text()}`;
-      shimPid = handle.pid;
-      try {
-        appPid = handle.appPid();
-      } catch {
-        appPid = 0;
-      }
+      appNow();
     }
   });
 }
 
-/** The pairing, the phone, and the paired phone's id, carried across launches. */
 let phone = null;
 let sessionsSeen = [];
 
 try {
   // ---- the world ----------------------------------------------------------
   rmSync(RUN, { recursive: true, force: true });
-  for (const dir of [HOME, HARNESS, PROFILE, PROJECT, BIN, join(HOME, '.claude')]) {
-    mkdirSync(dir, { recursive: true });
-  }
-  // The fake claude. /bin/sh, no vendor code. `--session-id` and `--resume`
-  // both name the session; the mode is a file the probe writes before each
-  // create, consumed by the one session that starts next.
+  for (const dir of [HOME, HARNESS, PROFILE, PROJECT, BIN, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
+  standin = makeStandin({ dir: STANDIN_DIR, scenario: { ...DEFAULT_SCENARIO } });
+  const pre = preflightStandin(standin, standin.binPath);
+  preflightOk = pre.ok;
+  if (!pre.ok) throw new Error(`the preflight refused: ${pre.problems.join('; ')}`);
+  watch = watchForRealTailscale({ roots: () => [lastShim, lastApp].filter((p) => p > 0), everyMs: 1_000 });
+
   writeFileSync(
     join(BIN, 'claude'),
     `#!/bin/sh
@@ -810,7 +622,6 @@ exit 0
     'utf8'
   );
   chmodSync(join(BIN, 'claude'), 0o755);
-  // tmux's execvp reads the LOGIN shell's PATH, so the scratch bin goes on it.
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
   writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
   const git = (args) => spawnSync('git', args, { cwd: PROJECT, encoding: 'utf8', env: { ...process.env, HOME } });
@@ -818,13 +629,6 @@ exit 0
   writeFileSync(join(PROJECT, 'note.txt'), 'hello\n');
   git(['add', '-A']);
   git(['-c', 'user.email=p@x', '-c', 'user.name=p', 'commit', '-qm', 'seed']);
-
-  // The door's port is a CONFIRMED field and a taken one refuses rather than
-  // moving, so a port somebody else holds is a run that cannot be read.
-  if (await portAnswers()) {
-    arm('the run', null, `something already accepts on 127.0.0.1:${String(PORT)}, the door's confirmed port; this run cannot tell its door from that`);
-    throw new Error('port taken');
-  }
 
   // ======================================================================
   // LAUNCH 1 — the order
@@ -840,9 +644,8 @@ exit 0
 
       // ---- C0: the channel census ---------------------------------------
       // Each channel is pressed with an input main refuses or ignores, so the
-      // census changes nothing: a channel is REGISTERED when main answered,
-      // with a value or a refusal of its own, and NOT when Electron answered
-      // "No handler registered".
+      // census changes nothing. `openApproval` with no approval pending opens
+      // nothing: main opens only a URL it holds, and it holds none here.
       const HARMLESS = {
         status: undefined,
         pairingState: undefined,
@@ -853,7 +656,8 @@ exit 0
         forgetDoor: undefined,
         setPushAlerts: { on: false },
         setDoor: { on: false },
-        beginPairing: { tailnetKey: null }
+        beginPairing: undefined,
+        openApproval: undefined
       };
       const census = {};
       if (hasPocket === true) {
@@ -871,16 +675,9 @@ exit 0
       const registered = Object.values(census).filter((v) => v === 'answered' || v === 'refused by main').length;
       report.readings.census = census;
       report.readings.registeredChannels = registered;
-      report.readings.writeRoutes = WRITE_ROUTES;
-
       if (AT_PARENT) {
-        const reachable = await portAnswers();
-        report.readings.parent = { pocketMember: hasPocket === true, registered, writeRoutes: WRITE_ROUTES, doorReachable: reachable };
-        arm(
-          'C0 the parent reading',
-          true,
-          `window.gmux.pocket is ${hasPocket === true ? 'present' : 'absent'}; ${String(registered)} pocket channel(s) registered; ${String(WRITE_ROUTES)} write route(s) in the table; the door on 127.0.0.1:${String(PORT)} is ${reachable ? 'REACHABLE' : 'unreachable'}`
-        );
+        report.readings.parent = { pocketMember: hasPocket === true, registered, writeRoutes: WRITE_ROUTES, published: await published() };
+        arm('C0 the parent reading', true, `window.gmux.pocket is ${hasPocket === true ? 'present' : 'absent'}; ${String(registered)} pocket channel(s) registered; ${String(WRITE_ROUTES)} write route(s) in the table`);
         return;
       }
       arm(
@@ -899,132 +696,108 @@ exit 0
       writeFileSync(NEXT, 'ask', 'utf8');
       await cdpEval(cdp, `window.__gmuxP202.createSession(${J(N.ask)}, 'claude').then(() => true).catch(() => false)`);
 
-      // ---- D0: nothing to pin, nothing listening -------------------------
-      const early = await pocket(cdp, 'beginPairing', { tailnetKey: KEY });
+      // ---- D0: nothing to pin, nothing published --------------------------
+      const early = await pocket(cdp, 'beginPairing');
       const earlyView = await pocket(cdp, 'pairingState');
       arm(
-        'D0 pairing is refused while the door is not listening',
-        early.ok === false && !early.error.includes(KEY) && earlyView.ok && earlyView.value.state === 'idle' && !(await portAnswers()),
-        `beginPairing answered ${early.ok ? 'an offer' : `a refusal (${early.error.slice(0, 160)})`}; the window is ${earlyView.value?.state ?? '?'}; nothing accepts on the port`
+        'D0 pairing is refused while the door is not published',
+        early.ok === false && earlyView.ok && earlyView.value.state === 'idle' && !(await published()) && standin.readLog().filter((e) => e.kind === 'funnel').length === 0,
+        `beginPairing answered ${early.ok ? 'an offer' : `a refusal (${early.error.slice(0, 160)})`}; the window is ${earlyView.value?.state ?? '?'}; ${String(standin.readFunnel().length)} Funnel child(ren)`
       );
 
-      // ---- D1: turn it on, and nothing listens yet ------------------------
+      // ---- D1: turn it on, and nothing is published yet --------------------
       const on = await pocket(cdp, 'setDoor', { on: true });
-      await sleep(1_500);
-      const listeningBeforeConfirm = await portAnswers();
+      // THE READ FIRST (the Phase 330 fix round): the switch answers once its
+      // read is queued, with lines over empty fields (`https://:0`) that are
+      // never empty, so `confirmLines.length > 0` was true before anything was
+      // read. Main's own `confirmable` and a line naming the stand-in are.
+      const drawn = await waitStatus(
+        cdp,
+        (s) =>
+          s.confirmState !== 'confirmed' &&
+          s.confirmable === true &&
+          s.state !== 'opening' &&
+          s.confirmLines.some((l) => l.includes(`https://${PUBLIC_NAME}:`)),
+        20_000
+      );
+      await sleep(1_000);
       arm(
-        'D1 turning on asks first and binds nothing',
-        on.ok && on.value.state !== 'listening' && on.value.confirmState !== 'confirmed' && !listeningBeforeConfirm &&
-          Array.isArray(on.value.confirmLines) && on.value.confirmLines.length > 0 && typeof on.value.confirmHash === 'string',
-        `setDoor on answered state ${J(on.value?.state)}, confirmState ${J(on.value?.confirmState)}, ${String(on.value?.confirmLines?.length ?? 0)} line(s) to confirm; the port ${listeningBeforeConfirm ? 'ACCEPTS' : 'accepts nothing'}`
+        'D1 turning on reads Tailscale, draws the lines and publishes nothing',
+        on.ok && drawn.ok && drawn.status.state !== 'listening' && typeof drawn.status.confirmHash === 'string' && !(await published()) &&
+          drawn.status.confirmLines.some((l) => l.includes(`https://${PUBLIC_NAME}:8443`)) && standin.readLog().filter((e) => e.kind === 'funnel').length === 0,
+        `setDoor on answered ${on.ok ? 'a status' : `a refusal (${on.error})`}; state ${J(drawn.status?.state)}, confirmState ${J(drawn.status?.confirmState)}, ${String(drawn.status?.confirmLines?.length ?? 0)} line(s); ${String(standin.readFunnel().length)} Funnel child(ren)`
       );
 
-      // ---- D2: confirm, and it listens ------------------------------------
-      const confirmed = on.ok
-        ? await pocket(cdp, 'confirmDoor', { linesRead: on.value.confirmLines, hashRead: on.value.confirmHash })
-        : { ok: false, error: 'no status to confirm from' };
-      const listening = await waitStatus(cdp, (s) => s.state === 'listening', 20_000);
-      report.readings.listening = listening.status === null ? null : { state: listening.status.state, address: listening.status.address, port: listening.status.port, grant: listening.status.grant };
+      // ---- D2: confirm, and it is published --------------------------------
+      const confirmed = drawn.ok ? await pocket(cdp, 'confirmDoor', { linesRead: drawn.status.confirmLines, hashRead: drawn.status.confirmHash }) : { ok: false, error: 'no status to confirm from' };
+      const listening = await waitStatus(cdp, (s) => s.state === 'listening', 30_000);
+      const child = standin.readFunnel()[0] ?? null;
+      report.readings.listening = listening.status === null ? null : { state: listening.status.state, publicName: listening.status.publicName, publicPort: listening.status.publicPort, child: child === null ? null : { publicPort: child.publicPort } };
       arm(
-        'D2 the confirm opens the door on loopback',
-        confirmed.ok && confirmed.value.allowed === true && listening.ok && listening.status.address === '127.0.0.1' && listening.status.port === PORT && (await portAnswers()),
-        `confirmDoor ${confirmed.ok ? `allowed=${String(confirmed.value.allowed)}` : `threw ${confirmed.error}`}; status ${J(report.readings.listening)}`
+        'D2 the confirm publishes the door through the stand-in',
+        confirmed.ok && listening.ok && listening.status.publicName === PUBLIC_NAME && listening.status.publicPort === 8443 && child !== null && child.publicPort === 8443 && (await published()),
+        `confirmDoor ${confirmed.ok ? 'answered' : `threw ${confirmed.error}`}; status ${J(report.readings.listening)}`
       );
-      if (!listening.ok) return;
+      if (!listening.ok || child === null) return;
 
-      // ---- K0: the keys that are refused ---------------------------------
-      const huge = `tskey-auth-${'k'.repeat(10 * 1024)}`;
-      const refusals = [];
-      for (const [name, bad] of [
-        ['a 10 KB key', huge],
-        ['a key that does not start tskey-auth-', `tskeyauth-p313probe${randomBytes(12).toString('hex')}`],
-        ['an API key rather than an auth key', `tskey-api-p313probe${randomBytes(12).toString('hex')}`]
-      ]) {
-        const got = await pocket(cdp, 'beginPairing', { tailnetKey: bad });
-        const view = await pocket(cdp, 'pairingState');
-        refusals.push({
-          name,
-          refused: got.ok === false,
-          echoed: !got.ok && got.error.includes(bad.slice(0, 40)),
-          window: view.value?.state ?? '?'
-        });
-      }
-      report.readings.keyRefusals = refusals;
-      arm(
-        'K0 a key that is not the shape is refused with a sentence and opens nothing',
-        refusals.every((r) => r.refused && !r.echoed && r.window === 'idle'),
-        refusals.map((r) => `${r.name}: ${r.refused ? 'refused' : 'ACCEPTED'}${r.echoed ? ', and the refusal ECHOED it' : ''}, window ${r.window}`).join('; ')
-      );
-
-      // ---- K1 and F1: the offer ------------------------------------------
-      const offered = await pocket(cdp, 'beginPairing', { tailnetKey: KEY });
+      // ---- K1: the offer ---------------------------------------------------
+      const offered = await pocket(cdp, 'beginPairing');
       if (!offered.ok) {
-        arm('K1 the offer', false, `beginPairing refused a well-formed key while listening: ${offered.error.slice(0, 200)}`);
+        arm('K1 the offer', false, `beginPairing refused while published: ${offered.error.slice(0, 200)}`);
         return;
       }
-      const offer = JSON.parse(offered.value.payload);
-      // NO REAL INTERFACE. The QR's host is asserted to be loopback before a
-      // byte is sent to it; anything else ends the run here.
-      if (offer.host !== '127.0.0.1' || offer.port !== PORT) {
-        arm('the run', false, `the QR names ${J(offer.host)}:${J(offer.port)}, which is not this run's loopback door; nothing was dialled`);
+      const readBack = readOffer(offered.value.payload);
+      if (!readBack.ok) {
+        arm('K1 the offer', false, `the code does not read the phone's way: ${readBack.why}`);
         return;
       }
+      offer = readBack.offer;
+      SECRETS.push(offer.ps);
       const viewAfterOffer = await pocket(cdp, 'pairingState');
       const statusAfterOffer = await pocket(cdp, 'status');
       arm(
-        'K1 the offer carries the key as tk, and nothing else the sheet reads does',
-        offer.v === 2 && offer.tk === KEY && typeof offer.fp === 'string' && typeof offer.ps === 'string' &&
-          viewAfterOffer.ok && !J(viewAfterOffer.value).includes(KEY) && statusAfterOffer.ok && !J(statusAfterOffer.value).includes(KEY),
-        `payload v=${J(offer.v)}, keys ${J(Object.keys(offer).sort())}, tk ${offer.tk === KEY ? 'is the key' : 'is NOT the key'}; the window view ${J(viewAfterOffer.value ?? {}).includes(KEY) ? 'CARRIES the key' : 'does not carry it'}; the status ${J(statusAfterOffer.value ?? {}).includes(KEY) ? 'CARRIES the key' : 'does not carry it'}`
+        'K1 the offer is v:3: the public name and port, the pin, no tailnet key and no address; nothing the sheet reads carries the secret',
+        offer.host === PUBLIC_NAME && offer.port === 8443 && !Object.hasOwn(offer, 'tk') && viewAfterOffer.ok && !J(viewAfterOffer.value).includes(offer.ps) && statusAfterOffer.ok && !J(statusAfterOffer.value).includes(offer.ps),
+        `payload keys ${J(Object.keys(offer))}, host ${J(offer.host)}, port ${J(offer.port)}; the window view ${J(viewAfterOffer.value ?? {}).includes(offer.ps) ? 'CARRIES the secret' : 'does not carry the secret'}; the status ${J(statusAfterOffer.value ?? {}).includes(offer.ps) ? 'CARRIES it' : 'does not'}`
       );
 
-      // THE PIN, the phone's way. Every request below is refused client side
-      // unless the door's leaf hashes to the QR's `fp`.
-      pinned = offer.fp;
-      phone = makePhone('p313 phone', offer.dx);
-      const presented = await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, phone));
+      // ---- F1: the pin is the public key's -----------------------------------
+      lastLeaf = await leafThroughForwarder();
       const certSha = lastLeaf?.raw ? createHash('sha256').update(lastLeaf.raw).digest() : null;
       const x509Pin = lastLeaf?.raw ? b64u(createHash('sha256').update(new X509Certificate(lastLeaf.raw).publicKey.export({ type: 'spki', format: 'der' })).digest()) : null;
       arm(
-        'F1 the QR pins the door’s PUBLIC KEY, not its certificate',
-        presented.status === 200 && pinOf(lastLeaf) === offer.fp && x509Pin === offer.fp &&
-          certSha !== null && offer.fp !== b64u(certSha) && offer.fp.toLowerCase() !== certSha.toString('hex'),
-        `fp is ${String(offer.fp).length} characters; the leaf's point hashed the phone's way ${pinOf(lastLeaf) === offer.fp ? 'matches' : 'DOES NOT match'}, node's own SPKI export ${x509Pin === offer.fp ? 'matches' : 'DOES NOT match'}, and the certificate's own hash ${certSha !== null && (offer.fp === b64u(certSha) || offer.fp.toLowerCase() === certSha.toString('hex')) ? 'IS what the QR pins' : 'is not'}`
+        'F1 the QR pins the door’s PUBLIC KEY, not its certificate, through the forwarder',
+        pinOfPeer(lastLeaf) === offer.fp && x509Pin === offer.fp && certSha !== null && offer.fp !== b64u(certSha) && offer.fp.toLowerCase() !== certSha.toString('hex'),
+        `fp is ${String(offer.fp).length} characters; the leaf's point hashed the phone's way ${pinOfPeer(lastLeaf) === offer.fp ? 'matches' : 'DOES NOT match'}, node's own SPKI export ${x509Pin === offer.fp ? 'matches' : 'DOES NOT match'}, and the certificate's own hash ${certSha !== null && (offer.fp === b64u(certSha) || offer.fp.toLowerCase() === certSha.toString('hex')) ? 'IS what the QR pins' : 'is not'}`
       );
 
-      // ---- P1: present, match, allow --------------------------------------
-      const state0 = parse(presented)?.state ?? 'none';
+      // ---- P1: present, match, allow, take the certificate -------------------
+      phone = makePhone('p313 phone', offer.dx);
+      const presented = await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, phone));
+      const state0 = pairAnswerOf(presented).state ?? 'none';
       const sheet = await pocket(cdp, 'pairingState');
-      const allowed = sheet.ok && sheet.value.state === 'presented'
-        ? await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash })
-        : { ok: false, error: 'nothing presented' };
-      const again = await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, phone));
+      const allowed = sheet.ok && sheet.value.state === 'presented' ? await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash }) : { ok: false, error: 'nothing presented' };
+      const again = pairAnswerOf(await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, phone)));
+      const adopted = again.state === 'allowed' ? adoptCertificate(phone, again.cert) : { ok: false, why: `answered ${J(again.state)}` };
       arm(
-        'P1 present, match the fingerprint on both screens, Allow',
-        state0 === 'pending' && sheet.ok && sheet.value.fingerprint === phone.fingerprint && allowed.ok && allowed.value.allowed === true && (parse(again)?.state ?? '') === 'allowed',
-        `presenting answered ${J(state0)}; the sheet's fingerprint ${sheet.value?.fingerprint === phone.fingerprint ? 'equals' : 'DIFFERS FROM'} the one the phone computed; Allow ${allowed.ok ? `answered allowed=${String(allowed.value.allowed)}` : `threw ${allowed.error}`}; presenting again answered ${J(parse(again)?.state ?? verdictOf(again))}`
+        'P1 present, match the three-key fingerprint on both screens, Allow, and take the client certificate',
+        state0 === 'pending' && sheet.ok && sheet.value.fingerprint === phone.fingerprint && allowed.ok && again.state === 'allowed' && J(again.keys) === J(['cert', 'state']) && adopted.ok,
+        `presenting answered ${J(state0)}; the sheet's fingerprint ${sheet.value?.fingerprint === phone.fingerprint ? 'equals' : 'DIFFERS FROM'} the one the phone computed; Allow ${allowed.ok ? 'answered' : `threw ${allowed.error}`}; presenting again answered ${J(again.state)} with ${J(again.keys)}; the certificate ${adopted.ok ? 'names the phone’s client key' : `was refused: ${adopted.why}`}`
       );
 
-      // ---- P2: the photographed QR after Allow ----------------------------
-      // UNDER LOOPBACK EVERY PHONE HAS THE SAME ADDRESS, so `present` answers a
-      // second body from 127.0.0.1 with the allowed phone's own word (it asks the
-      // address, and on a tailnet a second device has a second one). What this
-      // arm holds is what that word is worth: the stranger is on no list and
-      // reads nothing, the window's secret opened nothing for it, and once the
-      // window shuts `/pair` is not a route at all.
+      // ---- P2: the photographed QR after Allow --------------------------------
       const viewAfterAllow = await pocket(cdp, 'pairingState');
       const stranger = makePhone('a photographed screen', offer.dx);
-      const late = await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, stranger));
+      const late = pairAnswerOf(await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, stranger)));
       const strangerRead = await signedGet(stranger, '/v1/blocked');
       const phonesNow = await pocket(cdp, 'status');
       await pocket(cdp, 'cancelPairing');
       const dead = await ask('POST', '/pair', { 'content-type': 'application/json' }, sealPresentation(offer.ps, stranger));
       const listed = phonesNow.ok && Array.isArray(phonesNow.value.phones) ? phonesNow.value.phones.map((p) => p.id) : [];
       arm(
-        'P2 after Allow the key is gone from the window and the QR is worth nothing',
-        viewAfterAllow.ok && !J(viewAfterAllow.value).includes(KEY) && verdictOf(strangerRead) === 'refused-404' &&
-          J(listed) === J([phone.id]) && verdictOf(dead) === 'refused-404',
-        `the view after Allow ${J(viewAfterAllow.value ?? {}).includes(KEY) ? 'CARRIES the key' : 'does not carry it'}; a second phone with the same QR inside the window was answered ${J(parse(late)?.state ?? verdictOf(late))} and its signed read ${verdictOf(strangerRead)}; the sheet lists ${J(listed.length)} phone(s)${J(listed) === J([phone.id]) ? ', the allowed one' : ', NOT just the allowed one'}; after the window shut, /pair answered ${verdictOf(dead)}`
+        'P2 after Allow the QR is worth nothing: a second phone is refused, and once the window shuts no certificate means no HTTP',
+        viewAfterAllow.ok && !J(viewAfterAllow.value).includes(offer.ps) && late.state === 'refused' && strangerRead.status !== 200 && J(listed) === J([phone.id]) && dead.status === 0 && dead.handshook === true,
+        `a second phone with the same QR inside the window was answered ${J(late.state)} and its read ${verdictOf(strangerRead)}; the sheet lists ${J(listed.length)} phone(s)${J(listed) === J([phone.id]) ? ', the allowed one' : ', NOT just the allowed one'}; after the window shut, /pair with no certificate ${dead.status === 0 ? `was closed after the handshake (${dead.error ?? ''})` : `answered ${verdictOf(dead)}`}`
       );
 
       // ---- B1: the blocked list, with others ------------------------------
@@ -1043,7 +816,7 @@ exit 0
       const blocked = await read(phone, '/v1/blocked', 'blocked');
       blockedAnswer = parse(blocked);
       if (askRow?.status !== 'needs_input') {
-        arm('B1 the blocked list', null, `${N.ask} never read needs_input in main within 90 s (it read ${J(askRow?.status)}), so the status monitor did not confirm the committed dialog; not a door reading`);
+        arm('B1 the blocked list', null, `${N.ask} never read needs_input in main within 90 s (it read ${J(askRow?.status)}); not a door reading`);
       } else if (blocked.status !== 200 || blockedAnswer === null) {
         arm('B1 the blocked list', false, `/v1/blocked answered ${verdictOf(blocked)}`);
       } else {
@@ -1061,34 +834,17 @@ exit 0
           const hours = Math.floor(minutes / 60);
           return hours < 24 ? `${String(hours)}h` : `${String(Math.floor(hours / 24))}d`;
         };
-        report.readings.blocked = {
-          rows: rows.length,
-          others: others.length,
-          othersOmitted: blockedAnswer.othersOmitted,
-          statusTitle: row?.statusTitle,
-          ageText: row?.ageText,
-          choices: row?.choices?.length ?? 0,
-          blockedSinceMinusCreatedAt: row === undefined ? null : row.blockedSince - askRow.createdAt,
-          ageNote: blockedAnswer.ageNote
-        };
+        report.readings.blocked = { rows: rows.length, others: others.length, othersOmitted: blockedAnswer.othersOmitted, statusTitle: row?.statusTitle, ageText: row?.ageText, choices: row?.choices?.length ?? 0, blockedSinceMinusCreatedAt: row === undefined ? null : row.blockedSince - askRow.createdAt, ageNote: blockedAnswer.ageNote };
         arm(
           'B1 the waiting session is the one row, in main’s words',
-          row !== undefined && rows.length === 1 && row.statusLabel === 'needs input' && row.statusTitle === raised(row.statusLabel) &&
-            row.statusTitle === 'Needs input' && (row.seenAtWake === true || row.ageText === age(row.blockedSince, blockedAnswer.at)) &&
-            Array.isArray(row.choices) && row.choices.length > 0,
+          row !== undefined && rows.length === 1 && row.statusLabel === 'needs input' && row.statusTitle === raised(row.statusLabel) && row.statusTitle === 'Needs input' && (row.seenAtWake === true || row.ageText === age(row.blockedSince, blockedAnswer.at)) && Array.isArray(row.choices) && row.choices.length > 0,
           `${String(rows.length)} row(s); ${N.ask} ${row === undefined ? 'is NOT one of them' : `reads ${J(row.statusLabel)} titled ${J(row.statusTitle)}, age ${J(row.ageText)} against ${J(age(row.blockedSince, blockedAnswer.at))} re-derived here, ${String(row.choices?.length ?? 0)} choice(s)`}`
         );
-        arm(
-          'B1b it blocked AFTER it was created, and the age says so',
-          row !== undefined && typeof askRow.createdAt === 'number' && row.blockedSince > askRow.createdAt,
-          row === undefined ? 'no row' : `blockedSince − createdAt = ${String(row.blockedSince - askRow.createdAt)} ms; a missing stamp falls back to createdAt and reads 0`
-        );
+        arm('B1b it blocked AFTER it was created, and the age says so', row !== undefined && typeof askRow.createdAt === 'number' && row.blockedSince > askRow.createdAt, row === undefined ? 'no row' : `blockedSince − createdAt = ${String(row.blockedSince - askRow.createdAt)} ms`);
         arm(
           'O1 others is exactly every listed session that is not blocked',
-          J(gotOthers) === J(wantOthers) && gotOthers.every((id) => !blockedIds.has(id)) &&
-            (OTHERS_MAX === null || others.length <= OTHERS_MAX) && blockedAnswer.othersOmitted === Math.max(0, wantOthers.length - (OTHERS_MAX ?? Infinity)) &&
-            (AGE_NOTE === null || blockedAnswer.ageNote === AGE_NOTE),
-          `main lists ${String(sessions.length)} session(s), ${String(rows.length)} blocked; others holds ${String(others.length)} (${gotOthers.length === wantOthers.length ? 'the same count' : `WANT ${String(wantOthers.length)}`}), ${J(gotOthers) === J(wantOthers) ? 'the same ids' : 'DIFFERENT ids'}; othersOmitted ${J(blockedAnswer.othersOmitted)}; ageNote ${blockedAnswer.ageNote === AGE_NOTE ? 'is Phase 314’s sentence' : `is ${J(blockedAnswer.ageNote)}`}`
+          J(gotOthers) === J(wantOthers) && gotOthers.every((id) => !blockedIds.has(id)) && (OTHERS_MAX === null || others.length <= OTHERS_MAX) && blockedAnswer.othersOmitted === Math.max(0, wantOthers.length - (OTHERS_MAX ?? Infinity)) && (AGE_NOTE === null || blockedAnswer.ageNote === AGE_NOTE),
+          `main lists ${String(sessions.length)} session(s), ${String(rows.length)} blocked; others holds ${String(others.length)} (${gotOthers.length === wantOthers.length ? 'the same count' : `WANT ${String(wantOthers.length)}`}), ${J(gotOthers) === J(wantOthers) ? 'the same ids' : 'DIFFERENT ids'}; othersOmitted ${J(blockedAnswer.othersOmitted)}`
         );
       }
 
@@ -1103,10 +859,8 @@ exit 0
         const detail = parse(detailAnswer)?.session ?? null;
         arm(
           'S1 one session, with its counts and its last answer',
-          detailAnswer.status === 200 && detail !== null && detail.turnCount > 0 && detail.activity !== null && typeof detail.activity === 'object' &&
-            (detail.lastAnswer === null || typeof detail.lastAnswer === 'string') && detail.handoff === null &&
-            (detail.lastMessageText === null) === (detail.activity.lastMessageAt === null),
-          `/v1/session answered ${verdictOf(detailAnswer)}: ${detail === null ? 'no body' : `${String(detail.turnCount)} turn(s), activity ${detail.activity === null ? 'null' : 'present'}, last answer ${typeof detail.lastAnswer === 'string' ? `${String(detail.lastAnswer.length)} characters` : J(detail.lastAnswer)}, handoff ${J(detail.handoff)}, lastMessageText ${J(detail.lastMessageText)}`}`
+          detailAnswer.status === 200 && detail !== null && detail.turnCount > 0 && detail.activity !== null && typeof detail.activity === 'object' && (detail.lastAnswer === null || typeof detail.lastAnswer === 'string') && detail.handoff === null && (detail.lastMessageText === null) === (detail.activity.lastMessageAt === null),
+          `/v1/session answered ${verdictOf(detailAnswer)}: ${detail === null ? 'no body' : `${String(detail.turnCount)} turn(s), last answer ${typeof detail.lastAnswer === 'string' ? `${String(detail.lastAnswer.length)} characters` : J(detail.lastAnswer)}`}`
         );
         const paged = await pageBack(phone, talk.id, 2, 'turns talk');
         const turns = paged.pages.slice().reverse().flatMap((p) => p.turns);
@@ -1118,24 +872,21 @@ exit 0
         arm(
           'T1 paged back to the first turn, the count drawn equals the turn count',
           paged.ok && detail !== null && turns.length === detail.turnCount && contiguous && overlapFree && paged.pages[paged.pages.length - 1]?.more === false && absenceOk,
-          `${String(paged.pages.length)} page(s) of at most 2, ${String(turns.length)} turn(s) against turnCount ${J(detail?.turnCount)}; indexes ${contiguous ? 'contiguous' : 'NOT contiguous'} and ${overlapFree ? 'never repeated' : 'REPEATED'}; every unanswered turn ${absenceOk ? 'carries one of the three absence sentences and every answered one none' : 'does NOT carry its absence sentence'}${paged.ok ? '' : `; ${paged.why}`}`
+          `${String(paged.pages.length)} page(s) of at most 2, ${String(turns.length)} turn(s) against turnCount ${J(detail?.turnCount)}; indexes ${contiguous ? 'contiguous' : 'NOT contiguous'} and ${overlapFree ? 'never repeated' : 'REPEATED'}${paged.ok ? '' : `; ${paged.why}`}`
         );
 
-        // ---- T2: append one turn, and the next read shows it -----------------
         const marker = `p313 appended ask ${randomBytes(4).toString('hex')}`;
         const reply = `p313 appended answer ${randomBytes(4).toString('hex')}, read back through the door`;
         appendTurn(record, 1, marker, reply);
         const fresh = await read(phone, `/v1/turns?id=${encodeURIComponent(talk.id)}&limit=1`, 'turns talk after append');
         const newest = parse(fresh)?.turns?.[0] ?? null;
-        const again = parse(await read(phone, `/v1/session?id=${encodeURIComponent(talk.id)}`, 'session talk after append'))?.session ?? null;
+        const again2 = parse(await read(phone, `/v1/session?id=${encodeURIComponent(talk.id)}`, 'session talk after append'))?.session ?? null;
         arm(
           'T2 a turn appended to the record is on the very next read, of the turns and of the session',
-          fresh.status === 200 && newest !== null && newest.askText === marker && newest.answerText === reply &&
-            again !== null && again.lastAnswer === reply && detail !== null && again.turnCount === detail.turnCount + 1,
-          `the next /v1/turns answered ${verdictOf(fresh)} and its newest ask ${newest?.askText === marker ? 'IS the appended one' : `is ${J(String(newest?.askText ?? '').slice(0, 60))}`}; the next /v1/session's last answer ${again?.lastAnswer === reply ? 'IS the appended one' : 'is NOT'}, turnCount ${J(again?.turnCount)} after ${J(detail?.turnCount)}`
+          fresh.status === 200 && newest !== null && newest.askText === marker && newest.answerText === reply && again2 !== null && again2.lastAnswer === reply && detail !== null && again2.turnCount === detail.turnCount + 1,
+          `the next /v1/turns answered ${verdictOf(fresh)} and its newest ask ${newest?.askText === marker ? 'IS the appended one' : 'is NOT'}; turnCount ${J(again2?.turnCount)} after ${J(detail?.turnCount)}`
         );
 
-        // ---- T3: a 4,000-character one-word ask, with no answer --------------
         const word = `p313${'w'.repeat(4_000 - 4)}`;
         appendTurn(record, 2, word, null);
         const long = await read(phone, `/v1/turns?id=${encodeURIComponent(talk.id)}&limit=1`, 'turns talk long ask');
@@ -1143,14 +894,9 @@ exit 0
         arm(
           'T3 a 4,000-character one-word ask comes back whole, and its absence is said',
           long.status === 200 && longTurn !== null && longTurn.askText === word && longTurn.askClipped === false && longTurn.answerText === null && ABSENCES.includes(longTurn.absence),
-          `answered ${verdictOf(long)}; the ask is ${String(longTurn?.askText?.length ?? 0)} characters (${longTurn?.askText === word ? 'byte for byte' : 'NOT the one written'}), clipped ${J(longTurn?.askClipped)}, absence ${J(longTurn?.absence)}`
+          `answered ${verdictOf(long)}; the ask is ${String(longTurn?.askText?.length ?? 0)} characters (${longTurn?.askText === word ? 'byte for byte' : 'NOT the one written'}), absence ${J(longTurn?.absence)}`
         );
 
-        // ---- A1: page indexes an attacker chooses -----------------------------
-        // A PAGE THAT IS NOT A PAGE IS REFUSED, never guessed at: an index is a
-        // plain non-negative safe integer and `from` is not past `to`
-        // (`readTurnRange`). A limit is not an index: it is CLAMPED to the
-        // store's own ceiling, so 2^53 answers at most 200 turns.
         const hostile = [];
         for (const [name, query, want] of [
           ['backwards', 'from=5&to=2', 'refused-404'],
@@ -1163,16 +909,8 @@ exit 0
         ]) {
           const got = await read(phone, `/v1/turns?id=${encodeURIComponent(talk.id)}&${query}`, `turns hostile ${name}`);
           const body = parse(got);
-          hostile.push({
-            name,
-            want,
-            verdict: verdictOf(got),
-            turns: Array.isArray(body?.turns) ? body.turns.length : null,
-            bounded: body === null || !Array.isArray(body.turns) || body.turns.length <= 200,
-            sane: body === null || !Array.isArray(body.turns) || body.turns.every((t) => Number.isSafeInteger(t.index) && t.index >= 0)
-          });
+          hostile.push({ name, want, verdict: verdictOf(got), turns: Array.isArray(body?.turns) ? body.turns.length : null, bounded: body === null || !Array.isArray(body.turns) || body.turns.length <= 200, sane: body === null || !Array.isArray(body.turns) || body.turns.every((t) => Number.isSafeInteger(t.index) && t.index >= 0) });
         }
-        // Two overlapping pages: the turns they share must be the same bytes.
         const pageA = parse(await read(phone, `/v1/turns?id=${encodeURIComponent(talk.id)}&limit=3&to=4`, 'turns overlap a'));
         const pageB = parse(await read(phone, `/v1/turns?id=${encodeURIComponent(talk.id)}&limit=3&to=5`, 'turns overlap b'));
         const shared = (pageA?.turns ?? []).filter((t) => (pageB?.turns ?? []).some((u) => u.index === t.index));
@@ -1181,7 +919,7 @@ exit 0
         arm(
           'A1 page indexes an attacker chooses are refused, a huge limit is clamped, and overlapping pages agree',
           hostile.every((h) => h.verdict === h.want && h.bounded && h.sane) && shared.length > 0 && agree,
-          `${hostile.map((h) => `${h.name}: ${h.verdict}${h.verdict === h.want ? '' : ` (WANT ${h.want})`}${h.turns === null ? '' : ` with ${String(h.turns)} turn(s)`}`).join('; ')}; two overlapping pages share ${String(shared.length)} turn(s) and ${agree ? 'agree byte for byte' : 'DISAGREE'}`
+          `${hostile.map((h) => `${h.name}: ${h.verdict}${h.verdict === h.want ? '' : ` (WANT ${h.want})`}`).join('; ')}; two overlapping pages share ${String(shared.length)} turn(s) and ${agree ? 'agree byte for byte' : 'DISAGREE'}`
         );
       }
 
@@ -1201,16 +939,15 @@ exit 0
       const shellBody = shellTurns === null ? null : parse(shellTurns);
       arm(
         'A2 a removed session is refused, and a session with no record answers an empty page',
-        gone !== undefined && !goneListed && verdictOf(goneSession) === 'refused-404' && verdictOf(goneTurns) === 'refused-404' &&
-          shellTurns !== null && shellTurns.status === 200 && Array.isArray(shellBody?.turns) && shellBody.turns.length === 0,
-        `${N.gone} is ${goneListed ? 'STILL LISTED' : 'no longer listed'}; its /v1/session answered ${goneSession === null ? '?' : verdictOf(goneSession)} and its /v1/turns ${goneTurns === null ? '?' : verdictOf(goneTurns)}; ${N.shell}'s /v1/turns answered ${shellTurns === null ? '?' : verdictOf(shellTurns)} with ${J(shellBody?.turns?.length ?? null)} turn(s)`
+        gone !== undefined && !goneListed && verdictOf(goneSession) === 'refused-404' && verdictOf(goneTurns) === 'refused-404' && shellTurns !== null && shellTurns.status === 200 && Array.isArray(shellBody?.turns) && shellBody.turns.length === 0,
+        `${N.gone} is ${goneListed ? 'STILL LISTED' : 'no longer listed'}; its /v1/session answered ${goneSession === null ? '?' : verdictOf(goneSession)} and its /v1/turns ${goneTurns === null ? '?' : verdictOf(goneTurns)}; ${N.shell}'s /v1/turns answered ${shellTurns === null ? '?' : verdictOf(shellTurns)}`
       );
-      arm('A2b a remote row’s turns', true, 'NOT DRIVEN HERE: no harness makes a second machine. conformance:pocket:hostile drives the shipping composer with a remote row and holds it to a note, never an error');
+      arm('A2b a remote row’s turns', true, 'NOT DRIVEN HERE: no harness makes a second machine. conformance:pocket:hostile drives the shipping composer with a remote row');
     } finally {
       cdp.close();
     }
   });
-  if (AT_PARENT || phone === null) {
+  if (AT_PARENT || phone === null || phone.certPem === null) {
     ran = true;
   } else {
     // ======================================================================
@@ -1223,51 +960,26 @@ exit 0
           arm('R1 the relaunch', null, 'the app never armed its bridge');
           return;
         }
-        const up = await waitStatus(cdp, (s) => s.state === 'listening', 30_000);
+        const up = await waitStatus(cdp, (s) => s.state === 'listening', 45_000);
         const reread = await read(phone, '/v1/blocked', 'blocked after relaunch');
         arm(
-          'R1 the relaunch is listening with no press, and the paired phone still reads',
-          up.ok && up.status.confirmState === 'confirmed' && reread.status === 200,
-          `status ${J({ state: up.status?.state, confirmState: up.status?.confirmState, refusal: up.status?.refusal })}; /v1/blocked answered ${verdictOf(reread)}`
+          'R1 the relaunch is publishing with no press, and the paired phone still reads through the new child',
+          up.ok && up.status.confirmState === 'confirmed' && standin.readFunnel().length === 1 && reread.status === 200,
+          `status ${J({ state: up.status?.state, confirmState: up.status?.confirmState, refusal: up.status?.refusal })}; ${String(standin.readFunnel().length)} Funnel child(ren); /v1/blocked answered ${verdictOf(reread)}`
         );
 
         // ---- A3: a Remove INSIDE the composition, and refusal 7's reason ------
-        // THE 316.1 REVERIFY'S NIT 2. The arm this replaces held the request's
-        // body, so the Remove landed BEFORE verify and the request was refused
-        // `shutdown` — which it also was at the pre-fix build, so it proved
-        // nothing about the answer composed after the press. This one places
-        // the Remove AFTER verify and BEFORE the answer is written, and reads
-        // the refusal's own reason.
-        //
-        // HOW IT IS PLACED, with nothing but the app's own paths. The door's
-        // composition awaits its refresh, and the refresh is `sessionActivity`,
-        // whose calls run ONE AT A TIME on a chain that yields to the event loop
-        // between the rows of a call. So the renderer asks `overview:activity`
-        // for two conversations many times over, and a request that reaches
-        // the composition waits on that chain across many turns of main's
-        // loop, which is where a Remove can land. WHERE the request is, is READ
-        // rather than timed: the request is sent twice with one nonce, the door
-        // refuses the second sending `replay` only once the first has passed
-        // verify, and the Remove is pressed only after main has printed that.
         const sessions = await mainSessions(cdp);
         const talk = sessions.find((s) => s.name === N.talk);
         const askRow = sessions.find((s) => s.name === N.ask);
-        const REPLAY_LINE = /refused a request on the tailnet door: replay/;
-        const UNPAIRED_LINE = /refused a request on the tailnet door: unpaired/;
+        const REPLAY_LINE = /refused a request (?:on the tailnet door|at the door): replay/;
+        const UNPAIRED_LINE = /refused a request (?:on the tailnet door|at the door): unpaired/;
         const readable = [talk, askRow].filter((s) => typeof s?.agentSessionId === 'string' && s.agentSessionId.length > 0);
         if (talk === undefined || readable.length < 2) {
           arm('A3 a Remove inside the composition', null, `the chain needs two sessions with a conversation id to yield between (${J(readable.map((s) => s.name))}), so the Remove could not be placed`);
         } else {
           const ids = readable.map((s) => s.id);
-          const flood = (n) =>
-            `(() => { const ids = ${J(ids)}; const at = performance.now(); window.__p313flood = Promise.all(Array.from({ length: ${String(n)} }, () => window.gmux.overview.activity({ sessionIds: ids }).catch(() => null))).then(() => performance.now() - at); return true; })()`;
-          // The chain's own pace on this machine, measured, not assumed. The
-          // hold aims INSIDE the stop's one second join of the request, so the
-          // composed request is answered rather than cut: a 404 here, and at
-          // the pre-fix build the 200 that was the defect. Measured on
-          // 2026-09-23: a 1.2 s aim held the chain 0.66 s and still placed the
-          // Remove; a 2 s aim held it 1.9 s and the join cut the request at
-          // both builds. `P313_A3_HOLD_MS` moves the aim.
+          const flood = (n) => `(() => { const ids = ${J(ids)}; const at = performance.now(); window.__p313flood = Promise.all(Array.from({ length: ${String(n)} }, () => window.gmux.overview.activity({ sessionIds: ids }).catch(() => null))).then(() => performance.now() - at); return true; })()`;
           const CALIBRATE = 1_000;
           await cdpEval(cdp, flood(CALIBRATE));
           const calibrationMs = Number(await cdpEval(cdp, 'window.__p313flood', 60_000));
@@ -1288,10 +1000,6 @@ exit 0
           } catch {
             replayed = false;
           }
-          // AT THE PRESS: which sending is still in flight. Main prints the
-          // replay line BEFORE that refusal's 404 has reached this client, so
-          // the probe waits (bounded) for one sending to settle; the other is
-          // the one inside the composition, and it must not have been answered.
           if (replayed) {
             const waitedFrom = Date.now();
             while (first.settled === second.settled && Date.now() - waitedFrom < 3_000) await sleep(5);
@@ -1311,39 +1019,21 @@ exit 0
           answers.push({ label: 'turns composed while Remove was pressed', target, status: composed?.status ?? null, body: composed?.body ?? '' });
           const after = await read(phone, '/v1/blocked', 'blocked after remove');
           const statusAfter = await pocket(cdp, 'status');
-          report.readings.a3 = {
-            calibrationMs,
-            calls,
-            floodMs,
-            replayed,
-            pendingAtPress: pendingAtPress.length,
-            first: verdictOf(a1),
-            second: verdictOf(a2),
-            composed: composed === null ? null : verdictOf(composed),
-            refusal7Reason: reason
-          };
+          report.readings.a3 = { calibrationMs, calls, floodMs, replayed, pendingAtPress: pendingAtPress.length, first: verdictOf(a1), second: verdictOf(a2), composed: composed === null ? null : verdictOf(composed), refusal7Reason: reason };
           const placed = replayed && pendingAtPress.length === 1;
           const said =
-            `the chain held ${String(calls)} activity call(s) for ${Number.isFinite(floodMs) ? `${String(Math.round(floodMs))} ms` : '?'} (calibrated at ${String(Math.round(calibrationMs))} ms per ${String(CALIBRATE)}); ` +
+            `the chain held ${String(calls)} activity call(s) for ${Number.isFinite(floodMs) ? `${String(Math.round(floodMs))} ms` : '?'}; ` +
             `the replay was ${replayed ? 'refused, so one sending had passed verify' : 'NOT seen'}; ${String(pendingAtPress.length)} sending(s) in flight at the press; ` +
-            `removePhone ${removed.ok ? 'answered' : `threw ${removed.error}`}; the sendings settled ${verdictOf(a1)} and ${verdictOf(a2)}; the composed one ${composed === null ? 'is unknown' : verdictOf(composed)}; ` +
+            `removePhone ${removed.ok ? 'answered' : `threw ${removed.error}`}; the composed one ${composed === null ? 'is unknown' : verdictOf(composed)}; ` +
             `main ${reason ? 'printed' : 'did NOT print'} refusal 7's reason (unpaired); the next /v1/blocked answered ${verdictOf(after)}; ` +
-            `the sheet lists ${J(statusAfter.value?.phones?.length ?? null)} phone(s), state ${J(statusAfter.value?.state)}, confirmState ${J(statusAfter.value?.confirmState)}`;
+            `the sheet lists ${J(statusAfter.value?.phones?.length ?? null)} phone(s), state ${J(statusAfter.value?.state)}, ${String(standin.readFunnel().length)} Funnel child(ren)`;
           if (!placed) {
-            // Never a pass: the Remove was not shown to land inside the
-            // composition, so this reading says nothing about refusal 7.
             arm('A3 a Remove inside the composition', null, `the Remove could not be PLACED after verify on this run: ${said}`);
           } else {
-            // A 200 is the defect itself: an answer read from the store after
-            // the person pressed Remove. A request refused before verify would
-            // say `shutdown` (the Remove stops the door in the same task), so
-            // `unpaired` here is refusal 7 and nothing else.
             const settled = composed.status === 404 || (composed.status === 0 && !/timed out/.test(composed.error ?? ''));
             arm(
               'A3 a Remove after verify and before the answer: refused by refusal 7 for its own reason, never answered',
-              removed.ok && settled && reason && verdictOf(after) !== 'ok' &&
-                statusAfter.ok && Array.isArray(statusAfter.value.phones) && statusAfter.value.phones.length === 0 &&
-                statusAfter.value.state !== 'listening' && statusAfter.value.confirmState !== 'confirmed',
+              removed.ok && settled && reason && verdictOf(after) !== 'ok' && statusAfter.ok && Array.isArray(statusAfter.value.phones) && statusAfter.value.phones.length === 0 && statusAfter.value.state !== 'listening' && statusAfter.value.confirmState !== 'confirmed',
               said
             );
           }
@@ -1364,89 +1054,76 @@ exit 0
           arm('L1 the unconfirmed relaunch', null, 'the app never armed its bridge');
           return;
         }
-        // Long enough for any launch step to have run and bound.
         await sleep(6_000);
         const got = await pocket(cdp, 'status');
         const s = got.ok ? got.value : null;
-        const accepts = await portAnswers();
-        // `refused` is the state of a door that is ON and not listening; `off`
-        // would mean `enabled` was lost, which is a different defect.
+        const up = await published();
         arm(
-          'L1 enabled and bindAtLaunch with no agreement: the relaunch does not bind, and says why',
-          s !== null && s.bindAtLaunch === true && s.state === 'refused' && s.confirmState !== 'confirmed' &&
-            typeof s.refusal === 'string' && s.refusal.length > 0 && !accepts,
-          `status ${J({ state: s?.state, bindAtLaunch: s?.bindAtLaunch, confirmState: s?.confirmState, refusal: s?.refusal })}; the port ${accepts ? 'ACCEPTS' : 'accepts nothing'}`
+          'L1 enabled and bindAtLaunch with no agreement: the relaunch publishes nothing, and says why',
+          s !== null && s.bindAtLaunch === true && s.state === 'refused' && s.confirmState !== 'confirmed' && typeof s.refusal === 'string' && s.refusal.length > 0 && !up && standin.readFunnel().length === 0,
+          `status ${J({ state: s?.state, bindAtLaunch: s?.bindAtLaunch, confirmState: s?.confirmState, refusal: s?.refusal })}; ${String(standin.readFunnel().length)} Funnel child(ren)`
         );
-
-        // ---- A4: setDoor during quit --------------------------------------
-        // The quit is asked for FIRST, through the app's own renderer-confirmed
-        // quit, and the switch is pressed in the same task, so the press lands
-        // while the ordered disposer is closing the door's admission.
         await cdpEval(
           cdp,
           `(() => { try { window.gmux.quit(); } catch {} ; window.gmux.pocket.setDoor({ on: false }).catch(() => null); window.gmux.pocket.setDoor({ on: true }).catch(() => null); window.gmux.pocket.confirmDoor(${J({ linesRead: s?.confirmLines ?? [], hashRead: s?.confirmHash ?? '' })}).catch(() => null); return true; })()`,
           10_000
         ).catch(() => null);
-        const code = await Promise.race([handle.exited, sleep(30_000).then(() => null)]);
-        exitedCleanly = code;
+        exitedCleanly = await Promise.race([handle.exited, sleep(30_000).then(() => null)]);
       } finally {
         cdp.close();
       }
     });
-    const afterQuit = await portAnswers();
-    arm(
-      'A4 setDoor during quit: the app exits and nothing listens afterwards',
-      exitedCleanly !== null && !afterQuit,
-      `the app ${exitedCleanly === null ? 'did NOT exit on its own within 30 s' : `exited with ${String(exitedCleanly)}`}; the port ${afterQuit ? 'ACCEPTS' : 'accepts nothing'} afterwards`
-    );
+    await sleep(1_000);
+    const afterQuit = await published();
+    arm('A4 setDoor during quit: the app exits and nothing is published afterwards', exitedCleanly !== null && !afterQuit && standin.readFunnel().length === 0, `the app ${exitedCleanly === null ? 'did NOT exit on its own within 30 s' : `exited with ${String(exitedCleanly)}`}; ${String(standin.readFunnel().length)} Funnel child(ren) afterwards`);
     ran = true;
   }
 } catch (err) {
-  if (String(err?.message ?? err) !== 'port taken') arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
+  arm('the run', null, `it threw: ${String(err?.stack ?? err)}`);
 } finally {
-  // The fake claude's loops end on this file whatever the teardown did.
   try {
     writeFileSync(STOP, 'stop\n', 'utf8');
   } catch {
     /* the world may already be gone */
   }
+  // Every stand-in process this run left, by pid, whatever happened.
+  const ended = standin === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
+  const findings = watch?.stop() ?? [];
+  const log = standin?.readLog() ?? [];
+  report.readings.run = { preflight: preflightOk, realTailscale: findings, samples: watch?.samples() ?? 0, forbidden: log.filter((e) => e.forbidden === true).length, refused: log.filter((e) => e.verdict === 'refused').length, ended: ended.ended.length, left: ended.left.length };
+  if (standin !== null) {
+    arm(
+      'RUN no real Tailscale, nothing forbidden, no stand-in left',
+      preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && report.readings.run.forbidden === 0 && report.readings.run.refused === 0 && ended.left.length === 0,
+      `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es) seen; ${String(report.readings.run.forbidden)} forbidden and ${String(report.readings.run.refused)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
+    );
+  }
 }
 
-// ---- K2: the key's bytes, anywhere -------------------------------------------
-if (!AT_PARENT && ran) {
-  const needles = [
-    [Buffer.from(KEY, 'utf8'), 'the key as UTF-8'],
-    [Buffer.from(KEY, 'utf16le'), 'the key as UTF-16'],
-    [Buffer.from(KEY.slice(11), 'utf8'), 'the key without its prefix']
-  ];
+// ---- K2: the one-shot secret's bytes, and any private key, anywhere --------
+if (!AT_PARENT && ran && SECRETS.length > 0) {
+  const needles = SECRETS.flatMap((s) => [
+    [Buffer.from(s, 'utf8'), 'a window’s secret as text'],
+    [Buffer.from(s, 'base64url'), 'a window’s secret as bytes']
+  ]);
+  needles.push([Buffer.from('PRIVATE KEY-----', 'utf8'), 'a PEM private key']);
   const scanned = [HARNESS, HOME].map((root) => filesHolding(root, needles));
   const hits = scanned.flatMap((s) => s.hits);
   const files = scanned.reduce((n, s) => n + s.files, 0);
-  const printed = appText.includes(KEY) || appText.includes(KEY.slice(11));
-  report.readings.keyScan = { files, hits, printed };
+  const printed = SECRETS.some((s) => appText.includes(s)) || appText.includes('PRIVATE KEY-----');
+  report.readings.secretScan = { files, hits, printed, windows: SECRETS.length };
   arm(
-    'K2 the key is in no file and in nothing the app printed',
+    'K2 the window’s secret and any private key are in no file and in nothing the app printed',
     files > 0 && hits.length === 0 && !printed,
-    `${String(files)} file(s) under the profile, the harness directory and the scratch HOME read; ${hits.length === 0 ? 'none holds the key' : `the key is in ${J(hits)}`}; the app's own output ${printed ? 'CARRIES it' : 'does not'}`
+    `${String(files)} file(s) under the profile, the harness directory and the scratch HOME read for ${String(SECRETS.length)} window secret(s) and any PEM private key; ${hits.length === 0 ? 'none holds either' : `found in ${J(hits)}`}; the app's own output ${printed ? 'CARRIES one' : 'does not'}`
   );
 }
 
-// ---- what the verifier's re-derivation reads, kept only on request -------------
 if (KEEP) {
   mkdirSync(join(RUN, 'rederive'), { recursive: true });
   writeFileSync(
     join(RUN, 'rederive', 'answers.json'),
-    `${J(
-      {
-        note: 'Synthetic: every session, turn and phone here is this run’s own. build/p316/SPEC.md S1 Method A reads this with the scratch profile’s databases.',
-        profile: PROFILE,
-        home: HOME,
-        sessions: sessionsSeen,
-        answers: answers.map((a) => ({ ...a, body: unkeyed(a.body) }))
-      },
-      null,
-      1
-    )}\n`,
+    `${J({ note: 'Synthetic: every session, turn and phone here is this run’s own.', profile: PROFILE, home: HOME, sessions: sessionsSeen, answers: answers.map((a) => ({ ...a, body: unsecret(a.body) })) }, null, 1)}\n`,
     { mode: 0o600 }
   );
   say(`kept the scratch world at ${RUN}; the re-derivation reads ${join(RUN, 'rederive', 'answers.json')}`);
@@ -1458,26 +1135,18 @@ if (KEEP) {
 const commandOf = (pid) => (spawnSync('ps', ['-p', String(pid), '-o', 'command='], { encoding: 'utf8' }).stdout ?? '').trim();
 const ps = spawnSync('ps', ['-Ao', 'pid,ppid,rss,comm'], { encoding: 'utf8' });
 const electronLines = (ps.stdout ?? '').split('\n').filter((l) => /Electron|Tortie$|chrome_crashpad/.test(l) && !/defunct/.test(l));
-// CLAUDE.md: the main process renames itself `Tortie` and carries NO argument,
-// so a search for the profile misses it. It is found by the pids this run's
-// last launch started: the app itself, or anything whose parent is the shim.
 const ours = electronLines.filter((l) => {
   const [pid, ppid] = l.trim().split(/\s+/).map(Number);
-  if (appPid > 0 && (pid === appPid || ppid === appPid)) return true;
-  if (shimPid > 0 && (pid === shimPid || ppid === shimPid)) return true;
+  if (launches.some((x) => [x.shim, x.app].filter((p) => p > 0).some((p) => pid === p || ppid === p))) return true;
   return commandOf(pid).includes(PROFILE);
 });
 report.readings.electron = { lines: electronLines.length, ofThisRun: ours.length };
-arm(
-  'no Electron of this run is left',
-  ours.length === 0,
-  `${String(electronLines.length)} Electron line(s) on the machine (the operator’s own Tortie included), ${String(ours.length)} of this run`
-);
+arm('no Electron of this run is left', ours.length === 0, `${String(electronLines.length)} Electron line(s) on the machine (the operator’s own Tortie included), ${String(ours.length)} of this run`);
 
 const OUT = join(ROOT, 'out', 'p313');
 mkdirSync(OUT, { recursive: true });
 const outFile = join(OUT, `probe-p313${AT_PARENT ? '-parent' : ''}.json`);
-writeFileSync(outFile, `${unkeyed(J(report, null, 1))}\n`, 'utf8');
+writeFileSync(outFile, `${unsecret(J(report, null, 1))}\n`, 'utf8');
 say(`wrote ${outFile}`);
 const unreadable = report.arms.filter((a) => a.ok === null).length;
 if (AT_PARENT && failures === 0) {

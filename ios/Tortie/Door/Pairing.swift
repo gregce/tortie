@@ -1,42 +1,45 @@
 // Pairing.swift — reading the Mac's code, presenting, and knowing when it is
-// done (Phase 316.2).
+// done (Phase 316.2; the phone off the tailnet since Phase 330).
 //
-// THE ORDER, and the order is the Mac's (src/main/pocket/pairing.ts):
+// THE ORDER, and the order is the Mac's (src/main/pocket/pairing.ts,
+// build/p330/SPEC.md sections 4.7 and 4.8):
 //
-//   1. The Mac draws a QR (v:2) holding its address, its port, `fp` (the pin),
-//      its two public keys, a one-shot secret `ps`, the window's end `exp` and,
-//      when he pasted one, `tk`, a tailnet key for Phase 316.3's node.
-//   2. The phone makes its two key pairs and draws the fingerprint of BOTH its
-//      public keys, six groups of four, which the Mac draws too.
-//   3. The phone PRESENTS: `POST /pair` with `{label, ek, xk}` sealed with
+//   1. The Mac draws a QR (v:3) holding its PUBLIC NAME (`<mac>.<tailnet>.ts.net`,
+//      published by Tailscale Funnel), the public port (8443 or 10000), `fp`
+//      (the pin), its two public keys, a one-shot secret `ps` and the window's
+//      end `exp`. No address and no credential.
+//   2. The phone makes its two key pairs and a P-256 CLIENT KEY
+//      (Door/Keys.swift), and draws the fingerprint of all THREE public keys,
+//      six groups of four, which the Mac draws too.
+//   3. The phone PRESENTS: `POST /pair` with `{ck, ek, label, xk}` sealed with
 //      AES-256-GCM under HKDF-SHA256(`ps`, empty salt, `tortie-pocket-pair-v1`),
-//      sent as `{iv, ct, tag}`. It presents again every 2 seconds until the
-//      door answers `allowed` or the window ends.
+//      and the seal SIGNED with its Ed25519 key over the window's challenge,
+//      HKDF-SHA256(`ps`, empty salt, `tortie-pocket-challenge-v1`), so only the
+//      phone that holds the key it names can be told it was allowed. It
+//      presents again every 2 seconds until the door answers `allowed` or the
+//      window ends. A name that does not resolve yet is tried again inside the
+//      window, and SAID (the first time a Mac publishes, its name can take
+//      minutes to reach the phone: his measurement was about 8).
 //   4. He matches the fingerprint and presses Allow ON THE MAC. The Mac asks
-//      last.
-//   5. THE PHONE IS PAIRED ONLY WHEN ITS FIRST SIGNED READ SUCCEEDS. After an
-//      Allow, the door answers `allowed` to ANY presenter from the allowed
-//      phone's address (316.1's open nit P2b, kept on purpose: nothing leaks,
-//      because that presenter's signed reads are refused). So `allowed` alone
-//      is not success, and nothing is written to the Keychain until a signed
-//      `/v1/blocked` comes back whole.
+//      last. `allowed` carries the certificate the Mac issued over the client
+//      key.
+//   5. THE PHONE IS PAIRED ONLY WHEN ITS FIRST SIGNED READ SUCCEEDS, over a
+//      connection presenting that certificate. Nothing is written to the
+//      Keychain as a pairing until a signed `/v1/blocked` comes back whole, and
+//      every attempt that ends any other way deletes its client key.
 //
-// WHAT THE CODE HOLDS. `ps` is a one-shot secret that dies with the window,
-// and `tk` is his tailnet credential: both live only in the parsed offer in
-// memory, and neither is ever stored or logged. The tailnet node joins with
-// `tk` before the first presentation when it has no state of its own, and
-// keeps it nowhere (Tailnet/Node.swift, Phase 316.3). A value that holds the
-// key mirrors itself without it, and `print`, `dump`, `String(describing:)`,
-// `String(reflecting:)` and interpolation all read a value through its mirror
-// when it declares no description, so none of them repeats it (conformance:ios
-// rule p). The raw code, which carries the key too, is only ever compared,
-// parsed or handed on under a name the rule watches.
+// WHAT THE CODE HOLDS. `ps` is a one-shot secret that dies with the window. It
+// lives only in the parsed offer in memory and is never stored or logged. A
+// value that holds it mirrors itself without it, and `print`, `dump`,
+// `String(describing:)`, `String(reflecting:)` and interpolation all read a
+// value through its mirror when it declares no description, so none of them
+// repeats it (conformance:ios rule p). The raw code, which carries it too, is
+// only ever compared, parsed or handed on under a name the rule watches.
 //
 // THE DEBUG SEAM. The Simulator has no camera, so a DEBUG build takes the
-// code as a launch argument, and a DEBUG build also accepts a code whose
-// address is this Mac's loopback, which is where the door runs in every agent
-// run. Both exist only inside `#if DEBUG` (conformance:ios rule d); a Release
-// build takes a code only from the camera and only for a tailnet address.
+// code as a launch argument (`PairingDebugSeam`), inside `#if DEBUG`
+// (conformance:ios rule d). The code's name is a public name in every build;
+// where a DEBUG build opens its connections is Door/Transport.swift's.
 
 import CryptoKit
 import Foundation
@@ -46,15 +49,12 @@ import Foundation
 /// What the QR carries, checked. Nothing in it is trusted before this.
 struct PairingOffer: Sendable, Equatable, CustomReflectable {
     /// `POCKET_QR_VERSION`.
-    static let version = 2
+    static let version = 3
     /// Far above any real code (a few hundred characters); anything longer
     /// is not a Tortie code and is not parsed.
     static let maxPayloadBytes = 4096
-    /// `TAILNET_AUTH_KEY_PREFIX` and `TAILNET_KEY_MAX_CHARS`.
-    static let tailnetKeyPrefix = "tskey-auth-"
-    static let tailnetKeyMaxChars = 256
 
-    let address: DoorAddress
+    let door: DoorEndpoint
     /// `dk`, the Mac's Ed25519 SPKI, base64url.
     let macSigningKey: String
     /// `dx`, the Mac's X25519 SPKI, base64url.
@@ -63,8 +63,6 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
     let secret: Data
     /// `exp`, epoch ms on the Mac's clock.
     let expiresAt: Double
-    /// `tk`, his tailnet key, or nil. Memory only; the node joins with it.
-    let tailnetKey: String?
 
     /// Is the window still open by this phone's clock?
     func isOpen(at date: Date) -> Bool {
@@ -72,8 +70,8 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
     }
 
     /// What `print`, `dump`, `String(describing:)`, `String(reflecting:)`
-    /// and interpolation see: the Mac's address, and never the key.
-    var customMirror: Mirror { Mirror(self, children: ["address": address], displayStyle: .struct) }
+    /// and interpolation see: the door, and never the secret.
+    var customMirror: Mirror { Mirror(self, children: ["door": door], displayStyle: .struct) }
 
     private struct Wire: Decodable, CustomReflectable {
         let v: Int
@@ -84,10 +82,9 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
         let dx: String
         let ps: String
         let exp: Double
-        let tk: String?
 
-        /// The code as read, which holds the key and the one-shot secret, so
-        /// it shows neither.
+        /// The code as read, which holds the one-shot secret, so it shows
+        /// nothing.
         var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .struct) }
     }
 
@@ -99,46 +96,22 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
             throw PairingFailure.badCode
         }
         guard wire.v == version else { throw PairingFailure.unsupportedCode }
-        guard hostIsReachable(wire.host),
-              (1...65535).contains(wire.port),
+        guard DoorEndpoint.isPublicName(wire.host),
+              DoorEndpoint.publicPorts.contains(wire.port),
               let pin = Base64URL.decode(wire.fp), pin.count == 32, Base64URL.encode(pin) == wire.fp,
               SPKI.ed25519Key(wire.dk) != nil,
               SPKI.x25519Key(wire.dx) != nil,
               let secret = Base64URL.decode(wire.ps), (16...64).contains(secret.count),
-              wire.exp.isFinite, wire.exp > 0,
-              wire.tk.map(isTailnetKey) ?? true else {
+              wire.exp.isFinite, wire.exp > 0 else {
             throw PairingFailure.badCode
         }
         return PairingOffer(
-            address: DoorAddress(host: wire.host, port: wire.port, pin: wire.fp),
+            door: DoorEndpoint(name: wire.host, port: wire.port, pin: wire.fp),
             macSigningKey: wire.dk,
             macExchangeKey: wire.dx,
             secret: secret,
-            expiresAt: wire.exp,
-            tailnetKey: wire.tk
+            expiresAt: wire.exp
         )
-    }
-
-    /// The door binds the Mac's tailnet address, which is always inside
-    /// 100.64.0.0/10, the one range the app's App Transport Security key
-    /// names. A DEBUG build also takes this Mac's loopback, where the door
-    /// runs in every agent run (`GMUX_POCKET_LOOPBACK=1`).
-    static func hostIsReachable(_ host: String) -> Bool {
-        guard let octets = DoorAddress(host: host, port: 0, pin: "").octets else { return false }
-        if octets[0] == 100 && (64...127).contains(octets[1]) { return true }
-        #if DEBUG
-        if host == PairingDebugSeam.loopbackHost { return true }
-        #endif
-        return false
-    }
-
-    /// `tailnetKeyOf`'s rule, read again: the prefix, something after it, at
-    /// most 256 characters, printable ASCII with no space.
-    static func isTailnetKey(_ key: String) -> Bool {
-        key.hasPrefix(tailnetKeyPrefix)
-            && key.utf8.count > tailnetKeyPrefix.utf8.count
-            && key.utf8.count <= tailnetKeyMaxChars
-            && key.utf8.allSatisfy { $0 >= 0x21 && $0 <= 0x7e }
     }
 }
 
@@ -157,7 +130,8 @@ enum PairingFailure: Error, Equatable, Sendable {
     case windowClosed
     /// The Mac answered `refused`: the code was replaced or already used.
     case macRefused
-    /// `/pair` answered something that is not one of its three words.
+    /// `/pair` answered something that is not one of its three answers, or a
+    /// certificate that is not over this phone's key.
     case strangeAnswer
     /// The door did not present the key the code pinned.
     case wrongKey
@@ -166,32 +140,27 @@ enum PairingFailure: Error, Equatable, Sendable {
     case notAccepted
     /// The Mac could not be reached inside the window.
     case unreachable
-    /// The Keychain would not keep the pairing.
+    /// The Mac's public name never resolved inside the window.
+    case nameNotFound
+    /// The Keychain would not keep the client key or the pairing.
     case couldNotSave
     /// This build has no way to reach a Mac.
     case notAvailable
     /// The person left the pairing screen.
     case cancelled
-    /// The tailnet node has no state and the code carries no `tk` (316.3).
-    case noTailnetKey
-    /// Tailscale refused the code's `tk` (316.3).
-    case tailnetKeyRefused
-    /// Tailscale took the `tk`, then turned the node off because his tailnet
-    /// requires network flow logs, which the node never sends (316.4).
-    case tailnetFlowLogs
-    /// The node could not reach Tailscale to join inside its limit (316.3).
-    case tailnetUnreachable
-    /// The node's directory could not be made, or the node would not start
-    /// (316.3).
-    case tailnetUnavailable
 }
 
-// MARK: - The sealed presentation
+// MARK: - The sealed, signed presentation
 
-/// `{label, ek, xk}` sealed the way `PocketPairing.openPresentation` opens it.
+/// `{ck, ek, label, xk}` sealed the way `PocketPairing.openPresentation` opens
+/// it, and signed over the window's challenge the way `present` checks it.
 enum PresentationSeal {
     /// `PAIRING_INFO`.
     static let info = "tortie-pocket-pair-v1"
+    /// The HKDF info the window's challenge is derived under.
+    static let challengeInfo = "tortie-pocket-challenge-v1"
+    /// The proof's first line.
+    static let proofLead = "tortie-pocket-present-v1"
 
     /// HKDF-SHA256 over the one-shot secret, empty salt, 32 bytes.
     static func key(secret: Data) -> SymmetricKey {
@@ -203,19 +172,48 @@ enum PresentationSeal {
         )
     }
 
-    // Declared in the door's own order (`{label, ek, xk}`, `{iv, ct, tag}`),
-    // which is NOT the order they are written in: the encoder sorts the keys,
-    // so the bytes are the same on every run and the vectors can hold them.
+    /// The window's challenge, base64url: HKDF-SHA256(`ps`, empty salt,
+    /// `tortie-pocket-challenge-v1`, 32). The Mac computes it when it opens the
+    /// window and keeps it until the deadline.
+    static func challenge(secret: Data) -> String {
+        let derived = HKDF<SHA256>.deriveKey(
+            inputKeyMaterial: SymmetricKey(data: secret),
+            salt: Data(),
+            info: Data(challengeInfo.utf8),
+            outputByteCount: 32
+        )
+        return derived.withUnsafeBytes { Base64URL.encode(Data($0)) }
+    }
+
+    /// What the signature covers: the lead, the challenge and the three sealed
+    /// fields as they are sent, one per line.
+    static func proofText(challenge: String, iv: String, ct: String, tag: String) -> String {
+        [proofLead, challenge, iv, ct, tag].joined(separator: "\n")
+    }
+
+    // Declared in the door's own order, which is NOT the order they are
+    // written in: the encoder sorts the keys, so the bytes are the same on
+    // every run and the vectors can hold them.
     private struct Inner: Encodable {
         let label: String
         let ek: String
         let xk: String
+        let ck: String
     }
 
-    private struct Outer: Codable {
+    /// The sealed fields, each base64url.
+    struct Sealed: Codable, Equatable {
         let iv: String
         let ct: String
         let tag: String
+    }
+
+    private struct Body: Encodable {
+        let iv: String
+        let ct: String
+        let tag: String
+        let ek: String
+        let sig: String
     }
 
     private static func encoder() -> JSONEncoder {
@@ -224,25 +222,32 @@ enum PresentationSeal {
         return encoder
     }
 
-    /// The plaintext: `{"ek":…,"label":…,"xk":…}`, keys sorted.
-    static func inner(label: String, keys: PhoneKeys) throws -> Data {
-        try encoder().encode(Inner(label: label, ek: keys.signingKey, xk: keys.exchangeKey))
+    /// The plaintext: `{"ck":…,"ek":…,"label":…,"xk":…}`, keys sorted.
+    static func inner(label: String, keys: PhoneKeys, clientKey: String) throws -> Data {
+        try encoder().encode(Inner(label: label, ek: keys.signingKey, xk: keys.exchangeKey, ck: clientKey))
     }
 
-    /// The body `POST /pair` carries: `{"ct":…,"iv":…,"tag":…}`, each
-    /// base64url. A fresh 12-byte nonce every time unless a test names one.
-    static func seal(_ inner: Data, secret: Data, nonce: AES.GCM.Nonce = AES.GCM.Nonce()) throws -> Data {
+    /// The seal. A fresh 12-byte nonce every time unless a test names one.
+    static func seal(_ inner: Data, secret: Data, nonce: AES.GCM.Nonce = AES.GCM.Nonce()) throws -> Sealed {
         let box = try AES.GCM.seal(inner, using: key(secret: secret), nonce: nonce)
         let iv = nonce.withUnsafeBytes { Data($0) }
+        return Sealed(iv: Base64URL.encode(iv), ct: Base64URL.encode(box.ciphertext), tag: Base64URL.encode(box.tag))
+    }
+
+    /// The body `POST /pair` carries: `{"ct":…,"ek":…,"iv":…,"sig":…,"tag":…}`,
+    /// the seal and the phone's Ed25519 signature over the proof.
+    static func body(_ sealed: Sealed, challenge: String, keys: PhoneKeys) throws -> Data {
+        let proof = proofText(challenge: challenge, iv: sealed.iv, ct: sealed.ct, tag: sealed.tag)
+        let signature = try keys.signing.signature(for: Data(proof.utf8))
         return try encoder().encode(
-            Outer(iv: Base64URL.encode(iv), ct: Base64URL.encode(box.ciphertext), tag: Base64URL.encode(box.tag))
+            Body(iv: sealed.iv, ct: sealed.ct, tag: sealed.tag, ek: keys.signingKey, sig: Base64URL.encode(signature))
         )
     }
 
     /// Open a body sealed the Mac's way. The tests use it on what the door's
     /// own sealer (`sealPresentationAsPhone`) produced.
     static func open(_ body: Data, secret: Data) throws -> Data {
-        let outer = try JSONDecoder().decode(Outer.self, from: body)
+        let outer = try JSONDecoder().decode(Sealed.self, from: body)
         guard let iv = Base64URL.decode(outer.iv), iv.count == 12,
               let ct = Base64URL.decode(outer.ct), !ct.isEmpty,
               let tag = Base64URL.decode(outer.tag), tag.count == 16 else {
@@ -256,19 +261,24 @@ enum PresentationSeal {
 // MARK: - Pairing, in order
 
 /// A pairing under way: the code, the phone's new keys, and the fingerprint
-/// to draw. Nothing of it is stored.
+/// to draw. Nothing of it is stored but the client key, under its tag, which
+/// the attempt deletes unless it ends paired.
 struct PendingPairing: Sendable {
     let offer: PairingOffer
     let keys: PhoneKeys
+    let clientKey: ClientKey
     let label: String
-    /// Six groups of four, the Mac's `pairFingerprint` of the phone's keys.
+    /// Six groups of four, the Mac's `pairFingerprint` of the phone's three keys.
     let fingerprint: String
 }
 
-/// Where a pairing has got to, for the screen.
+/// Where a pairing has got to, for the screen. Every step has its line
+/// (Screens/DoorWords.swift, conformance:ios rule v).
 enum PairingStep: Equatable, Sendable {
     /// Presenting; the Mac has not answered yet.
     case presenting
+    /// The Mac's public name does not resolve yet; presenting again.
+    case findingName
     /// The Mac has the phone and is asking him to allow it.
     case waitingForMac
     /// Allowed; the first signed read is being made.
@@ -310,45 +320,77 @@ final class PairingFlow: Sendable {
         self.pause = pause
     }
 
-    /// Make the phone's keys for this code. `label` is what the Mac will show
-    /// beside the fingerprint.
-    func begin(_ offer: PairingOffer, label: String, keys: PhoneKeys = .generate()) -> PendingPairing {
-        PendingPairing(
+    /// Make the phone's keys for this code, the client key among them.
+    /// `label` is what the Mac will show beside the fingerprint.
+    func begin(_ offer: PairingOffer, label: String, keys: PhoneKeys = .generate()) throws -> PendingPairing {
+        let clientKey: ClientKey
+        do {
+            clientKey = try store.clientKeys.mint()
+        } catch {
+            throw PairingFailure.couldNotSave
+        }
+        return PendingPairing(
             offer: offer,
             keys: keys,
+            clientKey: clientKey,
             label: Self.presentedLabel(label),
-            fingerprint: DoorSignature.pairFingerprint(signingKey: keys.signingKey, exchangeKey: keys.exchangeKey)
+            fingerprint: DoorSignature.pairFingerprint(
+                signingKey: keys.signingKey, exchangeKey: keys.exchangeKey, clientKey: clientKey.spki
+            )
         )
     }
 
-    /// Present until allowed, then make the first signed read, then keep the
-    /// pairing. Nothing is kept on any other path.
+    /// Present until allowed, then make the first signed read over the
+    /// phone's new identity, then keep the pairing. Nothing is kept on any
+    /// other path, and the attempt's client key is deleted.
     func run(
         _ pending: PendingPairing,
         progress: @escaping @Sendable (PairingStep) -> Void = { _ in }
     ) async -> PairingOutcome {
+        let outcome = await attempt(pending, progress: progress)
+        if case .failed = outcome {
+            store.clientKeys.delete(tag: pending.clientKey.tag)
+        }
+        return outcome
+    }
+
+    private func attempt(
+        _ pending: PendingPairing,
+        progress: @escaping @Sendable (PairingStep) -> Void
+    ) async -> PairingOutcome {
         let offer = pending.offer
-        guard let inner = try? PresentationSeal.inner(label: pending.label, keys: pending.keys) else {
+        guard let inner = try? PresentationSeal.inner(
+            label: pending.label, keys: pending.keys, clientKey: pending.clientKey.spki
+        ) else {
             return .failed(.badCode)
         }
+        let challenge = PresentationSeal.challenge(secret: offer.secret)
         var heard = false
-        var attempts = 0
-        progress(.presenting)
+        var miss: PairingFailure?
+        var said = PairingStep.presenting
+        progress(said)
+        let say = { (step: PairingStep) in
+            guard step != said else { return }
+            said = step
+            progress(step)
+        }
+        var certificate = Data()
         presenting: while true {
             if Task.isCancelled { return .failed(.cancelled) }
             guard offer.isOpen(at: now()) else {
                 // Shut before the Mac allowed it. If the Mac never answered at
                 // all while it was open, that is the thing to say.
-                return .failed(attempts > 0 && !heard ? .unreachable : .codeExpired)
+                return .failed(heard ? .codeExpired : (miss ?? .codeExpired))
             }
-            attempts += 1
             do {
-                let body = try PresentationSeal.seal(inner, secret: offer.secret)
-                switch try await exchange.present(body, to: offer.address) {
-                case .allowed:
+                let sealed = try PresentationSeal.seal(inner, secret: offer.secret)
+                let body = try PresentationSeal.body(sealed, challenge: challenge, keys: pending.keys)
+                switch try await exchange.present(body, to: offer.door) {
+                case .allowed(let issued):
+                    certificate = issued
                     break presenting
                 case .pending:
-                    if !heard { progress(.waitingForMac) }
+                    if !heard { say(.waitingForMac) }
                     heard = true
                 case .refused:
                     return .failed(.macRefused)
@@ -356,11 +398,17 @@ final class PairingFlow: Sendable {
             } catch let failure as DoorFailure {
                 switch failure {
                 case .wrongKey: return .failed(.wrongKey)
-                case .refused: return .failed(heard ? .codeExpired : .windowClosed)
+                case .refused, .closedBeforeAnswer: return .failed(heard ? .codeExpired : .windowClosed)
                 case .malformed, .unexpectedStatus, .tooLarge, .badPage: return .failed(.strangeAnswer)
                 case .cancelled: return .failed(.cancelled)
                 case .notPaired: return .failed(.notAvailable)
-                case .unreachable, .timedOut: break // again, inside the window
+                case .nameNotFound:
+                    // Again, inside the window, and said.
+                    miss = .nameNotFound
+                    if !heard { say(.findingName) }
+                case .unreachable, .timedOut:
+                    miss = .unreachable
+                    if !heard { say(.presenting) }
                 }
             } catch {
                 return .failed(.strangeAnswer)
@@ -372,14 +420,25 @@ final class PairingFlow: Sendable {
             }
         }
 
-        progress(.confirming)
+        say(.confirming)
+        let identity: ClientIdentity
+        do {
+            identity = try store.clientKeys.adopt(certificate, for: pending.clientKey)
+        } catch KeysFailure.clientKey {
+            return .failed(.strangeAnswer)
+        } catch {
+            return .failed(.couldNotSave)
+        }
         guard let door = PairedDoor(
-            address: offer.address,
+            endpoint: offer.door,
             macSigningKey: offer.macSigningKey,
             macExchangeKey: offer.macExchangeKey,
             label: pending.label,
             pairedAt: (now().timeIntervalSince1970 * 1000).rounded(.down),
-            keys: pending.keys
+            keys: pending.keys,
+            clientKey: pending.clientKey,
+            certificate: certificate,
+            identity: identity
         ) else { return .failed(.badCode) }
 
         for attempt in 1...Self.firstReadAttempts {
@@ -394,7 +453,7 @@ final class PairingFlow: Sendable {
                 return .paired(door, first)
             } catch let failure as DoorFailure {
                 switch failure {
-                case .refused: return .failed(.notAccepted)
+                case .refused, .closedBeforeAnswer: return .failed(.notAccepted)
                 case .wrongKey: return .failed(.wrongKey)
                 // A first read too large or unreadable ends pairing with the
                 // pairing screen's own word for an answer it does not know,
@@ -404,7 +463,7 @@ final class PairingFlow: Sendable {
                 case .malformed, .unexpectedStatus, .tooLarge, .badPage: return .failed(.strangeAnswer)
                 case .cancelled: return .failed(.cancelled)
                 case .notPaired: return .failed(.notAvailable)
-                case .unreachable, .timedOut:
+                case .unreachable, .timedOut, .nameNotFound:
                     if attempt == Self.firstReadAttempts { return .failed(.unreachable) }
                 }
             } catch {
@@ -438,22 +497,16 @@ final class PairingFlow: Sendable {
 // MARK: - DEBUG ONLY: the code without a camera
 
 /// The Simulator has no camera. A DEBUG build takes the code as a launch
-/// argument instead, and takes this Mac's loopback as a door address. Neither
-/// exists in a Release build.
+/// argument instead. It does not exist in a Release build.
 enum PairingDebugSeam {
     /// `-TortieDebugPairingPayload '<the QR text>'`.
     static let payloadArgument = "-TortieDebugPairingPayload"
     /// `-TortieDebugForgetPairing`: start with no pairing kept.
     static let forgetArgument = "-TortieDebugForgetPairing"
-    /// Where the door runs in every agent run.
-    static let loopbackHost = "127.0.0.1"
 
     /// The injected code, or nil.
     static func injectedPayload(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> String? {
-        guard let flag = arguments.firstIndex(of: payloadArgument), arguments.indices.contains(flag + 1) else {
-            return nil
-        }
-        return arguments[flag + 1]
+        arguments.drop(while: { $0 != payloadArgument }).dropFirst().first
     }
 
     static func forgetRequested(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Bool {

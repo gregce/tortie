@@ -53,10 +53,9 @@ protocol PhoneDoor: Sendable {
     /// Read a scanned code and make this phone's keys for it. The pending
     /// pairing carries the fingerprint both screens show.
     func begin(payload: String, label: String) throws -> PendingPairing
-    /// Present until the Mac answers, then make the first signed read. The
-    /// ONLY way to `.paired` is that read succeeding (Door/Pairing.swift):
-    /// the door answers `allowed` to any presenter from the allowed phone's
-    /// address (316.1's nit P2b), so `allowed` alone is not success.
+    /// Present until the Mac answers, then make the first signed read over
+    /// the phone's new identity. The ONLY way to `.paired` is that read
+    /// succeeding (Door/Pairing.swift), so `allowed` alone is not success.
     func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult
     /// Forget the kept pairing.
     func forget()
@@ -103,7 +102,10 @@ enum DoorWords {
             switch failure {
             case .notPaired:
                 return .pairAgain
-            case .refused:
+            // The door refused, or closed the connection on this phone's
+            // key before a byte, which is how it answers a phone it no
+            // longer knows (Phase 330's mutual TLS).
+            case .refused, .closedBeforeAnswer:
                 return kind == .list ? .pairAgain : .backToList
             default:
                 break
@@ -122,9 +124,11 @@ enum DoorWords {
         switch failure {
         case .notPaired: return Copy.notPaired
         case .wrongKey: return Copy.keyMismatch
-        case .unreachable: return Copy.cannotReachMac
+        // A paired phone's reads say the name the same way as any other miss:
+        // the name-specific sentences are the pairing screen's alone.
+        case .unreachable, .nameNotFound: return Copy.cannotReachMac
         case .timedOut: return Copy.macDidNotAnswer
-        case .refused: return Copy.notPaired
+        case .refused, .closedBeforeAnswer: return Copy.notPaired
         case .unexpectedStatus, .malformed: return Copy.answerUnreadable
         case .tooLarge: return Copy.answerTooLarge
         // The newest page broke the door's promise; the older-page line is
@@ -142,9 +146,11 @@ enum DoorWords {
         return sentence(for: error)
     }
 
-    /// The pairing screen's line for how a pairing stopped, or nil when the
-    /// person walked away.
-    static func pairingSentence(for failure: PairingFailure) -> String? {
+    /// The pairing screen's line for how a pairing stopped. ALWAYS a sentence
+    /// (his no-key finding: a pairing that stopped with nothing drawn left the
+    /// phone saying nothing at all), and leaving the screen is the not-paired
+    /// line (conformance:ios rule v).
+    static func pairingSentence(for failure: PairingFailure) -> String {
         switch failure {
         case .badCode, .unsupportedCode: return Copy.pairNotACode
         case .codeExpired, .windowClosed: return Copy.codeExpired
@@ -153,14 +159,19 @@ enum DoorWords {
         case .wrongKey: return Copy.keyMismatch
         case .notAccepted: return Copy.pairFirstReadRefused
         case .unreachable: return Copy.cannotReachMac
-        case .couldNotSave, .notAvailable: return Copy.notPaired
-        case .cancelled: return nil
-        // The tailnet node's join (Phase 316.3, Tailnet/Node.swift).
-        case .noTailnetKey: return Copy.tailnetNoKey
-        case .tailnetKeyRefused: return Copy.tailnetKeyRefused
-        case .tailnetFlowLogs: return Copy.tailnetFlowLogs
-        case .tailnetUnreachable: return Copy.tailnetUnreachable
-        case .tailnetUnavailable: return Copy.tailnetUnavailable
+        case .nameNotFound: return Copy.pairNameNotFound
+        case .couldNotSave, .notAvailable, .cancelled: return Copy.notPaired
+        }
+    }
+
+    /// The pairing screen's line while a pairing is under way. Every step has
+    /// one (conformance:ios rule v).
+    static func stepSentence(for step: PairingStep) -> String {
+        switch step {
+        case .presenting: return Copy.pairReaching
+        case .findingName: return Copy.pairNameNotYet
+        case .waitingForMac: return Copy.pairWaitingForAllow
+        case .confirming: return Copy.pairConfirming
         }
     }
 }

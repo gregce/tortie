@@ -67,11 +67,13 @@ final class DoorVectorTests: XCTestCase {
     }
 
     /// Clause: `x-tortie-phone` is `phoneIdOf`, and the fingerprint is
-    /// `pairFingerprint`, six groups of four.
+    /// `pairFingerprint` over all three of the phone's keys, six groups of four.
     func testPhoneIdAndFingerprintAreTheDoors() throws {
         XCTAssertEqual(DoorSignature.phoneId(signingKey: v.keys.phoneSigningKey), v.identity.phoneId)
         XCTAssertEqual(
-            DoorSignature.pairFingerprint(signingKey: v.keys.phoneSigningKey, exchangeKey: v.keys.phoneExchangeKey),
+            DoorSignature.pairFingerprint(
+                signingKey: v.keys.phoneSigningKey, exchangeKey: v.keys.phoneExchangeKey, clientKey: v.keys.clientKey
+            ),
             v.identity.fingerprint
         )
         XCTAssertEqual(v.identity.fingerprint.split(separator: " ").count, 6)
@@ -87,14 +89,27 @@ final class DoorVectorTests: XCTestCase {
             DoorSignature.binding(phoneExchange: keys.exchange, macExchangeKey: v.keys.macExchangeKey),
             v.identity.binding
         )
+    }
+
+    /// Clause: a pairing made from these keys, the client key and the Mac's
+    /// certificate derives the Mac's binding, phone id and fingerprint.
+    func testAPairedDoorIsTheDoors() throws {
+        let certificate = try XCTUnwrap(Data(base64Encoded: v.client.certificateDer))
+        let clientKey = ClientKey(tag: TestIdentity.tag, spki: v.keys.clientKey)
         let door = try XCTUnwrap(PairedDoor(
-            address: DoorAddress(host: "127.0.0.1", port: 8823, pin: v.pins[0].pin),
+            endpoint: DoorEndpoint(name: "p330-mac.tail00000.ts.net", port: 8443, pin: v.pins[0].pin),
             macSigningKey: v.keys.macSigningKey,
             macExchangeKey: v.keys.macExchangeKey,
             label: v.seal.label,
             pairedAt: 0,
-            keys: keys
+            keys: try phoneKeys(),
+            clientKey: clientKey,
+            certificate: certificate,
+            identity: try TestIdentity.vectors()
         ))
+        #if os(iOS)
+        defer { TestIdentity.removeFromKeychain() }
+        #endif
         XCTAssertEqual(door.binding, v.identity.binding)
         XCTAssertEqual(door.phoneId, v.identity.phoneId)
         XCTAssertEqual(door.fingerprint, v.identity.fingerprint)
@@ -121,18 +136,11 @@ final class DoorVectorTests: XCTestCase {
     /// key. (CryptoKit signs with randomness, so its bytes are not Node's.)
     func testSignaturesVerifyBothWays() throws {
         let keys = try phoneKeys()
-        let door = try XCTUnwrap(PairedDoor(
-            address: DoorAddress(host: "127.0.0.1", port: 8823, pin: v.pins[0].pin),
-            macSigningKey: v.keys.macSigningKey,
-            macExchangeKey: v.keys.macExchangeKey,
-            label: v.seal.label,
-            pairedAt: 0,
-            keys: keys
-        ))
+        let signer = RequestSigner(phoneId: v.identity.phoneId, binding: v.identity.binding, key: keys.signing)
         for r in v.requests {
             let fromDoor = try XCTUnwrap(Base64URL.decode(r.signature), r.name)
             XCTAssertTrue(keys.signing.publicKey.isValidSignature(fromDoor, for: Data(r.canonical.utf8)), r.name)
-            let headers = try door.signer.headers(
+            let headers = try signer.headers(
                 method: r.method, target: r.target, body: Data(r.body.utf8), timestamp: r.timestamp, nonce: r.nonce
             )
             XCTAssertEqual(headers.map(\.name), ["x-tortie-phone", "x-tortie-timestamp", "x-tortie-nonce", "x-tortie-signature"])
@@ -215,11 +223,44 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertFalse(DoorPin.matches(first, pin: String(v.pins[0].pin.dropLast())))
     }
 
-    // MARK: The sealed presentation
+    // MARK: The client key and its certificate
+
+    /// Clause: the client key is the door's `ck`: the phone's P-256 key,
+    /// imported from its X9.63 form, is the SPKI the Mac issued over, and the
+    /// pin the door admits it by is sha256 over that SPKI, base64url.
+    func testTheClientKeyIsTheDoors() throws {
+        let x963 = try XCTUnwrap(Hex.decode(v.keys.clientKeyX963))
+        var error: Unmanaged<CFError>?
+        let key = try XCTUnwrap(SecKeyCreateWithData(x963 as CFData, [
+            kSecAttrKeyType as String: kSecAttrKeyTypeECSECPrimeRandom,
+            kSecAttrKeyClass as String: kSecAttrKeyClassPrivate,
+            kSecAttrKeySizeInBits as String: 256
+        ] as CFDictionary, &error))
+        let publicKey = try XCTUnwrap(SecKeyCopyPublicKey(key))
+        XCTAssertEqual(ClientKeys.spki(of: publicKey), v.keys.clientKey)
+        let der = try XCTUnwrap(Base64URL.decode(v.keys.clientKey))
+        XCTAssertEqual(Base64URL.encode(Data(SHA256.hash(data: der))), v.identity.clientPin)
+    }
+
+    /// Clause: the Mac's client certificate builds a SecCertificate whose key
+    /// is `ck`, and a certificate over another key is not this phone's.
+    func testTheClientCertificateCarriesTheClientKey() throws {
+        let der = try XCTUnwrap(Data(base64Encoded: v.client.certificateDer))
+        let certificate = try XCTUnwrap(SecCertificateCreateWithData(nil, der as CFData))
+        let key = try XCTUnwrap(SecCertificateCopyKey(certificate))
+        XCTAssertEqual(ClientKeys.spki(of: key), v.keys.clientKey)
+        XCTAssertNotNil(ClientKeys.certificate(der, carrying: v.keys.clientKey))
+        XCTAssertNil(ClientKeys.certificate(der, carrying: v.keys.phoneSigningKey))
+        let doorDer = try XCTUnwrap(Data(base64Encoded: v.pins[0].certificateDer))
+        XCTAssertNil(ClientKeys.certificate(doorDer, carrying: v.keys.clientKey), "the door's own certificate is not over the phone's key")
+        XCTAssertNil(ClientKeys.certificate(Data("not DER".utf8), carrying: v.keys.clientKey))
+    }
+
+    // MARK: The sealed, signed presentation
 
     /// Clause: the AES-256-GCM key is HKDF-SHA256(`ps`, empty salt,
-    /// `tortie-pocket-pair-v1`) and the body is `{iv, ct, tag}`: what the
-    /// door's own sealer made opens here to its plaintext.
+    /// `tortie-pocket-pair-v1`) and the sealed fields are `{iv, ct, tag}`:
+    /// what the door's own sealer made opens here to its plaintext.
     func testTheDoorsSealOpensHere() throws {
         let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
         let opened = try PresentationSeal.open(Data(v.seal.fromDoor.body.utf8), secret: secret)
@@ -229,58 +270,97 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertThrowsError(try PresentationSeal.open(Data(v.seal.fromDoor.body.utf8), secret: wrong))
     }
 
-    /// Clause: the phone's plaintext and its seal, at a fixed nonce, are the
-    /// bytes the door's opener opened to these keys and this label.
-    func testThePhonesSealIsTheBodyTheDoorOpened() throws {
+    /// Clause: the window's challenge is HKDF-SHA256(`ps`, empty salt,
+    /// `tortie-pocket-challenge-v1`), and the proof text is the door's
+    /// `presentationProofText`, byte for byte.
+    func testTheChallengeAndTheProofAreTheDoors() throws {
+        let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
+        XCTAssertEqual(PresentationSeal.challenge(secret: secret), v.seal.challenge)
+        let phone = v.seal.fromPhone
+        XCTAssertEqual(
+            PresentationSeal.proofText(challenge: v.seal.challenge, iv: phone.iv, ct: phone.ct, tag: phone.tag),
+            phone.proof
+        )
+    }
+
+    /// Clause: the phone's plaintext, its seal at a fixed nonce, and the body
+    /// it sends are the bytes the door's opener opened to these keys and this
+    /// label, with the door's proof holding over them. Node's Ed25519 signature
+    /// over the proof verifies here, and so does the phone's own over the same
+    /// proof (CryptoKit signs with randomness, so its bytes are not Node's).
+    func testThePhonesPresentationIsTheBodyTheDoorOpened() throws {
         let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
         let keys = try phoneKeys()
-        let inner = try PresentationSeal.inner(label: v.seal.label, keys: keys)
+        let inner = try PresentationSeal.inner(label: v.seal.label, keys: keys, clientKey: v.keys.clientKey)
         XCTAssertEqual(inner, Data(v.seal.fromPhone.plaintext.utf8))
         let iv = try XCTUnwrap(Base64URL.decode(v.seal.fromPhone.iv))
-        let body = try PresentationSeal.seal(inner, secret: secret, nonce: try AES.GCM.Nonce(data: iv))
-        XCTAssertEqual(String(decoding: body, as: UTF8.self), v.seal.fromPhone.body)
+        let sealed = try PresentationSeal.seal(inner, secret: secret, nonce: try AES.GCM.Nonce(data: iv))
+        XCTAssertEqual(sealed, PresentationSeal.Sealed(iv: v.seal.fromPhone.iv, ct: v.seal.fromPhone.ct, tag: v.seal.fromPhone.tag))
+        let nodeSig = try XCTUnwrap(Base64URL.decode(v.seal.fromPhone.sig))
+        XCTAssertTrue(keys.signing.publicKey.isValidSignature(nodeSig, for: Data(v.seal.fromPhone.proof.utf8)))
+
+        let body = try PresentationSeal.body(sealed, challenge: v.seal.challenge, keys: keys)
+        let mine = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: String])
+        let theirs = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(v.seal.fromPhone.body.utf8)) as? [String: String])
+        for field in ["ct", "ek", "iv", "tag"] {
+            XCTAssertEqual(mine[field], theirs[field], field)
+        }
+        XCTAssertEqual(Set(mine.keys), ["ct", "ek", "iv", "sig", "tag"])
+        let mySig = try XCTUnwrap(Base64URL.decode(try XCTUnwrap(mine["sig"])))
+        XCTAssertTrue(keys.signing.publicKey.isValidSignature(mySig, for: Data(v.seal.fromPhone.proof.utf8)))
+        let written = String(decoding: body, as: UTF8.self)
+        XCTAssertTrue(written.hasPrefix("{\"ct\":"), "the body's keys are written sorted, as the door's own sealer writes them")
     }
 
     /// Clause: every presentation gets a fresh nonce, so two seals of one
     /// plaintext differ and both open.
     func testEverySealHasAFreshNonce() throws {
         let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
-        let inner = try PresentationSeal.inner(label: v.seal.label, keys: try phoneKeys())
+        let inner = try PresentationSeal.inner(label: v.seal.label, keys: try phoneKeys(), clientKey: v.keys.clientKey)
         let one = try PresentationSeal.seal(inner, secret: secret)
         let two = try PresentationSeal.seal(inner, secret: secret)
         XCTAssertNotEqual(one, two)
-        XCTAssertEqual(try PresentationSeal.open(one, secret: secret), inner)
-        XCTAssertEqual(try PresentationSeal.open(two, secret: secret), inner)
+        for sealed in [one, two] {
+            let body = try PresentationSeal.body(sealed, challenge: v.seal.challenge, keys: try phoneKeys())
+            XCTAssertEqual(try PresentationSeal.open(body, secret: secret), inner)
+        }
     }
 
-    // MARK: QR v:2
+    // MARK: QR v:3
 
-    /// Clause: the QR the shipping window mints parses to exactly its fields.
+    /// Clause: the QR the shipping window mints parses to exactly its fields,
+    /// at each public port.
     func testTheShippingQRParses() throws {
+        XCTAssertEqual(Set(v.qr.map(\.name)), ["funnel-8443", "funnel-10000"])
         for qr in v.qr {
             let fields = try XCTUnwrap(
                 JSONSerialization.jsonObject(with: Data(qr.payload.utf8)) as? [String: Any], qr.name
             )
-            #if !DEBUG
-            if qr.name == "loopback" {
-                XCTAssertThrowsError(try PairingOffer.parse(qr.payload), "a Release build takes no loopback door")
-                continue
-            }
-            #endif
+            XCTAssertEqual(Set(fields.keys), ["v", "host", "port", "fp", "dk", "dx", "ps", "exp"], qr.name)
             let offer = try PairingOffer.parse(qr.payload)
-            XCTAssertEqual(offer.address.host, fields["host"] as? String, qr.name)
-            XCTAssertEqual(offer.address.port, fields["port"] as? Int, qr.name)
-            XCTAssertEqual(offer.address.pin, fields["fp"] as? String, qr.name)
-            XCTAssertEqual(offer.address.pin, v.pins[0].pin, qr.name)
+            XCTAssertEqual(offer.door.name, fields["host"] as? String, qr.name)
+            XCTAssertEqual(offer.door.port, fields["port"] as? Int, qr.name)
+            XCTAssertEqual(offer.door.pin, fields["fp"] as? String, qr.name)
+            XCTAssertEqual(offer.door.pin, v.pins[0].pin, qr.name)
             XCTAssertEqual(offer.macSigningKey, v.keys.macSigningKey, qr.name)
             XCTAssertEqual(offer.macExchangeKey, v.keys.macExchangeKey, qr.name)
             XCTAssertEqual(offer.secret, Base64URL.decode(try XCTUnwrap(fields["ps"] as? String)), qr.name)
             XCTAssertEqual(offer.secret.count, 16, qr.name)
             XCTAssertEqual(offer.expiresAt, (fields["exp"] as? NSNumber)?.doubleValue, qr.name)
-            XCTAssertEqual(offer.tailnetKey, fields["tk"] as? String, qr.name)
+            XCTAssertTrue(offer.door.isPublic, qr.name)
         }
-        let keyed = try XCTUnwrap(v.qr.first { $0.name == "tailnet-with-key" })
-        XCTAssertEqual(try PairingOffer.parse(keyed.payload).tailnetKey, v.madeUpTailnetKey)
+    }
+
+    // MARK: /pair's answers
+
+    /// Clause: the shipping handler's three `/pair` answers decode, and
+    /// `allowed` carries the client certificate the Mac issued.
+    func testThePairAnswersAreTheDoors() throws {
+        let decode = { (text: String) in try JSONDecoder().decode(PairAnswer.self, from: Data(text.utf8)) }
+        XCTAssertEqual(try decode(v.pairAnswers.pending), .pending)
+        XCTAssertEqual(try decode(v.pairAnswers.refused), .refused)
+        let der = try XCTUnwrap(Data(base64Encoded: v.client.certificateDer))
+        XCTAssertEqual(try decode(v.pairAnswers.allowed), .allowed(certificate: der))
     }
 
     // MARK: The answers
@@ -382,9 +462,13 @@ struct DoorVectorFile: Decodable {
     struct Keys: Decodable {
         let phoneSigningSeed, phoneExchangeSeed, macSigningSeed, macExchangeSeed: String
         let phoneSigningKey, phoneExchangeKey, macSigningKey, macExchangeKey: String
+        let clientKey, clientKeyX963, clientKeyPkcs8: String
     }
     struct Identity: Decodable {
-        let phoneId, fingerprint, binding: String
+        let phoneId, fingerprint, binding, clientPin: String
+    }
+    struct Client: Decodable {
+        let clientKey, certificateDer: String
     }
     struct Request: Decodable {
         let name, method, target, body, bodySha256, timestamp, nonce, canonical, signature: String
@@ -398,10 +482,13 @@ struct DoorVectorFile: Decodable {
     }
     struct Seal: Decodable {
         struct FromDoor: Decodable { let body, plaintext: String }
-        struct FromPhone: Decodable { let iv, plaintext, body: String }
-        let secret, label: String
+        struct FromPhone: Decodable { let iv, plaintext, ct, tag, proof, sig, body: String }
+        let secret, challenge, label: String
         let fromDoor: FromDoor
         let fromPhone: FromPhone
+    }
+    struct PairAnswers: Decodable {
+        let pending, refused, allowed: String
     }
     struct QR: Decodable {
         let name, payload: String
@@ -415,9 +502,10 @@ struct DoorVectorFile: Decodable {
     let requests: [Request]
     let tampered: Tampered
     let pins: [Pin]
+    let client: Client
     let seal: Seal
     let qr: [QR]
-    let madeUpTailnetKey: String
+    let pairAnswers: PairAnswers
     let answers: [String: Answer]
 
     /// The file beside this one in the checkout, which a Simulator process can

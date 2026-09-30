@@ -1,48 +1,27 @@
 /**
- * The door's handler, driven over a REAL socket by a hostile client written by
- * hand (Phase 313).
+ * Main's side of the door: the handler of what the door process forwards
+ * (Phase 313; split across two processes by Phase 330, build/p330/SPEC.md
+ * §4.6 "Main's side").
  *
- * WHAT THIS IS. The scripted hostile phone the phase asks for, in the ordinary
- * battery: no Swift, no Apple, no phone, no Electron. It pairs the way a phone
- * pairs, reads the three routes the way a phone reads them, and is then refused
- * ten different ways. The pairing, the verifier, the routes and the handler are
- * the SHIPPING modules; only the phone's half is written here, from the wire
- * format, so a test cannot pass by agreeing with itself.
+ * WHAT THIS IS. Refusals 1 to 5 moved to the door process and have their own
+ * tests over real TLS (`door-listener.test.ts`). What is left in main is what
+ * only main can know — the quit, the window a person opened, the signature,
+ * and whether the answer it composed may still leave — and this file drives
+ * that with TYPED REQUESTS, exactly the shape `../door/wire.ts` lets through,
+ * so no socket is needed to reach it.
  *
- * WHAT IT DOES NOT DRIVE, and the reason is not laziness. TLS and the bind
- * belong to `../bind.ts` and `../tls.ts`, which have their own tests, and the
- * refusal of a socket whose source is the door's own address happens there, on
- * the `connection` event, before a header exists. This file therefore runs the
- * handler behind a plain `node:http` listener on loopback — the handler is a
- * `(req, res)` function and knows nothing about what carried the bytes.
- *
- * EVERY LISTENER IS CLOSED IN A `finally`. `withDoor` owns one and ends it
- * whatever happened, so a failing assertion cannot leave a socket bound.
+ * THE SECOND HALF IS END TO END ON THE SHIPPING OWNERS: a window opened by the
+ * shipping `PocketPairing`, a presentation sealed and signed the phone's way,
+ * an Allow that records the agreement and issues the certificate, and a read
+ * verified by the shipping `PocketRequestVerifier` over the channel the
+ * handshake would have named. Only the phone's half is written here.
  */
 
-import { createServer, request as httpRequest, type Server } from 'node:http';
-import { connect } from 'node:net';
-import {
-  createCipheriv,
-  createHash,
-  generateKeyPairSync,
-  hkdfSync,
-  randomBytes,
-  sign as signWith,
-  type KeyObject
-} from 'node:crypto';
+import { X509Certificate, createHash, generateKeyPairSync, randomBytes, type KeyObject } from 'node:crypto';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-
-import type { Project, Session } from '@shared/types';
-import type { PocketFacts } from '../routes';
-import type {
-  PocketExecutionFields,
-  PocketIdentity,
-  PocketPhoneFields
-} from '../pairing';
 
 let userData = '';
 
@@ -61,10 +40,7 @@ vi.mock('electron', () => ({
   }
 }));
 
-/**
- * Every line the door's log wrote, as `level message`. The handler logs each
- * refusal's REASON once, so a test can read which refusal answered.
- */
+/** Every line the log wrote, as `level message`. */
 const logged: string[] = [];
 
 vi.mock('../../log', async (importOriginal) => {
@@ -76,358 +52,21 @@ vi.mock('../../log', async (importOriginal) => {
     };
   return {
     ...real,
-    getLog: () => ({
-      error: capture('error'),
-      warn: capture('warn'),
-      info: capture('info'),
-      debug: capture('debug')
-    })
+    getLog: () => ({ error: capture('error'), warn: capture('warn'), info: capture('info'), debug: capture('debug') })
   };
 });
 
-const {
-  POCKET_HEADERS,
-  POCKET_PAIRING_WINDOW_MS,
-  PocketPairing,
-  PocketRequestVerifier,
-  newIdentity,
-  pairingBinding,
-  phoneIdOf
-} = await import('../pairing');
-const { createPocketRoutes } = await import('../routes');
+const pairing = await import('../pairing');
 const { createPocketHandler, POCKET_READ_BODY_CAP_BYTES } = await import('../server');
-const { POCKET_ROUTE_IDS } = await import('@shared/ipc/pocket');
-
-// ---------------------------------------------------------------------------
-// The fixture main
-// ---------------------------------------------------------------------------
-
-function session(over: Partial<Session> & Pick<Session, 'id' | 'name'>): Session {
-  return {
-    tmuxName: over.name,
-    projectPath: '/w/alpha',
-    cwd: '/w/alpha',
-    agent: 'claude',
-    status: 'needs_input',
-    createdAt: 1,
-    ...over
-  } as Session;
-}
-
-const SESSIONS: Session[] = [
-  session({ id: 's1', name: 'one' }),
-  session({ id: 's2', name: 'two', status: 'running' })
-];
-const PROJECTS: Project[] = [{ id: 'p', path: '/w/alpha', name: 'alpha' }];
-
-const FACTS: PocketFacts = {
-  sessions: () => SESSIONS,
-  projects: () => PROJECTS,
-  blockedSince: () => new Map([['s1', 9_000]]),
-  activity: () => ({ question: 'May I run the tests?' }),
-  statusWord: (s) =>
-    s.status === 'needs_input'
-      ? { dot: 'attention', label: 'needs input' }
-      : { dot: 'working', label: 'working' },
-  agentLabel: () => 'Claude Code',
-  machineLabel: () => null,
-  emptyLine: 'Nothing needs you',
-  wakes: () => [],
-  catchUp: async () => ({ ask: 'wire it', outcome: 'Done, and git agrees' }),
-  lastTurn: async () => ({ answerText: 'wired', turnCount: 2 }),
-  turns: async () => ({ turns: [], more: false }),
-  handoff: () => null
-};
-
-// ---------------------------------------------------------------------------
-// The phone, written out by hand
-// ---------------------------------------------------------------------------
-
-function b64u(buf: Buffer): string {
-  return buf.toString('base64url');
-}
-
-interface FakePhone {
-  label: string;
-  sign: KeyObject;
-  signPublic: string;
-  exchange: KeyObject;
-  exchangePublic: string;
-}
-
-function makePhone(label = 'A phone'): FakePhone {
-  const ed = generateKeyPairSync('ed25519');
-  const x = generateKeyPairSync('x25519');
-  return {
-    label,
-    sign: ed.privateKey,
-    signPublic: b64u(ed.publicKey.export({ format: 'der', type: 'spki' })),
-    exchange: x.privateKey,
-    exchangePublic: b64u(x.publicKey.export({ format: 'der', type: 'spki' }))
-  };
-}
-
-/** The `/pair` wire format, spelled by the test. */
-function sealPresentation(secretB64u: string, phone: FakePhone): string {
-  const key = Buffer.from(
-    hkdfSync(
-      'sha256',
-      Buffer.from(secretB64u, 'base64url'),
-      Buffer.alloc(0),
-      'tortie-pocket-pair-v1',
-      32
-    )
-  );
-  const iv = randomBytes(12);
-  const cipher = createCipheriv('aes-256-gcm', key, iv);
-  const plain = JSON.stringify({
-    label: phone.label,
-    ek: phone.signPublic,
-    xk: phone.exchangePublic
-  });
-  const ct = Buffer.concat([cipher.update(plain, 'utf8'), cipher.final()]);
-  return JSON.stringify({
-    iv: b64u(iv),
-    ct: b64u(ct),
-    tag: b64u(cipher.getAuthTag())
-  });
-}
-
-// ---------------------------------------------------------------------------
-// One door, ended in a finally
-// ---------------------------------------------------------------------------
-
-interface Door {
-  port: number;
-  pairing: InstanceType<typeof PocketPairing>;
-  verifier: InstanceType<typeof PocketRequestVerifier>;
-  identity: PocketIdentity;
-  phones: PocketPhoneFields[];
-  clock: { now: number };
-  quitting: { yes: boolean };
-  /**
-   * The door that accepted each request, as `./bind.ts` hands it to the
-   * handler (the Phase 316.1 fix round).
-   */
-  stopping: { yes: boolean };
-  /**
-   * An answer held open inside its composition, where the refresh awaits in
-   * the shipping composer. `reached` counts the answers that got there.
-   */
-  hold: { gate: Promise<void> | null; reached: number };
-}
-
-interface Reply {
-  status: number;
-  headers: Record<string, string | string[] | undefined>;
-  body: string;
-}
-
-async function withDoor(fn: (door: Door, call: Caller) => Promise<void>): Promise<void> {
-  const identity = newIdentity().identity;
-  const phones: PocketPhoneFields[] = [];
-  const clock = { now: 5_000_000 };
-  const quitting = { yes: false };
-  const stopping = { yes: false };
-  const hold: Door['hold'] = { gate: null, reached: 0 };
-  const fields: PocketExecutionFields = {
-    bindAddress: '127.0.0.1',
-    port: 0,
-    bindAtLaunch: false,
-    routes: POCKET_ROUTE_IDS,
-    phones,
-    pushAlerts: false
-  };
-  const pairing = new PocketPairing({
-    identity: () => identity,
-    fieldsNow: () => ({ ...fields, phones: [...phones] }),
-    savePhones: (next) => {
-      phones.length = 0;
-      phones.push(...next);
-      return true;
-    },
-    // QR v:2 (Phase 316): the pin a listening door hands the window.
-    publicKeyPin: () => 'p316-a-listening-door',
-    now: () => clock.now
-  });
-  const verifier = new PocketRequestVerifier({
-    identity: () => identity,
-    phones: () => phones,
-    now: () => clock.now
-  });
-  const routes = createPocketRoutes(FACTS);
-  let bound = 0;
-  const handler = createPocketHandler({
-    boundAddress: () => '127.0.0.1',
-    boundPort: () => bound,
-    shuttingDown: () => quitting.yes,
-    pairingWindowOpen: () => pairing.windowOpen(),
-    present: (body, from) => pairing.present(body, from),
-    verify: (input) => {
-      const verdict = verifier.verify(input);
-      return verdict.ok
-        ? { ok: true, phoneId: verdict.phone.id }
-        : { ok: false, reason: verdict.reason };
-    },
-    stillPaired: (phoneId) => phones.some((p) => p.id === phoneId),
-    answer: async (route, query) => {
-      hold.reached += 1;
-      if (hold.gate !== null) await hold.gate;
-      switch (route.id) {
-        case 'blocked':
-          return routes.blocked();
-        case 'session': {
-          const id = query.get('id');
-          return id === null ? null : await routes.session(id);
-        }
-        case 'turns': {
-          const id = query.get('id');
-          return id === null ? null : await routes.turns(id, { limit: query.get('limit') });
-        }
-        case 'pair':
-          return null;
-      }
-    }
-  });
-
-  const server: Server = createServer((req, res) => {
-    void handler(req, res, { stopping: () => stopping.yes });
-  });
-  try {
-    bound = await new Promise<number>((resolve) => {
-      server.listen(0, '127.0.0.1', () => {
-        resolve((server.address() as { port: number }).port);
-      });
-    });
-    const call = makeCaller(bound);
-    await fn(
-      { port: bound, pairing, verifier, identity, phones, clock, quitting, stopping, hold },
-      call
-    );
-  } finally {
-    // EVERY listener this file opens is closed here, whatever happened.
-    await new Promise<void>((resolve) => {
-      server.closeAllConnections?.();
-      server.close(() => resolve());
-    });
-  }
-}
-
-interface CallOptions {
-  method?: string;
-  path?: string;
-  body?: string | Buffer;
-  headers?: Record<string, string>;
-}
-
-type Caller = (options: CallOptions) => Promise<Reply>;
-
-function makeCaller(port: number): Caller {
-  return (options) =>
-    new Promise<Reply>((resolve, reject) => {
-      const body = options.body ?? '';
-      const req = httpRequest(
-        {
-          host: '127.0.0.1',
-          port,
-          method: options.method ?? 'GET',
-          path: options.path ?? '/v1/blocked',
-          headers: {
-            'content-length': String(Buffer.byteLength(body)),
-            ...(options.headers ?? {})
-          }
-        },
-        (res) => {
-          let text = '';
-          res.setEncoding('utf8');
-          res.on('data', (chunk: string) => {
-            text += chunk;
-          });
-          res.on('end', () =>
-            resolve({
-              status: res.statusCode ?? 0,
-              headers: res.headers,
-              body: text
-            })
-          );
-        }
-      );
-      req.on('error', reject);
-      req.end(body);
-    });
-}
-
-/** The signed request a phone makes. The canonical string is spelled here. */
-function signed(
-  door: Door,
-  phone: FakePhone,
-  options: CallOptions & { nonce?: string; timestamp?: string } = {}
-): CallOptions {
-  const method = options.method ?? 'GET';
-  const path = options.path ?? '/v1/blocked';
-  const body = Buffer.from(options.body ?? '');
-  const timestamp = options.timestamp ?? String(door.clock.now);
-  const nonce = options.nonce ?? b64u(randomBytes(16));
-  const binding = pairingBinding(door.identity, {
-    id: phoneIdOf(phone.signPublic),
-    label: phone.label,
-    signingKey: phone.signPublic,
-    exchangeKey: phone.exchangePublic,
-    address: '127.0.0.1',
-    pushToken: '',
-    pushEnvironment: ''
-  });
-  const text = [
-    'tortie-pocket-req-v1',
-    method.toUpperCase(),
-    path,
-    createHash('sha256').update(body).digest('hex'),
-    timestamp,
-    nonce,
-    binding
-  ].join('\n');
-  return {
-    method,
-    path,
-    ...(options.body !== undefined ? { body: options.body } : {}),
-    headers: {
-      [POCKET_HEADERS.phone]: phoneIdOf(phone.signPublic),
-      [POCKET_HEADERS.timestamp]: timestamp,
-      [POCKET_HEADERS.nonce]: nonce,
-      [POCKET_HEADERS.signature]: b64u(
-        signWith(null, Buffer.from(text, 'utf8'), phone.sign)
-      ),
-      ...(options.headers ?? {})
-    }
-  };
-}
-
-/** Pair a phone the way a phone pairs, ending with the person's allow. */
-async function pair(door: Door, call: Caller, phone: FakePhone): Promise<void> {
-  const offer = door.pairing.open({ tailnetKey: null });
-  const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
-  const reply = await call({
-    method: 'POST',
-    path: '/pair',
-    body: sealPresentation(secret, phone)
-  });
-  expect(reply.status).toBe(200);
-  expect(JSON.parse(reply.body)).toEqual({ state: 'pending' });
-  const next = door.pairing.fieldsWithPending();
-  const { describePocketDoor, POCKET_CONFIRM_ACKNOWLEDGEMENT } = await import(
-    '../pairing'
-  );
-  const summary = describePocketDoor(next);
-  const outcome = door.pairing.allow({
-    acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT,
-    linesRead: summary.lines,
-    hashRead: summary.hash
-  });
-  expect(outcome.allowed).toBe(true);
-}
+const wire = await import('../door/wire');
+type PocketHandlerDeps = import('../server').PocketHandlerDeps;
+type DoorAdmission = import('../bind').DoorAdmission;
+type DoorRequest = import('../door/wire').DoorRequest;
+type PocketPhoneFields = import('../pairing').PocketPhoneFields;
+type PocketExecutionFields = import('../pairing').PocketExecutionFields;
 
 beforeEach(() => {
-  userData = mkdtempSync(join(tmpdir(), 'p313-server-'));
+  userData = mkdtempSync(join(tmpdir(), 'p330-server-'));
   logged.length = 0;
 });
 
@@ -435,369 +74,370 @@ afterEach(() => {
   rmSync(userData, { recursive: true, force: true });
 });
 
+const HEADERS = {
+  'x-tortie-phone': 'phone-a',
+  'x-tortie-timestamp': '1790000000000',
+  'x-tortie-nonce': '0123456789abcdef',
+  'x-tortie-signature': 's'.repeat(86)
+};
+
+function signed(route: 'blocked' | 'session' | 'turns', target: string, channel = 'phone-a'): DoorRequest {
+  return { route, method: 'GET', target, headers: HEADERS, body: new Uint8Array(0), channel };
+}
+
+const PRESENTATION = { iv: 'A'.repeat(16), ct: 'B'.repeat(40), tag: 'C'.repeat(22), ek: 'D'.repeat(59), sig: 'E'.repeat(86) };
+
+const open: DoorAdmission = { stopping: () => false };
+
+/** Deps that answer everything, each overridable. */
+function deps(over: Partial<PocketHandlerDeps> = {}): PocketHandlerDeps {
+  return {
+    shuttingDown: () => false,
+    pairingWindowOpen: () => true,
+    present: () => ({ state: 'pending' }),
+    verify: () => ({ ok: true, phoneId: 'phone-a' }),
+    stillPaired: () => true,
+    answer: async () => ({ rows: [] }),
+    ...over
+  };
+}
+
+const words = (): string[] => logged.filter((l) => l.startsWith('warn refused a request at the door: '));
+
+// ---------------------------------------------------------------------------
+// The handler, typed request by typed request
 // ---------------------------------------------------------------------------
 
-describe('a phone that pairs can read the three questions', () => {
-  it('pairs, lists, reads one session and reads its turns', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone('Greg iPhone');
-      await pair(door, call, phone);
-
-      const list = await call(signed(door, phone, { path: '/v1/blocked' }));
-      expect(list.status).toBe(200);
-      const blocked = JSON.parse(list.body) as {
-        rows: { sessionId: string; statusLabel: string; question: string }[];
-        emptyLine: string;
-      };
-      expect(blocked.rows.map((r) => r.sessionId)).toEqual(['s1']);
-      expect(blocked.rows[0]?.statusLabel).toBe('needs input');
-      expect(blocked.rows[0]?.question).toBe('May I run the tests?');
-
-      const one = await call(signed(door, phone, { path: '/v1/session?id=s1' }));
-      expect(one.status).toBe(200);
-      const detail = JSON.parse(one.body) as {
-        session: { name: string; catchUp: { outcome: string } };
-      };
-      expect(detail.session.name).toBe('one');
-      expect(detail.session.catchUp.outcome).toBe('Done, and git agrees');
-
-      const turns = await call(signed(door, phone, { path: '/v1/turns?id=s1' }));
-      expect(turns.status).toBe(200);
-      expect(JSON.parse(turns.body)).toMatchObject({ sessionId: 's1', more: false });
-    });
+describe('what main refuses', () => {
+  it('refuses everything once the quit has begun, and everything its door has begun to stop, and reads nothing', async () => {
+    const touched: string[] = [];
+    const quitting = createPocketHandler(
+      deps({
+        shuttingDown: () => true,
+        present: () => {
+          touched.push('present');
+          return { state: 'pending' };
+        },
+        verify: () => {
+          touched.push('verify');
+          return { ok: true, phoneId: 'phone-a' };
+        },
+        answer: async () => {
+          touched.push('answer');
+          return {};
+        }
+      })
+    );
+    expect(await quitting(signed('blocked', '/v1/blocked'), open)).toEqual({ status: 404, body: null });
+    expect(await quitting({ route: 'pair', presentation: PRESENTATION }, open)).toEqual({ status: 404, body: null });
+    const stopping = createPocketHandler(deps());
+    expect(await stopping(signed('blocked', '/v1/blocked'), { stopping: () => true })).toEqual({ status: 404, body: null });
+    // One line per reason per handler: two handlers, one word.
+    expect(new Set(words())).toEqual(new Set(['warn refused a request at the door: shutdown']));
+    // Refusal 1 comes FIRST: a quitting main presents, verifies and composes nothing.
+    expect(touched).toEqual([]);
   });
 
-  it('puts Referrer-Policy and no-store on every answer, and never a cookie', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const ok = await call(signed(door, phone));
-      const refused = await call({ path: '/nope' });
-      for (const reply of [ok, refused]) {
-        expect(reply.headers['referrer-policy']).toBe('no-referrer');
-        expect(reply.headers['cache-control']).toBe('no-store');
-        expect(reply.headers['x-content-type-options']).toBe('nosniff');
-        expect(reply.headers['set-cookie']).toBeUndefined();
+  it('asks main’s own window again for /pair, and presents nothing outside it', async () => {
+    const presented: unknown[] = [];
+    const handle = createPocketHandler(
+      deps({
+        pairingWindowOpen: () => false,
+        present: (p) => {
+          presented.push(p);
+          return { state: 'pending' };
+        }
+      })
+    );
+    expect(await handle({ route: 'pair', presentation: PRESENTATION }, open)).toEqual({ status: 404, body: null });
+    expect(presented).toEqual([]);
+    expect(words()).toContain('warn refused a request at the door: window');
+  });
+
+  it('answers /pair its three states, and the certificate only with allowed', async () => {
+    const answers = [
+      { state: 'pending' },
+      { state: 'refused' },
+      { state: 'allowed', cert: 'Q0VSVA' },
+      // A composer that grew a field would still say only the state.
+      { state: 'pending', cert: 'leaked', extra: 1 },
+      { state: 'refused', cert: 'leaked' }
+    ] as unknown as ReturnType<PocketHandlerDeps['present']>[];
+    const bodies: (string | null)[] = [];
+    for (const answer of answers) {
+      const handle = createPocketHandler(deps({ present: () => answer }));
+      bodies.push((await handle({ route: 'pair', presentation: PRESENTATION }, open)).body);
+    }
+    expect(bodies).toEqual([
+      '{"state":"pending"}',
+      '{"state":"refused"}',
+      '{"state":"allowed","cert":"Q0VSVA"}',
+      '{"state":"pending"}',
+      '{"state":"refused"}'
+    ]);
+  });
+
+  it('hands the verifier the channel, the target, the body and the four headers, and the composer the query', async () => {
+    const verified: unknown[] = [];
+    const composed: unknown[] = [];
+    const handle = createPocketHandler(
+      deps({
+        verify: (input) => {
+          verified.push(input);
+          return { ok: true, phoneId: 'phone-a' };
+        },
+        answer: async (route, query) => {
+          composed.push([route.id, route.path, query.get('id'), query.get('limit')]);
+          return { turns: [] };
+        }
+      })
+    );
+    const answer = await handle(signed('turns', '/v1/turns?id=ses_1&limit=5', 'phone-a'), open);
+    expect(answer).toEqual({ status: 200, body: '{"turns":[]}' });
+    expect(verified).toEqual([
+      { method: 'GET', target: '/v1/turns?id=ses_1&limit=5', body: Buffer.alloc(0), channel: 'phone-a', headers: HEADERS }
+    ]);
+    expect(composed).toEqual([['turns', '/v1/turns', 'ses_1', '5']]);
+  });
+
+  it('refuses for the verifier’s reason, one log line per reason per process', async () => {
+    const handle = createPocketHandler(deps({ verify: () => ({ ok: false, reason: 'channel' }) }));
+    for (let i = 0; i < 5; i += 1) {
+      expect(await handle(signed('blocked', '/v1/blocked'), open)).toEqual({ status: 404, body: null });
+    }
+    expect(words()).toEqual(['warn refused a request at the door: channel']);
+  });
+
+  it('answers nothing the composer has nothing for', async () => {
+    const handle = createPocketHandler(deps({ answer: async () => null }));
+    expect(await handle(signed('session', '/v1/session?id=nobody'), open)).toEqual({ status: 404, body: null });
+    expect(words()).toContain('warn refused a request at the door: route');
+  });
+});
+
+describe('refusal 7: the answer is admitted again before it leaves', () => {
+  async function composedThen(press: () => void, over: Partial<PocketHandlerDeps> = {}, door: DoorAdmission = open) {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const handle = createPocketHandler(
+      deps({
+        answer: async () => {
+          await held;
+          return { rows: [] };
+        },
+        ...over
+      })
+    );
+    const answer = handle(signed('blocked', '/v1/blocked'), door);
+    await Promise.resolve();
+    press();
+    release();
+    return answer;
+  }
+
+  it('answers when nothing changed (the control)', async () => {
+    expect(await composedThen(() => undefined)).toEqual({ status: 200, body: '{"rows":[]}' });
+  });
+
+  it('refuses, unpaired, an answer composed for a phone removed while it was in flight', async () => {
+    let paired = true;
+    const asked: string[] = [];
+    const answer = await composedThen(
+      () => {
+        paired = false;
+      },
+      {
+        stillPaired: (id) => {
+          asked.push(id);
+          return paired;
+        }
       }
-    });
+    );
+    expect(answer).toEqual({ status: 404, body: null });
+    expect(asked).toEqual(['phone-a']);
+    expect(words()).toContain('warn refused a request at the door: unpaired');
   });
 
-  it('never puts a token in any url it needs, and needs no Authorization', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const options = signed(door, phone, { path: '/v1/session?id=s1' });
-      // The path a phone sends carries an id a person could read over their
-      // shoulder and nothing else. No 32-hex token, no key, no secret.
-      expect(options.path).toBe('/v1/session?id=s1');
-      expect(/[0-9a-f]{32}/.test(options.path ?? '')).toBe(false);
-      expect(Object.keys(options.headers ?? {})).not.toContain('authorization');
-      const reply = await call(options);
-      expect(reply.status).toBe(200);
-    });
+  it('refuses an answer composed while the door that accepted it began to stop', async () => {
+    let stopping = false;
+    const answer = await composedThen(
+      () => {
+        stopping = true;
+      },
+      {},
+      { stopping: () => stopping }
+    );
+    expect(answer).toEqual({ status: 404, body: null });
+    expect(words()).toContain('warn refused a request at the door: shutdown');
+  });
+
+  it('refuses an answer composed while the quit began', async () => {
+    let quitting = false;
+    const answer = await composedThen(
+      () => {
+        quitting = true;
+      },
+      { shuttingDown: () => quitting }
+    );
+    expect(answer).toEqual({ status: 404, body: null });
+  });
+});
+
+describe('the source of the handler', () => {
+  it('parses no stranger’s JSON and reads no body off a socket: the door process did both', async () => {
+    const { readFileSync } = await import('node:fs');
+    const text = readFileSync(join(__dirname, '..', 'server.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(text).not.toMatch(/JSON\.parse\(/);
+    expect(text).not.toMatch(/\.on\(\s*'data'/);
+    expect(text).not.toMatch(/remoteAddress|from:/);
+    expect(POCKET_READ_BODY_CAP_BYTES).toBe(1024);
+    expect(wire.POCKET_READ_BODY_CAP_BYTES).toBe(POCKET_READ_BODY_CAP_BYTES);
   });
 });
 
 // ---------------------------------------------------------------------------
+// End to end on the shipping owners
+// ---------------------------------------------------------------------------
 
-describe('the hostile client is refused, and told nothing', () => {
-  it('refuses a route that does not exist', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      for (const path of ['/', '/v1', '/v1/blocked/', '/v1/sessions', '/admin']) {
-        const reply = await call(signed(door, phone, { path }));
-        expect(reply.status).toBe(404);
-        expect(reply.body).toBe('');
-      }
+interface HonestPhone {
+  readonly fields: PocketPhoneFields;
+  readonly sign: KeyObject;
+}
+
+function honestPhone(label: string): HonestPhone {
+  const ed = generateKeyPairSync('ed25519');
+  const x = generateKeyPairSync('x25519');
+  const ec = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  const signingKey = ed.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url');
+  return {
+    fields: {
+      id: pairing.phoneIdOf(signingKey),
+      label,
+      signingKey,
+      exchangeKey: x.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+      clientKey: ec.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+      pushToken: '',
+      pushEnvironment: ''
+    },
+    sign: ed.privateKey
+  };
+}
+
+describe('end to end on the shipping pairing and verifier', () => {
+  it('pairs by proof, hands the certificate to the allowed phone alone, and reads over its own channel only', async () => {
+    const { identity } = pairing.newIdentity();
+    const { privateKey: doorKey } = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+    const doorKeyPem = doorKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+    const { issueClientCertificate } = await import('../tls');
+    let phones: PocketPhoneFields[] = [];
+    const fields = (): PocketExecutionFields => ({
+      ...pairing.EMPTY_POCKET_FIELDS,
+      funnelProgram: '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+      tailnet: 'example.github',
+      publicName: 'mac.tail00000.ts.net',
+      publicPort: 8443,
+      routes: ['pair', 'blocked', 'session', 'turns'],
+      phones
     });
-  });
-
-  it('refuses a request that asks to SET anything', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      // There is no write route, so every shape of one is simply not a route.
-      for (const [method, path] of [
-        ['POST', '/v1/status'],
-        ['POST', '/v1/session'],
-        ['PUT', '/v1/blocked'],
-        ['DELETE', '/v1/session'],
-        ['POST', '/v1/end']
-      ] as const) {
-        const reply = await call(signed(door, phone, { method, path }));
-        expect(reply.status).toBe(404);
-      }
+    const owner = new pairing.PocketPairing({
+      identity: () => identity,
+      fieldsNow: fields,
+      savePhones: (next) => {
+        phones = [...next];
+        return true;
+      },
+      publicKeyPin: () => createHash('sha256').update('door').digest('base64url'),
+      issueCertificate: (clientKey) => issueClientCertificate(doorKeyPem, clientKey, Date.now()).toString('base64url')
     });
-  });
-
-  it('refuses an unsigned request', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      expect((await call({ path: '/v1/blocked' })).status).toBe(404);
+    const verifier = new pairing.PocketRequestVerifier({ identity: () => identity, phones: () => phones });
+    const handle = createPocketHandler({
+      shuttingDown: () => false,
+      pairingWindowOpen: () => owner.windowOpen(),
+      present: (p) => owner.present(p),
+      verify: (input) => {
+        const v = verifier.verify(input);
+        return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
+      },
+      stillPaired: (id) => phones.some((p) => p.id === id),
+      answer: async (route) => ({ route: route.id })
     });
-  });
 
-  it('refuses a bearer token, which is not a thing this door has', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const reply = await call({
-        path: '/v1/blocked',
-        headers: { authorization: `Bearer ${b64u(randomBytes(32))}` }
-      });
-      expect(reply.status).toBe(404);
-    });
-  });
-
-  it('refuses a replayed request, byte for byte', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const options = signed(door, phone);
-      expect((await call(options)).status).toBe(200);
-      expect((await call(options)).status).toBe(404);
-    });
-  });
-
-  it('refuses a timestamp outside the window', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const stale = signed(door, phone, {
-        timestamp: String(door.clock.now - 10 * 60_000)
-      });
-      expect((await call(stale)).status).toBe(404);
-    });
-  });
-
-  it('refuses a phone whose stored address is not where it is calling from', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      expect((await call(signed(door, phone))).status).toBe(200);
-      // The phone moved, or somebody else is using its key from elsewhere.
-      const only = door.phones[0];
-      if (only !== undefined) {
-        door.phones[0] = { ...only, address: '100.64.0.250' };
-      }
-      expect((await call(signed(door, phone))).status).toBe(404);
-    });
-  });
-
-  it('refuses a phone nobody allowed, holding a key of its own', async () => {
-    await withDoor(async (door, call) => {
-      const allowed = makePhone('allowed');
-      await pair(door, call, allowed);
-      const stranger = makePhone('stranger');
-      expect((await call(signed(door, stranger))).status).toBe(404);
-    });
-  });
-
-  it('refuses a stale key after the person removed that phone', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      expect((await call(signed(door, phone))).status).toBe(200);
-      door.phones.length = 0;
-      door.verifier.forget(phoneIdOf(phone.signPublic));
-      expect((await call(signed(door, phone))).status).toBe(404);
-    });
-  });
-
-  it('refuses a Host header that is not this door', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      for (const host of ['evil.example', '127.0.0.1:1', '100.64.0.1', 'localhost']) {
-        const reply = await call({
-          ...signed(door, phone),
-          headers: { ...signed(door, phone).headers, host }
-        });
-        expect(reply.status).toBe(404);
-      }
-    });
-  });
-
-  it('refuses a request with NO Host header at all', async () => {
-    // Node's own client always writes one, so this is spoken down a raw socket
-    // as HTTP/1.0 — which is exactly the shape a hand-written client has.
-    await withDoor(async (door) => {
-      const status = await new Promise<number>((resolve, reject) => {
-        const socket = connect(door.port, '127.0.0.1', () => {
-          socket.write('GET /v1/blocked HTTP/1.0\r\n\r\n');
-        });
-        let text = '';
-        socket.setEncoding('utf8');
-        socket.on('data', (chunk: string) => {
-          text += chunk;
-        });
-        socket.on('error', reject);
-        socket.on('close', () => {
-          const line = /^HTTP\/1\.[01] (\d{3})/.exec(text);
-          resolve(line === null ? 0 : Number(line[1]));
-        });
-      });
-      expect(status).toBe(404);
-    });
-  });
-
-  it('refuses a body over the cap, dropped whole rather than truncated', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const big = 'x'.repeat(POCKET_READ_BODY_CAP_BYTES + 1);
-      const reply = await call(signed(door, phone, { body: big }));
-      expect(reply.status).toBe(404);
-      expect(reply.body).toBe('');
-    });
-  });
-
-  it('refuses a 10 MiB body on the pairing route', async () => {
-    await withDoor(async (door, call) => {
-      door.pairing.open({ tailnetKey: null });
-      const reply = await call({
-        method: 'POST',
-        path: '/pair',
-        body: Buffer.alloc(10 * 1024 * 1024, 0x61)
-      });
-      expect(reply.status).toBe(404);
-      expect(reply.body).toBe('');
-    });
-  });
-
-  it('refuses /pair outside a window, and after the window shut', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      // No window has ever been opened.
-      expect(
-        (
-          await call({
-            method: 'POST',
-            path: '/pair',
-            body: sealPresentation(b64u(randomBytes(16)), phone)
-          })
-        ).status
-      ).toBe(404);
-      const offer = door.pairing.open({ tailnetKey: null });
-      const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
-      door.clock.now += POCKET_PAIRING_WINDOW_MS + 1;
-      expect(
-        (
-          await call({
-            method: 'POST',
-            path: '/pair',
-            body: sealPresentation(secret, phone)
-          })
-        ).status
-      ).toBe(404);
-    });
-  });
-
-  it('refuses a presentation that never saw the QR', async () => {
-    await withDoor(async (door, call) => {
-      door.pairing.open({ tailnetKey: null });
-      const reply = await call({
-        method: 'POST',
-        path: '/pair',
-        body: sealPresentation(b64u(randomBytes(16)), makePhone())
-      });
-      // The route exists and the window is open, so it answers — with the one
-      // word it is allowed to say, and nothing is pending afterwards.
-      expect(reply.status).toBe(200);
-      expect(JSON.parse(reply.body)).toEqual({ state: 'refused' });
-      expect(door.pairing.view().state).toBe('waiting');
-    });
-  });
-
-  it('refuses everything once the quit has begun', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      door.quitting.yes = true;
-      expect((await call(signed(door, phone))).status).toBe(404);
-      expect((await call({ method: 'POST', path: '/pair', body: '{}' })).status).toBe(
-        404
+    const offer = owner.open();
+    const good = honestPhone('the honest phone');
+    const thief = honestPhone('a second phone that saw the screen');
+    const presentationOf = (phone: HonestPhone): DoorRequest => {
+      const body = pairing.sealPresentationAsPhone(
+        offer.payload,
+        {
+          label: phone.fields.label,
+          signingKey: phone.fields.signingKey,
+          exchangeKey: phone.fields.exchangeKey,
+          clientKey: phone.fields.clientKey
+        },
+        phone.sign
       );
-    });
-  });
+      // What the door process forwards: the outer JSON, validated.
+      const presentation = wire.presentationOf(JSON.parse(body.toString('utf8')));
+      if (presentation === null) throw new Error('the phone’s own body did not validate at the door');
+      return { route: 'pair', presentation };
+    };
 
-  // THE PHASE 316.1 FIX ROUND. A Remove, or a door that stops, while the
-  // phone's request is INSIDE its composition: the answer is composed (the
-  // held gate is where the shipping composer awaits the refresh) and must
-  // still not leave. Each is asserted on its refusal reason, read off the
-  // handler's own once-per-reason log line, and each has a control that
-  // answers, so a door that is merely closed cannot pass.
-  it('answers a request held inside its composition when nothing changed (the control)', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      let release = (): void => undefined;
-      door.hold.gate = new Promise<void>((resolve) => {
-        release = resolve;
+    expect((await handle(presentationOf(good), open)).body).toBe('{"state":"pending"}');
+    const summary = pairing.describePocketDoor(owner.fieldsWithPending());
+    const allowed = owner.allow({
+      acknowledgement: pairing.POCKET_CONFIRM_ACKNOWLEDGEMENT,
+      linesRead: summary.lines,
+      hashRead: summary.hash
+    });
+    expect(allowed).toEqual({ allowed: true, refusal: null });
+
+    const answer = await handle(presentationOf(good), open);
+    const body = JSON.parse(answer.body ?? '{}') as { state: string; cert?: string };
+    expect(Object.keys(body).sort()).toEqual(['cert', 'state']);
+    expect(body.state).toBe('allowed');
+    const cert = new X509Certificate(Buffer.from(body.cert ?? '', 'base64url'));
+    expect(cert.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url')).toBe(good.fields.clientKey);
+    // A second phone that photographed the same screen proves another key.
+    expect((await handle(presentationOf(thief), open)).body).toBe('{"state":"refused"}');
+
+    // A signed read, verified by the shipping verifier, over the phone's own channel.
+    const read = (channel: string, nonce = randomBytes(12).toString('hex')): DoorRequest => {
+      const timestamp = String(Date.now());
+      const target = '/v1/blocked';
+      const signature = pairing.signAsPhone(good.sign, {
+        method: 'GET',
+        target,
+        bodySha256: createHash('sha256').update(Buffer.alloc(0)).digest('hex'),
+        timestamp,
+        nonce,
+        binding: pairing.pairingBinding(identity, good.fields)
       });
-      const inFlight = call(signed(door, phone, { path: '/v1/session?id=s1' }));
-      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
-      release();
-      expect((await inFlight).status).toBe(200);
-    });
-  });
-
-  it('refuses, unpaired, an answer composed for a phone removed while it was in flight', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      let release = (): void => undefined;
-      door.hold.gate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      const inFlight = call(signed(door, phone, { path: '/v1/session?id=s1' }));
-      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
-      // The person presses Remove: the phone leaves the set the verifier and
-      // the last check both read.
-      door.phones.length = 0;
-      door.verifier.forget(phoneIdOf(phone.signPublic));
-      release();
-      const reply = await inFlight;
-      expect(reply.status).toBe(404);
-      expect(reply.body).toBe('');
-      expect(logged).toContain('warn refused a request on the tailnet door: unpaired');
-      expect(logged.some((l) => l.endsWith(': shutdown'))).toBe(false);
-    });
-  });
-
-  it('refuses an answer composed while the door that accepted it began to stop', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      let release = (): void => undefined;
-      door.hold.gate = new Promise<void>((resolve) => {
-        release = resolve;
-      });
-      const inFlight = call(signed(door, phone, { path: '/v1/turns?id=s1' }));
-      await vi.waitFor(() => expect(door.hold.reached).toBe(1));
-      // The person switched the door off; the quit has NOT begun, so only the
-      // door instance knows.
-      door.stopping.yes = true;
-      release();
-      const reply = await inFlight;
-      expect(reply.status).toBe(404);
-      expect(door.quitting.yes).toBe(false);
-      expect(logged).toContain('warn refused a request on the tailnet door: shutdown');
-      expect(logged.some((l) => l.endsWith(': unpaired'))).toBe(false);
-    });
-  });
-
-  it('refuses a session id nobody has, and never says which it had', async () => {
-    await withDoor(async (door, call) => {
-      const phone = makePhone();
-      await pair(door, call, phone);
-      const reply = await call(signed(door, phone, { path: '/v1/session?id=nope' }));
-      expect(reply.status).toBe(404);
-      expect(reply.body).toBe('');
-      const missing = await call(signed(door, phone, { path: '/v1/session' }));
-      expect(missing.status).toBe(404);
-    });
+      return {
+        route: 'blocked',
+        method: 'GET',
+        target,
+        headers: {
+          'x-tortie-phone': good.fields.id,
+          'x-tortie-timestamp': timestamp,
+          'x-tortie-nonce': nonce,
+          'x-tortie-signature': signature
+        },
+        body: new Uint8Array(0),
+        channel
+      };
+    };
+    expect(await handle(read(good.fields.id), open)).toEqual({ status: 200, body: '{"route":"blocked"}' });
+    // The same valid signature over ANOTHER phone's connection.
+    expect(await handle(read(thief.fields.id), open)).toEqual({ status: 404, body: null });
+    expect(words()).toContain('warn refused a request at the door: channel');
+    // A replay, byte for byte.
+    const once = read(good.fields.id, 'a'.repeat(24));
+    expect((await handle(once, open)).status).toBe(200);
+    expect(await handle(once, open)).toEqual({ status: 404, body: null });
+    expect(words()).toContain('warn refused a request at the door: replay');
   });
 });

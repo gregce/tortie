@@ -63,25 +63,26 @@
  *
  * The SHIPPING modules, each unmodified: the blocked feed, `WakeMark` over a
  * drivable monitor (`../power/drivable-monitor.ts`, the power smoke's own), the
- * sealed key store (`apnsKeyStoreForApp`), a `PocketHost` with its bind address
- * pinned to loopback, the pairing window, the door's route composer, the
- * sender and the engine. Each phone is paired THROUGH THE SHIPPING PATH: the
- * window opened, a presentation sealed under the QR's one-shot secret, handed
- * to `present`, and allowed from the sheet's own lines and hash — the
- * acknowledgement is supplied inside `PocketHost`, as it always is.
+ * sealed key store (`apnsKeyStoreForApp`), a `PocketHost`, the pairing window,
+ * the door's route composer, the sender and the engine. Each phone is paired
+ * THROUGH THE SHIPPING PATH: the window opened, a presentation sealed under the
+ * QR's one-shot secret and SIGNED over the window's challenge with a client key
+ * inside it, handed to `present`, and allowed from the sheet's own lines and
+ * hash — the acknowledgement is supplied inside `PocketHost`, as it always is.
  *
- * THE DOOR LISTENS FOR THE PAIRING ALONE, ON LOOPBACK, AND THEN IT IS SHUT
- * (Phase 316). Since QR v:2 a pairing window opens only on a listening door,
- * because the QR pins the key the door is listening with, so the seam walks the
- * sheet's own order — the switch on, the confirm, listening, pair — and then
- * switches the door off before the engine starts. It does so only when the
- * door's field address is `127.0.0.1`, which is the harness loopback override
- * (`GMUX_POCKET_LOOPBACK=1`, never in a packaged build); without it the seam
- * pairs nothing and says so, and `PocketHost.start` would refuse the bind
- * anyway, because a field of `127.0.0.1` is not the address `./bind.ts` would
- * choose. Every push the seam drives is therefore still "a push while the door
- * is down", which is the point: the push depends on the door's CONFIRMED
- * fields, not on its socket.
+ * THE DOOR IS PUBLISHED FOR THE PAIRING ALONE, THROUGH THE STAND-IN, AND THEN
+ * IT IS SHUT (Phase 330). A pairing window opens only on a published door,
+ * because the QR pins the key the door serves with and names where it is
+ * published, so the seam walks the sheet's own order for real — the switch on,
+ * Tailscale read, Allow, the door process listening on loopback, the Funnel
+ * child published, `beginPairing()`, a presentation with its proof, Allow —
+ * and then switches the door off before the engine starts. IT REFUSES, with one
+ * line and nothing started, unless the Tailscale program resolves from the
+ * development override (`GMUX_TAILSCALE_BIN`, which a packaged build ignores):
+ * a harness can never run the person's real Tailscale, only the stand-in a
+ * probe points that variable at. Every push the seam drives is therefore
+ * still "a push while the door is down", which is the point: the push depends
+ * on the door's CONFIRMED fields, not on its socket.
  * It never passes `allowRemote`. It never prints or logs a key byte, a device
  * token, a provider token or a payload: the lines it prints carry counts,
  * states, phone labels and the door's rows WITHOUT the question or the choices.
@@ -108,11 +109,13 @@ import {
   type ApnsKeyStore,
   type ApnsProviderKey
 } from '../credentials';
-import { PocketHost, pocketFieldAddress } from '../pocket/ipc';
+import { resolveFunnelProgram } from '../pocket/funnel';
+import { PocketHost } from '../pocket/ipc';
 import {
   pocketConfirmStatus,
   readPocketStore,
-  sealPresentationAsPhone
+  sealPresentationAsPhone,
+  type PocketSealedPresentation
 } from '../pocket/pairing';
 import { createPocketRoutes, type PocketFacts } from '../pocket/routes';
 import { drivableMonitor } from '../power/drivable-monitor';
@@ -586,14 +589,43 @@ function seamAgentLabel(agentId: string): string {
   }
 }
 
-/** Mint two public keys a phone would present. The private halves are dropped. */
-function phoneKeys(): { signingKey: string; exchangeKey: string } {
+/**
+ * Mint the three keys a phone would present, and the signing key's private
+ * half, which signs the presentation's proof and is then dropped with the rest.
+ */
+function phoneKeys(): {
+  signingKey: string;
+  exchangeKey: string;
+  clientKey: string;
+  signPrivate: ReturnType<typeof generateKeyPairSync>['privateKey'];
+} {
   const signing = generateKeyPairSync('ed25519');
   const exchange = generateKeyPairSync('x25519');
+  const client = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
   return {
     signingKey: signing.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
-    exchangeKey: exchange.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url')
+    exchangeKey: exchange.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+    clientKey: client.publicKey.export({ type: 'spki', format: 'der' }).toString('base64url'),
+    signPrivate: signing.privateKey
   };
+}
+
+/** The `POST /pair` body the phone would send, as the door process parses it. */
+function presentationOf(body: Buffer): PocketSealedPresentation | null {
+  try {
+    const outer = JSON.parse(body.toString('utf8')) as Record<string, unknown>;
+    const field = (name: string): string | null =>
+      typeof outer[name] === 'string' ? (outer[name] as string) : null;
+    const iv = field('iv');
+    const ct = field('ct');
+    const tag = field('tag');
+    const ek = field('ek');
+    const sig = field('sig');
+    if (iv === null || ct === null || tag === null || ek === null || sig === null) return null;
+    return { iv, ct, tag, ek, sig };
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -611,27 +643,45 @@ function confirmNow(host: PocketHost): string {
 }
 
 /**
- * Open the door on loopback for the pairing, the sheet's own order: the switch
- * on, the confirm, listening (Phase 316). True only when it is listening.
- * Refused, with nothing written, unless the field address is the harness
- * loopback override's `127.0.0.1`.
+ * THE SEAM'S OWN REFUSAL (Phase 330): the Tailscale program must resolve from
+ * the development override, which is the stand-in a probe names. A packaged
+ * build ignores the variable, and a development build without it would
+ * resolve the person's real Tailscale, so either way the seam pairs nothing.
+ * Exported for `__tests__/push-seam.test.ts` alone, which holds all four arms.
+ */
+export function standInOnly(): boolean {
+  let packaged = true;
+  try {
+    packaged = app.isPackaged;
+  } catch {
+    packaged = true;
+  }
+  return resolveFunnelProgram({ packaged, env: process.env }).resolution.source === 'dev-override';
+}
+
+/**
+ * Publish the door for the pairing, the sheet's own order: the switch on,
+ * Tailscale read, Allow, listening (Phase 330). True only when it is listening.
+ * Refused, with nothing started, unless the program is the stand-in.
  */
 async function openDoorForPairing(
   host: PocketHost,
   print: (line: string) => void
 ): Promise<boolean> {
-  if (pocketFieldAddress() !== '127.0.0.1') {
-    print(`${PUSH_SEAM_TAG} pairing needs the loopback door (GMUX_POCKET_LOOPBACK=1), so no phone was paired`);
+  if (!standInOnly()) {
+    print(`${PUSH_SEAM_TAG} pairing needs the Tailscale stand-in (GMUX_TAILSCALE_BIN), so no phone was paired`);
     return false;
   }
   await host.setDoor({ on: true });
+  await host.idle();
   const gate = pocketConfirmStatus(host.fields());
   if (gate.state !== 'confirmed') {
     await host.confirmDoor({ linesRead: gate.lines, hashRead: gate.hash });
+    await host.idle();
   }
   const state = host.status().state;
   if (state !== 'listening') {
-    print(`${PUSH_SEAM_TAG} the loopback door did not open (${state}), so no phone was paired`);
+    print(`${PUSH_SEAM_TAG} the door did not publish (${state}), so no phone was paired`);
     return false;
   }
   return true;
@@ -694,24 +744,30 @@ async function composePushSeam(
     handoff: () => null
   };
 
-  // THE HOST, bound to loopback in its confirmed field. It listens only while
-  // the phones pair, and is switched off again before the engine starts.
-  const host = new PocketHost({ facts, bindAddress: () => '127.0.0.1' });
+  // THE HOST. Its door is published only while the phones pair, through the
+  // stand-in, and is switched off again before the engine starts.
+  const host = new PocketHost({ facts });
 
   // THE PHONES, each through the shipping pairing path, on a door that is
-  // listening because the QR pins its key (Phase 316), and with no tailnet key.
+  // published because the QR pins its key and names where it is (Phase 330).
   const doorOpen = await openDoorForPairing(host, print);
   for (const phone of doorOpen ? seed.phones : []) {
-    const offer = host.beginPairing({ tailnetKey: null });
+    const offer = await host.beginPairing();
     const keys = phoneKeys();
-    const body = sealPresentationAsPhone(offer.payload, {
-      label: phone.label,
-      signingKey: keys.signingKey,
-      exchangeKey: keys.exchangeKey,
-      pushToken: phone.token,
-      pushEnvironment: phone.environment
-    });
-    const answer = host.pairing.present(body, '127.0.0.1');
+    const body = sealPresentationAsPhone(
+      offer.payload,
+      {
+        label: phone.label,
+        signingKey: keys.signingKey,
+        exchangeKey: keys.exchangeKey,
+        clientKey: keys.clientKey,
+        pushToken: phone.token,
+        pushEnvironment: phone.environment
+      },
+      keys.signPrivate
+    );
+    const presentation = presentationOf(body);
+    const answer = presentation === null ? 'refused' : host.pairing.present(presentation).state;
     const view = host.pairing.view();
     if (answer !== 'pending' || view.hash === null) {
       print(`${PUSH_SEAM_TAG} pairing ${JSON.stringify(phone.label)} answered ${answer}`);

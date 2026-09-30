@@ -1,5 +1,6 @@
 /**
- * Phase 316.1. Settings → Phone, drawn.
+ * Settings → Phone, drawn (Phase 316.1; rewritten for Phase 330, build/p330/
+ * SPEC.md §4.10).
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server. They render `PhoneView`, which takes everything it draws
@@ -8,39 +9,39 @@
  * What these tests hold, each red if its clause is taken out of
  * PhoneSection.tsx:
  *
- * - THE ORDER the SPEC gives (S1 mechanism 7): the switch, Pair a phone, the
- *   phones, the alert switch, then the one disclosure.
- * - THE SWITCH'S LINE says what is true: off, listening on the address and
- *   port a phone is told, waiting for the person to allow it, or main's own
- *   refusal sentence, never a word of the surface's in its place.
- * - NOTHING LISTENS BEFORE A PERSON READS. Whenever the door is on and its
- *   details are not the ones agreed to, the lines main hashed are drawn, in
- *   main's order, with main's warning and Allow. Confirmed or off, they are
- *   not.
- * - THE KEY IS HIS CREDENTIAL. The field is a password field with no
- *   autocomplete and no value in the markup, and a made-up key inside the
- *   code's payload appears nowhere on the page.
- * - THE CODE is drawn only while main says the pairing is waiting and its
- *   deadline has not passed; the match face draws main's fingerprint, lines
- *   and warning.
- * - A PHONE whose alerts Apple stopped draws Phase 314's sentence for it.
- * - THE ALERT SWITCH is main's `pushAlerts`, and it cannot be turned ON while
- *   the door is off.
- * - THE DISCLOSURE draws main's grant text unedited, the narrowing, the rule
- *   preview line and the residual, and the two rewritten honesty sentences
- *   say what is true.
- * - TURNING THE ALERTS OFF re-confirms only a sheet whose one moved line is
- *   the switch's.
+ * - THE ORDER: the switch, Pair a phone, the phones, the alert switch, and NO
+ *   disclosure: there is no grant, no narrowing and no key field any more.
+ * - THE SWITCH'S LINE says what is true: off, starting Funnel, Tortie trying
+ *   again, answering at the public name and port, waiting for the person to
+ *   allow it, or main's own refusal sentence.
+ * - NOTHING STARTS BEFORE A PERSON READS. The lines main hashed, with main's
+ *   warnings, the standing-right warning when Funnel still needs approving,
+ *   and Allow — never while a read is under way.
+ * - THE APPROVAL: Open Tailscale only for the page main will open; any other
+ *   page as selectable text, never a link.
+ * - THE PAIR CARD'S FIVE FACES, and one Pair button whether the door is off or
+ *   answering; the code with its private line and its countdown.
+ * - THE REMOVE NOTICE is keyed to the phone it names (316.4 owed item 1): a
+ *   removed phone's "Paired with" is never drawn.
+ * - A FIRST CODE that shuts with nobody presenting says why.
+ * - PAIR AFTER ALLOW asks for the code once, when the door answers.
+ * - THE WORDS THE PHONE QUOTES stay byte for byte.
  */
 
+import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import {
   POCKET_CONFIRM_WARNING,
+  POCKET_FUNNEL_APPROVAL,
+  POCKET_FUNNEL_APPROVAL_ELSEWHERE,
+  POCKET_FUNNEL_SENTENCES,
+  POCKET_FUNNEL_RESTARTING,
+  POCKET_FUNNEL_RIGHT_WARNING,
   POCKET_REACH_HONESTY,
   POCKET_READ_ONLY_HONESTY,
-  POCKET_TAILNET_GRANT_HONESTY,
-  pocketGrantText,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketStatus
@@ -49,34 +50,40 @@ import { PUSH_TOKEN_STOPPED } from '@shared/push-copy';
 
 import {
   ALERTS_GROUP,
+  BTN_OPEN_TAILSCALE,
   CODE_EXPIRED,
+  CODE_FIRST_NAME,
+  CODE_PRIVATE,
   DOOR_LABEL,
   DOOR_OFF,
+  DOOR_OPENING,
   DOOR_WAITING,
-  GRANT_NO_ADDRESS,
-  GRANT_SUMMARY,
-  NAMES_RESIDUAL,
-  NARROW_FROM,
-  NARROW_PREVIEW,
-  NARROW_TO,
-  PAIR_CLOSED,
+  FIRST_NAME_MS,
   PAIR_GROUP,
+  PAIR_WAITING,
+  PHONES_DROPPED,
   PHONES_GROUP,
   PhoneView,
+  SCAN_LINE,
   doorLine,
+  doorMayRetry,
   doorNeedsConfirm,
+  expiredNotice,
+  noticeToDraw,
   onlyOneLineMoved,
+  pairAfterAllowNext,
+  pairedWith,
   pairingStage,
   shutsIn,
   type PhoneViewProps
 } from '../PhoneSection';
 
 const NOW = 1_790_000_000_000;
-const FAKE_KEY = `tskey-auth-kP316FAKE-${'Z'.repeat(40)}`;
+const NAME = 'mac.tail00000.ts.net';
 
 const LINES = [
-  "Answers on this Mac's tailnet address: 100.101.102.103",
-  'Port: 8823',
+  `Answers on the internet at https://${NAME}:8443, through Tailscale Funnel on example.github`,
+  'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale',
   'Starts answering when Tortie starts',
   'Answers these and nothing else: blocked, pair, session, turns',
   'Tells your phone nothing through Apple',
@@ -86,25 +93,27 @@ const LINES = [
 function status(over: Partial<PocketStatus> = {}): PocketStatus {
   return {
     state: 'listening',
-    address: '100.101.102.103',
-    port: 8823,
+    publicName: NAME,
+    publicPort: 8443,
     bindAtLaunch: true,
     certificateFingerprint: 'f'.repeat(64),
     refusal: null,
     phones: [],
+    droppedPhones: 0,
+    funnel: { state: 'publishing', asksApproval: false, approvalOpens: false, approvalText: null, publishedAt: NOW - 60_000 },
     confirmState: 'confirmed',
     confirmLines: LINES,
     confirmHash: 'h'.repeat(64),
+    confirmable: true,
     routes: ['pair', 'blocked', 'session', 'turns'],
     pushAlerts: false,
-    grant: pocketGrantText('100.101.102.103', 8823),
     ...over
   };
 }
 
 function offer(expiresAt = NOW + 170_000): PocketPairingOffer {
   return {
-    payload: JSON.stringify({ v: 2, host: '100.101.102.103', port: 8823, tk: FAKE_KEY }),
+    payload: JSON.stringify({ v: 3, host: NAME, port: 8443, fp: 'p', dk: 'd', dx: 'x', ps: 's', exp: expiresAt }),
     expiresAt
   };
 }
@@ -137,6 +146,7 @@ function draw(over: Partial<PhoneViewProps> = {}): string {
     onSetDoor: noop,
     onConfirmDoor: noop,
     onRetryDoor: noop,
+    onOpenApproval: noop,
     onPair: noop,
     onCancelPairing: noop,
     onAllowPhone: noop,
@@ -157,52 +167,84 @@ function text(html: string): string {
     .replace(/\s+/g, ' ');
 }
 
+const phone = {
+  id: 'p1',
+  label: 'An iPhone',
+  fingerprint: 'ab12 cd34 ef56 0718 293a 4b5c',
+  addedAt: 0,
+  alerts: 'none' as const
+};
+
 describe('the order the SPEC gives', () => {
-  it('draws the switch, pairing, the phones, the alerts and the disclosure, in that order', () => {
-    const page = text(draw());
-    const at = [DOOR_LABEL, PAIR_GROUP, PHONES_GROUP, ALERTS_GROUP, GRANT_SUMMARY].map((w) =>
-      page.indexOf(w)
-    );
+  it('draws the switch, pairing, the phones and the alerts, in that order, and no disclosure', () => {
+    const html = draw();
+    const page = text(html);
+    const at = [DOOR_LABEL, PAIR_GROUP, PHONES_GROUP, ALERTS_GROUP].map((w) => page.indexOf(w));
     for (const i of at) expect(i).toBeGreaterThanOrEqual(0);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
+    expect(html).not.toContain('<details');
+    expect(page).not.toMatch(/grant|narrow|autogroup|Keep the phone to this door/i);
   });
 
-  it('says under the title how the phone and this Mac each reach the tailnet', () => {
+  it('says under the title how the phone reaches this Mac', () => {
+    expect(POCKET_REACH_HONESTY).toBe(
+      'Your phone reaches this Mac through Tailscale Funnel. Only a phone you pair gets an answer.'
+    );
     expect(text(draw())).toContain(POCKET_REACH_HONESTY);
+  });
+
+  it('has no key field on any face', () => {
+    for (const html of [
+      draw(),
+      draw({ status: status({ state: 'off' }) }),
+      draw({ status: status({ state: 'opening' }) }),
+      draw({ offer: offer(), view: pairing() })
+    ]) {
+      expect(html).not.toContain('type="password"');
+      expect(html).not.toContain('data-phone-field');
+      expect(text(html)).not.toMatch(/tailnet key/i);
+    }
   });
 });
 
 describe('the switch’s one line', () => {
-  it('says off when the door is off', () => {
+  it('says off, starting Funnel, and trying again', () => {
     expect(doorLine(status({ state: 'off' }))).toBe(DOOR_OFF);
+    expect(DOOR_OPENING).toBe('Starting Tailscale Funnel…');
+    expect(doorLine(status({ state: 'opening', funnel: { ...status().funnel, state: 'starting' } }))).toBe(DOOR_OPENING);
+    expect(doorLine(status({ state: 'opening', funnel: { ...status().funnel, state: 'restarting' } }))).toBe(
+      POCKET_FUNNEL_RESTARTING
+    );
   });
 
-  it('names the address and port a phone is told when listening', () => {
-    expect(doorLine(status())).toBe('Listening on 100.101.102.103:8823');
+  it('names the public name and port a phone is told when answering', () => {
+    expect(doorLine(status())).toBe(`Answering at https://${NAME}:8443`);
   });
 
   it('asks the person to read and allow while the details are not agreed to', () => {
-    const s = status({ state: 'refused', confirmState: 'never', refusal: 'main says why' });
-    expect(doorLine(s)).toBe(DOOR_WAITING);
+    expect(doorLine(status({ state: 'refused', confirmState: 'never', refusal: 'main says why' }))).toBe(DOOR_WAITING);
   });
 
   it('draws main’s own refusal sentence otherwise, never one of its own', () => {
-    const sentence = 'Something else on this Mac already holds that port.';
+    const sentence = 'Tailscale is not running on this Mac. Open Tailscale, then try again.';
     expect(doorLine(status({ state: 'refused', refusal: sentence }))).toBe(sentence);
-    const noAddress = status({ state: 'no-address', address: null, refusal: 'no address, main says' });
-    expect(doorLine(noAddress)).toBe('no address, main says');
+    expect(doorLine(status({ state: 'refused', publicName: null, confirmState: 'never', refusal: sentence }))).toBe(
+      sentence
+    );
   });
 
   it('draws the switch on for every state but off', () => {
-    expect(draw({ status: status({ state: 'off' }) })).toMatch(/role="switch" aria-checked="false"[^>]*aria-label="Let my phone reach this Mac"/);
+    expect(draw({ status: status({ state: 'off' }) })).toMatch(
+      /role="switch" aria-checked="false"[^>]*aria-label="Let my phone reach this Mac"/
+    );
     expect(draw()).toMatch(/role="switch" aria-checked="true"[^>]*aria-label="Let my phone reach this Mac"/);
   });
 });
 
-describe('nothing listens before a person reads', () => {
+describe('nothing starts before a person reads', () => {
   const unagreed = status({ state: 'refused', confirmState: 'changed' });
 
-  it('draws main’s lines, in main’s order, with the warning and Allow', () => {
+  it('draws main’s lines, in main’s order, with the warnings and Allow', () => {
     const html = draw({ status: unagreed });
     expect(html).toContain('data-phone-confirm');
     const page = text(html);
@@ -213,70 +255,152 @@ describe('nothing listens before a person reads', () => {
       from = at;
     }
     expect(page).toContain(POCKET_CONFIRM_WARNING);
+    expect(POCKET_CONFIRM_WARNING).toContain('over the internet');
     expect(page).toContain(POCKET_READ_ONLY_HONESTY);
-    expect(html).toContain('data-phone-action="confirm-door"');
+    expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
+    expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
+    expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');
   });
 
-  it('draws none of it when the door is agreed to, or off, or has no address', () => {
+  it('draws the standing-right warning when the first start will ask Tailscale’s approval', () => {
+    const asks = status({ state: 'refused', confirmState: 'never', funnel: { ...status().funnel, asksApproval: true } });
+    expect(text(draw({ status: asks }))).toContain(POCKET_FUNNEL_RIGHT_WARNING);
+  });
+
+  it('never offers Allow while a read is under way', () => {
+    const reading = status({ state: 'opening', confirmState: 'changed', funnel: { ...status().funnel, state: 'reading' } });
+    expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(draw({ status: reading }))?.[0]).toContain(
+      'disabled'
+    );
+  });
+
+  it('draws none of it when the door is agreed to, off, or unread', () => {
     expect(doorNeedsConfirm(status())).toBe(false);
     expect(doorNeedsConfirm(status({ state: 'off', confirmState: 'never' }))).toBe(false);
-    expect(
-      doorNeedsConfirm(status({ state: 'no-address', address: null, confirmState: 'never' }))
-    ).toBe(false);
+    expect(doorNeedsConfirm(status({ state: 'refused', publicName: null, confirmState: 'never' }))).toBe(false);
     expect(draw()).not.toContain('data-phone-confirm');
   });
 
-  it('asks again while listening if a change was not agreed to', () => {
-    expect(doorNeedsConfirm(status({ confirmState: 'changed' }))).toBe(true);
-  });
-
-  it('offers Try again, and not Allow, for an agreed door that did not bind', () => {
+  it('offers Try again, and not Allow, for an agreed door that did not start', () => {
     const html = draw({ status: status({ state: 'refused', refusal: 'port taken' }) });
     expect(html).toContain('data-phone-action="retry-door"');
     expect(html).not.toContain('data-phone-action="confirm-door"');
   });
+
+  // THE FIX ROUND'S FACES (lens 2, F1 and F4): main answered `confirmable`
+  // false, so its refusal is drawn with Try again and nobody is asked to agree
+  // to a line that names port 0, or a Mac whose Tailscale is not running.
+  const faces: [string, Partial<PocketStatus>][] = [
+    [
+      'both ports held on a first Pair (the lines would name :0)',
+      {
+        state: 'refused',
+        confirmState: 'never',
+        confirmable: false,
+        publicPort: 0,
+        refusal: POCKET_FUNNEL_SENTENCES['ports-taken'],
+        confirmLines: [`Answers on the internet at https://${NAME}:0, through Tailscale Funnel on example.github`]
+      }
+    ],
+    [
+      'Tailscale stopped, the gate never agreed to',
+      { state: 'refused', confirmState: 'never', confirmable: false, refusal: POCKET_FUNNEL_SENTENCES['not-running'] }
+    ],
+    [
+      'Tailscale stopped, the gate changed',
+      { state: 'refused', confirmState: 'changed', confirmable: false, refusal: POCKET_FUNNEL_SENTENCES['not-running'] }
+    ]
+  ];
+  for (const [name, over] of faces) {
+    it(`draws main’s refusal and Try again, never the lines or Allow: ${name}`, () => {
+      const face = status(over);
+      expect(doorNeedsConfirm(face)).toBe(false);
+      expect(doorMayRetry(face)).toBe(true);
+      expect(doorLine(face)).toBe(face.refusal);
+      const html = draw({ status: face });
+      expect(text(html)).toContain(face.refusal ?? 'no refusal');
+      expect(html).not.toContain('data-phone-confirm');
+      expect(html).not.toContain('data-phone-action="confirm-door"');
+      expect(html).toContain('data-phone-action="retry-door"');
+      expect(text(html)).not.toContain(':0,');
+      expect(pairAfterAllowNext('on', face)).toEqual({ phase: 'no', pair: false });
+    });
+  }
+
+  it('draws the lines again once main says they may be agreed to', () => {
+    const face = status({ state: 'refused', confirmState: 'never', confirmable: true, refusal: 'the gate says why' });
+    expect(doorNeedsConfirm(face)).toBe(true);
+    expect(doorMayRetry(face)).toBe(false);
+    expect(draw({ status: face })).toContain('data-phone-action="confirm-door"');
+  });
 });
 
-describe('the tailnet key is his credential', () => {
-  it('is asked for in a password field with no autocomplete and no value', () => {
-    const html = draw();
-    const field = /<input[^>]*data-phone-field="tailnet-key"[^>]*>/.exec(html)?.[0] ?? '';
-    expect(field).toContain('type="password"');
-    expect(field).toMatch(/autocomplete="off"/i);
-    expect(field).toMatch(/spellcheck="false"/i);
-    expect(field).not.toContain('value=');
+describe('Tailscale’s approval', () => {
+  it('offers Open Tailscale only for the page main will open', () => {
+    const waiting = status({
+      state: 'opening',
+      funnel: { ...status().funnel, state: 'approval', approvalOpens: true, approvalText: null }
+    });
+    const html = draw({ status: waiting });
+    expect(text(html)).toContain(POCKET_FUNNEL_APPROVAL);
+    expect(html).toContain('data-phone-action="open-approval"');
+    expect(text(html)).toContain(BTN_OPEN_TAILSCALE);
   });
 
-  it('never appears on the page while the code that carries it shows', () => {
-    const html = draw({ offer: offer(), view: pairing() });
-    expect(html).toContain('<svg');
-    expect(html).not.toContain('tskey-auth-');
-    expect(html).not.toContain('P316FAKE');
+  it('draws any other page as selectable text, never a link, with no button to open it', () => {
+    const url = 'https://example.invalid/f/funnel';
+    const elsewhere = status({
+      state: 'opening',
+      funnel: { ...status().funnel, state: 'approval', approvalOpens: false, approvalText: url }
+    });
+    const html = draw({ status: elsewhere });
+    expect(text(html)).toContain(POCKET_FUNNEL_APPROVAL_ELSEWHERE);
+    expect(html).toContain(url);
+    expect(html).not.toContain('<a ');
+    expect(html).not.toContain('href=');
+    expect(html).not.toContain('data-phone-action="open-approval"');
+  });
+
+  it('draws nothing of it when there is no approval to wait on', () => {
+    expect(draw()).not.toContain('data-phone-approval');
   });
 });
 
 describe('the pairing card', () => {
-  it('is shut until this Mac is listening', () => {
-    expect(pairingStage(status({ state: 'off' }), null, null, NOW)).toBe('closed');
-    const html = draw({ status: status({ state: 'off' }) });
-    expect(text(html)).toContain(PAIR_CLOSED);
-    expect(html).not.toContain('data-phone-field="tailnet-key"');
+  it('wears one Pair button when the door is off, and the same when it answers', () => {
+    expect(pairingStage(status({ state: 'off' }), null, null, NOW)).toBe('start');
+    const off = draw({ status: status({ state: 'off' }) });
+    expect(off).toContain('data-phone-stage="start"');
+    expect(off).toContain('data-phone-action="pair"');
+    expect(pairingStage(status(), null, null, NOW)).toBe('ready');
+    const ready = draw();
+    expect(ready).toContain('data-phone-stage="ready"');
+    expect(ready).toContain('data-phone-action="pair"');
   });
 
-  it('shows the code only while main says it is waiting and the deadline has not passed', () => {
+  it('waits, with no button, while the door is on and not answering', () => {
+    expect(pairingStage(status({ state: 'opening' }), null, null, NOW)).toBe('waiting');
+    expect(pairingStage(status({ state: 'refused' }), null, null, NOW)).toBe('waiting');
+    const html = draw({ status: status({ state: 'opening' }) });
+    expect(text(html)).toContain(PAIR_WAITING);
+    expect(html).not.toContain('data-phone-action="pair"');
+  });
+
+  it('shows the code, with its private line, only while main says it is waiting and the deadline has not passed', () => {
     expect(pairingStage(status(), offer(), pairing(), NOW)).toBe('showing');
     expect(pairingStage(status(), offer(NOW), pairing(), NOW)).toBe('ready');
     expect(pairingStage(status(), offer(), pairing({ state: 'idle' }), NOW)).toBe('ready');
-    expect(pairingStage(status(), offer(), pairing({ state: 'expired' }), NOW)).toBe('ready');
-    expect(pairingStage(status(), null, pairing(), NOW)).toBe('ready');
+    const html = draw({ offer: offer(), view: pairing() });
+    expect(html).toContain('<svg');
+    expect(text(html)).toContain(SCAN_LINE);
+    expect(SCAN_LINE).toBe('Scan it with Tortie on your iPhone.');
+    expect(text(html)).toContain(CODE_PRIVATE);
   });
 
   it('counts down in minutes and seconds, never below zero', () => {
     expect(shutsIn(170_000)).toBe('Shuts in 2:50');
-    expect(shutsIn(1)).toBe('Shuts in 0:01');
     expect(shutsIn(-5_000)).toBe('Shuts in 0:00');
-    const html = draw({ offer: offer(NOW + 61_000), view: pairing() });
-    expect(text(html)).toContain('Shuts in 1:01');
+    expect(text(draw({ offer: offer(NOW + 61_000), view: pairing() }))).toContain('Shuts in 1:01');
   });
 
   it('draws the phone, main’s fingerprint, main’s lines and main’s warning to match', () => {
@@ -284,47 +408,94 @@ describe('the pairing card', () => {
       state: 'presented',
       label: 'An iPhone',
       fingerprint: 'ab12 cd34 ef56 0718 293a 4b5c',
-      lines: ['Allows the phone "An iPhone" at 100.101.102.104, key ab12'],
+      lines: ['Allows the phone "An iPhone", key ab12 cd34 ef56 0718 293a 4b5c'],
       hash: 'p'.repeat(64)
     });
     const html = draw({ offer: offer(), view });
     expect(pairingStage(status(), offer(), view, NOW)).toBe('match');
     const page = text(html);
-    expect(page).toContain('An iPhone');
     expect(page).toContain('ab12 cd34 ef56 0718 293a 4b5c');
-    expect(page).toContain('Allows the phone "An iPhone" at 100.101.102.104, key ab12');
+    expect(page).toContain('Allows the phone "An iPhone", key ab12 cd34 ef56 0718 293a 4b5c');
     expect(page).toContain(POCKET_CONFIRM_WARNING);
     expect(html).toContain('data-phone-action="allow-phone"');
     expect(html).not.toContain('<svg');
   });
+});
 
-  it('says when the code shut with nothing paired', () => {
-    expect(text(draw({ notice: CODE_EXPIRED }))).toContain(CODE_EXPIRED);
+describe('the notices', () => {
+  it('draws a “Paired with” line only while the phone it names is paired (316.4 owed item 1)', () => {
+    const notice = { text: pairedWith('An iPhone'), phoneId: 'p1' };
+    expect(noticeToDraw(notice, status({ phones: [phone] }))).toBe('Paired with An iPhone.');
+    expect(noticeToDraw(notice, status({ phones: [] }))).toBeNull();
+    expect(text(draw({ status: status({ phones: [phone] }), notice }))).toContain('Paired with An iPhone.');
+    // Removed: the page does not say it is paired.
+    const after = draw({ status: status({ phones: [] }), notice });
+    expect(text(after)).not.toContain('Paired with');
+  });
+
+  it('says the code expired, and the first time says why and to press Pair again', () => {
+    const published = NOW;
+    const expires = published + 3 * 60_000;
+    expect(expiredNotice(published, expires, false)).toEqual({
+      text: `${CODE_EXPIRED} ${CODE_FIRST_NAME}`,
+      phoneId: null
+    });
+    expect(expiredNotice(published, expires, true).text).toBe(CODE_EXPIRED);
+    expect(expiredNotice(null, expires, false).text).toBe(CODE_EXPIRED);
+    expect(expiredNotice(published, published + FIRST_NAME_MS + 1, false).text).toBe(CODE_EXPIRED);
+    expect(CODE_FIRST_NAME).toBe(
+      'The first time, your Mac’s name can take several minutes to reach your phone. Press Pair again.'
+    );
+    const drawn = text(draw({ status: status({ state: 'off' }), notice: expiredNotice(published, expires, false) }));
+    expect(drawn).toContain(CODE_EXPIRED);
+    expect(drawn).toContain(CODE_FIRST_NAME);
+  });
+});
+
+describe('pair after Allow', () => {
+  const on = (over: Partial<PocketStatus>): PocketStatus => status(over);
+
+  it('waits through the press that turns the door on, and asks for the code once when it answers', () => {
+    expect(pairAfterAllowNext('pressed', on({ state: 'off' }))).toEqual({ phase: 'pressed', pair: false });
+    expect(pairAfterAllowNext('pressed', on({ state: 'opening' }))).toEqual({ phase: 'on', pair: false });
+    expect(pairAfterAllowNext('on', on({ state: 'refused', confirmState: 'never' }))).toEqual({ phase: 'on', pair: false });
+    expect(pairAfterAllowNext('on', on({ state: 'listening' }))).toEqual({ phase: 'no', pair: true });
+    expect(pairAfterAllowNext('no', on({ state: 'listening' }))).toEqual({ phase: 'no', pair: false });
+  });
+
+  it('is dropped by an off after it was on, and by a refusal with nothing to Allow', () => {
+    expect(pairAfterAllowNext('on', on({ state: 'off' }))).toEqual({ phase: 'no', pair: false });
+    expect(pairAfterAllowNext('on', on({ state: 'refused', publicName: null, confirmState: 'never' }))).toEqual({
+      phase: 'no',
+      pair: false
+    });
+    expect(pairAfterAllowNext('on', on({ state: 'refused', confirmState: 'confirmed' }))).toEqual({
+      phase: 'no',
+      pair: false
+    });
   });
 });
 
 describe('the phones', () => {
-  const phone = {
-    id: 'p1',
-    label: 'An iPhone',
-    fingerprint: 'ab12 cd34 ef56 0718 293a 4b5c',
-    addedAt: 0,
-    address: '100.101.102.104'
-  };
-
-  it('draws each phone with Remove, and says so when there is none', () => {
+  it('draws each phone with its fingerprint and Remove, no address, and says so when there is none', () => {
     expect(text(draw())).toContain('No phone yet.');
-    const html = draw({ status: status({ phones: [{ ...phone, alerts: 'none' }] }) });
+    const html = draw({ status: status({ phones: [phone] }) });
     expect(html).toContain('data-phone-id="p1"');
     expect(html).toContain('data-phone-action="remove-phone"');
-    expect(text(html)).toContain('100.101.102.104');
+    expect(text(html)).toContain(phone.fingerprint);
+    expect(text(html)).not.toMatch(/100\.\d+\.\d+\.\d+/);
+  });
+
+  it('says once that phones paired before this version must pair again', () => {
+    expect(PHONES_DROPPED).toBe('Phones paired before this version must pair again.');
+    const html = draw({ status: status({ droppedPhones: 2 }) });
+    expect(text(html).split(PHONES_DROPPED)).toHaveLength(2);
+    expect(draw()).not.toContain('data-phone-dropped');
   });
 
   it('draws Phase 314’s sentence for a phone whose alerts Apple stopped', () => {
-    const stopped = draw({ status: status({ phones: [{ ...phone, alerts: 'stopped' }] }) });
-    expect(text(stopped)).toContain(PUSH_TOKEN_STOPPED);
-    const live = draw({ status: status({ phones: [{ ...phone, alerts: 'on' }] }) });
-    expect(text(live)).not.toContain(PUSH_TOKEN_STOPPED);
+    expect(text(draw({ status: status({ phones: [{ ...phone, alerts: 'stopped' }] }) }))).toContain(PUSH_TOKEN_STOPPED);
+    expect(text(draw({ status: status({ phones: [{ ...phone, alerts: 'on' }] }) }))).not.toContain(PUSH_TOKEN_STOPPED);
   });
 });
 
@@ -333,67 +504,39 @@ describe('the alert switch', () => {
     return /<button[^>]*aria-label="Alert my phone when a session waits"[^>]*>/.exec(html)?.[0] ?? '';
   }
 
-  it('is main’s pushAlerts', () => {
+  it('is main’s pushAlerts, cannot be turned on while the door is off, and can always be turned off', () => {
     expect(pushSwitch(draw({ status: status({ pushAlerts: true }) }))).toContain('aria-checked="true"');
-    expect(pushSwitch(draw())).toContain('aria-checked="false"');
-  });
-
-  it('cannot be turned on while the door is off, and can always be turned off', () => {
     expect(pushSwitch(draw({ status: status({ state: 'off' }) }))).toContain('disabled=""');
-    expect(
-      pushSwitch(draw({ status: status({ state: 'off', pushAlerts: true }) }))
-    ).not.toContain('disabled=""');
-  });
-});
-
-describe('the disclosure', () => {
-  it('draws main’s grant text unedited, the narrowing, the preview line and the residual', () => {
-    const html = draw();
-    const grant = /<pre[^>]*data-phone-grant[^>]*>([\s\S]*?)<\/pre>/.exec(html)?.[1] ?? '';
-    expect(text(grant).trim()).toBe(text(pocketGrantText('100.101.102.103', 8823)).trim());
-    const page = text(html);
-    expect(page).toContain(POCKET_TAILNET_GRANT_HONESTY);
-    expect(page).toContain(NARROW_FROM);
-    expect(page).toContain(NARROW_TO);
-    expect(page).toContain(NARROW_PREVIEW);
-    expect(page).toContain(NAMES_RESIDUAL);
-    expect(html).toMatch(/<details[^>]*>\s*<summary>Keep the phone to this door<\/summary>/);
-  });
-
-  it('says the grant waits for an address rather than drawing one with a hole in it', () => {
-    const html = draw({ status: status({ state: 'no-address', address: null, grant: null }) });
-    expect(html).not.toContain('data-phone-grant');
-    expect(text(html)).toContain(GRANT_NO_ADDRESS);
-  });
-});
-
-describe('the two sentences Phase 316.1 rewrote', () => {
-  it('says the phone brings its own connection and this Mac still uses the Tailscale app', () => {
-    expect(POCKET_REACH_HONESTY).toContain('phone brings its own connection');
-    expect(POCKET_REACH_HONESTY).toContain('This Mac still reaches your tailnet through the Tailscale app');
-    expect(POCKET_REACH_HONESTY).not.toContain('Your phone reaches this Mac through the Tailscale app');
-  });
-
-  it('no longer says the paste alone confines the phone', () => {
-    expect(POCKET_TAILNET_GRANT_HONESTY).not.toMatch(/^Until you paste this/);
-    expect(POCKET_TAILNET_GRANT_HONESTY).toContain('only adds a rule');
-    expect(POCKET_TAILNET_GRANT_HONESTY).toContain('narrow that default');
-    expect(POCKET_TAILNET_GRANT_HONESTY).toContain('Tortie never edits your tailnet policy');
+    expect(pushSwitch(draw({ status: status({ state: 'off', pushAlerts: true }) }))).not.toContain('disabled=""');
   });
 });
 
 describe('turning the alerts off re-confirms only the one line it moved', () => {
-  const on = [...LINES.slice(0, 4), 'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps', LINES[5] ?? ''];
+  const onLines = [
+    ...LINES.slice(0, 4),
+    'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps',
+    LINES[5] ?? ''
+  ];
 
-  it('when exactly the switch’s line moved', () => {
-    expect(onlyOneLineMoved(on, LINES)).toBe(true);
-  });
-
-  it('never when anything else moved too, or a line came or went', () => {
+  it('when exactly the switch’s line moved, and never otherwise', () => {
+    expect(onlyOneLineMoved(onLines, LINES)).toBe(true);
     const alsoPort = [...LINES];
-    alsoPort[1] = 'Port: 9000';
-    expect(onlyOneLineMoved(on, alsoPort)).toBe(false);
-    expect(onlyOneLineMoved(on, [...LINES, 'Allows the phone "Another" at 100.1.1.1, key 0000'])).toBe(false);
+    alsoPort[0] = `Answers on the internet at https://${NAME}:10000, through Tailscale Funnel on example.github`;
+    expect(onlyOneLineMoved(onLines, alsoPort)).toBe(false);
     expect(onlyOneLineMoved(LINES, LINES)).toBe(false);
+  });
+});
+
+describe('the words the phone quotes stay byte for byte', () => {
+  it('declares them exactly as ios/Tortie/Style/Copy.swift quotes them', () => {
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'PhoneSection.tsx'), 'utf8');
+    for (const line of [
+      "PHONE_TITLE = 'Phone'",
+      "BTN_PAIR = 'Pair'",
+      "BTN_TRY_AGAIN = 'Try again'",
+      "CODE_EXPIRED = 'The code expired. Nothing was paired.'"
+    ]) {
+      expect(source).toContain(line);
+    }
   });
 });

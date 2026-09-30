@@ -1,38 +1,40 @@
 #!/usr/bin/env node
 /**
- * `npm run ablation:p316` — the attack on `conformance:ios` (Phases 316.2 and
- * 316.3, build/p316/SPEC.md §4 S2 and S3).
+ * `npm run ablation:p316` — the attack on `conformance:ios` (Phases 316.2,
+ * 316.3 and 330, build/p316/SPEC.md §4 S2 and S3, build/p330/SPEC.md §6.4).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:ios` reads the
- * phone app as text for nineteen refusals, (a) to (s), and every one of them is
- * a line a later round can add in a hurry: a colour typed straight into a
- * screen, a sentence in a `Text`, a `URLSession` outside the door client, a
- * DEBUG seam that leaked into Release, a second ATS exception, a background
- * mode, a VPN entitlement, a web view, the person's words run through
- * markdown, a screenshot, a vector edited by hand, a sum on a number the door
- * sends that traps (k1 and k2 are the two the reverify of 2026-09-23 ended
- * the app with, put back exactly as they shipped), and from Phase 316.3 the
- * tailnet node's: TailscaleKit imported by a second file or by a test, the
- * node handed out of Node.swift, an ephemeral node, a background task, a build
- * phase that builds, its state backed up or kept in Caches, a Keychain item
- * that can leave the phone, a privacy manifest missing or wrong, and the
- * tailnet key logged, aliased, stored or typed in. 316.3's fix round added the
- * shapes its verification walked past the gate with: a background mode spelled
- * `~iphone`, `-iphoneos` or `~ipad`, or injected by an xcconfig; a scoped
- * NetworkExtension import, `@import` in Objective-C, `#import` in a header,
- * `-framework` in OTHER_LDFLAGS or an xcconfig; code coverage on;
- * `performExpiringActivity` and a background URLSession; the raw code, which
- * carries the key, kept in the Keychain, logged or bound to a name the rule
- * does not watch; and a value holding the key with its redacting mirror taken
- * out. Phase 316.4 added the first TestFlight build's: the brand master
+ * phone app as text for twenty refusals, (a) to (v) with (m) and (q) folded
+ * into (l) by Phase 330, and every one of them is a line a later round can add
+ * in a hurry: a colour typed straight into a screen, a sentence in a `Text`, a
+ * network call outside the door client, a DEBUG seam that leaked into Release,
+ * an ATS exception, a background mode, a VPN entitlement, a web view, the
+ * person's words run through markdown, a screenshot, a vector edited by hand,
+ * a sum on a number the door sends that traps (k1 and k2 are the two the
+ * reverify of 2026-09-23 ended the app with, put back exactly as they
+ * shipped). Phase 316.4 added the first TestFlight build's: the brand master
  * shipped as the icon with its alpha channel, the icon laid on another ground
  * or given a transparent colour, a second picture or a dark appearance in the
  * icon set, a build naming no icon, asset symbols compiled into the app, his
  * team in Debug or on a second target, another team, Release signed by hand
  * or as a distribution identity, a profile named, the bundle id or the build
  * number moved in Release alone, the Home Screen name changed, and the team
- * set by an xcconfig. THIS SCRIPT PLANTS EACH ONE
- * IN A CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
+ * set by an xcconfig.
+ *
+ * PHASE 330 TOOK THE PHONE OFF THE TAILNET, and its arms are the ways the
+ * tailnet could come back or the ordinary client could stop being one: (l)
+ * TailscaleKit, the Tailnet folder, a node, a background task, a framework or
+ * a build phase that builds; (c) a second network file, URLSession in the
+ * client, an NWConnection in a screen; (e) the ATS dictionary, a ts.net
+ * exception, the local network string; (n) the client key's Secure Enclave
+ * flag, its accessibility, its permanence and its deletion on every ending
+ * that is not paired; (p) the one-shot secret kept, logged, aliased or read
+ * twice; (t) the pinned mutual TLS 1.3 client — no identity, a verify block
+ * that always passes, TLS 1.2, a wider port set, any host, Transfer-Encoding,
+ * two lengths and a hostile arm dropped; (u) DEBUG in Release by any of four
+ * doors; and (v) a failure or a step with no sentence. THIS SCRIPT PLANTS EACH
+ * ONE IN A CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS
+ * IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
@@ -45,12 +47,13 @@
  * `ios/`, `src/`, the brand master rule (r) reads, and every entry of
  * `build/` but `vendor/` under
  * `/private/tmp/p316-ablation-<pid>`, with `package.json` and the tsconfigs
- * copied and `node_modules` and `build/vendor` symlinked (the vendored
- * framework and its Go cache are never copied, and an arm whose file resolves
- * under `build/vendor/` fails by name rather than write through the link), and
+ * copied and `node_modules` and `build/vendor` symlinked (whatever is vendored
+ * is never copied, and an arm whose file resolves under `build/vendor/` fails
+ * by name rather than write through the link), and
  * the clone's OWN `build/conformance-ios.mjs` run there, so rule (j) checks the
  * clone's own vectors against the clone's own sources. Each planted file is put
- * back (a planted NEW file is removed, a removed one written back) and its
+ * back (a planted NEW file is removed with any folder it made, a removed one
+ * written back) and its
  * sha256 checked against the working tree's before the next arm; the clone is
  * removed in a `finally` and on SIGINT, SIGTERM and SIGHUP; and the run ends by
  * asserting the working tree's own bytes never moved.
@@ -113,7 +116,6 @@ const fileMatching = (root, re) => {
 };
 const append = (text) => (src) => `${src}${src.endsWith('\n') ? '' : '\n'}${text}`;
 
-const NODE = `${APP}/Tailnet/Node.swift`;
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
 const ICON = ICON_PATH;
@@ -132,27 +134,6 @@ const appManifest = (root) => {
   walk(join(root, APP));
   return out.length === 0 ? null : relative(root, out.sort()[0]).split(sep).join('/');
 };
-
-/**
- * TailscaleKit's manifest's committed source, in the gate's order: a
- * `.xcprivacy` under build/ (not build/vendor/), else the pin, else the
- * script. Relative to `root`, or null.
- */
-function frameworkManifestSource(root) {
-  const found = [];
-  const walk = (dir) => {
-    for (const e of existsSync(dir) ? readdirSync(dir, { withFileTypes: true }) : []) {
-      const p = join(dir, e.name);
-      if (e.isDirectory()) {
-        if (p !== join(root, 'build', 'vendor') && e.name !== 'node_modules') walk(p);
-      } else if (e.name.endsWith('.xcprivacy')) found.push(p);
-    }
-  };
-  walk(join(root, 'build'));
-  if (found.length > 0) return relative(root, found.sort()[0]).split(sep).join('/');
-  for (const name of ['build/tailscalekit-release.json', 'build/build-tailscalekit.mjs']) if (existsSync(join(root, name))) return name;
-  return null;
-}
 
 /** A Background Modes or NetworkExtensions capability, as the project file records one. */
 const capability = (id) => (src) =>
@@ -238,9 +219,9 @@ const ARMS = [
   {
     id: 'c2',
     rule: 'c',
-    what: 'the door client building http',
+    what: 'an http:// literal written in the door client',
     file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.split('"https"').join('"http"')
+    edit: append('let p316AblationScheme = "http://door"\n')
   },
   {
     id: 'd1',
@@ -257,11 +238,43 @@ const ARMS = [
     edit: unguard(/ProcessInfo\s*\.\s*processInfo|CommandLine\s*\.|launchArguments/)
   },
   {
+    id: 'd3',
+    rule: 'd',
+    what: 'the door endpoint seam\'s argument written outside #if DEBUG',
+    file: aScreen,
+    edit: append('let p316AblationSeam = "-TortieDebugDoorEndpoint"\n')
+  },
+  {
+    id: 'd4',
+    rule: 'd',
+    what: 'the door endpoint seam taking any host, not 127.0.0.1 alone',
+    file: () => `${APP}/Door/Transport.swift`,
+    edit: (src) => src.replace('parts[0] == loopbackHost,', '!parts[0].isEmpty,')
+  },
+  {
+    id: 'd5',
+    rule: 'd',
+    what: 'the still seam gone, its argument renamed',
+    file: () => `${APP}/Screens/Pieces.swift`,
+    edit: (src) => src.split('"-TortieDebugStill"').join('"-P316AblationStill"')
+  },
+  {
+    // Phase 330, after his ruling of 2026-09-29: the store's software-key seam,
+    // which lets a test run the software path on a Simulator that has an
+    // enclave, is a DEBUG build's alone. Out of #if DEBUG, a Release build
+    // would carry a field that keeps a client key out of the Secure Enclave.
+    id: 'd6',
+    rule: 'd',
+    what: 'the client key store’s software-key seam taken out of #if DEBUG',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: unguard(/\bvar\s+softwareKeyDebugSeam\b/)
+  },
+  {
     id: 'e1',
     rule: 'e',
-    what: 'NSAllowsArbitraryLoads added to the ATS dictionary',
+    what: 'the ATS dictionary brought back with arbitrary loads',
     file: () => `${APP}/Info.plist`,
-    edit: (src) => src.replace(/(<key>NSAppTransportSecurity<\/key>\s*<dict>)/, '$1\n\t\t<key>NSAllowsArbitraryLoads</key>\n\t\t<true/>')
+    edit: (src) => src.replace(/(<plist[^>]*>\s*<dict>)/, '$1\n\t<key>NSAppTransportSecurity</key>\n\t<dict>\n\t\t<key>NSAllowsArbitraryLoads</key>\n\t\t<true/>\n\t</dict>')
   },
   {
     id: 'e2',
@@ -273,12 +286,12 @@ const ARMS = [
   {
     id: 'e3',
     rule: 'e',
-    what: 'a second ATS exception domain',
+    what: 'an ATS exception for ts.net brought back, the URLSession route research 132 left',
     file: () => `${APP}/Info.plist`,
     edit: (src) =>
       src.replace(
-        /(<key>NSExceptionDomains<\/key>\s*<dict>)/,
-        '$1\n\t\t\t<key>192.0.2.0/24</key>\n\t\t\t<dict>\n\t\t\t\t<key>NSExceptionAllowsInsecureHTTPLoads</key>\n\t\t\t\t<true/>\n\t\t\t</dict>'
+        /(<plist[^>]*>\s*<dict>)/,
+        '$1\n\t<key>NSAppTransportSecurity</key>\n\t<dict>\n\t\t<key>NSExceptionDomains</key>\n\t\t<dict>\n\t\t\t<key>ts.net</key>\n\t\t\t<dict>\n\t\t\t\t<key>NSIncludesSubdomains</key>\n\t\t\t\t<true/>\n\t\t\t</dict>\n\t\t</dict>\n\t</dict>'
       )
   },
   {
@@ -340,8 +353,6 @@ const ARMS = [
     file: () => 'ios/TortieTests/Fixtures/vectors.json',
     edit: (src) => src.replace(/"([0-9a-f])([0-9a-f]{31,})"/, (_, first, rest) => `"${first === '0' ? '1' : '0'}${rest}"`)
   },
-  // (k), his ruling of 2026-09-23: the two sums the reverify trapped with
-  // `Int.max`, put back as they shipped, then the three halves of the rule.
   {
     id: 'k1',
     rule: 'k',
@@ -381,25 +392,30 @@ const ARMS = [
     file: () => `${APP}/Door/Contract.swift`,
     edit: (src) => src.replace(/\ba\.addingReportingOverflow\(b\)/, '(a + b, false)')
   },
-
-  // PHASE 316.3, the tailnet node (build/p316/SPEC.md §4 S3). (c) widened.
+  // PHASE 330, the phone off the tailnet (build/p330/SPEC.md §6.4). (c) the
+  // one network file.
   {
     id: 'c3',
     rule: 'c',
-    what: 'the node sending a request itself, past the pin and the cap',
-    file: () => NODE,
-    edit: append('func p316AblationSend(_ s: URLSession, _ r: URLRequest) async throws { _ = try await s.data(for: r) }\n')
+    what: 'a screen opening an NWConnection itself, past the pin and the identity',
+    file: aScreen,
+    edit: append('func p316AblationSend(_ e: NWEndpoint) { let c = NWConnection(to: e, using: .tls); c.start(queue: .main) }\n')
   },
   {
     id: 'c4',
     rule: 'c',
-    what: 'a third network file beside the node',
-    file: () => `${APP}/Tailnet/Relay.swift`,
+    what: 'a second network file beside the door client',
+    file: () => `${APP}/Door/Relay.swift`,
     create: true,
-    edit: () => 'import Foundation\nlet p316AblationSession = URLSession(configuration: .ephemeral)\n'
+    edit: () => 'import Network\n\nlet p316AblationConnection: NWConnection? = nil\n'
   },
-  // (e) and (f), widened: the two plants the SPEC names, in the places S3 is
-  // tempted, and the answers that are his.
+  {
+    id: 'c5',
+    rule: 'c',
+    what: 'URLSession brought back into the door client',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: append('let p316AblationSession = URLSession(configuration: .ephemeral)\n')
+  },
   {
     id: 'e5',
     rule: 'e',
@@ -410,12 +426,9 @@ const ARMS = [
   {
     id: 'e6',
     rule: 'e',
-    what: 'the local network usage string taken out',
-    file: (root) => (/NSLocalNetworkUsageDescription/.test(readFileSync(join(root, INFO), 'utf8')) ? INFO : PBX),
-    edit: (src) =>
-      src
-        .replace(/[ \t]*<key>NSLocalNetworkUsageDescription<\/key>\s*<string>[^<]*<\/string>\s*\n?/, '')
-        .replace(/[ \t]*INFOPLIST_KEY_NSLocalNetworkUsageDescription = (?:"(?:[^"\\]|\\.)*"|[^;]*);\n?/g, '')
+    what: 'the local network usage string brought back',
+    file: () => INFO,
+    edit: (src) => src.replace(/(<plist[^>]*>\s*<dict>)/, '$1\n\t<key>NSLocalNetworkUsageDescription</key>\n\t<string>Tortie reaches your Mac directly.</string>')
   },
   {
     id: 'e7',
@@ -427,8 +440,8 @@ const ARMS = [
   {
     id: 'f3',
     rule: 'f',
-    what: 'import NetworkExtension in the node',
-    file: () => NODE,
+    what: 'import NetworkExtension in the door client',
+    file: () => `${APP}/Door/DoorClient.swift`,
     edit: (src) => `import NetworkExtension\n${src}`
   },
   {
@@ -438,7 +451,7 @@ const ARMS = [
     file: () => PBX,
     edit: capability('com.apple.NetworkExtensions.iOS')
   },
-  // (l) the node is started only in Node.swift.
+  // (l) no Tailscale in the phone (316.3's (l), (m) and (q) in one).
   {
     id: 'l1',
     rule: 'l',
@@ -449,39 +462,38 @@ const ARMS = [
   {
     id: 'l2',
     rule: 'l',
-    what: "TailscaleKit re-exported from the node, so every file has its names",
-    file: () => NODE,
-    edit: (src) => src.replace(/^import TailscaleKit$/m, '@_exported import TailscaleKit')
+    what: 'a module re-exported, so every file has its names',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/^import Foundation$/m, '@_exported import Foundation')
   },
   {
     id: 'l3',
     rule: 'l',
-    what: 'an ephemeral node',
-    file: () => NODE,
-    // Every occurrence: the first one in Node.swift is in its header comment,
-    // which the gate rightly does not read.
-    edit: (src) => src.replace(/\bephemeral:\s*false\b/g, 'ephemeral: true')
+    what: 'the Tailnet folder back, with a node in it',
+    file: () => `${APP}/Tailnet/Node.swift`,
+    create: true,
+    edit: () => 'import Foundation\n\nenum P316AblationNode {}\n'
   },
   {
     id: 'l4',
     rule: 'l',
-    what: 'the node renamed',
-    file: () => NODE,
-    edit: (src) => src.split('"tortie-phone"').join('"tortie-phone-p316"')
+    what: 'TailscaleNode named in a screen',
+    file: aScreen,
+    edit: append('var p316AblationNode: TailscaleNode? = nil\n')
   },
   {
     id: 'l5',
     rule: 'l',
-    what: 'a background task keeping the node warm',
-    file: () => NODE,
+    what: 'a background task keeping the app awake',
+    file: aScreen,
     edit: append('func p316AblationKeepAwake() { _ = UIApplication.shared.beginBackgroundTask { } }\n')
   },
   {
     id: 'l6',
     rule: 'l',
-    what: 'the node handed out of its file',
-    file: () => NODE,
-    edit: append('var p316AblationNode: TailscaleNode? = nil\n')
+    what: 'TailscaleKit.xcframework referenced by the project again',
+    file: () => PBX,
+    edit: (src) => src.replace(/(\/\* Begin PBXFileReference section \*\/\n)/, '$1\t\t316C00000000000000000001 /* TailscaleKit.xcframework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; name = TailscaleKit.xcframework; path = ../build/vendor/tailscalekit/TailscaleKit.xcframework; sourceTree = SOURCE_ROOT; };\n')
   },
   {
     id: 'l7',
@@ -493,40 +505,47 @@ const ARMS = [
   {
     id: 'l8',
     rule: 'l',
-    what: 'a build phase that builds the framework instead of checking for it',
+    what: 'a build phase that builds something',
     file: () => PBX,
-    edit: (src) => src.replace(/shellScript = "/, 'shellScript = "make -C ../build/vendor/tailscalekit ios-fat\\n')
+    edit: (src) => src.replace(/(\/\* Begin XCBuildConfiguration section \*\/)/, '/* Begin PBXShellScriptBuildPhase section */\n\t\t316A0000000000000000F002 /* P316 */ = {\n\t\t\tisa = PBXShellScriptBuildPhase;\n\t\t\tshellScript = "make -C ../build/vendor/tailscalekit ios-fat\\n";\n\t\t};\n/* End PBXShellScriptBuildPhase section */\n\n$1')
   },
   {
     id: 'l9',
     rule: 'l',
-    what: 'the framework embedded without being signed on copy',
-    file: () => PBX,
-    edit: (src) => src.replace(/(TailscaleKit\.xcframework in Embed Frameworks \*\/ = \{[^\n]*?)CodeSignOnCopy, /, '$1')
-  },
-  // (m) the node's state.
-  {
-    id: 'm1',
-    rule: 'm',
-    what: "the node's state put into his backups",
-    file: () => NODE,
-    edit: (src) => src.replace(/\bisExcludedFromBackup = true\b/, 'isExcludedFromBackup = false')
+    what: 'a libtailscale symbol called from the app',
+    file: aScreen,
+    edit: append('let p316AblationHandle = tailscale_new()\n')
   },
   {
-    id: 'm2',
-    rule: 'm',
-    what: "the node's state kept in Caches, which iOS may empty",
-    file: () => NODE,
-    edit: (src) => src.replace(/\.applicationSupportDirectory\b/, '.cachesDirectory')
+    id: 'l10',
+    rule: 'l',
+    what: 'performExpiringActivity stretching the app past the background',
+    file: aScreen,
+    edit: append('func p316AblationStretch() { ProcessInfo.processInfo.performExpiringActivity(withReason: "p316") { _ in } }\n')
   },
   {
-    id: 'm3',
-    rule: 'm',
-    what: 'the exclusion built and never applied',
-    file: () => NODE,
-    edit: (src) => src.split('.setResourceValues(').join('.p316AblationSkipped(')
+    id: 'l11',
+    rule: 'l',
+    what: 'a background URLSession in the door client',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: append('let p316AblationBackground = URLSessionConfiguration.background(withIdentifier: "p316")\n')
   },
-  // (n) the Keychain.
+  {
+    id: 'l12',
+    rule: 'l',
+    what: 'significant-change location monitoring, which relaunches the app',
+    file: () => `${APP}/Door/P316AblationWake.swift`,
+    create: true,
+    edit: () => 'import CoreLocation\n\nenum P316AblationWake {\n    static let manager = CLLocationManager()\n    static func arm() { manager.startMonitoringSignificantLocationChanges() }\n}\n'
+  },
+  {
+    id: 'l13',
+    rule: 'l',
+    what: 'TailscaleKit imported in backticks by a test',
+    file: aTest,
+    edit: (src) => `@testable import \`TailscaleKit\`\n${src}`
+  },
+  // (n) the Keychain, and the client key.
   {
     id: 'n1',
     rule: 'n',
@@ -548,7 +567,67 @@ const ARMS = [
     file: aScreen,
     edit: append('func p316AblationStash(_ d: Data) { _ = SecItemAdd([kSecClass as String: kSecClassGenericPassword, kSecValueData as String: d] as CFDictionary, nil) }\n')
   },
-  // (o) the privacy manifests.
+  {
+    id: 'n4',
+    rule: 'n',
+    what: 'the client key made in the Secure Enclave without .privateKeyUsage',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace('nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage, nil', 'nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, [], nil')
+  },
+  {
+    id: 'n5',
+    rule: 'n',
+    what: 'the Secure Enclave asked for without asking whether it is there',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace(/\n\s*if enclave \{\n(\s*attributes\[kSecAttrTokenID as String\] = kSecAttrTokenIDSecureEnclave)\n\s*\}\n/, '\n$1\n')
+  },
+  {
+    id: 'n6',
+    rule: 'n',
+    what: 'the client key made with an accessibility that can leave the phone',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace('nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, .privateKeyUsage', 'nil, kSecAttrAccessibleAfterFirstUnlock, .privateKeyUsage')
+  },
+  {
+    // Re-aimed after his ruling of 2026-09-29. The fix round's n9 planted the
+    // flag-less flags INSIDE the enclave's if and was red on a clause whose
+    // reason was false (a software key under a flag-less access control reads
+    // back `aku`; the `dk` was the enclave key's own attribute). This plants
+    // the shape before the fix round as it was: one access control for BOTH
+    // paths, made before the if, with the software key's own line kept, so it
+    // is red on the restated clause alone.
+    id: 'n9',
+    rule: 'n',
+    what: 'the shape before the fix round: one access control for both paths, made outside the if on SecureEnclave.isAvailable',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) =>
+      src.replace(
+        '        if enclave {\n            // ThisDeviceOnly, and the Secure Enclave may only USE the key.',
+        '        guard let shared = SecAccessControlCreateWithFlags(\n            nil, kSecAttrAccessibleWhenUnlockedThisDeviceOnly, enclave ? .privateKeyUsage : [], nil\n        ) else { throw KeysFailure.clientKey }\n        privateAttributes[kSecAttrAccessControl as String] = shared\n        if enclave {\n            // ThisDeviceOnly, and the Secure Enclave may only USE the key.'
+      )
+  },
+  {
+    id: 'n10',
+    rule: 'n',
+    what: 'the software client key made with no accessibility of its own',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace('            privateAttributes[kSecAttrAccessible as String] = kSecAttrAccessibleWhenUnlockedThisDeviceOnly\n', '')
+  },
+  {
+    id: 'n7',
+    rule: 'n',
+    what: 'a pairing attempt that ends unpaired keeping its client key',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('            store.clientKeys.delete(tag: pending.clientKey.tag)\n', '')
+  },
+  {
+    id: 'n8',
+    rule: 'n',
+    what: 'a client key that is not permanent',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) => src.replace('kSecAttrIsPermanent as String: true', 'kSecAttrIsPermanent as String: false')
+  },
+  // (o) the app's own manifest.
   {
     id: 'o1',
     rule: 'o',
@@ -564,20 +643,6 @@ const ARMS = [
     edit: (src) => src.replace(/(<key>NSPrivacyTracking<\/key>\s*)<false\/>/, '$1<true/>')
   },
   {
-    id: 'o3',
-    rule: 'o',
-    what: "TailscaleKit's file-timestamp reason changed from the one he took (C617.1)",
-    file: frameworkManifestSource,
-    edit: (src) => src.split('C617.1').join('DDA9.1')
-  },
-  {
-    id: 'o4',
-    rule: 'o',
-    what: "TailscaleKit's SystemBootTime category dropped for another",
-    file: frameworkManifestSource,
-    edit: (src) => src.split('NSPrivacyAccessedAPICategorySystemBootTime').join('NSPrivacyAccessedAPICategoryDiskSpace')
-  },
-  {
     id: 'o5',
     rule: 'o',
     what: "the app's manifest taken out of the app target by a membership exception",
@@ -591,47 +656,32 @@ const ARMS = [
     file: aScreen,
     edit: append('let p316AblationModes = UITextInputMode.activeInputModes\n')
   },
-  {
-    id: 'o7',
-    rule: 'o',
-    what: "TailscaleKit's manifest left with no committed source",
-    file: frameworkManifestSource,
-    edit: (src) => {
-      try {
-        const pin = JSON.parse(src);
-        delete pin.privacy;
-        return `${JSON.stringify(pin, null, 2)}\n`;
-      } catch {
-        return src.split('NSPrivacyAccessedAPITypes').join('p316Ablation');
-      }
-    }
-  },
-  // (p) the tailnet key.
+  // (p) no tailnet key, and the code and its one-shot secret kept nowhere.
   {
     id: 'p1',
     rule: 'p',
-    what: 'the key kept in the pairing record',
+    what: 'the one-shot secret kept in the pairing record',
     file: () => `${APP}/Door/Keys.swift`,
-    edit: (src) => src.replace(/(\n(\s*)let exchangeSeed: String\n)/, '$1$2let tk: String?\n')
+    edit: (src) => src.replace(/(\n(\s*)let exchangeSeed: String\n)/, '$1$2let ps: String?\n')
   },
   {
     id: 'p2',
     rule: 'p',
-    what: 'the key logged',
+    what: 'the one-shot secret logged',
     file: () => `${APP}/Door/Pairing.swift`,
-    edit: append('func p316AblationLog(_ o: PairingOffer) { print(o.tailnetKey ?? "none") }\n')
+    edit: append('func p316AblationLog(_ o: PairingOffer) { print(o.secret) }\n')
   },
   {
     id: 'p3',
     rule: 'p',
-    what: 'the key written to a file through an alias',
+    what: 'the one-shot secret written to a file through an alias',
     file: () => `${APP}/Door/Pairing.swift`,
-    edit: append('func p316AblationKeep(_ o: PairingOffer, _ url: URL) throws { let saved = o.tailnetKey; try saved?.write(to: url, atomically: true, encoding: .utf8) }\n')
+    edit: append('func p316AblationKeep(_ o: PairingOffer, _ url: URL) throws { let saved = o.secret; try saved.write(to: url) }\n')
   },
   {
     id: 'p4',
     rule: 'p',
-    what: 'a key typed into the app',
+    what: 'a tailnet key typed into the app',
     file: () => `${APP}/Door/Pairing.swift`,
     edit: append('let p316AblationKey = "tskey-auth-kP316ablation"\n')
   },
@@ -645,19 +695,59 @@ const ARMS = [
   {
     id: 'p6',
     rule: 'p',
-    what: "the node's key parameter kept in UserDefaults",
-    file: () => NODE,
-    edit: (src) => src.replace(/guard let key else/, 'let p316AblationCopy = key; UserDefaults.standard.set(p316AblationCopy, forKey: "k"); guard let key else')
+    what: 'tk read back from the code',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('        let exp: Double\n', '        let exp: Double\n        let tk: String?\n')
   },
   {
     id: 'p7',
     rule: 'p',
-    what: 'a second use of the key on the line KEY_NAMED names',
+    what: 'a second use of the code on a line KEY_NAMED names',
     file: () => `${APP}/App/TortieApp.swift`,
-    edit: (src) => src.replace(/key: pending\.offer\.tailnetKey\)/, 'key: pending.offer.tailnetKey ?? pending.offer.tailnetKey)')
+    edit: (src) => src.replace('let offer = try PairingOffer.parse(payload)', 'let offer = try PairingOffer.parse(payload.isEmpty ? payload : payload)')
   },
-  // Phase 316.3's fix round: every shape the verification walked past the
-  // gate with, planted in the shipping tree.
+  {
+    id: 'p8',
+    rule: 'p',
+    what: "the code-as-read's mirror taken out inside the parse",
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace(/\n\s*var customMirror: Mirror \{ Mirror\(self, children: \[:\], displayStyle: \.struct\) \}\n(\s*\}\n)/, '\n$1')
+  },
+  {
+    id: 'p9',
+    rule: 'p',
+    what: "the offer's mirror taken out, so print(offer) and dump(offer) reach the secret",
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace(/\n\s*var customMirror: Mirror \{ Mirror\(self, children: \["door"[^\n]*\n/, '\n')
+  },
+  {
+    id: 'p11',
+    rule: 'p',
+    what: "the pairing model's mirror taken out, so dump(model) repeats the last code",
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace(/extension PairingModel: CustomReflectable \{\n[^\n]*\n\}\n/, '')
+  },
+  {
+    id: 'p12',
+    rule: 'p',
+    what: 'the raw code, which carries the key, kept in the Keychain under its own account',
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace(/\n(\s*)spent = payload\n/, '\n$1spent = payload\n$1try? KeychainSecretStore().write(Data(payload.utf8), account: "p316-last-code")\n')
+  },
+  {
+    id: 'p13',
+    rule: 'p',
+    what: 'the raw code logged',
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace(/\n(\s*)spent = payload\n/, '\n$1spent = payload\n$1print(payload)\n')
+  },
+  {
+    id: 'p14',
+    rule: 'p',
+    what: "the camera's code bound to a name the rule does not watch",
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace(/guard let code = metadataObjects/, 'guard let scanned = metadataObjects').replace(/onCode\?\(code\)/, 'onCode?(scanned)')
+  },
   {
     id: 'e8',
     rule: 'e',
@@ -709,22 +799,6 @@ const ARMS = [
     edit: (src) => `import class NetworkExtension.NEHotspotConfigurationManager\n${src}\nlet p316AblationHotspot = NEHotspotConfigurationManager.shared\n`
   },
   {
-    id: 'f7',
-    rule: 'f',
-    what: '@import NetworkExtension; in a new Objective-C file',
-    file: () => `${APP}/Tailnet/P316Ablation.m`,
-    create: true,
-    edit: () => '@import NetworkExtension;\n\nvoid p316AblationLink(void) {}\n'
-  },
-  {
-    id: 'f8',
-    rule: 'f',
-    what: 'its header imported by a new header',
-    file: () => `${APP}/Tailnet/P316Ablation.h`,
-    create: true,
-    edit: () => '#import <NetworkExtension/NetworkExtension.h>\n'
-  },
-  {
     id: 'f9',
     rule: 'f',
     what: 'the framework linked by OTHER_LDFLAGS in the project',
@@ -760,79 +834,6 @@ const ARMS = [
     file: () => PBX,
     edit: (src) => src.replace(/(\n(\s*)INFOPLIST_FILE = )/, '\n$2CLANG_COVERAGE_MAPPING = YES;$1')
   },
-  {
-    id: 'l10',
-    rule: 'l',
-    what: 'performExpiringActivity stretching the node past the background',
-    file: () => NODE,
-    edit: (src) => src.replace(/func settle\(\) async \{/, 'func settle() async {\n        ProcessInfo.processInfo.performExpiringActivity(withReason: "p316") { _ in }')
-  },
-  {
-    id: 'l11',
-    rule: 'l',
-    what: 'a background URLSession in the door client',
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace(/URLSessionConfiguration\.ephemeral/, 'URLSessionConfiguration.background(withIdentifier: "p316")')
-  },
-  {
-    id: 'c5',
-    rule: 'c',
-    what: "the door client's configuration made .default, with a cache and a cookie jar",
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace(/URLSessionConfiguration\.ephemeral/, 'URLSessionConfiguration.default')
-  },
-  {
-    id: 'p8',
-    rule: 'p',
-    what: "the code-as-read's mirror taken out inside the parse",
-    file: () => `${APP}/Door/Pairing.swift`,
-    edit: (src) => src.replace(/\n\s*var customMirror: Mirror \{ Mirror\(self, children: \[:\], displayStyle: \.struct\) \}\n(\s*\}\n)/, '\n$1')
-  },
-  {
-    id: 'p9',
-    rule: 'p',
-    what: "the offer's mirror taken out, so print(offer) and dump(offer) repeat the key",
-    file: () => `${APP}/Door/Pairing.swift`,
-    edit: (src) => src.replace(/\n\s*var customMirror: Mirror \{ Mirror\(self, children: \["address"[^\n]*\n/, '\n')
-  },
-  {
-    id: 'p10',
-    rule: 'p',
-    what: "the start's mirror taken out, so print(start) and dump(start) repeat the key",
-    file: () => NODE,
-    edit: (src) => src.replace(/\n\s*var customMirror: Mirror \{\n\s*Mirror\(self, children: \["hostName"[^\n]*\n\s*\}\n/, '\n')
-  },
-  {
-    id: 'p11',
-    rule: 'p',
-    what: "the pairing model's mirror taken out, so dump(model) repeats the last code",
-    file: () => `${APP}/Screens/PairingScreen.swift`,
-    edit: (src) => src.replace(/extension PairingModel: CustomReflectable \{\n[^\n]*\n\}\n/, '')
-  },
-  {
-    id: 'p12',
-    rule: 'p',
-    what: 'the raw code, which carries the key, kept in the Keychain under its own account',
-    file: () => `${APP}/Screens/PairingScreen.swift`,
-    edit: (src) => src.replace(/\n(\s*)spent = payload\n/, '\n$1spent = payload\n$1try? KeychainSecretStore().write(Data(payload.utf8), account: "p316-last-code")\n')
-  },
-  {
-    id: 'p13',
-    rule: 'p',
-    what: 'the raw code logged',
-    file: () => `${APP}/Screens/PairingScreen.swift`,
-    edit: (src) => src.replace(/\n(\s*)spent = payload\n/, '\n$1spent = payload\n$1print(payload)\n')
-  },
-  {
-    id: 'p14',
-    rule: 'p',
-    what: "the camera's code bound to a name the rule does not watch",
-    file: () => `${APP}/Screens/PairingScreen.swift`,
-    edit: (src) => src.replace(/guard let code = metadataObjects/, 'guard let scanned = metadataObjects').replace(/onCode\?\(code\)/, 'onCode?(scanned)')
-  },
-  // Phase 316.3's HARDENING ROUND (his ruling of 2026-09-23, "Harden, then
-  // land"): every shape the reverify walked past the gate with, and the
-  // switch that turns Tailscale's own logs off (rule q).
   {
     id: 'e13',
     rule: 'e',
@@ -914,49 +915,6 @@ const ARMS = [
     edit: (src) => src.replace(/(\/\* Begin XCBuildConfiguration section \*\/)/, '/* Begin XCRemoteSwiftPackageReference section */\n\t\t316A0000000000000000F001 /* XCRemoteSwiftPackageReference "p316" */ = {\n\t\t\tisa = XCRemoteSwiftPackageReference;\n\t\t\trepositoryURL = "https://example.invalid/p316";\n\t\t};\n/* End XCRemoteSwiftPackageReference section */\n\n$1')
   },
   {
-    id: 'c6',
-    rule: 'c',
-    what: 'URLSession.shared in the door client',
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('return try await exchange.run(session.dataTask(with: request))', 'return try await exchange.run(URLSession.shared.dataTask(with: request))')
-  },
-  {
-    id: 'c7',
-    rule: 'c',
-    what: 'the session built from configuration: .default',
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('configuration: Self.configuration(route, limits: limits),', 'configuration: .default,')
-  },
-  {
-    id: 'c8',
-    rule: 'c',
-    what: 'a configuration typed URLSessionConfiguration = .default',
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('let configuration = URLSessionConfiguration.ephemeral', 'let p316Ablation: URLSessionConfiguration = .default\n        _ = p316Ablation\n        let configuration = URLSessionConfiguration.ephemeral')
-  },
-  {
-    id: 'c9',
-    rule: 'c',
-    what: "the client's own builder returning .default",
-    file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace(/\n(\s*)return configuration\n/, '\n$1return .default\n')
-  },
-  {
-    id: 'l12',
-    rule: 'l',
-    what: 'significant-change location monitoring, which relaunches the app',
-    file: () => `${APP}/Tailnet/P316AblationWake.swift`,
-    create: true,
-    edit: () => 'import CoreLocation\n\nenum P316AblationWake {\n    static let manager = CLLocationManager()\n    static func arm() { manager.startMonitoringSignificantLocationChanges() }\n}\n'
-  },
-  {
-    id: 'l13',
-    rule: 'l',
-    what: 'TailscaleKit imported in backticks by a test',
-    file: () => 'ios/TortieTests/TailnetNodeTests.swift',
-    edit: (src) => src.replace('import Foundation', 'import Foundation\n@testable import `TailscaleKit`')
-  },
-  {
     id: 'p15',
     rule: 'p',
     what: "a code read by Core Image's QR reader and bound to a name the rule does not watch",
@@ -986,74 +944,6 @@ const ARMS = [
     create: true,
     edit: () => 'import Vision\n\nenum P316AblationVision {\n    static func read(_ o: VNBarcodeObservation) -> Data? {\n        let raw = o.payloadData\n        return raw\n    }\n}\n'
   },
-  {
-    id: 'q1',
-    rule: 'q',
-    what: "the node started with no switch before it, so its logs would go to log.tailscale.com",
-    file: () => NODE,
-    edit: (src) => src.replace(/\n\s*guard TailnetLogs\.off\(\) else \{ throw TailnetLogsStillOn\(\) \}\n/, '\n')
-  },
-  {
-    id: 'q2',
-    rule: 'q',
-    what: "the switch asked and its answer dropped",
-    file: () => NODE,
-    edit: (src) => src.replace('guard TailnetLogs.off() else { throw TailnetLogsStillOn() }', '_ = TailnetLogs.off()')
-  },
-  {
-    id: 'q3',
-    rule: 'q',
-    what: 'the wrapper answering true whatever the switch said',
-    file: () => NODE,
-    edit: (src) => src.replace('tailscale_no_logs_no_support() == 0', '_ = tailscale_no_logs_no_support()\n        return true')
-  },
-  {
-    id: 'q4',
-    rule: 'q',
-    what: 'the switch turned on in DEBUG builds only',
-    file: () => NODE,
-    edit: (src) => src.replace(/\n(enum TailnetLogs \{[\s\S]*?\n\})\n/, '\n#if DEBUG\n$1\n#else\nenum TailnetLogs {\n    static func off() -> Bool { true }\n}\n#endif\n')
-  },
-  {
-    id: 'q5',
-    rule: 'q',
-    what: "the vendoring script no longer setting tailscaled's own switch",
-    file: () => 'build/build-tailscalekit.mjs',
-    edit: (src) => src.replace("'\\tenvknob.SetNoLogsNoSupport()\\n' +", "'\\t_ = envknob.Bool(\"TS_NO_LOGS_NO_SUPPORT\")\\n' +")
-  },
-  {
-    id: 'q6',
-    rule: 'q',
-    what: 'a node started through the C API, around the switch',
-    file: () => NODE,
-    edit: (src) => src.replace('    func forgetKey() async {', '    func p316Ablation() { _ = tailscale_up(tailscale_new()) }\n\n    func forgetKey() async {')
-  },
-  // Phase 316.4's integrator: the switch's second cost, a tailnet that
-  // requires network flow logs, told apart from a refused key (rule q4).
-  {
-    id: 'q7',
-    rule: 'q',
-    what: 'the flow logs refusal reworded, so no built slice holds the words the node reads',
-    file: () => NODE,
-    edit: (src) => src.replace('static let flowLogsRefusal = "tailnet requires logging to be enabled"', 'static let flowLogsRefusal = "tailnet requires network flow logs"')
-  },
-  {
-    id: 'q8',
-    rule: 'q',
-    what: "the live node's up() passing TailscaleKit's error through, so flow logs read as a refused key",
-    file: () => NODE,
-    edit: (src) => src.replace(/\} catch TailscaleError\.internalError\(let message\) where TailnetFlowLogsRequired\.said\(message\) \{\n\s*throw TailnetFlowLogsRequired\(\)\n\s*\}/, '} catch {\n            throw error\n        }')
-  },
-  {
-    id: 'q9',
-    rule: 'q',
-    what: 'the join drawing a tailnet that requires flow logs as a refused key',
-    file: () => NODE,
-    edit: (src) => src.replace('            if error is TailnetFlowLogsRequired { throw TailnetRefusal.flowLogsRequired }\n', '')
-  },
-  // Phase 316.4, the first TestFlight build (rules r and s). An arm marked
-  // `bytes` edits the file's bytes rather than its text, because a PNG is not
-  // text.
   {
     id: 'r1',
     rule: 'r',
@@ -1180,7 +1070,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 1;/, '$1CURRENT_PROJECT_VERSION = 2;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 2;/, '$1CURRENT_PROJECT_VERSION = 3;')
   },
   {
     id: 's9',
@@ -1196,6 +1086,139 @@ const ARMS = [
     file: () => 'ios/P316AblationSigning.xcconfig',
     create: true,
     edit: () => 'DEVELOPMENT_TEAM = 4GRQMF5T5U\n'
+  },
+  // (t) pinned mutual TLS 1.3 to a public name.
+  {
+    id: 't1',
+    rule: 't',
+    what: 'no local identity set on any connection',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/\n\s*sec_protocol_options_set_local_identity\(options, presented\)\n/, '\n            _ = presented\n')
+  },
+  {
+    id: 't2',
+    rule: 't',
+    what: 'a signed read opened with no identity',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('door: door.endpoint, identity: door.identity', 'door: door.endpoint, identity: nil')
+  },
+  {
+    id: 't3',
+    rule: 't',
+    what: 'the verify block completing true whatever the pin said',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('complete(matched)', 'complete(true)')
+  },
+  {
+    id: 't4',
+    rule: 't',
+    what: 'TLS 1.2 allowed',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('.TLSv13)', '.TLSv12)')
+  },
+  {
+    id: 't5',
+    rule: 't',
+    what: 'port 443 taken as a door port',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('[8443, 10000]', '[443, 8443, 10000]')
+  },
+  {
+    id: 't6',
+    rule: 't',
+    what: 'a code with any host taken',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('guard DoorEndpoint.isPublicName(wire.host),', 'guard !wire.host.isEmpty,')
+  },
+  {
+    id: 't7',
+    rule: 't',
+    what: 'Transfer-Encoding taken',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/\n\s*if found\[DoorHTTP\.Read\.transferEncoding\] != nil \{ throw DoorFailure\.malformed \}\n/, '\n')
+  },
+  {
+    id: 't8',
+    rule: 't',
+    what: 'two Content-Length headers taken',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('lengths.count == 1,', '!lengths.isEmpty,')
+  },
+  {
+    id: 't9',
+    rule: 't',
+    what: "a hostile door's HTTP arm dropped",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n\s*'early-close': \{[^\n]*\},?\n/, '\n')
+  },
+  // (u) no DEBUG in Release (316.4's owed item 2).
+  {
+    id: 'u1',
+    rule: 'u',
+    what: "DEBUG added to the app's Release conditions",
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{\n\t\t\tisa = XCBuildConfiguration;\n\t\t\tbuildSettings = \{\n)/, '$1\t\t\t\tSWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";\n')
+  },
+  {
+    id: 'u2',
+    rule: 'u',
+    what: "-D DEBUG in the project's Release Swift flags",
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000071 \/\* Release \*\/ = \{\n\t\t\tisa = XCBuildConfiguration;\n\t\t\tbuildSettings = \{\n)/, '$1\t\t\t\tOTHER_SWIFT_FLAGS = "-D DEBUG";\n')
+  },
+  {
+    id: 'u3',
+    rule: 'u',
+    what: "DEBUG=1 in the unit tests' Release preprocessor list",
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000075 \/\* Release \*\/ = \{\n\t\t\tisa = XCBuildConfiguration;\n\t\t\tbuildSettings = \{\n)/, '$1\t\t\t\tGCC_PREPROCESSOR_DEFINITIONS = (\n\t\t\t\t\t"DEBUG=1",\n\t\t\t\t\t"$(inherited)",\n\t\t\t\t);\n')
+  },
+  {
+    id: 'u4',
+    rule: 'u',
+    what: 'an xcconfig defining DEBUG',
+    file: () => 'ios/P316AblationDebug.xcconfig',
+    create: true,
+    edit: () => 'SWIFT_ACTIVE_COMPILATION_CONDITIONS = $(inherited) DEBUG\n'
+  },
+  {
+    id: 'u5',
+    rule: 'u',
+    what: 'the scheme archiving Debug',
+    file: () => 'ios/Tortie.xcodeproj/xcshareddata/xcschemes/Tortie.xcscheme',
+    edit: (src) => src.replace(/(<ArchiveAction\s+buildConfiguration = ")Release"/, '$1Debug"')
+  },
+  // (v) the phone always draws a sentence (his no-key finding).
+  {
+    id: 'v1',
+    rule: 'v',
+    what: 'pairingSentence optional again, leaving drawn as nothing',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) =>
+      src
+        .replace('static func pairingSentence(for failure: PairingFailure) -> String {', 'static func pairingSentence(for failure: PairingFailure) -> String? {')
+        .replace('case .couldNotSave, .notAvailable, .cancelled: return Copy.notPaired', 'case .couldNotSave, .notAvailable: return Copy.notPaired\n        case .cancelled: return nil')
+  },
+  {
+    id: 'v2',
+    rule: 'v',
+    what: 'the pairing line emptied while a pairing is under way',
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace('        line = DoorWords.stepSentence(for: .presenting)\n', '        line = ""\n')
+  },
+  {
+    id: 'v3',
+    rule: 'v',
+    what: 'a pairing step with no line of its own',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('        case .findingName: return Copy.pairNameNotYet\n', '        default: return Copy.pairReaching\n')
+  },
+  {
+    id: 'v4',
+    rule: 'v',
+    what: 'the pairing line made optional',
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace('private(set) var line: String = Copy.notPaired', 'private(set) var line: String? = Copy.notPaired')
   }
 ];
 
@@ -1230,8 +1253,6 @@ function treeDigest() {
   walk(join(REPO, 'ios'));
   h.update(readFileSync(join(REPO, 'src', 'renderer', 'styles', 'tokens.css')));
   h.update(ICON_MASTER).update(readFileSync(join(REPO, ICON_MASTER)));
-  const source = frameworkManifestSource(REPO);
-  if (source !== null) h.update(source).update(readFileSync(join(REPO, source)));
   return h.digest('hex');
 }
 
@@ -1245,9 +1266,8 @@ function buildClone() {
   // Rule (r) lays the brand master over its ground, so the clone holds it.
   mkdirSync(join(scratch, dirname(ICON_MASTER)), { recursive: true });
   clone(join(REPO, ICON_MASTER), join(scratch, ICON_MASTER));
-  // build/, but never build/vendor/: the vendored framework and, while a
-  // build runs, 1.43 GiB of Go cache. The gate only READS the built framework,
-  // so the clone links to it, and no arm may plant under it (see run).
+  // build/, but never build/vendor/: whatever is vendored there is linked,
+  // never copied, and no arm may plant under it (see run).
   spawnSync('mkdir', [join(scratch, 'build')]);
   for (const name of readdirSync(join(REPO, 'build'))) {
     if (name === 'vendor') continue;
@@ -1328,12 +1348,19 @@ try {
         rows.push({ arm, verdict: 'FAIL', why: `${relPath} already exists, so planting it as a new file proves nothing` });
         continue;
       }
+      // A new file under a folder the tree does not have (the Tailnet folder
+      // Phase 330 deleted) makes that folder, and the folder goes with it.
+      let made = dirname(path);
+      while (!existsSync(dirname(made)) && dirname(made) !== made) made = dirname(made);
+      const madeFolder = existsSync(dirname(path)) ? null : made;
+      mkdirSync(dirname(path), { recursive: true });
       writeFileSync(path, arm.edit(''));
       let got;
       try {
         got = runGate();
       } finally {
         rmSync(path, { force: true });
+        if (madeFolder !== null) rmSync(madeFolder, { recursive: true, force: true });
       }
       if (existsSync(path)) {
         failed += 1;
@@ -1392,7 +1419,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -1405,5 +1432,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (s) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (v) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

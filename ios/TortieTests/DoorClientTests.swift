@@ -1,54 +1,100 @@
 import Foundation
+import Network
 import XCTest
 @testable import Tortie
 
-/// The one network user's rules, each held without a network: the URL it may
-/// build, the cap, the statuses, the errors, the route and the configuration
-/// it asks for (build/p316/SPEC.md section 4 S2 builder A). The pin is held
-/// against the door's own certificates in `DoorVectorTests`; the live
-/// exchange is `probe:p316`'s and the hostile door's.
+/// The one network file's rules, each held without a network: the name it
+/// may dial, the request it writes, the answer it will read, the caps, the
+/// statuses, the errors and the routes (build/p330/SPEC.md sections 4.12.2 and
+/// 4.12.3). The pin is held against the door's own certificates in
+/// `DoorVectorTests`; a live exchange over mutual TLS is `P330TransportTests`'
+/// (under `test:ios`) and the macOS harness's.
 ///
 /// Each test names the clause it holds and fails when that clause is taken
 /// out of `ios/Tortie/Door/DoorClient.swift` or `Transport.swift`.
 final class DoorClientTests: XCTestCase {
-    private let door = DoorAddress(host: "100.101.102.103", port: 8823, pin: "p")
+    private let door = DoorEndpoint(name: "p330-mac.tail00000.ts.net", port: 8443, pin: "p")
 
-    // MARK: The URL
+    // MARK: The name
 
-    /// Clause: https, and only https, to the door's address and port.
-    func testEveryURLIsHTTPS() throws {
-        let url = try XCTUnwrap(DoorClient.url(door, target: "/v1/blocked"))
-        XCTAssertEqual(url.scheme, "https")
-        XCTAssertEqual(url.absoluteString, "https://100.101.102.103:8823/v1/blocked")
-        let session = try XCTUnwrap(DoorClient.url(door, target: DoorClient.sessionTarget("a b")))
-        XCTAssertEqual(session.absoluteString, "https://100.101.102.103:8823/v1/session?id=a%20b")
-    }
-
-    /// Clause: the host is an IPv4 literal and nothing else, so no code can
-    /// name a host, a user, a path or another scheme.
-    func testOnlyAnIPv4LiteralIsAHost() {
-        for host in [
-            "100.64.0.1.example.com", "example.com", "evil.com/", "user@100.64.0.1", "100.64.0",
-            "100.64.0.1:80", "0100.64.0.1", "100.064.0.1", "256.64.0.1", "100.64.0.-1", "", " 100.64.0.1", "::1",
-            "[::1]", "100.64.0.1#", "１００.64.0.1"
+    /// Clause: the door is a lowercase name under `.ts.net`, 253 bytes at
+    /// most, three labels at least, each `[a-z0-9-]{1,63}` not starting or
+    /// ending with `-`. Never an address.
+    func testOnlyAPublicNameIsADoor() {
+        for name in [
+            "p330-mac.tail00000.ts.net", "gregs-macbook-pro.tail2ddfe1.ts.net", "a.ts.net", "0.1.ts.net",
+            String(repeating: "a", count: 63) + ".tail.ts.net"
         ] {
-            XCTAssertFalse(DoorAddress.isIPv4Literal(host), host)
-            XCTAssertNil(DoorClient.url(DoorAddress(host: host, port: 8823, pin: "p"), target: "/v1/blocked"), host)
+            XCTAssertTrue(DoorEndpoint.isPublicName(name), name)
         }
-        for host in ["100.64.0.1", "127.0.0.1", "0.0.0.0", "255.255.255.255"] {
-            XCTAssertTrue(DoorAddress.isIPv4Literal(host), host)
+        for name in [
+            "", "ts.net", ".ts.net", "mac.ts.net.", "Mac.tail.ts.net", "mac.tail.TS.NET", "mac.tail.ts.net.evil.com",
+            "mac.tail.ts.network", "mac..ts.net", "-mac.tail.ts.net", "mac-.tail.ts.net", "mac_1.tail.ts.net",
+            "mac tail.ts.net", "100.64.0.1", "127.0.0.1", "[::1]", "mac.tail.ts.net:8443", "user@mac.tail.ts.net",
+            String(repeating: "a", count: 64) + ".tail.ts.net",
+            String(repeating: "abcdefgh.", count: 31) + "ts.net", "mäc.tail.ts.net"
+        ] {
+            XCTAssertFalse(DoorEndpoint.isPublicName(name), name)
         }
     }
 
-    /// Clause: a port in range and a target that is an absolute path with no
-    /// fragment, space or control byte.
-    func testPortAndTargetAreChecked() {
-        for port in [0, -1, 65536] {
-            XCTAssertNil(DoorClient.url(DoorAddress(host: "100.64.0.1", port: port, pin: "p"), target: "/"), "\(port)")
+    /// Clause: the public port is 8443 or 10000, the ports Funnel publishes
+    /// Tortie on; 443 is the person's own.
+    func testOnlyAFunnelPortIsADoor() {
+        XCTAssertEqual(DoorEndpoint.publicPorts, [8443, 10000])
+        for port in [8443, 10000] {
+            XCTAssertTrue(DoorEndpoint(name: door.name, port: port, pin: "p").isPublic, "\(port)")
         }
-        for target in ["v1/blocked", "//evil.com/x", "/v1/blocked#x", "/v1/ blocked", "/v1/\u{7f}", "/v1/\n"] {
-            XCTAssertNil(DoorClient.url(door, target: target), target)
+        for port in [443, 80, 8823, 0, -1, 65535, 65536] {
+            XCTAssertFalse(DoorEndpoint(name: door.name, port: port, pin: "p").isPublic, "\(port)")
         }
+    }
+
+    // MARK: The request
+
+    private func text(_ data: Data?) -> String? {
+        data.map { String(decoding: $0, as: UTF8.self) }
+    }
+
+    /// Clause: one request, written by hand: the request line, `Host` as the
+    /// door's name and public port, the signature's four headers as given,
+    /// and `Connection: close`, which is why every connection carries one
+    /// request.
+    func testASignedReadIsWrittenByHand() {
+        let request = DoorHTTP.request(
+            method: "GET", target: "/v1/blocked", name: door.name, port: door.port,
+            headers: [("x-tortie-phone", "abc"), ("x-tortie-nonce", "0123456789abcdef")], body: nil
+        )
+        XCTAssertEqual(
+            text(request),
+            "GET /v1/blocked HTTP/1.1\r\nHost: p330-mac.tail00000.ts.net:8443\r\nx-tortie-phone: abc\r\n" +
+                "x-tortie-nonce: 0123456789abcdef\r\nConnection: close\r\n\r\n"
+        )
+    }
+
+    /// Clause: `/pair`'s body is JSON with its length, and nothing streams.
+    func testAPresentationCarriesItsLength() {
+        let body = Data(#"{"ct":"x"}"#.utf8)
+        let request = DoorHTTP.request(method: "POST", target: "/pair", name: door.name, port: 10000, headers: [], body: body)
+        XCTAssertEqual(
+            text(request),
+            "POST /pair HTTP/1.1\r\nHost: p330-mac.tail00000.ts.net:10000\r\nContent-Type: application/json\r\n" +
+                "Content-Length: 10\r\nConnection: close\r\n\r\n{\"ct\":\"x\"}"
+        )
+    }
+
+    /// Clause: nothing that could become a second line or a second request is
+    /// ever written: a target with a space, a line break or a fragment, a
+    /// header name or value with one, a method that is not a token.
+    func testNothingIsWrittenThatIsNotOneLine() {
+        for target in ["v1/blocked", "//evil.com/x", "/v1/blocked#x", "/v1/ blocked", "/v1/\u{7f}", "/v1/\n", "/v1/\r\nX: y"] {
+            XCTAssertNil(DoorHTTP.request(method: "GET", target: target, name: door.name, port: 8443, headers: [], body: nil), target)
+        }
+        for header in [("x-tortie-phone", "a\r\nX: y"), ("x tortie", "a"), ("x-tortie-phone", ""), ("x-tortie:phone", "a")] {
+            XCTAssertNil(DoorHTTP.request(method: "GET", target: "/v1/blocked", name: door.name, port: 8443, headers: [header], body: nil), header.0)
+        }
+        XCTAssertNil(DoorHTTP.request(method: "GE T", target: "/v1/blocked", name: door.name, port: 8443, headers: [], body: nil))
+        XCTAssertNil(DoorHTTP.request(method: "GET", target: "/v1/blocked", name: "a b", port: 8443, headers: [], body: nil))
     }
 
     /// Clause: a query value keeps only the unreserved set; every other byte
@@ -61,36 +107,135 @@ final class DoorClientTests: XCTestCase {
         XCTAssertEqual(DoorClient.turnsTarget("s", limit: 0, to: 7), "/v1/turns?id=s&limit=1&to=7")
     }
 
-    // MARK: The cap
+    // MARK: The answer, read by hand
 
-    /// Clause: 2 MiB, counted as the bytes arrive; one byte over empties the
-    /// buffer and refuses.
-    func testTheCapIsTwoMebibytesCountedAsTheyArrive() {
+    private func answer(_ head: String, _ body: String = "") -> Data {
+        Data((head + "\r\n\r\n" + body).utf8)
+    }
+
+    private func read(_ chunks: [Data], cap: Int = DoorLimits.answerCap) -> Result<DoorReply, DoorFailure> {
+        var reader = DoorResponseReader(cap: cap)
+        do {
+            for chunk in chunks {
+                try reader.feed(chunk)
+            }
+            return .success(try reader.finish())
+        } catch let failure as DoorFailure {
+            return .failure(failure)
+        } catch {
+            return .failure(.malformed)
+        }
+    }
+
+    private func read(_ data: Data, cap: Int = DoorLimits.answerCap) -> Result<DoorReply, DoorFailure> {
+        read([data], cap: cap)
+    }
+
+    private let json = #"{"state":"pending"}"#
+    private var honest: Data {
+        answer("HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: 19\r\nConnection: close", json)
+    }
+
+    /// Clause: the door's answer reads whole: a 200 with its JSON and its
+    /// length, and a 404 with a length of 0 and no body.
+    func testTheDoorsAnswersRead() {
+        XCTAssertEqual(read(honest), .success(DoorReply(status: 200, body: Data(json.utf8))))
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\nContent-Length: 0")), .success(DoorReply(status: 404, body: Data())))
+        XCTAssertEqual(
+            read(answer("HTTP/1.1 200 OK\r\ncontent-type: APPLICATION/JSON\r\ncontent-length: 19", json)),
+            .success(DoorReply(status: 200, body: Data(json.utf8))),
+            "header names and the media type are read in any case"
+        )
+    }
+
+    /// Clause: the same answer read one byte at a time is the same answer, and
+    /// one whose head and body arrive together is too.
+    func testAnAnswerReadsTheSameInAnyPieces() {
+        XCTAssertEqual(read(honest.map { Data([$0]) }), .success(DoorReply(status: 200, body: Data(json.utf8))))
+        var reader = DoorResponseReader(cap: DoorLimits.answerCap)
+        XCTAssertNoThrow(try reader.feed(honest))
+        XCTAssertTrue(reader.isComplete, "an answer is complete at its length, before the close")
+    }
+
+    /// Clause: `Content-Length` is required, once, digits only, and any
+    /// `Transfer-Encoding` is not the door (the hostile door's arms `chunked`,
+    /// `no-length` and `two-lengths`).
+    func testTheLengthIsRequiredAndNothingStreams() {
+        let chunked = answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nTransfer-Encoding: chunked", "13\r\n" + json + "\r\n0\r\n\r\n")
+        XCTAssertEqual(read(chunked), .failure(.malformed))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19\r\nTransfer-Encoding: identity", json)), .failure(.malformed))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close", json)), .failure(.malformed))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19\r\nContent-Length: 19", json)), .failure(.malformed))
+        for length in ["+19", "19.0", "0x13", " ", "-1", "１９", "99999999999999999"] {
+            XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(length)", json)), .failure(.malformed), length)
+        }
+    }
+
+    /// Clause: 2 MiB, decided from the declared length before a byte of the
+    /// body is taken (the arm `over-cap`).
+    func testALengthOverTheCapIsRefusedFirst() {
         XCTAssertEqual(DoorLimits.standard.cap, 2 * 1024 * 1024)
-        var buffer = AnswerBuffer(cap: 10)
-        XCTAssertTrue(buffer.append(Data(count: 6)))
-        XCTAssertTrue(buffer.append(Data(count: 4)))
-        XCTAssertEqual(buffer.data.count, 10)
-        XCTAssertFalse(buffer.append(Data(count: 1)))
-        XCTAssertEqual(buffer.data.count, 0, "an answer over the cap is dropped whole")
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 3145728")), .failure(.tooLarge))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 11"), cap: 10), .failure(.tooLarge))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 10", "0123456789"), cap: 10), .success(DoorReply(status: 200, body: Data("0123456789".utf8))))
     }
 
-    /// Clause: a declared length over the cap is refused before its first
-    /// byte; an unknown length is counted.
-    func testADeclaredLengthOverTheCapIsRefused() {
-        let cap = DoorLimits.answerCap
-        XCTAssertTrue(AnswerBuffer.admits(declaredLength: -1, cap: cap))
-        XCTAssertTrue(AnswerBuffer.admits(declaredLength: Int64(cap), cap: cap))
-        XCTAssertFalse(AnswerBuffer.admits(declaredLength: Int64(cap) + 1, cap: cap))
-        XCTAssertFalse(AnswerBuffer.admits(declaredLength: 10 * 1024 * 1024, cap: cap))
+    /// Clause: the head is at most 16 KiB and 64 lines (the arm
+    /// `huge-header`), and it is plain ASCII with no folding and no lone line
+    /// break.
+    func testTheHeadIsBounded() {
+        XCTAssertEqual(DoorHTTP.headCap, 16 * 1024)
+        XCTAssertEqual(DoorHTTP.headLineCap, 64)
+        let padding = String(repeating: "a", count: 20 * 1024)
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nX-Padding: \(padding)\r\nContent-Type: application/json\r\nContent-Length: 19", json)), .failure(.malformed))
+        XCTAssertEqual(read(Data(("HTTP/1.1 200 OK\r\nX-Padding: " + padding).utf8)), .failure(.malformed), "a head that never ends is refused at its cap")
+        let many = (1...64).map { "X-\($0): a" }.joined(separator: "\r\n")
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\n\(many)\r\nContent-Length: 0")), .failure(.malformed))
+        let sixtyFour = (1...63).map { "X-\($0): a" }.joined(separator: "\r\n")
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\n\(sixtyFour)\r\nContent-Length: 0")), .success(DoorReply(status: 404, body: Data())))
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\n Content-Length: 0")), .failure(.malformed), "a folded line")
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\nX: a\nContent-Length: 0")), .failure(.malformed), "a lone line feed")
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\nX: \u{1}\r\nContent-Length: 0")), .failure(.malformed), "a control byte")
+        XCTAssertEqual(read(answer("HTTP/1.1 404 Not Found\r\n: a\r\nContent-Length: 0")), .failure(.malformed), "an empty name")
     }
 
-    /// Clause: 15 seconds, for the idle wait and for the whole request.
-    func testTheTimeoutIsFifteenSecondsBothWays() {
-        let configuration = DoorClient.configuration(.direct, limits: .standard)
-        XCTAssertEqual(DoorLimits.standard.timeout, 15)
-        XCTAssertEqual(configuration.timeoutIntervalForRequest, 15)
-        XCTAssertEqual(configuration.timeoutIntervalForResource, 15)
+    /// Clause: the status line is exactly `HTTP/1.1` and three digits (the
+    /// arm `not-http11`); a status the door never sends is not the door.
+    func testTheStatusLineIsTheDoors() {
+        for line in ["HTTP/1.0 200 OK", "HTTP/2 200", "http/1.1 200 OK", "HTTP/1.1 20 OK", "HTTP/1.1 2000 OK", "HTTP/1.1  200 OK", "HTTP/1.1 200OK", "ICY 200 OK"] {
+            XCTAssertEqual(read(answer("\(line)\r\nContent-Type: application/json\r\nContent-Length: 19", json)), .failure(.malformed), line)
+        }
+        XCTAssertEqual(read(answer("HTTP/1.1 200\r\nContent-Type: application/json\r\nContent-Length: 19", json)), .success(DoorReply(status: 200, body: Data(json.utf8))), "a status with no reason")
+        XCTAssertEqual(read(answer("HTTP/1.1 302 Found\r\nLocation: https://example.com/\r\nContent-Length: 0")), .failure(.unexpectedStatus(302)))
+        XCTAssertEqual(read(answer("HTTP/1.1 500 Internal Server Error\r\nContent-Length: 0")), .failure(.unexpectedStatus(500)))
+    }
+
+    /// Clause: a 200 carries JSON and says so (the arm `not-json`).
+    func testA200IsJSON() {
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: text/plain; charset=utf-8\r\nContent-Length: 19", json)), .failure(.malformed))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Length: 19", json)), .failure(.malformed))
+        XCTAssertEqual(read(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Type: application/json\r\nContent-Length: 19", json)), .failure(.malformed))
+    }
+
+    /// Clause: exactly the declared bytes. Fewer and then the close is not the
+    /// door (the arm `early-close`), and neither is more.
+    func testExactlyTheDeclaredBytes() {
+        let short = answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 38", json)
+        XCTAssertEqual(read(short), .failure(.malformed))
+        let long = answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 5", json)
+        XCTAssertEqual(read(long), .failure(.malformed))
+        // Refused the moment the bytes pass the length, not at the close, so a
+        // door that keeps sending costs the phone nothing past what it declared.
+        var reader = DoorResponseReader(cap: DoorLimits.answerCap)
+        XCTAssertThrowsError(try reader.feed(long)) { XCTAssertEqual($0 as? DoorFailure, .malformed) }
+        XCTAssertEqual(read(Data("HTTP/1.1 200 OK\r\nContent-".utf8)), .failure(.malformed), "a head cut short")
+    }
+
+    /// Clause: a connection that closes before a byte of an answer is its own
+    /// failure, the one the door's refusal of a client key looks like.
+    func testNothingAtAllIsClosedBeforeAnswer() {
+        XCTAssertEqual(read([]), .failure(.closedBeforeAnswer))
+        XCTAssertEqual(read([Data()]), .failure(.closedBeforeAnswer))
     }
 
     // MARK: Statuses and errors
@@ -111,70 +256,72 @@ final class DoorClientTests: XCTestCase {
         }
     }
 
-    /// Clause: the URL loading system's codes become cases; -1200 (a TLS or
-    /// App Transport Security refusal) keeps its code for the ATS arm.
-    func testErrorsBecomeCases() {
-        let url = { (code: Int) in NSError(domain: NSURLErrorDomain, code: code) }
-        XCTAssertEqual(DoorClient.failure(for: url(NSURLErrorCancelled)), .cancelled)
-        XCTAssertEqual(DoorClient.failure(for: url(NSURLErrorTimedOut)), .timedOut)
-        XCTAssertEqual(DoorClient.failure(for: url(NSURLErrorDataLengthExceedsMaximum)), .tooLarge)
-        XCTAssertEqual(DoorClient.failure(for: url(-1200)), .unreachable(code: -1200))
-        XCTAssertEqual(DoorClient.failure(for: url(NSURLErrorCannotConnectToHost)), .unreachable(code: -1004))
-        XCTAssertEqual(DoorClient.failure(for: NSError(domain: "elsewhere", code: 7)), .unreachable(code: 7))
+    /// Clause: a connection's errors become cases. A name that does not
+    /// resolve is `nameNotFound`; a leaf the verify block refused is
+    /// `wrongKey` whatever TLS then said; a connection the door ended after the
+    /// handshake with nothing sent is `closedBeforeAnswer`, and before the
+    /// handshake it is unreachable.
+    func testConnectionErrorsBecomeCases() {
+        let dns = NWError.dns(-65554) // kDNSServiceErr_NoSuchRecord
+        XCTAssertEqual(DoorClient.failure(for: dns, ready: false, pinRefused: false, answered: false), .nameNotFound)
+        XCTAssertEqual(DoorClient.failure(for: .tls(-9808), ready: false, pinRefused: true, answered: false), .wrongKey)
+        XCTAssertEqual(DoorClient.failure(for: .tls(-9808), ready: false, pinRefused: false, answered: false), .unreachable(code: -9808))
+        XCTAssertEqual(DoorClient.failure(for: .posix(.ECONNRESET), ready: true, pinRefused: false, answered: false), .closedBeforeAnswer)
+        XCTAssertEqual(DoorClient.failure(for: .posix(.EPIPE), ready: true, pinRefused: false, answered: false), .closedBeforeAnswer)
+        XCTAssertEqual(DoorClient.failure(for: .posix(.ECONNRESET), ready: true, pinRefused: false, answered: true), .unreachable(code: Int(POSIXErrorCode.ECONNRESET.rawValue)))
+        XCTAssertEqual(DoorClient.failure(for: .posix(.ECONNREFUSED), ready: false, pinRefused: false, answered: false), .unreachable(code: Int(POSIXErrorCode.ECONNREFUSED.rawValue)))
+        XCTAssertEqual(DoorClient.failure(for: .posix(.ECONNRESET), ready: false, pinRefused: false, answered: false), .unreachable(code: Int(POSIXErrorCode.ECONNRESET.rawValue)))
+    }
+
+    /// Clause: 15 seconds for the whole exchange.
+    func testTheTimeoutIsFifteenSeconds() {
+        XCTAssertEqual(DoorLimits.standard.timeout, 15)
     }
 
     // MARK: Routes
 
-    /// Clause: the direct route uses no system proxy, and a SOCKS route never
-    /// fails over to a direct connection.
-    func testRoutesAskForExactlyTheirProxy() {
-        let direct = DoorClient.configuration(.direct, limits: .standard)
-        XCTAssertEqual(direct.connectionProxyDictionary?.count, 0)
-        XCTAssertTrue(direct.proxyConfigurations.isEmpty)
-        let socks = DoorClient.configuration(
-            .socks5(host: "127.0.0.1", port: 1080, username: nil, password: nil), limits: .standard
-        )
-        XCTAssertEqual(socks.proxyConfigurations.count, 1)
-        XCTAssertEqual(socks.proxyConfigurations.first?.allowFailover, false)
-        XCTAssertNil(direct.urlCache)
-        XCTAssertNil(direct.httpCookieStorage)
-        XCTAssertNil(direct.urlCredentialStorage)
-    }
-
-    #if DEBUG
-    /// Clause (DEBUG seam): the direct transport dials this Mac's loopback and
-    /// refuses every other host before a socket exists.
-    func testTheDebugTransportDialsLoopbackOnly() async throws {
-        let transport = DirectLoopbackTransport()
-        let route = try await transport.route(to: "127.0.0.1")
-        XCTAssertEqual(route, .direct)
-        for host in ["100.64.0.1", "100.101.102.103", "192.168.1.2", "localhost"] {
-            do {
-                _ = try await transport.route(to: host)
-                XCTFail("the DEBUG transport would dial \(host)")
-            } catch {
-                XCTAssertEqual(error as? DoorFailure, .notPaired)
-            }
+    /// Clause: a Release build dials the door's own NAME and public port, and
+    /// nothing that is not one.
+    func testTheShippingRouteIsTheName() throws {
+        let transport = NameTransport()
+        XCTAssertEqual(try transport.route(to: door), DoorRoute(host: door.name, port: 8443))
+        for bad in [DoorEndpoint(name: "100.64.0.1", port: 8443, pin: "p"), DoorEndpoint(name: door.name, port: 8823, pin: "p")] {
+            XCTAssertThrowsError(try transport.route(to: bad)) { XCTAssertEqual($0 as? DoorFailure, .notPaired) }
         }
-        XCTAssertNotNil(DoorTransports.shipping)
     }
 
-    /// Clause: a read against a door the transport cannot reach fails as
-    /// `notPaired` before any socket; the client never dials it itself.
+    /// Clause: a read against a door the transport will not dial fails as
+    /// `notPaired` before any connection exists.
     func testTheClientAsksTheTransportFirst() async throws {
-        let client = DoorClient(transport: DirectLoopbackTransport())
+        let client = DoorClient(transport: NameTransport())
         do {
-            _ = try await client.present(Data("{}".utf8), to: door)
-            XCTFail("reached a tailnet address through the DEBUG transport")
+            _ = try await client.present(Data("{}".utf8), to: DoorEndpoint(name: "127.0.0.1", port: 8443, pin: "p"))
+            XCTFail("dialled an address")
         } catch {
             XCTAssertEqual(error as? DoorFailure, .notPaired)
         }
     }
+
+    #if DEBUG
+    /// Clause (DEBUG seam): `-TortieDebugDoorEndpoint 127.0.0.1:<port>` and
+    /// nothing else; the connection goes to that loopback port while the
+    /// door's name stays its name.
+    func testTheDebugEndpointTakesThisMacsLoopbackOnly() throws {
+        XCTAssertEqual(DoorEndpointDebugSeam.loopbackPort(["app", "-TortieDebugDoorEndpoint", "127.0.0.1:52001"]), 52001)
+        for value in ["127.0.0.2:52001", "localhost:52001", "0.0.0.0:52001", "192.168.1.2:52001", "127.0.0.1", "127.0.0.1:0",
+                      "127.0.0.1:65536", "127.0.0.1:+80", "127.0.0.1:80:1", "[::1]:80", ":80", "127.0.0.1:"] {
+            XCTAssertNil(DoorEndpointDebugSeam.loopbackPort(["app", "-TortieDebugDoorEndpoint", value]), value)
+        }
+        XCTAssertNil(DoorEndpointDebugSeam.loopbackPort(["app", "-TortieDebugDoorEndpoint"]))
+        XCTAssertNil(DoorEndpointDebugSeam.loopbackPort(["app"]))
+        let transport = DebugEndpointTransport(port: 52001)
+        XCTAssertEqual(try transport.route(to: door), DoorRoute(host: "127.0.0.1", port: 52001))
+        XCTAssertThrowsError(try transport.route(to: DoorEndpoint(name: "evil.example.com", port: 8443, pin: "p")))
+    }
     #else
-    /// Clause (Phase 316.3): a Release build reaches the door through the
-    /// tailnet node and nothing else.
-    func testAReleaseBuildReachesTheDoorThroughTheNode() {
-        XCTAssertTrue(DoorTransports.shipping is TailnetNode)
+    /// Clause: a Release build dials the name and nothing else.
+    func testAReleaseBuildDialsTheName() {
+        XCTAssertTrue(DoorTransports.shipping is NameTransport)
     }
     #endif
 }

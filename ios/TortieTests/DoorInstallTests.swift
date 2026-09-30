@@ -3,8 +3,9 @@ import XCTest
 @testable import Tortie
 
 /// A fresh install forgets the pairing an earlier install left in the
-/// Keychain, because the Keychain outlives the app and the tailnet node's
-/// state does not (Phase 316.3, build/p316/SPEC.md section 4 S3 B).
+/// Keychain, and every client key with it, because the Keychain outlives the
+/// app and a pairing a person deleted with the app must not come back with it
+/// (Phase 316.3; the client keys since Phase 330).
 ///
 /// Each test names the clause it holds and fails when that clause is taken
 /// out of `ios/Tortie/Door/Keys.swift`. The secrets are in memory and the mark
@@ -32,10 +33,14 @@ final class DoorInstallTests: XCTestCase {
     func testAFreshInstallForgetsThePairingFirst() throws {
         let secrets = MemorySecrets()
         try secrets.write(Data("an earlier install's pairing".utf8), account: PairingStore.account)
-        let store = PairingStore(secrets: secrets)
+        let keys = MemoryClientKeys(spki: "k")
+        _ = try keys.mint()
+        _ = try keys.mint()
+        let store = PairingStore(secrets: secrets, clientKeys: keys)
 
         XCTAssertTrue(store.forgetOnFreshInstall(mark))
         XCTAssertNil(secrets.item(PairingStore.account))
+        XCTAssertEqual(keys.held, [], "an earlier install's client keys outlived it")
         XCTAssertTrue(mark.isPresent)
         XCTAssertEqual(mark.isExcludedFromBackup, true)
     }
@@ -45,23 +50,23 @@ final class DoorInstallTests: XCTestCase {
         try mark.put()
         let secrets = MemorySecrets()
         try secrets.write(Data("this install's pairing".utf8), account: PairingStore.account)
-        let store = PairingStore(secrets: secrets)
+        let store = PairingStore(secrets: secrets, clientKeys: MemoryClientKeys(spki: "k"))
 
         XCTAssertFalse(store.forgetOnFreshInstall(mark))
         XCTAssertEqual(secrets.item(PairingStore.account), Data("this install's pairing".utf8))
     }
 
     /// Clause: a forget that fails leaves no mark, so the next launch tries
-    /// again rather than keeping keys whose node is gone.
+    /// again rather than keeping a pairing its person deleted.
     func testAForgetThatFailsIsTriedAgain() throws {
         let stuck = StuckSecrets()
-        XCTAssertTrue(PairingStore(secrets: stuck).forgetOnFreshInstall(mark))
+        XCTAssertTrue(PairingStore(secrets: stuck, clientKeys: MemoryClientKeys(spki: "k")).forgetOnFreshInstall(mark))
         XCTAssertFalse(mark.isPresent)
         XCTAssertEqual(stuck.removals, 1)
 
         let secrets = MemorySecrets()
         try secrets.write(Data("still here".utf8), account: PairingStore.account)
-        XCTAssertTrue(PairingStore(secrets: secrets).forgetOnFreshInstall(mark))
+        XCTAssertTrue(PairingStore(secrets: secrets, clientKeys: MemoryClientKeys(spki: "k")).forgetOnFreshInstall(mark))
         XCTAssertNil(secrets.item(PairingStore.account))
         XCTAssertTrue(mark.isPresent)
     }

@@ -1,28 +1,26 @@
 #!/usr/bin/env node
 /**
- * `npm run conformance:pocket:hostile`. The attack on the door (Phase 313), and
- * it runs in the ordinary battery.
+ * `npm run conformance:pocket:hostile`. The attack on the door (Phase 313;
+ * rebuilt for the door on the internet by Phase 330), and it runs in the
+ * ordinary battery.
  *
- * WHY IT IS A CHECK AND NOT A PROBE. Phase 313's entry names "the scripted
- * hostile client, in the ordinary battery" as the phase's proof, with "no
- * Swift, no Apple, no phone" — so it has to cost seconds rather than minutes
- * and it has to need nothing of the host. It does: one plain node through the
- * pinned tsx, one TLS listener on `127.0.0.1` on a port it found for itself, a
- * throwaway self-signed identity under a `mkdtemp`, and all three ended in a
- * `finally`. No Electron, no tmux, no ssh, no agent, no token, no real
- * interface, and nothing under the person's home is read.
+ * WHY IT IS A CHECK AND NOT A PROBE. It has to cost seconds rather than minutes
+ * and need nothing of the host. It does: one plain node through the pinned
+ * tsx, the door process's listener run IN THAT PROCESS on `127.0.0.1` on a port
+ * the listener chose itself, a throwaway identity and a throwaway sealed
+ * record under a `mkdtemp`, all ended in a `finally`. No Electron, no tmux, no
+ * ssh, no agent, no token, no Tailscale, no real interface, and nothing under
+ * the person's home is read.
  *
  * WHAT IT ASSERTS. Not that the door refuses, but that it refuses FOR THE RIGHT
- * REASON and lets the honest phone through. An attack whose every arm comes
- * back refused proves a door that is off, so the honest arms are in the same
- * table as the attacks and a run where the honest arms fail is a FAILED run.
+ * REASON, before the HTTP parser where §9 condition 1 says so, and lets the
+ * honest phone through: pair, allowed, handed its certificate, and read over
+ * mutual TLS. An attack whose every arm comes back refused proves a door that
+ * is off, so the honest arms are in the same table as the attacks and a run
+ * where they fail is a FAILED run.
  *
- * PHASE 316.1 WIDENED IT to the door switched on (build/p316/SPEC.md §4 S1,
- * Method B): the door answers from the SHIPPING route composer and turns
- * reader, the phone pins the QR's public-key `fp` the Swift way, and the new
- * arms attack his (made-up) tailnet key, `others`, the refresh-before-read
- * order, page indexes, a 4,000-character one-word ask, a removed session, a
- * remote row and a Remove while the request is in flight.
+ * PHASE 330 took the harness loopback override away: the door binds loopback
+ * by construction now, so this runner sets nothing in the environment.
  *
  *   node build/p313/hostile-client.mjs
  */
@@ -43,12 +41,7 @@ const probe = spawnSync(
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 64 * 1024 * 1024,
-    timeout: 90_000,
-    // THE LOOPBACK BIND, AND IT IS THE ONLY WAY THIS RUNS. `src/main/pocket/
-    // bind.ts` reads this variable and binds `127.0.0.1` instead of asking
-    // `os.networkInterfaces()` for a tailnet address. Nothing in this check may
-    // touch a real interface, and the door refuses to bind one it did not find.
-    env: { ...process.env, GMUX_POCKET_LOOPBACK: '1' }
+    timeout: 90_000
   }
 );
 
@@ -73,10 +66,10 @@ if (problems.length > 0) {
   process.exit(1);
 }
 process.stdout.write(
-  `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone read the three reads through the ` +
-    'shipping route composer, pinning the QR’s public key, and every attack was refused with its own reason. ' +
-    'The tailnet key was a made-up one. Two loopback listeners — the door, and arm 15’s second door ' +
-    'with the self-origin refusal turned ON — and one scratch directory, all gone. ' +
-    'No Swift, no Apple, no phone, no Electron, no real interface.\n'
+  `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone paired by proof, was allowed and ` +
+    'handed its certificate, and read the three reads over mutual TLS through the shipping route composer, pinning ' +
+    'the QR’s public key; every attack was refused with its own reason, and every refusal before HTTP left the ' +
+    'parser counter where it was. One loopback listener in-process and one scratch directory, both gone. ' +
+    'No Swift, no Apple, no phone, no Electron, no Tailscale, no real interface.\n'
 );
 process.exit(0);

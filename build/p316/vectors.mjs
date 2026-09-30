@@ -8,44 +8,59 @@
  * Swift is held to vectors that the door's own functions produce, byte for
  * byte, in `ios/TortieTests/Fixtures/vectors.json`:
  *
- *   keys      four key pairs from fixed, public seeds. They are TEST KEYS that
- *             pair with nothing, derived from their labels so anybody can
- *             regenerate them; no key of anybody's is read.
- *   identity  `phoneIdOf`, `pairFingerprint` and `pairingBinding` (from the
- *             Mac's side; the Swift derives the same binding from the phone's).
+ *   keys      five keys from fixed, public seeds: the phone's two, the Mac's
+ *             two, and the phone's P-256 CLIENT key (Phase 330). They are TEST
+ *             KEYS that pair with nothing, derived from their labels so
+ *             anybody can regenerate them; no key of anybody's is read.
+ *   identity  `phoneIdOf`, `pairFingerprint` over all three of the phone's keys
+ *             (`tortie-pocket-fp-v2`), `pairingBinding` (from the Mac's side;
+ *             the Swift derives the same binding from the phone's) and
+ *             `clientKeyPinOf`, the pin the door admits the client key by.
  *   requests  `canonicalRequestText` and `signAsPhone` (Node's Ed25519 is
  *             deterministic) for five requests, each ACCEPTED by the shipping
- *             `PocketRequestVerifier` here, and one tampered target it refuses
- *             `signature`. The targets are spelled the way the Swift client
- *             spells them, and the door's own URL parser reads each back to the
- *             same bytes and the same `id`.
- *   pins      two certificates issued by the shipping `tls.ts`, with the
- *             `publicKeyFingerprint` it reports and the QR pin `spkiPinOf`
- *             makes of it.
- *   seal      the shipping `sealPresentationAsPhone` output, which the Swift
- *             must OPEN to the same plaintext; and the Swift's own sealing of
- *             its own plaintext under a fixed nonce, which the shipping
- *             `PocketPairing` opener must open to the same keys and label.
- *   qr        three QR v:2 payloads from the shipping `PocketPairing.open`.
+ *             `PocketRequestVerifier` here over the phone's own channel, and
+ *             one tampered target it refuses `signature`. The targets are
+ *             spelled the way the Swift client spells them, and the door's own
+ *             URL parser reads each back to the same bytes and the same `id`.
+ *   pins      two door certificates issued by the shipping `tls.ts` for the
+ *             public name, with the `publicKeyFingerprint` it reports and the
+ *             QR pin `spkiPinOf` makes of it.
+ *   client    the client certificate the shipping `issueClientCertificate`
+ *             issued over the client key, signed by the first door's key. The
+ *             Swift must build a SecCertificate from it and read back `ck`.
+ *   seal      the presentation v2 (Phase 330): the window's challenge
+ *             (`pairingChallengeOf`), the proof text (`presentationProofText`),
+ *             the shipping `sealPresentationAsPhone` output, which the Swift
+ *             must OPEN to the same plaintext; and the phone's own sealing of
+ *             its own plaintext under a fixed nonce, signed by Node over the
+ *             same proof, which the shipping opener must open to the same keys
+ *             and label and whose signature holds over the shipping proof.
+ *   qr        two QR v:3 payloads from the shipping `PocketPairing.open`, one
+ *             per public port.
+ *   pairAnswers  `/pair`'s three answers as the shipping handler writes them:
+ *             `pending` and `refused` from the shipping `present`, and
+ *             `allowed` carrying the client certificate above.
  *   answers   the three reads composed by the shipping `createPocketRoutes`,
  *             turns through the shipping `readPocketTurns`, over fixed facts
  *             at a fixed clock; each also with fields the phone does not know.
  *
  * --check. Regenerates everything in memory and compares. The deterministic
- * vectors must match byte for byte. The three that carry a random value (the
- * seal from the door's sealer, the certificates, and the QR's one-shot
- * secret) are held by RELATION instead: the recorded seal must still open
- * under the shipping opener, each recorded certificate must still hash to its
- * recorded fingerprint and pin, and a freshly minted QR must equal the
- * recorded one with only `ps` differing. A write run keeps a recorded random
- * value that still holds, so regenerating an unchanged tree changes no byte.
+ * vectors must match byte for byte. The ones that carry a random value (the
+ * seal from the door's sealer, the door certificates, the client certificate
+ * and the QR's one-shot secret) are held by RELATION instead: the recorded
+ * seal must still open under the shipping opener with its signature holding,
+ * each recorded door certificate must still hash to its recorded fingerprint
+ * and pin, the recorded client certificate must still carry `ck` and verify
+ * under the first door's key, and a freshly minted QR must equal the recorded
+ * one with only `ps` differing. A write run keeps a recorded random value that
+ * still holds, so regenerating an unchanged tree changes no byte.
  *
  * WHAT IT DOES NOT DO. It opens no socket, starts no Electron, binds nothing
  * and reads nothing under the person's home. Its one scratch directory (the
  * certificates' sealed file, sealed by a seal that seals nothing) is under
  * `os.tmpdir()` and removed in a `finally`. It prints no key, no signature and
  * no conversation line; the file it writes holds only the test keys above.
- * The tailnet key in the QR vectors is made up.
+ * The public name, the tailnet and the program path are made up.
  *
  * It runs itself under the pinned tsx (`build/ts-runner.mjs`) so it can import
  * the TypeScript it is holding the Swift to.
@@ -55,10 +70,13 @@ import { spawnSync } from 'node:child_process';
 import {
   X509Certificate,
   createCipheriv,
+  createECDH,
   createHash,
   createPrivateKey,
   createPublicKey,
-  hkdfSync
+  hkdfSync,
+  sign as signWith,
+  verify as verifyWith
 } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -100,6 +118,7 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
+const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
 const { createPocketRoutes } = await import('../../src/main/pocket/routes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
@@ -127,8 +146,11 @@ const spkiOf = (key) => b64u(createPublicKey(key).export({ format: 'der', type: 
 /** The fixed clock every composed vector is read at. 2026-09-21T21:46:40Z. */
 const T = 1_790_000_000_000;
 const PHONE_LABEL = 'Tortie’s iPhone';
-const PHONE_ADDRESS = '127.0.0.1';
-const MADE_UP_TAILNET_KEY = 'tskey-auth-kP316VECTOR-madeUpNotAKey0000000000000000';
+/** The made-up door every vector is for (Phase 330): a public name, a Funnel port, a tailnet and a program path. */
+const PUBLIC_NAME = 'p330-mac.tail00000.ts.net';
+const PUBLIC_PORT = 8443;
+const TAILNET = 'p330-vectors.example';
+const FUNNEL_PROGRAM = '/p330/vectors/tailscale';
 
 // ---------------------------------------------------------------------------
 // Keys
@@ -138,12 +160,31 @@ const seeds = {
   phoneSigning: seed('phone signing'),
   phoneExchange: seed('phone exchange'),
   macSigning: seed('mac signing'),
-  macExchange: seed('mac exchange')
+  macExchange: seed('mac exchange'),
+  phoneClient: seed('phone client')
 };
 const phoneSignPrivate = privateOf('ed25519', seeds.phoneSigning);
 const phoneExchangePrivate = privateOf('x25519', seeds.phoneExchange);
 const ek = spkiOf(phoneSignPrivate);
 const xk = spkiOf(phoneExchangePrivate);
+// The phone's P-256 client key, from its seed as the private scalar. The
+// Swift imports its X9.63 form (`04 || x || y || d`) where a test needs the
+// identity the certificate below makes.
+const clientEcdh = createECDH('prime256v1');
+clientEcdh.setPrivateKey(seeds.phoneClient);
+const clientPoint = clientEcdh.getPublicKey();
+const clientPrivate = createPrivateKey({
+  key: {
+    kty: 'EC',
+    crv: 'P-256',
+    d: b64u(seeds.phoneClient),
+    x: b64u(clientPoint.subarray(1, 33)),
+    y: b64u(clientPoint.subarray(33, 65))
+  },
+  format: 'jwk'
+});
+const ck = spkiOf(clientPrivate);
+if (!pairing.isClientKeySpki(ck)) fail('the client key is not a key the shipping door admits (isClientKeySpki)');
 // THE SHIPPING identity reader, over the fixed Mac seeds.
 const identity = pairing.openIdentity({
   signPrivate: b64u(pkcs8Of('ed25519', seeds.macSigning)),
@@ -154,7 +195,7 @@ const phoneFields = {
   label: PHONE_LABEL,
   signingKey: ek,
   exchangeKey: xk,
-  address: PHONE_ADDRESS,
+  clientKey: ck,
   pushToken: '',
   pushEnvironment: ''
 };
@@ -167,15 +208,34 @@ const keys = {
   phoneSigningKey: ek,
   phoneExchangeKey: xk,
   macSigningKey: identity.signPublic,
-  macExchangeKey: identity.exchangePublic
+  macExchangeKey: identity.exchangePublic,
+  clientKey: ck,
+  clientKeyX963: Buffer.concat([clientPoint, seeds.phoneClient]).toString('hex'),
+  clientKeyPkcs8: clientPrivate.export({ format: 'der', type: 'pkcs8' }).toString('base64')
 };
 
 const binding = pairing.pairingBinding(identity, phoneFields);
 const identityVectors = {
   phoneId: pairing.phoneIdOf(ek),
-  fingerprint: pairing.pairFingerprint(ek, xk),
-  binding
+  fingerprint: pairing.pairFingerprint(ek, xk, ck),
+  binding,
+  clientPin: pairing.clientKeyPinOf(ck)
 };
+if (identityVectors.clientPin !== b64u(sha256(Buffer.from(ck, 'base64url')))) {
+  fail('clientKeyPinOf is not sha256 over the client key\'s SPKI DER, base64url');
+}
+
+/** Every door's fields, as the shipping hash reads them, for one public port. */
+const fieldsAt = (publicPort, phones = []) => ({
+  funnelProgram: FUNNEL_PROGRAM,
+  tailnet: TAILNET,
+  publicName: PUBLIC_NAME,
+  publicPort,
+  bindAtLaunch: false,
+  routes: [...POCKET_ROUTE_IDS],
+  phones,
+  pushAlerts: false
+});
 
 // ---------------------------------------------------------------------------
 // Requests
@@ -240,7 +300,8 @@ const requests = requestShapes.map((shape, i) => {
     method: shape.method,
     target: shape.target,
     body: Buffer.from(shape.body, 'utf8'),
-    from: PHONE_ADDRESS,
+    // The phone's own connection: its client key completed the handshake.
+    channel: identityVectors.phoneId,
     headers: {
       'x-tortie-phone': identityVectors.phoneId,
       'x-tortie-timestamp': timestamp,
@@ -250,7 +311,7 @@ const requests = requestShapes.map((shape, i) => {
   });
   if (!verdict.ok) fail(`request ${shape.name}: the shipping verifier refused it (${verdict.reason})`);
   // THE DOOR'S OWN URL PARSE reads the target back byte for byte, and the id.
-  const url = new URL(shape.target, `https://${PHONE_ADDRESS}`);
+  const url = new URL(shape.target, `https://${PUBLIC_NAME}:${String(PUBLIC_PORT)}`);
   if (`${url.pathname}${url.search}` !== shape.target) {
     fail(`request ${shape.name}: the door's URL parser reads the target as ${url.pathname}${url.search}`);
   }
@@ -284,7 +345,7 @@ const tampered = (() => {
     method: 'GET',
     target,
     body: Buffer.alloc(0),
-    from: PHONE_ADDRESS,
+    channel: identityVectors.phoneId,
     headers: {
       'x-tortie-phone': identityVectors.phoneId,
       'x-tortie-timestamp': base.timestamp,
@@ -322,7 +383,7 @@ try {
 }
 
 // ---------------------------------------------------------------------------
-// Pins: the shipping certificate, its fingerprint and the QR's pin
+// Pins: the shipping door certificates, their fingerprints and the QR's pin
 // ---------------------------------------------------------------------------
 
 /** A seal that seals nothing, for a throwaway identity in a scratch file. */
@@ -333,7 +394,7 @@ const openSeal = {
 };
 const colonHex = (buf) => (buf.toString('hex').toUpperCase().match(/.{2}/g) ?? []).join(':');
 
-/** Does a recorded certificate still hash to its recorded fingerprints and pin? */
+/** Does a recorded door certificate still hash to its recorded fingerprints and pin, for the public name? */
 function pinHolds(entry) {
   try {
     const der = Buffer.from(entry.certificateDer, 'base64');
@@ -341,6 +402,7 @@ function pinHolds(entry) {
     const spki = cert.publicKey.export({ format: 'der', type: 'spki' });
     return (
       cert.publicKey.asymmetricKeyDetails?.namedCurve === 'prime256v1' &&
+      cert.checkHost(PUBLIC_NAME) === PUBLIC_NAME &&
       colonHex(sha256(spki)) === entry.publicKeyFingerprint &&
       colonHex(sha256(der)) === entry.certificateFingerprint &&
       pairing.spkiPinOf(entry.publicKeyFingerprint) === entry.pin &&
@@ -351,87 +413,140 @@ function pinHolds(entry) {
   }
 }
 
+/** Two fresh door identities for the public name, and the first one's key to issue with (never written). */
 function freshPins() {
-  const dir = mkdtempSync(join(tmpdir(), 'p316-vectors-'));
+  const dir = mkdtempSync(join(tmpdir(), 'p330-vectors-'));
   try {
-    return ['first', 'second'].map((label) => {
+    const made = ['first', 'second'].map((label) => {
       const outcome = tls.ensureDoorIdentity({
         path: join(dir, `${label}.json`),
         seal: openSeal,
         now: T,
-        names: { addresses: [PHONE_ADDRESS], dnsNames: [] }
+        names: { addresses: [], dnsNames: [PUBLIC_NAME] }
       });
       if (outcome.kind !== 'ready') throw new Error(`tls.ts refused: ${outcome.reason}`);
       const der = new X509Certificate(outcome.identity.certPem).raw;
       return {
-        name: label,
-        certificateDer: der.toString('base64'),
-        certificateFingerprint: outcome.identity.certificateFingerprint,
-        publicKeyFingerprint: outcome.identity.publicKeyFingerprint,
-        pin: pairing.spkiPinOf(outcome.identity.publicKeyFingerprint)
+        keyPem: outcome.identity.keyPem,
+        entry: {
+          name: label,
+          certificateDer: der.toString('base64'),
+          certificateFingerprint: outcome.identity.certificateFingerprint,
+          publicKeyFingerprint: outcome.identity.publicKeyFingerprint,
+          pin: pairing.spkiPinOf(outcome.identity.publicKeyFingerprint)
+        }
       };
     });
+    return { pins: made.map((m) => m.entry), firstKeyPem: made[0].keyPem };
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }
 }
 
+/** Does a recorded client certificate carry `ck`, ask for client auth, and verify under the first door's key? */
+function clientHolds(entry, doorPin) {
+  try {
+    const cert = new X509Certificate(Buffer.from(entry.certificateDer, 'base64'));
+    const door = new X509Certificate(Buffer.from(doorPin.certificateDer, 'base64'));
+    return (
+      b64u(cert.publicKey.export({ format: 'der', type: 'spki' })) === ck &&
+      entry.clientKey === ck &&
+      cert.verify(door.publicKey) &&
+      (cert.keyUsage ?? []).includes('1.3.6.1.5.5.7.3.2') &&
+      cert.subject === 'CN=Tortie phone'
+    );
+  } catch {
+    return false;
+  }
+}
+
 const minted = freshPins();
-for (const entry of minted) {
+for (const entry of minted.pins) {
   if (!pinHolds(entry)) fail(`a certificate the shipping tls.ts just issued does not hold its own pin (${entry.name})`);
 }
-if (minted[0].pin === minted[1].pin) fail('two fresh door identities share a pin');
+if (minted.pins[0].pin === minted.pins[1].pin) fail('two fresh door identities share a pin');
+const mintedClient = {
+  clientKey: ck,
+  certificateDer: tls.issueClientCertificate(minted.firstKeyPem, ck, T).toString('base64')
+};
+if (!clientHolds(mintedClient, minted.pins[0])) fail('the client certificate the shipping tls.ts just issued does not carry ck or verify under its door');
 const recordedPins = Array.isArray(recorded?.pins) ? recorded.pins : null;
-const pins =
-  recordedPins !== null && recordedPins.length === 2 && recordedPins.every(pinHolds) && recordedPins[0].pin !== recordedPins[1].pin
-    ? recordedPins
-    : minted;
-if (CHECK && pins !== recordedPins) fail('pins: the recorded certificates no longer hold their recorded fingerprint and pin');
+const recordedClient = recorded?.client ?? null;
+const recordedHolds =
+  recordedPins !== null &&
+  recordedPins.length === 2 &&
+  recordedPins.every(pinHolds) &&
+  recordedPins[0].pin !== recordedPins[1].pin &&
+  recordedClient !== null &&
+  clientHolds(recordedClient, recordedPins[0]);
+// The client certificate is signed by the first door's key, which is never
+// written, so the two are kept, or minted, together.
+const pins = recordedHolds ? recordedPins : minted.pins;
+const client = recordedHolds ? recordedClient : mintedClient;
+if (CHECK && !recordedHolds) fail('pins and client: the recorded certificates no longer hold their recorded fingerprints, pin, key and issuer');
 
 // ---------------------------------------------------------------------------
-// The sealed presentation
+// The sealed, signed presentation (v2, Phase 330)
 // ---------------------------------------------------------------------------
 
 const PAIR_SECRET = seed('pairing secret').subarray(0, 16);
 const SEAL_IV = seed('pairing iv').subarray(0, 12);
+const challenge = pairing.pairingChallengeOf(PAIR_SECRET);
 
-/** THE SHIPPING OPENER, as `POST /pair` runs it. */
+/** THE SHIPPING OPENER, as `present` runs it. */
 const opener = new pairing.PocketPairing({
   identity: () => identity,
-  fieldsNow: () => ({
-    bindAddress: PHONE_ADDRESS,
-    port: 8823,
-    bindAtLaunch: false,
-    routes: [...POCKET_ROUTE_IDS],
-    phones: [],
-    pushAlerts: false
-  }),
+  fieldsNow: () => fieldsAt(PUBLIC_PORT),
   savePhones: () => true,
   publicKeyPin: () => pins[0].pin,
+  issueCertificate: () => client.certificateDer,
   now: () => T
 });
+/** Does the shipping proof text, over this body's own fields, verify under its `ek`? */
+const proofHolds = (outer) => {
+  try {
+    const text = pairing.presentationProofText(challenge, outer.iv, outer.ct, outer.tag);
+    return verifyWith(
+      null,
+      Buffer.from(text, 'utf8'),
+      createPublicKey({ key: Buffer.from(outer.ek, 'base64url'), format: 'der', type: 'spki' }),
+      Buffer.from(outer.sig, 'base64url')
+    );
+  } catch {
+    return false;
+  }
+};
 /** What the shipping opener reads out of a body, or null. */
 const doorOpens = (bodyText) => {
+  let outer;
+  try {
+    outer = JSON.parse(bodyText);
+  } catch {
+    return null;
+  }
+  if (Object.keys(outer).sort().join() !== 'ct,ek,iv,sig,tag') return null;
   // `openPresentation` is the method `present` calls; it is private to the
   // type and not to the runtime, and calling it names the exact code path.
-  const opened = opener.openPresentation(PAIR_SECRET, Buffer.from(bodyText, 'utf8'));
+  const opened = opener.openPresentation(PAIR_SECRET, outer);
   return opened === null
     ? null
-    : { label: opened.label, signingKey: opened.signingKey, exchangeKey: opened.exchangeKey };
+    : { label: opened.label, signingKey: opened.signingKey, exchangeKey: opened.exchangeKey, clientKey: opened.clientKey, proof: proofHolds(outer) };
 };
-const presentedAs = { label: PHONE_LABEL, signingKey: ek, exchangeKey: xk };
+const presentedAs = { label: PHONE_LABEL, signingKey: ek, exchangeKey: xk, clientKey: ck };
 const sameKeys = (opened) =>
   opened !== null &&
+  opened.proof === true &&
   opened.label === presentedAs.label &&
   opened.signingKey === presentedAs.signingKey &&
-  opened.exchangeKey === presentedAs.exchangeKey;
+  opened.exchangeKey === presentedAs.exchangeKey &&
+  opened.clientKey === presentedAs.clientKey;
 
 // (a) The door's own sealer, whose nonce is random. The Swift must OPEN it.
-const doorPlaintext = JSON.stringify({ label: PHONE_LABEL, ek, xk });
+const doorPlaintext = JSON.stringify({ ck, ek, label: PHONE_LABEL, xk });
 const freshDoorSeal = pairing
-  .sealPresentationAsPhone(JSON.stringify({ ps: b64u(PAIR_SECRET) }), presentedAs)
+  .sealPresentationAsPhone(JSON.stringify({ ps: b64u(PAIR_SECRET) }), presentedAs, phoneSignPrivate)
   .toString('utf8');
-if (!sameKeys(doorOpens(freshDoorSeal))) fail('the shipping opener cannot open the shipping sealer');
+if (!sameKeys(doorOpens(freshDoorSeal))) fail('the shipping opener cannot open, or the shipping proof does not hold over, the shipping sealer');
 const recordedDoorSeal = recorded?.seal?.fromDoor;
 const doorSealHolds = (entry) =>
   entry !== undefined &&
@@ -442,59 +557,66 @@ const doorSealHolds = (entry) =>
 const fromDoor = doorSealHolds(recordedDoorSeal)
   ? recordedDoorSeal
   : { body: freshDoorSeal, plaintext: doorPlaintext };
-if (CHECK && fromDoor !== recordedDoorSeal) fail('seal.fromDoor: the recorded body no longer opens to the recorded plaintext');
+if (CHECK && fromDoor !== recordedDoorSeal) fail('seal.fromDoor: the recorded body no longer opens to the recorded plaintext with its proof holding');
 
 // (b) The phone's sealing, at a fixed nonce, of the phone's own plaintext
-// (keys sorted, as Swift's JSONEncoder writes them). The DOOR must open it.
-const phonePlaintext = JSON.stringify({ ek, label: PHONE_LABEL, xk });
+// (keys sorted, as Swift's JSONEncoder writes them), signed over the shipping
+// proof text. The DOOR must open it and its signature must hold. Node's
+// Ed25519 is deterministic, so the signature is a vector; CryptoKit's is not,
+// so the Swift is held to the proof text and to the signature verifying.
+const phonePlaintext = JSON.stringify({ ck, ek, label: PHONE_LABEL, xk });
 const sealKey = Buffer.from(hkdfSync('sha256', PAIR_SECRET, Buffer.alloc(0), 'tortie-pocket-pair-v1', 32));
 const cipher = createCipheriv('aes-256-gcm', sealKey, SEAL_IV);
 const phoneCt = Buffer.concat([cipher.update(phonePlaintext, 'utf8'), cipher.final()]);
-const phoneBody = JSON.stringify({ ct: b64u(phoneCt), iv: b64u(SEAL_IV), tag: b64u(cipher.getAuthTag()) });
-if (!sameKeys(doorOpens(phoneBody))) fail('the shipping opener cannot open the phone-shaped seal');
+const phoneSealed = { iv: b64u(SEAL_IV), ct: b64u(phoneCt), tag: b64u(cipher.getAuthTag()) };
+const phoneProof = pairing.presentationProofText(challenge, phoneSealed.iv, phoneSealed.ct, phoneSealed.tag);
+const phoneSig = b64u(signWith(null, Buffer.from(phoneProof, 'utf8'), phoneSignPrivate));
+const phoneBody = JSON.stringify({ ct: phoneSealed.ct, ek, iv: phoneSealed.iv, sig: phoneSig, tag: phoneSealed.tag });
+if (!sameKeys(doorOpens(phoneBody))) fail('the shipping opener cannot open, or the shipping proof does not hold over, the phone-shaped body');
 
 const seal = {
   secret: b64u(PAIR_SECRET),
+  challenge,
   label: PHONE_LABEL,
   fromDoor,
-  fromPhone: { iv: b64u(SEAL_IV), plaintext: phonePlaintext, body: phoneBody }
+  fromPhone: { iv: phoneSealed.iv, plaintext: phonePlaintext, ct: phoneSealed.ct, tag: phoneSealed.tag, proof: phoneProof, sig: phoneSig, body: phoneBody }
 };
 
 // ---------------------------------------------------------------------------
-// QR v:2, from the shipping window
+// QR v:3, from the shipping window
 // ---------------------------------------------------------------------------
 
-function mintQr(bindAddress, tailnetKey) {
-  const window = new pairing.PocketPairing({
+/** A shipping window over the public name at `publicPort`. */
+const windowAt = (publicPort) =>
+  new pairing.PocketPairing({
     identity: () => identity,
-    fieldsNow: () => ({
-      bindAddress,
-      port: 8823,
-      bindAtLaunch: true,
-      routes: [...POCKET_ROUTE_IDS],
-      phones: [],
-      pushAlerts: false
-    }),
+    fieldsNow: () => fieldsAt(publicPort),
     savePhones: () => true,
     publicKeyPin: () => pins[0].pin,
+    issueCertificate: () => client.certificateDer,
     now: () => T
   });
-  const offer = window.open({ tailnetKey });
-  window.cancel();
-  return offer.payload;
-}
 
 /** The payload with its one random field, `ps`, replaced. */
 const withPs = (payload, ps) => JSON.stringify({ ...JSON.parse(payload), ps });
 const qrShapes = [
-  { name: 'tailnet-with-key', bindAddress: '100.101.102.103', tailnetKey: MADE_UP_TAILNET_KEY },
-  { name: 'tailnet-no-key', bindAddress: '100.101.102.103', tailnetKey: null },
-  { name: 'loopback', bindAddress: PHONE_ADDRESS, tailnetKey: null }
+  { name: 'funnel-8443', publicPort: 8443 },
+  { name: 'funnel-10000', publicPort: 10000 }
 ];
 const qr = qrShapes.map((shape) => {
-  const fresh = mintQr(shape.bindAddress, shape.tailnetKey);
+  const window = windowAt(shape.publicPort);
+  const fresh = window.open().payload;
+  window.cancel();
   const parsed = JSON.parse(fresh);
-  if (parsed.v !== 2 || parsed.fp !== pins[0].pin || parsed.dk !== identity.signPublic || parsed.dx !== identity.exchangePublic) {
+  if (
+    parsed.v !== 3 ||
+    parsed.host !== PUBLIC_NAME ||
+    parsed.port !== shape.publicPort ||
+    parsed.fp !== pins[0].pin ||
+    parsed.dk !== identity.signPublic ||
+    parsed.dx !== identity.exchangePublic ||
+    Object.keys(parsed).join() !== 'v,host,port,fp,dk,dx,ps,exp'
+  ) {
     fail(`qr ${shape.name}: the shipping window minted a payload this file does not describe`);
   }
   const old = Array.isArray(recorded?.qr) ? recorded.qr.find((q) => q.name === shape.name) : undefined;
@@ -503,6 +625,44 @@ const qr = qrShapes.map((shape) => {
   if (CHECK && !keep) fail(`qr ${shape.name}: the shipping window now mints a different payload`);
   return { name: shape.name, payload: keep ? old.payload : fresh };
 });
+
+// ---------------------------------------------------------------------------
+// /pair's three answers, as the shipping handler writes them
+// ---------------------------------------------------------------------------
+
+/** The shipping handler's `/pair` answer for one presentation, with `present` given. */
+const pairAnswerOf = async (present, presentation) => {
+  const handle = createPocketHandler({
+    shuttingDown: () => false,
+    pairingWindowOpen: () => true,
+    present,
+    verify: () => ({ ok: false, reason: 'unpaired' }),
+    stillPaired: () => false,
+    answer: async () => null
+  });
+  const answer = await handle({ route: 'pair', presentation }, { stopping: () => false });
+  if (answer.status !== 200 || typeof answer.body !== 'string') fail(`/pair answered ${String(answer.status)} to a presentation inside a window`);
+  return answer.body;
+};
+const pairAnswers = await (async () => {
+  // A live window: the phone's presentation through the SHIPPING present.
+  const window = windowAt(PUBLIC_PORT);
+  const offer = window.open();
+  const body = JSON.parse(pairing.sealPresentationAsPhone(offer.payload, presentedAs, phoneSignPrivate).toString('utf8'));
+  const pending = await pairAnswerOf((p) => window.present(p), body);
+  // Another key's proof over the same seal: refused, whatever the seal holds.
+  const stranger = privateOf('ed25519', seed('a stranger'));
+  const forged = { ...body, ek: spkiOf(stranger), sig: b64u(signWith(null, Buffer.from(pairing.presentationProofText(pairing.pairingChallengeOf(Buffer.from(JSON.parse(offer.payload).ps, 'base64url')), body.iv, body.ct, body.tag), 'utf8'), stranger)) };
+  const refused = await pairAnswerOf((p) => window.present(p), forged);
+  window.cancel();
+  // `allowed` is reached through `allow`, which records the person's agreement
+  // on disk, so the vectors do not reach it through `present`: the handler is
+  // handed the answer's own shape (`PocketPairAnswer`) with the certificate.
+  const allowed = await pairAnswerOf(() => ({ state: 'allowed', cert: Buffer.from(client.certificateDer, 'base64').toString('base64url') }), body);
+  if (pending !== '{"state":"pending"}') fail(`the shipping present answered the phone's presentation ${pending}`);
+  if (refused !== '{"state":"refused"}') fail(`the shipping present answered a forged proof ${refused}`);
+  return { pending, refused, allowed };
+})();
 
 // ---------------------------------------------------------------------------
 // The answers, from the shipping route composer
@@ -676,15 +836,16 @@ for (const [name, compose] of answerShapes) {
 
 const vectors = {
   about:
-    'Written by build/p316/vectors.mjs from the shipping TypeScript. Test keys from public seeds; they pair with nothing. The tailnet key is made up.',
+    'Written by build/p316/vectors.mjs from the shipping TypeScript. Test keys from public seeds; they pair with nothing. The public name, the tailnet and the program path are made up.',
   keys,
   identity: identityVectors,
   requests,
   tampered,
   pins,
+  client,
   seal,
   qr,
-  madeUpTailnetKey: MADE_UP_TAILNET_KEY,
+  pairAnswers,
   answers
 };
 const text = `${JSON.stringify(vectors, null, 2)}\n`;
@@ -714,8 +875,8 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests (and 1 tampered), ${String(pins.length)} pins, 2 seals, ` +
-  `${String(qr.length)} QR payloads, ${String(Object.keys(answers).length)} answers`;
+  `${String(requests.length)} signed requests (and 1 tampered), ${String(pins.length)} pins, 1 client certificate, 2 seals, ` +
+  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);
 } else {

@@ -1,112 +1,88 @@
-// Transport.swift — how a request reaches the door (Phase 316.2, the tailnet
-// node from Phase 316.3).
+// Transport.swift — where a connection to the door is opened (Phase 316.2;
+// the Mac's public name since Phase 330).
 //
-// The door answers on the Mac's tailnet address. The phone reaches it through
-// a tailnet node carried inside the app (Tailnet/Node.swift), which hands the
-// door client a SOCKS5 proxy on the phone's own loopback. That node is the
-// transport a Release build ships with (`DoorTransports.shipping`), so pairing
-// and every read go over his tailnet.
+// The door answers at `https://<publicName>:<publicPort>`, published by
+// Tailscale Funnel on the Mac (build/p330/SPEC.md section 4.1). A Release build
+// dials that NAME and nothing else (`NameTransport`), and the name is always
+// the TLS server name and the HTTP `Host`, whatever is dialled.
 //
-// THIS FILE NAMES NO NETWORK TYPE. `DoorClient.swift` is the one network user
-// and `Tailnet/Node.swift` the one other network file (conformance:ios rule
-// c); a transport only says which ROUTE to take, and the client turns that
-// into a session.
+// THIS FILE NAMES NO NETWORK TYPE. `DoorClient.swift` is the one network file
+// (conformance:ios rule c); a transport only says which host and port to open
+// a connection to, and the client does the rest.
 //
-// A TRANSPORT ALSO ANSWERS TWO QUESTIONS, both with an answer that changes
-// nothing for a transport that has no node: whether a kept pairing can be
-// read at all (`reaches`: a node whose state is gone cannot, and the phone
-// goes to Pairing), and what must happen before a pairing presents
-// (`prepareToPair`: the node joins with the code's key when it has no state of
-// its own, and refuses with a `PairingFailure` when it cannot).
-//
-// THE DEBUG SEAM. In the Simulator the door runs on this Mac's loopback
-// (`GMUX_POCKET_LOOPBACK=1`), so a DEBUG build dials it directly. It dials
-// 127.0.0.1 and nothing else directly: any other host goes to the tailnet node,
-// exactly as in a Release build, and a node with no state and no key refuses
-// before anything starts, so a pairing code that names a tailnet address and
-// carries no key never makes a DEBUG build reach past this Mac. The direct
-// route exists only inside `#if DEBUG` (conformance:ios rule d).
+// THE DEBUG SEAM. In the Simulator the door is reached through the stand-in's
+// forwarder on this Mac's loopback, so a DEBUG build launched with
+// `-TortieDebugDoorEndpoint 127.0.0.1:<port>` opens its connections to that
+// port on 127.0.0.1 while the code's own name stays the SNI and the `Host`.
+// It takes 127.0.0.1 and nothing else, and it exists only inside `#if DEBUG`
+// (conformance:ios rule d).
 
 import Foundation
 
-/// The route to the door's host, as the client needs it.
-enum DoorRoute: Equatable, Sendable {
-    /// Straight to the host, with no proxy at all.
-    case direct
-    /// Through a SOCKS5 proxy, which is how the tailnet node and the ATS arm's
-    /// loopback stand-in carry a request.
-    case socks5(host: String, port: Int, username: String?, password: String?)
+/// Where one connection is opened. The door's own name is the TLS server name
+/// and the `Host` whatever this says.
+struct DoorRoute: Equatable, Sendable {
+    let host: String
+    let port: Int
 }
 
-/// Where requests go. Asked once per request, so a node that stops between
-/// two requests is noticed at the second.
+/// Where connections go. Asked once per connection.
 protocol DoorTransport: Sendable {
-    /// The route to `host`, or `DoorFailure.notPaired` when this transport
-    /// cannot reach it at all.
-    func route(to host: String) async throws -> DoorRoute
-    /// Whether a kept pairing with a door at `host` can be read at all.
-    func reaches(_ host: String) -> Bool
-    /// Before a pairing with a door at `host` presents. Throws a
-    /// `PairingFailure` when the pairing cannot go on.
-    func prepareToPair(host: String, key: String?) async throws
+    /// The route to `door`, or `DoorFailure.notPaired` when this transport
+    /// dials nothing for it.
+    func route(to door: DoorEndpoint) throws -> DoorRoute
 }
 
-extension DoorTransport {
-    /// A transport with no node of its own reaches whatever it routes to.
-    func reaches(_ host: String) -> Bool { true }
-    /// A transport with no node of its own has nothing to do first.
-    func prepareToPair(host: String, key: String?) async throws {}
+/// The door's public name and port, exactly as the code gave them.
+struct NameTransport: DoorTransport {
+    func route(to door: DoorEndpoint) throws -> DoorRoute {
+        guard door.isPublic else { throw DoorFailure.notPaired }
+        return DoorRoute(host: door.name, port: door.port)
+    }
 }
 
 /// The transport this build ships with.
 enum DoorTransports {
-    /// The tailnet node; in a DEBUG build, this Mac's loopback directly and
-    /// every other host through the node.
-    static var shipping: DoorTransport? {
+    /// The door's public name; in a DEBUG build launched with the endpoint
+    /// seam, this Mac's loopback at the port it names.
+    static var shipping: DoorTransport {
         #if DEBUG
-        return DebugDoorTransport(tailnet: TailnetNode.shared)
-        #else
-        return TailnetNode.shared
+        if let port = DoorEndpointDebugSeam.loopbackPort() {
+            return DebugEndpointTransport(port: port)
+        }
         #endif
+        return NameTransport()
     }
 }
 
 #if DEBUG
-/// DEBUG ONLY: straight to the door on this Mac's loopback, for the
-/// Simulator. Any host but 127.0.0.1 is refused.
-struct DirectLoopbackTransport: DoorTransport {
-    static let loopback = "127.0.0.1"
+/// DEBUG ONLY: `-TortieDebugDoorEndpoint 127.0.0.1:<port>`.
+enum DoorEndpointDebugSeam {
+    static let argument = "-TortieDebugDoorEndpoint"
+    /// The only host the seam takes.
+    static let loopbackHost = "127.0.0.1"
 
-    func route(to host: String) async throws -> DoorRoute {
-        guard host == Self.loopback else { throw DoorFailure.notPaired }
-        return .direct
+    /// The port the seam names, or nil when there is no seam or it names
+    /// anything but a port on 127.0.0.1.
+    static func loopbackPort(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
+        guard let value = arguments.drop(while: { $0 != argument }).dropFirst().first else { return nil }
+        let parts = value.split(separator: ":", omittingEmptySubsequences: false)
+        guard parts.count == 2, parts[0] == loopbackHost,
+              (1...5).contains(parts[1].utf8.count),
+              parts[1].utf8.allSatisfy({ $0 >= UInt8(ascii: "0") && $0 <= UInt8(ascii: "9") }),
+              let port = Int(parts[1]), (1...65535).contains(port) else { return nil }
+        return port
     }
 }
 
-/// DEBUG ONLY: this Mac's loopback directly, and every other host through the
-/// tailnet node, the way a Release build reaches it.
-struct DebugDoorTransport: DoorTransport {
-    let direct = DirectLoopbackTransport()
-    let tailnet: DoorTransport
+/// DEBUG ONLY: every connection to a door with a public name opened on this
+/// Mac's loopback at one port, the name kept as the SNI and the `Host`.
+struct DebugEndpointTransport: DoorTransport {
+    let port: Int
 
-    private func isDirect(_ host: String) -> Bool {
-        host == DirectLoopbackTransport.loopback
-    }
-
-    func route(to host: String) async throws -> DoorRoute {
-        isDirect(host) ? try await direct.route(to: host) : try await tailnet.route(to: host)
-    }
-
-    func reaches(_ host: String) -> Bool {
-        isDirect(host) ? direct.reaches(host) : tailnet.reaches(host)
-    }
-
-    func prepareToPair(host: String, key: String?) async throws {
-        if isDirect(host) {
-            try await direct.prepareToPair(host: host, key: key)
-        } else {
-            try await tailnet.prepareToPair(host: host, key: key)
-        }
+    func route(to door: DoorEndpoint) throws -> DoorRoute {
+        guard door.isPublic else { throw DoorFailure.notPaired }
+        return DoorRoute(host: DoorEndpointDebugSeam.loopbackHost, port: port)
     }
 }
 #endif

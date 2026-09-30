@@ -6,10 +6,10 @@
  * and the only QR encoder in the tree. This file only turns its modules into
  * one SVG path.
  *
- * THE PAYLOAD IS NEVER TEXT ON THE PAGE. When the person pasted a tailnet key,
- * the payload carries it, so it is drawn only as modules: no `title`, no
- * attribute and no accessible name repeats it. The accessible name is the
- * caller's words.
+ * THE PAYLOAD IS NEVER TEXT ON THE PAGE. Since Phase 330 it is `v: 3` and
+ * carries no credential, but it does carry the window's one-shot secret, so it
+ * is drawn only as modules: no `title`, no attribute and no accessible name
+ * repeats it. The accessible name is the caller's words.
  *
  * DARK INK ON A LIGHT GROUND IN BOTH THEMES. The colours are ./qr-colors.ts's
  * and the element pins its own colour scheme, so a dark window still draws a
@@ -54,9 +54,10 @@ export interface QrShape {
  * Medium error correction, which the encoder raises on its own when the same
  * version has room. A screen is not a torn label, so low would do; medium is
  * a margin against glare on a laptop screen. Consecutive
- * dark modules in a row are one subpath. Measured: a payload with no key is
- * 279 bytes, version 12, 4 px a module; the longest key main admits makes it
- * 543 bytes, version 18, 3 px a module and a path of about 29,000 characters.
+ * dark modules in a row are one subpath. Measured over `v: 3` (the Phase 330
+ * fix round): a 25-character public name makes 290 bytes, version 13, 4 px a
+ * module; a 248-character one, near the 253 the phone admits, makes 513 bytes,
+ * version 18, 3 px a module and a path of about 27,500 characters.
  *
  * Null when the payload cannot be encoded at all, which only a payload far
  * past anything main composes could cause.

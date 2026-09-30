@@ -3,8 +3,7 @@ import XCTest
 
 /// The app's BUILT `Info.plist`, read from inside the app. These tests are
 /// hosted in Tortie.app (`TEST_HOST`), so `Bundle.main` is the shipping bundle
-/// and not the test bundle, which is also why the ATS arm runs under the
-/// shipping keys (build/p316/SPEC.md section 3.2, section 4 S2). Each test names
+/// and not the test bundle (build/p316/SPEC.md section 4 S2). Each test names
 /// the clause it holds, and each fails when that clause is taken out.
 final class InfoPlistTests: XCTestCase {
     private var info: [String: Any] {
@@ -17,19 +16,18 @@ final class InfoPlistTests: XCTestCase {
         XCTAssertEqual(info["CFBundleDisplayName"] as? String, "Tortie")
     }
 
-    /// Clause: "exactly one ATS exception for 100.64.0.0/10 with
-    /// NSExceptionAllowsInsecureHTTPLoads" (section 3.2, measured). One key,
-    /// one domain, one value, and nothing beside any of them: an added
-    /// `NSAllowsArbitraryLoads`, `NSAllowsLocalNetworking`, second domain or
-    /// `NSIncludesSubdomains` each fails here.
-    func testExactlyOneTransportSecurityException() throws {
-        let ats = try XCTUnwrap(info["NSAppTransportSecurity"] as? [String: Any])
-        XCTAssertEqual(Set(ats.keys), ["NSExceptionDomains"])
-        let domains = try XCTUnwrap(ats["NSExceptionDomains"] as? [String: Any])
-        XCTAssertEqual(Set(domains.keys), ["100.64.0.0/10"])
-        let tailnet = try XCTUnwrap(domains["100.64.0.0/10"] as? [String: Any])
-        XCTAssertEqual(Set(tailnet.keys), ["NSExceptionAllowsInsecureHTTPLoads"])
-        XCTAssertEqual(tailnet["NSExceptionAllowsInsecureHTTPLoads"] as? Bool, true)
+    /// Clause (Phase 330): no App Transport Security key at all. The one
+    /// client is Network.framework over TLS 1.3 with its own pin, which ATS
+    /// does not govern, so there is nothing for an exception to allow
+    /// (research 132 section 9 condition 8).
+    func testNoTransportSecurityKey() {
+        XCTAssertNil(info["NSAppTransportSecurity"])
+    }
+
+    /// Clause (Phase 330): no local network string. The phone dials the Mac's
+    /// public name and nothing on the Wi-Fi it is on, so iOS never asks.
+    func testNoLocalNetworkString() {
+        XCTAssertNil(info["NSLocalNetworkUsageDescription"])
     }
 
     /// Clause: no background mode, ever (section 7), and no arbitrary loads.
@@ -63,39 +61,17 @@ final class InfoPlistTests: XCTestCase {
         XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
     }
 
-    /// Clause (Phase 316.3): the node's direct path to a Mac on the same
-    /// network is a local network send, so iOS asks, and the app says why in
-    /// one sentence (research 128 section 2).
-    func testTheLocalNetworkIsExplainedInOneSentence() throws {
-        let sentence = try XCTUnwrap(info["NSLocalNetworkUsageDescription"] as? String)
-        XCTAssertTrue(sentence.hasSuffix("."))
-        XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
-    }
-
     /// Clause (Phase 316.3): the BUILT app carries its own privacy manifest,
-    /// tracking nothing and collecting nothing, and the embedded TailscaleKit
-    /// carries its own at the framework's root with the two categories he
-    /// decided (section 6 decision 8), read from the bundle that ships.
-    func testBothPrivacyManifestsShipInTheBundle() throws {
+    /// tracking nothing and collecting nothing; since Phase 330 it carries no
+    /// framework of anybody else's, and so no second manifest.
+    func testTheAppsPrivacyManifestShipsInTheBundle() throws {
         let app = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
         let own = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: app), format: nil) as? [String: Any])
         XCTAssertEqual(own["NSPrivacyTracking"] as? Bool, false)
         XCTAssertEqual((own["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
-
-        let frameworks = try XCTUnwrap(Bundle.main.privateFrameworksURL)
-        let kit = frameworks.appendingPathComponent("TailscaleKit.framework/PrivacyInfo.xcprivacy", isDirectory: false)
-        let theirs = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: kit), format: nil) as? [String: Any])
-        XCTAssertEqual(theirs["NSPrivacyTracking"] as? Bool, false)
-        let types = try XCTUnwrap(theirs["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
-        var declared: [String: [String]] = [:]
-        for entry in types {
-            let category = try XCTUnwrap(entry["NSPrivacyAccessedAPIType"] as? String)
-            declared[category] = try XCTUnwrap(entry["NSPrivacyAccessedAPITypeReasons"] as? [String])
-        }
-        XCTAssertEqual(declared, [
-            "NSPrivacyAccessedAPICategoryFileTimestamp": ["C617.1"],
-            "NSPrivacyAccessedAPICategorySystemBootTime": ["35F9.1"],
-        ])
+        let frameworks = Bundle.main.privateFrameworksURL.map { $0.path(percentEncoded: false) } ?? ""
+        let embedded = (try? FileManager.default.contentsOfDirectory(atPath: frameworks)) ?? []
+        XCTAssertFalse(embedded.contains { $0.hasPrefix("TailscaleKit") }, "\(embedded)")
     }
 
     /// Clause: `Tortie.entitlements` is empty: no networking entitlement, no

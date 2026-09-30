@@ -121,6 +121,17 @@
  *     `127.0.0.1` IN THIS PROCESS (not a child), closed in the `finally`. THE
  *     SENDER IS NEVER AIMED AT ANYTHING ELSE: the seam refuses a seed whose
  *     origins are not `http://127.0.0.1:<port>`, and there is no real push.
+ *   - TAILSCALE (Phase 330) is build/p330/tailscale-standin.mjs behind a
+ *     /bin/sh wrapper in the scratch world, named by `GMUX_TAILSCALE_BIN`. The
+ *     seam pairs its two phones the sheet's way, and since Phase 330 that
+ *     means the door is PUBLISHED through Funnel for the pairing alone: the
+ *     switch on, the read, the Allow, the counted start, the window, the
+ *     presentation with its proof, the Allow, and the switch off. The seam
+ *     refuses unless the program is a development override, and this probe's
+ *     PREFLIGHT refuses the launch unless that override is the wrapper and the
+ *     wrapper execs the stand-in byte for byte. The process table is sampled
+ *     every second: a real Tailscale program under the app, or run as a
+ *     command, FAILS the run, and every stand-in pid is ended in the `finally`.
  *
  * THE SLEEP IS DRIVEN, NEVER TAKEN. The machine does not sleep, so its poll
  * keeps running. "Blocked during the sleep" is driven as what the Mac actually
@@ -210,6 +221,7 @@ import { withElectron, withoutDevRenderer } from './electron-run.mjs';
 import { wsConnect, cdpEval } from './cdp-client.mjs';
 import { pickRendererTarget } from './cdp-target.mjs';
 import { startApnsStandIn } from './p314/apns-stand-in.mjs';
+import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The checkout whose APP is launched. The helper and the stand-in are always this tree's. */
@@ -257,6 +269,8 @@ const PROFILE = join(HARNESS, 'profile');
 const PUSH_DIR = join(HARNESS, 'push');
 const KEY_FILE = join(PUSH_DIR, 'scratch-key.p8');
 const COMMANDS = join(PUSH_DIR, 'commands.json');
+/** OUTSIDE the profile, so the helper's profile sweep never takes the stand-in's children for the app's. */
+const STANDIN_DIR = join(RUN, 'standin');
 const PROJECT = join(RUN, 'project');
 const BIN = join(HOME, '.local', 'bin');
 const SOCKET = `gmux-p314-${String(process.pid)}`;
@@ -417,6 +431,10 @@ const agents = {
 };
 
 let standIn = null;
+/** The stand-in Tailscale (Phase 330), its preflight and the real-Tailscale sampler. */
+let tailscale = null;
+let preflightOk = false;
+let tailscaleWatch = null;
 const probeClock = [];
 let ran = false;
 let appText = '';
@@ -503,6 +521,13 @@ try {
   writeFileSync(join(PROJECT, 'note.txt'), 'hello\n');
   git(['add', '-A']);
   git(['-c', 'user.email=p@x', '-c', 'user.name=p', 'commit', '-qm', 'seed']);
+
+  // ---- the stand-in Tailscale, preflighted before anything launches --------
+  tailscale = makeStandin({ dir: STANDIN_DIR, scenario: { ...DEFAULT_SCENARIO } });
+  const preflight = preflightStandin(tailscale, tailscale.binPath);
+  preflightOk = preflight.ok;
+  if (!preflight.ok) throw new Error(`the Tailscale preflight refused the launch: ${preflight.problems.join('; ')}`);
+  tailscaleWatch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
 
   // ---- the scratch key, generated here and deleted in the finally ---------
   const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -1257,15 +1282,22 @@ try {
         GMUX_CONFIG_ROOT: join(PROFILE, 'gmux', 'config'),
         GMUX_HARNESS_DIR: HARNESS,
         GMUX_HARNESS_PUSH: PUSH_DIR,
-        // Phase 316.1: a pairing window opens only on a LISTENING door (QR
-        // v:2 pins its key), so the seam opens the door for the pairing alone
-        // and shuts it again. It opens it only on loopback, and only with this.
-        GMUX_POCKET_LOOPBACK: '1'
+        // Phase 330: a pairing window opens only on a PUBLISHED door, so the
+        // seam publishes it through Tailscale for the pairing alone and shuts
+        // it again. The Tailscale it runs is the stand-in, and nothing else:
+        // the seam refuses a program that is not a development override.
+        GMUX_TAILSCALE_BIN: tailscale.binPath
       }),
       graceMs: 8_000,
       ceilingMs: 2_400_000
     },
     async (handle) => {
+      shimPid = handle.pid;
+      try {
+        appPid = handle.appPid();
+      } catch {
+        appPid = 0;
+      }
       try {
         await body(handle);
       } finally {
@@ -1332,6 +1364,27 @@ try {
   arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
 } finally {
   if (standIn !== null) await standIn.close().catch(() => undefined);
+  // THE STAND-IN TAILSCALE: every pid it ran as, ended by pid whatever happened.
+  const tailscaleEnded = tailscale === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
+  const tailscaleFindings = tailscaleWatch?.stop() ?? [];
+  const tailscaleLog = tailscale?.readLog() ?? [];
+  report.readings.tailscale = {
+    preflight: preflightOk,
+    samples: tailscaleWatch?.samples() ?? 0,
+    realTailscale: tailscaleFindings,
+    calls: tailscaleLog.map((e) => ({ kind: e.kind, argv: e.argv, verdict: e.verdict, event: e.event, how: e.how })),
+    ended: tailscaleEnded.ended.length,
+    left: tailscaleEnded.left.length
+  };
+  if (tailscale !== null) {
+    const forbidden = tailscaleLog.filter((e) => e.forbidden === true).length;
+    const refusedArgv = tailscaleLog.filter((e) => e.verdict === 'refused').length;
+    arm(
+      'P11 no real Tailscale, nothing forbidden, no stand-in left',
+      preflightOk && tailscaleFindings.length === 0 && (tailscaleWatch?.samples() ?? 0) > 0 && forbidden === 0 && refusedArgv === 0 && tailscaleEnded.left.length === 0,
+      `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(tailscaleWatch?.samples() ?? 0)} sample(s), ${String(tailscaleFindings.length)} real Tailscale process(es); ${String(forbidden)} forbidden and ${String(refusedArgv)} refused argv at the stand-in; ${String(tailscaleLog.filter((e) => e.kind === 'funnel').length)} Funnel start(s); ${String(tailscaleEnded.ended.length)} stand-in pid(s) ended here, ${String(tailscaleEnded.left.length)} left`
+    );
+  }
   // THE KEY GOES WHATEVER HAPPENED, kept world or not.
   try {
     rmSync(KEY_FILE, { force: true });

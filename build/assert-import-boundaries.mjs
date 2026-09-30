@@ -76,6 +76,20 @@
  * ios/ could never match. This rule resolves against the repository root
  * instead, and its fixtures prove it catches the shape.
  *
+ * One directory may name ONLY what it is allowed to (Phase 330). The four
+ * rules above forbid; this one ALLOWS, and everything it does not list is
+ * refused. src/main/pocket/door/ and src/main/pocket/door-process.ts are the
+ * door process, the one thing in Tortie a stranger on the internet reaches
+ * (Tailscale Funnel publishes it), and research 132 section 7.1 is why it is a
+ * separate process at all: a flaw in the TLS stack, the HTTP parser or
+ * JSON.parse must be code execution in a process that holds no credential. A
+ * forbid-list names what somebody thought of; an allow-list refuses what
+ * nobody has written yet. So the door may import node:net, node:tls,
+ * node:http and node:crypto, src/shared/, and its own directory, and nothing
+ * else: no electron, no logger, no other main module, no other builtin, and no
+ * bare spelling of a builtin. conformance:pocket W2 reads the same rule, and
+ * U5 reads the BUILT bundle for it.
+ *
  * Other package imports are out of scope, with ONE exception (Phase 35,
  * research 42 §8 and §12): only src/main/log/ may import electron-log. The
  * logging framework choice is safe precisely because one module owns it, so
@@ -321,6 +335,36 @@ const OUTSIDE_SRC_WALLS = [
   }
 ];
 
+/**
+ * Phase 330. The files and directories that may import ONLY what is listed,
+ * and why. `files` are exact src-relative paths, `dirs` are prefixes;
+ * `builtins` are exact specifiers (the `node:` spelling alone), and `paths`
+ * are src-relative prefixes a relative or alias specifier must resolve under.
+ */
+const ALLOW_ONLY_WALLS = [
+  {
+    name: 'the door process',
+    files: ['main/pocket/door-process.ts'],
+    dirs: ['main/pocket/door/'],
+    builtins: ['node:net', 'node:tls', 'node:http', 'node:crypto'],
+    paths: ['shared/', 'main/pocket/door/'],
+    why:
+      'the door process is what Tailscale Funnel publishes to the internet, and ' +
+      'it is a separate process so that a flaw in what parses a stranger’s bytes ' +
+      'is code execution somewhere that holds no credential (research 132 §7.1, ' +
+      '§9 condition 2). It may import node:net, node:tls, node:http and ' +
+      'node:crypto, src/shared/ and src/main/pocket/door/, and nothing else. ' +
+      'What it needs from main arrives as a message (src/main/pocket/door/wire.ts).'
+  }
+];
+
+/** The allow-only wall a src-relative file sits behind, or undefined. */
+function allowOnlyWallFor(relFromSrc) {
+  return ALLOW_ONLY_WALLS.find(
+    (wall) => wall.files.includes(relFromSrc) || wall.dirs.some((d) => relFromSrc.startsWith(d))
+  );
+}
+
 /** The repository-relative path a relative specifier names, or null. */
 function repoPath(fromFile, spec) {
   if (!spec.startsWith('.')) return null;
@@ -387,6 +431,23 @@ function violationsFor(absFile, text) {
       seen.add(key);
       checked += 1;
       const line = () => text.slice(0, match.index).split('\n').length;
+
+      // PHASE 330: an allow-only wall refuses everything it does not list,
+      // before any forbid-list is asked.
+      const allowOnly = allowOnlyWallFor(relFromSrc);
+      if (allowOnly !== undefined) {
+        const named = targetPath(absFile, spec);
+        const allowed =
+          allowOnly.builtins.includes(spec) ||
+          (named !== null && allowOnly.paths.some((prefix) => named.startsWith(prefix)));
+        if (!allowed) {
+          out.push(
+            `${relFromRoot}:${line()} imports '${spec}', and ${allowOnly.name} may import only ` +
+              `${allowOnly.builtins.join(', ')}, src/${allowOnly.paths.join(' and src/')}: ${allowOnly.why}`
+          );
+          continue;
+        }
+      }
 
       const pkg = packageOf(spec);
       const owned = pkg === null ? undefined : SOLE_OWNER_PACKAGES[pkg];
@@ -670,7 +731,31 @@ const FIXTURES = [
   ['shared/p316-fixture.ts', "export { COPY } from '../../ios/Tortie/Style/copy';", '../../ios/Tortie/Style/copy'],
   ['renderer/p316-fixture.tsx', "const plist = await import('../../ios/Tortie/Info.plist');", '../../ios/Tortie/Info.plist'],
   ['shared/p316-fixture.ts', "import notes from '../../ios-notes/readme';", null],
-  ['main/__tests__/p316-fixture.ts', "import vectors from '../../../ios/TortieTests/Fixtures/vectors.json';", null]
+  ['main/__tests__/p316-fixture.ts', "import vectors from '../../../ios/TortieTests/Fixtures/vectors.json';", null],
+  // Phase 330, the door process's allow-only wall. Ten refusals, one per shape
+  // a later round could reach for (Electron, the logger, another main module,
+  // a credential, a builtin it does not need, a builtin's bare spelling, a
+  // dynamic import, a re-export, the entry itself naming main), and seven
+  // acceptances that pin what the wall must NOT catch: its four builtins, the
+  // contract, its own directory, a sibling outside the wall, a directory whose
+  // name only starts with door, and the test exemption every rule keeps.
+  ['main/pocket/door/p330-fixture.ts', "import { app } from 'electron';", 'electron'],
+  ['main/pocket/door/p330-fixture.ts', "import { getLog } from '../../log';", '../../log'],
+  ['main/pocket/door/p330-fixture.ts', "import { createPocketRoutes } from '../routes';", '../routes'],
+  ['main/pocket/door/p330-fixture.ts', "import { openSealedText } from '../../config/seal';", '../../config/seal'],
+  ['main/pocket/door/p330-fixture.ts', "import { readFileSync } from 'node:fs';", 'node:fs'],
+  ['main/pocket/door/p330-fixture.ts', "import { spawn } from 'node:child_process';", 'node:child_process'],
+  ['main/pocket/door/p330-fixture.ts', "import { createServer } from 'net';", 'net'],
+  ['main/pocket/door/nested/p330-fixture.ts', "const v = await import('../../../credentials/vault');", '../../../credentials/vault'],
+  ['main/pocket/door/p330-fixture.ts', "export { holdDoorIdentity } from '../tls';", '../tls'],
+  ['main/pocket/door-process.ts', "import { startPocketDoor } from './bind';", './bind'],
+  ['main/pocket/door/p330-fixture.ts', "import { createServer } from 'node:tls';", null],
+  ['main/pocket/door/p330-fixture.ts', "import { createHash } from 'node:crypto';", null],
+  ['main/pocket/door/p330-fixture.ts', "import type { PocketRouteId } from '@shared/ipc/pocket';", null],
+  ['main/pocket/door-process.ts', "import { createDoorListener } from './door/listener';", null],
+  ['main/pocket/p330-fixture.ts', "import { readFileSync } from 'node:fs';", null],
+  ['main/pocket/doorway/p330-fixture.ts', "import { app } from 'electron';", null],
+  ['main/pocket/door/__tests__/p330-fixture.ts', "import { app } from 'electron';", null]
 ];
 
 function runFixtures() {
@@ -725,5 +810,6 @@ console.log(
     `(${Object.keys(SOLE_OWNER_PACKAGES).length} sole-owner package rule, ` +
     `${Object.keys(NO_PLATFORM_ACCESS).length} layers with no platform ` +
     `access, ${FACADE_ONLY.length} facade directory, ` +
-    `${DIRECTORY_WALLS.length} directory wall, ${OUTSIDE_SRC_WALLS.length} wall around a tree outside src/)`
+    `${DIRECTORY_WALLS.length} directory wall, ${OUTSIDE_SRC_WALLS.length} wall around a tree outside src/, ` +
+    `${ALLOW_ONLY_WALLS.length} allow-only wall)`
 );

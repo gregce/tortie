@@ -9,7 +9,8 @@
 //   canonicalText   <- canonicalRequestText   (seven lines, the method raised)
 //   binding         <- pairingBinding         (HKDF-SHA256 over the X25519 secret)
 //   phoneId         <- phoneIdOf              (the x-tortie-phone header)
-//   pairFingerprint <- pairFingerprint        (the six groups both screens show)
+//   pairFingerprint <- pairFingerprint        (the six groups both screens show,
+//                                               over all three of the phone's keys)
 //
 // build/p313/SPEC.md section 3 describes an HMAC and an X-Tortie-Key-Id. That is
 // not what was built, and nothing here follows it (build/p316/SPEC.md section 2
@@ -172,8 +173,9 @@ enum DoorSignature {
     static let bindingInfo = "tortie-pocket-bind-v1"
     /// The prefix `phoneIdOf` hashes before the signing key.
     static let phoneIdPrefix = "tortie-pocket-id-v1\n"
-    /// The prefix `pairFingerprint` hashes before both keys.
-    static let fingerprintPrefix = "tortie-pocket-fp-v1\n"
+    /// The prefix `pairFingerprint` hashes before the three keys (v2 since
+    /// Phase 330, when the client key joined the two).
+    static let fingerprintPrefix = "tortie-pocket-fp-v2\n"
 
     /// `POCKET_HEADERS`. None of them is a secret.
     enum Header {
@@ -206,10 +208,14 @@ enum DoorSignature {
         String(Hex.sha256(Data((phoneIdPrefix + signingKey).utf8)).prefix(32))
     }
 
-    /// `pairFingerprint`: six groups of four hex characters over BOTH of the
-    /// phone's public keys, which is what the person matches on both screens.
-    static func pairFingerprint(signingKey: String, exchangeKey: String) -> String {
-        let digest = Hex.sha256(Data("\(fingerprintPrefix)\(signingKey)\n\(exchangeKey)".utf8))
+    /// `pairFingerprint`: six groups of four hex characters over ALL THREE of
+    /// the phone's public keys, which is what the person matches on both
+    /// screens: the signing key, the exchange key and the client key the Mac
+    /// will issue its certificate over (build/p330/SPEC.md section 4.4). So the
+    /// six groups cover every key the Mac will trust, and a client key swapped
+    /// on the way is a card that does not match.
+    static func pairFingerprint(signingKey: String, exchangeKey: String, clientKey: String) -> String {
+        let digest = Hex.sha256(Data("\(fingerprintPrefix)\(signingKey)\n\(exchangeKey)\n\(clientKey)".utf8))
         let head = Array(digest.prefix(24))
         return stride(from: 0, to: head.count, by: 4)
             .map { String(head[$0..<($0 + 4)]) }

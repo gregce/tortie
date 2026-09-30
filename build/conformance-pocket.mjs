@@ -10,10 +10,25 @@
  * file is the executable half of those promises, in about a second.
  *
  * WHAT IT STARTS. Nothing. No Electron, no tmux, no ssh, no agent, no token,
- * and NOT ONE SOCKET: it binds nothing, it opens nothing, it reads nothing
- * under the person's home and it writes no file. The attack beside it,
- * `build/p313/hostile-client.mjs`, is the half that drives a live door, and it
- * binds loopback on a port it found for itself and closes it in a `finally`.
+ * no Tailscale, and NOT ONE SOCKET: it binds nothing, it opens nothing, it
+ * reads nothing under the person's home and it writes no file. The attack
+ * beside it, `build/p313/hostile-client.mjs`, is the half that drives a live
+ * door, and it binds loopback on a port it found for itself and closes it in a
+ * `finally`. U5 reads `out/` when a build left one there, and says
+ * `skipped: no build` when none did.
+ *
+ * PHASE 330 MOVED THE DOOR (build/p330/SPEC.md §6.1). The listener left
+ * Electron main for its own `utilityProcess` (`src/main/pocket/door-process.ts`
+ * over `src/main/pocket/door/`), it binds `127.0.0.1` on an ephemeral port, and
+ * Tailscale Funnel publishes it to the internet through a child Tortie runs.
+ * So the bind rules (L1 to L5), the spawn rule (R3), the queue (Q1), refusal 7
+ * (A4), the QR (F2), the credential that left (K2) and the bridge (B1) were
+ * rewritten, S2 and S4 left with `isSelfOrigin` (every Funnel connection
+ * arrives from 127.0.0.1, so a self-origin refusal refuses every phone), and
+ * twelve rules joined: the Funnel child's argv, program and death (U1 to U4),
+ * the built door's imports (U5), mutual TLS (M1), the hash (M2), the PROXY
+ * source (P1), the length on every answer (C1), `/pair`'s three answers (N3),
+ * the menu row (MENU1) and the door's own import wall (W2).
  *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
@@ -49,49 +64,56 @@ const t0 = Date.now();
  * backlog entry that the rule is the executable half of.
  */
 const RULES = [
-  ['L1', 'entry, mechanism 1', 'exactly ONE listen call in the whole domain, and it is the door’s own'],
-  ['L2', 'entry, mechanism 1', 'the string 0.0.0.0 is nowhere in the domain, and no listen call omits its host'],
-  ['L3', 'entry, mechanism 1', 'the host comes from the allowlist function alone: the tailnet range is named in one module and the bind reads no other source'],
-  ['L4', 'entry, mechanism 1', 'a taken port refuses: no listen(0) and no second listen after an error, which is the opposite of hooks.ts:230-243'],
-  ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm'],
+  // PHASE 330 rewrote the bind: the one listen is the door process's own, on
+  // loopback, on an ephemeral port, and the phone is told the PUBLIC port.
+  ['L1', 'build/p330/SPEC.md §6.1', 'exactly ONE listen call in the whole domain, and it is the door process’s own net.Server in door/listener.ts'],
+  ['L2', 'build/p330/SPEC.md §6.1', 'the string 0.0.0.0 is nowhere in the domain, and the one listen’s host is the literal 127.0.0.1, in door/listener.ts alone'],
+  ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
+  ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
+  ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
   ['R2', 'SPEC §2, entry mechanism 4', 'every route is a read, and the ONE route that is not a GET is the pairing route, window-only and unsigned'],
   ['R4', 'the fix round, 2026-09-22', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4', 'the domain names no write verb, no status setter, no spawn and no credential read'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1', 'the domain names no write verb, no status setter and no credential read, and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
   ['S1', 'entry, mechanism 5', 'Referrer-Policy: no-referrer is emitted from exactly ONE place'],
-  ['S2', 'entry, mechanism 4', 'a request whose source address is the bind address is refused BEFORE any header is read'],
-  ['S4', 'the fix round, 2026-09-22', 'isSelfOrigin refuses the RIGHT WAY ROUND: it answers true on equality and true on an unknown source, so the comparison cannot be inverted with every gate green'],
   ['W1', 'the fix round, 2026-09-22', 'every file and directory this domain creates names an owner-only mode, so one write in it cannot drift looser than its sibling'],
-  ['B1', 'the judge, 2026-09-22', 'the bridge and the registrar move together: window.gmux carries a pocket member exactly when main registers the pocket channels'],
-  ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the listener: admission closes on the first line of the stop, before any await, and the listener is closed there'],
+  ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11', 'the bridge and the registrar move together, and they carry the same ELEVEN pocket channels the contract declares'],
+  ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the door: admission closes on the first line of every stop, before any await, in main AND in the door process, and the stop ends the process and closes the listener'],
   ['G1', 'entry, proof; hooks.ts:368-385', 'no token, no body, no header value and no line of conversation is reachable from any log call'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
   ['H1', 'his ruling, 2026-09-22 (“lets skip the web app”)', 'this domain composes NO HTML document and names no text/html content type: the page was built, could not be reached under mechanism 5’s own refusals, and was removed on his ruling, so a later round that wants one asks him rather than rebuilding it under a green gate'],
   ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3', 'NO PUSH ROUTE EXISTS: no route id, path or contract id names push, apns, notify, device, token or alert, and the table’s membership is still Phase 313’s, byte for byte'],
   ['N2', 'Phase 314, build/p314/SPEC.md §6.2', 'THE DEVICE TOKEN HAS ONE DOOR IN AND NONE OUT: the presentation parser takes apt as bounded hex and ape as one of two words or refuses, no renderer-facing type carries a field named like a token, and PocketPushDestination lives in main alone'],
-  // PHASE 316.1, the door switched on. Six rules, build/p316/SPEC.md §4 S1
-  // "Gates". THE SPEC NAMED TWO OF THEM `T1` AND `L1`, and both ids were already
-  // this gate's (T1 is the loopback rule, L1 the one listen call), so they are
-  // `T2` and `L5` here — the way the SPEC itself named `H2` because `H1` was
-  // taken. The letters still say what the rule is about.
-  ['K1', 'build/p316/SPEC.md §4 S1 mechanism 6', 'HIS TAILNET KEY reaches no file, no log and no answer but the one offer whose QR carries it: checked for its prefix and its length before anything moves, held as BYTES in the window, zeroed on cancel, on expiry, on allow and on every refusal, named on no renderer-facing type and on no stored shape, and kept out of the renderer’s storage'],
+  ['K2', 'build/p330/SPEC.md §6.1 (K1 became K2)', 'NO TAILNET KEY ANYWHERE UNDER src/: no tailnetKey, no tk and no tskey- in any production file, because the code carries no credential at all now'],
   ['O1', 'build/p316/SPEC.md §4 S1 mechanism 4; his ruling of 2026-09-22', '`others` is exactly the listed sessions that are not blocked: composed from the same session list and the same blocked set as `rows`, capped at POCKET_OTHERS_MAX imported from the contract and never re-spelled, with the omitted count said'],
-  ['F1', 'build/p316/SPEC.md §4 S1 mechanism 6, §2 row 24', 'the QR is v:2 and pins the door’s PUBLIC KEY, from the LISTENING door, never the 397-day certificate, and no window opens while there is nothing to pin'],
+  ['F2', 'build/p330/SPEC.md §4.8.1 (F1 became F2)', 'the QR is v:3 and holds EXACTLY the eight keys v, host, port, fp, dk, dx, ps and exp, in that order, with no tk and no address; fp pins the LISTENING door’s public key and no window opens while there is nothing to pin'],
   ['T2', 'build/p316/SPEC.md §4 S1 mechanisms 2 and 3', 'every turn the door reads is preceded by the refresh through the one read path (`sessionActivity`), and every turn it answers passes through `toTurnView` once and is built nowhere else'],
-  ['L5', 'build/p316/SPEC.md §4 S1 mechanism 5; CLAUDE.md refusal 8', 'the launch step binds only on CONFIRMED fields: `enabled` AND `bindAtLaunch` AND a confirmed hash, one call site binds in the whole of src/main, and it asks the gate before the socket; and (the 316.1 fix round) a switch-off is recorded as the last press before its first await, and the one bind asks whether a later press arrived, with nothing awaited before the socket'],
-  ['A4', 'build/p316/SPEC.md §4 S1 Method B; the 316.1 fix round', 'an answer is admitted AGAIN before it is sent: after the answer is composed the handler asks whether the phone it VERIFIED is still paired and whether the door INSTANCE that accepted the request has begun to stop, with nothing awaited before the send; the listener hands the handler that instance; the host answers the phone question from its store, and a Remove writes the store before its first await'],
+  ['L5', 'build/p330/SPEC.md §6.1; CLAUDE.md refusal 8', 'the one fork of the door process and the one spawn of the Funnel child are reached only from openNow or recoverNow, behind the gate, each with the last-press check as the statement IMMEDIATELY before it; the launch step asks for enabled AND bindAtLaunch; a switch-off counts itself before its first await'],
+  ['A4', 'build/p316/SPEC.md §4 S1 Method B; build/p330/SPEC.md §4.5.3', 'refusal 7 BY GENERATION: main keeps each door process’s admission by generation, refuses a request for a generation that is not the door’s or has begun to stop before a handler sees it, and asks again after the answer is composed with nothing awaited before the post; the handler asks the verified phone and the door instance again before it answers'],
   ['H2', 'build/p316/SPEC.md §4 S1 mechanism 1, §2 rows 17 and 20', 'no `ssh` hand-off: the kind is gone from the contract, no module in the door composes an ssh link or a tmux attach, and the hand-off answers null for every session in 316'],
-  // PHASE 316.1, the reverify's X1b/X1c/X1d/X2b and his ruling of 2026-09-23
-  // ("Yes, fix and land."): the door's switch handles one press at a time.
-  ['Q1', 'his ruling, 2026-09-23 (“Yes, fix and land.”); the 316.1 reverify', 'THE SWITCH HANDLES ONE PRESS AT A TIME: every start and stop of the door runs through ONE serial queue on PocketHost that chains each job on one tail and never lets a failed job stop the next; the one start and the one stop are each reached only from inside a queued job; both halves of setDoor count themselves as the last press before their first await and reach the door only through the queue; and a start whose press is no longer the last one stops waiting on the sessions, binds nothing, and closes a door that bound under it before its job ends']
+  ['Q1', 'his ruling, 2026-09-23 (“Yes, fix and land.”); build/p330/SPEC.md §4.3', 'THE SWITCH HANDLES ONE PRESS AT A TIME: every start and stop of the door AND of the Funnel child runs inside ONE serial queue on PocketHost that chains each job on one tail and never lets a failed job stop the next; both halves of setDoor count themselves before their first await; a superseded start stops waiting on the sessions'],
+  // PHASE 330, the door on the internet (build/p330/SPEC.md §6.1).
+  ['U1', 'build/p330/SPEC.md §4.2.4; research 132 §9 condition 5', 'THE FUNNEL ARGV, EXACTLY: funnel --tcp=<publicPort> --proxy-protocol=2 tcp://<target>, status only with --json and --peers=false, serve only as serve status --json, and no --bg, reset, off, clear, --https, --http, --tls-terminated-tcp, --set-path, --yes or --service anywhere in src/'],
+  ['U2', 'build/p330/SPEC.md §4.2.1', 'THE PROGRAM comes from resolveTailscale alone, no Tailscale path is a literal in the domain, and an override that is set but did not resolve REFUSES override-unusable rather than falling back to his real Tailscale'],
+  ['U3', 'build/p330/SPEC.md §4.2.6; research 132 §7.4', 'THE CHILD’S DEATH: its SIGKILL is inside a finally of the stop, the record is written 0o600 in a 0o700 directory of its own that is narrowed to 0o700 even when it already exists, and the orphan sweep signals only when the start time AND the command line both equal the record, and only after the record is shown to name the argv Tortie spawns (funnelArgv over FUNNEL_PORTS); a record naming anything else is removed and its process left alone'],
+  ['U4', 'build/p330/SPEC.md §5.2 item 3', 'the tailscale and door deps, and the in-process door, are handed to PocketHost only by tests and push-seam.ts: production forks the real process and runs the real program'],
+  ['U5', 'build/p330/SPEC.md §6.1', 'THE BUILT DOOR: out/main/pocket-door.js and every chunk it requires name no electron module and no builtin but net, tls, http and crypto, and reach no credentials, logins, push or sessions code (read only when out/ exists)'],
+  ['M1', 'research 132 §9 condition 1; build/p330/SPEC.md §4.6', 'MUTUAL TLS: TLS 1.3, requestCert, and the HTTP parser handed a socket only inside the secureConnection handler, AFTER the server name and the key pin, with no data listener on a TLS socket before it; no certificate means POST /pair alone, inside a window'],
+  ['M2', 'research 132 §9 condition 4; build/p330/SPEC.md §4.4', 'THE HASH covers the Funnel program, the tailnet, the public name and the public port and every phone’s clientKey, holds no bindAddress, port or address, and is sha256-pocket-exec-v3'],
+  ['P1', 'research 132 §9 condition 3; build/p330/SPEC.md §4.6 step 2', 'THE PROXY SOURCE IS A RATE-LIMIT KEY ONLY: its bytes are read in door/limits.ts alone, it is on no DoorRequest and in no log call, and no socket address is read anywhere in the domain'],
+  ['C1', 'build/p330/SPEC.md §4.6 step 6', 'EVERY ANSWER CARRIES AN EXPLICIT Content-Length, 0 included, from the one writer, and nothing in the domain names Transfer-Encoding or streams a body'],
+  ['N3', 'build/p330/SPEC.md §4.8.3', '/pair answers exactly three states, and the certificate ONLY with allowed; main composes the answer field by field and never serialises what the pairing owner handed it'],
+  ['MENU1', 'the entry, "Unchanged on purpose"', 'Pair a Phone… is still the row directly under Settings…, and it opens Settings at the Phone section'],
+  ['W2', 'research 132 §9 condition 2; build/p330/SPEC.md §6.1', 'THE DOOR PROCESS’S IMPORT WALL, re-derived here: door-process.ts and door/** import node:net, node:tls, node:http, node:crypto, src/shared/ and door/ itself, and NOTHING else'],
+  ['E1', 'the Phase 330 fix round (lens 2, measured with ps -E); build/p330/SPEC.md §10 concern 3', 'THE DOOR PROCESS’S ENVIRONMENT IS ITS OWN: the one utilityProcess.fork names an env object literal of at least one plain string variable, never {} (Electron reads it as unset and hands the door main’s whole environment), never a spread and never process.env; and door-process.ts and door/** read no process.env']
 ];
 
 if (process.argv.includes('--list')) {
   for (const [id, owner, title] of RULES) {
-    process.stdout.write(`${id.padEnd(4)} ${owner.padEnd(34)} ${title}\n`);
+    process.stdout.write(`${id.padEnd(5)} ${owner.padEnd(34)} ${title}\n`);
   }
   process.exit(0);
 }
@@ -130,7 +152,7 @@ const parsed = new Map();
 function astOf(path) {
   let sf = parsed.get(path);
   if (sf === undefined) {
-    sf = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    sf = ts.createSourceFile(path, readFileSync(path, 'utf8'), ts.ScriptTarget.Latest, true, path.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
     parsed.set(path, sf);
   }
   return sf;
@@ -224,24 +246,31 @@ function moduleNamed(basename, ruleId, whoOwnsIt) {
 }
 
 // ---------------------------------------------------------------------------
-// L — the bind
+// L — the bind (Phase 330: the one listen is the door process's own)
 // ---------------------------------------------------------------------------
+
+/** Every `listen(` call in the domain, wherever it is. */
+function listenCalls() {
+  const out = [];
+  for (const file of domainFiles) {
+    for (const call of callsOf(file)) {
+      if (calleeName(call) === 'listen') out.push({ file, call });
+    }
+  }
+  return out;
+}
 
 function bindRules() {
   if (domainFiles.length === 0) {
-    for (const id of ['L1', 'L2', 'L3', 'L4']) {
+    for (const id of ['L1', 'L2', 'L4']) {
       fail(id, 'src/main/pocket/ holds no source file at all');
     }
     return;
   }
+  const listener = moduleNamed('listener', 'L1', "Phase 330 builder door's (src/main/pocket/door/listener.ts)");
 
-  // L1. Every `listen(` in the domain, wherever it is.
-  const listens = [];
-  for (const file of domainFiles) {
-    for (const call of callsOf(file)) {
-      if (calleeName(call) === 'listen') listens.push({ file, call });
-    }
-  }
+  // L1. One listen, and it is the door process's.
+  const listens = listenCalls();
   checked('L1', listens.length + 1);
   if (listens.length === 0) {
     fail('L1', 'the domain holds NO listen call, so there is no door and nothing to hold to one');
@@ -251,82 +280,164 @@ function bindRules() {
       `the domain holds ${String(listens.length)} listen calls: ${listens.map((l) => where(l.file, l.call)).join(', ')}. ` +
         'One door means one listener, and a second one is a second address, a second port and a second set of refusals.'
     );
+  } else if (listener !== null && listens[0].file !== listener) {
+    fail(
+      'L1',
+      `the one listen is at ${where(listens[0].file, listens[0].call)}, not in ${rel(listener)}. ` +
+        'The door process is the only thing that may listen: a listener in main would parse a stranger’s bytes in the process that writes his credentials (research 132 §7.1).'
+    );
   }
 
-  // L2. The wildcard, by name, and a listen with no host.
+  // L2. The wildcard, by name, and the one host, by literal.
   for (const file of domainFiles) {
     for (const { node, text } of codeStringsOf(file)) {
       checked('L2');
       if (text === '0.0.0.0' || text === '::' || text.includes('0.0.0.0')) {
         fail(
           'L2',
-          `${where(file, node)} names ${JSON.stringify(text)} as a VALUE. The door binds the Mac's own tailnet address and never a wildcard.`
+          `${where(file, node)} names ${JSON.stringify(text)} as a VALUE. The door binds 127.0.0.1 and never a wildcard.`
         );
       }
     }
   }
   for (const { file, call } of listens) {
-    checked('L2');
-    // `listen(port, host, cb)` — the second argument is the host and it must be
-    // there. `listen(port, cb)` binds every interface, which is the wildcard
-    // spelled by omission rather than by name.
-    const second = call.arguments[1];
-    if (second === undefined || ts.isFunctionLike(second)) {
+    checked('L2', 2);
+    const host = call.arguments[1];
+    if (host === undefined || ts.isFunctionLike(host)) {
       fail(
         'L2',
         `${where(file, call)} calls listen with no host argument, which binds EVERY interface. That is 0.0.0.0 spelled by omission.`
       );
-    }
-  }
-
-  // L3. The tailnet range is named in exactly one module, and the host the
-  // listener gets is a local binding rather than a literal.
-  const rangeFiles = domainFiles.filter((f) =>
-    codeStringsOf(f).some(({ text }) => text.includes('100.64'))
-  );
-  checked('L3', rangeFiles.length + 1);
-  if (rangeFiles.length === 0) {
-    fail('L3', 'no module in the domain names the tailnet range 100.64.0.0/10, so nothing allowlists the address');
-  } else if (rangeFiles.length > 1) {
-    fail(
-      'L3',
-      `${String(rangeFiles.length)} modules name the tailnet range (${rangeFiles.map(rel).join(', ')}). ` +
-        'Two spellings of an address rule drift, and the one that drifts is the one nobody reads.'
-    );
-  }
-  for (const { file, call } of listens) {
-    const host = call.arguments[1];
-    checked('L3');
-    if (host !== undefined && ts.isStringLiteral(host)) {
+    } else if (!ts.isStringLiteral(host) || host.text !== '127.0.0.1') {
       fail(
-        'L3',
-        `${where(file, call)} binds the literal ${JSON.stringify(host.text)}. The host is read from the interface table, never written down.`
+        'L2',
+        `${where(file, call)} binds ${JSON.stringify(host.getText(astOf(file)))}. The door binds the LITERAL 127.0.0.1: the macOS Tailscale variants forward only to loopback (research 132 §3.8), and a host that is computed is a host nobody can read here.`
       );
     }
   }
 
-  // L4. A taken port refuses. `listen(0)` anywhere, or a second listen inside
-  // an error handler, is the hook server's fallback and this door's refusal.
+  // L4. The local port is ephemeral, and the public port refuses rather than moves.
   for (const { file, call } of listens) {
     checked('L4');
     const port = call.arguments[0];
-    if (port !== undefined && ts.isNumericLiteral(port) && port.text === '0') {
+    if (port === undefined || !ts.isNumericLiteral(port) || port.text !== '0') {
       fail(
         'L4',
-        `${where(file, call)} calls listen(0), which takes whatever port is free. A phone was told a number, so a taken port refuses.`
+        `${where(file, call)} listens on ${JSON.stringify(port === undefined ? '(nothing)' : port.getText(astOf(file)))}, not 0. ` +
+          'The local port is ephemeral: the phone is told the PUBLIC port Funnel serves, and only the Funnel child is told this one, so a chosen local port is a setting nothing needs and something could squat.'
       );
     }
   }
-  const bind = moduleNamed('bind', 'L4', "Builder A's");
-  if (bind !== null) {
-    const text = codeTextOf(bind);
-    checked('L4');
-    if (!/'port-taken'|"port-taken"/.test(text)) {
-      fail(
-        'L4',
-        `${rel(bind)} names no port-taken refusal, so a taken port has no answer of its own and the door cannot say what went wrong.`
-      );
+  const funnel = moduleNamed('funnel', 'L4', "Phase 330 builder owner's");
+  if (funnel !== null) {
+    checked('L4', 2);
+    if (!codeStringsOf(funnel).some(({ text }) => text === 'port-taken')) {
+      fail('L4', `${rel(funnel)} names no port-taken refusal, so a confirmed public port that is taken has no answer of its own and could move under a phone that was told it.`);
     }
+    for (const node of nodesOf(funnel)) {
+      if (ts.isNumericLiteral(node) && Number(node.text.replace(/_/g, '')) === 443) {
+        fail('L4', `${where(funnel, node)}: the literal 443. Port 443 is his (research 132 §9 condition 6): the door takes 8443, then 10000.`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// L3 — the Funnel target is loopback and the listener's own port
+// ---------------------------------------------------------------------------
+
+/** The name of the identifier or property a node reads, or null. */
+function readsName(node) {
+  if (node === undefined) return null;
+  let n = node;
+  while (ts.isParenthesizedExpression(n) || ts.isAsExpression(n)) n = n.expression;
+  if (ts.isIdentifier(n)) return n.text;
+  if (ts.isPropertyAccessExpression(n)) return n.name.text;
+  if (ts.isCallExpression(n) && calleeName(n) === 'String' && n.arguments.length === 1) return readsName(n.arguments[0]);
+  return null;
+}
+
+function funnelTargetRule() {
+  const funnel = moduleNamed('funnel', 'L3', "Phase 330 builder owner's");
+  if (funnel === null) return;
+  // Every spelling of a `tcp://` target, in the whole domain.
+  const sites = [];
+  for (const file of domainFiles) {
+    for (const node of nodesOf(file)) {
+      const text = ts.isTemplateExpression(node)
+        ? node.head.text
+        : ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)
+          ? node.text
+          : null;
+      if (text !== null && text.startsWith('tcp://')) sites.push({ file, node });
+    }
+  }
+  checked('L3', sites.length + 1);
+  if (sites.length !== 1 || sites[0].file !== funnel) {
+    fail('L3', `the Funnel target is spelled at ${sites.map((x) => where(x.file, x.node)).join(', ') || 'no site at all'}. It is spelled ONCE, in ${rel(funnel)}, so what the child forwards to has one answer.`);
+    return;
+  }
+  const site = sites[0].node;
+  checked('L3');
+  if (!ts.isTemplateExpression(site) || site.templateSpans.length !== 1 || site.templateSpans[0].literal.text !== '') {
+    fail('L3', `${where(funnel, site)}: the target is not one \`tcp://\${…}\` template with nothing after its one part, so what it names cannot be read here`);
+    return;
+  }
+  // `tcp://127.0.0.1:${localPort}`, or `tcp://${target(localPort)}` whose
+  // function answers `127.0.0.1:${localPort}`.
+  const span = site.templateSpans[0].expression;
+  let hostText = site.head.text.slice('tcp://'.length);
+  let portRead = readsName(span);
+  if (hostText === '' && ts.isCallExpression(span) && ts.isIdentifier(span.expression)) {
+    const fn = functionsNamed(funnel, span.expression.text)[0];
+    const param = fn?.parameters?.[0]?.name;
+    const argument = readsName(span.arguments[0]);
+    let answered = null;
+    const walk = (n) => {
+      if (answered !== null) return;
+      if (ts.isReturnStatement(n) && n.expression !== undefined && ts.isTemplateExpression(n.expression)) answered = n.expression;
+      ts.forEachChild(n, walk);
+    };
+    if (fn?.body !== undefined) walk(fn.body);
+    if (
+      answered !== null &&
+      answered.templateSpans.length === 1 &&
+      answered.templateSpans[0].literal.text === '' &&
+      param !== undefined &&
+      ts.isIdentifier(param) &&
+      readsName(answered.templateSpans[0].expression) === param.text
+    ) {
+      hostText = answered.head.text;
+      portRead = argument;
+    } else {
+      hostText = '(unreadable)';
+    }
+  }
+  checked('L3', 2);
+  if (hostText !== '127.0.0.1:') {
+    fail('L3', `${where(funnel, site)}: the Funnel target's host is ${JSON.stringify(hostText)}, not the literal 127.0.0.1. The listener binds loopback alone, and a target anywhere else forwards the internet to something that is not the door.`);
+  }
+  if (portRead !== 'localPort') {
+    fail('L3', `${where(funnel, site)}: the Funnel target's port reads ${JSON.stringify(portRead)}, not the listener's reported localPort.`);
+  }
+  // THE PORT IS THE LISTENER'S, NEVER A SETTING. Every `localPort` the host
+  // hands on is read off the door, never off the store.
+  const ipc = moduleNamed('ipc', 'L3', "Phase 330 builder owner's");
+  if (ipc === null) return;
+  let handed = 0;
+  for (const node of nodesOf(ipc)) {
+    if (!(ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node))) continue;
+    if (memberName(node) !== 'localPort') continue;
+    handed += 1;
+    checked('L3');
+    const value = ts.isShorthandPropertyAssignment(node) ? 'localPort' : codeOfNode(ipc, node.initializer);
+    if (/store|Store|settings|Settings|fields|confirmed|record/.test(value)) {
+      fail('L3', `${where(ipc, node)}: localPort is ${JSON.stringify(value)}. The port the child forwards to is the one the listener REPORTED, never a stored or confirmed field.`);
+    }
+  }
+  checked('L3');
+  if (handed === 0) {
+    fail('L3', `${rel(ipc)} hands no localPort anywhere, so nothing here reads where the Funnel child's port comes from`);
   }
 }
 
@@ -334,9 +445,13 @@ function bindRules() {
 // R — the route table
 // ---------------------------------------------------------------------------
 
-/** The `POCKET_ROUTES` initialiser, or null. */
+/**
+ * The `POCKET_ROUTES` initialiser, or null. Since Phase 330 the table lives in
+ * `door/table.ts`, so the door process can refuse a path before main is told
+ * anything; `routes.ts` re-exports it.
+ */
 function routeTable() {
-  const routes = moduleNamed('routes', 'R1', "Builder B's");
+  const routes = moduleNamed('table', 'R1', "Phase 330 builder door's (src/main/pocket/door/table.ts)");
   if (routes === null) return null;
   for (const node of nodesOf(routes)) {
     if (!ts.isVariableDeclaration(node)) continue;
@@ -469,18 +584,27 @@ function routeRules() {
     fail('R2', `the table holds ${String(pairRows.length)} pairing rows; there is one window and one route into it`);
   }
 
-  // No pattern dispatch anywhere in the module: the lookup is an exact match.
-  const text = codeTextOf(file);
-  for (const [needle, why] of [
-    ['startsWith(', 'a prefix match admits every path under it'],
-    ['RegExp(', 'a pattern is not a closed table'],
-    ['.test(', 'a pattern is not a closed table'],
-    ['default:', 'a default arm is the wildcard a closed table exists to refuse']
-  ]) {
-    checked('R1');
-    if (text.includes(needle)) {
-      fail('R1', `${rel(file)} holds ${JSON.stringify(needle)}: ${why}.`);
+  // No pattern dispatch anywhere in the table's module, or in the module that
+  // re-exports it and answers the routes: the lookup is an exact match.
+  const reexport = join(DOMAIN, 'routes.ts');
+  for (const module of [file, ...(existsSync(reexport) ? [reexport] : [])]) {
+    const text = codeTextOf(module);
+    for (const [needle, why] of [
+      ['startsWith(', 'a prefix match admits every path under it'],
+      ['RegExp(', 'a pattern is not a closed table'],
+      ['.test(', 'a pattern is not a closed table'],
+      ['default:', 'a default arm is the wildcard a closed table exists to refuse']
+    ]) {
+      checked('R1');
+      if (text.includes(needle)) {
+        fail('R1', `${rel(module)} holds ${JSON.stringify(needle)}: ${why}.`);
+      }
     }
+  }
+  // And there is ONE table: routes.ts re-exports it and declares none of its own.
+  checked('R1');
+  if (existsSync(reexport) && reexport !== file && /\bPOCKET_ROUTES\s*[:=]/.test(codeTextOf(reexport))) {
+    fail('R1', `${rel(reexport)} declares a POCKET_ROUTES of its own beside ${rel(file)}'s. Two tables agree until the day one grows a row.`);
   }
 }
 
@@ -540,7 +664,7 @@ function routeLines(file) {
 }
 
 function routeMembershipRule() {
-  const routes = moduleNamed('routes', 'R4', "Builder B's");
+  const routes = moduleNamed('table', 'R4', "Phase 330 builder door's (src/main/pocket/door/table.ts)");
   if (routes === null) return;
   const lines = routeLines(routes);
   checked('R4');
@@ -630,76 +754,6 @@ function turnLimitRule() {
     if (!ts.isNumericLiteral(node)) continue;
     if (node.text !== '200') continue;
     fail('R5', `${where(routes, node)}: the literal 200 is the ceiling written a second time. Import MAX_TURN_LIMIT instead.`);
-  }
-}
-
-// ---------------------------------------------------------------------------
-// S4 — the self-origin comparison points the right way
-// ---------------------------------------------------------------------------
-
-/**
- * S2 reads WHERE the destroy is. This reads WHICH WAY THE COMPARISON POINTS.
- *
- * The fix round inverted `isSelfOrigin`'s one `===` to `!==` in the shipping
- * source and both `conformance:pocket` and `conformance:pocket:hostile` stayed
- * green, while a live door then ADMITTED the local socket — the drive went from
- * ECONNRESET to a 404 with the whole handler run. A refusal whose direction no
- * gate reads is a refusal a one-character edit removes.
- */
-function selfOriginDirectionRule() {
-  const bind = moduleNamed('bind', 'S4', "Builder A's");
-  if (bind === null) return;
-  const sf = astOf(bind);
-  let fn = null;
-  for (const node of nodesOf(bind)) {
-    if (ts.isFunctionDeclaration(node) && node.name?.text === 'isSelfOrigin') fn = node;
-  }
-  checked('S4');
-  if (fn === null || fn.body === undefined) {
-    fail('S4', `${rel(bind)} declares no isSelfOrigin function, so nothing here reads which way its comparison points`);
-    return;
-  }
-  const returns = [];
-  const walk = (n) => {
-    if (ts.isReturnStatement(n)) returns.push(n);
-    ts.forEachChild(n, walk);
-  };
-  walk(fn.body);
-  checked('S4');
-  if (returns.length < 2) {
-    fail(
-      'S4',
-      `${where(bind, fn)}: isSelfOrigin has ${String(returns.length)} return statement(s). It needs two: the fail-closed guard for a source it could not read, and the equality.`
-    );
-    return;
-  }
-  // The guard fails CLOSED: an unknown source is treated as this machine.
-  checked('S4');
-  const guard = returns[0];
-  if (guard.expression === undefined || guard.expression.kind !== ts.SyntaxKind.TrueKeyword) {
-    fail(
-      'S4',
-      `${where(bind, guard)}: isSelfOrigin's first return is not \`true\`. A source address the door could not read must be treated as this machine, never as a stranger, or an unreadable socket is admitted.`
-    );
-  }
-  // The answer is an EQUALITY. `!==` here admits every local process and
-  // refuses every phone, and it is one character.
-  checked('S4');
-  const last = returns[returns.length - 1];
-  const expr = last.expression;
-  const isEquality =
-    expr !== undefined &&
-    ts.isBinaryExpression(expr) &&
-    expr.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken;
-  if (!isEquality) {
-    fail(
-      'S4',
-      `${where(bind, last)}: isSelfOrigin's answer is not a \`===\` comparison. It answers "is this request from this machine", so an inverted or negated comparison admits every local process and refuses every phone — with every other rule in this gate still green.`
-    );
-  }
-  checked('S4');
-  if (/!==/.test(fn.getText(sf))) {
-    fail('S4', `${where(bind, fn)}: isSelfOrigin holds a \`!==\`. The only comparison in it is the equality that decides the refusal, and it is not written inverted.`);
   }
 }
 
@@ -858,6 +912,35 @@ function bridgeRule() {
         'The annotation on the preload’s `api` const is what makes the member compulsory, so the two lines move together or the type is describing a bridge that is not there.'
     );
   }
+
+  // PHASE 330: THE SAME ELEVEN CHANNELS IN ALL THREE PLACES. The contract
+  // declares them, the preload invokes them and the host registers them, and
+  // `pocket:openApproval` joined all three in one commit.
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  const bridge = join(ROOT, 'src', 'preload', 'pocket.ts');
+  const declaredChannels = new Set();
+  if (existsSync(contract)) {
+    const map = interfaceOf(contract, 'PocketInvokeChannelMap');
+    for (const member of map?.members ?? []) {
+      const name = memberName(member);
+      if (name !== null && name.startsWith('pocket:')) declaredChannels.add(name);
+    }
+  }
+  const matched = (file, pattern) =>
+    existsSync(file) ? new Set([...codeTextOf(file).matchAll(pattern)].map((m) => m[1])) : new Set();
+  const bridged = matched(bridge, /\binvoke\(\s*'(pocket:[A-Za-z]+)'/g);
+  const served = matched(ipcModule, /\bhandle\(\s*\w+\s*,\s*'(pocket:[A-Za-z]+)'/g);
+  const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
+  checked('B1', 3);
+  if (declaredChannels.size !== 11) {
+    fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares ${String(declaredChannels.size)} channel(s), not eleven (${[...declaredChannels].join(', ')})`);
+  }
+  if (!same(declaredChannels, bridged)) {
+    fail('B1', `the preload invokes ${[...bridged].sort().join(', ') || 'nothing'} where the contract declares ${[...declaredChannels].sort().join(', ')}. A channel one side has and the other does not is a button that throws.`);
+  }
+  if (!same(declaredChannels, served)) {
+    fail('B1', `the host registers ${[...served].sort().join(', ') || 'nothing'} where the contract declares ${[...declaredChannels].sort().join(', ')}.`);
+  }
 }
 
 /** The words a read-only door may not name, and why each one is here. */
@@ -874,8 +957,6 @@ const FORBIDDEN = [
   ['applyDetectedStatus', 'a status setter, and CLAUDE.md refusal 5'],
   ['sendInput', 'attach bytes, which a phone can never be the sender of'],
   ['send-keys', 'typing into a pane, which is not in this phase'],
-  ['spawn', 'refusal 8: nothing may start a process'],
-  ['execFile', 'refusal 8: nothing may start a process'],
   // BOTH SPELLINGS. `build/assert-import-boundaries.mjs`'s wall row matches on
   // the src-relative path, so it catches either; a text rule that named only
   // the absolute-looking form would miss `../credentials/vault`, which is how
@@ -910,6 +991,100 @@ function forbiddenRules() {
           `${rel(file)} names ${JSON.stringify(word)} in its CODE, which is ${why}. ` +
             'A door that only answers may not spell it, comments excepted.'
         );
+      }
+    }
+  }
+  processRule();
+}
+
+/**
+ * PHASE 330: THE DOMAIN STARTS EXACTLY TWO KINDS OF PROCESS, and each in one
+ * module. `funnel.ts` runs the program `resolveTailscale` answered (its spawn,
+ * and its `execFile` of the two reads) and `/bin/ps` (the orphan record); and
+ * `bind.ts` forks the door process with `utilityProcess.fork`, once. Refusal 8
+ * is why the list is closed: a process that starts is a thing a person
+ * confirmed, by hash, and a spawn anywhere else is a start nobody confirmed.
+ */
+const PROCESS_CALLS = new Set(['spawn', 'spawnSync', 'execSync', 'execFile', 'execFileSync', 'fork']);
+
+function processRule() {
+  const funnel = domainFiles.find((f) => f.endsWith(`${join('pocket', 'funnel.ts')}`)) ?? null;
+  const bind = domainFiles.find((f) => f.endsWith(`${join('pocket', 'bind.ts')}`)) ?? null;
+  // Which local names are bound to child_process, and who imports it.
+  const childNames = new Map();
+  for (const file of domainFiles) {
+    for (const node of nodesOf(file)) {
+      if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+      const spec = node.moduleSpecifier.text;
+      if (spec !== 'node:child_process' && spec !== 'child_process') continue;
+      checked('R3');
+      if (file !== funnel) {
+        fail('R3', `${where(file, node)} imports ${spec}. Only src/main/pocket/funnel.ts may start a program, and only the one resolveTailscale answered and /bin/ps.`);
+        continue;
+      }
+      const clause = node.importClause?.namedBindings;
+      if (clause !== undefined && ts.isNamedImports(clause)) {
+        for (const e of clause.elements) childNames.set(e.name.text, (e.propertyName ?? e.name).text);
+      }
+      if (clause !== undefined && ts.isNamespaceImport(clause)) {
+        fail('R3', `${where(file, node)} imports the whole of ${spec}. Name the two functions this module runs, so a third is a visible edit.`);
+      }
+    }
+  }
+  for (const [local, imported] of childNames) {
+    checked('R3');
+    if (imported !== 'execFile' && imported !== 'spawn') {
+      fail('R3', `${rel(funnel)} imports ${imported} from child_process (as ${local}). It runs a program with execFile and spawn, never through a shell.`);
+    }
+  }
+  let forks = 0;
+  for (const file of domainFiles) {
+    for (const call of callsOf(file)) {
+      const e = call.expression;
+      const name = calleeName(call);
+      const bare = ts.isIdentifier(e) ? e.text : null;
+      const receiver = ts.isPropertyAccessExpression(e) ? e.expression.getText(astOf(file)) : null;
+      const isProcess =
+        (name !== null && PROCESS_CALLS.has(name)) ||
+        (bare !== null && childNames.has(bare) && file === funnel) ||
+        (name === 'exec' && receiver !== null && /(?:^|\.)deps$/.test(receiver));
+      if (!isProcess) continue;
+      checked('R3');
+      const first = call.arguments[0];
+      const firstText = first === undefined ? '' : first.getText(astOf(file));
+      if (file === bind && receiver === 'utilityProcess' && name === 'fork') {
+        forks += 1;
+        continue;
+      }
+      if (file === funnel) {
+        const imported = bare !== null ? childNames.get(bare) : undefined;
+        // The shipping seam: child_process's own two functions, each run on the
+        // `file` its wrapper was handed, which the checks below trace.
+        if (imported === 'execFile' && enclosingName(call) === 'execReal' && firstText === 'file') continue;
+        if (imported === 'spawn' && firstText === 'file') continue;
+        // Through the deps: the program `resolveTailscale` answered.
+        if (receiver !== null && /(?:^|\.)deps$/.test(receiver) && (name === 'exec' || name === 'spawn') && /\bprogram\b/.test(firstText)) continue;
+      }
+      fail(
+        'R3',
+        `${where(file, call)} starts a process (${call.expression.getText(astOf(file))}(${firstText.slice(0, 40)}…)). ` +
+          'The domain starts the program resolveTailscale answered and /bin/ps from funnel.ts, and the door process from bind.ts, and nothing else (CLAUDE.md refusal 8).'
+      );
+    }
+  }
+  checked('R3');
+  if (forks !== 1) {
+    fail('R3', `bind.ts calls utilityProcess.fork ${String(forks)} time(s). The door process is forked in exactly one place.`);
+  }
+  // The wrapper around child_process's execFile runs /bin/ps and nothing else
+  // by name: every call of it names /bin/ps, and the deps' exec is it.
+  if (funnel !== null) {
+    for (const call of callsOf(funnel)) {
+      if (calleeName(call) !== 'execReal') continue;
+      checked('R3');
+      const first = call.arguments[0];
+      if (first === undefined || !ts.isStringLiteral(first) || first.text !== '/bin/ps') {
+        fail('R3', `${where(funnel, call)}: execReal is called on ${JSON.stringify(first?.getText(astOf(funnel)) ?? '')}. By name it runs /bin/ps alone; the program runs through deps.exec, on what resolveTailscale answered.`);
       }
     }
   }
@@ -998,7 +1173,19 @@ function admissionRules() {
   // row — and reads the ORDER inside it. The first draft asked `pairing.ts` for
   // the literal `/pair`, which that module has no reason to hold: the path is in
   // the table and the window predicate is what pairing owns.
-  const dispatchers = domainFiles.filter((f) => codeTextOf(f).includes('matchPocketRoute('));
+  // PHASE 330: the dispatch is the door process's request handler, and a
+  // module can subscribe to `data` for another reason (the PROXY header is
+  // read that way), so the order is read inside the FUNCTION that asks the
+  // table for a row, not across the whole file.
+  const dispatchers = [];
+  for (const file of domainFiles) {
+    for (const call of callsOf(file)) {
+      if (calleeName(call) !== 'matchPocketRoute') continue;
+      let fn = call.parent;
+      while (fn !== undefined && !ts.isFunctionLike(fn)) fn = fn.parent;
+      if (fn !== undefined) dispatchers.push({ file, text: codeOfNode(file, fn) });
+    }
+  }
   checked('A3');
   if (dispatchers.length === 0) {
     fail(
@@ -1006,8 +1193,7 @@ function admissionRules() {
       'no module in the domain asks the route table for a row, so nothing dispatches and the window gate cannot be placed at all'
     );
   }
-  for (const file of dispatchers) {
-    const text = codeTextOf(file);
+  for (const { file, text } of dispatchers) {
     checked('A3', 2);
     const windowAt = text.search(/windowOnly/);
     if (windowAt === -1) {
@@ -1020,9 +1206,9 @@ function admissionRules() {
     // Everything that touches the request's PAYLOAD must come after it. A dead
     // route reads nothing, because reading is what an attacker measures.
     for (const [pattern, what] of [
-      [/readBody\(/, 'the body is read'],
+      [/readBody\(|readCapped\(/, 'the body is read'],
       [/\.on\(\s*'data'/, "the request's data event is subscribed"],
-      [/JSON\.parse\(/, 'a body is parsed']
+      [/JSON\.parse\(|presentationOfBody\(/, 'a body is parsed']
     ]) {
       const at = text.search(pattern);
       if (at !== -1 && at < windowAt) {
@@ -1055,7 +1241,7 @@ function admissionRules() {
 
 function serverRules() {
   if (domainFiles.length === 0) {
-    for (const id of ['S1', 'S2', 'S3', 'G1']) fail(id, 'src/main/pocket/ holds no source file at all');
+    for (const id of ['S1', 'S3', 'G1']) fail(id, 'src/main/pocket/ holds no source file at all');
     return;
   }
 
@@ -1090,143 +1276,77 @@ function serverRules() {
     fail('S1', 'Referrer-Policy is emitted but its value is not the literal no-referrer');
   }
 
-  // S2. The self-origin refusal is on the CONNECTION, not on the request: a
-  // request handler has already read a header by the time it runs.
-  const bind = moduleNamed('bind', 'S2', "Builder A's");
-  if (bind !== null) {
-    // THE RULE IS THAT THE CALL IS INSIDE THE CONNECTION LISTENER, and the
-    // first draft asked only whether the file NAMED `isSelfOrigin`. Replacing
-    // the whole condition with `if (false)` left the import, the declaration
-    // and the export in place and the gate green — the ablation found it,
-    // which is what an ablation is for.
-    const sf = astOf(bind);
-    let listeners = 0;
-    let calledInside = 0;
-    let destroyedOnSelf = 0;
-    // A `destroy()` call reached from `node`, found as a CALL so a comment
-    // naming one satisfies nothing.
-    const destroysIn = (node) => {
-      let found = false;
-      const walk = (n) => {
-        if (
-          ts.isCallExpression(n) &&
-          ts.isPropertyAccessExpression(n.expression) &&
-          n.expression.name.text === 'destroy'
-        ) {
-          found = true;
-        }
-        if (!found) ts.forEachChild(n, walk);
-      };
-      walk(node);
-      return found;
-    };
-    for (const call of callsOf(bind)) {
-      if (calleeName(call) !== 'on') continue;
-      const event = call.arguments[0];
-      if (event === undefined || !ts.isStringLiteral(event)) continue;
-      if (event.text !== 'connection') continue;
-      listeners += 1;
-      const handler = call.arguments[1];
-      if (handler === undefined) continue;
-      // The CALL, not the word: an `isSelfOrigin` that is imported and never
-      // asked is a refusal that never happens.
-      if (/\bisSelfOrigin\s*\(/.test(handler.getText(sf))) calledInside += 1;
-      // And the answer to it must be the destroy. This asked the whole FILE
-      // for a `socket.destroy()` until the Phase 313 checker read it: the
-      // shutdown arm and the clientError listener both destroy a socket, so a
-      // self-origin branch that no longer did anything left this rule green.
-      const walkIfs = (n) => {
-        if (
-          ts.isIfStatement(n) &&
-          /\bisSelfOrigin\s*\(/.test(n.expression.getText(sf)) &&
-          destroysIn(n.thenStatement)
-        ) {
-          destroyedOnSelf += 1;
-        }
-        ts.forEachChild(n, walkIfs);
-      };
-      walkIfs(handler);
-    }
-    checked('S2', 3);
-    if (listeners === 0) {
-      fail(
-        'S2',
-        `${rel(bind)} subscribes to no 'connection' event. A request handler has already parsed a request line and a header block by the time it runs, and "before any header is read" is the promise.`
-      );
-    }
-    if (calledInside === 0) {
-      fail(
-        'S2',
-        `${rel(bind)} never CALLS isSelfOrigin inside a 'connection' listener. A same-uid process on this Mac reaching the door through its own tailnet address is a program borrowing the phone's reach, and the socket is destroyed before a header is read for exactly that reason.`
-      );
-    }
-    if (destroyedOnSelf === 0) {
-      fail(
-        'S2',
-        `${rel(bind)} asks isSelfOrigin inside a 'connection' listener and does not destroy the socket when it answers yes, so nothing is refused before a header is read`
-      );
+  // S3. EVERY STOP CLOSES ADMISSION ON ITS FIRST LINE, before any await, in
+  // main (bind.ts: the door's stop and its quit-time half) AND in the door
+  // process (door/listener.ts's stop). Since Phase 330 the door is two
+  // processes, and a stop that closed admission in one and awaited before the
+  // other would answer a request the person had already switched off.
+  const bind = moduleNamed('bind', 'S3', "Phase 330 builder door's");
+  const listener = moduleNamed('listener', 'S3', "Phase 330 builder door's");
+  const CLOSES = /(?:shuttingDown|shutdown|admission|quitting)\s*=\s*true/i;
+  const shutdowns = [];
+  for (const file of [bind, listener]) {
+    if (file === null) continue;
+    for (const node of nodesOf(file)) {
+      // EVERY FUNCTION THAT CLOSES ADMISSION, whatever its shape: a method, a
+      // declaration, or an arrow held in a const (the listener's `stop`).
+      let name = null;
+      let body = null;
+      if ((ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) && node.name !== undefined && ts.isIdentifier(node.name)) {
+        name = node.name.text;
+        body = node.body ?? null;
+      } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined && (ts.isArrowFunction(node.initializer) || ts.isFunctionExpression(node.initializer))) {
+        name = node.name.text;
+        body = ts.isBlock(node.initializer.body) ? node.initializer.body : null;
+      }
+      if (name === null || body === null) continue;
+      // The functions that END something. A start that gives up also sets the
+      // flag, inside a branch, and is not a shutdown.
+      if (!/^(?:stop|beginShutdown|beginPocketShutdown|joinPocketDoor|kill)$/.test(name)) continue;
+      if (!CLOSES.test(body.getText(astOf(file)))) continue;
+      shutdowns.push({ file, name, node, body });
     }
   }
-
-  // S3. The stop closes admission on its FIRST line, before any await.
-  if (bind !== null) {
-    let stops = 0;
-    for (const node of nodesOf(bind)) {
-      // EVERY METHOD THAT CLOSES ADMISSION, not only one called `stop`. This
-      // door splits the shutdown in two — `beginShutdown()` sets the flag and
-      // `stop()` joins — and a rule that read only `stop` left the method that
-      // actually owns the flag unguarded: an `await` planted in front of it
-      // reddened nothing.
-      const isShutdown =
-        (ts.isMethodDeclaration(node) || ts.isFunctionDeclaration(node)) &&
-        node.name !== undefined &&
-        ts.isIdentifier(node.name) &&
-        node.body !== undefined &&
-        /(?:shuttingDown|shutdown|admission)\s*=\s*true/i.test(node.body.getText(astOf(bind)));
-      if (!isShutdown || node.body === undefined) continue;
-      stops += 1;
-      checked('S3', 2);
-      // THE PROMISE IS "BEFORE ANY AWAIT", not "on line one". `hooks.ts:256`'s
-      // own wording is the first line, but what makes it a resource owner is
-      // that nothing which could yield, and nothing which touches the listener
-      // or an accepted request, happens before admission closes. A clock read
-      // is neither, and the first draft of this rule failed `bind.ts` on a
-      // `Date.now()` that starts the stop's own timer.
-      const statements = node.body.statements;
-      const sf = astOf(bind);
-      const closesAt = statements.findIndex((s) =>
-        /(?:shuttingDown|shutdown|admission)\s*=\s*true/i.test(s.getText(sf))
-      );
-      if (closesAt === -1) {
+  for (const { file, name, node, body } of shutdowns) {
+    checked('S3', 2);
+    // THE PROMISE IS "BEFORE ANY AWAIT", not "on line one". A clock read, or a
+    // guard that the stop already ran, is neither a yield nor a touch of the
+    // listener or of an accepted request.
+    const sf = astOf(file);
+    const statements = body.statements;
+    const closesAt = statements.findIndex((st) => CLOSES.test(st.getText(sf)));
+    if (closesAt === -1) {
+      fail('S3', `${where(file, node)}: ${name}() closes admission only inside a nested block, so it is not the first thing it does`);
+      continue;
+    }
+    for (let i = 0; i < closesAt; i += 1) {
+      const text = statements[i].getText(sf);
+      if (/\bawait\b|this\.server|this\.inFlight|this\.child|\bpost\(|\breq\b|\bsocket\b|netServer|pending/.test(text)) {
         fail(
           'S3',
-          `${where(bind, node)}: stop() never closes admission. From the instant a stop begins no request may be admitted, and a stop that only closes a socket is a socket somebody closed rather than a resource owner.`
+          `${where(file, statements[i])}: ${JSON.stringify(text.slice(0, 80))} runs BEFORE ${name}() closes admission. ` +
+            'Anything that can yield, or that reads the listener, the process or an accepted request, before that line is work the shutdown did not stop.'
         );
-      } else {
-        for (let i = 0; i < closesAt; i += 1) {
-          const text = statements[i].getText(sf);
-          if (/\bawait\b|this\.server|this\.inFlight|\breq\b|\bsocket\b/.test(text)) {
-            fail(
-              'S3',
-              `${where(bind, statements[i])}: ${JSON.stringify(text.slice(0, 80))} runs BEFORE admission closes. ` +
-                'Anything that can yield, or that reads the listener or an accepted request, before that line is work the shutdown did not stop.'
-            );
-          }
-        }
-      }
-      const body = node.body.getText(astOf(bind));
-      // Only the JOINER has to close the listener; the method that merely
-      // closes admission is allowed to start nothing, which is the whole
-      // reason this door split the two.
-      const joins = /\bawait\b/.test(body);
-      if (joins && !body.includes('close(')) {
-        fail('S3', `${where(bind, node)}: the shutdown joins but never closes the listener, so a stopped door is still bound`);
       }
     }
-    checked('S3');
-    if (stops === 0) {
-      fail('S3', `${rel(bind)} declares no stop(), so nothing in the ordered disposer owns the listener`);
+    const text = codeOfNode(file, body);
+    const joins = /\bawait\b/.test(text);
+    if (joins && file === listener && !/\.close\(/.test(text)) {
+      fail('S3', `${where(file, node)}: the door process's ${name}() joins but never closes its listener, so a stopped door is still bound`);
     }
+    if (joins && file === bind && name === 'stop' && (!/kind:\s*'stop'/.test(text) || !/this\.kill\(\)/.test(text))) {
+      fail('S3', `${where(file, node)}: ${name}() joins but does not both tell the process to stop and kill it, so a door process that never answers outlives the quit`);
+    }
+  }
+  checked('S3', 3);
+  if (bind !== null && !shutdowns.some((x) => x.file === bind && x.name === 'stop')) {
+    fail('S3', `${rel(bind)} declares no stop() that closes admission, so nothing in the ordered disposer owns the door process`);
+  }
+  if (bind !== null && !shutdowns.some((x) => x.file === bind && x.name === 'beginPocketShutdown')) {
+    fail('S3', `${rel(bind)}: beginPocketShutdown() does not close admission on its first line, so a request forwarded during the quit's own first lines is answered`);
+  }
+  if (listener !== null && !shutdowns.some((x) => x.file === listener && x.name === 'stop')) {
+    fail('S3', `${rel(listener)} has no stop that closes admission before it awaits, so the door process answers while it is being stopped`);
   }
 
   // G1. Nothing that could be a secret, a body or a line of conversation is an
@@ -1293,7 +1413,7 @@ function loopbackRule() {
   // them as bind targets failed seven fixtures that bind nothing. What actually
   // binds is a call, and that is caught below.
   const HOST_NAMES = /^(?:host|hostname)$/i;
-  const HOST_CALLS = new Set(['listen', 'connect', 'createConnection', 'request', 'get']);
+  const HOST_CALLS = new Set(['listen', 'connect', 'createConnection', 'request', 'get', 'netConnect', 'tlsConnect']);
   const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
   const roots = [join(ROOT, 'build'), join(ROOT, 'src', 'main', 'pocket')];
   const seen = [];
@@ -1315,7 +1435,7 @@ function loopbackRule() {
         // The REPOSITORY-RELATIVE path, because the absolute one holds the
         // worktree's own name and a worktree called `wt-p313` made this rule
         // read all 1,346 production files and fail on a fixture's example URL.
-        if (!/pocket|p313/i.test(rel(path))) continue;
+        if (!/pocket|p313|p330/i.test(rel(path))) continue;
         seen.push(path);
       }
     };
@@ -1429,7 +1549,7 @@ function contractRouteIds(file) {
 }
 
 function noPushRouteRule() {
-  const routes = moduleNamed('routes', 'N1', "Phase 313's");
+  const routes = moduleNamed('table', 'N1', "Phase 330 builder door's (src/main/pocket/door/table.ts)");
   if (routes !== null) {
     // Every id and every path of the table.
     for (const node of nodesOf(routes)) {
@@ -1703,240 +1823,61 @@ function phoneSurfaceFiles() {
 }
 
 // ---------------------------------------------------------------------------
-// K1 — his tailnet key
+// K2 — no tailnet key anywhere under src/ (Phase 330: K1 became K2)
 // ---------------------------------------------------------------------------
 
-/** A NAME that says it holds the key: a field, a member, a property, a binding. */
-const KEY_NAME = /tailnet|tskey|^tk$/i;
-
 /**
- * The identifiers an expression names, and not its words. A log line whose
- * TEXT says "the tailnet door" is a reason; an argument that READS `tailnetKey`
- * or `input.tk` is a value. The first draft of this rule matched the text and
- * failed three honest refusal lines on the word "tailnet".
- */
-function identifiersOf(node) {
-  const out = [];
-  const walk = (n) => {
-    if (ts.isIdentifier(n) || ts.isPrivateIdentifier(n)) out.push(n.text);
-    if (ts.isStringLiteral(n) && ts.isElementAccessExpression(n.parent) && n.parent.argumentExpression === n) out.push(n.text);
-    ts.forEachChild(n, walk);
-  };
-  walk(node);
-  return out;
-}
-const namesTheKey = (node) => identifiersOf(node).some((name) => KEY_NAME.test(name));
-
-/**
- * HIS TAILNET KEY, and it is the one credential of his that crosses this door.
+ * Phase 316.1's K1 guarded HIS TAILNET KEY on its one path, from the sheet's
+ * password field through the window's bytes into the QR. Phase 330 removed the
+ * path: the phone never joins the tailnet, so the code carries no credential
+ * at all, and the rule becomes the stronger one: NOTHING under src/ names the
+ * key, the QR field that carried it, or the prefix it was checked against. A
+ * later round that brings a tailnet credential back has to delete this rule to
+ * do it, in the open.
  *
- * WHY IT IS A RULE AND NOT A SENTENCE. He mints the key by hand in his own
- * admin console, pastes it into the sheet, and the phone joins his tailnet with
- * it once. Main holds it for at most the pairing window and puts it in exactly
- * one place, the QR. Every other place it could go — `pocket.json`, the confirm
- * record, `app.log`, the sheet's view, the status broadcast every window
- * receives, the renderer's storage — is ONE LINE a later round could write with
- * every other rule in this gate green, because G1's words are `key` and `token`
- * at word boundaries and `tailnetKey` has neither. So the key has its own rule.
+ * Read as the AST of every production file whose text could hold one (a cheap
+ * prefilter first, so this stays a second-long gate): a comment that tells the
+ * history is not a key, and a property named `tk` is one.
  */
-function tailnetKeyRule() {
-  const pairing = moduleNamed('pairing', 'K1', "Phase 316.1 builder B's");
-  if (pairing === null) return;
-  const sf = astOf(pairing);
+const KEY_IDENTIFIER = /tailnet_?key/i;
 
-  // (a) THE SHAPE, checked before anything moves. One spelling of the prefix
-  // in the whole domain, a reader that asks it, and a length bound of 256.
-  const prefixSites = [];
-  for (const file of domainFiles) {
-    for (const s of codeStringsOf(file)) if (s.text === 'tskey-auth-') prefixSites.push(where(file, s.node));
+function noTailnetKeyRule() {
+  const files = sourcesUnder(join(ROOT, 'src'));
+  checked('K2');
+  if (files.length === 0) {
+    fail('K2', 'no production file was found under src/, so this rule read nothing');
+    return;
   }
-  checked('K1', 2);
-  if (prefixSites.length !== 1) {
-    fail(
-      'K1',
-      `the prefix 'tskey-auth-' is spelled ${String(prefixSites.length)} time(s) in the domain (${prefixSites.join(', ') || 'nowhere'}). ` +
-        'One module checks what a tailnet auth key looks like, and a second spelling is a second answer to it.'
-    );
-  }
-  const readers = functionsNamed(pairing, 'tailnetKeyOf');
-  if (readers.length !== 1) {
-    fail('K1', `${rel(pairing)} declares ${String(readers.length)} tailnetKeyOf function(s); the key's shape is checked by exactly one reader, before a window opens`);
-  } else {
-    const text = codeOfNode(pairing, readers[0]);
-    checked('K1', 3);
-    if (!/\.startsWith\(\s*(?:TAILNET_AUTH_KEY_PREFIX|'tskey-auth-')\s*\)/.test(text)) {
-      fail('K1', `${where(pairing, readers[0])}: tailnetKeyOf never asks startsWith('tskey-auth-'), so an API key or an OAuth secret pasted by mistake would ride to the phone as a join key`);
-    }
-    const bounds = [...text.matchAll(/\.length\s*>\s*([A-Z_][A-Z0-9_]*)/g)].map((m) => constNumber(pairing, m[1]));
-    if (!bounds.includes(256)) {
-      fail('K1', `${where(pairing, readers[0])}: tailnetKeyOf compares no length with a constant of 256, so a 10 KB paste would be carried into the QR and the window`);
-    }
-    if (!/Buffer\.from\(/.test(text)) {
-      fail('K1', `${where(pairing, readers[0])}: tailnetKeyOf does not answer BYTES. A string cannot be zeroed, so a key held as one outlives the window by as long as the collector likes`);
-    }
-  }
-
-  // (b) THE WINDOW HOLDS BYTES.
-  const win = interfaceOf(pairing, 'OpenWindow');
-  const keyMember = win?.members.find((m) => memberName(m) === 'tailnetKey') ?? null;
-  checked('K1');
-  if (keyMember === null) {
-    fail('K1', `${rel(pairing)}: OpenWindow holds no tailnetKey member, so the key lives somewhere this rule does not read`);
-  } else if (!/\bBuffer\b/.test(keyMember.type?.getText(sf) ?? '')) {
-    fail('K1', `${where(pairing, keyMember)}: OpenWindow.tailnetKey is typed ${JSON.stringify(keyMember.type?.getText(sf) ?? '?')}, not Buffer, so nothing can zero it`);
-  }
-
-  // (c) ZEROED on cancel, on expiry and on allow: each of those three either
-  // fills the key itself or calls a function in this module that does. And
-  // open's own refusal zeroes the bytes it read before a window held them.
-  const zeroes = (text) => /tailnetKey\??\.fill\(\s*0\s*\)/.test(text);
-  const shredders = new Set();
-  for (const node of nodesOf(pairing)) {
-    if (!ts.isFunctionDeclaration(node) || node.name === undefined || node.body === undefined) continue;
-    if (zeroes(codeOfNode(pairing, node.body))) shredders.add(node.name.text);
-  }
-  for (const name of ['cancel', 'sweep', 'allow']) {
-    const method = methodOf(pairing, 'PocketPairing', name);
-    checked('K1');
-    if (method === null) {
-      fail('K1', `${rel(pairing)}: PocketPairing declares no ${name}(), so nothing here reads whether it zeroes the key`);
-      continue;
-    }
-    const text = codeOfNode(pairing, method.body);
-    const calls = [...shredders].some((s) => new RegExp(`\\b${s}\\s*\\(`).test(text));
-    if (!zeroes(text) && !calls) {
-      fail(
-        'K1',
-        `${where(pairing, method)}: PocketPairing.${name}() neither zeroes the window's tailnetKey nor calls a function that does (${[...shredders].join(', ') || 'none found'}). ` +
-          'His key must be gone from memory on cancel, on expiry and on allow, like the one-shot secret beside it.'
-      );
-    }
-  }
-  const open = methodOf(pairing, 'PocketPairing', 'open');
-  checked('K1');
-  if (open === null) {
-    fail('K1', `${rel(pairing)}: PocketPairing declares no open()`);
-  } else {
-    let zeroedInCatch = false;
-    const walk = (n) => {
-      if (ts.isCatchClause(n) && /\.fill\(\s*0\s*\)/.test(codeOfNode(pairing, n.block))) zeroedInCatch = true;
-      ts.forEachChild(n, walk);
-    };
-    walk(open.body);
-    if (!zeroedInCatch) {
-      fail('K1', `${where(pairing, open)}: open() has no catch that zeroes the key it read, so a refusal after the key was read (no address, nothing listening) leaves his key in memory with no window to shred it`);
-    }
-  }
-
-  // (d) NO FILE. The stored shape names no key, and no write in the domain is
-  // handed anything that names one.
-  const store = interfaceOf(pairing, 'PocketStore');
-  checked('K1');
-  if (store === null) {
-    fail('K1', `${rel(pairing)} declares no PocketStore, so nothing here reads what pocket.json holds`);
-  } else {
-    for (const member of store.members) {
-      checked('K1');
-      const name = memberName(member);
-      if (name !== null && KEY_NAME.test(name)) {
-        fail('K1', `${where(pairing, member)}: PocketStore.${name} would write his tailnet key into pocket.json. It lives in the window and nowhere else.`);
+  for (const file of files) {
+    const raw = readFileSync(file, 'utf8');
+    if (!/tskey-|tailnet_?key|\btk\b/i.test(raw)) continue;
+    for (const { node, text } of codeStringsOf(file)) {
+      checked('K2');
+      if (/tskey-/i.test(text)) {
+        fail('K2', `${where(file, node)} names ${JSON.stringify(text.slice(0, 40))}, a Tailscale auth key's prefix. Tortie holds no Tailscale credential of any kind (research 128 §3.2, and Phase 330 took the last one out).`);
       }
     }
-  }
-  const WRITES = new Set(['writePocketStore', 'writeFileSync', 'appendFileSync', 'writeConfirmRecords', 'createWriteStream', 'write']);
-  for (const file of domainFiles) {
-    for (const call of callsOf(file)) {
-      const name = calleeName(call);
-      if (name === null || !WRITES.has(name)) continue;
-      for (const arg of call.arguments) {
-        checked('K1');
-        if (namesTheKey(arg)) {
-          fail('K1', `${where(file, call)}: ${name}(...) is handed ${JSON.stringify(arg.getText(astOf(file)).slice(0, 80))}, which names his tailnet key. It is never written anywhere.`);
-        }
-      }
-    }
-  }
-
-  // (e) NO LOG, in the door, in the capability that wires it, and on the
-  // surface that takes the paste. A literal is a reason and is skipped, as G1
-  // skips it; anything else that names the key is a value.
-  const capabilities = join(ROOT, 'src', 'main', 'capabilities.ts');
-  const logFiles = [...domainFiles, ...(existsSync(capabilities) ? [capabilities] : []), ...phoneSurfaceFiles()];
-  for (const file of logFiles) {
-    for (const call of callsOf(file)) {
-      const name = calleeName(call);
-      if (name === null || !/^(?:debug|info|warn|error|log|trace)$/.test(name)) continue;
-      for (const arg of call.arguments) {
-        checked('K1');
-        if (namesTheKey(arg)) {
-          const text = arg.getText(astOf(file));
-          fail('K1', `${where(file, call)} hands ${JSON.stringify(text.slice(0, 80))} to ${name}(). His tailnet key is never in a log line, and G1 cannot see it: 'tailnetKey' holds no word boundary before 'Key'.`);
-        }
-      }
-    }
-  }
-
-  // (f) NO ANSWER BUT THE OFFER. No shared type carries a member named like it
-  // except the one INPUT the sheet sends; inside the domain the window's key is
-  // read only where the QR is composed and where it is zeroed; and `tk` is
-  // composed in open() and nowhere else.
-  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
-  if (existsSync(contract)) {
-    for (const node of nodesOf(contract)) {
-      if (!ts.isInterfaceDeclaration(node) || node.name.text === 'PocketPairingInput') continue;
-      for (const member of node.members) {
-        checked('K1');
-        const name = memberName(member);
-        if (name !== null && KEY_NAME.test(name)) {
-          fail('K1', `${where(contract, member)}: ${node.name.text}.${name} carries his tailnet key on a shape main hands out. The key goes in and comes out only inside the one offer's payload.`);
-        }
-      }
-    }
-  }
-  const KEY_READERS = new Set(['open', 'holdsTailnetKey', 'tailnetKeyOf', ...shredders]);
-  for (const file of domainFiles) {
     for (const node of nodesOf(file)) {
-      if (ts.isPropertyAccessExpression(node) && node.name.text === 'tailnetKey') {
-        checked('K1');
-        const owner = enclosingName(node);
-        const zeroing =
-          ts.isPropertyAccessExpression(node.parent) && node.parent.name.text === 'fill';
-        const optionalZeroing =
-          node.parent !== undefined && ts.isPropertyAccessExpression(node.parent) && node.parent.questionDotToken !== undefined && node.parent.name.text === 'fill';
-        if (file !== pairing || (!KEY_READERS.has(owner ?? '') && !zeroing && !optionalZeroing)) {
-          fail('K1', `${where(file, node)}: the tailnet key is read in ${owner ?? 'module scope'}. It is read to compose the QR and to zero it, and nowhere else, so no view, status or broadcast can carry it.`);
-        }
+      if (ts.isIdentifier(node) && KEY_IDENTIFIER.test(node.text)) {
+        checked('K2');
+        fail('K2', `${where(file, node)} names ${node.text}. The phone never joins the tailnet, so no code carries its key.`);
+        continue;
       }
-      if ((ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) && memberName(node) === 'tk') {
-        checked('K1');
-        if (file !== pairing || enclosingName(node) !== 'open') {
-          fail('K1', `${where(file, node)}: a \`tk\` is composed outside PocketPairing.open(). The QR is the one place his key is put.`);
-        }
-      }
-    }
-  }
-
-  // (g) THE SURFACE THAT TAKES THE PASTE keeps nothing: no browser storage,
-  // and the field is a password field, so it is never drawn in the clear.
-  const surface = phoneSurfaceFiles();
-  checked('K1');
-  if (surface.length === 0) {
-    fail('K1', 'src/renderer/settings/PhoneSection.tsx does not exist, so nothing here reads where the key is pasted. It is Phase 316.1 builder C’s.');
-  }
-  let passwordField = false;
-  for (const file of surface) {
-    const code = codeTextOf(file);
-    checked('K1');
-    for (const needle of ['localStorage', 'sessionStorage', 'indexedDB', 'document.cookie']) {
-      if (code.includes(needle)) {
-        fail('K1', `${rel(file)} names ${needle}. The surface that takes his tailnet key keeps nothing in the renderer's storage.`);
+      const named =
+        ts.isPropertyAssignment(node) ||
+        ts.isShorthandPropertyAssignment(node) ||
+        ts.isPropertySignature(node) ||
+        ts.isPropertyDeclaration(node) ||
+        ts.isBindingElement(node);
+      const property = named ? memberName(node) ?? (ts.isBindingElement(node) && node.propertyName !== undefined && ts.isIdentifier(node.propertyName) ? node.propertyName.text : null) : null;
+      const element =
+        ts.isElementAccessExpression(node) && ts.isStringLiteral(node.argumentExpression) ? node.argumentExpression.text : null;
+      const accessed = ts.isPropertyAccessExpression(node) ? node.name.text : null;
+      if (property === 'tk' || element === 'tk' || accessed === 'tk') {
+        checked('K2');
+        fail('K2', `${where(file, node)} names \`tk\`, the QR field that carried his tailnet key. The v:3 code has no such field.`);
       }
     }
-    if (/type\s*=\s*\{?\s*["']password["']/.test(code)) passwordField = true;
-  }
-  checked('K1');
-  if (surface.length > 0 && !passwordField) {
-    fail('K1', 'no field on Settings then Phone is type="password", so the key he pastes is drawn in the clear (build/p316/SPEC.md §4 S1 mechanism 7: "a password field for the key")');
   }
 }
 
@@ -2130,27 +2071,31 @@ function turnReadRule() {
 }
 
 // ---------------------------------------------------------------------------
-// F1 — the QR pins the key
+// F2 — the QR is v:3, exactly eight keys, and pins the key (F1 became F2)
 // ---------------------------------------------------------------------------
 
+/** The QR's keys, in `JSON.stringify`'s order, and no others (SPEC §4.8.1). */
+const QR_KEYS = ['v', 'host', 'port', 'fp', 'dk', 'dx', 'ps', 'exp'];
+
 /**
- * The QR pins the door's PUBLIC KEY, from the door that is LISTENING.
+ * The QR pins the door's PUBLIC KEY, from the door that is LISTENING, and it
+ * carries nothing else a phone needs and nothing it must not have.
  *
- * v:1 carried `fp` from `certificateFingerprint`, the sha256 of a certificate
- * `./tls.ts` renews from the same key every 397 days, so every phone paired
- * under it would have stopped trusting the door thirteen months later with
- * nothing on either screen saying why (build/p316/SPEC.md §2 row 24). The key
- * outlives the certificate. The hostile client re-derives the pin from the leaf
- * the door serves, the Swift way; this reads that no source can put the old
- * thing back.
+ * v:1 carried `fp` from the certificate's hash, which a renewal moves (316.1);
+ * v:2 carried `tk`, his tailnet key, in plain JSON that iOS's Camera shows to
+ * whatever it offers to do with text (research 132 §10 item 1). v:3 carries
+ * the public name and port a phone dials, the key pin, the Mac's two keys, the
+ * one-shot secret and the deadline, and no credential and no address. The
+ * hostile client re-derives the pin from the leaf the door serves; this reads
+ * that no source can add a ninth key.
  */
 function qrPinRule() {
-  const pairing = moduleNamed('pairing', 'F1', "Phase 316.1 builder B's");
+  const pairing = moduleNamed('pairing', 'F2', "Phase 330 builder owner's");
   if (pairing === null) return;
   const open = methodOf(pairing, 'PocketPairing', 'open');
-  checked('F1');
+  checked('F2');
   if (open === null) {
-    fail('F1', `${rel(pairing)}: PocketPairing declares no open(), so nothing composes the QR`);
+    fail('F2', `${rel(pairing)}: PocketPairing declares no open(), so nothing composes the QR`);
     return;
   }
   // The payload literal is the argument of the JSON.stringify inside open().
@@ -2162,16 +2107,27 @@ function qrPinRule() {
     if (payload === null) ts.forEachChild(n, walk);
   };
   walk(open.body);
-  checked('F1');
+  checked('F2');
   if (payload === null) {
-    fail('F1', `${where(pairing, open)}: open() composes no JSON.stringify({...}) payload this rule can read`);
+    fail('F2', `${where(pairing, open)}: open() composes no JSON.stringify({...}) payload this rule can read`);
     return;
+  }
+  // EXACTLY THE EIGHT KEYS, IN ORDER, and no spread that could add a ninth.
+  const keys = payload.properties.map((p) => (ts.isSpreadAssignment(p) ? '...' : memberName(p) ?? '?'));
+  checked('F2', 2);
+  if (keys.join(',') !== QR_KEYS.join(',')) {
+    fail('F2', `${where(pairing, payload)}: the QR's keys are ${JSON.stringify(keys)}, not ${JSON.stringify(QR_KEYS)} in that order. A key a phone does not read is a key somebody put there for another reason, and the vectors pin the order byte for byte.`);
+  }
+  for (const key of keys) {
+    if (/^(?:tk|address|addr|ip|host4)$/i.test(key)) {
+      fail('F2', `${where(pairing, payload)}: the QR carries \`${key}\`. v:3 carries no credential and no address.`);
+    }
   }
   const prop = (name) =>
     payload.properties.find((p) => ts.isPropertyAssignment(p) && memberName(p) === name) ?? null;
   const v = prop('v');
   const fp = prop('fp');
-  checked('F1', 2);
+  checked('F2', 2);
   const vValue =
     v === null
       ? null
@@ -2180,55 +2136,55 @@ function qrPinRule() {
         : ts.isIdentifier(v.initializer)
           ? constNumber(pairing, v.initializer.text)
           : null;
-  if (vValue !== 2) {
-    fail('F1', `${where(pairing, payload)}: the QR's v is ${JSON.stringify(vValue)}, not 2. A phone reads v to know the pin is the KEY's; v:1 meant the certificate's.`);
+  if (vValue !== 3) {
+    fail('F2', `${where(pairing, payload)}: the QR's v is ${JSON.stringify(vValue)}, not 3. A phone reads v to know the code names a public host and carries no key; a v:2 phone must refuse it rather than read a field that is not there.`);
   }
   if (fp === null) {
-    fail('F1', `${where(pairing, payload)}: the QR carries no fp, so a phone has nothing to pin`);
+    fail('F2', `${where(pairing, payload)}: the QR carries no fp, so a phone has nothing to pin`);
     return;
   }
   const fpText = fp.initializer.getText(astOf(pairing));
-  checked('F1');
+  checked('F2');
   if (/certificate/i.test(fpText)) {
-    fail('F1', `${where(pairing, fp)}: the QR's fp is ${JSON.stringify(fpText)}, the CERTIFICATE's hash. It is renewed every 397 days and every paired phone would stop trusting the door.`);
+    fail('F2', `${where(pairing, fp)}: the QR's fp is ${JSON.stringify(fpText)}, the CERTIFICATE's hash. It is renewed every 397 days and every paired phone would stop trusting the door.`);
   }
   // The fp is a value that was asked of the door and refused when null, BEFORE
   // the window exists.
   const openText = codeOfNode(pairing, open.body);
   const pinVar = /const\s+(\w+)\s*=\s*this\.deps\.publicKeyPin\(\)/.exec(openText)?.[1] ?? null;
-  checked('F1', 2);
+  checked('F2', 2);
   if (pinVar === null) {
-    fail('F1', `${where(pairing, open)}: open() never asks this.deps.publicKeyPin(), so the QR's pin does not come from the listening door's key`);
+    fail('F2', `${where(pairing, open)}: open() never asks this.deps.publicKeyPin(), so the QR's pin does not come from the listening door's key`);
   } else {
     if (fpText !== pinVar) {
-      fail('F1', `${where(pairing, fp)}: fp is ${JSON.stringify(fpText)}, not the pin open() asked the door for (${pinVar})`);
+      fail('F2', `${where(pairing, fp)}: fp is ${JSON.stringify(fpText)}, not the pin open() asked the door for (${pinVar})`);
     }
     const guard = new RegExp(`if\\s*\\(\\s*${pinVar}\\s*===\\s*null\\s*\\)\\s*throw\\b`).exec(openText);
     const windowAt = openText.search(/this\.window\s*=\s*\{/);
     if (guard === null || windowAt === -1 || guard.index > windowAt) {
-      fail('F1', `${where(pairing, open)}: open() does not refuse a null pin before it makes the window, so a QR could carry fp: null and a phone would pin nothing`);
+      fail('F2', `${where(pairing, open)}: open() does not refuse a null pin before it makes the window, so a QR could carry fp: null and a phone would pin nothing`);
     }
   }
   // Nothing in the module can reach the certificate's hash any more.
-  checked('F1');
+  checked('F2');
   if (/certificateFingerprint/.test(codeTextOf(pairing))) {
-    fail('F1', `${rel(pairing)} still names certificateFingerprint in its code. The pairing owner pins the key and has no use for the certificate's hash.`);
+    fail('F2', `${rel(pairing)} still names certificateFingerprint in its code. The pairing owner pins the key and has no use for the certificate's hash.`);
   }
   // The wiring: the host hands the pairing owner the LISTENING door's key pin.
-  const ipc = moduleNamed('ipc', 'F1', "Phase 316.1 builder B's");
+  const ipc = moduleNamed('ipc', 'F2', "Phase 316.1 builder B's");
   if (ipc === null) return;
   let wiring = null;
   for (const node of nodesOf(ipc)) {
     if (ts.isPropertyAssignment(node) && memberName(node) === 'publicKeyPin') wiring = node;
   }
-  checked('F1');
+  checked('F2');
   if (wiring === null) {
-    fail('F1', `${rel(ipc)} hands the pairing owner no publicKeyPin, so the QR's pin comes from nowhere this rule reads`);
+    fail('F2', `${rel(ipc)} hands the pairing owner no publicKeyPin, so the QR's pin comes from nowhere this rule reads`);
   } else {
     const text = codeOfNode(ipc, wiring.initializer);
     if (/certificate/i.test(text) || !/publicKeyFingerprint/.test(text) || !/listening/.test(text) || !/spkiPinOf\(/.test(text)) {
       fail(
-        'F1',
+        'F2',
         `${where(ipc, wiring)}: publicKeyPin is ${JSON.stringify(text.replace(/\s+/g, ' ').slice(0, 120))}. It must be spkiPinOf(the door's publicKeyFingerprint), and null unless the door is listening.`
       );
     }
@@ -2253,66 +2209,113 @@ function mainSources() {
  * it reaches a socket. A later round that "simplifies" either half away turns
  * a hand-edited store into a door on his tailnet.
  */
+/** The statement a call sits in, and the statement just before it, or null. */
+function statementBefore(call) {
+  let st = call;
+  while (st.parent !== undefined && !(ts.isBlock(st.parent) || ts.isSourceFile(st.parent))) st = st.parent;
+  const list = st.parent?.statements;
+  if (list === undefined) return null;
+  const at = list.indexOf(st);
+  return at > 0 ? list[at - 1] : null;
+}
+
+/** Is this statement `if (this.superseded(<press>)) { … return … }`? */
+function isLastPressCheck(file, statement) {
+  if (statement === null || !ts.isIfStatement(statement)) return false;
+  if (!/^this\.superseded\(\s*\w+\s*\)$/.test(codeOfNode(file, statement.expression).trim())) return false;
+  const then = statement.thenStatement;
+  if (ts.isReturnStatement(then)) return true;
+  return ts.isBlock(then) && then.statements.some((x) => ts.isReturnStatement(x));
+}
+
+/**
+ * CLAUDE.md refusal 8: nothing may cause a process to start on a
+ * configuration change alone. Since Phase 330 the door starts TWO: its own
+ * `utilityProcess` and the Funnel child that publishes it. So each is started
+ * from one place, the host's queued start (or its restart), behind the gate a
+ * person's confirmed hash answers, and the LAST PRESS is asked as the
+ * statement immediately before each: an earlier ask reads the same today, and
+ * it is the first thing a later round puts an await after. The launch step
+ * asks the switch and the at-launch flag before it queues anything. A later
+ * round that "simplifies" either half away turns a hand-edited store into a
+ * door on the internet.
+ */
 function launchRule() {
-  const ipc = moduleNamed('ipc', 'L5', "Phase 316.1 builder B's");
+  const ipc = moduleNamed('ipc', 'L5', "Phase 330 builder owner's");
   if (ipc === null) return;
-
-  // (a) ONE call site binds, in the whole of src/main, and it is the host's
-  // own openNow() — the start as it runs inside the switch's one queue (Q1).
-  const sites = [];
-  for (const file of mainSources()) {
-    for (const call of callsOf(file)) {
-      if (calleeName(call) === 'startPocketDoor') sites.push({ file, call });
-    }
-  }
-  checked('L5', sites.length + 1);
-  if (sites.length !== 1 || sites[0].file !== ipc || enclosingName(sites[0].call) !== 'openNow') {
-    fail(
-      'L5',
-      `startPocketDoor is called at ${sites.map((s) => `${where(s.file, s.call)} in ${enclosingName(s.call) ?? 'module scope'}`).join(', ') || 'no site at all'}. ` +
-        'Exactly one call site binds the door, PocketHost.openNow(), so there is one place the gate is asked.'
-    );
+  const STARTERS = ['openNow', 'recoverNow'];
+  const gates = ['assertPocketDoorMayBind'];
+  for (const node of nodesOf(ipc)) {
+    if (!ts.isMethodDeclaration(node) || node.body === undefined || !ts.isIdentifier(node.name)) continue;
+    if (/\bassertPocketDoorMayBind\(/.test(codeOfNode(ipc, node.body))) gates.push(`this.${node.name.text}`);
   }
 
-  // (b) start() asks the gate BEFORE the socket — directly, or through one of
-  // the host's own methods whose body asks it — and NOTHING YIELDS between the
-  // last time it asks and the bind. A gate asked before an await answers for a
-  // world that may have moved by the time the socket opens: the person may have
-  // switched the door off, or a field may have moved, while it waited.
-  const start = methodOf(ipc, 'PocketHost', 'openNow');
-  checked('L5', 2);
-  if (start === null) {
-    fail('L5', `${rel(ipc)}: PocketHost declares no openNow(), the start as it runs inside the switch's queue`);
-  } else {
-    const gates = ['assertPocketDoorMayBind'];
-    for (const node of nodesOf(ipc)) {
-      if (!ts.isMethodDeclaration(node) || node.body === undefined || !ts.isIdentifier(node.name)) continue;
-      if (/\bassertPocketDoorMayBind\(/.test(codeOfNode(ipc, node.body)) && node.name.text !== 'openNow') gates.push(`this.${node.name.text}`);
-    }
-    const text = codeOfNode(ipc, start.body);
-    const bindAt = text.search(/startPocketDoor\(/);
-    let gateAt = -1;
-    let gateEnd = -1;
-    for (const gate of gates) {
-      const re = new RegExp(`${gate.replace('.', '\\.')}\\(`, 'g');
-      for (const m of text.matchAll(re)) {
-        if (bindAt !== -1 && m.index < bindAt && m.index > gateAt) {
-          gateAt = m.index;
-          gateEnd = m.index + m[0].length;
-        }
+  // (a) THE FORK AND THE SPAWN, each reached only from the queued start.
+  for (const [starter, what] of [
+    ['startPocketDoor', 'the fork of the door process'],
+    ['startFunnel', 'the spawn of the Funnel child']
+  ]) {
+    const sites = [];
+    for (const file of mainSources()) {
+      for (const call of callsOf(file)) {
+        if (calleeName(call) === starter) sites.push({ file, call });
       }
     }
-    if (gateAt === -1 || bindAt === -1) {
-      fail(
-        'L5',
-        `${where(ipc, start)}: PocketHost.openNow() does not ask the gate (${gates.join(', ')}) before startPocketDoor, so a door nobody confirmed could reach a socket`
-      );
-    } else if (/\bawait\b/.test(text.slice(gateEnd, bindAt).replace(/await\s*$/, ''))) {
-      fail(
-        'L5',
-        `${where(ipc, start)}: something is awaited between the last gate and the bind in PocketHost.openNow(), so the answer the gate gave is about a world that may have moved before the socket opens`
-      );
+    checked('L5', sites.length + 1);
+    if (sites.length === 0) {
+      fail('L5', `nothing in src/main calls ${starter}, so ${what} has no site this rule can read`);
     }
+    for (const { file, call } of sites) {
+      checked('L5', 3);
+      const owner = enclosingName(call);
+      if (file !== ipc || !STARTERS.includes(owner ?? '')) {
+        fail(
+          'L5',
+          `${where(file, call)}: ${what} is reached from ${owner ?? 'module scope'}${file !== ipc ? ` in ${rel(file)}` : ''}. ` +
+            'It is reached only from PocketHost.openNow() or recoverNow(), which run inside the switch’s one queue behind the gate.'
+        );
+        continue;
+      }
+      // (b) BEHIND THE GATE: the method asks it before the call.
+      const method = methodOf(ipc, 'PocketHost', owner);
+      const text = method === null ? '' : codeTextOf(ipc).slice(method.getStart(astOf(ipc)), call.getStart(astOf(ipc)));
+      if (!gates.some((gate) => new RegExp(`${gate.replace('.', '\\.')}\\(`).test(text))) {
+        fail('L5', `${where(ipc, call)}: ${owner}() does not ask the gate (${gates.join(', ')}) before ${starter}, so a door nobody confirmed could start a process`);
+      }
+      // For the FORK, nothing is awaited between the LAST time the gate is
+      // asked and the fork: the read of Tailscale can move a hashed field (it
+      // writes the facts it observed), so a gate asked before it answers for
+      // a world that may have moved.
+      if (starter === 'startPocketDoor') {
+        let last = -1;
+        let lastEnd = -1;
+        for (const gate of gates) {
+          for (const m of text.matchAll(new RegExp(`${gate.replace('.', '\\.')}\\(`, 'g'))) {
+            if (m.index > last) {
+              last = m.index;
+              lastEnd = m.index + m[0].length;
+            }
+          }
+        }
+        if (last !== -1 && /\bawait\b/.test(text.slice(lastEnd).replace(/await\s*$/, ''))) {
+          fail('L5', `${where(ipc, call)}: something is awaited between the last time ${owner}() asks the gate and the fork, so the gate's answer is about a world the await may have moved (the read of Tailscale writes the facts it observed, which moves the hash)`);
+        }
+      }
+      // (c) THE LAST PRESS, as the statement immediately before.
+      const before = statementBefore(call);
+      if (!isLastPressCheck(ipc, before)) {
+        fail(
+          'L5',
+          `${where(ipc, call)}: the statement immediately before ${starter} is not \`if (this.superseded(press)) … return\` ` +
+            `(it is ${JSON.stringify(before === null ? '(nothing)' : codeOfNode(ipc, before).replace(/\s+/g, ' ').slice(0, 100))}), so a start already past its gate starts ${what.replace(/^the /, 'a ')} after the person switched the door off`
+        );
+      }
+    }
+  }
+  const start = methodOf(ipc, 'PocketHost', 'openNow');
+  checked('L5');
+  if (start === null) {
+    fail('L5', `${rel(ipc)}: PocketHost declares no openNow(), the start as it runs inside the switch's queue`);
   }
 
   // (e) THE SWITCH-OFF, the 316.1 fix round (the attack's X1). A start that
@@ -2336,7 +2339,7 @@ function launchRule() {
     const offText = offBranch === undefined ? '' : codeOfNode(ipc, offBranch.thenStatement);
     const firstAwait = offText.search(/\bawait\b/);
     const counted = offText.search(/this\.pressed\(\)/);
-    const written = offText.search(/writePocketStore\(/);
+    const written = offText.search(/writePocketStore\(|this\.writeStore\(/);
     if (offBranch === undefined) {
       fail('L5', `${where(ipc, setDoor)}: setDoor() has no \`if (!on)\` branch, so this rule cannot read where the switch-off is recorded`);
     } else if (counted === -1 || written === -1 || firstAwait === -1 || counted > firstAwait || written > firstAwait) {
@@ -2346,20 +2349,6 @@ function launchRule() {
       );
     }
   }
-  if (start !== null) {
-    // ASKED ONE LAST TIME, AS THE STATEMENT IMMEDIATELY BEFORE THE BIND. An
-    // earlier ask with no await after it reads the same today, and it is the
-    // first thing a later round puts an await after; so the rule reads the
-    // one statement the bind follows, which is what the code says it is.
-    const statements = start.body.statements;
-    const bindIndex = statements.findIndex((st) => /\bstartPocketDoor\(/.test(codeOfNode(ipc, st)));
-    const before = bindIndex > 0 ? codeOfNode(ipc, statements[bindIndex - 1]).trim() : '';
-    checked('L5');
-    if (bindIndex === -1 || !/^if\s*\(\s*this\.superseded\(\s*press\s*\)\s*\)\s*return\s*;?$/.test(before)) {
-      fail('L5', `${where(ipc, start)}: the statement immediately before startPocketDoor in PocketHost.openNow() is not \`if (this.superseded(press)) return;\` (it is ${JSON.stringify(before.replace(/\s+/g, ' ').slice(0, 100))}), so a start already past its gate binds after the person switched the door off`);
-    }
-  }
-
   // (c) the launch step: it returns before start() unless the person turned
   // the door on AND asked for it at launch. The CONFIRMED hash is (b)'s, and
   // (b) holds on every path to the bind, this one included.
@@ -2401,24 +2390,24 @@ function launchRule() {
 }
 
 // ---------------------------------------------------------------------------
-// A4 — an answer is admitted again before it is sent (the 316.1 fix round)
+// A4 — refusal 7, by generation (the 316.1 fix round, rebuilt by Phase 330)
 // ---------------------------------------------------------------------------
 
 /**
- * The attack's R1: a phone removed while its request was inside the refresh
- * still got its answer, read from the store AFTER the person pressed Remove,
- * because the handler re-asked only the quit after the answer composed and the
- * door's stop JOINS a handler rather than refusing it. Four clauses, one per
- * module, because each is one line a later round can delete and the hostile
- * client drives only the first two.
+ * The attack's R1 of 316.1: a phone removed while its request was inside the
+ * refresh still got its answer, read from the store AFTER the person pressed
+ * Remove. Since Phase 330 the request crosses a process boundary twice, so the
+ * last ask is made in TWO places: the handler (server.ts) asks the verified
+ * phone and the door instance once the answer is composed, and main's side of
+ * the wire (bind.ts) asks that request's GENERATION again before it posts, with
+ * nothing awaited between. A request for a generation that is not the door's,
+ * or whose door has begun to stop, never reaches a handler at all.
  */
 function answerReadmitRule() {
-  // (a) server.ts: between the answer's await and the one send of it, the
+  // (a) server.ts: between the answer's await and the one 200 it returns, the
   // verified phone and the door instance are asked, and nothing is awaited.
-  const server = moduleNamed('server', 'A4', "Phase 313 builder A's");
+  const server = moduleNamed('server', 'A4', "Phase 330 builder door's");
   if (server !== null) {
-    // The handler is whatever function awaits the composer, however it is
-    // declared: today it is the named function expression the factory returns.
     const handler = nodesOf(server).find(
       (n) =>
         (ts.isFunctionExpression(n) || ts.isFunctionDeclaration(n) || ts.isArrowFunction(n)) &&
@@ -2434,50 +2423,65 @@ function answerReadmitRule() {
     );
     checked('A4', 3);
     if (handler === undefined) {
-      fail('A4', `${rel(server)}: no request handler awaits deps.answer(, so this rule cannot read what is asked before the send`);
+      fail('A4', `${rel(server)}: no request handler awaits deps.answer(, so this rule cannot read what is asked before the answer leaves`);
     } else {
       const text = codeOfNode(server, handler);
       const answerAt = text.search(/await\s+deps\.answer\(/);
       let sendAt = -1;
-      for (const m of text.matchAll(/sendPocket\(\s*res\s*,\s*200\b/g)) sendAt = m.index;
+      for (const m of text.matchAll(/return\s*\{\s*status:\s*200\b/g)) sendAt = m.index;
       const between = sendAt > answerAt ? text.slice(answerAt, sendAt).replace(/^await\s+deps\.answer\(/, '') : '';
       if (sendAt === -1 || sendAt < answerAt) {
-        fail('A4', `${where(server, handler)}: the composed answer is not sent after deps.answer(, so this rule cannot read the last ask`);
+        fail('A4', `${where(server, handler)}: the composed answer is not returned with a 200 after deps.answer(, so this rule cannot read the last ask`);
       } else {
         if (!/deps\.stillPaired\(\s*\w+\s*\)/.test(between)) {
-          fail('A4', `${where(server, handler)}: nothing between the composed answer and its send asks deps.stillPaired( of the phone the request was verified for, so a phone Removed while its request was in flight is answered from the store as it stood after the press`);
+          fail('A4', `${where(server, handler)}: nothing between the composed answer and its return asks deps.stillPaired( of the phone the request was verified for, so a phone Removed while its request was in flight is answered from the store as it stood after the press`);
         }
         if (!/\.stopping\(\)|\bclosing\(\)/.test(between) || !/door\?\.stopping\(\)|door\.stopping\(\)/.test(text)) {
-          fail('A4', `${where(server, handler)}: nothing between the composed answer and its send asks the door INSTANCE that accepted the request whether it has begun to stop, so an answer composed inside a switch-off's join leaves a door the person closed`);
+          fail('A4', `${where(server, handler)}: nothing between the composed answer and its return asks the door INSTANCE that accepted the request whether it has begun to stop, so an answer composed inside a switch-off's join leaves a door the person closed`);
         }
         if (/\bawait\b/.test(between)) {
-          fail('A4', `${where(server, handler)}: something is awaited between the last ask and the send, so the ask answers for a world that may have moved before the answer leaves`);
+          fail('A4', `${where(server, handler)}: something is awaited between the last ask and the return, so the ask answers for a world that may have moved before the answer leaves`);
         }
       }
-      const verified = /\w+\s*=\s*verdict\.phoneId\b/.test(text);
       checked('A4');
-      if (!verified) {
+      if (!/\w+\s*=\s*verdict\.phoneId\b/.test(text)) {
         fail('A4', `${where(server, handler)}: the handler never keeps the phone its verify answered (verdict.phoneId), so the last ask cannot be about the phone this request came from`);
       }
     }
   }
 
-  // (b) bind.ts: the listener hands each handler the door that accepted it.
-  const bind = moduleNamed('bind', 'A4', "Phase 313 builder A's");
+  // (b) bind.ts: BY GENERATION. The dispatch asks the request's generation's
+  // admission before any handler sees it, hands the handler THAT admission, and
+  // asks it again after the handler answers with nothing awaited before the post.
+  const bind = moduleNamed('bind', 'A4', "Phase 330 builder door's");
   if (bind !== null) {
     const text = codeTextOf(bind);
-    checked('A4', 2);
-    const handed = callsOf(bind).some(
-      (c) =>
-        ts.isPropertyAccessExpression(c.expression) &&
-        c.expression.name.text === 'handle' &&
-        c.arguments.length === 3
-    );
-    if (!handed) {
-      fail('A4', `${rel(bind)}: the listener calls its handler with fewer than three arguments, so no handler can ask the door that accepted its request whether it is stopping`);
-    }
+    checked('A4', 5);
     if (!/stopping\s*:\s*\(\)\s*=>\s*this\.shuttingDown\b/.test(text)) {
-      fail('A4', `${rel(bind)}: the admission handed to a handler does not answer from THIS door's shuttingDown, so a stop that drops the module's door first leaves the handler asking about nothing`);
+      fail('A4', `${rel(bind)}: the admission a door hands its handlers does not answer from THIS door's shuttingDown, so a stop that drops the module's door first leaves the handler asking about nothing`);
+    }
+    if (!/admissions\.set\(\s*this\.generation\s*,\s*this\.admission\s*\)/.test(text)) {
+      fail('A4', `${rel(bind)}: no door process records its admission by its generation, so a request cannot be asked about the door that accepted it`);
+    }
+    const handles = callsOf(bind).filter((c) => calleeName(c) === 'handle');
+    if (handles.length !== 1 || handles[0].arguments.length !== 2) {
+      fail('A4', `${rel(bind)}: the handler is called ${String(handles.length)} time(s)${handles[0] !== undefined ? ` with ${String(handles[0].arguments.length)} argument(s)` : ''}. It is called once, with the request and the admission of the generation that forwarded it.`);
+    } else {
+      const call = handles[0];
+      let fn = call.parent;
+      while (fn !== undefined && !(ts.isMethodDeclaration(fn) && fn.name !== undefined && ts.isIdentifier(fn.name))) fn = fn.parent;
+      const body = fn === undefined ? '' : codeOfNode(bind, fn);
+      const callAt = body.search(/await\s+handle\(/);
+      const beforeCall = callAt === -1 ? '' : body.slice(0, callAt);
+      if (!/admissions\.get\(\s*generation\s*\)/.test(beforeCall) || !/\.stopping\(\)/.test(beforeCall) || !/generation\s*!==\s*this\.generation/.test(beforeCall)) {
+        fail('A4', `${where(bind, call)}: before the handler runs, the dispatch does not ask for the request's generation's admission, compare the generation with this door's and ask whether that door is stopping, so a request stamped for a stopped or foreign door reaches a handler`);
+      }
+      const afterCall = callAt === -1 ? '' : body.slice(callAt).replace(/^await\s+handle\(/, '');
+      const postAt = afterCall.search(/this\.post\(\s*\{\s*kind:\s*'answer'/);
+      const between = postAt === -1 ? '' : afterCall.slice(0, postAt);
+      if (postAt === -1 || !/\.stopping\(\)/.test(between) || /\bawait\b/.test(between)) {
+        fail('A4', `${where(bind, call)}: after the handler answers, the dispatch does not ask the admission again with nothing awaited before it posts the answer, so an answer composed as the door began to stop is posted`);
+      }
     }
   }
 
@@ -2506,7 +2510,7 @@ function answerReadmitRule() {
       fail('A4', `${rel(ipc)}: PocketHost declares no removePhone()`);
     } else {
       const text = codeOfNode(ipc, remove);
-      const writeAt = text.search(/writePocketStore\(/);
+      const writeAt = text.search(/writePocketStore\(|this\.writeStore\(/);
       const awaitAt = text.search(/\bawait\b/);
       if (writeAt === -1 || (awaitAt !== -1 && awaitAt < writeAt)) {
         fail('A4', `${where(ipc, remove)}: removePhone() awaits before it writes the phone out of the store, so a request in flight is asked about a phone that is still there`);
@@ -2642,32 +2646,14 @@ function switchQueueRule() {
     for (const n of assignedElsewhere) fail('Q1', `${where(ipc, n)}: the queue's tail (this.${tail}) is assigned outside serially(), which cuts the queue in two`);
   }
 
-  // (b) THE ONE STOP. stopPocketDoor is called once in src/main, inside
-  // closeNow() (the one start, inside openNow(), is L5's first clause).
-  const stops = [];
-  for (const file of mainSources()) {
-    if (file.endsWith(`${join('pocket', 'bind.ts')}`)) continue;
-    for (const call of callsOf(file)) if (calleeName(call) === 'stopPocketDoor') stops.push({ file, call });
-  }
-  checked('Q1');
-  if (stops.length !== 1 || stops[0].file !== ipc || enclosingName(stops[0].call) !== 'closeNow') {
-    fail('Q1', `stopPocketDoor is called at ${stops.map((x) => `${where(x.file, x.call)} in ${enclosingName(x.call) ?? 'module scope'}`).join(', ') || 'no site at all'}. Exactly one call site stops the door, PocketHost.closeNow(), and it runs inside the queue.`);
-  }
-
-  // (c) REACHED ONLY FROM INSIDE A QUEUED JOB. Every call of the start and the
-  // stops is an argument of this.serially(...), or is made by openNow() or
-  // closeNowUnlessConfirmed() themselves, which only ever run inside one.
-  const insideJob = new Set(['openNow', 'closeNowUnlessConfirmed']);
-  const viaQueue = { openNow: 0, closeNow: 0, closeNowUnlessConfirmed: 0 };
-  for (const call of callsOf(ipc)) {
-    const e = call.expression;
-    if (!ts.isPropertyAccessExpression(e) || e.expression.kind !== ts.SyntaxKind.ThisKeyword) continue;
-    const name = e.name.text;
-    if (!(name in viaQueue)) continue;
-    checked('Q1');
+  // (b) THE STOPS, of the door process and of the Funnel child, and the
+  // child's start and the orphan sweep, are each called only from a method
+  // that runs inside a queued job (Phase 330: the child is started and
+  // stopped beside the door, never beside the queue).
+  const JOBS = new Set(['openNow', 'recoverNow', 'closeNow', 'closeNowUnlessConfirmed', 'unpublish', 'sweepAndRead', 'readAtPress']);
+  const inQueue = (call) => {
     let n = call.parent;
-    let verdict = null;
-    while (n !== undefined && verdict === null) {
+    while (n !== undefined) {
       if (
         ts.isCallExpression(n) &&
         ts.isPropertyAccessExpression(n.expression) &&
@@ -2675,19 +2661,64 @@ function switchQueueRule() {
         n.expression.name.text === 'serially' &&
         n.arguments.some((a) => call.pos >= a.pos && call.end <= a.end)
       ) {
-        verdict = 'queue';
-      } else if (ts.isMethodDeclaration(n) && n.name !== undefined && ts.isIdentifier(n.name)) {
-        verdict = insideJob.has(n.name.text) ? 'job' : `method ${n.name.text}()`;
+        return 'queue';
+      }
+      if (ts.isMethodDeclaration(n) && n.name !== undefined && ts.isIdentifier(n.name)) {
+        return JOBS.has(n.name.text) ? 'job' : `method ${n.name.text}()`;
       }
       n = n.parent;
     }
+    return 'module scope';
+  };
+  const sitesOf = (name) => {
+    const out = [];
+    for (const file of mainSources()) {
+      if (file.endsWith(join('pocket', 'bind.ts')) || file.endsWith(join('pocket', 'funnel.ts'))) continue;
+      for (const call of callsOf(file)) if (calleeName(call) === name) out.push({ file, call });
+    }
+    return out;
+  };
+  for (const name of ['stopPocketDoor', 'startFunnel', 'sweepFunnelOrphan']) {
+    const sites = sitesOf(name);
+    checked('Q1', sites.length + 1);
+    if (sites.length === 0) fail('Q1', `nothing in src/main calls ${name}, so this rule cannot read that it runs inside the queue`);
+    for (const { file, call } of sites) {
+      const verdict = file === ipc ? inQueue(call) : `${rel(file)}`;
+      if (verdict !== 'queue' && verdict !== 'job') {
+        fail('Q1', `${where(file, call)}: ${name} is called from ${verdict}, outside the switch's queue, so it can run beside another press`);
+      }
+    }
+  }
+  // The Funnel child's own stop: every `.stop()` on a run the host holds.
+  for (const call of callsOf(ipc)) {
+    if (calleeName(call) !== 'stop' || call.arguments.length !== 0) continue;
+    const e = call.expression;
+    if (!ts.isPropertyAccessExpression(e) || !/\brun\b/i.test(e.expression.getText(astOf(ipc)))) continue;
+    checked('Q1');
+    const verdict = inQueue(call);
+    if (verdict !== 'queue' && verdict !== 'job') {
+      fail('Q1', `${where(ipc, call)}: the Funnel child is stopped from ${verdict}, outside the switch's queue, so a start can be publishing a child the stop does not know about`);
+    }
+  }
+
+  // (c) REACHED ONLY FROM INSIDE A QUEUED JOB. Every call of the start, the
+  // restart and the stops is an argument of this.serially(...), or is made by
+  // a method that itself only ever runs inside one.
+  const viaQueue = { openNow: 0, closeNow: 0, closeNowUnlessConfirmed: 0, recoverNow: 0, unpublish: 0, sweepAndRead: 0, readAtPress: 0 };
+  for (const call of callsOf(ipc)) {
+    const e = call.expression;
+    if (!ts.isPropertyAccessExpression(e) || e.expression.kind !== ts.SyntaxKind.ThisKeyword) continue;
+    const name = e.name.text;
+    if (!(name in viaQueue)) continue;
+    checked('Q1');
+    const verdict = inQueue(call);
     if (verdict === 'queue') viaQueue[name] += 1;
     else if (verdict !== 'job') {
-      fail('Q1', `${where(ipc, call)}: this.${name}() is called from ${verdict ?? 'module scope'} outside this.serially(...), so a start or a stop can run beside another press`);
+      fail('Q1', `${where(ipc, call)}: this.${name}() is called from ${verdict} outside this.serially(...), so a start or a stop can run beside another press`);
     }
   }
   checked('Q1', 2);
-  if (viaQueue.openNow === 0) fail('Q1', `${rel(ipc)}: nothing reaches openNow() through this.serially(...), so the queue holds no start and this rule proved nothing`);
+  if (viaQueue.openNow === 0 && viaQueue.recoverNow === 0) fail('Q1', `${rel(ipc)}: nothing reaches openNow() or recoverNow() through this.serially(...), so the queue holds no start and this rule proved nothing`);
   if (viaQueue.closeNow === 0) fail('Q1', `${rel(ipc)}: nothing reaches closeNow() through this.serially(...), so the queue holds no stop and this rule proved nothing`);
 
   // (d) BOTH HALVES OF THE SWITCH count themselves as the last press before
@@ -2706,9 +2737,12 @@ function switchQueueRule() {
     for (const [half, text] of halves) {
       const counted = text.search(/this\.pressed\(\)/);
       const firstAwait = text.search(/\bawait\b/);
-      if (counted === -1 || firstAwait === -1 || counted > firstAwait) {
+      // PHASE 330: the on half queues its start and does NOT await it, so no
+      // IPC answer waits on Tailscale's approval (SPEC §4.3); an await it does
+      // make is the queue's own, or inside the queued job.
+      if (counted === -1 || (firstAwait !== -1 && counted > firstAwait)) {
         fail('Q1', `${where(ipc, setDoor)}: ${half} half of setDoor() does not count itself as the last press (this.pressed()) before its first await, so a start of an earlier press cannot tell it no longer decides`);
-      } else if (!/^await\s+this\.serially\(/.test(text.slice(firstAwait))) {
+      } else if (firstAwait !== -1 && !/^await\s+this\.serially\(/.test(text.slice(firstAwait)) && !/this\.serially\(\s*async/.test(text.slice(0, firstAwait))) {
         fail('Q1', `${where(ipc, setDoor)}: ${half} half of setDoor() awaits something other than this.serially(...) first, so it reaches the door outside the queue`);
       }
     }
@@ -2731,10 +2765,919 @@ function switchQueueRule() {
   const bindAt = openText.search(/startPocketDoor\(/);
   const after = bindAt === -1 ? '' : openText.slice(bindAt);
   const askAfter = after.search(/if\s*\(\s*this\.superseded\(\s*press\s*\)\s*\)/);
-  const closeAfter = after.search(/this\.closeNow\(/);
-  const refusalAfter = after.search(/this\.lastRefusal\s*=/);
-  if (askAfter === -1 || closeAfter === -1 || closeAfter < askAfter || (refusalAfter !== -1 && closeAfter > refusalAfter)) {
-    fail('Q1', `${where(ipc, openNow)}: after startPocketDoor, openNow() does not ask whether a later press arrived and close what it opened (this.closeNow()) before it says anything, so a door that bound under a superseded start is still listening when the next press runs`);
+  const stopAfter = after.search(/stopPocketDoor\(|this\.closeNow\(/);
+  const refusalAfter = after.search(/this\.startRefusal\s*=|this\.lastRefusal\s*=/);
+  if (askAfter === -1 || stopAfter === -1 || stopAfter < askAfter || (refusalAfter !== -1 && stopAfter > refusalAfter)) {
+    fail('Q1', `${where(ipc, openNow)}: after startPocketDoor, openNow() does not ask whether a later press arrived and stop what it forked before it says anything, so a door process that started under a superseded press is still answering when the next press runs`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 330 — the door on the internet (build/p330/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/** The production sources of the processes that can start one. */
+function processSources() {
+  return [
+    ...sourcesUnder(join(ROOT, 'src', 'main')),
+    ...sourcesUnder(join(ROOT, 'src', 'shared')),
+    ...sourcesUnder(join(ROOT, 'src', 'preload'))
+  ];
+}
+
+/** A string element's text, or null. */
+const literalText = (node) =>
+  node !== undefined && (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) ? node.text : null;
+
+/** Is this a `head${one part}` template with nothing after its one part? */
+const isOnePartTemplate = (node, head) =>
+  node !== undefined &&
+  ts.isTemplateExpression(node) &&
+  node.head.text === head &&
+  node.templateSpans.length === 1 &&
+  node.templateSpans[0].literal.text === '';
+
+// ---------------------------------------------------------------------------
+// U1 — the Funnel argv, exactly
+// ---------------------------------------------------------------------------
+
+/**
+ * The flags and subcommands that would make the child something other than a
+ * foreground, raw, loopback publish of the door. `--bg` outlives Tortie and
+ * comes back after every reboot; the TLS-terminating modes cannot be pinned
+ * (`ipn/ipnlocal/cert.go:646`); `reset`, `off` and `clear` would take down
+ * whatever HE serves (research 132 §9 condition 5).
+ */
+const FORBIDDEN_TAILSCALE_FLAGS = ['--bg', '--https', '--http', '--tls-terminated-tcp', '--set-path', '--yes', '--service'];
+const FORBIDDEN_SUBCOMMANDS = ['reset', 'off', 'clear'];
+
+function funnelArgvRule() {
+  const funnel = moduleNamed('funnel', 'U1', "Phase 330 builder owner's");
+  // (a) No forbidden flag, as a token, anywhere a process could be started
+  // from. The renderer starts nothing, and names `--yes` for agents' own
+  // command lines, so it is not read here.
+  for (const file of processSources()) {
+    const raw = readFileSync(file, 'utf8');
+    if (!/--(?:bg|https?|tls-terminated-tcp|set-path|yes|service)\b/.test(raw)) continue;
+    for (const { node, text } of codeStringsOf(file)) {
+      checked('U1');
+      const tokens = text.split(/\s+/);
+      const hit = FORBIDDEN_TAILSCALE_FLAGS.find((flag) => tokens.some((t) => t === flag || t.startsWith(`${flag}=`)));
+      if (hit !== undefined) {
+        fail('U1', `${where(file, node)} names ${JSON.stringify(hit)}. The Funnel child is foreground, raw TCP and loopback, and nothing in src/ may ask Tailscale for anything else.`);
+      }
+    }
+  }
+  // (b) Every argv that names `funnel` or `serve` is one of the two shapes,
+  // with the subcommand first: the program is the spawn's FILE, never an
+  // element a later round can put a flag in front of.
+  let funnelShapes = 0;
+  for (const file of processSources()) {
+    const raw = readFileSync(file, 'utf8');
+    if (!/'(?:funnel|serve)'/.test(raw)) continue;
+    for (const node of nodesOf(file)) {
+      if (!ts.isArrayLiteralExpression(node)) continue;
+      const texts = node.elements.map(literalText);
+      const at = texts.findIndex((t) => t === 'funnel' || t === 'serve');
+      if (at === -1) continue;
+      checked('U1', 2);
+      const e = node.elements;
+      const sub = texts[at];
+      for (const word of FORBIDDEN_SUBCOMMANDS) {
+        if (texts.includes(word)) fail('U1', `${where(file, node)}: an argv that names ${sub} also names ${JSON.stringify(word)}. Tortie never resets, turns off or clears his serve config.`);
+      }
+      if (at !== 0 || file !== funnel) {
+        fail('U1', `${where(file, node)}: an argv names ${JSON.stringify(sub)} ${at !== 0 ? `at position ${String(at)}, not first` : `outside ${funnel === null ? 'funnel.ts' : rel(funnel)}`}. The two Tailscale argv are spelled in funnel.ts alone, subcommand first.`);
+        continue;
+      }
+      if (sub === 'funnel') {
+        funnelShapes += 1;
+        const exact =
+          e.length === 4 &&
+          isOnePartTemplate(e[1], '--tcp=') &&
+          texts[2] === '--proxy-protocol=2' &&
+          e[3] !== undefined &&
+          ts.isTemplateExpression(e[3]) &&
+          e[3].head.text.startsWith('tcp://');
+        if (!exact) {
+          fail('U1', `${where(file, node)}: the funnel argv is ${JSON.stringify(node.getText(astOf(file)).replace(/\s+/g, ' '))}, not exactly ['funnel', \`--tcp=\${port}\`, '--proxy-protocol=2', \`tcp://\${target}\`]. Raw TCP with a PROXY v2 header is what keeps TLS inside Tortie and gives the limiter its key.`);
+        }
+      } else if (texts.join(' ') !== 'serve status --json' || e.length !== 3) {
+        fail('U1', `${where(file, node)}: the serve argv is ${JSON.stringify(node.getText(astOf(file)).replace(/\s+/g, ' '))}, not exactly ['serve', 'status', '--json']. Tortie reads his serve config and never writes it.`);
+      }
+    }
+  }
+  checked('U1');
+  if (funnelShapes !== 1) {
+    fail('U1', `${String(funnelShapes)} funnel argv found. There is exactly one, in ${funnel === null ? 'funnel.ts' : rel(funnel)}.`);
+  }
+  // (c) The status read asks for this node alone: `--json --peers=false`, so
+  // the answer never carries the names of his other devices (SPEC §3 row 14).
+  if (funnel !== null) {
+    let statusReads = 0;
+    for (const node of nodesOf(funnel)) {
+      if (!ts.isArrayLiteralExpression(node) || literalText(node.elements[0]) !== 'status') continue;
+      statusReads += 1;
+      checked('U1');
+      const texts = node.elements.map(literalText);
+      if (texts.join(' ') !== 'status --json --peers=false' || node.elements.length !== 3) {
+        fail('U1', `${where(funnel, node)}: the status read is ${JSON.stringify(node.getText(astOf(funnel)))}, not exactly ['status', '--json', '--peers=false'].`);
+      }
+    }
+    checked('U1');
+    if (statusReads !== 1) fail('U1', `${rel(funnel)} holds ${String(statusReads)} status argv; the Funnel read is exactly one.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// U2 — the program comes from resolveTailscale, and a bad override refuses
+// ---------------------------------------------------------------------------
+
+const TAILSCALE_PATH = /Tailscale\.app|\/usr\/local\/bin\/tailscale|\/opt\/homebrew\/bin\/tailscale|\/Applications\//i;
+
+function funnelProgramRule() {
+  const funnel = moduleNamed('funnel', 'U2', "Phase 330 builder owner's");
+  if (funnel === null) return;
+  // (a) resolveTailscale, imported from the one resolver and called here.
+  let imported = false;
+  for (const node of nodesOf(funnel)) {
+    if (!ts.isImportDeclaration(node) || !ts.isStringLiteral(node.moduleSpecifier)) continue;
+    if (!/machines\/tailscale$/.test(node.moduleSpecifier.text)) continue;
+    const clause = node.importClause?.namedBindings;
+    if (clause !== undefined && ts.isNamedImports(clause) && clause.elements.some((x) => (x.propertyName ?? x.name).text === 'resolveTailscale')) imported = true;
+  }
+  const calls = callsOf(funnel).filter((c) => calleeName(c) === 'resolveTailscale');
+  checked('U2', 2);
+  if (!imported || calls.length === 0) {
+    fail('U2', `${rel(funnel)} does not import and call resolveTailscale from ../machines/tailscale. Funnel runs the same pinned program Add Machine does, and a second resolver is a second answer to what runs.`);
+  }
+  for (const file of domainFiles) {
+    if (file === funnel) continue;
+    for (const call of callsOf(file)) {
+      if (calleeName(call) !== 'resolveTailscale') continue;
+      checked('U2');
+      fail('U2', `${where(file, call)} resolves the Tailscale program outside funnel.ts, which is the one module that runs it.`);
+    }
+  }
+  // (b) No Tailscale path is a literal anywhere in the domain.
+  for (const file of domainFiles) {
+    for (const { node, text } of codeStringsOf(file)) {
+      checked('U2');
+      if (TAILSCALE_PATH.test(text)) {
+        fail('U2', `${where(file, node)} names ${JSON.stringify(text.slice(0, 60))}, a Tailscale program's path. The path is resolveTailscale's answer, hashed as a confirmed field, and never written down here.`);
+      }
+    }
+  }
+  // (c) THE OVERRIDE REFUSAL: an override that is set and did not resolve to
+  // a dev-override answers override-unusable, and never falls back to the
+  // pinned program — which on his Mac is HIS Tailscale, on HIS tailnet.
+  let refuses = false;
+  for (const node of nodesOf(funnel)) {
+    if (!ts.isIfStatement(node)) continue;
+    const condition = codeOfNode(funnel, node.expression);
+    if (!/!==\s*'dev-override'/.test(condition)) continue;
+    const then = codeOfNode(funnel, node.thenStatement);
+    if (/\breturn\b/.test(then) && /'override-unusable'/.test(then)) refuses = true;
+  }
+  checked('U2', 2);
+  if (!refuses) {
+    fail('U2', `${rel(funnel)}: no branch returns override-unusable when the override is set and the answer is not 'dev-override'. A probe whose wrapper path was wrong would then run his real Tailscale.`);
+  }
+  if (!codeStringsOf(funnel).some(({ text }) => text === 'GMUX_TAILSCALE_BIN')) {
+    fail('U2', `${rel(funnel)} never reads GMUX_TAILSCALE_BIN, so it cannot know an override was set and did not resolve`);
+  }
+  // (d) The host hands the child the CONFIRMED program, the hashed field.
+  const ipc = moduleNamed('ipc', 'U2', "Phase 330 builder owner's");
+  if (ipc === null) return;
+  const handed = nodesOf(ipc).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'program');
+  checked('U2');
+  if (handed.length === 0 || handed.some((n) => !/\.funnelProgram\b/.test(codeOfNode(ipc, n.initializer)))) {
+    fail('U2', `${rel(ipc)}: the program handed to the Funnel start is ${handed.map((n) => JSON.stringify(codeOfNode(ipc, n.initializer))).join(', ') || 'nothing'}, not the confirmed funnelProgram field. What runs is what the person confirmed, by hash.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// U3 — the child's death, and the orphan
+// ---------------------------------------------------------------------------
+
+/** Is a node inside the finally block of some try? */
+function insideFinally(node) {
+  let n = node;
+  while (n.parent !== undefined) {
+    if (ts.isTryStatement(n.parent) && n.parent.finallyBlock === n) return true;
+    n = n.parent;
+  }
+  return false;
+}
+
+function funnelDeathRule() {
+  const funnel = moduleNamed('funnel', 'U3', "Phase 330 builder owner's");
+  if (funnel === null) return;
+  // (a) EVERY SIGKILL IS INSIDE A finally, and the stop has one.
+  const kills = codeStringsOf(funnel).filter(({ text }) => text === 'SIGKILL');
+  checked('U3', kills.length + 1);
+  if (kills.length === 0) fail('U3', `${rel(funnel)} never sends SIGKILL, so a child that ignores SIGINT and SIGTERM outlives the stop`);
+  for (const { node } of kills) {
+    if (!insideFinally(node)) {
+      fail('U3', `${where(funnel, node)}: a SIGKILL outside a finally. The last step of a stop runs whatever happened before it, or a throw leaves the child publishing.`);
+    }
+  }
+  const stops = functionsNamed(funnel, 'stop');
+  checked('U3');
+  if (stops.length === 0 || !stops.some((fn) => /\bfinally\b[\s\S]*'SIGKILL'/.test(codeOfNode(funnel, fn)))) {
+    fail('U3', `${rel(funnel)}: no stop() ends in a finally that sends SIGKILL`);
+  }
+  // (b) THE RECORD, at 0o600 in a 0o700 directory.
+  let writes = 0;
+  for (const call of callsOf(funnel)) {
+    const name = calleeName(call);
+    if (name !== 'writeFileSync' && name !== 'mkdirSync') continue;
+    writes += 1;
+    checked('U3');
+    const text = codeOfNode(funnel, call);
+    const want = name === 'writeFileSync' ? '0o600' : '0o700';
+    if (!new RegExp(`mode:\\s*${want}\\b`).test(text)) {
+      fail('U3', `${where(funnel, call)}: ${name} does not name mode ${want}. The record names a pid Tortie will signal at its next launch, and only he may write it.`);
+    }
+  }
+  checked('U3');
+  if (writes === 0) fail('U3', `${rel(funnel)} writes no record, so nothing proves at the next launch which process Tortie started`);
+  // (d) THE RECORD'S DIRECTORY IS ITS OWN AND IS NARROWED (the Phase 330 fix
+  // round): `mkdirSync`'s mode applies only when it creates, and the verifier
+  // measured the record at 0600 in `<userData>/gmux` at 0755. So the record
+  // writer narrows its directory with chmodSync(dirname(path), 0o700) every
+  // time, and the directory is one the record owns, never `gmux` itself.
+  const writer = functionsNamed(funnel, 'writeFunnelRecord')[0];
+  checked('U3', 2);
+  if (writer === undefined) {
+    fail('U3', `${rel(funnel)} declares no writeFunnelRecord, so nothing this rule can read writes the record`);
+  } else {
+    const body = codeOfNode(funnel, writer).replace(/\s+/g, ' ');
+    if (!/chmodSync\(\s*dirname\(\s*path\s*\)\s*,\s*0o700\s*\)/.test(body)) {
+      fail('U3', `${where(funnel, writer)}: the record's directory is not narrowed with chmodSync(dirname(path), 0o700). mkdirSync's mode applies only when it creates, so an existing directory keeps whatever it was (measured: <userData>/gmux at 0755).`);
+    }
+  }
+  const recordPaths = codeStringsOf(funnel).filter(({ text }) => /\.json$/.test(text) && /record|funnel/i.test(text));
+  if (!codeTextOf(funnel).includes("'pocket-funnel', 'record.json'")) {
+    fail('U3', `${rel(funnel)}: the record is not at <userData>/gmux/pocket-funnel/record.json, a directory of its own. Narrowing the directory the record sits in must never narrow the directory everything else of Tortie's sits in (${JSON.stringify(recordPaths.map((r) => r.text))}).`);
+  }
+  // (c) THE SWEEP SIGNALS ONLY ON BOTH: the start time AND the command line.
+  const sweep = functionsNamed(funnel, 'sweepFunnelOrphan')[0];
+  checked('U3', 2);
+  if (sweep === undefined) {
+    fail('U3', `${rel(funnel)} declares no sweepFunnelOrphan, so nothing ends a child a crashed run left behind`);
+    return;
+  }
+  const signals = nodesOf(funnel).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      n.pos >= sweep.pos &&
+      n.end <= sweep.end &&
+      /^(?:endPid|kill|stop)$/.test(calleeName(n) ?? '')
+  );
+  if (signals.length === 0) {
+    fail('U3', `${where(funnel, sweep)}: the sweep signals nothing, so an orphan Tortie proved it started keeps publishing`);
+  }
+  // (e) A RECORD THAT NAMES NO FUNNEL CHILD IS NO PROOF (the fix round after
+  // his ruling of 2026-09-29). The record is a file on his disk, and `ps`
+  // agreeing with it proves only that it describes a running process. So the
+  // sweep asks `recordNamesFunnelChild(record.command)` before any signal, in
+  // an `if (!…)` that removes the record and returns, and that function
+  // compares the command against `funnelArgv` itself over `FUNNEL_PORTS`, so
+  // the argv Tortie spawns is spelled in one place.
+  const namesChild = functionsNamed(funnel, 'recordNamesFunnelChild')[0];
+  checked('U3', 2);
+  if (namesChild === undefined) {
+    fail('U3', `${rel(funnel)} declares no recordNamesFunnelChild, so the sweep would end any process its record names whose start time and command ps confirms, a shell of his included`);
+  } else {
+    const body = codeOfNode(funnel, namesChild);
+    if (!/\bfunnelArgv\s*\(/.test(body) || !/\bFUNNEL_PORTS\b/.test(body)) {
+      fail('U3', `${where(funnel, namesChild)}: recordNamesFunnelChild does not compare the command against funnelArgv over FUNNEL_PORTS, so a record naming another program could pass it`);
+    }
+  }
+  for (const signal of signals) {
+    let argvFirst = false;
+    for (const node of nodesOf(funnel)) {
+      if (!ts.isIfStatement(node) || node.pos < sweep.pos || node.end > signal.pos) continue;
+      const cond = codeOfNode(funnel, node.expression).replace(/\s+/g, ' ').trim();
+      const then = codeOfNode(funnel, node.thenStatement);
+      if (/^!\s*recordNamesFunnelChild\s*\(\s*[A-Za-z_$][\w$]*\s*\.\s*command\s*\)$/.test(cond) && /\breturn\b/.test(then) && /\bdeleteRecord\s*\(/.test(then)) argvFirst = true;
+    }
+    if (!argvFirst) {
+      fail('U3', `${where(funnel, signal)}: the sweep signals a pid without first requiring its record to name the argv Tortie spawns (if (!recordNamesFunnelChild(record.command)) { remove the record; return }). A record naming anything else would let the sweep end that process whenever ps agrees with the file.`);
+    }
+  }
+  for (const signal of signals) {
+    // Guarded by `if (a.lstart !== b.lstart || a.command !== b.command) return`
+    // before it, or inside `if (a.lstart === b.lstart && a.command === b.command)`.
+    let guarded = false;
+    for (const node of nodesOf(funnel)) {
+      if (!ts.isIfStatement(node) || node.pos < sweep.pos || node.end > sweep.end) continue;
+      const cond = codeOfNode(funnel, node.expression).replace(/\s+/g, ' ');
+      const both = (op, join) =>
+        new RegExp(`lstart\\s*${op}[^|&]*${join}[^|&]*command\\s*${op}|command\\s*${op}[^|&]*${join}[^|&]*lstart\\s*${op}`).test(cond);
+      if (both('!==', '\\|\\|') && node.end <= signal.pos && /\breturn\b/.test(codeOfNode(funnel, node.thenStatement))) guarded = true;
+      if (both('===', '&&') && signal.pos >= node.thenStatement.pos && signal.end <= node.thenStatement.end) guarded = true;
+    }
+    if (!guarded) {
+      fail('U3', `${where(funnel, signal)}: the sweep signals a pid without first requiring its start time AND its command line to equal the record. Fewer than both, and it could end a process Tortie did not start.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// U4 — the injected deps are the tests' and the push seam's alone
+// ---------------------------------------------------------------------------
+
+function injectedDepsRule() {
+  const files = sourcesUnder(join(ROOT, 'src'));
+  const allowed = (file) => file.endsWith(join('harness', 'push-seam.ts'));
+  for (const file of files) {
+    const raw = readFileSync(file, 'utf8');
+    if (!/inProcessDoor|new PocketHost\(/.test(raw)) continue;
+    for (const node of nodesOf(file)) {
+      if (ts.isIdentifier(node) && node.text === 'inProcessDoor') {
+        const declaring = file.endsWith(join('door', 'in-process.ts'));
+        checked('U4');
+        if (!declaring && !allowed(file)) {
+          fail('U4', `${where(file, node)} names inProcessDoor. Production forks the real door process; only tests and push-seam.ts run the listener in-process.`);
+        }
+      }
+      if (ts.isNewExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === 'PocketHost') {
+        const arg = node.arguments?.[0];
+        if (arg === undefined || !ts.isObjectLiteralExpression(arg)) continue;
+        for (const p of arg.properties) {
+          const name = memberName(p);
+          if (name !== 'tailscale' && name !== 'door') continue;
+          checked('U4');
+          if (!allowed(file)) {
+            fail('U4', `${where(file, p)}: PocketHost is handed \`${name}\` outside a test and push-seam.ts. Production runs the real program and the real process, which is what the person confirmed.`);
+          }
+        }
+      }
+    }
+  }
+  // And the host itself falls back to the real ones, and hands the door
+  // spawner only from its deps.
+  const ipc = moduleNamed('ipc', 'U4', "Phase 330 builder owner's");
+  if (ipc === null) return;
+  const text = codeTextOf(ipc);
+  checked('U4', 2);
+  if (!/deps\.tailscale\s*\?\?\s*defaultFunnelDeps\(\)/.test(text)) {
+    fail('U4', `${rel(ipc)} does not fall back from deps.tailscale to defaultFunnelDeps(), so what production runs is not what this rule reads`);
+  }
+  const spawns = nodesOf(ipc).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'spawn');
+  if (spawns.some((n) => !/deps\.door\b/.test(codeOfNode(ipc, n.initializer)))) {
+    fail('U4', `${rel(ipc)} hands the door a spawner that is not deps.door: ${spawns.map((n) => JSON.stringify(codeOfNode(ipc, n.initializer))).join(', ')}`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// U5 — the BUILT door process imports nothing it may not
+// ---------------------------------------------------------------------------
+
+const BUILT_BUILTINS = new Set(['node:net', 'node:tls', 'node:http', 'node:crypto', 'net', 'tls', 'http', 'crypto']);
+
+function builtDoorRule() {
+  // The entry is declared, whether or not a build is here.
+  const config = join(ROOT, 'electron.vite.config.ts');
+  checked('U5');
+  if (!existsSync(config) || !/'pocket-door'\s*:\s*resolve\(\s*__dirname\s*,\s*'src\/main\/pocket\/door-process\.ts'\s*\)/.test(codeTextOf(config))) {
+    fail('U5', 'electron.vite.config.ts declares no pocket-door entry resolving src/main/pocket/door-process.ts, so the build emits no door process for bind.ts to fork');
+  }
+  const outMain = join(ROOT, 'out', 'main');
+  const entry = join(outMain, 'pocket-door.js');
+  if (!existsSync(entry)) {
+    process.stdout.write(`${TAG} U5 skipped: no build${existsSync(outMain) ? ' of the door process in out/main (a build from before Phase 330, or none)' : ''}\n`);
+    return;
+  }
+  const seen = new Set();
+  const queue = [entry];
+  while (queue.length > 0) {
+    const file = queue.shift();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    const text = readFileSync(file, 'utf8');
+    checked('U5');
+    for (const m of text.matchAll(/\brequire\(\s*(["'])([^"']+)\1\s*\)|\bfrom\s*(["'])([^"']+)\3|\bimport\(\s*(["'])([^"']+)\5\s*\)/g)) {
+      const spec = m[2] ?? m[4] ?? m[6];
+      checked('U5');
+      if (spec.startsWith('.')) {
+        const next = resolve(dirname(file), spec);
+        if (existsSync(next)) queue.push(next);
+        else fail('U5', `${rel(file)} requires ${spec}, which is not in the build`);
+        continue;
+      }
+      if (!BUILT_BUILTINS.has(spec)) {
+        fail('U5', `${rel(file)}, reached from out/main/pocket-door.js, requires ${JSON.stringify(spec)}. The built door process may require net, tls, http and crypto and its own chunks, and nothing else${spec === 'electron' ? ': Electron in the door process is the whole of main within reach of a stranger' : ''}.`);
+      }
+    }
+    if (/main[\\/](?:credentials|logins|push|sessions)[\\/]/.test(text)) {
+      fail('U5', `${rel(file)}, reached from out/main/pocket-door.js, names a credentials, logins, push or sessions path.`);
+    }
+  }
+  process.stdout.write(`${TAG} U5 read ${String(seen.size)} built file(s) from out/main/pocket-door.js\n`);
+}
+
+// ---------------------------------------------------------------------------
+// M1 — mutual TLS, and the one hand-over to HTTP after the pin
+// ---------------------------------------------------------------------------
+
+/**
+ * Research 132 §9 condition 1: outside a pairing window, a connection whose
+ * client key is not a paired phone's is destroyed at the end of the
+ * handshake, BEFORE AN HTTP BYTE IS PARSED. `rejectUnauthorized` is false in
+ * the listener because there is no authority to chain a phone's certificate
+ * to; the pin is the verification and it is not optional. This rule is what
+ * makes it not optional: the only hand-over to the HTTP parser is inside the
+ * secureConnection handler, after the server name and the pin have each
+ * destroyed what they refuse.
+ */
+function mutualTlsRule() {
+  const listener = moduleNamed('listener', 'M1', "Phase 330 builder door's");
+  if (listener === null) return;
+  const sf = astOf(listener);
+  // (a) The TLS server's options.
+  let tlsOptions = null;
+  for (const call of callsOf(listener)) {
+    const e = call.expression;
+    if (!ts.isIdentifier(e) || !/tls/i.test(e.text) || !/create/i.test(e.text)) continue;
+    const arg = call.arguments[0];
+    if (arg !== undefined && ts.isObjectLiteralExpression(arg)) tlsOptions = arg;
+  }
+  checked('M1', 3);
+  if (tlsOptions === null) {
+    fail('M1', `${rel(listener)} creates no TLS server whose options this rule can read`);
+  } else {
+    const option = (name) => tlsOptions.properties.find((p) => ts.isPropertyAssignment(p) && memberName(p) === name)?.initializer;
+    if (option('requestCert')?.kind !== ts.SyntaxKind.TrueKeyword) {
+      fail('M1', `${where(listener, tlsOptions)}: the TLS server does not set requestCert: true, so no phone is asked for its certificate and the pin has nothing to check`);
+    }
+    const min = option('minVersion');
+    if (min === undefined || !ts.isStringLiteral(min) || min.text !== 'TLSv1.3') {
+      fail('M1', `${where(listener, tlsOptions)}: the TLS server's minVersion is not 'TLSv1.3'. Under TLS 1.2 the client certificate crosses Funnel's relay in the clear and hands Tailscale a stable identifier for the phone.`);
+    }
+  }
+  // (b) The one hand-over, and where it is.
+  const handovers = callsOf(listener).filter(
+    (c) =>
+      calleeName(c) === 'emit' &&
+      literalText(c.arguments[0]) === 'connection' &&
+      ts.isPropertyAccessExpression(c.expression) &&
+      /http/i.test(c.expression.expression.getText(sf))
+  );
+  checked('M1', 2);
+  if (handovers.length !== 1) {
+    fail('M1', `${rel(listener)} hands a socket to the HTTP parser ${String(handovers.length)} time(s). There is one hand-over, after the pin.`);
+    return;
+  }
+  const handover = handovers[0];
+  // The function registered for secureConnection.
+  let handlerName = null;
+  for (const call of callsOf(listener)) {
+    if (calleeName(call) !== 'on' || literalText(call.arguments[0]) !== 'secureConnection') continue;
+    const h = call.arguments[1];
+    if (h !== undefined && ts.isIdentifier(h)) handlerName = h.text;
+  }
+  const handler = handlerName === null ? undefined : functionsNamed(listener, handlerName)[0];
+  if (handler === undefined || !(handover.pos >= handler.pos && handover.end <= handler.end)) {
+    fail('M1', `${where(listener, handover)}: the hand-over to HTTP is not inside the function registered for secureConnection${handlerName === null ? ' (no function is registered for it by name)' : ` (${handlerName})`}. Before the handshake ends there is no key to check, so a hand-over anywhere else is a stranger's bytes reaching the parser.`);
+    return;
+  }
+  // (c) Inside it, BEFORE the hand-over: the server name, the pin over the
+  // KEY, and each refusal destroying the socket and returning.
+  const text = codeTextOf(listener).slice(handler.getStart(sf), handover.getStart(sf));
+  checked('M1', 5);
+  for (const [word, why] of [
+    ['server-name', 'a handshake for another name'],
+    ['unknown-key', 'a certificate over a key that is not a paired phone’s'],
+    ['no-certificate', 'no certificate outside a window']
+  ]) {
+    const refusal = new RegExp(`refuseSocket\\([^)]*'${word}'\\)\\s*;\\s*return\\s*;`).test(text);
+    if (!refusal) {
+      fail('M1', `${where(listener, handler)}: before the hand-over, ${why} is not destroyed and returned with '${word}'. It would reach the HTTP parser.`);
+    }
+  }
+  if (!/pins\.get\(/.test(text)) {
+    fail('M1', `${where(listener, handler)}: before the hand-over nothing asks the pins, so every certificate is somebody's`);
+  }
+  if (!/getPeerX509Certificate\(\)/.test(codeTextOf(listener)) || !/\.publicKey\.export\(\s*\{\s*type:\s*'spki'/.test(codeTextOf(listener))) {
+    fail('M1', `${rel(listener)}: the pin is not taken over the peer certificate's PUBLIC KEY (publicKey.export({ type: 'spki' })). A pin over the certificate would move with every certificate the Mac issues.`);
+  }
+  if (!/windowOpen/.test(text)) {
+    fail('M1', `${where(listener, handler)}: the certificate-less branch does not ask whether a window is open`);
+  }
+  // (d) No data or readable listener on a TLS socket anywhere in the module:
+  // the only reader of a TLS socket's bytes is the HTTP parser.
+  for (const call of callsOf(listener)) {
+    const name = calleeName(call);
+    if (name !== 'on' && name !== 'once' && name !== 'addListener' && name !== 'prependListener') continue;
+    const event = literalText(call.arguments[0]);
+    if (event !== 'data' && event !== 'readable') continue;
+    const e = call.expression;
+    const receiver = ts.isPropertyAccessExpression(e) ? e.expression.getText(sf) : '';
+    checked('M1');
+    if (/tls/i.test(receiver) || (handler !== undefined && call.pos >= handler.pos && call.end <= handler.end)) {
+      fail('M1', `${where(listener, call)}: a ${event} listener on ${receiver}. Nothing reads a TLS socket's bytes but the HTTP parser, and the parser only after the pin.`);
+    }
+  }
+  // (e) A connection with no certificate reaches POST /pair and nothing else.
+  checked('M1');
+  if (!/channel\s*===\s*null\s*&&\s*route\.id\s*!==\s*'pair'\)\s*return\s+refuseRequest\(\s*res\s*,\s*'route'\s*\)/.test(codeTextOf(listener))) {
+    fail('M1', `${rel(listener)}: a request on a connection that presented no certificate is not refused 'route' unless it is POST /pair. Without it the window would open every route to anybody holding the code.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// M2 — the hash covers what runs, where, and whose key
+// ---------------------------------------------------------------------------
+
+function hashFieldsRule() {
+  const pairing = moduleNamed('pairing', 'M2', "Phase 330 builder owner's");
+  if (pairing === null) return;
+  const fields = interfaceOf(pairing, 'PocketExecutionFields');
+  const phone = interfaceOf(pairing, 'PocketPhoneFields');
+  const names = (iface) => new Set((iface?.members ?? []).map(memberName).filter((n) => n !== null));
+  const f = names(fields);
+  const p = names(phone);
+  checked('M2', 4);
+  for (const need of ['funnelProgram', 'tailnet', 'publicName', 'publicPort']) {
+    if (!f.has(need)) fail('M2', `${rel(pairing)}: PocketExecutionFields has no ${need}. Research 132 §9 condition 4: what runs, on whose tailnet, at which name and port, are each a field a person confirmed.`);
+  }
+  for (const gone of ['bindAddress', 'port', 'address']) {
+    if (f.has(gone)) fail('M2', `${rel(pairing)}: PocketExecutionFields still has ${gone}. The door binds loopback on an ephemeral port, which is a constant and not a choice.`);
+  }
+  checked('M2', 2);
+  if (!p.has('clientKey')) fail('M2', `${rel(pairing)}: PocketPhoneFields has no clientKey, so the key a phone's handshake completes with is outside the agreement`);
+  if (p.has('address')) fail('M2', `${rel(pairing)}: PocketPhoneFields still has address. Behind Funnel every source is this Mac, and an address pins nothing.`);
+  // NORMALIZE names every field, and each phone row emits its clientKey.
+  let normalize = null;
+  for (const node of nodesOf(pairing)) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'NORMALIZE' && node.initializer !== undefined && ts.isObjectLiteralExpression(node.initializer)) normalize = node.initializer;
+  }
+  checked('M2', 2);
+  if (normalize === null) {
+    fail('M2', `${rel(pairing)} declares no NORMALIZE object literal, so nothing here reads what the hash is made of`);
+  } else {
+    const keys = new Set(normalize.properties.map(memberName));
+    for (const need of ['funnelProgram', 'tailnet', 'publicName', 'publicPort']) {
+      if (!keys.has(need)) fail('M2', `${where(pairing, normalize)}: NORMALIZE has no line for ${need}`);
+    }
+    const phones = normalize.properties.find((x) => memberName(x) === 'phones');
+    if (phones === undefined || !/\.clientKey\b/.test(codeOfNode(pairing, phones))) {
+      fail('M2', `${where(pairing, normalize)}: the phones line of NORMALIZE does not emit each phone's clientKey, so a phone whose key moved hashes the same`);
+    }
+  }
+  let algorithm = null;
+  for (const node of nodesOf(pairing)) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === 'POCKET_EXECUTION_HASH_ALGORITHM') algorithm = literalText(node.initializer);
+  }
+  checked('M2');
+  if (algorithm !== 'sha256-pocket-exec-v3') {
+    fail('M2', `${rel(pairing)}: POCKET_EXECUTION_HASH_ALGORITHM is ${JSON.stringify(algorithm)}, not 'sha256-pocket-exec-v3'. Every record written before Phase 330 must read changed and ask again.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// P1 — the PROXY source is a rate-limit key and nothing else
+// ---------------------------------------------------------------------------
+
+function proxySourceRule() {
+  const limits = moduleNamed('limits', 'P1', "Phase 330 builder door's");
+  const wire = moduleNamed('wire', 'P1', "Phase 330 builder door's");
+  const listener = moduleNamed('listener', 'P1', "Phase 330 builder door's");
+  // (a) The address block's bytes are READ in limits.ts alone.
+  for (const file of domainFiles) {
+    for (const node of nodesOf(file)) {
+      if (!ts.isPropertyAccessExpression(node) || node.name.text !== 'addressBlock') continue;
+      checked('P1');
+      if (file !== limits) {
+        fail('P1', `${where(file, node)} reads a PROXY header's address block. door/limits.ts is its one reader, and it is a rate-limit key only: any process on this Mac can write the header naming any address (research 132 §7.3).`);
+      }
+    }
+  }
+  // (b) Nothing that crosses to main can carry it.
+  if (wire !== null) {
+    for (const node of nodesOf(wire)) {
+      if (!(ts.isPropertySignature(node) || ts.isPropertyAssignment(node))) continue;
+      const name = memberName(node) ?? '';
+      checked('P1');
+      if (/source|address|proxy|remote|^ip$/i.test(name)) {
+        fail('P1', `${where(wire, node)}: the wire names a field \`${name}\`. A request main is handed carries no address of any kind.`);
+      }
+    }
+    checked('P1');
+    if (/\bProxyHeader\b/.test(codeTextOf(wire))) fail('P1', `${rel(wire)} names ProxyHeader, so the header could cross to main`);
+  }
+  for (const name of ['bind', 'server', 'ipc', 'pairing']) {
+    const file = domainFiles.find((f) => f.endsWith(join('pocket', `${name}.ts`)));
+    if (file === undefined) continue;
+    checked('P1');
+    if (/proxy-v2|\bProxyHeader\b|\breadProxyV2\b/.test(codeTextOf(file))) {
+      fail('P1', `${rel(file)} names the PROXY reader or its header. Main never sees the header.`);
+    }
+  }
+  // (c) The listener hands the header to the limiter and to nothing else.
+  if (listener !== null) {
+    for (const node of nodesOf(listener)) {
+      if (!ts.isPropertyAccessExpression(node) || node.name.text !== 'header') continue;
+      checked('P1');
+      const call = node.parent;
+      const toLimiter = call !== undefined && ts.isCallExpression(call) && calleeName(call) === 'admit' && call.arguments.includes(node);
+      if (!toLimiter) {
+        fail('P1', `${where(listener, node)}: the PROXY header is used for something other than the limiter's admit(). It is a rate-limit key only.`);
+      }
+    }
+  }
+  // (d) No socket address is read anywhere in the domain, and no log call names one.
+  for (const file of domainFiles) {
+    for (const node of nodesOf(file)) {
+      if (!ts.isPropertyAccessExpression(node) || !/^remote(?:Address|Port|Family)$/.test(node.name.text)) continue;
+      checked('P1');
+      fail('P1', `${where(file, node)} reads ${node.name.text}. Every Funnel connection arrives from 127.0.0.1, so a socket's address names nothing, and reading one invites a check that means nothing.`);
+    }
+    for (const call of callsOf(file)) {
+      const name = calleeName(call);
+      if (name === null || !/^(?:debug|info|warn|error|log)$/.test(name)) continue;
+      for (const arg of call.arguments) {
+        checked('P1');
+        if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) continue;
+        const text = arg.getText(astOf(file));
+        if (/\baddressBlock\b|\bheader\b|\bsource\b|proxy/i.test(text)) {
+          fail('P1', `${where(file, call)} hands ${JSON.stringify(text.slice(0, 60))} to ${name}(). The PROXY source is in no log line.`);
+        }
+      }
+    }
+  }
+  checked('P1');
+  if (limits !== null && !/\.addressBlock\b/.test(codeTextOf(limits))) {
+    fail('P1', `${rel(limits)} never reads the header's address block, so the limiter has no key and every source is one source`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// C1 — an explicit Content-Length on every answer
+// ---------------------------------------------------------------------------
+
+function contentLengthRule() {
+  const send = moduleNamed('send', 'C1', "Phase 330 builder door's");
+  if (send === null) return;
+  const fns = functionsNamed(send, 'sendPocket');
+  checked('C1', 2);
+  if (fns.length !== 1) {
+    fail('C1', `${rel(send)} declares ${String(fns.length)} sendPocket function(s). There is one writer.`);
+    return;
+  }
+  const fn = fns[0];
+  // The length is set at the TOP LEVEL of the one writer, for every answer:
+  // not inside a branch a body-less refusal could skip.
+  const top = ts.isBlock(fn.body) ? fn.body.statements : [];
+  const sets = top.filter((st) => /setHeader\(\s*'Content-Length'/i.test(codeOfNode(send, st)));
+  if (sets.length !== 1 || !ts.isExpressionStatement(sets[0])) {
+    fail('C1', `${where(send, fn)}: sendPocket does not set Content-Length as one statement of its own body, for every answer. The phone's reader requires the length and refuses any transfer coding (SPEC §4.12.3).`);
+  }
+  // Nothing in the domain names a transfer coding, streams, or writes a head.
+  for (const file of domainFiles) {
+    for (const { node, text } of codeStringsOf(file)) {
+      checked('C1');
+      if (/transfer-encoding|chunked/i.test(text)) {
+        fail('C1', `${where(file, node)} names ${JSON.stringify(text)}. The door never sends a transfer coding.`);
+      }
+    }
+    for (const call of callsOf(file)) {
+      const name = calleeName(call);
+      const e = call.expression;
+      const receiver = ts.isPropertyAccessExpression(e) ? e.expression.getText(astOf(file)) : '';
+      if (!(receiver === 'res' || /\.res$/.test(receiver))) continue;
+      checked('C1');
+      if (name === 'write' || name === 'writeHead' || name === 'flushHeaders') {
+        fail('C1', `${where(file, call)}: ${receiver}.${name}(). An answer is written whole by sendPocket, never streamed, so its length is known before a byte leaves.`);
+      }
+      if ((name === 'end' || name === 'setHeader') && file !== send) {
+        fail('C1', `${where(file, call)}: ${receiver}.${name}() outside door/send.ts. One writer, so every answer carries the same headers and its length.`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// N3 — /pair answers three states, and the certificate only with allowed
+// ---------------------------------------------------------------------------
+
+function pairAnswerRule() {
+  const server = moduleNamed('server', 'N3', "Phase 330 builder door's");
+  if (server !== null) {
+    let states = 0;
+    for (const node of nodesOf(server)) {
+      if (!ts.isObjectLiteralExpression(node)) continue;
+      const keys = node.properties.map(memberName);
+      if (!keys.includes('state')) continue;
+      states += 1;
+      checked('N3');
+      const extra = keys.filter((k) => k !== 'state' && k !== 'cert');
+      if (extra.length > 0) {
+        fail('N3', `${where(server, node)}: /pair's answer carries ${JSON.stringify(extra)} beside its state. It says a state, and a certificate only with allowed.`);
+      }
+      const state = node.properties.find((x) => memberName(x) === 'state');
+      const value = state !== undefined && ts.isPropertyAssignment(state) ? literalText(state.initializer) : null;
+      if (value === null) {
+        fail('N3', `${where(server, node)}: /pair's state is ${JSON.stringify(state === undefined ? '' : codeOfNode(server, state))}, not a literal. Main composes the answer field by field and never forwards what the pairing owner handed it.`);
+      }
+      if (keys.includes('cert') && value !== 'allowed') {
+        fail('N3', `${where(server, node)}: a certificate rides with the state ${JSON.stringify(value)}. It is handed to the allowed phone alone.`);
+      }
+    }
+    checked('N3');
+    const said = new Set(
+      nodesOf(server)
+        .filter((n) => ts.isObjectLiteralExpression(n) && n.properties.some((x) => memberName(x) === 'state'))
+        .map((n) => {
+          const s = n.properties.find((x) => memberName(x) === 'state');
+          return s !== undefined && ts.isPropertyAssignment(s) ? literalText(s.initializer) : null;
+        })
+    );
+    if (states === 0 || !['pending', 'refused', 'allowed'].every((x) => said.has(x))) {
+      fail('N3', `${rel(server)} does not compose each of pending, refused and allowed itself (${[...said].join(', ') || 'none'})`);
+    }
+    // What the pairing owner answers is never serialised whole.
+    for (const call of callsOf(server)) {
+      if (calleeName(call) !== 'stringify') continue;
+      const arg = call.arguments[0];
+      checked('N3');
+      if (arg !== undefined && ts.isIdentifier(arg)) {
+        const decl = nodesOf(server).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === arg.text);
+        if (decl !== undefined && /deps\.present\(/.test(codeOfNode(server, decl))) {
+          fail('N3', `${where(server, call)}: what deps.present() answered is serialised whole. A field the pairing owner grows would reach every presenter.`);
+        }
+      }
+    }
+  }
+  const pairing = moduleNamed('pairing', 'N3', "Phase 330 builder owner's");
+  if (pairing === null) return;
+  let declared = null;
+  for (const node of nodesOf(pairing)) {
+    if (ts.isTypeAliasDeclaration(node) && node.name.text === 'PocketPairAnswer') declared = node.type;
+  }
+  checked('N3');
+  if (declared === null || !ts.isUnionTypeNode(declared)) {
+    fail('N3', `${rel(pairing)}: PocketPairAnswer is not a union this rule can read`);
+    return;
+  }
+  for (const member of declared.types) {
+    if (!ts.isTypeLiteralNode(member)) continue;
+    const names = member.members.map(memberName);
+    const stateType = member.members.find((m) => memberName(m) === 'state');
+    const text = stateType?.type?.getText(astOf(pairing)) ?? '';
+    checked('N3');
+    if (names.includes('cert') && text.replace(/\s/g, '') !== "'allowed'") {
+      fail('N3', `${where(pairing, member)}: PocketPairAnswer carries a cert with the state ${text}. Only allowed carries one.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MENU1 — Pair a Phone… is still under Settings…
+// ---------------------------------------------------------------------------
+
+function menuRowRule() {
+  const menu = join(ROOT, 'src', 'main', 'menu.ts');
+  checked('MENU1');
+  if (!existsSync(menu)) {
+    fail('MENU1', 'src/main/menu.ts does not exist, so this rule read nothing');
+    return;
+  }
+  const labelOf = (n) => {
+    if (n === undefined || !ts.isObjectLiteralExpression(n)) return null;
+    const p = n.properties.find((x) => ts.isPropertyAssignment(x) && memberName(x) === 'label');
+    return p !== undefined ? literalText(p.initializer) : null;
+  };
+  let found = false;
+  for (const node of nodesOf(menu)) {
+    if (!ts.isArrayLiteralExpression(node)) continue;
+    const at = node.elements.findIndex((e) => labelOf(e) === 'Pair a Phone…');
+    if (at === -1) continue;
+    found = true;
+    checked('MENU1', 2);
+    if (labelOf(node.elements[at - 1]) !== 'Settings…') {
+      fail('MENU1', `${where(menu, node.elements[at])}: the row directly above Pair a Phone… is ${JSON.stringify(labelOf(node.elements[at - 1]))}, not Settings…. The row opens the window Settings… opens, at the Phone section, and it did not move (the entry’s "Unchanged on purpose").`);
+    }
+    const row = node.elements[at];
+    const click = row.properties.find((x) => memberName(x) === 'click');
+    if (click === undefined || !/openSettingsWindow\(\s*'phone'\s*\)/.test(codeOfNode(menu, click))) {
+      fail('MENU1', `${where(menu, row)}: Pair a Phone… does not call openSettingsWindow('phone').`);
+    }
+  }
+  if (!found) fail('MENU1', 'src/main/menu.ts has no Pair a Phone… row');
+}
+
+// ---------------------------------------------------------------------------
+// W2 — the door process's import wall, re-derived
+// ---------------------------------------------------------------------------
+
+const DOOR_BUILTINS = new Set(['node:net', 'node:tls', 'node:http', 'node:crypto']);
+
+function doorImportRule() {
+  const entry = join(DOMAIN, 'door-process.ts');
+  const doorDir = join(DOMAIN, 'door');
+  const files = [...(existsSync(entry) ? [entry] : []), ...sourcesUnder(doorDir)];
+  checked('W2');
+  if (!existsSync(entry) || sourcesUnder(doorDir).length === 0) {
+    fail('W2', 'src/main/pocket/door-process.ts or src/main/pocket/door/ does not exist, so the door process has no wall this rule can read');
+  }
+  const shared = join(ROOT, 'src', 'shared');
+  for (const file of files) {
+    const specifiers = [];
+    for (const node of nodesOf(file)) {
+      if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier)) {
+        specifiers.push({ node, spec: node.moduleSpecifier.text });
+      }
+      if (ts.isCallExpression(node) && (node.expression.kind === ts.SyntaxKind.ImportKeyword || calleeName(node) === 'require')) {
+        const spec = literalText(node.arguments[0]);
+        specifiers.push({ node, spec: spec ?? '(computed)' });
+      }
+    }
+    for (const { node, spec } of specifiers) {
+      checked('W2');
+      if (DOOR_BUILTINS.has(spec)) continue;
+      const target = spec.startsWith('@shared/')
+        ? join(shared, spec.slice('@shared/'.length))
+        : spec.startsWith('.')
+          ? resolve(dirname(file), spec)
+          : null;
+      if (target !== null && (target.startsWith(`${shared}/`) || target.startsWith(`${doorDir}/`) || target === doorDir)) continue;
+      fail('W2', `${where(file, node)} imports ${JSON.stringify(spec)}. The door process may import node:net, node:tls, node:http, node:crypto, src/shared/ and src/main/pocket/door/, and nothing else: what it needs from main arrives as a message.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// E1 — the door process's environment is its own (the Phase 330 fix round)
+// ---------------------------------------------------------------------------
+
+/**
+ * `utilityProcess.fork(..., { env: {} })` LOOKS like an empty environment and
+ * is not one: Electron 43 reads an empty object as "not set" and the child
+ * inherits main's whole environment. Lens 2 measured it in the running app
+ * (`ps -E` on the door process: HOME, GMUX_TAILSCALE_BIN and a variable set
+ * only on main) and in a standalone fork (4,458 bytes for `{}`, 884 for one
+ * named variable), with every gate green, because `env: {}` read as text is
+ * exactly what a rule would have asked for. So this rule asks for the thing
+ * that is measured to work: an object literal holding at least one variable,
+ * each a plain string, and nothing that carries main's environment in.
+ */
+function doorEnvRule() {
+  const bind = domainFiles.find((f) => f.endsWith(join('pocket', 'bind.ts'))) ?? null;
+  checked('E1');
+  if (bind === null) {
+    fail('E1', 'src/main/pocket/bind.ts does not exist, so nothing forks the door process this rule can read');
+    return;
+  }
+  const forks = callsOf(bind).filter(
+    (c) =>
+      calleeName(c) === 'fork' &&
+      ts.isPropertyAccessExpression(c.expression) &&
+      c.expression.expression.getText(astOf(bind)) === 'utilityProcess'
+  );
+  checked('E1');
+  if (forks.length === 0) fail('E1', `${rel(bind)} forks no utilityProcess, so there is no door environment this rule can read`);
+  for (const call of forks) {
+    checked('E1');
+    const options = call.arguments[2];
+    if (options === undefined || !ts.isObjectLiteralExpression(options)) {
+      fail('E1', `${where(bind, call)}: the fork names no options object literal, so the door process inherits main's whole environment`);
+      continue;
+    }
+    const envs = options.properties.filter(
+      (p) => (ts.isPropertyAssignment(p) || ts.isShorthandPropertyAssignment(p)) && p.name.getText(astOf(bind)) === 'env'
+    );
+    checked('E1');
+    if (envs.length !== 1 || !ts.isPropertyAssignment(envs[0]) || !ts.isObjectLiteralExpression(envs[0].initializer)) {
+      fail('E1', `${where(bind, call)}: the fork's env is not one object literal, so what the door process holds cannot be read here (a missing env inherits main's)`);
+      continue;
+    }
+    const vars = envs[0].initializer.properties;
+    checked('E1');
+    if (vars.length === 0) {
+      fail('E1', `${where(bind, call)}: env: {} — Electron reads an EMPTY object as "not set" and hands the door process main's whole environment (measured: HOME, GMUX_TAILSCALE_BIN and a main-only variable in its ps -E). Name one variable of the door's own.`);
+    }
+    for (const v of vars) {
+      checked('E1');
+      if (!ts.isPropertyAssignment(v) || !ts.isStringLiteral(v.initializer)) {
+        fail('E1', `${where(bind, v)}: ${JSON.stringify(v.getText(astOf(bind)).slice(0, 60))} is not a name with a plain string. A spread, a shorthand or a computed value is main's environment carried in.`);
+      }
+    }
+    checked('E1');
+    if (/process\.env/.test(codeOfNode(bind, options))) {
+      fail('E1', `${where(bind, call)}: the fork's options name process.env, which is main's environment, the thing the door process must not hold`);
+    }
+  }
+  // The door process reads nothing from its environment.
+  const doorFiles = [join(DOMAIN, 'door-process.ts'), ...sourcesUnder(join(DOMAIN, 'door'))].filter((f) => existsSync(f));
+  for (const file of doorFiles) {
+    checked('E1');
+    if (/\bprocess\s*\.\s*env\b/.test(codeTextOf(file))) {
+      fail('E1', `${rel(file)} reads process.env. The door process holds one variable of its own and reads none: what it needs from main arrives as a message.`);
+    }
   }
 }
 
@@ -2744,27 +3687,40 @@ function switchQueueRule() {
 
 const PHASES = [
   ['the bind', bindRules, 'L1'],
+  ['the Funnel target', funnelTargetRule, 'L3'],
   ['the route table', routeRules, 'R1'],
   ['the table’s membership', routeMembershipRule, 'R4'],
   ['the turn limit', turnLimitRule, 'R5'],
   ['the forbidden words', forbiddenRules, 'R3'],
   ['admission', admissionRules, 'A1'],
   ['the server', serverRules, 'S1'],
-  ['the self-origin direction', selfOriginDirectionRule, 'S4'],
   ['the file modes', fileModeRule, 'W1'],
   ['the bridge', bridgeRule, 'B1'],
   ['no html', noHtmlRule, 'H1'],
   ['the loopback rule', loopbackRule, 'T1'],
   ['no push route', noPushRouteRule, 'N1'],
   ['the token’s one door', tokenDoorRule, 'N2'],
-  ['his tailnet key', tailnetKeyRule, 'K1'],
+  ['no tailnet key', noTailnetKeyRule, 'K2'],
   ['the others', othersRule, 'O1'],
-  ['the QR’s pin', qrPinRule, 'F1'],
+  ['the QR', qrPinRule, 'F2'],
   ['the turn reads', turnReadRule, 'T2'],
   ['the launch step', launchRule, 'L5'],
   ['the last ask before a send', answerReadmitRule, 'A4'],
   ['no ssh hand-off', handoffRule, 'H2'],
-  ['one press at a time', switchQueueRule, 'Q1']
+  ['one press at a time', switchQueueRule, 'Q1'],
+  ['the Funnel argv', funnelArgvRule, 'U1'],
+  ['the Funnel program', funnelProgramRule, 'U2'],
+  ['the Funnel child’s death', funnelDeathRule, 'U3'],
+  ['the injected deps', injectedDepsRule, 'U4'],
+  ['the built door', builtDoorRule, 'U5'],
+  ['mutual TLS', mutualTlsRule, 'M1'],
+  ['the hash', hashFieldsRule, 'M2'],
+  ['the PROXY source', proxySourceRule, 'P1'],
+  ['the length on every answer', contentLengthRule, 'C1'],
+  ['/pair’s three answers', pairAnswerRule, 'N3'],
+  ['the menu row', menuRowRule, 'MENU1'],
+  ['the door’s import wall', doorImportRule, 'W2'],
+  ['the door’s environment', doorEnvRule, 'E1']
 ];
 
 for (const [name, run, onError] of PHASES) {
@@ -2782,7 +3738,7 @@ for (const [id, owner, title] of RULES) {
   total += n;
   const ok = failures.get(id).length === 0;
   if (!ok) red += 1;
-  process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${id.padEnd(4)} ${String(n).padStart(4)} check(s)  ${owner}: ${title}\n`);
+  process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${id.padEnd(5)} ${String(n).padStart(4)} check(s)  ${owner}: ${title}\n`);
 }
 const seconds = ((Date.now() - t0) / 1000).toFixed(2);
 if (red > 0) {

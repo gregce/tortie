@@ -286,11 +286,11 @@ const LEDGER = [
     why: 'the promise that a human confirms every pairing on the Mac'
   }),
   owned({
-    is: 'Tortie brings its own private network. There is nothing else to install.',
+    is: 'There is nothing else to install.',
     module: PHONE_COPY,
-    needle: 'static let pairPrivateNetwork = "Tortie brings its own private network. There is nothing else to install."',
-    draws: 'Tortie brings its own private network. There is nothing else to install.',
-    why: 'the tailnet node the app carries since Phase 316.3 (Tailnet/Node.swift). Owed to 316.3 until it landed, because it was false before the node was in the app'
+    needle: 'static let pairPrivateNetwork = "There is nothing else to install."',
+    draws: 'There is nothing else to install.',
+    why: 'the phone installs nothing besides Tortie. Phase 330 took the tailnet node out of the app, so the sentence no longer claims a private network of its own (build/p330/SPEC.md §4.12.6)'
   }),
   owned({
     is: 'Needs your input (3)',
@@ -607,7 +607,7 @@ const LEDGER = [
   owed({
     is: 'Open in Terminal',
     phase: 'no phase: removed by Phase 316 (build/p316/SPEC.md §7)',
-    why: "the ssh hand-off's press, research 127 §4. The app's tailnet node is private to the app and the grant allows only the door's port, so an ssh link could reach nothing. The approved Session.html still draws it until the screen is redrawn"
+    why: "the ssh hand-off's press, research 127 §4. The phone reaches the Mac only at the door's public name and port (Phase 330), so an ssh link could reach nothing. The approved Session.html still draws it until the screen is redrawn"
   }),
   owed({
     is: 'Open in Claude',

@@ -1,18 +1,21 @@
 /**
- * pocket:* — the door on the tailnet, and the sheet that pairs a phone with it
- * (Phase 313).
+ * pocket:* — the door a paired phone reads, and the sheet that pairs a phone
+ * with it (Phase 313; published through Tailscale Funnel since Phase 330).
  *
  * ## What this contract is for
  *
  * Phase 313 is the first time anything outside this Mac can ask Tortie a
- * question. The door itself speaks https on the Mac's own tailnet address and
- * answers a CLOSED table of three reads. This file holds two separate things
- * and it is worth saying which is which, because they are easy to confuse:
+ * question. The door itself speaks https, since Phase 330 at the Mac's own
+ * public `*.ts.net` name through Tailscale Funnel, with TLS ending inside
+ * Tortie under the key the pairing code pins, and it answers a CLOSED table of
+ * three reads to a phone whose client key completed the handshake. This file
+ * holds two separate things and it is worth saying which is which, because
+ * they are easy to confuse:
  *
  *   - The `pocket:*` INVOKE CHANNELS below are the RENDERER's door, between
  *     Settings then Phone and main. They never leave this Mac.
  *   - {@link PocketBlockedRow}, {@link PocketSessionDetail} and
- *     {@link PocketTurn} are what the tailnet door ANSWERS. They are declared
+ *     {@link PocketTurn} are what the door ANSWERS. They are declared
  *     here, in the shared contract, because every client that ever reads this
  *     door reads the same shapes and none may invent a second spelling.
  *
@@ -54,7 +57,7 @@ import type { SessionChoiceOption } from './sessions';
 // ---------------------------------------------------------------------------
 
 /**
- * Every route the tailnet door has, as ids. There is no default and no
+ * Every route the phone's door has, as ids. There is no default and no
  * wildcard: a method and path pair that is not one of these does not exist and
  * is refused before anything about the request is read beyond its line.
  *
@@ -76,6 +79,14 @@ export const POCKET_ROUTE_IDS = [
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
+
+/**
+ * The public ports the door may be published on through Tailscale Funnel
+ * (Phase 330), in the order they are tried: 8443, then 10000. NEVER 443, which
+ * is the port a person's own Serve most often holds. A confirmed port that is
+ * later held refuses rather than moving, because a phone was told it.
+ */
+export const POCKET_PUBLIC_PORTS = [8443, 10000] as const;
 
 // ---------------------------------------------------------------------------
 // What the door answers
@@ -331,12 +342,47 @@ export interface PocketTurnsAnswer {
 export type PocketDoorState =
   /** Nobody has turned it on. */
   | 'off'
-  /** On, but this Mac has no tailnet address, so nothing is listening. */
-  | 'no-address'
-  /** On, confirmed, and answering. */
+  /**
+   * On, and a start is queued or under way: Tailscale is being read, the door
+   * is opening, Funnel is starting or waiting on Tailscale's approval, or
+   * Tortie is starting it again after it stopped (Phase 330).
+   */
+  | 'opening'
+  /** On, confirmed, published, and answering. */
   | 'listening'
   /** On, and refused. {@link PocketStatus.refusal} says why in one sentence. */
   | 'refused';
+
+/**
+ * What the Funnel child is doing, as the sheet draws it (Phase 330).
+ *
+ * NONE OF IT IS A SECRET, and none of it is a URL Tortie opens on its own:
+ * {@link approvalText} is drawn as selectable text when Tortie will not open
+ * it, and `pocket:openApproval` opens only the URL main holds, checked again.
+ */
+export interface PocketFunnelView {
+  state: 'idle' | 'reading' | 'starting' | 'approval' | 'publishing' | 'restarting';
+  /**
+   * True when the last read found this Mac without Funnel's two capabilities,
+   * so the first start will ask Tailscale for its approval. The sheet then
+   * draws {@link POCKET_FUNNEL_RIGHT_WARNING} beside the lines.
+   */
+  asksApproval: boolean;
+  /**
+   * True only while an approval is waited on AND its URL is an `https:` page
+   * on `login.tailscale.com` with no port and no credentials, so the sheet may
+   * offer Open Tailscale.
+   */
+  approvalOpens: boolean;
+  /** The approval URL as text, only when Tortie will NOT open it; else null. */
+  approvalText: string | null;
+  /**
+   * Epoch ms of this run's last counted start, or null. The sheet reads it to
+   * say, when a first code shuts with nobody presenting, that the Mac's name
+   * can take minutes to reach a phone the first time.
+   */
+  publishedAt: number | null;
+}
 
 /** One phone a person allowed. Nothing here is a secret. */
 export interface PocketPhoneView {
@@ -345,13 +391,12 @@ export interface PocketPhoneView {
   label: string;
   /**
    * The short fingerprint of the pair, which is what the person matched on
-   * both screens when they allowed it. It is a hash of two public keys.
+   * both screens when they allowed it. It is a hash of the phone's three
+   * public keys (Phase 330: the client key joined the two).
    */
   fingerprint: string;
   /** Epoch ms of the allow. */
   addedAt: number;
-  /** The tailnet address it presented from, and the only one it may ask from. */
-  address: string;
   /**
    * Whether this phone can be told through Apple's push service (Phase 314).
    * `none` when it presented no device token; `stopped` when Apple said its
@@ -368,9 +413,14 @@ export interface PocketPhoneView {
 /** Everything Settings then Phone draws, in one read. */
 export interface PocketStatus {
   state: PocketDoorState;
-  /** The tailnet address the door binds, or null when this Mac has none. */
-  address: string | null;
-  port: number;
+  /**
+   * The Mac's public name the door is published at, `<mac>.<tailnet>.ts.net`,
+   * or null while Tailscale has not been read and nothing is stored (Phase
+   * 330). Reading it takes a press: opening the sheet reads nothing.
+   */
+  publicName: string | null;
+  /** The public port a phone is told, 8443 or 10000, or 0 when none is chosen. */
+  publicPort: number;
   /** Whether the door comes up with the app. A confirmed field. */
   bindAtLaunch: boolean;
   /**
@@ -380,9 +430,21 @@ export interface PocketStatus {
    * because the certificate is renewed and the key is not.
    */
   certificateFingerprint: string | null;
-  /** One sentence saying why the door is not answering. Null when it is. */
+  /**
+   * One sentence saying why the door is not answering. Null when it is. The
+   * order when it is not (Phase 330): the last failed Tailscale read's
+   * sentence, then the gate's, then the last start's, so Tailscale being off
+   * is never drawn as "this door changed".
+   */
   refusal: string | null;
   phones: PocketPhoneView[];
+  /**
+   * How many stored phones were dropped because they paired before Phase 330
+   * and have no client key. They must pair again.
+   */
+  droppedPhones: number;
+  /** What the Funnel child is doing. */
+  funnel: PocketFunnelView;
   /** The confirm gate's own word for the door's current fields. */
   confirmState: 'confirmed' | 'never' | 'changed' | 'unknown';
   /**
@@ -394,6 +456,16 @@ export interface PocketStatus {
   confirmLines: readonly string[];
   /** The hash {@link confirmLines} were drawn from. */
   confirmHash: string;
+  /**
+   * Whether {@link confirmLines} may be agreed to NOW (the Phase 330 fix
+   * round): a public name read from Tailscale, a public port Tortie chose, and
+   * no Tailscale read or port choice that failed since. When false the lines
+   * name no address, or one Tailscale just said it cannot publish, so
+   * `pocket:confirmDoor` records nothing and the sheet draws {@link refusal}
+   * with Try again instead of the lines and Allow. Main's one predicate: the
+   * sheet never spells it again.
+   */
+  confirmable: boolean;
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
   /**
@@ -402,13 +474,6 @@ export interface PocketStatus {
    * person turns it on and confirms, so turning it on asks again.
    */
   pushAlerts: boolean;
-  /**
-   * The text a person pastes into their OWN Tailscale admin console, for the
-   * address and port the door binds, or null when this Mac has no tailnet
-   * address (Phase 316). Composed by {@link pocketGrantText} and nowhere else.
-   * It names no credential: Tortie holds none that could edit a policy.
-   */
-  grant: string | null;
 }
 
 /**
@@ -421,35 +486,19 @@ export interface PocketSwitchInput {
   on: boolean;
 }
 
-/**
- * What the person hands the pairing window (Phase 316): the tailnet auth key
- * they minted by hand in their own admin console, or null when the phone
- * already has a tailnet.
- *
- * IT IS HIS CREDENTIAL. Main holds it only inside the open pairing window,
- * beside the one-shot secret, and zeroes it on cancel, on expiry and on allow.
- * It is never written to disk, never logged, and never in any answer but the
- * one offer whose QR carries it to the phone.
- */
-export interface PocketPairingInput {
-  tailnetKey: string | null;
-}
-
 /** The QR and the words beside it, handed to the sheet when a window opens. */
 export interface PocketPairingOffer {
   /**
-   * The bytes the QR encodes, `v: 2` since Phase 316. It carries the door's
-   * address, its port, the fingerprint of the door's PUBLIC KEY (which
-   * survives the certificate's renewal), Tortie's two public keys, a one-shot
-   * secret that dies with the window and, when the person pasted one, the
-   * tailnet key the phone joins with.
+   * The bytes the QR encodes, `v: 3` since Phase 330. It carries the door's
+   * public name and public port, the fingerprint of the door's PUBLIC KEY
+   * (which survives the certificate's renewal), Tortie's two public keys, a
+   * one-shot secret that dies with the window, and the deadline. There is no
+   * tailnet key and no address: the phone never joins the tailnet.
    *
    * IT IS NOT A BEARER TOKEN FOR THIS DOOR. Nothing in it is accepted on any
    * route but `POST /pair`, nothing in it survives the window, and holding it
    * grants no read: a phone that uses it still has to be allowed by the
-   * person, on the Mac, last. The tailnet key in it is a one-off key for his
-   * tailnet, which is why the QR is drawn only while the window is open and
-   * this offer is answered once, to the sheet that asked.
+   * person, on the Mac, last, after both screens show the same six groups.
    */
   payload: string;
   /** Epoch ms the window shuts. A few minutes. */
@@ -517,7 +566,7 @@ export interface PocketAllowResult {
  */
 export const POCKET_CONFIRM_WARNING =
   'This lets a phone you allow ask this Mac what your sessions are doing, ' +
-  'over your own tailnet. It reads your session names, your project names ' +
+  'over the internet. It reads your session names, your project names ' +
   'and what your agents are saying.';
 
 /**
@@ -531,54 +580,99 @@ export const POCKET_READ_ONLY_HONESTY =
   'type into one, or change anything on this Mac.';
 
 /**
- * How the phone and this Mac each reach the tailnet (rewritten in Phase 316.1,
- * build/p316/SPEC.md section 2 row 26).
+ * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route
+ * 1). Settings then Phone draws it as its caption.
  *
- * The operator ruled on 2026-09-21 that the tailnet node is EMBEDDED in the
- * phone app — "download Tortie phone app and it works" — so the phone carries
- * its own connection and needs no Tailscale app (Phase 316.3 builds that
- * node). THIS MAC does not: the door binds the address the Mac's own Tailscale
- * already gives it, and a Mac without Tailscale is a later phase (the same
- * SPEC, section 2 row 11). Settings then Phone draws this as its caption,
- * because "this Mac has no tailnet address" is the first refusal a person can
- * meet there.
+ * The phone never joins the tailnet and needs no Tailscale app: the Mac's own
+ * Tailscale publishes the door at its public name through Funnel, raw TCP, so
+ * TLS still ends inside Tortie under the key the code pins, and the door
+ * admits only a connection whose client key is a paired phone's.
  */
 export const POCKET_REACH_HONESTY =
-  'Tortie on your phone brings its own connection. This Mac still reaches ' +
-  'your tailnet through the Tailscale app.';
+  'Your phone reaches this Mac through Tailscale Funnel. Only a phone you ' +
+  'pair gets an answer.';
 
 /**
- * The residual the pairing panel names, and the stated reason the writes wait.
- *
- * Because the door serves https, a browser reaching it has `crypto.subtle` and
- * can register a service worker. Both stay refused in every phase, because the
- * certificate a browser reaches is one a browser cannot pin, and because a
- * program signed in as the same person can hold this port while Tortie is down
- * and own the origin.
+ * The standing right his approval grants (research 132 §7; his measurement
+ * M1). Approving Funnel adds the `funnel` attribute for his tailnet, not for
+ * this Mac, and nothing Tortie does can take it back. Drawn beside the lines
+ * only when the last read found this Mac without Funnel's capabilities.
  */
-export const POCKET_ORIGIN_HONESTY =
-  'While Tortie is not running, another program signed in as you can hold ' +
-  'this port and answer in its place. That is why this door only answers, and ' +
-  'why anything that changes a session waits for the app.';
+export const POCKET_FUNNEL_RIGHT_WARNING =
+  'Approving Funnel lets any device signed in to your tailnet publish to the ' +
+  'internet, not only this Mac.';
+
+/** Drawn while the Funnel child waits on Tailscale's approval page. */
+export const POCKET_FUNNEL_APPROVAL = 'Tailscale needs your OK to publish this door.';
 
 /**
- * What the grant does and does not do, in plain words (rewritten in Phase
- * 316.1, build/p316/SPEC.md section 2 row 27).
- *
- * Research 128 section 3.1: Tailscale's shipped default is
- * `src: ["*"], dst: ["*:*"]`, so a phone joined to a tailnet reaches every
- * device on it. A grant is ADDITIVE: pasting it adds one rule and takes
- * nothing away, so it keeps the phone to this door only once that default is
- * narrowed too (his ruling of 2026-09-21). Phase 313's wording read as if the
- * paste alone confined the phone, which is false. TORTIE NEVER WRITES HIS
- * POLICY FILE and never holds a credential that could: the sheet shows him the
- * text and he pastes it.
+ * Drawn when the approval page is not one Tortie opens (not `https:` on
+ * `login.tailscale.com`). The URL follows it as selectable text, never a link.
  */
-export const POCKET_TAILNET_GRANT_HONESTY =
-  'This grant only adds a rule. Your tailnet’s default rule still lets every ' +
-  'device reach every other, so the phone is kept to this door only once you ' +
-  'narrow that default too. Tortie never edits your tailnet policy and holds ' +
-  'no credential that could.';
+export const POCKET_FUNNEL_APPROVAL_ELSEWHERE =
+  'Tailscale asked for approval at a page Tortie does not open. Approve it ' +
+  'there, then try again:';
+
+/** Drawn while Tortie starts the Funnel child again after it stopped. */
+export const POCKET_FUNNEL_RESTARTING =
+  'Tailscale stopped publishing the door. Tortie is trying again.';
+
+/**
+ * Every way publishing the door through Tailscale can be refused (Phase 330,
+ * build/p330/SPEC.md §4.2). A WORD, and the sentence below it is what a
+ * person reads.
+ */
+export type PocketFunnelRefusal =
+  | 'no-tailscale'
+  | 'override-unusable'
+  | 'not-running'
+  | 'signed-out'
+  | 'no-name'
+  | 'unreadable'
+  | 'ports-taken'
+  | 'port-taken'
+  | 'not-approved'
+  | 'shields-up'
+  | 'funnel-ports'
+  | 'approval-timeout'
+  | 'busy'
+  | 'failed';
+
+/**
+ * One sentence per refusal. `PORT` in `port-taken` is replaced by
+ * {@link pocketFunnelSentence}, the one composer, so no surface spells the
+ * sentence twice. Just enough words: each says what is true and the one thing
+ * a person can do.
+ */
+export const POCKET_FUNNEL_SENTENCES: Readonly<Record<PocketFunnelRefusal, string>> = {
+  'no-tailscale':
+    'Tortie found no Tailscale program on this Mac. Install Tailscale and sign in, then try again.',
+  'override-unusable':
+    'GMUX_TAILSCALE_BIN does not name a program Tortie can run, so Tortie published nothing.',
+  'not-running': 'Tailscale is not running on this Mac. Open Tailscale, then try again.',
+  'signed-out': 'Tailscale on this Mac is signed out. Sign in, then try again.',
+  'no-name':
+    'Tailscale has not given this Mac a name, so there is nothing for a phone to reach. Turn on MagicDNS for your tailnet, then try again.',
+  unreadable: 'Tortie could not read what Tailscale answered, so it published nothing.',
+  'ports-taken':
+    'Tailscale on this Mac already uses ports 8443 and 10000, so Tortie has no port to publish on.',
+  'port-taken':
+    'Tailscale on this Mac already uses port PORT for something else. Tortie will not take it over.',
+  'not-approved': 'Tailscale did not turn Funnel on. An admin of your tailnet must approve it.',
+  'shields-up':
+    'Tailscale is set to refuse incoming connections on this Mac. Allow incoming connections in Tailscale, then try again.',
+  'funnel-ports':
+    'Your tailnet’s policy does not allow Funnel on the ports Tortie needs. An admin can allow ports 443, 8443 and 10000.',
+  'approval-timeout': 'Tailscale’s approval did not arrive, so Tortie published nothing.',
+  busy: 'Tailscale was changing its settings at the same moment. Try again.',
+  failed: 'Tailscale did not publish the door. Nothing was published.'
+};
+
+/** The one composer of a refusal's sentence. `port` fills `port-taken`'s PORT. */
+export function pocketFunnelSentence(reason: PocketFunnelRefusal, port: number): string {
+  const sentence = POCKET_FUNNEL_SENTENCES[reason];
+  return reason === 'port-taken' ? sentence.replace('PORT', String(port)) : sentence;
+}
 
 /**
  * How the ages a phone draws can be off, said where they are drawn (Phase 314).
@@ -592,30 +686,6 @@ export const POCKET_TAILNET_GRANT_HONESTY =
 export const POCKET_AGE_HONESTY =
   'Waits first seen after your Mac wakes or Tortie restarts are timed from then.';
 
-/**
- * The policy text a person pastes into their own admin console.
- *
- * `MAC` and `PORT` are replaced by the sheet with the door's own address and
- * port before it is drawn. It is TEXT and it is never sent anywhere: nothing in
- * this repository has a Tailscale API credential, by refusal.
- */
-export const POCKET_TAILNET_GRANT_TEMPLATE = [
-  '"tagOwners": {',
-  '  "tag:tortie-phone": ["autogroup:admin"]',
-  '},',
-  '"grants": [',
-  '  { "src": ["tag:tortie-phone"], "dst": ["MAC"], "ip": ["tcp:PORT"] }',
-  ']'
-].join('\n');
-
-/** The one composer for the pasted text, so no surface spells it twice. */
-export function pocketGrantText(address: string, port: number): string {
-  return POCKET_TAILNET_GRANT_TEMPLATE.replace('MAC', address).replace(
-    'PORT',
-    String(port)
-  );
-}
-
 // ---------------------------------------------------------------------------
 // The channels
 // ---------------------------------------------------------------------------
@@ -625,17 +695,22 @@ export function pocketGrantText(address: string, port: number): string {
  *
  * `pocket:setDoor`, `pocket:setPushAlerts`, `pocket:removePhone`,
  * `pocket:confirmDoor` and `pocket:forgetDoor` DO change
- * state, and that is not a contradiction of "no write route": they are the
- * RENDERER's channels, reached by a person pressing a button in Tortie on this
- * Mac. The tailnet door's own route table is read only and holds none of them.
+ * state, and `pocket:openApproval` opens one page in the browser; that is not
+ * a contradiction of "no write route": they are the RENDERER's channels,
+ * reached by a person pressing a button in Tortie on this Mac. The door's own
+ * route table is read only and holds none of them.
  */
 export interface PocketInvokeChannelMap {
   /** Everything the sheet draws. Reads the record; binds nothing. */
   'pocket:status': { req: []; res: PocketStatus };
   /**
    * Turn the door on or off (Phase 316). On writes `enabled` and
-   * `bindAtLaunch` together, which moves a confirmed field, so nothing listens
-   * until `pocket:confirmDoor`. Off stops the door and writes both false.
+   * `bindAtLaunch` together and queues ONE read of Tailscale (Phase 330),
+   * which chooses the public port and draws the lines; nothing starts until
+   * `pocket:confirmDoor`. It answers once the read is queued, with the door
+   * `opening`, and the sheet follows `pocket:changed`. Off counts itself as
+   * the last press, ends a start that is waiting on Tailscale's approval, and
+   * closes the door: the Funnel child first, then the door process.
    */
   'pocket:setDoor': { req: [input: PocketSwitchInput]; res: PocketStatus };
   /**
@@ -646,9 +721,11 @@ export interface PocketInvokeChannelMap {
   'pocket:setPushAlerts': { req: [input: PocketSwitchInput]; res: PocketStatus };
   /**
    * Open a pairing window of a few minutes and answer the QR. Refused unless
-   * the door is listening, so the QR always carries a key to pin.
+   * the door is listening AND Tailscale still publishes it (read back before
+   * the window opens, Phase 330), so the QR always carries a key to pin and a
+   * name that reaches it. It takes nothing: there is no key to paste.
    */
-  'pocket:beginPairing': { req: [input: PocketPairingInput]; res: PocketPairingOffer };
+  'pocket:beginPairing': { req: []; res: PocketPairingOffer };
   /** Shut the window now. Whatever presented is dropped. */
   'pocket:cancelPairing': { req: []; res: PocketPairingView };
   /** What the window is doing, including the fingerprint to match. */
@@ -657,10 +734,21 @@ export interface PocketInvokeChannelMap {
   'pocket:allowPhone': { req: [input: PocketAllowInput]; res: PocketAllowResult };
   /** Drop one phone. The others stand. */
   'pocket:removePhone': { req: [phoneId: string]; res: PocketStatus };
-  /** Re-confirm the door's fields after one of them moved. */
+  /**
+   * Allow: confirm the door's fields as the sheet drew them, and queue the
+   * start. It answers once the agreement is recorded and the start queued,
+   * NEVER after Tailscale's approval (Phase 330).
+   */
   'pocket:confirmDoor': { req: [input: PocketAllowInput]; res: PocketAllowResult };
   /** Withdraw the agreement. The door stops answering at once. */
   'pocket:forgetDoor': { req: []; res: PocketStatus };
+  /**
+   * Open Tailscale's approval page in the person's browser (Phase 330). Main
+   * opens ONLY the URL it holds for the start waiting on approval, and checks
+   * it again first: `https:` on `login.tailscale.com`, no port, no
+   * credentials. False when there is nothing it will open.
+   */
+  'pocket:openApproval': { req: []; res: boolean };
 }
 
 /**
@@ -684,13 +772,14 @@ export interface GmuxPocketExtras {
     status(): Promise<PocketStatus>;
     setDoor(input: PocketSwitchInput): Promise<PocketStatus>;
     setPushAlerts(input: PocketSwitchInput): Promise<PocketStatus>;
-    beginPairing(input: PocketPairingInput): Promise<PocketPairingOffer>;
+    beginPairing(): Promise<PocketPairingOffer>;
     cancelPairing(): Promise<PocketPairingView>;
     pairingState(): Promise<PocketPairingView>;
     allowPhone(input: PocketAllowInput): Promise<PocketAllowResult>;
     removePhone(phoneId: string): Promise<PocketStatus>;
     confirmDoor(input: PocketAllowInput): Promise<PocketAllowResult>;
     forgetDoor(): Promise<PocketStatus>;
+    openApproval(): Promise<boolean>;
     onChanged(cb: (status: PocketStatus) => void): () => void;
   };
 }
