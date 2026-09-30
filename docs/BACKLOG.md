@@ -36998,6 +36998,247 @@ row.
 - **Nothing filed upstream**, with OpenAI or anyone else.
 - **No release.**
 
+## Phase 332 — "tortie automatically checks dns for a user until their mac's public address is reachable" — pairing waits for the Mac's public name (operator, 2026-09-29; `build/p330/SPEC.md` M5, O2, O4 and §4.9)
+
+**Subject.** `fix(pocket): show a pairing code only once the Mac's public name answers`
+
+**First body line.** `Phase 332: pairing waits for the Mac's public name`
+
+**Semver.** Patch, and unreleased: phases 311 onward stay unreleased until the phone works end to end. It fixes
+Phase 330's first pairing, which is also unreleased, and it adds no channel.
+
+**His request, 2026-09-29.** "after we get the work in, can we run a small phase such that tortie automatically
+checks dns for a user until their mac's public address is reachable? similar to what we did and then _allows_ phone
+pairing? and stops checking this once its confirmed or starts again if they clear the setting, etc"
+
+**What he sees today, at `a8e06fe7`.**
+- The code shows the moment Tailscale first publishes the door. His Mac's public name reached public DNS about 8
+  minutes later (SPEC M5), and the window is 3:00 (`POCKET_PAIRING_WINDOW_MS`, `src/main/pocket/pairing.ts:1056`).
+- A phone that scans early asks for a name that does not exist yet. Its resolver keeps that miss for 300 s (O4), so
+  it keeps failing after the name appears, and the code shuts.
+- The Mac then says the code expired and to press Pair again (`CODE_EXPIRED` and `CODE_FIRST_NAME`,
+  `src/renderer/settings/PhoneSection.tsx:77` and `:84`).
+
+**After this phase.**
+- While the door is published and its name is not confirmed, Tortie asks the name's own DNS servers every 20 to
+  60 s. The Pair card shows one line in place of the Pair button.
+- When the name answers, checking stops, Tortie remembers it for that tailnet, name and port, and Pair appears. A
+  Pair pressed while the door was off carries through the wait, and the code then shows by itself.
+- The window stays 3:00, and the first scan works because the phone's resolver meets the name only after it exists.
+- Turning the door off forgets the confirmation. A moved tailnet, name or port, or a new Funnel approval, stops it
+  counting. Each switch-on asks once more and does not wait for the answer.
+- A person who never turns the door on gets nothing new: no timer, no socket and no query.
+
+**Unchanged on purpose.** The routes, the confirm hash, the door process, the Funnel child, the match and Allow on
+the Mac, the phone app, and the native menus (`Pair a Phone…` stays at `src/main/menu.ts:615`). No new `pocket:*`
+channel. The CHANGELOG's iPhone item under `## Unreleased` gains one clause: the first code shows once the Mac's name
+is on the internet.
+
+**Tier 3, because CLAUDE.md's fourth question answers yes.** Main sends his Mac's public name to servers Tortie has
+never talked to, the `ts.net` zone's own, and a new parser in main reads answers anyone on the path can forge. **The
+third answers yes too**: he asked for it, so the parent measurement is mandatory. The others answer no.
+
+**Independent methods, named before the work starts:** (1) **measure the parent**, the failed first scan
+reproduced at `a8e06fe7` against a loopback stand-in DNS server; (2) **attack, with hostile packets**; (3) **real
+data, once and by hand**, for a made-up name. No test or probe asks real public DNS for his name, and no agent
+runs `tailscale funnel` or changes his tailnet. A needs_work verdict gets one fix round and an
+independent reverify.
+
+**Charter.**
+- The running-log line of 2026-09-29, "PHASE 332 REQUESTED", and what it measured.
+- `build/p330/SPEC.md` §2 (M5, O1, O2, O4), §3 row 7 and §4.9, which kept the window at 3:00 and owed a longer first
+  window as its own entry. **This phase answers that owed entry another way and closes it**: the code waits for the
+  name instead of living longer, so a leaked code still lives 3:00.
+- Research 132 §3.4 (the phone retries inside the window), and SPEC O1 (Tortie never picks or dials an ingress).
+- CLAUDE.md refusals 5 and 8, "just enough words", and his no-regression rule. Research 128 §3.2 holds.
+
+### What was measured before this entry was written, so no round re-derives it
+
+- **A miss is kept for 5 minutes.** `ts.net` answers a miss with `ts.net. 300 IN SOA ns1.dnsimple.com. … 300` (O4).
+  The zone's servers are dnsimple's.
+- **The public record outlived the funnel by about 5.5 hours** (2026-09-29, 17:50, read only), answering from
+  ns1.dnsimple.com, ns2.dnsimple-edge.net, 1.1.1.1 and 8.8.8.8 with both ingresses. So O2's answer is hours: a
+  relaunch the same day probably finds the name, and one the next morning probably does not.
+- **The Mac's own resolver answers MagicDNS's `100.x` address** for the name, never the public record.
+- **One ingress did not answer TLS from the Mac itself** (O1, probably a hairpin), so a TLS probe from the Mac proves
+  nothing about a phone. The signal is the name.
+- **Tailscale documents up to 10 minutes** for the name (kb/1223, SPEC §4.9).
+- **No file under `src/` imports `node:dns` or `node:dgram`** at `a8e06fe7`.
+
+### The mechanism
+
+**N1. The query — new `src/main/pocket/public-name.ts`.**
+
+1. **The module builds and reads every packet itself**, over `node:dgram`, one question per packet, and never asks
+   the system resolver. `node:dns` is refused for two reasons. It cannot clear the recursion bit or report the
+   authoritative bit, which item 3 rests on. And it is c-ares, a C parser reading bytes anyone can forge, inside
+   main; that is why the door process left main (`build/assert-import-boundaries.mjs:344-359`). A JavaScript parser
+   that fails throws, which here is an unreadable answer. No DNS library is in the tree.
+2. **Finding the servers.** Once per check run, it asks 1.1.1.1 and 8.8.8.8, with recursion on, for `NS ts.net`
+   and each named server's IPv4 address, keeping at most four. None of these questions is his name.
+3. **Asking for his name.** One `A` question to each server, with **recursion OFF**, from a socket connected to that
+   server's port 53 (the kernel drops any other source), a random 16-bit id from `node:crypto`, a 2 s deadline, a
+   512-byte read and bounded name decoding (63-byte labels, 255-byte names, a fixed number of pointers).
+   Recursion off means a resolver intercepting port 53 answers from cache or refuses and never fetches the name, so
+   a check never plants the 300 s miss the phone would meet. The authoritative bit is required.
+4. **Each server's answer is one of three:**
+   - **record**: authoritative, the question echoed byte for byte, the id matching, and an `A` for exactly the asked
+     name (RFC 4343's ASCII case rule) at a public address;
+   - **negative**: an authoritative NXDOMAIN, or an authoritative NOERROR with no `A`;
+   - **unreadable**: everything else, including a timeout, SERVFAIL, REFUSED, truncation, a CNAME, another owner
+     name, a malformed packet, and any address in `100.64.0.0/10`, `10/8`, `172.16/12`, `192.168/16`, `127/8`,
+     `169.254/16`, `0/8` or `224/3`.
+
+   The address is never compared with anything and never dialled (O1).
+5. **A round asks every kept server at once** and reads **yes** (a record and no negative), **no** (any negative) or
+   **unreadable** (nothing readable, a failed server search included). **Two yes rounds in a row confirm.** The
+   servers are anycast, so a new record can reach one node before another. The round after a yes runs at 20 s.
+6. **`GMUX_POCKET_NAME_SERVERS`**, in a development build only, names `127.0.0.1:<port>` servers and skips the
+   search. Anything but loopback is refused. A packaged build ignores it, as `resolveTailscale` ignores
+   `GMUX_TAILSCALE_BIN` (`src/main/machines/tailscale.ts:100-118`). It is how every test and probe reaches a stand-in.
+
+**N2. When it runs — `PocketHost` in `src/main/pocket/ipc.ts`.**
+
+1. **It starts at the counted start** (`:894-895`, where `publishedAt` is set) and nowhere else: not when the sheet
+   opens, not while the door is off, and not at launch unless the door comes up.
+2. **Checking** runs a round at once, then after 20, 30, 45 and 60 s, then every 60 s. Its one timer is set through
+   `armFunnelRestart` (`src/main/pocket/funnel.ts:1340`), which `beginFunnelShutdown()` (`:1363`) clears on the
+   quit's first line (`src/main/capabilities.ts:541`). The wall clock decides nothing.
+3. **It stops** when the name is confirmed, and in `closeNow` (`:1065`), which every off, forget, Remove and quit
+   reaches. A restart after an unexpected exit pauses it until the restart's counted start.
+4. **Every run has a number.** Just before an answer is written, main checks synchronously that its run is still
+   current and that the tailnet, name and port still equal `fields()`. An answer that lands after an off, or in a
+   later run, is dropped.
+5. **A wake while checking** brings the next round forward, through `wakeCheck` (`:410`, `:992`).
+6. **A switch-on asks once.** Every counted start that is not a restart, with a confirmation remembered for the
+   current tailnet, name and port, runs ONE round and does not wait for it, so Pair is available at once. A no
+   forgets the confirmation and checking starts; a yes or unreadable round keeps it. A code already showing runs to
+   its deadline.
+7. **Three unreadable rounds in a row make Pair available** with its own line (N4), which is Phase 330's behaviour,
+   so a network that blocks outbound port 53 never locks anyone out. Checking goes on every 60 s; a later no takes
+   Pair away, and two yes rounds confirm.
+
+**N3. What is remembered — `src/main/pocket/pairing.ts`.**
+
+1. `PocketStore` (`:650`) gains `nameConfirmed: { tailnet, publicName, publicPort } | null`. `readPocketStore`
+   (`:741`) reads any other shape as null, meaning ask again, and `identityNow` (`ipc.ts:458`) carries the field.
+2. **It counts only while it equals the current tailnet, name and port** from `fields()`, through one predicate, so
+   a moved field stops it counting without anyone clearing it.
+3. **It is cleared** by the off write (`ipc.ts:1182`), by a read whose `asksApproval` is true (`sweepAndRead`,
+   `ipc.ts:719`), by a start that waited on approval (`onApproval`, `ipc.ts:868`), and by a switch-on round that
+   answers no.
+4. **It is not hashed.** It is an observation like `tailnetFacts` (`pairing.ts:632-648`), and writing it confirms
+   nothing. It decides only whether a code may show; the phone must still be matched and allowed on the Mac.
+   `NORMALIZE` and `sha256-pocket-exec-v3` (`:322`) do not move, so his confirmed door stays confirmed.
+5. **The servers asked are not execution fields.** Nothing starts because of them, which is what refusal 8 guards;
+   no setting names them, because they come from `ts.net`'s own NS set; and they decide nothing about who the door
+   answers. Hashing them would make him confirm again whenever dnsimple renumbers, for a change that cannot hurt him.
+
+**N4. What the Mac says.**
+
+1. **`src/shared/ipc/pocket.ts`** gains `PocketNameCheck = 'none' | 'checking' | 'confirmed' | 'unreadable'`, and
+   `nameCheck` and `pairable` on `PocketStatus` (`:414`). `pairable` is main's one predicate: listening, and
+   `confirmed` or `unreadable`. The sheet never works it out again, as with `confirmable`. `POCKET_NAME_SENTENCES`
+   goes after `pocketFunnelSentence`, beside `POCKET_FUNNEL_SENTENCES` (`:647`):
+   - `checking`: `Pair opens once your Mac’s name is on the internet, which can take a few minutes.`
+   - `unreadable`: `Tortie could not check your Mac’s name, so a first scan may fail.`
+
+   `PocketFunnelView.publishedAt` (`:384`) loses its one reader and is removed.
+2. **`beginPairing`** (`ipc.ts:1282`) refuses unless `pairable`, with
+   `${POCKET_NAME_SENTENCES.checking} No code was shown.`, the shape of the restart refusal at `:1292`.
+3. **`PhoneSection.tsx`:**
+   - `pairingStage` (`:204`) gains `naming`, for a door listening but not pairable. It shows the checking line and
+     no button, like `waiting` (`:390-397`).
+   - `ready` shows the unreadable line above Pair when the check reads `unreadable`.
+   - `pairAfterAllowNext` (`:232`) asks for the code on `pairable`, not `listening`.
+   - `expiredNotice` (`:146`) adds `CODE_FIRST_NAME` only to a code shown while `unreadable`, and `FIRST_NAME_MS`
+     (`:100`) is removed.
+4. **The phone does not change**, and no TestFlight build is owed. `Copy.pairNameNotYet` and `Copy.pairNameNotFound`
+   (`ios/Tortie/Style/Copy.swift:230`, `:241`) stay byte for byte. With no code shown before the zone answers, the
+   phone's resolver asks fresh. A phone still holding a miss from an older build's code retries inside the window
+   (`ios/Tortie/Door/Pairing.swift:405`), and those sentences' advice is still right. If his checklist meets that
+   case, the phone's words get their own entry.
+
+**N5. The gates widen rather than multiply.**
+
+1. **`build/conformance-pocket.mjs` gains D1 to D6:**
+   - **D1.** `public-name.ts` alone under `src/main/pocket/` names `node:dgram`, and none names `node:dns`.
+   - **D2.** The name's query has recursion 0, an id from `node:crypto`, and a socket that connects before it sends.
+     A record needs the authoritative bit and the echoed question.
+   - **D3.** The refused ranges are named once, `100.64.0.0/10` among them.
+   - **D4.** Only the counted start starts the check, and `closeNow` stops it. `status()`, the read channels and a
+     launch with the door off reach no timer, socket or query.
+   - **D5.** No log call in `public-name.ts` or its caller names the public name or an answered address; reason
+     words only.
+   - **D6.** `pairable` is one predicate, read by `beginPairing` and the sheet.
+2. **`ablation:p313`** (`build/ablation-p313.mjs`) gains one arm per D rule, each red on its own rule.
+3. **`gate:contract`.** `docs/audits/contract-baseline.txt` is regenerated for the status fields, `publishedAt`'s
+   removal, `POCKET_NAME_SENTENCES` and `GMUX_POCKET_NAME_SERVERS`, and the commit body names every moved line.
+4. **CLAUDE.md.** The pocket row names D1 to D6, and a `probe:p332` row is added.
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build`, `test`, `smoke:t1`, `smoke`, `smoke:t3`, `package`, `conformance:pocket`,
+  `conformance:pocket:hostile`, `ablation:p313`, and `conformance:phonecopy`, because `Copy.swift` quotes
+  `PhoneSection.tsx` words that must not move. No `ios/` file changes, so `test:ios` is not owed.
+- **The obligations.** `HELPER_USER_FLOOR` (`build/assert-electron-teardown.mjs:337`, 154) rises to 155 for
+  `probe:p332`.
+- **Vitest.** `src/main/pocket/__tests__/public-name.test.ts` runs against a loopback `dgram` stand-in in its own
+  process; `ipc.test.ts` and `p316-phone-section.test.tsx` cover the wiring and the `naming` face.
+- **Method 1, the attack.** Each arm reads the round's verdict, its reason word and `pairable`:
+  - **Lies:** an authoritative `A` of a made-up `100.x`, `10.x`, `127.x` or `169.254.x`; a public address without
+    the authoritative bit. Unreadable, and Pair never opens by confirmation.
+  - **Another name:** the question not echoed, an answer owned by another name, a CNAME. Unreadable.
+  - **Spoofing:** a wrong id, or an answer from another port, which the connected socket drops. Each ends at the
+    deadline.
+  - **Silence:** a timeout, SERVFAIL, REFUSED, truncation. Three such rounds open Pair with the unreadable line.
+  - **Malformed packets:** a pointer loop, a pointer past the end, a 64-byte label, a 256-byte name, counts past the
+    packet, 64 KB of noise. Each is unreadable within the deadline, and no throw leaves the module.
+  - **Flapping:** a server alternating record and NXDOMAIN never gives two yes rounds; two servers that disagree in
+    one round read no.
+  - **A clock that jumps:** `Date.now` moved a day each way mid-check changes no gap and causes no burst.
+  - **The door toggled mid-check:** an off with a query held open writes nothing and asks nothing more; on, off, on
+    inside one gap leaves one timer; a Remove mid-query drops the answer; a quit with a timer set fires nothing.
+  - **The system resolver:** `dns.lookup` and `dns.promises` are spies that fail the test if called.
+- **Method 2, the parent measurement: `probe:p332`** (`build/p332/probe-p332.mjs`, through `build/electron-run.mjs`).
+  A scratch profile, `HOME` and tmux socket. It reuses `build/p330/tailscale-standin.mjs` behind `probe:p330`'s
+  preflight, and `build/p316/node-phone.mjs` unedited. Every process it starts ends in a `finally`.
+  - **The DNS stand-in runs in the probe's own process** on 127.0.0.1, closed in the `finally`. It has two parts:
+    - **the zone's server**, which the app asks through `GMUX_POCKET_NAME_SERVERS`. It answers NXDOMAIN (SOA
+      minimum 300) until 60 s after the counted start, then a documentation address;
+    - **a model of the phone's resolver**, which keeps a miss for 300 s. The probe's phone asks it before each
+      attempt, every 2 s as the Swift phone does, and dials 127.0.0.1 only once it answers.
+  - **P1, the parent** (`P332_PARENT_CHECKOUT` at `a8e06fe7`). The code shows at once, the phone's miss outlives the
+    record's arrival, the window shuts with no phone presented, and the sheet says `CODE_EXPIRED` and
+    `CODE_FIRST_NAME`.
+  - **H1, HEAD, the same script.** The checking line shows and Pair does not; `beginPairing` through the bridge is
+    refused and opens no window. The log shows queries with recursion off at 20, 30, 45 and 60 s, within 1 s. Pair
+    opens within two rounds of the record, the carried press shows the code, and the phone pairs on its first scan.
+  - **H2 to H6.** An off with a query held open writes nothing and no query follows in 120 s. A switch-on with the
+    confirmation kept runs exactly one round and shows Pair before its held answer, and one met by NXDOMAIN forgets
+    it. A relaunch runs one round with Pair at once. A moved tailnet reads `checking`. A stand-in that never answers
+    gives three rounds, then Pair with the unreadable line.
+  - **H0, both builds, the door off and Settings → Phone opened.** The stand-in's log is empty, and main's UDP
+    sockets (`lsof -a -p <main> -iUDP`) are equal. One Electron at a time; verifiers only, under the lock.
+- **Method 3, real data, once and by hand.** A verifier runs the shipping query once against the real `ts.net`
+  servers, for a made-up name under `ts.net`, never his, and records the authoritative bit, the RCODE and the SOA, so
+  dnsimple's answer is measured, not assumed. It is in no test, probe or loop, and the verdict says it was sent.
+- **His checklist** (`build/p330/CHECKLIST.md`) gains one row: after a night with Tortie quit, how many minutes the
+  checking line shows on relaunch, which is O2 measured on the Mac.
+
+### What is NOT in this phase
+
+- **No TLS or HTTP probe of the public name from the Mac.** Tortie never dials its own name or an ingress (O1).
+- **No question to a recursive resolver about his name, and none to the system resolver about anything.**
+- **No setting, no field for servers, and no override in a packaged build.**
+- **No longer pairing window.** This phase closes the entry SPEC §4.9 owed.
+- **No change to the phone and no TestFlight build.**
+- **Nothing for a paired phone.** The morning after a quit, while the name is gone, its reads are not explained.
+- **No `AAAA` question, no DNSSEC, and no DNS over TLS or HTTPS.** An IPv6-only network reads unreadable, and the
+  Mac pairs as it does today.
+- **No new hashed field, no change to `NORMALIZE` or the algorithm, and no status set.**
+- **No menu change and no release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
