@@ -26,6 +26,28 @@
  *      joined to a fresh verify nonce
  *   8. clean up everything it made
  *
+ * PHASE 331 adds one reading at two points: the pane's `#{alternate_on}`,
+ * `#{mouse_any_flag}` and `#{history_size}` right after the launch settles
+ * (before capture mode's first-turn SKIP, so codex is read in both modes) and
+ * right after the restored resume fires (full mode only), judged against the
+ * row's compiled screen record (./screen-class.ts). A `switch-to-inline` row
+ * on the alternate screen, or with no reading, FAILS; every other class
+ * records its reading beside its class and never fails. That is what makes
+ * the run owed after an agent-CLI upgrade catch the next Codex or Claude
+ * Code that renames, drops or overrides its inline switch.
+ *
+ * PHASE 331'S FIX ROUND, three things the first build of that reading got
+ * wrong, each measured by a verifier: (1) a switch row's trust question is
+ * answered BEFORE its create reading, and a question the harness could not
+ * answer leaves no reading, because Claude Code draws its folder question on
+ * the normal screen whatever its switch says and the reading passed there
+ * (./pane.ts answers Claude 2.1.285's shape, highlight on "No, exit", with one
+ * Down); (2) the detection scan the core starts at boot walks only the agents
+ * in GMUX_CONF_AGENTS, because it runs `--version` on everything it resolves;
+ * (3) Codex runs with its update check off (./cases.ts HARNESS_ONLY_ARGS),
+ * and every install is stamped before and after the run and a moved one is
+ * named, because one full run's resumed Codex took its own update prompt.
+ *
  * WHY STEP 7 IS SHAPED LIKE THAT — the trap that makes a naive version of
  * this harness worthless. Restore REPLAYS the pre-kill scrollback into the
  * pane. So "assert the nonce is present in the restored transcript" passes
@@ -49,7 +71,9 @@
  * manifest assertion.
  *
  * Env knobs (all optional):
- *   GMUX_CONF_AGENTS=claude,pi   subset; default = every launchable agent
+ *   GMUX_CONF_AGENTS=claude,pi   subset; default = every launchable agent.
+ *                                The detection scan walks the subset only, so
+ *                                an agent outside it is never version-probed
  *   GMUX_CONF_MODE=capture       stop after the manifest assertion (fast)
  *   GMUX_CONF_CAPTURE=1          launch every case under SpecStory capture
  *                                (`npm run conformance:resume:specstory`) —
@@ -67,10 +91,10 @@
  */
 
 import { app } from 'electron';
-import { mkdtemp, mkdir, realpath, writeFile } from 'node:fs/promises';
+import { mkdtemp, mkdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { AgentKind, LaunchableAgentId, Session } from '@shared/types';
-import { listDetectedAgents } from '../agents/detection';
+import { listDetectedAgents, setAgentTableSource } from '../agents/detection';
 import {
   LAUNCHABLE_AGENT_IDS,
   agentBinaryCandidates,
@@ -85,16 +109,19 @@ import { captureSupportFor } from '../specstory';
 import * as tmux from '../tmux';
 import {
   ARGV_REJECTED_PATTERNS,
-  BYPASS_FLAGS,
   INTERACTIVE_GATE_PATTERNS,
   assertBypassFlagsAreCataloged,
   bypassEnvProblems,
+  conformanceDetectionTable,
   firstMatch,
+  harnessExtras,
   plantPrompt,
   recallPrompt
 } from './cases';
 import { publishBypassEnv } from './bypass-env';
+import { judgeScreen, readScreen, screenPair, unreadBecause } from './screen-class';
 import {
+  answerTrustGate,
   clearTrustGate,
   currentScreen,
   driveTurn,
@@ -117,6 +144,7 @@ import {
   containsToken,
   exitCodeFor,
   makeNonce,
+  movedInstalls,
   normalizeForToken,
   renderDetail,
   renderSummary,
@@ -126,6 +154,7 @@ import {
   type ConformanceStage,
   type ConformanceStageResult,
   type ConformanceVerdict,
+  type InstallStamp,
   type RecallStrength
 } from './report';
 
@@ -345,7 +374,10 @@ async function runCase(
 
   try {
     // --- 2. create through the REAL path ---------------------------------
-    const extraArgs = cfg.bypass ? [...(BYPASS_FLAGS[agent] ?? [])] : [];
+    // Phase 331's fix round: `harnessExtras` adds, bypass or not, what keeps
+    // the run from changing what it came to measure (Codex's update check off
+    // on create and so on the harvested resume argv; ./cases.ts).
+    const extraArgs = harnessExtras(agent, cfg.bypass);
     log(agent, `creating in ${cwd}${extraArgs.length > 0 ? ` (${extraArgs.join(' ')})` : ''}`);
     session = await core.createSession({
       name: `${CONF_PREFIX}${agent}-${process.pid}`,
@@ -413,6 +445,45 @@ async function runCase(
     }
     stages.add('launch', true);
 
+    // --- 3b. the screen, after create (Phase 331) ------------------------
+    // Read HERE, before the capture-mode SKIP below for agents that write
+    // their id at the first turn, so codex is read in capture mode too: it is
+    // one of the two rows whose inline switch this reading exists to hold.
+    // A switch-to-inline row on the alternate screen, or one tmux would not
+    // describe, FAILS the case; every other class is recorded beside it.
+    //
+    // THE FIX ROUND'S RULE: a switch-to-inline row has its trust question
+    // answered FIRST, because Claude Code 2.1.285 draws that question on the
+    // normal screen whatever its switch says and the scratch folder is new
+    // every run, so a reading taken at it passed a Claude whose switch was
+    // gone. A question the harness saw and could not answer leaves no reading,
+    // which fails the switch (./screen-class.ts, unreadBecause). The answer is
+    // the one the full run has always given its fresh scratch folder, and in
+    // capture mode it is new: the agent records one trust entry for that
+    // temporary folder in its own configuration, as the full run's has.
+    const switched = getLaunchableEntry(agent).screen?.class === 'switch-to-inline';
+    const gate = switched ? await answerTrustGate(tmuxId) : { seen: null, answered: false };
+    if (gate.answered) log(agent, 'answered the workspace-trust dialog before reading the screen');
+    const unread = unreadBecause(gate);
+    const createReading = unread === null ? await readScreen(tmuxId) : null;
+    const createJudged = judgeScreen(agent, createReading, unread);
+    result.screen = {
+      class: createJudged.class,
+      ...(createReading !== null ? { create: createReading } : {}),
+      ...(createJudged.mismatch !== null ? { mismatch: [`after create: ${createJudged.mismatch}`] } : {})
+    };
+    if (createJudged.fail !== null) {
+      result.paneTail = tail(booted);
+      stages.add('screen', false, `after create: ${createJudged.fail}`);
+      return finish('FAIL', `after create, ${createJudged.fail}`);
+    }
+    stages.add(
+      'screen',
+      true,
+      `after create: ${createJudged.class}` +
+        (createReading === null ? ', no reading' : ` ${screenPair(createReading)}`)
+    );
+
     // Pre-assign agents must be armed BEFORE the process exists. Asserting
     // it here — not after the turn — is what makes "no watcher, no race" a
     // measurement instead of a claim.
@@ -447,7 +518,10 @@ async function runCase(
 
     // --- 4. plant the nonce turn -----------------------------------------
     if (cfg.mode === 'full') {
-      if (await clearTrustGate(tmuxId)) {
+      // A question answered before the screen reading is not asked again: its
+      // text stays in an inline agent's scrollback, and a second whole-pane
+      // look would press Enter into the composer.
+      if (!gate.answered && (await clearTrustGate(tmuxId))) {
         log(agent, 'answered the workspace-trust dialog');
       }
       log(agent, `planting nonce ${plant}`);
@@ -624,6 +698,32 @@ async function runCase(
     }
     stages.add('fire', true);
 
+    // --- 8b. the screen, after the restored resume (Phase 331) ------------
+    // The switch has to be on the RESUME argv or env as well as the launch
+    // one, because `codex resume` restores no launch flag and restore arms
+    // the recorded argv word for word. A switched agent that comes back on the
+    // alternate screen fails here, whatever its conversation does next.
+    const resumeReading = await readScreen(restoredTmuxId);
+    const resumeJudged = judgeScreen(agent, resumeReading);
+    result.screen = {
+      ...(result.screen ?? { class: resumeJudged.class }),
+      ...(resumeReading !== null ? { resume: resumeReading } : {})
+    };
+    if (resumeJudged.mismatch !== null) {
+      (result.screen.mismatch ??= []).push(`after the resume: ${resumeJudged.mismatch}`);
+    }
+    if (resumeJudged.fail !== null) {
+      result.paneTail = tail(afterFire);
+      stages.add('screen', false, `after the resume: ${resumeJudged.fail}`);
+      return finish('FAIL', `after the resume, ${resumeJudged.fail}`);
+    }
+    stages.add(
+      'screen',
+      true,
+      `after the resume: ${resumeJudged.class}` +
+        (resumeReading === null ? ', no reading' : ` ${screenPair(resumeReading)}`)
+    );
+
     // --- 9. does it still hold the conversation? --------------------------
     // A resumed agent can re-ask for workspace trust; same dialog, same
     // answer, same reason it is safe. Scanned from the resume command line
@@ -748,6 +848,17 @@ export async function runResumeConformance(): Promise<void> {
         `(private manifest — the user's gmux has no row for anything here)`
     );
 
+    // THE SCAN COVERS THE AGENTS ASKED FOR AND NO OTHER (Phase 331's fix
+    // round). A detection scan runs `--version` on every agent it resolves,
+    // and the core starts one as it boots on this empty profile, so before
+    // this line a run with GMUX_CONF_AGENTS set still started every installed
+    // agent, the ones that update themselves among them. Set before the core
+    // boots, so the warm and every later scan walk this table.
+    setAgentTableSource(() => conformanceDetectionTable(cfg.agents));
+    // Every install the run may start, read before any case and again after
+    // the last: an agent that updated itself mid-run measured two versions,
+    // and the run says so rather than absorbing it.
+    const installsBefore = await stampInstalls(cfg.agents);
     const core = await getGmuxCore();
     const swept = await sweepLeftovers(core);
     if (swept > 0) console.log(`[gmux-conf] swept ${swept} leftover(s)`);
@@ -781,6 +892,8 @@ export async function runResumeConformance(): Promise<void> {
       withTimeout(runCase(agent, { core, cfg, versions }), cfg.agentMs, agent)
     );
 
+    const installsAfter = await stampInstalls(cfg.agents);
+    const moved = movedInstalls(installsBefore, installsAfter);
     const run: ConformanceRun = {
       startedAt,
       finishedAt: Date.now(),
@@ -788,7 +901,8 @@ export async function runResumeConformance(): Promise<void> {
       bypassFlags: cfg.bypass,
       tmuxSocket: tmux.activeTmuxSocket(),
       versions,
-      results
+      results,
+      installs: { before: installsBefore, after: installsAfter, moved }
     };
 
     console.log('');
@@ -799,6 +913,12 @@ export async function runResumeConformance(): Promise<void> {
       `[gmux-conf] ${renderSummary(results)} in ` +
         `${((run.finishedAt - startedAt) / 1000).toFixed(1)}s`
     );
+    for (const line of moved) {
+      console.log(
+        `[gmux-conf] INSTALL MOVED: ${line} during the run, so a case may have ` +
+          'measured another version than the one it started with'
+      );
+    }
     if (cfg.mode === 'capture') {
       console.log(
         '[gmux-conf] NOTE: capture mode asserted the manifest only — no turn ' +
@@ -834,6 +954,33 @@ export async function runResumeConformance(): Promise<void> {
     await undoBypassEnv().catch(() => undefined);
     app.exit(1);
   }
+}
+
+/**
+ * Each agent's resolved install, as the realpath of the binary its create
+ * would use and that file's mtime and size, or null when none resolves. Reads
+ * the file system only; it starts nothing.
+ */
+async function stampInstalls(
+  agents: readonly LaunchableAgentId[]
+): Promise<Record<string, InstallStamp | null>> {
+  const out: Record<string, InstallStamp | null> = {};
+  for (const agent of agents) {
+    out[agent] = null;
+    for (const candidate of agentBinaryCandidates(agent)) {
+      const bin = await tmux.resolveBinary(candidate).catch(() => null);
+      if (bin === null) continue;
+      try {
+        const real = await realpath(bin);
+        const info = await stat(real);
+        out[agent] = { real, mtimeMs: info.mtimeMs, size: info.size };
+      } catch {
+        out[agent] = null;
+      }
+      break;
+    }
+  }
+  return out;
 }
 
 /** One agent must never eat the whole run's budget. */

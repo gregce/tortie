@@ -160,6 +160,13 @@ describe('launchable entries', () => {
     expect(getLaunchableEntry('grok').launch.env).toEqual({
       GROK_PRIVACY_NOTICE_ROLLOUT: '0'
     });
+    // Phase 331 (research 134): Claude Code's inline switch rides in its
+    // compiled launch.env, so every create records it and every restore
+    // replays it from the row. Removing it puts a full-screen Claude's
+    // conversation back outside tmux's history.
+    expect(getLaunchableEntry('claude').launch.env).toEqual({
+      CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1'
+    });
     expect(getRegistryEntry('codex').versionProbe?.fallbackArgs).toEqual(['-V']);
     expect(getRegistryEntry('droid').versionProbe?.postProcess).toBe(
       'strip-ansi-last-line'
@@ -428,7 +435,9 @@ describe('argv helpers', () => {
     ]);
     // codex harvests; handing it an id must change nothing.
     expect(registryLaunchArgv('codex', [], '/abs/codex', 'ID')).toEqual([
-      '/abs/codex'
+      '/abs/codex',
+      '-c',
+      'tui.fullscreen_transcript=false'
     ]);
     expect(preAssignFlag('claude')).toEqual(['--session-id']);
     expect(preAssignFlag('codex')).toBeNull();
@@ -461,7 +470,7 @@ describe('buildLaunchSpec registry wiring', () => {
     expect(spec.idCapture).toBe('store-harvest');
     expect(spec.harvestKey).toBe('cwd-newest');
     expect(spec.harvestConfidence).toBe('exact');
-    expect(spec.argv).toEqual(['/abs/codex']);
+    expect(spec.argv).toEqual(['/abs/codex', '-c', 'tui.fullscreen_transcript=false']);
     expect(spec.resumeArgv).toBeUndefined(); // id unknown until harvested
   });
 

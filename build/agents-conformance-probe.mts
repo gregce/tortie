@@ -54,9 +54,13 @@ import {
   AGENT_REGISTRY,
   LAUNCHABLE_AGENT_IDS,
   SESSION_ID_SLOT,
-  // Phase 269: the env keys an agent's COMPILED row sets. Two agents have any.
+  // Phase 269: the env keys an agent's COMPILED row sets. Three agents have any
+  // since Phase 331 added Claude Code's inline switch.
   compiledLaunchEnvKeys,
   registryResumeArgv,
+  // Phase 331: the two argv builders every create and every resume go through.
+  launchArgvFor,
+  resumeArgvFor,
   type AgentRegistryEntry
 } from '../src/main/agents/registry';
 // Phase 269: the ONE spelling of "will Tortie read this variable?", and the
@@ -67,6 +71,8 @@ import {
   ENV_REFUSED_PREFIXES,
   OVERLAY_ENV_KEY_PATTERN,
   OVERLAY_LIMITS,
+  // Phase 331: the sentence a row carrying `screen` is dropped with.
+  REFUSED_ROW_FIELDS,
   envPassthroughRefusal
 } from '../src/shared/agent-overlay';
 import {
@@ -1465,6 +1471,172 @@ async function p275SealSection(): Promise<Record<string, unknown>> {
 }
 
 // ---------------------------------------------------------------------------
+// Section 11 — Phase 331, the screen record and the two inline switches
+// ---------------------------------------------------------------------------
+//
+// build/p331/SPEC.md §2.9. Phase 331 compiles an inline switch for exactly two
+// agents: Codex's `-c tui.fullscreen_transcript=false` on its launch argv AND
+// its resume template, and Claude Code's `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN`
+// in its compiled `launch.env`. Section 2 cannot see either one go, because the
+// registry and the parsed contract move together, so this block prints the
+// registry's OWN exports for the checker to hold them to: every compiled row's
+// screen record, launch argv, launch env and resume template; the two argv
+// builders composed over the switched argv row with an extra of the person's
+// own; the compiled env keys per launchable id and the shared refused set; the
+// refusal sentence; the confirm hash of the merged codex and claude entries with
+// and without `screen`; and five rows DRIVEN through the shipping
+// `parseAgentOverlay`, one parse each. Nothing here is written anywhere and
+// nothing is started.
+
+/** A flag of the person's own, invented here so it can never be a real one. */
+const P331_OWN = '--p331-own';
+const P331_ID = 'P331-ID';
+/** A screen record as a configuration row would carry one: well formed, and refused anyway. */
+const P331_SCREEN = { class: 'inline-already', measured: 'p331 conformance', notes: [] };
+const P331_NEW_AGENT = {
+  id: 'tortie-conf-p331',
+  displayName: 'Tortie Conformance P331',
+  binaries: ['tortie-conf-p331'],
+  launch: { argv: ['tortie-conf-p331'] }
+};
+/** Each row, what it must come back as, and the field a refusal must name. */
+const P331_CASES = [
+  { name: 'a new agent carrying screen', expect: 'refused', row: { ...P331_NEW_AGENT, screen: P331_SCREEN } },
+  { name: 'codex patched with screen', expect: 'refused', row: { id: 'codex', screen: P331_SCREEN } },
+  { name: 'claude patched with screen', expect: 'refused', row: { id: 'claude', screen: P331_SCREEN } },
+  { name: 'control: the same new agent without screen', expect: 'accepted', row: { ...P331_NEW_AGENT } },
+  { name: 'control: codex patched with a display name only', expect: 'accepted', row: { id: 'codex', displayName: 'Codex' } }
+];
+
+/** The screen record exactly as the compiled row carries it, or null. */
+function p331ScreenOf(entry: AgentRegistryEntry): unknown {
+  const screen = (entry as unknown as { screen?: unknown }).screen;
+  return screen === undefined ? null : JSON.parse(JSON.stringify(screen));
+}
+
+async function p331Section(): Promise<Record<string, unknown>> {
+  const rows = AGENT_REGISTRY.map((e) => ({
+    id: e.id,
+    launchable: e.launchable,
+    screen: p331ScreenOf(e),
+    launchArgv: e.launch === null ? null : [...e.launch.argv],
+    launchEnv: e.launch === null ? null : { ...(e.launch.env ?? {}) },
+    resumeTemplate: [...e.resume.template],
+    resumeExtrasPosition: e.resume.resumeExtrasPosition ?? 'trailing'
+  }));
+
+  // The two builders over every row whose record carries its switch in the
+  // argv (codex today), handed one flag of the person's own, as a create and a
+  // restore would hand it.
+  const composed: Record<string, { bin: string; launch: string[]; resume: string[] }> = {};
+  for (const e of AGENT_REGISTRY) {
+    const screen = p331ScreenOf(e) as { class?: string; carriage?: string } | null;
+    if (!e.launchable || e.launch === null || screen?.class !== 'switch-to-inline' || screen.carriage !== 'argv') continue;
+    const entry = e as AgentRegistryEntry & { launch: NonNullable<AgentRegistryEntry['launch']> };
+    const bin = `/abs/${e.id}`;
+    composed[e.id] = {
+      bin,
+      launch: launchArgvFor(entry, [P331_OWN], bin),
+      resume: resumeArgvFor(entry, P331_ID, [P331_OWN], bin)
+    };
+  }
+
+  const compiledEnvKeys = Object.fromEntries(
+    LAUNCHABLE_AGENT_IDS.map((id) => [id, [...compiledLaunchEnvKeys(id)]])
+  );
+
+  // The shared refused set, from the settings store's own export. It imports
+  // `electron`, which resolves to a path string outside an Electron process,
+  // exactly as section 9's seal half reads it.
+  let sharedRefused: string[] | null = null;
+  let sharedWhy = '';
+  try {
+    const store = (await import(SETTINGS_STORE_SEAM)) as Record<string, unknown>;
+    if (typeof store['sharedRefusedEnvKeys'] === 'function') {
+      sharedRefused = [...(store['sharedRefusedEnvKeys'] as () => readonly string[])()];
+    } else {
+      sharedWhy = 'sharedRefusedEnvKeys is not exported';
+    }
+  } catch (err) {
+    sharedWhy = `${SETTINGS_STORE_SEAM} did not import: ${err instanceof Error ? err.message : String(err)}`;
+  }
+
+  // The overlay loader and the confirm hash, from the same seam section 4 uses.
+  let overlay: Record<string, unknown> | null = null;
+  let overlayWhy = '';
+  try {
+    overlay = {
+      ...((await import(OVERLAY_SEAM)) as Record<string, unknown>),
+      ...((await import(CONFIRM_SEAM)) as Record<string, unknown>)
+    };
+  } catch (err) {
+    overlayWhy = `${OVERLAY_SEAM} + ${CONFIRM_SEAM} did not import: ${err instanceof Error ? err.message : String(err)}`;
+  }
+  const missing = ['parseAgentOverlay', 'mergeAgentOverlay', 'executionFieldsOf', 'executionHash'].filter(
+    (name) => overlay === null || typeof overlay[name] !== 'function'
+  );
+
+  let hashes: Record<string, unknown> | null = null;
+  let cases: unknown[] | null = null;
+  let emptyExecutionHasScreen: boolean | null = null;
+  if (overlay !== null && missing.length === 0) {
+    const api = overlay as unknown as OverlayApi;
+    try {
+      // Merged with NO overlay, which is what every person without an
+      // agents.json runs, and what a patch spreads its fields over.
+      const merged = api.mergeAgentOverlay([]).agents;
+      hashes = {};
+      for (const id of ['codex', 'claude']) {
+        const entry = merged.find((e) => e.id === id);
+        if (entry === undefined) {
+          hashes[id] = null;
+          continue;
+        }
+        const { screen: _dropped, ...without } = entry as MergedEntry & { screen?: unknown };
+        hashes[id] = {
+          mergedCarriesScreen: (entry as { screen?: unknown }).screen !== undefined,
+          withScreen: api.executionHash(id, api.executionFieldsOf(entry)),
+          withoutScreen: api.executionHash(id, api.executionFieldsOf(without as MergedEntry))
+        };
+      }
+      cases = P331_CASES.map((c) => {
+        const parsed = api.parseAgentOverlay(JSON.stringify({ schema: 2, agents: [c.row] }));
+        return {
+          name: c.name,
+          expect: c.expect,
+          id: c.row.id,
+          rows: parsed.rows.map((r) => String((r as { id: string }).id)),
+          problems: parsed.problems.map((p) => ({ index: p.index, field: p.field, message: p.message }))
+        };
+      });
+      const empty = overlay['EMPTY_EXECUTION_FIELDS'];
+      emptyExecutionHasScreen =
+        typeof empty === 'object' && empty !== null ? Object.prototype.hasOwnProperty.call(empty, 'screen') : null;
+    } catch (err) {
+      overlayWhy = `the loader threw: ${err instanceof Error ? `${err.name}: ${err.message}` : String(err)}`;
+    }
+  } else if (overlayWhy === '') {
+    overlayWhy = `${missing.join(', ')} is not exported`;
+  }
+
+  return {
+    own: P331_OWN,
+    id: P331_ID,
+    slot: SESSION_ID_SLOT,
+    rows,
+    composed,
+    compiledEnvKeys,
+    sharedRefused,
+    sharedWhy,
+    refusal: REFUSED_ROW_FIELDS['screen'] ?? null,
+    hashes,
+    cases,
+    emptyExecutionHasScreen,
+    overlayWhy
+  };
+}
+
+// ---------------------------------------------------------------------------
 
 const agents = LAUNCHABLE_AGENT_IDS.map(compiledReport);
 const seam = await seamReport();
@@ -1476,6 +1648,9 @@ const p269Catalog = await p269CatalogSection();
 // still reaches a verdict and never silently passes.
 const p275Pure = p275PureSection();
 const p275SealData = await p275SealSection();
+// PHASE 331. The screen record and the two inline switches, read from the
+// registry's own exports and driven through the shipping loader.
+const p331 = await p331Section();
 
 // ---------------------------------------------------------------------------
 // Phase 49 — the version probe is unreachable from the create path
@@ -1507,6 +1682,7 @@ process.stdout.write(
     p269,
     p269Catalog,
     p275: { ...p275Pure, seal: p275SealData },
+    p331,
     probeBudget
   })
 );

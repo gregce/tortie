@@ -62,9 +62,14 @@ export {
   AGENT_REGISTRY,
   agentBinaryCandidates,
   agentBinaryName,
+  // Phase 331: the two inline switches, each spelled once, and the one helper
+  // that sets a row's fixed launch tokens aside from a person's own flags.
+  CLAUDE_INLINE_ENV,
+  CODEX_SCROLLBACK_ARGS,
   DEFAULT_AGENT_ID,
   DEFAULT_IMAGE_DROP,
   DEFAULT_MULTILINE_KEY,
+  fixedLaunchTokens,
   getLaunchableEntry,
   imageDropFor,
   imageDropTable,
@@ -73,6 +78,7 @@ export {
   LF,
   multilineKeyFor,
   multilineKeyTable,
+  ownLaunchFlags,
   preAssignFlag,
   registryLaunchArgv,
   registryResumeArgv,
@@ -85,6 +91,9 @@ export {
   type AgentLaunchInfo,
   type AgentRegistryEntry,
   type AgentResumeInfo,
+  // Phase 331: the compiled screen record. Display and gate material only.
+  type AgentScreenClass,
+  type AgentScreenRecord,
   type InstallSignature,
   type ResumeStrategy,
   type VersionProbe

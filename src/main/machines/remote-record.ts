@@ -62,7 +62,11 @@ import { getLog } from '../log';
 // Phase 73. The one composer of a resume command, shared with the local harvest
 // and with the launch path. A second composer in this tree would be a second
 // answer to "what does resuming this agent look like".
-import { registryResumeArgv, type AgentHarvestKey } from '../agents/registry';
+import {
+  ownLaunchFlags,
+  registryResumeArgv,
+  type AgentHarvestKey
+} from '../agents/registry';
 // The LEAF modules rather than `../manifest`'s barrel, and every one of these
 // but the contract version is a type. The barrel re-exports the recovery ring,
 // the reconstruction surface and the boot path, and `build/contract-inventory.mjs`
@@ -656,10 +660,14 @@ export function writeRemoteHarvest(
   }
   if ((record.agentSessionId ?? '').length > 0) return null;
 
+  // PHASE 331. The row's own flags, with the registry's fixed launch tokens
+  // set aside when they lead, because the template puts them back: this is the
+  // one recomposition `agentExtrasOf` does not reach (research 134 §4.2), and
+  // `record.argv.slice(1)` here would compose codex's pair twice.
   const resumeArgv = registryResumeArgv(
     input.agent,
     input.conversationId,
-    record.argv.slice(1),
+    ownLaunchFlags(input.agent, record.argv),
     record.argv[0]
   );
   if (resumeArgv.length === 0) return null;

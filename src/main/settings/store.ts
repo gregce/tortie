@@ -191,8 +191,9 @@ function catalogedFlags(agentId: LaunchableAgentId): ReadonlySet<string> {
 
 /**
  * The names the SHARED list refuses because some launchable agent's COMPILED
- * `launch.env` already sets them (Phase 275). Today exactly two: `FORCE_COLOR`
- * (cursor) and `GROK_PRIVACY_NOTICE_ROLLOUT` (grok).
+ * `launch.env` already sets them (Phase 275). Today exactly three:
+ * `FORCE_COLOR` (cursor), `GROK_PRIVACY_NOTICE_ROLLOUT` (grok) and, since
+ * Phase 331, `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` (Claude Code).
  *
  * REFUSING THEM ON THE SHARED LIST IS THE HONEST ANSWER, not an over-reach.
  * The shared list reaches cursor too, and a shared `FORCE_COLOR` would make the

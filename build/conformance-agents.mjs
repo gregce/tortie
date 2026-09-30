@@ -132,6 +132,24 @@
  *   named. Each row is also asked over in-memory copies of the source with its
  *   rule broken, and every copy must read red, so a gutted rule cannot pass.
  *
+ * SECTION 11 — the screen record and the two inline switches (Phase 331).
+ *   Codex is launched AND resumed with `-c tui.fullscreen_transcript=false`,
+ *   Claude Code with `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` in its compiled
+ *   `launch.env`, and every launchable row carries a compiled screen record
+ *   nothing in the app reads. Section 2 cannot see a switch go, because both
+ *   of its sides move together, so five rows hold the registry's own exports:
+ *   every launchable row declares one of four classes with a carriage only on
+ *   a switch (11.1); an argv switch ends BOTH the launch argv and the resume
+ *   template and each composition carries it once (11.2); an env switch is in
+ *   `launch.env`, `compiledLaunchEnvKeys` and `sharedRefusedEnvKeys()` (11.3);
+ *   `screen` is refused on the overlay, named by no overlay type, key list or
+ *   schema, absent from `ConfigExecutionFields` and from what
+ *   `executionFieldsOf` reads, the hash unmoved by it, and a row carrying it
+ *   DRIVEN through the shipping loader is dropped with the refusal sentence
+ *   (11.4); and exactly codex (argv) and claude (env) are switches (11.5).
+ *   Every row is asked again over in-memory copies with its rule broken, and
+ *   `npm run ablation:p331` breaks the shipping source.
+ *
  * WHAT IT DOES NOT PROVE, stated so nobody reads more into a pass. The confirm
  * record is sealed through `safeStorage`, which needs an Electron process, so
  * this gate never watches a confirmed row start a process or an unconfirmed one
@@ -2102,6 +2120,46 @@ function p321Drive() {
   }
 }
 
+/**
+ * The row loop sections 10 and 11 share (extracted by Phase 331's integrator,
+ * because the two sections carried the same twenty lines). Each case is
+ * judged over the shipping data, then each of its in-memory attacks is built
+ * and judged, and every attack must read RED or the row has stopped asking.
+ * Every failure line is `Phase <phase> <rule> (<name>): …`, which is what
+ * `ablation:p321` and `ablation:p331` match an owning row by, so the wording
+ * is the two sections' own, byte for byte. Returns one table row per case.
+ */
+function judgeRuleCases(phase, cases, findingsOf = (c) => c.findings()) {
+  const rows = [];
+  for (const c of cases) {
+    const found = findingsOf(c);
+    let red = 0;
+    const notes = [];
+    for (const [attack, build, judge] of c.attacks) {
+      const broken = build();
+      if (broken === null || broken === undefined) {
+        notes.push(`self-test "${attack}" could not be built`);
+        continue;
+      }
+      if (judge(broken).length === 0) {
+        notes.push(`self-test "${attack}" stayed GREEN with the rule broken`);
+        continue;
+      }
+      red += 1;
+    }
+    for (const f of found) fail(`Phase ${phase} ${c.rule} (${c.name}): ${f}.`);
+    for (const n of notes) fail(`Phase ${phase} ${c.rule} (${c.name}): ${n}, so the row has stopped asking.`);
+    if (c.attacks.length === 0) fail(`Phase ${phase} ${c.rule}: the row carries no self-test.`);
+    rows.push({
+      rule: c.rule,
+      name: c.name,
+      ok: found.length === 0 && notes.length === 0,
+      note: `${String(red)} of ${String(c.attacks.length)} self-tests red`
+    });
+  }
+  return rows;
+}
+
 const p321Rows = [];
 {
   const overlayText = sourceOf(OVERLAY_TYPES) ?? '';
@@ -2177,33 +2235,395 @@ const p321Rows = [];
       ]
     }
   ];
-  for (const c of cases) {
-    const found = c.findings();
-    let red = 0;
-    const notes = [];
-    for (const [attack, build, judge] of c.attacks) {
-      const broken = build();
-      if (broken === null || broken === undefined) {
-        notes.push(`self-test "${attack}" could not be built`);
-        continue;
-      }
-      if (judge(broken).length === 0) {
-        notes.push(`self-test "${attack}" stayed GREEN with the rule broken`);
-        continue;
-      }
-      red += 1;
-    }
-    for (const f of found) fail(`Phase 321 ${c.rule} (${c.name}): ${f}.`);
-    for (const n of notes) fail(`Phase 321 ${c.rule} (${c.name}): ${n}, so the row has stopped asking.`);
-    if (c.attacks.length === 0) fail(`Phase 321 ${c.rule}: the row carries no self-test.`);
-    p321Rows.push({
-      rule: c.rule,
-      name: c.name,
-      ok: found.length === 0 && notes.length === 0,
-      note: `${String(red)} of ${String(c.attacks.length)} self-tests red`
-    });
-  }
+  p321Rows.push(...judgeRuleCases('321', cases));
   if (p321Rows.length !== 4) fail('Phase 321 asks four rows, 10.1 to 10.4, and this gate no longer does.');
+}
+
+// ---------------------------------------------------------------------------
+// Section 11 — the screen record and the two inline switches (Phase 331)
+// ---------------------------------------------------------------------------
+//
+// build/p331/SPEC.md §2.9. Phase 331 compiles an inline switch for exactly two
+// agents, from one constant each: Codex's `-c tui.fullscreen_transcript=false`
+// on BOTH its launch argv and its resume template (research 133: `codex resume`
+// restores no launch flag, and `resumeArgvFor` never reads `launch.argv`), and
+// Claude Code's `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1` in its compiled
+// `launch.env` (research 134), which Phase 275's rule then refuses on both
+// passthrough lists. Every launchable row also carries a compiled screen record
+// that nothing in the app reads and that configuration may never supply.
+//
+// Section 2 cannot see a switch go, because the registry and the parsed
+// contract move together, and B's splice in research 133 §4.3 stayed green
+// there. So these rows hold the registry's own exports to the switch itself.
+// 11.1, 11.2, 11.3 and 11.5 judge what the probe read off the registry; 11.4
+// also reads three source files with the TypeScript parser and judges five
+// rows DRIVEN through the shipping `parseAgentOverlay`. Every row is asked
+// again over in-memory copies with its rule broken, and each copy must read
+// red. `npm run ablation:p331` breaks the SHIPPING source and requires the row
+// that owns each clause to go red here BY NAME.
+
+const P331_CLASSES = ['switch-to-inline', 'inline-already', 'fullscreen-with-mouse', 'unknown'];
+const CONFIRM_SOURCE = 'src/main/config/confirm.ts';
+const P331_SENTENCE_MIN = 12;
+const p331Copy = (x) => (x === null || x === undefined ? x : JSON.parse(JSON.stringify(x)));
+const p331Same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+/** How many times `seq` occurs in `argv` as a contiguous run. */
+function p331Count(argv, seq) {
+  if (!Array.isArray(argv) || !Array.isArray(seq) || seq.length === 0) return 0;
+  let n = 0;
+  for (let i = 0; i + seq.length <= argv.length; i += 1) {
+    if (seq.every((t, k) => argv[i + k] === t)) n += 1;
+  }
+  return n;
+}
+const p331EndsWith = (argv, seq) =>
+  Array.isArray(argv) && Array.isArray(seq) && seq.length > 0 && argv.length >= seq.length && p331Same(argv.slice(argv.length - seq.length), seq);
+const p331Rows = (p) => (Array.isArray(p?.rows) ? p.rows : []);
+const p331Switched = (p, carriage) =>
+  p331Rows(p).filter((r) => r.launchable && r.screen?.class === 'switch-to-inline' && r.screen?.carriage === carriage);
+
+/** 11.1 Every launchable row declares one of four classes, a carriage exactly on a switch, and the IDE rows none. */
+function p331RecordFindings(p) {
+  const rows = p331Rows(p);
+  if (rows.length === 0) return ['the probe printed no compiled rows'];
+  const out = [];
+  for (const row of rows) {
+    const s = row.screen;
+    if (!row.launchable) {
+      if (s !== null && s !== undefined) out.push(`${row.id} is capture-only and declares a screen record`);
+      continue;
+    }
+    if (s === null || typeof s !== 'object' || Array.isArray(s)) {
+      out.push(`${row.id} declares no screen record`);
+      continue;
+    }
+    if (!P331_CLASSES.includes(s.class)) out.push(`${row.id}'s class is ${JSON.stringify(s.class)}, not one of the four`);
+    if (typeof s.measured !== 'string' || s.measured.trim() === '') out.push(`${row.id}'s record says nothing about what was measured`);
+    if (!Array.isArray(s.notes) || s.notes.some((n) => typeof n !== 'string' || n.trim() === '')) {
+      out.push(`${row.id}'s record has no notes list of sentences`);
+    }
+    const carries = ['carriage', 'tokens', 'env'].filter((k) => Object.prototype.hasOwnProperty.call(s, k));
+    if (s.class !== 'switch-to-inline') {
+      if (carries.length > 0) out.push(`${row.id} is ${String(s.class)} and carries ${carries.join(', ')}, which only a switch-to-inline row has`);
+      continue;
+    }
+    if (s.carriage === 'argv') {
+      if (!Array.isArray(s.tokens) || s.tokens.length === 0 || s.tokens.some((t) => typeof t !== 'string' || t === '')) {
+        out.push(`${row.id} carries its switch in the argv with no tokens`);
+      }
+      if (Object.prototype.hasOwnProperty.call(s, 'env')) out.push(`${row.id} carries its switch in the argv and names an env too`);
+    } else if (s.carriage === 'env') {
+      const env = s.env;
+      if (env === null || typeof env !== 'object' || Array.isArray(env) || Object.keys(env).length === 0) {
+        out.push(`${row.id} carries its switch in the env with no variable`);
+      }
+      if (Object.prototype.hasOwnProperty.call(s, 'tokens')) out.push(`${row.id} carries its switch in the env and names tokens too`);
+    } else {
+      out.push(`${row.id} is switch-to-inline with carriage ${JSON.stringify(s.carriage)}, not argv or env`);
+    }
+  }
+  return out;
+}
+
+/** 11.2 An argv switch ends BOTH launch.argv and resume.template, and each composition carries it once. */
+function p331ArgvFindings(p) {
+  const rows = p331Switched(p, 'argv');
+  if (rows.length === 0) return ['no switch-to-inline row carries its switch in the argv'];
+  const out = [];
+  for (const r of rows) {
+    const t = Array.isArray(r.screen.tokens) ? r.screen.tokens : [];
+    if (!p331EndsWith(r.launchArgv, t) || (r.launchArgv ?? []).length !== t.length + 1) {
+      out.push(`${r.id}'s launch.argv ${JSON.stringify(r.launchArgv)} is not its binary followed by its tokens ${JSON.stringify(t)}`);
+    }
+    if (!p331EndsWith(r.resumeTemplate, t)) {
+      out.push(`${r.id}'s resume.template ${JSON.stringify(r.resumeTemplate)} does not end with its tokens ${JSON.stringify(t)}, so a restore would come back without the switch`);
+    }
+    if (p331Count(r.resumeTemplate, t) !== 1) out.push(`${r.id}'s resume.template carries its tokens ${String(p331Count(r.resumeTemplate, t))} times`);
+    const c = p?.composed?.[r.id];
+    if (c === undefined || c === null) {
+      out.push(`the probe composed no argv for ${r.id}`);
+      continue;
+    }
+    const wantLaunch = [c.bin, ...t, p.own];
+    const template = (r.resumeTemplate ?? []).map((x) => (x === p.slot ? p.id : x));
+    const wantResume = r.resumeExtrasPosition === 'leading' ? [c.bin, p.own, ...template] : [c.bin, ...template, p.own];
+    if (!p331Same(c.launch, wantLaunch)) out.push(`launchArgvFor(${r.id}) composed ${JSON.stringify(c.launch)}, not ${JSON.stringify(wantLaunch)}`);
+    if (!p331Same(c.resume, wantResume)) out.push(`resumeArgvFor(${r.id}) composed ${JSON.stringify(c.resume)}, not ${JSON.stringify(wantResume)}`);
+    for (const [what, argv] of [['launch', c.launch], ['resume', c.resume]]) {
+      const n = p331Count(argv, t);
+      if (n !== 1) out.push(`the composed ${what} for ${r.id} carries its tokens ${String(n)} times, not once`);
+    }
+  }
+  return out;
+}
+
+/** 11.3 An env switch is in launch.env with its value, in compiledLaunchEnvKeys and in sharedRefusedEnvKeys(). */
+function p331EnvFindings(p) {
+  const rows = p331Switched(p, 'env');
+  if (rows.length === 0) return ['no switch-to-inline row carries its switch in the env'];
+  const out = [];
+  const shared = Array.isArray(p?.sharedRefused) ? p.sharedRefused : null;
+  if (shared === null) out.push(`sharedRefusedEnvKeys() could not be read (${String(p?.sharedWhy ?? 'no reason given')})`);
+  for (const r of rows) {
+    const env = r.screen.env !== null && typeof r.screen.env === 'object' ? r.screen.env : {};
+    for (const [name, value] of Object.entries(env)) {
+      const has = r.launchEnv !== null && typeof r.launchEnv === 'object' && Object.prototype.hasOwnProperty.call(r.launchEnv, name);
+      if (!has) out.push(`${r.id}'s launch.env does not set ${name}`);
+      else if (r.launchEnv[name] !== value) out.push(`${r.id}'s launch.env sets ${name} to ${JSON.stringify(r.launchEnv[name])}, and its record says ${JSON.stringify(value)}`);
+      if (!(p?.compiledEnvKeys?.[r.id] ?? []).includes(name)) out.push(`compiledLaunchEnvKeys('${r.id}') does not answer ${name}, so Settings would admit it on ${r.id}'s own list`);
+      if (shared !== null && !shared.includes(name)) out.push(`sharedRefusedEnvKeys() does not refuse ${name}, so Settings would admit it on the shared list`);
+    }
+  }
+  return out;
+}
+
+/** The refusal sentence as the source spells it, or null. */
+function p331RefusalEntry(overlayText) {
+  const refused = constObject(tsParse(OVERLAY_TYPES, overlayText), 'REFUSED_ROW_FIELDS');
+  if (refused === null) return { found: false, why: `${OVERLAY_TYPES} no longer declares REFUSED_ROW_FIELDS as an object literal` };
+  const entry = refused.properties.find((x) => ts.isPropertyAssignment(x) && propName(x) === 'screen');
+  const text = entry === undefined ? '' : entry.initializer.getText();
+  if (entry === undefined || !/['"`]/.test(text) || text.length < P331_SENTENCE_MIN) {
+    return { found: false, why: 'REFUSED_ROW_FIELDS no longer refuses `screen` with a sentence' };
+  }
+  return { found: true, why: '' };
+}
+
+/** The driven rows: three refused WHOLE with `agents[0].screen` and the refusal sentence, two controls kept. */
+function p331DrivenFindings(cases, refusal) {
+  if (!Array.isArray(cases)) return ['the shipping loader answered nothing'];
+  const out = [];
+  if (typeof refusal !== 'string' || refusal.length < P331_SENTENCE_MIN) out.push('the probe read no refusal sentence for `screen`');
+  const ids = (want) => cases.filter((c) => c.expect === want).map((c) => c.id).sort();
+  if (!p331Same(ids('refused'), ['claude', 'codex', 'tortie-conf-p331'])) {
+    out.push(`the refused rows driven were ${ids('refused').join(', ') || 'none'}, not a new agent, codex and claude`);
+  }
+  if (!p331Same(ids('accepted'), ['codex', 'tortie-conf-p331'])) {
+    out.push(`the controls driven were ${ids('accepted').join(', ') || 'none'}, not the new agent and codex`);
+  }
+  for (const c of cases) {
+    const kept = Array.isArray(c.rows) && c.rows.includes(c.id);
+    const problems = Array.isArray(c.problems) ? c.problems : [];
+    if (c.expect === 'accepted') {
+      if (!kept || problems.length > 0) out.push(`${c.name}: the control was not kept, so the refusals prove nothing`);
+      continue;
+    }
+    if (kept) out.push(`${c.name}: the row was KEPT`);
+    const named = problems.filter((q) => q.index === 0 && q.field === 'agents[0].screen' && q.message === refusal);
+    if (named.length === 0) {
+      out.push(
+        `${c.name}: no problem names agents[0].screen with the refusal sentence ` +
+          `(${problems.map((q) => `${q.field}: ${String(q.message).slice(0, 60)}`).join('; ') || 'no problem at all'})`
+      );
+    }
+  }
+  return out;
+}
+
+/**
+ * 11.4 `screen` is refused on the overlay, named by no overlay type, no
+ * ROW_KEYS and no schema, absent from the confirm hash's fields and from what
+ * `executionFieldsOf` reads, the hash equal with and without it, and the
+ * shipping loader drops a row carrying it with the refusal sentence.
+ */
+function p331OverlayFindings(src, p) {
+  const out = [];
+  const refusal = p331RefusalEntry(src.overlayText);
+  if (!refusal.found) out.push(refusal.why);
+  const overlay = tsParse(OVERLAY_TYPES, src.overlayText);
+  for (const decl of tsNodes(overlay).filter(
+    (n) => (ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) && n.name.text.startsWith('AgentOverlay')
+  )) {
+    const members = tsNodes(decl).filter((n) => ts.isPropertySignature(n)).map(propName);
+    if (members.includes('screen')) out.push(`${decl.name.text} declares \`screen\``);
+  }
+  const schema = constObject(overlay, 'AGENT_OVERLAY_JSON_SCHEMA');
+  if (schema !== null && tsNodes(schema).filter((n) => ts.isPropertyAssignment(n)).map(propName).includes('screen')) {
+    out.push('AGENT_OVERLAY_JSON_SCHEMA offers `screen`');
+  }
+  for (const name of ['AgentScreenRecord', 'AgentScreenClass']) {
+    if (tsNodes(overlay).some((n) => ts.isIdentifier(n) && n.text === name)) out.push(`${OVERLAY_TYPES} names ${name}`);
+  }
+  const loader = tsParse(OVERLAY_LOADER, src.loaderText);
+  const rowKeys = tsNodes(loader).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'ROW_KEYS');
+  const list = rowKeys === undefined ? undefined : tsPeel(rowKeys.initializer);
+  if (list === undefined || !ts.isArrayLiteralExpression(list)) out.push(`${OVERLAY_LOADER} no longer declares ROW_KEYS as a list`);
+  else if (list.elements.some((e) => ts.isStringLiteral(e) && e.text === 'screen')) out.push('ROW_KEYS admits `screen`');
+  const fields = tsNodes(loader).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'executionFieldsOf');
+  if (fields === undefined || fields.body === undefined) out.push(`${OVERLAY_LOADER} no longer declares executionFieldsOf`);
+  else if (
+    tsNodes(fields.body).some(
+      (n) =>
+        (ts.isPropertyAccessExpression(n) && n.name.text === 'screen') ||
+        (ts.isElementAccessExpression(n) && ts.isStringLiteral(n.argumentExpression) && n.argumentExpression.text === 'screen') ||
+        (ts.isBindingElement(n) && (n.propertyName ?? n.name).getText() === 'screen')
+    )
+  ) {
+    out.push('executionFieldsOf reads `screen`, so the confirm hash would move with a display record');
+  }
+  const confirm = tsParse(CONFIRM_SOURCE, src.confirmText);
+  const exec = tsNodes(confirm).find((n) => ts.isInterfaceDeclaration(n) && n.name.text === 'ConfigExecutionFields');
+  if (exec === undefined) out.push(`${CONFIRM_SOURCE} no longer declares ConfigExecutionFields`);
+  else if (exec.members.some((m) => propName(m) === 'screen')) {
+    out.push('ConfigExecutionFields declares `screen`, which would move the hash of every confirmed row');
+  }
+  const empty = constObject(confirm, 'EMPTY_EXECUTION_FIELDS');
+  if (empty !== null && empty.properties.some((x) => propName(x) === 'screen')) out.push('EMPTY_EXECUTION_FIELDS names `screen`');
+  if (p?.emptyExecutionHasScreen === true) out.push('the shipping EMPTY_EXECUTION_FIELDS carries `screen`');
+  if (p?.hashes === null || p?.hashes === undefined) {
+    out.push(`the confirm hash could not be taken (${String(p?.overlayWhy ?? 'no reason given')})`);
+  } else {
+    for (const id of ['codex', 'claude']) {
+      const h = p.hashes[id];
+      if (h === null || h === undefined) {
+        out.push(`the merge has no ${id} entry to hash`);
+        continue;
+      }
+      if (h.mergedCarriesScreen !== true) out.push(`the merged ${id} entry carries no screen record, so the hash comparison proves nothing`);
+      if (typeof h.withScreen !== 'string' || h.withScreen !== h.withoutScreen) {
+        out.push(`the confirm hash of the merged ${id} entry moves when \`screen\` is deleted`);
+      }
+    }
+  }
+  out.push(...p331DrivenFindings(p?.cases ?? null, p?.refusal ?? null));
+  return out;
+}
+
+/** 11.5 Exactly two rows are switch-to-inline: codex in the argv and claude in the env. */
+function p331ExactlyTwoFindings(p) {
+  const sw = p331Rows(p)
+    .filter((r) => r.screen?.class === 'switch-to-inline')
+    .map((r) => `${r.id} (${String(r.screen.carriage)})`)
+    .sort();
+  return p331Same(sw, ['claude (env)', 'codex (argv)'])
+    ? []
+    : [`the switch-to-inline rows are ${sw.join(', ') || 'none'}, not exactly codex (argv) and claude (env)`];
+}
+
+const p331Result = [];
+const p331Data = data.p331 ?? null;
+{
+  const src = {
+    overlayText: sourceOf(OVERLAY_TYPES) ?? '',
+    loaderText: sourceOf(OVERLAY_LOADER) ?? '',
+    confirmText: sourceOf(CONFIRM_SOURCE) ?? ''
+  };
+  /** A copy of the probe's block with one change, or null when it cannot be built over this tree. */
+  const mut = (fn) => {
+    if (p331Data === null) return null;
+    const d = p331Copy(p331Data);
+    return fn(d) === false ? null : d;
+  };
+  const rowOf = (d, id) => p331Rows(d).find((r) => r.id === id);
+  const withRow = (id, fn) => mut((d) => {
+    const r = rowOf(d, id);
+    if (r === undefined || r.screen === null || r.screen === undefined) return false;
+    return fn(r, d);
+  });
+  const inInterface = (text, iface, member) => {
+    const decl = tsNodes(tsParse(CONFIRM_SOURCE, text)).find((n) => ts.isInterfaceDeclaration(n) && n.name.text === iface);
+    return decl === undefined ? null : insertAt(text, decl.members.pos, `\n  ${member}`);
+  };
+  const withoutScreenRefusal = (text) => {
+    const obj = constObject(tsParse(OVERLAY_TYPES, text), 'REFUSED_ROW_FIELDS');
+    const e = obj?.properties.find((x) => propName(x) === 'screen');
+    if (e === undefined) return null;
+    const before = text.slice(0, e.getFullStart());
+    // Also drop the comma that ended the entry before it, when this was the last.
+    const after = text.slice(e.getEnd());
+    return after.startsWith(',') ? `${before}${after.slice(1)}` : `${before.replace(/,\s*$/, '')}${after}`;
+  };
+  const screenInRowKeys = (text) => {
+    const d = tsNodes(tsParse(OVERLAY_LOADER, text)).find((n) => ts.isVariableDeclaration(n) && n.name.getText() === 'ROW_KEYS');
+    const list = d === undefined ? undefined : tsPeel(d.initializer);
+    return list === undefined || !ts.isArrayLiteralExpression(list) ? null : insertAt(text, list.getStart() + 1, "\n  'screen',");
+  };
+  const fieldsReadScreen = (text) => {
+    const fn = tsNodes(tsParse(OVERLAY_LOADER, text)).find((n) => ts.isFunctionDeclaration(n) && n.name?.text === 'executionFieldsOf');
+    return fn?.body === undefined ? null : insertAt(text, fn.body.getStart() + 1, '\n  void (entry as { screen?: unknown }).screen;');
+  };
+  const onSource = (build) => () => {
+    const t = build();
+    return t === null ? null : { src: t, p: p331Data };
+  };
+  const judge4 = ({ src: s, p }) => p331OverlayFindings(s, p);
+  const cases = [
+    {
+      rule: '11.1',
+      name: 'every launchable row declares a screen class, a carriage only on a switch, the IDE pair none',
+      findings: () => p331RecordFindings(p331Data),
+      attacks: [
+        ["pi's record deleted", () => withRow('pi', (r) => { r.screen = null; })],
+        ["a class 'inline'", () => withRow('pi', (r) => { r.screen.class = 'inline'; })],
+        ['a carriage on an inline-already row', () => withRow('pi', (r) => { r.screen.carriage = 'argv'; r.screen.tokens = ['--tui-mode', 'regular']; })],
+        ['a capture-only row given a record', () => mut((d) => {
+          const r = p331Rows(d).find((x) => !x.launchable);
+          if (r === undefined) return false;
+          r.screen = { class: 'unknown', measured: 'x', notes: [] };
+          return true;
+        })]
+      ].map(([n, build]) => [n, build, (d) => p331RecordFindings(d)])
+    },
+    {
+      rule: '11.2',
+      name: 'an argv switch ends launch.argv and resume.template, once in each composition',
+      findings: () => p331ArgvFindings(p331Data),
+      attacks: [
+        ['the tokens off the template', () => withRow('codex', (r) => { r.resumeTemplate = r.resumeTemplate.slice(0, r.resumeTemplate.length - (r.screen.tokens ?? []).length); })],
+        ['the tokens off launch.argv', () => withRow('codex', (r) => { r.launchArgv = r.launchArgv.slice(0, r.launchArgv.length - (r.screen.tokens ?? []).length); })],
+        ['the tokens twice in the composed resume', () => mut((d) => {
+          const r = rowOf(d, 'codex');
+          const c = d.composed?.codex;
+          if (r?.screen === null || r?.screen === undefined || c === undefined) return false;
+          c.resume = [...c.resume.slice(0, -1), ...(r.screen.tokens ?? []), ...c.resume.slice(-1)];
+          return true;
+        })]
+      ].map(([n, build]) => [n, build, (d) => p331ArgvFindings(d)])
+    },
+    {
+      rule: '11.3',
+      name: 'an env switch is in launch.env, compiledLaunchEnvKeys and sharedRefusedEnvKeys()',
+      findings: () => p331EnvFindings(p331Data),
+      attacks: [
+        ['the name off launch.env', () => withRow('claude', (r) => { for (const k of Object.keys(r.screen.env ?? {})) delete r.launchEnv[k]; })],
+        ["the value '0'", () => withRow('claude', (r) => { for (const k of Object.keys(r.screen.env ?? {})) r.launchEnv[k] = '0'; })],
+        ['the name off the shared refused set', () => mut((d) => {
+          const r = rowOf(d, 'claude');
+          if (r?.screen?.env === undefined || !Array.isArray(d.sharedRefused)) return false;
+          const names = Object.keys(r.screen.env);
+          d.sharedRefused = d.sharedRefused.filter((n) => !names.includes(n));
+          return true;
+        })]
+      ].map(([n, build]) => [n, build, (d) => p331EnvFindings(d)])
+    },
+    {
+      rule: '11.4',
+      name: 'screen is refused on the overlay and never reaches the confirm hash',
+      findings: () => p331OverlayFindings(src, p331Data),
+      attacks: [
+        ['the refusal deleted', onSource(() => { const t = withoutScreenRefusal(src.overlayText); return t === null ? null : { ...src, overlayText: t }; })],
+        ["'screen' added to ROW_KEYS", onSource(() => { const t = screenInRowKeys(src.loaderText); return t === null ? null : { ...src, loaderText: t }; })],
+        ['`screen?: unknown;` added to ConfigExecutionFields', onSource(() => { const t = inInterface(src.confirmText, 'ConfigExecutionFields', 'readonly screen?: unknown;'); return t === null ? null : { ...src, confirmText: t }; })],
+        ['executionFieldsOf reading entry.screen', onSource(() => { const t = fieldsReadScreen(src.loaderText); return t === null ? null : { ...src, loaderText: t }; })],
+        ['a refused row answered as kept', () => { const d = mut((x) => { if (!Array.isArray(x.cases) || x.cases[1] === undefined) return false; x.cases[1] = { ...x.cases[1], rows: [x.cases[1].id], problems: [] }; return true; }); return d === null ? null : { src, p: d }; }],
+        ['a control answered as refused', () => { const d = mut((x) => { if (!Array.isArray(x.cases) || x.cases[3] === undefined) return false; x.cases[3] = { ...x.cases[3], rows: [], problems: [{ index: 0, field: 'agents[0].screen', message: x.refusal }] }; return true; }); return d === null ? null : { src, p: d }; }],
+        ['unequal hashes', () => { const d = mut((x) => { if (x.hashes?.codex === null || x.hashes?.codex === undefined) return false; x.hashes.codex.withoutScreen = `${String(x.hashes.codex.withScreen)}0`; return true; }); return d === null ? null : { src, p: d }; }]
+      ].map(([n, build]) => [n, build, judge4])
+    },
+    {
+      rule: '11.5',
+      name: 'exactly two rows are switch-to-inline: codex (argv) and claude (env)',
+      findings: () => p331ExactlyTwoFindings(p331Data),
+      attacks: [
+        ['a third (pi) made a switch', () => withRow('pi', (r) => { r.screen = { ...r.screen, class: 'switch-to-inline', carriage: 'argv', tokens: ['--tui-mode', 'regular'] }; })],
+        ["claude's carriage made argv", () => withRow('claude', (r) => { r.screen = { ...r.screen, carriage: 'argv' }; })]
+      ].map(([n, build]) => [n, build, (d) => p331ExactlyTwoFindings(d)])
+    }
+  ];
+  p331Result.push(
+    ...judgeRuleCases('331', cases, (c) => (p331Data === null ? ['the probe printed no p331 section'] : c.findings()))
+  );
+  if (p331Result.length !== 5) fail('Phase 331 asks five rows, 11.1 to 11.5, and this gate no longer does.');
 }
 
 // ---------------------------------------------------------------------------
@@ -2302,6 +2722,21 @@ process.stdout.write(
   `\n${String(P321_CASES.length)} rows went through the shipping parseAgentOverlay on the pinned tsx's stdin, ` +
     'one parse each; no file was written and no agent was started.\n'
 );
+
+process.stdout.write('\nthe screen record and the two inline switches (Phase 331)\n');
+process.stdout.write('-'.repeat(107) + '\n');
+for (const row of p331Result) {
+  process.stdout.write(`${pad(row.rule, 6)} ${pad(row.name, 90)} ${pad(tick(row.ok), 4)} ${row.note}\n`);
+}
+{
+  const driven = Array.isArray(p331Data?.cases) ? p331Data.cases.length : 0;
+  const switched = p331Rows(p331Data).filter((r) => r.screen?.class === 'switch-to-inline').map((r) => r.id);
+  process.stdout.write(
+    `\n${String(driven)} rows went through the shipping parseAgentOverlay inside the probe, one parse each, and ` +
+      `${String(p331Rows(p331Data).filter((r) => r.launchable).length)} launchable rows were read off the registry's own ` +
+      `exports (${switched.join(' and ') || 'none'} switch-to-inline); nothing was written and nothing was started.\n`
+  );
+}
 
 if (skipped.length > 0) {
   process.stdout.write(`\nSKIPPED, ${skipped.length}:\n`);

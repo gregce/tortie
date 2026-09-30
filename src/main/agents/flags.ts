@@ -190,10 +190,17 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
 
   codex: {
     binary: 'codex',
-    helpVerifiedVersion: 'codex-cli 0.147.0',
+    // PHASE 331: re-read 2026-09-29 against `codex --help` and `codex resume
+    // --help` on the installed 0.158.0, under a scratch HOME and CODEX_HOME.
+    // The six VERIFIED flags are on both pages; --yolo and --full-auto are on
+    // neither, so every provenance stands. No preset is added: in particular
+    // no fullscreen preset (`-c tui.fullscreen_transcript=true`), which on a
+    // Mac like the operator's would bring back a wheel that walks the prompt
+    // history and moves an approval's answer (research 133 question 2).
+    helpVerifiedVersion: 'codex-cli 0.158.0',
     resumeRepass: 'required-verified',
     resumeNote:
-      '`codex resume --help` re-lists -s/--sandbox, -a/--ask-for-approval, --approve-for-me and --dangerously-bypass-approvals-and-sandbox, so the resume subcommand verifiably accepts every preset; flags are per-invocation and must be re-passed.',
+      '`codex resume --help` (codex-cli 0.158.0) re-lists -c/--config, -s/--sandbox, -a/--ask-for-approval, --approve-for-me, --dangerously-bypass-approvals-and-sandbox and --search, so the resume subcommand verifiably accepts every VERIFIED preset; flags are per-invocation and must be re-passed. Tortie\'s own `-c tui.fullscreen_transcript=false` rides on the resume template for the same reason.',
     presets: [
       {
         flag: '--dangerously-bypass-approvals-and-sandbox',
@@ -207,7 +214,7 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
         flag: '--yolo',
         label: 'YOLO (legacy alias)',
         description:
-          'Historic alias for --dangerously-bypass-approvals-and-sandbox. NOT present in codex-cli 0.147.0 --help on this machine — prefer the long flag; re-verify per version.',
+          'Historic alias for --dangerously-bypass-approvals-and-sandbox. NOT present in codex-cli 0.158.0 --help or resume --help on this machine, yet accepted on launch and on resume: `resume <id> -c … --yolo` came back reading "permissions: YOLO mode" (research 133 §4.4). Prefer the long flag; re-verify per version.',
         danger: true,
         provenance: 'RESEARCH'
       },
@@ -215,7 +222,7 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
         flag: '--full-auto',
         label: 'Full auto (legacy)',
         description:
-          'Legacy convenience for sandboxed auto-execution (≈ -a on-failure --sandbox workspace-write). NOT present in codex-cli 0.147.0 --help — use the sandbox/approval presets instead.',
+          'Legacy convenience for sandboxed auto-execution (≈ -a on-failure --sandbox workspace-write). NOT present in codex-cli 0.158.0 --help — use the sandbox/approval presets instead.',
         danger: false,
         provenance: 'RESEARCH'
       },
@@ -238,7 +245,7 @@ export const AGENT_FLAG_PRESETS: Record<RegistryAgentId, AgentFlagCatalog> = {
         flag: '--ask-for-approval never',
         label: 'Never ask approval',
         description:
-          'Never ask for user approval; execution failures return to the model (choices: untrusted, on-request, never).',
+          'Never ask for user approval; execution failures return to the model (choices: on-request, never).',
         danger: true,
         provenance: 'VERIFIED'
       },

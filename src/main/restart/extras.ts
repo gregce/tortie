@@ -22,6 +22,10 @@
  * command, so `resolveLaunchSpec` rewrites its launch argv to the RESUME
  * shape, and a resume argv may put extras leading (deepseek's rule, applied
  * from registry data). Both shapes are tried and the one that matches wins.
+ * Shape 1 reads the argv AS TODAY'S REGISTRY WOULD HAVE LAUNCHED IT (Phase
+ * 331): the row's own flags, read by `ownLaunchFlags`, behind today's fixed
+ * launch tokens, so a codex row written before those tokens existed
+ * (`[<abs>/codex, '--yolo']`) still gives `--yolo` back rather than null.
  *
  * WHEN NOTHING MATCHES the answer is null, not an empty array. A row written
  * by an older build, an agent that has left the registry, or an argv a human
@@ -33,7 +37,9 @@
 import type { LaunchableAgentId } from '@shared/types';
 import { claudeHookSettingsPath } from '../activity/hooks';
 import {
+  fixedLaunchTokens,
   getLaunchableEntry,
+  ownLaunchFlags,
   registryLaunchArgv,
   registryResumeArgv
 } from '../agents/registry';
@@ -129,11 +135,19 @@ export function recoverLaunchExtras(
     return null; // not a launchable id — do not guess
   }
 
+  // PHASE 331. The argv as TODAY's registry would have launched it: the
+  // binary, today's fixed launch tokens, then the row's own flags with any
+  // fixed tokens it already carried set aside. For every agent without fixed
+  // tokens this holds exactly `argv`'s elements, so only codex can move; a
+  // codex row written before the phase, `[<abs>/codex, '--yolo']`, now matches
+  // Shape 1 and gives `--yolo` back instead of null.
+  const asLaunched = [bin, ...fixedLaunchTokens(agent), ...ownLaunchFlags(agent, argv)];
+
   // Shape 1, the ordinary launch: [bin, ...registry args, ...pre-assign,
   // ...extras]. The id is passed so the pre-assign pair is rebuilt in place;
   // it is ignored for every agent that does not take one.
   const launch = registryLaunchArgv(agent, [], bin, rec.agentSessionId);
-  if (startsWith(argv, launch)) return argv.slice(launch.length);
+  if (startsWith(asLaunched, launch)) return asLaunched.slice(launch.length);
 
   // Shape 2, cursor: the launch argv IS a resume argv, and a resume argv may
   // carry its extras in front of the template rather than behind it.

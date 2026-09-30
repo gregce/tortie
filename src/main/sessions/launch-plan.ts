@@ -17,6 +17,10 @@
 import type { LoginProviderId } from '@shared/logins';
 import { LOGIN_ENV_NAME } from '@shared/logins';
 import type { CreateSessionInput, ResumeCapture } from '@shared/types';
+// Phase 331. The one helper that sets a row's fixed launch tokens aside. The
+// registry leaf, not the `../agents` barrel, which reaches the configuration
+// store and detection; this module stays a set of pure decisions.
+import { ownLaunchFlags } from '../agents/registry';
 import {
   buildRecoveryContract,
   launchProvenance,
@@ -97,10 +101,17 @@ export function resumeCaptureFor(spec: AgentLaunchSpec): ResumeCapture {
  * Under capture `argv` is the wrapper's — `run <provider> --no-version-check
  * --silent -c "…"` — and re-appending THOSE to a resume would build nonsense.
  * The unwrapped agent argv is recorded for exactly this reason.
+ *
+ * PHASE 331. The row's fixed launch tokens (codex's
+ * `-c tui.fullscreen_transcript=false`) are set aside by `ownLaunchFlags`
+ * when they lead, because the resume template puts them back: without that
+ * the rescue, admission and repair paths would compose the pair twice where
+ * the create-time harvest, which is handed the create's own extras, composes
+ * it once. A row written before the phase has none and reads as it did.
  */
 export function agentExtrasOf(rec: ManifestSessionRecord): string[] {
   const inner = rec.specstory?.agentArgv;
-  return (inner !== undefined && inner.length > 0 ? inner : rec.argv).slice(1);
+  return ownLaunchFlags(rec.agent, inner !== undefined && inner.length > 0 ? inner : rec.argv);
 }
 
 /**

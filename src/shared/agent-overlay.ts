@@ -665,7 +665,14 @@ export const REFUSED_ROW_FIELDS: Readonly<Record<string, string>> = {
     'Tortie does not read unverified from configuration. A configured agent is ' +
     'always shown as unverified, because Tortie has measured nothing about it.',
   reconstructionTarget:
-    'Tortie does not read reconstructionTarget from configuration.'
+    'Tortie does not read reconstructionTarget from configuration.',
+  // PHASE 331. The compiled screen record says how each agent Tortie ships
+  // draws its screen. Nothing in the app reads it at runtime and it is never
+  // an execution field, so the refusal is about honesty rather than safety:
+  // without it `noUnknownKeys` would drop the row with "check the spelling".
+  screen:
+    'Tortie does not read screen from configuration. It is Tortie’s own ' +
+    'record of how each agent it ships draws its screen, and it runs nothing.'
 };
 
 /** The same, for the fields inside a `resume` block. */

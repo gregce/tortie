@@ -22,7 +22,8 @@ import * as tmux from '../tmux';
 import {
   SELECTED_AFFIRMATIVE,
   TRUST_DIALOG_PATTERNS,
-  firstMatch
+  firstMatch,
+  trustGateStep
 } from './cases';
 
 const delay = (ms: number): Promise<void> =>
@@ -89,6 +90,17 @@ export function currentScreen(text: string, since = ''): string {
 }
 
 /**
+ * The last 24 lines that hold anything, with the pane's blank rows below the
+ * last drawn line taken off first. {@link currentScreen} keeps those rows, so
+ * a question drawn at the TOP of an otherwise empty 40-row screen (Claude Code
+ * 2.1.285's folder question) falls outside its window: measured by the Phase
+ * 331 fixer on the real Claude, where it hid the highlight after the Down.
+ */
+export function bottomOfPane(text: string, since = ''): string {
+  return tail(afterMarker(text, since).replace(/\s+$/, ''), 24);
+}
+
+/**
  * Poll until `test` returns true, or the deadline passes.
  * Returns the last capture either way — a failure message is only useful
  * with the screen that produced it.
@@ -139,9 +151,12 @@ export async function waitForQuiet(
  * Answer the first-run workspace-trust dialog if one is on screen.
  *
  * Narrow by construction: it only fires on TRUST_DIALOG_PATTERNS (never on a
- * login or payment wall, which must stay BLOCKED), it presses `1` only when
- * the pane really shows an affirmative first option, and the directory it is
- * trusting is the empty temp dir this harness made moments ago.
+ * login or payment wall, which must stay BLOCKED), it presses Enter only when
+ * the pane really shows an affirmative option highlighted, and the directory
+ * it is trusting is the empty temp dir this harness made moments ago. Since
+ * Phase 331's fix round it also answers the one shape whose highlight starts
+ * on the refusal with the accept directly under it (Claude Code 2.1.285): one
+ * Down, then the same Enter only once the accept reads as highlighted.
  *
  * Without it the harness types its prompt straight into a modal, and a nonce
  * digit picks a menu item — which is how the first run "discovered" a codex
@@ -150,21 +165,59 @@ export async function waitForQuiet(
  * @returns true when a dialog was answered.
  */
 export async function clearTrustGate(target: string, since = ''): Promise<boolean> {
+  return (await answerTrustGate(target, since)).answered;
+}
+
+/** What {@link answerTrustGate} saw and did. */
+export interface TrustGateOutcome {
+  /** The trust question's line when one was on the pane at the first look, else null. */
+  seen: string | null;
+  /** Whether the harness answered it. */
+  answered: boolean;
+}
+
+/**
+ * {@link clearTrustGate}, saying also whether a question was there at all, so
+ * a caller can tell "nothing to answer" from "a question it could not answer"
+ * (Phase 331's fix round: a screen reading taken at an unanswered question is
+ * not a reading of the agent).
+ */
+export async function answerTrustGate(target: string, since = ''): Promise<TrustGateOutcome> {
   let answered = false;
+  let seen: string | null = null;
   for (let attempt = 0; attempt < 2; attempt++) {
-    const pane = afterMarker(await readPane(target), since);
-    if (firstMatch(pane, TRUST_DIALOG_PATTERNS) === null) return answered;
+    // The SECOND look reads only the bottom of the pane (bottomOfPane). An
+    // inline agent's answered question stays in its scrollback, so a
+    // whole-capture second look found it and pressed a second Enter into the
+    // composer: measured on 2026-09-30 over Codex 0.159.1 with the scrollback
+    // pair (Phase 331's fix round). A question still waiting is at the bottom.
+    const capture = afterMarker(await readPane(target), since);
+    const pane = attempt === 0 ? capture : bottomOfPane(capture);
+    const question = firstMatch(pane, TRUST_DIALOG_PATTERNS);
+    if (attempt === 0) seen = question;
     // BOTH conditions, not either. MEASURED 2026-08-11: deepseek's
     // onboarding screen also says "trust", has no selected affirmative
     // option, and a bare Enter into it kills the pane. If the harness cannot
     // read which option is highlighted, it does not press anything — the
     // case goes BLOCKED and says so.
-    if (!SELECTED_AFFIRMATIVE.test(pane)) return answered;
+    const step = trustGateStep(pane);
+    if (step === 'absent' || step === 'none') return { seen, answered };
+    if (step === 'down-then-enter') {
+      // Claude Code 2.1.285 highlights "No, exit" (./cases.ts). One Down, and
+      // Enter ONLY if the accept is then the highlighted line: a Down that
+      // landed anywhere else presses nothing more.
+      await tmux.execTmux(['send-keys', '-t', target, 'Down']);
+      await delay(700);
+      // Read at the BOTTOM, where the question is, so an older answered
+      // question in an inline agent's scrollback cannot stand in for it.
+      const moved = bottomOfPane(await readPane(target), since);
+      if (!SELECTED_AFFIRMATIVE.test(moved)) return { seen, answered };
+    }
     await tmux.execTmux(['send-keys', '-t', target, 'Enter']);
     answered = true;
     await waitForQuiet(target, 2_000, 15_000);
   }
-  return answered;
+  return { seen, answered };
 }
 
 

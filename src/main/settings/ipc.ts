@@ -72,7 +72,8 @@ export function getFlagCatalogViews(): AgentFlagCatalogs {
       })),
       // Phase 269. What this agent's COMPILED row already sets, so the
       // Settings window can say "this agent already sets FORCE_COLOR itself"
-      // without a second round trip. Empty for all but two agents.
+      // without a second round trip. Empty for all but three agents: cursor,
+      // grok and, since Phase 331, Claude Code.
       envKeys: [...compiledLaunchEnvKeys(agentId)]
     };
     views[agentId] = view;

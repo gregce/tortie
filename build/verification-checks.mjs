@@ -664,6 +664,29 @@ export const CHECKS = [
   // FILE is unlinked in the `finally`. No model turn, no real agent, no
   // credential. P321_PARENT_CHECKOUT points it at a parent build.
   electron('probe:p321'),
+  // PHASE 331's app run (build/p331/SPEC.md §2.11): TWO Electrons one after the
+  // other, never at once, on ONE scratch profile, HOME and socket
+  // gmux-p331b-<pid>, the parent's first (P331_PARENT_CHECKOUT, a BUILT
+  // checkout) with NO socket handed to withElectron so its server survives
+  // into the HEAD run, which hands it and so ends it; the probe's own `finally`
+  // ends it again and unlinks its file. The real installed claude, cursor,
+  // codex, deepseek, muse, pi, omp and opencode are created through the preload
+  // bridge's sessions:create and read by tmux (the 1049 count in a pipe-pane
+  // stream from the first byte, alternate_on, mouse_any_flag, history_size);
+  // Codex runs under a scratch CODEX_HOME with a dummy key against a mock
+  // Responses provider IN THE PROBE'S OWN PROCESS on 127.0.0.1, and Claude
+  // under a scratch HOME and CLAUDE_CONFIG_DIR with a FAKE key, so no model
+  // turn is spent and no token is used. Real CDP wheel events over a fresh
+  // Codex, an open approval (never pressed, declined with Esc), the Ctrl+T
+  // pager, a parent-made --yolo row brought across by the boot pass and
+  // restarted, a person's own opt-back, a captured row, a trust question, a
+  // Claude resumed over a planted fabricated transcript, three controls (a
+  // shell, vim, build/p331/stand-in-sgr.mjs) byte for byte at both builds,
+  // a parked reader across a resize and a return, the Settings refusal, and a
+  // running Claude that keeps its view. Gemini, Qwen, Antigravity and Grok are
+  // never started. Every agent pid it saw is ended by pid in a `finally`.
+  // Exit 2 when a precondition or an arm cannot be read, which is never a pass.
+  electron('probe:p331'),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -1767,6 +1790,21 @@ export const CHECKS = [
   // control green. ablation:p312 stays green unchanged beside it. No Electron,
   // no tmux, no ssh, no agent, no token.
   pure('ablation:p321'),
+  // PHASE 331's attack on its own clauses (build/p331/SPEC.md §2.10): seventeen
+  // arms over a `cp -Rc` clone of src/, resources/ and build/ (build/vendor
+  // symlinked), one clause each broken in the SHIPPING source: the scrollback
+  // pair off the codex launch argv and off its resume template, the fixed
+  // tokens not set aside, Restart without the pre-phase shape, the remote
+  // harvest without the helper, the boot pass not called, a captured row armed
+  // bare, a row already carrying the pair rewritten, a remote row's argv[0]
+  // rewritten, Claude's variable off launch.env, the env not merged, merged on
+  // another machine, a present "0" overwritten, the pass writing twice, pi's
+  // screen record removed, the overlay refusal dropped and the conformance
+  // harness's switch failure taken out. Each must turn THE ROW THAT OWNS IT
+  // red by name, a vitest title or a conformance:agents 11.x line, with every
+  // file restored and proved by sha256 and an unedited control green first and
+  // last. P331_ONLY runs named arms. No Electron, no tmux, no agent, no token.
+  pure('ablation:p331'),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from

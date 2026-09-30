@@ -129,6 +129,8 @@ describe('the row he reported', () => {
       '/usr/local/bin/codex',
       'resume',
       PARENT,
+      '-c',
+      'tui.fullscreen_transcript=false',
       '--dangerously-bypass-approvals-and-sandbox'
     ]);
     expect(after?.resumeCapture).toBe('armed');

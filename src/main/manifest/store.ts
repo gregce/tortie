@@ -397,6 +397,16 @@ export class ManifestStore {
     return this.sessions.setContextSnapshot(id, snapshot);
   }
 
+  /** One row's `resume_argv` and no other column. See the repository. */
+  setResumeArgvColumn(id: string, argv: readonly string[]): void {
+    this.sessions.setResumeArgvColumn(id, argv);
+  }
+
+  /** One row's `env` and no other column. See the repository. */
+  setEnvColumn(id: string, env: Readonly<Record<string, string>>): void {
+    this.sessions.setEnvColumn(id, env);
+  }
+
   renameSession(
     id: string,
     name: string,

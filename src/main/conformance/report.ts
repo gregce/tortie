@@ -11,6 +11,7 @@
  */
 
 import { stripAnsi } from '../ansi';
+import type { ScreenReading } from './screen-class';
 
 // ---------------------------------------------------------------------------
 // Result shapes
@@ -30,6 +31,12 @@ export type ConformanceStage =
   | 'restore'
   | 'fire'
   | 'recall'
+  /**
+   * Phase 331. The pane's screen, read after create and after the restored
+   * resume and judged against the row's compiled screen record
+   * (./screen-class.ts). Only a `switch-to-inline` row can fail it.
+   */
+  | 'screen'
   | 'cleanup';
 
 /**
@@ -119,6 +126,20 @@ export interface AgentConformanceResult {
    * these are what the UI's "capturing…" state is derived from.
    */
   notes?: string[];
+  /**
+   * Phase 331 (build/p331/SPEC.md §2.8). The row's compiled screen class and
+   * what tmux read after create, and after the restored resume in the full
+   * run. `mismatch` holds the sentences a reading that disagrees with a class
+   * other than `switch-to-inline` produced: recorded, never a failure, because
+   * a person's own setting may choose otherwise. A switch that drew on the
+   * alternate screen is not a mismatch; it is the case's FAIL reason.
+   */
+  screen?: {
+    class: string;
+    create?: ScreenReading;
+    resume?: ScreenReading;
+    mismatch?: string[];
+  };
   /** Milliseconds the whole case took. */
   ms: number;
   stages: ConformanceStageResult[];
@@ -148,6 +169,43 @@ export interface ConformanceRun {
    */
   versions: Record<string, string | null>;
   results: AgentConformanceResult[];
+  /**
+   * Every install the run may start, read before the first case and after the
+   * last, and the agents whose install moved in between (Phase 331's fix round:
+   * one full run's Codex updated itself mid-run and nothing said so).
+   */
+  installs?: {
+    before: Record<string, InstallStamp | null>;
+    after: Record<string, InstallStamp | null>;
+    moved: string[];
+  };
+}
+
+/** One agent's resolved install: the binary's realpath and that file's mtime and size. */
+export interface InstallStamp {
+  real: string;
+  mtimeMs: number;
+  size: number;
+}
+
+/**
+ * The agents whose install moved between two stamps, each as one line naming
+ * the agent and what moved. An install that resolved before and not after
+ * counts; one that never resolved does not.
+ */
+export function movedInstalls(
+  before: Readonly<Record<string, InstallStamp | null>>,
+  after: Readonly<Record<string, InstallStamp | null>>
+): string[] {
+  const out: string[] = [];
+  for (const [agent, was] of Object.entries(before)) {
+    if (was === null) continue;
+    const now = after[agent] ?? null;
+    if (now === null) out.push(`${agent} (${was.real} no longer resolves)`);
+    else if (now.real !== was.real) out.push(`${agent} (now ${now.real}, was ${was.real})`);
+    else if (now.mtimeMs !== was.mtimeMs || now.size !== was.size) out.push(`${agent} (${was.real} was rewritten)`);
+  }
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -258,6 +316,22 @@ const RECALL_LABEL: Record<RecallStrength, string> = {
   absent: 'absent'
 };
 
+/** `alternate/mouse` as tmux reads them, e.g. `0/0`. */
+const pair = (r: ScreenReading): string =>
+  `${r.alternateOn ? '1' : '0'}/${r.mouseAny ? '1' : '0'}`;
+
+/**
+ * Phase 331's table cell: the class, then `create a/m`, then `resume a/m`,
+ * and a `!` when any reading disagreed with the class.
+ */
+function screenCell(screen: AgentConformanceResult['screen']): string {
+  if (screen === undefined) return '—';
+  const parts = [screen.class];
+  if (screen.create !== undefined) parts.push(`create ${pair(screen.create)}`);
+  if (screen.resume !== undefined) parts.push(`resume ${pair(screen.resume)}`);
+  return `${parts.join(' ')}${(screen.mismatch ?? []).length > 0 ? ' !' : ''}`;
+}
+
 /**
  * The headline table. One row per agent, widths derived from the data so it
  * stays readable when an agent id or an id format changes under us.
@@ -271,6 +345,7 @@ export function renderTable(results: readonly AgentConformanceResult[]): string 
     'ARMED@SPAWN',
     'PRE-TURN',
     'ROUNDTRIP',
+    'SCREEN',
     'TIME'
   ];
   const rows = results.map((r) => [
@@ -281,6 +356,7 @@ export function renderTable(results: readonly AgentConformanceResult[]): string 
     YESNO(r.armedAtSpawn),
     YESNO(r.capturedBeforeTurn),
     r.recall === undefined ? '—' : RECALL_LABEL[r.recall],
+    screenCell(r.screen),
     `${(r.ms / 1000).toFixed(1)}s`
   ]);
   const widths = header.map((h, i) =>
@@ -318,6 +394,20 @@ export function renderDetail(results: readonly AgentConformanceResult[]): string
     if (r.capturedId !== undefined) out.push(`  captured id  ${r.capturedId}`);
     if (r.resumeArgv !== undefined) {
       out.push(`  resume argv  ${r.resumeArgv.join(' ')}`);
+    }
+    // Phase 331: one line per agent that was read, the reading beside its
+    // class, and each disagreement on a line of its own.
+    if (r.screen !== undefined) {
+      const readings = [
+        r.screen.create === undefined
+          ? null
+          : `create alternate ${r.screen.create.alternateOn ? '1' : '0'} mouse ${r.screen.create.mouseAny ? '1' : '0'} history ${String(r.screen.create.historySize)}`,
+        r.screen.resume === undefined
+          ? null
+          : `resume alternate ${r.screen.resume.alternateOn ? '1' : '0'} mouse ${r.screen.resume.mouseAny ? '1' : '0'} history ${String(r.screen.resume.historySize)}`
+      ].filter((x): x is string => x !== null);
+      out.push(`  screen       ${[r.screen.class, ...readings].join(' · ')}`);
+      for (const m of r.screen.mismatch ?? []) out.push(`  MISMATCH     ${m}`);
     }
     for (const note of r.notes ?? []) out.push(`  NOTE         ${note}`);
     const stages = r.stages

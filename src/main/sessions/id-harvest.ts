@@ -54,6 +54,7 @@ import { composeResumeArgv } from './resume-argv';
 import * as tmux from '../tmux';
 import type { LaunchableAgentKind, ResumeCapture } from '@shared/types';
 import { repairCodexResumeIds } from './codex-repair';
+import { repairInlineSwitchesOnce } from './inline-repair';
 import { agentExtrasOf } from './launch-plan';
 import { claimStrengthOf } from './reconcile-plan';
 
@@ -334,6 +335,22 @@ export function resumeIdHarvests(deps: IdHarvestDeps): void {
     sessionsLog.warn(
       `the codex resume id repair did not finish: ${(err as Error).message}. ` +
         'Every row keeps the id it had.'
+    );
+  }
+
+  // PHASE 331. Restore arms the RECORDED resume argv and replays the RECORDED
+  // env, so the inline switches reach no row already written until this pass
+  // brings every Codex resume argv and every local Claude row's env across. It
+  // runs once per process, AFTER the repair above, whose recomposition already
+  // carries the pair, so a row that repair moves is written once, and BEFORE
+  // the claim seeding and the rescue, so nothing below reads a row mid-change.
+  // It moves no conversation id, so the claim map is the same either way.
+  try {
+    repairInlineSwitchesOnce(deps.manifest);
+  } catch (err) {
+    sessionsLog.warn(
+      `the inline switch pass did not finish: ${(err as Error).message}. ` +
+        'Every row it did not reach keeps its resume command and its environment.'
     );
   }
 

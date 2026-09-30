@@ -16,6 +16,12 @@
  *     the Scrollback depth setting, and `capture-pane -p -S -` returns them
  *     and `copy-mode -e` scrolls them. BACKLOG's "agents are alt-screen apps"
  *     premise was measured false; case (b) of the spec is the real world.
+ *     Since Phase 331 (research 133 and 134) that holds BECAUSE TORTIE SAYS
+ *     SO: it launches and resumes Codex in its Scrollback mode
+ *     (`-c tui.fullscreen_transcript=false`) and Claude Code with
+ *     `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1`. Codex 0.158's own default is
+ *     a fullscreen view that, under Tortie's `mouse off`, asks for no mouse,
+ *     which turned the wheel back into item 1's prompt-history walk.
  *  3. `copy-mode -e` is the exact primitive we want: `#{scroll_position}` is
  *     lines above the bottom AS IT WAS WHEN THE PANE ENTERED COPY MODE,
  *     scroll-up clamps at `#{history_size}`, and the `-e` flag makes tmux

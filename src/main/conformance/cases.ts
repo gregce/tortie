@@ -14,6 +14,7 @@
 
 import type { LaunchableAgentId } from '@shared/types';
 import { AGENT_FLAG_PRESETS } from '../agents/flags';
+import { AGENT_REGISTRY, type AgentRegistryEntry } from '../agents/registry';
 
 // ---------------------------------------------------------------------------
 // First-run gates
@@ -251,6 +252,91 @@ export const TRUST_DIALOG_PATTERNS: readonly RegExp[] = [
  */
 export const SELECTED_AFFIRMATIVE =
   /^[\s│┃|]{0,10}[›❯▶>*]\s*(?:\[[a-z]\]\s*)?(?:1[.)]\s*)?(?:yes|trust|continue|proceed|allow)\b/im;
+
+/**
+ * A dialog whose highlighted option is the REFUSAL and whose very next option
+ * is the accept. Claude Code 2.1.285, read on 2026-09-29 by the Phase 331
+ * verifier in a fresh folder at the parent and at HEAD alike:
+ *
+ *   claude  `❯ No, exit`
+ *           `  Yes, I trust this folder`
+ *
+ * {@link SELECTED_AFFIRMATIVE} does not match it, so until the Phase 331 fix
+ * round the harness pressed nothing, typed its plant prompt into the question,
+ * the prompt's Enter chose "No, exit" and Claude ended with status 1: no Claude
+ * round trip was possible on any build. Worse for Phase 331, capture mode read
+ * the screen AT this question, which Claude draws on the normal screen whatever
+ * its switch says, so the inline gate could not fail for Claude.
+ *
+ * The harness answers this shape with ONE Down and then only presses Enter when
+ * {@link SELECTED_AFFIRMATIVE} matches after it, so it still never presses an
+ * option it cannot read. The accept line must carry no selection marker of its
+ * own, which is what makes it the NEXT option rather than a second highlight.
+ */
+export const SELECTED_REFUSAL_THEN_AFFIRMATIVE =
+  /^[\s│┃|]{0,10}[›❯▶>]\s*(?:\[[a-z]\]\s*)?(?:\d[.)]\s*)?(?:no|exit|quit|cancel)\b[^\n]*\n[ \t│┃|]{0,12}(?:\[[a-z]\]\s*)?(?:\d[.)]\s*)?(?:yes|trust|continue|proceed|allow)\b/im;
+
+/**
+ * What the harness may press on a pane, read from what the pane shows.
+ *
+ *  - `absent`: no trust question, press nothing.
+ *  - `enter`: the highlighted option is the accept, so Enter takes it.
+ *  - `down-then-enter`: the highlighted option is the refusal and the accept
+ *    is directly under it; one Down, then Enter only if the accept is then
+ *    highlighted (the caller re-reads before the Enter).
+ *  - `none`: a trust question the harness cannot read the options of. Press
+ *    nothing; the case says so.
+ */
+export type TrustGateStep = 'absent' | 'enter' | 'down-then-enter' | 'none';
+
+export function trustGateStep(pane: string): TrustGateStep {
+  if (firstMatch(pane, TRUST_DIALOG_PATTERNS) === null) return 'absent';
+  if (SELECTED_AFFIRMATIVE.test(pane)) return 'enter';
+  if (SELECTED_REFUSAL_THEN_AFFIRMATIVE.test(pane)) return 'down-then-enter';
+  return 'none';
+}
+
+/**
+ * Arguments the harness gives an agent on EVERY create, bypass or not, so the
+ * run changes nothing it did not come to measure. They ride in the create's
+ * extras, so the harvest composes them onto the recorded resume argv as well.
+ *
+ * codex: `check_for_update_on_startup` is Codex's only switch for its update
+ * check (`codex-rs/tui/src/updates.rs`, `get_upgrade_version`), and no
+ * environment variable reaches it. MEASURED 2026-09-29 in the one full
+ * `conformance:resume` of Phase 331: the create's check found 0.159.1, the
+ * RESUMED Codex drew its update prompt, whose highlighted answer is "Update
+ * now" (`update_prompt.rs`), the harness's recall keystrokes accepted it, and
+ * Codex installed 0.159.1 over the operator's 0.158.0 and exited, so the
+ * recall landed in a shell. A `-c` override is Codex's own global flag and
+ * `codex resume` reads it too.
+ */
+export const HARNESS_ONLY_ARGS: Readonly<Partial<Record<LaunchableAgentId, readonly string[]>>> = {
+  codex: ['-c', 'check_for_update_on_startup=false']
+};
+
+/** The extras one conformance case creates its agent with. */
+export function harnessExtras(agent: LaunchableAgentId, bypass: boolean): string[] {
+  return [...(bypass ? (BYPASS_FLAGS[agent] ?? []) : []), ...(HARNESS_ONLY_ARGS[agent] ?? [])];
+}
+
+/**
+ * The table the run's detection scan walks: the compiled rows it was ASKED
+ * for, and no other.
+ *
+ * A detection scan runs `--version` on every agent it resolves, and the core
+ * starts one at boot on an empty profile (`warmDetectionAtBoot`), which the
+ * harness's own profile always is. Before the Phase 331 fix round a run with
+ * `GMUX_CONF_AGENTS` set still version-probed every installed agent, so no
+ * subset could keep an agent that updates itself from being started. The run
+ * points detection at this table before the core boots.
+ */
+export function conformanceDetectionTable(
+  agents: readonly LaunchableAgentId[]
+): AgentRegistryEntry[] {
+  const wanted = new Set<string>(agents);
+  return AGENT_REGISTRY.filter((entry) => wanted.has(entry.id));
+}
 
 /**
  * Evidence that the argv gmux fired was REJECTED — the dead-pane class this

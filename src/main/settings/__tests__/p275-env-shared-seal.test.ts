@@ -454,8 +454,15 @@ describe('the keystore cannot seal', () => {
 // ---------------------------------------------------------------------------
 
 describe('sanitizeEnvPassthroughShared — the shape table', () => {
-  /** The compiled `launch.env` keys the shared list refuses, today two. */
-  const REFUSED_COMPILED = ['FORCE_COLOR', 'GROK_PRIVACY_NOTICE_ROLLOUT'];
+  /**
+   * The compiled `launch.env` keys the shared list refuses, today three
+   * (Phase 331 added Claude Code's inline switch).
+   */
+  const REFUSED_COMPILED = [
+    'CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN',
+    'FORCE_COLOR',
+    'GROK_PRIVACY_NOTICE_ROLLOUT'
+  ];
 
   it('drops the whole FIELD when it is not an array', async () => {
     const { sanitizeEnvPassthroughShared } = await import('@shared/settings');

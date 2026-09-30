@@ -361,6 +361,51 @@ export interface AgentActivityProfile {
 }
 
 /**
+ * How an agent draws its screen inside Tortie (Phase 331, research 134 §2).
+ *
+ *  - `switch-to-inline`: Tortie compiles a switch that keeps the agent on the
+ *    normal screen, so its conversation is in tmux history. Codex and Claude
+ *    Code, and no other row.
+ *  - `inline-already`: the agent draws on the normal screen and asks for no
+ *    mouse by default. Nothing to compile.
+ *  - `fullscreen-with-mouse`: the agent draws on the alternate screen and asks
+ *    for the mouse, so the wheel reaches it through the pass-through and its
+ *    transcript is not in tmux.
+ *  - `unknown`: not measured.
+ */
+export type AgentScreenClass = 'switch-to-inline' | 'inline-already' | 'fullscreen-with-mouse' | 'unknown';
+
+interface AgentScreenFacts {
+  /**
+   * The version read, the date and how: '<version>, <date>, live (research N)'
+   * when the agent was run, or '…, read only (research N)' when only its files
+   * and docs were read. (No row's own string is quoted here: pi's must stay
+   * unique in this file, because the Phase 331 ablation anchors on it.)
+   */
+  measured: string;
+  /** Refused switches and known behaviour, each with its reason. Display only. */
+  notes: readonly string[];
+}
+
+/**
+ * Tortie's compiled record of how an agent it ships draws its screen
+ * (Phase 331). A discriminated union, so a carriage exists exactly on a
+ * switch and the compiler holds that.
+ *
+ * NOTHING IN THE APP READS IT AT RUNTIME. Its readers are
+ * `conformance:agents`, `conformance:resume` and the tests. The switch itself
+ * lives in fields the row already has (`launch.argv` and `resume.template`,
+ * or `launch.env`), and a switch record names its tokens FROM the same
+ * constant the row spreads, so the two cannot disagree. It runs nothing, and
+ * the overlay refuses it (`REFUSED_ROW_FIELDS.screen` in
+ * src/shared/agent-overlay.ts); it is never an execution field.
+ */
+export type AgentScreenRecord =
+  | (AgentScreenFacts & { class: 'switch-to-inline'; carriage: 'argv'; tokens: readonly string[] })
+  | (AgentScreenFacts & { class: 'switch-to-inline'; carriage: 'env'; env: Readonly<Record<string, string>> })
+  | (AgentScreenFacts & { class: 'inline-already' | 'fullscreen-with-mouse' | 'unknown' });
+
+/**
  * Where this agent comes from, and how to tell (Phase 49, research 47 §3, §5, §10).
  *
  * NOTHING HERE IS EVER RUN. Every string is display and clipboard material
@@ -496,6 +541,14 @@ export interface AgentRegistryEntry {
    */
   activity?: AgentActivityProfile;
   /**
+   * How this agent draws its screen (Phase 331). Absent = the capture-only
+   * IDE pair, for the same reason `activity` is; every launchable compiled row
+   * declares one (`conformance:agents` section 11). A configured agent has
+   * none, which reads as "no record", never as a class. Display and gate
+   * material only: see {@link AgentScreenRecord}.
+   */
+  screen?: AgentScreenRecord;
+  /**
    * How this agent is CAPTURED by specstory (Phase 15). Absent = specstory
    * has no provider for it, so gmux offers no capture toggle for it — pi and
    * qwen today, plus the capture-only IDE pair gmux never launches.
@@ -518,6 +571,50 @@ export const SESSION_ID_SLOT = '<sessionId>';
 
 /** Explicit default agent — NEVER pick alphabetically (research rule 8). */
 export const DEFAULT_AGENT_ID: AgentRegistryId = 'claude';
+
+// ---------------------------------------------------------------------------
+// The two inline switches (Phase 331), each spelled once
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 331. Codex's own Scrollback mode, on BOTH the codex row's
+ * `launch.argv` tail and its `resume.template` (research 133 §2.6, §5, §11;
+ * research 134 §4.1). The operator's ruling of 2026-09-29, "i like the inline
+ * mode lets do that", supersedes for this row the Phase 320 line "Tortie does
+ * not choose an agent's renderer".
+ *
+ * Why this spelling: it is Codex's named Scrollback mode, and its Ctrl+T
+ * pager stays on the alternate screen and off tmux history; the background
+ * server's allowlist admits the key as a bool (codex-rs/tui/src/
+ * daemon_startup.rs:63, source only); a later `-c …=true` in the person's own
+ * flags undoes it, because extras trail; a Codex before 2026-09-11 ignores it
+ * silently and Tortie never passes `--strict-config`. Refused:
+ * `--no-alt-screen` (a dead pane before 2026-01, no later flag undoes it, the
+ * pager draws inline and its close clears history) and
+ * `-c tui.alternate_screen="never"` (drops the shared background server with a
+ * visible warning). On the template too because `resumeArgvFor` never reads
+ * `launch.argv` and `codex resume` restores no launch flag.
+ */
+export const CODEX_SCROLLBACK_ARGS = ['-c', 'tui.fullscreen_transcript=false'] as const;
+
+/**
+ * PHASE 331. Claude Code's inline switch, in the claude row's compiled
+ * `launch.env` (research 134 §1, §4.1, §5). The operator's ruling of
+ * 2026-09-29 supersedes for this row the Phase 320 line "Tortie does not
+ * choose an agent's renderer".
+ *
+ * Why this spelling: an environment variable a Claude before 2.1.132 ignores,
+ * so it cannot kill a pane; it holds on `claude --resume <id>`; it beats a
+ * saved `tui: fullscreen` and `CLAUDE_CODE_NO_FLICKER=1`; it loses to the
+ * person's settings env block saying "0" and to `CLAUDE_CODE_SESSION_KIND=bg`,
+ * which Tortie never sets; it reaches this Mac only. Refused:
+ * `--settings '{"tui":"default"}'`, because with two `--settings` the last
+ * wins and `withClaudeSettingsFlag` skips Tortie's hook file whenever one is
+ * present (src/main/activity/hooks.ts), which would drop Phase 311's question.
+ * Being in a compiled `launch.env`, the name is refused on both passthrough
+ * lists by Phase 275's rule.
+ */
+export const CLAUDE_INLINE_ENV = { CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN: '1' } as const;
 
 // ---------------------------------------------------------------------------
 // The 13 entries
@@ -553,8 +650,10 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     versionProbe: { args: ['-v'], identitySubstring: '(Claude Code)' },
     launch: {
       argv: ['claude'],
+      env: { ...CLAUDE_INLINE_ENV },
       quirks: [
-        'PRE-ASSIGN: `claude --session-id <uuid>` — VERIFIED end-to-end 2026-08-10 (2.1.227): the uuid gmux passes becomes the store filename. (It appears nowhere in specstory-cli, which always harvests; that is a fact about specstory, not about claude.)'
+        'PRE-ASSIGN: `claude --session-id <uuid>` — VERIFIED end-to-end 2026-08-10 (2.1.227): the uuid gmux passes becomes the store filename. (It appears nowhere in specstory-cli, which always harvests; that is a fact about specstory, not about claude.)',
+        'PHASE 331 (research 134): launch.env carries CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (CLAUDE_INLINE_ENV), so Claude draws in the normal buffer and its conversation is in tmux history. A Claude before 2.1.132 ignores it. It beats a saved `tui: fullscreen` and CLAUDE_CODE_NO_FLICKER=1, and loses to the person\'s settings env block saying "0" and to CLAUDE_CODE_SESSION_KIND=bg, which Tortie never sets. It reaches this Mac only: a compiled launch.env never travels to another machine.'
       ]
     },
     resume: {
@@ -583,6 +682,19 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       hooks: 'claude-settings',
       verified: 'verified',
       dialogs: ['claude-trust-gate']
+    },
+    screen: {
+      class: 'switch-to-inline',
+      carriage: 'env',
+      env: CLAUDE_INLINE_ENV,
+      measured: '2.1.284 and 2.1.285, 2026-09-29, live (research 134)',
+      notes: [
+        'Beats a saved `tui: fullscreen` and CLAUDE_CODE_NO_FLICKER=1.',
+        'Loses to the person\'s settings env block saying "0" and to CLAUDE_CODE_SESSION_KIND=bg, which Tortie never sets.',
+        'Ignored by a Claude before 2.1.132, which stays as it is, so it cannot kill a pane.',
+        'Reaches this Mac only: a compiled launch.env never travels to another machine (REMOTE_ENV_ALLOWED).',
+        'Refused: --settings \'{"tui":"default"}\'. With two --settings the last wins, and withClaudeSettingsFlag skips Tortie\'s hook file whenever one is present, which would drop Phase 311\'s question.'
+      ]
     },
     specstory: {
       provider: 'claude',
@@ -636,7 +748,7 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       argv: ['cursor-agent'],
       env: { FORCE_COLOR: '1' },
       quirks: [
-        'FORCE_COLOR=1 was the sole env injection for any agent until Phase 59 added grok\'s GROK_PRIVACY_NOTICE_ROLLOUT=0',
+        'FORCE_COLOR=1 was the sole env injection for any agent until Phase 59 added grok\'s GROK_PRIVACY_NOTICE_ROLLOUT=0, and Phase 331 added Claude Code\'s CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1',
         'PRE-ASSIGN via a SIDE COMMAND: `cursor-agent create-chat` prints a fresh chat id on stdout ("Create a new empty chat and return its ID"); launching `cursor-agent --resume <that id>` starts INTO it, so the first launch and every later restore use the SAME argv. Re-verified 2026-08-11: RC=0, one bare uuid on stdout, sub-second, no store dir written until the chat has content.'
       ]
     },
@@ -663,6 +775,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // 2026.09.18), as did a shell or pager showing them. A false amber is as
     // bad as a missed one (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'inline-already',
+      measured: '2026.09.18, 2026-09-29, live (research 134)',
+      notes: [
+        'Clears with ESC[H ESC[2J ESC[3J on mount and on every resize, then prints its latest 10 turns until /full-conversation.'
+      ]
+    },
     specstory: {
       provider: 'cursor',
       exitCodeFidelity: 'exact',
@@ -723,12 +842,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     },
     versionProbe: { args: ['--version'], fallbackArgs: ['-V'] },
     launch: {
-      argv: ['codex'],
-      quirks: ['honors CODEX_HOME for store location']
+      argv: ['codex', ...CODEX_SCROLLBACK_ARGS],
+      quirks: [
+        'honors CODEX_HOME for store location',
+        'PHASE 331 (research 133): argv[0] is followed by FIXED launch tokens, CODEX_SCROLLBACK_ARGS (`-c tui.fullscreen_transcript=false`, Codex\'s own Scrollback mode), and resume.template carries the same pair after the id. They are the registry\'s, not the person\'s: ownLaunchFlags sets them aside wherever a person\'s own flags are recovered, and a row written before the phase, which lacks them, reads as it always did.'
+      ]
     },
     resume: {
       strategy: 'flag-uuid',
-      template: ['resume', SESSION_ID_SLOT],
+      template: ['resume', SESSION_ID_SLOT, ...CODEX_SCROLLBACK_ARGS],
       idCapture: {
         mode: 'harvest',
         key: 'cwd-newest',
@@ -752,11 +874,23 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
         'MEASURED, not assumed: launch flags are NOT restored — launched with --dangerously-bypass-approvals-and-sandbox the header reads "permissions: YOLO mode"; after `codex resume` that row is gone. Re-append extras. ' +
         'FIRST-RUN TRUST GATE (measured 2026-08-11, and it applies to muse too): in a directory codex has never seen it opens "Do you trust the contents of this directory?" and writes NOTHING to its store until that is answered. A harvest window has to outlive a prompt the user may not answer for an hour — gmux watches for 6 h with a backing-off poll rather than the old 120 s. ' +
         'Once the rollout exists, gmux matches it in ~12 ms (measured against a live pane). ' +
-        'Fallbacks: bare `codex resume` (picker), `--last` (most recent), `--all` (disables cwd filtering).'
+        'Fallbacks: bare `codex resume` (picker), `--last` (most recent), `--all` (disables cwd filtering). ' +
+        'PHASE 331, MEASURED 2026-09-29 on 0.158.0 (research 133): Codex runs a FULLSCREEN view by default since 2026-09-22, on the alternate screen with its transcript in its own memory. Under Tortie\'s tmux `mouse off` it asks the server `#{mouse}` through a tmux in one of its trusted directories (/opt/homebrew/bin and the like, never PATH), reads `off` and asks for no mouse, so the wheel became arrow keys that walked its prompt history and moved an open approval\'s answer. Launch flags are STILL not restored by `codex resume` (`resume <id>` alone came back fullscreen), which is why CODEX_SCROLLBACK_ARGS is on this template as well as on the launch; `resume <id> -c tui.fullscreen_transcript=false --yolo` came back inline with `permissions: YOLO mode` kept, and a later `-c …=true` wins. The first-run folder question now reads "Trust this folder?" and is fullscreen with no mouse without the switch.'
     },
     reconstructionTarget: true,
     // #{pane_title} 3-state oracle: 0 % FN / 0 % FP over n=156.
     activity: { tier: 'native', native: 'pane-title-oracle', animatesWhenIdle: false, verified: 'verified' },
+    screen: {
+      class: 'switch-to-inline',
+      carriage: 'argv',
+      tokens: CODEX_SCROLLBACK_ARGS,
+      measured: '0.158.0, 2026-09-29, live (research 133)',
+      notes: [
+        'Refused: --no-alt-screen. An unknown argument before 2026-01 is a dead pane, no later flag can undo it, and its Ctrl+T pager draws inline and its close clears tmux history.',
+        'Refused: -c tui.alternate_screen="never". It takes Codex off its shared background server with a visible warning.',
+        'Without the switch the first-run folder question is fullscreen with no mouse, so the wheel over it moves the choice.'
+      ]
+    },
     specstory: {
       provider: 'codex',
       exitCodeFidelity: 'collapsed',
@@ -834,6 +968,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Auth-blocked during research; title carries no state channel.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'inline-already',
+      measured: '0.60.0, 2026-09-29, read only (research 134)',
+      notes: [
+        '`ui.useAlternateBuffer` defaults to false, and opting in asks for `1002/1006`, which the pass-through serves.',
+        'Ctrl+S turns the mouse on inline.',
+        'Refused: `--screen-reader` and `GEMINI_CLI_SYSTEM_SETTINGS_PATH`.'
+      ]
+    },
     specstory: {
       provider: 'gemini',
       exitCodeFidelity: 'exact',
@@ -895,6 +1038,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Not installed here; hook shape is docs-only. Floor only.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'unknown',
+      measured: 'not installed, 2026-09-29 (research 134)',
+      notes: [
+        'Factory\'s docs name no screen or mouse setting.'
+      ]
+    },
     specstory: {
       provider: 'droid',
       exitCodeFidelity: 'collapsed',
@@ -1007,6 +1157,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Animates at idle (6 events/15 s) — the activity clock is unusable.
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
+    screen: {
+      class: 'fullscreen-with-mouse',
+      measured: '0.8.26, 2026-09-29, live (research 134)',
+      notes: [
+        'Asks for `1049` and `1000/1002/1003/1015/1006`.',
+        '`--no-alt-screen` and `tui.alternate_screen = "never"` are both ignored on 0.8.26.',
+        'Refused: CodeWhale\'s `never` (0.9.12 and later). It is a viewport that commits nothing to host scrollback, forces the mouse off and can be set only in the config file.'
+      ]
+    },
     specstory: {
       provider: 'deepseek',
       exitCodeFidelity: 'collapsed',
@@ -1108,6 +1267,16 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // session showing its rows, and the pickers agy draws with the same
     // component, as live questions (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
+    screen: {
+      class: 'fullscreen-with-mouse',
+      measured: '1.2.8, 2026-09-29, read only (research 134)',
+      notes: [
+        'Full-screen in a `tmux-256color` pane by its own log; its mouse mode numbers are unmeasured.',
+        'Its only switch is `altScreenMode: "never"` in its settings file.',
+        'Refused: a planted `SSH_CONNECTION`, and `--gemini_dir`.',
+        'Over ssh it probably runs inline (unmeasured).'
+      ]
+    },
     specstory: {
       provider: 'antigravity',
       exitCodeFidelity: 'collapsed',
@@ -1185,6 +1354,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // 1 output/s while idle; ~12 s pre-first-token window needs T3.
     activity: { tier: 'process', animatesWhenIdle: true, verified: 'partial' },
+    screen: {
+      class: 'inline-already',
+      measured: '1.4.1, 2026-09-29, live (research 134)',
+      notes: [
+        'Inline on create and on `resume <uuid>`.',
+        'Its bundled skill text calling it an alternate-screen agent is wrong.'
+      ]
+    },
     specstory: {
       provider: 'muse',
       exitCodeFidelity: 'exact',
@@ -1275,6 +1452,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
       verified: 'partial',
       dialogs: ['qwen-confirmation']
     },
+    screen: {
+      class: 'fullscreen-with-mouse',
+      measured: '0.22.0, 2026-09-29, read only (research 134)',
+      notes: [
+        'Asks for `1049`, and `1002` or `1003` with `1006`.',
+        'Its only real switch is `ui.useTerminalBuffer: false` in the person\'s settings.',
+        'Refused: `--screen-reader`, `QWEN_CODE_SYSTEM_SETTINGS_PATH`, `QWEN_HOME` and any truthy `CI_*` variable.'
+      ]
+    },
     iconKey: 'qwen',
     defaultHotkeyHint: 'q',
     multilineKey: { sequence: LF, verified: true },
@@ -1357,6 +1543,13 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     reconstructionTarget: true,
     // Event API read from its .d.ts, never executed. Floor only.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'inline-already',
+      measured: '0.84.2, 2026-09-29, live (research 134)',
+      notes: [
+        '`--tui-mode regular` (0.84.0 and later) beats `tuiMode: fullscreen` and is recorded, not compiled, because an older pi dies on the unknown flag after its trust question.'
+      ]
+    },
     iconKey: 'pi',
     defaultHotkeyHint: 'p',
     multilineKey: {
@@ -1439,6 +1632,14 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // documented as writable by its lineage, so reconstruction can target it.
     reconstructionTarget: true,
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'inline-already',
+      measured: '18.0.11, 2026-09-29, live (research 134)',
+      notes: [
+        'First paint sends `CSI H 2J 3J`.',
+        'Each resize borrows the alternate screen for about 120 ms (upstream can1357/oh-my-pi#10232).'
+      ]
+    },
     iconKey: 'omp',
     // 'o' collides with ⇧⌘O Go to symbol (reserved), and 'm' is already
     // muse's suggested letter, so the mnemonic is the i in Pi.
@@ -1572,6 +1773,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // execute a Tortie-chosen command, which collides with the spirit of
     // Phase 23 refusal 8. Neither ships in Phase 59.
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'unverified' },
+    screen: {
+      class: 'unknown',
+      measured: '1.0.41, 2026-09-29, read only (research 134)',
+      notes: [
+        '`--minimal` is the inline spelling and is held until measured: Experimental, a bare flag, and its binary says both sticky and session-scoped.',
+        '`--no-alt-screen` is not inline.',
+        '`auto` may depend on whether Tortie\'s control-mode client is the current client.'
+      ]
+    },
     iconKey: 'grok',
     defaultHotkeyHint: 'r',
     multilineKey: {
@@ -1685,6 +1895,15 @@ export const AGENT_REGISTRY: readonly AgentRegistryEntry[] = [
     // below the hint, a shell or pager in the session showing those rows read
     // as a live question (build/p321/SPEC.md §12.9).
     activity: { tier: 'screen', animatesWhenIdle: false, verified: 'partial' },
+    screen: {
+      class: 'fullscreen-with-mouse',
+      measured: '1.18.32, 2026-09-29, live (research 134)',
+      notes: [
+        'Asks for `1049` and `1000/1002/1003/1006`.',
+        'Refused: `--mini` (1.17.10 and later). Image drop regresses, an older opencode prints only its help and exits, and every resize clears and replays.',
+        '`OTUI_USE_ALTERNATE_SCREEN` in the pane kills it.'
+      ]
+    },
     // No opencode.svg is shipped yet, so this falls back to the terminal glyph
     // (acceptable, like antigravity/muse) — do not block on the asset.
     iconKey: 'opencode',
@@ -1834,8 +2053,9 @@ export function getLaunchableEntry(
 
 /** Canonical binary name for an id (cursor → cursor-agent, antigravity → agy). */
 /**
- * The env keys an agent's COMPILED row sets. Empty for all but two, being
- * cursor's `FORCE_COLOR` and grok's `GROK_PRIVACY_NOTICE_ROLLOUT`.
+ * The env keys an agent's COMPILED row sets. Empty for all but three, being
+ * cursor's `FORCE_COLOR`, grok's `GROK_PRIVACY_NOTICE_ROLLOUT` and Claude
+ * Code's `CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN` (Phase 331).
  *
  * A read of the compiled table ONLY, never the overlay, so there is no import
  * cycle and the answer does not depend on a configuration file. Phase 269's
@@ -1847,6 +2067,47 @@ export function compiledLaunchEnvKeys(agentId: string): readonly string[] {
   const entry = BY_ID.get(agentId as AgentRegistryId);
   if (entry === undefined || entry.launch === null) return [];
   return Object.keys(entry.launch.env ?? {});
+}
+
+/**
+ * PHASE 331. The tokens a COMPILED row fixes after argv[0]. Empty for every
+ * row but codex today, whose tokens are {@link CODEX_SCROLLBACK_ARGS}.
+ *
+ * A read of the compiled table only, never the overlay, for the reason
+ * {@link compiledLaunchEnvKeys} gives, and for one more: every caller of
+ * {@link ownLaunchFlags} composes through the compiled registry
+ * (`registryResumeArgv`, `registryLaunchArgv`), so the tokens set aside must be
+ * exactly the tokens that composer puts back.
+ */
+export function fixedLaunchTokens(agentId: string): readonly string[] {
+  const entry = BY_ID.get(agentId as AgentRegistryId);
+  if (entry === undefined || entry.launch === null) return [];
+  return entry.launch.argv.slice(1);
+}
+
+/**
+ * The flags a person launched this agent with: `agentArgv` after its argv[0],
+ * with the compiled row's fixed launch tokens set aside WHEN THEY LEAD, and
+ * unchanged when they do not (a row written before its agent had fixed
+ * tokens).
+ *
+ * ONE HELPER FOR THREE READERS (Phase 331, research 133 §11, research 134
+ * §4.2): `agentExtrasOf` (the rescue, admission and repair recompositions),
+ * `recoverLaunchExtras` (Restart) and `writeRemoteHarvest` (the one remote
+ * recomposition). Without it the harvest, which is handed the create's own
+ * extras, and those three compose different resume argvs, the pair twice
+ * against once, and Restart drops a pre-phase row's own flags.
+ *
+ * THE STATED LIMIT. A row written BEFORE the phase whose own flags began with
+ * the same tokens has them read as the registry's. Nothing runs differently,
+ * because the composer puts the same tokens back; only a list of that
+ * person's own flags shows them one pair short.
+ */
+export function ownLaunchFlags(agentId: string, agentArgv: readonly string[]): string[] {
+  const rest = agentArgv.slice(1);
+  const fixed = fixedLaunchTokens(agentId);
+  if (fixed.length > 0 && fixed.every((token, i) => rest[i] === token)) return rest.slice(fixed.length);
+  return rest;
 }
 
 export function agentBinaryName(id: AgentRegistryId): string {

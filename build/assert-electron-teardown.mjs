@@ -328,13 +328,18 @@ const HELPER = 'electron-run.mjs';
  * SIGKILLs the app's MAIN pid, never the shim, so the helper's own teardown is
  * what still ends the tree; the stand-in's children and the decoy are ended by
  * pid in the probe's `finally`.
+ * PHASE 331 RAISED IT FROM 154 TO 155, for build/p331/probe-p331.mjs
+ * (`probe:p331`), the wheel over Codex and the screen of every agent driven
+ * at the parent and at HEAD: TWO Electrons one after the other on one scratch
+ * profile, the parent's launched with no socket so its tmux server lives on
+ * into HEAD's, which ends it; each ended by the helper's `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 154;
+const HELPER_USER_FLOOR = 155;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

@@ -651,6 +651,49 @@ export class SessionsRepository {
   }
 
   /**
+   * Write ONE row's `resume_argv` and no other column (Phase 331's fix round).
+   *
+   * For the inline switch pass (`../sessions/inline-repair.ts`), whose rule is
+   * one write of the resume argv alone. `updateSession` cannot keep that rule:
+   * it reads the whole row, DECODES it and writes every column back from the
+   * decoded record, so a JSON column this build's decoder refuses (read as
+   * absent) is written NULL, an incomplete capture record is normalised and a
+   * non-object env is replaced. The Phase 331 verifier measured exactly that on
+   * planted rows, and the pass reaches rows nothing else rewrites (discarded
+   * ones), so it must not be the write that loses their bytes. This statement
+   * names one column, so every other byte of the row stays what it was.
+   *
+   * The value is serialised as `updateSession` serialises it. Not a durable
+   * commit: a write lost to a power cut is made again at the next launch,
+   * because the pass is idempotent.
+   *
+   * @throws SESSION_NOT_FOUND when the id has no row.
+   */
+  setResumeArgvColumn(id: string, argv: readonly string[]): void {
+    const info = this.db
+      .prepare<[string, string]>('UPDATE sessions SET resume_argv = ? WHERE id = ?')
+      .run(JSON.stringify(argv), id);
+    if (info.changes === 0) {
+      throw manifestError('SESSION_NOT_FOUND', `No manifest row for session ${id}`);
+    }
+  }
+
+  /**
+   * Write ONE row's `env` and no other column (Phase 331's fix round). Same
+   * reasons and same guarantees as {@link setResumeArgvColumn}.
+   *
+   * @throws SESSION_NOT_FOUND when the id has no row.
+   */
+  setEnvColumn(id: string, env: Readonly<Record<string, string>>): void {
+    const info = this.db
+      .prepare<[string, string]>('UPDATE sessions SET env = ? WHERE id = ?')
+      .run(JSON.stringify(env), id);
+    if (info.changes === 0) {
+      throw manifestError('SESSION_NOT_FOUND', `No manifest row for session ${id}`);
+    }
+  }
+
+  /**
    * Record that a completed list from a machine still held this session
    * (Phase 72).
    *
