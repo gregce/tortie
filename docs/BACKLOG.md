@@ -38652,6 +38652,265 @@ lands second rebases.
 - **No notification, sound, badge or menu-bar mark** when the name goes live.
 - **No menu change and no release.**
 
+## Phase 316.6 — "add a great navigation pane (look at /users/gdc/altarum) to the bottom of the phone app, create settings for it that allow it to unpair … and also handle rendering tables and markdown" — the tab bar, Settings and the rendered conversation (operator, 2026-09-30)
+
+**Subject.** `feat(ios): a tab bar, Settings with Unpair, and markdown in the conversation`
+
+**First body line.** `Phase 316.6: the tab bar, Settings and the rendered conversation`
+
+**Semver.** The iOS app only: 1.0.0, build 4, after 316.5's 3. No Mac change. Unreleased under his rule, in the
+release he named on 2026-09-30.
+
+**His words, 2026-09-30.** "i definitely want to add a small subphase in order to: add a great navigation pane (look
+at /users/gdc/altarum) to the bottom of the phone app, create settings for it that allow it to unpair and whatever you
+think would be helpful and also handle rendering tables and markdown, etc etc in the conversation threads".
+
+What a person notices:
+
+- **Three tabs at the bottom**: Needs input (with a count badge), Sessions and Settings. Each keeps its place, and a
+  session opens on top with back, as today.
+- **Settings** names the paired Mac and its fingerprint, says whether iOS allows alerts, gives the version, and has
+  **Unpair this iPhone**.
+- **Answers are drawn as markdown**: headings, lists, quotes, and code and tables that scroll sideways. A link shows
+  its exact address before Safari opens it.
+
+**Tier 3.** Unpair deletes his credential on the phone (the pairing record, the signing keys, the Secure Enclave
+client key). A link tap hands an address an agent wrote to the system, a new way out of the app. And it draws bytes
+somebody else wrote, so a hostile fixture is mandatory. He asked for it, so the parent is measured too. **The
+independent methods:** (1) **the attack**, hostile fixtures through the parser and through
+`build/p316/hostile-door.mjs`; (2) **the re-derivation**, the Mac's own markdown parser run by the verifier over the
+same bytes; (3) **real data**, `docs/research/assets/63-fixtures/` and this repository's markdown cut at 4,000
+characters, as main clips an answer; (4) **the parent**, 316.5's landing commit.
+
+**Charter.**
+
+- His words, and the running-log line that queues this. `build/p316/SPEC.md` §4.0 (every phone step's rules) and §6
+  decision 3 (the conversation's missing mock).
+- The 316.2 rule in `ios/Tortie/Screens/AnswerText.swift:1-25`: the answer is markdown, the ask is not. That stands.
+  Its line "A LINK IS DRAWN AS ITS WORDS AND NEVER OPENED" moves in writing, to S3.4.
+- Research 128 (2.3.1(a) "dormant"; 4.2.7, no terminal), research 136 §7 (alerts are his alone), DESIGN.md §1.3 and
+  CLAUDE.md's UI rules.
+- His rulings of 2026-09-30: Face ID only for End; every option pressable; `/` and `!` allowed; alerts his alone; the
+  beta under his individual account.
+- The pattern, not the code: `/Users/gdc/altarum/clients/iphone/Sources/Views/RootView.swift` and `SettingsTab.swift`,
+  a `TabView` of `.tabItem { Label(…, systemImage:) }` with a `NavigationStack` per tab and Settings last. Not taken:
+  eight tabs (iOS folds past five into More), literals in `Text` (rule (b)), `.red` (rule (a)).
+
+**Does refusal 1 bind the phone app?** Not by its letter, which names Electron's process kinds
+(`docs/research/127-the-phone.md:725-730`). Its boundary sentence does: "Configuration selects from choices the
+compiled world already contains." The door hands the app data and never code, so markdown is data drawn by compiled
+Swift: no web view, no JavaScript, no HTML interpreted. And no link starts anything but Safari on an address he has
+read, because a `shortcuts://run-shortcut` link in an answer would otherwise run one of his Shortcuts. That is refusal
+8, a person confirming the bytes, applied to a tap.
+
+### What was measured before this entry was written
+
+- **Today the answer is inline markdown only.** `AnswerMarkdown.render` (`AnswerText.swift:29-53`) uses
+  `.inlineOnlyPreservingWhitespace` and strips every link and image. A table draws as its pipes. It draws the
+  conversation (`ios/Tortie/Screens/ConversationScreen.swift:359-360`) and the Session screen's last answer
+  (`ios/Tortie/Screens/SessionScreen.swift:266-275`).
+- **Main clips and redacts first.** An answer arrives clipped to 4,000 characters, secrets replaced by
+  `[REDACTED:<name>]` (`src/main/overview/redact.ts:52`), in a door answer capped at 2 MiB
+  (`ios/Tortie/Door/DoorClient.swift:146`). The renderer's caps are the second line against a hostile door.
+- **One stack.** `RootView` is one `NavigationStack` over `ListScreen` (`ios/Tortie/App/TortieApp.swift:183-245`,
+  `ios/Tortie/Screens/ListScreen.swift:224-225`). `docs/design/phone/Main.html` draws a Settings gear that 316.2 left
+  out.
+- **What the phone keeps**: the public name, port, pin, six-group fingerprint and `pairedAt` (`PairedDoor`,
+  `ios/Tortie/Door/Keys.swift:305-329`). The Mac draws the same fingerprint on each Phones row
+  (`src/renderer/settings/PhoneSection.tsx:574`).
+- **Forgetting hides its failure.** `PairingStore.forget` removes the record, the v1 record and every client key
+  (`Keys.swift:478-484`); `LiveDoor.forget` swallows its error (`TortieApp.swift:352-354`).
+- **The Mac's answers** go through `react-markdown` 10.1.0 and `remark-gfm` 4.0.1
+  (`src/renderer/overview/AnswerBody.tsx`, `src/renderer/editor/markdown/markdown-impl.tsx`), raw HTML dropped
+  (`src/renderer/editor/markdown/pipeline.ts:154`).
+- **Only Apple's code ships** (rule (o)). The ask is `Text(verbatim:)` (`ConversationScreen.swift:344`, rule (h)).
+  316.5 takes `conformance:ios` (w) and (x), which 333.1 and 333.3 had each planned.
+
+### The mechanism
+
+**S0. The design step first — `build/p3166/SPEC.md` (NEW) and the mock**, re-read at 316.5's landing.
+`docs/design/phone/Main.html` gains the tab bar and loses its gear. NEW `NeedsInput.html`, `Settings.html` and
+`Conversation.html`, the conversation's first approved mock (a heading, a nested list, a fence, a quote, a table at
+its caps, a link, an image). `Session.html`, `Choice.html`, `Composer.html` and `End.html` gain the tab bar for 317
+and 318; `index.html` names the new screens. `build/p311/copy-drift.mjs` judges each new string as owned (`/// Mac:`),
+the phone's (`/// Phone:`), data or owed. The drafts below go to him with the mock; building starts on his approval or
+"take the defaults".
+
+**S1. The tab bar — `TortieApp.swift`, `ListScreen.swift`.**
+
+1. **Three tabs, no fourth.** A fourth would be search, Past Sessions or machines, and 316 refuses each on the phone.
+2. **Words and marks.** "Needs input" with `bell`: the Mac's status word (`src/shared/status-words.ts:155`) and its
+   menu row's mark for this list (`src/main/menu.ts:1196-1201`). "Waiting" was proposed, but Tortie never names the
+   list that, and the mock may not invent a word. "Sessions" with `list.bullet`
+   (`src/renderer/session-manager/copy.ts:46`). "Settings" with `gearshape` (`src/main/settings/window.ts:65`).
+3. **The iOS 18 `Tab` initialiser** (inside the 18.1 floor), each tab with its own `NavigationStack` and path. The app
+   opens on Needs input every launch, storing no tab. 316.5's alert tap selects Needs input and replaces its path.
+4. **One read serves both list tabs.** Needs input is today's first section, with main's empty line; Sessions is
+   today's list, unchanged. The badge counts the rows the door answered as waiting, with no arithmetic on status. It
+   is the Mac's count badge, `--status-attention-badge-bg` and `-fg` (`src/renderer/styles/tokens.css:105-106`), new
+   in `ios/Tortie/Style/Tokens.swift` with `--error` (`:156`). SwiftUI sets no badge colour, so that one goes through
+   `UITabBarAppearance` with a `uiColor` made in `Tokens.swift`, the one file that writes a colour.
+5. **The bar stays visible on a pushed session**, as Apple's guidelines keep it, so a session is one tap from Needs
+   input. 318's strip docks above it.
+6. **S0 measures** whether iOS 26.3's glass bar honours these colours; if a runtime refuses the amber, he chooses.
+
+**S2. Settings and Unpair — NEW `ios/Tortie/Screens/SettingsScreen.swift`.** House cards (`card()`, `Frame`,
+`Hairline()`, `ios/Tortie/Screens/Pieces.swift`), not a system `List`, so the frames are the mock's. It makes no door
+read.
+
+1. **This Mac.** The name (the public name's first label), `name:port` in the monospaced face, `read 4:32 PM` from the
+   last list answer, "Check this matches your Mac" (`Copy.pairMatchLabel`) over the six groups, and "Paired" with the
+   date. `PhoneDoor` (`ios/Tortie/Screens/DoorWords.swift:48-62`) gains `pairedFacts()`, these public fields only.
+2. **Alerts**, only when the pairing's Mac said it can send (316.5's `sends`). One row says what iOS allows and opens
+   iOS Settings (`UIApplication.openNotificationSettingsURLString`, a system constant); 316.5's
+   `Pair again to get alerts.` shows here too. The phone cannot see the Mac's switch, so it never says alerts are
+   "on".
+3. **Unpair this iPhone**, in `error`. Drafts: "Unpair this iPhone?"; "It forgets this Mac and its keys. Your Mac
+   lists this iPhone until you press Remove in Settings then Phone."; "Unpair", "Cancel". `/// Names:` pins
+   `BTN_REMOVE`, `PHONE_TITLE` and `window.ts`'s title. `PhoneDoor.unpair()` reports whether the record went. In
+   Release, `unregisterForRemoteNotifications()` runs once, beside 316.5's registration, so Apple stops taking alerts
+   for this install. The models drop and the app returns to Pairing with its not-paired line. If the record stays:
+   "This iPhone could not forget your Mac. Nothing was changed." **This phase owns the phone's half; the Mac's half is
+   317's.**
+4. **About.** "Version" and `1.0.0 (4)`. No open-source notices: no third-party code ships. Privacy, Support and
+   "Tortie for Mac is free at tortie.sh" are 333.1's and land here once 333.5 publishes the pages, which return 404
+   today.
+
+**No Face ID switch, here or in 317.** He ruled End always asks, and a switch before End exists is "dormant"
+(2.3.1(a)).
+
+**S3. The renderer — NEW `ios/Tortie/Markdown/`, Tortie's Swift over Foundation.**
+
+1. **`Blocks.swift`**, Foundation alone, is a line-based block parser written and tested here: ATX and setext
+   headings, fenced and indented code, nested lists (GFM task boxes as read-only marks), quotes, rules, GFM tables
+   with alignment and `\|`, paragraphs. Raw HTML stays its characters (the Mac drops it; a pinned difference, because
+   dropping the agent's words hides what was said). `func parse(_:) -> MarkdownDocument` never throws, force-unwraps
+   or uses a regular expression; every recursion passes a depth; every input yields blocks.
+2. **Why not Foundation's `.full` syntax, or a package.** SwiftUI draws none of `.full`'s intents and nothing caps its
+   parse; rule (f) refuses a package. So Foundation parses each inline run (emphasis, inline code, strikethrough) in
+   one place, `Inline.swift`, with `allowsExtendedAttributes: false` (so `^[x](inflect: true)` stays text) and
+   `.inlineOnlyPreservingWhitespace`. The blocks and caps are ours.
+3. **The caps**, in one `MarkdownCaps` enum, each read at one site; S0 measures and pins them: 64 KiB an answer, 400
+   blocks, nesting 8, 8 KiB an inline run; a table's first 50 rows and 8 columns, the rest counted ("12 more rows");
+   200 characters a cell, 1,000 cells an answer; a fence's first 400 lines, 1,000 characters a line; a list number of
+   at most nine digits, CommonMark's limit, so nothing overflows (rule (k)). Past the byte cap, `Copy.restNotShown`
+   ends the answer. A cap turns the rest into one plain block, never nothing, and text Foundation refuses is drawn
+   verbatim, as today.
+4. **Links — `Links.swift`, the one way out.** A link draws as its words in `accent`. A tap reaches the app's one
+   `OpenURLAction`: a confirmation titled with the exact ASCII address, "Open" and "Cancel"; Open hands it to the
+   system. Only `https`, with an ASCII letters-digits-hyphens host, no user part (`https://apple.com@evil.example`)
+   and at most 2,048 bytes, can be pressed. Every other link is plain text, and a bare URL is never tappable.
+5. **Images.** `![alt](url)` draws the `photo` symbol and the alt text, or "Image". The URL is never fetched or shown.
+6. **The drawing — NEW `ios/Tortie/Screens/MarkdownView.swift`, behind `AnswerText`.** Code in the monospaced face at
+   15 (the mock's inline size) on `bgRaised`, scrolling sideways, unhighlighted. Quotes with a `borderStrong` bar.
+   Tables in a `Grid` that scrolls sideways, header row semibold, columns aligned as the delimiter row says. Each
+   block and cell is its own `Text`, so a bidi override cannot reorder a neighbour, and its own accessibility element
+   (`md-<turn>-<block>`, `…-r<i>c<j>`). The agent's words reach the screen only as `Text(verbatim:)` or as `Text` of
+   the `AttributedString` `Inline.swift` built, never a `LocalizedStringKey`, so `%@` draws as written.
+
+**S4. The gates.**
+
+- **`conformance:ios` (y), THE RENDERER'S BOUNDS.** S3.1's and S3.3's promises, read as text: Foundation alone, the
+  caps each read once, no `throws`, `!`, `try!`, `fatalError` or regular expression, a depth on every recursion.
+  `AttributedString(markdown:` once, in `Inline.swift`, with exactly S3.2's options. No `LocalizedStringKey`,
+  `Text(.init(`, `String(format:`, `String(localized:` or `NSLocalizedString` anywhere in the app.
+- **(z), NOTHING FETCHED, AND ONE WAY OUT.** No `AsyncImage`, no `contentsOf:` initialiser, no `NSAttributedString`
+  HTML import, no `SFSafariViewController`, `ASWebAuthenticationSession` or `QLPreviewController`. `OpenURLAction`,
+  `openURL`, `Link(` and `UIApplication.shared.open` appear only in `Markdown/Links.swift` behind `LinkPolicy.opens`,
+  and in `SettingsScreen.swift` with the system constant. 333.1's two URLs join that list.
+- **(a)** maps the new `statusAttentionBadgeBg`, `statusAttentionBadgeFg` and `error`; **(s)** holds build 4; 316.5's
+  **(x)** widens to one `unregisterForRemoteNotifications`, in its `#else`; **(n)** widens: only `PairingStore.forget`
+  deletes a pairing item.
+- **`ablation:p316`**: one arm per new clause, each red on its own rule. **`conformance:phonecopy`** judges the new
+  mocks and words, and its owned-rule floor rises.
+- **Unmoved:** `gate:simulator` (floor 2), `gate:electron` (floor 157), `gate:checks` and `gate:contract`: no script
+  or channel is added. CLAUDE.md's `ios/**` row names (y) and (z) in the same commit.
+
+### The proof, run rather than read
+
+- **The battery**: `typecheck`, `build`, `test`, `smoke:t1`, `ablation:p316`, `conformance:phonecopy`, and `test:ios`
+  in Debug and Release on iOS 26.3 and 18.3.
+- **Unit tests, NEW `ios/TortieTests/Markdown*Tests.swift`**, outlines from the CommonMark and GFM specs' examples.
+  Each hostile fixture parses inside a budget S0 measures on the 18.3 Simulator (proposed 50 ms), never traps, draws
+  within the caps and loses no word within them. Large ones are built in the test: an emphasis-and-bracket bomb;
+  10,000 nested quotes and list levels; a 10,000-row and a 200-column table; a 5 MB fence and a 5 MB line; U+202E,
+  U+2066 to U+2069, U+200B, U+200D and U+FEFF in text, link words, a host and a cell;
+  `[https://apple.com](https://evil.example/x)`, the user-part trick, an IDN host, every refused scheme and a 10 KB
+  URL; three kinds of image; `<script>`; a list from 9999999999; `%@ %n` and `^[x](inflect: true)`;
+  `[REDACTED:bearer]` in a link and a cell; an answer clipped inside a fence and a table row; CR and CRLF; an empty
+  answer.
+- **`probe:p316`, one run of the phone arms**, on Simulators made one at a time by `build/simulator-run.mjs`, iOS 26.3
+  with the floor arm on 18.3, reading labels and frames, never a screenshot.
+  `ios/TortieUITests/P316DriveUITests.swift` gains the steps `tabs`, `markdown`, `settings` and `unpair`, and the
+  probe's `claude` stand-in plants one more committed transcript carrying the fixtures.
+  - **T2**: three tabs; the badge equals `/v1/blocked`'s waiting count; each tab keeps its path; the bar and a pushed
+    session's content do not overlap.
+  - **MD1**: every block and cell label, printed for Method 2.
+  - **MD2**: the lying link's confirmation reads `https://evil.example/x`; Cancel leaves Tortie in front; Open puts
+    Safari in front (XCUITest reads its state), and `.example` resolves nowhere.
+  - **MD3**: every image URL, and every link not opened, points at a loopback listener the probe holds, which counts
+    zero connections all run.
+  - **U1, Unpair end to end against the door on loopback**: Settings' fingerprint equals the Mac's Phones row
+    (`window.gmux.pocket`); Cancel changes nothing; Unpair returns to Pairing; K1's device keychain read finds no
+    `pairing-v2` item and no `tortie.client.` key; the relay sees no later connection from the app; the Mac still
+    lists the phone until 317; a new code pairs again.
+- **The hostile door** serves the fixtures as `/v1/turns` answers; each ends drawn.
+- **Method 2, the verifier's own.** A node reader written in scratch runs `mdast-util-from-markdown` with
+  `micromark-extension-gfm` and `mdast-util-gfm`, what `remark-gfm` wraps, over every fixture and the real corpus,
+  emitting each block's kind, depth and text, compared with MD1 and with the Swift outline a unit test prints. Every
+  difference is a defect or a named, pinned one.
+- **The parent**, a build of 316.5's landing commit over the same fixtures: no tab bar, a table as one label of pipes,
+  links that cannot be pressed. **No regression against today**: every word the parent drew, HEAD draws, so an answer
+  quoting a command, a tool's output or a diff reads at least as well.
+
+### His checklist (NEW `build/p3166/CHECKLIST.md`), on his iPhone, build 4
+
+1. Archive 1.0.0 (4), run `node build/p316/test-ios.mjs --read-app` on it, upload, and install from TestFlight.
+2. Open Tortie. **You should see** Needs input selected, its badge equal to ⌘J's count on the Mac. Open a session in
+   Sessions, switch tabs and back: it is still open.
+3. Ask an agent for a markdown table and a code block (your own turn), then open the conversation. **You should see**
+   columns, and both scroll sideways.
+4. Tap a link. **You should see** its full address; Cancel, then Open, and Safari opens it.
+5. Open Settings. **You should see** your Mac's name, and a fingerprint equal to your iPhone's row in Settings then
+   Phone on the Mac.
+6. Unpair and confirm. **You should see** Pairing. Make a session wait: no alert should arrive (an observation). Press
+   Remove on the Mac, then pair again.
+
+**Not covered yet**: the Mac learning of an unpair and End (317), Reply (318), privacy and support (333.1), the sample
+(333.3).
+
+### CHANGELOG items
+
+Under `## Unreleased`, Added; the follow-up docs commit adds the links.
+
+- `- The iPhone app has tabs for sessions that need your input, every session, and Settings, where you can see which Mac it is paired with and unpair it; your Mac lists the iPhone until you press Remove there`
+- `- Conversations on the iPhone draw tables, lists, headings, quotes and code, and a link shows you its address before Safari opens it; images are never loaded`
+
+### What this sends to 317, 318, 333.1 and 333.3
+
+The main session edits each in place when this is queued. **317**: End sits above the tab bar; Unpair's Mac half is
+one more signed verb on its write door, `unpair`, removing only the signing phone's own row, and then "Your Mac lists
+this iPhone…" goes; no Face ID switch. **318**: the strip docks above the tab bar. **333.1**: its links go into
+Settings then About. **333.3**: the sample runs inside the tabs, "Leave sample" in Unpair's place. Both take rule
+letters after (z).
+
+**The menus do not change.** No Mac surface moves, and `src/main/menu.ts` is asserted unchanged.
+
+**Order.** After 316.5 lands (both edit `TortieApp.swift`, the `Keys.swift` record, the probe and the build number).
+Before 317 and 318, which build into these screens, and before 333.1 and 333.3. Beside 332.1, which is Mac only. Phone
+phases get the test slot first (his rule, 2026-09-30).
+
+### What is NOT in this phase
+
+- **No web view, JavaScript, in-app browser or syntax highlighting**, and nothing fetched for an image or a link
+  preview.
+- **No link opened without its address shown and a press, and none but `https`.**
+- **No markdown in the ask** (rule (h)), and no raw terminal, ever (4.2.7).
+- **No fourth tab, search, Past Sessions, filters or Face ID switch.**
+- **No door change, route or Mac change.** The Mac's half of Unpair is 317's.
+- **No stored tab, text selection, copy menu, light mode or landscape.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -39660,3 +39919,5 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **HE RULED ON 318's THREE QUESTIONS, each AGAINST the default.** (1) Face ID: **"Only for End"** — answering a choice and sending a message do not ask for Face ID; End always does. (2) Widening options: **"Yes, allow them"** — every option a measured press shape offers is pressable from the phone, "Yes, and don't ask again", "always allow" and "switch to auto mode" included. (3) Commands: **"Yes, allow them"** — a message may begin with `/` or `!`, exactly as at the desk. The Phase 318 entry above was written on the defaults; these rulings bind its build over the entry.
 
 - 2026-09-30, **PHASE 323 LANDED, `af5d2748`, unreleased — End ends what the hang-up leaves running.** Ending a Gemini CLI session, or restarting one, now ends Gemini too; End reads the pane's tree by its `$-id`, sends the hang-up as before, and afterwards ends, one pid at a time and only on an exact identity match, what is still in the pane's own group. Processes that left the terminal (Codex's shared server, Gemini's updater, grok's MCP servers, a detached tool) are left alone and are a follow-up; a plain shell gets the hang-up only. Four reverify rounds found nothing slower or worse than today; his ruling "Land it with 3 small test fixes" closed the proof's last three gaps at landing (the Muse exception reads the dead pane's history, End's round-trip grade is reported, and E16 with A43 pins the closing check's exit code). Landing battery green; the three smokes ran beside 320.1's probe under the four-probe rule rather than wait on the one slot. His ruling of the same day, "Phone phases get the test slot first", now orders the slot: the landing battery and every new workflow hold back while a phone test waits.
+
+- 2026-09-30, **PHASE 316.6 QUEUED — the phone gets a tab bar, Settings with Unpair, and a conversation that renders markdown and tables.** His words: "i definitely want to add a small subphase in order to: add a great navigation pane (look at /users/gdc/altarum) to the bottom of the phone app, create settings for it that allow it to unpair and whatever you think would be helpful and also handle rendering tables and markdown, etc etc in the conversation threads". Taken from Altarum's iPhone client: a SwiftUI tab bar with Settings last. Three tabs (Needs input with the Mac's amber badge, Sessions, Settings), each its own stack; Settings holds This Mac (name, address, fingerprint, paired date, last read), Alerts only where the Mac can send, Unpair (the phone's half here; the Mac's half is a signed `unpair` on 317's write door), and About; no Face ID switch, because End always asks. The conversation renders markdown natively through a small bounded Swift block parser with Foundation for inline runs: code blocks and tables scroll sideways with caps, raw HTML drawn as characters, only plain https links pressable after the address is shown, and images a placeholder that is never fetched. Tier 3 (Unpair deletes keys, a link is a new way out, and it draws bytes an agent wrote). After 316.5 and before 317, 318, 333.1 and 333.3; ends at TestFlight build 4.
