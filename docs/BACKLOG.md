@@ -38028,6 +38028,447 @@ released.
 
 - 2026-09-30, **PHASE 333 RESEARCH DELIVERED, `docs/research/136-the-phone-in-peoples-hands.md`, `<hash>`, and entries 333.1 to 333.10 queued above this log.** His answer: not before today; now a public TestFlight link first, then the App Store, both inside the release he already fixed. The order: 316.5, 317 and 318 as ruled; 333.2 after 316.5 and 333.5 (privacy and support pages, his site repository, his go-ahead) beside them; after 318, 333.1 (a stranger's phone), 333.3 (See a sample, which is how App Review uses an app whose Mac half is not yet released) and 333.4 (the iPad, iOS 27 and Touch ID devices review uses); his end-to-end check; 333.6 (his upload through App Store Connect, never Internal Only, and Beta App Review); 333.7 (the public link, the Mac release and the site and README changes on one day); then the store (333.8 to 333.10) once the beta has carried a build and the seller path is settled. Findings sent: to 316.5, ask for notification permission only when the paired Mac holds an alert key; to 317, `NSFaceIDUsageDescription` and a Touch ID and passcode path; to 318's research 135, where typed words go and no raw terminal. Nine rulings are his (research 136 §16), each with a default: the seller path (default: stay Individual for the beta and request Ita Vero's D-U-N-S number now), alerts for other people, the reviewer route, store screenshots, export compliance, public contact details, the EU storefronts, the standalone Apple logo, and installing the iOS 27 runtime. Nothing was installed, signed into or run.
 
+## Phase 318 — "318 Reply" — one tap on a numbered choice, or one message, from the phone (research 135, operator, 2026-09-30)
+
+**Subject.** `feat(pocket): answer a choice or send one message from the phone`
+
+**First body line.** `Phase 318: the reply door`
+
+**Semver.** Minor, in the release he named on 2026-09-30 beside 316.5 and 317. It bumps nothing and tags nothing by
+itself, under his rule that nothing is released until the phone works end to end.
+
+What a person notices:
+
+- **A waiting Claude Code or Codex session can be answered from the phone.** Yes (once) and No are buttons. The
+  options that give the agent more room for the rest of the session are drawn but cannot be pressed, unless he rules
+  otherwise.
+- **A Claude Code or Codex session that is not waiting on a question takes one message from the phone.** It goes in
+  as if he had pasted it at the Mac and pressed Enter. A message sent while the agent is working waits for the turn
+  to end, as it does at the desk.
+- **Every write asks for Face ID first**, the same prompt as End, unless he rules otherwise.
+- **The phone says what happened**: answered, not taken, sent, or the reason nothing was done, in the Mac's own
+  words.
+- **The door's lines change once**, so he confirms the door again after the update, and the sheet names the
+  writes.
+
+**Unchanged on purpose:** the Mac's menus, every status rule, the manifest, the tmux layer, Phase 89's typing door
+and the remote arm, End (Phase 317), the push (Phase 314), the numbered verdict (`conformance:choices` pins it), and
+every session on another machine.
+
+**Tier 3**, on four of the table's questions:
+
+- **It can lose or corrupt the person's work.** One press runs whatever command the agent proposed, and one
+  message can end a session, clear a conversation or run a shell command (research 135 §3.5).
+- **It sends his words somewhere.** They travel from the phone, over the public internet behind Funnel (research
+  132), into a session.
+- **It is the second kind of write on a door that faces the internet.**
+- **It claims to work across agents**, so the evidence is a per-row matrix over the real Claude Code and Codex.
+
+**The independent methods, three, one of them an attack, plus the parent measurement:**
+
+1. **The attack**, re-driving live every failure research 135 measured: the race, identical questions, a resize, a
+   false choice, a draft, the hostile messages, the replays and the stop mid-write.
+2. **The re-derivation**: the bytes a session received, read by a raw recorder of the verifier's own, and the
+   question that was answered, read from the stand-in's own request log. Never the writer's report.
+3. **Real data**: the real Claude Code 2.1.285 and Codex 0.159.1 under a scratch `HOME` with a loopback API
+   stand-in and 0 model turns, as research 135's investigators ran them. Never Gemini, Qwen, Antigravity or Grok.
+4. **The parent measurement**, at Phase 317's landing and at `2abdea43`: no press and no text can reach a session.
+
+**Charter.**
+
+- **His words**, 2026-09-30: "318 Reply", put into the release beside "316.5 Alerts" and "317 End, behind Face ID".
+  Research 127 §11.2 carries the question in his words: *"May a phone I paired press the buttons the agent drew —
+  allow or deny, 1 or 2 — or only tell me? And may it ever type a line into a session?"*
+- **`docs/research/135-the-reply-door.md`**, which binds this phase: §2 the choice (the per-dialog key table §2.2,
+  the id §2.7, the foreground §2.8), §3 the message's road, §4 the write route (the order of main's work §4.11), §5
+  the own-words rule, §6 what the attack killed, §8 what is not settled, §12 his three questions.
+- **Phase 317's entry, amended before 317 is built** (the list is under "Depends on"). Phase 318 adds two rows and
+  two members to 317's write door, and no second gate.
+- **Phase 316** item 6, the composer that ships held, and its charter sentence, which this phase corrects.
+- **Phase 312** (the choice rows and `ChoiceBlock`), **Phase 311** and research 129 (the question), **Phase 321**
+  (the named shapes and the foreground gate).
+- **Phase 325**, whose "What is NOT" line about 318 is amended (below).
+- **Phase 313** and research 127 §7 (the door's promises), **research 132** and **Phase 330's SPEC** (the door on
+  the internet, mutual TLS pinned per phone).
+- **CLAUDE.md** refusals 5 and 8, and the UI rules: "needs input" only from session behaviour, no tmux words on a
+  surface, just enough words.
+
+**Three sentences move in writing, each edited in place to point to research 135:**
+
+- Research 127 §11.2, "free text is the remote arm's rule 1 and stays refused unless he says otherwise", and §4's
+  "typed as one digit and Enter" (`docs/research/127-the-phone.md:664-665`), which research 135 §2.3 refuted.
+- Phase 316 item 6's "tmux's own `send-keys -l`" (`docs/BACKLOG.md:33430`) and Phase 317's successor paragraph,
+  which say the road research 135 §3.1 refuted.
+- Phase 89's "Tortie never presses it, on any machine, on any path" (`docs/BACKLOG.md:11518-11520`). It is about the
+  command Tortie composes and stays true of it; one clause says so, so nobody reads this phase's Enter, which
+  follows his own message, as breaking it.
+
+The remote arm's rule 1 (`src/main/machines/remote-arm.ts:13-18`) does not move: nothing in this phase types on
+another machine.
+
+**Depends on.**
+
+1. **Phase 316.5 lands first**, because both change the door's routes and the app (running log, 2026-09-30).
+2. **Phase 317 is built with its entry amended first**, so the write door exists once and this phase only adds
+   members. The amendments, from research 135 §4:
+   - The End route takes a signed JSON body `{ session, write }`, not "a session id and nothing else".
+   - "The End route is the ONLY write route" becomes a closed verb list, `end`, `choose` and `say`. Each verb is
+     one `POST` row with `reads: false`, `signed: true`, `windowOnly: false`, its own body cap and no query string.
+   - "Names a core verb" becomes one narrow `PocketWrites` interface declared in `src/main/pocket/routes.ts` beside
+     `PocketFacts` and implemented once outside `src/main/pocket`. R3's ban
+     (`build/conformance-pocket.mjs:974-1000`) stays whole.
+   - Refusals before and at the signature stay 404 with no body. Every outcome after a valid signature is 200
+     `{ outcome, sentence }`, the owner's sentence word for word.
+   - Every 404 is produced before the act. After the act the answer is never replaced: `bind.ts`'s post-handle
+     `admission.stopping()` replace (`src/main/pocket/bind.ts:434`) and its validation replace (`:377`) are skipped
+     for a write that acted, and when main's answer is late the door process cuts the connection instead of
+     answering 404 (`src/main/pocket/door/listener.ts:466-471`).
+   - A write ledger in main keyed on the phone id and a 128-bit write id inside the signed body, in memory, each
+     entry kept for twice the 60 s clock window (`src/main/pocket/pairing.ts:1646`). A full ledger refuses with the
+     busy sentence rather than forgetting an entry.
+   - One write in flight per phone and per session.
+   - Before the act, main asks again whether the phone is still paired and this door instance still open, with
+     nothing awaited between the question and the act.
+   - N1 becomes "no route names the push". G1's word list gains `text`, `message`, `words`, `label`, `typed` and
+     `reply`, and its scope reaches the writer outside the domain.
+   - The confirm sheet gains one line naming the write verbs.
+   If 317 lands without these, this phase re-opens each one and says so in its body.
+3. **It does not wait for Phase 325.** Phase 325's line "Phase 318's message box, when it comes, writes through the
+   same listener or hands the same count" (`docs/BACKLOG.md:35407`) is edited in place to: "The phone writer
+   (Phase 318) is the second writer `conformance:ownwords` must see; whichever phase lands second wires it."
+
+**His three answers** (research 135 §12) are read at the spec step. With no answer, the defaults stand: Face ID on
+every write, widening options unpressable, and a message starting with `/` or `!` refused. Each answer changes one
+compiled table or the phone's gating, never the mechanism.
+
+### What was measured before this entry was written, so no round re-derives it
+
+All of it is in research 135, at `2abdea43`, on the real Claude Code 2.1.285 and Codex 0.159.1 under a scratch
+`HOME` with 0 model turns, and on tmux 3.6a and the vendored 3.7b. In short:
+
+- **A digit alone commits** on Claude's numbered permission prompt (19 ms) and Codex's command approval (4 ms). A
+  digit then a separate Enter approved the next, unseen dialog 8 of 8 once the gap passed about 200 ms (§2.3).
+- **A choice goes stale in 45 to 127 ms** after a commit (§2.4). In the race sweep a phone digit landing 0 to 15 ms
+  after the Mac's approved nothing on either agent; from 50 ms on Codex and 200 ms on Claude it approved the unseen
+  next command (§2.5).
+- **No screen reading identifies a question.** One mark covered six different Claude commands, Codex marks collide
+  on identical commands, and a resize moves the mark (§2.6).
+- **The numbered verdict is not foreground-gated** (`src/main/activity/state-machine.ts:366`), and a screen a shell
+  can print reads as a choice with two options (§2.8). `agentHoldsTerminal` (`:750-759`) answers false for every
+  Codex session, because the monitor reads a foreground only for rows that list a shape (`foregroundToRead`,
+  `:506-512`; Claude Code's row at `src/main/agents/registry.ts:684` and Qwen's at `:1453` are the only two).
+- **`send-keys -l` fails five ways** (§3.1). `load-buffer -` from standard input, then
+  `copy-mode -q ; paste-buffer -p -d ; send-keys Enter` as one list, delivered `ESC[200~ … ESC[201~ CR` byte-exact
+  on both builds, left copy mode and left no buffer (§3.3). Codex submitted `-l ; Enter` 0 of 4 times and the paste
+  list 4 of 4 (§3.2).
+- **A message that lands anywhere but the empty input row does harm**: it answers a choice, merges with a draft,
+  runs `!` in a shell, ends the session on `/exit`, and completes `/cle` to `/clear` (§3.5).
+- **The door has zero write routes in four layers**, and two shipping paths answer 404 after the act (§4.1, §4.2).
+  The signature already covers a write's method and body (§4.3); a nonce does not make a write happen once (§4.4).
+- **A failed tmux command's error message carries its argv**, and G1 misses the words a message is named by (§4.8).
+- **`execTmux` cannot pass standard input today.** `ExecTmuxOptions` (`src/main/machines/exec-plane.ts:149`) has
+  no such field, and no product code names `load-buffer` or `paste-buffer`.
+- **The copy is already owed.** `build/p311/copy-drift.mjs:588-604` owes `Send`, `Message this session`,
+  `Goes to this session as one message.` and `Sending…` to Phase 318, and
+  `ios/TortieTests/CopyTests.swift:121-127` refuses those four words on the phone today.
+
+### The mechanism
+
+**S0. The spec step, before any builder: `build/p318/SPEC.md`.** Investigators, an adversary and a judge, the house
+shape. It measures what research 135 §8 left open, over the stand-in and the real agents under a scratch `HOME`
+with 0 model turns, and fixes:
+
+1. **The press shapes**, as redacted committed captures under `build/fixtures/reply/`: Claude Code 2.1.285's
+   numbered Bash permission prompt, Codex 0.159.1's command approval, and Claude's Edit and Write prompts if they
+   measure as press shapes. The negative fixtures: Claude's trust gate, theme picker, API-key list and first-run
+   "Security notes"; Codex's trust gate, sign-in list and update prompt; the security adversary's non-agent "Do you
+   want to proceed?" screen; a resized Claude dialog whose hook question was cleared. Every other dialog in
+   research 135 §2.2 is unpressable and needs no fixture.
+2. **The empty input row**, per agent, over committed captures of each agent's idle row, including Codex's
+   "Ask Codex to do anything" placeholder read through `-e` styling and Claude's row holding a draft and holding a
+   stray `1`.
+3. **Whether a clipped or redacted question counts as saying what will run** (research 135 §8). The default is that
+   it does not.
+4. **The body caps**, each computed from the worst-case JSON encoding of a legal body from both sides (Swift's
+   `JSONEncoder` and JavaScript's), including Swift escaping `/`, and pinned by a test.
+5. **The sentences**, each at most one line, in the Mac's words, with no tmux word (CLAUDE.md's UI rules).
+
+**S1. The two rows — on 317's door.**
+
+1. `src/main/pocket/door/table.ts` gains `{ id: 'choose', method: 'POST', path: '/v1/choose', … }` and
+   `{ id: 'say', method: 'POST', path: '/v1/say', … }`, each `reads: false`, `signed: true`, `windowOnly: false`,
+   with the cap S0 fixed in `src/main/pocket/door/limits.ts`.
+2. `src/main/pocket/door/wire.ts`'s write request union (317's) gains the two routes. The door process checks the
+   size and forwards the raw bytes. It never parses a write body.
+3. `PocketWrites` (`src/main/pocket/routes.ts`, 317's) gains `choose(input)` and `say(input)`. Main's handler
+   (`src/main/pocket/server.ts`, 317's write path) runs research 135 §4.11 in order: stopping, signature, strict
+   parse, ledger, one in flight, still paired and open with nothing awaited, the row re-read by id and the shared
+   gate, pending, act, outcome, one log line.
+4. **The bodies**, signed whole:
+   - choose: `{ session, write, question, mark, marker }`, where `question` and `mark` are what the phone was shown
+     and `marker` is the option pressed;
+   - say: `{ session, write, text }`.
+   An unknown field refuses the body whole.
+5. **The shared gate.** `src/shared/session-gates.ts` (317's move) gains `canChoose` and `canSay`, each "live and
+   on this Mac". `conformance:manager` re-reads it.
+6. **The confirm hash moves** (`src/main/pocket/pairing.ts:294`, the route list). `describePocketDoor` (`:399`)
+   names the new verbs on 317's line. He confirms the door again after this update; if 317 and 318 reach his Mac in
+   separate builds he confirms twice, and the commit body says so.
+
+**S2. The question id — new `src/main/reply/question-id.ts`, outside the door.**
+
+1. A random prefix of 64 bits chosen once per process, then a counter per session: `<prefix>-<n>`. A count from
+   before a restart never matches one after it.
+2. It is bumped, synchronously, in main:
+   - on every hook event for the session, where `src/main/sessions/core.ts` hands the hook to the monitor;
+   - on every write the attach host receives for the session: `AttachHostOptions`
+     (`src/main/attach/attach-host.ts:126-156`) gains `onInput?(sessionId)`, called in the listener
+     (`:279-288`) in the same synchronous handler as the write, for a local client only. This is the seam Phase 325
+     plans (its mechanism 3); whichever phase lands second shares it rather than adding a second;
+   - on every write the phone writer sends;
+   - on every monitor tick whose choice update reports the choice gone or its mark moved, at the caller of
+     `choiceUpdate` (`src/main/activity/monitor.ts:1176`). `choiceUpdate`'s own body does not move, and
+     `conformance:choices` clause 20 reads it unchanged.
+3. It is a string on the wire, never a number, so the phone's rule (k) on door numbers does not reach it.
+
+**S3. What the door serves about a choice and a message — new `src/main/reply/reader.ts`.**
+
+1. `PocketFacts` (`src/main/pocket/routes.ts:128-209`) gains one READ member, `replyFacts(session)`, implemented by
+   the reader. `rowOf` (`:239-286`) adds, for each blocked row, `questionId`, `choiceMark` (`choiceMarkOf`'s value,
+   `monitor.ts:1314-1317`) and `pressable` on each option. The `/v1/session` answer adds `canSay`.
+2. **`pressable`** is true only when all of these hold, read by the reader over ONE fresh capture of its own
+   (never the monitor's):
+   - the screen matches a compiled press shape in new `src/main/reply/press-shapes.ts` (pure; research 135 §2.2's
+     two shapes, plus Claude's Edit and Write if S0 admits them);
+   - the shape admits that option: allow-once and deny; widening options only if he rules so;
+   - the row's question says what will run: Claude's hook question (`src/main/activity/question.ts:171-186`); for
+     Codex, the `$ …` line the compiled shape reads, carried with the question after the same redaction and clip;
+   - the session is on this Mac.
+   The reader calls `detectDialogRows` itself; `detectDialog` keeps its one production call site and
+   `choiceUpdate` its one call, as `conformance:choices` clauses 3 and 20 require.
+3. **`canSay`** is true only for Claude Code and Codex on this Mac, when the row is not `needs_input`, the agent's
+   own reader answers "at its input row" (`claudeVerdict` idle or busy, `codexTitleVerdict` idle or working;
+   `src/main/activity/oracles.ts:25`, `:63`), the agent holds the terminal, and new `src/main/reply/input-row.ts`
+   (pure) reads the row empty. It fails closed.
+4. Every other choice, and every row on another machine, is drawn with its options unpressable under Phase 316's
+   "Answer this in the session." and no text box, with no word about why.
+
+**S4. The press — new `src/main/reply/writer.ts`, the one module outside the door that types.**
+
+1. Take a fresh capture. Require `needs_input`.
+2. Require the session's own agent to hold the terminal, read fresh: `readProcSnapshot`
+   (`src/main/activity/process.ts:95`), `foregroundProgram` (`state-machine.ts:491`), the command line
+   (`readProcessCommand`, `process.ts:232`) and `commandRunsAgent` (`state-machine.ts:628`) over
+   `binaryCandidatesFor(agent)` (`:937`). Not `agentHoldsTerminal`, whose remembered reading is never taken for
+   Codex. `noteForeground` and `foregroundToRead` keep their one call site.
+3. Require the same mark, the pressed marker among the fresh options and still pressable, and an unchanged
+   question id. Any mismatch answers `SESSION_CHANGED`, "This session changed. Nothing was done."
+   (`src/renderer/session-manager/copy.ts:635`), through the owner 317 names for it on the phone.
+4. With nothing awaited between the last check and the spawn, bump the question id and send ONE tmux command list:
+   `copy-mode -q -t <$id> ; send-keys -t <$id> -l -- <digit>`. The digit is the fresh rows' own marker, 1 to 9.
+   Never an Enter.
+5. Read back at about 300 ms. The question gone: outcome `answered`, and only then `noteUserInput(sessionId)`
+   (`src/main/activity/monitor.ts:516-522`), the desk's own funnel. The same window still drawn: outcome
+   `not-taken`, "Nothing was changed.", and the press is never retried.
+
+**S5. The message — the same writer.**
+
+1. **The text rules, new `src/main/reply/text-rules.ts` (pure):** 1 to 4,096 bytes of well-formed UTF-8. Refused,
+   never stripped: ESC, every C0 control except LF, DEL, C1, and a lone surrogate. A first non-space `/` or `!` is
+   refused unless he rules otherwise. Each refusal has its own sentence.
+2. **The delivery**, after the checks of S3.3 read fresh:
+   - `load-buffer -b tortie-say-<writeId> -` with the words on standard input. `ExecTmuxOptions`
+     (`src/main/machines/exec-plane.ts:149`) gains `stdin`, honoured for this Mac's context only and refused for
+     another machine's, so the words never travel to one. The tmux binary and socket come from the one resolver
+     every caller uses.
+   - Then ONE command list: `copy-mode -q -t <$id> ; paste-buffer -p -d -b <name> -t <$id> ; send-keys -t <$id> Enter`.
+   - `delete-buffer -b <name>` in a `finally` on failure.
+   - No argv element and no error message ever holds the words, and nothing in the writer sends words through
+     `send-keys -l`.
+3. **The outcome** is `sent` when tmux answers, meaning the message reached the session as a paste at the desk
+   would. A message sent while the agent works waits for the turn to end, as research 135 §3.6 measured.
+4. The question id is bumped. `noteUserInput` is not called: a message is refused on every `needs_input` row, so
+   there is nothing to release.
+
+**S6. The Mac's words and the log.**
+
+1. The outcome words and every new sentence live in one shared module, `src/shared/reply-copy.ts`, and the phone's
+   `ios/Tortie/Style/Copy.swift` names each one's owner on the line above it (`/// Mac:`), which
+   `conformance:phonecopy` reads.
+2. The writer logs one line per write: the verb, the session id and the outcome word.
+3. Nothing new on the Mac's screen, and **no native menu changes**: `src/main/menu.ts` does not move, and that is
+   asserted rather than assumed.
+
+**S7. The phone — `ios/`.**
+
+1. `ios/Tortie/Door/Contract.swift` decodes `questionId`, `choiceMark`, `pressable` and `canSay`, and the write
+   answer `{ outcome, sentence }`.
+2. `ios/Tortie/Door/DoorClient.swift` sends the two writes through the POST path 317 adds, with a 128-bit write id
+   from CryptoKit per press, and never re-sends on its own. A connection cut after the request was written reads
+   "unknown", and the screen re-reads the session before it offers the press again.
+3. `ios/Tortie/Screens/SessionScreen.swift` draws a pressable option as a button and every other option as today.
+   It draws the message strip (`docs/design/phone/Session.html`) only when `canSay` is true, with the four owed
+   words. Its header comment, which says pressing is Phase 318's, is rewritten.
+4. **Face ID** is 317's check, drawn on the press and on Send when his answer puts them behind it (the default).
+   Cancelled or failed, the phone sends nothing and reads "Not confirmed. Nothing was changed."
+5. `ios/Tortie/Style/Copy.swift` owns `Send`, `Message this session`, `Goes to this session as one message.`,
+   `Sending…` and the new sentences. `ios/TortieTests/CopyTests.swift:121-127` drops those four from its refused
+   list and keeps the rest.
+6. `docs/design/phone/Choice.html` loses its disabled message strip (`:65-66`), because no text box is drawn on a
+   row that needs input.
+
+**S8. The gates widen rather than multiply.**
+
+1. **`build/conformance-pocket.mjs`:**
+   - R2 reads the closed write list `end`, `choose`, `say`. R4's pin is regenerated with `--write-route-pin` (C
+     measured `0e8c9f46…` for the three writes; the gate re-derives it).
+   - G1 reads `src/main/reply/**` as well as the domain, with 317's widened words.
+   - New rules for the reply domain, read with the TypeScript parser, in a series 317 has not taken:
+     - the writer's only tmux shapes are the press list, `load-buffer … -`, the paste list and `delete-buffer`, each
+       argv exact; `-l` only with `--` and one digit; no Enter in the press list;
+     - no argv element in `src/main/reply` is derived from the text, and `delete-buffer` sits in a `finally`;
+     - nothing is awaited between the last check and the spawn;
+     - `noteUserInput` is called once, on the press's answered branch after the read-back, and nowhere else in the
+       domain; no other status setter is named;
+     - the press shapes and the input-row reading are compiled constants that no configuration reaches
+       (refusal 5);
+     - a write that acted is never answered 404;
+     - one log call per write, its arguments the verb, the session id and the outcome;
+     - a remote row is refused before any tmux call, and `stdin` is refused for a remote context;
+     - `src/main/pocket` imports nothing from `src/main/reply`, and the door process's wall (W2) is unchanged.
+2. **`ablation:p313`** gains one arm per new rule, each red on the rule that owns it, and restores every file by
+   sha256 in a `finally`.
+3. **`conformance:pocket:hostile`** (`build/p313/hostile-client.mjs`) gains the write arms of the attack below.
+4. **`conformance:choices`** is not edited. Its verdict line, `choiceUpdate`'s single `detectDialogRows` call and
+   the foreground call sites must read exactly what they read at the parent.
+5. **`conformance:phonecopy`**: the four owed strings become owned by `Copy.swift`, the new sentences are owned by
+   `src/shared/reply-copy.ts`, and its `--self-test` mutations still go red.
+6. **`conformance:ios`**: no drawn literal outside `Copy.swift`, and only `Door/DoorClient.swift` sends.
+7. **`gate:contract`**: the baseline is regenerated with
+   `node build/contract-inventory.mjs --out docs/audits/contract-baseline.txt`, and the body names every line that
+   moved.
+8. **CLAUDE.md's path-triggered table** gains a row for `src/main/reply/**` (`conformance:pocket`,
+   `conformance:pocket:hostile`) and a `probe:p318` row, in the same commit.
+
+### The proof, run rather than read
+
+- **The gates.** `typecheck`, `build` (which runs `conformance:ios`, `gate:contract`, `gate:electron`,
+  `gate:background`, `gate:checks` and `gate:simulator`), `test`, `smoke:t1`, `smoke`, `smoke:t3`, `package`,
+  `conformance:pocket`, `conformance:pocket:hostile`, `ablation:p313`, `conformance:choices`,
+  `conformance:phonecopy`, `conformance:manager`, `conformance:handback` (`monitor.ts` is touched), `ablation:p316`,
+  and `test:ios` in Debug and Release on iOS 26.3 and 18.3. `probe:p311` runs once, because the monitor's hook half
+  is touched.
+- **The obligations.** `HELPER_USER_FLOOR` (`build/assert-electron-teardown.mjs:351`, 156 at `2abdea43`) rises by
+  one over whatever 317 left, and `SIMULATOR_USER_FLOOR` (`build/assert-simulator-teardown.mjs:84`) by one, for
+  `probe:p318`. Every stand-in is a long-lived child killed in a `finally` that names it (`gate:background`).
+- **The stand-ins, `build/p318/stand-in.mjs`.** The real registry rows launch `claude` and `codex` by their bare
+  names, and the scratch login shell resolves each to a `/bin/sh` wrapper that runs the stand-in under `exec -a`,
+  the way `build/p321/stand-in.mjs` is run; the probe refuses to start if either name resolves anywhere else. Each
+  behaves as research 135 measured: it asks for bracketed paste, draws the committed press shapes, commits on a
+  digit, drops a digit in the first 200 ms after it draws (Claude), draws the next dialog about 60 ms after a
+  commit, queues a message sent mid-turn, and writes the Claude registry file and posts Claude's hooks with the
+  token read from the settings file the app wrote, or sets Codex's title. **It logs every byte it reads, with a
+  timestamp, to its own request log.**
+- **`probe:p318`, the app run** (`build/p318/probe-p318.mjs`), in the shape of `probe:p316`: ONE Electron through
+  `withElectron` on a scratch profile, a scratch `HOME` and the socket `gmux-p318-<pid>`; the door published
+  through `build/p330/tailscale-standin.mjs`; the phone the DEBUG build on Simulators made one at a time by
+  `withSimulator`, dialling `-TortieDebugDoorEndpoint`, with UI tests printing `P318|<run>|{…}` lines; and
+  `build/p316/node-phone.mjs` as a second, independent phone. NO VENDOR PROCESS RUNS AND NO TOKEN IS SPENT. On
+  iOS 26.3, in one run:
+  1. Yes (once) pressed on the Claude stand-in: `answered`, one byte `31` in its log, and the row gone from
+     `/v1/blocked` on the next read with no tick between.
+  2. No pressed on the Codex stand-in: `answered`.
+  3. A widening option drawn unpressable, and a hand-made request for it from the node phone refused with its
+     sentence.
+  4. A message at each stand-in's empty input row: `sent`, and the stand-in's log holds exactly
+     `ESC[200~ <text> ESC[201~ CR`.
+  5. A message sent mid-turn waits for the turn.
+  6. No text box on a `needs_input` row, the trust-gate shape included.
+  7. A remote row from the scratch machine: no text box and unpressable options, with no word about why.
+  8. Face ID cancelled: the stand-in's log gains no byte.
+  9. **Check-to-land**: at least 200 presses, from the writer's last check (a harness-only stamp, absent from a
+     packaged build) to the stand-in reading the byte. The 99th percentile must be under 15 ms.
+  10. A dialog-shaped message into each stand-in: no `needs_input` for 10 s.
+  11. The confirm sheet names the write verbs and the door asks again.
+  12. `app.log`, every file under the profile and the scratch `HOME`, and the process table sampled through the run
+      hold no byte of any message text; the menus read as at the parent.
+  On iOS 18.3, the floor: arms 1 and 4.
+- **Method 1, the attack**, each arm asserted on the REASON it was refused and on the stand-in's log, never on the
+  writer's report alone:
+  - the race: the Mac presses "1" at 0, 5, 15, 30, 50, 120, 200 and 400 ms before the phone's press, and no unseen
+    question is ever approved;
+  - two identical successive commands: the second press is refused `SESSION_CHANGED`;
+  - a resize between the read and the press: refused, and the phone re-reads;
+  - a non-agent program printing a numbered dialog: no option pressable;
+  - Claude's first-run "Security notes": no option pressable;
+  - a draft in the input row: no text box, and a hand-made say refused;
+  - messages `/exit`, `!touch x`, `-R`, `x;`, `a\\;`, a text holding `ESC[201~`, 4,096 bytes and 4,097 bytes: each
+    delivered exactly or refused for its own reason;
+  - a write replayed after 512 reads; the same write id twice (one act, the same answer twice); a phone Removed
+    mid-write; the door stopped mid-write (an act that happened answers 200, or the connection is cut, never 404);
+    a slow main answer (the connection is cut);
+  - a question id from before a restart, and a press on a remote row: refused.
+- **Method 2, the re-derivation.** The verifier writes a raw recorder of its own, reads every byte a session
+  received during the run and the real-data arms, and byte-compares it against the expected frame. Which question
+  a press answered is read from the stand-in's request log and the real agent's API stand-in log, and must agree
+  with the writer's outcome line by line.
+- **Method 3, real data.** The real Claude Code 2.1.285 and Codex 0.159.1 under a scratch `HOME`, `CLAUDE_CONFIG_DIR`
+  and `CODEX_HOME`, made-up keys, loopback API stand-ins, Codex with `--no-daemon`, and a `security` stub first on
+  `PATH`, driven by the SHIPPING writer through the pinned tsx on scratch servers `-L p318-v-*`, killed and unlinked
+  in a `finally`. A per-row matrix: {Claude Code, Codex} × {allow-once, deny, a stale press after the Mac's,
+  identical successive questions, a message at the input row, a message mid-turn, a message over a draft, `/` and
+  `!`, 4,096 and 4,097 bytes}. 0 model turns. Never Gemini, Qwen, Antigravity or Grok.
+- **The parent measurement**, at 317's landing commit and at `2abdea43`: `/v1/choose` and `/v1/say` are refused
+  `route` with nothing forwarded, the stand-in's log gains no byte, and the write-route count is 1 and 0. A person
+  who never pairs a phone sees nothing different: the Mac's ⌘J rows and Catch Me Up read the same at the parent and
+  at HEAD.
+- **No photograph.** Every visual claim is a frame or a label the UI tests read.
+
+### CHANGELOG item
+
+Written under `## Unreleased`, under Added, from his answers. With the defaults:
+
+- `- From the iPhone app you can answer a Claude Code or Codex session's numbered question with one tap, or send it one message, after Face ID; options that give the agent more room for the rest of the session still have to be chosen at your Mac`
+
+The follow-up docs commit adds the commit link.
+
+### What is NOT in this phase
+
+**The refusals that stand.**
+
+- **No press for any dialog not measured and compiled.** Gemini, Qwen, Antigravity, Cursor, OpenCode and Muse,
+  Claude's trust gate, theme picker, API-key list and first-run notes, Codex's trust gate, sign-in list and update
+  prompt are all unpressable. A press shape is compiled, never configured (refusal 5).
+- **No Enter after a digit, ever**, in the same list or a second call.
+- **No widening option, no `/` or `!` message and no write without Face ID**, unless he rules otherwise.
+- **No message to any agent but Claude Code and Codex**, no message into a shell or a pane whose agent has left, and
+  no message on any `needs_input` row.
+- **Nothing on another machine.** No change to Phase 89's door, `sendArmedResumeText`, `ARMED_RESUME_GUARD` or the
+  remote arm's rules.
+- **No `send-keys -l` for words**, anywhere in the writer.
+- **No status setter and no "seen it".** `noteUserInput` after a read-back that shows the question answered is the
+  desk's funnel, and nothing else in the domain touches a status.
+- **No second write gate, ledger or route family.** End is 317's and does not change here.
+
+**The designs that were set aside.**
+
+- **No held `PermissionRequest` hook** answering Claude without a keystroke. It is recorded in research 135 §2.9 as
+  Claude's exactly-once road, named and not queued.
+- **No `PreToolUse` hook registered** for its `tool_use_id`. The id main mints serves both agents without changing
+  every Claude session's hooks.
+- **No biometry-bound third key** and no Face ID the Mac can check; that would re-pair every phone.
+- **No ledger on disk.** The phone never re-sends on its own.
+- **No Interrupt (Esc)**, which 317 names for its own costing.
+
+**Limits and defects that belong elsewhere.**
+
+- **The numbered verdict stays ungated by the foreground.** This phase gates the press; the verdict is
+  `conformance:choices`' and a false choice can still turn a row amber (research 135 §9 item 4).
+- **A resize that clears Phase 311's hook question**, **`typeIntoPane`'s missing `--`** and **Codex's unread trust
+  gate** are each owed their own entry (research 135 §9).
+- **Nothing of Phase 325 is built here** beyond the one attach-host seam, if this phase lands first.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -39028,3 +39469,5 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **HE ANSWERED RESEARCH 136's FOUR LEADING QUESTIONS.** (1) Seller: "You for the beta, decide later" — the public beta goes out under his individual account with "© 2026 Ita Vero, LLC", he requests Ita Vero's D-U-N-S now, and chooses between staying individual and converting before the store submission (333.9). (2) Alerts for other people, after asking why their Macs cannot push (only the holder of the app's APNs key can ask Apple to wake the app, and iOS lets it poll nothing in the background): "Yours alone now, relay later" — this release keeps alerts his alone, which 316.5 is already building (a phone asks for permission only when its Mac can send); a content-free relay (a blank wake push, the phone fetching the words from its own Mac) is MENTIONED here for a later release and gets a research phase then. (3) The reviewer: "In-app sample, plus your video" — 333.3's See a sample, and his short video on a real iPhone linked in the review notes. (4) Contact: "A new support@ mailbox on tortie.sh", which he creates. The other five questions take their defaults: 333.8's narrow screenshot lane opens; export compliance is answered on each upload; the EU storefronts declare trader status with a P.O. box and the support contacts; the standalone Apple logo on tortie.sh and the README badge is replaced in 333.10; and he installs the iOS 27 Simulator runtime before 333.4, or those rows stay unmeasured.
 
 - 2026-09-30, **HIS FIRST PAIRING THROUGH FUNNEL WORKED — "i was able to pair my mac! i didn't have to approve any tailscale thing".** Build 1.0.0 (2) on his iPhone paired with his dev build at `333087da`: no key, no policy edit, no Tailscale on the phone, and no approval page, because he approved Funnel for his tailnet on 2026-09-29. Measured on the way, for 332.1 and 333: after he switched the door on (about 14:19), the Pair a phone card waited about 7 minutes before Pair opened (the first time, 8). During that wait the four ts.net servers FLAPPED — the same non-recursive question to the same server a second apart answered the record, then NXDOMAIN — with 1 to 3 of 4 answering the record per round until 14:26, when all four agreed; his terminal showed one "name check read no: nxdomain" line and nothing more, and one "refused a connection at the door: handshake" (a connection with no paired phone's certificate, turned away before any byte was read; most likely a scanner, as the name is public). So Tailscale withdraws his public record at some point after Funnel stops and re-publishes it on the next start, which answers 330's O2: the record did not survive overnight. The approval page's host and click count (330's O3) remain unmeasured, because his tailnet was approved from Terminal. Phase 332.1 (progress on the card while the name is checked) is being written up at his request.
+
+- 2026-09-30, **RESEARCH 135 LANDED AND PHASE 318 QUEUED — the reply door.** The phone gains two write verbs beside 317's End, `choose` and `say`, through the ONE write door 317 builds (317's entry is amended before it is built): signed per request, a 128-bit write id in the signed body so a replay never acts twice, one write in flight per phone and session, the gate re-asked with nothing awaited before the act, one log line with no words. A choice is pressable only on a measured press shape (Claude Code 2.1.285's permission prompt, Codex 0.159.1's command approval), proved to be the same question by a main-minted question id and a fresh capture, and sent as the digit alone (never Enter), with a read-back that says answered or "not taken, nothing was changed". A message goes only to Claude Code or Codex on this Mac at an empty composer, as a bracketed paste loaded on stdin, then Enter, in one tmux command list; a shell would submit each line, so shells are refused. Tier 3, after 316.5 and 317. Three questions are his: Face ID for every write (default yes), whether a widening option such as "don't ask again" is pressable (default no), and whether a message may start with `/` or `!` (default no).
