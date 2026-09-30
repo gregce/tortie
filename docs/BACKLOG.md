@@ -38028,7 +38028,6 @@ released.
 
 - 2026-09-30, **PHASE 333 RESEARCH DELIVERED, `docs/research/136-the-phone-in-peoples-hands.md`, `<hash>`, and entries 333.1 to 333.10 queued above this log.** His answer: not before today; now a public TestFlight link first, then the App Store, both inside the release he already fixed. The order: 316.5, 317 and 318 as ruled; 333.2 after 316.5 and 333.5 (privacy and support pages, his site repository, his go-ahead) beside them; after 318, 333.1 (a stranger's phone), 333.3 (See a sample, which is how App Review uses an app whose Mac half is not yet released) and 333.4 (the iPad, iOS 27 and Touch ID devices review uses); his end-to-end check; 333.6 (his upload through App Store Connect, never Internal Only, and Beta App Review); 333.7 (the public link, the Mac release and the site and README changes on one day); then the store (333.8 to 333.10) once the beta has carried a build and the seller path is settled. Findings sent: to 316.5, ask for notification permission only when the paired Mac holds an alert key; to 317, `NSFaceIDUsageDescription` and a Touch ID and passcode path; to 318's research 135, where typed words go and no raw terminal. Nine rulings are his (research 136 §16), each with a default: the seller path (default: stay Individual for the beta and request Ita Vero's D-U-N-S number now), alerts for other people, the reviewer route, store screenshots, export compliance, public contact details, the EU storefronts, the standalone Apple logo, and installing the iOS 27 runtime. Nothing was installed, signed into or run.
 
-<<<<<<< HEAD
 ## Phase 318 — "318 Reply" — one tap on a numbered choice, or one message, from the phone (research 135, operator, 2026-09-30)
 
 **Subject.** `feat(pocket): answer a choice or send one message from the phone`
@@ -38469,7 +38468,6 @@ The follow-up docs commit adds the commit link.
   gate** are each owed their own entry (research 135 §9).
 - **Nothing of Phase 325 is built here** beyond the one attach-host seam, if this phase lands first.
 - **No release.**
-=======
 ---
 
 ## Phase 332.1 — "show progress re: public dns checking in the phone screen (that is delightful and not overwhelming)" — the Pair card shows the name check working (operator, 2026-09-30; Phase 332, `build/p332/SPEC.md` §4.12)
@@ -38653,7 +38651,6 @@ lands second rebases.
 - **No new token, no looping animation, no amber and no accent.**
 - **No notification, sound, badge or menu-bar mark** when the name goes live.
 - **No menu change and no release.**
->>>>>>> a878503c (docs(backlog): progress while the Mac's name is checked, queued)
 
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
