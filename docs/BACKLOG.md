@@ -38911,6 +38911,222 @@ phases get the test slot first (his rule, 2026-09-30).
 - **No stored tab, text selection, copy menu, light mode or landscape.**
 - **No release.**
 
+## Phase 316.7 — "a way of grouping, filtering sessions and sorting them because many many sessions are old that tortie stores" — the phone's Sessions tab (operator, 2026-09-30)
+
+**Subject.** `feat(ios): show, group, sort and filter the phone's sessions`
+
+**First body line.** `Phase 316.7: the Sessions tab shows, groups, sorts and filters every session`
+
+**Semver.** The iOS app: 1.0.0, build 5, after 316.6's 4. The Mac: minor, one new read route on the phone's door.
+Unreleased under his rule.
+
+**His words, 2026-09-30.** "I think we should also have a way of grouping, filtering sessions and sorting them
+because many many sessions are old that tortie stores".
+
+What a person notices: the Sessions tab opens on **Active**, so ended sessions are out of sight, with
+**All · Active · Ended** under the title. Sessions sit under their **project**, with a count. One menu holds
+**Group by**, **Sort by**, **Agent** and **Machine**, and the phone remembers Show, Group by and Sort.
+
+**Tier 3.** A new read route on a door that faces the public internet through Funnel, sending more of his words than
+today: every session's name and project, where the list now stops at 200. The route list is a confirmed field, so
+the door asks him again. **The independent methods:** (1) **the attack**; (2) **re-derivation** by the verifier's
+own reader; (3) **real data**, his own manifest's copy; (4) **the parent**, 316.6's landing commit.
+
+**Charter.** His words and the running-log line that queues this. Phases 293 and 303, and `conformance:manager`'s "a
+group is a folder AND its machine" and "one clock is never drawn as another". `build/p316/SPEC.md` §4.0: the phone
+does no arithmetic on status, age or order. 316.6's tab bar, research 136 §7, CLAUDE.md's UI rules.
+
+**What this reverses, on his ruling of 2026-09-30.** Phase 316's "No … filters" (its NOT list and SPEC §7), and
+316.6's. Kept: no search, no Past Sessions, no project tree (a group is one level), and §4.0, because main composes
+the list. **Research 136**: nothing here touches 4.2.7; these are records drawn natively, never a screen.
+
+### What was measured before this entry was written
+
+- **Why old sessions crowd the list.** The door lists `core.listSessions()` (`src/main/pocket/facts.ts:228`), which
+  drops only removed rows (`src/main/sessions/core.ts:2682`). Every ended session he kept sits in "Everything
+  else", cut at 200 (`POCKET_OTHERS_MAX`, `src/shared/ipc/pocket.ts:282`; `src/main/pocket/routes.ts:424-441`).
+- **The Mac already answers this.** All · Active · Ended (`src/renderer/session-manager/copy.ts:63-85`): Active is
+  live or unreachable, Ended is exited or restorable (`src/renderer/state/resume.ts:908-912`). A group is a folder
+  and its machine (`src/renderer/session-manager/projection.ts:24-31`), open tabs first, then by label (`:358`). A
+  sort reorders rows inside groups, a missing value last both ways (`src/renderer/session-manager/view.ts:16-29`).
+  The creation clock reads `3d old` (`copy.ts:256`).
+- **The phone may order nothing** (`ios/Tortie/Screens/ListScreen.swift:10-13`), so main composes.
+- **A route moves three things.** The frozen table (`src/main/pocket/door/table.ts:56-61`); its membership, pinned
+  by R4 and again by N1 (`build/conformance-pocket.mjs:659`, `:1581`); and the door's confirm hash
+  (`src/main/pocket/pairing.ts:340`, `:414`). `gate:contract` does not see routes: its baseline names only `pocket:*`
+  channels (`docs/audits/contract-baseline.txt:168-177`).
+- **A count cap is not a byte cap.** No session name has a length limit, and the phone refuses an answer over 2 MiB
+  (`ios/Tortie/Door/DoorClient.swift:146`). Ended sessions already open: `/v1/session` and `/v1/turns` answer any
+  listed id (`routes.ts:448`, `:493`).
+- **The app declares no required-reason API** (`ios/Tortie/PrivacyInfo.xcprivacy`). `UserDefaults` is one, and
+  rule (o) reads it from the Swift (`build/conformance-ios.mjs:1912-1917`).
+
+### The mechanism
+
+**S0. The design step first — NEW `build/p3167/SPEC.md` and the mock.** `docs/design/phone/Main.html`, the Sessions
+tab since 316.6, gains the Show control, the menu button and group headers. NEW `SessionsMenu.html` draws the menu
+open and "No matching sessions"; `index.html` names it. `build/p311/copy-drift.mjs` judges every word. The Mac's:
+All, Active, Ended, Clear filters, No matching sessions, Project (`src/renderer/session-manager/copy.ts`), None,
+Agent, All agents, Machine, This Mac and Name, each owned where the Mac says it. The phone's own (`/// Phone:`), as
+no Mac surface offers these choices: Group by, Sort by, Recent activity, Oldest first and the menu button's label.
+S0 measures a real row's bytes and pins S1's caps. Building starts on his approval or "take the defaults".
+
+**S1. The route — `GET /v1/sessions`, the fifth.**
+
+1. `src/main/pocket/door/table.ts` gains `{ id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true,
+   windowOnly: false, signed: true }`; so do `POCKET_ROUTE_IDS`, `SIGNED_ROUTES` (`src/main/pocket/door/wire.ts:250`)
+   and the answer switch (`src/main/pocket/ipc.ts:447`). `/v1/blocked` does not change: the Needs input tab and its
+   badge read it, and a build 4 phone still reads `others`.
+2. **The query, closed words.** `show` (`active`, `ended`, `all`), `group` (`project`, `none`), `sort` (`recent`,
+   `name`, `oldest`), `agent` (one id), `machine` (`local`, or one id of the shape `src/shared/machines.ts:77`
+   allows). Absent means Active, Project, Recent activity. An unknown word, a repeated parameter or a malformed id
+   refuses the request with its one-word reason, never a fallback, as `readTurnRange` does. Values are read one
+   character at a time, because R1 refuses a pattern in the route module. A well-formed id naming nothing keeps no
+   rows.
+3. **The answer, `PocketSessionsAnswer`**, cut from ONE read of the session list with nothing awaited:
+   - `rows`, in main's order: `sessionId`, `name`, `group` (an index into `groups`), `machine` (a label or null),
+     `statusDot`, `statusTitle`, `ageText` (null with no clock), and `question` on a waiting row.
+   - `groups`: `label`, `machine`, `folder`, `count` (rows the choices keep, cut or not) and `collapsed`. Sent under
+     None too, because each row's line names its project.
+   - `agents` and `machines` as `{ id, label }`, over the rows Show keeps before the filters, so the menu never
+     empties itself; then `omitted`, `at` and `ageNote`, as `/v1/blocked` carries them.
+   - No `refresh`, `catchUp`, `lastTurn` or `turns`: a list of 5,000 walks no transcript.
+4. **Bounded.** At most `POCKET_SESSIONS_MAX` rows (proposed 5,000) and `POCKET_SESSIONS_BUDGET` bytes (proposed
+   1 MiB), rows and their groups counted together; the rest is `omitted`. Every string main did not already cap is
+   clipped to 200 characters at one definition, never inside a surrogate pair; the session screen still draws the
+   whole name, and the question keeps its cap (`src/main/activity/screen.ts`). No row set can make an answer the
+   phone refuses.
+
+**S2. One rule with the Mac — NEW `src/shared/session-gates.ts` and `src/shared/session-list.ts`.** Moved, not
+rewritten; the sheet re-pointed.
+
+1. **Show.** `lifecycleOf(status)` answers `live`, `unknown` and `ended`, and `sessionActionGates` reads its three
+   from it. Active is live or unknown. 317 moves the rest of the gate into the same file.
+2. **Groups.** The key is `targetKey`, a folder and its machine (`src/shared/workspace-target.ts`); the label is the
+   sheet's (the project's name, the closed tab's, or the folder's). Groups are ordered by label, ties by key; the
+   phone has no tabs, so the sheet's tabs-first step is the one difference. `folder` is `displayPath` (moved from
+   `src/renderer/format.ts`), sent only when two groups share a label and a machine, judged over every listed
+   session so a group reads the same under every choice. A group is `collapsed` only under All, when none of its
+   rows is Active.
+3. **Sort, by the clock the row draws.** Recent activity: a waiting row by when it began waiting, as ⌘J draws it;
+   any other by the last output Tortie saw, as the rail draws it; a row with neither by its creation, drawn `3d old`
+   (`createdOld`, moved). Name: `localeCompare`, the sheet's comparison, ties by id. Oldest first: creation, every
+   age drawn `old`. A missing clock sorts last both ways and draws the dash. The sort acts inside each group, and
+   groups never reorder.
+4. **No state filter.** Needs input is a tab, Active and Ended are Show, and Working against Idle changes by the
+   second, so such a list would empty itself while he reads it.
+
+**S3. The screen — NEW `ios/Tortie/Screens/SessionsScreen.swift`, in the Sessions tab.** `ListScreen.swift` stays for
+Needs input.
+
+1. The title, then **All · Active · Ended** as a segmented control. One menu button at the title's trailing edge
+   (`line.3.horizontal.decrease.circle`, filled while a filter narrows) holds Group by, Sort by, Agent and Machine
+   (each only when the answer names more than one; This Mac first) and Clear filters. Not chips: they cost a line at
+   rest for choices changed rarely.
+2. **A group header**: label, count, machine badge, the folder muted when sent, a chevron; a tap opens or closes
+   it. Rows are 316.6's, the project left out under a header that says it, a waiting row keeping its question. A
+   row opens 316.6's session screen, and an ended session's conversation pages read only.
+3. Each change is a new read, the old answer drawn until the newest lands, as `ListModel` does. `omitted` draws the
+   existing "n more not shown."; nothing kept draws "No matching sessions" and "Clear filters". A Mac without this
+   phase answers 404, drawn as the existing failure sentence, because the two ship together.
+4. **What the phone remembers.** NEW `ios/Tortie/Screens/SessionsChoices.swift` keeps Show, Group by and Sort in
+   `UserDefaults`, three keys each decoded into its closed enum, anything else reading the default. Filters and open
+   groups last for the app's life: a filter kept across launches hides sessions behind a control he cannot see.
+   Nothing is stored on the Mac. `PrivacyInfo.xcprivacy` declares `NSPrivacyAccessedAPICategoryUserDefaults`, CA92.1.
+
+**No search.** Matching fetched rows makes the phone decide membership, against §4.0; a search parameter puts free
+text into a signed query on a public door; the Mac's search matches paths the phone never receives. Its own entry,
+if he asks.
+
+**S4. The gates.**
+
+- **`conformance:pocket`.** R2 reads five rows. R4 is re-pinned with `--write-route-pin`. N1 becomes "no route names
+  the push": its word test stays and its Phase 313 pin goes, since R4 holds membership (318 had planned it for
+  317). **O2**: one read of the list, no await, the caps and the clip each read once, every row's group in
+  `groups`, the query read one character at a time. **O3**: no conversation read. `ablation:p313` gains one arm per
+  clause.
+- **`conformance:pocket:hostile`** (`build/p313/hostile-client.mjs`): each query word cased, doubled, empty,
+  percent-encoded, 10 KB long or with a NUL; a malformed agent or machine id; a signature for `/v1/blocked` replayed
+  on `/v1/sessions`; a phone removed mid-compose, refused `unpaired` by A4. Each refused for its own reason.
+- **`conformance:manager`** reads the moved code where it lives, and `ablation:p293` stays red on every arm.
+- **`conformance:ios` (aa)**, after 316.6's (z): `SessionsScreen.swift` and its model name no `sorted`, `sort(`,
+  `filter(`, `reversed(`, `min(` or `max(` over rows or groups; `UserDefaults` appears only in
+  `SessionsChoices.swift`, with three keys, and holds nothing the door answered. Rule (o) now expects CA92.1.
+  `ablation:p316` gains the arms; `conformance:phonecopy` judges the words and its owned-rule floor rises.
+- **Unmoved:** `gate:contract` (no channel), `gate:electron` (floor 157), `gate:simulator` (floor 2), `gate:checks`.
+
+### The proof, run rather than read
+
+- **The battery**: `typecheck`, `build`, `test`, `smoke:t1`, the gates above, and `test:ios` in Debug and Release on
+  iOS 26.3 and 18.3. `src/main/pocket/__tests__/routes.test.ts` drives the composer over every combination.
+- **`probe:p316`, one run**, on Simulators made one at a time by `build/simulator-run.mjs`, iOS 26.3 with the floor
+  arm on 18.3, reading labels and frames, never a screenshot. One Electron, the door on loopback. Before launch NEW
+  `build/p3167/seed-sessions.mts` writes about 300 ended sessions over four projects into the scratch manifest
+  through `insertSession` (`src/main/manifest/store.ts:373`). Twelve live shells join them, and probe:p293's loopback
+  machine (`build/scratch-machine.mjs`) holds a folder named like one of this Mac's.
+  `ios/TortieUITests/P316DriveUITests.swift` gains the step `sessions`: **SL1** the default is Active, grouped, each
+  count the door's; **SL2** for every combination, the drawn order of row identifiers is the answer's; **SL3** Agent
+  and Machine narrow and Clear filters restores; **SL4** a relaunch keeps three choices and drops the filter, and a
+  planted defaults value outside the closed words reads as the default; **SL5** under All, a project with only ended
+  rows starts closed; **SL6** an ended session's conversation pages to its first turn, and nothing on it acts.
+- **The hostile row set**, a second Electron after the first: 5,000 sessions; a 300-character name carrying U+202E
+  and U+2066 to U+2069; two folders named `app` on this Mac and one on the loopback machine; removals mid-read.
+  Every answer stays under budget with `omitted` equal to the rest, and scrolling reaches the last row within a
+  time S0 measures on 18.3. The bidi name's label reads its characters exactly, and its age keeps the right edge
+  with no frames overlapping. The three `app` groups read apart. A node phone fires 200 list reads while the probe
+  removes 50 sessions: no id twice, no count disagreeing with its rows, no session back after its removal answered.
+  A tap on a row removed after its list landed draws the existing unknown-session sentence.
+- **Method 2**: the verifier's own reader, written from this entry without importing `src/shared/session-list.ts`,
+  recomputes membership, groups, counts, order and ages from the Mac's list and compares every combination with the
+  door, and under All the groups with the Mac sheet's through probe:p293's drive.
+- **Method 3, real data**: the shipping composer over a copy of his manifest (SQLite's backup API, scratch, deleted
+  in a `finally`), printing counts only: each row in one group, counts summing to each total, bytes under budget.
+- **The parent**, 316.6's landing commit, over the ordinary set: "Everything else" stops at 200 and the rest is out
+  of reach. **No regression against today**: every row the parent's Sessions tab drew, HEAD draws under All, and
+  the Needs input tab is unchanged.
+
+### His checklist (NEW `build/p3167/CHECKLIST.md`), on his iPhone, build 5
+
+1. Update Tortie on your Mac and open Settings then Phone. **You should see** the door ask again, what it answers
+   now naming `sessions`. Confirm it.
+2. Archive 1.0.0 (5), run `node build/p316/test-ios.mjs --read-app` on it, upload, and install from TestFlight.
+3. Open Sessions. **You should see** only active sessions, under their projects, each with a count.
+4. Tap Ended. **You should see** your old sessions. Open one: its conversation reads, and nothing on it acts.
+5. In the menu choose Sort by Name, Group by None, then one agent. Then Clear filters.
+6. Quit Tortie on the iPhone and open it. **You should see** Show, Group by and Sort as you left them, and no filter.
+
+**Not covered yet**: search, removed sessions, End (317).
+
+### CHANGELOG item
+
+Under `## Unreleased`, Added; the follow-up docs commit adds the link.
+
+- `- The iPhone's session list opens on active sessions grouped by project, and can show ended ones, sort them, and filter by agent or machine; it remembers how you left it, and there is no search yet`
+
+### What this sends to 317, 318, 333.1 and 333.3
+
+Edited in place when this is queued. **317**: item 1 moves the rest of `sessionActionGates` beside `lifecycleOf`; N1
+already reads "no route names the push"; `Select` builds into `SessionsScreen.swift`; he confirms the door again.
+**318**: its measured route pin is void, and the gate re-derives it. **333.1 and 333.3** take rule letters after
+(aa), and 333.3's sample answers `/v1/sessions` too.
+
+**The menus do not change.** No Mac surface moves; the door's confirm line names the route from the list it already
+prints. `src/main/menu.ts` is asserted unchanged.
+
+**Order.** After 316.6 lands: both edit `TortieApp.swift`, the Sessions tab, `Copy.swift`, the probe and the build
+number. Before 317 and 318, which build into this screen and move the same pins. It ends at the next TestFlight
+build after 316.6's, build 5.
+
+### What is NOT in this phase
+
+- **No search, and no Past Sessions.** A removed session stays off the phone; the door answers only listed ids.
+- **No state filter and no project tree.** No Messages or Last message sort: those read every transcript.
+- **No ordering on the phone.** Main composes; the phone lays out and remembers three words.
+- **No restore, remove, rename or end** from the phone. End is 317's.
+- **No change to `/v1/blocked`**: `others` stays while a build 4 phone reads it.
+- **No choice stored on the Mac, and no filter stored anywhere.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -39921,3 +40137,7 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **PHASE 323 LANDED, `af5d2748`, unreleased — End ends what the hang-up leaves running.** Ending a Gemini CLI session, or restarting one, now ends Gemini too; End reads the pane's tree by its `$-id`, sends the hang-up as before, and afterwards ends, one pid at a time and only on an exact identity match, what is still in the pane's own group. Processes that left the terminal (Codex's shared server, Gemini's updater, grok's MCP servers, a detached tool) are left alone and are a follow-up; a plain shell gets the hang-up only. Four reverify rounds found nothing slower or worse than today; his ruling "Land it with 3 small test fixes" closed the proof's last three gaps at landing (the Muse exception reads the dead pane's history, End's round-trip grade is reported, and E16 with A43 pins the closing check's exit code). Landing battery green; the three smokes ran beside 320.1's probe under the four-probe rule rather than wait on the one slot. His ruling of the same day, "Phone phases get the test slot first", now orders the slot: the landing battery and every new workflow hold back while a phone test waits.
 
 - 2026-09-30, **PHASE 316.6 QUEUED — the phone gets a tab bar, Settings with Unpair, and a conversation that renders markdown and tables.** His words: "i definitely want to add a small subphase in order to: add a great navigation pane (look at /users/gdc/altarum) to the bottom of the phone app, create settings for it that allow it to unpair and whatever you think would be helpful and also handle rendering tables and markdown, etc etc in the conversation threads". Taken from Altarum's iPhone client: a SwiftUI tab bar with Settings last. Three tabs (Needs input with the Mac's amber badge, Sessions, Settings), each its own stack; Settings holds This Mac (name, address, fingerprint, paired date, last read), Alerts only where the Mac can send, Unpair (the phone's half here; the Mac's half is a signed `unpair` on 317's write door), and About; no Face ID switch, because End always asks. The conversation renders markdown natively through a small bounded Swift block parser with Foundation for inline runs: code blocks and tables scroll sideways with caps, raw HTML drawn as characters, only plain https links pressable after the address is shown, and images a placeholder that is never fetched. Tier 3 (Unpair deletes keys, a link is a new way out, and it draws bytes an agent wrote). After 316.5 and before 317, 318, 333.1 and 333.3; ends at TestFlight build 4.
+
+- 2026-09-30, **PHASE 316.7 QUEUED — the phone's Sessions tab groups, filters and sorts, because "many many sessions are old that tortie stores".** His words: "I think we should also have a way of grouping, filtering sessions and sorting them because many many sessions are old that tortie stores". The Mac builds the list and the phone lays it out (the phone does no arithmetic on status, age or order): one new read route `GET /v1/sessions`, every session in one bounded reply (row and byte caps, "n more not shown"), a closed set of query words, no conversation read; Show All · Active · Ended (default Active), Group by Project (a folder on a machine, the Mac's rule, moved to `src/shared/`) or None, Sort by Recent activity, Name or Oldest first, each row sorted by the clock it draws; filters by agent and machine in one menu; Show, Group and Sort remembered on the phone. It reverses, as HIS RULING of 2026-09-30, Phase 316's "no filters" refusal; search and Past Sessions stay off the phone. The route list is in the door's confirm hash, so he confirms the door again after this update. After 316.6, before 317; TestFlight build 5.
+
+- 2026-09-30, **INCIDENT, 18:58: a verifier ran `pkill`, which every brief forbids.** Phase 316.5's re-derive verifier ran `pkill -f "diff-clip.mts" -U 501` to end its own script; BSD pkill read `-U` and `501` as extra PATTERNS and sent SIGTERM to every process of his user whose command line held either. It reported the incident itself. Killed and restarted by their owners: his dev Tortie's door process and its Funnel child (new forwarder port, his Tortie main process, its tmux client and his sessions intact), and helpers of Chrome, Slack, Granola and Docker Desktop. Killed and not restarted: this project's background shells whose command lines held the scratchpad path, among them 320.1's lock-holding probe runner; its Electron tree had exited by the time the main session looked, a vitest from 320.1's worktree orphaned for 3 h 24 min was ended by pid, and his Mac Pro held no `gmux-p3201-*` socket and no `/tmp/p3201-*` directory. From here every brief repeats: end a process only by the pid you started, never `pkill`, `killall` or a pattern.
