@@ -77,6 +77,17 @@ ignores it. `node build/p330/tailscale-standin.mjs --self-test` proves the
 stand-in on loopback. The only proof of Funnel itself is the operator's checklist,
 `build/p330/CHECKLIST.md`.
 
+**No agent and no check asks real DNS for the Mac's public name** (Phase 332).
+Before it shows a pairing code, a published door asks `ts.net`'s own DNS servers
+whether the Mac's name answers yet. `GMUX_POCKET_NAME_SERVERS`, honoured by a
+development build only, names up to four `127.0.0.1:<port>` DNS servers that
+check asks in place of `ts.net`'s, comma separated. Any other value asks nothing
+at all and never falls back to the real servers, and a packaged build ignores
+the variable. Every probe that switches the door on points it at
+`build/p332/dns-standin.mjs`, a stand-in zone server in the probe's own process,
+and `node build/p332/dns-standin.mjs --self-test` proves the stand-in on
+loopback.
+
 ```sh
 npm install        # postinstall applies patches/ then runs electron-rebuild for node-pty + better-sqlite3
 npm run dev        # electron-vite dev server + Electron with HMR

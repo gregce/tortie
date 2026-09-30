@@ -17,10 +17,15 @@
  * real key), and Tailscale is an in-memory stand-in behind `FunnelDeps` that
  * answers the two reads from its own state and runs a fake child that behaves
  * as the measured CLI does. The real TLS door is `./switch-queue.test.ts`'s.
+ *
+ * THE MAC'S NAME (Phase 332, build/p332/SPEC.md §4.9) is asked of
+ * `./dns-fixtures.ts`'s `fakeNameDeps`, which opens no socket and reads no
+ * clock: its answers are written by the tests' own reply writer, its sleeps
+ * are released by hand here, and it records every question it is asked.
  */
 
 import { EventEmitter } from 'node:events';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import {
@@ -38,10 +43,12 @@ import {
 import type { IpcMain } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import type { PocketStatus } from '@shared/ipc/pocket';
 import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
 import type { PocketSealedPresentation } from '../pairing';
 import type { PocketFacts } from '../routes';
+import { fakeNameDeps, nxdomainReply, recordReply, type FakeNameDeps } from './dns-fixtures';
 
 let userData = '';
 let keystore = true;
@@ -359,11 +366,13 @@ const {
   writePocketStore
 } = await import('../pairing');
 const { POCKET_TLS_SEAL_PREFIX, ensureDoorIdentity } = await import('../tls');
-const { resetFunnelForTests } = await import('../funnel');
+const { beginFunnelShutdown, resetFunnelForTests } = await import('../funnel');
+const { gmuxErrorPayloadOf } = await import('../../errors');
 const {
   POCKET_CONFIRM_WARNING,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_SENTENCES,
+  POCKET_NAME_SENTENCES,
   POCKET_ROUTE_IDS,
   pocketFunnelSentence
 } = await import('@shared/ipc/pocket');
@@ -388,12 +397,15 @@ const FACTS: PocketFacts = {
 
 let clock = 10_000_000;
 let resume: (() => void) | null = null;
+/** The Mac's name, asked of the tests' own zone (Phase 332). Fresh per test. */
+let names: FakeNameDeps = fakeNameDeps();
 
 function host(over: { beforeOpen?: () => Promise<unknown>; facts?: PocketFacts } = {}): Host {
   return new PocketHost({
     facts: over.facts ?? FACTS,
     now: () => clock,
     tailscale: ts.deps,
+    names,
     onResume: (cb) => {
       resume = cb;
       return () => {
@@ -461,6 +473,21 @@ async function settled(one: Host): Promise<void> {
   }
 }
 
+/**
+ * Every gap the name check is sleeping through ends now (the fake's sleeps,
+ * released by hand), and whatever that fires runs.
+ */
+async function gapsPass(one: Host): Promise<void> {
+  names.releaseSleeps();
+  await settled(one);
+}
+
+/** The name answers twice: main says a code may show. */
+async function namePairable(one: Host): Promise<void> {
+  for (let i = 0; i < 4 && !one.status().pairable; i += 1) await gapsPass(one);
+  expect(one.status().pairable).toBe(true);
+}
+
 /** The sheet's order: Pair (the switch on), read, Allow. */
 async function pairAndAllow(one: Host): Promise<void> {
   await one.setDoor({ on: true });
@@ -472,11 +499,18 @@ async function pairAndAllow(one: Host): Promise<void> {
   }
 }
 
-/** A host whose door is on, confirmed and published, as the sheet leaves it. */
-async function listeningHost(): Promise<Host> {
+/** A host whose door is on, confirmed and published, and whose name is not yet confirmed. */
+async function publishedHost(): Promise<Host> {
   const one = host();
   await pairAndAllow(one);
   expect(one.status().state).toBe('listening');
+  return one;
+}
+
+/** A host whose door is on, confirmed and published, and pairable, as the sheet leaves it. */
+async function listeningHost(): Promise<Host> {
+  const one = await publishedHost();
+  await namePairable(one);
   return one;
 }
 
@@ -547,6 +581,7 @@ beforeEach(() => {
   sequence.length = 0;
   ts.sessions.clear();
   ts.deps = fakeTailscale();
+  names = fakeNameDeps();
   sent.length = 0;
   logged.length = 0;
   opened.length = 0;
@@ -574,9 +609,12 @@ describe('the status the sheet draws', () => {
       state: 'idle',
       asksApproval: false,
       approvalOpens: false,
-      approvalText: null,
-      publishedAt: null
+      approvalText: null
     });
+    expect(status.nameCheck).toBe('none');
+    expect(status.pairable).toBe(false);
+    expect(names.questions).toEqual([]);
+    expect(names.sleeps).toEqual([]);
     expect(Object.keys(status)).not.toContain('address');
     expect(Object.keys(status)).not.toContain('grant');
     expect(ts.log).toEqual([]);
@@ -784,6 +822,7 @@ describe('switching the door on (Pair)', () => {
 
 describe('Allow starts the door in the SPEC’s order', () => {
   it('sweeps, reads, forks the door, spawns the exact argv at its local port, and counts on the read-back', async () => {
+    names.answerWith(nxdomainReply()); // the name is not public yet, so a code waits
     const one = host();
     await one.setDoor({ on: true });
     await settled(one);
@@ -805,7 +844,11 @@ describe('Allow starts the door in the SPEC’s order', () => {
     const status = one.status();
     expect(status.state).toBe('listening');
     expect(status.funnel.state).toBe('publishing');
-    expect(status.funnel.publishedAt).toBe(clock);
+    expect(status.funnel).not.toHaveProperty('publishedAt');
+    // Phase 332: the counted start asks for the Mac's name at once, and a code waits.
+    expect(status.nameCheck).toBe('checking');
+    expect(status.pairable).toBe(false);
+    expect(names.questions.map((q) => [q.qname, q.qtype, q.rd])).toEqual([[NAME, 'A', false]]);
   });
 
   it('forks and spawns nothing for a door nobody confirmed', async () => {
@@ -1321,6 +1364,7 @@ describe('removing a phone', () => {
         }
       });
       await pairAndAllow(one);
+      await namePairable(one);
       const phone = makePhone('Held iPhone');
       const offer = await one.beginPairing();
       const { id } = await (async () => {
@@ -1528,5 +1572,832 @@ describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
     expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns']);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332: a code waits for the Mac's public name (build/p332/SPEC.md §4.9,
+// §4.10, §6.2 item 3). Every question goes to `fakeNameDeps`, and every gap
+// is a sleep this file releases by hand.
+// ---------------------------------------------------------------------------
+
+/** The sentence a promise was refused with, as main's error payload carries it. */
+async function refusalOf(p: Promise<unknown>): Promise<string> {
+  try {
+    await p;
+  } catch (err) {
+    return gmuxErrorPayloadOf(err)?.message ?? String(err);
+  }
+  throw new Error('it was not refused');
+}
+
+const CHECKING_REFUSAL = `${POCKET_NAME_SENTENCES.checking} No code was shown.`;
+const TARGET = { tailnet: 'example.github', publicName: NAME, publicPort: 8443 };
+
+/** Every gap the check slept, released or not, in order. */
+function slept(): number[] {
+  return names.sleeps.map((s) => s.ms);
+}
+
+/** Every status main pushed to a window, in order. */
+function pushed(): PocketStatus[] {
+  return sent
+    .map((line) => JSON.parse(line) as [string, PocketStatus])
+    .filter(([channel]) => channel === 'pocket:changed')
+    .map(([, s]) => s);
+}
+
+/** Main's one predicate, as a reader outside main would check it. */
+function pairableIsTheRule(s: PocketStatus): boolean {
+  return s.pairable === (s.state === 'listening' && (s.nameCheck === 'confirmed' || s.nameCheck === 'unreadable'));
+}
+
+/** The registrar's handlers over this host. */
+function handlersOf(one: Host): Map<string, (event: unknown, ...args: unknown[]) => unknown> {
+  const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
+  registerPocketIpc(
+    {
+      handle: (channel: string, fn: (event: unknown, ...args: unknown[]) => unknown) => {
+        handlers.set(channel, fn);
+      }
+    } as unknown as IpcMain,
+    one
+  );
+  return handlers;
+}
+
+/** A relaunch: the child and the door went with the last run; the store stays. */
+function relaunch(): void {
+  for (const c of ts.children) c.close(null, 'SIGKILL');
+  ts.sessions.clear();
+  resetFunnelForTests();
+  door.listening = false;
+}
+
+/** The last restart's floor wait, released. */
+function releaseRestart(): void {
+  ts.sleeps.filter((s) => s.ms === 2_000).at(-1)?.release();
+}
+
+describe('the name check starts at the counted start and nowhere else (Phase 332)', () => {
+  it('the sheet, both read channels, a launch with the door off, the wake and an unagreed switch ask nothing', async () => {
+    names.answerWith(nxdomainReply());
+    const one = host();
+    const handlers = handlersOf(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'none', pairable: false });
+    await handlers.get('pocket:status')?.({});
+    await handlers.get('pocket:pairingState')?.({});
+    expect(await one.openAtLaunch()).toBe('off');
+    resume?.();
+    await settled(one);
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status().state).toBe('refused');
+    expect(names.questions).toEqual([]);
+    expect(names.sleeps).toEqual([]);
+    expect(names.held).toEqual([]);
+    expect(one.status().nameCheck).toBe('none');
+    // Allow: the counted start asks at once, one non-recursive A question for the door's name.
+    const lines = one.status();
+    await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
+    await settled(one);
+    expect(one.status().state).toBe('listening');
+    expect(names.questions.map((q) => [q.qname, q.qtype, q.rd])).toEqual([[NAME, 'A', false]]);
+    expect(slept()).toEqual([20_000]);
+    expect(logged.some((l) => l.includes('checking the Mac’s name before pairing'))).toBe(true);
+  });
+
+  it('a door refused at its start (a Funnel refusal) asks nothing', async () => {
+    const one = host();
+    await one.setDoor({ on: true });
+    await settled(one);
+    ts.refuse = 'Unable to turn on Funnel while shields-up is enabled';
+    const lines = one.status();
+    await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
+    await settled(one);
+    expect(one.status().state).toBe('refused');
+    expect(names.questions).toEqual([]);
+    expect(names.sleeps).toEqual([]);
+  });
+});
+
+describe('a code waits for the Mac’s name (Phase 332)', () => {
+  it('is refused with the checking sentence, opens no window and reads nothing, until a round answers', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+    ts.log.length = 0;
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+    expect(await refusalOf(Promise.resolve().then(() => handlersOf(one).get('pocket:beginPairing')?.({})))).toBe(
+      CHECKING_REFUSAL
+    );
+    expect(one.pairing.view().state).toBe('idle');
+    expect(one.pairing.windowOpen()).toBe(false);
+    expect(ts.log).toEqual([]);
+    expect(door.updates).not.toContainEqual({ windowOpen: true });
+    // The 20 s gap passes and the second round answers the record: confirmed,
+    // remembered, and the check stops (one yes, the fix round).
+    names.answerWith(recordReply());
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(2);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(slept()).toEqual([20_000]);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(2);
+    const offer = await one.beginPairing();
+    expect(JSON.parse(offer.payload)).toMatchObject({ host: NAME, port: 8443 });
+    expect(logged.some((l) => l.includes('the Mac’s name answers, so pairing is open'))).toBe(true);
+  });
+
+  it('opens with the unreadable word after ONE unreadable round, keeps checking, and a later no takes it away', async () => {
+    // THE FIX ROUND: three rounds held Pair back about 55 s on a network that
+    // blocks DNS, where the build before this phase showed it at once.
+    names.answerWith('silent');
+    const one = await publishedHost();
+    expect(names.questions).toHaveLength(1);
+    expect(slept()).toEqual([20_000]);
+    expect(one.status()).toMatchObject({ nameCheck: 'unreadable', pairable: true });
+    const offer = await one.beginPairing();
+    one.cancelPairing();
+    expect(offer.payload.length).toBeGreaterThan(0);
+    // Nothing is remembered for a name nobody could read.
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    // Checking goes on; a no closes it again.
+    names.answerWith(nxdomainReply());
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+    expect(slept()).toEqual([20_000, 30_000]);
+    // An unreadable round opens it again, and each opening is said once.
+    names.answerWith('silent');
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'unreadable', pairable: true });
+    expect(logged.filter((l) => l.includes('could not be checked, so pairing is open'))).toHaveLength(2);
+  });
+
+  it('a no that lasts 18 rounds opens Pair with the unreadable word, keeps it open, and a yes still confirms (the fix round)', async () => {
+    // A network that forges an authoritative "no such name" for ts.net read no
+    // for ever and Pair never opened; the build before this phase showed it.
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    for (let i = 0; i < 16; i += 1) await gapsPass(one);
+    expect(names.questions).toHaveLength(17);
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(18);
+    expect(one.status()).toMatchObject({ nameCheck: 'unreadable', pairable: true });
+    expect(logged.filter((l) => l.includes('the Mac’s name still does not answer, so pairing is open'))).toHaveLength(1);
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'unreadable', pairable: true });
+    const offer = await one.beginPairing();
+    one.cancelPairing();
+    expect(offer.payload.length).toBeGreaterThan(0);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    names.answerWith(recordReply());
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(logged.filter((l) => l.includes('still does not answer'))).toHaveLength(1);
+  });
+
+  it('asks at the gaps 20, 30, 45 and 60 s, then every 60 s, and a yes confirms and asks nothing more', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    for (let i = 0; i < 5; i += 1) await gapsPass(one);
+    expect(slept()).toEqual([20_000, 30_000, 45_000, 60_000, 60_000, 60_000]);
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    names.answerWith(recordReply());
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(names.questions).toHaveLength(7);
+    expect(names.pendingSleeps()).toEqual([]);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(7);
+    // One log line per change of verdict, never one per round, and none names the name.
+    expect(logged.filter((l) => l.includes('the Mac’s name check read no: nxdomain'))).toHaveLength(1);
+    expect(logged.filter((l) => l.includes('the Mac’s name check read yes: record'))).toHaveLength(1);
+    for (const l of logged) {
+      expect(l).not.toContain(NAME);
+      expect(l).not.toContain('example.github');
+      expect(l).not.toContain('203.0.113.10');
+    }
+  });
+
+  it('answers main’s one predicate in every status it answers and pushes, and no longer says when the door was published', async () => {
+    names.answerWith('silent');
+    const one = await publishedHost();
+    names.answerWith(nxdomainReply());
+    await gapsPass(one);
+    names.answerWith(recordReply());
+    await gapsPass(one);
+    await one.setDoor({ on: false });
+    await settled(one);
+    const seen = [...pushed(), one.status()];
+    expect(new Set(seen.map((s) => s.nameCheck))).toEqual(new Set(['none', 'checking', 'unreadable', 'confirmed']));
+    expect(new Set(seen.map((s) => s.pairable))).toEqual(new Set([true, false]));
+    for (const s of seen) {
+      expect(pairableIsTheRule(s), JSON.stringify([s.state, s.nameCheck, s.pairable])).toBe(true);
+      expect(Object.keys(s.funnel)).not.toContain('publishedAt');
+    }
+  });
+
+  it('the confirm hash is the same with the name remembered and without it', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    const before = one.status();
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    names.answerWith(recordReply());
+    await namePairable(one);
+    const after = one.status();
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(after.confirmHash).toBe(before.confirmHash);
+    expect(after.confirmLines).toEqual(before.confirmLines);
+    expect(after.confirmState).toBe('confirmed');
+    expect(pocketConfirmStatus(one.fields()).state).toBe('confirmed');
+  });
+});
+
+describe('the door moves under a round (Phase 332)', () => {
+  it('an off with a round held open writes nothing when it lands, and asks nothing more', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost(); // the first round answered no
+    names.answerWith('hold');
+    await gapsPass(one); // the second round, held
+    expect(names.held).toHaveLength(1);
+    await one.setDoor({ on: false });
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(one.status()).toMatchObject({ state: 'off', nameCheck: 'none', pairable: false });
+    for (let i = 0; i < 4; i += 1) await gapsPass(one);
+    expect(names.questions).toHaveLength(2);
+    // On again: checking, never the confirmation the late answer would have
+    // written (its first round is held, so nothing it answers can hide that).
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+  });
+
+  // THE INTEGRATOR'S ROUND. The off writes `enabled: false` before its first
+  // await, but the check stops only when its close reaches the queue. With
+  // another door job holding the queue (here the wake's read of Tailscale), an
+  // answer or a gap that lands in between must write nothing and ask nothing,
+  // or a late yes re-remembers the name after the person cleared the setting.
+  it('an off queued behind another door job: a late yes writes nothing, and nothing is asked before the close', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost(); // the first round answered no
+    names.answerWith('hold');
+    await gapsPass(one); // the second round, held
+    expect(names.held.filter((h) => !h.released)).toHaveLength(1);
+    let releaseExec: () => void = () => undefined;
+    ts.holdExec = new Promise<void>((resolve) => {
+      releaseExec = resolve;
+    });
+    resume?.();
+    // The wake's job reaches its read of Tailscale, which now holds the queue.
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(one.status()).toMatchObject({ state: 'listening' });
+    const off = one.setDoor({ on: false });
+    names.releaseHeld(recordReply());
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(slept()).toEqual([20_000]);
+    expect(door.listening).toBe(true); // the close has not run yet
+    // The door still listens until the close runs, and main says so honestly:
+    // the switch is off, so no code may show.
+    expect(one.status()).toMatchObject({ state: 'off', pairable: false });
+    expect(pairableIsTheRule(one.status())).toBe(true);
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+    expect(one.pairing.windowOpen()).toBe(false);
+    ts.holdExec = null;
+    releaseExec();
+    await off;
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'off', nameCheck: 'none', pairable: false });
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+  });
+
+  it('an off queued behind another door job: a door opened by the unreadable rule is not pairable before the close', async () => {
+    names.answerWith('silent');
+    const one = await publishedHost();
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'unreadable', pairable: true });
+    let releaseExec: () => void = () => undefined;
+    ts.holdExec = new Promise<void>((resolve) => {
+      releaseExec = resolve;
+    });
+    resume?.();
+    // The wake's job reaches its read of Tailscale, which now holds the queue.
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(one.status()).toMatchObject({ state: 'listening' });
+    const off = one.setDoor({ on: false });
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    const between = one.status();
+    expect(door.listening).toBe(true); // the close has not run yet
+    expect(between).toMatchObject({ state: 'off', pairable: false });
+    expect(pairableIsTheRule(between)).toBe(true);
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+    expect(one.pairing.windowOpen()).toBe(false);
+    ts.holdExec = null;
+    releaseExec();
+    await off;
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'off', nameCheck: 'none', pairable: false });
+  });
+
+  it('an off queued behind another door job: a gap that ends before the close asks nothing', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost(); // one no, the 20 s gap armed
+    let releaseExec: () => void = () => undefined;
+    ts.holdExec = new Promise<void>((resolve) => {
+      releaseExec = resolve;
+    });
+    resume?.(); // the wake asks now (a second no, the 30 s gap armed) and its read holds the queue
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(names.questions).toHaveLength(2);
+    const off = one.setDoor({ on: false });
+    names.releaseSleeps();
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(door.listening).toBe(true); // the close has not run yet
+    expect(names.questions).toHaveLength(2);
+    ts.holdExec = null;
+    releaseExec();
+    await off;
+    await settled(one);
+    for (let i = 0; i < 3; i += 1) await gapsPass(one);
+    expect(names.questions).toHaveLength(2);
+    expect(one.status()).toMatchObject({ state: 'off', nameCheck: 'none', pairable: false });
+  });
+
+  it('an answer from an earlier run lands in a later one and is dropped', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost(); // run 1: one no
+    names.answerWith('hold');
+    await gapsPass(one); // run 1's second round, held
+    await one.setDoor({ on: false });
+    await one.setDoor({ on: true });
+    await settled(one); // run 2's first round, held too
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking' });
+    expect(names.held.filter((h) => !h.released)).toHaveLength(2);
+    // Run 1's yes would confirm run 1; the door is published and its fields are the same.
+    names.held[0]?.release(recordReply());
+    await settled(one);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    // Run 2 goes on by its own rounds: its own yes confirms.
+    names.held[1]?.release(recordReply());
+    await settled(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+  });
+
+  it('on, off, on inside one gap leaves one timer: exactly one round per gap', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    expect(names.questions).toHaveLength(1);
+    await one.setDoor({ on: false });
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status().state).toBe('listening');
+    expect(names.questions).toHaveLength(2);
+    // Both runs' sleeps end together; only the live run's timer asks.
+    expect(names.pendingSleeps()).toEqual([20_000, 20_000]);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(3);
+    expect(names.pendingSleeps()).toEqual([30_000]);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(4);
+  });
+
+  it('a Remove mid-round drops the answer: a late yes writes nothing', async () => {
+    // A door opened by the unreadable rule, so a phone can pair before the name answers.
+    names.answerWith('silent');
+    const one = await publishedHost();
+    const { id } = await pairPhone(one, makePhone('A'));
+    names.answerWith('hold');
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'unreadable' });
+    expect(names.held.filter((h) => !h.released)).toHaveLength(1);
+    const asked = names.questions.length;
+    await one.removePhone(id);
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(one.status()).toMatchObject({ nameCheck: 'none', pairable: false });
+    for (let i = 0; i < 3; i += 1) await gapsPass(one);
+    expect(names.questions).toHaveLength(asked);
+  });
+
+  it('a Remove during the switch-on round drops the answer: a late no forgets nothing', async () => {
+    const one = await listeningHost();
+    const { id } = await pairPhone(one, makePhone('A'));
+    await one.setDoor({ on: false });
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true });
+    expect(names.held.filter((h) => !h.released)).toHaveLength(1);
+    const asked = names.questions.length;
+    await one.removePhone(id);
+    names.releaseHeld(nxdomainReply());
+    await settled(one);
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(one.status().pairable).toBe(false);
+    for (let i = 0; i < 3; i += 1) await gapsPass(one);
+    expect(names.questions).toHaveLength(asked);
+  });
+
+  it('the quit’s first line clears an armed timer: nothing is asked when its gap ends', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    expect(names.pendingSleeps()).toEqual([20_000]);
+    beginFunnelShutdown();
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(1);
+  });
+
+  for (const [half, quit] of [
+    ['the Funnel half', () => beginFunnelShutdown()],
+    ['the door half', () => (door.quitting = true)]
+  ] as const) {
+    it(`a round held across the quit writes nothing and arms nothing (${half} first)`, async () => {
+      names.answerWith(nxdomainReply());
+      const one = await publishedHost(); // one no
+      names.answerWith('hold');
+      await gapsPass(one); // the second round, held
+      quit();
+      names.releaseHeld(recordReply());
+      await settled(one);
+      expect(readPocketStore().store?.nameConfirmed).toBeNull();
+      expect(slept()).toEqual([20_000]);
+      expect(one.status().pairable).toBe(false);
+    });
+  }
+
+  it('a wall clock moved a day either way moves no gap and asks no extra round', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    const real = Date.now();
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(real + 86_400_000);
+    try {
+      clock += 86_400_000;
+      await gapsPass(one);
+      spy.mockReturnValue(real - 86_400_000);
+      clock -= 2 * 86_400_000;
+      await gapsPass(one);
+      resume?.();
+      await settled(one);
+    } finally {
+      spy.mockRestore();
+    }
+    // The wake asked once, as a wake does; the clock asked nothing.
+    expect(names.questions).toHaveLength(4);
+    expect(slept()).toEqual([20_000, 30_000, 45_000, 60_000]);
+  });
+});
+
+describe('the wake and the restart (Phase 332)', () => {
+  it('a wake brings the next round forward once, and the gap it cut short fires nothing', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    expect(names.pendingSleeps()).toEqual([20_000]);
+    resume?.();
+    await settled(one);
+    expect(names.questions).toHaveLength(2);
+    expect(slept()).toEqual([20_000, 30_000]);
+    names.releaseSleeps(20_000);
+    await settled(one);
+    expect(names.questions).toHaveLength(2);
+    names.releaseSleeps(30_000);
+    await settled(one);
+    expect(names.questions).toHaveLength(3);
+  });
+
+  it('a wake asks nothing once the name is confirmed, or with a round already out', async () => {
+    const confirmed = await listeningHost();
+    const asked = names.questions.length;
+    resume?.();
+    await settled(confirmed);
+    expect(names.questions).toHaveLength(asked);
+    // The switch-on round in flight: a wake asks nothing beside it.
+    await confirmed.setDoor({ on: false });
+    names.answerWith('hold');
+    await confirmed.setDoor({ on: true });
+    await settled(confirmed);
+    let out = names.questions.length;
+    resume?.();
+    await settled(confirmed);
+    expect(names.questions).toHaveLength(out);
+    // It answers no, checking starts, and a checking round in flight: the
+    // wake does not ask a second one beside it either.
+    names.releaseHeld(nxdomainReply());
+    await settled(confirmed);
+    expect(confirmed.status().nameCheck).toBe('checking');
+    await gapsPass(confirmed);
+    out = names.questions.length;
+    expect(names.held.filter((h) => !h.released)).toHaveLength(1);
+    resume?.();
+    await settled(confirmed);
+    expect(names.questions).toHaveLength(out);
+  });
+
+  it('a restart pauses the check and resumes it at its counted start; a confirmed name is not asked again', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    ts.children[0]?.close(null, 'SIGKILL');
+    await settled(one);
+    expect(one.status().funnel.state).toBe('restarting');
+    expect(one.status()).toMatchObject({ nameCheck: 'none', pairable: false });
+    // The gap passes while Tortie is trying again: nothing is asked.
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(1);
+    releaseRestart();
+    await settled(one);
+    expect(one.status().state).toBe('listening');
+    expect(names.questions).toHaveLength(2);
+    expect(one.status().nameCheck).toBe('checking');
+    names.answerWith(recordReply());
+    await gapsPass(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    const asked = names.questions.length;
+    ts.children.at(-1)?.close(null, 'SIGKILL');
+    await settled(one);
+    releaseRestart();
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true });
+    expect(names.questions).toHaveLength(asked);
+  });
+});
+
+describe('the switch-on round (Phase 332)', () => {
+  it('a relaunch with the name kept shows Pair at once and asks once; a yes keeps it and arms nothing', async () => {
+    await listeningHost();
+    relaunch();
+    const asked = names.questions.length;
+    const sleeps = names.sleeps.length;
+    names.answerWith('hold');
+    const next = host();
+    expect(await next.openAtLaunch()).toBe('opened');
+    expect(next.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true });
+    expect(names.questions).toHaveLength(asked + 1);
+    expect(logged.some((l) => l.includes('asking once whether the Mac’s name still answers'))).toBe(true);
+    // A code may show while the round is out.
+    await next.beginPairing();
+    next.cancelPairing();
+    names.releaseHeld(recordReply());
+    await settled(next);
+    expect(next.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(names.sleeps).toHaveLength(sleeps);
+    await gapsPass(next);
+    expect(names.questions).toHaveLength(asked + 1);
+  });
+
+  it('a switch-on round that cannot be read keeps the name and arms nothing', async () => {
+    await listeningHost();
+    relaunch();
+    const sleeps = names.sleeps.length;
+    names.answerWith('silent');
+    const next = host();
+    expect(await next.openAtLaunch()).toBe('opened');
+    await settled(next);
+    expect(next.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(names.sleeps).toHaveLength(sleeps);
+  });
+
+  it('a switch-on round answered no forgets the name, takes Pair away, and checks from 20 s', async () => {
+    await listeningHost();
+    relaunch();
+    names.answerWith('hold');
+    const next = host();
+    expect(await next.openAtLaunch()).toBe('opened');
+    const sleeps = names.sleeps.length;
+    names.releaseHeld(nxdomainReply());
+    await settled(next);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(next.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    expect(names.sleeps.slice(sleeps).map((s) => s.ms)).toEqual([20_000]);
+    expect(await refusalOf(next.beginPairing())).toBe(CHECKING_REFUSAL);
+    names.answerWith(recordReply());
+    await gapsPass(next);
+    expect(next.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+  });
+
+  it('off then on keeps the name: Pair at once and one round; a no forgets it and checks from 20 s (the fix round)', async () => {
+    // Forgetting it at the off held Pair back 20 s on every off and on, where
+    // the build before this phase showed it at once.
+    const one = await listeningHost();
+    await one.setDoor({ on: false });
+    expect(readPocketStore().store).toMatchObject({ enabled: false, bindAtLaunch: false, nameConfirmed: TARGET });
+    expect(one.status()).toMatchObject({ state: 'off', pairable: false });
+    const asked = names.questions.length;
+    const sleeps = names.sleeps.length;
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true });
+    expect(names.questions).toHaveLength(asked + 1);
+    expect(logged.some((l) => l.includes('asking once whether the Mac’s name still answers'))).toBe(true);
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(names.sleeps).toHaveLength(sleeps);
+    await gapsPass(one);
+    expect(names.questions).toHaveLength(asked + 1);
+    // Off and on again, and this time the name has gone.
+    await one.setDoor({ on: false });
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status().pairable).toBe(true);
+    names.releaseHeld(nxdomainReply());
+    await settled(one);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+    expect(names.sleeps.slice(sleeps).map((s) => s.ms)).toEqual([20_000]);
+    expect(await refusalOf(one.beginPairing())).toBe(CHECKING_REFUSAL);
+  });
+
+  it('a switch-on round that answers no while beginPairing reads Tailscale opens no window (the fix round)', async () => {
+    await listeningHost();
+    relaunch();
+    names.answerWith('hold');
+    const next = host();
+    expect(await next.openAtLaunch()).toBe('opened');
+    expect(next.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    const opened = door.updates.filter((u) => u.windowOpen === true).length;
+    let releaseExec: () => void = () => undefined;
+    ts.holdExec = new Promise<void>((resolve) => {
+      releaseExec = resolve;
+    });
+    const pressed = refusalOf(next.beginPairing());
+    // The press passed the first ask and is reading Tailscale's serve config.
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    names.releaseHeld(nxdomainReply());
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(next.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+    ts.holdExec = null;
+    releaseExec();
+    expect(await pressed).toBe(CHECKING_REFUSAL);
+    expect(next.pairing.windowOpen()).toBe(false);
+    expect(next.pairing.view().state).toBe('idle');
+    expect(door.updates.filter((u) => u.windowOpen === true)).toHaveLength(opened);
+  });
+
+  it('Remove then Allow, and a withdrawal then Allow, keep the name and ask once', async () => {
+    const one = await listeningHost();
+    const { id } = await pairPhone(one, makePhone('A'));
+    const removed = await one.removePhone(id);
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    expect(removed).toMatchObject({ state: 'refused', pairable: false });
+    for (const again of ['remove', 'forget'] as const) {
+      if (again === 'forget') {
+        await one.forgetDoor();
+        expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+      }
+      const lines = one.status();
+      const asked = names.questions.length;
+      names.answerWith('hold');
+      await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
+      await settled(one);
+      expect(one.status(), again).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true });
+      expect(names.questions, again).toHaveLength(asked + 1);
+      names.releaseHeld(recordReply());
+      await settled(one);
+      expect(names.questions, again).toHaveLength(asked + 1);
+    }
+  });
+});
+
+describe('what clears the remembered name, and what does not (Phase 332)', () => {
+  it('the off write keeps it (the fix round), and an off over switches that already read off writes nothing', async () => {
+    const one = await listeningHost();
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    await one.setDoor({ on: false });
+    expect(readPocketStore().store).toMatchObject({ enabled: false, bindAtLaunch: false, nameConfirmed: TARGET });
+    await host().setDoor({ on: false });
+    expect(readPocketStore().store).toMatchObject({ enabled: false, bindAtLaunch: false, nameConfirmed: TARGET });
+  });
+
+  it('a read that asks Tailscale’s approval clears it', async () => {
+    const one = await listeningHost();
+    names.answerWith('hold'); // the restart's own round, held, so nothing it answers hides the clearing
+    ts.caps = false; // the restart's read finds Funnel's capabilities gone; the child needs no page
+    ts.children[0]?.close(null, 'SIGKILL');
+    await settled(one);
+    releaseRestart();
+    await settled(one);
+    expect(one.status().funnel.asksApproval).toBe(true);
+    expect(one.status().state).toBe('listening');
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+  });
+
+  it('a start that waited on Tailscale’s approval clears it', async () => {
+    const one = await listeningHost();
+    names.answerWith('hold'); // the start's own round, held
+    ts.approval = 'wait'; // the capabilities stay: only the wait can clear it
+    ts.children[0]?.close(null, 'SIGKILL');
+    await settled(one);
+    releaseRestart();
+    // The start now waits on the page, inside the queue: wait for the face, never for the queue.
+    await vi.waitFor(() => expect(one.status().funnel.state).toBe('approval'));
+    expect(one.status().funnel.asksApproval).toBe(false);
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    ts.approve?.();
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+  });
+
+  it('a withdrawal, a Remove and the alerts do not clear it', async () => {
+    const one = await listeningHost();
+    const { id } = await pairPhone(one, makePhone('A'));
+    await one.setPushAlerts(true);
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    await one.removePhone(id);
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+    await one.forgetDoor();
+    expect(readPocketStore().store?.nameConfirmed).toEqual(TARGET);
+  });
+
+  for (const [field, moved] of [
+    ['tailnet', { tailnet: 'someone-else.github' }],
+    ['public name', { publicName: 'other.tail00000.ts.net' }],
+    ['public port', { publicPort: 10000 }]
+  ] as const) {
+    it(`a remembered name for another ${field} does not count: the door reads checking`, async () => {
+      const one = host();
+      await one.setDoor({ on: true });
+      await settled(one);
+      const store = readPocketStore().store;
+      if (store === null) throw new Error('no store');
+      expect(writePocketStore({ ...store, nameConfirmed: { ...TARGET, ...moved } })).toBe(true);
+      names.answerWith('hold'); // the start's own round, held
+      const next = host();
+      await pairAndAllow(next);
+      expect(next.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+      // Nobody cleared it: it simply stopped counting.
+      expect(readPocketStore().store?.nameConfirmed).toEqual({ ...TARGET, ...moved });
+    });
+  }
+
+  it('a moved tailnet found by a restart’s read: the old name no longer counts after the next Allow', async () => {
+    const one = await listeningHost();
+    ts.tailnet = 'switched-profile.github';
+    ts.children[0]?.close(null, 'SIGKILL');
+    await settled(one);
+    releaseRestart();
+    await settled(one);
+    const changed = one.status();
+    expect(changed).toMatchObject({ state: 'refused', confirmState: 'changed', pairable: false });
+    names.answerWith('hold'); // the Allow's own round, held
+    await one.confirmDoor({ linesRead: changed.confirmLines, hashRead: changed.confirmHash });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking', pairable: false });
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(one.status().pairable).toBe(true);
+    expect(readPocketStore().store?.nameConfirmed).toEqual({ ...TARGET, tailnet: 'switched-profile.github' });
+  });
+
+  it('a store write that throws (the disk refused it) still holds the confirmation for this run', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    names.answerWith(recordReply());
+    const real = userData;
+    // The store's directory is now a FILE: the next write throws ENOTDIR from mkdir.
+    const blocked = join(real, 'blocked');
+    writeFileSync(blocked, 'not a directory', 'utf8');
+    userData = blocked;
+    try {
+      await gapsPass(one);
+      expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+      expect(logged.some((l) => l.includes('could not apply an answer'))).toBe(false);
+    } finally {
+      userData = real;
+    }
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+  });
+
+  it('a seal that refuses the write still holds the confirmation for this run, and the next launch asks again', async () => {
+    names.answerWith(nxdomainReply());
+    const one = await publishedHost();
+    names.answerWith(recordReply());
+    sealWrites = false;
+    await gapsPass(one);
+    sealWrites = true;
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    await one.beginPairing();
+    one.cancelPairing();
+    relaunch();
+    names.answerWith('hold'); // the launch's own round, held
+    const next = host();
+    expect(await next.openAtLaunch()).toBe('opened');
+    expect(next.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
   });
 });

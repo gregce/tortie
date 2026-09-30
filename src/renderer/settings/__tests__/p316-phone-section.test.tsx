@@ -23,8 +23,12 @@
  *   answering; the code with its private line and its countdown.
  * - THE REMOVE NOTICE is keyed to the phone it names (316.4 owed item 1): a
  *   removed phone's "Paired with" is never drawn.
- * - A FIRST CODE that shuts with nobody presenting says why.
- * - PAIR AFTER ALLOW asks for the code once, when the door answers.
+ * - A FIRST CODE that shuts with nobody presenting says why, only when it was
+ *   shown while main could not check the Mac's name (Phase 332).
+ * - PAIR AFTER ALLOW asks for the code once, when main says one may show.
+ * - THE NAMING FACE (Phase 332): while main says a code may not show yet, one
+ *   line in place of Pair; over a name main could not check, its line above
+ *   Pair. Both decided by main's `pairable`, never worked out here.
  * - THE WORDS THE PHONE QUOTES stay byte for byte.
  */
 
@@ -40,6 +44,7 @@ import {
   POCKET_FUNNEL_SENTENCES,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
+  POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
   POCKET_READ_ONLY_HONESTY,
   type PocketPairingOffer,
@@ -58,7 +63,6 @@ import {
   DOOR_OFF,
   DOOR_OPENING,
   DOOR_WAITING,
-  FIRST_NAME_MS,
   PAIR_GROUP,
   PAIR_WAITING,
   PHONES_DROPPED,
@@ -77,6 +81,7 @@ import {
   shutsIn,
   type PhoneViewProps
 } from '../PhoneSection';
+import * as phoneSection from '../PhoneSection';
 
 const NOW = 1_790_000_000_000;
 const NAME = 'mac.tail00000.ts.net';
@@ -90,7 +95,13 @@ const LINES = [
   'Allows no phone yet'
 ];
 
+/**
+ * A status as main composes one. `pairable` and `nameCheck` default to what
+ * main answers for the state: a listening door whose name is confirmed is
+ * pairable, and nothing else is (main's one predicate, build/p332/SPEC.md §4.9).
+ */
 function status(over: Partial<PocketStatus> = {}): PocketStatus {
+  const listening = (over.state ?? 'listening') === 'listening';
   return {
     state: 'listening',
     publicName: NAME,
@@ -100,11 +111,13 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     refusal: null,
     phones: [],
     droppedPhones: 0,
-    funnel: { state: 'publishing', asksApproval: false, approvalOpens: false, approvalText: null, publishedAt: NOW - 60_000 },
+    funnel: { state: 'publishing', asksApproval: false, approvalOpens: false, approvalText: null },
     confirmState: 'confirmed',
     confirmLines: LINES,
     confirmHash: 'h'.repeat(64),
     confirmable: true,
+    nameCheck: listening ? 'confirmed' : 'none',
+    pairable: listening,
     routes: ['pair', 'blocked', 'session', 'turns'],
     pushAlerts: false,
     ...over
@@ -386,6 +399,66 @@ describe('the pairing card', () => {
     expect(html).not.toContain('data-phone-action="pair"');
   });
 
+  it('wears the naming face, one line and no button, while the door answers and main says no code may show (Phase 332)', () => {
+    const naming = status({ pairable: false, nameCheck: 'checking' });
+    expect(pairingStage(naming, null, null, NOW)).toBe('naming');
+    const html = draw({ status: naming });
+    expect(html).toContain('data-phone-stage="naming"');
+    expect(text(html)).toContain(POCKET_NAME_SENTENCES.checking);
+    expect(html).not.toContain('data-phone-action="pair"');
+    expect(html).not.toContain('data-phone-name-unreadable');
+    expect(POCKET_NAME_SENTENCES.checking).toBe(
+      'Pair opens once your Mac’s name is on the internet, which can take a few minutes.'
+    );
+    // The switch's line is still the door's own.
+    expect(text(html)).toContain(`Answering at https://${NAME}:8443`);
+    // Just enough words: the resting face gains one line, and only this one.
+    expect(text(draw())).not.toContain(POCKET_NAME_SENTENCES.checking);
+  });
+
+  it('decides the face from main’s pairable and never from the name check itself', () => {
+    expect(pairingStage(status({ pairable: false, nameCheck: 'confirmed' }), null, null, NOW)).toBe('naming');
+    expect(pairingStage(status({ pairable: false, nameCheck: 'unreadable' }), null, null, NOW)).toBe('naming');
+    expect(pairingStage(status({ pairable: true, nameCheck: 'checking' }), null, null, NOW)).toBe('ready');
+    expect(pairingStage(status({ pairable: true, nameCheck: 'none' }), null, null, NOW)).toBe('ready');
+    // A door that is not answering waits as before, whatever pairable says.
+    expect(pairingStage(status({ state: 'opening', pairable: true }), null, null, NOW)).toBe('waiting');
+    expect(pairingStage(status({ state: 'off', pairable: false }), null, null, NOW)).toBe('start');
+  });
+
+  it('draws the unreadable line above Pair only when main could not confirm the name (Phase 332)', () => {
+    const unread = draw({ status: status({ pairable: true, nameCheck: 'unreadable' }) });
+    expect(unread).toContain('data-phone-stage="ready"');
+    expect(unread).toContain('data-phone-name-unreadable');
+    const page = text(unread);
+    expect(page).toContain(POCKET_NAME_SENTENCES.unreadable);
+    // "confirm", not "check" (the fix round): the line also stands over a no that lasted 18 rounds.
+    expect(POCKET_NAME_SENTENCES.unreadable).toBe('Tortie could not confirm your Mac’s name, so a first scan may fail.');
+    expect(unread.indexOf('data-phone-name-unreadable')).toBeLessThan(unread.indexOf('data-phone-action="pair"'));
+    for (const nameCheck of ['confirmed', 'checking', 'none'] as const) {
+      const html = draw({ status: status({ pairable: true, nameCheck }) });
+      expect(html, nameCheck).toContain('data-phone-action="pair"');
+      expect(html, nameCheck).not.toContain('data-phone-name-unreadable');
+      expect(text(html), nameCheck).not.toContain(POCKET_NAME_SENTENCES.unreadable);
+    }
+    // The door off with an unreadable word left over: the start face never says it.
+    expect(draw({ status: status({ state: 'off', pairable: false, nameCheck: 'unreadable' }) })).not.toContain(
+      'data-phone-name-unreadable'
+    );
+  });
+
+  it('presses Pair into the code only on main’s pairable; otherwise the carried press (onPair’s branch)', () => {
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'PhoneSection.tsx'), 'utf8');
+    const onPair = /onPair=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(onPair).not.toBe('');
+    // The first branch asks main's predicate and opens the code; the rest turns the door on and carries the press.
+    const first = /if \(([^)]*)\) \{\s*beginPairing\(\);\s*return;\s*\}/.exec(onPair)?.[1] ?? '';
+    expect(first).toBe("status?.pairable === true");
+    expect(onPair).not.toContain("state === 'listening'");
+    expect(onPair.indexOf("setPairAfterAllow('pressed')")).toBeGreaterThan(onPair.indexOf('beginPairing()'));
+    expect(onPair).toContain('setDoor(true)');
+  });
+
   it('shows the code, with its private line, only while main says it is waiting and the deadline has not passed', () => {
     expect(pairingStage(status(), offer(), pairing(), NOW)).toBe('showing');
     expect(pairingStage(status(), offer(NOW), pairing(), NOW)).toBe('ready');
@@ -433,34 +506,66 @@ describe('the notices', () => {
     expect(text(after)).not.toContain('Paired with');
   });
 
-  it('says the code expired, and the first time says why and to press Pair again', () => {
-    const published = NOW;
-    const expires = published + 3 * 60_000;
-    expect(expiredNotice(published, expires, false)).toEqual({
+  it('says the code expired, and why a first scan failed only for a code shown over an unchecked name (Phase 332)', () => {
+    // Shown while main could not check the name, and nobody presented.
+    expect(expiredNotice(true, false)).toEqual({
       text: `${CODE_EXPIRED} ${CODE_FIRST_NAME}`,
       phoneId: null
     });
-    expect(expiredNotice(published, expires, true).text).toBe(CODE_EXPIRED);
-    expect(expiredNotice(null, expires, false).text).toBe(CODE_EXPIRED);
-    expect(expiredNotice(published, published + FIRST_NAME_MS + 1, false).text).toBe(CODE_EXPIRED);
+    // A phone presented: it reached the door, so the name was not the trouble.
+    expect(expiredNotice(true, true).text).toBe(CODE_EXPIRED);
+    // Shown after the name answered: a first scan met a name that exists.
+    expect(expiredNotice(false, false).text).toBe(CODE_EXPIRED);
+    expect(expiredNotice(false, true).text).toBe(CODE_EXPIRED);
     expect(CODE_FIRST_NAME).toBe(
       'The first time, your Mac’s name can take several minutes to reach your phone. Press Pair again.'
     );
-    const drawn = text(draw({ status: status({ state: 'off' }), notice: expiredNotice(published, expires, false) }));
+    const drawn = text(draw({ status: status({ state: 'off' }), notice: expiredNotice(true, false) }));
     expect(drawn).toContain(CODE_EXPIRED);
     expect(drawn).toContain(CODE_FIRST_NAME);
+  });
+
+  it('no longer times the first-name line from when the door was published', () => {
+    expect('FIRST_NAME_MS' in phoneSection).toBe(false);
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'PhoneSection.tsx'), 'utf8');
+    expect(source).not.toContain('FIRST_NAME_MS');
+    expect(source).not.toContain('publishedAt');
+    // The section records, when a code is shown, whether main could not check the name.
+    expect(source).toMatch(/shownUnreadableRef\.current = statusRef\.current\?\.nameCheck === 'unreadable'/);
   });
 });
 
 describe('pair after Allow', () => {
   const on = (over: Partial<PocketStatus>): PocketStatus => status(over);
 
-  it('waits through the press that turns the door on, and asks for the code once when it answers', () => {
-    expect(pairAfterAllowNext('pressed', on({ state: 'off' }))).toEqual({ phase: 'pressed', pair: false });
-    expect(pairAfterAllowNext('pressed', on({ state: 'opening' }))).toEqual({ phase: 'on', pair: false });
-    expect(pairAfterAllowNext('on', on({ state: 'refused', confirmState: 'never' }))).toEqual({ phase: 'on', pair: false });
+  it('waits through the press that turns the door on, and asks for the code once when main says one may show', () => {
+    expect(pairAfterAllowNext('pressed', on({ state: 'off', pairable: false }))).toEqual({ phase: 'pressed', pair: false });
+    expect(pairAfterAllowNext('pressed', on({ state: 'opening', pairable: false }))).toEqual({ phase: 'on', pair: false });
+    expect(
+      pairAfterAllowNext('on', on({ state: 'refused', confirmState: 'never', pairable: false }))
+    ).toEqual({ phase: 'on', pair: false });
     expect(pairAfterAllowNext('on', on({ state: 'listening' }))).toEqual({ phase: 'no', pair: true });
     expect(pairAfterAllowNext('no', on({ state: 'listening' }))).toEqual({ phase: 'no', pair: false });
+  });
+
+  it('keeps the wish while the door answers and its name is checked, and carries it through (Phase 332)', () => {
+    const naming = on({ state: 'listening', pairable: false, nameCheck: 'checking' });
+    expect(pairAfterAllowNext('pressed', naming)).toEqual({ phase: 'on', pair: false });
+    expect(pairAfterAllowNext('on', naming)).toEqual({ phase: 'on', pair: false });
+    // Main's word, never the name check: confirmed but not pairable keeps waiting.
+    expect(pairAfterAllowNext('on', on({ state: 'listening', pairable: false, nameCheck: 'confirmed' }))).toEqual({
+      phase: 'on',
+      pair: false
+    });
+    // Then main says a code may show: asked for once, with no other press.
+    expect(pairAfterAllowNext('on', on({ state: 'listening', pairable: true, nameCheck: 'checking' }))).toEqual({
+      phase: 'no',
+      pair: true
+    });
+    expect(pairAfterAllowNext('on', on({ state: 'listening', pairable: true, nameCheck: 'unreadable' }))).toEqual({
+      phase: 'no',
+      pair: true
+    });
   });
 
   it('is dropped by an off after it was on, and by a refusal with nothing to Allow', () => {

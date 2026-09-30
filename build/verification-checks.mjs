@@ -585,6 +585,20 @@ export const CHECKS = [
   // and Open Tailscale is never pressed. `--grader-self-test` grades recorded
   // fixtures and starts nothing. P330_PARENT_CHECKOUT reads arm 1 at a parent build.
   electron('probe:p330'),
+  // PHASE 332's app run, and the parent measurement: pairing waits for the
+  // Mac's public name. ONE Electron at a time through build/electron-run.mjs's
+  // withElectron, on a scratch profile, a scratch HOME and the socket
+  // gmux-p332-<pid>, with build/p330/tailscale-standin.mjs for Tailscale behind
+  // its preflight and sampler, build/p316/node-phone.mjs for the phone, and
+  // build/p332/dns-standin.mjs, IN THE PROBE'S OWN PROCESS on 127.0.0.1, for the
+  // ts.net zone, named by GMUX_POCKET_NAME_SERVERS. No question reaches real DNS:
+  // main's UDP sockets are sampled with lsof every 2 s and any peer that is not
+  // 127.0.0.1 fails the run and ends the app. Before every launch it writes an
+  // agents.json that renames the Gemini, Qwen, Antigravity, Grok and Droid
+  // binaries and reads agents:list back, so no agent's --version runs.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  // P332_PARENT_CHECKOUT reads H0 and P1 at a parent build.
+  electron('probe:p332'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that

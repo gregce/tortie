@@ -133,6 +133,22 @@
  *     every second: a real Tailscale program under the app, or run as a
  *     command, FAILS the run, and every stand-in pid is ended in the `finally`.
  *
+ * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
+ * now asks the `ts.net` zone's own servers whether its public name answers
+ * before a code may show, and the seam refuses to pair unless those servers
+ * are a loopback stand-in (`nameStandInOnly`). The app is handed
+ * `GMUX_POCKET_NAME_SERVERS`, naming build/p332/dns-standin.mjs IN THIS
+ * PROCESS on 127.0.0.1, answering the Tailscale stand-in's made-up name, so no
+ * question reaches real DNS; the preflight refuses unless that value names
+ * 127.0.0.1 alone and the stand-in answers; the seam's installed line is given
+ * 45 s more, for the name check's round and its room; and P12 grades every question the
+ * app asked: an `A` question, RD 0, for that name. Before the launch the
+ * profile's agents.json renames the Qwen, Antigravity, Grok and Droid
+ * binaries, so their `--version` never runs. GEMINI IS NOT RENAMED: the trust
+ * question this probe drives is the real Gemini CLI's (the operator's ruling of
+ * 2026-09-22), so a round that forbids starting Gemini must not run this probe
+ * live, and runs `--grader-self-test` instead.
+ *
  * THE SLEEP IS DRIVEN, NEVER TAKEN. The machine does not sleep, so its poll
  * keeps running. "Blocked during the sleep" is driven as what the Mac actually
  * does on a real wake: the rows are FIRST SEEN after the resume. The three
@@ -206,6 +222,7 @@
  *   npm run -s probe:p314
  *   P314_PARENT_CHECKOUT=/path/to/parent npm run -s probe:p314   the parent reading
  *   P314_KEEP=1 npm run -s probe:p314                            keep the scratch world
+ *   node build/probe-p314.mjs --grader-self-test                  the name-question clause, no Electron
  *
  * Exit 0 when every arm passed (or, at the parent, every arm read unreadable
  * because the build predates the seam), 1 when an arm failed, 2 when it could
@@ -222,6 +239,7 @@ import { wsConnect, cdpEval } from './cdp-client.mjs';
 import { pickRendererTarget } from './cdp-target.mjs';
 import { startApnsStandIn } from './p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
+import { NAME_SERVERS_VAR, QUIET_AGENT_IDS, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from './p332/dns-standin.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 /** The checkout whose APP is launched. The helper and the stand-in are always this tree's. */
@@ -232,6 +250,16 @@ const say = (line) => console.log(`${TAG} ${line}`);
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const J = JSON.stringify;
 const sha = (text) => createHash('sha256').update(text).digest('hex');
+
+// Phase 332's clause, graded on its own cases with nothing launched.
+if (process.argv.includes('--grader-self-test')) {
+  const ok = nameQuestionsSelfTest(DEFAULT_SCENARIO.dnsName.replace(/\.$/, ''));
+  console.log(`[p314] grader self-test ${ok ? 'PASS' : 'FAIL'}: the name-question clause (P12).`);
+  process.exit(ok ? 0 : 1);
+}
+
+/** The agents this probe renames: every quiet one but Gemini, whose real trust question it drives. */
+const QUIET_HERE = QUIET_AGENT_IDS.filter((id) => id !== 'gemini');
 
 if (!existsSync(join(CHECKOUT, 'out', 'main', 'index.js'))) {
   console.error(`${TAG} ${CHECKOUT} has no build at out/main/index.js. Run npm run build there first.`);
@@ -435,6 +463,10 @@ let standIn = null;
 let tailscale = null;
 let preflightOk = false;
 let tailscaleWatch = null;
+/** The name check's zone servers (Phase 332), in this process on 127.0.0.1. */
+let dns = null;
+let dnsPreflightOk = false;
+const agentsHeld = [];
 const probeClock = [];
 let ran = false;
 let appText = '';
@@ -528,6 +560,12 @@ try {
   preflightOk = preflight.ok;
   if (!preflight.ok) throw new Error(`the Tailscale preflight refused the launch: ${preflight.problems.join('; ')}`);
   tailscaleWatch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
+  // ---- the DNS stand-in (Phase 332), preflighted before anything launches --
+  dns = await makeDnsStandin({ name: DEFAULT_SCENARIO.dnsName.replace(/\.$/, ''), mode: 'record' });
+  const dnsPreflight = await dns.preflight(dns.servers);
+  dnsPreflightOk = dnsPreflight.ok && loopbackOnlyServers(dns.servers);
+  if (!dnsPreflight.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPreflight.problems.join('; ')}`);
+  writeQuietAgents(PROFILE, QUIET_HERE);
 
   // ---- the scratch key, generated here and deleted in the finally ---------
   const pair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
@@ -615,8 +653,9 @@ try {
   }
 
   async function body(handle) {
+    // Phase 332: 45 s more, for the name check's round before the seam may pair.
     const seamSeen = handle
-      .waitForLine(/\[gmux-push-seam\] installed [^\n]*\n/, 150_000)
+      .waitForLine(/\[gmux-push-seam\] installed [^\n]*\n/, 195_000)
       .then(() => true)
       .catch(() => false);
     const cdp = await attach(150_000);
@@ -626,6 +665,10 @@ try {
       if (armed === true) break;
       await sleep(300);
     }
+    // NO AGENT BUT THIS PROBE'S OWN STARTS (Phase 332): the renamed rows must read not installed.
+    const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')), QUIET_HERE);
+    agentsHeld.push(held.ok);
+    if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
 
     // ---- P0: the seed ---------------------------------------------------
     if (!(await seamSeen)) {
@@ -1286,7 +1329,10 @@ try {
         // seam publishes it through Tailscale for the pairing alone and shuts
         // it again. The Tailscale it runs is the stand-in, and nothing else:
         // the seam refuses a program that is not a development override.
-        GMUX_TAILSCALE_BIN: tailscale.binPath
+        GMUX_TAILSCALE_BIN: tailscale.binPath,
+        // THE DNS STAND-IN (Phase 332): the seam pairs only when the name
+        // check asks a loopback stand-in, and this is the one it asks.
+        [NAME_SERVERS_VAR]: dns.servers
       }),
       graceMs: 8_000,
       ceilingMs: 2_400_000
@@ -1364,6 +1410,18 @@ try {
   arm('the run', false, `it threw: ${String(err?.message ?? err)}`);
 } finally {
   if (standIn !== null) await standIn.close().catch(() => undefined);
+  // ---- P12 (Phase 332): the name check asked the loopback stand-in, and rightly --
+  const nameRows = dns?.log() ?? [];
+  if (dns !== null) await dns.close();
+  if (dns !== null) {
+    const verdict = nameQuestionsVerdict({ expect: !AT_PARENT && (tailscale?.readLog() ?? []).some((e) => e.kind === 'funnel'), rows: nameRows, name: DEFAULT_SCENARIO.dnsName.replace(/\.$/, '') });
+    report.readings.nameQuestions = nameRows;
+    arm(
+      'P12 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no renamed agent was started',
+      verdict.ok && dnsPreflightOk && agentsHeld.length > 0 && agentsHeld.every((x) => x === true),
+      `${verdict.said}; the DNS preflight ${dnsPreflightOk ? 'passed' : 'REFUSED'}; the renamed agents ${J(agentsHeld)} absent`
+    );
+  }
   // THE STAND-IN TAILSCALE: every pid it ran as, ended by pid whatever happened.
   const tailscaleEnded = tailscale === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
   const tailscaleFindings = tailscaleWatch?.stop() ?? [];

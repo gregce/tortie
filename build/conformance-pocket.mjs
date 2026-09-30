@@ -30,6 +30,23 @@
  * source (P1), the length on every answer (C1), `/pair`'s three answers (N3),
  * the menu row (MENU1) and the door's own import wall (W2).
  *
+ * PHASE 332 ASKS DNS ABOUT HIS MAC'S NAME (build/p332/SPEC.md §7.1). Before a
+ * code shows, `src/main/pocket/public-name.ts` asks the `ts.net` zone's own
+ * servers, in main, over `node:dgram`, and parses answers anyone on the path
+ * can forge. Eight rules joined for it, D1 to D8: `node:dgram` in that module
+ * alone and no `node:dns` (D1), the zone question non-recursive, connected
+ * and authoritative (D2), the refused ranges named once (D3), the check
+ * started only at a counted start and stopped first in every unpublish, with
+ * no clock (D4), reason words only in its log lines (D5), `pairable` one
+ * predicate (D6), the override loopback or nothing and never a fallback to
+ * the search (D7), and no real server outside Electron (D8). T1 now reads
+ * `build/p332/` too, and treats the `address` a `bind(` is handed as a host.
+ * D9 joined in the round after his ruling of 2026-09-30: the push seam
+ * (`src/main/harness/push-seam.ts`), the one caller of `beginPairing` outside
+ * a test and one D8 does not cover because it runs in Electron, refuses to
+ * pair without the loopback name stand-in and waits for `pairable`, because a
+ * verifier deleted each and every gate stayed green. Fifty-one rules in all.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -108,7 +125,17 @@ const RULES = [
   ['N3', 'build/p330/SPEC.md §4.8.3', '/pair answers exactly three states, and the certificate ONLY with allowed; main composes the answer field by field and never serialises what the pairing owner handed it'],
   ['MENU1', 'the entry, "Unchanged on purpose"', 'Pair a Phone… is still the row directly under Settings…, and it opens Settings at the Phone section'],
   ['W2', 'research 132 §9 condition 2; build/p330/SPEC.md §6.1', 'THE DOOR PROCESS’S IMPORT WALL, re-derived here: door-process.ts and door/** import node:net, node:tls, node:http, node:crypto, src/shared/ and door/ itself, and NOTHING else'],
-  ['E1', 'the Phase 330 fix round (lens 2, measured with ps -E); build/p330/SPEC.md §10 concern 3', 'THE DOOR PROCESS’S ENVIRONMENT IS ITS OWN: the one utilityProcess.fork names an env object literal of at least one plain string variable, never {} (Electron reads it as unset and hands the door main’s whole environment), never a spread and never process.env; and door-process.ts and door/** read no process.env']
+  ['E1', 'the Phase 330 fix round (lens 2, measured with ps -E); build/p330/SPEC.md §10 concern 3', 'THE DOOR PROCESS’S ENVIRONMENT IS ITS OWN: the one utilityProcess.fork names an env object literal of at least one plain string variable, never {} (Electron reads it as unset and hands the door main’s whole environment), never a spread and never process.env; and door-process.ts and door/** read no process.env'],
+  // PHASE 332, the Mac's public name (build/p332/SPEC.md §7.1).
+  ['D1', 'build/p332/SPEC.md §4.2, §4.3', 'node:dgram is imported by public-name.ts ALONE across src/, no production file under src/main/pocket/ names node:dns, public-name.ts imports node:dgram, node:crypto and node:net and nothing else, and every createSocket in it passes a lookup declared in the same file'],
+  ['D2', 'build/p332/SPEC.md §4.2 to §4.5', 'the zone question is built with recursion false and true is set only in findZoneServers; the id comes from node:crypto and Math.random is nowhere; every send passes the buffer and a callback inside a connect callback; the size cap is compared before a byte is read; a record needs the AA bit and the byte-for-byte question; a loopback server binds the literal 127.0.0.1; the message handler compares rinfo.address and rinfo.port with the server’s'],
+  ['D3', 'build/p332/SPEC.md §4.5', 'NAME_REFUSED_V4 is declared once, in public-name.ts, holds [100, 64, 0, 0, 10] and the seven other ranges, isPublicV4 is its only reader, and no other file under src/main/pocket/ spells any of the eight'],
+  ['D4', 'build/p332/SPEC.md §4.9', 'beginNameCheck is called ONCE, in openNow, after closeNowUnlessConfirmed; stopNameCheck is the first statement of unpublish and unexpectedlyDown; status, nameCheckNow, pairable, openAtLaunch and the pocket:status and pocket:pairingState handlers start nothing; the timer is armed through armFunnelRestart alone; no name-check method nor nextNameStreak reads a clock; and names: is handed to PocketHost only by tests'],
+  ['D5', 'build/p332/SPEC.md §4.14', 'public-name.ts names no log call, and every log call in a name-check method of ipc.ts interpolates only a verdict or a reason, never the public name, a target, an address, the servers, the tailnet or the bytes'],
+  ['D6', 'build/p332/SPEC.md §4.11, §4.12 and its fix round', 'pairable is ONE method of PocketHost, status() answers pairable: this.pairable(), beginPairing asks this.pairable() before stillPublished() and AGAIN after it and before its one this.pairing.open(), and PhoneSection.tsx reads .pairable in pairingStage, pairAfterAllowNext and onPair and compares nameCheck only with unreadable'],
+  ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
+  ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
+  ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true']
 ];
 
 if (process.argv.includes('--list')) {
@@ -1413,7 +1440,9 @@ function loopbackRule() {
   // them as bind targets failed seven fixtures that bind nothing. What actually
   // binds is a call, and that is caught below.
   const HOST_NAMES = /^(?:host|hostname)$/i;
-  const HOST_CALLS = new Set(['listen', 'connect', 'createConnection', 'request', 'get', 'netConnect', 'tlsConnect']);
+  // PHASE 332 ADDED `bind`: a UDP socket is held to an interface by what it
+  // binds, and the DNS stand-in and the name check each bind one.
+  const HOST_CALLS = new Set(['listen', 'connect', 'createConnection', 'request', 'get', 'netConnect', 'tlsConnect', 'bind']);
   const IPV4 = /^(?:\d{1,3}\.){3}\d{1,3}$/;
   const roots = [join(ROOT, 'build'), join(ROOT, 'src', 'main', 'pocket')];
   const seen = [];
@@ -1435,7 +1464,8 @@ function loopbackRule() {
         // The REPOSITORY-RELATIVE path, because the absolute one holds the
         // worktree's own name and a worktree called `wt-p313` made this rule
         // read all 1,346 production files and fail on a fixture's example URL.
-        if (!/pocket|p313|p330/i.test(rel(path))) continue;
+        // Phase 332 widened it to `p332`, where the DNS stand-in and its probe live.
+        if (!/pocket|p313|p330|p332/i.test(rel(path))) continue;
         seen.push(path);
       }
     };
@@ -1459,6 +1489,21 @@ function loopbackRule() {
     const parent = node.parent;
     if (parent === undefined) return false;
     if (ts.isPropertyAssignment(parent) && ts.isIdentifier(parent.name)) {
+      // `bind({ address: '…', port })` (Phase 332): `address` is a bind target
+      // when, and only when, its object literal is handed to `bind(`.
+      const obj = parent.parent;
+      const call = obj?.parent;
+      if (
+        parent.name.text === 'address' &&
+        obj !== undefined &&
+        ts.isObjectLiteralExpression(obj) &&
+        call !== undefined &&
+        ts.isCallExpression(call) &&
+        calleeName(call) === 'bind' &&
+        call.arguments.includes(obj)
+      ) {
+        return true;
+      }
       return HOST_NAMES.test(parent.name.text);
     }
     if (ts.isVariableDeclaration(parent) && ts.isIdentifier(parent.name)) {
@@ -3682,6 +3727,871 @@ function doorEnvRule() {
 }
 
 // ---------------------------------------------------------------------------
+// D — the Mac's public name (Phase 332, build/p332/SPEC.md §7.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * PHASE 332 SENDS HIS MAC'S PUBLIC NAME TO SERVERS TORTIE NEVER TALKED TO
+ * BEFORE, and parses their answers, which anyone on the path can forge, in
+ * main. Every promise that keeps that small is one clause of
+ * `src/main/pocket/public-name.ts` or of the host that runs it
+ * (`src/main/pocket/ipc.ts`), and each is a line a later round can delete
+ * with every test green: the non-recursive question, the connected socket,
+ * the authoritative bit, the refused ranges, the check that starts only at a
+ * counted start, the override that is loopback or nothing, and the guard that
+ * keeps every test and script off the internet. These eight rules are those
+ * clauses, read as code. A missing `public-name.ts` fails every one by name.
+ */
+
+const NAME_MODULE = 'public-name';
+const NAME_MODULE_OWNER = "Phase 332 builder names's (src/main/pocket/public-name.ts)";
+const D_RULES = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
+
+/** The name module, or null with EVERY D rule failed by name, once each. */
+let nameModuleRead;
+function nameModule() {
+  if (nameModuleRead !== undefined) return nameModuleRead;
+  const direct = join(DOMAIN, `${NAME_MODULE}.ts`);
+  nameModuleRead = existsSync(direct) ? direct : null;
+  if (nameModuleRead !== null) return nameModuleRead;
+  for (const id of D_RULES) {
+    fail(
+      id,
+      `src/main/pocket/${NAME_MODULE}.ts does not exist, so this rule read nothing. It is ${NAME_MODULE_OWNER}. ` +
+        'A gate that passed here would go green on the day the Mac’s name check does not exist.'
+    );
+  }
+  return null;
+}
+
+/** Every module specifier a file names: static imports and exports, `import()` and `require()`. */
+function specifiersOf(file) {
+  const out = [];
+  for (const node of nodesOf(file)) {
+    if ((ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) && node.moduleSpecifier !== undefined && ts.isStringLiteral(node.moduleSpecifier)) {
+      out.push({ node, text: node.moduleSpecifier.text });
+    } else if (ts.isCallExpression(node) && node.arguments.length > 0 && ts.isStringLiteral(node.arguments[0])) {
+      const isImport = node.expression.kind === ts.SyntaxKind.ImportKeyword;
+      const isRequire = ts.isIdentifier(node.expression) && node.expression.text === 'require';
+      if (isImport || isRequire) out.push({ node, text: node.arguments[0].text });
+    } else if (ts.isImportEqualsDeclaration(node) && ts.isExternalModuleReference(node.moduleReference) && ts.isStringLiteral(node.moduleReference.expression)) {
+      out.push({ node, text: node.moduleReference.expression.text });
+    }
+  }
+  return out;
+}
+
+/** The one function declared as `name` in a file (a declaration, a method, or a const arrow), or null. */
+function oneFunction(file, name) {
+  const found = functionsNamed(file, name);
+  return found.length === 1 ? found[0] : null;
+}
+
+/** Is `node` inside a function-like node that is an argument of a call named `callee`? */
+function insideCallbackOf(node, callee) {
+  for (let n = node.parent; n !== undefined; n = n.parent) {
+    if ((ts.isArrowFunction(n) || ts.isFunctionExpression(n)) && n.parent !== undefined && ts.isCallExpression(n.parent) && n.parent.arguments.includes(n) && calleeName(n.parent) === callee) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Every descendant of `root`, `root` included. */
+function descendantsOf(root) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(root);
+  return out;
+}
+
+/** The object literal a `return` hands back, unwrapped, or null. */
+function returnedObject(ret) {
+  let e = ret.expression;
+  while (e !== undefined && (ts.isParenthesizedExpression(e) || ts.isAsExpression(e) || ts.isSatisfiesExpression?.(e))) e = e.expression;
+  return e !== undefined && ts.isObjectLiteralExpression(e) ? e : null;
+}
+
+/** `{ kind: 'x', … }`'s `x`, or null. */
+function kindOf(obj) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && memberName(p) === 'kind' && ts.isStringLiteralLike(p.initializer)) return p.initializer.text;
+  }
+  return null;
+}
+
+/** The returns of a function body, nested functions excluded. */
+function ownReturnsOf(fn) {
+  const out = [];
+  const visit = (n) => {
+    if (n !== fn && (ts.isFunctionLike(n) || ts.isClassLike(n))) return;
+    if (ts.isReturnStatement(n)) out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(fn);
+  return out;
+}
+
+/** The nearest IfStatement whose then-branch holds `node`, or null. */
+function guardingIf(node) {
+  for (let n = node; n.parent !== undefined; n = n.parent) {
+    const p = n.parent;
+    if (ts.isIfStatement(p) && p.thenStatement === n) return p;
+    if (ts.isFunctionLike(p)) return null;
+  }
+  return null;
+}
+
+/** Every production `.ts`/`.tsx` file under `src/`, `__tests__/` and `*.test.*` excluded. */
+function productionSources() {
+  return sourcesUnder(join(ROOT, 'src'));
+}
+
+function nameImportRule() {
+  // D1. node:dgram in public-name.ts alone; no node:dns in the domain; the
+  // module's own imports; and every socket with a lookup of its own.
+  const file = nameModule();
+  if (file === null) return;
+  const DGRAM = new Set(['node:dgram', 'dgram']);
+  const DNS = new Set(['node:dns', 'dns', 'dns/promises', 'node:dns/promises']);
+  for (const src of productionSources()) {
+    for (const { node, text } of specifiersOf(src)) {
+      if (!DGRAM.has(text)) continue;
+      checked('D1');
+      if (src !== file) {
+        fail('D1', `${where(src, node)} imports ${JSON.stringify(text)}. The Mac’s name check is the one thing in Tortie that sends a datagram, and it lives in ${rel(file)} alone.`);
+      }
+    }
+  }
+  for (const src of domainFiles) {
+    for (const { node, text } of specifiersOf(src)) {
+      checked('D1');
+      if (DNS.has(text)) {
+        fail('D1', `${where(src, node)} imports ${JSON.stringify(text)}. node:dns is c-ares, a C parser of bytes anyone on the path can forge, inside main, and it can neither clear the recursion bit nor read the authoritative one (SPEC §4.2).`);
+      }
+    }
+  }
+  const allowed = new Set(['node:dgram', 'node:crypto', 'node:net']);
+  const own = specifiersOf(file);
+  checked('D1', own.length + 1);
+  if (!own.some((s) => s.text === 'node:dgram')) fail('D1', `${rel(file)} does not import node:dgram, so the transport this rule guards is somewhere else`);
+  for (const { node, text } of own) {
+    if (!allowed.has(text)) {
+      fail('D1', `${where(file, node)} imports ${JSON.stringify(text)}. The name module imports node:dgram, node:crypto and node:net and NOTHING else: no electron, no logger, no file, nothing under src/.`);
+    }
+  }
+  const declared = new Set();
+  for (const n of nodesOf(file)) {
+    if (ts.isFunctionDeclaration(n) && n.name !== undefined) declared.add(n.name.text);
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) declared.add(n.name.text);
+  }
+  const sockets = callsOf(file).filter((c) => calleeName(c) === 'createSocket');
+  checked('D1');
+  if (sockets.length === 0) fail('D1', `${rel(file)} creates no socket, so there is no shipping transport this rule can read`);
+  for (const call of sockets) {
+    checked('D1');
+    const options = call.arguments[0];
+    const lookup = options !== undefined && ts.isObjectLiteralExpression(options) ? options.properties.find((p) => memberName(p) === 'lookup') : undefined;
+    const named = lookup === undefined ? null : ts.isShorthandPropertyAssignment(lookup) ? lookup.name.text : ts.isPropertyAssignment(lookup) && ts.isIdentifier(lookup.initializer) ? lookup.initializer.text : null;
+    if (named === null || !declared.has(named)) {
+      fail('D1', `${where(file, call)} creates a socket with no lookup of this file's own, so Node's dgram asks dns.lookup for every bind and connect (measured, SPEC §2): the system resolver is reached by the check that exists not to reach it.`);
+    }
+  }
+}
+
+function nameQueryRule() {
+  // D2. The question, the id, the send, the size, the verdict, the bind and the source.
+  const file = nameModule();
+  if (file === null) return;
+  const src = astOf(file);
+  const encodes = callsOf(file).filter((c) => calleeName(c) === 'encodeNameQuery');
+  checked('D2', encodes.length + 1);
+  let zoneFalse = 0;
+  for (const call of encodes) {
+    const rec = call.arguments[3];
+    const inSearch = enclosingName(call) === 'findZoneServers';
+    if (rec !== undefined && rec.kind === ts.SyntaxKind.FalseKeyword) {
+      if (!inSearch && call.arguments[1] !== undefined && ts.isStringLiteralLike(call.arguments[2]) && call.arguments[2].text === 'A') zoneFalse += 1;
+      continue;
+    }
+    if (rec === undefined || rec.kind !== ts.SyntaxKind.TrueKeyword) {
+      fail('D2', `${where(file, call)} builds a question whose recursion is ${JSON.stringify(rec === undefined ? '(nothing)' : rec.getText(src))}, not a literal. Whether a question asks for recursion must be readable here.`);
+    } else if (!inSearch) {
+      fail('D2', `${where(file, call)} asks for RECURSION outside the server search. A recursive question for the Mac's name makes a resolver on his network fetch it and plant the 300 s miss the phone then meets (SPEC §4.2); only findZoneServers's two questions to NAME_SEARCH_RESOLVERS may set RD.`);
+    }
+  }
+  if (zoneFalse === 0) fail('D2', `${rel(file)} builds no A question with recursion false outside the search, so the zone question this rule guards is not the one sent`);
+
+  const text = codeTextOf(file);
+  checked('D2', 2);
+  if (/\bMath\s*\.\s*random\b/.test(text)) fail('D2', `${rel(file)} names Math.random. The question's id is the one thing an off-path forger must guess, and it comes from node:crypto.`);
+  const cryptoNames = specifiersOf(file)
+    .filter((s) => s.text === 'node:crypto' && ts.isImportDeclaration(s.node))
+    .flatMap((s) => {
+      const b = s.node.importClause?.namedBindings;
+      return b !== undefined && ts.isNamedImports(b) ? b.elements.map((e) => e.name.text) : [];
+    })
+    .filter((n) => ['randomInt', 'randomBytes', 'randomFillSync', 'getRandomValues'].includes(n));
+  if (cryptoNames.length === 0 || !callsOf(file).some((c) => cryptoNames.includes(calleeName(c)))) {
+    fail('D2', `${rel(file)} takes no id from node:crypto (randomInt, randomBytes or randomFillSync, imported and called).`);
+  }
+
+  const sends = callsOf(file).filter((c) => calleeName(c) === 'send' && ts.isPropertyAccessExpression(c.expression));
+  checked('D2', sends.length + 1);
+  if (sends.length === 0) fail('D2', `${rel(file)} sends nothing, so there is no send this rule can read`);
+  for (const call of sends) {
+    if (call.arguments.length !== 2 || !ts.isFunctionLike(call.arguments[1])) {
+      fail('D2', `${where(file, call)} sends with ${String(call.arguments.length)} argument(s). A connected socket sends the buffer and a callback and NOTHING ELSE: a port or an address here is a datagram to wherever it names, and the kernel's peer filter is gone.`);
+    }
+    if (!insideCallbackOf(call, 'connect')) {
+      fail('D2', `${where(file, call)} sends outside a connect callback. The socket is connected BEFORE it sends, so the kernel delivers only its peer's datagrams.`);
+    }
+  }
+
+  const handlers = callsOf(file).filter(
+    (c) => calleeName(c) === 'on' && ts.isStringLiteralLike(c.arguments[0]) && c.arguments[0].text === 'message' && c.arguments[1] !== undefined && ts.isFunctionLike(c.arguments[1])
+  );
+  checked('D2', handlers.length + 1);
+  if (handlers.length === 0) fail('D2', `${rel(file)} has no message handler, so the datagram filter this rule guards is not there`);
+  for (const call of handlers) {
+    const fn = call.arguments[1];
+    const body = codeOfNode(file, fn);
+    if (!/\bNAME_REPLY_MAX_BYTES\b/.test(body)) {
+      fail('D2', `${where(file, call)}: the message handler does not compare a datagram's size with NAME_REPLY_MAX_BYTES before it keeps it, so 64 KB of anybody's bytes reach the parser.`);
+    }
+    const info = fn.parameters[1];
+    const infoName = info !== undefined && ts.isIdentifier(info.name) ? info.name.text : null;
+    const compares = (field) =>
+      descendantsOf(fn).some((n) => {
+        if (!ts.isBinaryExpression(n) || ![ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(n.operatorToken.kind)) return false;
+        const side = (e) => ts.isPropertyAccessExpression(e) && e.name.text === field && ts.isIdentifier(e.expression) ? e.expression.text : null;
+        const l = side(n.left);
+        const r = side(n.right);
+        return (l === infoName && r !== null && r !== infoName) || (r === infoName && l !== null && l !== infoName);
+      });
+    if (infoName === null || !compares('address') || !compares('port')) {
+      fail('D2', `${where(file, call)}: the message handler does not compare rinfo.address AND rinfo.port with the server's. A datagram from any other source must be dropped before it is read.`);
+    }
+  }
+  const reader = oneFunction(file, 'readNameReply');
+  checked('D2', 2);
+  if (reader === null) {
+    fail('D2', `${rel(file)} declares no single readNameReply`);
+  } else {
+    const body = codeOfNode(file, reader);
+    const cap = body.search(/\bNAME_REPLY_MAX_BYTES\b/);
+    const firstRead = body.search(/\.read(?:U?Int\d+(?:BE|LE)?)\s*\(|\breply\s*\[/);
+    if (cap < 0 || (firstRead >= 0 && firstRead < cap)) {
+      fail('D2', `${where(file, reader)}: readNameReply reads a byte before it compares the reply's length with NAME_REPLY_MAX_BYTES. It trusts reply.length and nothing else (SPEC §4.4).`);
+    }
+    const equalsGuard = descendantsOf(reader).some(
+      (n) => ts.isCallExpression(n) && calleeName(n) === 'equals' && (() => { const g = guardingIfOfExpression(n); return g !== null && /'question'/.test(codeOfNode(file, g.thenStatement)); })()
+    );
+    if (!equalsGuard) {
+      fail('D2', `${where(file, reader)}: readNameReply does not refuse 'question' on a byte-for-byte .equals( of the question it sent. A compressed, case-changed, retyped or reclassed question must be refused.`);
+    }
+    if (!/0x04\b/.test(body)) fail('D2', `${where(file, reader)}: readNameReply does not read the AA bit (0x04) out of the header.`);
+  }
+  const judge = oneFunction(file, 'judgeZoneAnswer');
+  checked('D2');
+  if (judge === null) {
+    fail('D2', `${rel(file)} declares no single judgeZoneAnswer`);
+  } else {
+    const aaGuard = descendantsOf(judge).some(
+      (n) => ts.isIfStatement(n) && /\.aa\b|0x04/.test(codeOfNode(file, n.expression)) && /'not-authoritative'/.test(codeOfNode(file, n.thenStatement))
+    );
+    if (!aaGuard) {
+      fail('D2', `${where(file, judge)}: judgeZoneAnswer does not refuse 'not-authoritative' on the AA bit. A cache, an interceptor and a referral all land there; without it any of them can confirm the name.`);
+    }
+  }
+  const binds = callsOf(file).filter((c) => calleeName(c) === 'bind' && ts.isPropertyAccessExpression(c.expression));
+  checked('D2', binds.length + 1);
+  if (binds.length === 0) fail('D2', `${rel(file)} binds nothing, so a loopback server's socket is not held to 127.0.0.1`);
+  for (const call of binds) {
+    const a0 = call.arguments[0];
+    const address = a0 !== undefined && ts.isObjectLiteralExpression(a0) ? a0.properties.find((p) => memberName(p) === 'address') : undefined;
+    const literal = address !== undefined && ts.isPropertyAssignment(address) && ts.isStringLiteralLike(address.initializer) ? address.initializer.text : call.arguments[1] !== undefined && ts.isStringLiteralLike(call.arguments[1]) ? call.arguments[1].text : null;
+    if (literal !== '127.0.0.1') {
+      fail('D2', `${where(file, call)} binds ${JSON.stringify(literal ?? '(no literal address)')}. A loopback server is asked from a socket bound to the LITERAL 127.0.0.1, so no test, probe or development run binds an interface.`);
+    }
+  }
+}
+
+/** The IfStatement whose CONDITION holds `node`, or null. */
+function guardingIfOfExpression(node) {
+  for (let n = node; n.parent !== undefined; n = n.parent) {
+    const p = n.parent;
+    if (ts.isIfStatement(p)) return p.expression === n ? p : null;
+    if (ts.isStatement(p) || ts.isFunctionLike(p)) return null;
+  }
+  return null;
+}
+
+const REFUSED_TUPLES = [
+  [0, 0, 0, 0, 8],
+  [10, 0, 0, 0, 8],
+  [100, 64, 0, 0, 10],
+  [127, 0, 0, 0, 8],
+  [169, 254, 0, 0, 16],
+  [172, 16, 0, 0, 12],
+  [192, 168, 0, 0, 16],
+  [224, 0, 0, 0, 3]
+];
+const RANGE_TEXT = /(?:^|[^0-9.])(?:100\.64|169\.254|172\.16|192\.168)(?:[./]|$)|(?:^|[^0-9.])(?:0|10|127|224)(?:\.0){0,3}\/(?:3|8)\b/;
+
+/** A numeric array literal's numbers, or null. */
+function numbersOf(node) {
+  if (!ts.isArrayLiteralExpression(node) || node.elements.length === 0) return null;
+  const out = [];
+  for (const e of node.elements) {
+    if (!ts.isNumericLiteral(e)) return null;
+    out.push(Number(e.text.replace(/_/g, '')));
+  }
+  return out;
+}
+
+function nameRangesRule() {
+  // D3. The refused ranges, once, read by one function, and spelled nowhere else.
+  const file = nameModule();
+  if (file === null) return;
+  const decls = [];
+  for (const src of productionSources()) {
+    for (const n of nodesOf(src)) {
+      if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'NAME_REFUSED_V4') decls.push({ src, n });
+    }
+  }
+  checked('D3', decls.length + 1);
+  if (decls.length !== 1 || decls[0].src !== file) {
+    fail('D3', `NAME_REFUSED_V4 is declared ${String(decls.length)} time(s) (${decls.map((d) => where(d.src, d.n)).join(', ') || 'nowhere'}); it is declared ONCE, in ${rel(file)}.`);
+  } else {
+    let init = decls[0].n.initializer;
+    while (init !== undefined && (ts.isAsExpression(init) || ts.isParenthesizedExpression(init) || (ts.isCallExpression(init) && calleeName(init) === 'freeze'))) {
+      init = ts.isCallExpression(init) ? init.arguments[0] : init.expression;
+    }
+    const tuples = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map(numbersOf) : null;
+    if (tuples === null || tuples.some((t) => t === null)) {
+      fail('D3', `${where(file, decls[0].n)}: NAME_REFUSED_V4 is not an array of numeric tuples this rule can read.`);
+    } else {
+      const key = (t) => t.join(',');
+      const have = new Set(tuples.map(key));
+      for (const t of REFUSED_TUPLES) {
+        checked('D3');
+        if (!have.has(key(t))) {
+          fail('D3', `${where(file, decls[0].n)}: NAME_REFUSED_V4 does not hold [${t.join(', ')}]${key(t) === '100,64,0,0,10' ? ', MagicDNS’s range: the Mac’s own resolver answers his name with a 100.x address, and a check that accepted it would confirm a name no phone can reach' : ''}.`);
+        }
+      }
+      if (tuples.length !== REFUSED_TUPLES.length) fail('D3', `${where(file, decls[0].n)}: NAME_REFUSED_V4 holds ${String(tuples.length)} tuple(s), not SPEC §4.5's eight.`);
+    }
+  }
+  for (const src of productionSources()) {
+    if (!/NAME_REFUSED_V4/.test(readFileSync(src, 'utf8'))) continue;
+    for (const n of nodesOf(src)) {
+      if (!ts.isIdentifier(n) || n.text !== 'NAME_REFUSED_V4') continue;
+      if (ts.isVariableDeclaration(n.parent) && n.parent.name === n) continue;
+      if (ts.isImportSpecifier(n.parent) || ts.isExportSpecifier(n.parent)) continue;
+      checked('D3');
+      if (src !== file || enclosingName(n) !== 'isPublicV4') {
+        fail('D3', `${where(src, n)} reads NAME_REFUSED_V4 outside isPublicV4. The ranges are judged in ONE place, so an answer cannot be refused one way here and accepted another way there.`);
+      }
+    }
+  }
+  for (const src of domainFiles) {
+    if (src === file) continue;
+    for (const { node, text } of codeStringsOf(src)) {
+      checked('D3');
+      if (RANGE_TEXT.test(text)) fail('D3', `${where(src, node)} spells ${JSON.stringify(text)}, one of the refused ranges. They are named once, in ${rel(file)}.`);
+    }
+    for (const n of nodesOf(src)) {
+      const nums = numbersOf(n);
+      if (nums === null || nums.length < 2) continue;
+      checked('D3');
+      const pair = `${String(nums[0])},${String(nums[1])}`;
+      if (['100,64', '169,254', '172,16', '192,168'].includes(pair) || (nums.length === 5 && REFUSED_TUPLES.some((t) => t.join(',') === nums.join(',')))) {
+        fail('D3', `${where(src, n)} spells [${nums.join(', ')}], one of the refused ranges, in a second list. They are named once, in ${rel(file)}.`);
+      }
+    }
+  }
+}
+
+/** A class method of PocketHost by name, or null. */
+const hostMethod = (ipc, name) => methodOf(ipc, 'PocketHost', name);
+
+function nameStartRule() {
+  // D4. Started at the counted start alone, stopped first in every unpublish,
+  // armed on the quit-cleared timer, no clock, and the seam the tests' alone.
+  const file = nameModule();
+  const ipc = moduleNamed('ipc', 'D4', "Phase 332 builder host's (src/main/pocket/ipc.ts)");
+  if (file === null || ipc === null) return;
+  const src = astOf(ipc);
+  const begins = callsOf(ipc).filter((c) => calleeName(c) === 'beginNameCheck');
+  checked('D4', begins.length + 1);
+  const openNow = hostMethod(ipc, 'openNow');
+  if (begins.length !== 1) {
+    fail('D4', `${rel(ipc)} calls beginNameCheck ${String(begins.length)} time(s) (${begins.map((c) => where(ipc, c)).join(', ') || 'never'}). It is called from ONE place, the end of a counted start: the sheet opening, a read and a launch with the door off start nothing.`);
+  } else if (openNow === null || enclosingName(begins[0]) !== 'openNow') {
+    fail('D4', `${where(ipc, begins[0])}: beginNameCheck is called outside openNow, so something that is not a counted start starts the check.`);
+  } else {
+    const confirm = callsOf(ipc).find((c) => calleeName(c) === 'closeNowUnlessConfirmed' && enclosingName(c) === 'openNow');
+    if (confirm === undefined || confirm.getStart(src) > begins[0].getStart(src)) {
+      fail('D4', `${where(ipc, begins[0])}: beginNameCheck comes before openNow's closeNowUnlessConfirmed(), so a door the confirm gate is about to shut starts a check.`);
+    }
+  }
+  for (const name of ['unpublish', 'unexpectedlyDown']) {
+    const m = hostMethod(ipc, name);
+    checked('D4');
+    const first = m?.body?.statements[0];
+    const isStop = first !== undefined && ts.isExpressionStatement(first) && ts.isCallExpression(first.expression) && calleeName(first.expression) === 'stopNameCheck';
+    if (!isStop) {
+      fail('D4', `${m === null ? rel(ipc) : where(ipc, m)}: the first statement of ${name} is not stopNameCheck(). Every way the door stops publishing stops the check first, or a timer outlives the door and asks about a name nothing publishes.`);
+    }
+  }
+  const STARTERS = /\b(?:beginNameCheck|nameRoundNow|askNameRound|armFunnelRestart|exchange)\b/;
+  const quiet = [];
+  for (const name of ['status', 'nameCheckNow', 'pairable', 'openAtLaunch']) {
+    const m = hostMethod(ipc, name);
+    if (m === null) {
+      fail('D4', `${rel(ipc)} has no PocketHost.${name}, so this rule cannot say it starts nothing`);
+      continue;
+    }
+    quiet.push([`PocketHost.${name}`, m]);
+  }
+  for (const channel of ['pocket:status', 'pocket:pairingState']) {
+    const reg = callsOf(ipc).find((c) => calleeName(c) === 'handle' && c.arguments.some((a) => ts.isStringLiteralLike(a) && a.text === channel));
+    if (reg === undefined) fail('D4', `${rel(ipc)} registers no ${channel} handler this rule can read`);
+    else quiet.push([`the ${channel} handler`, reg]);
+  }
+  for (const [what, node] of quiet) {
+    checked('D4');
+    const hit = STARTERS.exec(codeOfNode(ipc, node));
+    if (hit !== null) {
+      fail('D4', `${where(ipc, node)}: ${what} names ${hit[0]}. A read of the status, the sheet opening and a launch with the door off reach no timer, no socket and no question.`);
+    }
+  }
+  const nameMethods = [];
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isClassDeclaration(n) || n.name?.text !== 'PocketHost') continue;
+    for (const m of n.members) {
+      if (ts.isMethodDeclaration(m) && m.body !== undefined && ts.isIdentifier(m.name) && (/name/i.test(m.name.text) || m.name.text === 'pairable')) nameMethods.push([m.name.text, ipc, m]);
+    }
+  }
+  const streak = oneFunction(file, 'nextNameStreak');
+  if (streak === null) fail('D4', `${rel(file)} declares no single nextNameStreak`);
+  else nameMethods.push(['nextNameStreak', file, streak]);
+  checked('D4');
+  if (!nameMethods.some(([n]) => n === 'nameRoundNow')) fail('D4', `${rel(ipc)} has no PocketHost.nameRoundNow, so the name check's rounds are not where this rule reads them`);
+  for (const [name, f, m] of nameMethods) {
+    checked('D4', 2);
+    const body = codeOfNode(f, m);
+    const clock = /\bDate\s*\.\s*now\b|\bnow\s*\(|\bperformance\b|\bnew\s+Date\b/.exec(body);
+    if (clock !== null) {
+      fail('D4', `${where(f, m)}: ${name} names ${JSON.stringify(clock[0])}. Nothing in the name check reads a clock: its gaps are timers, which are monotonic, so a wall clock moved a day either way changes no gap and causes no burst.`);
+    }
+    const timer = /\b(?:setTimeout|setInterval|setImmediate)\s*\(/.exec(body);
+    if (timer !== null && f === ipc) {
+      fail('D4', `${where(f, m)}: ${name} arms ${JSON.stringify(timer[0])}. The name timer is armed through armFunnelRestart alone, which the quit's first line clears (beginFunnelShutdown), so a timer can never outlive the quit.`);
+    }
+  }
+  checked('D4');
+  if (!nameMethods.some(([name, f, m]) => f === ipc && /name/i.test(name) && /\barmFunnelRestart\s*\(/.test(codeOfNode(f, m)))) {
+    fail('D4', `${rel(ipc)}: no name-check method arms its timer through armFunnelRestart, so the quit does not clear it.`);
+  }
+  for (const s of productionSources()) {
+    if (!/new PocketHost\(/.test(readFileSync(s, 'utf8'))) continue;
+    for (const n of nodesOf(s)) {
+      if (!ts.isNewExpression(n) || !ts.isIdentifier(n.expression) || n.expression.text !== 'PocketHost') continue;
+      const arg = n.arguments?.[0];
+      if (arg === undefined || !ts.isObjectLiteralExpression(arg)) continue;
+      for (const p of arg.properties) {
+        checked('D4');
+        if (memberName(p) === 'names' || ts.isSpreadAssignment(p)) {
+          fail('D4', `${where(s, p)}: PocketHost is handed ${ts.isSpreadAssignment(p) ? 'a spread, which can carry' : ''} \`names\` outside a test. Production and push-seam.ts take public-name.ts's own deps, which only GMUX_POCKET_NAME_SERVERS in a development build points at a stand-in.`);
+        }
+      }
+    }
+  }
+}
+
+function nameLogRule() {
+  // D5. The name module logs nothing; the host logs fixed words, a verdict and a reason.
+  const file = nameModule();
+  const ipc = moduleNamed('ipc', 'D5', "Phase 332 builder host's (src/main/pocket/ipc.ts)");
+  if (file === null || ipc === null) return;
+  const isLog = (c) => /^(?:debug|info|warn|error|log|trace)$/.test(calleeName(c) ?? '');
+  for (const call of callsOf(file)) {
+    checked('D5');
+    if (isLog(call)) fail('D5', `${where(file, call)} is a log call. The name module logs nothing: it answers reason words and the host logs those.`);
+  }
+  const POISON = /\b(?:publicName|target|address|servers|tailnet|bytes)\b/;
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isClassDeclaration(n) || n.name?.text !== 'PocketHost') continue;
+    for (const m of n.members) {
+      if (!ts.isMethodDeclaration(m) || m.body === undefined || !ts.isIdentifier(m.name) || !/name/i.test(m.name.text)) continue;
+      for (const call of descendantsOf(m).filter((x) => ts.isCallExpression(x) && isLog(x))) {
+        for (const arg of call.arguments) {
+          checked('D5');
+          // A literal is a fixed sentence and never a value: only what is
+          // interpolated, or passed as an expression, is read.
+          const spans = ts.isTemplateExpression(arg) ? arg.templateSpans.map((s) => s.expression) : ts.isStringLiteralLike(arg) ? [] : [arg];
+          for (const e of spans) {
+            const text = codeOfNode(ipc, e);
+            const hit = POISON.exec(text);
+            const ok = hit === null && ((ts.isIdentifier(e) && /^(?:verdict|reason)$/.test(e.text)) || (ts.isPropertyAccessExpression(e) && /^(?:verdict|reason)$/.test(e.name.text) && ts.isIdentifier(e.expression)));
+            if (!ok) {
+              fail(
+                'D5',
+                `${where(ipc, call)} hands ${JSON.stringify(text.slice(0, 80))} to ${calleeName(call)}()${hit === null ? '' : `, which names ${JSON.stringify(hit[0])}`}. ` +
+                  'A name-check log line interpolates a verdict or a reason and nothing else: no log line names the public name, the tailnet, a server, an answered address or a packet.'
+              );
+            }
+          }
+        }
+      }
+    }
+  }
+}
+
+function pairableRule() {
+  // D6. `pairable` is main's one predicate; beginPairing and the sheet read it.
+  const file = nameModule();
+  const ipc = moduleNamed('ipc', 'D6', "Phase 332 builder host's (src/main/pocket/ipc.ts)");
+  if (file === null || ipc === null) return;
+  const src = astOf(ipc);
+  const decls = [];
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isClassDeclaration(n) || n.name?.text !== 'PocketHost') continue;
+    for (const m of n.members) if ((ts.isMethodDeclaration(m) || ts.isPropertyDeclaration(m) || ts.isGetAccessor(m)) && memberName(m) === 'pairable') decls.push(m);
+  }
+  checked('D6');
+  if (decls.length !== 1 || !ts.isMethodDeclaration(decls[0])) fail('D6', `PocketHost declares pairable ${String(decls.length)} time(s); it is ONE method.`);
+  const status = hostMethod(ipc, 'status');
+  checked('D6');
+  const answered = status === null ? [] : descendantsOf(status).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'pairable');
+  if (answered.length !== 1 || codeOfNode(ipc, answered[0].initializer).replace(/\s+/g, '') !== 'this.pairable()') {
+    fail('D6', `${status === null ? rel(ipc) : where(ipc, status)}: status() does not answer pairable: this.pairable(). The sheet draws Pair on main's one predicate and never works it out again.`);
+  }
+  const begin = hostMethod(ipc, 'beginPairing');
+  checked('D6');
+  if (begin === null) {
+    fail('D6', `${rel(ipc)} has no PocketHost.beginPairing`);
+  } else {
+    const calls = descendantsOf(begin).filter((n) => ts.isCallExpression(n));
+    const ask = calls.find((c) => calleeName(c) === 'pairable' && ts.isPropertyAccessExpression(c.expression) && c.expression.expression.kind === ts.SyntaxKind.ThisKeyword);
+    const still = calls.find((c) => calleeName(c) === 'stillPublished');
+    if (ask === undefined || still === undefined || ask.getStart(src) > still.getStart(src)) {
+      fail('D6', `${where(ipc, begin)}: beginPairing does not ask this.pairable() before stillPublished(). A code shown before the Mac's name is on the internet is the failed first scan this phase exists to stop.`);
+    }
+    // AND AGAIN AFTER THE READ (the fix round): a switch-on round can answer no
+    // while stillPublished() reads Tailscale, and a verifier opened a window on
+    // the answer from before the read (ATK-T1).
+    checked('D6');
+    const asks = calls.filter((c) => calleeName(c) === 'pairable' && ts.isPropertyAccessExpression(c.expression) && c.expression.expression.kind === ts.SyntaxKind.ThisKeyword);
+    const opens = calls.filter((c) => calleeName(c) === 'open' && ts.isPropertyAccessExpression(c.expression) && /^this\s*\.\s*pairing$/.test(c.expression.expression.getText(src)));
+    const again = still === undefined || opens.length !== 1 ? undefined : asks.find((a) => a.getStart(src) > still.getStart(src) && a.getStart(src) < opens[0].getStart(src));
+    if (again === undefined) {
+      fail('D6', `${where(ipc, begin)}: beginPairing does not ask this.pairable() AGAIN after stillPublished() and before its one this.pairing.open(). A switch-on round that answers no while Tailscale is read takes Pair away, and a window opened on the answer from before the read sends a phone to a name that is gone, whose miss it keeps for five minutes.`);
+    }
+  }
+  const phone = join(ROOT, 'src', 'renderer', 'settings', 'PhoneSection.tsx');
+  checked('D6');
+  if (!existsSync(phone)) {
+    fail('D6', 'src/renderer/settings/PhoneSection.tsx does not exist, so the sheet this rule reads is not there');
+    return;
+  }
+  const readsPairable = (node) => descendantsOf(node).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'pairable');
+  for (const name of ['pairingStage', 'pairAfterAllowNext']) {
+    checked('D6');
+    const fn = oneFunction(phone, name);
+    if (fn === null || !readsPairable(fn)) fail('D6', `${fn === null ? rel(phone) : where(phone, fn)}: ${name} does not read .pairable. Whether a code may show is main's word, read and never worked out.`);
+  }
+  const onPairs = nodesOf(phone).filter((n) => ts.isJsxAttribute(n) && n.name.getText(astOf(phone)) === 'onPair' && n.initializer !== undefined && ts.isJsxExpression(n.initializer) && n.initializer.expression !== undefined && ts.isFunctionLike(n.initializer.expression));
+  const live = onPairs.filter((n) => !/^\(\)\s*=>\s*undefined$/.test(n.initializer.expression.getText(astOf(phone)).trim()));
+  checked('D6', live.length + 1);
+  if (live.length === 0) fail('D6', `${rel(phone)} wires no onPair this rule can read`);
+  for (const n of live) {
+    if (!readsPairable(n)) fail('D6', `${where(phone, n)}: onPair does not read .pairable, so a press decides from something main did not say.`);
+  }
+  for (const n of nodesOf(phone)) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'nameCheck') continue;
+    checked('D6');
+    const p = n.parent;
+    const ok =
+      p !== undefined &&
+      ts.isBinaryExpression(p) &&
+      [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(p.operatorToken.kind) &&
+      ((p.left === n && ts.isStringLiteralLike(p.right) && p.right.text === 'unreadable') || (p.right === n && ts.isStringLiteralLike(p.left) && p.left.text === 'unreadable'));
+    if (!ok) fail('D6', `${where(phone, n)} reads nameCheck other than to compare it with 'unreadable'. The sheet reads it for the one line above Pair and decides nothing else from it.`);
+  }
+}
+
+function nameOverrideRule() {
+  // D7. The override: read in one function, ignored when packaged, loopback
+  // or refused, and a refusal never reaches the search.
+  const file = nameModule();
+  if (file === null) return;
+  const from = oneFunction(file, 'nameServersFrom');
+  checked('D7');
+  if (from === null) {
+    fail('D7', `${rel(file)} declares no single nameServersFrom`);
+    return;
+  }
+  const envConsts = new Set(
+    nodesOf(file)
+      .filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && ts.isStringLiteralLike(n.initializer) && n.initializer.text === 'GMUX_POCKET_NAME_SERVERS')
+      .map((n) => n.name.text)
+  );
+  let readsInside = 0;
+  for (const s of productionSources()) {
+    const raw = readFileSync(s, 'utf8');
+    if (!/GMUX_POCKET_NAME_SERVERS|NAME_SERVERS_ENV/.test(raw)) continue;
+    for (const n of nodesOf(s)) {
+      const read =
+        (ts.isElementAccessExpression(n) && ((ts.isStringLiteralLike(n.argumentExpression) && n.argumentExpression.text === 'GMUX_POCKET_NAME_SERVERS') || (ts.isIdentifier(n.argumentExpression) && (envConsts.has(n.argumentExpression.text) || n.argumentExpression.text === 'NAME_SERVERS_ENV')))) ||
+        (ts.isPropertyAccessExpression(n) && n.name.text === 'GMUX_POCKET_NAME_SERVERS');
+      if (!read) continue;
+      checked('D7');
+      if (s === file && enclosingName(n) === 'nameServersFrom') readsInside += 1;
+      else fail('D7', `${where(s, n)} reads GMUX_POCKET_NAME_SERVERS outside nameServersFrom. The override is read in ONE function, which a packaged build answers with the search before it looks.`);
+    }
+  }
+  checked('D7');
+  if (readsInside === 0) fail('D7', `${where(file, from)}: nameServersFrom does not read GMUX_POCKET_NAME_SERVERS, so the override is somewhere this rule does not read.`);
+  const returns = ownReturnsOf(from)
+    .map((r) => ({ r, obj: returnedObject(r) }))
+    .filter((x) => x.obj !== null);
+  const search = returns.filter((x) => kindOf(x.obj) === 'search');
+  const packagedFirst = search.find((x) => {
+    const g = guardingIf(x.r);
+    return g !== null && /\bpackaged\b/.test(codeOfNode(file, g.expression));
+  });
+  const firstRead = descendantsOf(from).find((n) => ts.isElementAccessExpression(n));
+  checked('D7', 3);
+  if (packagedFirst === undefined || (firstRead !== undefined && packagedFirst.r.getStart(astOf(file)) > firstRead.getStart(astOf(file)))) {
+    fail('D7', `${where(file, from)}: nameServersFrom does not answer { kind: 'search' } for a packaged build before it reads the variable. A packaged Tortie ignores GMUX_POCKET_NAME_SERVERS, as it ignores GMUX_TAILSCALE_BIN.`);
+  }
+  for (const x of search) {
+    if (x === packagedFirst) continue;
+    const g = guardingIf(x.r);
+    const cond = g === null ? '' : codeOfNode(file, g.expression);
+    if (!/===\s*undefined/.test(cond) || !/trim\(\)\s*===\s*''/.test(cond)) {
+      fail('D7', `${where(file, x.r)}: nameServersFrom answers the search for something that is neither a packaged build nor an unset or blank value. A value that is set and unusable REFUSES and never falls back: from a probe, the search is real DNS.`);
+    }
+  }
+  if (!returns.some((x) => kindOf(x.obj) === 'refused')) {
+    fail('D7', `${where(file, from)}: nameServersFrom never answers { kind: 'refused' }, so an unusable override has nowhere to go but the search.`);
+  }
+  const anchored = new Set(
+    nodesOf(file)
+      .filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && n.initializer.kind === ts.SyntaxKind.RegularExpressionLiteral && n.initializer.text.startsWith('/^127\\.0\\.0\\.1:') && /\$\/[a-z]*$/.test(n.initializer.text))
+      .map((n) => n.name.text)
+  );
+  const matchers = descendantsOf(from).filter(
+    (n) =>
+      ts.isCallExpression(n) &&
+      ['exec', 'test'].includes(calleeName(n) ?? '') &&
+      ts.isPropertyAccessExpression(n.expression) &&
+      ((ts.isIdentifier(n.expression.expression) && anchored.has(n.expression.expression.text)) || (n.expression.expression.kind === ts.SyntaxKind.RegularExpressionLiteral && n.expression.expression.text.startsWith('/^127\\.0\\.0\\.1:')))
+  );
+  checked('D7');
+  if (matchers.length === 0) {
+    fail('D7', `${where(file, from)}: nameServersFrom does not match each entry against a pattern anchored on ^127\\.0\\.0\\.1: and ending in $, so an override can name a server that is not loopback.`);
+  }
+  const round = oneFunction(file, 'askNameRound');
+  checked('D7');
+  if (round === null) {
+    fail('D7', `${rel(file)} declares no single askNameRound`);
+  } else {
+    const src = astOf(file);
+    const refusal = descendantsOf(round).find((n) => ts.isIfStatement(n) && /'refused'/.test(codeOfNode(file, n.expression)) && /'override-unusable'/.test(codeOfNode(file, n.thenStatement)));
+    const search = descendantsOf(round).find((n) => ts.isIdentifier(n) && n.text === 'findZoneServers');
+    if (refusal === undefined || (search !== undefined && search.getStart(src) < refusal.getStart(src))) {
+      fail('D7', `${where(file, round)}: askNameRound does not return override-unusable for a refused source BEFORE it names findZoneServers, so a refused override can reach the search, which from a probe is real DNS.`);
+    }
+  }
+}
+
+function nameElectronRule() {
+  // D8. Outside Electron, the shipping transport sends to 127.0.0.1 alone.
+  const file = nameModule();
+  if (file === null) return;
+  const src = astOf(file);
+  const sockets = callsOf(file).filter((c) => calleeName(c) === 'createSocket');
+  checked('D8', sockets.length + 1);
+  if (sockets.length === 0) fail('D8', `${rel(file)} creates no socket, so there is no shipping transport this rule can read`);
+  for (const call of sockets) {
+    let fn = call.parent;
+    while (fn !== undefined && !(ts.isFunctionDeclaration(fn) || ts.isMethodDeclaration(fn) || ((ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && (ts.isVariableDeclaration(fn.parent) || ts.isPropertyAssignment(fn.parent))))) fn = fn.parent;
+    if (fn === undefined) {
+      fail('D8', `${where(file, call)} creates a socket outside any named function`);
+      continue;
+    }
+    const guard = descendantsOf(fn).find((n) => {
+      if (!ts.isIfStatement(n) || n.getStart(src) > call.getStart(src)) return false;
+      const cond = codeOfNode(file, n.expression);
+      return /process\s*\.\s*versions\s*\.\s*electron/.test(cond) && /'127\.0\.0\.1'/.test(cond) && /\berror\b|EXCHANGE_ERROR/i.test(codeOfNode(file, n.thenStatement));
+    });
+    if (guard === undefined) {
+      fail('D8', `${where(file, call)}: the transport that creates this socket does not first answer an error for a server that is not 127.0.0.1 unless process.versions.electron is a string. Vitest, tsx and plain node are not Electron, so this one check is what keeps every test and script that forgets to inject its deps off the internet.`);
+    }
+  }
+}
+
+/** Unwrap parentheses, `as` and `await` around an expression. */
+function unwrapped(e) {
+  let n = e;
+  while (n !== undefined && (ts.isParenthesizedExpression(n) || ts.isAsExpression(n) || ts.isAwaitExpression(n) || ts.isNonNullExpression(n))) n = n.expression;
+  return n;
+}
+
+/** Does this statement (or block) hold a `return false`, nested functions excluded? */
+function returnsFalse(statement) {
+  return ownReturnsOf(statement).some((r) => r.expression !== undefined && r.expression.kind === ts.SyntaxKind.FalseKeyword);
+}
+
+/** A const's numeric initializer, read through one identifier, or null. */
+function numberOf(file, e) {
+  const n = unwrapped(e);
+  if (n === undefined) return null;
+  const literal = (x) => (ts.isNumericLiteral(x) ? Number(x.text.replace(/_/g, '')) : null);
+  if (ts.isNumericLiteral(n)) return literal(n);
+  if (!ts.isIdentifier(n)) return null;
+  const decls = nodesOf(file).filter((d) => ts.isVariableDeclaration(d) && ts.isIdentifier(d.name) && d.name.text === n.text && d.initializer !== undefined);
+  if (decls.length !== 1 || !ts.isNumericLiteral(unwrapped(decls[0].initializer))) return null;
+  return literal(unwrapped(decls[0].initializer));
+}
+
+/** The longest the push seam may wait for main's word before it pairs nothing. */
+const SEAM_PAIRABLE_WAIT_MAX_MS = 120_000;
+
+function seamNameRule() {
+  // D9 (the round after his ruling of 2026-09-30). The push seam is the one
+  // caller of beginPairing outside a test, and it runs in a development
+  // Electron, where D8 does not apply: a door it publishes checks its name, and
+  // without the loopback stand-in that check is the real ts.net search for a
+  // made-up name. A verifier deleted the refusal, and then the wait, and every
+  // gate stayed green. So: nameStandInOnly answers nameServersFrom's `fixed`
+  // alone; openDoorForPairing refuses on it before the switch is touched; it
+  // waits, a bounded time, for main's pairable before it answers true; and the
+  // seam presses Pair only on that true.
+  const seam = join(ROOT, 'src', 'main', 'harness', 'push-seam.ts');
+  checked('D9');
+  if (!existsSync(seam)) {
+    fail('D9', 'src/main/harness/push-seam.ts does not exist, so this rule read nothing. It is Phase 314’s harness seam, which Phase 332 taught to wait for the Mac’s name.');
+    return;
+  }
+  const src = astOf(seam);
+  const at = (n) => n.getStart(src);
+
+  // (a) the predicate: the override's own reader, and `fixed` alone.
+  const only = oneFunction(seam, 'nameStandInOnly');
+  checked('D9');
+  if (only === null) {
+    fail('D9', `${rel(seam)} declares no single nameStandInOnly, so the seam has no word for "the Mac’s name is asked of the loopback stand-in".`);
+  } else {
+    const returns = ownReturnsOf(only);
+    const reads = descendantsOf(only).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'nameServersFrom');
+    const shape = /^return\s*nameServersFrom\s*\([\s\S]*\)\s*\.\s*kind\s*===\s*'fixed'\s*;?$/;
+    if (reads.length !== 1 || returns.length !== 1 || !shape.test(codeOfNode(seam, returns[0]).trim())) {
+      fail('D9', `${where(seam, only)}: nameStandInOnly does not answer exactly nameServersFrom(…).kind === 'fixed'. Only a development build whose GMUX_POCKET_NAME_SERVERS names loopback servers is 'fixed'; the search and a refused value are the real ts.net servers or nothing, and the seam pairs over neither.`);
+    }
+  }
+
+  // (b) the refusal, before the switch is touched, and (c) the wait, before true.
+  const open = oneFunction(seam, 'openDoorForPairing');
+  checked('D9');
+  if (open === null) {
+    fail('D9', `${rel(seam)} declares no single openDoorForPairing, so the seam's pairing is somewhere this rule does not read.`);
+    return;
+  }
+  const hostParam = open.parameters[0] !== undefined && ts.isIdentifier(open.parameters[0].name) ? open.parameters[0].name.text : null;
+  const calls = descendantsOf(open).filter((n) => ts.isCallExpression(n));
+  const hostCalls = calls.filter((c) => ts.isPropertyAccessExpression(c.expression) && ts.isIdentifier(c.expression.expression) && c.expression.expression.text === hostParam);
+  const firstSwitch = hostCalls.find((c) => calleeName(c) === 'setDoor');
+  checked('D9');
+  if (hostParam === null || firstSwitch === undefined) {
+    fail('D9', `${where(seam, open)}: openDoorForPairing never switches its host's door on (host.setDoor), so this rule cannot say the refusal comes first.`);
+    return;
+  }
+  const refusals = descendantsOf(open).filter(
+    (n) => ts.isIfStatement(n) && /^!\s*nameStandInOnly\s*\(\s*\)$/.test(codeOfNode(seam, n.expression).trim()) && returnsFalse(n.thenStatement)
+  );
+  checked('D9');
+  const firstHostCall = hostCalls.reduce((a, c) => (a === null || at(c) < at(a) ? c : a), null);
+  if (refusals.length === 0 || at(refusals[0]) > at(firstHostCall)) {
+    fail('D9', `${where(seam, open)}: openDoorForPairing does not return false on !nameStandInOnly() BEFORE it first calls its host. Its Electron is not vitest, so D8 lets its door ask real servers: without the loopback name stand-in the check would ask the real ts.net servers about the stand-in's made-up name every minute.`);
+  }
+  // The wait: a function of this file that reads .pairable off host.status().
+  const waiters = new Set(
+    nodesOf(seam)
+      .filter((n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.body !== undefined)
+      .filter((fn) => descendantsOf(fn).some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'pairable'))
+      .filter((fn) => descendantsOf(fn).some((n) => ts.isCallExpression(n) && calleeName(n) === 'status'))
+      .map((fn) => fn.name.text)
+  );
+  const waits = calls.filter((c) => ts.isIdentifier(c.expression) && waiters.has(c.expression.text));
+  const trues = ownReturnsOf(open).filter((r) => r.expression !== undefined && r.expression.kind === ts.SyntaxKind.TrueKeyword);
+  checked('D9', 2);
+  const wait = waits.find((w) => at(w) > at(firstSwitch) && trues.length > 0 && trues.every((r) => at(r) > at(w)));
+  if (wait === undefined) {
+    fail('D9', `${where(seam, open)}: openDoorForPairing answers true without first waiting for main's word (a function here that reads host.status().pairable), called after the switch and before every return true. A listening door is not a pairable one: beginPairing refuses until the name answers, and a seam that pressed Pair on "listening" alone was what the four probes and this seam did before Phase 332.`);
+  } else {
+    const bound = wait.arguments.length >= 2 ? numberOf(seam, wait.arguments[1]) : null;
+    if (bound === null || bound <= 0 || bound > SEAM_PAIRABLE_WAIT_MAX_MS) {
+      fail('D9', `${where(seam, wait)}: the wait for main's word is not bounded by a constant of at most ${String(SEAM_PAIRABLE_WAIT_MAX_MS)} ms (read ${bound === null ? 'nothing' : String(bound)}). A name stand-in that never answers must end in "no phone was paired", not in a probe that hangs.`);
+    }
+    let holder = wait.parent;
+    while (holder !== undefined && (ts.isAwaitExpression(holder) || ts.isParenthesizedExpression(holder))) holder = holder.parent;
+    const bound2 = holder !== undefined && ts.isVariableDeclaration(holder) && ts.isIdentifier(holder.name) ? holder.name.text : null;
+    const gated =
+      bound2 !== null &&
+      descendantsOf(open).some(
+        (n) => ts.isIfStatement(n) && at(n) > at(wait) && trues.every((r) => at(n) < at(r)) && new RegExp(`^!\\s*${bound2}\\s*\\.\\s*ok$`).test(codeOfNode(seam, n.expression).trim()) && returnsFalse(n.thenStatement)
+      );
+    if (!gated) {
+      fail('D9', `${where(seam, wait)}: the wait's answer does not decide a return false (if (!<answer>.ok) return false) before openDoorForPairing answers true, so a wait that timed out still pairs.`);
+    }
+  }
+
+  // (d) the seam presses Pair only on openDoorForPairing's true.
+  const opened = new Set(
+    nodesOf(seam)
+      .filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined)
+      .filter((n) => {
+        const init = unwrapped(n.initializer);
+        return init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'openDoorForPairing';
+      })
+      .map((n) => n.name.text)
+  );
+  const presses = callsOf(seam).filter((c) => calleeName(c) === 'beginPairing');
+  checked('D9', presses.length + 1);
+  if (presses.length === 0) fail('D9', `${rel(seam)} presses Pair nowhere, so there is no press this rule can hold to the wait.`);
+  for (const press of presses) {
+    let held = false;
+    for (let n = press.parent; n !== undefined && !held; n = n.parent) {
+      if (ts.isForOfStatement(n)) {
+        const e = unwrapped(n.expression);
+        held =
+          e !== undefined &&
+          ts.isConditionalExpression(e) &&
+          ts.isIdentifier(unwrapped(e.condition)) &&
+          opened.has(unwrapped(e.condition).text) &&
+          ts.isArrayLiteralExpression(unwrapped(e.whenFalse)) &&
+          unwrapped(e.whenFalse).elements.length === 0;
+      } else if (ts.isIfStatement(n)) {
+        const c = unwrapped(n.expression);
+        held = c !== undefined && ts.isIdentifier(c) && opened.has(c.text) && descendantsOf(n.thenStatement).includes(press);
+      }
+      if (ts.isFunctionLike(n)) break;
+    }
+    if (!held) {
+      fail('D9', `${where(seam, press)}: the seam presses Pair on a path that openDoorForPairing's true does not decide. Both refusals and the wait are nothing if the press does not wait for their answer.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -3720,7 +4630,16 @@ const PHASES = [
   ['/pair’s three answers', pairAnswerRule, 'N3'],
   ['the menu row', menuRowRule, 'MENU1'],
   ['the door’s import wall', doorImportRule, 'W2'],
-  ['the door’s environment', doorEnvRule, 'E1']
+  ['the door’s environment', doorEnvRule, 'E1'],
+  ['the name module’s imports', nameImportRule, 'D1'],
+  ['the name question', nameQueryRule, 'D2'],
+  ['the refused ranges', nameRangesRule, 'D3'],
+  ['when the name check runs', nameStartRule, 'D4'],
+  ['the name check’s log lines', nameLogRule, 'D5'],
+  ['the one pairable', pairableRule, 'D6'],
+  ['the name servers override', nameOverrideRule, 'D7'],
+  ['no real server outside Electron', nameElectronRule, 'D8'],
+  ['the push seam waits for the name', seamNameRule, 'D9']
 ];
 
 for (const [name, run, onError] of PHASES) {

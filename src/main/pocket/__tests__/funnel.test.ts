@@ -990,6 +990,66 @@ describe('the restart and the quit', () => {
     expect(fired).toBe(1);
   });
 
+  // PHASE 332: the Mac's name check arms its timer here on its OWN clock, a
+  // bare `{ sleep }`, and sits in the same set the quit's first line clears.
+  describe('over a bare { sleep }, the name check’s own clock', () => {
+    function bareSleep(): { deps: { sleep(ms: number): Promise<void> }; asked: number[]; release: () => void } {
+      const held: (() => void)[] = [];
+      const asked: number[] = [];
+      return {
+        deps: {
+          sleep: (ms) =>
+            new Promise<void>((resolve) => {
+              asked.push(ms);
+              held.push(resolve);
+            })
+        },
+        asked,
+        release: () => {
+          for (const r of held.splice(0)) r();
+        }
+      };
+    }
+
+    it('sleeps the gap it was handed on that clock, and fires once', async () => {
+      const bare = bareSleep();
+      let fired = 0;
+      armFunnelRestart(bare.deps, 45_000, () => {
+        fired += 1;
+      });
+      expect(bare.asked).toEqual([45_000]);
+      await settle();
+      expect(fired).toBe(0);
+      bare.release();
+      await settle();
+      expect(fired).toBe(1);
+    });
+
+    it('is cleared by its own cancel and by the quit, whichever comes first', async () => {
+      const bare = bareSleep();
+      let fired = 0;
+      const cancel = armFunnelRestart(bare.deps, 20_000, () => {
+        fired += 1;
+      });
+      cancel();
+      armFunnelRestart(bare.deps, 30_000, () => {
+        fired += 1;
+      });
+      beginFunnelShutdown();
+      bare.release();
+      await settle();
+      expect(fired).toBe(0);
+      // Armed after the quit began: nothing is even slept.
+      armFunnelRestart(bare.deps, 60_000, () => {
+        fired += 1;
+      });
+      expect(bare.asked).toEqual([20_000, 30_000]);
+      bare.release();
+      await settle();
+      expect(fired).toBe(0);
+    });
+  });
+
   it('ends a start waiting on approval at the quit, and the join ends every child', async () => {
     const w = world({
       holdFrom: FUNNEL_START_DEADLINE_MS,

@@ -89,6 +89,18 @@
  *         or refused argv reached the stand-in, no stand-in process is left,
  *         and no Electron of this run is left
  *
+ * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
+ * now asks the `ts.net` zone's own servers whether its public name answers
+ * before a code may show. The app is handed `GMUX_POCKET_NAME_SERVERS`,
+ * naming build/p332/dns-standin.mjs IN THIS PROCESS on 127.0.0.1, answering the
+ * Tailscale stand-in's made-up name, so no question reaches real DNS; the
+ * preflight refuses unless that value names 127.0.0.1 alone and the stand-in
+ * answers. K1 waits for main's `pairable` before it asks for the code, and N1
+ * grades every question the app asked: an `A` question, RD 0, for that name.
+ * Before every launch the profile's agents.json renames the Gemini, Qwen,
+ * Antigravity, Grok and Droid binaries and `agents:list` is read back, so no
+ * agent's `--version` ever runs.
+ *
  * NOT DRIVEN HERE, and why. A REMOTE row's turns need a second machine;
  * `conformance:pocket:hostile` drives the SHIPPING composer's remote arm.
  * `blockedSince` for a row first seen at a wake is Phase 314's.
@@ -117,6 +129,7 @@
  *   npm run -s probe:p313
  *   P313_PARENT_CHECKOUT=/path/to/parent npm run -s probe:p313   the parent reading
  *   P313_KEEP=1 npm run -s probe:p313                            keep the scratch world
+ *   node build/probe-p313.mjs --grader-self-test                  the name-question clause, no Electron
  *
  * Exit 0 when every arm passed (or, at the parent, the parent reading was
  * taken), 1 when an arm failed, 2 when it could not run or an arm could not be
@@ -133,6 +146,7 @@ import { withElectron, withoutDevRenderer } from './electron-run.mjs';
 import { wsConnect, cdpEval } from './cdp-client.mjs';
 import { pickRendererTarget } from './cdp-target.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from './p330/tailscale-standin.mjs';
+import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from './p332/dns-standin.mjs';
 import {
   adoptCertificate,
   b64u,
@@ -156,6 +170,13 @@ const say = (line) => console.log(`${TAG} ${line}`);
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 const J = JSON.stringify;
 const sha = (data) => createHash('sha256').update(data).digest('hex');
+
+// Phase 332's clause, graded on its own cases with nothing launched.
+if (process.argv.includes('--grader-self-test')) {
+  const ok = nameQuestionsSelfTest(DEFAULT_SCENARIO.dnsName.replace(/\.$/, ''));
+  console.log(`[p313] grader self-test ${ok ? 'PASS' : 'FAIL'}: the name-question clause (N1).`);
+  process.exit(ok ? 0 : 1);
+}
 
 if (!existsSync(join(CHECKOUT, 'out', 'main', 'index.js'))) {
   console.error(`${TAG} ${CHECKOUT} has no build at out/main/index.js. Run npm run build there first.`);
@@ -400,7 +421,13 @@ async function armed(cdp) {
   await cdp.call('Runtime.enable');
   for (let i = 0; i < 200; i += 1) {
     const ready = await cdpEval(cdp, 'window.gmux !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined');
-    if (ready === true) return true;
+    if (ready === true) {
+      // NO AGENT STARTS (Phase 332): the renamed rows must read not installed.
+      const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')));
+      agentsHeld.push(held.ok);
+      if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
+      return true;
+    }
     await sleep(300);
   }
   return false;
@@ -515,6 +542,10 @@ let lastApp = 0;
 let ran = false;
 let preflightOk = false;
 let watch = null;
+/** The name check's zone servers (Phase 332), in this process on 127.0.0.1. */
+let dns = null;
+const dnsPreflights = [];
+const agentsHeld = [];
 
 const launchOptions = (label) => ({
   label,
@@ -535,6 +566,9 @@ const launchOptions = (label) => ({
     // runs it; a packaged one ignores it, which is why no packaged Tortie is
     // launched here. The door itself binds 127.0.0.1 and nothing else.
     GMUX_TAILSCALE_BIN: standin.binPath,
+    // THE DNS STAND-IN (Phase 332): the name check asks it and nothing else.
+    // A parent build ignores the variable.
+    [NAME_SERVERS_VAR]: dns.servers,
     P313_NEXT: NEXT,
     P313_STOP: STOP,
     P313_TALK_SID: TALK_SID,
@@ -549,6 +583,12 @@ const launchOptions = (label) => ({
 async function launch(label, body) {
   const pre = preflightStandin(standin, standin.binPath);
   if (!pre.ok) throw new Error(`the preflight refused the launch: ${pre.problems.join('; ')}`);
+  // Phase 332: the name check's servers are the loopback stand-in's, or nothing launches.
+  const value = launchOptions(label).env[NAME_SERVERS_VAR];
+  const dnsPre = await dns.preflight(value);
+  dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(value));
+  if (!dnsPre.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
+  writeQuietAgents(PROFILE);
   await withElectron(launchOptions(label), async (handle) => {
     const rec = { shim: handle.pid, app: 0 };
     launches.push(rec);
@@ -582,6 +622,7 @@ try {
   const pre = preflightStandin(standin, standin.binPath);
   preflightOk = pre.ok;
   if (!pre.ok) throw new Error(`the preflight refused: ${pre.problems.join('; ')}`);
+  dns = await makeDnsStandin({ name: PUBLIC_NAME, mode: 'record' });
   watch = watchForRealTailscale({ roots: () => [lastShim, lastApp].filter((p) => p > 0), everyMs: 1_000 });
 
   writeFileSync(
@@ -741,6 +782,9 @@ exit 0
       if (!listening.ok || child === null) return;
 
       // ---- K1: the offer ---------------------------------------------------
+      // Phase 332: a code may show once main says the name answers, one
+      // round of the stand-in; a parent answers no `pairable`.
+      await waitStatus(cdp, (s) => s.pairable === true || (s.pairable === undefined && s.state === 'listening'), 75_000);
       const offered = await pocket(cdp, 'beginPairing');
       if (!offered.ok) {
         arm('K1 the offer', false, `beginPairing refused while published: ${offered.error.slice(0, 200)}`);
@@ -1090,12 +1134,24 @@ exit 0
   const ended = standin === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
   const findings = watch?.stop() ?? [];
   const log = standin?.readLog() ?? [];
+  const nameRows = dns?.log() ?? [];
+  if (dns !== null) await dns.close();
   report.readings.run = { preflight: preflightOk, realTailscale: findings, samples: watch?.samples() ?? 0, forbidden: log.filter((e) => e.forbidden === true).length, refused: log.filter((e) => e.verdict === 'refused').length, ended: ended.ended.length, left: ended.left.length };
   if (standin !== null) {
     arm(
       'RUN no real Tailscale, nothing forbidden, no stand-in left',
       preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && report.readings.run.forbidden === 0 && report.readings.run.refused === 0 && ended.left.length === 0,
       `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es) seen; ${String(report.readings.run.forbidden)} forbidden and ${String(report.readings.run.refused)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
+    );
+  }
+  // ---- N1 (Phase 332): the name check asked the loopback stand-in, and rightly --
+  if (dns !== null) {
+    const verdict = nameQuestionsVerdict({ expect: !AT_PARENT && log.some((e) => e.kind === 'funnel'), rows: nameRows, name: PUBLIC_NAME });
+    report.readings.nameQuestions = nameRows;
+    arm(
+      'N1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent was started',
+      verdict.ok && dnsPreflights.length > 0 && dnsPreflights.every((x) => x === true) && agentsHeld.length > 0 && agentsHeld.every((x) => x === true),
+      `${verdict.said}; the DNS preflight ${J(dnsPreflights)} at each launch; the renamed agents ${J(agentsHeld)} absent at each launch`
     );
   }
 }

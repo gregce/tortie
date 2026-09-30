@@ -127,6 +127,18 @@
  *   which the test passes to the app as `-TortieDebugDoorEndpoint` (Phase 330).
  *   A run whose test prints no P316 line is UNREADABLE (exit 2), never a pass.
  *
+ * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
+ * now asks the `ts.net` zone's own servers whether its public name answers
+ * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
+ * build/p332/dns-standin.mjs IN THIS PROCESS on 127.0.0.1, answering the
+ * Tailscale stand-in's made-up name, so no question reaches real DNS; the
+ * preflight refuses unless that value names 127.0.0.1 alone and the stand-in
+ * answers. Every window waits for main's `pairable` (`confirmListening`), and
+ * N1 grades every question the Mac asked: an `A` question, RD 0, for that
+ * name. Before the launch the profile's agents.json renames the Gemini, Qwen,
+ * Antigravity, Grok and Droid binaries and `agents:list` is read back, so no
+ * agent's `--version` ever runs.
+ *
  * WHAT IT REFUSES TO DO. It never binds a real interface and dials nothing but
  * 127.0.0.1 (the code's host is a public NAME nobody resolves here), never runs
  * a `tailscale` command, never signs into anything and touches no keychain of
@@ -184,6 +196,7 @@ import {
   xcodebuildRun
 } from '../simulator-run.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
+import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, shaHex, signedGet } from './node-phone.mjs';
 
@@ -361,7 +374,13 @@ async function attach(timeoutMs) {
 async function armed(cdp) {
   await cdp.call('Runtime.enable');
   for (let i = 0; i < 200; i += 1) {
-    if ((await cdpEval(cdp, 'window.gmux !== undefined && window.gmux.pocket !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined')) === true) return true;
+    if ((await cdpEval(cdp, 'window.gmux !== undefined && window.gmux.pocket !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined')) === true) {
+      // NO AGENT STARTS (Phase 332): the renamed rows must read not installed.
+      const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')));
+      agentsHeld.push(held.ok);
+      if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
+      return true;
+    }
     await sleep(300);
   }
   return false;
@@ -411,11 +430,20 @@ async function confirmListening(cdp) {
     30_000
   );
   if (!now.ok) return { ok: false, why: `the lines never named ${PUBLIC_NAME}: ${J({ state: now.status?.state, confirmable: now.status?.confirmable, refusal: now.status?.refusal })}` };
-  if (now.status.state === 'listening' && now.status.confirmState === 'confirmed') return { ok: true };
+  if (now.status.state === 'listening' && now.status.confirmState === 'confirmed') {
+    const p = await waitStatus(cdp, pairableNow, 65_000);
+    return { ok: p.ok, why: `already confirmed, pairable ${String(p.status?.pairable)}` };
+  }
   const c = await pocket(cdp, 'confirmDoor', { linesRead: now.status.confirmLines, hashRead: now.status.confirmHash });
-  const l = await waitStatus(cdp, (s) => s.state === 'listening', 20_000);
-  return { ok: c.ok && c.value.allowed === true && l.ok, why: c.ok ? `confirm allowed=${String(c.value.allowed)}, state ${String(l.status?.state)}` : c.error };
+  // Phase 332: listening is not enough; a code shows once main says the name
+  // answers (one round of the DNS stand-in). A parent answers no
+  // `pairable`, so listening is its word.
+  const l = await waitStatus(cdp, pairableNow, 65_000);
+  return { ok: c.ok && c.value.allowed === true && l.ok, why: c.ok ? `confirm allowed=${String(c.value.allowed)}, state ${String(l.status?.state)}, pairable ${String(l.status?.pairable)}` : c.error };
 }
+
+/** Main's word that a code may show (Phase 332), or `listening` from a build that has no such word. */
+const pairableNow = (s) => s.pairable === true || (s.pairable === undefined && s.state === 'listening');
 
 /**
  * Open a pairing window. The code must read the phone's way (v:3: the public
@@ -433,6 +461,10 @@ async function openWindow(cdp) {
 }
 
 let standin = null;
+/** The name check's zone servers (Phase 332), in this process on 127.0.0.1. */
+let dns = null;
+const dnsPreflights = [];
+const agentsHeld = [];
 /** The live Funnel child's forwarder port, or 0 while nothing is published. */
 const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
 
@@ -945,7 +977,14 @@ function selfTest() {
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
-if (process.argv.includes('--grader-self-test')) selfTest();
+if (process.argv.includes('--grader-self-test')) {
+  // Phase 332's clause first, on its own cases; selfTest() exits.
+  if (!nameQuestionsSelfTest(PUBLIC_NAME)) {
+    console.log(`${TAG} self-test FAIL: the name-question clause (N1).`);
+    process.exit(1);
+  }
+  selfTest();
+}
 preflight();
 
 const doorChildren = new Set();
@@ -968,6 +1007,7 @@ try {
     throw new Error('port taken');
   }
   watch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
+  dns = await makeDnsStandin({ name: PUBLIC_NAME, mode: 'record' });
   relay = await startRelay();
 
   // ---- B1: the two builds, before anything serves ------------------------
@@ -1029,6 +1069,14 @@ exit 0
   git(['-c', 'user.email=p@x', '-c', 'user.name=p', 'commit', '-qm', 'seed']);
 
   // ---- Electron ------------------------------------------------------------
+  // Phase 332: the name check's servers are the loopback stand-in's, or nothing launches.
+  const dnsPre = await dns.preflight(dns.servers);
+  dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(dns.servers));
+  if (!dnsPre.ok) {
+    arm('the run', null, `the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
+    throw new Error('port taken');
+  }
+  writeQuietAgents(PROFILE);
   await withElectron(
     {
       label: 'p316',
@@ -1049,6 +1097,8 @@ exit 0
         // this and runs it; a packaged one ignores it. The door itself binds
         // 127.0.0.1 and nothing else.
         GMUX_TAILSCALE_BIN: standin.binPath,
+        // THE DNS STAND-IN (Phase 332): the name check asks it and nothing else.
+        [NAME_SERVERS_VAR]: dns.servers,
         P316_NEXT: NEXT,
         P316_STOP: STOP,
         P316_TALK_SID: TALK_SID,
@@ -1465,6 +1515,8 @@ exit 0
   const ended = standin === null ? { ended: [], left: [] } : endStandinProcesses(STANDIN_DIR, 1_500);
   const findings = watch?.stop() ?? [];
   const log = standin?.readLog() ?? [];
+  const nameRows = dns?.log() ?? [];
+  if (dns !== null) await dns.close();
   if (standin !== null) {
     const forbidden = log.filter((e) => e.forbidden === true).length;
     const refusedArgv = log.filter((e) => e.verdict === 'refused').length;
@@ -1473,6 +1525,16 @@ exit 0
       'RUN no real Tailscale, nothing forbidden, no stand-in left',
       preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && forbidden === 0 && refusedArgv === 0 && ended.left.length === 0,
       `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es); ${String(forbidden)} forbidden and ${String(refusedArgv)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
+    );
+  }
+  // ---- N1 (Phase 332): the name check asked the loopback stand-in, and rightly --
+  if (dns !== null) {
+    const verdict = nameQuestionsVerdict({ expect: log.some((e) => e.kind === 'funnel'), rows: nameRows, name: PUBLIC_NAME });
+    report.readings.nameQuestions = nameRows;
+    arm(
+      'N1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent was started',
+      verdict.ok && dnsPreflights.length > 0 && dnsPreflights.every((x) => x === true) && agentsHeld.length > 0 && agentsHeld.every((x) => x === true),
+      `${verdict.said}; the DNS preflight ${J(dnsPreflights)}; the renamed agents ${J(agentsHeld)} absent`
     );
   }
 }

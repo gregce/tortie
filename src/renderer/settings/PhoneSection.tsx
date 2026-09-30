@@ -13,7 +13,8 @@
  *      page, Open Tailscale.
  *   2. Pair a phone: with the door off, ONE Pair button, which turns it on and
  *      reads Tailscale; once it answers, the code, the time it has left, the
- *      fingerprint to match on the phone, the lines, and Allow.
+ *      fingerprint to match on the phone, the lines, and Allow. While the Mac's
+ *      name is not yet on the internet (Phase 332), one line in place of Pair.
  *   3. The phones, each with Remove.
  *   4. Phase 314's alert switch.
  *
@@ -36,6 +37,7 @@ import {
   POCKET_FUNNEL_APPROVAL_ELSEWHERE,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
+  POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
   POCKET_READ_ONLY_HONESTY,
   type PocketPairingOffer,
@@ -78,8 +80,9 @@ export const CODE_EXPIRED = 'The code expired. Nothing was paired.';
 /**
  * His measurement (SPEC M5): the first time Tailscale publishes the door, the
  * Mac's public name took about eight minutes to reach a resolver, and the
- * window is three. Said when a code shuts with nobody presenting, within
- * {@link FIRST_NAME_MS} of the door being published.
+ * window is three. Said when a code shuts with nobody presenting and it was
+ * shown while the name could not be confirmed (Phase 332): a code shown after
+ * the name answered is not a first scan that met a missing name.
  */
 export const CODE_FIRST_NAME =
   'The first time, your Mac’s name can take several minutes to reach your phone. Press Pair again.';
@@ -95,9 +98,6 @@ export const PUSH_LABEL = 'Alert my phone when a session waits';
 export const PUSH_CAPTION = 'Sent through Apple. Never what it asks.';
 
 export const BRIDGE_MISSING = 'Phone is not available in this build.';
-
-/** How long after a door is published a shut code earns {@link CODE_FIRST_NAME}. */
-export const FIRST_NAME_MS = 15 * 60_000;
 
 /** `Answering at https://mac.tail0000.ts.net:8443`, what a phone is told. */
 export function doorListening(publicName: string, publicPort: number): string {
@@ -140,16 +140,11 @@ export function noticeToDraw(notice: PhoneNotice | null, status: PocketStatus | 
 
 /**
  * The line a code that shut with nothing paired earns: the expiry, and, when
- * nobody presented and the door was published within {@link FIRST_NAME_MS},
- * why a first scan can fail.
+ * nobody presented and the code was shown while main could not confirm the
+ * Mac's name (`shownUnreadable`, Phase 332), why a first scan can fail.
  */
-export function expiredNotice(
-  publishedAt: number | null,
-  expiresAt: number,
-  presented: boolean
-): PhoneNotice {
-  const firstName =
-    !presented && publishedAt !== null && expiresAt - publishedAt <= FIRST_NAME_MS;
+export function expiredNotice(shownUnreadable: boolean, presented: boolean): PhoneNotice {
+  const firstName = !presented && shownUnreadable;
   return { text: firstName ? `${CODE_EXPIRED} ${CODE_FIRST_NAME}` : CODE_EXPIRED, phoneId: null };
 }
 
@@ -198,8 +193,12 @@ export function doorLine(status: PocketStatus): string {
   return status.refusal ?? DOOR_NOT_LISTENING;
 }
 
-/** Which of the five faces the pairing card wears. */
-export type PairingStage = 'start' | 'waiting' | 'ready' | 'showing' | 'match';
+/**
+ * Which of the six faces the pairing card wears. `naming`: the door answers
+ * and main says a code may not show yet, because the Mac's name is not on the
+ * internet (Phase 332).
+ */
+export type PairingStage = 'start' | 'waiting' | 'naming' | 'ready' | 'showing' | 'match';
 
 export function pairingStage(
   status: PocketStatus | null,
@@ -213,7 +212,9 @@ export function pairingStage(
   }
   if (status === null) return 'waiting';
   if (status.state === 'off') return 'start';
-  return status.state === 'listening' ? 'ready' : 'waiting';
+  if (status.state !== 'listening') return 'waiting';
+  // MAIN'S ONE PREDICATE (Phase 332), never worked out here.
+  return status.pairable ? 'ready' : 'naming';
 }
 
 /**
@@ -225,9 +226,11 @@ export type PairAfterAllow = 'no' | 'pressed' | 'on';
 
 /**
  * The next step of "pair after Allow" for a status main pushed, and whether
- * to ask for the code NOW. The code is asked for ONCE, when a push shows the
- * door answering. The wish is dropped when the door goes off after it was on,
- * or when a start is refused with nothing more coming (no lines to Allow).
+ * to ask for the code NOW. The code is asked for ONCE, when a push shows main
+ * will show one (`pairable`, Phase 332): a door that answers while its name is
+ * checked keeps the wish. The wish is dropped when the door goes off after it
+ * was on, or when a start is refused with nothing more coming (no lines to
+ * Allow).
  */
 export function pairAfterAllowNext(
   phase: PairAfterAllow,
@@ -235,7 +238,7 @@ export function pairAfterAllowNext(
 ): { phase: PairAfterAllow; pair: boolean } {
   if (phase === 'no' || status === null) return { phase, pair: false };
   if (phase === 'pressed' && status.state === 'off') return { phase, pair: false };
-  if (status.state === 'listening') return { phase: 'no', pair: true };
+  if (status.pairable) return { phase: 'no', pair: true };
   if (status.state === 'off') return { phase: 'no', pair: false };
   if (status.state === 'refused' && !doorNeedsConfirm(status)) return { phase: 'no', pair: false };
   return { phase: 'on', pair: false };
@@ -396,11 +399,26 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
     );
   }
 
+  if (stage === 'naming') {
+    return (
+      <div className="phone-block" data-phone-stage="naming">
+        {notice === null ? null : <p className="phone-notice">{notice}</p>}
+        <p className="phone-line">{POCKET_NAME_SENTENCES.checking}</p>
+      </div>
+    );
+  }
+
   // `start` (the door is off) and `ready` (it is answering) both wear ONE
-  // Pair button; what it does is the connected section's to decide.
+  // Pair button; what it does is the connected section's to decide. `ready`
+  // over a name main could not confirm says so above it.
   return (
     <div className="phone-block" data-phone-stage={stage}>
       {notice === null ? null : <p className="phone-notice">{notice}</p>}
+      {stage === 'ready' && status?.nameCheck === 'unreadable' ? (
+        <p className="phone-line" data-phone-name-unreadable>
+          {POCKET_NAME_SENTENCES.unreadable}
+        </p>
+      ) : null}
       <PairButton busy={busy || status === null} onPair={props.onPair} />
     </div>
   );
@@ -622,6 +640,14 @@ export function PhoneSection(): React.JSX.Element {
   const [pairAfterAllow, setPairAfterAllow] = useState<PairAfterAllow>('no');
   /** Whether a phone presented during the code that is showing. */
   const presentedRef = useRef(false);
+  /**
+   * Whether the code that is showing was shown while main could not confirm the
+   * Mac's name (Phase 332): only such a code earns {@link CODE_FIRST_NAME}.
+   */
+  const shownUnreadableRef = useRef(false);
+  /** The latest status, for the answer to a press that began before it. */
+  const statusRef = useRef<PocketStatus | null>(null);
+  statusRef.current = status;
 
   // The open code, for the unmount below, which runs after state is gone.
   const offerRef = useRef<PocketPairingOffer | null>(null);
@@ -689,12 +715,12 @@ export function PhoneSection(): React.JSX.Element {
       now >= offer.expiresAt || view?.state === 'idle' || view?.state === 'expired';
     if (!shut) return;
     setOffer(null);
-    setNotice(expiredNotice(status?.funnel.publishedAt ?? null, offer.expiresAt, presentedRef.current));
+    setNotice(expiredNotice(shownUnreadableRef.current, presentedRef.current));
     void api
       ?.pairingState()
       .then(setView)
       .catch(() => undefined);
-  }, [api, offer, view, now, status]);
+  }, [api, offer, view, now]);
 
   const run = useCallback(
     async <T,>(work: () => Promise<T>): Promise<T | null> => {
@@ -722,14 +748,15 @@ export function PhoneSection(): React.JSX.Element {
     }).then((answer) => {
       if (answer === null) return;
       presentedRef.current = false;
+      shownUnreadableRef.current = statusRef.current?.nameCheck === 'unreadable';
       setNow(Date.now());
       setView(answer.pairing);
       setOffer(answer.opened);
     });
   }, [api, run]);
 
-  // PAIR AFTER ALLOW: the push that says the door is answering asks for the
-  // code once; an off or a refusal with nothing more coming drops the wish.
+  // PAIR AFTER ALLOW: the push that says a code may show asks for it once; an
+  // off or a refusal with nothing more coming drops the wish.
   useEffect(() => {
     const next = pairAfterAllowNext(pairAfterAllow, status);
     if (next.phase !== pairAfterAllow) setPairAfterAllow(next.phase);
@@ -802,7 +829,7 @@ export function PhoneSection(): React.JSX.Element {
         void run(() => api.openApproval());
       }}
       onPair={() => {
-        if (status?.state === 'listening') {
+        if (status?.pairable === true) {
           beginPairing();
           return;
         }

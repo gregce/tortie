@@ -334,12 +334,21 @@ const HELPER = 'electron-run.mjs';
  * profile, the parent's launched with no socket so its tmux server lives on
  * into HEAD's, which ends it; each ended by the helper's `finally`.
  *
+ * PHASE 332 RAISED IT FROM 155 TO 156, for build/p332/probe-p332.mjs
+ * (`probe:p332`), pairing that waits for the Mac's public name, measured at the
+ * parent and at HEAD against a loopback DNS stand-in the probe runs in its own
+ * process (build/p332/dns-standin.mjs): ONE Electron at a time on a scratch
+ * profile, a scratch HOME and the socket gmux-p332-<pid>, two launches one
+ * after the other at HEAD, each ended by the helper's `finally`. The stand-in
+ * Tailscale's pids are ended by pid in the probe's `finally`, and the DNS
+ * stand-in is closed there.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 155;
+const HELPER_USER_FLOOR = 156;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

@@ -25,12 +25,15 @@ const electron = vi.hoisted(() => ({
   onceCalls: 0,
   hasSwitchCalls: 0,
   getPathCalls: 0,
-  packaged: false
+  packaged: false,
+  /** Reading `app.isPackaged` throws, as it can before the app is ready. */
+  packagedThrows: false
 }));
 
 vi.mock('electron', () => ({
   app: {
     get isPackaged() {
+      if (electron.packagedThrows) throw new Error('p332: isPackaged could not be read');
       return electron.packaged;
     },
     getPath: () => {
@@ -102,6 +105,9 @@ const {
   watchPushCommands,
   PUSH_SEAM_POLL_MS,
   PUSH_SEAM_TAG,
+  PAIRABLE_WAIT_MS,
+  nameStandInOnly,
+  openDoorForPairing,
   standInOnly
 } = await import('../push-seam');
 const { drivableMonitor } = await import('../../power/drivable-monitor');
@@ -613,5 +619,194 @@ describe('standInOnly, the seam\'s own refusal before it publishes anything', ()
   it('allows a development build whose override is an absolute executable, the stand-in a probe names', () => {
     vi.stubEnv('GMUX_TAILSCALE_BIN', executable());
     expect(standInOnly()).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332: the seam pairs nothing unless the Mac's name is asked of the
+// loopback stand-in, because a published door checks its name before a code
+// may show, and without the override that is real DNS for a made-up name
+// ---------------------------------------------------------------------------
+
+/**
+ * THE NAME SERVERS ARE SET ON process.env ITSELF, NEVER THROUGH vi.stubEnv
+ * (the round after his ruling). In vitest 4.1 `vi.stubEnv(name, undefined)`
+ * does not unset process.env, and `vi.unstubAllEnvs()` does not delete a
+ * variable that was unset before it was stubbed: both `delete` through the
+ * import.meta.env proxy, which has no deleteProperty trap, so the delete lands
+ * on the proxy's target and process.env keeps the last value. Measured: the
+ * "unset" row of openDoorForPairing below read '127.0.0.1:5353,10.0.0.1:53',
+ * the value the predicate rows stubbed last, and so still passed with
+ * nameStandInOnly accepting the real search. Every row now says what it set.
+ */
+const NAME_SERVERS = 'GMUX_POCKET_NAME_SERVERS';
+const NAME_SERVERS_AT_LOAD = process.env[NAME_SERVERS];
+
+function setNameServers(value: string | undefined): void {
+  if (value === undefined) delete process.env[NAME_SERVERS];
+  else process.env[NAME_SERVERS] = value;
+  expect(process.env[NAME_SERVERS]).toBe(value);
+}
+
+function restoreNameServers(): void {
+  if (NAME_SERVERS_AT_LOAD === undefined) delete process.env[NAME_SERVERS];
+  else process.env[NAME_SERVERS] = NAME_SERVERS_AT_LOAD;
+}
+
+describe('nameStandInOnly, the seam\'s second refusal before it publishes anything', () => {
+  beforeEach(() => {
+    electron.packaged = false;
+    restoreNameServers();
+  });
+  afterEach(() => {
+    vi.unstubAllEnvs();
+    restoreNameServers();
+    electron.packaged = false;
+  });
+
+  it('refuses with the override unset or blank, because the check would then ask real servers', () => {
+    setNameServers(undefined);
+    expect(nameStandInOnly()).toBe(false);
+    setNameServers('');
+    expect(nameStandInOnly()).toBe(false);
+  });
+
+  it('refuses an override that is not loopback, and never falls back to anything', () => {
+    for (const value of ['10.0.0.1:53', '127.0.0.2:53', 'localhost:53', '127.0.0.1:0', '127.0.0.1:5353,10.0.0.1:53']) {
+      setNameServers(value);
+      expect(nameStandInOnly(), value).toBe(false);
+    }
+  });
+
+  it('refuses in a packaged build, which ignores the override, and when it cannot tell', () => {
+    setNameServers('127.0.0.1:5353');
+    electron.packaged = true;
+    expect(nameStandInOnly()).toBe(false);
+    electron.packaged = false;
+    electron.packagedThrows = true;
+    try {
+      expect(nameStandInOnly()).toBe(false);
+    } finally {
+      electron.packagedThrows = false;
+    }
+  });
+
+  it('allows a development build whose override names the loopback stand-in a probe runs', () => {
+    setNameServers('127.0.0.1:5353');
+    expect(nameStandInOnly()).toBe(true);
+    setNameServers('127.0.0.1:5353,127.0.0.1:5354');
+    expect(nameStandInOnly()).toBe(true);
+  });
+
+  it('waits for main\'s word at most 90 s, which covers a round and its deadline with room', () => {
+    expect(PAIRABLE_WAIT_MS).toBe(90_000);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332's fix round: the seam's CALLS, not only its predicates. A verifier
+// deleted `if (!nameStandInOnly())` from openDoorForPairing, and then the wait
+// for main's word, and every test here stayed green: probe:p314's Electron
+// would then have run the real ts.net search for the stand-in's made-up name.
+// ---------------------------------------------------------------------------
+
+describe('openDoorForPairing refuses before it publishes, and waits for main\'s word', () => {
+  let scratch = '';
+  beforeEach(() => {
+    scratch = mkdtempSync(join(tmpdir(), 'p332-seam-'));
+    electron.packaged = false;
+    const program = join(scratch, 'tailscale-standin');
+    writeFileSync(program, '#!/bin/sh\nexit 2\n', { mode: 0o755 });
+    vi.stubEnv('GMUX_TAILSCALE_BIN', program);
+    restoreNameServers();
+  });
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllEnvs();
+    restoreNameServers();
+    electron.packaged = false;
+    rmSync(scratch, { recursive: true, force: true });
+  });
+
+  type Seen = { state: string; pairable: boolean; nameCheck: string };
+
+  /** A host that counts every call and answers `seen` in turn, the last one for ever. */
+  function fakeHost(seen: Seen[]): { host: Parameters<typeof openDoorForPairing>[0]; calls: string[] } {
+    const calls: string[] = [];
+    let i = 0;
+    const host = {
+      setDoor: async (input: unknown) => {
+        calls.push(`setDoor ${JSON.stringify(input)}`);
+        return {};
+      },
+      idle: async () => {
+        calls.push('idle');
+      },
+      fields: () => ({}),
+      confirmDoor: async () => {
+        calls.push('confirmDoor');
+        return {};
+      },
+      beginPairing: async () => {
+        calls.push('beginPairing');
+        throw new Error('the seam presses Pair only after it answers true');
+      },
+      status: () => {
+        calls.push('status');
+        const s = seen[Math.min(i, seen.length - 1)];
+        i += 1;
+        return s;
+      }
+    };
+    return { host: host as unknown as Parameters<typeof openDoorForPairing>[0], calls };
+  }
+
+  const listening = (pairable: boolean): Seen => ({ state: 'listening', pairable, nameCheck: pairable ? 'confirmed' : 'checking' });
+
+  for (const value of [undefined, '', '10.0.0.1:53', '127.0.0.1:0']) {
+    it(`refuses with GMUX_POCKET_NAME_SERVERS ${JSON.stringify(value ?? null)}, before the switch is touched`, async () => {
+      setNameServers(value);
+      const { host, calls } = fakeHost([listening(true)]);
+      const lines: string[] = [];
+      expect(await openDoorForPairing(host, (line) => lines.push(line))).toBe(false);
+      expect(calls).toEqual([]);
+      expect(lines).toEqual([`${PUSH_SEAM_TAG} pairing needs the name stand-in (GMUX_POCKET_NAME_SERVERS), so no phone was paired`]);
+    });
+  }
+
+  it('with both stand-ins, waits until main says pairable, and presses nothing itself', async () => {
+    setNameServers('127.0.0.1:5353');
+    vi.useFakeTimers();
+    const { host, calls } = fakeHost([listening(false), listening(false), listening(false), listening(false), listening(true)]);
+    const lines: string[] = [];
+    let answered: boolean | null = null;
+    void openDoorForPairing(host, (line) => lines.push(line)).then((v) => {
+      answered = v;
+    });
+    await vi.advanceTimersByTimeAsync(500);
+    expect(answered).toBeNull();
+    await vi.advanceTimersByTimeAsync(500);
+    expect(answered).toBe(true);
+    expect(calls.filter((c) => c.startsWith('setDoor'))).toEqual(['setDoor {"on":true}']);
+    expect(calls.filter((c) => c === 'status')).toHaveLength(5);
+    expect(calls).not.toContain('beginPairing');
+    expect(lines).toEqual([]);
+  });
+
+  it('answers false after the bounded wait when main never says pairable, naming the last word', async () => {
+    setNameServers('127.0.0.1:5353');
+    vi.useFakeTimers();
+    const { host, calls } = fakeHost([listening(false)]);
+    const lines: string[] = [];
+    let answered: boolean | null = null;
+    void openDoorForPairing(host, (line) => lines.push(line)).then((v) => {
+      answered = v;
+    });
+    await vi.advanceTimersByTimeAsync(PAIRABLE_WAIT_MS - 1_000);
+    expect(answered).toBeNull();
+    await vi.advanceTimersByTimeAsync(2_000);
+    expect(answered).toBe(false);
+    expect(calls).not.toContain('beginPairing');
+    expect(lines).toEqual([`${PUSH_SEAM_TAG} the Mac’s name never answered (checking), so no phone was paired`]);
   });
 });

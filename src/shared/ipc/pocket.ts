@@ -376,13 +376,18 @@ export interface PocketFunnelView {
   approvalOpens: boolean;
   /** The approval URL as text, only when Tortie will NOT open it; else null. */
   approvalText: string | null;
-  /**
-   * Epoch ms of this run's last counted start, or null. The sheet reads it to
-   * say, when a first code shuts with nobody presenting, that the Mac's name
-   * can take minutes to reach a phone the first time.
-   */
-  publishedAt: number | null;
 }
+
+/**
+ * Whether the Mac's public name answers from the internet, as Tortie last read
+ * it (Phase 332, build/p332/SPEC.md §4.11). `none`: nothing is being checked
+ * and nothing is remembered for the door as it stands. `checking`: the name's
+ * own servers are being asked. `confirmed`: they answered it for this tailnet,
+ * name and port. `unreadable`: a round could not be read, or the name still
+ * answered no after about 15 minutes of asking, so pairing opens anyway, as it
+ * did before this phase.
+ */
+export type PocketNameCheck = 'none' | 'checking' | 'confirmed' | 'unreadable';
 
 /** One phone a person allowed. Nothing here is a secret. */
 export interface PocketPhoneView {
@@ -466,6 +471,19 @@ export interface PocketStatus {
    * sheet never spells it again.
    */
   confirmable: boolean;
+  /**
+   * Whether the Mac's public name answers from the internet, as Tortie last
+   * read it (Phase 332). The sheet reads it for one thing only: the line above
+   * Pair when it is `unreadable`.
+   */
+  nameCheck: PocketNameCheck;
+  /**
+   * MAIN'S ONE PREDICATE (Phase 332): the door listening and the name
+   * `confirmed` or `unreadable`. `pocket:beginPairing` refuses without it, and
+   * the sheet draws Pair on it and never spells it again, as with
+   * {@link confirmable}.
+   */
+  pairable: boolean;
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
   /**
@@ -675,6 +693,18 @@ export function pocketFunnelSentence(reason: PocketFunnelRefusal, port: number):
 }
 
 /**
+ * What the sheet says while pairing waits on the Mac's public name (Phase 332,
+ * build/p332/SPEC.md §4.11). `checking` is drawn under Pair a phone in place of
+ * the button, and is the first half of `pocket:beginPairing`'s refusal;
+ * `unreadable` is drawn above Pair when pairing opened without the name
+ * answering: a round that could not be read, or a no that lasted.
+ */
+export const POCKET_NAME_SENTENCES: Readonly<Record<'checking' | 'unreadable', string>> = {
+  checking: 'Pair opens once your Mac’s name is on the internet, which can take a few minutes.',
+  unreadable: 'Tortie could not confirm your Mac’s name, so a first scan may fail.'
+};
+
+/**
  * How the ages a phone draws can be off, said where they are drawn (Phase 314).
  *
  * The poll that stamps a wait does not run while this Mac sleeps or while
@@ -722,8 +752,9 @@ export interface PocketInvokeChannelMap {
   /**
    * Open a pairing window of a few minutes and answer the QR. Refused unless
    * the door is listening AND Tailscale still publishes it (read back before
-   * the window opens, Phase 330), so the QR always carries a key to pin and a
-   * name that reaches it. It takes nothing: there is no key to paste.
+   * the window opens, Phase 330), and the Mac's name answers (Phase 332), so
+   * the QR always carries a key to pin and a name that reaches it. It takes
+   * nothing: there is no key to paste.
    */
   'pocket:beginPairing': { req: []; res: PocketPairingOffer };
   /** Shut the window now. Whatever presented is dropped. */

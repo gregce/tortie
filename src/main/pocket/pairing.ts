@@ -646,6 +646,23 @@ export interface PocketTailnetFacts {
   readonly publicName: string;
 }
 
+/**
+ * The Mac's public name answered from the internet, for this tailnet, name and
+ * port (Phase 332, build/p332/SPEC.md §4.10).
+ *
+ * AN OBSERVATION, like {@link PocketTailnetFacts}, and NOT HASHED: writing it
+ * confirms nothing and starts nothing. It decides only whether a pairing code
+ * may be shown yet, and the phone must still be matched and allowed on the
+ * Mac. It counts only while it equals the door's current fields, through
+ * {@link nameConfirmedCounts}, so a moved field stops it counting without
+ * anyone clearing it.
+ */
+export interface PocketNameConfirmed {
+  readonly tailnet: string;
+  readonly publicName: string;
+  readonly publicPort: number;
+}
+
 /** What `<userData>/gmux/pocket.json` holds, once the seal is opened. */
 export interface PocketStore {
   readonly identity: SealedIdentity;
@@ -672,6 +689,16 @@ export interface PocketStore {
    * address at Apple.
    */
   readonly deadPushTokens: readonly string[];
+  /**
+   * The public name answered for these fields (Phase 332), or null: ask again.
+   * An OBSERVATION beside {@link tailnetFacts}, never hashed; see
+   * {@link PocketNameConfirmed}. Cleared by a read that asks Tailscale's
+   * approval, by a start that waited on it, and by a switch-on round that
+   * answers no. The switch's off write KEEPS it (the fix round): the next
+   * switch-on asks once and shows Pair meanwhile, as the build before this
+   * phase did.
+   */
+  readonly nameConfirmed: PocketNameConfirmed | null;
 }
 
 /** How many dropped device tokens are remembered. Oldest go first. */
@@ -786,7 +813,8 @@ export function readPocketStore(): {
         bindAtLaunch: parsed.bindAtLaunch === true,
         enabled: parsed.enabled === true,
         pushAlerts: parsed.pushAlerts === true,
-        deadPushTokens: deadTokensOf((parsed as { deadPushTokens?: unknown }).deadPushTokens)
+        deadPushTokens: deadTokensOf((parsed as { deadPushTokens?: unknown }).deadPushTokens),
+        nameConfirmed: nameConfirmedOf((parsed as { nameConfirmed?: unknown }).nameConfirmed)
       },
       sealKnown: true,
       droppedPhones: rows.length - phones.length
@@ -812,6 +840,46 @@ function tailnetFactsOf(raw: unknown): PocketTailnetFacts | null {
   if (typeof tailnet !== 'string' || tailnet.length === 0) return null;
   if (typeof publicName !== 'string' || publicName.length === 0) return null;
   return { funnelProgram, tailnet, publicName };
+}
+
+/**
+ * The stored confirmation (Phase 332), or null when it is not two non-empty
+ * strings and a port the door may publish on. Null means ask again, which is a
+ * store written before this phase too.
+ */
+export function nameConfirmedOf(raw: unknown): PocketNameConfirmed | null {
+  if (raw === null || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  const tailnet = r['tailnet'];
+  const publicName = r['publicName'];
+  const publicPort = r['publicPort'];
+  if (typeof tailnet !== 'string' || tailnet.length === 0) return null;
+  if (typeof publicName !== 'string' || publicName.length === 0) return null;
+  if (!isPublicPort(publicPort)) return null;
+  return { tailnet, publicName, publicPort };
+}
+
+/**
+ * THE ONE PREDICATE (Phase 332, build/p332/SPEC.md §4.10): does this
+ * confirmation count for the door as its fields stand? Only when it names
+ * exactly their tailnet, public name and public port. Nothing else compares
+ * them, so a moved field stops it counting without anyone clearing it.
+ */
+export function nameConfirmedCounts(
+  confirmed: PocketNameConfirmed | null,
+  fields: PocketExecutionFields
+): boolean {
+  return (
+    confirmed !== null &&
+    confirmed.tailnet === fields.tailnet &&
+    confirmed.publicName === fields.publicName &&
+    confirmed.publicPort === fields.publicPort
+  );
+}
+
+/** What a check of these fields would confirm: {@link nameConfirmedCounts}'s partner. */
+export function nameTargetOf(fields: PocketExecutionFields): PocketNameConfirmed {
+  return { tailnet: fields.tailnet, publicName: fields.publicName, publicPort: fields.publicPort };
 }
 
 /**

@@ -89,6 +89,9 @@ const {
   describePocketDoor,
   forgetPocketDoor,
   isClientKeySpki,
+  nameConfirmedCounts,
+  nameConfirmedOf,
+  nameTargetOf,
   newIdentity,
   openIdentity,
   pairFingerprint,
@@ -609,6 +612,7 @@ function storeWith(over: Record<string, unknown>): void {
     enabled: false,
     pushAlerts: false,
     deadPushTokens: [],
+    nameConfirmed: null,
     ...over
   } as never);
 }
@@ -626,7 +630,8 @@ describe('the sealed store', () => {
         bindAtLaunch: false,
         enabled: true,
         pushAlerts: false,
-        deadPushTokens: []
+        deadPushTokens: [],
+        nameConfirmed: null
       })
     ).toBe(true);
     const read = readPocketStore();
@@ -1429,6 +1434,80 @@ describe('the store keeps the switch and the dead tokens', () => {
     expect(read.store?.pushAlerts).toBe(true);
     expect(read.store?.deadPushTokens).toEqual(digests.slice(-64));
     expect(read.store?.phones[0]?.pushToken).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332: the Mac's public name, remembered per tailnet, name and port
+// ---------------------------------------------------------------------------
+
+describe('the store remembers the Mac’s name answered, and nothing else about it (Phase 332)', () => {
+  const CONFIRMED = { tailnet: BASE.tailnet, publicName: BASE.publicName, publicPort: 8443 };
+
+  it('round trips a confirmation, sealed', () => {
+    storeWith({ nameConfirmed: CONFIRMED });
+    expect(readPocketStore().store?.nameConfirmed).toEqual(CONFIRMED);
+    storeWith({ nameConfirmed: { ...CONFIRMED, publicPort: 10000 } });
+    expect(readPocketStore().store?.nameConfirmed).toEqual({ ...CONFIRMED, publicPort: 10000 });
+    storeWith({ nameConfirmed: null });
+    expect(readPocketStore().store?.nameConfirmed).toBeNull();
+  });
+
+  it('reads a store written before this phase as nothing confirmed: ask again', () => {
+    storeWith({ nameConfirmed: undefined });
+    const read = readPocketStore();
+    expect(read.sealKnown).toBe(true);
+    expect(read.store).not.toBeNull();
+    expect(read.store?.nameConfirmed).toBeNull();
+  });
+
+  const invalid: [string, unknown][] = [
+    ['a string', 'mac.tail00000.ts.net'],
+    ['a number', 8443],
+    ['an array', [CONFIRMED.tailnet, CONFIRMED.publicName, 8443]],
+    ['an empty object', {}],
+    ['an empty tailnet', { ...CONFIRMED, tailnet: '' }],
+    ['a tailnet that is not a string', { ...CONFIRMED, tailnet: 7 }],
+    ['an empty public name', { ...CONFIRMED, publicName: '' }],
+    ['a public name that is not a string', { ...CONFIRMED, publicName: null }],
+    ['no public port', { tailnet: CONFIRMED.tailnet, publicName: CONFIRMED.publicName }],
+    ['port 443, which the door never publishes on', { ...CONFIRMED, publicPort: 443 }],
+    ['port 0', { ...CONFIRMED, publicPort: 0 }],
+    ['a port spelled as a string', { ...CONFIRMED, publicPort: '8443' }],
+    ['Phase 316’s local port', { ...CONFIRMED, publicPort: 8823 }]
+  ];
+  for (const [name, raw] of invalid) {
+    it(`reads ${name} as nothing confirmed`, () => {
+      expect(nameConfirmedOf(raw)).toBeNull();
+      storeWith({ nameConfirmed: raw });
+      expect(readPocketStore().store?.nameConfirmed).toBeNull();
+    });
+  }
+
+  it('keeps exactly the three fields, and nothing a planted row carries beside them', () => {
+    expect(nameConfirmedOf({ ...CONFIRMED, address: '203.0.113.10', servers: ['127.0.0.1:53'] })).toEqual(CONFIRMED);
+  });
+
+  it('counts only for exactly the door’s tailnet, public name and public port', () => {
+    expect(nameConfirmedCounts(CONFIRMED, BASE)).toBe(true);
+    expect(nameConfirmedCounts(null, BASE)).toBe(false);
+    expect(nameConfirmedCounts({ ...CONFIRMED, tailnet: 'someone-else.github' }, BASE)).toBe(false);
+    expect(nameConfirmedCounts({ ...CONFIRMED, publicName: 'other.tail00000.ts.net' }, BASE)).toBe(false);
+    expect(nameConfirmedCounts({ ...CONFIRMED, publicPort: 10000 }, BASE)).toBe(false);
+    // The fields it does not name move nothing.
+    expect(nameConfirmedCounts(CONFIRMED, { ...BASE, funnelProgram: '/other/tailscale', bindAtLaunch: true, pushAlerts: true })).toBe(true);
+  });
+
+  it('draws its target from the three fields, and the target counts for them', () => {
+    expect(nameTargetOf(BASE)).toEqual(CONFIRMED);
+    expect(nameConfirmedCounts(nameTargetOf(BASE), BASE)).toBe(true);
+  });
+
+  it('is not hashed: the confirm text and hash name nothing about it', () => {
+    const text = canonicalPocketText(BASE);
+    expect(text).not.toMatch(/nameConfirmed/);
+    expect(pocketExecutionHash(BASE)).toBe(pocketExecutionHash({ ...BASE }));
+    expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
   });
 });
 

@@ -31,6 +31,11 @@
  * NOTHING HERE BINDS ANYTHING BUT 127.0.0.1:0, and no program is executed.
  * Every door is stopped in `afterEach`, and every Funnel child ended, whatever
  * happened.
+ *
+ * THE MAC'S NAME (Phase 332) is asked of `./dns-fixtures.ts`'s `fakeNameDeps`,
+ * which opens no socket: it answers the record, and its sleeps end on the next
+ * macrotask, so every published door here confirms its name in two rounds and
+ * a phone is paired only once main says a code may show.
  */
 
 import {
@@ -53,6 +58,7 @@ import { afterAll, afterEach, beforeEach, describe, expect, it, vi } from 'vites
 import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
 import type { PocketFacts } from '../routes';
+import { fakeNameDeps } from './dns-fixtures';
 
 let userData = '';
 const MARKER = '--tortie-pocket-switch-queue-test--';
@@ -302,6 +308,7 @@ function hostOn(beforeOpen?: () => Promise<unknown>): Host {
     facts: FACTS,
     tailscale: funnelDeps(),
     door: inProcessDoor(),
+    names: fakeNameDeps({ sleep: 'now' }),
     ...(beforeOpen !== undefined ? { beforeOpen } : {})
   });
   hosts.push(one);
@@ -335,8 +342,10 @@ function pem(der: Buffer): string {
   return `-----BEGIN CERTIFICATE-----\n${body}-----END CERTIFICATE-----\n`;
 }
 
-/** Pair one phone through the shipping window on a published door. */
+/** Pair one phone through the shipping window on a published door, once main says a code may show. */
 async function pairPhone(one: Host): Promise<Phone> {
+  for (let i = 0; i < 400 && !one.status().pairable; i += 1) await tick();
+  expect(one.status().pairable).toBe(true);
   const offer = await one.beginPairing();
   const signing = generateKeyPairSync('ed25519');
   const exchange = generateKeyPairSync('x25519');

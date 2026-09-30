@@ -68,19 +68,30 @@
  * Tailscale credential and calls no LocalAPI, by refusal (research 128 §3.2).
  * It opens one URL, Tailscale's approval page, only on a person's press and
  * only after `./funnel.ts`'s check says it is Tailscale's own login host.
+ *
+ * ## A code waits for the Mac's public name (Phase 332, build/p332/SPEC.md §4.9)
+ *
+ * While the door is published and its name is not confirmed, the name's own
+ * DNS servers are asked through `./public-name.ts`, which owns every packet.
+ * The check starts at the end of a counted start and nowhere else, stops in
+ * every unpublish, sleeps on the quit-cleared timer, and reads no clock.
+ * `pairable` is its one answer; {@link PocketHost.beginPairing} refuses
+ * without it.
  */
 
-import { shell, type IpcMain } from 'electron';
+import { app, shell, type IpcMain } from 'electron';
 
 import {
   EVT_POCKET_CHANGED,
   POCKET_FUNNEL_RESTARTING,
+  POCKET_NAME_SENTENCES,
   POCKET_ROUTE_IDS,
   pocketFunnelSentence,
   type PocketAllowInput,
   type PocketAllowResult,
   type PocketFunnelRefusal,
   type PocketFunnelView,
+  type PocketNameCheck,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketStatus,
@@ -133,6 +144,8 @@ import {
   phoneView,
   pocketConfirmStatus,
   isPushTokenDigest,
+  nameConfirmedCounts,
+  nameTargetOf,
   pushTokenDigest,
   readPocketStore,
   spkiPinOf,
@@ -140,11 +153,23 @@ import {
   POCKET_DEAD_TOKEN_MEMORY,
   type PocketExecutionFields,
   type PocketIdentity,
+  type PocketNameConfirmed,
   type PocketPhoneFields,
   type PocketPushDestination,
   type PocketStore,
   type PocketTailnetFacts
 } from './pairing';
+import {
+  NAME_STREAK_START,
+  askNameRound,
+  defaultNameCheckDeps,
+  nextNameStreak,
+  type NameCheckDeps,
+  type NameRoundCache,
+  type NameRoundResult,
+  type NameStreak,
+  type NameVerdict
+} from './public-name';
 import {
   createPocketRoutes,
   pocketRouteIds,
@@ -203,10 +228,48 @@ export interface PocketHostDeps {
   door?: DoorSpawner;
   /**
    * The wake (Phase 330, SPEC §4.3): while the door is published, a resume
-   * queues one check that Tailscale still publishes it. The composer hands
-   * `WakeMark.onResume`. Returns the unsubscribe.
+   * queues one check that Tailscale still publishes it, and brings the Mac's
+   * name check forward (Phase 332). The composer hands `WakeMark.onResume`.
+   * Returns the unsubscribe.
    */
   onResume?(cb: () => void): () => void;
+  /**
+   * The Mac's name check's seams (Phase 332). TESTS ONLY (`conformance:pocket`
+   * D4): production and `../harness/push-seam.ts` take `./public-name.ts`'s
+   * own, which a development build points at a loopback stand-in through
+   * `GMUX_POCKET_NAME_SERVERS` and a packaged build never does.
+   */
+  names?: NameCheckDeps;
+}
+
+/** `app.isPackaged`, and false outside Electron, as `./funnel.ts` reads it. */
+function packagedApp(): boolean {
+  try {
+    return app.isPackaged;
+  } catch {
+    return false; // not an Electron run
+  }
+}
+
+/**
+ * One run of the Mac's name check (Phase 332, build/p332/SPEC.md §4.9): from
+ * one counted start until it confirms, ends, or the door stops publishing.
+ */
+interface NameRun {
+  /** This run's number. */
+  readonly n: number;
+  /** The tailnet, public name and public port as `fields()` said at its start. */
+  readonly target: PocketNameConfirmed;
+  /** `reask`: one round over a kept confirmation. `checking`: until a yes round. */
+  mode: 'reask' | 'checking';
+  streak: NameStreak;
+  /** The zone's servers, found once per run. */
+  readonly cache: NameRoundCache;
+  /** The armed timer's cancel, or null. */
+  cancel: (() => void) | null;
+  inFlight: boolean;
+  /** The last round's verdict, so a verdict that repeats is logged once. */
+  last: NameVerdict | null;
 }
 
 /** What the sheet says when the door could not open because the sessions were not up. */
@@ -304,13 +367,17 @@ export class PocketHost {
   private funnelState: PocketFunnelView['state'] = 'idle';
   /** The approval URL the start is waiting on, held only for that wait. */
   private approvalUrl: string | null = null;
-  /** Epoch ms of this run's last counted start. */
-  private publishedAt: number | null = null;
   /** The restart's pending timer, and the spacing it was armed with. */
   private restartCancel: (() => void) | null = null;
   private restartDelay = 0;
   /** The timer that tells the door process the window shut. */
   private windowTimer: ReturnType<typeof setTimeout> | null = null;
+  /** The Mac's name check's seams (Phase 332). */
+  private readonly names: NameCheckDeps;
+  /** The name check running now, or null. */
+  private nameRun: NameRun | null = null;
+  /** How many name check runs this owner has started. */
+  private nameRuns = 0;
 
   readonly pairing: PocketPairing;
   readonly verifier: PocketRequestVerifier;
@@ -319,6 +386,7 @@ export class PocketHost {
 
   constructor(private readonly deps: PocketHostDeps) {
     this.funnel = deps.tailscale ?? defaultFunnelDeps();
+    this.names = deps.names ?? defaultNameCheckDeps({ packaged: packagedApp(), env: process.env });
     this.pairing = new PocketPairing({
       identity: () => this.identityNow(),
       fieldsNow: () => this.fields(),
@@ -467,7 +535,8 @@ export class PocketHost {
       bindAtLaunch: store?.bindAtLaunch ?? false,
       enabled: store?.enabled ?? false,
       pushAlerts: store?.pushAlerts ?? false,
-      deadPushTokens: store?.deadPushTokens ?? []
+      deadPushTokens: store?.deadPushTokens ?? [],
+      nameConfirmed: store?.nameConfirmed ?? null
     };
     if (!writePocketStore(next)) {
       throw gmuxError(
@@ -617,13 +686,14 @@ export class PocketHost {
         state: this.funnelState,
         asksApproval: this.read?.asksApproval ?? false,
         approvalOpens: opens,
-        approvalText: waiting !== null && !opens ? waiting : null,
-        publishedAt: this.publishedAt
+        approvalText: waiting !== null && !opens ? waiting : null
       },
       confirmState: gate.state,
       confirmLines: gate.lines,
       confirmHash: gate.hash,
       confirmable,
+      nameCheck: this.nameCheckNow(),
+      pairable: this.pairable(),
       routes: POCKET_ROUTE_IDS,
       pushAlerts: fields.pushAlerts
     };
@@ -730,6 +800,9 @@ export class PocketHost {
     }
     this.readRefusal = null;
     this.read = read;
+    // A READ THAT ASKS APPROVAL FORGETS THE NAME (Phase 332): the Funnel this
+    // Mac publishes through is being set up again, so its name is asked again.
+    if (read.asksApproval) this.forgetNameConfirmed();
     const store = this.readStore();
     const stored = store?.tailnetFacts ?? null;
     if (
@@ -768,7 +841,7 @@ export class PocketHost {
    * nothing, and the statement IMMEDIATELY before the fork and before the spawn
    * is that question (`conformance:pocket` L5).
    */
-  private async openNow(press: SwitchPress): Promise<OpenOutcome> {
+  private async openNow(press: SwitchPress, why: 'start' | 'restart' = 'start'): Promise<OpenOutcome> {
     // 1, 2.
     if (this.superseded(press)) return 'stopped';
     if (!this.mayOpen()) return 'stopped';
@@ -866,6 +939,8 @@ export class PocketHost {
         press.superseded,
         {
           onApproval: (url) => {
+            // A start that waited on approval asks for the name again (Phase 332).
+            this.forgetNameConfirmed();
             this.approvalUrl = url;
             this.setFunnel('approval');
           },
@@ -892,7 +967,6 @@ export class PocketHost {
       }
       // 12. THE COUNTED START. The restart's spacing starts again at its floor.
       this.adopt(started.run);
-      this.publishedAt = this.now();
       this.startRefusal = null;
       this.cancelRestart();
       this.restartDelay = 0;
@@ -911,6 +985,9 @@ export class PocketHost {
     // door that just opened is asked again by the same rule and closes until
     // the person confirms.
     await this.closeNowUnlessConfirmed();
+    // 14. THE MAC'S NAME (Phase 332): checked from here and from nowhere else,
+    // only for a door that is still published after step 13.
+    if (this.published()) this.beginNameCheck(why);
     this.changed();
     return this.published() ? 'published' : 'stopped';
   }
@@ -932,6 +1009,7 @@ export class PocketHost {
    * says Tortie is trying again, and a restart is armed at the floor, doubling.
    */
   private unexpectedlyDown(): void {
+    this.stopNameCheck();
     if (funnelShutdownStarted() || pocketShutdownStarted()) return;
     if (this.readStore()?.enabled !== true) return;
     this.setFunnel('restarting');
@@ -972,7 +1050,7 @@ export class PocketHost {
     this.opening += 1;
     let outcome: OpenOutcome = 'stopped';
     try {
-      outcome = await this.openNow(press);
+      outcome = await this.openNow(press, 'restart');
     } finally {
       this.opening -= 1;
     }
@@ -991,6 +1069,7 @@ export class PocketHost {
    */
   private wakeCheck(): void {
     if (this.run === null || this.readStore()?.enabled !== true) return;
+    this.nameCheckSoon();
     const press = this.lastPress.press;
     void this.serially(async () => {
       if (this.superseded(press) || this.run === null) return;
@@ -1044,6 +1123,7 @@ export class PocketHost {
    * serves the same key at the same name.
    */
   private async unpublish(): Promise<void> {
+    this.stopNameCheck();
     const run = this.run;
     this.run = null;
     try {
@@ -1128,6 +1208,216 @@ export class PocketHost {
   }
 
   // -------------------------------------------------------------------------
+  // The Mac's public name (Phase 332, build/p332/SPEC.md §4.9)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Start checking the Mac's public name. Called from ONE place, the end of a
+   * counted start in {@link openNow}, and only while the door is published:
+   * never when the sheet opens, never while the door is off, never from a read.
+   *
+   * A confirmation kept for the door as it stands is asked about ONCE, and a
+   * code may show meanwhile (the switch-on round); a restart after an
+   * unexpected exit asks nothing over one. Otherwise the name is checked until
+   * a round answers it.
+   */
+  private beginNameCheck(why: 'start' | 'restart'): void {
+    this.stopNameCheck();
+    const fields = this.fields();
+    const counts = nameConfirmedCounts(this.readStore()?.nameConfirmed ?? null, fields);
+    if (counts && why === 'restart') return;
+    this.nameRuns += 1;
+    const run: NameRun = {
+      n: this.nameRuns,
+      target: nameTargetOf(fields),
+      mode: counts ? 'reask' : 'checking',
+      streak: NAME_STREAK_START,
+      cache: { servers: null },
+      cancel: null,
+      inFlight: false,
+      last: null
+    };
+    this.nameRun = run;
+    if (counts) pocketLog.info('asking once whether the Mac’s name still answers');
+    else pocketLog.info('checking the Mac’s name before pairing');
+    this.nameRoundNow(run);
+  }
+
+  /**
+   * Stop the name check: its timer is cancelled and its run forgotten. A round
+   * in flight is not cancelled; {@link nameRoundNow}'s guard drops its answer.
+   * The first line of {@link unpublish} and of {@link unexpectedlyDown}.
+   */
+  private stopNameCheck(): void {
+    const run = this.nameRun;
+    this.nameRun = null;
+    run?.cancel?.();
+  }
+
+  /**
+   * Ask one round, now, for this run. Nothing is asked while the door is not
+   * published, once the switch is off, or once the quit has begun, and no timer
+   * is armed then: a paused run waits for the next counted start to replace it.
+   *
+   * THE SWITCH IS READ HERE AND IN THE WRITE GUARD (the integrator's round):
+   * the off writes `enabled: false` before its first await, and the check
+   * stops only when the off's close reaches the queue, which waits on any job
+   * already in it. A gap that ends in between asks nothing.
+   */
+  private nameRoundNow(run: NameRun): void {
+    if (this.nameRun !== run || run.inFlight) return;
+    if (funnelShutdownStarted() || pocketShutdownStarted() || !this.published()) return;
+    if (this.readStore()?.enabled !== true) return;
+    run.cancel = null;
+    run.inFlight = true;
+    const failed: NameRoundResult = { verdict: 'unreadable', reason: 'error' };
+    void askNameRound(this.names, run.target.publicName, run.cache)
+      .then(
+        (round) => this.settleNameRound(run, round),
+        () => this.settleNameRound(run, failed)
+      )
+      .catch(() => {
+        // Nothing thrown while an answer is applied leaves this chain unheard.
+        pocketLog.warn('the Mac’s name check could not apply an answer');
+      });
+  }
+
+  /**
+   * One round's answer. THE WRITE GUARD is synchronous and nothing is awaited
+   * between it and the write: an answer that lands after an off, a Remove, a
+   * quit, a restart or a moved field writes nothing and arms nothing. The off
+   * is read from the switch it wrote, not from the close it queued, because
+   * that close can wait behind another door job while this answer lands.
+   */
+  private settleNameRound(run: NameRun, round: NameRoundResult): void {
+    run.inFlight = false;
+    if (
+      this.nameRun !== run ||
+      funnelShutdownStarted() ||
+      pocketShutdownStarted() ||
+      !this.published() ||
+      this.readStore()?.enabled !== true ||
+      !nameConfirmedCounts(run.target, this.fields())
+    ) {
+      return;
+    }
+    const checkBefore = this.nameCheckNow();
+    const pairableBefore = this.pairable();
+    const { verdict, reason } = round;
+    if (run.last !== verdict) pocketLog.info(`the Mac’s name check read ${verdict}: ${reason}`);
+    run.last = verdict;
+    if (run.mode === 'reask') {
+      if (verdict !== 'no') {
+        // Still answers, or could not be read: the confirmation stands.
+        this.nameRun = null;
+      } else {
+        this.forgetNameConfirmed();
+        run.mode = 'checking';
+        const step = nextNameStreak(NAME_STREAK_START, verdict);
+        run.streak = step.streak;
+        this.armNameRound(run, step.gapMs);
+      }
+    } else {
+      const opened = run.streak.opened;
+      const step = nextNameStreak(run.streak, verdict);
+      run.streak = step.streak;
+      if (step.confirmed) {
+        this.nameRun = null;
+        this.rememberNameConfirmed(run.target);
+        pocketLog.info('the Mac’s name answers, so pairing is open');
+      } else {
+        if (step.streak.opened && !opened && verdict === 'no') {
+          pocketLog.info('the Mac’s name still does not answer, so pairing is open');
+        } else if (step.streak.opened && !opened) {
+          pocketLog.info('the Mac’s name could not be checked, so pairing is open');
+        }
+        this.armNameRound(run, step.gapMs);
+      }
+    }
+    if (this.nameCheckNow() !== checkBefore || this.pairable() !== pairableBefore) this.changed();
+  }
+
+  /**
+   * The name check's one timer, measured from the END of a round, on the
+   * quit-cleared timer of `./funnel.ts` and the names deps' own clock.
+   */
+  private armNameRound(run: NameRun, gapMs: number): void {
+    run.cancel = armFunnelRestart(this.names, gapMs, () => {
+      run.cancel = null;
+      this.nameRoundNow(run);
+    });
+  }
+
+  /**
+   * The wake: a Mac that slept through a gap does not wait out the rest of it,
+   * because a timer does not count the sleep. Only for a run still checking,
+   * with no round in flight, on a door still published.
+   */
+  private nameCheckSoon(): void {
+    const run = this.nameRun;
+    if (run === null || run.mode !== 'checking' || run.inFlight || !this.published()) return;
+    run.cancel?.();
+    run.cancel = null;
+    this.nameRoundNow(run);
+  }
+
+  /** What the sheet is told about the Mac's name. */
+  private nameCheckNow(): PocketNameCheck {
+    if (nameConfirmedCounts(this.readStore()?.nameConfirmed ?? null, this.fields())) return 'confirmed';
+    const run = this.nameRun;
+    if (run === null) return 'none';
+    return run.streak.opened ? 'unreadable' : 'checking';
+  }
+
+  /**
+   * THE ONE PREDICATE (Phase 332): may a pairing code show now? Only while the
+   * door listens and is published, and its name answered or could not be
+   * confirmed (a round that could not be read, or a no that lasted
+   * `NAME_OPEN_AFTER_ROUNDS` rounds). `status().pairable` is this,
+   * {@link beginPairing} asks it, and the sheet never works it out again.
+   */
+  private pairable(): boolean {
+    // The switch too (the integrator's round): between an off and the close it
+    // queued, the door still listens while status() already says `off`.
+    if (!pocketDoorStatus().listening || !this.published() || this.readStore()?.enabled !== true) return false;
+    const check = this.nameCheckNow();
+    return check === 'confirmed' || check === 'unreadable';
+  }
+
+  /**
+   * Forget the confirmation. HELD FOR THE RUN whatever the seal answers, as
+   * {@link dropPushToken} is: the next launch reads what was written.
+   */
+  private forgetNameConfirmed(): void {
+    const store = this.readStore();
+    if (store === null || store.nameConfirmed === null) return;
+    const next: PocketStore = { ...store, nameConfirmed: null };
+    try {
+      writePocketStore(next);
+    } catch {
+      // Held for the run all the same.
+    }
+    this.store = next;
+  }
+
+  /**
+   * Remember the name answered for these fields. A seal that cannot keep it
+   * still holds it for this run, so a refusing keystore never locks anyone
+   * out, and the next launch asks again.
+   */
+  private rememberNameConfirmed(target: PocketNameConfirmed): void {
+    const store = this.readStore();
+    if (store === null) return;
+    const next: PocketStore = { ...store, nameConfirmed: target };
+    try {
+      writePocketStore(next);
+    } catch {
+      // Held for the run all the same.
+    }
+    this.store = next;
+  }
+
+  // -------------------------------------------------------------------------
   // The pairing window's edge, told to the door process
   // -------------------------------------------------------------------------
 
@@ -1178,6 +1468,11 @@ export class PocketHost {
       let saved = true;
       try {
         const store = this.readStore();
+        // OFF KEEPS THE NAME (Phase 332's fix round): "starts again if they
+        // clear the setting" is the next switch-on's one round, which asks
+        // again and shows Pair meanwhile, as the build before this phase did;
+        // a no there forgets it and checking starts. Forgetting it here held
+        // Pair back 20 s on every off and on.
         if (store !== null && (store.enabled || store.bindAtLaunch)) {
           saved = this.writeStore({ ...store, enabled: false, bindAtLaunch: false });
         }
@@ -1275,13 +1570,20 @@ export class PocketHost {
 
   /**
    * Open a pairing window and answer the QR. Refused unless the door is
-   * published, and Tailscale's serve config is read back first (SPEC §4.3): a
-   * code is never drawn for a door Tailscale stopped publishing. When it has,
-   * the restart runs and the refusal says so.
+   * published and its public name answers or could not be confirmed ({@link
+   * pairable}, Phase 332, asked before AND after the read that follows), and
+   * Tailscale's serve config is read back first (SPEC §4.3): a code is never
+   * drawn for a door Tailscale stopped publishing. When it has, the restart
+   * runs and the refusal says so.
    */
   async beginPairing(): Promise<PocketPairingOffer> {
     if (!pocketDoorStatus().listening || !this.published()) {
       throw gmuxError('INVALID_INPUT', NOT_PUBLISHED);
+    }
+    // THE NAME FIRST (Phase 332): a phone that scans before the Mac's name is
+    // on the internet keeps the miss for five minutes, longer than the window.
+    if (!this.pairable()) {
+      throw gmuxError('INVALID_INPUT', `${POCKET_NAME_SENTENCES.checking} No code was shown.`);
     }
     if (!(await this.stillPublished())) {
       if (this.run !== null) {
@@ -1290,6 +1592,12 @@ export class PocketHost {
         void this.serially(() => this.recoverNow(press));
       }
       throw gmuxError('INVALID_INPUT', `${POCKET_FUNNEL_RESTARTING} No code was shown.`);
+    }
+    // AND AGAIN AFTER THE READ (the fix round): a switch-on round that answers
+    // no while Tailscale is read takes Pair away, and the window must not open
+    // on the answer from before it.
+    if (!this.pairable()) {
+      throw gmuxError('INVALID_INPUT', `${POCKET_NAME_SENTENCES.checking} No code was shown.`);
     }
     const offer = this.pairing.open();
     if (pocketDoorStatus().listening) updatePocketDoor({ windowOpen: true });

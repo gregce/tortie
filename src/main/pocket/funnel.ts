@@ -1335,9 +1335,11 @@ export function nextRestartDelay(previous: number): number {
 
 /**
  * Arm a restart `ms` from now. Answers the cancel. Every timer is cleared by
- * {@link beginFunnelShutdown}, and none fires once the quit has begun.
+ * {@link beginFunnelShutdown}, and none fires once the quit has begun. It needs
+ * only a `sleep`, so the Mac's name check (Phase 332) arms its timer here on its
+ * own clock and sits in the same quit-cleared set.
  */
-export function armFunnelRestart(deps: FunnelDeps, ms: number, fire: () => void): () => void {
+export function armFunnelRestart(deps: Pick<FunnelDeps, 'sleep'>, ms: number, fire: () => void): () => void {
   let cancelled = false;
   const cancel = (): void => {
     cancelled = true;

@@ -80,7 +80,12 @@
  * line and nothing started, unless the Tailscale program resolves from the
  * development override (`GMUX_TAILSCALE_BIN`, which a packaged build ignores):
  * a harness can never run the person's real Tailscale, only the stand-in a
- * probe points that variable at. Every push the seam drives is therefore
+ * probe points that variable at. AND UNLESS THE MAC'S NAME IS ASKED OF A
+ * LOOPBACK STAND-IN (Phase 332, `GMUX_POCKET_NAME_SERVERS`, which a packaged
+ * build ignores too): a published door checks its public name before a code
+ * may show, and without the override that check would ask real DNS servers
+ * about the stand-in's made-up name. It then waits, a bounded time, for main
+ * to say a code may show. Every push the seam drives is therefore
  * still "a push while the door is down", which is the point: the push depends
  * on the door's CONFIRMED fields, not on its socket.
  * It never passes `allowRemote`. It never prints or logs a key byte, a device
@@ -111,6 +116,7 @@ import {
 } from '../credentials';
 import { resolveFunnelProgram } from '../pocket/funnel';
 import { PocketHost } from '../pocket/ipc';
+import { nameServersFrom } from '../pocket/public-name';
 import {
   pocketConfirmStatus,
   readPocketStore,
@@ -660,16 +666,45 @@ export function standInOnly(): boolean {
 }
 
 /**
- * Publish the door for the pairing, the sheet's own order: the switch on,
- * Tailscale read, Allow, listening (Phase 330). True only when it is listening.
- * Refused, with nothing started, unless the program is the stand-in.
+ * THE SEAM'S SECOND REFUSAL (Phase 332): the Mac's name must be asked of the
+ * loopback stand-in `GMUX_POCKET_NAME_SERVERS` names. A packaged build ignores
+ * the variable, and a development build without it would ask the real `ts.net`
+ * servers about the stand-in's made-up name, so either way the seam pairs
+ * nothing. A throw reading `isPackaged` refuses too. Exported for
+ * `__tests__/push-seam.test.ts` alone.
  */
-async function openDoorForPairing(
+export function nameStandInOnly(): boolean {
+  let packaged = true;
+  try {
+    packaged = app.isPackaged;
+  } catch {
+    packaged = true;
+  }
+  return nameServersFrom({ packaged, env: process.env }).kind === 'fixed';
+}
+
+/** How long the seam waits for main to say a code may show, and how often it asks. */
+export const PAIRABLE_WAIT_MS = 90_000;
+const PAIRABLE_POLL_MS = 250;
+
+/**
+ * Publish the door for the pairing, the sheet's own order: the switch on,
+ * Tailscale read, Allow, listening (Phase 330), then main's word that a code
+ * may show (Phase 332). True only when it is listening and pairable. Refused,
+ * with nothing started, unless the program AND the name servers are the
+ * stand-ins. Exported for `__tests__/push-seam.test.ts` alone, which holds
+ * both refusals and the wait (the Phase 332 fix round).
+ */
+export async function openDoorForPairing(
   host: PocketHost,
   print: (line: string) => void
 ): Promise<boolean> {
   if (!standInOnly()) {
     print(`${PUSH_SEAM_TAG} pairing needs the Tailscale stand-in (GMUX_TAILSCALE_BIN), so no phone was paired`);
+    return false;
+  }
+  if (!nameStandInOnly()) {
+    print(`${PUSH_SEAM_TAG} pairing needs the name stand-in (GMUX_POCKET_NAME_SERVERS), so no phone was paired`);
     return false;
   }
   await host.setDoor({ on: true });
@@ -684,7 +719,30 @@ async function openDoorForPairing(
     print(`${PUSH_SEAM_TAG} the door did not publish (${state}), so no phone was paired`);
     return false;
   }
+  // MAIN'S WORD THAT A CODE MAY SHOW: one round of the name stand-in when it
+  // answers the name, and a bounded wait whatever it answers.
+  const waited = await pairableWithin(host, PAIRABLE_WAIT_MS);
+  if (!waited.ok) {
+    print(`${PUSH_SEAM_TAG} the Mac’s name never answered (${waited.nameCheck}), so no phone was paired`);
+    return false;
+  }
   return true;
+}
+
+/**
+ * Ask main every {@link PAIRABLE_POLL_MS} whether a code may show, for at most
+ * `ms`. Answers the name check's last word when it never said yes.
+ */
+async function pairableWithin(
+  host: PocketHost,
+  ms: number
+): Promise<{ ok: true } | { ok: false; nameCheck: string }> {
+  for (let waited = 0; ; waited += PAIRABLE_POLL_MS) {
+    const status = host.status();
+    if (status.pairable) return { ok: true };
+    if (waited >= ms) return { ok: false, nameCheck: status.nameCheck };
+    await new Promise((resolve) => setTimeout(resolve, PAIRABLE_POLL_MS));
+  }
 }
 
 /** The seed's key record, read from the file the seed names. */

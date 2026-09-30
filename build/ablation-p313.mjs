@@ -1,12 +1,16 @@
 #!/usr/bin/env node
 /**
  * `npm run ablation:p313`. The attack on the door's two checks (Phase 313;
- * re-aimed at the door on the internet by Phase 330).
+ * re-aimed at the door on the internet by Phase 330, and at the Mac's public
+ * name by Phase 332).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * forty-two rules about `src/main/pocket/` — one `listen`, on loopback, in the
+ * fifty-one rules about `src/main/pocket/` — one `listen`, on loopback, in the
  * door process; the Funnel child's argv, program and death; mutual TLS before
- * the parser; the closed table; the refusals; the disposer owning the door —
+ * the parser; the closed table; the refusals; the disposer owning the door;
+ * and since Phase 332 the name check's non-recursive, connected, authoritative
+ * question, the override that is loopback or nothing, and the push seam that
+ * pairs nothing until the name stand-in answers —
  * and `conformance:pocket:hostile` drives a live door. Every one
  * of those rules is a clause a later round can delete in one line. THIS SCRIPT
  * BREAKS ONE CLAUSE AT A TIME IN THE SHIPPING SOURCE AND PROVES IT REDDENS THE
@@ -114,6 +118,14 @@ const FUNNEL = 'src/main/pocket/funnel.ts';
 const PRELOAD_POCKET = 'src/preload/pocket.ts';
 const MENU = 'src/main/menu.ts';
 const VITE = 'electron.vite.config.ts';
+// PHASE 332: the Mac's name check, the sheet that draws its answer, and the
+// DNS stand-in every door probe runs.
+const NAMES = 'src/main/pocket/public-name.ts';
+const PHONE_SECTION = 'src/renderer/settings/PhoneSection.tsx';
+const DNS_STANDIN = 'build/p332/dns-standin.mjs';
+// The round after his ruling of 2026-09-30: the push seam, the one caller of
+// beginPairing outside a test, waits for the name too (D9).
+const SEAM = 'src/main/harness/push-seam.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -1228,6 +1240,291 @@ const ABLATIONS = [
     file: DOOR_PROCESS,
     from: "const parentPort = (process as unknown as { parentPort?: ParentPortLike }).parentPort;",
     to: "const parentPort = (process as unknown as { parentPort?: ParentPortLike }).parentPort;\nvoid process.env['HOME'];",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 332: the Mac's public name (build/p332/SPEC.md §7.2). The check
+  // sends his Mac's name to servers Tortie never talked to before and parses
+  // their forgeable answers in main, and every clause below is one line.
+  // -------------------------------------------------------------------------
+  {
+    n: 'D1a',
+    rule: 'D1',
+    name: 'the name module imports node:dns',
+    why: 'node:dns is c-ares, a C parser of bytes anyone on the path can forge, inside main, and it cannot clear the recursion bit or read the authoritative one.',
+    file: NAMES,
+    from: "import { isIPv4 } from 'node:net';",
+    to: "import { isIPv4 } from 'node:net';\nimport { lookup } from 'node:dns';\nvoid lookup;",
+    needs: ['gate']
+  },
+  {
+    n: 'D1b',
+    rule: 'D1',
+    name: 'the host imports node:dgram',
+    why: 'the name check is the one thing in Tortie that sends a datagram, and it lives in one module a gate can read whole.',
+    file: IPC,
+    from: "import { app, shell, type IpcMain } from 'electron';",
+    to: "import { app, shell, type IpcMain } from 'electron';\nimport 'node:dgram';",
+    needs: ['gate']
+  },
+  {
+    n: 'D1c',
+    rule: 'D1',
+    name: 'the socket loses its own lookup',
+    why: 'measured by the spec step: without a lookup of its own, dgram asks dns.lookup for every bind and connect, which is the system resolver the check exists not to reach.',
+    file: NAMES,
+    from: "createSocket({ type: 'udp4', lookup: literalLookup })",
+    to: "createSocket({ type: 'udp4' })",
+    needs: ['gate']
+  },
+  {
+    n: 'D2a',
+    rule: 'D2',
+    name: 'the zone question asks for recursion',
+    why: 'THIS IS THE ONE THAT MATTERS MOST HERE. A recursive question for his name makes a resolver on his network fetch it and plant the 300 s miss his phone then meets: the failed first scan this phase exists to stop, caused by the check itself.',
+    file: NAMES,
+    from: "const query = encodeNameQuery(deps.id(), name, 'A', false);",
+    to: "const query = encodeNameQuery(deps.id(), name, 'A', true);",
+    needs: ['gate']
+  },
+  {
+    n: 'D2b',
+    rule: 'D2',
+    name: 'the question id from Math.random',
+    why: 'the id is the one thing an off-path forger must guess; Math.random is not a secret.',
+    file: NAMES,
+    from: 'id: () => randomInt(0, 0x10000),',
+    to: 'id: () => Math.floor(Math.random() * 0x10000),',
+    needs: ['gate']
+  },
+  {
+    n: 'D2c',
+    rule: 'D2',
+    name: 'send is handed the port and the address',
+    why: 'a connected socket sends the buffer alone; a port and an address on the send are a datagram to wherever they say.',
+    file: NAMES,
+    from: 'sock.send(packet, (sendErr: Error | null) => {',
+    to: 'sock.send(packet, server.port, server.address, (sendErr: Error | null) => {',
+    needs: ['gate']
+  },
+  {
+    n: 'D2d',
+    rule: 'D2',
+    name: 'the authoritative bit is no longer required',
+    why: 'a cache, an interceptor and a referral all lack it; without the check, any of them can confirm a name no phone can reach.',
+    file: NAMES,
+    from: "    if (!parsed.aa) return unreadable('not-authoritative');\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D2e',
+    rule: 'D2',
+    name: 'the question is no longer compared byte for byte',
+    why: 'a compressed, case-changed, retyped or reclassed question is an answer to something else.',
+    file: NAMES,
+    from: '      reply.length < 12 + question.length ||\n      !reply.subarray(12, 12 + question.length).equals(question)\n',
+    to: '      reply.length < 12 + question.length\n',
+    needs: ['gate']
+  },
+  {
+    n: 'D3a',
+    rule: 'D3',
+    name: 'MagicDNS’s range leaves the refused list',
+    why: 'the running log measured it: his Mac’s own resolver answers his name with a 100.x address, and a check that accepted it would confirm a name no phone can reach.',
+    file: NAMES,
+    from: '  [100, 64, 0, 0, 10],\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D3b',
+    rule: 'D3',
+    name: 'the host spells 100.64 in a second list',
+    why: 'two lists drift: an answer refused one way here is accepted another way there.',
+    file: IPC,
+    from: "const pocketLog = getLog('pocket');",
+    to: "const pocketLog = getLog('pocket');\nexport const TAILNET_RANGES = [[100, 64, 0, 0, 10]] as const;",
+    needs: ['gate']
+  },
+  {
+    n: 'D4a',
+    rule: 'D4',
+    name: 'reading the status starts a check',
+    why: 'a person who never turns the door on sees and spawns nothing new: opening the sheet reads the status, and a read may start no timer, socket or question.',
+    file: IPC,
+    from: '      nameCheck: this.nameCheckNow(),',
+    to: "      nameCheck: (this.beginNameCheck('start'), this.nameCheckNow()),",
+    needs: ['gate']
+  },
+  {
+    n: 'D4b',
+    rule: 'D4',
+    name: 'unpublish no longer stops the check',
+    why: 'a timer that outlives the door asks about a name nothing publishes, every minute, until the quit.',
+    file: IPC,
+    from: '  private async unpublish(): Promise<void> {\n    this.stopNameCheck();\n',
+    to: '  private async unpublish(): Promise<void> {\n',
+    needs: ['gate']
+  },
+  {
+    n: 'D4c',
+    rule: 'D4',
+    name: 'the name timer is a plain setTimeout',
+    why: 'armFunnelRestart’s timers are the set the quit’s first line clears; a timer outside it fires into a quit.',
+    file: IPC,
+    from: '    run.cancel = armFunnelRestart(this.names, gapMs, () => {\n      run.cancel = null;\n      this.nameRoundNow(run);\n    });',
+    to: '    const timer = setTimeout(() => {\n      run.cancel = null;\n      this.nameRoundNow(run);\n    }, gapMs);\n    run.cancel = () => clearTimeout(timer);',
+    needs: ['gate']
+  },
+  {
+    n: 'D4d',
+    rule: 'D4',
+    name: 'a round reads the wall clock',
+    why: 'a wall clock moved a day either way must change no gap and cause no burst; the gaps are timers, which are monotonic.',
+    file: IPC,
+    from: '    run.cancel = null;\n    run.inFlight = true;',
+    to: '    run.cancel = null;\n    if (Date.now() < 0) return;\n    run.inFlight = true;',
+    needs: ['gate']
+  },
+  {
+    n: 'D4e',
+    rule: 'D4',
+    name: 'production hands the host its own name deps',
+    why: 'only a development build’s GMUX_POCKET_NAME_SERVERS may point the check at anything but the real zone servers, and only at loopback.',
+    file: CAPABILITIES,
+    from: '    onResume: (cb) => wakes.onResume(() => cb())\n  });',
+    to: '    onResume: (cb) => wakes.onResume(() => cb()),\n    names: undefined\n  });',
+    needs: ['gate']
+  },
+  {
+    n: 'D5a',
+    rule: 'D5',
+    name: 'a name-check log line carries the public name',
+    why: 'no log line names the public name, the tailnet, a server, an answered address or a packet: app.log is read by the people he sends it to.',
+    file: IPC,
+    from: 'pocketLog.info(`the Mac’s name check read ${verdict}: ${reason}`);',
+    to: 'pocketLog.info(`the Mac’s name check read ${verdict}: ${reason} for ${run.target.publicName}`);',
+    needs: ['gate']
+  },
+  {
+    n: 'D6a',
+    rule: 'D6',
+    name: 'beginPairing asks for a confirmation instead of pairable',
+    why: 'pairable is main’s ONE predicate: a second spelling locks a person on a network that blocks DNS out of the pairing the unreadable rule opens.',
+    file: IPC,
+    from: '    if (!this.pairable()) {\n      throw gmuxError(',
+    to: "    if (this.nameCheckNow() !== 'confirmed') {\n      throw gmuxError(",
+    needs: ['gate']
+  },
+  {
+    n: 'D6b',
+    rule: 'D6',
+    name: 'the sheet decides the stage from nameCheck',
+    why: 'the sheet draws Pair on main’s word and never works it out again, as with confirmable.',
+    file: PHONE_SECTION,
+    from: "  return status.pairable ? 'ready' : 'naming';",
+    to: "  return status.nameCheck === 'confirmed' ? 'ready' : 'naming';",
+    needs: ['gate']
+  },
+  {
+    n: 'D6c',
+    rule: 'D6',
+    name: 'beginPairing no longer asks pairable again after its read of Tailscale',
+    why: 'the fix round’s own clause: a switch-on round that answers no while Tailscale is read takes Pair away, and a window opened on the answer from before the read sends a phone to a name that is gone (a verifier’s ATK-T1).',
+    file: IPC,
+    from: "    // AND AGAIN AFTER THE READ (the fix round): a switch-on round that answers\n    // no while Tailscale is read takes Pair away, and the window must not open\n    // on the answer from before it.\n    if (!this.pairable()) {\n      throw gmuxError('INVALID_INPUT', `${POCKET_NAME_SENTENCES.checking} No code was shown.`);\n    }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D7a',
+    rule: 'D7',
+    name: 'a packaged build honours the override',
+    why: 'the override is a development seam: in a packaged Tortie anything in his environment would decide which servers are asked about his name.',
+    file: NAMES,
+    from: "  if (input.packaged) return { kind: 'search' };\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D7b',
+    rule: 'D7',
+    name: 'an unusable override falls back to the search',
+    why: 'THE FALLBACK IS REAL DNS. A probe with a wrong value would ask the real ts.net servers about a name every minute, which is what the override exists to prevent.',
+    file: NAMES,
+    from: "      if (!Number.isInteger(port) || port < 1 || port > 65_535) return { kind: 'refused' };",
+    to: "      if (!Number.isInteger(port) || port < 1 || port > 65_535) return { kind: 'search' };",
+    needs: ['gate']
+  },
+  {
+    n: 'D8a',
+    rule: 'D8',
+    name: 'the shipping transport asks a real server outside Electron',
+    why: 'vitest, tsx and plain node are not Electron: this one check is what keeps a test that forgets to inject its deps from sending packets to the internet.',
+    file: NAMES,
+    from: "  if (server.address !== '127.0.0.1' && typeof process.versions.electron !== 'string') {\n    return Promise.resolve(EXCHANGE_ERROR);\n  }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D9a',
+    rule: 'D9',
+    name: 'the push seam pairs without the name stand-in',
+    why: 'the seam runs in a development Electron, where D8 does not apply: a door it publishes checks its name, and without GMUX_POCKET_NAME_SERVERS naming loopback that check asks the real ts.net servers about the stand-in’s made-up name every minute.',
+    file: SEAM,
+    from: "  if (!nameStandInOnly()) {\n    print(`${PUSH_SEAM_TAG} pairing needs the name stand-in (GMUX_POCKET_NAME_SERVERS), so no phone was paired`);\n    return false;\n  }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D9b',
+    rule: 'D9',
+    name: 'the push seam answers true on listening alone',
+    why: 'a listening door is not a pairable one: beginPairing refuses until the name answers, and pressing Pair on listening was what the seam and the four probes did before Phase 332.',
+    file: SEAM,
+    from: "  const waited = await pairableWithin(host, PAIRABLE_WAIT_MS);\n  if (!waited.ok) {\n    print(`${PUSH_SEAM_TAG} the Mac’s name never answered (${waited.nameCheck}), so no phone was paired`);\n    return false;\n  }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D9c',
+    rule: 'D9',
+    name: 'the seam counts the real search as a stand-in',
+    why: 'only a fixed list of loopback servers is a stand-in; the search is the real ts.net servers, and the seam must refuse it.',
+    file: SEAM,
+    from: "  return nameServersFrom({ packaged, env: process.env }).kind === 'fixed';",
+    to: "  return nameServersFrom({ packaged, env: process.env }).kind !== 'refused';",
+    needs: ['gate']
+  },
+  {
+    n: 'D9d',
+    rule: 'D9',
+    name: 'the seam presses Pair whatever the door answered',
+    why: 'both refusals and the wait are nothing if the press does not wait for their answer.',
+    file: SEAM,
+    from: '  for (const phone of doorOpen ? seed.phones : []) {',
+    to: '  for (const phone of seed.phones) {',
+    needs: ['gate']
+  },
+  {
+    n: 'D9e',
+    rule: 'D9',
+    name: 'the wait’s answer no longer decides anything',
+    why: 'a wait that timed out must end in “no phone was paired”, not in a press that beginPairing refuses.',
+    file: SEAM,
+    from: '  if (!waited.ok) {',
+    to: '  if (waited === null) {',
+    needs: ['gate']
+  },
+  {
+    n: 'T1c',
+    rule: 'T1',
+    name: 'the DNS stand-in binds a real interface',
+    why: 'the stand-in every door probe runs answers on loopback alone; one on 10.0.0.1 answers anybody on his network.',
+    file: DNS_STANDIN,
+    from: "    socket.bind({ address: '127.0.0.1', port: 0 }, () => {",
+    to: "    socket.bind({ address: '10.0.0.1', port: 0 }, () => {",
     needs: ['gate']
   },
   // -------------------------------------------------------------------------

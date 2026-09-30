@@ -87,6 +87,19 @@
  *   argv, no real Tailscale was seen, every stand-in pid and the decoy are
  *   ended by pid in the `finally`, and no Electron of this run is left.
  *
+ * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. From Phase 332 a
+ * published door asks the `ts.net` zone's own servers whether its public name
+ * answers before a code may show. This probe hands the app
+ * `GMUX_POCKET_NAME_SERVERS`, naming build/p332/dns-standin.mjs IN THIS
+ * PROCESS on 127.0.0.1, answering the stand-in's made-up name, so no question
+ * reaches real DNS (a parent build ignores the variable). The preflight also
+ * refuses unless that value names 127.0.0.1 alone and the stand-in answers; A3
+ * waits for main's `pairable` (60 s for the code), and RUN grades every
+ * question the app asked: an `A` question, RD 0, for the stand-in's name.
+ * Before every launch the profile's agents.json renames the Gemini, Qwen,
+ * Antigravity, Grok and Droid binaries, and `agents:list` is read back, so no
+ * agent's `--version` ever runs.
+ *
  * THE PARENT. `P330_PARENT_CHECKOUT=<a built checkout at 217f47e5>` runs A1
  * against that build (with the quit timed), and writes probe-p330-parent.json,
  * which a later HEAD run reads for A1's comparison. `P330_ARMS=1` runs A1 alone
@@ -125,8 +138,10 @@ import { fileURLToPath } from 'node:url';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { wsConnect, cdpEval } from '../cdp-client.mjs';
 import { pickRendererTarget } from '../cdp-target.mjs';
+import { gradeFixtures } from '../probe-graders.mjs';
 import { adoptCertificate, doorFrom, fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, signedGet } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, realTailscaleIn, watchForRealTailscale } from './tailscale-standin.mjs';
+import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
 const ROOT = resolve(dirname(HERE), '..', '..');
@@ -459,7 +474,11 @@ export const GRADERS = {
       ['no forbidden argv reached the stand-in', (r) => r.forbidden === 0],
       ['no refused argv reached the stand-in', (r) => r.refusedArgv === 0],
       ['no stand-in process is left', (r) => r.standinLeft === 0],
-      ['no Electron of this run is left', (r) => r.electronLeft === 0]
+      ['no Electron of this run is left', (r) => r.electronLeft === 0],
+      // PHASE 332: the name check asked the loopback stand-in and nothing else.
+      ['the DNS preflight passed at every launch', (r) => r.dnsPreflights.length > 0 && r.dnsPreflights.every((p) => p === true)],
+      ['the quiet agents held at every launch', (r) => r.agentsHeld.length > 0 && r.agentsHeld.every((p) => p === true)],
+      ['every name question was A, RD 0, for the stand-in’s name', (r) => nameQuestionsVerdict(r.nameQuestions).ok]
     ]
   }
 };
@@ -730,14 +749,28 @@ export const GRADER_FIXTURES = {
     ]
   },
   RUN: {
-    pass: { preflight: true, realTailscale: 0, samples: 40, forbidden: 0, refusedArgv: 0, standinLeft: 0, electronLeft: 0 },
+    pass: {
+      preflight: true,
+      realTailscale: 0,
+      samples: 40,
+      forbidden: 0,
+      refusedArgv: 0,
+      standinLeft: 0,
+      electronLeft: 0,
+      dnsPreflights: [true],
+      agentsHeld: [true],
+      nameQuestions: { expect: true, rows: [{ at: 1, rd: 0, qtype: 1, qname: FIX_NAME, answered: 'record' }], name: FIX_NAME }
+    },
     breaks: {
       'the preflight passed': (r) => void (r.preflight = false),
       'no real Tailscale in any sample': (r) => void (r.realTailscale = 1),
       'no forbidden argv reached the stand-in': (r) => void (r.forbidden = 1),
       'no refused argv reached the stand-in': (r) => void (r.refusedArgv = 1),
       'no stand-in process is left': (r) => void (r.standinLeft = 1),
-      'no Electron of this run is left': (r) => void (r.electronLeft = 1)
+      'no Electron of this run is left': (r) => void (r.electronLeft = 1),
+      'the DNS preflight passed at every launch': (r) => void (r.dnsPreflights = [true, false]),
+      'the quiet agents held at every launch': (r) => void (r.agentsHeld = [false]),
+      'every name question was A, RD 0, for the stand-in’s name': (r) => void (r.nameQuestions.rows[0].rd = 1)
     }
   }
 };
@@ -752,45 +785,11 @@ function cloneReading(pass) {
 
 function graderSelfTest() {
   let failures = 0;
-  let clauses = 0;
   const say = (ok, text) => {
     if (!ok) failures += 1;
     process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${text}\n`);
   };
-  for (const id of Object.keys(GRADERS)) {
-    const fixture = GRADER_FIXTURES[id];
-    if (fixture === undefined) {
-      say(false, `${id} has no fixtures`);
-      continue;
-    }
-    const pass = grade(id, cloneReading(fixture.pass));
-    say(pass.ok, `${id} passes its honest reading${pass.ok ? '' : `, failing ${J(pass.failed)}`}`);
-    for (const [name] of GRADERS[id].clauses) {
-      clauses += 1;
-      const breakIt = fixture.breaks[name];
-      if (breakIt === undefined) {
-        say(false, `${id} has no fixture that breaks "${name}", so nothing shows that clause can fail`);
-        continue;
-      }
-      const reading = cloneReading(fixture.pass);
-      breakIt(reading);
-      const got = grade(id, reading);
-      say(!got.ok && got.failed.includes(name), `${id} goes red on "${name}" when only that is broken${got.failed.includes(name) ? '' : ` (it failed ${J(got.failed)})`}`);
-    }
-    for (const name of Object.keys(fixture.breaks)) {
-      if (!GRADERS[id].clauses.some(([c]) => c === name)) say(false, `${id} has a break for "${name}", which is no clause of its grader`);
-    }
-    for (const { what, clause, edit } of fixture.refused ?? []) {
-      if (!GRADERS[id].clauses.some(([c]) => c === clause)) {
-        say(false, `${id} refuses ${what} on "${clause}", which is no clause of its grader`);
-        continue;
-      }
-      const reading = cloneReading(fixture.pass);
-      edit(reading);
-      const got = grade(id, reading);
-      say(!got.ok && got.failed.includes(clause), `${id} refuses ${what} on "${clause}"${got.failed.includes(clause) ? '' : ` (it failed ${J(got.failed)})`}`);
-    }
-  }
+  const clauses = gradeFixtures({ graders: GRADERS, fixtures: GRADER_FIXTURES, grade, clone: cloneReading, say, J });
   // The word readers, over their own texts.
   const src = "export const X =\n  'a b ' +\n  \"c’d\";\nexport const T: Readonly<Record<W, string>> = {\n  'port-taken':\n    'port PORT ' + 'taken',\n  busy: 'Try again.',\n  unreadable: `no`\n};\n";
   say(stringConst(src, 'X') === 'a b c’d', `stringConst reads a concatenation (${J(stringConst(src, 'X'))})`);
@@ -798,6 +797,7 @@ function graderSelfTest() {
   say(t['port-taken'] === 'port PORT taken' && t.busy === 'Try again.' && t.unreadable === 'no', `sentenceTable reads quoted and bare keys (${J(t)})`);
   const w = wordsFrom(src.replace('T:', 'POCKET_FUNNEL_SENTENCES:'), '', 'const FUNNEL_RESTART_FLOOR_MS = 2_000;');
   say(w.sentence('port-taken', 10000) === 'port 10000 taken' && w.from['sentence:busy'] === 'source' && w.from['sentence:no-name'] === 'spec' && w.floorMs === 2000, 'wordsFrom takes the source first and names the spec fallback');
+  say(nameQuestionsSelfTest(FIX_NAME, (line) => process.stdout.write(`  ${line}\n`)), 'the Phase 332 name-question clause grades its own cases');
   process.stdout.write(failures === 0 ? `[p330] grader self-test PASS: ${String(Object.keys(GRADERS).length)} graders, ${String(clauses)} clauses, each shown to go red on its own break.\n` : `[p330] grader self-test FAIL: ${String(failures)}.\n`);
   return failures === 0;
 }
@@ -996,7 +996,13 @@ async function attachMain(timeoutMs = 150_000) {
       for (let i = 0; i < 200; i += 1) {
         // The harness drives (GMUX_PROBES=1) arm a moment after the bridge;
         // the sessions this run makes are made through them.
-        if ((await cdpEval(cdp, 'window.gmux !== undefined && window.gmux.pocket !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined')) === true) return cdp;
+        if ((await cdpEval(cdp, 'window.gmux !== undefined && window.gmux.pocket !== undefined && window.__gmuxP93 !== undefined && window.__gmuxP202 !== undefined')) === true) {
+          // NO AGENT STARTS (Phase 332): the renamed rows must read not installed.
+          const held = quietAgentsHeld(JSON.parse(await cdpEval(cdp, 'window.gmux.agentsList().then((r) => JSON.stringify(r))')));
+          agentsHeld.push(held.ok);
+          if (!held.ok) throw new Error(`agents:list says the renamed agents are not all absent: ${held.problems.join('; ')}`);
+          return cdp;
+        }
         await sleep(300);
       }
       throw new Error('the app never armed window.gmux.pocket');
@@ -1108,6 +1114,9 @@ async function allowDoor(settings, main, name, ms = 20_000) {
 // ---------------------------------------------------------------------------
 
 let standin = null;
+let dns = null;
+const dnsPreflights = [];
+const agentsHeld = [];
 let watch = null;
 let decoy = null;
 let lastShim = 0;
@@ -1134,6 +1143,9 @@ function launchOptions(label) {
       // THE STAND-IN. A development build honours this and runs it; a packaged
       // one ignores it, which is why no packaged Tortie is ever launched here.
       GMUX_TAILSCALE_BIN: standin.binPath,
+      // THE DNS STAND-IN (Phase 332), in this process on 127.0.0.1: the name
+      // check asks it and nothing else. A parent build ignores the variable.
+      [NAME_SERVERS_VAR]: dns.servers,
       P330_TALK_SID: TALK_SID,
       [MAIN_MARKER]: '1',
       P330_STOP: STOP,
@@ -1148,6 +1160,12 @@ function launchOptions(label) {
 async function launch(label, body) {
   const pre = preflightStandin(standin, standin.binPath);
   if (!pre.ok) throw new Error(`the preflight refused the launch: ${pre.problems.join('; ')}`);
+  // Phase 332: the name check's servers are the loopback stand-in's, or nothing launches.
+  const value = launchOptions(label).env[NAME_SERVERS_VAR];
+  const dnsPre = await dns.preflight(value);
+  dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(value));
+  if (!dnsPre.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
+  writeQuietAgents(PROFILE);
   return withElectron(launchOptions(label), async (handle) => {
     lastShim = handle.pid;
     const rec = { label, shim: handle.pid, app: 0 };
@@ -1186,6 +1204,8 @@ try {
   const pre = preflightStandin(standin, standin.binPath);
   preflightOk = pre.ok;
   if (!pre.ok) throw new Error(`the preflight refused: ${pre.problems.join('; ')}`);
+  // Phase 332: the zone's servers, answering the stand-in's name at once.
+  dns = await makeDnsStandin({ name: NAME, mode: 'record' });
   // Sampled every second for the whole run, rooted at whichever app is up.
   watch = watchForRealTailscale({ roots: () => [lastShim, lastApp].filter((p) => p > 0), everyMs: 1_000 });
 
@@ -1343,8 +1363,10 @@ exit 0
       const approvalSheet = await sheet(settings);
       const open = approvalSheet.buttons.find((b) => b.text === WORDS.btnOpen);
       standin.approve();
-      const listening = await waitStatus(main, (s) => s.state === 'listening', 30_000);
-      const codeShown = await waitFor(async () => (await sheet(settings)).text.includes(WORDS.scanLine), 20_000);
+      // Phase 332: a code shows once main says the name answers (`pairable`,
+      // one round of the stand-in); a parent answers no `pairable`.
+      const listening = await waitStatus(main, (s) => s.pairable === true || (s.pairable === undefined && s.state === 'listening'), 75_000);
+      const codeShown = await waitFor(async () => (await sheet(settings)).text.includes(WORDS.scanLine), 60_000);
       if (ARMS.has('3')) {
         arm('A3', {
           funnelState: waiting.status?.funnel?.state,
@@ -1775,6 +1797,8 @@ exit 0
   report.readings.standinEnded = ended;
   const findings = watch?.stop() ?? [];
   const log = standin?.readLog() ?? [];
+  const nameRows = dns?.log() ?? [];
+  if (dns !== null) await dns.close();
   const ours = (spawnSync('/bin/ps', ['-Ao', 'pid=,ppid=,comm='], { encoding: 'utf8' }).stdout ?? '')
     .split('\n')
     .filter((l) => /Electron|Tortie$|chrome_crashpad/.test(l) && !/defunct/.test(l))
@@ -1789,7 +1813,11 @@ exit 0
     forbidden: log.filter((e) => e.forbidden === true).length,
     refusedArgv: log.filter((e) => e.verdict === 'refused').length,
     standinLeft: ended.left.length,
-    electronLeft: ours.length
+    electronLeft: ours.length,
+    dnsPreflights,
+    agentsHeld,
+    // Owed at HEAD on a run that published the door; a parent ignores the variable.
+    nameQuestions: { expect: !AT_PARENT && log.some((e) => e.kind === 'funnel'), rows: nameRows, name: NAME }
   });
   report.readings.realTailscaleFindings = findings;
   report.readings.standinCalls = log.map((e) => ({ at: e.at, kind: e.kind, argv: e.argv, verdict: e.verdict, event: e.event, how: e.how }));
