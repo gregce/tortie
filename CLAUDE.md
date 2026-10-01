@@ -173,6 +173,20 @@ written here. Measure before writing a number into this file.
 - **`/private/tmp` does not survive a reboot.** Rebuilding a worktree means `git worktree prune`,
   `git worktree add --detach`, then `cp -Rc node_modules` and `cp -Rc build/vendor` from the
   operator's checkout. Confirm `build/vendor/specstory/bin/specstory --version` before starting.
+- **A landed phase cleans up after itself, in the same session as its docs follow-up** (his rule,
+  2026-10-01). On that day the disk read 99 percent full with 9.1 GB free, and 116 GB of it was this
+  repository's scratch: every phase had left its worktree, its parent builds, a copy of
+  `node_modules` per clone, and one Xcode DerivedData folder per agent (`dd-*`, 75 to 600 MB each).
+  Removing the leftovers of landed phases freed 26 GB. Once the follow-up commit is pushed, remove,
+  for that phase only: its worktree (`git -C /Users/gdc/gmux worktree remove --force <wt>`, then
+  `worktree prune`), every parent or clone its verifiers made (`wt-p<N>-parent*`, `p<N>-*` under
+  `/private/tmp`), its scratch folder (`<scratchpad>/p<N>*`, DerivedData and archives included), and
+  its probes' stale socket files under `/private/tmp/tmux-501/` whose server is gone. First check that
+  no running process names the path (`ps -Ao command | grep <path>`). Never remove a path another
+  phase in flight uses, anything under `/Users/gdc` (his checkout, his Xcode archives and DerivedData,
+  his Simulators), or a worktree with work that is not on main. Every finding a phase needs to keep
+  is already in its SPEC's "§As built" and its commit body, so the scratch holds nothing to inherit.
+  Report the space freed with the landing.
 - **The exposure is structural and it is the price of committing once per phase.** The committer is
   the last agent, so a crash at any earlier point loses the whole phase. That trade is deliberate.
 

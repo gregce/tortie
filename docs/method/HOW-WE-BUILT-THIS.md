@@ -123,3 +123,9 @@ in the backlog because the next agent reads this file and does not read a table
 6. **Say plainly when the answer is nothing.** A research spike that finds the studied thing thinner
    than what already exists is a good spike. Writing that sentence is worth more than inventing a
    finding to justify the effort.
+
+
+7. **Clean up when a phase lands.** Each phase leaves gigabytes behind: worktrees, parent builds,
+   clones with their own `node_modules`, and an Xcode DerivedData folder per agent. On 2026-10-01 that
+   had filled the disk to 99 percent. The landing is not done until the phase's worktree, parents,
+   clones and scratch are gone (CLAUDE.md, "Machine discipline").
