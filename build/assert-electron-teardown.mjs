@@ -360,13 +360,20 @@ const HELPER = 'electron-run.mjs';
  * HOME and the socket gmux-p3321-<pid>, with four build/p332/dns-standin.mjs
  * stand-ins in the probe's own process on 127.0.0.1, closed in its `finally`,
  * and the stand-in Tailscale's pids ended by pid there.
+ * PHASE 333.2 RAISED IT FROM 159 TO 160, for build/p3332/probe-p3332.mjs
+ * (`probe:p3332`), the scan line that names where the phone app comes from,
+ * read at the parent and at HEAD: ONE Electron per build through the helper,
+ * on a scratch profile, a scratch HOME and the socket gmux-p3332-<pid>, with
+ * one build/p332/dns-standin.mjs and Phase 314's APNs stand-in in the probe's
+ * own process on 127.0.0.1, closed in its `finally`, a scratch key deleted
+ * there, and the stand-in Tailscale's pids ended by pid there.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 159;
+const HELPER_USER_FLOOR = 160;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

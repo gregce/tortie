@@ -665,6 +665,18 @@ export const CHECKS = [
   // fixtures and starts nothing. P3321_PARENT_CHECKOUT reads P9 and P7 at a
   // parent build.
   electron('probe:p3321'),
+  // PHASE 333.2's app run, and the parent measurement: Settings then Phone's
+  // scan line names tortie.sh/iphone, in words. ONE Electron per build through
+  // build/electron-run.mjs's withElectron, on a scratch profile, a scratch HOME
+  // and the socket gmux-p3332-<pid>, with build/p330/tailscale-standin.mjs
+  // behind its preflight and sampler, ONE build/p332/dns-standin.mjs and
+  // build/p314/apns-stand-in.mjs IN THE PROBE'S OWN PROCESS on 127.0.0.1, a
+  // scratch P-256 key under GMUX_HARNESS_ALERTS deleted in the `finally`, and
+  // build/hidden-agents.mjs before the launch. It presses the sheet's own Pair,
+  // Allow, Cancel, Choose… and Forget and reads every rectangle of the section.
+  // No phone, no agent, no token. `--grader-self-test` grades recorded fixtures
+  // and starts nothing. P3332_PARENT_CHECKOUT reads the same arms at a parent.
+  electron('probe:p3332'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that

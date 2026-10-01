@@ -97,6 +97,7 @@
     "probe:p330": "node build/p330/probe-p330.mjs",
     "probe:p332": "node build/p332/probe-p332.mjs",
     "probe:p3321": "node build/p3321/probe-p3321.mjs",
+    "probe:p3332": "node build/p3332/probe-p3332.mjs",
     "probe:p320": "node build/harness-socket.mjs --fresh gmux-p320 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; node build/with-scratch-machine.mjs -- node build/p320/probe-p320.mjs'",
     "probe:p321": "node build/p321/probe-p321.mjs",
     "probe:p324": "node build/p324/probe-p324.mjs",

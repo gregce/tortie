@@ -80,7 +80,12 @@ export const PAIR_WAITING = 'The code shows once this Mac is answering.';
 export const BTN_PAIR = 'Pair';
 export const BTN_CANCEL = 'Cancel';
 export const QR_LABEL = 'Pairing code';
-export const SCAN_LINE = 'Scan it with Tortie on your iPhone.';
+/**
+ * Where the phone app comes from (Phase 333.2, research 136 §5): words only,
+ * never a link, a button or a badge. tortie.sh/iphone is the site's redirect,
+ * which 333.7 makes on launch day; no Mac release carries this line before it.
+ */
+export const SCAN_LINE = 'Scan it with Tortie on your iPhone, from tortie.sh/iphone.';
 /** Research 132 §7.7: the code is a way in for anybody who sees it in time. */
 export const CODE_PRIVATE = 'Do not show this code on a shared screen.';
 export const MATCH_LABEL = 'Match this on your iPhone';

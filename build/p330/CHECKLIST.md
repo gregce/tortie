@@ -58,7 +58,7 @@ where each button and sentence was checked against the tree, and is for the agen
    **You should see** "Starting Tailscale Funnel…" under the switch, then "Answering at
    https://gregs-macbook-pro.tail2ddfe1.ts.net:8443", then "Publishing your Mac’s name" with its dots
    under **Pair a phone**, the count moving as the name's servers see it, then the code on its own with
-   "Scan it with Tortie on your iPhone." and "Do not show this code on a shared screen." You pressed Allow
+   "Scan it with Tortie on your iPhone, from tortie.sh/iphone." (that address opens nothing until launch day) and "Do not show this code on a shared screen." You pressed Allow
    once, and that was the last press on the Mac.
    **Write down** the counts you saw (for example 2, 1, 3, 2 of 4), whether anything on the card moved
    other than the dots, the count and the two times, and the last "N min" the card showed before the code
@@ -210,7 +210,7 @@ Tailscale, App Store Connect or TestFlight, which no agent may sign in to.
 | 2 | The lines, "Answers on the internet at https://…, through Tailscale Funnel on …", "Publishes it with …", "Allows no phone yet" | `describePocketDoor`, `src/main/pocket/pairing.ts:403`, `:407`, `:435` |
 | 2 | No approval line on an approved tailnet | `asksApproval` from the CapMap, `src/main/pocket/funnel.ts:432`; drawn only then, `PhoneSection.tsx:491` |
 | 2 | "Starting Tailscale Funnel…", "Answering at https://…:8443" | `DOOR_OPENING`, `PhoneSection.tsx:61`; `doorListening`, `:103` |
-| 2 | The code on its own after Allow; "Scan it with Tortie on your iPhone.", "Do not show this code on a shared screen." | `pairAfterAllow` in `PhoneSection.tsx`; `SCAN_LINE` `:73`, `CODE_PRIVATE` `:75`. Driven against the stand-in by `probe:p330` A3 |
+| 2 | The code on its own after Allow; "Scan it with Tortie on your iPhone, from tortie.sh/iphone.", "Do not show this code on a shared screen." | `pairAfterAllow` in `PhoneSection.tsx`; `SCAN_LINE` `:88`, `CODE_PRIVATE` `:90`. Driven against the stand-in by `probe:p330` A3, and side by side with the parent by `probe:p3332` S |
 | 2, 11, 12 | "Publishing your Mac’s name", "N of 4 see it", "Your Mac’s name is live", "Took N min", the dots, and no **Pair** while they show | `NAME_PUBLISHING`, `nameSeeing`, `NAME_LIVE`, `nameTook` in `src/renderer/settings/PhoneSection.tsx`; the dots `[data-phone-name-dots]`; the checking sentence, `POCKET_NAME_SENTENCES.checking` in `src/shared/ipc/pocket.ts`, now on the block's hover; the `naming` face of `pairingStage`, drawn while main's `pairable` is false (Phase 332.1). Driven against four loopback DNS stand-ins by `probe:p3321` H7 and H9, and by `probe:p332` H1 (the title), H3, H4 and H5 |
 | 11 | **Pair** at once on a relaunch, one question in the background | the switch-on round, `beginNameCheck` in `src/main/pocket/ipc.ts`. Driven by `probe:p332` H4 |
 | 12 | Off keeps the name; **Pair** at once, one question in the background | the off write keeps `nameConfirmed`, so the next counted start is the switch-on round (`beginNameCheck`, `src/main/pocket/ipc.ts`). Driven by `probe:p332` H2 |

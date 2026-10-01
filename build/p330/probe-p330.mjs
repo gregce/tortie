@@ -239,7 +239,8 @@ export const SPEC_WORDS = Object.freeze({
   POCKET_FUNNEL_RESTARTING: 'Tailscale stopped publishing the door. Tortie is trying again.',
   BTN_PAIR: 'Pair',
   BTN_OPEN_TAILSCALE: 'Open Tailscale',
-  SCAN_LINE: 'Scan it with Tortie on your iPhone.',
+  // Phase 333.2 moved the scan line (build/p3332/SPEC.md).
+  SCAN_LINE: 'Scan it with Tortie on your iPhone, from tortie.sh/iphone.',
   PHONES_DROPPED: 'Phones paired before this version must pair again.',
   sentences: {
     'no-tailscale': 'Tortie found no Tailscale program on this Mac. Install Tailscale and sign in, then try again.',

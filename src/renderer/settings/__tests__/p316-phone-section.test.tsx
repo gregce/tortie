@@ -517,8 +517,27 @@ describe('the pairing card', () => {
     const html = draw({ offer: offer(), view: pairing() });
     expect(html).toContain('<svg');
     expect(text(html)).toContain(SCAN_LINE);
-    expect(SCAN_LINE).toBe('Scan it with Tortie on your iPhone.');
+    expect(SCAN_LINE).toBe('Scan it with Tortie on your iPhone, from tortie.sh/iphone.');
     expect(text(html)).toContain(CODE_PRIVATE);
+  });
+
+  it('names where the phone app comes from in words, never a link (Phase 333.2)', () => {
+    const html = draw({ offer: offer(), view: pairing() });
+    // The code's column: everything from its opening tag to the end of the face.
+    const at = html.indexOf('<div class="phone-qr-side">');
+    expect(at).toBeGreaterThanOrEqual(0);
+    const side = html.slice(at);
+    const lines = [...side.matchAll(/<p class="phone-line">([\s\S]*?)<\/p>/g)].map((m) => m[1]);
+    // The scan line is the column's first line and holds the words alone, no element; the private line second.
+    expect(side.indexOf('<p class="phone-line">')).toBe('<div class="phone-qr-side">'.length);
+    expect(lines[0]).toBe(SCAN_LINE);
+    expect(lines[0]).not.toContain('<');
+    expect(lines[1]).toBe(CODE_PRIVATE);
+    // Where it comes from: the site's address as words, and no scheme, no store and no TestFlight.
+    expect(SCAN_LINE).toContain('tortie.sh/iphone');
+    expect(SCAN_LINE).not.toContain('://');
+    expect(SCAN_LINE).not.toMatch(/TestFlight/i);
+    expect(SCAN_LINE).not.toMatch(/App Store/i);
   });
 
   it('counts down in minutes and seconds, never below zero', () => {
@@ -1292,5 +1311,93 @@ describe('the name check’s look, read as text (Phase 332.1, SPEC §5.5.4)', ()
     for (const name of classes) {
       expect(name === 'dot' || name.startsWith('dot-'), name).toBe(false);
     }
+  });
+});
+
+describe('the sheet draws no link in any face (Phase 333.2, build/p3332/SPEC.md §4.3)', () => {
+  // The hostile half of "text only": the scan line names tortie.sh/iphone in
+  // words, and a later round that turns those words, or anything else on the
+  // sheet, into a link fails here. Every face this file's fixtures draw.
+  const key = { pushKeyId: 'ABCDE12345' };
+  const presented = pairing({
+    state: 'presented',
+    label: 'An iPhone',
+    fingerprint: 'ab12 cd34 ef56 0718 293a 4b5c',
+    lines: ['Allows the phone "An iPhone", key ab12 cd34 ef56 0718 293a 4b5c'],
+    hash: 'p'.repeat(64)
+  });
+  const FACES: [string, Partial<PhoneViewProps>][] = [
+    ['no bridge', { supported: false }],
+    ['before the first read', { status: null }],
+    ['door off', { status: status({ state: 'off' }) }],
+    ['waiting', { status: status({ state: 'opening' }) }],
+    ['naming, one line', { status: naming(null) }],
+    ['naming, the block', { status: naming(ANSWERED) }],
+    ['ready', {}],
+    ['the unreadable line', { status: status({ pairable: true, nameCheck: 'unreadable', nameProgress: ANSWERED }) }],
+    [
+      'live, watched',
+      { status: status({ pairable: true, nameCheck: 'confirmed', nameProgress: FROZEN }), nameWatched: true }
+    ],
+    ['showing', { offer: offer(), view: pairing() }],
+    ['showing, with a key and the alerts on', { status: status({ ...key, pushAlerts: true }), offer: offer(), view: pairing() }],
+    ['match', { offer: offer(), view: presented }],
+    ['the confirm lines', { status: status({ state: 'refused', confirmState: 'changed' }) }],
+    [
+      'the confirm lines, with the standing-right warning',
+      { status: status({ state: 'refused', confirmState: 'never', funnel: { ...status().funnel, asksApproval: true } }) }
+    ],
+    [
+      'the approval, Open Tailscale',
+      {
+        status: status({
+          state: 'opening',
+          funnel: { ...status().funnel, state: 'approval', approvalOpens: true, approvalText: null }
+        })
+      }
+    ],
+    [
+      'the approval, another page as text',
+      {
+        status: status({
+          state: 'opening',
+          funnel: {
+            ...status().funnel,
+            state: 'approval',
+            approvalOpens: false,
+            approvalText: 'https://example.invalid/f/funnel'
+          }
+        })
+      }
+    ],
+    ['a refusal and Try again', { status: status({ state: 'refused', refusal: 'port taken' }) }],
+    ['with no key', { status: status() }],
+    ['with a key', { status: status(key) }],
+    ['with a key and the alerts on', { status: status({ ...key, pushAlerts: true, pushSentence: PUSH_NO_KEY }) }],
+    ['alerts on with no key', { status: status({ pushAlerts: true }) }],
+    [
+      'a phone, its alerts, a notice and an error',
+      {
+        status: status({ ...key, pushAlerts: true, phones: [{ ...phone, alerts: 'on' }], droppedPhones: 1 }),
+        notice: { text: pairedWith('An iPhone'), phoneId: 'p1' },
+        error: 'main says why'
+      }
+    ],
+    ['the code expired', { status: status({ state: 'off' }), notice: expiredNotice(true, false) }]
+  ];
+
+  for (const [name, over] of FACES) {
+    it(`holds no <a and no href=: ${name}`, () => {
+      const html = draw(over);
+      expect(html.length, name).toBeGreaterThan(0);
+      expect(html, name).not.toMatch(/<a\b/i);
+      expect(html, name).not.toContain('href=');
+    });
+  }
+
+  it('reached the scan line: the showing faces draw it', () => {
+    const showing = FACES.filter(([name]) => name.startsWith('showing'));
+    expect(showing).toHaveLength(2);
+    for (const [name, over] of showing) expect(text(draw(over)), name).toContain(SCAN_LINE);
   });
 });
