@@ -39127,6 +39127,121 @@ build after 316.6's, build 5.
 - **No choice stored on the Mac, and no filter stored anywhere.**
 - **No release.**
 
+## Phase 334 — "the open buffer does not update" and "coming back starts at the top" — the editor re-reads a file when you come back to it, and Redline keeps its place (issues 33 and 32, folded in on his word, 2026-09-30)
+
+**Subject.** `fix(editor): re-read an open file when you come back to it, and keep Redline's place`
+
+**First body line.** `Phase 334: the editor re-reads on return, and Redline remembers where you were`
+
+**Semver.** A patch, unreleased under his rule, in the release he named on 2026-09-30. No contract change, no menu change.
+
+**His words, 2026-09-30.** "Can you look at the other open GH issues and determine if any of them are 1) likely
+straightforward fixes that we haven't already adressed and 2) can be folded into tonight", then all three picks: issue
+35 (Phase 306), the straightforward slice of issue 33, and item 3 of issue 32.
+
+What a person notices:
+
+- **A file an agent rewrote shows the agent's bytes when you switch back to its tab or click into the editor**, even when
+  the file sits in a folder the repository ignores. Before, the tab kept the old text and the next save refused with
+  "changed on disk, so nothing was written".
+- **A Redline tab opens where you left it.** Before, leaving a Redline tab and coming back started at the top, and
+  switching between two Redline tabs opened the second at the first one's offset.
+
+**Tier, per item (CLAUDE.md "mixed rounds verify per item").**
+
+- **Item A, the re-read: Tier 3.** It changes WHEN the editor replaces a buffer's contents, which is the one thing that can
+  lose a person's typing. The independent methods: (1) **the attack**, typing in the same tick as an activation and a
+  focus, a rewind's adoption in flight, a dirty tab, a file deleted underneath, a burst of switches; (2) **the parent**,
+  `28d89295` or whatever this phase builds on, which must read 0 of N agent writes seen in an ignored folder against N
+  of N at HEAD.
+- **Item B, scroll memory: Tier 2.** A rendered surface with no durable state. One app run and the parent measured.
+
+**Charter.**
+
+- Issue 33 and the triage of 2026-09-30, which refuted folding the WHOLE fix and kept only research 83 §C.8 point 3
+  (`docs/research/83-shadow-baseline.md:1687-1695`): a re-read on activation and focus, renderer only. Point 2, the
+  directory watch for open files under ignored roots, stays its own later phase (Phase 225's "What is NOT",
+  `docs/BACKLOG.md:23053-23054`).
+- Issue 32 item 3 only. Items 1, 2, 4 and 5 (Redline's typeface and zoom, Find, Track my edits, Reject all) wait on his
+  rulings and are not this phase.
+- Phase 277/282's save rules (`conformance:save` rules 22 and 25 to 27c): `refreshRepo` never reloads a dirty tab, and its
+  clean reload requires `savedContents` unchanged across the read. This phase only CALLS it more often; it does not
+  change it.
+
+### What was measured before this entry was written
+
+- **Nothing re-reads on activation.** `activate` (`src/renderer/editor/store.ts:1221-1229`) reveals the project, stamps
+  `lastUsed` and moves focus. A clean tab is re-read only from the repo bus, `onRepoChanged` → `io.refreshRepo`
+  (`store.ts:851-854`), and the bus never fires for a write inside an ignored directory: the watcher excludes every
+  ignored root it read at start (`src/main/watcher/repo-watcher.ts:243-264`,
+  `src/main/watcher/ignored-roots.ts:137-158`). Research 83 §C.2 measured it: tracked 8 of 8 edits seen, ignored 0 of 8.
+- **The re-read already exists as one call.** `rereadRepo(repoPath)` (`store.ts:1445-1447`, Phase 282.2) is the bus's
+  own `refreshRepo`, queued and serialized by `queuedRefresh` (`src/renderer/editor/tab-io.ts:2024-2073`).
+- **Focus has two hosts.** Monaco's (`src/renderer/editor/MonacoHost.tsx:319` listens for blur only) and Redline's
+  `onFocus` (`src/renderer/editor/RedlineDocument.tsx:1140`).
+- **Redline stores no scroll position.** The scroller (`RedlineDocument.tsx:1106-1111`, `.ed-redline-scroll`) never
+  reads or writes `scrollTop`; `EditorPanel.tsx:828` mounts `<RedlineDocument tab={activeTab} />` with no key, so a
+  return from another mode rebuilds it at 0 and two Redline tabs share one scroller element. Only Monaco keeps per-tab
+  view state (`src/renderer/editor/monaco-loader.ts:290-306`, `dropViewState` at `:305`, `rekeyTabResources` at `:86`).
+
+### The mechanism
+
+**A1. Re-read on activation.** `activate` calls `get().rereadRepo(tab.repoPath)` for a worktree tab whose repo is known,
+after the focus patch. History and review tabs are already refused inside `refreshRepo` (`tab-io.ts:20`).
+
+**A2. Re-read on focus.** Monaco's `onDidFocusEditorText` beside the existing blur listener in `MonacoHost.tsx`, and
+Redline's `onFocus` when focus ENTERS the scroller from outside it (not every focusin between its own children), each
+call `rereadRepo` for the active tab's repo.
+
+**A3. A floor, so focus cannot become a walk storm.** One re-read per repo per 1,000 ms from these two doors (the spec
+measures the walk's cost over 30 open tabs and may move the number with the measurement). The bus's path is untouched.
+
+**A4. What it never does.** It never reloads a dirty tab, never reads a file outside a project, and never shows a
+sentence: a re-read that finds nothing new changes nothing, and one that finds new bytes draws them as the bus does.
+
+**B1. Scroll memory — NEW `src/renderer/editor/redline-scroll.ts`.** A module-level `Map<tabId, scrollTop>`. Saved on the
+scroller's `onScroll`, keyed by the tab id of THAT render (never in an effect cleanup, because the shared scroller has
+already been clamped to the next tab's height by then). Restored in a `useLayoutEffect` keyed on the tab id and on the
+document having been composed. Dropped at the three `dropViewState` sites in `store.ts` (`:1121`, `:1158`, `:1243`) and
+re-keyed beside `rekeyTabResources`. The file matches rule 9's prefix, so `REDLINE_FILES_FLOOR`
+(`build/conformance-redline.mjs:716`) rises from 23 to 24 in the same commit (obligation 4).
+
+### The proof, run rather than read
+
+- **The battery** (`typecheck`, `build`, `test`, `smoke:t1`, `smoke`, `smoke:t3`, `package`) plus `conformance:save`,
+  `conformance:redline` and `ablation:p268`, because the touched files are on their paths.
+- **Unit tests** that fail when each clause is removed: activation re-reads a worktree tab and not a history tab; focus
+  re-reads once per floor; a dirty tab is never reloaded; scroll is saved per tab, restored after compose, dropped on
+  close and eviction, and carried by a rename.
+- **`probe:p334`, one app run** through `build/electron-run.mjs` over a scratch repository whose `notes/` is gitignored and
+  exists BEFORE the project opens (the watcher reads ignored roots once, at start). A `/bin/sh` writes `notes/a.md` from
+  outside N times; after each, the probe activates the tab or focuses the editor and reads the Monaco model. Then auto
+  save on: type, write from outside, switch away and back, type again, and no "changed on disk" refusal. Then a long
+  markdown file in Redline: scroll, switch to a Source tab and back, switch between two Redline tabs, reading
+  `scrollTop` each time. **At the parent** the same arms read 0 of N, a refusal, 0 and then the other tab's offset.
+  `HELPER_USER_FLOOR` rises by one.
+- **The attack (item A)**: type in the same tick as an activation; a rewind adoption in flight while focus arrives; a
+  file deleted under a clean tab; 50 switches in a second, counting walks against the floor.
+
+### CHANGELOG items
+
+Under `## Unreleased`, Fixed; the follow-up docs commit adds the links.
+
+- `- A file an agent changed now shows its new contents when you switch back to its tab or click into the editor, even in a folder your repository ignores, so a save no longer refuses because the file changed on disk; while you watch a file in an ignored folder without switching away, it still does not update by itself`
+- `- A Redline tab opens where you left it instead of at the top`
+
+**The menus do not change.**
+
+**Order.** Beside the phone phases and Phase 306; it touches no file they touch. Phone phases get the test slot first.
+
+### What is NOT in this phase
+
+- **No directory watch for open files under ignored roots** (research 83 §C.8 point 2). Its own later phase.
+- **No change to `refreshRepo`, the serializer, the save doors or their sentences.**
+- **None of issue 32's items 1, 2, 4 and 5**, which wait on his rulings.
+- **No stored scroll across a relaunch**, and no scroll memory for the markdown preview.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40145,3 +40260,5 @@ cycle rather than only the evening it was written.
 - 2026-09-30, **HE RULED: THE "LAST LINES OF…" WINDOW GOES, EVERYWHERE — "I want it behavior EXACTLY like a local session... like i don't want this in the app anymore", then "Remove it everywhere".** Once 320.1 gives every remote session the local scroll, the Read Last Lines window (`src/renderer/machines/read-lines.ts`, the strip's `showsReadLastLines` button in `src/renderer/app/session-actions.tsx`, and the `Read Last Lines…` row in `src/renderer/terminal/terminal-menu.ts`) is removed in full, not only the strip button 320.1 already removes. On a machine whose tmux is older than 3.6a, which gets no live connection, a session then shows only its screen; the remedy there is upgrading tmux, and he accepted that. Queued as Phase 320.2, a small removal built straight after 320.1 lands (Tier 2: one app run showing a remote session has no such row or window and still scrolls, on the parent and at HEAD), with its full entry written then so it cites 320.1 as built.
 
 - 2026-09-30, **PHASE 316.5 LANDED, `f90ff8cc`, unreleased — the alert opens the session it names.** Phase 314's engine is composed in production for the first time (src/main/alerts/index.ts), armed only while a confirmed phone holds a live token and the alert switch is on; Settings → Phone keeps his APNs key through its own picker; the phone asks for notification permission only when its Mac can send (research 136, alerts his alone), and a tap opens the session, or draws "Tortie no longer has a record of that session." for one the Mac no longer has. Both lenses answered needs_work, fixed once; the independent reverify approved. Landing battery green whole, test:ios on iOS 26.3 and 18.3 included. Phase 316 had no separate S5 section, so this line is its landing record; build/p3165/SPEC.md is the as-built account. His steps: import his key in Settings → Phone, upload TestFlight 1.0.0 (3), pair again and allow notifications, and see one alert arrive and open its session. Next: build 3 is archived now, then Phase 316.6.
+
+- 2026-09-30, **PHASE 334 QUEUED, and PHASES 316.6 AND 326 MOVE.** 334 is the two issue fold-ins he picked tonight: the editor re-reads an open file when you switch back to its tab or click into the editor (issue 33's straightforward slice, research 83 §C.8 point 3; the directory watch stays its own phase) and Redline keeps each tab's scroll (issue 32 item 3). Item A is Tier 3 because it decides when a buffer is replaced; item B is Tier 2. **Phase 316.6 STARTED** (the phone's tab bar, Settings with Unpair, markdown in the conversation), the entry's S0 drafts taken as written on his "ok great". **Phase 326 APPROVED** (the first open of a new remote session): both lenses needs_work, one fix round that REMOVED the deferral the attack measured worse than today, and the independent reverify approved over 1,018 trials on far tmux 3.6a and 3.7b; landing now. 324's ruled round follows it.
