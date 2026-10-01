@@ -125,6 +125,21 @@
       "body": "{\"ct\":\"Ng5q_-tqJMbuFsaLcvRQPBHHlfk_b49jORfAj5Lxz4aH1N-S15b6t0DA1jEbFQJXV-qigqf-B8RWIe9_gFjFKSbvHTpB-CRgLws8OJdhglb0gzSZN8TIkB1Wxak7wokdq7ospyrZNuyoGJvesxnr-Tj9d3KJnGJGi4Xj674p9q_wMoHabdcvwea7Slp49SL3vUM-U__yB4DNVUf80ef_MMN9x9uB-URbIEoJAcDhm1yFrKMKxOO06gMxpJOZl3-0LwRmkchMCmzulnj4XDGHf1cayjgVKLpWtf-5hbvsHQANTSVJ-ifD0RrzPHMrDdZyUKK5DzSqc28uCl5_MG1OxCqXCHZw_OJKqlLBvs96HFliLqIjhkNW7X5V1EwbUTx7e_nAIPw\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"iv\":\"Zo34ITgDNdE8SxWv\",\"sig\":\"-OSrArP1DQs32-cPma20kq2GIhLcQ8qP_LYNy9gkVyeD6mpiV4MWV3kh05VlZUzhPgB-gVqNn80MzE3DNzknDw\",\"tag\":\"w7gvwNB_YO-0sIJ9RGTfjA\"}"
     }
   },
+  "pushSeal": {
+    "token": "2c83eab35860602775db267849cdcac87ff8f149b5ed4d8b0d77f5d51494461c",
+    "environment": "development",
+    "iv": "GAJnHPS-JNJU6vZd",
+    "plaintext": "{\"ape\":\"development\",\"apt\":\"2c83eab35860602775db267849cdcac87ff8f149b5ed4d8b0d77f5d51494461c\",\"ck\":\"MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAECz6SKEYtLWRHtXHDzANBAu2qvztgdJpQSSWqVyxb1JAexjuPXSFkcLFJefISSX3XHIl4ZaCK8BqfTY3UOETceg\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"label\":\"Tortie’s iPhone\",\"xk\":\"MCowBQYDK2VuAyEAiFKE5XWaa0euVBw7i3aVSCs69oPRIdcMucVTFn4JSWM\"}",
+    "ct": "6HE0GWb0YN3xHEje-t9T0HUI1oLHEuI1FBQyGvnMCPSD0NZvCA7v6-BR4n_NKaitQaq8n_5G62u3Ap0xPNs5-W6ld1OawJZeV5btxdJrztqxmpkh_BTLwMeSqbpuWwupHPFCJIo3a6id6ddaehv8MbPMl2BxjWj2Si7ZzLSMLpeLQoPSBq8TQN3ruU2EjQaysHRSM1_lIscUwKMAJZ1eh0Gpf9QRLSbbR2b3kOWiwOF3aUKabcX2_lqz8N4K9Bbk1xijUFWXg9C3JFPBMUsL-qcxP4RukKJF2pb_fSTii9H_Atfcn0q6zF1MDRSF_IRuOFj3eqLdY-MuWFFjD19SLp7LOiMHFQDakqAMvQ6B4zpYsatrBeDbvpjAuroXEWUrLkYMOcDCT19859qRqzTQdTjOtHqdnpxyArFn5tGKKN1kLFQQxZL_DdnI3Nj6z9pJHyIExe8qV8czpIjhLTOu06nz23c68do0cWK4X42SnFqNY1J9S53umX7LnfeHU2_sv-k",
+    "tag": "CKOzgGDAB_uM5JOxKctQtQ",
+    "proof": "tortie-pocket-present-v1\nk93od8ByupaLiN48hyOJu_y0qtsxPwzhBurfwi5FwIw\nGAJnHPS-JNJU6vZd\n6HE0GWb0YN3xHEje-t9T0HUI1oLHEuI1FBQyGvnMCPSD0NZvCA7v6-BR4n_NKaitQaq8n_5G62u3Ap0xPNs5-W6ld1OawJZeV5btxdJrztqxmpkh_BTLwMeSqbpuWwupHPFCJIo3a6id6ddaehv8MbPMl2BxjWj2Si7ZzLSMLpeLQoPSBq8TQN3ruU2EjQaysHRSM1_lIscUwKMAJZ1eh0Gpf9QRLSbbR2b3kOWiwOF3aUKabcX2_lqz8N4K9Bbk1xijUFWXg9C3JFPBMUsL-qcxP4RukKJF2pb_fSTii9H_Atfcn0q6zF1MDRSF_IRuOFj3eqLdY-MuWFFjD19SLp7LOiMHFQDakqAMvQ6B4zpYsatrBeDbvpjAuroXEWUrLkYMOcDCT19859qRqzTQdTjOtHqdnpxyArFn5tGKKN1kLFQQxZL_DdnI3Nj6z9pJHyIExe8qV8czpIjhLTOu06nz23c68do0cWK4X42SnFqNY1J9S53umX7LnfeHU2_sv-k\nCKOzgGDAB_uM5JOxKctQtQ",
+    "sig": "fYmn0Cw8rOIRrqP2eifM0uN0ew_Pjs0kimc8Xarc-z1yKY0X4fRfgOn65D6FzHsAiGXrpHfEIWtkjDrrINjACQ",
+    "body": "{\"ct\":\"6HE0GWb0YN3xHEje-t9T0HUI1oLHEuI1FBQyGvnMCPSD0NZvCA7v6-BR4n_NKaitQaq8n_5G62u3Ap0xPNs5-W6ld1OawJZeV5btxdJrztqxmpkh_BTLwMeSqbpuWwupHPFCJIo3a6id6ddaehv8MbPMl2BxjWj2Si7ZzLSMLpeLQoPSBq8TQN3ruU2EjQaysHRSM1_lIscUwKMAJZ1eh0Gpf9QRLSbbR2b3kOWiwOF3aUKabcX2_lqz8N4K9Bbk1xijUFWXg9C3JFPBMUsL-qcxP4RukKJF2pb_fSTii9H_Atfcn0q6zF1MDRSF_IRuOFj3eqLdY-MuWFFjD19SLp7LOiMHFQDakqAMvQ6B4zpYsatrBeDbvpjAuroXEWUrLkYMOcDCT19859qRqzTQdTjOtHqdnpxyArFn5tGKKN1kLFQQxZL_DdnI3Nj6z9pJHyIExe8qV8czpIjhLTOu06nz23c68do0cWK4X42SnFqNY1J9S53umX7LnfeHU2_sv-k\",\"ek\":\"MCowBQYDK2VwAyEA5wkaYqEyam_H3EWOHgRZ-w0e8KHc5Hvqsd4rtLhsOXs\",\"iv\":\"GAJnHPS-JNJU6vZd\",\"sig\":\"fYmn0Cw8rOIRrqP2eifM0uN0ew_Pjs0kimc8Xarc-z1yKY0X4fRfgOn65D6FzHsAiGXrpHfEIWtkjDrrINjACQ\",\"tag\":\"CKOzgGDAB_uM5JOxKctQtQ\"}",
+    "opened": {
+      "pushToken": "2c83eab35860602775db267849cdcac87ff8f149b5ed4d8b0d77f5d51494461c",
+      "pushEnvironment": "development"
+    }
+  },
   "qr": [
     {
       "name": "funnel-8443",
@@ -138,7 +153,8 @@
   "pairAnswers": {
     "pending": "{\"state\":\"pending\"}",
     "refused": "{\"state\":\"refused\"}",
-    "allowed": "{\"state\":\"allowed\",\"cert\":\"MIIBXDCCAQOgAwIBAgIQWjVWXDQZ6oADRQXF154HUDAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwIBcNMjYwOTIxMTQwODIwWhgPOTk5OTEyMzEyMzU5NTlaMBcxFTATBgNVBAMMDFRvcnRpZSBwaG9uZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABAs-kihGLS1kR7Vxw8wDQQLtqr87YHSaUEklqlcsW9SQHsY7j10hZHCxSXnyEkl91xyJeGWgivAan02N1DhE3HqjNTAzMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAoGCCqGSM49BAMCA0cAMEQCIFwiybtgCt7eGj_stnCFF4oKFA_6Us5smg6wm5RIwcz1AiAbGSPR2_0m5UMAY-ODAzaji_GbedJDmk4up1TyIE2G3g\"}"
+    "allowed": "{\"state\":\"allowed\",\"cert\":\"MIIBXDCCAQOgAwIBAgIQWjVWXDQZ6oADRQXF154HUDAKBggqhkjOPQQDAjARMQ8wDQYDVQQDDAZUb3J0aWUwIBcNMjYwOTIxMTQwODIwWhgPOTk5OTEyMzEyMzU5NTlaMBcxFTATBgNVBAMMDFRvcnRpZSBwaG9uZTBZMBMGByqGSM49AgEGCCqGSM49AwEHA0IABAs-kihGLS1kR7Vxw8wDQQLtqr87YHSaUEklqlcsW9SQHsY7j10hZHCxSXnyEkl91xyJeGWgivAan02N1DhE3HqjNTAzMAwGA1UdEwEB_wQCMAAwDgYDVR0PAQH_BAQDAgeAMBMGA1UdJQQMMAoGCCsGAQUFBwMCMAoGCCqGSM49BAMCA0cAMEQCIFwiybtgCt7eGj_stnCFF4oKFA_6Us5smg6wm5RIwcz1AiAbGSPR2_0m5UMAY-ODAzaji_GbedJDmk4up1TyIE2G3g\"}",
+    "pendingSends": "{\"state\":\"pending\",\"alerts\":true}"
   },
   "answers": {
     "blocked": {
@@ -173,5 +189,29 @@
       "json": "{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"turns\":[],\"more\":false,\"at\":1790000000000,\"note\":\"This session runs on another machine. Its record is there\"}",
       "withUnknown": "{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"turns\":[],\"more\":false,\"at\":1790000000000,\"note\":\"This session runs on another machine. Its record is there\",\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     }
-  }
+  },
+  "alerts": [
+    {
+      "name": "single",
+      "payload": "{\"aps\":{\"alert\":{\"title\":\"fix-login needs input\",\"body\":\"tortie · Claude Code\"},\"badge\":1,\"sound\":\"default\",\"thread-id\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\"},\"tortie\":{\"v\":1,\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\"}}",
+      "tap": {
+        "kind": "session",
+        "session": "4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01"
+      }
+    },
+    {
+      "name": "count",
+      "payload": "{\"aps\":{\"alert\":{\"title\":\"Needs your input (2)\",\"body\":\"fix-login · talk\"},\"badge\":2,\"sound\":\"default\",\"thread-id\":\"tortie-waiting\"},\"tortie\":{\"v\":1}}",
+      "tap": {
+        "kind": "list"
+      }
+    },
+    {
+      "name": "badge",
+      "payload": "{\"aps\":{\"badge\":0}}",
+      "tap": {
+        "kind": "list"
+      }
+    }
+  ]
 }

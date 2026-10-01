@@ -1,11 +1,12 @@
 #!/usr/bin/env node
 /**
  * `npm run ablation:p316` — the attack on `conformance:ios` (Phases 316.2,
- * 316.3 and 330, build/p316/SPEC.md §4 S2 and S3, build/p330/SPEC.md §6.4).
+ * 316.3, 330 and 316.5, build/p316/SPEC.md §4 S2 and S3, build/p330/SPEC.md
+ * §6.4, build/p3165/SPEC.md §6.4).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:ios` reads the
- * phone app as text for twenty refusals, (a) to (v) with (m) and (q) folded
- * into (l) by Phase 330, and every one of them is a line a later round can add
+ * phone app as text for twenty-two refusals, (a) to (x) with (m) and (q)
+ * folded into (l) by Phase 330, and every one of them is a line a later round can add
  * in a hurry: a colour typed straight into a screen, a sentence in a `Text`, a
  * network call outside the door client, a DEBUG seam that leaked into Release,
  * an ATS exception, a background mode, a VPN entitlement, a web view, the
@@ -32,9 +33,19 @@
  * twice; (t) the pinned mutual TLS 1.3 client — no identity, a verify block
  * that always passes, TLS 1.2, a wider port set, any host, Transfer-Encoding,
  * two lengths and a hostile arm dropped; (u) DEBUG in Release by any of four
- * doors; and (v) a failure or a step with no sentence. THIS SCRIPT PLANTS EACH
- * ONE IN A CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS
- * IT.
+ * doors; and (v) a failure or a step with no sentence.
+ *
+ * PHASE 316.5 GAVE THE PHONE ITS ALERT (build/p3165/SPEC.md §6.4), and its arms
+ * are the ways the alert could reach further than it may: (d) the alert
+ * address seam out of #if DEBUG; (w) a second entitlement, `production`
+ * written into the file, a `remote-notification` string, and the topic the Mac
+ * signs for moved off the app; (x) the registration with Apple in every build
+ * or twice, a badge written, the token printed, a payload read in a screen, a
+ * DEBUG build presenting as production, and, from research 136 §9 (alerts are
+ * the push key holder's alone), iOS asked before the Mac said it can send, a
+ * pairing that asks whatever the Mac said, and a launch check that asks iOS
+ * for a Mac that cannot send. THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE
+ * SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
@@ -234,8 +245,10 @@ const ARMS = [
     id: 'd2',
     rule: 'd',
     what: 'the pairing payload injection taken out of #if DEBUG',
-    file: (root) => fileMatching(root, /#if DEBUG[\s\S]*?(ProcessInfo\s*\.\s*processInfo|CommandLine\s*\.|launchArguments)[\s\S]*?#endif/),
-    edit: unguard(/ProcessInfo\s*\.\s*processInfo|CommandLine\s*\.|launchArguments/)
+    // Door/Pairing.swift's own seam, named since Phase 316.5: App/DebugLaunch.swift
+    // reads launch arguments inside #if DEBUG too, and sorts first.
+    file: (root) => fileMatching(root, /#if DEBUG[\s\S]*?\benum\s+PairingDebugSeam\b[\s\S]*?#endif/),
+    edit: unguard(/\benum\s+PairingDebugSeam\b/)
   },
   {
     id: 'd3',
@@ -1070,7 +1083,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 2;/, '$1CURRENT_PROJECT_VERSION = 3;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 3;/, '$1CURRENT_PROJECT_VERSION = 4;')
   },
   {
     id: 's9',
@@ -1219,6 +1232,105 @@ const ARMS = [
     what: 'the pairing line made optional',
     file: () => `${APP}/Screens/PairingScreen.swift`,
     edit: (src) => src.replace('private(set) var line: String = Copy.notPaired', 'private(set) var line: String? = Copy.notPaired')
+  },
+  // Phase 316.5: the alert (build/p3165/SPEC.md §6.4), and research 136 §9 over it.
+  {
+    id: 'd7',
+    rule: 'd',
+    what: 'the alert address seam taken out of #if DEBUG',
+    file: () => `${APP}/Alerts/SystemAlerts.swift`,
+    edit: unguard(/\benum\s+AlertsDebugSeam\b/)
+  },
+  {
+    id: 'w1',
+    rule: 'w',
+    what: 'a second entitlement, time-sensitive alerts',
+    file: () => `${APP}/Tortie.entitlements`,
+    edit: (src) => src.replace('<dict>', '<dict>\n\t<key>com.apple.developer.usernotifications.time-sensitive</key>\n\t<true/>')
+  },
+  {
+    id: 'w2',
+    rule: 'w',
+    what: 'production written into the entitlements file',
+    file: () => `${APP}/Tortie.entitlements`,
+    edit: (src) => src.replace('<string>development</string>', '<string>production</string>')
+  },
+  {
+    id: 'w3',
+    rule: 'w',
+    what: 'a remote-notification string, the silent push background mode',
+    file: aScreen,
+    edit: append('// UIBackgroundModes: remote-notification\n')
+  },
+  {
+    id: 'w4',
+    rule: 'w',
+    what: 'the topic the Mac signs alerts for moved off the app',
+    file: () => 'src/main/alerts/key-file.ts',
+    edit: (src) => src.replace("PHONE_APP_TOPIC = 'com.itavero.tortie.phone'", "PHONE_APP_TOPIC = 'com.itavero.tortie.phone.alerts'")
+  },
+  {
+    id: 'x1',
+    rule: 'x',
+    what: 'the registration with Apple taken out of the #else, into every build',
+    file: () => `${APP}/Alerts/SystemAlerts.swift`,
+    edit: (src) => src.replace('            UIApplication.shared.registerForRemoteNotifications()\n', '').replace('    func currentAddress() async -> PushAddress? {\n', '    func currentAddress() async -> PushAddress? {\n        UIApplication.shared.registerForRemoteNotifications()\n')
+  },
+  {
+    id: 'x2',
+    rule: 'x',
+    what: 'a second registration with Apple, in the delegate',
+    file: () => `${APP}/App/AppDelegate.swift`,
+    edit: (src) => src.replace('        UNUserNotificationCenter.current().delegate = self\n', '        UNUserNotificationCenter.current().delegate = self\n        application.registerForRemoteNotifications()\n')
+  },
+  {
+    id: 'x3',
+    rule: 'x',
+    what: 'the phone writing the badge, which is the Mac\'s',
+    file: () => `${APP}/App/AppDelegate.swift`,
+    edit: (src) => src.replace('        completionHandler()\n', '        UNUserNotificationCenter.current().setBadgeCount(0)\n        completionHandler()\n')
+  },
+  {
+    id: 'x4',
+    rule: 'x',
+    what: 'the token printed',
+    file: () => `${APP}/App/AppDelegate.swift`,
+    edit: (src) => src.replace('        SystemPushAddressing.shared.registered(deviceToken)\n', '        print(deviceToken)\n        SystemPushAddressing.shared.registered(deviceToken)\n')
+  },
+  {
+    id: 'x5',
+    rule: 'x',
+    what: 'a payload read in a screen',
+    file: aScreen,
+    edit: append('import UserNotifications\nfunc p316AblationPeek(_ n: UNNotification) -> Any? { n.request.content.userInfo["tortie"] }\n')
+  },
+  {
+    id: 'x6',
+    rule: 'x',
+    what: 'a DEBUG build presenting its address as production',
+    file: () => `${APP}/Alerts/Alerts.swift`,
+    edit: (src) => src.replace('    static let current: PushEnvironment = .development\n', '    static let current: PushEnvironment = .production\n')
+  },
+  {
+    id: 'x7',
+    rule: 'x',
+    what: 'the pairing screen asking iOS before it presents, whatever the Mac can do (research 136 §9)',
+    file: () => `${APP}/Screens/PairingScreen.swift`,
+    edit: (src) => src.replace('        let alerts = alerts\n', '        let alerts = alerts\n        _ = await alerts.askForPairing()\n')
+  },
+  {
+    id: 'x8',
+    rule: 'x',
+    what: 'the pairing asking for alerts whatever the Mac said about sending (research 136 §9)',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('if sends, !asked {', 'if !asked {')
+  },
+  {
+    id: 'x9',
+    rule: 'x',
+    what: 'the launch check asking iOS for a Mac that cannot send (research 136 §9)',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/\n\s*guard kept\.macSends else \{\n\s*list\.alertsLine = nil\n\s*return\n\s*\}\n/, '\n')
   }
 ];
 
@@ -1419,7 +1531,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -1432,5 +1544,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (v) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (x) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

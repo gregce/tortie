@@ -3,7 +3,8 @@
  * `npm run ablation:p314`. The attack on the push's gate (Phase 314).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:push` asserts
- * twenty-three rules about `src/main/push/`, the wake rule and the seam — one
+ * twenty-six rules about `src/main/push/`, the wake rule, the seam and, since
+ * Phase 316.5, the production composition in `src/main/alerts/` — one
  * spelling of Apple's hosts, one refusal before a socket, one allowlist of
  * fields, one age function, one wake window — and every one of them is a clause
  * a later round can delete in one line. THIS SCRIPT BREAKS ONE CLAUSE AT A TIME
@@ -58,6 +59,15 @@
  * It never skips. A clause that moved moves its entry in the same commit; a
  * clause that is gone leaves its rule unproven, and the run says which.
  *
+ * ## AN ENTRY MAY MOVE A LINE (Phase 316.5)
+ *
+ * Two of the composition's clauses are an ORDER, and an order is broken by
+ * moving a line rather than by deleting it: the engine built before the core,
+ * the join after the core closes, the admission closed after an await. So an
+ * entry may carry `edits`, several exact replacements applied in order, each
+ * one's absent `from` failing by name like any other, and every file an entry
+ * touches is restored and proved by sha256.
+ *
  * Usage:
  *   node build/ablation-p314.mjs
  *   P314_ONLY=H2,E5,A2 node build/ablation-p314.mjs        named entries only
@@ -80,6 +90,9 @@ const ENGINE = 'src/main/push/engine.ts';
 const ATTENTION = 'src/main/tray/attention.ts';
 const SEAM = 'src/main/harness/push-seam.ts';
 const DRIVEN = 'build/p314/push-conformance.mts';
+// PHASE 316.5: the production composition, and the disposer it joins.
+const ALERTS = 'src/main/alerts/index.ts';
+const CAPABILITIES = 'src/main/capabilities.ts';
 
 /** The check this harness runs inside the clone. It prints `[p314 <rule>]`. */
 const GATE = ['build/conformance-push.mjs'];
@@ -401,8 +414,162 @@ const ABLATIONS = [
     file: SEAM,
     from: "const SEAM_STATUS_WORD = 'needs input';",
     to: "const SEAM_STATUS_WORD = 'needs your input';"
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 316.5: the production composition (build/p3165/SPEC.md §6.2). Nine
+  // arms, one per clause (the SPEC's eight, and P1d for the counted wait the
+  // builder added so a quit never waits on a core that will not come): 31
+  // become 40.
+  // -------------------------------------------------------------------------
+  {
+    n: 'H2b',
+    rule: 'H2',
+    name: 'the production sender built with allowRemote true',
+    why: 'THE ONE THAT MATTERS MOST OF THIS PHASE. A harness launch must reach nothing but its loopback stand-in; true in every launch is a probe that dials Apple with a scratch key the day its override is missing.',
+    file: ALERTS,
+    from: '      allowRemote: !isHarnessLaunch(process.env)',
+    to: '      allowRemote: true'
+  },
+  {
+    n: 'H2c',
+    rule: 'H2',
+    name: 'a second site passes allowRemote',
+    why: 'one site is what a reviewer can read; a second sender that can leave this Mac is a second place his key can be sent from.',
+    file: ALERTS,
+    from: '  const announce = (): void => {',
+    to: '  const twice = { allowRemote: !isHarnessLaunch(process.env) };\n  void twice;\n  const announce = (): void => {'
+  },
+  {
+    n: 'P1a',
+    rule: 'P1',
+    name: 'the engine built before the core is ready',
+    why: 'the rows read through the core; an engine built at whenReady asks for them before the manifest refusal and the agent overlay, which must come BEFORE the core boots.',
+    file: ALERTS,
+    edits: [
+      {
+        from: '    await ready();\n    const host = deps.host();',
+        to: '    const host = deps.host();'
+      },
+      {
+        from: '    built = engine;',
+        to: '    built = engine;\n    await ready();'
+      }
+    ]
+  },
+  {
+    n: 'P1b',
+    rule: 'P1',
+    name: 'the second ask after the core removed',
+    why: 'a Remove, alerts off or a changed agreement may land while the step waits for the core; composing on the first answer arms an engine for a phone that is gone.',
+    file: ALERTS,
+    from: '    if (closed || host === null || host.pushDestinations().length === 0) return;',
+    to: '    if (closed || host === null) return;'
+  },
+  {
+    n: 'P1c',
+    rule: 'P1',
+    name: 'the alerts module asks for the core itself',
+    why: 'the composition must never be the thing that boots the core: it waits for the door’s beforeOpen, which waits for the first window.',
+    file: ALERTS,
+    from: '    await ready();\n    const host = deps.host();',
+    to: "    await ready();\n    void (await import('../sessions')).getGmuxCore();\n    const host = deps.host();"
+  },
+  {
+    n: 'P1d',
+    rule: 'P1',
+    name: 'the counted wait for the core stops waiting for it',
+    why: 'the arming step awaits the composition’s own ready(), which counts the steps parked on the core so a quit need not wait for them; a ready() that no longer awaits the door’s beforeOpen builds the engine before the core, with every line of arm() unchanged.',
+    file: ALERTS,
+    from: '      await deps.ready();',
+    to: '      void deps.ready();'
+  },
+  {
+    n: 'P2a',
+    rule: 'P2',
+    name: 'the alerts joined after the core shuts',
+    why: 'a flush in flight reads its rows through the core; joined after the core closes it is a read against an owner that has gone.',
+    file: CAPABILITIES,
+    edits: [
+      { from: '  await joinPhoneAlerts();\n', to: '' },
+      {
+        from: '    await shutdownGmuxCore(); // snapshots first, then dispose\n',
+        to: '    await shutdownGmuxCore(); // snapshots first, then dispose\n    await joinPhoneAlerts();\n'
+      }
+    ]
+  },
+  {
+    n: 'P2b',
+    rule: 'P2',
+    name: 'the alerts’ admission closed after an await',
+    why: 'an await in front of it is a window in which a join still arms a flush while the quit runs.',
+    file: CAPABILITIES,
+    edits: [
+      { from: '  beginPhoneAlertsShutdown();\n', to: '' },
+      {
+        from: '  const credentials = await joinCredentialShutdown();\n',
+        to: '  const credentials = await joinCredentialShutdown();\n  beginPhoneAlertsShutdown();\n'
+      }
+    ]
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 316.5's FIX ROUND: two clauses a verifier ablated with every gate
+  // green (V1, V3), and the panel a harness launch met (probe:p313). Four
+  // arms: 40 become 44.
+  // -------------------------------------------------------------------------
+  {
+    n: 'P1e',
+    rule: 'P1',
+    name: 'Apple’s host fixed to production whatever the token’s environment',
+    why: 'a development token sent to the production host is answered BadDeviceToken and dropped, so every Xcode-signed phone stops getting alerts; the old clause read only that the origin NAMED apnsOrigin, and this edit still names it.',
+    file: ALERTS,
+    from: '?? apnsOrigin(env),',
+    to: "?? apnsOrigin('production'),"
+  },
+  {
+    n: 'P1f',
+    rule: 'P1',
+    name: 'a dead token never reaches the door’s durable drop',
+    why: 'the engine’s in-run dead set hides it until the next launch, after which Tortie sends to a token Apple called gone, and the sheet never draws the phone’s stopped line.',
+    file: ALERTS,
+    from: '      drop: (destination) => host.dropPushToken(destination.tokenDigest),',
+    to: '      drop: () => undefined,'
+  },
+  {
+    n: 'P3a',
+    rule: 'P3',
+    name: 'a harness launch with no override opens the file panel',
+    why: 'probe:p313’s census pressed pocket:choosePushKey, a real native panel opened on his screen that nobody answered, and the probe never finished.',
+    file: ALERTS,
+    from: '    if (isHarnessLaunch(process.env)) return null;\n',
+    to: ''
+  },
+  {
+    n: 'P3b',
+    rule: 'P3',
+    name: 'the harness return moved below the panel',
+    why: 'a guard read after the panel has opened guards nothing; the rule reads the ORDER, not the presence.',
+    file: ALERTS,
+    edits: [
+      { from: '    if (isHarnessLaunch(process.env)) return null;\n', to: '' },
+      {
+        from: '    if (answer.canceled || answer.filePaths.length !== 1) return null;',
+        to: '    if (isHarnessLaunch(process.env)) return null;\n    if (answer.canceled || answer.filePaths.length !== 1) return null;'
+      }
+    ]
+  },
+  {
+    n: 'G1b',
+    rule: 'G1',
+    name: 'the production composition logs a device token',
+    why: 'app.log is read by the people he sends it to; a device token is an address at Apple for his phone.',
+    file: ALERTS,
+    from: "    alertsLog.info('phone alerts armed');",
+    to: "    alertsLog.info('phone alerts armed');\n    alertsLog.info(String(host.pushDestinations()[0]?.token));"
   }
 ];
+
+/** An entry's replacements, in order: its own `edits`, or its one `from` and `to`. */
+const editsOf = (entry) => entry.edits ?? [{ from: entry.from, to: entry.to }];
 
 // ---------------------------------------------------------------------------
 // The clone, and the gate run inside it
@@ -508,13 +675,15 @@ try {
   }
   for (const entry of ABLATIONS) {
     if (only.length > 0 && !only.includes(entry.n)) continue;
-    if (!ablate(entry.file, entry.from, entry.to)) {
+    const missing = editsOf(entry).find((edit) => !ablate(entry.file, edit.from, edit.to));
+    if (missing !== undefined) {
       problems.push(
         `${entry.n} "${entry.name}": the shape to ablate is not in ${entry.file}. Either the clause moved, and this ` +
           `entry moves with it in the same commit, or it is gone and ${entry.rule} is unproven. It looked for: ` +
-          `${JSON.stringify(entry.from).slice(0, 180)}`
+          `${JSON.stringify(missing.from).slice(0, 180)}`
       );
       table.push([entry.n, entry.rule, 'SHAPE MISSING', '']);
+      restore(entry.file);
       continue;
     }
     ran += 1;

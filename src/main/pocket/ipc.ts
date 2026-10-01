@@ -79,7 +79,7 @@
  * without it.
  */
 
-import { app, shell, type IpcMain } from 'electron';
+import { app, shell, type IpcMain, type WebContents } from 'electron';
 
 import {
   EVT_POCKET_CHANGED,
@@ -94,6 +94,7 @@ import {
   type PocketNameCheck,
   type PocketPairingOffer,
   type PocketPairingView,
+  type PocketPushKeyResult,
   type PocketStatus,
   type PocketSwitchInput
 } from '@shared/ipc/pocket';
@@ -199,6 +200,28 @@ function notASwitch(): Error {
   );
 }
 
+/**
+ * THE ALERTS' PORT (Phase 316.5, build/p3165/SPEC.md §5.2.2): what the sheet's
+ * Apple push key row and the alert sentence need from the composition that
+ * sends the alerts, which this domain may not name.
+ *
+ * The door names neither the key's store, the file panel nor the sender
+ * (`conformance:pocket` R3), so the composer hands this port in and the host
+ * only calls it. NO MEMBER ANSWERS KEY MATERIAL (`conformance:pocket` K3): the
+ * key's id, which is public, a sentence, whether a key was kept, and nothing.
+ */
+export interface PocketAlertsPort {
+  /** The kept key's id, or null (none kept, or not read yet). A cache: never a read of the key. */
+  keyId(): string | null;
+  /** The push's standing sentence, or null while the alerts are not armed. */
+  sentence(): string | null;
+  /** The file panel, the read and the keep, on a person's press. */
+  chooseKey(sender: WebContents): Promise<PocketPushKeyResult>;
+  forgetKey(): Promise<void>;
+  /** The host changed something: ask again whether the alerts are armed. */
+  changed(): void;
+}
+
 /** What the owner needs from outside `src/main/pocket/`. */
 export interface PocketHostDeps {
   /**
@@ -240,6 +263,12 @@ export interface PocketHostDeps {
    * `GMUX_POCKET_NAME_SERVERS` and a packaged build never does.
    */
   names?: NameCheckDeps;
+  /**
+   * The alerts' port (Phase 316.5). PRODUCTION: `../capabilities.ts`, and
+   * tests (`conformance:pocket` K3). The push seam composes its own engine
+   * and hands none, so its sheet has no key row to press.
+   */
+  alerts?: PocketAlertsPort;
 }
 
 /** `app.isPackaged`, and false outside Electron, as `./funnel.ts` reads it. */
@@ -420,7 +449,14 @@ export class PocketHost {
     this.handler = createPocketHandler({
       shuttingDown: () => pocketShutdownStarted(),
       pairingWindowOpen: () => this.pairing.windowOpen(),
-      present: (presentation) => this.pairing.present(presentation),
+      // RESEARCH 136 (Phase 316.5): a `pending` answer says whether this Mac
+      // can send an alert, so the phone asks iOS for alerts only when it can.
+      // Asked here because only the host holds the alerts' port; the pairing
+      // owner answers the state alone.
+      present: (presentation) => {
+        const answer = this.pairing.present(presentation);
+        return answer.state === 'pending' && this.alertsCanSend() ? { state: 'pending', alerts: true } : answer;
+      },
       verify: (input) => {
         const verdict = this.verifier.verify({
           method: input.method,
@@ -695,7 +731,11 @@ export class PocketHost {
       nameCheck: this.nameCheckNow(),
       pairable: this.pairable(),
       routes: POCKET_ROUTE_IDS,
-      pushAlerts: fields.pushAlerts
+      pushAlerts: fields.pushAlerts,
+      // THE PORT'S TWO READS, and nothing else of it (K3): an id that is
+      // public and a sentence. Neither reads the key.
+      pushKeyId: this.deps.alerts?.keyId() ?? null,
+      pushSentence: this.deps.alerts?.sentence() ?? null
     };
   }
 
@@ -1195,7 +1235,23 @@ export class PocketHost {
     return 'refused';
   }
 
+  /**
+   * Every change the sheet must see, and the alerts' question asked again
+   * (Phase 316.5): a Remove, a switch, a confirm, a drop or a Tailscale read
+   * can each move where an alert may go, and the port decides what to do
+   * about it on its own queue.
+   */
   private changed(): void {
+    this.announce();
+    this.deps.alerts?.changed();
+  }
+
+  /**
+   * Broadcast the status, and NOTHING ELSE (Phase 316.5): the alerts' port
+   * calls this when its own sentence or key moved, so it never asks the port
+   * to re-arm, which is what keeps the two from calling each other in a loop.
+   */
+  announce(): void {
     try {
       broadcastEvent(EVT_POCKET_CHANGED, this.status());
     } catch (err) {
@@ -1782,6 +1838,25 @@ export class PocketHost {
   }
 
   /**
+   * Whether this Mac can send an alert at all (Phase 316.5, research 136): the
+   * alerts switch is on, the door's fields are the ones a person confirmed,
+   * and an Apple push key is kept. ALERTS ARE HIS ALONE: only the Mac that
+   * holds the phone app's key can send, so a phone pairing with any other Mac
+   * is never asked for alerts and never told to pair again for them.
+   *
+   * It reads the port's `keyId()`, which is a cache and never a read of the
+   * key: `null` until the one lazy read has answered, and the sheet that
+   * opens a pairing window has asked for it by then. `/pair`'s `pending`
+   * answer says it, through the handler's `present` above.
+   */
+  alertsCanSend(): boolean {
+    const store = this.readStore();
+    if (store === null || !store.pushAlerts) return false;
+    if (pocketConfirmStatus(this.fields()).state !== 'confirmed') return false;
+    return (this.deps.alerts?.keyId() ?? null) !== null;
+  }
+
+  /**
    * Apple said this token is no longer good. Remember its digest so nothing is
    * ever sent to it again, across restarts, and change nothing else. THE HASH
    * DOES NOT MOVE, and a seal that cannot be written still drops it for this
@@ -1798,6 +1873,27 @@ export class PocketHost {
     writePocketStore(next);
     this.store = next;
     this.changed();
+  }
+
+  // -------------------------------------------------------------------------
+  // The Apple push key (Phase 316.5, build/p3165/SPEC.md §5.2.2)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Choose the key, on a person's press. The port opens the panel, reads the
+   * file and keeps it; this host holds none of it and is told only whether it
+   * was kept. With no port there is nothing to choose.
+   */
+  async choosePushKey(sender: WebContents): Promise<PocketPushKeyResult> {
+    const port = this.deps.alerts;
+    if (port === undefined) return { kept: false, refusal: null };
+    return port.chooseKey(sender);
+  }
+
+  /** Forget the kept key. Nothing moves in the door's hash: the key is not a hashed field. */
+  async forgetPushKey(): Promise<PocketStatus> {
+    await this.deps.alerts?.forgetKey();
+    return this.status();
   }
 }
 
@@ -1821,4 +1917,6 @@ export function registerPocketIpc(ipc: IpcMain, host: PocketHost): void {
   handle(ipc, 'pocket:confirmDoor', (_event, input) => host.confirmDoor(input));
   handle(ipc, 'pocket:forgetDoor', () => host.forgetDoor());
   handle(ipc, 'pocket:openApproval', () => host.openApproval());
+  handle(ipc, 'pocket:choosePushKey', (event) => host.choosePushKey(event.sender));
+  handle(ipc, 'pocket:forgetPushKey', () => host.forgetPushKey());
 }

@@ -152,3 +152,41 @@ describe('the Funnel child in the quit (Phase 330)', () => {
     expect(all).not.toMatch(/\bdoor:\s*inProcessDoor/);
   });
 });
+
+describe('the phone alerts in the quit (Phase 316.5)', () => {
+  const body = code(disposerBody());
+
+  it('closes the alerts’ admission on the same synchronous run as the door’s, before anything is awaited', () => {
+    const begin = body.indexOf('beginPhoneAlertsShutdown()');
+    const firstAwait = body.indexOf('await ');
+    expect(begin).toBeGreaterThan(-1);
+    expect(begin).toBeLessThan(firstAwait);
+    expect(body.match(/beginPhoneAlertsShutdown\(\)/g) ?? []).toHaveLength(1);
+  });
+
+  it('joins the alerts AFTER the door and BEFORE the core, awaited and once', () => {
+    const alerts = body.indexOf('await joinPhoneAlerts()');
+    const door = body.indexOf('await joinPocketDoor()');
+    const core = body.indexOf('shutdownGmuxCore()');
+    expect(alerts).toBeGreaterThan(-1);
+    expect(alerts).toBeGreaterThan(door);
+    expect(alerts).toBeLessThan(core);
+    expect(body).not.toContain('void joinPhoneAlerts()');
+    expect(body.match(/joinPhoneAlerts\(\)/g) ?? []).toHaveLength(1);
+  });
+
+  it('composes the alerts once, after the launch step, over the door’s own wait for the core', () => {
+    const all = code(src);
+    expect(all.match(/createPhoneAlerts\(/g) ?? []).toHaveLength(1);
+    expect(all.match(/\balerts\.rearm\(\)/g) ?? []).toHaveLength(1);
+    expect(all.indexOf('alerts.rearm()')).toBeGreaterThan(all.indexOf('.openAtLaunch('));
+    // ONE wait for the core, handed to both: the door never boots it and
+    // neither do the alerts.
+    expect(all).toMatch(/beforeOpen:\s*coreReady/);
+    expect(all).toMatch(/ready:\s*coreReady/);
+    expect(all).toMatch(/alerts:\s*alerts\.port/);
+    // Not the push seam's engine, and no sender composed here.
+    expect(all).not.toContain('createPushEngine');
+    expect(all).not.toContain('createApnsSender');
+  });
+});

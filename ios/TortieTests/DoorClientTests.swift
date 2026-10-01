@@ -244,7 +244,7 @@ final class DoorClientTests: XCTestCase {
     /// the door, and a body that is not the shape is `malformed`.
     func testStatusesAreReadOneWay() {
         let ok = DoorReply(status: 200, body: Data(#"{"state":"pending"}"#.utf8))
-        XCTAssertEqual(try? DoorClient.decode(PairAnswer.self, from: ok), .pending)
+        XCTAssertEqual(try? DoorClient.decode(PairAnswer.self, from: ok), .pending(macSends: false))
         XCTAssertThrowsError(try DoorClient.decode(PairAnswer.self, from: DoorReply(status: 404, body: Data()))) {
             XCTAssertEqual($0 as? DoorFailure, .refused)
         }

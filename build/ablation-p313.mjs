@@ -5,12 +5,13 @@
  * name by Phase 332).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * fifty-one rules about `src/main/pocket/` — one `listen`, on loopback, in the
+ * fifty-two rules about `src/main/pocket/` — one `listen`, on loopback, in the
  * door process; the Funnel child's argv, program and death; mutual TLS before
  * the parser; the closed table; the refusals; the disposer owning the door;
  * and since Phase 332 the name check's non-recursive, connected, authoritative
  * question, the override that is loopback or nothing, and the push seam that
- * pairs nothing until the name stand-in answers —
+ * pairs nothing until the name stand-in answers, and since Phase 316.5 the
+ * Apple push key that reaches the sheet through a port and never the door —
  * and `conformance:pocket:hostile` drives a live door. Every one
  * of those rules is a clause a later round can delete in one line. THIS SCRIPT
  * BREAKS ONE CLAUSE AT A TIME IN THE SHIPPING SOURCE AND PROVES IT REDDENS THE
@@ -126,6 +127,8 @@ const DNS_STANDIN = 'build/p332/dns-standin.mjs';
 // The round after his ruling of 2026-09-30: the push seam, the one caller of
 // beginPairing outside a test, waits for the name too (D9).
 const SEAM = 'src/main/harness/push-seam.ts';
+// PHASE 316.5: the key's port lives in ipc.ts; the bridge member is the
+// preload's; the push seam is the one other composer of a PocketHost.
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -460,6 +463,60 @@ const ABLATIONS = [
     file: PRELOAD_POCKET,
     from: "  openApproval: () => invoke('pocket:openApproval'),",
     to: "  openApproval: () => Promise.resolve(false),",
+    needs: ['gate']
+  },
+  {
+    n: 'B1c',
+    rule: 'B1',
+    name: 'the bridge drops pocket:choosePushKey while the contract and the host keep it (Phase 316.5)',
+    why: 'thirteen channels in three places: the one that is missing is the Choose… button that answers something main never said.',
+    file: PRELOAD_POCKET,
+    from: "  choosePushKey: () => invoke('pocket:choosePushKey'),",
+    to: '  choosePushKey: () => Promise.resolve({ kept: false, refusal: null }),',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // K3: the push key never enters the door (Phase 316.5).
+  // -------------------------------------------------------------------------
+  {
+    n: 'K3a',
+    rule: 'K3',
+    name: 'a port member answers the p8',
+    why: 'the port is how the key reaches the sheet, so it is also how the key would reach the door: an id that is public, a sentence, whether a key was kept, and nothing else.',
+    file: IPC,
+    from: '  chooseKey(sender: WebContents): Promise<PocketPushKeyResult>;',
+    to: '  chooseKey(sender: WebContents): Promise<PocketPushKeyResult & { p8: string }>;',
+    needs: ['gate']
+  },
+  {
+    n: 'K3b',
+    rule: 'K3',
+    alsoRed: ['R3'],
+    name: 'ipc.ts imports the alerts’ composition',
+    why: 'a door that can name the composition holding the sender and the Apple push key can be made to read the key; it reaches them through the port it is handed.',
+    file: IPC,
+    from: "import { createPocketHandler } from './server';",
+    to: "import { createPocketHandler } from './server';\nimport { createPhoneAlerts } from '../alerts/index';\nvoid createPhoneAlerts;",
+    needs: ['gate']
+  },
+  {
+    n: 'K3d',
+    rule: 'K3',
+    name: 'whether this Mac can send asks the port for more than the key id (research 136)',
+    why: '/pair’s answer asks it while a window is open, and /pair is reached from the internet: it may read the public key id and nothing else of the port.',
+    file: IPC,
+    from: '    return (this.deps.alerts?.keyId() ?? null) !== null;',
+    to: "    return (this.deps.alerts?.keyId() ?? null) !== null && this.deps.alerts?.sentence() !== 'p3165';",
+    needs: ['gate']
+  },
+  {
+    n: 'K3c',
+    rule: 'K3',
+    name: 'the push seam hands the host an alerts port',
+    why: 'the port reaches the key’s store; only the composition that holds the production sender hands it in, and a harness that did would carry a second sender’s port into the sheet.',
+    file: SEAM,
+    from: '  const host = new PocketHost({ facts });',
+    to: '  const host = new PocketHost({ facts, alerts: undefined });',
     needs: ['gate']
   },
   {
@@ -1153,8 +1210,29 @@ const ABLATIONS = [
     name: 'a certificate rides with pending',
     why: 'the certificate is handed to the allowed phone alone.',
     file: SERVER,
-    from: "  if (answer.state === 'pending') return JSON.stringify({ state: 'pending' });",
-    to: "  if (answer.state === 'pending') return JSON.stringify({ state: 'pending', cert: '' });",
+    // Phase 316.5 split the pending line in two (research 136's `alerts`).
+    from: "      : JSON.stringify({ state: 'pending' });",
+    to: "      : JSON.stringify({ state: 'pending', cert: '' });",
+    needs: ['gate']
+  },
+  {
+    n: 'N3c',
+    rule: 'N3',
+    name: 'the word that this Mac can send rides with a refusal (research 136)',
+    why: 'it is said only while a phone is pending, before it could be asked; a refused presentation is told nothing.',
+    file: SERVER,
+    from: "  return JSON.stringify({ state: 'refused' });",
+    to: "  return JSON.stringify({ state: 'refused', alerts: true });",
+    needs: ['gate']
+  },
+  {
+    n: 'N3d',
+    rule: 'N3',
+    name: 'the word is forwarded from what the host handed, not said as the literal true (research 136)',
+    why: 'main says the one word itself; a value forwarded is a value a later field can ride in.',
+    file: SERVER,
+    from: "      ? JSON.stringify({ state: 'pending', alerts: true })",
+    to: "      ? JSON.stringify({ state: 'pending', alerts: answer.alerts })",
     needs: ['gate']
   },
   {
@@ -1263,8 +1341,9 @@ const ABLATIONS = [
     name: 'the host imports node:dgram',
     why: 'the name check is the one thing in Tortie that sends a datagram, and it lives in one module a gate can read whole.',
     file: IPC,
-    from: "import { app, shell, type IpcMain } from 'electron';",
-    to: "import { app, shell, type IpcMain } from 'electron';\nimport 'node:dgram';",
+    // Phase 316.5 added `type WebContents` to this line (the push key's panel).
+    from: "import { app, shell, type IpcMain, type WebContents } from 'electron';",
+    to: "import { app, shell, type IpcMain, type WebContents } from 'electron';\nimport 'node:dgram';",
     needs: ['gate']
   },
   {

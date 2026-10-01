@@ -477,7 +477,12 @@ export const CHECKS = [
   // spends a token, or reads anything under the person's home. NEITHER BINDS A
   // REAL INTERFACE: `host` and `port` are deps of the server and every check
   // passes 127.0.0.1 and 0, which is what build/p313/SPEC.md §4 exists to make
-  // true rather than promised.
+  // true rather than promised. PHASE 316.5 adds K3, THE PUSH KEY NEVER ENTERS
+  // THE DOOR (the alerts' port on the host answers an id, a sentence, whether
+  // a key was kept, and nothing else), counts thirteen channels in B1, and
+  // gives the hostile client the presentation's alert address to refuse. And
+  // research 136's word: N3 lets `pending` alone say `alerts`, only as the
+  // literal true, which the hostile client reads both ways (17m to 17o).
   pure('conformance:pocket'),
   pure('conformance:pocket:hostile'),
   // PHASE 314, the push. build/conformance-push.mjs READS src/main/push/, the
@@ -492,7 +497,17 @@ export const CHECKS = [
   // starts and closes in its own `finally`, behind a fence that refuses any
   // socket to anything but loopback BEFORE it is made. The key is a scratch
   // P-256 key generated in memory. No Electron, no tmux, no ssh, no agent, no
-  // token, NO NETWORK, and nothing under the person's home.
+  // token, NO NETWORK, and nothing under the person's home. PHASE 316.5 wires
+  // the push for a person and holds the wiring here too: H2 reads exactly ONE
+  // allowRemote in src/, `!isHarnessLaunch(process.env)` in
+  // src/main/alerts/index.ts; P1 is the production composition (the engine
+  // and the sender built only there, the push seam and src/main/push/, the
+  // engine only after `deps.ready()` and the destinations are read, nothing
+  // under src/main/alerts/ naming the core's getter); P2 is the quit order in
+  // the ordered disposer; G1 and W1 read src/main/alerts/ as well. Its fix
+  // round widened P1 (the origin's own parameter picks Apple's host, and a
+  // dead token reaches the door's durable drop) and added P3 (a harness launch
+  // never opens the file panel). Twenty-six rules.
   pure('conformance:push'),
   // PHASE 316.2, the iPhone app. `conformance:ios` READS ios/ AS TEXT in plain
   // node with a small Swift lexer of its own, which is why it can run inside
@@ -520,7 +535,16 @@ export const CHECKS = [
   // alone; and (s), his team once in the app's Release configuration with
   // automatic signing, every Debug configuration ad hoc with no team, no
   // profile named, and the bundle id he registered. Both are read in node:
-  // the PNG through build/png-read.mjs, nothing new on the host.
+  // the PNG through build/png-read.mjs, nothing new on the host. PHASE 316.5
+  // adds (w), the entitlement: `aps-environment` = `development` and nothing
+  // else, named by the app's two configurations alone, no background mode and
+  // no `remote-notification` anywhere, and the Mac's compiled topic and team
+  // equal to the app's; and (x), the alert's refusals: registration with Apple
+  // once and only in a Release build, the permission asked once and only of a
+  // Mac whose pending answer says it can send (research 136), `userInfo` read
+  // by the tap's parser alone, no badge written by the phone, no service
+  // extension and no log call anywhere in the app. (d) counts five DEBUG seams
+  // with `-TortieDebugPushToken`, and (s) holds build 3.
   pure(
     'conformance:ios',
     'node and the repository install from package-lock.json, and macOS\'s own /usr/bin/plutil (every Mac has it, with or without Xcode), which reads every property list under ios/ as CoreFoundation does'
@@ -531,8 +555,9 @@ export const CHECKS = [
   // THAT OWNS IT as a delta against the base, each file restored (or a planted
   // file removed) and proved by sha256, the clone removed in a `finally` and
   // on a signal, and the working tree's bytes asserted unmoved. About a
-  // minute and a half (133 arms, 88 s at Phase 316.4). No Xcode, no Electron,
-  // no socket.
+  // minute and a half (133 arms, 88 s at Phase 316.4; 154 arms since Phase
+  // 316.5, whose plants break (d)'s fifth seam, (w) and (x) one clause at a
+  // time). No Xcode, no Electron, no socket.
   pure(
     'ablation:p316',
     "node and the repository install from package-lock.json, and macOS's own /usr/bin/plutil, which the gate it runs reads every property list with"
@@ -550,7 +575,12 @@ export const CHECKS = [
   // `finally` and on SIGINT, SIGTERM and SIGHUP. It opens no socket and starts
   // no Electron. Since Phase 330 it also stands up an in-process door on
   // loopback that asks for a client certificate, for P330TransportTests, and
-  // ends it in a `finally`.
+  // ends it in a `finally`. PHASE 316.5 adds the fifth DEBUG seam,
+  // `-TortieDebugPushToken`, to the Release read; a read both ways that the
+  // Release app holds `registerForRemoteNotifications` and the Debug app does
+  // not, so no Simulator run can ask Apple for an address; the built Debug
+  // app's entitlements read exactly `aps-environment` = `development`; and the
+  // AlertsTests rows. It never asks Apple for a token.
   xcode('test:ios'),
   // PHASE 316.2's app run, re-pointed by Phase 330: ONE Electron through
   // build/electron-run.mjs's withElectron (scratch profile, scratch HOME, the
@@ -565,7 +595,19 @@ export const CHECKS = [
   // forwarder with the client identity (the transport arm). The hostile door
   // runs in a child process of its own (pitfall b), on loopback, ended in a
   // `finally`, with the HTTP arms the phone's reader must refuse. No key: every
-  // window's one-shot secret is scanned for instead. No screenshot.
+  // window's one-shot secret is scanned for instead. No screenshot. PHASE 316.5
+  // adds the alerts: Phase 314's APNs stand-in IN THE PROBE'S OWN PROCESS on
+  // 127.0.0.1, a scratch P-256 key written 0600 in the harness directory and
+  // deleted in the `finally`, `GMUX_HARNESS_ALERTS` naming both, preflighted
+  // loopback-only; each alert handed to a Simulator only through the helper's
+  // `handle.push`; the arms N0 to N11, F1+ and ND, research 136's N11 among
+  // them (a phone pairing with a Mac that cannot send is never asked), each
+  // graded in two steps so an unread block is UNREADABLE; and a fourth
+  // Simulator for the phone that denies. Its fix round taps the gone session's
+  // alert from the LIST (N6) and from ANOTHER session's screen (N6b), read
+  // from the dump before each tap, because a tap over the very session it
+  // names changed nothing and passed over a defect every other tap showed. No model turn, and his key is never
+  // read. `--grader-self-test` grades every arm's fixtures and starts nothing.
   xcode(
     'probe:p316',
     `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor arm; beside it ${NEEDS.electron}`
@@ -818,8 +860,14 @@ export const CHECKS = [
   // runs an xcodebuild test (which boots its destination); the helper's
   // teardown is in a `finally` read by matching braces; its net handles exit,
   // SIGINT, SIGTERM and SIGHUP; and the population reaching it has a floor.
-  // Twelve fixtures and six helper ablations prove it. It spawns nothing and
-  // needs no Xcode, and it runs inside npm run build.
+  // PHASE 316.5 makes a delivered notification the helper handle's alone:
+  // `simctl push` is a verb no other file names, and the handle's `push`
+  // names only the udid its own call created, refuses a bundle id that is not
+  // dotted and a body that is not a JSON object with an `aps` object of at
+  // most 4096 bytes before it writes, writes the body 0600, runs the delivery
+  // as an owned child and deletes it in a `finally`. Nineteen fixtures and
+  // twenty-two helper ablations prove it. It spawns nothing and needs no
+  // Xcode, and it runs inside npm run build.
   pure('gate:simulator'),
   // PHASE 206 ITEM 5. The same rule for anything else a script starts, being a
   // shell, a server, a sleeper or a load generator. It scans build/ for an
@@ -1827,9 +1875,19 @@ export const CHECKS = [
   // every edited clone file and proves it by sha256, and removes the clone in a
   // `finally` and on a signal. No Electron, no tmux, no ssh, no agent, no
   // token, and no listener but the one the hostile client opens on loopback and
-  // closes in its own `finally`.
+  // closes in its own `finally`. PHASE 316.5 adds seven arms, 143 in all: B1c
+  // (the preload drops `choosePushKey`); K3a, K3b and K3c, which hand the door
+  // a port member answering the key, an import of the alerts module, and a
+  // port from the push seam; K3d, `alertsCanSend` asking the port for more
+  // than the key id; and research 136's N3c and N3d, `alerts` riding with a
+  // refusal and forwarded rather than said as the literal true. N3b's shape
+  // moved with the split pending line.
   pure('ablation:p313'),
-  // PHASE 314's attack on conformance:push: thirty-one ablations, AT LEAST ONE
+  // PHASE 314's attack on conformance:push: thirty-one ablations (forty since
+  // Phase 316.5, whose nine break H2's one site, P1's composition, P2's quit
+  // order and G1 over src/main/alerts/; forty-four since its fix round, whose
+  // four fix Apple's host to production, drop the durable drop, and open the
+  // file panel in a harness launch or guard it only after it opened), AT LEAST ONE
   // PER RULE (E7 has eight: the drop, a fall asked as a state rather than an
   // event, and from the fix round the dead connection kept, the request
   // deadline put back to the stream's idle timer, the dead set, the clock fault

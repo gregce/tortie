@@ -265,10 +265,12 @@ struct DotView: View {
 /// Reduce Motion does for a person. XCUITest waits for the app to go idle
 /// before and after every tap, and a pulse that repeats forever never lets it,
 /// so `probe:p316`'s UI test launches with this. It changes an opacity and
-/// nothing else: no frame, label or word the probe reads moves with it.
+/// nothing else: no frame, label or word the probe reads moves with it. A
+/// launch by the system (a tap on an alert) reads the last launch's
+/// (App/DebugLaunch.swift).
 enum MotionDebugSeam {
     static let stillArgument = "-TortieDebugStill"
-    static let still = ProcessInfo.processInfo.arguments.contains(stillArgument)
+    static let still = DebugLaunchSeam.arguments.contains(stillArgument)
 }
 #endif
 

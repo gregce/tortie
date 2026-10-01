@@ -74,13 +74,17 @@ final class InfoPlistTests: XCTestCase {
         XCTAssertFalse(embedded.contains { $0.hasPrefix("TailscaleKit") }, "\(embedded)")
     }
 
-    /// Clause: `Tortie.entitlements` is empty: no networking entitlement, no
-    /// VPN, no push, no keychain group (section 4 S2, rule (f)).
-    func testTheEntitlementsAreEmpty() throws {
+    /// Clause (Phase 316.5): `Tortie.entitlements` holds exactly
+    /// `aps-environment` = `development`, Xcode's own spelling, which his
+    /// TestFlight export re-signs as production: no networking entitlement,
+    /// no VPN, no time-sensitive or critical alerts, no keychain group
+    /// (build/p3165/SPEC.md section 5.7, conformance:ios rule w).
+    func testTheOnlyEntitlementIsApsEnvironment() throws {
         let data = try XCTUnwrap(StyleSource.text("ios/Tortie/Tortie.entitlements").data(using: .utf8))
         let plist = try PropertyListSerialization.propertyList(from: data, format: nil)
         let entitlements = try XCTUnwrap(plist as? [String: Any])
-        XCTAssertTrue(entitlements.isEmpty, "\(entitlements.keys.sorted())")
+        XCTAssertEqual(entitlements.keys.sorted(), ["aps-environment"])
+        XCTAssertEqual(entitlements["aps-environment"] as? String, "development")
     }
 
     /// Clause: "a test plan with screenshots OFF" (section 4.0: a screenshot is

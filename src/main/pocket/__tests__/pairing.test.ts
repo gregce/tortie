@@ -941,6 +941,28 @@ describe('the pairing window', () => {
     expect(saved).toEqual([]);
   });
 
+  it('the same phone presenting again with its alert address refuses the older sheet in the pairing card’s words, and a fresh Allow pairs (316.5 fix round)', () => {
+    // The phone is told this Mac can send, asks iOS, and presents again at
+    // once with its address, which moves the hash under a sheet drawn before.
+    const pairing = makePairing();
+    const secret = secretOf(pairing.open());
+    const phone = makePhone('Greg iPhone');
+    pairing.present(presentation(secret, phone));
+    const before = pairing.view();
+    pairing.present(presentation(secret, phone, { extra: { ape: 'development', apt: 'ab'.repeat(32) } }));
+    const after = pairing.view();
+    expect(after.hash).not.toBe(before.hash);
+    expect(() =>
+      pairing.allow({ acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT, linesRead: before.lines, hashRead: before.hash ?? '' })
+    ).toThrow('What this phone would be allowed changed after it was shown. Read it again and allow what it says now. Nothing was changed.');
+    expect(saved).toEqual([]);
+    expect(pocketConfirmStatus(pairing.fieldsWithPending()).state).toBe('never');
+    expect(
+      pairing.allow({ acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT, linesRead: after.lines, hashRead: after.hash ?? '' }).allowed
+    ).toBe(true);
+    expect(saved.map((p) => [p.label, p.pushEnvironment])).toEqual([['Greg iPhone', 'development']]);
+  });
+
   it('the person allows it LAST, and that is what writes the record', () => {
     const pairing = makePairing();
     const secret = secretOf(pairing.open());

@@ -46,6 +46,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PocketStatus } from '@shared/ipc/pocket';
 import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
+import type { PocketAlertsPort } from '../ipc';
 import type { PocketSealedPresentation } from '../pairing';
 import type { PocketFacts } from '../routes';
 import { fakeNameDeps, nxdomainReply, recordReply, type FakeNameDeps } from './dns-fixtures';
@@ -1485,14 +1486,16 @@ describe('the registrar', () => {
     return handlers;
   }
 
-  it('serves exactly the eleven pocket channels, openApproval among them', () => {
+  it('serves exactly the thirteen pocket channels, openApproval and the push key’s two among them', () => {
     expect([...registered().keys()].sort()).toEqual(
       [
         'pocket:allowPhone',
         'pocket:beginPairing',
         'pocket:cancelPairing',
+        'pocket:choosePushKey',
         'pocket:confirmDoor',
         'pocket:forgetDoor',
+        'pocket:forgetPushKey',
         'pocket:openApproval',
         'pocket:pairingState',
         'pocket:removePhone',
@@ -2399,5 +2402,212 @@ describe('what clears the remembered name, and what does not (Phase 332)', () =>
     const next = host();
     expect(await next.openAtLaunch()).toBe('opened');
     expect(next.status()).toMatchObject({ nameCheck: 'checking', pairable: false });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 316.5: the alerts' port (build/p3165/SPEC.md §5.2.2, research 136)
+// ---------------------------------------------------------------------------
+
+/** A port that answers what a test sets and counts every call the host makes. */
+function fakePort(): {
+  port: PocketAlertsPort;
+  calls: { keyId: number; sentence: number; choose: unknown[]; forget: number; changed: number };
+  set(over: { keyId?: string | null; sentence?: string | null }): void;
+} {
+  let id: string | null = null;
+  let said: string | null = null;
+  const calls = { keyId: 0, sentence: 0, choose: [] as unknown[], forget: 0, changed: 0 };
+  return {
+    calls,
+    set(over) {
+      if (over.keyId !== undefined) id = over.keyId;
+      if (over.sentence !== undefined) said = over.sentence;
+    },
+    port: {
+      keyId: () => {
+        calls.keyId += 1;
+        return id;
+      },
+      sentence: () => {
+        calls.sentence += 1;
+        return said;
+      },
+      chooseKey: async (sender) => {
+        calls.choose.push(sender);
+        id = 'P3165SCRAT';
+        return { kept: true, refusal: null };
+      },
+      forgetKey: async () => {
+        calls.forget += 1;
+        id = null;
+      },
+      changed: () => {
+        calls.changed += 1;
+      }
+    }
+  };
+}
+
+function hostWith(port: PocketAlertsPort): Host {
+  return new PocketHost({
+    facts: FACTS,
+    now: () => clock,
+    tailscale: ts.deps,
+    names,
+    onResume: () => () => undefined,
+    alerts: port
+  });
+}
+
+/** How many `pocket:changed` broadcasts went out. */
+const broadcasts = (): number => sent.filter((line) => line.startsWith('["pocket:changed"')).length;
+
+describe('the alerts’ port (Phase 316.5)', () => {
+  it('status() carries the port’s key id and sentence, and nulls with no port', () => {
+    const fake = fakePort();
+    fake.set({ keyId: '6782V6SJJ7', sentence: 'a sentence main composed' });
+    const status = hostWith(fake.port).status();
+    expect(status.pushKeyId).toBe('6782V6SJJ7');
+    expect(status.pushSentence).toBe('a sentence main composed');
+    const bare = host().status();
+    expect(bare.pushKeyId).toBeNull();
+    expect(bare.pushSentence).toBeNull();
+  });
+
+  it('every change the host broadcasts asks the port again, and announce() only broadcasts', async () => {
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    const before = broadcasts();
+    one.announce();
+    expect(broadcasts()).toBe(before + 1);
+    expect(fake.calls.changed).toBe(0);
+    await one.setPushAlerts(true);
+    expect(fake.calls.changed).toBeGreaterThan(0);
+    expect(broadcasts()).toBeGreaterThan(before + 1);
+  });
+
+  it('a Remove, alerts off and a forgotten agreement each ask the port again, with nowhere left to send', async () => {
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    await pairAndAllow(one);
+    await namePairable(one);
+    const t = tokenFor('p3165-remove');
+    const { id } = await pairPhone(one, makePhone('Greg iPhone'), { apt: t, ape: 'production' });
+    await one.setPushAlerts(true);
+    await confirmNow(one);
+    expect(one.pushDestinations()).toHaveLength(1);
+
+    // Remove.
+    let asked = fake.calls.changed;
+    await one.removePhone(id);
+    expect(fake.calls.changed).toBeGreaterThan(asked);
+    expect(one.pushDestinations()).toEqual([]);
+
+    // Alerts off, after pairing again and agreeing.
+    await confirmNow(one);
+    await namePairable(one);
+    await pairPhone(one, makePhone('Greg iPhone'), { apt: t, ape: 'production' });
+    expect(one.pushDestinations()).toHaveLength(1);
+    asked = fake.calls.changed;
+    await one.setPushAlerts(false);
+    expect(fake.calls.changed).toBeGreaterThan(asked);
+    expect(one.pushDestinations()).toEqual([]);
+
+    // A forgotten agreement.
+    await one.setPushAlerts(true);
+    await confirmNow(one);
+    expect(one.pushDestinations()).toHaveLength(1);
+    asked = fake.calls.changed;
+    await one.forgetDoor();
+    await settled(one);
+    expect(fake.calls.changed).toBeGreaterThan(asked);
+    expect(one.pushDestinations()).toEqual([]);
+  });
+
+  it('the two channels reach the port and nothing of the key comes back', async () => {
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    const handlers = handlersOf(one);
+    const sender = { id: 7 };
+    expect(await handlers.get('pocket:choosePushKey')?.({ sender })).toEqual({ kept: true, refusal: null });
+    expect(fake.calls.choose).toEqual([sender]);
+    expect(one.status().pushKeyId).toBe('P3165SCRAT');
+    const after = (await handlers.get('pocket:forgetPushKey')?.({})) as PocketStatus;
+    expect(fake.calls.forget).toBe(1);
+    expect(after.pushKeyId).toBeNull();
+    // With no port there is nothing to choose, and forgetting forgets nothing.
+    const bare = handlersOf(host());
+    expect(await bare.get('pocket:choosePushKey')?.({ sender })).toEqual({ kept: false, refusal: null });
+    expect(((await bare.get('pocket:forgetPushKey')?.({})) as PocketStatus).pushKeyId).toBeNull();
+  });
+
+  it('can send only with the switch on, the door agreed to and a key kept (research 136)', async () => {
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    expect(one.alertsCanSend()).toBe(false);
+    fake.set({ keyId: '6782V6SJJ7' });
+    expect(one.alertsCanSend()).toBe(false);
+    await pairAndAllow(one);
+    expect(one.alertsCanSend()).toBe(false);
+    await one.setPushAlerts(true);
+    expect(one.status().confirmState).toBe('changed');
+    expect(one.alertsCanSend()).toBe(false);
+    await confirmNow(one);
+    expect(one.alertsCanSend()).toBe(true);
+    fake.set({ keyId: null });
+    expect(one.alertsCanSend()).toBe(false);
+    fake.set({ keyId: '6782V6SJJ7' });
+    await one.setPushAlerts(false);
+    expect(one.alertsCanSend()).toBe(false);
+    // A host handed no port can never send.
+    const bare = host();
+    await pairAndAllow(bare);
+    await bare.setPushAlerts(true);
+    await confirmNow(bare);
+    expect(bare.alertsCanSend()).toBe(false);
+  });
+});
+
+describe('/pair tells the phone whether this Mac can send (research 136)', () => {
+  /** Present one phone through the host's own handler, as the door process forwards it. */
+  async function presentThroughDoor(one: Host): Promise<string> {
+    const offer = await one.beginPairing();
+    const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
+    const answer = await one.handler(
+      { route: 'pair', presentation: presentationOf(secret, makePhone('Greg iPhone')) },
+      { stopping: () => false }
+    );
+    one.cancelPairing();
+    expect(answer.status).toBe(200);
+    return String(answer.body);
+  }
+
+  it('says alerts: true on pending only while the switch is on, agreed to, and a key is kept', async () => {
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    await pairAndAllow(one);
+    await namePairable(one);
+    // No key and the switch off: the bytes a Mac answered before this phase.
+    expect(await presentThroughDoor(one)).toBe('{"state":"pending"}');
+    await one.setPushAlerts(true);
+    await confirmNow(one);
+    await namePairable(one);
+    expect(await presentThroughDoor(one)).toBe('{"state":"pending"}');
+    fake.set({ keyId: '6782V6SJJ7' });
+    expect(await presentThroughDoor(one)).toBe('{"state":"pending","alerts":true}');
+    await one.setPushAlerts(false);
+    await confirmNow(one);
+    await namePairable(one);
+    expect(await presentThroughDoor(one)).toBe('{"state":"pending"}');
+  });
+
+  it('a host handed no port never says it', async () => {
+    const one = host();
+    await pairAndAllow(one);
+    await one.setPushAlerts(true);
+    await confirmNow(one);
+    await namePairable(one);
+    expect(await presentThroughDoor(one)).toBe('{"state":"pending"}');
   });
 });

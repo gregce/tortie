@@ -785,19 +785,47 @@ const CLI_WORDS = /\s(?:status|serve|funnel|up|down|set|login|logout|switch|cert
  * Which rows of a process table are a REAL Tailscale that this run must not
  * have caused (SPEC §6.3). A row is flagged when its command is one of the
  * three real programs AND it is either a descendant of one of `roots` (the
- * app this run launched) or a command-line invocation. His Tailscale app runs
- * all day as `/Applications/Tailscale.app/Contents/MacOS/Tailscale` with no
- * subcommand, and is not flagged: a sampler that flagged it would fail every
- * run on his Mac and so prove nothing. Pure, over `pid ppid command` rows.
+ * app this run launched) or a command-line invocation that NO LIVE PROCESS
+ * OUTSIDE THE RUN OWNS. His Tailscale app runs all day as
+ * `/Applications/Tailscale.app/Contents/MacOS/Tailscale` with no subcommand,
+ * and is not flagged: a sampler that flagged it would fail every run on his
+ * Mac and so prove nothing.
+ *
+ * THE OWNED CLI (Phase 316.5's fix round). His own running Tortie publishes
+ * its door with a real `Tailscale funnel` child whose parent is his Tortie's
+ * door process, alive, and nothing of this run's; flagging it failed every
+ * probe's RUN arm on his Mac whenever his door was on (probe:p313, p316, p330
+ * and p332, one finding each, his pid). A CLI invocation whose parent is a
+ * live process in the table and not under the roots belongs to someone else
+ * (see {@link foreignTailscaleIn}, which the watcher reports by pid). One
+ * whose parent is gone (reparented to launchd, pid 1) or not in the table is
+ * still flagged: that is what an orphaned child of this run's app looks like.
+ * Pure, over `pid ppid command` rows.
  */
 export function realTailscaleIn(rows, roots = []) {
+  const { under, owned } = ancestry(rows, roots);
+  return rows.filter((r) => REAL_TAILSCALE.some((re) => re.test(r.command)) && (under(r.pid) || (CLI_WORDS.test(` ${r.command} `) && !owned(r))));
+}
+
+/**
+ * The real Tailscale CLI invocations a live process outside this run owns:
+ * reported by pid as NOT THIS RUN'S, never failed and never signalled. Pure.
+ */
+export function foreignTailscaleIn(rows, roots = []) {
+  const { under, owned } = ancestry(rows, roots);
+  return rows.filter((r) => REAL_TAILSCALE.some((re) => re.test(r.command)) && !under(r.pid) && CLI_WORDS.test(` ${r.command} `) && owned(r));
+}
+
+/** Ancestry over one process table: under a root, or owned by a live process outside the roots. */
+function ancestry(rows, roots) {
   const parent = new Map(rows.map((r) => [r.pid, r.ppid]));
   const rootSet = new Set(roots.filter((p) => Number.isInteger(p) && p > 1));
   const under = (pid) => {
     for (let p = pid, hops = 0; p > 1 && hops < 128; p = parent.get(p) ?? 0, hops += 1) if (rootSet.has(p)) return true;
     return false;
   };
-  return rows.filter((r) => REAL_TAILSCALE.some((re) => re.test(r.command)) && (under(r.pid) || CLI_WORDS.test(` ${r.command} `)));
+  const owned = (r) => r.ppid > 1 && parent.has(r.ppid);
+  return { under, owned };
 }
 
 export function processRows() {
@@ -817,11 +845,22 @@ export function processRows() {
  */
 export function watchForRealTailscale({ roots = () => [], everyMs = 1_000 } = {}) {
   const findings = [];
+  const notOurs = [];
   let samples = 0;
+  // EVERY root a sample was ever handed, and this process: a relaunch moves
+  // the probe's roots, and a real Tailscale an earlier launch (or the probe
+  // itself) started must not become "someone else's" because its parent is
+  // no longer the current root (the 316.5 fix round).
+  const seen = new Set([process.pid]);
   const sample = () => {
     samples += 1;
-    for (const row of realTailscaleIn(processRows(), roots())) {
+    for (const p of roots()) if (Number.isInteger(p) && p > 1) seen.add(p);
+    const rows = processRows();
+    for (const row of realTailscaleIn(rows, [...seen])) {
       if (!findings.some((f) => f.pid === row.pid && f.command === row.command)) findings.push({ ...row, at: Date.now() });
+    }
+    for (const row of foreignTailscaleIn(rows, [...seen])) {
+      if (!notOurs.some((f) => f.pid === row.pid && f.command === row.command)) notOurs.push({ pid: row.pid, ppid: row.ppid, at: Date.now() });
     }
   };
   sample();
@@ -830,6 +869,8 @@ export function watchForRealTailscale({ roots = () => [], everyMs = 1_000 } = {}
   return {
     sample,
     findings: () => findings.slice(),
+    /** Real Tailscale CLI a live process outside this run owns, by pid (his own Tortie's door, say). */
+    notOurs: () => notOurs.slice(),
     samples: () => samples,
     stop: () => {
       clearInterval(timer);
@@ -1181,10 +1222,23 @@ async function selfTest() {
       { pid: 300, ppid: 1, command: '/usr/local/bin/tailscale status --json' },
       { pid: 400, ppid: 200, command: '/private/tmp/p/standin/tailscale funnel --tcp=8443' },
       { pid: 500, ppid: 1, command: '/opt/homebrew/bin/tailscaled' },
-      { pid: 600, ppid: 1, command: '/Applications/Tailscale.app/Contents/MacOS/Tailscale funnel --tcp=8443 --proxy-protocol=2 tcp://127.0.0.1:5' }
+      { pid: 600, ppid: 1, command: '/Applications/Tailscale.app/Contents/MacOS/Tailscale funnel --tcp=8443 --proxy-protocol=2 tcp://127.0.0.1:5' },
+      // His own Tortie, publishing its door: its door process owns a real funnel child.
+      { pid: 700, ppid: 1, command: '/Applications/Tortie.app/Contents/MacOS/Tortie' },
+      { pid: 701, ppid: 700, command: '/Applications/Tortie.app/Contents/Frameworks/Tortie Helper.app/Contents/MacOS/Tortie Helper --type=utility' },
+      { pid: 702, ppid: 701, command: '/Applications/Tailscale.app/Contents/MacOS/Tailscale funnel --tcp=8443 --proxy-protocol=2 tcp://127.0.0.1:49266' },
+      // This run's app, two levels down: flagged whatever its words.
+      { pid: 210, ppid: 200, command: '/Users/x/node_modules/electron/dist/Electron.app/Contents/Frameworks/Electron Helper.app/Contents/MacOS/Electron Helper --type=utility' },
+      { pid: 211, ppid: 210, command: '/Applications/Tailscale.app/Contents/MacOS/Tailscale funnel --tcp=8443 --proxy-protocol=2 tcp://127.0.0.1:6' },
+      // A CLI whose parent is not in the table: flagged, as before.
+      { pid: 800, ppid: 799, command: '/opt/homebrew/bin/tailscale funnel 8443' }
     ];
     const flagged = realTailscaleIn(rows, [200]).map((row) => row.pid);
-    check('the sampler flags a real Tailscale under the app or run as a command, and not his GUI or the stand-in', J(flagged) === J([201, 300, 600]), J(flagged));
+    check('the sampler flags a real Tailscale under the app, orphaned, or run as a command no live process owns, and not his GUI, the stand-in or his own Tortie\'s funnel', J(flagged) === J([201, 300, 600, 211, 800]), J(flagged));
+    const foreign = foreignTailscaleIn(rows, [200]).map((row) => row.pid);
+    check('his own Tortie\'s funnel child is reported as not this run\'s, and nothing else is', J(foreign) === J([702]), J(foreign));
+    const rootedMine = realTailscaleIn(rows, [200, 700]).map((row) => row.pid);
+    check('the same funnel under a root of this run is flagged', rootedMine.includes(702) && foreignTailscaleIn(rows, [200, 700]).length === 0, J(rootedMine));
   } catch (err) {
     check('the self-test', false, `threw: ${String(err?.stack ?? err)}`);
   } finally {

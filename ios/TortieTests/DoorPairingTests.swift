@@ -62,7 +62,7 @@ final class DoorPairingTests: XCTestCase {
         )
         let pending = try pairing.begin(offer, label: "Tortie’s iPhone")
         let steps = StepLog()
-        let outcome = await pairing.run(pending) { steps.append($0) }
+        let outcome = await pairing.run(pending, progress: { steps.append($0) })
         return Run(outcome: outcome, door: door, secrets: secrets, keys: keys, steps: steps.all, pending: pending)
     }
 
@@ -74,7 +74,7 @@ final class DoorPairingTests: XCTestCase {
     func testPairedOnlyAfterTheFirstSignedRead() async throws {
         let first = try list()
         let r = try await run(
-            presents: [.success(.pending), .success(.pending), .success(.allowed(certificate: certificate))],
+            presents: [.success(.pending(macSends: false)), .success(.pending(macSends: false)), .success(.allowed(certificate: certificate))],
             reads: [.success(first)]
         )
         guard case let .paired(paired, answer) = r.outcome else { return XCTFail("\(r.outcome)") }
@@ -99,7 +99,7 @@ final class DoorPairingTests: XCTestCase {
     /// its Ed25519 key over the window's challenge (the proof the Mac checks
     /// before it opens anything).
     func testEveryPresentationIsSealedAndSigned() async throws {
-        let r = try await run(presents: [.success(.pending), .success(.pending), .success(.refused)])
+        let r = try await run(presents: [.success(.pending(macSends: false)), .success(.pending(macSends: false)), .success(.refused)])
         XCTAssertEqual(r.door.presented.count, 3)
         XCTAssertEqual(Set(r.door.presented).count, 3, "each presentation has a fresh nonce")
         let challenge = PresentationSeal.challenge(secret: offer.secret)
@@ -162,7 +162,7 @@ final class DoorPairingTests: XCTestCase {
 
     /// Clause: `refused` ends it at once, and nothing is read or kept.
     func testRefusedEndsIt() async throws {
-        let r = try await run(presents: [.success(.pending), .success(.refused)])
+        let r = try await run(presents: [.success(.pending(macSends: false)), .success(.refused)])
         guard case .failed(.macRefused) = r.outcome else { return XCTFail("\(r.outcome)") }
         XCTAssertEqual(r.door.presented.count, 2)
         XCTAssertEqual(r.door.reads, 0)
@@ -186,7 +186,7 @@ final class DoorPairingTests: XCTestCase {
         for failure in [DoorFailure.refused, .closedBeforeAnswer] {
             let never = try await run(presents: [.failure(failure)])
             guard case .failed(.windowClosed) = never.outcome else { return XCTFail("\(never.outcome)") }
-            let later = try await run(presents: [.success(.pending), .failure(failure)])
+            let later = try await run(presents: [.success(.pending(macSends: false)), .failure(failure)])
             guard case .failed(.codeExpired) = later.outcome else { return XCTFail("\(later.outcome)") }
             XCTAssertEqual(later.keys.held, [])
         }
@@ -217,7 +217,7 @@ final class DoorPairingTests: XCTestCase {
     /// Clause: "present again every 2 s until allowed or the window ends":
     /// a three-minute window is 90 presentations, then it ends.
     func testItPresentsEveryTwoSecondsUntilTheWindowEnds() async throws {
-        let r = try await run(presents: [.success(.pending)])
+        let r = try await run(presents: [.success(.pending(macSends: false))])
         guard case .failed(.codeExpired) = r.outcome else { return XCTFail("\(r.outcome)") }
         XCTAssertEqual(r.door.presented.count, 90)
         XCTAssertEqual(PairingFlow.presentEvery, .seconds(2))
@@ -249,7 +249,7 @@ final class DoorPairingTests: XCTestCase {
     /// told the Mac has the phone.
     func testANameThatResolvesLaterPairs() async throws {
         let r = try await run(
-            presents: [.failure(.nameNotFound), .failure(.nameNotFound), .success(.pending), .success(.allowed(certificate: certificate))],
+            presents: [.failure(.nameNotFound), .failure(.nameNotFound), .success(.pending(macSends: false)), .success(.allowed(certificate: certificate))],
             reads: [.success(try list())]
         )
         guard case .paired = r.outcome else { return XCTFail("\(r.outcome)") }
@@ -259,7 +259,7 @@ final class DoorPairingTests: XCTestCase {
     /// Clause: a code whose window has shut is not presented at all, and its
     /// client key does not outlive the attempt.
     func testAnExpiredCodeIsNotPresented() async throws {
-        let door = StandInDoor(presents: [.success(.pending)], reads: [])
+        let door = StandInDoor(presents: [.success(.pending(macSends: false))], reads: [])
         let clock = StepClock(Date(timeIntervalSince1970: offer.expiresAt / 1000))
         let keys = MemoryClientKeys(spki: v.keys.clientKey)
         let pairing = PairingFlow(
@@ -311,7 +311,7 @@ final class DoorPairingTests: XCTestCase {
 
     /// Clause: leaving the screen stops the pairing and keeps nothing.
     func testLeavingTheScreenStopsIt() async throws {
-        let door = StandInDoor(presents: [.success(.pending)], reads: [])
+        let door = StandInDoor(presents: [.success(.pending(macSends: false))], reads: [])
         let secrets = MemorySecrets()
         let keys = MemoryClientKeys(spki: v.keys.clientKey)
         let pairing = PairingFlow(
@@ -447,7 +447,7 @@ final class DoorPairingTests: XCTestCase {
         return try XCTUnwrap(PairedDoor(
             endpoint: offer.door, macSigningKey: offer.macSigningKey, macExchangeKey: offer.macExchangeKey,
             label: "x", pairedAt: 1, keys: PhoneKeys.generate(), clientKey: key, certificate: certificate,
-            identity: try keys.adopt(certificate, for: key)
+            identity: try keys.adopt(certificate, for: key), alerts: .nothing
         ))
     }
 

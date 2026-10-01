@@ -186,7 +186,7 @@ final class DoorKeychainTests: XCTestCase {
             endpoint: DoorEndpoint(name: "p330-mac.tail00000.ts.net", port: 8443, pin: Base64URL.encode(Data(count: 32))),
             macSigningKey: v.keys.macSigningKey, macExchangeKey: v.keys.macExchangeKey, label: "x", pairedAt: 1,
             keys: PhoneKeys.generate(), clientKey: ClientKey(tag: TestIdentity.tag, spki: v.keys.clientKey),
-            certificate: certificate, identity: try TestIdentity.vectors()
+            certificate: certificate, identity: try TestIdentity.vectors(), alerts: .nothing
         ))
         try pairing.save(door)
         XCTAssertNotNil(try store.read(PairingStore.account))

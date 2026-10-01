@@ -698,7 +698,13 @@ exit 0
         setPushAlerts: { on: false },
         setDoor: { on: false },
         beginPairing: undefined,
-        openApproval: undefined
+        openApproval: undefined,
+        // Phase 316.5: a harness launch never opens the file panel; with no
+        // GMUX_HARNESS_ALERTS it answers "nothing chosen" at once (the 316.5
+        // fix round, conformance:push P3), and a scratch profile holds no key
+        // to forget.
+        choosePushKey: undefined,
+        forgetPushKey: undefined
       };
       const census = {};
       if (hasPocket === true) {
@@ -1136,7 +1142,7 @@ exit 0
   const log = standin?.readLog() ?? [];
   const nameRows = dns?.log() ?? [];
   if (dns !== null) await dns.close();
-  report.readings.run = { preflight: preflightOk, realTailscale: findings, samples: watch?.samples() ?? 0, forbidden: log.filter((e) => e.forbidden === true).length, refused: log.filter((e) => e.verdict === 'refused').length, ended: ended.ended.length, left: ended.left.length };
+  report.readings.run = { preflight: preflightOk, realTailscale: findings, notThisRun: watch?.notOurs() ?? [], samples: watch?.samples() ?? 0, forbidden: log.filter((e) => e.forbidden === true).length, refused: log.filter((e) => e.verdict === 'refused').length, ended: ended.ended.length, left: ended.left.length };
   if (standin !== null) {
     arm(
       'RUN no real Tailscale, nothing forbidden, no stand-in left',

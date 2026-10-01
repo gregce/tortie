@@ -274,7 +274,7 @@ final class ScreensModelTests: XCTestCase {
 
     private func pairing(_ phone: StandInPhone) -> (PairingModel, () -> [PocketBlockedAnswer]) {
         var seen: [PocketBlockedAnswer] = []
-        let model = PairingModel(door: phone, label: "iPhone") { _, first in seen.append(first) }
+        let model = PairingModel(door: phone, label: "iPhone", alerts: StandInAlerts()) { _, first in seen.append(first) }
         return (model, { seen })
     }
 
@@ -349,7 +349,7 @@ final class ScreensModelTests: XCTestCase {
         await model.read(code)
         XCTAssertEqual(phone.begun, [code])
         XCTAssertFalse(everythingSaid(about: model).contains(needle), everythingSaid(about: model))
-        let app = AppModel(door: StandInPhone(), label: "iPhone", launchCode: code)
+        let app = AppModel(door: StandInPhone(), label: "iPhone", alerts: StandInAlerts(), launchCode: code)
         XCTAssertFalse(everythingSaid(about: app).contains(needle), everythingSaid(about: app))
         XCTAssertEqual(app.takeLaunchCode(), code)
     }
@@ -430,8 +430,8 @@ final class ScreensModelTests: XCTestCase {
     /// Clause: with no pairing kept the app opens on Pairing; with one, on the
     /// list.
     func testWhereTheAppOpens() {
-        XCTAssertEqual(AppModel(door: StandInPhone(), label: "iPhone").root, .pairing)
-        let paired = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone")
+        XCTAssertEqual(AppModel(door: StandInPhone(), label: "iPhone", alerts: StandInAlerts()).root, .pairing)
+        let paired = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
         XCTAssertEqual(paired.root, .reading)
         XCTAssertNotNil(paired.list)
     }
@@ -439,7 +439,7 @@ final class ScreensModelTests: XCTestCase {
     /// Clause: pairing done means the list, drawn from the first read.
     func testPairingDoneOpensTheListOnTheFirstRead() async {
         let first = Answers.blocked(rows: [Answers.row("w", dot: "attention")])
-        let app = AppModel(door: StandInPhone(outcomes: [.paired(ScriptedReader(), first)]), label: "iPhone")
+        let app = AppModel(door: StandInPhone(outcomes: [.paired(ScriptedReader(), first)]), label: "iPhone", alerts: StandInAlerts())
         await app.pairing.read("code")
         XCTAssertEqual(app.root, .reading)
         guard case .loaded(let drawing)? = app.list?.state else { return XCTFail("the list did not draw") }
@@ -450,7 +450,7 @@ final class ScreensModelTests: XCTestCase {
     /// nothing pushed over it.
     func testALostPairingGoesBackToPairing() async throws {
         let reader = ScriptedReader(blocked: [.failure(.refused)])
-        let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone")
+        let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
         app.path = [.session(id: "s", name: "s")]
         let list = try XCTUnwrap(app.list)
         await list.load()
@@ -462,7 +462,7 @@ final class ScreensModelTests: XCTestCase {
 
     /// Clause: a refusal about one session pops to the list.
     func testBackToListPops() {
-        let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone")
+        let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
         app.path = [.session(id: "s", name: "s"), .conversation(id: "s", honestLine: nil)]
         app.routing.backToList()
         XCTAssertTrue(app.path.isEmpty)
@@ -473,16 +473,16 @@ final class ScreensModelTests: XCTestCase {
     /// app opens unpaired, so a pairing removed later draws the not-paired line
     /// rather than presenting a spent code again.
     func testTheLaunchCodeIsReadOnce() {
-        let unpaired = AppModel(door: StandInPhone(), label: "iPhone", launchCode: "code")
+        let unpaired = AppModel(door: StandInPhone(), label: "iPhone", alerts: StandInAlerts(), launchCode: "code")
         XCTAssertEqual(unpaired.takeLaunchCode(), "code")
         XCTAssertNil(unpaired.takeLaunchCode())
-        let paired = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", launchCode: "code")
+        let paired = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts(), launchCode: "code")
         XCTAssertNil(paired.takeLaunchCode())
     }
 
     /// Clause: only the screen on top reads again on return to the foreground.
     func testOnlyTheTopScreenIsTop() {
-        let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone")
+        let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
         XCTAssertTrue(app.isTop(nil))
         app.path = [.session(id: "s", name: "s")]
         XCTAssertTrue(app.isTop(.session(id: "s", name: "s")))

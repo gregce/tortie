@@ -20,6 +20,17 @@
 //      window ends. A name that does not resolve yet is tried again inside the
 //      window, and SAID (the first time a Mac publishes, its name can take
 //      minutes to reach the phone: his measurement was about 8).
+//
+//      THE ALERT ADDRESS (Phase 316.5). Alerts are the Apple push key holder's
+//      alone (research 136 section 9), so the phone asks iOS for alerts ONLY
+//      when the Mac's `pending` answer says it can send (`"alerts": true`). It
+//      asks once, on the first such answer, which is after the fingerprint is
+//      drawn and before he can have allowed anything; with an address it
+//      presents again at once carrying `apt` and `ape`, both or neither, which
+//      is the one way the Mac learns it. The Mac holds whatever it last
+//      answered `pending` to, so the pairing keeps THAT presentation's address
+//      and the Mac's word with it; a denial, or an Allow that came first, keeps
+//      none, and pairs all the same.
 //   4. He matches the fingerprint and presses Allow ON THE MAC. The Mac asks
 //      last. `allowed` carries the certificate the Mac issued over the client
 //      key.
@@ -152,8 +163,9 @@ enum PairingFailure: Error, Equatable, Sendable {
 
 // MARK: - The sealed, signed presentation
 
-/// `{ck, ek, label, xk}` sealed the way `PocketPairing.openPresentation` opens
-/// it, and signed over the window's challenge the way `present` checks it.
+/// `{ck, ek, label, xk}`, and `{ape, apt}` when the phone has an alert
+/// address, sealed the way `PocketPairing.openPresentation` opens it, and
+/// signed over the window's challenge the way `present` checks it.
 enum PresentationSeal {
     /// `PAIRING_INFO`.
     static let info = "tortie-pocket-pair-v1"
@@ -194,11 +206,20 @@ enum PresentationSeal {
     // Declared in the door's own order, which is NOT the order they are
     // written in: the encoder sorts the keys, so the bytes are the same on
     // every run and the vectors can hold them.
+    //
+    // THE ALERT ADDRESS (Phase 316.5) is the device token `apt` and its
+    // environment `ape`, the names `presentedPush` reads on the Mac. They are
+    // written only when present (the synthesised encoder's `encodeIfPresent`),
+    // so a phone with no address presents exactly the bytes it did before, and
+    // this struct is the one place the app spells either name for the wire
+    // (conformance:ios rule x).
     private struct Inner: Encodable {
         let label: String
         let ek: String
         let xk: String
         let ck: String
+        let apt: String?
+        let ape: String?
     }
 
     /// The sealed fields, each base64url.
@@ -222,9 +243,13 @@ enum PresentationSeal {
         return encoder
     }
 
-    /// The plaintext: `{"ck":…,"ek":…,"label":…,"xk":…}`, keys sorted.
-    static func inner(label: String, keys: PhoneKeys, clientKey: String) throws -> Data {
-        try encoder().encode(Inner(label: label, ek: keys.signingKey, xk: keys.exchangeKey, ck: clientKey))
+    /// The plaintext: `{"ck":…,"ek":…,"label":…,"xk":…}`, keys sorted, or
+    /// `{"ape":…,"apt":…,"ck":…,"ek":…,"label":…,"xk":…}` with an address.
+    static func inner(label: String, keys: PhoneKeys, clientKey: String, push: PushAddress?) throws -> Data {
+        try encoder().encode(Inner(
+            label: label, ek: keys.signingKey, xk: keys.exchangeKey, ck: clientKey,
+            apt: push?.token, ape: push?.environment.rawValue
+        ))
     }
 
     /// The seal. A fresh 12-byte nonce every time unless a test names one.
@@ -343,11 +368,16 @@ final class PairingFlow: Sendable {
     /// Present until allowed, then make the first signed read over the
     /// phone's new identity, then keep the pairing. Nothing is kept on any
     /// other path, and the attempt's client key is deleted.
+    ///
+    /// `askForAlerts` is iOS's question and this phone's address. It is asked
+    /// at most once, and only when the Mac answers `pending` saying it can send
+    /// an alert; a pairing with a Mac that cannot never asks.
     func run(
         _ pending: PendingPairing,
+        askForAlerts: @escaping @Sendable () async -> PushAddress? = { nil },
         progress: @escaping @Sendable (PairingStep) -> Void = { _ in }
     ) async -> PairingOutcome {
-        let outcome = await attempt(pending, progress: progress)
+        let outcome = await attempt(pending, askForAlerts: askForAlerts, progress: progress)
         if case .failed = outcome {
             store.clientKeys.delete(tag: pending.clientKey.tag)
         }
@@ -356,14 +386,27 @@ final class PairingFlow: Sendable {
 
     private func attempt(
         _ pending: PendingPairing,
+        askForAlerts: @escaping @Sendable () async -> PushAddress?,
         progress: @escaping @Sendable (PairingStep) -> Void
     ) async -> PairingOutcome {
         let offer = pending.offer
-        guard let inner = try? PresentationSeal.inner(
-            label: pending.label, keys: pending.keys, clientKey: pending.clientKey.spki
-        ) else {
+        let inner = { (push: PushAddress?) in
+            try? PresentationSeal.inner(
+                label: pending.label, keys: pending.keys, clientKey: pending.clientKey.spki, push: push
+            )
+        }
+        // The address the next presentation carries, and its plaintext.
+        var offered: PushAddress?
+        guard var plaintext = inner(nil) else {
             return .failed(.badCode)
         }
+        // What the Mac holds: the address of the last presentation it
+        // answered `pending` to, and what that answer said about alerts. An
+        // `allowed` does not open the presentation it answers, so these, and
+        // not what was last sent, are what the pairing keeps.
+        var held: PushAddress?
+        var macSends = false
+        var asked = false
         let challenge = PresentationSeal.challenge(secret: offer.secret)
         var heard = false
         var miss: PairingFailure?
@@ -383,15 +426,29 @@ final class PairingFlow: Sendable {
                 return .failed(heard ? .codeExpired : (miss ?? .codeExpired))
             }
             do {
-                let sealed = try PresentationSeal.seal(inner, secret: offer.secret)
+                let sealed = try PresentationSeal.seal(plaintext, secret: offer.secret)
                 let body = try PresentationSeal.body(sealed, challenge: challenge, keys: pending.keys)
                 switch try await exchange.present(body, to: offer.door) {
                 case .allowed(let issued):
                     certificate = issued
                     break presenting
-                case .pending:
+                case .pending(let sends):
                     if !heard { say(.waitingForMac) }
                     heard = true
+                    held = offered
+                    macSends = sends
+                    // The Mac can send: iOS's question, once. An address is
+                    // presented at once, with no pause, so the Mac holds it as
+                    // soon as it can; an Allow he pressed while iOS was asking
+                    // is answered to that presentation, and keeps none.
+                    if sends, !asked {
+                        asked = true
+                        if let address = await askForAlerts(), let next = inner(address) {
+                            offered = address
+                            plaintext = next
+                            continue presenting
+                        }
+                    }
                 case .refused:
                     return .failed(.macRefused)
                 }
@@ -438,7 +495,8 @@ final class PairingFlow: Sendable {
             keys: pending.keys,
             clientKey: pending.clientKey,
             certificate: certificate,
-            identity: identity
+            identity: identity,
+            alerts: AlertsKept(macSends: macSends, presented: held)
         ) else { return .failed(.badCode) }
 
         for attempt in 1...Self.firstReadAttempts {

@@ -118,6 +118,10 @@ import {
 // confirmed.
 import { beginPocketShutdown, joinPocketDoor } from './pocket/bind';
 import { createPocketFacts } from './pocket/facts';
+import { createPocketRoutes } from './pocket/routes';
+// PHASE 316.5: the phone alerts, Phase 314's engine composed for a person. Inert
+// until the door answers a push destination; two lines in the ordered disposer.
+import { beginPhoneAlertsShutdown, createPhoneAlerts, joinPhoneAlerts } from './alerts';
 // PHASE 330: the Funnel child that publishes the door. Two lines in the
 // ordered disposer below, beside the door's own.
 import { beginFunnelShutdown, joinFunnel } from './pocket/funnel';
@@ -328,9 +332,9 @@ export function installMainCapabilities(
   // one record.
   registerMachinesIpc(ipcMain);
   // PHASE 316: the ONE `pocket:*` registrar, and the door's launch step.
-  // Eleven channels since Phase 330, all Settings then Phone, and none of them
-  // reachable by a phone: the door's own route table is read only and holds
-  // none of them.
+  // Thirteen channels since Phase 316.5 (the Apple push key's two), all
+  // Settings then Phone, and none of them reachable by a phone: the door's own
+  // route table is read only and holds none of them.
   // The launch step reads one sealed file and does nothing else unless the
   // person switched the door on AND the fields as they stand now hash to the
   // agreement on record (CLAUDE.md refusal 8): a store edited by hand moves
@@ -346,35 +350,56 @@ export function installMainCapabilities(
   let pocketCore: GmuxCore | null = null;
   const wakes = new WakeMark(powerMonitor);
   pocketWakes = wakes;
-  pocketHost = new PocketHost({
-    facts: createPocketFacts({
-      core: () => pocketCore,
-      overview: {
-        manifest: async () => (await getGmuxCore()).manifest,
-        store: overviewStore,
-        foldChosen: () => foldChosenNow()
-      },
-      wakes: () => wakes.wakes()
-    }),
-    // THE DOOR IS NEVER WHAT BOOTS THE CORE. This runs at `whenReady`, before
-    // `src/main/index.ts` has asked the manifest whether a newer Tortie owns it
-    // (the Phase 21 refusal, "the FIRST thing normal startup does") and before
-    // the agent overlay is read, which must happen "BEFORE the core boots". So
-    // the door waits for the first window, which normal startup opens only
-    // after it has kicked the boot itself, and then joins that boot: the push
-    // seam's own rule (`./harness/push-seam.ts`, "Why the composition waits for
-    // a window"). A refusal screen is a dialog and opens no window, so on that
-    // path the door never asks for the core at all.
-    beforeOpen: async () => {
-      await firstWindow();
-      pocketCore = await getGmuxCore();
+  // THE DOOR IS NEVER WHAT BOOTS THE CORE, AND NEITHER ARE THE ALERTS. This
+  // runs at `whenReady`, before `src/main/index.ts` has asked the manifest
+  // whether a newer Tortie owns it (the Phase 21 refusal, "the FIRST thing
+  // normal startup does") and before the agent overlay is read, which must
+  // happen "BEFORE the core boots". So both wait for the first window, which
+  // normal startup opens only after it has kicked the boot itself, and then
+  // join that boot: the push seam's own rule (`./harness/push-seam.ts`, "Why
+  // the composition waits for a window"). A refusal screen is a dialog and
+  // opens no window, so on that path neither asks for the core at all. ONE
+  // function, shared (Phase 316.5), so the door's facts and the alerts' rows
+  // read the one core it resolved.
+  const coreReady = async (): Promise<void> => {
+    await firstWindow();
+    pocketCore = await getGmuxCore();
+  };
+  const facts = createPocketFacts({
+    core: () => pocketCore,
+    overview: {
+      manifest: async () => (await getGmuxCore()).manifest,
+      store: overviewStore,
+      foldChosen: () => foldChosenNow()
     },
+    wakes: () => wakes.wakes()
+  });
+  // PHASE 316.5: the phone alerts. The engine's rows are the door's own
+  // `/v1/blocked` rows from the same stateless composer over the same facts,
+  // so an alert and the phone's list cannot disagree. NOTHING IS COMPOSED
+  // until the door answers a push destination, which needs the alerts switch
+  // on, the door's fields confirmed and a paired phone with a live token.
+  const alertRoutes = createPocketRoutes(facts);
+  const alerts = createPhoneAlerts({
+    host: () => pocketHost,
+    ready: coreReady,
+    rows: () => alertRoutes.blocked().rows,
+    wake: wakes
+  });
+  pocketHost = new PocketHost({
+    facts,
+    beforeOpen: coreReady,
+    // The Apple push key's row and the alert sentence reach the sheet through
+    // this port; the door names neither the key nor the sender.
+    alerts: alerts.port,
     // PHASE 330: on a wake, while the door is published, one check that
     // Tailscale still publishes it. It spawns only when the door is on.
     onResume: (cb) => wakes.onResume(() => cb())
   });
   registerPocketIpc(ipcMain, pocketHost);
   void pocketHost.openAtLaunch();
+  // Asked once here, and again on every change the door broadcasts.
+  alerts.rearm();
   // Phase 72: start keeping a copy of what sessions on other machines print.
   // It arms one timer and one subscription, and it reads nothing until a
   // machine has a live connection and rows on it, so a person with no machines
@@ -539,6 +564,12 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
   // Tailscale's approval stops waiting. It ends nothing; `joinFunnel()` below
   // does. Cannot throw; calling it twice is calling it once.
   beginFunnelShutdown();
+  // PHASE 316.5. And the phone alerts', on the same synchronous line: no arming
+  // step starts, the blocked feed is unsubscribed and the engine's timers and
+  // wake listeners are gone before anything is awaited. It ends nothing;
+  // `joinPhoneAlerts()` below does. Cannot throw; calling it twice is calling
+  // it once.
+  beginPhoneAlertsShutdown();
   // PHASE 211. Stop the credential watcher first: it holds fs.watch handles and
   // a slow interval, and both must be released whatever the rest of teardown
   // does. It is synchronous and cannot throw.
@@ -643,6 +674,15 @@ export async function disposeMainCapabilities(): Promise<MainDisposeOutcome> {
       }
     );
   }
+  // PHASE 316.5. Then the phone alerts, bounded: a flush in flight reads its
+  // rows through the core, so it settles HERE, before `shutdownGmuxCore()`
+  // below. At most about five seconds, and only with alerts armed and a send
+  // hung at Apple: the engine's join waits three for the send and the
+  // sender's close two more (measured 5,003 ms by the 316.5 fix round's
+  // verifier; the chain's own three-second bound is never added to it, see
+  // `joinPhoneAlerts`). With nothing composed it resolves in this same tick.
+  // Its one line, when anything was in flight, is counts.
+  await joinPhoneAlerts();
   // PHASE 316: and the pairing window, if one is open, is shredded — its
   // one-shot secret is zeroed now rather than left for the process's end.
   // Synchronous, cannot throw.

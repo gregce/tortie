@@ -243,6 +243,17 @@ enum Copy {
     /// Phone: the press that goes back to pairing.
     static let pairAgain = "Pair again"
 
+    // MARK: - Alerts (Phase 316.5)
+
+    /// Mac: src/renderer/app/reach-copy.ts ⟦NO_SUCH_SESSION = 'Tortie no longer has a record of that session.'⟧
+    static let noSuchSession = "Tortie no longer has a record of that session."
+
+    /// Phone: this iPhone's alert address is not the one the Mac holds, and the
+    /// Mac learns it only inside a pairing (build/p314/SPEC.md section 1.1 row 3:
+    /// no route carries it). No Mac surface draws the phone's address. Drawn
+    /// only for a Mac that said it could send (research 136 section 9).
+    static let pairAgainForAlerts = "Pair again to get alerts."
+
     // MARK: - The door, when it does not answer as it should
 
     /// Phone: no connection, or the connection was cut.

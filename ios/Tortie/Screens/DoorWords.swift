@@ -32,6 +32,10 @@ import Foundation
 
 /// The three signed reads, for the pairing this phone keeps.
 protocol DoorReading: Sendable {
+    /// What this pairing agreed about alerts (Phase 316.5): whether its Mac
+    /// said it could send, and the address the Mac holds, which the list
+    /// compares with the phone's own now.
+    var alerts: AlertsKept { get }
     func blocked() async throws -> PocketBlockedAnswer
     func session(_ sessionId: String) async throws -> PocketSessionAnswer
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer
@@ -56,7 +60,12 @@ protocol PhoneDoor: Sendable {
     /// Present until the Mac answers, then make the first signed read over
     /// the phone's new identity. The ONLY way to `.paired` is that read
     /// succeeding (Door/Pairing.swift), so `allowed` alone is not success.
-    func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult
+    /// `askForAlerts` is asked at most once, only if the Mac says it can send.
+    func pair(
+        _ pending: PendingPairing,
+        askForAlerts: @escaping @Sendable () async -> PushAddress?,
+        progress: @escaping @Sendable (PairingStep) -> Void
+    ) async -> PairResult
     /// Forget the kept pairing.
     func forget()
 }

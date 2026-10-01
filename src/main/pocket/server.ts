@@ -99,12 +99,19 @@ function routeNamed(id: string): PocketRoute | null {
 }
 
 /**
- * `/pair`'s answer, composed field by field so nothing but the state, and the
- * certificate on `allowed` alone, can ever leave (`conformance:pocket` N3).
+ * `/pair`'s answer, composed field by field so nothing but the state, the
+ * certificate on `allowed` alone, and on `pending` alone the one word that this
+ * Mac can send an alert (Phase 316.5, research 136), can ever leave
+ * (`conformance:pocket` N3). The word is the literal `true` or it is absent, so
+ * a Mac that cannot send answers the bytes it answered before.
  */
 function pairBody(answer: PocketPairAnswer): string {
   if (answer.state === 'allowed') return JSON.stringify({ state: 'allowed', cert: answer.cert });
-  if (answer.state === 'pending') return JSON.stringify({ state: 'pending' });
+  if (answer.state === 'pending') {
+    return answer.alerts === true
+      ? JSON.stringify({ state: 'pending', alerts: true })
+      : JSON.stringify({ state: 'pending' });
+  }
   return JSON.stringify({ state: 'refused' });
 }
 
@@ -133,8 +140,10 @@ export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler
     if (request.route === 'pair') {
       // REFUSAL 4, again: main's window is the one a person opened.
       if (!deps.pairingWindowOpen()) return refuse('window');
-      // Presenting reads nothing of main's state and never reaches the route
-      // composer. It answers a state, and a certificate only when allowed.
+      // Presenting never reaches the route composer. It answers a state, a
+      // certificate only when allowed, and on pending alone whether this Mac
+      // can send an alert (Phase 316.5, research 136), which the host decides
+      // from the switch, the agreement and the key's cached id, never the key.
       const answer = deps.present(request.presentation);
       if (closing()) return refuse('shutdown');
       return { status: 200, body: pairBody(answer) };

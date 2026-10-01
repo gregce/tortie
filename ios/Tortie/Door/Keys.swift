@@ -4,8 +4,13 @@
 // WHAT IS KEPT. One pairing, as one Keychain record (`pairing-v2`): the door's
 // public name, its port and pinned key, the Mac's two public keys, the label
 // the phone presented, the phone's own two private keys (Ed25519 to sign every
-// read, X25519 to derive the binding), and the tag and certificate of its
-// CLIENT KEY. One record, so a pairing is written or removed whole and can
+// read, X25519 to derive the binding), the tag and certificate of its
+// CLIENT KEY, and (Phase 316.5) what the pairing agreed about alerts: whether
+// the Mac said it could send one, and the address the phone presented, both
+// halves or neither. A record written before 316.5 holds neither and reads back
+// as a pairing with a Mac that could not send; a record with half an address,
+// or a malformed one, does not read back whole and is removed, the Mac's own
+// rule for a stored phone row. One record, so a pairing is written or removed whole and can
 // never be half of two pairings. A leftover `pairing-v1` (the tailnet build's)
 // is removed on sight: its door answered on a tailnet address, which no door
 // does now.
@@ -320,6 +325,11 @@ struct PairedDoor: Sendable {
     let certificate: Data
     /// What every connection presents.
     let identity: ClientIdentity
+    /// What this pairing agreed about alerts: whether the Mac said it could
+    /// send one, and the address this phone PRESENTED in the presentation the
+    /// Mac held, which is exactly the one the Mac holds, so the list compares
+    /// it with the phone's address now (`AlertLine`).
+    let alerts: AlertsKept
 
     /// `x-tortie-phone`.
     let phoneId: String
@@ -338,7 +348,8 @@ struct PairedDoor: Sendable {
         keys: PhoneKeys,
         clientKey: ClientKey,
         certificate: Data,
-        identity: ClientIdentity
+        identity: ClientIdentity,
+        alerts: AlertsKept
     ) {
         guard let binding = DoorSignature.binding(phoneExchange: keys.exchange, macExchangeKey: macExchangeKey) else {
             return nil
@@ -352,6 +363,7 @@ struct PairedDoor: Sendable {
         self.clientKey = clientKey
         self.certificate = certificate
         self.identity = identity
+        self.alerts = alerts
         self.binding = binding
         self.phoneId = DoorSignature.phoneId(signingKey: keys.signingKey)
         self.fingerprint = DoorSignature.pairFingerprint(
@@ -502,6 +514,15 @@ final class PairingStore: Sendable {
         let clientTag: String
         /// The Mac's certificate over the client key, DER, base64url.
         let certificate: String
+        /// The alert address presented: the device token and its
+        /// environment, both or neither (Phase 316.5). Absent in a record
+        /// written before it, which reads as a phone that presented none.
+        let apt: String?
+        let ape: String?
+        /// True when the Mac said, as it held this phone, that it could send
+        /// an alert (Phase 316.5); written only when true, so a record with a
+        /// Mac that could not, or from before 316.5, has no such key.
+        let sends: Bool?
     }
 
     static func encode(_ door: PairedDoor) throws -> Data {
@@ -517,9 +538,35 @@ final class PairingStore: Sendable {
             signingSeed: Base64URL.encode(door.keys.signing.rawRepresentation),
             exchangeSeed: Base64URL.encode(door.keys.exchange.rawRepresentation),
             clientTag: door.clientKey.tag,
-            certificate: Base64URL.encode(door.certificate)
+            certificate: Base64URL.encode(door.certificate),
+            apt: door.alerts.presented?.token,
+            ape: door.alerts.presented?.environment.rawValue,
+            sends: door.alerts.macSends ? true : nil
         )
         return try JSONEncoder().encode(record)
+    }
+
+    /// A stored address, both halves or neither. `.whole(nil)` is a phone that
+    /// presented none; `.broken` is half an address, a word that is not an
+    /// environment, or a token that is not what this app writes, and the
+    /// record is not read back whole.
+    private enum StoredPush {
+        case whole(PushAddress?)
+        case broken
+    }
+
+    private static func storedPush(_ record: Record) -> StoredPush {
+        switch (record.apt, record.ape) {
+        case (nil, nil):
+            return .whole(nil)
+        case let (token?, word?):
+            guard let environment = PushEnvironment(rawValue: word),
+                  let address = PushAddress(token: token, environment: environment),
+                  address.token == token else { return .broken }
+            return .whole(address)
+        default:
+            return .broken
+        }
     }
 
     /// A FRESH INSTALL forgets the pairing before anything reads it (Phase
@@ -554,6 +601,7 @@ final class PairingStore: Sendable {
               let cert = SecCertificateCreateWithData(nil, certificate as CFData),
               let certKey = SecCertificateCopyKey(cert),
               let spki = ClientKeys.spki(of: certKey),
+              case let .whole(push) = Self.storedPush(record),
               let identity = clientKeys.identity(tag: record.clientTag, certificate: certificate) else { return nil }
         return PairedDoor(
             endpoint: DoorEndpoint(name: record.name, port: record.port, pin: record.fp),
@@ -564,7 +612,8 @@ final class PairingStore: Sendable {
             keys: keys,
             clientKey: ClientKey(tag: record.clientTag, spki: spki),
             certificate: certificate,
-            identity: identity
+            identity: identity,
+            alerts: AlertsKept(macSends: record.sends ?? false, presented: push)
         )
     }
 }

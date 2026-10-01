@@ -43,9 +43,20 @@
  *   5. THE HELPER'S TARGETS. The helper itself names no `all`, no `booted` and
  *      no `unavailable`: it ends the udid it created and nothing else.
  *   6. THE FIXTURES. Every scanner above is run over texts this gate holds
- *      itself, fifteen of them, eight of which must be caught, and the floor is
+ *      itself, nineteen of them, ten of which must be caught, and the floor is
  *      driven one below itself and at itself. A checker nobody has seen fail is
  *      a checker nobody has seen work.
+ *   7. THE HELPER'S PUSH (Phase 316.5). Delivering a notification is a verb
+ *      only the helper names too: in a file that names `simctl`, the string
+ *      `push` is caught like `boot`, and a whole command line `simctl push …`
+ *      is caught in any file. In the helper, the handle's `push` names the
+ *      udid the call CREATED as its device and takes no device from its
+ *      caller, refuses a bundle id that is not dotted and a body that is not a
+ *      JSON object with an `aps` object of at most 4096 bytes before it writes
+ *      anything, writes the body 0600, runs the delivery as one of the
+ *      handle's owned children, and deletes the file in a `finally`. The verb
+ *      appears nowhere else in the helper. Sixteen one-clause ablations, one
+ *      or more per clause, prove it, the first being the device check removed.
  *
  * ## What it does not assert
  *
@@ -91,6 +102,12 @@ const FOREIGN_TARGETS = ['booted', 'all', 'unavailable'];
 const PHOTOGRAPHS = ['screenshot', 'recordVideo'];
 /** The xcodebuild actions that boot their destination. */
 const TEST_ACTIONS = ['test', 'test-without-building'];
+/**
+ * Handing a notification to a device (Phase 316.5). It makes and ends
+ * nothing, but it names a device, and only the helper's handle may name one:
+ * the handle's `push` can only ever name the udid its own call created.
+ */
+const DELIVERY_VERBS = ['push'];
 
 // ---------------------------------------------------------------------------
 // Reading source
@@ -157,11 +174,14 @@ export function simulatorStarts(name, source) {
     if (line !== null) hit(s.at, `a command line naming simctl ${line[1]}`);
     if (/\bsimctl\s+bootstatus\b[^\n]*\s-b\b/.test(s.text)) hit(s.at, 'a command line naming simctl bootstatus -b, which boots');
     if (/\bsimctl\s+io\b[^\n]*\b(screenshot|recordVideo)\b/.test(s.text)) hit(s.at, 'a command line that photographs a device');
+    const delivery = new RegExp(`\\bsimctl\\s+(${DELIVERY_VERBS.join('|')})\\b`).exec(s.text);
+    if (delivery !== null) hit(s.at, `a command line delivering a notification with simctl ${delivery[1]}, which is the helper handle's alone`);
     if (new RegExp(`\\bxcodebuild\\b[^\\n]*\\s(${TEST_ACTIONS.join('|')})(\\s|$)`).test(s.text)) {
       hit(s.at, 'a command line running an xcodebuild test, which boots its destination');
     }
     if (namesSimctl) {
       if (DEVICE_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}'`);
+      if (DELIVERY_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}', which delivers to a device and is the helper handle's alone`);
       if (FOREIGN_TARGETS.includes(s.text)) hit(s.at, `the simctl target '${s.text}', a device this script did not make`);
       if (PHOTOGRAPHS.includes(s.text)) hit(s.at, `'${s.text}', a photograph`);
     }
@@ -224,7 +244,7 @@ function functionBody(code, name) {
   return open === -1 ? null : blockAt(code, open);
 }
 
-/** Rules 3, 4 and 5 over the helper's source. Returns findings, empty when it holds. */
+/** Rules 3, 4, 5 and 7 over the helper's source. Returns findings, empty when it holds. */
 export function helperShape(source) {
   const code = stripComments(source);
   const out = [];
@@ -268,6 +288,70 @@ export function helperShape(source) {
   for (const s of literals(code)) {
     if (FOREIGN_TARGETS.includes(s.text)) out.push(`the helper names '${s.text}', a device it did not make.`);
   }
+  out.push(...pushShape(code));
+  return out;
+}
+
+/**
+ * The body of the object method `async <name>(` (a handle's method), braces
+ * matched, with its parameter text, or null.
+ */
+function methodBody(code, name) {
+  const m = new RegExp(`\\basync\\s+${name}\\s*\\(`).exec(code);
+  if (m === null) return null;
+  let depth = 0;
+  let i = m.index + m[0].length - 1;
+  const paramsFrom = i + 1;
+  for (; i < code.length; i += 1) {
+    if (code[i] === '(') depth += 1;
+    else if (code[i] === ')') {
+      depth -= 1;
+      if (depth === 0) break;
+    }
+  }
+  const params = code.slice(paramsFrom, i);
+  const open = code.indexOf('{', i);
+  const body = open === -1 ? null : blockAt(code, open);
+  return body === null ? null : { params, body };
+}
+
+/**
+ * Rule 7 over the helper's comment-stripped source: the handle's `push`
+ * (Phase 316.5). Returns findings, empty when it holds.
+ */
+export function pushShape(code) {
+  const out = [];
+  const push = methodBody(code, DELIVERY_VERBS[0]);
+  if (push === null) return ['the handle declares no push(), so nothing holds where a notification may go.'];
+  const params = push.params.split(',').map((p) => p.trim()).filter((p) => p !== '');
+  if (params.length !== 2 || /\budid\b|device|target/i.test(push.params)) {
+    out.push(`push() takes (${push.params.trim()}), so its caller can name the device; it must take (bundleId, payloadText) and name its own udid.`);
+  }
+  const argv = /\[\s*['"]simctl['"]\s*,\s*['"]push['"]\s*,\s*([A-Za-z_$][\w$]*)\s*,\s*bundleId\s*,/.exec(push.body);
+  if (argv === null) out.push('push() runs no simctl argv of the shape [simctl, push, <device>, bundleId, <file>].');
+  else if (argv[1] !== 'udid') out.push(`push() names '${argv[1]}' as its device, not the udid this call created.`);
+  const writeAt = push.body.search(/\bwriteFileSync\s*\(/);
+  const bundleAt = push.body.search(/\bBUNDLE_ID_RE\.test\s*\(/);
+  const bodyAt = push.body.search(/\bpushPayloadRefusal\s*\(/);
+  if (writeAt === -1) out.push('push() writes no file for the body.');
+  if (bundleAt === -1 || (writeAt !== -1 && bundleAt > writeAt)) out.push('push() does not refuse a bundle id that is not dotted before it writes.');
+  if (bodyAt === -1 || (writeAt !== -1 && bodyAt > writeAt)) out.push('push() does not ask pushPayloadRefusal before it writes.');
+  const refusal = functionBody(code, 'pushPayloadRefusal');
+  if (refusal === null) out.push('the helper declares no pushPayloadRefusal().');
+  else {
+    if (!/>\s*PUSH_PAYLOAD_MAX_BYTES\b/.test(refusal)) out.push('pushPayloadRefusal() does not refuse a body over PUSH_PAYLOAD_MAX_BYTES.');
+    if (!/\.aps\b/.test(refusal) || !/Array\.isArray\s*\(\s*aps\s*\)/.test(refusal)) out.push('pushPayloadRefusal() does not refuse a body whose aps is not an object.');
+  }
+  if (!/\bPUSH_PAYLOAD_MAX_BYTES\s*=\s*4_?096\s*;/.test(code)) out.push('PUSH_PAYLOAD_MAX_BYTES is not 4096, the most a notification may hold.');
+  const write = /\bwriteFileSync\s*\(([^;]*)\);/.exec(push.body);
+  if (write !== null && !/\bmode\s*:\s*0o600\b/.test(write[1])) out.push('push() writes the body without mode 0o600.');
+  const fin = push.body.lastIndexOf('finally');
+  const finBody = fin === -1 ? null : blockAt(push.body, push.body.indexOf('{', fin));
+  if (finBody === null || !/\b(?:rmSync|unlinkSync)\s*\(\s*file\b/.test(finBody)) out.push('push() does not delete the body file in a finally.');
+  if (!/\brun\s*\([^;]*\bowner\s*:\s*entry\.children\b/.test(push.body)) out.push('push() does not run the delivery as one of the handle\'s owned children.');
+  const everywhere = (code.match(/['"]push['"]/g) ?? []).length;
+  const inside = (push.body.match(/['"]push['"]/g) ?? []).length;
+  if (everywhere !== inside) out.push(`the verb push is named ${String(everywhere - inside)} time(s) in the helper outside the handle's push().`);
   return out;
 }
 
@@ -280,6 +364,7 @@ const V = (s) => s.split('|').join('');
 const SIM = V('sim|ctl');
 const BOOT = V('bo|ot');
 const MAKE = V('cre|ate');
+const PUSH = V('pu|sh');
 
 const FIXTURES = [
   {
@@ -358,10 +443,31 @@ const FIXTURES = [
     name: 'an xcodebuild test as one command line',
     caught: true,
     text: `execSync('xcrun xcodebuild ${V('te|st')} -scheme T -destination id=x');\n`
+  },
+  {
+    name: 'a notification delivered in argv, outside the helper',
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${PUSH}', udid, 'com.x.y', 'p.json']);\n`
+  },
+  {
+    name: 'a notification delivered as a whole command line',
+    caught: true,
+    text: `import { execSync } from 'node:child_process';\nexecSync('xcrun ${SIM} ${PUSH} 1234 com.x.y p.json');\n`
+  },
+  {
+    name: 'a notification handed to the helper handle',
+    caught: false,
+    user: true,
+    text: `import { withSimulator } from './${HELPER}';\nawait withSimulator({ label: 'x' }, (sim) => sim.${PUSH}('com.x.y', '{"aps":{}}'));\n`
+  },
+  {
+    name: 'an array grown in a file that names the tool',
+    caught: false,
+    text: `const tool = '${SIM}';\nconst rows = [];\nrows.${PUSH}(tool);\n`
   }
 ];
 
-/** Helper shapes that rules 3 to 5 must refuse, each a one-clause ablation. */
+/** Helper shapes that rules 3 to 5 and 7 must refuse, each a one-clause ablation. */
 const HELPER_ABLATIONS = [
   {
     what: 'the teardown moved out of the finally',
@@ -377,7 +483,49 @@ const HELPER_ABLATIONS = [
         .replace('  installNet();\n  const entry = {', '  const entry = {')
         .replace('    entry.udid = udid;\n', '    entry.udid = udid;\n    installNet();\n')
   },
-  { what: "a foreign target named in the helper", edit: (src) => src.replace("['simctl', 'shutdown', udid]", `['simctl', 'shutdown', '${BOOT}ed']`) }
+  { what: "a foreign target named in the helper", edit: (src) => src.replace("['simctl', 'shutdown', udid]", `['simctl', 'shutdown', '${BOOT}ed']`) },
+  // Rule 7, the handle's push (Phase 316.5). The first is the one SPEC §5.8
+  // names: the device check removed, so a caller could name any device.
+  {
+    what: 'the push device check removed: a caller names the device',
+    edit: (src) =>
+      src
+        .replace('async push(bundleId, payloadText) {', 'async push(bundleId, payloadText, device = udid) {')
+        .replace("['simctl', 'push', udid, bundleId, file]", "['simctl', 'push', device, bundleId, file]")
+  },
+  {
+    what: 'the push size refusal removed',
+    edit: (src) => src.replace('  if (bytes > PUSH_PAYLOAD_MAX_BYTES) {', '  if (false) {')
+  },
+  { what: 'the push body file left behind', edit: (src) => src.replace('          rmSync(file, { force: true });\n', '          void file;\n') },
+  { what: 'the push body written readable by others', edit: (src) => src.replace("{ encoding: 'utf8', mode: 0o600 }", "{ encoding: 'utf8', mode: 0o644 }") },
+  {
+    what: 'the push delivery not owned by the handle',
+    edit: (src) => src.replace("['simctl', 'push', udid, bundleId, file], { timeoutMs: 60_000, owner: entry.children }", "['simctl', 'push', udid, bundleId, file], { timeoutMs: 60_000 }")
+  },
+  // One more per clause of rule 7, so no clause of it is one nobody has seen
+  // fail. The two halves of the first, each on its own: a parameter a caller
+  // could fill, and a device named by something other than the udid.
+  { what: 'the push taking a third parameter', edit: (src) => src.replace('async push(bundleId, payloadText) {', 'async push(bundleId, payloadText, extra) {') },
+  { what: 'the push naming the device by its name', edit: (src) => src.replace("['simctl', 'push', udid, bundleId, file]", "['simctl', 'push', name, bundleId, file]") },
+  { what: 'the handle has no push()', edit: (src) => src.replace('async push(bundleId, payloadText) {', 'async deliver(bundleId, payloadText) {') },
+  {
+    what: 'the push argv in another shape',
+    edit: (src) => src.replace("['simctl', 'push', udid, bundleId, file]", "['simctl', 'push', udid, file, bundleId]")
+  },
+  { what: 'the push body never written', edit: (src) => src.replace("writeFileSync(file, payloadText, { encoding: 'utf8', mode: 0o600 });", 'void payloadText;') },
+  {
+    what: 'the push bundle id not checked',
+    edit: (src) => src.replace("if (typeof bundleId !== 'string' || !BUNDLE_ID_RE.test(bundleId)) {", 'if (typeof bundleId !== \'string\') {')
+  },
+  { what: 'the push body not asked about', edit: (src) => src.replace('const why = pushPayloadRefusal(payloadText);', 'const why = null;') },
+  { what: 'the push refusal not declared', edit: (src) => src.replace('export function pushPayloadRefusal(payloadText) {', 'export function payloadRefusal(payloadText) {') },
+  {
+    what: 'the push aps check removed',
+    edit: (src) => src.replace("  if (aps === null || typeof aps !== 'object' || Array.isArray(aps)) return 'the notification body has no aps object.';\n", '')
+  },
+  { what: 'the push cap raised', edit: (src) => src.replace('export const PUSH_PAYLOAD_MAX_BYTES = 4096;', 'export const PUSH_PAYLOAD_MAX_BYTES = 8192;') },
+  { what: 'push added to the verbs a handle runs for its caller', edit: (src) => src.replace("  'listapps'\n]);", "  'listapps',\n  'push'\n]);") }
 ];
 
 // ---------------------------------------------------------------------------
@@ -410,7 +558,7 @@ if (floorFinding(SIMULATOR_USER_FLOOR, SIMULATOR_USER_FLOOR) !== null) {
   fail('the floor refused a population that meets it', 'The floor is a minimum, so adding a script must never turn this red.');
 }
 
-// Rules 3 to 5 over the real helper, then over one-clause ablations of it.
+// Rules 3 to 5 and 7 over the real helper, then over one-clause ablations of it.
 const helperSource = readFileSync(join(buildDir, HELPER), 'utf8');
 for (const why of helperShape(helperSource)) fail(`build/${HELPER}: ${why}`, 'The device this helper makes could outlive the script that made it.');
 let ablationsRed = 0;
@@ -420,7 +568,7 @@ for (const a of HELPER_ABLATIONS) {
     fail(`the helper ablation "${a.what}" found nothing to edit`, 'Its anchor is gone from the helper, so this gate no longer proves that clause. Re-point it.');
     continue;
   }
-  if (helperShape(edited).length === 0) fail(`the helper ablation "${a.what}" left rules 3 to 5 green`, 'That clause is not asserted by anything.');
+  if (helperShape(edited).length === 0) fail(`the helper ablation "${a.what}" left rules 3 to 5 and 7 green`, 'That clause is not asserted by anything.');
   else ablationsRed += 1;
 }
 
@@ -455,6 +603,7 @@ process.stdout.write(
   `gate:simulator PASS. ${String(scanned)} scripts under build/ read, none makes, boots, photographs or ends a Simulator ` +
     `outside build/${HELPER}; ${String(users.length)} reach it against a floor of ${String(SIMULATOR_USER_FLOOR)}; ` +
     `its teardown is inside a finally and its net covers exit, SIGINT, SIGTERM and SIGHUP; ` +
+    `its handle's push names only the device its call created; ` +
     `${String(caughtFixtures)} of ${String(FIXTURES.filter((f) => f.caught).length)} bad fixtures caught, ` +
     `${String(FIXTURES.filter((f) => !f.caught).length)} controls left alone, ` +
     `${String(ablationsRed)} of ${String(HELPER_ABLATIONS.length)} helper ablations red.\n`

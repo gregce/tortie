@@ -45,7 +45,14 @@
  * (`src/main/harness/push-seam.ts`), the one caller of `beginPairing` outside
  * a test and one D8 does not cover because it runs in Electron, refuses to
  * pair without the loopback name stand-in and waits for `pairable`, because a
- * verifier deleted each and every gate stayed green. Fifty-one rules in all.
+ * verifier deleted each and every gate stayed green.
+ *
+ * PHASE 316.5 COMPOSES THE ALERTS FOR A PERSON (build/p3165/SPEC.md §6.1), and
+ * the Apple push key reaches Settings then Phone through a port the host is
+ * handed and never implements. One rule joined, K3: THE PUSH KEY NEVER ENTERS
+ * THE DOOR. B1 counts thirteen channels, and R3 refuses the alerts'
+ * composition, the file panel and the key's store by name. Fifty-two rules in
+ * all.
  *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
@@ -97,13 +104,14 @@ const RULES = [
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
   ['S1', 'entry, mechanism 5', 'Referrer-Policy: no-referrer is emitted from exactly ONE place'],
   ['W1', 'the fix round, 2026-09-22', 'every file and directory this domain creates names an owner-only mode, so one write in it cannot drift looser than its sibling'],
-  ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11', 'the bridge and the registrar move together, and they carry the same ELEVEN pocket channels the contract declares'],
+  ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11; build/p3165/SPEC.md §6.1', 'the bridge and the registrar move together, and they carry the same THIRTEEN pocket channels the contract declares'],
   ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the door: admission closes on the first line of every stop, before any await, in main AND in the door process, and the stop ends the process and closes the listener'],
   ['G1', 'entry, proof; hooks.ts:368-385', 'no token, no body, no header value and no line of conversation is reachable from any log call'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
   ['H1', 'his ruling, 2026-09-22 (“lets skip the web app”)', 'this domain composes NO HTML document and names no text/html content type: the page was built, could not be reached under mechanism 5’s own refusals, and was removed on his ruling, so a later round that wants one asks him rather than rebuilding it under a green gate'],
   ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3', 'NO PUSH ROUTE EXISTS: no route id, path or contract id names push, apns, notify, device, token or alert, and the table’s membership is still Phase 313’s, byte for byte'],
   ['N2', 'Phase 314, build/p314/SPEC.md §6.2', 'THE DEVICE TOKEN HAS ONE DOOR IN AND NONE OUT: the presentation parser takes apt as bounded hex and ape as one of two words or refuses, no renderer-facing type carries a field named like a token, and PocketPushDestination lives in main alone'],
+  ['K3', 'build/p3165/SPEC.md §6.1, §5.2.2', 'THE PUSH KEY NEVER ENTERS THE DOOR: PocketAlertsPort is exactly five members answering string | null, string | null, Promise<PocketPushKeyResult>, Promise<void> and void; PocketPushKeyResult is exactly kept and refusal; status() reads keyId() and sentence() of the port and nothing else, and alertsCanSend(), which /pair’s answer asks (research 136), reads keyId() alone; the two handlers call only host.choosePushKey(event.sender) and host.forgetPushKey(), which call only the port; the domain imports nothing of main/alerts; and PocketHostDeps.alerts is handed by src/main/capabilities.ts and tests alone'],
   ['K2', 'build/p330/SPEC.md §6.1 (K1 became K2)', 'NO TAILNET KEY ANYWHERE UNDER src/: no tailnetKey, no tk and no tskey- in any production file, because the code carries no credential at all now'],
   ['O1', 'build/p316/SPEC.md §4 S1 mechanism 4; his ruling of 2026-09-22', '`others` is exactly the listed sessions that are not blocked: composed from the same session list and the same blocked set as `rows`, capped at POCKET_OTHERS_MAX imported from the contract and never re-spelled, with the omitted count said'],
   ['F2', 'build/p330/SPEC.md §4.8.1 (F1 became F2)', 'the QR is v:3 and holds EXACTLY the eight keys v, host, port, fp, dk, dx, ps and exp, in that order, with no tk and no address; fp pins the LISTENING door’s public key and no window opens while there is nothing to pin'],
@@ -122,7 +130,7 @@ const RULES = [
   ['M2', 'research 132 §9 condition 4; build/p330/SPEC.md §4.4', 'THE HASH covers the Funnel program, the tailnet, the public name and the public port and every phone’s clientKey, holds no bindAddress, port or address, and is sha256-pocket-exec-v3'],
   ['P1', 'research 132 §9 condition 3; build/p330/SPEC.md §4.6 step 2', 'THE PROXY SOURCE IS A RATE-LIMIT KEY ONLY: its bytes are read in door/limits.ts alone, it is on no DoorRequest and in no log call, and no socket address is read anywhere in the domain'],
   ['C1', 'build/p330/SPEC.md §4.6 step 6', 'EVERY ANSWER CARRIES AN EXPLICIT Content-Length, 0 included, from the one writer, and nothing in the domain names Transfer-Encoding or streams a body'],
-  ['N3', 'build/p330/SPEC.md §4.8.3', '/pair answers exactly three states, and the certificate ONLY with allowed; main composes the answer field by field and never serialises what the pairing owner handed it'],
+  ['N3', 'build/p330/SPEC.md §4.8.3; research 136 (Phase 316.5)', '/pair answers exactly three states, the certificate ONLY with allowed, and alerts ONLY with pending and only as the literal true; main composes the answer field by field and never serialises what the pairing owner handed it'],
   ['MENU1', 'the entry, "Unchanged on purpose"', 'Pair a Phone… is still the row directly under Settings…, and it opens Settings at the Phone section'],
   ['W2', 'research 132 §9 condition 2; build/p330/SPEC.md §6.1', 'THE DOOR PROCESS’S IMPORT WALL, re-derived here: door-process.ts and door/** import node:net, node:tls, node:http, node:crypto, src/shared/ and door/ itself, and NOTHING else'],
   ['E1', 'the Phase 330 fix round (lens 2, measured with ps -E); build/p330/SPEC.md §10 concern 3', 'THE DOOR PROCESS’S ENVIRONMENT IS ITS OWN: the one utilityProcess.fork names an env object literal of at least one plain string variable, never {} (Electron reads it as unset and hands the door main’s whole environment), never a spread and never process.env; and door-process.ts and door/** read no process.env'],
@@ -940,9 +948,11 @@ function bridgeRule() {
     );
   }
 
-  // PHASE 330: THE SAME ELEVEN CHANNELS IN ALL THREE PLACES. The contract
-  // declares them, the preload invokes them and the host registers them, and
-  // `pocket:openApproval` joined all three in one commit.
+  // PHASE 330: THE SAME CHANNELS IN ALL THREE PLACES. The contract declares
+  // them, the preload invokes them and the host registers them, and
+  // `pocket:openApproval` joined all three in one commit. THIRTEEN since
+  // Phase 316.5, whose `pocket:choosePushKey` and `pocket:forgetPushKey` joined
+  // all three in one commit too.
   const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
   const bridge = join(ROOT, 'src', 'preload', 'pocket.ts');
   const declaredChannels = new Set();
@@ -959,8 +969,8 @@ function bridgeRule() {
   const served = matched(ipcModule, /\bhandle\(\s*\w+\s*,\s*'(pocket:[A-Za-z]+)'/g);
   const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
   checked('B1', 3);
-  if (declaredChannels.size !== 11) {
-    fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares ${String(declaredChannels.size)} channel(s), not eleven (${[...declaredChannels].join(', ')})`);
+  if (declaredChannels.size !== 13) {
+    fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares ${String(declaredChannels.size)} channel(s), not thirteen (${[...declaredChannels].join(', ')})`);
   }
   if (!same(declaredChannels, bridged)) {
     fail('B1', `the preload invokes ${[...bridged].sort().join(', ') || 'nothing'} where the contract declares ${[...declaredChannels].sort().join(', ')}. A channel one side has and the other does not is a button that throws.`);
@@ -1000,7 +1010,14 @@ const FORBIDDEN = [
   ['main/push/', 'the push sender: the door speaks to a phone and nothing else'],
   ['../push/', 'the push sender, written the way a sibling import is'],
   ['node:http2', 'the client Apple is reached with; this door opens no connection outward'],
-  ['push.apple.com', 'Apple\u2019s host, which only the sender in main/push/ may spell']
+  ['push.apple.com', 'Apple\u2019s host, which only the sender in main/push/ may spell'],
+  // PHASE 316.5. The door reaches the alerts through the port it is handed and
+  // never by name: not the composition that holds the sender and the key, not
+  // the file panel the key is chosen through, and not the key's sealed store.
+  ['main/alerts/', 'the alerts\u2019 composition, which holds the sender and the Apple push key'],
+  ['../alerts/', 'the alerts\u2019 composition, written the way a sibling import is'],
+  ['showOpenDialog', 'the file panel the Apple push key is chosen through, which main/alerts/ opens'],
+  ['apnsKeyStore', 'the Apple push key\u2019s sealed store, which only main/alerts/ and the push seam name']
 ];
 
 function forbiddenRules() {
@@ -3178,6 +3195,234 @@ function injectedDepsRule() {
 }
 
 // ---------------------------------------------------------------------------
+// K3 — the push key never enters the door (Phase 316.5)
+// ---------------------------------------------------------------------------
+
+/** The port's five members and what each may answer, exactly (build/p3165/SPEC.md §5.2.2). */
+const PORT_MEMBERS = new Map([
+  ['keyId', 'string | null'],
+  ['sentence', 'string | null'],
+  ['chooseKey', 'Promise<PocketPushKeyResult>'],
+  ['forgetKey', 'Promise<void>'],
+  ['changed', 'void']
+]);
+
+/** The names every call in a node is made BY, in order. */
+function calleesIn(root) {
+  const out = [];
+  const visit = (n) => {
+    if (ts.isCallExpression(n)) out.push(calleeName(n));
+    ts.forEachChild(n, visit);
+  };
+  visit(root);
+  return out;
+}
+
+/** Every `this.deps.<name>` a node reads, by name. */
+function depsReadIn(root) {
+  const out = [];
+  const visit = (n) => {
+    if (
+      ts.isPropertyAccessExpression(n) &&
+      ts.isPropertyAccessExpression(n.expression) &&
+      n.expression.expression.kind === ts.SyntaxKind.ThisKeyword &&
+      n.expression.name.text === 'deps'
+    ) {
+      out.push(n.name.text);
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(root);
+  return out;
+}
+
+/** Does a specifier, from a file under src/main/pocket/, name src/main/alerts? */
+function namesAlerts(file, spec) {
+  if (!spec.startsWith('.')) return false;
+  const target = relative(join(ROOT, 'src', 'main'), resolve(dirname(file), spec)).split('\\').join('/');
+  return target === 'alerts' || target.startsWith('alerts/');
+}
+
+function pushKeyPortRule() {
+  const ipc = moduleNamed('ipc', 'K3', "Phase 316.5 builder mac's");
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  if (ipc === null) return;
+  const sf = astOf(ipc);
+
+  // (a) THE PORT: five members, and none answers key material.
+  const port = interfaceOf(ipc, 'PocketAlertsPort');
+  checked('K3');
+  if (port === null) {
+    fail('K3', `${rel(ipc)} declares no PocketAlertsPort, so nothing says what the alerts may hand the door`);
+  } else {
+    const seen = new Set();
+    for (const member of port.members) {
+      checked('K3');
+      const name = memberName(member);
+      const want = name === null ? undefined : PORT_MEMBERS.get(name);
+      if (!ts.isMethodSignature(member) || want === undefined) {
+        fail('K3', `${where(ipc, member)}: PocketAlertsPort.${String(name)} is not one of its five methods (${[...PORT_MEMBERS.keys()].join(', ')}). A member the door can ask is a member that can answer the key.`);
+        continue;
+      }
+      seen.add(name);
+      const got = member.type === undefined ? '(none)' : member.type.getText(sf).replace(/\s+/g, ' ');
+      if (got !== want) {
+        fail('K3', `${where(ipc, member)}: PocketAlertsPort.${name} answers ${got}, not ${want}. No member of the port answers key material: an id that is public, a sentence, whether a key was kept, and nothing.`);
+      }
+    }
+    checked('K3');
+    if (port.members.length !== PORT_MEMBERS.size || seen.size !== PORT_MEMBERS.size) {
+      fail('K3', `PocketAlertsPort has ${String(port.members.length)} member(s) (${[...seen].join(', ') || 'none of the five'}); it has exactly the five the SPEC pins`);
+    }
+  }
+
+  // (b) THE RESULT: kept and refusal, exactly.
+  checked('K3');
+  const result = existsSync(contract) ? interfaceOf(contract, 'PocketPushKeyResult') : null;
+  if (result === null) {
+    fail('K3', 'src/shared/ipc/pocket.ts declares no PocketPushKeyResult, so what a choose answers is not read');
+  } else {
+    const names = result.members.map((m) => memberName(m)).sort();
+    const types = new Map(result.members.map((m) => [memberName(m), m.type?.getText(astOf(contract)).replace(/\s+/g, ' ')]));
+    if (JSON.stringify(names) !== JSON.stringify(['kept', 'refusal']) || types.get('kept') !== 'boolean' || types.get('refusal') !== 'string | null') {
+      fail('K3', `PocketPushKeyResult is { ${result.members.map((m) => m.getText(astOf(contract))).join(' ')} }; it is exactly kept: boolean and refusal: string | null, and a choose answers nothing of the key`);
+    }
+  }
+
+  // (c) STATUS READS TWO THINGS OF THE PORT.
+  const status = methodOf(ipc, 'PocketHost', 'status');
+  checked('K3');
+  if (status === null) {
+    fail('K3', `${rel(ipc)}: PocketHost has no status() method to read`);
+  } else {
+    const reads = [];
+    const visit = (n) => {
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)) {
+        const receiver = n.expression.expression.getText(sf).replace(/\?/g, '');
+        if (receiver === 'this.deps.alerts') reads.push(n.expression.name.text);
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(status);
+    const all = depsReadIn(status).filter((d) => d === 'alerts').length;
+    if (JSON.stringify([...reads].sort()) !== JSON.stringify(['keyId', 'sentence']) || all !== 2) {
+      fail('K3', `${where(ipc, status)}: status() reads ${reads.join(', ') || 'nothing'} of the port (${String(all)} read(s) of this.deps.alerts); it reads keyId() and sentence() and nothing else`);
+    }
+  }
+
+  // (c2) RESEARCH 136: whether this Mac can send is asked by /pair's answer,
+  // which the internet reaches while a window is open, so it reads the port's
+  // public key id and NOTHING ELSE of it.
+  const canSend = methodOf(ipc, 'PocketHost', 'alertsCanSend');
+  checked('K3');
+  if (canSend === null) {
+    fail('K3', `${rel(ipc)}: PocketHost has no alertsCanSend() method, so nothing says what /pair may tell a phone about alerts`);
+  } else {
+    const asked = [];
+    const visit = (n) => {
+      if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression)) {
+        const receiver = n.expression.expression.getText(sf).replace(/\?/g, '');
+        if (receiver === 'this.deps.alerts') asked.push(n.expression.name.text);
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(canSend);
+    const reads = depsReadIn(canSend).filter((d) => d === 'alerts').length;
+    if (JSON.stringify(asked) !== JSON.stringify(['keyId']) || reads !== 1) {
+      fail('K3', `${where(ipc, canSend)}: alertsCanSend() asks ${asked.join(', ') || 'nothing'} of the port (${String(reads)} read(s) of this.deps.alerts); it asks keyId() once and nothing else`);
+    }
+  }
+
+  // (d) THE TWO HANDLERS, and the two host methods they reach.
+  const register = functionsNamed(ipc, 'registerPocketIpc')[0] ?? null;
+  const handlerBody = (channel) => {
+    if (register === null) return null;
+    let found = null;
+    const visit = (n) => {
+      if (ts.isCallExpression(n) && calleeName(n) === 'handle' && n.arguments.length === 3) {
+        const [, ch, fn] = n.arguments;
+        if (ts.isStringLiteral(ch) && ch.text === channel && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn))) {
+          found = fn.body.getText(sf).replace(/\s+/g, ' ');
+        }
+      }
+      ts.forEachChild(n, visit);
+    };
+    visit(register);
+    return found;
+  };
+  const want = [
+    ['pocket:choosePushKey', 'host.choosePushKey(event.sender)'],
+    ['pocket:forgetPushKey', 'host.forgetPushKey()']
+  ];
+  for (const [channel, body] of want) {
+    checked('K3');
+    const got = handlerBody(channel);
+    if (got !== body) {
+      fail('K3', `${rel(ipc)}: the ${channel} handler is ${JSON.stringify(got)}, not ${JSON.stringify(body)}. The renderer hands main nothing but the press.`);
+    }
+  }
+  const methods = [
+    ['choosePushKey', new Set(['chooseKey'])],
+    ['forgetPushKey', new Set(['forgetKey', 'status'])]
+  ];
+  for (const [name, allowed] of methods) {
+    const method = methodOf(ipc, 'PocketHost', name);
+    checked('K3');
+    if (method === null) {
+      fail('K3', `${rel(ipc)}: PocketHost has no ${name}() method`);
+      continue;
+    }
+    const calls = calleesIn(method.body);
+    const deps = depsReadIn(method.body);
+    const stray = calls.filter((c) => !allowed.has(c ?? ''));
+    if (stray.length > 0 || deps.some((d) => d !== 'alerts') || !calls.some((c) => c === 'chooseKey' || c === 'forgetKey')) {
+      fail('K3', `${where(ipc, method)}: ${name}() calls ${calls.join(', ') || 'nothing'} and reads this.deps.${deps.join(', this.deps.') || '(nothing)'}; it calls the port and nothing else`);
+    }
+  }
+
+  // (e) THE DOMAIN IMPORTS NOTHING OF THE ALERTS, bare directory included.
+  for (const file of domainFiles) {
+    for (const { node, text } of specifiersOf(file)) {
+      checked('K3');
+      if (namesAlerts(file, text)) {
+        fail('K3', `${where(file, node)} imports ${JSON.stringify(text)}. The door reaches the alerts only through the port it is handed; a door that can name them can reach the key.`);
+      }
+    }
+  }
+
+  // (f) THE PORT IS HANDED BY THE COMPOSITION AND BY TESTS, AND NOWHERE ELSE.
+  const deps = interfaceOf(ipc, 'PocketHostDeps');
+  checked('K3');
+  const member = deps?.members.find((m) => memberName(m) === 'alerts');
+  if (member === undefined || member.questionToken === undefined || member.type?.getText(sf) !== 'PocketAlertsPort') {
+    fail('K3', `${rel(ipc)}: PocketHostDeps has no optional alerts: PocketAlertsPort`);
+  }
+  const capabilities = join(ROOT, 'src', 'main', 'capabilities.ts');
+  let handedByComposition = 0;
+  for (const file of sourcesUnder(join(ROOT, 'src'))) {
+    if (!/new PocketHost\(/.test(readFileSync(file, 'utf8'))) continue;
+    for (const node of nodesOf(file)) {
+      if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'PocketHost') continue;
+      const arg = node.arguments?.[0];
+      if (arg === undefined || !ts.isObjectLiteralExpression(arg)) continue;
+      for (const p of arg.properties) {
+        if (memberName(p) !== 'alerts' && !(ts.isShorthandPropertyAssignment(p) && p.name.text === 'alerts')) continue;
+        checked('K3');
+        if (file === capabilities) {
+          handedByComposition += 1;
+          continue;
+        }
+        fail('K3', `${where(file, p)}: PocketHost is handed an alerts port outside src/main/capabilities.ts and a test. The port reaches the key's store; only the composition that holds the sender hands it in.`);
+      }
+    }
+  }
+  checked('K3');
+  if (handedByComposition !== 1) {
+    fail('K3', `src/main/capabilities.ts hands PocketHost an alerts port ${String(handedByComposition)} time(s); it hands the one port exactly once`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // U5 — the BUILT door process imports nothing it may not
 // ---------------------------------------------------------------------------
 
@@ -3519,12 +3764,24 @@ function pairAnswerRule() {
       if (!keys.includes('state')) continue;
       states += 1;
       checked('N3');
-      const extra = keys.filter((k) => k !== 'state' && k !== 'cert');
+      const extra = keys.filter((k) => k !== 'state' && k !== 'cert' && k !== 'alerts');
       if (extra.length > 0) {
-        fail('N3', `${where(server, node)}: /pair's answer carries ${JSON.stringify(extra)} beside its state. It says a state, and a certificate only with allowed.`);
+        fail('N3', `${where(server, node)}: /pair's answer carries ${JSON.stringify(extra)} beside its state. It says a state, a certificate only with allowed, and that this Mac can send only with pending.`);
       }
       const state = node.properties.find((x) => memberName(x) === 'state');
       const value = state !== undefined && ts.isPropertyAssignment(state) ? literalText(state.initializer) : null;
+      // RESEARCH 136 (Phase 316.5): `alerts` rides with pending alone, and it is
+      // the literal true, so what leaves is decided HERE and never forwarded.
+      const alerts = node.properties.find((x) => memberName(x) === 'alerts');
+      if (alerts !== undefined) {
+        checked('N3');
+        if (value !== 'pending') {
+          fail('N3', `${where(server, node)}: alerts rides with the state ${JSON.stringify(value)}. It is said only while a phone is pending, before it could be asked.`);
+        }
+        if (!ts.isPropertyAssignment(alerts) || alerts.initializer.kind !== ts.SyntaxKind.TrueKeyword) {
+          fail('N3', `${where(server, alerts)}: alerts is ${JSON.stringify(codeOfNode(server, alerts))}, not the literal true. Main says the one word itself and never forwards a value.`);
+        }
+      }
       if (value === null) {
         fail('N3', `${where(server, node)}: /pair's state is ${JSON.stringify(state === undefined ? '' : codeOfNode(server, state))}, not a literal. Main composes the answer field by field and never forwards what the pairing owner handed it.`);
       }
@@ -3576,6 +3833,14 @@ function pairAnswerRule() {
     checked('N3');
     if (names.includes('cert') && text.replace(/\s/g, '') !== "'allowed'") {
       fail('N3', `${where(pairing, member)}: PocketPairAnswer carries a cert with the state ${text}. Only allowed carries one.`);
+    }
+    // Research 136: alerts only beside pending, and only as `true`.
+    const alertsType = member.members.find((m) => memberName(m) === 'alerts');
+    if (alertsType !== undefined) {
+      checked('N3');
+      if (text.replace(/\s/g, '') !== "'pending'" || alertsType.type?.getText(astOf(pairing)) !== 'true') {
+        fail('N3', `${where(pairing, member)}: PocketPairAnswer carries alerts with the state ${text} as ${alertsType.type?.getText(astOf(pairing)) ?? '(no type)'}. Only pending carries it, and only as true.`);
+      }
     }
   }
 }
@@ -4611,6 +4876,7 @@ const PHASES = [
   ['no push route', noPushRouteRule, 'N1'],
   ['the token’s one door', tokenDoorRule, 'N2'],
   ['no tailnet key', noTailnetKeyRule, 'K2'],
+  ['the push key never enters the door', pushKeyPortRule, 'K3'],
   ['the others', othersRule, 'O1'],
   ['the QR', qrPinRule, 'F2'],
   ['the turn reads', turnReadRule, 'T2'],

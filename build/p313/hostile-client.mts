@@ -107,6 +107,7 @@ const bind = await import('../../src/main/pocket/bind.js');
 const { inProcessDoor } = await import('../../src/main/pocket/door/in-process.js');
 const { createPocketHandler } = await import('../../src/main/pocket/server.js');
 const { POCKET_READ_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/wire.js');
+const { POCKET_PAIR_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/limits.js');
 const { POCKET_ROUTES, createPocketRoutes, readTurnRange } = await import('../../src/main/pocket/routes.js');
 const { createPocketFacts, readPocketTurns } = await import('../../src/main/pocket/facts.js');
 const pairingModule = await import('../../src/main/pocket/pairing.js');
@@ -495,6 +496,8 @@ let doorStarted = false;
 try {
   const doorIdentity: PocketIdentity = newIdentity().identity;
   let phones: PocketPhoneFields[] = [];
+  /** Whether the composition says this Mac can send an alert (research 136, arms 17m to 17o). */
+  let macSends = false;
   /** The pairing owner's clock, moved by the arms that need a window to expire. */
   let skew = 0;
   const clock = (): number => Date.now() + skew;
@@ -633,7 +636,14 @@ try {
     // known only to the admission of its generation, which is what 14c proves.
     shuttingDown: () => false,
     pairingWindowOpen: () => pairing.windowOpen(),
-    present: (presentation) => pairing.present(presentation),
+    // RESEARCH 136 (Phase 316.5): the host adds `alerts: true` to a pending
+    // answer when the Mac can send. Here the arm decides it, as the host's
+    // `alertsCanSend()` would, and the answer goes out through the SHIPPING
+    // `pairBody` behind the real door.
+    present: (presentation) => {
+      const answer = pairing.present(presentation);
+      return answer.state === 'pending' && macSends ? { state: 'pending', alerts: true } : answer;
+    },
     verify: (input) => {
       const v = verifier.verify(input);
       lastVerify = v.ok ? 'ok' : v.reason;
@@ -930,11 +940,67 @@ try {
     record('17a', 'a presentation whose device token is not hex', 'refused', stateOf(await presentAs(sealed(alerted, s, { push: { apt: 'not-a-device-token-'.repeat(4), ape: 'development' } }))), 'a token that is not the shape is refused whole.');
     record('17b', 'a presentation that names an environment and no token', 'refused', stateOf(await presentAs(sealed(alerted, s, { push: { ape: 'production' } }))), 'the two travel together or not at all.');
     record('17c', 'and neither refusal put a phone in front of the person', 'waiting', pairing.view().state, 'a refused presentation leaves the sheet as it was.');
+    // PHASE 316.5 (build/p3165/SPEC.md §6.1): the phone starts SENDING its
+    // address, so the shapes it must never get past are driven through the
+    // door process's own body cap as well as main's parser. The bound first:
+    // 257 hex is one past it, and the whole presentation still fits the cap,
+    // so the refusal is main's and never the cap's.
+    const bounded = createHash('sha256').update('p3165-hostile-bounded').digest('hex');
+    const long = sealed(alerted, s, { push: { apt: 'a'.repeat(257), ape: 'production' } });
+    record('17g', 'a presentation whose device token is 257 hex, one past the bound, inside the body cap', 'refused-fits', `${stateOf(await presentAs(long))}-${long.length <= POCKET_PAIR_BODY_CAP_BYTES ? 'fits' : 'over-the-cap'}`, 'a device token is 32 to 256 hex, and one character past it refuses the whole presentation.');
+    record('17h', 'a presentation that names the sandbox as its environment', 'refused', stateOf(await presentAs(sealed(alerted, s, { push: { apt: bounded, ape: 'sandbox' } }))), 'the environment is development or production, the two hosts Apple has, and nothing else.');
+    record('17i', 'a presentation that names a token and no environment', 'refused', stateOf(await presentAs(sealed(alerted, s, { push: { apt: bounded } }))), 'a token with no environment cannot be addressed: the host is chosen from it.');
+    {
+      const huge = sealed(alerted, s, { push: { apt: 'ab'.repeat(5_120), ape: 'production' } });
+      const before = stats().refused.oversized;
+      const answer = await presentAs(huge);
+      record('17j', 'a sealed presentation carrying a 10 KB token, dropped at the door’s body cap with nothing presented', 'refused-404-oversized-waiting', `${verdict(answer)}-${stats().refused.oversized > before ? 'oversized' : 'other'}-${pairing.view().state}`, 'the door process reads at most its cap of /pair and drops the rest whole, so a token that large never reaches main.');
+    }
     const honestToken = createHash('sha256').update('p314-hostile-honest-token').digest('hex');
     record('17d', 'an honest token and environment, spelled in capitals', 'pending', stateOf(await presentAs(sealed(alerted, s, { push: { apt: honestToken.toUpperCase(), ape: 'development' } }))), 'a phone that asks for alerts is paired like any other.');
     const deviceLine = `Alerts for "${alerted.fields.label}" go through Apple (development), device ${createHash('sha256').update(honestToken, 'utf8').digest('hex').slice(0, 8)}`;
     record('17e', 'what the person is asked to allow names that device, by a digest computed here', 'named', pairing.view().lines.includes(deviceLine) ? 'named' : 'not-named', 'the token is hashed into what the person confirms.');
     record('17f', 'and the sheet never carries the token itself', 'absent', JSON.stringify(pairing.view()).toLowerCase().includes(honestToken) ? 'present' : 'absent', 'the token stays in main.');
+    // THE HONEST ARM OF PHASE 316.5: the shape the phone sends, 64 hex in
+    // capitals for production, is paired, and what is kept is folded to
+    // lowercase, which is the one spelling the push and the hash read.
+    const upper = createHash('sha256').update('p3165-hostile-honest-production').digest('hex').toUpperCase();
+    record('17k', 'an honest production token of 64 hex in capitals', 'pending', stateOf(await presentAs(sealed(alerted, s, { push: { apt: upper, ape: 'production' } }))), 'a phone that allowed alerts pairs like any other.');
+    {
+      const card = pairing.view();
+      const lower = upper.toLowerCase();
+      const device = `Alerts for "${alerted.fields.label}" go through Apple (production), device ${createHash('sha256').update(lower, 'utf8').digest('hex').slice(0, 8)}`;
+      let kept = 'not-allowed';
+      try {
+        const result = pairing.allow({ acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT, linesRead: card.lines, hashRead: card.hash ?? '' });
+        const stored = phones.find((p) => p.id === alerted.fields.id);
+        kept = !result.allowed || stored === undefined ? 'not-stored' : `${stored.pushToken === lower ? 'lowercased' : 'as-sent'}-${stored.pushEnvironment}`;
+      } catch {
+        kept = 'refused-by-hash';
+      }
+      record('17l', 'and the phone it pairs holds that token lowercased, for production, as its lines named it', 'lowercased-production-named', `${kept}-${card.lines.includes(device) ? 'named' : 'not-named'}`, 'one token has one spelling and one digest, and the person confirms the digest of the spelling that is kept.');
+      phones = phones.filter((p) => p.id !== alerted.fields.id);
+      bind.updatePocketDoor({ pins: pinsOf(phones) });
+    }
+    // RESEARCH 136 (Phase 316.5): whether this Mac can send an alert rides on
+    // `pending` alone, as the literal true, and a Mac that cannot send answers
+    // the bytes it answered before, so a phone of 1.0.0 (2) reads it as it did.
+    pairing.cancel();
+    windowSync();
+    {
+      // A window of their own: the one above allowed a phone, and an allowed
+      // window answers every other phone refused.
+      const own = pairing.open();
+      windowSync();
+      const s = Buffer.from(String((JSON.parse(own.payload) as Record<string, unknown>)['ps']), 'base64url');
+      const asking = makePhone('a phone the Mac tells whether it can send', doorExchangePublic);
+      macSends = false;
+      record('17m', 'a Mac that cannot send answers pending with the bytes it answered before', '{"state":"pending"}', (await presentAs(sealed(asking, s))).body, 'alerts are the key holder’s alone; nothing is promised by a Mac that cannot send.');
+      macSends = true;
+      record('17n', 'a Mac that can send says so on pending, as the literal true and nothing else', '{"state":"pending","alerts":true}', (await presentAs(sealed(asking, s))).body, 'the phone asks iOS for alerts only when this word is there.');
+      record('17o', 'and a refusal never carries it', '{"state":"refused"}', (await presentAs(sealed(asking, s, { push: { apt: 'a'.repeat(257), ape: 'production' } }))).body, 'a refused presentation is told nothing about alerts.');
+      macSends = false;
+    }
     pairing.cancel();
     windowSync();
   }

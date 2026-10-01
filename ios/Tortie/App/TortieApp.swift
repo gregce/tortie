@@ -9,11 +9,19 @@
 //   the conversation  paged back from the newest turn
 //   pairing           the Mac's code, the fingerprint, and his Allow
 //
+// And since Phase 316.5, the alert: a tap on one opens the session it names
+// (`Route.alerted`), or the list with the Mac's own sentence when the Mac no
+// longer has that session; and a phone paired with a Mac that can send, whose
+// alert address is not the one that Mac holds, says `Pair again to get
+// alerts.` on the list (Alerts/Alerts.swift). A phone paired with a Mac that
+// cannot send asks iOS nothing and says nothing about alerts.
+//
 // WHAT IT NEVER DOES. It sends no message and draws no message box or send
 // control (Phase 318). It draws no terminal scrollback, ever. It ends,
 // restores and removes nothing. It has no timer and no background mode: it
 // reads on appear, on return to the foreground and on pull (build/p316/SPEC.md
-// section 4.0). Dark only, iPhone, portrait.
+// section 4.0), and an alert that arrives while it is open refreshes nothing.
+// Dark only, iPhone, portrait.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -26,6 +34,8 @@ import UIKit
 
 @main
 struct TortieApp: App {
+    /// Where iOS hands over the alert address and the taps (App/AppDelegate.swift).
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var app = AppModel.launch()
 
     var body: some Scene {
@@ -44,6 +54,10 @@ enum Route: Hashable {
     case session(id: String, name: String)
     /// `honestLine` is the session's own line, drawn when it has no turns.
     case conversation(id: String, honestLine: String?)
+    /// The session an alert named, opened by a tap. Drawn as `session`, with
+    /// no name until the door answers, and a refusal says the Mac's own
+    /// sentence for a session it no longer has (SPEC section 5.6.4).
+    case alerted(id: String)
 }
 
 @MainActor
@@ -62,15 +76,23 @@ final class AppModel {
     private(set) var list: ListModel?
     private(set) var pairing: PairingModel!
     private(set) var reader: (any DoorReading)?
+    /// The list's read that says the Mac's sentence about a gone session, and
+    /// the alert-address check a pairing starts, held so a test can wait for
+    /// them. Neither is drawn from.
+    @ObservationIgnored private(set) var noticeRead: Task<Void, Never>?
+    @ObservationIgnored private(set) var addressCheck: Task<Void, Never>?
 
     private let door: any PhoneDoor
+    /// What the app asks iOS about alerts (Alerts/SystemAlerts.swift).
+    private let alerts: any PushAddressing
     /// A code handed in at launch (DEBUG only), read once by the first
     /// pairing screen and never again, so a pairing that is later removed
     /// draws the not-paired line rather than retrying a spent code.
     private var launchCode: String?
 
-    init(door: any PhoneDoor, label: String, launchCode: String? = nil) {
+    init(door: any PhoneDoor, label: String, alerts: any PushAddressing, launchCode: String? = nil) {
         self.door = door
+        self.alerts = alerts
         if let reader = door.pairedReader() {
             root = .reading
             self.reader = reader
@@ -79,7 +101,7 @@ final class AppModel {
             root = .pairing
             self.launchCode = launchCode
         }
-        pairing = PairingModel(door: door, label: label) { [weak self] reader, first in
+        pairing = PairingModel(door: door, label: label, alerts: alerts) { [weak self] reader, first in
             self?.paired(reader, first: first)
         }
         if let reader { list = ListModel(door: reader, routing: routing) }
@@ -103,13 +125,22 @@ final class AppModel {
         if PairingDebugSeam.forgetRequested() { door.forget() }
         launchCode = PairingDebugSeam.injectedPayload()
         #endif
-        return AppModel(door: door, label: UIDevice.current.name, launchCode: launchCode)
+        return AppModel(door: door, label: UIDevice.current.name, alerts: SystemPushAddressing.shared, launchCode: launchCode)
     }
 
     /// What the screens call when a read means they belong elsewhere.
     var routing: ReadRouting {
         ReadRouting(
             backToList: { [weak self] in self?.backToList() },
+            pairAgain: { [weak self] in self?.lostPairing() }
+        )
+    }
+
+    /// The same for the session an alert opened: a refusal about it goes back
+    /// to the list with the Mac's own sentence for a session it no longer has.
+    var alertedRouting: ReadRouting {
+        ReadRouting(
+            backToList: { [weak self] in self?.backToList(saying: Copy.noSuchSession) },
             pairAgain: { [weak self] in self?.lostPairing() }
         )
     }
@@ -127,6 +158,10 @@ final class AppModel {
         self.list = list
         path = []
         root = .reading
+        // The launch's check, at once (the 316.5 fix round): an Allow pressed
+        // on the Mac while iOS was still asking pairs with no address, and
+        // the list says `Pair again to get alerts.` now, not at the next launch.
+        addressCheck = Task { [weak self] in await self?.checkAlertAddress() }
     }
 
     /// The door no longer knows this iPhone, or there is no pairing: back to
@@ -147,19 +182,81 @@ final class AppModel {
         path = []
     }
 
+    /// The door refused a read about the session an alert opened. The list
+    /// says `sentence` once a read of its own answers, and that read is asked
+    /// for HERE rather than left to the list appearing again: a door answers
+    /// the 404 in milliseconds, and a list whose push never finished never
+    /// left the screen, so it reads nothing on appear (the 316.5 fix round).
+    /// A list the door refuses too is a phone it no longer knows, which goes
+    /// to Pairing, so the sentence is never said over an unpaired phone.
+    func backToList(saying sentence: String) {
+        path = []
+        guard let list else { return }
+        list.sayAfterRead(sentence)
+        noticeRead = Task { await list.load() }
+    }
+
+    /// He left the app: the Mac's sentence about a session it no longer has
+    /// goes now, so it is not there when he comes back. It is NOT cleared on
+    /// the way back in. A tap on an alert is what brings the app back, iOS
+    /// hands the tap over before the scene is active, and a sentence that tap
+    /// produced was cleared by the return it arrived with: five taps of five
+    /// on iOS 26.3 drew the list with no sentence (the 316.5 fix round).
+    func wentAway() {
+        list?.clearNotice()
+    }
+
     func cameToForeground() {
         foregroundTick += 1
-        if root == .pairing, let reader = door.pairedReader() {
-            // A pairing the door had refused (a quit, a Remove then a new
-            // Allow) is tried again when he opens the app.
-            self.reader = reader
-            list = ListModel(door: reader, routing: routing)
-            root = .reading
-        }
+        readKeptPairing()
+    }
+
+    /// A pairing the door had refused (a quit, a Remove then a new Allow) is
+    /// tried again when he opens the app, or taps an alert.
+    private func readKeptPairing() {
+        guard root == .pairing, let reader = door.pairedReader() else { return }
+        self.reader = reader
+        list = ListModel(door: reader, routing: routing)
+        root = .reading
     }
 
     func open(_ row: RowDrawing) {
+        list?.clearNotice()
         path.append(.session(id: row.id, name: row.name))
+    }
+
+    /// A tap on an alert. With no pairing kept, Pairing stays; with one, the
+    /// app reads, and the tap replaces whatever was pushed: the list, or the
+    /// one session the alert named.
+    func openFromAlert(_ tap: AlertTap) {
+        readKeptPairing()
+        guard root == .reading, let list else { return }
+        list.clearNotice()
+        switch tap {
+        case .list:
+            path = []
+        case .session(let id):
+            path = [.alerted(id: id)]
+        }
+    }
+
+    /// Once a launch, with a pairing kept: whether this phone's alert address
+    /// is the one the Mac holds (Alerts/Alerts.swift, `AlertLine`). Only for a
+    /// pairing whose Mac said it could send: with any other, iOS is asked
+    /// nothing and the line is never drawn (research 136 section 9). Its
+    /// address is asked only when alerts are allowed, which in a Release build
+    /// is when it registers with Apple, as Apple asks an app to on every launch.
+    func checkAlertAddress() async {
+        guard root == .reading, let reader, let list else { return }
+        let kept = reader.alerts
+        guard kept.macSends else {
+            list.alertsLine = nil
+            return
+        }
+        let authorization = await alerts.authorization()
+        let current = authorization == .authorized ? await alerts.currentAddress() : nil
+        let shows = AlertLine.shows(kept: kept, authorization: authorization, current: current)
+        list.alertsLine = shows ? Copy.pairAgainForAlerts : nil
     }
 
     func openConversation(_ sessionId: String, honestLine: String?) {
@@ -212,10 +309,18 @@ struct RootView: View {
             }
         }
         .background(Tokens.bgSidebar.ignoresSafeArea())
+        // Once a launch: is the alert address the Mac holds this phone's?
+        .task { await app.checkAlertAddress() }
+        // Each tap, exactly once, including the one that launched the app,
+        // which can be posted before this view is first drawn.
+        .onChange(of: AlertInbox.shared.pending, initial: true) {
+            if let tap = AlertInbox.shared.take() { app.openFromAlert(tap) }
+        }
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .background:
                 wasAway = true
+                app.wentAway()
             case .active where wasAway:
                 wasAway = false
                 app.cameToForeground()
@@ -240,6 +345,13 @@ struct RootView: View {
                 id: id, honestLine: honestLine, reader: reader, routing: app.routing,
                 isTop: app.isTop(route), foregroundTick: app.foregroundTick
             )
+        case .alerted(let id):
+            SessionRoute(
+                id: id, name: "", reader: reader, routing: app.alertedRouting,
+                isTop: app.isTop(route), foregroundTick: app.foregroundTick
+            ) { honestLine in
+                app.openConversation(id, honestLine: honestLine)
+            }
         }
     }
 }
@@ -300,6 +412,10 @@ struct PairedReader: DoorReading {
     let client: DoorClient
     let door: PairedDoor
 
+    var alerts: AlertsKept {
+        door.alerts
+    }
+
     func blocked() async throws -> PocketBlockedAnswer {
         try await client.blocked(door)
     }
@@ -340,8 +456,12 @@ struct LiveDoor: PhoneDoor {
         return try flow.begin(offer, label: label)
     }
 
-    func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult {
-        switch await flow.run(pending, progress: progress) {
+    func pair(
+        _ pending: PendingPairing,
+        askForAlerts: @escaping @Sendable () async -> PushAddress?,
+        progress: @escaping @Sendable (PairingStep) -> Void
+    ) async -> PairResult {
+        switch await flow.run(pending, askForAlerts: askForAlerts, progress: progress) {
         case .paired(let door, let first):
             return .paired(PairedReader(client: client, door: door), first)
         case .failed(let failure):

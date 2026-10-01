@@ -11,6 +11,9 @@
 //   screen-list, screen-session, screen-conversation, screen-pairing
 //                                the four screens, one container each
 //   list-title                   "Sessions"
+//   list-alerts-line             `Pair again to get alerts.`, under the title
+//   list-notice                  the Mac's sentence for a session it no longer
+//                                has, after a tap on an alert naming it
 //   list-loading                 the spinner before the first answer
 //   list-failure                 the one sentence when a read failed
 //   section-blocked, section-others
@@ -65,6 +68,8 @@ enum ID {
 
     // The list.
     static let listTitle = "list-title"
+    static let listAlertsLine = "list-alerts-line"
+    static let listNotice = "list-notice"
     static let listLoading = "list-loading"
     static let listFailure = "list-failure"
     static let sectionBlocked = "section-blocked"

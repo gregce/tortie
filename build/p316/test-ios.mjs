@@ -2,13 +2,18 @@
 /**
  * `npm run test:ios` — the phone app's XCTest unit tests, on a Simulator of
  * their own (Phase 316.2, build/p316/SPEC.md §4 S2, Proof; Phase 330,
- * build/p330/SPEC.md §4.12.7 and §7.3).
+ * build/p330/SPEC.md §4.12.7 and §7.3; Phase 316.5, build/p3165/SPEC.md §6.5).
  *
  * WHAT IT RUNS. The `TortieTests` target: decoding the door's answers, the page
  * arithmetic (including its refusal when indexes go backwards or overlap, and
  * its stop when `more` is true on a page that adds nothing), the pin, and every
- * vector build/p316/vectors.mjs wrote from the SHIPPING TypeScript. The UI
- * tests are `probe:p316`'s, because they need the door.
+ * vector build/p316/vectors.mjs wrote from the SHIPPING TypeScript. Since
+ * Phase 316.5 that includes `AlertsTests`: the tap each of Phase 314's alert
+ * shapes opens, the `Pair again to get alerts.` table, the address's bounds,
+ * the presentation with an address against the shipping opener, the record
+ * that keeps it, and that iOS is asked about alerts only when the Mac says it
+ * can send (research 136 §9). The UI tests are `probe:p316`'s, because they
+ * need the door.
  *
  * AND THE CLIENT IDENTITY, MEASURED (Phase 330, the entry's S0 on the phone).
  * `P330TransportTests` makes a key in the Simulator's Keychain with the
@@ -50,14 +55,27 @@
  *      instrumented for code coverage carries (`__llvm_prf_*`, `__llvm_cov*`),
  *      which 316.3's fix round found in every build through the scheme,
  *      Release included, and which it turned off in text only. And no DEBUG
- *      seam (316.4's owed item 2, Phase 330 §4.12.7): the four seam ARGUMENT
+ *      seam (316.4's owed item 2, Phase 330 §4.12.7): the five seam ARGUMENT
  *      strings, which are longer than Swift's fifteen-byte inline strings and
  *      so survive optimisation as bytes, are searched for in every Mach-O
  *      file. A Release build must hold none. The Debug build must hold all
- *      four, which is the control that proves the search can find them. A
- *      problem refuses, exit 1, before any device boots. `--read-app
- *      <Tortie.app or Tortie.xcarchive>` does this step alone, as Release, and
- *      boots nothing.
+ *      five, which is the control that proves the search can find them. And
+ *      THE ALERT ADDRESS (Phase 316.5, build/p3165/SPEC.md §6.5), both ways:
+ *      a Release build must hold the selector `registerForRemoteNotifications`
+ *      (whole, between the NUL bytes that end its neighbours, so neither
+ *      `unregister…` nor the delegate's `didRegister…` passes for it), because
+ *      that is how the app asks Apple for the address an alert is sent to; a
+ *      Debug build must hold none, which is the proof that no Simulator run can
+ *      ask Apple for anything. Each Simulator build's entitlements are read
+ *      too: a Simulator app is signed ad hoc and its signature carries none
+ *      (`codesign -d --entitlements` answers an empty dictionary), so what the
+ *      app is granted is the SIMULATED entitlements Xcode links into the
+ *      executable's `__TEXT,__entitlements` section, read here by CoreFoundation
+ *      (`plutil`): `aps-environment` must be `development`, and nothing else
+ *      may be there but the `application-identifier` Xcode adds to every
+ *      Simulator app. A problem refuses, exit 1, before any device boots.
+ *      `--read-app <Tortie.app or Tortie.xcarchive>` does this step alone, as
+ *      Release, and boots nothing.
  *   5. THE DEVICE BUILD AS IT SHIPS (Phase 316.4, owed by 316.3's final
  *      reverify). Steps 3 and 4 build and read Simulator products only, and
  *      the app he uploads is an ARCHIVE for the device, stripped on the way
@@ -158,7 +176,17 @@ function tool(file, args) {
  * fifteen bytes Swift keeps inline in an instruction, so a build that compiled
  * one carries it as bytes.
  */
-export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebugForgetPairing', '-TortieDebugStill', '-TortieDebugDoorEndpoint'];
+export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebugForgetPairing', '-TortieDebugStill', '-TortieDebugDoorEndpoint', '-TortieDebugPushToken'];
+
+/**
+ * The selector a build that asks Apple for its alert address calls (Phase
+ * 316.5): `UIApplication.registerForRemoteNotifications`, named once, in the
+ * `#else` of `#if DEBUG` (conformance:ios rule x). Searched for WHOLE, between
+ * the NUL bytes that end the method names beside it, so `unregister…` and the
+ * delegate's `didRegister…WithDeviceToken:` never pass for it.
+ */
+export const REGISTRATION_SELECTOR = 'registerForRemoteNotifications';
+const REGISTRATION_BYTES = Buffer.concat([Buffer.from([0]), Buffer.from(REGISTRATION_SELECTOR, 'utf8'), Buffer.from([0])]);
 
 /**
  * A section only a build instrumented for code coverage carries: clang's and
@@ -168,10 +196,13 @@ export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebug
  */
 const COVERAGE_SECTION = /^\s*sectname (__llvm_(?:prf|cov)\w*)/gm;
 
-/** What every read that found nothing says, so the callers say it alike. */
-const PASS_WORDS = 'none links NetworkExtension or TailscaleKit, none carries code coverage, no DEBUG seam';
+/**
+ * What every Release read that found nothing says, so the callers say it
+ * alike. PINNED: his checklist quotes it (build/p3165/CHECKLIST.md).
+ */
+export const PASS_WORDS = 'none links NetworkExtension or TailscaleKit, none carries code coverage, no DEBUG seam, and it asks Apple for its alert address';
 /** What a Debug build's read says, whose seams are the search's control. */
-const DEBUG_PASS_WORDS = `none links NetworkExtension or TailscaleKit, none carries code coverage, and all ${String(DEBUG_SEAM_ARGUMENTS.length)} DEBUG seams found, which is the control that proves the search`;
+const DEBUG_PASS_WORDS = `none links NetworkExtension or TailscaleKit, none carries code coverage, all ${String(DEBUG_SEAM_ARGUMENTS.length)} DEBUG seams found, which is the control that proves the search, and it never asks Apple for an alert address`;
 
 /**
  * The app a path names: the path itself, or, for an archive Xcode's Organizer
@@ -225,8 +256,13 @@ export function builtAppProblems(app, { debug = false } = {}) {
     problems.push(`${relative(app, p)} is in the app; the phone joins no tailnet and embeds nothing of Tailscale's (Phase 330)`);
   }
   const seamsFound = new Set();
+  const registering = [];
   for (const f of files) {
     const bytes = readFileSync(f);
+    if (bytes.indexOf(REGISTRATION_BYTES) !== -1) {
+      registering.push(f);
+      if (debug) problems.push(`${relative(app, f)} carries the selector ${REGISTRATION_SELECTOR}, so a DEBUG build, which is every Simulator run, could ask Apple for an alert address; conformance:ios (x) holds it in the #else of #if DEBUG`);
+    }
     for (const arg of DEBUG_SEAM_ARGUMENTS) {
       if (bytes.indexOf(Buffer.from(arg, 'utf8')) === -1) continue;
       seamsFound.add(arg);
@@ -261,7 +297,98 @@ export function builtAppProblems(app, { debug = false } = {}) {
       problems.push(`the Debug build carries no ${missing.join(', ')}, so the search for seams in Release cannot be shown to find one; the control failed`);
     }
   }
-  return { problems, files: files.length, seams: seamsFound.size };
+  if (!debug && files.length > 0 && registering.length === 0) {
+    problems.push(`no Mach-O file of ${app} carries the selector ${REGISTRATION_SELECTOR}, so this build never asks Apple for the address an alert is sent to, and no alert could reach it (Phase 316.5)`);
+  }
+  return { problems, files: files.length, seams: seamsFound.size, registering: registering.length };
+}
+
+/**
+ * The `__TEXT,__entitlements` section of every slice of a Mach-O file, as
+ * text: where Xcode links a Simulator app's SIMULATED entitlements, because a
+ * Simulator build is signed ad hoc and its signature carries none. Thin or fat,
+ * 64-bit slices only (every slice this app builds is). Returns one string per
+ * slice that holds the section.
+ */
+export function entitlementSections(file) {
+  const buf = readFileSync(file);
+  const slices = [];
+  const magic = buf.readUInt32BE(0);
+  if (magic === 0xcafebabe || magic === 0xcafebabf) {
+    const wide = magic === 0xcafebabf;
+    const count = buf.readUInt32BE(4);
+    for (let i = 0; i < count; i += 1) {
+      const at = 8 + i * (wide ? 32 : 20);
+      slices.push(wide ? Number(buf.readBigUInt64BE(at + 8)) : buf.readUInt32BE(at + 8));
+    }
+  } else {
+    slices.push(0);
+  }
+  const out = [];
+  for (const base of slices) {
+    if (buf.readUInt32LE(base) !== 0xfeedfacf) continue;
+    const commands = buf.readUInt32LE(base + 16);
+    let p = base + 32;
+    for (let c = 0; c < commands; c += 1) {
+      const cmd = buf.readUInt32LE(p);
+      const size = buf.readUInt32LE(p + 4);
+      if (cmd === 0x19) {
+        const sections = buf.readUInt32LE(p + 64);
+        for (let k = 0; k < sections; k += 1) {
+          const q = p + 72 + k * 80;
+          const name = buf.toString('latin1', q, q + 16).replace(/\0+$/, '');
+          const segment = buf.toString('latin1', q + 16, q + 32).replace(/\0+$/, '');
+          if (segment === '__TEXT' && name === '__entitlements') {
+            const length = Number(buf.readBigUInt64LE(q + 40));
+            const offset = buf.readUInt32LE(q + 48);
+            out.push(buf.toString('utf8', base + offset, base + offset + length));
+          }
+        }
+      }
+      p += size;
+    }
+  }
+  return out;
+}
+
+/** The one key besides aps-environment a Simulator app's simulated entitlements carry: Xcode adds it to every one, the parent's included. */
+const XCODE_SIMULATED = 'application-identifier';
+
+/**
+ * A Simulator build's entitlements (Phase 316.5, build/p3165/SPEC.md §6.5):
+ * every slice of the app's executable carries simulated entitlements, read by
+ * CoreFoundation, holding `aps-environment` = `development` and nothing but
+ * Xcode's own `application-identifier` beside it; and the ad hoc signature
+ * carries no entitlement at all. Returns the problems and what was read.
+ */
+export function simulatorEntitlementProblems(app) {
+  const problems = [];
+  const executable = join(app, 'Tortie');
+  if (!existsSync(executable)) return { problems: [`${executable} does not exist, so its entitlements cannot be read`], slices: 0 };
+  const sections = entitlementSections(executable);
+  if (sections.length === 0) problems.push(`${relative(app, executable)} carries no __TEXT,__entitlements section, so the Simulator app is granted no aps-environment`);
+  for (const [i, text] of sections.entries()) {
+    const r = spawnSync('/usr/bin/plutil', ['-convert', 'json', '-o', '-', '-'], { input: text, encoding: 'utf8', timeout: 30_000 });
+    let read = null;
+    try {
+      read = r.status === 0 ? JSON.parse(r.stdout) : null;
+    } catch {
+      read = null;
+    }
+    if (read === null || typeof read !== 'object' || Array.isArray(read)) {
+      problems.push(`slice ${String(i)}'s simulated entitlements cannot be read as a dictionary`);
+      continue;
+    }
+    if (read['aps-environment'] !== 'development') {
+      problems.push(`slice ${String(i)}'s simulated entitlements set aps-environment to ${JSON.stringify(read['aps-environment'] ?? null)}; the file says development (conformance:ios w)`);
+    }
+    const others = Object.keys(read).filter((k) => k !== 'aps-environment' && k !== XCODE_SIMULATED).sort();
+    if (others.length > 0) problems.push(`slice ${String(i)}'s simulated entitlements also hold ${others.join(', ')}; the app's only entitlement is aps-environment`);
+  }
+  const signed = tool('/usr/bin/codesign', ['-d', '--entitlements', '-', '--xml', app]);
+  const granted = `${signed.out}`.match(/<key>([^<]+)<\/key>/g) ?? [];
+  if (granted.length > 0) problems.push(`${app}'s ad hoc signature carries entitlements (${granted.join(', ')}); a Simulator build's are its simulated ones`);
+  return { problems, slices: sections.length };
 }
 
 /**
@@ -566,7 +693,13 @@ async function main() {
       const read = builtAppProblems(app, { debug });
       for (const p of read.problems) process.stdout.write(`  ${p}\n`);
       say(`the built ${c.name} app: ${String(read.files)} Mach-O file(s), ${read.problems.length === 0 ? (debug ? DEBUG_PASS_WORDS : PASS_WORDS) : `${String(read.problems.length)} problem(s); nothing boots`}`);
-      if (read.problems.length > 0) {
+      // Its entitlements: a Simulator app's are the simulated ones in its executable.
+      const granted = simulatorEntitlementProblems(app);
+      for (const p of granted.problems) process.stdout.write(`  ${p}\n`);
+      say(
+        `the built ${c.name} app's entitlements: ${granted.problems.length === 0 ? `aps-environment development in all ${String(granted.slices)} slice(s)' simulated entitlements, beside Xcode's ${XCODE_SIMULATED}, and none in its ad hoc signature` : `${String(granted.problems.length)} problem(s); nothing boots`}`
+      );
+      if (read.problems.length > 0 || granted.problems.length > 0) {
         built = false;
         break;
       }

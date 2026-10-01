@@ -30,6 +30,12 @@
  *   line in place of Pair; over a name main could not check, its line above
  *   Pair. Both decided by main's `pairable`, never worked out here.
  * - THE WORDS THE PHONE QUOTES stay byte for byte.
+ * - THE APPLE PUSH KEY'S ROW (Phase 316.5, build/p3165/SPEC.md §5.2.5, as
+ *   research 136 moved it): drawn first in the Alerts card whenever main has
+ *   answered, `Not chosen.` or `Key <id>`, Choose… always and Forget only when
+ *   a key is kept, a refusal in the sheet's one error line; and THE SWITCH
+ *   ONLY WHILE A KEY IS KEPT OR THE ALERTS ARE ALREADY ON, with main's
+ *   standing sentence under it. A Mac with no key promises no alert.
  */
 
 import { readFileSync } from 'node:fs';
@@ -51,10 +57,12 @@ import {
   type PocketPairingView,
   type PocketStatus
 } from '@shared/ipc';
-import { PUSH_TOKEN_STOPPED } from '@shared/push-copy';
+import { PUSH_NO_KEY, PUSH_TOKEN_STOPPED } from '@shared/push-copy';
 
 import {
   ALERTS_GROUP,
+  BTN_CHOOSE_KEY,
+  BTN_FORGET_KEY,
   BTN_OPEN_TAILSCALE,
   CODE_EXPIRED,
   CODE_FIRST_NAME,
@@ -65,8 +73,13 @@ import {
   DOOR_WAITING,
   PAIR_GROUP,
   PAIR_WAITING,
+  ALERTS_ON_CHIP,
   PHONES_DROPPED,
   PHONES_GROUP,
+  PUSH_CAPTION,
+  PUSH_KEY_LABEL,
+  PUSH_KEY_NONE,
+  PUSH_LABEL,
   PhoneView,
   SCAN_LINE,
   doorLine,
@@ -78,6 +91,9 @@ import {
   pairAfterAllowNext,
   pairedWith,
   pairingStage,
+  pushKeyChosen,
+  pushSwitchShown,
+  alertsReachPhones,
   shutsIn,
   type PhoneViewProps
 } from '../PhoneSection';
@@ -120,6 +136,8 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     pairable: listening,
     routes: ['pair', 'blocked', 'session', 'turns'],
     pushAlerts: false,
+    pushKeyId: null,
+    pushSentence: null,
     ...over
   };
 }
@@ -165,6 +183,8 @@ function draw(over: Partial<PhoneViewProps> = {}): string {
     onAllowPhone: noop,
     onRemovePhone: noop,
     onSetPushAlerts: noop,
+    onChooseKey: noop,
+    onForgetKey: noop,
     ...over
   };
   return renderToStaticMarkup(<PhoneView {...props} />);
@@ -598,6 +618,21 @@ describe('the phones', () => {
     expect(draw()).not.toContain('data-phone-dropped');
   });
 
+  it('draws `Alerts on` for a phone only while this Mac can send (316.5 fix round, research 136)', () => {
+    const on = { ...phone, alerts: 'on' as const };
+    const can = { pushAlerts: true, confirmState: 'confirmed' as const, pushKeyId: 'ABCDE12345' };
+    expect(alertsReachPhones(status(can))).toBe(true);
+    expect(text(draw({ status: status({ ...can, phones: [on] }) }))).toContain(ALERTS_ON_CHIP);
+    for (const [why, over] of [
+      ['the key forgotten', { ...can, pushKeyId: null }],
+      ['the switch off', { ...can, pushAlerts: false }],
+      ['the agreement changed', { ...can, confirmState: 'changed' as const }]
+    ] as const) {
+      expect(alertsReachPhones(status(over)), why).toBe(false);
+      expect(text(draw({ status: status({ ...over, phones: [on] }) })), why).not.toContain(ALERTS_ON_CHIP);
+    }
+  });
+
   it('draws Phase 314’s sentence for a phone whose alerts Apple stopped', () => {
     expect(text(draw({ status: status({ phones: [{ ...phone, alerts: 'stopped' }] }) }))).toContain(PUSH_TOKEN_STOPPED);
     expect(text(draw({ status: status({ phones: [{ ...phone, alerts: 'on' }] }) }))).not.toContain(PUSH_TOKEN_STOPPED);
@@ -610,8 +645,11 @@ describe('the alert switch', () => {
   }
 
   it('is main’s pushAlerts, cannot be turned on while the door is off, and can always be turned off', () => {
-    expect(pushSwitch(draw({ status: status({ pushAlerts: true }) }))).toContain('aria-checked="true"');
-    expect(pushSwitch(draw({ status: status({ state: 'off' }) }))).toContain('disabled=""');
+    const key = { pushKeyId: 'ABCDE12345' };
+    expect(pushSwitch(draw({ status: status({ ...key, pushAlerts: true }) }))).toContain('aria-checked="true"');
+    expect(pushSwitch(draw({ status: status({ ...key, state: 'off' }) }))).toContain('disabled=""');
+    expect(pushSwitch(draw({ status: status({ ...key, state: 'off', pushAlerts: true }) }))).not.toContain('disabled=""');
+    // Alerts left on by an earlier version, with no key: still drawn, so off can be pressed.
     expect(pushSwitch(draw({ status: status({ state: 'off', pushAlerts: true }) }))).not.toContain('disabled=""');
   });
 });
@@ -643,5 +681,92 @@ describe('the words the phone quotes stay byte for byte', () => {
     ]) {
       expect(source).toContain(line);
     }
+  });
+});
+
+describe('the Apple push key (Phase 316.5, research 136)', () => {
+  /** The alert switch's button, or '' when none is drawn. */
+  const pushSwitch = (html: string): string =>
+    /<button[^>]*aria-label="Alert my phone when a session waits"[^>]*>/.exec(html)?.[0] ?? '';
+
+  it('at rest, with no key, draws the key row alone: no switch, no caption and no sentence promise an alert', () => {
+    const rest = status();
+    expect(pushSwitchShown(rest)).toBe(false);
+    const html = draw({ status: rest });
+    expect(html).toContain('data-phone-key');
+    expect(/data-phone-key-line[^>]*>([^<]*)</.exec(html)?.[1]).toBe(PUSH_KEY_NONE);
+    expect(html).toMatch(/<button[^>]*data-phone-action="choose-key"[^>]*>Choose…<\/button>/);
+    expect(html).not.toContain('data-phone-action="forget-key"');
+    expect(pushSwitch(html)).toBe('');
+    expect(html).not.toContain('data-phone-alerts');
+    expect(html).not.toContain('data-phone-alert-sentence');
+    const page = text(html);
+    expect(page).not.toContain(PUSH_LABEL);
+    expect(page).not.toContain(PUSH_CAPTION);
+    // Before the first read answers there is nothing to draw either from.
+    const none = draw({ status: null });
+    expect(none).not.toContain('data-phone-key');
+    expect(pushSwitch(none)).toBe('');
+  });
+
+  it('with a key kept, draws the key by its id with Forget, and the switch after it', () => {
+    const kept = status({ pushAlerts: false, pushKeyId: '6782V6SJJ7' });
+    expect(pushSwitchShown(kept)).toBe(true);
+    const html = draw({ status: kept });
+    expect(/data-phone-key-line[^>]*>([^<]*)</.exec(html)?.[1]).toBe('Key 6782V6SJJ7');
+    expect(html).toMatch(/<button[^>]*data-phone-action="forget-key"[^>]*>Forget<\/button>/);
+    expect(html).toContain('data-phone-action="choose-key"');
+    expect(pushSwitch(html)).toContain('aria-checked="false"');
+    const page = text(html);
+    expect(page.indexOf(PUSH_KEY_LABEL)).toBeGreaterThan(page.indexOf(ALERTS_GROUP));
+    expect(page.indexOf(PUSH_LABEL)).toBeGreaterThan(page.indexOf(PUSH_KEY_LABEL));
+  });
+
+  it('with the alerts already on and no key, draws the switch too, so it can be turned off', () => {
+    const on = status({ pushAlerts: true });
+    expect(pushSwitchShown(on)).toBe(true);
+    const html = draw({ status: on });
+    expect(/data-phone-key-line[^>]*>([^<]*)</.exec(html)?.[1]).toBe(PUSH_KEY_NONE);
+    expect(pushSwitch(html)).toContain('aria-checked="true"');
+    expect(html).not.toContain('data-phone-action="forget-key"');
+  });
+
+  it('disables both presses while a press is under way', () => {
+    const html = draw({ status: status({ pushAlerts: true, pushKeyId: 'ABCDE12345' }), busy: true });
+    expect(/<button[^>]*data-phone-action="choose-key"[^>]*>/.exec(html)?.[0]).toContain('disabled');
+    expect(/<button[^>]*data-phone-action="forget-key"[^>]*>/.exec(html)?.[0]).toContain('disabled');
+  });
+
+  it('draws a refusal in the sheet’s one error line', () => {
+    const refusal = 'That file is too large to be an Apple push key. Nothing was changed.';
+    const html = draw({ status: status(), error: refusal });
+    expect(/<div[^>]*role="alert"[^>]*>([^<]*)</.exec(html)?.[1]).toBe(refusal);
+  });
+
+  it('draws main’s standing sentence under the switch in the warn style, only when there is one', () => {
+    const html = draw({ status: status({ pushAlerts: true, pushSentence: PUSH_NO_KEY }) });
+    const line = /<span[^>]*data-phone-alert-sentence[^>]*>([^<]*)</.exec(html);
+    expect(line?.[1]).toBe(PUSH_NO_KEY);
+    expect(line?.[0]).toContain('phone-warn');
+    expect(html.indexOf('data-phone-alert-sentence')).toBeGreaterThan(html.indexOf('data-phone-alerts'));
+    expect(draw({ status: status({ pushAlerts: true }) })).not.toContain('data-phone-alert-sentence');
+  });
+
+  it('says its words exactly as the SPEC pins them', () => {
+    expect(PUSH_KEY_LABEL).toBe('Apple push key');
+    expect(PUSH_KEY_NONE).toBe('Not chosen.');
+    expect(pushKeyChosen('6782V6SJJ7')).toBe('Key 6782V6SJJ7');
+    expect(BTN_CHOOSE_KEY).toBe('Choose…');
+    expect(BTN_FORGET_KEY).toBe('Forget');
+  });
+
+  it('asks main for the panel and draws main’s refusal, and never reads a file itself', () => {
+    const source = readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', 'PhoneSection.tsx'), 'utf8');
+    const choose = /onChooseKey=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(choose).toContain('api.choosePushKey()');
+    expect(choose).toContain('setError(result.refusal)');
+    const forget = /onForgetKey=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(forget).toContain('api.forgetPushKey()');
+    expect(source).not.toMatch(/showOpenDialog|<input[^>]*type="file"/);
   });
 });

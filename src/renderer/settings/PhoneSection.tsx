@@ -16,7 +16,11 @@
  *      fingerprint to match on the phone, the lines, and Allow. While the Mac's
  *      name is not yet on the internet (Phase 332), one line in place of Pair.
  *   3. The phones, each with Remove.
- *   4. Phase 314's alert switch.
+ *   4. Alerts (Phase 316.5, research 136): the Apple push key row, Choose…
+ *      (the file panel opens IN MAIN) and Forget; then, ONLY while a key is
+ *      kept or the alerts are already on, Phase 314's alert switch and the
+ *      push's standing sentence under it. Alerts are the key holder's alone,
+ *      so a Mac with no key shows no switch and promises no alert.
  *
  * THERE IS NO KEY FIELD AND NO DISCLOSURE (Phase 330): the phone never joins
  * the tailnet, so there is no tailnet key to paste, no grant to copy and no
@@ -96,6 +100,23 @@ export const ALERTS_ON_CHIP = 'Alerts on';
 export const ALERTS_GROUP = 'Alerts';
 export const PUSH_LABEL = 'Alert my phone when a session waits';
 export const PUSH_CAPTION = 'Sent through Apple. Never what it asks.';
+
+/**
+ * The Apple push key's row (Phase 316.5). ALWAYS drawn once main has answered,
+ * FIRST in the Alerts card, because the key comes before the switch (research
+ * 136: alerts are his alone, since only the Mac that holds the phone app's key
+ * can send). With no key it is the whole card: a label, `Not chosen.` and
+ * Choose…, which promises nothing.
+ */
+export const PUSH_KEY_LABEL = 'Apple push key';
+export const PUSH_KEY_NONE = 'Not chosen.';
+export const BTN_CHOOSE_KEY = 'Choose…';
+export const BTN_FORGET_KEY = 'Forget';
+
+/** `Key 6782V6SJJ7`: Apple's own id, which is public, never the key. */
+export function pushKeyChosen(keyId: string): string {
+  return `Key ${keyId}`;
+}
 
 export const BRIDGE_MISSING = 'Phone is not available in this build.';
 
@@ -245,6 +266,27 @@ export function pairAfterAllowNext(
 }
 
 /**
+ * True when the alert switch is drawn: a key is kept, or the alerts are
+ * already on (Phase 316.5, research 136). A Mac with no key shows no switch,
+ * because it cannot send; alerts left on by an earlier version still show it,
+ * so it can be turned off.
+ */
+export function pushSwitchShown(status: PocketStatus): boolean {
+  return status.pushKeyId !== null || status.pushAlerts;
+}
+
+/**
+ * True when this Mac can send an alert: the switch on, the door's fields the
+ * ones a person confirmed, and a key kept (main's `alertsCanSend`, read from
+ * the status). A phone's `Alerts on` is drawn only then (the 316.5 fix round:
+ * a phone holding a token read `Alerts on` after the key was forgotten or the
+ * switch turned off, which research 136 forbids: no copy promises alerts).
+ */
+export function alertsReachPhones(status: PocketStatus): boolean {
+  return status.pushAlerts && status.confirmState === 'confirmed' && status.pushKeyId !== null;
+}
+
+/**
  * True when `next` differs from `prev` in exactly one line, in place.
  *
  * Turning the alerts OFF moves a hashed field, and Phase 314 ruled that the
@@ -294,6 +336,9 @@ export interface PhoneViewProps {
   onAllowPhone(): void;
   onRemovePhone(phoneId: string): void;
   onSetPushAlerts(on: boolean): void;
+  /** Choose…: main opens the file panel, reads the key and keeps it (Phase 316.5). */
+  onChooseKey(): void;
+  onForgetKey(): void;
 }
 
 function Lines({ lines }: { lines: readonly string[] }): React.JSX.Element {
@@ -579,7 +624,7 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
                   </span>
                 ) : null}
               </div>
-              {phone.alerts === 'on' ? (
+              {phone.alerts === 'on' && alertsReachPhones(status) ? (
                 <span className="set-chip">{ALERTS_ON_CHIP}</span>
               ) : null}
               <button
@@ -598,22 +643,59 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
 
       <div className="set-group-label">{ALERTS_GROUP}</div>
       <div className="set-card">
-        <div className="set-row tall">
-          <div className="set-row-text">
-            <span className="set-row-label">{PUSH_LABEL}</span>
-            <span className="set-row-caption">{PUSH_CAPTION}</span>
+        {status === null ? null : (
+          <div className="set-row tall" data-phone-key>
+            <div className="set-row-text">
+              <span className="set-row-label">{PUSH_KEY_LABEL}</span>
+              <span className="set-row-caption" data-phone-key-line>
+                {status.pushKeyId === null ? PUSH_KEY_NONE : pushKeyChosen(status.pushKeyId)}
+              </span>
+            </div>
+            <div className="phone-key-actions">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                disabled={busy}
+                data-phone-action="choose-key"
+                onClick={props.onChooseKey}
+              >
+                {BTN_CHOOSE_KEY}
+              </button>
+              {status.pushKeyId === null ? null : (
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={busy}
+                  data-phone-action="forget-key"
+                  onClick={props.onForgetKey}
+                >
+                  {BTN_FORGET_KEY}
+                </button>
+              )}
+            </div>
           </div>
-          <Switch
-            checked={status?.pushAlerts === true}
-            // Off can always be pressed. On waits for the door, because an
-            // alert opens a session the phone then reads through it.
-            disabled={
-              busy || status === null || (!on && !status.pushAlerts)
-            }
-            label={PUSH_LABEL}
-            onChange={props.onSetPushAlerts}
-          />
-        </div>
+        )}
+        {status !== null && pushSwitchShown(status) ? (
+          <div className="set-row tall" data-phone-alerts>
+            <div className="set-row-text">
+              <span className="set-row-label">{PUSH_LABEL}</span>
+              <span className="set-row-caption">{PUSH_CAPTION}</span>
+              {status.pushSentence === null ? null : (
+                <span className="set-row-caption phone-warn" data-phone-alert-sentence>
+                  {status.pushSentence}
+                </span>
+              )}
+            </div>
+            <Switch
+              checked={status.pushAlerts}
+              // Off can always be pressed. On waits for the door, because an
+              // alert opens a session the phone then reads through it.
+              disabled={busy || (!on && !status.pushAlerts)}
+              label={PUSH_LABEL}
+              onChange={props.onSetPushAlerts}
+            />
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -783,6 +865,8 @@ export function PhoneSection(): React.JSX.Element {
         onAllowPhone={() => undefined}
         onRemovePhone={() => undefined}
         onSetPushAlerts={() => undefined}
+        onChooseKey={() => undefined}
+        onForgetKey={() => undefined}
       />
     );
   }
@@ -890,6 +974,18 @@ export function PhoneSection(): React.JSX.Element {
           ) {
             void confirmDoor(after);
           }
+        });
+      }}
+      onChooseKey={() => {
+        // Main opens the panel, reads the file and keeps it; main's broadcast
+        // redraws the row. A refusal is main's own sentence, in the error line.
+        void run(() => api.choosePushKey()).then((result) => {
+          if (result !== null && !result.kept && result.refusal !== null) setError(result.refusal);
+        });
+      }}
+      onForgetKey={() => {
+        void run(() => api.forgetPushKey()).then((s) => {
+          if (s !== null) setStatus(s);
         });
       }}
     />

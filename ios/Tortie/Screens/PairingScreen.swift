@@ -18,6 +18,15 @@
 // phone's new identity. This screen hands the app a reader only on
 // `PairResult.paired`, which only that read produces.
 //
+// THE ALERT QUESTION (Phase 316.5) is asked only when the Mac this phone is
+// presenting to says it can send an alert (research 136 section 9: alerts are
+// the Apple push key holder's alone), so it comes after the fingerprint is
+// drawn, while the Mac is asking him, and never on a phone pairing with a Mac
+// that cannot. The presentation is the one way the Mac learns this phone's
+// alert address. iOS shows its question only when it has none. A denial, an
+// address that cannot be had or one outside the Mac's bounds presents with no
+// address, and PAIRS: alerts are the phone's to refuse, and reading is not.
+//
 // THE PHONE ALWAYS DRAWS A SENTENCE (his no-key finding, build/p330/SPEC.md
 // section 4.12.6). Pressing Pair on the Mac with its old key field empty showed
 // nothing at all here, because the foot's line was nil while a pairing was
@@ -55,6 +64,9 @@ final class PairingModel {
 
     private let door: any PhoneDoor
     private let label: String
+    /// Asked for this phone's alert address, at most once per pairing and
+    /// only when the Mac says it can send.
+    private let alerts: any PushAddressing
     private let paired: @MainActor (any DoorReading, PocketBlockedAnswer) -> Void
     /// The code that last stopped. The camera reports a code many times a
     /// second, so the same code is not presented again until he asks.
@@ -63,10 +75,12 @@ final class PairingModel {
     init(
         door: any PhoneDoor,
         label: String,
+        alerts: any PushAddressing,
         paired: @escaping @MainActor (any DoorReading, PocketBlockedAnswer) -> Void
     ) {
         self.door = door
         self.label = label
+        self.alerts = alerts
         self.paired = paired
     }
 
@@ -86,7 +100,10 @@ final class PairingModel {
         step = .presenting
         line = DoorWords.stepSentence(for: .presenting)
         stopped = false
-        let result = await door.pair(pending) { [weak self] step in
+        // The fingerprint is drawn. The Mac is presented to, and iOS is asked
+        // for alerts only if the Mac says it can send them.
+        let alerts = alerts
+        let result = await door.pair(pending, askForAlerts: { await alerts.askForPairing() }) { [weak self] step in
             Task { @MainActor in self?.advance(step) }
         }
         switch result {

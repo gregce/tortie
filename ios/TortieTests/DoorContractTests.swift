@@ -85,7 +85,7 @@ final class DoorContractTests: XCTestCase {
     /// section 4.8.3).
     func testThePairAnswerIsOneOfThree() throws {
         let decode = { (body: String) in try? JSONDecoder().decode(PairAnswer.self, from: Data(body.utf8)) }
-        XCTAssertEqual(decode(#"{"state":"pending"}"#), .pending)
+        XCTAssertEqual(decode(#"{"state":"pending"}"#), .pending(macSends: false))
         XCTAssertEqual(decode(#"{"state":"refused"}"#), .refused)
         XCTAssertEqual(decode(#"{"state":"allowed","cert":"AQID"}"#), .allowed(certificate: Data([1, 2, 3])))
         for body in [

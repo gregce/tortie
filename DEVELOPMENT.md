@@ -88,6 +88,25 @@ the variable. Every probe that switches the door on points it at
 and `node build/p332/dns-standin.mjs --self-test` proves the stand-in on
 loopback.
 
+**No agent and no check sends an alert to Apple or reads the operator's Apple
+push key** (Phase 316.5). A person's launch sends phone alerts to
+`api.push.apple.com` or its sandbox, by each phone's token, and a harness
+launch sends nowhere: its sender refuses Apple's hosts before any socket.
+`GMUX_HARNESS_ALERTS=<dir>` aims a harness launch at Phase 314's APNs stand-in
+instead. `<dir>/alerts.json` holds `{"origins": {"development":
+"http://127.0.0.1:<port>", "production": "http://127.0.0.1:<port>"},
+"keyFile": "<dir>/AuthKey_<ten letters or digits>.p8"}` and is read once, under
+the push seam's own refusals (an isolated or probe launch, a harness directory
+holding the profile with `<dir>` inside it, and Chromium's mock keychain), with
+every origin `http://127.0.0.1:<port>` and the key file inside
+`GMUX_HARNESS_DIR`. Anything else refuses the whole file, and every other
+launch ignores the variable. With it, Settings then Phone's Choose… takes that
+key file without opening a panel. `probe:p316` makes a scratch P-256 key for
+it, deletes it in a `finally`, runs `build/p314/apns-stand-in.mjs` in its own
+process, and hands each alert to a Simulator only through
+`build/simulator-run.mjs`'s `handle.push`. The only proof of delivery through
+Apple is the operator's checklist, `build/p3165/CHECKLIST.md`.
+
 ```sh
 npm install        # postinstall applies patches/ then runs electron-rebuild for node-pty + better-sqlite3
 npm run dev        # electron-vite dev server + Electron with HMR

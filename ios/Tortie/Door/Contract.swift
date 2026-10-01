@@ -437,8 +437,17 @@ extension PocketTurnsAnswer: Codable {
 /// that carries anything: the certificate the Mac issued over this phone's
 /// client key, DER, base64url. A certificate on any other answer, or none on
 /// `allowed`, refuses the answer, and the pairing stops with a sentence.
+///
+/// `pending` says one more thing since Phase 316.5: whether THIS Mac can send
+/// an alert (`"alerts": true`), which it can only while it keeps an Apple push
+/// key and its alert switch is on. Alerts are the key holder's alone (research
+/// 136 section 9, research 127 section 11.6), so a phone asks iOS for alerts
+/// only when the Mac it is presenting to says so, and a Mac that cannot send
+/// answers exactly the bytes it answered before (the field is absent). A value
+/// that is not a boolean refuses the answer; on `refused` and `allowed` the
+/// field says nothing and is not read.
 enum PairAnswer: Sendable, Equatable {
-    case pending
+    case pending(macSends: Bool)
     case refused
     case allowed(certificate: Data)
 
@@ -447,7 +456,7 @@ enum PairAnswer: Sendable, Equatable {
 }
 
 extension PairAnswer: Decodable {
-    enum CodingKeys: String, CodingKey { case state, cert }
+    enum CodingKeys: String, CodingKey { case state, cert, alerts }
 
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -457,7 +466,13 @@ extension PairAnswer: Decodable {
             guard !c.contains(.cert) else {
                 throw DecodingError.dataCorruptedError(forKey: .cert, in: c, debugDescription: "a certificate only comes with allowed")
             }
-            self = word == "pending" ? .pending : .refused
+            if word == "pending" {
+                // Absent, or `null`, is a Mac that cannot send; anything but a
+                // boolean is not an answer.
+                self = .pending(macSends: try c.decodeIfPresent(Bool.self, forKey: .alerts) ?? false)
+            } else {
+                self = .refused
+            }
         case "allowed":
             let text = try c.decode(String.self, forKey: .cert)
             guard let der = Base64URL.decode(text), !der.isEmpty, der.count <= Self.certificateCap else {

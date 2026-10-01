@@ -1217,9 +1217,17 @@ export interface PocketPresentation {
 /**
  * What `POST /pair` answers (Phase 330). One state, and the phone's client
  * certificate ONLY with `allowed`, only to the phone that was allowed.
+ *
+ * `pending` may say ONE more thing since Phase 316.5 (research 136): that this
+ * Mac can send an alert, `alerts: true`, so the phone asks iOS for alerts only
+ * then. Alerts are the Apple push key holder's alone. A Mac that cannot send
+ * answers without the field, byte for byte the answer before that phase. The
+ * pairing owner never sets it: the host adds it (`./ipc.ts`), because only the
+ * host is handed the alerts' port.
  */
 export type PocketPairAnswer =
-  | { readonly state: 'pending' | 'refused' }
+  | { readonly state: 'pending'; readonly alerts?: true }
+  | { readonly state: 'refused' }
   | { readonly state: 'allowed'; readonly cert: string };
 
 const REFUSED: PocketPairAnswer = { state: 'refused' };
@@ -1554,6 +1562,20 @@ export class PocketPairing {
           `Tortie already allows ${String(DOOR_PINS_MAX)} phones, which is all ` +
           'its door holds. Remove one, then pair this one. Nothing was changed.'
       };
+    }
+    // THE LINES MOVED UNDER THE PRESS (Phase 316.5's fix round). A phone told
+    // this Mac can send alerts presents again once iOS answers, now with its
+    // alert address, and that moves the hash while the sheet may still show
+    // the lines before it. Refused HERE, before anything is signed or written,
+    // the way `confirmPocketDoor` below refuses it (a throw, which the sheet
+    // draws), but in the pairing card's own words: that one speaks of
+    // confirming the door.
+    if (consent.acknowledgement === POCKET_CONFIRM_ACKNOWLEDGEMENT && consent.hashRead !== describePocketDoor(next).hash) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        'What this phone would be allowed changed after it was shown. Read ' +
+          'it again and allow what it says now. Nothing was changed.'
+      );
     }
     const certificate = this.deps.issueCertificate(w.presented.clientKey);
     if (certificate === null) {

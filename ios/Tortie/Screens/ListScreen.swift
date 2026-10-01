@@ -13,6 +13,15 @@
 // this file only lays them out.
 //
 // It reads on appear, on return to the foreground and on pull. No timer.
+//
+// Two lines of the phone's own may sit under the title (Phase 316.5):
+// `Pair again to get alerts.` when this phone's alert address is not the one
+// its Mac holds and that Mac said it could send, and the Mac's own sentence
+// for a session it no longer has, after an alert naming one was tapped. The
+// second is said only once the list's own read has answered, so it is never
+// said over a phone the Mac no longer knows, and it goes when a row or another
+// alert is opened or he leaves the app (not when he comes back: the tap that
+// said it is what brings the app back).
 
 import SwiftUI
 
@@ -132,6 +141,12 @@ final class ListModel {
     /// True between the pairing's first read being adopted and the list's
     /// first appearance, which then reads nothing.
     private var adoptedUnseen = false
+    /// `Pair again to get alerts.`, or nil (App/TortieApp.swift decides).
+    var alertsLine: String?
+    /// The sentence drawn at the top of the list, or nil.
+    private(set) var notice: String?
+    /// A sentence waiting for the list's next read to answer.
+    private var noticeAfterRead: String?
 
     init(door: any DoorReading, routing: ReadRouting) {
         self.door = door
@@ -156,6 +171,18 @@ final class ListModel {
         await load()
     }
 
+    /// Say `sentence` once the list's next read answers. A read the door
+    /// refuses goes to Pairing instead, and the sentence with it.
+    func sayAfterRead(_ sentence: String) {
+        notice = nil
+        noticeAfterRead = sentence
+    }
+
+    func clearNotice() {
+        notice = nil
+        noticeAfterRead = nil
+    }
+
     func load() async {
         generation += 1
         adoptedUnseen = false
@@ -164,6 +191,10 @@ final class ListModel {
             let answer = try await door.blocked()
             guard mine == generation else { return }
             state = Self.drawn(answer)
+            if let held = noticeAfterRead {
+                notice = held
+                noticeAfterRead = nil
+            }
         } catch {
             guard mine == generation, !Task.isCancelled, !DoorWords.isCancellation(error) else { return }
             switch DoorWords.consequence(of: error, reading: .list) {
@@ -198,6 +229,18 @@ struct ListScreen: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 0) {
                 title
+                if let line = model.alertsLine {
+                    Words(line, .secondary, Tokens.textSecondary, lines: nil)
+                        .accessibilityIdentifier(ID.listAlertsLine)
+                        .padding(.horizontal, Frame.gutter)
+                        .padding(.bottom, 8)
+                }
+                if let notice = model.notice {
+                    Words(notice, .secondary, Tokens.textSecondary, lines: nil)
+                        .accessibilityIdentifier(ID.listNotice)
+                        .padding(.horizontal, Frame.gutter)
+                        .padding(.bottom, 8)
+                }
                 switch model.state {
                 case .loading:
                     LoadingView(id: ID.listLoading)

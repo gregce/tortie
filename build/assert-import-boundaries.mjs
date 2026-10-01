@@ -4,6 +4,8 @@
  * Phase 124: the platform rule, and the fixtures that prove it.
  * Phase 125: the facade rule, and the seven fixtures that prove it.
  * Phase 127: the directory wall, and the ten fixtures that prove it.
+ * Phase 316.5: the alerts' wall, a directory named bare is its index, and
+ * seven fixtures that prove both.
  * Phase 172: the two arch facade doors, and the fourteen fixtures that
  * prove them.
  *
@@ -278,7 +280,7 @@ const DIRECTORY_WALLS = [
   },
   {
     dir: 'main/pocket/',
-    forbidden: ['main/credentials/', 'main/logins/', 'main/push/'],
+    forbidden: ['main/credentials/', 'main/logins/', 'main/push/', 'main/alerts/'],
     why:
       'the tailnet door is the first surface Tortie offers to anything outside ' +
       'this Mac, and every route in it is a read. A door that cannot NAME the ' +
@@ -291,7 +293,10 @@ const DIRECTORY_WALLS = [
       'domains would arrive INJECTED through that type, so a direct import is ' +
       'always the wrong answer rather than a convenience. Phase 314 adds ' +
       'main/push/ to the list: the door speaks to a phone and nothing else, ' +
-      'and a door that can name the sender can be made to send.'
+      'and a door that can name the sender can be made to send. Phase 316.5 ' +
+      'adds main/alerts/, the composition that holds the sender and the ' +
+      'Apple push key: the door reaches it only through the PocketAlertsPort ' +
+      'it is handed (conformance:pocket K3).'
   },
   {
     dir: 'main/push/',
@@ -305,6 +310,17 @@ const DIRECTORY_WALLS = [
       'logins domain at all, so a later round cannot make it read a login. ' +
       'The type-only half of the rule is conformance:push rule W1, because ' +
       'this table is by path (Phase 314, build/p314/SPEC.md §6.4).'
+  },
+  {
+    dir: 'main/alerts/',
+    forbidden: ['main/logins/'],
+    why:
+      'the phone alerts compose the push sender with the APNs provider key ' +
+      'and send the person’s words to a vendor (Phase 316.5, build/p3165/' +
+      'SPEC.md §6.6). They read the key through its own sealed store and ' +
+      'name no module of the logins domain, so a later round cannot make the ' +
+      'one production sender read a login. conformance:push W1 reads the ' +
+      'same wall.'
   },
   {
     dir: 'renderer/state/',
@@ -491,7 +507,11 @@ function violationsFor(absFile, text) {
           : DIRECTORY_WALLS.find(
               (rule) =>
                 relFromSrc.startsWith(rule.dir) &&
-                rule.forbidden.some((bad) => named.startsWith(bad))
+                // A directory named BARE is its index (Phase 316.5): `'../alerts'`
+                // resolves to `main/alerts`, which no `main/alerts/` prefix
+                // matched, so a wall held every file in a directory but the one
+                // its importers name first.
+                rule.forbidden.some((bad) => named.startsWith(bad) || `${named}/` === bad)
             );
       if (wall !== undefined) {
         out.push(
@@ -720,6 +740,19 @@ const FIXTURES = [
   ],
   ['main/push/p314-fixture.ts', "import type { ApnsProviderKey } from '../credentials/apns-key';", null],
   ['main/push/__tests__/p314-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null],
+  // The directory's index, named bare (Phase 316.5): `src/main/push/index.ts`
+  // exists, so this spelling reached the sender past the wall until then.
+  ['main/pocket/p3165-fixture.ts', "import { createPushEngine } from '../push';", '../push'],
+  // Phase 316.5, the alerts' walls. The composition may not name the logins,
+  // the door may not name the composition, and the composition's own test is
+  // exempt as every test is; the key's store through the credentials facade is
+  // the composition's to name.
+  ['main/alerts/p3165-fixture.ts', "import { loginsRoot } from '../logins/paths';", '../logins/paths'],
+  ['main/alerts/p3165-fixture.ts', "const l = await import('../logins/store');", '../logins/store'],
+  ['main/pocket/p3165-fixture.ts', "import { createPhoneAlerts } from '../alerts';", '../alerts'],
+  ['main/pocket/p3165-fixture.ts', "import type { PhoneAlerts } from '../alerts/index';", '../alerts/index'],
+  ['main/alerts/p3165-fixture.ts', "import { apnsKeyStoreForApp } from '../credentials';", null],
+  ['main/alerts/__tests__/p3165-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null],
   // Phase 316.2, the phone's tree. Three shapes that reach into ios/ from
   // three layers, a directory whose name only STARTS with ios, and the test
   // exemption every rule here keeps.

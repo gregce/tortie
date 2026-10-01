@@ -28,6 +28,16 @@
  *   client    the client certificate the shipping `issueClientCertificate`
  *             issued over the client key, signed by the first door's key. The
  *             Swift must build a SecCertificate from it and read back `ck`.
+ *   pushSeal  the presentation carrying an alert address (Phase 316.5): the
+ *             phone's plaintext with `ape` and `apt` (keys sorted, as Swift's
+ *             JSONEncoder writes them) sealed at a fixed nonce and signed, which
+ *             the SHIPPING `openPresentation` must open to exactly that token
+ *             and environment. The Swift must write the same plaintext.
+ *   alerts    Phase 314's three alert shapes, composed by the SHIPPING
+ *             `composeAlert` and `composeBadge` (src/main/push/alert.ts) over
+ *             the shipping `/v1/blocked` rows below, each with the tap the
+ *             phone's `AlertTap.parse` must answer: the single alert opens the
+ *             session its row names, the count alert and the badge the list.
  *   seal      the presentation v2 (Phase 330): the window's challenge
  *             (`pairingChallengeOf`), the proof text (`presentationProofText`),
  *             the shipping `sealPresentationAsPhone` output, which the Swift
@@ -39,7 +49,11 @@
  *             per public port.
  *   pairAnswers  `/pair`'s three answers as the shipping handler writes them:
  *             `pending` and `refused` from the shipping `present`, and
- *             `allowed` carrying the client certificate above.
+ *             `allowed` carrying the client certificate above; and (Phase
+ *             316.5, research 136 §9) `pendingSends`, the `pending` a Mac that
+ *             can send an alert answers, `{"state":"pending","alerts":true}`,
+ *             the one cue on which the phone asks iOS for alerts. A Mac that
+ *             cannot send answers `pending` byte for byte as before.
  *   answers   the three reads composed by the shipping `createPocketRoutes`,
  *             turns through the shipping `readPocketTurns`, over fixed facts
  *             at a fixed clock; each also with fields the phone does not know.
@@ -124,6 +138,7 @@ const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/fa
 const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { POCKET_ROUTE_IDS } = await import('../../src/shared/ipc/pocket.ts');
 const { NOTHING_NEEDS_YOU } = await import('../../src/main/tray/attention.ts');
+const { composeAlert, composeBadge } = await import('../../src/main/push/alert.ts');
 
 const problems = [];
 const fail = (what) => problems.push(what);
@@ -582,6 +597,49 @@ const seal = {
   fromPhone: { iv: phoneSealed.iv, plaintext: phonePlaintext, ct: phoneSealed.ct, tag: phoneSealed.tag, proof: phoneProof, sig: phoneSig, body: phoneBody }
 };
 
+// (c) Phase 316.5: the phone's presentation WITH an alert address. The token
+// is a made-up test token from a public seed, 64 hex digits the way Apple's
+// 32 bytes are written, and the environment is the one a DEBUG build presents.
+// The plaintext is the Swift's (keys sorted, `ape` and `apt` first), sealed at
+// a fixed nonce and signed; the SHIPPING opener must open it to exactly this
+// address, and the body without the address must still open to none.
+const PUSH_TOKEN = sha256hex('tortie-p3165-vector push token');
+const PUSH_ENVIRONMENT = 'development';
+const PUSH_IV = seed('pairing push iv').subarray(0, 12);
+const pushPlaintext = JSON.stringify({ ape: PUSH_ENVIRONMENT, apt: PUSH_TOKEN, ck, ek, label: PHONE_LABEL, xk });
+const pushCipher = createCipheriv('aes-256-gcm', sealKey, PUSH_IV);
+const pushCt = Buffer.concat([pushCipher.update(pushPlaintext, 'utf8'), pushCipher.final()]);
+const pushSealed = { iv: b64u(PUSH_IV), ct: b64u(pushCt), tag: b64u(pushCipher.getAuthTag()) };
+const pushProof = pairing.presentationProofText(challenge, pushSealed.iv, pushSealed.ct, pushSealed.tag);
+const pushSig = b64u(signWith(null, Buffer.from(pushProof, 'utf8'), phoneSignPrivate));
+const pushBody = JSON.stringify({ ct: pushSealed.ct, ek, iv: pushSealed.iv, sig: pushSig, tag: pushSealed.tag });
+/** The address the SHIPPING opener reads out of a body, or null when it refuses the body. */
+const doorOpensPush = (bodyText) => {
+  const outer = JSON.parse(bodyText);
+  const opened = opener.openPresentation(PAIR_SECRET, outer);
+  return opened === null ? null : { pushToken: opened.pushToken, pushEnvironment: opened.pushEnvironment, keys: sameKeys({ ...opened, proof: proofHolds(outer) }) };
+};
+const pushOpened = doorOpensPush(pushBody);
+if (pushOpened === null || !pushOpened.keys || pushOpened.pushToken !== PUSH_TOKEN || pushOpened.pushEnvironment !== PUSH_ENVIRONMENT) {
+  fail('the shipping opener does not open the phone-shaped body with an alert address to that address and those keys');
+}
+const plainOpened = doorOpensPush(phoneBody);
+if (plainOpened === null || plainOpened.pushToken !== '' || plainOpened.pushEnvironment !== '') {
+  fail('the shipping opener reads an alert address out of a body that carries none');
+}
+const pushSeal = {
+  token: PUSH_TOKEN,
+  environment: PUSH_ENVIRONMENT,
+  iv: pushSealed.iv,
+  plaintext: pushPlaintext,
+  ct: pushSealed.ct,
+  tag: pushSealed.tag,
+  proof: pushProof,
+  sig: pushSig,
+  body: pushBody,
+  opened: { pushToken: pushOpened?.pushToken ?? null, pushEnvironment: pushOpened?.pushEnvironment ?? null }
+};
+
 // ---------------------------------------------------------------------------
 // QR v:3, from the shipping window
 // ---------------------------------------------------------------------------
@@ -659,9 +717,17 @@ const pairAnswers = await (async () => {
   // on disk, so the vectors do not reach it through `present`: the handler is
   // handed the answer's own shape (`PocketPairAnswer`) with the certificate.
   const allowed = await pairAnswerOf(() => ({ state: 'allowed', cert: Buffer.from(client.certificateDer, 'base64').toString('base64url') }), body);
+  // Phase 316.5 (research 136 §9): alerts are the push key holder's alone, so
+  // a Mac that can send one says so on `pending`, and that word is the only
+  // thing that makes the phone ask iOS. Handed the answer's own shape, as
+  // `allowed` is: when to say it is the Mac's own rule, held by its own tests.
+  const pendingSends = await pairAnswerOf(() => ({ state: 'pending', alerts: true }), body);
   if (pending !== '{"state":"pending"}') fail(`the shipping present answered the phone's presentation ${pending}`);
   if (refused !== '{"state":"refused"}') fail(`the shipping present answered a forged proof ${refused}`);
-  return { pending, refused, allowed };
+  if (pendingSends !== '{"state":"pending","alerts":true}') {
+    fail(`the shipping handler answers a phone pairing with a Mac that can send ${pendingSends}; the phone asks iOS for alerts only on {"state":"pending","alerts":true} (research 136 §9), so this Mac's phone would never be asked`);
+  }
+  return { pending, refused, allowed, pendingSends };
 })();
 
 // ---------------------------------------------------------------------------
@@ -831,6 +897,28 @@ for (const [name, compose] of answerShapes) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 314's alerts, and the tap each one is (Phase 316.5)
+// ---------------------------------------------------------------------------
+
+const blockedNow = await routes.blocked();
+const waitingRow = blockedNow?.rows?.[0];
+const otherRow = blockedNow?.others?.[0];
+if (waitingRow === undefined || otherRow === undefined) fail('alerts: the shipping /v1/blocked answer has no waiting row and other row to compose from');
+const alertShapes = [
+  { name: 'single', plan: () => composeAlert({ announce: [waitingRow], blockedCount: 1 }), session: waitingRow?.sessionId ?? null },
+  { name: 'count', plan: () => composeAlert({ announce: [waitingRow, otherRow], blockedCount: 2 }), session: null },
+  { name: 'badge', plan: () => composeBadge(0), session: null }
+];
+const alerts = alertShapes.map((shape) => {
+  const plan = shape.plan();
+  if (plan.kind !== shape.name) fail(`alerts ${shape.name}: the shipping composer made a ${plan.kind} alert`);
+  const tortie = JSON.parse(plan.payload).tortie;
+  if (shape.name === 'single' && (tortie?.v !== 1 || tortie?.session !== shape.session)) fail('alerts single: the payload does not name its row\'s session as tortie.session');
+  if (shape.name !== 'single' && tortie?.session !== undefined) fail(`alerts ${shape.name}: the payload names a session`);
+  return { name: shape.name, payload: plan.payload, tap: shape.session === null ? { kind: 'list' } : { kind: 'session', session: shape.session } };
+});
+
+// ---------------------------------------------------------------------------
 // Written or compared
 // ---------------------------------------------------------------------------
 
@@ -844,9 +932,11 @@ const vectors = {
   pins,
   client,
   seal,
+  pushSeal,
   qr,
   pairAnswers,
-  answers
+  answers,
+  alerts
 };
 const text = `${JSON.stringify(vectors, null, 2)}\n`;
 
@@ -875,8 +965,8 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests (and 1 tampered), ${String(pins.length)} pins, 1 client certificate, 2 seals, ` +
-  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers`;
+  `${String(requests.length)} signed requests (and 1 tampered), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
+  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);
 } else {

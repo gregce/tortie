@@ -105,7 +105,8 @@ final class DoorVectorTests: XCTestCase {
             keys: try phoneKeys(),
             clientKey: clientKey,
             certificate: certificate,
-            identity: try TestIdentity.vectors()
+            identity: try TestIdentity.vectors(),
+            alerts: .nothing
         ))
         #if os(iOS)
         defer { TestIdentity.removeFromKeychain() }
@@ -291,7 +292,7 @@ final class DoorVectorTests: XCTestCase {
     func testThePhonesPresentationIsTheBodyTheDoorOpened() throws {
         let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
         let keys = try phoneKeys()
-        let inner = try PresentationSeal.inner(label: v.seal.label, keys: keys, clientKey: v.keys.clientKey)
+        let inner = try PresentationSeal.inner(label: v.seal.label, keys: keys, clientKey: v.keys.clientKey, push: nil)
         XCTAssertEqual(inner, Data(v.seal.fromPhone.plaintext.utf8))
         let iv = try XCTUnwrap(Base64URL.decode(v.seal.fromPhone.iv))
         let sealed = try PresentationSeal.seal(inner, secret: secret, nonce: try AES.GCM.Nonce(data: iv))
@@ -316,7 +317,7 @@ final class DoorVectorTests: XCTestCase {
     /// plaintext differ and both open.
     func testEverySealHasAFreshNonce() throws {
         let secret = try XCTUnwrap(Base64URL.decode(v.seal.secret))
-        let inner = try PresentationSeal.inner(label: v.seal.label, keys: try phoneKeys(), clientKey: v.keys.clientKey)
+        let inner = try PresentationSeal.inner(label: v.seal.label, keys: try phoneKeys(), clientKey: v.keys.clientKey, push: nil)
         let one = try PresentationSeal.seal(inner, secret: secret)
         let two = try PresentationSeal.seal(inner, secret: secret)
         XCTAssertNotEqual(one, two)
@@ -357,7 +358,10 @@ final class DoorVectorTests: XCTestCase {
     /// `allowed` carries the client certificate the Mac issued.
     func testThePairAnswersAreTheDoors() throws {
         let decode = { (text: String) in try JSONDecoder().decode(PairAnswer.self, from: Data(text.utf8)) }
-        XCTAssertEqual(try decode(v.pairAnswers.pending), .pending)
+        XCTAssertEqual(try decode(v.pairAnswers.pending), .pending(macSends: false))
+        // Research 136 section 9: the one cue on which the phone asks iOS.
+        let sends = try XCTUnwrap(v.pairAnswers.pendingSends, "vectors.json holds no pendingSends: run node build/p316/vectors.mjs")
+        XCTAssertEqual(try decode(sends), .pending(macSends: true))
         XCTAssertEqual(try decode(v.pairAnswers.refused), .refused)
         let der = try XCTUnwrap(Data(base64Encoded: v.client.certificateDer))
         XCTAssertEqual(try decode(v.pairAnswers.allowed), .allowed(certificate: der))
@@ -489,12 +493,29 @@ struct DoorVectorFile: Decodable {
     }
     struct PairAnswers: Decodable {
         let pending, refused, allowed: String
+        /// Phase 316.5: the `pending` of a Mac that can send an alert. Optional
+        /// so a file written before it fails the one test that reads it, by
+        /// name, rather than every test that reads the file.
+        let pendingSends: String?
     }
     struct QR: Decodable {
         let name, payload: String
     }
     struct Answer: Decodable {
         let json, withUnknown: String
+    }
+    /// Phase 316.5: the presentation with an alert address, and what the
+    /// shipping opener read out of it.
+    struct PushSeal: Decodable {
+        struct Opened: Decodable { let pushToken, pushEnvironment: String }
+        let token, environment, iv, plaintext, ct, tag, proof, sig, body: String
+        let opened: Opened
+    }
+    /// Phase 316.5: one of Phase 314's alert shapes and the tap it is.
+    struct Alert: Decodable {
+        struct Tap: Decodable { let kind: String; let session: String? }
+        let name, payload: String
+        let tap: Tap
     }
 
     let keys: Keys
@@ -507,6 +528,8 @@ struct DoorVectorFile: Decodable {
     let qr: [QR]
     let pairAnswers: PairAnswers
     let answers: [String: Answer]
+    let pushSeal: PushSeal
+    let alerts: [Alert]
 
     /// The file beside this one in the checkout, which a Simulator process can
     /// read; the copy in the test bundle when there is one.

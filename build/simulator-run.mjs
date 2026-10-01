@@ -38,6 +38,20 @@
  *                                  of your own is serving (pitfall b below).
  *   countDevicesNamed(prefix)      How many devices on this Mac carry the
  *                                  prefix, for the end-of-run count. Read only.
+ *   pushPayloadRefusal(text)       Why a notification body may not be
+ *                                  delivered, or null (Phase 316.5).
+ *
+ * ## Delivering a notification (Phase 316.5)
+ *
+ * A handle's `push(bundleId, payloadText)` is the one way a script under
+ * build/ hands a notification to a Simulator, and `gate:simulator` refuses the
+ * verb anywhere else. It names THE UDID THIS CALL CREATED and nothing else,
+ * never a device a caller hands in; it refuses a bundle id that is not dotted
+ * and a body that is not a JSON object with an `aps` object of at most 4096
+ * bytes before any file exists; it writes the body 0600 under the handle's own
+ * scratch, runs the delivery asynchronously as one of the handle's owned
+ * children (pitfall b below), and deletes the file in a `finally`. The body
+ * is a notification the phone app reads when it is tapped, never a key.
  *
  * ## What the teardown does, and why each step is there
  *
@@ -138,6 +152,48 @@ export const RUNTIME_FLOOR = '18.3';
 
 const UDID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{4}-[0-9A-F]{12}$/;
 const RUN_ID_RE = /^[A-Za-z0-9][A-Za-z0-9-]{0,47}$/;
+
+/**
+ * A bundle id a delivered notification may name (Phase 316.5): two or more
+ * dotted parts of letters, digits and hyphens, and nothing else, so no value a
+ * caller hands in can become a second argument or a path.
+ */
+const BUNDLE_ID_RE = /^[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+$/;
+
+/**
+ * The most bytes a delivered notification may hold (Phase 316.5). It is
+ * `xcrun simctl help push`'s own rule, and Apple's for a remote notification
+ * that is not VoIP, so a body this file would deliver is one the sender could
+ * have sent.
+ */
+export const PUSH_PAYLOAD_MAX_BYTES = 4096;
+
+/**
+ * Why a notification body may not be delivered, or null (Phase 316.5). The
+ * whole of the refusal is here so the probe's own self-test can ask it too:
+ * a JSON OBJECT whose `aps` is an object, at most 4096 bytes. An array, a
+ * number, an `aps` that is null or a list, or one byte over, is refused.
+ *
+ * @param {unknown} payloadText
+ * @returns {string|null}
+ */
+export function pushPayloadRefusal(payloadText) {
+  if (typeof payloadText !== 'string') return 'the notification body is not text.';
+  const bytes = Buffer.byteLength(payloadText, 'utf8');
+  if (bytes > PUSH_PAYLOAD_MAX_BYTES) {
+    return `the notification body is ${String(bytes)} bytes, over the ${String(PUSH_PAYLOAD_MAX_BYTES)} a notification may hold.`;
+  }
+  let body;
+  try {
+    body = JSON.parse(payloadText);
+  } catch {
+    return 'the notification body is not JSON.';
+  }
+  if (body === null || typeof body !== 'object' || Array.isArray(body)) return 'the notification body is not a JSON object.';
+  const aps = body.aps;
+  if (aps === null || typeof aps !== 'object' || Array.isArray(aps)) return 'the notification body has no aps object.';
+  return null;
+}
 
 /**
  * The simctl verbs a handle may run on its own device. Every one of them names
@@ -717,6 +773,13 @@ export async function xcodebuildRun(options) {
  * @property {(verb: string, ...args: string[]) => Promise<{code: number,
  *            stdout: string, stderr: string}>} simctl
  *            One of the verbs in HANDLE_VERBS, always on this udid.
+ * @property {(bundleId: string, payloadText: string) => Promise<{code: number,
+ *            stdout: string, stderr: string}>} push
+ *            Phase 316.5: deliver ONE notification to this udid, as Apple
+ *            would. A dotted bundle id and a JSON object with an `aps` object
+ *            of at most 4096 bytes, or it throws before anything is written;
+ *            the body is written 0600 under this handle's scratch and deleted
+ *            in a `finally`.
  * @property {() => string} dataPath  The device's data directory, for a read.
  */
 
@@ -813,6 +876,7 @@ export async function withSimulator(options, body) {
     say(`${label}: ${name} ${udid} on iOS ${String(runtime.version)} booted in ${String(Date.now() - bootStarted)} ms`);
 
     let results = 0;
+    let pushes = 0;
     const handle = {
       udid,
       name,
@@ -847,6 +911,27 @@ export async function withSimulator(options, body) {
           throw new Error(`${TAG} ${label}: "${verb}" is not a verb a handle may run; creating, booting and ending a device are this file's alone.`);
         }
         return run('xcrun', ['simctl', verb, udid, ...args], { timeoutMs: 120_000, owner: entry.children });
+      },
+      async push(bundleId, payloadText) {
+        // Phase 316.5: one notification delivered to THIS device, as Apple
+        // would deliver it, so a tap on it can be read. Refused before any
+        // file is written: a bundle id that is not dotted, and a body that is
+        // not a JSON object with an `aps` object of at most 4096 bytes.
+        if (typeof bundleId !== 'string' || !BUNDLE_ID_RE.test(bundleId)) {
+          throw new Error(`${TAG} ${label}: "${String(bundleId)}" is not a bundle id a notification may name.`);
+        }
+        const why = pushPayloadRefusal(payloadText);
+        if (why !== null) throw new Error(`${TAG} ${label}: ${why}`);
+        const dir = join(scratch, 'push');
+        mkdirSync(dir, { recursive: true, mode: 0o700 });
+        const file = join(dir, `notification-${String((pushes += 1))}.json`);
+        try {
+          writeFileSync(file, payloadText, { encoding: 'utf8', mode: 0o600 });
+          // The udid this call CREATED, and never a value the caller hands in.
+          return await run('xcrun', ['simctl', 'push', udid, bundleId, file], { timeoutMs: 60_000, owner: entry.children });
+        } finally {
+          rmSync(file, { force: true });
+        }
       },
       dataPath() {
         return join(homedir(), 'Library', 'Developer', 'CoreSimulator', 'Devices', udid, 'data');

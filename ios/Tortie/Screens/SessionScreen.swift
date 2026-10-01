@@ -118,8 +118,16 @@ final class SessionModel {
 
 struct SessionScreen: View {
     let model: SessionModel
-    /// The name the list drew, for the title until the answer lands.
+    /// The name the list drew, for the title until the answer lands (empty
+    /// for a session an alert opened, which the list never drew).
     let name: String
+
+    /// The door's name once it answered, so a session an alert opened is
+    /// titled by the door; the list's until then.
+    private var title: String {
+        if case .loaded(let drawing) = model.phase { return drawing.name }
+        return name
+    }
     let isTop: Bool
     let foregroundTick: Int
     let openConversation: (_ honestLine: String?) -> Void
@@ -151,14 +159,14 @@ struct SessionScreen: View {
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ID.sessionScreen)
-        .navigationTitle(name)
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Words(name, .navTitle, Tokens.textPrimary)
+                Words(title, .navTitle, Tokens.textPrimary)
                     .accessibilityAddTraits(.isHeader)
             }
         }

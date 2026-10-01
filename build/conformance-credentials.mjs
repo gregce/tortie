@@ -249,7 +249,12 @@
  *      through `backend.get`, and touches no file itself; and over `src/`, no
  *      module under the renderer, the preload or `src/shared/` names it, and
  *      its only non-test importers are `index.ts`, the harness push seam, and
- *      `src/main/push/` by `import type` alone.
+ *      `src/main/push/` by `import type` alone. (e), Phase 316.5: the store's
+ *      one door for the app, `apnsKeyStoreForApp`, is named outside this
+ *      domain and tests by EXACTLY `src/main/alerts/index.ts`, the production
+ *      composition that reads the key a person chose, and the harness push
+ *      seam, and by nothing else; the scanner is proved on fixtures and on the
+ *      live tree with a third caller planted, which must read red.
  */
 
 import { spawnSync } from 'node:child_process';
@@ -1511,6 +1516,93 @@ if (liveApns.absent !== true) {
   }
   notes.push(
     `apns-key.ts is one sealed vault with no legacy arm, one write through the one write, one read through the seal and no file of its own; ${String(importers)} importer(s) in src/, none under the renderer, the preload or shared`
+  );
+}
+
+// ---------------------------------------------------------------------------
+// RULE 23 (e) (Phase 316.5, build/p3165/SPEC.md §6.3). THE STORE'S ONE DOOR FOR
+// THE APP HAS TWO CALLERS. `apnsKeyStoreForApp()` is how anything outside this
+// domain reaches the sealed provider key with the app's own seal. Phase 316.5
+// gave it its first production caller, the alerts' composition, and the push
+// seam was already one; a third is a second place the key is read that nobody
+// reviewed. Read as text with comments blanked, outside this domain and tests,
+// and proved on fixtures and on the live tree with a third caller planted.
+// ---------------------------------------------------------------------------
+
+const APNS_APP_DOOR = /\bapnsKeyStoreForApp\b/;
+const APNS_APP_DOOR_CALLERS = ['src/main/alerts/index.ts', 'src/main/harness/push-seam.ts'];
+
+/** The files, outside the credentials domain and tests, that name the app's door to the key's store. */
+function apnsAppDoorNamers(files) {
+  const out = [];
+  for (const [rel, text] of files) {
+    if (rel.startsWith('src/main/credentials/')) continue;
+    if (/(?:^|\/)__tests__\//.test(rel) || /\.test\.tsx?$/.test(rel)) continue;
+    if (APNS_APP_DOOR.test(stripComments(text))) out.push(rel);
+  }
+  return out.sort();
+}
+
+/** Is that set exactly the two callers? */
+function apnsAppDoorHolds(namers) {
+  return JSON.stringify(namers) === JSON.stringify([...APNS_APP_DOOR_CALLERS].sort());
+}
+
+const APNS_APP_DOOR_FIXTURES = [
+  {
+    name: 'the shipping shape',
+    files: [
+      ['src/main/alerts/index.ts', "import { apnsKeyStoreForApp } from '../credentials';\nstore ??= apnsKeyStoreForApp();\n"],
+      ['src/main/harness/push-seam.ts', 'const store = apnsKeyStoreForApp();\n'],
+      ['src/main/credentials/index.ts', 'export function apnsKeyStoreForApp(): ApnsKeyStore {}\n']
+    ],
+    holds: true
+  },
+  {
+    name: 'a third caller (the ablation)',
+    files: [
+      ['src/main/alerts/index.ts', 'store ??= apnsKeyStoreForApp();\n'],
+      ['src/main/harness/push-seam.ts', 'const store = apnsKeyStoreForApp();\n'],
+      ['src/main/sessions/p3165-third.ts', "const key = await (await import('../credentials')).apnsKeyStoreForApp().read();\n"]
+    ],
+    holds: false
+  },
+  {
+    name: 'the production composition no longer the caller',
+    files: [['src/main/harness/push-seam.ts', 'const store = apnsKeyStoreForApp();\n']],
+    holds: false
+  },
+  {
+    name: 'a third file naming it in a comment only, and a test calling it',
+    files: [
+      ['src/main/alerts/index.ts', 'store ??= apnsKeyStoreForApp();\n'],
+      ['src/main/harness/push-seam.ts', 'const store = apnsKeyStoreForApp();\n'],
+      ['src/main/capabilities.ts', '// the alerts read the key through apnsKeyStoreForApp, not this file\n'],
+      ['src/main/harness/__tests__/push-seam.test.ts', 'apnsKeyStoreForApp: () => fake,\n']
+    ],
+    holds: true
+  }
+];
+{
+  let behaved = 0;
+  for (const f of APNS_APP_DOOR_FIXTURES) {
+    if (apnsAppDoorHolds(apnsAppDoorNamers(f.files)) === f.holds) behaved += 1;
+    else failures.push(`${TAG} rule 23 (e)'s scanner misread its fixture "${f.name}"`);
+  }
+  const srcRoot = join(repoRoot, 'src');
+  const tree = sourceFilesBelow(srcRoot).map((f) => [f.slice(repoRoot.length + 1), readFileSync(f, 'utf8')]);
+  const namers = apnsAppDoorNamers(tree);
+  check(
+    apnsAppDoorHolds(namers),
+    `${TAG} apnsKeyStoreForApp is named outside the credentials domain and tests by ${namers.join(', ') || 'nothing'}. Its callers are exactly ${APNS_APP_DOOR_CALLERS.join(' and ')}: the alerts' composition and the push seam, and a third is a place the Apple push key is read that nobody reviewed.`
+  );
+  // THE ABLATION, over the live tree: the same reading with a third caller
+  // planted must go red, or the clause cannot fail on the tree it guards.
+  const planted = [...tree, ['src/main/sessions/p3165-third-caller.ts', 'export const k = () => apnsKeyStoreForApp().read();\n']];
+  const ablationRed = !apnsAppDoorHolds(apnsAppDoorNamers(planted));
+  check(ablationRed, `${TAG} rule 23 (e) stayed green with a third caller of apnsKeyStoreForApp planted in the live tree, so it cannot fail`);
+  notes.push(
+    `rule 23 (e): apnsKeyStoreForApp named by ${namers.join(' and ')}; ${String(behaved)} of ${String(APNS_APP_DOOR_FIXTURES.length)} fixtures behaved; a third caller planted in the live tree ${ablationRed ? 'reads red' : 'READ GREEN'}`
   );
 }
 

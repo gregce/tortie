@@ -130,6 +130,8 @@ enum Answers {
 
 /// A door that answers from a script, one answer per call, in order.
 actor ScriptedReader: DoorReading {
+    /// What this pairing agreed about alerts.
+    nonisolated let alerts: AlertsKept
     private var blockedAnswers: [Result<PocketBlockedAnswer, DoorFailure>]
     private var sessionAnswers: [Result<PocketSessionAnswer, DoorFailure>]
     private var turnAnswers: [Result<PocketTurnsAnswer, DoorFailure>]
@@ -141,8 +143,10 @@ actor ScriptedReader: DoorReading {
     init(
         blocked: [Result<PocketBlockedAnswer, DoorFailure>] = [],
         session: [Result<PocketSessionAnswer, DoorFailure>] = [],
-        turns: [Result<PocketTurnsAnswer, DoorFailure>] = []
+        turns: [Result<PocketTurnsAnswer, DoorFailure>] = [],
+        alerts: AlertsKept = .nothing
     ) {
+        self.alerts = alerts
         blockedAnswers = blocked
         sessionAnswers = session
         turnAnswers = turns
@@ -176,6 +180,14 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
     private(set) var begun: [String] = []
     private(set) var pairs = 0
     private(set) var forgets = 0
+    /// Whether the Mac a pairing presents to says it can send an alert, in
+    /// which case the pairing asks for the phone's address, once.
+    var macSends = false
+    /// The address each pairing's question answered, in order; a pairing
+    /// that asked nothing adds nothing.
+    private(set) var answered: [PushAddress?] = []
+    /// Where the order of a pairing's steps is written, when a test reads it.
+    var events: Events?
     /// Run while the pairing is under way, before it answers.
     var duringPair: (@Sendable () async -> Void)?
     /// The steps a pairing reports before it answers.
@@ -215,9 +227,18 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
         )
     }
 
-    func pair(_ pending: PendingPairing, progress: @escaping @Sendable (PairingStep) -> Void) async -> PairResult {
+    func pair(
+        _ pending: PendingPairing,
+        askForAlerts: @escaping @Sendable () async -> PushAddress?,
+        progress: @escaping @Sendable (PairingStep) -> Void
+    ) async -> PairResult {
+        events?.append("pair")
         for step in reports {
             progress(step)
+        }
+        if lock.withLock({ macSends }) {
+            let address = await askForAlerts()
+            lock.withLock { answered.append(address) }
         }
         await duringPair?()
         return lock.withLock {
@@ -232,6 +253,58 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
             kept = nil
         }
     }
+}
+
+/// What the app asks iOS about alerts, scripted, and when it asked.
+final class StandInAlerts: PushAddressing, @unchecked Sendable {
+    private let lock = NSLock()
+    private let said: PushAuthorization
+    private let atPairing: PushAddress?
+    private let now: PushAddress?
+    private(set) var pairingAsks = 0
+    private(set) var currentAsks = 0
+    private(set) var authorizationAsks = 0
+    /// Where the order of a pairing's steps is written, when a test reads it.
+    var events: Events?
+    /// Run while the question is being asked, before it answers.
+    var duringAsk: (@Sendable () async -> Void)?
+
+    init(authorization: PushAuthorization = .denied, atPairing: PushAddress? = nil, current: PushAddress? = nil) {
+        said = authorization
+        self.atPairing = atPairing
+        now = current
+    }
+
+    func authorization() async -> PushAuthorization {
+        lock.withLock {
+            authorizationAsks += 1
+            return said
+        }
+    }
+
+    func askForPairing() async -> PushAddress? {
+        events?.append("ask")
+        await duringAsk?()
+        return lock.withLock {
+            pairingAsks += 1
+            return atPairing
+        }
+    }
+
+    func currentAddress() async -> PushAddress? {
+        lock.withLock {
+            currentAsks += 1
+            return now
+        }
+    }
+}
+
+/// The order things happened in, from inside stand-ins.
+final class Events: @unchecked Sendable {
+    private let lock = NSLock()
+    private var names: [String] = []
+    func append(_ name: String) { lock.withLock { names.append(name) } }
+    var all: [String] { lock.withLock { names } }
 }
 
 /// One value, set from inside a stand-in and read by the test.

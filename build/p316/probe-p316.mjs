@@ -43,6 +43,22 @@
  *     window's one-shot secret, which must be in nothing the app wrote on the
  *     device (its container and the device keychain) and nothing under the
  *     Mac's scratch world, and any PEM private key on the Mac's side.
+ *   - APPLE (Phase 316.5, build/p3165/SPEC.md §7.4): Phase 314's APNs stand-in,
+ *     build/p314/apns-stand-in.mjs, IN THIS PROCESS on 127.0.0.1 (two h2c
+ *     listeners, one per environment), seeded with the topic
+ *     `com.itavero.tortie.phone`, the scratch public key and each phone's
+ *     token and the environment it was minted in. The Mac is handed
+ *     `GMUX_HARNESS_ALERTS=<harness>/alerts`, whose `alerts.json` names the
+ *     stand-in's two origins and the scratch key file; the PREFLIGHT refuses
+ *     the launch unless every origin is `http://127.0.0.1:<port>` and the key
+ *     file sits inside the harness directory. THE KEY is a scratch P-256 key
+ *     made here, written 0600 as `<harness>/alerts/AuthKey_P3165SCRAT.p8` and
+ *     deleted in the `finally` whatever happened, kept world or not. HIS KEY
+ *     IS NEVER READ. No request reaches Apple's real hosts: the phone's token
+ *     is a DEBUG seam value (`-TortieDebugPushToken`), a Debug build never asks
+ *     Apple for one, and a notification reaches the Simulator only through
+ *     build/simulator-run.mjs's `handle.push`, with a body the stand-in
+ *     recorded or this file composed.
  *
  * THE ORDER
  *   B0  preflight: a build, Xcode, both runtimes, the device type
@@ -75,6 +91,92 @@
  *   After: the secret scan of the Mac's scratch world, the stand-in's own
  *   reading (no real Tailscale, nothing forbidden, nothing left), the Electron
  *   count and the Simulator count, once each.
+ *
+ * PHASE 316.5, THE ALERTS (build/p3165/SPEC.md §7.4), woven into that order.
+ * Every arm that needs a session to block is graded in TWO STEPS: main must
+ * read the block first, and an arm whose block main never read is UNREADABLE
+ * (exit 2), never a pass. A tap whose banner XCUITest could not find is
+ * UNREADABLE too (SPEC §12 concern 1).
+ *   N1  after D1: `pocket.choosePushKey()` through the bridge takes the harness
+ *       key file; `pushKeyId` reads P3165SCRAT; the sealed file under the
+ *       profile's gmux/push is not the PEM and holds no line of it
+ *   D2+ the node reader presents a PRODUCTION token; the sheet's lines at
+ *       Allow read `Alerts for "p316 reader" go through Apple (production),
+ *       device <8 hex>`
+ *   iOS 26.3, the order Simulator, FIRST DRIVE, while the Mac holds the key
+ *   and its alert switch is still OFF (research 136, which binds over the
+ *   SPEC: alerts are his alone by default, so a phone is asked only when the
+ *   Mac it pairs with CAN send, meaning it holds a key AND the switch is on,
+ *   and the pairing answer tells the phone which):
+ *   N11 it pairs WITHOUT being asked (`asked:false`) although it was handed a
+ *       seam token; the Mac holds no `Alerts for` line for it and its row reads
+ *       `none`; a relaunch with another token draws no `Pair again to get
+ *       alerts.`; and no word of Copy.swift that names alerts is drawn on any
+ *       screen of the run
+ *   N2  alerts on, and Allow through the sheet's own lines: `phone alerts
+ *       armed` in app.log once, and 0 requests at the stand-in, because D0's
+ *       waiting session was waiting before alerts armed
+ *   iOS 26.3, the order Simulator, SECOND DRIVE, now that the Mac can send,
+ *   handed P316_PUSH_TOKEN and P316_NOTIFICATIONS=allow:
+ *   N0  the Mac could send when the window opened; iOS asked AFTER the
+ *       fingerprint line and before the Mac allowed the phone (research 136
+ *       moves the SPEC's "while the Mac still read waiting": the phone learns
+ *       that the Mac can send from the Mac's answer to its presentation, so
+ *       the Mac may already read `presented`); answered allow; the Mac's lines
+ *       AT ALLOW hold the development line for sha256(the seam token); the
+ *       phone's row reads alerts `on`. This file presses Allow only after the
+ *       phone has said how the question was answered, or that none came,
+ *       because a person answers iOS before they reach for the Mac
+ *   N3  a new `ask` session blocks: one request at the development origin for
+ *       the app's token, one at the production origin for the reader's, both
+ *       200, the single shape, the JWT verifying under the scratch public key,
+ *       `apns-topic` the phone's bundle id, and the body byte for byte this
+ *       file's own composition from the reader's `/v1/blocked` rows
+ *   N4  `alert`: N3's recorded body delivered; the tap opens that session.
+ *       N3 is done INSIDE this step: its session is made when the UI test
+ *       says it is ready for the alert, so the block cannot disturb L1's list
+ *       reads, and the UI test waits its step's P316_WAIT_S (150 s) for the
+ *       banner while main reads the block and the engine sends
+ *   N5  `alert-cold`: the app terminated, then N3's body: the tap cold-
+ *       launches it onto that session. It runs BEFORE N6 because N6 removes
+ *       that session. A launch by iOS carries no XCUITest argument, so the
+ *       DEBUG app carries its endpoint, stillness and token seams over from
+ *       the launch before (ios/Tortie/App/DebugLaunch.swift); a cold launch
+ *       that could not reach the door reads as a session failure, by name
+ *   N6  `back` to the list, then `alert-gone`: that session ended and
+ *       removed on the Mac, the door answering 404 for it, then this file's
+ *       own composition of the same alert, TAPPED FROM THE LIST: the list,
+ *       with the Mac's own `Tortie no longer has a record of that session.`
+ *       Until the 316.5 fix round N6 was tapped over the very session it
+ *       names (N5 leaves it on screen), which changed nothing on screen and
+ *       so passed while every tap from anywhere else drew no sentence; the
+ *       grader now reads the dump before the ready line and a tap that was not
+ *       arranged from the list is UNREADABLE
+ *   N6b `visit:<talk>` then `alert-gone` again: the same alert tapped from
+ *       ANOTHER session's screen: the list, with the Mac's sentence
+ *   N7  `alert-list` twice: a count body, then a single body naming `../x`:
+ *       the list each time, no notice
+ *   N8  `relaunch-token:<another>` then `relaunch-token:<the paired one>`:
+ *       `Pair again to get alerts.` the first time, absent the second
+ *   N9  after R1: alerts off, and a new `ask` session blocks: `phone alerts
+ *       disarmed` once, 0 requests in 15 s. R1's Remove moves the door's hash,
+ *       so alerts disarm and re-arm around its re-confirm; N9 reads the
+ *       disarm lines it GAINED and is UNREADABLE unless alerts were armed when
+ *       it began. THEN ALERTS GO BACK ON and are confirmed, and the armed line
+ *       it gains is read, because the floor and the denied phone must each be
+ *       ASKED, and a phone is asked only when the Mac can send (research 136)
+ *   F1+ iOS 18.3, after F1: the Mac could send, the floor phone was asked and
+ *       allowed, and `alert` with a single body naming a live session,
+ *       composed here: the tap opens it on the floor
+ *   ND  a new iOS 26.3 Simulator, P316_NOTIFICATIONS=deny (arm `deny`): the
+ *       Mac could send, so it was asked; denied, it pairs with no `Alerts for`
+ *       line for it although it was handed a seam token, its row reads
+ *       `none`, the list, a session and its conversation are drawn, and a
+ *       delivered body shows no banner in 20 s
+ *   N10 after the app is gone: app.log holds no token, no JWT, no PEM line
+ *       and no alert body
+ * The arms are reported in the SPEC's order: N3 is graded during N4's step
+ * and written to the report with the order Simulator's other arms.
  *
  * THE LINE PROTOCOL the Swift tests speak, which this file is the reader of.
  * Every line is `P316|<run>|<one JSON object>` on the test runner's stdout,
@@ -127,6 +229,47 @@
  *   which the test passes to the app as `-TortieDebugDoorEndpoint` (Phase 330).
  *   A run whose test prints no P316 line is UNREADABLE (exit 2), never a pass.
  *
+ *   PHASE 316.5 adds two inputs and six steps (build/p3165/SPEC.md §7.4,
+ *   pinned; P316DriveUITests.swift is their writer):
+ *     P316_PUSH_TOKEN      hex; every launch passes `-TortieDebugPushToken
+ *                          <hex>` when it is set (DEBUG only: the app's
+ *                          address, never Apple's answer)
+ *     P316_NOTIFICATIONS   `allow` (the default) or `deny`
+ *     pair, after the fingerprint, waits up to 10 s for springboard's
+ *       notification question. When it appears it prints
+ *       {"step":"notifications","asked":true,"title":…,"buttons":[…]}, presses
+ *       by label (`Allow`, or `Don’t Allow` / `Don't Allow`) and prints
+ *       {"step":"notifications","answered":"allow"|"deny"}; when none appears
+ *       it prints {"step":"notifications","asked":false}. Since research 136
+ *       the question comes only when the Mac can send, which the phone learns
+ *       from the Mac's answer to its presentation, so the 10 s run from the
+ *       fingerprint across that first answer; a Mac that cannot send is
+ *       answered `asked:false` (N11).
+ *     alert             press Home, print {"step":"ready-for-alert"}, wait for
+ *                       a banner from Tortie in springboard, print
+ *                       {"step":"banner","label":…} (null when none came), tap
+ *                       it, wait for `screen-session` or `screen-list`, dump
+ *                       "alert"
+ *     alert-cold        the same after `app.terminate()`, the ready line
+ *                       carrying "cold":true; the app must reach running-
+ *                       foreground from the tap
+ *     alert-gone, alert-list    as `alert`, dumping under their own names
+ *     back              the navigation bar's back button until the list is on
+ *                       top, dump "back" (the 316.5 fix round: where N6 taps)
+ *     visit:<id>        as `open:<id>`, dumping "visit" (where N6b taps)
+ *     relaunch-token:<hex>      terminate, relaunch WITHOUT
+ *                       `-TortieDebugForgetPairing` and with that token, dump
+ *                       "relaunch" once the list settles
+ *     no-banner:<s>     press Home, print {"step":"ready-for-alert"}, wait that
+ *                       long, and print {"step":"banner","label":null} when
+ *                       none came
+ *   THIS FILE delivers ONE queued body for each `ready-for-alert` it reads, in
+ *   order, through `handle.push`, and reads each tap from the `banner` line and
+ *   the first dump after that ready line, and where the tap was made from from
+ *   the last dump BEFORE it. It never matches a tap to a body by
+ *   anything the phone chose. A `ready-for-alert` with nothing queued, and a
+ *   queued body with no `ready-for-alert`, are both reported by name.
+ *
  * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
  * now asks the `ts.net` zone's own servers whether its public name answers
  * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
@@ -134,21 +277,28 @@
  * Tailscale stand-in's made-up name, so no question reaches real DNS; the
  * preflight refuses unless that value names 127.0.0.1 alone and the stand-in
  * answers. Every window waits for main's `pairable` (`confirmListening`), and
- * N1 grades every question the Mac asked: an `A` question, RD 0, for that
- * name. Before the launch the profile's agents.json renames the Gemini, Qwen,
+ * Q1 grades every question the Mac asked: an `A` question, RD 0, for that
+ * name (Phase 332 called it N1; Phase 316.5 renamed it, because SPEC §7.4
+ * gives N1 to the push key). Before the launch the profile's agents.json renames the Gemini, Qwen,
  * Antigravity, Grok and Droid binaries and `agents:list` is read back, so no
  * agent's `--version` ever runs.
  *
  * WHAT IT REFUSES TO DO. It never binds a real interface and dials nothing but
  * 127.0.0.1 (the code's host is a public NAME nobody resolves here), never runs
  * a `tailscale` command, never signs into anything and touches no keychain of
- * the person's. It signals nothing it did not start. It takes NO screenshot
- * and no screen recording. Its report holds no key, no signature and no
- * conversation line, only lengths, counts and digests. `npm run shot` is not
- * called.
+ * the person's. It never reads his APNs key or any `.p8` of his, and nothing
+ * it starts can reach Apple: the Mac's alerts go to the stand-in named in
+ * alerts.json, and without that file a harness launch refuses Apple's hosts
+ * before any socket. It signals nothing it did not start. It takes NO
+ * screenshot and no screen recording. Its report holds no key, no signature,
+ * no device token, no alert body and no conversation line, only lengths,
+ * counts and digests. `npm run shot` is not called. It spends NO model turn.
  *
  * VERIFIERS ONLY: it starts an Electron and boots Simulators, so take the
- * orchestrator's lock first. It runs for about 17 minutes, and
+ * orchestrator's lock first. It ran for about 17 minutes before Phase 316.5,
+ * which adds a fourth Simulator, a second drive on the first (N11) and a few
+ * minutes of alerts (budget 20 to 25 minutes, unmeasured until a verifier runs
+ * it), and
  * build/electron-run.mjs's guard over the person's own `-L gmux` server
  * compares that server's sessions before and after: a session HE creates or
  * ends while it runs reads as this run's, and the run ends in that guard's
@@ -157,18 +307,26 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,hostile         which arms (default all)
+ *   P316_ARMS=order,floor,deny,hostile    which arms (default all; `order` holds N11 and N0 to N8)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
- *   P316_KEEP=1                           keep the scratch world
+ *   P316_KEEP=1                           keep the scratch world, and write
+ *                                         <run>/rederive/records.json (0600): the
+ *                                         reader's /v1/blocked rows at N3's block,
+ *                                         every stand-in record, every body
+ *                                         delivered, the scratch PUBLIC key and
+ *                                         each phone's token, for the verifier's
+ *                                         own re-derivation. The private key is
+ *                                         deleted whatever this says.
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
- *   node build/p316/probe-p316.mjs --grader-self-test   the list grader on its own dumps; launches nothing
+ *   node build/p316/probe-p316.mjs --grader-self-test   every grader on its own fixtures; launches nothing
  *
  * Exit 0 when every arm passed, 1 when one failed, 2 when it could not run or
  * an arm could not be READ.
  */
 
 import { spawn, spawnSync } from 'node:child_process';
+import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import {
   appendFileSync,
   chmodSync,
@@ -191,10 +349,12 @@ import {
   RUNTIME_CURRENT,
   RUNTIME_FLOOR,
   countDevicesNamed,
+  pushPayloadRefusal,
   simulatorHarnessMissing,
   withSimulator,
   xcodebuildRun
 } from '../simulator-run.mjs';
+import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
@@ -222,7 +382,8 @@ if (PARENT !== '') {
 // ---------------------------------------------------------------------------
 
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,hostile').split(',').map((s) => s.trim()));
+// `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -271,7 +432,57 @@ const DIALOG = join(ROOT, 'src/main/activity/__tests__/fixtures/claude-permissio
 const STORE_SRC = join(ROOT, 'docs/research/assets/63-fixtures/claude-session.jsonl');
 const FIXTURE_SID = '11111111-2222-4333-8444-555555555555';
 const FIXTURE_CWD = '/Users/dev/demo-app';
-const N = { shell: 'p316-shell', talk: 'p316-talk', ask: 'p316-ask' };
+const N = { shell: 'p316-shell', talk: 'p316-talk', ask: 'p316-ask', alert: 'p316-alert', quiet: 'p316-quiet' };
+
+// ---------------------------------------------------------------------------
+// Phase 316.5: the alerts' scratch world (build/p3165/SPEC.md §7.4)
+// ---------------------------------------------------------------------------
+
+/** Ten capitals or digits, the shape of Apple's own key file name. A scratch key's, never his. */
+const KEY_ID = 'P3165SCRAT';
+/** Inside the harness directory, which the Mac's override requires of its key file. */
+const ALERTS_DIR = join(HARNESS, 'alerts');
+const KEY_FILE = join(ALERTS_DIR, `AuthKey_${KEY_ID}.p8`);
+const ALERTS_JSON = join(ALERTS_DIR, 'alerts.json');
+/** Where the Mac seals the provider key it keeps: `apnsKeyDir()`, `<userData>/gmux/push`. */
+const SEALED_KEY_DIR = join(PROFILE, 'gmux', 'push');
+/** The phone app's bundle id is the topic an alert is sent under. */
+const TOPIC = BUNDLE_ID;
+/**
+ * Every device token this run hands out, 64 lowercase hex each, and the
+ * environment each was minted in. `other` is only ever a relaunch's (N8,
+ * N11), `deny` is handed to a phone that denies notifications (ND) and
+ * `nosend` to a phone pairing with a Mac that cannot send (N11): none of them
+ * may reach the Mac, so none is seeded at the stand-in.
+ */
+const TOKENS = Object.freeze({
+  reader: randomBytes(32).toString('hex'),
+  app: randomBytes(32).toString('hex'),
+  other: randomBytes(32).toString('hex'),
+  floor: randomBytes(32).toString('hex'),
+  deny: randomBytes(32).toString('hex'),
+  nosend: randomBytes(32).toString('hex')
+});
+const SEEDED = Object.freeze({ [TOKENS.reader]: 'production', [TOKENS.app]: 'development', [TOKENS.floor]: 'development' });
+/** Which phone a token is, for the report, which never carries a token. */
+const tokenName = (token) => Object.entries(TOKENS).find(([, t]) => t === token)?.[0] ?? (token === null ? 'none' : 'unknown');
+/** The Mac's short digest of a token, as its `Alerts for …` line draws it (pairing.ts, pushTokenDigest). */
+const deviceDigest = (token) => shaHex(String(token).toLowerCase()).slice(0, 8);
+/** The engine's first send waits COALESCE_MS; a quiet this long says nothing was sent. */
+const QUIET_AFTER_ARM_MS = 10_000;
+/** N9's window, the SPEC's 15 s. */
+const QUIET_AFTER_OFF_MS = 15_000;
+/** N7's hostile tap: a session id no door could hold, which must open the list. */
+const HOSTILE_TAP_SESSION = '../x';
+/**
+ * How long a pairing's Allow waits for the phone's word on iOS's question
+ * (answered, or `asked:false` after its own 10 s), from the fingerprint line.
+ * A person answers iOS before reaching for the Mac, and an Allow pressed
+ * before the phone presents its address pairs a phone the Mac cannot alert.
+ */
+const NOTIFICATIONS_SETTLE_MS = 30_000;
+/** How long, after an `allow`, the Allow waits for the Mac's lines to name the phone's address. */
+const ADDRESS_LINE_WAIT_MS = 20_000;
 
 /** Every window's one-shot secret this run opened. The report never holds them. */
 const SECRETS = [];
@@ -332,11 +543,52 @@ const COPY = {
   readLead: copyOf('readLead')
 };
 
+/**
+ * A word the MAC spells, read from its own TypeScript source (Phase 316.5), so
+ * the phone's copy of it is judged by the Mac's and never by itself.
+ */
+const macWord = (file, name) => {
+  try {
+    const m = new RegExp(`export const ${name}\\s*=\\s*'((?:[^'\\\\]|\\\\.)*)'`).exec(readFileSync(join(ROOT, file), 'utf8'));
+    return m === null ? null : m[1];
+  } catch {
+    return null;
+  }
+};
+const MAC = {
+  /** The Mac's sentence for exactly an unknown session (SPEC §5.6.4). */
+  noSuchSession: macWord('src/renderer/app/reach-copy.ts', 'NO_SUCH_SESSION'),
+  /** The count alert's title word (src/main/tray/attention.ts), for this file's own composer. */
+  needsYourInput: macWord('src/main/tray/attention.ts', 'NEEDS_YOUR_INPUT')
+};
+/** Pinned by build/p3165/SPEC.md §5.6.5. Copy.swift's `pairAgainForAlerts` must say exactly it. */
+const PAIR_AGAIN = 'Pair again to get alerts.';
+/**
+ * Every phone word that names alerts (research 136: a phone paired to a Mac
+ * that cannot send draws none of them): Copy.swift's words that say "alert",
+ * and the pinned line whether Copy.swift has it or not.
+ */
+const ALERT_WORDS = [...new Set([PAIR_AGAIN, ...Object.values(COPY_WORDS).filter((text) => /alert/i.test(text))])];
+
 // ---------------------------------------------------------------------------
 // The report
 // ---------------------------------------------------------------------------
 
-const report = { runtimes, arms: [], readings: { frames: FRAMES }, copyFound: Object.fromEntries(Object.entries(COPY).map(([k, v]) => [k, v !== null])) };
+const report = {
+  runtimes,
+  arms: [],
+  readings: { frames: FRAMES },
+  copyFound: {
+    ...Object.fromEntries(Object.entries(COPY).map(([k, v]) => [k, v !== null])),
+    // Phase 316.5: the phone's two new words, each equal to the one it names.
+    pairAgainForAlerts: copyOf('pairAgainForAlerts') === PAIR_AGAIN,
+    noSuchSession: MAC.noSuchSession !== null && copyOf('noSuchSession') === MAC.noSuchSession,
+    macNoSuchSession: MAC.noSuchSession !== null,
+    macNeedsYourInput: MAC.needsYourInput !== null
+  },
+  // Phase 316.5: no model turn is spent by any arm (SPEC §7.8).
+  modelTurns: 0
+};
 let failures = 0;
 const arm = (id, ok, said) => {
   const text = unsecret(said);
@@ -626,6 +878,11 @@ async function drive(sim, { test, env, derivedDataPath, label, onEvent = null, t
       if (seen.has(event.seq)) return;
       seen.add(event.seq);
     }
+    // When THIS process first read the line (Phase 316.5). A line is printed
+    // before it is read, and a pairing only moves forward, so a Mac state
+    // sampled AT OR AFTER this moment that still reads `waiting` was `waiting`
+    // when the phone printed the line (N0).
+    if (event !== null && typeof event === 'object') event.receivedAt = Date.now();
     events.push(event);
     if (onEvent !== null) reactions.push(Promise.resolve().then(() => onEvent(event)).catch((err) => reactionErrors.push(String(err?.message ?? err))));
   };
@@ -814,6 +1071,799 @@ function gradeList(dump, reads) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 316.5: this file's OWN composer of Phase 314's alert JSON
+// ---------------------------------------------------------------------------
+//
+// Written from build/p314/SPEC.md §2.2 to §2.4 and build/p3165/SPEC.md §5.4,
+// never imported from src/main/push/, so N3's byte comparison is two
+// implementations agreeing rather than one agreeing with itself. The key
+// order is the pinned one: aps { alert { title, body }, badge, sound,
+// thread-id }, then tortie. The clip past 4096 bytes is not written here: every
+// row this probe makes is a few dozen bytes, and a composition over the cap is
+// refused rather than guessed at.
+
+/** Tortie's one separator between two facts. */
+const SEPARATOR = ' · ';
+/** The count alert's thread (src/main/push/alert.ts's WAITING_THREAD, spelled again on purpose). */
+const COUNT_THREAD = 'tortie-waiting';
+
+/** The single shape for one blocked row, or null when it would not fit. */
+function composeSingleAlert(row, badge) {
+  const body = [row.project, row.agentLabel, ...(row.machine !== null && row.machine !== undefined ? [row.machine] : [])].join(SEPARATOR);
+  const text = J({
+    aps: { alert: { title: `${row.name} ${row.statusLabel}`, body }, badge, sound: 'default', 'thread-id': row.sessionId },
+    tortie: { v: 1, session: row.sessionId }
+  });
+  return pushPayloadRefusal(text) === null ? text : null;
+}
+
+/** The count shape over names, or null when it would not fit or the Mac's title word could not be read. */
+function composeCountAlert(names, badge) {
+  if (MAC.needsYourInput === null) return null;
+  const text = J({
+    aps: { alert: { title: `${MAC.needsYourInput} (${String(badge)})`, body: names.join(SEPARATOR) }, badge, sound: 'default', 'thread-id': COUNT_THREAD },
+    tortie: { v: 1 }
+  });
+  return pushPayloadRefusal(text) === null ? text : null;
+}
+
+// ---------------------------------------------------------------------------
+// Phase 316.5: the preflight of the Mac's override, and the graders
+// ---------------------------------------------------------------------------
+
+/** The ONE origin shape alerts.json may name: cleartext to 127.0.0.1 on a port. */
+const LOOPBACK_ORIGIN = /^http:\/\/127\.0\.0\.1:([0-9]{1,5})$/;
+
+/**
+ * Why the override this file wrote may not be handed to the Mac, or null
+ * (SPEC §7.4: "The preflight refuses unless the override names only
+ * 127.0.0.1"). Both environments, each `http://127.0.0.1:<port>`, and a key
+ * file inside the harness directory.
+ */
+function alertsOverrideRefusal(json, harness) {
+  if (json === null || typeof json !== 'object' || Array.isArray(json)) return 'alerts.json is not an object';
+  const origins = json.origins;
+  if (origins === null || typeof origins !== 'object' || Array.isArray(origins)) return 'alerts.json names no origins';
+  const names = Object.keys(origins).sort();
+  if (J(names) !== J(['development', 'production'])) return `alerts.json names the origins ${J(names)}, not development and production`;
+  for (const name of names) {
+    const hit = LOOPBACK_ORIGIN.exec(String(origins[name]));
+    if (hit === null || Number(hit[1]) < 1 || Number(hit[1]) > 65_535) return `the ${name} origin ${J(origins[name])} is not http://127.0.0.1:<port>`;
+  }
+  const root = `${resolve(harness)}/`;
+  if (typeof json.keyFile !== 'string' || !resolve(json.keyFile).startsWith(root)) return 'the key file alerts.json names is not inside the harness directory';
+  const extra = Object.keys(json).filter((k) => k !== 'origins' && k !== 'keyFile');
+  if (extra.length > 0) return `alerts.json carries ${J(extra)} beside its two fields`;
+  return null;
+}
+
+/** One verdict: `ok` true, false, or null for UNREADABLE (exit 2, never a pass). */
+const verdict = (ok, said) => ({ ok, said });
+/** Problems first (a FAIL), then what could not be read (UNREADABLE), then the pass. */
+const decide = (problems, unreadable, green) =>
+  problems.length > 0 ? verdict(false, problems.join('; ')) : unreadable.length > 0 ? verdict(null, unreadable.join('; ')) : verdict(true, green);
+
+/** N1: the key, through the bridge. */
+function gradeKey(r) {
+  const p = [];
+  if (!r.bridge.ok) p.push(`pocket.choosePushKey() did not answer: ${String(r.bridge.error).slice(0, 160)}`);
+  else {
+    if (r.bridge.value?.kept !== true) p.push(`the key was not kept (${J(r.bridge.value)})`);
+    if (r.bridge.value?.refusal !== null) p.push(`the pick answered a refusal (${J(r.bridge.value?.refusal)})`);
+  }
+  if (r.statusKeyId !== KEY_ID) p.push(`pushKeyId reads ${J(r.statusKeyId)}, not ${KEY_ID}`);
+  if (r.sealed.length === 0) p.push('nothing is sealed under the profile\'s gmux/push');
+  for (const f of r.sealed) {
+    if (f.bytes.indexOf('PRIVATE KEY') !== -1 || f.bytes.indexOf(r.pemText) !== -1 || r.pemLines.some((line) => f.bytes.indexOf(line) !== -1)) p.push(`the sealed file ${f.name} holds the PEM or a line of it`);
+  }
+  return decide(p, [], `kept; pushKeyId ${KEY_ID}; ${String(r.sealed.length)} sealed file(s) under gmux/push, none holding the PEM or any of its ${String(r.pemLines.length)} lines`);
+}
+
+/** The exact line the Mac's sheet draws for a phone's alert address (pairing.ts, describePocketDoor). */
+const alertLineFor = (label, environment, token) => `Alerts for "${label}" go through Apple (${environment}), device ${deviceDigest(token)}`;
+const alertLines = (lines) => (lines ?? []).filter((l) => typeof l === 'string' && l.startsWith('Alerts for "'));
+
+/** D2+: the reader's production address, in the lines the Mac asked Allow over. */
+function gradeReaderLine(r) {
+  if (r.lines === null) return verdict(null, 'the sheet\'s lines were never read at the reader\'s Allow, so what they held is unknown');
+  const want = alertLineFor(r.label, 'production', r.token);
+  const got = alertLines(r.lines);
+  return decide(got.includes(want) ? [] : [`the lines hold ${J(got.map((l) => l.replace(/device [0-9a-f]{8}$/, 'device …')))}, and not the production line for the reader's token`], [], `the sheet's lines at Allow hold "Alerts for "${r.label}" go through Apple (production), device ${deviceDigest(r.token)}"`);
+}
+
+/** N2: alerts on and allowed: armed once, and nothing announced of a wait that began before. */
+function gradeArmed(r) {
+  if (!r.askWaiting) return verdict(null, 'D0\'s waiting session was not needs_input in main when alerts armed, so "not announced" says nothing');
+  const p = [];
+  if (!r.confirmed) p.push(`the door was not confirmed after alerts were turned on (${J(r.confirmWhy)})`);
+  if (r.pushAlerts !== true) p.push('pocket:status does not read pushAlerts on');
+  if (r.armedLines !== 1) p.push(`app.log holds ${String(r.armedLines)} "phone alerts armed" line(s), not one`);
+  if (r.requests !== 0) p.push(`the stand-in took ${String(r.requests)} request(s): a wait that began before alerts armed was announced`);
+  if (r.waitedMs < QUIET_AFTER_ARM_MS) p.push(`only ${String(r.waitedMs)} ms were waited, under the ${String(QUIET_AFTER_ARM_MS)} that outlast the engine's first coalesce`);
+  return decide(p, [], `armed once, confirmed through the sheet's own lines; D0's waiting session read needs_input and 0 requests reached the stand-in in ${String(r.waitedMs)} ms`);
+}
+
+/** The notification lines of one pairing drive. */
+function notificationEvents(events) {
+  return {
+    fingerprint: events.find((e) => e.step === 'fingerprint') ?? null,
+    asked: events.find((e) => e.step === 'notifications' && e.asked !== undefined) ?? null,
+    answered: events.find((e) => e.step === 'notifications' && e.answered !== undefined) ?? null
+  };
+}
+/** The first Mac pairing state sampled at or after `at`, or null. */
+const stateAtOrAfter = (samples, at) => samples.find((s) => s.at >= at)?.state ?? null;
+/**
+ * The most a P316 line can wait between the phone printing it and this
+ * process reading it: the file is tailed every 250 ms, and the stdout channel
+ * is at least as fast. A Mac state sampled more than this BEFORE a line was
+ * read was sampled before the line was printed.
+ */
+const LINE_LAG_MS = 1_000;
+/** When the Mac first read the phone as allowed, or null. */
+const firstAllowedAt = (samples) => samples.find((s) => s.state === 'allowed')?.at ?? null;
+/**
+ * Whether the Mac could send when a window opened (research 136): it held a
+ * key AND its alert switch was on, over fields a person confirmed (the Mac's
+ * own `alertsCanSend`, src/main/pocket/ipc.ts). Read from `pocket:status` as
+ * it stood.
+ */
+const macCanSend = (status) =>
+  status !== null && status !== undefined && status.pushAlerts === true && status.confirmState === 'confirmed' && typeof status.pushKeyId === 'string' && status.pushKeyId !== '';
+
+/**
+ * N0 (and the floor's pairing in F1+): the Mac could send, iOS asked after the
+ * fingerprint and before the Mac allowed the phone, the answer was allow, and
+ * the Mac held the phone's development address when Allow was pressed.
+ *
+ * RESEARCH 136 moved the SPEC's order. The phone is asked only when the Mac
+ * can send, and it learns that from the Mac's answer to its presentation, so
+ * the Mac may read `presented` when iOS asks; what must hold is that the
+ * question came before the Mac ALLOWED the phone, and that the address
+ * reached the Mac before Allow was pressed.
+ */
+function gradeAsked(r) {
+  if (r.canSend !== true) return verdict(null, 'the Mac could not send when this window opened (no key kept, or the alert switch off), so whether the phone was asked says nothing');
+  if (r.events.length === 0) return verdict(null, 'the UI test printed no P316 line');
+  const n = notificationEvents(r.events);
+  const p = [];
+  const u = [];
+  if (n.fingerprint === null) p.push('no fingerprint line');
+  if (n.asked === null) p.push('no notifications line: the UI test did not look for the question');
+  else if (n.asked.asked !== true) p.push('XCUITest saw no notification question in the 10 s after the fingerprint, although the Mac could send');
+  else {
+    if (n.fingerprint !== null && Number(n.asked.seq) <= Number(n.fingerprint.seq)) p.push('the question came before the fingerprint line');
+    // THE ORDER, in three answers. A `waiting` or `presented` sampled at or
+    // after the moment this process READ the question line was true after the
+    // phone printed it: proof the Mac had not allowed the phone. An `allowed`
+    // sampled more than the lines' lag BEFORE that moment was true before the
+    // line was printed: the phone was allowed first, a FAIL, because its
+    // address could no longer reach the Mac. Anything between is a reading
+    // that could not separate the two, never a pass.
+    const state = stateAtOrAfter(r.samples, n.asked.receivedAt);
+    const allowedAt = firstAllowedAt(r.samples);
+    if (state === 'waiting' || state === 'presented') {
+      /* proved */
+    } else if (allowedAt !== null && allowedAt < n.asked.receivedAt - LINE_LAG_MS) {
+      p.push(`the Mac's pairing read allowed ${String(n.asked.receivedAt - allowedAt)} ms before the question line was read: the phone was allowed before it asked`);
+    } else if (state === null) u.push('the Mac\'s pairing was not sampled after the question was read');
+    else u.push(`the Mac's pairing read ${J(state)} at the first sample after the question line was read, within the ${String(LINE_LAG_MS)} ms a line can lag, so the order could not be read`);
+  }
+  // The UI test says `answered: null` when it saw the question and found no
+  // button it could press: a reading it could not take, never a FAIL.
+  if (n.answered !== null && n.answered.answered === null) u.push('XCUITest saw iOS\'s question and found no Allow button to press');
+  else if (n.answered?.answered !== 'allow') p.push(`the question was answered ${J(n.answered?.answered ?? null)}, not allow`);
+  if (r.macLines === null) p.push('the Mac\'s lines were never read at Allow');
+  else if (!alertLines(r.macLines).includes(alertLineFor(r.label, 'development', r.token))) p.push(`the Mac's lines at Allow hold no development line for sha256(the seam token) (${String(alertLines(r.macLines).length)} alert line(s))`);
+  if (r.phoneRow === null) p.push('the Mac lists no new phone');
+  else if (r.phoneRow.alerts !== 'on') p.push(`the phone's row reads alerts ${J(r.phoneRow.alerts)}, not on`);
+  return decide(p, u, `the Mac could send; iOS asked after the fingerprint and before the Mac allowed the phone, answered allow; the Mac's lines at Allow hold "Alerts for "${String(r.label)}" go through Apple (development), device ${deviceDigest(r.token)}" and the row reads on`);
+}
+
+/**
+ * N11 (research 136): a phone pairing with a Mac that CANNOT send is never
+ * asked, presents no address although it was handed one, draws no `Pair again
+ * to get alerts.` on a relaunch with another token, and draws no word that
+ * names alerts anywhere in the run.
+ */
+function gradeNoSend(r) {
+  if (r.canSend !== false) return verdict(null, `the Mac ${r.canSend === true ? 'COULD send' : 'was not read'} when this window opened, so "never asked" says nothing`);
+  if (r.events.length === 0) return verdict(null, 'the UI test printed no P316 line');
+  const n = notificationEvents(r.events);
+  const p = [];
+  if (n.asked === null) p.push('no notifications line: the UI test did not look for the question');
+  else if (n.asked.asked !== false) p.push('iOS asked for notifications although the Mac cannot send');
+  if (n.answered !== null) p.push(`the UI test answered a question (${J(n.answered.answered)}) that must not have been asked`);
+  if (!r.allowed) p.push('the phone did not pair');
+  if (r.macLines === null) p.push('the Mac\'s lines were never read at Allow');
+  else {
+    if (alertLines(r.macLines).some((l) => l.endsWith(`device ${deviceDigest(r.token)}`))) p.push('the Mac holds an alert address for the seam token the phone was handed, which it was never asked to present');
+    if (alertLines(r.macLines).length !== r.alertLinesBefore) p.push(`the lines hold ${String(alertLines(r.macLines).length)} alert line(s), and held ${String(r.alertLinesBefore)} before this phone`);
+  }
+  if (r.phoneRow === null) p.push('the Mac lists no new phone');
+  else if (r.phoneRow.alerts !== 'none') p.push(`the phone's row reads alerts ${J(r.phoneRow.alerts)}, not none`);
+  const relaunch = lastDump(r.events, 'relaunch');
+  if (relaunch === null) p.push('no "relaunch" dump after a relaunch with another token');
+  else {
+    if (el(relaunch, 'screen-list') === null) p.push('the relaunch did not settle on the list');
+    if ((el(relaunch, 'list-alerts-line')?.label ?? '') !== '') p.push('the relaunch draws a line asking to pair again for alerts, from a Mac that cannot send');
+  }
+  const promised = r.events
+    .filter((e) => e.step === 'screen')
+    .flatMap((d) => (d.elements ?? []).filter((e) => typeof e.label === 'string' && r.alertWords.some((w) => e.label.includes(w))).map((e) => `${String(d.name)}/${String(e.id)}`));
+  if (promised.length > 0) p.push(`a word that names alerts is drawn at ${J(promised.slice(0, 4))}`);
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended the drive in state ${J(r.alive)}`);
+  return decide(p, [], `the Mac could not send (key kept, switch off); never asked, paired with no alert line and its row none although it was handed a seam token; a relaunch with another token draws no line; none of ${String(r.alertWords.length)} alert word(s) drawn`);
+}
+
+/** F1+: the floor phone was asked and allowed while the Mac could send, and the tap opens the session. */
+function gradeFloorTap(r) {
+  const asked = gradeAsked(r.pairing);
+  if (asked.ok !== true) return verdict(asked.ok, `the floor's pairing: ${asked.said}`);
+  const tap = gradeTap(r.tap);
+  return tap.ok === true ? verdict(true, `the floor phone was asked and allowed and its address reached the Mac; ${tap.said}`) : tap;
+}
+
+/** Whether a body is the single shape for `sessionId`. */
+function singleFor(bodyText, sessionId) {
+  try {
+    const b = JSON.parse(bodyText);
+    return b?.tortie?.v === 1 && b.tortie.session === sessionId && b?.aps?.['thread-id'] === sessionId && typeof b?.aps?.alert?.title === 'string';
+  } catch {
+    return false;
+  }
+}
+
+/** N3: one send per phone, each at its own environment's origin, signed, and byte for byte the composition. */
+function gradeSent(r) {
+  if (!r.mainBlocked) return verdict(null, `main never read ${N.alert} needs_input, so no alert was owed`);
+  const p = [];
+  const at = (origin) => r.requests.filter((x) => x.origin === origin);
+  const want = [
+    ['development', r.appToken, 'the app'],
+    ['production', r.readerToken, 'the reader']
+  ];
+  for (const [origin, token, who] of want) {
+    const hits = at(origin);
+    if (hits.length !== 1) {
+      p.push(`${String(hits.length)} request(s) at the ${origin} origin (${J(hits.map((x) => tokenName(x.token)))}), not one for ${who}`);
+      continue;
+    }
+    const rec = hits[0];
+    if (rec.token !== token) p.push(`the ${origin} origin was sent ${tokenName(rec.token)}'s token, not ${who}'s`);
+    if (rec.method !== 'POST') p.push(`the ${origin} request is ${J(rec.method)}`);
+    if (rec.status !== 200) p.push(`the ${origin} request was answered ${String(rec.status)} ${String(rec.reason ?? '')}`.trim());
+    if (rec.jwt?.verifies !== true) p.push(`the ${origin} request's provider token does not verify under the scratch public key`);
+    if (rec.headers?.['apns-topic'] !== r.topic) p.push(`the ${origin} request's apns-topic is ${J(rec.headers?.['apns-topic'])}`);
+    if (!singleFor(rec.body, r.sessionId)) p.push(`the ${origin} body is not the single shape for ${N.alert}`);
+    else if (r.composed !== null && rec.body !== r.composed) p.push(`the ${origin} body (${String(rec.bodyBytes)} bytes, sha ${shaHex(rec.body).slice(0, 12)}) is not this file's composition (${String(Buffer.byteLength(r.composed))} bytes, sha ${shaHex(r.composed).slice(0, 12)})`);
+  }
+  // No third clause for "more requests": the stand-in has two origins, so a
+  // request beside the two wanted ones moves a count above or is the lone
+  // request at its origin carrying the wrong token.
+  const unread = r.composed === null ? ['the reader could not read /v1/blocked at the block, so no composition to compare with'] : [];
+  return decide(p, unread, `one request at each origin, the app's at development and the reader's at production, both 200, signed under the scratch key, topic ${r.topic}, the single shape, byte for byte this file's composition (${String(Buffer.byteLength(r.composed ?? ''))} bytes)`);
+}
+
+/** How a session screen is titled: the navigation bar's identifier is its title, or a `session-title`. */
+const titledWith = (dump, name) => el(dump, 'session-title')?.label === name || (dump?.elements ?? []).some((e) => e.id === name);
+
+/** What must be true before a tap can be graded at all: delivered, and a banner seen. */
+function tapUnreadable(r) {
+  const u = [];
+  if (r.delivery === null) u.push('nothing was delivered for this step (no ready-for-alert, or nothing to deliver)');
+  else if (r.delivery.code !== 0) u.push(`the delivery answered ${String(r.delivery.code)}`);
+  if (r.banner === null) u.push('the UI test printed no banner line');
+  else if (r.banner.label === null) u.push('XCUITest found no banner from Tortie (SPEC §12 concern 1)');
+  return u;
+}
+
+/** N4, N5 and F1+: the tap opens the session the alert names. */
+function gradeTap(r) {
+  const u = tapUnreadable(r);
+  if (u.length > 0) return verdict(null, u.join('; '));
+  const p = [];
+  if (r.cold === true && r.ready?.cold !== true) p.push('the ready line does not say the app was terminated first');
+  if (r.dump === null) p.push('no screen was dumped after the tap');
+  else {
+    if (String(r.dump.name).endsWith('-missing')) p.push(`the UI test dumped ${J(r.dump.name)}: no session or list after the tap`);
+    if (el(r.dump, 'screen-session') === null) p.push(`the tap opened no session${el(r.dump, 'screen-list') !== null ? ' (the list is drawn)' : ''}`);
+    else if (el(r.dump, 'session-failure') !== null) p.push(`the session drew a failure${r.cold === true ? ' (a tap that launches the app carries none of the DEBUG launch arguments, so the door endpoint seam is absent unless the app keeps it)' : ''}`);
+    else if (!titledWith(r.dump, r.name)) p.push(`the session is not titled with the door's name for it (${String(r.name).length} characters)`);
+  }
+  return decide(p, [], `the banner tapped${r.cold === true ? ' with the app terminated' : ''}; the session opened, titled with the name the door holds for it`);
+}
+
+/**
+ * Where a gone-session tap must be made from, read from the last dump before
+ * its ready line (the 316.5 fix round): N6 from the list (`back`), N6b from
+ * another session's screen (`visit`). A tap over the very session it names
+ * changes nothing on screen, which is how N6 passed over a defect every other
+ * tap showed, so a tap not arranged as named is UNREADABLE, never a pass.
+ */
+const TAP_FROM = {
+  list: { name: 'back', holds: (d) => el(d, 'screen-list') !== null && el(d, 'screen-session') === null },
+  session: { name: 'visit', holds: (d) => el(d, 'screen-session') !== null }
+};
+
+/** N6 and N6b: a gone session draws the Mac's own sentence on the list. */
+function gradeGone(r) {
+  if (!r.gone404) return verdict(null, 'the door still answered for that session after End and Remove, so "gone" was not set up');
+  const from = TAP_FROM[r.from] ?? null;
+  if (from === null) return verdict(null, `no arrangement named ${J(r.from)}`);
+  if (r.before === null || r.before === undefined || r.before.name !== from.name || !from.holds(r.before)) {
+    return verdict(null, `the tap was not made from ${r.from === 'list' ? 'the list' : 'another session\'s screen'}: the screen before it was ${r.before?.name === undefined || r.before === null ? 'never dumped' : J(r.before.name)}`);
+  }
+  const u = tapUnreadable(r);
+  if (u.length > 0) return verdict(null, u.join('; '));
+  const p = [];
+  if (r.word === null) p.push('the Mac\'s NO_SUCH_SESSION could not be read from src/renderer/app/reach-copy.ts');
+  if (r.dump === null) p.push('no screen was dumped after the tap');
+  else {
+    if (el(r.dump, 'screen-list') === null) p.push('the list is not drawn');
+    if (el(r.dump, 'screen-session') !== null) p.push('a session screen is still drawn');
+    const notice = el(r.dump, 'list-notice')?.label ?? null;
+    if (r.word !== null && notice !== r.word) p.push(`the list's notice reads ${notice === null ? 'nothing' : `${String(notice.length)} characters that are not the Mac's sentence`}`);
+  }
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended the drive in state ${J(r.alive)}`);
+  return decide(p, [], `the door answered 404, the tap from ${r.from === 'list' ? 'the list' : 'another session\'s screen'} drew the list with the Mac's own sentence, and the app stayed up`);
+}
+
+/** N7: a count body and a hostile id each open the list, and say nothing. */
+function gradeListTaps(r) {
+  const u = r.taps.flatMap((t, i) => tapUnreadable(t).map((why) => `tap ${String(i + 1)}: ${why}`));
+  if (r.taps.length !== 2) u.push(`${String(r.taps.length)} list tap(s) were read, not two`);
+  const p = [];
+  r.taps.forEach((t, i) => {
+    if (tapUnreadable(t).length > 0) return;
+    if (t.dump === null) p.push(`tap ${String(i + 1)}: no screen dumped`);
+    else {
+      if (el(t.dump, 'screen-list') === null) p.push(`tap ${String(i + 1)}: the list is not drawn`);
+      if (el(t.dump, 'screen-session') !== null) p.push(`tap ${String(i + 1)}: a session screen opened`);
+      const notice = el(t.dump, 'list-notice')?.label ?? '';
+      if (notice !== '') p.push(`tap ${String(i + 1)}: the list carries a notice`);
+    }
+  });
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended the drive in state ${J(r.alive)}`);
+  return decide(p, u, 'the count body and the body naming ../x each opened the list with no notice, and the app stayed up');
+}
+
+/** N8: a changed address draws one line, the same address draws none. */
+function gradeRelaunch(r) {
+  const p = [];
+  const [changed, same] = r.dumps;
+  if (r.dumps.length !== 2) p.push(`${String(r.dumps.length)} "relaunch" dump(s), not two (the changed token, then the paired one)`);
+  if (changed !== undefined) {
+    if (el(changed, 'screen-list') === null) p.push('the relaunch with a changed token did not settle on the list');
+    const line = el(changed, 'list-alerts-line')?.label ?? null;
+    if (line !== PAIR_AGAIN) p.push(`with a changed token the list's alerts line reads ${line === null ? 'nothing' : J(line)}, not ${J(PAIR_AGAIN)}`);
+  }
+  if (same !== undefined) {
+    if (el(same, 'screen-list') === null) p.push('the relaunch with the paired token did not settle on the list');
+    if ((el(same, 'list-alerts-line')?.label ?? '') !== '') p.push('with the token it paired with, the list still says to pair again');
+  }
+  return decide(p, [], `a changed token draws "${PAIR_AGAIN}" under the title, and the token it paired with draws nothing`);
+}
+
+/** N9: alerts off disarms once, and a new wait sends nothing. */
+function gradeOff(r) {
+  if (!r.armedAtStart) return verdict(null, `app.log did not read alerts armed when N9 began (${String(r.armedBefore)} armed, ${String(r.disarmedBefore)} disarmed line(s)), so a disarm says nothing`);
+  if (!r.mainBlocked) return verdict(null, `main never read ${N.quiet} needs_input, so "nothing sent" says nothing`);
+  const p = [];
+  if (r.pushAlerts !== false) p.push('pocket:status still reads pushAlerts on');
+  if (r.disarmed !== 1) p.push(`app.log gained ${String(r.disarmed)} "phone alerts disarmed" line(s), not one`);
+  if (r.requests !== 0) p.push(`the stand-in took ${String(r.requests)} request(s) with alerts off`);
+  if (r.waitedMs < QUIET_AFTER_OFF_MS) p.push(`only ${String(r.waitedMs)} ms were waited, under ${String(QUIET_AFTER_OFF_MS)}`);
+  return decide(p, [], `disarmed once; ${N.quiet} read needs_input in main and 0 requests reached the stand-in in ${String(r.waitedMs)} ms`);
+}
+
+/** ND: denied, it pairs with no address and works, and a body shows nothing. */
+function gradeDeny(r) {
+  // Research 136: a phone is asked only when the Mac can send, so a denial
+  // can only be read from a pairing with a Mac that could.
+  if (r.canSend !== true) return verdict(null, 'the Mac could not send when this window opened, so the phone could not be asked and there was nothing to deny');
+  if (r.events.length === 0) return verdict(null, 'the UI test printed no P316 line');
+  const n = notificationEvents(r.events);
+  const p = [];
+  const u = [];
+  if (n.asked?.asked !== true) p.push('XCUITest saw no notification question to deny');
+  if (n.answered !== null && n.answered.answered === null) u.push('XCUITest saw iOS\'s question and found no Don\u2019t Allow button to press');
+  else if (n.answered?.answered !== 'deny') p.push(`the question was answered ${J(n.answered?.answered ?? null)}, not deny`);
+  if (!r.allowed) p.push('the phone did not pair');
+  if (r.macLines === null) p.push('the Mac\'s lines were never read at Allow');
+  else {
+    if (alertLines(r.macLines).some((l) => l.endsWith(`device ${deviceDigest(r.token)}`))) p.push('the Mac holds an alert address for the seam token the phone was handed although it denied');
+    if (alertLines(r.macLines).length !== r.alertLinesBefore) p.push(`the lines hold ${String(alertLines(r.macLines).length)} alert line(s), and held ${String(r.alertLinesBefore)} before this phone`);
+  }
+  if (r.phoneRow === null) p.push('the Mac lists no new phone');
+  else if (r.phoneRow.alerts !== 'none') p.push(`the phone's row reads alerts ${J(r.phoneRow.alerts)}, not none`);
+  for (const [name, screen] of [['list', 'screen-list'], ['session', 'screen-session'], ['conversation', 'screen-conversation']]) {
+    if (el(lastDump(r.events, name), screen) === null) p.push(`the ${name} was not drawn`);
+  }
+  if (r.delivery === null || r.delivery.code !== 0) u.push(`the body was ${r.delivery === null ? 'never delivered' : `delivered with code ${String(r.delivery.code)}`}, so "no banner" says nothing`);
+  const banner = r.events.find((e) => e.step === 'banner') ?? null;
+  if (banner === null) u.push('the UI test printed no banner line');
+  else if (banner.label !== null) p.push('a banner from Tortie was shown to a phone that denied notifications');
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended the drive in state ${J(r.alive)}`);
+  return decide(p, u, 'denied, paired with no alert line and its row none although it was handed a seam token; the list, a session and its conversation drawn; no banner in 20 s; alive');
+}
+
+/** N10: nothing of an alert in app.log, and nothing in what the app printed. */
+function gradeLog(r) {
+  if (r.log === null || r.log === '') return verdict(null, 'app.log could not be read');
+  const p = [];
+  for (const [what, needle] of r.needles) {
+    if (typeof needle !== 'string' || needle.length < 12) continue;
+    if (r.log.includes(needle)) p.push(`app.log holds ${what}`);
+    if (r.printed.includes(needle)) p.push(`the app printed ${what}`);
+  }
+  const counted = r.needles.filter(([, n]) => typeof n === 'string' && n.length >= 12).length;
+  return decide(p, counted === 0 ? ['there was nothing to look for'] : [], `app.log (${String(r.log.length)} characters) and the app's output hold none of ${String(counted)} tokens, provider tokens, key lines and alert bodies`);
+}
+
+/**
+ * Each delivery, with the banner line and the first dump the UI test printed
+ * after its ready line and before the next ready line. Deliveries are in the
+ * order their ready lines were read; nothing here trusts a name the phone
+ * chose for a step.
+ */
+function tapReadings(events, deliveries) {
+  const readies = events.filter((e) => e.step === 'ready-for-alert').map((e) => Number(e.seq)).sort((a, b) => a - b);
+  return deliveries.map((d) => {
+    const next = readies.find((s) => s > d.readySeq) ?? Number.POSITIVE_INFINITY;
+    const inside = (e) => Number(e.seq) > d.readySeq && Number(e.seq) < next;
+    // Where the tap was made from: the last screen dumped before its ready line.
+    const earlier = events.filter((e) => e.step === 'screen' && Number(e.seq) < d.readySeq).sort((a, b) => Number(a.seq) - Number(b.seq));
+    return {
+      arm: d.arm,
+      delivery: d.code === null ? null : { code: d.code },
+      ready: events.find((e) => e.step === 'ready-for-alert' && Number(e.seq) === d.readySeq) ?? null,
+      banner: events.find((e) => e.step === 'banner' && inside(e)) ?? null,
+      dump: events.find((e) => e.step === 'screen' && inside(e)) ?? null,
+      before: earlier.at(-1) ?? null
+    };
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 316.5: every grader above, proved on fixtures. Launches nothing.
+// ---------------------------------------------------------------------------
+
+/**
+ * Each case is ONE honest reading or ONE clause of it broken, and says what
+ * the grader must answer: true (pass), false (FAIL) or null (UNREADABLE). A
+ * break answered green is a clause nothing holds; a precondition answered
+ * anything but UNREADABLE is a pass or a fail the run did not earn.
+ */
+function alertsSelfTest() {
+  const tok = { reader: 'a'.repeat(64), app: 'b'.repeat(64), floor: 'c'.repeat(64), deny: 'd'.repeat(64) };
+  const pemLine = 'MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgSELFTEST';
+  const pemText = `-----BEGIN PRIVATE KEY-----\n${pemLine}\n-----END PRIVATE KEY-----\n`;
+  const row = { sessionId: 's1', name: 'p316-alert', statusLabel: 'needs input', project: 'project', agentLabel: 'Claude Code', machine: null };
+  const single = composeSingleAlert(row, 2);
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+
+  // The composer, against the pinned bytes of SPEC §5.4.
+  cases.push({ what: 'composer: the single shape, byte for byte', got: () => single === '{"aps":{"alert":{"title":"p316-alert needs input","body":"project · Claude Code"},"badge":2,"sound":"default","thread-id":"s1"},"tortie":{"v":1,"session":"s1"}}', want: true });
+  cases.push({ what: 'composer: the single shape with a machine', got: () => JSON.parse(composeSingleAlert({ ...row, machine: 'Mac Pro' }, 1)).aps.alert.body === 'project · Claude Code · Mac Pro', want: true });
+  cases.push({ what: 'composer: the count shape, byte for byte', got: () => MAC.needsYourInput === null || composeCountAlert(['a', 'b'], 2) === `{"aps":{"alert":{"title":"${MAC.needsYourInput} (2)","body":"a · b"},"badge":2,"sound":"default","thread-id":"tortie-waiting"},"tortie":{"v":1}}`, want: true });
+  cases.push({ what: 'composer: a body over 4096 bytes is refused, never sent', got: () => composeSingleAlert({ ...row, name: 'x'.repeat(5_000) }, 1) === null, want: true });
+
+  // The preflight of the Mac's override.
+  const harness = '/private/tmp/p316-selftest/harness';
+  const honestOverride = { origins: { development: 'http://127.0.0.1:50001', production: 'http://127.0.0.1:50002' }, keyFile: `${harness}/alerts/AuthKey_${KEY_ID}.p8` };
+  const pre = (what, json, want) => cases.push({ what: `preflight: ${what}`, got: () => alertsOverrideRefusal(json, harness) === null, want });
+  pre('the honest override', honestOverride, true);
+  pre('JSON null', null, false);
+  pre('origins null', edit(honestOverride, (o) => (o.origins = null)), false);
+  pre('a name, not an address', edit(honestOverride, (o) => (o.origins.production = 'http://localhost:50002')), false);
+  pre('https', edit(honestOverride, (o) => (o.origins.development = 'https://127.0.0.1:50001')), false);
+  pre('another address', edit(honestOverride, (o) => (o.origins.production = 'http://10.0.0.1:50002')), false);
+  pre('Apple\'s host', edit(honestOverride, (o) => (o.origins.production = 'https://api.push.apple.com:443')), false);
+  pre('port 0', edit(honestOverride, (o) => (o.origins.development = 'http://127.0.0.1:0')), false);
+  pre('one environment only', edit(honestOverride, (o) => delete o.origins.production), false);
+  pre('the key outside the harness', edit(honestOverride, (o) => (o.keyFile = '/Users/someone/Keys/AuthKey_ABCDEFGHIJ.p8')), false);
+  pre('the key beside the harness by prefix', edit(honestOverride, (o) => (o.keyFile = `${harness}-x/AuthKey_${KEY_ID}.p8`)), false);
+  pre('a third field', edit(honestOverride, (o) => (o.allowRemote = true)), false);
+
+  // N1
+  const key = { bridge: { ok: true, value: { kept: true, refusal: null } }, statusKeyId: KEY_ID, sealed: [{ name: 'apns-provider.cred', bytes: Buffer.from('sealed-bytes-that-are-not-the-key') }], pemText, pemLines: [pemLine] };
+  add('N1 honest', gradeKey, key, true);
+  add('N1 the bridge has no choosePushKey', gradeKey, { ...key, bridge: { ok: false, error: 'not a function' } }, false);
+  add('N1 not kept', gradeKey, edit(key, (k) => (k.bridge.value.kept = false)), false);
+  add('N1 a refusal', gradeKey, edit(key, (k) => (k.bridge.value.refusal = 'no')), false);
+  add('N1 pushKeyId null', gradeKey, { ...key, statusKeyId: null }, false);
+  add('N1 nothing sealed', gradeKey, { ...key, sealed: [] }, false);
+  add('N1 the sealed file holds a PEM line', gradeKey, { ...key, sealed: [{ name: 'x', bytes: Buffer.from(`xx${pemLine}xx`) }] }, false);
+
+  // D2+
+  const readerLine = { lines: ['Allows no phone yet', alertLineFor('p316 reader', 'production', tok.reader)], label: 'p316 reader', token: tok.reader };
+  add('D2+ honest', gradeReaderLine, readerLine, true);
+  add('D2+ development, not production', gradeReaderLine, { ...readerLine, lines: [alertLineFor('p316 reader', 'development', tok.reader)] }, false);
+  add('D2+ another token\'s digest', gradeReaderLine, { ...readerLine, lines: [alertLineFor('p316 reader', 'production', tok.app)] }, false);
+  add('D2+ no line', gradeReaderLine, { ...readerLine, lines: ['Allows no phone yet'] }, false);
+  add('D2+ lines never read (UNREADABLE)', gradeReaderLine, { ...readerLine, lines: null }, null);
+
+  // N2
+  const armedR = { askWaiting: true, confirmed: true, confirmWhy: '', pushAlerts: true, armedLines: 1, requests: 0, waitedMs: QUIET_AFTER_ARM_MS };
+  add('N2 honest', gradeArmed, armedR, true);
+  add('N2 main never read the wait (UNREADABLE)', gradeArmed, { ...armedR, askWaiting: false }, null);
+  add('N2 not confirmed', gradeArmed, { ...armedR, confirmed: false }, false);
+  add('N2 pushAlerts off', gradeArmed, { ...armedR, pushAlerts: false }, false);
+  add('N2 never armed', gradeArmed, { ...armedR, armedLines: 0 }, false);
+  add('N2 armed twice', gradeArmed, { ...armedR, armedLines: 2 }, false);
+  add('N2 the old wait announced', gradeArmed, { ...armedR, requests: 1 }, false);
+  add('N2 too short a wait', gradeArmed, { ...armedR, waitedMs: 3_000 }, false);
+
+  // N0
+  const askedEvents = [
+    { step: 'fingerprint', text: 'ab12', seq: 1, receivedAt: 900 },
+    { step: 'notifications', asked: true, title: 'x', buttons: ['Allow'], seq: 2, receivedAt: 1_000 },
+    { step: 'notifications', answered: 'allow', seq: 3, receivedAt: 1_400 }
+  ];
+  const asked = { canSend: true, events: askedEvents, samples: [{ at: 950, state: 'waiting' }, { at: 1_050, state: 'waiting' }, { at: 1_600, state: 'presented' }], macLines: [alertLineFor('iPhone', 'development', tok.app)], label: 'iPhone', token: tok.app, phoneRow: { alerts: 'on' } };
+  add('N0 honest', gradeAsked, asked, true);
+  // Research 136: the phone learns the Mac can send from the Mac's answer to
+  // its presentation, so a question while the Mac reads presented is honest.
+  add('N0 honest, asked after the Mac\'s first answer (research 136)', gradeAsked, { ...asked, samples: [{ at: -2_000, state: 'waiting' }, { at: -1_500, state: 'presented' }, { at: 1_050, state: 'presented' }, { at: 1_600, state: 'allowed' }] }, true);
+  add('N0 the Mac could not send (UNREADABLE)', gradeAsked, { ...asked, canSend: false }, null);
+  add('N0 no line at all (UNREADABLE)', gradeAsked, { ...asked, events: [] }, null);
+  add('N0 no sample after the question (UNREADABLE)', gradeAsked, { ...asked, samples: [{ at: 950, state: 'waiting' }] }, null);
+  add('N0 no question seen', gradeAsked, edit(asked, (a) => { a.events[1].asked = false; }), false);
+  add('N0 no notifications line', gradeAsked, { ...asked, events: [askedEvents[0]] }, false);
+  add('N0 an answer with no question line before it', gradeAsked, { ...asked, events: [askedEvents[0], askedEvents[2]] }, false);
+  add('N0 no fingerprint line', gradeAsked, { ...asked, events: askedEvents.slice(1) }, false);
+  add('N0 the Mac\'s lines never read', gradeAsked, { ...asked, macLines: null }, false);
+  add('N0 asked before the fingerprint', gradeAsked, edit(asked, (a) => { a.events[0].seq = 5; }), false);
+  add('N0 allowed long before the question line was read', gradeAsked, { ...asked, samples: [{ at: -2_000, state: 'presented' }, { at: -1_500, state: 'allowed' }, { at: 1_050, state: 'allowed' }] }, false);
+  add('N0 allowed within the line lag (UNREADABLE)', gradeAsked, { ...asked, samples: [{ at: 500, state: 'allowed' }, { at: 1_050, state: 'allowed' }] }, null);
+  add('N0 answered deny', gradeAsked, edit(asked, (a) => { a.events[2].answered = 'deny'; }), false);
+  add('N0 no button to press (UNREADABLE)', gradeAsked, edit(asked, (a) => { a.events[2].answered = null; }), null);
+  add('N0 production, not development', gradeAsked, { ...asked, macLines: [alertLineFor('iPhone', 'production', tok.app)] }, false);
+  add('N0 no alert line', gradeAsked, { ...asked, macLines: [] }, false);
+  add('N0 the row reads none', gradeAsked, { ...asked, phoneRow: { alerts: 'none' } }, false);
+  add('N0 no new phone', gradeAsked, { ...asked, phoneRow: null }, false);
+
+  // N3
+  const rec = (origin, token, body) => ({ origin, token, method: 'POST', status: 200, reason: null, jwt: { verifies: true }, headers: { 'apns-topic': TOPIC }, body, bodyBytes: Buffer.byteLength(body) });
+  const sent = { mainBlocked: true, sessionId: 's1', composed: single, requests: [rec('development', tok.app, single), rec('production', tok.reader, single)], appToken: tok.app, readerToken: tok.reader, topic: TOPIC };
+  const count = composeCountAlert(['p316-alert'], 2) ?? '{"aps":{"badge":2}}';
+  add('N3 honest', gradeSent, sent, true);
+  add('N3 main never read the block (UNREADABLE)', gradeSent, { ...sent, mainBlocked: false }, null);
+  add('N3 no composition (UNREADABLE)', gradeSent, { ...sent, composed: null }, null);
+  add('N3 nothing at development', gradeSent, { ...sent, requests: [sent.requests[1]] }, false);
+  add('N3 two at development', gradeSent, { ...sent, requests: [...sent.requests, rec('development', tok.app, single)] }, false);
+  add('N3 each token at the other origin', gradeSent, { ...sent, requests: [rec('development', tok.reader, single), rec('production', tok.app, single)] }, false);
+  add('N3 a 400', gradeSent, edit(sent, (s) => { s.requests[0].status = 400; }), false);
+  add('N3 a provider token that does not verify', gradeSent, edit(sent, (s) => { s.requests[1].jwt.verifies = false; }), false);
+  add('N3 another topic', gradeSent, edit(sent, (s) => { s.requests[0].headers['apns-topic'] = 'com.example.other'; }), false);
+  add('N3 not POST', gradeSent, edit(sent, (s) => { s.requests[0].method = 'GET'; }), false);
+  add('N3 the count shape', gradeSent, { ...sent, requests: [rec('development', tok.app, count), rec('production', tok.reader, count)] }, false);
+  add('N3 one character off the composition', gradeSent, { ...sent, requests: [rec('development', tok.app, single.replace('needs input', 'needs inpu!')), sent.requests[1]] }, false);
+  add('N3 a third request', gradeSent, { ...sent, requests: [...sent.requests, rec('development', tok.floor, single)] }, false);
+
+  // N4, N5, F1+
+  const sessionDump = { step: 'screen', name: 'alert', elements: [{ id: 'screen-session', label: '' }, { id: 'p316-alert', label: 'p316-alert' }] };
+  const tap = { delivery: { code: 0 }, banner: { step: 'banner', label: 'Tortie, p316-alert needs input' }, dump: sessionDump, name: 'p316-alert', cold: false, ready: { step: 'ready-for-alert' } };
+  add('N4 honest', gradeTap, tap, true);
+  add('N4 nothing delivered (UNREADABLE)', gradeTap, { ...tap, delivery: null }, null);
+  add('N4 the delivery failed (UNREADABLE)', gradeTap, { ...tap, delivery: { code: 1 } }, null);
+  add('N4 no banner line (UNREADABLE)', gradeTap, { ...tap, banner: null }, null);
+  add('N4 no banner found (UNREADABLE)', gradeTap, { ...tap, banner: { step: 'banner', label: null } }, null);
+  add('N4 no dump', gradeTap, { ...tap, dump: null }, false);
+  add('N4 a missing dump', gradeTap, { ...tap, dump: { ...sessionDump, name: 'alert-missing', elements: [] } }, false);
+  add('N4 a dump named missing over a drawn session', gradeTap, { ...tap, dump: { ...sessionDump, name: 'alert-missing' } }, false);
+  add('N4 the list, a row named alike', gradeTap, { ...tap, dump: { ...sessionDump, elements: [{ id: 'screen-list', label: '' }, { id: 'row-name-s1', label: 'p316-alert' }] } }, false);
+  add('N4 a session titled otherwise', gradeTap, { ...tap, dump: { ...sessionDump, elements: [{ id: 'screen-session', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] } }, false);
+  add('N4 a session whose name is only a label', gradeTap, { ...tap, dump: { ...sessionDump, elements: [{ id: 'screen-session', label: '' }, { id: 'session-agent', label: 'p316-alert' }] } }, false);
+  add('N4 a session failure', gradeTap, { ...tap, dump: { ...sessionDump, elements: [...sessionDump.elements, { id: 'session-failure', label: 'x' }] } }, false);
+  add('N5 honest cold', gradeTap, { ...tap, cold: true, ready: { step: 'ready-for-alert', cold: true } }, true);
+  add('N5 the app was not terminated', gradeTap, { ...tap, cold: true, ready: { step: 'ready-for-alert' } }, false);
+  add('N5 a cold launch that could not reach the door', gradeTap, { ...tap, cold: true, ready: { step: 'ready-for-alert', cold: true }, dump: { ...sessionDump, elements: [...sessionDump.elements, { id: 'session-failure', label: 'x' }] } }, false);
+  const floor = { pairing: { ...asked, token: tok.floor, macLines: [alertLineFor('iPhone', 'development', tok.floor)] }, tap: { ...tap, name: 'p316-talk', dump: { ...sessionDump, elements: [{ id: 'screen-session', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] } } };
+  add('F1+ honest on the floor', gradeFloorTap, floor, true);
+  add('F1+ the tap opened the list', gradeFloorTap, edit(floor, (f) => { f.tap.dump.elements = [{ id: 'screen-list', label: '' }]; }), false);
+  add('F1+ the Mac could not send (UNREADABLE)', gradeFloorTap, edit(floor, (f) => { f.pairing.canSend = false; }), null);
+  add('F1+ the floor phone never asked', gradeFloorTap, edit(floor, (f) => { f.pairing.events[1].asked = false; }), false);
+  add('F1+ the floor phone\'s address never reached the Mac', gradeFloorTap, edit(floor, (f) => { f.pairing.macLines = []; }), false);
+  add('F1+ no banner found (UNREADABLE)', gradeFloorTap, edit(floor, (f) => { f.tap.banner = { step: 'banner', label: null }; }), null);
+
+  // N6
+  const word = MAC.noSuchSession ?? 'the Mac word';
+  const fromList = { step: 'screen', name: 'back', elements: [{ id: 'screen-list', label: '' }] };
+  const fromOther = { step: 'screen', name: 'visit', elements: [{ id: 'screen-session', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] };
+  const gone = { ...tap, gone404: true, word, alive: RUNNING_FOREGROUND, from: 'list', before: fromList, dump: { step: 'screen', name: 'alert-gone', elements: [{ id: 'screen-list', label: '' }, { id: 'list-notice', label: word }] } };
+  add('N6 honest', gradeGone, gone, true);
+  add('N6 tapped over the session it names (UNREADABLE)', gradeGone, { ...gone, before: { ...sessionDump, name: 'alert-cold' } }, null);
+  add('N6 a session screen dumped as back (UNREADABLE)', gradeGone, { ...gone, before: { ...fromList, elements: [{ id: 'screen-session', label: '' }] } }, null);
+  add('N6 nothing dumped before the tap (UNREADABLE)', gradeGone, { ...gone, before: null }, null);
+  add('N6 no arrangement named (UNREADABLE)', gradeGone, { ...gone, from: undefined }, null);
+  add('N6b honest, from another session', gradeGone, { ...gone, from: 'session', before: fromOther }, true);
+  add('N6b from the list (UNREADABLE)', gradeGone, { ...gone, from: 'session', before: fromList }, null);
+  add('N6b no notice', gradeGone, { ...gone, from: 'session', before: fromOther, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }] } }, false);
+  add('N6 the door still knew the session (UNREADABLE)', gradeGone, { ...gone, gone404: false }, null);
+  add('N6 no banner found (UNREADABLE)', gradeGone, { ...gone, banner: { step: 'banner', label: null } }, null);
+  add('N6 no notice', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }] } }, false);
+  add('N6 a notice in other words', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }, { id: 'list-notice', label: 'That session is gone.' }] } }, false);
+  add('N6 a session still drawn', gradeGone, { ...gone, dump: { ...gone.dump, elements: [...gone.dump.elements, { id: 'screen-session', label: '' }] } }, false);
+  add('N6 no list', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'list-notice', label: word }] } }, false);
+  add('N6 no dump', gradeGone, { ...gone, dump: null }, false);
+  add('N6 the app is gone', gradeGone, { ...gone, alive: 1 }, false);
+  add('N6 the Mac\'s word unread', gradeGone, { ...gone, word: null }, false);
+
+  // N7
+  const listDump = { step: 'screen', name: 'alert-list', elements: [{ id: 'screen-list', label: '' }] };
+  const listTaps = { taps: [{ ...tap, dump: listDump }, { ...tap, dump: listDump }], alive: RUNNING_FOREGROUND };
+  add('N7 honest', gradeListTaps, listTaps, true);
+  add('N7 one tap read (UNREADABLE)', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0]] }, null);
+  add('N7 no banner on either (UNREADABLE)', gradeListTaps, { ...listTaps, taps: listTaps.taps.map((t) => ({ ...t, banner: { step: 'banner', label: null } })) }, null);
+  add('N7 a notice', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [...listDump.elements, { id: 'list-notice', label: word }] } }] }, false);
+  add('N7 ../x opened a session', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: sessionDump }] }, false);
+  add('N7 a session screen drawn over the list', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [...listDump.elements, { id: 'screen-session', label: '' }] } }] }, false);
+  add('N7 the app is gone', gradeListTaps, { ...listTaps, alive: 1 }, false);
+  add('N7 no dump after a tap', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: null }] }, false);
+  add('N7 no list drawn', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [] } }] }, false);
+
+  // N8
+  const relaunch = { dumps: [{ step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }, { id: 'list-alerts-line', label: PAIR_AGAIN }] }, { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }] }] };
+  add('N8 honest', gradeRelaunch, relaunch, true);
+  add('N8 no line for a changed token', gradeRelaunch, { dumps: [relaunch.dumps[1], relaunch.dumps[1]] }, false);
+  add('N8 the line without its full stop', gradeRelaunch, { dumps: [edit(relaunch.dumps[0], (d) => { d.elements[1].label = 'Pair again to get alerts'; }), relaunch.dumps[1]] }, false);
+  add('N8 a line for the same token', gradeRelaunch, { dumps: [relaunch.dumps[0], relaunch.dumps[0]] }, false);
+  add('N8 no second relaunch', gradeRelaunch, { dumps: [relaunch.dumps[0]] }, false);
+  add('N8 not on the list', gradeRelaunch, { dumps: [{ ...relaunch.dumps[0], elements: [{ id: 'list-alerts-line', label: PAIR_AGAIN }] }, relaunch.dumps[1]] }, false);
+  add('N8 the control not on the list', gradeRelaunch, { dumps: [relaunch.dumps[0], { ...relaunch.dumps[1], elements: [] }] }, false);
+  add('N8 no relaunch at all', gradeRelaunch, { dumps: [] }, false);
+
+  // N9
+  const off = { armedAtStart: true, armedBefore: 2, disarmedBefore: 1, mainBlocked: true, pushAlerts: false, disarmed: 1, requests: 0, waitedMs: QUIET_AFTER_OFF_MS };
+  add('N9 honest', gradeOff, off, true);
+  add('N9 not armed when it began (UNREADABLE)', gradeOff, { ...off, armedAtStart: false }, null);
+  add('N9 main never read the wait (UNREADABLE)', gradeOff, { ...off, mainBlocked: false }, null);
+  add('N9 still on', gradeOff, { ...off, pushAlerts: true }, false);
+  add('N9 never disarmed', gradeOff, { ...off, disarmed: 0 }, false);
+  add('N9 disarmed twice', gradeOff, { ...off, disarmed: 2 }, false);
+  add('N9 a request with alerts off', gradeOff, { ...off, requests: 1 }, false);
+  add('N9 too short a wait', gradeOff, { ...off, waitedMs: 5_000 }, false);
+
+  // ND
+  const denyEvents = [
+    { step: 'fingerprint', text: 'ab', seq: 1 },
+    { step: 'notifications', asked: true, seq: 2 },
+    { step: 'notifications', answered: 'deny', seq: 3 },
+    { step: 'screen', name: 'list', elements: [{ id: 'screen-list', label: '' }], seq: 4 },
+    { step: 'screen', name: 'session', elements: [{ id: 'screen-session', label: '' }], seq: 5 },
+    { step: 'screen', name: 'conversation', elements: [{ id: 'screen-conversation', label: '' }], seq: 6 },
+    { step: 'ready-for-alert', seq: 7 },
+    { step: 'banner', label: null, seq: 8 }
+  ];
+  const deny = { canSend: true, events: denyEvents, allowed: true, macLines: [alertLineFor('p316 reader', 'production', tok.reader)], alertLinesBefore: 1, token: tok.deny, phoneRow: { alerts: 'none' }, delivery: { code: 0 }, alive: RUNNING_FOREGROUND };
+  add('ND honest', gradeDeny, deny, true);
+  add('ND the Mac could not send (UNREADABLE)', gradeDeny, { ...deny, canSend: false }, null);
+  add('ND no line at all (UNREADABLE)', gradeDeny, { ...deny, events: [] }, null);
+  add('ND never delivered (UNREADABLE)', gradeDeny, { ...deny, delivery: null }, null);
+  add('ND no banner line (UNREADABLE)', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.step !== 'banner') }, null);
+  add('ND answered allow', gradeDeny, edit(deny, (d) => { d.events[2].answered = 'allow'; }), false);
+  add('ND no button to press (UNREADABLE)', gradeDeny, edit(deny, (d) => { d.events[2].answered = null; }), null);
+  add('ND not asked', gradeDeny, edit(deny, (d) => { d.events[1].asked = false; }), false);
+  add('ND not paired', gradeDeny, { ...deny, allowed: false }, false);
+  // The count held equal, so only the seam-token clause can say it.
+  add('ND the seam token reached the Mac', gradeDeny, { ...deny, macLines: [...deny.macLines, alertLineFor('iPhone', 'development', tok.deny)], alertLinesBefore: 2 }, false);
+  add('ND an alert line gained', gradeDeny, { ...deny, macLines: [...deny.macLines, alertLineFor('iPhone', 'development', tok.floor)] }, false);
+  add('ND the row reads on', gradeDeny, { ...deny, phoneRow: { alerts: 'on' } }, false);
+  add('ND no new phone', gradeDeny, { ...deny, phoneRow: null }, false);
+  add('ND the Mac\'s lines never read', gradeDeny, { ...deny, macLines: null }, false);
+  add('ND no list drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'list') }, false);
+  add('ND no conversation drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'conversation') }, false);
+  add('ND delivered with a failure (UNREADABLE)', gradeDeny, { ...deny, delivery: { code: 1 } }, null);
+  add('ND a banner shown', gradeDeny, edit(deny, (d) => { d.events[7].label = 'Tortie'; }), false);
+  add('ND no session drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'session') }, false);
+  add('ND the app is gone', gradeDeny, { ...deny, alive: 1 }, false);
+
+  // N11 (research 136): a Mac that cannot send, and a phone never asked.
+  const noSendEvents = [
+    { step: 'fingerprint', text: 'ab', seq: 1 },
+    { step: 'notifications', asked: false, seq: 2 },
+    { step: 'screen', name: 'list', elements: [{ id: 'screen-list', label: '' }, { id: 'row-name-s1', label: 'p316-ask' }], seq: 3 },
+    { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }], seq: 4 }
+  ];
+  const noSend = { canSend: false, events: noSendEvents, allowed: true, macLines: [alertLineFor('p316 reader', 'production', tok.reader)], alertLinesBefore: 1, token: tok.deny, phoneRow: { alerts: 'none' }, alive: RUNNING_FOREGROUND, alertWords: [PAIR_AGAIN] };
+  add('N11 honest', gradeNoSend, noSend, true);
+  add('N11 the Mac could send (UNREADABLE)', gradeNoSend, { ...noSend, canSend: true }, null);
+  add('N11 the Mac was not read (UNREADABLE)', gradeNoSend, { ...noSend, canSend: null }, null);
+  add('N11 no line at all (UNREADABLE)', gradeNoSend, { ...noSend, events: [] }, null);
+  add('N11 asked although the Mac cannot send', gradeNoSend, edit(noSend, (n) => { n.events[1].asked = true; }), false);
+  add('N11 no notifications line', gradeNoSend, { ...noSend, events: noSendEvents.filter((e) => e.step !== 'notifications') }, false);
+  add('N11 a question answered', gradeNoSend, { ...noSend, events: [...noSendEvents, { step: 'notifications', answered: 'allow', seq: 5 }] }, false);
+  add('N11 not paired', gradeNoSend, { ...noSend, allowed: false }, false);
+  add('N11 the Mac\'s lines never read', gradeNoSend, { ...noSend, macLines: null }, false);
+  // The count held equal, so only the seam-token clause can say it.
+  add('N11 the seam token reached the Mac', gradeNoSend, { ...noSend, macLines: [...noSend.macLines, alertLineFor('iPhone', 'development', tok.deny)], alertLinesBefore: 2 }, false);
+  add('N11 an alert line gained', gradeNoSend, { ...noSend, macLines: [...noSend.macLines, alertLineFor('iPhone', 'development', tok.floor)] }, false);
+  add('N11 no new phone', gradeNoSend, { ...noSend, phoneRow: null }, false);
+  add('N11 the row reads on', gradeNoSend, { ...noSend, phoneRow: { alerts: 'on' } }, false);
+  add('N11 no relaunch', gradeNoSend, { ...noSend, events: noSendEvents.filter((e) => e.name !== 'relaunch') }, false);
+  add('N11 the relaunch not on the list', gradeNoSend, edit(noSend, (n) => { n.events[3].elements = []; }), false);
+  add('N11 the relaunch asks to pair again', gradeNoSend, edit(noSend, (n) => { n.events[3].elements.push({ id: 'list-alerts-line', label: 'x' }); }), false);
+  add('N11 an alert word drawn elsewhere', gradeNoSend, edit(noSend, (n) => { n.events[2].elements.push({ id: 'list-title-note', label: `Sessions. ${PAIR_AGAIN}` }); }), false);
+  add('N11 the app is gone', gradeNoSend, { ...noSend, alive: 1 }, false);
+
+  // N10
+  const log = { log: '2026-09-30 info [push] phone alerts armed\n', printed: '', needles: [['a device token', tok.app], ['a provider token', 'eyJhbGciOiJFUzI1NiJ9.eyJpc3MiOiJ4In0.c2ln'], ['a line of the scratch key', pemLine], ['an alert body', single]] };
+  add('N10 honest', gradeLog, log, true);
+  add('N10 no log (UNREADABLE)', gradeLog, { ...log, log: '' }, null);
+  add('N10 a token in the log', gradeLog, { ...log, log: `${log.log}token ${tok.app}\n` }, false);
+  add('N10 a provider token in the log', gradeLog, { ...log, log: `${log.log}${log.needles[1][1]}\n` }, false);
+  add('N10 a key line in the log', gradeLog, { ...log, log: `${log.log}${pemLine}\n` }, false);
+  add('N10 a body in the log', gradeLog, { ...log, log: `${log.log}${single}\n` }, false);
+  add('N10 a token printed', gradeLog, { ...log, printed: tok.app }, false);
+
+  // The tap reader: a banner and a dump belong to the ready line before them.
+  const seqEvents = [
+    { step: 'ready-for-alert', seq: 5 },
+    { step: 'banner', label: 'one', seq: 6 },
+    { step: 'screen', name: 'alert', elements: [], seq: 7 },
+    { step: 'ready-for-alert', seq: 9, cold: true },
+    { step: 'screen', name: 'alert-cold-missing', elements: [], seq: 10 }
+  ];
+  // Research 136's switch, read the way the Mac states it.
+  cases.push({ what: 'can send: a key kept and the switch on, confirmed', got: () => macCanSend({ pushAlerts: true, confirmState: 'confirmed', pushKeyId: KEY_ID }), want: true });
+  cases.push({ what: 'can send: the switch on and no key', got: () => macCanSend({ pushAlerts: true, confirmState: 'confirmed', pushKeyId: null }), want: false });
+  cases.push({ what: 'can send: a key and the switch off', got: () => macCanSend({ pushAlerts: false, confirmState: 'confirmed', pushKeyId: KEY_ID }), want: false });
+  cases.push({ what: 'can send: a key and the switch on, not yet confirmed', got: () => macCanSend({ pushAlerts: true, confirmState: 'unconfirmed', pushKeyId: KEY_ID }), want: false });
+  cases.push({ what: 'can send: no status', got: () => macCanSend(null), want: false });
+  // A delivery whose step printed nothing before the next ready line reads
+  // nothing, not the next step's banner and screen.
+  cases.push({
+    what: 'the tap reader: a step that printed nothing does not borrow the next step\'s banner',
+    got: () => {
+      const t = tapReadings([{ step: 'ready-for-alert', seq: 5 }, { step: 'ready-for-alert', seq: 9 }, { step: 'banner', label: 'two', seq: 10 }, { step: 'screen', name: 'alert', elements: [], seq: 11 }], [{ arm: 'a', readySeq: 5, code: 0 }, { arm: 'b', readySeq: 9, code: 0 }]);
+      return t[0].banner === null && t[0].dump === null && t[1].banner?.label === 'two' && t[1].dump?.name === 'alert';
+    },
+    want: true
+  });
+  cases.push({
+    what: 'the tap reader: where a tap was made from is the last dump before its ready line',
+    got: () => {
+      const t = tapReadings(
+        [{ step: 'screen', name: 'session', elements: [], seq: 2 }, { step: 'screen', name: 'back', elements: [], seq: 3 }, { step: 'ready-for-alert', seq: 5 }, { step: 'screen', name: 'alert-gone', elements: [], seq: 7 }, { step: 'ready-for-alert', seq: 9 }],
+        [{ arm: 'a', readySeq: 5, code: 0 }, { arm: 'b', readySeq: 9, code: 0 }]
+      );
+      return t[0].before?.name === 'back' && t[1].before?.name === 'alert-gone';
+    },
+    want: true
+  });
+  cases.push({
+    what: 'the tap reader: each banner and dump to its own delivery, and a missing banner stays missing',
+    got: () => {
+      const t = tapReadings(seqEvents, [{ arm: 'a', readySeq: 5, code: 0 }, { arm: 'b', readySeq: 9, code: 0 }]);
+      return t[0].banner?.label === 'one' && t[0].dump?.name === 'alert' && t[1].banner === null && t[1].dump?.name === 'alert-cold-missing' && t[1].ready?.cold === true;
+    },
+    want: true
+  });
+
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${got === true ? 'green' : got === false ? 'red' : got === null ? 'UNREADABLE' : String(got)}`);
+  }
+  return { bad, total: cases.length };
+}
+
+// ---------------------------------------------------------------------------
 // The hostile door, in a process of its own
 // ---------------------------------------------------------------------------
 
@@ -973,7 +2023,14 @@ function selfTest() {
     console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${red ? `red (${got[0]})` : 'green'}`);
   }
   console.log(bad === 0 ? `${TAG} self-test PASS: ${String(cases.length)} dumps graded as they must be, against the mock's own frames ${J(FRAMES)}.` : `${TAG} self-test FAIL: ${String(bad)} dump(s) graded wrongly.`);
-  process.exit(bad === 0 ? 0 : 1);
+  // Phase 316.5: every alert grader, the composer, the preflight and the tap reader.
+  const alerts = alertsSelfTest();
+  console.log(
+    alerts.bad === 0
+      ? `${TAG} alerts self-test PASS: ${String(alerts.total)} cases (the composer, the override's preflight, N0 to N11, D2+, F1+ and ND) graded as they must be.`
+      : `${TAG} alerts self-test FAIL: ${String(alerts.bad)} of ${String(alerts.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -996,6 +2053,88 @@ let appText = '';
 let shimPid = 0;
 let appPid = 0;
 
+/** Phase 314's APNs stand-in, in this process on 127.0.0.1. Closed in the `finally`. */
+let apns = null;
+/**
+ * Everything the Phase 316.5 arms read. `pem` is held in memory only so N1 and
+ * N10 can look for it; the report never carries it, and the key FILE is
+ * deleted in the `finally`.
+ */
+const alerts = {
+  pem: null,
+  publicPem: null,
+  pemLines: [],
+  preflight: false,
+  armed: false,
+  verdicts: {},
+  readings: {},
+  deliveries: [],
+  lines: {},
+  alertSessionId: null,
+  alertName: null,
+  blockedAtN3: null,
+  recordedBody: null,
+  composedForAlertSession: null,
+  gone404: false
+};
+/** app.log, read without blocking (pitfall b: three stand-ins serve in this process). */
+const appLogText = async () => {
+  try {
+    return await readFileAsync(join(PROFILE, 'logs', 'app.log'), 'utf8');
+  } catch {
+    return '';
+  }
+};
+const countLogLines = async (needle) => (await appLogText()).split('\n').filter((l) => l.includes(needle)).length;
+/** Every file under `dir`, with its bytes, for N1's look at what the Mac sealed. */
+const filesUnder = async (dir) => {
+  const out = [];
+  const walk = async (d) => {
+    let names = [];
+    try {
+      names = readdirSync(d);
+    } catch {
+      return;
+    }
+    for (const name of names) {
+      const path = join(d, name);
+      let st;
+      try {
+        st = lstatSync(path);
+      } catch {
+        continue;
+      }
+      if (st.isDirectory()) await walk(path);
+      else if (st.isFile()) {
+        try {
+          out.push({ name: relative(dir, path), bytes: await readFileAsync(path) });
+        } catch {
+          /* gone between the listing and the read */
+        }
+      }
+    }
+  };
+  await walk(dir);
+  return out;
+};
+/** A stand-in record as the report may carry it: digests, lengths and headers, never a token, a JWT or a body. */
+const redactedRecord = (rec) => ({
+  seq: rec.seq,
+  origin: rec.origin,
+  phone: tokenName(rec.token),
+  status: rec.status,
+  reason: rec.reason,
+  topic: rec.headers?.['apns-topic'] ?? null,
+  pushType: rec.headers?.['apns-push-type'] ?? null,
+  priority: rec.headers?.['apns-priority'] ?? null,
+  bodyBytes: rec.bodyBytes,
+  bodySha256: shaHex(rec.body ?? ''),
+  authorizationSha256: rec.authorizationDigest,
+  verifies: rec.jwt?.verifies ?? false
+});
+/** A delivery as the report may carry it. */
+const redactedDelivery = (d) => ({ arm: d.arm, readySeq: d.readySeq, code: d.code, bytes: d.bytes ?? null, sha: d.sha ?? null, why: d.why ?? null });
+
 try {
   rmSync(RUN, { recursive: true, force: true });
   for (const dir of [HOME, HARNESS, PROFILE, WORK, BIN, XCODE, join(HOME, '.claude')]) mkdirSync(dir, { recursive: true });
@@ -1009,6 +2148,30 @@ try {
   watch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
   dns = await makeDnsStandin({ name: PUBLIC_NAME, mode: 'record' });
   relay = await startRelay();
+
+  // ---- Phase 316.5: the scratch key, Apple's stand-in and the Mac's override --
+  // THE KEY is made here and deleted in the `finally` whatever happened. It is
+  // this run's own; his is never read.
+  const keyPair = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+  alerts.pem = keyPair.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+  alerts.publicPem = keyPair.publicKey.export({ type: 'spki', format: 'pem' }).toString();
+  alerts.pemLines = alerts.pem.split('\n').filter((l) => l.length >= 16 && !l.startsWith('-----'));
+  mkdirSync(ALERTS_DIR, { recursive: true, mode: 0o700 });
+  writeFileSync(KEY_FILE, alerts.pem, { mode: 0o600 });
+  // The `finally` below deletes it. This is the net for a run that ends by a
+  // signal the helpers answer with process.exit, which skips a `finally`.
+  process.once('exit', () => rmSync(KEY_FILE, { force: true }));
+  // APPLE is the stand-in, in this process, seeded with the phone app's topic
+  // and each token that may reach it, with the environment it was minted in.
+  apns = await startApnsStandIn({ publicKey: keyPair.publicKey, topic: TOPIC, devices: SEEDED });
+  const override = { origins: apns.origins, keyFile: KEY_FILE };
+  const overrideWhy = alertsOverrideRefusal(override, HARNESS);
+  alerts.preflight = overrideWhy === null;
+  if (overrideWhy !== null) {
+    arm('the run', null, `the alerts preflight refused the launch: ${overrideWhy}`);
+    throw new Error('port taken');
+  }
+  writeFileSync(ALERTS_JSON, `${J(override)}\n`, { mode: 0o600 });
 
   // ---- B1: the two builds, before anything serves ------------------------
   const built = await xcodebuildRun({
@@ -1099,6 +2262,11 @@ exit 0
         GMUX_TAILSCALE_BIN: standin.binPath,
         // THE DNS STAND-IN (Phase 332): the name check asks it and nothing else.
         [NAME_SERVERS_VAR]: dns.servers,
+        // APPLE'S STAND-IN (Phase 316.5): the alerts' two origins and the
+        // scratch key file, under the push seam's own refusals. A harness
+        // launch without it can reach nothing: its sender refuses Apple's
+        // hosts before any socket.
+        GMUX_HARNESS_ALERTS: ALERTS_DIR,
         P316_NEXT: NEXT,
         P316_STOP: STOP,
         P316_TALK_SID: TALK_SID,
@@ -1154,6 +2322,18 @@ exit 0
         );
         if (!listening.ok || forwarderPort() === 0) return;
 
+        // ---- N1 (Phase 316.5): the key, through the bridge ----------------
+        // `choosePushKey` in a harness launch answers the override's key file
+        // with no panel; the name, the read and the keep are the shipping path.
+        {
+          const bridge = await pocket(cdp, 'choosePushKey');
+          const keyed = await waitStatus(cdp, (s) => s.pushKeyId === KEY_ID, 15_000);
+          const sealed = await filesUnder(SEALED_KEY_DIR);
+          const v = gradeKey({ bridge, statusKeyId: keyed.status?.pushKeyId ?? null, sealed, pemText: alerts.pem, pemLines: alerts.pemLines });
+          alerts.readings.N1 = { kept: bridge.ok ? bridge.value?.kept ?? null : null, refused: bridge.ok ? bridge.value?.refusal !== null : null, pushKeyId: keyed.status?.pushKeyId ?? null, sealedFiles: sealed.map((f) => ({ name: f.name, bytes: f.bytes.length })) };
+          arm('N1 the push key chosen through the bridge is kept sealed, and the sheet reads its id', v.ok, v.said);
+        }
+
         // ---- D2: the node reader pairs, window 1 --------------------------
         const w1 = await openWindow(cdp);
         if (!w1.ok) {
@@ -1171,17 +2351,28 @@ exit 0
           pin: w1.offer.fp
         };
         let allowReader = { ok: false };
+        // Phase 316.5: the reader presents a PRODUCTION token (`apt`, `ape`),
+        // and the lines the Mac asks Allow over are kept for D2+.
+        let readerLines = null;
         const paired = await pairThrough(readerDoor, w1.offer, reader, {
           tries: 20,
           everyMs: 500,
+          sealOptions: { pushToken: TOKENS.reader, pushEnvironment: 'production' },
           between: async () => {
             const sheet = await pocket(cdp, 'pairingState');
-            if (sheet.ok && sheet.value.state === 'presented') allowReader = await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash });
+            if (sheet.ok && sheet.value.state === 'presented') {
+              readerLines = sheet.value.lines;
+              allowReader = await pocket(cdp, 'allowPhone', { linesRead: sheet.value.lines, hashRead: sheet.value.hash });
+            }
           }
         });
         await pocket(cdp, 'cancelPairing');
         const readerCheck = await signedGet(reader, readerDoor, '/v1/blocked');
         arm('D2 the node reader pairs through the forwarder, takes its certificate and reads with it', paired.ok && allowReader.ok && readerCheck.status === 200, `pairing answered ${J(paired.words)}${paired.ok ? '' : ` (${paired.why})`}, Allow ${allowReader.ok ? 'pressed' : 'FAILED'}, first read ${String(readerCheck.status)}`);
+        {
+          const v = gradeReaderLine({ lines: readerLines, label: reader.label, token: TOKENS.reader });
+          arm('D2+ the reader\'s production address is in the lines the Mac asked Allow over', v.ok, v.said);
+        }
         if (readerCheck.status !== 200) return;
         /** One read by the node reader, or null when the door did not answer it. */
         const readJson = async (target) => {
@@ -1201,11 +2392,43 @@ exit 0
         }
         const talk = (await mainSessions(cdp)).find((s) => s.name === N.talk);
 
+        // ---- N2 (Phase 316.5): alerts on, and Allow through the sheet's own lines
+        // Step one: D0's session must be waiting in main BEFORE alerts arm, or
+        // "it was not announced" says nothing. It runs AFTER N11's drive on the
+        // order Simulator (research 136: that phone must meet a Mac that holds
+        // the key with its switch still off), so it is a function called once.
+        const runN2 = async () => {
+          const askWaiting = (await mainSessions(cdp)).find((s) => s.name === N.ask)?.status === 'needs_input';
+          const from = apns.requests.length;
+          const on = await pocket(cdp, 'setPushAlerts', { on: true });
+          const onRead = on.ok ? await waitStatus(cdp, (s) => s.pushAlerts === true, 15_000) : { ok: false, status: null };
+          // Turning alerts on moves a confirmed field: the sheet's own lines,
+          // as they now stand, are what Allow is pressed over.
+          const confirmed = onRead.ok ? await confirmListening(cdp) : { ok: false, why: on.ok ? 'pushAlerts never read on' : on.error };
+          for (let i = 0; i < 40 && (await countLogLines('phone alerts armed')) === 0; i += 1) await sleep(500);
+          const quietFrom = Date.now();
+          await sleep(QUIET_AFTER_ARM_MS);
+          const after = await pocket(cdp, 'status');
+          const reading = {
+            askWaiting,
+            confirmed: confirmed.ok && after.ok && after.value.confirmState === 'confirmed',
+            confirmWhy: confirmed.why ?? null,
+            pushAlerts: after.ok ? after.value.pushAlerts : null,
+            armedLines: await countLogLines('phone alerts armed'),
+            requests: apns.requests.length - from,
+            waitedMs: Date.now() - quietFrom
+          };
+          alerts.readings.N2 = reading;
+          alerts.armed = reading.armedLines > 0;
+          const v = gradeArmed(reading);
+          arm('N2 alerts on and allowed: armed once, and a wait that began before is not announced', v.ok, v.said);
+        };
+
         /**
          * One pairing of the app on `sim`, and everything that follows it. The
          * reactions press the Mac's own buttons when the UI test says so.
          */
-        const pairAndRead = async (sim, steps, label) => {
+        const pairAndRead = async (sim, steps, label, opts = {}) => {
           const w = await openWindow(cdp);
           if (!w.ok) return { ok: false, why: w.why };
           let macFingerprint = null;
@@ -1217,62 +2440,179 @@ exit 0
           const sessionIdOpened = opened === undefined ? null : opened.slice('open:'.length);
           let sessionAround = null;
           let removed = null;
-          const phonesBefore = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
-          const result = await drive(sim, {
-            test: { id: UI_TEST },
-            label,
-            env: { P316_PAYLOAD: w.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '150', P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` },
-            onEvent: async (event) => {
-              if (event.step === 'fingerprint') {
-                drawnFingerprint = String(event.text ?? '');
-                // The Mac draws the phone's fingerprint once it has presented.
-                for (let i = 0; i < 40; i += 1) {
-                  const v = await pocket(cdp, 'pairingState');
-                  if (v.ok && v.value.state === 'presented') {
-                    macFingerprint = v.value.fingerprint;
-                    if (fingerprintDigits(macFingerprint) === fingerprintDigits(drawnFingerprint) && fingerprintDigits(drawnFingerprint).length === 24) {
-                      const a = await pocket(cdp, 'allowPhone', { linesRead: v.value.lines, hashRead: v.value.hash });
-                      allowed = a.ok && a.value.allowed === true;
+          const statusBefore = (await pocket(cdp, 'status')).value ?? null;
+          const phonesBefore = (statusBefore?.phones ?? []).map((p) => p.id);
+          // Research 136: whether the Mac could send as this window opened
+          // (a key kept AND the switch on), which decides whether the phone
+          // may be asked at all. Null when the status could not be read.
+          const canSend = statusBefore === null ? null : macCanSend(statusBefore);
+          // The phone's word on iOS's question: `answered`, or `asked:false`.
+          // Allow waits for it (NOTIFICATIONS_SETTLE_MS at most).
+          let settleNotifications = () => undefined;
+          const notificationsSettled = new Promise((done) => {
+            settleNotifications = done;
+          });
+          let allowPressedAt = null;
+          let settledBeforeAllow = null;
+          // Phase 316.5. The lines the Mac asked Allow over, the new phone's row
+          // as the Mac lists it once paired, how many alert lines the door held
+          // before this phone, and every body delivered for a ready line.
+          let macLines = null;
+          let macLabel = null;
+          let newPhoneRow = null;
+          const alertLinesBefore = alertLines(statusBefore?.confirmLines ?? []).length;
+          const queue = [...(opts.queue ?? [])];
+          const deliveries = [];
+          // THE MAC'S PAIRING, SAMPLED (N0): each sample is stamped with the
+          // moment its read BEGAN, so a `waiting` it reads was true at or after
+          // that moment. It stops once the phone reads the list.
+          const samples = [];
+          let sampling = true;
+          const sampler = (async () => {
+            while (sampling) {
+              const at = Date.now();
+              const v = await pocket(cdp, 'pairingState');
+              samples.push({ at, state: v.ok ? v.value?.state ?? null : null });
+              await sleep(100);
+            }
+          })();
+          let result;
+          try {
+            result = await drive(sim, {
+              test: { id: UI_TEST },
+              label,
+              env: {
+                P316_PAYLOAD: w.payload,
+                P316_STEPS: steps.join(','),
+                P316_WAIT_S: '150',
+                P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}`,
+                ...(opts.pushToken === undefined ? {} : { P316_PUSH_TOKEN: opts.pushToken }),
+                ...(opts.notifications === undefined ? {} : { P316_NOTIFICATIONS: opts.notifications })
+              },
+              onEvent: async (event) => {
+                if (event.step === 'notifications' && (event.answered !== undefined || event.asked === false)) settleNotifications(event);
+                if (event.step === 'fingerprint') {
+                  drawnFingerprint = String(event.text ?? '');
+                  // ALLOW WAITS FOR THE PHONE'S WORD ON iOS's QUESTION (Phase
+                  // 316.5, research 136). The phone is asked only once it has
+                  // heard from the Mac that it can send, and it presents its
+                  // address only after the answer, so an Allow pressed at the
+                  // first `presented` would pair it before its address reached
+                  // the Mac. A person answers iOS before reaching for the Mac.
+                  const settled = await Promise.race([notificationsSettled, sleep(NOTIFICATIONS_SETTLE_MS).then(() => null)]);
+                  settledBeforeAllow = settled === null ? null : settled.answered ?? (settled.asked === false ? 'not asked' : null);
+                  // Allowed with a token in hand: wait for the Mac's lines to
+                  // name THAT address, bounded; anything else is pressed over
+                  // the lines as they stand, and the graders say what they held.
+                  const want = settled?.answered === 'allow' && typeof opts.pushToken === 'string' ? `device ${deviceDigest(opts.pushToken)}` : null;
+                  const addressBy = Date.now() + ADDRESS_LINE_WAIT_MS;
+                  for (let i = 0; i < 120; i += 1) {
+                    const v = await pocket(cdp, 'pairingState');
+                    if (v.ok && v.value.state === 'presented') {
+                      const named = want === null || alertLines(v.value.lines).some((l) => l.endsWith(want));
+                      if (!named && Date.now() < addressBy) {
+                        await sleep(500);
+                        continue;
+                      }
+                      macFingerprint = v.value.fingerprint;
+                      macLines = v.value.lines ?? null;
+                      macLabel = v.value.label ?? null;
+                      if (fingerprintDigits(macFingerprint) === fingerprintDigits(drawnFingerprint) && fingerprintDigits(drawnFingerprint).length === 24) {
+                        allowPressedAt = Date.now();
+                        const a = await pocket(cdp, 'allowPhone', { linesRead: v.value.lines, hashRead: v.value.hash });
+                        allowed = a.ok && a.value.allowed === true;
+                      }
+                      break;
                     }
-                    break;
+                    await sleep(500);
                   }
-                  await sleep(500);
+                }
+                if (event.step === 'list-before') {
+                  sampling = false;
+                  // Paired: the app's first SIGNED read succeeded. Shut the
+                  // window so "allowed" is answered to nobody else (P2b), and read
+                  // BEFORE the app's refresh, so the two reads bracket it and an
+                  // age that ticks over a minute in between is one of them.
+                  await pocket(cdp, 'cancelPairing');
+                  readsAroundList.push(await readBlocked());
+                  const st = (await pocket(cdp, 'status')).value ?? null;
+                  newPhoneRow = (st?.phones ?? []).find((ph) => !phonesBefore.includes(ph.id)) ?? null;
+                }
+                if (event.step === 'screen' && event.name === 'list') {
+                  await pocket(cdp, 'cancelPairing');
+                  readsAroundList.push(await readBlocked());
+                }
+                if (event.step === 'screen' && event.name === 'session' && sessionIdOpened !== null) {
+                  // The session as the door answered it at the moment the app drew
+                  // it, not minutes later when the run is over.
+                  sessionAround = (await readJson(`/v1/session?id=${encodeURIComponent(sessionIdOpened)}`))?.session ?? null;
+                }
+                if (event.step === 'ready-for-alert') {
+                  // ONE queued body per ready line, in order (Phase 316.5).
+                  const readySeq = Number(event.seq);
+                  const item = queue.shift() ?? null;
+                  if (item === null) {
+                    deliveries.push({ arm: null, readySeq, code: null, why: 'nothing was queued for this ready line' });
+                    return;
+                  }
+                  let body = null;
+                  let why = null;
+                  try {
+                    body = await item.prepare();
+                  } catch (err) {
+                    why = String(err?.message ?? err);
+                  }
+                  if (body === null) {
+                    deliveries.push({ arm: item.arm, readySeq, code: null, why: why ?? 'there was nothing to deliver' });
+                    return;
+                  }
+                  const sent = await sim.push(BUNDLE_ID, body).catch((err) => ({ code: -1, stderr: String(err?.message ?? err) }));
+                  deliveries.push({ arm: item.arm, readySeq, code: sent.code, bytes: Buffer.byteLength(body), sha: shaHex(body).slice(0, 12), body, why: sent.code === 0 ? null : String(sent.stderr ?? '').trim().slice(0, 200) });
+                }
+                if (event.step === 'ready-for-remove') {
+                  const phones = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
+                  simPhoneId = phones.find((id) => !phonesBefore.includes(id)) ?? null;
+                  const r = simPhoneId === null ? { ok: false, error: 'no new phone listed' } : await pocket(cdp, 'removePhone', simPhoneId);
+                  // A Remove closes a listening door until the person confirms
+                  // again (316.1 as built, row 19); confirm, so the app's next
+                  // read is answered — refused, as unpaired — rather than cut.
+                  const again = await confirmListening(cdp);
+                  removed = { ok: r.ok, reopened: again.ok };
                 }
               }
-              if (event.step === 'list-before') {
-                // Paired: the app's first SIGNED read succeeded. Shut the
-                // window so "allowed" is answered to nobody else (P2b), and read
-                // BEFORE the app's refresh, so the two reads bracket it and an
-                // age that ticks over a minute in between is one of them.
-                await pocket(cdp, 'cancelPairing');
-                readsAroundList.push(await readBlocked());
-              }
-              if (event.step === 'screen' && event.name === 'list') {
-                await pocket(cdp, 'cancelPairing');
-                readsAroundList.push(await readBlocked());
-              }
-              if (event.step === 'screen' && event.name === 'session' && sessionIdOpened !== null) {
-                // The session as the door answered it at the moment the app drew
-                // it, not minutes later when the run is over.
-                sessionAround = (await readJson(`/v1/session?id=${encodeURIComponent(sessionIdOpened)}`))?.session ?? null;
-              }
-              if (event.step === 'ready-for-remove') {
-                const phones = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
-                simPhoneId = phones.find((id) => !phonesBefore.includes(id)) ?? null;
-                const r = simPhoneId === null ? { ok: false, error: 'no new phone listed' } : await pocket(cdp, 'removePhone', simPhoneId);
-                // A Remove closes a listening door until the person confirms
-                // again (316.1 as built, row 19); confirm, so the app's next
-                // read is answered — refused, as unpaired — rather than cut.
-                const again = await confirmListening(cdp);
-                removed = { ok: r.ok, reopened: again.ok };
-              }
-            }
-          });
+            });
+          } finally {
+            sampling = false;
+            await sampler;
+          }
           if (readsAroundList.length > 0) readsAroundList.push(await readBlocked());
           // The phone this run just paired, as the Mac lists it, for M1: the
           // pins its handshakes must have presented.
-          const phonesAfter = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
-          return { ok: true, result, macFingerprint, drawnFingerprint, allowed, readsAroundList: readsAroundList.filter((r) => r !== null), removed, simPhoneId: simPhoneId ?? phonesAfter.find((id) => !phonesBefore.includes(id)) ?? null, sessionAround };
+          const statusAfter = (await pocket(cdp, 'status')).value ?? null;
+          const phonesAfter = (statusAfter?.phones ?? []).map((p) => p.id);
+          if (newPhoneRow === null) newPhoneRow = (statusAfter?.phones ?? []).find((ph) => !phonesBefore.includes(ph.id)) ?? null;
+          // A body queued for a ready line that never came is said by name.
+          for (const item of queue) deliveries.push({ arm: item.arm, readySeq: Number.NaN, code: null, why: 'the UI test printed no ready-for-alert for it' });
+          return {
+            ok: true,
+            result,
+            macFingerprint,
+            drawnFingerprint,
+            allowed,
+            readsAroundList: readsAroundList.filter((r) => r !== null),
+            removed,
+            simPhoneId: simPhoneId ?? phonesAfter.find((id) => !phonesBefore.includes(id)) ?? null,
+            sessionAround,
+            samples,
+            macLines,
+            macLabel,
+            newPhoneRow,
+            alertLinesBefore,
+            deliveries,
+            canSend,
+            allowPressedAt,
+            settledBeforeAllow
+          };
         };
 
         /** K1 on `sim`: no window's one-shot secret in anything the app wrote (SPEC §6.4 (p)). */
@@ -1303,13 +2643,192 @@ exit 0
         };
 
         // ==================================================================
+        // Phase 316.5: the alerts' own steps on the Mac
+        // ==================================================================
+
+        /**
+         * STEP ONE of every arm that needs a block: a new session whose fake
+         * `claude` prints the committed dialog, and main's own reading of it.
+         * It answers the session's id; `mainBlocked` is true only once main
+         * reads it `needs_input`, and an arm that finds it false is UNREADABLE.
+         */
+        const blockNew = async (name) => {
+          writeFileSync(NEXT, 'ask', 'utf8');
+          await cdpEval(cdp, `window.__gmuxP202.createSession(${J(name)}, 'claude').then(() => true).catch(() => false)`);
+          let found = null;
+          for (let i = 0; i < 90; i += 1) {
+            found = (await mainSessions(cdp)).find((x) => x.name === name) ?? null;
+            if (found?.status === 'needs_input') break;
+            await sleep(1_000);
+          }
+          rmSync(NEXT, { force: true });
+          return { mainBlocked: found?.status === 'needs_input', sessionId: found?.id ?? null };
+        };
+
+        /**
+         * N3, run when the order Simulator's UI test says it is ready for the
+         * first alert: a new session blocks, and the engine must tell BOTH
+         * phones, each at its own environment's origin. The requests are read
+         * after the engine's coalescing window and three seconds more, so a
+         * stray send lands inside the reading; the reader's `/v1/blocked` is
+         * read at once after, and this file composes the alert from it.
+         */
+        const sendN3 = async () => {
+          const from = apns.requests.length;
+          const block = await blockNew(N.alert);
+          alerts.alertSessionId = block.sessionId;
+          let requests = [];
+          let answer = null;
+          if (block.mainBlocked) {
+            for (let i = 0; i < 60 && apns.requests.length - from < 2; i += 1) await sleep(500);
+            await sleep(3_000);
+            requests = apns.since(from);
+            answer = await readBlocked();
+          }
+          const rows = (answer?.rows ?? []).filter((r) => r.machine === null);
+          const row = rows.find((r) => r.sessionId === block.sessionId) ?? null;
+          const composed = row === null ? null : composeSingleAlert(row, rows.length);
+          alerts.blockedAtN3 = answer;
+          alerts.alertName = row?.name ?? null;
+          alerts.composedForAlertSession = composed;
+          alerts.recordedBody = requests.find((x) => x.origin === 'development' && x.token === TOKENS.app && x.status === 200)?.body ?? null;
+          alerts.verdicts.N3 = gradeSent({ mainBlocked: block.mainBlocked, sessionId: block.sessionId, composed, requests, appToken: TOKENS.app, readerToken: TOKENS.reader, topic: TOPIC });
+          alerts.readings.N3 = {
+            mainBlocked: block.mainBlocked,
+            requests: requests.map(redactedRecord),
+            blockedRows: rows.length,
+            composedBytes: composed === null ? null : Buffer.byteLength(composed),
+            composedSha256: composed === null ? null : shaHex(composed),
+            recordedSha256: alerts.recordedBody === null ? null : shaHex(alerts.recordedBody)
+          };
+          return alerts.recordedBody;
+        };
+
+        /**
+         * N6, run when the UI test says it is ready for the third alert: the
+         * alerted session is ended and removed on the Mac, and the door must
+         * answer 404 for it before anything is delivered. The body is this
+         * file's own composition of the alert N3 sent (byte for byte the
+         * recorded one when N3 passed). A session the door still answers for
+         * is delivered all the same, so the drive moves on, and N6 reads
+         * UNREADABLE.
+         */
+        const goneN6 = async () => {
+          const id = alerts.alertSessionId;
+          if (id === null) return null;
+          await cdpEval(cdp, `window.gmux.sessions.kill(${J(id)}).catch(() => 0).then(() => window.gmux.sessions.discard(${J(id)}).catch(() => 0)).then(() => true)`);
+          let status = null;
+          for (let i = 0; i < 30; i += 1) {
+            status = (await signedGet(reader, readerDoor, `/v1/session?id=${encodeURIComponent(id)}`)).status;
+            if (status === 404) break;
+            await sleep(1_000);
+          }
+          alerts.gone404 = status === 404;
+          alerts.readings.N6 = { doorAnswered: status, stillInMain: (await mainSessions(cdp)).some((x) => x.id === id) };
+          return alerts.composedForAlertSession;
+        };
+
+        /** N7's count body: the count shape over the rows the door holds now. */
+        const countN7 = async () => {
+          const rows = ((await readBlocked())?.rows ?? []).filter((r) => r.machine === null);
+          return composeCountAlert(rows.length > 0 ? rows.map((r) => r.name) : [N.ask], Math.max(1, rows.length));
+        };
+        /** N7's hostile body: the single shape, naming a session id no door could hold. */
+        const hostileN7 = async () => composeSingleAlert({ sessionId: HOSTILE_TAP_SESSION, name: 'p316-x', statusLabel: 'needs input', project: 'p316', agentLabel: 'Claude Code', machine: null }, 1);
+
+        /**
+         * F1+'s and ND's body: this file's composition of a single alert for a
+         * session the door holds now, from the door's own answer for it. The
+         * name the tap must title the session with is kept beside it.
+         */
+        const composeLive = (slot) => async () => {
+          if (talk === undefined) return null;
+          const d = (await readJson(`/v1/session?id=${encodeURIComponent(talk.id)}`))?.session ?? null;
+          alerts.readings[slot] = { name: d?.name ?? null, sessionId: talk.id };
+          return d === null ? null : composeSingleAlert(d, 1);
+        };
+
+        /** A delivery's tap, or an empty reading naming the arm when the step never came. */
+        const tapOf = (taps, armId) => taps.find((t) => t.arm === armId) ?? { arm: armId, delivery: null, ready: null, banner: null, dump: null, before: null };
+
+        // ==================================================================
         // iOS 26.3: the order
         // ==================================================================
+        if (!ARMS.has('order')) await runN2();
         if (ARMS.has('order')) {
           await withSimulator({ label: 'p316-order', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-order'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-            if (ARMS.has('order')) {
-              const steps = ['pair', 'list', ...(talk !== undefined ? [`open:${talk.id}`, 'conversation', 'first'] : []), 'unpaired'];
-              const run = await pairAndRead(sim, steps, 'order');
+            // ---- N11 (research 136): a Mac that holds the key with its alert
+            // switch OFF cannot send, so the phone is never asked. The FIRST
+            // drive on this Simulator, while iOS's answer is still not
+            // determined: on a device that had already answered, "not asked"
+            // would say nothing, because iOS asks only once.
+            {
+              const noSendSteps = ['pair', 'list', `relaunch-token:${TOKENS.other}`];
+              const run = await pairAndRead(sim, noSendSteps, 'no-send', { pushToken: TOKENS.nosend, notifications: 'allow' });
+              if (!run.ok) {
+                arm('N11 a phone pairing with a Mac that cannot send is never asked and never told to pair again', false, run.why);
+              } else {
+                const ev = run.result.events;
+                const n = notificationEvents(ev);
+                alerts.readings.N11 = {
+                  canSend: run.canSend,
+                  asked: n.asked?.asked ?? null,
+                  answered: n.answered?.answered ?? null,
+                  settledBeforeAllow: run.settledBeforeAllow,
+                  alertLinesBefore: run.alertLinesBefore,
+                  alertLines: alertLines(run.macLines ?? []).length,
+                  row: run.newPhoneRow?.alerts ?? null,
+                  relaunches: dumps(ev, 'relaunch').length,
+                  lines: ev.length,
+                  xcodebuild: run.result.code
+                };
+                const v = gradeNoSend({
+                  canSend: run.canSend,
+                  events: ev,
+                  allowed: run.allowed,
+                  macLines: run.macLines,
+                  alertLinesBefore: run.alertLinesBefore,
+                  token: TOKENS.nosend,
+                  phoneRow: run.newPhoneRow,
+                  alive: aliveOf(ev),
+                  alertWords: ALERT_WORDS
+                });
+                arm('N11 a phone pairing with a Mac that cannot send is never asked and never told to pair again', v.ok, v.said);
+              }
+            }
+            await runN2();
+            {
+              // Phase 316.5: the alert steps sit between the conversation and
+              // the Remove, in the SPEC's order (§7.4): N4, N5, N6, N7 twice,
+              // then N8's two relaunches. One body is queued per ready line.
+              // The fix round taps N6 from the LIST (`back` first: N5 leaves
+              // the very session N6 names on screen, where a tap changes
+              // nothing) and N6b from ANOTHER session's screen (`visit`).
+              const steps = [
+                'pair',
+                'list',
+                ...(talk !== undefined ? [`open:${talk.id}`, 'conversation', 'first'] : []),
+                'alert',
+                'alert-cold',
+                'back',
+                'alert-gone',
+                ...(talk !== undefined ? [`visit:${talk.id}`, 'alert-gone'] : []),
+                'alert-list',
+                'alert-list',
+                `relaunch-token:${TOKENS.other}`,
+                `relaunch-token:${TOKENS.app}`,
+                'unpaired'
+              ];
+              const queue = [
+                { arm: 'N4', prepare: sendN3 },
+                { arm: 'N5', prepare: async () => alerts.recordedBody },
+                { arm: 'N6', prepare: goneN6 },
+                ...(talk !== undefined ? [{ arm: 'N6b', prepare: async () => (alerts.gone404 ? alerts.composedForAlertSession : null) }] : []),
+                { arm: 'N7a', prepare: countN7 },
+                { arm: 'N7b', prepare: hostileN7 }
+              ];
+              const run = await pairAndRead(sim, steps, 'order', { pushToken: TOKENS.app, notifications: 'allow', queue });
+              if (run.ok) alerts.deliveries.push(...run.deliveries);
               if (!run.ok) {
                 arm('P1 pairing', false, run.why);
                 return;
@@ -1327,6 +2846,14 @@ exit 0
                 run.drawnFingerprint !== null && run.macFingerprint !== null && fingerprintDigits(run.drawnFingerprint) === fingerprintDigits(run.macFingerprint) && run.allowed && listDrawn,
                 `drawn ${J(fingerprintDigits(run.drawnFingerprint ?? '').length)} hex digits, the Mac's ${run.macFingerprint === null ? 'never shown' : fingerprintDigits(run.drawnFingerprint ?? '') === fingerprintDigits(run.macFingerprint) ? 'THE SAME' : 'DIFFERENT'}${run.drawnFingerprint === run.macFingerprint ? ', byte for byte' : ''}; Allow ${run.allowed ? 'pressed' : 'NOT pressed'}; the list ${listDrawn ? 'drawn' : 'NOT drawn'}`
               );
+              // N0 (Phase 316.5): iOS asked after the fingerprint, before the
+              // phone presented, and the Mac holds the address it presented.
+              {
+                const n = notificationEvents(ev);
+                alerts.readings.N0 = { canSend: run.canSend, asked: n.asked?.asked ?? null, answered: n.answered?.answered ?? null, settledBeforeAllow: run.settledBeforeAllow, samples: run.samples.length, alertLines: alertLines(run.macLines ?? []).length, row: run.newPhoneRow?.alerts ?? null };
+                const v = gradeAsked({ canSend: run.canSend, events: ev, samples: run.samples, macLines: run.macLines, label: run.macLabel, token: TOKENS.app, phoneRow: run.newPhoneRow });
+                arm('N0 the Mac can send, so the phone asks for notifications after the fingerprint and before it is allowed, and the Mac holds its development address', v.ok, v.said);
+              }
               // L1
               const listGrade = run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(ev, 'list'), run.readsAroundList);
               arm('L1 the list says what main sent, in its order, at the mocks\' frames', !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 8).join('; ') : `sections and ${String(run.readsAroundList[0].rows.length + run.readsAroundList[0].others.length)} row(s) agree; frames ${J(listGrade.frames)}`);
@@ -1373,6 +2900,29 @@ exit 0
                 }
                 arm('T1 the conversation, paged to the first turn, ask plain and answer formatted', tProblems.length === 0, tProblems.length === 0 ? `${String(all.length)} turn(s) drawn of ${String(detail.turnCount)} over the door's ${String(paged.pages.length)} pages; **x** kept in the ask, rendered in the answer; the terminal line drawn` : tProblems.join('; '));
               }
+              // ---- N3 to N8 (Phase 316.5), in the SPEC's order ------------
+              {
+                const taps = tapReadings(ev, run.deliveries);
+                const alive = aliveOf(ev);
+                const name = alerts.alertName ?? N.alert;
+                const n3 = alerts.verdicts.N3 ?? verdict(null, 'the UI test printed no ready line for the first alert, so no session was made to block');
+                arm('N3 a new wait is sent once to each phone, at its own environment\'s origin, signed, and byte for byte this file\'s composition', n3.ok, n3.said);
+                const n4 = gradeTap({ ...tapOf(taps, 'N4'), name, cold: false });
+                arm('N4 a tap on the alert opens the session it names', n4.ok, n4.said);
+                const n5 = gradeTap({ ...tapOf(taps, 'N5'), name, cold: true });
+                arm('N5 a tap on the alert with the app terminated launches it onto that session', n5.ok, n5.said);
+                const n6 = gradeGone({ ...tapOf(taps, 'N6'), gone404: alerts.gone404, word: MAC.noSuchSession, alive, from: 'list' });
+                arm('N6 a tap from the list on an alert for a session the Mac removed draws the Mac\'s own sentence on the list', n6.ok, n6.said);
+                const n6b = talk === undefined ? verdict(null, 'no conversation session was made, so there was no other session to tap from') : gradeGone({ ...tapOf(taps, 'N6b'), gone404: alerts.gone404, word: MAC.noSuchSession, alive, from: 'session' });
+                arm('N6b the same tap from another session\'s screen draws the Mac\'s own sentence on the list', n6b.ok, n6b.said);
+                const n7 = gradeListTaps({ taps: [tapOf(taps, 'N7a'), tapOf(taps, 'N7b')], alive });
+                arm('N7 a count alert and an alert naming ../x each open the list and say nothing', n7.ok, n7.said);
+                const relaunches = dumps(ev, 'relaunch');
+                alerts.readings.N8 = { relaunches: relaunches.length, lines: relaunches.map((d) => el(d, 'list-alerts-line')?.label ?? null) };
+                const n8 = gradeRelaunch({ dumps: relaunches });
+                arm('N8 a changed alert address draws "Pair again to get alerts.", and the paired one draws nothing', n8.ok, n8.said);
+                alerts.readings.taps = taps.map((t) => ({ arm: t.arm, delivered: t.delivery?.code ?? null, banner: t.banner === null ? 'no line' : t.banner.label === null ? 'none found' : `${String(t.banner.label).length} characters`, dump: t.dump?.name ?? null, cold: t.ready?.cold ?? null }));
+              }
               // R1
               const unpaired = lastDump(ev, 'unpaired');
               const line = unpaired === null ? null : (unpaired.elements ?? []).find((e) => e.label === COPY.notPaired) ?? null;
@@ -1389,12 +2939,70 @@ exit 0
         }
 
         // ==================================================================
+        // N9 (Phase 316.5): alerts off, and a new wait sends nothing
+        // ==================================================================
+        {
+          // Alerts must be ARMED when this begins, or a disarm says nothing.
+          // R1's Remove moved the door's hash, so they disarmed and re-armed
+          // around its re-confirm; what counts is the lines this step GAINS.
+          const armedBefore = await countLogLines('phone alerts armed');
+          const disarmedBefore = await countLogLines('phone alerts disarmed');
+          const from = apns.requests.length;
+          const off = await pocket(cdp, 'setPushAlerts', { on: false });
+          if (off.ok) await waitStatus(cdp, (s) => s.pushAlerts === false, 15_000);
+          for (let i = 0; i < 40 && (await countLogLines('phone alerts disarmed')) === disarmedBefore; i += 1) await sleep(500);
+          // The switch is a confirmed field: the door closes until it is
+          // confirmed again, which the floor and the denied phone need.
+          const again = await confirmListening(cdp);
+          // Step one: the new wait must be read by main.
+          const block = await blockNew(N.quiet);
+          const quietFrom = Date.now();
+          if (block.mainBlocked) await sleep(QUIET_AFTER_OFF_MS);
+          const after = await pocket(cdp, 'status');
+          const reading = {
+            armedAtStart: armedBefore > disarmedBefore,
+            armedBefore,
+            disarmedBefore,
+            reconfirmed: again.ok,
+            mainBlocked: block.mainBlocked,
+            pushAlerts: after.ok ? after.value.pushAlerts : null,
+            disarmed: (await countLogLines('phone alerts disarmed')) - disarmedBefore,
+            requests: apns.requests.length - from,
+            waitedMs: Date.now() - quietFrom
+          };
+          alerts.readings.N9 = reading;
+          const v = gradeOff(reading);
+          arm('N9 alerts off disarms once, and a new wait sends nothing for 15 s', v.ok, v.said);
+        }
+
+        // ---- Alerts back on (research 136) ------------------------------
+        // The floor phone and the denied phone must each be ASKED, and a
+        // phone is asked only when the Mac can send. So the switch goes back
+        // on and is confirmed through the sheet's own lines, and the armed
+        // line it gains is read. Not an arm of its own: F1+ and ND read the
+        // Mac's state as their window opens and are UNREADABLE when it
+        // could not send. Nothing new blocks while they run, so the engine,
+        // which seeds silently, sends nothing here.
+        if (ARMS.has('floor') || ARMS.has('deny')) {
+          const armedBefore = await countLogLines('phone alerts armed');
+          const on = await pocket(cdp, 'setPushAlerts', { on: true });
+          const onRead = on.ok ? await waitStatus(cdp, (s) => s.pushAlerts === true, 15_000) : { ok: false };
+          const again = onRead.ok ? await confirmListening(cdp) : { ok: false, why: on.ok ? 'pushAlerts never read on' : on.error };
+          for (let i = 0; i < 40 && (await countLogLines('phone alerts armed')) === armedBefore; i += 1) await sleep(500);
+          const st = (await pocket(cdp, 'status')).value ?? null;
+          alerts.readings.rearmed = { on: onRead.ok, confirmed: again.ok, canSend: st === null ? null : macCanSend(st), armedGained: (await countLogLines('phone alerts armed')) - armedBefore };
+          say(`alerts back on for the floor and the denied phone: ${J(alerts.readings.rearmed)}`);
+        }
+
+        // ==================================================================
         // iOS 18.3: THE FLOOR ARM
         // ==================================================================
         if (ARMS.has('floor')) {
           await confirmListening(cdp);
           await withSimulator({ label: 'p316-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-            const run = await pairAndRead(sim, ['pair', 'list'], 'floor');
+            // Phase 316.5: F1+ is the tap on the floor, after F1's pairing.
+            const run = await pairAndRead(sim, ['pair', 'list', 'alert'], 'floor', { pushToken: TOKENS.floor, notifications: 'allow', queue: [{ arm: 'F1+', prepare: composeLive('F1+') }] });
+            if (run.ok) alerts.deliveries.push(...run.deliveries);
             if (!run.ok) {
               arm('F1 iOS 18.3 pairing', false, run.why);
             } else if (run.result.events.length === 0) {
@@ -1402,8 +3010,49 @@ exit 0
             } else {
               const listGrade = run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(run.result.events, 'list'), run.readsAroundList);
               arm(`F1 iOS ${sim.runtime}: the fingerprint matches, Allow, the signed read, the list`, fingerprintDigits(run.drawnFingerprint ?? '') === fingerprintDigits(run.macFingerprint ?? 'x') && run.allowed && !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 6).join('; ') : `paired and the list agrees; frames ${J(listGrade.frames)}`);
+              const t = tapOf(tapReadings(run.result.events, run.deliveries), 'F1+');
+              const name = alerts.readings['F1+']?.name ?? null;
+              const n = notificationEvents(run.result.events);
+              alerts.readings['F1+'] = { ...(alerts.readings['F1+'] ?? {}), canSend: run.canSend, asked: n.asked?.asked ?? null, answered: n.answered?.answered ?? null, settledBeforeAllow: run.settledBeforeAllow, alertLines: alertLines(run.macLines ?? []).length, row: run.newPhoneRow?.alerts ?? null };
+              const pairing = { canSend: run.canSend, events: run.result.events, samples: run.samples, macLines: run.macLines, label: run.macLabel, token: TOKENS.floor, phoneRow: run.newPhoneRow };
+              const v = name === null ? verdict(null, 'the door answered nothing for the live session, so no alert was composed for it') : gradeFloorTap({ pairing, tap: { ...t, name, cold: false } });
+              arm(`F1+ iOS ${sim.runtime}: asked and allowed while the Mac can send, and a tap on an alert naming a live session opens it`, v.ok, v.said);
             }
             await secretScan(sim, `iOS ${sim.runtime}`);
+          });
+        }
+
+        // ==================================================================
+        // iOS 26.3: ND, notifications denied (Phase 316.5)
+        // ==================================================================
+        if (ARMS.has('deny')) {
+          await confirmListening(cdp);
+          await withSimulator({ label: 'p316-deny', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-deny'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+            // Handed a seam token all the same: a phone that denies must
+            // present NO address, whatever it could have registered.
+            const steps = ['pair', 'list', ...(talk !== undefined ? [`open:${talk.id}`, 'conversation'] : []), 'no-banner:20'];
+            const run = await pairAndRead(sim, steps, 'deny', { pushToken: TOKENS.deny, notifications: 'deny', queue: [{ arm: 'ND', prepare: composeLive('ND') }] });
+            if (!run.ok) {
+              arm('ND notifications denied: it pairs with no address and works', false, run.why);
+            } else {
+              alerts.deliveries.push(...run.deliveries);
+              const d = run.deliveries.find((x) => x.arm === 'ND') ?? null;
+              const n = notificationEvents(run.result.events);
+              alerts.readings.ND = { canSend: run.canSend, asked: n.asked?.asked ?? null, answered: n.answered?.answered ?? null, settledBeforeAllow: run.settledBeforeAllow, alertLinesBefore: run.alertLinesBefore, alertLines: alertLines(run.macLines ?? []).length, row: run.newPhoneRow?.alerts ?? null, delivered: d?.code ?? null };
+              const v = gradeDeny({
+                canSend: run.canSend,
+                events: run.result.events,
+                allowed: run.allowed,
+                macLines: run.macLines,
+                alertLinesBefore: run.alertLinesBefore,
+                token: TOKENS.deny,
+                phoneRow: run.newPhoneRow,
+                delivery: d === null || d.code === null ? null : { code: d.code },
+                alive: aliveOf(run.result.events)
+              });
+              arm('ND notifications denied: it pairs with no address, the list, a session and its conversation are drawn, and no banner shows', v.ok, v.said);
+            }
+            await secretScan(sim, 'iOS 26.3, notifications denied,');
           });
         }
 
@@ -1506,6 +3155,53 @@ exit 0
 } finally {
   for (const child of [...doorChildren]) await endDoorChild(child);
   await relay?.close().catch(() => undefined);
+  // ---- Phase 316.5: the verifier's records, then Apple's stand-in and the key --
+  // P316_KEEP=1 keeps what the verifier re-derives from (SPEC §7.4, §7.5
+  // Method A): the reader's /v1/blocked answer at N3's block, every stand-in
+  // record whole (its JWT included, to be verified by another hand), every
+  // body delivered to a Simulator, the scratch PUBLIC key and each phone's
+  // token with the environment it presented. 0600, under the kept world. The
+  // private key is never written here, and its file goes whatever this says.
+  if (KEEP && apns !== null) {
+    try {
+      const dir = join(RUN, 'rederive');
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      writeFileSync(
+        join(dir, 'records.json'),
+        `${J(
+          {
+            topic: TOPIC,
+            keyId: KEY_ID,
+            publicKeyPem: alerts.publicPem,
+            origins: apns.origins,
+            phones: Object.fromEntries(Object.entries(TOKENS).map(([name, token]) => [name, { token, environment: SEEDED[token] ?? null }])),
+            blockedAtN3: alerts.blockedAtN3,
+            composedAtN3: alerts.composedForAlertSession,
+            standIn: apns.requests,
+            deliveries: alerts.deliveries
+          },
+          null,
+          1
+        )}\n`,
+        { mode: 0o600 }
+      );
+      say(`kept the alerts' records for re-derivation at ${join(dir, 'records.json')}`);
+    } catch (err) {
+      say(`could not keep the alerts' records: ${String(err?.message ?? err)}`);
+    }
+  }
+  if (apns !== null) {
+    report.readings.alerts = {
+      preflight: alerts.preflight,
+      ...alerts.readings,
+      standIn: apns.requests.map(redactedRecord),
+      connections: { ...apns.connections },
+      deliveries: alerts.deliveries.map(redactedDelivery)
+    };
+    await apns.close().catch(() => undefined);
+  }
+  // THE SCRATCH KEY, deleted whatever happened and whether the world is kept.
+  rmSync(KEY_FILE, { force: true });
   try {
     writeFileSync(STOP, 'stop\n', 'utf8');
   } catch {
@@ -1520,23 +3216,43 @@ exit 0
   if (standin !== null) {
     const forbidden = log.filter((e) => e.forbidden === true).length;
     const refusedArgv = log.filter((e) => e.verdict === 'refused').length;
-    report.readings.tailscale = { preflight: preflightOk, samples: watch?.samples() ?? 0, realTailscale: findings, forbidden, refusedArgv, funnelStarts: log.filter((e) => e.kind === 'funnel').length, ended: ended.ended.length, left: ended.left.length };
+    report.readings.tailscale = { preflight: preflightOk, samples: watch?.samples() ?? 0, realTailscale: findings, notThisRun: watch?.notOurs() ?? [], forbidden, refusedArgv, funnelStarts: log.filter((e) => e.kind === 'funnel').length, ended: ended.ended.length, left: ended.left.length };
     arm(
       'RUN no real Tailscale, nothing forbidden, no stand-in left',
       preflightOk && findings.length === 0 && (watch?.samples() ?? 0) > 0 && forbidden === 0 && refusedArgv === 0 && ended.left.length === 0,
       `preflight ${preflightOk ? 'passed' : 'REFUSED'}; ${String(watch?.samples() ?? 0)} sample(s), ${String(findings.length)} real Tailscale process(es); ${String(forbidden)} forbidden and ${String(refusedArgv)} refused argv at the stand-in; ${String(ended.ended.length)} stand-in pid(s) ended here, ${String(ended.left.length)} left`
     );
   }
-  // ---- N1 (Phase 332): the name check asked the loopback stand-in, and rightly --
+  // ---- Q1 (Phase 332's N1): the name check asked the loopback stand-in, and rightly --
   if (dns !== null) {
     const verdict = nameQuestionsVerdict({ expect: log.some((e) => e.kind === 'funnel'), rows: nameRows, name: PUBLIC_NAME });
     report.readings.nameQuestions = nameRows;
     arm(
-      'N1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent was started',
+      'Q1 the name check asked only the DNS stand-in, an A question with RD 0 for the stand-in’s name, and no agent was started',
       verdict.ok && dnsPreflights.length > 0 && dnsPreflights.every((x) => x === true) && agentsHeld.length > 0 && agentsHeld.every((x) => x === true),
       `${verdict.said}; the DNS preflight ${J(dnsPreflights)}; the renamed agents ${J(agentsHeld)} absent`
     );
   }
+}
+
+// ---- N10 (Phase 316.5): nothing of an alert in app.log, the app gone --------
+if (ran) {
+  const tokenNeedles = Object.entries(TOKENS).flatMap(([name, t]) => [
+    [`the ${name} device token`, t],
+    [`the ${name} device token in capitals`, t.toUpperCase()]
+  ]);
+  const jwts = [...new Set(apns.requests.map((x) => x.authorization).filter((a) => typeof a === 'string' && a !== ''))];
+  const bodies = [...new Set([...apns.requests.map((x) => x.body), ...alerts.deliveries.map((d) => d.body)].filter((b) => typeof b === 'string' && b !== ''))];
+  const needles = [
+    ...tokenNeedles,
+    ...jwts.map((jwt, i) => [`provider token ${String(i + 1)}`, jwt]),
+    ...alerts.pemLines.map((line, i) => [`line ${String(i + 1)} of the scratch key`, line]),
+    ...bodies.map((body, i) => [`alert body ${String(i + 1)}`, body])
+  ];
+  const log = await appLogText();
+  const v = gradeLog({ log, printed: appText, needles });
+  report.readings.alerts = { ...(report.readings.alerts ?? {}), N10: { logCharacters: log.length, looked: needles.length, jwts: jwts.length, bodies: bodies.length } };
+  arm('N10 app.log and the app\'s output hold no device token, provider token, key line or alert body', v.ok, v.said);
 }
 
 // ---- K2: the windows' secrets and any private key, on the Mac's side --------

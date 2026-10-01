@@ -30,11 +30,13 @@
  *       literal exists; and only the door client SENDS (`NWConnection(`,
  *       `.send(content:`, a URL task), because the pin, the identity, the caps
  *       and the timeout are there.
- *   (d) The four DEBUG seams exist and sit inside `#if DEBUG`: the pairing
+ *   (d) The five DEBUG seams exist and sit inside `#if DEBUG`: the pairing
  *       payload (`-TortieDebugPairingPayload`), the forget
  *       (`-TortieDebugForgetPairing`), the still attention dot
- *       (`-TortieDebugStill`) and, from Phase 330, the door endpoint
- *       (`-TortieDebugDoorEndpoint`), which takes `127.0.0.1` and nothing else.
+ *       (`-TortieDebugStill`), from Phase 330 the door endpoint
+ *       (`-TortieDebugDoorEndpoint`), which takes `127.0.0.1` and nothing else,
+ *       and from Phase 316.5 the alert address (`-TortieDebugPushToken`), which
+ *       a DEBUG build presents instead of asking Apple for one.
  *       No launch argument is read, no `-TortieDebug…` argument, loopback
  *       literal or `Debug`/`Loopback` declaration is written outside one. The
  *       last clause also holds the client key store's `softwareKeyDebugSeam`
@@ -166,7 +168,8 @@
  *       no xcconfig sets a signing or identity setting. The app is
  *       `com.itavero.tortie.phone`, one version in Debug and Release, and
  *       Info.plist takes the bundle id and both versions from the project and
- *       shows "Tortie".
+ *       shows "Tortie". Since Phase 316.5 every configuration says build
+ *       `PHONE_BUILD` (3), the one this round uploads.
  *
  *   PHASE 330, the phone off the tailnet (build/p330/SPEC.md §6.4):
  *
@@ -196,6 +199,24 @@
  *       `PairingFailure` case and `stepSentence` one for every `PairingStep`
  *       case, neither answering nil or an empty string, and `PairingModel`'s
  *       `line` is a non-optional `String` that is never assigned nil or empty.
+ *
+ *   PHASE 316.5, the alert (build/p3165/SPEC.md §6.4, research 136 §9):
+ *
+ *   (w) `aps-environment` = `development` is the app's ONLY entitlement, read
+ *       by CoreFoundation, named by both app configurations and no other
+ *       target; three targets; no `SystemCapabilities` or `com.apple.Push`;
+ *       no `remote-notification` anywhere under ios/; and the topic and team
+ *       the Mac signs alerts for (src/main/alerts/key-file.ts) are the app's.
+ *   (x) The alert's refusals: `registerForRemoteNotifications` once, in the
+ *       `#else` of `#if DEBUG` in Alerts/SystemAlerts.swift; one question; the
+ *       notification center named in that file and App/AppDelegate.swift
+ *       alone; `userInfo` read by `AlertTap.parse` alone; the environment
+ *       `.development` under DEBUG and `.production` in its `#else`; `apt` and
+ *       `ape` declared by the presentation and its record alone; no badge
+ *       write, service extension, background delivery, print or log; no test
+ *       naming the registration; and iOS asked about alerts only for a Mac
+ *       that says it can send (the pairing's pending arm, behind its word; the
+ *       screen's closure; the launch check behind a guard on `macSends`).
  *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
@@ -800,8 +821,8 @@ export function ruleHttpsOnly(name, source) {
 
 const LAUNCH_READS = [/\bProcessInfo\s*\.\s*processInfo\s*\.\s*(arguments|environment)\b/, /\bCommandLine\s*\.\s*(arguments|unsafeArgv|argc)\b/, /\blaunchArguments\b/];
 
-/** The four DEBUG seams' launch arguments (Phase 330 added the door endpoint). */
-export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebugForgetPairing', '-TortieDebugStill', '-TortieDebugDoorEndpoint'];
+/** The five DEBUG seams' launch arguments (Phase 330 added the door endpoint, Phase 316.5 the alert address). */
+export const DEBUG_SEAM_ARGUMENTS = ['-TortieDebugPairingPayload', '-TortieDebugForgetPairing', '-TortieDebugStill', '-TortieDebugDoorEndpoint', '-TortieDebugPushToken'];
 
 /** Rule (d), over one app file. `seams` collects what the DEBUG regions hold. */
 export function ruleDebugSeams(name, source, seams) {
@@ -2615,6 +2636,14 @@ export const RELEASE_TEAM = '4GRQMF5T5U';
 /** The bundle id he registered (SPEC §6 decision 6). It cannot change after the first upload. */
 export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
 
+/**
+ * The build this round uploads: 1.0.0 (3) (Phase 316.5, build/p3165/SPEC.md
+ * §5.7). 1.0.0 (2) is Phase 330's and is archived, so a build that did not
+ * move would be refused by App Store Connect as a duplicate. The round that
+ * uploads the next build moves this with the project, in the same commit.
+ */
+export const PHONE_BUILD = '3';
+
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
 const ICON_SET = 'AppIcon.appiconset';
@@ -2854,6 +2883,14 @@ export function ruleSigning(pbxproj, xcconfigs = [], plist = null) {
   }
   for (const v of versions.MARKETING_VERSION) if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$/.test(v)) findings.push(`MARKETING_VERSION is ${JSON.stringify(v)}; it is three whole numbers, like 1.0.0`);
   for (const v of versions.CURRENT_PROJECT_VERSION) if (!/^[1-9]\d*$/.test(v)) findings.push(`CURRENT_PROJECT_VERSION is ${JSON.stringify(v)}; it is a whole number from 1, one more for every upload`);
+  // The build this round uploads, in every configuration that says one.
+  for (const c of configs) {
+    for (const a of settingAssignments(c.settings, 'CURRENT_PROJECT_VERSION')) {
+      if (a.conditions !== '' || a.value !== PHONE_BUILD) {
+        findings.push(`${c.owner === 'the project' ? "the project's" : `${c.owner}'s`} ${c.name} configuration sets CURRENT_PROJECT_VERSION${a.conditions} = ${JSON.stringify(a.value)}; this round uploads build ${PHONE_BUILD}, and every configuration says it`);
+      }
+    }
+  }
   if (plist !== null) {
     const want = {
       CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)',
@@ -2866,6 +2903,428 @@ export function ruleSigning(pbxproj, xcconfigs = [], plist = null) {
     }
   }
   return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Rules (w) and (x): the alert (Phase 316.5, build/p3165/SPEC.md §5.6, §5.7, §6.4)
+// ---------------------------------------------------------------------------
+//
+// (w) THE ENTITLEMENT. The alert needs `aps-environment`, and it is the app's
+// ONLY entitlement: exactly `development` in the file (Xcode's own spelling;
+// his TestFlight export re-signs it for production, SPEC §3 row 4), named by
+// both of the app's configurations and by no other target, spelled nowhere
+// else (no `SystemCapabilities` block, no `com.apple.Push` line: Xcode derives
+// the capability from the file, and a second spelling is a second place to
+// disagree). Three targets and no fourth: a Notification Service Extension
+// would be one. No `remote-notification` string anywhere under ios/, because
+// that is the background mode that wakes an app for a silent push, and this
+// app has no background mode (rule e). And the topic and team the Mac signs
+// every alert with (src/main/alerts/key-file.ts) are the app's own bundle id
+// and his team, because a provider token for another topic reaches no phone.
+//
+// (x) THE ALERT'S REFUSALS. The phone asks Apple for its address in exactly
+// one place, `registerForRemoteNotifications` in the `#else` of `#if DEBUG` in
+// Alerts/SystemAlerts.swift, so a DEBUG build, which is every Simulator run,
+// never asks Apple for anything, and no test names it or the class that calls
+// it. The question is asked in one place (`requestAuthorization(`). Only
+// Alerts/SystemAlerts.swift and App/AppDelegate.swift name the
+// UserNotifications framework. A payload is read by `AlertTap.parse` alone,
+// which the delegate hands it. The environment the phone presents is
+// `.development` under `#if DEBUG` and `.production` in its `#else`. The wire
+// names `apt` and `ape` are declared once each for the presentation
+// (Door/Pairing.swift's `Inner`) and once each for the Keychain record that
+// keeps what was presented (Door/Keys.swift's `Record`, SPEC §5.6.2), and
+// nowhere else, so no second path can carry the address. And nothing writes
+// the badge (the Mac owns it), no service extension or background delivery
+// exists, and nothing prints or logs, so a token or a payload never reaches a
+// log.
+//
+// AND iOS IS ASKED ABOUT ALERTS ONLY FOR A MAC THAT CAN SEND ONE (research 136
+// section 9, which binds Phase 316.5 over build/p316/SPEC.md:660). Alerts are
+// the Apple push key holder's alone, so a phone pairing with any other Mac is
+// never asked a question for alerts that cannot arrive. The pairing asks
+// (`askForAlerts()`) once, inside the arm that reads the Mac's `pending`
+// answer and behind an `if` on the word that answer carries; the app hands
+// `askForPairing()` to the pairing, inside the closure it passes, and calls it
+// nowhere else; and the launch check reads `authorization()` and
+// `currentAddress()` only in a function that has first read the kept
+// pairing's `macSends` in a guard, so a phone paired with a Mac that could not
+// send asks iOS nothing and registers with Apple for nothing.
+
+/** The app's one entitlements file, relative to ios/ (SRCROOT). */
+export const ENTITLEMENTS_FILE = 'Tortie/Tortie.entitlements';
+/** Everything it holds, as CoreFoundation reads it. */
+export const ENTITLEMENTS = Object.freeze({ 'aps-environment': 'development' });
+/** Where the Mac keeps the topic and team it signs alerts with (Phase 316.5). */
+export const KEY_FILE_TS = 'src/main/alerts/key-file.ts';
+
+/**
+ * For each line (1-based), whether it sits inside the `#else` arm of `#if
+ * DEBUG` and inside no active DEBUG arm: what a Release build compiles and a
+ * DEBUG build does not.
+ */
+export function releaseLines(code) {
+  const out = [false];
+  const stack = [];
+  for (const raw of code.split('\n')) {
+    const t = raw.trim();
+    let m;
+    if ((m = /^#if\s+(.*)$/.exec(t)) !== null) stack.push({ cond: m[1].replace(/\s+/g, ''), arm: 'if' });
+    else if (/^#elseif\b/.test(t)) {
+      if (stack.length > 0) stack[stack.length - 1].arm = 'elseif';
+    } else if (/^#else\b/.test(t)) {
+      if (stack.length > 0) stack[stack.length - 1].arm = 'else';
+    } else if (/^#endif\b/.test(t)) stack.pop();
+    const debug = stack.some((f) => (f.cond === 'DEBUG' && f.arm === 'if') || (f.cond === '!DEBUG' && f.arm === 'else'));
+    out.push(!debug && stack.some((f) => f.cond === 'DEBUG' && f.arm === 'else'));
+  }
+  return out;
+}
+
+/** A TypeScript text with its comments blanked, strings left in place (enough for a const's value). */
+function tsBare(text) {
+  return text.replace(/\/\*[\s\S]*?\*\//g, (c) => c.replace(/[^\n]/g, ' ')).replace(/(^|[^:'"\\])\/\/[^\n]*/g, '$1');
+}
+
+/** Every `NAME = '<value>'` in a TypeScript text, comments out. */
+function tsConstValues(text, name) {
+  return [...tsBare(text).matchAll(new RegExp(`\\b${name}\\s*(?::\\s*string\\s*)?=\\s*(['"\`])([^'"\`\\n]*)\\1`, 'g'))].map((m) => m[2]);
+}
+
+/**
+ * Rule (w). `entitlements` is Tortie.entitlements as CoreFoundation reads it
+ * (null when it cannot be read); `entitlementFiles` every `.entitlements` file
+ * under ios/, relative to the root; `iosText` every text file under ios/ as
+ * `{ name, text }`; `keyFile` the text of src/main/alerts/key-file.ts or null.
+ */
+export function ruleEntitlement({ entitlements, pbxproj, xcconfigs = [], entitlementFiles = [], iosText = [], keyFile = null }) {
+  const findings = [];
+  const said = { targets: 0, named: 0, files: iosText.length };
+  if (entitlements === null || typeof entitlements !== 'object' || Array.isArray(entitlements)) {
+    findings.push(`${ENTITLEMENTS_FILE} cannot be read as a dictionary, so the app's entitlements cannot be said`);
+  } else {
+    const keys = Object.keys(entitlements).sort();
+    if (keys.join() !== Object.keys(ENTITLEMENTS).join()) {
+      findings.push(`${ENTITLEMENTS_FILE} holds ${JSON.stringify(keys)}; it holds aps-environment and nothing else (SPEC §5.7): no networking, no VPN, no time-sensitive or critical alert, no keychain group`);
+    }
+    for (const [key, value] of Object.entries(ENTITLEMENTS)) {
+      if (key in entitlements && entitlements[key] !== value) {
+        findings.push(`${ENTITLEMENTS_FILE} sets ${key} to ${JSON.stringify(entitlements[key])}; it is ${JSON.stringify(value)}, Xcode's own spelling, and his TestFlight export re-signs it for production`);
+      }
+    }
+  }
+  const wantFile = `ios/${ENTITLEMENTS_FILE}`;
+  if (entitlementFiles.length !== 1 || entitlementFiles[0] !== wantFile) {
+    findings.push(`ios/ holds ${JSON.stringify(entitlementFiles)} as entitlements files; it holds ${wantFile} alone`);
+  }
+  if (typeof pbxproj !== 'string') {
+    findings.push('project.pbxproj cannot be read, so which target names an entitlements file cannot be said');
+  } else {
+    const kinds = [...pbxproj.matchAll(/\bisa\s*=\s*(PBX\w*Target);/g)].map((m) => m[1]);
+    said.targets = kinds.length;
+    if (kinds.length !== 3 || kinds.some((k) => k !== 'PBXNativeTarget')) {
+      findings.push(`project.pbxproj holds ${String(kinds.length)} target(s) (${[...new Set(kinds)].join(', ') || 'none'}); it holds three native targets, the app and its two test bundles, and a Notification Service Extension would be a fourth`);
+    }
+    const apps = appConfigurations(pbxproj);
+    const appIds = new Set(apps.map((c) => c.id));
+    if (apps.length !== 2) findings.push(`the app has ${String(apps.length)} configuration(s) this rule can read, not Debug and Release`);
+    for (const c of apps) {
+      if (onlyValue(c.settings, 'CODE_SIGN_ENTITLEMENTS') !== ENTITLEMENTS_FILE) {
+        findings.push(`the app's ${c.name} configuration does not set CODE_SIGN_ENTITLEMENTS = ${ENTITLEMENTS_FILE} once and plainly, so that build carries no aps-environment or another file's`);
+      } else said.named += 1;
+    }
+    for (const c of allConfigurations(pbxproj)) {
+      if (appIds.has(c.id)) continue;
+      for (const a of settingAssignments(c.settings, 'CODE_SIGN_ENTITLEMENTS')) {
+        findings.push(`${c.owner === 'the project' ? "the project's" : `${c.owner}'s`} ${c.name} configuration sets CODE_SIGN_ENTITLEMENTS${a.conditions} = ${JSON.stringify(a.value)}; only the app names an entitlements file`);
+      }
+    }
+    const inConfigurations = allConfigurations(pbxproj).reduce((n, c) => n + settingAssignments(c.settings, 'CODE_SIGN_ENTITLEMENTS').length, 0);
+    if (settingAssignments(pbxproj, 'CODE_SIGN_ENTITLEMENTS').length !== inConfigurations) {
+      findings.push('project.pbxproj sets CODE_SIGN_ENTITLEMENTS outside any build configuration this rule reads');
+    }
+    for (const m of pbxproj.matchAll(/\bSystemCapabilities\b|\bcom\.apple\.Push\b/g)) {
+      findings.push(`project.pbxproj:${String(lineOf(pbxproj, m.index))} names ${m[0]}; Xcode derives the push capability from ${ENTITLEMENTS_FILE}, and a second spelling is a second place to disagree`);
+    }
+  }
+  for (const x of xcconfigs) {
+    for (const a of settingAssignments(xcconfigBare(x.text), 'CODE_SIGN_ENTITLEMENTS')) {
+      findings.push(`${x.name} sets CODE_SIGN_ENTITLEMENTS${a.conditions}; the entitlements file is the project's, where this rule reads it`);
+    }
+  }
+  for (const f of iosText) {
+    for (const m of f.text.matchAll(/remote-notification/gi)) {
+      findings.push(`${f.name}:${String(lineOf(f.text, m.index))} says ${JSON.stringify(m[0])}, the background mode a silent push wakes an app with; the app has no background mode and asks for no silent push`);
+    }
+  }
+  if (keyFile === null) {
+    findings.push(`${KEY_FILE_TS} does not exist, so the topic and team the Mac signs every alert with cannot be held to the app's`);
+  } else if (typeof pbxproj === 'string') {
+    const topics = tsConstValues(keyFile, 'PHONE_APP_TOPIC');
+    const teams = tsConstValues(keyFile, 'PHONE_APP_TEAM');
+    const apps = appConfigurations(pbxproj);
+    const bundleIds = [...new Set(apps.map((c) => onlyValue(c.settings, 'PRODUCT_BUNDLE_IDENTIFIER')))];
+    const releaseTeam = apps.filter((c) => c.name === 'Release').map((c) => onlyValue(c.settings, 'DEVELOPMENT_TEAM'));
+    if (topics.length !== 1) findings.push(`${KEY_FILE_TS} sets PHONE_APP_TOPIC ${String(topics.length)} time(s); it is written once`);
+    else if (bundleIds.length !== 1 || topics[0] !== bundleIds[0] || topics[0] !== PHONE_BUNDLE_ID) {
+      findings.push(`${KEY_FILE_TS}'s PHONE_APP_TOPIC is ${JSON.stringify(topics[0])} and the app is ${JSON.stringify(bundleIds.length === 1 ? bundleIds[0] : bundleIds)}; an alert whose apns-topic is not the app's bundle id reaches no phone`);
+    }
+    if (teams.length !== 1) findings.push(`${KEY_FILE_TS} sets PHONE_APP_TEAM ${String(teams.length)} time(s); it is written once`);
+    else if (teams[0] !== RELEASE_TEAM || releaseTeam.length !== 1 || releaseTeam[0] !== teams[0]) {
+      findings.push(`${KEY_FILE_TS}'s PHONE_APP_TEAM is ${JSON.stringify(teams[0])} and the app's Release team is ${JSON.stringify(releaseTeam)} (${RELEASE_TEAM}); a provider key only reaches the app its team signs`);
+    }
+  }
+  return { findings, said };
+}
+
+/** What no file of the app ever names, in its code, and why. */
+const ALERT_NEVER_CODE = [
+  [/\bapplicationIconBadgeNumber\b/, 'writes the badge, which is the Mac\'s (build/p314/SPEC.md §1.2 row 6)'],
+  [/\bsetBadgeCount\b/, 'writes the badge, which is the Mac\'s (build/p314/SPEC.md §1.2 row 6)'],
+  [/\bUNNotificationServiceExtension\b/, 'is a Notification Service Extension, which the app does not have'],
+  [/\bdidReceiveRemoteNotification\b/, 'is the background delivery handler; the app has no background mode'],
+  [/\bprint\s*\(/, 'prints, and a token, a payload or a userInfo could reach a log'],
+  [/\bdebugPrint\s*\(/, 'prints, and a token, a payload or a userInfo could reach a log'],
+  [/\bdump\s*\(/, 'dumps, and a token, a payload or a userInfo could reach a log'],
+  [/\bNSLog\b/, 'logs, and a token, a payload or a userInfo could reach a log'],
+  [/\bos_log\b/, 'logs, and a token, a payload or a userInfo could reach a log'],
+  [/\bLogger\s*\(/, 'makes a logger, and a token, a payload or a userInfo could reach a log']
+];
+/** What no string of the app ever holds, and why. */
+const ALERT_NEVER_STRING = [
+  [/content-available/, 'asks for a silent push, which wakes an app in the background'],
+  [/mutable-content/, 'hands the alert to a service extension, which the app does not have'],
+  [/\bdidReceiveRemoteNotification\b/, 'names the background delivery handler'],
+  [/\bapplicationIconBadgeNumber\b|\bsetBadgeCount\b/, 'names a badge write, which is the Mac\'s']
+];
+
+/** The files rule (x) reads by name, relative to the app folder. */
+export const ALERT_FILES = Object.freeze({
+  system: 'Alerts/SystemAlerts.swift',
+  delegate: 'App/AppDelegate.swift',
+  alerts: 'Alerts/Alerts.swift',
+  pairing: 'Door/Pairing.swift',
+  keys: 'Door/Keys.swift',
+  screen: 'Screens/PairingScreen.swift',
+  app: 'App/TortieApp.swift'
+});
+
+/** The `{ … }` body of the innermost function around `index` in `bare`, as [open, close], or null. */
+function enclosingFunction(bare, index) {
+  let best = null;
+  for (const m of bare.matchAll(/\bfunc\s+\w+[^{]*\{/g)) {
+    const open = m.index + m[0].length - 1;
+    if (open > index) break;
+    const close = matchForward(bare, open);
+    if (close !== -1 && close > index) best = [open, close];
+  }
+  return best;
+}
+
+/** The `{ … }` body of the first `<kind> <name>` in `bare`, as [open, close], or null. */
+function declBody(bare, kind, name) {
+  const at = new RegExp(`\\b${kind}\\s+${name}\\b[^{]*\\{`).exec(bare);
+  if (at === null) return null;
+  const open = at.index + at[0].length - 1;
+  const close = matchForward(bare, open);
+  return [at.index, close === -1 ? bare.length : close];
+}
+
+/**
+ * Rule (x), over the app's Swift (`files`, `{ name, source }` named relative
+ * to the app folder) and the tests' (`tests`, named relative to ios/).
+ */
+export function ruleAlerts(files, tests = []) {
+  const findings = [];
+  const said = { registrations: 0, asks: 0, unFiles: new Set(), userInfo: 0, arms: 0, fields: 0, flowAsks: 0, pairingAsks: 0, launchReads: 0 };
+  const lexedFiles = files.map((f) => ({ ...f, lx: lexSwift(f.source) }));
+  const byName = new Map(lexedFiles.map((f) => [f.name, f]));
+  const at = (f, index) => `${f.name}:${String(lineOf(f.lx.bare, index))}`;
+
+  // (1) The one registration, in the #else of #if DEBUG in SystemAlerts.swift.
+  const registrations = [];
+  for (const f of lexedFiles) {
+    for (const m of f.lx.bare.matchAll(/\bregisterForRemoteNotifications\b/g)) registrations.push({ f, index: m.index, code: true });
+    for (const s of f.lx.strings) if (/\bregisterForRemoteNotifications\b/.test(s.value)) registrations.push({ f, index: s.start, code: false });
+  }
+  said.registrations = registrations.length;
+  if (registrations.length !== 1) {
+    findings.push(`the app names registerForRemoteNotifications ${String(registrations.length)} time(s)${registrations.length > 0 ? ` (${registrations.map((r) => at(r.f, r.index)).join(', ')})` : ''}; it is named once, in ${ALERT_FILES.system}, so the phone asks Apple for its address in one place`);
+  }
+  for (const r of registrations) {
+    if (r.f.name !== ALERT_FILES.system || !r.code) {
+      findings.push(`${at(r.f, r.index)} names registerForRemoteNotifications${r.code ? '' : ' in a string'}; only ${ALERT_FILES.system} asks Apple for the phone's address`);
+      continue;
+    }
+    if (releaseLines(r.f.lx.code)[lineOf(r.f.lx.bare, r.index)] !== true) {
+      findings.push(`${at(r.f, r.index)} registers with Apple outside the #else of #if DEBUG, so a DEBUG build, which is every Simulator run, would ask Apple for a token`);
+    }
+  }
+
+  // (2) The one question.
+  const asks = lexedFiles.flatMap((f) => [...f.lx.bare.matchAll(/\brequestAuthorization\s*\(/g)].map((m) => ({ f, index: m.index })));
+  said.asks = asks.length;
+  if (asks.length !== 1 || asks[0].f.name !== ALERT_FILES.system) {
+    findings.push(`the app asks requestAuthorization( ${String(asks.length)} time(s)${asks.length > 0 ? ` (${asks.map((a) => at(a.f, a.index)).join(', ')})` : ''}; it asks once, in ${ALERT_FILES.system}, at pairing`);
+  }
+
+  // (3) The framework, in two files.
+  for (const f of lexedFiles) {
+    const names = [...f.lx.bare.matchAll(/\bUN[A-Z][a-z]\w*/g), ...f.lx.bare.matchAll(/\bimport\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var)\s+)?UserNotifications\b/g)];
+    if (names.length === 0) continue;
+    said.unFiles.add(f.name);
+    if (f.name === ALERT_FILES.system || f.name === ALERT_FILES.delegate) continue;
+    for (const m of names) findings.push(`${at(f, m.index)} names ${m[0].replace(/\s+/g, ' ')}; only ${ALERT_FILES.system} and ${ALERT_FILES.delegate} speak to the notification center`);
+  }
+
+  // (4) A payload is read by AlertTap.parse alone, which the delegate hands it.
+  let handed = 0;
+  for (const f of lexedFiles) {
+    const allowed = [];
+    if (f.name === ALERT_FILES.alerts) {
+      const parse = /\bstatic\s+func\s+parse\s*\(/.exec(f.lx.bare);
+      const tap = declBody(f.lx.bare, 'enum', 'AlertTap');
+      if (parse !== null && tap !== null && parse.index > tap[0] && parse.index < tap[1]) {
+        const open = f.lx.bare.indexOf('{', parse.index);
+        const close = open === -1 ? -1 : matchForward(f.lx.bare, open);
+        if (close !== -1) allowed.push([parse.index, close]);
+      }
+    }
+    if (f.name === ALERT_FILES.delegate) {
+      for (const m of f.lx.bare.matchAll(/\bAlertTap\s*\.\s*parse\s*\(/g)) {
+        const open = m.index + m[0].length - 1;
+        const close = closeParen(f.lx.bare, open);
+        if (close === -1) continue;
+        allowed.push([open, close]);
+        if (/\buserInfo\b/.test(f.lx.bare.slice(open, close))) handed += 1;
+      }
+    }
+    for (const m of f.lx.bare.matchAll(/\buserInfo\b/g)) {
+      said.userInfo += 1;
+      if (!allowed.some(([a, b]) => m.index > a && m.index < b)) {
+        findings.push(`${at(f, m.index)} reads userInfo; a notification's payload is read by AlertTap.parse alone (${ALERT_FILES.alerts}), which ${ALERT_FILES.delegate} hands it`);
+      }
+    }
+  }
+  if (handed !== 1) findings.push(`${ALERT_FILES.delegate} hands a notification's userInfo to AlertTap.parse ${String(handed)} time(s); it hands it once, from didReceive, so a tap opens what it names`);
+
+  // (5) The environment is the build's.
+  const alerts = byName.get(ALERT_FILES.alerts);
+  const env = alerts === undefined ? null : declBody(alerts.lx.bare, 'enum', 'PushEnvironment');
+  if (env === null) findings.push(`${ALERT_FILES.alerts} declares no enum PushEnvironment`);
+  else {
+    const body = alerts.lx.bare.slice(env[0], env[1]);
+    const debug = debugLines(alerts.lx.code);
+    const release = releaseLines(alerts.lx.code);
+    const decls = [...body.matchAll(/\bstatic\s+(?:let|var)\s+current\b([^\n]*)/g)];
+    const arms = { debug: [], release: [] };
+    for (const d of decls) {
+      const line = lineOf(alerts.lx.bare, env[0] + d.index);
+      const value = /=\s*\.(\w+)\s*$/.exec(d[1].trim())?.[1] ?? null;
+      if (debug[line] === true) arms.debug.push(value);
+      else if (release[line] === true) arms.release.push(value);
+      else findings.push(`${ALERT_FILES.alerts}:${String(line)} declares PushEnvironment.current outside #if DEBUG and its #else`);
+    }
+    said.arms = decls.length;
+    if (arms.debug.length !== 1 || arms.debug[0] !== 'development') {
+      findings.push(`${ALERT_FILES.alerts}'s PushEnvironment.current under #if DEBUG is ${JSON.stringify(arms.debug)}; it is .development once, because every DEBUG build is ad hoc and Apple's development environment's`);
+    }
+    if (arms.release.length !== 1 || arms.release[0] !== 'production') {
+      findings.push(`${ALERT_FILES.alerts}'s PushEnvironment.current in the #else of #if DEBUG is ${JSON.stringify(arms.release)}; it is .production once, because the app he uploads is re-signed for production`);
+    }
+  }
+
+  // (6) The wire names, declared for the presentation and the record alone.
+  const homes = { [ALERT_FILES.pairing]: 'Inner', [ALERT_FILES.keys]: 'Record' };
+  for (const f of lexedFiles) {
+    for (const m of f.lx.bare.matchAll(/\b(?:let|var|case)\s+(apt|ape)\b/g)) {
+      said.fields += 1;
+      const home = homes[f.name];
+      const body = home === undefined ? null : declBody(f.lx.bare, 'struct', home);
+      if (body === null || m.index < body[0] || m.index > body[1]) {
+        findings.push(`${at(f, m.index)} declares ${m[1]}; the alert address's wire names are declared by ${ALERT_FILES.pairing}'s Inner (the presentation) and ${ALERT_FILES.keys}'s Record (what the Keychain keeps) and nowhere else`);
+      }
+    }
+    if (homes[f.name] === undefined) {
+      for (const m of f.lx.bare.matchAll(/\b(apt|ape)\b/g)) findings.push(`${at(f, m.index)} names ${m[1]}, the alert address's wire name, outside the presentation and its record`);
+    }
+    for (const s of f.lx.strings) {
+      if (/\bap[te]\b/.test(s.value)) findings.push(`${at(f, s.start)} writes ${JSON.stringify(s.value.slice(0, 40))}; the alert address is sealed by the presentation's own encoder and never spelled by hand`);
+    }
+  }
+  for (const [file, home] of Object.entries(homes)) {
+    const f = byName.get(file);
+    const body = f === undefined ? null : declBody(f.lx.bare, 'struct', home);
+    const inside = body === null ? [] : [...f.lx.bare.slice(body[0], body[1]).matchAll(/\b(?:let|var)\s+(apt|ape)\b/g)].map((m) => m[1]).sort();
+    if (inside.join() !== 'ape,apt') findings.push(`${file}'s ${home} declares ${JSON.stringify(inside)}; it declares apt and ape once each`);
+  }
+
+  // (7) No badge, no extension, no background delivery, no print, no log.
+  for (const f of lexedFiles) {
+    for (const [re, why] of ALERT_NEVER_CODE) {
+      for (const m of f.lx.bare.matchAll(new RegExp(re.source, 'g'))) findings.push(`${at(f, m.index)} names ${m[0].replace(/\s*\($/, '(')}, which ${why}`);
+    }
+    for (const s of f.lx.strings) {
+      for (const [re, why] of ALERT_NEVER_STRING) if (re.test(s.value)) findings.push(`${at(f, s.start)} writes ${JSON.stringify(s.value.slice(0, 40))}, which ${why}`);
+    }
+  }
+
+  // (8) iOS is asked about alerts only for a Mac that can send one (research 136 section 9).
+  const pairing = byName.get(ALERT_FILES.pairing);
+  const asksInFlow = pairing === undefined ? [] : [...pairing.lx.bare.matchAll(/\baskForAlerts\s*\(\s*\)/g)];
+  said.flowAsks = asksInFlow.length;
+  if (asksInFlow.length !== 1) {
+    findings.push(`${ALERT_FILES.pairing} calls askForAlerts() ${String(asksInFlow.length)} time(s); it asks once, in the arm that reads the Mac's pending answer, behind the word that answer carries`);
+  }
+  for (const m of asksInFlow) {
+    const bare = pairing.lx.bare;
+    const arms = [...bare.matchAll(/\bcase\s+\.pending\s*\(\s*let\s+(\w+)\s*\)\s*:/g)].filter((a) => a.index < m.index);
+    const arm = arms.at(-1);
+    const armEnd = arm === undefined ? -1 : bare.slice(arm.index + arm[0].length).search(/\bcase\s+\.|\bdefault\s*:/);
+    const inArm = arm !== undefined && (armEnd === -1 || m.index < arm.index + arm[0].length + armEnd);
+    if (!inArm) {
+      findings.push(`${at(pairing, m.index)} asks for alerts outside the arm that reads the Mac's pending answer, so a Mac that cannot send could have its phone asked`);
+      continue;
+    }
+    const between = bare.slice(arm.index + arm[0].length, m.index);
+    if (!new RegExp(`\\bif\\s+${arm[1]}\\b`).test(between)) {
+      findings.push(`${at(pairing, m.index)} asks for alerts with no \`if ${arm[1]}\` before it in the pending arm, so it asks whatever the Mac said about sending`);
+    }
+  }
+  const pairingAsks = lexedFiles.flatMap((f) => [...f.lx.bare.matchAll(/\.\s*askForPairing\s*\(/g)].map((m) => ({ f, index: m.index })));
+  said.pairingAsks = pairingAsks.length;
+  if (pairingAsks.length !== 1) {
+    findings.push(`the app calls askForPairing() ${String(pairingAsks.length)} time(s)${pairingAsks.length > 0 ? ` (${pairingAsks.map((a) => at(a.f, a.index)).join(', ')})` : ''}; it is called once, inside the closure ${ALERT_FILES.screen} hands the pairing as askForAlerts`);
+  }
+  for (const a of pairingAsks) {
+    let inside = false;
+    if (a.f.name === ALERT_FILES.screen) {
+      for (const c of a.f.lx.bare.matchAll(/\baskForAlerts\s*:\s*\{/g)) {
+        const open = c.index + c[0].length - 1;
+        const close = matchForward(a.f.lx.bare, open);
+        if (a.index > open && (close === -1 || a.index < close)) inside = true;
+      }
+    }
+    if (!inside) findings.push(`${at(a.f, a.index)} calls askForPairing() outside the closure the pairing asks through, so iOS could be asked before the Mac says it can send`);
+  }
+  const launchReads = lexedFiles.flatMap((f) => [...f.lx.bare.matchAll(/\.\s*(currentAddress|authorization)\s*\(/g)].map((m) => ({ f, index: m.index, name: m[1] })));
+  said.launchReads = launchReads.length;
+  for (const r of launchReads) {
+    const body = r.f.name === ALERT_FILES.app ? enclosingFunction(r.f.lx.bare, r.index) : null;
+    const before = body === null ? '' : r.f.lx.bare.slice(body[0], r.index);
+    if (r.f.name !== ALERT_FILES.app || !/\bguard\b[^{]*\bmacSends\b/.test(before)) {
+      findings.push(`${at(r.f, r.index)} reads ${r.name}() with no guard on the kept pairing's macSends before it in ${ALERT_FILES.app}, so a phone paired with a Mac that cannot send could be asked, or registered with Apple`);
+    }
+  }
+
+  // No test asks Apple, or asks through the class that does.
+  for (const t of tests) {
+    const { bare } = lexSwift(t.source);
+    for (const m of bare.matchAll(/\bregisterForRemoteNotifications\b|\bSystemPushAddressing\b|\brequestAuthorization\s*\(/g)) {
+      findings.push(`${t.name}:${String(lineOf(bare, m.index))} names ${m[0].replace(/\s*\($/, '(')}; a test runs in a Simulator, which never asks Apple for a token, and in the Release test host it would`);
+    }
+  }
+  return { findings, said: { ...said, unFiles: [...said.unFiles].sort() } };
 }
 
 // ---------------------------------------------------------------------------
@@ -3470,7 +3929,7 @@ const expect = (what, ok) => {
   // with Debug and Release, and the project's own two.
   const conf = (id, name, body) => `    ${id} /* ${name} */ = {\n      isa = XCBuildConfiguration;\n      buildSettings = {\n${body}      };\n      name = ${name};\n    };`;
   const adHoc = '        CODE_SIGN_IDENTITY = "-";\n        CODE_SIGN_STYLE = Manual;\n        DEVELOPMENT_TEAM = "";\n';
-  const identity = '        CURRENT_PROJECT_VERSION = 1;\n        MARKETING_VERSION = 1.0.0;\n        PRODUCT_BUNDLE_IDENTIFIER = com.itavero.tortie.phone;\n';
+  const identity = `        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n        MARKETING_VERSION = 1.0.0;\n        PRODUCT_BUNDLE_IDENTIFIER = com.itavero.tortie.phone;\n`;
   const his = `        CODE_SIGN_IDENTITY = "Apple Development";\n        CODE_SIGN_STYLE = Automatic;\n        DEVELOPMENT_TEAM = ${RELEASE_TEAM};\n`;
   const list = (id, kind, owner, a, b) => `    ${id} /* Build configuration list for ${kind} "${owner}" */ = {\n      isa = XCConfigurationList;\n      buildConfigurations = (\n        ${a} /* Debug */,\n        ${b} /* Release */,\n      );\n    };`;
   const pbxSign = ({ appDebug = adHoc + identity, appRelease = his + identity, testRelease = adHoc, projectRelease = adHoc, tail = '' } = {}) =>
@@ -3512,19 +3971,112 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace('CURRENT_PROJECT_VERSION = 1;', 'CURRENT_PROJECT_VERSION = 2;') })).length > 0);
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 4;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 4;');
+  expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
+  expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
+  expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
   expect('(s) catches a marketing version that is not three numbers', sRun(pbxSign({ appDebug: adHoc + identity.replace('1.0.0', '1.0'), appRelease: his + identity.replace('1.0.0', '1.0') })).length > 0);
   expect('(s) catches a Debug configuration signed with an identity', sRun(pbxSign({ projectRelease: adHoc }).replace(/(BBBB00000011 \/\* Debug \*\/ = \{[\s\S]*?)CODE_SIGN_IDENTITY = "-";/, '$1CODE_SIGN_IDENTITY = "Apple Development";')).length > 0);
   expect('(s) catches a display name that is not Tortie', sRun(pbxSign(), [], { ...plistOk, CFBundleDisplayName: 'gmux' }).length > 0);
   expect('(s) catches a bundle id written into Info.plist', sRun(pbxSign(), [], { ...plistOk, CFBundleIdentifier: 'com.itavero.tortie.phone' }).length > 0);
+
+  // (w) The entitlement: the (s) project with the app naming the file in both
+  // configurations and a UI test target, which makes the three.
+  const entitled = `        CODE_SIGN_ENTITLEMENTS = ${ENTITLEMENTS_FILE};\n`;
+  const uiTarget = [
+    '    BBBB00000020 /* TortieUITests */ = {',
+    '      isa = PBXNativeTarget;',
+    '      buildConfigurationList = BBBB00000021 /* Build configuration list for PBXNativeTarget "TortieUITests" */;',
+    '      productType = "com.apple.product-type.bundle.ui-testing";',
+    '    };',
+    list('BBBB00000021', 'PBXNativeTarget', 'TortieUITests', 'BBBB00000022', 'BBBB00000023'),
+    conf('BBBB00000022', 'Debug', adHoc),
+    conf('BBBB00000023', 'Release', adHoc)
+  ].join('\n');
+  const pbxW = (over = {}) => pbxSign({ appDebug: adHoc + identity + entitled, appRelease: his + identity + entitled, tail: uiTarget, ...over });
+  const keyFileOk = `export const PHONE_APP_TOPIC = '${PHONE_BUNDLE_ID}';\nexport const PHONE_APP_TEAM = '${RELEASE_TEAM}';\n`;
+  const wIn = { entitlements: { 'aps-environment': 'development' }, pbxproj: pbxW(), entitlementFiles: [`ios/${ENTITLEMENTS_FILE}`], iosText: [{ name: 'ios/Tortie/Info.plist', text: '<plist/>' }], keyFile: keyFileOk };
+  const wRun = (over = {}) => ruleEntitlement({ ...wIn, ...over }).findings;
+  expect('(w) accepts aps-environment alone, named by the app twice, three targets, and the Mac signing for this app', wRun().length === 0);
+  expect('(w) catches a second entitlement', wRun({ entitlements: { 'aps-environment': 'development', 'com.apple.developer.usernotifications.time-sensitive': true } }).length > 0);
+  expect('(w) catches no entitlement', wRun({ entitlements: {} }).length > 0);
+  expect('(w) catches production written into the file', wRun({ entitlements: { 'aps-environment': 'production' } }).length > 0);
+  expect('(w) catches a file it cannot read', wRun({ entitlements: null }).length > 0);
+  expect('(w) catches a second entitlements file', wRun({ entitlementFiles: [`ios/${ENTITLEMENTS_FILE}`, 'ios/TortieTests/T.entitlements'] }).length > 0);
+  expect('(w) catches Release naming no entitlements file', wRun({ pbxproj: pbxW({ appRelease: his + identity }) }).length > 0);
+  expect('(w) catches a test target naming one', wRun({ pbxproj: pbxW({ testRelease: `${adHoc}        CODE_SIGN_ENTITLEMENTS = T.entitlements;\n` }) }).length > 0);
+  expect('(w) catches a fourth target, a service extension', wRun({ pbxproj: `${pbxW()}\n    BBBB00000030 /* Service */ = {\n      isa = PBXNativeTarget;\n      productType = "com.apple.product-type.app-extension";\n    };` }).length > 0);
+  expect('(w) catches a SystemCapabilities block', wRun({ pbxproj: `${pbxW()}\n    SystemCapabilities = {\n      com.apple.Push = {\n        enabled = 1;\n      };\n    };` }).length > 0);
+  expect('(w) catches an xcconfig naming an entitlements file', wRun({ xcconfigs: [{ name: 'E.xcconfig', text: `CODE_SIGN_ENTITLEMENTS = ${ENTITLEMENTS_FILE}\n` }] }).length > 0);
+  expect('(w) catches remote-notification anywhere under ios/', wRun({ iosText: [{ name: 'ios/Tortie/Info.plist', text: '<string>remote-notification</string>' }] }).length > 0);
+  expect('(w) catches the topic moved', wRun({ keyFile: keyFileOk.replace(PHONE_BUNDLE_ID, `${PHONE_BUNDLE_ID}.other`) }).length > 0);
+  expect('(w) catches another team', wRun({ keyFile: keyFileOk.replace(RELEASE_TEAM, 'ABCDE12345') }).length > 0);
+  expect('(w) catches the key file gone', wRun({ keyFile: null }).length > 0);
+  expect('(w) leaves a topic in a comment alone and reads the one const', wRun({ keyFile: `// PHONE_APP_TOPIC = 'x'\n${keyFileOk}` }).length === 0);
+
+  // (x) The alert's refusals, over a minimal app that keeps every one.
+  const xApp = {
+    [ALERT_FILES.system]:
+      'import UserNotifications\nfinal class SystemPushAddressing {\n  func ask() async { _ = try? await UNUserNotificationCenter.current().requestAuthorization(options: [.alert]) }\n  #if DEBUG\n  func address() {}\n  #else\n  func address() { UIApplication.shared.registerForRemoteNotifications() }\n  #endif\n}\n',
+    [ALERT_FILES.delegate]: 'import UserNotifications\nfinal class AppDelegate {\n  func tap(_ r: UNNotificationResponse) { AlertInbox.shared.post(AlertTap.parse(r.notification.request.content.userInfo)) }\n}\n',
+    [ALERT_FILES.alerts]:
+      'enum PushEnvironment {\n  case development, production\n  #if DEBUG\n  static let current: PushEnvironment = .development\n  #else\n  static let current: PushEnvironment = .production\n  #endif\n}\nenum AlertTap {\n  case list\n  static func parse(_ userInfo: [AnyHashable: Any]) -> AlertTap { _ = userInfo["tortie"]; return .list }\n}\n',
+    [ALERT_FILES.pairing]:
+      'private struct Inner: Encodable {\n  let apt: String?\n  let ape: String?\n}\nfinal class Flow {\n  func run(askForAlerts: () async -> Int?) async {\n    switch answer {\n    case .pending(let sends):\n      if sends, !asked { _ = await askForAlerts() }\n    case .refused:\n      break\n    }\n  }\n}\n',
+    [ALERT_FILES.keys]: 'private struct Record: Codable {\n  let apt: String?\n  let ape: String?\n}\n',
+    [ALERT_FILES.screen]: 'final class Model {\n  func read() async { _ = await door.pair(p, askForAlerts: { await alerts.askForPairing() }) { _ in } }\n}\n',
+    [ALERT_FILES.app]: 'final class AppModel {\n  func check() async {\n    guard kept.macSends else { return }\n    let a = await alerts.authorization()\n    let c = a == .authorized ? await alerts.currentAddress() : nil\n  }\n}\n'
+  };
+  const xRun = (edits = {}, tests = []) =>
+    ruleAlerts(
+      Object.entries({ ...xApp, ...edits }).filter(([, source]) => source !== null).map(([name, source]) => ({ name, source })),
+      tests
+    ).findings;
+  const xEdit = (file, from, to) => {
+    const text = xApp[file];
+    if (!text.includes(from)) selfFailures.push(`(x) fixture: ${file} holds no ${JSON.stringify(from)}`);
+    return { [file]: text.replace(from, to) };
+  };
+  expect('(x) accepts the app that keeps every refusal', xRun().length === 0);
+  expect('(x) catches the registration in the #if DEBUG arm', xRun(xEdit(ALERT_FILES.system, '  func address() {}\n  #else\n  func address() { UIApplication.shared.registerForRemoteNotifications() }', '  func address() { UIApplication.shared.registerForRemoteNotifications() }\n  #else\n  func address() {}')).length > 0);
+  expect('(x) catches the registration outside #if DEBUG', xRun(xEdit(ALERT_FILES.system, '  #endif\n}', '  #endif\n  func again() { UIApplication.shared.registerForRemoteNotifications() }\n}')).length > 0);
+  expect('(x) catches the registration in another file', xRun(xEdit(ALERT_FILES.delegate, '}\n', '  func r() { UIApplication.shared.registerForRemoteNotifications() }\n}\n')).length > 0);
+  expect('(x) catches a second question', xRun(xEdit(ALERT_FILES.delegate, '}\n', '  func q() { UNUserNotificationCenter.current().requestAuthorization(options: []) { _, _ in } }\n}\n')).length > 0);
+  expect('(x) catches the notification center named in a screen', xRun({ 'Screens/ListScreen.swift': 'let c = UNUserNotificationCenter.current()\n' }).length > 0);
+  expect('(x) catches userInfo read in a screen', xRun({ 'Screens/ListScreen.swift': 'func f(_ n: UNNotification) { _ = n.request.content.userInfo }\n' }).length > 0);
+  expect('(x) catches the delegate handing the tap nowhere', xRun(xEdit(ALERT_FILES.delegate, 'AlertInbox.shared.post(AlertTap.parse(r.notification.request.content.userInfo))', 'AlertInbox.shared.post(.list)')).length > 0);
+  expect('(x) catches production under DEBUG', xRun(xEdit(ALERT_FILES.alerts, 'static let current: PushEnvironment = .development', 'static let current: PushEnvironment = .production')).length > 0);
+  expect('(x) catches development in the #else', xRun(xEdit(ALERT_FILES.alerts, 'static let current: PushEnvironment = .production', 'static let current: PushEnvironment = .development')).length > 0);
+  expect('(x) catches apt declared outside the presentation and its record', xRun({ 'Screens/ListScreen.swift': 'struct Sneak { let apt: String }\n' }).length > 0);
+  expect('(x) catches apt spelled by hand in a string', xRun({ 'Screens/ListScreen.swift': 'let k = "apt"\n' }).length > 0);
+  expect('(x) catches the record without ape', xRun(xEdit(ALERT_FILES.keys, '  let ape: String?\n', '')).length > 0);
+  for (const [name, line] of [
+    ['setBadgeCount', 'center.setBadgeCount(0)'],
+    ['applicationIconBadgeNumber', 'UIApplication.shared.applicationIconBadgeNumber = 0'],
+    ['print(', 'print(token)'],
+    ['NSLog', 'NSLog("%@", token)'],
+    ['Logger(', 'let log = Logger()'],
+    ['didReceiveRemoteNotification', 'func application(_ a: UIApplication, didReceiveRemoteNotification u: [AnyHashable: Any]) {}'],
+    ['content-available', 'let k = "content-available"']
+  ]) {
+    expect(`(x) catches ${name}`, xRun({ 'Screens/ListScreen.swift': `${line}\n` }).length > 0);
+  }
+  expect('(x) catches a test naming the class that registers', xRun({}, [{ name: 'TortieTests/T.swift', source: 'let s = SystemPushAddressing.shared\n' }]).length > 0);
+  expect('(x) catches the pairing asking outside the pending arm', xRun(xEdit(ALERT_FILES.pairing, '    switch answer {', '    _ = await askForAlerts()\n    switch answer {')).length > 0);
+  expect('(x) catches the pairing asking whatever the Mac said', xRun(xEdit(ALERT_FILES.pairing, 'if sends, !asked { _ = await askForAlerts() }', 'if !asked { _ = await askForAlerts() }')).length > 0);
+  expect('(x) catches the pairing asking twice', xRun(xEdit(ALERT_FILES.pairing, 'if sends, !asked { _ = await askForAlerts() }', 'if sends, !asked { _ = await askForAlerts(); _ = await askForAlerts() }')).length > 0);
+  expect('(x) catches the screen asking before it presents', xRun(xEdit(ALERT_FILES.screen, 'func read() async { _ = await door.pair(p, askForAlerts: { await alerts.askForPairing() })', 'func read() async { _ = await alerts.askForPairing(); _ = await door.pair(p, askForAlerts: { nil })')).length > 0);
+  expect('(x) catches the launch check reading iOS with no guard on macSends', xRun(xEdit(ALERT_FILES.app, '    guard kept.macSends else { return }\n', '')).length > 0);
+  expect('(x) catches iOS read outside the launch check', xRun({ 'Screens/ListScreen.swift': 'func f() async { _ = await alerts.authorization() }\n' }).length > 0);
 }
 
 // ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
-/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node. */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v'];
+/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node; (w) and (x) are Phase 316.5's. */
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -3588,7 +4140,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       const { bare } = lexSwift(read(join(ROOT, endpoint.name)));
       if (!/==\s*loopbackHost\b|==\s*"127\.0\.0\.1"/.test(bare)) f.push(`${endpoint.name}'s door endpoint seam never compares the host it is handed with 127.0.0.1`);
     }
-    record('d', 'the four DEBUG seams exist and sit inside #if DEBUG', f, `transport seam at ${seams.transport.join(', ') || 'nowhere'}; injection read at ${seams.injection.join(', ') || 'nowhere'}; ${String(argued.length)} seam argument(s) inside #if DEBUG (${[...new Set(argued.map((a) => a.value))].join(', ')})`);
+    record('d', `the ${['none', 'one', 'two', 'three', 'four', 'five', 'six'][DEBUG_SEAM_ARGUMENTS.length] ?? String(DEBUG_SEAM_ARGUMENTS.length)} DEBUG seams exist and sit inside #if DEBUG`, f, `transport seam at ${seams.transport.join(', ') || 'nowhere'}; injection read at ${seams.injection.join(', ') || 'nowhere'}; ${String(argued.length)} seam argument(s) inside #if DEBUG (${[...new Set(argued.map((a) => a.value))].join(', ')})`);
   }
   // (e)
   {
@@ -3884,6 +4436,48 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   {
     const r = rulePairingSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, existsSync(PAIRING_SCREEN) ? read(PAIRING_SCREEN) : null, existsSync(PAIRING) ? read(PAIRING) : null);
     record('v', 'the phone always draws a sentence', r.findings, `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s)`);
+  }
+  // (w)
+  {
+    const f = [];
+    const path = join(IOS, ...ENTITLEMENTS_FILE.split('/'));
+    let entitlements = null;
+    try {
+      entitlements = existsSync(path) ? readPlistFile(path) : null;
+    } catch (err) {
+      f.push(`${rel(path)} could not be read: ${String(err?.message ?? err)}`);
+    }
+    const keyPath = join(ROOT, ...KEY_FILE_TS.split('/'));
+    const r = ruleEntitlement({
+      entitlements,
+      pbxproj: pbx,
+      xcconfigs,
+      entitlementFiles: allText.filter((q) => q.endsWith('.entitlements')).map(rel).sort(),
+      iosText: allText.map((q) => ({ name: rel(q), text: read(q) })),
+      keyFile: existsSync(keyPath) ? read(keyPath) : null
+    });
+    f.push(...r.findings);
+    record(
+      'w',
+      'aps-environment is the app\'s only entitlement, and the Mac signs for this app',
+      f,
+      `${ENTITLEMENTS_FILE} is exactly {"aps-environment":"development"}, named by ${String(r.said.named)} app configuration(s) and no other target; ${String(r.said.targets)} targets; no SystemCapabilities, no com.apple.Push; no remote-notification in ${String(r.said.files)} files under ios/; ${KEY_FILE_TS}'s topic and team are ${PHONE_BUNDLE_ID} and ${RELEASE_TEAM}`
+    );
+  }
+  // (x)
+  {
+    const files = appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) }));
+    const tests = testSwift.map((p) => ({ name: relative(IOS, p).split(sep).join('/'), source: read(p) }));
+    const r = ruleAlerts(files, tests);
+    record(
+      'x',
+      'the alert\'s refusals',
+      r.findings,
+      `registerForRemoteNotifications ${String(r.said.registrations)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}; requestAuthorization ${String(r.said.asks)} time(s); UserNotifications named in ${r.said.unFiles.join(' and ') || 'no file'}; ` +
+        `userInfo read ${String(r.said.userInfo)} time(s), inside AlertTap.parse or handed to it; PushEnvironment.current .development under DEBUG and .production in its #else (${String(r.said.arms)} arms); apt and ape declared ${String(r.said.fields)} time(s), by Inner and Record; ` +
+        `iOS asked only for a Mac that says it can send: askForAlerts() ${String(r.said.flowAsks)} time(s) in the pending arm behind its word, askForPairing() ${String(r.said.pairingAsks)} time(s) inside the closure the pairing asks through, ${String(r.said.launchReads)} launch read(s) behind a guard on macSends; ` +
+        `no badge write, service extension, background delivery, print or log in ${String(files.length)} app files, and no test of ${String(tests.length)} names the registration`
+    );
   }
 }
 

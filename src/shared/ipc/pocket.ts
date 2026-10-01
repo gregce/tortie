@@ -492,6 +492,28 @@ export interface PocketStatus {
    * person turns it on and confirms, so turning it on asks again.
    */
   pushAlerts: boolean;
+  /**
+   * The id of the Apple push key Tortie keeps for the phone app, ten capital
+   * letters or digits, or null when none is kept or it has not been read yet
+   * (Phase 316.5). PUBLIC: it is the `kid` of every provider token Apple is
+   * sent, and the key itself never leaves main. Not a hashed field.
+   */
+  pushKeyId: string | null;
+  /**
+   * The push's standing sentence (`@shared/push-copy`), or null while alerts
+   * are not armed or nothing went wrong (Phase 316.5). Drawn under the switch.
+   */
+  pushSentence: string | null;
+}
+
+/**
+ * What choosing the Apple push key came to (Phase 316.5). A cancelled panel is
+ * `{ kept: false, refusal: null }`; a file that could not be kept names why in
+ * one sentence and nothing was changed.
+ */
+export interface PocketPushKeyResult {
+  kept: boolean;
+  refusal: string | null;
 }
 
 /**
@@ -724,7 +746,8 @@ export const POCKET_AGE_HONESTY =
  * Settings then Phone, and nothing else, reaches these.
  *
  * `pocket:setDoor`, `pocket:setPushAlerts`, `pocket:removePhone`,
- * `pocket:confirmDoor` and `pocket:forgetDoor` DO change
+ * `pocket:confirmDoor`, `pocket:forgetDoor`, `pocket:choosePushKey` and
+ * `pocket:forgetPushKey` DO change
  * state, and `pocket:openApproval` opens one page in the browser; that is not
  * a contradiction of "no write route": they are the RENDERER's channels,
  * reached by a person pressing a button in Tortie on this Mac. The door's own
@@ -780,6 +803,15 @@ export interface PocketInvokeChannelMap {
    * credentials. False when there is nothing it will open.
    */
   'pocket:openApproval': { req: []; res: boolean };
+  /**
+   * Choose the Apple push key (Phase 316.5): main opens the file panel, reads
+   * the `.p8` the person picked, takes the key id from Apple's own file name
+   * and keeps it sealed. Nothing of the key comes back: only whether it was
+   * kept, or the one sentence saying why not.
+   */
+  'pocket:choosePushKey': { req: []; res: PocketPushKeyResult };
+  /** Forget the kept Apple push key (Phase 316.5). Nothing is sent until one is chosen again. */
+  'pocket:forgetPushKey': { req: []; res: PocketStatus };
 }
 
 /**
@@ -811,6 +843,8 @@ export interface GmuxPocketExtras {
     confirmDoor(input: PocketAllowInput): Promise<PocketAllowResult>;
     forgetDoor(): Promise<PocketStatus>;
     openApproval(): Promise<boolean>;
+    choosePushKey(): Promise<PocketPushKeyResult>;
+    forgetPushKey(): Promise<PocketStatus>;
     onChanged(cb: (status: PocketStatus) => void): () => void;
   };
 }

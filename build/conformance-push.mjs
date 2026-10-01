@@ -11,6 +11,20 @@
  * delete with every other gate green. This file is the executable half of
  * `build/p314/SPEC.md` §2 and §3, twenty-three rules in all.
  *
+ * PHASE 316.5 COMPOSES IT FOR A PERSON (build/p3165/SPEC.md §6.2). The engine
+ * and the sender are built outside a harness for the first time, in
+ * `src/main/alerts/index.ts`, and the four promises that make that safe are
+ * rules here: H2 is raised from zero to EXACTLY ONE `allowRemote`, in that
+ * module, whose value is `!isHarnessLaunch(process.env)` read by the parser;
+ * P1, the production composition, built once and only after the core and a
+ * second ask; P2, its place in the ordered quit; and G1 and W1 read
+ * `src/main/alerts/` too. H3 reads the new tests and `probe:p316`. Its fix
+ * round widened P1 (each token's environment picks Apple's host through the
+ * origin's OWN parameter, and a dead token reaches the door's durable drop:
+ * a verifier ablated each with every gate green) and added P3 (a harness
+ * launch never opens the file panel: probe:p313's census opened one on his
+ * screen and never finished). Twenty-six rules in all.
+ *
  * TWO HALVES, AND THEY ARE TWO METHODS.
  *
  *   - THE STATIC HALF, here: the source read with the TypeScript compiler's own
@@ -52,7 +66,7 @@ const t0 = Date.now();
 /** The rules. `owner` is the clause of `build/p314/SPEC.md` the rule is the executable half of. */
 const RULES = [
   ['H1', 'SPEC §2.5', 'Apple’s two hosts are each spelled ONCE in src/, inside apnsOrigin in src/main/push/apns.ts, and apnsOrigin maps the two environments to them'],
-  ['H2', 'SPEC §2.5, §5.2', 'the sender refuses cleartext to anything but 127.0.0.1/[::1] and any origin off this Mac without allowRemote, BEFORE any socket; no file in src/ passes allowRemote (pinned at 0)'],
+  ['H2', 'SPEC §2.5, §5.2; build/p3165/SPEC.md §6.2', 'the sender refuses cleartext to anything but 127.0.0.1/[::1] and any origin off this Mac without allowRemote, BEFORE any socket; EXACTLY ONE site in src/ passes allowRemote, in src/main/alerts/index.ts, inside its createApnsSender call, and its value is !isHarnessLaunch(process.env) with isHarnessLaunch imported from the launch gate'],
   ['H3', 'SPEC §6.3, the hard rules', 'every test, gate and probe aims the sender at loopback: no non-loopback origin literal reaches createApnsSender or connect, no allowRemote in any of them, and the driven half’s fence saw no dial'],
   ['J1', 'SPEC §2.6', 'the provider token’s signing input byte for byte, base64url with no padding, and a 64-byte ieee-p1363 signature that verifies under the scratch public key'],
   ['J2', 'SPEC §2.6', 'reuse under 50 minutes, re-mint at 50, NO re-mint when the clock went backwards, one re-mint and one retry on ExpiredProviderToken and never a third'],
@@ -70,10 +84,13 @@ const RULES = [
   ['E7', 'SPEC §2.7', 'Apple’s answers, every row driven: drop, stop, reauth, later, retry exactly once, and a removed destination never asked'],
   ['E8', 'SPEC §3.6', 'inert: no key read, no connection and no timer with no destination; with no key, no send and one sentence'],
   ['E9', 'SPEC §7, 313’s disposer shape', 'beginShutdown closes admission on its first line before any await and cancels timers; join is bounded'],
-  ['G1', 'SPEC §2.6, §3.6', 'no key, JWT, token, payload, title, body, question or answer reaches any log call in src/main/push/ or the seam'],
-  ['W1', 'SPEC §6.4', 'src/main/push/ names no main/logins/ and imports main/credentials/ and main/pocket/ by import type only; src/main/pocket/ names no main/push/'],
+  ['G1', 'SPEC §2.6, §3.6; build/p3165/SPEC.md §6.2', 'no key, JWT, token, payload, title, body, question or answer reaches any log call in src/main/push/, src/main/alerts/ or the seam'],
+  ['W1', 'SPEC §6.4; build/p3165/SPEC.md §6.2', 'src/main/push/ names no main/logins/ and imports main/credentials/ and main/pocket/ by import type only; src/main/alerts/ names no main/logins/; src/main/pocket/ names no main/push/'],
   ['Y1', 'SPEC §3.1', 'seenAtWake is computed only by blockedAge, WAKE_WINDOW_MS is declared once, and nothing in src/main/push/ compares a stamp with a resume time'],
-  ['S1', 'SPEC §1.1 row 1', 'the seam’s one status word equals statusVisual’s needs_input label in src/shared/status-words.ts, byte for byte, and the seam spells no other']
+  ['S1', 'SPEC §1.1 row 1', 'the seam’s one status word equals statusVisual’s needs_input label in src/shared/status-words.ts, byte for byte, and the seam spells no other'],
+  ['P1', 'build/p3165/SPEC.md §6.2, §5.1; its fix round', 'THE PRODUCTION COMPOSITION: createPushEngine and createApnsSender are called outside tests only in src/main/push/, the push seam and src/main/alerts/index.ts, exactly once each in the last; there the engine is built only in the function that first awaited deps.ready() and then read pushDestinations().length; the sender’s origin is a function of one parameter whose every apnsOrigin call is handed THAT parameter, so each token’s environment picks Apple’s host; the engine’s drop hands its destination’s tokenDigest to dropPushToken; and nothing under src/main/alerts/ names getGmuxCore'],
+  ['P2', 'build/p3165/SPEC.md §6.2, §5.1', 'THE QUIT: in disposeMainCapabilities, beginPhoneAlertsShutdown() is called before its first await, and await joinPhoneAlerts() comes after await joinPocketDoor() and before await shutdownGmuxCore()'],
+  ['P3', 'build/p3165/SPEC.md §As built, its fix round', 'THE PANEL: under src/main/alerts/ the native file panel (showOpenDialog) is opened only in src/main/alerts/index.ts, and every call to it sits in a function that FIRST returns on isHarnessLaunch(process.env), so a harness launch never meets a panel, override or none']
 ];
 
 if (process.argv.includes('--list')) {
@@ -245,9 +262,15 @@ const SEAM = join(SRC, 'main', 'harness', 'push-seam.ts');
 // rule reads live here now.
 const STATUS = join(SRC, 'shared', 'status-words.ts');
 const POCKET_DIR = join(SRC, 'main', 'pocket');
+// PHASE 316.5: the composition that builds the engine and the sender for a
+// person, and the ordered disposer it joins.
+const ALERTS_DIR = join(SRC, 'main', 'alerts');
+const ALERTS = join(ALERTS_DIR, 'index.ts');
+const CAPABILITIES = join(SRC, 'main', 'capabilities.ts');
 
 const allSrc = sourcesUnder(SRC);
 const pushFiles = sourcesUnder(PUSH_DIR);
+const alertsFiles = sourcesUnder(ALERTS_DIR);
 
 /** A module a rule needs, or null with the rule failed by name. */
 function needed(path, ruleIds, owner) {
@@ -296,18 +319,63 @@ function hostRules() {
     }
   }
 
-  // H2, static: nothing in src/ passes allowRemote, and the refusal is code.
+  // H2, static: EXACTLY ONE site in src/ passes allowRemote (Phase 316.5
+  // raised it from the zero Phase 314 pinned), and the refusal is code.
   const passes = [];
   for (const file of allSrc) {
     for (const n of nodesOf(file)) {
       if ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && ts.isIdentifier(n.name) && n.name.text === 'allowRemote') {
-        passes.push(where(file, n));
+        passes.push({ file, node: n });
       }
     }
   }
   checked('H2', allSrc.length);
-  if (passes.length !== 0) {
-    fail('H2', `allowRemote is passed at ${passes.join(', ')}. It is pinned at ZERO in this phase; the round that wires production raises it to exactly one, computed from !isHarnessLaunch(process.env)`);
+  if (passes.length !== 1) {
+    fail('H2', `allowRemote is passed at ${passes.map((p) => where(p.file, p.node)).join(', ') || 'no site'}. It is passed at EXACTLY ONE site, the production sender in src/main/alerts/index.ts, computed from !isHarnessLaunch(process.env)`);
+  }
+  for (const { file, node } of passes) {
+    checked('H2');
+    if (file !== ALERTS) {
+      fail('H2', `${where(file, node)} passes allowRemote. The one site is the production sender in src/main/alerts/index.ts; a second sender that can leave this Mac is a second place his key can be sent from that nobody reviewed`);
+      continue;
+    }
+    // Its value, READ BY THE PARSER: the negation of a call of isHarnessLaunch
+    // on process.env, and nothing else.
+    const init = ts.isPropertyAssignment(node) ? node.initializer : null;
+    const call =
+      init !== null && ts.isPrefixUnaryExpression(init) && init.operator === ts.SyntaxKind.ExclamationToken && ts.isCallExpression(init.operand)
+        ? init.operand
+        : null;
+    const arg = call?.arguments[0];
+    const exact =
+      call !== null &&
+      ts.isIdentifier(call.expression) &&
+      call.expression.text === 'isHarnessLaunch' &&
+      call.arguments.length === 1 &&
+      arg !== undefined &&
+      ts.isPropertyAccessExpression(arg) &&
+      ts.isIdentifier(arg.expression) &&
+      arg.expression.text === 'process' &&
+      arg.name.text === 'env';
+    if (!exact) {
+      fail('H2', `${where(file, node)}: allowRemote is ${JSON.stringify(init === null ? '(shorthand)' : init.getText(astOf(file)))}, not !isHarnessLaunch(process.env). A harness launch must never be able to reach Apple, and a person's launch must`);
+    }
+    // Inside the createApnsSender call's own argument, so it is the sender's.
+    let p = node.parent;
+    while (p !== undefined && !ts.isCallExpression(p)) p = p.parent;
+    if (p === undefined || calleeName(p) !== 'createApnsSender') {
+      fail('H2', `${where(file, node)}: allowRemote is not a property of the createApnsSender call's own argument`);
+    }
+    // And the isHarnessLaunch it calls is the launch gate's, not a local one.
+    const gate = importsOf(file).some(
+      (i) => targetOf(file, i.spec) === 'main/harness/launch-gate' && !i.typeOnly && /\bisHarnessLaunch\b/.test(i.node.getText(astOf(file)))
+    );
+    const shadowed = nodesOf(file).some(
+      (n) => (ts.isFunctionDeclaration(n) || ts.isVariableDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name) && n.name.text === 'isHarnessLaunch'
+    );
+    if (!gate || shadowed) {
+      fail('H2', `${rel(file)} does not take isHarnessLaunch from src/main/harness/launch-gate.ts${shadowed ? ', or declares one of its own' : ''}, so what the value reads is not what the launch gate decides`);
+    }
   }
   if (apns !== null) {
     checked('H2');
@@ -365,7 +433,13 @@ function loopbackRule() {
   const files = [
     ...sourcesUnder(join(PUSH_DIR, '__tests__'), { tests: true }),
     ...sourcesUnder(join(ROOT, 'build', 'p314'), { tests: true, exts: /\.(?:mjs|mts|ts)$/ }),
-    ...['conformance-push.mjs', 'ablation-p314.mjs', 'probe-p314.mjs'].map((f) => join(ROOT, 'build', f)).filter((f) => existsSync(f))
+    ...['conformance-push.mjs', 'ablation-p314.mjs', 'probe-p314.mjs'].map((f) => join(ROOT, 'build', f)).filter((f) => existsSync(f)),
+    // PHASE 316.5: the alerts' tests, the override's, and the phone's app run.
+    ...sourcesUnder(join(ALERTS_DIR, '__tests__'), { tests: true }),
+    ...[
+      join(SRC, 'main', 'harness', '__tests__', 'alerts-override.test.ts'),
+      join(ROOT, 'build', 'p316', 'probe-p316.mjs')
+    ].filter((f) => existsSync(f))
   ];
   checked('H3');
   if (!files.some((f) => f.endsWith('push-conformance.mts'))) {
@@ -537,8 +611,11 @@ function shutdownRule() {
 
 function logRule() {
   const POISON = /\b(?:tokens?|keys?|jwt|bearer|pem|p8|apt|pushToken|deviceToken|payloads?|title|body|question|answers?|authorization|signature|secret|prompt|transcript)\b/i;
-  const files = [...pushFiles, ...(existsSync(SEAM) ? [SEAM] : [])];
+  const files = [...pushFiles, ...alertsFiles, ...(existsSync(SEAM) ? [SEAM] : [])];
   checked('G1');
+  if (alertsFiles.length === 0) {
+    fail('G1', 'src/main/alerts/ holds no source file, so the production composition’s log calls were not read. It is Phase 316.5 builder mac’s');
+  }
   if (pushFiles.length === 0) {
     fail('G1', 'src/main/push/ holds no source file, so this rule read nothing. It is Builder B’s');
     return;
@@ -581,6 +658,17 @@ function wallRule() {
       }
       if ((target.startsWith('main/credentials/') || target === 'main/credentials' || target.startsWith('main/pocket/') || target === 'main/pocket') && !edge.typeOnly) {
         fail('W1', `${where(file, edge.node)} names ${edge.spec} by value (${edge.kind}). src/main/push/ reads the credentials and pocket domains by import type ONLY; what it needs arrives injected`);
+      }
+    }
+  }
+  // PHASE 316.5: the composition that holds the sender and the key names no
+  // module of the logins domain either.
+  for (const file of alertsFiles) {
+    for (const edge of importsOf(file)) {
+      const target = targetOf(file, edge.spec);
+      checked('W1');
+      if (target !== null && (target.startsWith('main/logins/') || target === 'main/logins')) {
+        fail('W1', `${where(file, edge.node)} names ${edge.spec}. The alerts' composition names no module of the logins domain`);
       }
     }
   }
@@ -693,6 +781,295 @@ function statusWordRule() {
 }
 
 // ---------------------------------------------------------------------------
+// P1 — the production composition (Phase 316.5)
+// ---------------------------------------------------------------------------
+
+/** Is this node `await deps.ready()`, the door's own beforeOpen, read by the parser? */
+function isAwaitedDepsReady(n) {
+  if (!ts.isAwaitExpression(n) || !ts.isCallExpression(n.expression)) return false;
+  const e = n.expression.expression;
+  return ts.isPropertyAccessExpression(e) && e.name.text === 'ready' && ts.isIdentifier(e.expression) && e.expression.text === 'deps';
+}
+
+/**
+ * Is this node an await of the core, either `await deps.ready()` itself or
+ * `await ready()` where the file's own `ready` awaits `deps.ready()` (the
+ * composition counts the steps parked on it, so a quit need not wait for one).
+ */
+function isAwaitedReady(n, wrapperAwaitsDeps) {
+  if (isAwaitedDepsReady(n)) return true;
+  if (!ts.isAwaitExpression(n) || !ts.isCallExpression(n.expression)) return false;
+  return ts.isIdentifier(n.expression.expression) && n.expression.expression.text === 'ready' && wrapperAwaitsDeps;
+}
+
+/** Does the file declare a `ready` whose own body awaits `deps.ready()`? */
+function readyWrapperAwaitsDeps(file) {
+  for (const n of nodesOf(file)) {
+    if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.name.text !== 'ready' || n.initializer === undefined) continue;
+    let found = false;
+    const look = (x) => {
+      if (isAwaitedDepsReady(x)) found = true;
+      ts.forEachChild(x, look);
+    };
+    look(n.initializer);
+    return found;
+  }
+  return false;
+}
+
+/** Is this node a read of `<x>.pushDestinations().length`? */
+function isDestinationCount(n) {
+  return (
+    ts.isPropertyAccessExpression(n) &&
+    n.name.text === 'length' &&
+    ts.isCallExpression(n.expression) &&
+    calleeName(n.expression) === 'pushDestinations'
+  );
+}
+
+/** The nearest enclosing function-like node, or null. */
+function enclosingFunction(node) {
+  for (let p = node.parent; p !== undefined; p = p.parent) {
+    if (ts.isFunctionDeclaration(p) || ts.isMethodDeclaration(p) || ts.isArrowFunction(p) || ts.isFunctionExpression(p)) return p;
+  }
+  return null;
+}
+
+function compositionRule() {
+  const COMPOSERS = ['createPushEngine', 'createApnsSender'];
+  const sites = new Map(COMPOSERS.map((c) => [c, []]));
+  for (const file of allSrc) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isCallExpression(n)) continue;
+      const name = calleeName(n);
+      if (name === null || !sites.has(name)) continue;
+      checked('P1');
+      sites.get(name).push({ file, node: n });
+      const allowed = file.startsWith(PUSH_DIR + sep) || file === SEAM || file === ALERTS;
+      if (!allowed) {
+        fail('P1', `${where(file, n)} calls ${name}(). Outside tests the engine and the sender are built in src/main/push/, the push seam and src/main/alerts/index.ts, and nowhere else`);
+      }
+    }
+  }
+  const alerts = needed(ALERTS, ['P1'], 'Phase 316.5 builder mac’s composition');
+  if (alerts === null) return;
+  for (const name of COMPOSERS) {
+    const inAlerts = sites.get(name).filter((s) => s.file === ALERTS);
+    checked('P1');
+    if (inAlerts.length !== 1) {
+      fail('P1', `src/main/alerts/index.ts calls ${name}() ${String(inAlerts.length)} time(s). The production composition builds ONE ${name === 'createPushEngine' ? 'engine' : 'sender'}`);
+    }
+  }
+  // THE ENGINE IS BUILT ONLY AFTER THE CORE AND A SECOND ASK, in its own function.
+  for (const { node } of sites.get('createPushEngine').filter((s) => s.file === ALERTS)) {
+    checked('P1');
+    const fn = enclosingFunction(node);
+    if (fn === null || fn.body === undefined) {
+      fail('P1', `${where(alerts, node)}: createPushEngine is not called inside a function`);
+      continue;
+    }
+    let readyAt = -1;
+    let askedAt = -1;
+    const wrapper = readyWrapperAwaitsDeps(alerts);
+    const walk = (x) => {
+      // Not into a nested function: an await in a callback is not this one's.
+      if (x !== fn.body && (ts.isArrowFunction(x) || ts.isFunctionExpression(x) || ts.isFunctionDeclaration(x))) return;
+      if (readyAt === -1 && isAwaitedReady(x, wrapper)) readyAt = x.getStart(astOf(alerts));
+      if (readyAt !== -1 && askedAt === -1 && isDestinationCount(x) && x.getStart(astOf(alerts)) > readyAt) askedAt = x.getStart(astOf(alerts));
+      ts.forEachChild(x, walk);
+    };
+    walk(fn.body);
+    const builtAt = node.getStart(astOf(alerts));
+    if (readyAt === -1 || readyAt > builtAt) {
+      fail('P1', `${where(alerts, node)}: the engine is built ${readyAt === -1 ? 'in a function that never awaits deps.ready()' : 'BEFORE deps.ready() is awaited'}. The composition waits for the core through the door's own beforeOpen, first, and never builds anything before it`);
+    } else if (askedAt === -1 || askedAt > builtAt) {
+      fail('P1', `${where(alerts, node)}: after awaiting deps.ready() the engine is built without reading pushDestinations().length again. A Remove, alerts off or a changed agreement may have landed while it waited`);
+    }
+  }
+  // THE SENDER'S ORIGIN IS APPLE'S, BY EACH TOKEN'S ENVIRONMENT (widened by
+  // the fix round: `apnsOrigin('production')` named apnsOrigin and sent every
+  // development token to the production host with this rule green).
+  for (const { node } of sites.get('createApnsSender').filter((s) => s.file === ALERTS)) {
+    checked('P1', 2);
+    const arg = node.arguments[0];
+    const origin =
+      arg !== undefined && ts.isObjectLiteralExpression(arg)
+        ? arg.properties.find((p) => ts.isPropertyAssignment(p) && ts.isIdentifier(p.name) && p.name.text === 'origin')
+        : undefined;
+    const fn = origin?.initializer;
+    const param =
+      fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn)) && fn.parameters.length === 1 && ts.isIdentifier(fn.parameters[0].name)
+        ? fn.parameters[0].name.text
+        : null;
+    const calls = [];
+    const look = (x) => {
+      if (ts.isCallExpression(x) && calleeName(x) === 'apnsOrigin') calls.push(x);
+      ts.forEachChild(x, look);
+    };
+    if (fn !== undefined) look(fn);
+    if (calls.length === 0) {
+      fail('P1', `${where(alerts, node)}: the sender's origin does not name apnsOrigin, so the host is not chosen by each token's environment in the one place Apple's hosts are spelled`);
+    } else if (param === null) {
+      fail('P1', `${where(alerts, node)}: the sender's origin is not a function of one parameter, so the environment each request asks for does not choose its host`);
+    } else {
+      const handed = calls.filter((c) => c.arguments.length === 1 && ts.isIdentifier(c.arguments[0]) && c.arguments[0].text === param);
+      if (handed.length !== calls.length) {
+        fail('P1', `${where(alerts, node)}: apnsOrigin is called with something other than the origin's own parameter \`${param}\`, so a token's environment does not pick Apple's host: a development token would be sent to the production host (or the reverse), answered BadDeviceToken and dropped`);
+      }
+    }
+  }
+  // A TOKEN APPLE CALLS DEAD REACHES THE DOOR'S DURABLE DROP, by its digest
+  // (the fix round: `drop: () => undefined` was green everywhere, and the
+  // engine's in-run dead set hid it until a relaunch).
+  for (const { node } of sites.get('createPushEngine').filter((s) => s.file === ALERTS)) {
+    checked('P1');
+    const arg = node.arguments[0];
+    const drop =
+      arg !== undefined && ts.isObjectLiteralExpression(arg)
+        ? arg.properties.find((p) => (ts.isPropertyAssignment(p) || ts.isMethodDeclaration(p)) && ts.isIdentifier(p.name) && p.name.text === 'drop')
+        : undefined;
+    const fn = drop === undefined ? undefined : ts.isMethodDeclaration(drop) ? drop : drop.initializer;
+    const param =
+      fn !== undefined && (ts.isArrowFunction(fn) || ts.isFunctionExpression(fn) || ts.isMethodDeclaration(fn)) && fn.parameters.length === 1 && ts.isIdentifier(fn.parameters[0].name)
+        ? fn.parameters[0].name.text
+        : null;
+    let reaches = false;
+    const look = (x) => {
+      if (
+        ts.isCallExpression(x) &&
+        ts.isPropertyAccessExpression(x.expression) &&
+        x.expression.name.text === 'dropPushToken' &&
+        x.arguments.length === 1 &&
+        ts.isPropertyAccessExpression(x.arguments[0]) &&
+        x.arguments[0].name.text === 'tokenDigest' &&
+        ts.isIdentifier(x.arguments[0].expression) &&
+        x.arguments[0].expression.text === param
+      ) {
+        reaches = true;
+      }
+      ts.forEachChild(x, look);
+    };
+    if (fn !== undefined && param !== null) look(fn);
+    if (!reaches) {
+      fail('P1', `${where(alerts, node)}: the engine's drop does not hand its destination's tokenDigest to dropPushToken, so a token Apple called dead is forgotten only until the next launch, after which Tortie sends to it again`);
+    }
+  }
+  // NOTHING UNDER src/main/alerts/ NAMES THE CORE'S GETTER.
+  checked('P1');
+  if (alertsFiles.length === 0) fail('P1', 'src/main/alerts/ holds no source file');
+  for (const file of alertsFiles) {
+    for (const n of nodesOf(file)) {
+      if (ts.isIdentifier(n) && n.text === 'getGmuxCore') {
+        checked('P1');
+        fail('P1', `${where(file, n)} names getGmuxCore. The alerts wait for the core through the door's beforeOpen and never boot it`);
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
+// P3 — the panel (Phase 316.5's fix round)
+// ---------------------------------------------------------------------------
+
+/** Is this statement `if (isHarnessLaunch(process.env)) return …;`? */
+function returnsOnHarness(stmt) {
+  if (!ts.isIfStatement(stmt)) return false;
+  const c = stmt.expression;
+  const test =
+    ts.isCallExpression(c) &&
+    ts.isIdentifier(c.expression) &&
+    c.expression.text === 'isHarnessLaunch' &&
+    c.arguments.length === 1 &&
+    ts.isPropertyAccessExpression(c.arguments[0]) &&
+    c.arguments[0].name.text === 'env' &&
+    ts.isIdentifier(c.arguments[0].expression) &&
+    c.arguments[0].expression.text === 'process';
+  if (!test || stmt.elseStatement !== undefined) return false;
+  const then = stmt.thenStatement;
+  return ts.isReturnStatement(then) || (ts.isBlock(then) && then.statements.length === 1 && ts.isReturnStatement(then.statements[0]));
+}
+
+function panelRule() {
+  const alerts = needed(ALERTS, ['P3'], 'Phase 316.5 builder mac’s composition');
+  if (alerts === null) return;
+  let panels = 0;
+  for (const file of alertsFiles) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isCallExpression(n) || calleeName(n) !== 'showOpenDialog') continue;
+      panels += 1;
+      checked('P3');
+      if (file !== ALERTS) {
+        fail('P3', `${where(file, n)} opens the file panel. Under src/main/alerts/ it is opened only in index.ts, behind the harness return`);
+        continue;
+      }
+      const fn = enclosingFunction(n);
+      const body = fn?.body;
+      if (body === undefined || !ts.isBlock(body)) {
+        fail('P3', `${where(file, n)}: the file panel is opened outside a function body that could first return on a harness launch`);
+        continue;
+      }
+      const at = n.getStart(astOf(file));
+      const guard = body.statements.find((st) => returnsOnHarness(st) && st.getStart(astOf(file)) < at);
+      if (guard === undefined) {
+        fail('P3', `${where(file, n)}: the file panel is opened in a function that does not FIRST return on isHarnessLaunch(process.env), so a harness launch with no override (probe:p313's census) opens a real panel on the person's screen that nothing answers`);
+      }
+    }
+  }
+  checked('P3');
+  if (panels === 0) fail('P3', 'src/main/alerts/ opens no file panel at all, so this rule read nothing: a person chooses the Apple push key through it');
+}
+
+// ---------------------------------------------------------------------------
+// P2 — the quit (Phase 316.5)
+// ---------------------------------------------------------------------------
+
+function quitRule() {
+  const capabilities = needed(CAPABILITIES, ['P2'], 'the composition root’s');
+  if (capabilities === null) return;
+  let fn = null;
+  for (const n of nodesOf(capabilities)) {
+    if (ts.isFunctionDeclaration(n) && n.name?.text === 'disposeMainCapabilities' && n.body !== undefined) fn = n;
+  }
+  checked('P2');
+  if (fn === null) {
+    fail('P2', 'src/main/capabilities.ts declares no disposeMainCapabilities with a body');
+    return;
+  }
+  const sf = astOf(capabilities);
+  let firstAwait = -1;
+  const begins = [];
+  const joins = [];
+  let pocketJoin = -1;
+  let coreDown = -1;
+  const walk = (x) => {
+    if (ts.isArrowFunction(x) || ts.isFunctionExpression(x)) return;
+    if (ts.isAwaitExpression(x)) {
+      const at = x.getStart(sf);
+      if (firstAwait === -1 || at < firstAwait) firstAwait = at;
+      const name = ts.isCallExpression(x.expression) ? calleeName(x.expression) : null;
+      if (name === 'joinPhoneAlerts') joins.push(at);
+      if (name === 'joinPocketDoor') pocketJoin = at;
+      if (name === 'shutdownGmuxCore') coreDown = at;
+    } else if (ts.isCallExpression(x) && calleeName(x) === 'beginPhoneAlertsShutdown') {
+      begins.push(x.getStart(sf));
+    } else if (ts.isCallExpression(x) && calleeName(x) === 'joinPhoneAlerts' && !ts.isAwaitExpression(x.parent)) {
+      joins.push(-2);
+    }
+    ts.forEachChild(x, walk);
+  };
+  walk(fn.body);
+  checked('P2', 3);
+  if (begins.length !== 1 || firstAwait === -1 || begins[0] > firstAwait) {
+    fail('P2', `disposeMainCapabilities calls beginPhoneAlertsShutdown() ${String(begins.length)} time(s)${begins.length === 1 ? ', after an await' : ''}. It is called once, synchronously, before the first await, beside the door's own admission`);
+  }
+  if (joins.length !== 1 || joins[0] < 0) {
+    fail('P2', `disposeMainCapabilities joins the phone alerts ${String(joins.length)} time(s)${joins.includes(-2) ? ', one of them not awaited' : ''}; it awaits joinPhoneAlerts() exactly once`);
+  } else if (pocketJoin === -1 || coreDown === -1 || !(joins[0] > pocketJoin && joins[0] < coreDown)) {
+    fail('P2', `await joinPhoneAlerts() is not between await joinPocketDoor() and await shutdownGmuxCore(). A flush in flight reads its rows through the core, so it settles before the core closes`);
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The driven half
 // ---------------------------------------------------------------------------
 
@@ -742,6 +1119,9 @@ const PHASES = [
   ['the walls', wallRule, 'W1'],
   ['the age function', ageRule, 'Y1'],
   ['the status word', statusWordRule, 'S1'],
+  ['the production composition', compositionRule, 'P1'],
+  ['the quit', quitRule, 'P2'],
+  ['the panel', panelRule, 'P3'],
   ['the driven half', drivenHalf, 'E1']
 ];
 

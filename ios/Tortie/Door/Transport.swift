@@ -15,7 +15,9 @@
 // `-TortieDebugDoorEndpoint 127.0.0.1:<port>` opens its connections to that
 // port on 127.0.0.1 while the code's own name stays the SNI and the `Host`.
 // It takes 127.0.0.1 and nothing else, and it exists only inside `#if DEBUG`
-// (conformance:ios rule d).
+// (conformance:ios rule d). A DEBUG launch by the system, which carries no
+// argument (a tap on an alert that cold-launches the app), reads the endpoint
+// the last launch was handed (App/DebugLaunch.swift, Phase 316.5).
 
 import Foundation
 
@@ -64,7 +66,7 @@ enum DoorEndpointDebugSeam {
 
     /// The port the seam names, or nil when there is no seam or it names
     /// anything but a port on 127.0.0.1.
-    static func loopbackPort(_ arguments: [String] = ProcessInfo.processInfo.arguments) -> Int? {
+    static func loopbackPort(_ arguments: [String] = DebugLaunchSeam.arguments) -> Int? {
         guard let value = arguments.drop(while: { $0 != argument }).dropFirst().first else { return nil }
         let parts = value.split(separator: ":", omittingEmptySubsequences: false)
         guard parts.count == 2, parts[0] == loopbackHost,
