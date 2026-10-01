@@ -30,9 +30,10 @@ where each button and sentence was checked against the tree, and is for the agen
 - **The first code waits for your Mac's name, which can take several minutes** (Phase 332). In your
   measurement your Mac's public name took about 8 minutes to reach public DNS, and a phone that asks too
   early remembers the miss for up to 5 more (SPEC §2.2 O4). So Tortie now asks your name's own DNS servers
-  first, and shows the code by itself only once they answer. Until then the **Pair a phone**
-  card says "Pair opens once your Mac’s name is on the internet, which can take a few minutes." and there is
-  nothing to press, so the first scan should work: no extra actions.
+  first, and shows the code by itself only once they answer. Until then the **Pair a phone** card shows
+  four small dots, one for each of your name's servers, filled as each one sees your Mac's name, beside
+  "Publishing your Mac’s name · 2 of 4 see it", and under it how long it has been and when Tortie checks
+  again. There is nothing to press, so the first scan should work: no extra actions.
 
 ## The checklist
 
@@ -55,12 +56,14 @@ where each button and sentence was checked against the tree, and is for the agen
    then "Publishes it with" the path of your Tailscale program, and ending "Allows no phone yet". No line
    about approving Funnel, because yours is approved. Press **Allow**.
    **You should see** "Starting Tailscale Funnel…" under the switch, then "Answering at
-   https://gregs-macbook-pro.tail2ddfe1.ts.net:8443", then "Pair opens once your Mac’s name is on the
-   internet, which can take a few minutes." under **Pair a phone**, then the code on its own with "Scan it
-   with Tortie on your iPhone." and "Do not show this code on a shared screen." You pressed Allow once, and
-   that was the last press on the Mac.
-   **Write down** how long the "Pair opens once…" line showed before the code appeared. That is how long
-   your Mac's name took to reach the internet, measured by Tortie rather than by hand.
+   https://gregs-macbook-pro.tail2ddfe1.ts.net:8443", then "Publishing your Mac’s name" with its dots
+   under **Pair a phone**, the count moving as the name's servers see it, then the code on its own with
+   "Scan it with Tortie on your iPhone." and "Do not show this code on a shared screen." You pressed Allow
+   once, and that was the last press on the Mac.
+   **Write down** the counts you saw (for example 2, 1, 3, 2 of 4), whether anything on the card moved
+   other than the dots, the count and the two times, and the last "N min" the card showed before the code
+   appeared. That is how long your Mac's name took to reach the internet, measured by Tortie rather than by
+   hand.
    **Write down** whether macOS or Tailscale asked you anything between Allow and the code (a password, a
    network prompt, a Tailscale window). Nothing should have. This is the first time Tortie, rather than
    Terminal, runs your Tailscale's funnel, and whether it can do so unprompted is O5.
@@ -145,19 +148,18 @@ where each button and sentence was checked against the tree, and is for the agen
 11. **The next morning** (Phase 332; O2 on the Mac). Quit Tortie for a night, with the door left on. In the
     morning, run `npm run dev` again and open Settings, then **Phone**.
     **You should see** **Pair** under **Pair a phone** at once. Tortie asks your name's servers once in the
-    background, and if the name went away overnight the card changes to "Pair opens once your Mac’s name is
-    on the internet, which can take a few minutes." within a couple of seconds.
-    **Write down** whether **Pair** showed at once, and, if the "Pair opens once…" line came back, for how
-    many minutes it stayed.
+    background, and if the name went away overnight the card changes to the dots and "Publishing your Mac’s
+    name" within a couple of seconds.
+    **Write down** whether **Pair** showed at once, and, if the dots came back, for how many minutes they
+    stayed.
 
 12. **Off, then on again** (Phase 332). With the door answering, turn the switch under **Let my phone reach
     this Mac** off, then on.
     **You should see** "Answering at https://…" again and **Pair** under **Pair a phone** at once, as before
     this phase. Turning the door on asks your name's servers once more in the background, and if the name has
-    gone the card changes to "Pair opens once your Mac’s name is on the internet, which can take a few
-    minutes." within a couple of seconds and Tortie keeps checking.
-    **Write down** whether **Pair** showed at once, and, if the "Pair opens once…" line came instead, for how
-    long.
+    gone the card changes to the dots and "Publishing your Mac’s name" within a couple of seconds and Tortie
+    keeps checking.
+    **Write down** whether **Pair** showed at once, and, if the dots came instead, for how long.
 
 ## Three things to know
 
@@ -171,7 +173,8 @@ where each button and sentence was checked against the tree, and is for the agen
   paired with a Mac."; pair again.
 - **Turning the door off keeps what Tortie learned about your Mac's name** (Phase 332's fix round). The
   next time you turn it on, **Pair** shows at once while Tortie asks the name's servers once more, and if
-  the name has gone the card goes back to "Pair opens once…" and the check starts again. On a network that
+  the name has gone the card goes back to the dots and "Publishing your Mac’s name" and the check starts
+  again. On a network that
   blocks DNS, **Pair** appears after about two seconds with "Tortie could not confirm your Mac’s name, so a
   first scan may fail." above it; the same line and **Pair** appear if your name still does not answer
   after about fifteen minutes, so no network can keep pairing closed.
@@ -208,7 +211,7 @@ Tailscale, App Store Connect or TestFlight, which no agent may sign in to.
 | 2 | No approval line on an approved tailnet | `asksApproval` from the CapMap, `src/main/pocket/funnel.ts:432`; drawn only then, `PhoneSection.tsx:491` |
 | 2 | "Starting Tailscale Funnel…", "Answering at https://…:8443" | `DOOR_OPENING`, `PhoneSection.tsx:61`; `doorListening`, `:103` |
 | 2 | The code on its own after Allow; "Scan it with Tortie on your iPhone.", "Do not show this code on a shared screen." | `pairAfterAllow` in `PhoneSection.tsx`; `SCAN_LINE` `:73`, `CODE_PRIVATE` `:75`. Driven against the stand-in by `probe:p330` A3 |
-| 2, 11, 12 | "Pair opens once your Mac’s name is on the internet, which can take a few minutes." and no **Pair** while it shows | `POCKET_NAME_SENTENCES.checking`, `src/shared/ipc/pocket.ts`; the `naming` face of `pairingStage` in `PhoneSection.tsx`, drawn while main's `pairable` is false. Driven against a loopback DNS stand-in by `probe:p332` H1, H3, H4 and H5 |
+| 2, 11, 12 | "Publishing your Mac’s name", "N of 4 see it", "Your Mac’s name is live", "Took N min", the dots, and no **Pair** while they show | `NAME_PUBLISHING`, `nameSeeing`, `NAME_LIVE`, `nameTook` in `src/renderer/settings/PhoneSection.tsx`; the dots `[data-phone-name-dots]`; the checking sentence, `POCKET_NAME_SENTENCES.checking` in `src/shared/ipc/pocket.ts`, now on the block's hover; the `naming` face of `pairingStage`, drawn while main's `pairable` is false (Phase 332.1). Driven against four loopback DNS stand-ins by `probe:p3321` H7 and H9, and by `probe:p332` H1 (the title), H3, H4 and H5 |
 | 11 | **Pair** at once on a relaunch, one question in the background | the switch-on round, `beginNameCheck` in `src/main/pocket/ipc.ts`. Driven by `probe:p332` H4 |
 | 12 | Off keeps the name; **Pair** at once, one question in the background | the off write keeps `nameConfirmed`, so the next counted start is the switch-on round (`beginNameCheck`, `src/main/pocket/ipc.ts`). Driven by `probe:p332` H2 |
 | Three things | "Tortie could not confirm your Mac’s name, so a first scan may fail." after one unreadable round, or after a no that lasts about fifteen minutes | `POCKET_NAME_SENTENCES.unreadable`, `src/shared/ipc/pocket.ts`; `NAME_UNREADABLE_ROUNDS` (one) and `NAME_OPEN_AFTER_ROUNDS` (18), `public-name.ts`. Driven by `probe:p332` H6 |

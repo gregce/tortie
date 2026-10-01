@@ -389,6 +389,27 @@ export interface PocketFunnelView {
  */
 export type PocketNameCheck = 'none' | 'checking' | 'confirmed' | 'unreadable';
 
+/** One kept server's answer in the last round of the Mac's name check, kinds only (Phase 332.1). */
+export type PocketNameAnswer = 'record' | 'negative' | 'unreadable';
+
+/**
+ * The Mac's name check, as the sheet draws it (Phase 332.1, build/p3321/SPEC.md
+ * §5.4). DURATIONS, NOT TIMES: main and the renderer are different processes,
+ * and a duration crosses without a wall clock. NO FREE TEXT: no name, server,
+ * address or reason word reaches the renderer. IT DECIDES NOTHING: Pair follows
+ * {@link PocketStatus.pairable} alone (`conformance:pocket` D10).
+ */
+export interface PocketNameProgress {
+  /** The last answered round, one per server in the order they were asked, at most four. Empty until a round answers. */
+  answers: readonly PocketNameAnswer[];
+  /** A round is being asked now. */
+  asking: boolean;
+  /** How long this check has run, on main's monotonic clock (the Mac's sleep included); frozen once it confirmed. */
+  elapsedMs: number;
+  /** Until the next round; null while a round is out, and once it confirmed. */
+  nextInMs: number | null;
+}
+
 /** One phone a person allowed. Nothing here is a secret. */
 export interface PocketPhoneView {
   id: string;
@@ -484,6 +505,13 @@ export interface PocketStatus {
    * {@link confirmable}.
    */
   pairable: boolean;
+  /**
+   * The Mac's name check, drawn (Phase 332.1): its last round, whether one is
+   * out, how long it has run and when it asks next. Null before a check, for
+   * the one round that re-asks a remembered name, and while the door is not
+   * published. The sheet draws it and decides nothing from it.
+   */
+  nameProgress: PocketNameProgress | null;
   /** The routes this build has, so the sheet can say what it answers. */
   routes: readonly PocketRouteId[];
   /**
@@ -725,6 +753,14 @@ export const POCKET_NAME_SENTENCES: Readonly<Record<'checking' | 'unreadable', s
   checking: 'Pair opens once your Mac’s name is on the internet, which can take a few minutes.',
   unreadable: 'Tortie could not confirm your Mac’s name, so a first scan may fail.'
 };
+
+/**
+ * The round rule, said on the hover of the Pair card's quiet line while the
+ * name is checked (Phase 332.1). Main's rule (`roundVerdictOf`,
+ * src/main/pocket/public-name.ts): a round confirms when a server answered the
+ * record and none said the name is missing.
+ */
+export const POCKET_NAME_ROUND_RULE = 'Pair opens when a round finds your Mac’s name and no server says it is missing.';
 
 /**
  * How the ages a phone draws can be off, said where they are drawn (Phase 314).

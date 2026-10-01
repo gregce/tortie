@@ -6,6 +6,8 @@
  * scheme's own paper and ink whichever theme the window is in, because a
  * camera reads dark modules on a light ground. They are named once, in
  * phone/qr-colors.ts, and set on the code's own element by phone/Qr.tsx.
+ * One measure here is not a token: the name check's hollow dot is the house's
+ * 1.5px ring (globals.css's hollow status dots), which no token names.
  */
 
 .phone-block {
@@ -123,4 +125,74 @@
   display: flex;
   flex: 0 0 auto;
   gap: var(--space-2);
+}
+
+/* --------------------------------------- the Mac’s name check (Phase 332.1) */
+
+/* A dot per name server beside the moving line, the quiet line under it
+   (build/p3321/SPEC.md §5.5.4). Both rows keep their height whatever they say,
+   and the dot slot is four dots wide before any round answers, so nothing
+   above Pair moves when Pair appears below (the Phase 174.1 rule). */
+.phone-name {
+  --phone-name-dots: calc(4 * var(--space-3) + 3 * var(--space-2));
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-self: stretch;
+}
+
+.phone-name-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--lh-sm);
+}
+
+.phone-name-row > .phone-line {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.phone-name-dots {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: var(--space-2);
+  width: var(--phone-name-dots);
+  /* One dot high with no dot in it: an empty flex item centred in its row is
+     0px high, and the first dots would move its rectangle. */
+  height: var(--space-3);
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+
+/* ONE BREATH A ROUND (DESIGN.md §5): half opacity while a round is out, back
+   when it answers. A state change, never a loop; reduced motion lands it in
+   one frame by the house rule. */
+.phone-name-dots[data-asking='true'] {
+  opacity: 0.5;
+}
+
+/* Smaller than a session's 8px dot and never its classes. Shape carries the
+   state: filled when that server sees the name, else the hollow ring. */
+.phone-name-dot {
+  width: var(--space-3);
+  height: var(--space-3);
+  border-radius: 50%;
+  flex: 0 0 auto;
+  background: transparent;
+  box-shadow: inset 0 0 0 1.5px var(--text-muted);
+}
+
+.phone-name-dot[data-answer='record'] {
+  background: var(--text-secondary);
+  box-shadow: none;
+}
+
+.phone-name-time {
+  margin: 0 0 0 calc(var(--phone-name-dots) + var(--space-3));
+  min-height: var(--lh-xs);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
 }

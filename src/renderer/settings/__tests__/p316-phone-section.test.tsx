@@ -30,6 +30,14 @@
  *   line in place of Pair; over a name main could not check, its line above
  *   Pair. Both decided by main's `pairable`, never worked out here.
  * - THE WORDS THE PHONE QUOTES stay byte for byte.
+ * - THE MAC'S NAME CHECK, DRAWN (Phase 332.1, build/p3321/SPEC.md §5.5 and
+ *   §7.2): the composers row by row; when the block is drawn, cell by cell;
+ *   the naming face's block with its dots, its moving line and its quiet line;
+ *   the unreadable sentence inside the block above Pair; `live` only for the
+ *   mount that watched the wait, and otherwise today's resting face byte for
+ *   byte; no decision moved by the progress; one stamp for every status, a
+ *   tick only while the check runs; and the stylesheet's dots and its one
+ *   breath, read as text.
  * - THE APPLE PUSH KEY'S ROW (Phase 316.5, build/p3165/SPEC.md §5.2.5, as
  *   research 136 moved it): drawn first in the Alerts card whenever main has
  *   answered, `Not chosen.` or `Key <id>`, Choose… always and Forget only when
@@ -50,9 +58,13 @@ import {
   POCKET_FUNNEL_SENTENCES,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
+  POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
   POCKET_READ_ONLY_HONESTY,
+  type PocketNameAnswer,
+  type PocketNameCheck,
+  type PocketNameProgress,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketStatus
@@ -80,8 +92,22 @@ import {
   PUSH_KEY_LABEL,
   PUSH_KEY_NONE,
   PUSH_LABEL,
+  NAME_CHECKING_NOW,
+  NAME_DOT_WORDS,
+  NAME_LIVE,
+  NAME_PUBLISHING,
   PhoneView,
   SCAN_LINE,
+  nameBlockShown,
+  nameCardWords,
+  nameDotsLabel,
+  nameElapsed,
+  nameNextIn,
+  nameSeeing,
+  nameTicking,
+  nameTimeLine,
+  nameTook,
+  nameWatchedNext,
   doorLine,
   doorMayRetry,
   doorNeedsConfirm,
@@ -95,6 +121,8 @@ import {
   pushSwitchShown,
   alertsReachPhones,
   shutsIn,
+  type PairAfterAllow,
+  type PairingStage,
   type PhoneViewProps
 } from '../PhoneSection';
 import * as phoneSection from '../PhoneSection';
@@ -134,6 +162,7 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     confirmable: true,
     nameCheck: listening ? 'confirmed' : 'none',
     pairable: listening,
+    nameProgress: null,
     routes: ['pair', 'blocked', 'session', 'turns'],
     pushAlerts: false,
     pushKeyId: null,
@@ -171,6 +200,8 @@ function draw(over: Partial<PhoneViewProps> = {}): string {
     offer: null,
     view: pairing({ state: 'idle', expiresAt: null }),
     now: NOW,
+    nameAgeMs: 0,
+    nameWatched: false,
     notice: null,
     error: null,
     busy: false,
@@ -768,5 +799,498 @@ describe('the Apple push key (Phase 316.5, research 136)', () => {
     const forget = /onForgetKey=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
     expect(forget).toContain('api.forgetPushKey()');
     expect(source).not.toMatch(/showOpenDialog|<input[^>]*type="file"/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The Mac's name check, drawn (Phase 332.1, build/p3321/SPEC.md §5.5, §7.2)
+// ---------------------------------------------------------------------------
+
+const SHEET_DIR = join(dirname(fileURLToPath(import.meta.url)), '..');
+const sheetSource = (): string => readFileSync(join(SHEET_DIR, 'PhoneSection.tsx'), 'utf8');
+
+const R: PocketNameAnswer = 'record';
+const N: PocketNameAnswer = 'negative';
+const U: PocketNameAnswer = 'unreadable';
+
+/** A progress as main composes one: a first round out, unless told otherwise. */
+function progress(over: Partial<PocketNameProgress> = {}): PocketNameProgress {
+  return { answers: [], asking: true, elapsedMs: 0, nextInMs: null, ...over };
+}
+
+/** The naming face: the door answers, main says no code may show, and the check runs. */
+function naming(p: PocketNameProgress | null): PocketStatus {
+  return status({ pairable: false, nameCheck: 'checking', nameProgress: p });
+}
+
+/** The answered round of the flap: two of four see the name, one did not answer. */
+const ANSWERED = progress({ answers: [R, N, U, R], asking: false, elapsedMs: 2_000, nextInMs: 20_000 });
+/** Round five of his flap: four of four, confirmed at 157 s. */
+const FROZEN = progress({ answers: [R, R, R, R], asking: false, elapsedMs: 157_000, nextInMs: null });
+
+/** The opening tag of the first element carrying `attr`, or ''. */
+function tagWith(html: string, attr: string): string {
+  return new RegExp(`<[a-z]+ [^>]*${attr}[^>]*>`).exec(html)?.[0] ?? '';
+}
+
+/** The text of the first element carrying `attr`, or null. */
+function textOf(html: string, attr: string): string | null {
+  return new RegExp(`<([a-z]+) [^>]*${attr}[^>]*>([^<]*)</\\1>`).exec(html)?.[2] ?? null;
+}
+
+/** The value of `name` on an opening tag, or null. */
+function attrOf(tag: string, name: string): string | null {
+  return new RegExp(`\\s${name}="([^"]*)"`).exec(tag)?.[1] ?? null;
+}
+
+describe('the name check’s words (Phase 332.1, SPEC §5.5.2)', () => {
+  it('says them as the SPEC drafts them, with the right apostrophe', () => {
+    expect(NAME_PUBLISHING).toBe('Publishing your Mac’s name');
+    expect(NAME_LIVE).toBe('Your Mac’s name is live');
+    expect(NAME_CHECKING_NOW).toBe('checking now');
+    expect(NAME_DOT_WORDS).toEqual({
+      record: 'Sees your Mac’s name',
+      negative: 'Not there yet',
+      unreadable: 'Did not answer'
+    });
+    expect(POCKET_NAME_ROUND_RULE).toBe(
+      'Pair opens when a round finds your Mac’s name and no server says it is missing.'
+    );
+  });
+
+  it('says the next check rounded UP to 5 s, and `checking now` at 0 or less', () => {
+    const rows: [number, string][] = [
+      [20_000, 'checking again in 20 s'],
+      [19_999, 'checking again in 20 s'],
+      [15_001, 'checking again in 20 s'],
+      [15_000, 'checking again in 15 s'],
+      [1, 'checking again in 5 s'],
+      [0, 'checking now'],
+      [-5, 'checking now']
+    ];
+    for (const [ms, words] of rows) expect(nameNextIn(ms), String(ms)).toBe(words);
+  });
+
+  it('says the elapsed time in whole minutes, floored, and nothing under one', () => {
+    const rows: [number, string | null][] = [
+      [59_999, null],
+      [60_000, '1 min'],
+      [119_999, '1 min'],
+      [120_000, '2 min']
+    ];
+    for (const [ms, words] of rows) expect(nameElapsed(ms), String(ms)).toBe(words);
+    expect(nameTook(59_999)).toBe('Took under a minute');
+    expect(nameTook(157_000)).toBe('Took 2 min');
+  });
+
+  it('counts the servers that see the name, on the line and on the dot row', () => {
+    expect(nameSeeing(3, 4)).toBe('3 of 4 see it');
+    expect(nameDotsLabel(3, 4)).toBe('3 of 4 name servers see your Mac’s name');
+  });
+
+  it('joins the quiet line with the house separator and upper-cases its first letter', () => {
+    expect(nameTimeLine(0, null)).toBe('Checking now');
+    expect(nameTimeLine(5_000, 20_000)).toBe('Checking again in 20 s');
+    expect(nameTimeLine(120_000, 40_000)).toBe('2 min · checking again in 40 s');
+    expect(nameTimeLine(180_000, null)).toBe('3 min · checking now');
+  });
+
+  it('composes the block for a first round out, an answered round, 11 s later, and 97 s in', () => {
+    expect(nameCardWords(naming(progress()), progress(), 0)).toEqual({
+      state: 'checking',
+      line: NAME_PUBLISHING,
+      time: 'Checking now',
+      answers: [],
+      asking: true
+    });
+    expect(nameCardWords(naming(ANSWERED), ANSWERED, 0)).toEqual({
+      state: 'checking',
+      line: 'Publishing your Mac’s name · 2 of 4 see it',
+      time: 'Checking again in 20 s',
+      answers: [R, N, U, R],
+      asking: false
+    });
+    // The renderer's tick, between pushes: the next check moves down.
+    expect(nameCardWords(naming(ANSWERED), ANSWERED, 11_000).time).toBe('Checking again in 10 s');
+    const fourth = progress({ answers: [N, R, R, N], asking: false, elapsedMs: 97_000, nextInMs: 60_000 });
+    expect(nameCardWords(naming(fourth), fourth, 0).time).toBe('1 min · checking again in 60 s');
+    // ... and the elapsed time moves on: 50 s from main and 11 s since is a minute.
+    const late = progress({ answers: [R, N, R, N], asking: false, elapsedMs: 50_000, nextInMs: 45_000 });
+    expect(nameCardWords(naming(late), late, 11_000).time).toBe('1 min · checking again in 35 s');
+  });
+
+  it('says `checking now` while a round is out, whatever is left over of the gap, and keeps the last round’s dots', () => {
+    const out = progress({ answers: [R, N, R, N], asking: true, elapsedMs: 20_000, nextInMs: 5_000 });
+    const words = nameCardWords(naming(out), out, 3_000);
+    expect(words.time).toBe('Checking now');
+    expect(words.asking).toBe(true);
+    expect(words.answers).toEqual([R, N, R, N]);
+    expect(words.line).toBe('Publishing your Mac’s name · 2 of 4 see it');
+  });
+
+  it('freezes on a confirmation, ignoring the age, and gives the moving line to main’s unreadable sentence', () => {
+    const live = status({ pairable: true, nameCheck: 'confirmed', nameProgress: FROZEN });
+    expect(nameCardWords(live, FROZEN, 60_000)).toEqual({
+      state: 'live',
+      line: NAME_LIVE,
+      time: 'Took 2 min',
+      answers: [R, R, R, R],
+      asking: false
+    });
+    const silent = progress({ answers: [U, U, U, U], asking: false, elapsedMs: 2_000, nextInMs: 20_000 });
+    const opened = status({ pairable: true, nameCheck: 'unreadable', nameProgress: silent });
+    expect(nameCardWords(opened, silent, 0)).toEqual({
+      state: 'unreadable',
+      line: POCKET_NAME_SENTENCES.unreadable,
+      time: 'Checking again in 20 s',
+      answers: [U, U, U, U],
+      asking: false
+    });
+  });
+});
+
+describe('when the name check’s block is drawn (Phase 332.1, SPEC §5.5.1)', () => {
+  const STAGES: PairingStage[] = ['start', 'waiting', 'naming', 'ready', 'showing', 'match'];
+  const CHECKS: PocketNameCheck[] = ['none', 'checking', 'confirmed', 'unreadable'];
+  // The cells that draw it, listed rather than worked out: every naming face
+  // with a progress; the ready face with a progress over an unreadable name,
+  // or over a confirmed one this mount watched.
+  const DRAWN = new Set([
+    ...CHECKS.flatMap((c) => [`naming/progress/${c}/false`, `naming/progress/${c}/true`]),
+    'ready/progress/unreadable/false',
+    'ready/progress/unreadable/true',
+    'ready/progress/confirmed/true'
+  ]);
+
+  it('draws it in exactly the cells the SPEC names, every stage by progress by name check by watched', () => {
+    let cells = 0;
+    for (const stage of STAGES) {
+      for (const p of [null, ANSWERED]) {
+        for (const nameCheck of CHECKS) {
+          for (const watched of [false, true]) {
+            const key = `${stage}/${p === null ? 'none' : 'progress'}/${nameCheck}/${String(watched)}`;
+            const s = status({ nameCheck, nameProgress: p });
+            expect(nameBlockShown(s, stage, watched), key).toBe(DRAWN.has(key));
+            cells += 1;
+          }
+        }
+      }
+      expect(nameBlockShown(null, stage, true), `${stage}/no status`).toBe(false);
+    }
+    expect(cells).toBe(96);
+  });
+
+  it('remembers the wait from the naming face with a progress, until a code shows or the door is off', () => {
+    expect(nameWatchedNext(false, 'naming', naming(ANSWERED))).toBe(true);
+    expect(nameWatchedNext(false, 'naming', naming(null))).toBe(false);
+    expect(nameWatchedNext(true, 'naming', naming(null))).toBe(true);
+    for (const stage of ['waiting', 'ready', 'match'] as const) {
+      expect(nameWatchedNext(true, stage, status({ nameProgress: FROZEN })), stage).toBe(true);
+      expect(nameWatchedNext(false, stage, status({ nameProgress: FROZEN })), stage).toBe(false);
+    }
+    expect(nameWatchedNext(true, 'showing', status({ nameProgress: FROZEN }))).toBe(false);
+    expect(nameWatchedNext(true, 'start', status({ state: 'off', nameProgress: null }))).toBe(false);
+    expect(nameWatchedNext(true, 'naming', null)).toBe(true);
+  });
+
+  it('ticks only while the block is drawn and the check still runs', () => {
+    expect(nameTicking(naming(ANSWERED), 'naming', false)).toBe(true);
+    expect(nameTicking(status({ nameCheck: 'unreadable', nameProgress: ANSWERED }), 'ready', false)).toBe(true);
+    // Frozen once confirmed, and drawn only for a mount that watched.
+    expect(nameTicking(status({ nameCheck: 'confirmed', nameProgress: FROZEN }), 'ready', true)).toBe(false);
+    expect(nameTicking(status({ nameCheck: 'confirmed', nameProgress: FROZEN }), 'ready', false)).toBe(false);
+    expect(nameTicking(naming(null), 'naming', true)).toBe(false);
+    expect(nameTicking(status({ state: 'off', nameCheck: 'checking', nameProgress: ANSWERED }), 'start', true)).toBe(false);
+    expect(nameTicking(null, 'naming', true)).toBe(false);
+  });
+});
+
+describe('the name check, drawn on the card (Phase 332.1, SPEC §5.5.3)', () => {
+  it('draws the naming face’s block: its hover, four dots in server order, the count, the moving and the quiet line, and no Pair', () => {
+    const html = draw({ status: naming(ANSWERED) });
+    expect(html).toContain('data-phone-stage="naming"');
+    const block = tagWith(html, 'data-phone-name="true"');
+    expect(attrOf(block, 'data-phone-name-state')).toBe('checking');
+    expect(attrOf(block, 'title')).toBe(POCKET_NAME_SENTENCES.checking);
+    // The checking sentence moved to the hover: the visible text no longer says it.
+    expect(text(html)).not.toContain(POCKET_NAME_SENTENCES.checking);
+    expect([...html.matchAll(/data-answer="([a-z]+)"/g)].map((m) => m[1])).toEqual([R, N, U, R]);
+    expect([...html.matchAll(/<span class="phone-name-dot" data-answer="([a-z]+)" title="([^"]*)"/g)].map((m) => [m[1], m[2]])).toEqual(
+      [R, N, U, R].map((a) => [a, NAME_DOT_WORDS[a]])
+    );
+    const dots = tagWith(html, 'data-phone-name-dots');
+    expect(attrOf(dots, 'data-asking')).toBe('false');
+    expect(attrOf(dots, 'role')).toBe('img');
+    expect(attrOf(dots, 'aria-label')).toBe('2 of 4 name servers see your Mac’s name');
+    expect(attrOf(dots, 'aria-hidden')).toBeNull();
+    const line = tagWith(html, 'data-phone-name-line');
+    expect(attrOf(line, 'aria-live')).toBe('polite');
+    expect(textOf(html, 'data-phone-name-line')).toBe('Publishing your Mac’s name · 2 of 4 see it');
+    expect(html).not.toContain('data-phone-name-unreadable');
+    expect(textOf(html, 'data-phone-name-time')).toBe('Checking again in 20 s');
+    expect(attrOf(tagWith(html, 'data-phone-name-time'), 'title')).toBe(POCKET_NAME_ROUND_RULE);
+    expect(html).not.toContain('data-phone-action="pair"');
+    // The dots come first in the row, then the moving line, then the quiet line.
+    expect(html.indexOf('data-phone-name-dots')).toBeLessThan(html.indexOf('data-phone-name-line'));
+    expect(html.indexOf('data-phone-name-line')).toBeLessThan(html.indexOf('data-phone-name-time'));
+  });
+
+  it('marks the dot row while a round is out, and moves the quiet line by the age it is handed', () => {
+    const out = progress({ answers: [R, N, R, N], asking: true, elapsedMs: 20_000, nextInMs: null });
+    const html = draw({ status: naming(out) });
+    expect(attrOf(tagWith(html, 'data-phone-name-dots'), 'data-asking')).toBe('true');
+    expect(textOf(html, 'data-phone-name-time')).toBe('Checking now');
+    expect(textOf(draw({ status: naming(ANSWERED), nameAgeMs: 11_000 }), 'data-phone-name-time')).toBe(
+      'Checking again in 10 s'
+    );
+  });
+
+  it('before any round answered: no dots, and the dot row hidden from assistive tech with no role', () => {
+    const html = draw({ status: naming(progress()) });
+    const dots = tagWith(html, 'data-phone-name-dots');
+    expect(attrOf(dots, 'aria-hidden')).toBe('true');
+    expect(attrOf(dots, 'role')).toBeNull();
+    expect(attrOf(dots, 'aria-label')).toBeNull();
+    expect(html).not.toContain('data-answer=');
+    expect(textOf(html, 'data-phone-name-line')).toBe(NAME_PUBLISHING);
+    expect(textOf(html, 'data-phone-name-time')).toBe('Checking now');
+  });
+
+  it('with no progress, still draws today’s one line on the naming face', () => {
+    const html = draw({ status: naming(null) });
+    expect(html).not.toContain('data-phone-name=');
+    expect(text(html)).toContain(POCKET_NAME_SENTENCES.checking);
+  });
+
+  it('over a name main could not confirm: the unreadable sentence inside the block, the check going on under it, Pair below', () => {
+    const silent = progress({ answers: [U, U, U, U], asking: false, elapsedMs: 2_000, nextInMs: 20_000 });
+    const html = draw({ status: status({ pairable: true, nameCheck: 'unreadable', nameProgress: silent }) });
+    expect(html).toContain('data-phone-stage="ready"');
+    const block = tagWith(html, 'data-phone-name="true"');
+    expect(attrOf(block, 'data-phone-name-state')).toBe('unreadable');
+    // The block's hover belongs to the naming face alone.
+    expect(attrOf(block, 'title')).toBeNull();
+    // ONE unreadable line, and it is the block's moving line (probe:p332 H6 reads it there).
+    expect(html.split('data-phone-name-unreadable')).toHaveLength(2);
+    const line = tagWith(html, 'data-phone-name-unreadable');
+    expect(line).toContain('data-phone-name-line');
+    expect(textOf(html, 'data-phone-name-unreadable')).toBe(POCKET_NAME_SENTENCES.unreadable);
+    expect(textOf(html, 'data-phone-name-time')).toBe('Checking again in 20 s');
+    expect(attrOf(tagWith(html, 'data-phone-name-time'), 'title')).toBe(POCKET_NAME_ROUND_RULE);
+    expect(html.indexOf('data-phone-name="true"')).toBeLessThan(html.indexOf('data-phone-action="pair"'));
+    expect(html.indexOf('data-phone-name-unreadable')).toBeLessThan(html.indexOf('data-phone-action="pair"'));
+  });
+
+  it('confirmed while this mount watched: `live` and how long it took, frozen, before Pair', () => {
+    const html = draw({
+      status: status({ pairable: true, nameCheck: 'confirmed', nameProgress: FROZEN }),
+      nameWatched: true,
+      nameAgeMs: 60_000
+    });
+    const block = tagWith(html, 'data-phone-name="true"');
+    expect(attrOf(block, 'data-phone-name-state')).toBe('live');
+    expect(attrOf(block, 'title')).toBeNull();
+    expect(textOf(html, 'data-phone-name-line')).toBe(NAME_LIVE);
+    expect(textOf(html, 'data-phone-name-time')).toBe('Took 2 min');
+    expect(attrOf(tagWith(html, 'data-phone-name-time'), 'title')).toBeNull();
+    expect([...html.matchAll(/data-answer="([a-z]+)"/g)].map((m) => m[1])).toEqual([R, R, R, R]);
+    expect(html).not.toContain('data-phone-name-unreadable');
+    const page = text(html);
+    expect(page.indexOf(NAME_LIVE)).toBeLessThan(page.indexOf('Took 2 min'));
+    expect(html.indexOf('data-phone-name-time')).toBeLessThan(html.indexOf('data-phone-action="pair"'));
+  });
+
+  it('confirmed and NOT watched: today’s resting face, byte for byte', () => {
+    const s = status({ pairable: true, nameCheck: 'confirmed', nameProgress: FROZEN });
+    const html = draw({ status: s, nameWatched: false, nameAgeMs: 60_000 });
+    expect(html).toBe(draw({ status: { ...s, nameProgress: null } }));
+    expect(html).not.toContain('data-phone-name');
+    expect(html).toContain('data-phone-action="pair"');
+  });
+
+  it('never on the start or the waiting face, whatever is left over', () => {
+    for (const s of [
+      status({ state: 'off', pairable: false, nameCheck: 'checking', nameProgress: ANSWERED }),
+      status({ state: 'opening', pairable: false, nameCheck: 'checking', nameProgress: ANSWERED })
+    ]) {
+      for (const watched of [false, true]) {
+        const html = draw({ status: s, nameWatched: watched });
+        expect(html, s.state).not.toContain('data-phone-name');
+      }
+    }
+  });
+
+  it('is the first thing after the notice on both faces, so nothing above Pair moves when Pair appears', () => {
+    const notice = { text: CODE_EXPIRED, phoneId: null };
+    const before = draw({ status: naming(ANSWERED), notice });
+    const after = draw({
+      status: status({ pairable: true, nameCheck: 'unreadable', nameProgress: ANSWERED }),
+      notice,
+      nameWatched: true
+    });
+    for (const html of [before, after]) {
+      const card = html.slice(html.indexOf('data-phone-stage='));
+      expect(card.indexOf('phone-notice')).toBeLessThan(card.indexOf('data-phone-name="true"'));
+      // Nothing between the notice and the block.
+      const between = card.slice(card.indexOf(CODE_EXPIRED) + CODE_EXPIRED.length, card.indexOf('data-phone-name="true"'));
+      expect(between).toMatch(/^<\/p><div class="phone-name" $/);
+    }
+  });
+});
+
+describe('the progress decides nothing (Phase 332.1, SPEC §5.5.6)', () => {
+  const PROGRESSES: [string, PocketNameProgress | null][] = [
+    ['none', null],
+    ['asking', progress({ answers: [R, N, R, N], asking: true, elapsedMs: 20_000 })],
+    ['answered', ANSWERED],
+    ['frozen', FROZEN]
+  ];
+  const STATES = ['listening', 'off', 'opening', 'refused'] as const;
+  const PHASES: PairAfterAllow[] = ['no', 'pressed', 'on'];
+
+  it('pairingStage and pairAfterAllowNext answer the same for every progress, at every pairable', () => {
+    for (const state of STATES) {
+      for (const pairable of [false, true]) {
+        for (const nameCheck of ['checking', 'confirmed', 'unreadable'] as const) {
+          const bare = status({ state, pairable, nameCheck, nameProgress: null });
+          for (const [name, p] of PROGRESSES) {
+            const s = { ...bare, nameProgress: p };
+            const key = `${state}/${String(pairable)}/${nameCheck}/${name}`;
+            expect(pairingStage(s, null, null, NOW), key).toBe(pairingStage(bare, null, null, NOW));
+            for (const phase of PHASES) {
+              expect(pairAfterAllowNext(phase, s), `${key}/${phase}`).toEqual(pairAfterAllowNext(phase, bare));
+            }
+          }
+        }
+      }
+    }
+  });
+
+  it('names no nameProgress in pairingStage, pairAfterAllowNext or onPair, and keeps main’s line byte for byte', () => {
+    const source = sheetSource();
+    const body = (name: string): string => {
+      const at = source.indexOf(`export function ${name}(`);
+      expect(at, name).toBeGreaterThanOrEqual(0);
+      return source.slice(at, source.indexOf('\n}\n', at));
+    };
+    expect(body('pairingStage')).not.toContain('nameProgress');
+    expect(body('pairAfterAllowNext')).not.toContain('nameProgress');
+    const onPair = /onPair=\{\(\) => \{([\s\S]*?)\n      \}\}/.exec(source)?.[1] ?? '';
+    expect(onPair).not.toBe('');
+    expect(onPair).not.toContain('nameProgress');
+    expect(source.split("  return status.pairable ? 'ready' : 'naming';\n")).toHaveLength(2);
+  });
+});
+
+describe('the section stamps every status and ticks only while the check runs (Phase 332.1, SPEC §5.5.5)', () => {
+  it('sets the status in ONE place, which stamps it on the renderer’s monotonic clock', () => {
+    const source = sheetSource();
+    expect(source.split('setStatus(')).toHaveLength(2);
+    const adopt = /const adopt = useCallback\(\(s: PocketStatus\): void => \{([\s\S]*?)\n  \}, \[\]\);/.exec(source)?.[1] ?? '';
+    expect(adopt).toContain('setStatus(s);');
+    expect(adopt).toMatch(/const at = performance\.now\(\);/);
+    expect(adopt).toContain('setStatusAt(at);');
+    expect(adopt).toContain('setMono(at);');
+    // The first pull, main's pushes, and the six press answers.
+    expect(source.match(/\badopt\(/g)).toHaveLength(8);
+    expect(source).toContain('nameAgeMs={Math.max(0, mono - statusAt)}');
+    expect(source).not.toMatch(/Date\.now\(\)[^\n]*mono|mono[^\n]*Date\.now\(\)/);
+  });
+
+  it('keeps one interval of a second, only while nameTicking says so, and the watched flag by nameWatchedNext', () => {
+    const source = sheetSource();
+    expect(source).toContain('const ticking = nameTicking(status, stage, nameWatched);');
+    expect(source).toMatch(
+      /if \(!ticking\) return;\n\s*const id = window\.setInterval\(\(\) => setMono\(performance\.now\(\)\), 1000\);\n\s*return \(\) => window\.clearInterval\(id\);\n\s*\}, \[ticking\]\);/
+    );
+    expect(source).toContain('setNameWatched((watched) => nameWatchedNext(watched, stage, status));');
+    expect(source).toContain('const stage = pairingStage(status, offer, view, now);');
+    // The section with no bridge hands the view a still clock and no wait.
+    expect(source).toMatch(/now=\{now\}\n\s*nameAgeMs=\{0\}\n\s*nameWatched=\{false\}/);
+  });
+});
+
+describe('the name check’s look, read as text (Phase 332.1, SPEC §5.5.4)', () => {
+  const css = readFileSync(join(SHEET_DIR, 'phone-section.css'), 'utf8');
+  const bare = css.replace(/\/\*[\s\S]*?\*\//g, '');
+  /** Every rule whose selector names the name block, as [selector, body]. */
+  const rules = [...bare.matchAll(/([^{}]+)\{([^{}]*)\}/g)]
+    .map((m) => [(m[1] ?? '').trim(), m[2] ?? ''] as const)
+    .filter(([selector]) => selector.includes('.phone-name'));
+  const decl = (selector: string, property: string): string | null => {
+    const rule = rules.find(([s]) => s === selector);
+    return rule === undefined ? null : (new RegExp(`(?:^|;)\\s*${property}\\s*:\\s*([^;]+);`).exec(rule[1])?.[1]?.trim() ?? null);
+  };
+
+  it('has the block’s rules, and none of them animates, loops, or borrows a status or the accent', () => {
+    expect(rules.map(([s]) => s)).toEqual([
+      '.phone-name',
+      '.phone-name-row',
+      '.phone-name-row > .phone-line',
+      '.phone-name-dots',
+      ".phone-name-dots[data-asking='true']",
+      '.phone-name-dot',
+      ".phone-name-dot[data-answer='record']",
+      '.phone-name-time'
+    ]);
+    for (const [selector, body] of rules) {
+      expect(body, selector).not.toMatch(/animation|infinite|--status-|--accent/);
+    }
+    expect(bare).not.toContain('@keyframes');
+    expect(bare).not.toMatch(/animation/);
+  });
+
+  it('breathes once a round: ONE transition, opacity on the dot row, at --dur-base, and half opacity while asking', () => {
+    const transitions = rules.filter(([, body]) => /transition/.test(body));
+    expect(transitions.map(([s]) => s)).toEqual(['.phone-name-dots']);
+    expect(decl('.phone-name-dots', 'transition')).toBe('opacity var(--dur-base) var(--ease-out)');
+    expect(decl(".phone-name-dots[data-asking='true']", 'opacity')).toBe('0.5');
+    expect(rules.filter(([, body]) => /opacity/.test(body)).map(([s]) => s)).toEqual([
+      '.phone-name-dots',
+      ".phone-name-dots[data-asking='true']"
+    ]);
+  });
+
+  it('draws its colours from --text-secondary and --text-muted alone: filled for the record, else the 1.5px ring', () => {
+    const colours = new Set<string>();
+    for (const [, body] of rules) {
+      for (const m of body.matchAll(/(color|background|background-color|box-shadow|border[a-z-]*|outline[a-z-]*|fill|stroke)\s*:\s*([^;]+);/g)) {
+        for (const v of (m[2] ?? '').matchAll(/var\((--[a-z0-9-]+)\)/g)) colours.add(v[1] ?? '');
+        expect(m[2], m[0]).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|\b(?:white|black|red|amber|orange|blue)\b/i);
+      }
+    }
+    expect([...colours].sort()).toEqual(['--text-muted', '--text-secondary']);
+    expect(decl('.phone-name-dot', 'box-shadow')).toBe('inset 0 0 0 1.5px var(--text-muted)');
+    expect(decl('.phone-name-dot', 'background')).toBe('transparent');
+    expect(decl(".phone-name-dot[data-answer='record']", 'background')).toBe('var(--text-secondary)');
+    expect(decl(".phone-name-dot[data-answer='record']", 'box-shadow')).toBe('none');
+    // The header names the one measure that is not a token.
+    expect(css.slice(0, css.indexOf('*/'))).toContain('1.5px ring');
+  });
+
+  it('keeps its place: 6px dots in a four-dot slot, and both rows at their line height whatever they say', () => {
+    expect(decl('.phone-name-dot', 'width')).toBe('var(--space-3)');
+    expect(decl('.phone-name-dot', 'height')).toBe('var(--space-3)');
+    expect(decl('.phone-name', '--phone-name-dots')).toBe('calc(4 * var(--space-3) + 3 * var(--space-2))');
+    expect(decl('.phone-name-dots', 'width')).toBe('var(--phone-name-dots)');
+    // One dot high before any dot: an empty row is otherwise 0px and moves when the first dots arrive.
+    expect(decl('.phone-name-dots', 'height')).toBe('var(--space-3)');
+    expect(decl('.phone-name-dots', 'flex')).toBe('0 0 auto');
+    expect(decl('.phone-name-row', 'min-height')).toBe('var(--lh-sm)');
+    expect(decl('.phone-name-time', 'min-height')).toBe('var(--lh-xs)');
+    expect(decl('.phone-name-time', 'margin')).toBe('0 0 0 calc(var(--phone-name-dots) + var(--space-3))');
+    expect(decl('.phone-name', 'align-self')).toBe('stretch');
+  });
+
+  it('names no session dot class anywhere in the sheet', () => {
+    const source = sheetSource();
+    const classes = [...source.matchAll(/className=(?:"([^"]*)"|\{[^}]*?['"`]([^'"`]*)['"`])/g)].flatMap((m) =>
+      (m[1] ?? m[2] ?? '').split(/\s+/)
+    );
+    expect(classes.length).toBeGreaterThan(10);
+    expect(classes).toContain('phone-name-dot');
+    for (const name of classes) {
+      expect(name === 'dot' || name.startsWith('dot-'), name).toBe(false);
+    }
   });
 });

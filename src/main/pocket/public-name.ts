@@ -56,8 +56,10 @@
  *
  * It imports `node:dgram`, `node:crypto` and `node:net` and nothing else: no
  * `electron`, no logger, no file. It logs nothing; it answers reason words and
- * the host logs those. It reads no clock: the deadline is a `setTimeout`, and
- * the schedule is gaps the host sleeps through. Nothing thrown leaves it.
+ * the host logs those. It reads one clock, the monotonic one in
+ * `defaultNameCheckDeps`, and only for the sheet's progress (Phase 332.1); the
+ * deadline is a `setTimeout`, and the schedule is gaps the host sleeps through.
+ * Nothing thrown leaves it.
  */
 
 import { createSocket, type RemoteInfo, type Socket } from 'node:dgram';
@@ -224,6 +226,13 @@ export interface NameCheckDeps {
   /** 0..65535. */
   id(): number;
   sleep(ms: number): Promise<void>;
+  /**
+   * Milliseconds on a clock nobody can set (Phase 332.1): read ONLY to tell the
+   * sheet how long the check has run and when it asks next. Nothing in the
+   * check decides from it (`conformance:pocket` D10). On macOS it counts the
+   * Mac's sleep (build/p3321/SPEC.md §3 row 2, measured).
+   */
+  monotonic(): number;
 }
 
 /** A run's search result: `null` means search at the next round. */
@@ -235,6 +244,18 @@ export interface NameRoundResult {
   readonly verdict: NameVerdict;
   readonly reason: NameReason;
 }
+
+/**
+ * A round as the host reads it (Phase 332.1): the verdict, and each kept
+ * server's answer, kinds only, in the order the servers were asked. Empty when
+ * nothing was asked (a refused name, a refused override, no servers, a throw).
+ */
+export interface NameRound extends NameRoundResult {
+  readonly answers: readonly NameAnswer[];
+}
+
+/** A round that asked nobody (Phase 332.1). */
+const NO_NAME_ANSWERS: readonly NameAnswer[] = Object.freeze([]);
 
 export interface NameStreak {
   readonly rounds: number;
@@ -610,13 +631,13 @@ export async function askNameRound(
   deps: NameCheckDeps,
   publicName: string,
   cache: NameRoundCache
-): Promise<NameRoundResult> {
+): Promise<NameRound> {
   try {
     const zoned = zoneNameOf(publicName);
-    if (!('name' in zoned)) return { verdict: 'unreadable', reason: zoned.reason };
+    if (!('name' in zoned)) return { verdict: 'unreadable', reason: zoned.reason, answers: NO_NAME_ANSWERS };
     const name = zoned.name;
     const source = deps.source;
-    if (source.kind === 'refused') return { verdict: 'unreadable', reason: 'override-unusable' };
+    if (source.kind === 'refused') return { verdict: 'unreadable', reason: 'override-unusable', answers: NO_NAME_ANSWERS };
     let servers: readonly NameServer[] | null;
     if (source.kind === 'fixed') {
       servers = source.servers;
@@ -624,7 +645,7 @@ export async function askNameRound(
       if (cache.servers === null) cache.servers = await findZoneServers(deps);
       servers = cache.servers;
     }
-    if (servers === null || servers.length === 0) return { verdict: 'unreadable', reason: 'no-servers' };
+    if (servers === null || servers.length === 0) return { verdict: 'unreadable', reason: 'no-servers', answers: NO_NAME_ANSWERS };
     const answers = await Promise.all(
       servers.map(async (server) => {
         const query = encodeNameQuery(deps.id(), name, 'A', false);
@@ -636,9 +657,9 @@ export async function askNameRound(
       })
     );
     if (source.kind === 'search' && answers.every((a) => a.answer === 'unreadable')) cache.servers = null;
-    return roundVerdictOf(answers);
+    return { ...roundVerdictOf(answers), answers: answers.map((a) => a.answer) };
   } catch {
-    return { verdict: 'unreadable', reason: 'error' };
+    return { verdict: 'unreadable', reason: 'error', answers: NO_NAME_ANSWERS };
   }
 }
 
@@ -897,6 +918,7 @@ export function defaultNameCheckDeps(input: { packaged: boolean; env: NodeJS.Pro
     source: nameServersFrom(input),
     exchange: exchangeOverUdp,
     id: () => randomInt(0, 0x10000),
+    monotonic: () => performance.now(),
     sleep: (ms) =>
       new Promise<void>((resolve) => {
         const timer = setTimeout(resolve, ms);

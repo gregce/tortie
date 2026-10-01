@@ -5,13 +5,15 @@
  * name by Phase 332).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * fifty-two rules about `src/main/pocket/` — one `listen`, on loopback, in the
+ * fifty-three rules about `src/main/pocket/` — one `listen`, on loopback, in the
  * door process; the Funnel child's argv, program and death; mutual TLS before
  * the parser; the closed table; the refusals; the disposer owning the door;
  * and since Phase 332 the name check's non-recursive, connected, authoritative
  * question, the override that is loopback or nothing, and the push seam that
  * pairs nothing until the name stand-in answers, and since Phase 316.5 the
- * Apple push key that reaches the sheet through a port and never the door —
+ * Apple push key that reaches the sheet through a port and never the door,
+ * and since Phase 332.1 the name check's progress, which is drawn on the one
+ * monotonic clock and decides nothing —
  * and `conformance:pocket:hostile` drives a live door. Every one
  * of those rules is a clause a later round can delete in one line. THIS SCRIPT
  * BREAKS ONE CLAUSE AT A TIME IN THE SHIPPING SOURCE AND PROVES IT REDDENS THE
@@ -31,6 +33,11 @@
  * ruled "lets skip the web app". Five arms went with it (`P1`, `P1b`, `P2`,
  * `P3`, `P3b`) and so did the page attack they ran. Do not restore them without
  * the page, and do not restore the page without a ruling.
+ *
+ * PHASE 332.1 ADDED TEN ARMS (build/p3321/SPEC.md §8.2), 153 in all: `D4f` to
+ * `D4i` break the fence on the one clock the sheet's progress reads, `D5b` logs
+ * every round, `D6d` decides the carried press from `nameCheck`, and `D10a` to
+ * `D10d` let the progress carry a string or decide Pair or `nameCheck`.
  *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
@@ -1476,6 +1483,49 @@ const ABLATIONS = [
     to: '    onResume: (cb) => wakes.onResume(() => cb()),\n    names: undefined\n  });',
     needs: ['gate']
   },
+  // PHASE 332.1 (build/p3321/SPEC.md §8.2): the one clock the sheet's progress
+  // reads, fenced; the progress that decides nothing; the log that says a
+  // change once.
+  {
+    n: 'D4f',
+    rule: 'D4',
+    name: 'the progress reads the wall clock',
+    why: 'a wall clock moves when it is set, by NTP, by hand or by travel, so the minutes the card draws could go backwards or jump an hour; the progress reads the monotonic clock nobody can set.',
+    file: IPC,
+    from: '    const now = this.names.monotonic();',
+    to: '    const now = Date.now();',
+    needs: ['gate']
+  },
+  {
+    n: 'D4g',
+    rule: 'D4',
+    name: 'pairable reads the monotonic clock',
+    why: 'the clock is read ONLY to tell the sheet how long the check has run; a read in pairable is the first step to Pair deciding from time rather than from the round rule.',
+    file: IPC,
+    from: '    const check = this.nameCheckNow();',
+    to: "    const check = this.names.monotonic() < 0 ? 'none' : this.nameCheckNow();",
+    needs: ['gate']
+  },
+  {
+    n: 'D4h',
+    rule: 'D4',
+    name: 'the shipping clock is the wall clock',
+    why: 'performance.now() is monotonic and never moved by setting the clock; Date.now() is, and the elapsed time drawn from it can go backwards.',
+    file: NAMES,
+    from: '    monotonic: () => performance.now(),',
+    to: '    monotonic: () => Date.now(),',
+    needs: ['gate']
+  },
+  {
+    n: 'D4i',
+    rule: 'D4',
+    name: 'reading the progress starts a round',
+    why: 'nameProgressNow runs on every status() read, which the sheet makes on every push; a read that starts a round asks the zone a question every time Settings is open.',
+    file: IPC,
+    from: '    const now = this.names.monotonic();',
+    to: '    this.nameRoundNow(run);\n    const now = this.names.monotonic();',
+    needs: ['gate']
+  },
   {
     n: 'D5a',
     rule: 'D5',
@@ -1484,6 +1534,16 @@ const ABLATIONS = [
     file: IPC,
     from: 'pocketLog.info(`the Mac’s name check read ${verdict}: ${reason}`);',
     to: 'pocketLog.info(`the Mac’s name check read ${verdict}: ${reason} for ${run.target.publicName}`);',
+    needs: ['gate']
+  },
+  {
+    n: 'D5b',
+    rule: 'D5',
+    name: 'a log line every round',
+    why: 'the progress pushes two statuses a round and logs nothing; a line per round, every 20 to 60 s for as long as the name flaps, buries the one line per change of verdict that app.log keeps.',
+    file: IPC,
+    from: '    run.last = verdict;',
+    to: "    run.last = verdict;\n    pocketLog.info('the Mac’s name check asked a round');",
     needs: ['gate']
   },
   {
@@ -1514,6 +1574,16 @@ const ABLATIONS = [
     file: IPC,
     from: "    // AND AGAIN AFTER THE READ (the fix round): a switch-on round that answers\n    // no while Tailscale is read takes Pair away, and the window must not open\n    // on the answer from before it.\n    if (!this.pairable()) {\n      throw gmuxError('INVALID_INPUT', `${POCKET_NAME_SENTENCES.checking} No code was shown.`);\n    }\n",
     to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'D6d',
+    rule: 'D6',
+    name: 'the carried press decides from nameCheck',
+    why: 'a carried press asks for the code once, on main’s pairable; a sheet that works it out from the name again is a second spelling of the rule, which locks out a network that blocks DNS.',
+    file: PHONE_SECTION,
+    from: "  if (status.pairable) return { phase: 'no', pair: true };",
+    to: "  if (status.nameCheck === 'confirmed' || status.pairable) return { phase: 'no', pair: true };",
     needs: ['gate']
   },
   {
@@ -1594,6 +1664,46 @@ const ABLATIONS = [
     file: SEAM,
     from: '  if (!waited.ok) {',
     to: '  if (waited === null) {',
+    needs: ['gate']
+  },
+  {
+    n: 'D10a',
+    rule: 'D10',
+    name: 'the progress carries a server',
+    why: 'the sheet is told four numbers and booleans and three kinds of answer; a string member is the door through which a server, an address or a reason word reaches the renderer.',
+    file: SHARED,
+    from: '  nextInMs: number | null;',
+    to: '  nextInMs: number | null;\n  server: string;',
+    needs: ['gate']
+  },
+  {
+    n: 'D10b',
+    rule: 'D10',
+    name: 'Pair reads the progress',
+    why: 'Pair is pairable alone, which is the round rule; a pairable that waits on the dots holds a person on a network that blocks DNS behind a progress that never answers.',
+    file: IPC,
+    from: '    if (!pocketDoorStatus().listening || !this.published() || this.readStore()?.enabled !== true) return false;',
+    to: '    if (!pocketDoorStatus().listening || !this.published() || this.readStore()?.enabled !== true || this.nameShown?.answers.length === 0) return false;',
+    needs: ['gate']
+  },
+  {
+    n: 'D10c',
+    rule: 'D10',
+    name: 'the sheet’s stage reads the progress',
+    why: 'the stage that draws Pair follows main’s pairable; a stage that waits for a round to answer hides Pair for the length of a round main has already opened it for.',
+    file: PHONE_SECTION,
+    from: "  return status.pairable ? 'ready' : 'naming';",
+    to: "  return status.pairable && status.nameProgress?.asking !== true ? 'ready' : 'naming';",
+    needs: ['gate']
+  },
+  {
+    n: 'D10d',
+    rule: 'D10',
+    name: 'a stamp decides nameCheck',
+    why: 'the stamps exist for the sheet’s minutes; nameCheck read from one is a rule of when Pair opens that nobody wrote down, and a run that confirmed would read none.',
+    file: IPC,
+    from: "    if (run === null) return 'none';",
+    to: "    if (run === null || run.endedAt !== null) return 'none';",
     needs: ['gate']
   },
   {

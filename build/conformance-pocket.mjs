@@ -51,8 +51,22 @@
  * the Apple push key reaches Settings then Phone through a port the host is
  * handed and never implements. One rule joined, K3: THE PUSH KEY NEVER ENTERS
  * THE DOOR. B1 counts thirteen channels, and R3 refuses the alerts'
- * composition, the file panel and the key's store by name. Fifty-two rules in
- * all.
+ * composition, the file panel and the key's store by name.
+ *
+ * PHASE 332.1 DRAWS THE NAME CHECK (build/p3321/SPEC.md §8.1). The round now
+ * hands the host each server's answer, kinds only, the host stamps its run on
+ * a monotonic clock, and one status field, `nameProgress`, carries four
+ * numbers and booleans to the Pair card. One rule joined, D10: THE PROGRESS
+ * DECIDES NOTHING AND CARRIES NOTHING. Its contract is four members and no
+ * string, the run's stamps and `nameShown` are read by `nameProgressNow`
+ * alone and written only where the SPEC's table puts them, `nameProgressNow`
+ * is called by `status()` alone, and the sheet's `pairingStage`,
+ * `pairAfterAllowNext` and `onPair` name no `nameProgress`. D4 still refuses
+ * the wall clock and now fences the one monotonic clock to four methods, with
+ * `performance.now()` its one shipping body; D5 holds every log line of
+ * `settleNameRound` behind a change of verdict, of `opened` or the
+ * confirmation; D6 lets the sheet compare `nameCheck` with `'confirmed'` too,
+ * never in the three Pair functions. Fifty-three rules in all.
  *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
@@ -138,12 +152,13 @@ const RULES = [
   ['D1', 'build/p332/SPEC.md §4.2, §4.3', 'node:dgram is imported by public-name.ts ALONE across src/, no production file under src/main/pocket/ names node:dns, public-name.ts imports node:dgram, node:crypto and node:net and nothing else, and every createSocket in it passes a lookup declared in the same file'],
   ['D2', 'build/p332/SPEC.md §4.2 to §4.5', 'the zone question is built with recursion false and true is set only in findZoneServers; the id comes from node:crypto and Math.random is nowhere; every send passes the buffer and a callback inside a connect callback; the size cap is compared before a byte is read; a record needs the AA bit and the byte-for-byte question; a loopback server binds the literal 127.0.0.1; the message handler compares rinfo.address and rinfo.port with the server’s'],
   ['D3', 'build/p332/SPEC.md §4.5', 'NAME_REFUSED_V4 is declared once, in public-name.ts, holds [100, 64, 0, 0, 10] and the seven other ranges, isPublicV4 is its only reader, and no other file under src/main/pocket/ spells any of the eight'],
-  ['D4', 'build/p332/SPEC.md §4.9', 'beginNameCheck is called ONCE, in openNow, after closeNowUnlessConfirmed; stopNameCheck is the first statement of unpublish and unexpectedlyDown; status, nameCheckNow, pairable, openAtLaunch and the pocket:status and pocket:pairingState handlers start nothing; the timer is armed through armFunnelRestart alone; no name-check method nor nextNameStreak reads a clock; and names: is handed to PocketHost only by tests'],
-  ['D5', 'build/p332/SPEC.md §4.14', 'public-name.ts names no log call, and every log call in a name-check method of ipc.ts interpolates only a verdict or a reason, never the public name, a target, an address, the servers, the tailnet or the bytes'],
-  ['D6', 'build/p332/SPEC.md §4.11, §4.12 and its fix round', 'pairable is ONE method of PocketHost, status() answers pairable: this.pairable(), beginPairing asks this.pairable() before stillPublished() and AGAIN after it and before its one this.pairing.open(), and PhoneSection.tsx reads .pairable in pairingStage, pairAfterAllowNext and onPair and compares nameCheck only with unreadable'],
+  ['D4', 'build/p332/SPEC.md §4.9; build/p3321/SPEC.md §8.1', 'beginNameCheck is called ONCE, in openNow, after closeNowUnlessConfirmed; stopNameCheck is the first statement of unpublish and unexpectedlyDown; status, nameCheckNow, pairable, nameProgressNow, openAtLaunch and the pocket:status and pocket:pairingState handlers start nothing; the timer is armed through armFunnelRestart alone; no name-check method reads the wall clock, and the monotonic one is read in four methods only, for the sheet, as this.names.monotonic(), with () => performance.now() its one shipping body; and names: is handed to PocketHost only by tests'],
+  ['D5', 'build/p332/SPEC.md §4.14; build/p3321/SPEC.md §8.1', 'public-name.ts names no log call, every log call in a name-check method of ipc.ts interpolates only a verdict or a reason, never the public name, a target, an address, the servers, the tailnet or the bytes, and every log call in settleNameRound sits behind an if whose condition names last, opened or confirmed: a line per change, never a line per round'],
+  ['D6', 'build/p332/SPEC.md §4.11, §4.12 and its fix round; build/p3321/SPEC.md §8.1', 'pairable is ONE method of PocketHost, status() answers pairable: this.pairable(), beginPairing asks this.pairable() before stillPublished() and AGAIN after it and before its one this.pairing.open(), and PhoneSection.tsx reads .pairable in pairingStage, pairAfterAllowNext and onPair and compares nameCheck only with unreadable or confirmed, never inside those three'],
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
-  ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true']
+  ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
+  ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress']
 ];
 
 if (process.argv.includes('--list')) {
@@ -4006,11 +4021,16 @@ function doorEnvRule() {
  * counted start, the override that is loopback or nothing, and the guard that
  * keeps every test and script off the internet. These eight rules are those
  * clauses, read as code. A missing `public-name.ts` fails every one by name.
+ *
+ * PHASE 332.1 DRAWS THE CHECK and adds D10 beside them (build/p3321/SPEC.md
+ * §8.1): what the sheet is told is four numbers and booleans that nothing
+ * decides from, so Pair stays `pairable` alone. A missing `public-name.ts`
+ * fails D10 too, because the progress is that module's answers.
  */
 
 const NAME_MODULE = 'public-name';
 const NAME_MODULE_OWNER = "Phase 332 builder names's (src/main/pocket/public-name.ts)";
-const D_RULES = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8'];
+const D_RULES = ['D1', 'D2', 'D3', 'D4', 'D5', 'D6', 'D7', 'D8', 'D10'];
 
 /** The name module, or null with EVERY D rule failed by name, once each. */
 let nameModuleRead;
@@ -4415,7 +4435,8 @@ function nameStartRule() {
   }
   const STARTERS = /\b(?:beginNameCheck|nameRoundNow|askNameRound|armFunnelRestart|exchange)\b/;
   const quiet = [];
-  for (const name of ['status', 'nameCheckNow', 'pairable', 'openAtLaunch']) {
+  // Phase 332.1: what the sheet is told is read on every status() and starts nothing either.
+  for (const name of ['status', 'nameCheckNow', 'pairable', 'nameProgressNow', 'openAtLaunch']) {
     const m = hostMethod(ipc, name);
     if (m === null) {
       fail('D4', `${rel(ipc)} has no PocketHost.${name}, so this rule cannot say it starts nothing`);
@@ -4463,6 +4484,7 @@ function nameStartRule() {
   if (!nameMethods.some(([name, f, m]) => f === ipc && /name/i.test(name) && /\barmFunnelRestart\s*\(/.test(codeOfNode(f, m)))) {
     fail('D4', `${rel(ipc)}: no name-check method arms its timer through armFunnelRestart, so the quit does not clear it.`);
   }
+  nameClockFence(file, ipc);
   for (const s of productionSources()) {
     if (!/new PocketHost\(/.test(readFileSync(s, 'utf8'))) continue;
     for (const n of nodesOf(s)) {
@@ -4476,6 +4498,66 @@ function nameStartRule() {
         }
       }
     }
+  }
+}
+
+/**
+ * D4's fence on the ONE clock (Phase 332.1, build/p3321/SPEC.md §5.2, §8.1).
+ * The wall clock is still refused above, by the regex every name-check method
+ * is read with. The monotonic clock the sheet's progress needs is read ONLY as
+ * `this.names.monotonic()`, ONLY in the four methods §5.3's table names, and
+ * public-name.ts names `performance` only inside defaultNameCheckDeps, whose
+ * `monotonic` is exactly `() => performance.now()`, with no wall clock
+ * anywhere in the file. Nothing in the check decides from this clock, and a
+ * read anywhere else is the first step towards something that does.
+ */
+const NAME_CLOCK_READERS = new Set(['beginNameCheck', 'armNameRound', 'settleNameRound', 'nameProgressNow']);
+function nameClockFence(file, ipc) {
+  const sf = astOf(ipc);
+  const clockCalls = callsOf(ipc).filter((c) => calleeName(c) === 'monotonic');
+  checked('D4', clockCalls.length + 1);
+  if (clockCalls.length === 0) {
+    fail('D4', `${rel(ipc)} reads the names deps' monotonic clock nowhere, so the sheet's progress has no clock and this fence reads nothing (build/p3321/SPEC.md §5.3).`);
+  }
+  for (const call of clockCalls) {
+    const spelled = codeOfNode(ipc, call).replace(/\s+/g, '');
+    const inside = enclosingName(call);
+    if (spelled !== 'this.names.monotonic()' || call.arguments.length !== 0) {
+      fail('D4', `${where(ipc, call)} reads the clock as ${JSON.stringify(spelled.slice(0, 80))}. The one clock is read as this.names.monotonic() and nothing else, so a test's hand-moved clock is the clock every read sees.`);
+    } else if (inside === null || !NAME_CLOCK_READERS.has(inside)) {
+      fail('D4', `${where(ipc, call)}: ${String(inside)} reads the monotonic clock. It is read in ${[...NAME_CLOCK_READERS].join(', ')} alone, only to tell the sheet how long the check has run and when it asks next; nothing in the check decides from it.`);
+    }
+  }
+  // A reference that is not called is a clock handed somewhere this fence cannot follow.
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'monotonic') continue;
+    checked('D4');
+    if (!(ts.isCallExpression(n.parent) && n.parent.expression === n)) {
+      fail('D4', `${where(ipc, n)} takes the monotonic clock without calling it (${JSON.stringify(n.parent.getText(sf).slice(0, 60))}), so a read this fence cannot see can follow.`);
+    }
+  }
+  const deps = oneFunction(file, 'defaultNameCheckDeps');
+  checked('D4', 3);
+  if (deps === null) {
+    fail('D4', `${rel(file)} declares no single defaultNameCheckDeps, so the shipping clock is not where this fence reads it`);
+    return;
+  }
+  const props = descendantsOf(deps).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'monotonic');
+  if (props.length !== 1 || codeOfNode(file, props[0].initializer).replace(/\s+/g, '') !== '()=>performance.now()') {
+    fail('D4', `${where(file, props[0] ?? deps)}: defaultNameCheckDeps's monotonic is ${props.length === 1 ? JSON.stringify(codeOfNode(file, props[0].initializer).trim().slice(0, 60)) : `declared ${String(props.length)} time(s)`}, not () => performance.now(). Node's performance clock is monotonic and never moved by setting the clock; a wall clock would draw an elapsed time that jumps an hour or goes backwards.`);
+  }
+  const text = codeTextOf(file);
+  const start = deps.getStart(astOf(file));
+  const end = deps.getEnd();
+  for (const m of text.matchAll(/\bperformance\b/g)) {
+    if (m.index >= start && m.index < end) continue;
+    const { line } = astOf(file).getLineAndCharacterOfPosition(m.index);
+    fail('D4', `${rel(file)}:${String(line + 1)} names performance outside defaultNameCheckDeps. The name module reads one clock, in its shipping deps, and only for the sheet.`);
+  }
+  const wall = /\bDate\s*\.\s*now\b|\bnew\s+Date\b/.exec(text);
+  if (wall !== null) {
+    const { line } = astOf(file).getLineAndCharacterOfPosition(wall.index);
+    fail('D4', `${rel(file)}:${String(line + 1)} names ${JSON.stringify(wall[0])}. The name module reads no wall clock anywhere: the deadline is a setTimeout, the schedule is gaps, and the one clock is monotonic.`);
   }
 }
 
@@ -4514,6 +4596,33 @@ function nameLogRule() {
           }
         }
       }
+    }
+  }
+  // A LINE PER CHANGE, NEVER A LINE PER ROUND (Phase 332.1, build/p3321/SPEC.md
+  // §5.3, §8.1). The progress pushes two statuses a round and logs nothing:
+  // every log call in settleNameRound sits in the THEN branch of an if, inside
+  // the method, whose condition names `last` (a change of verdict), `opened`
+  // (pairing opened anyway) or `confirmed`. An else branch does not count,
+  // because the else of a change is every round that did not change.
+  const settle = hostMethod(ipc, 'settleNameRound');
+  checked('D5');
+  if (settle === null) {
+    fail('D5', `${rel(ipc)} has no PocketHost.settleNameRound, so where a round's answer is logged is not where this rule reads it`);
+    return;
+  }
+  const CHANGE = /\b(?:last|opened|confirmed)\b/;
+  for (const call of descendantsOf(settle).filter((x) => ts.isCallExpression(x) && isLog(x))) {
+    checked('D5');
+    let behind = false;
+    for (let n = call; n !== settle && n.parent !== undefined; n = n.parent) {
+      const p = n.parent;
+      if (ts.isIfStatement(p) && p.thenStatement === n && CHANGE.test(codeOfNode(ipc, p.expression))) {
+        behind = true;
+        break;
+      }
+    }
+    if (!behind) {
+      fail('D5', `${where(ipc, call)}: settleNameRound logs with no if around it whose condition names last, opened or confirmed. A round is asked every 20 to 60 s; a line per round fills app.log with the same words, which is why the log says a verdict once, when it changes.`);
     }
   }
 }
@@ -4578,6 +4687,12 @@ function pairableRule() {
   for (const n of live) {
     if (!readsPairable(n)) fail('D6', `${where(phone, n)}: onPair does not read .pairable, so a press decides from something main did not say.`);
   }
+  // WIDENED BY PHASE 332.1 (build/p3321/SPEC.md §8.1): `Your Mac’s name is
+  // live` needs main's own 'confirmed', so the sheet may compare with it too,
+  // and with nothing else, and never where it decides Pair.
+  const NAME_WORDS = new Set(['unreadable', 'confirmed']);
+  const pairDeciders = [oneFunction(phone, 'pairingStage'), oneFunction(phone, 'pairAfterAllowNext'), ...live.map((n) => n.initializer.expression)].filter((x) => x !== null);
+  const insideDecider = (node) => pairDeciders.some((d) => node.getStart(astOf(phone)) >= d.getStart(astOf(phone)) && node.getEnd() <= d.getEnd());
   for (const n of nodesOf(phone)) {
     if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'nameCheck') continue;
     checked('D6');
@@ -4586,8 +4701,188 @@ function pairableRule() {
       p !== undefined &&
       ts.isBinaryExpression(p) &&
       [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(p.operatorToken.kind) &&
-      ((p.left === n && ts.isStringLiteralLike(p.right) && p.right.text === 'unreadable') || (p.right === n && ts.isStringLiteralLike(p.left) && p.left.text === 'unreadable'));
-    if (!ok) fail('D6', `${where(phone, n)} reads nameCheck other than to compare it with 'unreadable'. The sheet reads it for the one line above Pair and decides nothing else from it.`);
+      ((p.left === n && ts.isStringLiteralLike(p.right) && NAME_WORDS.has(p.right.text)) || (p.right === n && ts.isStringLiteralLike(p.left) && NAME_WORDS.has(p.left.text)));
+    if (!ok) fail('D6', `${where(phone, n)} reads nameCheck other than to compare it with 'unreadable' or 'confirmed'. The sheet reads it for the lines it draws above Pair and decides nothing else from it.`);
+    else if (insideDecider(n)) fail('D6', `${where(phone, n)} compares nameCheck inside pairingStage, pairAfterAllowNext or onPair. Whether Pair shows, and whether a carried press asks for the code, is main's pairable and nothing the sheet works out from the name.`);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// D10 — the progress decides nothing and carries nothing (Phase 332.1)
+// ---------------------------------------------------------------------------
+
+/** The four members the sheet is told, and their exact types (build/p3321/SPEC.md §5.4). */
+const PROGRESS_MEMBERS = new Map([
+  ['answers', 'readonly PocketNameAnswer[]'],
+  ['asking', 'boolean'],
+  ['elapsedMs', 'number'],
+  ['nextInMs', 'number | null']
+]);
+/** The run's stamps (§5.3), read by nameProgressNow alone. */
+const PROGRESS_STAMPS = new Set(['startedAt', 'nextAt', 'endedAt', 'answers']);
+/** Where §5.3's table writes each, and nowhere else. */
+const PROGRESS_WRITERS = new Map([
+  ['startedAt', new Set()],
+  ['nextAt', new Set(['armNameRound'])],
+  ['endedAt', new Set(['settleNameRound'])],
+  ['answers', new Set(['settleNameRound'])],
+  ['nameShown', new Set(['beginNameCheck', 'stopNameCheck'])]
+]);
+
+/** Is `n` (a property access or element access) the left side of an assignment? */
+function assignedTo(n) {
+  let child = n;
+  let p = n.parent;
+  while (p !== undefined && ts.isParenthesizedExpression(p)) {
+    child = p;
+    p = p.parent;
+  }
+  return p !== undefined && ts.isBinaryExpression(p) && p.left === child && p.operatorToken.kind >= ts.SyntaxKind.FirstAssignment && p.operatorToken.kind <= ts.SyntaxKind.LastAssignment;
+}
+
+function nameProgressRule() {
+  // D10. What the sheet is told: four members and no string, read in one
+  // method, called from one place, and named by nothing that decides Pair.
+  const file = nameModule();
+  const ipc = moduleNamed('ipc', 'D10', "Phase 332.1 builder main's (src/main/pocket/ipc.ts)");
+  if (file === null || ipc === null) return;
+
+  // (1) THE CONTRACT: the answer's three kinds, the progress's four members, the field.
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  checked('D10');
+  if (!existsSync(contract)) {
+    fail('D10', 'src/shared/ipc/pocket.ts does not exist, so the contract this rule reads is not there');
+  } else {
+    const csf = astOf(contract);
+    const alias = nodesOf(contract).find((n) => ts.isTypeAliasDeclaration(n) && n.name.text === 'PocketNameAnswer');
+    checked('D10');
+    const kinds = alias === undefined || !ts.isUnionTypeNode(alias.type) ? null : alias.type.types.map((t) => (ts.isLiteralTypeNode(t) && ts.isStringLiteral(t.literal) ? t.literal.text : null));
+    if (kinds === null || JSON.stringify([...kinds].sort()) !== JSON.stringify(['negative', 'record', 'unreadable'])) {
+      fail('D10', `${alias === undefined ? rel(contract) : where(contract, alias)}: PocketNameAnswer is ${alias === undefined ? 'not declared' : JSON.stringify(alias.type.getText(csf))}, not exactly 'record' | 'negative' | 'unreadable'. A dot is one of three kinds and never a word of a server's.`);
+    }
+    const progress = interfaceOf(contract, 'PocketNameProgress');
+    checked('D10');
+    if (progress === null) {
+      fail('D10', `${rel(contract)} declares no PocketNameProgress, so what the sheet is told is not read`);
+    } else {
+      const seen = new Set();
+      for (const m of progress.members) {
+        checked('D10');
+        const name = memberName(m);
+        const want = name === null ? undefined : PROGRESS_MEMBERS.get(name);
+        const got = ts.isPropertySignature(m) && m.type !== undefined ? m.type.getText(csf).replace(/\s+/g, ' ') : '(not a property)';
+        if (want === undefined) {
+          fail('D10', `${where(contract, m)}: PocketNameProgress.${String(name)} is not one of its four members (${[...PROGRESS_MEMBERS.keys()].join(', ')}). The sheet is told durations, a flag and three kinds of answer, and NOTHING ELSE: no name, server, address, port or reason word.`);
+          continue;
+        }
+        seen.add(name);
+        if (got !== want || /\bstring\b/.test(got)) {
+          fail('D10', `${where(contract, m)}: PocketNameProgress.${name} is ${got}, not ${want}. No member of the progress is a string.`);
+        }
+      }
+      if (progress.members.length !== PROGRESS_MEMBERS.size || seen.size !== PROGRESS_MEMBERS.size) {
+        fail('D10', `${where(contract, progress)}: PocketNameProgress has ${String(progress.members.length)} member(s) (${[...seen].join(', ') || 'none of the four'}); it has exactly the four the SPEC pins`);
+      }
+    }
+    const statusType = interfaceOf(contract, 'PocketStatus');
+    const field = statusType?.members.find((m) => memberName(m) === 'nameProgress');
+    checked('D10');
+    const fieldType = field !== undefined && ts.isPropertySignature(field) && field.type !== undefined ? field.type.getText(csf).replace(/\s+/g, ' ') : null;
+    if (fieldType !== 'PocketNameProgress | null') {
+      fail('D10', `${field === undefined ? rel(contract) : where(contract, field)}: PocketStatus.nameProgress is ${fieldType === null ? 'not declared' : fieldType}, not PocketNameProgress | null`);
+    }
+  }
+
+  // (2) THE STAMPS: read in nameProgressNow alone, written where §5.3's table puts them.
+  const isStampAccess = (n) =>
+    (ts.isPropertyAccessExpression(n) && PROGRESS_STAMPS.has(n.name.text)) ||
+    (ts.isElementAccessExpression(n) && ts.isStringLiteralLike(n.argumentExpression) && PROGRESS_STAMPS.has(n.argumentExpression.text));
+  const stampOf = (n) => (ts.isPropertyAccessExpression(n) ? n.name.text : n.argumentExpression.text);
+  const isShownAccess = (n) =>
+    (ts.isPropertyAccessExpression(n) && n.name.text === 'nameShown' && n.expression.kind === ts.SyntaxKind.ThisKeyword) ||
+    (ts.isElementAccessExpression(n) && n.expression.kind === ts.SyntaxKind.ThisKeyword && ts.isStringLiteralLike(n.argumentExpression) && n.argumentExpression.text === 'nameShown');
+  /** THE ONE EXEMPT READ: `run.answers = round.answers;` in settleNameRound, whose object is the NameRound parameter. */
+  const exemptRead = (n) => {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'answers' || !ts.isIdentifier(n.expression) || n.expression.text !== 'round') return false;
+    const p = n.parent;
+    return (
+      p !== undefined &&
+      ts.isBinaryExpression(p) &&
+      p.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      p.right === n &&
+      ts.isPropertyAccessExpression(p.left) &&
+      p.left.name.text === 'answers' &&
+      enclosingName(n) === 'settleNameRound'
+    );
+  };
+  let sawRead = false;
+  for (const n of nodesOf(ipc)) {
+    const stamp = isStampAccess(n);
+    const shown = !stamp && isShownAccess(n);
+    const bound = ts.isBindingElement(n) && [n.propertyName, n.name].some((x) => x !== undefined && ts.isIdentifier(x) && (PROGRESS_STAMPS.has(x.text) || x.text === 'nameShown'));
+    if (!stamp && !shown && !bound) continue;
+    checked('D10');
+    const what = bound ? `a destructured ${n.getText(astOf(ipc))}` : stamp ? `.${stampOf(n)}` : 'this.nameShown';
+    const inside = enclosingName(n);
+    if (!bound && assignedTo(n)) {
+      const allowed = PROGRESS_WRITERS.get(stamp ? stampOf(n) : 'nameShown');
+      if (inside === null || !allowed.has(inside)) {
+        fail('D10', `${where(ipc, n)}: ${String(inside)} writes ${what}. It is written in ${allowed.size === 0 ? "beginNameCheck's run literal alone" : [...allowed].join(' and ')} (build/p3321/SPEC.md §5.3's table), so what the sheet draws moves only when the check does.`);
+      }
+      continue;
+    }
+    if (exemptRead(n)) continue;
+    if (inside === 'nameProgressNow') {
+      sawRead = true;
+      continue;
+    }
+    fail('D10', `${where(ipc, n)}: ${String(inside)} reads ${what}. The progress is read by nameProgressNow alone, so nothing in main decides Pair, a round or a log line from what the sheet is drawn.`);
+  }
+  checked('D10');
+  if (!sawRead) fail('D10', `${rel(ipc)}: nameProgressNow reads none of the run's stamps nor this.nameShown, so this rule's fence reads nothing`);
+
+  // (3) nameProgressNow: declared once, called once, in status(), as the field.
+  const progressNow = hostMethod(ipc, 'nameProgressNow');
+  checked('D10');
+  if (progressNow === null) fail('D10', `${rel(ipc)} has no PocketHost.nameProgressNow, so what the sheet is told has no one place`);
+  const calls = callsOf(ipc).filter((c) => calleeName(c) === 'nameProgressNow');
+  checked('D10', calls.length + 1);
+  const fieldOk = (c) =>
+    codeOfNode(ipc, c).replace(/\s+/g, '') === 'this.nameProgressNow()' &&
+    c.parent !== undefined &&
+    ts.isPropertyAssignment(c.parent) &&
+    memberName(c.parent) === 'nameProgress' &&
+    enclosingName(c) === 'status';
+  if (calls.length !== 1 || !fieldOk(calls[0])) {
+    fail('D10', `${calls.length === 0 ? rel(ipc) : where(ipc, calls[0])}: nameProgressNow is called ${String(calls.length)} time(s)${calls.length === 1 ? ', not as status()’s nameProgress: this.nameProgressNow()' : ''}. It is called from ONE place, status(), as the field the sheet reads.`);
+  }
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'nameProgressNow') continue;
+    checked('D10');
+    if (!(ts.isCallExpression(n.parent) && n.parent.expression === n)) fail('D10', `${where(ipc, n)} takes nameProgressNow without calling it, so a caller this rule cannot see can follow.`);
+  }
+
+  // (4) THE SHEET: nothing that decides Pair names the progress.
+  const phone = join(ROOT, 'src', 'renderer', 'settings', 'PhoneSection.tsx');
+  checked('D10');
+  if (!existsSync(phone)) {
+    fail('D10', 'src/renderer/settings/PhoneSection.tsx does not exist, so the sheet this rule reads is not there');
+    return;
+  }
+  const psf = astOf(phone);
+  const namesProgress = (node) => descendantsOf(node).some((x) => (ts.isIdentifier(x) || ts.isStringLiteralLike(x)) && x.text === 'nameProgress');
+  for (const name of ['pairingStage', 'pairAfterAllowNext']) {
+    checked('D10');
+    const fn = oneFunction(phone, name);
+    if (fn === null) fail('D10', `${rel(phone)} declares no single ${name}, so whether it names nameProgress is not read`);
+    else if (namesProgress(fn)) fail('D10', `${where(phone, fn)}: ${name} names nameProgress. Pair follows main's pairable alone; the dots are drawn and decide nothing.`);
+  }
+  const onPairs = nodesOf(phone).filter((n) => ts.isJsxAttribute(n) && n.name.getText(psf) === 'onPair' && n.initializer !== undefined && ts.isJsxExpression(n.initializer) && n.initializer.expression !== undefined && ts.isFunctionLike(n.initializer.expression));
+  const live = onPairs.filter((n) => !/^\(\)\s*=>\s*undefined$/.test(n.initializer.expression.getText(psf).trim()));
+  checked('D10', live.length + 1);
+  if (live.length === 0) fail('D10', `${rel(phone)} wires no onPair this rule can read`);
+  for (const n of live) {
+    if (namesProgress(n)) fail('D10', `${where(phone, n)}: onPair names nameProgress, so a press decides from the dots rather than from main's pairable.`);
   }
 }
 
@@ -4905,7 +5200,8 @@ const PHASES = [
   ['the one pairable', pairableRule, 'D6'],
   ['the name servers override', nameOverrideRule, 'D7'],
   ['no real server outside Electron', nameElectronRule, 'D8'],
-  ['the push seam waits for the name', seamNameRule, 'D9']
+  ['the push seam waits for the name', seamNameRule, 'D9'],
+  ['the progress decides nothing', nameProgressRule, 'D10']
 ];
 
 for (const [name, run, onError] of PHASES) {

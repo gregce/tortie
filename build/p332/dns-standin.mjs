@@ -38,11 +38,24 @@
  *                      is still 'hold', with the mode from before the hold)
  *   'servfail'         RCODE 2, no AA
  *   'refused'          RCODE 5, no AA
+ *   { script: [m, …] } (Phase 332.1, build/p3321/SPEC.md §7.3 item 1) the n-th
+ *                      `A` question for the name, in class IN, since the
+ *                      script was set gets the n-th entry, and past the end
+ *                      the LAST entry repeats. Each entry is one of the string
+ *                      modes above, 'hold' included. A question for another
+ *                      name or of another type is answered as 'record' answers
+ *                      it (NXDOMAIN, NODATA) and does not advance the script.
+ *                      Setting a script again starts it from its first entry.
+ *                      `release()` while a script is current answers a held
+ *                      question as 'record' would. This is how probe:p3321
+ *                      replays his flapping name, one server per stand-in
  *
- * `log()` rows are `{ at, id, rd, qname, qtype, qclass, answered }` for every
- * question it was asked, the preflight's own excepted. `answered` is the kind
- * of reply it sent: `record`, `nodata`, `nx`, `servfail`, `refused`,
- * `silent`, `held` (not yet released) or `malformed` (not a question).
+ * `log()` rows are `{ at, id, rd, qname, qtype, qclass, answered, step }` for
+ * every question it was asked, the preflight's own excepted. `answered` is the
+ * kind of reply it sent: `record`, `nodata`, `nx`, `servfail`, `refused`,
+ * `silent`, `held` (not yet released) or `malformed` (not a question). `step`
+ * is the script entry's index that answered it, or null when no script was
+ * current or the question did not advance one.
  *
  * THE RESOLVER MODEL. `makeResolverModel({ zoneAnswers, negativeTtlMs })` is a
  * phone's resolver reduced to the one behaviour that failed his first scan: a
@@ -232,8 +245,15 @@ function checkedMode(mode) {
   if (mode !== null && typeof mode === 'object' && Object.hasOwn(mode, 'nxUntil') && (mode.nxUntil === null || Number.isFinite(mode.nxUntil))) {
     return { nxUntil: mode.nxUntil };
   }
+  // A script: one to many string modes, frozen so the caller cannot move it under the server.
+  if (mode !== null && typeof mode === 'object' && Array.isArray(mode.script) && mode.script.length > 0 && mode.script.every((m) => typeof m === 'string' && MODES.has(m))) {
+    return { script: Object.freeze([...mode.script]) };
+  }
   throw new Error(`${TAG} not a mode: ${J(mode)}`);
 }
+
+/** Is `m` a script mode? */
+const isScript = (m) => m !== null && typeof m === 'object' && Array.isArray(m.script);
 
 /** Is `value` one to four `127.0.0.1:<port>` entries and nothing else? */
 export function loopbackOnlyServers(value) {
@@ -262,6 +282,8 @@ export async function makeDnsStandin({ name, mode = 'record', address: firstAddr
   let address = firstAddress;
   let current = checkedMode(mode);
   let beforeHold = current === 'hold' ? 'record' : current;
+  /** How many questions the current script has answered: the next one gets entry `min(scriptAt, last)`. */
+  let scriptAt = 0;
   const rows = [];
   const held = [];
   const preflightPorts = new Set();
@@ -269,9 +291,9 @@ export async function makeDnsStandin({ name, mode = 'record', address: firstAddr
 
   const socket = createSocket({ type: 'udp4', lookup: literalOnly });
 
-  /** The kind a question gets under `m`, which is never 'hold'. */
+  /** The kind a question gets under `m`, which is never 'hold'. A script here is 'record' (a held question's release, or one that did not advance it). */
   const kindUnder = (m, q) => {
-    const effective = typeof m === 'object' ? (m.nxUntil === null || now() < m.nxUntil ? 'nx' : 'record') : m;
+    const effective = isScript(m) ? 'record' : typeof m === 'object' ? (m.nxUntil === null || now() < m.nxUntil ? 'nx' : 'record') : m;
     if (effective !== 'record') return effective;
     if (!sameName(q.qname, name) || q.qclass !== CLASS_IN) return 'nx';
     return q.qtype === QTYPE.A ? 'record' : 'nodata';
@@ -293,19 +315,31 @@ export async function makeDnsStandin({ name, mode = 'record', address: firstAddr
       if (q !== null) send(replyFor(msg, q, 'record', address), rinfo);
       return;
     }
-    const row = { at: now(), id: q?.id ?? null, rd: q?.rd ?? null, qname: q?.qname ?? null, qtype: q?.qtype ?? null, qclass: q?.qclass ?? null, answered: 'malformed' };
+    const row = { at: now(), id: q?.id ?? null, rd: q?.rd ?? null, qname: q?.qname ?? null, qtype: q?.qtype ?? null, qclass: q?.qclass ?? null, answered: 'malformed', step: null };
     rows.push(row);
     if (q === null) return;
-    if (current === 'hold') {
+    // THE SCRIPT (Phase 332.1): only an A question for the name, in IN,
+    // advances it; anything else is answered as 'record' answers it.
+    let effective = current;
+    if (isScript(current)) {
+      if (sameName(q.qname, name) && q.qtype === QTYPE.A && q.qclass === CLASS_IN) {
+        row.step = Math.min(scriptAt, current.script.length - 1);
+        scriptAt += 1;
+        effective = current.script[row.step];
+      } else {
+        effective = 'record';
+      }
+    }
+    if (effective === 'hold') {
       row.answered = 'held';
       held.push({ msg: Buffer.from(msg), q, rinfo: { address: rinfo.address, port: rinfo.port }, row });
       return;
     }
-    if (current === 'silent') {
+    if (effective === 'silent') {
       row.answered = 'silent';
       return;
     }
-    const kind = kindUnder(current, q);
+    const kind = kindUnder(effective, q);
     row.answered = kind;
     send(replyFor(msg, q, kind, address), rinfo);
   });
@@ -340,6 +374,7 @@ export async function makeDnsStandin({ name, mode = 'record', address: firstAddr
         address = options.address;
       }
       if (m === 'hold' && current !== 'hold') beforeHold = current;
+      if (isScript(m)) scriptAt = 0;
       current = m;
       return current;
     },
@@ -713,6 +748,44 @@ async function selfTest() {
     const last = standin.log().at(-1);
     say(last.rd === 1 && last.qtype === QTYPE.A && last.qname === NAME && typeof last.at === 'number' && last.id === 0x5332, `the log reads RD, the type, the name and the id (${J(last)})`);
     say(standin.log().every((r) => ['record', 'nodata', 'nx', 'servfail', 'refused', 'silent', 'held', 'malformed'].includes(r.answered)), 'every log row names what it was answered');
+    say(standin.log().every((r) => r.step === null), 'with no script current, every log row’s step is null');
+
+    // THE SCRIPT (Phase 332.1): a three-entry script over four A questions
+    // answers in order and repeats its last; another type and another name
+    // answer as 'record' answers them and do not advance it.
+    const fromScript = standin.log().length;
+    standin.setMode({ script: ['record', 'nx', 'servfail'] });
+    const s1 = await ask(NAME, QTYPE.A);
+    const sAaaa = await ask(NAME, QTYPE.AAAA);
+    const s2 = await ask(NAME, QTYPE.A);
+    const sOther = await ask('p332-other.tail00000.ts.net', QTYPE.A);
+    const s3 = await ask(NAME, QTYPE.A);
+    const s4 = await ask(NAME, QTYPE.A);
+    say(
+      s1?.rcode === 0 && s1.an === 1 && s1.aa && s2?.rcode === 3 && s2.aa && s2.read?.records[0]?.minimum === NEGATIVE_TTL_S && s3?.rcode === 2 && !s3.aa && s4?.rcode === 2 && !s4.aa,
+      `script: four A questions answer record, NXDOMAIN, SERVFAIL, then SERVFAIL again, read back by this file's reader (${J([s1?.rcode, s2?.rcode, s3?.rcode, s4?.rcode])})`
+    );
+    say(sAaaa?.rcode === 0 && sAaaa.an === 0 && sAaaa.ns === 1 && sOther?.rcode === 3, 'script: another type answers NODATA and another name NXDOMAIN, as record mode answers them');
+    const scriptRows = standin.log().slice(fromScript);
+    say(J(scriptRows.map((r) => [r.answered, r.step])) === J([['record', 0], ['nodata', null], ['nx', 1], ['nx', null], ['servfail', 2], ['servfail', 2]]), `script: the log's step is the entry that answered, null for a question that did not advance it (${J(scriptRows.map((r) => r.step))})`);
+    standin.setMode({ script: ['silent', 'record'] });
+    const r1 = await ask(NAME, QTYPE.A);
+    const r2 = await ask(NAME, QTYPE.A);
+    say(r1 === null && r2?.an === 1 && J(standin.log().slice(-2).map((r) => [r.answered, r.step])) === J([['silent', 0], ['record', 1]]), 'script: setting a script again starts at its first entry, and a silent entry answers nothing');
+    standin.setMode({ script: ['hold'] });
+    const heldAsk = askOnce(standin.port, NAME, QTYPE.A, { ms: 1_500, id: 0x4444 });
+    await new Promise((r) => setTimeout(r, 300));
+    say(standin.held() === 1 && standin.log().at(-1).step === 0 && standin.release() === 1 && (await heldAsk)?.an === 1, 'script: a hold entry holds, and release() under a script answers as record');
+    for (const bad of [{ script: [] }, { script: ['record', 'loud'] }, { script: 'record' }]) {
+      let threw = false;
+      try {
+        standin.setMode(bad);
+      } catch {
+        threw = true;
+      }
+      say(threw, `script: setMode refuses ${J(bad)}`);
+    }
+    standin.setMode('record');
 
     // The resolver model, on a clock of its own.
     let clock = 1_000_000;

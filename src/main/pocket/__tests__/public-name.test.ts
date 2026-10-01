@@ -151,6 +151,7 @@ const {
   readNameReply,
   roundVerdictOf
 } = await import('../public-name');
+type NameCheckDeps = import('../public-name').NameCheckDeps;
 type NameServer = import('../public-name').NameServer;
 type NameStreak = import('../public-name').NameStreak;
 type NameVerdict = import('../public-name').NameVerdict;
@@ -421,16 +422,16 @@ describe('the question, byte for byte (§4.2)', () => {
   it('a round refuses a bad name, or a name outside ts.net, before anything is sent', async () => {
     const deps = fakeNameDeps();
     for (const name of ['', 'a..ts.net', `${'a'.repeat(64)}.ts.net`, 'a_b.ts.net']) {
-      expect(await askNameRound(deps, name, { servers: null })).toEqual({ verdict: 'unreadable', reason: 'bad-name' });
+      expect(await askNameRound(deps, name, { servers: null })).toMatchObject({ verdict: 'unreadable', reason: 'bad-name' });
     }
     for (const name of ['example.com', 'ts.net', 'TS.NET.', 'x.ts.net.evil.example', 'x.xts.net', 'x.tsnet', '127.0.0.1']) {
-      expect(await askNameRound(deps, name, { servers: null }), name).toEqual({
+      expect(await askNameRound(deps, name, { servers: null }), name).toMatchObject({
         verdict: 'unreadable',
         reason: 'outside-zone'
       });
     }
     expect(deps.questions).toHaveLength(0);
-    expect(await askNameRound(deps, 'x.ts.net', { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, 'x.ts.net', { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(deps.questions).toHaveLength(1);
   });
 
@@ -445,7 +446,7 @@ describe('the question, byte for byte (§4.2)', () => {
         return recordReply();
       }
     });
-    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     const zone = deps.questions.filter((q) => q.qname === NAME);
     const search = deps.questions.filter((q) => q.qname !== NAME);
     expect(zone.map((q) => [q.server.address, q.server.port, q.rd, q.qtype])).toEqual([
@@ -476,7 +477,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     const sendsBefore = fence.sends.length;
     const connectsBefore = fence.connects.length;
     const { value, ms } = await timed(() => askNameRound(deps, NAME, { servers: null }));
-    expect(value).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(value).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(ms).toBeLessThan(NAME_QUERY_DEADLINE_MS);
     expect(zone.questions).toHaveLength(1);
     expect(zone.questions[0]).toMatchObject({ qname: NAME, qtype: 'A', rd: false, counts: [1, 0, 0, 0] });
@@ -494,7 +495,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     ] as const) {
       const zone = await answering(spec);
       const { value, ms } = await timed(() => askNameRound(shipping(zone), NAME, { servers: null }));
-      expect(value, reason).toEqual({ verdict: 'unreadable', reason });
+      expect(value, reason).toMatchObject({ verdict: 'unreadable', reason });
       expect(ms, reason).toBeLessThan(NAME_QUERY_DEADLINE_MS / 2);
     }
   });
@@ -524,7 +525,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
       ];
     });
     const { value, ms } = await timed(() => askNameRound(shipping(zone), NAME, { servers: null }));
-    expect(value).toEqual({ verdict: 'no', reason: 'nxdomain' });
+    expect(value).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
     expect(ms).toBeLessThan(NAME_QUERY_DEADLINE_MS);
   });
 
@@ -555,7 +556,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     shapes.forEach(([label], i) => {
       const result = results[i];
       const zone = zones[i];
-      expect(result?.value, label).toEqual({ verdict: 'unreadable', reason: 'timeout' });
+      expect(result?.value, label).toMatchObject({ verdict: 'unreadable', reason: 'timeout' });
       expect(result?.ms, label).toBeGreaterThanOrEqual(NAME_QUERY_DEADLINE_MS - 50);
       expect(result?.ms, label).toBeLessThan(NAME_QUERY_DEADLINE_MS + 900);
       expect(zone?.questions, label).toHaveLength(1);
@@ -585,7 +586,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     expect(fence.created - before).toBe(0);
     // A development run with no override: the search reaches no resolver, so
     // a test that forgets its deps gets an unreadable round and no packet.
-    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({ verdict: 'unreadable', reason: 'no-servers' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toMatchObject({ verdict: 'unreadable', reason: 'no-servers' });
     expect(fence.created - before).toBe(0);
   });
 
@@ -611,7 +612,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     expect(dnsCalls).toEqual(['dns.lookup']);
     dnsCalls.length = 0;
     const zone = await answering(recordReply(PUBLIC));
-    expect(await askNameRound(shipping(zone), NAME, { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(shipping(zone), NAME, { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(dnsCalls).toEqual([]);
   });
 
@@ -623,7 +624,7 @@ describe('the transport (§4.3), against a stand-in on 127.0.0.1', () => {
     ]);
     const before = fence.sockets.length;
     const deps = shipping(...zones);
-    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     await new Promise((resolve) => setImmediate(resolve));
     const made = fence.sockets.slice(before);
     expect(made).toHaveLength(3);
@@ -656,7 +657,7 @@ describe('lies, another name, and the verdicts (§4.5), through the shipping tra
   it('an authoritative private address is a lie: MagicDNS, private, loopback and link-local are refused', async () => {
     for (const address of ['100.81.28.106', '10.0.0.1', '127.0.0.1', '169.254.1.1', '192.168.1.1', '172.16.0.1', '224.0.0.1']) {
       const zone = await answering(recordReply(address));
-      expect(await askNameRound(shipping(zone), NAME, { servers: null }), address).toEqual({
+      expect(await askNameRound(shipping(zone), NAME, { servers: null }), address).toMatchObject({
         verdict: 'unreadable',
         reason: 'private-address'
       });
@@ -666,7 +667,7 @@ describe('lies, another name, and the verdicts (§4.5), through the shipping tra
   it('a public address without the authoritative bit is a cache or an interceptor, not an answer', async () => {
     for (const spec of [{ ...recordReply(PUBLIC), aa: false }, { ...nxdomainReply(), aa: false }, { ...noRecordReply(), aa: false }]) {
       const zone = await answering(spec);
-      expect(await askNameRound(shipping(zone), NAME, { servers: null })).toEqual({
+      expect(await askNameRound(shipping(zone), NAME, { servers: null })).toMatchObject({
         verdict: 'unreadable',
         reason: 'not-authoritative'
       });
@@ -717,7 +718,7 @@ describe('lies, another name, and the verdicts (§4.5), through the shipping tra
     ];
     for (const [label, spec, reason] of cases) {
       const zone = await answering(spec);
-      expect(await askNameRound(shipping(zone), NAME, { servers: null }), label).toEqual({ verdict: 'unreadable', reason });
+      expect(await askNameRound(shipping(zone), NAME, { servers: null }), label).toMatchObject({ verdict: 'unreadable', reason });
     }
   });
 
@@ -733,7 +734,7 @@ describe('lies, another name, and the verdicts (§4.5), through the shipping tra
     ];
     for (const [label, spec, expected] of cases) {
       const zone = await answering(spec);
-      expect(await askNameRound(shipping(zone), NAME, { servers: null }), label).toEqual(expected);
+      expect(await askNameRound(shipping(zone), NAME, { servers: null }), label).toMatchObject(expected);
     }
   });
 });
@@ -829,7 +830,7 @@ describe('the parser (§4.4): bounded, and never throws', () => {
       });
       const expected = malformed(query()).find(([l]) => l === label)?.[2];
       const { value, ms } = await timed(() => askNameRound(shipping(zone), NAME, { servers: null }));
-      expect(value, label).toEqual({ verdict: 'unreadable', reason: expected });
+      expect(value, label).toMatchObject({ verdict: 'unreadable', reason: expected });
       expect(ms, label).toBeLessThan(NAME_QUERY_DEADLINE_MS);
       sent += zone.sent.length;
       await zone.close();
@@ -995,14 +996,14 @@ describe('the round and the confirm rule (§4.7)', () => {
     deps.held[0]?.release(recordReply(PUBLIC));
     deps.held[1]?.release(nxdomainReply());
     deps.held[2]?.release('silent');
-    expect(await round).toEqual({ verdict: 'no', reason: 'nxdomain' });
+    expect(await round).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
   });
 
   it('two live stand-ins that disagree in one round read no', async () => {
     const yes = await answering(recordReply(PUBLIC));
     const no = await answering(nxdomainReply());
-    expect(await askNameRound(shipping(yes, no), NAME, { servers: null })).toEqual({ verdict: 'no', reason: 'nxdomain' });
-    expect(await askNameRound(shipping(no, yes), NAME, { servers: null })).toEqual({ verdict: 'no', reason: 'nxdomain' });
+    expect(await askNameRound(shipping(yes, no), NAME, { servers: null })).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
+    expect(await askNameRound(shipping(no, yes), NAME, { servers: null })).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
   });
 
   it('every row of the streak table, and the gaps 20, 30, 45, 60, 60 s', () => {
@@ -1267,23 +1268,23 @@ describe('finding the zone servers (§4.6), over deps that open no socket', () =
     });
     const cache: { servers: readonly NameServer[] | null } = { servers: null };
     const nsAsked = () => deps.questions.filter((q) => q.qtype === 'NS').length;
-    expect(await askNameRound(deps, NAME, cache)).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, NAME, cache)).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(cache.servers).toEqual([{ address: '192.0.2.53', port: 53 }]);
-    expect(await askNameRound(deps, NAME, cache)).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, NAME, cache)).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(nsAsked()).toBe(2);
     zoneAnswer = 'silent';
-    expect(await askNameRound(deps, NAME, cache)).toEqual({ verdict: 'unreadable', reason: 'timeout' });
+    expect(await askNameRound(deps, NAME, cache)).toMatchObject({ verdict: 'unreadable', reason: 'timeout' });
     expect(cache.servers).toBeNull();
     zoneAnswer = nxdomainReply();
-    expect(await askNameRound(deps, NAME, cache)).toEqual({ verdict: 'no', reason: 'nxdomain' });
+    expect(await askNameRound(deps, NAME, cache)).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
     expect(nsAsked()).toBe(4);
     // A negative round keeps the servers it read.
     expect(cache.servers).not.toBeNull();
     // And a search that finds nothing is no-servers, searched again next time.
     const empty = search(() => 'silent');
     const none: { servers: readonly NameServer[] | null } = { servers: null };
-    expect(await askNameRound(empty, NAME, none)).toEqual({ verdict: 'unreadable', reason: 'no-servers' });
-    expect(await askNameRound(empty, NAME, none)).toEqual({ verdict: 'unreadable', reason: 'no-servers' });
+    expect(await askNameRound(empty, NAME, none)).toMatchObject({ verdict: 'unreadable', reason: 'no-servers' });
+    expect(await askNameRound(empty, NAME, none)).toMatchObject({ verdict: 'unreadable', reason: 'no-servers' });
     expect(empty.questions.filter((q) => q.qtype === 'NS')).toHaveLength(4);
   });
 });
@@ -1340,14 +1341,14 @@ describe('the development override (§4.8)', () => {
   it('a refused value asks nothing and never falls back to the search', async () => {
     const deps = fakeNameDeps({ source: { kind: 'refused' } });
     for (let i = 0; i < 3; i += 1) {
-      expect(await askNameRound(deps, NAME, { servers: null })).toEqual({ verdict: 'unreadable', reason: 'override-unusable' });
+      expect(await askNameRound(deps, NAME, { servers: null })).toMatchObject({ verdict: 'unreadable', reason: 'override-unusable' });
     }
     expect(deps.questions).toHaveLength(0);
     // The shipping deps with the same value: no socket either.
     const before = fence.created;
     const shippingRefused = defaultNameCheckDeps({ packaged: false, env: { [NAME_SERVERS_ENV]: '10.0.0.1:53' } });
     expect(shippingRefused.source).toEqual({ kind: 'refused' });
-    expect(await askNameRound(shippingRefused, NAME, { servers: null })).toEqual({
+    expect(await askNameRound(shippingRefused, NAME, { servers: null })).toMatchObject({
       verdict: 'unreadable',
       reason: 'override-unusable'
     });
@@ -1356,11 +1357,146 @@ describe('the development override (§4.8)', () => {
 
   it('a fixed value is asked as it is, with no search', async () => {
     const deps = fakeNameDeps({ source: from('127.0.0.1:5353,127.0.0.1:5354') });
-    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     expect(deps.questions.map((q) => [q.server.address, q.server.port, q.qtype])).toEqual([
       ['127.0.0.1', 5353, 'A'],
       ['127.0.0.1', 5354, 'A']
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332.1: the round hands out its answers, and one clock nobody can set
+// (build/p3321/SPEC.md §5.1, §5.2, §7.1 item 3)
+// ---------------------------------------------------------------------------
+
+describe('the round hands out its answers (Phase 332.1)', () => {
+  const FOUR: readonly NameServer[] = [5301, 5302, 5303, 5304].map((port) => ({ address: '127.0.0.1', port }));
+  /** What each of the four answers, by port: record, NXDOMAIN, silent, record. */
+  const BY_PORT: Readonly<Record<number, FakeAnswer>> = {
+    5301: recordReply(PUBLIC),
+    5302: nxdomainReply(),
+    5303: 'silent',
+    5304: recordReply(PUBLIC)
+  };
+
+  it('four servers answering record, NXDOMAIN, silence and record: those kinds in server order, and the verdict no', async () => {
+    const deps = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR }, answer: (_n, _t, q) => BY_PORT[q.server.port] ?? 'error' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({
+      verdict: 'no',
+      reason: 'nxdomain',
+      answers: ['record', 'negative', 'unreadable', 'record']
+    });
+    expect(deps.questions.map((q) => q.server.port)).toEqual([5301, 5302, 5303, 5304]);
+  });
+
+  it('the same four asked in another order: the answers follow the servers, the verdict does not move', async () => {
+    const order = [FOUR[2], FOUR[3], FOUR[1], FOUR[0]].filter((s): s is NameServer => s !== undefined);
+    const deps = fakeNameDeps({ source: { kind: 'fixed', servers: order }, answer: (_n, _t, q) => BY_PORT[q.server.port] ?? 'error' });
+    expect(await askNameRound(deps, NAME, { servers: null })).toEqual({
+      verdict: 'no',
+      reason: 'nxdomain',
+      answers: ['unreadable', 'record', 'negative', 'record']
+    });
+  });
+
+  it('server order, never the order the replies arrived in', async () => {
+    const deps = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR }, answer: () => 'hold' });
+    const round = askNameRound(deps, NAME, { servers: null });
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(deps.held).toHaveLength(4);
+    // The last server answers first, the first last.
+    deps.held[3]?.release(nxdomainReply());
+    await new Promise((resolve) => setImmediate(resolve));
+    deps.held[2]?.release(recordReply(PUBLIC));
+    await new Promise((resolve) => setImmediate(resolve));
+    deps.held[1]?.release('error');
+    await new Promise((resolve) => setImmediate(resolve));
+    deps.held[0]?.release(recordReply(PUBLIC));
+    expect(await round).toEqual({ verdict: 'no', reason: 'nxdomain', answers: ['record', 'unreadable', 'record', 'negative'] });
+  });
+
+  it('the shipping transport keeps the order too: three live stand-ins, record, SERVFAIL and NXDOMAIN', async () => {
+    const zones = [await answering(recordReply(PUBLIC)), await answering({ rcode: 2 }), await answering(nxdomainReply())];
+    expect(await askNameRound(shipping(...zones), NAME, { servers: null })).toEqual({
+      verdict: 'no',
+      reason: 'nxdomain',
+      answers: ['record', 'unreadable', 'negative']
+    });
+  });
+
+  it('a round that asked nobody answers no answers: a bad name, a name outside the zone, a refused override, no servers, a throw', async () => {
+    const plain = fakeNameDeps();
+    expect(await askNameRound(plain, 'a..ts.net', { servers: null })).toEqual({ verdict: 'unreadable', reason: 'bad-name', answers: [] });
+    expect(await askNameRound(plain, 'example.com', { servers: null })).toEqual({
+      verdict: 'unreadable',
+      reason: 'outside-zone',
+      answers: []
+    });
+    expect(await askNameRound(fakeNameDeps({ source: { kind: 'refused' } }), NAME, { servers: null })).toEqual({
+      verdict: 'unreadable',
+      reason: 'override-unusable',
+      answers: []
+    });
+    expect(await askNameRound(fakeNameDeps({ source: { kind: 'fixed', servers: [] } }), NAME, { servers: null })).toEqual({
+      verdict: 'unreadable',
+      reason: 'no-servers',
+      answers: []
+    });
+    const searched = fakeNameDeps({ source: { kind: 'search' }, answer: () => 'silent' });
+    expect(await askNameRound(searched, NAME, { servers: null })).toEqual({ verdict: 'unreadable', reason: 'no-servers', answers: [] });
+    const throwing: NameCheckDeps = {
+      ...fakeNameDeps(),
+      exchange: () => {
+        throw new Error('p3321: the exchange threw');
+      }
+    };
+    expect(await askNameRound(throwing, NAME, { servers: null })).toEqual({ verdict: 'unreadable', reason: 'error', answers: [] });
+    expect(plain.questions).toHaveLength(0);
+  });
+
+  it('every answer is one of the three kinds and nothing else: no reason, no address, no server', async () => {
+    const deps = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR }, answer: (_n, _t, q) => BY_PORT[q.server.port] ?? 'error' });
+    const round = await askNameRound(deps, NAME, { servers: null });
+    expect(Object.keys(round).sort()).toEqual(['answers', 'reason', 'verdict']);
+    for (const a of round.answers) expect(['record', 'negative', 'unreadable']).toContain(a);
+    expect(JSON.stringify(round.answers)).not.toMatch(/nxdomain|timeout|203\.0\.113|127\.0\.0\.1|530\d/);
+  });
+
+  it('the round reads no clock: a monotonic() that throws changes nothing, and the fake counts no read', async () => {
+    const counted = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR }, answer: (_n, _t, q) => BY_PORT[q.server.port] ?? 'error' });
+    const before = await askNameRound(counted, NAME, { servers: null });
+    expect(counted.monotonicReads()).toBe(0);
+    const refusing = fakeNameDeps({
+      source: { kind: 'fixed', servers: FOUR },
+      answer: (_n, _t, q) => BY_PORT[q.server.port] ?? 'error',
+      monotonic: () => {
+        throw new Error('p3321: the round read the clock');
+      }
+    });
+    expect(await askNameRound(refusing, NAME, { servers: null })).toEqual(before);
+  });
+
+  it('the shipping clock is monotonic and finite, and setting the wall clock a day either way does not move it', () => {
+    const deps = defaultNameCheckDeps({ packaged: false, env: {} });
+    const a = deps.monotonic();
+    const b = deps.monotonic();
+    expect(Number.isFinite(a)).toBe(true);
+    expect(Number.isFinite(b)).toBe(true);
+    expect(b).toBeGreaterThanOrEqual(a);
+    const real = Date.now();
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(real + 86_400_000);
+    try {
+      const c = deps.monotonic();
+      spy.mockReturnValue(real - 86_400_000);
+      const d = deps.monotonic();
+      expect(c).toBeGreaterThanOrEqual(b);
+      expect(d).toBeGreaterThanOrEqual(c);
+      // A day either way on the wall clock is a jump of under a minute on this one.
+      expect(d - a).toBeLessThan(60_000);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
@@ -1382,13 +1518,13 @@ describe('fakeNameDeps (the host tests’ deps)', () => {
     expect(deps.questions[0]).toMatchObject({ qname: NAME, qtype: 'A', rd: false });
     deps.answerWith(nxdomainReply());
     expect(deps.releaseHeld()).toBe(1);
-    expect(await round).toEqual({ verdict: 'no', reason: 'nxdomain' });
+    expect(await round).toMatchObject({ verdict: 'no', reason: 'nxdomain' });
     expect(deps.releaseHeld()).toBe(0);
   });
 
   it('answers the record by default, and releases sleeps by hand or at once', async () => {
     const hand = fakeNameDeps();
-    expect(await askNameRound(hand, NAME, { servers: null })).toEqual({ verdict: 'yes', reason: 'record' });
+    expect(await askNameRound(hand, NAME, { servers: null })).toMatchObject({ verdict: 'yes', reason: 'record' });
     let slept = false;
     void hand.sleep(20_000).then(() => {
       slept = true;
@@ -1408,5 +1544,27 @@ describe('fakeNameDeps (the host tests’ deps)', () => {
     expect(now.sleeps.map((s) => [s.ms, s.released])).toEqual([[60_000, true]]);
     const ids = [now.id(), now.id()];
     expect(ids).toEqual([0x1000, 0x1001]);
+  });
+
+  it('keeps a clock of its own that starts at 0 and moves only by hand (Phase 332.1)', async () => {
+    const deps = fakeNameDeps();
+    expect(deps.monotonic()).toBe(0);
+    void deps.sleep(20_000);
+    expect(deps.releaseSleeps()).toBe(1);
+    await new Promise((resolve) => setImmediate(resolve));
+    // A released sleep passes no time of its own.
+    expect(deps.monotonic()).toBe(0);
+    expect(deps.advance(5_000)).toBe(5_000);
+    expect(deps.monotonicAt()).toBe(5_000);
+    expect(deps.monotonic()).toBe(5_000);
+    expect(deps.monotonicReads()).toBe(3);
+    expect(() => deps.advance(-1)).toThrow();
+    expect(() => deps.advance(Number.NaN)).toThrow();
+    expect(deps.monotonicAt()).toBe(5_000);
+    let given = 42;
+    const own = fakeNameDeps({ monotonic: () => given });
+    expect(own.monotonic()).toBe(42);
+    given = 43;
+    expect(own.monotonic()).toBe(43);
   });
 });

@@ -15,6 +15,7 @@
  *      reads Tailscale; once it answers, the code, the time it has left, the
  *      fingerprint to match on the phone, the lines, and Allow. While the Mac's
  *      name is not yet on the internet (Phase 332), one line in place of Pair.
+ *      Since Phase 332.1 that face draws the check: a dot per name server.
  *   3. The phones, each with Remove.
  *   4. Alerts (Phase 316.5, research 136): the Apple push key row, Choose…
  *      (the file panel opens IN MAIN) and Forget; then, ONLY while a key is
@@ -41,9 +42,12 @@ import {
   POCKET_FUNNEL_APPROVAL_ELSEWHERE,
   POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
+  POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
   POCKET_READ_ONLY_HONESTY,
+  type PocketNameAnswer,
+  type PocketNameProgress,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketStatus
@@ -90,6 +94,106 @@ export const CODE_EXPIRED = 'The code expired. Nothing was paired.';
  */
 export const CODE_FIRST_NAME =
   'The first time, your Mac’s name can take several minutes to reach your phone. Press Pair again.';
+
+// The Mac's name check, drawn (Phase 332.1, build/p3321/SPEC.md §5.5.2):
+// labels only. Its two sentences of explanation, the block's hover and the
+// quiet line's, are main's, from the shared contract.
+
+/** The moving line while the name is checked. */
+export const NAME_PUBLISHING = 'Publishing your Mac’s name';
+/** The moving line once main confirmed the name. */
+export const NAME_LIVE = 'Your Mac’s name is live';
+/** The quiet line while a round is out, or due. */
+export const NAME_CHECKING_NOW = 'checking now';
+/** Each dot's hover: what that name server answered in the last round. */
+export const NAME_DOT_WORDS: Readonly<Record<PocketNameAnswer, string>> = {
+  record: 'Sees your Mac’s name',
+  negative: 'Not there yet',
+  unreadable: 'Did not answer'
+};
+
+/** The next check is said in steps of this, rounded up, so the line moves calmly. */
+const NAME_NEXT_STEP_MS = 5_000;
+const MINUTE_MS = 60_000;
+
+/** `3 of 4 see it`. */
+export function nameSeeing(seeing: number, asked: number): string {
+  return `${String(seeing)} of ${String(asked)} see it`;
+}
+
+/** `3 of 4 name servers see your Mac’s name`: the dot row's label. */
+export function nameDotsLabel(seeing: number, asked: number): string {
+  return `${String(seeing)} of ${String(asked)} name servers see your Mac’s name`;
+}
+
+/** `checking again in 40 s`, rounded UP to 5 s; `checking now` at 0 or less. */
+export function nameNextIn(ms: number): string {
+  if (!(ms > 0)) return NAME_CHECKING_NOW;
+  return `checking again in ${String(Math.ceil(ms / NAME_NEXT_STEP_MS) * (NAME_NEXT_STEP_MS / 1000))} s`;
+}
+
+/**
+ * `2 min`, whole minutes floored, or null under a minute: `0 min` says nothing
+ * true and `1 min` something false (build/p3321/SPEC.md §3 row 14).
+ */
+export function nameElapsed(ms: number): string | null {
+  return ms >= MINUTE_MS ? `${String(Math.floor(ms / MINUTE_MS))} min` : null;
+}
+
+/** `Took 8 min`, or `Took under a minute`. */
+export function nameTook(ms: number): string {
+  const elapsed = nameElapsed(ms);
+  return elapsed === null ? 'Took under a minute' : `Took ${elapsed}`;
+}
+
+/**
+ * The quiet line while the check runs: how long it has run (from a minute on)
+ * and when it asks next, joined by the house separator, its first letter
+ * upper-cased. `nextInMs` null is a round out: `checking now`.
+ */
+export function nameTimeLine(elapsedMs: number, nextInMs: number | null): string {
+  const parts = [nameElapsed(elapsedMs), nextInMs === null ? NAME_CHECKING_NOW : nameNextIn(nextInMs)];
+  const line = parts.filter((part): part is string => part !== null).join(' · ');
+  return line.charAt(0).toUpperCase() + line.slice(1);
+}
+
+/** Everything the name check's block draws, composed once. */
+export interface NameCardWords {
+  readonly state: 'checking' | 'live' | 'unreadable';
+  /** The moving line. */
+  readonly line: string;
+  /** The quiet line. */
+  readonly time: string;
+  /** The dots, in the order the servers were asked. */
+  readonly answers: readonly PocketNameAnswer[];
+  /** A round is out: the dots breathe once. */
+  readonly asking: boolean;
+}
+
+/**
+ * The block's words for a status, its progress and the seconds since main
+ * sent it (`ageMs`, on the renderer's own clock). While the check runs the age
+ * moves the elapsed time on and the next check down; once main confirmed the
+ * name the block is frozen and the age is ignored.
+ */
+export function nameCardWords(status: PocketStatus, progress: PocketNameProgress, ageMs: number): NameCardWords {
+  const answers = progress.answers;
+  const asking = progress.asking;
+  if (status.nameCheck === 'confirmed') {
+    return { state: 'live', line: NAME_LIVE, time: nameTook(progress.elapsedMs), answers, asking };
+  }
+  const age = ageMs > 0 ? ageMs : 0;
+  const time = nameTimeLine(
+    progress.elapsedMs + age,
+    asking || progress.nextInMs === null ? null : progress.nextInMs - age
+  );
+  if (status.nameCheck === 'unreadable') {
+    return { state: 'unreadable', line: POCKET_NAME_SENTENCES.unreadable, time, answers, asking };
+  }
+  const seeing = answers.filter((answer) => answer === 'record').length;
+  const line = answers.length === 0 ? NAME_PUBLISHING : `${NAME_PUBLISHING} · ${nameSeeing(seeing, answers.length)}`;
+  return { state: 'checking', line, time, answers, asking };
+}
 
 export const PHONES_GROUP = 'Phones';
 export const NO_PHONES = 'No phone yet.';
@@ -266,6 +370,40 @@ export function pairAfterAllowNext(
 }
 
 /**
+ * True when the name check's block is drawn (Phase 332.1, build/p3321/SPEC.md
+ * §5.5.1). On the naming face whenever main sends a progress. On the ready
+ * face, above Pair, only when main opened Pair without a confirmation, or
+ * confirmed the name while this section watched the wait (`watched`), so a
+ * later visit shows Pair alone, today's resting face. Never on another face.
+ * It draws; Pair is still `pairable` alone, and nothing here decides it.
+ */
+export function nameBlockShown(status: PocketStatus | null, stage: PairingStage, watched: boolean): boolean {
+  if (status === null || status.nameProgress === null) return false;
+  if (stage === 'naming') return true;
+  if (stage !== 'ready') return false;
+  return status.nameCheck === 'unreadable' || (watched && status.nameCheck === 'confirmed');
+}
+
+/**
+ * Whether this section watched the wait, after a status: set by the naming
+ * face with a progress, cleared once a code shows or the door is off, and
+ * otherwise kept, for the one mount.
+ */
+export function nameWatchedNext(watched: boolean, stage: PairingStage, status: PocketStatus | null): boolean {
+  if (stage === 'naming' && status !== null && status.nameProgress !== null) return true;
+  if (stage === 'showing' || stage === 'start') return false;
+  return watched;
+}
+
+/**
+ * Whether the block's one-second tick runs: only while the block is drawn and
+ * the check still runs. A confirmed block is frozen and needs no clock.
+ */
+export function nameTicking(status: PocketStatus | null, stage: PairingStage, watched: boolean): boolean {
+  return status !== null && nameBlockShown(status, stage, watched) && status.nameCheck !== 'confirmed';
+}
+
+/**
  * True when the alert switch is drawn: a key is kept, or the alerts are
  * already on (Phase 316.5, research 136). A Mac with no key shows no switch,
  * because it cannot send; alerts left on by an earlier version still show it,
@@ -321,6 +459,14 @@ export interface PhoneViewProps {
   view: PocketPairingView | null;
   /** Epoch ms, for the time the code has left. */
   now: number;
+  /**
+   * How long ago main sent `status`, on the renderer's own monotonic clock
+   * (Phase 332.1): moves the name check's elapsed time on and its next check
+   * down between pushes.
+   */
+  nameAgeMs: number;
+  /** This section watched the name check's wait (see {@link nameBlockShown}). */
+  nameWatched: boolean;
   /** One line after a pairing ended: paired, or expired. */
   notice: PhoneNotice | null;
   /** Main's sentence for the last press that was refused. */
@@ -367,10 +513,74 @@ function PairButton(props: { busy: boolean; onPair(): void }): React.JSX.Element
   );
 }
 
+/**
+ * The Mac's name check, drawn (Phase 332.1, build/p3321/SPEC.md §5.5.3): a dot
+ * per name server beside the moving line, and the quiet line under it. Both
+ * rows keep their height and the dot slot its width whatever they say (the
+ * Phase 174.1 rule), so nothing above Pair moves when Pair appears below.
+ */
+function NameCheck(props: {
+  status: PocketStatus;
+  progress: PocketNameProgress;
+  ageMs: number;
+  /** The naming face: the block's hover says why Pair is not here yet. */
+  titled: boolean;
+}): React.JSX.Element {
+  const words = nameCardWords(props.status, props.progress, props.ageMs);
+  const answered = words.answers.length > 0;
+  const seeing = words.answers.filter((answer) => answer === 'record').length;
+  return (
+    <div
+      className="phone-name"
+      data-phone-name
+      data-phone-name-state={words.state}
+      title={props.titled ? POCKET_NAME_SENTENCES.checking : undefined}
+    >
+      <div className="phone-name-row">
+        <span
+          className="phone-name-dots"
+          data-phone-name-dots
+          data-asking={words.asking ? 'true' : 'false'}
+          role={answered ? 'img' : undefined}
+          aria-label={answered ? nameDotsLabel(seeing, words.answers.length) : undefined}
+          aria-hidden={answered ? undefined : true}
+        >
+          {words.answers.map((answer, i) => (
+            // Positional: the i-th dot is the i-th server asked.
+            <span key={String(i)} className="phone-name-dot" data-answer={answer} title={NAME_DOT_WORDS[answer]} />
+          ))}
+        </span>
+        <p
+          className="phone-line"
+          data-phone-name-line
+          aria-live="polite"
+          data-phone-name-unreadable={words.state === 'unreadable' ? true : undefined}
+        >
+          {words.line}
+        </p>
+      </div>
+      <p
+        className="phone-name-time"
+        data-phone-name-time
+        title={words.state === 'live' ? undefined : POCKET_NAME_ROUND_RULE}
+      >
+        {words.time}
+      </p>
+    </div>
+  );
+}
+
 function PairCard(props: PhoneViewProps): React.JSX.Element {
   const { status, offer, view, now, busy } = props;
   const stage = pairingStage(status, offer, view, now);
   const notice = noticeToDraw(props.notice, status);
+  // The name check's block, the first thing after the notice on the naming
+  // and the ready faces alike (Phase 332.1).
+  const progress = nameBlockShown(status, stage, props.nameWatched) ? (status?.nameProgress ?? null) : null;
+  const nameBlock =
+    status === null || progress === null ? null : (
+      <NameCheck status={status} progress={progress} ageMs={props.nameAgeMs} titled={stage === 'naming'} />
+    );
 
   if (stage === 'match' && view !== null) {
     return (
@@ -448,22 +658,24 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
     return (
       <div className="phone-block" data-phone-stage="naming">
         {notice === null ? null : <p className="phone-notice">{notice}</p>}
-        <p className="phone-line">{POCKET_NAME_SENTENCES.checking}</p>
+        {nameBlock ?? <p className="phone-line">{POCKET_NAME_SENTENCES.checking}</p>}
       </div>
     );
   }
 
   // `start` (the door is off) and `ready` (it is answering) both wear ONE
   // Pair button; what it does is the connected section's to decide. `ready`
-  // over a name main could not confirm says so above it.
+  // over a name main could not confirm says so above it, inside the name
+  // check's block when there is one (Phase 332.1).
   return (
     <div className="phone-block" data-phone-stage={stage}>
       {notice === null ? null : <p className="phone-notice">{notice}</p>}
-      {stage === 'ready' && status?.nameCheck === 'unreadable' ? (
-        <p className="phone-line" data-phone-name-unreadable>
-          {POCKET_NAME_SENTENCES.unreadable}
-        </p>
-      ) : null}
+      {nameBlock ??
+        (stage === 'ready' && status?.nameCheck === 'unreadable' ? (
+          <p className="phone-line" data-phone-name-unreadable>
+            {POCKET_NAME_SENTENCES.unreadable}
+          </p>
+        ) : null)}
       <PairButton busy={busy || status === null} onPair={props.onPair} />
     </div>
   );
@@ -708,6 +920,15 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
 export function PhoneSection(): React.JSX.Element {
   const api = gmuxBridge()?.pocket ?? null;
   const [status, setStatus] = useState<PocketStatus | null>(null);
+  /**
+   * The renderer's own monotonic clock when `status` arrived, and at the last
+   * tick (Phase 332.1). Their difference is how old the name check's numbers
+   * are; main's every push re-stamps both.
+   */
+  const [statusAt, setStatusAt] = useState(0);
+  const [mono, setMono] = useState(0);
+  /** This mount watched the name check's wait (see {@link nameWatchedNext}). */
+  const [nameWatched, setNameWatched] = useState(false);
   const [view, setView] = useState<PocketPairingView | null>(null);
   const [offer, setOffer] = useState<PocketPairingOffer | null>(null);
   const [now, setNow] = useState(() => Date.now());
@@ -735,6 +956,14 @@ export function PhoneSection(): React.JSX.Element {
   const offerRef = useRef<PocketPairingOffer | null>(null);
   offerRef.current = offer;
 
+  /** EVERY status the section holds arrives here, stamped (Phase 332.1). */
+  const adopt = useCallback((s: PocketStatus): void => {
+    const at = performance.now();
+    setStatus(s);
+    setStatusAt(at);
+    setMono(at);
+  }, []);
+
   // Pull once when the section opens, then follow main's pushes. Leaving the
   // section shuts an open code.
   useEffect(() => {
@@ -751,13 +980,13 @@ export function PhoneSection(): React.JSX.Element {
     void api
       .status()
       .then((s) => {
-        if (alive) setStatus(s);
+        if (alive) adopt(s);
       })
       .catch(() => undefined);
     readView();
     const off = api.onChanged((s) => {
       if (!alive) return;
-      setStatus(s);
+      adopt(s);
       readView();
     });
     return () => {
@@ -767,7 +996,20 @@ export function PhoneSection(): React.JSX.Element {
         void api.cancelPairing().catch(() => undefined);
       }
     };
-  }, [api]);
+  }, [api, adopt]);
+
+  // THE NAME CHECK (Phase 332.1): whether this mount watched the wait, and a
+  // one-second tick only while the block is drawn and the check still runs.
+  const stage = pairingStage(status, offer, view, now);
+  useEffect(() => {
+    setNameWatched((watched) => nameWatchedNext(watched, stage, status));
+  }, [stage, status]);
+  const ticking = nameTicking(status, stage, nameWatched);
+  useEffect(() => {
+    if (!ticking) return;
+    const id = window.setInterval(() => setMono(performance.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [ticking]);
 
   // While a code shows: the clock for its countdown, and one read a second of
   // what the pairing is doing, because a phone presenting is main's to see.
@@ -853,6 +1095,8 @@ export function PhoneSection(): React.JSX.Element {
         offer={null}
         view={null}
         now={now}
+        nameAgeMs={0}
+        nameWatched={false}
         notice={null}
         error={null}
         busy={false}
@@ -879,13 +1123,13 @@ export function PhoneSection(): React.JSX.Element {
       })
     );
     if (result === null) return;
-    setStatus(result.status);
+    adopt(result.status);
     if (!result.allowed) setError(result.refusal);
   };
 
   const setDoor = (on: boolean): void => {
     void run(() => api.setDoor({ on })).then((s) => {
-      if (s !== null) setStatus(s);
+      if (s !== null) adopt(s);
       else setPairAfterAllow('no');
     });
   };
@@ -897,6 +1141,8 @@ export function PhoneSection(): React.JSX.Element {
       offer={offer}
       view={view}
       now={now}
+      nameAgeMs={Math.max(0, mono - statusAt)}
+      nameWatched={nameWatched}
       notice={notice}
       error={error}
       busy={busy}
@@ -936,7 +1182,7 @@ export function PhoneSection(): React.JSX.Element {
         const input = { linesRead: view.lines, hashRead: view.hash };
         void run(() => api.allowPhone(input)).then((result) => {
           if (result === null) return;
-          setStatus(result.status);
+          adopt(result.status);
           if (result.allowed) {
             setOffer(null);
             // The notice names the phone it is about, so a Remove takes it down.
@@ -954,14 +1200,14 @@ export function PhoneSection(): React.JSX.Element {
       onRemovePhone={(phoneId) => {
         if (notice?.phoneId === phoneId) setNotice(null);
         void run(() => api.removePhone(phoneId)).then((s) => {
-          if (s !== null) setStatus(s);
+          if (s !== null) adopt(s);
         });
       }}
       onSetPushAlerts={(on) => {
         const before = status;
         void run(() => api.setPushAlerts({ on })).then((after) => {
           if (after === null) return;
-          setStatus(after);
+          adopt(after);
           // Off narrows where his words go, and Phase 314 ruled the sheet
           // confirms that in the same press. See `onlyOneLineMoved`.
           if (
@@ -985,7 +1231,7 @@ export function PhoneSection(): React.JSX.Element {
       }}
       onForgetKey={() => {
         void run(() => api.forgetPushKey()).then((s) => {
-          if (s !== null) setStatus(s);
+          if (s !== null) adopt(s);
         });
       }}
     />

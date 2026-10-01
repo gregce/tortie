@@ -74,9 +74,14 @@
  * While the door is published and its name is not confirmed, the name's own
  * DNS servers are asked through `./public-name.ts`, which owns every packet.
  * The check starts at the end of a counted start and nowhere else, stops in
- * every unpublish, sleeps on the quit-cleared timer, and reads no clock.
- * `pairable` is its one answer; {@link PocketHost.beginPairing} refuses
- * without it.
+ * every unpublish, sleeps on the quit-cleared timer, and decides nothing from
+ * a clock. `pairable` is its one answer; {@link PocketHost.beginPairing}
+ * refuses without it.
+ *
+ * Since Phase 332.1 (build/p3321/SPEC.md §5.3) the check is DRAWN: each run is
+ * stamped on the names deps' monotonic clock, keeps its last round's answers,
+ * and `status().nameProgress` carries them to the sheet, which decides nothing
+ * from them (`conformance:pocket` D10).
  */
 
 import { app, shell, type IpcMain, type WebContents } from 'electron';
@@ -92,6 +97,7 @@ import {
   type PocketFunnelRefusal,
   type PocketFunnelView,
   type PocketNameCheck,
+  type PocketNameProgress,
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketPushKeyResult,
@@ -165,9 +171,10 @@ import {
   askNameRound,
   defaultNameCheckDeps,
   nextNameStreak,
+  type NameAnswer,
   type NameCheckDeps,
+  type NameRound,
   type NameRoundCache,
-  type NameRoundResult,
   type NameStreak,
   type NameVerdict
 } from './public-name';
@@ -299,6 +306,14 @@ interface NameRun {
   inFlight: boolean;
   /** The last round's verdict, so a verdict that repeats is logged once. */
   last: NameVerdict | null;
+  /** When this run began, on the names deps' monotonic clock (Phase 332.1). Read by nameProgressNow alone. */
+  readonly startedAt: number;
+  /** When the armed timer asks next, or null before the first gap. Read by nameProgressNow alone. */
+  nextAt: number | null;
+  /** When the run confirmed, or null. Read by nameProgressNow alone. */
+  endedAt: number | null;
+  /** The last answered round, server order, kinds only. Read by nameProgressNow alone. */
+  answers: readonly NameAnswer[];
 }
 
 /** What the sheet says when the door could not open because the sessions were not up. */
@@ -405,6 +420,13 @@ export class PocketHost {
   private readonly names: NameCheckDeps;
   /** The name check running now, or null. */
   private nameRun: NameRun | null = null;
+  /**
+   * The run the sheet draws (Phase 332.1): the running one, or the one that
+   * just confirmed, until the next run or the door stops publishing. A
+   * separate field because a confirmation ends `nameRun`, and `nameCheckNow`
+   * reads that end. Read by nameProgressNow alone (D10).
+   */
+  private nameShown: NameRun | null = null;
   /** How many name check runs this owner has started. */
   private nameRuns = 0;
 
@@ -730,6 +752,7 @@ export class PocketHost {
       confirmable,
       nameCheck: this.nameCheckNow(),
       pairable: this.pairable(),
+      nameProgress: this.nameProgressNow(),
       routes: POCKET_ROUTE_IDS,
       pushAlerts: fields.pushAlerts,
       // THE PORT'S TWO READS, and nothing else of it (K3): an id that is
@@ -1291,9 +1314,14 @@ export class PocketHost {
       cache: { servers: null },
       cancel: null,
       inFlight: false,
-      last: null
+      last: null,
+      startedAt: this.names.monotonic(),
+      nextAt: null,
+      endedAt: null,
+      answers: []
     };
     this.nameRun = run;
+    this.nameShown = run;
     if (counts) pocketLog.info('asking once whether the Mac’s name still answers');
     else pocketLog.info('checking the Mac’s name before pairing');
     this.nameRoundNow(run);
@@ -1307,6 +1335,7 @@ export class PocketHost {
   private stopNameCheck(): void {
     const run = this.nameRun;
     this.nameRun = null;
+    this.nameShown = null;
     run?.cancel?.();
   }
 
@@ -1326,7 +1355,7 @@ export class PocketHost {
     if (this.readStore()?.enabled !== true) return;
     run.cancel = null;
     run.inFlight = true;
-    const failed: NameRoundResult = { verdict: 'unreadable', reason: 'error' };
+    const failed: NameRound = { verdict: 'unreadable', reason: 'error', answers: [] };
     void askNameRound(this.names, run.target.publicName, run.cache)
       .then(
         (round) => this.settleNameRound(run, round),
@@ -1336,6 +1365,9 @@ export class PocketHost {
         // Nothing thrown while an answer is applied leaves this chain unheard.
         pocketLog.warn('the Mac’s name check could not apply an answer');
       });
+    // THE ROUND STARTS, told to the sheet (Phase 332.1): the dots breathe once.
+    // `announce`, not `changed`: nothing an alert reads has moved.
+    if (run.mode === 'checking') this.announce();
   }
 
   /**
@@ -1345,7 +1377,7 @@ export class PocketHost {
    * is read from the switch it wrote, not from the close it queued, because
    * that close can wait behind another door job while this answer lands.
    */
-  private settleNameRound(run: NameRun, round: NameRoundResult): void {
+  private settleNameRound(run: NameRun, round: NameRound): void {
     run.inFlight = false;
     if (
       this.nameRun !== run ||
@@ -1362,6 +1394,7 @@ export class PocketHost {
     const { verdict, reason } = round;
     if (run.last !== verdict) pocketLog.info(`the Mac’s name check read ${verdict}: ${reason}`);
     run.last = verdict;
+    run.answers = round.answers;
     if (run.mode === 'reask') {
       if (verdict !== 'no') {
         // Still answers, or could not be read: the confirmation stands.
@@ -1378,6 +1411,7 @@ export class PocketHost {
       const step = nextNameStreak(run.streak, verdict);
       run.streak = step.streak;
       if (step.confirmed) {
+        run.endedAt = this.names.monotonic();
         this.nameRun = null;
         this.rememberNameConfirmed(run.target);
         pocketLog.info('the Mac’s name answers, so pairing is open');
@@ -1391,6 +1425,7 @@ export class PocketHost {
       }
     }
     if (this.nameCheckNow() !== checkBefore || this.pairable() !== pairableBefore) this.changed();
+    else if (run.mode === 'checking') this.announce();
   }
 
   /**
@@ -1398,6 +1433,7 @@ export class PocketHost {
    * quit-cleared timer of `./funnel.ts` and the names deps' own clock.
    */
   private armNameRound(run: NameRun, gapMs: number): void {
+    run.nextAt = this.names.monotonic() + gapMs;
     run.cancel = armFunnelRestart(this.names, gapMs, () => {
       run.cancel = null;
       this.nameRoundNow(run);
@@ -1415,6 +1451,27 @@ export class PocketHost {
     run.cancel?.();
     run.cancel = null;
     this.nameRoundNow(run);
+  }
+
+  /**
+   * What the sheet draws while the Mac's name is checked (Phase 332.1). Null
+   * before a run, for a switch-on round (which stays invisible: Pair shows at
+   * once over a remembered name), and while the door is not published or the
+   * switch is off. After a confirmation the last round stays, frozen, until
+   * the next run. DECIDES NOTHING (`conformance:pocket` D10): Pair is
+   * `pairable` alone.
+   */
+  private nameProgressNow(): PocketNameProgress | null {
+    const run = this.nameShown;
+    if (run === null || run.mode !== 'checking' || !this.published() || this.readStore()?.enabled !== true) return null;
+    const now = this.names.monotonic();
+    const ended = run.endedAt !== null;
+    return {
+      answers: [...run.answers],
+      asking: !ended && run.inFlight,
+      elapsedMs: Math.max(0, Math.round((run.endedAt ?? now) - run.startedAt)),
+      nextInMs: ended || run.inFlight || run.nextAt === null ? null : Math.max(0, Math.round(run.nextAt - now))
+    };
   }
 
   /** What the sheet is told about the Mac's name. */

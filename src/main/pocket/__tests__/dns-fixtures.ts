@@ -8,7 +8,9 @@
  * imports its TYPES and nothing that runs, so a bug in the shipping parser is
  * never mirrored by the fixture that feeds it.
  *
- * `fakeNameDeps` is a `NameCheckDeps` that opens no socket and reads no clock.
+ * `fakeNameDeps` is a `NameCheckDeps` that opens no socket and reads only its
+ * own hand-moved clock (Phase 332.1: `monotonic()` starts at 0 and moves only
+ * by `advance(ms)`, so a sleep released by hand passes no time of its own).
  * Every question it is asked is recorded; its answer comes from a function the
  * test supplies (a record at 203.0.113.10 by default, RFC 5737's documentation
  * range, so no fixture names a real host); an answer can be HELD until the test
@@ -326,6 +328,8 @@ export interface FakeNameDepsOptions {
   sleep?: 'hand' | 'now' | ((ms: number) => Promise<void>);
   /** The first id handed out, then one more each time. Default 0x1000. */
   firstId?: number;
+  /** Phase 332.1: the clock `monotonic()` answers. Default: the hand-moved clock ({@link FakeNameDeps.advance}). */
+  monotonic?: () => number;
 }
 
 export interface FakeNameDeps extends NameCheckDeps {
@@ -343,6 +347,12 @@ export interface FakeNameDeps extends NameCheckDeps {
   releaseHeld(answer?: FakeAnswer): number;
   /** Change what the server answers from the next question on (a held one re-reads it on release). */
   answerWith(answer: FakeAnswer | FakeAnswerFn): void;
+  /** Phase 332.1: move the hand-moved clock forward by `ms` (never back). Answers where it now reads. */
+  advance(ms: number): number;
+  /** Phase 332.1: where the hand-moved clock reads, without counting as a read by the host. */
+  monotonicAt(): number;
+  /** Phase 332.1: how many times the host read `monotonic()`. */
+  monotonicReads(): number;
 }
 
 const DEFAULT_SERVERS: readonly NameServer[] = Object.freeze([{ address: '127.0.0.1', port: 53 }]);
@@ -359,7 +369,7 @@ function exchangeOf(query: Buffer, answer: FakeAnswer): NameExchange {
   return { kind: 'reply', bytes: replyTo(query, answer) };
 }
 
-/** A `NameCheckDeps` that opens no socket and reads no clock. See the file's header. */
+/** A `NameCheckDeps` that opens no socket and reads only its own hand-moved clock. See the file's header. */
 export function fakeNameDeps(options: FakeNameDepsOptions = {}): FakeNameDeps {
   let answerFn: FakeAnswerFn = options.answer ?? defaultAnswer;
   let nextId = (options.firstId ?? 0x1000) & 0xffff;
@@ -367,6 +377,8 @@ export function fakeNameDeps(options: FakeNameDepsOptions = {}): FakeNameDeps {
   const sleeps: Array<FakeSleep & { released: boolean }> = [];
   const held: Array<FakeHeld & { released: boolean }> = [];
   const sleepMode = options.sleep ?? 'hand';
+  let handClock = 0;
+  let clockReads = 0;
 
   const sleep = (ms: number): Promise<void> => {
     if (typeof sleepMode === 'function') return sleepMode(ms);
@@ -419,6 +431,10 @@ export function fakeNameDeps(options: FakeNameDepsOptions = {}): FakeNameDeps {
       return id;
     },
     sleep,
+    monotonic: () => {
+      clockReads += 1;
+      return options.monotonic !== undefined ? options.monotonic() : handClock;
+    },
     questions,
     sleeps,
     held,
@@ -435,6 +451,13 @@ export function fakeNameDeps(options: FakeNameDepsOptions = {}): FakeNameDeps {
     },
     answerWith: (answer: FakeAnswer | FakeAnswerFn) => {
       answerFn = typeof answer === 'function' ? answer : () => answer;
-    }
+    },
+    advance: (ms: number) => {
+      if (!Number.isFinite(ms) || ms < 0) throw new Error(`dns-fixtures: a monotonic clock does not move by ${String(ms)}`);
+      handClock += ms;
+      return handClock;
+    },
+    monotonicAt: () => handClock,
+    monotonicReads: () => clockReads
   };
 }

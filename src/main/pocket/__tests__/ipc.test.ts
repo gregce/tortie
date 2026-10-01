@@ -19,9 +19,11 @@
  * as the measured CLI does. The real TLS door is `./switch-queue.test.ts`'s.
  *
  * THE MAC'S NAME (Phase 332, build/p332/SPEC.md §4.9) is asked of
- * `./dns-fixtures.ts`'s `fakeNameDeps`, which opens no socket and reads no
- * clock: its answers are written by the tests' own reply writer, its sleeps
- * are released by hand here, and it records every question it is asked.
+ * `./dns-fixtures.ts`'s `fakeNameDeps`, which opens no socket and reads only
+ * its own hand-moved clock: its answers are written by the tests' own reply
+ * writer, its sleeps are released by hand here, and it records every question
+ * it is asked. Since Phase 332.1 (build/p3321/SPEC.md §5.3) the check is also
+ * DRAWN, and that clock is moved by hand alongside the sleeps it stands for.
  */
 
 import { EventEmitter } from 'node:events';
@@ -43,13 +45,13 @@ import {
 import type { IpcMain } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PocketStatus } from '@shared/ipc/pocket';
+import type { PocketNameProgress, PocketStatus } from '@shared/ipc/pocket';
 import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
 import type { PocketAlertsPort } from '../ipc';
 import type { PocketSealedPresentation } from '../pairing';
 import type { PocketFacts } from '../routes';
-import { fakeNameDeps, nxdomainReply, recordReply, type FakeNameDeps } from './dns-fixtures';
+import { fakeNameDeps, nxdomainReply, recordReply, type FakeAnswer, type FakeNameDeps } from './dns-fixtures';
 
 let userData = '';
 let keystore = true;
@@ -367,7 +369,7 @@ const {
   writePocketStore
 } = await import('../pairing');
 const { POCKET_TLS_SEAL_PREFIX, ensureDoorIdentity } = await import('../tls');
-const { beginFunnelShutdown, resetFunnelForTests } = await import('../funnel');
+const { beginFunnelShutdown, joinFunnel, resetFunnelForTests } = await import('../funnel');
 const { gmuxErrorPayloadOf } = await import('../../errors');
 const {
   POCKET_CONFIRM_WARNING,
@@ -2609,5 +2611,423 @@ describe('/pair tells the phone whether this Mac can send (research 136)', () =>
     await confirmNow(one);
     await namePairable(one);
     expect(await presentThroughDoor(one)).toBe('{"state":"pending"}');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 332.1: the name check, drawn (build/p3321/SPEC.md §5.3, §7.1 item 4)
+// ---------------------------------------------------------------------------
+
+/** Four kept servers, in the order GMUX_POCKET_NAME_SERVERS names the probe's stand-ins: A, B, C, D. */
+const FOUR_SERVERS = [5301, 5302, 5303, 5304].map((port) => ({ address: '127.0.0.1', port }));
+type Letter = 'R' | 'N' | 'S';
+/** R the record, N an authoritative NXDOMAIN, S silence (the deadline). */
+const LETTER_ANSWER: Readonly<Record<Letter, FakeAnswer>> = { R: recordReply(), N: nxdomainReply(), S: 'silent' };
+const LETTER_DRAWN = { R: 'record', N: 'negative', S: 'unreadable' } as const;
+
+/** A, B, C and D answer as the four letters say, from the next question on. */
+function roundOf(letters: string): void {
+  const kinds = [...letters] as Letter[];
+  names.answerWith((_name, _type, q) => LETTER_ANSWER[kinds[q.server.port - 5301] ?? 'S']);
+}
+
+/** What the sheet is told those letters were, in server order. */
+function drawnOf(letters: string): string[] {
+  return [...letters].map((l) => LETTER_DRAWN[l as Letter]);
+}
+
+/** Every held question still out answers as the letters say, the LAST server first. */
+function releaseRound(letters: string): void {
+  const out = names.held.filter((h) => !h.released);
+  expect(out).toHaveLength(4);
+  for (const h of [...out].reverse()) h.release(LETTER_ANSWER[[...letters][h.question.server.port - 5301] as Letter]);
+}
+
+/** The name check asks the four servers, on the fake's own clock. */
+function fourNames(): void {
+  names = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR_SERVERS } });
+}
+
+/** The pending gap passes on the clock, then ends, and whatever it fires runs. */
+async function gapEnds(one: Host): Promise<void> {
+  names.advance(names.pendingSleeps().at(-1) ?? 0);
+  names.releaseSleeps();
+  await settled(one);
+}
+
+/** The progress of every `pocket:changed` push since `from` (an index into `sent`). */
+function progressSince(from: number): (PocketNameProgress | null)[] {
+  return sent
+    .slice(from)
+    .map((line) => JSON.parse(line) as [string, PocketStatus])
+    .filter(([channel]) => channel === 'pocket:changed')
+    .map(([, s]) => s.nameProgress);
+}
+
+describe('the name check, drawn (Phase 332.1)', () => {
+  it('is null with the door off, before a run, after an off, and for a switch-on round that keeps the name', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = host();
+    expect(one.status().nameProgress).toBeNull();
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'refused', nameProgress: null });
+    const lines = one.status();
+    await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
+    await settled(one);
+    expect(one.status().nameProgress).not.toBeNull();
+    roundOf('RRRR');
+    await gapEnds(one);
+    expect(one.status().nameCheck).toBe('confirmed');
+    await one.setDoor({ on: false });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'off', nameProgress: null });
+    // On again over the remembered name: Pair at once, one round out, no dots.
+    const from = sent.length;
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', pairable: true, nameProgress: null });
+    expect(names.held.filter((h) => !h.released)).toHaveLength(4);
+    expect(progressSince(from).every((p) => p === null)).toBe(true);
+    // It answers yes: the confirmation stands, and nothing new is pushed.
+    const before = sent.length;
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(sent.length).toBe(before);
+    expect(one.status().nameProgress).toBeNull();
+  });
+
+  it('is null in the window between an off and its close (the integrator’s held queue)', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    expect(one.status().nameProgress).not.toBeNull();
+    let releaseExec: () => void = () => undefined;
+    ts.holdExec = new Promise<void>((resolve) => {
+      releaseExec = resolve;
+    });
+    resume?.();
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    const off = one.setDoor({ on: false });
+    for (let i = 0; i < 8; i += 1) await new Promise((resolve) => setImmediate(resolve));
+    expect(door.listening).toBe(true); // the close has not run yet
+    expect(one.status()).toMatchObject({ state: 'off', pairable: false, nameProgress: null });
+    ts.holdExec = null;
+    releaseExec();
+    await off;
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'off', nameProgress: null });
+  });
+
+  it('a switch-on round that answers no makes it visible: that round’s answers, and the next round in 20 s', async () => {
+    fourNames();
+    const one = await listeningHost();
+    expect(one.status().nameProgress).toMatchObject({ answers: drawnOf('RRRR'), asking: false, nextInMs: null });
+    await one.setDoor({ on: false });
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status().nameProgress).toBeNull();
+    names.advance(3_000);
+    releaseRound('RNRR');
+    await settled(one);
+    const shown = { answers: drawnOf('RNRR'), asking: false, elapsedMs: 3_000, nextInMs: 20_000 };
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', pairable: false, nameProgress: shown });
+    expect(pushed().at(-1)?.nameProgress).toEqual(shown);
+  });
+
+  it('a round’s start pushes it out with the last answers; its end pushes the new ones in server order and the gap, which counts down', async () => {
+    fourNames();
+    roundOf('RNRN');
+    names.advance(7_000); // the run starts where the clock is, not at 0
+    const one = await publishedHost();
+    expect(one.status().nameProgress).toEqual({ answers: drawnOf('RNRN'), asking: false, elapsedMs: 0, nextInMs: 20_000 });
+    names.advance(5_000);
+    expect(one.status().nameProgress).toEqual({ answers: drawnOf('RNRN'), asking: false, elapsedMs: 5_000, nextInMs: 15_000 });
+    const from = sent.length;
+    names.answerWith('hold');
+    names.advance(15_000);
+    names.releaseSleeps();
+    await settled(one);
+    const out = { answers: drawnOf('RNRN'), asking: true, elapsedMs: 20_000, nextInMs: null };
+    expect(progressSince(from)).toEqual([out]);
+    expect(one.status().nameProgress).toEqual(out);
+    // Round two waits out D's silence, and the replies arrive last server first.
+    names.advance(2_000);
+    releaseRound('NSRN');
+    await settled(one);
+    expect(progressSince(from)).toEqual([out, { answers: drawnOf('NSRN'), asking: false, elapsedMs: 22_000, nextInMs: 30_000 }]);
+    // A gap the clock has overrun reads nothing left, never a negative.
+    names.advance(31_000);
+    expect(one.status().nameProgress).toMatchObject({ elapsedMs: 53_000, nextInMs: 0 });
+  });
+
+  it('pushes exactly twice a round and never in a gap, and the alerts’ port is not asked again', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const fake = fakePort();
+    const one = hostWith(fake.port);
+    await pairAndAllow(one);
+    expect(one.status().state).toBe('listening');
+    await gapEnds(one); // round two: the steady state from here
+    const asked = fake.calls.changed;
+    for (const letters of ['RNNN', 'NRSN', 'SNRN']) {
+      roundOf(letters);
+      const from = sent.length;
+      names.advance(10_000);
+      await settled(one);
+      expect(sent.length, letters).toBe(from);
+      const gap = names.pendingSleeps().at(-1) ?? 0;
+      names.advance(gap - 10_000);
+      names.releaseSleeps();
+      await settled(one);
+      expect(sent.length, letters).toBe(from + 2);
+      const [start, end] = progressSince(from);
+      expect(start?.asking, letters).toBe(true);
+      expect(end, letters).toMatchObject({ asking: false, answers: drawnOf(letters) });
+    }
+    expect(fake.calls.changed).toBe(asked);
+  });
+
+  it('after a confirmation it stays, frozen, until the next counted start, whose switch-on round shows nothing', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    roundOf('RRRR');
+    await gapEnds(one);
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', pairable: true });
+    const frozen = { answers: drawnOf('RRRR'), asking: false, elapsedMs: 20_000, nextInMs: null };
+    expect(one.status().nameProgress).toEqual(frozen);
+    expect(pushed().at(-1)?.nameProgress).toEqual(frozen);
+    names.advance(60_000);
+    expect(one.status().nameProgress).toEqual(frozen);
+    expect(names.pendingSleeps()).toEqual([]);
+    await one.setDoor({ on: false });
+    await settled(one);
+    expect(one.status().nameProgress).toBeNull();
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', nameProgress: null });
+  });
+
+  it('a restart after an unexpected exit ends the frozen block, and a run that restarts begins its minutes again', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    roundOf('RRRR');
+    await gapEnds(one);
+    expect(one.status().nameProgress).toMatchObject({ nextInMs: null, elapsedMs: 20_000 });
+    // Over a confirmed name a restart asks nothing, so there is nothing to draw.
+    ts.children.at(-1)?.close(null, 'SIGKILL');
+    await settled(one);
+    expect(one.status().nameProgress).toBeNull();
+    releaseRestart();
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'confirmed', nameProgress: null });
+    // A name that has gone: a new run, its minutes from nothing.
+    await one.setDoor({ on: false });
+    names.answerWith('hold');
+    await one.setDoor({ on: true });
+    await settled(one);
+    releaseRound('NNNN');
+    await settled(one);
+    names.advance(90_000);
+    expect(one.status().nameProgress).toMatchObject({ elapsedMs: 90_000 });
+    ts.children.at(-1)?.close(null, 'SIGKILL');
+    await settled(one);
+    expect(one.status().nameProgress).toBeNull();
+    names.advance(2_000);
+    roundOf('NNNN');
+    releaseRestart();
+    await settled(one);
+    expect(one.status()).toMatchObject({ state: 'listening', nameCheck: 'checking' });
+    expect(one.status().nameProgress).toEqual({ answers: drawnOf('NNNN'), asking: false, elapsedMs: 0, nextInMs: 20_000 });
+  });
+
+  it('18 rounds of no open Pair with the unreadable word, and the progress goes on moving', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    for (let i = 0; i < 17; i += 1) await gapEnds(one);
+    expect(names.questions).toHaveLength(18 * 4);
+    expect(one.status()).toMatchObject({ nameCheck: 'unreadable', pairable: true });
+    // 20 + 30 + 45 + 14 × 60 s.
+    expect(one.status().nameProgress).toEqual({ answers: drawnOf('NNNN'), asking: false, elapsedMs: 935_000, nextInMs: 60_000 });
+    names.answerWith('hold');
+    const from = sent.length;
+    await gapEnds(one);
+    const out = { answers: drawnOf('NNNN'), asking: true, elapsedMs: 995_000, nextInMs: null };
+    expect(progressSince(from)).toEqual([out]);
+    expect(one.status().nameProgress).toEqual(out);
+  });
+
+  it('a flapping name logs one line per change of verdict, never one per round, and no line names an answer, a server or the name', async () => {
+    fourNames();
+    roundOf('NRNR');
+    const one = await publishedHost();
+    for (const letters of ['RNRN', 'SSSS', 'NNRR', 'RRRR']) {
+      roundOf(letters);
+      await gapEnds(one);
+    }
+    expect(one.status().nameCheck).toBe('confirmed');
+    expect(names.questions).toHaveLength(20);
+    const reads = logged.map((l) => (JSON.parse(l) as [string, string])[1]).filter((m) => m.includes('the Mac’s name check read'));
+    expect(reads).toEqual([
+      'the Mac’s name check read no: nxdomain',
+      'the Mac’s name check read unreadable: timeout',
+      'the Mac’s name check read no: nxdomain',
+      'the Mac’s name check read yes: record'
+    ]);
+    for (const l of logged) {
+      expect(l).not.toMatch(/negative|530[1-4]|\[\\?"record|record,|\\?"answers\\?"/);
+      expect(l).not.toContain(NAME);
+      expect(l).not.toContain('203.0.113.10');
+    }
+  });
+
+  it('a wall clock moved a day either way moves no minute and no gap on the sheet', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    names.advance(5_000);
+    const before = one.status().nameProgress;
+    expect(before).toEqual({ answers: drawnOf('NNNN'), asking: false, elapsedMs: 5_000, nextInMs: 15_000 });
+    const real = Date.now();
+    const spy = vi.spyOn(Date, 'now').mockReturnValue(real + 86_400_000);
+    try {
+      clock += 86_400_000;
+      expect(one.status().nameProgress).toEqual(before);
+      spy.mockReturnValue(real - 86_400_000);
+      clock -= 2 * 86_400_000;
+      expect(one.status().nameProgress).toEqual(before);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
+  it('carries four keys, whole milliseconds, its own copy of the answers, and no string but the three answer kinds', async () => {
+    fourNames();
+    roundOf('RNSR');
+    const one = await publishedHost();
+    names.advance(1_234.6);
+    const text = JSON.stringify(one.status().nameProgress);
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    expect(Object.keys(parsed).sort()).toEqual(['answers', 'asking', 'elapsedMs', 'nextInMs']);
+    expect(parsed).toEqual({ answers: drawnOf('RNSR'), asking: false, elapsedMs: 1_235, nextInMs: 18_765 });
+    const strings: string[] = [];
+    const walk = (v: unknown): void => {
+      if (typeof v === 'string') strings.push(v);
+      else if (Array.isArray(v)) v.forEach(walk);
+      else if (v !== null && typeof v === 'object') Object.values(v).forEach(walk);
+    };
+    walk(parsed);
+    expect(strings.sort()).toEqual(['negative', 'record', 'record', 'unreadable']);
+    for (const word of [NAME, '127.0.0.1', '5301', 'nxdomain', 'timeout', 'example.github', '203.0.113.10']) {
+      expect(text).not.toContain(word);
+    }
+    // A reader that writes into what it was handed changes nothing main holds.
+    (one.status().nameProgress?.answers as string[] | undefined)?.push('record');
+    expect(one.status().nameProgress?.answers).toEqual(drawnOf('RNSR'));
+  });
+
+  it('is null once the quit has stopped the Funnel child, though the switch is still on', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    expect(one.status().nameProgress).not.toBeNull();
+    await joinFunnel();
+    await settled(one);
+    expect(ts.children.every((c) => c.closed)).toBe(true);
+    expect(readPocketStore().store?.enabled).toBe(true);
+    expect(one.status()).toMatchObject({ pairable: false, nameProgress: null });
+  });
+
+  for (const [half, quit] of [
+    ['the Funnel half', () => beginFunnelShutdown()],
+    ['the door half', () => (door.quitting = true)]
+  ] as const) {
+    it(`a round held across the quit draws nothing of its answer (${half} first)`, async () => {
+      fourNames();
+      roundOf('NNNN');
+      const one = await publishedHost();
+      names.answerWith('hold');
+      await gapEnds(one);
+      expect(one.status().nameProgress).toMatchObject({ answers: drawnOf('NNNN'), asking: true });
+      quit();
+      releaseRound('RRRR');
+      await settled(one);
+      expect(readPocketStore().store?.nameConfirmed).toBeNull();
+      // The door is still published until the quit's join, so the round
+      // before it is still drawn, and never the answer that landed after.
+      expect(one.status().nameProgress).toMatchObject({ answers: drawnOf('NNNN'), asking: false });
+    });
+  }
+
+  it('a switch-on round’s start adds no push of its own: one fewer than a checking run’s first round, over the same counted start', async () => {
+    fourNames();
+    // Every push between the round's first question and the next microtask:
+    // the round's own start push, if any, and the counted start's own.
+    let window: number | null = null;
+    const watchFirstQuestion = (): void => {
+      window = null;
+      let first = true;
+      names.answerWith(() => {
+        if (first) {
+          first = false;
+          const at = sent.length;
+          queueMicrotask(() => {
+            window = sent.length - at;
+          });
+        }
+        return 'hold';
+      });
+    };
+    const one = host();
+    await one.setDoor({ on: true });
+    await settled(one);
+    watchFirstQuestion();
+    const lines = one.status();
+    await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
+    await settled(one);
+    const checking = window;
+    expect(one.status()).toMatchObject({ nameCheck: 'checking', nameProgress: { asking: true } });
+    names.releaseHeld(recordReply());
+    await settled(one);
+    expect(one.status().nameCheck).toBe('confirmed');
+    await one.setDoor({ on: false });
+    await settled(one);
+    watchFirstQuestion();
+    await one.setDoor({ on: true });
+    await settled(one);
+    const reask = window;
+    expect(one.status()).toMatchObject({ nameCheck: 'confirmed', nameProgress: null });
+    expect(checking).not.toBeNull();
+    expect(reask).toBe((checking ?? 0) - 1);
+  });
+
+  it('a clock that went backwards draws no negative minutes', async () => {
+    let t = 50_000;
+    names = fakeNameDeps({ source: { kind: 'fixed', servers: FOUR_SERVERS }, monotonic: () => t });
+    roundOf('NNNN');
+    const one = await publishedHost();
+    t = 20_000;
+    expect(one.status().nameProgress).toMatchObject({ elapsedMs: 0 });
+  });
+
+  it('the wake pushes the round it brings forward once, and a second wake with that round out pushes nothing', async () => {
+    fourNames();
+    roundOf('NNNN');
+    const one = await publishedHost();
+    names.answerWith('hold');
+    const from = sent.length;
+    resume?.();
+    await settled(one);
+    expect(progressSince(from)).toEqual([{ answers: drawnOf('NNNN'), asking: true, elapsedMs: 0, nextInMs: null }]);
+    resume?.();
+    await settled(one);
+    expect(progressSince(from)).toHaveLength(1);
   });
 });

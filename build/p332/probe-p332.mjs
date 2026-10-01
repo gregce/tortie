@@ -745,12 +745,12 @@ async function waitStatus(cdp, test, ms, every = 250) {
     await sleepRaw(every);
   }
 }
-/** The pairing card, as a person sees it. */
+/** The pairing card, as a person sees it; since Phase 332.1 the checking sentence is the name block's hover (`nameTitle`), so H1 reads either. */
 async function card(settings) {
   return JSON.parse(
     await cdpEval(
       settings,
-      `(() => { const s = document.querySelector('section[aria-label="Phone"]'); const c = s === null ? null : s.querySelector('[data-phone-stage]'); const pair = c === null ? null : c.querySelector('[data-phone-action="pair"]'); const line = c === null ? null : c.querySelector('[data-phone-name-unreadable]'); const notice = c === null ? null : c.querySelector('.phone-notice'); return JSON.stringify({ stage: c === null ? null : c.getAttribute('data-phone-stage'), text: c === null ? '' : c.innerText, sheet: s === null ? '' : s.innerText, pairButton: pair !== null, unreadableLine: line === null ? null : line.innerText.trim(), lineAbovePair: line !== null && pair !== null && (line.compareDocumentPosition(pair) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0, notice: notice === null ? null : notice.innerText.trim() }); })()`
+      `(() => { const s = document.querySelector('section[aria-label="Phone"]'); const c = s === null ? null : s.querySelector('[data-phone-stage]'); const pair = c === null ? null : c.querySelector('[data-phone-action="pair"]'); const line = c === null ? null : c.querySelector('[data-phone-name-unreadable]'); const notice = c === null ? null : c.querySelector('.phone-notice'); const block = c === null ? null : c.querySelector('[data-phone-name]'); return JSON.stringify({ stage: c === null ? null : c.getAttribute('data-phone-stage'), text: c === null ? '' : c.innerText, nameTitle: block === null ? null : block.getAttribute('title'), sheet: s === null ? '' : s.innerText, pairButton: pair !== null, unreadableLine: line === null ? null : line.innerText.trim(), lineAbovePair: line !== null && pair !== null && (line.compareDocumentPosition(pair) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0, notice: notice === null ? null : notice.innerText.trim() }); })()`
     )
   );
 }
@@ -964,7 +964,7 @@ try {
         if (Date.now() - lastCard >= 1_000) {
           lastCard = Date.now();
           const c = await card(settings);
-          samples.push({ at: lastCard, stage: c.stage, checking: c.text.includes(WORDS.checking), pairButton: c.pairButton });
+          samples.push({ at: lastCard, stage: c.stage, checking: c.text.includes(WORDS.checking) || c.nameTitle === WORDS.checking, pairButton: c.pairButton });
           if (c.stage === 'showing') {
             codeAt = lastCard;
             break;
