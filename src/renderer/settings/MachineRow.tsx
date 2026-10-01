@@ -92,6 +92,7 @@ import {
   HONESTY_NO_ADOPTION,
   KEY_NOT_MADE_YET,
   keyNamedOnEveryCommand,
+  MEASURED_VERSIONS,
   PREPARE_EXPLAIN,
   PREPARE_OPTION_DISAGREES,
   PREPARE_PATH_MISSING,
@@ -172,6 +173,24 @@ function PrepareResult({
           looking for what to do about it. */}
       <Remedy cls={result.class} />
     </div>
+  );
+}
+
+/**
+ * PHASE 324, the ruled round. Whether a row's accepted version still decides
+ * anything, which is whether Tortie has NOT measured it.
+ *
+ * `MEASURED_VERSIONS` is the renderer's copy of main's measured list, held
+ * equal to it in order by `machines-copy.test.ts`, because the renderer may
+ * not import main. Main asks the gate itself for the same answer when it
+ * composes the row's lines (`describeMachine` in src/main/machines/confirm.ts),
+ * so the block and the lines above it agree.
+ */
+function acceptanceStands(version: string | null | undefined): boolean {
+  return (
+    typeof version === 'string' &&
+    version.length > 0 &&
+    !MEASURED_VERSIONS.includes(version)
   );
 }
 
@@ -667,10 +686,23 @@ export function MachineRow({
 
           {/* PHASE 83. The version this person accepted for this machine, and
               the one button that withdraws it. It is drawn only for a row that
-              carries one, so a machine running a version Tortie measured shows
-              nothing here at all. */}
-          {row.acceptedTmuxVersion === null ||
-          row.acceptedTmuxVersion === undefined ? null : (
+              carries one, so a machine nobody accepted a version for shows
+              nothing here at all.
+
+              PHASE 324, the ruled round. And only while that acceptance still
+              decides something, which is while Tortie has not measured the
+              version: measured beats accepted, so an acceptance of a version
+              on the measured list is read by neither gate, and "Withdraw this
+              version" beside it offered to take back something that no longer
+              needs accepting, at the price of the confirmation. The row then
+              reads as any measured machine's row. The value stays in the row
+              and in the confirmation; main's sheet makes the same choice in
+              `describeMachine`. An acceptance of a version Tortie has NOT
+              measured is still drawn when the machine has since moved to a
+              measured one, because it is still what admits that machine if
+              the older program answers again (an older server left running
+              after an upgrade in place reports the older version). */}
+          {!acceptanceStands(row.acceptedTmuxVersion) ? null : (
             <div className="mach-accepted" data-machines-accepted={row.id}>
               <div className="mach-prepare-fact">
                 <span className="mach-prepare-label">

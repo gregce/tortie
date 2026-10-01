@@ -741,6 +741,9 @@ const remoteList = TESTED_REMOTE_TMUX_VERSIONS.map((row) => ({
   control: row.measured.control,
   measuredAt: row.measuredAt,
   noteLength: row.note.length,
+  // Phase 324. The note itself, so condition 100e reads the imported value
+  // rather than re-parsing a string built with `+` across lines.
+  note: row.note,
   // Phase 83. Which copy of that version was read. A row that does not say is
   // a row the next reader cannot trust, so condition 17 fails on an empty one.
   subject: row.subject,

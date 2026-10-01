@@ -350,6 +350,12 @@ export const MACHINE_VERSION_ACCEPT_MISMATCH =
  * refusal still says first that nothing was started. It names what is not true:
  * Tortie will not open a live connection to a version it has not measured, so
  * the machine gets the timer feed, and a session may fail to start.
+ *
+ * PHASE 324, the ruled round. Its last sentence said "If the program on it is
+ * updated, Tortie asks you again", which stopped being true when Prepare
+ * stopped asking about a machine whose program now reports a version Tortie
+ * has measured (measured beats accepted). Such a machine is prepared as any
+ * measured machine is, so the sentence names the update it is true of.
  */
 export const MACHINE_VERSION_ACCEPT_OFFER =
   'You can accept this version yourself. Accepting it lets Tortie start ' +
@@ -358,8 +364,8 @@ export const MACHINE_VERSION_ACCEPT_OFFER =
   'its list on a timer instead. That is slower and it is correct. If the ' +
   'version turns out to be wrong for Tortie, a session may fail to start, and ' +
   'Tortie will say so rather than freeze. This acceptance covers this one ' +
-  'version on this one machine. If the program on it is updated, Tortie asks ' +
-  'you again.';
+  'version on this one machine. If the program on it is updated to another ' +
+  'version Tortie has not measured, Tortie asks you again.';
 
 /**
  * What a person reads on a machine that was prepared on an accepted version

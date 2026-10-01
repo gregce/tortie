@@ -229,6 +229,22 @@ describe('opening', () => {
     );
   });
 
+  it('opens a connection for 3.6, which Phase 324 measured', async () => {
+    // At the parent this machine kept the timer feed and the precheck
+    // refused; the row in version.ts is what changes that.
+    versionAnswer = 'tmux 3.6\n';
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(openControlPlaneCount()).toBe(1);
+    await expect(remoteControlTransport('studio').precheck()).resolves.toBeUndefined();
+  });
+
+  it('opens a connection for 3.6b, which Phase 324 measured', async () => {
+    versionAnswer = 'tmux 3.6b\n';
+    expect(await openControlPlane('studio')).toBe(true);
+    expect(openControlPlaneCount()).toBe(1);
+    await expect(remoteControlTransport('studio').precheck()).resolves.toBeUndefined();
+  });
+
   it('opens nothing for a machine that did not answer the read', async () => {
     versionAnswer = new Error('no answer from that machine');
     expect(await openControlPlane('studio')).toBe(false);

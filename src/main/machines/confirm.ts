@@ -111,10 +111,16 @@
  *
  * ## What this module does not do
  *
- * It spawns nothing. It has no import that could. It reads one file, which is
- * the sealed record, through `../config/confirm-record.ts`. It never opens a
- * session, never starts a remote server and never measures a version. Phase 68
- * builds none of those.
+ * It spawns nothing. It reads one file, which is the sealed record, through
+ * `../config/confirm-record.ts`. It never opens a session, never starts a
+ * remote server and never measures a version. Phase 68 builds none of those.
+ *
+ * Until Phase 324 it also had no import that could spawn. It now imports one
+ * pure function, `decideRemoteVersionGate`, from `../tmux/version`, so the
+ * sheet asks the gate's own rule whether an acceptance still decides anything
+ * rather than keeping a second copy of the measured list. That module also
+ * holds the read of this Mac's own tmux version, which runs a program, and
+ * nothing here calls it.
  */
 
 import { createHash } from 'node:crypto';
@@ -128,6 +134,9 @@ import {
 // A second copy would be a second thing to keep in step, and the whole point of
 // the scope is that it is closed everywhere at once.
 import { whileReadingConfig } from '../config/confirm';
+// PHASE 324. The one rule that says whether an acceptance still decides
+// anything, asked rather than copied, so the sheet cannot drift from the gate.
+import { decideRemoteVersionGate } from '../tmux/version';
 
 import { getLog } from '../log';
 
@@ -430,13 +439,28 @@ export function describeMachine(
   // Phase 83. Drawn only when a person has accepted a version, so `lines` stays
   // exactly the hashed facts. A row with no accepted version has no fifth entry
   // in the hash text either, and the two must say the same thing.
+  //
+  // PHASE 324, the ruled round. Drawn only while the acceptance decides
+  // something, which is while Tortie has not measured that version. Measured
+  // beats accepted (rule 2 of `decideRemoteVersionGate`), so an acceptance of a
+  // version Tortie has since measured is never read by either gate, and the
+  // line would say "which Tortie has not measured" of a version it has: a
+  // person who accepted 3.6 on an older build read exactly that here after
+  // the upgrade. The row then reads as any measured machine's row. The value
+  // is NOT dropped: it stays in the row and in the hash text, so the
+  // confirmation the person gave stands and a Tortie that has not measured
+  // that version still finds it accepted. Dropping it would move the hash and
+  // withdraw the confirmation, and writing a new one would record an
+  // agreement nobody read.
+  const accepted = fields.acceptedTmuxVersion;
   if (
-    typeof fields.acceptedTmuxVersion === 'string' &&
-    fields.acceptedTmuxVersion.length > 0
+    typeof accepted === 'string' &&
+    accepted.length > 0 &&
+    decideRemoteVersionGate(accepted).kind !== 'measured'
   ) {
     lines.push(
       `Accepts this version of the program, which Tortie has not measured: ` +
-        `${fields.acceptedTmuxVersion}`
+        `${accepted}`
     );
   }
   // Phase 101. Drawn only when a person has named a folder, so `lines` stays

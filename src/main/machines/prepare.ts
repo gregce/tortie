@@ -28,6 +28,9 @@
  *     success copy saying plainly that Tortie measured nothing. An acceptance
  *     that names a different version from the one the machine reports now is a
  *     refusal of its own, so an acceptance of 3.8a does not carry to 3.9a.
+ *     PHASE 324: that refusal is never asked of a version Tortie has measured,
+ *     because measured beats accepted, so a machine accepted at 3.5a that now
+ *     reports 3.6b is prepared as any measured machine is.
  *  5. `ensureRemoteServer`. Boot, PATH capture, options, read back.
  *  5a. PHASE 84. Start the machine's feed, which is what makes its sessions
  *     appear. Before this phase Prepare reported success and started nothing
@@ -357,20 +360,52 @@ export async function prepareMachine(
     };
   };
 
+  const gate = decideRemoteVersionGate(
+    version,
+    TESTED_REMOTE_TMUX_VERSIONS,
+    accepted
+  );
+
   // PHASE 83. The arm that stops an acceptance carrying to the next version.
-  // It is asked BEFORE the gate, because the gate answers `unmeasured` for this
-  // case and the plain unmeasured sentence would not say what actually
-  // happened, which is that the program on that machine is not the program the
-  // person accepted.
-  if (accepted !== null && version !== null && accepted !== version) {
+  // It is asked BEFORE the plain refusal below, because the gate answers
+  // `unmeasured` for this case and the plain unmeasured sentence would not say
+  // what actually happened, which is that the program on that machine is not
+  // the program the person accepted.
+  //
+  // PHASE 324, the ruled round. It is asked ONLY when the gate answered
+  // `unmeasured`, and only for an acceptance of a version Tortie has not
+  // measured. Measured beats accepted (rule 2 of `decideRemoteVersionGate`):
+  //
+  //  - A machine whose acceptance names 3.5a and whose program now reports
+  //    3.6b, a measured version, is prepared like any measured machine. The
+  //    arm used to be asked before the gate, so it drew "Tortie has not
+  //    measured the program this machine runs" and offered a sheet accepting
+  //    3.6b "which Tortie has not measured", beside a list naming 3.6b as
+  //    measured. All of it was false, and accepting it wrote an acceptance
+  //    nothing reads. The same was true of 3.6a, 3.7b and 3.7c before this
+  //    phase, and this phase made it true of two more versions.
+  //  - An acceptance of a version Tortie has since measured decides nothing,
+  //    so it is treated as no acceptance here, as `describeMachine` treats
+  //    it on the row. A machine that accepted 3.6 on an older build and now
+  //    reports 3.5a gets the plain refusal any measured machine gets, rather
+  //    than a sentence about an acceptance the row no longer draws.
+  //
+  // Nothing is dropped. The acceptance stays in the row and in the hash, so the
+  // person's confirmation stands and a Tortie that has not measured that
+  // version still finds it accepted.
+  if (
+    gate.kind === 'unmeasured' &&
+    accepted !== null &&
+    decideRemoteVersionGate(accepted).kind !== 'measured'
+  ) {
     const copy = composeOutcomeCopy('version-unmeasured', {
       resolvedPath: ctx.remoteTmuxPath,
       version,
       supportedPhrase: joinVersionList(supported)
     });
     machinesLog.warn(
-      `${input.machineId} reports tmux ${version} and the version accepted for ` +
-        `it is ${accepted}, so nothing was started`
+      `${input.machineId} reports tmux ${gate.version} and the version ` +
+        `accepted for it is ${accepted}, so nothing was started`
     );
     return {
       ...base,
@@ -384,11 +419,6 @@ export async function prepareMachine(
     };
   }
 
-  const gate = decideRemoteVersionGate(
-    version,
-    TESTED_REMOTE_TMUX_VERSIONS,
-    accepted
-  );
   if (gate.kind !== 'measured' && gate.kind !== 'accepted') {
     const sheet = sheetFor(version);
     const copy = composeOutcomeCopy('version-unmeasured', {

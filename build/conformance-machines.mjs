@@ -234,6 +234,52 @@
  * that neither text can name a value, by a rule rather than a list; and 98 is
  * that the silence ended, read out of the files that raise the notice.
  *
+ * PHASE 324 APPENDED 100 in the same way, as one block at the foot of this
+ * file, and its number is written once, as a constant there, because Phases
+ * 320.1 and 327 append conditions too. It is about the read that makes putting
+ * tmux 3.6 and 3.6b on both version lists safe: on a 3.6-family server a
+ * program older than 3.6 fails that read and leaves the server alive, where its
+ * `-C` would end the server and every session in it (research 131 section 3.5).
+ * 100a fails when the first statement of `start()`'s one top-level `try` is not
+ * `await this.transport.precheck()`, when the precheck, the plan and the one
+ * spawn stand in any other order or the spawn is handed anything but the
+ * awaited plan's file, when the class holds a second spawn or plan call or the
+ * file a second precheck, when the file can start a process by anything but
+ * that spawn, when `scheduleReconnect` stops going back through
+ * `this.start(` or spawns or plans itself, or when the constructor stops
+ * holding the transport it was handed as `private readonly transport` or the
+ * file assigns `this.transport`, or writes, deletes, increments or
+ * `Object.assign`s onto any member of it. 100b fails when
+ * `remoteControlTransport`'s precheck is not one awaited `execOn` of
+ * `display-message -p '#{version}'` over `remoteContextFor(machineId)`, handed
+ * to `assertControlDialectMeasured` after it, with no try or catch and no
+ * login shell; when the precheck's body is anything but exactly those three
+ * statements in that order, or `remoteControlTransport`'s body anything but
+ * the one returned object literal, so no flag, cache, early return or deferred
+ * refusal can let a reconnect skip the read (the fix round of 2026-09-30,
+ * after a three line "read once" flag passed every other clause and, driven
+ * over real ssh, ended a 3.6 server through a program downgraded in place);
+ * when its plan or `spawnTmux` stops composing through
+ * `tmuxCommand`, so the read and the child no longer name one program; or when
+ * a `TmuxControlClient` under src/main is built over anything but the local
+ * default or, exactly once, `remoteControlTransport(machineId)`. 100c fails when
+ * `CONTROL_ATTACH_ARGS` is named under src/main/machines anywhere but its import
+ * and one `tmuxCommand(` argument inside that plan, or a file there writes
+ * `'-C', 'new-session'` as adjacent literals. 100d fails when the 3.6 or 3.6b
+ * row is missing or does not claim both planes, when a row built by
+ * build/build-tmux-version.mjs names another version, another URL or another
+ * sha256 than build/tmux-probe-versions.json pins for it, or when fewer than
+ * three such rows are found. 100e fails when a row's subject or note, or the
+ * table's own text with its comments, names a distribution (anywhere in a
+ * word, so a package version such as `<v>-2<name>0.1` is caught), a
+ * distribution's version suffix (`~bpo`, `+deb`, `.fc`, `.el`), a release in a
+ * distribution's shape (`26.04`, `LTS`, a code name), a vendor, the verb
+ * `ships`, Linux, a patch or a 3.6-family defect, or when the Add Machine
+ * sheet's measured-versions line draws anything beside the list or the drawn
+ * list or its label says one of those words, which is the operator's ruling
+ * "add to allow list but dont add a weird label" held as text. `npm run ablation:p324` breaks each clause
+ * and proves it goes red on its own id.
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -390,8 +436,15 @@ import {
 import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 
-import { callArguments, lineAt, stripComments } from './scan-source.mjs';
+import {
+  blockAt,
+  callArguments,
+  functionBodyOf,
+  lineAt,
+  stripComments
+} from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
+import { walkScripts } from './build-scripts.mjs';
 
 const probe = spawnSync(
   process.execPath,
@@ -10049,6 +10102,752 @@ process.stdout.write(
   );
 }
 
+// ---------------------------------------------------------------------------
+// 100. Phase 324. The read before every far control child, and the rows it admits
+// ---------------------------------------------------------------------------
+//
+// Phase 324 put tmux 3.6 and 3.6b on both version lists (research 131, and the
+// operator's ruling "add to allow list but dont add a weird label"). The rows
+// are not what makes that safe. What makes it safe is the read that stands in
+// front of every far control child: `remoteControlTransport`'s precheck asks
+// the server for its version through the SAME program the child will run, and
+// it is the first thing `start()` awaits. On a server from the 3.6 family a
+// program older than 3.6 fails that read and leaves the server alive, where
+// the same program's `-C` ends the server and every session in it (research
+// 131 §3.5; the spec step measured it again, both server pids unchanged and 0
+// control children). A later round that moved the read after the spawn, caught
+// its refusal, sent it through a different program, or built a remote client
+// over a transport with no read at all would admit the 3.6 rows and remove
+// the thing that made admitting them safe, with every other condition green.
+//
+// So 100a to 100c pin the read's place, its shape and its program, read by
+// matching braces over comment-stripped source, and 100d and 100e hold the rows
+// to the pin they were built from and to his ruling, as text. Every message
+// begins with its clause id, because `npm run ablation:p324` asks which clause
+// went red.
+//
+// THE NUMBER IS WRITTEN ONCE, in the constant below, and
+// `build/p324/ablation.mjs` reads it from here. Phases 320.1 and 327 also
+// append conditions to this file, and whoever lands second moves this one
+// constant to the next free number.
+{
+  const P324_CONDITION = 100;
+  const tag = (clause) => `${P324_CONDITION}${clause}:`;
+  const failuresBefore = failures.length;
+  const RULING =
+    'His ruling of 2026-09-23 on these rows was "add to allow list but dont ' +
+    'add a weird label".';
+  const flat = (text) => String(text).replace(/\s+/g, '');
+  const IDENT = '[A-Za-z_$][\\w$]*';
+
+  const readSource = (clause, rel) => {
+    try {
+      const raw = readFileSync(join(process.cwd(), rel), 'utf8');
+      return { raw, code: stripComments(raw) };
+    } catch (err) {
+      fail(`${tag(clause)} ${rel} could not be read (${String(err)}), so this clause cannot be judged.`);
+      return null;
+    }
+  };
+
+  // The brace depth at `end`, strings skipped, so a brace inside a template
+  // literal never counts. `blockAt` is used to take a block once it is found.
+  const braceDepth = (text, end) => {
+    let depth = 0;
+    let quote = '';
+    for (let i = 0; i < end; i += 1) {
+      const c = text[i];
+      if (quote !== '') {
+        if (c === '\\') {
+          i += 1;
+          continue;
+        }
+        if (c === quote) quote = '';
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') {
+        quote = c;
+        continue;
+      }
+      if (c === '{') depth += 1;
+      else if (c === '}') depth -= 1;
+    }
+    return depth;
+  };
+
+  // Every match of `re` (which must be global and end at an opening brace),
+  // each with the block it opens.
+  const blocksOf = (text, re) =>
+    [...text.matchAll(re)].map((m) => {
+      const open = m.index + m[0].length - 1;
+      return { at: m.index, open, body: blockAt(text, open) ?? '' };
+    });
+
+  // A call written with nothing in front of the name but whitespace or an
+  // operator, so `respawn(`, `x.spawn(` and `spawnTmux(` are never read as it.
+  const callsOf = (text, name) =>
+    [...text.matchAll(new RegExp(`(?<![\\w$.])${name}\\s*\\(`, 'g'))].map((m) => ({
+      at: m.index,
+      args: callArguments(text, m.index + m[0].length - 1)
+    }));
+
+  // The top-level statements of a block's body, split at a `;` that stands
+  // outside every string and every (), [] and {}, each with its whitespace
+  // made canonical and double quotes read as single ones. A statement written
+  // without its `;` runs on into the next one, and a statement holding a block
+  // (`if (x) { return; }`) runs on to the next `;` outside it, so neither is a
+  // statement 100b names, and leaving a semicolon off is no way past it.
+  const statementsOf = (text) => {
+    const out = [];
+    let depth = 0;
+    let quote = '';
+    let from = 0;
+    for (let i = 0; i < text.length; i += 1) {
+      const c = text[i];
+      if (quote !== '') {
+        if (c === '\\') {
+          i += 1;
+          continue;
+        }
+        if (c === quote) quote = '';
+        continue;
+      }
+      if (c === "'" || c === '"' || c === '`') quote = c;
+      else if (c === '(' || c === '[' || c === '{') depth += 1;
+      else if (c === ')' || c === ']' || c === '}') depth -= 1;
+      else if (c === ';' && depth === 0) {
+        out.push(text.slice(from, i));
+        from = i + 1;
+      }
+    }
+    out.push(text.slice(from));
+    return out
+      .map((one) =>
+        one
+          .replace(/\s+/g, ' ')
+          .replace(/ ?([()[\]{},:=]) ?/g, '$1')
+          .replace(/"/g, "'")
+          .trim()
+      )
+      .filter((one) => one !== '');
+  };
+
+  // Every .ts file under `relDir` outside __tests__, through the walker the
+  // build gates already share (build/build-scripts.mjs) rather than a second
+  // one. A directory that cannot be read answers no files, which 100b and 100c
+  // each turn into a failure of their own rather than a crash.
+  const sourcesUnder = (relDir) => {
+    try {
+      return walkScripts(
+        join(process.cwd(), relDir),
+        (name) => name.endsWith('.ts') && !name.endsWith('.d.ts')
+      )
+        .filter((file) => !file.name.split('/').includes('__tests__'))
+        .map((file) => `${relDir}/${file.name}`);
+    } catch {
+      return [];
+    }
+  };
+
+  // --- 100a. The precheck is the first thing `start()` awaits ---------------
+  const client = readSource('a', 'src/main/tmux/control-client.ts');
+  if (client !== null) {
+    const say = (what) =>
+      fail(
+        `${tag('a')} ${what} The read in front of a far control child has to ` +
+          `finish before that child is spawned, on the first start and on ` +
+          `every reconnect, because on a 3.6-family server an older program's ` +
+          `read fails and leaves the server alive where its -C would end it ` +
+          `and every session in it (research 131 §3.5).`
+      );
+    const classes = blocksOf(client.code, /\bclass\s+TmuxControlClient\b[^{]*\{/g);
+    if (classes.length !== 1) {
+      say(`src/main/tmux/control-client.ts declares class TmuxControlClient ${classes.length} times rather than once.`);
+    } else {
+      const cls = classes[0].body;
+      const starts = blocksOf(cls, /\basync\s+start\s*\(\s*\)\s*:\s*Promise<void>\s*\{/g);
+      if (starts.length !== 1) {
+        say(`the class holds "async start(): Promise<void> {" ${starts.length} times rather than once.`);
+      } else {
+        const start = starts[0].body;
+        const tries = [...start.matchAll(/\btry\s*\{/g)].filter(
+          (m) => braceDepth(start, m.index) === 0
+        );
+        if (tries.length !== 1) {
+          say(`start()'s body holds ${tries.length} top-level try blocks rather than one.`);
+        } else {
+          const open = tries[0].index + tries[0][0].length - 1;
+          const body = blockAt(start, open) ?? '';
+          const first = body.trimStart().split(';')[0].replace(/\s+/g, ' ').trim();
+          if (first !== 'await this.transport.precheck()') {
+            say(
+              `the first statement of start()'s try is ${JSON.stringify(first)}, ` +
+                `not "await this.transport.precheck()".`
+            );
+          }
+          const precheckAt = body.indexOf('this.transport.precheck(');
+          const planAt = body.indexOf('this.transport.plan(');
+          const spawns = callsOf(body, 'spawn');
+          const spawnAt = spawns.length > 0 ? spawns[0].at : -1;
+          if (!(precheckAt !== -1 && planAt > precheckAt && spawnAt > planAt)) {
+            say(
+              `inside start()'s try the precheck stands at ${precheckAt}, the ` +
+                `plan at ${planAt} and the spawn at ${spawnAt}; the order must ` +
+                `be precheck, then plan, then the one spawn.`
+            );
+          }
+          const bound = new RegExp(
+            `\\b(?:const|let|var)\\s+(${IDENT})\\s*(?::[^=]+)?=\\s*await\\s+this\\.transport\\.plan\\s*\\(\\s*\\)`
+          ).exec(body);
+          const firstArg = spawns.length > 0 ? spawns[0].args[0] : null;
+          if (bound === null || firstArg !== `${bound[1]}.file`) {
+            say(
+              `the spawn in start()'s try is handed ${JSON.stringify(firstArg)} ` +
+                `as its program, not the file of the plan it awaited ` +
+                `(${bound === null ? 'no binding is assigned from the awaited plan' : `${bound[1]}.file`}).`
+            );
+          }
+        }
+      }
+      const classSpawns = callsOf(cls, 'spawn').length;
+      const classPlans = (cls.match(/\bthis\.transport\.plan\s*\(/g) ?? []).length;
+      const filePrechecks = (client.code.match(/\bthis\.transport\.precheck\s*\(/g) ?? []).length;
+      if (classSpawns !== 1 || classPlans !== 1 || filePrechecks !== 1) {
+        say(
+          `the class holds ${classSpawns} spawn( and ${classPlans} ` +
+            `this.transport.plan( calls, and the file ${filePrechecks} ` +
+            `this.transport.precheck( calls; each must be exactly one, so no ` +
+            `second path can spawn a child the read did not stand in front of.`
+        );
+      }
+      // One spawn( is only one child if spawn is the file's only way to start
+      // a process: its one import from node:child_process brings spawn and
+      // types alone, and nothing requires or imports a module at run time.
+      const cpImport = /\bimport\s*\{([^}]*)\}\s*from\s*['"]node:child_process['"]/.exec(client.code);
+      const brought =
+        cpImport === null
+          ? []
+          : cpImport[1]
+              .split(',')
+              .map((one) => one.trim())
+              .filter((one) => one !== '' && !one.startsWith('type '));
+      const cpNamed = (client.code.match(/child_process/g) ?? []).length;
+      if (
+        cpImport === null ||
+        brought.join(',') !== 'spawn' ||
+        cpNamed !== 1 ||
+        /\brequire\s*\(|\bimport\s*\(/.test(client.code)
+      ) {
+        say(
+          `the file brings ${JSON.stringify(brought)} from node:child_process ` +
+            `and names child_process ${cpNamed} time(s); it must import spawn ` +
+            `and types alone, once, with no require( or import(, so the one ` +
+            `spawn( is the only way it starts a process.`
+        );
+      }
+      const reconnects = blocksOf(cls, /\bprivate\s+scheduleReconnect\s*\(\s*\)\s*:\s*void\s*\{/g);
+      if (reconnects.length !== 1) {
+        say(`the class holds "private scheduleReconnect(): void {" ${reconnects.length} times rather than once.`);
+      } else {
+        const again = reconnects[0].body;
+        if (!/\bthis\.start\s*\(/.test(again)) {
+          say('scheduleReconnect() does not reconnect through this.start(), so a reconnect would not pass the precheck.');
+        }
+        if (callsOf(again, 'spawn').length > 0 || /\btransport\.plan\s*\(/.test(again)) {
+          say('scheduleReconnect() names spawn( or transport.plan( itself, so a reconnect can spawn a child with no read in front of it.');
+        }
+      }
+      // The transport start() prechecks is the one the client was handed, held
+      // as a parameter property and never wrapped or replaced. A wrapper made
+      // in the constructor that answered the precheck once per client would
+      // pass every clause above and skip the read on every reconnect, which is
+      // the reconnect Phase 324's attack verifier drove to end a 3.6 server.
+      const ctors = [...cls.matchAll(/\bconstructor\s*\(/g)];
+      const ctorParams =
+        ctors.length === 1 ? callArguments(cls, ctors[0].index + ctors[0][0].length - 1) : [];
+      if (
+        ctors.length !== 1 ||
+        ctorParams.length !== 1 ||
+        flat(ctorParams[0]) !== 'privatereadonlytransport:ControlTransport=localControlTransport()'
+      ) {
+        say(
+          `the class declares ${ctors.length} constructor(s) taking ` +
+            `${JSON.stringify(ctorParams.map((one) => one.replace(/\s+/g, ' ')))}; it ` +
+            `must declare one, taking exactly "private readonly transport: ` +
+            `ControlTransport = localControlTransport()", so the transport ` +
+            `start() prechecks is the one it was handed.`
+        );
+      }
+      // NOT ASSIGNED, AND NOT CHANGED IN PLACE EITHER (the ruled round,
+      // 2026-09-30). The second reverify wrote `this.transport.precheck = () =>
+      // Promise.resolve();` into start() with every clause green: the
+      // parameter property was the one handed in and was never assigned, and
+      // its precheck no longer read anything. So a write through any member
+      // chain of this.transport, plain or compound, a `delete` of one, and an
+      // Object or Reflect call that writes onto it are each the same hole.
+      const MEMBERS = String.raw`(?:\s*(?:\??\.\s*[A-Za-z_$][\w$]*|\[[^\]]*\]))*`;
+      const writes = [
+        [new RegExp(String.raw`\bthis\s*\.\s*transport${MEMBERS}\s*(?:\*\*|<<|>>>?|\|\||&&|\?\?|[-+*/%&|^])?=(?![=>])`), 'assigns this.transport or one of its members'],
+        [new RegExp(String.raw`\bthis\s*\.\s*transport${MEMBERS}\s*(?:\+\+|--)|(?:\+\+|--)\s*this\s*\.\s*transport\b`), 'increments or decrements a member of this.transport'],
+        [/\bdelete\s+this\s*\.\s*transport\b/, 'deletes a member of this.transport'],
+        [
+          /\b(?:Object|Reflect)\s*\.\s*(?:assign|defineProperty|defineProperties|set|setPrototypeOf|deleteProperty)\s*\(\s*this\s*\.\s*transport\b/,
+          'writes onto this.transport through Object or Reflect'
+        ]
+      ];
+      for (const [re, what] of writes) {
+        const hit = re.exec(client.code);
+        if (hit !== null) {
+          say(
+            `the file ${what} (${JSON.stringify(hit[0].replace(/\s+/g, ' ').slice(0, 80))}), so the ` +
+              `transport start() prechecks may not be the one the client was handed.`
+          );
+        }
+      }
+    }
+  }
+
+  // --- 100b. The precheck is the read, through the same program -------------
+  const plane = readSource('b', 'src/main/machines/control-plane.ts');
+  let planBody = null;
+  if (plane !== null) {
+    const say = (what) =>
+      fail(
+        `${tag('b')} ${what} The read must be the version read, through the ` +
+          `same program the control child will run, refused by the control ` +
+          `gate and never caught, or an older program in place on a ` +
+          `3.6-family server reaches -C and ends it.`
+      );
+    const rct = functionBodyOf(plane.code, 'remoteControlTransport');
+    if (rct === null) {
+      say('src/main/machines/control-plane.ts declares no function remoteControlTransport.');
+    } else {
+      const prechecks = blocksOf(rct, /\basync\s+precheck\s*\(\s*\)\s*:\s*Promise<void>\s*\{/g);
+      if (prechecks.length !== 1) {
+        say(`remoteControlTransport holds "async precheck(): Promise<void> {" ${prechecks.length} times rather than once.`);
+      } else {
+        const pre = prechecks[0].body;
+        const ctxBound = new RegExp(
+          `\\b(?:const|let|var)\\s+(${IDENT})\\s*(?::[^=]+)?=\\s*remoteContextFor\\s*\\(\\s*machineId\\s*\\)`
+        ).exec(pre);
+        const execs = callsOf(pre, 'execOn');
+        const printedBound = new RegExp(
+          `\\b(?:const|let|var)\\s+(${IDENT})\\s*(?::[^=]+)?=\\s*await\\s+execOn\\s*\\(`
+        ).exec(pre);
+        if (ctxBound === null) {
+          say('the precheck assigns no binding from remoteContextFor(machineId).');
+        }
+        if (execs.length !== 1 || printedBound === null) {
+          say(
+            `the precheck calls execOn ${execs.length} times, ` +
+              `${printedBound === null ? 'and awaits none of them into a binding' : 'awaited into a binding'}; ` +
+              `it must await exactly one into a binding.`
+          );
+        } else {
+          const [target, argvText] = execs[0].args;
+          const argv = callArguments(argvText ?? '', 0)
+            .filter((one) => one !== '')
+            .map((one) => {
+              const m = /^(['"`])(.*)\1$/.exec(one);
+              return m === null ? `<${one}>` : m[2];
+            });
+          const wanted = ['display-message', '-p', '#{version}'];
+          if (
+            ctxBound !== null &&
+            (target !== ctxBound[1] ||
+              !String(argvText ?? '').trim().startsWith('[') ||
+              argv.join('\u0000') !== wanted.join('\u0000'))
+          ) {
+            say(
+              `the precheck's execOn is handed ${JSON.stringify(target)} and ` +
+                `${JSON.stringify(argv)}, not ${ctxBound[1]} and ` +
+                `${JSON.stringify(wanted)}.`
+            );
+          }
+          const assertAt = new RegExp(
+            `\\bassertControlDialectMeasured\\s*\\(\\s*machineId\\s*,\\s*parseTmuxVersion\\s*\\(\\s*${printedBound[1]}\\s*\\)\\s*\\)`
+          ).exec(pre);
+          if (assertAt === null || assertAt.index < execs[0].at) {
+            say(
+              `the precheck does not call assertControlDialectMeasured(machineId, ` +
+                `parseTmuxVersion(${printedBound[1]})) after the read.`
+            );
+          }
+        }
+        if (/\btry\b/.test(pre) || /\bcatch\b/.test(pre)) {
+          say('the precheck holds a try, a catch or a .catch(, so a refused read could be swallowed and the child spawned.');
+        }
+        if (/\bexecRemoteShell\b/.test(pre) || /\bshellCommand\b/.test(pre)) {
+          say('the precheck names execRemoteShell or shellCommand, so the read no longer runs through the program the child runs.');
+        }
+        // THE WHOLE BODY, statement by statement, because the clauses above ask
+        // what is there and not what else is. Phase 324's attack verifier put a
+        // three line "read once" flag in this transport (`if (verified)
+        // return;` first, `verified = true;` last): every clause above held,
+        // conformance:machines printed its PASS, 3,534 tests and probe:p324
+        // passed, and driven over real ssh a reconnect through a program
+        // downgraded in place spawned -C with no read and ended a 3.6 server and
+        // every session in it. So the body is exactly these three, in this
+        // order, and nothing else: no return, no condition, no cache and no
+        // deferred refusal can stand before, between or after them.
+        const stmts = statementsOf(pre);
+        const one = new RegExp(`^const (${IDENT})(?::[^=]+)?=remoteContextFor\\(machineId\\)$`).exec(stmts[0] ?? '');
+        const two =
+          one === null
+            ? null
+            : new RegExp(
+                `^const (${IDENT})(?::[^=]+)?=await execOn\\(${one[1]},\\['display-message','-p','#\\{version\\}',?\\]` +
+                  `(?:,\\{[^{}()[\\]]*\\})?,?\\)$`
+              ).exec(stmts[1] ?? '');
+        const three =
+          two === null
+            ? false
+            : stmts[2] === `assertControlDialectMeasured(machineId,parseTmuxVersion(${two[1]}))`;
+        if (stmts.length !== 3 || one === null || two === null || !three) {
+          say(
+            `the precheck's body is ${stmts.length} statement(s), ` +
+              `${JSON.stringify(stmts.map((s) => s.slice(0, 90)))}. It must be ` +
+              `exactly three, in order: a binding from remoteContextFor(machineId), ` +
+              `that binding's execOn of ['display-message', '-p', '#{version}'] ` +
+              `awaited into a binding, and assertControlDialectMeasured(machineId, ` +
+              `parseTmuxVersion(<that binding>)). Anything else there, a return, a ` +
+              `condition, a flag or a deferred refusal, lets a reconnect reach -C ` +
+              `with no read in front of it.`
+          );
+        }
+      }
+      // And the transport holds no state of its own across calls: the
+      // function's body is the one returned object literal, so there is no
+      // closure a "read once per client" flag could live in.
+      const rctStmts = statementsOf(rct.slice(1, -1));
+      const returned = rctStmts.length === 1 ? /^return ?\{/.exec(rctStmts[0]) : null;
+      const literalOpen = returned === null ? -1 : returned.index + returned[0].length - 1;
+      const literalInner = literalOpen === -1 ? null : blockAt(rctStmts[0], literalOpen);
+      const literalEnd = literalInner === null ? -1 : literalOpen + literalInner.length + 1;
+      if (returned === null || literalEnd !== rctStmts[0].length - 1) {
+        say(
+          `remoteControlTransport's body is ${rctStmts.length} statement(s) ` +
+            `(${JSON.stringify(rctStmts.map((s) => s.slice(0, 60)))}); it must ` +
+            `be one, returning one object literal, so the transport keeps no ` +
+            `state between one precheck and the next.`
+        );
+      }
+      const plans = blocksOf(rct, /\basync\s+plan\s*\(\s*\)\s*:\s*Promise<SpawnPlan>\s*\{/g);
+      if (plans.length !== 1) {
+        say(`remoteControlTransport holds "async plan(): Promise<SpawnPlan> {" ${plans.length} times rather than once.`);
+      } else {
+        planBody = plans[0].body;
+        if (!flat(planBody).includes('tmuxCommand(remoteContextFor(machineId),CONTROL_ATTACH_ARGS)')) {
+          say(
+            'the plan does not compose tmuxCommand(remoteContextFor(machineId), ' +
+              'CONTROL_ATTACH_ARGS), so the child may not run the program the ' +
+              'read ran.'
+          );
+        }
+      }
+    }
+    const execPlane = readSource('b', 'src/main/machines/exec-plane.ts');
+    if (execPlane !== null) {
+      const spawnTmux = functionBodyOf(execPlane.code, 'spawnTmux');
+      if (spawnTmux === null || !flat(spawnTmux).includes('tmuxCommand(ctx,args')) {
+        say(
+          "src/main/machines/exec-plane.ts's spawnTmux does not compose " +
+            'tmuxCommand(ctx, args, so the read and the child no longer name one ' +
+            'program, ctx.remoteTmuxPath.'
+        );
+      }
+    }
+    let remoteClients = 0;
+    let found = 0;
+    for (const rel of sourcesUnder('src/main')) {
+      const one = readSource('b', rel);
+      if (one === null) continue;
+      for (const m of one.code.matchAll(/\bnew\s+(?:tmux\s*\.\s*)?TmuxControlClient\s*\(/g)) {
+        found += 1;
+        const args = callArguments(one.code, m.index + m[0].length - 1);
+        if (args.length === 1 && args[0] === '') continue;
+        if (flat(args.join(',')) === 'remoteControlTransport(machineId)') {
+          remoteClients += 1;
+          continue;
+        }
+        say(
+          `${rel}:${lineAt(one.code, m.index)} builds a TmuxControlClient over ` +
+            `${JSON.stringify(args.join(', ')).slice(0, 160)}. A client built over ` +
+            `any transport but remoteControlTransport(machineId) or the local ` +
+            `default has no precheck in front of its child.`
+        );
+      }
+    }
+    if (remoteClients !== 1) {
+      say(
+        `src/main builds ${remoteClients} TmuxControlClient over ` +
+          `remoteControlTransport(machineId) (of ${found} constructions read); ` +
+          `there must be exactly one.`
+      );
+    }
+  }
+
+  // --- 100c. One composer for the far control child -------------------------
+  {
+    const say = (what) =>
+      fail(
+        `${tag('c')} ${what} A second composer for the far control child ` +
+          `would be a child the precheck never stood in front of.`
+      );
+    const files = sourcesUnder('src/main/machines');
+    if (!files.includes('src/main/machines/control-plane.ts')) {
+      say(`the walk of src/main/machines read ${files.length} files and not control-plane.ts, so it read nothing that counts.`);
+    }
+    const loose = [];
+    for (const rel of files) {
+      const one = readSource('c', rel);
+      if (one === null) continue;
+      const imports = [
+        ...one.code.matchAll(/\bimport\s+(?:type\s+)?\{[^}]*\}\s*from\s*(['"])[^'"]+\1/g)
+      ].map((m) => [m.index, m.index + m[0].length]);
+      for (const m of one.code.matchAll(/\bCONTROL_ATTACH_ARGS\b/g)) {
+        if (imports.some(([from, to]) => m.index >= from && m.index < to)) continue;
+        loose.push(`${rel}:${lineAt(one.code, m.index)}`);
+      }
+      const adjacent = /(['"`])-C\1\s*,\s*(['"`])new-session\2/.exec(one.code);
+      if (adjacent !== null) {
+        say(`${rel}:${lineAt(one.code, adjacent.index)} writes '-C', 'new-session' as adjacent literals.`);
+      }
+    }
+    const inPlan =
+      planBody === null
+        ? 0
+        : callsOf(planBody, 'tmuxCommand').filter((call) =>
+            call.args.some((arg) => arg === 'CONTROL_ATTACH_ARGS')
+          ).length;
+    if (loose.length !== 1 || inPlan !== 1) {
+      say(
+        `CONTROL_ATTACH_ARGS is named outside an import at ${loose.length} ` +
+          `site(s) (${loose.join(', ') || 'none'}), and as an argument to ` +
+          `tmuxCommand( inside remoteControlTransport's plan ${inPlan} time(s); ` +
+          `each must be exactly one, and the same one.`
+      );
+    }
+  }
+
+  // --- 100d. The rows and the measurement are one fact ----------------------
+  {
+    const say = (what) =>
+      fail(
+        `${tag('d')} ${what} A row that names a build from ` +
+          `build/build-tmux-version.mjs names the pin's own tarball, so the ` +
+          `next reader can rebuild exactly what was measured.`
+      );
+    let pin = null;
+    try {
+      pin = JSON.parse(readFileSync(join(process.cwd(), 'build/tmux-probe-versions.json'), 'utf8'));
+    } catch (err) {
+      say(`build/tmux-probe-versions.json could not be read as JSON (${String(err)}).`);
+    }
+    const pinned = pin?.versions ?? {};
+    const rows = data.remoteVersions ?? [];
+    for (const version of ['3.6', '3.6b']) {
+      const row = rows.find((one) => one.version === version);
+      if (row === undefined) {
+        say(`TESTED_REMOTE_TMUX_VERSIONS holds no ${version} row.`);
+      } else if (row.exec !== true || row.control !== true) {
+        say(
+          `the ${version} row reads exec ${String(row.exec)} and control ` +
+            `${String(row.control)}; probe:p324 measured both planes, so both ` +
+            `are true or the row is not this phase's.`
+        );
+      }
+    }
+    const built = rows.filter((row) =>
+      String(row.subject ?? '').includes('build/build-tmux-version.mjs')
+    );
+    for (const row of built) {
+      const v = String(row.version);
+      const subject = String(row.subject);
+      const entry = pinned[v];
+      const commands = [...subject.matchAll(/node build\/build-tmux-version\.mjs ([^\s"'`,]+)/g)].map(
+        (m) => m[1]
+      );
+      if (commands.length === 0 || commands.some((one) => one !== v)) {
+        say(
+          `the ${v} row names build/build-tmux-version.mjs but builds ` +
+            `${JSON.stringify(commands)} rather than "node build/build-tmux-version.mjs ${v}".`
+        );
+      }
+      // The note says which build was reached, too, and it is the same build.
+      const noteCommands = [
+        ...String(row.note ?? '').matchAll(/node build\/build-tmux-version\.mjs ([^\s"'`,]+)/g)
+      ].map((m) => m[1]);
+      if (noteCommands.some((one) => one !== v)) {
+        say(
+          `the ${v} row's note says it reached ${JSON.stringify(noteCommands)}, ` +
+            `not "node build/build-tmux-version.mjs ${v}".`
+        );
+      }
+      const expectedUrl = `https://github.com/tmux/tmux/releases/download/${v}/tmux-${v}.tar.gz`;
+      const urls = [...subject.matchAll(/https?:\/\/[^\s,"'`]+/g)].map((m) => m[0].replace(/\.+$/, ''));
+      if (entry === undefined || entry === null) {
+        say(`the ${v} row names build/build-tmux-version.mjs and build/tmux-probe-versions.json pins no ${v}.`);
+      }
+      if (urls.length !== 1 || urls[0] !== expectedUrl || urls[0] !== entry?.url) {
+        say(
+          `the ${v} row names ${JSON.stringify(urls)}; it must name exactly ` +
+            `${expectedUrl}, which the pin must carry as versions["${v}"].url ` +
+            `(it carries ${JSON.stringify(entry?.url ?? null)}).`
+        );
+      }
+      const shas = [...subject.matchAll(/\bsha256 ([0-9a-f]{64})\b/g)].map((m) => m[1]);
+      if (
+        shas.length !== 1 ||
+        !/^[0-9a-f]{64}$/.test(String(entry?.sha256 ?? '')) ||
+        shas[0] !== entry?.sha256
+      ) {
+        say(
+          `the ${v} row names sha256 ${JSON.stringify(shas)} and the pin's ` +
+            `versions["${v}"].sha256 is ${JSON.stringify(entry?.sha256 ?? null)}; ` +
+            `they must be one 64 hex digest, the same.`
+        );
+      }
+    }
+    const builtVersions = built.map((row) => String(row.version));
+    if (built.length < 3 || !['3.6', '3.6b', '3.7c'].every((v) => builtVersions.includes(v))) {
+      say(
+        `${built.length} row(s) name build/build-tmux-version.mjs ` +
+          `(${builtVersions.join(', ') || 'none'}); at least three are expected, ` +
+          `3.6, 3.6b and 3.7c among them, so a reader that stops finding is ` +
+          `never a clean tree.`
+      );
+    }
+  }
+
+  // --- 100e. No weird label, as text ----------------------------------------
+  {
+    // build/p324/SPEC.md section 4's list, with three stems widened so an
+    // inflected word is not a way past it: `backported` and `SIGKILLed` read
+    // as their stems, and `unpatched` names a patch as surely as `patched`
+    // does. Proved green on the five rows and the table's own text first.
+    //
+    // THE NAMES CARRY NO WORD BOUNDARY, and the package suffixes have a line
+    // of their own (the fix round, 2026-09-30). The most likely shape of the
+    // label is a distribution's own package version, and Phase 324's attack
+    // verifier put two of them in a subject and a note with this clause green:
+    // `\bubuntu\b` has no boundary inside `3.6a-2ubuntu0.1`, and nothing named
+    // the `~bpo13` in `3.6b-1~bpo13+1`. A distribution name is never part of an
+    // ordinary word a row would use, so the bare name is asked anywhere, and
+    // the suffixes Debian, Ubuntu and Fedora put on a version are asked beside
+    // it. Proved green on the five rows and the table's text again.
+    //
+    // A RELEASE AND A VENDOR ARE THE SAME LABEL (the ruled round, 2026-09-30).
+    // The second reverify wrote four labels this list walked past, all green:
+    // "the build 26.04 LTS ships" in the 3.6 note, "// the 26.04 LTS build" as
+    // a comment in the table, "Canonical ships" in a subject and "RHEL 10
+    // ships" in the 3.6b subject. A person reading a row learns as much from
+    // "26.04 LTS" or "Canonical" as from "Ubuntu", so a release number in a
+    // distribution's shape (two digits, a dot, two digits), "LTS", the
+    // vendors and the remaining release names are asked beside the names, and
+    // so is "ships", which is the verb every one of those labels was built
+    // on. "shipping" is not asked: the notes use it of Tortie's own client.
+    // Wider rather than restated narrowly, because the ruling is about what a
+    // person reads and not about which spelling of a distribution they read.
+    // Proved green on the five rows, the table's text and the two drawn
+    // copies again.
+    const BANNED = [
+      /(ubuntu|debian|fedora|linux|backport|trixie|resolute|noble|jammy|bookworm|forky|rawhide)/i,
+      /\bArch\b/,
+      /(~bpo\d|\bbpo\d|\+deb\d|\.deb\b|\.fc\d|\.el\d)/i,
+      /\b(sigkill\w*|5049|control_stop|crash\w*|wedge\w*|(?:un)?patch\w*)\b/i,
+      /\b\d{2}\.\d{2}\b|\bLTS\b/i,
+      /(rhel|centos|opensuse|\bsuse\b|nixos|redhat|red\s+hat|\bcanonical\b|\balpine\b|\brocky\b|\balma\b|\bamazon\b|gentoo|manjaro|raspbian|pop!?_?os)/i,
+      /\b(bullseye|buster|focal|oracular|plucky|questing|sid|sles)\b/i,
+      /\bship(?:s|ped)?\b/i
+    ];
+    const texts = [];
+    for (const row of data.remoteVersions ?? []) {
+      texts.push([`the ${String(row.version)} row's subject`, String(row.subject ?? '')]);
+      texts.push([`the ${String(row.version)} row's note`, String(row.note ?? '')]);
+    }
+    const version = readSource('e', 'src/main/tmux/version.ts');
+    if (version !== null) {
+      const decl = version.raw.indexOf('export const TESTED_REMOTE_TMUX_VERSIONS');
+      const open = decl === -1 ? -1 : version.raw.indexOf('= [', decl);
+      const close = open === -1 ? -1 : version.raw.indexOf('\n];', open);
+      if (close === -1) {
+        fail(`${tag('e')} the array block of TESTED_REMOTE_TMUX_VERSIONS could not be found in src/main/tmux/version.ts, so its comments cannot be read.`);
+      } else {
+        texts.push(['the array block of TESTED_REMOTE_TMUX_VERSIONS, comments included', version.raw.slice(open, close + 3)]);
+      }
+    }
+    // THE SURFACE HALF of his ruling (the fix round, 2026-09-30; the attack
+    // verifier drew a distribution label beside the list with every check
+    // green). The one place the list is drawn is the Add Machine sheet's
+    // measured-versions line, and it draws the list and nothing else; the
+    // drawn copy of the list and the label above it are held to the words
+    // above. A NEW surface that names versions is review's to catch: this
+    // reads the one that exists.
+    const addMachine = readSource('e', 'src/renderer/settings/AddMachine.tsx');
+    if (addMachine !== null) {
+      // The RAW text, because what sits between a JSX tag's `>` and its
+      // `</span>` is what is drawn, and the comment stripper reads a JSX
+      // closing tag's `/` as the start of a regex literal.
+      const at = addMachine.raw.indexOf('data-measured-versions="1"');
+      const open = at === -1 ? -1 : addMachine.raw.indexOf('>', at);
+      const close = open === -1 ? -1 : addMachine.raw.indexOf('</span>', open);
+      const drawn = close === -1 ? null : flat(addMachine.raw.slice(open + 1, close));
+      const named = (addMachine.code.match(/\bMEASURED_VERSIONS\b/g) ?? []).length;
+      if (drawn !== "{MEASURED_VERSIONS.join(',')}" || named !== 2) {
+        fail(
+          `${tag('e')} the Add Machine sheet's measured-versions line draws ` +
+            `${JSON.stringify(drawn)} and the file names MEASURED_VERSIONS ${named} ` +
+            `time(s); the line must draw {MEASURED_VERSIONS.join(', ')} and nothing ` +
+            `beside it, named once besides its import, so no label stands next to ` +
+            `a version. ${RULING}`
+        );
+      }
+    }
+    const machinesCopy = readSource('e', 'src/renderer/settings/machines-copy.ts');
+    if (machinesCopy !== null) {
+      for (const name of ['MEASURED_VERSIONS', 'PREPARE_SUPPORTED_LABEL']) {
+        const m = new RegExp(`export const ${name}\\b[^=]*=([^;]*);`).exec(machinesCopy.raw);
+        if (m === null) {
+          fail(`${tag('e')} src/renderer/settings/machines-copy.ts declares no ${name}, so the drawn words cannot be read.`);
+        } else {
+          texts.push([`machines-copy.ts's ${name}`, m[1]]);
+        }
+      }
+    }
+    if ((data.remoteVersions ?? []).some((row) => typeof row.note !== 'string')) {
+      fail(`${tag('e')} the probe hands this gate no note for a row, so a label in a note cannot be seen.`);
+    }
+    for (const [where, text] of texts) {
+      for (const re of BANNED) {
+        const hit = re.exec(text);
+        if (hit === null) continue;
+        fail(
+          `${tag('e')} ${where} says ${JSON.stringify(hit[0])}. No subject, note ` +
+            `or comment in the table names a distribution, its release or its ` +
+            `vendor, says what one ships, says no Linux binary was run, names a ` +
+            `patch, or names a 3.6-family defect. ${RULING} ` +
+            `The honest account of what was built and what was not run belongs ` +
+            `in the commit body.`
+        );
+      }
+    }
+  }
+
+  if (failures.length === failuresBefore) {
+    process.stdout.write(
+      `\nthe far control child is spawned only after its precheck: the read is ` +
+        `the first thing start() awaits, before the plan and the one spawn, and ` +
+        `a reconnect goes back through start() to the transport the client was ` +
+        `handed. The read is the version read through the program the child ` +
+        `runs, refused by the control gate and never caught, the precheck is ` +
+        `that read and that refusal and nothing else, the transport keeps no ` +
+        `state between calls, and one composer builds the child. The rows built here ` +
+        `name the pin's own tarball and sha256, and no row names a distribution.\n`
+    );
+  }
+}
+
 if (failures.length > 0) {
   process.stdout.write(`\nFAIL, ${failures.length}:\n`);
   for (const failure of failures) process.stdout.write(`  - ${failure}\n`);
@@ -10057,7 +10856,10 @@ if (failures.length > 0) {
 
 process.stdout.write(
   '\nPASS. A machine confirmation is bound to the six fields that decide what runs, to ' +
-    'the prefixed id, and to nothing else. Nothing was started by this gate but ' +
+    'the prefixed id, and to nothing else. A far control child is never spawned ' +
+    'before its precheck, which reads the version through the program the child ' +
+    "runs, and the rows built here name the pin's own tarball. " +
+    'Nothing was started by this gate but ' +
     "condition 88g's own /bin/sh arms, over a scratch directory removed in a " +
     'finally.\n'
 );

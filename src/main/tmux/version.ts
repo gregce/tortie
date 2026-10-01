@@ -167,8 +167,42 @@ export interface TestedRemoteTmux {
  * that is what the `subject` field carries. A distribution's patched build is a
  * different subject from an upstream tarball, so a row measured against one
  * says nothing about the other.
+ *
+ * The 3.6 and 3.6b rows were measured by `npm run probe:p324` instead, which
+ * reaches a scratch server on this same Mac through /bin/sh in place of the
+ * sign in program.
  */
 export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
+  {
+    version: '3.6',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-09-29',
+    subject:
+      'the upstream tarball at ' +
+      'https://github.com/tmux/tmux/releases/download/3.6/tmux-3.6.tar.gz, ' +
+      'sha256 136db80cfbfba617a103401f52874e7c64927986b65b1b700350b6058ad69607, ' +
+      'built by "node build/build-tmux-version.mjs 3.6" on this Mac with ' +
+      '--enable-utf8proc and --disable-jemalloc.',
+    note:
+      'Built here by "node build/build-tmux-version.mjs 3.6" and reached by ' +
+      '"npm run probe:p324" on a scratch server on this same Mac, through ' +
+      '/bin/sh in place of the sign in program. All four exec plane shapes ' +
+      'answered as this build expects. list-sessions -F answered one row ' +
+      'reading $0 on a server holding one session, and no rows with exit 0 on ' +
+      "a running server holding none. display-message -p '#{version}' " +
+      'answered 3.6 with exit 0. show-options -gv history-limit answered ' +
+      '25000, and 12 of 12 server options stuck after the boot and again ' +
+      'after the server was ended and reborn. A machine with no server ' +
+      'answered "error connecting to <the socket path> (No such file or ' +
+      'directory)" with exit 1. The list format answered its ten fields and ' +
+      'read back through the parser. Control mode was opened by the shipping ' +
+      'client through its own precheck and plan, and its stream matched the ' +
+      "3.6a row's copy, driven the same way in the same run, on all eight " +
+      'comparable steps, being the greeting, the no output block, the guard ' +
+      'shape, the notifications on a create, a kill and a rename, the rename ' +
+      'argument order, the window traffic, the exit line, and one list ' +
+      'compared byte for byte against the same list over the exec plane.'
+  },
   {
     version: '3.6a',
     measured: { exec: true, control: true },
@@ -184,6 +218,36 @@ export const TESTED_REMOTE_TMUX_VERSIONS: readonly TestedRemoteTmux[] = [
       'create, a kill and a rename, the rename argument order, the window ' +
       'traffic, the exit line, and one list compared byte for byte against the ' +
       'same list over the exec plane.'
+  },
+  {
+    version: '3.6b',
+    measured: { exec: true, control: true },
+    measuredAt: '2026-09-29',
+    subject:
+      'the upstream tarball at ' +
+      'https://github.com/tmux/tmux/releases/download/3.6b/tmux-3.6b.tar.gz, ' +
+      'sha256 390759d25fdba016887ec982b808927e637070fd7d03a8021f8ef3102b9ae3c7, ' +
+      'built by "node build/build-tmux-version.mjs 3.6b" on this Mac with ' +
+      '--enable-utf8proc and --disable-jemalloc.',
+    note:
+      'Built here by "node build/build-tmux-version.mjs 3.6b" and reached by ' +
+      '"npm run probe:p324" on a scratch server on this same Mac, through ' +
+      '/bin/sh in place of the sign in program. All four exec plane shapes ' +
+      'answered as this build expects. list-sessions -F answered one row ' +
+      'reading $0 on a server holding one session, and no rows with exit 0 on ' +
+      "a running server holding none. display-message -p '#{version}' " +
+      'answered 3.6b with exit 0. show-options -gv history-limit answered ' +
+      '25000, and 12 of 12 server options stuck after the boot and again ' +
+      'after the server was ended and reborn. A machine with no server ' +
+      'answered "error connecting to <the socket path> (No such file or ' +
+      'directory)" with exit 1. The list format answered its ten fields and ' +
+      'read back through the parser. Control mode was opened by the shipping ' +
+      'client through its own precheck and plan, and its stream matched the ' +
+      "3.6a row's copy, driven the same way in the same run, on all eight " +
+      'comparable steps, being the greeting, the no output block, the guard ' +
+      'shape, the notifications on a create, a kill and a rename, the rename ' +
+      'argument order, the window traffic, the exit line, and one list ' +
+      'compared byte for byte against the same list over the exec plane.'
   },
   {
     version: '3.7b',

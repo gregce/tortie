@@ -170,14 +170,24 @@ describe('prepareMachine', () => {
   // Phase 83. The acceptance arms
   // -------------------------------------------------------------------------
 
-  it('asks about a version that does not match the acceptance BEFORE the gate', () => {
+  it('asks about a version that does not match the acceptance BEFORE the plain refusal', () => {
     // The gate answers `unmeasured` for that case, and the plain unmeasured
     // sentence would not say what actually happened, which is that the program
     // on that machine is not the program the person accepted.
-    const mismatch = src.indexOf('accepted !== null && version !== null');
+    //
+    // PHASE 324, the ruled round. It is asked AFTER the gate and only of its
+    // `unmeasured` answer, so a version Tortie measured is never refused for an
+    // acceptance that names another one (measured beats accepted). Before, it
+    // was asked first and called 3.6b unmeasured beside a list naming it.
+    // ./p324-stale-acceptance.test.ts drives the function over both cases.
     const gate = src.indexOf('const gate = decideRemoteVersionGate(');
-    expect(mismatch).toBeGreaterThan(-1);
-    expect(gate).toBeGreaterThan(mismatch);
+    const mismatch = src.indexOf("gate.kind === 'unmeasured' &&");
+    const refusal = src.indexOf(
+      "if (gate.kind !== 'measured' && gate.kind !== 'accepted')"
+    );
+    expect(gate).toBeGreaterThan(-1);
+    expect(mismatch).toBeGreaterThan(gate);
+    expect(refusal).toBeGreaterThan(mismatch);
   });
 
   it('hands the acceptance to the gate as its third argument', () => {

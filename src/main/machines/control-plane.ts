@@ -44,7 +44,7 @@
  * have started a tmux server on THIS Mac on every backoff step, forever.
  *
  * The precheck here is ONE cheap command over the exec plane,
- * `display-message -p '#{version}'`, and it does three jobs at once:
+ * `display-message -p '#{version}'`, and it does four jobs at once:
  *
  *  1. It proves the link is up, which is what a precheck is for.
  *  2. It proves that machine's server is RUNNING. This is load bearing. A
@@ -54,6 +54,17 @@
  *     is the one place a server on another machine is allowed to be born,
  *     because it is the one place those options are asserted.
  *  3. It reads the version, which is what {@link decideRemoteControlGate} needs.
+ *  4. It runs through the same program the control child will run, because
+ *     both compose through `tmuxCommand` over `remoteContextFor(machineId)`.
+ *     On a server from the 3.6 family, a program older than 3.6 fails this
+ *     read and leaves the server alive, where that program's `-C` would end
+ *     the server and every session in it (research 131 §3.5). So this read
+ *     also stands between a program downgraded in place and the person's
+ *     sessions, and `npm run conformance:machines` condition 100 keeps it the
+ *     first thing `start()` awaits, on every reconnect, with nothing in the
+ *     precheck but the read and its refusal and no state kept between calls.
+ *     A "read once per client" flag here would skip it on exactly the
+ *     reconnect that matters.
  *
  * ## No cycle with `./remote-sessions.ts`
  *

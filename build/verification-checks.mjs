@@ -249,11 +249,11 @@ const electron = (name, needs = NEEDS.electron, skip = SKIP.neverFinally) => ({
   needs,
   skip
 });
-const tmux = (name) => ({
+const tmux = (name, needs = NEEDS.tmux, skip = SKIP.never) => ({
   name,
   type: 'tmux harness',
-  needs: NEEDS.tmux,
-  skip: SKIP.never
+  needs,
+  skip
 });
 const remote = (name, needs = NEEDS.loopback, skip = SKIP.neverFinally) => ({
   name,
@@ -844,6 +844,26 @@ export const CHECKS = [
       'the fast gate that holds the code to the number it measures'
   ),
   tmux('conformance:tmux-pair'),
+  // PHASE 324. The measurement the 3.6 and 3.6b rows of both remote version
+  // lists cite. build/p324/probe-p324.mjs runs build/p324/drive-p324.mts
+  // through the pinned tsx, which drives the SHIPPING precheck, plan, control
+  // client, boot and version read with no copy, over a /bin/sh stand-in for the
+  // sign in program that runs only the last argument it is handed and admits
+  // three shapes. It starts no Electron and no ssh and reads no server of the
+  // operator's. It refuses, exit 2, with one sentence before anything starts
+  // when a build is missing (the sentence names node
+  // build/build-tmux-version.mjs <v>), so it never passes quietly.
+  tmux(
+    'probe:p324',
+    'the vendored tmux; Homebrew tmux at /opt/homebrew/Cellar/tmux/3.6a/bin/tmux, ' +
+      'run read-only as a scratch server; and the probe-only builds 3.6, 3.6b, ' +
+      '3.7c and 3.5a, made beforehand by node build/build-tmux-version.mjs <v> ' +
+      'into build/vendor/tmux-probe/, which needs pkg-config and the network once ' +
+      'per tarball, sha256-checked against build/tmux-probe-versions.json. Each ' +
+      'server runs on a scratch -L p324- socket of its own; no ssh, no Electron, ' +
+      'and no server of the operator is read',
+    SKIP.refuse
+  ),
   electron('conformance:resume'),
   electron('conformance:resume:capture'),
   electron('conformance:resume:specstory'),
@@ -1664,6 +1684,18 @@ export const CHECKS = [
   // checked by sha256 after every ablation and again at the end. It launches no
   // Electron and starts no process but node.
   pure('ablation:p274'),
+  // PHASE 324's attack on conformance:machines condition 100: fifteen arms,
+  // each a text edit of the SHIPPING control-client.ts, control-plane.ts or
+  // version.ts, one clause each, and each must make the gate exit 1 with a
+  // failure line beginning with the clause that owns it (100a to 100e); a red
+  // on another condition alone is red for the wrong reason. The shape of
+  // ablation:p274: every file read once, restored and compared by sha256 after
+  // every arm and again in a finally and on a signal, an unedited control green
+  // first; and because builders share one worktree, an arm is never written
+  // over a file somebody else changed while it ran. Run it in a cp -Rc clone
+  // while anybody else is editing. It launches no Electron and starts no
+  // process but node.
+  pure('ablation:p324'),
   // PHASE 275's attack on `conformance:agents` section 9, the rules about the
   // SHARED shell-variable list every agent reads, and on the two renderer suites
   // that carry the picker. It breaks THIRTY-ONE clauses one at a time in two

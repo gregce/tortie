@@ -49,6 +49,7 @@ import {
   DISCLOSURE_LABEL,
   HONESTY_NO_ADOPTION,
   HONESTY_OWN_RECORD,
+  MEASURED_VERSIONS,
   ROW_HASH_LABEL,
   ROW_MORE_LABEL,
   SECTION_CAPTION,
@@ -521,6 +522,48 @@ describe('a row carrying a version the person accepted', () => {
   it('offers the one button that withdraws it', () => {
     expect(html).toContain('data-machines-action="withdraw-version"');
     expect(html).toContain(BTN_WITHDRAW_VERSION);
+  });
+});
+
+// PHASE 324, the ruled round. A person who accepted 3.6 or 3.6b on a build that
+// had not measured them upgrades to the build that has. The acceptance decides
+// nothing any more (measured beats accepted), so the row reads as any measured
+// machine's row: no "Version you accepted", no "Withdraw this version" offering
+// to take back something that no longer needs accepting at the price of the
+// confirmation. At the build before this round the block was drawn for both.
+describe('a row carrying an acceptance of a version Tortie has since measured', () => {
+  for (const version of MEASURED_VERSIONS) {
+    it(`draws nothing about accepting ${version}, exactly as a row with no acceptance`, () => {
+      const accepted = machineRow(
+        draw(
+          result({
+            rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: version })]
+          })
+        )
+      );
+      const none = machineRow(
+        draw(result({ rows: [row({ state: 'never', usable: false })] }))
+      );
+      expect(accepted).not.toContain(ACCEPTED_VERSION_LABEL);
+      expect(accepted).not.toContain(BTN_WITHDRAW_VERSION);
+      expect(accepted).not.toContain('data-machines-accepted=');
+      expect(accepted).toBe(none);
+    });
+  }
+
+  it('still draws an acceptance of a version Tortie has not measured beside it', () => {
+    for (const version of ['3.5a', '3.6c', '3.6A']) {
+      const html = machineRow(
+        draw(
+          result({
+            rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: version })]
+          })
+        )
+      );
+      expect(html).toContain(ACCEPTED_VERSION_LABEL);
+      expect(html).toContain(`>${version}<`);
+      expect(html).toContain('data-machines-action="withdraw-version"');
+    }
   });
 });
 

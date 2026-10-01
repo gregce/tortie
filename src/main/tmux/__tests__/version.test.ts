@@ -642,17 +642,18 @@ describe('decideRemoteControlGate', () => {
   it('refuses a version it could not read, and names what it has measured', () => {
     const gate = decideRemoteControlGate(null);
     assert.equal(gate.kind, 'unreadable');
-    assert.deepEqual([...gate.supported], ['3.6a', '3.7b', '3.7c']);
+    assert.deepEqual([...gate.supported], ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
-  it('holds the two versions build/probe-control-dialect.mjs measured', () => {
+  it('holds the five versions the probes measured on the live connection', () => {
     // THE GATE AND THE MEASUREMENT ARE ONE FACT. If a row loses its control
-    // measurement this fails, and docs/research/52-control-mode-dialect.md is
-    // the evidence for the two that have one.
+    // measurement this fails. docs/research/52-control-mode-dialect.md is the
+    // evidence for 3.6a and 3.7b, the 3.7c row's note is the evidence for
+    // 3.7c, and `npm run probe:p324` is the evidence for 3.6 and 3.6b.
     const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.control
     ).map((row) => row.version);
-    assert.deepEqual(measured, ['3.6a', '3.7b', '3.7c']);
+    assert.deepEqual(measured, ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   it('never measures control without measuring exec first', () => {
@@ -750,13 +751,14 @@ describe('decideRemoteVersionGate', () => {
     assert.equal(decideRemoteVersionGate('4.1', list, '4.1 ').kind, 'unmeasured');
   });
 
-  it('holds the three versions the probes measured on the exec plane', () => {
+  it('holds the five versions the probes measured on the exec plane', () => {
     // THE GATE AND THE MEASUREMENT ARE ONE FACT, the same way the control gate
-    // holds its own. build/probe-execplane.mjs is the evidence for all three.
+    // holds its own. build/probe-execplane.mjs is the evidence for 3.6a, 3.7b
+    // and 3.7c, and `npm run probe:p324` is the evidence for 3.6 and 3.6b.
     const measured = TESTED_REMOTE_TMUX_VERSIONS.filter(
       (row) => row.measured.exec
     ).map((row) => row.version);
-    assert.deepEqual(measured, ['3.6a', '3.7b', '3.7c']);
+    assert.deepEqual(measured, ['3.6', '3.6a', '3.6b', '3.7b', '3.7c']);
   });
 
   it('accepts 3.7c, which is what the Mac Pro reports, and still refuses a made up version', () => {
@@ -787,5 +789,109 @@ describe('every tested remote row names the copy it read', () => {
     const row = TESTED_REMOTE_TMUX_VERSIONS.find((one) => one.version === '3.7c');
     assert.ok(row !== undefined, '3.7c is not in the list');
     assert.ok(row.subject.includes("not Homebrew's build"));
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The 3.6 family rows (Phase 324)
+// ---------------------------------------------------------------------------
+
+describe('the 3.6 family rows (Phase 324)', () => {
+  it('admits 3.6 and 3.6b on both gates', () => {
+    // Measured by `npm run probe:p324` (docs/research/131-tmux-on-linux.md
+    // section 7), and the rows carry plain subjects.
+    for (const version of ['3.6', '3.6b']) {
+      assert.deepEqual(decideRemoteVersionGate(version), { kind: 'measured', version });
+      assert.deepEqual(decideRemoteControlGate(version), { kind: 'measured', version });
+    }
+  });
+
+  it('admits nothing near them: the gates compare whole strings', () => {
+    // No version arithmetic, no trim, no case folding, and no row for an
+    // older version (his ruling of 2026-09-23 on 3.2a to 3.5a: "Not now").
+    for (const version of [
+      '3.6 ',
+      '3.6\r',
+      '3.6c',
+      '3.60',
+      '3.6-rc',
+      'next-3.6',
+      '3.6A',
+      '3.5a',
+      '3.4',
+      '3.3a',
+      '3.2a',
+      '3.7',
+      '3.7a',
+      '3.8-rc'
+    ]) {
+      assert.equal(
+        decideRemoteVersionGate(version).kind,
+        'unmeasured',
+        `the exec gate admitted ${JSON.stringify(version)}`
+      );
+      assert.equal(
+        decideRemoteControlGate(version).kind,
+        'unmeasured',
+        `the control gate admitted ${JSON.stringify(version)}`
+      );
+    }
+  });
+
+  it('admits nothing near them through the parser the product runs first', () => {
+    // The gates compare what parseTmuxVersion returns, so the parser is half of
+    // the admission. Each of these is a string a far machine's tmux could print,
+    // package version suffixes among them, and none may reach either gate as
+    // 3.6 or 3.6b. (Phase 324's fix round: a parser that kept a leading
+    // version-shaped token admitted four of them with every other test green.)
+    // ('3.6 ' and '3.6\r' are not here: the parser has always trimmed the
+    // line, so they read 3.6, exactly as '3.6a ' reads 3.6a at the parent.)
+    for (const printed of [
+      '3.6c',
+      '3.60',
+      '3.6.0',
+      '3.6-rc',
+      'tmux 3.6-rc',
+      '3.6 foo',
+      '3.6b foo',
+      '3.6b+deb',
+      '3.6b-1~bpo13+1',
+      '3.6a-2ubuntu0.1',
+      '3.6b.1',
+      '3.6bb',
+      '3.6A',
+      'next-3.6',
+      'v3.6'
+    ]) {
+      const version = parseTmuxVersion(printed);
+      assert.ok(
+        version !== '3.6' && version !== '3.6b',
+        `${JSON.stringify(printed)} parsed as ${JSON.stringify(version)}`
+      );
+      assert.notEqual(
+        decideRemoteVersionGate(version).kind,
+        'measured',
+        `the exec gate admitted ${JSON.stringify(printed)} as ${JSON.stringify(version)}`
+      );
+      assert.notEqual(
+        decideRemoteControlGate(version).kind,
+        'measured',
+        `the control gate admitted ${JSON.stringify(printed)} as ${JSON.stringify(version)}`
+      );
+    }
+  });
+
+  it('reads both strings out of what the far tmux prints', () => {
+    // The parser trims (it always has), so the gate's byte comparison is over
+    // what the parser returns, never over the raw line.
+    assert.equal(parseTmuxVersion('tmux 3.6\n'), '3.6');
+    assert.equal(parseTmuxVersion('3.6b'), '3.6b');
+  });
+
+  it('leaves the 3.6a row as it was', () => {
+    const row = TESTED_REMOTE_TMUX_VERSIONS.find((one) => one.version === '3.6a');
+    assert.ok(row !== undefined, '3.6a is not in the list');
+    assert.equal(row.subject, 'the copy of tmux already on this Mac');
+    assert.equal(row.measuredAt, '2026-08-17');
   });
 });

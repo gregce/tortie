@@ -234,8 +234,16 @@ export const ACCEPTING_VERSION = 'Accepting this version';
 /** Stands immediately before the version a person accepted. */
 export const ACCEPTED_VERSION_LABEL = 'Version you accepted:';
 
+/**
+ * Drawn above the sheet that accepts the version a machine reports.
+ *
+ * PHASE 324, the ruled round. It said "a version", which was false on the one
+ * refusal that is about an acceptance: a machine whose acceptance names
+ * another version. A sheet is only ever drawn for a version that is not the
+ * accepted one, so "this version" is true wherever it is drawn.
+ */
 export const ACCEPTED_VERSION_NONE =
-  'You have not accepted a version for this machine.';
+  'You have not accepted this version for this machine.';
 
 export const BTN_WITHDRAW_VERSION = 'Withdraw this version';
 
@@ -636,7 +644,7 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
  * fails when the two disagree, so the list is kept honest by a test rather
  * than by a promise.
  */
-export const MEASURED_VERSIONS: readonly string[] = ['3.6a', '3.7b', '3.7c'];
+export const MEASURED_VERSIONS: readonly string[] = ['3.6', '3.6a', '3.6b', '3.7b', '3.7c'];
 
 export const BTN_TEST = 'Test the connection';
 export const TESTING = 'Testing the connection';
