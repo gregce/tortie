@@ -340,8 +340,13 @@ export function shadowedAt(scopes, name, at) {
   return scopes.some((one) => at > one.start && at < one.end && one.names.has(name));
 }
 
-/** The text from `from` to the `;` that ends its statement, brackets matched. */
-function statementFrom(code, from) {
+/**
+ * Where the statement that starts at `from` stops, brackets matched and quotes
+ * respected: the index of the `;` ending it at depth 0, or of the bracket that
+ * closes the block it sits in, or -1 when neither comes. The one statement
+ * reader; {@link statementEnd} and `statementFrom` are its two answers.
+ */
+function statementStop(code, from) {
   let depth = 0;
   let quote = '';
   for (let i = from; i < code.length; i += 1) {
@@ -358,13 +363,30 @@ function statementFrom(code, from) {
       quote = c;
       continue;
     }
-    if ('(['.includes(c) || c === '{') depth += 1;
-    else if (')]'.includes(c) || c === '}') {
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') {
       depth -= 1;
-      if (depth < 0) return code.slice(from, i);
-    } else if (c === ';' && depth === 0) return code.slice(from, i);
+      if (depth < 0) return i;
+    } else if (c === ';' && depth === 0) return i;
   }
-  return code.slice(from);
+  return -1;
+}
+
+/**
+ * The index just past the `;` ending the statement that starts at `from`, or
+ * of the bracket closing the block it sits in, or -1 (Phase 326, moved here
+ * from `conformance-farattach.mjs` so the statement reader exists once).
+ */
+export function statementEnd(code, from) {
+  const at = statementStop(code, from);
+  if (at === -1) return -1;
+  return code[at] === ';' ? at + 1 : at;
+}
+
+/** The text from `from` to the `;` that ends its statement, brackets matched. */
+function statementFrom(code, from) {
+  const at = statementStop(code, from);
+  return at === -1 ? code.slice(from) : code.slice(from, at);
 }
 
 /** The body of the function whose parameter list closes at `afterParams`, or null. */

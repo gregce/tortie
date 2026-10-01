@@ -524,6 +524,19 @@ import {
   ResumeInPlaceService,
   type ResumeInPlaceResult
 } from './resume-in-place';
+// PHASE 326. An attach to a session on another machine waits for that machine
+// to list it, bounded, and never looks for it on this Mac's server. The policy
+// and its injected dependencies are in ./far-attach.ts, which imports nothing
+// from `../tmux`.
+import {
+  AttachTickets,
+  awaitFarBinding,
+  defaultFarAttachDeps,
+  farBindingRefusal,
+  REMOTE_ATTACH_BIND_WAIT_MS,
+  type FarAttachDeps,
+  type RemoteSessionRow
+} from './far-attach';
 import { snapshotRecipeOf } from './launch-plan';
 import {
   claimStrengthOf,
@@ -890,6 +903,36 @@ export class GmuxCore {
    */
   private get shuttingDown(): boolean {
     return this.ledger.shuttingDown;
+  }
+
+  /**
+   * PHASE 326. Which attach to each session is the one still wanted, and the
+   * one signal a quit aborts every far attach's wait with.
+   */
+  private attachTicketsSlot: AttachTickets | null = null;
+
+  /**
+   * The tickets, built on first use rather than in a field initializer, for
+   * the reason the ledger is: seam tests borrow the real methods off
+   * `GmuxCore.prototype` onto a plain `Object.create` object, which runs no
+   * field initializer, and `beginShutdown` and `detachSession` reach this on
+   * such an object.
+   */
+  private get attachTickets(): AttachTickets {
+    this.attachTicketsSlot ??= new AttachTickets();
+    return this.attachTicketsSlot;
+  }
+
+  /** PHASE 326. What a far attach's wait reads the machine layer through. */
+  private farAttachDepsSlot: FarAttachDeps | null = null;
+
+  /**
+   * The far attach's dependencies, built on first use for the ledger's reason
+   * above, which is also what lets a seam test hand in its own.
+   */
+  private get farAttachDeps(): FarAttachDeps {
+    this.farAttachDepsSlot ??= defaultFarAttachDeps();
+    return this.farAttachDepsSlot;
   }
 
   /**
@@ -3231,6 +3274,10 @@ export class GmuxCore {
     sessionId: string,
     sender: WebContents
   ): Promise<void> {
+    // PHASE 326. This attach's ticket, taken before anything else and before
+    // any await, so a detach or a newer attach for the same session makes a
+    // waited attach below spawn nothing.
+    const ticket = this.attachTickets.take(sessionId);
     // PHASE 70. A remote attach is a pty running the sign in program, carrying
     // that machine's own tmux on the far end. The composition is in
     // src/main/attach/attach-plan.ts and the target is the immutable identifier
@@ -3239,20 +3286,13 @@ export class GmuxCore {
     // stranger's session into this tab.
     const remote = remoteSessionRow(sessionId);
     if (remote !== null) {
-      if (remote.status === 'exited') {
-        throw gmuxError(
-          'SESSION_NOT_FOUND',
-          'This session is not running right now.',
-          `status: ${remote.status}`
-        );
-      }
-      const machine: RemoteMachineContext = readyRemoteContext(remote.machineId);
-      this.attachHost.attach({
-        sessionId,
-        tmuxName: remote.tmuxId,
-        sender,
-        machine
-      });
+      this.attachListedRemote(sessionId, remote, sender);
+      return;
+    }
+    // PHASE 326. A session on another machine is never looked for on this Mac's server.
+    const far = remoteRecordOf(sessionId);
+    if (far !== null && isRemoteRecord(far)) {
+      await this.attachFarUnbound(sessionId, far, sender, ticket);
       return;
     }
     const rec = this.mustGetSession(sessionId);
@@ -3292,7 +3332,91 @@ export class GmuxCore {
     });
   }
 
+  /**
+   * PHASE 70's remote attach, for a row a completed list of that machine
+   * reported. PHASE 326 moved these statements here unchanged, so the immediate
+   * branch above and the waited one below compose the attach in one place.
+   */
+  private attachListedRemote(
+    sessionId: string,
+    remote: RemoteSessionRow,
+    sender: WebContents
+  ): void {
+    if (remote.status === 'exited') {
+      throw gmuxError(
+        'SESSION_NOT_FOUND',
+        'This session is not running right now.',
+        `status: ${remote.status}`
+      );
+    }
+    const machine: RemoteMachineContext = readyRemoteContext(remote.machineId);
+    this.attachHost.attach({
+      sessionId,
+      tmuxName: remote.tmuxId,
+      sender,
+      machine
+    });
+  }
+
+  /**
+   * PHASE 326. An attach to a session whose record names another machine and
+   * which no completed list of that machine has reported yet.
+   *
+   * THE DEFECT. Such an attach used to fall through to the local branch, list
+   * THIS Mac's server, not find a session that runs somewhere else, and refuse
+   * with "This session is no longer running." over a session that was running.
+   * A session created alone in a remote tab is attached before its far stamp
+   * lands, which is how 16 of Phase 320's refusals happened.
+   *
+   * It waits instead (./far-attach.ts), bounded by
+   * `REMOTE_ATTACH_BIND_WAIT_MS`, for the create or for one fresh list of that
+   * machine, and then attaches through the one remote composition or refuses in
+   * the remote side's own words. A wait that comes back to a pane that has gone
+   * spawns nothing: the check below and the spawn have no await between them.
+   */
+  private async attachFarUnbound(
+    sessionId: string,
+    far: ManifestSessionRecord,
+    sender: WebContents,
+    ticket: number
+  ): Promise<void> {
+    const machineId = far.machineId ?? '';
+    const verdict = await awaitFarBinding(this.farAttachDeps, {
+      sessionId,
+      machineId,
+      budgetMs: REMOTE_ATTACH_BIND_WAIT_MS,
+      live: () => this.attachStillWanted(sessionId, ticket, sender),
+      signal: this.attachTickets.signal
+    });
+    if (verdict.kind === 'stale') return;
+    if (verdict.kind !== 'row') {
+      throw farBindingRefusal(verdict, { machineId, tmuxName: far.tmuxName });
+    }
+    if (!this.attachStillWanted(sessionId, ticket, sender)) return;
+    this.attachListedRemote(sessionId, verdict.row, sender);
+  }
+
+  /**
+   * PHASE 326. True while the attach holding `ticket` is still the one wanted:
+   * no detach or newer attach moved the ticket, the pane's web contents are
+   * alive, and the core is neither quitting nor disposed.
+   */
+  private attachStillWanted(
+    sessionId: string,
+    ticket: number,
+    sender: WebContents
+  ): boolean {
+    return (
+      this.attachTickets.holds(sessionId, ticket) &&
+      !sender.isDestroyed() &&
+      !this.shuttingDown &&
+      this.disposed !== true
+    );
+  }
+
   detachSession(sessionId: string): void {
+    // PHASE 326. First, so an attach still waiting for its machine spawns nothing.
+    this.attachTickets.invalidate(sessionId);
     this.lastGeometry.delete(sessionId);
     this.attachHost.detach(sessionId);
   }
@@ -3556,6 +3680,9 @@ export class GmuxCore {
    */
   beginShutdown(): void {
     this.ledger.beginShutdown();
+    // PHASE 326. An attach waiting for its machine ends at once, spawning
+    // nothing, so it never holds the quit's join.
+    this.attachTickets.shutdown();
   }
 
   /**

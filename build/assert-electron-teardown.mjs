@@ -348,13 +348,19 @@ const HELPER = 'electron-run.mjs';
  * profile, a scratch HOME and its own tmux socket, with a second scratch
  * server of its own for the stranger, and every process it recorded ended by
  * pid in its `finally`.
+ * PHASE 326 RAISED IT FROM 157 TO 158, for build/p326/probe-p326.mjs
+ * (`probe:p326`), the first session in a remote tab drawn at a build: TWO
+ * Electrons one after the other on one scratch profile, a scratch HOME and the
+ * socket gmux-p326-<pid>, over build/with-scratch-machine.mjs's loopback
+ * machine whose tmux is build/p326/far-tmux.sh; each ended by the helper's
+ * `finally`, and the far tmux server ended by the pid it reports.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 157;
+const HELPER_USER_FLOOR = 158;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

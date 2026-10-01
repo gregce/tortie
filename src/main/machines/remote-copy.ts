@@ -206,6 +206,28 @@ export const TARGET_UNBOUND =
   'work on somebody else’s machine gets ended. Nothing was sent.';
 
 /**
+ * An attach to a session on another machine that no list from that machine has
+ * named yet, after the attach waited for its create and asked for one list of
+ * its own (Phase 326).
+ *
+ * PINNED as `machine.attach-not-heard`. Before Phase 326 such an attach asked
+ * THIS Mac's own server for a session that lives on another computer, and a new
+ * session's first open read "This session no longer exists" and stayed blank
+ * while it was running over there. The attach now waits, bounded, and a machine
+ * that has still not named the session gets this sentence rather than a claim
+ * that it is gone. It says nothing is lost, because nothing is: the session may
+ * still be starting. `../sessions/far-attach.ts` says it, as a
+ * `TMUX_UNREACHABLE`, which the terminal draws under "Can't connect to this
+ * session" with Try again. The detail, for the log only, names the machine, the
+ * session and why.
+ *
+ * No tmux word, because a person reads it.
+ */
+export const ATTACH_NOT_HEARD =
+  'That machine has not told Tortie about this session yet. It may still be ' +
+  'starting there.';
+
+/**
  * The machine has not been prepared in this run of Tortie.
  *
  * Preparing is where the sign in happens, where the version is read and where

@@ -23,6 +23,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - The trackpad and mouse wheel now scroll Claude Code and other full-screen programs that use the mouse in a session on another machine, the way they do on your Mac; a plain shell, an agent that prints ordinary lines, or a program like less that ignores the mouse still does not scroll back there. Reported by [Jake Levirne](https://github.com/jakelevirne) in [#31](https://github.com/gregce/tortie/issues/31) ([`b28d0eb4`](https://github.com/gregce/tortie/commit/b28d0eb4))
 - Read Last Lines no longer says a session kept nothing more when the program in it only ever drew one screen ([`b28d0eb4`](https://github.com/gregce/tortie/commit/b28d0eb4))
 - Ending a Gemini CLI session, or restarting one, now ends Gemini too, about ten seconds later; before, its two processes kept running in the background after the session was gone. A program an agent set running on its own, apart from the session, still keeps running after End, and so does Gemini if you quit Tortie within those ten seconds ([`af5d2748`](https://github.com/gregce/tortie/commit/af5d2748))
+- The first session you start in a tab on another machine now shows its screen as soon as it has started, where it could open on "This session no longer exists" and stay blank while it was running; if that machine is slow to answer, the session offers Try again instead
 
 ## 0.110.0 (2026-09-21)
 

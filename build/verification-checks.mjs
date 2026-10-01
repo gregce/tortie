@@ -302,6 +302,14 @@ export const CHECKS = [
   // exec plane is replaced by a function, which is the seam vitest owns, and it
   // drives the real feed's own state machine over 25 closes per arm.
   pure('conformance:remoteclose', NEEDS.vitest),
+  // PHASE 326. build/conformance-farattach.mjs reads eleven rules out of the
+  // source with its comments blanked (build/scan-source.mjs): an attach to a
+  // session on another machine never lists this Mac's server, waits bounded for
+  // its create or one fresh list and spawns nothing for a pane that has gone,
+  // and a pass never counts, rescues or writes over a session a create in this
+  // process is binding. About a second; it spawns nothing and reads nothing
+  // outside the tree it is pointed at.
+  pure('conformance:farattach'),
   pure('conformance:installs'),
   pure('conformance:context'),
   pure('conformance:overview'),
@@ -965,6 +973,17 @@ export const CHECKS = [
   // typed into the panes, each logging what it received; it reads no drive of
   // its own and uses probe:p95's. It spawns no agent and spends no token.
   remote('probe:p320'),
+  // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
+  // tab draws its screen. TWO Electrons one after the other on one scratch
+  // profile through build/electron-run.mjs's withElectron, a scratch HOME and
+  // the socket gmux-p326-<pid>, inside build/with-scratch-machine.mjs's
+  // loopback machine, which is why this is `remote` and not `electron`. The far
+  // side's tmux is build/p326/far-tmux.sh, which logs every far command and can
+  // hold the `@gmux-id` stamp or the first list, and exports a scratch HOME so
+  // a far shell writes nothing under his. The five self-updating agents are
+  // hidden by build/hidden-agents.mjs and read back before any arm. It spawns
+  // no agent and spends no token.
+  remote('probe:p326'),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a
@@ -1941,6 +1960,19 @@ export const CHECKS = [
   // tmux, no ssh, no agent, no token; every process table the tests read is
   // planted, so no live one is read.
   pure('ablation:p323', NEEDS.vitest),
+  // PHASE 326's attack on its own clauses (build/p326/SPEC.md §7 and its fix
+  // round): twenty-five arms over a `cp -Rc` clone of src/ (node_modules
+  // symlinked, build/assert-bundle-refusals.mjs copied because FA10 reads it),
+  // one clause each broken in the SHIPPING source, each required to turn THE
+  // RULE THAT OWNS IT red in conformance:farattach and every other rule as the
+  // unedited control read it; four behaviour arms (among them A6, which puts
+  // back the deferral the fix round removed) also require their p326 vitest
+  // file red. Every
+  // clone file is restored and proved by sha256, the clone is removed in a
+  // `finally` and on SIGINT, SIGTERM and SIGHUP, and the worktree's own bytes
+  // are asserted unmoved. P326_ONLY runs named arms. About 12 s. No Electron,
+  // no tmux, no ssh, no agent, no token.
+  pure('ablation:p326', NEEDS.vitest),
   // PHASE 296's attack on `conformance:handback`'s menu section, and the reason
   // that phase is worth doing: the section had been RED SINCE 25 AUGUST because a
   // needle stopped matching a row nobody moved, and nothing could tell that from

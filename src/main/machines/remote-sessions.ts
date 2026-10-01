@@ -270,6 +270,18 @@ import {
   rescueRemoteRow,
   seedIssuedRemoteIds
 } from './pane-env-rescue';
+// PHASE 326. The creates running in this process right now. A pass asks it which
+// unstamped rows a create is binding, so a list parsed after a create's answer
+// and before its `@gmux-id` stamp never counts or rescues the session this Mac
+// just started, and no pass writes over or forgets a create that is running. A
+// leaf with no runtime import.
+import {
+  beginRemoteCreate,
+  remoteCreateFlightsFor,
+  remoteCreateInFlight,
+  resetRemoteCreateFlightsForTests,
+  type RemoteCreateFlights
+} from './create-inflight';
 // The live connection. This module hands it a context and a sink; it never
 // resolves a context of its own and never holds a row.
 import {
@@ -1252,11 +1264,32 @@ function remoteRecordStatus(
   // session either way. It is asked before the machine level arm because it is a
   // fact about the ROW, and a machine that is answering again does not settle it.
   if (issuedRemoteIdHeld(sessionId)) return 'unknown';
+  // PHASE 326. A create for this id is still running in this process, so nothing
+  // has proved it absent either. Without this arm, the moment between the id
+  // leaving the issued set and the create's own list landing drew a session that
+  // was being created as `restorable`, and offered Restore over it.
+  if (remoteCreateInFlight(sessionId)) return 'unknown';
   if (state.truth.rows.kind === 'status') return state.truth.rows.status;
   // The machine answered, this pass decided per row, and the row was not in the
   // answer. That is `absent`, and the table gives it `restorable`.
   const absent = machineTruth({ kind: 'absent', at: state.snapshotAt });
   return absent.rows.kind === 'status' ? absent.rows.status : recorded;
+}
+
+/**
+ * True when a list of that machine, issued at or after `at`, has completed
+ * (Phase 326).
+ *
+ * `snapshotAt` is written only by a completed pass, and it is the instant that
+ * pass's list was issued, so this answers whether a list that cannot predate
+ * `at` has spoken. `../sessions/far-attach.ts` asks it before it may conclude
+ * that a session is absent: only a list issued after the attach was asked may
+ * say so. A machine nobody has listed, or whose lists all failed, answers false.
+ */
+export function remoteListCompletedSince(machineId: string, at: number): boolean {
+  const state = machines.get(machineId);
+  if (state === undefined) return false;
+  return state.everAnswered && state.snapshotAt >= at;
 }
 
 // ---------------------------------------------------------------------------
@@ -1604,220 +1637,242 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
   // create whose link died between the new-session line and the option stamp
   // below, and an id recorded on the answer would not be recorded for exactly
   // the create that needs rescuing.
-  noteIssuedRemoteId({
-    id: sessionId,
-    machineId: input.machineId,
-    name: oneLine(input.name),
-    agent: String(input.agent),
-    projectPath: oneLine(input.projectPath),
-    cwd,
-    issuedAt: Date.now()
-  });
-
-  // PHASE 72, STEP 6. The durable row, written before the create line, which is
-  // §2.4 Step 0 for a session on another machine. `argv[0]` is the path captured
-  // ON THAT MACHINE, and every path in the row belongs to that machine.
-  //
-  // A create that then fails takes the row back out below. A create that runs
-  // and loses its answer KEEPS it, because the session is there.
-  //
-  // PHASE 84. `cwd` is the empty string when the person named no folder, and
-  // THE MANIFEST ROW RECORDS EXACTLY THAT. Tortie does NOT compose a home path
-  // for the other computer to put in its place, because a recorded path has to
-  // be a path a machine stated, and no folder was sent. tmux's own fallback put
-  // the pane in that machine's home directory.
-  //
-  // THE ROW A PERSON READS IS NOT THIS ROW, and the fix round added this
-  // sentence because the two were read as one and they disagreed. Once a
-  // completed list comes back, `projectRemoteRecord` in this file draws the
-  // session from the MACHINE'S row rather than from the manifest row, and the
-  // machine reports the folder its pane is really in. So the manifest holds the
-  // empty string, meaning Tortie sent no folder, and the session list on screen
-  // shows the home directory that machine chose. Both are true and they are
-  // answers to two different questions.
-  //
-  // The three resume fields are written only for an agent that took a
-  // conversation id on its own launch line. For every other agent, and for
-  // every shell, they are absent and the row says what it always said.
-  const createdAt = Date.now();
-  writeRemoteRow({
-    sessionId,
-    machineId: input.machineId,
-    name: oneLine(input.name),
-    tmuxName,
-    projectPath: oneLine(input.projectPath),
-    cwd,
-    agent: String(input.agent),
-    // The row records what ran, which since Phase 84 is the same array that was
-    // sent rather than a second composition of it.
-    argv: launchArgv,
-    bin,
-    createdAt,
-    ...(entry !== null && agentSessionId !== undefined
-      ? {
-          agentSessionId,
-          resumeArgv: resumeArgvFor(
-            entry,
-            agentSessionId,
-            input.extraArgs ?? [],
-            bin
-          )
-        }
-      : {})
-  });
-
-  let tmuxId: string;
+  // PHASE 326. The flight, registered on the line before the id is issued, so
+  // before the durable row exists and before `new-session` is sent. From here
+  // until the `finally` below ends it, a pass that lists this machine treats the
+  // session this create is binding as being bound rather than as a session
+  // Tortie did not create, and never writes over or forgets its row. See
+  // `./create-inflight.ts`. Every exit of this function ends it.
+  const flight = beginRemoteCreate(sessionId, input.machineId);
   try {
-    const printed = await execOn(
-      ctx,
-      args,
-      // PHASE 270. Both only on the branch that has names, so a create for an
-      // agent nobody configured composes and waits exactly as it always has.
-      passthrough.length > 0
-        ? {
-            envNames: passthrough,
-            timeoutMs: REMOTE_CREATE_ENV_TIMEOUT_MS
-          }
-        : {}
-    );
-    tmuxId = (printed.split('\n')[0] ?? '').trim();
-  } catch (err) {
-    // THE CONFIRMATION READ, and it is not the pane environment rescue.
-    //
-    // A create can run on the far side and lose its answer, so one read asks
-    // whether the session this call just asked for exists. It only ever accepts
-    // a uuid this call itself generated seconds ago, and it never looks at a
-    // session it did not just ask for. The rescue that re-binds a marked session
-    // found at reconcile time with no row pointing at it is Phase 71.
-    //
-    // PHASE 117 GAVE THAT READ THREE ANSWERS. It used to have two, being an
-    // identifier or null, and every failure to read produced null. The caller
-    // read null as nothing running and deleted the durable row, so a create that
-    // really succeeded on the far side left nothing on this Mac recording it.
-    // A machine that did not answer is not a machine that answered no.
-    const confirmation = await confirmCreate(ctx, tmuxName, sessionId);
-    const disposition = confirmationDisposition(confirmation);
-    if (disposition === 'dropRow') {
-      // Phase 72. Nothing is running, so the row is a claim about a session that
-      // does not exist. The local create path removes its row on a failed spawn
-      // for the same reason, and leaving one here would put a permanent
-      // `restorable` row on screen for work that never started.
-      //
-      // PHASE 117 NARROWED WHAT REACHES THIS ARM to the two cases where tmux
-      // itself answered, being a machine holding no server at all and a machine
-      // that named the session as missing. This is the only caller of
-      // `dropRemoteRow` on the confirmation path, and the conformance gate fails
-      // on a second one.
-      dropRemoteRow(sessionId);
-      throw createFailure(err, cwd);
-    }
-    // The `kind` test is what narrows the answer for the compiler. The table
-    // returns `bind` for a present confirmation and for nothing else, and the
-    // conformance gate asserts that.
-    if (disposition === 'keepUnknown' || confirmation.kind !== 'present') {
-      // THE ROW IS KEPT. The session may be running on that machine right now,
-      // and deleting the only record of it is the data loss this phase exists to
-      // stop. The status column says unknown, the id stays in the issued set so
-      // the pane environment rescue can still bind it, and the seed at the top
-      // of the next run's first pass puts it back in that set after a restart.
-      markRemoteCreateUnconfirmed(sessionId);
-      machinesLog.warn(
-        `the create on ${input.machineId} could not be confirmed, so the row ` +
-          `is kept and marked unknown: ${confirmationWhy(confirmation)}`
-      );
-      // TMUX_UNREACHABLE rather than SPAWN_FAILED, because nothing here proved a
-      // failed spawn. The person reads one sentence saying the state is unknown.
-      throw gmuxError(
-        'TMUX_UNREACHABLE',
-        CREATE_ANSWER_LOST,
-        `${input.machineId}: ${confirmationWhy(confirmation)}`
-      );
-    }
-    tmuxId = confirmation.tmuxId;
-    machinesLog.warn(
-      `the create on ${input.machineId} lost its answer and the session was ` +
-        `there: ${(err as Error).message}`
-    );
-  }
-  if (!tmuxId.startsWith('$')) {
-    dropRemoteRow(sessionId);
-    throw gmuxError(
-      'SPAWN_FAILED',
-      noRemoteRowFor(input.name),
-      `${input.machineId} answered ${JSON.stringify(tmuxId)}`
-    );
-  }
-
-  // The four stamps, in the order {@link REMOTE_STAMPS} declares them, so the
-  // list a reader checks and the list this loop sends are one list. A stamp that
-  // fails is logged and the create still succeeds, because the pane environment
-  // already carries the identity.
-  const stamped: Record<(typeof REMOTE_STAMPS)[number], string> = {
-    '@gmux-id': sessionId,
-    '@gmux-agent': String(input.agent),
-    '@gmux-name': oneLine(input.name),
-    '@gmux-project': oneLine(input.projectPath)
-  };
-  let idStampLanded = false;
-  for (const option of REMOTE_STAMPS) {
-    try {
-      await execOn(ctx, remoteStampArgs(tmuxId, option, stamped[option]));
-      if (option === '@gmux-id') idStampLanded = true;
-    } catch (err) {
-      machinesLog.warn(
-        `${input.machineId} did not keep ${option} on ${tmuxId}: ` +
-          `${(err as Error).message}`
-      );
-    }
-  }
-  // The id is forgotten only when the OPTION stamp landed, because from then on
-  // every list reports the session carrying `@gmux-id` and no pass can read it
-  // as foreign. A stamp that did not land leaves the id in the issued set, which
-  // is exactly what the rescue reads.
-  if (idStampLanded) clearIssuedRemoteId(sessionId);
-
-  // Once, at once, so the row is on screen without waiting a cadence, and the
-  // machine's feed is running from here on.
-  await startMachineFeed(input.machineId);
-  const row = remoteSessionRow(sessionId);
-  if (row === null) {
-    throw gmuxError(
-      'SPAWN_FAILED',
-      noRemoteRowFor(input.name),
-      `${input.machineId} created ${tmuxId} and did not list it back`
-    );
-  }
-  // PHASE 270. The same sentence the local create raises, at the same moment
-  // and for the same reason: the session exists and is bound, so the notice can
-  // name a session that exists. It says one thing, being that this pane started
-  // without a variable its agent names. Nothing else on either machine would
-  // say so, and the agent inside it fails much later with a message about its
-  // provider rather than about a shell on another computer.
-  //
-  // `missing` names the variables THAT MACHINE had no usable value for, plus
-  // any name this rung refused as not a variable name. `probeFailed` means
-  // Tortie could not ask, which is not the same as the variable being absent —
-  // the create expands the values independently of this answer.
-  //
-  // PHASE 275 MERGES THE CAP'S OWN DROPS IN. A name the union asked for and
-  // this rung refused never reached the probe, so `envProbe.missing` cannot
-  // know about it. It is the same fact from the person's side — this session
-  // started without a variable they named — so it is the same sentence, and
-  // merging it here rather than raising a second notice keeps the latch's
-  // promise of one notice per session.
-  const envMissing = [
-    ...new Set([...(envProbe?.missing ?? []), ...envDropped])
-  ].sort();
-  if (envMissing.length > 0 || envProbe?.probeFailed === true) {
-    postDurabilityNotice({
-      kind: 'env-unresolved',
-      sessionId,
-      sessionName: oneLine(input.name),
-      names: envMissing,
-      probeFailed: envProbe?.probeFailed ?? false
+    noteIssuedRemoteId({
+      id: sessionId,
+      machineId: input.machineId,
+      name: oneLine(input.name),
+      agent: String(input.agent),
+      projectPath: oneLine(input.projectPath),
+      cwd,
+      issuedAt: Date.now()
     });
+
+    // PHASE 72, STEP 6. The durable row, written before the create line, which is
+    // §2.4 Step 0 for a session on another machine. `argv[0]` is the path captured
+    // ON THAT MACHINE, and every path in the row belongs to that machine.
+    //
+    // A create that then fails takes the row back out below. A create that runs
+    // and loses its answer KEEPS it, because the session is there.
+    //
+    // PHASE 84. `cwd` is the empty string when the person named no folder, and
+    // THE MANIFEST ROW RECORDS EXACTLY THAT. Tortie does NOT compose a home path
+    // for the other computer to put in its place, because a recorded path has to
+    // be a path a machine stated, and no folder was sent. tmux's own fallback put
+    // the pane in that machine's home directory.
+    //
+    // THE ROW A PERSON READS IS NOT THIS ROW, and the fix round added this
+    // sentence because the two were read as one and they disagreed. Once a
+    // completed list comes back, `projectRemoteRecord` in this file draws the
+    // session from the MACHINE'S row rather than from the manifest row, and the
+    // machine reports the folder its pane is really in. So the manifest holds the
+    // empty string, meaning Tortie sent no folder, and the session list on screen
+    // shows the home directory that machine chose. Both are true and they are
+    // answers to two different questions.
+    //
+    // The three resume fields are written only for an agent that took a
+    // conversation id on its own launch line. For every other agent, and for
+    // every shell, they are absent and the row says what it always said.
+    const createdAt = Date.now();
+    writeRemoteRow({
+      sessionId,
+      machineId: input.machineId,
+      name: oneLine(input.name),
+      tmuxName,
+      projectPath: oneLine(input.projectPath),
+      cwd,
+      agent: String(input.agent),
+      // The row records what ran, which since Phase 84 is the same array that was
+      // sent rather than a second composition of it.
+      argv: launchArgv,
+      bin,
+      createdAt,
+      ...(entry !== null && agentSessionId !== undefined
+        ? {
+            agentSessionId,
+            resumeArgv: resumeArgvFor(
+              entry,
+              agentSessionId,
+              input.extraArgs ?? [],
+              bin
+            )
+          }
+        : {})
+    });
+
+    let tmuxId: string;
+    try {
+      const printed = await execOn(
+        ctx,
+        args,
+        // PHASE 270. Both only on the branch that has names, so a create for an
+        // agent nobody configured composes and waits exactly as it always has.
+        passthrough.length > 0
+          ? {
+              envNames: passthrough,
+              timeoutMs: REMOTE_CREATE_ENV_TIMEOUT_MS
+            }
+          : {}
+      );
+      tmuxId = (printed.split('\n')[0] ?? '').trim();
+    } catch (err) {
+      // THE CONFIRMATION READ, and it is not the pane environment rescue.
+      //
+      // A create can run on the far side and lose its answer, so one read asks
+      // whether the session this call just asked for exists. It only ever accepts
+      // a uuid this call itself generated seconds ago, and it never looks at a
+      // session it did not just ask for. The rescue that re-binds a marked session
+      // found at reconcile time with no row pointing at it is Phase 71.
+      //
+      // PHASE 117 GAVE THAT READ THREE ANSWERS. It used to have two, being an
+      // identifier or null, and every failure to read produced null. The caller
+      // read null as nothing running and deleted the durable row, so a create that
+      // really succeeded on the far side left nothing on this Mac recording it.
+      // A machine that did not answer is not a machine that answered no.
+      const confirmation = await confirmCreate(ctx, tmuxName, sessionId);
+      const disposition = confirmationDisposition(confirmation);
+      if (disposition === 'dropRow') {
+        // Phase 72. Nothing is running, so the row is a claim about a session that
+        // does not exist. The local create path removes its row on a failed spawn
+        // for the same reason, and leaving one here would put a permanent
+        // `restorable` row on screen for work that never started.
+        //
+        // PHASE 117 NARROWED WHAT REACHES THIS ARM to the two cases where tmux
+        // itself answered, being a machine holding no server at all and a machine
+        // that named the session as missing. This is the only caller of
+        // `dropRemoteRow` on the confirmation path, and the conformance gate fails
+        // on a second one.
+        dropRemoteRow(sessionId);
+        throw createFailure(err, cwd);
+      }
+      // The `kind` test is what narrows the answer for the compiler. The table
+      // returns `bind` for a present confirmation and for nothing else, and the
+      // conformance gate asserts that.
+      if (disposition === 'keepUnknown' || confirmation.kind !== 'present') {
+        // THE ROW IS KEPT. The session may be running on that machine right now,
+        // and deleting the only record of it is the data loss this phase exists to
+        // stop. The status column says unknown, the id stays in the issued set so
+        // the pane environment rescue can still bind it, and the seed at the top
+        // of the next run's first pass puts it back in that set after a restart.
+        markRemoteCreateUnconfirmed(sessionId);
+        machinesLog.warn(
+          `the create on ${input.machineId} could not be confirmed, so the row ` +
+            `is kept and marked unknown: ${confirmationWhy(confirmation)}`
+        );
+        // TMUX_UNREACHABLE rather than SPAWN_FAILED, because nothing here proved a
+        // failed spawn. The person reads one sentence saying the state is unknown.
+        throw gmuxError(
+          'TMUX_UNREACHABLE',
+          CREATE_ANSWER_LOST,
+          `${input.machineId}: ${confirmationWhy(confirmation)}`
+        );
+      }
+      tmuxId = confirmation.tmuxId;
+      machinesLog.warn(
+        `the create on ${input.machineId} lost its answer and the session was ` +
+          `there: ${(err as Error).message}`
+      );
+    }
+    if (!tmuxId.startsWith('$')) {
+      dropRemoteRow(sessionId);
+      throw gmuxError(
+        'SPAWN_FAILED',
+        noRemoteRowFor(input.name),
+        `${input.machineId} answered ${JSON.stringify(tmuxId)}`
+      );
+    }
+    // PHASE 326. The machine answered, so the flight knows which `$-id` it is
+    // binding, in which connection generation. It covers both answers: the plain
+    // one and the one the confirmation read bound. From here a list that reads
+    // this `$-id` with no `@gmux-id` skips it, by `$-id` and never by name.
+    flight.answered(tmuxId, machineGeneration(input.machineId).generation);
+
+    // The four stamps, in the order {@link REMOTE_STAMPS} declares them, so the
+    // list a reader checks and the list this loop sends are one list. A stamp that
+    // fails is logged and the create still succeeds, because the pane environment
+    // already carries the identity.
+    const stamped: Record<(typeof REMOTE_STAMPS)[number], string> = {
+      '@gmux-id': sessionId,
+      '@gmux-agent': String(input.agent),
+      '@gmux-name': oneLine(input.name),
+      '@gmux-project': oneLine(input.projectPath)
+    };
+    let idStampLanded = false;
+    for (const option of REMOTE_STAMPS) {
+      try {
+        await execOn(ctx, remoteStampArgs(tmuxId, option, stamped[option]));
+        if (option === '@gmux-id') idStampLanded = true;
+      } catch (err) {
+        machinesLog.warn(
+          `${input.machineId} did not keep ${option} on ${tmuxId}: ` +
+            `${(err as Error).message}`
+        );
+      }
+    }
+    // The id is forgotten only when the OPTION stamp landed, because from then on
+    // every list reports the session carrying `@gmux-id` and no pass can read it
+    // as foreign. A stamp that did not land leaves the id in the issued set, which
+    // is exactly what the rescue reads.
+    if (idStampLanded) clearIssuedRemoteId(sessionId);
+    // PHASE 326. And when it did not land, this create is no longer what binds
+    // the session: the rescue is, exactly as at the parent, and the list the line
+    // below starts is the one that runs it. So the flight stops claiming the
+    // `$-id` BEFORE that list, or the create's own list would skip its own
+    // session and this create would answer that it found nothing.
+    if (!idStampLanded) flight.leftToRescue();
+
+    // Once, at once, so the row is on screen without waiting a cadence, and the
+    // machine's feed is running from here on.
+    await startMachineFeed(input.machineId);
+    const row = remoteSessionRow(sessionId);
+    if (row === null) {
+      throw gmuxError(
+        'SPAWN_FAILED',
+        noRemoteRowFor(input.name),
+        `${input.machineId} created ${tmuxId} and did not list it back`
+      );
+    }
+    // PHASE 270. The same sentence the local create raises, at the same moment
+    // and for the same reason: the session exists and is bound, so the notice can
+    // name a session that exists. It says one thing, being that this pane started
+    // without a variable its agent names. Nothing else on either machine would
+    // say so, and the agent inside it fails much later with a message about its
+    // provider rather than about a shell on another computer.
+    //
+    // `missing` names the variables THAT MACHINE had no usable value for, plus
+    // any name this rung refused as not a variable name. `probeFailed` means
+    // Tortie could not ask, which is not the same as the variable being absent —
+    // the create expands the values independently of this answer.
+    //
+    // PHASE 275 MERGES THE CAP'S OWN DROPS IN. A name the union asked for and
+    // this rung refused never reached the probe, so `envProbe.missing` cannot
+    // know about it. It is the same fact from the person's side — this session
+    // started without a variable they named — so it is the same sentence, and
+    // merging it here rather than raising a second notice keeps the latch's
+    // promise of one notice per session.
+    const envMissing = [
+      ...new Set([...(envProbe?.missing ?? []), ...envDropped])
+    ].sort();
+    if (envMissing.length > 0 || envProbe?.probeFailed === true) {
+      postDurabilityNotice({
+        kind: 'env-unresolved',
+        sessionId,
+        sessionName: oneLine(input.name),
+        names: envMissing,
+        probeFailed: envProbe?.probeFailed ?? false
+      });
+    }
+    return projectRow(row, stateOf(input.machineId));
+  } finally {
+    flight.end();
   }
-  return projectRow(row, stateOf(input.machineId));
 }
 
 /**
@@ -2499,6 +2554,16 @@ async function onePass(
     }
   }
 
+  // PHASE 326. Read AFTER the list answered and before a line of it is parsed, so
+  // an answer a create received while this list was out is seen. The flights are
+  // those live at any instant since `snapshotAt`, because a list issued before a
+  // create ended does not speak for that create's session. See
+  // `./create-inflight.ts`.
+  const flights = remoteCreateFlightsFor(
+    machineId,
+    snapshotAt,
+    machineGeneration(machineId).generation
+  );
   const seen = new Map<string, RemoteSessionRow>();
   const names = new Set<string>();
   const unclaimed: string[] = [];
@@ -2508,6 +2573,15 @@ async function onePass(
     if (parsed === null) continue;
     if (parsed.tmuxName.length > 0) names.add(parsed.tmuxName);
     if (parsed.gmuxId.length === 0) {
+      // PHASE 326. A create running in this process is binding this row: its own
+      // `$-id`, answered in this generation. Skipped by `$-id` alone, never by
+      // name; never counted, never rescued, never shown. This is the ONLY row
+      // skipped: a row read before any create here had its answer is handled
+      // below exactly as the parent handles it, and Phase 117's rescue binds a
+      // create's own session by its pane environment. The fix round removed a
+      // deferral of those rows, because it held back the rescue of another
+      // lost-answer session of this run (`./create-inflight.ts`).
+      if (flights.beingBound.has(parsed.tmuxId)) continue;
       // NOT OURS until a probe says otherwise. Counted, never shown, never
       // adopted and never killed. The rescue below is the only thing allowed to
       // change that answer, and only for an id THIS run issued.
@@ -2599,7 +2673,7 @@ async function onePass(
   // the write back below moves the row to `restorable` so it can be brought back
   // honestly. It runs BEFORE that write back, because it reads the status column
   // the write back is about to change.
-  if (!rescuePending) dropProvenAbsentCreates(machineId, seen);
+  if (!rescuePending) dropProvenAbsentCreates(machineId, seen, flights);
   const foreignBefore = state.foreign;
   // Captured before the two are overwritten, because the manifest writes below
   // are bounded by whether the machine's membership actually moved.
@@ -2628,7 +2702,8 @@ async function onePass(
       firstCompletedPass ||
       previousIds.size !== seen.size ||
       [...seen.keys()].some((id) => !previousIds.has(id)),
-    rescuePending
+    rescuePending,
+    flights
   });
   // Written when the COUNT MOVES, never on every pass. Phase 70 polled on a
   // timer, so this was one line every 5 s. Phase 71 lists on every event the
@@ -2694,6 +2769,8 @@ function writeBackCompletedPass(
     readonly membershipMoved: boolean;
     /** True when this pass found a session still waiting to be re-bound. */
     readonly rescuePending: boolean;
+    /** PHASE 326. The creates live at any instant since this pass's list was issued. */
+    readonly flights: RemoteCreateFlights;
   }
 ): void {
   if (!remoteManifestInstalled()) return;
@@ -2718,6 +2795,11 @@ function writeBackCompletedPass(
   if (!pass.membershipMoved) return;
   for (const record of remoteRecordsForMachine(machineId)) {
     if (pass.seen.has(record.id)) continue;
+    // PHASE 326. A row a create in this process is still binding, or finished
+    // binding after this pass's list was issued, is not absent: that list may
+    // simply have run before the create's stamp. Without this line a pass that
+    // is not rescue-pending wrote `restorable` over a create that was running.
+    if (pass.flights.owns(record.id)) continue;
     // PHASE 117. A row whose id is still waiting to be accounted for is left
     // alone while a rescue is pending. The reason is arithmetic rather than
     // taste: the rescue runs at the END of the pass, so without this rule the
@@ -2776,11 +2858,16 @@ function seedUnconfirmedCreates(machineId: string): void {
  */
 function dropProvenAbsentCreates(
   machineId: string,
-  seen: ReadonlyMap<string, RemoteSessionRow>
+  seen: ReadonlyMap<string, RemoteSessionRow>,
+  flights: RemoteCreateFlights
 ): void {
   if (!remoteManifestInstalled()) return;
   for (const one of issuedRemoteIdsFor(machineId)) {
     if (seen.has(one.id)) continue;
+    // PHASE 326. A create that is running, or whose end this pass's list
+    // predates, has proved nothing absent, whatever its status column says (a
+    // machine that went quiet mid-create writes `unknown` on every row).
+    if (flights.owns(one.id)) continue;
     if (remoteRecordOf(one.id)?.status !== 'unknown') continue;
     clearIssuedRemoteId(one.id);
   }
@@ -3213,6 +3300,9 @@ export function resetRemoteSessionsForTests(): void {
   listeners = [];
   pollFocused = true;
   lastFocusPollAt = 0;
+  // PHASE 326. A flight ended by one test is remembered for 20 s, and the next
+  // test's pass can be issued in the same millisecond, where it still counts.
+  resetRemoteCreateFlightsForTests();
 }
 
 /**

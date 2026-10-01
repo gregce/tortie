@@ -1330,6 +1330,29 @@ const MACHINE_REFUSALS = [
       'it, so Tortie committed nothing. Press Refresh and read the changes ',
       'again.'
     ]
+  },
+  // ---------------------------------------------------------------------------
+  // Phase 326 added this one, and it stands where "This session no longer
+  // exists" used to be said about a session that was running
+  // ---------------------------------------------------------------------------
+  //
+  // An attach to a session on another machine that no list from that machine
+  // has named yet waits for the create and for one list of its own, and a
+  // machine that still has not named it gets this sentence with Try again. The
+  // branch is reached only when a machine is slower than the wait's bound, which
+  // no correct fast machine reaches, and that is the shape rollup can fold away.
+  {
+    id: 'machine.attach-not-heard',
+    source: 'src/main/machines/remote-copy.ts',
+    why:
+      'it is the answer an attach gives when the machine has not named the ' +
+      'session within the wait. Without it the pane is told nothing, or the ' +
+      'local refusal says a session that is starting over there no longer ' +
+      'exists, which is the defect Phase 326 removed',
+    fragments: [
+      'That machine has not told Tortie about this session yet. It may still be ',
+      'starting there.'
+    ]
   }
 ];
 
@@ -1821,7 +1844,7 @@ function main() {
     ['REFUSALS', REFUSALS.length, 23],
     ['SKILLS_REFUSALS', SKILLS_REFUSALS.length, 6],
     ['CONFIG_REFUSALS', CONFIG_REFUSALS.length, 6],
-    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 52],
+    ['MACHINE_REFUSALS', MACHINE_REFUSALS.length, 53],
     ['UPDATER_REFUSALS', UPDATER_REFUSALS.length, 8],
     ['LOG_REFUSALS', LOG_REFUSALS.length, 1],
     ['ARCH_AIM_REFUSALS', ARCH_AIM_REFUSALS.length, 6]
