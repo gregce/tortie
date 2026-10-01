@@ -124,10 +124,11 @@
  *   R   the scratch machine: one live session on it, its matrix row (the
  *       group is `<machine>:<path>`, the menu matches the policy), and Go to
  *       session on it. STATED, from the matrix verifier's P3: creating a
- *       session on a machine leaves that folder open as a tab (and main's
- *       re-home puts back a remote tab a person closed), so this Go to
- *       session lands in an OPEN tab. The remote half of §8.4's "in a closed
- *       project" is not driven here; the local half is arm 12
+ *       session on a machine leaves that folder open as a tab (until Phase
+ *       306, main's re-home put back a remote tab a person closed;
+ *       `probe:p306` drives that), so this Go to session lands in an OPEN
+ *       tab. The remote half of §8.4's "in a closed project" is not driven
+ *       here; the local half is arm 12
  *   L   (the fix round, W1) Restore from Past into a project that is open but
  *       NOT the active one: the sheet closes, that project is switched to,
  *       the session selected and the keyboard in its terminal

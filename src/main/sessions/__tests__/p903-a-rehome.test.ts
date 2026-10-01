@@ -214,7 +214,7 @@ describe('one pass over what a machine reported', () => {
       createdAt: 1
     };
     const result = rehomeRemoteSessions([local]);
-    expect(result).toEqual({ rowsMoved: 0, projectsAdded: 0 });
+    expect(result).toEqual({ rowsMoved: 0, projectsAdded: 0, tabsHeldClosed: 0 });
     expect(store?.listRemoteProjects()).toEqual([]);
   });
 
@@ -224,6 +224,6 @@ describe('one pass over what a machine reported', () => {
       rehomeRemoteSessions([
         onMachine({ id: 's1', projectPath: '/a', cwd: '/b' })
       ])
-    ).toEqual({ rowsMoved: 0, projectsAdded: 0 });
+    ).toEqual({ rowsMoved: 0, projectsAdded: 0, tabsHeldClosed: 0 });
   });
 });

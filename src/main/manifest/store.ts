@@ -494,6 +494,14 @@ export class ManifestStore {
   }
 
   /**
+   * PHASE 306. Whether a person closed the tab for this folder on this machine
+   * and that is still the record. A read; see the repository method.
+   */
+  projectTabClosedFor(target: { path: string; machineId?: string }): boolean {
+    return this.sessions.projectTabClosedFor(target);
+  }
+
+  /**
    * Phase 72. A completed list from a machine still held this session. One
    * column, no status change, not durable. See the repository method.
    */

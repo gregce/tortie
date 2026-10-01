@@ -367,13 +367,19 @@ const HELPER = 'electron-run.mjs';
  * one build/p332/dns-standin.mjs and Phase 314's APNs stand-in in the probe's
  * own process on 127.0.0.1, closed in its `finally`, a scratch key deleted
  * there, and the stand-in Tailscale's pids ended by pid there.
+ * PHASE 306 RAISED IT FROM 160 TO 161, for build/p306/probe-p306.mjs
+ * (`probe:p306`), a remote tab a person closed held closed, measured at the
+ * parent and at HEAD over the loopback machine build/with-scratch-machine.mjs
+ * starts: TWO Electrons one after the other on one scratch profile, because
+ * the relaunch is the claim, each ended by the helper's `finally`; the far
+ * sessions it makes on that machine's scratch server end with that server.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 160;
+const HELPER_USER_FLOOR = 161;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

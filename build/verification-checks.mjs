@@ -1032,6 +1032,16 @@ export const CHECKS = [
   // hidden by build/hidden-agents.mjs and read back before any arm. It spawns
   // no agent and spends no token.
   remote('probe:p326'),
+  // PHASE 306's app run: a remote project tab a person closed stays closed.
+  // TWO Electrons one after the other through build/electron-run.mjs's
+  // withElectron on one scratch profile (the relaunch is the reporter's second
+  // timing), a scratch HOME and the socket gmux-p306-<pid>, inside
+  // build/with-scratch-machine.mjs's loopback machine, which is why this is
+  // `remote` and not `electron`. Its feed-only sessions, the pass witness
+  // among them, are made on that machine's scratch server and end with it.
+  // Every session is a shell, it renames five agents' binaries before each
+  // launch, and it spends no token.
+  remote('probe:p306'),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a
@@ -1945,6 +1955,17 @@ export const CHECKS = [
   // `finally` and on a signal. About 50 s. No Electron, no tmux, no ssh, no
   // agent, no token.
   pure('ablation:p293'),
+  // PHASE 306's attack on its unit proof: twenty-three entries, each breaking
+  // ONE clause of the closed-tab reader, the re-home's hold, its count, the
+  // create's open-and-clear or (the fix round) the failed create's release and
+  // the window's memo of the folders it asked about, and each proved to redden
+  // THE TEST THAT OWNS IT as a DELTA against an unedited control, over four
+  // vitest files, the renderer's memo test among them. It never writes into
+  // the working tree: it clones src/ and build/ with `cp -Rc` under
+  // /private/tmp, symlinks node_modules, restores each edited clone file and
+  // proves it by sha256, and removes the clone in a `finally` and on a signal.
+  // No Electron, no tmux, no ssh, no agent, no token.
+  pure('ablation:p306'),
   // PHASE 313's attack on the three checks above. A GREEN GATE IS ONLY EVIDENCE
   // IF IT CAN GO RED: this one breaks ONE CLAUSE AT A TIME in the shipping
   // source of src/main/pocket/ and proves each break reddens THE RULE THAT OWNS

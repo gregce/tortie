@@ -69,6 +69,13 @@ import {
 // imports rather than through `../machines`, so this file's graph gains the
 // exec plane and not the visible connection test.
 import { remoteCreate } from '../machines/remote-sessions';
+// PHASE 306. The tabs a create on a machine opens and the closed-tab records it
+// clears, and the closed folders a create that threw opens again. A LEAF
+// import, as `./core.ts` already imports this module.
+import {
+  openTabsForRemoteCreate,
+  releaseFoldersAfterFailedRemoteCreate
+} from '../machines/remote-rehome';
 // The one channel main uses to say a durability layer is degraded, and the
 // owner of the once-per-run latch (Phase 19 item 9).
 import { postDurabilityNotice } from '../notice';
@@ -86,9 +93,6 @@ import * as tmux from '../tmux';
 // Phase 16 (G1, event half): the one "send to every live window" loop, in
 // ../typed-events. Same channels, same payloads, same isDestroyed() guard.
 import { broadcastEvent } from '../typed-events';
-// LEAF import: the ../projects barrel re-exports the clone spawner and the
-// folder creator, and the remote tab upsert below needs one pure name rule.
-import { projectNameForPath } from '../projects/name';
 import type { IdCaptureOptions } from './id-harvest';
 import {
   agentNotFoundMessage,
@@ -236,6 +240,15 @@ export async function createLocalSession(
       ...(folders.cwd !== undefined ? { cwd: folders.cwd } : {}),
       agent: input.agent,
       ...(input.extraArgs !== undefined ? { extraArgs: input.extraArgs } : {})
+    }).catch((err: unknown) => {
+      // PHASE 306, FIX ROUND. A create that threw can still have started the
+      // session over there, with its answer lost, and the open below is then
+      // never reached. A folder it named that a person had closed is opened
+      // and its record cleared, as a create that worked does it, so that
+      // session is not held in no tab. A folder that never had a tab gets none
+      // from a failure. The failure is still the person's to read.
+      releaseFoldersAfterFailedRemoteCreate(deps.manifest, machineId, farProjectPath, folders.cwd ?? '');
+      throw err;
     });
     // PHASE 91. The session exists on that machine and it is not captured.
     // Said now, next to the session it is about, because the alternative is
@@ -262,23 +275,23 @@ export async function createLocalSession(
     // would be a second round trip for an answer already in hand.
     //
     // Nothing is sent to the machine by this line.
-    if (farProjectPath.startsWith('/')) {
-      try {
-        deps.manifest.upsertRemoteProject({
-          machineId,
-          path: farProjectPath,
-          name: projectNameForPath(farProjectPath)
-        });
-      } catch (err) {
-        // A tab that could not be recorded is not a reason to fail a session
-        // that is already running over there. The next completed list re-homes
-        // it, because the same folder comes back on every pass.
-        sessionsLog.warn(
-          `the session started on ${machineId} and its folder could ` +
-            `not be opened as a tab: ${(err as Error).message}`
-        );
-      }
-    }
+    //
+    // PHASE 306. It also clears the record of a tab a person closed in that
+    // folder, because creating a session there is the one legitimate re-open a
+    // create can make, and since this phase the re-home leaves a folder whose
+    // tab a person closed without one (issue 35). Two folders, once each: the
+    // one sent, and the one the re-home's own rule places the new session in.
+    // The second is the create with no folder named, where the machine chooses,
+    // and the session the machine reports outside the folder it was given. If
+    // a person once closed that folder's tab, the folder sent alone would leave
+    // the session they just made in no tab, which is the Phase 94 defect. The
+    // re-home has already run inside `remoteCreate`, which starts the machine's
+    // feed before it returns, and it held the folder while the record stood, so
+    // this opens the folder as well as clearing it. Each write is in its own
+    // try: a tab that could not be recorded is not a reason to fail a session
+    // already running over there, and with the record cleared the next completed
+    // list re-homes it.
+    openTabsForRemoteCreate(deps.manifest, machineId, farProjectPath, session);
     deps.broadcastSessions();
     return session;
   }

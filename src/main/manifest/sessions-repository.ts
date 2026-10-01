@@ -24,6 +24,7 @@ import type {
 import {
   LOCAL_MACHINE_ROW,
   manifestError,
+  parseClosedProjectTab,
   rowToRecord,
   serializeClosedProjectTab,
   serializeMachineTombstone,
@@ -893,6 +894,58 @@ export class SessionsRepository {
             AND status <> 'discarded'`
       )
       .run(target.path, machine).changes;
+  }
+
+  /**
+   * Did a person close the tab for this folder on this machine, and is that
+   * still the record (Phase 306, issue 35)?
+   *
+   * The re-home in `../machines/remote-rehome.ts` asks this before it opens a
+   * tab again for a folder on another machine, because a pass that finds the
+   * folder's row absent cannot tell a folder that never had a tab from one a
+   * person closed. This is the record that tells them apart.
+   *
+   * TWO TESTS, AND BOTH MUST HOLD.
+   *
+   * The WHERE clause is {@link clearProjectTabClosed}'s, clause for clause, so
+   * "this folder on this machine" has one spelling, and so the rows read here
+   * are a subset of the rows that method clears. A clear of a folder therefore
+   * always makes this answer false for it.
+   *
+   * The stamp's OWN `path` and `machineId` must name the same folder too. A row
+   * the re-home moved carries the stamp of the folder it was moved out of, and
+   * the clear cannot reach it, because it matches the row's `project_path`. A
+   * stamp-only reading would let that row hold the folder it left after the
+   * folder was opened again; a row-only reading would let it hold the folder it
+   * entered, which nobody closed. With both, it holds neither.
+   *
+   * The stamp is decoded through `parseClosedProjectTab`, the one codec the
+   * window's closed-tab reading also uses, so the two cannot disagree on what a
+   * stamp is. A value that codec drops whole holds nothing, and a hand-damaged
+   * value cannot throw out of the pass the way SQLite's `json_extract` would.
+   *
+   * A READ. It writes nothing, and nothing is sent to any machine. The column it
+   * filters on first is indexed (`idx_sessions_project`).
+   */
+  projectTabClosedFor(target: { path: string; machineId?: string }): boolean {
+    const machine = target.machineId ?? LOCAL_MACHINE_ROW;
+    const rows = this.db
+      .prepare<[string, string], { project_tombstone: string }>(
+        `SELECT project_tombstone FROM sessions
+          WHERE project_path = ?
+            AND COALESCE(NULLIF(machine_id, ''), '${LOCAL_MACHINE_ROW}') = ?
+            AND project_tombstone IS NOT NULL
+            AND status <> 'discarded'`
+      )
+      .all(target.path, machine);
+    for (const row of rows) {
+      const tab = parseClosedProjectTab(row.project_tombstone);
+      if (tab === undefined) continue;
+      if (tab.path === target.path && (tab.machineId ?? LOCAL_MACHINE_ROW) === machine) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

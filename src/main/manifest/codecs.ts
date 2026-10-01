@@ -527,7 +527,7 @@ export function serializeMachineTombstone(
  * would draw a sentence naming a folder it cannot name, or an instant it does
  * not have, and a hand edited file must not be able to crash a boot.
  */
-function parseClosedProjectTab(text: string | null): ClosedProjectTab | undefined {
+export function parseClosedProjectTab(text: string | null): ClosedProjectTab | undefined {
   if (text === null) return undefined;
   try {
     const v: unknown = JSON.parse(text);

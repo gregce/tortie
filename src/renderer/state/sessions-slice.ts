@@ -594,11 +594,26 @@ function withEndedAt(
  * is a pull, so without this a session on a machine would sit in the list with
  * no tab to appear in until something else happened to re-read the projects.
  *
- * The set of folders it has already acted on is remembered, so a steady state
- * costs one comparison per session per broadcast and no calls at all. It is
- * module scope rather than store state because nothing renders from it.
+ * The folders it has already acted on are remembered, so a steady state costs
+ * one comparison per session per broadcast and no calls at all. It is module
+ * scope rather than store state because nothing renders from it.
+ *
+ * PHASE 306, FIX ROUND. Each folder is remembered BESIDE whether a session in
+ * it carried the record of a tab a person closed when the window last asked,
+ * and the window asks again when that answer changes. Since Phase 306 main
+ * keeps such a folder without a tab, so the first pass after a close asks once
+ * and finds nothing. Main then opens the folder when the person creates a
+ * session in it, from a tab on that machine too, and clears the record in the
+ * same call. A memo keyed by folder alone never asked again, so the session
+ * they had just made sat in no tab until a reload or a relaunch, where before
+ * Phase 306 the tab had already come back by itself (the verifiers' row 10).
+ * The record is main's own word, carried on every session it lists, so this
+ * decides only WHEN the window re-reads main's list and never whether a tab may
+ * open. A folder held closed costs no read after its first, and a close or a
+ * re-open costs one. A map rather than a set of pairs, because a second close
+ * and a second create in one run must each be asked about again.
  */
-const tabsAskedFor = new Set<string>();
+const tabsAskedFor = new Map<string, boolean>();
 
 /** Re-read the project list once for each folder on a machine that has none. */
 async function reconcileRemoteTabs(
@@ -611,13 +626,24 @@ async function reconcileRemoteTabs(
   const known = new Set(
     state.projects.map((p) => targetKey(targetOfProject(p) ?? localTarget(p.path)))
   );
+  // PHASE 306, FIX ROUND. The folders on machines in which a session still
+  // carries the record of a closed tab, as main last listed them.
+  const closedIn = new Set<string>();
+  for (const session of state.sessions) {
+    if (session.closedProject === undefined) continue;
+    const target = targetOfSession(session);
+    if (target === null || isLocalTarget(target)) continue;
+    closedIn.add(targetKey(target));
+  }
   const wanted: string[] = [];
   for (const session of state.sessions) {
     const target = targetOfSession(session);
     if (target === null || isLocalTarget(target)) continue;
     const key = targetKey(target);
-    if (known.has(key) || tabsAskedFor.has(key)) continue;
-    tabsAskedFor.add(key);
+    if (known.has(key)) continue;
+    const closed = closedIn.has(key);
+    if (tabsAskedFor.get(key) === closed) continue;
+    tabsAskedFor.set(key, closed);
     wanted.push(key);
   }
   if (wanted.length === 0) return;
@@ -625,7 +651,8 @@ async function reconcileRemoteTabs(
     set({ projects: await api.list() });
   } catch {
     // A read that failed changes nothing on screen and is retried the next
-    // time a folder with no tab appears. The keys stay remembered on purpose:
+    // time a folder with no tab appears, or a folder's closed-tab record
+    // changes. The keys stay remembered on purpose:
     // retrying on every broadcast would be a call per poll for a list that is
     // not coming back any sooner.
   }
@@ -1072,7 +1099,8 @@ export const createSessionsSlice: StateCreator<
       // the new tab until something else re-read it, and the session would be
       // in the list with nowhere to appear. One re-read closes that, and the
       // guard below means it happens once per new folder rather than once per
-      // poll.
+      // poll, and once more when a folder's closed-tab record changes (Phase
+      // 306, fix round).
       void reconcileRemoteTabs(get, set);
       // Keep per-project selection valid.
       const s = get();
