@@ -106,6 +106,7 @@
     "probe:p323": "node build/p323/probe-p323.mjs",
     "probe:p323:harness": "node build/p323/harness-arms.mjs",
     "probe:p326": "node build/harness-socket.mjs --fresh gmux-p326 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; node build/with-scratch-machine.mjs -- node build/p326/probe-p326.mjs'",
+    "probe:p334": "npm run build && node build/harness-socket.mjs --fresh gmux-p334 'node build/p334/probe-p334.mjs'",
     "measure:p300-split": "node build/p300/split.mjs",
     "ablation:p268": "node build/p268/ablation.mjs",
     "ablation:p273": "node build/p273/ablation-vocabulary.mjs",

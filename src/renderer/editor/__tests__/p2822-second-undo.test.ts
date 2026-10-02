@@ -44,6 +44,8 @@
 import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
+import { arrivalOver, ownTheStoreClock } from './p334-arrival';
+
 const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
 const DOCUMENT_NODE = 9;
@@ -338,12 +340,16 @@ const dirOf = (p: string): string => p.slice(0, p.lastIndexOf('/')) || '/';
 const nameOf = (p: string): string => p.slice(p.lastIndexOf('/') + 1);
 const heads = new Map<string, string>();
 
+/** PHASE 334. The view's arrival reads every open tab: ./p334-arrival says why it is answered apart. */
+const arrival = arrivalOver(async (path: string) => {
+  main.reads += 1;
+  await gate(`read#${String(main.reads)}`);
+  return { contents: main.files.get(path) ?? '', truncated: false };
+});
+ownTheStoreClock();
+
 const fakeFs = {
-  readFile: async (path: string) => {
-    main.reads += 1;
-    await gate(`read#${String(main.reads)}`);
-    return { contents: main.files.get(path) ?? '', truncated: false };
-  },
+  readFile: arrival.readFile,
   writeGuarded: async (input: { path: string; expect: string; contents: string }) => {
     main.writes += 1;
     await gate(`write#${String(main.writes)}`);
@@ -594,9 +600,15 @@ async function mount(tabs: EditorTab[], files: Record<string, string>): Promise<
   container = doc.createElement('div');
   doc.body.appendChild(container);
   root = createRoot(container as never);
+  // PHASE 334. The arrival is a look over the bytes each tab holds, one walk
+  // of the repository, and `files` is the agent's write after it
+  // (./p334-arrival). The walks below are counted from there.
+  arrival.begin(tabs);
   await act(() => {
     root?.render(React.createElement(View));
   });
+  expect({ reads: arrival.done(), walks: main.walks }).toEqual({ reads: tabs.length, walks: tabs.length });
+  main.walks = 0;
 }
 
 afterEach(async () => {

@@ -17,6 +17,8 @@
 
 import { useEditor } from '../editor/store';
 import { rekeyTabResources } from '../editor/monaco-loader';
+// PHASE 334. The Redline view's remembered place is keyed by the same id.
+import { rekeyRedlineScroll } from '../editor/redline-scroll';
 import { planTabFollow } from './tab-follow';
 import type { FollowMove } from './tab-follow';
 
@@ -42,7 +44,10 @@ export function followMoves(moves: readonly FollowMove[]): void {
     const { tabs, rekeys } = planTabFollow(state.tabs, moves);
     if (rekeys.length === 0) return {};
 
-    for (const { from, to } of rekeys) rekeyTabResources(from, to);
+    for (const { from, to } of rekeys) {
+      rekeyTabResources(from, to);
+      rekeyRedlineScroll(from, to);
+    }
 
     const followedActive =
       rekeys.find((r) => r.from === state.activeId)?.to ?? state.activeId;

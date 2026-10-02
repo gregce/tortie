@@ -713,7 +713,7 @@ const WORST_CASE_CEILING_MS = 400;
 // cannot drift off in silence.
 const REDLINE_DIR = 'src/renderer/editor';
 const REDLINE_NAME = /^(redline[.-]|Redline[A-Z]|rewind\.|baseline[.-])/;
-const REDLINE_FILES_FLOOR = 23;
+const REDLINE_FILES_FLOOR = 24;
 const REDLINE_FILES = readdirSync(REDLINE_DIR)
   .filter((name) => REDLINE_NAME.test(name))
   .sort()
@@ -781,7 +781,9 @@ const REDLINE_FILES_NAMED = [
   // family's doors the ones this rule already knows about. `baseline.` became
   // `baseline[.-]` in the same change, so a `baseline-*` file cannot be the
   // seventh file the derived set exists to catch.
-  'src/renderer/editor/baseline-durable.ts'
+  'src/renderer/editor/baseline-durable.ts',
+  // Phase 334: the per-tab scroll place, in memory. It writes nothing.
+  'src/renderer/editor/redline-scroll.ts'
 ];
 
 // ---------------------------------------------------------------------------

@@ -35,6 +35,7 @@ import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { gatedFs, gmuxBridge } from './p282-gated-fs';
+import { arrivalOver, ownTheStoreClock } from './p334-arrival';
 
 const ELEMENT_NODE = 1;
 const TEXT_NODE = 3;
@@ -282,6 +283,9 @@ const doc = new FakeDocument();
 const sha = (s: string): string => createHash('sha256').update(s, 'utf8').digest('hex');
 const main = gatedFs(sha);
 const disk = main.disk;
+/** PHASE 334. The view's arrival reads every open tab: ./p334-arrival says why it is answered apart. */
+const arrival = arrivalOver(() => main.fs.readFile());
+ownTheStoreClock();
 /**
  * PHASE 282.2. The HEAD version of each mounted file, by the path the walk
  * asks git with. The walk this phase adds runs for real in this rig, and an
@@ -314,7 +318,7 @@ vi.stubGlobal('window', {
   dispatchEvent: () => true,
   HTMLIFrameElement: class {},
   gmux: gmuxBridge(main, {
-    fs: { readImage: vi.fn(), writeFile: vi.fn(), readDir: vi.fn() },
+    fs: { readImage: vi.fn(), writeFile: vi.fn(), readDir: vi.fn(), readFile: arrival.readFile },
     git: {
       showHead: async (input: { path: string }) => {
         walks.count += 1;
@@ -364,7 +368,7 @@ const act = async (fn: () => void | Promise<void>): Promise<void> => {
 let root: ReturnType<typeof createRoot> | null = null;
 let container: FakeElement | null = null;
 
-async function mount(tabs: EditorTab[], onDisk: string): Promise<void> {
+async function mount(tabs: EditorTab[], onDisk: string, looks = tabs.length): Promise<void> {
   main.reset(onDisk);
   toasts.length = 0;
   heads.clear();
@@ -380,9 +384,15 @@ async function mount(tabs: EditorTab[], onDisk: string): Promise<void> {
   container = doc.createElement('div');
   doc.body.appendChild(container);
   root = createRoot(container as never);
+  // PHASE 334. The arrival is a look over the bytes each tab holds, one walk
+  // of the repository, and `onDisk` is the agent's write after it
+  // (./p334-arrival). The walks below are counted from there.
+  arrival.begin(tabs);
   await act(() => {
     root?.render(React.createElement(View));
   });
+  expect({ reads: arrival.done(), walks: walks.count }).toEqual({ reads: looks, walks: looks });
+  walks.count = 0;
 }
 
 afterEach(async () => {
@@ -464,8 +474,8 @@ const undoesTyping = (id: string): Promise<void> =>
  * inside the write, the landing. The rewind is on disk, the adoption refused
  * the dirty tab, and the hold has landed on the trailing bytes.
  */
-async function rewindWithAKeystrokeInsideTheWrite(): Promise<void> {
-  await mount([tabOf(ID, BASE, AGENT)], AGENT);
+async function rewindWithAKeystrokeInsideTheWrite(looks = 1): Promise<void> {
+  await mount([tabOf(ID, BASE, AGENT)], AGENT, looks);
   await next();
   expect(marked()).toBe('"brown"->"red"');
   main.hold('write#1');
@@ -571,7 +581,9 @@ describe('PHASE 282.2: the person does what the sentence says (undo), and the vi
     const shipped = useEditor.getState().rereadRepo;
     useEditor.setState({ rereadRepo: () => undefined } as never);
     try {
-      await rewindWithAKeystrokeInsideTheWrite();
+      // PHASE 334. The arrival's look takes the same road (../store
+      // `rereadOnReturn` asks `rereadRepo`), so it is taken away with it.
+      await rewindWithAKeystrokeInsideTheWrite(0);
       await accept();
       await undoesTyping(ID);
       await accept();

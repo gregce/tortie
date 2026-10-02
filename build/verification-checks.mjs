@@ -1694,6 +1694,18 @@ export const CHECKS = [
   // timer, onFocusChange lands at the blur, and the File menu action moves the
   // mode both ways. It spawns no agent and spends no token.
   electron('probe:p268'),
+  // PHASE 334. The editor reads a file again when the person comes back to it,
+  // and Redline keeps each tab's place, at the parent and at HEAD: TWO
+  // Electrons ONE AFTER THE OTHER, the parent first (P334_PARENT_CHECKOUT, a
+  // built checkout, or it exits 2), each on a scratch profile with a scratch
+  // HOME under its own GMUX_HARNESS_DIR and the socket gmux-p334-<pid>, over a
+  // git project it builds itself with an IGNORED folder the watcher never
+  // reports. The outside writer is a synchronous /bin/sh. Strip clicks, a
+  // focus into the editor and into Redline, a ⌃Tab landing and a project switch
+  // each read what the buffer holds; a dirty buffer is never reloaded, typing
+  // in the same turn as an activation is kept, and Redline's scrollTop is read
+  // per tab. It spawns no agent and spends no token.
+  electron('probe:p334'),
   // PHASE 268's attack. It breaks conformance:save one clause at a time, the
   // count living in the script rather than here,
   // and proves each reddens the rule that owns it — then restores the tree in

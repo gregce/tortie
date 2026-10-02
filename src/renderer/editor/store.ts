@@ -174,6 +174,10 @@ import { createTabIo } from './tab-io';
 // because this store already owns the patch funnel, the dirty edge and every
 // dispose site — the three things a timer has to agree with.
 import { createAutoSave } from './auto-save';
+// PHASE 334. The floor on a return's re-read, and the Redline view's
+// remembered place, which goes with the tab at every site a tab is dropped.
+import { createRereadFloor, REREAD_FLOOR_MS } from './reread-on-return';
+import { forgetRedlineScroll } from './redline-scroll';
 import { tabIsReadOnly } from './tab-readonly';
 import type { AutoSaveStopWhy } from './auto-save';
 import { useSettingsStore } from '../settings/settings-store';
@@ -350,6 +354,13 @@ interface EditorState {
    */
   rereadRepo(repoPath: string): void;
   /**
+   * PHASE 334. A person came back to this tab: it came on screen by their
+   * choice, or its editor took focus from outside. Read its repository again
+   * through `rereadRepo`, at most once per `REREAD_FLOOR_MS` per repository,
+   * and never for a tab the walk does not read or for a raster image.
+   */
+  rereadOnReturn(id: string): void;
+  /**
    * MonacoHost calls this after it has revealed, selected and flashed the
    * range — a landing happens once per request, never again on the next
    * re-render or mode toggle.
@@ -461,6 +472,35 @@ function landsInText(image: boolean, svg: boolean): boolean {
  */
 function shouldFocusFor(req: OpenFileRequest): boolean {
   return req.source !== 'search' || req.preview === false;
+}
+
+/**
+ * PHASE 334. The tabs the watcher's walk reads (./tab-io `refreshRepo`), one
+ * predicate asked by the walk's own filter (`worktreeTabsIn` below) and by
+ * `rereadOnReturn`, so a door can never fire for a tab the walk would skip.
+ * Moved here from `worktreeTabsIn` unchanged, comments and all.
+ */
+function walkedByRefresh(t: EditorTab): boolean {
+  return (
+    t.commit === null &&
+    // Phase 73: a REVIEW tab is excluded here for the same reason a history
+    // tab is. Its repository is on another computer, this Mac's watcher knows
+    // nothing about it, and re-running the worktree refresh over one would
+    // replace a file from that machine with whatever this Mac holds at the
+    // same path.
+    t.remote === undefined &&
+    // Phase 160: the map tab is excluded the way a history tab is. Its body
+    // is a drawing rather than a file, so there is nothing on disk for the
+    // refresh to re-read, and running the worktree refresh over it would mark
+    // it deleted because no file exists at its id.
+    t.archMap === undefined &&
+    t.diagnostics === undefined &&
+    // PHASE 240: a compare tab holds two versions handed in at open and
+    // neither is what the file says now. Re-reading the file into it
+    // would replace one of them with the live bytes and destroy the very
+    // comparison the person opened it to read.
+    t.compare === undefined
+  );
 }
 
 let initialized = false;
@@ -584,30 +624,27 @@ export const useEditor = create<EditorState>((set, get) => {
       autoSave.recordStop(id, why);
       return false;
     },
-    // Phase 73: a REVIEW tab is excluded here for the same reason a history
-    // tab is. Its repository is on another computer, this Mac's watcher knows
-    // nothing about it, and re-running the worktree refresh over one would
-    // replace a file from that machine with whatever this Mac holds at the
-    // same path.
-    // Phase 160: the map tab is excluded the way a history tab is. Its body
-    // is a drawing rather than a file, so there is nothing on disk for the
-    // refresh to re-read, and running the worktree refresh over it would mark
-    // it deleted because no file exists at its id.
+    // Which tabs the walk reads: `walkedByRefresh` above, whose clauses carry
+    // the reason for each refusal (Phases 73, 160, 163 and 240).
     worktreeTabsIn: (repoPath) =>
-      get().tabs.filter(
-        (t) =>
-          t.repoPath === repoPath &&
-          t.commit === null &&
-          t.remote === undefined &&
-          t.archMap === undefined &&
-          t.diagnostics === undefined &&
-          // PHASE 240: a compare tab holds two versions handed in at open and
-          // neither is what the file says now. Re-reading the file into it
-          // would replace one of them with the live bytes and destroy the very
-          // comparison the person opened it to read.
-          t.compare === undefined
-      )
+      get().tabs.filter((t) => t.repoPath === repoPath && walkedByRefresh(t))
   });
+
+  /**
+   * PHASE 334. One look per repository per `REREAD_FLOOR_MS`, shared by every
+   * door that means "the person came back to this tab" (`rereadOnReturn`
+   * below) and by nothing else: the watcher's bus is the event that says the
+   * disk changed and is never floored, and `rereadRepo` is a read somebody is
+   * owed. The clock is `performance.now()`, read at each call.
+   */
+  const returnFloor = createRereadFloor(REREAD_FLOOR_MS, () => performance.now());
+  /**
+   * PHASE 334. A ⌃Tab run is in progress: `cycleMru` stepped at least once
+   * since the last `commitMru`. `commitMru` runs on EVERY Control keyup in the
+   * window (EditorPanel.tsx), a ⌃C typed in a terminal included, so only a
+   * release that ends a run is a landing, and a landing is the one door.
+   */
+  let mruRun = false;
 
   // -- closing ---------------------------------------------------------------
 
@@ -1119,6 +1156,8 @@ export const useEditor = create<EditorState>((set, get) => {
           // Reuse the single preview tab (VS Code behavior).
           disposeModels(slot.id);
           dropViewState(slot.id);
+          // PHASE 334. The Redline view's remembered place goes with the tab, at every site.
+          forgetRedlineScroll(slot.id);
           forgetRewindJournal(slot.id);
           // PHASE 268. The fourth member of the triple, at every site: a timer
           // outliving the tab it was armed for is a write to a file nobody is
@@ -1156,6 +1195,7 @@ export const useEditor = create<EditorState>((set, get) => {
             if (evict !== undefined) {
               disposeModels(evict.id);
               dropViewState(evict.id);
+              forgetRedlineScroll(evict.id);
               forgetRewindJournal(evict.id);
               autoSave.forget(evict.id);
               tabs = tabs.filter((t) => t.id !== evict.id);
@@ -1226,6 +1266,10 @@ export const useEditor = create<EditorState>((set, get) => {
       revealProject(projectId);
       patchTab(id, { lastUsed: Date.now() });
       set((s) => focusPatch(s, projectId, id, true));
+      // PHASE 334. The person chose this tab (a strip click, ⌘⇧] ⌘⇧[, a
+      // re-open of an open file), so read it again: an agent's write in a
+      // folder the repository ignores raises no watcher event at all.
+      get().rereadOnReturn(id);
     },
 
     closeTab(id) {
@@ -1241,6 +1285,7 @@ export const useEditor = create<EditorState>((set, get) => {
     forceCloseTab(id) {
       disposeModels(id);
       dropViewState(id);
+      forgetRedlineScroll(id);
       // PHASE 244, audit finding F1. A tab id is its absolute path, so without
       // this the next opening of the same file inherits this one's undo stack
       // and one press writes its bytes back. The journal's owner is the tab.
@@ -1353,13 +1398,22 @@ export const useEditor = create<EditorState>((set, get) => {
       // back through history, not ping-pong between two tabs.
       if (next !== undefined) {
         set((s) => focusPatch(s, s.projectId, next.id, true));
+        // PHASE 334. A step is not a door (the first step would take the
+        // floor and drop the landing); it marks the run the release ends.
+        mruRun = true;
       }
     },
 
     commitMru() {
       const id = get().activeId;
+      // PHASE 334. Only a release that ENDS a ⌃Tab run is a landing: this
+      // runs on every Control keyup in the window, and a door here without
+      // the flag would walk the repository on every ⌃C typed in a terminal.
+      const landed = mruRun;
+      mruRun = false;
       if (id !== null && tabById(id) !== undefined) {
         patchTab(id, { lastUsed: Date.now() });
+        if (landed) get().rereadOnReturn(id);
       }
     },
 
@@ -1444,6 +1498,20 @@ export const useEditor = create<EditorState>((set, get) => {
     // for the same reason: the walk patches the tabs itself.
     rereadRepo(repoPath) {
       void io.refreshRepo(repoPath);
+    },
+
+    // PHASE 334. Every door that means "the person came back" ends here, and
+    // in this order: the walk's own predicate first, so a tab the walk does
+    // not read never consumes the floor; then a raster image, because the
+    // walk re-fetches a picture by moving its URL and an image has no buffer
+    // to protect; then the floor. It takes `rereadRepo`'s road, so the walk,
+    // its serializer and its clean test are the bus's own, unchanged.
+    rereadOnReturn(id) {
+      const tab = tabById(id);
+      if (tab === undefined || tab.repoPath === '' || !walkedByRefresh(tab)) return;
+      if (tab.image && !tab.svg) return;
+      if (!returnFloor.admit(tab.repoPath)) return;
+      get().rereadRepo(tab.repoPath);
     },
 
     clearPendingSelection(id) {
@@ -1679,6 +1747,10 @@ export const useEditor = create<EditorState>((set, get) => {
           ? { lastRequestProjectId: projectId }
           : {})
       });
+      // PHASE 334. Coming back to a project is how Tortie comes back to its
+      // tab, and a rendered .md has no focus door of its own, so the tab the
+      // project shows is read again when its editor is on screen.
+      if (activeId !== null && panelOpen) get().rereadOnReturn(activeId);
     }
   };
 });

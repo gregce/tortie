@@ -373,13 +373,18 @@ const HELPER = 'electron-run.mjs';
  * starts: TWO Electrons one after the other on one scratch profile, because
  * the relaunch is the claim, each ended by the helper's `finally`; the far
  * sessions it makes on that machine's scratch server end with that server.
+ * PHASE 334 RAISED IT FROM 161 TO 162, for build/p334/probe-p334.mjs
+ * (`probe:p334`), the editor's re-read on a return and Redline's per-tab place,
+ * measured at the parent and at HEAD: TWO Electrons one after the other, each
+ * on a scratch profile, a scratch HOME and the socket gmux-p334-<pid>, each
+ * ended by the helper's `finally`; its outside writer is a synchronous /bin/sh.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 161;
+const HELPER_USER_FLOOR = 162;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

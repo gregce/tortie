@@ -108,6 +108,8 @@ import {
 } from './redline-sentences';
 import { redlineBaseSide as _baseSideForPress } from './baseline';
 import { useEditor } from './store';
+import { focusEntersFrom } from './reread-on-return';
+import { redlineScrollOf, rememberRedlineScroll } from './redline-scroll';
 import { useApp } from '../state/store';
 import { pushRedlineMountedToMenu } from '../app/menu-redline';
 import type { RedlineRun } from './redline';
@@ -745,6 +747,16 @@ export function RedlineDocument({
     return { doc, changes: changesOf(doc.runs) };
   }, [contentsLoading, baseSide, shownText]);
   const doc = composed === null ? null : composed.doc;
+  // PHASE 334. THE PLACE THIS TAB WAS LEFT AT, put back once the document is
+  // drawn. Keyed on the tab and on readiness and never on the picture, so an
+  // agent's write while you read never moves you. `?? 0` because the scroller
+  // is shared with the tab you came from and still holds its offset.
+  const ready = doc !== null;
+  useLayoutEffect(() => {
+    const el = hostRef.current;
+    if (el === null || !ready) return;
+    el.scrollTop = redlineScrollOf(tab.id) ?? 0;
+  }, [tab.id, ready]);
   const generation = tab.baseline?.generation ?? 0;
   const note = doc === null ? null : redlineDocumentNote(doc);
   // PHASE 225. The face names the baseline. A history tab names its commit;
@@ -1113,6 +1125,14 @@ export function RedlineDocument({
           const host = hostRef.current;
           if (host !== null) handleRedlineCopy(host, event.nativeEvent);
         }}
+        // PHASE 334. Saved per scroll, keyed by THIS render's tab, and not while
+        // the skeleton shows: it clamps the shared scroller to 0, and a cleanup
+        // would read the next tab's clamp.
+        onScroll={(event) => {
+          if (doc !== null) {
+            rememberRedlineScroll(tab.id, event.currentTarget.scrollTop);
+          }
+        }}
         onKeyDown={(event) => {
           const command = redlineCommandOf(event);
           if (command === null) return;
@@ -1143,6 +1163,13 @@ export function RedlineDocument({
               '.ed-redline-change'
             )
           );
+          // PHASE 334. Focus ENTERING the document from outside it is a look:
+          // read the file again, so an agent's write in a folder the
+          // repository ignores is on screen before you type. Moving between
+          // changes, the chip's buttons and the page inside it is not.
+          if (focusEntersFrom(event.currentTarget, event.relatedTarget)) {
+            useEditor.getState().rereadOnReturn(tab.id);
+          }
         }}
       >
         {doc === null ? (

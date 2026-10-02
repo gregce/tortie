@@ -45,6 +45,7 @@ import { createHash } from 'node:crypto';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { gatedFs, gmuxBridge } from './p282-gated-fs';
+import { arrivalOver, ownTheStoreClock } from './p334-arrival';
 
 // ---------------------------------------------------------------------------
 // The document.
@@ -306,6 +307,9 @@ const sha = (s: string): string => createHash('sha256').update(s, 'utf8').digest
 /** Only the steps a test names are held, so a whole mount drives itself. */
 const main = gatedFs(sha);
 const disk = main.disk;
+/** PHASE 334. The view's arrival reads every open tab: ./p334-arrival says why it is answered apart. */
+const arrival = arrivalOver(() => main.fs.readFile());
+ownTheStoreClock();
 /** PHASE 282.2. Each mounted file's HEAD version, by the path the walk asks git with. */
 const heads = new Map<string, string>();
 
@@ -325,7 +329,7 @@ vi.stubGlobal('window', {
   dispatchEvent: () => true,
   HTMLIFrameElement: class {},
   gmux: gmuxBridge(main, {
-    fs: { readImage: vi.fn(), writeFile: vi.fn(), readDir: vi.fn() },
+    fs: { readImage: vi.fn(), writeFile: vi.fn(), readDir: vi.fn(), readFile: arrival.readFile },
     git: { showHead: async (input: { path: string }) => heads.get(input.path) ?? '' }
   })
 });
@@ -390,9 +394,13 @@ async function mount(tabs: EditorTab[], onDisk: string): Promise<void> {
   container = doc.createElement('div');
   doc.body.appendChild(container);
   root = createRoot(container as never);
+  // PHASE 334. The arrival is a look over the bytes each tab holds, and
+  // `onDisk` is the agent's write after it (./p334-arrival).
+  arrival.begin(tabs);
   await act(() => {
     root?.render(React.createElement(View));
   });
+  expect(arrival.done()).toBe(tabs.length);
 }
 
 afterEach(async () => {

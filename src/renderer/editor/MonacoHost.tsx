@@ -190,6 +190,9 @@ export function MonacoHost({
   // second disposable rather than work inside the content listener because
   // they answer different events, and it is torn down in the same two places.
   const blurListener = useRef<monacoNs.IDisposable | null>(null);
+  // PHASE 334. Its partner: focus ENTERING the editor widget is a return to
+  // the tab, and the store re-reads it. Torn down in the same two places.
+  const focusListener = useRef<monacoNs.IDisposable | null>(null);
   const prevShownId = useRef<string | null>(null);
   const flash = useRef<monacoNs.editor.IEditorDecorationsCollection | null>(
     null
@@ -276,6 +279,8 @@ export function MonacoHost({
     contentListener.current = null;
     blurListener.current?.dispose();
     blurListener.current = null;
+    focusListener.current?.dispose();
+    focusListener.current = null;
 
     // A landing flash belongs to the model it was set on. Drop it before the
     // model swaps, or a fast tab switch leaves a wash sitting on whatever
@@ -318,6 +323,18 @@ export function MonacoHost({
     blurListener.current =
       ce?.onDidBlurEditorWidget(() => {
         useEditor.getState().autoSaveOnBlur(tab.id);
+      }) ?? null;
+
+    // PHASE 334. Coming back into the editor is a look: read the file again, so an
+    // agent's write in a folder the repository ignores is on screen before you type.
+    // The WIDGET event, not the text one: it fires only on focus entering the
+    // editor, where the text event also fires on a move back from Monaco's own
+    // find widget, which is not a return. Listening before the arrival focus
+    // below is deliberate: that focus enters from outside too, and the store's
+    // floor folds it into the activation's own read.
+    focusListener.current =
+      ce?.onDidFocusEditorWidget(() => {
+        useEditor.getState().rereadOnReturn(tab.id);
       }) ?? null;
 
     // Opening a file is an attention switch — the editor takes focus so
@@ -454,6 +471,7 @@ export function MonacoHost({
       flash.current = null; // owned by the editor; disposed with it
       contentListener.current?.dispose();
       blurListener.current?.dispose();
+      focusListener.current?.dispose();
       codeEditor.current?.dispose();
       codeEditor.current = null;
       prevShownId.current = null;
