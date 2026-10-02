@@ -32,7 +32,7 @@ import { execFile } from 'node:child_process';
 import type { CreateSessionInput } from '@shared/types';
 import { chmodSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs';
 import { basename, join } from 'node:path';
-import { rescanAgents } from '../agents';
+import { nameHarnessVersionProbes, rescanAgents } from '../agents';
 import { stripAnsi } from '../restore';
 import { getGmuxCore, shutdownGmuxCore } from '../sessions';
 import * as tmux from '../tmux';
@@ -75,8 +75,9 @@ function writeShim(dir: string): string {
 }
 
 export async function runSmokeShadow(): Promise<void> {
-  // The detection scan probes every agent on the machine and two probes hit
-  // shims; generous, because a slow machine must not turn a pass into a flake.
+  // The detection scan resolves every agent on the machine and, since Phase
+  // 335, probes only the two droid shims; generous, because a slow machine
+  // must not turn a pass into a flake.
   armWatchdog(180_000);
   try {
     // 0. Isolation, refused before anything exists. The socket must not be
@@ -105,6 +106,10 @@ export async function runSmokeShadow(): Promise<void> {
     const d2 = join(userData, 'shadow-bins', 'd2');
     const d1Droid = writeShim(d1);
     const d2Droid = writeShim(d2);
+    // Phase 335. A harness launch version-probes nothing it did not name, and
+    // step 7 reads the D2 copy's version: so this run names droid, and only
+    // the copies inside its own profile, before the core boots and warms.
+    nameHarnessVersionProbes({ agents: ['droid'], within: userData });
     // The stub answers ONLY the PATH probe, recognised by its marker in the
     // command string. Everything else is delegated to the real /bin/sh,
     // because tmux runs a one-word pane command through `$SHELL -c`, and a

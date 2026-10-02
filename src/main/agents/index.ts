@@ -55,7 +55,11 @@ export {
   VERSION_PROBE_TIMEOUT_MS,
   versionProbeCount,
   // Phase 164: the boot warm, kept only for a profile with nothing to show.
-  warmDetectionAtBoot
+  warmDetectionAtBoot,
+  // Phase 335: a harness launch probes no version its mode did not name.
+  nameHarnessVersionProbes,
+  versionProbeHeld,
+  type HarnessVersionProbes
 } from './detection';
 export {
   AGENT_IDS,

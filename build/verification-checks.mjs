@@ -293,6 +293,17 @@ export const CHECKS = [
   // have is reported and skipped rather than failed.
   pure('conformance:runtime'),
   pure('conformance:agents'),
+  // PHASE 335. build/conformance-harnessprobes.mjs reads six clauses out of
+  // the source with its comments blanked (build/scan-source.mjs): a harness
+  // launch (GMUX_SMOKE or GMUX_SHOT) version-probes no agent its mode did not
+  // name, the hold is isIsolatedLaunch asked before every spawn detection
+  // makes, the default names nothing, and exactly two modes name agents, the
+  // shadow smoke its own droid copies and the resume conformance the agents it
+  // was asked for, before the core boots. Its sixteen ablations run in memory
+  // on every invocation. Plain node, inside `npm run build`; it spawns nothing,
+  // writes nothing and reads nothing outside the tree it is pointed at. Well
+  // under a second.
+  pure('conformance:harnessprobes'),
   // Phase 242.2. It stays `pure`: condition 88g runs the shipping image-put
   // text under /bin/sh, synchronously, over a scratch directory it removes in
   // a finally, which needs node and the repository install and nothing else on

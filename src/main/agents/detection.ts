@@ -30,6 +30,25 @@
  * The provider returns MEMORY. It is called once per scan and it must never
  * read the disk, which is what keeps the configuration file off every path
  * that reaches a scan.
+ *
+ * ## Phase 335: which launches run a version probe
+ *
+ * Every ordinary launch probes every agent it resolves, exactly as before.
+ * A harness launch, being `GMUX_SMOKE` or `GMUX_SHOT` (`isIsolatedLaunch`),
+ * still resolves every binary and reads every store, and starts no version
+ * probe at all, because `dispatchHarness` returns before the configuration
+ * overlay is installed and four of the agents a scan finds update themselves
+ * the moment they start, `--version` included (the operator's rule of
+ * 2026-09-29; Phase 316.6's reverify caught `agy --version` under
+ * `smoke:t1`). {@link versionProbeHeld} is asked in front of every spawn this
+ * module makes, and its first statement answers no for every other launch.
+ *
+ * A harness mode that READS a version names the agents it needs before its
+ * first scan, through {@link nameHarnessVersionProbes}. Exactly two do, and
+ * `npm run conformance:harnessprobes` holds the list: the shadow smoke names
+ * its own two `droid` copies inside its profile, and the resume conformance
+ * names the agents it was asked for. The default names nothing, so a mode
+ * written later probes nothing until it says why.
  */
 
 import { existsSync, readdirSync, realpathSync } from 'node:fs';
@@ -37,6 +56,7 @@ import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
 import type { AgentsScanResult, DetectedAgent } from '@shared/types';
 import { stripAnsi } from '../ansi';
+import { isIsolatedLaunch } from '../harness/launch-gate';
 import { runGuarded } from '../proc/guarded';
 import {
   extraBinDirs,
@@ -357,7 +377,7 @@ export function signatureMatches(
     case 'realpath-under': {
       const dir = expandPath(sig.dir, {}, home);
       if (dir === null) return false;
-      return realPath.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
+      return liesUnder(realPath, dir);
     }
     case 'marker-file': {
       const path = expandPath(sig.path, {}, home);
@@ -422,6 +442,75 @@ function realOf(path: string): string {
   } catch {
     return path;
   }
+}
+
+/**
+ * Whether `path` lies STRICTLY under `dir`: the directory itself is not under
+ * itself, and `/a/b-c` is not under `/a/b`. Compared as written, with no case
+ * folding and no normalisation, so a caller hands it real paths. The one
+ * spelling of the `realpath-under` idiom, shared by `signatureMatches` and
+ * {@link versionProbeHeld}.
+ */
+function liesUnder(path: string, dir: string): boolean {
+  return path.startsWith(dir.endsWith('/') ? dir : `${dir}/`);
+}
+
+// ---------------------------------------------------------------------------
+// Phase 335: the harness launch's version probes (see the header)
+// ---------------------------------------------------------------------------
+
+/** What a harness mode names before its first scan. */
+export interface HarnessVersionProbes {
+  /** Registry ids this harness mode reads a version of. */
+  readonly agents: readonly string[];
+  /** When set, a named agent is probed only for a copy whose REAL path lies under this directory. */
+  readonly within?: string;
+}
+
+/**
+ * The naming in force. The default names nothing, and
+ * {@link nameHarnessVersionProbes} is the one place that replaces it.
+ * `resetDetectionCache` leaves it alone on purpose: narrowing back is
+ * `nameHarnessVersionProbes({ agents: [] })`.
+ */
+let harnessNaming: { readonly agents: readonly string[]; readonly withinReal: string | null } = {
+  agents: [],
+  withinReal: null
+};
+
+/**
+ * Name the agents a harness mode reads a version of. Called by the shadow
+ * smoke and the resume conformance before their core boots, and by nothing
+ * else (`npm run conformance:harnessprobes`). In an ordinary launch it changes
+ * nothing, because {@link versionProbeHeld} answers before it reads the naming.
+ */
+export function nameHarnessVersionProbes(named: HarnessVersionProbes): void {
+  harnessNaming = {
+    agents: [...named.agents],
+    withinReal: named.within === undefined ? null : realOf(named.within)
+  };
+}
+
+/**
+ * Whether the version probe of one resolved copy of one agent is HELD, that is
+ * not started. Asked in front of every spawn this module makes.
+ *
+ * In order: an ordinary launch holds nothing, and that is the first statement,
+ * so it reads nothing else; a harness launch holds every agent its mode did
+ * not name; a named agent with no `within` is probed; and a named agent with a
+ * `within` is probed only for a copy whose real path lies strictly under that
+ * directory's real path, so a symlink planted inside it that points outside is
+ * held.
+ */
+export function versionProbeHeld(
+  agentId: string,
+  path: string,
+  env: NodeJS.ProcessEnv = process.env
+): boolean {
+  if (!isIsolatedLaunch(env)) return false;
+  if (!harnessNaming.agents.includes(agentId)) return true;
+  if (harnessNaming.withinReal === null) return false;
+  return !liesUnder(realOf(path), harnessNaming.withinReal);
 }
 
 // ---------------------------------------------------------------------------
@@ -497,8 +586,9 @@ async function detectOne(
   }
 
   const probe = entry.versionProbe;
+  // Phase 335: a held probe answers exactly what a row with no probe answers.
   const versionP =
-    probe === null
+    probe === null || versionProbeHeld(entry.id, binPath)
       ? Promise.resolve<VersionProbeResult>({ version: null, identityFailed: false })
       : runVersionProbe(binPath, probe, userPath);
   // One probe per shadowed copy: the entry's PRIMARY args, no fallback args
@@ -506,7 +596,7 @@ async function detectOne(
   // Settings sentence, never the row.
   const shadowedP = Promise.all(
     shadowPaths.map(async (path) => {
-      if (probe === null) return { path, version: null };
+      if (probe === null || versionProbeHeld(entry.id, path)) return { path, version: null };
       const out = await execProbe(path, probe.args, userPath);
       return {
         path,
@@ -582,7 +672,8 @@ let scanStarts = 0;
  * `warmDetectionAtBoot` below on a profile with nothing to show. Whoever asks
  * first starts the one scan; everybody else awaits the same promise and reads
  * the same rows, so moving the first call later changed WHEN the probes run
- * and nothing about what they find.
+ * and nothing about what they find. In a harness launch the scan starts only
+ * the version probes its mode named (Phase 335, {@link versionProbeHeld}).
  */
 export function listDetectedAgents(): Promise<AgentsScanResult> {
   scanPromise ??= scanAgents();
@@ -604,7 +695,8 @@ export function listDetectedAgents(): Promise<AgentsScanResult> {
  * a discarded tombstone does not count as something to show. Returns whether a
  * scan was requested, for the tests; the scan itself is the same memoised one
  * `listDetectedAgents` hands everybody, so a warm and a later surface never
- * make two.
+ * make two. In a harness launch that scan resolves every binary and starts no
+ * version probe its mode did not name (Phase 335).
  */
 export function warmDetectionAtBoot(
   sessionRows: ReadonlyArray<{ status: string }>
@@ -614,7 +706,7 @@ export function warmDetectionAtBoot(
   return true;
 }
 
-/** Drop the cache and re-probe everything (Settings re-scan). */
+/** Drop the cache and re-probe everything (Settings re-scan); a harness launch probes only what it named (Phase 335). */
 export function rescanAgents(): Promise<AgentsScanResult> {
   scanPromise = scanAgents();
   return scanPromise;

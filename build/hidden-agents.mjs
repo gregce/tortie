@@ -10,7 +10,10 @@
  * gemini, qwen, antigravity (agy) and grok, and those four update themselves, so
  * the operator's default of 2026-09-29 is that no probe starts them in any form.
  * droid is not installed and is hidden the same way, so a later install cannot
- * be probed either.
+ * be probed either. Since Phase 335 a `GMUX_SMOKE` or `GMUX_SHOT` launch probes
+ * none at all (the hold in src/main/agents/detection.ts, held by
+ * `npm run conformance:harnessprobes`), and this file is what still guards a
+ * `GMUX_PROBES` launch.
  *
  * `build/p331/probe-p331.mjs` wrote the first copy of this: before EACH launch
  * a scratch `<profile>/gmux/config/agents.json` renames the binaries and the

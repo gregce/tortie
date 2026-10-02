@@ -94,7 +94,7 @@ import { app } from 'electron';
 import { mkdtemp, mkdir, realpath, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import type { AgentKind, LaunchableAgentId, Session } from '@shared/types';
-import { listDetectedAgents, setAgentTableSource } from '../agents/detection';
+import { listDetectedAgents, nameHarnessVersionProbes, setAgentTableSource } from '../agents/detection';
 import {
   LAUNCHABLE_AGENT_IDS,
   agentBinaryCandidates,
@@ -861,8 +861,12 @@ export async function runResumeConformance(): Promise<void> {
     // and the core starts one as it boots on this empty profile, so before
     // this line a run with GMUX_CONF_AGENTS set still started every installed
     // agent, the ones that update themselves among them. Set before the core
-    // boots, so the warm and every later scan walk this table.
+    // boots, so the warm and every later scan walk this table. Since Phase
+    // 335 a harness launch version-probes only the agents its mode names, so
+    // the line after it names the same list, also before the boot, and the
+    // versions line below reads what it read before.
     setAgentTableSource(() => conformanceDetectionTable(cfg.agents));
+    nameHarnessVersionProbes({ agents: cfg.agents });
     // Every install the run may start, read before any case and again after
     // the last: an agent that updated itself mid-run measured two versions,
     // and the run says so rather than absorbing it.
