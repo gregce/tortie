@@ -39242,6 +39242,57 @@ Under `## Unreleased`, Fixed; the follow-up docs commit adds the links.
 - **No stored scroll across a relaunch**, and no scroll memory for the markdown preview.
 - **No release.**
 
+## Phase 335 — a smoke run starts `agy --version`, which no run may start (Phase 316.6's reverify, 2026-10-01)
+
+**Subject.** `fix(harness): a harness launch never version-probes an agent the probes may not start`
+
+**First body line.** `Phase 335: the harness launch honours the hidden agents`
+
+**Semver.** Patch, unreleased, invisible to a person: it changes only what a harness launch (`GMUX_SMOKE`, `GMUX_SHOT`)
+asks the machine.
+
+**Tier 2.** Invisible to a person, so the gates are the evidence and the verifier re-derives the process table rather
+than reading a report. Its one independent method: **measure the parent**, sampling the process table every 250 ms
+through a whole `smoke:t1` at the parent and at HEAD.
+
+**Charter.** The operator's standing rule of 2026-09-29: Gemini, Qwen, Antigravity and Grok are never started, not even
+`--version`, because each updates itself on start. Phase 331 wrote the guard (a scratch `agents.json` renaming those
+binaries) and Phase 326 moved it to `build/hidden-agents.mjs`. Phase 316.6's reverify, sampling the process table during
+`smoke:t1`, caught `/Users/gdc/.local/bin/agy --version` under the run although the quiet-agents file had been written
+into the harness profile: `dispatchHarness` (`src/main/index.ts:508`) returns before the configuration overlay store is
+installed, so detection scans the COMPILED registry, and `warmDetectionAtBoot` (`src/main/agents/detection.ts:609`)
+runs each found agent's `versionProbe` (`src/main/agents/registry.ts:497`). Every landing battery since at least
+2026-09-29 has run `smoke:t1`, `smoke` and `smoke:t3` this way. No model turn was spent.
+
+### What was measured before this entry was written
+
+- One `agy --version` per `smoke:t1` run on his Mac, seen by a 250 ms process sampler (the 316.6 reverify's report in
+  `build/p3166/SPEC.md` "§As built"). Whether `smoke` and `smoke:t3` do the same is the spec's first measurement.
+
+### The mechanism, for the spec to decide between
+
+1. **A harness launch probes no version**: detection in a `GMUX_SMOKE` or `GMUX_SHOT` launch resolves binaries but runs
+   no `versionProbe`, unless a smoke mode names the agent it needs (the create smoke needs only a shell). Smallest, and
+   no new name in the contract.
+2. **Or the overlay store is installed before `dispatchHarness`**, so the scratch `agents.json` a harness profile carries
+   is honoured as it is in an ordinary launch. Wider: it moves boot order.
+
+Either way `build/battery.sh`-style landing runs and `build/electron-run.mjs` change nothing; the guard lives in the app.
+
+### The proof, run rather than read
+
+- The gates, `conformance:agents` (the overlay is read) and `gate:contract` (no new name unless the spec adds one, and
+  then the baseline moves on purpose).
+- **The parent measurement**: `smoke:t1`, `smoke` and `smoke:t3` at the parent and at HEAD under a 250 ms sampler of
+  this user's process table, every command line containing an agent binary from `HIDDEN_AGENT_IDS` printed. Parent: one
+  or more `--version` lines. HEAD: none. The smokes' own PASS lines unchanged.
+
+### What is NOT in this phase
+
+- **No change to detection in an ordinary launch**: a person's app still probes every installed agent's version.
+- **No new agent rule**, no change to `HIDDEN_AGENT_IDS`.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40282,3 +40333,5 @@ cycle rather than only the evening it was written.
 - 2026-10-01, **PHASE 306 LANDED, `6f194ddb`, unreleased — a closed remote tab stays closed (issue 35, Jake Levirne).** The machine pass's re-home now asks whether a folder's tab was closed before re-adding it, a create on that machine opens and clears its folder, and the window re-asks main when a folder's closed record changes so a create into a closed folder is drawn. Both lenses needs_work on that last case (worse than today); the fix round REPAIRED it rather than removing the hold, because removing the hold removes the fix; the independent reverify approved: the reporter's two timings reproduced at the parent and held closed at HEAD through Refresh, End, reload and relaunch, the create drawn 2 to 3 ms after it returns, no row worse. Stated limits: folders whose sessions this Mac did not start still come back; re-opening needs the machine to answer; a trailing slash is its own folder. **Found and not this phase's, identical at both builds, owed an entry**: a far folder with a non-ASCII name comes back from a far tmux client with no UTF-8 locale as underscores, so a second, wrong tab opens. `HELPER_USER_FLOOR` 161.
 
 - 2026-10-01, **PHASE 317 STARTED EARLY, on his word — "yes assuming it will be possible to rebase and incorporate, go for it".** End from the phone, behind Face ID, is the write door 318 adds to, and 316.6 is still in its fix round, so 317 runs ahead in two steps without dropping one: its SPEC step now (`build/p317/SPEC.md` and an amended entry, reconciling the 2026-09-21 entry with Phase 330's door, 316.5, 316.6's Unpair half, research 135 §4's write order, research 136's Face ID, Touch ID and passcode path, research 137's background-write arm and his "Only for End"), attacked by an adversary before any builder reads it; its build lane starts from 316.6's FIXED tree once that fix round finishes, and its changes are replayed onto main after 316.6 lands. 318 follows 317.
+
+- 2026-10-01, **PHASE 335 QUEUED, and 316.6's second needs_work went to him.** 335: every landing battery's `smoke:t1` has run `/Users/gdc/.local/bin/agy --version`, because a harness launch returns before the overlay store that honours the hidden-agents file is installed; Tier 2, the parent measured under a process sampler. 316.6: the tabs, Settings and Unpair passed (Unpair left 0 keys, 207 hostile links refused correctly), and two markdown rows read worse than today — an answer of many tiny pieces costs far more than today and can end the app (one page of 400 one-line code blocks per answer: 28 s and 4.6 GB on iOS 18.3 against 4.4 s and 38 MB; three pages crashed), and an ordered list drew counted numbers where the agent wrote others ("0. Nobody waits" drawn "4."). **His ruling: "One narrow fix round"** — the agent's own numbers, and an answer past a measured piece limit drawn exactly as today; the ruled round and an independent final check are running. **317** is built on 316.6's fixed tree (snapshot `551312f7`, local only) and in its verification.
