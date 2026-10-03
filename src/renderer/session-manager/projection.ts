@@ -53,15 +53,17 @@ import { displayPath } from '../format';
 import { agentShortLabel } from '../state/agents';
 import { machineLabelFor } from '../state/machines-slice';
 import {
-  hasRestoreMaterial,
   LIFECYCLE_BRIDGE_MISSING,
   restoreActionCopy,
   restoreExitedCopy,
+  SHELL_PATH_PENDING_TITLE
+} from '../state/resume';
+import {
+  hasRestoreMaterial,
   sessionActionGates,
-  SHELL_PATH_PENDING_TITLE,
   type SessionActionGates,
   type SessionHandback
-} from '../state/resume';
+} from '@shared/session-gates';
 import { effectiveStatusOf } from '../state/store';
 import {
   END_UNREACHABLE_TITLE,

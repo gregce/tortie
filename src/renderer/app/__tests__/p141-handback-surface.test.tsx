@@ -75,7 +75,7 @@ const {
 const { useApp } = await import('../../state/store');
 const { RESUME_IN_PLACE_LABEL, RESUME_IN_PLACE_SUBLABEL, resumeNote } =
   await import('../../state/resume');
-import type { SessionHandback } from '../../state/resume';
+import type { SessionHandback } from '@shared/session-gates';
 
 const STUDIO: SessionMachine = {
   id: 'studio',

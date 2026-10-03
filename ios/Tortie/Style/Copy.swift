@@ -300,8 +300,9 @@ enum Copy {
     /// Phone: the question Unpair asks before it forgets anything.
     static let unpairQuestion = "Unpair this iPhone?"
 
-    /// Phone: what Unpair does and does not do, until Phase 317's signed verb
-    /// tells the Mac. The Mac's own button and where it is are named.
+    /// Phone: what Unpair does and does not do, until a signed verb tells the
+    /// Mac (Phase 317's fix round took that verb out and queued it on its
+    /// own). The Mac's own button and where it is are named.
     /// Names: src/renderer/settings/PhoneSection.tsx ⟦BTN_REMOVE = 'Remove'⟧
     /// Names: src/main/settings/window.ts ⟦title: 'Settings'⟧
     /// Names: src/renderer/settings/PhoneSection.tsx ⟦PHONE_TITLE = 'Phone'⟧
@@ -327,6 +328,130 @@ enum Copy {
     /// Phone: between the version and its build, `1.0.0 (4)`, as Xcode and
     /// TestFlight write it; `countClose` closes it.
     static let buildOpen = " ("
+
+    // MARK: - End (Phase 317: End.html, EndThese.html, build/p317/SPEC.md section 5.8.7)
+    //
+    // The confirmation itself is NOT here: the door sends the Mac's own
+    // `endSessionConfirm` for the session, word for word. Every batch and
+    // outcome word below is a piece of the Mac sheet's own composer in
+    // src/renderer/session-manager/copy.ts, and the composers at the foot of
+    // this file put the pieces together the Mac's way;
+    // ios/TortieTests/Fixtures/batch-words.json holds what both sides compose.
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦END_SESSION = 'End session…'⟧
+    static let endSessionMenu = "End session…"
+
+    /// Phone: the Sessions tab's press that starts End these, drawn only when
+    /// the Mac offers End on at least one row. The Mac sheet selects with a
+    /// checkbox on every row and has no such press.
+    static let select = "Select"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦END_SELECTED = 'End selected sessions…'⟧
+    static let endSelected = "End selected sessions…"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `${String(n)} selected`;⟧
+    static let selectedTail = " selected"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `End ${String(n)} running ${sessionWord(n)}?`;⟧
+    static let batchEndLead = "End "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `End ${String(n)} running ${sessionWord(n)}?`;⟧
+    static let batchRunningMid = " running "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `End ${String(n)} running ${sessionWord(n)}?`;⟧
+    static let questionMark = "?"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `End ${String(n)} ${sessionWord(n)}`;⟧
+    static let space = " "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return n === 1 ? 'session' : 'sessions';⟧
+    static let sessionSingular = "session"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦'sessions';⟧
+    static let sessionPlural = "sessions"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦'This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended.'⟧
+    static let batchBodyLocal = "This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended."
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `${local} For a session on another machine, bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent.`;⟧
+    static let batchBodyRemoteTail = " For a session on another machine, bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent."
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦'1 selected session stays unchanged:'⟧
+    static let skippedOneHead = "1 selected session stays unchanged:"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦`${String(total)} selected sessions stay unchanged:`⟧
+    static let skippedManyTail = " selected sessions stay unchanged:"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦parts.push(`${String(counts.ended)} already ended`);⟧
+    static let alreadyEndedTail = " already ended"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦parts.push(`${String(counts.unreachable)} unreachable`);⟧
+    static let unreachableTail = " unreachable"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦parts.push(`${String(gone)} no longer here`);⟧
+    static let noLongerHereTail = " no longer here"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `${head} ${parts.join(', ')}`;⟧
+    static let listSeparator = ", "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `Ending ${String(n)} ${sessionWord(n)}…`;⟧
+    static let runningLead = "Ending "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `${String(ended)} of ${String(n)} ${sessionWord(n)} ended`;⟧
+    static let doneMid = " of "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `${String(ended)} of ${String(n)} ${sessionWord(n)} ended`;⟧
+    static let doneTail = " ended"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦BATCH_STOP = 'Stop'⟧
+    static let stop = "Stop"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦BATCH_DONE = 'Done'⟧
+    static let done = "Done"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return 'Ending…';⟧
+    static let ending = "Ending…"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return 'Ended';⟧
+    static let ended = "Ended"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦? 'Already ended'⟧
+    static let alreadyEnded = "Already ended"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦? 'Unreachable'⟧
+    static let unreachable = "Unreachable"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦: 'No longer here';⟧
+    static let noLongerHere = "No longer here"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return `Not ended. ${outcome.message}`;⟧
+    static let notEndedLead = "Not ended. "
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦return 'Not run';⟧
+    static let notRun = "Not run"
+
+    /// Phone: a target whose write went out and got no answer the phone can
+    /// read, so the Mac may have ended it once. The Mac sheet calls its own
+    /// verb in-process and always has an answer.
+    static let noAnswer = "No answer"
+
+    /// Phone: Face ID, Touch ID or the passcode was cancelled or failed, so
+    /// nothing was sent. The Mac asks no owner check.
+    static let endNotConfirmed = "Not confirmed. Nothing was changed."
+
+    /// Phone: this iPhone has no passcode, so nothing can confirm its owner
+    /// and End is drawn off (research 136 section 14).
+    static let endNeedsPasscode = "Set a passcode on this iPhone to end a session from it."
+
+    /// Phone: the door refused the write before acting (a 404), or the app
+    /// left before its bytes were handed and it was never sent. Both are true
+    /// of each: the Mac did not end it.
+    static let endNotTaken = "Your Mac did not end it. Nothing was changed."
+
+    /// Phone: the write went out and no answer came back; drawn only over a
+    /// read of the session that came back after it, so "as it reads now" is
+    /// true.
+    static let endNoAnswer = "Your Mac did not answer. This is the session as it reads now."
 
     // MARK: - The answer, drawn as markdown (Phase 316.6: Conversation.html, Link.html)
 
@@ -427,5 +552,65 @@ enum Copy {
     /// A line or a cell cut short, ending in the Mac's own mark for it.
     static func cutShort(_ text: String) -> String {
         text + pending
+    }
+
+    // End these (Phase 317): each the Mac's composer of the same name, put
+    // together from its pieces above (batch-words.json holds both sides').
+
+    /// `session`, or `sessions` for any count but one.
+    static func sessionWord(_ count: Int) -> String {
+        count == 1 ? sessionSingular : sessionPlural
+    }
+
+    /// `3 selected`.
+    static func selectedCount(_ count: Int) -> String {
+        String(count) + selectedTail
+    }
+
+    /// `End 2 running sessions?`, the batch confirmation's title.
+    static func batchHeading(_ count: Int) -> String {
+        batchEndLead + String(count) + batchRunningMid + sessionWord(count) + questionMark
+    }
+
+    /// `End 2 sessions`, the batch confirmation's press.
+    static func batchConfirmLabel(_ count: Int) -> String {
+        batchEndLead + String(count) + space + sessionWord(count)
+    }
+
+    /// The batch confirmation's body, drawn FIRST in its message: the local
+    /// sentence, and the remote tail when any target is on another machine.
+    static func batchBody(_ anyRemote: Bool) -> String {
+        anyRemote ? batchBodyLocal + batchBodyRemoteTail : batchBodyLocal
+    }
+
+    /// `1 selected session stays unchanged: 1 already ended`: the selected
+    /// rows the confirmation will not end, counted with their reasons in the
+    /// Mac's order and never listed. Nil when none was skipped.
+    static func batchSkippedLine(_ skipped: [BatchSkip]) -> String? {
+        guard !skipped.isEmpty else { return nil }
+        let ended = skipped.filter { $0 == .ended }.count
+        let unreachable = skipped.filter { $0 == .unreachable }.count
+        let gone = skipped.filter { $0 == .gone }.count
+        var parts: [String] = []
+        if ended > 0 { parts.append(String(ended) + alreadyEndedTail) }
+        if unreachable > 0 { parts.append(String(unreachable) + unreachableTail) }
+        if gone > 0 { parts.append(String(gone) + noLongerHereTail) }
+        let head = skipped.count == 1 ? skippedOneHead : String(skipped.count) + skippedManyTail
+        return head + space + parts.joined(separator: listSeparator)
+    }
+
+    /// `Ending 2 sessions…`.
+    static func batchRunningHeading(_ count: Int) -> String {
+        runningLead + String(count) + space + sessionWord(count) + pending
+    }
+
+    /// `2 of 2 sessions ended`.
+    static func batchDoneHeading(_ endedCount: Int, _ count: Int) -> String {
+        String(endedCount) + doneMid + String(count) + space + sessionWord(count) + doneTail
+    }
+
+    /// `Not ended. <the reason, in its owner's words>`.
+    static func notEnded(_ reason: String) -> String {
+        notEndedLead + reason
     }
 }

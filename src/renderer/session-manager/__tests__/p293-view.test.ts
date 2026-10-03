@@ -28,7 +28,7 @@
 import { describe, expect, it } from 'vitest';
 import type { OverviewSessionActivity } from '@shared/overview';
 import type { Session, SessionMachine, SessionStatus } from '@shared/types';
-import { sessionActionGates } from '../../state/resume';
+import { sessionActionGates } from '@shared/session-gates';
 import type { ManageGroup, ManageRow } from '../projection';
 import {
   DEFAULT_FILTERS,

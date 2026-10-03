@@ -59,14 +59,13 @@ import {
 import {
   BARE_RECOVERY_NOTE,
   BARE_RESTORE_LABEL,
-  hasRestoreMaterial,
-  offersBareRecovery,
   restoreActionCopy,
   restoreExitedCopy,
   restoreSummary,
   resumeNote,
   SHELL_PATH_PENDING_TITLE
 } from '../state/resume';
+import { hasRestoreMaterial, offersBareRecovery } from '@shared/session-gates';
 import { AgentIcon, Codicon } from '../icons';
 // §6.2 lives with the other full-window empty states (./EmptyStates).
 import { NoSessions } from './EmptyStates';

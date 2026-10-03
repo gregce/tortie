@@ -37,6 +37,26 @@
  * 6. **Forward** the typed request to main, and write main's answer through
  *    `./send.ts`, the one writer.
  *
+ * ## The one write (Phase 317, build/p317/SPEC.md §5.3.2)
+ *
+ * `POST /v1/end` passes the same steps with three differences, and nothing
+ * here parses its body: a write takes NO query string (refused `route`), its
+ * body is capped by its own row (`POCKET_WRITE_BODY_CAPS`), and it is
+ * forwarded as a `POST` whose target is its path alone. Two rules then hold
+ * for a write that main was handed:
+ *
+ * - **A late answer CUTS the connection, never 404.** A read answered 404 when
+ *   main is late means nothing happened, and that is true of a read. Of a
+ *   write it may be false: main may be acting on it now. So a write main does
+ *   not answer in time ends its connection (`writesCut`), and the phone reads
+ *   "no answer" and re-reads, which is true.
+ * - **A revoked socket finishes a WRITE's answer, and only that.** When the
+ *   pins move (a Remove), a socket whose key is no longer pinned is cut at
+ *   once, exactly as before, UNLESS it is carrying a write main was already
+ *   handed: that answer is let out whole, the socket takes no further
+ *   request, and it is cut when the answer is out. A removed phone's
+ *   in-flight READ is cut with no byte, as it always was.
+ *
  * ## Two things measured rather than assumed
  *
  * - **An `http.Server` that never listens does not enforce `headersTimeout`
@@ -76,12 +96,13 @@ import {
   MAX_CONNECTIONS,
   PER_SOURCE_MAX,
   POCKET_PAIR_BODY_CAP_BYTES,
+  POCKET_WRITE_BODY_CAPS,
   createSourceLimiter,
   type DoorTimings
 } from './limits';
 import { readProxyV2 } from './proxy-v2';
 import { sendPocket } from './send';
-import { matchPocketRoute } from './table';
+import { matchPocketRoute, type PocketRoute } from './table';
 import {
   DOOR_REFUSAL_WORDS,
   DOOR_TARGET_MAX_CHARS,
@@ -93,6 +114,7 @@ import {
   type DoorPresentation,
   type DoorRefusalWord,
   type DoorRequest,
+  type DoorWriteRoute,
   type FromDoor
 } from './wire';
 
@@ -129,6 +151,11 @@ export interface DoorListenerStats {
   readonly parserRequests: number;
   /** Requests forwarded to main. */
   readonly forwarded: number;
+  /**
+   * Writes whose connection was CUT because main's answer was late (Phase
+   * 317). Never answered 404: main may have acted on them.
+   */
+  readonly writesCut: number;
   /** TLS sockets past the pin check and still open. */
   readonly open: number;
   /** Messages from main that did not validate, dropped whole. */
@@ -161,6 +188,13 @@ interface Admitted {
   busy: number;
   /** The headers timer: set while the socket waits for a request. */
   wait: ReturnType<typeof setTimeout> | null;
+  /**
+   * Its key is no longer pinned, or now names another phone (Phase 317). It
+   * takes no further request, and it is cut once {@link writes} is zero.
+   */
+  revoked: boolean;
+  /** Its requests forwarded to main whose route is a WRITE and not yet answered. */
+  writes: number;
 }
 
 function unrefTimer(timer: ReturnType<typeof setTimeout>): ReturnType<typeof setTimeout> {
@@ -187,6 +221,15 @@ function spkiPinOfPeer(tlsSocket: TLSSocket): string | null {
   if (peer === undefined) return null;
   const der = peer.publicKey.export({ type: 'spki', format: 'der' });
   return createHash('sha256').update(der).digest('base64url');
+}
+
+/**
+ * The most bytes a route's body may be (refusal 5). A read's is the signed
+ * read cap, `/pair`'s its own, and a write's its row's own cap (Phase 317).
+ */
+function bodyCapOf(route: PocketRoute): number {
+  if (route.reads) return route.signed ? POCKET_READ_BODY_CAP_BYTES : POCKET_PAIR_BODY_CAP_BYTES;
+  return POCKET_WRITE_BODY_CAPS[route.id as DoorWriteRoute];
 }
 
 /** `/pair`'s outer JSON: exactly the five keys, each within its bound, or null. */
@@ -263,7 +306,7 @@ export function createDoorListener(
   let sequence = 0;
 
   const refused = Object.fromEntries(DOOR_REFUSAL_WORDS.map((w) => [w, 0])) as Record<DoorRefusalWord, number>;
-  const counts = { connections: 0, handedToTls: 0, handedBuffered: 0, handshakes: 0, parserSockets: 0, parserRequests: 0, forwarded: 0, droppedMessages: 0 };
+  const counts = { connections: 0, handedToTls: 0, handedBuffered: 0, handshakes: 0, parserSockets: 0, parserRequests: 0, forwarded: 0, writesCut: 0, droppedMessages: 0 };
   /** One post per word per process, so a flood is one line in main's log. */
   const said = new Set<DoorRefusalWord>();
 
@@ -287,6 +330,16 @@ export function createDoorListener(
   const refuseRequest = (res: ServerResponse, word: DoorRefusalWord): void => {
     noteRefusal(word);
     sendPocket(res, 404, null);
+  };
+
+  /**
+   * A revoked socket (Phase 317): cut it now unless it is answering a write
+   * main was handed. True when it was revoked, so the caller stops there.
+   */
+  const cutIfRevoked = (tlsSocket: TLSSocket, state: Admitted): boolean => {
+    if (!state.revoked) return false;
+    if (state.writes === 0) tlsSocket.destroy();
+    return true;
   };
 
   /** The headers timer: a socket handed to HTTP must send a request this soon. */
@@ -394,7 +447,7 @@ export function createDoorListener(
       }
       channel = null;
     }
-    const state: Admitted = { channel, spki, busy: 0, wait: null };
+    const state: Admitted = { channel, spki, busy: 0, wait: null, revoked: false, writes: 0 };
     admitted.set(tlsSocket, state);
     tlsSocket.once('close', () => {
       if (state.wait !== null) clearTimeout(state.wait);
@@ -409,13 +462,21 @@ export function createDoorListener(
   // Step 5: HTTP, refusals 1 to 5
   // -------------------------------------------------------------------------
 
-  const handleRequest = async (req: IncomingMessage, res: ServerResponse): Promise<void> => {
+  const handleRequest = async (
+    req: IncomingMessage,
+    res: ServerResponse,
+    mark: { forwardedWrite: boolean }
+  ): Promise<void> => {
     const tlsSocket = req.socket as TLSSocket;
     const state = admitted.get(tlsSocket);
     if (state === undefined) {
       tlsSocket.destroy();
       return;
     }
+    // A REVOKED SOCKET TAKES NO FURTHER REQUEST (Phase 317), asked before
+    // anything of this one is read. It is cut now, or, while it is answering a
+    // write main was handed, when that answer is out.
+    if (cutIfRevoked(tlsSocket, state)) return;
     // REFUSAL 1. Admission closes on the first line of a shutdown.
     if (shuttingDown) return refuseRequest(res, 'shutdown');
     // REFUSAL 2. Before the path, before the query, before the body.
@@ -428,16 +489,22 @@ export function createDoorListener(
     const url = new URL(raw, `https://${host.name}`);
     const route = matchPocketRoute(req.method ?? '', url.pathname);
     if (route === null) return refuseRequest(res, 'route');
+    // A WRITE TAKES NO QUERY STRING (Phase 317): its target is its path,
+    // exactly, and everything it says is in its signed body. `?` alone counts,
+    // because `URL` reads `/v1/end?` as a path with an empty search.
+    if (!route.reads && (url.search !== '' || raw.includes('?'))) return refuseRequest(res, 'route');
     // REFUSAL 4. `/pair` is dead outside a window a person opened, and a
     // connection that presented no certificate reaches `/pair` and nothing else.
     if (route.windowOnly && !windowOpen) return refuseRequest(res, 'window');
     if (state.channel === null && route.id !== 'pair') return refuseRequest(res, 'route');
     // REFUSAL 5. Capped and dropped WHOLE, inside the request's own bound.
     const requestTimer = unrefTimer(setTimeout(() => tlsSocket.destroy(), timings.requestMs));
-    const body = await readCapped(req, route.signed ? POCKET_READ_BODY_CAP_BYTES : POCKET_PAIR_BODY_CAP_BYTES);
+    const body = await readCapped(req, bodyCapOf(route));
     clearTimeout(requestTimer);
     if (body === null) return refuseRequest(res, 'oversized');
     if (shuttingDown) return refuseRequest(res, 'shutdown');
+    // Revoked while its body was read: nothing of it is forwarded.
+    if (cutIfRevoked(tlsSocket, state)) return;
 
     let request: DoorRequest;
     if (route.id === 'pair') {
@@ -445,31 +512,68 @@ export function createDoorListener(
       if (presentation === null) return refuseRequest(res, 'malformed');
       request = { route: 'pair', presentation };
     } else {
-      const target = `${url.pathname}${url.search}`;
+      // A write's target is its path alone; a read's carries its query.
+      const target = route.reads ? `${url.pathname}${url.search}` : url.pathname;
       const headers = signatureHeadersOf(req.headers);
       if (target.length > DOOR_TARGET_MAX_CHARS || headers === null || state.channel === null) {
         return refuseRequest(res, 'malformed');
       }
-      request = {
-        route: route.id as Exclude<typeof route.id, 'pair'>,
-        method: 'GET',
-        target,
-        headers,
-        body: new Uint8Array(body),
-        channel: state.channel
-      };
+      request = route.reads
+        ? {
+            route: route.id as Exclude<typeof route.id, 'pair' | DoorWriteRoute>,
+            method: 'GET',
+            target,
+            headers,
+            body: new Uint8Array(body),
+            channel: state.channel
+          }
+        : {
+            route: route.id as DoorWriteRoute,
+            method: 'POST',
+            target,
+            headers,
+            body: new Uint8Array(body),
+            channel: state.channel
+          };
     }
 
     // STEP 6. Forward, and wait for main's answer, bounded.
     sequence += 1;
     const id = sequence;
+    const write = !route.reads;
     const timer = unrefTimer(
       setTimeout(() => {
         pending.delete(id);
+        if (write) {
+          // NEVER 404 AFTER A WRITE WAS FORWARDED (Phase 317): main may be
+          // acting on it, so the connection is cut and the phone reads "no
+          // answer", which is true.
+          counts.writesCut += 1;
+          tlsSocket.destroy();
+          return;
+        }
         sendPocket(res, 404, null);
       }, timings.answerMs)
     );
     pending.set(id, { res, timer });
+    if (write) {
+      // Counted until its response is out or its connection closes, so a
+      // revoke lets this answer leave whole and then cuts the socket.
+      mark.forwardedWrite = true;
+      state.writes += 1;
+      let counted = true;
+      const settle = (finished: boolean): void => {
+        if (!counted) return;
+        counted = false;
+        state.writes -= 1;
+        if (!state.revoked || state.writes > 0) return;
+        // The answer is out: the socket is cut once its bytes are flushed.
+        if (finished) tlsSocket.destroySoon();
+        else tlsSocket.destroy();
+      };
+      res.once('finish', () => settle(true));
+      res.once('close', () => settle(false));
+    }
     counts.forwarded += 1;
     send({ kind: 'request', id, generation, request });
   };
@@ -497,8 +601,11 @@ export function createDoorListener(
     });
     inFlight.add(done);
     void done.finally(() => inFlight.delete(done));
-    void handleRequest(req, res).catch(() => {
-      sendPocket(res, 404, null);
+    const mark = { forwardedWrite: false };
+    void handleRequest(req, res, mark).catch(() => {
+      // A write main was handed is never answered 404 here either (Phase 317).
+      if (mark.forwardedWrite) tlsSocket.destroy();
+      else sendPocket(res, 404, null);
     });
   };
 
@@ -554,10 +661,15 @@ export function createDoorListener(
   const applyPins = (next: readonly DoorPin[]): void => {
     pins = new Map(next.map((p) => [p.spkiSha256, p.phoneId]));
     // A socket whose key is no longer pinned, or whose key now names another
-    // phone, is cut at once: Remove means now, not at the next request.
+    // phone, is cut at once: Remove means now, not at the next request. THE
+    // ONE EXCEPTION (Phase 317): a socket answering a write main was already
+    // handed is marked revoked and cut when that answer is out, because an
+    // answer cut after main acted would tell the phone nothing happened.
     for (const [tlsSocket, state] of admitted) {
       if (state.spki === null) continue;
-      if (pins.get(state.spki) !== state.channel) tlsSocket.destroy();
+      if (pins.get(state.spki) === state.channel) continue;
+      state.revoked = true;
+      if (state.writes === 0) tlsSocket.destroy();
     }
   };
 
@@ -661,6 +773,7 @@ export function createDoorListener(
     parserSockets: counts.parserSockets,
     parserRequests: counts.parserRequests,
     forwarded: counts.forwarded,
+    writesCut: counts.writesCut,
     open: admitted.size,
     droppedMessages: counts.droppedMessages
   });

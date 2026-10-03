@@ -182,9 +182,11 @@ import {
   createPocketRoutes,
   pocketRouteIds,
   type PocketFacts,
-  type PocketRoute
+  type PocketRoute,
+  type PocketWrites
 } from './routes';
 import { createPocketHandler } from './server';
+import { createPocketWriteHandler } from './writes';
 import { issueClientCertificate, pocketTlsMaterial } from './tls';
 
 const pocketLog = getLog('pocket');
@@ -236,6 +238,13 @@ export interface PocketHostDeps {
    * type IS the refusal: there is no member a route could set a status with.
    */
   facts: PocketFacts;
+  /**
+   * The phone's writes (Phase 317, build/p317/SPEC.md §5.4): the one
+   * implementation in `src/main/sessions/pocket-writes.ts`, handed in by
+   * `src/main/capabilities.ts` and tests alone. ABSENT, every write route
+   * answers 404 before anything (the push seam, the tests).
+   */
+  writes?: PocketWrites;
   /**
    * Awaited after the gate and before anything starts, every time the door
    * opens — from the launch step and from a person's press alike (Phase 316).
@@ -468,6 +477,14 @@ export class PocketHost {
       ...(deps.now !== undefined ? { now: deps.now } : {})
     });
     const routes = createPocketRoutes(deps.facts);
+    // THE ONE WRITE PATH (Phase 317, SPEC §5.3.4). Its last check asks the
+    // same three things refusal 7 asks, with nothing awaited before the act.
+    const write = createPocketWriteHandler({
+      shuttingDown: () => pocketShutdownStarted(),
+      stillPaired: (phoneId) => this.stillPaired(phoneId),
+      ...(deps.writes !== undefined ? { writes: deps.writes } : {}),
+      ...(deps.now !== undefined ? { now: deps.now } : {})
+    });
     this.handler = createPocketHandler({
       shuttingDown: () => pocketShutdownStarted(),
       pairingWindowOpen: () => this.pairing.windowOpen(),
@@ -496,8 +513,8 @@ export class PocketHost {
       // await, so a phone removed while its request was in flight is refused
       // `unpaired` here rather than answered. A store that cannot be read
       // answers no, which refuses.
-      stillPaired: (phoneId) =>
-        this.readStore()?.phones.some((p) => p.id === phoneId) === true,
+      stillPaired: (phoneId) => this.stillPaired(phoneId),
+      write,
       answer: async (route: PocketRoute, query) => {
         // The closed table, answered. There is no default arm: a route id this
         // switch does not name cannot exist, because `POCKET_ROUTES` is the
@@ -523,6 +540,10 @@ export class PocketHost {
             // Answered in `./server.ts`, because presenting reads nothing of
             // main's state and must not reach this composer at all.
             return null;
+          case 'end':
+            // The one write (Phase 317) goes to the one write path in
+            // `./server.ts` and never reaches this composer of reads.
+            return null;
         }
       }
     });
@@ -538,6 +559,17 @@ export class PocketHost {
 
   private now(): number {
     return this.deps.now?.() ?? Date.now();
+  }
+
+  /**
+   * Is this phone still one the person allowed? Asked again after an answer is
+   * composed and before it leaves (refusal 7), and by the write path last,
+   * before its act. The store is written BEFORE any await in `removePhone`, so
+   * a phone removed while its request was in flight reads no here. A store
+   * that cannot be read answers no, which refuses.
+   */
+  private stillPaired(phoneId: string): boolean {
+    return this.readStore()?.phones.some((p) => p.id === phoneId) === true;
   }
 
   // -------------------------------------------------------------------------
@@ -1278,10 +1310,10 @@ export class PocketHost {
     try {
       broadcastEvent(EVT_POCKET_CHANGED, this.status());
     } catch (err) {
+      // A WORD and never what the error said (`conformance:pocket` G1, Phase
+      // 317): an error's own text can carry whatever it was handed.
       pocketLog.warn(
-        `could not push the pocket status: ${
-          err instanceof Error ? err.message : String(err)
-        }`
+        `could not push the pocket status: ${err instanceof Error ? err.name : typeof err}`
       );
     }
   }

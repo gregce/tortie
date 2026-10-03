@@ -56,15 +56,10 @@ import { jumpToSession, targetOpenRefusal } from '../app/session-focus';
 import { displayPath } from '../format';
 import type { AppState } from '../state/app-state';
 import { machineLabelFor } from '../state/machines-slice';
-import {
-  restoreNeedsOpenAsk,
-  sessionActionGates
-} from '../state/resume';
-import type {
-  RestoreNote,
-  RestoreOutcome,
-  SessionActionGates
-} from '../state/resume';
+import { restoreNeedsOpenAsk } from '../state/resume';
+import type { RestoreNote, RestoreOutcome } from '../state/resume';
+import { sessionActionGates } from '@shared/session-gates';
+import type { SessionActionGates } from '@shared/session-gates';
 import type {
   SessionSheetInline,
   SessionSheetRetry,

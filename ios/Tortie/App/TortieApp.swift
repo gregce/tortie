@@ -17,7 +17,9 @@
 // opens on Needs input every launch and stores no tab. One read of the list
 // feeds both list tabs and the badge. Unpair forgets the pairing on the phone
 // (the record first, then every client key), and in a Release build tells
-// Apple to stop taking alerts for this install; the Mac's half is Phase 317's.
+// Apple to stop taking alerts for this install; the Mac's half is not built
+// (Phase 317's fix round took it out, because waiting on it made Unpair slower
+// than today when the Mac did not answer).
 //
 // And since Phase 316.5, the alert: a tap on one opens the session it names
 // (`Route.alerted`), or the list with the Mac's own sentence when the Mac no
@@ -26,12 +28,20 @@
 // alerts.` on the list (Alerts/Alerts.swift). A phone paired with a Mac that
 // cannot send asks iOS nothing and says nothing about alerts.
 //
+// AND SINCE PHASE 317, END (build/p317/SPEC.md section 5.8): a session the
+// Mac offers End for ends from its screen, and End these from the Sessions
+// tab, each only after Face ID, Touch ID or the passcode (App/OwnerCheck.swift)
+// and each through the Mac's own two gates. The app keeps every live End's
+// runner and stops each one when it goes to the background, which withholds a
+// write whose bytes were not yet handed (`wentAway`).
+//
 // WHAT IT NEVER DOES. It sends no message and draws no message box or send
-// control (Phase 318). It draws no terminal scrollback, ever. It ends,
-// restores and removes nothing. It has no timer and no background mode: it
+// control (Phase 318). It draws no terminal scrollback, ever. It restores and
+// removes nothing, and it ends a session only on his press, his confirmation
+// and his face, finger or passcode. It has no timer and no background mode: it
 // reads on appear, on return to the foreground and on pull (build/p316/SPEC.md
 // section 4.0), and an alert that arrives while it is open refreshes nothing.
-// Dark only, iPhone, portrait.
+// Nothing keeps it running to finish a write. Dark only, iPhone, portrait.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -123,18 +133,31 @@ final class AppModel {
     /// `forgetAddress()`, held so a test can wait for them.
     @ObservationIgnored private(set) var permissionRead: Task<Void, Never>?
     @ObservationIgnored private(set) var forgetting: Task<Void, Never>?
+    /// Every End under way, single or batch: registered at the destructive
+    /// press and stopped together when the app goes to the background.
+    @ObservationIgnored private(set) var liveRunners: [EndRunner] = []
 
     private let door: any PhoneDoor
     /// What the app asks iOS about alerts (Alerts/SystemAlerts.swift).
     private let alerts: any PushAddressing
+    /// Face ID, Touch ID or the passcode, asked before an End and nothing
+    /// else (App/OwnerCheck.swift).
+    let ownerCheck: any OwnerCheck
     /// A code handed in at launch (DEBUG only), read once by the first
     /// pairing screen and never again, so a pairing that is later removed
     /// draws the not-paired line rather than retrying a spent code.
     private var launchCode: String?
 
-    init(door: any PhoneDoor, label: String, alerts: any PushAddressing, launchCode: String? = nil) {
+    init(
+        door: any PhoneDoor,
+        label: String,
+        alerts: any PushAddressing,
+        launchCode: String? = nil,
+        ownerCheck: any OwnerCheck = DeviceOwnerCheck()
+    ) {
         self.door = door
         self.alerts = alerts
+        self.ownerCheck = ownerCheck
         if let reader = door.pairedReader() {
             root = .reading
             self.reader = reader
@@ -268,8 +291,18 @@ final class AppModel {
     /// hands the tap over before the scene is active, and a sentence that tap
     /// produced was cleared by the return it arrived with: five taps of five
     /// on iOS 26.3 drew the list with no sentence (the 316.5 fix round).
+    ///
+    /// And every write stops (Phase 317, D6): each live End's runner starts
+    /// no further write and its task is cancelled, which WITHHOLDS a write
+    /// whose bytes were not yet handed to the connection, so a handshake iOS
+    /// resumes on the way back cannot carry it. Nothing keeps the app running
+    /// to finish one.
     func wentAway() {
         list?.clearNotice()
+        for runner in liveRunners {
+            runner.stopRequested = true
+            runner.task?.cancel()
+        }
     }
 
     /// He came back: the screen on top of the tab on screen reads again, a
@@ -403,6 +436,23 @@ final class AppModel {
         case .settings: break
         }
     }
+
+    /// End these, for the Sessions tab of a pairing that writes.
+    func endBatchSetup(_ reader: any DoorReading) -> EndBatchSetup? {
+        reader.writer.map { EndBatchSetup(writer: $0, ownerCheck: ownerCheck, registry: self) }
+    }
+}
+
+/// The app keeps every live End's runner until it ends, so `wentAway` can
+/// stop each one.
+extension AppModel: EndRunnerRegistry {
+    func register(_ runner: EndRunner) {
+        liveRunners.append(runner)
+    }
+
+    func release(_ runner: EndRunner) {
+        liveRunners.removeAll { $0 === runner }
+    }
 }
 
 /// `dump` and `Mirror` would show `launchCode`, the code handed in at launch,
@@ -496,7 +546,8 @@ struct RootView: View {
             kind: kind,
             isTop: app.listIsTop(tab),
             foregroundTick: app.foregroundTick,
-            open: { app.open($0, in: tab) }
+            open: { app.open($0, in: tab) },
+            ends: app.reader.flatMap { app.endBatchSetup($0) }
         )
     }
 
@@ -506,7 +557,8 @@ struct RootView: View {
         case .session(let id, let name):
             SessionRoute(
                 id: id, name: name, reader: reader, routing: app.routing(tab),
-                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
+                ownerCheck: app.ownerCheck, registry: app
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
@@ -518,7 +570,8 @@ struct RootView: View {
         case .alerted(let id):
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
-                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
+                ownerCheck: app.ownerCheck, registry: app
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
@@ -526,9 +579,12 @@ struct RootView: View {
     }
 }
 
-/// Holds one session screen's model for as long as the screen is pushed.
+/// Holds one session screen's model, and its End's, for as long as the
+/// screen is pushed. The End is built from the reader's writer: a reader that
+/// writes nothing draws no End.
 private struct SessionRoute: View {
     @State private var model: SessionModel
+    @State private var end: EndModel?
     let name: String
     let isTop: Bool
     let foregroundTick: Int
@@ -536,9 +592,13 @@ private struct SessionRoute: View {
 
     init(
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
-        isTop: Bool, foregroundTick: Int, openConversation: @escaping (String?) -> Void
+        isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
+        openConversation: @escaping (String?) -> Void
     ) {
         _model = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
+        _end = State(initialValue: reader.writer.map {
+            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
+        })
         self.name = name
         self.isTop = isTop
         self.foregroundTick = foregroundTick
@@ -548,7 +608,7 @@ private struct SessionRoute: View {
     var body: some View {
         SessionScreen(
             model: model, name: name, isTop: isTop, foregroundTick: foregroundTick,
-            openConversation: openConversation
+            openConversation: openConversation, end: end
         )
     }
 }
@@ -577,10 +637,16 @@ private struct ConversationRoute: View {
 
 // MARK: - The seam to Door/
 
-/// The kept pairing's three reads, through the one network user.
-struct PairedReader: DoorReading {
+/// The kept pairing's three reads and one write, through the one network
+/// user. It is its own writer, answered through `DoorReading`'s requirement,
+/// so the app's `any DoorReading` reads it.
+struct PairedReader: DoorReading, DoorWriting {
     let client: DoorClient
     let door: PairedDoor
+
+    var writer: (any DoorWriting)? {
+        self
+    }
 
     var alerts: AlertsKept {
         door.alerts
@@ -601,6 +667,11 @@ struct PairedReader: DoorReading {
 
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer {
         try await client.turns(sessionId, to: to, door: door)
+    }
+
+    /// `POST /v1/end`, once.
+    func end(_ sessionId: String, batch: Bool) async -> WriteResult {
+        await client.end(sessionId, batch: batch, door: door)
     }
 }
 

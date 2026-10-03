@@ -10,7 +10,9 @@
  * the view, the cells, the source rules, since Phase 298 the domain's TYPE AND
  * SPACING rules (T17 to T22) and the two cell readings that phase's rough
  * edges 2 and 6 settled, and since Phase 303 the lifecycle control's one
- * clause (T23), which reads `row.gates` and names no status. This script
+ * clause (T23), which reads `row.gates` and names no status, and since Phase
+ * 317 the End partition between main's gate and the shared one (G2), the move
+ * of the gate to src/shared (T24) and the phone's door asking both (T25). This script
  * breaks ONE CLAUSE AT A TIME in the shipping source and proves it reddens
  * THE RULE THAT OWNS IT.
  *
@@ -49,9 +51,10 @@
  * ## It starts nothing
  *
  * No Electron, no tmux, no ssh, no agent, no token and no network. The gate
- * spawns one plain node per run, its own TypeScript probe. About 90 s for the
- * whole list (71 entries since Phase 303; 69 since Phase 298, measured at
- * 84.4 s), one gate run per entry plus the base and the restore; it runs once
+ * spawns one plain node per run, its own TypeScript probe. About two minutes
+ * for the whole list (85 entries since Phase 317, which added G2a to G2c, T24
+ * to T24c, T25a to T25g and T10b; 71 since Phase 303; 69 since Phase 298,
+ * measured at 84.4 s), one gate run per entry plus the base and the restore; it runs once
  * per phase beside the gate it attacks, and is not in the commit battery.
  * `P293_ONLY` is how a builder under a time budget runs a part of it.
  *
@@ -71,7 +74,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -89,6 +92,13 @@ const REFRESH = 'src/renderer/session-manager/use-sheet-refresh.ts';
 const GRID = 'src/renderer/session-manager/ManagedGrid.tsx';
 const SLICE = 'src/renderer/state/session-manager-slice.ts';
 const RESUME = 'src/renderer/state/resume.ts';
+// Phase 317. The gate moved to src/shared/session-gates.ts, unchanged, and the
+// End words to src/shared/lifecycle-words.ts; the phone's door asks the gate
+// beside main's own in src/main/sessions/pocket-writes.ts.
+const GATES = 'src/shared/session-gates.ts';
+const WORDS = 'src/shared/lifecycle-words.ts';
+const LIFECYCLE_GATE = 'src/main/sessions/lifecycle-gate.ts';
+const POCKET_WRITES = 'src/main/sessions/pocket-writes.ts';
 const POLICY = 'src/renderer/app/session-actions.tsx';
 const ACTIVITY = 'src/main/overview/activity-map.ts';
 const SHEET = 'src/renderer/session-manager/SessionManagerSheet.tsx';
@@ -219,7 +229,7 @@ const ABLATIONS = [
     rule: 'G1',
     name: 'an unknown row passes canEnd',
     why: 'Tortie cannot see an unknown session, and acting on one that may be alive is how a second agent lands on one conversation.',
-    file: RESUME,
+    file: GATES,
     from: '    canEnd: live,',
     to: '    canEnd: live || unknown,'
   },
@@ -228,9 +238,130 @@ const ABLATIONS = [
     rule: 'G1',
     name: 'a removed row passes canEnd',
     why: 'a removed session runs nowhere, and a kill of its id writes exited over the tombstone.',
-    file: RESUME,
+    file: GATES,
     from: '    canEnd: live,',
     to: '    canEnd: live || removed,'
+  },
+  // -------------------------------------------------------------------------
+  // Phase 317, build/p317/SPEC.md §6.2: the End partition between main's gate
+  // and the shared one, in both directions, and one definition of the words
+  // -------------------------------------------------------------------------
+  {
+    n: 'G2a',
+    rule: 'G2',
+    name: 'the shared gate tidied toward main: an ended row passes canEnd',
+    why: 'the phone asks both gates because they DISAGREE on exited, restorable and unknown; a gate that passed an ended row would let the door end it, and the sheet would offer End on a row with nothing running.',
+    file: GATES,
+    from: '    canEnd: live,',
+    to: '    canEnd: live || ended,'
+  },
+  {
+    n: 'G2b',
+    rule: 'G2',
+    name: 'main tidied toward the shared gate: endRefusal refuses exited, restorable and unknown',
+    why: 'main\'s gate refuses a removed row and nothing else on purpose (R11 and durability.ts end restorable rows); a main that refused the three would change what every caller of killSession may do, and the partition the door relies on would no longer be the one the spec states.',
+    file: LIFECYCLE_GATE,
+    from: "  return record.status === 'discarded' ? END_REFUSED_REMOVED : null;",
+    to: "  return record.status === 'discarded' || record.status === 'exited' || record.status === 'restorable' || record.status === 'unknown' ? END_REFUSED_REMOVED : null;"
+  },
+  {
+    n: 'G2c',
+    rule: 'G2',
+    name: 'resume.ts defines its own endSessionConfirm instead of handing out the shared one',
+    why: 'the phone draws the Mac\'s confirmation word for word from src/shared/lifecycle-words.ts; a second definition in the renderer is the sheet and the phone saying two things the day one of them is edited.',
+    file: RESUME,
+    from: "export {\n  LIFECYCLE_SESSION_CHANGED,\n  endSessionConfirm,\n  removeSessionConfirm,\n  resumeReadiness\n} from '@shared/lifecycle-words';",
+    to: "export {\n  LIFECYCLE_SESSION_CHANGED,\n  removeSessionConfirm,\n  resumeReadiness\n} from '@shared/lifecycle-words';\nimport { endSessionConfirm as sharedEndConfirm } from '@shared/lifecycle-words';\nexport const endSessionConfirm = (s: Session) => sharedEndConfirm(s);"
+  },
+  {
+    n: 'T24',
+    rule: 'T24',
+    name: 'resume.ts re-exports the gate',
+    why: 'a gate handed out from the renderer\'s words module is a second door to the one predicate, and a missed importer would read it there in silence instead of failing to compile.',
+    file: RESUME,
+    from: "export type { LifecycleConfirm, ResumeReadiness } from '@shared/lifecycle-words';",
+    to: "export type { LifecycleConfirm, ResumeReadiness } from '@shared/lifecycle-words';\nexport { sessionActionGates } from '@shared/session-gates';"
+  },
+  {
+    n: 'T24b',
+    rule: 'T24',
+    name: 'resume.ts declares a moved name again',
+    why: 'a HandbackState written back into resume.ts is the second spelling of a union conformance:handback compares by text, and the next edit lands in one of the two.',
+    file: RESUME,
+    from: "export type { LifecycleConfirm, ResumeReadiness } from '@shared/lifecycle-words';",
+    to: "export type { LifecycleConfirm, ResumeReadiness } from '@shared/lifecycle-words';\nexport type HandbackState = 'left' | 'returning' | 'unconfirmed';"
+  },
+  {
+    n: 'T24c',
+    rule: 'T24',
+    name: 'a second sessionActionGates declared under src/',
+    why: 'the Restore gate was written three times before Phase 293 and the third copy had drifted; a second gate anywhere is that again.',
+    file: VIEW,
+    from: 'export function stateFilterKeeps(',
+    to: 'export function sessionActionGates(): void {}\nexport function stateFilterKeeps('
+  },
+  {
+    n: 'T25a',
+    rule: 'T25',
+    name: 'the door imports endRefusal from somewhere else',
+    why: 'main\'s gate is the one that catches a row removed between the read and the press; a door reading another copy of it catches nothing the day the two drift.',
+    file: POCKET_WRITES,
+    from: /from '\.\/lifecycle-gate';/,
+    to: "from './lifecycle-gate.ts';"
+  },
+  {
+    n: 'T25b',
+    rule: 'T25',
+    name: 'the door imports sessionActionGates from somewhere else',
+    why: 'the door must ask the ONE gate the sheet asks, or it can end a row the Mac would not offer End on.',
+    file: POCKET_WRITES,
+    from: /from '@shared\/session-gates';/,
+    to: "from '../../shared/session-gates';"
+  },
+  {
+    n: 'T25c',
+    rule: 'T25',
+    name: 'endVerdict stops asking main\'s gate',
+    why: 'without endRefusal the door writes exited over a row another window has just removed.',
+    file: POCKET_WRITES,
+    from: /\bendRefusal\(/g,
+    to: 'askNothing('
+  },
+  {
+    n: 'T25d',
+    rule: 'T25',
+    name: 'endVerdict stops asking the shared gate',
+    why: 'without canEnd the door ends an unknown row, a session Tortie cannot see and that may be alive.',
+    file: POCKET_WRITES,
+    from: /\bsessionActionGates\(/g,
+    to: 'askNothing('
+  },
+  {
+    n: 'T25e',
+    rule: 'T25',
+    name: 'the door\'s batch arm reads answering instead of the machine row',
+    why: 'a machine that stops answering already reads unknown, so an arm on answering never fires, and it misses the one case the Mac batch narrows: a machine Tortie holds no row for, whose rows draw a recorded status and whose End kills nothing.',
+    file: POCKET_WRITES,
+    from: /session\.machine !== undefined && !machineKnown\(session\.machine\.id\)/g,
+    to: 'session.machine !== undefined && !session.machine.answering'
+  },
+  {
+    n: 'T25f',
+    rule: 'T25',
+    name: 'the Mac batch\'s narrowing reads answering too',
+    why: 'the door copies the Mac batch\'s predicate word for word; a Mac batch that narrowed by answering would be narrowing by a field that never says false for a row it should skip.',
+    file: BATCH,
+    from: "  if (session.machine !== undefined && !machineKnown(session.machine.id)) {",
+    to: "  if (session.machine !== undefined && !machineKnown(session.machine.id) && session.machine.answering !== true) {"
+  },
+  {
+    n: 'T25g',
+    rule: 'T25',
+    name: 'the Mac batch\'s narrowing is no longer the predicate the door copies',
+    why: 'two spellings of one narrowing drift; the door\'s batch would skip a different set of rows than the sheet\'s.',
+    file: BATCH,
+    from: "  if (session.machine !== undefined && !machineKnown(session.machine.id)) {",
+    to: "  if (session.machine !== undefined && !machineKnown(session.machine.label)) {"
   },
   // -------------------------------------------------------------------------
   // The press, §4.0 and §4.3
@@ -477,6 +608,15 @@ const ABLATIONS = [
     file: COPY,
     from: "export const SESSION_CHANGED = 'This session changed. Nothing was done.';",
     to: "export const SESSION_CHANGED = 'This pane changed. Nothing was done.';"
+  },
+  {
+    n: 'T10b',
+    rule: 'T10',
+    name: 'a tmux word in the End words the sheet draws from src/shared',
+    why: 'since Phase 317 the sheet draws END_UNREACHABLE_TITLE and the End confirmation from src/shared/lifecycle-words.ts, and the phone draws the same sentences; a tmux word there reaches both.',
+    file: WORDS,
+    from: "  'Tortie cannot see whether this session is running, so it cannot end it.';",
+    to: "  'Tortie cannot see whether this pane is running, so it cannot end it.';"
   },
   {
     n: 'T11',
@@ -823,19 +963,40 @@ function runGate() {
   return { code: r.status ?? 1, red, text };
 }
 
-/** Put one clone file back and prove it by sha256 against the worktree. */
+/**
+ * Put one clone file back and prove it by sha256 against the worktree. A file
+ * the worktree does not hold (an entry whose file another builder has not
+ * landed yet) was never written, so there is nothing to put back.
+ */
 function restore(rel) {
+  if (!existsSync(join(REPO, rel))) {
+    if (existsSync(join(scratch, rel))) throw new Error(`${rel} is absent from the worktree and present in the clone, so something wrote it`);
+    return;
+  }
   const want = readFileSync(join(REPO, rel));
   writeFileSync(join(scratch, rel), want);
   const got = readFileSync(join(scratch, rel));
   if (sha(got) !== sha(want)) throw new Error(`${rel} did not restore: sha256 ${sha(got)} against ${sha(want)}`);
 }
 
-/** One exact replacement inside the clone; a function replacer, so `$&` in the text stays literal. */
+/**
+ * One exact replacement inside the clone; a function replacer, so `$&` in the
+ * text stays literal. `from` may be a RegExp (Phase 317), for an entry whose
+ * file another builder writes in the same round and whose spacing this harness
+ * should not pin; a global one replaces every match. A file that does not exist
+ * is a missing shape, never a crash.
+ */
 function ablate(rel, from, to) {
   const path = join(scratch, rel);
+  if (!existsSync(path)) return false;
   const text = readFileSync(path, 'utf8');
-  if (!text.includes(from)) return false;
+  if (from instanceof RegExp) {
+    from.lastIndex = 0;
+    if (!from.test(text)) return false;
+    from.lastIndex = 0;
+  } else if (!text.includes(from)) {
+    return false;
+  }
   writeFileSync(path, text.replace(from, () => to), 'utf8');
   return true;
 }
@@ -860,7 +1021,9 @@ for (const sig of ['SIGINT', 'SIGTERM', 'SIGHUP']) {
 // The worktree's bytes for every file an entry touches, before anything runs,
 // so the report can say the worktree was never written.
 const touchedFiles = [...new Set(ABLATIONS.flatMap((a) => (a.edits ?? [{ file: a.file }]).map((e) => e.file)))];
-const worktreeBefore = new Map(touchedFiles.map((f) => [f, sha(readFileSync(join(REPO, f)))]));
+/** A file's sha256 in the worktree, or `absent` for a file not there (yet). */
+const worktreeSha = (f) => (existsSync(join(REPO, f)) ? sha(readFileSync(join(REPO, f))) : 'absent');
+const worktreeBefore = new Map(touchedFiles.map((f) => [f, worktreeSha(f)]));
 
 const problems = [];
 const table = [];
@@ -889,26 +1052,33 @@ try {
     const missed = edits.filter((e) => !ablate(e.file, e.from, e.to));
     if (missed.length > 0) {
       for (const m of missed) {
-        problems.push(`${entry.n} "${entry.name}": the shape to ablate is not in ${m.file}. Either the clause moved, and this entry moves with it in the same commit, or it is gone and ${entry.rule} is unproven. It looked for: ${JSON.stringify(m.from).slice(0, 200)}`);
+        const looked = m.from instanceof RegExp ? String(m.from) : JSON.stringify(m.from);
+        problems.push(`${entry.n} "${entry.name}": the shape to ablate is not in ${m.file}. Either the clause moved, and this entry moves with it in the same commit, or it is gone and ${entry.rule} is unproven. It looked for: ${looked.slice(0, 200)}`);
       }
       for (const f of files) restore(f);
       table.push([entry.n, entry.rule, 'SHAPE MISSING', '']);
       continue;
     }
     ran += 1;
-    const out = runGate();
-    const newlyRed = out.red.filter((r) => !baseRed.has(r));
-    const own = newlyRed.includes(entry.rule);
-    table.push([entry.n, entry.rule, out.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
-    say(`${entry.n.padEnd(3)} ${entry.rule.padEnd(4)} ${entry.name}: exit ${String(out.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
-    if (out.code === 0) {
-      problems.push(`${entry.n} "${entry.name}": the gate stayed GREEN. ${entry.why} Nothing in the gate notices, so ${entry.rule} is decoration.`);
-    } else if (!own) {
-      const lines = out.text.split('\n').filter((l) => l.trim().startsWith('- ')).slice(0, 4).map((l) => l.trim().slice(0, 240));
-      const tail = lines.length > 0 ? lines : out.text.split('\n').filter((l) => l.trim() !== '').slice(-4).map((l) => l.trim().slice(0, 240));
-      problems.push(`${entry.n} "${entry.name}": the gate went red but ${entry.rule} did not (red instead: ${newlyRed.join(', ') || 'nothing numbered'}). ${tail.join(' // ')}`);
+    // THE ENTRY'S OWN RESTORE IS IN A FINALLY (Phase 317), so an entry whose
+    // gate run throws still leaves every file it touched as the worktree has
+    // it, proved by sha256, before the next entry reads the clone.
+    try {
+      const out = runGate();
+      const newlyRed = out.red.filter((r) => !baseRed.has(r));
+      const own = newlyRed.includes(entry.rule);
+      table.push([entry.n, entry.rule, out.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
+      say(`${entry.n.padEnd(3)} ${entry.rule.padEnd(4)} ${entry.name}: exit ${String(out.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
+      if (out.code === 0) {
+        problems.push(`${entry.n} "${entry.name}": the gate stayed GREEN. ${entry.why} Nothing in the gate notices, so ${entry.rule} is decoration.`);
+      } else if (!own) {
+        const lines = out.text.split('\n').filter((l) => l.trim().startsWith('- ')).slice(0, 4).map((l) => l.trim().slice(0, 240));
+        const tail = lines.length > 0 ? lines : out.text.split('\n').filter((l) => l.trim() !== '').slice(-4).map((l) => l.trim().slice(0, 240));
+        problems.push(`${entry.n} "${entry.name}": the gate went red but ${entry.rule} did not (red instead: ${newlyRed.join(', ') || 'nothing numbered'}). ${tail.join(' // ')}`);
+      }
+    } finally {
+      for (const f of files) restore(f);
     }
-    for (const f of files) restore(f);
   }
   const after = runGate();
   if (after.code !== base.code) {
@@ -924,7 +1094,7 @@ try {
 
 // The worktree was never written: every file an entry names has the bytes it had.
 for (const [file, before] of worktreeBefore) {
-  const now = sha(readFileSync(join(REPO, file)));
+  const now = worktreeSha(file);
   if (now !== before) problems.push(`${file} in the WORKTREE changed during the run (${before.slice(0, 12)} to ${now.slice(0, 12)}); this harness writes only its clone, so another process wrote it`);
 }
 

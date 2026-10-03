@@ -29,11 +29,13 @@ import {
   matchPocketRoute,
   pocketRouteIds,
   pocketRouteIdsAgree,
-  pocketTableIsReadOnly,
+  pocketWriteRouteIds,
   readTurnRange,
   type PocketFacts,
   type PocketRoute
 } from '../routes';
+import { POCKET_WRITE_ROUTE_IDS, type PocketEndOffer } from '@shared/ipc/pocket';
+import { endSessionConfirm } from '@shared/lifecycle-words';
 import { POCKET_AGE_HONESTY, POCKET_OTHERS_MAX } from '@shared/ipc/pocket';
 import * as DOOR_TABLE from '../door/table';
 import { OUTCOME_REMOTE } from '@shared/overview-copy';
@@ -152,7 +154,7 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    expect(POCKET_ROUTES).toHaveLength(4);
+    expect(POCKET_ROUTES).toHaveLength(5);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -161,19 +163,42 @@ describe('the table is closed', () => {
       (POCKET_ROUTES as PocketRoute[]).push({
         id: 'blocked',
         method: 'POST',
-        path: '/v1/end',
+        path: '/v1/say',
         reads: false,
         windowOnly: false,
         signed: true
       })
     ).toThrow();
-    expect(POCKET_ROUTES).toHaveLength(4);
-    expect(matchPocketRoute('POST', '/v1/end')).toBeNull();
+    expect(POCKET_ROUTES).toHaveLength(5);
+    expect(matchPocketRoute('POST', '/v1/say')).toBeNull();
   });
 
-  it('holds NO write route in this phase', () => {
-    expect(pocketTableIsReadOnly()).toBe(true);
-    expect(POCKET_ROUTES.every((r) => r.reads)).toBe(true);
+  // PHASE 317 (SPEC §5.3.1, §14 finding 18). It replaces the Phase 313 test
+  // "holds NO write route in this phase", which this phase made false.
+  it('holds EXACTLY one write route, end, a signed POST alive outside a window', () => {
+    expect(pocketWriteRouteIds()).toEqual(['end']);
+    expect([...pocketWriteRouteIds()]).toEqual([...POCKET_WRITE_ROUTE_IDS]);
+    for (const route of POCKET_ROUTES) {
+      if (route.reads) continue;
+      expect(route.method, route.id).toBe('POST');
+      expect(route.signed, route.id).toBe(true);
+      expect(route.windowOnly, route.id).toBe(false);
+    }
+    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end']);
+    // Every other row is still a read.
+    expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual(['blocked', 'pair', 'session', 'turns']);
+  });
+
+  it('matches a write only as a POST to its exact path', () => {
+    expect(matchPocketRoute('POST', '/v1/end')?.id).toBe('end');
+    for (const method of ['GET', 'PUT', 'DELETE', 'post']) {
+      expect(matchPocketRoute(method, '/v1/end')).toBeNull();
+    }
+    // The write the fix round removed is no route at all (build/p317/SPEC.md "§Fix round").
+    for (const method of ['POST', 'GET']) expect(matchPocketRoute(method, '/v1/unpair')).toBeNull();
+    for (const near of ['/v1/end/', '/v1/End', '/v1/end/abc', '/v1/ends', '/v1/unpair/', '/v1/unpairs']) {
+      expect(matchPocketRoute('POST', near), near).toBeNull();
+    }
   });
 
   it('matches only on exact equality of method AND path', () => {
@@ -200,7 +225,7 @@ describe('the table is closed', () => {
     expect(matchPocketRoute('GET', '/pair')).toBeNull();
   });
 
-  it('marks the pairing route window-only and unsigned, and the reads signed', () => {
+  it('marks the pairing route window-only and unsigned, and the reads and writes signed', () => {
     const pair = POCKET_ROUTES.find((r) => r.id === 'pair');
     expect(pair?.windowOnly).toBe(true);
     expect(pair?.signed).toBe(false);
@@ -775,5 +800,80 @@ describe('fresh before read (Phase 316)', () => {
     for (const s of SESSIONS) {
       expect((await createPocketRoutes(facts()).session(s.id))?.session.handoff).toBeNull();
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('End on the rows (Phase 317, SPEC §5.4)', () => {
+  /** An offer per session id, so each row's offer is told apart by its id. */
+  const OFFERS: Record<string, PocketEndOffer> = {
+    a: { state: 'offered', batch: true },
+    b: { state: 'offered', batch: false },
+    c: { state: 'unreachable', title: 'Tortie cannot see whether this session is running, so it cannot end it.' },
+    d: { state: 'none' },
+    e: { state: 'offered', batch: true },
+    f: { state: 'none' }
+  };
+  const offering = (): Partial<PocketFacts> => ({
+    endOffer: (s) => OFFERS[s.id] ?? { state: 'none' }
+  });
+
+  it('puts the handed-in offer on EVERY row, blocked and others alike', () => {
+    const answer = createPocketRoutes(facts(offering())).blocked();
+    const rows = [...answer.rows, ...answer.others];
+    expect(rows).toHaveLength(SESSIONS.length);
+    for (const row of rows) expect(row.end, row.sessionId).toEqual(OFFERS[row.sessionId]);
+  });
+
+  // §14 finding 8: the member is OPTIONAL, and absent means what an absent
+  // dep always meant.
+  it('reads { state: none } on every row when no offer was handed in', () => {
+    const answer = createPocketRoutes(facts()).blocked();
+    for (const row of [...answer.rows, ...answer.others]) {
+      expect(row.end, row.sessionId).toEqual({ state: 'none' });
+    }
+  });
+
+  it('carries the Mac’s own End confirmation, word for word, exactly when End is offered', async () => {
+    const routes = createPocketRoutes(facts(offering()));
+    for (const id of ['a', 'b', 'e']) {
+      const answer = await routes.session(id);
+      const row = SESSIONS.find((s) => s.id === id) as Session;
+      const mac = endSessionConfirm(row);
+      expect(answer?.session.end, id).toEqual(OFFERS[id]);
+      expect(answer?.session.endConfirm, id).toEqual({
+        title: mac.title,
+        body: mac.body,
+        confirmLabel: mac.confirmLabel
+      });
+      expect(answer?.session.endConfirm?.title).toBe(`End '${row.name}'?`);
+      expect(answer?.session.endConfirm?.confirmLabel).toBe('End session');
+    }
+    for (const id of ['c', 'd', 'f']) {
+      const answer = await routes.session(id);
+      expect(answer?.session.end, id).toEqual(OFFERS[id]);
+      expect(answer?.session.endConfirm, id).toBeNull();
+    }
+  });
+
+  it('draws no confirmation at all when no offer was handed in', async () => {
+    const answer = await createPocketRoutes(facts()).session('a');
+    expect(answer?.session.end).toEqual({ state: 'none' });
+    expect(answer?.session.endConfirm).toBeNull();
+  });
+
+  it('composes the remote body for a session on another machine', async () => {
+    const remote = session({
+      id: 'r',
+      name: 'far',
+      status: 'running',
+      machine: { id: 'm1', label: 'Mac Pro', color: 'blue', answering: true, canRestore: false, restoreReason: null }
+    } as Partial<Session> & Pick<Session, 'id' | 'name'>);
+    const answer = await createPocketRoutes(
+      facts({ sessions: () => [remote], endOffer: () => ({ state: 'offered', batch: true }) })
+    ).session('r');
+    expect(answer?.session.endConfirm?.body).toBe(endSessionConfirm(remote).body);
+    expect(answer?.session.endConfirm?.body).toContain('on Mac Pro');
   });
 });

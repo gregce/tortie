@@ -1,9 +1,12 @@
 // The list: every session, the ones waiting on him first (Phase 316.2).
 //
-// docs/design/phone/Main.html, frame for frame, less three things the SPEC
-// takes out: the Settings gear and `Select` (End from the phone is Phase 317)
-// and the per-agent glyph (S2's row is "its dot, name, the machine badge only
-// when the session is elsewhere, `ageText`, and a second line").
+// docs/design/phone/Main.html, frame for frame, less two things the SPEC
+// takes out: the Settings gear and the per-agent glyph (S2's row is "its dot,
+// name, the machine badge only when the session is elsewhere, `ageText`, and a
+// second line"). `Select` is Phase 317's End these, on the Sessions tab only:
+// ONE line below attaches it (`.endBatch`, Screens/EndBatch.swift), and the
+// title and the rows carry its hooks, which draw nothing where it is not
+// attached.
 //
 // TWO TABS, ONE READ (Phase 316.6, build/p3166/SPEC.md section 5.2). The
 // Sessions tab is the screen above, unchanged: both sections, every identifier
@@ -49,6 +52,9 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
     let line: String
     /// A waiting row's name is drawn at weight 500, as Main.html draws it.
     let waiting: Bool
+    /// Whether the Mac offers End on this row (Phase 317): End these selects
+    /// over it, and decides nothing the Mac does not decide again.
+    let end: PocketEndOffer
 
     /// A waiting row reads `project · question`, the way Main.html's first
     /// section does; with no question on the row it reads what every other row
@@ -61,6 +67,7 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
         machine = row.machine
         age = row.ageText
         self.waiting = waiting
+        end = row.end
         if waiting, let question = row.question {
             line = Copy.joined([row.project, question])
         } else {
@@ -298,6 +305,9 @@ struct ListScreen: View {
     let isTop: Bool
     let foregroundTick: Int
     let open: (RowDrawing) -> Void
+    /// End these (Phase 317), for the Sessions tab of a pairing that writes;
+    /// nil draws no `Select`.
+    var ends: EndBatchSetup?
 
     private var names: ListNames { kind.names }
 
@@ -344,6 +354,8 @@ struct ListScreen: View {
             guard isTop else { return }
             Task { await model.load() }
         }
+        // End these, on the Sessions tab alone: the ONE line that attaches it.
+        .endBatch(kind == .sessions ? ends : nil, list: model)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(names.screen)
         .navigationTitle(kind.title)
@@ -351,14 +363,18 @@ struct ListScreen: View {
     }
 
     /// `Sessions` or `Needs input`, 28/34 semibold, `padding: 0 16px 8px`
-    /// under the status bar.
+    /// under the status bar, and End these' `Select` at its trailing edge.
     private var title: some View {
-        Words(kind.title, .title, Tokens.textPrimary)
-            .lineBox(.title)
-            .accessibilityAddTraits(.isHeader)
-            .accessibilityIdentifier(names.title)
-            .padding(.horizontal, Frame.gutter)
-            .padding(.bottom, 8)
+        HStack(alignment: .firstTextBaseline, spacing: Frame.rowGap) {
+            Words(kind.title, .title, Tokens.textPrimary)
+                .lineBox(.title)
+                .accessibilityAddTraits(.isHeader)
+                .accessibilityIdentifier(names.title)
+            Spacer(minLength: 0)
+            EndBatchTitleControl()
+        }
+        .padding(.horizontal, Frame.gutter)
+        .padding(.bottom, 8)
     }
 
     /// The Needs input tab: the waiting rows in the door's order, the last
@@ -460,6 +476,9 @@ private struct RowView: View {
     let open: () -> Void
     /// The tab's identifiers: the Sessions tab's unless `named(_:)` says.
     private(set) var names = ListNames.sessions
+    /// End these, where it is attached: a tap toggles the row while it
+    /// selects, and opens nothing while it confirms or runs.
+    @Environment(\.endBatch) private var batch
 
     init(row: RowDrawing, last: Bool, open: @escaping () -> Void) {
         self.row = row
@@ -478,6 +497,11 @@ private struct RowView: View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: Frame.rowLineGap) {
                 HStack(spacing: Frame.rowGap) {
+                    // End these' circle, drawn only while it selects: nothing
+                    // is laid out for it otherwise, so the row is the row.
+                    if let batch, batch.showsMarks {
+                        EndBatchRowMark(id: row.id, ticked: batch.selected.contains(row.id))
+                    }
                     DotView(dot: row.dot, title: row.statusTitle)
                         .accessibilityIdentifier(names.rowDot(row.id))
                     Words(row.name, row.waiting ? .nameWaiting : .name, Tokens.textPrimary)
@@ -492,6 +516,9 @@ private struct RowView: View {
                     Words(row.age, .age, Tokens.textMuted)
                         .fixedSize()
                         .accessibilityIdentifier(names.rowAge(row.id))
+                    if let word = batch?.word(for: row.id) {
+                        EndBatchOutcome(id: row.id, word: word)
+                    }
                 }
                 Words(row.line, .secondary, Tokens.textSecondary)
                     .lineBox(.secondary)
@@ -504,10 +531,18 @@ private struct RowView: View {
             if !last { Hairline() }
         }
         .contentShape(Rectangle())
-        .onTapGesture(perform: open)
+        .onTapGesture(perform: tapped)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
         .accessibilityIdentifier(names.row(row.id))
-        .accessibilityAction(.default, open)
+        .accessibilityAction(.default, tapped)
+    }
+
+    private func tapped() {
+        if let batch, batch.takesTaps {
+            batch.toggle(row.id)
+        } else {
+            open()
+        }
     }
 }

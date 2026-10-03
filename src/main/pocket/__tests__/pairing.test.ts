@@ -474,12 +474,36 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale'
     );
     expect(lines[2]).toBe('Answers only after you turn it on');
-    expect(lines[3]).toBe('Answers these and nothing else: blocked, pair, session, turns');
-    expect(lines[4]).toBe('Tells your phone nothing through Apple');
-    expect(lines[5]).toBe('Allows no phone yet');
+    expect(lines[3]).toBe('Answers these and nothing else: blocked, end, pair, session, turns');
+    // PHASE 317: what the write lets a phone do, in words, straight after.
+    expect(lines[4]).toBe('Lets an allowed phone end a session');
+    expect(lines[5]).toBe('Tells your phone nothing through Apple');
+    expect(lines[6]).toBe('Allows no phone yet');
     expect(describePocketDoor({ ...BASE, bindAtLaunch: true }).lines[2]).toBe(
       'Starts answering when Tortie starts'
     );
+  });
+
+  // PHASE 317 (SPEC §5.6, X12): the write line is DERIVED from the hashed
+  // route list through the compiled map, so it says exactly what the list does.
+  it('derives the write line from the hashed route list, and says nothing of a write the list does not hold', () => {
+    const line = (routes: PocketExecutionFields['routes']): string[] =>
+      describePocketDoor({ ...BASE, routes }).lines.filter((l) => l.startsWith('Lets an allowed phone'));
+    expect(line(['pair', 'blocked', 'session', 'turns'])).toEqual([]);
+    expect(line(['pair', 'blocked', 'end'])).toEqual(['Lets an allowed phone end a session']);
+    expect(line(['end', 'pair'])).toEqual(['Lets an allowed phone end a session']);
+    expect(describePocketDoor({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] }).lines[4]).toBe(
+      'Tells your phone nothing through Apple'
+    );
+  });
+
+  // The route list is hashed, so the write moves the hash and the door asks
+  // again; the algorithm does not change.
+  it('moves the hash by the route list alone, under the same algorithm', () => {
+    expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
+    const before = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] });
+    expect(pocketExecutionHash(BASE)).not.toBe(before);
+    expect([...BASE.routes].sort()).toEqual(['blocked', 'end', 'pair', 'session', 'turns']);
   });
 
   it('carries the warning beside them and never inside them', () => {

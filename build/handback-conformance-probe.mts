@@ -69,9 +69,15 @@ import { stripProse } from './source-prose.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
-/** The two seams. Change these lines if a later round moves either module. */
+/**
+ * The two seams. Change these lines if a later round moves either module.
+ * The SENTENCES stayed in resume.ts; the record's TYPE (`HandbackState`) moved
+ * with the gate to src/shared/session-gates.ts in Phase 317, so the renderer's
+ * copy of the state union is read there (`HANDBACK_TYPE_FILE`, below).
+ */
 const WITNESS_SEAM = '../src/main/activity/state-machine';
 const COPY_SEAM = '../src/renderer/state/resume';
+const HANDBACK_TYPE_FILE = 'src/shared/session-gates.ts';
 
 /** The one channel this phase adds. */
 const CHANNEL = 'sessions:resumeInPlace';
@@ -225,7 +231,7 @@ const contract = {
    * list are exactly the thing that drifts while both halves type-check.
    */
   mainRefusals: srcMain.flatMap((f) => unionMembers(f, 'ResumeInPlaceRefusal')),
-  rendererStates: unionMembers('src/renderer/state/resume.ts', 'HandbackState'),
+  rendererStates: unionMembers(HANDBACK_TYPE_FILE, 'HandbackState'),
   rendererLandings: unionMembers(
     'src/renderer/state/resume.ts',
     'ResumeInPlaceLanding'

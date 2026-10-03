@@ -40,6 +40,17 @@
  * refused helps somebody work out what it would accept. One line per reason per
  * process.
  *
+ * ## The one write (Phase 317, build/p317/SPEC.md §5.3.4)
+ *
+ * A signed `POST /v1/end` takes refusals 1 and 6 here
+ * exactly as a read does (the signature covers `POST`, the path and the body's
+ * bytes), and then goes to the ONE write path, `./writes.ts`, which the host
+ * hands in. Refusal 7 is NOT asked again of a write's answer here: the write
+ * path makes its own last check before the act, with nothing awaited between
+ * the two, and after the act NOTHING replaces the answer, because a 404 tells
+ * the phone nothing was done. A host with no write path refuses every write
+ * `route`, as it refuses a route it does not have.
+ *
  * ## What this module does not do
  *
  * It binds nothing, parses no stranger's bytes and holds no key. It spawns
@@ -52,6 +63,7 @@ import type { DoorAdmission, DoorAnswer, DoorRequestHandler } from './bind';
 import type { DoorPresentation, DoorSignatureHeaders } from './door/wire';
 import { POCKET_ROUTES, type PocketRoute } from './door/table';
 import type { PocketPairAnswer, PocketRefusalReason } from './pairing';
+import type { PocketWriteHandler } from './writes';
 
 export { POCKET_READ_BODY_CAP_BYTES } from './door/wire';
 
@@ -85,6 +97,12 @@ export interface PocketHandlerDeps {
   stillPaired(phoneId: string): boolean;
   /** Answer one of the three reads. Null means there is nothing to answer. */
   answer(route: PocketRoute, query: URLSearchParams): Promise<unknown | null>;
+  /**
+   * THE ONE WRITE PATH (Phase 317): `./writes.ts`'s handler, handed a write
+   * whose signature held, with the phone it was verified for and the door that
+   * accepted it. Absent: every write is refused `route`.
+   */
+  write?: PocketWriteHandler;
 }
 
 /** The query of a target the door process already bounded, as parameters. */
@@ -163,6 +181,18 @@ export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler
     if (!verdict.ok) return refuse(verdict.reason);
     /** The phone this request was verified for, asked about again at refusal 7. */
     const verifiedPhone = verdict.phoneId;
+
+    if (!route.reads) {
+      // A WRITE goes to the one write path and its answer leaves as it is: the
+      // path made its own last check, and an answer it marked `acted` is never
+      // replaced. A 404 from it is a refusal before any act, and its word is
+      // asked in the last check's own order, for the log alone.
+      if (deps.write === undefined) return refuse('route');
+      const answer = await deps.write(route, Buffer.from(request.body), verifiedPhone, door);
+      if (answer.status !== 404) return answer;
+      if (closing()) return refuse('shutdown');
+      return refuse(deps.stillPaired(verifiedPhone) ? 'route' : 'unpaired');
+    }
 
     const body = await deps.answer(route, queryOf(request.target));
     // REFUSAL 7. Nothing is awaited from here to the return, so the answer that

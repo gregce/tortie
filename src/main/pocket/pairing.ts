@@ -147,11 +147,13 @@ import {
   POCKET_CONFIRM_WARNING,
   POCKET_PUBLIC_PORTS,
   POCKET_ROUTE_IDS,
+  POCKET_WRITE_ROUTE_IDS,
   type PocketPairingOffer,
   type PocketPairingState,
   type PocketPairingView,
   type PocketPhoneView,
-  type PocketRouteId
+  type PocketRouteId,
+  type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { openSealedText, sealText } from '../config/seal';
 import { isP256SpkiDer } from './tls';
@@ -395,6 +397,17 @@ export interface PocketDoorSummary {
   readonly warning: string;
 }
 
+/**
+ * What each write lets an allowed phone do, in the words the line says it
+ * (Phase 317, build/p317/SPEC.md §5.6). Keyed by the closed write list, so a
+ * write added to it without its clause here is a compile error rather than a
+ * route the lines never mention. Phase 318 adds its two and joins them as a
+ * comma list.
+ */
+const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
+  end: 'end a session'
+});
+
 /** Read the door as the lines a person is asked to agree to. Pure. */
 export function describePocketDoor(
   fields: PocketExecutionFields
@@ -412,6 +425,11 @@ export function describePocketDoor(
       : 'Answers only after you turn it on'
   );
   lines.push(`Answers these and nothing else: ${[...fields.routes].sort().join(', ')}`);
+  // PHASE 317: what the writes in that list let a phone do, in words, DERIVED
+  // from the hashed route list through the compiled map and in the closed
+  // list's order, so "the lines are exactly the hashed facts" holds for it too.
+  const clauses = POCKET_WRITE_ROUTE_IDS.filter((id) => fields.routes.includes(id)).map((id) => WRITE_CLAUSES[id]);
+  if (clauses.length > 0) lines.push(`Lets an allowed phone ${clauses.join(' and ')}`);
   lines.push(
     fields.pushAlerts
       ? 'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps'
@@ -543,10 +561,10 @@ function fireConfirmationChanged(): void {
     try {
       cb();
     } catch (err) {
+      // A WORD and never what the error said (`conformance:pocket` G1, Phase
+      // 317): an error's own text can carry whatever it was handed.
       pocketLog.warn(
-        `a pocket confirmation listener threw: ${
-          err instanceof Error ? err.message : String(err)
-        }`
+        `a pocket confirmation listener threw: ${err instanceof Error ? err.name : typeof err}`
       );
     }
   }

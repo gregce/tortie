@@ -5,8 +5,9 @@
  * The door moved out of main so that a stranger's bytes are parsed by a
  * process that holds no credential (research 132 §7.1, §9 condition 2). This
  * module is the one seam between the two, and it is TYPES AND VALIDATORS
- * ONLY: it opens nothing, imports nothing but a type from the contract, and
- * both sides run every message through the validator for its direction. A
+ * ONLY: it opens nothing, imports nothing but a type from the contract and
+ * the door's own table and caps (Phase 317), and both sides run every message
+ * through the validator for its direction. A
  * message that does not validate is DROPPED WHOLE and counted by the caller,
  * never half-read, because half a message is a message somebody else chose
  * the shape of.
@@ -15,9 +16,17 @@
  * from a stranger, the PROXY source address, a header value other than the
  * four `x-tortie-*`, and the `/pair` body as text (the door process parses its
  * outer JSON; main never runs `JSON.parse` on a stranger's bytes).
+ *
+ * A WRITE'S BODY CROSSES AS BYTES AND IS PARSED IN MAIN ALONE (Phase 317,
+ * build/p317/SPEC.md §5.3.1, D2). The door process checks its method, its
+ * target and its size, and never parses it: the body is signed, so main
+ * verifies the signature over the exact bytes before `../writes.ts` reads a
+ * key of it, and the door process holds no session vocabulary to read it with.
  */
 
 import type { PocketRouteId } from '@shared/ipc/pocket';
+import { POCKET_WRITE_BODY_CAPS } from './limits';
+import { POCKET_ROUTES } from './table';
 
 // ---------------------------------------------------------------------------
 // The bounds, checked by BOTH validators
@@ -91,8 +100,11 @@ export type ToDoor =
   /** Close, join bounded, then `stopped`. */
   | { readonly kind: 'stop' };
 
-/** The signed routes, and nothing a phone could name that is not one. */
+/** The signed reads, and nothing a phone could name that is not one. */
 export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns'>;
+
+/** The one write (Phase 317). A `POST`, signed, its target its path exactly. */
+export type DoorWriteRoute = Extract<PocketRouteId, 'end'>;
 
 /** One request the door admitted, as main is handed it. */
 export type DoorRequest =
@@ -102,6 +114,17 @@ export type DoorRequest =
       readonly method: 'GET';
       readonly target: string;
       readonly headers: DoorSignatureHeaders;
+      readonly body: Uint8Array;
+      /** The phoneId whose pin completed THIS connection's handshake. */
+      readonly channel: string;
+    }
+  | {
+      readonly route: DoorWriteRoute;
+      readonly method: 'POST';
+      /** The route's path, byte for byte, and never a query. */
+      readonly target: string;
+      readonly headers: DoorSignatureHeaders;
+      /** The signed body, as bytes. Main parses it; nothing here does. */
       readonly body: Uint8Array;
       /** The phoneId whose pin completed THIS connection's handshake. */
       readonly channel: string;
@@ -248,8 +271,23 @@ export function presentationOf(value: unknown): DoorPresentation | null {
 }
 
 const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns'];
+const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end'];
 
-/** One admitted request within every bound, or null. */
+/** A write route's exact path, read from the one table. */
+function writePathOf(route: DoorWriteRoute): string | null {
+  for (const row of POCKET_ROUTES) {
+    if (row.id === route && !row.reads && row.method === 'POST') return row.path;
+  }
+  return null;
+}
+
+/**
+ * One admitted request within every bound, or null.
+ *
+ * Since Phase 317 the method is `GET` EXACTLY for a read and `POST` EXACTLY
+ * for a write; a write's target is its route's path byte for byte, with no
+ * `?`; and its body is at most its route's own cap. Nothing here parses it.
+ */
 export function doorRequestOf(value: unknown): DoorRequest | null {
   if (!isObject(value)) return null;
   const route = value['route'];
@@ -257,16 +295,31 @@ export function doorRequestOf(value: unknown): DoorRequest | null {
     const presentation = presentationOf(value['presentation']);
     return presentation === null ? null : { route: 'pair', presentation };
   }
-  if (typeof route !== 'string' || !(SIGNED_ROUTES as readonly string[]).includes(route)) return null;
-  if (value['method'] !== 'GET') return null;
+  if (typeof route !== 'string') return null;
+  const read = (SIGNED_ROUTES as readonly string[]).includes(route);
+  const write = (WRITE_ROUTES as readonly string[]).includes(route);
+  if (!read && !write) return null;
+  if (value['method'] !== (write ? 'POST' : 'GET')) return null;
   const target = value['target'];
   if (!boundedString(target, 1, DOOR_TARGET_MAX_CHARS) || !target.startsWith('/')) return null;
+  if (write && target !== writePathOf(route as DoorWriteRoute)) return null;
   const headers = signatureHeadersOf(value['headers']);
   if (headers === null) return null;
   const body = value['body'];
-  if (!(body instanceof Uint8Array) || body.byteLength > POCKET_READ_BODY_CAP_BYTES) return null;
+  const cap = write ? POCKET_WRITE_BODY_CAPS[route as DoorWriteRoute] : POCKET_READ_BODY_CAP_BYTES;
+  if (!(body instanceof Uint8Array) || body.byteLength > cap) return null;
   const channel = value['channel'];
   if (!boundedString(channel, 1, DOOR_PHONE_HEADER_MAX)) return null;
+  if (write) {
+    return {
+      route: route as DoorWriteRoute,
+      method: 'POST',
+      target,
+      headers,
+      body: new Uint8Array(body),
+      channel
+    };
+  }
   return {
     route: route as DoorSignedRoute,
     method: 'GET',

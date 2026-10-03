@@ -46,6 +46,19 @@ import XCTest
 /// ruling of 2026-10-02 (markdown off) every answer is ONE element,
 /// `md-<scope>-0`, drawn as written, and no answer holds a link, so the probe
 /// asks for no `link:` step; the steps stay for the later phase.
+///
+/// END, BEHIND FACE ID (Phase 317, build/p317/SPEC.md section 7.5). More
+/// steps press End on one session and on several and say when iOS's owner
+/// check is up (`end-auth-up`), so the probe can answer Face ID
+/// from the host through build/simulator-run.mjs's `biometry`. iOS's first-use
+/// Face ID alert is accepted here, through SpringBoard (its allowing button read
+/// by label, waited for up to 5 seconds), and `end-auth-up` is printed only
+/// once that alert is gone. Where a step must wait for the probe (the host has
+/// enrolled, answered or unenrolled), it waits for a file the probe writes into
+/// `P316_ACKS`, named in the line it printed. Nothing here answers Face ID
+/// itself: there is no seam that skips the owner check. (The fix round took
+/// Unpair's Mac half out of the phase, and its steps `unpair-mac`,
+/// `unpair-mac-down` and `repair` with it.)
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -74,22 +87,26 @@ final class ProbeLines {
         self.file = file
     }
 
-    func emit(_ object: [String: Any]) {
+    /// Writes one line and answers its `seq`, which a step names a file it
+    /// waits for by (Phase 317).
+    @discardableResult
+    func emit(_ object: [String: Any]) -> Int {
         seq += 1
         var body = object
         body["seq"] = seq
         guard let json = try? JSONSerialization.data(withJSONObject: body, options: [.sortedKeys, .withoutEscapingSlashes]),
-              let text = String(data: json, encoding: .utf8) else { return }
+              let text = String(data: json, encoding: .utf8) else { return seq }
         let line = Data("P316|\(run)|\(text)\n".utf8)
         FileHandle.standardOutput.write(line)
-        guard let file, !file.isEmpty else { return }
+        guard let file, !file.isEmpty else { return seq }
         if !FileManager.default.fileExists(atPath: file) {
             FileManager.default.createFile(atPath: file, contents: nil)
         }
-        guard let handle = FileHandle(forWritingAtPath: file) else { return }
+        guard let handle = FileHandle(forWritingAtPath: file) else { return seq }
         defer { try? handle.close() }
         _ = try? handle.seekToEnd()
         try? handle.write(contentsOf: line)
+        return seq
     }
 }
 
@@ -164,6 +181,23 @@ private enum Seen {
     static let sessionAnswer = "session-answer"
     static let md = "md-"
     static let mdLast = "last"
+    // Phase 317: End and End these.
+    static let sessionStatus = "session-status"
+    static let sessionEndBar = "session-end-bar"
+    static let sessionEnd = "session-end"
+    static let sessionEndLine = "session-end-line"
+    static let endConfirming = "end-confirming"
+    static let listSelect = "list-select"
+    static let listEndSelected = "list-end-selected"
+    static let batchHeading = "batch-heading"
+    static let batchDone = "batch-done"
+    static let batchLine = "batch-line"
+    static func rowSelect(_ id: String) -> String { "row-select-" + id }
+    static func rowOutcome(_ id: String) -> String { "row-outcome-" + id }
+    /// iOS's own first-use Face ID question's allowing press, by label, and
+    /// the press that ends its failed-match prompt.
+    static let faceIDAllow = ["OK", "Allow"]
+    static let faceIDCancel = "Cancel"
     /// The three tabs' labels: Copy.swift's words, spelled again because a UI
     /// test cannot import the app (`Copy.needsInput`, `.sessions`, `.settings`).
     static let tabNeedsInput = "Needs input"
@@ -204,6 +238,8 @@ private final class Drive {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     /// Set when a step could not find its screen: nothing after it can run.
     private var stuck = false
+    /// Phase 317: where the probe writes the files a step waits for, or nil.
+    private let acks: String?
     /// The last `link:` step could not bring its link into view, so the
     /// presses that answer its alert print that and press nothing, and the
     /// drive goes on (the fix round: one unreached link cut a whole drive).
@@ -217,6 +253,7 @@ private final class Drive {
         wait = TimeInterval(env["P316_WAIT_S"] ?? "") ?? 60
         pushToken = env["P316_PUSH_TOKEN"].flatMap { $0.isEmpty ? nil : $0 }
         allowNotifications = (env["P316_NOTIFICATIONS"] ?? "allow") != "deny"
+        acks = env["P316_ACKS"].flatMap { $0.isEmpty ? nil : $0 }
     }
 
     /// The seams every launch carries: the still dot, the forwarder and the
@@ -287,6 +324,26 @@ private final class Drive {
                 relaunchKeep()
             } else if step.hasPrefix("idle:") {
                 idle(seconds: TimeInterval(String(step.dropFirst("idle:".count))) ?? 20)
+            } else if step == "end" {
+                end(step: "end", after: .reread)
+            } else if step == "end-cancel" {
+                end(step: "end-cancel", after: .cancel)
+            } else if step == "end-home" {
+                end(step: "end-home", after: .home)
+            } else if step.hasPrefix("end-kill:") {
+                end(step: "end-kill", after: .kill(String(step.dropFirst("end-kill:".count))))
+            } else if step == "end-read" {
+                endRead()
+            } else if step.hasPrefix("end-off:") {
+                endOff(String(step.dropFirst("end-off:".count)))
+            } else if step.hasPrefix("select:") {
+                select(String(step.dropFirst("select:".count)).split(separator: "+").map(String.init))
+            } else if step == "end-these" {
+                endThese(homeAfter: nil)
+            } else if step.hasPrefix("end-these-home:") {
+                endThese(homeAfter: String(step.dropFirst("end-these-home:".count)))
+            } else if step == "batch-done" {
+                batchDone()
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -905,9 +962,13 @@ private final class Drive {
         let buttons = via == "app" ? [Seen.unpairPress, Seen.cancelPress].filter { app.buttons[$0].exists } : sheet.buttons.allElementsBoundByIndex.map(\.label)
         lines.emit(["step": "unpair-sheet", "for": step, "via": via, "title": via == "app" ? NSNull() : sheet.label as Any, "texts": texts, "buttons": buttons])
         guard sheet.buttons[press].exists else { return missing(step) }
+        // Phase 317: when Unpair is pressed and when Pairing is drawn, by the
+        // clock, so the probe reads how long Unpair took beside the parent's.
+        if press == Seen.unpairPress { lines.emit(["step": "unpair-pressed", "for": step, "at": Date().timeIntervalSince1970 * 1000]) }
         sheet.buttons[press].tap()
         if press == Seen.unpairPress {
             guard poll({ has($0, Seen.pairingScreen) }) else { return missing(step) }
+            lines.emit(["step": "unpair-landed", "for": step, "at": Date().timeIntervalSince1970 * 1000])
         } else {
             _ = poll { has($0, Seen.settingsScreen) && !$0.isEmpty }
             Thread.sleep(forTimeInterval: 1)
@@ -933,6 +994,363 @@ private final class Drive {
         lines.emit(["step": "idle-start", "seconds": seconds])
         Thread.sleep(forTimeInterval: seconds)
         lines.emit(["step": "idle-end"])
+    }
+
+    // MARK: Phase 317: End and End these
+
+    /// What an End step does once the owner check is up and the probe answered.
+    private enum AfterAuth {
+        /// The screen reads again; dumped as the step.
+        case reread
+        /// iOS's prompt cancelled after a failed match.
+        case cancel
+        /// Home at once, 10 s away, then back.
+        case home
+        /// The app ended at once, launched again and the session opened.
+        case kill(String)
+    }
+
+    /// The probe's file `name` in P316_ACKS, waited for up to `seconds`.
+    private func ack(_ name: String, within seconds: TimeInterval = 90) -> Bool {
+        guard let acks else { return false }
+        let path = (acks as NSString).appendingPathComponent(name)
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            if FileManager.default.fileExists(atPath: path) { return true }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        return FileManager.default.fileExists(atPath: path)
+    }
+
+    private func frameOf(_ f: CGRect) -> [Double] {
+        [f.origin.x, f.origin.y, f.size.width, f.size.height].map { $0.isFinite ? Double($0) : -1 }
+    }
+
+    /// The End bar as drawn: its frame and the tab bar's, the row's glyphs (an
+    /// image's name, never a word), whether it can be pressed, its line, and
+    /// what the owner check answered (`kind`).
+    ///
+    /// The glyph sits BESIDE the press since the fix round (the press is a
+    /// plain button, so it reads off when it is off), so it is read off the
+    /// bar. `kind` is read back from what the bar drew, which on an offered
+    /// row is `kind()` exactly: the Face ID or Touch ID mark, the lock on a
+    /// row that can be pressed (the passcode), or the lock on a row drawn off
+    /// with the passcode line (no passcode at all).
+    private func emitBar(_ step: String) {
+        let bar = element(Seen.sessionEndBar)
+        let row = element(Seen.sessionEnd)
+        let tabBar = app.tabBars.firstMatch
+        let line = element(Seen.sessionEndLine)
+        let glyphs: [[String: String]] = bar.exists ? bar.images.allElementsBoundByIndex.map { ["id": $0.identifier, "label": $0.label] } : []
+        let glyph = glyphs.first?["id"] ?? ""
+        let enabled = row.exists ? row.isEnabled : false
+        let kind: String
+        if glyph.hasSuffix("-faceid") {
+            kind = "faceID"
+        } else if glyph.hasSuffix("-touchid") {
+            kind = "touchID"
+        } else if glyph.hasSuffix("-lock") {
+            kind = enabled ? "passcode" : "none"
+        } else {
+            kind = "unread"
+        }
+        lines.emit([
+            "step": "end-bar",
+            "for": step,
+            "bar": bar.exists ? frameOf(bar.frame) as Any : NSNull(),
+            "row": row.exists ? frameOf(row.frame) as Any : NSNull(),
+            "enabled": row.exists ? row.isEnabled as Any : NSNull(),
+            "tabBar": tabBar.exists ? frameOf(tabBar.frame) as Any : NSNull(),
+            "glyphs": glyphs,
+            "glyph": glyph,
+            "kind": kind,
+            "line": line.exists ? line.label as Any : NSNull()
+        ])
+    }
+
+    /// A confirmation, drawn as a sheet, an alert or loose buttons: read whole,
+    /// then the press `pick` names pressed. Answers that press, or nil.
+    private func confirmDialog(for step: String, pick: ([String]) -> String?) -> String? {
+        var via = "sheet"
+        var container: XCUIElement? = [app.sheets.firstMatch, app.alerts.firstMatch].first { $0.waitForExistence(timeout: 5) }
+        if container?.elementType == .alert { via = "alert" }
+        if container == nil {
+            container = app
+            via = "app"
+        }
+        guard let sheet = container else { return nil }
+        let texts = via == "app" ? [] : sheet.staticTexts.allElementsBoundByIndex.map(\.label)
+        let buttons = sheet.buttons.allElementsBoundByIndex.map(\.label)
+        lines.emit(["step": "end-dialog", "for": step, "via": via, "title": via == "app" ? NSNull() : sheet.label as Any, "texts": texts, "buttons": via == "app" ? [] : buttons])
+        guard let press = pick(buttons), sheet.buttons[press].exists else { return nil }
+        sheet.buttons[press].tap()
+        return press
+    }
+
+    /// iOS's first-use question about Face ID, accepted through SpringBoard.
+    /// The question is found BY ITS OWN LABEL (it asks to allow Face ID), its
+    /// allowing press read by label, and after the press THAT alert, found
+    /// again by its label, is waited for up to 5 seconds to leave. The tests
+    /// round: the step held `alerts.firstMatch`, a query that re-resolves, so
+    /// on iOS 18.3 it found the Face ID prompt that follows Allow at once,
+    /// read the question as still up, and the floor's End sent no match.
+    /// Answers false when the question was still up after the press: the
+    /// owner check behind it is not what the probe would answer, so the step
+    /// stops there (the probe grades that UNREADABLE, never a failure).
+    private func acceptFaceIDQuestion(for step: String) -> Bool {
+        var found: (root: XCUIApplication, title: String)?
+        let deadline = Date().addingTimeInterval(5)
+        while found == nil && Date() < deadline {
+            for root in [springboard, app] {
+                let first = root.alerts.firstMatch
+                if first.exists, Self.isFaceIDQuestion(first.label) {
+                    found = (root, first.label)
+                    break
+                }
+            }
+            if found == nil { Thread.sleep(forTimeInterval: 0.1) }
+        }
+        guard let found else {
+            lines.emit(["step": "faceid-permission", "for": step, "seen": false, "drew": promptLabels()])
+            return true
+        }
+        // THE question, by its label, and never whatever alert comes next.
+        let question = found.root.alerts.matching(NSPredicate(format: "label == %@", found.title)).firstMatch
+        let buttons = question.buttons.allElementsBoundByIndex.map(\.label)
+        let allow = Seen.faceIDAllow.first { question.buttons[$0].exists }
+        lines.emit(["step": "faceid-permission", "for": step, "seen": true, "title": found.title, "buttons": buttons, "pressed": allow.map { $0 as Any } ?? NSNull()])
+        guard let allow else {
+            lines.emit(["step": "faceid-permission", "for": step, "stillUp": true])
+            return false
+        }
+        // The question settled before the press: its press hittable, then a
+        // moment for its presentation (the tests round's floor run pressed
+        // Allow 0.2 s after the question was first seen, and it stayed up).
+        let press = question.buttons[allow]
+        let settle = Date().addingTimeInterval(2)
+        while !press.isHittable && Date() < settle { Thread.sleep(forTimeInterval: 0.1) }
+        Thread.sleep(forTimeInterval: 0.5)
+        // Pressed, then THAT question waited on to leave; pressed again while
+        // it stays, at most three presses, each one printed.
+        var presses = 0
+        var left = false
+        while presses < 3 && !left {
+            if question.exists && press.exists { press.tap() }
+            presses += 1
+            let until = Date().addingTimeInterval(5)
+            while question.exists && Date() < until { Thread.sleep(forTimeInterval: 0.1) }
+            left = !question.exists
+            lines.emit(["step": "faceid-permission", "for": step, "press": presses, "left": left, "after": promptLabels(), "appState": Int(app.state.rawValue)])
+        }
+        if !left {
+            lines.emit(["step": "faceid-permission", "for": step, "stillUp": true])
+            return false
+        }
+        return true
+    }
+
+    /// iOS's first-use question asks to allow Face ID; the prompt that
+    /// follows it does not ask to allow anything.
+    static func isFaceIDQuestion(_ label: String) -> Bool {
+        label.contains("Face ID") && label.range(of: "allow", options: .caseInsensitive) != nil
+    }
+
+    /// Every alert SpringBoard draws now, by label, with its buttons' labels:
+    /// what iOS put up, read rather than assumed. SpringBoard ALONE: iOS's own
+    /// questions and prompts are drawn there, and asking the app for its
+    /// alerts needs the app's main thread, which on the iOS 18.3 floor was
+    /// busy for 30 s while the owner check was up, and that query ended the
+    /// whole drive (the tests round's floor run).
+    private func promptLabels() -> [[String: Any]] {
+        springboard.alerts.allElementsBoundByIndex.filter(\.exists).map { alert in
+            ["in": "springboard", "label": alert.label, "buttons": alert.buttons.allElementsBoundByIndex.map(\.label)]
+        }
+    }
+
+    /// End on the session on screen: the bar read, the Mac's confirmation read
+    /// and pressed, iOS's first-use question accepted, then `end-auth-up`
+    /// printed once the owner check is up, and the probe's answer waited for
+    /// (`auth-<seq>`). What follows is `after`'s.
+    private func end(step: String, after: AfterAuth) {
+        guard poll({ has($0, Seen.sessionEnd) && !has($0, Seen.sessionLoading) }) else { return missing(step) }
+        emitBar(step)
+        element(Seen.sessionEnd).tap()
+        guard confirmDialog(for: step, pick: { labels in labels.first { $0 != Seen.cancelPress && !$0.isEmpty } }) != nil else { return missing(step) }
+        guard acceptFaceIDQuestion(for: step) else { return missing(step) }
+        let confirming = element(Seen.endConfirming).waitForExistence(timeout: 10)
+        let seq = lines.emit(["step": "end-auth-up", "for": step, "confirming": confirming])
+        let answered = ack("auth-\(seq)")
+        lines.emit(["step": "end-auth-answered", "for": step, "acked": answered])
+        switch after {
+        case .reread:
+            _ = poll { found in
+                !self.has(found, Seen.endConfirming) && self.has(found, Seen.sessionScreen)
+                    && (!self.has(found, Seen.sessionEndBar) || self.has(found, Seen.sessionEndLine))
+            }
+            Thread.sleep(forTimeInterval: 2)
+            _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+            dump(step)
+        case .cancel:
+            // What iOS drew after the failed match, read by its own labels
+            // (the tests round: no Cancel was ever found, and no reading said
+            // what was there instead).
+            Thread.sleep(forTimeInterval: 1)
+            lines.emit(["step": "faceid-after-nomatch", "for": step, "drew": promptLabels()])
+            var pressed = false
+            var gone = false
+            var via = ""
+            var seen: [String] = []
+            var lineFirst = false
+            let deadline = Date().addingTimeInterval(wait)
+            while !pressed && Date() < deadline {
+                // iOS may end its own prompt after the failed match: the End
+                // line is drawn only once the owner check has answered.
+                if has(tree(), Seen.sessionEndLine) {
+                    lineFirst = true
+                    break
+                }
+                for (name, root) in [("springboard", springboard), ("app", app)] {
+                    // The press BY ITS LABEL, held as that query, never re-resolved onto another element.
+                    let cancel = root.buttons.matching(NSPredicate(format: "label == %@", Seen.faceIDCancel)).firstMatch
+                    guard cancel.exists, cancel.isHittable else { continue }
+                    seen = root.alerts.firstMatch.exists ? root.alerts.firstMatch.buttons.allElementsBoundByIndex.map(\.label) : [Seen.faceIDCancel]
+                    cancel.tap()
+                    pressed = true
+                    via = name
+                    let until = Date().addingTimeInterval(5)
+                    while cancel.exists && Date() < until { Thread.sleep(forTimeInterval: 0.1) }
+                    gone = !cancel.exists
+                    break
+                }
+                if !pressed { Thread.sleep(forTimeInterval: 0.25) }
+            }
+            lines.emit(["step": "faceid-cancel", "for": step, "found": pressed, "via": via, "gone": gone, "lineFirst": lineFirst, "buttons": seen])
+            _ = poll { self.has($0, Seen.sessionEndLine) }
+            dump(step)
+        case .home:
+            home()
+            lines.emit(["step": "end-home-pressed", "state": Int(app.state.rawValue)])
+            Thread.sleep(forTimeInterval: 10)
+            app.activate()
+            _ = app.wait(for: .runningForeground, timeout: 30)
+            Thread.sleep(forTimeInterval: 3)
+            _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+            dump(step)
+        case .kill(let id):
+            app.terminate()
+            _ = app.wait(for: .notRunning, timeout: 10)
+            lines.emit(["step": "end-killed"])
+            app.launchArguments = carried
+            app.launch()
+            guard poll({ found in self.settledList(found) }) else { return missing(step) }
+            open(id, dumping: step)
+        }
+    }
+
+    /// The End bar read on the session on screen, its row pressed if it can be,
+    /// and whether a confirmation came: the hostile door's unreachable offer.
+    private func endRead() {
+        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("end-read") }
+        Thread.sleep(forTimeInterval: 1)
+        emitBar("end-read")
+        let row = element(Seen.sessionEnd)
+        if row.exists && row.isHittable { row.tap() }
+        let dialog = [app.sheets.firstMatch, app.alerts.firstMatch].contains { $0.waitForExistence(timeout: 2) }
+        lines.emit(["step": "end-read-press", "dialog": dialog])
+        dump("end-read")
+    }
+
+    /// E3: the probe unenrols Face ID (`unenrol-<seq>`), then the session is
+    /// opened, so what the bar draws is what iOS answers now.
+    private func endOff(_ sessionId: String) {
+        let seq = lines.emit(["step": "ready-for-unenrol"])
+        lines.emit(["step": "unenrolled", "acked": ack("unenrol-\(seq)")])
+        open(sessionId, dumping: "end-off-open")
+        guard has(tree(), Seen.sessionScreen) else { return }
+        Thread.sleep(forTimeInterval: 1)
+        emitBar("end-off")
+        let row = element(Seen.sessionEnd)
+        if row.exists && row.isEnabled && row.isHittable { row.tap() }
+        let dialog = [app.sheets.firstMatch, app.alerts.firstMatch].contains { $0.waitForExistence(timeout: 2) }
+        let prompt = springboard.alerts.firstMatch.waitForExistence(timeout: 2)
+        lines.emit(["step": "end-off-press", "dialog": dialog, "prompt": prompt])
+        if dialog, app.buttons[Seen.cancelPress].exists { app.buttons[Seen.cancelPress].tap() }
+        dump("end-off")
+    }
+
+    /// Select on, and each of `ids` ticked, on the Sessions tab's list.
+    private func select(_ ids: [String]) {
+        if !onSessionsList() {
+            _ = selectTab(Seen.tabSessions)
+            var tries = 0
+            while !onSessionsList() && tries < 6 {
+                let back = app.navigationBars.buttons.element(boundBy: 0)
+                if back.exists { back.tap() }
+                Thread.sleep(forTimeInterval: 1)
+                tries += 1
+            }
+        }
+        let press = element(Seen.listSelect)
+        guard onSessionsList(), press.waitForExistence(timeout: 10) else { return missing("select") }
+        press.tap()
+        for id in ids {
+            let row = element(Seen.row(id))
+            guard row.waitForExistence(timeout: 5) else { return missing("select") }
+            row.tap()
+            Thread.sleep(forTimeInterval: 0.3)
+        }
+        let ticked = ids.filter { element(Seen.rowSelect($0)).isSelected }
+        lines.emit(["step": "select", "asked": ids, "ticked": ticked])
+        dump("select")
+    }
+
+    /// End these: the bar's press, the Mac sheet's confirmation read and
+    /// pressed, iOS's first-use question accepted, `end-auth-up` and the
+    /// probe's answer, then the run read to its end, or, with `homeAfter`,
+    /// Home pressed at once when that row reads Ended.
+    private func endThese(homeAfter first: String?) {
+        let step = first == nil ? "end-these" : "end-these-home"
+        let press = element(Seen.listEndSelected)
+        guard press.waitForExistence(timeout: 10), press.isEnabled else { return missing(step) }
+        press.tap()
+        guard confirmDialog(for: step, pick: { labels in labels.first { $0.hasPrefix("End ") } }) != nil else { return missing(step) }
+        guard acceptFaceIDQuestion(for: step) else { return missing(step) }
+        // End these draws no mark of its own while iOS asks: the confirmation
+        // is gone and no write has begun, so a moment for iOS's prompt.
+        Thread.sleep(forTimeInterval: 1)
+        let seq = lines.emit(["step": "end-auth-up", "for": step, "confirming": !has(tree(), Seen.batchHeading)])
+        lines.emit(["step": "end-auth-answered", "for": step, "acked": ack("auth-\(seq)")])
+        if let first {
+            let deadline = Date().addingTimeInterval(wait)
+            var label = ""
+            while Date() < deadline {
+                label = element(Seen.rowOutcome(first)).exists ? element(Seen.rowOutcome(first)).label : ""
+                if label == "Ended" { break }
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+            home()
+            lines.emit(["step": "end-these-home-pressed", "rowOne": label, "state": Int(app.state.rawValue)])
+            Thread.sleep(forTimeInterval: 10)
+            app.activate()
+            _ = app.wait(for: .runningForeground, timeout: 30)
+            Thread.sleep(forTimeInterval: 3)
+        }
+        _ = poll { self.has($0, Seen.batchDone) }
+        let found = tree()
+        var outcomes: [String: String] = [:]
+        for item in found where item.id.hasPrefix("row-outcome-") {
+            outcomes[String(item.id.dropFirst("row-outcome-".count))] = item.label
+        }
+        lines.emit(["step": "end-these", "for": step, "heading": find(found, Seen.batchHeading).map { $0.label as Any } ?? NSNull(), "outcomes": outcomes, "done": has(found, Seen.batchDone)])
+        dump(step)
+    }
+
+    /// `Done` after End these, and the list read again.
+    private func batchDone() {
+        let done = element(Seen.batchDone)
+        if done.waitForExistence(timeout: 10) { done.tap() }
+        _ = poll { self.settledList($0) && !self.has($0, Seen.batchDone) }
+        dump("batch-done")
     }
 
     // MARK: Reading

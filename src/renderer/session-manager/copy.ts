@@ -224,12 +224,12 @@ export const DASH = '—';
 export const PENDING = '…';
 
 /**
- * Why `End session…` is off on a row Tortie cannot see. The study says the
- * MACHINE is unreachable, which is false for a session on this Mac whose
- * session host stopped answering, so the sentence names the session.
+ * Why `End session…` is off on a row Tortie cannot see. Phase 317 moved the
+ * sentence to src/shared/lifecycle-words.ts, byte for byte, because the phone
+ * draws it under a disabled End too and main composes the phone's rows; this
+ * file re-exports it so the sheet reads it where it always has.
  */
-export const END_UNREACHABLE_TITLE =
-  'Tortie cannot see whether this session is running, so it cannot end it.';
+export { END_UNREACHABLE_TITLE } from '@shared/lifecycle-words';
 
 /** Why `Restore` is off on an ended row that saved nothing. */
 export const NOTHING_TO_RESTORE_TITLE =
@@ -631,7 +631,11 @@ export const RETRY = 'Retry';
 export const SAVE_NAME = 'Save name';
 export const RESTORE_OPEN_CONFIRM = 'Open project and restore';
 
-/** One info toast, when a row changed under a panel or a menu pick. */
+/**
+ * One info toast, when a row changed under a panel or a menu pick. The same
+ * sentence as `LIFECYCLE_SESSION_CHANGED` (src/shared/lifecycle-words.ts), a
+ * second spelling Phase 317 left in place and holds equal by a test.
+ */
 export const SESSION_CHANGED = 'This session changed. Nothing was done.';
 
 /** Added under main's own sentence when a restore failed: the row kept its place. */

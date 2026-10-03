@@ -717,6 +717,82 @@ describe('what main tells a running door', () => {
 });
 
 // ---------------------------------------------------------------------------
+// A write's answer (Phase 317, build/p317/SPEC.md §5.3.4, §14 finding 9)
+// ---------------------------------------------------------------------------
+
+describe('a write’s answer', () => {
+  const WRITE_HEADERS = {
+    'x-tortie-phone': 'p',
+    'x-tortie-timestamp': '1',
+    'x-tortie-nonce': '0123456789abcdef',
+    'x-tortie-signature': 's'
+  };
+  const writeRequest = {
+    route: 'end',
+    method: 'POST',
+    target: '/v1/end',
+    headers: WRITE_HEADERS,
+    body: new Uint8Array(Buffer.from('{"batch":false,"session":"s1","write":"' + '0'.repeat(32) + '"}')),
+    channel: 'p'
+  };
+
+  async function opened(handle: DoorRequestHandler, child = fakeChild()): Promise<{ child: ReturnType<typeof fakeChild>; generation: number }> {
+    const started = await startPocketDoor(startInput({ spawn: child.spawn, handle }));
+    if (!started.ok) throw new Error('did not open');
+    const start = child.posted.find((m) => m.kind === 'start');
+    if (start?.kind !== 'start') throw new Error('no start');
+    return { child, generation: start.generation };
+  }
+
+  it('hands the handler a write the wire let through, as the POST it is', async () => {
+    const seen: string[] = [];
+    const { child, generation } = await opened(async (request) => {
+      seen.push(request.route === 'pair' ? 'pair' : `${request.method} ${request.target}`);
+      return { status: 200, body: '"ok"', acted: true };
+    });
+    child.say({ kind: 'request', id: 1, generation, request: writeRequest });
+    await turn();
+    expect(seen).toEqual(['POST /v1/end']);
+    expect(child.posted.filter((m) => m.kind === 'answer')).toEqual([{ kind: 'answer', id: 1, status: 200, body: '"ok"' }]);
+  });
+
+  it('never replaces an ACTED answer composed while its door began to stop, and still replaces one that is not', async () => {
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const { child, generation } = await opened(async (request) => {
+      await held;
+      return request.route !== 'pair' && request.target === '/v1/end'
+        ? { status: 200, body: '"acted"', acted: true }
+        : { status: 200, body: '"read"' };
+    });
+    child.say({ kind: 'request', id: 1, generation, request: writeRequest });
+    child.say({ kind: 'request', id: 2, generation, request: { ...writeRequest, route: 'blocked', method: 'GET', target: '/v1/blocked', body: new Uint8Array(0) } });
+    await turn();
+    const stopping = stopPocketDoor();
+    release();
+    await stopping;
+    const answers = child.posted.filter((m) => m.kind === 'answer');
+    expect(answers).toContainEqual({ kind: 'answer', id: 1, status: 200, body: '"acted"' });
+    expect(answers).toContainEqual({ kind: 'answer', id: 2, status: 404, body: null });
+  });
+
+  it('posts nothing in place of an acted answer that fails the wire’s bound, and a 404 in place of one that is not acted', async () => {
+    const huge = `"${'x'.repeat(2 * 1024 * 1024 + 8)}"`;
+    const { child, generation } = await opened(async (request) =>
+      request.route !== 'pair' && request.target === '/v1/end'
+        ? { status: 200, body: huge, acted: true }
+        : { status: 200, body: huge }
+    );
+    child.say({ kind: 'request', id: 1, generation, request: writeRequest });
+    child.say({ kind: 'request', id: 2, generation, request: { ...writeRequest, route: 'blocked', method: 'GET', target: '/v1/blocked', body: new Uint8Array(0) } });
+    await turn();
+    expect(child.posted.filter((m) => m.kind === 'answer')).toEqual([{ kind: 'answer', id: 2, status: 404, body: null }]);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The rules read as text, because they are one line away from gone
 // ---------------------------------------------------------------------------
 

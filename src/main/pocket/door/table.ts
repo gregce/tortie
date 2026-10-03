@@ -3,7 +3,8 @@
  * (build/p330/SPEC.md §4.6) so the door process can refuse a path that is not
  * a route before main is told anything. `../routes.ts` re-exports all three
  * names, so no importer moved, and `conformance:pocket` R1 and R4 read the
- * table here with R4's membership sha256 unmoved.
+ * table here. R4's membership sha256 did not move then, and Phase 317 moved it
+ * on purpose by the write row below.
  *
  * ## Closed means closed
  *
@@ -28,10 +29,13 @@ export interface PocketRoute {
   /**
    * True when answering this route changes nothing on this Mac.
    *
-   * IT IS TRUE OF EVERY ROUTE IN THIS PHASE and `build/conformance-pocket.mjs`
-   * reads it: a route added with `reads: false` is a write route, and this
-   * phase has none. The field exists so that adding one is a visible edit to
-   * this table rather than a quiet change inside a handler.
+   * A ROW WITH `reads: false` IS A WRITE, AND THE SET OF WRITES IS CLOSED
+   * (Phase 317, build/p317/SPEC.md §5.3.1): exactly `end`, a `POST` that is
+   * signed, alive outside any window, takes no query string and has its own
+   * body cap (`./limits.ts`). `build/conformance-pocket.mjs` R2 and
+   * X1 read it. The field is what makes adding a write a visible edit to this
+   * table rather than a quiet change inside a handler, and a write's body is
+   * parsed in main by `../writes.ts` alone, never here.
    */
   readonly reads: boolean;
   /** Alive only inside a pairing window a person opened. */
@@ -52,12 +56,18 @@ export interface PocketRoute {
  * paired yet has no key to sign with. It is sealed instead, under a key derived
  * from the one-shot secret in the QR, and it is dead outside the window — so
  * for almost all of the door's life it is not a route at all.
+ *
+ * `end` is the one write (Phase 317, build/p317/SPEC.md §5.3.1): a signed
+ * `POST` alive outside any window. The session id rides in the signed BODY,
+ * never in the path or a query, so the table stays a set of exact strings and
+ * the signature covers everything the write says.
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
   { id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true },
   { id: 'session', method: 'GET', path: '/v1/session', reads: true, windowOnly: false, signed: true },
-  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }
+  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },
+  { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true }
 ]);
 
 /**

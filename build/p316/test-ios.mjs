@@ -31,6 +31,30 @@
  * import the TypeScript, the full run re-runs this file under the pinned tsx
  * (`build/ts-runner.mjs`) and waits for it; `--read-app` does not.
  *
+ * AND THE WRITE, MEASURED (Phase 317, build/p317/SPEC.md §6.3 (ab) and (ad)).
+ * Door A also takes the write, `POST /v1/end`, from a connection presenting a
+ * certificate it issued: each is verified with
+ * build/p316/node-phone.mjs's `verifySigned` over its method, its path and its
+ * BODY, as the vectors' phone (`keys.phoneSigningKey`, `phoneExchangeKey`)
+ * signing to the vectors' Mac (`keys.macExchangeSeed`, `macExchangeKey`), and
+ * answered with a fixed write answer echoing the body's write id; a signature
+ * that does not hold is answered 404 with no body, as the door does. Two more
+ * listeners hold for (ad), each counting the connections it took and the
+ * requests it READ: `holdTls` holds the raw socket `P317_HOLD_MS` (2 s) before
+ * the TLS handshake starts, and a write whose task is cancelled at 0.5 s must
+ * leave it ZERO requests (the bytes were never handed, so they are withheld,
+ * never sent on a handshake that completes later); `holdAnswer` holds its
+ * ANSWER 2 s after the request was read, and a write whose task is cancelled
+ * after the request arrived must still be answered over a connection the
+ * phone kept (once handed, a write ends by its answer). `GET /p317/counts` on
+ * door A answers the counts, so a test can wait for "the request arrived"
+ * rather than guess at it. Their ports reach the tests as
+ * `TEST_RUNNER_P317_HOLD_TLS_PORT`, `TEST_RUNNER_P317_HOLD_ANSWER_PORT` and
+ * `TEST_RUNNER_P317_HOLD_MS`, and after each configuration the counts are read
+ * here too (`writeProblems`). The run's rows also gain the test classes 317
+ * adds and updates (`P317_SUITES`): each must be named in xcodebuild's own
+ * suite lines, because a class that never ran is not a pass.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
  *      device type. Missing any, it REFUSES with a sentence naming what is
@@ -125,9 +149,10 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { X509Certificate, createHash } from 'node:crypto';
+import { X509Certificate, createHash, createPrivateKey } from 'node:crypto';
 import { closeSync, existsSync, mkdirSync, mkdtempSync, openSync, readFileSync, readdirSync, readSync, realpathSync, rmSync } from 'node:fs';
 import { createServer as createHttp } from 'node:http';
+import { createServer as createNet } from 'node:net';
 import { createServer as createTls } from 'node:tls';
 import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -140,10 +165,12 @@ import {
   withSimulator,
   xcodebuildRun
 } from '../simulator-run.mjs';
+import { verifySigned } from './node-phone.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[test:ios]';
 const say = (line) => process.stdout.write(`${TAG} ${line}\n`);
+const J = JSON.stringify;
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 const SCHEME = 'Tortie';
 
@@ -455,6 +482,50 @@ const TRANSPORT_NAME = 'p330-transport.tail00000.ts.net';
 const b64u = (bytes) => Buffer.from(bytes).toString('base64url');
 const pinOfSpki = (spki) => b64u(createHash('sha256').update(spki).digest());
 
+/** How long each of (ad)'s two doors holds (build/p317/SPEC.md §6.3): the handshake, or the answer. */
+export const P317_HOLD_MS = 2_000;
+
+/**
+ * The write route door A takes, by path, and the verb it answers as. One since
+ * Phase 317's fix round, which took `unpair` out (build/p317/SPEC.md "§Fix
+ * round"); a POST to `/v1/unpair` is a path door A does not have, a 404.
+ */
+export const WRITE_ROUTES = Object.freeze({ '/v1/end': 'end' });
+
+/**
+ * The vectors' phone and the vectors' Mac (ios/TortieTests/Fixtures/vectors.json,
+ * from public seeds; they pair with nothing), as `verifySigned` takes them: a
+ * write the Swift signs with the vectors' signer must verify here, and one it
+ * signs with anything else must not.
+ */
+export function vectorWriteSigner(file = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json')) {
+  const k = JSON.parse(readFileSync(file, 'utf8')).keys;
+  const doorExchangePrivate = createPrivateKey({
+    key: Buffer.concat([Buffer.from('302e020100300506032b656e04220420', 'hex'), Buffer.from(k.macExchangeSeed, 'hex')]),
+    format: 'der',
+    type: 'pkcs8'
+  });
+  return { phone: { signingKey: k.phoneSigningKey, exchangeKey: k.phoneExchangeKey, clientKey: k.clientKey }, doorExchangePrivate, doorExchangeKey: k.macExchangeKey };
+}
+
+/**
+ * The fixed write answer door A gives a write whose signature held: `done`,
+ * echoing the body's write id. A body that is not a JSON object with a
+ * 32-lowercase-hex `write` gets the Mac's own answer for it, `refused`
+ * `malformed` with the id echoed `""` and the shipping `unreadable` sentence.
+ */
+export function writeAnswerOf(verb, body, unreadable) {
+  let write = null;
+  try {
+    const parsed = JSON.parse(Buffer.from(body).toString('utf8'));
+    if (parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed) && typeof parsed.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write)) write = parsed.write;
+  } catch {
+    write = null;
+  }
+  if (write === null) return { verb, write: '', outcome: 'refused', reason: 'malformed', sentence: unreadable };
+  return { verb, write, outcome: 'done', reason: null, sentence: null };
+}
+
 /**
  * Stand up door A and door B on 127.0.0.1, in this process, under the SHIPPING
  * `tls.ts` (imported here, so the caller runs under tsx). Door A: TLS 1.3 at
@@ -466,9 +537,18 @@ const pinOfSpki = (spki) => b64u(createHash('sha256').update(spki).digest());
  * that is not `POST /pair`. Door B: another key, and every handshake and every
  * request counted. Returns the facts the tests are handed, `counts`, `reset`
  * and `close`, which the caller runs in a `finally`.
+ *
+ * Phase 317: door A also takes the write (`writeAnswerOf`), and two more
+ * listeners under door A's key hold for (ad): `holdTls`, a plain TCP listener
+ * that holds each raw socket `holdMs` before it hands it to a TLS server, and
+ * `holdAnswer`, a TLS listener that holds each answer `holdMs` after reading
+ * its request. Every request either one READS is counted, by the listener it
+ * came through.
  */
-export async function startTransportDoors(dir) {
+export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
   const tls = await import('../../src/main/pocket/tls.ts');
+  const { POCKET_WRITE_SENTENCES } = await import('../../src/shared/ipc/pocket.ts');
+  const writeSigner = vectorWriteSigner();
   mkdirSync(dir, { recursive: true });
   const openSeal = { available: () => true, seal: (text) => text, open: (blob) => (typeof blob === 'string' ? blob : null) };
   const identity = (label) => {
@@ -479,8 +559,18 @@ export async function startTransportDoors(dir) {
   };
   const A = identity('door-a');
   const B = identity('door-b');
-  const fresh = () => ({ a: { issued: [], read: [], refused: 0 }, b: { handshakes: 0, served: 0 } });
+  const fresh = () => ({
+    a: { issued: [], read: [], refused: 0 },
+    b: { handshakes: 0, served: 0 },
+    // Phase 317. Every write door A read, by route and by the signature's word.
+    writes: { end: 0, verified: 0, refused: [], answered: 0 },
+    holdTls: { connections: 0, closedWhileHeld: 0, handshakes: 0, requests: 0, answered: 0 },
+    holdAnswer: { connections: 0, handshakes: 0, requests: 0, answered: 0, hungUp: 0 }
+  });
   let counts = fresh();
+  // Every key door A ever issued over, which a `reset` between configurations
+  // keeps: the counts are per configuration, the admission is per run.
+  const admitted = new Set();
 
   const answer = (res, status, body) => {
     const bytes = Buffer.from(body ?? '', 'utf8');
@@ -498,10 +588,14 @@ export async function startTransportDoors(dir) {
     });
     req.on('end', () => {
       const pin = req.socket.p330Pin ?? null;
+      const mode = req.socket.p317Mode ?? 'door-a';
+      const body = Buffer.concat(chunks);
+      if (mode === 'hold-tls') counts.holdTls.requests += 1;
+      if (mode === 'hold-answer') counts.holdAnswer.requests += 1;
       if (req.method === 'POST' && req.url === '/p330/issue' && size <= 4096) {
         let ck = null;
         try {
-          ck = JSON.parse(Buffer.concat(chunks).toString('utf8')).ck;
+          ck = JSON.parse(body.toString('utf8')).ck;
         } catch {
           ck = null;
         }
@@ -512,22 +606,56 @@ export async function startTransportDoors(dir) {
         } catch {
           return answer(res, 400, null);
         }
-        counts.a.issued.push(pinOfSpki(Buffer.from(ck, 'base64url')));
+        const issuedPin = pinOfSpki(Buffer.from(ck, 'base64url'));
+        counts.a.issued.push(issuedPin);
+        admitted.add(issuedPin);
         return answer(res, 200, JSON.stringify({ cert: b64u(der) }));
       }
       if (req.method === 'GET' && req.url === '/p330/whoami' && pin !== null) {
         counts.a.read.push(pin);
         return answer(res, 200, JSON.stringify({ pin }));
       }
+      if (req.method === 'GET' && req.url === '/p317/counts' && pin !== null) {
+        const { holdTls, holdAnswer, writes } = counts;
+        return answer(res, 200, JSON.stringify({ holdTls, holdAnswer, writes: { ...writes, refused: writes.refused.length } }));
+      }
+      const route = req.method === 'POST' ? WRITE_ROUTES[req.url ?? ''] : undefined;
+      if (route !== undefined && pin !== null && size <= 4096) {
+        counts.writes[route] += 1;
+        const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
+        if (verdict !== 'ok') {
+          counts.writes.refused.push(verdict);
+          return answer(res, 404, null);
+        }
+        counts.writes.verified += 1;
+        const reply = JSON.stringify(writeAnswerOf(route, body, POCKET_WRITE_SENTENCES.unreadable));
+        const send = () => {
+          if (req.socket.destroyed) {
+            if (mode === 'hold-answer') counts.holdAnswer.hungUp += 1;
+            return;
+          }
+          counts.writes.answered += 1;
+          if (mode === 'hold-tls') counts.holdTls.answered += 1;
+          if (mode === 'hold-answer') counts.holdAnswer.answered += 1;
+          answer(res, 200, reply);
+        };
+        // (ad)'s second hold: the request is read and counted, its answer waits.
+        if (mode === 'hold-answer') setTimeout(send, holdMs).unref?.();
+        else send();
+        return;
+      }
       return answer(res, 404, null);
     });
   });
-  const doorA = createTls({ key: A.key, cert: A.cert, minVersion: 'TLSv1.3', requestCert: true, rejectUnauthorized: false });
-  doorA.on('secureConnection', (socket) => {
+  /** Door A's handshake rule, for every TLS server under its key: a pin it issued over, or `POST /p330/issue` with none. */
+  const onSecure = (mode) => (socket) => {
+    socket.p317Mode = mode;
+    if (mode === 'hold-tls') counts.holdTls.handshakes += 1;
+    if (mode === 'hold-answer') counts.holdAnswer.handshakes += 1;
     const peer = socket.getPeerX509Certificate();
     if (peer !== undefined) {
       const pin = pinOfSpki(peer.publicKey.export({ type: 'spki', format: 'der' }));
-      if (!counts.a.issued.includes(pin)) {
+      if (!admitted.has(pin)) {
         counts.a.refused += 1;
         socket.destroy();
         return;
@@ -547,7 +675,10 @@ export async function startTransportDoors(dir) {
       http.emit('connection', socket);
       socket.resume();
     });
-  });
+  };
+  const tlsOptions = { key: A.key, cert: A.cert, minVersion: 'TLSv1.3', requestCert: true, rejectUnauthorized: false };
+  const doorA = createTls(tlsOptions);
+  doorA.on('secureConnection', onSecure('door-a'));
   const doorB = createTls({ key: B.key, cert: B.cert, minVersion: 'TLSv1.3', requestCert: true, rejectUnauthorized: false });
   doorB.on('secureConnection', (socket) => {
     counts.b.handshakes += 1;
@@ -556,9 +687,49 @@ export async function startTransportDoors(dir) {
       socket.end('HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\nConnection: close\r\n\r\n');
     });
   });
-  const servers = [doorA, doorB];
+  // (ad)'s first hold. The TLS server never listens: the plain listener in
+  // front of it holds each raw socket, unread, for `holdMs`, and only then
+  // hands it over, so a client's ClientHello waits in the socket's buffer and
+  // no handshake can complete before the hold ends.
+  const holdTlsDoor = createTls(tlsOptions);
+  holdTlsDoor.on('secureConnection', onSecure('hold-tls'));
+  holdTlsDoor.on('tlsClientError', () => undefined);
+  const held = new Set();
+  const holdTls = createNet((raw) => {
+    counts.holdTls.connections += 1;
+    held.add(raw);
+    raw.on('error', () => undefined);
+    raw.pause();
+    const timer = setTimeout(() => {
+      held.delete(raw);
+      if (raw.destroyed || raw.readableEnded) {
+        counts.holdTls.closedWhileHeld += 1;
+        raw.destroy();
+        return;
+      }
+      holdTlsDoor.emit('connection', raw);
+      raw.resume();
+    }, holdMs);
+    timer.unref?.();
+    raw.on('close', () => {
+      if (held.has(raw)) {
+        held.delete(raw);
+        clearTimeout(timer);
+        counts.holdTls.closedWhileHeld += 1;
+      }
+    });
+  });
+  // (ad)'s second hold: a door under A's key that answers each write late.
+  const holdAnswer = createTls(tlsOptions);
+  holdAnswer.on('secureConnection', onSecure('hold-answer'));
+  holdAnswer.on('connection', () => {
+    counts.holdAnswer.connections += 1;
+  });
+  const servers = [doorA, doorB, holdTls, holdAnswer];
   const listening = [];
   const close = async () => {
+    for (const raw of held) raw.destroy();
+    held.clear();
     await Promise.all(
       listening.map(
         (server) =>
@@ -586,6 +757,9 @@ export async function startTransportDoors(dir) {
     name: TRANSPORT_NAME,
     portA: doorA.address().port,
     portB: doorB.address().port,
+    portHoldTls: holdTls.address().port,
+    portHoldAnswer: holdAnswer.address().port,
+    holdMs,
     pinA: A.pin,
     counts: () => counts,
     reset: () => {
@@ -611,6 +785,51 @@ export function transportProblems(counts, configuration) {
 }
 
 /**
+ * What one configuration's write rows left (Phase 317, (ad)): the door that
+ * holds the handshake was dialled and READ NO REQUEST, because a write
+ * cancelled before its bytes were handed is withheld; the door that holds its
+ * answer read a request and answered it over a connection the phone kept,
+ * because a write whose bytes were handed ends by its answer. Returns the
+ * problems (sentences); an empty list is a pass.
+ */
+export function writeProblems(counts, configuration) {
+  const problems = [];
+  const t = counts.holdTls;
+  const h = counts.holdAnswer;
+  if (t.connections === 0) problems.push(`${configuration}: nothing dialled the door that holds the handshake, so P317WriteTransportTests' withheld write was not measured`);
+  if (t.requests !== 0) problems.push(`${configuration}: the door that holds the handshake read ${String(t.requests)} request(s); a write cancelled before its bytes were handed must send nothing, ever`);
+  if (h.requests === 0) problems.push(`${configuration}: the door that holds its answer read no request, so P317WriteTransportTests' handed write was not measured`);
+  else if (h.answered === 0) problems.push(`${configuration}: the door that holds its answer read ${String(h.requests)} request(s) and answered none over a live connection (${String(h.hungUp)} hung up); a write whose bytes were handed must end by its answer, not by the cancel`);
+  if (counts.writes.verified > 0 && counts.writes.answered === 0) problems.push(`${configuration}: door A verified ${String(counts.writes.verified)} write(s) and answered none`);
+  return problems;
+}
+
+/**
+ * The test classes Phase 317 adds or changes (build/p317/SPEC.md §7.3), each of
+ * which must appear in xcodebuild's own suite lines for a configuration's run.
+ */
+export const P317_SUITES = Object.freeze([
+  'EndTests',
+  'EndBatchTests',
+  'OwnerCheckTests',
+  'WriteClientTests',
+  'WriterTests',
+  'P317WriteTransportTests',
+  'EndWordsTests',
+  'UnpairTests',
+  'SettingsTests',
+  'CopyTests',
+  'InfoPlistTests',
+  'DoorVectorTests'
+]);
+
+/** The suites of `names` that xcodebuild's output never says passed or failed. */
+export function suitesNotRun(text, names = P317_SUITES) {
+  const ran = new Set([...String(text).matchAll(/Test Suite '([A-Za-z0-9_]+)' (?:passed|failed)/g)].map((m) => m[1]));
+  return names.filter((n) => !ran.has(n));
+}
+
+/**
  * True when node was asked to run THIS file, false when another script imports
  * it for `builtAppProblems`, `appAt`, `signedProblem` or `summaryOf`. Everything
  * below the exports is `main`, because an import that ran it would build, boot
@@ -628,6 +847,142 @@ function invokedDirectly() {
   } catch {
     return false;
   }
+}
+
+
+// ---------------------------------------------------------------------------
+// --self-test: the doors driven by node (Phase 317), no Xcode, no Simulator
+// ---------------------------------------------------------------------------
+
+/**
+ * Every claim the doors make, held both ways by a node client before any
+ * Swift is pointed at them: a write the vectors' phone signs is verified and
+ * answered with its id echoed; the same signature over a body with one byte
+ * changed is refused `signature` and answered 404; a body with no id gets the
+ * Mac's `refused malformed` with `""`; a connection closed while its
+ * handshake is held leaves ZERO requests read and one that waits is read (the
+ * control, so a door that reads nothing could not pass); an answer held after
+ * its request is read is answered when the client keeps the connection and
+ * counted hung up when it does not; and `writeProblems` and `suitesNotRun`
+ * read each of those shapes the way the run relies on.
+ */
+async function doorsSelfTest() {
+  const { connect: tlsConnect } = await import('node:tls');
+  const { generateKeyPairSync, randomBytes } = await import('node:crypto');
+  const phoneMod = await import('./node-phone.mjs');
+  const results = [];
+  const check = (what, ok, said = '') => {
+    results.push(ok);
+    process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${what}${said === '' ? '' : `: ${said}`}\n`);
+  };
+  const scratch = mkdtempSync(join(tmpdir(), 'p317-test-ios-doors-'));
+  const hold = 600;
+  let doors = null;
+  try {
+    doors = await startTransportDoors(join(scratch, 'doors'), { holdMs: hold });
+    const v = JSON.parse(readFileSync(join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json'), 'utf8'));
+    const signPrivate = createPrivateKey({ key: Buffer.concat([Buffer.from('302e020100300506032b657004220420', 'hex'), Buffer.from(v.keys.phoneSigningSeed, 'hex')]), format: 'der', type: 'pkcs8' });
+    const client = generateKeyPairSync('ec', { namedCurve: 'prime256v1' });
+    const ck = b64u(client.publicKey.export({ type: 'spki', format: 'der' }));
+    const door = (port) => ({ port, name: doors.name, publicPort: 8443, pin: doors.pinA });
+    const issued = await phoneMod.request({ door: door(doors.portA), method: 'POST', target: '/p330/issue', body: JSON.stringify({ ck }) });
+    const der = Buffer.from(JSON.parse(issued.body).cert, 'base64url');
+    const certPem = `-----BEGIN CERTIFICATE-----\n${(der.toString('base64').match(/.{1,64}/g) ?? []).join('\n')}\n-----END CERTIFICATE-----\n`;
+    const identity = { certPem, clientPrivatePem: client.privateKey.export({ type: 'pkcs8', format: 'pem' }).toString() };
+    // The vectors' phone, as node-phone.mjs's signer takes one.
+    const vectorPhone = { id: v.identity.phoneId, binding: v.identity.binding, signPrivate };
+    const signed = (target, body, sendBody = body) => ({
+      headers: { ...phoneMod.signedHeadersFor(vectorPhone, 'POST', target, Buffer.from(body, 'utf8')), 'content-type': 'application/json', 'content-length': String(Buffer.byteLength(sendBody)) },
+      body: sendBody
+    });
+    const id = randomBytes(16).toString('hex');
+    const endBody = JSON.stringify({ batch: false, session: '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02', write: id });
+    const post = (port, target, s, extra = {}) => phoneMod.request({ door: door(port), method: 'POST', target, identity, ...s, ...extra });
+
+    // Door A's writes.
+    const honest = await post(doors.portA, '/v1/end', signed('/v1/end', endBody));
+    const said = (() => { try { return JSON.parse(honest.body); } catch { return null; } })();
+    check('an honest end is verified and answered with its id echoed', honest.status === 200 && said?.write === id && said?.outcome === 'done' && said?.verb === 'end', `${String(honest.status)} ${honest.body}`);
+    const tampered = await post(doors.portA, '/v1/end', signed('/v1/end', endBody, endBody.replace('c02', 'c03')));
+    check('the same signature over a body with one byte changed is answered 404', tampered.status === 404 && doors.counts().writes.refused.includes('signature'), `${String(tampered.status)}, refused ${J(doors.counts().writes.refused)}`);
+    const unpairId = randomBytes(16).toString('hex');
+    const unpaired = await post(doors.portA, '/v1/unpair', signed('/v1/unpair', JSON.stringify({ write: unpairId })));
+    check('the removed unpair path is no write: answered 404, with no body', unpaired.status === 404 && unpaired.body === '', `${String(unpaired.status)} ${unpaired.body}`);
+    const bad = await post(doors.portA, '/v1/end', signed('/v1/end', '{"x":1}'));
+    const badSaid = (() => { try { return JSON.parse(bad.body); } catch { return null; } })();
+    check('a body with no write id gets refused malformed with "" echoed', bad.status === 200 && badSaid?.write === '' && badSaid?.outcome === 'refused' && badSaid?.reason === 'malformed' && typeof badSaid?.sentence === 'string' && badSaid.sentence.length > 0, bad.body);
+    const unsigned = await phoneMod.request({ door: door(doors.portA), method: 'POST', target: '/v1/end', identity, body: endBody });
+    check('a write with no signature is answered 404', unsigned.status === 404);
+    const noCert = await phoneMod.request({ door: door(doors.portA), method: 'POST', target: '/v1/end', ...signed('/v1/end', endBody) });
+    check('a write with no client identity is cut before an answer', noCert.status === 0, noCert.error ?? String(noCert.status));
+    const a = doors.counts().writes;
+    check('door A counted its writes by route', a.end === 4 && a.unpair === undefined && a.verified === 2 && a.answered === 2, J(a));
+    doors.reset();
+
+    // (ad)'s first hold: closed while held, nothing read.
+    const early = tlsConnect({ host: '127.0.0.1', port: doors.portHoldTls, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
+    early.on('error', () => undefined);
+    await new Promise((r) => setTimeout(r, Math.floor(hold / 4)));
+    early.destroy();
+    await new Promise((r) => setTimeout(r, hold + 400));
+    // (ad)'s second hold: the request read, the answer late, the connection kept.
+    const startedAt = Date.now();
+    const late = post(doors.portHoldAnswer, '/v1/end', signed('/v1/end', JSON.stringify({ batch: true, session: 's1', write: id })));
+    let arrived = false;
+    for (let i = 0; i < 40 && !arrived; i += 1) {
+      const c = await phoneMod.request({ door: door(doors.portA), method: 'GET', target: '/p317/counts', identity });
+      arrived = c.status === 200 && JSON.parse(c.body).holdAnswer.requests >= 1;
+      if (!arrived) await new Promise((r) => setTimeout(r, 50));
+    }
+    const lateGot = await late;
+    const tookMs = Date.now() - startedAt;
+    const held = doors.counts();
+    check('a handshake held and closed before it ends completes no handshake and reads no request', held.holdTls.connections === 1 && held.holdTls.handshakes === 0 && held.holdTls.requests === 0, J(held.holdTls));
+    check('GET /p317/counts says when the held write\'s request arrived', arrived);
+    check('an answer held after its request is answered over the connection kept', lateGot.status === 200 && JSON.parse(lateGot.body).write === id && held.holdAnswer.requests === 1 && held.holdAnswer.answered === 1 && tookMs >= hold, `${String(lateGot.status)} after ${String(tookMs)} ms, ${J(held.holdAnswer)}`);
+    check('writeProblems passes that run', writeProblems(held, 'self-test').length === 0, J(writeProblems(held, 'self-test')));
+    const planted = (edit) => {
+      const c = structuredClone(held);
+      edit(c);
+      return writeProblems(c, 'self-test').length > 0;
+    };
+    check('writeProblems refuses a held handshake that read a request', planted((c) => void (c.holdTls.requests = 1)));
+    check('writeProblems refuses a held handshake nobody dialled', planted((c) => void (c.holdTls.connections = 0)));
+    check('writeProblems refuses a held answer nobody asked for', planted((c) => void (c.holdAnswer.requests = 0)));
+    check('writeProblems refuses writes verified and never answered', planted((c) => {
+      c.writes.verified = 1;
+      c.writes.answered = 0;
+    }));
+    check('writeProblems refuses a held answer the phone hung up on', planted((c) => {
+      c.holdAnswer.answered = 0;
+      c.holdAnswer.hungUp = 1;
+    }));
+
+    // The controls: a held handshake that is waited out IS read, and a held
+    // answer whose client hangs up is counted as hung up and not answered.
+    doors.reset();
+    const waited = await post(doors.portHoldTls, '/v1/end', signed('/v1/end', endBody));
+    check('the control: a held handshake waited out is read and answered', waited.status === 200 && doors.counts().holdTls.requests === 1 && doors.counts().holdTls.answered === 1, `${String(waited.status)} ${J(doors.counts().holdTls)}`);
+    doors.reset();
+    const gone = post(doors.portHoldAnswer, '/v1/end', signed('/v1/end', endBody), { timeoutMs: Math.floor(hold / 2) });
+    const goneGot = await gone;
+    await new Promise((r) => setTimeout(r, hold + 400));
+    check('the control: a held answer whose client hung up is not counted answered', goneGot.status === 0 && doors.counts().holdAnswer.requests === 1 && doors.counts().holdAnswer.answered === 0 && doors.counts().holdAnswer.hungUp === 1, J(doors.counts().holdAnswer));
+
+    // The suites, read from xcodebuild's own words.
+    const ran = P317_SUITES.map((n) => `Test Suite '${n}' passed at 2026-10-01 12:00:00.000.`).join('\n');
+    check('suitesNotRun reads every suite xcodebuild says passed', suitesNotRun(ran).length === 0);
+    check('suitesNotRun names a suite that never ran', J(suitesNotRun(ran.replace("'EndBatchTests' passed", "'EndBatchTests' started"))) === J(['EndBatchTests']));
+    check('suitesNotRun counts a failed suite as run', suitesNotRun(ran.replace("'WriterTests' passed", "'WriterTests' failed")).length === 0);
+  } catch (err) {
+    check('the self-test ran', false, String(err?.stack ?? err));
+  } finally {
+    if (doors !== null) await doors.close();
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  const failed = results.filter((ok) => !ok).length;
+  say(failed === 0 ? `self-test PASS: ${String(results.length)} checks over the doors, on loopback, and every listener is closed` : `self-test FAIL: ${String(failed)} of ${String(results.length)}`);
+  return failed === 0;
 }
 
 if (invokedDirectly()) await main();
@@ -659,6 +1014,9 @@ async function main() {
     if (inner.error !== undefined) say(`the run under tsx could not start: ${String(inner.error.message)}`);
     process.exit(inner.status ?? 1);
   }
+
+  // Phase 317: the doors alone, driven by node, with no Xcode and no Simulator.
+  if (process.argv.includes('--self-test')) process.exit((await doorsSelfTest()) ? 0 : 1);
 
   const runtime = (process.env['P316_RUNTIME'] ?? '').trim() || RUNTIME_CURRENT;
 
@@ -787,11 +1145,16 @@ async function main() {
       try {
         doors = await startTransportDoors(join(scratch, 'doors'));
         say(`door A on 127.0.0.1:${String(doors.portA)} (pin ${doors.pinA}), the wrong door on 127.0.0.1:${String(doors.portB)}`);
+        say(`(ad)'s doors: the handshake held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldTls)}, the answer held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldAnswer)}`);
         const testEnv = {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
           P330_DOOR_PIN: doors.pinA,
           P330_WRONG_PORT: String(doors.portB),
+          // Phase 317: (ad)'s two doors, under door A's key and name.
+          P317_HOLD_TLS_PORT: String(doors.portHoldTls),
+          P317_HOLD_ANSWER_PORT: String(doors.portHoldAnswer),
+          P317_HOLD_MS: String(doors.holdMs),
           ...outline
         };
         if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
@@ -804,8 +1167,14 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = transportProblems(counted, c.name);
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name)];
             for (const p of transport) process.stdout.write(`  ${p}\n`);
+            say(
+              `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ` +
+                `${String(counted.writes.verified)} verified, ${String(counted.writes.refused.length)} refused (${[...new Set(counted.writes.refused)].join(', ') || 'none'}), ${String(counted.writes.answered)} answered; ` +
+                `the held handshake: ${String(counted.holdTls.connections)} connection(s), ${String(counted.holdTls.closedWhileHeld)} closed while held, ${String(counted.holdTls.requests)} request(s) read; ` +
+                `the held answer: ${String(counted.holdAnswer.connections)} connection(s), ${String(counted.holdAnswer.requests)} request(s) read, ${String(counted.holdAnswer.answered)} answered, ${String(counted.holdAnswer.hungUp)} hung up`
+            );
             say(
               `the doors after ${c.name}: A issued ${String(counted.a.issued.length)}, read ${String(counted.a.read.length)} pin(s) ` +
                 `(${[...new Set(counted.a.read)].join(', ') || 'none'}), refused ${String(counted.a.refused)}; ` +
@@ -818,7 +1187,10 @@ async function main() {
               `TortieTests (${c.name}) on iOS ${sim.runtime}: xcodebuild exited ${String(run.code)} in ${String(run.ms)} ms; ` +
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
-            if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0) passed += 1;
+            // Phase 317: every class it adds or changes must have run.
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`);
+            if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
+            if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');
           }
           code = passed === CONFIGURATIONS.length ? 0 : 1;

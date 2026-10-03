@@ -43,7 +43,7 @@
  *   5. THE HELPER'S TARGETS. The helper itself names no `all`, no `booted` and
  *      no `unavailable`: it ends the udid it created and nothing else.
  *   6. THE FIXTURES. Every scanner above is run over texts this gate holds
- *      itself, nineteen of them, ten of which must be caught, and the floor is
+ *      itself, twenty-four of them, thirteen of which must be caught, and the floor is
  *      driven one below itself and at itself. A checker nobody has seen fail is
  *      a checker nobody has seen work.
  *   7. THE HELPER'S PUSH (Phase 316.5). Delivering a notification is a verb
@@ -57,6 +57,19 @@
  *      handle's owned children, and deletes the file in a `finally`. The verb
  *      appears nowhere else in the helper. Sixteen one-clause ablations, one
  *      or more per clause, prove it, the first being the device check removed.
+ *   8. THE HELPER'S FACE ID (Phase 317, build/p317/SPEC.md §6.4). Enrolling
+ *      or answering Face ID is a verb only the helper names: in a file that
+ *      names `simctl`, the strings `spawn` and `notifyutil` are caught like
+ *      `boot`, and a whole command line `simctl spawn …` or `notifyutil -s|-p
+ *      …` is caught in any file. In the helper, the handle's `biometry` takes
+ *      ONE parameter, the step, and no device; it refuses a step that is not
+ *      an own key of `BIOMETRY_STEPS` before it runs anything; it runs
+ *      `['simctl', 'spawn', udid, 'notifyutil', …]` with the udid the call
+ *      CREATED, as one of the handle's owned children; `BIOMETRY_STEPS` is
+ *      exactly `enrol`, `unenrol`, `match` and `nomatch`, each naming
+ *      BiometricKit; and neither verb is named anywhere else in the helper.
+ *      Six one-clause ablations prove it, the first being the device check
+ *      removed.
  *
  * ## What it does not assert
  *
@@ -108,6 +121,13 @@ const TEST_ACTIONS = ['test', 'test-without-building'];
  * the handle's `push` can only ever name the udid its own call created.
  */
 const DELIVERY_VERBS = ['push'];
+/**
+ * Enrolling or answering Face ID on a device (Phase 317): `simctl spawn` runs
+ * `notifyutil` inside it. It makes and ends nothing, but it names a device and
+ * runs a program inside it, and only the helper's handle may: the handle's
+ * `biometry` names only the udid its own call created, with a closed step.
+ */
+const BIOMETRY_VERBS = ['spawn', 'notifyutil'];
 
 // ---------------------------------------------------------------------------
 // Reading source
@@ -176,12 +196,15 @@ export function simulatorStarts(name, source) {
     if (/\bsimctl\s+io\b[^\n]*\b(screenshot|recordVideo)\b/.test(s.text)) hit(s.at, 'a command line that photographs a device');
     const delivery = new RegExp(`\\bsimctl\\s+(${DELIVERY_VERBS.join('|')})\\b`).exec(s.text);
     if (delivery !== null) hit(s.at, `a command line delivering a notification with simctl ${delivery[1]}, which is the helper handle's alone`);
+    if (/\bsimctl\s+spawn\b/.test(s.text)) hit(s.at, "a command line running a program inside a device with simctl spawn, which is the helper handle's biometry alone");
+    if (/\bnotifyutil\s+-[sp]\b/.test(s.text)) hit(s.at, "a command line posting a notification inside a device with notifyutil, which is the helper handle's biometry alone");
     if (new RegExp(`\\bxcodebuild\\b[^\\n]*\\s(${TEST_ACTIONS.join('|')})(\\s|$)`).test(s.text)) {
       hit(s.at, 'a command line running an xcodebuild test, which boots its destination');
     }
     if (namesSimctl) {
       if (DEVICE_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}'`);
       if (DELIVERY_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}', which delivers to a device and is the helper handle's alone`);
+      if (BIOMETRY_VERBS.includes(s.text)) hit(s.at, `'${s.text}', which runs Face ID's notifications inside a device and is the helper handle's biometry alone`);
       if (FOREIGN_TARGETS.includes(s.text)) hit(s.at, `the simctl target '${s.text}', a device this script did not make`);
       if (PHOTOGRAPHS.includes(s.text)) hit(s.at, `'${s.text}', a photograph`);
     }
@@ -289,6 +312,7 @@ export function helperShape(source) {
     if (FOREIGN_TARGETS.includes(s.text)) out.push(`the helper names '${s.text}', a device it did not make.`);
   }
   out.push(...pushShape(code));
+  out.push(...biometryShape(code));
   return out;
 }
 
@@ -355,6 +379,45 @@ export function pushShape(code) {
   return out;
 }
 
+/**
+ * Rule 8 over the helper's comment-stripped source: the handle's `biometry`
+ * (Phase 317). Returns findings, empty when it holds.
+ */
+export function biometryShape(code) {
+  const out = [];
+  const bio = methodBody(code, 'biometry');
+  if (bio === null) return ['the handle declares no biometry(), so nothing holds where Face ID may be answered.'];
+  const params = bio.params.split(',').map((p) => p.trim()).filter((p) => p !== '');
+  if (params.length !== 1 || /\budid\b|device|target/i.test(bio.params)) {
+    out.push(`biometry() takes (${bio.params.trim()}), so its caller can name more than a step; it must take (step) and name its own udid.`);
+  }
+  const argv = /\[\s*['"]simctl['"]\s*,\s*['"]spawn['"]\s*,\s*([A-Za-z_$][\w$]*)\s*,\s*['"]notifyutil['"]\s*,\s*\.\.\.\s*([A-Za-z_$][\w$]*)\s*\]/.exec(bio.body);
+  if (argv === null) out.push('biometry() runs no simctl argv of the shape [simctl, spawn, <device>, notifyutil, ...<step arguments>].');
+  else if (argv[1] !== 'udid') out.push(`biometry() names '${argv[1]}' as its device, not the udid this call created.`);
+  const runAt = bio.body.search(/\brun\s*\(/);
+  const checkAt = bio.body.search(/\bObject\.hasOwn\s*\(\s*BIOMETRY_STEPS\s*,\s*step\s*\)/);
+  if (checkAt === -1 || (runAt !== -1 && checkAt > runAt)) out.push('biometry() does not refuse a step that is not one of BIOMETRY_STEPS before it runs anything.');
+  if (!/\bof\s+BIOMETRY_STEPS\s*\[\s*step\s*\]/.test(bio.body)) out.push('biometry() does not take its notifyutil arguments from BIOMETRY_STEPS[step].');
+  if (!/\brun\s*\([^;]*\bowner\s*:\s*entry\.children\b/.test(bio.body)) out.push("biometry() does not run its steps as the handle's owned children.");
+  const table = /\bBIOMETRY_STEPS\s*=\s*Object\.freeze\(\s*\{/.exec(code);
+  if (table === null) out.push('the helper declares no frozen BIOMETRY_STEPS table.');
+  else {
+    const body = blockAt(code, code.indexOf('{', table.index)) ?? '';
+    const keys = [...body.matchAll(/(?:^|\n)\s*([A-Za-z]+)\s*:\s*Object\.freeze\(\s*\[/g)].map((m) => m[1]).sort();
+    if (keys.join(',') !== 'enrol,match,nomatch,unenrol') out.push(`BIOMETRY_STEPS holds the steps ${keys.join(', ') || 'none'}; the closed set is enrol, unenrol, match and nomatch.`);
+    for (const m of body.matchAll(/['"](com\.[^'"]*)['"]/g)) {
+      if (!m[1].startsWith('com.apple.BiometricKit')) out.push(`BIOMETRY_STEPS names ${m[1]}, which is not BiometricKit's.`);
+    }
+  }
+  for (const verb of BIOMETRY_VERBS) {
+    const re = new RegExp(`['"]${verb}['"]`, 'g');
+    const everywhere = (code.match(re) ?? []).length;
+    const inside = (bio.body.match(re) ?? []).length;
+    if (everywhere !== inside) out.push(`the verb ${verb} is named ${String(everywhere - inside)} time(s) in the helper outside the handle's biometry().`);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // The fixtures. Every verb is spelled from parts, so this gate's own source
 // carries no literal the forward rule looks for.
@@ -365,6 +428,8 @@ const SIM = V('sim|ctl');
 const BOOT = V('bo|ot');
 const MAKE = V('cre|ate');
 const PUSH = V('pu|sh');
+const SPAWN = V('spa|wn');
+const NOTIFY = V('notify|util');
 
 const FIXTURES = [
   {
@@ -464,6 +529,32 @@ const FIXTURES = [
     name: 'an array grown in a file that names the tool',
     caught: false,
     text: `const tool = '${SIM}';\nconst rows = [];\nrows.${PUSH}(tool);\n`
+  },
+  {
+    name: 'Face ID answered in argv, outside the helper',
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${SPAWN}', udid, '${NOTIFY}', '-p', 'com.apple.BiometricKit_Sim.pearl.match']);\n`
+  },
+  {
+    name: 'Face ID enrolled as a whole command line',
+    caught: true,
+    text: `import { execSync } from 'node:child_process';\nexecSync('xcrun ${SIM} ${SPAWN} 1234 ${NOTIFY} -s com.apple.BiometricKit.enrollmentChanged 1');\n`
+  },
+  {
+    name: 'the Face ID program held in a variable',
+    caught: true,
+    text: `const tool = '${SIM}';\nconst inside = '${NOTIFY}';\nrunIn(tool, udid, inside, '-p', 'com.apple.BiometricKit_Sim.pearl.nomatch');\n`
+  },
+  {
+    name: 'Face ID answered through the helper handle',
+    caught: false,
+    user: true,
+    text: `import { withSimulator } from './${HELPER}';\nawait withSimulator({ label: 'x' }, (sim) => sim.biometry('match'));\n`
+  },
+  {
+    name: 'node spawn imported in a file that never names the tool',
+    caught: false,
+    text: `import { ${SPAWN} } from 'node:child_process';\nconst names = ['${SPAWN}', 'exec'];\n`
   }
 ];
 
@@ -525,7 +616,33 @@ const HELPER_ABLATIONS = [
     edit: (src) => src.replace("  if (aps === null || typeof aps !== 'object' || Array.isArray(aps)) return 'the notification body has no aps object.';\n", '')
   },
   { what: 'the push cap raised', edit: (src) => src.replace('export const PUSH_PAYLOAD_MAX_BYTES = 4096;', 'export const PUSH_PAYLOAD_MAX_BYTES = 8192;') },
-  { what: 'push added to the verbs a handle runs for its caller', edit: (src) => src.replace("  'listapps'\n]);", "  'listapps',\n  'push'\n]);") }
+  { what: 'push added to the verbs a handle runs for its caller', edit: (src) => src.replace("  'listapps'\n]);", "  'listapps',\n  'push'\n]);") },
+  // Rule 8, the handle's Face ID (Phase 317). The first is the one that
+  // matters most: the device check removed, so a caller could name any device.
+  {
+    what: 'the biometry device check removed: a caller names the device',
+    edit: (src) =>
+      src
+        .replace('async biometry(step) {', 'async biometry(step, device = udid) {')
+        .replace("['simctl', 'spawn', udid, 'notifyutil', ...notify]", "['simctl', 'spawn', device, 'notifyutil', ...notify]")
+  },
+  {
+    what: 'the biometry step not checked against the closed set',
+    edit: (src) => src.replace("if (typeof step !== 'string' || !Object.hasOwn(BIOMETRY_STEPS, step)) {", "if (typeof step !== 'string') {")
+  },
+  {
+    what: 'the biometry steps not owned by the handle',
+    edit: (src) => src.replace("['simctl', 'spawn', udid, 'notifyutil', ...notify], { timeoutMs: 30_000, owner: entry.children }", "['simctl', 'spawn', udid, 'notifyutil', ...notify], { timeoutMs: 30_000 }")
+  },
+  {
+    what: 'a fifth Face ID step that is not a closed one',
+    edit: (src) => src.replace("  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.nomatch'])])\n});", "  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.nomatch'])]),\n  any: Object.freeze([Object.freeze(['-p', 'com.apple.springboard.lockstate'])])\n});")
+  },
+  {
+    what: 'spawn named in the helper outside biometry',
+    edit: (src) => src.replace("  'listapps'\n]);", "  'listapps',\n  'spawn'\n]);")
+  },
+  { what: 'the handle has no biometry()', edit: (src) => src.replace('async biometry(step) {', 'async faceId(step) {') }
 ];
 
 // ---------------------------------------------------------------------------
@@ -603,7 +720,7 @@ process.stdout.write(
   `gate:simulator PASS. ${String(scanned)} scripts under build/ read, none makes, boots, photographs or ends a Simulator ` +
     `outside build/${HELPER}; ${String(users.length)} reach it against a floor of ${String(SIMULATOR_USER_FLOOR)}; ` +
     `its teardown is inside a finally and its net covers exit, SIGINT, SIGTERM and SIGHUP; ` +
-    `its handle's push names only the device its call created; ` +
+    `its handle's push and biometry name only the device its call created; ` +
     `${String(caughtFixtures)} of ${String(FIXTURES.filter((f) => f.caught).length)} bad fixtures caught, ` +
     `${String(FIXTURES.filter((f) => !f.caught).length)} controls left alone, ` +
     `${String(ablationsRed)} of ${String(HELPER_ABLATIONS.length)} helper ablations red.\n`

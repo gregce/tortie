@@ -79,6 +79,8 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["notPaired"], Copy.notPaired)
         XCTAssertEqual(byName["unpairNote"], Copy.unpairNote)
         XCTAssertEqual(byName["buildOpen"], Copy.buildOpen)
+        XCTAssertEqual(byName["endNotTaken"], Copy.endNotTaken)
+        XCTAssertEqual(byName["space"], Copy.space)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -94,6 +96,8 @@ final class CopyTests: XCTestCase {
         let unpair = try StyleSource.text("docs/design/phone/Unpair.html")
         let conversation = try StyleSource.text("docs/design/phone/Conversation.html")
         let link = try StyleSource.text("docs/design/phone/Link.html")
+        let end = try StyleSource.text("docs/design/phone/End.html")
+        let endThese = try StyleSource.text("docs/design/phone/EndThese.html")
         let drawn: [(String, String)] = [
             (main, Copy.sessions),
             (main, Copy.needsYourInput(3)),
@@ -154,6 +158,20 @@ final class CopyTests: XCTestCase {
             (conversation, Copy.terminalStaysOnMac),
             (link, Copy.open),
             (link, Copy.cancel),
+            // Phase 317: End above the tab bar, and End these with the Mac
+            // sheet's words, composed with the mock's own counts.
+            (session, Copy.endSessionMenu),
+            (choice, Copy.endSessionMenu),
+            (end, Copy.endSessionMenu),
+            (end, Copy.cancel),
+            (main, Copy.select),
+            (endThese, Copy.selectedCount(3)),
+            (endThese, Copy.endSelected),
+            (endThese, Copy.batchHeading(2)),
+            (endThese, Copy.batchBody(false)),
+            (endThese, Copy.batchSkippedLine([.ended]) ?? ""),
+            (endThese, Copy.batchConfirmLabel(2)),
+            (endThese, Copy.cancel),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")
@@ -172,16 +190,29 @@ final class CopyTests: XCTestCase {
     }
 
     /// Clause: his rulings. No message box and no send control until Phase 318,
-    /// no hand-off, no typed code and no Select: none of their words is here.
+    /// no hand-off and no typed code; and End is the Mac's own words, so the
+    /// approved mock's `End with Face ID` is not a word the phone says (Phase
+    /// 317 brought `Select`): none of their words is here.
     func testNoWordOfAControlThePhoneDoesNotHave() throws {
         let refused = [
             "Message this session", "Send", "Sending…", "Goes to this session as one message.",
-            "Open in Claude", "Open in Terminal", "Enter a code instead", "Select", "End with Face ID",
+            "Open in Claude", "Open in Terminal", "Enter a code instead", "End with Face ID",
+            "The agent stops. Its saved output stays.",
         ]
         for entry in try entries() {
             for word in refused where entry.literal.contains(word) {
-                XCTFail("\(entry.name) carries \(word), which the phone does not draw in Phase 316")
+                XCTFail("\(entry.name) carries \(word), which the phone does not draw")
             }
+        }
+    }
+
+    /// Clause (D12, research 136 section 14): no word the phone draws says
+    /// Face ID or Touch ID, so a Touch ID iPhone never reads "Face ID"; the
+    /// End bar's glyph is an image.
+    func testNoWordNamesABiometry() throws {
+        for entry in try entries() {
+            XCTAssertFalse(entry.literal.contains("Face ID"), entry.name)
+            XCTAssertFalse(entry.literal.contains("Touch ID"), entry.name)
         }
     }
 

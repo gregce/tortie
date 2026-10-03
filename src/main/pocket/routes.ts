@@ -9,7 +9,7 @@
  * for everything else. A path that is not in the list does not exist, and the
  * door refuses it before it reads a header, a query or a byte of body.
  *
- * ## Three questions, and this phase is READ ONLY
+ * ## Three questions, and two narrow writes declared here and done elsewhere
  *
  * The blocked list (with, since Phase 316, every other session Tortie lists),
  * one session, and that session's turns. Every answer is composed here in main
@@ -32,7 +32,16 @@
  *     HERE CAPS THEM AGAIN: a second cap would be a second place the truth
  *     about what a person sees lives;
  *   - the Catch Me Up line and the turns come from `../overview/`, already
- *     redacted and already clipped to 4,000 characters by `turn-view.ts`.
+ *     redacted and already clipped to 4,000 characters by `turn-view.ts`;
+ *   - (Phase 317) whether End is offered on a row, and the Mac's own End
+ *     confirmation for one session, are composed by the one implementation
+ *     outside this domain that asks both gates ({@link PocketFacts.endOffer})
+ *     and by the shared `endSessionConfirm` over main's own row.
+ *
+ * The one write (Phase 317, build/p317/SPEC.md §5.4) is DECLARED here, as
+ * {@link PocketWrites}, a hand-written interface with one member, and done
+ * outside this domain (`src/main/sessions/pocket-writes.ts`), which is handed
+ * in. Nothing in this module can name the verb a write reaches.
  *
  * ## Fresh before read (Phase 316)
  *
@@ -87,13 +96,17 @@ import {
   type PocketBlockedAnswer,
   type PocketBlockedRow,
   type PocketCatchUp,
+  type PocketEndConfirm,
+  type PocketEndOffer,
   type PocketHandoff,
   type PocketRouteId,
   type PocketSessionAnswer,
   type PocketSessionDetail,
   type PocketTurn,
-  type PocketTurnsAnswer
+  type PocketTurnsAnswer,
+  type PocketWriteRouteId
 } from '@shared/ipc/pocket';
+import { endSessionConfirm } from '@shared/lifecycle-words';
 import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';
 // THE CEILING, IMPORTED RATHER THAN RE-SPELLED. `../overview/turn-view.ts` owns
 // the number and this door holds itself to it; a second literal here would be a
@@ -116,9 +129,18 @@ export function pocketRouteIds(): readonly PocketRouteId[] {
   return POCKET_ROUTES.map((r) => r.id);
 }
 
-/** True when every route in the table is a read. This phase: always. */
-export function pocketTableIsReadOnly(): boolean {
-  return POCKET_ROUTES.every((r) => r.reads);
+/**
+ * The write rows' ids, read from the table (Phase 317). Exactly `end`, and
+ * `routes.test.ts` holds it to that list. It replaces
+ * `pocketTableIsReadOnly()`, which this phase made false.
+ */
+export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
+  const ids: PocketWriteRouteId[] = [];
+  for (const route of POCKET_ROUTES) {
+    if (route.reads) continue;
+    if (route.id === 'end') ids.push(route.id);
+  }
+  return ids;
 }
 
 // ---------------------------------------------------------------------------
@@ -205,7 +227,55 @@ export interface PocketFacts {
   ): Promise<{ turns: PocketTurn[]; more: boolean }>;
   /** Where a person carries on by hand, or null when nothing offers one. */
   handoff(session: Session): PocketHandoff | null;
+  /**
+   * Whether End is offered on this row (Phase 317, SPEC §5.4): the one
+   * implementation in `src/main/sessions/pocket-writes.ts`, which asks BOTH
+   * gates over the row and the manifest record, handed in. A READ, like every
+   * member here.
+   *
+   * OPTIONAL, AND ABSENT READS `{ state: 'none' }`, which is what an absent dep
+   * already meant (§14 finding 8): the push seam and the tests build their own
+   * facts and offer no End, and a required member would stop them compiling
+   * for a field neither needs.
+   */
+  endOffer?(session: Session): PocketEndOffer;
   now?(): number;
+}
+
+/**
+ * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4), implemented ONCE,
+ * OUTSIDE this domain (`src/main/sessions/pocket-writes.ts`), and handed in.
+ * Nothing here can name the verb it reaches (`conformance:pocket` R3).
+ *
+ * Hand written and narrow, like {@link PocketFacts}, with ONE member. Phase 318
+ * adds two; no member may set a status.
+ */
+export interface PocketWrites {
+  /**
+   * End one session, after asking both gates over the row re-read by id.
+   * Nothing is awaited before the verb is called. It answers an outcome and
+   * never throws.
+   */
+  end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;
+}
+
+/** What one End came to, as the write path answers it. */
+export type PocketEndOutcome =
+  | { outcome: 'done' }
+  | { outcome: 'refused'; reason: 'removed' | 'unreachable' | 'ended' | 'gone'; sentence: string }
+  | { outcome: 'failed'; sentence: string };
+
+/** End on a row when no implementation was handed in: none. */
+const NO_END: PocketEndOffer = Object.freeze({ state: 'none' }) as PocketEndOffer;
+
+/**
+ * The Mac's End confirmation for one session, composed by the shared
+ * `endSessionConfirm` (the words the Mac's own End draws) and copied field by
+ * field, so nothing but its three strings can ever leave.
+ */
+function endConfirmOf(session: Session): PocketEndConfirm {
+  const confirm = endSessionConfirm(session);
+  return { title: confirm.title, body: confirm.body, confirmLabel: confirm.confirmLabel };
 }
 
 /**
@@ -279,7 +349,10 @@ function rowOf(
     // false for it: its stamp is its creation clock, and a session created
     // just after a wake was never first seen WAITING then (Phase 316).
     seenAtWake: blockedAge(blockedSince, waiting ? facts.wakes() : []).seenAtWake,
-    ageText: formatAge(agedFrom, at)
+    ageText: formatAge(agedFrom, at),
+    // PHASE 317. On EVERY row, decided by both gates through the one
+    // implementation; absent reads none, and no End is drawn.
+    end: facts.endOffer?.(session) ?? NO_END
   };
 }
 
@@ -485,7 +558,11 @@ export function createPocketRoutes(facts: PocketFacts): {
         // Null exactly when the counts carry no time, so a client draws the
         // session manager's dash and word for it and never a zero.
         lastMessageText:
-          typeof lastMessageAt === 'number' ? formatAge(lastMessageAt, at) : null
+          typeof lastMessageAt === 'number' ? formatAge(lastMessageAt, at) : null,
+        // PHASE 317. The Mac's own End confirmation, word for word: the shared
+        // composer over main's own row, and only when End is offered on it, so
+        // a client never draws an End whose words it would have to make up.
+        endConfirm: base.end?.state === 'offered' ? endConfirmOf(session) : null
       };
       return { session: detail, at };
     },

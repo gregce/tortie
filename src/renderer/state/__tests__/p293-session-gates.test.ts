@@ -9,7 +9,8 @@
  * is worth pinning from OUTSIDE its own text, so the oracle below is written
  * from the policy as it shipped at the parent commit
  * (`src/renderer/app/session-actions.tsx`, `sessionMenuItems`) and never from
- * `resume.ts`. When the two disagree, one of them changed what a person is
+ * the gate's own file (`resume.ts`, and `src/shared/session-gates.ts` since
+ * Phase 317). When the two disagree, one of them changed what a person is
  * offered, and this file says which field.
  *
  * Three things are held, and each is a way the rewrite could go wrong with
@@ -30,17 +31,18 @@
 import { describe, expect, it } from 'vitest';
 import { SESSION_STATUSES } from '@shared/types';
 import type { Session, SessionMachine, SessionStatus } from '@shared/types';
+// Phase 317 moved the gate, unchanged, to src/shared/session-gates.ts.
 import {
   hasRestoreMaterial,
   offersBareRecovery,
   sessionActionGates,
   showsResumeVerb
-} from '../resume';
+} from '@shared/session-gates';
 import type {
   SessionActionGates,
   SessionGateEnv,
   SessionHandback
-} from '../resume';
+} from '@shared/session-gates';
 
 const STUDIO: SessionMachine = {
   id: 'studio',

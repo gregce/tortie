@@ -43,7 +43,7 @@ import { errorPayload, errorText } from './errors';
 import { loadLocal } from './local';
 import { LS_ACTIVE_PROJECT } from './projects-slice';
 import { pullPendingShellOpen } from './shell-open';
-import type { HandbackState, SessionHandback } from './resume';
+import type { HandbackState, SessionHandback } from '@shared/session-gates';
 import { useApp } from './store';
 import { gmuxBridge } from '../bridge';
 // PHASE 312. One reader for the choice field and one for the composed question,

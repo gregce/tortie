@@ -21,8 +21,9 @@
 
 import { describe, expect, it } from 'vitest';
 import type { Session, SessionMachine, SessionStatus } from '@shared/types';
-import type { LifecycleResult, SessionActionGates } from '../../state/resume';
-import { sessionActionGates } from '../../state/resume';
+import type { LifecycleResult } from '../../state/resume';
+import type { SessionActionGates } from '@shared/session-gates';
+import { sessionActionGates } from '@shared/session-gates';
 import { BATCH_LIST_FAILED } from '../copy';
 import { batchEligibility, runBatchEnd } from '../batch-end';
 import type { BatchEndDeps, BatchRowOutcome } from '../batch-end';

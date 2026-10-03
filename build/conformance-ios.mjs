@@ -169,7 +169,8 @@
  *       `com.itavero.tortie.phone`, one version in Debug and Release, and
  *       Info.plist takes the bundle id and both versions from the project and
  *       shows "Tortie". Since Phase 316.5 every configuration says build
- *       `PHONE_BUILD`, the one this round uploads: 4 since Phase 316.6.
+ *       `PHONE_BUILD`, the one this round uploads: 4 since Phase 316.6, 5
+ *       since Phase 317.
  *
  *   PHASE 330, the phone off the tailnet (build/p330/SPEC.md §6.4):
  *
@@ -246,7 +247,7 @@
  *       only in the DEBUG forget seam; the record removed BEFORE any key,
  *       with `try`; and `LiveDoor.unpair` calling `try store.forget()` in a
  *       `do` whose `catch` answers `.kept`, then asking `store.holdsRecord`.
- *   (s) the build is 4 (`PHONE_BUILD`).
+ *   (s) the build is 4 (`PHONE_BUILD`); 5 since Phase 317, below.
  *   (x) also: `unregisterForRemoteNotifications` once, in the `#else` of
  *       `#if DEBUG` in `Alerts/SystemAlerts.swift`; `forgetAddress()` once,
  *       in `AppModel.unpair`'s `.forgotten` arm after `door.unpair()`; and
@@ -287,6 +288,69 @@
  *       (z5); and `LinkPolicy.opens`, with the LinkPolicy helpers it reaches,
  *       names "https", `.user`, `.password`, `.port`, "xn--" and
  *       `MarkdownCaps.linkBytes` (z6).
+ *
+ *   PHASE 317, End from the phone behind Face ID (build/p317/SPEC.md §6.3).
+ *   (aa) is left for Phase 316.7, so either order of landing works. Three
+ *   rules are new and four widen:
+ *
+ *   (ab) THE WRITE. `"POST"` only in `present` and `signedPost`; `signedPost`
+ *        called by `DoorClient.end` alone, once (the fix round took the
+ *        unpair write out, and with it its caller, its body and its route);
+ *        `WriteId.fresh` the one source of a write id (16 bytes of
+ *        `SecRandomCopyBytes`), called once, bound to a local and never kept
+ *        on a type; the body built in `signedPost` alone with `.sortedKeys`
+ *        and exactly its keys (`batch,session,write`); the writer's
+ *        `end(` called once in the app, in `EndRunner.run`, with no `while`
+ *        or `repeat` around a write; `handed` set once, in `send()`, as the
+ *        statement just before `connection.send` and after `withheld` is
+ *        asked; `withheld` set once, by a write's cancellation, only while
+ *        `handed` is false; `WriteResult.of` classifying by `handed`; and an
+ *        answer accepted only with the sent id echoed, or `""` with `refused`
+ *        and `malformed` (F2, F14).
+ *   (ac) THE OWNER CHECK. `import LocalAuthentication` and `LAContext` in
+ *        `App/OwnerCheck.swift` alone; one `evaluatePolicy(` call, with
+ *        `.deviceOwnerAuthentication`; the biometrics-only policy only as
+ *        `canEvaluatePolicy`'s argument in `kind()` (a question that picks the
+ *        glyph and authenticates nothing: the fix round, after the verify
+ *        drew Face ID's mark on a phone that would ask for the passcode),
+ *        asked in a guard answering `.passcode` BEFORE `kind()` reads
+ *        `biometryType`, and no reuse window anywhere; a new `LAContext()` in `confirm`; `DeviceOwnerCheck`
+ *        the one conformer; every `run` of a runner inside the `.confirmed`
+ *        case of a switch on `confirm(`; nothing in Settings, the pairing,
+ *        the conversation, `DoorWords.swift`, `Door/` or an unpair names the
+ *        check; no string that could key a stored Face ID setting; and
+ *        Info.plist's `NSFaceIDUsageDescription` is FACE_ID_USAGE, word for
+ *        word, and in rule (e)'s PINNED_PLIST_KEYS, so a device spelling of
+ *        it or an `INFOPLIST_KEY_` that generates one is refused. And (the
+ *        tests round, after the reverify's ablation B4 left every gate
+ *        green) the ONE element identified `ID.sessionEnd` is a `Button` in
+ *        `Screens/EndBar.swift` whose own modifier chain holds
+ *        `.disabled(row == .off)` over `EndBarDrawing.Row`'s two cases, so an
+ *        End drawn off cannot be pressed and reads off (`ruleEndPressOff`).
+ *   (ad) THE LIST THAT ONLY SHRINKS, AND NOTHING SENT AFTER THE APP LEFT.
+ *        `EndRunner.targets` a `let`, never grown; one loop over it with ONE
+ *        awaited write per turn; `stopRequested` read before each write, the
+ *        first included, and never set false; every `EndRunner(` bound,
+ *        registered, and only then the owner check asked; `AppModel.wentAway`
+ *        stopping every runner `register(_:)` keeps (its `stop()`, or both
+ *        halves of it: `stopRequested` set AND its task cancelled); and
+ *        nothing in `Screens/EndBar.swift`,
+ *        `Screens/EndBatch.swift` or the write path persists a write or a
+ *        target. `(l)` stands whole: no background task finishes a write.
+ *   (t)  also: every `connect(` names `identity:`, and `signedPost` hands it
+ *        `door.identity`, so the writes present the client certificate too;
+ *        and hostile-door.mjs names the nine write arms of SPEC §7.5 EH, each
+ *        `write: true` with its `posts:` counted, ending in a sentence under
+ *        End, back on the list, or drawn with no press possible, in Copy
+ *        words or the door's own POCKET_WRITE_SENTENCES.
+ *   (v)  also: `DoorWords.endSentence(for:)` returns a non-optional `String`
+ *        for every `WriteResult` case, never nil, `""` or a default; and
+ *        `EndModel`'s and `EndBatchModel`'s `line` is assigned only nil or a
+ *        Copy or DoorWords sentence.
+ *   (k)  reads EndBar.swift and EndBatch.swift like every app file: they hold
+ *        no arithmetic operator today (the counts are `.count` and Copy's
+ *        composers), so the table names none of theirs, and an arm plants one.
+ *   (s)  the build is 5 (`PHONE_BUILD`), and its "not uploaded" fixtures 6.
  *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
@@ -644,6 +708,8 @@ const KEYS = APP_FILE('Door/Keys.swift');
 const DOOR_WORDS = APP_FILE('Screens/DoorWords.swift');
 const PAIRING_SCREEN = APP_FILE('Screens/PairingScreen.swift');
 const INFO_PLIST = APP_FILE('Info.plist');
+/** Phase 317: the door's write sentences, which (t) holds the hostile write arms to. */
+const POCKET_TS = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
 const TOKENS_CSS = join(ROOT, 'src', 'renderer', 'styles', 'tokens.css');
 
 // ---------------------------------------------------------------------------
@@ -939,11 +1005,15 @@ export function ruleDebugSeams(name, source, seams) {
 
 /**
  * The keys rule (e) pins exactly; a modified spelling of one would stand
- * beside the pinned value, unread. Since Phase 330 none: the two it pinned
- * (the ATS dictionary and the local network string) are refused outright, by
- * the name CFBundle reads, which refuses every spelling of them.
+ * beside the pinned value, unread. Since Phase 330 the two it pinned (the ATS
+ * dictionary and the local network string) are refused outright, by the name
+ * CFBundle reads, which refuses every spelling of them. Since Phase 317 it
+ * pins Face ID's purpose string (rule ac reads its words): a
+ * `NSFaceIDUsageDescription~iphone` would be read on a phone in place of the
+ * one checked, and an `INFOPLIST_KEY_NSFaceIDUsageDescription` would generate
+ * one the file does not show.
  */
-const PINNED_PLIST_KEYS = new Set([]);
+export const PINNED_PLIST_KEYS = new Set(['NSFaceIDUsageDescription']);
 
 /** What CFBundle reads a key as, said after its path when that is not its spelling. */
 const readAs = (k) => (plistBaseKey(k.key) === k.key ? '' : ` (read as ${plistBaseKey(k.key)} at run time)`);
@@ -2482,9 +2552,9 @@ function bodyAfter(bare, at) {
  * Rule (t), pure over the door client's source, the pairing flow's, the keys',
  * every app file, hostile-door.mjs's text (or null) and Copy.swift's.
  */
-export function ruleClientTransport({ client, pairing, keys, files = [], hostile, copy }) {
+export function ruleClientTransport({ client, pairing, keys, files = [], hostile, copy, writeSentences = null }) {
   const findings = [];
-  const said = { exchanges: 0, identityCalls: 0, arms: [] };
+  const said = { exchanges: 0, identityCalls: 0, arms: [], writeArms: [], connects: 0 };
   if (client === null) return { findings: ['Door/DoorClient.swift does not exist, so the phone has no client this rule can read'], said };
   const c = lexSwift(client);
   const at = (i) => `Door/DoorClient.swift:${String(lineOf(c.bare, i))}`;
@@ -2516,6 +2586,20 @@ export function ruleClientTransport({ client, pairing, keys, files = [], hostile
   const signedAt = /\bfunc\s+signedGet\b/.exec(c.bare);
   if (signedAt === null || !/\bidentity\s*:\s*door\s*\.\s*identity\b/.test(bodyAfter(c.bare, signedAt.index))) {
     findings.push('Door/DoorClient.swift\'s signedGet does not open its connection with identity: door.identity, so a signed read could go out with no certificate');
+  }
+  // Phase 317 (SPEC §6.3 (t) widened): every SIGNED request presents the
+  // identity, the write path included. The writes reach the connection through
+  // `connect(`, under `exchange(`, so every call of it names `identity:`, and
+  // signedPost hands it the paired door's.
+  for (const call of c.bare.matchAll(/(?<!func\s)\bconnect\s*\(/g)) {
+    said.connects += 1;
+    const close = closeParen(c.bare, c.bare.indexOf('(', call.index));
+    const args = c.bare.slice(call.index, close === -1 ? c.bare.length : close + 1);
+    if (!/\bidentity\s*:/.test(args)) findings.push(`${at(call.index)} calls connect( without naming identity:, so a write could go out with no decision about what it presents`);
+  }
+  const signedPostAt = /\bfunc\s+signedPost\b/.exec(c.bare);
+  if (signedPostAt !== null && !/\bidentity\s*:\s*door\s*\.\s*identity\b/.test(bodyAfter(c.bare, signedPostAt.index))) {
+    findings.push('Door/DoorClient.swift\'s signedPost does not open its connection with identity: door.identity, so a write could go out with no certificate and the door would cut it');
   }
   if (keys === null || !/\blet\s+identity\s*:\s*ClientIdentity\s*$/m.test(lexSwift(keys).bare)) {
     findings.push('Door/Keys.swift\'s PairedDoor does not hold `let identity: ClientIdentity`, non-optional, so a paired door could have nothing to present');
@@ -2596,6 +2680,31 @@ export function ruleClientTransport({ client, pairing, keys, files = [], hostile
       const words = [...expect.matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
       if (words.length === 0) findings.push(`hostile-door.mjs's ${arm} names no Copy sentence it must end in`);
       for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+    }
+    // Phase 317: EH's write arms, each ending where it names, in a line
+    // Copy.swift or the door's own POCKET_WRITE_SENTENCES holds, with the
+    // POSTs a press may send counted.
+    const doorKeys = new Set(writeSentences ?? []);
+    if (writeSentences === null) findings.push('src/shared/ipc/pocket.ts declares no POCKET_WRITE_SENTENCES this rule can read, so no write arm\'s door sentence can be checked');
+    const listOf = (row, key) => [...(new RegExp(`\\b${key}:\\s*\\[([^\\]]*)\\]`).exec(row)?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+    for (const arm of HOSTILE_WRITE_ARMS) {
+      const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+      if (row === null) {
+        findings.push(`build/p316/hostile-door.mjs names no write arm ${JSON.stringify(arm)}`);
+        continue;
+      }
+      said.writeArms.push(arm);
+      if (!/\bwrite:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} is not marked write: true`);
+      if (!/\bposts:\s*\d+\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say how many POSTs a press sends (posts:), so one POST per press cannot be held`);
+      const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+      if (ends === null || !WRITE_ARM_ENDS.has(ends)) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not a sentence under End, the list, Pairing, or a drawn End that cannot be pressed`);
+      if (!/\bat:\s*'[a-z0-9-]+'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say where it ends (at:)`);
+      const expected = listOf(row[1], 'expect');
+      const door = listOf(row[1], 'door');
+      const never = listOf(row[1], 'never');
+      if (ends === 'sentence' && expected.length + door.length === 0) findings.push(`hostile-door.mjs's ${arm} ends in a sentence and names none it may be`);
+      for (const w of [...expected, ...never]) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} names Copy.${w}, which Copy.swift does not hold`);
+      for (const k of door) if (!doorKeys.has(k)) findings.push(`hostile-door.mjs's ${arm} expects the door's ${k} sentence, which POCKET_WRITE_SENTENCES does not hold`);
     }
   }
   return { findings, said };
@@ -2760,12 +2869,13 @@ export const RELEASE_TEAM = '4GRQMF5T5U';
 export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
 
 /**
- * The build this round uploads: 1.0.0 (4) (Phase 316.6, build/p3166/SPEC.md
- * §5.7). 1.0.0 (3) is Phase 316.5's and 1.0.0 (2) Phase 330's, so a build that
- * did not move would be refused by App Store Connect as a duplicate. The round
- * that uploads the next build moves this with the project, in the same commit.
+ * The build this round uploads: 1.0.0 (5) (Phase 317, build/p317/SPEC.md
+ * §4.3, §5.8.8). 1.0.0 (4) is Phase 316.6's, (3) Phase 316.5's and (2) Phase
+ * 330's, so a build that did not move would be refused by App Store Connect
+ * as a duplicate. The round that uploads the next build moves this with the
+ * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
  */
-export const PHONE_BUILD = '4';
+export const PHONE_BUILD = '5';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -4406,6 +4516,615 @@ export function ruleOneWayOut(files) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 317: the write, the owner check, and the list that only shrinks
+// (build/p317/SPEC.md §6.3 (ab), (ac), (ad))
+// ---------------------------------------------------------------------------
+//
+// End is the first thing the phone does that changes anything on the Mac, so
+// three rules hold its shape as text, the way (n) holds who deletes a pairing
+// item. What they read is WHERE a name is said and in what order, with the
+// type and function spans above, over comment-blanked text; what the Swift
+// DOES with it is test:ios's (P317WriteTransportTests, EndBatchTests) and
+// probe:p316's `end` arms.
+//
+// (ab) THE WRITE. `"POST"` only in `present` (POST /pair) and `signedPost`;
+//      `signedPost` called by `end` alone; `WriteId.fresh` the
+//      one source of a write id, 16 bytes of `SecRandomCopyBytes`, bound to a
+//      local and never kept; the body encoded in `signedPost` alone, with
+//      sorted keys and exactly its keys; the writer's `end(` called ONCE in
+//      the app, in `EndRunner.run`, and no `while` or `repeat` around a write;
+//      `handed` set in `send()` alone, as the statement just before
+//      `connection.send`, after a check of `withheld`; a write's cancellation
+//      sets `withheld` only while `handed` is false; the result classified by
+//      `handed`; and an answer accepted only with the sent id echoed, or `""`
+//      with `refused` and `malformed` (F2, F14).
+// (ac) THE OWNER CHECK. `import LocalAuthentication` and `LAContext` in
+//      `App/OwnerCheck.swift` alone; ONE `evaluatePolicy(` call, with
+//      `.deviceOwnerAuthentication`; the biometrics-only policy only as the
+//      first argument of a `canEvaluatePolicy(` in `OwnerCheck.swift`'s
+//      `kind()`, and the reuse window nowhere; a new `LAContext(` inside
+//      `confirm`; `DeviceOwnerCheck`
+//      the one conformer; every `run` of a runner inside the `case .confirmed`
+//      of a switch on `confirm(` in the same function; nothing in Settings,
+//      the pairing, the conversation, Door/ or an unpair names the check; no
+//      string that could key a stored Face ID setting; and Info.plist's
+//      `NSFaceIDUsageDescription` pinned to its words (and to rule e's
+//      PINNED_PLIST_KEYS, so no device spelling of it is read instead).
+// (ad) THE LIST THAT ONLY SHRINKS, AND NOTHING SENT AFTER THE APP LEFT.
+//      `EndRunner.targets` a `let`, never grown; one awaited write per turn of
+//      ONE loop over it; `stopRequested` read before each, the first
+//      included, and never set false; every `EndRunner(` made at the press,
+//      registered, and only then the owner check asked; `AppModel.wentAway()`
+//      stops every registered runner (which sets `stopRequested` and cancels
+//      its task); and nothing persists a write or a target (F2).
+
+/** The one file that names LocalAuthentication (SPEC §5.8.2). */
+export const OWNER_CHECK_FILE = 'App/OwnerCheck.swift';
+/** The End bar and the runner (SPEC §5.8.3). */
+export const END_BAR_FILE = 'Screens/EndBar.swift';
+/** End these (SPEC §5.8.4). */
+export const END_BATCH_FILE = 'Screens/EndBatch.swift';
+/** Info.plist's Face ID purpose string, pinned (SPEC §5.8.2, research 136 §13). */
+export const FACE_ID_USAGE = 'Tortie asks for Face ID before it ends a session on your Mac.';
+/** Where nothing may name the owner check: reading, pairing, Settings, the door (his ruling: "Only for End"). */
+export const OWNER_CHECK_ABSENT = Object.freeze(['Screens/SettingsScreen.swift', 'Screens/PairingScreen.swift', 'Screens/ConversationScreen.swift', 'Screens/DoorWords.swift']);
+/** What persists anything; none of it may sit in End's files or the write path. */
+const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
+
+/** One Swift file of `files` by name, lexed, or null. */
+function lexedFile(files, name) {
+  const f = files.find((x) => x.name === name);
+  if (f === undefined) return null;
+  const lx = lexSwift(f.source);
+  return { name, source: f.source, ...lx, types: typeSpans(lx.bare), funcs: funcSpans(lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+}
+
+/** The functions of a lexed file named `name`, inside the type named `type` when one is given. */
+function funcsNamed(file, name, type = null) {
+  return file.funcs.filter((fn) => fn.name === name && (type === null || innermost(file.types, fn.at)?.name === type));
+}
+
+const bodyText = (file, fn) => file.bare.slice(fn.bodyOpen, fn.bodyClose + 1);
+const placeOf = (file, i) => ({ type: innermost(file.types, i)?.name ?? null, fn: innermost(file.funcs, i)?.name ?? null });
+const atLine = (file, i) => `${file.name}:${String(lineOf(file.bare, i))}`;
+/** Is the match at `i` the name of a declaration (`func NAME(`), not a call? */
+const isDecl = (bare, i) => /\bfunc\s+$/.test(bare.slice(Math.max(0, i - 12), i));
+
+/** The members of a struct's body at its own depth: `let NAME:` or `var NAME:`. */
+function storedFields(bare, type) {
+  const body = bare.slice(type.open + 1, type.close);
+  const out = [];
+  let depth = 0;
+  for (const line of body.split('\n')) {
+    if (depth === 0) {
+      const m = /^\s*(?:(?:private|fileprivate|internal|public)(?:\s*\(\s*set\s*\))?\s+)*(?:let|var)\s+([A-Za-z_]\w*)\s*:/.exec(line);
+      if (m !== null) out.push(m[1]);
+    }
+    for (const ch of line) depth += ch === '{' ? 1 : ch === '}' ? -1 : 0;
+  }
+  return out;
+}
+
+/**
+ * The writer's `end(`: a member call with a `batch:` argument and no `door:`
+ * (the client's own `end(_:batch:door:)` takes the door), in every app file.
+ */
+function writerEndCalls(lexedFiles) {
+  const out = [];
+  for (const file of lexedFiles) {
+    for (const m of file.bare.matchAll(/\.\s*end\s*\(/g)) {
+      // A member call has an expression before its dot; `.end(session:batch:)`
+      // after a `(` or a `,` is the route's enum case, not a call of the writer.
+      if (!/[\w)\]?!]\s*$/.test(file.bare.slice(Math.max(0, m.index - 40), m.index))) continue;
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
+      if (!/\bbatch\s*:/.test(args) || /\bdoor\s*:/.test(args)) continue;
+      out.push({ file, at: m.index, args });
+    }
+  }
+  return out;
+}
+
+/** Rule (ab), pure over the app's Swift files (`{ name, source }`, named relative to the app folder). */
+export function ruleWrite(files) {
+  const findings = [];
+  const said = { posts: 0, signedPosts: 0, freshIds: 0, writerEnds: 0, handed: 0, withheld: 0 };
+  const client = lexedFile(files, 'Door/DoorClient.swift');
+  if (client === null) return { findings: ['Door/DoorClient.swift does not exist, so the phone has no write path this rule can read'], said };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const fnOf = (name, type = null) => funcsNamed(client, name, type)[0] ?? null;
+
+  // (ab1) "POST" only in present( and signedPost(.
+  for (const file of all) {
+    for (const s of file.strings) {
+      if (s.value !== 'POST') continue;
+      said.posts += 1;
+      const p = placeOf(file, s.start);
+      if (file.name !== 'Door/DoorClient.swift' || (p.fn !== 'present' && p.fn !== 'signedPost')) findings.push(`${atLine(file, s.start)} writes "POST" in ${p.fn ?? 'no function'}; a POST is sent only by present (POST /pair) and signedPost (the write)`);
+    }
+  }
+  // (ab2) signedPost( called by end( alone, once.
+  const signedPost = fnOf('signedPost');
+  if (signedPost === null) findings.push('Door/DoorClient.swift declares no signedPost(route:door:limits:) with a body, so the write has no one path');
+  const callers = { end: 0 };
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bsignedPost\s*\(/g)) {
+      if (isDecl(file.bare, m.index)) continue;
+      said.signedPosts += 1;
+      const p = placeOf(file, m.index);
+      if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && p.fn === 'end') callers[p.fn] += 1;
+      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end calls it`);
+    }
+  }
+  for (const [name, n] of Object.entries(callers)) if (n !== 1) findings.push(`DoorClient.${name} calls signedPost ${String(n)} time(s); each write is one call of the one path`);
+  // (ab3) WriteId.fresh: the one source, 16 random bytes, bound to a local.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bWriteId\s*\.\s*fresh\s*\(/g)) {
+      said.freshIds += 1;
+      const p = placeOf(file, m.index);
+      if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} makes a write id in ${p.fn ?? 'no function'}; WriteId.fresh() is called by signedPost alone, once per write`);
+      const lead = file.bare.slice(Math.max(0, m.index - 80), m.index);
+      if (!/\b(?:guard\s+)?let\s+[A-Za-z_]\w*\s*=\s*$/.test(lead)) findings.push(`${atLine(file, m.index)} does not bind WriteId.fresh() to a local let; a write id is made for one call and never kept`);
+    }
+  }
+  if (said.freshIds !== 1) findings.push(`WriteId.fresh() is called ${String(said.freshIds)} time(s) in the app; it is called once, in signedPost, so one call is one id`);
+  const writeIdFile = all.find((file) => file.types.some((t) => t.name === 'WriteId' && t.kind !== 'extension'));
+  if (writeIdFile === undefined) findings.push('no app file declares WriteId, the one source of a write id');
+  else {
+    const t = writeIdFile.types.find((x) => x.name === 'WriteId' && x.kind !== 'extension');
+    const fresh = writeIdFile.funcs.find((fn) => fn.name === 'fresh' && fn.at > t.open && fn.at < t.close);
+    const typeBody = writeIdFile.bare.slice(t.open, t.close + 1);
+    const freshBody = fresh === undefined ? '' : bodyText(writeIdFile, fresh);
+    const sixteen = /\b16\b/.test(freshBody) || (/\bbyteCount\b/.test(freshBody) && /\bstatic\s+let\s+byteCount\s*=\s*16\b/.test(typeBody));
+    if (fresh === undefined || !/\bSecRandomCopyBytes\s*\(/.test(freshBody) || !sixteen) findings.push(`${writeIdFile.name}'s WriteId.fresh does not take 16 bytes from SecRandomCopyBytes; a write id is 128 bits from the system's random source`);
+    if (/\bstatic\s+var\b/.test(typeBody)) findings.push(`${writeIdFile.name}'s WriteId holds a static var, so an id could be kept between writes`);
+  }
+  for (const file of all) {
+    for (const t of file.types.filter((x) => x.kind !== 'extension' && x.kind !== 'protocol')) {
+      for (const m of file.bare.slice(t.open, t.close).matchAll(/\b(?:var|let)\s+[A-Za-z_]\w*\s*:\s*WriteId\b/g)) findings.push(`${atLine(file, t.open + m.index)} keeps a WriteId in ${t.name}; a write id is never stored`);
+    }
+  }
+  // (ab4) The body, encoded in signedPost alone, with exactly its keys, sorted.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\b(EndBody)\s*\(/g)) {
+      if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+      const p = placeOf(file, m.index);
+      if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} builds a ${m[1]} in ${p.fn ?? 'no function'}; a write's body is made in signedPost alone`);
+    }
+  }
+  if (signedPost !== null) {
+    const body = bodyText(client, signedPost);
+    if (!/\.\s*sortedKeys\b/.test(body)) findings.push('signedPost does not encode the body with .sortedKeys, so its bytes would not be the ones the Mac and the vectors expect');
+    if (!/\bEndBody\s*\(/.test(body)) findings.push('signedPost does not build an EndBody, so the write is encoded somewhere else');
+    if (/\b(?:while|repeat)\b/.test(body)) findings.push('signedPost holds a while or repeat; a write is sent once and never retried');
+  }
+  for (const [name, want] of [['EndBody', 'batch,session,write']]) {
+    const t = client.types.find((x) => x.name === name && x.kind === 'struct');
+    if (t === undefined) {
+      findings.push(`Door/DoorClient.swift declares no struct ${name}`);
+      continue;
+    }
+    const fields = storedFields(client.bare, t).sort().join(',');
+    if (fields !== want) findings.push(`Door/DoorClient.swift's ${name} holds ${fields || 'nothing'}; the Mac reads exactly ${want} and refuses any other key`);
+  }
+  for (const name of ['end']) {
+    const fn = fnOf(name, 'DoorClient');
+    if (fn !== null && /\b(?:while|repeat|for)\b/.test(bodyText(client, fn))) findings.push(`DoorClient.${name} loops; a write is one call and never retried`);
+  }
+  // (ab5) The writer's end( once, in EndRunner.run, in a for and never a while.
+  const ends = writerEndCalls(all);
+  said.writerEnds = ends.length;
+  for (const e of ends) {
+    const p = placeOf(e.file, e.at);
+    if (p.type !== 'EndRunner' || p.fn !== 'run') findings.push(`${atLine(e.file, e.at)} calls the writer's end( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the app's one call of it is EndRunner.run`);
+  }
+  if (ends.length !== 1) findings.push(`the writer's end( is called ${String(ends.length)} time(s) in the app; exactly once, in EndRunner.run, so every End, single or batch, is one runner`);
+  const bar = all.find((f) => f.name === END_BAR_FILE) ?? null;
+  const run = bar === null ? null : funcsNamed(bar, 'run', 'EndRunner')[0] ?? null;
+  if (run !== null && /\b(?:while|repeat)\b/.test(bodyText(bar, run))) findings.push(`${END_BAR_FILE}'s EndRunner.run holds a while or repeat; it is one pass over its targets, and a write is never retried`);
+  // (ab6) handed: set in send() alone, just before connection.send, after a withheld check.
+  const handedSets = [...client.bare.matchAll(/(?<![\w.])handed\s*=(?!=)\s*([^\n;]*)/g)].filter((m) => !/\b(?:var|let)\s+$/.test(client.bare.slice(Math.max(0, m.index - 8), m.index)));
+  said.handed = handedSets.length;
+  if (handedSets.length !== 1) findings.push(`Door/DoorClient.swift sets handed ${String(handedSets.length)} time(s); once, in send(), just before the bytes are handed`);
+  for (const m of handedSets) {
+    const p = placeOf(client, m.index);
+    if (p.fn !== 'send' || m[1].trim() !== 'true') findings.push(`${atLine(client, m.index)} sets handed = ${m[1].trim()} in ${p.fn ?? 'no function'}; only send() sets it, to true`);
+    else {
+      const next = client.bare.slice(m.index + m[0].length).replace(/^\s*[;\n]\s*/, '').trimStart();
+      if (!/^connection\s*\.\s*send\s*\(/.test(next)) findings.push(`${atLine(client, m.index)} is not the statement just before connection.send; a cancel between them would read .notSent for bytes that may have left`);
+      const inSend = innermost(client.funcs, m.index);
+      const before = inSend === null ? '' : client.bare.slice(inSend.bodyOpen, m.index);
+      if (!/\bguard\s+!\s*withheld\b|\bif\s+withheld\b/.test(before)) findings.push(`${atLine(client, m.index)} hands the bytes without asking withheld first, so a handshake that completes after the app left would send a withheld write`);
+    }
+  }
+  // (ab7) withheld: set by a write's cancellation, only while handed is false.
+  const withheldSets = [...client.bare.matchAll(/(?<![\w.])withheld\s*=(?!=)\s*([^\n;]*)/g)].filter((m) => !/\b(?:var|let)\s+$/.test(client.bare.slice(Math.max(0, m.index - 8), m.index)));
+  said.withheld = withheldSets.length;
+  if (withheldSets.length !== 1) findings.push(`Door/DoorClient.swift sets withheld ${String(withheldSets.length)} time(s); once, in a write's cancellation`);
+  for (const m of withheldSets) {
+    const fn = innermost(client.funcs, m.index);
+    const before = fn === null ? '' : client.bare.slice(fn.bodyOpen, m.index);
+    if (m[1].trim() !== 'true' || !/\bguard\s+!\s*handed\s+else\b|\bif\s+!\s*handed\b/.test(before)) findings.push(`${atLine(client, m.index)} sets withheld without asking handed first; a write whose bytes were handed ends by its answer, never by the cancel`);
+  }
+  // (ab8) Classified by handed; the echo, or "" with refused and malformed.
+  const resultFile = all.find((file) => file.types.some((t) => t.name === 'WriteResult' && t.kind === 'enum'));
+  if (resultFile === undefined) findings.push('no app file declares enum WriteResult, what is true of a write');
+  else {
+    const t = resultFile.types.find((x) => x.name === 'WriteResult' && x.kind === 'enum');
+    const of = resultFile.funcs.find((fn) => fn.name === 'of' && fn.at > t.open && fn.at < t.close);
+    if (of === undefined) findings.push(`${resultFile.name}'s WriteResult has no static func of, so nothing classifies an exchange's end`);
+    else {
+      const body = bodyText(resultFile, of);
+      if (!/\.\s*handed\b/.test(body) || !/\.\s*notSent\b/.test(body) || !/\.\s*noAnswer\b/.test(body)) findings.push(`${resultFile.name}'s WriteResult.of does not classify by handed into .notSent and .noAnswer; .notSent must mean the bytes never left`);
+      // The members it reads on the answer, followed, so the empty echo's terms are read wherever they are spelled.
+      let echo = body;
+      for (const m of body.matchAll(/\banswer\s*\.\s*([A-Za-z_]\w*)\b/g)) {
+        for (const file of all) {
+          for (const d of file.bare.matchAll(new RegExp(`\\bvar\\s+${m[1]}\\s*:\\s*Bool\\s*\\{`, 'g'))) {
+            const open = d.index + d[0].length - 1;
+            echo += file.bare.slice(open, matchForward(file.bare, open) + 1);
+          }
+        }
+      }
+      if (!/\bwrite\s*==\s*sent\b/.test(body)) findings.push(`${resultFile.name}'s WriteResult.of never compares the answer's write with the id it sent; any other echo is no answer`);
+      if (!/\bisEmpty\b|==\s*""/.test(echo) || !/\.\s*refused\b/.test(echo) || !/\.\s*malformed\b/.test(echo)) findings.push(`${resultFile.name}'s WriteResult.of does not accept the empty echo only with refused and malformed (F14)`);
+    }
+  }
+  return { findings, said };
+}
+
+/** Rule (ac), pure over the app's Swift files and Info.plist as CoreFoundation reads it (or null). */
+export function ruleOwnerCheck(files, plist) {
+  const findings = [];
+  const said = { evaluations: 0, conformers: [], runs: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const owner = all.find((f) => f.name === OWNER_CHECK_FILE) ?? null;
+  if (owner === null) findings.push(`${OWNER_CHECK_FILE} does not exist, so nothing asks iOS before an End is sent`);
+  for (const file of all) {
+    for (const m of file.code.matchAll(/^\s*(?:@\w+\s+)*import\s+(?:(?:struct|class|enum|protocol|typealias|func|let|var)\s+)?`?LocalAuthentication\b/gm)) {
+      if (file.name !== OWNER_CHECK_FILE) findings.push(`${atLine(file, m.index)} imports LocalAuthentication; ${OWNER_CHECK_FILE} is the one file that does`);
+    }
+    for (const m of file.bare.matchAll(/\bLAContext\b/g)) if (file.name !== OWNER_CHECK_FILE) findings.push(`${atLine(file, m.index)} names LAContext; only ${OWNER_CHECK_FILE} does`);
+    for (const m of file.bare.matchAll(/\btouchIDAuthenticationAllowableReuseDuration\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; an earlier match never stands in for a press`);
+    // The biometrics-only policy is ASKED about, never evaluated: only as the
+    // first argument of canEvaluatePolicy( inside OwnerCheck.swift's kind(),
+    // where it picks the glyph (the fix round; the verify's E3).
+    for (const m of file.bare.matchAll(/\bdeviceOwnerAuthenticationWithBiometrics\b/g)) {
+      const p = placeOf(file, m.index);
+      const call = /\bcanEvaluatePolicy\s*\(\s*\.\s*$/.exec(file.bare.slice(Math.max(0, m.index - 40), m.index));
+      if (file.name !== OWNER_CHECK_FILE || p.fn !== 'kind' || call === null) findings.push(`${atLine(file, m.index)} names deviceOwnerAuthenticationWithBiometrics in ${p.fn ?? 'no function'}; End asks with the passcode behind biometry, and the biometrics-only policy is only ASKED, as canEvaluatePolicy's first argument in ${OWNER_CHECK_FILE}'s kind()`);
+    }
+    for (const m of file.bare.matchAll(/\bevaluatePolicy\s*\(/g)) {
+      if (isDecl(file.bare, m.index)) continue;
+      said.evaluations += 1;
+      const close = closeParen(file.bare, m.index + m[0].length - 1);
+      const first = topLevelArgs(file.bare.slice(m.index + m[0].length, close === -1 ? file.bare.length : close))[0] ?? '';
+      if (file.name !== OWNER_CHECK_FILE) findings.push(`${atLine(file, m.index)} evaluates a policy outside ${OWNER_CHECK_FILE}`);
+      if (!/^\.\s*deviceOwnerAuthentication$/.test(first.trim())) findings.push(`${atLine(file, m.index)} evaluates ${first.trim() || 'nothing'}; the one policy is .deviceOwnerAuthentication`);
+    }
+    for (const t of file.types.filter((x) => x.kind !== 'protocol' && x.kind !== 'extension')) {
+      const head = file.bare.slice(t.at, t.open);
+      if (/:\s*[^{]*\bOwnerCheck\b/.test(head)) said.conformers.push(t.name);
+    }
+    for (const t of file.types.filter((x) => x.kind === 'extension')) {
+      if (/:\s*[^{]*\bOwnerCheck\b/.test(file.bare.slice(t.at, t.open))) said.conformers.push(`extension ${t.name}`);
+    }
+    // No string that could key a stored Face ID setting (the glyph `faceid` is an SF Symbol, not a key).
+    for (const s of file.strings) if (/faceID|[Bb]iometr|ownerCheck/.test(s.value)) findings.push(`${atLine(file, s.start)} writes ${JSON.stringify(s.value)}; nothing stores a Face ID setting, and there is no switch (his ruling)`);
+  }
+  if (said.evaluations !== 1) findings.push(`the app evaluates a policy ${String(said.evaluations)} time(s); once, in DeviceOwnerCheck.confirm`);
+  if (said.conformers.join() !== 'DeviceOwnerCheck') findings.push(`the app's OwnerCheck conformers are ${said.conformers.join(', ') || 'none'}; DeviceOwnerCheck is the one, and a test hands in its own`);
+  if (owner !== null) {
+    const confirm = funcsNamed(owner, 'confirm')[0] ?? null;
+    if (confirm === null || !/\bLAContext\s*\(\s*\)/.test(bodyText(owner, confirm))) findings.push(`${OWNER_CHECK_FILE}'s confirm makes no new LAContext() of its own, so one press's match could stand in for another`);
+    // THE GLYPH SAYS WHAT iOS WILL ASK FOR (the fix round, the verify's E3):
+    // kind() reads biometryType only after a guard on the biometrics-only
+    // QUESTION that answers the lock when iOS would not ask for a biometry,
+    // because biometryType names the hardware whatever is enrolled.
+    const kind = funcsNamed(owner, 'kind')[0] ?? null;
+    if (kind === null) findings.push(`${OWNER_CHECK_FILE} declares no kind(), so the End bar's glyph has nothing to say`);
+    else {
+      const body = bodyText(owner, kind);
+      const asked = /\bguard\s+[\w.]*\bcanEvaluatePolicy\s*\(\s*\.\s*deviceOwnerAuthenticationWithBiometrics\b[^{}]*\belse\s*\{\s*return\s+\.passcode\s*\}/.exec(body);
+      const read = /\bbiometryType\b/.exec(body);
+      if (read !== null && (asked === null || asked.index > read.index)) findings.push(`${OWNER_CHECK_FILE}'s kind() reads biometryType without first asking canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, …) in a guard that answers .passcode, so it draws the hardware's mark on a phone that will ask for the passcode (the verify's E3)`);
+    }
+  }
+  // Every run of a runner sits in the .confirmed case of a switch on confirm(.
+  for (const file of all) {
+    const runners = new Set([...file.bare.matchAll(/\blet\s+([A-Za-z_]\w*)\s*=\s*EndRunner\s*\(/g)].map((m) => m[1]));
+    for (const m of file.bare.matchAll(/(?<![\w.])([A-Za-z_]\w*)\s*\.\s*run\s*(?:\(|\{)/g)) {
+      if (!runners.has(m[1])) continue;
+      said.runs += 1;
+      const fn = innermost(file.funcs, m.index);
+      const before = fn === null ? '' : file.bare.slice(fn.bodyOpen, m.index);
+      const sw = [...before.matchAll(/\bswitch\s+await\s+[^{\n]*\bconfirm\s*\(/g)].pop();
+      const tail = sw === undefined ? '' : before.slice(sw.index);
+      const lastCase = [...tail.matchAll(/\bcase\s+\.\s*([A-Za-z_]\w*)\b|\bdefault\s*:/g)].pop();
+      if (lastCase === undefined || lastCase[1] !== 'confirmed') findings.push(`${atLine(file, m.index)} runs ${m[1]} outside the .confirmed case of a switch on the owner check; only a match sends anything`);
+    }
+  }
+  if (said.runs === 0) findings.push('no runner is run anywhere in the app, so End sends nothing or sends it another way');
+  // Nothing outside End names the check.
+  for (const file of all) {
+    if (OWNER_CHECK_ABSENT.includes(file.name) || file.name.startsWith('Door/')) {
+      for (const m of file.bare.matchAll(/\bOwnerCheck\b|\bownerCheck\b|\bconfirm\s*\(\s*reason\s*:/g)) findings.push(`${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; Face ID guards the End press and nothing else ("Only for End")`);
+    }
+    for (const fn of file.funcs.filter((x) => /unpair/i.test(x.name))) {
+      for (const m of bodyText(file, fn).matchAll(/\bownerCheck\b|\bconfirm\s*\(\s*reason\s*:/g)) findings.push(`${file.name}'s ${fn.name} names ${m[0].replace(/\s+/g, '')}; Unpair asks no owner check ("Only for End")`);
+    }
+  }
+  // Info.plist's purpose string.
+  if (plist === null || typeof plist !== 'object') findings.push('Info.plist cannot be read, so its Face ID purpose string cannot be');
+  else if (plist.NSFaceIDUsageDescription !== FACE_ID_USAGE) findings.push(`Info.plist's NSFaceIDUsageDescription is ${JSON.stringify(plist.NSFaceIDUsageDescription ?? null)}; it is ${JSON.stringify(FACE_ID_USAGE)}, and iOS refuses Face ID to an app without one`);
+  return { findings, said };
+}
+
+/**
+ * Rule (ac), widened by Phase 317's tests round: THE END PRESS SAYS OFF WHEN
+ * IT IS DRAWN OFF. The fix round made the press a plain `Button` holding its
+ * words alone, `.disabled(row == .off)`, after the verify read an End drawn
+ * off as ENABLED to XCUITest (and so to VoiceOver) on the unreachable offer.
+ * The reverify's ablation B4 took that modifier out and left vitest,
+ * conformance:pocket, its hostile client and this gate all green, so it is
+ * held here: in Screens/EndBar.swift, the ONE element the app identifies
+ * `ID.sessionEnd` is a `Button` whose own modifier chain holds
+ * `.disabled(<row> == .off)` (or `.off == <row>`, or `!= .on` either way),
+ * where `<row>` is the function's parameter of type `EndBarDrawing.Row`, whose
+ * cases are exactly `on` and `off`, so `== .off` is every row not drawn on.
+ * Pure over the app's Swift files.
+ */
+export function ruleEndPressOff(files) {
+  const findings = [];
+  const said = { presses: 0, chain: [] };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const ID_RE = /\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionEnd\s*\)/g;
+  const sites = [];
+  for (const file of all) for (const m of file.bare.matchAll(ID_RE)) sites.push({ file, at: m.index });
+  said.presses = sites.length;
+  if (sites.length !== 1) findings.push(`${String(sites.length)} element(s) in the app are identified ID.sessionEnd; the End press is one, in ${END_BAR_FILE}`);
+  const bar = all.find((f) => f.name === END_BAR_FILE) ?? null;
+  if (bar === null) return { findings: [...findings, `${END_BAR_FILE} does not exist, so the End press cannot be read`], said };
+  const cases = enumCases(bar.source, 'Row');
+  if (cases === null || [...cases].sort().join() !== 'off,on') findings.push(`${END_BAR_FILE}'s EndBarDrawing.Row has the cases ${JSON.stringify(cases)}; this rule reads \`== .off\` as every row not drawn on, which holds only while they are exactly on and off`);
+  const site = sites.find((s) => s.file === bar) ?? null;
+  if (site === null) return { findings: [...findings, `${END_BAR_FILE} identifies no element ID.sessionEnd, so the End press cannot be read`], said };
+  const fn = innermost(bar.funcs, site.at);
+  if (fn === null) return { findings: [...findings, `${atLine(bar, site.at)} identifies the End press outside any function`], said };
+  const param = /([A-Za-z_]\w*)\s*:\s*EndBarDrawing\s*\.\s*Row\b/.exec(bar.bare.slice(fn.at, fn.bodyOpen))?.[1] ?? null;
+  if (param === null) findings.push(`${END_BAR_FILE}'s ${fn.name} takes no EndBarDrawing.Row, so whether its press is off cannot be read`);
+  // Every Button in that function, its closures skipped and its own modifier
+  // chain read; the press is the one whose chain identifies ID.sessionEnd.
+  const text = bar.bare;
+  let press = null;
+  for (const m of bodyText(bar, fn).matchAll(/\bButton\s*(?=[({])/g)) {
+    let k = fn.bodyOpen + m.index + m[0].length;
+    if (text[k] === '(') {
+      const close = closeParen(text, k);
+      if (close === -1) continue;
+      k = close + 1;
+    }
+    // Its trailing closures: the action, then `label:`.
+    for (;;) {
+      const brace = /^\s*(?:label\s*:\s*)?\{/.exec(text.slice(k));
+      if (brace === null) break;
+      const close = matchForward(text, k + brace[0].length - 1);
+      if (close === -1) break;
+      k = close + 1;
+    }
+    const chain = [];
+    for (;;) {
+      const mod = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(text.slice(k));
+      if (mod === null) break;
+      const open = k + mod[0].length - 1;
+      const close = closeParen(text, open);
+      if (close === -1) break;
+      chain.push({ name: mod[1], args: text.slice(open + 1, close).replace(/\s+/g, ' ').trim(), at: k });
+      k = close + 1;
+    }
+    if (chain.some((c) => c.at <= site.at && site.at < k)) press = chain;
+  }
+  if (press === null) findings.push(`${atLine(bar, site.at)} identifies ID.sessionEnd on something that is not a Button's own modifier chain, so the press cannot be read`);
+  else {
+    said.chain = press.map((c) => c.name);
+    const off = param === null ? [] : [`${param} == .off`, `.off == ${param}`, `${param} != .on`, `.on != ${param}`];
+    const disabled = press.filter((c) => c.name === 'disabled');
+    if (!disabled.some((c) => off.includes(c.args))) findings.push(`${END_BAR_FILE}'s End press carries ${disabled.length === 0 ? 'no .disabled' : disabled.map((c) => `.disabled(${c.args})`).join(' and ')}; it is .disabled(${param ?? 'row'} == .off), so a row drawn off cannot be pressed and reads off to XCUITest and VoiceOver (the reverify's B4)`);
+  }
+  return { findings, said };
+}
+
+/** Rule (ad), pure over the app's Swift files. */
+export function ruleShrinks(files) {
+  const findings = [];
+  const said = { runners: 0, registered: 0, loops: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const bar = all.find((f) => f.name === END_BAR_FILE) ?? null;
+  const runnerType = bar === null ? undefined : bar.types.find((t) => t.name === 'EndRunner' && t.kind === 'class');
+  if (runnerType === undefined) findings.push(`${END_BAR_FILE} declares no class EndRunner, so End has no list fixed at the confirm`);
+  else {
+    const body = bar.bare.slice(runnerType.open, runnerType.close + 1);
+    // (ad1) targets: a let, never grown.
+    if (!/\blet\s+targets\s*:\s*\[\s*String\s*\]/.test(body)) findings.push(`${END_BAR_FILE}'s EndRunner.targets is not \`let targets: [String]\`; the list is fixed at the confirm`);
+    for (const m of body.matchAll(/\btargets\s*(?:\.\s*(?:append|insert|replaceSubrange)\s*\(|\+=|=(?!=))/g)) {
+      const line = body.slice(Math.max(0, body.lastIndexOf('\n', m.index)), m.index + m[0].length);
+      if (/\bself\s*\.\s*targets\s*=\s*$/.test(line) && innermost(bar.funcs, runnerType.open + m.index) === null) continue;
+      findings.push(`${atLine(bar, runnerType.open + m.index)} grows or replaces EndRunner.targets; the list only shrinks`);
+    }
+    // (ad2) One loop over targets, one awaited write per turn.
+    const run = bar.funcs.find((fn) => fn.name === 'run' && fn.at > runnerType.open && fn.at < runnerType.close);
+    if (run === undefined) findings.push(`${END_BAR_FILE}'s EndRunner has no run`);
+    else {
+      const runBody = bodyText(bar, run);
+      const loops = [...runBody.matchAll(/\bfor\s+([A-Za-z_]\w*)\s+in\s+(?:self\s*\.\s*)?targets\s*\{/g)];
+      said.loops = loops.length;
+      if (loops.length !== 1) findings.push(`EndRunner.run has ${String(loops.length)} loop(s) over targets; one pass, in order`);
+      else {
+        const open = loops[0].index + loops[0][0].length - 1;
+        const loop = runBody.slice(open, matchForward(runBody, open) + 1);
+        const awaits = [...loop.matchAll(/\bawait\b/g)].length;
+        const write = /\.\s*end\s*\([^)]*\bbatch\s*:/.exec(loop);
+        if (write === null) findings.push('EndRunner.run\'s loop makes no write');
+        if (awaits !== 1) findings.push(`EndRunner.run's loop awaits ${String(awaits)} time(s); one awaited write per target`);
+        const stopRead = /\bif\s+stopRequested\b|\bguard\s+!\s*stopRequested\b/.exec(loop);
+        if (stopRead === null || (write !== null && stopRead.index > write.index)) findings.push('EndRunner.run does not read stopRequested before each write, the first included; a stop during the owner check must stop the first write too');
+      }
+      if (/(?<![\w.])targets\s*\[/.test(runBody)) findings.push('EndRunner.run indexes targets; it walks them in order, once');
+    }
+    // (ad3) stopRequested never set false after true; stop() sets it and cancels the task.
+    const stop = bar.funcs.find((fn) => fn.name === 'stop' && fn.at > runnerType.open && fn.at < runnerType.close);
+    const stopBody = stop === undefined ? '' : bodyText(bar, stop);
+    if (!/\bstopRequested\s*=\s*true\b/.test(stopBody) || !/\btask\s*\??\s*\.\s*cancel\s*\(\s*\)/.test(stopBody)) findings.push(`${END_BAR_FILE}'s EndRunner.stop does not set stopRequested and cancel its task; the cancel is what withholds a write not yet handed`);
+  }
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/(?<![\w])(?:[A-Za-z_]\w*\s*\??\s*\.\s*)?stopRequested\s*=\s*([^=\n;}][^\n;}]*)/g)) {
+      if (/\b(?:var|let)\s+$/.test(file.bare.slice(Math.max(0, m.index - 8), m.index))) continue;
+      if (m[1].trim() !== 'true') findings.push(`${atLine(file, m.index)} sets stopRequested = ${m[1].trim()}; once true it stays true`);
+    }
+  }
+  // (ad4) Every runner made at the press: made, registered, then the owner check.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\blet\s+([A-Za-z_]\w*)\s*=\s*EndRunner\s*\(/g)) {
+      said.runners += 1;
+      const fn = innermost(file.funcs, m.index);
+      const after = fn === null ? '' : file.bare.slice(m.index, fn.bodyClose);
+      const reg = new RegExp(`\\bregister\\s*\\(\\s*${m[1]}\\s*\\)`).exec(after);
+      const confirm = /\bconfirm\s*\(\s*reason\s*:/.exec(after);
+      if (reg !== null) said.registered += 1;
+      if (reg === null || confirm === null || reg.index > confirm.index) findings.push(`${atLine(file, m.index)} makes a runner that is not registered before the owner check is asked; a trip to the background during Face ID must stop it before it sends`);
+    }
+    for (const m of file.bare.matchAll(/\bEndRunner\s*\(/g)) {
+      if (/\blet\s+[A-Za-z_]\w*\s*=\s*$/.test(file.bare.slice(Math.max(0, m.index - 60), m.index))) continue;
+      if (/\b(?:class|struct)\s+$/.test(file.bare.slice(Math.max(0, m.index - 8), m.index))) continue;
+      findings.push(`${atLine(file, m.index)} makes an EndRunner without binding it, so it cannot be registered`);
+    }
+  }
+  if (said.runners === 0) findings.push('nothing in the app makes an EndRunner');
+  // (ad5) AppModel.wentAway stops every registered runner.
+  const app = all.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  const model = app === null ? undefined : app.types.find((t) => t.name === 'AppModel' && t.kind === 'class');
+  if (model === undefined) findings.push('App/TortieApp.swift declares no class AppModel');
+  else {
+    // The class and its extensions (the registry conformance may be one).
+    const modelSpans = app.types.filter((t) => t.name === 'AppModel' && (t.kind === 'class' || t.kind === 'extension'));
+    const inModel = (name) => app.funcs.find((fn) => fn.name === name && modelSpans.some((s) => fn.at > s.open && fn.at < s.close));
+    const away = inModel('wentAway');
+    const register = inModel('register');
+    if (away === undefined) findings.push('AppModel has no wentAway(), so nothing stops a write when the app leaves');
+    if (register === undefined) findings.push('AppModel has no register(_:), so a runner made at the press is kept nowhere');
+    if (away !== undefined && register !== undefined) {
+      const awayBody = bodyText(app, away);
+      const kept = /\b([A-Za-z_]\w*)\s*(?:\.\s*(?:append|insert)\s*\(|\[[^\]]+\]\s*=)/.exec(bodyText(app, register))?.[1] ?? null;
+      const loopOver = kept === null ? null : new RegExp(`\\bfor\\s+([A-Za-z_]\\w*)\\s+in\\s+(?:self\\s*\\.\\s*)?${kept}(?:\\s*\\.\\s*values)?\\s*\\{`).exec(awayBody);
+      const loopBody = loopOver === null ? '' : awayBody.slice(loopOver.index + loopOver[0].length - 1, loopOver.index + loopOver[0].length - 1 + matchForward(awayBody.slice(loopOver.index + loopOver[0].length - 1), 0) + 1);
+      const r = loopOver === null ? null : loopOver[1];
+      // Each runner is stopped: its stop(), or the two things stop() does,
+      // stopRequested set AND its task cancelled (the cancel is what withholds).
+      const stops =
+        (r !== null && (new RegExp(`\\b${r}\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(loopBody) ||
+          (new RegExp(`\\b${r}\\s*\\.\\s*stopRequested\\s*=\\s*true\\b`).test(loopBody) && new RegExp(`\\b${r}\\s*\\.\\s*task\\s*\\??\\s*\\.\\s*cancel\\s*\\(\\s*\\)`).test(loopBody)))) ||
+        (kept !== null && new RegExp(`\\b${kept}(?:\\s*\\.\\s*values)?\\s*\\.\\s*forEach\\s*\\{\\s*\\$0\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(awayBody));
+      if (!stops) findings.push(`AppModel.wentAway does not stop every runner register(_:) keeps${kept === null ? '' : ` in ${kept}`}; a write not yet handed must be withheld when the app leaves`);
+    }
+  }
+  // (ad7) Nothing persists a write or a target.
+  for (const name of [END_BAR_FILE, END_BATCH_FILE]) {
+    const file = all.find((f) => f.name === name);
+    if (file === undefined) {
+      findings.push(`${name} does not exist`);
+      continue;
+    }
+    for (const m of file.bare.matchAll(PERSISTS)) findings.push(`${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; nothing persists a write or a target, so nothing can be sent again after a relaunch`);
+  }
+  const client = all.find((f) => f.name === 'Door/DoorClient.swift') ?? null;
+  if (client !== null) {
+    const spans = [...['signedPost', 'end'].flatMap((n) => funcsNamed(client, n)), ...client.types.filter((t) => ['WriteId', 'WriteResult', 'EndBody', 'WriteRoute'].includes(t.name)).map((t) => ({ bodyOpen: t.open, bodyClose: t.close }))];
+    for (const s of spans) {
+      for (const m of client.bare.slice(s.bodyOpen, s.bodyClose + 1).matchAll(PERSISTS)) findings.push(`${atLine(client, s.bodyOpen + m.index)} names ${m[0].replace(/\s+/g, '')} in the write path; nothing persists a write`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (v), widened: End's line is always a sentence (SPEC §5.8.3, §6.3) -----
+
+/** The classes whose `line` is the one line under End's bars. */
+export const END_LINE_TYPES = Object.freeze(['EndModel', 'EndBatchModel']);
+
+/**
+ * Rule (v)'s End half, pure over DoorWords.swift's source (or null) and the
+ * app's Swift files: `DoorWords.endSentence(for:)` answers a non-optional
+ * `String` for every `WriteResult` case, never nil, never an empty string and
+ * with no default; and every assignment to `line` in EndModel and
+ * EndBatchModel is nil or a Copy or DoorWords sentence, never `""`.
+ */
+export function ruleEndSentence(words, files) {
+  const findings = [];
+  const said = { cases: 0, assignments: 0 };
+  if (words === null) return { findings: ['Screens/DoorWords.swift does not exist, so what End\'s line says cannot be read'], said };
+  const w = lexSwift(words);
+  const decl = /\bstatic\s+func\s+endSentence\s*\(\s*for\s+\w+\s*:\s*WriteResult\s*\)\s*->\s*([^{]+)\{/.exec(w.bare);
+  if (decl === null) findings.push('Screens/DoorWords.swift declares no endSentence(for: WriteResult)');
+  else {
+    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's endSentence returns ${decl[1].trim()}; it returns String, so every write result draws a sentence`);
+    const body = bodyAfter(w.bare, decl.index);
+    const bodyStart = w.bare.indexOf(body, decl.index);
+    for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, bodyStart + m.index))} endSentence returns nil`);
+    for (const x of w.strings) if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} endSentence returns an empty string`);
+    if (/\bdefault\s*:/.test(body)) findings.push("Screens/DoorWords.swift's endSentence has a default, so a new WriteResult case would draw a line nobody chose");
+    const client = files.find((f) => f.name === 'Door/DoorClient.swift');
+    const cases = client === undefined ? [] : enumCases(client.source, 'WriteResult') ?? [];
+    if (cases.length === 0) findings.push('Door/DoorClient.swift declares no enum WriteResult this rule can read');
+    said.cases = cases.length;
+    for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's endSentence draws nothing for .${cs}`);
+  }
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    for (const t of typeSpans(lx.bare).filter((x) => END_LINE_TYPES.includes(x.name) && x.kind === 'class')) {
+      const text = lx.bare.slice(t.open, t.close + 1);
+      for (const m of text.matchAll(/(?:^|[^\w.?])(?:self\s*\??\s*\.\s*)?line\s*=(?!=)\s*([^\n;]*)/g)) {
+        said.assignments += 1;
+        const rhs = m[1].trim();
+        const at = `${f.name}:${String(lineOf(lx.bare, t.open + m.index + 1))}`;
+        const strings = lx.strings.filter((x) => x.start > t.open + m.index && x.start < t.open + m.index + m[0].length);
+        if (strings.some((x) => x.value === '') || (rhs !== 'nil' && !/\b(?:Copy|DoorWords)\s*\./.test(rhs))) findings.push(`${at} assigns ${t.name}.line = ${rhs.slice(0, 50)}; its line is nil or a Copy or DoorWords sentence, never empty`);
+      }
+    }
+  }
+  return { findings, said };
+}
+
+/** Phase 317's write arms (build/p317/SPEC.md §7.5 EH), as (t) requires build/p316/hostile-door.mjs to name them. */
+export const HOSTILE_WRITE_ARMS = Object.freeze([
+  'write-other-id',
+  'write-malformed-empty',
+  'write-unknown-outcome',
+  'write-cut',
+  'write-late',
+  'write-404',
+  'write-malformed',
+  'write-cut-reread-refused',
+  'write-unreachable-offer'
+]);
+/**
+ * How a write arm may end: a sentence under End, back to the list, on Pairing
+ * (a re-read the door refused, whose own consequence is Pairing: the fix
+ * round, after the verify's EH), or drawn with no press possible.
+ */
+const WRITE_ARM_ENDS = new Set(['sentence', 'back-to-list', 'pairing', 'drawn']);
+
+/** The keys of POCKET_WRITE_SENTENCES in src/shared/ipc/pocket.ts's text, or null when it declares none. */
+export function writeSentenceKeys(pocketTs) {
+  if (typeof pocketTs !== 'string') return null;
+  const at = /\bexport\s+const\s+POCKET_WRITE_SENTENCES\s*=\s*\{/.exec(pocketTs);
+  if (at === null) return null;
+  const open = at.index + at[0].length - 1;
+  const close = pocketTs.indexOf('}', open);
+  return [...pocketTs.slice(open + 1, close === -1 ? pocketTs.length : close).matchAll(/(?:^|[\s,{])([A-Za-z_]\w*)\s*:/g)].map((m) => m[1]);
+}
+
+// ---------------------------------------------------------------------------
 // The scanners, proved on texts this file holds, before any file is read
 // ---------------------------------------------------------------------------
 
@@ -4884,10 +5603,12 @@ const expect = (what, ok) => {
   const pairingOk = 'struct PairingOffer {\n    static func parse(_ payload: String) throws -> PairingOffer {\n        guard DoorEndpoint.isPublicName(wire.host),\n              DoorEndpoint.publicPorts.contains(wire.port) else { throw E() }\n        return x\n    }\n}\n';
   const keysOk2 = 'struct PairedDoor {\n    let identity: ClientIdentity\n}\n';
   const armLine = (name) => `  ${name.includes('-') ? `'${name}'` : name}: { what: 'x', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },`;
-  const hostileOk = `export const HOSTILE_ARMS = Object.freeze({\n${HOSTILE_HTTP_ARMS.map(armLine).join('\n')}\n});\n`;
+  // Phase 317: the write arms, each ending where it names (SPEC §7.5 EH).
+  const writeArmLine = (name, rest = "ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['answerUnreadable'], door: ['unreadable'], never: []") => `  '${name}': { what: 'x', ${rest} },`;
+  const hostileOk = `export const HOSTILE_ARMS = Object.freeze({\n${HOSTILE_HTTP_ARMS.map(armLine).join('\n')}\n${HOSTILE_WRITE_ARMS.map((a) => writeArmLine(a)).join('\n')}\n});\n`;
   const copyOk = 'enum Copy {\n    static let answerUnreadable = "Tortie could not read your Mac’s answer."\n}\n';
-  const tRun = ({ client = clientOk, pairing = pairingOk, keys = keysOk2, hostile = hostileOk, copy = copyOk } = {}) =>
-    ruleClientTransport({ client, pairing, keys, files: [{ name: 'Door/DoorClient.swift', source: client }], hostile, copy }).findings;
+  const tRun = ({ client = clientOk, pairing = pairingOk, keys = keysOk2, hostile = hostileOk, copy = copyOk, writeSentences = ['busy', 'unreadable'] } = {}) =>
+    ruleClientTransport({ client, pairing, keys, files: [{ name: 'Door/DoorClient.swift', source: client }], hostile, copy, writeSentences }).findings;
   expect('(t) passes a pinned client with an identity on every paired read', tRun().length === 0);
   expect('(t) catches no local identity', tRun({ client: clientOk.replace('        if let identity { sec_protocol_options_set_local_identity(options, sec_identity_create(identity.identity)!) }\n', '') }).length > 0);
   expect('(t) catches a signed read with no identity', tRun({ client: clientOk.replace('identity: door.identity)', 'identity: nil)') }).length > 0);
@@ -5050,8 +5771,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 5;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 5;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 6;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 6;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -5636,14 +6357,455 @@ const expect = (what, ok) => {
   expect('(z6) follows a LinkPolicy helper that opens calls', zRun({ 'Markdown/Links.swift': helped.replace(', !host.hasPrefix("xn--")', ', plain(host)') }).length === 0);
   expect('(z6) follows a LinkPolicy helper handed as a predicate', zRun({ 'Markdown/Links.swift': helped.replace('guard let host = url.host, !host.hasPrefix("xn--")', 'guard let host = url.host, [host].allSatisfy(plain)') }).length === 0);
   expect('(z6) does not take a helper opens never reaches', zRun({ 'Markdown/Links.swift': helped.replace(', !host.hasPrefix("xn--")', '') }).length > 0);
+
+  // ---- Phase 317: (ab), (ac), (ad), and (t) and (v) widened ---------------
+  // One small app in the shape SPEC §5.8 names, every clause green on it, and
+  // one edit per clause that must turn its rule red.
+  const W_CLIENT = [
+    'final class DoorClient {',
+    '    func end(_ sessionId: String, batch: Bool, door: PairedDoor) async -> WriteResult {',
+    '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)',
+    '    }',
+    '    func present(_ p: Data, door: DoorEndpoint) async throws -> DoorReply {',
+    '        try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
+    '    }',
+    '    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits) async -> WriteResult {',
+    '        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }',
+    '        let body: Data',
+    '        do {',
+    '            let encoder = JSONEncoder()',
+    '            encoder.outputFormatting = [.sortedKeys]',
+    '            switch route {',
+    '            case .end(let session, let batch):',
+    '                body = try encoder.encode(EndBody(batch: batch, session: session, write: id))',
+    '            }',
+    '        } catch {',
+    '            return .notSent(.notPaired)',
+    '        }',
+    '        let ended = await connect(method: "POST", target: route.target, body: body, door: door.endpoint, identity: door.identity, write: true)',
+    '        return WriteResult.of(ended, verb: route.verb, sent: id)',
+    '    }',
+    '}',
+    'struct EndBody: Encodable {',
+    '    let batch: Bool',
+    '    let session: String',
+    '    let write: String',
+    '}',
+    'enum WriteId {',
+    '    static let byteCount = 16',
+    '    static func fresh() -> String? {',
+    '        var bytes = [UInt8](repeating: 0, count: byteCount)',
+    '        guard SecRandomCopyBytes(kSecRandomDefault, byteCount, &bytes) == errSecSuccess else { return nil }',
+    '        return Hex.encode(bytes)',
+    '    }',
+    '}',
+    'enum WriteResult: Equatable {',
+    '    case answered(PocketWriteAnswer)',
+    '    case notTaken',
+    '    case noAnswer',
+    '    case notSent(DoorFailure)',
+    '    static func of(_ end: ExchangeEnd, verb: PocketWriteAnswer.Verb, sent: String) -> WriteResult {',
+    '        switch end.result {',
+    '        case .failure(let error):',
+    '            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }',
+    '            return .noAnswer',
+    '        case .success(let reply):',
+    '            guard let answer = try? JSONDecoder().decode(PocketWriteAnswer.self, from: reply.body),',
+    '                  answer.write == sent || answer.echoesNoId else { return .noAnswer }',
+    '            return .answered(answer)',
+    '        }',
+    '    }',
+    '}',
+    'extension PocketWriteAnswer {',
+    '    var echoesNoId: Bool {',
+    '        write.isEmpty && outcome == .refused && reason == .malformed',
+    '    }',
+    '}',
+    'private final class DoorExchange {',
+    '    private var handed = false',
+    '    private var withheld = false',
+    '    private func cancelled() {',
+    '        if write {',
+    '            guard !handed else { return }',
+    '            withheld = true',
+    '        }',
+    '        finish(.failure(DoorFailure.cancelled))',
+    '    }',
+    '    private func send() {',
+    '        guard !withheld, result == nil else { return }',
+    '        handed = true',
+    '        connection.send(content: request, completion: .contentProcessed { _ in })',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const W_BAR = [
+    'protocol EndRunnerRegistry: AnyObject {',
+    '    func register(_ runner: EndRunner)',
+    '}',
+    'final class EndRunner {',
+    '    let targets: [String]',
+    '    let batch: Bool',
+    '    private let writer: any DoorWriting',
+    '    var stopRequested = false',
+    '    var task: Task<Void, Never>?',
+    '    init(targets: [String], batch: Bool, writer: any DoorWriting) {',
+    '        self.targets = targets',
+    '        self.batch = batch',
+    '        self.writer = writer',
+    '    }',
+    '    func stop() {',
+    '        stopRequested = true',
+    '        task?.cancel()',
+    '    }',
+    '    func run(_ report: (String, EndStep) -> Void) async {',
+    '        for id in targets {',
+    '            if stopRequested {',
+    '                report(id, .notRun)',
+    '                continue',
+    '            }',
+    '            let result = await writer.end(id, batch: batch)',
+    '            report(id, .wrote(result))',
+    '            if Self.stops(after: result) { stopRequested = true }',
+    '        }',
+    '    }',
+    '}',
+    'final class EndModel {',
+    '    private(set) var line: String?',
+    '    func press(_ confirm: PocketEndConfirm) {',
+    '        let runner = EndRunner(targets: [sessionId], batch: false, writer: writer)',
+    '        registry?.register(runner)',
+    '        let task = Task { [weak self] in',
+    '            switch await ownerCheck.confirm(reason: confirm.confirmLabel) {',
+    '            case .confirmed:',
+    '                await runner.run { _, _ in }',
+    '            case .notConfirmed:',
+    '                self?.line = Copy.endNotConfirmed',
+    '            case .needsPasscode:',
+    '                self?.line = nil',
+    '            }',
+    '        }',
+    '        runner.task = task',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const W_BATCH = [
+    'final class EndBatchModel {',
+    '    private(set) var line: String?',
+    '    func press(_ confirm: BatchConfirm) {',
+    '        let runner = EndRunner(targets: confirm.targets, batch: true, writer: setup.writer)',
+    '        setup.registry.register(runner)',
+    '        let task = Task { [weak self] in',
+    '            switch await ownerCheck.confirm(reason: confirm.confirmLabel) {',
+    '            case .confirmed:',
+    '                await runner.run { _, _ in }',
+    '            case .notConfirmed, .needsPasscode:',
+    '                self?.line = Copy.endNotConfirmed',
+    '            }',
+    '        }',
+    '        runner.task = task',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const W_OWNER = [
+    'import Foundation',
+    'import LocalAuthentication',
+    'protocol OwnerCheck: Sendable {',
+    '    func kind() -> OwnerKind',
+    '    func confirm(reason: String) async -> OwnerAnswer',
+    '}',
+    'struct DeviceOwnerCheck: OwnerCheck {',
+    '    func kind() -> OwnerKind {',
+    '        let context = LAContext()',
+    '        var error: NSError?',
+    '        guard context.canEvaluatePolicy(.deviceOwnerAuthentication, error: &error) else { return .none }',
+    '        var biometryError: NSError?',
+    '        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError) else { return .passcode }',
+    '        return context.biometryType == .faceID ? .faceID : .passcode',
+    '    }',
+    '    func confirm(reason: String) async -> OwnerAnswer {',
+    '        let context = LAContext()',
+    '        do {',
+    '            return try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) ? .confirmed : .notConfirmed',
+    '        } catch {',
+    '            return .notConfirmed',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const W_APP = [
+    'final class AppModel: EndRunnerRegistry {',
+    '    private var runners: [ObjectIdentifier: EndRunner] = [:]',
+    '    func register(_ runner: EndRunner) {',
+    '        runners[ObjectIdentifier(runner)] = runner',
+    '    }',
+    '    func wentAway() {',
+    '        for runner in runners.values {',
+    '            runner.stop()',
+    '        }',
+    '    }',
+    '    func unpair() {',
+    '        switch door.unpair() {',
+    '        case .kept:',
+    '            settingsLine = Copy.unpairFailed',
+    '        case .forgotten:',
+    '            lostPairing()',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const W_SETTINGS = 'struct SettingsScreen: View {\n    var body: some View { Text(Copy.settings) }\n}\n';
+  const wFiles = (edits = {}) =>
+    [
+      ['Door/DoorClient.swift', W_CLIENT],
+      [END_BAR_FILE, W_BAR],
+      [END_BATCH_FILE, W_BATCH],
+      [OWNER_CHECK_FILE, W_OWNER],
+      ['App/TortieApp.swift', W_APP],
+      ['Screens/SettingsScreen.swift', W_SETTINGS]
+    ]
+      .map(([name, source]) => ({ name, source: typeof edits[name] === 'function' ? edits[name](source) : source }))
+      // An edit that answers null takes the file away.
+      .filter((f) => f.source !== null);
+  const wPlist = { NSCameraUsageDescription: 'x', NSFaceIDUsageDescription: FACE_ID_USAGE };
+  const abRun = (edits) => ruleWrite(wFiles(edits)).findings;
+  const acRun = (edits, plist = wPlist) => ruleOwnerCheck(wFiles(edits), plist).findings;
+  const adRun = (edits) => ruleShrinks(wFiles(edits)).findings;
+  const C = 'Door/DoorClient.swift';
+  const swap = (name, from, to) => ({ [name]: (s) => {
+    if (!s.includes(from)) throw new Error(`self-test edit anchor missing in ${name}: ${from}`);
+    return s.replace(from, to);
+  } });
+  expect('(ab) passes the write in the shape SPEC §5.8.1 names', abRun().length === 0);
+  expect('(ac) passes the owner check in the shape SPEC §5.8.2 names', acRun().length === 0);
+  expect('(ad) passes the runner in the shape SPEC §5.8.4 names', adRun().length === 0);
+  // (ab)
+  expect('(ab) catches a POST written outside present and signedPost', abRun(swap(C, '    func present(', '    func other() async { _ = "POST" }\n    func present(')).length > 0);
+  expect('(ab) catches signedPost called by something other than end', abRun(swap(C, '    func present(', '    func again(door: PairedDoor) async { _ = await signedPost(route: .end(session: "x", batch: false), door: door, limits: limits) }\n    func present(')).length > 0);
+  expect('(ab) catches a second write id made', abRun(swap(C, '        return WriteResult.of(ended', '        _ = WriteId.fresh()\n        return WriteResult.of(ended')).length > 0);
+  expect('(ab) catches a write id taken from fewer than 16 random bytes', abRun(swap(C, 'static let byteCount = 16', 'static let byteCount = 8')).length > 0);
+  expect('(ab) catches a write id kept on a type', abRun(swap(C, '    private var handed = false', '    private var lastWrite: WriteId\n    private var handed = false')).length > 0);
+  expect('(ab) catches a body without sorted keys', abRun(swap(C, '            encoder.outputFormatting = [.sortedKeys]\n', '')).length > 0);
+  expect('(ab) catches a fourth key in the end body', abRun(swap(C, '    let write: String\n}\nenum WriteId', '    let write: String\n    let face: Bool\n}\nenum WriteId')).length > 0);
+  expect('(ab) catches the removed unpair write coming back as a second caller', abRun(swap(C, '    func present(', '    func unpair(door: PairedDoor) async -> WriteResult {\n        await signedPost(route: .end(session: "", batch: false), door: door, limits: limits)\n    }\n    func present(')).length > 0);
+  expect('(ab) catches a second call of the writer\'s end', abRun(swap(END_BATCH_FILE, '        runner.task = task', '        Task { _ = await setup.writer.end("x", batch: true) }\n        runner.task = task')).length > 0);
+  expect('(ab) catches a retry around a write', abRun(swap(END_BAR_FILE, '            let result = await writer.end(id, batch: batch)', '            var result = await writer.end(id, batch: batch)\n            while result == .noAnswer { result = .notTaken }')).length > 0);
+  expect('(ab) catches handed set in the send\'s completion', abRun(swap(C, '        handed = true\n        connection.send(content: request, completion: .contentProcessed { _ in })', '        connection.send(content: request, completion: .contentProcessed { _ in self.handed = true })')).length > 0);
+  expect('(ab) catches a statement between handed and the send', abRun(swap(C, '        handed = true\n', '        handed = true\n        ready = true\n')).length > 0);
+  expect('(ab) catches the bytes handed without asking withheld', abRun(swap(C, '        guard !withheld, result == nil else { return }\n', '        guard result == nil else { return }\n')).length > 0);
+  expect('(ab) catches a cancel that withholds bytes already handed', abRun(swap(C, '            guard !handed else { return }\n', '')).length > 0);
+  expect('(ab) catches a result not classified by handed', abRun(swap(C, '            guard end.handed else { return .notSent(error as? DoorFailure ?? .notPaired) }\n', '')).length > 0);
+  expect('(ab) catches an answer taken without its echo', abRun(swap(C, 'answer.write == sent || answer.echoesNoId', 'answer.echoesNoId')).length > 0);
+  expect('(ab) catches an empty echo taken with any outcome (F14)', abRun(swap(C, 'write.isEmpty && outcome == .refused && reason == .malformed', 'write.isEmpty')).length > 0);
+  // (ac)
+  expect('(ac) catches LocalAuthentication imported outside OwnerCheck.swift', acRun(swap('Screens/SettingsScreen.swift', 'struct SettingsScreen', 'import LocalAuthentication\nstruct SettingsScreen')).length > 0);
+  expect('(ac) catches the biometrics-only policy', acRun(swap(OWNER_CHECK_FILE, 'context.evaluatePolicy(.deviceOwnerAuthentication,', 'context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics,')).length > 0);
+  expect('(ac) catches the biometrics-only policy asked outside kind()', acRun(swap(OWNER_CHECK_FILE, '        let context = LAContext()\n        do {', '        let context = LAContext()\n        var e: NSError?\n        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &e)\n        do {')).length > 0);
+  expect('(ac) catches kind() reading biometryType with no biometrics-only question (the verify\'s E3)', acRun(swap(OWNER_CHECK_FILE, '        var biometryError: NSError?\n        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError) else { return .passcode }\n', '')).length > 0);
+  expect('(ac) catches kind() asking the biometrics-only question and ignoring its answer', acRun(swap(OWNER_CHECK_FILE, '        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError) else { return .passcode }', '        _ = context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError)')).length > 0);
+  expect('(ac) catches the biometrics-only policy named in kind() but not as a question', acRun(swap(OWNER_CHECK_FILE, '        guard context.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &biometryError) else { return .passcode }', '        let policy = LAPolicy.deviceOwnerAuthenticationWithBiometrics\n        guard context.canEvaluatePolicy(policy, error: &biometryError) else { return .passcode }')).length > 0);
+  expect('(ac) catches a reuse window', acRun(swap(OWNER_CHECK_FILE, '        let context = LAContext()\n        do {', '        let context = LAContext()\n        context.touchIDAuthenticationAllowableReuseDuration = 10\n        do {')).length > 0);
+  expect('(ac) catches a second evaluation', acRun(swap(OWNER_CHECK_FILE, '        return context.biometryType', '        _ = try? await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: "x")\n        return context.biometryType')).length > 0);
+  expect('(ac) catches a context kept rather than made per press', acRun(swap(OWNER_CHECK_FILE, '    func confirm(reason: String) async -> OwnerAnswer {\n        let context = LAContext()', '    func confirm(reason: String) async -> OwnerAnswer {\n        let context = Self.shared')).length > 0);
+  expect('(ac) catches a second conformer in the app', acRun(swap(OWNER_CHECK_FILE, 'struct DeviceOwnerCheck', 'struct AlwaysYes: OwnerCheck {}\nstruct DeviceOwnerCheck')).length > 0);
+  expect('(ac) catches a run outside the confirmed case', acRun(swap(END_BAR_FILE, '        runner.task = task\n', '        Task { await runner.run { _, _ in } }\n        runner.task = task\n')).length > 0);
+  expect('(ac) catches the owner check named in Settings', acRun(swap('Screens/SettingsScreen.swift', 'var body', 'let ownerCheck: any OwnerCheck\n    var body')).length > 0);
+  expect('(ac) catches the owner check asked by Unpair', acRun(swap('App/TortieApp.swift', '        switch door.unpair() {', '        Task { _ = await ownerCheck.confirm(reason: "x") }\n        switch door.unpair() {')).length > 0);
+  expect('(ac) catches a stored Face ID switch', acRun(swap('App/TortieApp.swift', '    func wentAway() {', '    let key = "faceIDOnEnd"\n    func wentAway() {')).length > 0);
+  expect('(ac) catches the purpose string missing', acRun({}, { NSCameraUsageDescription: 'x' }).length > 0);
+  expect('(ac) catches the purpose string reworded', acRun({}, { ...wPlist, NSFaceIDUsageDescription: 'Tortie uses Face ID.' }).length > 0);
+  expect('(ac) PINNED_PLIST_KEYS holds the purpose string, so rule (e) refuses its device spellings', PINNED_PLIST_KEYS.has('NSFaceIDUsageDescription') && rulePlist({ ...okPlist, 'NSFaceIDUsageDescription~iphone': 'x' }, pbxApp()).length > 0);
+  // (ac), the tests round: the End press is off when its row is drawn off.
+  const W_PRESS = [
+    'struct EndBarDrawing: Equatable {',
+    '    enum Row: Equatable {',
+    '        case on',
+    '        case off',
+    '    }',
+    '    let row: Row?',
+    '}',
+    'struct EndBar: View {',
+    '    @State private var asking = false',
+    '    private func row(_ row: EndBarDrawing.Row, drawing: EndBarDrawing) -> some View {',
+    '        HStack(spacing: Frame.rowGap) {',
+    '            Image(systemName: drawing.glyph)',
+    '                .accessibilityIdentifier(ID.sessionEndGlyph(drawing.glyph))',
+    '            Button {',
+    '                guard drawing.confirm != nil else { return }',
+    '                asking = true',
+    '            } label: {',
+    '                Words(drawing.label, .body, row == .on ? Tokens.error : Tokens.textMuted)',
+    '                    .frame(height: EndFrame.rowHeight)',
+    '            }',
+    '            .buttonStyle(.plain)',
+    '            .disabled(row == .off)',
+    '            .accessibilityIdentifier(ID.sessionEnd)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const pressRun = (edit = (x) => x, extra = []) => ruleEndPressOff([{ name: END_BAR_FILE, source: edit(W_PRESS) }, ...extra]).findings;
+  const pressSwap = (from, to) => (src) => {
+    if (!src.includes(from)) throw new Error(`self-test edit anchor missing in the End press: ${from}`);
+    return src.replace(from, to);
+  };
+  expect('(ac) passes the End press in the shape the fix round left it', pressRun().length === 0);
+  expect('(ac) passes the press off spelled the other way round', pressRun(pressSwap('.disabled(row == .off)', '.disabled(.off == row)')).length === 0 && pressRun(pressSwap('.disabled(row == .off)', '.disabled(row != .on)')).length === 0);
+  expect('(ac) passes the press with Button(action:) and its label in a closure', pressRun(pressSwap('            Button {\n                guard drawing.confirm != nil else { return }\n                asking = true\n            } label: {', '            Button(action: { asking = true }) {')).length === 0);
+  expect('(ac) catches the press with no .disabled (the reverify\'s B4)', pressRun(pressSwap('            .disabled(row == .off)\n', '')).length > 0);
+  expect('(ac) catches the press disabled when ON', pressRun(pressSwap('.disabled(row == .off)', '.disabled(row == .on)')).length > 0);
+  expect('(ac) catches the press disabled never', pressRun(pressSwap('.disabled(row == .off)', '.disabled(false)')).length > 0);
+  expect('(ac) catches .disabled moved onto the glyph beside the press', pressRun((s) => pressSwap('            .disabled(row == .off)\n', '')(s).replace('                .accessibilityIdentifier(ID.sessionEndGlyph(drawing.glyph))', '                .disabled(row == .off)\n                .accessibilityIdentifier(ID.sessionEndGlyph(drawing.glyph))')).length > 0);
+  expect('(ac) catches .disabled on the row around the press, not the press itself', pressRun((s) => pressSwap('            .disabled(row == .off)\n', '')(s).replace('        HStack(spacing: Frame.rowGap) {', '        HStack(spacing: Frame.rowGap) {').replace('        }\n    }\n}\n', '        }\n        .disabled(row == .off)\n    }\n}\n')).length > 0);
+  expect('(ac) catches the End press identified twice', pressRun(undefined, [{ name: 'Screens/SessionScreen.swift', source: 'struct S: View {\n    var body: some View { Button {} label: { Text(Copy.x) }.accessibilityIdentifier(ID.sessionEnd) }\n}\n' }]).length > 0);
+  expect('(ac) catches the End press identified on something that is not a Button', pressRun(pressSwap('            Button {\n                guard drawing.confirm != nil else { return }\n                asking = true\n            } label: {', '            Group {')).length > 0);
+  expect('(ac) catches a third Row case, which == .off would leave pressable', pressRun(pressSwap('        case off\n', '        case off\n        case dim\n')).length > 0);
+  // (ad)
+  expect('(ad) catches targets made a var', adRun(swap(END_BAR_FILE, '    let targets: [String]', '    var targets: [String]')).length > 0);
+  expect('(ad) catches targets grown in the runner', adRun(swap(END_BAR_FILE, '    func stop() {', '    func add(_ id: String) { targets.append(id) }\n    func stop() {')).length > 0);
+  expect('(ad) catches a second await in the loop', adRun(swap(END_BAR_FILE, '            report(id, .wrote(result))', '            report(id, .wrote(result))\n            await Task.yield()')).length > 0);
+  expect('(ad) catches stopRequested read after the first write', adRun(swap(END_BAR_FILE, '            if stopRequested {\n                report(id, .notRun)\n                continue\n            }\n            let result = await writer.end(id, batch: batch)', '            let result = await writer.end(id, batch: batch)\n            if stopRequested {\n                report(id, .notRun)\n                continue\n            }')).length > 0);
+  expect('(ad) catches stopRequested set back to false', adRun(swap(END_BAR_FILE, '    func stop() {', '    func resume() { stopRequested = false }\n    func stop() {')).length > 0);
+  expect('(ad) catches a stop that does not cancel its task', adRun(swap(END_BAR_FILE, '        stopRequested = true\n        task?.cancel()', '        stopRequested = true')).length > 0);
+  expect('(ad) catches a runner made after the owner check', adRun(swap(END_BAR_FILE, '        let runner = EndRunner(targets: [sessionId], batch: false, writer: writer)\n        registry?.register(runner)\n        let task = Task { [weak self] in\n            switch await ownerCheck.confirm(reason: confirm.confirmLabel) {\n            case .confirmed:\n', '        let task = Task { [weak self] in\n            switch await ownerCheck.confirm(reason: confirm.confirmLabel) {\n            case .confirmed:\n                let runner = EndRunner(targets: [sessionId], batch: false, writer: writer)\n                registry?.register(runner)\n')).length > 0);
+  expect('(ad) catches a runner never registered', adRun(swap(END_BATCH_FILE, '        setup.registry.register(runner)\n', '')).length > 0);
+  expect('(ad) catches wentAway that stops no runner', adRun(swap('App/TortieApp.swift', '        for runner in runners.values {\n            runner.stop()\n        }\n', '')).length > 0);
+  // The shape the app ships (Phase 317's build): the registry in an extension
+  // of AppModel, and wentAway doing what stop() does, both halves.
+  const W_APP_EXT = [
+    'final class AppModel {',
+    '    private var liveRunners: [EndRunner] = []',
+    '    func wentAway() {',
+    '        for runner in liveRunners {',
+    '            runner.stopRequested = true',
+    '            runner.task?.cancel()',
+    '        }',
+    '    }',
+    '}',
+    'extension AppModel: EndRunnerRegistry {',
+    '    func register(_ runner: EndRunner) {',
+    '        liveRunners.append(runner)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  expect('(ad) passes a registry in an AppModel extension and a wentAway that does what stop() does', adRun({ 'App/TortieApp.swift': () => W_APP_EXT }).length === 0);
+  expect('(ad) catches a wentAway that sets stopRequested and cancels no task', adRun({ 'App/TortieApp.swift': () => W_APP_EXT.replace('            runner.task?.cancel()\n', '') }).length > 0);
+  expect('(ad) catches a wentAway that stops another list than the one register keeps', adRun({ 'App/TortieApp.swift': () => W_APP_EXT.replace('for runner in liveRunners {', 'for runner in otherRunners {') }).length > 0);
+  expect('(ad) catches a target persisted', adRun(swap(END_BATCH_FILE, '        setup.registry.register(runner)', '        setup.registry.register(runner)\n        UserDefaults.standard.set(confirm.targets, forKey: "t")')).length > 0);
+  expect('(ad) catches a write persisted in the write path', adRun(swap(C, '        return WriteResult.of(ended', '        try? body.write(to: URL(fileURLWithPath: "/tmp/w"))\n        return WriteResult.of(ended')).length > 0);
+  // (t), widened: the write path presents the identity, and the write arms.
+  const tWrite = (edit = (s) => s) => tRun({ client: clientOk.replace('    func exchange(', `    func connect(identity: ClientIdentity?) {}\n    private func signedPost() async {\n        ${edit('let ended = await connect(method: "POST", identity: door.identity)')}\n    }\n    func exchange(`) });
+  expect('(t) passes a write path that presents the identity', tWrite().length === 0);
+  expect('(t) catches a write that presents no identity', tWrite((s) => s.replace('identity: door.identity', 'identity: nil')).length > 0);
+  expect('(t) catches a write that names no identity', tWrite((s) => s.replace(', identity: door.identity', '')).length > 0);
+  const hostileWrites = (edit = (s) => s) => edit(hostileOk);
+  const tArms = (hostile, sentences = ['busy', 'unreadable']) => tRun({ hostile, writeSentences: sentences });
+  expect('(t) passes the write arms when each ends in a line it names', tArms(hostileWrites()).length === 0);
+  expect('(t) catches a write arm gone', tArms(hostileWrites((s) => s.replace(writeArmLine('write-cut'), ''))).length > 0);
+  expect('(t) catches a write arm that counts no POST', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1`, `'write-404': { what: 'x', ends: 'sentence', write: true`))).length > 0);
+  expect('(t) catches a write arm expecting a door sentence the door does not say', tArms(hostileWrites(), ['busy']).length > 0);
+  expect('(t) passes a write arm that ends on Pairing (a re-read the door refused)', tArms(hostileWrites((s) => s.replace(`'write-cut-reread-refused': { what: 'x', ends: 'sentence'`, `'write-cut-reread-refused': { what: 'x', ends: 'pairing'`))).length === 0);
+  expect('(t) catches a write arm that ends nowhere', tArms(hostileWrites((s) => s.replace(`'write-late': { what: 'x', ends: 'sentence'`, `'write-late': { what: 'x', ends: 'somewhere'`))).length > 0);
+  // Every clause once more ON ITS OWN: each edit below breaks one clause and
+  // no other, so a clause switched off in this file turns its own case red
+  // (the meta-ablation in the phase's proof switched each off in turn).
+  const W = END_BAR_FILE;
+  const B = END_BATCH_FILE;
+  const O = OWNER_CHECK_FILE;
+  const APPF = 'App/TortieApp.swift';
+  const drop = (name) => ({ [name]: () => null });
+  /** Several edits to ONE file, in order (two `swap`s spread over one key keep only the last). */
+  const swaps = (name, pairs) => ({ [name]: (s) => pairs.reduce((acc, [from, to]) => {
+    if (!acc.includes(from)) throw new Error(`self-test edit anchor missing in ${name}: ${from}`);
+    return acc.replace(from, to);
+  }, s) });
+  const one = (what, run, edits) => expect(`${what}, on its own`, run(edits).length > 0);
+  one('(ab) catches a WriteId that keeps a static var', abRun, swap(C, '    static let byteCount = 16', '    static let byteCount = 16\n    static var last = ""'));
+  one('(ab) catches an EndBody built outside signedPost', abRun, swap(W, '    func stop() {', '    func p() { _ = EndBody(batch: true, session: "x", write: "y") }\n    func stop() {'));
+  one('(ab) catches signedPost building no EndBody', abRun, swap(C, '                body = try encoder.encode(EndBody(batch: batch, session: session, write: id))', '                body = try encoder.encode(["write": id])'));
+  one('(ab) catches signedPost looping', abRun, swap(C, '        let ended = await connect(', '        while false {}\n        let ended = await connect('));
+  one('(ab) catches no EndBody struct', abRun, swap(C, 'struct EndBody: Encodable {', 'struct EndBodyRenamed: Encodable {'));
+  one('(ab) catches DoorClient.end looping', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)', '        for _ in 0..<1 {}\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)'));
+  one('(ab) catches the one writer end moved out of EndRunner.run', abRun, {
+    ...swap(W, '            let result = await writer.end(id, batch: batch)', '            let result = await self.send(id)'),
+    ...swap(B, '    func press(_ confirm: BatchConfirm) {', '    func elsewhere(_ w: any DoorWriting) async { _ = await w.end("x", batch: true) }\n    func press(_ confirm: BatchConfirm) {')
+  });
+  one('(ab) catches the writer end called twice inside EndRunner.run', abRun, swap(W, '            report(id, .wrote(result))', '            report(id, .wrote(result))\n            _ = await writer.end(id, batch: batch)'));
+  one('(ab) catches handed set once, outside send', abRun, swaps(C, [
+    ['        guard !withheld, result == nil else { return }\n        handed = true\n        connection.send(', '        guard !withheld, result == nil else { return }\n        mark()\n        connection.send('],
+    ['    private func cancelled() {', '    private func mark() {\n        handed = true\n    }\n    private func cancelled() {']
+  ]));
+  one('(ab) catches handed set false in send', abRun, swap(C, '        handed = true\n        connection.send(', '        handed = false\n        connection.send('));
+  one('(ab) catches signedPost called twice by end', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)', '        _ = await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)'));
+  one('(ab) catches the one write id made outside signedPost', abRun, swaps(C, [
+    ['        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', '        guard let id = Self.newId() else { return .notSent(.notPaired) }'],
+    ['    private func signedPost(', '    static func newId() -> String? {\n        let id = WriteId.fresh()\n        return id\n    }\n    private func signedPost(']
+  ]));
+  one('(ab) catches a write id not bound to a local', abRun, swap(C, '        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', '        guard let id = [WriteId.fresh()].first ?? nil else { return .notSent(.notPaired) }'));
+  one('(ab) catches a second write id bound in signedPost', abRun, swap(C, '        let body: Data\n', '        let spare = WriteId.fresh()\n        let body: Data\n'));
+  one('(ab) catches no WriteId', abRun, swap(C, 'enum WriteId {', 'enum WriteIdent {'));
+  one('(ab) catches withheld set twice', abRun, swap(C, '        finish(.failure(DoorFailure.cancelled))', '        if !handed {\n            withheld = true\n        }\n        finish(.failure(DoorFailure.cancelled))'));
+  one('(ab) catches no enum WriteResult', abRun, swap(C, 'enum WriteResult: Equatable {', 'enum WriteOutcome: Equatable {'));
+  one('(ab) catches WriteResult with no classifier', abRun, swap(C, '    static func of(_ end: ExchangeEnd,', '    static func classify(_ end: ExchangeEnd,'));
+  one('(ac) catches no OwnerCheck.swift', acRun, drop(O));
+  one('(ac) catches LAContext named outside OwnerCheck.swift', acRun, swap(W, '    func stop() {', '    let context: LAContext? = nil\n    func stop() {'));
+  one('(ac) catches the one evaluation moved out of OwnerCheck.swift', acRun, {
+    ...swap(O, '            return try await context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason) ? .confirmed : .notConfirmed', '            return try await Elsewhere.ask(context, reason) ? .confirmed : .notConfirmed'),
+    ...swap(W, '    func stop() {', '    func ask(_ c: OwnerContext, _ r: String) async throws -> Bool { try await c.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: r) }\n    func stop() {')
+  });
+  one('(ac) catches an evaluation under another policy', acRun, swap(O, 'context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)', 'context.evaluatePolicy(policy, localizedReason: reason)'));
+  one('(ac) catches no runner run at all', acRun, { ...swap(W, '                await runner.run { _, _ in }', '                await runner.go { _, _ in }'), ...swap(B, '                await runner.run { _, _ in }', '                await runner.go { _, _ in }') });
+  expect('(ac) catches an Info.plist that cannot be read, on its own', acRun({}, null).length > 0);
+  one('(ad) catches no EndRunner class', adRun, swap(W, 'final class EndRunner {', 'final class EndQueue {'));
+  one('(ad) catches an EndRunner with no run', adRun, swap(W, '    func run(_ report: (String, EndStep) -> Void) async {', '    func go(_ report: (String, EndStep) -> Void) async {'));
+  one('(ad) catches two loops over the targets', adRun, swap(W, '        for id in targets {', '        for id in targets { _ = id }\n        for id in targets {'));
+  one('(ad) catches a loop that writes nothing', adRun, swap(W, '            let result = await writer.end(id, batch: batch)', '            let result = await writer.send(id)'));
+  one('(ad) catches the run indexing its targets', adRun, swap(W, '        for id in targets {', '        _ = targets[0]\n        for id in targets {'));
+  one('(ad) catches an EndRunner made and never bound', adRun, swap(B, '        let task = Task { [weak self] in', '        _ = EndRunner(targets: [], batch: true, writer: setup.writer)\n        let task = Task { [weak self] in'));
+  one('(ad) catches no runner made anywhere', adRun, { ...swap(W, 'let runner = EndRunner(', 'let runner = makeRunner('), ...swap(B, 'let runner = EndRunner(', 'let runner = makeRunner(') });
+  one('(ad) catches no AppModel', adRun, swap(APPF, 'final class AppModel: EndRunnerRegistry {', 'final class AppState: EndRunnerRegistry {'));
+  one('(ad) catches an AppModel with no wentAway', adRun, swap(APPF, '    func wentAway() {', '    func leaving() {'));
+  one('(ad) catches an AppModel with no register', adRun, swap(APPF, '    func register(_ runner: EndRunner) {', '    func keep(_ runner: EndRunner) {'));
+  one('(ad) catches no EndBatch.swift', adRun, drop(B));
+  expect('(t) catches a connect( that names no identity beside a signedPost that does, on its own', tWrite((s) => `${s}\n        connect(method: "GET")`).length > 0);
+  expect('(t) catches no POCKET_WRITE_SENTENCES to read, on its own', tArms(hostileWrites((s) => s.split("door: ['unreadable']").join('door: []')), null).length > 0);
+  expect('(t) catches a write arm not marked write, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true,`, `'write-404': { what: 'x', ends: 'sentence', write: false,`))).length > 0);
+  expect('(t) catches a write arm that says nowhere it ends, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line',`, `'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1,`))).length > 0);
+  expect('(t) catches a sentence arm naming no sentence, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['answerUnreadable'], door: ['unreadable'],`, `'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: [], door: [],`))).length > 0);
+  expect('(t) catches a write arm naming a Copy word Copy.swift lacks, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['answerUnreadable']`, `'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['answerUnreadable', 'vanished']`))).length > 0);
+  // (v), widened: End's line is always a sentence.
+  const vWords = 'enum DoorWords {\n    static func endSentence(for result: WriteResult) -> String {\n        switch result {\n        case .answered(let answer):\n            return answer.sentence ?? Copy.answerUnreadable\n        case .notTaken:\n            return Copy.endNotTaken\n        case .noAnswer:\n            return Copy.endNoAnswer\n        case .notSent(let failure):\n            return sentence(for: failure)\n        }\n    }\n}\n';
+  const vRun2 = (words = vWords, files = wFiles()) => ruleEndSentence(words, files).findings;
+  expect('(v) passes an End line that is always a sentence', vRun2().length === 0);
+  expect('(v) catches endSentence made optional', vRun2(vWords.replace('-> String {', '-> String? {')).length > 0);
+  expect('(v) catches a WriteResult case with no sentence', vRun2(vWords.replace('        case .noAnswer:\n            return Copy.endNoAnswer\n', '')).length > 0);
+  expect('(v) catches an empty End line', vRun2(vWords, wFiles(swap(END_BAR_FILE, 'self?.line = Copy.endNotConfirmed', 'self?.line = ""'))).length > 0);
+  expect('(v) catches an End line that is not a sentence', vRun2(vWords, wFiles(swap(END_BATCH_FILE, 'self?.line = Copy.endNotConfirmed', 'self?.line = String(describing: confirm)'))).length > 0);
+  const vDecl = 'static func endSentence(for result: WriteResult) -> String {';
+  expect('(v) catches no endSentence, on its own', vRun2(vWords.replace(vDecl, 'static func endLine(for result: WriteResult) -> String {')).length > 0);
+  expect('(v) catches endSentence returning nil, on its own', vRun2(vWords.replace('            return Copy.endNotTaken', '            return nil')).length > 0);
+  expect('(v) catches endSentence returning an empty string, on its own', vRun2(vWords.replace('            return Copy.endNotTaken', '            return ""')).length > 0);
+  expect('(v) catches endSentence with a default, on its own', vRun2(vWords.replace('        case .notTaken:\n            return Copy.endNotTaken\n', '        default:\n            return Copy.endNotTaken\n        case .notTaken:\n            return Copy.endNotTaken\n')).length > 0);
+  expect('(v) catches no enum WriteResult to read, on its own', vRun2(vWords, wFiles(swap(C, 'enum WriteResult: Equatable {', 'enum WriteOutcome: Equatable {'))).length > 0);
 }
 
 // ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
-/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node; (w) and (x) are Phase 316.5's; (y) and (z) are Phase 316.6's. */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
+/**
+ * Every rule this gate holds. (m) and (q) were retired in Phase 330 with the
+ * tailnet node; (w) and (x) are Phase 316.5's; (y) and (z) are Phase 316.6's;
+ * (ab), (ac) and (ad) are Phase 317's, and (aa) is left for Phase 316.7
+ * (build/p317/SPEC.md §4.3), so either order of landing works.
+ */
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -5997,13 +7159,14 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       keys: existsSync(KEYS) ? read(KEYS) : null,
       files: appFiles,
       hostile: existsSync(hostilePath) ? read(hostilePath) : null,
-      copy: existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null
+      copy: existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null,
+      writeSentences: writeSentenceKeys(existsSync(POCKET_TS) ? read(POCKET_TS) : null)
     });
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
       r.findings,
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence`
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, and ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own`
     );
   }
   // (u)
@@ -6015,7 +7178,14 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   // (v)
   {
     const r = rulePairingSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, existsSync(PAIRING_SCREEN) ? read(PAIRING_SCREEN) : null, existsSync(PAIRING) ? read(PAIRING) : null);
-    record('v', 'the phone always draws a sentence', r.findings, `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s)`);
+    // Phase 317: End's line too.
+    const e = ruleEndSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    record(
+      'v',
+      'the phone always draws a sentence',
+      [...r.findings, ...e.findings],
+      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty`
+    );
   }
   // (w)
   {
@@ -6082,6 +7252,45 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'nothing fetched, and one way out',
       r.findings,
       `no AsyncImage, NSAttributedString, document type or contentsOf: outside DEBUG; no in-app browser, sign-in sheet, preview, canOpenURL or Link; ${String(r.said.actions)} OpenURLAction in ${LINKS_FILE}, asking LinkPolicy.opens before it stages, and ${String(r.said.opens)} open(s) there asking it again; ${String(r.said.settingsOpens)} open(s) in ${SETTINGS_FILE}, of iOS's own notification settings; LinkPolicy.opens names https, the user part, the password, the port, xn-- and MarkdownCaps.linkBytes`
+    );
+  }
+  // Phase 317: (ab), (ac) and (ad), over the app named relative to its folder.
+  // (ab)
+  {
+    const r = ruleWrite(appNamed);
+    record(
+      'ab',
+      'the write: one signed path, one id per write, handed only once withheld is asked, and never retried',
+      r.findings,
+      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end alone; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
+    );
+  }
+  // (ac)
+  {
+    let plist = null;
+    try {
+      plist = existsSync(INFO_PLIST) ? readPlistFile(INFO_PLIST) : null;
+    } catch {
+      plist = null;
+    }
+    const r = ruleOwnerCheck(appNamed, plist);
+    // Phase 317's tests round: the press says off when it is drawn off.
+    const p = ruleEndPressOff(appNamed);
+    record(
+      'ac',
+      'the owner check: Face ID, Touch ID or the passcode, on the End press and nothing else',
+      [...r.findings, ...p.findings],
+      `the End press, ${String(p.said.presses)} element identified ID.sessionEnd, is a Button whose own chain (${p.said.chain.join(', ')}) holds .disabled(row == .off) over EndBarDrawing.Row's two cases; LocalAuthentication and LAContext in ${OWNER_CHECK_FILE} alone; ${String(r.said.evaluations)} evaluatePolicy( call, with .deviceOwnerAuthentication and a new LAContext in confirm; the biometrics-only policy only asked, in kind(), and no reuse window; the conformer(s) ${r.said.conformers.join(', ') || 'none'}; ${String(r.said.runs)} run(s) of a runner, each inside the .confirmed case of a switch on confirm(; nothing in Settings, the pairing, the conversation, Door/ or an unpair names the check, and no string could key a stored Face ID setting; Info.plist's NSFaceIDUsageDescription is ${JSON.stringify(FACE_ID_USAGE)}`
+    );
+  }
+  // (ad)
+  {
+    const r = ruleShrinks(appNamed);
+    record(
+      'ad',
+      'the list only shrinks, and nothing is sent after the app left',
+      r.findings,
+      `EndRunner.targets a let, never grown; ${String(r.said.loops)} loop over it with one awaited write per turn and stopRequested read before each, the first included, and never set false; ${String(r.said.runners)} runner(s) made at the press, ${String(r.said.registered)} registered before the owner check is asked; AppModel.wentAway stops every registered runner (stopRequested set and its task cancelled); nothing in ${END_BAR_FILE}, ${END_BATCH_FILE} or the write path persists a write or a target`
     );
   }
 }

@@ -50,7 +50,7 @@ import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
 import type { PocketAlertsPort } from '../ipc';
 import type { PocketSealedPresentation } from '../pairing';
-import type { PocketFacts } from '../routes';
+import type { PocketFacts, PocketWrites } from '../routes';
 import { fakeNameDeps, nxdomainReply, recordReply, type FakeAnswer, type FakeNameDeps } from './dns-fixtures';
 
 let userData = '';
@@ -403,9 +403,10 @@ let resume: (() => void) | null = null;
 /** The Mac's name, asked of the tests' own zone (Phase 332). Fresh per test. */
 let names: FakeNameDeps = fakeNameDeps();
 
-function host(over: { beforeOpen?: () => Promise<unknown>; facts?: PocketFacts } = {}): Host {
+function host(over: { beforeOpen?: () => Promise<unknown>; facts?: PocketFacts; writes?: PocketWrites } = {}): Host {
   return new PocketHost({
     facts: over.facts ?? FACTS,
+    ...(over.writes !== undefined ? { writes: over.writes } : {}),
     now: () => clock,
     tailscale: ts.deps,
     names,
@@ -1446,6 +1447,137 @@ describe('removing a phone', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The phone's writes through the host (Phase 317, build/p317/SPEC.md §5.5)
+// ---------------------------------------------------------------------------
+
+describe('the phone’s writes, through the host', () => {
+  /** A paired phone that signs writes the way the phone does, over its own channel. */
+  async function writer(one: Host, label: string): Promise<{
+    id: string;
+    post: (route: 'end' | 'unpair', body: Record<string, unknown>) => ReturnType<Host['handler']>;
+  }> {
+    const phone = makePhone(label);
+    const offer = await one.beginPairing();
+    const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
+    one.pairing.present(presentationOf(secret, phone));
+    const view = one.pairing.view();
+    expect(one.allowPhone({ linesRead: view.lines, hashRead: view.hash ?? '' }).allowed).toBe(true);
+    one.cancelPairing();
+    const id = phoneIdOf(phone.signPublic);
+    const dx = String((JSON.parse(offer.payload) as { dx: string }).dx);
+    const shared = diffieHellman({
+      privateKey: phone.exchange,
+      publicKey: createPublicKey({ key: Buffer.from(dx, 'base64url'), format: 'der', type: 'spki' })
+    });
+    const binding = Buffer.from(
+      hkdfSync('sha256', shared, Buffer.from(`${dx}\n${phone.exchangePublic}`, 'utf8'), 'tortie-pocket-bind-v1', 32)
+    ).toString('hex');
+    const post = (route: 'end' | 'unpair', fields: Record<string, unknown>): ReturnType<Host['handler']> => {
+      const target = `/v1/${route}`;
+      const body = Buffer.from(JSON.stringify(fields), 'utf8');
+      const timestamp = String(clock);
+      const nonce = randomBytes(12).toString('hex');
+      return one.handler(
+        {
+          // `unpair` is no route since the fix round; a test still sends it, as a stranger could.
+          route: route as 'end',
+          method: 'POST',
+          target,
+          body: new Uint8Array(body),
+          channel: id,
+          headers: {
+            [POCKET_HEADERS.phone]: id,
+            [POCKET_HEADERS.timestamp]: timestamp,
+            [POCKET_HEADERS.nonce]: nonce,
+            [POCKET_HEADERS.signature]: signAsPhone(phone.sign, {
+              method: 'POST',
+              target,
+              bodySha256: createHash('sha256').update(body).digest('hex'),
+              timestamp,
+              nonce,
+              binding
+            })
+          } as never
+        },
+        { stopping: () => false }
+      );
+    };
+    return { id, post };
+  }
+
+  const W1 = 'a'.repeat(32);
+  const W2 = 'b'.repeat(32);
+
+  it('ends a session through the writes it was handed, with the signed session id and batch flag', async () => {
+    const asked: unknown[] = [];
+    const one = host({
+      writes: {
+        end: async (input) => {
+          asked.push(input);
+          return { outcome: 'done' };
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const a = await writer(one, 'A');
+    const answer = await a.post('end', { session: 'sess-1', write: W2, batch: true });
+    expect(JSON.parse(answer.body as string)).toEqual({ verb: 'end', write: W2, outcome: 'done', reason: null, sentence: null });
+    expect(answer.acted).toBe(true);
+    expect(Object.keys(answer).sort()).toEqual(['acted', 'body', 'status']);
+    expect(asked).toEqual([{ sessionId: 'sess-1', batch: true }]);
+    expect(logged.some((l) => l.includes("the phone's end: done") && l.includes('sess-1'))).toBe(true);
+  });
+
+  it('answers the write 404 on a host handed no writes (the push seam’s shape)', async () => {
+    const one = await listeningHost();
+    const a = await writer(one, 'A');
+    expect(await a.post('end', { session: 's', write: W1, batch: false })).toEqual({ status: 404, body: null });
+    expect(one.status().phones).toHaveLength(1);
+  });
+
+  // THE FIX ROUND removed the phone's own unpair (build/p317/SPEC.md "§Fix
+  // round"): the phone waited on it before it could forget a Mac that did not
+  // answer, which made Unpair slower than today. Its path is no route now, so
+  // the handler refuses it and nothing about the phones moves.
+  it('refuses the removed unpair path and removes nobody, whatever the body says', async () => {
+    const one = host({ writes: { end: async () => ({ outcome: 'failed', sentence: 'not in this test' }) } });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const a = await writer(one, 'A');
+    const b = await writer(one, 'B');
+    expect(await b.post('unpair', { write: W2 })).toEqual({ status: 404, body: null });
+    expect(await b.post('unpair', { write: W2, phone: a.id })).toEqual({ status: 404, body: null });
+    expect(one.status().phones).toHaveLength(2);
+  });
+
+  it('runs Remove as it always did: the store, the cut, the withdrawal, then the close', async () => {
+    const one = await listeningHost();
+    const a = await writer(one, 'A');
+    await writer(one, 'B');
+    door.updates.length = 0;
+    door.order.length = 0;
+    const after = await one.removePhone(a.id);
+    expect(after.phones.map((p) => p.label)).toEqual(['B']);
+    expect(after.confirmState).toBe('never');
+    expect(door.updates).toHaveLength(1);
+    expect(door.order).toEqual(['door-stop']);
+  });
+
+  it('reads Remove as the one store write that removes a phone, before anything yields, and no unpair beside it', async () => {
+    const { readFileSync } = await import('node:fs');
+    const text = readFileSync(join(__dirname, '..', 'ipc.ts'), 'utf8')
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    expect(text).not.toMatch(/dropPhone|unpairSigningPhone/);
+    const start = text.indexOf('async removePhone(phoneId: string): Promise<PocketStatus> {');
+    expect(start).toBeGreaterThan(-1);
+    const body = text.slice(start, text.indexOf('await', start));
+    expect(body).toContain('this.writeStore({ ...store, phones: kept })');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The store's migration (SPEC §4.4)
 // ---------------------------------------------------------------------------
 
@@ -1576,7 +1708,8 @@ describe('where a push may go', () => {
 describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
-    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns']);
+    // Phase 317 added the two writes after the reads; the window did not move.
+    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end']);
   });
 });
 

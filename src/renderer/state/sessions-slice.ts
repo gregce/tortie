@@ -59,18 +59,18 @@ import {
   removeSessionConfirm,
   restoreLandedNote,
   resumeInPlaceAnswerNote,
-  resumeInPlaceLanded,
-  sessionActionGates,
-  showsResumeVerb
+  resumeInPlaceLanded
 } from './resume';
 import type {
   LifecycleResult,
   RestoreOutcome,
   ResumeInPlaceLanding,
-  ResumeInPlaceRefusal,
-  SessionActionGates,
-  SessionHandback
+  ResumeInPlaceRefusal
 } from './resume';
+// Phase 317. The one gates predicate lives in src/shared/session-gates.ts, so
+// main can ask it for the phone's door. It imports only ./types, so no cycle.
+import { sessionActionGates, showsResumeVerb } from '@shared/session-gates';
+import type { SessionActionGates, SessionHandback } from '@shared/session-gates';
 // Every sentence about a machine comes from one file, which is the one the
 // vocabulary audit reads.
 import { remoteTabOpened } from '../machines/project-tab';

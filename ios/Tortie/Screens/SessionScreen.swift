@@ -16,6 +16,11 @@
 //
 // Every word is main's or `Copy`'s. It reads on appear, on return to the
 // foreground and on pull.
+//
+// END IS HERE since Phase 317 (Screens/EndBar.swift): a bar above the tab bar
+// on a session the Mac offers End for, whose press shows the Mac's own
+// confirmation and asks Face ID, Touch ID or the passcode before anything is
+// sent. Pressing an option the agent drew is still Phase 318's.
 
 import SwiftUI
 
@@ -43,6 +48,10 @@ struct SessionDrawing: Equatable, Sendable {
     let lastAnswer: String?
     /// The same answer parsed, once, here and never in a `body` (316.6).
     let lastAnswerRendered: RenderedAnswer?
+    /// Whether the Mac offers End on this session, and its own confirmation
+    /// for it (Phase 317): `.none` and nil from a Mac older than 317.
+    let end: PocketEndOffer
+    let endConfirm: PocketEndConfirm?
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
     /// could send (ActivityCells.swift), so the screen draws one sentence.
@@ -61,6 +70,8 @@ struct SessionDrawing: Equatable, Sendable {
         lastMessage = try ActivityCells.lastMessage(detail.activity, agent: detail.agent, text: detail.lastMessageText)
         lastAnswer = detail.lastAnswer
         lastAnswerRendered = detail.lastAnswer.map(RenderedAnswer.init)
+        end = detail.end
+        endConfirm = detail.endConfirm
     }
 
     /// The card is drawn when it has something to say.
@@ -90,31 +101,37 @@ final class SessionModel {
         self.routing = routing
     }
 
-    func load() async {
+    /// Read the session. True exactly when THIS read's answer is what the
+    /// screen now draws (Phase 317: the End line says "as it reads now" only
+    /// over such a read).
+    @discardableResult
+    func load() async -> Bool {
         generation += 1
         let mine = generation
         do {
             let answer = try await door.session(sessionId)
-            guard mine == generation else { return }
+            guard mine == generation else { return false }
             // An answer about another session is not an answer to this read.
             guard answer.session.sessionId == sessionId else {
                 phase = .failed(Copy.answerUnreadable)
-                return
+                return false
             }
             // Counts no door could send, or whose sum would overflow, are an
             // answer this build cannot read: one sentence, never a trap.
             guard let drawing = try? SessionDrawing(answer.session) else {
                 phase = .failed(Copy.answerUnreadable)
-                return
+                return false
             }
             phase = .loaded(drawing)
+            return true
         } catch {
-            guard mine == generation, !Task.isCancelled, !DoorWords.isCancellation(error) else { return }
+            guard mine == generation, !Task.isCancelled, !DoorWords.isCancellation(error) else { return false }
             switch DoorWords.consequence(of: error, reading: .oneSession) {
             case .backToList: routing.backToList()
             case .pairAgain: routing.pairAgain()
             case .draw(let sentence): phase = .failed(sentence)
             }
+            return false
         }
     }
 }
@@ -136,6 +153,14 @@ struct SessionScreen: View {
     let isTop: Bool
     let foregroundTick: Int
     let openConversation: (_ honestLine: String?) -> Void
+    /// End (Phase 317), or nil for a pairing that writes nothing.
+    var end: EndModel?
+
+    /// The offer and the confirmation the loaded answer carries.
+    private var endOffer: (PocketEndOffer, PocketEndConfirm?) {
+        guard case .loaded(let drawing) = model.phase else { return (.none, nil) }
+        return (drawing.end, drawing.endConfirm)
+    }
 
     var body: some View {
         ScrollView {
@@ -160,7 +185,15 @@ struct SessionScreen: View {
         .task { await model.load() }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
+            end?.refreshKind()
             Task { await model.load() }
+        }
+        // Above the tab bar, so the content ends above it.
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let end {
+                let (offer, confirm) = endOffer
+                EndBar(model: end, offer: offer, confirm: confirm) { await model.load() }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ID.sessionScreen)

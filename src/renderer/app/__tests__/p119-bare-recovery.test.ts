@@ -27,9 +27,10 @@ import {
   BARE_RESTORE_LABEL,
   BARE_RESTORE_SUBLABEL,
   bareRestartConfirm,
-  bareRestoreConfirm,
-  offersBareRecovery
+  bareRestoreConfirm
 } from '../../state/resume';
+// Phase 317: the predicate moved with the gate to src/shared/session-gates.ts.
+import { offersBareRecovery } from '@shared/session-gates';
 
 function session(over: Partial<Session> = {}): Session {
   return {

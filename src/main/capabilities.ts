@@ -126,6 +126,9 @@ import { beginPhoneAlertsShutdown, createPhoneAlerts, joinPhoneAlerts } from './
 // ordered disposer below, beside the door's own.
 import { beginFunnelShutdown, joinFunnel } from './pocket/funnel';
 import { PocketHost, registerPocketIpc } from './pocket/ipc';
+// PHASE 317: the phone's End, implemented once outside the door's domain and
+// handed to it, beside the facts the rows carry its offer from.
+import { createPocketWrites } from './sessions/pocket-writes';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
 import { WakeMark } from './power/wake-mark';
@@ -365,6 +368,11 @@ export function installMainCapabilities(
     await firstWindow();
     pocketCore = await getGmuxCore();
   };
+  // PHASE 317: the phone's End. ONE implementation, over the same core the
+  // facts read, asking both gates the Mac's End asks; it reaches the verb only
+  // through the `PocketWrites` the door is handed, and the rows carry its offer
+  // through the facts. Its machine question is the store's own `machineRow`.
+  const pocketWrites = createPocketWrites({ core: () => pocketCore });
   const facts = createPocketFacts({
     core: () => pocketCore,
     overview: {
@@ -372,7 +380,8 @@ export function installMainCapabilities(
       store: overviewStore,
       foldChosen: () => foldChosenNow()
     },
-    wakes: () => wakes.wakes()
+    wakes: () => wakes.wakes(),
+    endOffer: (session) => pocketWrites.endOffer(session)
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,
@@ -388,6 +397,7 @@ export function installMainCapabilities(
   });
   pocketHost = new PocketHost({
     facts,
+    writes: pocketWrites,
     beforeOpen: coreReady,
     // The Apple push key's row and the alert sentence reach the sheet through
     // this port; the door names neither the key nor the sender.

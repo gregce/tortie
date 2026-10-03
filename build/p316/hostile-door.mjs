@@ -73,6 +73,37 @@
  *   `--md3 127.0.0.1:<port>` (127.0.0.1:9 when none is), which must count
  *   0 connections: nothing an answer names is fetched.
  *
+ *   THE WRITE ARMS (Phase 317, build/p317/SPEC.md §7.5 EH and §6.3 (t)). Each
+ *   answers the pairing, the list and the session honestly, the session's row
+ *   offering End with the Mac's own confirmation (the vectors' `endConfirm`,
+ *   or the SHIPPING `endSessionConfirm` over the row when the vectors carry
+ *   none), and answers the ONE `POST /v1/end` a press sends in its own way.
+ *   Every write is counted, so the probe holds the app to exactly one POST per
+ *   press, and every one is verified over its method, its path and its body:
+ *   write-other-id         a 200 whose write id is not the one sent
+ *   write-malformed-empty  a 200 `refused` `malformed` echoing `""`, the
+ *                          Mac's own answer to a body it could not read: the
+ *                          door's `unreadable` sentence is drawn
+ *   write-unknown-outcome  a 200 with an outcome word the Mac never says
+ *   write-cut              the connection cut after the request was read
+ *   write-late             no answer for longer than the phone's 15 s
+ *   write-404              a 404 with no body, the door's own refusal
+ *   write-malformed        a 200 that is not JSON
+ *   write-cut-reread-refused  the write cut, then every read after it
+ *                          refused: the READ's own consequence is drawn, and
+ *                          a signed read refused 404 is a pairing the Mac no
+ *                          longer answers, so the app lands on Pairing (the
+ *                          fix round: the verify measured it there, where this
+ *                          row had said the list); never `Your Mac did not
+ *                          answer. This is the session as it reads now.`,
+ *                          which would be false
+ *   write-unreachable-offer   the session's row offers no End, only the Mac's
+ *                          `END_UNREACHABLE_TITLE` under an End drawn off:
+ *                          no press is possible, so no POST may arrive
+ *   Each names where it ends (`at`), the Copy.swift words it may end in
+ *   (`expect`), the door sentences (`door`, keys of the shipping
+ *   `POCKET_WRITE_SENTENCES`) and the words it must never draw (`never`).
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -126,7 +157,9 @@ import {
   sealPresentation,
   signedGet,
   signedHeaders,
-  verifySigned
+  signedPost,
+  verifySigned,
+  writeBodyOf
 } from './node-phone.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -181,8 +214,24 @@ export const HOSTILE_ARMS = Object.freeze({
   // THE MARKDOWN ARMS (Phase 316.6): somebody else's markdown, one answer per
   // turn, and the conversation must end drawn.
   'md-hostile': { what: 'every hostile markdown fixture and every built one that fits, one per turn, under 1.5 MiB together', ends: 'drawn', md: true },
-  'md-huge': { what: 'the two 5 MiB fixtures, each cut so their page fits a 1.8 MiB answer', ends: 'drawn', md: true }
+  'md-huge': { what: 'the two 5 MiB fixtures, each cut so their page fits a 1.8 MiB answer', ends: 'drawn', md: true },
+  // THE WRITE ARMS (Phase 317, SPEC §7.5 EH). One POST per press, each answered
+  // its own way; the line under the End bar is what the probe grades.
+  'write-other-id': { what: 'a 200 to the End whose write id is not the one sent', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
+  'write-malformed-empty': { what: 'a 200 refused malformed echoing an empty id, the Mac\'s own answer to a body it could not read', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: [], door: ['unreadable'], never: ['endNoAnswer'] },
+  'write-unknown-outcome': { what: 'a 200 to the End with an outcome word the Mac never says', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
+  'write-cut': { what: 'the End\'s connection cut after its request was read', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
+  'write-late': { what: 'no answer to the End for longer than the phone\'s 15 s', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
+  'write-404': { what: 'a 404 with no body to the End, the door\'s own refusal', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNotTaken'], door: [], never: ['endNoAnswer'] },
+  'write-malformed': { what: 'a 200 to the End that is not JSON', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
+  'write-cut-reread-refused': { what: 'the End cut after its request, then every read refused', ends: 'pairing', write: true, posts: 1, at: 'screen-pairing', expect: [], door: [], never: ['endNoAnswer'] },
+  'write-unreachable-offer': { what: 'a session row whose End is unreachable, with the Mac\'s title under an End drawn off', ends: 'drawn', write: true, posts: 0, at: 'session-end-line', expect: [], door: [], never: ['endNoAnswer', 'endNotTaken'], title: 'unreachable' }
 });
+
+/** The names of the write arms (Phase 317), as conformance:ios (t) reads them. */
+export const WRITE_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].write === true));
+/** Past the phone's whole-exchange limit (15 s, DoorLimits.timeout), so write-late is the phone's timer and never this door's answer. */
+export const WRITE_LATE_MS = 20_000;
 
 /** The names of the HTTP arms, as conformance:ios (t) reads them. */
 export const HTTP_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].raw === true));
@@ -367,6 +416,54 @@ function honestPage(world, query) {
   return { sessionId: world.sessionId, turns: page, more, at: world.at, note: null };
 }
 
+// ---------------------------------------------------------------------------
+// The write arms' world (Phase 317)
+// ---------------------------------------------------------------------------
+
+/** The shipping words a write arm draws from: the End confirmation, the unreachable title, the door's write sentences. */
+async function writeWords() {
+  const lifecycle = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'lifecycle-words.ts')).href);
+  const pocket = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts')).href);
+  for (const [name, value] of [['endSessionConfirm', lifecycle.endSessionConfirm], ['END_UNREACHABLE_TITLE', lifecycle.END_UNREACHABLE_TITLE], ['POCKET_WRITE_SENTENCES', pocket.POCKET_WRITE_SENTENCES]]) {
+    if (value === undefined) throw new Error(`the shipping tree has no ${name}, which a write arm draws its words from`);
+  }
+  return { endSessionConfirm: lifecycle.endSessionConfirm, END_UNREACHABLE_TITLE: lifecycle.END_UNREACHABLE_TITLE, POCKET_WRITE_SENTENCES: pocket.POCKET_WRITE_SENTENCES };
+}
+
+/**
+ * The session the write arms open, offering End (or, for
+ * write-unreachable-offer, only the Mac's unreachable title), on its own
+ * answer and on every list row naming it. The confirmation is the vectors'
+ * own `endConfirm` when they carry one, else the SHIPPING
+ * `endSessionConfirm` over a running session of the row's name and agent:
+ * either way the Mac's words, never this door's.
+ */
+export function offerEnd(world, arm, words) {
+  const s = world.session.session;
+  const end = arm === 'write-unreachable-offer' ? { state: 'unreachable', title: words.END_UNREACHABLE_TITLE } : { state: 'offered', batch: true };
+  let confirm = null;
+  let from = 'none';
+  if (end.state === 'offered') {
+    if (s.endConfirm !== null && typeof s.endConfirm === 'object') {
+      confirm = s.endConfirm;
+      from = 'vectors';
+    } else {
+      confirm = words.endSessionConfirm({ id: s.sessionId, name: s.name, tmuxName: s.name, agent: s.agent, status: 'running', projectPath: '/Users/p316/tortie', cwd: '/Users/p316/tortie', createdAt: 0, resumeArgv: [] });
+      from = 'composed';
+    }
+  }
+  s.end = end;
+  s.endConfirm = confirm;
+  for (const r of [...world.blocked.rows, ...world.blocked.others]) if (r.sessionId === s.sessionId) r.end = end;
+  world.endConfirm = confirm;
+  world.endConfirmFrom = from;
+  world.endOffer = end;
+  return world;
+}
+
+/** A 32-hex write id that is not `id`. */
+const otherWriteId = (id) => createHash('sha256').update(`p316 hostile other ${id}`).digest('hex').slice(0, 32);
+
 /**
  * The raw bytes an HTTP arm writes, for an honest body. Every one is a
  * complete HTTP answer in some shape the phone's reader must refuse (SPEC
@@ -413,7 +510,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
   const scratch = mkdtempSync(join(tmpdir(), 'p316-hostile-'));
   const sockets = new Set();
   const servers = [];
-  const counts = { requests: 0, handshakes: 0 };
+  const counts = { requests: 0, handshakes: 0, writes: 0 };
   const closeAll = async () => {
     for (const s of sockets) s.destroy();
     await Promise.all(servers.map((s) => new Promise((r) => s.close(() => r()))));
@@ -422,6 +519,11 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
   try {
     const tls = await tlsModule();
     const world = HOSTILE_ARMS[arm].md === true ? markdownWorld(arm, options.md3 ?? MD3_UNSET) : honestWorld();
+    // Phase 317: a write arm's session offers End with the Mac's own words.
+    const words = HOSTILE_ARMS[arm].write === true ? await writeWords() : null;
+    if (words !== null) offerEnd(world, arm, words);
+    /** write-cut-reread-refused: every signed read after its write is refused. */
+    let refuseReads = false;
     const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
     const served = arm === 'wrong-key' ? await issueIdentity(HOSTILE_NAME, scratch, 'impostor') : pinned;
     const doorSign = generateKeyPairSync('ed25519');
@@ -489,6 +591,54 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           certificate ??= b64u(tls.issueClientCertificate(pinned.key, opened.clientKey, Date.now()));
           return send(res, 200, J({ state: 'allowed', cert: certificate }), { route, ...seen, sealed: 'opened' });
         }
+        if (req.method === 'POST' && url.pathname === '/v1/end') {
+          // PHASE 317's write: counted, verified over the body, and answered
+          // the arm's way. A non-write arm answers honestly. (Its fix round
+          // took `/v1/unpair` out; a POST to it is a path this door does not
+          // have, a 404 below.)
+          counts.writes += 1;
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, query: url.search !== '' };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          let id = '';
+          try {
+            const parsed = JSON.parse(body.toString('utf8'));
+            if (typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write)) id = parsed.write;
+          } catch {
+            id = '';
+          }
+          const verb = 'end';
+          const done = J({ verb, write: id, outcome: 'done', reason: null, sentence: null });
+          switch (arm) {
+            case 'write-other-id':
+              return send(res, 200, J({ verb, write: otherWriteId(id), outcome: 'done', reason: null, sentence: null }), event);
+            case 'write-malformed-empty':
+              return send(res, 200, J({ verb, write: '', outcome: 'refused', reason: 'malformed', sentence: words.POCKET_WRITE_SENTENCES.unreadable }), event);
+            case 'write-unknown-outcome':
+              return send(res, 200, J({ verb, write: id, outcome: 'vanished', reason: null, sentence: null }), event);
+            case 'write-cut':
+            case 'write-cut-reread-refused':
+              if (arm === 'write-cut-reread-refused') refuseReads = true;
+              emit({ kind: 'request', arm, ...event, status: 'cut', bytes: 0 });
+              req.socket.destroy();
+              return;
+            case 'write-late': {
+              emit({ kind: 'request', arm, ...event, status: 200, bytes: 0, held: true });
+              const timer = setTimeout(() => {
+                if (!req.socket.destroyed) send(res, 200, done, { ...event, late: true });
+              }, WRITE_LATE_MS);
+              timer.unref?.();
+              return;
+            }
+            case 'write-404':
+              return send(res, 404, '', event);
+            case 'write-malformed':
+              return send(res, 200, `${done.slice(0, 20)} not json`, event);
+            default:
+              return send(res, 200, done, event);
+          }
+        }
         if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns'].includes(url.pathname)) {
           return send(res, 404, '', { route, ...seen });
         }
@@ -504,6 +654,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
         const channelHeld = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
         const event = { route, ...seen, verified, channelHeld };
         if (verified !== 'ok') return send(res, 404, '', event);
+        if (refuseReads) return send(res, 404, '', { ...event, refusedAfterWrite: true });
         if (url.pathname === '/v1/blocked') {
           blockedReads += 1;
           const answer = structuredClone(world.blocked);
@@ -608,6 +759,12 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       sessionToOpen: world.sessionId,
       turnCount: world.turns.length,
       answers: world.answers ?? null,
+      // Phase 317: the End the write arms' session offers, and where its words came from.
+      endOffer: world.endOffer ?? null,
+      endConfirm: world.endConfirm ?? null,
+      endConfirmFrom: world.endConfirmFrom ?? null,
+      // The door's own write sentences, which a write arm's `door` keys name.
+      writeSentences: words === null ? null : { ...words.POCKET_WRITE_SENTENCES },
       counts,
       phone: () => phone,
       close: closeAll
@@ -650,7 +807,12 @@ async function serve(arm, md3) {
       sessionToOpen: door.sessionToOpen,
       turnCount: door.turnCount,
       // Phase 316.6: an md arm's turns, by name and size only.
-      answers: door.answers === null ? null : door.answers.map((a) => ({ name: a.name, bytes: Buffer.byteLength(a.text) }))
+      answers: door.answers === null ? null : door.answers.map((a) => ({ name: a.name, bytes: Buffer.byteLength(a.text) })),
+      // Phase 317: the write arms' End, for the probe to hold the dialog to.
+      endOffer: door.endOffer,
+      endConfirm: door.endConfirm,
+      endConfirmFrom: door.endConfirmFrom,
+      writeSentences: door.writeSentences
     })}`
   );
 }
@@ -825,6 +987,55 @@ async function selfTest() {
         );
         continue;
       }
+      if (HOSTILE_ARMS[arm].write === true) {
+        // THE WRITE ARMS (Phase 317): the session offers what the arm says,
+        // and the one POST is answered the arm's way, counted once.
+        const spec = HOSTILE_ARMS[arm];
+        const sessionTarget = `/v1/session?id=${encodeURIComponent(door.sessionToOpen)}`;
+        const read = await signedGet(phone, d, sessionTarget);
+        let s = null;
+        try {
+          s = JSON.parse(read.body).session;
+        } catch {
+          s = null;
+        }
+        const offered =
+          spec.title === 'unreachable'
+            ? s?.end?.state === 'unreachable' && typeof s?.end?.title === 'string' && s.end.title.length > 0 && s.endConfirm === null
+            : s?.end?.state === 'offered' && s?.end?.batch === true && s?.endConfirm?.title === `End '${String(s?.name)}'?` && s?.endConfirm?.confirmLabel === 'End session' && typeof s?.endConfirm?.body === 'string' && s.endConfirm.body.length > 0;
+        if (spec.posts === 0) {
+          check(arm, read.status === 200 && offered && door.counts.writes === 0, `the session's end reads ${J(s?.end)} with endConfirm ${J(s?.endConfirm)}; ${String(door.counts.writes)} write(s) arrived`);
+          continue;
+        }
+        const id = randomBytes(16).toString('hex');
+        const got = await signedPost(phone, d, '/v1/end', { batch: false, session: door.sessionToOpen, write: id }, { timeoutMs: arm === 'write-late' ? 2_000 : 20_000 });
+        let said = null;
+        try {
+          said = JSON.parse(got.body);
+        } catch {
+          said = null;
+        }
+        const unreadable = (await writeWords()).POCKET_WRITE_SENTENCES.unreadable;
+        const shape = {
+          'write-other-id': got.status === 200 && said?.write !== id && /^[0-9a-f]{32}$/.test(said?.write ?? '') && said?.outcome === 'done',
+          'write-malformed-empty': got.status === 200 && said?.write === '' && said?.outcome === 'refused' && said?.reason === 'malformed' && said?.sentence === unreadable,
+          'write-unknown-outcome': got.status === 200 && said?.write === id && !['done', 'refused', 'failed', 'busy'].includes(said?.outcome),
+          'write-cut': got.status === 0,
+          'write-late': got.status === 0 && /timed out/.test(got.error ?? ''),
+          'write-404': got.status === 404 && got.body === '',
+          'write-malformed': got.status === 200 && said === null,
+          'write-cut-reread-refused': got.status === 0
+        }[arm];
+        const reread = arm === 'write-cut-reread-refused' ? (await signedGet(phone, d, sessionTarget)).status : null;
+        const writeEvents = events.filter((e) => e.kind === 'request' && e.write !== undefined);
+        const signedOk = writeEvents.length === 1 && writeEvents[0].verified === 'ok' && writeEvents[0].channelHeld === true;
+        check(
+          arm,
+          read.status === 200 && offered && shape === true && door.counts.writes === 1 && signedOk && (reread === null || reread === 404),
+          `the session offers ${J(s?.end)} with the Mac's confirm (${String(door.endConfirmFrom)}); the one POST answered ${String(got.status)}${got.error ? ` (${got.error})` : ''} ${got.body.slice(0, 120)}; ${String(door.counts.writes)} write(s) counted, verified over its body with the client identity: ${String(signedOk)}${reread === null ? '' : `; the read after it answered ${String(reread)}`}`
+        );
+        continue;
+      }
       const blocked = await signedGet(phone, d, '/v1/blocked', { timeoutMs: arm === 'never-completes' ? 3_000 : 20_000 });
       let body = null;
       try {
@@ -856,10 +1067,20 @@ async function selfTest() {
           const bare = { ...phone, certPem: null };
           await signedGet(bare, d, '/v1/blocked');
           const bareEvent = events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/blocked').pop();
+          // Phase 317: an honest write is answered done with its id; the same
+          // signature over a body with one byte changed is refused 404.
+          const writeId = randomBytes(16).toString('hex');
+          const writeFields = { batch: false, session: door.sessionToOpen, write: writeId };
+          const honestWrite = await signedPost(phone, d, '/v1/end', writeFields);
+          const forgedWrite = await signedPost(phone, d, '/v1/end', writeFields, {
+            signedBody: writeBodyOf(writeFields),
+            body: writeBodyOf({ ...writeFields, write: writeId.replace(/.$/, (c) => (c === 'a' ? 'b' : 'a')) })
+          });
+          const writesHold = honestWrite.status === 200 && JSON.parse(honestWrite.body).write === writeId && forgedWrite.status === 404 && door.counts.writes === 2;
           check(
             arm,
-            blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false,
-            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such${certNote}`
+            blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false && writesHold,
+            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such; an honest write answered ${String(honestWrite.status)} with its id and the same signature over a changed body ${String(forgedWrite.status)}${certNote}`
           );
         } else if (arm === 'pages-backwards') {
           check(arm, pagesForward, `the older page starts at ${J(paged.pages[1]?.turns?.[0]?.index)} after a page that started at ${J(paged.pages[0]?.turns?.[0]?.index)}`);

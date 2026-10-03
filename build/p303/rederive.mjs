@@ -21,9 +21,12 @@
  *             its switch, clause by clause, fall-through honoured. A clause
  *             whose return is an IDENTIFIER (a refusal sentence) is REFUSED;
  *             one whose return is the `null` keyword is PASSED.
- *   Reader 2  THE RENDERER. `sessionActionGates` in src/renderer/state/
- *             resume.ts: for the declarations named `unknown`, `ended` and
- *             `live`, every string on the right of a `===` in the initializer.
+ *   Reader 2  THE GATE. `sessionActionGates` in src/shared/session-gates.ts
+ *             (src/renderer/state/resume.ts before Phase 317, which moved it
+ *             unchanged; a parent checkout is read there): for the
+ *             declarations named `unknown`, `ended` and `live`, every string on
+ *             the right of a `===` in the initializer. A function that spells
+ *             none of the three is exit 2, by name.
  *   Reader 3  THE DOT. `statusVisual` in src/renderer/app/status.ts: for each
  *             case, the `dot` of the FIRST return's object literal (for
  *             `exited` that is the `!endedBadly` branch, `ended`; for
@@ -84,7 +87,13 @@ const ROOT =
 const sourcesUnder = (root) => ({
   types: join(root, 'src', 'shared', 'types.ts'),
   gate: join(root, 'src', 'main', 'sessions', 'lifecycle-gate.ts'),
-  resume: join(root, 'src', 'renderer', 'state', 'resume.ts'),
+  // Phase 317 moved `sessionActionGates` to src/shared/session-gates.ts,
+  // every expression unchanged; a parent checkout from before that still has
+  // it in the renderer's resume.ts. The role keeps its old name so the
+  // self-test's fixtures read the same.
+  resume: existsSync(join(root, 'src', 'shared', 'session-gates.ts'))
+    ? join(root, 'src', 'shared', 'session-gates.ts')
+    : join(root, 'src', 'renderer', 'state', 'resume.ts'),
   // Phase 316.1 moved `statusVisual` to src/shared/status-words.ts; a parent
   // checkout from before that still has it in the renderer.
   status: existsSync(join(root, 'src', 'shared', 'status-words.ts'))
@@ -213,7 +222,8 @@ export function derive(sources) {
   const main = readRefusal(sources.gate);
   const gates = readGates(sources.resume);
   const dots = readDots(sources.status);
-  for (const [who, read] of [['reader 0 (types.ts)', alphabet], ['reader 1 (lifecycle-gate.ts)', main], ['reader 2 (resume.ts)', gates], ['reader 3 (status.ts)', dots]]) {
+  const gateFile = sources.resume.split('/').pop();
+  for (const [who, read] of [['reader 0 (types.ts)', alphabet], ['reader 1 (lifecycle-gate.ts)', main], [`reader 2 (${gateFile})`, gates], ['reader 3 (status.ts)', dots]]) {
     if (read.why !== null) return { code: 2, lines: [`${who} found nothing to read: ${read.why}`] };
   }
   const statuses = new Set(alphabet.statuses);
@@ -305,7 +315,7 @@ function selfTest() {
       want: 0
     },
     {
-      name: "resume.ts: 'idle' moved from live to ended, so (b) and (c) both break",
+      name: "the gate's file: 'idle' moved from live to ended, so (b) and (c) both break",
       make: () => ({
         ...real,
         resume: edited('resume', [

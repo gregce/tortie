@@ -840,6 +840,188 @@ describe('what main tells the door', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The two writes (Phase 317, build/p317/SPEC.md §5.3.2)
+// ---------------------------------------------------------------------------
+
+/** A signed POST, by hand. Its body is bytes the door never parses. */
+function signedPost(target: string, body: string, connection = 'close', phone = 'phone-a'): string {
+  const headers = {
+    Host: HOST,
+    'x-tortie-phone': phone,
+    'x-tortie-timestamp': String(Date.now()),
+    'x-tortie-nonce': '0123456789abcdef0123',
+    'x-tortie-signature': 'c'.repeat(86),
+    'Content-Type': 'application/json',
+    'Content-Length': String(Buffer.byteLength(body)),
+    Connection: connection
+  };
+  return `POST ${target} HTTP/1.1\r\n${Object.entries(headers)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\r\n')}\r\n\r\n${body}`;
+}
+
+const END_BODY = '{"batch":false,"session":"s1","write":"' + '0'.repeat(32) + '"}';
+
+describe('the one write', () => {
+  it('forwards a signed POST to its exact path as a write, its body as bytes, and answers what main answered', async () => {
+    const main = await startDoor({ answer: () => ({ status: 200, body: '{"outcome":"done"}' }) });
+    const answer = await exchange(await dial(main.port, { phone: paired }), signedPost('/v1/end', END_BODY));
+    expect(answer?.status).toBe(200);
+    expect(answer?.body).toBe('{"outcome":"done"}');
+    expect(main.requests).toHaveLength(1);
+    const request = main.requests[0];
+    if (request === undefined || request.route === 'pair') throw new Error('not a signed request');
+    expect(request.route).toBe('end');
+    expect(request.method).toBe('POST');
+    expect(request.target).toBe('/v1/end');
+    expect(Buffer.from(request.body).toString('utf8')).toBe(END_BODY);
+    expect(request.channel).toBe(paired.id);
+    // The write the fix round removed is no route: refused `route`, nothing forwarded.
+    const unpair = await exchange(await dial(main.port, { phone: paired }), signedPost('/v1/unpair', '{"write":"' + '1'.repeat(32) + '"}'));
+    expect(unpair?.status).toBe(404);
+    expect(main.requests).toHaveLength(1);
+  });
+
+  it('refuses a write that carries a query, even an empty one, `route`, and forwards nothing', async () => {
+    const main = await startDoor();
+    for (const target of ['/v1/end?x=1', '/v1/end?', '/v1/end?id=phone-b']) {
+      const answer = await exchange(await dial(main.port, { phone: paired }), signedPost(target, END_BODY));
+      expect(answer?.status, target).toBe(404);
+    }
+    expect(main.door.stats().refused.route).toBe(3);
+    expect(main.requests).toHaveLength(0);
+  });
+
+  it('holds the write to its own route’s cap: over it is `oversized` and never forwarded, at it is forwarded', async () => {
+    const main = await startDoor();
+    const at = async (target: string, bytes: number): Promise<number | undefined> =>
+      (await exchange(await dial(main.port, { phone: paired }), signedPost(target, 'x'.repeat(bytes))))?.status;
+    expect(await at('/v1/end', 513)).toBe(404);
+    expect(main.requests).toHaveLength(0);
+    expect(main.door.stats().refused.oversized).toBe(1);
+    expect(await at('/v1/end', 512)).toBe(200);
+    expect(main.requests).toHaveLength(1);
+  });
+
+  it('refuses a write from a connection with no certificate, inside a window, `route`', async () => {
+    const main = await startDoor({ windowOpen: true });
+    const answer = await exchange(await dial(main.port, { phone: null }), signedPost('/v1/end', END_BODY));
+    expect(answer?.status).toBe(404);
+    expect(main.requests).toHaveLength(0);
+  });
+
+  // D4: a write main was handed may be acting, so a late answer is a CUT and
+  // never a 404, which would say nothing was done.
+  it('cuts the connection, and never answers 404, when main’s answer to a write is late', async () => {
+    const main = await startDoor({ answer: () => null, timings: { timings: { answerMs: 150 } } });
+    const d = await dial(main.port, { phone: paired });
+    const answer = await exchange(d, signedPost('/v1/end', END_BODY));
+    expect(answer).toBeNull();
+    expect(d.received().length).toBe(0);
+    expect(d.isClosed()).toBe(true);
+    expect(main.door.stats().writesCut).toBe(1);
+    // A late READ keeps its 404, as before.
+    const read = await exchange(await dial(main.port, { phone: paired }), get('/v1/blocked'));
+    expect(read?.status).toBe(404);
+    expect(main.door.stats().writesCut).toBe(1);
+  });
+
+  // X10: a socket whose key is no longer pinned (a Remove on the Mac) finishes
+  // the answer to a WRITE main was handed, takes no further request, and is
+  // cut then.
+  it('lets a revoked socket finish a write’s answer whole, forwards nothing more from it, and cuts it after', async () => {
+    const main = await startDoor({
+      answer: () => null,
+      timings: { timings: { keepAliveMs: 10_000, headersMs: 10_000 } }
+    });
+    const d = await dial(main.port, { phone: paired });
+    await secured(d);
+    d.tls.write(signedPost('/v1/end', '{"batch":false,"session":"s2","write":"' + '2'.repeat(32) + '"}', 'keep-alive'));
+    await until(() => main.requests.length === 1);
+    const forwarded = main.messages.find((m) => m.kind === 'request');
+    if (forwarded?.kind !== 'request') throw new Error('nothing forwarded');
+    // The pins move while main is still answering: the phone is no longer paired.
+    main.door.receive({ kind: 'update', pins: [] });
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(d.isClosed()).toBe(false);
+    // A second request on the revoked socket is not forwarded.
+    d.tls.write(get('/v1/blocked', { Connection: 'keep-alive' }));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    expect(main.requests).toHaveLength(1);
+    main.door.receive({ kind: 'answer', id: forwarded.id, status: 200, body: '{"outcome":"done"}' });
+    await Promise.race([d.closed, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+    expect(d.isClosed()).toBe(true);
+    const answer = parseResponse(d.received());
+    expect(answer?.status).toBe(200);
+    expect(answer?.body).toBe('{"outcome":"done"}');
+    // Exactly one response: the pipelined read got nothing.
+    expect(d.received().toString('utf8').match(/HTTP\/1\.1 /g)).toHaveLength(1);
+    expect(main.requests).toHaveLength(1);
+  });
+
+  // The FIRST question handleRequest asks: a pipelined request that would
+  // fail an early refusal (here its Host) must not even be answered 404 on a
+  // revoked socket, because a revoked socket takes no further request at all.
+  it('answers a pipelined request on a revoked socket nothing at all, not even a refusal', async () => {
+    const main = await startDoor({
+      answer: () => null,
+      timings: { timings: { keepAliveMs: 10_000, headersMs: 10_000 } }
+    });
+    const d = await dial(main.port, { phone: paired });
+    await secured(d);
+    d.tls.write(signedPost('/v1/end', END_BODY, 'keep-alive'));
+    await until(() => main.requests.length === 1);
+    const forwarded = main.messages.find((m) => m.kind === 'request');
+    if (forwarded?.kind !== 'request') throw new Error('nothing forwarded');
+    main.door.receive({ kind: 'update', pins: [] });
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const hostRefusalsBefore = main.door.stats().refused.host;
+    d.tls.write(get('/v1/blocked', { Connection: 'keep-alive' }, 'evil.example:1'));
+    await new Promise((resolve) => setTimeout(resolve, 100));
+    main.door.receive({ kind: 'answer', id: forwarded.id, status: 200, body: '{"outcome":"done"}' });
+    await Promise.race([d.closed, new Promise((resolve) => setTimeout(resolve, 2_000))]);
+    expect(d.received().toString('utf8').match(/HTTP\/1\.1 /g)).toHaveLength(1);
+    expect(parseResponse(d.received())?.status).toBe(200);
+    expect(main.door.stats().refused.host).toBe(hostRefusalsBefore);
+  });
+
+  // §14 finding 22: a removed phone's in-flight READ is cut at once with no
+  // byte, exactly as at the parent, and never answered 404.
+  it('cuts a revoked socket answering only a read at once, with no byte of an answer', async () => {
+    const main = await startDoor({ answer: () => null, timings: { timings: { answerMs: 5_000 } } });
+    const d = await dial(main.port, { phone: paired });
+    await secured(d);
+    d.tls.write(get('/v1/blocked'));
+    await until(() => main.requests.length === 1);
+    const forwarded = main.messages.find((m) => m.kind === 'request');
+    if (forwarded?.kind !== 'request') throw new Error('nothing forwarded');
+    const removedAt = Date.now();
+    main.door.receive({ kind: 'update', pins: [] });
+    await Promise.race([d.closed, new Promise((resolve) => setTimeout(resolve, 1_000))]);
+    expect(d.isClosed()).toBe(true);
+    expect(Date.now() - removedAt).toBeLessThan(500);
+    expect(d.received().length).toBe(0);
+    // Main's answer arriving afterwards is written to nobody.
+    main.door.receive({ kind: 'answer', id: forwarded.id, status: 200, body: '{"late":true}' });
+    expect(main.door.stats().writesCut).toBe(0);
+  });
+
+  it('keeps a socket whose key is still pinned answering after another phone is removed', async () => {
+    const main = await startDoor({
+      pins: [
+        { phoneId: paired.id, spkiSha256: paired.pin },
+        { phoneId: other.id, spkiSha256: other.pin }
+      ]
+    });
+    const b = await dial(main.port, { phone: other, header: proxyHeader('198.51.100.20') });
+    await secured(b);
+    main.door.receive({ kind: 'update', pins: [{ phoneId: other.id, spkiSha256: other.pin }] });
+    const answer = await exchange(b, signedPost('/v1/end', END_BODY, 'close', other.id));
+    expect(answer?.status).toBe(200);
+  });
+});
+
 describe('the source of the listener', () => {
   it('names the source in a log nowhere, and forwards no address', async () => {
     const { readFileSync } = await import('node:fs');

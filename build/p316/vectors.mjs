@@ -17,11 +17,19 @@
  *             the Swift derives the same binding from the phone's) and
  *             `clientKeyPinOf`, the pin the door admits the client key by.
  *   requests  `canonicalRequestText` and `signAsPhone` (Node's Ed25519 is
- *             deterministic) for five requests, each ACCEPTED by the shipping
+ *             deterministic) for six requests, each ACCEPTED by the shipping
  *             `PocketRequestVerifier` here over the phone's own channel, and
  *             one tampered target it refuses `signature`. The targets are
  *             spelled the way the Swift client spells them, and the door's own
  *             URL parser reads each back to the same bytes and the same `id`.
+ *             Phase 317 adds the WRITE (build/p317/SPEC.md §6.3): `POST
+ *             /v1/end` with a fixed body, the bytes Swift's JSONEncoder writes
+ *             with `.sortedKeys`, at most its route's cap in the shipping
+ *             `POCKET_WRITE_BODY_CAPS`. (Its fix round took `POST /v1/unpair`
+ *             out, and its vector with it.)
+ *   writeTampered  (Phase 317) the end write's signature presented over its
+ *             body with ONE BYTE CHANGED, which the shipping verifier refuses
+ *             `signature`: the body is covered, not only the target.
  *   pins      two door certificates issued by the shipping `tls.ts` for the
  *             public name, with the `publicKeyFingerprint` it reports and the
  *             QR pin `spkiPinOf` makes of it.
@@ -57,6 +65,14 @@
  *   answers   the three reads composed by the shipping `createPocketRoutes`,
  *             turns through the shipping `readPocketTurns`, over fixed facts
  *             at a fixed clock; each also with fields the phone does not know.
+ *             Since Phase 317 every row carries the End the SHIPPING
+ *             `endOfferOf` (src/main/sessions/pocket-writes.ts) decides over
+ *             it, its manifest record and whether Tortie holds a row for its
+ *             machine, and a session offered End carries the Mac's own
+ *             `endConfirm`: a running, a waiting and an idle session are
+ *             offered End and End these, the idle one on a machine Tortie
+ *             holds no row for is offered End alone (`batch: false`, the Mac
+ *             batch's one narrowing), and the exited one is offered nothing.
  *
  * --check. Regenerates everything in memory and compares. The deterministic
  * vectors must match byte for byte. The ones that carry a random value (the
@@ -139,6 +155,8 @@ const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { POCKET_ROUTE_IDS } = await import('../../src/shared/ipc/pocket.ts');
 const { NOTHING_NEEDS_YOU } = await import('../../src/main/tray/attention.ts');
 const { composeAlert, composeBadge } = await import('../../src/main/push/alert.ts');
+// Phase 317: the End each row is offered, decided by the shipping pure verdict.
+const pocketWrites = await import('../../src/main/sessions/pocket-writes.ts').catch((err) => ({ loadError: String(err?.message ?? err) }));
 
 const problems = [];
 const fail = (what) => problems.push(what);
@@ -275,6 +293,8 @@ const queryValue = (value) =>
 
 const SESSION_TALK = '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02';
 const ODD_ID = 'a b/c?d&e=f%g#h~i.j_k-l’';
+/** Phase 317: a fixed write id, 32 lowercase hex, from a public label. */
+const WRITE_END = sha256hex('tortie-p317-vector write end').slice(0, 32);
 
 const requestShapes = [
   { name: 'blocked', method: 'GET', target: '/v1/blocked', body: '', id: null },
@@ -289,7 +309,12 @@ const requestShapes = [
   { name: 'odd-id', method: 'GET', target: `/v1/session?id=${queryValue(ODD_ID)}`, body: '', id: ODD_ID },
   // The door signs GETs only; this row holds the body hash and the raised
   // method, which `canonicalRequestText` owns whatever the route.
-  { name: 'lowercase-method-with-body', method: 'post', target: '/pair', body: '{"x":1}', id: null }
+  { name: 'lowercase-method-with-body', method: 'post', target: '/pair', body: '{"x":1}', id: null },
+  // PHASE 317: the write, signed over POST, its path and its body
+  // (build/p317/SPEC.md §5.8.1). The body is what Swift's JSONEncoder writes
+  // with `.sortedKeys`, a fresh 32-hex write id each time; the id here is
+  // fixed so the vector is.
+  { name: 'end', method: 'POST', target: '/v1/end', body: JSON.stringify({ batch: false, session: SESSION_TALK, write: WRITE_END }), id: null }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -378,6 +403,62 @@ const tampered = (() => {
       method: 'GET',
       target,
       bodySha256: base.bodySha256,
+      timestamp: base.timestamp,
+      nonce: base.nonce,
+      binding
+    }),
+    doorSays: verdict.ok ? 'ok' : verdict.reason
+  };
+})();
+
+// PHASE 317: the write is within the shipping cap, written with sorted keys,
+// and a body with one byte changed is refused `signature`.
+const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.ts');
+for (const name of ['end']) {
+  const r = requests.find((x) => x.name === name);
+  const cap = POCKET_WRITE_BODY_CAPS?.[name];
+  if (typeof cap !== 'number') {
+    fail(`write ${name}: the shipping door/limits.ts declares no POCKET_WRITE_BODY_CAPS.${name}`);
+    continue;
+  }
+  if (Buffer.byteLength(r.body, 'utf8') > cap) fail(`write ${name}: its body is ${String(Buffer.byteLength(r.body, 'utf8'))} bytes, over the shipping cap of ${String(cap)}`);
+  const keys = Object.keys(JSON.parse(r.body));
+  if (keys.join() !== [...keys].sort().join()) fail(`write ${name}: its body's keys are not sorted, which is how Swift's JSONEncoder writes them with .sortedKeys`);
+  if (!/^[0-9a-f]{32}$/.test(JSON.parse(r.body).write)) fail(`write ${name}: its write id is not 32 lowercase hex`);
+}
+const writeTampered = (() => {
+  const base = requests.find((x) => x.name === 'end');
+  // One byte of the body changed: the session id's last character.
+  const at = base.body.indexOf(SESSION_TALK) + SESSION_TALK.length - 1;
+  const body = `${base.body.slice(0, at)}${base.body[at] === '3' ? '4' : '3'}${base.body.slice(at + 1)}`;
+  const verifier = new pairing.PocketRequestVerifier({
+    identity: () => identity,
+    phones: () => [phoneFields],
+    now: () => Number(base.timestamp)
+  });
+  const verdict = verifier.verify({
+    method: 'POST',
+    target: base.target,
+    body: Buffer.from(body, 'utf8'),
+    channel: identityVectors.phoneId,
+    headers: {
+      'x-tortie-phone': identityVectors.phoneId,
+      'x-tortie-timestamp': base.timestamp,
+      'x-tortie-nonce': base.nonce,
+      'x-tortie-signature': base.signature
+    }
+  });
+  if (verdict.ok || verdict.reason !== 'signature') {
+    fail(`the end write with one body byte changed was not refused 'signature' (${verdict.ok ? 'accepted' : verdict.reason})`);
+  }
+  return {
+    signedFor: base.name,
+    body,
+    bodySha256: sha256hex(Buffer.from(body, 'utf8')),
+    canonical: pairing.canonicalRequestText({
+      method: 'POST',
+      target: base.target,
+      bodySha256: sha256hex(Buffer.from(body, 'utf8')),
       timestamp: base.timestamp,
       nonce: base.nonce,
       binding
@@ -800,6 +881,15 @@ const store = {
   }
 };
 const statusOf = (id) => sessions.find((s) => s.id === id)?.status ?? 'idle';
+/** The machine the remote session runs on, for which Tortie holds no machine row in these facts. */
+const UNKNOWN_MACHINE = 'm1';
+const endOfferOfRow = (session) => {
+  if (typeof pocketWrites.endOfferOf !== 'function') {
+    fail(`the shipping src/main/sessions/pocket-writes.ts exports no endOfferOf${pocketWrites.loadError === undefined ? '' : ` (${pocketWrites.loadError})`}, so no row's End can be composed`);
+    return { state: 'none' };
+  }
+  return pocketWrites.endOfferOf(session, { status: session.status }, (machineId) => machineId !== UNKNOWN_MACHINE);
+};
 
 const facts = {
   sessions: () => sessions,
@@ -863,6 +953,9 @@ const facts = {
   },
   turns: async (id, range) => readPocketTurns(store, id, range, statusOf(id)),
   handoff: () => null,
+  // PHASE 317: the shipping verdict over each row, its record (the manifest's
+  // status, as written) and the one machine Tortie holds no row for here.
+  endOffer: (session) => endOfferOfRow(session),
   now: () => T
 };
 const routes = createPocketRoutes(facts);
@@ -894,6 +987,26 @@ for (const [name, compose] of answerShapes) {
     continue;
   }
   answers[name] = { json: JSON.stringify(answer), withUnknown: JSON.stringify(withUnknown(answer)) };
+}
+// PHASE 317: the offers the facts were chosen to produce, read back from the
+// SHIPPING answers, so a vector set that drew no End is refused by name.
+{
+  const blockedAnswer = JSON.parse(answers.blocked?.json ?? '{}');
+  const offerOf = (id) => [...(blockedAnswer.rows ?? []), ...(blockedAnswer.others ?? [])].find((r) => r.sessionId === id)?.end;
+  const want = [
+    [S.talk, { state: 'offered', batch: true }],
+    [S.waiting, { state: 'offered', batch: true }],
+    [S.quiet, { state: 'offered', batch: true }],
+    [S.remote, { state: 'offered', batch: false }],
+    [S.failed, { state: 'none' }]
+  ];
+  for (const [id, end] of want) {
+    if (JSON.stringify(offerOf(id)) !== JSON.stringify(end)) fail(`the shipping /v1/blocked offers ${JSON.stringify(offerOf(id))} on ${id}, not ${JSON.stringify(end)}`);
+  }
+  const talkConfirm = JSON.parse(answers['session-talk']?.json ?? '{}').session?.endConfirm;
+  if (talkConfirm?.title !== "End 'talk'?" || talkConfirm?.confirmLabel !== 'End session' || typeof talkConfirm?.body !== 'string' || talkConfirm.body === '') {
+    fail(`the shipping /v1/session answers ${JSON.stringify(talkConfirm)} as the talk session's endConfirm, not the Mac's own confirmation`);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -929,6 +1042,7 @@ const vectors = {
   identity: identityVectors,
   requests,
   tampered,
+  writeTampered,
   pins,
   client,
   seal,
@@ -965,7 +1079,7 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests (and 1 tampered), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
+  `${String(requests.length)} signed requests, 1 of them a write (and 1 tampered target, 1 tampered write body), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
   `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);

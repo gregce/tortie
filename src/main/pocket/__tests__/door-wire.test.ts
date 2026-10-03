@@ -6,6 +6,7 @@
 
 import { describe, expect, it } from 'vitest';
 
+import { POCKET_WRITE_BODY_CAPS } from '../door/limits';
 import {
   DOOR_ANSWER_MAX_BYTES,
   DOOR_REFUSAL_WORDS,
@@ -112,6 +113,71 @@ describe('what the door forwards', () => {
     expect(fromDoorOf({ kind: 'stopped', accepted: 1, joined: true, waitedMs: 3 })).not.toBeNull();
     expect(fromDoorOf({ kind: 'nothing' })).toBeNull();
     expect(fromDoorOf('listening')).toBeNull();
+  });
+});
+
+// PHASE 317 (build/p317/SPEC.md §5.3.1): the two writes. The method is POST
+// EXACTLY for a write and GET exactly for a read, a write's target is its
+// route's path byte for byte with no query, and its body is at most its OWN
+// route's cap. Nothing here parses the body.
+describe('a write the door forwards', () => {
+  function write(over: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      route: 'end',
+      method: 'POST',
+      target: '/v1/end',
+      headers: HEADERS,
+      body: new Uint8Array(Buffer.from('{"batch":false,"session":"s","write":"' + '0'.repeat(32) + '"}')),
+      channel: 'phone-a',
+      ...over
+    };
+  }
+
+  it('lets a POST to its exact path through, with exactly the fields the type names', () => {
+    const got = doorRequestOf({ ...write(), source: '203.0.113.7' });
+    expect(got).not.toBeNull();
+    expect(got).toMatchObject({ route: 'end', method: 'POST', target: '/v1/end', channel: 'phone-a' });
+    expect(Object.keys(got ?? {}).sort()).toEqual(['body', 'channel', 'headers', 'method', 'route', 'target']);
+  });
+
+  it('refuses a write that is not a POST, and a read that is not a GET', () => {
+    expect(doorRequestOf(write({ method: 'GET' }))).toBeNull();
+    expect(doorRequestOf(write({ method: 'post' }))).toBeNull();
+    expect(doorRequestOf(read({ method: 'POST' }))).toBeNull();
+  });
+
+  it('refuses a write whose target is not its own path byte for byte', () => {
+    for (const target of ['/v1/end?x=1', '/v1/end?', '/v1/end/', '/v1/End', '/v1/unpair', '/v1/endx', '/v1/blocked']) {
+      expect(doorRequestOf(write({ target })), target).toBeNull();
+    }
+    // The write the fix round removed is no route at all (build/p317/SPEC.md "§Fix round").
+    expect(doorRequestOf(write({ route: 'unpair', target: '/v1/unpair' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'unpair', target: '/v1/end' }))).toBeNull();
+  });
+
+  it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512 });
+    expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
+    expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
+    expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();
+    // A read is still held to the read cap.
+    expect(POCKET_READ_BODY_CAP_BYTES).toBe(1024);
+  });
+
+  it('refuses a route that is neither a read nor the one write', () => {
+    expect(doorRequestOf(write({ route: 'say', target: '/v1/say' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'choose', target: '/v1/choose' }))).toBeNull();
+  });
+
+  it('copies the body rather than handing on the caller’s bytes', () => {
+    const bytes = new Uint8Array(Buffer.from('{}'));
+    const got = doorRequestOf(write({ body: bytes }));
+    expect(got !== null && got.route !== 'pair' ? got.body : null).not.toBe(bytes);
+  });
+
+  it('crosses as a request message main validates the same way', () => {
+    expect(fromDoorOf({ kind: 'request', id: 1, generation: 2, request: write() })).not.toBeNull();
+    expect(fromDoorOf({ kind: 'request', id: 1, generation: 2, request: write({ target: '/v1/end?q' }) })).toBeNull();
   });
 });
 

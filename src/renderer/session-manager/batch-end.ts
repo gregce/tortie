@@ -41,7 +41,8 @@
  */
 
 import type { Session } from '@shared/types';
-import type { LifecycleResult, SessionActionGates } from '../state/resume';
+import type { LifecycleResult } from '../state/resume';
+import type { SessionActionGates } from '@shared/session-gates';
 import type {
   BatchRowOutcome,
   BatchSkipReason

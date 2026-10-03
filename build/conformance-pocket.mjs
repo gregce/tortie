@@ -68,6 +68,24 @@
  * confirmation; D6 lets the sheet compare `nameCheck` with `'confirmed'` too,
  * never in the three Pair functions. Fifty-three rules in all.
  *
+ * PHASE 317 GAVE THE DOOR ONE WRITE (build/p317/SPEC.md §6.1): `POST /v1/end`,
+ * a signed JSON body parsed in main alone, behind a ledger, one write in
+ * flight a phone and a session, and a last check with nothing between it and
+ * the act. R2 now reads a CLOSED write list (exactly `end`, a signed POST with
+ * its own body cap), R4's pin moved on purpose (ad9ce821… to d1fefb71…), N1 is
+ * "no route names the push" with Phase 313's pin gone, G1's words gained text,
+ * message, words, label, typed and reply and its scope
+ * src/main/sessions/pocket-writes.ts, A4 reads that an acted answer is never
+ * replaced, and twelve rules joined: X1 the order, X2 the strict parse, X3 the
+ * ledger, X4 one in flight, X5 `PocketWrites` and its one implementation, X6
+ * the answer, X7 never 404 after the act, X8 the door never parses a write, X9
+ * a phone is removed by Remove alone, X10 the revoked socket, X11 one log line,
+ * X12 the lines say it. Sixty-five rules in all. ITS FIX ROUND TOOK A SECOND
+ * WRITE OUT, `POST /v1/unpair` (the phone waited on it before it could forget a
+ * Mac that did not answer, which made Unpair slower than today), with its
+ * `dropPhone`, its `after` and the clauses that read them; X9 now holds that
+ * nothing but Remove takes a phone out of the store.
+ *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
  * that could be satisfied by a word in a comment is not a rule, and three of
@@ -109,7 +127,7 @@ const RULES = [
   ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
-  ['R2', 'SPEC §2, entry mechanism 4', 'every route is a read, and the ONE route that is not a GET is the pairing route, window-only and unsigned'],
+  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and it has its own cap in POCKET_WRITE_BODY_CAPS'],
   ['R4', 'the fix round, 2026-09-22', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
   ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1', 'the domain names no write verb, no status setter and no credential read, and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
@@ -120,10 +138,10 @@ const RULES = [
   ['W1', 'the fix round, 2026-09-22', 'every file and directory this domain creates names an owner-only mode, so one write in it cannot drift looser than its sibling'],
   ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11; build/p3165/SPEC.md §6.1', 'the bridge and the registrar move together, and they carry the same THIRTEEN pocket channels the contract declares'],
   ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the door: admission closes on the first line of every stop, before any await, in main AND in the door process, and the stop ends the process and closes the listener'],
-  ['G1', 'entry, proof; hooks.ts:368-385', 'no token, no body, no header value and no line of conversation is reachable from any log call'],
+  ['G1', 'entry, proof; hooks.ts:368-385; build/p317/SPEC.md §6.1', 'no token, no body, no header value, no message, no typed text and no line of conversation is reachable from any log call in the domain or in src/main/sessions/pocket-writes.ts'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
   ['H1', 'his ruling, 2026-09-22 (“lets skip the web app”)', 'this domain composes NO HTML document and names no text/html content type: the page was built, could not be reached under mechanism 5’s own refusals, and was removed on his ruling, so a later round that wants one asks him rather than rebuilding it under a green gate'],
-  ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3', 'NO PUSH ROUTE EXISTS: no route id, path or contract id names push, apns, notify, device, token or alert, and the table’s membership is still Phase 313’s, byte for byte'],
+  ['N1', 'Phase 314, build/p314/SPEC.md §1.1 row 3; build/p317/SPEC.md §6.1', 'NO ROUTE NAMES THE PUSH: no route id, path or contract id names push, apns, notify, device, token or alert (Phase 317 dropped the second pin on Phase 313’s membership; R4 holds the membership)'],
   ['N2', 'Phase 314, build/p314/SPEC.md §6.2', 'THE DEVICE TOKEN HAS ONE DOOR IN AND NONE OUT: the presentation parser takes apt as bounded hex and ape as one of two words or refuses, no renderer-facing type carries a field named like a token, and PocketPushDestination lives in main alone'],
   ['K3', 'build/p3165/SPEC.md §6.1, §5.2.2', 'THE PUSH KEY NEVER ENTERS THE DOOR: PocketAlertsPort is exactly five members answering string | null, string | null, Promise<PocketPushKeyResult>, Promise<void> and void; PocketPushKeyResult is exactly kept and refusal; status() reads keyId() and sentence() of the port and nothing else, and alertsCanSend(), which /pair’s answer asks (research 136), reads keyId() alone; the two handlers call only host.choosePushKey(event.sender) and host.forgetPushKey(), which call only the port; the domain imports nothing of main/alerts; and PocketHostDeps.alerts is handed by src/main/capabilities.ts and tests alone'],
   ['K2', 'build/p330/SPEC.md §6.1 (K1 became K2)', 'NO TAILNET KEY ANYWHERE UNDER src/: no tailnetKey, no tk and no tskey- in any production file, because the code carries no credential at all now'],
@@ -131,7 +149,7 @@ const RULES = [
   ['F2', 'build/p330/SPEC.md §4.8.1 (F1 became F2)', 'the QR is v:3 and holds EXACTLY the eight keys v, host, port, fp, dk, dx, ps and exp, in that order, with no tk and no address; fp pins the LISTENING door’s public key and no window opens while there is nothing to pin'],
   ['T2', 'build/p316/SPEC.md §4 S1 mechanisms 2 and 3', 'every turn the door reads is preceded by the refresh through the one read path (`sessionActivity`), and every turn it answers passes through `toTurnView` once and is built nowhere else'],
   ['L5', 'build/p330/SPEC.md §6.1; CLAUDE.md refusal 8', 'the one fork of the door process and the one spawn of the Funnel child are reached only from openNow or recoverNow, behind the gate, each with the last-press check as the statement IMMEDIATELY before it; the launch step asks for enabled AND bindAtLaunch; a switch-off counts itself before its first await'],
-  ['A4', 'build/p316/SPEC.md §4 S1 Method B; build/p330/SPEC.md §4.5.3', 'refusal 7 BY GENERATION: main keeps each door process’s admission by generation, refuses a request for a generation that is not the door’s or has begun to stop before a handler sees it, and asks again after the answer is composed with nothing awaited before the post; the handler asks the verified phone and the door instance again before it answers'],
+  ['A4', 'build/p316/SPEC.md §4 S1 Method B; build/p330/SPEC.md §4.5.3; build/p317/SPEC.md §6.1', 'refusal 7 BY GENERATION: main keeps each door process’s admission by generation, refuses a request for a generation that is not the door’s or has begun to stop before a handler sees it, and asks again after the answer is composed with nothing awaited before the post, never replacing an answer marked acted; the handler asks the verified phone and the door instance again before it answers; a Remove writes the store before its first await'],
   ['H2', 'build/p316/SPEC.md §4 S1 mechanism 1, §2 rows 17 and 20', 'no `ssh` hand-off: the kind is gone from the contract, no module in the door composes an ssh link or a tmux attach, and the hand-off answers null for every session in 316'],
   ['Q1', 'his ruling, 2026-09-23 (“Yes, fix and land.”); build/p330/SPEC.md §4.3', 'THE SWITCH HANDLES ONE PRESS AT A TIME: every start and stop of the door AND of the Funnel child runs inside ONE serial queue on PocketHost that chains each job on one tail and never lets a failed job stop the next; both halves of setDoor count themselves before their first await; a superseded start stops waiting on the sessions'],
   // PHASE 330, the door on the internet (build/p330/SPEC.md §6.1).
@@ -158,6 +176,18 @@ const RULES = [
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
+  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4', 'THE WRITE ORDER: the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, which a settle function starts at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
+  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2', 'THE STRICT PARSE: one JSON.parse in the write path, inside a try, reached by the parse function alone; the key set compared exactly; the write id and the session id read one character at a time, and no pattern'],
+  ['X3', 'build/p317/SPEC.md D5, §3 row 18', 'THE LEDGER: keyed on the verified phone and the write id; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 512 and 4,096 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
+  ['X4', 'build/p317/SPEC.md §5.3.4 step 3', 'ONE IN FLIGHT: a claim per phone and per session, each asked first, claimed before the act and released in the finally of the try that holds the act'],
+  ['X5', 'build/p317/SPEC.md §5.4, D7, D14', 'POCKETWRITES: declared once, in routes.ts, with exactly end; implemented once, in src/main/sessions/pocket-writes.ts; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
+  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8', 'THE ANSWER: PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path or pocket-writes.ts sets is a constant from lifecycle-words.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
+  ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
+  ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
+  ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
+  ['X10', 'build/p317/SPEC.md §5.3.2, §14 finding 22', 'THE REVOKED SOCKET: applyPins marks it revoked and destroys it at once unless it is answering a write (writes === 0); a forwarded write is counted on its socket and the socket is cut when that answer finishes or closes; handleRequest refuses a revoked socket before anything else'],
+  ['X11', 'build/p317/SPEC.md §5.3.4 step 7', 'ONE LOG LINE PER WRITE: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field'],
+  ['X12', 'build/p317/SPEC.md D19, §5.6', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId; POCKET_DOOR_HONESTY exists and POCKET_READ_ONLY_HONESTY is named nowhere'],
   ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress']
 ];
 
@@ -565,6 +595,8 @@ function routeRules() {
   checked('R1');
   if (rows.length === 0) fail('R1', `${rel(file)}: POCKET_ROUTES is empty`);
 
+  /** The rows that declare reads: false, with their literal ids (Phase 317). */
+  const writeRows = [];
   for (const { node, row } of rows) {
     checked('R1', 2);
     const path = row['path'];
@@ -579,12 +611,14 @@ function routeRules() {
         `${where(file, node)}: the path ${JSON.stringify(path.text)} holds a wildcard or a parameter. The session id rides in the QUERY so the table stays a set of exact strings.`
       );
     }
-    // R2. THE PROMISE IS "ZERO WRITE ROUTES", and the table says so in its own
-    // fields rather than in a comment: every row declares `reads: true`. The
-    // one row that is not a GET is the pairing route, and it is the only row
-    // allowed to be unsigned or window-only — which is what makes "/pair is
-    // dead outside its window" a property of the table rather than of a branch
-    // somebody has to find.
+    // R2. A ROW IS A READ OR A WRITE, AND THE TABLE SAYS WHICH IN ITS OWN
+    // FIELDS (Phase 317 widened the promise from "zero write routes" to a
+    // CLOSED write list). A read declares `reads: true` and is a GET, but for
+    // the pairing route, which is the only row allowed to be unsigned or
+    // window-only — which is what makes "/pair is dead outside its window" a
+    // property of the table rather than of a branch somebody has to find. A
+    // write declares `reads: false`, is a POST, is signed and is alive outside
+    // any window; the set of them is checked below.
     checked('R2', 3);
     const method = row['method'];
     const reads = row['reads'];
@@ -592,37 +626,52 @@ function routeRules() {
     const windowOnly = row['windowOnly'];
     const isPair =
       path !== undefined && ts.isStringLiteral(path) && path.text === '/pair';
-    if (reads === undefined || reads.kind !== ts.SyntaxKind.TrueKeyword) {
+    const pathText = path === undefined || !ts.isStringLiteral(path) ? '?' : path.text;
+    if (reads === undefined || (reads.kind !== ts.SyntaxKind.TrueKeyword && reads.kind !== ts.SyntaxKind.FalseKeyword)) {
       fail(
         'R2',
-        `${where(file, node)}: the row does not declare reads: true. Phase 313 has ZERO write routes, and a row that does not say it is a read is one nobody can check.`
+        `${where(file, node)}: the row does not declare reads as a literal true or false. A row that does not say whether it is a read or a write is one nobody can check.`
       );
-    }
-    if (method === undefined || !ts.isStringLiteral(method)) {
-      fail('R2', `${where(file, node)}: a row declares no method as a literal`);
-    } else if (method.text !== 'GET' && !isPair) {
-      fail(
-        'R2',
-        `${where(file, node)}: the method is ${JSON.stringify(method.text)} on ${JSON.stringify(path === undefined ? '?' : path.text)}. ` +
-          'The only non-GET row this door has is the pairing route.'
-      );
-    }
-    if (isPair) {
-      if (windowOnly === undefined || windowOnly.kind !== ts.SyntaxKind.TrueKeyword) {
-        fail('R2', `${where(file, node)}: the pairing row is not windowOnly: true, so /pair is a route for the door's whole life`);
+    } else if (reads.kind === ts.SyntaxKind.FalseKeyword) {
+      const id = row['id'];
+      writeRows.push({ node, id: id !== undefined && ts.isStringLiteral(id) ? id.text : null });
+      if (method === undefined || !ts.isStringLiteral(method) || method.text !== 'POST') {
+        fail('R2', `${where(file, node)}: the write ${JSON.stringify(pathText)} is not a POST. A write is a signed POST with a body, and a GET that changes something is a write a link can trigger.`);
       }
-      if (signed === undefined || signed.kind !== ts.SyntaxKind.FalseKeyword) {
-        fail('R2', `${where(file, node)}: the pairing row does not declare signed: false, and a phone that has not paired has no key to sign with`);
-      }
-    } else {
       if (signed === undefined || signed.kind !== ts.SyntaxKind.TrueKeyword) {
+        fail('R2', `${where(file, node)}: the write ${JSON.stringify(pathText)} is not signed: true. Every write is signed by an allowed phone, over its method, its path and its body.`);
+      }
+      if (windowOnly === undefined || windowOnly.kind !== ts.SyntaxKind.FalseKeyword) {
+        fail('R2', `${where(file, node)}: the write ${JSON.stringify(pathText)} does not declare windowOnly: false. A write lives outside the pairing window, and the pairing window is the one place a write can never be.`);
+      }
+      if (isPair) fail('R2', `${where(file, node)}: the pairing route is declared a write`);
+    } else {
+      if (method === undefined || !ts.isStringLiteral(method)) {
+        fail('R2', `${where(file, node)}: a row declares no method as a literal`);
+      } else if (method.text !== 'GET' && !isPair) {
         fail(
           'R2',
-          `${where(file, node)}: ${JSON.stringify(path === undefined ? '?' : path.text)} is not signed: true. Every route but the pairing one is signed, and there is no bearer to fall back on.`
+          `${where(file, node)}: the method is ${JSON.stringify(method.text)} on ${JSON.stringify(pathText)}, which declares reads: true. ` +
+            'A read is a GET; the only read that is not is the pairing route, and a POST that says it is a read is a write nobody counted.'
         );
       }
-      if (windowOnly !== undefined && windowOnly.kind === ts.SyntaxKind.TrueKeyword) {
-        fail('R2', `${where(file, node)}: a read route is windowOnly, which would make the door answer nothing once the window shuts`);
+      if (isPair) {
+        if (windowOnly === undefined || windowOnly.kind !== ts.SyntaxKind.TrueKeyword) {
+          fail('R2', `${where(file, node)}: the pairing row is not windowOnly: true, so /pair is a route for the door's whole life`);
+        }
+        if (signed === undefined || signed.kind !== ts.SyntaxKind.FalseKeyword) {
+          fail('R2', `${where(file, node)}: the pairing row does not declare signed: false, and a phone that has not paired has no key to sign with`);
+        }
+      } else {
+        if (signed === undefined || signed.kind !== ts.SyntaxKind.TrueKeyword) {
+          fail(
+            'R2',
+            `${where(file, node)}: ${JSON.stringify(pathText)} is not signed: true. Every route but the pairing one is signed, and there is no bearer to fall back on.`
+          );
+        }
+        if (windowOnly !== undefined && windowOnly.kind === ts.SyntaxKind.TrueKeyword) {
+          fail('R2', `${where(file, node)}: a read route is windowOnly, which would make the door answer nothing once the window shuts`);
+        }
       }
     }
   }
@@ -632,6 +681,56 @@ function routeRules() {
   );
   if (pairRows.length > 1) {
     fail('R2', `the table holds ${String(pairRows.length)} pairing rows; there is one window and one route into it`);
+  }
+  // THE WRITE LIST IS CLOSED: exactly end, in the table and in the contract
+  // alike, with its own body cap (Phase 317, build/p317/SPEC.md §6.1; its fix
+  // round took `unpair` out).
+  const WRITE_IDS = ['end'];
+  const tableWrites = writeRows.map((w) => w.id ?? '(no literal id)').sort();
+  checked('R2', 3);
+  if (tableWrites.join(',') !== WRITE_IDS.join(',')) {
+    fail('R2', `${rel(file)}: the table's writes are ${JSON.stringify(tableWrites)}; they are EXACTLY ${JSON.stringify(WRITE_IDS)}. A write added here is a change to what a phone can do to this Mac, and it is its own phase with its own ruling.`);
+  }
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  const contractWrites = (() => {
+    if (!existsSync(contract)) return null;
+    for (const n of nodesOf(contract)) {
+      if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.name.text !== 'POCKET_WRITE_ROUTE_IDS') continue;
+      let init = n.initializer;
+      while (init !== undefined && (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init))) init = init.expression;
+      if (init === undefined || !ts.isArrayLiteralExpression(init)) return null;
+      return init.elements.filter((e) => ts.isStringLiteral(e)).map((e) => e.text).sort();
+    }
+    return null;
+  })();
+  if (contractWrites === null || contractWrites.join(',') !== WRITE_IDS.join(',')) {
+    fail('R2', `src/shared/ipc/pocket.ts: POCKET_WRITE_ROUTE_IDS is ${JSON.stringify(contractWrites)}; it is exactly ${JSON.stringify(WRITE_IDS)}, the table's own write list`);
+  }
+  const limits = join(DOMAIN, 'door', 'limits.ts');
+  const caps = (() => {
+    if (!existsSync(limits)) return null;
+    for (const n of nodesOf(limits)) {
+      if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.name.text !== 'POCKET_WRITE_BODY_CAPS') continue;
+      let init = n.initializer;
+      if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze') init = init.arguments[0];
+      while (init !== undefined && (ts.isAsExpression(init) || ts.isSatisfiesExpression?.(init))) init = init.expression;
+      if (init === undefined || !ts.isObjectLiteralExpression(init)) return null;
+      const out = {};
+      for (const p of init.properties) {
+        if (ts.isPropertyAssignment(p) && ts.isIdentifier(p.name)) out[p.name.text] = ts.isNumericLiteral(p.initializer) ? Number(p.initializer.text.replace(/_/g, '')) : null;
+      }
+      return out;
+    }
+    return null;
+  })();
+  if (caps === null) {
+    fail('R2', `${rel(limits)}: no POCKET_WRITE_BODY_CAPS object literal, so no write has a body cap of its own`);
+  } else {
+    const keys = Object.keys(caps).sort();
+    if (keys.join(',') !== WRITE_IDS.join(',')) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS caps ${JSON.stringify(keys)}; it caps exactly the writes, ${JSON.stringify(WRITE_IDS)}`);
+    for (const k of keys) {
+      if (!(typeof caps[k] === 'number' && caps[k] > 0)) fail('R2', `${rel(limits)}: POCKET_WRITE_BODY_CAPS.${k} is not a positive number literal`);
+    }
   }
 
   // No pattern dispatch anywhere in the table's module, or in the module that
@@ -678,8 +777,15 @@ function routeRules() {
  * commit, which is the point. `node build/conformance-pocket.mjs
  * --write-route-pin` rewrites the constant below on purpose, the way
  * `conformance:arch --write-skeleton-pin` regenerates its drafted bytes.
+ *
+ * PHASE 317 MOVED IT ON PURPOSE, from Phase 313's
+ * `ad9ce8210eeed186d5c2458c3d3e06176171004e9b4fc75a36da5d793f94d080` to the
+ * value below, by the one write row `POST /v1/end` (build/p317/SPEC.md
+ * §5.3.1): five sorted lines, `--write-route-pin`'s method. (Its build had
+ * pinned `e1f86589…` over six lines, `POST /v1/unpair` too, which its fix
+ * round took out.)
  */
-const ROUTE_PIN = 'ad9ce8210eeed186d5c2458c3d3e06176171004e9b4fc75a36da5d793f94d080';
+const ROUTE_PIN = 'd1fefb71a8d09c1f0159c9be181e4cfb6f527cb0f61306624ee34b420be734b6';
 
 /** The `METHOD path` line of every row of POCKET_ROUTES, sorted. */
 function routeLines(file) {
@@ -1419,10 +1525,18 @@ function serverRules() {
   // BOUNDARIES for the same reason: `keyId` names a key and is not one.
   // PHASE 314 widened it by six: a device token, the provider key's PEM, the
   // JWT signed with it and the bearer it travels as, and the pairing
-  // presentation's own key for the token, `apt`.
+  // presentation's own key for the token, `apt`. PHASE 317 widened it by six
+  // more (build/p317/SPEC.md §6.1), for the door that now takes a person's
+  // writes and, in 318, his typed words: an error's `message` (a failed tmux
+  // command's text holds its argv, research 135 §4.8), `text`, `words`,
+  // `label`, `typed` and `reply`. `word` alone is NOT poison: a refusal's
+  // reason travels as a WORD and the log's whole job is to carry one. And its
+  // scope gained the one write implementation outside this directory,
+  // src/main/sessions/pocket-writes.ts.
   const LOGGABLE_POISON =
-    /\b(?:tokens?|secrets?|keys?|signatures?|nonces?|body|payload|question|answer|prompt|transcript|contents|authorization|jwt|bearer|pem|apt|pushToken|deviceToken)\b/i;
-  for (const file of domainFiles) {
+    /\b(?:tokens?|secrets?|keys?|signatures?|nonces?|body|payload|question|answer|prompt|transcript|contents|authorization|jwt|bearer|pem|apt|pushToken|deviceToken|texts?|messages?|words|labels?|typed|repl(?:y|ies))\b/i;
+  const pocketWrites = join(ROOT, 'src', 'main', 'sessions', 'pocket-writes.ts');
+  for (const file of [...domainFiles, ...(existsSync(pocketWrites) ? [pocketWrites] : [])]) {
     for (const call of callsOf(file)) {
       const name = calleeName(call);
       if (name === null || !/^(?:debug|info|warn|error|log)$/.test(name)) continue;
@@ -1604,13 +1718,14 @@ function noHtmlRule() {
  */
 const PUSH_ROUTE_WORDS = /push|apns|notify|device|token|alert/i;
 
-/**
- * The membership pin Phase 313 landed, spelled a second time on purpose. R4
- * holds the table to `ROUTE_PIN`, which `--write-route-pin` rewrites; this
- * holds it to Phase 313's own value, which nothing rewrites. So a route added
- * for the push has to move BOTH, in the same commit, and says so twice.
+/*
+ * Phase 314 held the table to Phase 313's membership pin a second time here,
+ * so a route added for the push had to move two pins. PHASE 317 REMOVED THAT
+ * SECOND PIN (build/p317/SPEC.md §6.1, 318's amendment, which 316.7 also
+ * plans): the door gained two writes, so the membership moved on purpose, and
+ * R4 alone holds it now. What N1 keeps is the promise itself, read as words:
+ * no route names the push.
  */
-const PHASE_313_ROUTE_PIN = 'ad9ce8210eeed186d5c2458c3d3e06176171004e9b4fc75a36da5d793f94d080';
 
 /** Every string element of the `POCKET_ROUTE_IDS` array literal in a file, or null. */
 function contractRouteIds(file) {
@@ -1651,23 +1766,9 @@ function noPushRouteRule() {
         }
       }
     }
-    const lines = routeLines(routes);
     checked('N1');
-    if (lines === null) {
+    if (routeLines(routes) === null) {
       fail('N1', `${rel(routes)}: POCKET_ROUTES could not be read as literal rows, so nothing says no push route was added`);
-    } else {
-      const got = createHash('sha256').update(lines.join('\n')).digest('hex');
-      if (got !== PHASE_313_ROUTE_PIN) {
-        fail(
-          'N1',
-          `${rel(routes)}: the table's membership is no longer Phase 313's (${got.slice(0, 12)} against ${PHASE_313_ROUTE_PIN.slice(0, 12)}). ` +
-            'Phase 314 adds no route, no write route and no token-refresh route; a later route is its own entry with its own tier.'
-        );
-      }
-    }
-    checked('N1');
-    if (ROUTE_PIN !== PHASE_313_ROUTE_PIN) {
-      fail('N1', `R4's pin is ${ROUTE_PIN.slice(0, 12)}, not Phase 313's ${PHASE_313_ROUTE_PIN.slice(0, 12)}, so the route table was re-pinned after Phase 313.`);
     }
   }
   const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
@@ -2559,6 +2660,29 @@ function answerReadmitRule() {
       if (postAt === -1 || !/\.stopping\(\)/.test(between) || /\bawait\b/.test(between)) {
         fail('A4', `${where(bind, call)}: after the handler answers, the dispatch does not ask the admission again with nothing awaited before it posts the answer, so an answer composed as the door began to stop is posted`);
       }
+      // PHASE 317 (build/p317/SPEC.md D4, §6.1). The replace is guarded by
+      // `acted`: the door stopping after a write acted does not make the act
+      // not have happened, and a 404 would tell the phone it had not.
+      if (fn !== undefined && ts.isMethodDeclaration(fn)) {
+        const post = descendantsOf(fn).find((n) => ts.isCallExpression(n) && calleeName(n) === 'post' && /^\s*\{\s*kind:\s*'answer'/.test(n.arguments[0]?.getText() ?? '') && n.getStart() > call.getStart());
+        const replaces = descendantsOf(fn).filter(
+          (n) =>
+            ts.isIfStatement(n) &&
+            n.getStart() > call.getStart() &&
+            (post === undefined || n.getStart() < post.getStart()) &&
+            /\banswer\s*=\s*REFUSED\b/.test(n.thenStatement.getText())
+        );
+        checked('A4', 2);
+        if (replaces.length === 0) {
+          fail('A4', `${where(bind, call)}: no replace of the answer by REFUSED is read between the handler and the post`);
+        }
+        for (const r of replaces) {
+          const cond = r.expression.getText();
+          if (!/\.stopping\(\)/.test(cond) || !/\.acted\s*!==\s*true/.test(cond)) {
+            fail('A4', `${where(bind, r)}: the answer is replaced by a 404 on ${JSON.stringify(cond)} without asking answer.acted !== true, so the door stopping after a write acted tells the phone nothing was done`);
+          }
+        }
+      }
     }
   }
 
@@ -2566,21 +2690,32 @@ function answerReadmitRule() {
   // verify it hands the handler names the phone.
   const ipc = moduleNamed('ipc', 'A4', "Phase 316.1 builder B's");
   if (ipc !== null) {
+    // ONE answer reads the store; since Phase 317 the handler and the write
+    // path are each handed it, so every other stillPaired is a one-line
+    // delegate to that one, and nothing answers the question a second way.
     const paired = functionsNamed(ipc, 'stillPaired');
+    const delegate = (fn) => {
+      const body = ts.isBlock(fn.body) ? (fn.body.statements.length === 1 && ts.isReturnStatement(fn.body.statements[0]) ? fn.body.statements[0].expression : undefined) : fn.body;
+      const param = fn.parameters[0] !== undefined && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
+      return body !== undefined && param !== null && body.getText().replace(/\s+/g, '') === `this.stillPaired(${param})`;
+    };
+    const readers = paired.filter((fn) => !delegate(fn));
     checked('A4', 2);
-    if (paired.length !== 1) {
-      fail('A4', `${rel(ipc)} declares ${String(paired.length)} stillPaired answers where the host hands the handler exactly one`);
+    if (readers.length !== 1) {
+      fail('A4', `${rel(ipc)} declares ${String(readers.length)} stillPaired answers that are not a delegate to this.stillPaired(; the host answers the question exactly one way`);
     } else {
-      const body = codeOfNode(ipc, paired[0]);
+      const body = codeOfNode(ipc, readers[0]);
       if (!/\bphones\b/.test(body) || !/readStore\(|fields\(/.test(body) || !/phoneId/.test(body)) {
-        fail('A4', `${where(ipc, paired[0])}: stillPaired does not look the phone up in the store's phones (${JSON.stringify(body.replace(/\s+/g, ' ').slice(0, 90))}), so the last ask answers something other than "is this phone still allowed"`);
+        fail('A4', `${where(ipc, readers[0])}: stillPaired does not look the phone up in the store's phones (${JSON.stringify(body.replace(/\s+/g, ' ').slice(0, 90))}), so the last ask answers something other than "is this phone still allowed"`);
       }
     }
     if (!/phoneId\s*:\s*verdict\.phone\.id\b/.test(codeTextOf(ipc))) {
       fail('A4', `${rel(ipc)}: the verify the host hands the handler does not name the phone it verified (phoneId: verdict.phone.id)`);
     }
     // (d) the premise: a Remove writes the store before its first await, so
-    // the handler's last ask already sees the phone gone.
+    // the handler's last ask already sees the phone gone. (Phase 317's build
+    // moved the write into a dropPhone its unpair shared; the fix round took
+    // the unpair out and put removePhone back as it was.)
     const remove = methodOf(ipc, 'PocketHost', 'removePhone');
     checked('A4');
     if (remove === null) {
@@ -5152,6 +5287,1009 @@ function seamNameRule() {
 }
 
 // ---------------------------------------------------------------------------
+// X — the two writes (Phase 317, build/p317/SPEC.md §5.3 to §5.6, §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE DOOR GREW ONE WRITE, and every clause below is one line a later round
+ * can delete with the phone still ending sessions. They are read with the
+ * parser, against the names build/p317/SPEC.md pins: `./writes.ts`'s
+ * `createPocketWriteHandler` and `parseEndBody`;
+ * `src/main/sessions/pocket-writes.ts`'s `endVerdict` and `createPocketWrites`;
+ * `PocketHost.removePhone`; `DoorAnswer`; the listener's `applyPins` and
+ * `handleRequest`; `describePocketDoor`'s `WRITE_CLAUSES`.
+ */
+const POCKET_WRITES_FILE = join(ROOT, 'src', 'main', 'sessions', 'pocket-writes.ts');
+const POCKET_WRITES_OWNER = "Phase 317 builder door's (src/main/sessions/pocket-writes.ts)";
+const WRITES_OWNER = "Phase 317 builder door's (src/main/pocket/writes.ts)";
+
+/** The one implementation of the phone's End, or null with the rule failed by name. */
+function pocketWritesFile(ruleId) {
+  if (existsSync(POCKET_WRITES_FILE)) return POCKET_WRITES_FILE;
+  fail(
+    ruleId,
+    `${rel(POCKET_WRITES_FILE)} does not exist, so this rule read nothing. It is ${POCKET_WRITES_OWNER}. ` +
+      'A gate that passed here would go green on the day the phone’s End has no implementation.'
+  );
+  return null;
+}
+
+/** Strip parentheses, `as` and `satisfies` off an expression. */
+function bare(e) {
+  let n = e;
+  while (n !== undefined && (ts.isParenthesizedExpression(n) || ts.isAsExpression(n) || ts.isSatisfiesExpression?.(n) || ts.isNonNullExpression(n))) n = n.expression;
+  return n;
+}
+
+/** Does `inner` sit inside `outer`? */
+function inside(inner, outer) {
+  return inner.getStart() >= outer.getStart() && inner.getEnd() <= outer.getEnd();
+}
+
+/** The const a name is declared as in a file, or null. */
+function constNamed(file, name) {
+  for (const node of nodesOf(file)) {
+    if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.name.text === name && node.initializer !== undefined) {
+      return node;
+    }
+  }
+  return null;
+}
+
+/** Every object literal a return hands back, through `?:` and `&&`. */
+function returnedObjects(expr) {
+  const e = bare(expr);
+  if (e === undefined) return [];
+  if (ts.isObjectLiteralExpression(e)) return [e];
+  if (ts.isConditionalExpression(e)) return [...returnedObjects(e.whenTrue), ...returnedObjects(e.whenFalse)];
+  return [];
+}
+
+/** An object literal's property initializer by name (shorthand answers the identifier), or undefined. */
+function propOf(obj, name) {
+  for (const p of obj.properties) {
+    if (ts.isPropertyAssignment(p) && memberName(p) === name) return p.initializer;
+    if (ts.isShorthandPropertyAssignment(p) && p.name.text === name) return p.name;
+  }
+  return undefined;
+}
+
+/** The function `createPocketWriteHandler` returns: the write path itself. */
+function writeHandlerOf(file) {
+  const factory = oneFunction(file, 'createPocketWriteHandler');
+  if (factory === null) return null;
+  for (const ret of ownReturnsOf(factory)) {
+    const e = bare(ret.expression);
+    if (e !== undefined && (ts.isFunctionExpression(e) || ts.isArrowFunction(e))) return e;
+  }
+  return null;
+}
+
+/**
+ * The anchors of the write path, by position: the parse, the ledger's read,
+ * the in-flight check and claim, the pending entry, the last check, the act's
+ * statement and the act's call, and the outcome's record.
+ */
+function writePathAnchors(file, handler) {
+  const sf = astOf(file);
+  const nodes = descendantsOf(handler);
+  const calls = nodes.filter((n) => ts.isCallExpression(n));
+  const receiver = (call) => (ts.isPropertyAccessExpression(call.expression) ? call.expression.expression.getText(sf) : '');
+  const at = (n) => (n === undefined ? -1 : n.getStart(sf));
+  const parse = calls.find((c) => calleeName(c) === 'parseEndBody');
+  const ledgerGet = calls.find((c) => calleeName(c) === 'get' && /ledger/i.test(receiver(c)));
+  const ledgerSet = calls.find((c) => calleeName(c) === 'set' && /ledger/i.test(receiver(c)));
+  const lastChecks = nodes.filter((n) => ts.isIfStatement(n) && descendantsOf(n.expression).some((m) => ts.isCallExpression(m) && calleeName(m) === 'stillPaired'));
+  const lastCheck = lastChecks.length === 1 ? lastChecks[0] : undefined;
+  let actStatement;
+  if (lastCheck !== undefined && ts.isBlock(lastCheck.parent)) {
+    const list = lastCheck.parent.statements;
+    actStatement = list[list.indexOf(lastCheck) + 1];
+  }
+  const actCalls =
+    actStatement === undefined
+      ? []
+      : descendantsOf(actStatement).filter(
+          (n) =>
+            ts.isCallExpression(n) &&
+            calleeName(n) === 'end' && /writes/.test(receiver(n))
+        );
+  const actCall = actCalls[0];
+  const inflightCheck = nodes.find(
+    (n) => ts.isIfStatement(n) && descendantsOf(n.expression).some((m) => ts.isCallExpression(m) && calleeName(m) === 'has')
+  );
+  const adds = calls.filter((c) => calleeName(c) === 'add');
+  const outcome = nodes.find(
+    (n) =>
+      ts.isBinaryExpression(n) &&
+      n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isPropertyAccessExpression(n.left) &&
+      n.left.name.text === 'acted' &&
+      n.right.kind === ts.SyntaxKind.TrueKeyword
+  );
+  const known = (() => {
+    if (ledgerGet === undefined) return null;
+    const decl = ledgerGet.parent;
+    return decl !== undefined && ts.isVariableDeclaration(decl) && ts.isIdentifier(decl.name) ? decl.name.text : null;
+  })();
+  const phoneParam = handler.parameters[2] !== undefined && ts.isIdentifier(handler.parameters[2].name) ? handler.parameters[2].name.text : null;
+  return {
+    sf,
+    parse,
+    ledgerGet,
+    ledgerSet,
+    lastChecks,
+    lastCheck,
+    actStatement,
+    actCall,
+    actCalls,
+    inflightCheck,
+    adds,
+    outcome,
+    known,
+    phoneParam,
+    at
+  };
+}
+
+/** Is `node`'s own `if` chain, up to `stop`, guarded by a condition that names `name`? */
+function guardedByName(node, stop, name) {
+  for (let n = node; n !== undefined && n !== stop; n = n.parent) {
+    const p = n.parent;
+    if (p !== undefined && ts.isIfStatement(p) && (p.thenStatement === n || p.elseStatement === n)) {
+      if (new RegExp(`\\b${name}\\b`).test(p.expression.getText())) return true;
+    }
+    if (p !== undefined && ts.isConditionalExpression(p) && (p.whenTrue === n || p.whenFalse === n)) {
+      if (new RegExp(`\\b${name}\\b`).test(p.condition.getText())) return true;
+    }
+  }
+  return false;
+}
+
+/** X1 to X4, X11: the write path in `./writes.ts`. */
+function writePathRules() {
+  const writes = moduleNamed('writes', 'X1', WRITES_OWNER);
+  if (writes === null) {
+    for (const id of ['X2', 'X3', 'X4', 'X11']) fail(id, `src/main/pocket/writes.ts does not exist, so there is no write path to read. It is ${WRITES_OWNER}.`);
+    return;
+  }
+  const handler = writeHandlerOf(writes);
+  checked('X1');
+  if (handler === null) {
+    fail('X1', `${rel(writes)}: createPocketWriteHandler returns no function, so the write path’s order cannot be read`);
+    for (const id of ['X3', 'X4']) fail(id, `${rel(writes)}: no write path to read`);
+  } else {
+    const a = writePathAnchors(writes, handler);
+    // X1, THE ORDER: parse, ledger, claim, last check, act, outcome.
+    checked('X1', 6);
+    if (a.lastChecks.length !== 1) {
+      fail('X1', `${where(writes, handler)}: the write path makes ${String(a.lastChecks.length)} checks that ask stillPaired(; it makes ONE, the last before the act`);
+    }
+    const order = [
+      ['the strict parse (parseEndBody)', a.parse],
+      ['the ledger’s read (ledger.get)', a.ledgerGet],
+      ['the in-flight claim (.add)', a.adds[0]],
+      ['the last check (stillPaired)', a.lastCheck],
+      ['the act (writes.end)', a.actCall],
+      ['the outcome recorded (.acted = true)', a.outcome]
+    ];
+    for (const [what, node] of order) {
+      if (node === undefined) fail('X1', `${where(writes, handler)}: the write path names no ${what}`);
+    }
+    if (order.every(([, node]) => node !== undefined)) {
+      for (let i = 1; i < order.length; i += 1) {
+        if (a.at(order[i - 1][1]) >= a.at(order[i][1])) {
+          fail('X1', `${where(writes, order[i][1])}: ${order[i][0]} comes before ${order[i - 1][0]}; the order is research 135 §4.11’s, held as code`);
+        }
+      }
+    }
+    // Nothing between the last check and the act.
+    if (a.lastCheck !== undefined) {
+      checked('X1', 4);
+      if (descendantsOf(a.lastCheck.expression).some((n) => ts.isAwaitExpression(n))) {
+        fail('X1', `${where(writes, a.lastCheck)}: the last check awaits inside its own condition`);
+      }
+      if (a.lastCheck.elseStatement !== undefined) fail('X1', `${where(writes, a.lastCheck)}: the last check has an else arm; it refuses and returns, and the act is the next statement`);
+      const then = a.lastCheck.thenStatement;
+      const thenReturn = ts.isReturnStatement(then) ? then : ts.isBlock(then) && then.statements.length === 1 && ts.isReturnStatement(then.statements[0]) ? then.statements[0] : null;
+      const refusal = thenReturn === null ? [] : returnedObjects(thenReturn.expression);
+      if (refusal.length !== 1 || bare(propOf(refusal[0], 'status'))?.getText() !== '404') {
+        fail('X1', `${where(writes, a.lastCheck)}: the last check’s refusal is not one return of status 404; it is the door’s refusal and nothing was done`);
+      }
+      if (a.actStatement === undefined || a.actCall === undefined || !inside(a.actCall, a.actStatement)) {
+        fail('X1', `${where(writes, a.lastCheck)}: the statement right after the last check does not start the act; nothing may sit between the two`);
+      } else {
+        const awaitsFirst = descendantsOf(a.actStatement).some((n) => ts.isAwaitExpression(n) && n.getStart() < a.actCall.getStart());
+        if (awaitsFirst) fail('X1', `${where(writes, a.actStatement)}: something is awaited inside the act’s statement before the act is called`);
+        // An act handed to a local settle function must be CALLED by it at once.
+        for (const act of a.actCalls) for (let n = act.parent; n !== undefined && n !== a.actStatement; n = n.parent) {
+          if (!(ts.isArrowFunction(n) || ts.isFunctionExpression(n)) || !ts.isCallExpression(n.parent)) continue;
+          const settle = calleeName(n.parent);
+          const fn = settle === null ? null : oneFunction(writes, settle);
+          checked('X1');
+          if (fn === null) {
+            fail('X1', `${where(writes, n)}: the act is handed to ${String(settle)}(, which is not declared once in ${rel(writes)}, so nothing proves it starts the act at once`);
+            continue;
+          }
+          const param = fn.parameters[n.parent.arguments.indexOf(n)];
+          const pname = param !== undefined && ts.isIdentifier(param.name) ? param.name.text : null;
+          const startCall = pname === null ? undefined : descendantsOf(fn).find((m) => ts.isCallExpression(m) && ts.isIdentifier(m.expression) && m.expression.text === pname);
+          const awaitBefore = startCall !== undefined && descendantsOf(fn).some((m) => ts.isAwaitExpression(m) && m.getStart() < startCall.getStart());
+          if (startCall === undefined || awaitBefore) {
+            fail('X1', `${where(writes, fn)}: ${settle}( does not call the act it is handed before anything is awaited, so the act does not start in the statement after the last check`);
+          }
+        }
+      }
+    }
+    // Every 404 before the act; after it, every return marked acted; before
+    // it, only the ledger's returns marked.
+    const returns = ownReturnsOf(handler);
+    const actAt = a.at(a.actStatement);
+    for (const ret of returns) {
+      const objects = returnedObjects(ret.expression);
+      const is404 = objects.some((o) => bare(propOf(o, 'status'))?.getText() === '404');
+      checked('X1');
+      if (actAt !== -1 && ret.getStart() > actAt) {
+        if (objects.length === 0) {
+          fail('X1', `${where(writes, ret)}: a return after the act hands back something this rule cannot read as an answer`);
+        } else if (is404) {
+          fail('X1', `${where(writes, ret)}: a 404 AFTER THE ACT. A 404 tells the phone nothing was done, and something was`);
+        }
+        for (const o of objects) {
+          if (propOf(o, 'acted')?.kind !== ts.SyntaxKind.TrueKeyword) {
+            fail('X1', `${where(writes, o)}: an answer after the act is not marked acted: true, so the door stopping could replace it with a 404`);
+          }
+        }
+      } else if (actAt !== -1) {
+        const marked = objects.some((o) => propOf(o, 'acted') !== undefined);
+        if (marked && (a.known === null || !guardedByName(ret, handler, a.known))) {
+          fail('X1', `${where(writes, ret)}: an answer before the act is marked acted, and it is not the ledger’s; only a recorded hit and the busy for a pending entry of the same write id speak for an act`);
+        }
+      }
+    }
+    if (a.known !== null && actAt !== -1) {
+      const before = returns.filter((r) => r.getStart() < actAt && guardedByName(r, handler, a.known));
+      checked('X1', 2);
+      if (!before.some((r) => new RegExp(`\\b${a.known}\\.acted\\b`).test(r.getText()))) {
+        fail('X1', `${where(writes, handler)}: the ledger’s recorded hit does not answer with its own recorded acted (${a.known}.acted), so a recorded answer to a write that acted could be replaced with a 404 (§14 finding 9)`);
+      }
+      if (!before.some((r) => /busy/.test(r.getText()) && returnedObjects(r.expression).some((o) => propOf(o, 'acted')?.kind === ts.SyntaxKind.TrueKeyword))) {
+        fail('X1', `${where(writes, handler)}: the busy a duplicate of a write still in flight gets is not marked acted: true; the write it duplicates may be acting now, and a 404 would say it was not`);
+      }
+    }
+
+    // X3, the pending entry is made AT THE CLAIM: after the in-flight check and
+    // before the last check (§3 row 18).
+    checked('X3', 2);
+    if (a.ledgerSet === undefined) {
+      fail('X3', `${where(writes, handler)}: the write path never records a pending entry (ledger.set)`);
+    } else {
+      if (a.lastCheck !== undefined && a.ledgerSet.getStart() > a.lastCheck.getStart()) {
+        fail('X3', `${where(writes, a.ledgerSet)}: the pending entry is made AFTER the last check; two requests with one write id could both pass the ledger`);
+      }
+      if (a.inflightCheck !== undefined && a.ledgerSet.getStart() < a.inflightCheck.getStart()) {
+        fail('X3', `${where(writes, a.ledgerSet)}: the pending entry is made before the in-flight check; it is made AT the claim`);
+      }
+      // Keyed on the verified phone AND the write id.
+      for (const call of [a.ledgerSet, a.ledgerGet].filter((c) => c !== undefined)) {
+        let key = call.arguments[0];
+        if (key !== undefined && ts.isIdentifier(key)) key = constNamed(writes, key.text)?.initializer ?? key;
+        const text = key === undefined ? '' : key.getText();
+        checked('X3');
+        if (a.phoneParam === null || !new RegExp(`\\b${a.phoneParam}\\b`).test(text) || !/\.write\b/.test(text)) {
+          fail('X3', `${where(writes, call)}: the ledger’s key is ${JSON.stringify(text.slice(0, 60))}, not the verified phone and the write id; a write id is the phone’s own`);
+        }
+      }
+      // Each entry stores its acted.
+      let entry = a.ledgerSet.arguments[1];
+      if (entry !== undefined && ts.isIdentifier(entry)) entry = constNamed(writes, entry.text)?.initializer ?? entry;
+      checked('X3');
+      if (entry === undefined || !ts.isObjectLiteralExpression(bare(entry)) || propOf(bare(entry), 'acted') === undefined) {
+        fail('X3', `${where(writes, a.ledgerSet)}: the ledger’s entry does not store acted, so a recorded hit cannot say whether its write acted`);
+      }
+    }
+
+    // X4, one in flight per phone and per session: checked, claimed before
+    // the act, released in a finally that holds the act.
+    const sets = new Map();
+    for (const add of a.adds) {
+      if (!ts.isPropertyAccessExpression(add.expression) || !ts.isIdentifier(add.expression.expression)) continue;
+      if (a.lastCheck !== undefined && add.getStart() > a.lastCheck.getStart()) {
+        fail('X4', `${where(writes, add)}: an in-flight claim is made after the last check; it is made before the act, at the claim`);
+      }
+      sets.set(add.expression.expression.text, add.arguments[0]?.getText() ?? '');
+    }
+    checked('X4', 2);
+    if (sets.size < 2) {
+      fail('X4', `${where(writes, handler)}: the write path claims ${String(sets.size)} in-flight set(s); it claims one per phone and one per session`);
+    }
+    if (a.phoneParam !== null && ![...sets.values()].includes(a.phoneParam)) {
+      fail('X4', `${where(writes, handler)}: no in-flight claim is of the verified phone (${a.phoneParam})`);
+    }
+    if (![...sets.values()].some((arg) => arg !== a.phoneParam && arg !== '')) {
+      fail('X4', `${where(writes, handler)}: no in-flight claim is of anything but the phone, so two phones can end one session at once`);
+    }
+    const tryOfAct = (() => {
+      for (let n = a.actStatement; n !== undefined; n = n.parent) {
+        if (ts.isTryStatement(n.parent) && n.parent.tryBlock === n) return n.parent;
+      }
+      return null;
+    })();
+    for (const name of sets.keys()) {
+      checked('X4', 2);
+      const has = descendantsOf(handler).some((n) => ts.isCallExpression(n) && calleeName(n) === 'has' && n.expression.getText().startsWith(`${name}.`));
+      if (!has) fail('X4', `${where(writes, handler)}: ${name} is claimed without being asked first (.has), so a second write would claim it again`);
+      const released =
+        tryOfAct !== null &&
+        tryOfAct.finallyBlock !== undefined &&
+        descendantsOf(tryOfAct.finallyBlock).some((n) => ts.isCallExpression(n) && calleeName(n) === 'delete' && n.expression.getText().startsWith(`${name}.`));
+      if (!released) fail('X4', `${where(writes, handler)}: ${name}’s claim is not released in the finally of the try that holds the act, so a refusal or a throw holds it forever`);
+    }
+
+    // X11, ONE log line, the verb and the outcome word, the session its one field.
+    const logs = callsOf(writes).filter((c) => /^(?:debug|info|warn|error|log)$/.test(calleeName(c) ?? '') && /log/i.test(ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : ''));
+    checked('X11', 3);
+    if (logs.length !== 1) {
+      fail('X11', `${rel(writes)} makes ${String(logs.length)} log call(s); the write path writes ONE line per write`);
+    } else {
+      const call = logs[0];
+      const [message, field, ...rest] = call.arguments;
+      const spans = message !== undefined && ts.isTemplateExpression(message) ? message.templateSpans.map((s) => s.expression.getText()) : null;
+      if (spans === null || spans.length !== 2 || !/\bverb$/.test(spans[0]) || !/\boutcome$/.test(spans[1])) {
+        fail('X11', `${where(writes, call)}: the line interpolates ${JSON.stringify(spans)}; it names the verb and the outcome word and nothing else, never the body, the write id, a header or a sentence`);
+      }
+      const fields = field === undefined ? [] : returnedObjects(field);
+      const onlySession =
+        rest.length === 0 &&
+        (field === undefined || fields.length > 0) &&
+        fields.every((o) => o.properties.length === 1 && propOf(o, 'session') !== undefined);
+      if (!onlySession) {
+        fail('X11', `${where(writes, call)}: the line’s field is ${JSON.stringify(field?.getText().slice(0, 60) ?? '(none)')}; its one field is the session id`);
+      }
+      if (a.actStatement !== undefined && call.getStart() < a.actStatement.getStart()) {
+        fail('X11', `${where(writes, call)}: the line is written before the act; it says the outcome, so it is written after it`);
+      }
+    }
+  }
+
+  // X2, THE STRICT PARSE.
+  const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
+  const parseFns = ['parseEndBody'].map((name) => [name, oneFunction(writes, name)]);
+  checked('X2', 3);
+  for (const [name, fn] of parseFns) if (fn === null) fail('X2', `${rel(writes)} declares no single ${name}`);
+  if (parses.length !== 1) {
+    fail('X2', `${rel(writes)} holds ${String(parses.length)} JSON.parse calls; a write body is parsed ONCE, in the parse function`);
+  }
+  const inParse = (node) => parseFns.some(([, fn]) => fn !== null && inside(node, fn));
+  for (const call of parses) {
+    let n = call;
+    let inTry = false;
+    while (n.parent !== undefined && !ts.isFunctionLike(n.parent)) {
+      if (ts.isTryStatement(n.parent) && n.parent.tryBlock === n) inTry = true;
+      n = n.parent;
+    }
+    if (!inTry) fail('X2', `${where(writes, call)}: JSON.parse is not inside a try, so a body that does not parse throws past the parse`);
+    if (inParse(call)) continue;
+    const owner = n.parent;
+    const ownerName = owner === undefined ? null : enclosingName(call);
+    const users = ownerName === null ? [] : callsOf(writes).filter((c) => calleeName(c) === ownerName);
+    if (ownerName === null || users.length === 0 || !users.every((c) => inParse(c))) {
+      fail('X2', `${where(writes, call)}: JSON.parse sits in ${String(ownerName)}, which something other than the parse function calls`);
+    }
+  }
+  const KEY_SETS = { parseEndBody: 'batch,session,write' };
+  for (const [name, fn] of parseFns) {
+    if (fn === null) continue;
+    checked('X2');
+    const exact = descendantsOf(fn).some((n) => {
+      if (!ts.isBinaryExpression(n)) return false;
+      const op = n.operatorToken.kind;
+      if (op !== ts.SyntaxKind.EqualsEqualsEqualsToken && op !== ts.SyntaxKind.ExclamationEqualsEqualsToken) return false;
+      const sides = [n.left, n.right];
+      const keys = sides.find((s) => /Object\.keys\(/.test(s.getText()) && /\.sort\(\)/.test(s.getText()) && /\.join\(/.test(s.getText()));
+      const other = sides.find((s) => s !== keys);
+      if (keys === undefined || other === undefined) return false;
+      let lit = bare(other);
+      if (ts.isIdentifier(lit)) lit = bare(constNamed(writes, lit.text)?.initializer);
+      return lit !== undefined && ts.isStringLiteralLike(lit) && lit.text === KEY_SETS[name];
+    });
+    if (!exact) fail('X2', `${where(writes, fn)}: ${name} does not compare the body’s sorted keys with exactly ${JSON.stringify(KEY_SETS[name])}, so a fourth key could ride along`);
+  }
+  // Read one character at a time, never by a pattern.
+  checked('X2');
+  for (const n of nodesOf(writes)) {
+    if (n.kind === ts.SyntaxKind.RegularExpressionLiteral || (ts.isCallExpression(n) || ts.isNewExpression(n)) && n.expression.getText() === 'RegExp') {
+      fail('X2', `${where(writes, n)}: a pattern in the write path; the write id and the session id are read one character at a time`);
+    }
+  }
+  const loopsReachedFrom = (fn) => {
+    const seen = new Set();
+    const loops = new Set();
+    const walk = (f) => {
+      if (seen.has(f)) return;
+      seen.add(f);
+      if (descendantsOf(f).some((n) => n !== f && (ts.isForOfStatement(n) || ts.isForStatement(n) || ts.isWhileStatement(n)))) loops.add(f);
+      for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression))) {
+        const g = oneFunction(writes, c.expression.text);
+        if (g !== null) walk(g);
+      }
+    };
+    walk(fn);
+    return loops.size;
+  };
+  for (const [name, fn, want] of [[...parseFns[0], 2]]) {
+    if (fn === null) continue;
+    checked('X2');
+    if (loopsReachedFrom(fn) < want) {
+      fail('X2', `${where(writes, fn)}: ${name} reaches ${String(loopsReachedFrom(fn))} function(s) that read a value one character at a time; it reads ${want === 2 ? 'the write id and the session id' : 'the write id'} that way`);
+    }
+  }
+
+  // X3, THE LEDGER'S CONSTANTS AND ITS EVICTION.
+  const text = codeTextOf(writes);
+  checked('X3', 5);
+  const lifetime = nodesOf(writes).find(
+    (n) => ts.isVariableDeclaration(n) && n.initializer !== undefined && /^(?:2\s*\*\s*POCKET_CLOCK_SKEW_MS|POCKET_CLOCK_SKEW_MS\s*\*\s*2)$/.test(n.initializer.getText().trim())
+  );
+  if (lifetime === undefined) fail('X3', `${rel(writes)}: no ledger lifetime is declared as 2 * POCKET_CLOCK_SKEW_MS`);
+  const skewImported = nodesOf(writes).some(
+    (n) => ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && n.moduleSpecifier.text === './pairing' && /\bPOCKET_CLOCK_SKEW_MS\b/.test(n.getText())
+  );
+  if (!skewImported) fail('X3', `${rel(writes)} does not import POCKET_CLOCK_SKEW_MS from ./pairing; the ledger’s lifetime is the signature clock’s, never re-spelled`);
+  for (const n of nodesOf(writes)) {
+    if (ts.isNumericLiteral(n) && Number(n.text.replace(/_/g, '')) === 120_000) fail('X3', `${where(writes, n)}: the literal 120000; the lifetime is 2 * POCKET_CLOCK_SKEW_MS, imported`);
+  }
+  for (const cap of [512, 4096]) {
+    const decl = nodesOf(writes).find((n) => ts.isVariableDeclaration(n) && n.initializer !== undefined && ts.isNumericLiteral(n.initializer) && Number(n.initializer.text.replace(/_/g, '')) === cap && ts.isIdentifier(n.name));
+    if (decl === undefined) {
+      fail('X3', `${rel(writes)}: no ledger cap of ${String(cap)} is declared`);
+      continue;
+    }
+    const name = decl.name.text;
+    const compared = nodesOf(writes).some(
+      (n) => ts.isBinaryExpression(n) && (n.operatorToken.kind === ts.SyntaxKind.GreaterThanEqualsToken || n.operatorToken.kind === ts.SyntaxKind.GreaterThanToken) && n.right.getText() === name
+    );
+    if (!compared) fail('X3', `${where(writes, decl)}: the cap ${name} is never compared against, so the ledger can grow past it`);
+  }
+  if (lifetime !== undefined && ts.isIdentifier(lifetime.name)) {
+    const lifetimeName = lifetime.name.text;
+    const deleters = new Set(['delete']);
+    for (const n of nodesOf(writes)) {
+      if ((ts.isArrowFunction(n) || ts.isFunctionExpression(n) || ts.isFunctionDeclaration(n)) && descendantsOf(n).some((m) => ts.isCallExpression(m) && calleeName(m) === 'delete' && /ledger/i.test(m.expression.getText()))) {
+        const name = enclosingName(descendantsOf(n).find((m) => ts.isCallExpression(m) && calleeName(m) === 'delete'));
+        if (name !== null && name !== 'createPocketWriteHandler') deleters.add(name);
+      }
+    }
+    for (const call of callsOf(writes)) {
+      const name = calleeName(call);
+      if (!deleters.has(name)) continue;
+      if (name === 'delete' && !/ledger/i.test(call.expression.getText())) continue;
+      const fn = enclosingName(call);
+      if (deleters.has(fn) && fn !== 'delete') continue;
+      checked('X3');
+      const byLifetime = guardedByName(call, null, lifetimeName);
+      const pendingDrop = insideFinally(call) && /'pending'/.test(guardingIf(call)?.expression.getText() ?? '');
+      if (!byLifetime && !pendingDrop) {
+        fail('X3', `${where(writes, call)}: an entry is dropped without asking whether it outlived ${lifetimeName}; a live entry is never evicted, and a pending one is dropped only in the finally when it never acted`);
+      }
+    }
+  }
+  for (const { node, text: spec } of specifiersOf(writes)) {
+    checked('X3');
+    if (/^(?:node:)?fs(?:\/promises)?$/.test(spec)) fail('X3', `${where(writes, node)}: the write path imports ${spec}; the ledger is memory and a write is never queued for later`);
+  }
+  void text;
+}
+
+/** The interface or type alias a file declares under a name, or null. */
+function declaredType(file, name) {
+  for (const node of nodesOf(file)) {
+    if ((ts.isInterfaceDeclaration(node) || ts.isTypeAliasDeclaration(node)) && node.name.text === name) return node;
+  }
+  return null;
+}
+
+/** X5 and X6: the one implementation, the interface it fills, and the answer. */
+function pocketWritesRules() {
+  const routes = moduleNamed('routes', 'X5', "Phase 317 builder door's (src/main/pocket/routes.ts)");
+  // PocketWrites: declared once, in routes.ts, with exactly `end`.
+  if (routes !== null) {
+    const iface = interfaceOf(routes, 'PocketWrites');
+    checked('X5', 2);
+    if (iface === null) {
+      fail('X5', `${rel(routes)} declares no interface PocketWrites`);
+    } else {
+      const members = iface.members.map(memberName);
+      if (members.join(',') !== 'end') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; this phase has exactly one member, end`);
+    }
+    const facts = interfaceOf(routes, 'PocketFacts');
+    const endOffer = facts?.members.find((m) => memberName(m) === 'endOffer');
+    if (endOffer === undefined || endOffer.questionToken === undefined) {
+      fail('X5', `${rel(routes)}: PocketFacts.endOffer is ${endOffer === undefined ? 'absent' : 'required'}; it is optional, and absent reads { state: 'none' }, because the push seam’s and the tests’ facts offer no End (§14 finding 8)`);
+    }
+  }
+  const declaredElsewhere = [];
+  const implementers = [];
+  const handedBy = [];
+  for (const file of productionSources()) {
+    const src = readFileSync(file, 'utf8');
+    if (!/PocketWrites|createPocketWrites/.test(src)) continue;
+    for (const n of nodesOf(file)) {
+      if ((ts.isInterfaceDeclaration(n) || ts.isTypeAliasDeclaration(n)) && n.name.text === 'PocketWrites' && file !== routes) declaredElsewhere.push(where(file, n));
+      if ((ts.isFunctionDeclaration(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n)) && n.type !== undefined && /\bPocketWrites\b/.test(n.type.getText())) implementers.push({ file, n });
+      if (ts.isCallExpression(n) && calleeName(n) === 'createPocketWrites') handedBy.push({ file, n });
+    }
+  }
+  checked('X5', 3);
+  for (const at of declaredElsewhere) fail('X5', `${at} declares a second PocketWrites; it is declared once, in routes.ts`);
+  if (implementers.length !== 1 || implementers[0].file !== POCKET_WRITES_FILE) {
+    fail('X5', `PocketWrites is implemented by ${implementers.length === 0 ? 'nothing' : implementers.map((i) => where(i.file, i.n)).join(', ')}; it is implemented ONCE, in ${rel(POCKET_WRITES_FILE)}`);
+  }
+  const capabilities = join(ROOT, 'src', 'main', 'capabilities.ts');
+  for (const { file, n } of handedBy) {
+    if (file !== capabilities) fail('X5', `${where(file, n)} builds the phone’s writes; production builds them in src/main/capabilities.ts alone`);
+  }
+  if (!handedBy.some((h) => h.file === capabilities)) fail('X5', 'src/main/capabilities.ts never builds the phone’s writes, so the door has none');
+  // And only capabilities.ts hands a PocketHost any writes: the push seam's
+  // host has none, so its door answers both write routes 404.
+  for (const file of productionSources()) {
+    if (!readFileSync(file, 'utf8').includes('new PocketHost(')) continue;
+    for (const n of nodesOf(file)) {
+      if (!ts.isNewExpression(n) || n.expression.getText() !== 'PocketHost') continue;
+      const arg = n.arguments?.[0] === undefined ? undefined : bare(n.arguments[0]);
+      checked('X5');
+      const handsWrites = arg !== undefined && (!ts.isObjectLiteralExpression(arg) || propOf(arg, 'writes') !== undefined || arg.properties.some((p) => ts.isSpreadAssignment(p)));
+      if (handsWrites && file !== capabilities) {
+        fail('X5', `${where(file, n)} hands a PocketHost something that may carry writes; the phone’s writes reach a host from src/main/capabilities.ts alone`);
+      }
+    }
+  }
+
+  const impl = pocketWritesFile('X5');
+  if (impl !== null) {
+    // end(): both gates before its first await, which is the verb.
+    const factory = oneFunction(impl, 'createPocketWrites');
+    const end = factory === null ? null : descendantsOf(factory).find((n) => ts.isMethodDeclaration(n) && memberName(n) === 'end' || ts.isPropertyAssignment(n) && memberName(n) === 'end' && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer)));
+    checked('X5', 4);
+    if (end === undefined || end === null) {
+      fail('X5', `${rel(impl)}: createPocketWrites answers no end`);
+    } else {
+      const awaits = descendantsOf(end).filter((n) => ts.isAwaitExpression(n));
+      const first = awaits[0];
+      const firstIsVerb = first !== undefined && ts.isCallExpression(bare(first.expression)) && calleeName(bare(first.expression)) === 'killSession';
+      if (!firstIsVerb) fail('X5', `${where(impl, end)}: end’s first await is ${first === undefined ? 'nothing' : JSON.stringify(first.getText().slice(0, 50))}; it is the verb, killSession(, and nothing is awaited before it`);
+      const reach = new Set();
+      const walk = (f) => {
+        for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n))) {
+          if (first !== undefined && c.getStart() > first.getStart() && inside(c, end)) continue;
+          const name = calleeName(c);
+          if (name === null || reach.has(name)) continue;
+          reach.add(name);
+          const g = ts.isIdentifier(c.expression) ? oneFunction(impl, name) : null;
+          if (g !== null) walk(g);
+        }
+      };
+      walk(end);
+      if (!reach.has('endRefusal')) fail('X5', `${where(impl, end)}: end does not ask main’s gate, endRefusal(, before the verb`);
+      if (!reach.has('sessionActionGates')) fail('X5', `${where(impl, end)}: end does not ask the shared gate, sessionActionGates(, before the verb`);
+    }
+    const gateCalls = callsOf(impl).filter((c) => calleeName(c) === 'sessionActionGates');
+    checked('X5', 2);
+    for (const c of gateCalls) {
+      const readsCanEnd = ts.isPropertyAccessExpression(c.parent) && c.parent.name.text === 'canEnd';
+      if (!readsCanEnd || c.arguments[2]?.getText() !== 'DOOR_GATE_ENV') {
+        fail('X5', `${where(impl, c)}: the shared gate is asked as ${JSON.stringify(c.parent.getText().slice(0, 80))}; the door reads .canEnd of sessionActionGates( with DOOR_GATE_ENV, and nothing else`);
+      }
+    }
+    if (gateCalls.length === 0) fail('X5', `${rel(impl)} never asks sessionActionGates(`);
+    // The batch arm reads the injected machineKnown, never answering.
+    checked('X5', 3);
+    for (const n of nodesOf(impl)) {
+      if ((ts.isPropertyAccessExpression(n) && n.name.text === 'answering') || (ts.isElementAccessExpression(n) && ts.isStringLiteral(n.argumentExpression) && n.argumentExpression.text === 'answering')) {
+        fail('X5', `${where(impl, n)} reads .answering. A machine that is not answering already reads unknown; the batch narrows by the machine ROW (§14 finding 1)`);
+      }
+    }
+    if (!callsOf(impl).some((c) => calleeName(c) === 'machineKnown')) fail('X5', `${rel(impl)} never calls machineKnown(, so the batch’s narrowing is not the Mac batch’s`);
+    const rowImported = specifiersOf(impl).some(({ node, text: spec }) => /(?:^|\/)machines\/store$/.test(spec) && /\bmachineRow\b/.test(node.getText()));
+    if (!rowImported || !callsOf(impl).some((c) => calleeName(c) === 'machineRow')) {
+      fail('X5', `${rel(impl)}: the production machineKnown is not machineRow( from src/main/machines/store.ts`);
+    }
+    // No other lifecycle verb, no status setter.
+    const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|removeSession|restartSession|renameSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
+    for (const c of callsOf(impl)) {
+      checked('X5');
+      const name = calleeName(c);
+      if (name !== null && NOT_THE_DOORS.test(name)) fail('X5', `${where(impl, c)} calls ${name}(; the phone’s End names one verb, killSession, and no status setter (refusal 5)`);
+    }
+  }
+
+  // X6, THE ANSWER: five fields, named sentences, no message, errors by code.
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  checked('X6');
+  const answerType = existsSync(contract) ? interfaceOf(contract, 'PocketWriteAnswer') : null;
+  if (answerType === null) {
+    fail('X6', 'src/shared/ipc/pocket.ts declares no interface PocketWriteAnswer');
+  } else {
+    const fields = answerType.members.map(memberName).sort();
+    if (fields.join(',') !== 'outcome,reason,sentence,verb,write') {
+      fail('X6', `${where(contract, answerType)}: PocketWriteAnswer holds ${JSON.stringify(fields)}; it holds exactly verb, write, outcome, reason and sentence, and nothing that could claim Face ID happened (D13)`);
+    }
+  }
+  const writes = moduleNamed('writes', 'X6', WRITES_OWNER);
+  for (const file of [writes, impl].filter((f) => f !== null)) {
+    const fromWords = new Set();
+    for (const n of nodesOf(file)) {
+      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && n.moduleSpecifier.text === '@shared/lifecycle-words' && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
+        for (const el of n.importClause.namedBindings.elements) fromWords.add(el.name.text);
+      }
+    }
+    // A name every value of which is main's own refusal sentence (or null):
+    // `const refused = endRefusal(record)`, or a `let` assigned only from it.
+    const refusalBound = new Set();
+    {
+      const values = new Map();
+      const note = (name, value) => values.set(name, [...(values.get(name) ?? []), value]);
+      for (const n of nodesOf(file)) {
+        if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined) note(n.name.text, n.initializer);
+        if (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isIdentifier(n.left)) note(n.left.text, n.right);
+      }
+      for (const [name, list] of values) {
+        const fromMain = (v) => ts.isCallExpression(bare(v)) && calleeName(bare(v)) === 'endRefusal';
+        if (list.some(fromMain) && list.every((v) => fromMain(v) || bare(v).kind === ts.SyntaxKind.NullKeyword)) refusalBound.add(name);
+      }
+    }
+    const isNamedSentence = (expr, at) => {
+      const e = bare(expr);
+      if (e === undefined) return false;
+      if (e.kind === ts.SyntaxKind.NullKeyword) return true;
+      if (ts.isIdentifier(e)) {
+        if (fromWords.has(e.text) || refusalBound.has(e.text)) return true;
+        // A parameter named sentence relays a sentence its caller chose.
+        const fn = (() => {
+          for (let n = at; n !== undefined; n = n.parent) if (ts.isFunctionLike(n)) return n;
+          return null;
+        })();
+        return fn !== null && fn.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === e.text && e.text === 'sentence');
+      }
+      if (ts.isPropertyAccessExpression(e)) {
+        if (e.expression.getText() === 'POCKET_WRITE_SENTENCES') return true;
+        if (e.name.text === 'sentence') return true;
+      }
+      if (ts.isConditionalExpression(e)) return isNamedSentence(e.whenTrue, at) && isNamedSentence(e.whenFalse, at);
+      return false;
+    };
+    for (const n of nodesOf(file)) {
+      let value;
+      if (ts.isPropertyAssignment(n) && memberName(n) === 'sentence') value = n.initializer;
+      else if (ts.isShorthandPropertyAssignment(n) && n.name.text === 'sentence') value = n.name;
+      else if (ts.isCallExpression(n) && calleeName(n) === 'writeAnswer' && n.arguments.length === 5) value = n.arguments[4];
+      if (value === undefined) continue;
+      checked('X6');
+      if (!isNamedSentence(value, n)) {
+        fail('X6', `${where(file, n)}: a sentence set as ${JSON.stringify(value.getText().slice(0, 70))}. Every sentence the write path says is a named constant from lifecycle-words.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES`);
+      }
+    }
+    for (const n of nodesOf(file)) {
+      if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
+        fail('X6', `${where(file, n)} reads .message. An error’s text can hold its argv (research 135 §4.8), and nothing it says reaches the phone or a log`);
+      }
+    }
+    // A caught error is told apart by isGmuxError(, by code, and nothing else.
+    for (const clause of nodesOf(file).filter((n) => ts.isCatchClause(n) && n.variableDeclaration !== undefined)) {
+      const name = ts.isIdentifier(clause.variableDeclaration.name) ? clause.variableDeclaration.name.text : null;
+      if (name === null) continue;
+      const uses = descendantsOf(clause.block).filter((n) => ts.isIdentifier(n) && n.text === name);
+      for (const use of uses) {
+        checked('X6');
+        const call = use.parent;
+        if (ts.isCallExpression(call) && call.arguments.includes(use)) {
+          const callee = calleeName(call);
+          if (callee === 'isGmuxError') continue;
+          const helper = callee === null ? null : oneFunction(file, callee);
+          const param = helper?.parameters[call.arguments.indexOf(use)];
+          const pname = param !== undefined && ts.isIdentifier(param.name) ? param.name.text : null;
+          const ok =
+            pname !== null &&
+            descendantsOf(helper)
+              .filter((m) => ts.isIdentifier(m) && m.text === pname && m.parent !== param)
+              .every((m) => ts.isCallExpression(m.parent) && calleeName(m.parent) === 'isGmuxError' && m.parent.arguments[0] === m);
+          if (ok) continue;
+        }
+        fail('X6', `${where(file, use)}: the caught ${name} is read as ${JSON.stringify(use.parent.getText().slice(0, 60))}; it is told apart by isGmuxError(, by its code, and nothing else`);
+      }
+    }
+  }
+  if (impl !== null && !callsOf(impl).some((c) => calleeName(c) === 'isGmuxError')) {
+    checked('X6');
+    fail('X6', `${rel(impl)} never asks isGmuxError(, so a thrown End is told apart some other way or not at all`);
+  }
+}
+
+/** X7, X8, X10: the door process never 404s a write it forwarded, never parses one, and lets a revoked socket finish one. */
+function doorWriteRules() {
+  const listener = moduleNamed('listener', 'X7', "Phase 317 builder door's (src/main/pocket/door/listener.ts)");
+  const bind = moduleNamed('bind', 'X7', "Phase 317 builder door's");
+  const wire = moduleNamed('wire', 'X8', "Phase 317 builder door's");
+  const limits = moduleNamed('limits', 'X8', "Phase 317 builder door's");
+
+  // X7 (bind): an acted answer that fails validation is not replaced.
+  if (bind !== null) {
+    const post = methodOf(bind, 'PocketDoor', 'post');
+    checked('X7');
+    const refusals = post === null ? [] : descendantsOf(post).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'post' && /\.\.\.REFUSED\b/.test(n.getText()));
+    if (post === null || refusals.length === 0) {
+      fail('X7', `${rel(bind)}: PocketDoor.post posts no REFUSED answer for a message that fails validation, so this clause reads nothing`);
+    }
+    for (const r of refusals) {
+      if (!/\bacted\b/.test(guardingIf(r)?.expression.getText() ?? '')) {
+        fail('X7', `${where(bind, r)}: an answer that fails validation is replaced by a 404 whether or not it is acted; an acted answer posts nothing and the door process’s timer cuts the connection (D4)`);
+      }
+    }
+  }
+  if (listener !== null) {
+    const handleRequest = oneFunction(listener, 'handleRequest');
+    checked('X7');
+    if (handleRequest === null) {
+      fail('X7', `${rel(listener)} declares no single handleRequest`);
+    } else {
+      // The late answer for a write cuts; it never answers 404.
+      const timers = descendantsOf(handleRequest).filter(
+        (n) => (ts.isArrowFunction(n) || ts.isFunctionExpression(n)) && ts.isCallExpression(n.parent) && calleeName(n.parent) === 'setTimeout' && /pending\.delete\(/.test(n.getText())
+      );
+      checked('X7', 2);
+      if (timers.length !== 1) fail('X7', `${where(listener, handleRequest)}: ${String(timers.length)} late-answer timers; there is one, and it decides between a cut and a 404`);
+      const writeVar = descendantsOf(handleRequest).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && bare(n.initializer).getText().replace(/\s/g, '') === '!route.reads');
+      const isWriteTest = (expr) => {
+        const t = bare(expr).getText().replace(/\s/g, '');
+        return t === '!route.reads' || (writeVar !== undefined && t === writeVar.name.text);
+      };
+      for (const timer of timers) {
+        const body = ts.isBlock(timer.body) ? timer.body.statements : [];
+        const send404 = descendantsOf(timer).find((n) => ts.isCallExpression(n) && calleeName(n) === 'sendPocket' && n.arguments[1]?.getText() === '404');
+        const cut = body.find((s) => ts.isIfStatement(s) && isWriteTest(s.expression) && /\.destroy\(\)/.test(s.thenStatement.getText()) && /\breturn\b/.test(s.thenStatement.getText()) && /writesCut/.test(s.thenStatement.getText()));
+        if (cut === undefined || send404 === undefined || cut.getStart() > send404.getStart()) {
+          fail('X7', `${where(listener, timer)}: the late-answer timer does not cut a WRITE (destroy, count writesCut, return) before it answers 404; main may be acting on that write, and a 404 says it is not`);
+        }
+      }
+      // Nothing after the forward answers 404: every refusal precedes it.
+      const forward = descendantsOf(handleRequest).find((n) => ts.isCallExpression(n) && calleeName(n) === 'send' && /kind:\s*'request'/.test(n.getText()));
+      checked('X7');
+      if (forward === undefined) {
+        fail('X7', `${where(listener, handleRequest)}: no forward to main (send({ kind: 'request', … })) is read`);
+      } else {
+        for (const n of descendantsOf(handleRequest).filter((m) => ts.isCallExpression(m) && calleeName(m) === 'refuseRequest')) {
+          if (n.getStart() > forward.getStart()) fail('X7', `${where(listener, n)}: a refusal after the request was forwarded`);
+        }
+      }
+    }
+    // Every other 404 in the listener is a refusal before the forward, or the
+    // read half of a choice that cuts a forwarded write.
+    for (const call of callsOf(listener)) {
+      if (calleeName(call) !== 'sendPocket' || call.arguments[1]?.getText() !== '404') continue;
+      checked('X7');
+      const owner = enclosingName(call);
+      if (owner === 'refuseRequest') continue;
+      const ifs = guardingIf(call);
+      let elseOf = null;
+      for (let n = call; n.parent !== undefined && !ts.isFunctionLike(n); n = n.parent) {
+        if (ts.isIfStatement(n.parent) && n.parent.elseStatement === n) {
+          elseOf = n.parent;
+          break;
+        }
+      }
+      const inTimer = (() => {
+        for (let n = call.parent; n !== undefined; n = n.parent) {
+          if ((ts.isArrowFunction(n) || ts.isFunctionExpression(n)) && ts.isCallExpression(n.parent) && calleeName(n.parent) === 'setTimeout') return true;
+          if (ts.isFunctionLike(n)) return false;
+        }
+        return false;
+      })();
+      if (elseOf !== null && /forwardedWrite|\bwrite\b/.test(elseOf.expression.getText())) continue;
+      if (inTimer) continue;
+      void ifs;
+      fail('X7', `${where(listener, call)}: a 404 that is neither a refusal before the forward nor the read half of a choice that cuts a forwarded write`);
+    }
+
+    // X8: no JSON.parse reaches a write body; a write's target is its path;
+    // the cap is its row's own.
+    const doorFiles = domainFiles.filter((f) => f.includes(`${join('pocket', 'door')}/`) || f.endsWith(join('pocket', 'door-process.ts')));
+    for (const file of doorFiles) {
+      for (const c of callsOf(file)) {
+        if (c.expression.getText() !== 'JSON.parse') continue;
+        checked('X8');
+        const owner = enclosingName(c);
+        if (owner !== 'presentationOfBody') {
+          fail('X8', `${where(file, c)}: JSON.parse in the door process outside presentationOfBody; the door never parses a write body (D2), and main verifies its signature over the exact bytes before anything reads it`);
+        }
+      }
+    }
+    for (const c of callsOf(listener).filter((m) => calleeName(m) === 'presentationOfBody')) {
+      checked('X8');
+      if (!/route\.id\s*===\s*'pair'/.test(guardingIf(c)?.expression.getText() ?? '')) {
+        fail('X8', `${where(listener, c)}: presentationOfBody( is reached by something other than the pairing route`);
+      }
+    }
+    const listenerCode = codeTextOf(listener);
+    checked('X8', 3);
+    const targetPick = nodesOf(listener).find(
+      (n) => ts.isConditionalExpression(n) && n.condition.getText() === 'route.reads' && bare(n.whenFalse).getText() === 'url.pathname'
+    );
+    if (targetPick === undefined) fail('X8', `${rel(listener)}: a write’s target is not chosen as url.pathname alone (route.reads ? … : url.pathname); its target is its path, exactly`);
+    const queryRefusal = nodesOf(listener).find(
+      (n) => ts.isIfStatement(n) && /!route\.reads/.test(n.expression.getText()) && /url\.search\s*!==\s*''/.test(n.expression.getText()) && /includes\('\?'\)/.test(n.expression.getText()) && /refuseRequest\(res,\s*'route'\)/.test(n.thenStatement.getText())
+    );
+    if (queryRefusal === undefined) fail('X8', `${rel(listener)}: a write with a query string (url.search, or a raw '?') is not refused route`);
+    if (!/POCKET_WRITE_BODY_CAPS\[/.test(listenerCode)) fail('X8', `${rel(listener)}: a write’s body cap is not read from POCKET_WRITE_BODY_CAPS`);
+  }
+  if (wire !== null) {
+    const fn = oneFunction(wire, 'doorRequestOf');
+    checked('X8', 2);
+    const text = fn === null ? '' : codeOfNode(wire, fn);
+    if (!/write\s*&&\s*target\s*!==\s*writePathOf\(/.test(text)) fail('X8', `${rel(wire)}: doorRequestOf does not refuse a write whose target is not its route’s path byte for byte`);
+    if (!/POCKET_WRITE_BODY_CAPS\[/.test(text)) fail('X8', `${rel(wire)}: doorRequestOf does not bound a write’s body by POCKET_WRITE_BODY_CAPS`);
+  }
+  if (limits !== null) {
+    const caps = constNamed(limits, 'POCKET_WRITE_BODY_CAPS');
+    checked('X8');
+    if (caps === null) fail('X8', `${rel(limits)} declares no POCKET_WRITE_BODY_CAPS`);
+  }
+
+  // X10, THE REVOKED SOCKET.
+  if (listener !== null) {
+    const applyPins = oneFunction(listener, 'applyPins');
+    checked('X10', 2);
+    if (applyPins === null) {
+      fail('X10', `${rel(listener)} declares no single applyPins`);
+    } else {
+      if (!descendantsOf(applyPins).some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && /\.revoked$/.test(n.left.getText()) && n.right.kind === ts.SyntaxKind.TrueKeyword)) {
+        fail('X10', `${where(listener, applyPins)}: applyPins does not mark a socket whose pin moved as revoked`);
+      }
+      for (const d of descendantsOf(applyPins).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'destroy')) {
+        checked('X10');
+        if (!/\.writes\s*===\s*0/.test(guardingIf(d)?.expression.getText() ?? '')) {
+          fail('X10', `${where(listener, d)}: applyPins destroys a socket without asking whether it is answering a write (writes === 0); a Remove cuts every socket answering only reads at once, and lets a write’s answer out first`);
+        }
+      }
+    }
+    const handleRequest = oneFunction(listener, 'handleRequest');
+    if (handleRequest !== null) {
+      const statements = ts.isBlock(handleRequest.body) ? handleRequest.body.statements : [];
+      const firstRefusal = statements.findIndex((s) => /refuseRequest\(/.test(s.getText()));
+      const revokedAt = statements.findIndex((s) => /\brevoked\b|cutIfRevoked\(/.test(s.getText()));
+      checked('X10', 3);
+      if (revokedAt === -1 || (firstRefusal !== -1 && revokedAt > firstRefusal)) {
+        fail('X10', `${where(listener, handleRequest)}: handleRequest does not refuse a revoked socket before anything else is asked of the request`);
+      }
+      const text = codeOfNode(listener, handleRequest);
+      if (!/\.writes\s*\+=\s*1|\.writes\+\+/.test(text) || !/\.writes\s*-=\s*1|\.writes--/.test(text)) {
+        fail('X10', `${where(listener, handleRequest)}: a forwarded write is not counted on its socket (writes += 1, and -= 1 when its answer is out)`);
+      }
+      if (!/res\.once\(\s*'finish'/.test(text) || !/res\.once\(\s*'close'/.test(text)) {
+        fail('X10', `${where(listener, handleRequest)}: a revoked socket is not cut when its last write’s response finishes or closes`);
+      }
+    }
+    for (const fnName of ['cutIfRevoked']) {
+      const fn = oneFunction(listener, fnName);
+      if (fn === null) continue;
+      for (const d of descendantsOf(fn).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'destroy')) {
+        checked('X10');
+        if (!/\.writes\s*===\s*0/.test(guardingIf(d)?.expression.getText() ?? '')) {
+          fail('X10', `${where(listener, d)}: ${fnName} destroys a revoked socket that may be answering a write`);
+        }
+      }
+    }
+  }
+}
+
+/**
+ * X9 (the fix round): A PHONE IS REMOVED BY REMOVE ALONE. Phase 317's build
+ * let the signing phone remove its own row through `POST /v1/unpair`, by a
+ * `dropPhone` both callers shared and an `after` its answer carried. The phone
+ * waited on that write before it could forget a Mac that did not answer, which
+ * made Unpair slower than today, so the fix round took all of it out. What
+ * this holds is that it STAYS out: the one store write that filters a phone
+ * out of the store is in `removePhone`, before its first await; the write
+ * path's deps are exactly the four it needs and name nothing that drops a
+ * phone; and no answer carries a step to run after it.
+ */
+function phoneRemovalRules() {
+  const writes = moduleNamed('writes', 'X9', WRITES_OWNER);
+  const ipc = moduleNamed('ipc', 'X9', "Phase 317 builder door's");
+  const bind = moduleNamed('bind', 'X9', "Phase 317 builder door's");
+  const runsAfter = (c) => calleeName(c) === 'after' || (ts.isPropertyAccessExpression(c.expression) && c.expression.name.text === 'after');
+  if (writes !== null) {
+    const deps = interfaceOf(writes, 'PocketWriteDeps');
+    const names = (deps?.members ?? []).map((m) => memberName(m)).filter((n) => n !== null).sort();
+    checked('X9', 2);
+    if (deps === null || deps === undefined || names.join(',') !== 'now,shuttingDown,stillPaired,writes') {
+      fail('X9', `${rel(writes)}: PocketWriteDeps holds ${JSON.stringify(names)}; it holds exactly now, shuttingDown, stillPaired and writes, so no write route can reach anything that drops a phone`);
+    }
+    for (const c of callsOf(writes)) {
+      if (runsAfter(c) || /unpair|dropPhone|removePhone/i.test(calleeName(c) ?? '')) fail('X9', `${where(writes, c)}: the write path calls ${String(calleeName(c))}(; it ends a session through PocketWrites and does nothing else`);
+    }
+  }
+  if (bind !== null) {
+    const answer = interfaceOf(bind, 'DoorAnswer');
+    const names = (answer?.members ?? []).map((m) => memberName(m)).filter((n) => n !== null).sort();
+    checked('X9', 2);
+    if (names.join(',') !== 'acted,body,status') fail('X9', `${rel(bind)}: DoorAnswer holds ${JSON.stringify(names)}; it holds exactly status, body and acted, so no answer carries a step to run after it`);
+    for (const c of callsOf(bind)) if (runsAfter(c)) fail('X9', `${where(bind, c)}: bind.ts runs after( on an answer; nothing follows an answer`);
+  }
+  if (ipc !== null) {
+    checked('X9', 3);
+    const remove = methodOf(ipc, 'PocketHost', 'removePhone');
+    if (remove === null) fail('X9', `${rel(ipc)}: PocketHost declares no removePhone()`);
+    const filters = callsOf(ipc).filter((c) => calleeName(c) === 'filter' && /\.phones$/.test(ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : ''));
+    if (filters.length === 0) fail('X9', `${rel(ipc)}: nothing filters a phone out of the store, so Remove removes nothing`);
+    for (const f of filters) {
+      checked('X9');
+      if (remove === null || !inside(f, remove)) fail('X9', `${where(ipc, f)}: a phone is filtered out of the store outside removePhone; Remove is the ONE thing that takes a phone out`);
+    }
+    for (const c of callsOf(ipc)) {
+      if (runsAfter(c) || /^(?:dropPhone|unpairSigningPhone)$/.test(calleeName(c) ?? '')) {
+        checked('X9');
+        fail('X9', `${where(ipc, c)}: ipc.ts calls ${String(calleeName(c))}(; the phone's own unpair was taken out, and Remove runs its steps itself`);
+      }
+    }
+    const handlerCall = callsOf(ipc).find((c) => calleeName(c) === 'createPocketWriteHandler');
+    checked('X9');
+    if (handlerCall === undefined) fail('X9', `${rel(ipc)} never makes the write path, so this rule cannot read what it is handed`);
+    else if (/unpair|dropPhone|removePhone|forget/i.test(handlerCall.getText())) {
+      fail('X9', `${where(ipc, handlerCall)}: the write path is handed something that names a phone's removal; it is handed the quit, stillPaired, the writes and the clock`);
+    }
+  }
+}
+
+/** Is `n` inside a function nested in `outer` (not `outer` itself)? */
+function insideNested(n, outer) {
+  for (let p = n.parent; p !== undefined && p !== outer; p = p.parent) {
+    if (ts.isFunctionLike(p)) return true;
+  }
+  return false;
+}
+
+/** X12: the lines say what the writes do, derived; the sheet's sentence is true. */
+function writeLinesRule() {
+  const pairing = moduleNamed('pairing', 'X12', "Phase 317 builder door's");
+  if (pairing !== null) {
+    const map = nodesOf(pairing).find(
+      (n) => ts.isVariableDeclaration(n) && n.type !== undefined && /^(?:Readonly<)?Record<PocketWriteRouteId,\s*string>>?$/.test(n.type.getText().replace(/\s+/g, ' '))
+    );
+    const describe = oneFunction(pairing, 'describePocketDoor');
+    checked('X12', 3);
+    if (map === undefined || !ts.isIdentifier(map.name)) {
+      fail('X12', `${rel(pairing)}: no compiled map keyed by PocketWriteRouteId says what each write lets a phone do, so a write added without words is no compile error`);
+    }
+    if (describe === null) {
+      fail('X12', `${rel(pairing)} declares no single describePocketDoor`);
+    } else if (map !== undefined && ts.isIdentifier(map.name)) {
+      const text = codeOfNode(pairing, describe);
+      const push = descendantsOf(describe).find((n) => ts.isCallExpression(n) && calleeName(n) === 'push' && /Lets an allowed phone/.test(n.getText()));
+      const pushed = push?.arguments[0];
+      const derived = pushed !== undefined && ts.isTemplateExpression(pushed) && pushed.head.text.startsWith('Lets an allowed phone ');
+      if (!derived) fail('X12', `${where(pairing, describe)}: the write line is not a template composed from the clauses; it is derived from the hashed route list, never spelled`);
+      if (!new RegExp(`\\b${map.name.text}\\b`).test(text) || !/fields\.routes/.test(text)) {
+        fail('X12', `${where(pairing, describe)}: describePocketDoor does not read ${map.name.text} over fields.routes, so the line is not the hashed facts`);
+      }
+    }
+  }
+  checked('X12', 2);
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  if (!existsSync(contract) || constNamed(contract, 'POCKET_DOOR_HONESTY') === null) {
+    fail('X12', 'src/shared/ipc/pocket.ts declares no POCKET_DOOR_HONESTY; the sheet’s sentence says what the door lets a phone do');
+  }
+  for (const file of productionSources()) {
+    if (!readFileSync(file, 'utf8').includes('POCKET_READ_ONLY_HONESTY')) continue;
+    for (const n of nodesOf(file)) {
+      if (ts.isIdentifier(n) && n.text === 'POCKET_READ_ONLY_HONESTY') {
+        fail('X12', `${where(file, n)} names POCKET_READ_ONLY_HONESTY; a constant named read only, drawn under a door that ends sessions, is false in code and on screen`);
+        break;
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -5201,7 +6339,13 @@ const PHASES = [
   ['the name servers override', nameOverrideRule, 'D7'],
   ['no real server outside Electron', nameElectronRule, 'D8'],
   ['the push seam waits for the name', seamNameRule, 'D9'],
-  ['the progress decides nothing', nameProgressRule, 'D10']
+  ['the progress decides nothing', nameProgressRule, 'D10'],
+  // PHASE 317, the one write (build/p317/SPEC.md §6.1).
+  ['the write path', writePathRules, 'X1'],
+  ['the phone’s writes and the answer', pocketWritesRules, 'X5'],
+  ['the door and a write', doorWriteRules, 'X7'],
+  ['a phone removed by Remove alone', phoneRemovalRules, 'X9'],
+  ['the lines say it', writeLinesRule, 'X12']
 ];
 
 for (const [name, run, onError] of PHASES) {

@@ -28,7 +28,10 @@
  *     session, read from the overview store;
  *   - `lastTurn` and `turns` read the overview store and pass every turn ONCE
  *     through `../overview/turn-view.ts`'s `toTurnView` (mechanism 3);
- *   - `handoff` answers null for every session in Phase 316.
+ *   - `handoff` answers null for every session in Phase 316;
+ *   - `endOffer` (Phase 317) is handed in: the one implementation in
+ *     `../sessions/pocket-writes.ts`, which asks both gates the Mac's End asks
+ *     over the row and its manifest record. Absent, every row offers none.
  *
  * ## What this module never does
  *
@@ -41,7 +44,7 @@
  */
 
 import type { SessionChoiceInfo } from '@shared/ipc/sessions';
-import type { PocketCatchUp, PocketTurn } from '@shared/ipc/pocket';
+import type { PocketCatchUp, PocketEndOffer, PocketTurn } from '@shared/ipc/pocket';
 import type {
   OverviewLineKind,
   OverviewSessionActivity,
@@ -88,6 +91,12 @@ export interface PocketFactsDeps {
   overview: OverviewServiceDeps;
   /** The sleeps this process lived through: Phase 314's `WakeMark.wakes()`. */
   wakes(): readonly WakeWindow[];
+  /**
+   * Whether End is offered on a row (Phase 317): `createPocketWrites`'s
+   * `endOffer`, handed in by `../capabilities.ts`. Absent, every row reads
+   * `{ state: 'none' }`.
+   */
+  endOffer?(session: Session): PocketEndOffer;
   now?(): number;
 }
 
@@ -305,6 +314,7 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     },
 
     handoff: () => null,
+    ...(deps.endOffer !== undefined ? { endOffer: deps.endOffer } : {}),
     now
   };
 }

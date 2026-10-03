@@ -2,7 +2,7 @@
  * Phase 303. The lifecycle partition the session manager's Active | Ended
  * control reads, held EQUAL between main and the renderer.
  *
- * The control reads `row.gates` (`sessionActionGates`, ../../state/resume.ts)
+ * The control reads `row.gates` (`sessionActionGates`, src/shared/session-gates.ts)
  * and names no status of its own: Active is `live || unknown`, Ended is
  * `ended`. Main draws the same line in `removeRefusal`
  * (../../../main/sessions/lifecycle-gate.ts): it refuses to remove a row
@@ -22,7 +22,7 @@
 import { describe, expect, it } from 'vitest';
 import { SESSION_STATUSES, type Session, type SessionStatus } from '@shared/types';
 import { removeRefusal } from '../../../main/sessions/lifecycle-gate';
-import { sessionActionGates } from '../../state/resume';
+import { sessionActionGates } from '@shared/session-gates';
 
 /** A local row: no machine, so `removeRefusal` reaches its switch. */
 function local(status: SessionStatus): Session {

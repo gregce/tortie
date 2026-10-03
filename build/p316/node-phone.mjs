@@ -33,6 +33,13 @@
  * presentation and checking its proof, and verifying a signed request, the
  * same format read from the other end. It logs nothing: not a key, not a
  * signature, not a body.
+ *
+ * PHASE 317: the write. `signedPost` signs `POST`, the path and the body's
+ * exact bytes and presents the client identity, as the phone's one
+ * `signedPost` does; `endSession` is its caller, with a fresh write id each
+ * time (a test may hand `signedPost` any target, the removed `/v1/unpair`
+ * included); `writeAnswerOf` reads an answer the phone's way. Nothing here
+ * retries a write.
  */
 
 import {
@@ -292,17 +299,94 @@ export function verifySigned({ method, target, headers, body, phone, doorExchang
   }
 }
 
-/** The headers a signed GET carries. */
-export function signedHeaders(phone, target) {
-  const timestamp = String(Date.now());
-  const nonce = randomBytes(16).toString('hex');
-  const text = canonicalText('GET', target, shaHex(Buffer.alloc(0)), timestamp, nonce, phone.binding);
+/**
+ * The four headers a signed request carries, for any method and body: the
+ * seven-line canonical text over the method, the target, the body's sha256,
+ * the clock, a fresh nonce and the binding. `options.signAs` signs another
+ * method than the one sent (the attack arms' GET signature on a POST);
+ * `options.nonce` and `options.timestamp` re-use a captured pair (a replay).
+ */
+export function signedHeadersFor(phone, method, target, body, options = {}) {
+  const timestamp = options.timestamp ?? String(Date.now());
+  const nonce = options.nonce ?? randomBytes(16).toString('hex');
+  const text = canonicalText(options.signAs ?? method, target, shaHex(body ?? Buffer.alloc(0)), timestamp, nonce, phone.binding);
   return {
     'x-tortie-phone': phone.id,
     'x-tortie-timestamp': timestamp,
     'x-tortie-nonce': nonce,
     'x-tortie-signature': b64u(signWith(null, Buffer.from(text, 'utf8'), phone.signPrivate))
   };
+}
+
+/** The headers a signed GET carries. */
+export function signedHeaders(phone, target) {
+  return signedHeadersFor(phone, 'GET', target, Buffer.alloc(0));
+}
+
+// ---------------------------------------------------------------------------
+// The two writes (Phase 317, build/p317/SPEC.md §5.3, §5.8.1)
+// ---------------------------------------------------------------------------
+
+/** A write id the phone's way (`WriteId.fresh()`): 16 random bytes, 32 lowercase hex. */
+export const freshWriteId = () => randomBytes(16).toString('hex');
+
+/**
+ * A write's body the phone's way: JSON with its keys SORTED, as `JSONEncoder`
+ * with `.sortedKeys` writes it: `{ batch, session, write }` for `end`. The
+ * session id alphabet has no character JSON
+ * escapes, so this and Swift's encoder write the same bytes.
+ */
+export const writeBodyOf = (fields) => Buffer.from(sortedJson(fields), 'utf8');
+
+/**
+ * One signed POST to a write route, presenting the phone's client identity.
+ * `fields` is the body's object; `options.body` sends these exact bytes
+ * instead (a tampered body, a fourth key); `options.signedBody` signs other
+ * bytes than the ones sent; `options.signAs`, `options.nonce` and
+ * `options.timestamp` go to the signer; the rest is `request`'s.
+ */
+export function signedPost(phone, door, target, fields, options = {}) {
+  const { body: rawBody, signedBody, signAs, nonce, timestamp, ...rest } = options;
+  const body = rawBody ?? writeBodyOf(fields);
+  const headers = {
+    ...signedHeadersFor(phone, 'POST', target, signedBody ?? body, { signAs, nonce, timestamp }),
+    'content-type': 'application/json',
+    'content-length': String(body.length)
+  };
+  return request({ door, method: 'POST', target, headers, body, identity: phone.certPem === null ? null : phone, ...rest });
+}
+
+/** `POST /v1/end` for one session. Answers `request`'s reading with the write id it sent. */
+export async function endSession(phone, door, sessionId, { batch = false, write = freshWriteId(), ...options } = {}) {
+  const answer = await signedPost(phone, door, '/v1/end', { batch, session: sessionId, write }, options);
+  return { ...answer, write };
+}
+
+/**
+ * A write's answer, read the way the phone must (SPEC §5.8.1): exactly the five
+ * fields, closed outcome and reason words, and the echo equal to the id sent,
+ * or `""` with `refused` and `malformed`, the one answer that cannot echo.
+ * Anything else is `{ ok: false }` with a reason, which the phone reads as no
+ * answer.
+ */
+export function writeAnswerOf(answer, sentWrite) {
+  if (answer.status !== 200) return { ok: false, why: `status ${String(answer.status)}${answer.error ? ` (${answer.error})` : ''}` };
+  let body;
+  try {
+    body = JSON.parse(answer.body);
+  } catch {
+    return { ok: false, why: 'the body is not JSON' };
+  }
+  const keys = J(Object.keys(body ?? {}));
+  if (keys !== J(['verb', 'write', 'outcome', 'reason', 'sentence'])) return { ok: false, why: `the keys are ${keys}` };
+  if (body.verb !== 'end') return { ok: false, why: `verb ${J(body.verb)}` };
+  if (!['done', 'refused', 'failed', 'busy'].includes(body.outcome)) return { ok: false, why: `outcome ${J(body.outcome)}` };
+  if (body.reason !== null && !['removed', 'unreachable', 'ended', 'gone', 'malformed'].includes(body.reason)) return { ok: false, why: `reason ${J(body.reason)}` };
+  if ((body.outcome === 'refused') !== (body.reason !== null)) return { ok: false, why: 'a reason without a refusal, or a refusal without a reason' };
+  if ((body.outcome === 'done') !== (body.sentence === null)) return { ok: false, why: 'a sentence on done, or none on anything else' };
+  const echoed = body.write === sentWrite || (body.write === '' && body.outcome === 'refused' && body.reason === 'malformed');
+  if (!echoed) return { ok: false, why: 'the echo is not the write id sent' };
+  return { ok: true, why: '', answer: body };
 }
 
 // ---------------------------------------------------------------------------

@@ -211,9 +211,17 @@ const AGE_NOTE = stringIn(CONTRACT_SRC, 'POCKET_AGE_HONESTY');
 const ABSENCES = ['NOT_ANSWERED_YET', 'STOPPED_BEFORE_ANSWER', 'ANSWER_NOT_IN_RECORD'].map((name) => stringIn(COPY_SRC, name)).filter((s) => s !== null);
 /** Every `pocket:*` channel the contract declares, from its channel map's own keys. */
 const CONTRACT_CHANNELS = [...CONTRACT_SRC.matchAll(/^\s*'(pocket:[A-Za-z]+)':\s*\{\s*req:/gm)].map((m) => m[1]);
-/** The route table's rows, read as literals, for the write-route count. */
-const ROUTE_ROWS = [...ROUTES_SRC.matchAll(/\{\s*id:\s*'(\w+)',\s*method:\s*'(\w+)',\s*path:\s*'([^']+)',\s*reads:\s*(true|false)/g)].map((m) => ({ id: m[1], method: m[2], path: m[3], reads: m[4] === 'true' }));
-const WRITE_ROUTES = ROUTE_ROWS.filter((r) => !r.reads || (r.method !== 'GET' && r.path !== '/pair')).length;
+/** The route table's rows, read as literals, for the write routes. */
+const ROUTE_ROWS = [...ROUTES_SRC.matchAll(/\{\s*id:\s*'(\w+)',\s*method:\s*'(\w+)',\s*path:\s*'([^']+)',\s*reads:\s*(true|false)(?:,\s*windowOnly:\s*(true|false),\s*signed:\s*(true|false))?/g)].map((m) => ({ id: m[1], method: m[2], path: m[3], reads: m[4] === 'true', windowOnly: m[5] === 'true', signed: m[6] === 'true' }));
+const WRITE_ROWS = ROUTE_ROWS.filter((r) => !r.reads || (r.method !== 'GET' && r.path !== '/pair'));
+const WRITE_ROUTES = WRITE_ROWS.length;
+/**
+ * PHASE 317 GAVE THE DOOR ONE WRITE, and its fix round took a second out: the
+ * write rows are EXACTLY `end`, a signed POST to `/v1/end` alive outside any
+ * window, as conformance:pocket R2 holds them. Until Phase 317 this arm read
+ * "no write route", which that phase made false on purpose.
+ */
+const WRITES_ARE_317S = WRITE_ROWS.length === 1 && WRITE_ROWS.every((r) => r.id === 'end' && r.method === 'POST' && r.path === '/v1/end' && r.reads === false && r.signed === true && r.windowOnly === false);
 
 // ---------------------------------------------------------------------------
 // The scratch world. Outside the repository and outside the person's home.
@@ -729,8 +737,8 @@ exit 0
       }
       arm(
         'C0 every pocket channel answers from main',
-        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITE_ROUTES === 0,
-        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); ${String(WRITE_ROUTES)} write route(s)`
+        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITES_ARE_317S,
+        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); the write routes are ${J(WRITE_ROWS.map((r) => `${r.method} ${r.path}${r.signed ? ' signed' : ''}`))}, exactly POST /v1/end signed`
       );
       if (hasPocket !== true) return;
 

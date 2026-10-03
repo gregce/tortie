@@ -5,7 +5,7 @@
  * name by Phase 332).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:pocket` asserts
- * fifty-three rules about `src/main/pocket/` — one `listen`, on loopback, in the
+ * sixty-five rules (fifty-three before Phase 317) about `src/main/pocket/` — one `listen`, on loopback, in the
  * door process; the Funnel child's argv, program and death; mutual TLS before
  * the parser; the closed table; the refusals; the disposer owning the door;
  * and since Phase 332 the name check's non-recursive, connected, authoritative
@@ -39,6 +39,20 @@
  * every round, `D6d` decides the carried press from `nameCheck`, and `D10a` to
  * `D10d` let the progress carry a string or decide Pair or `nameCheck`.
  *
+ * PHASE 317 ADDED SIXTY-FOUR (build/p317/SPEC.md §6.1), 217 in all, one for
+ * every new or widened clause of the two writes: `R2c` to `R2e` the closed
+ * write list, `G1b` and `G1c` G1's new word and its new scope, `A4j` to `A4n`
+ * the acted guard, the `after` that starts after the post unawaited and the
+ * Remove's store write, and `X1a` to `X12c` the twelve X rules (the hostile
+ * client's own arms are `X1` and `X2`, which is why these carry a letter). The
+ * two arms that planted text above `pocketTableIsReadOnly()`, which Phase 317
+ * replaced, plant it above `pocketWriteRouteIds()`; `R4` no longer reddens
+ * `N1`, whose second pin on Phase 313's membership is gone; and `A4e`, which
+ * blanked the host's stillPaired, blanks the one method the host now answers
+ * it with (the handler and the write path each delegate to it); `A4c` removes
+ * the acted-guarded last ask, and `P1c` plants its source on the local `word`
+ * the refusal's log line now reads (G1, Phase 317).
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -50,8 +64,9 @@
  *
  *   - `L2`, the bind. A door on `0.0.0.0` is a door on his home Wi-Fi, his
  *     hotel Wi-Fi and every network he ever joins. It is ONE STRING.
- *   - `R2`, the read-only table. A row whose method is not GET is a write
- *     however its handler is written today, and this phase has zero writes.
+ *   - `R2`, the table's reads and its CLOSED write list. A row that says it
+ *     is a read and is not a GET is a write nobody counted, and since Phase
+ *     317 the writes are exactly `end` (its fix round took `unpair` out).
  *   - `M1c`, THE PIN. `rejectUnauthorized` is false because the key pin is the
  *     verification; without the pin every certificate a stranger makes reaches
  *     the HTTP parser (research 132 §9 condition 1).
@@ -134,6 +149,10 @@ const DNS_STANDIN = 'build/p332/dns-standin.mjs';
 // The round after his ruling of 2026-09-30: the push seam, the one caller of
 // beginPairing outside a test, waits for the name too (D9).
 const SEAM = 'src/main/harness/push-seam.ts';
+// PHASE 317: the one write path in the door's domain, and the one write
+// implementation outside it.
+const WRITES = 'src/main/pocket/writes.ts';
+const POCKET_WRITES = 'src/main/sessions/pocket-writes.ts';
 // PHASE 316.5: the key's port lives in ipc.ts; the bridge member is the
 // preload's; the push seam is the one other composer of a PocketHost.
 
@@ -245,15 +264,15 @@ const ABLATIONS = [
     name: 'the module that re-exports the table grows a prefix match',
     why: 'routes.ts answers the routes and re-exports the table; a prefix match there is the wildcard a closed table exists to refuse, whichever file it is in.',
     file: ROUTES,
-    from: 'export function pocketTableIsReadOnly(): boolean {',
-    to: "export const nearly = (p: string): boolean => p.startsWith('/v1');\nexport function pocketTableIsReadOnly(): boolean {",
+    from: 'export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {',
+    to: "export const nearly = (p: string): boolean => p.startsWith('/v1');\nexport function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {",
     needs: ['gate']
   },
   {
     n: 'R2',
     rule: 'R2',
     name: 'a read route turned into a POST',
-    why: 'THE PHASE HAS ZERO WRITE ROUTES. A method that is not GET is a write however its handler is written today.',
+    why: 'A ROW THAT SAYS IT IS A READ IS A GET. A POST that declares reads: true is a write nobody counted, however its handler is written today (the closed write list is end, Phase 317).',
     file: TABLE,
     from: "{ id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true }",
     to: "{ id: 'blocked', method: 'POST', path: '/v1/blocked', reads: true, windowOnly: false, signed: true }"
@@ -261,8 +280,8 @@ const ABLATIONS = [
   {
     n: 'R2b',
     rule: 'R2',
-    name: 'a route declares reads: false',
-    why: 'the `reads` field exists so that adding a write is a VISIBLE EDIT TO THE TABLE.',
+    name: 'a read route declares reads: false',
+    why: 'the `reads` field exists so that adding a write is a VISIBLE EDIT TO THE TABLE, and the write list is closed: end (Phase 317).',
     file: TABLE,
     from: "{ id: 'turns', method: 'GET', path: '/v1/turns', reads: true",
     to: "{ id: 'turns', method: 'GET', path: '/v1/turns', reads: false"
@@ -439,7 +458,6 @@ const ABLATIONS = [
     file: TABLE,
     from: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true }",
     to: "  { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },\n  { id: 'turns', method: 'GET', path: '/v1/everything', reads: true, windowOnly: false, signed: true }",
-    alsoRed: ['N1'],
     needs: ['gate']
   },
   {
@@ -607,8 +625,8 @@ const ABLATIONS = [
     name: 'a tskey- prefix spelled in a production file',
     why: 'Tortie holds no Tailscale credential of any kind (research 128 §3.2).',
     file: ROUTES,
-    from: 'export function pocketTableIsReadOnly(): boolean {',
-    to: "export const KEY_SHAPE = 'tskey-auth-';\nexport function pocketTableIsReadOnly(): boolean {",
+    from: 'export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {',
+    to: "export const KEY_SHAPE = 'tskey-auth-';\nexport function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {",
     needs: ['gate']
   },
   {
@@ -805,7 +823,7 @@ const ABLATIONS = [
     name: 'main posts a composed answer without asking its generation’s door again',
     why: 'the second last ask, with nothing awaited before the post: an answer composed as its door began to stop is refused.',
     file: BIND,
-    from: '      if (admission.stopping()) answer = REFUSED;\n',
+    from: '      if (admission.stopping() && answer.acted !== true) answer = REFUSED;\n',
     to: '',
     needs: ['gate']
   },
@@ -825,8 +843,8 @@ const ABLATIONS = [
     name: 'the host answers every phone as still paired',
     why: 'the handler’s last ask is only as good as the answer the host composes.',
     file: IPC,
-    from: '        this.readStore()?.phones.some((p) => p.id === phoneId) === true,',
-    to: '        true,',
+    from: '    return this.readStore()?.phones.some((p) => p.id === phoneId) === true;',
+    to: '    return true;',
     needs: ['gate']
   },
   {
@@ -1167,8 +1185,8 @@ const ABLATIONS = [
     name: 'a log line names a source',
     why: 'the source is in no log line.',
     file: BIND,
-    from: 'log.warn(`refused a connection at the door: ${message.word}`);',
-    to: 'log.warn(`refused a connection at the door: ${message.word}`, { source: message.word });',
+    from: 'log.warn(`refused a connection at the door: ${word}`);',
+    to: 'log.warn(`refused a connection at the door: ${word}`, { source: word });',
     needs: ['gate']
   },
   {
@@ -1717,6 +1735,623 @@ const ABLATIONS = [
     needs: ['gate']
   },
   // -------------------------------------------------------------------------
+  // PHASE 317, the one write (build/p317/SPEC.md §6.1). One arm per new or
+  // widened clause, each red on the rule that owns it. Arms that edit a file
+  // the door builder writes anchor on its shipping text; a RegExp anchor is
+  // used where a stray space should not decide whether a clause is proven.
+  // -------------------------------------------------------------------------
+  {
+    n: 'R2c',
+    rule: 'R2',
+    alsoRed: ['R4'],
+    name: 'a second write row (the unpair the fix round took out, back)',
+    why: 'THE WRITE LIST IS CLOSED: end. A second write is a new thing a phone can do to this Mac, and it is its own phase with its own ruling; the unpair this phase built was taken out because it made Unpair slower than today.',
+    file: TABLE,
+    from: "  { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true }",
+    to: "  { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },\n  { id: 'unpair', method: 'POST', path: '/v1/unpair', reads: false, windowOnly: false, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'R2d',
+    rule: 'R2',
+    name: 'a write row that is not signed',
+    why: 'a write the signature does not cover is a write anyone who can reach the door can make.',
+    file: TABLE,
+    from: "{ id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: false }",
+    needs: ['gate']
+  },
+  {
+    n: 'R2e',
+    rule: 'R2',
+    name: 'a write with no body cap of its own',
+    why: 'the door process checks a write’s size before main reads a byte of it; a write with no cap of its own is one the door bounds by somebody else’s number.',
+    file: LIMITS,
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({} as const);',
+    needs: ['gate']
+  },
+  {
+    n: 'G1b',
+    rule: 'G1',
+    name: 'a refusal’s log line names the message it came in (the widened word)',
+    why: 'an error’s or a message’s own text can carry whatever it was handed, and a failed tmux command’s holds its argv (research 135 §4.8). Phase 317 widened G1 by message, text, words, label, typed and reply.',
+    file: BIND,
+    from: '          log.warn(`refused a connection at the door: ${word}`);',
+    to: '          log.warn(`refused a connection at the door: ${message.word}`);',
+    needs: ['gate']
+  },
+  {
+    n: 'G1c',
+    rule: 'G1',
+    name: 'the phone’s End logs a session’s label (G1’s scope: pocket-writes.ts)',
+    why: 'the one write implementation lives outside the door’s directory, and a line it logs is still a line the door wrote.',
+    file: POCKET_WRITES,
+    from: '        await core.killSession(sessionId);',
+    to: "        console.info('ending from the phone', { label: session?.name });\n        await core.killSession(sessionId);",
+    needs: ['gate']
+  },
+  {
+    n: 'A4j',
+    rule: 'A4',
+    name: 'an acted answer is replaced by a 404 when the door stops',
+    why: 'the door stopping after the act does not make the act not have happened, and a 404 tells the phone nothing was done (D4, §14 finding 9).',
+    file: BIND,
+    from: '      if (admission.stopping() && answer.acted !== true) answer = REFUSED;',
+    to: '      if (admission.stopping()) answer = REFUSED;',
+    needs: ['gate']
+  },
+  {
+    n: 'A4n',
+    rule: 'A4',
+    name: 'the handler is handed a second answer to "is this phone still paired"',
+    why: 'two answers to one question agree until the day one of them is edited; the handler and the write path are each handed the one that reads the store.',
+    file: IPC,
+    from: '      stillPaired: (phoneId) => this.stillPaired(phoneId),\n      write,',
+    to: '      stillPaired: () => true,\n      write,',
+    needs: ['gate']
+  },
+  {
+    n: 'X1a',
+    rule: 'X1',
+    name: 'something awaited between the last check and the act',
+    why: 'research 135 §4.11 and the security adversary’s gap: a request forwarded before a Remove still ran, because the world moved between the check and the act.',
+    file: WRITES,
+    from: /(\n)(\s*)(const acting = )/,
+    to: (m, nl, sp, rest) => nl + sp + 'await Promise.resolve();' + nl + sp + rest,
+    needs: ['gate']
+  },
+  {
+    n: 'X1b',
+    rule: 'X1',
+    name: 'a 404 after the act',
+    why: 'after the act nothing replaces the answer: a 404 tells the phone nothing was done, and something was.',
+    file: WRITES,
+    from: '      const done = await acting;',
+    to: '      const done = await acting;\n      if (door.stopping()) return { status: 404, body: null };',
+    needs: ['gate']
+  },
+  {
+    n: 'X1c',
+    rule: 'X1',
+    name: 'the act’s answer is not marked acted',
+    why: 'an unmarked answer to a write that acted is one bind.ts may replace with a 404 when the door stops.',
+    file: WRITES,
+    from: '      return { status: 200, body: answer, acted: true };',
+    to: '      return { status: 200, body: answer };',
+    needs: ['gate']
+  },
+  {
+    n: 'X1d',
+    rule: 'X1',
+    name: 'the full ledger’s busy is marked acted',
+    why: 'only an answer that speaks for a write that acted, or may be acting, is marked; a busy for a write that never acted, marked, is never replaced and says nothing true.',
+    file: WRITES,
+    from: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };",
+    to: "      // Full: a live entry is never evicted to make room, and this write never acted.\n      return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy), acted: true };",
+    needs: ['gate']
+  },
+  {
+    n: 'X1e',
+    rule: 'X1',
+    name: 'a duplicate of a write still in flight gets an unmarked busy',
+    why: 'the write it duplicates may be acting now, and a 404 in place of its busy would say it was not (§14 finding 9).',
+    file: WRITES,
+    from: /(body: writeAnswer\(verb, parsed\.write, 'busy', null, POCKET_WRITE_SENTENCES\.busy\)),\n\s*acted: true\n\s*\};/,
+    to: (m, body) => body + '\n      };',
+    needs: ['gate']
+  },
+  {
+    n: 'X1f',
+    rule: 'X1',
+    name: 'a recorded hit forgets whether its write acted',
+    why: 'a recorded answer to a write that acted, replayed while the door stops, would be replaced by a 404 (§14 finding 9).',
+    file: WRITES,
+    from: '      return known.acted ? { status: 200, body: known.body, acted: true } : { status: 200, body: known.body };',
+    to: '      return { status: 200, body: known.body };',
+    needs: ['gate']
+  },
+  {
+    n: 'X2a',
+    rule: 'X2',
+    name: 'a second JSON.parse in the write path',
+    why: 'a write body is read in ONE place, the strict parse; a second reader is a second idea of what a body says.',
+    file: WRITES,
+    from: '    // STEP 1. The strict parse.',
+    to: "    const peek: unknown = JSON.parse(body.toString('utf8'));\n    void peek;\n    // STEP 1. The strict parse.",
+    needs: ['gate']
+  },
+  {
+    n: 'X2b',
+    rule: 'X2',
+    name: 'the end body’s keys are no longer compared exactly',
+    why: 'an unknown or missing key refuses the body whole (D2); a fourth key that rides along is a field nobody signed off on.',
+    file: WRITES,
+    from: "Object.keys(value).sort().join(',') !== END_KEYS",
+    to: "!Object.keys(value).includes('session')",
+    needs: ['gate']
+  },
+  {
+    n: 'X2c',
+    rule: 'X2',
+    name: 'the write id read by a pattern',
+    why: 'R1 refuses a pattern in this domain, and the strict parse reads one character at a time.',
+    file: WRITES,
+    from: /function isWriteId\(value: unknown\): value is string \{[\s\S]*?\n\}/,
+    to: 'function isWriteId(value: unknown): value is string {\n  return typeof value === \'string\' && /^[0-9a-f]{32}$/.test(value);\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'X2d',
+    rule: 'X2',
+    name: 'the parse outside a try',
+    why: 'a body that does not parse would throw past the parse instead of answering refused malformed.',
+    file: WRITES,
+    from: /  try \{\n    value = JSON\.parse\(body\.toString\('utf8'\)\);\n  \} catch \{\n    return null;\n  \}/,
+    to: "  value = JSON.parse(body.toString('utf8'));",
+    needs: ['gate']
+  },
+  {
+    n: 'X3a',
+    rule: 'X3',
+    name: 'the ledger’s lifetime re-spelled as a number',
+    why: 'the lifetime is twice the signature clock, imported; a second spelling of the clock drifts the day the clock moves.',
+    file: WRITES,
+    from: 'export const POCKET_WRITE_LEDGER_MS = 2 * POCKET_CLOCK_SKEW_MS;',
+    to: 'export const POCKET_WRITE_LEDGER_MS = 120_000;',
+    needs: ['gate']
+  },
+  {
+    n: 'X3b',
+    rule: 'X3',
+    name: 'the per-phone ledger cap raised past 512',
+    why: 'D5: at most 512 entries a phone; one phone could otherwise fill the whole ledger.',
+    file: WRITES,
+    from: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 512;',
+    to: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 100_000;',
+    needs: ['gate']
+  },
+  {
+    n: 'X3c',
+    rule: 'X3',
+    name: 'a live entry evicted',
+    why: 'a ledger that evicts an entry younger than its lifetime lets a replay act twice: research 135 §4.4 measured it, 512 reads later.',
+    file: WRITES,
+    from: "      if (entry.state === 'recorded' && at - entry.at >= POCKET_WRITE_LEDGER_MS) forget(key, entry);",
+    to: "      if (entry.state === 'recorded') forget(key, entry);",
+    needs: ['gate']
+  },
+  {
+    n: 'X3d',
+    rule: 'X3',
+    name: 'the pending entry made after the last check',
+    why: 'two requests with one write id (a replay under a fresh nonce) would both pass the ledger before either recorded anything (§3 row 18).',
+    file: WRITES,
+    from: /    ledger\.set\(key, pending\);\n([\s\S]*?)(      if \(deps\.shuttingDown\(\)[^\n]*\n)/,
+    to: (m, mid, check) => mid + check + '      ledger.set(key, pending);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'X3e',
+    rule: 'X3',
+    name: 'the ledger keyed on the write id alone',
+    why: 'a write id is the phone’s own; keyed without the phone, one phone’s write id answers another’s.',
+    file: WRITES,
+    from: '    const key = keyOf(verifiedPhone, parsed.write);',
+    to: "    const key = keyOf('', parsed.write);",
+    needs: ['gate']
+  },
+  {
+    n: 'X3f',
+    rule: 'X3',
+    name: 'the write path imports node:fs',
+    why: 'the ledger is memory, and a write is never queued for later (D6).',
+    file: WRITES,
+    from: "import { getLog } from '../log';",
+    to: "import { getLog } from '../log';\nimport { writeFileSync } from 'node:fs';\nvoid writeFileSync;",
+    needs: ['gate']
+  },
+  {
+    n: 'X4a',
+    rule: 'X4',
+    name: 'no claim per session',
+    why: 'two phones could end one session at once.',
+    file: WRITES,
+    from: '    sessionsInFlight.add(session);\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X4b',
+    rule: 'X4',
+    name: 'the phone’s claim not released in the finally',
+    why: 'a refusal or a throw would hold the phone’s claim forever, and every later write from it would read busy.',
+    file: WRITES,
+    from: '      phonesInFlight.delete(verifiedPhone);\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X5a',
+    rule: 'X5',
+    name: 'PocketWrites grows a second member',
+    why: 'Restore and Remove stay on the Mac (research 127 §5); a member on the interface is a verb the door can reach.',
+    file: ROUTES,
+    from: '  end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;\n}',
+    to: '  end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'X5b',
+    rule: 'X5',
+    name: 'the push seam builds the phone’s writes',
+    why: 'the seam’s door answers every write 404; a seam with writes is a harness that can end a session.',
+    file: SEAM,
+    from: "import { createPocketRoutes, type PocketFacts } from '../pocket/routes';",
+    to: "import { createPocketRoutes, type PocketFacts } from '../pocket/routes';\nimport { createPocketWrites } from '../sessions/pocket-writes';\nexport const seamWrites = createPocketWrites({ core: () => null });",
+    needs: ['gate']
+  },
+  {
+    n: 'X5c',
+    rule: 'X5',
+    name: 'the batch narrows by answering',
+    why: 'an arm on answering never fires (a machine that stops answering reads unknown), and misses the one case the Mac batch narrows (§14 finding 1).',
+    file: POCKET_WRITES,
+    from: 'if (batch && session.machine !== undefined && !machineKnown(session.machine.id)) {',
+    to: 'if (batch && session.machine !== undefined && !session.machine.answering) {',
+    needs: ['gate']
+  },
+  {
+    n: 'X5d',
+    rule: 'X5',
+    name: 'something awaited before the verb',
+    why: 'the row is re-read and both gates asked with nothing awaited before the verb; an await between is a window for the row to change under the press.',
+    file: POCKET_WRITES,
+    from: '        const session = core.listSessions().find((s) => s.id === sessionId);',
+    to: '        await Promise.resolve();\n        const session = core.listSessions().find((s) => s.id === sessionId);',
+    needs: ['gate']
+  },
+  {
+    n: 'X5e',
+    rule: 'X5',
+    name: 'the production machine question is not the store’s machineRow',
+    why: 'main’s spelling of the Mac batch’s machineKnown is machineRow(id) !== null; any other answer narrows a different set of rows.',
+    file: POCKET_WRITES,
+    from: '  return machineRow(machineId) !== null;',
+    to: "  return machineId !== '';",
+    needs: ['gate']
+  },
+  {
+    n: 'X5f',
+    rule: 'X5',
+    name: 'PocketFacts.endOffer made required',
+    why: 'the push seam’s and the tests’ facts would stop compiling for a field neither needs (§14 finding 8).',
+    file: ROUTES,
+    from: '  endOffer?(session: Session): PocketEndOffer;',
+    to: '  endOffer(session: Session): PocketEndOffer;',
+    needs: ['gate']
+  },
+  {
+    n: 'X5g',
+    rule: 'X5',
+    name: 'the phone’s End sets a status',
+    why: 'refusal 5: no route sets a status. The verb writes exited, exactly as the desk’s End does.',
+    file: POCKET_WRITES,
+    from: '        await core.killSession(sessionId);',
+    to: '        await core.killSession(sessionId);\n        (core as unknown as { applyDetectedStatus(id: string): void }).applyDetectedStatus(sessionId);',
+    needs: ['gate']
+  },
+  {
+    n: 'X5h',
+    rule: 'X5',
+    name: 'the shared gate asked with an environment that is not the door’s',
+    why: 'the door asks canEnd with DOOR_GATE_ENV and nothing else; a richer environment is a door that reads fields canEnd should never need.',
+    file: POCKET_WRITES,
+    from: 'sessionActionGates(session, session.status, DOOR_GATE_ENV).canEnd',
+    to: 'sessionActionGates(session, session.status, { canRestore: true, canDiscard: true, shellPathReady: true, handback: undefined }).canEnd',
+    needs: ['gate']
+  },
+  {
+    n: 'X5i',
+    rule: 'X5',
+    name: 'the phone’s End stops asking main’s gate',
+    why: 'main’s gate is what catches a row another window removed a moment ago; without it the door writes exited over a tombstone.',
+    file: POCKET_WRITES,
+    from: '  const refused = endRefusal(record);',
+    to: '  const refused: string | null = record === undefined ? null : null;',
+    needs: ['gate']
+  },
+  {
+    n: 'X5j',
+    rule: 'X5',
+    name: 'the push seam hands its PocketHost a write',
+    why: 'the seam’s door answers both write routes 404 because its host has no writes; a seam host with one is a harness that can end a session.',
+    file: SEAM,
+    from: '  const host = new PocketHost({ facts });',
+    to: "  const host = new PocketHost({ facts, writes: { end: () => Promise.resolve({ outcome: 'done' as const }) } });",
+    needs: ['gate']
+  },
+  {
+    n: 'X6a',
+    rule: 'X6',
+    name: 'the write answer gains a field',
+    why: 'the answer is five fields composed field by field; a sixth is something the phone could be told that nobody decided it should be, and D13 refuses any field that claims Face ID happened.',
+    file: SHARED,
+    from: /(export interface PocketWriteAnswer \{[\s\S]*?)\n\}/,
+    to: (m, body) => body + '\n  faceId?: boolean;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'X6b',
+    rule: 'X6',
+    name: 'a sentence spelled as a literal in the write implementation',
+    why: 'every sentence the phone reads has one owner; a literal here is a second spelling that drifts from the Mac’s.',
+    file: POCKET_WRITES,
+    from: "      if (core === null) return { outcome: 'failed', sentence: END_FAILED };",
+    to: "      if (core === null) return { outcome: 'failed', sentence: 'Tortie could not end this session.' };",
+    needs: ['gate']
+  },
+  {
+    n: 'X6c',
+    rule: 'X6',
+    name: 'an error’s message reaches the phone',
+    why: 'a failed tmux command’s message holds its argv (research 135 §4.8); nothing an error says reaches the phone or a log.',
+    file: POCKET_WRITES,
+    from: "  if (isGmuxError(err, 'SESSION_NOT_FOUND')) {",
+    to: "  if (err instanceof Error && err.message.length > 0 && isGmuxError(err, 'SESSION_NOT_FOUND')) {",
+    needs: ['gate']
+  },
+  {
+    n: 'X6d',
+    rule: 'X6',
+    name: 'a thrown End told apart by what it says',
+    why: 'by code only: what an error says is not a contract, and reading it is how its argv reaches somebody.',
+    file: POCKET_WRITES,
+    from: '        return thrownOutcome(err, core, sessionId);',
+    to: "        if (String(err).includes('not found')) return { outcome: 'failed', sentence: END_FAILED };\n        return thrownOutcome(err, core, sessionId);",
+    needs: ['gate']
+  },
+  {
+    n: 'X7a',
+    rule: 'X7',
+    name: 'a late answer to a write is answered 404',
+    why: 'main may be acting on that write; a 404 tells the phone nothing was done. The connection is cut, and the phone reads no answer, which is true.',
+    file: LISTENER,
+    from: /        if \(write\) \{\n[\s\S]*?counts\.writesCut \+= 1;\n\s*tlsSocket\.destroy\(\);\n\s*return;\n\s*\}\n/,
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X7b',
+    rule: 'X7',
+    name: 'a handler that throws after forwarding a write answers 404',
+    why: 'a write main was handed is never answered 404 by the door process, from any path.',
+    file: LISTENER,
+    from: /if \(mark\.forwardedWrite\) tlsSocket\.destroy\(\);\n\s*else sendPocket\(res, 404, null\);/,
+    to: 'sendPocket(res, 404, null);',
+    needs: ['gate']
+  },
+  {
+    n: 'X7c',
+    rule: 'X7',
+    name: 'main posts a 404 for an acted answer that fails validation',
+    why: 'an acted answer is never replaced: nothing is posted, and the door process’s write timer cuts the connection (D4).',
+    file: BIND,
+    from: "      if (message.kind === 'answer' && !answer.acted) {",
+    to: "      if (message.kind === 'answer') {",
+    needs: ['gate']
+  },
+  {
+    n: 'X8a',
+    rule: 'X8',
+    name: 'the door process parses a write body',
+    why: 'D2: the door process never parses a write body; it holds no credential and should hold no session vocabulary, and main verifies the signature over the exact bytes first.',
+    file: LISTENER,
+    from: "      // A write's target is its path alone; a read's carries its query.",
+    to: "      if (!route.reads) void JSON.parse(body.toString('utf8'));\n      // A write's target is its path alone; a read's carries its query.",
+    needs: ['gate']
+  },
+  {
+    n: 'X8b',
+    rule: 'X8',
+    name: 'a write’s target carries its query',
+    why: 'everything a write says is in its signed body; a target with a query is a second place to say it.',
+    file: LISTENER,
+    from: /const target = route\.reads \? `\$\{url\.pathname\}\$\{url\.search\}` : url\.pathname;/,
+    to: 'const target = `${url.pathname}${url.search}`;',
+    needs: ['gate']
+  },
+  {
+    n: 'X8c',
+    rule: 'X8',
+    name: 'a write with a query string is no longer refused',
+    why: 'refusal 3 for a write: a query on /v1/end is refused route and never forwarded.',
+    file: LISTENER,
+    from: /    if \(!route\.reads && \(url\.search !== '' \|\| raw\.includes\('\?'\)\)\) return refuseRequest\(res, 'route'\);\n/,
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X8d',
+    rule: 'X8',
+    name: 'a write’s body bounded by the read cap',
+    why: 'each write has its own cap, computed from its worst legal body; a write under another route’s number is bounded by nobody’s arithmetic.',
+    file: LISTENER,
+    from: '  return POCKET_WRITE_BODY_CAPS[route.id as DoorWriteRoute];',
+    to: '  return POCKET_READ_BODY_CAP_BYTES;',
+    needs: ['gate']
+  },
+  {
+    n: 'X8e',
+    rule: 'X8',
+    name: 'main stops refusing a write whose target is not its path',
+    why: 'the wire is validated on both sides; a target main does not check is one the door process alone vouches for.',
+    file: WIRE,
+    from: '  if (write && target !== writePathOf(route as DoorWriteRoute)) return null;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X9a',
+    rule: 'X9',
+    name: 'the write path handed a way to drop a phone (the unpair the fix round took out)',
+    why: 'a write route that reaches a phone’s removal is the unpair this phase built and took out: the phone waited on it before it could forget a Mac that did not answer.',
+    file: IPC,
+    from: '      stillPaired: (phoneId) => this.stillPaired(phoneId),\n      ...(deps.writes !== undefined ? { writes: deps.writes } : {}),',
+    to: '      stillPaired: (phoneId) => this.stillPaired(phoneId),\n      unpairSigningPhone: (phoneId: string) => this.removePhone(phoneId),\n      ...(deps.writes !== undefined ? { writes: deps.writes } : {}),',
+    needs: ['gate']
+  },
+  {
+    n: 'X9b',
+    rule: 'X9',
+    name: 'the write path’s deps grow a member',
+    why: 'the write path is handed exactly the quit, stillPaired, the writes and the clock; a fifth member is a door into something else, and the last one was a phone’s removal.',
+    file: WRITES,
+    from: '  writes?: PocketWrites;\n',
+    to: '  writes?: PocketWrites;\n  forgetPhone?(phoneId: string): void;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'X9c',
+    rule: 'X9',
+    name: 'an answer carries a step to run after it',
+    why: 'a step that follows an answer is how the unpair cut the phone’s socket and closed the door from inside its own handler, and lost its answer in 1 of 3 live unpairs.',
+    file: BIND,
+    from: '  readonly acted?: true;\n}',
+    to: '  readonly acted?: true;\n  readonly after?: () => Promise<void>;\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'X9d',
+    rule: 'X9',
+    name: 'the write path calls something that removes a phone',
+    why: 'the write path ends a session through PocketWrites and does nothing else.',
+    file: WRITES,
+    from: '      const done = await acting;',
+    to: '      const done = await acting;\n      (deps as unknown as { dropPhone(id: string): void }).dropPhone(verifiedPhone);',
+    needs: ['gate']
+  },
+  {
+    n: 'X9e',
+    rule: 'X9',
+    name: 'a second store write that removes a phone',
+    why: 'Remove is the ONE thing that takes a phone out of the store, before its first await.',
+    file: IPC,
+    from: '  private stillPaired(phoneId: string): boolean {\n',
+    to: '  private forgetQuietly(phoneId: string): void {\n    const store = this.readStore();\n    if (store !== null) this.writeStore({ ...store, phones: store.phones.filter((p) => p.id !== phoneId) });\n  }\n\n  private stillPaired(phoneId: string): boolean {\n',
+    needs: ['gate']
+  },
+  {
+    n: 'X10a',
+    rule: 'X10',
+    name: 'a Remove cuts a socket answering a write',
+    why: 'an answer cut after main acted tells the phone nothing happened; only a socket answering a write main was handed finishes first.',
+    file: LISTENER,
+    from: '      state.revoked = true;\n      if (state.writes === 0) tlsSocket.destroy();',
+    to: '      state.revoked = true;\n      tlsSocket.destroy();',
+    needs: ['gate']
+  },
+  {
+    n: 'X10b',
+    rule: 'X10',
+    name: 'a revoked socket is asked about after the first refusal',
+    why: 'a revoked socket takes no further request, and nothing of one is read: it is refused before anything else is asked of it.',
+    file: LISTENER,
+    from: /    if \(cutIfRevoked\(tlsSocket, state\)\) return;\n(    \/\/ REFUSAL 1\.)/,
+    to: (m, rest) => rest,
+    needs: ['gate']
+  },
+  {
+    n: 'X10c',
+    rule: 'X10',
+    name: 'a revoked socket is not cut when its write’s answer finishes',
+    why: 'a socket whose phone was removed would stay open after its answer left, a connection for a phone that is no longer allowed.',
+    file: LISTENER,
+    from: "      res.once('finish', () => settle(true));\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'X11a',
+    rule: 'X11',
+    name: 'a second log line in the write path',
+    why: 'one line per write: app.log is capped at 2 MiB with one archive, and 500 posts wrote 500 lines in 47 ms on the hook route.',
+    file: WRITES,
+    from: '    // STEP 1. The strict parse.',
+    to: "    pocketLog.info('a phone write arrived');\n    // STEP 1. The strict parse.",
+    needs: ['gate']
+  },
+  {
+    n: 'X11b',
+    rule: 'X11',
+    name: 'the line names the write id',
+    why: 'the line says the verb and the outcome word, never the body, the write id, a header or a sentence.',
+    file: WRITES,
+    from: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`,",
+    to: "pocketLog.info(`the phone's ${verb}: ${done.outcome} (${parsed.write})`,",
+    needs: ['gate']
+  },
+  {
+    n: 'X11c',
+    rule: 'X11',
+    name: 'the line carries a second field',
+    why: 'the session id is its one field.',
+    file: WRITES,
+    from: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`, { session });",
+    to: "pocketLog.info(`the phone's ${verb}: ${done.outcome}`, { session, phone: verifiedPhone });",
+    needs: ['gate']
+  },
+  {
+    n: 'X12a',
+    rule: 'X12',
+    name: 'the write line spelled rather than derived',
+    why: 'the lines are exactly the hashed facts; a spelled line stays the same when the route list moves.',
+    file: PAIRING,
+    from: /  if \(clauses\.length > 0\) lines\.push\(`Lets an allowed phone \$\{clauses\.join\(' and '\)\}`\);/,
+    to: "  if (clauses.length > 0) lines.push('Lets an allowed phone end a session');",
+    needs: ['gate']
+  },
+  {
+    n: 'X12b',
+    rule: 'X12',
+    name: 'the clauses keyed by any string',
+    why: 'keyed by the closed write list, a write added without its words is a compile error rather than a route the lines never mention.',
+    file: PAIRING,
+    from: 'const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({',
+    to: 'const WRITE_CLAUSES: Readonly<Record<string, string>> = Object.freeze({',
+    needs: ['gate']
+  },
+  {
+    n: 'X12c',
+    rule: 'X12',
+    name: 'the read-only sentence comes back',
+    why: 'a constant named read only, drawn under a door that ends sessions, is false in code and on screen (D19).',
+    file: SHARED,
+    from: 'export const POCKET_DOOR_HONESTY =',
+    to: "export const POCKET_READ_ONLY_HONESTY = 'This door only answers questions.';\nexport const POCKET_DOOR_HONESTY =",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
   // THE HOSTILE CLIENT'S OWN: clauses the source reads cannot tell from a guard.
   // -------------------------------------------------------------------------
   {
@@ -1821,13 +2456,24 @@ function restore(rel) {
   if (sha(got) !== sha(want)) throw new Error(`${rel} did not restore: sha256 ${sha(got)} against ${sha(want)}`);
 }
 
-/** One exact replacement inside the clone; a function replacer, so `$&` stays literal. */
+/**
+ * One exact replacement inside the clone; a function replacer, so `$&` stays
+ * literal. Since Phase 317 `from` may be a RegExp, for an arm on a file another
+ * builder writes in the same round whose spacing this harness should not pin,
+ * and `to` may then be a function of the match and its groups.
+ */
 function ablate(rel, from, to) {
   const path = join(scratch, rel);
   if (!existsSync(path)) return false;
   const text = readFileSync(path, 'utf8');
-  if (!text.includes(from)) return false;
-  writeFileSync(path, text.replace(from, () => to), 'utf8');
+  if (from instanceof RegExp) {
+    from.lastIndex = 0;
+    if (!from.test(text)) return false;
+    from.lastIndex = 0;
+  } else if (!text.includes(from)) {
+    return false;
+  }
+  writeFileSync(path, text.replace(from, typeof to === 'function' ? to : () => to), 'utf8');
   return true;
 }
 
@@ -1885,32 +2531,38 @@ try {
       problems.push(
         `${entry.n} "${entry.name}": the shape to ablate is not in ${entry.file}. Either the clause moved, and this ` +
           `entry moves with it in the same commit, or it is gone and ${entry.rule} is unproven. It looked for: ` +
-          `${JSON.stringify(entry.from).slice(0, 180)}`
+          `${(entry.from instanceof RegExp ? String(entry.from) : JSON.stringify(entry.from)).slice(0, 180)}`
       );
       table.push([entry.n, entry.rule, 'SHAPE MISSING', '']);
       continue;
     }
     ran += 1;
-    const out = runChecks(checksFor(entry));
-    const newlyRed = out.red.filter((r) => !baseRed.has(r));
-    // `alsoRed` names rules the SAME clause owns a second half of (Phase 314's
-    // push route is both a new word in the table and a moved membership pin), and
-    // every one of them must go newly red too, or the arm proves only one half.
-    const own = [entry.rule, ...(entry.alsoRed ?? [])].every((r) => newlyRed.includes(r));
-    table.push([entry.n, entry.rule, out.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
-    say(`${entry.n.padEnd(4)} ${entry.rule.padEnd(4)} ${entry.name}: exit ${String(out.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
-    if (out.code === 0) {
-      problems.push(
-        `${entry.n} "${entry.name}": the checks stayed GREEN. ${entry.why} Nothing notices, so ${entry.rule} is decoration.`
-      );
-    } else if (!own) {
-      const lines = out.text.split('\n').filter((l) => l.includes('[p313 ')).slice(0, 3).map((l) => l.trim().slice(0, 220));
-      problems.push(
-        `${entry.n} "${entry.name}": something went red but ${[entry.rule, ...(entry.alsoRed ?? [])].join(' and ')} did not all (red instead: ` +
-          `${newlyRed.join(', ') || 'nothing numbered'}). ${lines.join(' // ')}`
-      );
+    // THE ARM'S OWN RESTORE IS IN A FINALLY (Phase 317), so an arm whose check
+    // throws still leaves the clone as the worktree is, proved by sha256,
+    // before the next arm reads it.
+    try {
+      const out = runChecks(checksFor(entry));
+      const newlyRed = out.red.filter((r) => !baseRed.has(r));
+      // `alsoRed` names rules the SAME clause owns a second half of (Phase 314's
+      // push route is both a new word in the table and a moved membership pin), and
+      // every one of them must go newly red too, or the arm proves only one half.
+      const own = [entry.rule, ...(entry.alsoRed ?? [])].every((r) => newlyRed.includes(r));
+      table.push([entry.n, entry.rule, out.code === 0 ? 'GREEN' : own ? 'red' : 'RED ELSEWHERE', newlyRed.join(',')]);
+      say(`${entry.n.padEnd(4)} ${entry.rule.padEnd(4)} ${entry.name}: exit ${String(out.code)}, newly red ${newlyRed.join(', ') || 'nothing'}`);
+      if (out.code === 0) {
+        problems.push(
+          `${entry.n} "${entry.name}": the checks stayed GREEN. ${entry.why} Nothing notices, so ${entry.rule} is decoration.`
+        );
+      } else if (!own) {
+        const lines = out.text.split('\n').filter((l) => l.includes('[p313 ')).slice(0, 3).map((l) => l.trim().slice(0, 220));
+        problems.push(
+          `${entry.n} "${entry.name}": something went red but ${[entry.rule, ...(entry.alsoRed ?? [])].join(' and ')} did not all (red instead: ` +
+            `${newlyRed.join(', ') || 'nothing numbered'}). ${lines.join(' // ')}`
+        );
+      }
+    } finally {
+      restore(entry.file);
     }
-    restore(entry.file);
   }
 
   const after = runChecks();

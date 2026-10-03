@@ -1,0 +1,302 @@
+{
+  "about": "Phase 317 (build/p317/SPEC.md section 5.8.7): every End these word the phone composes, written by hand from the Mac's own composers in src/renderer/session-manager/copy.ts. ios/TortieTests/EndWordsTests.swift asserts the phone's composers (Style/Copy.swift) produce each text; src/renderer/session-manager/__tests__/p317-batch-words.test.ts asserts the Mac's produce the same file. Each case calls the composer named, with args exactly as the Mac's function takes them; a batchSkippedLine that skips nothing is the Mac's empty string, which the phone says by saying nothing (nil). constants are the Mac's exported words by their names.",
+  "source": "src/renderer/session-manager/copy.ts",
+  "n": [
+    1,
+    2,
+    12
+  ],
+  "constants": {
+    "END_SESSION": "End session…",
+    "END_SELECTED": "End selected sessions…",
+    "BATCH_STOP": "Stop",
+    "BATCH_DONE": "Done"
+  },
+  "cases": [
+    {
+      "composer": "selectedCount",
+      "args": [
+        1
+      ],
+      "text": "1 selected"
+    },
+    {
+      "composer": "selectedCount",
+      "args": [
+        2
+      ],
+      "text": "2 selected"
+    },
+    {
+      "composer": "selectedCount",
+      "args": [
+        12
+      ],
+      "text": "12 selected"
+    },
+    {
+      "composer": "batchHeading",
+      "args": [
+        1
+      ],
+      "text": "End 1 running session?"
+    },
+    {
+      "composer": "batchHeading",
+      "args": [
+        2
+      ],
+      "text": "End 2 running sessions?"
+    },
+    {
+      "composer": "batchHeading",
+      "args": [
+        12
+      ],
+      "text": "End 12 running sessions?"
+    },
+    {
+      "composer": "batchConfirmLabel",
+      "args": [
+        1
+      ],
+      "text": "End 1 session"
+    },
+    {
+      "composer": "batchConfirmLabel",
+      "args": [
+        2
+      ],
+      "text": "End 2 sessions"
+    },
+    {
+      "composer": "batchConfirmLabel",
+      "args": [
+        12
+      ],
+      "text": "End 12 sessions"
+    },
+    {
+      "composer": "batchRunningHeading",
+      "args": [
+        1
+      ],
+      "text": "Ending 1 session…"
+    },
+    {
+      "composer": "batchRunningHeading",
+      "args": [
+        2
+      ],
+      "text": "Ending 2 sessions…"
+    },
+    {
+      "composer": "batchRunningHeading",
+      "args": [
+        12
+      ],
+      "text": "Ending 12 sessions…"
+    },
+    {
+      "composer": "batchDoneHeading",
+      "args": [
+        1,
+        1
+      ],
+      "text": "1 of 1 session ended"
+    },
+    {
+      "composer": "batchDoneHeading",
+      "args": [
+        2,
+        2
+      ],
+      "text": "2 of 2 sessions ended"
+    },
+    {
+      "composer": "batchDoneHeading",
+      "args": [
+        12,
+        12
+      ],
+      "text": "12 of 12 sessions ended"
+    },
+    {
+      "composer": "batchDoneHeading",
+      "args": [
+        1,
+        12
+      ],
+      "text": "1 of 12 sessions ended"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 1,
+          "unreachable": 0,
+          "gone": 0
+        }
+      ],
+      "text": "1 selected session stays unchanged: 1 already ended"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 2,
+          "unreachable": 0,
+          "gone": 0
+        }
+      ],
+      "text": "2 selected sessions stay unchanged: 2 already ended"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 12,
+          "unreachable": 0,
+          "gone": 0
+        }
+      ],
+      "text": "12 selected sessions stay unchanged: 12 already ended"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 0,
+          "unreachable": 1,
+          "gone": 0
+        }
+      ],
+      "text": "1 selected session stays unchanged: 1 unreachable"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 0,
+          "unreachable": 0,
+          "gone": 1
+        }
+      ],
+      "text": "1 selected session stays unchanged: 1 no longer here"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 0,
+          "unreachable": 1,
+          "gone": 1
+        }
+      ],
+      "text": "2 selected sessions stay unchanged: 1 unreachable, 1 no longer here"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 1,
+          "unreachable": 2,
+          "gone": 12
+        }
+      ],
+      "text": "15 selected sessions stay unchanged: 1 already ended, 2 unreachable, 12 no longer here"
+    },
+    {
+      "composer": "batchSkippedLine",
+      "args": [
+        {
+          "ended": 0,
+          "unreachable": 0,
+          "gone": 0
+        }
+      ],
+      "text": ""
+    },
+    {
+      "composer": "batchBody",
+      "args": [
+        false
+      ],
+      "text": "This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended."
+    },
+    {
+      "composer": "batchBody",
+      "args": [
+        true
+      ],
+      "text": "This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended. For a session on another machine, bringing it back always returns the folder, and it returns the conversation only when Tortie recorded one for this agent."
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "ending"
+        }
+      ],
+      "text": "Ending…"
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "ended"
+        }
+      ],
+      "text": "Ended"
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "skipped",
+          "reason": "ended"
+        }
+      ],
+      "text": "Already ended"
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "skipped",
+          "reason": "unreachable"
+        }
+      ],
+      "text": "Unreachable"
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "skipped",
+          "reason": "gone"
+        }
+      ],
+      "text": "No longer here"
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "failed",
+          "message": "Tortie could not end this session."
+        }
+      ],
+      "text": "Not ended. Tortie could not end this session."
+    },
+    {
+      "composer": "batchOutcomeWord",
+      "args": [
+        {
+          "state": "not-run"
+        }
+      ],
+      "text": "Not run"
+    }
+  ]
+}

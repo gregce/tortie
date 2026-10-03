@@ -50,7 +50,8 @@ import {
   resumeInPlaceRefusalNote,
   resumeNote
 } from '../resume';
-import type { ResumeInPlaceLanding, SessionHandback } from '../resume';
+import type { ResumeInPlaceLanding } from '../resume';
+import type { SessionHandback } from '@shared/session-gates';
 import { readHandback } from '../subscriptions';
 
 /** An ordinary armed claude row, which is what most of his sessions are. */

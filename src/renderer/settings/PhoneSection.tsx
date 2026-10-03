@@ -45,7 +45,7 @@ import {
   POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
-  POCKET_READ_ONLY_HONESTY,
+  POCKET_DOOR_HONESTY,
   type PocketNameAnswer,
   type PocketNameProgress,
   type PocketPairingOffer,
@@ -775,7 +775,7 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
           <div className="phone-block" data-phone-confirm>
             <Lines lines={status.confirmLines} />
             <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
-            <p className="set-config-warning">{POCKET_READ_ONLY_HONESTY}</p>
+            <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>
             {status.funnel.asksApproval ? (
               <p className="set-config-warning" data-phone-funnel-right>
                 {POCKET_FUNNEL_RIGHT_WARNING}

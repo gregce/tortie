@@ -146,20 +146,10 @@ vi.mock('../../search/symbols-store', () => ({
   useSymbols: { getState: () => symbols }
 }));
 vi.mock('../../app/session-focus', () => ({ focusTerminal }));
-// The shipping gates when builder C's have landed, and the spec's own formula
-// for the one field this file reads when they have not. SPEC 4.1: `canRename`
-// is `!unknown && !removed`.
-vi.mock('../../state/resume', async (importOriginal) => {
-  const real = await importOriginal<Record<string, unknown>>();
-  return {
-    ...real,
-    sessionActionGates:
-      real['sessionActionGates'] ??
-      ((_s: Session, status: SessionStatus) => ({
-        canRename: status !== 'unknown' && status !== 'discarded'
-      }))
-  };
-});
+// The gates are the SHIPPING `sessionActionGates`, read by ../open from
+// src/shared/session-gates.ts (Phase 317). The mock that stood here supplied
+// it through ../../state/resume while Phase 293's builders were landing; open.ts
+// no longer reads that module, so the real gate is used and nothing is mocked.
 
 const open = await import('../open');
 

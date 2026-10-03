@@ -34,13 +34,13 @@ import {
   useRenameDraft
 } from '../session-actions';
 import {
-  hasRestoreMaterial,
   restoreExitedCopy,
   resumeMarkLabel,
   resumeNote,
   resumeReadiness,
   SHELL_PATH_PENDING_TITLE
 } from '../../state/resume';
+import { hasRestoreMaterial } from '@shared/session-gates';
 import { AgentIcon, Codicon, menuGlyph } from '../../icons';
 import { armPointerDrag, isSecondaryPress } from './pointer-drag';
 import { pressSelectsLeafNow } from './leaf-press';

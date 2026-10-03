@@ -53,6 +53,19 @@
  * children (pitfall b below), and deletes the file in a `finally`. The body
  * is a notification the phone app reads when it is tapped, never a key.
  *
+ * ## Face ID (Phase 317)
+ *
+ * A handle's `biometry(step)` is the one way a script under build/ enrols or
+ * answers Face ID on a Simulator, and `gate:simulator` refuses `notifyutil`
+ * and `spawn` anywhere else (build/p317/SPEC.md §6.4). The steps are a CLOSED
+ * set, {@link BIOMETRY_STEPS}: `enrol` and `unenrol` set and post
+ * BiometricKit's enrolment, `match` and `nomatch` post the Simulator's Face ID
+ * answer. Each is `xcrun simctl spawn <the udid this call created> notifyutil
+ * …` with the matching `com.apple.BiometricKit…` name and nothing a caller
+ * hands in, run as one of the handle's owned children. No step skips the
+ * app's owner check: the app asks iOS, and iOS is answered from here, as a
+ * person's face would answer it (SPEC D21).
+ *
  * ## What the teardown does, and why each step is there
  *
  *  1. End every `xcodebuild` this device's handle started: SIGTERM, a short
@@ -194,6 +207,26 @@ export function pushPayloadRefusal(payloadText) {
   if (aps === null || typeof aps !== 'object' || Array.isArray(aps)) return 'the notification body has no aps object.';
   return null;
 }
+
+/**
+ * Phase 317: the Face ID steps a handle may run on its own device, each the
+ * `notifyutil` argument lists `simctl spawn` hands it, in order. A CLOSED set:
+ * `enrol` and `unenrol` set BiometricKit's enrolment and post it, `match` and
+ * `nomatch` post the Simulator's Face ID answer (`pearl` is Face ID's name in
+ * BiometricKit). Nothing in an argument list comes from a caller.
+ */
+export const BIOMETRY_STEPS = Object.freeze({
+  enrol: Object.freeze([
+    Object.freeze(['-s', 'com.apple.BiometricKit.enrollmentChanged', '1']),
+    Object.freeze(['-p', 'com.apple.BiometricKit.enrollmentChanged'])
+  ]),
+  unenrol: Object.freeze([
+    Object.freeze(['-s', 'com.apple.BiometricKit.enrollmentChanged', '0']),
+    Object.freeze(['-p', 'com.apple.BiometricKit.enrollmentChanged'])
+  ]),
+  match: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.match'])]),
+  nomatch: Object.freeze([Object.freeze(['-p', 'com.apple.BiometricKit_Sim.pearl.nomatch'])])
+});
 
 /**
  * The simctl verbs a handle may run on its own device. Every one of them names
@@ -780,6 +813,12 @@ export async function xcodebuildRun(options) {
  *            of at most 4096 bytes, or it throws before anything is written;
  *            the body is written 0600 under this handle's scratch and deleted
  *            in a `finally`.
+ * @property {(step: 'enrol'|'unenrol'|'match'|'nomatch') => Promise<{code: number,
+ *            stdout: string, stderr: string}>} biometry
+ *            Phase 317: one Face ID step on THIS udid, from the closed set
+ *            BIOMETRY_STEPS, each `simctl spawn <udid> notifyutil …` run as
+ *            one of the handle's owned children. Any other step throws before
+ *            anything runs.
  * @property {() => string} dataPath  The device's data directory, for a read.
  */
 
@@ -932,6 +971,21 @@ export async function withSimulator(options, body) {
         } finally {
           rmSync(file, { force: true });
         }
+      },
+      async biometry(step) {
+        // Phase 317: Face ID enrolled or answered on THIS device, as a face
+        // would answer it, so the app's own owner check runs whole. A closed
+        // set of steps, each a fixed list of notifyutil arguments; the device
+        // is the udid this call CREATED, and never a value the caller hands in.
+        if (typeof step !== 'string' || !Object.hasOwn(BIOMETRY_STEPS, step)) {
+          throw new Error(`${TAG} ${label}: "${String(step)}" is not a Face ID step; the steps are ${Object.keys(BIOMETRY_STEPS).join(', ')}.`);
+        }
+        let last = { code: 0, stdout: '', stderr: '' };
+        for (const notify of BIOMETRY_STEPS[step]) {
+          last = await run('xcrun', ['simctl', 'spawn', udid, 'notifyutil', ...notify], { timeoutMs: 30_000, owner: entry.children });
+          if (last.code !== 0) return last;
+        }
+        return last;
       },
       dataPath() {
         return join(homedir(), 'Library', 'Developer', 'CoreSimulator', 'Devices', udid, 'data');

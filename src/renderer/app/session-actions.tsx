@@ -36,11 +36,12 @@ import {
   RESUME_VERB_TITLE,
   resumeMarkLabel,
   resumeNote,
-  resumeReadiness,
-  sessionActionGates,
-  showsResumeVerb
+  resumeReadiness
 } from '../state/resume';
-import type { SessionGateEnv, SessionHandback } from '../state/resume';
+// Phase 317. The one gates predicate moved below the renderer, so main can ask
+// it for the phone's door; resume.ts re-exports none of it.
+import { sessionActionGates, showsResumeVerb } from '@shared/session-gates';
+import type { SessionGateEnv, SessionHandback } from '@shared/session-gates';
 import { Codicon, menuGlyph } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
@@ -887,9 +888,10 @@ function copyDirectoryPathItem(session: Session): MenuItemSpec {
  * own records; see the branch below.
  *
  * PHASE 293. Every gate below is READ from `sessionActionGates` in
- * ../state/resume.ts and none is derived here any more. The Restore gate had
- * been written three times, in this function, in TerminalRegion.tsx and in
- * split/SplitSurface.tsx, and the third copy had already drifted. The sheet's
+ * src/shared/session-gates.ts (../state/resume.ts until Phase 317) and none is
+ * derived here any more. The Restore gate had been written three times, in
+ * this function, in TerminalRegion.tsx and in split/SplitSurface.tsx, and the
+ * third copy had already drifted. The sheet's
  * visible button and its batch would have been a fourth, so the predicate
  * moved down to where a state module and an app module can both read it, and
  * the policy is its first reader. PRESENCE AND ENABLEMENT ARE TWO FIELDS ON
@@ -977,9 +979,9 @@ export function sessionMenuItems(
     gates.offersRestore;
   // PHASE 119. The insurance verb, both halves. This is the surface the UI rule
   // names, it is native, and its sublabel slot is the only room a menu has for
-  // the sentence that explains the row. The predicate is the one in resume.ts,
-  // read here and on the ended card so the two cannot drift: this Mac, a
-  // capture that is on, and a session that has ended.
+  // the sentence that explains the row. The predicate is the one in
+  // src/shared/session-gates.ts, read here and on the ended card so the two
+  // cannot drift: this Mac, a capture that is on, and a session that has ended.
   const offersBare = gates.offersBare;
   // PHASE 141. The row that puts the resume command on the person's prompt. It
   // reads the same predicate the word on the row reads, so the menu and the row
@@ -1202,8 +1204,9 @@ export { statusVisual };
 /**
  * PHASE 141. Re-exported for the same reason `statusVisual` is: the surfaces
  * and the tests already import their session vocabulary from this file. The
- * rule itself lives in ../state/resume.ts, because the sessions slice reads it
- * too and a state module cannot import an app one.
+ * rule itself lives in src/shared/session-gates.ts (../state/resume.ts until
+ * Phase 317), because the sessions slice reads it too, a state module cannot
+ * import an app one, and main asks the same gate for the phone's door.
  */
 export { showsResumeVerb };
 

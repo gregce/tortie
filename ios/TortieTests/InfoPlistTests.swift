@@ -61,6 +61,15 @@ final class InfoPlistTests: XCTestCase {
         XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
     }
 
+    /// Clause (Phase 317, research 136 section 13): Face ID's purpose string,
+    /// which iOS requires before it asks, in its one sentence, saying what it
+    /// is asked for and nothing else (his ruling: "Only for End").
+    func testFaceIDIsExplainedInOneSentence() throws {
+        let sentence = try XCTUnwrap(info["NSFaceIDUsageDescription"] as? String)
+        XCTAssertEqual(sentence, "Tortie asks for Face ID before it ends a session on your Mac.")
+        XCTAssertEqual(sentence.filter { $0 == "." }.count, 1, sentence)
+    }
+
     /// Clause (Phase 316.3): the BUILT app carries its own privacy manifest,
     /// tracking nothing and collecting nothing; since Phase 330 it carries no
     /// framework of anybody else's, and so no second manifest.

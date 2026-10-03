@@ -184,6 +184,53 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertEqual(DoorClient.pairTarget, byName["lowercase-method-with-body"]?.target)
     }
 
+    // MARK: The writes (Phase 317)
+
+    /// Clause: the write's request is the one the shipping verifier accepted:
+    /// POST, the client's own target, and the body Swift's encoder writes with
+    /// sorted keys, byte for byte (the signature loops above sign and verify
+    /// it with the rest). The fix round took the unpair write out, so the
+    /// vectors carry no request to `/v1/unpair`.
+    func testTheWritesAreTheDoorsByteForByte() throws {
+        let byName = Dictionary(uniqueKeysWithValues: v.requests.map { ($0.name, $0) })
+        let end = try XCTUnwrap(byName["end"], "vectors.json carries no end write; run build/p316/vectors.mjs")
+        XCTAssertNil(byName["unpair"])
+        XCTAssertFalse(v.requests.contains { $0.target.hasPrefix("/v1/unpair") })
+        XCTAssertEqual(end.method, "POST")
+        XCTAssertEqual(end.target, DoorClient.endTarget)
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let fields = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(end.body.utf8)) as? [String: Any])
+        let body = EndBody(
+            batch: try XCTUnwrap(fields["batch"] as? Bool),
+            session: try XCTUnwrap(fields["session"] as? String),
+            write: try XCTUnwrap(fields["write"] as? String)
+        )
+        XCTAssertEqual(String(decoding: try encoder.encode(body), as: UTF8.self), end.body)
+        XCTAssertTrue(WriteId.isWellFormed(body.write))
+        XCTAssertEqual(Array(fields.keys).sorted(), ["batch", "session", "write"])
+    }
+
+    /// Clause: the body is covered, not only the target. The door refused the
+    /// end write's signature over its body with one byte changed
+    /// (`signature`), and so does CryptoKit.
+    func testABodyTheSignatureWasNotMadeForDoesNotVerify() throws {
+        let tampered = try XCTUnwrap(v.writeTampered, "vectors.json carries no tampered write; run build/p316/vectors.mjs")
+        XCTAssertEqual(tampered.doorSays, "signature")
+        let signed = try XCTUnwrap(v.requests.first { $0.name == tampered.signedFor })
+        XCTAssertNotEqual(tampered.body, signed.body)
+        XCTAssertEqual(Hex.sha256(Data(tampered.body.utf8)), tampered.bodySha256)
+        let text = DoorSignature.canonicalText(
+            method: signed.method, target: signed.target, bodySha256: tampered.bodySha256,
+            timestamp: signed.timestamp, nonce: signed.nonce, binding: v.identity.binding
+        )
+        XCTAssertEqual(text, tampered.canonical)
+        let keys = try phoneKeys()
+        let signature = try XCTUnwrap(Base64URL.decode(signed.signature))
+        XCTAssertFalse(keys.signing.publicKey.isValidSignature(signature, for: Data(tampered.canonical.utf8)))
+        XCTAssertTrue(keys.signing.publicKey.isValidSignature(signature, for: Data(signed.canonical.utf8)))
+    }
+
     // MARK: The pin
 
     private func certificate(_ pin: DoorVectorFile.Pin) throws -> SecCertificate {
@@ -481,6 +528,12 @@ struct DoorVectorFile: Decodable {
     struct Tampered: Decodable {
         let signedFor, target, canonical, doorSays: String
     }
+    /// Phase 317: the end write's signature over its body with one byte
+    /// changed. Optional so a file written before it fails the one test that
+    /// reads it, by name.
+    struct WriteTampered: Decodable {
+        let signedFor, body, bodySha256, canonical, doorSays: String
+    }
     struct Pin: Decodable {
         let name, certificateDer, certificateFingerprint, publicKeyFingerprint, pin: String
     }
@@ -522,6 +575,7 @@ struct DoorVectorFile: Decodable {
     let identity: Identity
     let requests: [Request]
     let tampered: Tampered
+    let writeTampered: WriteTampered?
     let pins: [Pin]
     let client: Client
     let seal: Seal

@@ -46,6 +46,16 @@
  * signature over another phone's connection). The K1 arms went with his
  * tailnet key, which no code carries any more (`conformance:pocket` K2).
  *
+ * PHASE 317 ADDED THE WRITES (build/p317/SPEC.md §6.1): the shipping write
+ * path (`src/main/pocket/writes.ts`) behind the same handler, over a
+ * RECORDING FAKE of the writes main is handed, so every write arm is asserted
+ * on its reason or outcome AND on the count of acts. Three of them stop the
+ * door while a write's answer is in composition and start it again (a new
+ * process over the same key); the late-answer arm is why this client's door
+ * answers within `HOSTILE_ANSWER_MS` rather than the production 15 s. The
+ * read-removal arm (WE15) touches read paths alone, so it runs unchanged in a
+ * parent clone.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -69,7 +79,7 @@ import { join } from 'node:path';
 import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 
 import type { DoorListenerHandle } from '../../src/main/pocket/door/listener.js';
-import type { PocketFacts, PocketRoute } from '../../src/main/pocket/routes.js';
+import type { PocketEndOutcome, PocketFacts, PocketRoute, PocketWrites } from '../../src/main/pocket/routes.js';
 import type { PocketExecutionFields, PocketIdentity, PocketPhoneFields } from '../../src/main/pocket/pairing.js';
 import type { StoredTurn } from '../../src/main/overview/store/index.js';
 import type { Session, SessionStatus } from '../../src/shared/types.js';
@@ -106,6 +116,7 @@ const tlsModule = await import('../../src/main/pocket/tls.js');
 const bind = await import('../../src/main/pocket/bind.js');
 const { inProcessDoor } = await import('../../src/main/pocket/door/in-process.js');
 const { createPocketHandler } = await import('../../src/main/pocket/server.js');
+const { createPocketWriteHandler } = await import('../../src/main/pocket/writes.js');
 const { POCKET_READ_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/wire.js');
 const { POCKET_PAIR_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/limits.js');
 const { POCKET_ROUTES, createPocketRoutes, readTurnRange } = await import('../../src/main/pocket/routes.js');
@@ -490,7 +501,15 @@ async function until(ready: () => boolean): Promise<void> {
 // The run
 // ---------------------------------------------------------------------------
 
-const doorSpawn = inProcessDoor();
+/**
+ * THE ANSWER BOUND, SHORTENED FOR THIS CLIENT ALONE (Phase 317). A write main
+ * answers later than the bound is CUT, never answered 404, and the arm that
+ * proves it waits the bound out; at the production 15 s it would be the slowest
+ * thing in the battery. Every other arm answers in milliseconds. Production
+ * passes no timings at all.
+ */
+const HOSTILE_ANSWER_MS = 3_000;
+const doorSpawn = inProcessDoor({ timings: { answerMs: HOSTILE_ANSWER_MS } });
 let doorStarted = false;
 
 try {
@@ -629,6 +648,36 @@ try {
   };
   const routes = createPocketRoutes(facts);
 
+  // PHASE 317: THE ONE WRITE PATH, SHIPPING, over a RECORDING FAKE of the
+  // writes main is handed. Every write arm is asserted on its reason or
+  // outcome AND on this recorder's count, so an act the door let through is
+  // counted even when its answer was refused.
+  const acts: { sessionId: string; batch: boolean }[] = [];
+  let holdAct: Promise<void> | null = null;
+  let actsReached = 0;
+  const recordingWrites: PocketWrites = {
+    end: async (input): Promise<PocketEndOutcome> => {
+      acts.push(input);
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      return { outcome: 'done' };
+    }
+  };
+  const writeHandler = createPocketWriteHandler({
+    shuttingDown: () => false,
+    stillPaired: (id) => phones.some((p) => p.id === id),
+    writes: recordingWrites
+  });
+  /**
+   * Arms that need the door to BEGIN TO STOP while a write's answer is in
+   * composition set this: the stop starts after the write path answered and
+   * before `bind.ts` posts, and is not awaited here, because the stop joins
+   * this very job (SPEC §5.3.4). Arms that need the phone REMOVED after the
+   * signature and before the write path set the other.
+   */
+  let stopAfterWrite: Promise<unknown> | null | 'arm' = null;
+  let removeBeforeWrite: string | null = null;
+
   // THE HOST'S OWN COMPOSITION (`ipc.ts`), spelled here because the host
   // needs a sealed store to be built; every owner it composes is shipping code.
   const handle = createPocketHandler({
@@ -668,7 +717,19 @@ try {
         }
         case 'pair':
           return null;
+        case 'end':
+          return null;
       }
+    },
+    write: async (route, body, verifiedPhone, door) => {
+      if (removeBeforeWrite !== null) {
+        const gone = removeBeforeWrite;
+        removeBeforeWrite = null;
+        phones = phones.filter((p) => p.id !== gone);
+      }
+      const answer = await writeHandler(route, body, verifiedPhone, door);
+      if (stopAfterWrite === 'arm') stopAfterWrite = bind.stopPocketDoor();
+      return answer;
     }
   });
 
@@ -677,24 +738,34 @@ try {
     seal: (text: string) => text,
     open: (blob: unknown) => (typeof blob === 'string' ? blob : null)
   };
-  const started = await bind.startPocketDoor({
+  const doorInput = {
     handle,
     publicHost: { name: NAME, port: PUBLIC_PORT },
     pins: [],
     windowOpen: false,
-    identity: (options) => tlsModule.ensureDoorIdentity({ ...options, seal: openSeal }),
+    identity: (options: Parameters<typeof tlsModule.ensureDoorIdentity>[0]) => tlsModule.ensureDoorIdentity({ ...options, seal: openSeal }),
     identityPath: join(scratch, 'identity.json'),
     spawn: doorSpawn
-  });
+  };
+  const started = await bind.startPocketDoor(doorInput);
   if (!started.ok) throw new Error(`the door refused to start: ${started.reason} — ${started.sentence}`);
   doorStarted = true;
   localPort = started.localPort;
   doorPin = spkiPinOf(started.publicKeyFingerprint);
   const certificateSha = started.certificateFingerprint.replace(/[^0-9a-f]/gi, '').toLowerCase();
+  // THE CURRENT door process's listener: the write arms stop the door and
+  // start it again (a new process, the same key), and read the new one.
   const listener = (): DoorListenerHandle => {
-    const door = doorSpawn.doors[0];
+    const door = doorSpawn.doors[doorSpawn.doors.length - 1];
     if (door === undefined) throw new Error('the door process has no listener');
     return door;
+  };
+  /** Start the door again after an arm stopped it: the same key, a new process. */
+  const restart = async (): Promise<void> => {
+    const again = await bind.startPocketDoor({ ...doorInput, pins: pinsOf(phones) });
+    if (!again.ok) throw new Error(`the door refused to start again: ${again.reason}`);
+    doorStarted = true;
+    localPort = again.localPort;
   };
   const stats = () => listener().stats();
 
@@ -1125,6 +1196,312 @@ try {
     const shipped = createPocketFacts({ core: () => null, overview: {} as never, wakes: () => [] });
     const onWire = (bodyOf(await signedAsk(good, '/v1/session?id=ses_1')) as { session?: { handoff?: unknown } }).session?.handoff;
     record('H2', 'the production hand-off answers null, and the session detail carries none', 'null-null', `${shipped.handoff(listed[0] as Session) === null ? 'null' : 'composed'}-${onWire === null ? 'null' : 'composed'}`, 'nothing hands off in this phase.');
+  }
+
+  // -------------------------------------------------------------------------
+  // THE WRITES (Phase 317, build/p317/SPEC.md §6.1): each arm on its reason or
+  // outcome, and on the recording fake's count of acts.
+  // -------------------------------------------------------------------------
+  {
+    const phonesBefore = phones;
+    /** Pair one more phone through a window of its own, the honest way. */
+    const allowAnother = async (label: string): Promise<Phone> => {
+      const w = pairing.open();
+      windowSync();
+      const s = Buffer.from(String((JSON.parse(w.payload) as Record<string, unknown>)['ps']), 'base64url');
+      const phone = makePhone(label, doorExchangePublic);
+      await presentAs(sealed(phone, s));
+      const v = pairing.view();
+      pairing.allow({ acknowledgement: POCKET_CONFIRM_ACKNOWLEDGEMENT, linesRead: v.lines, hashRead: v.hash ?? '' });
+      phone.tlsCert = pem(Buffer.from(String(bodyOf(await presentAs(sealed(phone, s)))['cert'] ?? ''), 'base64url'));
+      pairing.cancel();
+      windowSync();
+      return phone;
+    };
+    /** The four signature headers over a write: POST unless told otherwise, the body's own bytes. */
+    const writeHeaders = (phone: Phone, target: string, body: Buffer, options: { signAs?: string; nonce?: string; timestamp?: string } = {}): Record<string, string> => {
+      const timestamp = options.timestamp ?? String(Date.now());
+      const nonce = options.nonce ?? randomBytes(12).toString('hex');
+      return {
+        'content-type': 'application/json',
+        [POCKET_HEADERS.phone]: phone.fields.id,
+        [POCKET_HEADERS.timestamp]: timestamp,
+        [POCKET_HEADERS.nonce]: nonce,
+        [POCKET_HEADERS.signature]: signAsPhone(phone.signPrivate, {
+          method: options.signAs ?? 'POST',
+          target,
+          bodySha256: createHash('sha256').update(body).digest('hex'),
+          timestamp,
+          nonce,
+          binding: phone.binding
+        })
+      };
+    };
+    const endBody = (session: string, write: string, batch = false): Buffer =>
+      Buffer.from(JSON.stringify({ batch, session, write }), 'utf8');
+    const writeId = (): string => randomBytes(16).toString('hex');
+    /** One signed write over the phone's own connection (or `over` another's). */
+    const writeAs = (phone: Phone, target: string, body: Buffer, options: { signAs?: string; nonce?: string; timestamp?: string; over?: Phone } = {}): Promise<Answer> =>
+      ask('POST', target, writeHeaders(phone, target, body, options), body, { as: options.over ?? phone });
+    /** What a write answered: `200:<outcome>[:<reason>]`, or the word for a 404 or a cut. */
+    const said = (answer: Answer): string => {
+      if (answer.status !== 200) return verdict(answer);
+      const b = bodyOf(answer);
+      return `200:${String(b['outcome'])}${b['reason'] === null || b['reason'] === undefined ? '' : `:${String(b['reason'])}`}`;
+    };
+    const holding = (): (() => void) => {
+      let release = (): void => undefined;
+      holdAct = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      return () => {
+        holdAct = null;
+        release();
+      };
+    };
+
+    const wA = await allowAnother('a phone that ends');
+    const wB = await allowAnother('a second phone that ends');
+
+    // WE1. The honest End: done, and one act.
+    const honestId = writeId();
+    const honestBody = endBody('ses_w1', honestId);
+    const honestHeaders = writeHeaders(wA, '/v1/end', honestBody);
+    const honest = await ask('POST', '/v1/end', honestHeaders, honestBody, { as: wA });
+    record('WE1', 'an honest End over the phone’s own connection', '200:done-1', `${said(honest)}-${String(acts.length)}`, 'the write the door now has: both gates in main, then the Mac’s own End, once.');
+    const honestEcho = bodyOf(honest);
+    record('WE1b', 'its answer is the five fields, echoing the write id', `end-${honestId}-5`, `${String(honestEcho['verb'])}-${String(honestEcho['write'])}-${String(Object.keys(honestEcho).length)}`, 'the phone accepts an answer only for the write it sent.');
+
+    // WE2. The same bytes again: the nonce is spent.
+    record('WE2', 'the same bytes again', 'refused-404:replay-1', `${verdict(await ask('POST', '/v1/end', honestHeaders, honestBody, { as: wA }))}:${lastVerify}-${String(acts.length)}`, 'a signed request is spent once, whatever it carries.');
+
+    // WE3. The same write id under a fresh nonce: the ledger answers, nothing acts.
+    {
+      const again = await writeAs(wA, '/v1/end', honestBody);
+      record('WE3', 'the same write id, signed afresh', 'recorded-1', `${again.body === honest.body ? 'recorded' : `other(${said(again)})`}-${String(acts.length)}`, 'research 135 §4.4: a nonce is not exactly once, so the write id is, for twice the clock.');
+    }
+
+    // WE4. Two phones on one session at once: the second is busy.
+    {
+      const release = holding();
+      const reachedBefore = actsReached;
+      const first = writeAs(wA, '/v1/end', endBody('ses_w4', writeId()));
+      await until(() => actsReached > reachedBefore);
+      const second = await writeAs(wB, '/v1/end', endBody('ses_w4', writeId()));
+      release();
+      const firstAnswer = await first;
+      record('WE4', 'two phones end one session at once', '200:done/200:busy-1', `${said(firstAnswer)}/${said(second)}-${String(acts.filter((a) => a.sessionId === 'ses_w4').length)}`, 'one write in flight per session: the second is told so, and never acts.');
+    }
+
+    // WE5. A fourth key in the body.
+    {
+      const id = writeId();
+      const answer = await writeAs(wA, '/v1/end', Buffer.from(JSON.stringify({ batch: false, session: 'ses_w5', write: id, also: 'ses_w6' }), 'utf8'));
+      const echoed = bodyOf(answer)['write'];
+      record('WE5', 'a body with a fourth key', `200:refused:malformed-echoed-0`, `${said(answer)}-${echoed === id ? 'echoed' : 'not-echoed'}-${String(acts.filter((a) => a.sessionId === 'ses_w5' || a.sessionId === 'ses_w6').length)}`, 'the body is parsed strictly in main: an unknown key refuses it whole, and its well-formed id is echoed.');
+    }
+    // WE18. Malformed but for a well-formed write id: that id echoed.
+    {
+      const id = writeId();
+      const answer = await writeAs(wA, '/v1/end', Buffer.from(JSON.stringify({ batch: 'no', session: 'ses/w18', write: id }), 'utf8'));
+      const b = bodyOf(answer);
+      record('WE18', 'a body malformed but for a well-formed write id', `200:refused:malformed-${id}-unreadable`, `${said(answer)}-${String(b['write'])}-${b['sentence'] === 'Your Mac could not read that request. Nothing was done.' ? 'unreadable' : String(b['sentence'])}`, '§14 finding 14: the phone can tell the Mac’s “I could not read that” from an answer to another write.');
+    }
+
+    // WE6. A query on /v1/end: refused at the door, never forwarded.
+    {
+      const before = stats();
+      const answer = await writeAs(wA, '/v1/end?session=ses_w1', endBody('ses_w1', writeId()));
+      const after = stats();
+      record('WE6', 'a query on /v1/end', 'refused-404-route-not-forwarded', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'a write takes no query: everything it says is in its signed body.');
+    }
+    // WE7. A GET signature on a POST.
+    record('WE7', 'a GET signature on a POST', 'refused-404:signature-0', `${verdict(await writeAs(wA, '/v1/end', endBody('ses_w7', writeId()), { signAs: 'GET' }))}:${lastVerify}-${String(acts.filter((a) => a.sessionId === 'ses_w7').length)}`, 'the method is in the signed bytes, so a read’s signature is not a write’s.');
+    // WE8. A body over the cap: dropped whole at the door.
+    {
+      const before = stats();
+      const big = Buffer.from(JSON.stringify({ batch: false, session: 's'.repeat(600), write: writeId() }), 'utf8');
+      const answer = await writeAs(wA, '/v1/end', big);
+      const after = stats();
+      record('WE8', 'a body over the end cap', 'refused-404-oversized-not-forwarded', `${verdict(answer)}-${after.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'each write has its own cap, from its worst legal body.');
+    }
+    // WE9. A valid signature over another phone's connection.
+    record('WE9', 'a write signed by one phone, sent over the other’s connection', 'refused-404:channel-0', `${verdict(await writeAs(wA, '/v1/end', endBody('ses_w9', writeId()), { over: wB }))}:${lastVerify}-${String(acts.filter((a) => a.sessionId === 'ses_w9').length)}`, 'a write needs the phone’s own key at the handshake, like every read.');
+
+    // WE10. A phone removed BEFORE the act: 404, nothing acts.
+    {
+      removeBeforeWrite = wB.fields.id;
+      const answer = await writeAs(wB, '/v1/end', endBody('ses_w10', writeId()));
+      record('WE10a', 'a phone removed after its signature held and before the act', 'refused-404-0', `${verdict(answer)}-${String(acts.filter((a) => a.sessionId === 'ses_w10').length)}`, 'the last check before the act asks again whether the phone is paired, with nothing between it and the act.');
+      phones = [...phones, wB.fields];
+    }
+    // WE10b. Removed AFTER the act began: the answer leaves, the act counted once.
+    {
+      const release = holding();
+      const reachedBefore = actsReached;
+      const inFlight = writeAs(wB, '/v1/end', endBody('ses_w10b', writeId()));
+      await until(() => actsReached > reachedBefore);
+      phones = phones.filter((p) => p.id !== wB.fields.id);
+      bind.updatePocketDoor({ pins: pinsOf(phones) });
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      release();
+      const answer = await inFlight;
+      record('WE10b', 'a phone removed while its End is acting: the answer still leaves whole', '200:done-1', `${said(answer)}-${String(acts.filter((a) => a.sessionId === 'ses_w10b').length)}`, 'after the act nothing replaces the answer, and a revoked socket answering a write finishes it before it is cut.');
+      phones = [...phones, wB.fields];
+      bind.updatePocketDoor({ pins: pinsOf(phones) });
+    }
+
+    // WE12. Main later than the bound: the connection is CUT, never 404.
+    {
+      const release = holding();
+      const before = stats();
+      const reachedBefore = actsReached;
+      const lateId = writeId();
+      const lateBody = endBody('ses_w12', lateId);
+      const answer = await writeAs(wA, '/v1/end', lateBody);
+      const after = stats();
+      release();
+      await until(() => actsReached > reachedBefore);
+      record('WE12', 'main answers a write later than the bound', 'nosocket-nobytes-cut-1', `${verdict(answer)}-${answer.body === '' && answer.status === 0 ? 'nobytes' : 'BYTES'}-${after.writesCut === before.writesCut + 1 ? 'cut' : `writesCut ${String(after.writesCut - before.writesCut)}`}-${String(acts.filter((a) => a.sessionId === 'ses_w12').length)}`, 'D4: a 404 would say nothing was done, and main may be acting on it; the phone reads “no answer” and re-reads.');
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      const recorded = await writeAs(wA, '/v1/end', lateBody);
+      record('WE12b', 'and the same write id afterwards reads what the act came to, acting nothing again', '200:done-1', `${said(recorded)}-${String(acts.filter((a) => a.sessionId === 'ses_w12').length)}`, 'the ledger recorded the late act.');
+    }
+
+    // WE14. A request pipelined on a revoked socket: never forwarded.
+    {
+      const wP = await allowAnother('a phone that pipelines');
+      const release = holding();
+      const reachedBefore = actsReached;
+      const result = await new Promise<{ bytes: string; closed: boolean; forwardedDuring: number }>((resolve) => {
+        const raw = netConnect(localPort, '127.0.0.1');
+        openSockets.add(raw);
+        raw.on('error', () => undefined);
+        const chunks: Buffer[] = [];
+        let forwardedDuring = -1;
+        const timer = setTimeout(() => done(false), 6_000);
+        const done = (closed: boolean): void => {
+          clearTimeout(timer);
+          raw.destroy();
+          resolve({ bytes: Buffer.concat(chunks).toString('utf8'), closed, forwardedDuring });
+        };
+        raw.once('connect', () => {
+          raw.write(proxyHeader('198.51.100.40'));
+          const t = tlsConnect({ socket: raw, servername: NAME, minVersion: 'TLSv1.3', rejectUnauthorized: false, key: wP.tlsKey, cert: wP.tlsCert ?? '' });
+          openSockets.add(t);
+          t.on('error', () => undefined);
+          t.on('data', (d: Buffer) => chunks.push(d));
+          t.on('close', () => done(true));
+          t.once('secureConnect', () => {
+            const body = endBody('ses_w14', writeId());
+            const head = Object.entries(writeHeaders(wP, '/v1/end', body)).map(([k, v]) => `${k}: ${v}`);
+            t.write(`POST /v1/end HTTP/1.1\r\nHost: ${HOST}\r\n${head.join('\r\n')}\r\nContent-Length: ${String(body.length)}\r\nConnection: keep-alive\r\n\r\n`);
+            t.write(body);
+            void (async () => {
+              await until(() => actsReached > reachedBefore);
+              phones = phones.filter((p) => p.id !== wP.fields.id);
+              bind.updatePocketDoor({ pins: pinsOf(phones) });
+              await new Promise((r) => setTimeout(r, 50));
+              const forwardedAt = stats().forwarded;
+              const target = '/v1/blocked';
+              const timestamp = String(Date.now());
+              const nonce = randomBytes(12).toString('hex');
+              const sig = signAsPhone(wP.signPrivate, { method: 'GET', target, bodySha256: createHash('sha256').update(Buffer.alloc(0)).digest('hex'), timestamp, nonce, binding: wP.binding });
+              t.write(`GET ${target} HTTP/1.1\r\nHost: ${HOST}\r\n${POCKET_HEADERS.phone}: ${wP.fields.id}\r\n${POCKET_HEADERS.timestamp}: ${timestamp}\r\n${POCKET_HEADERS.nonce}: ${nonce}\r\n${POCKET_HEADERS.signature}: ${sig}\r\n\r\n`);
+              await new Promise((r) => setTimeout(r, 100));
+              forwardedDuring = stats().forwarded - forwardedAt;
+              release();
+            })();
+          });
+        });
+      });
+      const responses = result.bytes.split('HTTP/1.1 ').length - 1;
+      record('WE14', 'a request pipelined on a revoked socket that is still answering a write', '1-response-200-not-forwarded-closed', `${String(responses)}-response-${result.bytes.startsWith('HTTP/1.1 200') ? '200' : 'other'}-${result.forwardedDuring === 0 ? 'not-forwarded' : `forwarded ${String(result.forwardedDuring)}`}-${result.closed ? 'closed' : 'open'}`, 'X10: a revoked socket finishes its write’s answer and takes no further request.');
+    }
+
+    // WE15. A READ in flight when its phone is removed: cut at once, no byte,
+    // never 404, exactly as at the parent. Read paths only, so the same arm
+    // runs unchanged in a parent clone (SPEC §7.7).
+    {
+      const wR = await allowAnother('a phone removed mid-read');
+      let release = (): void => undefined;
+      holdRefresh = new Promise<void>((resolve) => {
+        release = resolve;
+      });
+      events.length = 0;
+      const heldRead = signedAsk(wR, '/v1/turns?id=ses_talk&limit=2');
+      await until(() => events.includes('refresh:ses_talk'));
+      const removedAt = Date.now();
+      phones = phones.filter((p) => p.id !== wR.fields.id);
+      bind.updatePocketDoor({ pins: pinsOf(phones) });
+      const answer = await heldRead;
+      const tookMs = Date.now() - removedAt;
+      release();
+      holdRefresh = null;
+      record('WE15', 'a read in flight when its phone is removed', 'nosocket-nobytes-at-once', `${verdict(answer)}-${answer.body === '' && answer.status === 0 ? 'nobytes' : 'BYTES'}-${tookMs < 1_000 ? 'at-once' : `after ${String(tookMs)} ms`}`, '§14 finding 22: only a socket answering a WRITE finishes first; a removed phone’s read is cut at once, as it always was, and never told 404.');
+    }
+
+    // WE13. The unpair the fix round took out is NO ROUTE: a paired phone's
+    // signed POST to it is refused `route` at the door and never forwarded,
+    // and the phone stays paired and reads (build/p317/SPEC.md "§Fix round").
+    {
+      const wU = await allowAnother('a phone that asks to unpair itself');
+      const before = stats();
+      const answer = await writeAs(wU, '/v1/unpair', Buffer.from(JSON.stringify({ write: writeId() }), 'utf8'));
+      const after = stats();
+      record('WE13', 'a signed POST to /v1/unpair, the write the fix round took out', 'refused-404-route-not-forwarded-paired', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}-${phones.some((p) => p.id === wU.fields.id) ? 'paired' : 'REMOVED'}`, 'the phone forgets itself alone, as before this phase; nothing on the door removes a phone but Remove on the Mac.');
+      record('WE13b', 'and the same phone still reads', '200', String((await signedAsk(wU, '/v1/blocked')).status), 'nothing was dropped, so its key still completes a handshake and its signature still holds.');
+    }
+
+    // WE16. A duplicate of a write still in flight, answered while the door
+    // begins to stop: its busy is marked and NOT replaced by 404.
+    {
+      const release = holding();
+      const reachedBefore = actsReached;
+      const dupId = writeId();
+      const dupBody = endBody('ses_w16', dupId);
+      const first = writeAs(wA, '/v1/end', dupBody);
+      await until(() => actsReached > reachedBefore);
+      stopAfterWrite = 'arm';
+      const dup = await writeAs(wA, '/v1/end', dupBody);
+      release();
+      const firstAnswer = await first;
+      const stopping = stopAfterWrite;
+      stopAfterWrite = null;
+      if (stopping !== null && stopping !== 'arm') await stopping;
+      doorStarted = false;
+      record('WE16', 'a duplicate of an in-flight write id while the door stops', '200:busy/200:done-1', `${said(dup)}/${said(firstAnswer)}-${String(acts.filter((a) => a.sessionId === 'ses_w16').length)}`, '§14 finding 9: the duplicate’s write may be acting, so a 404 would be false.');
+      await restart();
+
+      // WE17. A recorded hit for a write that acted, answered while the door stops.
+      stopAfterWrite = 'arm';
+      const hit = await writeAs(wA, '/v1/end', dupBody);
+      const stopping2 = stopAfterWrite;
+      stopAfterWrite = null;
+      if (stopping2 !== null && stopping2 !== 'arm') await stopping2;
+      doorStarted = false;
+      record('WE17', 'a recorded hit for a write that acted, while the door stops', `recorded-1`, `${hit.status === 200 && hit.body === firstAnswer.body ? 'recorded' : said(hit)}-${String(acts.filter((a) => a.sessionId === 'ses_w16').length)}`, '§14 finding 9: the recorded answer speaks for an act that happened, and is never replaced.');
+      await restart();
+    }
+
+    // WE11. The door begins to stop AFTER the act: the answer is 200, not 404.
+    {
+      const release = holding();
+      const reachedBefore = actsReached;
+      const inFlight = writeAs(wA, '/v1/end', endBody('ses_w11', writeId()));
+      await until(() => actsReached > reachedBefore);
+      const stopping = bind.stopPocketDoor();
+      release();
+      const answer = await inFlight;
+      await stopping;
+      doorStarted = false;
+      record('WE11', 'the door switched off just after the act', '200:done-1', `${said(answer)}-${String(acts.filter((a) => a.sessionId === 'ses_w11').length)}`, 'D4: after the act nothing replaces the answer, whatever the door is doing.');
+      await restart();
+      record('WE11b', 'and the door that starts again reads, after three stops and three new processes', 'ok-4', `${verdict(await signedAsk(good, '/v1/blocked'))}-${String(doorSpawn.doors.length)}`, 'the arms above stopped the door three times; the control is that each stop happened and the door answers again.');
+    }
+
+    phones = phonesBefore;
+    bind.updatePocketDoor({ pins: pinsOf(phones) });
   }
 
   // 8. REMOVE: the removed phone's pin leaves the door, its next handshake is

@@ -13,7 +13,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Session } from '@shared/types';
 import {
-  hasRestoreMaterial,
   restoreActionCopy,
   restoreExitedCopy,
   restoreNeedsOpenAsk,
@@ -22,6 +21,8 @@ import {
   resumeNote,
   resumeReadiness
 } from '../../state/resume';
+// Phase 317: the material rule moved with the gate to src/shared/session-gates.ts.
+import { hasRestoreMaterial } from '@shared/session-gates';
 import { workspaceTarget } from '@shared/workspace-target';
 
 /**

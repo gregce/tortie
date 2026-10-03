@@ -547,3 +547,30 @@ describe('the words and the stamps', () => {
     expect(facts().handoff(session({ id: 'S1' }))).toBeNull();
   });
 });
+
+describe('End on a row (Phase 317)', () => {
+  it('hands the routes the injected endOffer, untouched, so every row reads both gates through it', async () => {
+    const seen: string[] = [];
+    const withOffer = createPocketFacts({
+      core: () => core,
+      overview: { manifest: () => Promise.reject(new Error('unused')), store: () => store, now: () => NOW },
+      wakes: () => [],
+      endOffer: (session) => {
+        seen.push(session.id);
+        return session.id === 'S1' ? { state: 'offered', batch: true } : { state: 'none' };
+      },
+      now: () => NOW
+    });
+    expect(withOffer.endOffer?.(session({ id: 'S1' }))).toEqual({ state: 'offered', batch: true });
+    const answer = createPocketRoutes(withOffer).blocked();
+    expect([...answer.rows, ...answer.others].map((r) => r.end)).toEqual([{ state: 'offered', batch: true }]);
+    expect(seen).toEqual(['S1', 'S1']);
+  });
+
+  it('carries no endOffer when none was handed in, so every row reads none', () => {
+    const plain = facts();
+    expect(plain.endOffer).toBeUndefined();
+    const answer = createPocketRoutes(plain).blocked();
+    expect([...answer.rows, ...answer.others].map((r) => r.end)).toEqual([{ state: 'none' }]);
+  });
+});

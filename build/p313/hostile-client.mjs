@@ -69,7 +69,11 @@ process.stdout.write(
   `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone paired by proof, was allowed and ` +
     'handed its certificate, and read the three reads over mutual TLS through the shipping route composer, pinning ' +
     'the QR’s public key; every attack was refused with its own reason, and every refusal before HTTP left the ' +
-    'parser counter where it was. One loopback listener in-process and one scratch directory, both gone. ' +
+    'parser counter where it was. The one write (Phase 317) went through the shipping write path over a ' +
+    'recording fake: an honest End acted once, every refused write acted never, an answer after the act was ' +
+    'never replaced by a 404, a late write was cut rather than refused, the unpair its fix round took out was ' +
+    'no route, and a removed phone’s read was cut with no byte. One loopback listener in-process at a time and one scratch ' +
+    'directory, both gone. ' +
     'No Swift, no Apple, no phone, no Electron, no Tailscale, no real interface.\n'
 );
 process.exit(0);

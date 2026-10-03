@@ -40,7 +40,7 @@
 import { focusTerminal } from '../app/session-focus';
 import { useQuickOpen } from '../quickopen/store';
 import { useSymbols } from '../search/symbols-store';
-import { sessionActionGates } from '../state/resume';
+import { sessionActionGates } from '@shared/session-gates';
 import type { SessionSheetTab } from '../state/session-manager-slice';
 import { effectiveStatusOf, useApp } from '../state/store';
 

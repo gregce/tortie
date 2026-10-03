@@ -285,6 +285,101 @@ describe('refusal 7: the answer is admitted again before it leaves', () => {
   });
 });
 
+// ---------------------------------------------------------------------------
+// The one write (Phase 317, build/p317/SPEC.md §5.3.4)
+// ---------------------------------------------------------------------------
+
+describe('the write goes to the one write path', () => {
+  const BODY = Buffer.from('{"batch":false,"session":"s1","write":"' + '0'.repeat(32) + '"}');
+  function written(route: 'end' = 'end', channel = 'phone-a'): DoorRequest {
+    return { route, method: 'POST', target: `/v1/${route}`, headers: HEADERS, body: new Uint8Array(BODY), channel };
+  }
+
+  it('verifies the POST over its path and body bytes, then hands the write path the row, the bytes, the phone and the door', async () => {
+    const verified: unknown[] = [];
+    const handed: unknown[] = [];
+    const handle = createPocketHandler(
+      deps({
+        verify: (input) => {
+          verified.push(input);
+          return { ok: true, phoneId: 'phone-verified' };
+        },
+        answer: async () => {
+          throw new Error('a write must never reach the composer of reads');
+        },
+        write: async (route, body, phone, door) => {
+          handed.push([route.id, route.method, route.path, body.toString('utf8'), phone, door]);
+          return { status: 200, body: '{"outcome":"done"}', acted: true };
+        }
+      })
+    );
+    const answer = await handle(written('end'), open);
+    expect(verified).toEqual([{ method: 'POST', target: '/v1/end', body: BODY, channel: 'phone-a', headers: HEADERS }]);
+    expect(handed).toEqual([['end', 'POST', '/v1/end', BODY.toString('utf8'), 'phone-verified', open]]);
+    // The answer leaves AS IT IS: its mark included.
+    expect(answer).toEqual({ status: 200, body: '{"outcome":"done"}', acted: true });
+  });
+
+  it('asks refusal 7 nothing of a write’s answer: a phone removed or a door stopping after the act does not replace it', async () => {
+    let paired = true;
+    let stopping = false;
+    const door: DoorAdmission = { stopping: () => stopping };
+    const handle = createPocketHandler(
+      deps({
+        stillPaired: () => paired,
+        write: async () => {
+          // The act happened, and then the person pressed Remove and the door began to stop.
+          paired = false;
+          stopping = true;
+          return { status: 200, body: '"acted"', acted: true };
+        }
+      })
+    );
+    expect(await handle(written('end'), door)).toEqual({ status: 200, body: '"acted"', acted: true });
+  });
+
+  it('refuses a write before the write path when the quit has begun, the door is stopping, or the signature fails', async () => {
+    let called = 0;
+    const write: PocketHandlerDeps['write'] = async () => {
+      called += 1;
+      return { status: 200, body: '"x"', acted: true };
+    };
+    expect(await createPocketHandler(deps({ shuttingDown: () => true, write }))(written(), open)).toEqual({ status: 404, body: null });
+    expect(await createPocketHandler(deps({ write }))(written(), { stopping: () => true })).toEqual({ status: 404, body: null });
+    const refusedSig = createPocketHandler(deps({ write, verify: () => ({ ok: false, reason: 'signature' }) }));
+    expect(await refusedSig(written(), open)).toEqual({ status: 404, body: null });
+    expect(called).toBe(0);
+    expect(words()).toContain('warn refused a request at the door: signature');
+  });
+
+  it('refuses every write `route` when the host has no write path', async () => {
+    const handle = createPocketHandler(deps());
+    expect(await handle(written('end'), open)).toEqual({ status: 404, body: null });
+    expect(words()).toEqual(['warn refused a request at the door: route']);
+  });
+
+  it('logs a word for the write path’s own 404, in the last check’s order', async () => {
+    const quitting = { now: false };
+    let paired = true;
+    const handle = createPocketHandler(
+      deps({
+        shuttingDown: () => quitting.now,
+        stillPaired: () => paired,
+        write: async () => {
+          return { status: 404, body: null };
+        }
+      })
+    );
+    paired = false;
+    expect(await handle(written(), open)).toEqual({ status: 404, body: null });
+    paired = true;
+    expect(await handle(written(), open)).toEqual({ status: 404, body: null });
+    expect(new Set(words())).toEqual(
+      new Set(['warn refused a request at the door: unpaired', 'warn refused a request at the door: route'])
+    );
+  });
+});
+
 describe('the source of the handler', () => {
   it('parses no stranger’s JSON and reads no body off a socket: the door process did both', async () => {
     const { readFileSync } = await import('node:fs');
@@ -439,5 +534,60 @@ describe('end to end on the shipping pairing and verifier', () => {
     expect((await handle(once, open)).status).toBe(200);
     expect(await handle(once, open)).toEqual({ status: 404, body: null });
     expect(words()).toContain('warn refused a request at the door: replay');
+
+    // PHASE 317. A signed write: the signature covers POST, the path and the
+    // body's bytes, so a GET signature on a POST and a body byte changed after
+    // signing are refused `signature` before the write path sees anything.
+    const writes: string[] = [];
+    const writeHandle = createPocketHandler({
+      shuttingDown: () => false,
+      pairingWindowOpen: () => false,
+      present: () => ({ state: 'refused' }),
+      verify: (input) => {
+        const v = verifier.verify(input);
+        return v.ok ? { ok: true, phoneId: v.phone.id } : { ok: false, reason: v.reason };
+      },
+      stillPaired: (id) => phones.some((p) => p.id === id),
+      answer: async () => null,
+      write: async (route, bytes, phone) => {
+        writes.push(`${route.id} ${phone} ${bytes.toString('utf8')}`);
+        return { status: 200, body: '"acted"', acted: true };
+      }
+    });
+    const endBody = Buffer.from('{"batch":false,"session":"s1","write":"' + 'a'.repeat(32) + '"}');
+    const signedWrite = (method: string, body: Buffer, sent: Buffer = body): DoorRequest => {
+      const timestamp = String(Date.now());
+      const nonce = randomBytes(12).toString('hex');
+      const signature = pairing.signAsPhone(good.sign, {
+        method,
+        target: '/v1/end',
+        bodySha256: createHash('sha256').update(body).digest('hex'),
+        timestamp,
+        nonce,
+        binding: pairing.pairingBinding(identity, good.fields)
+      });
+      return {
+        route: 'end',
+        method: 'POST',
+        target: '/v1/end',
+        headers: {
+          'x-tortie-phone': good.fields.id,
+          'x-tortie-timestamp': timestamp,
+          'x-tortie-nonce': nonce,
+          'x-tortie-signature': signature
+        },
+        body: new Uint8Array(sent),
+        channel: good.fields.id
+      };
+    };
+    expect(await writeHandle(signedWrite('POST', endBody), open)).toEqual({ status: 200, body: '"acted"', acted: true });
+    expect(writes).toEqual([`end ${good.fields.id} ${endBody.toString('utf8')}`]);
+    logged.length = 0;
+    expect(await writeHandle(signedWrite('GET', endBody), open)).toEqual({ status: 404, body: null });
+    const tampered = Buffer.from(endBody);
+    tampered[tampered.length - 2] = 'b'.charCodeAt(0);
+    expect(await writeHandle(signedWrite('POST', endBody, tampered), open)).toEqual({ status: 404, body: null });
+    expect(writes).toHaveLength(1);
+    expect(words()).toEqual(['warn refused a request at the door: signature']);
   });
 });

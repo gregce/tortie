@@ -344,6 +344,83 @@
  *   anything the phone chose. A `ready-for-alert` with nothing queued, and a
  *   queued body with no `ready-for-alert`, are both reported by name.
  *
+ * PHASE 317, THE `end` GROUP (build/p317/SPEC.md §7.5, `P316_ARMS=end`):
+ * End from the phone behind Face ID and End these (the fix round took Unpair's
+ * Mac half out of the phase, and E8, E9 and E10's unpair half with it). Face
+ * ID is enrolled and answered FROM THE HOST through build/simulator-run.mjs's
+ * `handle.biometry('enrol' | 'unenrol' | 'match' | 'nomatch')`, never by a
+ * seam in the app (SPEC D21). The UI test prints `end-auth-up` once iOS's
+ * owner check is up (after accepting iOS's first-use Face ID question through
+ * SpringBoard: the question found BY ITS OWN LABEL, its allowing press read by
+ * label, and THAT alert, found again by its label, waited for up to 5 s to
+ * leave; the tests round, after `alerts.firstMatch` re-resolved onto the Face
+ * ID prompt that follows on iOS 18.3 and the floor's End sent no match), this
+ * file answers it and writes the file `auth-<seq>` into `P316_ACKS`, and the
+ * step goes on only then. Likewise `ready-for-unenrol` (E3). A step whose
+ * prompt never comes up is UNREADABLE, never a pass, and AN UNMET PREMISE IS
+ * UNREADABLE, NEVER A FAIL (the tests round): what follows a match is not read
+ * when no match was given; what is wrong whatever iOS did still fails. THE RELAY HOLDS E5's and
+ * E7's writes (the fix round): before Face ID is answered for those two steps
+ * it lets 0 (E5) or 1 (E7, row one's) connection through and HOLDS every one
+ * after, taken and never dialled onward, so its TLS handshake never completes
+ * and the write's bytes are never handed; Home is pressed with the write held,
+ * and three seconds after the UI test says so the relay forwards again. That
+ * is the withheld path measured live (no POST, `Not run`, the not-taken
+ * line), where the verify's run had every write land before Home took effect.
+ * The steps (P316DriveUITests.swift is their writer): `end` (the bar read: its
+ * frame, the tab bar's, the glyph read off the bar, what the owner check
+ * answered as it drew it, and whether the row can be pressed; the Mac's
+ * confirmation read and pressed;
+ * iOS's question; `end-auth-up`; the screen read again), `end-cancel` (Cancel
+ * on iOS's prompt after a failed match), `end-off:<id>` (Face ID unenrolled,
+ * then the session opened and its bar read), `select:<a>+<b>+<c>`,
+ * `end-these`, `end-these-home:<first>` (Home at once when the first target
+ * reads Ended), `batch-done`, `end-home`, `end-kill:<id>` (the app ended at
+ * once and launched again) and `end-read` (an End that cannot be pressed).
+ * The arms:
+ *   E1  enrol; a running shell's End bar between the content and the tab bar,
+ *       Face ID's mark; the dialog the door's own `endConfirm`; iOS's
+ *       first-use question accepted; match: one `done` line, tmux's session
+ *       gone, the screen reads what the door says and the bar goes
+ *   E2  nomatch, then the owner check ends: Cancel pressed BY ITS LABEL and
+ *       waited on until it leaves, or iOS ending its own prompt (which the End
+ *       line being drawn shows), what iOS drew after the failed match printed
+ *       either way: `Not confirmed. Nothing was changed.`, no write line, the
+ *       session still runs
+ *   E3  unenrol: what iOS answered is drawn (off with the passcode line for
+ *       passcodeNotSet, or on with the lock, which the fix round's `kind()`
+ *       draws for a biometry iOS will not ask for), never Face ID's mark
+ *   E4  three selected, two running and one ended: the Mac sheet's title, its
+ *       body first, the two names, the skipped line (read as one text, since
+ *       XCUITest hands the message's newlines back as spaces); two `Ended`,
+ *       the ended row no target and no word; `2 of 2 sessions ended`; two acts
+ *   E5  match with the write HELD at the relay, then Home at once, 10 s away:
+ *       withheld, so the not-taken line, no act, the session still there and
+ *       equal to tmux; no write line in 20 s more; UNREADABLE if the relay
+ *       held nothing
+ *   E6  match then the app ended at once and launched again: at most one act,
+ *       the screen equals tmux, done, no answer or not taken each only when
+ *       honest, and which is printed
+ *   E7  a batch of three, row one let through and row two HELD at the relay,
+ *       Home after the first `Ended`: rows two and three `Not run` with no
+ *       act and still running, nothing after the return; UNREADABLE when all
+ *       three acted before Home took effect (the verify's 114 ms run). THE
+ *       ROWS ARE IN THE ORDER THE PHONE DRAWS THEM (the tests round): the batch
+ *       runs in drawn order, and the door draws `others` newest output first
+ *       (src/main/pocket/routes.ts `othersOrder`), so row one is the last made.
+ *       The order is read from `/v1/blocked` before the drive, Home waits on
+ *       its first row, the rows are graded in it, and the order the
+ *       confirmation names must agree, or the arm is UNREADABLE
+ *   E10 iOS 18.3, the floor: E1
+ *   EH  every write arm of build/p316/hostile-door.mjs, each ending in its
+ *       drawn line, on the list, or on Pairing, after exactly the POSTs its
+ *       row counts. The write arms run HERE and never in the hostile group's
+ *       loop, which grades a read
+ *   EP  with P317_PARENT_IOS (551312f7's ios/; never P316_PARENT_IOS, which
+ *       PR reads at 28d89295): the parent's app draws no End bar and no
+ *       Select, and its Unpair, seen to run, leaves the Mac's row, which
+ *       HEAD's U1 now reads too
+ *
  * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
  * now asks the `ts.net` zone's own servers whether its public name answers
  * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
@@ -381,7 +458,7 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile    which arms (default all; `order` holds N11 and N0 to N8)
+ *   P316_ARMS=order,floor,deny,hostile,end    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
  *   P316_KEEP=1                           keep the scratch world, and write
@@ -396,6 +473,8 @@
  *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
  *                                         parent's ios/ (`git archive 28d89295 ios | tar -x`
  *                                         into scratch), built and driven by its own UI test
+ *   P317_PARENT_IOS=<dir>                 Phase 317's EP arm: the directory holding 551312f7's
+ *                                         ios/ (`git archive 551312f7 ios | tar -x` into scratch)
  *   P316_KEEP=1 also writes <run>/md1.json (the order Simulator's markdown line) and
  *                                         <run>/rederive/md-answers.json (the door's own
  *                                         answer text for every p316-md turn), 0600
@@ -465,14 +544,15 @@ if (PARENT !== '') {
 
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile').split(',').map((s) => s.trim()));
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
   console.error(`${TAG} the ats arm was retired in Phase 330; the transport is the order and floor arms, through the stand-in's forwarder.`);
   ARMS.delete('ats');
 }
-const runtimes = ARMS.has('floor') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+// Phase 317: the end group's E10 is the floor's too.
+const runtimes = ARMS.has('floor') || ARMS.has('end') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -523,6 +603,12 @@ const MD_SID = join(RUN, 'md-sid');
  * NOT `P316_PARENT_CHECKOUT`, which keeps its meaning (whether ios/ exists).
  */
 const PARENT_IOS = (process.env['P316_PARENT_IOS'] ?? '').trim();
+/**
+ * EP's parent, Phase 317's own (the fix round): the directory holding
+ * 551312f7's ios/. Never P316_PARENT_IOS, which PR reads at 28d89295, because
+ * one variable for two parents graded one of them against the wrong one.
+ */
+const PARENT_IOS_317 = (process.env['P317_PARENT_IOS'] ?? '').trim();
 
 // ---------------------------------------------------------------------------
 // Phase 316.5: the alerts' scratch world (build/p3165/SPEC.md §7.4)
@@ -819,12 +905,27 @@ const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
 async function startRelay() {
   const sockets = new Set();
   let connections = 0;
+  // Phase 317 (E5, E7): past its allowance a connection is taken and HELD,
+  // never dialled onward, so its TLS handshake never completes and the app's
+  // write is never handed its bytes; `heldTotal` counts every one so held.
+  // `pauseAfter(n)` lets n more through first (E7 lets row one's write pass
+  // and holds row two's); resume ends the held and forwards again.
+  let allowance = Infinity;
+  let heldTotal = 0;
+  const held = new Set();
   const server = createNetServer((client) => {
     // Phase 316.6 (U1): every connection the app opens to the door is counted.
     connections += 1;
     sockets.add(client);
     client.on('close', () => sockets.delete(client));
     client.on('error', () => undefined);
+    if (allowance <= 0) {
+      heldTotal += 1;
+      held.add(client);
+      client.on('close', () => held.delete(client));
+      return;
+    }
+    allowance -= 1;
     const port = forwarderPort();
     if (port === 0) {
       client.destroy();
@@ -841,7 +942,25 @@ async function startRelay() {
     client.pipe(upstream);
     upstream.pipe(client);
   });
-  return listenLoopback(server, sockets, () => connections);
+  const handle = await listenLoopback(server, sockets, () => connections);
+  return {
+    ...handle,
+    /** Hold every new connection from now. */
+    pause: () => {
+      allowance = 0;
+    },
+    /** Let `n` more connections through, then hold every one after. */
+    pauseAfter: (n) => {
+      allowance = n;
+    },
+    /** How many connections were ever held. */
+    held: () => heldTotal,
+    resume: () => {
+      allowance = Infinity;
+      for (const s of held) s.destroy();
+      held.clear();
+    }
+  };
 }
 
 /**
@@ -2748,6 +2867,525 @@ function alertsSelfTest() {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 317: End and End these (build/p317/SPEC.md §7.5; Unpair's Mac half
+// was taken out by the fix round, and E8 to E10's unpair halves with it)
+// ---------------------------------------------------------------------------
+
+/** The phone's own words for End's lines, from Copy.swift. */
+const END_WORDS = {
+  notConfirmed: copyOf('endNotConfirmed'),
+  needsPasscode: copyOf('endNeedsPasscode'),
+  notTaken: copyOf('endNotTaken'),
+  noAnswer: copyOf('endNoAnswer'),
+  ended: copyOf('ended'),
+  noAnswerWord: copyOf('noAnswer'),
+  notRun: copyOf('notRun')
+};
+/** The log line main writes once per write that acted (SPEC §5.3.4 step 7). */
+const DONE_LINE = "the phone's end: done";
+
+/** The labels of an `end-dialog` line, title first. */
+const dialogWords = (d) => [d?.title, ...(d?.texts ?? [])].filter((x) => typeof x === 'string');
+/**
+ * A dialog's message as ONE text, every label it drew joined in order with
+ * its whitespace folded to one space: XCUITest hands a message's newlines back
+ * as spaces on one label (the verify read the right order this way and the
+ * line-split reading called it wrong), and a name or a sentence is found in it
+ * whichever way it came. The fix round's.
+ */
+const dialogText = (d) => (d?.texts ?? []).map((t) => String(t)).join(' ').replace(/\s+/g, ' ').trim();
+/** Where `needle`, its whitespace folded the same way, first sits in `text`, at or after `from`; -1 when absent. */
+const foldedAt = (text, needle, from = 0) => (typeof needle === 'string' && needle.trim() !== '' ? text.indexOf(needle.replace(/\s+/g, ' ').trim(), from) : -1);
+
+/**
+ * E1 (and E10's half): the bar above the tab bar with the device's mark, the
+ * Mac's own confirmation, iOS's first-use question accepted, a match, one act.
+ */
+function gradeE1(r) {
+  const unread = [];
+  const problems = [];
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never seen up and answered, so Face ID\'s answer could not be given (SPEC §13 item 1)');
+  if (r.permission?.stillUp === true) unread.push('iOS\'s first-use Face ID question was still up when match would be sent');
+  // THE PREMISE (the tests round): a match was given to an owner check that
+  // was up. Unmet, what follows a match (one act, tmux, the screen, the bar
+  // going) is not read at all, so it never decides a FAIL over the
+  // UNREADABLE above, which the reverify's floor run (iOS 18.3) showed it
+  // did. What is wrong whatever iOS did still fails: the bar, its mark and
+  // the Mac's confirmation, all read before the owner check; and a session
+  // that ended when no match was ever sent (the probe answers only on
+  // `end-auth-up`), which would be an End past the owner check.
+  const premise = unread.length === 0;
+  const bar = r.bar?.bar;
+  const tab = r.bar?.tabBar;
+  if (!Array.isArray(bar) || !Array.isArray(tab)) problems.push('no End bar or no tab bar was read');
+  else if (bar[1] + bar[3] > tab[1] + 0.5) problems.push(`the End bar's bottom ${String(bar[1] + bar[3])} is below the tab bar's top ${String(tab[1])}`);
+  if (Array.isArray(r.bar?.row) && !near(r.bar.row[3], 50, 1)) problems.push(`the End row is ${String(r.bar.row[3])} tall, not 50`);
+  if (!(r.bar?.glyphs ?? []).some((g) => /faceid/i.test(String(g.id)) || /face id/i.test(String(g.label)))) problems.push(`the End row's mark is ${J(r.bar?.glyphs ?? [])}, not Face ID's`);
+  const words = dialogWords(r.dialog);
+  if (!words.includes(r.want?.title)) problems.push(`the confirmation's title is not the Mac's ${J(r.want?.title)}`);
+  if (!words.some((w) => w.includes(r.want?.body ?? '\u0000'))) problems.push('the confirmation does not draw the Mac\'s body for this session');
+  if (!(r.dialog?.buttons ?? []).includes(r.want?.confirmLabel)) problems.push(`the confirmation's press is not ${J(r.want?.confirmLabel)}`);
+  if (premise) {
+    if (r.doneLines !== 1) problems.push(`${String(r.doneLines)} done line(s) in app.log, not one`);
+    if (r.tmuxAlive !== false) problems.push('the tmux session is still there');
+    if (r.mainStatus !== 'exited') problems.push(`main reads ${J(r.mainStatus)}, not exited`);
+    if (r.drawnStatus !== r.doorStatus) problems.push(`the screen draws ${J(r.drawnStatus)} where the door says ${J(r.doorStatus)}`);
+    if (r.barAfter === true) problems.push('the End bar is still drawn on an ended session');
+  } else if (r.authUp !== true && ((typeof r.doneLines === 'number' && r.doneLines > 0) || r.tmuxAlive === false || r.mainStatus === 'exited')) {
+    problems.push(`no match was sent, and the session ended (${String(r.doneLines)} done line(s), tmux ${r.tmuxAlive === false ? 'gone' : 'alive'}, main ${J(r.mainStatus)}): an End past the owner check`);
+  }
+  return decide(problems, unread, `the bar sits above the tab bar with Face ID's mark; the Mac's confirmation word for word; ${r.permission?.seen === true ? `iOS's first-use question (${J(r.permission?.pressed)}) accepted first, and gone before the match` : 'no first-use question came'}; match ended it once, and the screen read it again`);
+}
+
+/**
+ * E2: no match, then the owner check ends: one line, nothing sent.
+ *
+ * The tests round. The UI test now reads what iOS drew after the failed match
+ * (`drew`, by label), presses Cancel BY ITS LABEL when iOS draws one and
+ * waits for that press to leave, and notices when iOS ended its own prompt
+ * first, which is what the End line being drawn means (it is drawn only once
+ * the owner check has answered). Either way the owner check failed, and the
+ * reading is the same: the line, nothing sent, the session still running.
+ * The premise is that the check was up, answered with no match, and ENDED
+ * (Cancel pressed, or a line drawn); unmet, nothing is a FAIL but what is
+ * wrong whatever iOS drew: a write, a session that stopped running, or an End
+ * line drawn that is not the not-confirmed one.
+ */
+function gradeE2(r) {
+  const unread = [];
+  const problems = [];
+  if (typeof r.writeLines === 'number' && r.writeLines !== 0) problems.push(`${String(r.writeLines)} write line(s) in app.log`);
+  else if (r.writeLines !== 0) unread.push('the Mac\'s write count was not taken around the owner check');
+  if (!['running', 'idle', 'needs_input'].includes(r.mainStatus)) problems.push(`the session reads ${J(r.mainStatus)}, not still running`);
+  if (r.line !== null && r.line !== undefined && r.line !== END_WORDS.notConfirmed) problems.push(`the line reads ${J(r.line)}, not ${J(END_WORDS.notConfirmed)}`);
+  let how = null;
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never seen up and answered');
+  else if (r.cancelFound === true) {
+    if (r.cancelGone === false) unread.push('Cancel was pressed and iOS\'s prompt did not leave');
+    else if (r.line !== END_WORDS.notConfirmed) unread.push('Cancel was pressed and no End line came');
+    else how = 'Cancel pressed on iOS\'s prompt';
+  } else if (r.line === END_WORDS.notConfirmed) how = `iOS ended its own prompt after the failed match (it drew ${J(r.drew ?? null)})`;
+  else unread.push(`iOS's prompt drew no Cancel after the failed match and no End line came (it drew ${J(r.drew ?? null)})`);
+  return decide(problems, unread, `${String(how)}; nothing was sent, the line says so, and the session still runs`);
+}
+
+/** E3: Face ID unenrolled: what iOS answers is printed, and the bar says it. */
+function gradeE3(r) {
+  const problems = [];
+  const faceMark = (r.bar?.glyphs ?? []).some((g) => /faceid/i.test(String(g.id)) || /face id/i.test(String(g.label)));
+  if (faceMark) problems.push('the bar still draws Face ID\'s mark with Face ID unenrolled');
+  if (r.acked !== true) return verdict(null, 'the probe\'s unenrol was never acknowledged');
+  if (r.bar?.enabled === false) {
+    // passcodeNotSet: drawn off, with its line, and no prompt.
+    if (r.bar?.line !== END_WORDS.needsPasscode) problems.push(`the bar is off with ${J(r.bar?.line)}, not ${J(END_WORDS.needsPasscode)}`);
+    if (r.dialog === true || r.prompt === true) problems.push('a confirmation or a prompt came from a bar drawn off');
+    return decide(problems, [], 'iOS answered passcodeNotSet: the bar is off with the passcode line, and nothing asked');
+  }
+  if (r.bar?.enabled === true) {
+    if (!(r.bar?.glyphs ?? []).some((g) => /lock/i.test(String(g.id)))) problems.push(`iOS answered a passcode, and the mark is ${J(r.bar?.glyphs ?? [])}, not the lock`);
+    return decide(problems, [], 'iOS answered the passcode alone: the bar is on with the lock, never Face ID\'s mark');
+  }
+  return verdict(null, 'no End bar was read with Face ID unenrolled');
+}
+
+/** E4: End these in the Mac sheet's order, two ended, the third counted and never a target. */
+function gradeE4(r) {
+  const unread = [];
+  const problems = [];
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never answered');
+  const words = dialogWords(r.dialog);
+  if (!words.includes(r.wantHeading)) problems.push(`the confirmation's title is not ${J(r.wantHeading)}`);
+  const text = dialogText(r.dialog);
+  // The Mac sheet's order: its body, then the names (in the list's drawn
+  // order, which this reading does not hold, so each name anywhere between),
+  // then the skipped line. Read over the message as one text, so a message
+  // whose newlines came back as spaces reads the same.
+  const body = foldedAt(text, r.wantBody);
+  const afterBody = body === -1 ? -1 : body + String(r.wantBody).replace(/\s+/g, ' ').trim().length;
+  const skipped = afterBody === -1 ? -1 : foldedAt(text, r.wantSkipped, afterBody);
+  const names = r.names.map((n) => (afterBody === -1 ? -1 : foldedAt(text, n, afterBody)));
+  if (body === -1 || skipped === -1 || names.some((i) => i === -1 || i >= skipped)) problems.push(`the message is not the body, the names and the skipped line, in that order: ${J(text)}`);
+  for (const id of r.targets) if (r.outcomes?.[id] !== END_WORDS.ended) problems.push(`target ${id} reads ${J(r.outcomes?.[id])}, not Ended`);
+  if (r.outcomes?.[r.skipped] !== undefined) problems.push(`the skipped row draws ${J(r.outcomes[r.skipped])}; it was counted in the skipped line and is no target`);
+  if (r.heading !== r.wantDone) problems.push(`the heading reads ${J(r.heading)}, not ${J(r.wantDone)}`);
+  if (r.doneLines !== 2) problems.push(`${String(r.doneLines)} done line(s), not two`);
+  return decide(problems, unread, 'the Mac sheet\'s order, two Ended, the ended row only in the skipped line, two acts');
+}
+
+/**
+ * E5 and E6 (Paseo #3464): a match, then Home (or the app ended) at once.
+ * Which of three honest cases happened is printed; each passes only when it
+ * is honest about tmux and the log, and nothing is sent after the return.
+ */
+function gradeAfterLeaving(r) {
+  const unread = [];
+  const problems = [];
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never answered');
+  // THE FIX ROUND'S HOLD (E5): the relay held the write's connection before
+  // its handshake, so its bytes were never handed and the only honest end is
+  // the withheld one: not taken, no act, the session still there.
+  if (r.held !== undefined) {
+    if (r.held === null) unread.push('the relay\'s hold was not read');
+    else if (r.held < 1) unread.push('the relay held no connection, so the write was not caught before its bytes were handed');
+    else {
+      if (r.line !== END_WORDS.notTaken) problems.push(`the write was held before its bytes were handed, and the line reads ${J(r.line)}, not ${J(END_WORDS.notTaken)}`);
+      if (r.doneLines !== 0) problems.push(`the write was held before its bytes were handed, and ${String(r.doneLines)} act(s) are in the log`);
+      if (r.tmuxAlive !== true) problems.push('the write was held before its bytes were handed, and the session is gone');
+    }
+  }
+  if (r.doneLines > 1) problems.push(`${String(r.doneLines)} done lines: more than one act`);
+  if ((r.doneLines === 1) === r.tmuxAlive) problems.push(`the log says ${String(r.doneLines)} act(s) and tmux says the session is ${r.tmuxAlive ? 'alive' : 'gone'}`);
+  if (r.drawnStatus !== r.doorStatus) problems.push(`the screen draws ${J(r.drawnStatus)} where the door says ${J(r.doorStatus)}`);
+  let which = null;
+  if (r.line === null && r.doneLines === 1) which = 'done: the answer arrived';
+  else if (r.line === END_WORDS.noAnswer) which = 'no answer: the bytes were handed and the re-read came back';
+  else if (r.line === END_WORDS.notTaken && r.doneLines === 0) which = 'not taken: withheld before its bytes were handed, or a 404';
+  else if (r.line === null && r.doneLines === 0 && r.relaunched === true) which = 'nothing on the relaunched screen: the write never acted';
+  if (which === null) problems.push(`the line ${J(r.line)} is not an honest one with ${String(r.doneLines)} act(s)`);
+  if (r.writeLinesAfter !== 0) problems.push(`${String(r.writeLinesAfter)} write line(s) after the return`);
+  if (r.relayAfter !== 0 && r.relayAfter !== null) problems.push(`${String(r.relayAfter)} connection(s) at the relay in the 20 s after`);
+  return decide(problems, unread, `${String(which)}; at most one act, the screen equals tmux, and nothing was sent after`);
+}
+
+/**
+ * The E7 sessions in the order the phone DRAWS them, which is the order its
+ * batch runs (the tests round): the Sessions tab draws the waiting rows, then
+ * the others, each in the door's order (`/v1/blocked`'s `rows` then `others`,
+ * src/main/pocket/routes.ts `othersOrder`, newest output first). Null when
+ * any of them is not in the answer.
+ */
+function drawnOrderOf(sessions, blocked) {
+  const drawn = [...(blocked?.rows ?? []), ...(blocked?.others ?? [])].map((x) => x?.sessionId);
+  const at = sessions.map((s) => drawn.indexOf(s?.id));
+  if (at.some((i) => i === -1)) return null;
+  return sessions.map((s, k) => ({ s, i: at[k] })).sort((a, b) => a.i - b.i).map((x) => x.s);
+}
+
+/** Where `name` stands as a whole word in `text` (bounded by a space or an end), or -1. */
+const wordAt = (text, name) => {
+  for (let i = text.indexOf(name); i !== -1; i = text.indexOf(name, i + 1)) {
+    const before = i === 0 ? ' ' : text[i - 1];
+    const after = text[i + name.length] ?? ' ';
+    if (/\s/.test(before) && /\s/.test(after)) return i;
+  }
+  return -1;
+};
+
+/**
+ * The E7 sessions in the order the phone's CONFIRMATION names them, which is
+ * the batch's own order (EndBatch.swift's `BatchConfirm`: the body, then the
+ * targets' names in drawn order), read from the dialog's message as one text.
+ * Null when the dialog was not read or a name is not in it.
+ */
+function confirmOrderOf(dialog, sessions) {
+  if (dialog === null || dialog === undefined) return null;
+  const text = ` ${dialogText(dialog)} `;
+  const at = sessions.map((s) => wordAt(text, String(s?.name ?? '\u0000')));
+  if (at.some((i) => i === -1)) return null;
+  return sessions.map((s, k) => ({ s, i: at[k] })).sort((a, b) => a.i - b.i).map((x) => x.s);
+}
+
+/** E7: a batch interrupted by Home after the first Ended. */
+function gradeE7(r) {
+  const unread = [];
+  const problems = [];
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never answered');
+  if (r.rowOne !== END_WORDS.ended) unread.push(`Home was pressed when row one read ${J(r.rowOne)}, not Ended`);
+  // THE ORDER (the tests round): the probe named the first DRAWN row as the
+  // one Home follows, and grades the rows in that order; the confirmation
+  // says the order the batch ran. If they differ, Home did not follow row
+  // one, and nothing after it can be read.
+  if (r.order !== undefined) {
+    if (!Array.isArray(r.order.drawn)) unread.push('the door\'s drawn order was not read before the drive');
+    else if (!Array.isArray(r.order.confirmed)) unread.push('the confirmation\'s order of names was not read');
+    else if (J(r.order.drawn) !== J(r.order.confirmed)) unread.push(`the batch ran in ${J(r.order.confirmed)}, not the drawn order ${J(r.order.drawn)} the probe named, so Home did not follow row one`);
+  }
+  // AN UNMET PREMISE IS UNREADABLE, NEVER A FAIL (the tests round: the
+  // reverify's run at 00:22 waited on a row the batch ran last, and its rows
+  // graded FAIL). Only what is wrong whenever Home came still fails: a session
+  // acted on twice, a write after the return, and a row whose drawn word tmux
+  // and the log contradict.
+  if (unread.length > 0) {
+    const wrong = [];
+    if ((r.rows ?? []).some((x) => x.acts > 1)) wrong.push('a session was acted on twice');
+    if (typeof r.writeLinesAfter === 'number' && r.writeLinesAfter > 0) wrong.push(`${String(r.writeLinesAfter)} write line(s) after the return`);
+    for (const x of r.rows ?? []) {
+      const said = `${String(x?.id ?? 'a row')} reads ${J(x?.word)} with ${String(x?.acts)} act(s) and tmux ${x?.tmuxAlive ? 'alive' : 'gone'}`;
+      if (x?.word === END_WORDS.ended && (x.acts !== 1 || x.tmuxAlive !== false)) wrong.push(said);
+      if (x?.word === END_WORDS.notRun && (x.acts !== 0 || x.tmuxAlive !== true)) wrong.push(said);
+      if (x?.word === END_WORDS.noAnswerWord && (x.acts === 1) !== (x.tmuxAlive === false)) wrong.push(said);
+    }
+    return decide(wrong, unread, '');
+  }
+  const [one, two, three] = r.rows;
+  // THE PREMISE (the fix round): Home must land while the batch still has a
+  // write to stop. The verify's run finished all three acts in 114 ms, before
+  // Home took effect, and graded that a failure; it is no reading at all. Only
+  // what would be wrong whenever Home came is still a failure then.
+  if ((r.rows ?? []).length === 3 && r.rows.every((x) => x.acts === 1)) {
+    const wrong = [];
+    if (r.rows.some((x) => x.acts > 1)) wrong.push('a session was acted on twice');
+    if (r.writeLinesAfter !== 0) wrong.push(`${String(r.writeLinesAfter)} write line(s) after the return`);
+    return decide(wrong, ['every row acted before Home took effect, so nothing was left to stop'], '');
+  }
+  // THE HOLD: the relay let row one's connection through and held the next
+  // before its handshake, so row two's bytes were never handed: Not run is
+  // its only honest word, with no act and the session still there.
+  if (r.held !== undefined) {
+    if (r.held === null) unread.push('the relay\'s hold was not read');
+    else if (r.held >= 1 && (two?.word !== END_WORDS.notRun || two?.acts !== 0 || two?.tmuxAlive !== true)) problems.push(`row two's write was held before its bytes were handed, and it reads ${J(two?.word)} with ${String(two?.acts)} act(s) and tmux ${two?.tmuxAlive ? 'alive' : 'gone'}`);
+  }
+  if (one?.word !== END_WORDS.ended || one?.tmuxAlive !== false) problems.push(`row one reads ${J(one?.word)} with tmux ${one?.tmuxAlive ? 'alive' : 'gone'}`);
+  const twoOk =
+    (two?.word === END_WORDS.ended && two?.tmuxAlive === false && two?.acts === 1) ||
+    (two?.word === END_WORDS.noAnswerWord && (two?.acts === 1) === (two?.tmuxAlive === false)) ||
+    (two?.word === END_WORDS.notRun && two?.acts === 0 && two?.tmuxAlive === true);
+  if (!twoOk) problems.push(`row two reads ${J(two?.word)} with ${String(two?.acts)} act(s) and tmux ${two?.tmuxAlive ? 'alive' : 'gone'}`);
+  if (three?.word !== END_WORDS.notRun || three?.tmuxAlive !== true || three?.acts !== 0) problems.push(`row three reads ${J(three?.word)} with ${String(three?.acts)} act(s) and tmux ${three?.tmuxAlive ? 'alive' : 'gone'}`);
+  if (r.rows.some((x) => x.acts > 1)) problems.push('a session was acted on twice');
+  if (r.writeLinesAfter !== 0) problems.push(`${String(r.writeLinesAfter)} write line(s) after the return`);
+  return decide(problems, unread, `row two read ${J(two?.word)}, matching tmux; row three Not run and still running; at most one act each; nothing sent after`);
+}
+
+/** EH: one hostile write arm, ending where its row says, after exactly its POSTs. */
+function gradeEh(r) {
+  const problems = [];
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (r.posts !== r.wantPosts) problems.push(`${String(r.posts)} POST(s) reached the door, not ${String(r.wantPosts)}`);
+  if (r.ends === 'sentence') {
+    const ok = [...(r.expect ?? []).map((w) => COPY_WORDS[w]), ...(r.door ?? [])].includes(r.line);
+    if (!ok) problems.push(`the line reads ${J(r.line)}, none of the words its row names`);
+  } else if (r.ends === 'back-to-list') {
+    if (r.onList !== true) problems.push('the app did not go back to the list after the refused read');
+  } else if (r.ends === 'pairing') {
+    // A signed read refused 404 is a pairing the Mac no longer answers: the
+    // read's own consequence is Pairing (the fix round; the verify's EH).
+    if (r.onPairing !== true) problems.push('the app did not land on Pairing after every read was refused');
+  } else if (r.ends === 'drawn') {
+    if (r.enabled !== false || r.line !== r.title) problems.push(`the End row is ${r.enabled ? 'on' : 'off'} with ${J(r.line)}, not off with the Mac's title`);
+    if (r.dialog === true) problems.push('a confirmation came from an End drawn off');
+  }
+  for (const w of r.never ?? []) if (r.line !== null && r.line === COPY_WORDS[w]) problems.push(`the line is ${w}, which this arm must never draw`);
+  return decide(problems, [], `ended ${r.ends === 'sentence' ? `in ${J(r.line)}` : r.ends} after ${String(r.posts)} POST(s)`);
+}
+
+/**
+ * EP: the parent's app (551312f7's ios/, named by P317_PARENT_IOS and never by
+ * Phase 316.6's P316_PARENT_IOS, which PR reads at 28d89295): no End, no
+ * Select, and its Unpair, which must be SEEN to run (its question read and
+ * Pairing drawn), leaves the Mac's row, which is what HEAD's U1 now reads too.
+ */
+function gradeEp(r) {
+  const problems = [];
+  const unread = [];
+  if (r.sessionDrawn !== true) return verdict(null, 'the parent\'s app drew no session to look for End on');
+  if (r.endBar === true) problems.push('the parent draws an End bar');
+  if (r.select === true) problems.push('the parent draws Select');
+  if (r.unpairSheet !== true) unread.push('the parent\'s Unpair question was never read, so its Unpair did not run');
+  else if (r.unpairedToPairing !== true) unread.push('the parent\'s Unpair never drew Pairing, so whether it ran is not known');
+  else if (r.macLists !== true) problems.push('the parent\'s Unpair took the Mac\'s row');
+  return decide(problems, unread, `no End bar, no Select, and its Unpair ran${typeof r.ms === 'number' ? `, drew Pairing ${String(r.ms)} ms after the press,` : ''} and left the Mac's row`);
+}
+
+/** Every End grader, proved both ways on readings written here. */
+function endSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const want = { title: "End 'p316-e1'?", body: 'This stops what is running in it. The scrollback is saved first, so you can restore this session later.', confirmLabel: 'End session' };
+  const e1 = {
+    authUp: true,
+    acked: true,
+    permission: { seen: true, pressed: 'OK' },
+    bar: { bar: [0, 711, 402, 51], row: [0, 712, 402, 50], tabBar: [0, 762, 402, 83], glyphs: [{ id: 'faceid', label: 'Face ID' }] },
+    dialog: { title: want.title, texts: [want.title, want.body], buttons: ['End session', 'Cancel'] },
+    want,
+    doneLines: 1,
+    tmuxAlive: false,
+    mainStatus: 'exited',
+    drawnStatus: 'Ended',
+    doorStatus: 'Ended',
+    barAfter: false
+  };
+  add('E1 passes its honest reading', gradeE1, e1, true);
+  add('E1 is red on a bar below the tab bar', gradeE1, edit(e1, (r) => void (r.bar.bar[1] = 800)), false);
+  add('E1 is red on a Touch ID mark', gradeE1, edit(e1, (r) => void (r.bar.glyphs = [{ id: 'touchid', label: 'Touch ID' }])), false);
+  add('E1 is red on a body the Mac does not say', gradeE1, edit(e1, (r) => void (r.dialog.texts = [want.title, 'The agent stops. Its saved output stays.'])), false);
+  add('E1 is red on two acts', gradeE1, edit(e1, (r) => void (r.doneLines = 2)), false);
+  add('E1 is red on a session tmux still holds', gradeE1, edit(e1, (r) => void (r.tmuxAlive = true)), false);
+  add('E1 is red on a screen that disagrees with the door', gradeE1, edit(e1, (r) => void (r.drawnStatus = 'Working')), false);
+  add('E1 is red on a row that is not 50 tall', gradeE1, edit(e1, (r) => void (r.bar.row[3] = 44)), false);
+  add('E1 is red on another press', gradeE1, edit(e1, (r) => void (r.dialog.buttons = ['End', 'Cancel'])), false);
+  add('E1 is red on another title', gradeE1, edit(e1, (r) => void (r.dialog = { ...r.dialog, title: 'End?', texts: [want.body] })), false);
+  add('E1 is red on main reading it running', gradeE1, edit(e1, (r) => void (r.mainStatus = 'running')), false);
+  add('E1 is red on the bar still drawn', gradeE1, edit(e1, (r) => void (r.barAfter = true)), false);
+  add('E1 is red on no bar read', gradeE1, edit(e1, (r) => void (r.bar = { ...r.bar, bar: null })), false);
+  add('E1 is UNREADABLE with the question still up', gradeE1, edit(e1, (r) => void (r.permission = { seen: true, stillUp: true })), null);
+  // The tests round: an unmet premise is UNREADABLE, never a FAIL, and only
+  // what is wrong whatever iOS did still fails.
+  const noMatch = (r) => Object.assign(r, { authUp: false, acked: false, doneLines: null, tmuxAlive: true, mainStatus: 'idle', drawnStatus: null, doorStatus: 'Idle', barAfter: false });
+  add('E1 is UNREADABLE when the owner check was never up and nothing ended', gradeE1, edit(e1, noMatch), null);
+  add('E1 is UNREADABLE on the reverify\'s floor run: the question still up after Allow, no match sent, the session running', gradeE1, edit(e1, (r) => void Object.assign(noMatch(r), { permission: { seen: true, pressed: 'OK', stillUp: true } })), null);
+  add('E1 is red when no match was sent and the session ended anyway', gradeE1, edit(e1, (r) => void Object.assign(noMatch(r), { tmuxAlive: false, mainStatus: 'exited' })), false);
+  add('E1 is red on a confirmation the Mac does not say, even with no match sent', gradeE1, edit(e1, (r) => void Object.assign(noMatch(r), { dialog: { ...r.dialog, texts: [want.title, 'The agent stops. Its saved output stays.'] } })), false);
+  add('E1 is red on Face ID\'s mark missing, even with the question still up', gradeE1, edit(e1, (r) => void Object.assign(r, { permission: { seen: true, stillUp: true }, bar: { ...r.bar, glyphs: [{ id: 'lock', label: 'Lock' }] } })), false);
+  add('E1 passes the question accepted and gone before the match', gradeE1, edit(e1, (r) => void (r.permission = { seen: true, pressed: 'OK', stillUp: false })), true);
+  const e2 = { authUp: true, acked: true, cancelFound: true, line: END_WORDS.notConfirmed, writeLines: 0, mainStatus: 'running' };
+  add('E2 passes its honest reading', gradeE2, e2, true);
+  add('E2 is red on a write line', gradeE2, edit(e2, (r) => void (r.writeLines = 1)), false);
+  add('E2 is red on another line', gradeE2, edit(e2, (r) => void (r.line = END_WORDS.notTaken)), false);
+  add('E2 is UNREADABLE with no Cancel and no line', gradeE2, edit(e2, (r) => void Object.assign(r, { cancelFound: false, line: null })), null);
+  add('E2 passes iOS ending its own prompt after the failed match, the line drawn', gradeE2, edit(e2, (r) => void Object.assign(r, { cancelFound: false, drew: [] })), true);
+  add('E2 is red on another End line with no Cancel', gradeE2, edit(e2, (r) => void Object.assign(r, { cancelFound: false, line: END_WORDS.notTaken })), false);
+  add('E2 is UNREADABLE when the owner check was never up, whatever came after', gradeE2, edit(e2, (r) => void Object.assign(r, { authUp: false, acked: false, cancelFound: false, line: null, writeLines: null })), null);
+  add('E2 is red on a write with the owner check never up', gradeE2, edit(e2, (r) => void Object.assign(r, { authUp: false, acked: false, cancelFound: false, line: null, writeLines: 1 })), false);
+  add('E2 is UNREADABLE when Cancel was pressed and the prompt never left', gradeE2, edit(e2, (r) => void (r.cancelGone = false)), null);
+  add('E2 is UNREADABLE when Cancel was pressed and no line came', gradeE2, edit(e2, (r) => void (r.line = null)), null);
+  const e3 = { acked: true, bar: { enabled: false, line: END_WORDS.needsPasscode, glyphs: [{ id: 'lock', label: 'Lock' }] }, dialog: false, prompt: false };
+  add('E3 passes passcodeNotSet', gradeE3, e3, true);
+  add('E3 passes the passcode alone with the lock', gradeE3, edit(e3, (r) => void (r.bar.enabled = true)), true);
+  add('E3 is red on Face ID\'s mark unenrolled', gradeE3, edit(e3, (r) => void (r.bar.glyphs = [{ id: 'faceid', label: 'Face ID' }])), false);
+  add('E3 is red on a prompt from a bar drawn off', gradeE3, edit(e3, (r) => void (r.prompt = true)), false);
+  const e4 = {
+    authUp: true,
+    acked: true,
+    dialog: { title: 'End 2 running sessions?', texts: ['End 2 running sessions?', 'BODY\na\nb\n1 selected session stays unchanged: 1 already ended'], buttons: ['End 2 sessions', 'Cancel'] },
+    wantHeading: 'End 2 running sessions?',
+    wantBody: 'BODY',
+    names: ['a', 'b'],
+    wantSkipped: '1 selected session stays unchanged: 1 already ended',
+    targets: ['ia', 'ib'],
+    skipped: 'ic',
+    outcomes: { ia: END_WORDS.ended, ib: END_WORDS.ended },
+    heading: '2 of 2 sessions ended',
+    wantDone: '2 of 2 sessions ended',
+    doneLines: 2
+  };
+  add('E4 passes its honest reading', gradeE4, e4, true);
+  add('E4 is red on the names before the body', gradeE4, edit(e4, (r) => void (r.dialog.texts = ['a\nb\nBODY\n1 selected session stays unchanged: 1 already ended'])), false);
+  add('E4 passes the message as one label with its newlines read as spaces (the verify\'s reading)', gradeE4, edit(e4, (r) => void (r.dialog.texts = ['End 2 running sessions?', 'BODY a b 1 selected session stays unchanged: 1 already ended'])), true);
+  add('E4 is red on the skipped line before the names, as one label', gradeE4, edit(e4, (r) => void (r.dialog.texts = ['BODY 1 selected session stays unchanged: 1 already ended a b'])), false);
+  add('E4 is red on no body, as one label', gradeE4, edit(e4, (r) => void (r.dialog.texts = ['a b 1 selected session stays unchanged: 1 already ended'])), false);
+  add('E4 is red on an outcome word for the skipped row', gradeE4, edit(e4, (r) => void (r.outcomes.ic = 'Already ended')), false);
+  add('E4 is red on one act', gradeE4, edit(e4, (r) => void (r.doneLines = 1)), false);
+  add('E4 is red on another title', gradeE4, edit(e4, (r) => void (r.dialog = { ...r.dialog, title: 'End 3 running sessions?', texts: r.dialog.texts.slice(1) })), false);
+  add('E4 is red on a target that did not end', gradeE4, edit(e4, (r) => void (r.outcomes.ib = 'Not run')), false);
+  add('E4 is red on another heading', gradeE4, edit(e4, (r) => void (r.heading = '1 of 2 sessions ended')), false);
+  add('E4 is UNREADABLE when the owner check was never answered', gradeE4, edit(e4, (r) => void (r.acked = false)), null);
+  const e5 = { authUp: true, acked: true, doneLines: 0, tmuxAlive: true, drawnStatus: 'Working', doorStatus: 'Working', line: END_WORDS.notTaken, writeLinesAfter: 0, relayAfter: 0 };
+  add('E5 passes the withheld case', gradeAfterLeaving, e5, true);
+  add('E5 passes the done case', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended', line: null })), true);
+  add('E5 passes the no-answer case after an act', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended', line: END_WORDS.noAnswer })), true);
+  add('E5 is red on done drawn with no act', gradeAfterLeaving, edit(e5, (r) => void (r.line = null)), false);
+  add('E5 is red on not-taken drawn after an act', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended' })), false);
+  add('E5 is red on a write after the return', gradeAfterLeaving, edit(e5, (r) => void (r.writeLinesAfter = 1)), false);
+  add('E5 is red on a log that disagrees with tmux', gradeAfterLeaving, edit(e5, (r) => void (r.tmuxAlive = false)), false);
+  add('E5 passes the withheld case with the relay\'s hold read', gradeAfterLeaving, edit(e5, (r) => void (r.held = 1)), true);
+  add('E5 is red on an act after the relay held the write', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { held: 1, doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended', line: null })), false);
+  add('E5 is red on the no-answer line after the relay held the write', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { held: 1, line: END_WORDS.noAnswer })), false);
+  add('E5 is UNREADABLE when the relay held nothing', gradeAfterLeaving, edit(e5, (r) => void (r.held = 0)), null);
+  const e7 = {
+    authUp: true,
+    acked: true,
+    rowOne: END_WORDS.ended,
+    rows: [
+      { word: END_WORDS.ended, tmuxAlive: false, acts: 1 },
+      { word: END_WORDS.notRun, tmuxAlive: true, acts: 0 },
+      { word: END_WORDS.notRun, tmuxAlive: true, acts: 0 }
+    ],
+    writeLinesAfter: 0
+  };
+  add('E7 passes row two Not run', gradeE7, e7, true);
+  add('E7 passes row two Ended', gradeE7, edit(e7, (r) => void (r.rows[1] = { word: END_WORDS.ended, tmuxAlive: false, acts: 1 })), true);
+  add('E7 passes row two No answer after an act', gradeE7, edit(e7, (r) => void (r.rows[1] = { word: END_WORDS.noAnswerWord, tmuxAlive: false, acts: 1 })), true);
+  add('E7 is red on row two Not run after a request acted', gradeE7, edit(e7, (r) => void (r.rows[1] = { word: END_WORDS.notRun, tmuxAlive: false, acts: 1 })), false);
+  add('E7 is red on row three ended', gradeE7, edit(e7, (r) => void (r.rows[2] = { word: END_WORDS.ended, tmuxAlive: false, acts: 1 })), false);
+  add('E7 is UNREADABLE when Home came before row one ended', gradeE7, edit(e7, (r) => void (r.rowOne = 'Ending…')), null);
+  add('E7 is UNREADABLE when all three acted before Home (the verify\'s 114 ms run)', gradeE7, edit(e7, (r) => void (r.rows = [1, 2, 3].map(() => ({ word: END_WORDS.ended, tmuxAlive: false, acts: 1 })))), null);
+  add('E7 passes row two Not run with the relay\'s hold read', gradeE7, edit(e7, (r) => void (r.held = 1)), true);
+  add('E7 is red on row two acting after the relay held it', gradeE7, edit(e7, (r) => Object.assign(r, { held: 1, rows: [r.rows[0], { word: END_WORDS.noAnswerWord, tmuxAlive: false, acts: 1 }, r.rows[2]] })), false);
+  add('E7 is UNREADABLE with the hold not read', gradeE7, edit(e7, (r) => void (r.held = null)), null);
+  // The tests round: the rows in the order the phone draws, and the batch's own order agreeing.
+  add('E7 passes with the drawn and the confirmed order agreeing', gradeE7, edit(e7, (r) => void (r.order = { drawn: ['c', 'b', 'a'], confirmed: ['c', 'b', 'a'] })), true);
+  const at0022 = (r) =>
+    Object.assign(r, {
+      order: { drawn: ['a', 'b', 'c'], confirmed: ['c', 'b', 'a'] },
+      rowOne: END_WORDS.notRun,
+      rows: [
+        { id: 'a', word: END_WORDS.notRun, tmuxAlive: true, acts: 0 },
+        { id: 'b', word: 'Not ended. Your Mac did not answer in time.', tmuxAlive: true, acts: 0 },
+        { id: 'c', word: END_WORDS.ended, tmuxAlive: false, acts: 1 }
+      ]
+    });
+  add('E7 is UNREADABLE when the batch ran in another order than the probe named (the reverify\'s 00:22 run)', gradeE7, edit(e7, at0022), null);
+  add('E7 is red, order unmet, on a row drawn Ended that tmux still holds', gradeE7, edit(e7, (r) => void (at0022(r).rows[2] = { id: 'c', word: END_WORDS.ended, tmuxAlive: true, acts: 0 })), false);
+  add('E7 is red, order unmet, on two acts on one session', gradeE7, edit(e7, (r) => void (at0022(r).rows[2].acts = 2)), false);
+  add('E7 is red, order unmet, on a write after the return', gradeE7, edit(e7, (r) => void (at0022(r).writeLinesAfter = 1)), false);
+  add('E7 is UNREADABLE when the confirmation\'s order was not read', gradeE7, edit(e7, (r) => void (r.order = { drawn: ['c', 'b', 'a'], confirmed: null })), null);
+  add('E7 is red with the order agreeing and row three ended', gradeE7, edit(e7, (r) => Object.assign(r, { order: { drawn: ['c', 'b', 'a'], confirmed: ['c', 'b', 'a'] }, rows: [r.rows[0], r.rows[1], { word: END_WORDS.ended, tmuxAlive: false, acts: 1 }] })), false);
+  const eh = { alive: RUNNING_FOREGROUND, posts: 1, wantPosts: 1, ends: 'sentence', expect: ['endNoAnswer'], door: [], never: [], line: END_WORDS.noAnswer, onList: false, enabled: true, title: null, dialog: false };
+  add('EH passes a sentence arm', gradeEh, eh, true);
+  add('EH is red on two POSTs for one press', gradeEh, edit(eh, (r) => void (r.posts = 2)), false);
+  add('EH is red on another line', gradeEh, edit(eh, (r) => void (r.line = END_WORDS.notTaken)), false);
+  add('EH passes the back-to-list arm', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'back-to-list', expect: [], never: ['endNoAnswer'], line: null, onList: true })), true);
+  add('EH is red on endNoAnswer where the read was refused', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'back-to-list', expect: [], never: ['endNoAnswer'], line: END_WORDS.noAnswer, onList: true })), false);
+  add('EH passes the unreachable offer', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'drawn', posts: 0, wantPosts: 0, expect: [], line: 'T', title: 'T', enabled: false })), true);
+  add('EH passes the Pairing arm (every read refused after the cut)', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'pairing', expect: [], never: ['endNoAnswer'], line: null, onPairing: true })), true);
+  add('EH is red on a Pairing arm that stayed on the list', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'pairing', expect: [], never: ['endNoAnswer'], line: null, onPairing: false, onList: true })), false);
+  add('EH is red on a back-to-list arm still on the session', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'back-to-list', expect: [], never: ['endNoAnswer'], line: null, onList: false })), false);
+  add('EH is red on a confirmation from an End drawn off', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'drawn', posts: 0, wantPosts: 0, expect: [], line: 'T', title: 'T', enabled: false, dialog: true })), false);
+  add('EH is red on an app that died', gradeEh, edit(eh, (r) => void (r.alive = 1)), false);
+  add('EH is red on an unreachable End that can be pressed', gradeEh, edit(eh, (r) => Object.assign(r, { ends: 'drawn', posts: 0, wantPosts: 0, expect: [], line: 'T', title: 'T', enabled: true })), false);
+  const ep = { sessionDrawn: true, endBar: false, select: false, unpairSheet: true, unpairedToPairing: true, macLists: true, ms: 800 };
+  add('EP passes its honest reading', gradeEp, ep, true);
+  add('EP is red on a parent with an End bar', gradeEp, edit(ep, (r) => void (r.endBar = true)), false);
+  add('EP is red on a parent that draws Select', gradeEp, edit(ep, (r) => void (r.select = true)), false);
+  add('EP is UNREADABLE with no session drawn', gradeEp, edit(ep, (r) => void (r.sessionDrawn = false)), null);
+  add('EP is UNREADABLE when the parent\'s Unpair question was never read', gradeEp, edit(ep, (r) => void (r.unpairSheet = false)), null);
+  add('EP is UNREADABLE when the parent\'s Unpair never drew Pairing', gradeEp, edit(ep, (r) => void (r.unpairedToPairing = false)), null);
+  add('E7 is red on two acts on one session', gradeE7, edit(e7, (r) => void (r.rows[0].acts = 2)), false);
+  add('E7 is red on a write after the return', gradeE7, edit(e7, (r) => void (r.writeLinesAfter = 1)), false);
+  add('E3 is red on an off bar with another line', gradeE3, edit(e3, (r) => void (r.bar.line = 'x')), false);
+  add('E3 is red on an on bar with no lock', gradeE3, edit(e3, (r) => Object.assign(r.bar, { enabled: true, glyphs: [{ id: 'touchid', label: 'Touch ID' }] })), false);
+  add('E3 is UNREADABLE with no bar read', gradeE3, edit(e3, (r) => void (r.bar = null)), null);
+  add('E2 is red on a session that ended', gradeE2, edit(e2, (r) => void (r.mainStatus = 'exited')), false);
+  add('E5 is red on two acts', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 2, tmuxAlive: false })), false);
+  add('E5 is red on a screen that disagrees with the door', gradeAfterLeaving, edit(e5, (r) => void (r.drawnStatus = 'Ended')), false);
+  add('E5 is red on a connection after the return', gradeAfterLeaving, edit(e5, (r) => void (r.relayAfter = 1)), false);
+  add('EP is red on a parent whose Unpair took the Mac\'s row', gradeEp, edit(ep, (r) => void (r.macLists = false)), false);
+  // The tests round: E7's two orders, read both ways.
+  const sA = { id: 'ia', name: 'p317-e7a' };
+  const sB = { id: 'ib', name: 'p317-e7b' };
+  const sC = { id: 'ic', name: 'p317-e7c' };
+  const truth = (fn) => ({ ok: fn() === true });
+  const ids = (xs) => (xs === null ? null : xs.map((x) => x.id).join(','));
+  add('drawnOrderOf reads the waiting rows, then the others, in the door\'s order (the reverify\'s reading)', () => truth(() => ids(drawnOrderOf([sA, sB, sC], { rows: [{ sessionId: 'w' }], others: [{ sessionId: 'ic' }, { sessionId: 'ib' }, { sessionId: 'ia' }] })) === 'ic,ib,ia'), null, true);
+  add('drawnOrderOf puts a waiting row before every other', () => truth(() => ids(drawnOrderOf([sA, sB, sC], { rows: [{ sessionId: 'ib' }], others: [{ sessionId: 'ia' }, { sessionId: 'ic' }] })) === 'ib,ia,ic'), null, true);
+  add('drawnOrderOf is null when a row is not in the answer', () => truth(() => drawnOrderOf([sA, sB, sC], { rows: [], others: [{ sessionId: 'ia' }, { sessionId: 'ib' }] }) === null), null, true);
+  add('confirmOrderOf reads the names in the message\'s order', () => truth(() => ids(confirmOrderOf({ texts: ['End 3 running sessions?', 'BODY\np317-e7c\np317-e7b\np317-e7a'] }, [sA, sB, sC])) === 'ic,ib,ia'), null, true);
+  add('confirmOrderOf reads names whose newlines came back as spaces', () => truth(() => ids(confirmOrderOf({ texts: ['BODY p317-e7b p317-e7a p317-e7c'] }, [sA, sB, sC])) === 'ib,ia,ic'), null, true);
+  add('confirmOrderOf never takes a name for the start of a longer one', () => truth(() => ids(confirmOrderOf({ texts: ['BODY p317-e10 p317-e1'] }, [{ id: 'one', name: 'p317-e1' }, { id: 'ten', name: 'p317-e10' }])) === 'ten,one'), null, true);
+  add('confirmOrderOf is null with no dialog or a name missing', () => truth(() => confirmOrderOf(null, [sA]) === null && confirmOrderOf({ texts: ['BODY p317-e7a'] }, [sA, sB]) === null), null, true);
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${got === true ? 'green' : got === false ? 'red' : got === null ? 'UNREADABLE' : String(got)}`);
+  }
+  return { bad, total: cases.length };
+}
+
+// ---------------------------------------------------------------------------
 // The hostile door, in a process of its own
 // ---------------------------------------------------------------------------
 
@@ -2925,7 +3563,14 @@ function selfTest() {
       ? `${TAG} tabs and markdown self-test PASS: ${String(tabs.total)} cases (the composer, T2a to T2d, MD1 to MD3, S6, U1, HM and PR's word check) graded as they must be.`
       : `${TAG} tabs and markdown self-test FAIL: ${String(tabs.bad)} of ${String(tabs.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 ? 0 : 1);
+  // Phase 317: End, End these and Unpair's Mac half.
+  const ends = endSelfTest();
+  console.log(
+    ends.bad === 0
+      ? `${TAG} End self-test PASS: ${String(ends.total)} cases (E1 to E7, EH and EP) graded as they must be.`
+      : `${TAG} End self-test FAIL: ${String(ends.bad)} of ${String(ends.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -3431,7 +4076,9 @@ exit 0
                 P316_WAIT_S: '150',
                 P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}`,
                 ...(opts.pushToken === undefined ? {} : { P316_PUSH_TOKEN: opts.pushToken }),
-                ...(opts.notifications === undefined ? {} : { P316_NOTIFICATIONS: opts.notifications })
+                ...(opts.notifications === undefined ? {} : { P316_NOTIFICATIONS: opts.notifications }),
+                // Phase 317: where the probe writes the files an End step waits for.
+                ...(opts.env ?? {})
               },
               onEvent: async (event) => {
                 if (event.step === 'notifications' && (event.answered !== undefined || event.asked === false)) settleNotifications(event);
@@ -3518,6 +4165,9 @@ exit 0
                 if (event.step === 'screen' && event.name === 'unpair') relayAt.unpair = { count: relay.count(), at: Date.now() };
                 if (event.step === 'idle-start') relayAt.idleStart = { count: relay.count(), at: Date.now() };
                 if (event.step === 'idle-end') relayAt.idleEnd = { count: relay.count(), at: Date.now() };
+                // Phase 317: the End group's own reactions (Face ID answered
+                // from the host, the relay paused), handed in by the caller.
+                if (opts.react !== undefined) await opts.react(event);
                 if (event.step === 'ready-for-remove') {
                   const phones = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
                   simPhoneId = phones.find((id) => !phonesBefore.includes(id)) ?? null;
@@ -4152,8 +4802,372 @@ exit 0
         // ==================================================================
         // iOS 26.3: the hostile door
         // ==================================================================
+        // ==================================================================
+        // Phase 317: THE END GROUP (build/p317/SPEC.md §7.5). Face ID is
+        // enrolled and answered from the host through build/simulator-run.mjs's
+        // `biometry`, on the line the UI test prints once iOS's owner check is
+        // up; the probe writes the file the step waits for after it answered.
+        // Every session ended is a shell. No word here is the phone's but the
+        // ones it drew.
+        // ==================================================================
+        if (ARMS.has('end')) {
+          const ACKS = join(RUN, 'acks');
+          mkdirSync(ACKS, { recursive: true });
+          const ackFile = (name) => writeFileSync(join(ACKS, name), 'ok\n');
+          const tmuxAlive = (name) => spawnSync('tmux', ['-L', SOCKET, 'has-session', '-t', `=${name}`], { encoding: 'utf8', timeout: 10_000 }).status === 0;
+          const full = async () =>
+            JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status }))))'));
+          const shellNamed = async (name) => {
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+            for (let i = 0; i < 60; i += 1) {
+              const s = (await full()).find((x) => x.name === name);
+              if (s !== undefined && ['running', 'idle', 'needs_input'].includes(s.status)) return s;
+              await sleep(500);
+            }
+            return (await full()).find((x) => x.name === name) ?? null;
+          };
+          const logText = async () => (await appLogText()).split('\n');
+          const doneLines = async () => (await logText()).filter((l) => l.includes(DONE_LINE)).length;
+          const writeLines = async () => (await logText()).filter((l) => l.includes("the phone's end:")).length;
+          const actsFor = async (id) => (await logText()).filter((l) => l.includes("the phone's end:") && l.includes(id)).length;
+          const doorStatusOf = async (id) => (await readJson(`/v1/session?id=${encodeURIComponent(id)}`))?.session?.statusTitle ?? null;
+          const mainStatusOf = async (id) => (await full()).find((x) => x.id === id)?.status ?? null;
+          const byFor = (events, step, name) => events.filter((e) => e.step === step && e.for === name);
+          /**
+           * The reactions every End drive shares: Face ID answered in the
+           * order `answers` names, Face ID unenrolled, and the Mac's counts
+           * taken at the moments the grading reads. `holds` (the fix round)
+           * names the steps whose write the relay catches before its bytes
+           * are handed: before Face ID is answered the relay lets that many
+           * connections through and holds every one after, and once the UI
+           * test says Home was pressed, and the app has had three seconds in
+           * the background, the relay forwards again, so the screen it reads
+           * on return is read through it.
+           */
+          const reactor = (sim, answers, marks, holds = {}) => async (event) => {
+            if (event.step === 'end-auth-up') {
+              marks[`auth:${String(event.for)}`] = { done: await doneLines(), writes: await writeLines(), relay: relay.count(), held: relay.held() };
+              const hold = holds[String(event.for)];
+              if (typeof hold === 'number') relay.pauseAfter(hold);
+              const answer = answers.shift() ?? 'match';
+              const b = await sim.biometry(answer).catch((err) => ({ code: -1, stderr: String(err?.message ?? err) }));
+              marks.biometry = [...(marks.biometry ?? []), { for: event.for, answer, code: b.code }];
+              ackFile(`auth-${String(event.seq)}`);
+            }
+            if (event.step === 'ready-for-unenrol') {
+              const b = await sim.biometry('unenrol').catch(() => ({ code: -1 }));
+              marks.unenrol = b.code;
+              ackFile(`unenrol-${String(event.seq)}`);
+            }
+            if (event.step === 'end-home-pressed' || event.step === 'end-these-home-pressed') {
+              const name = event.step === 'end-home-pressed' ? 'end-home' : 'end-these-home';
+              if (typeof holds[name] === 'number') {
+                await sleep(3_000);
+                marks[`held:${name}`] = relay.held() - (marks[`auth:${name}`]?.held ?? relay.held());
+                relay.resume();
+              }
+            }
+            if (event.step === 'screen') marks[`screen:${String(event.name)}`] = { done: await doneLines(), writes: await writeLines(), relay: relay.count() };
+            if (event.step === 'idle-start') marks[`idle-start:${String(Object.keys(marks).filter((k) => k.startsWith('idle-start:')).length)}`] = { writes: await writeLines(), relay: relay.count() };
+            if (event.step === 'idle-end') marks[`idle-end:${String(Object.keys(marks).filter((k) => k.startsWith('idle-end:')).length)}`] = { writes: await writeLines(), relay: relay.count() };
+          };
+          const idleDelta = (marks, k, field) => (marks[`idle-end:${String(k)}`] === undefined || marks[`idle-start:${String(k)}`] === undefined ? null : marks[`idle-end:${String(k)}`][field] - marks[`idle-start:${String(k)}`][field]);
+
+          // ---- the sessions ------------------------------------------------
+          const S = {};
+          for (const key of ['e1', 'e2', 'e3', 'e4a', 'e4b', 'e4c', 'e5', 'e6', 'e7a', 'e7b', 'e7c', 'e10', 'ep']) S[key] = await shellNamed(`p317-${key}`);
+          await cdpEval(cdp, `window.gmux.sessions.kill(${J(S.e4c?.id ?? '')}).then(() => true).catch(() => false)`);
+          for (let i = 0; i < 40 && (await mainStatusOf(S.e4c?.id)) !== 'exited'; i += 1) await sleep(500);
+          if (Object.values(S).some((s) => s === null)) arm('E the end group\'s sessions', null, `not every session was made live: ${J(Object.fromEntries(Object.entries(S).map(([k, s]) => [k, s?.status ?? null])))}`);
+          else {
+            const wantE1 = (await readJson(`/v1/session?id=${encodeURIComponent(S.e1.id)}`))?.session?.endConfirm ?? null;
+            const copyTs = (() => {
+              try {
+                return readFileSync(join(ROOT, 'src', 'renderer', 'session-manager', 'copy.ts'), 'utf8');
+              } catch {
+                return '';
+              }
+            })();
+            const batchBodyLocal = /'(This stops what is running in them[^']*)'/.exec(copyTs)?.[1] ?? null;
+            // E7's rows in the order the phone DRAWS them, which is the order
+            // its batch runs (the tests round: the door draws `others` newest
+            // output first, so row one is the last made, never e7a). The drive
+            // waits on the first drawn row and the grade reads them in this
+            // order; the confirmation's order is read after and must agree.
+            const e7Drawn = drawnOrderOf([S.e7a, S.e7b, S.e7c], await readJson('/v1/blocked'));
+            const E7 = e7Drawn ?? [S.e7a, S.e7b, S.e7c];
+            report.readings.E7Order = { drawn: e7Drawn === null ? null : e7Drawn.map((s) => s.name) };
+
+            // ---- E1 to E7 and E3, one drive on iOS 26.3 --------------------
+            await withSimulator({ label: 'p316-end', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-end'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const enrol = await sim.biometry('enrol');
+              report.readings.endEnrol = enrol.code;
+              const marks = {};
+              const steps = [
+                'pair',
+                'list',
+                `open:${S.e1.id}`,
+                'end',
+                'back',
+                `open:${S.e2.id}`,
+                'end-cancel',
+                'back',
+                `select:${S.e4a.id}+${S.e4b.id}+${S.e4c.id}`,
+                'end-these',
+                'batch-done',
+                `open:${S.e5.id}`,
+                'end-home',
+                'idle:20',
+                'back',
+                `select:${S.e7a.id}+${S.e7b.id}+${S.e7c.id}`,
+                `end-these-home:${E7[0].id}`,
+                'idle:20',
+                'batch-done',
+                `open:${S.e6.id}`,
+                `end-kill:${S.e6.id}`,
+                'idle:20',
+                `end-off:${S.e3.id}`
+              ];
+              // E5 holds its one write (0 through) and E7 lets row one's pass
+              // and holds row two's (1 through): the withheld path, live.
+              const run = await pairAndRead(sim, steps, 'end', { env: { P316_ACKS: ACKS }, react: reactor(sim, ['match', 'nomatch', 'match', 'match', 'match', 'match'], marks, { 'end-home': 0, 'end-these-home': 1 }) });
+              const events = run.ok ? run.result.events : [];
+              report.readings.endMarks = { ...marks };
+              if (!run.ok || events.length === 0) {
+                arm('E1 End above the tab bar, the Mac\'s confirmation, Face ID, one act', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                return;
+              }
+              const auth = (name) => byFor(events, 'end-auth-up', name).length > 0;
+              const acked = (name) => byFor(events, 'end-auth-answered', name).some((e) => e.acked === true);
+              // E1
+              {
+                const d = lastDump(events, 'end');
+                const before = marks['auth:end']?.done ?? null;
+                const reading = {
+                  authUp: auth('end'),
+                  acked: acked('end'),
+                  permission: (() => {
+                    const p = byFor(events, 'faceid-permission', 'end');
+                    return { seen: p.some((e) => e.seen === true), pressed: p.find((e) => e.pressed !== undefined)?.pressed ?? null, stillUp: p.some((e) => e.stillUp === true) };
+                  })(),
+                  bar: byFor(events, 'end-bar', 'end')[0] ?? null,
+                  dialog: byFor(events, 'end-dialog', 'end')[0] ?? null,
+                  want: wantE1,
+                  doneLines: before === null || marks['screen:end'] === undefined ? null : marks['screen:end'].done - before,
+                  tmuxAlive: tmuxAlive(S.e1.tmuxName),
+                  mainStatus: await mainStatusOf(S.e1.id),
+                  drawnStatus: el(d, 'session-status')?.label ?? null,
+                  doorStatus: await doorStatusOf(S.e1.id),
+                  barAfter: el(d, 'session-end-bar') !== null
+                };
+                const v = gradeE1(reading);
+                arm('E1 End above the tab bar with Face ID\'s mark, the Mac\'s confirmation, iOS\'s first-use question accepted, a match, one act', v.ok, v.said);
+              }
+              // E2
+              {
+                const d = lastDump(events, 'end-cancel');
+                const before = marks['auth:end-cancel'];
+                const cancel = byFor(events, 'faceid-cancel', 'end-cancel')[0] ?? null;
+                const v = gradeE2({
+                  authUp: auth('end-cancel'),
+                  acked: acked('end-cancel'),
+                  cancelFound: cancel?.found === true,
+                  cancelGone: cancel === null ? null : cancel.gone === true,
+                  drew: byFor(events, 'faceid-after-nomatch', 'end-cancel')[0]?.drew ?? null,
+                  line: el(d, 'session-end-line')?.label ?? null,
+                  writeLines: before === undefined || marks['screen:end-cancel'] === undefined ? null : marks['screen:end-cancel'].writes - before.writes,
+                  mainStatus: await mainStatusOf(S.e2.id)
+                });
+                arm('E2 no match, Cancel: Not confirmed, nothing sent, the session still runs', v.ok, v.said);
+              }
+              // E4
+              {
+                const done = byFor(events, 'end-these', 'end-these')[0] ?? null;
+                const before = marks['auth:end-these']?.done ?? null;
+                const v = gradeE4({
+                  authUp: auth('end-these'),
+                  acked: acked('end-these'),
+                  dialog: byFor(events, 'end-dialog', 'end-these')[0] ?? null,
+                  wantHeading: 'End 2 running sessions?',
+                  wantBody: batchBodyLocal,
+                  names: [S.e4a.name, S.e4b.name],
+                  wantSkipped: '1 selected session stays unchanged: 1 already ended',
+                  targets: [S.e4a.id, S.e4b.id],
+                  skipped: S.e4c.id,
+                  outcomes: done?.outcomes ?? {},
+                  heading: done?.heading ?? null,
+                  wantDone: '2 of 2 sessions ended',
+                  doneLines: before === null || marks['screen:end-these'] === undefined ? null : marks['screen:end-these'].done - before
+                });
+                arm('E4 End these: the Mac sheet\'s order, two Ended, the ended row only in the skipped line', v.ok, v.said);
+              }
+              // E5 and E6
+              for (const [label, step, session, idle, relaunched] of [
+                ['E5 match with the write held before its handshake, then Home: withheld, never sent, the truth on return (Paseo #3464)', 'end-home', S.e5, 0, false],
+                ['E6 match then the app ended at once: at most one act, the truth on relaunch, nothing sent after', 'end-kill', S.e6, 2, true]
+              ]) {
+                const d = lastDump(events, step);
+                const before = marks[`auth:${step}`]?.done ?? null;
+                const v = gradeAfterLeaving({
+                  authUp: auth(step),
+                  acked: acked(step),
+                  doneLines: before === null || marks[`screen:${step}`] === undefined ? null : marks[`screen:${step}`].done - before,
+                  tmuxAlive: tmuxAlive(session.tmuxName),
+                  drawnStatus: el(d, 'session-status')?.label ?? null,
+                  doorStatus: await doorStatusOf(session.id),
+                  line: el(d, 'session-end-line')?.label ?? null,
+                  relaunched,
+                  writeLinesAfter: idleDelta(marks, idle, 'writes'),
+                  relayAfter: null,
+                  ...(step === 'end-home' ? { held: typeof marks['held:end-home'] === 'number' ? marks['held:end-home'] : null } : {})
+                });
+                arm(label, v.ok, v.said);
+              }
+              // E7
+              {
+                const done = byFor(events, 'end-these', 'end-these-home')[0] ?? null;
+                const pressed = events.find((e) => e.step === 'end-these-home-pressed') ?? null;
+                const rows = [];
+                for (const s of E7) rows.push({ id: s.id, word: done?.outcomes?.[s.id] ?? null, tmuxAlive: tmuxAlive(s.tmuxName), acts: await actsFor(s.id) });
+                const held = typeof marks['held:end-these-home'] === 'number' ? marks['held:end-these-home'] : null;
+                const confirmed = confirmOrderOf(byFor(events, 'end-dialog', 'end-these-home')[0] ?? null, [S.e7a, S.e7b, S.e7c]);
+                const order = { drawn: e7Drawn === null ? null : e7Drawn.map((s) => s.id), confirmed: confirmed === null ? null : confirmed.map((s) => s.id) };
+                const v = gradeE7({ authUp: auth('end-these-home'), acked: acked('end-these-home'), rowOne: pressed?.rowOne ?? null, rows, writeLinesAfter: idleDelta(marks, 1, 'writes'), held, order });
+                report.readings.E7 = { rowTwo: rows[1]?.word ?? null, held, order: { drawn: e7Drawn?.map((s) => s.name) ?? null, confirmed: confirmed?.map((s) => s.name) ?? null } };
+                arm('E7 a batch interrupted by Home with row two held before its handshake: row two and three Not run, nothing sent after', v.ok, v.said);
+              }
+              // E3
+              {
+                const v = gradeE3({
+                  acked: events.some((e) => e.step === 'unenrolled' && e.acked === true),
+                  bar: byFor(events, 'end-bar', 'end-off')[0] ?? null,
+                  dialog: events.find((e) => e.step === 'end-off-press')?.dialog ?? null,
+                  prompt: events.find((e) => e.step === 'end-off-press')?.prompt ?? null
+                });
+                arm('E3 Face ID unenrolled: what iOS answers is drawn, and nothing asks', v.ok, v.said);
+              }
+            });
+
+            // ---- E10: the floor, iOS 18.3: E1 --------------------------------
+            await confirmListening(cdp);
+            await withSimulator({ label: 'p316-end-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-end-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              const marks = {};
+              const wantE10 = (await readJson(`/v1/session?id=${encodeURIComponent(S.e10.id)}`))?.session?.endConfirm ?? null;
+              const run = await pairAndRead(sim, ['pair', 'list', `open:${S.e10.id}`, 'end'], 'end-floor', { env: { P316_ACKS: ACKS }, react: reactor(sim, ['match'], marks) });
+              const ev = run.ok ? run.result.events : [];
+              const d = lastDump(ev, 'end');
+              const before = marks['auth:end']?.done ?? null;
+              const v1 = gradeE1({
+                authUp: byFor(ev, 'end-auth-up', 'end').length > 0,
+                acked: byFor(ev, 'end-auth-answered', 'end').some((e) => e.acked === true),
+                permission: { seen: byFor(ev, 'faceid-permission', 'end').some((e) => e.seen === true), pressed: byFor(ev, 'faceid-permission', 'end').find((e) => e.pressed !== undefined)?.pressed ?? null, stillUp: byFor(ev, 'faceid-permission', 'end').some((e) => e.stillUp === true) },
+                bar: byFor(ev, 'end-bar', 'end')[0] ?? null,
+                dialog: byFor(ev, 'end-dialog', 'end')[0] ?? null,
+                want: wantE10,
+                doneLines: before === null || marks['screen:end'] === undefined ? null : marks['screen:end'].done - before,
+                tmuxAlive: tmuxAlive(S.e10.tmuxName),
+                mainStatus: await mainStatusOf(S.e10.id),
+                drawnStatus: el(d, 'session-status')?.label ?? null,
+                doorStatus: await doorStatusOf(S.e10.id),
+                barAfter: el(d, 'session-end-bar') !== null
+              });
+              arm('E10 the floor (iOS 18.3): E1', v1.ok, v1.said);
+            });
+
+            // ---- EH: the hostile door's write arms --------------------------
+            const writeArms = Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].write === true);
+            await withSimulator({ label: 'p316-end-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-end-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              for (const name of writeArms) {
+                const spec = HOSTILE_ARMS[name];
+                await sim.simctl('keychain', 'reset');
+                const door = await startDoorChild(name);
+                doorChildren.add(door.child);
+                try {
+                  if (door.facts === null) {
+                    arm(`EH ${name}`, null, door.why ?? 'the hostile door did not start');
+                    continue;
+                  }
+                  const steps = ['pair', 'list', `open:${door.facts.sessionToOpen}`, spec.posts === 0 ? 'end-read' : 'end'];
+                  const r = await drive(sim, {
+                    test: { id: UI_TEST },
+                    label: `end-hostile-${name}`,
+                    env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: ACKS, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                    onEvent: reactor(sim, ['match'], {})
+                  });
+                  if (r.events.length === 0) {
+                    arm(`EH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                    continue;
+                  }
+                  const d = [...r.events].reverse().find((e) => e.step === 'screen') ?? null;
+                  const bar = r.events.filter((e) => e.step === 'end-bar').at(-1) ?? null;
+                  const v = gradeEh({
+                    alive: aliveOf(r.events),
+                    posts: door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/end').length,
+                    wantPosts: spec.posts,
+                    ends: spec.ends,
+                    expect: spec.expect,
+                    door: (spec.door ?? []).map((k) => door.facts.writeSentences?.[k] ?? null).filter((x) => x !== null),
+                    never: spec.never,
+                    line: el(d, 'session-end-line')?.label ?? (spec.posts === 0 ? bar?.line ?? null : null),
+                    onList: el(d, 'screen-list') !== null && el(d, 'screen-session') === null,
+                    onPairing: el(d, 'screen-pairing') !== null,
+                    enabled: bar?.enabled ?? null,
+                    title: door.facts.endOffer?.title ?? null,
+                    dialog: r.events.find((e) => e.step === 'end-read-press')?.dialog ?? null
+                  });
+                  arm(`EH ${name}: ${spec.what}`, v.ok, v.said);
+                } finally {
+                  await endDoorChild(door.child);
+                  doorChildren.delete(door.child);
+                }
+              }
+            });
+
+            // ---- EP: the parent's app ----------------------------------------
+            if (PARENT_IOS_317 !== '') {
+              const parentProject = join(resolve(PARENT_IOS_317), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, 'dd-parent');
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label: 'parent-end', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) arm('EP the parent\'s app: no End, no Select, and its Unpair leaves the Mac\'s row', null, `the parent's project did not build (${String(built.code)})`);
+              else {
+                await confirmListening(cdp);
+                await withSimulator({ label: 'p316-end-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-end-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, ['pair', 'list', `open:${S.ep.id}`, 'settings', 'unpair'], 'end-parent', { project: parentProject, derivedDataPath: parentDd });
+                  const ev = run.ok ? run.result.events : [];
+                  const st = (await pocket(cdp, 'status')).value ?? null;
+                  const pressedAt = ev.find((e) => e.step === 'unpair-pressed')?.at ?? null;
+                  const landedAt = ev.find((e) => e.step === 'unpair-landed')?.at ?? null;
+                  const v = gradeEp({
+                    sessionDrawn: lastDump(ev, 'session') !== null,
+                    endBar: ev.some((e) => e.step === 'screen' && el(e, 'session-end-bar') !== null),
+                    select: ev.some((e) => e.step === 'screen' && el(e, 'list-select') !== null),
+                    // The parent's Unpair is SEEN to run: its question read,
+                    // then Pairing drawn in the dump its step writes.
+                    unpairSheet: ev.some((e) => e.step === 'unpair-sheet' && e.for === 'unpair'),
+                    unpairedToPairing: el(lastDump(ev, 'unpair'), 'screen-pairing') !== null,
+                    macLists: (st?.phones ?? []).some((p) => p.id === run.simPhoneId),
+                    ms: pressedAt === null || landedAt === null ? undefined : Math.round(landedAt - pressedAt)
+                  });
+                  arm('EP the parent\'s app: no End, no Select, and its Unpair leaves the Mac\'s row', v.ok, v.said);
+                });
+              }
+            } else report.readings.endParent = 'not run: P317_PARENT_IOS is not set';
+          }
+        }
+
         if (ARMS.has('hostile')) {
-          const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).join(',')).split(',').map((s) => s.trim());
+          // THE WRITE ARMS ARE THE END GROUP'S (EH), never this loop's: this
+          // loop drives a read and grades it as one, so a write arm here read
+          // FAIL for want of a press it never made (the fix round, after the
+          // verify ran the nine write arms twice). Named or not, they are left out.
+          const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).join(','))
+            .split(',')
+            .map((s) => s.trim())
+            .filter((name) => HOSTILE_ARMS[name]?.write !== true);
           await withSimulator({ label: 'p316-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             for (const name of wanted) {
               const spec = HOSTILE_ARMS[name];

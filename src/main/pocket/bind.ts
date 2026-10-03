@@ -98,10 +98,21 @@ export interface DoorAdmission {
   stopping(): boolean;
 }
 
-/** What main answers a forwarded request. A refusal is `404` and no body. */
+/**
+ * What main answers a forwarded request. A refusal is `404` and no body.
+ *
+ * `acted` NEVER CROSSES TO THE DOOR PROCESS (Phase 317, build/p317/SPEC.md
+ * §5.3.4): the post below builds its message from `status` and `body` alone.
+ */
 export interface DoorAnswer {
   readonly status: 200 | 404;
   readonly body: string | null;
+  /**
+   * This answer speaks for a write that ACTED, or that may be acting now under
+   * the same write id. It is NEVER replaced by a 404, whatever the door is
+   * doing, because a 404 tells the phone nothing was done.
+   */
+  readonly acted?: true;
 }
 
 /** `./server.ts`'s handler, handed the door that accepted the request. */
@@ -368,13 +379,17 @@ export class PocketDoor {
     this.post(message);
   }
 
-  private post(message: ToDoor): void {
+  private post(message: ToDoor, answer: { acted: boolean } = { acted: false }): void {
     if (this.exited || this.child === null) return;
     // THE SAME VALIDATOR THE DOOR RUNS, on this side too: an answer over the
     // bound is refused here rather than dropped there with the phone waiting.
+    // AN ACTED ANSWER IS NEVER REPLACED BY A 404 (Phase 317): nothing is
+    // posted, and the door process's write timer cuts the connection instead.
     const checked = toDoorOf(message);
     if (checked === null) {
-      if (message.kind === 'answer') this.child.post({ kind: 'answer', id: message.id, ...REFUSED });
+      if (message.kind === 'answer' && !answer.acted) {
+        this.child.post({ kind: 'answer', id: message.id, ...REFUSED });
+      }
       return;
     }
     try {
@@ -398,13 +413,17 @@ export class PocketDoor {
       case 'refused':
         this.waiters.first?.('refused');
         return;
-      case 'refusal':
-        // One line per word per process, a WORD and never a value.
-        if (!loggedWords.has(message.word)) {
-          loggedWords.add(message.word);
-          log.warn(`refused a connection at the door: ${message.word}`);
+      case 'refusal': {
+        // One line per word per process, a WORD and never a value. Read into a
+        // local first, so the log line names a word and not the message it
+        // came in (`conformance:pocket` G1, Phase 317).
+        const word = message.word;
+        if (!loggedWords.has(word)) {
+          loggedWords.add(word);
+          log.warn(`refused a connection at the door: ${word}`);
         }
         return;
+      }
       case 'stopped':
         this.waiters.stopped?.();
         return;
@@ -431,8 +450,13 @@ export class PocketDoor {
         answer = REFUSED;
       }
       // Asked AGAIN, with nothing awaited between the question and the post.
-      if (admission.stopping()) answer = REFUSED;
-      this.post({ kind: 'answer', id, status: answer.status, body: answer.status === 404 ? null : answer.body });
+      // An answer for a write that acted is never replaced (Phase 317): the
+      // door stopping after the act does not make the act not have happened.
+      if (admission.stopping() && answer.acted !== true) answer = REFUSED;
+      this.post(
+        { kind: 'answer', id, status: answer.status, body: answer.status === 404 ? null : answer.body },
+        { acted: answer.acted === true }
+      );
     })();
     this.inFlight.add(job);
     void job.finally(() => this.inFlight.delete(job));

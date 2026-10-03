@@ -161,6 +161,11 @@ struct PocketBlockedRow: Equatable, Sendable, Identifiable {
     let blockedSince: Double
     let seenAtWake: Bool
     let ageText: String
+    /// Whether the Mac offers End on this row (Phase 317), decided in main by
+    /// both of the Mac's End gates. A Mac older than 317 sends none, which is
+    /// `.none`: no End is drawn. The press asks main again by id, so this
+    /// decides what is drawn and nothing else.
+    var end: PocketEndOffer = .none
 
     var id: String { sessionId }
     var dot: StatusDot { StatusDot(name: statusDot) }
@@ -169,7 +174,7 @@ struct PocketBlockedRow: Equatable, Sendable, Identifiable {
 extension PocketBlockedRow: Codable {
     enum CodingKeys: String, CodingKey {
         case sessionId, name, project, machine, agent, agentLabel, statusLabel, statusTitle
-        case statusDot, question, choices, blockedSince, seenAtWake, ageText
+        case statusDot, question, choices, blockedSince, seenAtWake, ageText, end
     }
 
     init(from decoder: Decoder) throws {
@@ -188,6 +193,151 @@ extension PocketBlockedRow: Codable {
         blockedSince = try c.decode(Double.self, forKey: .blockedSince)
         seenAtWake = try c.decode(Bool.self, forKey: .seenAtWake)
         ageText = try c.decode(String.self, forKey: .ageText)
+        // Absent on a Mac older than Phase 317: no End is offered.
+        end = try c.decodeIfPresent(PocketEndOffer.self, forKey: .end) ?? .none
+    }
+}
+
+// MARK: - End (Phase 317)
+
+/// `PocketEndOffer`: End on one row, as main decided it.
+///
+///   - `offered`: both gates say yes now. `batch` is false only for the Mac
+///     batch's one narrowing (a session on a machine Tortie holds no row for),
+///     which a single End may clear and End these never touches.
+///   - `unreachable`: Tortie cannot see whether it runs. `title` is the Mac's
+///     own sentence, drawn under an End that is off.
+///   - `none`: no End is drawn.
+///
+/// A state word this build does not know is `.none`: a newer Mac's offer is
+/// never guessed into a press that ends something. A KNOWN word missing its
+/// field refuses the whole answer, as a missing field does everywhere here.
+enum PocketEndOffer: Equatable, Sendable {
+    case offered(batch: Bool)
+    case unreachable(title: String)
+    case none
+
+    /// Whether End may be pressed on this row from the session screen.
+    var isOffered: Bool {
+        if case .offered = self { return true }
+        return false
+    }
+
+    /// Whether End these may end this row: offered, and not the batch's one
+    /// narrowing.
+    var batchMayEnd: Bool {
+        if case .offered(let batch) = self { return batch }
+        return false
+    }
+}
+
+extension PocketEndOffer: Codable {
+    enum CodingKeys: String, CodingKey { case state, batch, title }
+
+    /// The three words, spelled once.
+    enum Word {
+        static let offered = "offered"
+        static let unreachable = "unreachable"
+        static let none = "none"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .state) {
+        case Word.offered:
+            self = .offered(batch: try c.decode(Bool.self, forKey: .batch))
+        case Word.unreachable:
+            self = .unreachable(title: try c.decode(String.self, forKey: .title))
+        default:
+            self = .none
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .offered(let batch):
+            try c.encode(Word.offered, forKey: .state)
+            try c.encode(batch, forKey: .batch)
+        case .unreachable(let title):
+            try c.encode(Word.unreachable, forKey: .state)
+            try c.encode(title, forKey: .title)
+        case .none:
+            try c.encode(Word.none, forKey: .state)
+        }
+    }
+}
+
+/// `PocketEndConfirm`: the Mac's own End confirmation for one session, word for
+/// word, composed in main by `endSessionConfirm` over main's own row. The phone
+/// draws it and writes none of it.
+struct PocketEndConfirm: Equatable, Sendable {
+    let title: String
+    let body: String
+    let confirmLabel: String
+}
+
+extension PocketEndConfirm: Codable {
+    enum CodingKeys: String, CodingKey { case title, body, confirmLabel }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        title = try c.decode(String.self, forKey: .title)
+        body = try c.decode(String.self, forKey: .body)
+        confirmLabel = try c.decode(String.self, forKey: .confirmLabel)
+    }
+}
+
+/// `PocketWriteAnswer`: what `POST /v1/end` answers with a 200. Every word is
+/// one of a CLOSED set, and the answer refuses whole when a word is not, or
+/// when its fields disagree with its outcome (a reason exactly
+/// when refused, a sentence exactly when not done). The client turns any
+/// refusal of this shape into "no answer" (Door/DoorClient.swift
+/// `WriteResult`), because the bytes reached the Mac and what it did is not
+/// known.
+struct PocketWriteAnswer: Equatable, Sendable {
+    enum Verb: String, Sendable, Codable { case end }
+    enum Outcome: String, Sendable, Codable { case done, refused, failed, busy }
+    enum Reason: String, Sendable, Codable { case removed, unreachable, ended, gone, malformed }
+
+    let verb: Verb
+    /// The write id the request carried, echoed; `""` only on the one
+    /// `refused` `malformed` answer the Mac makes when it could read no id.
+    let write: String
+    let outcome: Outcome
+    let reason: Reason?
+    /// The owner's words; nil exactly when `done`.
+    let sentence: String?
+}
+
+extension PocketWriteAnswer: Codable {
+    enum CodingKeys: String, CodingKey { case verb, write, outcome, reason, sentence }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        verb = try c.decode(Verb.self, forKey: .verb)
+        write = try c.decode(String.self, forKey: .write)
+        outcome = try c.decode(Outcome.self, forKey: .outcome)
+        reason = try c.nullable(Reason.self, forKey: .reason)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        // A reason exactly when refused.
+        guard (reason != nil) == (outcome == .refused) else {
+            throw DecodingError.dataCorruptedError(forKey: .reason, in: c, debugDescription: "a reason comes with refused, and only with it")
+        }
+        // A sentence, and a non-empty one, exactly when not done.
+        let said = sentence.map { !$0.isEmpty } ?? false
+        guard said == (outcome != .done), sentence == nil || said else {
+            throw DecodingError.dataCorruptedError(forKey: .sentence, in: c, debugDescription: "a sentence comes with every outcome but done")
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(verb, forKey: .verb)
+        try c.encode(write, forKey: .write)
+        try c.encode(outcome, forKey: .outcome)
+        try c.encode(reason, forKey: .reason)
+        try c.encode(sentence, forKey: .sentence)
     }
 }
 
@@ -287,6 +437,11 @@ struct PocketSessionDetail: Equatable, Sendable {
     let activity: PocketSessionActivity?
     /// Null exactly when the counts carry no time. Never drawn as a zero.
     let lastMessageText: String?
+    /// The Mac's own End confirmation for this session (Phase 317): present
+    /// exactly when the row's `end` is `offered`, and absent on a Mac older
+    /// than 317. An End is drawn only with it, so the phone never makes up
+    /// the words of a confirmation.
+    var endConfirm: PocketEndConfirm?
 
     subscript<T>(dynamicMember path: KeyPath<PocketBlockedRow, T>) -> T {
         row[keyPath: path]
@@ -295,7 +450,7 @@ struct PocketSessionDetail: Equatable, Sendable {
 
 extension PocketSessionDetail: Codable {
     enum CodingKeys: String, CodingKey {
-        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText
+        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm
     }
 
     init(from decoder: Decoder) throws {
@@ -307,6 +462,9 @@ extension PocketSessionDetail: Codable {
         handoff = try c.nullable(PocketHandoff.self, forKey: .handoff)
         activity = try c.nullable(PocketSessionActivity.self, forKey: .activity)
         lastMessageText = try c.nullable(String.self, forKey: .lastMessageText)
+        // Absent on a Mac older than Phase 317, and null on every row End is
+        // not offered on.
+        endConfirm = try c.decodeIfPresent(PocketEndConfirm.self, forKey: .endConfirm)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -318,6 +476,7 @@ extension PocketSessionDetail: Codable {
         try c.encodeIfPresent(handoff, forKey: .handoff)
         try c.encodeIfPresent(activity, forKey: .activity)
         try c.encodeIfPresent(lastMessageText, forKey: .lastMessageText)
+        try c.encodeIfPresent(endConfirm, forKey: .endConfirm)
     }
 }
 

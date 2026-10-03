@@ -29,7 +29,8 @@
  * the ledger names, and that is all.
  *
  * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
- * since Phase 316.6) through `<iframe src="…">` and its own prose is
+ * since Phase 316.6, thirteen since Phase 317's End these) through
+ * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
  * asserts that every screen the directory holds is shown through an iframe and
@@ -225,6 +226,13 @@ const REGISTRY = 'src/main/agents/registry.ts';
  * saying so (build/p316/SPEC.md §4.0 "Words", §2 row 31).
  */
 const PHONE_COPY = 'ios/Tortie/Style/Copy.swift';
+/**
+ * THE END WORDS (Phase 317, build/p317/SPEC.md §5.2, D9). `endSessionConfirm`
+ * and `END_UNREACHABLE_TITLE` moved byte for byte from the renderer to this
+ * shared module, so main can compose the Mac's own confirmation for the phone.
+ * The renderer's words modules re-export them; the literal lives here alone.
+ */
+const LIFECYCLE_WORDS = 'src/shared/lifecycle-words.ts';
 
 const LEDGER = [
   // -------------------------------------------------------------------------
@@ -464,10 +472,76 @@ const LEDGER = [
   }),
   owned({
     when: /^End ‘.+’\?$|^End '.+'\?$/,
-    module: 'src/renderer/state/resume.ts',
+    module: LIFECYCLE_WORDS,
     needle: "title: `End '${session.name}'?`",
     draws: "End '",
-    why: "endSessionConfirm's shipped title, which the End sheet mirrors"
+    why: "endSessionConfirm's shipped title, which the phone draws word for word since Phase 317 (D10); the module moved from src/renderer/state/resume.ts with the words, needle unchanged"
+  }),
+  // PHASE 317 (build/p317/SPEC.md §5.8, D10, F4). The End sheet is the Mac's own
+  // confirmation, word for word, and End these is the Mac sheet's, in its
+  // order. Every word below is a Mac module's, owned there.
+  owned({
+    is: 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.',
+    module: LIFECYCLE_WORDS,
+    needle: "'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.'",
+    draws: 'This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.',
+    why: "endSessionConfirm's body for a session on this Mac whose conversation is recorded, which the door composes over main's own row and the phone draws verbatim"
+  }),
+  owned({
+    is: 'End session',
+    module: LIFECYCLE_WORDS,
+    needle: "confirmLabel: 'End session'",
+    draws: 'End session',
+    why: "endSessionConfirm's press, the confirmation's destructive button; Face ID, Touch ID or the passcode is asked after it and before anything is sent"
+  }),
+  owned({
+    is: 'End session…',
+    module: MANAGER_COPY,
+    needle: "END_SESSION = 'End session…'",
+    draws: 'End session…',
+    why: "the End bar's word above the tab bar, the session manager's own row press"
+  }),
+  owned({
+    when: /^\d+ selected$/,
+    module: MANAGER_COPY,
+    needle: 'return `${String(n)} selected`;',
+    draws: ' selected',
+    why: "selectedCount, the bar's count while Select is on; the number is how many rows are ticked"
+  }),
+  owned({
+    is: 'End selected sessions…',
+    module: MANAGER_COPY,
+    needle: "END_SELECTED = 'End selected sessions…'",
+    draws: 'End selected sessions…',
+    why: "the Mac sheet's batch press, drawn in the bar while Select is on"
+  }),
+  owned({
+    when: /^End \d+ running sessions?\?$/,
+    module: MANAGER_COPY,
+    needle: 'return `End ${String(n)} running ${sessionWord(n)}?`;',
+    draws: ' running session',
+    why: "batchHeading, the batch confirmation's title"
+  }),
+  owned({
+    is: 'This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended.',
+    module: MANAGER_COPY,
+    needle: "'This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended.'",
+    draws: 'This stops what is running in them, including sessions in closed projects. What each printed is saved first, and they stay in Managed as Ended.',
+    why: "batchBody's local sentence, which the Mac sheet draws FIRST in its confirmation and the phone draws in the same place (F4); no target in the mock is on another machine, so the remote tail is not drawn"
+  }),
+  owned({
+    is: '1 selected session stays unchanged: 1 already ended',
+    module: MANAGER_COPY,
+    needle: "'1 selected session stays unchanged:'",
+    draws: '1 selected session stays unchanged: ',
+    why: 'batchSkippedLine: a selected row the confirmation will not end is counted with its reason and never listed as a target (F19)'
+  }),
+  owned({
+    when: /^End \d+ sessions?$/,
+    module: MANAGER_COPY,
+    needle: 'return `End ${String(n)} ${sessionWord(n)}`;',
+    draws: 'End ',
+    why: "batchConfirmLabel, the batch confirmation's destructive press"
   }),
   owned({
     is: 'Cancel',
@@ -542,7 +616,16 @@ const LEDGER = [
     module: PHONE_COPY,
     needle: 'static let unpairNote = "It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone."',
     draws: 'It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone.',
-    why: "what Unpair does and does not do, until Phase 317's signed verb; its three Mac nouns are pinned by the `/// Names:` lines above it in Copy.swift"
+    why: "what Unpair does and does not do: the Mac's half is not built (Phase 317's fix round took its signed unpair out); its three Mac nouns are pinned by the `/// Names:` lines above it in Copy.swift"
+  }),
+  // PHASE 317: Select is the phone's own word now (SPEC §5.8.4, §5.8.7). No Mac
+  // surface says it, so Copy.swift declares it with its reason.
+  owned({
+    is: 'Select',
+    module: PHONE_COPY,
+    needle: 'static let select = "Select"',
+    draws: 'Select',
+    why: "the Sessions tab's press that starts End these, drawn only when at least one row's End is offered"
   }),
   owned({
     is: 'Unpair',
@@ -752,20 +835,11 @@ const LEDGER = [
     is: 'and run the suite when you are done',
     why: "the person's own message, mid-typing"
   }),
-  data({
-    when: /^Actions for .+$/,
-    why: "an accessible name built from a session's own name; the noun is iOS's own word for a row menu"
-  }),
 
   // -------------------------------------------------------------------------
   // Copy no module owns yet. Each names the phase that owes it. THESE ARE
   // PRINTED AND COUNTED, and one whose words the tree has since grown fails.
   // -------------------------------------------------------------------------
-  owed({
-    is: 'Select',
-    phase: 'Phase 317',
-    why: 'the multi-select affordance for End these; no Tortie surface has the word today'
-  }),
   // RE-POINTED IN PHASE 316.2 (build/p316/SPEC.md §2 row 31, §7). The message
   // box stays the approved design for the reply door, so its four rows are owed
   // there; the ssh hand-off is removed from the product and owed to nobody; and
@@ -802,32 +876,6 @@ const LEDGER = [
     why: "the Remote Control hand-off's press, research 127 §4. No module in src/ has the URL, and the door answers `handoff: null` (build/p316/SPEC.md §2 row 20)"
   }),
   owed({
-    is: 'End with Face ID',
-    phase: 'Phase 317',
-    why: 'the one write verb in v1, behind local authentication'
-  }),
-  owed({
-    is: 'The agent stops. Its saved output stays.',
-    phase: 'Phase 317',
-    why: "the End sheet's body on a phone. The desktop's body names the scrollback and restoring, which is longer than a sheet gives"
-  }),
-  owed({
-    is: 'What the phone will not do',
-    phase: 'Phase 317',
-    why: 'the refusals card on the End screen'
-  }),
-  owed({
-    is: 'No Restore — it would relaunch an agent with its safeguards off while nobody is watching.',
-    phase: 'Phase 317',
-    why: "research 127 §7 item 15's refusal, drawn for the person"
-  }),
-  owed({
-    is: 'No Remove — it deletes saved output.',
-    phase: 'Phase 317',
-    why: "research 127 §7 item 15's second refusal"
-  }),
-  owed({ is: 'No Restart.', phase: 'Phase 317', why: 'the third refusal' }),
-  owed({
     is: 'The last line is only there when the question can be decrypted on this phone. Without it the card stops after the project and the agent — never filler.',
     phase: 'the Notification Service Extension’s later entry',
     why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption. Phase 314 REFUSED the question line — a native alert is JSON Apple reads — so the decrypting extension that would add it is later Swift and its own entry, and this note is owed there rather than to 314"
@@ -847,8 +895,14 @@ const OWED_ABSENCE_FLOOR = 16;
  * rules were quietly moved to `data` would still pass every other check, so the
  * floor is what keeps this gate a comparison rather than a census. A deliberate
  * removal lowers it in the same commit and names the rule.
+ *
+ * PHASE 317 RAISED IT FROM 48 TO 58, the count the run matches: ten owned rules
+ * for End, End these and Select joined (the confirmation's body and press, the
+ * End bar's word, the batch bar's count and press, the batch heading, body,
+ * skipped line and press, and Select), and the six owed 317 rows and the
+ * `Actions for` data rule left with the refusals card and the actions button.
  */
-const OWNED_RULE_FLOOR = 47;
+const OWNED_RULE_FLOOR = 57;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -892,7 +946,13 @@ function readModules(ledger) {
   const out = new Map();
   for (const rule of ledger) {
     if (rule.verdict !== 'owned' || out.has(rule.module)) continue;
-    out.set(rule.module, readFileSync(join(ROOT, rule.module), 'utf8'));
+    // A module that is not there owns nothing: its rules fail on their needle
+    // by name, rather than the whole gate dying on a read.
+    try {
+      out.set(rule.module, readFileSync(join(ROOT, rule.module), 'utf8'));
+    } catch {
+      out.set(rule.module, '');
+    }
   }
   return out;
 }
@@ -1041,8 +1101,17 @@ function checkContactSheet(names, sheet) {
  * as text in plain node, so a machine with no Xcode still judges the phone's
  * words on every run of this gate. Pure over its inputs so the self-test can
  * mutate the file and the modules in memory.
+ *
+ * PHASE 317 RAISED PHONE_MAC_FLOOR FROM 39 TO 68, the count the run matches:
+ * End's and End these' words are each a piece of a Mac composer, pinned
+ * `/// Mac:` to src/renderer/session-manager/copy.ts (the batch heading, body
+ * and its remote tail, the skipped line's pieces, the running and done
+ * headings, every outcome word, Stop and Done). PHONE_NAMES_FLOOR stays 7, the
+ * count the run matches: Unpair's three `/// Names:` pins stay on unpairNote,
+ * the words that send a person to Remove (the fix round took the line that
+ * would have carried them, unpairMacMayList, out with Unpair's Mac half).
  */
-const PHONE_MAC_FLOOR = 39;
+const PHONE_MAC_FLOOR = 68;
 const PHONE_NAMES_FLOOR = 7;
 
 /** `src/x.ts ⟦text⟧` to [path, text], or null. */
@@ -1220,6 +1289,14 @@ const PHONE_MUTATIONS = [
     what: "the Mac renames Remove, the button Unpair's note sends a person to",
     swift: (t) => t,
     module: ['src/renderer/settings/PhoneSection.tsx', (t) => t.replace("BTN_REMOVE = 'Remove'", "BTN_REMOVE = 'Forget'")]
+  },
+  {
+    // Phase 317: End these' press is the Mac sheet's own word, so a Mac that
+    // renames it must turn Copy.endSelected red, by name.
+    what: 'the Mac renames END_SELECTED, the batch press the phone copied',
+    swift: (t) => t,
+    module: [MANAGER_COPY, (t) => t.replace("END_SELECTED = 'End selected sessions…'", "END_SELECTED = 'End the selected sessions…'")],
+    names: 'endSelected'
   }
 ];
 
@@ -1331,6 +1408,23 @@ const MUTATIONS = [
       return next;
     },
     names: 'Run make install and then deploy?'
+  },
+  {
+    // Phase 317: the End sheet is the Mac's sentence for the session, word for
+    // word, so one word changed in its body must fail by name (D10).
+    what: "one word changed in the End sheet's body",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set(
+        'End.html',
+        (next.get('End.html') ?? '').replace(
+          'The scrollback and the conversation are saved first',
+          'The scrollback and the conversation are kept first'
+        )
+      );
+      return next;
+    },
+    names: 'This stops what is running in it. The scrollback and the conversation are kept first, so you can restore this session later.'
   },
   {
     // Phase 316.6: a tab label re-cased, in the drawn text and not the
@@ -1669,10 +1763,15 @@ function main() {
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing in ${mutation.module[0]}, so it proves nothing`);
         continue;
       }
-      const red = judgeCopySwift(mutatedSwift, reader).findings.length > phone.findings.length;
+      const mutatedFindings = judgeCopySwift(mutatedSwift, reader).findings;
+      const red = mutatedFindings.length > phone.findings.length;
+      const named = mutation.names === undefined || mutatedFindings.some((f) => `${f.text} ${f.why}`.includes(mutation.names));
       if (!red) {
         failed = true;
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding, so Copy.swift is not being judged`);
+      } else if (!named) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} went red without naming ${mutation.names}, so the word it was written for is not the one judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

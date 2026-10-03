@@ -61,7 +61,7 @@ import {
   POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
-  POCKET_READ_ONLY_HONESTY,
+  POCKET_DOOR_HONESTY,
   type PocketNameAnswer,
   type PocketNameCheck,
   type PocketNameProgress,
@@ -320,7 +320,13 @@ describe('nothing starts before a person reads', () => {
     }
     expect(page).toContain(POCKET_CONFIRM_WARNING);
     expect(POCKET_CONFIRM_WARNING).toContain('over the internet');
-    expect(page).toContain(POCKET_READ_ONLY_HONESTY);
+    expect(page).toContain(POCKET_DOOR_HONESTY);
+    // PHASE 317 (SPEC D13, D19, §14 finding 12): the sentence says what an
+    // allowed phone can do now, and claims no check the Mac cannot make.
+    expect(POCKET_DOOR_HONESTY).toBe(
+      'A phone you allow can end a session. Nothing on it can type into a session or change anything else on this Mac.'
+    );
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/Face ID|Touch ID|passcode/);
     expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
     expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
     expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');

@@ -40,6 +40,18 @@ export const DOOR_STOP_CLOSE_MS = 1_000;
 /** The most bytes `POST /pair` will read before dropping the request whole. */
 export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 
+/**
+ * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3). The door
+ * process checks the size and drops a body over it whole; main parses.
+ *
+ * Computed from the worst legal body, not guessed: `end`'s is
+ * `{"session":"<128 chars>","write":"<32 hex>","batch":false}`, 199 bytes. A
+ * vitest encodes it and holds it under this. Keyed by the route id, so the
+ * listener reads the cap of the row it matched and a write route with no cap
+ * here is a type error.
+ */
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512 } as const);
+
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {
   readonly proxyHeaderMs: number;

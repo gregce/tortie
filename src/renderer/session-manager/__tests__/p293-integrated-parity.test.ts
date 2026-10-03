@@ -61,7 +61,7 @@ const { useApp } = await import('../../state/store');
 const { manageMenuItems } = await import('../actions');
 const { sessionMenuItems } = await import('../../app/session-actions');
 const { selectManageProjection } = await import('../use-sheet-refresh');
-const { sessionActionGates } = await import('../../state/resume');
+const { sessionActionGates } = await import('@shared/session-gates');
 const { effectiveStatusOf } = await import('../../state/store');
 const { sessionGateEnv } = await import('../../app/session-actions');
 

@@ -5,8 +5,13 @@
  *
  * WHAT IT DRIVES. The SHIPPING modules, never a copy of them:
  *
- *   - `sessionActionGates` (src/renderer/state/resume.ts), the one gates
- *     predicate every surface reads;
+ *   - `sessionActionGates` (src/shared/session-gates.ts since Phase 317, which
+ *     moved it unchanged from src/renderer/state/resume.ts), the one gates
+ *     predicate every surface reads and the phone's door asks;
+ *   - beside it, main's `endRefusal` (src/main/sessions/lifecycle-gate.ts), so
+ *     the End partition between the two is DRIVEN (G2), and the End words in
+ *     src/shared/lifecycle-words.ts, which the renderer's words modules hand
+ *     out as the shared file's own objects;
  *   - `batchEligibility` and `runBatchEnd` (session-manager/batch-end.ts), the
  *     loop that ends many sessions, over plain injected functions;
  *   - `buildManageProjection` (projection.ts), `visibleGroups`, `visibleIds`,
@@ -235,7 +240,14 @@ const load = async (rel: string): Promise<Mod> => (await import(src(rel))) as Mo
 /** The gate reads the rules and decides; this process always exits 0 once it has answered. */
 const exitCode = 0;
 try {
+  // Phase 317. The gate and the End words live in src/shared, where main can
+  // read them too; resume.ts is loaded only to prove it hands out the shared
+  // file's own End words rather than a copy (G2).
+  const gatesMod = await load('shared/session-gates.ts');
+  const wordsMod = await load('shared/lifecycle-words.ts');
   const resume = await load('renderer/state/resume.ts');
+  const typesMod = await load('shared/types.ts');
+  const lifecycleGate = await load('main/sessions/lifecycle-gate.ts');
   const batchEnd = await load('renderer/session-manager/batch-end.ts');
   const projectionMod = await load('renderer/session-manager/projection.ts');
   const view = await load('renderer/session-manager/view.ts');
@@ -248,7 +260,10 @@ try {
 
   // The modules are loaded by URL at run time, so their types are named here
   // by hand at the width each rule needs, and no wider.
-  const sessionActionGates = resume['sessionActionGates'] as (s: Session, st: SessionStatus, env: unknown) => any;
+  const sessionActionGates = gatesMod['sessionActionGates'] as (s: Session, st: SessionStatus, env: unknown) => any;
+  const DOOR_GATE_ENV = gatesMod['DOOR_GATE_ENV'] as Record<string, unknown> | undefined;
+  const SESSION_STATUSES = typesMod['SESSION_STATUSES'] as readonly SessionStatus[];
+  const endRefusal = lifecycleGate['endRefusal'] as (record: { status: SessionStatus } | undefined) => string | null;
   const batchEligibility = batchEnd['batchEligibility'] as (s: Session, g: unknown, known: (id: string) => boolean) => string;
   const runBatchEnd = batchEnd['runBatchEnd'] as (deps: unknown) => Promise<any>;
   const buildManageProjection = projectionMod['buildManageProjection'] as (input: unknown) => any;
@@ -395,6 +410,57 @@ try {
         }
       }
     }
+  });
+
+  // =========================================================================
+  // Phase 317 §6.2 THE END PARTITION, between main's gate and the shared one
+  // =========================================================================
+
+  // The phone's door asks BOTH gates at the press (build/p317/SPEC.md D7),
+  // because neither alone is enough: main's `endRefusal` catches a removed row,
+  // and the shared gate's `canEnd` catches `exited`, `restorable` and above all
+  // `unknown`. That only holds while the two DISAGREE on exactly those three,
+  // so the disagreement is asserted AS a disagreement: a round that tidied
+  // either side toward the other (main refusing an ended row, or the gate
+  // passing one) reads red here, and a reader that read nothing cannot pass.
+  // Driven over the functions, never their text, so it holds whatever spelling
+  // of `live` the gate grows (316.7's `lifecycleOf` among them).
+  await rule('G2', 'Phase 317 §6.2', 'the End partition: main\'s endRefusal and the gate\'s canEnd agree on running, idle, needs_input (both end) and discarded (neither), and differ on exactly exited, restorable and unknown (main passes, the gate refuses); the sheet\'s End words are the shared file\'s own', (c) => {
+    const BOTH: SessionStatus[] = ['running', 'idle', 'needs_input'];
+    const NEITHER: SessionStatus[] = ['discarded'];
+    const GATE_ALONE_REFUSES: SessionStatus[] = ['exited', 'restorable', 'unknown'];
+    c.ok(Array.isArray(SESSION_STATUSES) && SESSION_STATUSES.length > 0, 'SESSION_STATUSES was read out of src/shared/types.ts');
+    c.eq([...SESSION_STATUSES].sort(), [...BOTH, ...NEITHER, ...GATE_ALONE_REFUSES].sort(), 'every status is placed in the partition, and no other: a new status must be placed here on purpose');
+    c.ok(typeof endRefusal === 'function', 'main\'s endRefusal was loaded');
+    c.ok(DOOR_GATE_ENV !== undefined && Object.isFrozen(DOOR_GATE_ENV), 'DOOR_GATE_ENV exists beside the gate, frozen');
+    const agreeEnd: string[] = [];
+    const agreeRefuse: string[] = [];
+    const mainAloneRefuses: string[] = [];
+    const gateAloneRefuses: string[] = [];
+    for (const status of SESSION_STATUSES) {
+      const mainPasses = endRefusal({ status }) === null;
+      // The door asks with DOOR_GATE_ENV; a row on this Mac and one on a
+      // machine must answer alike, since canEnd reads neither.
+      const local = sessionActionGates(sess('p', { status }), status, DOOR_GATE_ENV)['canEnd'] === true;
+      const remote = sessionActionGates(sess('p', { status, machine: STUDIO }), status, DOOR_GATE_ENV)['canEnd'] === true;
+      c.eq(remote, local, `canEnd for ${status} on a machine and on this Mac`);
+      if (mainPasses && local) agreeEnd.push(status);
+      else if (!mainPasses && !local) agreeRefuse.push(status);
+      else if (mainPasses) gateAloneRefuses.push(status);
+      else mainAloneRefuses.push(status);
+    }
+    c.eq(agreeEnd.sort(), [...BOTH].sort(), 'the statuses both gates end');
+    c.eq(agreeRefuse.sort(), [...NEITHER].sort(), 'the statuses both gates refuse');
+    c.eq(gateAloneRefuses.sort(), [...GATE_ALONE_REFUSES].sort(), 'the EXACT difference: main passes and the shared gate refuses');
+    c.eq(mainAloneRefuses, [], 'nothing main refuses that the shared gate would end');
+    // One definition each (D9): the renderer's two words modules re-export the
+    // shared file's objects, so the sheet, the menus and the phone's door
+    // cannot say two things.
+    c.ok(typeof wordsMod['endSessionConfirm'] === 'function' && resume['endSessionConfirm'] === wordsMod['endSessionConfirm'], 'resume.ts hands out lifecycle-words.ts\'s own endSessionConfirm, not a second one');
+    c.ok(typeof wordsMod['removeSessionConfirm'] === 'function' && resume['removeSessionConfirm'] === wordsMod['removeSessionConfirm'], 'resume.ts hands out lifecycle-words.ts\'s own removeSessionConfirm');
+    c.ok(typeof wordsMod['resumeReadiness'] === 'function' && resume['resumeReadiness'] === wordsMod['resumeReadiness'], 'resume.ts hands out lifecycle-words.ts\'s own resumeReadiness');
+    c.eq(copy['END_UNREACHABLE_TITLE'], wordsMod['END_UNREACHABLE_TITLE'], 'the sheet\'s END_UNREACHABLE_TITLE is the shared sentence');
+    c.eq(resume['LIFECYCLE_SESSION_CHANGED'], wordsMod['LIFECYCLE_SESSION_CHANGED'], 'resume.ts\'s LIFECYCLE_SESSION_CHANGED is the shared sentence');
   });
 
   // =========================================================================

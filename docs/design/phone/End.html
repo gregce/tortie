@@ -15,10 +15,19 @@ a { color: #4d9de8; }
 .tab.on { color: #4d9de8; }
 .tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
 .tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
+.endbar { flex-shrink: 0; height: 50px; box-sizing: border-box; background: #191B20; border-top: 1px solid #25282E; display: flex; align-items: center; gap: 10px; padding: 0 16px; color: #e5655e; font-size: 17px; }
 .badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
 </style>
 </head>
 <body>
+<!-- Phase 317 (build/p317/SPEC.md §5.8.3, D10): End sits in a bar above the tab
+     bar on a session the Mac would let him end, with the mark of what the phone
+     has (Face ID here; Touch ID or a lock elsewhere, never a word). Pressing it
+     draws the Mac's own confirmation word for word: endSessionConfirm's title,
+     the body the Mac shows for THIS session (a local one whose conversation is
+     recorded), and End session. Only Face ID, Touch ID or the passcode then
+     sends it. The refusals card and "The agent stops. Its saved output stays."
+     are gone: the mock may not invent a word Tortie does not say. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; position: relative; overflow: hidden;">
 
   <div style="padding: 44px 0 0 0;">
@@ -31,34 +40,40 @@ a { color: #4d9de8; }
     </div>
     <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px;">
       <div style="display: flex; align-items: center; gap: 8px;">
-        <span style="width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 0 0 2px #e5655e;"></span>
-        <span style="font-size: 17px;">Failed (exit 1)</span>
+        <span style="width: 10px; height: 10px; border-radius: 50%; background: #4d9de8;"></span>
+        <span style="font-size: 17px;">Working</span>
       </div>
       <div style="font-size: 15px; color: #9CA1AB;">Claude Code · webapp</div>
     </div>
   </div>
 
-  <!-- Phase 316.6: the tab bar under the dim; Phase 317's sheet covers it, as an action sheet does. -->
-  <div class="tabbar" style="position: absolute; left: 0; right: 0; bottom: 0;">
-    <a class="tab" href="NeedsInput.html">
-      <div class="ico">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
-        <div class="badge">3</div>
-      </div>
-      <div class="lbl">Needs input</div>
-    </a>
-    <a class="tab on" href="Main.html">
-      <div class="ico">
-        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
-      </div>
-      <div class="lbl">Sessions</div>
-    </a>
-    <a class="tab" href="Settings.html">
-      <div class="ico">
-        <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
-      </div>
-      <div class="lbl">Settings</div>
-    </a>
+  <!-- The End bar and the tab bar under the dim; the confirmation covers them, as an action sheet does. -->
+  <div style="position: absolute; left: 0; right: 0; bottom: 0; display: flex; flex-direction: column;">
+    <div class="endbar">
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6V4a2 2 0 0 1 2-2h2M14 2h2a2 2 0 0 1 2 2v2M18 14v2a2 2 0 0 1-2 2h-2M6 18H4a2 2 0 0 1-2-2v-2"></path><path d="M7 7.5v1M13 7.5v1M10 7.5v3.5H9M7.2 13.2a4 4 0 0 0 5.6 0"></path></svg>
+      <span>End session…</span>
+    </div>
+    <div class="tabbar">
+      <a class="tab" href="NeedsInput.html">
+        <div class="ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
+          <div class="badge">3</div>
+        </div>
+        <div class="lbl">Needs input</div>
+      </a>
+      <a class="tab on" href="Main.html">
+        <div class="ico">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
+        </div>
+        <div class="lbl">Sessions</div>
+      </a>
+      <a class="tab" href="Settings.html">
+        <div class="ico">
+          <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+        </div>
+        <div class="lbl">Settings</div>
+      </a>
+    </div>
   </div>
 
   <div class="dim"></div>
@@ -68,22 +83,12 @@ a { color: #4d9de8; }
     <div style="background: #191B20; border: 1px solid #25282E; border-radius: 14px; overflow: hidden;">
       <div style="padding: 16px; text-align: center; border-bottom: 1px solid #25282E;">
         <div style="font-size: 17px; line-height: 22px; font-weight: 600;">End 'nightly-tests'?</div>
-        <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; margin-top: 6px;">The agent stops. Its saved output stays.</div>
+        <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; margin-top: 6px;">This stops what is running in it. The scrollback and the conversation are saved first, so you can restore this session later.</div>
       </div>
-      <button type="button" style="width: 100%; height: 54px; border: 0; border-bottom: 1px solid #25282E; background: none; font: inherit; font-size: 17px; color: #e5655e; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <svg width="16" height="20" viewBox="0 0 16 20" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1.5" y="8" width="13" height="10.5" rx="2.5"></rect><path d="M4.5 8V5a3.5 3.5 0 0 1 7 0v3"></path></svg>
-        End with Face ID
-      </button>
-      <button type="button" style="width: 100%; height: 54px; border: 0; background: none; font: inherit; font-size: 17px; color: #C9CACD; cursor: pointer;">Cancel</button>
+      <button type="button" style="width: 100%; height: 54px; border: 0; background: none; font: inherit; font-size: 17px; color: #e5655e; cursor: pointer;">End session</button>
     </div>
+    <button type="button" style="width: 100%; height: 54px; border: 1px solid #25282E; border-radius: 14px; background: #191B20; font: inherit; font-size: 17px; font-weight: 600; color: #4d9de8; cursor: pointer;">Cancel</button>
 
-  </div>
-
-  <div style="position: absolute; left: 16px; right: 16px; top: 190px; background: #191B20; border: 1px solid #25282E; border-radius: 10px; padding: 16px;">
-    <div style="font-size: 13px; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB;">What the phone will not do</div>
-    <div style="font-size: 15px; line-height: 21px; color: #9CA1AB; margin-top: 8px;">No Restore — it would relaunch an agent with its safeguards off while nobody is watching.</div>
-    <div style="font-size: 15px; line-height: 21px; color: #9CA1AB; margin-top: 6px;">No Remove — it deletes saved output.</div>
-    <div style="font-size: 15px; line-height: 21px; color: #9CA1AB; margin-top: 6px;">No Restart.</div>
   </div>
 
 </div>

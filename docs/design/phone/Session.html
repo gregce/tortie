@@ -20,6 +20,7 @@ a { color: #4d9de8; }
 .tab.on { color: #4d9de8; }
 .tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
 .tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
+.endbar { flex-shrink: 0; height: 50px; box-sizing: border-box; background: #191B20; border-top: 1px solid #25282E; display: flex; align-items: center; gap: 10px; padding: 0 16px; color: #e5655e; font-size: 17px; }
 .badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -33,9 +34,7 @@ a { color: #4d9de8; }
       <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2 3 9l6 7"></path></svg>Sessions
     </a>
     <div style="font-size: 17px; font-weight: 600; color: #C9CACD;">fix-login</div>
-    <button type="button" aria-label="Actions for fix-login" style="background: none; border: 0; padding: 0; color: #9CA1AB; cursor: pointer;">
-      <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor"><circle cx="3" cy="9" r="1.6"></circle><circle cx="9" cy="9" r="1.6"></circle><circle cx="15" cy="9" r="1.6"></circle></svg>
-    </button>
+    <span style="width: 18px;"></span>
   </div>
 
   <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;">
@@ -88,8 +87,15 @@ a { color: #4d9de8; }
     <div style="font-size: 13px; color: #838996; margin-top: 6px;">Goes to this session as one message.</div>
   </div>
 
+  <!-- Phase 317: End sits in a bar above the tab bar, with the mark of what the
+       phone has and the Mac's own words; it replaces the actions button. -->
+  <div class="endbar">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6V4a2 2 0 0 1 2-2h2M14 2h2a2 2 0 0 1 2 2v2M18 14v2a2 2 0 0 1-2 2h-2M6 18H4a2 2 0 0 1-2-2v-2"></path><path d="M7 7.5v1M13 7.5v1M10 7.5v3.5H9M7.2 13.2a4 4 0 0 0 5.6 0"></path></svg>
+    <span>End session…</span>
+  </div>
+
 <!-- Phase 316.6: the tab bar stays on a pushed session, so a session is one tap
-     from Needs input; Phase 318's strip docks above it. -->
+     from Needs input; Phase 318's strip docks above the End bar. -->
   <div class="tabbar">
     <a class="tab" href="NeedsInput.html">
       <div class="ico">

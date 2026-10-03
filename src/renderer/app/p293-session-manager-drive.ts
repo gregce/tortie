@@ -543,7 +543,7 @@ export function registerP293SessionManagerDrive(): void {
 
     async matrix() {
       const { batchEligibility } = await import('../session-manager/batch-end');
-      const { sessionActionGates } = await import('../state/resume');
+      const { sessionActionGates } = await import('@shared/session-gates');
       const { sessionGateEnv } = await import('./session-actions');
       const s = useApp.getState();
       const known = new Set(s.machineStates.map((m) => m.id));

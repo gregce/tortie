@@ -1100,6 +1100,21 @@ export const CHECKS = [
   // Every session is a shell, it renames five agents' binaries before each
   // launch, and it spends no token.
   remote('probe:p306'),
+  // PHASE 317's app run, the Mac side of End from the phone
+  // (build/p317/SPEC.md §7.4). ONE Electron at HEAD through
+  // build/electron-run.mjs's withElectron, and with P317_PARENT_CHECKOUT the
+  // parent's FIRST on the same profile, one after the other and never at once,
+  // on a scratch profile, a scratch HOME and the socket gmux-p317…, inside
+  // build/with-scratch-machine.mjs's loopback machine, which is why this is
+  // `remote` and not `electron`. Tailscale is build/p330/tailscale-standin.mjs
+  // behind its preflight and sampler, the name check asks
+  // build/p332/dns-standin.mjs in the probe's own process, the phones are
+  // build/p316/node-phone.mjs, and the scratch machine's sshd, found by its own
+  // configuration file and recorded, is paused for W6b and resumed in the
+  // `finally` and on exit. Every session is a shell or a /bin/sh `claude`
+  // stand-in; it renames five agents' binaries before each launch and spends no
+  // token. `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p317'),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a

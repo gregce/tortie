@@ -378,13 +378,22 @@ const HELPER = 'electron-run.mjs';
  * measured at the parent and at HEAD: TWO Electrons one after the other, each
  * on a scratch profile, a scratch HOME and the socket gmux-p334-<pid>, each
  * ended by the helper's `finally`; its outside writer is a synchronous /bin/sh.
+ * PHASE 317 RAISED IT FROM 162 TO 163, for build/p317/probe-p317.mjs
+ * (`probe:p317`), End from the phone through the door's one write:
+ * ONE Electron at HEAD through the helper, and with P317_PARENT_CHECKOUT the
+ * parent's first, one after the other and never at once, on one scratch
+ * profile, a scratch HOME and the socket gmux-p317…, inside the loopback
+ * machine build/with-scratch-machine.mjs starts, with the stand-in Tailscale
+ * behind its preflight and sampler and build/p332/dns-standin.mjs in the
+ * probe's own process; the scratch machine's sshd pids it pauses for W6b are
+ * resumed in its `finally` and on exit.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 162;
+const HELPER_USER_FLOOR = 163;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

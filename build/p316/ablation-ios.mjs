@@ -5,7 +5,7 @@
  * §6.4, build/p3165/SPEC.md §6.4).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:ios` reads the
- * phone app as text for twenty-four refusals, (a) to (z) with (m) and (q)
+ * phone app as text for twenty-seven refusals, (a) to (z) with (m) and (q)
  * folded into (l) by Phase 330, and every one of them is a line a later round can add
  * in a hurry: a colour typed straight into a screen, a sentence in a `Text`, a
  * network call outside the door client, a DEBUG seam that leaked into Release,
@@ -66,8 +66,31 @@
  * drew. HIS RULING OF 2026-10-02 ("Ship tabs + Settings, markdown off") pins
  * the page cap at 0, so every answer is drawn as written: one arm more puts
  * the ruled round's 26 back (y2b), and the loosening arm (y13) adds 26 at the
- * cap's one site rather than multiplying a 0. THIS SCRIPT PLANTS EACH ONE IN A
- * CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
+ * cap's one site rather than multiplying a 0.
+ *
+ * PHASE 317 GAVE THE PHONE END, BEHIND FACE ID (build/p317/SPEC.md §6.3), and
+ * its arms are the ways a write could go out twice, unsigned, unconfirmed or
+ * after the app left: (ab) a POST from a screen, signedPost from a third
+ * caller, two ids in one write, an 8-byte id, unsorted keys, a fourth key, a
+ * second call of the writer, a retry, handed set in the completion or after
+ * another statement or with withheld never asked, a cancel that withholds
+ * handed bytes, a result not classified by handed, an echo taken from anybody
+ * and an empty echo taken with any outcome; (ac) LocalAuthentication in a
+ * screen, the biometrics-only policy evaluated or asked outside kind(), the
+ * hardware's mark drawn unasked (the fix round, the verify's E3), a reuse
+ * window, a kept context, an owner
+ * check that always says yes, a run outside .confirmed, the check named in
+ * Settings, a stored Face ID switch and the purpose string reworded, with (e)'s
+ * device spelling of it, and (the tests round) the End press's `.disabled`
+ * taken out or turned round; (ad) the targets made a var or grown, a second await
+ * per turn, the stop read after the first write or set back to false, a stop
+ * that cancels nothing, a runner never registered or registered after the
+ * check, wentAway stopping nothing or cancelling no task, and the targets
+ * persisted (the fix round took Unpair's Mac half, and its arm, out); (t) a write with no identity and a hostile
+ * write arm dropped or expecting a sentence the door never says; (v) End's line
+ * optional, a result with no sentence, an empty line; (k) an operator in End
+ * these; (s) the build left at 4. THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE
+ * SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
@@ -1105,7 +1128,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 4;/, '$1CURRENT_PROJECT_VERSION = 5;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 5;/, '$1CURRENT_PROJECT_VERSION = 6;')
   },
   {
     id: 's9',
@@ -1441,9 +1464,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 3, 316.5's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 4, 316.6's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 4;/, '$1CURRENT_PROJECT_VERSION = 3;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 5;/, '$1CURRENT_PROJECT_VERSION = 4;')
   },
   {
     id: 'x10',
@@ -1649,6 +1672,341 @@ const ARMS = [
     what: "LinkPolicy.opens's port clause removed",
     file: () => `${APP}/Markdown/Links.swift`,
     edit: (src) => src.replace(/\b\w+\.port\s*==\s*nil\b/, 'true')
+  },
+  // ---- PHASE 317 (build/p317/SPEC.md §6.3): one arm per new or widened clause.
+  // (ab) the write.
+  {
+    id: 'ab1',
+    rule: 'ab',
+    what: 'a POST written outside present and signedPost',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: append('func p317AblationPost() -> String { "POST" }\n')
+  },
+  {
+    id: 'ab2',
+    rule: 'ab',
+    what: 'signedPost called by something other than end',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('    // MARK: Pairing', '    func p317Again(door: PairedDoor) async -> WriteResult {\n        await signedPost(route: .end(session: "p317", batch: false), door: door, limits: limits)\n    }\n\n    // MARK: Pairing')
+  },
+  {
+    id: 'ab3',
+    rule: 'ab',
+    what: 'a second write id made in one write',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', 'guard let id = WriteId.fresh() else { return .notSent(.notPaired) }\n        let spare = WriteId.fresh()\n        _ = spare')
+  },
+  {
+    id: 'ab4',
+    rule: 'ab',
+    what: 'a write id taken from 8 random bytes',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('static let byteCount = 16', 'static let byteCount = 8')
+  },
+  {
+    id: 'ab5',
+    rule: 'ab',
+    what: 'the body encoded without sorted keys',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/\n[ \t]*encoder\.outputFormatting = \[\.sortedKeys\]\n/, '\n')
+  },
+  {
+    id: 'ab6',
+    rule: 'ab',
+    what: 'a fourth key in the end body',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct EndBody: Encodable, Sendable {', 'struct EndBody: Encodable, Sendable {\n    let face: Bool')
+  },
+  {
+    id: 'ab7',
+    rule: 'ab',
+    what: "a second call of the writer's end, outside EndRunner.run",
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: append('@MainActor func p317AblationEnd(_ w: any DoorWriting) async { _ = await w.end("x", batch: true) }\n')
+  },
+  {
+    id: 'ab8',
+    rule: 'ab',
+    what: 'a write retried while it has no answer',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('let result = await writer.end(id, batch: batch)', 'var result = WriteResult.noAnswer\n            repeat { result = await writer.end(id, batch: batch) } while result == .noAnswer')
+  },
+  {
+    id: 'ab9',
+    rule: 'ab',
+    what: "handed set in the send's completion, after the bytes may have left",
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        handed = true\n        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self else { return }\n', '        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self else { return }\n            self.handed = true\n')
+  },
+  {
+    id: 'ab10',
+    rule: 'ab',
+    what: 'the bytes handed without asking withheld',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('guard !withheld, result == nil else { return }', 'guard result == nil else { return }')
+  },
+  {
+    id: 'ab11',
+    rule: 'ab',
+    what: 'a cancel that withholds bytes already handed',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/\n[ \t]*guard !handed else \{ return \}\n/, '\n')
+  },
+  {
+    id: 'ab12',
+    rule: 'ab',
+    what: 'the result no longer classified by handed',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/\n[ \t]*guard end\.handed else \{ return \.notSent\(error as\? DoorFailure \?\? \.notPaired\) \}\n/, '\n')
+  },
+  {
+    id: 'ab13',
+    rule: 'ab',
+    what: 'an answer taken whatever id it echoes',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('answer.write == sent || answer.echoesNoId', '!answer.write.isEmpty || answer.echoesNoId')
+  },
+  {
+    id: 'ab14',
+    rule: 'ab',
+    what: 'an empty echo taken with any outcome (F14)',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('write.isEmpty && outcome == .refused && reason == .malformed', 'write.isEmpty')
+  },
+  // (ac) the owner check.
+  {
+    id: 'ac1',
+    rule: 'ac',
+    what: 'LocalAuthentication imported outside OwnerCheck.swift',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => `import LocalAuthentication\n${src}`
+  },
+  {
+    id: 'ac2',
+    rule: 'ac',
+    what: 'the biometrics-only policy, which shuts out Touch ID fallbacks and the passcode',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: (src) => src.replace('context.evaluatePolicy(.deviceOwnerAuthentication, localizedReason: reason)', 'context.evaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, localizedReason: reason)')
+  },
+  {
+    id: 'ac3',
+    rule: 'ac',
+    what: 'a reuse window, so an earlier match stands in for this press',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: append('func p317AblationReuse(_ c: LAContext) { c.touchIDAuthenticationAllowableReuseDuration = 10 }\n')
+  },
+  {
+    id: 'ac4',
+    rule: 'ac',
+    what: 'confirm asking a context it did not make',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: (src) => src.replace(/(func confirm\(reason: String\) async -> OwnerAnswer \{\n[ \t]*let context: any OwnerContext = )contexts\?\(\) \?\? LAContext\(\)/, '$1contexts?() ?? Self.kept')
+  },
+  {
+    id: 'ac5',
+    rule: 'ac',
+    what: 'a second owner check in the app, one that always says yes',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: append('struct P317AlwaysYes: OwnerCheck {\n    func kind() -> OwnerKind { .faceID }\n    func confirm(reason: String) async -> OwnerAnswer { .confirmed }\n}\n')
+  },
+  {
+    id: 'ac6',
+    rule: 'ac',
+    what: 'a runner run outside the confirmed case',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('        runner.task = task\n        pressing = task', '        Task { await runner.run { _, _ in } }\n        runner.task = task\n        pressing = task')
+  },
+  {
+    id: 'ac7',
+    rule: 'ac',
+    what: 'the owner check named in Settings',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: append('private let p317Check: any OwnerCheck = DeviceOwnerCheck()\n')
+  },
+  {
+    id: 'ac8',
+    rule: 'ac',
+    what: 'a stored Face ID switch',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: append('let p317FaceKey = "faceIDOnEnd"\n')
+  },
+  {
+    id: 'ac9',
+    rule: 'ac',
+    what: "Face ID's purpose string reworded",
+    file: () => INFO,
+    edit: (src) => src.replace('Tortie asks for Face ID before it ends a session on your Mac.', 'Tortie uses Face ID.')
+  },
+  {
+    id: 'ac10',
+    rule: 'ac',
+    what: "kind() drawing the hardware's mark unasked, so a phone with no face enrolled shows Face ID's (the verify's E3)",
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: (src) => src.replace(/\n[ \t]*var biometryError: NSError\?\n[ \t]*guard context\.canEvaluatePolicy\(\.deviceOwnerAuthenticationWithBiometrics, error: &biometryError\) else \{\n[ \t]*return \.passcode\n[ \t]*\}/, '')
+  },
+  {
+    id: 'ac11',
+    rule: 'ac',
+    what: 'the biometrics-only policy asked outside kind(), where nothing it answers picks a glyph',
+    file: () => `${APP}/App/OwnerCheck.swift`,
+    edit: (src) => src.replace('    func confirm(reason: String) async -> OwnerAnswer {\n', '    func confirm(reason: String) async -> OwnerAnswer {\n        var p317: NSError?\n        _ = LAContext().canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: &p317)\n')
+  },
+  // The tests round: the End press says off when it is drawn off (the
+  // reverify's B4 took the modifier out with every gate green).
+  {
+    id: 'ac12',
+    rule: 'ac',
+    what: "the End press's .disabled taken out, so a row drawn off reads enabled and can be pressed (the reverify's B4)",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/\n[ \t]*\.disabled\(row == \.off\)/, '')
+  },
+  {
+    id: 'ac13',
+    rule: 'ac',
+    what: 'the End press disabled when its row is ON, and pressable when it is drawn off',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('.disabled(row == .off)', '.disabled(row == .on)')
+  },
+  {
+    id: 'e21',
+    rule: 'e',
+    what: "a device spelling of Face ID's pinned purpose string, read on a phone in place of the one checked",
+    file: () => INFO,
+    edit: (src) => src.replace('<key>NSFaceIDUsageDescription</key>', '<key>NSFaceIDUsageDescription~iphone</key>\n\t<string>p317</string>\n\t<key>NSFaceIDUsageDescription</key>')
+  },
+  // (ad) the list that only shrinks, and nothing sent after the app left.
+  {
+    id: 'ad1',
+    rule: 'ad',
+    what: "the runner's targets made a var",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/(final class EndRunner \{[\s\S]*?)let targets: \[String\]/, '$1var targets: [String]')
+  },
+  {
+    id: 'ad2',
+    rule: 'ad',
+    what: "the runner's targets grown after the confirm",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/(final class EndRunner \{[\s\S]*?)(\n[ \t]*func stop\(\) \{)/, '$1\n    func p317Grow(_ id: String) { targets.append(id) }$2')
+  },
+  {
+    id: 'ad3',
+    rule: 'ad',
+    what: 'a second await in each turn of the run',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('report(id, .wrote(result))', 'report(id, .wrote(result))\n            await Task.yield()')
+  },
+  {
+    id: 'ad4',
+    rule: 'ad',
+    what: 'stopRequested read only after the first write',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) =>
+      src.replace(
+        /([ \t]*)if stopRequested \{\n([ \t]*)report\(id, \.notRun\)\n[ \t]*continue\n[ \t]*\}\n([ \t]*report\(id, \.ending\)\n[ \t]*let result = await writer\.end\(id, batch: batch\)\n)/,
+        '$3$1if stopRequested {\n$2report(id, .notRun)\n$2continue\n$1}\n'
+      )
+  },
+  {
+    id: 'ad5',
+    rule: 'ad',
+    what: 'stopRequested set back to false',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/(final class EndRunner \{[\s\S]*?)(\n[ \t]*func stop\(\) \{)/, '$1\n    func p317Resume() { stopRequested = false }$2')
+  },
+  {
+    id: 'ad6',
+    rule: 'ad',
+    what: "a stop that leaves the runner's task running",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/(\n[ \t]*stopRequested = true)\n[ \t]*task\?\.cancel\(\)/, '$1')
+  },
+  {
+    id: 'ad7',
+    rule: 'ad',
+    what: "the single End's runner never registered, so a trip to the background during Face ID cannot stop it",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace(/\n[ \t]*registry\?\.register\(runner\)\n/, '\n')
+  },
+  {
+    id: 'ad8',
+    rule: 'ad',
+    what: "End these' runner registered only after the owner check answered",
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: (src) => src.replace(/\n[ \t]*setup\.registry\.register\(runner\)\n/, '\n').replace('            case .confirmed:\n', '            case .confirmed:\n                registry.register(runner)\n')
+  },
+  {
+    id: 'ad9',
+    rule: 'ad',
+    what: 'wentAway that stops no runner',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/\n[ \t]*for runner in liveRunners \{\n[ \t]*runner\.stopRequested = true\n[ \t]*runner\.task\?\.cancel\(\)\n[ \t]*\}\n/, '\n')
+  },
+  {
+    id: 'ad10',
+    rule: 'ad',
+    what: "wentAway that sets stopRequested and leaves each runner's task, so a handshake it resumes could send",
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/(\n[ \t]*runner\.stopRequested = true)\n[ \t]*runner\.task\?\.cancel\(\)/, '$1')
+  },
+  {
+    id: 'ad12',
+    rule: 'ad',
+    what: 'the targets persisted',
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: (src) => src.replace('setup.registry.register(runner)', 'setup.registry.register(runner)\n        UserDefaults.standard.set(confirm.targets, forKey: "p317")')
+  },
+  // (t) widened: the writes present the identity, and the hostile write arms.
+  {
+    id: 't10',
+    rule: 't',
+    what: 'a write that presents no client identity',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('identity: door.identity, limits: limits, write: true', 'identity: nil, limits: limits, write: true')
+  },
+  {
+    id: 't11',
+    rule: 't',
+    what: "a hostile door's write arm dropped",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n\s*'write-cut': \{[^\n]*\},?\n/, '\n')
+  },
+  {
+    id: 't12',
+    rule: 't',
+    what: "a hostile write arm expecting a door sentence the door does not say",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/('write-malformed-empty': \{[^\n]*door: \[)'unreadable'(\])/, "$1'vanished'$2")
+  },
+  // (v) widened: End's line is always a sentence.
+  {
+    id: 'v6',
+    rule: 'v',
+    what: 'endSentence optional, so a write result could draw nothing',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('static func endSentence(for result: WriteResult) -> String {', 'static func endSentence(for result: WriteResult) -> String? {')
+  },
+  {
+    id: 'v7',
+    rule: 'v',
+    what: 'a write result with no sentence of its own',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace(/(static func endSentence\(for result: WriteResult\) -> String \{[\s\S]*?)\n[ \t]*case \.noAnswer:\n[ \t]*return Copy\.endNoAnswer/, '$1')
+  },
+  {
+    id: 'v8',
+    rule: 'v',
+    what: "End's line emptied when Face ID did not confirm",
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('self?.line = Copy.endNotConfirmed', 'self?.line = ""')
+  },
+  // (k): End these' counts are .count and Copy's composers; an operator planted there is read.
+  {
+    id: 'k8',
+    rule: 'k',
+    what: "an unnamed count operator in End these",
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: append('func p317AblationCount(_ n: Int) -> Int { n + 1 }\n')
   }
 ];
 
@@ -1849,7 +2207,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -1862,5 +2220,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z), (ab), (ac) and (ad) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

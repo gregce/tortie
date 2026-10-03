@@ -93,6 +93,28 @@
 //   settings-about, settings-version
 //                                the About card and its `1.0.0 (4)`
 //
+// END (Phase 317, build/p317/SPEC.md section 5.8.8):
+//
+//   session-end-bar              the bar above the tab bar; a container
+//   session-end                  its row, `End session…`; a button
+//   session-end-line             the one line under it
+//   session-end-glyph-<name>     the row's glyph, an image: faceid, touchid or
+//                                lock
+//   end-confirming               present while iOS asks Face ID, Touch ID or
+//                                the passcode
+//   list-select                  `Select`, or `Cancel` while selecting, at the
+//                                Sessions title's trailing edge
+//   list-selected-count          `3 selected`
+//   list-end-selected            `End selected sessions…`; a button
+//   row-select-<id>              a row's circle while selecting; selected
+//                                trait when ticked
+//   row-outcome-<id>             a target's outcome word, `Ended` and the rest
+//   batch-heading                `Ending 2 sessions…`, then `2 of 2 sessions
+//                                ended`
+//   batch-stop, batch-done       `Stop` while running, `Done` after
+//   batch-line                   the one line in End these' bar (the owner
+//                                check's answer when it did not confirm)
+//
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
 // Session screen's last answer; `<n>` a block's PRE-ORDER ordinal from 0 over
@@ -222,6 +244,23 @@ enum ID {
     static let settingsAlertsLine = "settings-alerts-line"
     static let settingsUnpair = "settings-unpair"
     static let settingsUnpairLine = "settings-unpair-line"
+
+    // End and End these (Phase 317).
+    static let sessionEndBar = "session-end-bar"
+    static let sessionEnd = "session-end"
+    static let sessionEndLine = "session-end-line"
+    /// The owner check's glyph on the End row: `faceid`, `touchid` or `lock`.
+    static func sessionEndGlyph(_ glyph: String) -> String { "session-end-glyph-" + glyph }
+    static let endConfirming = "end-confirming"
+    static let listSelect = "list-select"
+    static let listSelectedCount = "list-selected-count"
+    static let listEndSelected = "list-end-selected"
+    static func rowSelect(_ id: String) -> String { "row-select-" + id }
+    static func rowOutcome(_ id: String) -> String { "row-outcome-" + id }
+    static let batchHeading = "batch-heading"
+    static let batchStop = "batch-stop"
+    static let batchDone = "batch-done"
+    static let batchLine = "batch-line"
     static let settingsAbout = "settings-about"
     static let settingsVersion = "settings-version"
 

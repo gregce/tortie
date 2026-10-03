@@ -25,6 +25,16 @@
 //
 // A read the person walked away from (the screen closed, a pull replaced it)
 // is none of these: it is dropped without a word.
+//
+// THE WRITE (Phase 317, build/p317/SPEC.md section 5.8.6). A paired reader
+// also answers `writer`, the End. `writer` is a REQUIREMENT of `DoorReading`,
+// not only an extension member: the app holds its reader as
+// `any DoorReading`, and a member that lived only in an extension would be
+// dispatched statically there and read nil, so the shipping app would draw
+// no End and no Select while every concretely typed fake passed. The
+// extension's nil is the default for a reader that writes nothing (316.6's
+// fakes). A write's result becomes a sentence here too (`endSentence`), and
+// every one is Copy.swift's or the Mac's own.
 
 import Foundation
 
@@ -40,9 +50,25 @@ protocol DoorReading: Sendable {
     /// pairing the app already holds in memory: no Keychain read and no door
     /// read.
     var facts: PairedFacts { get }
+    /// The write this pairing can make, or nil when it makes none (Phase
+    /// 317). A requirement, so `any DoorReading` reads the reader's own.
+    var writer: (any DoorWriting)? { get }
     func blocked() async throws -> PocketBlockedAnswer
     func session(_ sessionId: String) async throws -> PocketSessionAnswer
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer
+}
+
+extension DoorReading {
+    /// A reader that writes nothing: no End and no Select.
+    var writer: (any DoorWriting)? { nil }
+}
+
+/// The one signed write (Phase 317), sent at most once and never retried,
+/// and only after the owner check (his ruling: "Only for End").
+protocol DoorWriting: Sendable {
+    /// `POST /v1/end` for one session. `batch` asks for End these' one
+    /// narrowing. The ONE caller in the app is `EndRunner.run`.
+    func end(_ sessionId: String, batch: Bool) async -> WriteResult
 }
 
 /// How a pairing ended, for the screen.
@@ -75,7 +101,7 @@ protocol PhoneDoor: Sendable {
     /// Unpair this iPhone (Phase 316.6): forget the pairing record, which
     /// holds both private keys, FIRST, then every client key, and say whether
     /// the record went. The Mac keeps its row until he presses Remove there
-    /// (its half is Phase 317's).
+    /// (its half is not built: Phase 317's fix round took it out).
     func unpair() -> UnpairOutcome
 }
 
@@ -205,6 +231,27 @@ enum DoorWords {
             return Copy.earlierTurnsUnreadable
         }
         return sentence(for: error)
+    }
+
+    /// The End's line for a write's result (Phase 317, build/p317/SPEC.md
+    /// section 5.7): ALWAYS a sentence, never empty (conformance:ios rule v).
+    /// A `done` answer draws nothing on the session screen, which re-reads
+    /// and then reads Ended; its word here is the Mac batch's `Ended`.
+    static func endSentence(for result: WriteResult) -> String {
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.ended }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        // Both are true of a 404 and of a withheld write: the Mac did not end it.
+        case .notTaken:
+            return Copy.endNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.endNotTaken : sentence(for: failure)
+        }
     }
 
     /// The pairing screen's line for how a pairing stopped. ALWAYS a sentence

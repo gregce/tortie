@@ -52,9 +52,22 @@
  *  the State dropdown reads `row.gates` and names no status: `rowPasses`
  *  reaches gates.live, gates.unknown and gates.ended and holds no status
  *  literal, and the only array of two or more statuses in the domain is
- *  STATE_FILTER_KEEPS. "Live" is spelled in main's removeRefusal, in
- *  sessionActionGates and in login-switch.ts already, and a fourth spelling
- *  written to fix a problem caused by having three is what T23 refuses.
+ *  STATE_FILTER_KEEPS. "Live" is spelled in main's lifecycle-gate.ts, in
+ *  src/shared/session-gates.ts (`sessionActionGates`) and in login-switch.ts
+ *  already, and a fourth spelling written to fix a problem caused by having
+ *  three is what T23 refuses.
+ *
+ *  READ, THE MOVE AND THE PHONE (Phase 317, build/p317/SPEC.md §6.2). The one
+ *  gates predicate moved, unchanged, from src/renderer/state/resume.ts to
+ *  src/shared/session-gates.ts so main can ask it for the phone's door, and the
+ *  End words moved beside it to src/shared/lifecycle-words.ts. T24 holds the
+ *  move single: resume.ts declares and re-exports none of the moved names, and
+ *  nothing under src/ declares a second `sessionActionGates`. T25 holds the
+ *  door to BOTH gates: src/main/sessions/pocket-writes.ts imports
+ *  `sessionActionGates` and `endRefusal`, its `endVerdict` asks both, its batch
+ *  arm is the Mac batch's own predicate read as text in both files, and
+ *  neither file reads `.answering`. G2, driven, is the partition between the
+ *  two gates. T10 reads lifecycle-words.ts as well as copy.ts.
  *
  * WHAT IT FAILS ON. Every failure is printed as `[p293 <rule>]` with the clause
  * of the spec that owns it, which is what `npm run ablation:p293` reads to
@@ -86,7 +99,7 @@ const TEXT_RULES = [
   ['T7', '§4.0', 'every per-row lifecycle verb is called only in actions.ts and only below a freshRow( in the same function'],
   ['T8', '§4.9', 'batch-end.ts spells no verb but End: not restart, remove, discard or restore, comments included'],
   ['T9', '§4.0', 'no function in actions.ts but freshRow reads .session off a drawn row'],
-  ['T10', '§2.1', 'no tmux vocabulary in any string copy.ts draws'],
+  ['T10', '§2.1', 'no tmux vocabulary in any string copy.ts or src/shared/lifecycle-words.ts draws'],
   ['T11', '§3.4', 'copy.ts holds no ?? 0 and no || 0'],
   ['T12', '§2.1', 'no name and no tmuxName is handed to a lifecycle call: every call is by session ID'],
   ['T13', '§2.7', 'the domain imports nothing from diagnostics'],
@@ -103,9 +116,14 @@ const TEXT_RULES = [
   ['T21', '§2.1, Phase 298', 'every uppercase rule also sets letter-spacing: var(--track-caps)'],
   ['T22', '§2.2, Phase 298', 'every size= passed to Codicon or AgentIcon in the domain is one of sm, md, lg, 16 or 24'],
   // Phase 303, mechanism 1. "Live" is already spelled three times in the tree
-  // (lifecycle-gate.ts, resume.ts, login-switch.ts); the lifecycle control
-  // reads the partition the row carries as `row.gates` and adds no fourth.
-  ['T23', '§2.4, Phase 303', 'the domain names no second live-status set: rowPasses reads row.gates and no status literal, and the only array holding two or more statuses is STATE_FILTER_KEEPS']
+  // (lifecycle-gate.ts, session-gates.ts since Phase 317 moved it out of
+  // resume.ts, and login-switch.ts); the lifecycle control reads the partition
+  // the row carries as `row.gates` and adds no fourth.
+  ['T23', '§2.4, Phase 303', 'the domain names no second live-status set: rowPasses reads row.gates and no status literal, and the only array holding two or more statuses is STATE_FILTER_KEEPS'],
+  // Phase 317, build/p317/SPEC.md §6.2. The gate moved below the renderer so
+  // main can ask it, and the phone's door asks it beside main's own gate.
+  ['T24', '§6.2, Phase 317', 'the gate moved and was not copied: resume.ts declares and re-exports none of the moved names, and nothing under src/ declares a second sessionActionGates'],
+  ['T25', '§6.2, Phase 317', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering']
 ];
 
 if (process.argv.includes('--list')) {
@@ -236,6 +254,8 @@ const domainFiles = sourcesUnder(DOMAIN);
 const ACTIONS = join(DOMAIN, 'actions.ts');
 const BATCH_END = join(DOMAIN, 'batch-end.ts');
 const COPY = join(DOMAIN, 'copy.ts');
+// Phase 317. The End words the sheet draws, moved below the renderer.
+const LIFECYCLE_WORDS = join(ROOT, 'src', 'shared', 'lifecycle-words.ts');
 
 function textRules() {
   if (domainFiles.length < 10) {
@@ -495,13 +515,20 @@ function textRules() {
     }
   }
 
-  // T10, T11. copy.ts.
+  // T10, T11. copy.ts, and since Phase 317 the End words it and resume.ts
+  // re-export from src/shared/lifecycle-words.ts, because the sheet draws
+  // END_UNREACHABLE_TITLE and the End confirmation from there now.
   {
     const TMUX = /\b(pane|panes|window|windows|prefix|attach|attached|detach|detached|socket|server)\b/i;
-    for (const { node, text } of stringsOf(COPY)) {
-      checked('T10');
-      const m = TMUX.exec(text);
-      if (m !== null) fail('T10', `${where(COPY, node)} draws "${m[0]}" in ${JSON.stringify(text.slice(0, 80))}`);
+    if (!existsSync(LIFECYCLE_WORDS)) fail('T10', `${rel(LIFECYCLE_WORDS)} is missing, so the End words the sheet draws are read nowhere`);
+    for (const file of [COPY, LIFECYCLE_WORDS].filter((one) => existsSync(one))) {
+      const strings = stringsOf(file);
+      if (strings.length === 0) fail('T10', `${rel(file)} holds no string, so this rule reads nothing there`);
+      for (const { node, text } of strings) {
+        checked('T10');
+        const m = TMUX.exec(text);
+        if (m !== null) fail('T10', `${where(file, node)} draws "${m[0]}" in ${JSON.stringify(text.slice(0, 80))}`);
+      }
     }
     for (const n of nodesOf(COPY)) {
       if (!ts.isBinaryExpression(n)) continue;
@@ -990,6 +1017,201 @@ function partitionRules() {
 }
 
 // ---------------------------------------------------------------------------
+// The move, and the phone's door (Phase 317, build/p317/SPEC.md §6.2)
+// ---------------------------------------------------------------------------
+
+/** The names Phase 317 moved from resume.ts to src/shared/session-gates.ts, and the one it added there. */
+const MOVED_GATE_NAMES = new Set([
+  'HandbackState',
+  'SessionHandback',
+  'hasRestoreMaterial',
+  'offersBareRecovery',
+  'holdsResumableConversation',
+  'showsResumeVerb',
+  'SessionGateEnv',
+  'SessionActionGates',
+  'sessionActionGates',
+  'DOOR_GATE_ENV'
+]);
+const SESSION_GATES = join(ROOT, 'src', 'shared', 'session-gates.ts');
+const RESUME = join(ROOT, 'src', 'renderer', 'state', 'resume.ts');
+const POCKET_WRITES = join(ROOT, 'src', 'main', 'sessions', 'pocket-writes.ts');
+/** The Mac batch's one narrowing, `batch-end.ts`'s own words; the door's batch arm must be these words too. */
+const BATCH_NARROWING = 'session.machine !== undefined && !machineKnown(session.machine.id)';
+
+/** The name a declaration binds, or null: a function, a class, an interface, a type, an enum or a plain variable. */
+function declaredName(n) {
+  if (
+    (ts.isFunctionDeclaration(n) ||
+      ts.isClassDeclaration(n) ||
+      ts.isInterfaceDeclaration(n) ||
+      ts.isTypeAliasDeclaration(n) ||
+      ts.isEnumDeclaration(n) ||
+      ts.isVariableDeclaration(n)) &&
+    n.name !== undefined &&
+    ts.isIdentifier(n.name)
+  ) {
+    return n.name.text;
+  }
+  return null;
+}
+
+/** A node's code with every comment blanked and every run of whitespace one space. */
+function codeText(path, node) {
+  return node
+    .getText(astOf(path))
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/\/\/[^\n]*/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+/** The function-like node a name is declared with in a file: `function x(` or `const x = (…) =>`. */
+function functionDeclared(path, name) {
+  for (const n of nodesOf(path)) {
+    if (ts.isFunctionDeclaration(n) && n.name?.text === name) return n;
+    if (
+      ts.isVariableDeclaration(n) &&
+      ts.isIdentifier(n.name) &&
+      n.name.text === name &&
+      n.initializer !== undefined &&
+      (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))
+    ) {
+      return n.initializer;
+    }
+  }
+  return null;
+}
+
+/** Whether a file imports `name` (by its exported name) from exactly `specifier`. */
+function importsFrom(path, name, specifier) {
+  return nodesOf(path).some(
+    (n) =>
+      ts.isImportDeclaration(n) &&
+      ts.isStringLiteral(n.moduleSpecifier) &&
+      n.moduleSpecifier.text === specifier &&
+      n.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(n.importClause.namedBindings) &&
+      n.importClause.namedBindings.elements.some((el) => (el.propertyName ?? el.name).text === name)
+  );
+}
+
+function moveRules() {
+  // T24 (i). resume.ts declares none of the moved names and hands none of them
+  // out, by a named export, a renamed one, a type export or a star.
+  if (!existsSync(SESSION_GATES)) fail('T24', `${rel(SESSION_GATES)} is missing, so the gate has no shared home`);
+  if (!existsSync(RESUME)) {
+    fail('T24', `${rel(RESUME)} is missing, so this rule reads nothing`);
+  } else {
+    let exportsRead = 0;
+    for (const n of nodesOf(RESUME)) {
+      const name = declaredName(n);
+      if (name !== null) {
+        checked('T24');
+        if (MOVED_GATE_NAMES.has(name)) fail('T24', `${where(RESUME, n)} declares ${name}, a name Phase 317 moved to src/shared/session-gates.ts; a second copy is a second policy`);
+      }
+      if (ts.isExportDeclaration(n)) {
+        exportsRead += 1;
+        checked('T24');
+        const from = n.moduleSpecifier !== undefined && ts.isStringLiteral(n.moduleSpecifier) ? n.moduleSpecifier.text : null;
+        if (n.exportClause === undefined || ts.isNamespaceExport(n.exportClause)) {
+          if (from !== null && /session-gates/.test(from)) fail('T24', `${where(RESUME, n)} re-exports all of ${from}`);
+          continue;
+        }
+        for (const el of n.exportClause.elements) {
+          const names = [el.name.text, el.propertyName?.text].filter((one) => one !== undefined);
+          for (const one of names) {
+            if (MOVED_GATE_NAMES.has(one)) fail('T24', `${where(RESUME, el)} re-exports ${one}; resume.ts is not a door to the gate (import it from @shared/session-gates)`);
+          }
+        }
+      }
+      if (ts.isExportAssignment(n) && ts.isIdentifier(n.expression) && MOVED_GATE_NAMES.has(n.expression.text)) {
+        fail('T24', `${where(RESUME, n)} default-exports ${n.expression.text}`);
+      }
+    }
+    if (exportsRead === 0) fail('T24', `${rel(RESUME)} holds no export declaration, so the re-export of the End words is gone and this clause reads nothing`);
+  }
+  // T24 (ii). Exactly one `sessionActionGates` is declared under src/, tests
+  // excluded, and it is the shared one. A destructured binding of the import
+  // (`const { sessionActionGates } = await import(…)`) is a reader, not a
+  // declaration, and is not counted.
+  const declarations = [];
+  for (const path of sourcesUnder(join(ROOT, 'src'))) {
+    if (!readFileSync(path, 'utf8').includes('sessionActionGates')) continue;
+    for (const n of nodesOf(path)) {
+      let named = null;
+      if ((ts.isFunctionDeclaration(n) || ts.isMethodDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name)) named = n.name.text;
+      else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name)) named = n.name.text;
+      else if (
+        (ts.isPropertyAssignment(n) || ts.isPropertyDeclaration(n)) &&
+        ts.isIdentifier(n.name) &&
+        n.initializer !== undefined &&
+        (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))
+      ) {
+        named = n.name.text;
+      }
+      if (named === 'sessionActionGates') declarations.push({ path, node: n });
+    }
+  }
+  checked('T24', declarations.length + 1);
+  if (declarations.length === 0) fail('T24', 'no sessionActionGates is declared anywhere under src/, so the gate has lost its subject');
+  for (const d of declarations) {
+    if (d.path !== SESSION_GATES) fail('T24', `${where(d.path, d.node)} declares a second sessionActionGates; there is ONE, in src/shared/session-gates.ts`);
+  }
+  if (declarations.filter((d) => d.path === SESSION_GATES).length > 1) fail('T24', `${rel(SESSION_GATES)} declares sessionActionGates more than once`);
+
+  // T25. The phone's door asks both gates, and narrows a batch the way the Mac
+  // batch does, by the machine row and never by `answering`.
+  checked('T25');
+  if (!existsSync(POCKET_WRITES)) {
+    fail('T25', `${rel(POCKET_WRITES)} is missing: the phone's End has no one implementation that asks both gates`);
+  } else {
+    checked('T25', 2);
+    if (!importsFrom(POCKET_WRITES, 'sessionActionGates', '@shared/session-gates')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import sessionActionGates from @shared/session-gates`);
+    }
+    if (!importsFrom(POCKET_WRITES, 'endRefusal', './lifecycle-gate')) {
+      fail('T25', `${rel(POCKET_WRITES)} does not import endRefusal from ./lifecycle-gate`);
+    }
+    const verdict = functionDeclared(POCKET_WRITES, 'endVerdict');
+    checked('T25');
+    if (verdict === null) {
+      fail('T25', `${rel(POCKET_WRITES)} declares no endVerdict, so nothing names where the two gates are asked`);
+    } else {
+      const inside = [];
+      const visit = (n) => {
+        inside.push(n);
+        ts.forEachChild(n, visit);
+      };
+      visit(verdict);
+      const calls = new Set(inside.filter((n) => ts.isCallExpression(n)).map((n) => calleeName(n)));
+      checked('T25', 4);
+      if (!calls.has('endRefusal')) fail('T25', `${where(POCKET_WRITES, verdict)} endVerdict never calls endRefusal(, main's gate`);
+      if (!calls.has('sessionActionGates')) fail('T25', `${where(POCKET_WRITES, verdict)} endVerdict never calls sessionActionGates(, the shared gate`);
+      if (!inside.some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'canEnd')) {
+        fail('T25', `${where(POCKET_WRITES, verdict)} endVerdict never reads .canEnd`);
+      }
+      if (!codeText(POCKET_WRITES, verdict).includes(BATCH_NARROWING)) {
+        fail('T25', `${where(POCKET_WRITES, verdict)} endVerdict's batch arm is not the Mac batch's predicate \`${BATCH_NARROWING}\``);
+      }
+    }
+  }
+  const eligibility = functionDeclared(BATCH_END, 'batchEligibility');
+  checked('T25');
+  if (eligibility === null || !codeText(BATCH_END, eligibility).includes(BATCH_NARROWING)) {
+    fail('T25', `${rel(BATCH_END)}: batchEligibility's narrowing is no longer \`${BATCH_NARROWING}\`, so the door's batch arm names a predicate the Mac no longer has`);
+  }
+  for (const path of [POCKET_WRITES, BATCH_END].filter((one) => existsSync(one))) {
+    for (const n of nodesOf(path)) {
+      const reads =
+        (ts.isPropertyAccessExpression(n) && n.name.text === 'answering') ||
+        (ts.isElementAccessExpression(n) && ts.isStringLiteral(n.argumentExpression) && n.argumentExpression.text === 'answering');
+      if (!reads) continue;
+      fail('T25', `${where(path, n)} reads .answering: a machine that is not answering already reads unknown, and a batch narrows by the machine ROW (machineKnown), never by answering`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The driven half
 // ---------------------------------------------------------------------------
 
@@ -1039,6 +1261,11 @@ try {
   partitionRules();
 } catch (err) {
   fail('T23', `the partition rule could not read the domain: ${err instanceof Error ? err.message : String(err)}`);
+}
+try {
+  moveRules();
+} catch (err) {
+  fail('T24', `the move rules could not read the tree: ${err instanceof Error ? err.message : String(err)}`);
 }
 const driven = drivenRules();
 const all = [
