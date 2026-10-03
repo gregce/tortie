@@ -187,9 +187,40 @@ import {
   remoteSessionMachine,
   remoteSessionRow,
   remoteSessions,
+  // PHASE 320.1. Where a session on another machine may be scrolled: a LIVE row
+  // listed on that machine's CURRENT connection, and never a gone row. The one
+  // reader is `remoteScroll` below.
+  remoteScrollAddress,
   setRemotePollFocused,
   stopRemotePolls
 } from '../machines/remote-sessions';
+// PHASE 320.1. The one door a scroll takes to another machine: a runner that
+// checks every command against a closed table before it writes. This file is
+// its one scroll caller, in `remoteScroll`.
+import { remoteScrollRunner } from '../machines/control-plane';
+// PHASE 320.1, THE SECOND BUILD (build/p3201/SPEC.md D3, D6 to D9). The two
+// roads to a far pane, the attach and the control connection, kept apart: which
+// one each keystroke takes (`routeKey`, handed to the attach host below), the
+// wait a park makes for the attach to be quiet, and the read before a park that
+// never parks a pane whose program has the screen or the mouse.
+import {
+  awaitRoadQuiet,
+  awaitsReopen,
+  forgetSession as forgetScrollRoads,
+  keysSoFar,
+  leaveForProgram,
+  noteAnswer,
+  noteParkedByUs,
+  noteSettled,
+  noteUnreadableConnection,
+  noteWithdrawn,
+  noteWritten,
+  readBeforePark,
+  roadFacts,
+  routeKey,
+  stampedRunner,
+  undoRacedPark
+} from '../machines/scroll-order';
 // PHASE 72. The manifest handle the machine layer writes remote rows through,
 // and the verb behind the restore gate. Both are direct rather than through
 // `../machines`, for the same reason the three imports above are.
@@ -218,7 +249,7 @@ import {
   type RemoteRestoreOutcome
 } from '../machines/remote-restore';
 import type { RemoteMachineContext } from '../machines/context';
-import { gmuxError, isGmuxError } from '../errors';
+import { gmuxError, gmuxErrorPayloadOf, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
 // LEAF import: the ../projects barrel re-exports the clone spawner and the
@@ -599,11 +630,17 @@ const CREATE_IN_FLIGHT_MAX_MS = 60_000;
 export const LAUNCH_SIGN_IN_CONCURRENCY = 4;
 
 /**
- * The answer for a session with no pane of its own on this Mac (Phase 95).
+ * The answer for a session with no pane Tortie can scroll (Phase 95).
  *
  * It is a fact rather than a failure, so it is a value rather than a throw.
  * Every number is 0 and every flag is false, which is what the scrollbar
  * already draws nothing for.
+ *
+ * Since Phase 320.1 a session on another machine is NOT an ordinary case of it:
+ * it scrolls over that machine's live connection (see `remoteScroll`). It
+ * answers this only when its machine will have no connection in this run, or
+ * when the session has ended there, which is a session on this Mac that is not
+ * running by another name.
  */
 const NO_PANE_HERE: TerminalScrollState = {
   hasPane: false,
@@ -616,6 +653,67 @@ const NO_PANE_HERE: TerminalScrollState = {
   innerAlt: false,
   innerMouse: false
 };
+
+/**
+ * The answer for a session on another machine whose live connection is not up
+ * right now (Phase 320.1, D3): opening, reconnecting, dropped, a pass on the new
+ * connection not yet complete, or a command that failed or took over 5 s.
+ *
+ * A VALUE, NEVER A THROW. A throw here is Phase 95's defect back: Electron
+ * printed a handler stack trace once a second for every mounted pane, and
+ * `probe:p95` step 4 counts exactly those lines. It is `NO_PANE_HERE`'s shape
+ * with one flag, so a reader that does not know the flag still draws nothing,
+ * and the surface, which does, asks again instead of stopping.
+ */
+const PANE_NOT_REACHABLE_NOW: TerminalScrollState = {
+  ...NO_PANE_HERE,
+  unreachable: true,
+  // Phase 320.1's second build, D5: main orders this session's keystrokes, so
+  // the renderer sends every one straight, whatever this answer says.
+  keysOrderedInMain: true
+};
+
+/**
+ * What a scroll of a session on another machine can do to its pane (Phase
+ * 320.1's second build, D3 and D6), which decides how it is ordered against
+ * that session's keystrokes in `remoteScroll`:
+ *
+ *  - `read`: a read and nothing else (the poll, and a relative scroll of 0).
+ *  - `park`: may put a live pane into copy mode (a scroll up, a move to a
+ *    position above live).
+ *  - `unpark`: can only move a parked pane or return it to live (a scroll
+ *    down, a move to live, the explicit return).
+ */
+type RemoteScrollKind = 'read' | 'park' | 'unpark';
+
+/**
+ * The connection generation, per machine, whose first failed scroll has been
+ * logged (Phase 320.1, D10): one line per machine per connection, so a pane
+ * polled once a second over a connection that stopped answering does not write
+ * one a second. Module level rather than a field of the core because it is a
+ * log's memory, and the scroll methods are also driven off the prototype.
+ */
+const remoteScrollFailureLogged = new Map<string, number>();
+
+/**
+ * Say once per connection that a scroll on a machine failed. The line carries
+ * the machine id and the error's code word and NOTHING ELSE: no argv, and no
+ * byte the far side answered, because a far answer is that machine's text.
+ */
+function noteRemoteScrollFailed(
+  machineId: string,
+  generation: number,
+  err: unknown
+): void {
+  if (remoteScrollFailureLogged.get(machineId) === generation) return;
+  remoteScrollFailureLogged.set(machineId, generation);
+  const code = gmuxErrorPayloadOf(err)?.code ?? 'no code';
+  sessionsLog.info(
+    `a scroll of a session on ${machineId} got no answer over its live ` +
+      `connection (${code}), so that pane reads as not reachable until one ` +
+      `does. Said once per connection.`
+  );
+}
 
 /**
  * Server options resources/gmux-tmux.conf sets that gmux cannot afford to
@@ -1016,7 +1114,15 @@ export class GmuxCore {
       },
       onExit: (sessionId, _exitCode, expected) => {
         if (!expected) void this.handleUnexpectedAttachExit(sessionId);
-      }
+      },
+      // PHASE 320.1, THE SECOND BUILD (build/p3201/SPEC.md §6.4, D6 to D8).
+      // Asked for every keystroke to a session on ANOTHER machine, before the
+      // host would write it to the attach, and never for one on this Mac. True
+      // means the key has already been written to that machine's control
+      // connection, behind a cancel, because the pane is or may be scrolled back
+      // or a scroll is on its way, or that it is kept for that connection to
+      // come back (the fix round, F4); the host then writes nothing.
+      routeRemoteInput: (sessionId, data) => routeKey(sessionId, data) !== 'attach'
     });
     this.control = new tmux.TmuxControlClient();
     // PHASE 141. Built before the monitor, because the monitor's own
@@ -2597,18 +2703,268 @@ export class GmuxCore {
    * scroll whatever session happens to hold it.
    *
    * Phase 95: no binding is a fact rather than a failure, so this returns
-   * null instead of throwing. Two ordinary states have no binding, being a
-   * session that runs on another machine and a session on this Mac that is
-   * not running. The throw made the renderer's 1 Hz poll print a stack trace
-   * once a second for as long as such a session was on screen.
+   * null instead of throwing. The ordinary state with no binding is a session
+   * on this Mac that is not running. The throw made the renderer's 1 Hz poll
+   * print a stack trace once a second for as long as such a session was on
+   * screen.
+   *
+   * THIS MAC ONLY. A session on another machine never has a binding here and
+   * is answered by `remoteScroll` below before this is asked (Phase 320.1).
    */
   private scrollTarget(sessionId: string): string | null {
     return this.liveIds.get(sessionId) ?? null;
   }
 
+  /**
+   * Scroll a session on another machine exactly as one here is scrolled
+   * (Phase 320.1, build/p3201/SPEC.md §3.5), or answer null when the session is
+   * this Mac's and today's path applies byte for byte.
+   *
+   * The decision is synchronous and in this order:
+   *
+   *   `liveIds` holds the id                   null: this Mac's path, unchanged
+   *   ended on its machine                     NO_PANE_HERE
+   *   no connection this run on its machine    NO_PANE_HERE (Phase 320's
+   *                                            pass-through, today exactly),
+   *                                            except a pane that is or may
+   *                                            be scrolled back, or has keys
+   *                                            waiting, on a machine a key
+   *                                            may ask once more (`awaitsReopen`,
+   *                                            the ruled round): not reachable
+   *                                            now, so the pane is kept
+   *   connection not up, or the row not yet
+   *     listed on the connection that is up    the not-reachable-now value
+   *   a live row on the current connection,    NO_PANE_HERE, and nothing is
+   *     whose first read could not be read     written (`proveRemoteRead`)
+   *   a live row on the current connection     the SAME `scroll.ts` operation,
+   *                                            through that machine's guarded
+   *                                            runner, at the row's `$N`
+   *
+   * An id no machine holds this run is asked of the manifest: a row recorded on
+   * another machine (a restored pane mounted before its machine's first list)
+   * reads NO_PANE_HERE when that machine has no connection this run and the
+   * not-reachable-now value otherwise; anything else is NO_PANE_HERE, which is
+   * what this Mac's path answers for it too.
+   *
+   * It never throws and never rejects. A failure of the far operation is the
+   * not-reachable-now value, logged once per machine per connection.
+   *
+   * THE SECOND BUILD (build/p3201/SPEC.md §6.5, D3, D5, D6). Every answer for a
+   * session on another machine, live or not reachable now, carries
+   * `keysOrderedInMain`, and the renderer then holds and fences no keystroke:
+   * this method and `routeKey` (../machines/scroll-order.ts), which the attach
+   * host asks for every keystroke, keep the two roads to the far pane apart.
+   * An operation of `kind` `park` on a pane not known to be parked runs in
+   * this order:
+   *
+   *   awaitRoadQuiet   the attach has carried no key for ROAD_QUIET_MS; nothing
+   *                    is written yet, so a key typed now takes the attach, and
+   *                    the park is DROPPED (the fix round, F2): the person is
+   *                    typing, and the answer is a read and nothing else. Keys
+   *                    still held for a connection that was down drop it too
+   *   noteWritten      from here every key takes the control connection, behind
+   *                    a cancel, in the connection's own order
+   *   proveRemoteRead  once per connection, a read that parks nothing; a
+   *                    connection it cannot read withdraws the count and
+   *                    answers NO_PANE_HERE, and carries no keystroke after
+   *                    the ones already on their way
+   *   readBeforePark   one read; a program that has the screen or the mouse is
+   *                    answered with that read and never parked (D3); a key
+   *                    typed since the scroll began drops it the same way (F2);
+   *                    otherwise the pane is Tortie's own park (F3)
+   *   the operation    the same scroll.ts sequence as this Mac's
+   *   undoRacedPark    a park the program raced is cancelled
+   *   leaveForProgram  a pane Tortie parked whose program has since taken the
+   *                    screen or the mouse goes back to it (F3), on this
+   *                    operation's own fresh read, for every counted one
+   *   noteAnswer       what the pane is now, in the order the reads were written
+   *   noteSettled      the operation is no longer in flight; with nothing else
+   *                    in flight the next key takes the attach again (F1)
+   *
+   * Any other operation that can leave the pane parked (anything on a pane
+   * known or feared parked, and every `park` of one known parked) is counted
+   * in flight the same way, without the wait or the first read. A poll of a
+   * pane not known parked is a read and nothing else, and is not counted: it
+   * would otherwise flip a keystroke typed at rest onto the other road.
+   */
+  private remoteScroll(
+    sessionId: string,
+    kind: RemoteScrollKind,
+    op: (
+      run: tmux.TmuxScrollRunner,
+      target: string
+    ) => Promise<tmux.PaneScrollState>
+  ): Promise<TerminalScrollState> | null {
+    if (this.liveIds.has(sessionId)) return null;
+    const address = remoteScrollAddress(sessionId);
+    if (address.kind === 'ended') return Promise.resolve(NO_PANE_HERE);
+    let machineId: string;
+    if (address.kind === 'unknown') {
+      const record = remoteRecordOf(sessionId);
+      if (
+        record === null ||
+        !isRemoteRecord(record) ||
+        record.removedAt !== undefined ||
+        typeof record.machineId !== 'string'
+      ) {
+        return Promise.resolve(NO_PANE_HERE);
+      }
+      machineId = record.machineId;
+    } else {
+      machineId = address.machineId;
+    }
+    const carriage = remoteScrollRunner(machineId);
+    // Phase 320.1's ruled round: a pane only that machine's connection can
+    // return, on a machine a keystroke may ask once more, stays addressable.
+    if (carriage.kind === 'none') {
+      return Promise.resolve(awaitsReopen(sessionId, machineId) ? PANE_NOT_REACHABLE_NOW : NO_PANE_HERE);
+    }
+    if (carriage.kind === 'waiting' || address.kind !== 'live') {
+      return Promise.resolve(PANE_NOT_REACHABLE_NOW);
+    }
+    const { run: carriageRun, generation } = carriage;
+    const target = address.tmuxId;
+    const road = roadFacts(sessionId);
+    // D3 and D6: a park of a pane this Mac does not know to be parked.
+    const gated = kind === 'park' && !road.parked;
+    // F2: the keystrokes routed so far. One more before the park is written
+    // drops it, because the person is typing.
+    const keysAtStart = keysSoFar(sessionId);
+    const ordered = async (): Promise<TerminalScrollState> => {
+      // F2 and F4: a park asked while kept keys wait for their connection, or
+      // whose quiet wait saw a keystroke, is dropped before anything is written.
+      const wanted = !gated || (road.held === 0 && (await awaitRoadQuiet(sessionId)));
+      // D6: whatever can leave the pane parked keeps keys on the carriage.
+      const counted = (kind === 'park' && wanted) || road.parked || road.mayBeParked;
+      if (counted) noteWritten(sessionId);
+      // Every read and park this operation writes takes its number in write
+      // order, which is the order `noteAnswer` applies answers in.
+      const run = stampedRunner(sessionId, carriageRun);
+      let settle = counted;
+      try {
+        const proof = await this.proveRemoteRead(machineId, generation, carriageRun, target);
+        if (proof === 'unreadable') {
+          // Nothing but that read crossed, and nothing will on this
+          // connection: uncounted, so no key is kept off the attach for it.
+          if (counted) noteWithdrawn(sessionId);
+          settle = false;
+          return NO_PANE_HERE;
+        }
+        let state: tmux.PaneScrollState;
+        if (!wanted) {
+          // F2: the park the person's typing overtook. A read, nothing else.
+          state = await tmux.readPaneScroll(run, target);
+        } else if (gated) {
+          state = await undoRacedPark(
+            run,
+            target,
+            await readBeforePark(run, target, op, {
+              stillWanted: () => keysSoFar(sessionId) === keysAtStart,
+              parking: () => noteParkedByUs(sessionId)
+            })
+          );
+        } else {
+          state = await op(run, target);
+        }
+        // F3: a pane Tortie parked, whose program has since taken the screen or
+        // the mouse, goes back to it. Only on a counted operation, so every key
+        // typed meanwhile is on this same connection, behind it.
+        if (counted) state = await leaveForProgram(sessionId, run, target, state);
+        noteAnswer(sessionId, state, run.lastStamp());
+        return { ...state, hasPane: true, keysOrderedInMain: true };
+      } catch (err: unknown) {
+        // Only what this operation itself wrote can have moved the pane.
+        const stamp = run.lastStamp();
+        if (stamp > 0 && tmux.isUnreadableScrollAnswer(err)) {
+          noteAnswer(sessionId, 'unreadable', stamp);
+        } else if (stamp > 0 && counted) {
+          noteAnswer(sessionId, 'failed', stamp);
+        }
+        noteRemoteScrollFailed(machineId, generation, err);
+        return PANE_NOT_REACHABLE_NOW;
+      } finally {
+        if (settle) noteSettled(sessionId);
+      }
+    };
+    return ordered();
+  }
+
+  /**
+   * Per machine, the connection whose FIRST scroll read has been read, and
+   * what it proved (Phase 320.1's fix round). Lazily made, so the scroll
+   * methods still run when they are borrowed off the prototype.
+   */
+  private remoteReadProofs?: Map<
+    string,
+    { generation: number; proof: Promise<'readable' | 'unreadable'> }
+  >;
+
+  /**
+   * NEVER PARK WHAT CANNOT BE READ (Phase 320.1's fix round). Before the first
+   * operation on a machine's connection, one READ of the pane, which writes
+   * nothing to it; every later operation on the same connection reuses the
+   * answer.
+   *
+   * WHY. A machine's reads are read strictly (`parseRemoteState` in
+   * ../tmux/scroll.ts): an answer that is not eight whole numbers is an error,
+   * never "live, no history". But a relative scroll is PIPELINED, so by the
+   * time its read comes back unreadable, `copy-mode` and the scroll have
+   * already reached the far pane, and a pane parked where Tortie cannot read it
+   * loses keystrokes. The attack verifier measured exactly that over a control
+   * client with no UTF-8 locale, before the read's separator was fixed: the
+   * pane sat parked while Tortie read it as live, and 115 of 330 characters
+   * typed after a notch were lost. The separator fix is what makes the read
+   * work there; this is what makes any read that still does not work fail to
+   * TODAY'S behaviour rather than to a parked pane: a connection whose first
+   * read cannot be read answers NO_PANE_HERE for every operation, which is
+   * Phase 320's pass-through wheel and keys that go straight, and nothing is
+   * ever written to that machine's panes over that connection. A new
+   * connection is asked again.
+   *
+   * A read that got no answer proves nothing either way, so it is forgotten
+   * and the next operation asks again; its caller answers the
+   * not-reachable-now value, as any failure does.
+   */
+  private proveRemoteRead(
+    machineId: string,
+    generation: number,
+    run: tmux.TmuxScrollRunner,
+    target: string
+  ): Promise<'readable' | 'unreadable'> {
+    const proofs = (this.remoteReadProofs ??= new Map());
+    const held = proofs.get(machineId);
+    if (held !== undefined && held.generation === generation) return held.proof;
+    const proof: Promise<'readable' | 'unreadable'> = tmux
+      .readPaneScroll(run, target)
+      .then(
+        () => 'readable' as const,
+        (err: unknown) => {
+          if (tmux.isUnreadableScrollAnswer(err)) {
+            // Second build, D10: no keystroke takes this connection either.
+            noteUnreadableConnection(machineId, generation);
+            sessionsLog.info(
+              `a session on ${machineId} answered a scroll read in a shape ` +
+                `Tortie does not read, so its panes keep today's wheel on this ` +
+                `connection and nothing is scrolled there. Said once per ` +
+                `connection.`
+            );
+            return 'unreadable' as const;
+          }
+          if (proofs.get(machineId)?.proof === proof) proofs.delete(machineId);
+          throw err;
+        }
+      );
+    proofs.set(machineId, { generation, proof });
+    return proof;
+  }
+
   async scrollState(
     input: TerminalScrollPollInput
   ): Promise<TerminalScrollState> {
+    const remote = this.remoteScroll(input.sessionId, 'read', (run, target) =>
+      tmux.readPaneScroll(run, target)
+    );
+    if (remote !== null) return remote;
     const target = this.scrollTarget(input.sessionId);
     if (target === null) return NO_PANE_HERE;
     // A READ AND NOTHING ELSE. Copy-mode holds a parked reader's content by
@@ -2620,6 +2976,13 @@ export class GmuxCore {
   }
 
   async scrollBy(input: TerminalScrollByInput): Promise<TerminalScrollState> {
+    const lines = Math.trunc(input.lines);
+    const remote = this.remoteScroll(
+      input.sessionId,
+      lines > 0 ? 'park' : lines < 0 ? 'unpark' : 'read',
+      (run, target) => tmux.scrollPaneBy(run, target, input.lines)
+    );
+    if (remote !== null) return remote;
     const target = this.scrollTarget(input.sessionId);
     if (target === null) return NO_PANE_HERE;
     const state = await tmux.scrollPaneBy(
@@ -2631,6 +2994,12 @@ export class GmuxCore {
   }
 
   async scrollTo(input: TerminalScrollToInput): Promise<TerminalScrollState> {
+    const remote = this.remoteScroll(
+      input.sessionId,
+      Math.trunc(input.position) > 0 ? 'park' : 'unpark',
+      (run, target) => tmux.scrollPaneTo(run, target, input.position)
+    );
+    if (remote !== null) return remote;
     const target = this.scrollTarget(input.sessionId);
     if (target === null) return NO_PANE_HERE;
     const state = await tmux.scrollPaneTo(
@@ -2642,6 +3011,10 @@ export class GmuxCore {
   }
 
   async scrollLive(sessionId: string): Promise<TerminalScrollState> {
+    const remote = this.remoteScroll(sessionId, 'unpark', (run, target) =>
+      tmux.exitPaneScroll(run, target)
+    );
+    if (remote !== null) return remote;
     const target = this.scrollTarget(sessionId);
     if (target === null) return NO_PANE_HERE;
     const state = await tmux.exitPaneScroll(this.runScrollCommand, target);
@@ -2980,6 +3353,8 @@ export class GmuxCore {
       }
       this.attachHost.detach(sessionId);
       await remoteKill(sessionId);
+      // PHASE 320.1's second build: its roads are forgotten with it.
+      forgetScrollRoads(sessionId);
       broadcast(EVT_STATUS_CHANGED, sessionId, 'exited');
       this.broadcastSessions();
       return;
@@ -3208,6 +3583,8 @@ export class GmuxCore {
       // false for a row this run never saw, and that is not a failure. The
       // durable half above is the whole of what such a row needed.
       forgetRemoteRow(sessionId);
+      // PHASE 320.1's second build: its roads are forgotten with it.
+      forgetScrollRoads(sessionId);
       this.broadcastSessions();
       return;
     }

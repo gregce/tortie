@@ -7865,7 +7865,7 @@ reached it. The far side was this Mac over loopback, so a slow link and GNU git 
 **Tier 2.** Size Small.
 **Charter:** this entry plus `docs/research/57-remote-parity.md`. That document measured every number here and its rulings bind this phase.
 
-**Where the detail is.** Research 57 section 3, which ruled AGAINST a real remote scrollbar.
+**Where the detail is.** Research 57 section 3, which ruled AGAINST a real remote scrollbar (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands).
 
 **Depends on.** Phase 95, whose copy must drop the sentence saying scrolling back is not available.
 
@@ -7875,7 +7875,7 @@ reached it. The far side was this Mac over loopback, so a slow link and GNU git 
 
 ### What is NOT in this phase
 
-**A real remote scrollbar is REFUSED.** It needs `copy-mode` on the ledger and an open family of `send-keys -X` commands through the door Phase 89 deliberately narrowed, or it needs the control connection, which is the one carriage with no gate. Pulling 25,000 lines was measured at 0.51 s, which is fine for a menu item and 32 times too slow for a wheel notch against the 16 ms budget in `WHEEL_COALESCE_MS`.
+**A real remote scrollbar is REFUSED** (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands). It needs `copy-mode` on the ledger and an open family of `send-keys -X` commands through the door Phase 89 deliberately narrowed, or it needs the control connection, which is the one carriage with no gate. Pulling 25,000 lines was measured at 0.51 s, which is fine for a menu item and 32 times too slow for a wheel notch against the 16 ms budget in `WHEEL_COALESCE_MS`.
 
 ### The evidence
 
@@ -7891,7 +7891,7 @@ sentence, which said that Tortie could not scroll back through a session on anot
 deleted from the product. It survives only as the button's tooltip, where it explains why the panel
 exists.
 
-A REAL REMOTE SCROLLBAR IS STILL REFUSED and this phase did not reopen that. Research 57 section 3.1
+A REAL REMOTE SCROLLBAR IS STILL REFUSED and this phase did not reopen that (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands). Research 57 section 3.1
 refused it twice over, and `REMOTE_VERB_LEDGER` in `src/main/machines/exec-plane.ts` did not move. The
 command that crosses is `capture-pane -p -e -J -t <id> -S -<n>`, which was already row 5 of that
 ledger with `kind: 'read'` and `repeat: 'safe'`. No script was added to the frozen catalogue, which
@@ -8666,7 +8666,7 @@ When saving is off it keeps today's sentence, which is `Tortie only reads files 
 - **Trash on a machine is NEVER, as a delete.** `shell.trashItem` has no far side equal, and a remote `rm` would turn a recoverable delete into an unrecoverable one. `src/renderer/tree/tree-menu.ts` already records this at its Move to Trash block. Move to Trash stays absent on a remote row and the test that asserts its absence stays.
 - **Reveal on a machine is NEVER.** It opens Finder on this Mac over a file that is not here.
 - **Discard on a remote tab is NEVER.**
-- **A real remote scrollbar is REFUSED**, and shipping or sending a ripgrep is REFUSED. Neither is touched here.
+- **A real remote scrollbar is REFUSED** (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands), and shipping or sending a ripgrep is REFUSED. Neither is touched here.
 - **Raising the read cap is refused.** Section 5 above says why, with the numbers.
 - **No undo.** Tortie keeps no copy of what it replaced. The honesty paragraph says so before the person agrees, and no later round adds a hidden copy on that machine without its own decision.
 - **No success toast**, and no per-project write confirmation. The confirmed field is per machine, which is the shape the operator chose.
@@ -9012,7 +9012,7 @@ Three sentences elsewhere in the app said Tortie never writes on a machine, and 
 | Move to Trash on a machine | **Never, as a delete.** `shell.trashItem` has no far side equal and a remote `rm` turns a recoverable delete into an unrecoverable one. `src/renderer/tree/tree-menu.ts` and the ⌫ branch at `FileTree.tsx` line 1238 already record this and both stay |
 | Reveal in Finder on a machine | **Never.** It opens Finder on this Mac over a file that is not on this Mac |
 | Discard on a remote tab | **Never**, and it is not this surface anyway |
-| A real remote scrollbar, and shipping or sending a ripgrep | **Never**, by research 57 section 12. Neither is this surface |
+| A real remote scrollbar, and shipping or sending a ripgrep | **Never**, by research 57 section 12 (the scrollbar half narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands). Neither is this surface |
 | Drag and drop move on a remote tree | `canDrag` at line 430 and `canDropInto` at line 449 of `FileTree.tsx` keep refusing, and `onDragStart` at line 1455 keeps its own refusal, with the third door's comment at line 1476. The reason is in that file and it does not expire with a write script. `beginTreeDrag` arms the terminal pane's attach contract with ABSOLUTE paths, and an absolute path from another machine names a file on this Mac or nothing at all |
 | The replace question | `describeConflicts` in `tree-menu.ts` offers to move an existing item to the Trash. That has no far side equal, so a name in use on a machine is a refusal and never a question |
 | A recursive `mkdir` | `-p` would make folders the person never named, and the gate branch asserts it is absent |
@@ -9577,7 +9577,7 @@ The sync control and the actions menu stay absent from the remote branch of `Bra
 - Trash on a machine as a delete.
 - Reveal on a machine.
 - Duplicate on a machine for now.
-- A real remote scrollbar.
+- A real remote scrollbar (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands).
 - Shipping or sending a ripgrep.
 
 ### The evidence
@@ -10264,7 +10264,7 @@ the verb ledger in `src/main/machines/exec-plane.ts` was not extended. This phas
 honest and quiet. **Phase 100 is where that gap gets filled**, and its entry already says this
 phase's sentence must be dropped when it is. Phase 100 builds the smaller affordance research 57
 section 3 ruled for, being a read of the last N lines from the session menu, rather than a scrollbar.
-A real remote scrollbar is REFUSED by that section for the reason stated above.
+A real remote scrollbar is REFUSED by that section for the reason stated above (narrowed for the control connection only by research 130 §4 and his ruling of 2026-09-23, Phase 320.1; the exec plane refusal stands).
 
 **A CORRECTION TO THIS ENTRY, made when it was merged.** Its committer wrote "Phase 96" on the line
 above. Phase 96 was the four defects the parity audit found and it shipped earlier the same day. The

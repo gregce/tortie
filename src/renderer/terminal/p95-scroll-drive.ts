@@ -65,6 +65,12 @@ export interface P95State {
    * `build/probe-p95-scroll.mjs` reads the text and the tooltip out of it.
    * PHASE 320 deleted the tooltip's sentence, so `title` is read to prove it
    * is ABSENT, and step 5 was changed in the same commit.
+   * PHASE 320.1 deleted the button itself: a session on another machine
+   * scrolls like one on this Mac now, and the read stays in the terminal's
+   * context menu. So this reads null in both orientations, and step 5 of
+   * `build/probe-p95-scroll.mjs` and arm R5 of `build/p320/probe-p320.mjs`
+   * assert exactly that. The field keeps its name so a build that drew the
+   * control again is named by the same reading.
    */
   note: { text: string; title: string } | null;
   /** True while a terminal pane is mounted. */
@@ -97,9 +103,9 @@ function readState(): P95State {
   // PHASE 100 renamed the element this reads. Phase 95 drew a span saying that
   // scrolling back was not available, with class `strip-note`. It is a button
   // that opens the last lines panel now, with class `strip-readback`. It
-  // carried a sentence as its tooltip until Phase 320 deleted it, and `title`
-  // is still read so step 5 can prove it gone. The reading is otherwise
-  // unchanged.
+  // carried a sentence as its tooltip until Phase 320 deleted it, and Phase
+  // 320.1 deleted the button, so this reads null wherever the band is drawn.
+  // The reading is otherwise unchanged, so a control drawn again is named.
   const noteEl = document.querySelector('.strip-readback');
   const thumb = document.querySelector<HTMLElement>(
     '.gmux-terminal-scrollbar-thumb'

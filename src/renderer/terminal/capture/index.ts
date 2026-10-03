@@ -234,9 +234,11 @@ async function composeFromHistory(
   const session = sessionRow(sessionId);
   if (session === undefined) return null;
   const { composeHistorySelection } = await import('./history-copy');
+  // Phase 320.1. The session, not only its name: a session on another
+  // machine is read on that machine (./history-copy.ts's header).
   return composeHistorySelection(
     bridge,
-    session.tmuxName,
+    session,
     history,
     withHtml
       ? {
@@ -676,7 +678,7 @@ async function captureHistorySelection(
     );
     const { rows } = await readHistoryRows(
       bridge,
-      session.tmuxName,
+      session,
       start,
       history.end.line,
       false

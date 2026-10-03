@@ -1690,9 +1690,962 @@ const armedResumeWrapCounts = {
   absent: countOccurrences('Gregs-Mac-Pro%\n\n\n', ARMED_WRAP_TEXT)
 };
 
+// ---------------------------------------------------------------------------
+// Phase 320.1, conditions 101 to 112. The carriage door, DRIVEN.
+// ---------------------------------------------------------------------------
+//
+// A session on another machine scrolls over that machine's live connection,
+// through ONE runner that checks every argv against a closed table of six
+// shapes before a byte is written (build/p3201/SPEC.md §3, research 130 §4).
+// This block drives the shipping modules and hands the checker what they did.
+// The source reads of those conditions (who names what, in which order) are
+// the checker's own, over the files themselves.
+//
+// NOTHING IS SENT. The runner is handed a RECORDING `send` that answers from
+// memory, so the only connection anything here writes to is an array. No ssh
+// runs, no tmux server is started, no machine is contacted, no file is written.
+//
+// Each module is loaded ONLY IF IT IS THERE and its load error is carried to
+// the checker, so a tree where one builder's half has landed and the other's
+// has not fails with a sentence naming the missing piece. A MISSING MODULE IS
+// A FAILURE in the checker and never a skip.
+const p3201 = await (async () => {
+  const loadErrors: Record<string, string> = {};
+  const load = async (key: string, rel: string): Promise<Record<string, unknown> | null> => {
+    const path = join(repoRoot, rel);
+    if (!existsSync(path)) {
+      loadErrors[key] = `${rel} is not there`;
+      return null;
+    }
+    try {
+      return (await import(pathToFileURL(path).href)) as Record<string, unknown>;
+    } catch (err) {
+      loadErrors[key] = `${rel} did not load: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`;
+      return null;
+    }
+  };
+  const shapesMod = await load('shapes', 'src/main/machines/scroll-shapes.ts');
+  const scrollMod = await load('scroll', 'src/main/tmux/scroll.ts');
+  const planeMod = await load('controlPlane', 'src/main/machines/control-plane.ts');
+  const sessionsMod = await load('remoteSessions', 'src/main/machines/remote-sessions.ts');
+  const clientMod = await load('controlClient', 'src/main/tmux/control-client.ts');
+  // PHASE 320.1's SECOND BUILD: the module that keeps a remote session's two
+  // roads apart (build/p3201/SPEC.md D3, D6 to D9), driven for 109 to 111.
+  const orderMod = await load('order', 'src/main/machines/scroll-order.ts');
+  // THE COPY ON A MACHINE lives in whichever file exports `remoteHistoryArgs`.
+  // The spec named `remote-history.ts`, which Phase 107's commit graph already
+  // holds, so the file is found by the export rather than by a name.
+  const historyFile = (() => {
+    for (const name of readdirSync(machinesDir).sort()) {
+      if (!name.endsWith('.ts')) continue;
+      const text = readFileSync(join(machinesDir, name), 'utf8');
+      if (/export\s+(?:async\s+)?function\s+remoteHistoryArgs\b/.test(text)) {
+        return `src/main/machines/${name}`;
+      }
+    }
+    return null;
+  })();
+  const historyMod =
+    historyFile === null ? null : await load('history', historyFile);
+  if (historyFile === null) {
+    loadErrors['history'] = 'no file under src/main/machines/ exports remoteHistoryArgs';
+  }
+
+  const fn = <T>(mod: Record<string, unknown> | null, name: string): T | null =>
+    mod !== null && typeof mod[name] === 'function' ? (mod[name] as T) : null;
+  type Verdict = { ok: true; shape: string } | { ok: false; reason: string };
+  const admit = fn<(args: readonly unknown[]) => Verdict>(shapesMod, 'admitScrollArgv');
+  const guarded = fn<
+    (input: {
+      send: (line: string) => Promise<readonly string[]>;
+      isCurrent: () => boolean;
+      server: string;
+      deadlineMs?: number;
+    }) => ((args: readonly string[]) => Promise<string>) & { ordered?: boolean; server?: string }
+  >(shapesMod, 'guardedScrollRunner');
+  // THE READ A MACHINE IS ASKED WITH (Phase 320.1's fix round): the same eight
+  // fields as this Mac's, one space between them, because a machine's control
+  // client may have no UTF-8 locale and tmux then answers every tab as `_`.
+  // `STATE_FORMAT_HERE` names it, since it is the one the table admits.
+  const STATE_FORMAT_HERE =
+    scrollMod !== null && typeof scrollMod['REMOTE_STATE_FORMAT'] === 'string'
+      ? (scrollMod['REMOTE_STATE_FORMAT'] as string)
+      : null;
+  /** This Mac's read, the tab-separated one, which never crosses to a machine. */
+  const THIS_MAC_FORMAT =
+    scrollMod !== null && typeof scrollMod['STATE_FORMAT'] === 'string'
+      ? (scrollMod['STATE_FORMAT'] as string)
+      : null;
+  const CHUNK =
+    scrollMod !== null && typeof scrollMod['SCROLL_CHUNK_LINES'] === 'number'
+      ? (scrollMod['SCROLL_CHUNK_LINES'] as number)
+      : null;
+  const verdictOf = (args: readonly unknown[]): Verdict | { ok: false; reason: string; threw: true } => {
+    if (admit === null) return { ok: false, reason: 'admitScrollArgv is not exported', threw: true };
+    try {
+      return admit(args);
+    } catch (err) {
+      return { ok: false, reason: `threw ${err instanceof Error ? err.message : String(err)}`, threw: true };
+    }
+  };
+
+  // --- 102, the table itself -------------------------------------------------
+  const rawShapes = shapesMod !== null && Array.isArray(shapesMod['SCROLL_SHAPES'])
+    ? (shapesMod['SCROLL_SHAPES'] as { id: unknown; argv: unknown; idempotent: unknown; repeat: unknown }[])
+    : null;
+  /** One slot as a word the checker compares: the fixed word itself, or the slot's kind and bounds. */
+  const slotWord = (slot: unknown): string => {
+    const s = (slot ?? {}) as { kind?: unknown; word?: unknown; words?: unknown; min?: unknown; max?: unknown };
+    if (s.kind === 'word') return String(s.word);
+    if (s.kind === 'int' || s.kind === 'hex-bytes') return `${String(s.kind)}:${String(s.min)}-${String(s.max)}`;
+    if (s.kind === 'one-of') return `one-of:${Array.isArray(s.words) ? s.words.join('|') : ''}`;
+    return String(s.kind);
+  };
+  const shapes = (rawShapes ?? []).map((row) => ({
+    id: String(row.id),
+    elements: Array.isArray(row.argv) ? row.argv.length : -1,
+    slots: Array.isArray(row.argv) ? (row.argv as unknown[]).map(slotWord) : [],
+    idempotent: row.idempotent === true,
+    repeat: typeof row.repeat === 'string' ? row.repeat : ''
+  }));
+
+  // --- 102, every argv the four scroll.ts entry points emit ------------------
+  //
+  // THE EXPECTED SHAPE IS THIS PROBE'S OWN, written from research 130 §4's
+  // table and never read from the module it judges.
+  const expectedShapeOf = (args: readonly string[]): string => {
+    if (args[0] === 'display-message') return 'read-state';
+    if (args[0] === 'copy-mode') return 'enter-copy-mode';
+    if (args.includes('-N')) return 'scroll-lines';
+    if (args.includes('goto-line')) return 'goto-line';
+    if (args.includes('top-line')) return 'top-line';
+    if (args.includes('cancel')) return 'cancel';
+    return 'none';
+  };
+  const recorded: { via: string; args: string[]; verdict: unknown; expected: string }[] = [];
+  const recordErrors: string[] = [];
+  /** A read's eight fields, as a machine answers them (a space) or as this Mac does (a tab). */
+  const stateLine = (parked: boolean, separator = ' '): string =>
+    [parked ? '1' : '0', parked ? '120' : '', '4000', '40', '0', '0', '150', parked ? '4000' : ''].join(separator);
+  if (scrollMod !== null && admit !== null) {
+    type Runner = ((args: readonly string[]) => Promise<string>) & { ordered?: boolean; server?: string };
+    // `ordered` and `unordered` both NAME A SERVER, being a machine's runner
+    // driven through the pipelined code and through the serial code. The
+    // `fallback` road is this Mac's alone (D8: only a runner with no server may
+    // latch the chunked walk), so it names none and reads with this Mac's tab
+    // format, which never crosses to a machine: its reads are not recorded, and
+    // condition 103 asks separately that the table refuses them.
+    const recorder = (via: string, o: { ordered: boolean; server: boolean; failGotoOnce?: boolean }): Runner => {
+      let gotoFailed = false;
+      const run = (args: readonly string[]): Promise<string> => {
+        const copy = [...args].map(String);
+        if (o.server || copy[0] !== 'display-message') {
+          recorded.push({ via, args: copy, verdict: verdictOf(copy), expected: expectedShapeOf(copy) });
+        }
+        if (o.failGotoOnce === true && copy.includes('goto-line') && !gotoFailed) {
+          gotoFailed = true;
+          return Promise.reject(new Error('unknown command: goto-line'));
+        }
+        if (copy[0] === 'display-message') return Promise.resolve(stateLine(true, o.server ? ' ' : '\t'));
+        return Promise.resolve('');
+      };
+      if (!o.server) return run;
+      return o.ordered
+        ? Object.assign(run, { ordered: true, server: 'machine:probe' })
+        : Object.assign(run, { server: 'machine:probe' });
+    };
+    const drive = async (via: string, runner: Runner): Promise<void> => {
+      const s = scrollMod as Record<string, (...a: unknown[]) => Promise<unknown>>;
+      for (const [name, args] of [
+        ['readPaneScroll', ['$7']],
+        ['scrollPaneBy', ['$7', 3]],
+        ['scrollPaneBy', ['$7', -3]],
+        ['scrollPaneBy', ['$7', 2500]],
+        ['scrollPaneBy', ['$7', -2500]],
+        ['scrollPaneTo', ['$7', 1500]],
+        ['scrollPaneTo', ['$7', 0]],
+        ['exitPaneScroll', ['$7']]
+      ] as const) {
+        const call = s[name];
+        if (typeof call !== 'function') {
+          recordErrors.push(`${name} is not exported by scroll.ts`);
+          continue;
+        }
+        try {
+          await call(runner, ...args);
+        } catch (err) {
+          recordErrors.push(`${via} ${name}(${args.join(', ')}) threw ${err instanceof Error ? err.message : String(err)}`);
+        }
+      }
+    };
+    const reset = scrollMod['resetSeekSupportForTests'];
+    const resetSeek = (): void => {
+      if (typeof reset === 'function') (reset as () => void)();
+    };
+    resetSeek();
+    await drive('ordered', recorder('ordered', { ordered: true, server: true }));
+    resetSeek();
+    await drive('unordered', recorder('unordered', { ordered: false, server: true }));
+    // THE CHUNKED FALLBACK, which only this Mac's runner can reach (D8): its
+    // first `goto-line` fails, the latch goes to "no", and the seek is walked
+    // in slices of SCROLL_CHUNK_LINES. Every slice must fit the table too.
+    resetSeek();
+    await drive('fallback', recorder('fallback', { ordered: false, server: false, failGotoOnce: true }));
+    resetSeek();
+  }
+
+  // --- 102, the hostile corpus, held HERE and never imported from a test ----
+  const F = STATE_FORMAT_HERE ?? '#{pane_in_mode}';
+  const HOSTILE: { label: string; args: unknown[] }[] = [
+    { label: '-l literal text', args: ['send-keys', '-t', '$1', '-l', 'abc'] },
+    { label: 'a key name', args: ['send-keys', '-t', '$1', 'Enter'] },
+    // PHASE 320.1's SECOND BUILD. `send-keys -t $N -H 41` is the SEVENTH
+    // SHAPE now (his word of 2026-09-30), admitted and driven in 109; what
+    // stays hostile is every other spelling of -H (build/p3201/SPEC.md §6.3).
+    { label: '-H with no byte', args: ['send-keys', '-t', '$1', '-H'] },
+    { label: '-H with 257 bytes', args: ['send-keys', '-t', '$1', '-H', ...Array.from({ length: 257 }, () => '61')] },
+    { label: '-H byte of one digit', args: ['send-keys', '-t', '$1', '-H', '6'] },
+    { label: '-H byte of three digits', args: ['send-keys', '-t', '$1', '-H', '061'] },
+    { label: '-H byte in capitals', args: ['send-keys', '-t', '$1', '-H', '6A'] },
+    { label: '-H byte spelled 0x61', args: ['send-keys', '-t', '$1', '-H', '0x61'] },
+    { label: '-H byte -1', args: ['send-keys', '-t', '$1', '-H', '-1'] },
+    { label: '-H byte 100', args: ['send-keys', '-t', '$1', '-H', '100'] },
+    { label: '-H byte with a space', args: ['send-keys', '-t', '$1', '-H', ' 61'] },
+    { label: '-H byte in Arabic-Indic digits', args: ['send-keys', '-t', '$1', '-H', '٦١'] },
+    { label: '-H byte as a number rather than a string', args: ['send-keys', '-t', '$1', '-H', 97] },
+    { label: '-H then a key name', args: ['send-keys', '-t', '$1', '-H', 'Enter'] },
+    { label: '-H, a byte, then a key name', args: ['send-keys', '-t', '$1', '-H', '61', 'Enter'] },
+    { label: '-H, a byte, then a second command', args: ['send-keys', '-t', '$1', '-H', '61', ';', 'kill-server'] },
+    { label: '-H with -l before it', args: ['send-keys', '-t', '$1', '-l', '-H', '61'] },
+    { label: '-H with -l after it', args: ['send-keys', '-t', '$1', '-H', '-l', '61'] },
+    { label: '-H with -K', args: ['send-keys', '-K', '-t', '$1', '-H', '61'] },
+    { label: '-H with -M', args: ['send-keys', '-t', '$1', '-M', '-H', '61'] },
+    { label: '-H with -R', args: ['send-keys', '-t', '$1', '-R', '-H', '61'] },
+    { label: '-H with -X', args: ['send-keys', '-t', '$1', '-X', '-H', '61'] },
+    { label: '-H with a second -t', args: ['send-keys', '-t', '$1', '-H', '-t', '$2'] },
+    { label: '-H before -t', args: ['send-keys', '-H', '-t', '$1', '61'] },
+    { label: '-H to a name target', args: ['send-keys', '-t', 'p320-sh', '-H', '61'] },
+    { label: '-H to a % target', args: ['send-keys', '-t', '%1', '-H', '61'] },
+    { label: '-H to an = target', args: ['send-keys', '-t', '=gmux', '-H', '61'] },
+    { label: '-K', args: ['send-keys', '-K', '-t', '$1', '-X', 'cancel'] },
+    { label: '-M', args: ['send-keys', '-M', '-t', '$1'] },
+    { label: '-R', args: ['send-keys', '-R', '-t', '$1'] },
+    { label: 'copy-pipe-and-cancel with a program', args: ['send-keys', '-t', '$1', '-X', 'copy-pipe-and-cancel', 'touch /tmp/p3201-ran'] },
+    { label: 'copy-pipe with a program', args: ['send-keys', '-t', '$1', '-X', 'copy-pipe', 'touch /tmp/p3201-ran'] },
+    { label: 'copy-pipe-no-clear', args: ['send-keys', '-t', '$1', '-X', 'copy-pipe-no-clear', 'touch x'] },
+    { label: 'a second command after ;', args: ['send-keys', '-t', '$1', '-X', 'cancel', ';', 'kill-server'] },
+    { label: 'a % pane target', args: ['send-keys', '-t', '%1', '-X', 'cancel'] },
+    { label: 'an = exact name target', args: ['send-keys', '-t', '=gmux', '-X', 'cancel'] },
+    { label: 'a name target', args: ['send-keys', '-t', 'p320-sh', '-X', 'cancel'] },
+    { label: '-c', args: ['send-keys', '-c', '/dev/ttys001', '-t', '$1', '-X', 'cancel'] },
+    { label: '-e on send-keys', args: ['send-keys', '-e', '-t', '$1', '-X', 'cancel'] },
+    { label: '-u on copy-mode', args: ['copy-mode', '-u', '-t', '$1'] },
+    { label: 'copy-mode flags in another order', args: ['copy-mode', '-t', '$1', '-e'] },
+    { label: 'copy-mode, one element more', args: ['copy-mode', '-e', '-t', '$1', '-u'] },
+    { label: 'copy-mode, one element fewer', args: ['copy-mode', '-e', '-t'] },
+    { label: '-N 0', args: ['send-keys', '-t', '$1', '-X', '-N', '0', 'scroll-up'] },
+    { label: '-N 2001', args: ['send-keys', '-t', '$1', '-X', '-N', '2001', 'scroll-up'] },
+    { label: '-N 1e3', args: ['send-keys', '-t', '$1', '-X', '-N', '1e3', 'scroll-up'] },
+    { label: '-N with a leading space', args: ['send-keys', '-t', '$1', '-X', '-N', ' 5', 'scroll-up'] },
+    { label: '-N +5', args: ['send-keys', '-t', '$1', '-X', '-N', '+5', 'scroll-up'] },
+    { label: '-N in Arabic-Indic digits', args: ['send-keys', '-t', '$1', '-X', '-N', '٥', 'scroll-up'] },
+    { label: '-N with a leading zero', args: ['send-keys', '-t', '$1', '-X', '-N', '05', 'scroll-up'] },
+    { label: '-N 0x10', args: ['send-keys', '-t', '$1', '-X', '-N', '0x10', 'scroll-up'] },
+    { label: '-N negative', args: ['send-keys', '-t', '$1', '-X', '-N', '-5', 'scroll-up'] },
+    { label: '-N 5.0', args: ['send-keys', '-t', '$1', '-X', '-N', '5.0', 'scroll-up'] },
+    { label: '-N as a number rather than a string', args: ['send-keys', '-t', '$1', '-X', '-N', 5, 'scroll-up'] },
+    { label: 'a target carrying ; kill-server', args: ['send-keys', '-t', '$1 ; kill-server', '-X', 'cancel'] },
+    { label: 'a target with a leading zero', args: ['send-keys', '-t', '$01', '-X', 'cancel'] },
+    { label: 'a target of ten digits', args: ['send-keys', '-t', '$1234567890', '-X', 'cancel'] },
+    { label: 'a target in Arabic-Indic digits', args: ['send-keys', '-t', '$١', '-X', 'cancel'] },
+    { label: 'a format that runs a program', args: ['display-message', '-p', '-t', '$1', '-F', '#(touch /tmp/p3201-ran)'] },
+    { label: 'the format one byte longer', args: ['display-message', '-p', '-t', '$1', '-F', `${F} `] },
+    { label: 'the format one byte shorter', args: ['display-message', '-p', '-t', '$1', '-F', F.slice(0, -1)] },
+    { label: 'a format with #( appended', args: ['display-message', '-p', '-t', '$1', '-F', `${F}#(touch x)`] },
+    { label: 'a read with no -F', args: ['display-message', '-p', '-t', '$1', '#{pane_in_mode}'] },
+    { label: 'a read with no -p', args: ['display-message', '-t', '$1', '-F', F] },
+    { label: 'a read, one element more', args: ['display-message', '-p', '-t', '$1', '-F', F, 'x'] },
+    { label: "this Mac's tab-separated read, which a machine may answer as underscores", args: ['display-message', '-p', '-t', '$1', '-F', THIS_MAC_FORMAT ?? '#{pane_in_mode}\t#{scroll_position}'] },
+    { label: 'goto-line -1', args: ['send-keys', '-t', '$1', '-X', 'goto-line', '-1'] },
+    { label: 'goto-line past a C int', args: ['send-keys', '-t', '$1', '-X', 'goto-line', '2147483648'] },
+    { label: 'goto-line 1e3', args: ['send-keys', '-t', '$1', '-X', 'goto-line', '1e3'] },
+    { label: 'top-line, one element more', args: ['send-keys', '-t', '$1', '-X', 'top-line', 'x'] },
+    { label: 'cancel, one element more', args: ['send-keys', '-t', '$1', '-X', 'cancel', 'x'] },
+    { label: 'cancel, one element fewer', args: ['send-keys', '-t', '$1', '-X'] },
+    { label: 'a scroll verb the table does not name', args: ['send-keys', '-t', '$1', '-X', '-N', '5', 'page-up'] },
+    { label: '-X before -t', args: ['send-keys', '-X', '-t', '$1', 'cancel'] },
+    { label: 'a search, which takes a caller string', args: ['send-keys', '-t', '$1', '-X', 'search-backward', 'x'] },
+    { label: 'kill-server', args: ['kill-server'] },
+    { label: 'run-shell', args: ['run-shell', 'touch /tmp/p3201-ran'] },
+    { label: 'the verb in capitals', args: ['SEND-KEYS', '-t', '$1', '-X', 'cancel'] },
+    { label: 'an empty argv', args: [] },
+    { label: 'copy-mode then a second command', args: ['copy-mode', '-e', '-t', '$1', ';', 'run-shell', 'x'] }
+  ];
+  const hostile = HOSTILE.map((row) => ({ label: row.label, verdict: verdictOf(row.args) }));
+
+  // --- 103, the pinned format --------------------------------------------------
+  const format = {
+    stateFormat: STATE_FORMAT_HERE,
+    thisMacFormat: THIS_MAC_FORMAT,
+    // Every byte printable ASCII, so no client's locale rewrites one.
+    printable: STATE_FORMAT_HERE === null ? null : /^[\x20-\x7e]+$/.test(STATE_FORMAT_HERE),
+    // The same eight fields as this Mac's read, in the same places.
+    sameFields:
+      STATE_FORMAT_HERE === null || THIS_MAC_FORMAT === null
+        ? null
+        : JSON.stringify(STATE_FORMAT_HERE.split(' ')) === JSON.stringify(THIS_MAC_FORMAT.split('\t')) &&
+          THIS_MAC_FORMAT.split('\t').length === 8,
+    thisMacRefused:
+      THIS_MAC_FORMAT === null ? null : verdictOf(['display-message', '-p', '-t', '$0', '-F', THIS_MAC_FORMAT]),
+    hasHashParen: STATE_FORMAT_HERE === null ? null : STATE_FORMAT_HERE.includes('#('),
+    exact: STATE_FORMAT_HERE === null ? null : verdictOf(['display-message', '-p', '-t', '$0', '-F', STATE_FORMAT_HERE]),
+    oneByteOff:
+      STATE_FORMAT_HERE === null
+        ? null
+        : verdictOf(['display-message', '-p', '-t', '$0', '-F', `${STATE_FORMAT_HERE.slice(0, -1)}X`]),
+    runsAProgram: verdictOf(['display-message', '-p', '-t', '$0', '-F', '#(touch x)'])
+  };
+
+  // --- 104, the live-row target, over its whole matrix --------------------------
+  //
+  // THE WANT IS THIS PROBE'S, written from D4: a gone row is ended whatever
+  // else is true; no row is unknown; a live row is addressable only while its
+  // machine is on its control connection AND the rows were listed by a pass
+  // that started on the CURRENT connection.
+  const addressOf = fn<(facts: unknown) => { kind: string; machineId?: string; tmuxId?: string }>(
+    sessionsMod,
+    'scrollAddressOf'
+  );
+  const ROW = { machineId: 'm1', tmuxId: '$4', id: 's1', name: 'p3201', tmuxName: 'p3201' };
+  const address: { label: string; got: unknown; want: { kind: string; tmuxId?: string } }[] = [];
+  for (const gone of [false, true]) {
+    for (const hasRow of [false, true]) {
+      for (const onControl of [false, true]) {
+        for (const [controlEpoch, rowsEpoch] of [
+          [0, 0],
+          [2, 2],
+          [3, 2],
+          [2, 3]
+        ] as const) {
+          const want = gone
+            ? { kind: 'ended' }
+            : !hasRow
+              ? { kind: 'unknown' }
+              : onControl && rowsEpoch === controlEpoch
+                ? { kind: 'live', tmuxId: '$4' }
+                : { kind: 'waiting' };
+          let got: unknown = null;
+          if (addressOf !== null) {
+            try {
+              got = addressOf({ live: hasRow ? ROW : undefined, gone, onControl, controlEpoch, rowsEpoch });
+            } catch (err) {
+              got = { threw: err instanceof Error ? err.message : String(err) };
+            }
+          }
+          address.push({
+            label: `gone ${String(gone)}, row ${String(hasRow)}, on control ${String(onControl)}, control epoch ${String(controlEpoch)}, rows epoch ${String(rowsEpoch)}`,
+            got,
+            want
+          });
+        }
+      }
+    }
+  }
+
+  // --- 106, checked before written, refused when moved -------------------------
+  const runner: Record<string, unknown> = { present: guarded !== null };
+  if (guarded !== null) {
+    const sends: string[] = [];
+    let current = true;
+    const run = guarded({
+      send: (line) => {
+        sends.push(line);
+        return Promise.resolve([stateLine(false)]);
+      },
+      isCurrent: () => current,
+      server: 'machine:probe'
+    });
+    runner['ordered'] = run.ordered === true;
+    runner['server'] = run.server ?? null;
+    const outcome = async (args: readonly unknown[]): Promise<{ sends: number; rejected: boolean; code: string | null }> => {
+      const before = sends.length;
+      let rejected = false;
+      let code: string | null = null;
+      try {
+        await run(args as readonly string[]);
+      } catch (err) {
+        rejected = true;
+        const payload = (err as { payload?: { code?: unknown } } | null)?.payload;
+        code = typeof payload?.code === 'string' ? payload.code : err instanceof Error ? err.name : 'thrown';
+      }
+      return { sends: sends.length - before, rejected, code };
+    };
+    const hostileSends: { label: string; sends: number; rejected: boolean; code: string | null }[] = [];
+    for (const row of HOSTILE) hostileSends.push({ label: row.label, ...(await outcome(row.args)) });
+    runner['hostileSends'] = hostileSends;
+    const read = ['display-message', '-p', '-t', '$4', '-F', STATE_FORMAT_HERE ?? ''];
+    const admitted = await outcome(read);
+    runner['admitted'] = { ...admitted, line: sends[sends.length - 1] ?? null };
+    runner['quotedLine'] =
+      clientMod !== null && typeof clientMod['quoteTmuxArg'] === 'function'
+        ? read.map((a) => (clientMod['quoteTmuxArg'] as (s: string) => string)(a)).join(' ')
+        : null;
+    current = false;
+    runner['notCurrent'] = await outcome(read);
+    current = true;
+
+    // THE ONE READ OF THE CALLER'S LIST. A list whose elements read one way at
+    // the check and another at the write (a Proxy, a getter) must cross as the
+    // bytes that were checked. The integrator's re-derivation found this hole
+    // open, and the attack verifier found that no condition here owned it.
+    const copyLines: string[] = [];
+    let copyChecked = false;
+    const copyRun = guarded({
+      send: (line) => {
+        copyLines.push(line);
+        return Promise.resolve([]);
+      },
+      isCurrent: () => {
+        copyChecked = true;
+        return true;
+      },
+      server: 'machine:probe'
+    });
+    const shifty = new Proxy(['send-keys', '-t', '$3', '-X', 'cancel'], {
+      get(target, prop, receiver) {
+        if (copyChecked && prop === '2') return '$3 ; run-shell "touch /tmp/p3201-ran"';
+        if (copyChecked && prop === '4') return 'copy-pipe-and-cancel';
+        return Reflect.get(target, prop, receiver) as unknown;
+      }
+    });
+    await copyRun(shifty).catch(() => undefined);
+    runner['copyOnce'] = { lines: copyLines };
+
+    // THE CALLER'S DEADLINE (D10), driven at 40 ms over a send that never
+    // answers: the caller is answered TMUX_UNREACHABLE, and nothing waits on a
+    // connection that stopped answering.
+    const deadlineRun = guarded({
+      send: () => new Promise<readonly string[]>(() => undefined),
+      isCurrent: () => true,
+      server: 'machine:probe',
+      deadlineMs: 40
+    });
+    const deadlineStarted = Date.now();
+    const deadlineOutcome = await Promise.race([
+      deadlineRun(['send-keys', '-t', '$3', '-X', 'cancel']).then(
+        () => ({ settled: 'answered', code: null as string | null }),
+        (err: unknown) => {
+          const payload = (err as { payload?: { code?: unknown } } | null)?.payload;
+          return { settled: 'rejected', code: typeof payload?.code === 'string' ? payload.code : null };
+        }
+      ),
+      new Promise<{ settled: string; code: string | null }>((resolve) => {
+        setTimeout(() => resolve({ settled: 'no answer within 2000 ms', code: null }), 2_000);
+      })
+    ]);
+    runner['deadline'] = { ...deadlineOutcome, ms: Date.now() - deadlineStarted, deadlineMs: 40 };
+  }
+
+  // --- 108, a machine's read, and the sequences around it ----------------------
+  //
+  // Phase 320.1's fix round. A machine's control client may have no UTF-8
+  // locale, and tmux then answers every tab of a format as `_`. The attack
+  // verifier measured the tab-separated read answering `0__1971_30_0_0_100_`
+  // over the loopback machine on 3.6a and 3.7b, read as "live, no history"
+  // while the far pane sat parked. So a machine is read with its own format and
+  // read STRICTLY, and this drives that through the shipping entry points.
+  const read107: Record<string, unknown> = { present: scrollMod !== null };
+  if (scrollMod !== null) {
+    type Runner = ((args: readonly string[]) => Promise<string>) & { ordered?: boolean; server?: string };
+    const s = scrollMod as Record<string, (...a: unknown[]) => Promise<unknown>>;
+    const isUnreadable =
+      typeof scrollMod['isUnreadableScrollAnswer'] === 'function'
+        ? (scrollMod['isUnreadableScrollAnswer'] as (err: unknown) => boolean)
+        : null;
+    read107['isUnreadablePresent'] = isUnreadable !== null;
+    const SANITIZED = '0__1971_30_0_0_100_';
+    const FIELDS = ['1', '10', '1971', '30', '0', '0', '100', '1971'];
+    const machineRunner = (answer: string, formats: string[]): Runner =>
+      Object.assign(
+        (args: readonly string[]): Promise<string> => {
+          if (args[0] === 'display-message') formats.push(String(args[args.length - 1]));
+          return Promise.resolve(args[0] === 'display-message' ? answer : '');
+        },
+        { ordered: true, server: 'machine:probe' }
+      );
+    const hereRunner = (answer: string): Runner => (args: readonly string[]): Promise<string> =>
+      Promise.resolve(args[0] === 'display-message' ? answer : '');
+    const sanitized: Record<string, unknown>[] = [];
+    for (const [name, args] of [
+      ['readPaneScroll', ['$7']],
+      ['scrollPaneBy', ['$7', 10]],
+      ['scrollPaneBy', ['$7', -3]],
+      ['scrollPaneBy', ['$7', 2500]],
+      ['scrollPaneTo', ['$7', 500]],
+      ['exitPaneScroll', ['$7']]
+    ] as const) {
+      const formats: string[] = [];
+      const call = s[name];
+      let outcome: Record<string, unknown>;
+      if (typeof call !== 'function') outcome = { missing: true };
+      else {
+        try {
+          outcome = { answered: await call(machineRunner(SANITIZED, formats), ...args) };
+        } catch (err) {
+          outcome = { threw: isUnreadable?.(err) === true ? 'unreadable' : err instanceof Error ? err.message : String(err) };
+        }
+      }
+      sanitized.push({ label: `${name}(${args.join(', ')})`, formats, ...outcome });
+    }
+    read107['sanitized'] = sanitized;
+    const tryRead = async (run: Runner): Promise<unknown> => {
+      try {
+        return await s['readPaneScroll']?.(run, '$7');
+      } catch (err) {
+        return { threw: err instanceof Error ? err.message : String(err) };
+      }
+    };
+    read107['there'] = await tryRead(machineRunner(FIELDS.join(' '), []));
+    read107['here'] = await tryRead(hereRunner(FIELDS.join('\t')));
+    // This Mac's reader is unchanged: it still reads what it cannot read as a
+    // live pane with nothing, exactly as it always has.
+    read107['hereSanitized'] = await tryRead(hereRunner(SANITIZED));
+
+    // NO UNHANDLED REJECTION from a pipelined sequence whose first answer fails:
+    // the answers after it settle into handlers, never into the process.
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown): void => {
+      unhandled.push(reason);
+    };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const failing = Object.assign(
+        (): Promise<string> => Promise.reject(new Error('far failure')),
+        { ordered: true, server: 'machine:probe' }
+      );
+      await s['scrollPaneBy']?.(failing, '$7', 5).catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 30));
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+    read107['unhandled'] = unhandled.length;
+
+    // THE goto-line LATCH IS THIS MAC'S (D8): a machine's runner whose seek
+    // fails throws and walks nothing, and this Mac's next seek still probes.
+    const reset = scrollMod['resetSeekSupportForTests'];
+    if (typeof reset === 'function') (reset as () => void)();
+    const remoteCalls: string[][] = [];
+    const remoteSeek = Object.assign(
+      (args: readonly string[]): Promise<string> => {
+        remoteCalls.push([...args]);
+        if (args.includes('goto-line')) return Promise.reject(new Error('dropped'));
+        return Promise.resolve(args[0] === 'display-message' ? ['1', '0', '9000', '40', '0', '0', '120', ''].join(' ') : '');
+      },
+      { server: 'machine:probe' }
+    );
+    let remoteThrew = false;
+    try {
+      await s['scrollPaneTo']?.(remoteSeek, '$7', 3000);
+    } catch {
+      remoteThrew = true;
+    }
+    const localCalls: string[][] = [];
+    const localSeek = (args: readonly string[]): Promise<string> => {
+      localCalls.push([...args]);
+      return Promise.resolve(args[0] === 'display-message' ? ['1', '0', '9000', '40', '0', '0', '120', ''].join('\t') : '');
+    };
+    await s['scrollPaneTo']?.(localSeek, '$7', 3000).catch(() => undefined);
+    if (typeof reset === 'function') (reset as () => void)();
+    read107['latch'] = {
+      remoteThrew,
+      remoteWalked: remoteCalls.some((a) => a.includes('-N')),
+      localSentGoto: localCalls.some((a) => a.includes('goto-line'))
+    };
+  }
+
+  // --- 109, the typed shape: its one composer, driven ------------------------------
+  //
+  // PHASE 320.1's SECOND BUILD, his word of 2026-09-30 ("Yes, allow it"): a
+  // keystroke over a scrolled-back remote pane crosses on the control
+  // connection as `cancel`, then its UTF-8 bytes as `send-keys -t $N -H <hh>…`
+  // of at most 256 bytes a command. `typedSequence` is the one composer. It is
+  // driven here over inputs whose bytes the checker re-derives itself.
+  const typedSeq = fn<(target: string, bytes: Uint8Array) => string[][]>(shapesMod, 'typedSequence');
+  const typed: Record<string, unknown> = {
+    present: typedSeq !== null,
+    perCommand: shapesMod !== null && typeof shapesMod['TYPED_BYTES_PER_COMMAND'] === 'number' ? shapesMod['TYPED_BYTES_PER_COMMAND'] : null
+  };
+  if (typedSeq !== null) {
+    const rows: Record<string, unknown>[] = [];
+    for (const [label, text] of [
+      ['one letter', 'a'],
+      ['é😀 and a return, four-byte characters', 'é😀\r'],
+      ['six hundred bytes', 'x'.repeat(600)],
+      ['a hundred four-byte characters', '😀'.repeat(100)],
+      ['exactly 256 bytes', 'y'.repeat(256)],
+      ['257 bytes', 'z'.repeat(257)],
+      ['a bracketed paste', '\x1b[200~日本語\x1b[201~']
+    ] as const) {
+      const bytes = Buffer.from(text, 'utf8');
+      try {
+        const seq = typedSeq('$4', new Uint8Array(bytes));
+        rows.push({ label, hex: bytes.toString('hex'), length: bytes.length, seq, verdicts: seq.map((argv) => verdictOf(argv)) });
+      } catch (err) {
+        rows.push({ label, hex: bytes.toString('hex'), length: bytes.length, threw: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    typed['rows'] = rows;
+    try {
+      typed['empty'] = typedSeq('$4', new Uint8Array(0));
+    } catch (err) {
+      typed['empty'] = { threw: err instanceof Error ? err.message : String(err) };
+    }
+    // The shape at its bounds, admitted: one byte and 256 bytes.
+    typed['bounds'] = [
+      verdictOf(['send-keys', '-t', '$1', '-H', '41']),
+      verdictOf(['send-keys', '-t', '$1', '-H', ...Array.from({ length: 256 }, () => 'ff')])
+    ];
+  }
+
+  // --- 110 and 111, the router and the park gate, driven ---------------------------
+  //
+  // Over a SCRIPTED runner and an INJECTED clock, through the module's own
+  // seam (`resetScrollOrderForTests(clock, source)`), so nothing waits on a
+  // real timer and nothing reaches a machine.
+  const order: Record<string, unknown> = { present: orderMod !== null };
+  if (orderMod !== null && scrollMod !== null) {
+    const o = orderMod as Record<string, any>;
+    const sc = scrollMod as Record<string, any>;
+    order['quietMs'] = o['ROAD_QUIET_MS'] ?? null;
+    const missing = ['routeKey', 'awaitRoadQuiet', 'readBeforePark', 'undoRacedPark', 'noteAnswer', 'resetScrollOrderForTests'].filter(
+      (name) => typeof o[name] !== 'function'
+    );
+    order['missing'] = missing;
+    if (missing.length === 0) {
+      let t = 10_000;
+      const sleeps: number[] = [];
+      let duringSleep: (() => void) | null = null;
+      const clock = {
+        now: () => t,
+        sleep: async (ms: number): Promise<void> => {
+          sleeps.push(ms);
+          const hook = duringSleep;
+          duringSleep = null;
+          hook?.();
+          t += ms;
+        }
+      };
+      const nowhere = { address: () => ({ kind: 'unknown' }), carriage: () => ({ kind: 'none' }) };
+      try {
+        // 111 (i): a key on the attach at 10,000, a park asked at 10,050.
+        o['resetScrollOrderForTests'](clock, nowhere);
+        const firstKey = o['routeKey']('g1', 'x', 10_000);
+        t = 10_050;
+        const firstQuiet = await o['awaitRoadQuiet']('g1', 10_050);
+        order['wait'] = { firstKey, sleeps: [...sleeps], endedAt: t, quiet: firstQuiet };
+        // 111 (ii), since the fix round (F2): a key typed 50 ms into the wait
+        // DROPS the park. The wait answers false and does not wait again.
+        sleeps.length = 0;
+        o['resetScrollOrderForTests'](clock, nowhere);
+        t = 20_000;
+        o['routeKey']('g2', 'x', 20_000);
+        t = 20_050;
+        duringSleep = () => {
+          order['keyInWait'] = o['routeKey']('g2', 'y', t + 50);
+        };
+        const restartQuiet = await o['awaitRoadQuiet']('g2', 20_050);
+        order['restart'] = { sleeps: [...sleeps], endedAt: t, quiet: restartQuiet };
+        // 111 (iii): a session the attach never carried a key for waits for nothing.
+        sleeps.length = 0;
+        o['resetScrollOrderForTests'](clock, nowhere);
+        const neverQuiet = await o['awaitRoadQuiet']('g3', 30_000);
+        order['quiet'] = { sleeps: [...sleeps], quiet: neverQuiet };
+      } catch (err) {
+        order['waitThrew'] = err instanceof Error ? err.message : String(err);
+      }
+
+      // 111 (iv) to (vii): D3 over a scripted pane. The runner answers every read
+      // from what the pane is NOW: copy mode entered by `copy-mode`, left by
+      // `cancel`, and the program's screen and mouse as the case sets them,
+      // changed by `after` once the FIRST read has been answered (the race).
+      const pane = (program: { alt: 0 | 1; mouse: 0 | 1 }, o2: { inMode?: boolean; after?: { alt: 0 | 1; mouse: 0 | 1 } } = {}) => {
+        const writes: string[][] = [];
+        let inMode = o2.inMode === true;
+        let reads = 0;
+        let prog = { ...program };
+        const run = Object.assign(
+          (args: readonly string[]): Promise<string> => {
+            const argv = [...args].map(String);
+            writes.push(argv);
+            if (argv[0] === 'copy-mode') inMode = true;
+            if (argv.includes('cancel')) inMode = false;
+            if (argv[0] === 'display-message') {
+              const line = [inMode ? '1' : '0', inMode ? '3' : '', '4000', '40', String(prog.alt), String(prog.mouse), '150', inMode ? '4000' : ''].join(' ');
+              reads += 1;
+              if (reads === 1 && o2.after !== undefined) prog = { ...o2.after };
+              return Promise.resolve(line);
+            }
+            return Promise.resolve('');
+          },
+          { ordered: true, server: 'machine:probe' }
+        );
+        return { run, writes };
+      };
+      const op = (run: unknown, target: string): Promise<unknown> => sc['scrollPaneBy'](run, target, 3);
+      const d3: Record<string, unknown> = {};
+      const attempt = async (label: string, p: ReturnType<typeof pane>): Promise<void> => {
+        try {
+          const a = await o['readBeforePark'](p.run, '$4', op);
+          const writtenBeforeUndo = p.writes.length;
+          const state = await o['undoRacedPark'](p.run, '$4', a);
+          d3[label] = {
+            outcome: a.outcome,
+            writes: p.writes.map((w) => w.join(' ')),
+            writtenBeforeUndo,
+            undoWrote: p.writes.slice(writtenBeforeUndo).map((w) => w.join(' ')),
+            inModeAfter: state.inMode
+          };
+        } catch (err) {
+          d3[label] = { threw: err instanceof Error ? err.message : String(err) };
+        }
+      };
+      await attempt('alternate screen', pane({ alt: 1, mouse: 0 }));
+      await attempt('mouse asked', pane({ alt: 0, mouse: 1 }));
+      await attempt('plain', pane({ alt: 0, mouse: 0 }));
+      await attempt('already parked', pane({ alt: 0, mouse: 0 }, { inMode: true }));
+      await attempt('raced', pane({ alt: 0, mouse: 0 }, { after: { alt: 1, mouse: 1 } }));
+      // Phase 292's exception: a pane the person parked on ordinary lines, whose
+      // program then took the screen, is NOT undone.
+      try {
+        const p = pane({ alt: 1, mouse: 1 }, { inMode: true });
+        const state = await o['undoRacedPark'](p.run, '$4', { outcome: 'already', state: { inMode: true, innerAlt: true, innerMouse: true, position: 3, history: 4000, rows: 40, cols: 150, frameHistory: 4000 } });
+        d3['already, program took the screen since'] = { undoWrote: p.writes.map((w) => w.join(' ')), inModeAfter: state.inMode };
+      } catch (err) {
+        d3['already, program took the screen since'] = { threw: err instanceof Error ? err.message : String(err) };
+      }
+      order['d3'] = d3;
+
+      // 112, THE FIX ROUND, driven (build/p3201/SPEC.md §As built, fixer):
+      // F1 the way back to the attach is an answer; F2 a key typed since the
+      // scroll began drops the park at D3's read; F3 a pane Tortie parked goes
+      // back to its program; F4 a key over a parked pane whose connection is
+      // down is held, then written behind one cancel when it is back.
+      const fix: Record<string, unknown> = {};
+      try {
+        const fixLines: string[] = [];
+        const fixRead = { line: ['0', '', '4000', '40', '0', '0', '150', ''].join(' ') };
+        const fixRun = Object.assign(
+          (args: readonly string[]): Promise<string> => {
+            fixLines.push([...args].map(String).join(' '));
+            return Promise.resolve(args[0] === 'display-message' ? fixRead.line : '');
+          },
+          { ordered: true, server: 'machine:probe' }
+        );
+        let carriageKind: 'live' | 'waiting' = 'live';
+        o['resetScrollOrderForTests'](clock, {
+          address: () => ({ kind: 'live', machineId: 'm1', tmuxId: '$4' }),
+          carriage: () => (carriageKind === 'live' ? { kind: 'live', run: fixRun, generation: 1 } : { kind: 'waiting' })
+        });
+        const parkedState = { inMode: true, innerAlt: false, innerMouse: false, position: 30, history: 4000, rows: 40, cols: 150, frameHistory: 4000 };
+        // F1: over a parked pane a key takes the carriage; once its read has
+        // answered "live" and nothing is in flight, the next key, ONE ms later
+        // on the clock, takes the attach.
+        t = 50_000;
+        o['noteAnswer']('f1', parkedState);
+        const f1First = o['routeKey']('f1', 'a', 50_000);
+        const f1Busy = o['routeKey']('f1', 'b', 50_000);
+        await new Promise((resolve) => setTimeout(resolve, 5));
+        const f1After = o['routeKey']('f1', 'c', 50_001);
+        fix['f1'] = { first: f1First, busy: f1Busy, after: f1After };
+        // F2: a key typed after the scroll began drops the park at D3's read.
+        fixLines.length = 0;
+        let f2Parking = 0;
+        const f2 = await o['readBeforePark'](fixRun, '$4', (run: unknown, target: string) => sc['scrollPaneBy'](run, target, 3), {
+          stillWanted: () => false,
+          parking: () => {
+            f2Parking += 1;
+          }
+        }).then((a: { outcome: string }) => a, (err: unknown) => ({ outcome: `threw ${String(err)}` }));
+        fix['f2'] = { outcome: f2.outcome, writes: [...fixLines], parking: f2Parking };
+        // F3: a pane Tortie parked, whose program has since taken the mouse.
+        fixLines.length = 0;
+        o['noteAnswer']('f3', parkedState);
+        o['noteParkedByUs']('f3');
+        const took = { ...parkedState, innerMouse: true };
+        const f3Ours = await o['leaveForProgram']('f3', o['stampedRunner']('f3', fixRun), '$4', took);
+        const f3OursWrote = [...fixLines];
+        fixLines.length = 0;
+        o['noteAnswer']('f3b', parkedState);
+        const f3NotOurs = await o['leaveForProgram']('f3b', fixRun, '$4', took);
+        fix['f3'] = { oursWrote: f3OursWrote, oursInMode: f3Ours.inMode, notOursWrote: [...fixLines], notOursInMode: f3NotOurs.inMode };
+        // F4: the carriage waiting over a parked pane holds the key and writes
+        // nothing; the carriage back, the loop's next look writes it behind a cancel.
+        fixLines.length = 0;
+        sleeps.length = 0;
+        carriageKind = 'waiting';
+        o['noteAnswer']('f4', parkedState);
+        const f4Road = o['routeKey']('f4', 'z', 60_000);
+        const f4WroteWhileDown = fixLines.length;
+        carriageKind = 'live';
+        // The fake clock's sleep resolves at once, so the loop delivers on its next turn.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        fix['f4'] = { road: f4Road, wroteWhileDown: f4WroteWhileDown, afterBack: [...fixLines], slept: [...sleeps] };
+        // F5, THE RULED ROUND (GONE): the machine missed its greeting, so its
+        // carriage is none for the run. A key over a parked pane there is held,
+        // asks that machine ONCE for one more connection (a second key joins
+        // the same ask), and nothing is written while it is asked; when it is
+        // back, both keys behind one cancel. A machine that may not be asked:
+        // the attach, as today.
+        fixLines.length = 0;
+        let f5Asks = 0;
+        let f5Back = false;
+        o['resetScrollOrderForTests'](clock, {
+          address: (sessionId: string) =>
+            f5Back
+              ? { kind: 'live', machineId: 'm1', tmuxId: sessionId === 'f5' ? '$4' : '$5' }
+              : { kind: 'waiting', machineId: 'm1' },
+          carriage: () => (f5Back ? { kind: 'live', run: fixRun, generation: 2 } : { kind: 'none' }),
+          mayReopen: () => true,
+          reopen: () => {
+            f5Asks += 1;
+            return Promise.resolve(true);
+          }
+        });
+        o['noteAnswer']('f5', parkedState);
+        o['noteAnswer']('f5c', parkedState);
+        const f5Road = o['routeKey']('f5', 'z', 70_000);
+        const f5Second = o['routeKey']('f5', 'y', 70_000);
+        // Another session on the same machine, while that ask is being handed over: it joins it.
+        const f5Other = o['routeKey']('f5c', 'x', 70_000);
+        const f5WroteWhileGone = fixLines.length;
+        const f5AsksWhileGone = f5Asks;
+        f5Back = true;
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        const f5AfterBack = [...fixLines];
+        o['resetScrollOrderForTests'](clock, {
+          address: () => ({ kind: 'waiting', machineId: 'm1' }),
+          carriage: () => ({ kind: 'none' }),
+          mayReopen: () => false,
+          reopen: () => {
+            f5Asks += 1;
+            return Promise.resolve(true);
+          }
+        });
+        o['noteAnswer']('f5b', parkedState);
+        const f5Refused = o['routeKey']('f5b', 'z', 80_000);
+        fix['f5'] = {
+          road: f5Road,
+          second: f5Second,
+          other: f5Other,
+          wroteWhileGone: f5WroteWhileGone,
+          asks: f5AsksWhileGone,
+          afterBack: f5AfterBack,
+          refused: f5Refused,
+          asksAfterRefused: f5Asks
+        };
+      } catch (err) {
+        fix['threw'] = err instanceof Error ? err.message : String(err);
+      }
+      order['fix'] = fix;
+      for (const name of ['keysSoFar', 'leaveForProgram', 'noteParkedByUs', 'awaitsReopen']) {
+        if (typeof o[name] !== 'function') (order['missing'] as string[]).push(name);
+      }
+
+      // 110, driven: a key over a pane known parked is WRITTEN before routeKey
+      // returns, cancel then the bytes then a read, on the session's carriage;
+      // a key at rest writes nothing and takes the attach. EVERYTHING the
+      // module prints while it routes the two keys is caught and handed to the
+      // checker, which holds that no byte of either key is in it: the person's
+      // keystrokes never reach a log.
+      const printed: string[] = [];
+      const realOut = process.stdout.write.bind(process.stdout);
+      const realErr = process.stderr.write.bind(process.stderr);
+      const catcher = ((chunk: unknown): boolean => {
+        printed.push(typeof chunk === 'string' ? chunk : Buffer.from(chunk as Uint8Array).toString('utf8'));
+        return true;
+      }) as typeof process.stdout.write;
+      process.stdout.write = catcher;
+      process.stderr.write = catcher;
+      try {
+        const lines: string[][] = [];
+        const rec = Object.assign(
+          (args: readonly string[]): Promise<string> => {
+            lines.push([...args].map(String));
+            return Promise.resolve(args[0] === 'display-message' ? ['0', '', '4000', '40', '0', '0', '150', ''].join(' ') : '');
+          },
+          { ordered: true, server: 'machine:probe' }
+        );
+        o['resetScrollOrderForTests'](clock, {
+          address: () => ({ kind: 'live', machineId: 'm1', tmuxId: '$4' }),
+          carriage: () => ({ kind: 'live', run: rec, generation: 1 })
+        });
+        t = 40_000;
+        const atRest = o['routeKey']('k1', 'ø', 40_000);
+        const atRestWrote = lines.length;
+        o['noteAnswer']('k1', { inMode: true, innerAlt: false, innerMouse: false, position: 30, history: 4000, rows: 40, cols: 150, frameHistory: 4000 });
+        const parkedRoad = o['routeKey']('k1', 'é', 41_000);
+        const syncLines = lines.slice(atRestWrote).map((w) => w.join(' '));
+        // The typed sequence settles on the next turns: whatever it prints then
+        // is caught too.
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        order['route'] = { atRest, atRestWrote, parkedRoad, syncLines };
+      } catch (err) {
+        order['route'] = { threw: err instanceof Error ? err.message : String(err) };
+      } finally {
+        process.stdout.write = realOut;
+        process.stderr.write = realErr;
+      }
+      order['printed'] = printed.join('');
+      try {
+        o['resetScrollOrderForTests']();
+      } catch {
+        /* the shipping clock and source back, or the next run starts clean anyway */
+      }
+    }
+  }
+
+  // --- 107, the copy on a machine ------------------------------------------------
+  const historyArgs = fn<(target: string, range: { start: number; end: number }, join: boolean) => unknown>(
+    historyMod,
+    'remoteHistoryArgs'
+  );
+  const history: Record<string, unknown> = {
+    file: historyFile,
+    extentFormat: historyMod !== null && typeof historyMod['REMOTE_EXTENT_FORMAT'] === 'string' ? historyMod['REMOTE_EXTENT_FORMAT'] : null
+  };
+  if (historyArgs !== null) {
+    try {
+      history['joined'] = historyArgs('$3', { start: -40, end: 5 }, true);
+      history['drawn'] = historyArgs('$3', { start: -40, end: 5 }, false);
+    } catch (err) {
+      history['threw'] = err instanceof Error ? err.message : String(err);
+    }
+  }
+
+  return {
+    loadErrors,
+    controlPlaneExports: planeMod === null ? null : Object.keys(planeMod).sort(),
+    shapes,
+    shapesPresent: rawShapes !== null,
+    chunkLines: CHUNK,
+    recorded,
+    recordErrors,
+    hostile,
+    format,
+    address,
+    runner,
+    history,
+    read107,
+    typed,
+    order
+  };
+})();
+
 process.stdout.write(
   JSON.stringify({
     id: ID,
+    // Phase 320.1, conditions 101 to 112.
+    phase3201: p3201,
     base,
     sameAgain: machineExecutionHash(ID, { ...BASE }),
     fields: fieldRows,

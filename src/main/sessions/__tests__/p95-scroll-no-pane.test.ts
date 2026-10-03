@@ -5,7 +5,13 @@
  * WHAT WAS WRONG. `scrollTarget` threw `SESSION_NOT_FOUND` whenever `liveIds`
  * held no binding for the row. Two ordinary states hold no binding, being a
  * session that runs on another machine and a session on this Mac that is not
- * running. The renderer polls scroll state once a second for as long as a
+ * running.
+ *
+ * PHASE 320.1 NARROWED THE FIRST. A session on another machine now scrolls over
+ * that machine's live connection (p3201-remote-scroll.test.ts holds that table).
+ * What is still an ordinary no-pane case is a session on a machine that has NO
+ * live connection this run (a tmux Tortie has not measured one on, or a missed
+ * greeting), and that is the case below. The renderer polls scroll state once a second for as long as a
  * session is on screen, so each of those sessions produced about 60 rejected
  * calls a minute, and Electron's handler wrapper printed a stack trace for
  * every one of them.
@@ -26,8 +32,35 @@
  * second way this could fail.
  */
 
-import { describe, expect, it } from 'vitest';
-import { GmuxCore } from '../core';
+import { describe, expect, it, vi } from 'vitest';
+import type { GmuxCore as Core } from '../core';
+
+/**
+ * Phase 320.1. The one machine this file knows of has no live connection this
+ * run, and the one session recorded there is `far-sess`. Every other id reaches
+ * the real functions.
+ */
+vi.mock('../../machines/control-plane', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../machines/control-plane')>();
+  return {
+    ...actual,
+    remoteScrollRunner: (machineId: string) =>
+      machineId === 'far' ? { kind: 'none' as const } : actual.remoteScrollRunner(machineId)
+  };
+});
+
+vi.mock('../../machines/remote-record', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../../machines/remote-record')>();
+  return {
+    ...actual,
+    remoteRecordOf: (sessionId: string) =>
+      sessionId === 'far-sess'
+        ? ({ id: 'far-sess', machineId: 'far' } as unknown as ReturnType<typeof actual.remoteRecordOf>)
+        : actual.remoteRecordOf(sessionId)
+  };
+});
+
+const { GmuxCore } = await import('../core');
 
 /** One tab-separated line in the shape `readPaneScroll` asks tmux for. */
 function stateLine(over?: {
@@ -56,7 +89,7 @@ function stateLine(over?: {
 }
 
 interface Harness {
-  core: GmuxCore;
+  core: Core;
   /** Every argv the borrowed body handed the runner, in order. */
   calls: string[][];
 }
@@ -70,7 +103,7 @@ interface Harness {
  */
 function harness(bindings: [string, string][], answer: string | null): Harness {
   const calls: string[][] = [];
-  const core = Object.create(GmuxCore.prototype) as GmuxCore;
+  const core = Object.create(GmuxCore.prototype) as Core;
   Object.assign(core, {
     liveIds: new Map<string, string>(bindings),
     runScrollCommand: async (args: readonly string[]): Promise<string> => {
@@ -85,7 +118,7 @@ function harness(bindings: [string, string][], answer: string | null): Harness {
 }
 
 /** The four methods, each called the way src/main/ipc.ts calls it. */
-const verbs: [string, (core: GmuxCore) => Promise<unknown>][] = [
+const verbs: [string, (core: Core) => Promise<unknown>][] = [
   ['scrollState', (core) => core.scrollState({ sessionId: 'sess' })],
   ['scrollBy', (core) => core.scrollBy({ sessionId: 'sess', lines: 5 })],
   ['scrollTo', (core) => core.scrollTo({ sessionId: 'sess', position: 10 })],
@@ -114,12 +147,23 @@ describe('no session on this Mac: the four methods answer', () => {
 });
 
 describe('the two states that reach this, one case each', () => {
-  it('a session that runs on another machine was never bound here', async () => {
-    // Nothing on this Mac ever created it, so the map never held the id.
+  it('a session on another machine with no live connection this run', async () => {
+    // Nothing on this Mac ever created it, so the map never held the id, and
+    // its machine will not have a connection in this run, so Phase 320's
+    // pass-through is the whole of what it gets: NO_PANE_HERE, and never the
+    // not-reachable-now value, which would keep the surface asking.
     const { core, calls } = harness([['other', '$9']], null);
-    const state = await core.scrollState({ sessionId: 'sess' });
-    expect(state.hasPane).toBe(false);
-    expect(state.history).toBe(0);
+    for (const [, call] of [
+      ['scrollState', (c: Core) => c.scrollState({ sessionId: 'far-sess' })],
+      ['scrollBy', (c: Core) => c.scrollBy({ sessionId: 'far-sess', lines: 5 })],
+      ['scrollTo', (c: Core) => c.scrollTo({ sessionId: 'far-sess', position: 10 })],
+      ['scrollLive', (c: Core) => c.scrollLive('far-sess')]
+    ] as const) {
+      const state = (await call(core)) as { hasPane: boolean; history: number; unreachable?: boolean };
+      expect(state.hasPane).toBe(false);
+      expect(state.history).toBe(0);
+      expect(state.unreachable).toBeUndefined();
+    }
     expect(calls).toHaveLength(0);
   });
 

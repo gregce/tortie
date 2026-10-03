@@ -1,46 +1,36 @@
 /**
- * Phase 100 — both bands above the terminal offer to read the last lines of a
- * session on another machine.
+ * The band above a session draws no control of its own for a session on
+ * another machine — Phase 320.1.
  *
- * WHAT THIS FILE USED TO PIN, AND WHY IT CHANGED. Phase 95 drew a quiet note in
- * both bands saying that a person could not scroll back, with a tooltip saying
- * that it was not available for a session on another machine yet. Phase 100
- * makes a person able to read back, so the second half of that tooltip became
- * false. The note is a button now, it opens the last lines panel, and both
- * Phase 95 strings are deleted from the codebase. This file keeps its name and
- * its job, which is the band coverage rule, and every assertion in it moved to
- * the new names. Neither old string is written out here, because
- * ./p100-remote-lines.test.tsx reads every file under src and fails on either.
+ * WHAT THIS FILE USED TO PIN, AND WHY IT CHANGED TWICE. Phase 95 drew a quiet
+ * note in both bands saying that a person could not scroll back through a
+ * session on another machine. Phase 100 turned it into a button that opened
+ * the last lines panel, and this file pinned that both bands drew it, because
+ * the first build of Phase 95 drew its note in one band only and most people
+ * never saw it. Phase 320.1 makes such a session scroll like one on this Mac
+ * wherever its machine runs a tmux Tortie has measured a live connection on,
+ * so the button is gone: it existed only because nothing scrolled, and a
+ * control drawn on a remote surface alone is exactly what the operator's rule
+ * that a remote session feels identical to a local one removes. The panel
+ * stays, opened from the terminal's menu beside this Mac's capture items
+ * (build/p3201/SPEC.md D16). This file keeps its name and its job, which is
+ * the two bands, and now says that NEITHER draws the control.
  *
- * WHY BOTH BANDS. There is no single band always on screen above a session. The
- * identity strip in TerminalRegion.tsx is the band for the "right" orientation.
- * The session tab strip in SessionStrip.tsx is the band for the "top"
- * orientation, which is what `sessionOrientation` defaults to and what most
- * people are looking at. The first build of Phase 95 drew its note in the
- * identity strip alone, so it was off screen in the default layout. The last
- * describe below is what stops that returning: it reads both files and fails if
- * either stops mounting the shared component.
- *
- * PHASE 320 TOOK ITS TOOLTIP AWAY. The tooltip explained that a session on
- * another machine could not be scrolled back, which is text on a remote
- * surface only because it is remote, against the operator's rule that a
- * remote session feels identical to a local one. The button's own words say
- * what it does, so it carries no title at all, and the sentence is pinned
- * absent from every file under src by ./p100-remote-lines.test.tsx.
- *
- * WHAT GETS NO BUTTON. Every session on this Mac, running or not. It has a real
- * scrollbar and a real wheel, and it has the two "Capture Last N Lines" items
- * as well, so a fourth way to read the same history would be clutter.
+ * WHY BOTH BANDS STILL. There is no single band always on screen above a
+ * session. The identity strip in TerminalRegion.tsx is the band for the
+ * "right" orientation, and the session tab strip in SessionStrip.tsx is the
+ * band for the "top" orientation, which is the default. A control that comes
+ * back in one of them is invisible in the other's layout, so both are read.
  *
  * HOW THIS RENDERS. `environment` is node and this repository carries no jsdom
- * and no @testing-library/react, so the strip is rendered with
- * `renderToStaticMarkup`, which is the shape p93-attention-row.test.tsx uses.
- * The rule itself is also read straight off `showsReadLastLines`, so a later
- * change to the markup cannot quietly change which sessions are offered it.
+ * and no @testing-library/react, so the identity strip is rendered with
+ * `renderToStaticMarkup`, the shape p93-attention-row.test.tsx uses. The tab
+ * strip needs the layout store, the app store and a project, and a test that
+ * mocks all three proves the mocks, so it is read as source, as before.
  */
 
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type { Session, SessionMachine } from '@shared/types';
@@ -82,12 +72,19 @@ vi.stubGlobal('document', {
 });
 
 const { IdentityStrip } = await import('../TerminalRegion');
-const { ReadLastLinesButton, showsReadLastLines } = await import(
-  '../session-actions'
-);
+const actions = await import('../session-actions');
 const lines = await import('../../machines/read-lines');
-const { READ_LAST_LINES_HERE } = lines;
-const { useApp } = await import('../../state/store');
+
+/**
+ * The three names Phase 320.1 deleted. This file is the one place they are
+ * written out, which is why the scan below skips it.
+ */
+const GONE = ['showsReadLastLines', 'ReadLastLinesButton', 'READ_LAST_LINES_HERE'];
+const GONE_RE = new RegExp(`\\b(?:${GONE.join('|')})\\b`, 'g');
+
+/** The band control's own class and words. */
+const BAND_CLASS = 'strip-readback';
+const BAND_WORDS = /read last lines/i;
 
 // ---------------------------------------------------------------------------
 // Fixtures
@@ -124,118 +121,106 @@ const stripHtml = (s: Session): string =>
     <IdentityStrip session={s} grouped={false} termFocused={false} />
   );
 
-/** The button's own opening tag, so another element's title cannot answer. */
-const buttonTag = (html: string): string =>
-  /<button type="button" class="strip-readback"[^>]*>/.exec(html)?.[0] ?? '';
+const buttons = (html: string): string[] => html.match(/<button\b[^>]*>/g) ?? [];
+
+function filesUnder(dir: string): string[] {
+  const out: string[] = [];
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const full = join(dir, entry.name);
+    if (entry.isDirectory()) out.push(...filesUnder(full));
+    else if (entry.isFile()) out.push(full);
+  }
+  return out;
+}
 
 // ---------------------------------------------------------------------------
-// What the strip draws
+// The "right" orientation, rendered
 // ---------------------------------------------------------------------------
 
-describe('the identity strip button that reads the last lines', () => {
-  it('draws the words once for a session on another machine', () => {
-    const html = stripHtml(session({ machine: machine() }));
-    const hits = html.split(READ_LAST_LINES_HERE).length - 1;
-    expect(hits).toBe(1);
-    expect(html).toContain('strip-readback');
-  });
-
-  it('is a real button rather than the span Phase 95 drew', () => {
-    const html = stripHtml(session({ machine: machine() }));
-    expect(html).toContain('<button type="button" class="strip-readback"');
-  });
-
-  it('carries no tooltip, because its words say what it does (Phase 320)', () => {
-    const tag = buttonTag(stripHtml(session({ machine: machine() })));
-    expect(tag).not.toBe('');
-    expect(tag).not.toContain('title=');
-  });
-
-  it('draws nothing for a running session on this Mac', () => {
-    expect(stripHtml(session())).not.toContain(READ_LAST_LINES_HERE);
-    expect(stripHtml(session())).not.toContain('strip-readback');
-  });
-
-  it('draws nothing for a session on this Mac that is not running', () => {
-    // The Phase 95 charter's own case, and it still holds. The restore card and
-    // the ended card already say what this session is, and a session on this
-    // Mac has a scrollbar of its own either way.
-    const html = stripHtml(session({ status: 'exited' }));
-    expect(html).not.toContain(READ_LAST_LINES_HERE);
-    expect(html).not.toContain('strip-readback');
-  });
-});
-
-describe('the rule behind the button', () => {
-  it('is true for a session on another machine and false for the rest', () => {
-    expect(showsReadLastLines(session({ machine: machine() }))).toBe(true);
-    expect(showsReadLastLines(session())).toBe(false);
-    expect(showsReadLastLines(session({ status: 'exited' }))).toBe(false);
-    expect(showsReadLastLines(session({ status: 'needs_input' }))).toBe(false);
-  });
-});
-
-describe('both bands draw the shared button', () => {
-  // The component itself, rendered on its own, is what each band mounts.
-  it('draws the words and no tooltip wherever it is mounted', () => {
-    const html = renderToStaticMarkup(
-      <ReadLastLinesButton
-        session={session({ machine: machine() })}
-        className="strip-readback"
-      />
-    );
-    expect(html.split(READ_LAST_LINES_HERE).length - 1).toBe(1);
-    expect(html).not.toContain('title=');
-  });
-
-  it('draws nothing for a session on this Mac', () => {
-    expect(
-      renderToStaticMarkup(
-        <ReadLastLinesButton session={session()} className="strip-readback" />
-      )
-    ).toBe('');
-  });
-
-  // A source read rather than a render, because standing up the tab strip
-  // needs the layout store, the app store and a project, and a test that
-  // mocks all three proves the mocks. What has to stay true is narrow and a
-  // read states it exactly: each band's file mounts the one component.
+describe('the identity strip, the band in the "right" orientation', () => {
   it.each([
-    ['src/renderer/app/TerminalRegion.tsx', 'the "right" orientation'],
-    ['src/renderer/app/SessionStrip.tsx', 'the "top" orientation']
-  ])('%s mounts it, which is the band for %s', (file) => {
+    ['running on another machine', session({ machine: machine() })],
+    ['on another machine that is not answering', session({ machine: machine({ answering: false }) })],
+    ['running on this Mac', session()],
+    ['on this Mac and not running', session({ status: 'exited' })]
+  ])('draws no read-back control for a session %s', (_what, row) => {
+    const html = stripHtml(row);
+    expect(html).not.toContain(BAND_CLASS);
+    expect(html).not.toMatch(BAND_WORDS);
+  });
+
+  it('draws the same buttons for a session on another machine as for one on this Mac', () => {
+    // Remote feels identical to local: the band offers a session over there
+    // nothing a session here does not get.
+    expect(buttons(stripHtml(session({ machine: machine() })))).toEqual(
+      buttons(stripHtml(session()))
+    );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The "top" orientation, and the rest of the tree, read as source
+// ---------------------------------------------------------------------------
+
+describe('the tab strip, the band in the "top" orientation, and the shared file', () => {
+  it.each([
+    'src/renderer/app/SessionStrip.tsx',
+    'src/renderer/app/TerminalRegion.tsx',
+    'src/renderer/app/session-actions.tsx',
+    'src/renderer/styles/app.css'
+  ])('%s names neither the control nor its class', (file) => {
     const src = readFileSync(resolve(ROOT, file), 'utf8');
-    expect(src).toContain('ReadLastLinesButton');
-    expect(src).toMatch(/<ReadLastLinesButton\b/);
+    expect([file, src.match(GONE_RE) ?? []]).toEqual([file, []]);
+    expect([file, src.includes(BAND_CLASS)]).toEqual([file, false]);
+  });
+
+  it('the three deleted names exist nowhere under src', () => {
+    const self = resolve(import.meta.dirname, 'p95-strip-note.test.tsx');
+    const offenders: string[] = [];
+    for (const file of filesUnder(resolve(ROOT, 'src'))) {
+      if (file === self) continue;
+      let source: string;
+      try {
+        source = readFileSync(file, 'utf8');
+      } catch {
+        continue;
+      }
+      for (const m of source.matchAll(GONE_RE)) offenders.push(`${file}: ${m[0]}`);
+    }
+    expect(offenders).toEqual([]);
+  });
+
+  it('the scan reads names whole, so a longer name that holds one is not a finding', () => {
+    // p100-remote-lines.test.tsx pins `READ_LAST_LINES_HERE_TITLE` absent by
+    // name, and that line must not read as the constant this phase deleted.
+    expect('all.READ_LAST_LINES_HERE_TITLE'.match(GONE_RE)).toBeNull();
+    expect('<ReadLastLinesButton session={s} />'.match(GONE_RE)).toEqual([
+      'ReadLastLinesButton'
+    ]);
+  });
+
+  it('no module still exports them', () => {
+    const all = { ...actions, ...lines } as unknown as Record<string, unknown>;
+    for (const name of GONE) expect([name, all[name]]).toEqual([name, undefined]);
   });
 });
 
-describe('pressing the button opens the panel', () => {
-  it('opens it on the session the button was drawn for', () => {
-    // The shipped handler, called the way a click calls it. The element is
-    // built by the component itself, so this presses what a person presses.
-    const row = session({ id: 'p100s', machine: machine() });
-    const element = ReadLastLinesButton({
-      session: row,
-      className: 'strip-readback'
-    });
-    expect(element).not.toBeNull();
-    const onClick = element?.props.onClick as (() => void) | undefined;
-    expect(typeof onClick).toBe('function');
-    onClick?.();
-    expect(useApp.getState().remoteLinesSessionId).toBe('p100s');
-    useApp.getState().closeRemoteLines();
-  });
-});
+// ---------------------------------------------------------------------------
+// What stays
+// ---------------------------------------------------------------------------
 
-describe('the words live in presentation.ts', () => {
-  it('is what lets the vocabulary audit read them', () => {
-    // machine-vocabulary.test.ts already reads presentation.ts,
-    // session-actions.tsx, SessionStrip.tsx and TerminalRegion.tsx, so its word
-    // list does not change for this phase. What has to stay true is that the
-    // sentence is composed there and not typed into a component.
-    expect(READ_LAST_LINES_HERE).toBe('Read last lines');
-    // Phase 320 deleted the tooltip, and nothing may bring the constant back.
+describe('the read stays where this Mac keeps its capture items', () => {
+  it('is still the terminal menu item, and the menu still offers it', () => {
+    expect(lines.READ_LAST_LINES_ITEM).toBe('Read Last Lines…');
+    const menu = readFileSync(
+      resolve(ROOT, 'src/renderer/terminal/terminal-menu.ts'),
+      'utf8'
+    );
+    expect(menu).toMatch(/\bREAD_LAST_LINES_ITEM\b/);
+    expect(menu).toContain('openRemoteLines');
+  });
+
+  it('keeps the tooltip Phase 320 deleted deleted', () => {
     expect(
       (lines as unknown as Record<string, unknown>).READ_LAST_LINES_HERE_TITLE
     ).toBeUndefined();

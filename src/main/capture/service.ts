@@ -33,6 +33,10 @@ import type {
   ClipboardRichInput
 } from '@shared/ipc';
 import * as tmux from '../tmux';
+// PHASE 320.1. The one clamp, shared with a machine's copy
+// (src/main/machines/remote-pane-history.ts). Direct rather than through the
+// barrel: it is pure and names no process.
+import { clampHistoryRange } from '../tmux/scroll';
 
 /**
  * The most recent capture, kept so the toast's "Save…" action can write the
@@ -165,11 +169,9 @@ export async function capturePaneText(
  * `capture-pane` numbers them from the top of the live screen, so the
  * conversion needs `#{history_size}` read at this instant rather than the
  * renderer's, which can be a poll old under a streaming pane. THE CLAMP IS
- * OURS, not tmux's: tmux moves a range above the top to the oldest line and
- * answers one row for it, measured 2026-09-03, so a range that is entirely
- * gone answers nothing here, and one that starts above the top answers from
- * the oldest line and says so in `firstLine`. A range that reaches below the
- * screen is cut at the last row, which is where the history ends.
+ * OURS, not tmux's, and since Phase 320.1 it is one pure function,
+ * `clampHistoryRange` in src/main/tmux/scroll.ts, which carries the account
+ * and which a copy from a session on another machine applies too.
  */
 async function captureHistoryRange(
   target: string,
@@ -177,15 +179,13 @@ async function captureHistoryRange(
   join: boolean
 ): Promise<CapturePaneResult> {
   const extent = await tmux.readPaneExtent(target);
-  const last = extent.history + extent.rows - 1;
-  const start = Math.max(0, Math.floor(range.start));
-  const end = Math.min(last, Math.floor(range.end));
-  if (end < start) return { ansi: '', firstLine: start };
+  const cut = clampHistoryRange(range, extent);
+  if (cut.paneRange === null) return { ansi: '', firstLine: cut.firstLine };
   const ansi = await tmux.capturePane(target, 0, {
     join,
-    range: { start: start - extent.history, end: end - extent.history }
+    range: cut.paneRange
   });
-  return { ansi, firstLine: start };
+  return { ansi, firstLine: cut.firstLine };
 }
 
 /**

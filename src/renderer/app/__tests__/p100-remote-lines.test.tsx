@@ -625,7 +625,6 @@ describe('the writing rules', () => {
   it('holds no em dash and no en dash anywhere', () => {
     const all = [
       ...sentences,
-      copy.READ_LAST_LINES_HERE,
       copy.READ_LAST_LINES_ITEM,
       copy.READ_LINES_DEPTH_LABEL,
       copy.READ_LINES_DEPTH_SCREEN,

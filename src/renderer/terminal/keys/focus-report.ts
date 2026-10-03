@@ -34,12 +34,11 @@
  * because the next keystroke goes down the ordinary path.
  */
 
-/** DECSET 1004 focus in. */
-export const FOCUS_IN_REPORT = '\u001b[I';
-/** DECSET 1004 focus out. */
-export const FOCUS_OUT_REPORT = '\u001b[O';
-
-/** True when these bytes are the pane reporting its own focus, not input. */
-export function isFocusReport(data: string): boolean {
-  return data === FOCUS_IN_REPORT || data === FOCUS_OUT_REPORT;
-}
+// The predicate itself lives in src/shared/pane-report.ts since Phase 320.1's
+// second build, because main's key router for a session on another machine
+// asks the same question (see that file).
+export {
+  FOCUS_IN_REPORT,
+  FOCUS_OUT_REPORT,
+  isFocusReport
+} from '@shared/pane-report';

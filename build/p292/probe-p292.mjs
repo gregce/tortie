@@ -65,6 +65,19 @@
  * old that history is against tmux's own is graded separately, so a poll that
  * stopped cannot hide behind the forgiveness.
  *
+ * ## PHASE 320.1's SECOND BUILD (build/p3201/SPEC.md D12, D13)
+ *
+ * THE SUMMARY NAMES AN ARM PASS ONLY WHEN IT RAN TO ITS END. The first
+ * attempt's reverify found this file printing PASS for arms a to g in runs
+ * that had stopped at `type`, before any arm began; an arm that did not run
+ * to its end now prints `not run`, and the run fails. On another machine the
+ * far shell is QUIET: the loopback machine's ZDOTDIR is proved to be the
+ * yard's empty one before the session is made (his oh-my-zsh prompt stopped
+ * `type` in three of four 3.6a runs), and his three dotfiles are read, size
+ * and modified time only, before and after on whichever computer the far
+ * shell ran; a change fails the run. With P292_MACHINE unset nothing of this
+ * paragraph runs but the summary rule.
+ *
  * ## The arms, each one able to run alone (P292_ARMS)
  *
  *   a  THE HOLD. Nothing is touched for P292_WATCH_MS (8 s), sampled every
@@ -160,6 +173,24 @@
  *      and moved the reader 127 lines on every change of width where tmux
  *      alone had the line exactly right. Run last, because it stops the loop
  *
+ * ## On another machine (Phase 320.1), and only when asked
+ *
+ * `P292_MACHINE=loopback` runs the SAME arms, graded by the SAME graders, on a
+ * session on another machine: the loopback scratch machine
+ * build/with-scratch-machine.mjs starts around this file (`npm run
+ * probe:p292:remote` is that shape, probe:p320's), whose far tmux is
+ * `P292_FAR_TMUX` or the carriage's own. `P292_MACHINE=real` is the operator's
+ * own machine through build/p3201/real-machine.mjs, VERIFIERS ONLY, arms a, c,
+ * d, e and f (build/p3201/SPEC.md §8), every refusal of that file asked first.
+ * The session is opened the product's way (the machine confirmed and prepared,
+ * the far folder opened, a shell session made on it), the far login shell is
+ * replaced at once by a plain `/bin/sh` whose HOME is the far project, typed
+ * as ONE space-led `exec` line through the bridge, and the rulers read the FAR
+ * scratch server. At 320.1's parent nothing on a machine parks, and every
+ * chosen arm then reads "could not park" rather than the run stopping.
+ * UNSET, NOTHING OF THIS RUNS, and the probe behaves byte for byte as it did:
+ * every line that reads `MACHINE` keeps the old expression when it is ''.
+ *
  * ## Another checkout, which is how the parent is measured
  *
  * `P292_CHECKOUT=<a BUILT worktree>` points THIS run at that checkout's `out/`
@@ -204,7 +235,8 @@
  *   P292_MIN_LINES     Lines printed before the scroll. Default 400, which
  *                      leaves the parent room to fall for the whole watch.
  *   P292_BACK_LINES    Lines to wheel back. Default 100.
- *   P292_WATCH_MS      How long arms a and b watch. Default 8000.
+ *   P292_WATCH_MS      How long arms a and b watch. Default 8000, and 15000
+ *                      with P292_MACHINE=real (Phase 320.1's fix round).
  *   P292_OUT_DIR       Where readings, the two photographs and the app's
  *                      own output go. Default `out/p292`. `out/` is gitignored
  *                      and electron-builder packs `out/**`, so remove the
@@ -253,6 +285,17 @@ import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
 import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
+// PHASE 320.1, read only when P292_MACHINE is set. Loading either starts nothing.
+import { keyscanText } from '../ssh-run.mjs';
+import {
+  controlEntries,
+  dotfilesMoved,
+  dotfilesSentence,
+  localCensus,
+  machineRow,
+  openRealMachine,
+  realMachineFromEnv
+} from '../p3201/real-machine.mjs';
 
 const execFileP = promisify(execFile);
 const REPO = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -742,7 +785,19 @@ const RENDERER_SOURCES = [
   join('src', 'renderer', 'terminal', 'keys', 'pane-report.ts')
 ];
 const MAIN_SOURCES = [join('src', 'main', 'tmux', 'scroll.ts'), join('src', 'main', 'sessions', 'core.ts')];
-const SHARED_SOURCES = [join('src', 'shared', 'ipc', 'terminal.ts')];
+// PHASE 320.1. A run on another machine also reads the carriage door, so its
+// build is stale when any of these is newer. Read only when P292_MACHINE is set.
+const MACHINE_SOURCES = [
+  join('src', 'main', 'machines', 'scroll-shapes.ts'),
+  join('src', 'main', 'machines', 'control-plane.ts'),
+  join('src', 'main', 'machines', 'remote-sessions.ts'),
+  // The second build's router, and the hook that asks it (the integrator's round).
+  join('src', 'main', 'machines', 'scroll-order.ts'),
+  join('src', 'main', 'attach', 'attach-host.ts')
+];
+// The report predicate both processes ask since the second build: arm d's
+// resize and arm f's return are read through it on a remote session.
+const SHARED_SOURCES = [join('src', 'shared', 'ipc', 'terminal.ts'), join('src', 'shared', 'pane-report.ts')];
 
 /** The mtimes the grader is asked about, read from one checkout. */
 function readStaleness(checkoutDir) {
@@ -769,8 +824,43 @@ function readStaleness(checkoutDir) {
   const main = existsSync(mainPath) ? [join('out', 'main', 'index.js'), statSync(mainPath).mtimeMs] : null;
   return (
     staleSentence([...scroll, ...RENDERER_SOURCES, ...SHARED_SOURCES].map(stat), renderer) ??
-    staleSentence([...MAIN_SOURCES, ...SHARED_SOURCES].map(stat), main)
+    staleSentence([...MAIN_SOURCES, ...((process.env['P292_MACHINE'] ?? '').trim() === '' ? [] : MACHINE_SOURCES), ...SHARED_SOURCES].map(stat), main)
   );
+}
+
+/**
+ * THE SUMMARY (Phase 320.1, D13): one row an arm. `not asked` when P292_ARMS
+ * left it out; `not run` when it did not run to its end, never PASS (the first
+ * attempt's reverify read PASS for a to g in runs stopped at `type`);
+ * otherwise PASS or FAIL n. `done` is the set of arms that ran to their end.
+ */
+export function armSummary(chosen, done, arms) {
+  return ARMS.map((arm) => {
+    const n = (arms[arm] ?? []).length;
+    if (arm === 'RUN') return [arm, n === 0 ? 'PASS' : `FAIL ${String(n)}`];
+    if (!chosen.includes(arm)) return [arm, 'not asked'];
+    if (!done.has(arm)) return [arm, `not run${n > 0 ? ` (and ${String(n)} finding(s) before it stopped)` : ''}`];
+    return [arm, n === 0 ? 'PASS' : `FAIL ${String(n)}`];
+  });
+}
+
+/**
+ * The name of the warm-up session the remote run makes when a far session's
+ * first attach drew nothing (Phase 326's defect, the same at the parent). It is
+ * this run's own, and it is never the pane measured.
+ */
+export const WARM_SESSION = 'p292-warm';
+
+/**
+ * The panes of the ONE session this run measures: every `name<TAB>pane` line
+ * whose session is one of this run's, less the warm-up session. Phase 320.1's
+ * ruled round: the warm-up counted as a second pane of this run, so on every
+ * 3.7b run, where it is always made, the run stopped at its own pane check and
+ * arms a to g never ran (the reverifier, job 15a).
+ */
+export function panesOfThisRun(panes, sessions, warm = WARM_SESSION) {
+  const measured = sessions.filter((s) => s.name !== warm && s.tmuxName !== warm);
+  return panes.filter((line) => measured.some((s) => s.tmuxName === line.split('\t')[0]));
 }
 
 /** The P292_ARMS subset, or every arm; an unknown name is a refusal. */
@@ -912,6 +1002,12 @@ function selfTest() {
     ['g a pane that did not change width tested nothing', () => count(wrapFindings(wBefore, [ws(646, 900, { paneW: 124 }), ws(646, 1600, { paneW: 124 })])), 1],
     ['g thrown to live is caught', () => count(wrapFindings(wBefore, [ws(646, 150, { inMode: false }), ws(900, 1600, { inMode: false })])), 1],
     ['the arms: empty means all', () => chooseArms(''), { arms: ALL_ARMS, bad: [] }],
+    ['the pane measured: the one session of this run, the app\'s control session left out', () => panesOfThisRun(['gmux-control\t%0', 'p292-shell\t%1'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }]), ['p292-shell\t%1']],
+    ['the pane measured: the warm-up session is never it (the reverifier\'s 3.7b runs stopped here)', () => panesOfThisRun(['gmux-control\t%0', 'p292-shell\t%1', 'p292-warm\t%2'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }, { id: 'b', name: 'p292-warm', tmuxName: 'p292-warm' }]), ['p292-shell\t%1']],
+    ['the pane measured: two sessions of this run besides the warm-up are still two, and the run stops on them', () => panesOfThisRun(['p292-shell\t%1', 'other\t%3', 'p292-warm\t%2'], [{ id: 'a', name: 'p292-shell', tmuxName: 'p292-shell' }, { id: 'c', name: 'other', tmuxName: 'other' }, { id: 'b', name: 'p292-warm', tmuxName: 'p292-warm' }]).length, 2],
+    ['the summary: a run stopped at type prints not run for every arm, never PASS (Phase 320.1)', () => armSummary(ALL_ARMS, new Set(), { ...Object.fromEntries(ALL_ARMS.map((a) => [a, []])), RUN: ['the run stopped during type'] }).map(([, v]) => v), [...ALL_ARMS.map(() => 'not run'), 'FAIL 1']],
+    ['the summary: arms that ran are PASS or FAIL, an arm left out is not asked', () => armSummary(['a', 'c'], new Set(['a', 'c']), { ...Object.fromEntries(ALL_ARMS.map((x) => [x, []])), c: ['c x'], RUN: [] }).slice(0, 3), [['a', 'PASS'], ['b', 'not asked'], ['c', 'FAIL 1']]],
+    ['the summary: an arm with findings that did not finish is still not run', () => armSummary(['d'], new Set(), { ...Object.fromEntries(ALL_ARMS.map((x) => [x, []])), d: ['d could not park'], RUN: [] })[3], ['d', 'not run (and 1 finding(s) before it stopped)']],
     ['the arms: a subset keeps the file\'s order', () => chooseArms('d, a'), { arms: ['a', 'd'], bad: [] }],
     ['the arms: an unknown name is named', () => chooseArms('a,z'), { arms: ['a'], bad: ['z'] }],
     ['stale: a build newer than every source is not stale', () => staleSentence([['a.ts', 1000], ['b.tsx', 2000]], ['out/main/index.js', 2000]), null],
@@ -934,6 +1030,12 @@ function selfTest() {
   return ok;
 }
 if (process.argv.includes('--self-test')) process.exit(selfTest() ? 0 : 1);
+// His ruling of 2026-10-02: nothing this run starts carries his Terminal tab's
+// TERM_SESSION_ID. macOS's /etc/zshrc_Apple_Terminal gives an interactive zsh
+// started with it an exit hook that appends that session's history to
+// ${ZDOTDIR:-$HOME}/.zsh_history, so the app below also gets its scratch HOME
+// as its ZDOTDIR, and a zsh it starts reads and writes nothing of his.
+delete process.env['TERM_SESSION_ID'];
 
 // ---------------------------------------------------------------------------
 // The refusals, in the order they are asked.
@@ -980,9 +1082,51 @@ const intOf = (name, fallback) => {
 };
 const MIN_LINES = intOf('P292_MIN_LINES', 400);
 const BACK_LINES = intOf('P292_BACK_LINES', 100);
-const WATCH_MS = intOf('P292_WATCH_MS', 8000);
+// Phase 320.1's fix round: 15 s on his Mac Pro, where 8 s printed 87 lines,
+// below arm a's own 100 line precondition (the parent verifier's nit).
+const WATCH_MS = intOf('P292_WATCH_MS', (process.env['P292_MACHINE'] ?? '').trim() === 'real' ? 15000 : 8000);
 const outDir = resolve(REPO, (process.env['P292_OUT_DIR'] ?? '').trim() || join('out', 'p292'));
 mkdirSync(outDir, { recursive: true });
+
+// PHASE 320.1. Another machine, when asked; '' is this Mac, exactly as before.
+const MACHINE = (process.env['P292_MACHINE'] ?? '').trim();
+if (MACHINE !== '' && MACHINE !== 'loopback' && MACHINE !== 'real') refuse(`P292_MACHINE is ${J(MACHINE)}; it is loopback, real, or unset for this Mac.`);
+if (MACHINE === 'real' && chosen.some((a) => !['a', 'c', 'd', 'e', 'f'].includes(a))) {
+  refuse(`the real machine runs arms a, c, d, e and f (build/p3201/SPEC.md §8); ${chosen.filter((a) => !['a', 'c', 'd', 'e', 'f'].includes(a)).join(', ')} were asked for.`);
+}
+const MACHINE_ID = MACHINE === 'real' ? 'p292real' : 'p292far';
+const configRoot = (process.env['GMUX_CONFIG_ROOT'] ?? '').trim();
+let carriage = null;
+let realFacts = null;
+if (MACHINE === 'loopback') {
+  try {
+    carriage = JSON.parse(readFileSync(join(configRoot, 'p69-carriage.json'), 'utf8'));
+  } catch {
+    carriage = null;
+  }
+  if (configRoot === '' || carriage === null) refuse('P292_MACHINE=loopback and there is no p69-carriage.json inside GMUX_CONFIG_ROOT. Run `npm run probe:p292:remote`, which wraps this file in build/with-scratch-machine.mjs.');
+  if (typeof carriage.tmuxTmp !== 'string' || !carriage.tmuxTmp.startsWith('/tmp/')) refuse(`the carriage names ${J(carriage.tmuxTmp)} as the machine's own TMUX_TMPDIR, which is not a scratch directory under /tmp.`);
+}
+if (MACHINE === 'real') {
+  // A loopback carriage beside this run means the scratch machine's agent was
+  // handed in place of his; the helper refuses that by value.
+  let scratchAgent = null;
+  try {
+    scratchAgent = JSON.parse(readFileSync(join(configRoot, 'p69-carriage.json'), 'utf8')).authSock ?? null;
+  } catch {
+    scratchAgent = null;
+  }
+  realFacts = realMachineFromEnv(process.env, socket, { app: true, scratchAgent });
+  if (realFacts.refusal !== null) refuse(`the real machine: ${realFacts.refusal}`);
+}
+const farTmuxBin = MACHINE === 'loopback' ? (process.env['P292_FAR_TMUX'] ?? '').trim() || carriage.remoteTmuxPath : MACHINE === 'real' ? realFacts.realTmux : null;
+if (MACHINE === 'loopback') {
+  try {
+    accessSync(farTmuxBin, fsConstants.X_OK);
+  } catch {
+    refuse(`P292_FAR_TMUX ${farTmuxBin} is not an executable file.`);
+  }
+}
 
 // THE TMUX THIS PROBE READS WITH is the one the app will resolve, so the
 // reader and the server are one version: GMUX_TMUX_BIN first, then the copy
@@ -1015,8 +1159,96 @@ writeFileSync(
   `awk 'BEGIN { for (i = 1; i <= 900; i++) { s = "line " i; for (k = 0; k < 55; k++) s = s " w" i; print s } }'` + '\n'
 );
 
+// PHASE 320.1. The far side's folder, the machine row and its host key, the
+// far reader, and the one teardown. None of it runs when MACHINE is ''.
+let real = null;
+let farProject = null;
+let farVersion = null;
+let farTmuxSync = null;
+let controlBefore = [];
+if (MACHINE !== '') {
+  const configDir = join(profile, 'gmux', 'config');
+  mkdirSync(configDir, { recursive: true, mode: 0o700 });
+  const knownMachines = join(profile, 'gmux', 'machines', 'known-machines');
+  mkdirSync(dirname(knownMachines), { recursive: true });
+  const wrapText = readFileSync(join(project, 'wrap.sh'));
+  if (MACHINE === 'loopback') {
+    farProject = join(root, 'far');
+    rmSync(farProject, { recursive: true, force: true });
+    mkdirSync(farProject, { recursive: true });
+    writeFileSync(join(farProject, 'wrap.sh'), wrapText);
+    writeFileSync(join(configDir, 'machines.json'), `${J({ schema: 1, machines: [{ id: MACHINE_ID, label: 'p292 loopback', host: carriage.host, user: carriage.user, port: carriage.port, remoteTmuxPath: farTmuxBin }] })}\n`, 'utf8');
+    writeFileSync(knownMachines, keyscanText({ host: carriage.host, port: carriage.port, caller: 'build/p292/probe-p292.mjs' }), 'utf8');
+    const farEnv = { ...process.env, TMUX_TMPDIR: carriage.tmuxTmp };
+    farTmuxSync = (args) => (spawnSync(farTmuxBin, ['-L', socket, '-f', '/dev/null', ...args], { encoding: 'utf8', env: farEnv, timeout: 10_000 }).stdout ?? '').trim();
+    farVersion = (spawnSync(farTmuxBin, ['-V'], { encoding: 'utf8' }).stdout ?? '').trim().replace(/^tmux\s+/, '');
+  } else {
+    try {
+      real = openRealMachine(realFacts, { runDir: harnessDir, say });
+    } catch (err) {
+      refuse(`the real machine did not open: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    // THE TEARDOWN IS ARMED THE MOMENT THE DIRECTORY EXISTS THERE, before any
+    // refusal below can exit: `close()` is synchronous and runs once, so this
+    // and the run's own `finally` share it.
+    process.on('exit', () => real?.close());
+    farProject = `${realFacts.farDir}/far`;
+    real.run(`cat > ${farProject}/wrap.sh`, { input: wrapText });
+    writeFileSync(join(configDir, 'machines.json'), `${J({ schema: 1, machines: [machineRow({ id: MACHINE_ID, host: realFacts.host, user: realFacts.user, farDir: realFacts.farDir })] })}\n`, 'utf8');
+    writeFileSync(knownMachines, readFileSync(real.knownHosts, 'utf8'), 'utf8');
+    farTmuxSync = (args) => real.tmux(args, { allowFail: true }).trim();
+    farVersion = ((real.first ?? '').split('\n').find((l) => /^tmux /.test(l)) ?? '').replace(/^tmux\s+/, '');
+    controlBefore = controlEntries();
+  }
+}
+let farEnded = false;
+/** The far scratch server, ended by the pid it reports; on the real machine, everything real-machine.mjs put there. */
+function endFar() {
+  if (farEnded || MACHINE === '') return;
+  farEnded = true;
+  if (MACHINE === 'loopback') {
+    const pid = Number(farTmuxSync(['display-message', '-p', '#{pid}']));
+    if (Number.isInteger(pid) && pid > 1) {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {
+        /* already gone */
+      }
+    }
+  } else if (real !== null) {
+    real.close();
+    // `arms` is declared below this function; an exit before it exists has no
+    // report to put the finding in, and the close above has already run.
+    try {
+      readings.realCounts = { before: real.countBefore, after: real.countAfter };
+      readings.realTeardown = real.teardown;
+      if (real.countBefore === null || real.countBefore !== real.countAfter) arms.RUN.push(`his own server held ${String(real.countBefore)} sessions before and ${String(real.countAfter)} after; the two counts must be read and equal`);
+      if (real.teardown?.removed !== true) arms.RUN.push(`the run's directory ${realFacts.farDir} on the far machine was not confirmed removed; remove it by hand and say so`);
+      readings.dotfiles = real.dotfiles;
+      const moved = dotfilesSentence('the far machine', real.dotfiles.moved, real.dotfiles.before, real.dotfiles.after);
+      if (moved !== null) arms.RUN.push(moved);
+    } catch {
+      /* before the report existed */
+    }
+  }
+  if (censusHere !== null) {
+    const after = localCensus();
+    try {
+      readings.dotfiles = { before: censusHere, after };
+      const moved = dotfilesSentence('this Mac', dotfilesMoved(censusHere, after), censusHere, after);
+      if (moved !== null) arms.RUN.push(moved);
+    } catch {
+      /* before the report existed */
+    }
+  }
+}
+if (MACHINE !== '') process.on('exit', endFar);
+/** His three dotfiles on THIS Mac, when the far shell runs here (the loopback machine, D12). */
+const censusHere = MACHINE === 'loopback' ? localCensus() : null;
+
 say(`${tag}: measuring ${checkout}, arms ${chosen.join(',')}, socket ${socket}`);
 say(`${tag}: reading with ${readerTmux} (${readerVersion}); GMUX_TMUX_BIN ${tmuxOverride === '' ? 'is not set, so the app resolves its own' : `hands the app ${tmuxOverride}`}`);
+if (MACHINE !== '') say(`${tag}: ON ANOTHER MACHINE (${MACHINE}), whose tmux is ${String(farTmuxBin)} (${String(farVersion)})`);
 
 // ---------------------------------------------------------------------------
 // The page kit. One expression, evaluated once, that puts this probe's readers
@@ -1113,6 +1345,15 @@ const PAGE_KIT = String.raw`
   kit.wheels = 0;
   window.addEventListener('wheel', () => { kit.wheels += 1; }, true);
   kit.focusWhere = () => { const a = document.activeElement; return a ? a.tagName.toLowerCase() + '.' + String(a.className || '') : 'null'; };
+  // Phase 320.1's fix round: how many rows of the pane hold anything, so a
+  // far session whose first attach drew nothing (Phase 326) is seen and shown again.
+  kit.nonEmpty = () => {
+    if (!kit.term) return 0;
+    const b = kit.term.buffer.active;
+    let n = 0;
+    for (let i = 0; i < kit.term.rows; i += 1) { const l = b.getLine(b.viewportY + i); if (l && l.translateToString(true).trim() !== '') n += 1; }
+    return n;
+  };
   window.__p292 = kit;
   return true;
 })()
@@ -1186,6 +1427,8 @@ const ISSUE_LINES = `i=0; while :; do i=$((i+1)); printf 'line %s\\n' "$i"; slee
 // The run.
 // ---------------------------------------------------------------------------
 const arms = Object.fromEntries(ARMS.map((a) => [a, []]));
+/** The arms that ran to their end. The summary prints `not run` for any other (Phase 320.1, D13). */
+const armsDone = new Set();
 const readings = { tag, checkout, socket, arms: chosen, readerTmux, readerVersion, tmuxOverride, loop: ISSUE_LINES, notes: [], samples: [] };
 const note = (l) => {
   readings.notes.push(l);
@@ -1208,18 +1451,38 @@ try {
       ],
       env: withoutDevRenderer({
         HOME: home,
+        ZDOTDIR: home,
+        TERM_SESSION_ID: undefined,
         GMUX_TMUX_SOCKET: socket,
         GMUX_PROBES: '1',
-        ...(tmuxOverride !== '' ? { GMUX_TMUX_BIN: tmuxOverride } : {})
+        ...(tmuxOverride !== '' ? { GMUX_TMUX_BIN: tmuxOverride } : {}),
+        ...(MACHINE === 'loopback' ? { GMUX_CONFIG_ROOT: configRoot, SSH_AUTH_SOCK: carriage.authSock } : {}),
+        ...(MACHINE === 'real' ? { SSH_AUTH_SOCK: process.env['SSH_AUTH_SOCK'] } : {})
       }),
       graceMs: 8_000,
-      ceilingMs: 80_000
+      ceilingMs: MACHINE === '' ? 80_000 : 300_000
     },
     async (handle) => {
       const { cdp, url } = await cdpForAppWindow(profile, 40_000);
       say(`${tag}: app window at ${url}, pid ${String(handle.appPid())}`);
-      const tmux = async (...args) => (await execFileP(readerTmux, ['-L', socket, ...args], { encoding: 'utf8' })).stdout;
+      const tmux =
+        MACHINE === ''
+          ? async (...args) => (await execFileP(readerTmux, ['-L', socket, ...args], { encoding: 'utf8' })).stdout
+          : async (...args) => `${farTmuxSync(args)}\n`;
       let stage = 'launch';
+      /** Phase 326's retry for a far session, set when this run is on a machine. */
+      let showAgain = null;
+      /**
+       * The arm a stage names ran to its end: called as the NEXT stage begins,
+       * so an arm the run stopped inside is never marked (Phase 320.1, D13).
+       */
+      const armDone = (finished) => {
+        if (finished === 'a/b') {
+          for (const arm of ['a', 'b']) if (chosen.includes(arm)) armsDone.add(arm);
+        } else if (ALL_ARMS.includes(finished)) {
+          armsDone.add(finished);
+        }
+      };
       try {
         await cdp.call('Runtime.enable');
         // The window is never in front during a probe run, and a page Chromium
@@ -1232,13 +1495,87 @@ try {
         await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
         await sleep(600);
         stage = 'open';
-        await cdpEval(cdp, `window.__gmuxShotDrive(${J({ projectPath: project, session: { agent: 'shell', name: 'p292-shell' } })}).then(() => true)`, 60_000);
+        if (MACHINE === '') {
+          await cdpEval(cdp, `window.__gmuxShotDrive(${J({ projectPath: project, session: { agent: 'shell', name: 'p292-shell' } })}).then(() => true)`, 60_000);
+        } else {
+          // THE PRODUCT'S WAY ONTO A MACHINE: confirmed and prepared, the far
+          // folder opened, a shell session made there and shown.
+          const drive = (method, ...a) => cdpEval(cdp, `window.__gmuxP95.${method}(${a.map((x) => J(x)).join(', ')})`, 120_000);
+          const up = await drive('machineUp', MACHINE_ID);
+          if (!(up.rows ?? []).some((r) => r.id === MACHINE_ID && r.usable)) throw new Error(`the machine is not usable: ${J(up).slice(0, 400)}`);
+          if (real !== null) {
+            // The socket, and the quiet shell: default-shell /bin/sh and the
+            // run's own ZDOTDIR, proved before the session is made (D12).
+            const why = real.prove();
+            if (why !== null) throw new Error(`the far socket is not this run's own: ${why}. Nothing was made there.`);
+          } else {
+            // THE QUIET SHELL on the loopback machine (D12): the far shell is
+            // his own zsh on this Mac, so it must read the yard's empty ZDOTDIR.
+            const zdot = farTmuxSync(['show-environment', '-g', 'ZDOTDIR']);
+            const want = `ZDOTDIR=${join(configRoot, 'zdot')}`;
+            if (zdot !== want) throw new Error(`the loopback machine's far shell is not the quiet one (ZDOTDIR reads ${J(zdot)}, not ${J(want)}); run it with SCRATCH_MACHINE_QUIET_SHELL=1, which npm run probe:p292:remote sets. Nothing was made there.`);
+          }
+          if (real !== null) {
+            // The app's own ssh master, kept for the teardown only when it is
+            // provably this run's: new since launch and naming this profile.
+            const master = real.adoptAppControl(controlBefore, profile);
+            if (master !== null) note(`real machine: ${master}`);
+          }
+          let opened = null;
+          for (let attempt = 1; attempt <= 6; attempt += 1) {
+            opened = await drive('openRemote', MACHINE_ID, farProject);
+            if (opened?.result?.ok === true) break;
+            await sleep(3000);
+          }
+          if (opened?.result?.ok !== true) throw new Error(`the far folder did not open: ${J(opened?.result ?? null).slice(0, 400)}`);
+          const made = await drive('create', { name: 'p292-shell', agent: 'shell', machineId: MACHINE_ID });
+          const row = (made.sessions ?? []).find((x) => x.name === 'p292-shell' && x.machineId === MACHINE_ID);
+          if (row === undefined) throw new Error('the session did not start on the machine');
+          await drive('select', row.id);
+          showAgain = async () => {
+            // PHASE 326's DEFECT, the same at the parent (the parent
+            // verifier: every 3.7b run stopped at the type step with
+            // `sessions:attach SESSION_NOT_FOUND`): a far session's first
+            // attach can land before it reads as Tortie's, and its screen
+            // never draws. Shown once more, by way of a warm-up session,
+            // the way the parent verifier's ruler does.
+            const warm = await drive('create', { name: WARM_SESSION, agent: 'shell', machineId: MACHINE_ID });
+            const w = (warm.sessions ?? []).find((x) => x.name === WARM_SESSION && x.machineId === MACHINE_ID);
+            if (w !== undefined) await drive('select', w.id);
+            await sleep(1500);
+            await drive('select', row.id);
+          };
+        }
         await cdpEval(cdp, PAGE_KIT);
         for (let i = 0; i < 40; i += 1) {
           if (await cdpEval(cdp, 'window.__p292.ready()')) break;
           await sleep(150);
         }
         if (!(await cdpEval(cdp, 'window.__p292.ready()'))) throw new Error('the xterm Terminal was not found through the fiber of .gmux-terminal-mount');
+        if (showAgain !== null) {
+          // The far shell's prompt has drawn, or the session is shown again once.
+          const drawn = async () => (await cdpEval(cdp, 'window.__p292.rearm()')) && (await cdpEval(cdp, 'window.__p292.nonEmpty()')) > 0;
+          let ok = false;
+          for (const until = Date.now() + 20_000; Date.now() < until; ) {
+            if (await drawn()) {
+              ok = true;
+              break;
+            }
+            await sleep(250);
+          }
+          if (!ok) {
+            note('the far session drew nothing in 20 s and was shown again (Phase 326, the same at the parent)');
+            await showAgain();
+            for (const until = Date.now() + 40_000; Date.now() < until; ) {
+              if (await drawn()) {
+                ok = true;
+                break;
+              }
+              await sleep(250);
+            }
+            if (!ok) throw new Error('the far session drew nothing in 20 s, nor in 40 s more after it was shown again (Phase 326)');
+          }
+        }
         // The latest moment the pane's client can have attached to tmux: the
         // Terminal exists and is drawn. Arm d counts its wait from here.
         const tAttached = Date.now();
@@ -1251,19 +1588,40 @@ try {
         const devLine = /This development build (?:runs|found)[^\n]*/.exec(handle.text());
         readings.appSaid = devLine ? devLine[0] : null;
         readings.serverVersion = (await tmux('display-message', '-p', '#{version}')).trim();
-        const serverPid = (await tmux('display-message', '-p', '#{pid}')).trim();
-        readings.serverCommand = (spawnSync('ps', ['-p', serverPid, '-o', 'command='], { encoding: 'utf8' }).stdout ?? '').trim();
-        say(`${tag}: THE SERVER REPORTS tmux ${readings.serverVersion}; its process is: ${readings.serverCommand}`);
-        say(`${tag}: the app said: ${String(readings.appSaid)}`);
-        if (readings.serverVersion !== readerVersion) {
-          arms.RUN.push(`the server reports tmux ${readings.serverVersion} and this probe reads with ${readerVersion} (${readerTmux})${tmuxOverride !== '' ? ', so GMUX_TMUX_BIN was not honoured' : ''}`);
+        if (MACHINE === '') {
+          const serverPid = (await tmux('display-message', '-p', '#{pid}')).trim();
+          readings.serverCommand = (spawnSync('ps', ['-p', serverPid, '-o', 'command='], { encoding: 'utf8' }).stdout ?? '').trim();
+          say(`${tag}: THE SERVER REPORTS tmux ${readings.serverVersion}; its process is: ${readings.serverCommand}`);
+          say(`${tag}: the app said: ${String(readings.appSaid)}`);
+          if (readings.serverVersion !== readerVersion) {
+            arms.RUN.push(`the server reports tmux ${readings.serverVersion} and this probe reads with ${readerVersion} (${readerTmux})${tmuxOverride !== '' ? ', so GMUX_TMUX_BIN was not honoured' : ''}`);
+          }
+        } else {
+          readings.machine = MACHINE;
+          readings.farVersion = farVersion;
+          say(`${tag}: THE FAR SCRATCH SERVER REPORTS tmux ${readings.serverVersion}, and its binary says ${String(farVersion)}`);
+          if (readings.serverVersion !== farVersion) arms.RUN.push(`the far server reports tmux ${readings.serverVersion} and its binary says ${String(farVersion)}`);
+          // The far login shell becomes a plain sh at once: ONE space-led exec
+          // line, through the bridge, so nothing of the loop reaches a login
+          // shell's history and HOME is the far project.
+          const active = await cdpEval(cdp, `window.__gmuxP95.state().then((s) => s.activeSessionId)`, 5000);
+          for (let i = 0; i < 60; i += 1) {
+            if ((await cdpEval(cdp, 'window.__p292.read()'))?.top !== null) break;
+            await sleep(250);
+          }
+          await sleep(1500);
+          await cdpEval(cdp, `(window.gmux.term.sendInput(${J(active)}, ${J(` exec /usr/bin/env -i PATH=/usr/bin:/bin HOME=${farProject} TERM="$TERM" BASH_SILENCE_DEPRECATION_WARNING=1 PS1='p292 $ ' /bin/sh\r`)}), true)`);
+          await sleep(2500);
         }
 
         // The app keeps a control session of its own on the server; the pane
         // measured is the one session this run created.
         const panes = (await tmux('list-panes', '-a', '-F', '#{session_name}\t#{pane_id}')).trim().split('\n').filter((l) => l !== '');
-        const sessions = await cdpEval(cdp, `window.gmux.sessions.list().then((l) => l.map((s) => ({ id: s.id, name: s.name, tmuxName: s.tmuxName })))`, 5000);
-        const mine = panes.filter((l) => sessions.some((s) => s.tmuxName === l.split('\t')[0]));
+        const sessions =
+          MACHINE === ''
+            ? await cdpEval(cdp, `window.gmux.sessions.list().then((l) => l.map((s) => ({ id: s.id, name: s.name, tmuxName: s.tmuxName })))`, 5000)
+            : await cdpEval(cdp, `window.__gmuxP95.state().then((s) => s.sessions.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName })))`, 5000);
+        const mine = panesOfThisRun(panes, sessions);
         if (mine.length !== 1) throw new Error(`expected one pane of this run's session, found ${J(panes)} against ${J(sessions)}`);
         const paneId = mine[0].split('\t')[1];
         const mySid = sessions.find((s) => s.tmuxName === mine[0].split('\t')[0]).id;
@@ -1396,9 +1754,15 @@ try {
           note(`${arm}: the pane was at live output when this arm began, so it was scrolled back again`);
           await park(`${arm} parks again`);
         };
-        const parkSample = await park('the park');
+        // PHASE 320.1. On a machine where nothing parks (320.1's parent), every
+        // chosen arm says so rather than the run stopping.
+        const parkSample = await park('the park').catch((err) => {
+          if (MACHINE === '') throw err;
+          throw Object.assign(new Error(err instanceof Error ? err.message : String(err)), { couldNotPark: true });
+        });
         const photographs = [];
         const photograph = (name) => {
+          if (MACHINE !== '') return;
           photographs.push(
             cdp.call('Page.captureScreenshot', { format: 'png' }, 20_000).then(
               (shot) => {
@@ -1439,6 +1803,7 @@ try {
 
         // --------------------------------------------------------------- c
         if (chosen.includes('c')) {
+          armDone(stage);
           stage = 'c';
           await parked('c');
           const snaps = {};
@@ -1502,6 +1867,7 @@ try {
 
         // --------------------------------------------------------------- d
         if (chosen.includes('d')) {
+          armDone(stage);
           stage = 'd';
           readings.resize = {};
           const resizeOnce = async (name, width) => {
@@ -1561,6 +1927,7 @@ try {
 
         // --------------------------------------------------------------- e
         if (chosen.includes('e')) {
+          armDone(stage);
           stage = 'e';
           await parked('e');
           await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cx, y: cy });
@@ -1585,12 +1952,13 @@ try {
         // ANOTHER SESSION AND BACK. The pane unmounts while tmux keeps it
         // parked, and the return mounts it afresh and attaches a new client.
         if (chosen.includes('f')) {
+          armDone(stage);
           stage = 'f';
           await parked('f');
           await sleep(1000);
           const before = await sample({ label: 'before leaving', ms: Date.now() - tPark });
           line('f before leaving', before, entry);
-          await cdpEval(cdp, `window.__gmuxP95.create(${J({ name: 'p292-other', agent: 'shell' })}).then(() => true)`, 30_000);
+          await cdpEval(cdp, `window.__gmuxP95.create(${J(MACHINE === '' ? { name: 'p292-other', agent: 'shell' } : { name: 'p292-other', agent: 'shell', machineId: MACHINE_ID })}).then(() => true)`, 30_000);
           const away = await cdpEval(cdp, `window.__gmuxP95.state().then((s) => ({ active: s.activeSessionId, n: s.sessions.length }))`, 5000);
           if (away.active === mySid) throw new Error(`the second session was not the one shown (${J(away)}), so nothing was left`);
           await sleep(4000);
@@ -1618,6 +1986,7 @@ try {
         // resize is the only thing that can move the reader. Last, because it
         // stops the loop.
         if (chosen.includes('g')) {
+          armDone(stage);
           stage = 'g';
           await tmux('send-keys', '-t', paneId, '-X', 'cancel').catch(() => undefined);
           await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1240, height: 900, deviceScaleFactor: 1, mobile: false });
@@ -1682,18 +2051,23 @@ try {
           }
         }
         await Promise.all(photographs);
+        armDone(stage);
         stage = 'done';
       } catch (err) {
         // A stage that threw is a finding of THIS run, named by its stage; the
         // finally below still ends the session the drive made and the helper
         // still ends the tree.
-        arms.RUN.push(`the run stopped during ${stage}: ${err instanceof Error ? err.message : String(err)}`);
+        if (MACHINE !== '' && err?.couldNotPark === true) {
+          for (const arm of chosen) arms[arm].push(`${arm} could not park on another machine: ${err.message}`);
+        } else {
+          arms.RUN.push(`the run stopped during ${stage}: ${err instanceof Error ? err.message : String(err)}`);
+        }
       } finally {
         // What the app itself wrote, beside the readings: when an arm reads a
         // pane that left copy mode by itself, main's own log is where the
         // reason is, and it is gone once the helper ends the tree.
         try {
-          writeFileSync(join(outDir, `app-${tag}-${readerVersion}.log`), handle.text());
+          writeFileSync(join(outDir, MACHINE === '' ? `app-${tag}-${readerVersion}.log` : `app-${tag}-${MACHINE}-${String(farVersion)}.log`), handle.text());
         } catch {
           /* the readings are the evidence; this is the footnote */
         }
@@ -1713,18 +2087,19 @@ try {
   // name, because the loop typed into the pane lives exactly as long as that
   // server does and nothing else in this file would end it.
   spawnSync(readerTmux, ['-L', socket, 'kill-server'], { stdio: 'ignore' });
+  if (MACHINE !== '') endFar();
 }
 
 // -- the report -------------------------------------------------------------
-const readingsPath = join(outDir, `readings-${tag}-${readerVersion}.json`);
+const readingsPath = join(outDir, MACHINE === '' ? `readings-${tag}-${readerVersion}.json` : `readings-${tag}-${MACHINE}-${String(farVersion)}.json`);
 writeFileSync(readingsPath, `${J({ arms, readings })}\n`);
 say('');
 say(`arm   ${tag.toUpperCase()} on tmux ${String(readings.serverVersion ?? readerVersion)}`);
-for (const arm of ARMS) {
-  const n = arms[arm].length;
-  const chosenHere = arm === 'RUN' || chosen.includes(arm);
-  say(`${arm.padEnd(5)} ${!chosenHere ? 'not run' : n === 0 ? 'PASS' : `FAIL ${String(n)}`}`);
-}
+const summary = armSummary(chosen, armsDone, arms);
+for (const [arm, verdict] of summary) say(`${arm.padEnd(5)} ${verdict}`);
+readings.summary = summary;
+const notRun = summary.filter(([, v]) => v.startsWith('not run')).map(([a]) => a);
+if (notRun.length > 0 && arms.RUN.length === 0) arms.RUN.push(`arm(s) ${notRun.join(', ')} did not run to their end, so nothing they would have graded was read`);
 const failures = [];
 // Every finding already begins with its arm's letter, so the arm is not
 // repeated here.

@@ -49,7 +49,6 @@ import {
   restoreRemoteBody
 } from '../machines/session-restore';
 import {
-  ReadLastLinesButton,
   RenameInput,
   resumeMark,
   sessionMenuItems,
@@ -149,12 +148,6 @@ export function IdentityStrip({
           {mark}
         </span>
       ) : null}
-      {/* Phase 100: the same slot, the same muted shape. `resumeMark` is null
-          for every session on another machine, so these two never both draw.
-          ./SessionStrip.tsx draws the identical button in the "top"
-          orientation, because this band is not on screen there. It replaces
-          Phase 95's note, which said scrolling back was not available. */}
-      <ReadLastLinesButton session={session} className="strip-readback" />
       <span className="strip-spacer" />
       <button
         type="button"

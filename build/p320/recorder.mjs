@@ -25,9 +25,34 @@
  * on end of input, on SIGTERM, and by itself after `--max-ms` (15 minutes by
  * default).
  *
- * Usage: node build/p320/recorder.mjs --log <file> [--max-ms 900000]
+ * PHASE 320.1 GAVE BACK `--history <n>`: before it goes raw it prints n numbered
+ * lines (`line 1` to `line n`), so the pane it runs in holds a history to
+ * scroll back through. The typing arms of `probe:p320` and `probe:p320:rig`
+ * park the pane in that history and type into the program under it. Without
+ * the option it prints nothing but its ready line, exactly as before.
+ *
+ * PHASE 320.1's SECOND BUILD ADDED TWO OPTIONS, both off by default so every
+ * earlier reader sees exactly what it saw:
+ *
+ *   `--load light|heavy` prints load into the SAME terminal from a CHILD
+ *     process (40 lines every 5 ms, or 200 every 1 ms), the shape of the spec's
+ *     M3 measurement (build/p3201/SPEC.md §4). It is a child and not this
+ *     process because a write to a terminal is synchronous on macOS and Linux,
+ *     and a recorder whose own printing blocked would stop reading, which is the
+ *     one thing a ruler must never do. The child is ended when this process
+ *     ends, in the `end` below and on every signal, and it ends ITSELF with the
+ *     same `--max-ms`, so it cannot outlive a lost parent for long.
+ *     `probe:p320:skew` uses it.
+ *   `--app-cursor` asks the terminal for application cursor keys (DECCKM,
+ *     `CSI ? 1 h`) before it goes raw, so a cursor key typed into it arrives as
+ *     `ESC O A` where the program is live. `probe:p320`'s T6 prints what a
+ *     cursor key typed over a scrolled-back pane becomes (D7's stated limit).
+ *
+ * Usage: node build/p320/recorder.mjs --log <file> [--history 0] [--max-ms 900000]
+ *        [--load light|heavy] [--app-cursor]
  */
 
+import { spawn } from 'node:child_process';
 import { appendFileSync } from 'node:fs';
 
 const arg = (name, fallback) => {
@@ -41,6 +66,13 @@ if (LOG === '') {
   process.exit(2);
 }
 const MAX_MS = Math.max(1000, Number(arg('max-ms', '900000')) || 900_000);
+const HISTORY = Math.max(0, Math.min(100_000, Math.trunc(Number(arg('history', '0')) || 0)));
+const LOAD = arg('load', 'none');
+if (!['none', 'light', 'heavy'].includes(LOAD)) {
+  process.stderr.write(`--load must be light or heavy, not ${LOAD}\n`);
+  process.exit(2);
+}
+const APP_CURSOR = process.argv.includes('--app-cursor');
 
 const log = (record) => {
   try {
@@ -50,17 +82,47 @@ const log = (record) => {
   }
 };
 
+if (HISTORY > 0) {
+  const lines = [];
+  for (let i = 1; i <= HISTORY; i += 1) lines.push(`line ${String(i)}`);
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
 process.stdout.write('p320 recorder ready\n');
+if (APP_CURSOR) process.stdout.write('\x1b[?1h');
 
 if (process.stdin.isTTY) process.stdin.setRawMode(true);
 process.stdin.resume();
-log({ kind: 'ready', pid: process.pid });
+
+/**
+ * The load printer, a child sharing this terminal. Its text is fixed: `per`
+ * numbered lines every `every` ms, each with a colour change so the far tmux
+ * parses escapes as it would for an agent's output.
+ */
+let loader = null;
+if (LOAD !== 'none') {
+  const per = LOAD === 'heavy' ? 200 : 40;
+  const every = LOAD === 'heavy' ? 1 : 5;
+  // The child ends ITSELF when this recorder is gone (its parent pid changes
+  // to launchd's or init's), so even a SIGKILL of the recorder, which runs no
+  // `end`, cannot leave a load printer behind; and after --max-ms regardless.
+  const text =
+    `const parent=${String(process.pid)};let n=0;const t=setInterval(()=>{if(process.ppid!==parent)process.exit(0);let s='';for(let i=0;i<${String(per)};i+=1){n+=1;` +
+    `s+='load line '+n+' \\x1b[3'+(n%8)+'m'+'x'.repeat(60)+'\\x1b[0m\\r\\n';}process.stdout.write(s);},${String(every)});` +
+    `setTimeout(()=>{clearInterval(t);process.exit(0);},${String(MAX_MS)});`;
+  loader = spawn(process.execPath, ['-e', text], { stdio: ['ignore', 'inherit', 'inherit'] });
+}
+log({ kind: 'ready', pid: process.pid, load: LOAD, loader: loader?.pid ?? null, appCursor: APP_CURSOR });
 
 let ended = false;
 function end(why) {
   if (ended) return;
   ended = true;
   log({ kind: 'end', why });
+  try {
+    loader?.kill('SIGTERM');
+  } catch {
+    /* already gone */
+  }
   try {
     process.stdin.setRawMode(false);
   } catch {

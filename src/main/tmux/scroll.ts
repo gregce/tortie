@@ -75,8 +75,32 @@
  *    window between slices instead of one multi-second freeze.
  */
 
-/** Runs one tmux command and resolves its stdout. */
-export type TmuxScrollRunner = (args: readonly string[]) => Promise<string>;
+/**
+ * Runs one tmux command and resolves its stdout.
+ *
+ * PHASE 320.1 (build/p3201/SPEC.md D7 and D8). A runner may state two facts
+ * about itself, and this Mac's runner (`runScrollCommand` in
+ * src/main/sessions/core.ts) states neither, so every sequence it runs is the
+ * serial code below, byte for byte as before.
+ *
+ *  - `ordered`: every command this runner is handed is written, in the order
+ *    it was handed, to ONE connection that answers in that order. A session
+ *    on another machine's runner is, being one control connection per
+ *    machine. Such a runner PIPELINES a sequence: it writes every command back
+ *    to back and then reads the answers in order, which is about one round
+ *    trip a notch instead of four (research 130 §6 item 7). This Mac's runner
+ *    is NOT ordered, because it falls back to one `tmux` process per command
+ *    when its control client is down, and two processes started without
+ *    waiting for each other can land in either order.
+ *  - `server`: which tmux server the runner reaches, when it is not this
+ *    Mac's. It exists for the `goto-line` latch alone, which is this Mac's
+ *    (see `seekSupport`).
+ */
+export interface TmuxScrollRunner {
+  (args: readonly string[]): Promise<string>;
+  readonly ordered?: boolean;
+  readonly server?: string;
+}
 
 export interface PaneScrollState {
   /**
@@ -136,8 +160,8 @@ export interface PaneScrollState {
   innerMouse: boolean;
 }
 
-/** Everything one round trip needs to answer, tab-separated. */
-const STATE_FORMAT = [
+/** The eight fields one read asks for, in the places they have always had. */
+const STATE_FIELDS: readonly string[] = [
   '#{pane_in_mode}',
   '#{scroll_position}',
   '#{history_size}',
@@ -148,7 +172,49 @@ const STATE_FORMAT = [
   // had. Both Phase 292.
   '#{pane_width}',
   '#{copy_position_limit}'
-].join('\t');
+];
+
+/**
+ * Everything one round trip needs to answer, tab-separated. THIS MAC'S READ,
+ * byte for byte what it has been since Phase 292.
+ *
+ * It holds no `#(`, which on a long-lived control connection would run a
+ * program on the far machine (research 130 §4). A session on another machine
+ * is read with {@link REMOTE_STATE_FORMAT} instead, and the reason is there.
+ */
+export const STATE_FORMAT = STATE_FIELDS.join('\t');
+
+/**
+ * The same eight fields for a runner that reaches ANOTHER machine, with ONE
+ * SPACE between them (Phase 320.1's fix round).
+ *
+ * WHY NOT THE TAB. tmux hands a format's answer to a client it does not
+ * classify as UTF-8 through `utf8_sanitize`, which turns every byte below
+ * 0x20 into `_`, the tab among them. tmux classifies a client by scanning
+ * LC_ALL, LC_CTYPE and LANG for "UTF-8", and a machine's control client runs
+ * with whatever locale that machine's sshd hands it, which is none at all
+ * unless both ends were configured to forward one. MEASURED by the Phase 320.1
+ * attack verifier on 2026-09-30, over the loopback machine's own sshd (no
+ * `AcceptEnv`), tmux 3.6a and 3.7b alike: the tab format answered
+ * `0__1971_30_0_0_100_`, and the lenient reader below read that as a live pane
+ * with no history while the far pane sat parked in copy mode 10 lines back.
+ * Keys then went straight into copy mode, 115 of 330 characters were lost in
+ * the typing rig, and the same run with a UTF-8 control client lost none. The
+ * list format in src/main/machines/remote-sessions.ts chose a space for the
+ * same measured reason, and this follows it.
+ *
+ * Every field is a number or empty, so a space can never be a field's own
+ * byte, and a space is printable ASCII, which every client passes through
+ * whatever its locale. It is read by {@link parseRemoteState}, which refuses
+ * any answer that is not exactly eight such fields rather than reading it as
+ * a live pane.
+ *
+ * The closed table of what may cross a machine's control connection
+ * (src/main/machines/scroll-shapes.ts) admits a read only when its format is
+ * THIS constant, compared with `===`, so there is one spelling of it and no
+ * caller's string reaches the far side. It holds no `#(`.
+ */
+export const REMOTE_STATE_FORMAT = STATE_FIELDS.join(' ');
 
 /** A pane with no history and no scroll — the safe answer when tmux is mute. */
 const EMPTY_STATE: PaneScrollState = {
@@ -162,11 +228,90 @@ const EMPTY_STATE: PaneScrollState = {
   innerMouse: false
 };
 
+/** This Mac's reader: lenient, byte for byte the reading it has always made. */
 function parseState(out: string): PaneScrollState {
   const line = out.split('\n').find((l) => l.length > 0);
   if (line === undefined) return EMPTY_STATE;
-  const [inMode, position, history, rows, alt, mouse, cols, frame] =
-    line.split('\t');
+  return stateOfFields(line.split('\t'));
+}
+
+/**
+ * What each of {@link REMOTE_STATE_FORMAT}'s eight fields may be: a whole
+ * number, or, for `#{scroll_position}` and `#{copy_position_limit}`, empty
+ * (both are empty outside copy mode, and the second on any tmux before 3.7).
+ */
+const REMOTE_FIELD_SHAPES: readonly RegExp[] = [
+  /^[0-9]+$/,
+  /^[0-9]*$/,
+  /^[0-9]+$/,
+  /^[0-9]+$/,
+  /^[0-9]+$/,
+  /^[0-9]+$/,
+  /^[0-9]+$/,
+  /^[0-9]*$/
+];
+
+/**
+ * A machine answered a scroll read in a shape Tortie does not read (Phase
+ * 320.1's fix round). It carries how many fields it found and nothing of what
+ * they said, because a far answer is that machine's text.
+ */
+export class UnreadableScrollAnswer extends Error {
+  constructor(readonly fields: number) {
+    super(
+      `a machine answered a scroll read in ${String(fields)} field(s) that are ` +
+        'not the eight whole numbers Tortie reads'
+    );
+    this.name = 'UnreadableScrollAnswer';
+  }
+}
+
+/** True for {@link UnreadableScrollAnswer}, by name, so a second copy of this module still agrees. */
+export function isUnreadableScrollAnswer(err: unknown): boolean {
+  return err instanceof Error && err.name === 'UnreadableScrollAnswer';
+}
+
+/**
+ * ANOTHER MACHINE'S reader (Phase 320.1's fix round): exactly one line of
+ * exactly eight space-separated fields, each the shape
+ * {@link REMOTE_FIELD_SHAPES} names, or it THROWS.
+ *
+ * IT FAILS CLOSED. This Mac's reader turns anything it cannot read into
+ * zeros, which is "live, no history", and on another machine that reading is
+ * the one that loses keystrokes: a sequence that has just written `copy-mode`
+ * and a scroll to the far pane must never come back saying the pane is live.
+ * So an answer this cannot read is an error, which the session core turns
+ * into the not-reachable-now value (build/p3201/SPEC.md D10), and a machine
+ * whose FIRST read on a connection cannot be read is never parked at all
+ * (`remoteScroll` in src/main/sessions/core.ts).
+ */
+function parseRemoteState(out: string): PaneScrollState {
+  const lines = out.split('\n').filter((l) => l.length > 0);
+  const fields = lines.length === 1 ? (lines[0] ?? '').split(' ') : [];
+  if (
+    fields.length !== REMOTE_FIELD_SHAPES.length ||
+    !fields.every((field, i) => REMOTE_FIELD_SHAPES[i]?.test(field) === true)
+  ) {
+    throw new UnreadableScrollAnswer(lines.length === 1 ? fields.length : 0);
+  }
+  return stateOfFields(fields);
+}
+
+/** The read format for this runner: another machine's has its own (see {@link REMOTE_STATE_FORMAT}). */
+function readFormatFor(run: TmuxScrollRunner): string {
+  return run.server === undefined ? STATE_FORMAT : REMOTE_STATE_FORMAT;
+}
+
+/** Read one answer with the reader that matches the format {@link readFormatFor} asked for. */
+function parseFor(run: TmuxScrollRunner, out: string): PaneScrollState {
+  return run.server === undefined ? parseState(out) : parseRemoteState(out);
+}
+
+/** The eight fields, in {@link STATE_FIELDS}' order, read into a state. Both readers share it. */
+function stateOfFields(
+  fields: readonly (string | undefined)[]
+): PaneScrollState {
+  const [inMode, position, history, rows, alt, mouse, cols, frame] = fields;
   // `#{scroll_position}` is EMPTY outside copy-mode — Number('') is 0, but be
   // explicit so a future format change cannot silently produce NaN.
   const num = (v: string | undefined): number => {
@@ -206,13 +351,19 @@ function parseState(out: string): PaneScrollState {
   };
 }
 
-/** Read the pane's scroll + inner-app state in one round trip. */
+/**
+ * Read the pane's scroll + inner-app state in one round trip. A runner that
+ * reaches another machine reads with {@link REMOTE_STATE_FORMAT} and THROWS
+ * {@link UnreadableScrollAnswer} on an answer it cannot read; this Mac's reads
+ * as it always has.
+ */
 export async function readPaneScroll(
   run: TmuxScrollRunner,
   target: string
 ): Promise<PaneScrollState> {
-  return parseState(
-    await run(['display-message', '-p', '-t', target, '-F', STATE_FORMAT])
+  return parseFor(
+    run,
+    await run(['display-message', '-p', '-t', target, '-F', readFormatFor(run)])
   );
 }
 
@@ -227,13 +378,21 @@ export async function readPaneScroll(
  * page is `rows - 1` (~41 lines), so nothing the user does with the wheel or
  * ⇧PageUp ever reaches this path.
  */
-const SCROLL_CHUNK_LINES = 2_000;
+export const SCROLL_CHUNK_LINES = 2_000;
 
 /**
  * Does this tmux implement `send-keys -X goto-line`? Probed once per process
  * by using it; a failure on the FIRST attempt is read as "verb missing" and
  * latches the chunked fallback, while a failure after one success is a real
  * error (dead pane, ended session) and propagates like any other.
+ *
+ * THIS MAC'S SERVER ALONE (Phase 320.1, D8). It is read and written only for a
+ * runner that names no `server`. A runner for another machine never probes and
+ * never latches: `goto-line` exists at every tmux from 3.2a, and a copy mode
+ * command a server lacks exits 0 anyway (research 131 §3.3 and §9 item 12), so
+ * a failed `goto-line` there is a real failure. Before this rule one failed
+ * `goto-line` through a dropped carriage would have put this Mac on the slow
+ * path for the rest of the run (research 130 §6 item 9).
  */
 let seekSupport: 'unknown' | 'yes' | 'no' = 'unknown';
 
@@ -273,6 +432,74 @@ async function chunkedScrollBy(
     left -= chunk;
     if (left > 0) await yieldToServer();
   }
+}
+
+/** One command of a pipelined sequence (Phase 320.1, D7). */
+interface PipelineStep {
+  readonly args: readonly string[];
+  /**
+   * Its failure is an ordinary answer rather than an error, exactly where the
+   * serial code catches it: `top-line`, `cancel`, and a `scroll-down` that
+   * found the pane already live, each of which answers "not in a mode".
+   */
+  readonly tolerated?: boolean;
+}
+
+/**
+ * Write every command of one sequence back to back, then read the answers in
+ * order, for an ORDERED runner only (see `TmuxScrollRunner`).
+ *
+ * THE SERIAL CODE'S ERROR SEMANTICS, KEPT. The first failure that the serial
+ * code would have thrown is the one thrown, and a tolerated failure answers
+ * null where the serial code swallowed it. What changes is only that the
+ * commands after a failure were already written, which on an ordered carriage
+ * is the price of one round trip instead of four: each of them is one of the
+ * closed table's shapes, and after a failure on the same `$N` each fails the
+ * same way or types nothing (research 130 §4).
+ *
+ * NO UNHANDLED REJECTION. Every answer gets a handler the moment it is asked
+ * for, so an answer this function stops waiting for, after an earlier failure
+ * was thrown, settles into that handler rather than into the process.
+ */
+async function pipelined(
+  run: TmuxScrollRunner,
+  steps: readonly PipelineStep[]
+): Promise<(string | null)[]> {
+  const answers = steps.map((step) => {
+    let answer: Promise<string>;
+    try {
+      answer = run(step.args);
+    } catch (err) {
+      answer = Promise.reject(err instanceof Error ? err : new Error(String(err)));
+    }
+    answer.catch(() => undefined);
+    return answer;
+  });
+  const out: (string | null)[] = [];
+  for (const [index, step] of steps.entries()) {
+    try {
+      out.push(await (answers[index] as Promise<string>));
+    } catch (err) {
+      if (step.tolerated !== true) throw err;
+      out.push(null);
+    }
+  }
+  return out;
+}
+
+/** The answer a pipelined sequence's last step, always the read, gave. */
+function lastAnswer(answers: readonly (string | null)[]): string {
+  return answers[answers.length - 1] ?? '';
+}
+
+/** The read that closes every sequence, as a pipelined step, in this runner's format. */
+function readStep(run: TmuxScrollRunner, target: string): PipelineStep {
+  return { args: ['display-message', '-p', '-t', target, '-F', readFormatFor(run)] };
+}
+
+/** `cursorToTopRow`'s command, as a pipelined step. */
+function topLineStep(target: string): PipelineStep {
+  return { args: ['send-keys', '-t', target, '-X', 'top-line'], tolerated: true };
 }
 
 /**
@@ -344,6 +571,12 @@ async function seekPaneTo(
   position: number,
   from: number
 ): Promise<void> {
+  if (run.server !== undefined) {
+    // Another machine's server: no probe, no latch, and a failure is thrown
+    // like any other (D8, see `seekSupport`).
+    await run(['send-keys', '-t', target, '-X', 'goto-line', String(position)]);
+    return;
+  }
   if (seekSupport !== 'no') {
     try {
       await run([
@@ -385,6 +618,18 @@ async function scrollFrom(
   // The `-e` auto-exit lives in tmux's scroll-DOWN commands, and `goto-line`
   // is not one of them, so "back to live" is still an explicit cancel.
   if (clamped === 0) return exitPaneScroll(run, target);
+  // Pipelined only when the seek cannot latch (D8): a runner with no `server`
+  // is this Mac's, whose seek may fall back on the probe's answer, so it has
+  // to wait for that answer before it knows what to send next.
+  if (run.ordered === true && run.server !== undefined) {
+    const answers = await pipelined(run, [
+      { args: ['copy-mode', '-e', '-t', target] },
+      { args: ['send-keys', '-t', target, '-X', 'goto-line', String(clamped)] },
+      topLineStep(target),
+      readStep(run, target)
+    ]);
+    return parseFor(run, lastAnswer(answers));
+  }
   await run(['copy-mode', '-e', '-t', target]);
   await seekPaneTo(run, target, clamped, now.position);
   await cursorToTopRow(run, target);
@@ -415,6 +660,32 @@ export async function scrollPaneBy(
   if (Math.abs(n) > SCROLL_CHUNK_LINES) {
     const now = await readPaneScroll(run, target);
     return scrollFrom(run, target, now, now.position + n);
+  }
+  if (run.ordered === true) {
+    // The same commands as the serial branches below, written back to back.
+    // Toward live the cursor step is written without waiting to learn whether
+    // the scroll found copy mode, and on a live pane it answers "not in a
+    // mode" and types nothing (research 130 §4), which is tolerated here as
+    // the serial code tolerates it.
+    const answers = await pipelined(
+      run,
+      n > 0
+        ? [
+            { args: ['copy-mode', '-e', '-t', target] },
+            { args: ['send-keys', '-t', target, '-X', '-N', String(n), 'scroll-up'] },
+            topLineStep(target),
+            readStep(run, target)
+          ]
+        : [
+            {
+              args: ['send-keys', '-t', target, '-X', '-N', String(-n), 'scroll-down'],
+              tolerated: true
+            },
+            topLineStep(target),
+            readStep(run, target)
+          ]
+    );
+    return parseFor(run, lastAnswer(answers));
   }
   if (n > 0) {
     await run(['copy-mode', '-e', '-t', target]);
@@ -542,6 +813,46 @@ export async function exitPaneScroll(
   run: TmuxScrollRunner,
   target: string
 ): Promise<PaneScrollState> {
+  if (run.ordered === true) {
+    const answers = await pipelined(run, [
+      { args: ['send-keys', '-t', target, '-X', 'cancel'], tolerated: true },
+      readStep(run, target)
+    ]);
+    return parseFor(run, lastAnswer(answers));
+  }
   await run(['send-keys', '-t', target, '-X', 'cancel']).catch(() => undefined);
   return readPaneScroll(run, target);
+}
+
+/**
+ * Where a range of history lines falls in `capture-pane`'s own numbering, or
+ * that nothing of it is left, Phase 209's clamp, extracted by Phase 320.1 so
+ * this Mac's copy (src/main/capture/service.ts) and a machine's copy
+ * (src/main/machines/remote-pane-history.ts) apply ONE rule.
+ *
+ * The renderer numbers lines from the oldest the server holds and
+ * `capture-pane` numbers them from the top of the live screen, so the
+ * conversion needs `#{history_size}` and `#{pane_height}` read at the instant
+ * of the capture. THE CLAMP IS OURS, not tmux's: tmux moves a range above the
+ * top to the oldest line and answers one row for it (measured 2026-09-03), so a
+ * range that is entirely gone answers nothing (`paneRange` null), and one that
+ * starts above the top starts at the oldest line and says so in `firstLine`. A
+ * range that reaches below the screen is cut at the last row.
+ *
+ * The arithmetic is the service's own, unchanged: a value that is not a finite
+ * number passes through as it always did, and the machine's composer refuses
+ * anything that is not a whole number before a byte is sent.
+ */
+export function clampHistoryRange(
+  range: { readonly start: number; readonly end: number },
+  extent: { readonly history: number; readonly rows: number }
+): { firstLine: number; paneRange: { start: number; end: number } | null } {
+  const last = extent.history + extent.rows - 1;
+  const start = Math.max(0, Math.floor(range.start));
+  const end = Math.min(last, Math.floor(range.end));
+  if (end < start) return { firstLine: start, paneRange: null };
+  return {
+    firstLine: start,
+    paneRange: { start: start - extent.history, end: end - extent.history }
+  };
 }

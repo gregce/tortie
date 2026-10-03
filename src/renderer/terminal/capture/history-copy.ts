@@ -31,15 +31,27 @@
  *
  * This module is behind a lazy door: ./index.ts imports it only when a copy
  * spans the history, so an ordinary copy parses nothing new.
+ *
+ * PHASE 320.1: THE READ NAMES ITS SESSION. A session on another machine can
+ * now be scrolled back, so a selection can reach into ITS history, and main
+ * must read that machine rather than this Mac's server, where a session of
+ * the same name may exist and hold different text. Every read here carries
+ * the session's id beside its name, and main routes on the id
+ * (build/p3201/SPEC.md D11). The id is a required argument, so a caller
+ * cannot forget it and read the wrong computer in silence.
  */
 
 import { Terminal } from '@xterm/xterm';
 import type { IBufferRange, ITheme } from '@xterm/xterm';
 import type { InstalledGmuxApi } from '@shared/ipc';
+import type { Session } from '@shared/types';
 import type { HistorySelectionRange } from './history-selection';
 import { serializeAsHtml, toClipboardHtml } from './serialize';
 
 type CaptureBridge = NonNullable<InstalledGmuxApi['capture']>;
+
+/** The session a history read is for: its id, and its tmux-side name. */
+export type HistoryPane = Pick<Session, 'id' | 'tmuxName'>;
 
 /** What main answered for an exact range, split into rows. */
 export interface HistoryRows {
@@ -63,13 +75,14 @@ export function splitRows(ansi: string): string[] {
 /** The rows between two history lines, inclusive, joined or as drawn. */
 export async function readHistoryRows(
   bridge: CaptureBridge,
-  tmuxName: string,
+  pane: HistoryPane,
   start: number,
   end: number,
   join: boolean
 ): Promise<HistoryRows> {
   const res = await bridge.pane({
-    tmuxName,
+    tmuxName: pane.tmuxName,
+    sessionId: pane.id,
     historyLines: 0,
     range: { start, end },
     join
@@ -168,13 +181,13 @@ export interface HistoryHtmlOptions {
 /** Text and, when asked, the clipboard HTML for a selection in the history. */
 export async function composeHistorySelection(
   bridge: CaptureBridge,
-  tmuxName: string,
+  pane: HistoryPane,
   range: HistorySelectionRange,
   html: HistoryHtmlOptions | null
 ): Promise<{ text: string; html: string }> {
   const { rows, firstLine } = await readHistoryRows(
     bridge,
-    tmuxName,
+    pane,
     range.start.line,
     range.end.line,
     true

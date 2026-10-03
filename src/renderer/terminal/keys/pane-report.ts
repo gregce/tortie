@@ -19,11 +19,8 @@
  * rather than a condition only an app run can reach.
  */
 
-import { isColorReport } from './color-report';
-import { isDeviceReport } from './device-report';
-import { isFocusReport } from './focus-report';
-
-/** True when these bytes are a report, to be forwarded and never typed. */
-export function isPaneReport(data: string): boolean {
-  return isFocusReport(data) || isColorReport(data) || isDeviceReport(data);
-}
+// Since Phase 320.1's second build the one question is src/shared/pane-report.ts,
+// because main asks it too: main chooses the road of every keystroke to a
+// session on another machine, and a report taken for a keystroke there would
+// leave copy mode on the far side and type its bytes into the program.
+export { isPaneReport } from '@shared/pane-report';

@@ -489,11 +489,16 @@ describe('nothing was added below the S4A marker', () => {
     expect(SHEETS.app.indexOf(MARKER, at + 1)).toBe(-1);
   });
 
-  it('leaves the split block the 7218 bytes it was at the parent commit', () => {
+  it('leaves the split block at 5611 bytes, its 7218 less the deleted .strip-readback rules', () => {
     // Read at 0f2f7f00 with `git show HEAD:src/renderer/styles/app.css`, from
     // the marker to the end. A later phase that edits the split block on
     // purpose moves this number and says so; this phase must not.
-    expect(Buffer.byteLength(below, 'utf8')).toBe(7218);
+    //
+    // MOVED BY PHASE 320.1, from 7218 to 5611: Phase 100 had appended the
+    // `.strip-readback` rules (the band's Read last lines button) below the
+    // marker, and Phase 320.1 deleted that button and its rules, 1607 bytes.
+    // Nothing of the split block itself moved.
+    expect(Buffer.byteLength(below, 'utf8')).toBe(5611);
   });
 
   it('names nothing of this phase down there, in a rule or in a comment', () => {

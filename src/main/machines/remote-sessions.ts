@@ -642,6 +642,23 @@ interface MachineSessions {
    * new runtime cycle the architecture audit is already counting six of.
    */
   seeded: boolean;
+  /**
+   * How many times this machine's live connection has reached connected in
+   * this run (Phase 320.1, D4). Moved by the sink's `connected`, before the
+   * list that handler issues.
+   */
+  controlEpoch: number;
+  /**
+   * The {@link MachineSessions.controlEpoch} a pass read when it STARTED,
+   * written beside `rows` when that pass completes (Phase 320.1, D4).
+   *
+   * A row may be scrolled only while this equals `controlEpoch`: the list that
+   * produced it was issued on the connection that is up now. tmux ids are
+   * monotonic for a server's life, so a `$N` can name another session only
+   * after a far server restart, which ends the connection and moves the epoch,
+   * and no list issued before the new connection greeted can then address it.
+   */
+  rowsEpoch: number;
 }
 
 const machines = new Map<string, MachineSessions>();
@@ -729,7 +746,9 @@ function stateOf(machineId: string): MachineSessions {
     onControl: false,
     passing: false,
     lastMachineStatus: null,
-    seeded: false
+    seeded: false,
+    controlEpoch: 0,
+    rowsEpoch: 0
   };
   machines.set(machineId, fresh);
   return fresh;
@@ -1085,6 +1104,74 @@ export function remoteSessionRow(sessionId: string): RemoteSessionRow | null {
     if (gone !== undefined) return gone;
   }
   return null;
+}
+
+/**
+ * What the scroll of one session on a machine may target (Phase 320.1, D4).
+ *
+ *  - `live`: a row the machine's CURRENT connection listed, with the `$N` it
+ *    listed it under. The only answer anything may be sent to.
+ *  - `waiting`: a live row, but not one this connection has listed yet (the
+ *    connection is down, or a pass on it has not completed). Ask again.
+ *  - `ended`: a completed list stopped reporting it. Like a session on this Mac
+ *    that is not running.
+ *  - `unknown`: no machine this run holds the id.
+ */
+export type RemoteScrollAddress =
+  | { readonly kind: 'live'; readonly machineId: string; readonly tmuxId: string }
+  | { readonly kind: 'waiting'; readonly machineId: string }
+  | { readonly kind: 'ended' }
+  | { readonly kind: 'unknown' };
+
+/** The facts {@link scrollAddressOf} decides from, all read from one machine's memory. */
+export interface RemoteScrollFacts {
+  readonly live: RemoteSessionRow | undefined;
+  readonly gone: boolean;
+  readonly onControl: boolean;
+  readonly controlEpoch: number;
+  readonly rowsEpoch: number;
+}
+
+/**
+ * The rule, PURE, so conformance:machines can ask it the whole matrix.
+ *
+ * A gone row is `ended` even if a live row were present too. It cannot be (a
+ * completed pass takes the id out of `gone`, and `remoteRowsInBothMaps` counts
+ * the property), but the rule does not assume it: of the two, the one that
+ * sends nothing wins. NEVER `remoteSessionRow`, which answers gone rows and
+ * says nothing of which connection listed a live one.
+ */
+export function scrollAddressOf(facts: RemoteScrollFacts): RemoteScrollAddress {
+  if (facts.gone) return { kind: 'ended' };
+  const row = facts.live;
+  if (row === undefined) return { kind: 'unknown' };
+  if (facts.onControl && facts.rowsEpoch === facts.controlEpoch) {
+    return { kind: 'live', machineId: row.machineId, tmuxId: row.tmuxId };
+  }
+  return { kind: 'waiting', machineId: row.machineId };
+}
+
+/** Where one session's scroll may go right now, read from memory and never from a machine. */
+export function remoteScrollAddress(sessionId: string): RemoteScrollAddress {
+  for (const state of machines.values()) {
+    const live = state.rows.get(sessionId);
+    const gone = state.gone.has(sessionId);
+    if (live === undefined && !gone) continue;
+    return scrollAddressOf({
+      live,
+      gone,
+      onControl: state.onControl,
+      controlEpoch: state.controlEpoch,
+      rowsEpoch: state.rowsEpoch
+    });
+  }
+  return scrollAddressOf({
+    live: undefined,
+    gone: false,
+    onControl: false,
+    controlEpoch: 0,
+    rowsEpoch: 0
+  });
 }
 
 /**
@@ -2490,6 +2577,10 @@ async function onePass(
   machineId: string,
   state: MachineSessions
 ): Promise<void> {
+  // PHASE 320.1, D4. Which connection this pass started on, read before
+  // anything is issued, so the rows it writes can only be scrolled while that
+  // connection is still the machine's.
+  const epoch = state.controlEpoch;
   // PHASE 117, ONCE PER MACHINE PER RUN. A create whose answer was lost kept its
   // durable row and wrote `unknown` into its status column. This is where those
   // rows go back into the issued set, so the rescue below binds the SAME
@@ -2686,6 +2777,7 @@ async function onePass(
   );
   const firstCompletedPass = !state.everAnswered;
   state.rows = seen;
+  state.rowsEpoch = epoch;
   state.names = names;
   state.foreign = foreign;
   state.snapshotAt = snapshotAt;
@@ -3031,6 +3123,9 @@ function installControlSink(): void {
   setControlPlaneSink({
     connected(machineId: string): void {
       const state = stateOf(machineId);
+      // PHASE 320.1, D4. Before the list below is issued, so only a pass that
+      // starts from here on can make this machine's rows scrollable again.
+      state.controlEpoch += 1;
       state.onControl = true;
       // THE FALLBACK TIMER GOES THE MOMENT THE CONNECTION IS UP. One machine
       // never carries the fallback timer and the connection at once, and
@@ -3342,6 +3437,10 @@ export function remoteMachineFacts(machineId: string): {
   unconfirmedCreates: number;
   /** What the case table last said about this machine. */
   evidence: string;
+  /** Phase 320.1, D4: connections that reached connected in this run. */
+  controlEpoch: number;
+  /** Phase 320.1, D4: the connection the last completed pass started on. */
+  rowsEpoch: number;
 } {
   const state = stateOf(machineId);
   return {
@@ -3357,7 +3456,9 @@ export function remoteMachineFacts(machineId: string): {
     onControl: state.onControl,
     lastSeenTracked: state.lastSeenWriteAt.size,
     unconfirmedCreates: issuedRemoteIdsFor(machineId).length,
-    evidence: state.truth.evidence
+    evidence: state.truth.evidence,
+    controlEpoch: state.controlEpoch,
+    rowsEpoch: state.rowsEpoch
   };
 }
 

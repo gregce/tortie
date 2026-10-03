@@ -72,6 +72,21 @@
  * a sink, and this module calls back into that sink. The alternative, importing
  * `readyRemoteContext` from there, would make the two modules a cycle, and
  * `./ssh.ts` records in its own header why this codebase keeps them apart.
+ *
+ * ## Phase 320.1: one scroll runner per machine, behind a closed table
+ *
+ * Research 57 §3.1 refused any interactive write over this connection, because
+ * it was the one carriage with no gate. Research 130 §4 answered that by giving
+ * it one, and the operator approved the narrowing on 2026-09-23 for this
+ * connection only. This module exports exactly ONE function for it,
+ * {@link remoteScrollRunner}, and that function hands out a runner composed by
+ * `guardedScrollRunner` in `./scroll-shapes.ts`, which checks every argv against
+ * its closed table before a byte is written (seven shapes since his word of
+ * 2026-09-30: six that move the view, and one that types the keys a person
+ * types over a scrolled-back session, behind a cancel). The client map and the send
+ * stay private here, so nothing else in the tree can write to a machine through
+ * this connection. build/p3201/SPEC.md D2, D6 and D10 are the rules; the exec
+ * plane's ledger is untouched.
  */
 
 import { getLog } from '../log';
@@ -95,6 +110,10 @@ import {
   type SpawnPlan
 } from './context';
 import { execOn } from './exec-plane';
+import {
+  guardedScrollRunner,
+  type RemoteScrollCarriage
+} from './scroll-shapes';
 
 const machinesLog = getLog('config');
 
@@ -204,8 +223,43 @@ const clients = new Map<string, TmuxControlClient>();
  * button a person presses, so it is the right place: without it a person who hit
  * the deadline once had no way back to a live connection except quitting, and
  * the doc comment here used to claim prepare cleared it while nothing did.
+ *
+ * PHASE 320.1's RULED ROUND adds a third person's act, and it does not take the
+ * machine off the set. A key typed into a session on that machine, over a pane
+ * Tortie scrolled back there, can only reach its program through this
+ * connection, because down the attach copy mode eats it. So that key asks for
+ * ONE more connection ({@link openControlPlane} with `keystroke`), past the set,
+ * while the set stays as it is. If that connection greets, the machine is back
+ * on a live connection and comes off the set (the `connected` handler). If it
+ * misses the deadline too, the machine stays on the set and nothing retries:
+ * only another key, or Prepare, or a restart, asks again. So a machine that
+ * never greets still spawns nothing on a timer, which is the rule above.
  */
 const noControlThisRun = new Set<string>();
+
+/**
+ * Machines whose tmux the control gate refused at the last
+ * {@link openControlPlane} attempt (Phase 320.1, D2).
+ *
+ * Such a machine will not have a connection in this run, so a scroll there is
+ * Phase 320's pass-through and nothing more, which {@link remoteScrollRunner}
+ * answers as `none`. Written where the gate says no, cleared at the top of every
+ * attempt (the machine may have been upgraded and prepared since) and by
+ * {@link allowControlPlaneAgain}.
+ */
+const dialectRefused = new Set<string>();
+
+/**
+ * How many times each machine's connection has reached connected in this run
+ * (Phase 320.1, D6).
+ *
+ * Moved in the client's `connected` handler BEFORE the feed hears of it, so no
+ * reader can see the new connection's rows while a runner made on the old one
+ * still counts as current. A runner remembers the number it was made at and
+ * refuses to write once it has moved: a far server that restarted can reuse a
+ * `$N`, and a reconnect is the only way Tortie learns it did.
+ */
+const generations = new Map<string, number>();
 
 let linkListeners: (() => void)[] = [];
 
@@ -547,19 +601,37 @@ export function assertControlDialectMeasured(
  *
  * It never throws. A machine that cannot be reached is a fact a surface draws,
  * not an error a caller has to catch, and the feed's fallback is the timer.
+ *
+ * `ask.keystroke` (Phase 320.1's ruled round): the caller is
+ * `routeKey` in ./scroll-order.ts, for a key typed over a pane Tortie scrolled
+ * back on a machine that missed its greeting earlier in this run. That one ask
+ * goes past the Phase 83 set, through every step above unchanged (the precheck
+ * and the gate included), and leaves the set as it is: see `noControlThisRun`.
  */
-export async function openControlPlane(machineId: string): Promise<boolean> {
+export async function openControlPlane(
+  machineId: string,
+  ask: { readonly keystroke?: boolean } = {}
+): Promise<boolean> {
+  dialectRefused.delete(machineId);
   if (clients.has(machineId)) return true;
   // PHASE 83. A machine whose greeting never arrived keeps the timer feed until
   // the person prepares it again or restarts Tortie. Nothing is spawned here and
   // nothing is sent.
   if (noControlThisRun.has(machineId)) {
+    if (ask.keystroke !== true) {
+      machinesLog.info(
+        `${machineId} did not finish opening a live connection earlier in this ` +
+          `run, so it keeps the timer feed. Prepare it again, or start Tortie ` +
+          `again, to let it try once more.`
+      );
+      return false;
+    }
     machinesLog.info(
-      `${machineId} did not finish opening a live connection earlier in this ` +
-        `run, so it keeps the timer feed. Prepare it again, or start Tortie ` +
-        `again, to let it try once more.`
+      `a key was typed into a session on ${machineId} that Tortie had scrolled ` +
+        `back there, and only a live connection can return it, so Tortie asks ` +
+        `that machine for one once more. If it does not open, the machine keeps ` +
+        `the timer feed.`
     );
-    return false;
   }
   noteMachineConnecting(machineId);
 
@@ -589,6 +661,7 @@ export async function openControlPlane(machineId: string): Promise<boolean> {
 
   const gate = decideRemoteControlGate(version);
   if (gate.kind !== 'measured') {
+    dialectRefused.add(machineId);
     setLink(machineId, 'polling', 'runs a version Tortie has not measured');
     machinesLog.info(
       `${machineId} reports ${version ?? 'no version at all'}, and this release ` +
@@ -617,6 +690,13 @@ export async function openControlPlane(machineId: string): Promise<boolean> {
 
 function wire(machineId: string, client: TmuxControlClient): void {
   client.on('connected', () => {
+    // PHASE 320.1's ruled round. A machine a keystroke asked again, whose
+    // connection has now greeted, is on a live connection, and the Phase 83
+    // set would say it is not. A later miss puts it back.
+    noControlThisRun.delete(machineId);
+    // PHASE 320.1, D6. Before the feed is told, so a runner made on the
+    // previous connection is refused from this instant on.
+    generations.set(machineId, (generations.get(machineId) ?? 0) + 1);
     setLink(machineId, 'connected', null);
     machinesLog.info(`${machineId} is on a live connection.`);
     sink?.connected(machineId);
@@ -698,6 +778,10 @@ export function resetControlPlanesForTests(): void {
   closeEveryControlPlane();
   links.clear();
   linkListeners = [];
+  // Phase 320.1's two, ahead of the line below so Phase 324's attack
+  // (build/p324/ablation.mjs, arm 17) still finds the reset's last two lines.
+  dialectRefused.clear();
+  generations.clear();
   noControlThisRun.clear();
   sink = null;
 }
@@ -710,6 +794,7 @@ export function resetControlPlanesForTests(): void {
  * nothing to the machine, and a machine that was never on the set is unaffected.
  */
 export function allowControlPlaneAgain(machineId: string): void {
+  dialectRefused.delete(machineId);
   if (!noControlThisRun.delete(machineId)) return;
   machinesLog.info(
     `${machineId} was prepared again, so a live connection may be opened to it ` +
@@ -720,10 +805,56 @@ export function allowControlPlaneAgain(machineId: string): void {
 /**
  * True when this machine missed the greeting deadline in this run.
  *
- * Read by `build/probe-control-deadline.mjs` and by the unit test. It has no
- * production caller, and that is deliberate: no surface draws this, because a
- * person sees the timer feed and the link reason rather than a flag.
+ * Read by `build/probe-control-deadline.mjs` and by the unit test, and since
+ * Phase 320.1's ruled round by ./scroll-order.ts, which asks it before a
+ * keystroke may ask that machine for its connection once more. No surface draws
+ * it: a person sees the timer feed and the link reason rather than a flag.
  */
 export function missedGreetingThisRun(machineId: string): boolean {
   return noControlThisRun.has(machineId);
+}
+
+/**
+ * The scroll runner for one machine's live connection, or why there is none
+ * (Phase 320.1, D2 and D6). THE ONE EXPORT THIS PHASE ADDS. Its production
+ * callers are the session core's `remoteScroll`, for a scroll, and, since the
+ * second build, `routeKey` in ./scroll-order.ts, for a keystroke typed over a
+ * pane that is or may be scrolled back (build/p3201/SPEC.md §6.2, D6, D7).
+ *
+ *  - `none`: this machine will not have a connection in this run, because the
+ *    control gate refused its tmux at the last attempt or it missed the greeting.
+ *    A scroll there is Phase 320's pass-through, which is today exactly.
+ *  - `waiting`: no connected client right now, for any other reason (not opened
+ *    yet, prechecking, reconnecting, dropped). It is not `none`, because at
+ *    launch a restored pane is mounted before its machine's connection is up,
+ *    and a `none` there would stop that pane asking for the rest of the mount.
+ *    Since the ruled round this includes a machine that missed its greeting
+ *    while the one more connection a keystroke asked for is waiting for its
+ *    own: that client is in the map, so it is waited for like any other.
+ *  - `live`: a runner made on THIS connection. Every call checks the table, then
+ *    that the same client is still this machine's, still connected and still at
+ *    the generation it was made at, and only then writes. Make one per
+ *    operation: a runner outlives nothing.
+ */
+export function remoteScrollRunner(machineId: string): RemoteScrollCarriage {
+  if (dialectRefused.has(machineId)) return { kind: 'none' };
+  const client = clients.get(machineId);
+  if (client === undefined) {
+    return noControlThisRun.has(machineId) ? { kind: 'none' } : { kind: 'waiting' };
+  }
+  if (!client.connected) return { kind: 'waiting' };
+  const generation = generations.get(machineId) ?? 0;
+  return {
+    kind: 'live',
+    generation,
+    run: guardedScrollRunner({
+      send: (line) => client.sendCommand(line),
+      isCurrent: () =>
+        clients.get(machineId) === client &&
+        client.connected &&
+        (generations.get(machineId) ?? 0) === generation,
+      server: `machine:${machineId}`,
+      deadlineMs: CONTROL_PRECHECK_TIMEOUT_MS
+    })
+  };
 }

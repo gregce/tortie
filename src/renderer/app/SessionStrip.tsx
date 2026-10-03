@@ -34,7 +34,6 @@ import type { Surface } from '../state/layout';
 import { rollupDot, statusVisual } from './status';
 import { useNow } from '../format';
 import {
-  ReadLastLinesButton,
   RenameInput,
   ResumeMark,
   ResumeVerb,
@@ -360,18 +359,6 @@ function SessionTabStrip({
   const stripDrop = useLayout((s) => s.stripDrop);
   const now = useNow();
 
-  // Phase 95. The session the terminal below is showing, which is the one the
-  // scrollback note would be about. In a split group it is the focused leaf,
-  // which is the same session ./TerminalRegion.tsx hands its identity strip.
-  const shownSession =
-    activeSurface === null
-      ? undefined
-      : sessionsById.get(
-          activeSurface.leafIds.includes(activeLeafId)
-            ? activeLeafId
-            : (activeSurface.leafIds[0] ?? '')
-        );
-
   const headerRef = useRef<HTMLDivElement | null>(null);
   const listRef = useRef<HTMLDivElement | null>(null);
   const [overflow, setOverflow] = useState<{
@@ -546,19 +533,6 @@ function SessionTabStrip({
           <StripIndicator index={stripDrop} listRef={listRef} />
         ) : null}
       </div>
-      {/* Phase 100. The same button the identity strip draws in the "right"
-          orientation, in the band a person actually has by default. It acts on
-          the session on screen, so it sits outside the scrolling tab list
-          rather than inside a tab. The tabs are too narrow for words, and one
-          button per remote tab would offer the same verb several times over.
-          Phase 95 put a note here that said scrolling back was not available.
-          It is available now, so the note is gone and this opens the panel. */}
-      {shownSession !== undefined ? (
-        <ReadLastLinesButton
-          session={shownSession}
-          className="strip-readback"
-        />
-      ) : null}
       {overflow.has ? (
         <div className="strip-cell">
           <button

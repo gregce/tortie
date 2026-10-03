@@ -46,12 +46,7 @@
  * the ordinary path.
  */
 
-const ESC = '\u001b';
-
-/** DA1, `CSI ? Ps ; Ps c`, and DA2, `CSI > Ps ; Ps ; Ps c`. */
-const DEVICE_REPORT = new RegExp(`^${ESC}\\[[?>][0-9;]*c$`);
-
-/** True when these bytes are the pane saying what terminal it is, not input. */
-export function isDeviceReport(data: string): boolean {
-  return DEVICE_REPORT.test(data);
-}
+// The predicate itself lives in src/shared/pane-report.ts since Phase 320.1's
+// second build, because main's key router for a session on another machine
+// asks the same question (see that file).
+export { isDeviceReport } from '@shared/pane-report';

@@ -102,7 +102,14 @@ function bridge(first: TerminalScrollState): Bridge {
   return b;
 }
 
-const TERM = { rows: 40 } as unknown as Terminal;
+// Phase 320.1: `modes` too. Every wheel over a pane that is not scrolled back
+// now asks xterm's mouse mode first (`wheelFollowsProgram` in ../surface.ts),
+// and a real xterm always has one. `none` is what a program that asked for no
+// mouse leaves it at, which is every program in this file.
+const TERM = {
+  rows: 40,
+  modes: { mouseTrackingMode: 'none' }
+} as unknown as Terminal;
 
 const { ScrollSurface, forgetParkedFramesForTests } = await import('../surface');
 
@@ -575,8 +582,12 @@ describe('a resize while parked', () => {
     expect(surface.view.historyAtEntry).toBeNull();
 
     // Parked again at the new size. Nothing of the old frame is carried.
+    // Phase 320.1: the key above arms the 32 ms key fence (KEY_FENCE_MS in
+    // ../surface.ts), so a scroll handed over in the same tick waits it out
+    // before it leaves. It is only ever a delay; the scroll still goes, whole.
     b.answer = stateOf({ position: 20, history: 530, cols: 100, inMode: true });
     surface.scrollBy(20);
+    await vi.advanceTimersByTimeAsync(32);
     await settle();
     expect(surface.view.historyAtEntry).toBe(530);
     b.answer = stateOf({ position: 20, history: 545, cols: 100, inMode: true });

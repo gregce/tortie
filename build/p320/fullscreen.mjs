@@ -44,8 +44,29 @@
  * on end of input, on SIGTERM, and by itself after `--max-ms` (15 minutes by
  * default), so a pane that outlives its run cannot keep it for long.
  *
+ * ## `--toggle`, Phase 320.1's second build (R1's wait sweep and R7)
+ *
+ * With `--toggle` it starts on the NORMAL screen, prints `--history` numbered
+ * lines (200 by default) so the pane has a history, and asks for nothing,
+ * exactly like a shell at rest. Then two bytes the probe sends straight to the
+ * pane through the far scratch server (`send-keys -H 0e` and `-H 0f`, never
+ * through the app) move it:
+ *
+ *   0x0e  TAKE: the alternate screen, Claude's clear and the mouse as `--mouse`
+ *         says, in ONE write, logged `{"kind":"took"}`. This is the moment
+ *         R1's wait is measured from: the wheel that follows must reach the
+ *         program at every wait, which is the reporter's own case, and the
+ *         pane must never be left in copy mode over a program that asked.
+ *   0x0f  GIVE: the mouse given back and the alternate screen left, in ONE
+ *         write, then the history lines printed again, logged
+ *         `{"kind":"gave"}`. R7 reads that no arrow key reaches the program
+ *         after it lets go.
+ *
+ * The two bytes are logged as those records and are not counted as input a
+ * person typed. Without `--toggle` it behaves exactly as before.
+ *
  * Usage: node build/p320/fullscreen.mjs --log <file> [--mouse any|vt200|none]
- *        [--lines 5000] [--max-ms 900000]
+ *        [--lines 5000] [--max-ms 900000] [--toggle [--history 200]]
  */
 
 import { appendFileSync } from 'node:fs';
@@ -67,6 +88,11 @@ if (!['any', 'vt200', 'none'].includes(MOUSE)) {
 }
 const LINES = Math.max(100, Number(arg('lines', '5000')) || 5000);
 const MAX_MS = Math.max(1000, Number(arg('max-ms', '900000')) || 900_000);
+const TOGGLE = process.argv.includes('--toggle');
+const HISTORY = Math.max(0, Math.min(10_000, Math.trunc(Number(arg('history', '200')) || 0)));
+/** The two bytes that move a `--toggle` stand-in: take the screen and the mouse, give them back. */
+const TAKE = 0x0e;
+const GIVE = 0x0f;
 /** Lines one wheel report moves the view, which is what Claude's renderer moves. */
 const STEP = 3;
 
@@ -97,8 +123,17 @@ const bottomTop = () => Math.max(1, LINES - rows() + 1);
 
 let top = bottomTop();
 const counts = { up: 0, down: 0, other: 0, chunks: 0 };
+/** Whether the screen and the mouse are held right now; always, without --toggle. */
+let holding = !TOGGLE;
+
+function printHistory() {
+  const lines = [];
+  for (let i = 1; i <= HISTORY; i += 1) lines.push(`idle line ${String(i)}`);
+  if (lines.length > 0) process.stdout.write(`${lines.join('\r\n')}\r\n`);
+}
 
 function draw() {
+  if (!holding) return;
   let out = `${ESC}[H`;
   for (let r = 0; r < rows(); r += 1) {
     const n = top + r;
@@ -128,7 +163,7 @@ function end(why) {
   ended = true;
   log({ kind: 'end', why, top, ...counts });
   try {
-    process.stdout.write(LEAVE);
+    if (holding) process.stdout.write(LEAVE);
   } catch {
     /* the pane is already gone */
   }
@@ -140,14 +175,40 @@ function end(why) {
   process.exit(0);
 }
 
-process.stdout.write(ENTER);
+if (TOGGLE) printHistory();
+else process.stdout.write(ENTER);
 if (process.stdin.isTTY) process.stdin.setRawMode(true);
 process.stdin.resume();
 draw();
-log({ kind: 'ready', mouse: MOUSE, lines: LINES, top, rows: rows(), cols: cols(), pid: process.pid });
+log({ kind: 'ready', mouse: MOUSE, lines: LINES, top, rows: rows(), cols: cols(), pid: process.pid, toggle: TOGGLE });
+
+/** A `--toggle` stand-in's own two bytes, acted on and taken out of the chunk. */
+function toggleIn(text) {
+  if (!TOGGLE) return text;
+  let rest = '';
+  for (const ch of text) {
+    const code = ch.charCodeAt(0);
+    if (code === TAKE && !holding) {
+      holding = true;
+      top = bottomTop();
+      process.stdout.write(ENTER);
+      draw();
+      log({ kind: 'took', mouse: MOUSE, top });
+    } else if (code === GIVE && holding) {
+      holding = false;
+      process.stdout.write(LEAVE);
+      printHistory();
+      log({ kind: 'gave' });
+    } else if (code !== TAKE && code !== GIVE) {
+      rest += ch;
+    }
+  }
+  return rest;
+}
 
 process.stdin.on('data', (chunk) => {
-  const text = chunk.toString('latin1');
+  const text = toggleIn(chunk.toString('latin1'));
+  if (text.length === 0) return;
   const { reports, rest } = reportsIn(text);
   counts.chunks += 1;
   for (const one of reports) {
@@ -165,7 +226,7 @@ process.stdin.on('data', (chunk) => {
   counts.other += Buffer.byteLength(rest, 'latin1');
   log({
     kind: 'input',
-    hex: chunk.toString('hex'),
+    hex: Buffer.from(text, 'latin1').toString('hex'),
     reports,
     other: rest.length > 0 ? Buffer.from(rest, 'latin1').toString('hex') : ''
   });

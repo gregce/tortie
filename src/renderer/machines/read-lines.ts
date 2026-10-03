@@ -27,13 +27,21 @@ import { formatScrollbackBytes } from '@shared/scrollback';
  * (docs/research/130-remote-scrollback.md section 2). The count line already
  * says what came back, and it stays.
  *
- * WHAT IS STILL NOT TRUE. There is no scrollbar for a session on another
- * machine. Research 57 section 3.1 refused it, because the lane would need verbs
- * Tortie does not send and a wheel notch would cost about 32 times its budget.
- * Phase 320 hands the wheel to a program there that asked for the mouse, which
- * needs no verb, and leaves that refusal where it is. What a person gets for
- * any other program is one read at one instant, in a panel, and the panel says
- * on screen that it does not refresh.
+ * WHAT IS TRUE SINCE PHASE 320.1. A session on another machine scrolls like
+ * one on this Mac, with the wheel, the scrollbar, a drag and a place held
+ * while the agent writes, whenever its machine runs a tmux Tortie has measured
+ * a live connection on. Research 57 section 3.1 refused that over the one-shot
+ * commands, where a wheel notch would cost about 32 times its budget, and that
+ * refusal stands; the operator's ruling of 2026-09-23 narrowed it for the live
+ * connection alone, through six fixed command shapes and nothing else
+ * (docs/research/130-remote-scrollback.md section 4). On any other tmux,
+ * Phase 320's rule is what is left: a program there that asked for the mouse
+ * gets the wheel. So neither band above a session draws a button for this any
+ * more: Phase 100 put one there only because nothing scrolled, and a control
+ * on a remote surface alone is the kind the operator's rule removes. Read Last
+ * Lines stays in the terminal's menu, where this Mac's capture items sit. It
+ * is one read at one instant, in a panel, and the panel says on screen that it
+ * does not refresh.
  *
  * NO PROSE CROSSES THE CHANNEL. Main answers a mode word and a set of numbers
  * for one read, and this file holds every sentence a person reads about it.
@@ -41,12 +49,6 @@ import { formatScrollbackBytes } from '@shared/scrollback';
  * use, and it keeps every sentence about a machine inside the one file the
  * vocabulary audit reads.
  */
-
-/**
- * The strip button, in both bands above a session on another machine. It
- * carries no tooltip (Phase 320): its words say what it does.
- */
-export const READ_LAST_LINES_HERE = 'Read last lines';
 
 /** The session menu item, beside the capture items. */
 export const READ_LAST_LINES_ITEM = 'Read Last Lines…';

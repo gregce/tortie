@@ -239,6 +239,8 @@ export interface CapturePaneInput {
    * copy from the screen does.
    */
   join?: boolean;
+  /** Phase 320.1. The session this read is for; a session on another machine is read on that machine. */
+  sessionId?: string;
 }
 
 export interface CapturePaneResult {
@@ -323,19 +325,28 @@ export interface GmuxCaptureExtras {
 /** Live scroll geometry for one pane; drives both the wheel and the bar. */
 export interface TerminalScrollState {
   /**
-   * A session on THIS Mac answered this call (Phase 95).
+   * A running pane answered this call (Phase 95, widened to other machines by
+   * Phase 320.1).
    *
-   * False means Tortie has nothing here whose scroll it can read. That is the
-   * ordinary and correct answer in two cases, being a session that runs on
-   * another machine, and a session on this Mac that is not running. It is not
-   * an error and main never throws for it, so a caller gets an answer rather
-   * than a refusal it can only repeat.
+   * False means Tortie has nothing whose scroll it can read right now. That is
+   * the ordinary and correct answer for a session on this Mac that is not
+   * running, a session that has ended on its machine, and a session on a
+   * machine that has no live connection this run (a tmux Tortie has not
+   * measured one on, or a missed greeting). It is not an error and main never
+   * throws for it, so a caller gets an answer rather than a refusal it can
+   * only repeat.
+   *
+   * A session on another machine answers true when that machine's live
+   * connection carries it, exactly as one on this Mac does. While that
+   * connection is opening, reconnecting or dropped, the answer is this same
+   * false shape with `unreachable` set: not a pane to stop asking about, a
+   * pane to ask about again.
    *
    * Every other field in this object is 0 or false when this is false, so a
    * caller that ignores the field still draws no bar. A caller that reads it
-   * stops asking, which is the point: the poll that produced the same refusal
-   * once a second for as long as the session was on screen is the fault this
-   * field ends.
+   * stops asking (unless `unreachable` is set), which is the point: the poll
+   * that produced the same refusal once a second for as long as the session
+   * was on screen is the fault this field ends.
    */
   hasPane: boolean;
   /**
@@ -377,6 +388,16 @@ export interface TerminalScrollState {
   innerAlt: boolean;
   /** The app INSIDE the pane asked for mouse reporting. */
   innerMouse: boolean;
+  /**
+   * Phase 320.1. True when the pane is on another machine whose live connection is not up right now. Every other
+   * field is then NO_PANE_HERE's (hasPane false, every number 0) and must not be applied; ask again.
+   */
+  unreachable?: boolean;
+  /**
+   * Phase 320.1. Main orders this pane's keystrokes against its scrolls (a session on another machine): send every
+   * keystroke straight, hold none, and put no key fence in front of a scroll.
+   */
+  keysOrderedInMain?: boolean;
 }
 
 export interface TerminalScrollPollInput {

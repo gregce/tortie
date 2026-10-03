@@ -153,6 +153,36 @@ export function machineTmuxTmp(prefix, id) {
 }
 
 /**
+ * THE QUIET SHELL, opt in (Phase 320.1's second build, build/p3201/SPEC.md
+ * D12): `SCRATCH_MACHINE_QUIET_SHELL=1` gives every session of this machine an
+ * empty `ZDOTDIR` of the yard's own and `HISTFILE=/dev/null`.
+ *
+ * WHY. The loopback machine's far shell is HIS zsh with HIS rc files on this
+ * Mac, because sshd starts the account's own login shell: the Phase 320.1
+ * reverifier found the oh-my-zsh prompt stopping a typed line in 3 of 4 runs on
+ * 3.6a, and a far zsh that exits writes his real `~/.zsh_history`. With an
+ * empty `ZDOTDIR` zsh reads none of his rc files, and macOS's `/etc/zshrc`
+ * points `HISTFILE` at `${ZDOTDIR}/.zsh_history`, inside the yard.
+ *
+ * OFF BY DEFAULT, so every other harness's sshd configuration is byte for byte
+ * what it was; `probe:p320`, `probe:p292:remote` and `probe:p320:skew` set it.
+ * Answers `{ zdot }` when it is on, else null.
+ */
+export function quietShellFor(root, env) {
+  if (String(env?.['SCRATCH_MACHINE_QUIET_SHELL'] ?? '') !== '1') return null;
+  const zdot = join(root, 'zdot');
+  if (/\s/.test(zdot)) throw new Error(`the quiet shell's ZDOTDIR ${zdot} holds a space, and sshd's SetEnv reads it as two values`);
+  return { zdot };
+}
+
+/** The sshd `SetEnv` line: TMUX_TMPDIR always, and the quiet shell's two when it is on. */
+export function setEnvLine(tmuxTmp, quiet) {
+  return quiet === null
+    ? `SetEnv TMUX_TMPDIR=${tmuxTmp}`
+    : `SetEnv TMUX_TMPDIR=${tmuxTmp} ZDOTDIR=${quiet.zdot} HISTFILE=/dev/null`;
+}
+
+/**
  * End one scratch ssh agent when THIS process ends, whatever ended it.
  *
  * ## The leak it closes, measured rather than supposed
@@ -276,6 +306,8 @@ export function scratchMachine(yard, { id, port }) {
   const conf = join(yard.root, `${yard.prefix}-sshd-${id}.conf`);
   const tmuxTmp = machineTmuxTmp(yard.prefix, id);
   mkdirSync(tmuxTmp, { recursive: true, mode: 0o700 });
+  const quiet = quietShellFor(yard.root, process.env);
+  if (quiet !== null) mkdirSync(quiet.zdot, { recursive: true, mode: 0o700 });
 
   writeFileSync(
     conf,
@@ -290,8 +322,9 @@ export function scratchMachine(yard, { id, port }) {
       'StrictModes no',
       'LogLevel QUIET',
       // The one line that makes this machine a machine rather than an alias for
-      // this Mac. See rule 2 in the header.
-      `SetEnv TMUX_TMPDIR=${tmuxTmp}`,
+      // this Mac. See rule 2 in the header. With SCRATCH_MACHINE_QUIET_SHELL=1
+      // it also carries the quiet shell (see quietShellFor).
+      setEnvLine(tmuxTmp, quiet),
       ''
     ].join('\n'),
     'utf8'

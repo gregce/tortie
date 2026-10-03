@@ -312,7 +312,12 @@ export function TerminalPane({
     // scrollback of its own and its wheel handler degrades to emitting cursor
     // keys — which agents read as prompt-history navigation. The session's
     // real history is tmux's, and this surface drives it.
-    const scroll = new ScrollSurface(sessionId, term);
+    // Phase 320.1's fix round: a session on another machine says so at mount,
+    // so its keys are never held behind the surface's first answer.
+    const scroll = new ScrollSurface(sessionId, term, {
+      onAnotherMachine:
+        useApp.getState().sessions.find((row) => row.id === sessionId)?.machine !== undefined
+    });
     setSurface(scroll);
     term.attachCustomWheelEventHandler((event) => scroll.handleWheel(event));
 

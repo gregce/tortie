@@ -1068,16 +1068,33 @@ export const CHECKS = [
   remote('smoke:capture:remote'),
   remote('smoke:remote'),
   remote('probe:p95'),
-  // PHASE 320's app run, slice 1: the wheel over a program on another machine
-  // that asked for the mouse, Phase 95's swallow kept for one that did not, the
-  // stated gap for an alternate-screen program that asked for nothing, and Read
-  // Last Lines over a full-screen pane. ONE Electron through
+  // PHASE 320's app run, extended by PHASE 320.1: the wheel over a program on
+  // another machine that asked for the mouse (R1), a remote plain shell that
+  // PARKS under the wheel and types nothing (R2), a remote alternate-screen
+  // program receiving the bytes the same program on this Mac does (R3 beside
+  // its local control R3L), no Read last lines control on the band and the
+  // panel through the store action (R5), the local fullscreen control (R6);
+  // and 320.1's typing arms: the reverifier's fast-flick ruler (T1), a swipe
+  // right after a key (T2), a key over a parked session as the session is left
+  // (T3), modes (T4), the carriage dropped while parked (T5, by the far
+  // scratch server's detach-client, never a signal to a -C client), the copy
+  // read from the machine against a same-named local session (C1, the copy
+  // read by patching main's clipboard.write so the person's pasteboard is
+  // never touched), $N reuse after a far restart (A1) and an unmeasured
+  // version kept at NO_PANE_HERE (A2, alone); and since the second build the
+  // wheel over a program that has just asked for the mouse as a wait sweep
+  // (R1) and one that lets go (R7), both on this Mac too (R1L, R7L), the
+  // bytes a key is over a parked pane (T6), the remote arms FIRST and `not
+  // run` for every arm after a stage that threw. ONE Electron through
   // build/electron-run.mjs's withElectron on a scratch profile, a scratch HOME
-  // and the socket gmux-p320-<pid>, inside
-  // build/with-scratch-machine.mjs's loopback machine, which is why this is
-  // `remote` and not `electron`. Its rulers are two stand-ins under build/p320/
-  // typed into the panes, each logging what it received; it reads no drive of
-  // its own and uses probe:p95's. It spawns no agent and spends no token.
+  // and the socket gmux-p320-<pid>, inside build/with-scratch-machine.mjs's
+  // loopback machine, which is why this is `remote` and not `electron`; with
+  // P320_FAR=real the far side is the operator's own machine through
+  // build/p3201/real-machine.mjs (verifiers only), and the script then leaves
+  // the loopback machine out, whose agent holds none of his keys. Its rulers are two
+  // stand-ins under build/p320/ typed into the panes, each logging what it
+  // received; it reads no drive of its own and uses probe:p95's. It spawns no
+  // agent and spends no token. `--compare` grades what spans two builds.
   remote('probe:p320'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
@@ -1115,6 +1132,34 @@ export const CHECKS = [
   // stand-in; it renames five agents' binaries before each launch and spends no
   // token. `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p317'),
+  // PHASE 320.1's remote half of probe:p292: the SAME seven arms, graded by
+  // the SAME graders, on a session on the loopback scratch machine
+  // (P292_MACHINE=loopback, which this script sets), or with P292_MACHINE=real
+  // on the operator's own machine through build/p3201/real-machine.mjs, arms
+  // a, c, d, e and f, run outside the loopback machine for the same reason as
+  // probe:p320's real row. One Electron through probe:p292's own withElectron; the
+  // loopback machine's sshd, agent and tmux server belong to
+  // build/with-scratch-machine.mjs. It spawns no agent and spends no token.
+  remote('probe:p292:remote'),
+  // PHASE 320.1's SECOND BUILD (build/p3201/SPEC.md §8.3): the two roads to
+  // one far pane, measured with NO Electron. Over one ssh ControlMaster, an
+  // attach (ssh -t tmux -u attach-session in a node-pty) and a control client
+  // (ssh tmux -C) on the same scratch session running build/p320/recorder.mjs
+  // with a printing child for load: (a) a key on the attach then a park on the
+  // control connection Δ ms later, graded 0 eaten at Δ = 200 at every load, (b)
+  // a key on each road at once, printed, (c) cancel then -H on one connection,
+  // graded N of N, (d) M4's encoding table, printed. Every key a character
+  // unique for the run, attributed by what it is. Inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell,
+  // which is why this is `remote`; with P3201_SKEW_FAR=real the operator's own
+  // machine through build/p3201/real-machine.mjs (verifiers only), outside the
+  // loopback machine, whose agent holds none of his keys. The attach, the
+  // control client, the master and the far scratch server are each ended by
+  // pid in a `finally`, and his three dotfiles, size and modified time only,
+  // must read the same before and after. It spawns no agent and spends no
+  // token. `--self-test` drives the whole measurement over a local scratch tmux
+  // with no ssh.
+  remote('probe:p320:skew'),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a
@@ -2002,6 +2047,27 @@ export const CHECKS = [
   // on purpose, because a run against another checkout must not rebuild this
   // one, and it REFUSES (exit 2) an out/ older than the scroll sources.
   electron('probe:p292'),
+  // PHASE 320.1's rig for the typing half, with NO Electron: the SHIPPING
+  // ScrollSurface, scroll.ts, TmuxControlClient and the carriage door's
+  // guardedScrollRunner over build/p3201/relay.mjs (D ms each way plus J of
+  // jitter), keys through a real tmux attach in node-pty behind a delay line
+  // of their own, on tmux 3.6a and 3.7b, with research 130's unguarded design
+  // interleaved as the control. Since the second build every key the door's
+  // surface sends goes through the SHIPPING routeKey (scroll-order.ts), which
+  // writes it behind a cancel on the carriage when the pane is or may be
+  // parked, and S7 (a key, then the session left at once) and S8 (a 16 KB
+  // paste over a parked pane, byte exact) are graded. Scratch servers on -L p3201rig inside a
+  // TMUX_TMPDIR it makes under /private/tmp; every server (SIGTERM, then
+  // SIGKILL), relay, pty and leftover -C client is ended by its pid in a
+  // `finally`, anything still running is a finding, and each server holds a
+  // watchdog session that SIGKILLs it if the rig itself is killed.
+  {
+    name: 'probe:p320:rig',
+    type: 'tmux harness',
+    needs:
+      'the vendored tmux (3.7b) and, when present, /opt/homebrew/bin/tmux (3.6a), each on a scratch -L socket of its own inside a scratch TMUX_TMPDIR; node-pty loaded under the pinned node; git, to read the parent commit\'s surface.ts and scroll.ts for the control; the operator server is never named',
+    skip: 'refuses, exit 2, with a sentence when node-pty does not load under this node or no tmux is found; it never passes quietly, it is in no battery, and no build gate reads its result'
+  },
   // PHASE 281's app run, and the ONE probe in this table whose app reads the
   // person's real login keychain: the Claude meter's shipping reader, at the
   // parent and at HEAD, never at once, with P281_EXPECT naming the answer. A
@@ -2087,6 +2153,38 @@ export const CHECKS = [
   // No Electron, no tmux, no ssh, no agent, no token, and no listener but the
   // two loopback ones the gate opens and closes. P314_ONLY runs named arms.
   pure('ablation:p314'),
+  // PHASE 320.1's attack on its own gates (build/p3201/SPEC.md §6.2): every
+  // clause of conformance:machines conditions 66 and 101 to 108 broken one at
+  // a time in the SHIPPING source (a seventh shape, the -N bound, a % target,
+  // any -F, the client map exported, the scroll path reading remoteSessionRow,
+  // the epoch ignored or handed constants, a second caller of the runner or of
+  // its composer, the write before the check, isCurrent ignored, a fifth file
+  // naming send-keys, a third argv or another route for the copy), and the
+  // renderer's keystroke rules against the two p3201 vitest suites (the hold
+  // without its parking term, the fence a no-op, a delivery on an unreachable
+  // answer, the retry and the final call removed, travel not coalesced, a drag
+  // sent position by position rather than latest wins, the unreachable value
+  // applied), and since the fix round condition 108 and the main-side p3201
+  // suites too (a machine read with a tab or read leniently, the read proof
+  // skipped, the extent read leniently, the copy-once, the deadline, the
+  // generation order, isCurrent's two terms, the refused dialect, the missed
+  // greeting, the two epochs, a far failure thrown), each required to redden
+  // THE CONDITION OR THE CASE THAT OWNS IT as a delta against the base. Since
+  // the second build also conditions 109 to 111 and their vitest owners (a -H
+  // byte in capitals, 257 bytes or a key name admitted, typedSequence without
+  // its cancel, routeKey writing after an await or logging the key, the hook
+  // asked for this Mac's keys, the park's wait a no-op, the read before the
+  // park removed or parking anyway, the raced park never undone, a routed key
+  // written to the pty too, a remote answer without keysOrderedInMain, answers
+  // applied out of write order, a failed typed sequence leaving the pane
+  // believed live) and the renderer's D1, D2 and D5 (xterm's mouse mode not
+  // asked, the nothing arm removed, a remote surface holding or fencing). It never writes into the
+  // working tree: a `cp -Rc` clone of src/, build/ and resources/ under
+  // /private/tmp, node_modules symlinked, every edited clone file restored and
+  // proved by sha256 in a `finally`, the clone removed in a `finally` and on a
+  // signal. No Electron, no tmux, no ssh, no agent, no token. P320_ONLY runs
+  // named arms.
+  pure('ablation:p320'),
   // PHASE 321's attack on its own behaviour (build/p321/SPEC.md §5.3), one
   // clause at a time from the SHIPPING source over a `cp -Rc` clone of src/:
   // each shape's options, focus, hint and tail clauses, the shapes' term in

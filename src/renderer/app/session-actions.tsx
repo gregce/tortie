@@ -45,7 +45,6 @@ import type { SessionGateEnv, SessionHandback } from '@shared/session-gates';
 import { Codicon, menuGlyph } from '../icons';
 import { openSessionContext } from '../context/open-session';
 import { openOverviewForSession } from '../overview/open-overview';
-import { READ_LAST_LINES_HERE } from '../machines/read-lines';
 import {
   REVIEW_ITEM_SUBLABEL,
   REVIEW_READING,
@@ -248,8 +247,8 @@ export function ResumeMark({
 // ONE COMPONENT, DRAWN BY BOTH ROW SURFACES, and that is the whole reason it
 // lives in this file. Sessions on the right and sessions on top are two
 // surfaces a person switches between, and a verb written into one of them is
-// invisible to half the product. `ResumeMark`, `SavedMark`, `EndSessionButton`
-// and `ReadLastLinesButton` above all follow the same rule for the same reason.
+// invisible to half the product. `ResumeMark`, `SavedMark` and
+// `EndSessionButton` all follow the same rule for the same reason.
 //
 // IT IS NOT A STATUS, A BADGE OR A COUNT. It is a word that is either on one
 // row or on no row at all. The status dot beside it is untouched and stays
@@ -306,71 +305,6 @@ export function ResumeVerb({
       }}
     >
       {RESUME_VERB}
-    </button>
-  );
-}
-
-/**
- * Whether a surface offers to read back the last lines of this session
- * (Phase 100, replacing the Phase 95 note that said it could not be done).
- *
- * TRUE FOR EXACTLY ONE CASE, being a session that runs on another machine.
- * Tortie reads saved output from the private session server on this Mac, and a
- * session over there has no record here, so the lane at the right edge stays
- * blank and the wheel moves nothing. The panel this opens is what a person
- * gets instead, being one read at one instant.
- *
- * FALSE FOR A SESSION ON THIS MAC, running or not, and that is deliberate. A
- * session on this Mac has a real scrollbar and a real wheel, and it has the two
- * "Capture Last N Lines" items as well, so a fourth way to read the same
- * history would be clutter on top of an answer the person already has.
- *
- * Exported so the tests can state the rule over a set of sessions rather than
- * inferring it from what a render happened to produce.
- */
-export function showsReadLastLines(session: Session): boolean {
-  return session.machine !== undefined;
-}
-
-/**
- * The button itself, drawn by BOTH bands above the terminal (Phase 100).
- *
- * WHY IT LIVES HERE. There is no single band above a session. In the "right"
- * orientation the band is the identity strip in ./TerminalRegion.tsx, and in
- * the "top" orientation, which is the default a person gets, the band is the
- * session tab strip in ./SessionStrip.tsx. A control written into only one of
- * them is invisible to most people, which is exactly what the first build of
- * Phase 95 did with the note this replaces. One component, imported by both, is
- * what stops that.
- *
- * WHY IT IS A BUTTON NOW. Phase 95 drew a `<span>` that said scrolling back was
- * not available. It is available from this phase, so the element is a real
- * `<button type="button">` that opens the panel, and its class is
- * `strip-readback` rather than `strip-note` because a class called "note" would
- * lie about what the element does.
- *
- * The two strips place it differently and that is why `className` is a prop.
- * The identity strip draws it beside the resume mark, in the slot that is
- * empty for exactly these sessions. The tab strip draws it in its own trailing
- * cell, beside the overflow chevron, because the tabs themselves are too
- * narrow for words and only the session on screen is being described.
- */
-export function ReadLastLinesButton({
-  session,
-  className
-}: {
-  session: Session;
-  className: string;
-}): React.JSX.Element | null {
-  if (!showsReadLastLines(session)) return null;
-  return (
-    <button
-      type="button"
-      className={className}
-      onClick={() => useApp.getState().openRemoteLines(session.id)}
-    >
-      <Codicon name="history" size="sm" />
-      {READ_LAST_LINES_HERE}
     </button>
   );
 }

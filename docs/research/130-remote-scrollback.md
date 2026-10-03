@@ -313,6 +313,10 @@ design keeps it by making the carriage more governed than it is today:
 - **None of the five `-X` forms can put a byte in front of the program.** On a pane running `stty raw -echo; cat >
   typed.txt`, `-X -N 5 scroll-up`, `-X goto-line 100` and `-X top-line` with no mode active each exited 1 with "not
   in a mode" and `typed.txt` stayed at 0 bytes; the control, `send-keys -l abc`, wrote 3 bytes. Both builds.
+  (Phase 320.1's second build: on his word of 2026-09-30 the door also types the keys a person types over a
+  scrolled-back session, as a seventh shape, `send-keys -t $N -H` with 1 to 256 lowercase two-digit hex bytes,
+  written behind a `cancel` on the same connection; build/p3201/SPEC.md D7. The five `-X` forms above still type
+  nothing.)
 - **Argument injection is already closed on this carriage.** `sendCommand` refuses a newline
   (`src/main/tmux/control-client.ts:346-350`), and `quoteTmuxArg` single-quotes every argument outside a safe class
   and refuses `'` (`:543-552`), so `;` and `#{…}` arrive as literals.

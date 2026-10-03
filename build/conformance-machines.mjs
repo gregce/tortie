@@ -280,6 +280,69 @@
  * "add to allow list but dont add a weird label" held as text. `npm run ablation:p324` breaks each clause
  * and proves it goes red on its own id.
  *
+ * PHASE 320.1 APPENDED 101 TO 107 and left the list where it was, in the same
+ * way, and grew condition 66's named list from three files to four. (It wrote
+ * them 100 to 111 until the move onto e1d15287, where Phase 324 had already
+ * landed 100; every number of 320.1's below moved up by one and 324's did not
+ * move.) They are
+ * one block at the foot of this file and they are about one sentence: a
+ * session on another machine scrolls over that machine's own control
+ * connection through ONE closed door, which research 130 section 4 opened by
+ * narrowing research 57 section 3.1's refusal for that connection alone, and
+ * which the operator approved on 2026-09-23 (the fix round appended 108 and
+ * names, at the block, the clauses vitest owns instead). 101 is that control-plane.ts adds
+ * exactly one export and keeps its clients and its send private; 102 is the
+ * table of six shapes, every argv the shipping scroll.ts emits admitted with
+ * its shape and a hostile corpus of more than forty refused; 103 is the one
+ * pinned read format; 104 is that the target is a live row listed on the
+ * machine's CURRENT connection and never a gone row; 105 is one call site for
+ * the runner and one for its composer; 106 is the order of the check, driven:
+ * a hostile argv and a connection that moved each leave the send uncalled; and
+ * 107 is that the drag-select copy of a session on another machine reads THAT
+ * machine through two ledger reads; and 108 is that a machine's read survives a
+ * control client with no UTF-8 locale, refuses an answer it cannot read, and
+ * that a connection whose read cannot be read parks nothing. Condition 54b's refusal stands for the
+ * exec plane. `ablation:p320` (build/p3201/ablation.mjs) breaks each of them in
+ * the shipping source and requires this gate red on the one that owns it.
+ *
+ * PHASE 320.1's SECOND BUILD APPENDED 109 TO 111 and left the list where it
+ * was, in the same way, after the first attempt's reverify answered needs_work
+ * a second time and the operator ruled "Redesign and rebuild" on 2026-09-30,
+ * and then "Yes, allow it" to the seventh shape the redesign asked for. 102
+ * and 103 now read SEVEN rows: the six and `type-bytes`, `send-keys -t $N -H`
+ * with one to 256 single bytes, exactly two rows not idempotent, one row with
+ * a format, and a hostile corpus that holds every other spelling of -H. 109 is
+ * the typed shape driven: `typedSequence` composes the cancel and then the
+ * input's own UTF-8 bytes in order, and it has one composer and one production
+ * caller. 110 is the router: the attach host asks it on the remote branch
+ * only, before the pty, with no await, `routeKey` writes before it returns,
+ * logs no keystroke and spells no verb (so 66 still counts four files). 111 is
+ * the park gate, driven over a scripted clock and a scripted pane: a park waits
+ * for a quiet attach (`ROAD_QUIET_MS`, 200) and restarts on a key, reads before
+ * it parks, never parks a program that has the screen or the mouse, and
+ * cancels a park the program raced; and the session core takes those steps in
+ * that order. 105 now names two runner callers, the core and the router.
+ *
+ * PHASE 320.1's FIX ROUND APPENDED 112, after both verifiers of the second
+ * build answered needs_work with rows worse than today, each answered by a
+ * removal or a narrowing. 112 drives the four: F1, the way back from the
+ * control connection to the attach is an answer and never a clock; F2, a key
+ * typed after a scroll began drops the park (111 (ii) now reads the drop
+ * where it read a restart); F3, a pane Tortie parked goes back to its program
+ * when the program takes the screen or the mouse, and copy mode Tortie did
+ * not enter is left alone; F4, a key over a parked pane whose connection is
+ * down is held and written behind a cancel when it is back; and it reads
+ * that the session core wires all four. 110 now also requires the core to
+ * hand the attach host `routeKey(...) !== 'attach'`, so a held key is never
+ * written to the attach as well. THE RULED ROUND (his ruling of 2026-10-01)
+ * added F5 to 112: a key over a pane Tortie scrolled back, on a machine that
+ * missed its greeting, is held and asks that machine ONCE for one more
+ * connection (every key typed while the ask is handed over joins it), each
+ * session's keys go behind one cancel when it is back, a machine that may not
+ * be asked keeps the attach, the core keeps such a pane addressable, and one
+ * file alone asks past the greeting set, for a keystroke, so nothing retries
+ * on a timer.
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -461,6 +524,18 @@ let data;
 try {
   data = JSON.parse(probe.stdout);
 } catch {
+  // A driven module that prints (a log line from a shipping module the probe
+  // drives) must not hide which condition it breaks: the probe's JSON is its
+  // LAST line, so it is read from there and the condition that owns the print
+  // says so itself (Phase 320.1's second build, condition 110).
+  const last = probe.stdout.trimEnd().split('\n').filter((l) => l.startsWith('{"id"')).pop();
+  try {
+    data = last === undefined ? undefined : JSON.parse(last);
+  } catch {
+    data = undefined;
+  }
+}
+if (data === undefined) {
   process.stderr.write(`the probe did not print JSON:\n${probe.stdout}\n`);
   process.exit(1);
 }
@@ -1598,10 +1673,14 @@ if ((data.forbiddenVerbs ?? []).includes('send-keys')) {
 
 // 66. Who names the verb at all, so a later round cannot open a second route.
 {
+  // PHASE 320.1 GREW THIS LIST TO FOUR, BY NAME: scroll-shapes.ts, the closed
+  // table of six shapes the carriage door checks every argv against (research
+  // 130 section 4). Opening a route still means editing this named list.
   const expected = [
     'src/main/machines/exec-plane.ts',
     'src/main/machines/exec-smoke.ts',
-    'src/main/machines/remote-smoke.ts'
+    'src/main/machines/remote-smoke.ts',
+    'src/main/machines/scroll-shapes.ts'
   ];
   const actual = (data.sendKeysLiteralFiles ?? []).map(String);
   if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -1609,10 +1688,11 @@ if ((data.forbiddenVerbs ?? []).includes('send-keys')) {
       `the files under src/main/machines/ that name "send-keys" are ` +
         `${JSON.stringify(actual)} rather than ${JSON.stringify(expected)}. ` +
         `exec-plane.ts owns the ledger and the door, exec-smoke.ts watches the ` +
-        `refusals fire, and remote-smoke.ts spawns the far tmux directly to set ` +
-        `a session up for a test. The local tmux layer is outside this ` +
-        `condition on purpose: it sends keys to sessions on this Mac and always ` +
-        `has.`
+        `refusals fire, remote-smoke.ts spawns the far tmux directly to set ` +
+        `a session up for a test, and scroll-shapes.ts is the closed table the ` +
+        `one scroll runner on a machine's control connection checks against. ` +
+        `The local tmux layer is outside this condition on purpose: it sends ` +
+        `keys to sessions on this Mac and always has.`
     );
   }
 }
@@ -4618,10 +4698,15 @@ const P100_ARGV_SCREEN = [
       fail(
         `src/main/machines/remote-lines.ts names ${named.join(', ')}. It may ` +
           `name neither. Research 57 section 3.1 refused a real remote ` +
-          `scrollbar twice over: one of those verbs is on no row of the ` +
-          `ledger, and the other is the one unsafe row, reachable only through ` +
-          `a door Phase 89 narrowed to a fixed five element argv. A builder ` +
-          `who needs either one has designed the thing this phase refused.`
+          `scrollbar over the exec plane twice over, and that refusal stands: ` +
+          `one of those verbs is on no row of the ledger, and the other is the ` +
+          `one unsafe row, reachable only through a door Phase 89 narrowed to a ` +
+          `fixed five element argv. Research 130 section 4 narrowed the refusal ` +
+          `for the CONTROL connection alone (Phase 320.1, conditions 101 to ` +
+          `112), whose closed table moves the view and, on his word of ` +
+          `2026-09-30, types the keys a person types over a scrolled-back ` +
+          `session, and this read goes over the exec plane. A builder who needs ` +
+          `either verb here has designed the thing that stays refused.`
       );
     }
     // 54c. A read is not a capsule. One name crosses from the saved output
@@ -10129,7 +10214,9 @@ process.stdout.write(
 // THE NUMBER IS WRITTEN ONCE, in the constant below, and
 // `build/p324/ablation.mjs` reads it from here. Phases 320.1 and 327 also
 // append conditions to this file, and whoever lands second moves this one
-// constant to the next free number.
+// constant to the next free number. Phase 324 landed first, so 100 stays
+// here; Phase 320.1 moved its own conditions to 101 to 112 when it was moved
+// onto e1d15287, and Phase 327 takes the next free number after those.
 {
   const P324_CONDITION = 100;
   const tag = (clause) => `${P324_CONDITION}${clause}:`;
@@ -10313,8 +10400,14 @@ process.stdout.write(
       const classPlans = (cls.match(/\bthis\.transport\.plan\s*\(/g) ?? []).length;
       const filePrechecks = (client.code.match(/\bthis\.transport\.precheck\s*\(/g) ?? []).length;
       if (classSpawns !== 1 || classPlans !== 1 || filePrechecks !== 1) {
+        // `spawn\u0028` prints the same bytes as before. The escape keeps the
+        // character sequence of a call out of this string, because
+        // gate:background reads a call in a string as a call and, from inside
+        // a string, its arguments run on into whatever this file holds next
+        // (the move of Phase 320.1 onto e1d15287 appended a block that holds a
+        // while loop and the word while in its sentences, and turned it red).
         say(
-          `the class holds ${classSpawns} spawn( and ${classPlans} ` +
+          `the class holds ${classSpawns} spawn\u0028 and ${classPlans} ` +
             `this.transport.plan( calls, and the file ${filePrechecks} ` +
             `this.transport.precheck( calls; each must be exactly one, so no ` +
             `second path can spawn a child the read did not stand in front of.`
@@ -10342,7 +10435,7 @@ process.stdout.write(
           `the file brings ${JSON.stringify(brought)} from node:child_process ` +
             `and names child_process ${cpNamed} time(s); it must import spawn ` +
             `and types alone, once, with no require( or import(, so the one ` +
-            `spawn( is the only way it starts a process.`
+            `spawn\u0028 is the only way it starts a process.`
         );
       }
       const reconnects = blocksOf(cls, /\bprivate\s+scheduleReconnect\s*\(\s*\)\s*:\s*void\s*\{/g);
@@ -10354,7 +10447,7 @@ process.stdout.write(
           say('scheduleReconnect() does not reconnect through this.start(), so a reconnect would not pass the precheck.');
         }
         if (callsOf(again, 'spawn').length > 0 || /\btransport\.plan\s*\(/.test(again)) {
-          say('scheduleReconnect() names spawn( or transport.plan( itself, so a reconnect can spawn a child with no read in front of it.');
+          say('scheduleReconnect() names spawn\u0028 or transport.plan( itself, so a reconnect can spawn a child with no read in front of it.');
         }
       }
       // The transport start() prechecks is the one the client was handed, held
@@ -10846,6 +10939,1370 @@ process.stdout.write(
         `name the pin's own tarball and sha256, and no row names a distribution.\n`
     );
   }
+}
+
+// ---------------------------------------------------------------------------
+// 101 to 112. PHASE 320.1. The carriage door: a session on another machine
+// scrolls over that machine's own control connection, through ONE closed door.
+// 109 to 111 are the second build's (build/p3201/SPEC.md §8.1): the typed
+// shape, the router and the park gate; 112 is its fix round's. They were 100
+// to 111 until the move onto e1d15287, where Phase 324 already held 100.
+// ---------------------------------------------------------------------------
+//
+// Research 57 section 3.1 refused a real remote scrollbar, and condition 54b
+// above is the executable form of that refusal for the exec plane, where it
+// still stands. Research 130 section 4 narrowed it for the CONTROL connection
+// alone, and the operator approved the narrowing on 2026-09-23, by giving that
+// connection its first gate: one runner that checks every argv against a table
+// of six shapes before a byte is written (build/p3201/SPEC.md §3). These twelve
+// conditions are the executable half of that gate, each with an ablation in
+// build/p3201/ablation.mjs that must turn it red. 108 is the fix round's,
+// 109 to 111 the second build's, whose seventh shape the operator approved on
+// 2026-09-30, and 112 the second build's fix round's.
+//
+// WHAT THIS GATE DOES NOT OWN, named so a later round does not believe it
+// does (the attack verifier's finding: 12 of 15 single-clause ablations left
+// it green). Every clause below needs the real control plane or the real feed
+// driven with a fake client through vitest's `vi.mock`, which a plain probe
+// cannot do, so its vitest file owns it and ablation:p320 has an arm proving
+// that file reads red without it:
+//
+//   the generation moved BEFORE the feed hears connected     e6   p3201-control-scroll
+//   isCurrent asks client.connected                          e7   p3201-control-scroll
+//   isCurrent asks that the client is still the machine's    e8   p3201-control-scroll
+//   a refused dialect answers none, not waiting              e9   p3201-control-scroll
+//   a missed greeting answers none                           e10  p3201-control-scroll
+//   rowsEpoch taken when a pass STARTS                       e11  p3201-scroll-address
+//   controlEpoch moved on every connected                    e12  p3201-scroll-address
+//   a far failure is the value, never a throw                e13  p3201-remote-scroll
+//   the read proof answers NO_PANE_HERE and parks nothing    e16  p3201-remote-scroll
+//   a machine's extent read is refused when unreadable       e17  p3201-remote-history
+//
+// THE SECOND BUILD'S, the same way (build/p3201/SPEC.md §8.2):
+//
+//   the attach host writes nothing to the pty on a true      o7   p3201-route-remote-input
+//   keysOrderedInMain on every remote answer, never local    o10  p3201-remote-scroll
+//   answers applied in the order their reads were written    o11  p3201-scroll-order
+//   a failed typed sequence is never sent again              o12  p3201-scroll-order
+//   the wheel asks xterm's own mouse mode first (D1)         r9   p3201-wheel-follows
+//   a stale read that says the mouse sends nothing (D2)      r10  p3201-wheel-follows
+//   a remote surface holds no key (D5)                       r11  p3201-remote-surface
+//   a remote surface fences no scroll behind a key (D5)      r12  p3201-remote-surface
+//
+// THE INTEGRATOR'S ROUND of the second build, the same way:
+//
+//   a pane's own report is never routed as a keystroke       i1   p3201-scroll-order
+//   a cancel written marks the pane live at once             i2   p3201-scroll-order
+//
+// THE FIX ROUND, the same way: the five single-clause ablations the attack
+// verifier found green everywhere (x11, x13, x14, x15, x17), and the parts of
+// F2 to F4 a plain probe cannot reach:
+//
+//   a cancel answering "not in a mode" is an answer          x11  p3201-scroll-order
+//   an operation on a pane that may be parked is counted     x13  p3201-remote-scroll
+//   an empty pane_in_mode is refused by the strict read      x14  p3201-remote-read
+//   a device answer with a key after it is a keystroke       x15  p3201-scroll-order
+//   a park or cancel written clears "may be parked"          x17  p3201-scroll-order
+//   a key in the D3 read's round trip drops the park (core)  x18  p3201-remote-scroll
+//   a lost sequence is sent again only over a parked pane    x19  p3201-scroll-order
+//   a remote alternate screen without the mouse swallows     x20  p3201-wheel-follows
+//   a remote pane says so at mount, so nothing is held       x21  p3201-remote-surface
+//
+// THE RULED ROUND (his ruling of 2026-10-01), the same way: the parts of F5
+// that need the real control plane, the held keys' own loop or the renderer,
+// and the O rule, which is the renderer's alone; and his rulings of
+// 2026-10-02, "Fall back to today" (g11 to g15):
+//
+//   keys held through a reconnect ask once more at its miss  g2   p3201-scroll-order
+//   a keystroke's ask goes past the set, through the gate    g4   p3201-control-scroll
+//   its client waiting for its greeting is waiting, not none g5   p3201-control-scroll
+//   a greeted machine comes off the greeting set             g6   p3201-control-scroll
+//   held keys give up when the ask they waited on is over    g9   p3201-scroll-order
+//   awaitsReopen names no pane at rest                       g10  p3201-scroll-order
+//   once a keystroke's ask failed, keys take the attach      g11  p3201-scroll-order
+//   and the core answers no pane there, as today             g12  p3201-remote-scroll
+//   a failed ask is recorded, so nothing asks again          g13  p3201-scroll-order
+//   an ask a live connection answered is retired             g14  p3201-scroll-order
+//   a connection seen again ends the fall back               g15  p3201-scroll-order
+//   a remote key drops travel queued behind a scroll         r13  p3201-remote-surface
+//   a remote key drops wheel travel still coalescing         r14  p3201-remote-surface
+//   a remote key drops a scroll not yet sent                 r15  p3201-remote-surface
+//   this Mac's keys drop nothing (P4 unchanged)              r16  p3201-remote-surface
+//
+// The copy-once clause, the deadline, the unhandled rejection and the latch
+// were on that list and are driven here now (106 and 108).
+//
+// The probe DRIVES the shipping modules with a recording send, so nothing here
+// writes to any connection. The source reads below are this file's own.
+{
+  const d = data.phase3201 ?? {};
+  const loadErrors = d.loadErrors ?? {};
+  const cantJudge = (which, what) =>
+    failures.push(`condition ${which}: cannot be judged: ${what}. A missing module is a failure and never a skip.`);
+  for (const [key, why] of Object.entries(loadErrors)) {
+    failures.push(`condition 101 to 112: Phase 320.1's door cannot be judged: ${why}.`);
+    void key;
+  }
+
+  /** Every production source under src/, tests excluded, with its code alone. */
+  const p3201Files = (() => {
+    const out = [];
+    const walk = (dir) => {
+      for (const entry of readdirSync(dir)) {
+        if (entry === 'node_modules' || entry === '__tests__') continue;
+        const path = join(dir, entry);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+          const text = readFileSync(path, 'utf8');
+          out.push({ file: relative(process.cwd(), path), text, code: stripComments(text) });
+        }
+      }
+    };
+    walk(join(process.cwd(), 'src'));
+    return out;
+  })();
+  const codeOf = (file) => p3201Files.find((one) => one.file === file)?.code ?? null;
+  const filesNaming = (needle) =>
+    p3201Files.filter((one) => one.code.includes(needle)).map((one) => one.file).sort();
+  /** The body of a class method or a function, read by matching braces. */
+  const bodyOf = (code, name) => {
+    if (code === null) return null;
+    const head = new RegExp(`(?:^|\\n)[ \\t]*(?:export\\s+)?(?:private\\s+|public\\s+)?(?:async\\s+)?(?:function\\s+)?${name}\\s*(?:<[^>]*>)?\\(`);
+    const m = head.exec(code);
+    if (m === null) return null;
+    let depth = 0;
+    let i = m.index + m[0].length - 1;
+    for (; i < code.length; i += 1) {
+      if (code[i] === '(') depth += 1;
+      else if (code[i] === ')') {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    const open = code.indexOf('{', i);
+    if (open === -1) return null;
+    depth = 0;
+    for (let j = open; j < code.length; j += 1) {
+      if (code[j] === '{') depth += 1;
+      else if (code[j] === '}') {
+        depth -= 1;
+        if (depth === 0) return code.slice(open, j + 1);
+      }
+    }
+    return null;
+  };
+
+  // --- 101. One export -------------------------------------------------------
+  //
+  // THE TWENTY SEVEN value exports control-plane.ts had at the parent,
+  // d8f5c261, by name, plus the one this phase adds. The spec said twenty
+  // eight at the parent; there were twenty seven, counted from the source and
+  // from the loaded module alike. A twenty ninth name is a second way to reach
+  // the connection, and `clients` exported is the whole door wide open.
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 101: ${message}`);
+    const PARENT_EXPORTS = [
+      'CONTROL_DIALECT_UNMEASURED',
+      'CONTROL_GREETING_DEADLINE',
+      'CONTROL_GREETING_DEADLINE_REASON',
+      'CONTROL_PRECHECK_TIMEOUT_MS',
+      'allowControlPlaneAgain',
+      'assertControlDialectMeasured',
+      'closeControlPlane',
+      'closeEveryControlPlane',
+      'everyMachineLinkFacts',
+      'isControlPlaneLive',
+      'machineLinkFacts',
+      'missedGreetingThisRun',
+      'noteMachineAnswered',
+      'noteMachineConnecting',
+      'noteMachineFeedMissed',
+      'noteMachineFeedUnknown',
+      'noteMachineLinkFailed',
+      'noteMachineQuiet',
+      'noteMachineRefused',
+      'onMachineLinkChanged',
+      'openControlPlane',
+      'openControlPlaneCount',
+      'remoteContextFor',
+      'remoteControlTransport',
+      'resetControlPlanesForTests',
+      'setControlPlaneSink',
+      'setMachineFactsForHarness'
+    ];
+    const WANT = [...PARENT_EXPORTS, 'remoteScrollRunner'].sort();
+    const got = d.controlPlaneExports;
+    if (!Array.isArray(got)) {
+      cantJudge(101, 'control-plane.ts did not load');
+    } else {
+      const extra = got.filter((name) => !WANT.includes(name));
+      const missing = WANT.filter((name) => !got.includes(name));
+      if (extra.length > 0 || missing.length > 0) {
+        fail(
+          `src/main/machines/control-plane.ts exports ${JSON.stringify(extra)} beyond ` +
+            `the ${String(WANT.length)} it may, and lacks ${JSON.stringify(missing)}. It ` +
+            `exports the twenty seven names it had at the parent and remoteScrollRunner, ` +
+            `and nothing else: every other name is a second way to write to a ` +
+            `machine's live connection, which research 57 refused and research 130 ` +
+            `section 4 allowed through ONE closed door.`
+        );
+      }
+      if (got.includes('clients') || got.includes('sendCommand')) {
+        fail(
+          'control-plane.ts exports its client map or a send. Both stay private: ' +
+            'the scroll runner is the only thing outside that file that can write ' +
+            'to a machine over its live connection.'
+        );
+      }
+    }
+    for (const [needle, what] of [
+      ['remoteControlTransport(', 'remoteControlTransport'],
+      ['new TmuxControlClient(', 'new TmuxControlClient(']
+    ]) {
+      const outside = filesNaming(needle).filter(
+        (file) => file !== 'src/main/machines/control-plane.ts'
+      );
+      if (outside.length > 0) {
+        fail(
+          `${what} is called in ${JSON.stringify(outside)}. It has no production ` +
+            `caller outside control-plane.ts: a second client on a machine's ` +
+            `carriage would be a second connection nobody gated.`
+        );
+      }
+    }
+    // THE FILES THAT WRITE TO A tmux CONTROL CONNECTION, and the one FALSE
+    // MATCH, named. src/main/harness/shot.ts names `sendCommand(` too, but it
+    // is Electron's `webContents.debugger.sendCommand`, a DevTools protocol
+    // call, and nothing to do with tmux (the attack verifier's nit: the spec
+    // had counted it as a production caller the entry missed). A file is the
+    // false match only while EVERY `sendCommand(` in it is handed a DevTools
+    // method literal (`'Network.enable'`), so a tmux line written there would
+    // move it into the writers and read red here.
+    const SEND_FILES = [
+      'src/main/machines/control-plane.ts',
+      'src/main/sessions/core.ts',
+      'src/main/tmux/control-client.ts'
+    ];
+    const DEBUGGER_ONLY = ['src/main/harness/shot.ts'];
+    const isDebuggerOnly = (file) => {
+      const code = codeOf(file) ?? '';
+      const calls = [...code.matchAll(/sendCommand\(\s*([^,)]*)/g)].map((m) => m[1].trim());
+      return calls.length > 0 && calls.every((arg) => /^'[A-Z][A-Za-z]*\.[a-z][A-Za-z]*'$/.test(arg));
+    };
+    const naming = filesNaming('sendCommand(');
+    const senders = naming.filter((file) => !isDebuggerOnly(file));
+    const falseMatches = naming.filter((file) => isDebuggerOnly(file));
+    if (JSON.stringify(senders) !== JSON.stringify(SEND_FILES)) {
+      fail(
+        `the production files that write a line to a tmux control connection with ` +
+          `sendCommand( are ${JSON.stringify(senders)} rather than ` +
+          `${JSON.stringify(SEND_FILES)}. control-client.ts defines it, core.ts is ` +
+          `this Mac's scroll runner and control-plane.ts is the one machine runner. ` +
+          `A fourth file is a new writer to a control connection.`
+      );
+    }
+    if (JSON.stringify(falseMatches) !== JSON.stringify(DEBUGGER_ONLY)) {
+      fail(
+        `the files naming sendCommand( only as the DevTools debugger's are ` +
+          `${JSON.stringify(falseMatches)} rather than ${JSON.stringify(DEBUGGER_ONLY)}. ` +
+          `That list is the one named false match, so a new one is an edit here.`
+      );
+    }
+  }
+
+  // --- 102. Six shapes and nothing else ---------------------------------------
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 102: ${message}`);
+    // The six shapes scroll.ts emits, which research 130 section 4 measured.
+    const SIX = ['cancel', 'enter-copy-mode', 'goto-line', 'read-state', 'scroll-lines', 'top-line'];
+    // PHASE 320.1's SECOND BUILD: and the seventh, `type-bytes`, on his word of
+    // 2026-09-30 ("Yes, allow it"), which only typedSequence composes (109).
+    const SEVEN = [...SIX, 'type-bytes'].sort();
+    const shapes = d.shapes ?? [];
+    if (d.shapesPresent !== true) {
+      cantJudge(102, 'scroll-shapes.ts exports no SCROLL_SHAPES');
+    } else {
+      const ids = shapes.map((row) => row.id).sort();
+      if (JSON.stringify(ids) !== JSON.stringify(SEVEN)) {
+        fail(
+          `SCROLL_SHAPES holds ${JSON.stringify(ids)}. It holds exactly the six ` +
+            `shapes research 130 section 4 measured and the seventh the operator ` +
+            `approved on 2026-09-30, ${JSON.stringify(SEVEN)}. An eighth row is a new ` +
+            `door, and copy-pipe-and-cancel, which research 130 measured running a ` +
+            `program from copy mode, is the shape it would take.`
+        );
+      }
+      // The seventh row's slots, word by word: send-keys, -t, a session id,
+      // -H, then 1 to 256 single bytes, and nothing that names a key, a
+      // binding or a command.
+      const typedRow = shapes.find((row) => row.id === 'type-bytes');
+      const WANT_TYPED = ['send-keys', '-t', 'target', '-H', 'hex-bytes:1-256'];
+      if (typedRow !== undefined && JSON.stringify(typedRow.slots) !== JSON.stringify(WANT_TYPED)) {
+        fail(
+          `the seventh row's slots are ${JSON.stringify(typedRow.slots)}, not ` +
+            `${JSON.stringify(WANT_TYPED)}. It carries one to 256 bytes a command, each ` +
+            `one literal byte, and nothing else (build/p3201/SPEC.md D7).`
+        );
+      }
+      const thin = shapes.filter((row) => String(row.repeat ?? '').trim().length < 20).map((row) => row.id);
+      if (thin.length > 0) {
+        fail(
+          `the shape(s) ${JSON.stringify(thin)} carry no repeat reasoning. Research ` +
+            `57's at-least-once principle still governs: Tortie can never know ` +
+            `whether a command whose answer was lost ran, so every row says what a ` +
+            `second copy does.`
+        );
+      }
+      const notIdempotent = shapes.filter((row) => row.idempotent !== true).map((row) => row.id).sort();
+      if (JSON.stringify(notIdempotent) !== JSON.stringify(['scroll-lines', 'type-bytes'])) {
+        fail(
+          `the shapes that are not idempotent are ${JSON.stringify(notIdempotent)}. ` +
+            `Exactly two are: the relative scroll, whose only effect is where the ` +
+            `view sits, and the typed bytes, which a repeat would type twice. ` +
+            `Neither is ever retried.`
+        );
+      }
+    }
+    const recorded = d.recorded ?? [];
+    if (recorded.length === 0) cantJudge(102, 'no argv was recorded from scroll.ts');
+    for (const err of d.recordErrors ?? []) fail(`driving scroll.ts for condition 102: ${err}.`);
+    const refusedOwn = recorded.filter((row) => row.verdict?.ok !== true);
+    if (refusedOwn.length > 0) {
+      fail(
+        `${String(refusedOwn.length)} argv(s) the shipping scroll.ts emits are ` +
+          `refused by the table, the first ${JSON.stringify(refusedOwn[0].args)} ` +
+          `(${String(refusedOwn[0].verdict?.reason)}). The table must fit the code ` +
+          `that ships, or a remote pane stops scrolling.`
+      );
+    }
+    const misread = recorded.filter(
+      (row) => row.verdict?.ok === true && row.verdict.shape !== row.expected
+    );
+    if (misread.length > 0) {
+      fail(
+        `${String(misread.length)} recorded argv(s) are admitted as the wrong shape, ` +
+          `the first ${JSON.stringify(misread[0].args)} as ${String(misread[0].verdict.shape)} ` +
+          `where it is ${misread[0].expected}.`
+      );
+    }
+    const seen = [...new Set(recorded.map((row) => row.expected))].sort();
+    if (recorded.length > 0 && JSON.stringify(seen) !== JSON.stringify(SIX)) {
+      fail(
+        `the four scroll.ts entry points, driven ordered, unordered and through ` +
+          `the chunked fallback, emitted the shapes ${JSON.stringify(seen)}; all six ` +
+          `must be driven, or a row the code cannot reach is a row nobody tested.`
+      );
+    }
+    for (const via of ['ordered', 'unordered', 'fallback']) {
+      if (recorded.length > 0 && !recorded.some((row) => row.via === via)) {
+        fail(`no argv was recorded through the ${via} runner, so that road was not driven.`);
+      }
+    }
+    const hostile = d.hostile ?? [];
+    if (hostile.length < 40) {
+      fail(
+        `the hostile corpus holds ${String(hostile.length)} argv(s) and it holds at ` +
+          `least forty, every refused kind of build/p3201/SPEC.md §3.1 among them.`
+      );
+    }
+    // The second build's -H corpus (build/p3201/SPEC.md §6.3), by label, so a
+    // corpus that quietly lost its -H rows reads red here and not as a pass.
+    const hCorpus = hostile.filter((row) => /^-H\b|, a byte,/.test(String(row.label)));
+    if (hCorpus.length < 20) {
+      fail(
+        `the hostile corpus holds ${String(hCorpus.length)} spelling(s) of -H and it holds ` +
+          `at least twenty: no byte, 257 bytes, one digit, three digits, capitals, 0x, a ` +
+          `sign, a key name, -l, -K, -M, -R, -X, -H before -t, and a name, % or = target.`
+      );
+    }
+    const admitted = hostile.filter((row) => row.verdict?.ok === true || row.verdict?.threw === true);
+    for (const row of admitted) {
+      fail(
+        `the table ${row.verdict?.threw === true ? 'threw on' : 'ADMITS'} the hostile ` +
+          `argv "${row.label}". Every such argv is refused with a reason, before a ` +
+          `byte is written.`
+      );
+    }
+  }
+
+  // --- 103. The pinned format -----------------------------------------------------
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 103: ${message}`);
+    const f = d.format ?? {};
+    if (typeof f.stateFormat !== 'string') {
+      cantJudge(103, 'scroll.ts exports no REMOTE_STATE_FORMAT');
+    } else {
+      if (f.exact?.ok !== true || f.exact.shape !== 'read-state') {
+        fail(
+          'the table does not admit the read with the imported REMOTE_STATE_FORMAT as ' +
+            'read-state, so a remote pane cannot be read at all.'
+        );
+      }
+      // PHASE 320.1'S FIX ROUND. A machine's control client may have no UTF-8
+      // locale, and tmux then hands every byte below 0x20 of a format's answer
+      // back as `_`. The attack verifier measured the tab-separated read
+      // answering `0__1971_30_0_0_100_` over the loopback machine on 3.6a and
+      // 3.7b, read as a live pane while the far pane sat parked.
+      if (f.printable !== true) {
+        fail(
+          'REMOTE_STATE_FORMAT holds a byte outside printable ASCII. tmux answers ' +
+            'every byte below 0x20 of a format as _ to a client with no UTF-8 ' +
+            'locale, which is what a machine\'s control client is unless its sshd ' +
+            'was told to forward one, and a read that comes back as underscores is ' +
+            'a parked pane Tortie reads as live.'
+        );
+      }
+      if (f.sameFields !== true) {
+        fail(
+          'REMOTE_STATE_FORMAT is not STATE_FORMAT\'s eight fields, in the same ' +
+            'places, with a space where it has a tab. One reading of one set of ' +
+            'fields is what lets research 131\'s measurement of the read stand.'
+        );
+      }
+      if (f.thisMacRefused?.ok !== false) {
+        fail(
+          'the table admits this Mac\'s tab-separated STATE_FORMAT as a read on ' +
+            'a machine. It never crosses: its tabs come back as underscores from a ' +
+            'client with no UTF-8 locale.'
+        );
+      }
+      if (f.oneByteOff?.ok === true) {
+        fail(
+          'the table admits a read whose -F value is REMOTE_STATE_FORMAT with one byte ' +
+            'changed. The format is compared with ===, because a caller supplied ' +
+            'format on a long-lived control connection runs programs on the far ' +
+            'machine (research 130 section 4: #(touch …) created the file on both ' +
+            'builds).'
+        );
+      }
+      if (f.runsAProgram?.ok === true) {
+        fail('the table admits a read whose -F value is #(touch x), which runs a program on the far machine.');
+      }
+      if (f.hasHashParen !== false) {
+        fail('REMOTE_STATE_FORMAT holds #(, which on a control connection is a program the far machine runs.');
+      }
+    }
+    // SEVEN ROWS, ONE FORMAT: only the read carries a format slot; the typed
+    // row carries bytes and no format (the second build).
+    const formatRows = (d.shapes ?? []).filter((row) => (row.slots ?? []).includes('state-format')).map((row) => row.id);
+    if ((d.shapes ?? []).length > 0 && JSON.stringify(formatRows) !== JSON.stringify(['read-state'])) {
+      fail(
+        `the rows carrying a format slot are ${JSON.stringify(formatRows)}. Exactly one ` +
+          `does, the read, and its format is REMOTE_STATE_FORMAT compared with ===.`
+      );
+    }
+    const shapesText = p3201Files.find((one) => one.file === 'src/main/machines/scroll-shapes.ts')?.text ?? null;
+    if (shapesText === null) cantJudge(103, 'scroll-shapes.ts is not there');
+    else if (shapesText.includes('#{')) {
+      fail(
+        'scroll-shapes.ts names a #{ of its own. It names no format at all: the ' +
+          'one read format is REMOTE_STATE_FORMAT, imported from scroll.ts, so there is ' +
+          'one spelling of it and a second cannot drift or grow a #(.'
+      );
+    }
+  }
+
+  // --- 104. The live-row target ---------------------------------------------------
+  //
+  // WHAT THIS CONDITION PINS, AND WHAT IT DOES NOT (the attack verifier's
+  // finding, Phase 320.1's fix round). It pins the RULE, over its whole matrix,
+  // and that `remoteScrollAddress` hands the rule the machine's REAL epochs
+  // read from its state. It does NOT drive the epochs MOVING: `controlEpoch`
+  // counted on each `connected`, and `rowsEpoch` taken when a pass STARTS. Both
+  // need the real feed driven through the real control plane's sink with a
+  // fake client, which is vitest's `vi.mock` and not a plain probe, so
+  // `src/main/machines/__tests__/p3201-scroll-address.test.ts` owns them, and
+  // ablation:p320's arms e11 and e12 prove that file reads red without each.
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 104: ${message}`);
+    const rows = d.address ?? [];
+    if (rows.length === 0 || rows.every((row) => row.got === null)) {
+      cantJudge(104, 'remote-sessions.ts exports no scrollAddressOf');
+    }
+    const wrong = rows.filter(
+      (row) =>
+        row.got === null ||
+        row.got?.kind !== row.want.kind ||
+        (row.want.kind === 'live' && row.got?.tmuxId !== row.want.tmuxId)
+    );
+    for (const row of wrong.slice(0, 6)) {
+      fail(
+        `scrollAddressOf answers ${JSON.stringify(row.got)} for ${row.label}, where ` +
+          `the rule is ${JSON.stringify(row.want)}. A session is addressed only by a ` +
+          `live row listed on its machine's CURRENT connection: tmux ids restart ` +
+          `with a far server, a restart ends the control client, and a list made ` +
+          `before the new connection greeted cannot name the pane to park.`
+      );
+    }
+    if (wrong.length > 6) fail(`and ${String(wrong.length - 6)} more rows of that matrix are wrong.`);
+    const core = codeOf('src/main/sessions/core.ts');
+    if (core === null) cantJudge(104, 'core.ts could not be read');
+    else {
+      if (!core.includes('remoteScrollAddress(')) {
+        fail(
+          'src/main/sessions/core.ts does not call remoteScrollAddress, so its ' +
+            'scroll methods do not take a remote target from the live-row rule.'
+        );
+      }
+      for (const method of ['scrollState', 'scrollBy', 'scrollTo', 'scrollLive', 'remoteScroll', 'scrollTarget']) {
+        const body = bodyOf(core, method);
+        if (body === null) {
+          if (method !== 'scrollTarget') cantJudge(104, `core.ts has no ${method} to read`);
+          continue;
+        }
+        if (body.includes('remoteSessionRow')) {
+          fail(
+            `core.ts's ${method} names remoteSessionRow. It answers gone rows and ` +
+              `says nothing of which connection listed a live one, so a scroll ` +
+              `through it could park the pane of a session that reused the id.`
+          );
+        }
+      }
+    }
+    const sessionsCode = codeOf('src/main/machines/remote-sessions.ts');
+    const addressBody = bodyOf(sessionsCode, 'remoteScrollAddress');
+    if (addressBody === null) cantJudge(104, 'remote-sessions.ts has no remoteScrollAddress');
+    else if (
+      !addressBody.includes('scrollAddressOf(') ||
+      !/\.\s*rowsEpoch\b/.test(addressBody) ||
+      !/\.\s*controlEpoch\b/.test(addressBody)
+    ) {
+      fail(
+        'remoteScrollAddress does not hand scrollAddressOf the machine\'s real ' +
+          'rowsEpoch and controlEpoch, read from its state. A constant in their ' +
+          'place makes every live row addressable whatever connection listed it.'
+      );
+    }
+  }
+
+  // --- 105. One call site each ----------------------------------------------------
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 105: ${message}`);
+    // PHASE 320.1's SECOND BUILD NAMED A SECOND FILE, BY NAME: the router
+    // (src/main/machines/scroll-order.ts) asks the machine's runner for the
+    // one keystroke it writes behind a cancel (D7), through the same table.
+    const runnerCallers = filesNaming('remoteScrollRunner').filter(
+      (file) => file !== 'src/main/machines/control-plane.ts'
+    );
+    const RUNNER_CALLERS = ['src/main/machines/scroll-order.ts', 'src/main/sessions/core.ts'];
+    if (JSON.stringify(runnerCallers) !== JSON.stringify(RUNNER_CALLERS)) {
+      fail(
+        `remoteScrollRunner is named outside control-plane.ts in ` +
+          `${JSON.stringify(runnerCallers)}. Exactly two files may, being ` +
+          `src/main/sessions/core.ts, whose remoteScroll is the one scroll caller, and ` +
+          `src/main/machines/scroll-order.ts, whose routeKey is the one keystroke ` +
+          `caller. A third is a third way to reach somebody else's computer.`
+      );
+    }
+    const composers = filesNaming('guardedScrollRunner').filter(
+      (file) => file !== 'src/main/machines/scroll-shapes.ts'
+    );
+    if (JSON.stringify(composers) !== JSON.stringify(['src/main/machines/control-plane.ts'])) {
+      fail(
+        `guardedScrollRunner is named outside scroll-shapes.ts in ` +
+          `${JSON.stringify(composers)}. Exactly one file may, control-plane.ts, ` +
+          `which hands it the one client and its currency test.`
+      );
+    }
+  }
+
+  // --- 106. Checked before written, refused when moved ---------------------------
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 106: ${message}`);
+    const r = d.runner ?? {};
+    if (r.present !== true) cantJudge(106, 'scroll-shapes.ts exports no guardedScrollRunner');
+    else {
+      const leaked = (r.hostileSends ?? []).filter((row) => row.sends !== 0 || row.rejected !== true);
+      for (const row of leaked.slice(0, 5)) {
+        fail(
+          `the guarded runner ${row.rejected === true ? 'rejected' : 'ANSWERED'} the ` +
+            `hostile argv "${row.label}" after writing ${String(row.sends)} line(s). ` +
+            `Every refusal happens before send is called at all.`
+        );
+      }
+      if ((r.hostileSends ?? []).length < 40) {
+        fail('the guarded runner was driven with fewer than forty hostile argvs.');
+      }
+      if (r.notCurrent?.sends !== 0 || r.notCurrent?.rejected !== true) {
+        fail(
+          `a runner whose connection moved wrote ${String(r.notCurrent?.sends)} ` +
+            `line(s) and ${r.notCurrent?.rejected === true ? 'rejected' : 'did not reject'}. ` +
+            `A runner is made on one connection and refuses once it is not the ` +
+            `machine's current one: a far server that restarted can reuse a $N.`
+        );
+      }
+      if (r.admitted?.sends !== 1 || r.admitted?.rejected === true) {
+        fail(
+          `an admitted read on a current connection wrote ${String(r.admitted?.sends)} ` +
+            `line(s) and ${r.admitted?.rejected === true ? 'was refused' : 'answered'}; ` +
+            `it writes exactly one.`
+        );
+      } else if (typeof r.quotedLine === 'string' && r.admitted.line !== r.quotedLine) {
+        fail(
+          `the admitted read was written as ${JSON.stringify(r.admitted.line)}, not ` +
+            `as every element through quoteTmuxArg (${JSON.stringify(r.quotedLine)}).`
+        );
+      }
+      if (r.ordered !== true || typeof r.server !== 'string' || r.server === '') {
+        fail(
+          'the guarded runner does not say it is ordered and which server it ' +
+            'reaches, so scroll.ts would neither pipeline it nor keep the goto-line ' +
+            'latch this Mac\'s alone.'
+        );
+      }
+      // THE ONE READ OF THE CALLER'S LIST (the attack verifier's finding that
+      // no condition owned it): a Proxy that reads `cancel` at the check and
+      // `copy-pipe-and-cancel` on `$3 ; run-shell …` afterwards must cross as
+      // the bytes that were checked, or not at all.
+      const copied = r.copyOnce?.lines;
+      if (!Array.isArray(copied)) {
+        cantJudge(106, 'the guarded runner was not driven with a list that changes after the check');
+      } else if (JSON.stringify(copied) !== JSON.stringify(['send-keys -t $3 -X cancel'])) {
+        fail(
+          `a list whose elements read differently after the check crossed as ` +
+            `${JSON.stringify(copied)}. The runner copies the caller's list once and ` +
+            `checks and writes that copy, so the bytes written are the bytes the ` +
+            `table admitted: without the copy, cancel was admitted and ` +
+            `copy-pipe-and-cancel on a target carrying ; run-shell was written.`
+        );
+      }
+      // THE CALLER'S DEADLINE (D10), driven at 40 ms.
+      const dl = r.deadline ?? {};
+      if (dl.settled !== 'rejected' || dl.code !== 'TMUX_UNREACHABLE' || !(dl.ms < 1_500)) {
+        fail(
+          `a command whose connection never answered settled as ` +
+            `${JSON.stringify(dl.settled ?? null)} (${String(dl.code)}) after ` +
+            `${String(dl.ms)} ms against a 40 ms deadline. The caller is answered ` +
+            `TMUX_UNREACHABLE at the deadline, so a machine that stopped answering ` +
+            `reads as not reachable now instead of holding every scroll behind it.`
+        );
+      }
+    }
+    const body = bodyOf(codeOf('src/main/machines/scroll-shapes.ts'), 'guardedScrollRunner');
+    if (body === null) cantJudge(106, 'scroll-shapes.ts has no guardedScrollRunner to read');
+    else {
+      const admitAt = body.indexOf('admitScrollArgv(');
+      const currentAt = body.indexOf('isCurrent()');
+      const sendAt = body.search(/\.send\(/);
+      if (!(admitAt >= 0 && currentAt > admitAt && sendAt > currentAt)) {
+        fail(
+          `in guardedScrollRunner the table is asked at ${String(admitAt)}, the ` +
+            `connection at ${String(currentAt)} and the send made at ${String(sendAt)}. ` +
+            `The order is the property: check the argv, then the connection, and ` +
+            `only then write.`
+        );
+      }
+    }
+  }
+
+  // --- 107. The copy on a machine ---------------------------------------------------
+  {
+    // Every failure of this condition names it, so ablation:p320 can require
+    // the condition that owns a clause to be the one that goes red.
+    const fail = (message) => failures.push(`condition 107: ${message}`);
+    const h = d.history ?? {};
+    if (typeof h.file !== 'string') cantJudge(107, 'no module exports remoteHistoryArgs');
+    else {
+      const FIXED = new Set(['display-message', '-p', '-t', '-F', 'capture-pane', '-e', '-J', '-S', '-E']);
+      const valueOk = (v) =>
+        typeof v === 'string' &&
+        (FIXED.has(v) || /^\$(0|[1-9][0-9]{0,8})$/.test(v) || /^-?(0|[1-9][0-9]*)$/.test(v) || v === h.extentFormat);
+      for (const which of ['joined', 'drawn']) {
+        const argvs = h[which];
+        if (!Array.isArray(argvs) || argvs.length !== 2 || !argvs.every(Array.isArray)) {
+          fail(
+            `remoteHistoryArgs composes ${JSON.stringify(argvs ?? h.threw ?? null)} for the ` +
+              `${which} copy. It composes exactly two argvs: one extent read, then one ` +
+              `capture-pane between two lines.`
+          );
+          continue;
+        }
+        const bad = argvs.flat().filter((v) => !valueOk(v));
+        if (bad.length > 0) {
+          fail(
+            `remoteHistoryArgs puts ${JSON.stringify(bad)} in a command for another ` +
+              `machine. Every value is a fixed word, the pinned extent format, a $N ` +
+              `or a whole number.`
+          );
+        }
+        if (argvs[0][0] !== 'display-message' || argvs[1][0] !== 'capture-pane') {
+          fail(`remoteHistoryArgs composes ${JSON.stringify(argvs.map((a) => a[0]))}, not a display-message then a capture-pane.`);
+        }
+      }
+      if (typeof h.extentFormat !== 'string' || h.extentFormat.includes('#(')) {
+        fail('the copy\'s extent format is not a pinned constant free of #(.');
+      }
+      const code = codeOf(h.file) ?? '';
+      for (const verb of ["'copy-mode'", "'send-keys'"]) {
+        if (code.includes(verb)) {
+          fail(`${h.file} names ${verb}. The copy reads a machine; it never moves a pane.`);
+        }
+      }
+      for (const route of ['sendCommand', 'remoteScrollRunner', 'child_process', 'runRemoteWrite']) {
+        if (code.includes(route)) {
+          fail(`${h.file} names ${route}. The copy reaches the machine only through execOn, two ledger reads.`);
+        }
+      }
+      if (!code.includes('execOn(')) {
+        fail(`${h.file} does not call execOn, so the copy does not go through the exec plane's ledger.`);
+      }
+    }
+  }
+
+  // --- 108. A machine's read: locale-proof, strict, and never parking blind ----
+  //
+  // PHASE 320.1'S FIX ROUND. The attack verifier measured the remote read
+  // failing OPEN: a machine's control client with no UTF-8 locale answers every
+  // tab of a format as `_`, the read came back `0__1971_30_0_0_100_`, the
+  // lenient reader said "live, no history" while `copy-mode` and the scroll had
+  // already parked the far pane, and 115 of 330 characters typed next were lost
+  // in the typing rig. Three rules close it, and this condition drives the two
+  // that live in scroll.ts and reads the third, which lives in the session core:
+  //
+  //  - a runner that names a server reads with REMOTE_STATE_FORMAT (condition
+  //    103 pins its bytes) and reads its answer STRICTLY, so the sanitized line
+  //    throws UnreadableScrollAnswer from the read and from every sequence that
+  //    ends in one, and never answers a pane as live;
+  //  - this Mac's reader is untouched: it reads the same fields to the same
+  //    state, and still reads what it cannot read as zeros, as it always has;
+  //  - the core proves a connection's FIRST read before it writes anything else
+  //    to that connection's panes, and a connection whose read cannot be read
+  //    answers NO_PANE_HERE, Phase 320's pass-through, which is today exactly.
+  //    That last rule is DRIVEN in
+  //    src/main/sessions/__tests__/p3201-remote-scroll.test.ts ("the read
+  //    proof"), whose core cannot load in a plain probe; this reads its order.
+  //
+  // It also drives two scroll.ts clauses no condition owned before: no
+  // unhandled rejection from a pipelined sequence, and the goto-line latch
+  // staying this Mac's.
+  {
+    const fail = (message) => failures.push(`condition 108: ${message}`);
+    const r = d.read107 ?? {};
+    if (r.present !== true) cantJudge(108, 'scroll.ts did not load');
+    else {
+      if (r.isUnreadablePresent !== true) {
+        fail('scroll.ts exports no isUnreadableScrollAnswer, so nothing can tell an unreadable read from no answer.');
+      }
+      const rows = Array.isArray(r.sanitized) ? r.sanitized : [];
+      if (rows.length < 6) cantJudge(108, 'the entry points were not driven with an unreadable answer');
+      for (const row of rows) {
+        if (row.threw !== 'unreadable') {
+          fail(
+            `${row.label} through a machine's runner, answered the sanitized line ` +
+              `0__1971_30_0_0_100_, ${'answered' in row ? `ANSWERED ${JSON.stringify(row.answered)}` : `threw ${JSON.stringify(row.threw ?? null)}`}. ` +
+              `It throws UnreadableScrollAnswer: a sequence that has just parked the ` +
+              `far pane must never come back saying the pane is live.`
+          );
+        }
+        const formats = Array.isArray(row.formats) ? row.formats : [];
+        if (formats.length === 0 || formats.some((one) => one !== d.format?.stateFormat)) {
+          fail(`${row.label} through a machine's runner read with ${JSON.stringify(formats)}, not REMOTE_STATE_FORMAT alone.`);
+        }
+      }
+      if (JSON.stringify(r.there) !== JSON.stringify(r.here) || r.there?.position !== 10 || r.there?.inMode !== true) {
+        fail(
+          `the same eight fields read ${JSON.stringify(r.there)} on a machine and ` +
+            `${JSON.stringify(r.here)} on this Mac. They are one reading.`
+        );
+      }
+      if (
+        r.hereSanitized?.inMode !== false ||
+        r.hereSanitized?.position !== 0 ||
+        r.hereSanitized?.history !== 0
+      ) {
+        fail(
+          `this Mac's reader read the sanitized line as ${JSON.stringify(r.hereSanitized)}. ` +
+            `It is untouched by this phase, byte for byte, and reads what it cannot ` +
+            `read as a live pane with nothing, as it always has.`
+        );
+      }
+      if (r.unhandled !== 0) {
+        fail(
+          `a pipelined sequence whose answers all failed left ${String(r.unhandled)} ` +
+            `unhandled rejection(s). Every answer gets a handler the moment it is ` +
+            `asked for, so one the sequence stops waiting for never reaches the process.`
+        );
+      }
+      const latch = r.latch ?? {};
+      if (latch.remoteThrew !== true || latch.remoteWalked !== false || latch.localSentGoto !== true) {
+        fail(
+          `a machine's runner whose goto-line failed ${latch.remoteThrew === true ? 'threw' : 'did not throw'}, ` +
+            `${latch.remoteWalked === true ? 'WALKED the chunked fallback' : 'walked nothing'}, and this Mac's ` +
+            `next seek ${latch.localSentGoto === true ? 'still probed goto-line' : 'did NOT send goto-line'}. ` +
+            `The latch is this Mac's alone (D8): one failed seek through a dropped ` +
+            `carriage must not put this Mac on the slow path.`
+        );
+      }
+    }
+    const core = codeOf('src/main/sessions/core.ts');
+    const remote = bodyOf(core, 'remoteScroll');
+    const prove = bodyOf(core, 'proveRemoteRead');
+    if (remote === null || prove === null) {
+      cantJudge(108, 'core.ts has no remoteScroll or no proveRemoteRead to read');
+    } else {
+      const provedAt = remote.indexOf('proveRemoteRead(');
+      const opAt = remote.search(/\bop\(run/);
+      if (!(provedAt >= 0 && opAt > provedAt)) {
+        fail(
+          `in core.ts's remoteScroll the read proof is asked at ${String(provedAt)} and ` +
+            `the operation run at ${String(opAt)}. The proof comes first: nothing is ` +
+            `written to a connection's panes before that connection's read is read.`
+        );
+      }
+      if (!/'unreadable'\s*\?\s*NO_PANE_HERE|===\s*'unreadable'\s*\)\s*(?:\{[^{}]*?)?return\s+NO_PANE_HERE\b/.test(remote)) {
+        fail(
+          'core.ts\'s remoteScroll does not answer NO_PANE_HERE for a connection ' +
+            'whose read could not be read, so such a machine is not left with ' +
+            'today\'s pass-through wheel.'
+        );
+      }
+      if (!prove.includes('isUnreadableScrollAnswer(') || !prove.includes('readPaneScroll(')) {
+        fail(
+          'core.ts\'s proveRemoteRead does not read the pane and tell an unreadable ' +
+            'answer apart from no answer, which is the whole of the proof.'
+        );
+      }
+    }
+    // The copy's extent read, which the exec plane makes, has the same hazard.
+    const ext = d.history?.extentFormat;
+    if (typeof ext !== 'string' || !/^[\x20-\x7e]+$/.test(ext) || ext !== '#{history_size} #{pane_height}') {
+      fail(
+        `the copy's extent format is ${JSON.stringify(ext ?? null)}. It is this ` +
+          `Mac's two extent fields with a space between them, every byte printable ` +
+          `ASCII: the tab format answered 1971_30 over the loopback machine and ` +
+          `every drag-select copy there came back empty. Its strict reading is ` +
+          `driven in src/main/machines/__tests__/p3201-remote-history.test.ts.`
+      );
+    }
+  }
+
+  // --- 109. The typed shape: one composer, one production caller, driven ----------
+  //
+  // PHASE 320.1's SECOND BUILD, on his word of 2026-09-30 ("Yes, allow it"). A
+  // keystroke typed over a scrolled-back session on another machine crosses on
+  // that machine's control connection, behind a `cancel`, as `send-keys -t $N
+  // -H <hh>…`: one to 256 bytes a command, each ONE literal byte, no key name,
+  // binding or command (build/p3201/SPEC.md D7). It is the only arrangement
+  // measured to deliver a key over a parked pane with no wait and no loss
+  // (§4 M3 i, 600 of 600). This condition re-derives, from the input's own
+  // UTF-8 bytes, that the composer carries exactly those bytes, in order,
+  // behind the cancel, and reads that it has one composer and one caller.
+  {
+    const fail = (message) => failures.push(`condition 109: ${message}`);
+    const t = d.typed ?? {};
+    const PER = 256;
+    if (t.present !== true) cantJudge(109, 'scroll-shapes.ts exports no typedSequence');
+    else {
+      if (t.perCommand !== PER) {
+        fail(`TYPED_BYTES_PER_COMMAND is ${JSON.stringify(t.perCommand)}, not ${String(PER)}.`);
+      }
+      const rows = Array.isArray(t.rows) ? t.rows : [];
+      if (rows.length < 7) cantJudge(109, 'typedSequence was not driven over its seven inputs');
+      for (const row of rows) {
+        if (!Array.isArray(row.seq)) {
+          fail(`typedSequence threw on ${row.label}: ${JSON.stringify(row.threw ?? null)}.`);
+          continue;
+        }
+        const [first, ...rest] = row.seq;
+        if (JSON.stringify(first) !== JSON.stringify(['send-keys', '-t', '$4', '-X', 'cancel'])) {
+          fail(
+            `typedSequence for ${row.label} begins ${JSON.stringify(first ?? null)}, not the cancel. ` +
+              `The cancel is what makes sure no copy mode is active to read a typed byte as one ` +
+              `of its own commands, so it always comes first.`
+          );
+        }
+        const bad = rest.filter(
+          (argv) =>
+            !Array.isArray(argv) ||
+            JSON.stringify(argv.slice(0, 4)) !== JSON.stringify(['send-keys', '-t', '$4', '-H']) ||
+            argv.length < 5 ||
+            argv.length > 4 + PER ||
+            !argv.slice(4).every((b) => typeof b === 'string' && /^[0-9a-f]{2}$/.test(b))
+        );
+        if (bad.length > 0) {
+          fail(
+            `typedSequence for ${row.label} composes ${JSON.stringify(bad[0]).slice(0, 160)}. Every ` +
+              `command after the cancel is send-keys -t $N -H and then 1 to ${String(PER)} bytes, ` +
+              `each two lowercase hex digits.`
+          );
+        }
+        const carried = rest.map((argv) => (Array.isArray(argv) ? argv.slice(4).join('') : '')).join('');
+        if (carried !== row.hex) {
+          fail(
+            `typedSequence for ${row.label} carries ${String(carried.length / 2)} bytes that are not ` +
+              `the input's ${String(row.length)} UTF-8 bytes in order. It types exactly what the ` +
+              `attach would have carried from the same keystroke, and nothing else.`
+          );
+        }
+        const want = Math.ceil(row.length / PER);
+        if (rest.length !== want || rest.slice(0, -1).some((argv) => argv.length !== 4 + PER)) {
+          fail(
+            `typedSequence for ${row.label} (${String(row.length)} bytes) composes ${String(rest.length)} ` +
+              `typed command(s); it is ${String(want)}, every one but the last full at ${String(PER)} bytes.`
+          );
+        }
+        const shapesSeen = (row.verdicts ?? []).map((v) => (v?.ok === true ? v.shape : `refused (${String(v?.reason)})`));
+        const wantShapes = ['cancel', ...rest.map(() => 'type-bytes')];
+        if (JSON.stringify(shapesSeen) !== JSON.stringify(wantShapes)) {
+          fail(
+            `the table reads typedSequence's commands for ${row.label} as ${JSON.stringify(shapesSeen).slice(0, 200)}, ` +
+              `not ${JSON.stringify(wantShapes).slice(0, 120)}: the one composer must compose only what ` +
+              `the door admits.`
+          );
+        }
+      }
+      if (JSON.stringify(t.empty) !== JSON.stringify([['send-keys', '-t', '$4', '-X', 'cancel']])) {
+        fail(`typedSequence of no bytes composes ${JSON.stringify(t.empty)}, not the cancel alone.`);
+      }
+      const bounds = (t.bounds ?? []).map((v) => (v?.ok === true ? v.shape : 'refused'));
+      if (JSON.stringify(bounds) !== JSON.stringify(['type-bytes', 'type-bytes'])) {
+        fail(`one byte and 256 bytes read ${JSON.stringify(bounds)} at the table; both are the seventh shape.`);
+      }
+    }
+    // By NAME, an import included, so a caller that renames it on import is
+    // still found (a planted `import { typedSequence as t }` walked past the
+    // call-shaped search).
+    const composers = filesNaming('typedSequence').filter((file) => file !== 'src/main/machines/scroll-shapes.ts');
+    if (JSON.stringify(composers) !== JSON.stringify(['src/main/machines/scroll-order.ts'])) {
+      fail(
+        `typedSequence is called in ${JSON.stringify(composers)}. Its one production caller is ` +
+          `src/main/machines/scroll-order.ts's routeKey: a second is a second way to type into ` +
+          `somebody else's computer over its control connection.`
+      );
+    }
+    const hexSpellers = filesNaming("'-H'");
+    if (JSON.stringify(hexSpellers) !== JSON.stringify(['src/main/machines/scroll-shapes.ts'])) {
+      fail(
+        `the production files that spell '-H' are ${JSON.stringify(hexSpellers)}. Only ` +
+          `scroll-shapes.ts may, where the seventh row and its one composer live.`
+      );
+    }
+  }
+
+  /** The body of `const name = (…) => {…}`, read by matching braces, or null. */
+  const arrowBodyOf = (code, name) => {
+    if (code === null) return null;
+    const m = new RegExp(`const\\s+${name}\\s*=\\s*(?:async\\s*)?\\(`).exec(code);
+    if (m === null) return null;
+    const arrow = code.indexOf('=>', m.index);
+    const open = arrow === -1 ? -1 : code.indexOf('{', arrow);
+    if (open === -1) return null;
+    let depth = 0;
+    for (let j = open; j < code.length; j += 1) {
+      if (code[j] === '{') depth += 1;
+      else if (code[j] === '}') {
+        depth -= 1;
+        if (depth === 0) return code.slice(open, j + 1);
+      }
+    }
+    return null;
+  };
+  /** Every log call's argument text in one file's code: `<x>Log.info(…)`, `log.warn(…)`, `console.*(…)`. */
+  const logArgsOf = (code) => {
+    const out = [];
+    const call = /\b(?:\w*[Ll]og\w*|console)\.(?:info|warn|error|debug|log|trace)\s*\(/g;
+    let m;
+    while ((m = call.exec(code)) !== null) {
+      let depth = 0;
+      const open = m.index + m[0].length - 1;
+      for (let j = open; j < code.length; j += 1) {
+        if (code[j] === '(') depth += 1;
+        else if (code[j] === ')') {
+          depth -= 1;
+          if (depth === 0) {
+            out.push(code.slice(open + 1, j));
+            break;
+          }
+        }
+      }
+    }
+    return out;
+  };
+  const ORDER = 'src/main/machines/scroll-order.ts';
+  const orderCode = codeOf(ORDER);
+
+  // --- 110. The router: the remote branch only, before the pty, no await -----------
+  //
+  // D6 to D8. The attach host asks `routeRemoteInput` for every keystroke to a
+  // REMOTE client and never a local one, synchronously, before `pty.write`;
+  // `routeKey` writes the typed sequence before it returns, with no await, so a
+  // key typed as the person leaves the session is on the far pane before the
+  // unmount can reach main (T3 went 0 of 20 at the first attempt). The source
+  // reads below are this file's own, by matching braces; the driven half is the
+  // probe's, over a recording runner.
+  {
+    const fail = (message) => failures.push(`condition 110: ${message}`);
+    const HOST = 'src/main/attach/attach-host.ts';
+    const host = codeOf(HOST);
+    const listener = arrowBodyOf(host, 'onInput');
+    if (host === null || listener === null) cantJudge(110, 'attach-host.ts has no onInput listener to read');
+    else {
+      const calls = (host.match(/routeRemoteInput\s*(?:\?\.)?\s*\(/g) ?? []).length;
+      const at = listener.search(/routeRemoteInput\s*(?:\?\.)?\s*\(/);
+      const write = listener.indexOf('client.pty.write(data)');
+      if (calls !== 1 || at === -1) {
+        fail(`attach-host.ts calls routeRemoteInput ${String(calls)} time(s), and ${at === -1 ? 'not' : ''} in the input listener; it is asked once, there.`);
+      } else {
+        const ifAt = listener.lastIndexOf('if', at);
+        const condition = ifAt === -1 ? '' : listener.slice(ifAt, at);
+        if (!/client\.kind\s*===\s*'remote'\s*&&/.test(condition)) {
+          fail(
+            'attach-host.ts asks routeRemoteInput in a condition that does not first require ' +
+              "client.kind === 'remote'. This Mac's keystrokes never reach the router: its typing " +
+              'half is the first attempt\'s, measured better, and unchanged.'
+          );
+        }
+        if (/\bawait\b/.test(listener.slice(0, at))) {
+          fail('the input listener awaits before it asks routeRemoteInput; the question is asked in the tick the key arrived.');
+        }
+        if (!(write > at)) {
+          fail('the input listener writes the key to the attach before it asks routeRemoteInput, so a routed key would be written twice.');
+        }
+        if (!/=== true\s*\)\s*\{\s*return;?\s*\}/.test(listener.slice(at, write))) {
+          fail('the input listener does not return, writing nothing to the attach, when routeRemoteInput answers true.');
+        }
+      }
+    }
+    const route = bodyOf(orderCode, 'routeKey');
+    if (route === null) cantJudge(110, 'scroll-order.ts has no routeKey to read');
+    else {
+      if (/export\s+async\s+function\s+routeKey\b/.test(orderCode) || /\bawait\b/.test(route)) {
+        fail(
+          'routeKey is async or awaits. It writes the typed sequence in the tick the key arrived, ' +
+            'before it returns: an await before the write lets the renderer\'s unmount reach main ' +
+            'first, which is the first attempt\'s T3 (0 of 20 delivered).'
+        );
+      }
+    }
+    if (orderCode === null) cantJudge(110, 'scroll-order.ts is not there');
+    else {
+      for (const args of logArgsOf(orderCode)) {
+        if (/\b(?:data|sequence|bytes|hex|argv|writes)\b/.test(args)) {
+          fail(
+            `scroll-order.ts logs ${JSON.stringify(args.trim().slice(0, 120))}. No log call names a ` +
+              `keystroke, a byte of one, or anything a far machine answered: they are the person's words.`
+          );
+        }
+      }
+      for (const verb of ["'send-keys'", "'copy-mode'"]) {
+        if (orderCode.includes(verb)) {
+          fail(`scroll-order.ts spells ${verb}. Every argv it writes comes from scroll-shapes.ts or scroll.ts, so condition 66 still counts four files.`);
+        }
+      }
+    }
+    const routers = filesNaming('routeKey').filter((file) => file !== ORDER);
+    if (JSON.stringify(routers) !== JSON.stringify(['src/main/sessions/core.ts'])) {
+      fail(`routeKey is called in ${JSON.stringify(routers)}; its one production caller is the session core, which hands it to the attach host.`);
+    }
+    const core = codeOf('src/main/sessions/core.ts') ?? '';
+    if (!/routeRemoteInput\s*:\s*\(\s*\w+\s*,\s*\w+\s*\)\s*=>\s*routeKey\(/.test(core)) {
+      fail('core.ts does not hand the attach host routeRemoteInput as a call of routeKey, so no keystroke is ever routed.');
+    } else if (!/routeRemoteInput\s*:\s*\(\s*\w+\s*,\s*\w+\s*\)\s*=>\s*routeKey\(\s*\w+\s*,\s*\w+\s*\)\s*!==\s*'attach'/.test(core)) {
+      fail(
+        "core.ts hands the attach host routeKey's answer compared with something other than `!== 'attach'`. " +
+          "A key routeKey HELD for a connection that is down (the fix round, F4) would then be written to " +
+          'the attach as well, into copy mode, and again when the connection is back.'
+      );
+    }
+    const o = d.order ?? {};
+    if (o.present !== true) cantJudge(110, 'scroll-order.ts did not load');
+    else if ((o.missing ?? []).length > 0) cantJudge(110, `scroll-order.ts exports no ${(o.missing ?? []).join(', ')}`);
+    else {
+      const r = o.route ?? {};
+      const printed = String(o.printed ?? '');
+      if (/ø|é|c3\s*b8|c3\s*a9/i.test(printed)) {
+        fail(
+          `routing the keys ø and é printed ${JSON.stringify(printed.slice(0, 160))}. No log ` +
+            `line names a keystroke or a byte of one: they are the person's words.`
+        );
+      }
+      if (r.atRest !== 'attach' || r.atRestWrote !== 0) {
+        fail(`a key to a pane at rest took ${JSON.stringify(r.atRest)} and wrote ${String(r.atRestWrote)} command(s); it takes the attach and writes nothing, as today.`);
+      }
+      const WANT = ['send-keys -t $4 -X cancel', 'send-keys -t $4 -H c3 a9', `display-message -p -t $4 -F ${String(d.format?.stateFormat)}`];
+      if (r.parkedRoad !== 'carriage' || JSON.stringify(r.syncLines) !== JSON.stringify(WANT)) {
+        fail(
+          `a key over a parked pane took ${JSON.stringify(r.parkedRoad ?? r.threw ?? null)} and had written ` +
+            `${JSON.stringify(r.syncLines ?? null)} when routeKey returned. It takes the control ` +
+            `connection and has written the cancel, its bytes and a read, in that order, before it returns.`
+        );
+      }
+    }
+  }
+
+  // --- 111. The park gate: the quiet wait, and D3's read before any park -----------
+  //
+  // D6: a scroll that may park a pane not known parked waits until the attach
+  // has been quiet for ROAD_QUIET_MS, and a key typed in the wait restarts it.
+  // D3: one read before the park; a program that has taken the screen or the
+  // mouse is answered with that read and never parked; a park the program raced
+  // is cancelled. DRIVEN over a scripted clock and a scripted pane, then read
+  // for its order in the session core.
+  {
+    const fail = (message) => failures.push(`condition 111: ${message}`);
+    const o = d.order ?? {};
+    if (o.present !== true || (o.missing ?? []).length > 0) cantJudge(111, 'scroll-order.ts did not load whole');
+    else {
+      if (o.quietMs !== 200) fail(`ROAD_QUIET_MS is ${JSON.stringify(o.quietMs)}, not 200, twice the slowest round trip measured to his Mac Pro.`);
+      if (o.waitThrew !== undefined) fail(`the wait threw: ${String(o.waitThrew)}.`);
+      if (o.wait?.firstKey !== 'attach' || JSON.stringify(o.wait?.sleeps) !== JSON.stringify([150]) || o.wait?.quiet !== true) {
+        fail(
+          `a park asked 50 ms after a key on the attach slept ${JSON.stringify(o.wait?.sleeps ?? null)} and ` +
+            `answered ${JSON.stringify(o.wait?.quiet ?? null)}, not [150] and true. It waits until the attach ` +
+            `has been quiet for ROAD_QUIET_MS before its first write, because a park written in the same ` +
+            `tick as a key ate up to 17 of 100, and a key typed BEFORE the scroll began only delays it.`
+        );
+      }
+      if (o.keyInWait !== 'attach' || JSON.stringify(o.restart?.sleeps) !== JSON.stringify([150]) || o.restart?.quiet !== false) {
+        fail(
+          `a key typed 50 ms into the wait took ${JSON.stringify(o.keyInWait ?? null)}, and the wait slept ` +
+            `${JSON.stringify(o.restart?.sleeps ?? null)} and answered ${JSON.stringify(o.restart?.quiet ?? null)}, ` +
+            `not [150] and false. Nothing is on the carriage yet, so that key takes the attach, and the ` +
+            `park is DROPPED (the fix round, F2): the second build held it until the typing paused and the ` +
+            `view jumped 50 lines back after the last key, 18 of 18 runs, where today nothing moves.`
+        );
+      }
+      if (JSON.stringify(o.quiet?.sleeps) !== JSON.stringify([]) || o.quiet?.quiet !== true) {
+        fail(`a park of a session the attach never typed into slept ${JSON.stringify(o.quiet?.sleeps ?? null)} and answered ${JSON.stringify(o.quiet?.quiet ?? null)}; it waits for nothing and goes.`);
+      }
+      const d3 = o.d3 ?? {};
+      const READ = 'display-message';
+      for (const label of ['alternate screen', 'mouse asked']) {
+        const c = d3[label] ?? {};
+        if (c.outcome !== 'refused' || (c.writes ?? []).length !== 1 || !String(c.writes?.[0]).startsWith(READ)) {
+          fail(
+            `D3, ${label}: the park ${c.threw !== undefined ? `threw ${String(c.threw)}` : `read ${JSON.stringify(c.outcome)} after writing ${JSON.stringify(c.writes ?? null)}`}. ` +
+              `A pane whose program has taken the screen or the mouse is read once and never parked.`
+          );
+        }
+      }
+      const plain = d3['plain'] ?? {};
+      const writes = plain.writes ?? [];
+      const readAt = writes.findIndex((w) => String(w).startsWith(READ));
+      const parkAt = writes.findIndex((w) => String(w).startsWith('copy-mode'));
+      if (plain.outcome !== 'parked' || !(readAt === 0 && parkAt > readAt)) {
+        fail(`D3, a plain pane: ${JSON.stringify(plain.outcome ?? plain.threw ?? null)}, writes ${JSON.stringify(writes).slice(0, 200)}. The read comes first and the park after it.`);
+      }
+      if ((plain.undoWrote ?? ['?']).length !== 0) fail(`D3, a plain pane: undoRacedPark wrote ${JSON.stringify(plain.undoWrote)} after an honest park; it writes nothing then.`);
+      const already = d3['already parked'] ?? {};
+      if (already.outcome !== 'already' || (already.undoWrote ?? ['?']).length !== 0) {
+        fail(`D3, a pane already in copy mode: ${JSON.stringify(already.outcome ?? already.threw ?? null)}, undo wrote ${JSON.stringify(already.undoWrote ?? null)}. It scrolls as today and is never undone.`);
+      }
+      const raced = d3['raced'] ?? {};
+      if (raced.outcome !== 'parked' || !(raced.undoWrote ?? []).some((w) => String(w) === 'send-keys -t $4 -X cancel') || raced.inModeAfter !== false) {
+        fail(
+          `D3, a program that took the mouse while the park was on its way: undo wrote ` +
+            `${JSON.stringify(raced.undoWrote ?? raced.threw ?? null)} and left the pane ${raced.inModeAfter === false ? 'live' : 'IN COPY MODE'}. ` +
+            `The raced park is cancelled, which is the reporter's own case (0 of 20 notches reached the program at the first attempt).`
+        );
+      }
+      const kept = d3['already, program took the screen since'] ?? {};
+      if ((kept.undoWrote ?? ['?']).length !== 0 || kept.inModeAfter !== true) {
+        fail(`D3, a pane the person had parked on ordinary lines before its program took the screen: undo wrote ${JSON.stringify(kept.undoWrote ?? kept.threw ?? null)}. Phase 292's exception keeps it parked.`);
+      }
+    }
+    const core = codeOf('src/main/sessions/core.ts');
+    const remote = bodyOf(core, 'remoteScroll');
+    if (remote === null) cantJudge(111, 'core.ts has no remoteScroll to read');
+    else {
+      const steps = ['awaitRoadQuiet(', 'noteWritten(', 'proveRemoteRead(', 'readBeforePark(', 'undoRacedPark(', 'noteAnswer(', 'noteSettled('];
+      const at = steps.map((step) => remote.indexOf(step));
+      const missing = steps.filter((_, i) => at[i] === -1);
+      if (missing.length > 0) {
+        fail(`core.ts's remoteScroll does not call ${missing.join(', ')}; a park of a remote pane waits, is counted, is proved, reads before it parks, undoes a race and is settled.`);
+      } else {
+        // undoRacedPark wraps readBeforePark in one expression, so its name is
+        // read first; the order that matters is the wait, the count, the proof,
+        // then the read before the park, then the answer, then the settle.
+        const order = [at[0], at[1], at[2], at[3], at[5], at[6]];
+        if (!order.every((v, i) => i === 0 || v > order[i - 1])) {
+          fail(
+            `core.ts's remoteScroll takes the steps in the order ${JSON.stringify(steps.map((s2, i) => [s2, at[i]]))}. ` +
+              `It is awaitRoadQuiet, noteWritten, proveRemoteRead, readBeforePark, noteAnswer, noteSettled.`
+          );
+        }
+        if (!/finally\s*\{[^}]*noteSettled\(/.test(remote)) {
+          fail('core.ts settles a remote scroll outside a finally, so a throw would leave keys on the carriage for good.');
+        }
+      }
+    }
+  }
+
+  // --- 112. THE FIX ROUND: the four rules that took the worse rows out --------
+  //
+  // build/p3201/SPEC.md §As built, the fixer's section. Both verifiers of the
+  // second build measured rows worse than today, and each rule below is the
+  // removal or the narrowing that answers one of them, driven over a scripted
+  // runner and the module's own seam, then read in the session core.
+  //
+  //   F1  the way back to the attach is an ANSWER: once nothing is in flight,
+  //       the next key takes the attach, whatever the clock (RECON: 42 of 700
+  //       keys lost in bursts when the control connection alone died, where
+  //       the parent lost none, because keys stayed on it for 200 ms after).
+  //   F2  a key typed after a scroll began drops it (the O cell: the view
+  //       jumped 50 lines back after the last key, 18 of 18 runs).
+  //   F3  a pane Tortie parked goes back to its program when the program takes
+  //       the screen or the mouse (PT and RACE: 0 of 50 notches reached the
+  //       program and the pane stayed in copy mode, where the parent gave 50).
+  //   F4  a key over a parked pane whose connection is down is held, never
+  //       typed into copy mode, and written behind a cancel when it is back
+  //       (T5: 0 of 27 characters, against the parent's 3 of 9).
+  //   F5  THE RULED ROUND (his ruling of 2026-10-01, GONE): a key over a
+  //       parked pane on a machine that missed its greeting is held and asks
+  //       that machine ONCE for one more connection, through
+  //       openControlPlane's own precheck and gate, and only a keystroke asks
+  //       (the reverifier: 0 of 3 keys by either road, the pane stuck in copy
+  //       mode, where the parent delivered 3 of 3).
+  {
+    const fail = (message) => failures.push(`condition 112: ${message}`);
+    const o = d.order ?? {};
+    const f = o.fix ?? {};
+    if (o.present !== true || (o.missing ?? []).length > 0) cantJudge(112, `scroll-order.ts did not load whole${(o.missing ?? []).length > 0 ? ` (no ${(o.missing ?? []).join(', ')})` : ''}`);
+    else if (f.threw !== undefined) fail(`the fix round's rules threw when driven: ${String(f.threw)}.`);
+    else {
+      const f1 = f.f1 ?? {};
+      if (f1.first !== 'carriage' || f1.busy !== 'carriage' || f1.after !== 'attach') {
+        fail(
+          `F1: over a parked pane the keys took ${JSON.stringify(f1.first ?? null)} then ${JSON.stringify(f1.busy ?? null)}, ` +
+            `and once both had answered, the next key one millisecond later took ${JSON.stringify(f1.after ?? null)}. ` +
+            `It is carriage, carriage, attach: an answer proves the far server ran everything before it, so ` +
+            `no clock keeps keys on a connection that can die alone.`
+        );
+      }
+      const f2 = f.f2 ?? {};
+      if (f2.outcome !== 'dropped' || JSON.stringify(f2.writes ?? null) !== JSON.stringify([`display-message -p -t $4 -F ${String(d.format?.stateFormat)}`]) || f2.parking !== 0) {
+        fail(
+          `F2: a park whose scroll saw a keystroke read ${JSON.stringify(f2.outcome ?? null)}, wrote ` +
+            `${JSON.stringify(f2.writes ?? null).slice(0, 200)} and called the parking hook ${String(f2.parking)} time(s). ` +
+            `It is dropped after its read, with nothing else written and the pane never called Tortie's own.`
+        );
+      }
+      const f3 = f.f3 ?? {};
+      if (JSON.stringify(f3.oursWrote ?? null) !== JSON.stringify(['send-keys -t $4 -X cancel', `display-message -p -t $4 -F ${String(d.format?.stateFormat)}`]) || f3.oursInMode !== false) {
+        fail(
+          `F3: a pane Tortie parked, whose program then took the mouse, wrote ${JSON.stringify(f3.oursWrote ?? null)} ` +
+            `and read ${f3.oursInMode === false ? 'live' : 'STILL IN COPY MODE'}. It writes the cancel and the read ` +
+            `after it: the reporter's own full screen program got 0 of 50 notches from a pane left parked over it.`
+        );
+      }
+      if ((f3.notOursWrote ?? ['?']).length !== 0 || f3.notOursInMode !== true) {
+        fail(`F3: copy mode Tortie did not enter wrote ${JSON.stringify(f3.notOursWrote ?? null)}; it is never left by Tortie.`);
+      }
+      const f4 = f.f4 ?? {};
+      const WANT4 = ['send-keys -t $4 -X cancel', 'send-keys -t $4 -H 7a', `display-message -p -t $4 -F ${String(d.format?.stateFormat)}`];
+      if (f4.road !== 'held' || f4.wroteWhileDown !== 0 || JSON.stringify(f4.afterBack ?? null) !== JSON.stringify(WANT4)) {
+        fail(
+          `F4: a key over a parked pane whose connection was down took ${JSON.stringify(f4.road ?? null)}, wrote ` +
+            `${String(f4.wroteWhileDown)} command(s) while it was down, and ${JSON.stringify(f4.afterBack ?? null)} ` +
+            `once it was back. It is HELD, nothing is written while the connection is down, and it is written ` +
+            `behind one cancel when it is back: down the attach it would be typed into copy mode and eaten.`
+        );
+      }
+      const f5 = f.f5 ?? {};
+      const READ5 = (t) => `display-message -p -t ${t} -F ${String(d.format?.stateFormat)}`;
+      const WANT5 = [
+        'send-keys -t $4 -X cancel', 'send-keys -t $4 -H 7a 79', READ5('$4'),
+        'send-keys -t $5 -X cancel', 'send-keys -t $5 -H 78', READ5('$5')
+      ].sort();
+      if (
+        f5.road !== 'held' ||
+        f5.second !== 'held' ||
+        f5.other !== 'held' ||
+        f5.wroteWhileGone !== 0 ||
+        f5.asks !== 1 ||
+        JSON.stringify([...(f5.afterBack ?? [])].sort()) !== JSON.stringify(WANT5)
+      ) {
+        fail(
+          `F5: two keys over a parked pane on a machine that missed its greeting took ${JSON.stringify(f5.road ?? null)} ` +
+            `and ${JSON.stringify(f5.second ?? null)}, a key over another session there took ${JSON.stringify(f5.other ?? null)}, ` +
+            `${String(f5.wroteWhileGone)} command(s) were written while it had no connection, it was asked ` +
+            `${String(f5.asks)} time(s), and ${JSON.stringify(f5.afterBack ?? null)} was written once it was back. ` +
+            `They are HELD, nothing is written, the machine is asked ONCE for all three, and each session's keys go ` +
+            `behind one cancel when it is back: down the attach they were typed into copy mode, 0 of 3 delivered ` +
+            `where today delivers 3 of 3.`
+        );
+      }
+      if (f5.refused !== 'attach' || f5.asksAfterRefused !== 1) {
+        fail(
+          `F5: a machine that may not be asked again took ${JSON.stringify(f5.refused ?? null)} and was asked ` +
+            `${String((f5.asksAfterRefused ?? 0) - (f5.asks ?? 0))} time(s). It is the attach, as today, and nothing is asked.`
+        );
+      }
+    }
+    const core = codeOf('src/main/sessions/core.ts');
+    const remote = bodyOf(core, 'remoteScroll');
+    if (remote === null) cantJudge(112, 'core.ts has no remoteScroll to read');
+    else {
+      if (!/stillWanted\s*:\s*\(\s*\)\s*=>\s*keysSoFar\(\s*\w+\s*\)\s*===\s*\w+/.test(remote)) {
+        fail('F2: core.ts does not hand readBeforePark a stillWanted that compares keysSoFar with the count taken when the scroll began.');
+      }
+      if (!/parking\s*:\s*\(\s*\)\s*=>\s*noteParkedByUs\(/.test(remote)) {
+        fail("F3: core.ts does not tell scroll-order which panes it parked itself (readBeforePark's parking hook), so none would ever go back to its program.");
+      }
+      const leave = remote.indexOf('leaveForProgram(');
+      const answer = remote.indexOf('noteAnswer(');
+      if (leave === -1 || !(answer > leave) || !/if\s*\(\s*counted\s*\)\s*state\s*=\s*await\s+leaveForProgram\(/.test(remote)) {
+        fail("F3: core.ts does not ask leaveForProgram, on counted operations only, before it notes the answer.");
+      }
+      if (!/await\s+awaitRoadQuiet\(/.test(remote) || !/road\.held\s*===\s*0\s*&&/.test(remote)) {
+        fail('F2 and F4: core.ts does not drop a park that its quiet wait saw a key during, or one asked while keys are held.');
+      }
+      if (!/carriage\.kind\s*===\s*'none'\s*\)\s*\{\s*return\s+Promise\.resolve\(\s*awaitsReopen\(\s*sessionId\s*,\s*machineId\s*\)\s*\?\s*PANE_NOT_REACHABLE_NOW\s*:\s*NO_PANE_HERE\s*\)/.test(remote)) {
+        fail(
+          "F5: core.ts's remoteScroll does not answer not-reachable-now for a pane awaitsReopen names on a machine with no " +
+            'connection this run, so the surface would latch "no pane" and only a remount could scroll it again.'
+        );
+      }
+    }
+    // F5: ONE place asks a machine past the Phase 83 set, and it is a keystroke's.
+    // A second, or a timer, would spawn a child on every step for a machine
+    // that never greets, which is the loop Phase 83 exists to stop.
+    const askers = p3201Files.filter((one) => /\bkeystroke\s*:\s*true\b/.test(one.code)).map((one) => one.file);
+    if (JSON.stringify(askers) !== JSON.stringify(['src/main/machines/scroll-order.ts'])) {
+      fail(
+        `F5: the files asking a machine past the greeting set (keystroke: true) are ${JSON.stringify(askers)}; it is ` +
+          'src/main/machines/scroll-order.ts alone, for a keystroke, so nothing retries on a timer.'
+      );
+    }
+    const orderCode = codeOf('src/main/machines/scroll-order.ts');
+    const reopenCalls = orderCode === null ? -1 : (orderCode.match(/\bsource\.reopen\(/g) ?? []).length;
+    const askCalls = orderCode === null ? -1 : (orderCode.match(/\baskReopen\(/g) ?? []).length;
+    const routeBody = bodyOf(orderCode, 'routeKey') ?? '';
+    const stillBody = bodyOf(orderCode, 'reopenStillComing') ?? '';
+    if (reopenCalls !== 1 || askCalls !== 3 || !/askReopen\(/.test(routeBody) || !/askReopen\(/.test(stillBody)) {
+      fail(
+        `F5: scroll-order.ts calls its source's reopen ${String(reopenCalls)} time(s) and askReopen ${String(askCalls)} ` +
+          'time(s) counting its declaration; it is one reopen, inside askReopen, which routeKey and the held keys\' ' +
+          'reopenStillComing call and nothing else.'
+      );
+    }
+  }
+
+  process.stdout.write(
+    `\nthe carriage door holds: control-plane.ts adds one export, ` +
+      `${String((d.shapes ?? []).length)} shapes admit ` +
+      `${String((d.recorded ?? []).length)} argvs the shipping scroll.ts emits and ` +
+      `refuse ${String((d.hostile ?? []).length)} hostile ones, the guarded runner ` +
+      `wrote nothing for any refusal or for a connection that moved, ` +
+      `${String((d.address ?? []).length)} address facts read as the live-row rule, ` +
+      `a machine's read is locale-proof and refuses what it cannot read, the typed ` +
+      `shape carries exactly the input's bytes behind a cancel, a key over a parked ` +
+      `pane is written before routeKey returns, a park waits for a quiet attach ` +
+      `and never parks a program that has the screen or the mouse, and a key over a ` +
+      `pane scrolled back on a machine that missed its greeting asks it once more.\n`
+  );
 }
 
 if (failures.length > 0) {

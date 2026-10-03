@@ -49,14 +49,7 @@
  * keystroke goes down the ordinary path.
  */
 
-const ESC = '\u001b';
-
-/** OSC 10 (foreground) or OSC 11 (background), answered the way xterm does. */
-const COLOR_REPORT = new RegExp(
-  `^${ESC}\\](?:10|11);rgb:[0-9a-f]{4}/[0-9a-f]{4}/[0-9a-f]{4}${ESC}\\\\$`
-);
-
-/** True when these bytes are the pane reporting its own colours, not input. */
-export function isColorReport(data: string): boolean {
-  return COLOR_REPORT.test(data);
-}
+// The predicate itself lives in src/shared/pane-report.ts since Phase 320.1's
+// second build, because main's key router for a session on another machine
+// asks the same question (see that file).
+export { isColorReport } from '@shared/pane-report';

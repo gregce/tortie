@@ -18,8 +18,8 @@
  *   1     refuses a socket that is not a harness     nothing starts
  *   2     a session on the loopback machine, 60 s    0 scrollState error lines
  *   3     a local session that is not running, 60 s  0 scrollState error lines
- *   4     photographs the remote session's window    the read back button is there
- *   5     the wheel over the remote pane, 20 turns   nothing typed, no error
+ *   4     photographs the remote session's window    no read back control on the band
+ *   5     the wheel over the remote pane, 20 turns   no error, a read answers
  *   6     types into the remote pane                 the characters arrive
  *   7     a local RUNNING session's scrollbar        the numbers move
  *
@@ -61,6 +61,7 @@ import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
 import { keyscan } from './ssh-run.mjs';
+import { dotfilesMoved, dotfilesSentence, localCensus } from './p3201/real-machine.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p95]';
@@ -121,6 +122,24 @@ const project = join(root, 'project');
 const profile = join(root, 'profile');
 const appLog = join(root, 'p95-app.log');
 writeFileSync(join(project, 'README.md'), '# p95 scroll probe\n', 'utf8');
+// PHASE 320.1's FIX ROUND: a scratch HOME for the app, as probe:p320 has.
+// Step 7 types a loop into a LOCAL shell, which ran his own zsh with his own
+// rc files and wrote his ~/.zsh_history on this Mac (the parent verifier saw it
+// grow by exactly one 66 byte entry during this probe). macOS's /etc/zshrc
+// keeps that history at ${ZDOTDIR:-$HOME}/.zsh_history, so here it is inside
+// this run's own directory. His three dotfiles are read before and after,
+// size and modified time only, and a move fails the run.
+const home = join(root, 'home');
+mkdirSync(home, { recursive: true });
+// His ruling of 2026-10-02: nothing this run starts carries his Terminal tab's
+// TERM_SESSION_ID. macOS's /etc/zshrc_Apple_Terminal gives an interactive zsh
+// started with it an exit hook that appends that session's history to
+// ${ZDOTDIR:-$HOME}/.zsh_history, so the app below also gets its scratch HOME
+// as its ZDOTDIR, and a zsh it starts reads and writes nothing of his.
+delete process.env['TERM_SESSION_ID'];
+writeFileSync(join(home, '.zshrc'), "PS1='p95 %# '\n", 'utf8');
+writeFileSync(join(home, '.hushlogin'), '', 'utf8');
+const censusBefore = localCensus();
 
 const MACHINE_ID = 'p95far';
 const MACHINE_LABEL = 'Scratch Machine';
@@ -478,6 +497,9 @@ function runInApp(tag, body) {
       args: ['--remote-debugging-port=0', '--use-mock-keychain'],
       env: {
         ...process.env,
+        HOME: home,
+        ZDOTDIR: home,
+        TERM_SESSION_ID: undefined,
         GMUX_TMUX_SOCKET: socket,
         // What makes the socket override real on a launch that is driven
         // rather than photographed. src/main/tmux/resolve.ts honours the
@@ -604,6 +626,17 @@ function finish(code) {
   }
   say(`signalled only the pids this run recorded: ${recordedPids.join(', ')}`);
   clearHarnessSessions();
+  // His three dotfiles on this Mac (Phase 320.1's fix round): size and
+  // modified time only, before and after; a move fails the run.
+  const censusAfter = localCensus();
+  const moved = dotfilesSentence('this Mac', dotfilesMoved(censusBefore, censusAfter), censusBefore, censusAfter);
+  measured.dotfiles = { before: censusBefore, after: censusAfter };
+  if (moved !== null) {
+    say(`FAIL ${moved}`);
+    bad = 1;
+  } else {
+    say("his ~/.zsh_history, ~/.bash_history and ~/.zshrc on this Mac: size and modified time unchanged");
+  }
   writeFileSync(
     REPORT,
     `${JSON.stringify(
@@ -734,10 +767,14 @@ async function main() {
     // rule forbids, and it became false the moment the wheel reached a
     // full-screen program there. Slice 1 deletes it, so this step now asserts
     // the button is still there and that sentence is NOT on it.
-    const readBack = (s) =>
-      s.note !== null &&
-      s.note.text.includes('Read last lines') &&
-      !s.note.title.includes('cannot scroll back');
+    //
+    // PHASE 320.1 TURNED THE WHOLE STEP AROUND. A session on another machine
+    // now scrolls like one on this Mac, over that machine's live connection,
+    // so the band's Read last lines control is deleted (its read stays in the
+    // terminal's context menu, where this Mac's capture items sit), and this
+    // step asserts it is ABSENT in both orientations: the drive's `note` reads
+    // null. Both orientations still, for the reason above.
+    const readBack = (s) => s.note === null;
     state = await drive(cdp, 'orientation', 'top');
     await sleep(1500);
     state = await drive(cdp, 'state');
@@ -745,7 +782,7 @@ async function main() {
     await shoot(cdp, join(root, 'p95-remote-top.png'));
     note(
       '5a',
-      'the DEFAULT band, being the session tab strip, offers to read the last lines',
+      'the DEFAULT band, being the session tab strip, draws no read back control over a remote session',
       readBack(state) ? 'pass' : 'FAIL',
       `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
     );
@@ -756,7 +793,7 @@ async function main() {
     await shoot(cdp, join(root, 'p95-remote-right.png'));
     note(
       '5b',
-      'the identity strip offers to read the last lines',
+      'the identity strip draws no read back control over a remote session',
       readBack(state) ? 'pass' : 'FAIL',
       `orientation ${String(state.orientation)}, note ${JSON.stringify(state.note)}`
     );
@@ -767,6 +804,10 @@ async function main() {
     // Phase 320 hands the wheel to a far program that asked for the mouse,
     // that half is `probe:p320`'s arm R2, which counts the bytes a plain far
     // program received (0 on both builds, measured).
+    //
+    // PHASE 320.1: "and no movement" is gone from the sentence, because a
+    // remote pane on a measured tmux now scrolls under the wheel, like one on
+    // this Mac. That it parks and types nothing is probe:p320's R2.
     const beforeWheel = scrollErrorCount();
     await drive(cdp, 'wheel', 20, -120);
     measured.wheelScrollErrors = scrollErrorCount() - beforeWheel;
@@ -774,7 +815,7 @@ async function main() {
     measured.remoteRead = read;
     note(
       6,
-      'the wheel over a remote pane produces no error and no movement',
+      'the wheel over a remote pane produces no error, and a read answers',
       measured.wheelScrollErrors === 0 && read.ok === true ? 'pass' : 'FAIL',
       `${String(measured.wheelScrollErrors)} error lines, read ${JSON.stringify(read)}`
     );

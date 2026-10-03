@@ -24,8 +24,15 @@ const {
   bufferTerminal,
   composeHistorySelection,
   composeText,
+  readHistoryRows,
   splitRows
 } = await import('../history-copy');
+
+/**
+ * Phase 320.1. The session a read is for. Main routes on the id, so a session
+ * on another machine is read there and never as a same-named one here.
+ */
+const PANE = { id: 'sess-1', tmuxName: 'gmux-1' };
 
 /** The rows as `capture-pane -e -J` prints them, one logical line each. */
 const ROWS = [
@@ -161,10 +168,11 @@ describe('composeHistorySelection', () => {
       end: { line: 105, col: 12 },
       cols: COLS
     };
-    const plain = await composeHistorySelection(bridge, 'gmux-1', range, null);
+    const plain = await composeHistorySelection(bridge, PANE, range, null);
     expect(calls).toEqual([
       {
         tmuxName: 'gmux-1',
+        sessionId: 'sess-1',
         historyLines: 0,
         range: { start: 101, end: 105 },
         join: true
@@ -177,7 +185,7 @@ describe('composeHistorySelection', () => {
       'BCDEFGHIJ' + 'ABCDEFGHIJ'.repeat(14) + '\n' + '日本語テキ ab'
     );
     expect(plain.html).toBe('');
-    const rich = await composeHistorySelection(bridge, 'gmux-1', range, {
+    const rich = await composeHistorySelection(bridge, PANE, range, {
       theme: { foreground: '#ffffff', background: '#000000' },
       fontFamily: 'Menlo',
       fontSizePx: 13
@@ -193,10 +201,42 @@ describe('composeHistorySelection', () => {
     } as never;
     const out = await composeHistorySelection(
       bridge,
-      'gmux-1',
+      PANE,
       { start: { line: 0, col: 0 }, end: { line: 3, col: 0 }, cols: COLS },
       null
     );
     expect(out).toEqual({ text: '', html: '' });
+  });
+});
+
+describe('every history read names its session (Phase 320.1)', () => {
+  it('hands main the session id beside the name, joined or as drawn', async () => {
+    const calls: Record<string, unknown>[] = [];
+    const bridge = {
+      pane: async (input: Record<string, unknown>) => {
+        calls.push(input);
+        return { ansi: 'a\nb\n', firstLine: 7 };
+      }
+    } as never;
+    const drawn = await readHistoryRows(bridge, PANE, 7, 8, false);
+    await readHistoryRows(bridge, PANE, 7, 8, true);
+    expect(drawn).toEqual({ rows: ['a', 'b'], firstLine: 7 });
+    // `toEqual` would pass an absent key as undefined, so the key is asked.
+    expect(calls.map((c) => [c.sessionId, 'sessionId' in c])).toEqual([
+      ['sess-1', true],
+      ['sess-1', true]
+    ]);
+    expect(calls.map((c) => c.join)).toEqual([false, true]);
+  });
+
+  it('is written so no caller can leave the id out', async () => {
+    const { readFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const capture = readFileSync(join(__dirname, '..', 'index.ts'), 'utf8');
+    // Both callers hand over the whole session, never its name alone.
+    expect(capture).not.toMatch(/readHistoryRows\(\s*bridge,\s*session\.tmuxName/);
+    expect(capture).not.toMatch(/composeHistorySelection\(\s*bridge,\s*session\.tmuxName/);
+    expect(capture).toMatch(/readHistoryRows\(\s*bridge,\s*session,/);
+    expect(capture).toMatch(/composeHistorySelection\(\s*bridge,\s*session,/);
   });
 });

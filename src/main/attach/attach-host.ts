@@ -153,6 +153,17 @@ export interface AttachHostOptions {
    * really flows through main; no production consumer.
    */
   onData?: (sessionId: string, byteLength: number) => void;
+  /**
+   * Phase 320.1, the second build (build/p3201/SPEC.md §6.4, D6 to D8). Asked,
+   * synchronously, for every keystroke to a REMOTE client, before it is written
+   * to the attach, and never for a local one. True means the hook has already
+   * written the keystroke to that machine's control connection, because the
+   * pane is or may be scrolled back or a scroll is on its way, and this host
+   * writes nothing; false, or no hook, and the keystroke goes to the attach as
+   * it always has. The session core hands in `routeKey`
+   * (src/main/machines/scroll-order.ts).
+   */
+  routeRemoteInput?: (sessionId: string, data: string) => boolean;
 }
 
 export interface AttachRequest {
@@ -282,6 +293,14 @@ export class AttachHost {
       noteInvoke();
       if (event.sender !== client.sender || client.cleaned) return;
       if (typeof data === 'string' && data.length > 0) {
+        // Phase 320.1: a remote client's keystroke may already be on its
+        // machine's control connection, in the one order tmux keeps there.
+        if (
+          client.kind === 'remote' &&
+          this.opts.routeRemoteInput?.(req.sessionId, data) === true
+        ) {
+          return;
+        }
         client.pty.write(data);
       }
     };
