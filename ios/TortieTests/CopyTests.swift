@@ -77,6 +77,8 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["closeQuote"], Copy.closeQuote)
         XCTAssertEqual(byName["pairStepOnMac"], Copy.pairStepOnMac)
         XCTAssertEqual(byName["notPaired"], Copy.notPaired)
+        XCTAssertEqual(byName["unpairNote"], Copy.unpairNote)
+        XCTAssertEqual(byName["buildOpen"], Copy.buildOpen)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -87,6 +89,11 @@ final class CopyTests: XCTestCase {
         let session = try StyleSource.text("docs/design/phone/Session.html")
         let choice = try StyleSource.text("docs/design/phone/Choice.html")
         let pairing = try StyleSource.text("docs/design/phone/Pairing.html")
+        let needsInput = try StyleSource.text("docs/design/phone/NeedsInput.html")
+        let settings = try StyleSource.text("docs/design/phone/Settings.html")
+        let unpair = try StyleSource.text("docs/design/phone/Unpair.html")
+        let conversation = try StyleSource.text("docs/design/phone/Conversation.html")
+        let link = try StyleSource.text("docs/design/phone/Link.html")
         let drawn: [(String, String)] = [
             (main, Copy.sessions),
             (main, Copy.needsYourInput(3)),
@@ -110,10 +117,58 @@ final class CopyTests: XCTestCase {
             // Since Phase 330 the phone installs nothing but Tortie; the mock
             // says so in the same words.
             (pairing, Copy.pairPrivateNetwork),
+            // Phase 316.6: the three tabs, on every screen that draws the bar.
+            (needsInput, Copy.needsInput),
+            (needsInput, Copy.sessions),
+            (needsInput, Copy.settings),
+            (needsInput, Copy.readAt("4:32 PM")),
+            (main, Copy.needsInput),
+            (main, Copy.settings),
+            // Settings, with the mock's own data put through the composition.
+            (settings, Copy.settings),
+            (settings, Copy.thisMac),
+            (settings, Copy.readAt("4:32 PM")),
+            (settings, Copy.pairMatchLabel),
+            (settings, Copy.joined([Copy.paired, "Sep 30, 2026"])),
+            (settings, Copy.alerts),
+            (settings, Copy.notifications),
+            (settings, Copy.notificationsAllowed),
+            (settings, Copy.unpairThisIPhone),
+            (settings, Copy.about),
+            (settings, Copy.version),
+            (settings, Copy.versionLine("1.0.0", "4")),
+            // Unpair's question, every word of the sheet.
+            (unpair, Copy.unpairQuestion),
+            (unpair, Copy.unpairNote),
+            (unpair, Copy.unpair),
+            (unpair, Copy.cancel),
+            // The conversation's own words, and the link's alert. (The
+            // answer's marks are the agent's own bullets since the fix round,
+            // and its table is cut nowhere, so neither the `•` nor a `more
+            // columns` note is a Copy word any more.) Since his ruling of
+            // 2026-10-02 (markdown off) the answer is drawn as written and no
+            // link reaches the alert: Conversation.html's answer and Link.html
+            // are owed by the later phase that switches markdown back on, and
+            // `Copy.open` stays declared for it.
+            (conversation, Copy.conversation),
+            (conversation, Copy.terminalStaysOnMac),
+            (link, Copy.open),
+            (link, Copy.cancel),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")
         }
+    }
+
+    /// Clause: the composed lines Phase 316.6 adds say the singular for one,
+    /// and the version line falls back to the dash, never to nothing.
+    func testTheCountedNotesAndTheVersionLine() {
+        XCTAssertEqual(Copy.moreLines(1), "1" + Copy.moreLineTail)
+        XCTAssertEqual(Copy.moreLines(40), "40" + Copy.moreLinesTail)
+        XCTAssertEqual(Copy.orderedMark("12"), "12" + Copy.orderedMarkTail)
+        XCTAssertEqual(Copy.orderedMark("007"), "007" + Copy.orderedMarkTail)
+        XCTAssertEqual(Copy.cutShort("abc"), "abc" + Copy.pending)
+        XCTAssertEqual(Copy.versionLine("1.0.0", "4"), "1.0.0" + Copy.buildOpen + "4" + Copy.countClose)
     }
 
     /// Clause: his rulings. No message box and no send control until Phase 318,

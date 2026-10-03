@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // Every colour the phone draws, and the ONE file in the app where a colour is
 // written (build/p316/SPEC.md section 4, S2; `conformance:ios` rule (a)).
@@ -13,15 +14,27 @@ import SwiftUI
 // colour is FOR. The working dot and a link are both `#4d9de8`, and neither is
 // the other: a later accent retune moves `--accent` and not `--status-working`.
 //
-// THE FOURTEEN. The screens 316 draws are the approved mocks in
-// docs/design/phone/ (Main, Session, Choice and Pairing), and every colour
-// their CSS spells is one of the fourteen hexes below (section 3.9). Two of
-// them, `borderStrong` and `textDisabled`, are spelled only by the message
-// strip, which leaves the phone until Phase 318 (section 6, decision 2); they
-// stay here so the one table the gate reads is the mocks' whole table.
+// THE FIFTEEN. The screens the phone draws are the approved mocks in
+// docs/design/phone/ (Main, NeedsInput, Session, Choice, Pairing, Settings,
+// Unpair, Conversation and Link), and every colour their CSS spells is one of
+// the fifteen hexes below (build/p316/SPEC.md section 3.9, build/p3166/SPEC.md
+// section 4.1). Two of them, `borderStrong` and `textDisabled`, are spelled
+// only by the message strip, which leaves the phone until Phase 318 (section
+// 6, decision 2); they stay here so the one table the gate reads is the mocks'
+// whole table. Phase 316.6 added three NAMES: the Mac's count badge,
+// `statusAttentionBadgeBg` (one hex with `statusAttention`, and a name of its
+// own because it says what the colour is for) and `statusAttentionBadgeFg`
+// (the fifteenth hex), on the Needs input tab's badge; and `error`, one hex
+// with `statusFailed`, for Unpair this iPhone, the one destructive press.
 //
 // A screen writes `Tokens.textPrimary`, a `Color`. It never writes a hex, a
 // `Color(red:green:blue:)`, a system colour or a `UIColor`.
+//
+// THE ONE UIKIT COLOUR. SwiftUI sets no colour on a tab's badge, so the badge
+// reaches UIKit's tab bar through `UITabBarAppearance` with a `UIColor` made
+// HERE (`Token.uiColor`, `TabBarLook`), from the same hex: the Mac's count
+// badge, amber under a dark number. The bar itself is the system's, its
+// material and its metrics; the tint is the root's `Tokens.accent`.
 
 /// A `tokens.css` token the phone draws, by its own name.
 enum Token: CaseIterable, Sendable {
@@ -48,6 +61,13 @@ enum Token: CaseIterable, Sendable {
     case statusExited
     case statusFailed
 
+    // The Mac's count badge, on the Needs input tab (Phase 316.6).
+    case statusAttentionBadgeBg
+    case statusAttentionBadgeFg
+
+    // The one destructive press, Unpair this iPhone (Phase 316.6).
+    case error
+
     // A machine's badge. The Mac draws a badge in one of six lane colours; the
     // door names the machine and not its colour, so the phone draws lane 3,
     // which is what Main.html draws.
@@ -71,6 +91,9 @@ enum Token: CaseIterable, Sendable {
         case .statusIdle: 0x8b93a1 // --status-idle
         case .statusExited: 0x8b93a1 // --status-exited
         case .statusFailed: 0xe5655e // --status-failed
+        case .statusAttentionBadgeBg: 0xf5b84a // --status-attention-badge-bg
+        case .statusAttentionBadgeFg: 0x131417 // --status-attention-badge-fg
+        case .error: 0xe5655e // --error
         case .graphLane3: 0x56c2c0 // --graph-lane-3
         }
     }
@@ -84,6 +107,17 @@ enum Token: CaseIterable, Sendable {
             green: Double((hex >> 8) & 0xff) / 255,
             blue: Double(hex & 0xff) / 255,
             opacity: 1
+        )
+    }
+
+    /// The same colour for UIKit, sRGB and opaque. Only `TabBarLook` below
+    /// asks for one: the badge is the one colour SwiftUI cannot set.
+    var uiColor: UIColor {
+        UIColor(
+            red: CGFloat((hex >> 16) & 0xff) / 255,
+            green: CGFloat((hex >> 8) & 0xff) / 255,
+            blue: CGFloat(hex & 0xff) / 255,
+            alpha: 1
         )
     }
 }
@@ -105,5 +139,29 @@ enum Tokens {
     static let statusIdle = Token.statusIdle.color
     static let statusExited = Token.statusExited.color
     static let statusFailed = Token.statusFailed.color
+    static let statusAttentionBadgeBg = Token.statusAttentionBadgeBg.color
+    static let statusAttentionBadgeFg = Token.statusAttentionBadgeFg.color
+    static let error = Token.error.color
     static let graphLane3 = Token.graphLane3.color
+}
+
+/// The tab bar's badge, in the Mac's count badge colours (build/p3166/SPEC.md
+/// section 5.1.6). SwiftUI's `.badge(_:)` draws the number and sets no colour,
+/// so the colour goes through UIKit's appearance, for every layout a tab item
+/// has (stacked, inline and compact inline) and both of its states. Called
+/// ONCE, from `TortieApp.init()`, before the first `TabView` exists.
+@MainActor
+enum TabBarLook {
+    static func apply() {
+        let look = UITabBarAppearance()
+        look.configureWithDefaultBackground()
+        for item in [look.stackedLayoutAppearance, look.inlineLayoutAppearance, look.compactInlineLayoutAppearance] {
+            for state in [item.normal, item.selected] {
+                state.badgeBackgroundColor = Token.statusAttentionBadgeBg.uiColor
+                state.badgeTextAttributes = [.foregroundColor: Token.statusAttentionBadgeFg.uiColor]
+            }
+        }
+        UITabBar.appearance().standardAppearance = look
+        UITabBar.appearance().scrollEdgeAppearance = look
+    }
 }

@@ -447,25 +447,29 @@ final class ScreensModelTests: XCTestCase {
     }
 
     /// Clause: a refused list takes the app back to Pairing with one line and
-    /// nothing pushed over it.
+    /// nothing pushed over either list tab.
     func testALostPairingGoesBackToPairing() async throws {
         let reader = ScriptedReader(blocked: [.failure(.refused)])
         let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
-        app.path = [.session(id: "s", name: "s")]
+        app.waitingPath = [.session(id: "w", name: "w")]
+        app.sessionsPath = [.session(id: "s", name: "s")]
+        app.tab = .settings
         let list = try XCTUnwrap(app.list)
         await list.load()
         XCTAssertEqual(app.root, .pairing)
-        XCTAssertTrue(app.path.isEmpty)
+        XCTAssertTrue(app.waitingPath.isEmpty)
+        XCTAssertTrue(app.sessionsPath.isEmpty)
+        XCTAssertEqual(app.tab, .needsInput)
         XCTAssertNil(app.list)
         XCTAssertEqual(app.pairing.line, Copy.notPaired)
     }
 
-    /// Clause: a refusal about one session pops to the list.
+    /// Clause: a refusal about one session pops THAT tab to its list.
     func testBackToListPops() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.path = [.session(id: "s", name: "s"), .conversation(id: "s", honestLine: nil)]
-        app.routing.backToList()
-        XCTAssertTrue(app.path.isEmpty)
+        app.sessionsPath = [.session(id: "s", name: "s"), .conversation(id: "s", honestLine: nil)]
+        app.routing(.sessions).backToList()
+        XCTAssertTrue(app.sessionsPath.isEmpty)
         XCTAssertEqual(app.root, .reading)
     }
 
@@ -480,13 +484,16 @@ final class ScreensModelTests: XCTestCase {
         XCTAssertNil(paired.takeLaunchCode())
     }
 
-    /// Clause: only the screen on top reads again on return to the foreground.
+    /// Clause: only the screen on top of the tab on screen reads again on
+    /// return to the foreground.
     func testOnlyTheTopScreenIsTop() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        XCTAssertTrue(app.isTop(nil))
-        app.path = [.session(id: "s", name: "s")]
-        XCTAssertTrue(app.isTop(.session(id: "s", name: "s")))
-        XCTAssertFalse(app.isTop(nil))
+        XCTAssertTrue(app.isTop(nil, in: .needsInput))
+        XCTAssertTrue(app.listIsTop(.needsInput))
+        app.waitingPath = [.session(id: "s", name: "s")]
+        XCTAssertTrue(app.isTop(.session(id: "s", name: "s"), in: .needsInput))
+        XCTAssertFalse(app.isTop(nil, in: .needsInput))
+        XCTAssertFalse(app.listIsTop(.needsInput))
         app.cameToForeground()
         XCTAssertEqual(app.foregroundTick, 1)
     }

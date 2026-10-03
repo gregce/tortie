@@ -32,6 +32,20 @@ import XCTest
 /// queued, find the banner in SpringBoard by its label (Notification Center
 /// is tried when no banner shows) and tap it, and read where the app went.
 /// Labels and frames only, never a photograph.
+///
+/// THE TABS, SETTINGS AND THE RENDERED ANSWER (Phase 316.6, build/p3166/SPEC.md
+/// section 7.4). Pairing lands on the Needs input tab, so `pair` ends at
+/// `screen-needs-input` and `list` selects the Sessions tab first. A tab's
+/// button has no identifier (SwiftUI gives a `Tab` none), so it is found by
+/// its label, the Copy word spelled again here. New steps read the tab bar
+/// and its badge, the answer drawn as markdown (every `md-` element and every
+/// link), a link's alert and where Open takes it, Settings, Unpair's question
+/// and its press, and a relaunch with no forget seam. `first` and the session
+/// dump compose an answer from its `md-` labels, because `turn-answer-<i>` and
+/// `session-answer` are now containers whose own label is empty. Since his
+/// ruling of 2026-10-02 (markdown off) every answer is ONE element,
+/// `md-<scope>-0`, drawn as written, and no answer holds a link, so the probe
+/// asks for no `link:` step; the steps stay for the later phase.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -113,6 +127,56 @@ private enum Seen {
         id.hasSuffix("-failure") || id == pairingLine || id == conversationOlderLine
     }
     static func retry(_ failure: String) -> String { failure + "-retry" }
+
+    // Phase 316.6: the Needs input tab, Settings and the drawn answer.
+    static let needsScreen = "screen-needs-input"
+    static let needsTitle = "needs-input-title"
+    static let needsAlertsLine = "needs-list-alerts-line"
+    static let needsNotice = "needs-list-notice"
+    static let needsLoading = "needs-list-loading"
+    static let needsFailure = "needs-list-failure"
+    static let needsEmpty = "needs-list-empty"
+    static let needsAgeNote = "needs-list-age-note"
+    static let needsRead = "needs-list-read"
+    static func needsRow(_ id: String) -> String { "needs-row-" + id }
+    static func needsRowDot(_ id: String) -> String { "needs-row-dot-" + id }
+    static func needsRowName(_ id: String) -> String { "needs-row-name-" + id }
+    static func needsRowMachine(_ id: String) -> String { "needs-row-machine-" + id }
+    static func needsRowAge(_ id: String) -> String { "needs-row-age-" + id }
+    static func needsRowLine(_ id: String) -> String { "needs-row-line-" + id }
+    static let settingsScreen = "screen-settings"
+    static let settingsTitle = "settings-title"
+    static let settingsMac = "settings-mac"
+    static let settingsMacName = "settings-mac-name"
+    static let settingsMacAddress = "settings-mac-address"
+    static let settingsMacRead = "settings-mac-read"
+    static let settingsMatch = "settings-match"
+    static let settingsFingerprint = "settings-fingerprint"
+    static let settingsPaired = "settings-paired"
+    static let settingsAlerts = "settings-alerts"
+    static let settingsNotifications = "settings-notifications"
+    static let settingsNotificationsState = "settings-notifications-state"
+    static let settingsAlertsLine = "settings-alerts-line"
+    static let settingsUnpair = "settings-unpair"
+    static let settingsUnpairLine = "settings-unpair-line"
+    static let settingsAbout = "settings-about"
+    static let settingsVersion = "settings-version"
+    static let sessionAnswer = "session-answer"
+    static let md = "md-"
+    static let mdLast = "last"
+    /// The three tabs' labels: Copy.swift's words, spelled again because a UI
+    /// test cannot import the app (`Copy.needsInput`, `.sessions`, `.settings`).
+    static let tabNeedsInput = "Needs input"
+    static let tabSessions = "Sessions"
+    static let tabSettings = "Settings"
+    /// Unpair's question's presses (`Copy.unpair`, `Copy.cancel`) and the
+    /// link alert's (`Copy.open`, `Copy.cancel`).
+    static let unpairPress = "Unpair"
+    static let cancelPress = "Cancel"
+    static let openPress = "Open"
+    static let safari = "com.apple.mobilesafari"
+    /// A screen the app is paired on: either list tab.
+    static func paired(_ id: String) -> Bool { id == listScreen || id == needsScreen }
 }
 
 /// One element read from a snapshot: its identifier, its label and its frame.
@@ -140,6 +204,10 @@ private final class Drive {
     private let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
     /// Set when a step could not find its screen: nothing after it can run.
     private var stuck = false
+    /// The last `link:` step could not bring its link into view, so the
+    /// presses that answer its alert print that and press nothing, and the
+    /// drive goes on (the fix round: one unreached link cut a whole drive).
+    private var linkUnreached = false
 
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
@@ -197,6 +265,28 @@ private final class Drive {
                 relaunch(token: String(step.dropFirst("relaunch-token:".count)))
             } else if step.hasPrefix("no-banner:") {
                 noBanner(seconds: TimeInterval(String(step.dropFirst("no-banner:".count))) ?? 20)
+            } else if step.hasPrefix("tab:") {
+                tab(String(step.dropFirst("tab:".count)))
+            } else if step == "bar" {
+                bar()
+            } else if step == "markdown" {
+                markdown()
+            } else if step.hasPrefix("link:") {
+                link(String(step.dropFirst("link:".count)))
+            } else if step == "link-cancel" {
+                linkPress(Seen.cancelPress, step: "link-cancel")
+            } else if step == "link-open" {
+                linkOpen()
+            } else if step == "settings" {
+                settings()
+            } else if step == "unpair-cancel" {
+                unpair(press: Seen.cancelPress, step: "unpair-cancel")
+            } else if step == "unpair" {
+                unpair(press: Seen.unpairPress, step: "unpair")
+            } else if step == "relaunch-keep" {
+                relaunchKeep()
+            } else if step.hasPrefix("idle:") {
+                idle(seconds: TimeInterval(String(step.dropFirst("idle:".count))) ?? 20)
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -216,17 +306,22 @@ private final class Drive {
         // A question that comes later (a name that took long to resolve) is
         // still answered, marked late, so the pairing never waits on it.
         var answered = fingerprint != nil ? notifications(within: 10) : true
-        // Paired is the list, which only the first SIGNED read draws; stopped is
-        // `Pair again`, which only a pairing that ended draws.
+        // Paired is a list, which only the first SIGNED read draws: since Phase
+        // 316.6 the Needs input tab, where pairing lands (the Sessions tab's
+        // list is accepted too); stopped is `Pair again`, which only a pairing
+        // that ended draws.
         _ = poll { found in
             if !answered, self.springboard.alerts.firstMatch.exists { answered = self.notifications(within: 0, late: true) }
-            return has(found, Seen.listScreen) || has(found, Seen.pairingAgain)
+            return found.contains { Seen.paired($0.id) } || has(found, Seen.pairingAgain)
         }
         dump("pair-end")
-        if !has(tree(), Seen.listScreen) { stuck = true }
+        if !tree().contains(where: { Seen.paired($0.id) }) { stuck = true }
     }
 
     private func list() {
+        // Since Phase 316.6 the list is the Sessions tab, and pairing lands on
+        // Needs input: the Sessions tab is selected first.
+        if !has(tree(), Seen.listScreen) { _ = selectTab(Seen.tabSessions) }
         guard poll({ has($0, Seen.listScreen) && !has($0, Seen.listLoading) }) else {
             return missing("list")
         }
@@ -243,7 +338,19 @@ private final class Drive {
     /// A row tapped from the list; the session screen dumped as `session`, or
     /// as `visit` for the screen an alert is then tapped over (N6b).
     private func open(_ sessionId: String, dumping name: String = "session") {
-        guard has(tree(), Seen.listScreen) else { return missing("open") }
+        // The row is on the Sessions tab, whose own path may still hold a
+        // session from before (each tab keeps its place): back to its list.
+        if !onSessionsList() {
+            _ = selectTab(Seen.tabSessions)
+            var tries = 0
+            while !onSessionsList() && tries < 6 {
+                let back = app.navigationBars.buttons.element(boundBy: 0)
+                if back.exists { back.tap() }
+                Thread.sleep(forTimeInterval: 1)
+                tries += 1
+            }
+        }
+        guard onSessionsList() else { return missing("open") }
         let row = element(Seen.row(sessionId))
         guard row.waitForExistence(timeout: 5) else { return missing("open") }
         row.tap()
@@ -262,7 +369,7 @@ private final class Drive {
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             let found = tree()
-            if has(found, Seen.listScreen) && !has(found, Seen.sessionScreen) && !has(found, Seen.conversationScreen) && !has(found, Seen.listLoading) {
+            if found.contains(where: { Seen.paired($0.id) }) && !has(found, Seen.sessionScreen) && !has(found, Seen.conversationScreen) && !has(found, Seen.listLoading) && !has(found, Seen.needsLoading) {
                 dump("back")
                 return
             }
@@ -298,10 +405,14 @@ private final class Drive {
         var indexes = Set<Int>()
         var quiet = 0
         var lastCount = -1
+        var mdSeen: [String: String] = [:]
         let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             let found = tree()
+            for item in found where item.id.hasPrefix(Seen.md) && mdSeen[item.id] == nil {
+                mdSeen[item.id] = item.label
+            }
             for item in found {
                 if let i = index(item.id, after: Seen.turnAsk) {
                     asks[String(i)] = item.label
@@ -321,6 +432,12 @@ private final class Drive {
             lastCount = indexes.count
             if scroll.exists { scroll.swipeDown() }
             Thread.sleep(forTimeInterval: 0.6)
+        }
+        let composed = MarkdownLabels.composeAll(mdSeen)
+        // Since Phase 316.6 `turn-answer-<i>` is a container whose own label is
+        // empty: each answer is composed from its `md-<i>-` labels in order.
+        for (scope, text) in composed where !text.isEmpty {
+            answers[scope] = text
         }
         lines.emit([
             "step": "turns",
@@ -357,12 +474,13 @@ private final class Drive {
                 dump("unpaired")
                 return
             }
-            if has(found, Seen.listScreen) {
-                let retry = element(Seen.retry(Seen.listFailure))
-                if has(found, Seen.retry(Seen.listFailure)) && retry.exists {
+            if let screen = [Seen.listScreen, Seen.needsScreen].first(where: { has(found, $0) }) {
+                let failure = screen == Seen.listScreen ? Seen.listFailure : Seen.needsFailure
+                let retry = element(Seen.retry(failure))
+                if has(found, Seen.retry(failure)) && retry.exists {
                     retry.tap()
                 } else {
-                    pull(Seen.listScreen)
+                    pull(screen)
                 }
             } else {
                 let back = app.navigationBars.buttons.element(boundBy: 0)
@@ -448,7 +566,8 @@ private final class Drive {
         arguments += ["-TortieDebugPushToken", token]
         app.launchArguments = arguments
         app.launch()
-        guard poll({ has($0, Seen.listScreen) && !has($0, Seen.listLoading) }) else { return missing("relaunch") }
+        // Since Phase 316.6 the app opens on the Needs input tab.
+        guard poll({ found in settledList(found) }) else { return missing("relaunch") }
         Thread.sleep(forTimeInterval: 3)
         dump("relaunch")
     }
@@ -465,8 +584,20 @@ private final class Drive {
 
     /// A screen the app settles on after a tap: the session read, or the list.
     private func settled(_ found: [Found]) -> Bool {
-        (has(found, Seen.sessionScreen) && !has(found, Seen.sessionLoading))
+        (has(found, Seen.sessionScreen) && !has(found, Seen.sessionLoading)) || settledList(found)
+    }
+
+    /// Either list tab, read: since Phase 316.6 an alert's tap selects the
+    /// Needs input tab, so the list it lands on is that tab's.
+    private func settledList(_ found: [Found]) -> Bool {
+        (has(found, Seen.needsScreen) && !has(found, Seen.needsLoading))
             || (has(found, Seen.listScreen) && !has(found, Seen.listLoading))
+    }
+
+    /// The Sessions tab's list is the screen on top.
+    private func onSessionsList() -> Bool {
+        let found = tree()
+        return has(found, Seen.listScreen) && !has(found, Seen.sessionScreen) && !has(found, Seen.conversationScreen)
     }
 
     /// Tortie's banner in SpringBoard, looked for four times a second in ONE
@@ -511,6 +642,297 @@ private final class Drive {
         springboard.coordinate(withNormalizedOffset: .zero)
             .withOffset(CGVector(dx: frame.midX, dy: frame.midY))
             .tap()
+    }
+
+    // MARK: The tabs, the answer, Settings and Unpair (Phase 316.6)
+
+    /// A tab's button, by its label: the tab bar's own, or, where iOS 26's
+    /// glass bar is not reported as a tab bar, the lowest button with that
+    /// label (never a back button, which can carry the list's title too).
+    private func tabButton(_ label: String) -> XCUIElement? {
+        let inBar = app.tabBars.buttons[label]
+        if inBar.waitForExistence(timeout: 3) { return inBar }
+        let named = app.buttons.matching(NSPredicate(format: "label == %@", label)).allElementsBoundByIndex.filter { $0.exists }
+        return named.max(by: { $0.frame.minY < $1.frame.minY })
+    }
+
+    /// Tap a tab by its label; answers whether there was one to tap.
+    @discardableResult
+    private func selectTab(_ label: String) -> Bool {
+        guard let button = tabButton(label) else { return false }
+        button.tap()
+        return true
+    }
+
+    /// The Needs input button's badge, as XCUITest reports it: the button's
+    /// label and its value, raw, the labels of every element inside it, and
+    /// the system's version. The probe reads the number from the value, else
+    /// from a label inside that is only a number; on iOS 26, whose tab bar
+    /// gives XCUITest an empty value while UIKit draws the badge (the
+    /// verifier's own read of the UITabBar, 2026-10-01), a badge it cannot
+    /// read is UNREADABLE, never a pass and never a failure.
+    private func badge() {
+        let system = UIDevice.current.systemVersion
+        guard let button = tabButton(Seen.tabNeedsInput) else {
+            lines.emit(["step": "badge", "label": NSNull(), "value": NSNull(), "inside": [String](), "system": system, "found": false])
+            return
+        }
+        let inside = button.descendants(matching: .any).allElementsBoundByIndex.map(\.label).filter { !$0.isEmpty }
+        lines.emit(["step": "badge", "label": button.label, "value": (button.value as? String).map { $0 as Any } ?? NSNull(), "inside": inside, "system": system, "found": true])
+    }
+
+    /// `tab:<needs|sessions|settings>`: the bar's button tapped, its screen
+    /// waited for, a dump named `tab-<name>`, and the badge read.
+    private func tab(_ name: String) {
+        let pick: (label: String, screen: String)?
+        switch name {
+        case "needs": pick = (Seen.tabNeedsInput, Seen.needsScreen)
+        case "sessions": pick = (Seen.tabSessions, Seen.listScreen)
+        case "settings": pick = (Seen.tabSettings, Seen.settingsScreen)
+        default: pick = nil
+        }
+        guard let pick else { return missing("tab-" + name) }
+        lines.emit(["step": "tab-before", "name": name])
+        guard selectTab(pick.label) else { return missing("tab-" + name) }
+        // Sessions keeps its place: a session pushed on it is on top again.
+        guard poll({ found in
+            has(found, pick.screen) || (name == "sessions" && (has(found, Seen.sessionScreen) || has(found, Seen.conversationScreen)))
+        }) else { return missing("tab-" + name) }
+        _ = poll { found in !has(found, Seen.needsLoading) && !has(found, Seen.listLoading) && !has(found, Seen.sessionLoading) }
+        Thread.sleep(forTimeInterval: 1)
+        dump("tab-" + name)
+        badge()
+    }
+
+    /// The screen on top scrolled to its end, the tab bar's frame printed, and
+    /// a dump named `bar`, so the probe can hold the screen's last element at
+    /// or above the bar's top (T2d).
+    private func bar() {
+        let found = tree()
+        guard let top = [Seen.conversationScreen, Seen.sessionScreen, Seen.settingsScreen, Seen.listScreen, Seen.needsScreen].first(where: { has(found, $0) }) else {
+            return missing("bar")
+        }
+        let screen = element(top)
+        var last = ""
+        for _ in 0..<12 {
+            screen.swipeUp()
+            Thread.sleep(forTimeInterval: 0.6)
+            let now = tree().filter { !$0.id.isEmpty }.map { "\($0.id)@\(Int($0.frame.maxY))" }.joined(separator: ",")
+            if now == last { break }
+            last = now
+        }
+        var frame: CGRect?
+        var via = "none"
+        let bars = app.tabBars.firstMatch
+        if bars.exists {
+            frame = bars.frame
+            via = "tabBar"
+        } else {
+            let buttons = [Seen.tabNeedsInput, Seen.tabSessions, Seen.tabSettings].compactMap(tabButton)
+            if !buttons.isEmpty {
+                frame = buttons.map(\.frame).reduce(buttons[0].frame) { $0.union($1) }
+                via = "buttons"
+            }
+        }
+        let f = frame ?? .zero
+        lines.emit(["step": "bar", "screen": top, "via": via, "frame": frame == nil ? NSNull() : [f.origin.x, f.origin.y, f.size.width, f.size.height].map { Double($0) }])
+        dump("bar")
+    }
+
+    /// On a conversation: from the newest turn toward the oldest, every `md-`
+    /// element's identifier, label and first frame, and every link's label,
+    /// the turn and block it sits in and its frame. One line, `markdown`.
+    private func markdown() {
+        guard has(tree(), Seen.conversationScreen) else { return missing("markdown") }
+        var elements: [String: [String: Any]] = [:]
+        var links: [String: [String: Any]] = [:]
+        var quiet = 0
+        var lastCount = -1
+        let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            walkAnswers { node, turn, block in
+                let f = node.frame
+                let frame = [f.origin.x, f.origin.y, f.size.width, f.size.height].map { $0.isFinite ? Double($0) : -1 }
+                if node.identifier.hasPrefix(Seen.md), elements[node.identifier] == nil {
+                    elements[node.identifier] = ["id": node.identifier, "label": node.label, "frame": frame]
+                }
+                if node.elementType == .link {
+                    let key = (turn ?? "?") + "|" + node.label
+                    if links[key] == nil {
+                        links[key] = ["label": node.label, "turn": turn.map { $0 as Any } ?? NSNull(), "md": block.map { $0 as Any } ?? NSNull(), "frame": frame]
+                    }
+                }
+            }
+            let found = tree()
+            if has(found, Seen.conversationFailure) || has(found, Seen.conversationOlderLine) { break }
+            if !has(found, Seen.conversationOlder) {
+                quiet = elements.count == lastCount ? quiet + 1 : 0
+                if quiet >= 3 { break }
+            }
+            lastCount = elements.count
+            if scroll.exists { scroll.swipeDown() }
+            Thread.sleep(forTimeInterval: 0.6)
+        }
+        lines.emit([
+            "step": "markdown",
+            "elements": elements.keys.sorted().compactMap { elements[$0] },
+            "links": links.keys.sorted().compactMap { links[$0] }
+        ])
+        dump("markdown")
+    }
+
+    /// Every node of one snapshot, with the nearest `turn-<i>` and `md-` block
+    /// identifiers above it (a link inside a Text has no identifier of its own).
+    private func walkAnswers(_ visit: (XCUIElementSnapshot, String?, String?) -> Void) {
+        guard let root = try? app.snapshot() else { return }
+        var stack: [(XCUIElementSnapshot, String?, String?)] = [(root, nil, nil)]
+        while let item = stack.popLast() {
+            let (node, turnAbove, blockAbove) = item
+            var turn = turnAbove
+            var block = blockAbove
+            if let i = index(node.identifier, after: Seen.turn) { turn = String(i) }
+            if node.identifier.hasPrefix(Seen.md) { block = node.identifier }
+            visit(node, turn, block)
+            for child in node.children.reversed() { stack.append((child, turn, block)) }
+        }
+    }
+
+    /// `link:<label>`: the link with those words brought into view and
+    /// tapped, then the alert's title and presses printed. While XCUITest
+    /// knows where the link is, each swipe goes TOWARD it (the fix round: the
+    /// first build swiped blind, 60 one way then 60 the other, and on iOS 26.3
+    /// never reached a link the markdown step had read 3,600 points up); while
+    /// it does not, toward the top, then back. A link it cannot bring into view
+    /// is said as that, `reached: false`, and the drive goes on.
+    private func link(_ label: String) {
+        guard has(tree(), Seen.conversationScreen) else { return missing("link") }
+        linkUnreached = false
+        let target = app.links[label]
+        let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
+        var tries = 0
+        var blind = 0
+        while !(target.exists && target.isHittable) && tries < 160 && scroll.exists {
+            let view = scroll.frame
+            if target.exists && target.frame.height > 0 {
+                if target.frame.midY < view.midY { scroll.swipeDown(velocity: .slow) } else { scroll.swipeUp(velocity: .slow) }
+            } else {
+                if blind < 60 { scroll.swipeDown() } else { scroll.swipeUp() }
+                blind += 1
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+            tries += 1
+        }
+        guard target.exists && target.isHittable else {
+            linkUnreached = true
+            lines.emit(["step": "link", "label": label, "found": target.exists, "reached": false, "swipes": tries])
+            dump("link-unreached")
+            return
+        }
+        target.tap()
+        let alert = app.alerts.firstMatch
+        guard alert.waitForExistence(timeout: 10) else {
+            lines.emit(["step": "link", "label": label, "found": true, "alert": NSNull(), "state": Int(app.state.rawValue)])
+            return
+        }
+        let texts = alert.staticTexts.allElementsBoundByIndex.map(\.label)
+        lines.emit(["step": "link", "label": label, "found": true, "alert": ["title": alert.label, "texts": texts, "buttons": alert.buttons.allElementsBoundByIndex.map(\.label)]])
+    }
+
+    /// A press in the link's alert, and whether Tortie is still in front.
+    private func linkPress(_ press: String, step: String) {
+        if linkUnreached {
+            lines.emit(["step": step, "skipped": "the link before it could not be brought into view"])
+            return
+        }
+        let alert = app.alerts.firstMatch
+        guard alert.waitForExistence(timeout: 5), alert.buttons[press].exists else { return missing(step) }
+        alert.buttons[press].tap()
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit(["step": step, "state": Int(app.state.rawValue), "alertGone": !app.alerts.firstMatch.exists])
+    }
+
+    /// Open, then up to 10 seconds for Safari to come forward; its state
+    /// printed, Safari ended, Tortie brought back.
+    private func linkOpen() {
+        if linkUnreached {
+            lines.emit(["step": "link-open", "skipped": "the link before it could not be brought into view"])
+            return
+        }
+        let alert = app.alerts.firstMatch
+        guard alert.waitForExistence(timeout: 5), alert.buttons[Seen.openPress].exists else { return missing("link-open") }
+        alert.buttons[Seen.openPress].tap()
+        let safari = XCUIApplication(bundleIdentifier: Seen.safari)
+        let forward = safari.wait(for: .runningForeground, timeout: 10)
+        lines.emit(["step": "link-open", "safari": Int(safari.state.rawValue), "forward": forward, "tortie": Int(app.state.rawValue)])
+        if safari.state != .notRunning { safari.terminate() }
+        app.activate()
+        _ = app.wait(for: .runningForeground, timeout: 30)
+        _ = poll { has($0, Seen.conversationScreen) }
+        dump("link-open")
+    }
+
+    /// The Settings tab, read whole.
+    private func settings() {
+        guard selectTab(Seen.tabSettings), poll({ has($0, Seen.settingsScreen) }) else { return missing("settings") }
+        // What iOS allows is read on appear: a moment for it to be drawn.
+        Thread.sleep(forTimeInterval: 2)
+        dump("settings")
+    }
+
+    /// Unpair's question: shown, read, and answered with `press`.
+    private func unpair(press: String, step: String) {
+        if !has(tree(), Seen.settingsScreen) { _ = selectTab(Seen.tabSettings) }
+        let button = element(Seen.settingsUnpair)
+        guard button.waitForExistence(timeout: 10) else { return missing(step) }
+        var tries = 0
+        while !button.isHittable && tries < 6 {
+            element(Seen.settingsScreen).swipeUp()
+            tries += 1
+        }
+        button.tap()
+        // An action sheet on iOS 18; iOS 26 may draw the question another
+        // way, so an alert is tried, then the presses themselves.
+        var via = "sheet"
+        var container: XCUIElement? = [app.sheets.firstMatch, app.alerts.firstMatch].first { $0.waitForExistence(timeout: 5) }
+        if container?.elementType == .alert { via = "alert" }
+        if container == nil, app.buttons[press].waitForExistence(timeout: 3) {
+            container = app
+            via = "app"
+        }
+        guard let sheet = container else { return missing(step) }
+        let texts = via == "app" ? [] : sheet.staticTexts.allElementsBoundByIndex.map(\.label)
+        let buttons = via == "app" ? [Seen.unpairPress, Seen.cancelPress].filter { app.buttons[$0].exists } : sheet.buttons.allElementsBoundByIndex.map(\.label)
+        lines.emit(["step": "unpair-sheet", "for": step, "via": via, "title": via == "app" ? NSNull() : sheet.label as Any, "texts": texts, "buttons": buttons])
+        guard sheet.buttons[press].exists else { return missing(step) }
+        sheet.buttons[press].tap()
+        if press == Seen.unpairPress {
+            guard poll({ has($0, Seen.pairingScreen) }) else { return missing(step) }
+        } else {
+            _ = poll { has($0, Seen.settingsScreen) && !$0.isEmpty }
+            Thread.sleep(forTimeInterval: 1)
+        }
+        dump(step)
+    }
+
+    /// End the app and launch it again with the carried seams and NO forget
+    /// seam and no code: what the Keychain kept decides the first screen.
+    private func relaunchKeep() {
+        app.terminate()
+        _ = app.wait(for: .notRunning, timeout: 10)
+        app.launchArguments = carried
+        app.launch()
+        guard poll({ found in has(found, Seen.pairingScreen) || settledList(found) }) else { return missing("relaunch-keep") }
+        Thread.sleep(forTimeInterval: 2)
+        dump("relaunch-keep")
+    }
+
+    /// Nothing pressed for `seconds`, bracketed by two lines, so the probe can
+    /// count what the app sends while nobody touches it (U1's 20 s).
+    private func idle(seconds: TimeInterval) {
+        lines.emit(["step": "idle-start", "seconds": seconds])
+        Thread.sleep(forTimeInterval: seconds)
+        lines.emit(["step": "idle-end"])
     }
 
     // MARK: Reading
@@ -593,11 +1015,72 @@ private final class Drive {
             stack.append(contentsOf: node.children.reversed())
         }
         let window = root?.frame.size ?? .zero
+        // Since Phase 316.6 `session-answer` is a container of `md-last-`
+        // blocks whose own label is empty: the answer is composed from them.
+        var drawn: [String: String] = [:]
+        for e in elements {
+            if let id = e["id"] as? String, id.hasPrefix(Seen.md), let label = e["label"] as? String, drawn[id] == nil { drawn[id] = label }
+        }
+        let composed = MarkdownLabels.composeAll(drawn)
         lines.emit([
             "step": "screen",
             "name": name,
             "window": [Double(window.width), Double(window.height)],
-            "elements": elements
+            "elements": elements,
+            "composed": composed
         ])
+    }
+}
+
+// MARK: - An answer composed from its drawn blocks
+
+/// `md-<scope>-<n>`, `-mark`, `-r<i>c<j>`, `-more` and `md-<scope>-rest`, as
+/// ios/Tortie/Screens/Identifiers.swift names them: each scope's labels in
+/// pre-order (by `n`; within a block its mark, itself, its cells by row and
+/// column, then its note; the cut last), joined with a new line.
+enum MarkdownLabels {
+    private struct Key: Comparable {
+        let n: Int
+        let part: Int
+        let row: Int
+        let column: Int
+
+        static func < (a: Key, b: Key) -> Bool {
+            (a.n, a.part, a.row, a.column) < (b.n, b.part, b.row, b.column)
+        }
+    }
+
+    /// The scope and the place of one identifier, or nil when it is not a drawn block's.
+    private static func parse(_ id: String) -> (scope: String, key: Key)? {
+        guard id.hasPrefix(Seen.md) else { return nil }
+        let rest = id.dropFirst(Seen.md.count)
+        guard let dash = rest.firstIndex(of: "-") else { return nil }
+        let scope = String(rest[..<dash])
+        let tail = rest[rest.index(after: dash)...]
+        if tail == "rest" { return (scope, Key(n: Int.max, part: 0, row: 0, column: 0)) }
+        let digits = tail.prefix { $0.isNumber }
+        guard let n = Int(digits) else { return nil }
+        let after = tail.dropFirst(digits.count)
+        if after.isEmpty { return (scope, Key(n: n, part: 1, row: 0, column: 0)) }
+        if after == "-mark" { return (scope, Key(n: n, part: 0, row: 0, column: 0)) }
+        if after == "-more" { return (scope, Key(n: n, part: 3, row: 0, column: 0)) }
+        if after.hasPrefix("-r"), let c = after.firstIndex(of: "c"),
+           let row = Int(after[after.index(after.startIndex, offsetBy: 2)..<c]),
+           let column = Int(after[after.index(after: c)...]) {
+            return (scope, Key(n: n, part: 2, row: row, column: column))
+        }
+        return nil
+    }
+
+    /// Every scope's composed answer, from identifier to label.
+    static func composeAll(_ labels: [String: String]) -> [String: String] {
+        var byScope: [String: [(Key, String)]] = [:]
+        for (id, label) in labels {
+            guard let (scope, key) = parse(id) else { continue }
+            byScope[scope, default: []].append((key, label))
+        }
+        return byScope.mapValues { parts in
+            parts.sorted { $0.0 < $1.0 }.map(\.1).filter { !$0.isEmpty }.joined(separator: "\n")
+        }
     }
 }

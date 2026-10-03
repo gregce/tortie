@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import XCTest
 @testable import Tortie
 
@@ -20,18 +21,20 @@ final class TokensTests: XCTestCase {
         }
     }
 
-    /// Clause: "the 14 colours". The screens 316 draws are Main, Session,
-    /// Choice and Pairing, and the set of hexes their CSS spells is exactly
-    /// the set this file holds: a colour dropped from Tokens.swift, or one the
-    /// mocks do not use, fails here.
+    /// Clause: "the 15 colours" (Phase 316.6; 14 before it). The screens the
+    /// phone draws are the nine mocks below, and the set of hexes their CSS
+    /// spells is exactly the set this file holds: a colour dropped from
+    /// Tokens.swift, or one the mocks do not use, fails here.
     func testTheMocksSpellExactlyTheseColours() throws {
         var spelled = Set<UInt32>()
-        for mock in ["Main", "Session", "Choice", "Pairing"] {
+        let mocks = ["Main", "NeedsInput", "Session", "Choice", "Pairing", "Settings", "Unpair", "Conversation", "Link"]
+        for mock in mocks {
             spelled.formUnion(StyleSource.hexesSpelled(try StyleSource.text("docs/design/phone/\(mock).html")))
         }
         let held = Set(Token.allCases.map(\.hex))
         XCTAssertEqual(held, spelled)
-        XCTAssertEqual(held.count, 14)
+        XCTAssertEqual(held.count, 15)
+        XCTAssertEqual(Token.allCases.count, 19, "nineteen names: two tokens that hold one hex stay two names")
     }
 
     /// Clause: the colour IS its hex, in sRGB and opaque. A shifted channel, a
@@ -53,6 +56,23 @@ final class TokensTests: XCTestCase {
         }
     }
 
+    /// Clause: the UIKit colour (the tab badge's, Phase 316.6) IS its hex too,
+    /// in sRGB and opaque, so the badge is the Mac's count badge and not a
+    /// colour that merely looks like it.
+    func testEachUIColorIsItsHexInSRGB() throws {
+        let srgb = try XCTUnwrap(CGColorSpace(name: CGColorSpace.sRGB))
+        for token in Token.allCases {
+            let cg = try XCTUnwrap(token.uiColor.cgColor.converted(to: srgb, intent: .defaultIntent, options: nil), "\(token)")
+            let components = try XCTUnwrap(cg.components, "\(token)")
+            XCTAssertEqual(components.count, 4, "\(token)")
+            let bytes = [(token.hex >> 16) & 0xff, (token.hex >> 8) & 0xff, token.hex & 0xff]
+            for (component, byte) in zip(components.prefix(3), bytes) {
+                XCTAssertEqual((component * 255).rounded(), CGFloat(byte), "\(token)")
+            }
+            XCTAssertEqual(components[3], 1, "\(token)")
+        }
+    }
+
     /// Clause: a screen's `Tokens.x` is its own token's colour and no other.
     func testEachNamedColourIsItsOwnToken() {
         let wired: [(Color, Token)] = [
@@ -71,6 +91,9 @@ final class TokensTests: XCTestCase {
             (Tokens.statusIdle, .statusIdle),
             (Tokens.statusExited, .statusExited),
             (Tokens.statusFailed, .statusFailed),
+            (Tokens.statusAttentionBadgeBg, .statusAttentionBadgeBg),
+            (Tokens.statusAttentionBadgeFg, .statusAttentionBadgeFg),
+            (Tokens.error, .error),
             (Tokens.graphLane3, .graphLane3),
         ]
         XCTAssertEqual(wired.count, Token.allCases.count)

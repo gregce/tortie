@@ -52,7 +52,20 @@ enum Copy {
     /// Mac: src/renderer/settings/PhoneSection.tsx ⟦BTN_TRY_AGAIN = 'Try again'⟧
     static let tryAgain = "Try again"
 
-    // MARK: - The list (docs/design/phone/Main.html)
+    // MARK: - The tabs (Phase 316.6: NeedsInput.html, Main.html, Settings.html)
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦label: 'Needs input'⟧
+    /// The first tab and its title: the session manager's State filter says
+    /// these words of exactly this list. Not status-words.ts's `needs input`,
+    /// because a word here is the Mac's literal and nothing is re-cased.
+    static let needsInput = "Needs input"
+
+    /// Mac: src/main/settings/window.ts ⟦title: 'Settings'⟧
+    /// The third tab and the Settings screen's title, as the Mac titles its
+    /// own Settings window.
+    static let settings = "Settings"
+
+    // MARK: - The list (docs/design/phone/Main.html, the Sessions tab)
 
     /// Mac: src/renderer/session-manager/copy.ts ⟦SHEET_TITLE = 'Sessions'⟧
     static let sessions = "Sessions"
@@ -254,6 +267,87 @@ enum Copy {
     /// only for a Mac that said it could send (research 136 section 9).
     static let pairAgainForAlerts = "Pair again to get alerts."
 
+    // MARK: - Settings (Phase 316.6: Settings.html, Unpair.html)
+
+    /// Phone: the card for the one Mac this iPhone is paired with. The Mac
+    /// says This Mac of ITSELF (src/renderer/machines/machine-choice.ts), which
+    /// is another machine's view, so the phone owns its own.
+    static let thisMac = "This Mac"
+
+    /// Phone: before the date this iPhone was paired, `Paired · Sep 30, 2026`.
+    /// No Mac surface says when a phone paired.
+    static let paired = "Paired"
+
+    /// Mac: src/renderer/settings/PhoneSection.tsx ⟦ALERTS_GROUP = 'Alerts'⟧
+    static let alerts = "Alerts"
+
+    /// Phone: the iOS setting the row opens, by iOS's own name for it.
+    static let notifications = "Notifications"
+
+    /// Phone: iOS allows Tortie's alerts. Never "On": the phone cannot see
+    /// the Mac's switch, so it says only what iOS allows.
+    static let notificationsAllowed = "Allowed"
+
+    /// Phone: iOS does not allow Tortie's alerts.
+    static let notificationsOff = "Off"
+
+    /// Phone: iOS has not asked about Tortie's alerts yet.
+    static let notificationsNotAsked = "Not asked"
+
+    /// Phone: the press that forgets the pairing on this iPhone.
+    static let unpairThisIPhone = "Unpair this iPhone"
+
+    /// Phone: the question Unpair asks before it forgets anything.
+    static let unpairQuestion = "Unpair this iPhone?"
+
+    /// Phone: what Unpair does and does not do, until Phase 317's signed verb
+    /// tells the Mac. The Mac's own button and where it is are named.
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦BTN_REMOVE = 'Remove'⟧
+    /// Names: src/main/settings/window.ts ⟦title: 'Settings'⟧
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦PHONE_TITLE = 'Phone'⟧
+    static let unpairNote = "It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone."
+
+    /// Phone: the question's destructive press.
+    static let unpair = "Unpair"
+
+    /// Mac: src/renderer/settings/PhoneSection.tsx ⟦BTN_CANCEL = 'Cancel'⟧
+    static let cancel = "Cancel"
+
+    /// Phone: the pairing record would not go, and the record goes FIRST, so
+    /// nothing else was touched (Door/Keys.swift `PairingStore.forget`).
+    static let unpairFailed = "This iPhone could not forget your Mac. Nothing was changed."
+
+    /// Phone: the heading over the app's own facts (Phase 333.1's links land
+    /// here).
+    static let about = "About"
+
+    /// Phone: the row that says the app's version.
+    static let version = "Version"
+
+    /// Phone: between the version and its build, `1.0.0 (4)`, as Xcode and
+    /// TestFlight write it; `countClose` closes it.
+    static let buildOpen = " ("
+
+    // MARK: - The answer, drawn as markdown (Phase 316.6: Conversation.html, Link.html)
+
+    /// Mac: src/renderer/arch/copy.ts ⟦ARCH_INSPECT_OPEN = 'Open'⟧
+    /// The press that hands a link's whole address to iOS.
+    static let open = "Open"
+
+    /// Phone: an image an answer names, which the phone never loads, when it
+    /// has no words of its own.
+    static let image = "Image"
+
+    /// Phone: after an ordered item's number, as CommonMark draws it; a `)`
+    /// delimiter is drawn with it too.
+    static let orderedMarkTail = "."
+
+    /// Phone: under a code block cut at its line cap. No Mac block is cut.
+    static let moreLineTail = " more line"
+
+    /// Phone: the same, for more than one line.
+    static let moreLinesTail = " more lines"
+
     // MARK: - The door, when it does not answer as it should
 
     /// Phone: no connection, or the connection was cut.
@@ -313,5 +407,25 @@ enum Copy {
     /// Two facts on one line, the way the Mac joins them.
     static func joined(_ parts: [String]) -> String {
         parts.joined(separator: separator)
+    }
+
+    /// `1.0.0 (4)`: the app's version and its build, from its own bundle.
+    static func versionLine(_ marketing: String, _ build: String) -> String {
+        marketing + buildOpen + build + countClose
+    }
+
+    /// `40 more lines`, or `1 more line`.
+    static func moreLines(_ count: Int) -> String {
+        String(count) + (count == 1 ? moreLineTail : moreLinesTail)
+    }
+
+    /// `12.`, an ordered item's mark: the number as the agent wrote it.
+    static func orderedMark(_ number: String) -> String {
+        number + orderedMarkTail
+    }
+
+    /// A line or a cell cut short, ending in the Mac's own mark for it.
+    static func cutShort(_ text: String) -> String {
+        text + pending
     }
 }

@@ -66,7 +66,12 @@
  *      `unregister…` nor the delegate's `didRegister…` passes for it), because
  *      that is how the app asks Apple for the address an alert is sent to; a
  *      Debug build must hold none, which is the proof that no Simulator run can
- *      ask Apple for anything. Each Simulator build's entitlements are read
+ *      ask Apple for anything. AND UNPAIR'S HALF (Phase 316.6, build/p3166/SPEC.md
+ *      §6.4), both ways too, each with its own problem line: a Release build
+ *      must hold `unregisterForRemoteNotifications` whole, because Unpair is
+ *      how this install tells Apple to stop taking alerts for it, and a Debug
+ *      build must hold none. PASS_WORDS do not change: his checklist quotes
+ *      them. Each Simulator build's entitlements are read
  *      too: a Simulator app is signed ad hoc and its signature carries none
  *      (`codesign -d --entitlements` answers an empty dictionary), so what the
  *      app is granted is the SIMULATED entitlements Xcode links into the
@@ -106,6 +111,13 @@
  *                                                 the Release build goes to <dir>-release beside it,
  *                                                 and the device archive's to <dir>-device
  *   P316_KEEP=1 npm run test:ios                  keep the scratch directory
+ *   P3166_OUTLINE_DIR=<dir> npm run test:ios      Phase 316.6's Method 2: the markdown outline
+ *                                                 tests write outline-<Debug|Release>.jsonl there
+ *   P3166_OUTLINE_INPUT=<file> npm run test:ios   ... over this JSON array of {name, source}
+ *                                                 instead of fixtures.json. Both are handed to
+ *                                                 the tests as TEST_RUNNER_ environment, and
+ *                                                 each is refused, exit 2, inside the repository
+ *                                                 or the home, exactly as the scratch directory is
  *
  * VERIFIERS ONLY run it: it boots a Simulator, so take the orchestrator's lock.
  * Its only sockets are the two doors, on 127.0.0.1; it starts no Electron,
@@ -189,6 +201,15 @@ export const REGISTRATION_SELECTOR = 'registerForRemoteNotifications';
 const REGISTRATION_BYTES = Buffer.concat([Buffer.from([0]), Buffer.from(REGISTRATION_SELECTOR, 'utf8'), Buffer.from([0])]);
 
 /**
+ * Unpair's half (Phase 316.6): `UIApplication.unregisterForRemoteNotifications`,
+ * named once, in the `#else` of `#if DEBUG` (conformance:ios rule x). Searched
+ * for whole between NUL bytes like the registration, so the two never stand
+ * in for each other.
+ */
+export const UNREGISTER_SELECTOR = 'unregisterForRemoteNotifications';
+const UNREGISTER_BYTES = Buffer.concat([Buffer.from([0]), Buffer.from(UNREGISTER_SELECTOR, 'utf8'), Buffer.from([0])]);
+
+/**
  * A section only a build instrumented for code coverage carries: clang's and
  * swiftc's `-profile-generate` counters and names (`__llvm_prf_cnts`,
  * `__llvm_prf_data`, `__llvm_prf_names`, …) and `-profile-coverage-mapping`'s
@@ -257,11 +278,16 @@ export function builtAppProblems(app, { debug = false } = {}) {
   }
   const seamsFound = new Set();
   const registering = [];
+  const unregistering = [];
   for (const f of files) {
     const bytes = readFileSync(f);
     if (bytes.indexOf(REGISTRATION_BYTES) !== -1) {
       registering.push(f);
       if (debug) problems.push(`${relative(app, f)} carries the selector ${REGISTRATION_SELECTOR}, so a DEBUG build, which is every Simulator run, could ask Apple for an alert address; conformance:ios (x) holds it in the #else of #if DEBUG`);
+    }
+    if (bytes.indexOf(UNREGISTER_BYTES) !== -1) {
+      unregistering.push(f);
+      if (debug) problems.push(`${relative(app, f)} carries the selector ${UNREGISTER_SELECTOR}, so a DEBUG build, which is every Simulator run, could speak to Apple when it unpairs; conformance:ios (x) holds it in the #else of #if DEBUG`);
     }
     for (const arg of DEBUG_SEAM_ARGUMENTS) {
       if (bytes.indexOf(Buffer.from(arg, 'utf8')) === -1) continue;
@@ -300,7 +326,10 @@ export function builtAppProblems(app, { debug = false } = {}) {
   if (!debug && files.length > 0 && registering.length === 0) {
     problems.push(`no Mach-O file of ${app} carries the selector ${REGISTRATION_SELECTOR}, so this build never asks Apple for the address an alert is sent to, and no alert could reach it (Phase 316.5)`);
   }
-  return { problems, files: files.length, seams: seamsFound.size, registering: registering.length };
+  if (!debug && files.length > 0 && unregistering.length === 0) {
+    problems.push(`no Mach-O file of ${app} carries the selector ${UNREGISTER_SELECTOR}, so Unpair never tells Apple to stop taking alerts for this install (Phase 316.6)`);
+  }
+  return { problems, files: files.length, seams: seamsFound.size, registering: registering.length, unregistering: unregistering.length };
 }
 
 /**
@@ -646,6 +675,23 @@ async function main() {
     process.exit(1);
   }
 
+  // Phase 316.6's outline (Method 2): where the markdown outline tests write,
+  // and what they read instead of fixtures.json. Each is refused inside the
+  // repository or the home, as the scratch directory is, before anything is built.
+  const outline = {};
+  for (const name of ['P3166_OUTLINE_DIR', 'P3166_OUTLINE_INPUT']) {
+    const value = (process.env[name] ?? '').trim();
+    if (value === '') continue;
+    const why = refuseScratchReason(resolve(value));
+    if (why !== null) {
+      process.stderr.write(`${TAG} ${name}: ${why}\n`);
+      process.exit(2);
+    }
+    outline[name] = resolve(value);
+    // The outline test writes into the directory and makes none (the
+    // integrator's reconcile: a missing one failed testTheOutlineFile).
+    if (name === 'P3166_OUTLINE_DIR') mkdirSync(outline[name], { recursive: true });
+  }
   const scratch = resolve((process.env['P316_SCRATCH'] ?? '').trim() || mkdtempSync(join(tmpdir(), 'p316-test-ios-')));
   const scratchWhy = refuseScratchReason(scratch);
   if (scratchWhy !== null) {
@@ -745,8 +791,10 @@ async function main() {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
           P330_DOOR_PIN: doors.pinA,
-          P330_WRONG_PORT: String(doors.portB)
+          P330_WRONG_PORT: String(doors.portB),
+          ...outline
         };
+        if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
         await withSimulator({ label: 'test:ios', runtime, scratch: join(scratch, 'sim'), derivedDataPath, keep }, async (sim) => {
           let passed = 0;
           for (const c of CONFIGURATIONS) {

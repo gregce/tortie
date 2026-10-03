@@ -169,7 +169,7 @@
  *       `com.itavero.tortie.phone`, one version in Debug and Release, and
  *       Info.plist takes the bundle id and both versions from the project and
  *       shows "Tortie". Since Phase 316.5 every configuration says build
- *       `PHONE_BUILD` (3), the one this round uploads.
+ *       `PHONE_BUILD`, the one this round uploads: 4 since Phase 316.6.
  *
  *   PHASE 330, the phone off the tailnet (build/p330/SPEC.md §6.4):
  *
@@ -217,6 +217,76 @@
  *       naming the registration; and iOS asked about alerts only for a Mac
  *       that says it can send (the pairing's pending arm, behind its word; the
  *       screen's closure; the launch check behind a guard on `macSends`).
+ *
+ *   PHASE 316.6, the tab bar, Settings and the rendered conversation
+ *   (build/p3166/SPEC.md §6). Six rules widen and two are new:
+ *
+ *   (a) also: `UITabBar…`, `UITabBarAppearance`, `badgeBackgroundColor`,
+ *       `badgeTextAttributes` and `.appearance()` are named in
+ *       `Style/Tokens.swift` alone, the badge's ground is set from
+ *       `Token.statusAttentionBadgeBg` and its words from
+ *       `Token.statusAttentionBadgeFg` and nothing else, and
+ *       `TabBarLook.apply()` is called once, from `App/TortieApp.swift`.
+ *   (b) also: `Tab` is a drawn call; exactly three `Tab(` in
+ *       `App/TortieApp.swift`, `Copy.needsInput`, `Copy.sessions` and
+ *       `Copy.settings` in that order with `bell`, `list.bullet` and
+ *       `gearshape`, and none elsewhere; nothing hides the tab bar; and no
+ *       `@AppStorage`, `@SceneStorage` or `UserDefaults` there, because the
+ *       app opens on Needs input every launch and stores no tab.
+ *   (k) also: ONE named scope, `ARITHMETIC_SCOPES`, the renderer
+ *       (`Markdown/**` and `Screens/MarkdownView.swift`), whose operators
+ *       need no line entry because its only input is a String; valid only
+ *       while (y)'s y9 holds, it must still match an operator, and a door
+ *       field is red inside it as everywhere.
+ *   (n) also: `SecItemDelete(` only in `KeychainSecretStore.remove` and
+ *       `KeychainClientKeys.delete`; the record removed only by
+ *       `PairingStore`; a client key deleted outside its store only by
+ *       `PairingStore.forget` and `PairingFlow.run`'s failed ending; the
+ *       store's `forget()` from its four callers alone and `door.forget()`
+ *       only in the DEBUG forget seam; the record removed BEFORE any key,
+ *       with `try`; and `LiveDoor.unpair` calling `try store.forget()` in a
+ *       `do` whose `catch` answers `.kept`, then asking `store.holdsRecord`.
+ *   (s) the build is 4 (`PHONE_BUILD`).
+ *   (x) also: `unregisterForRemoteNotifications` once, in the `#else` of
+ *       `#if DEBUG` in `Alerts/SystemAlerts.swift`; `forgetAddress()` once,
+ *       in `AppModel.unpair`'s `.forgotten` arm after `door.unpair()`; and
+ *       no test names the unregister. The launch-read clause also holds
+ *       `readAlertPermission`, behind its guard on `macSends`.
+ *   (y) THE RENDERER'S BOUNDS: Foundation alone in the parser (y1); one
+ *       `enum MarkdownCaps` of the thirteen pinned integer literals, each read
+ *       once, where the SPEC says (y2); nothing in the renderer throws,
+ *       traps, force-unwraps or names an unsafe API (y3), or matches a
+ *       regular expression (y4); every recursion takes `depth` and passes
+ *       `depth: depth + 1`, and Blocks.swift compares it with
+ *       `MarkdownCaps.depth` (y5); `AttributedString(markdown:` once, in
+ *       `Markdown/Inline.swift`, with exactly its three options (y6); nothing
+ *       localizes a string anywhere in the app (y7); every `Text(` in
+ *       MarkdownView.swift is verbatim, a symbol or an AttributedString (y8);
+ *       and the renderer names no door type (y9). The ruled round of
+ *       2026-10-01 adds THE AGENT'S OWN NUMBERS (difference D17): an ordered
+ *       item carries the digits its marker wrote, as a String, never a counted
+ *       number (y10, Rendered.swift), the marker keeps them from its own bytes
+ *       (y11, Blocks.swift) and the mark drawn is that number (y12); and THE
+ *       PAGE COST: an answer whose blocks, items and cells (y14) are more than
+ *       `MarkdownCaps.pieces` takes `Inline.asWritten` and no blocks (y13),
+ *       which removes every link and image address through the one parse
+ *       (y15), and is drawn by `WrittenView` exactly as `28d89295`'s
+ *       `AnswerText` drew every answer (y16). MARKDOWN OFF, his ruling of
+ *       2026-10-02: y2 pins `MarkdownCaps.pieces` at 0, so EVERY answer takes
+ *       y13's written path and y16's drawing; the parser and every clause
+ *       above stay, held as they were, for the later phase that switches
+ *       markdown back on by moving that pin.
+ *   (z) NOTHING FETCHED, AND ONE WAY OUT: no `AsyncImage`,
+ *       `NSAttributedString`, document type or `contentsOf:` outside DEBUG
+ *       (z1); no in-app browser, sign-in sheet, preview, `canOpenURL` or
+ *       SwiftUI `Link(` (z2); `OpenURLAction` and `openURL` only in
+ *       `Markdown/Links.swift`, and `UIApplication.shared.open(` only there and
+ *       in `Screens/SettingsScreen.swift` (z3); the one action asks
+ *       `LinkPolicy.opens(` before it stages and the closure that opens asks
+ *       again (z4); Settings opens iOS's own notification settings alone
+ *       (z5); and `LinkPolicy.opens`, with the LinkPolicy helpers it reaches,
+ *       names "https", `.user`, `.password`, `.port`, "xn--" and
+ *       `MarkdownCaps.linkBytes` (z6).
  *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
@@ -689,7 +759,7 @@ export function ruleNoColourLiteral(name, source) {
 
 /** The SwiftUI calls whose string arguments a person reads or hears. */
 const VISIBLE_CALLS = new RegExp(
-  '(?<![A-Za-z0-9_.])(Text|Label|Button|Toggle|Link|TextField|SecureField|Section|Picker|Menu|NavigationLink|ProgressView|Stepper|LabeledContent|ContentUnavailableView|ShareLink|GroupBox|DisclosureGroup|LocalizedStringKey)\\s*\\(' +
+  '(?<![A-Za-z0-9_.])(Text|Label|Button|Toggle|Link|Tab|TextField|SecureField|Section|Picker|Menu|NavigationLink|ProgressView|Stepper|LabeledContent|ContentUnavailableView|ShareLink|GroupBox|DisclosureGroup|LocalizedStringKey)\\s*\\(' +
     '|\\.(navigationTitle|navigationSubtitle|accessibilityLabel|accessibilityHint|accessibilityValue|help|alert|confirmationDialog|badge|searchable|toolbarTitleMenu)\\s*\\(' +
     '|\\b(NSLocalizedString|String\\s*\\(\\s*localized)\\s*[(:]',
   'g'
@@ -1318,7 +1388,34 @@ export const ARITHMETIC_NAMED = [
   { file: 'Door/Signing.swift', line: 'String(Int64((date.timeIntervalSince1970 * 1000).rounded(.down)))', ops: 1, why: 'the phone\'s own clock, a Double, in milliseconds' },
   { file: 'Screens/ConversationScreen.swift', line: 'let now = Date(timeIntervalSince1970: epochMs / 1000)', ops: 1, why: 'a Double (`epochMs: Double`) divided: floating point never traps' },
   { file: 'Screens/ListScreen.swift', line: 'Date(timeIntervalSince1970: epochMs / 1000).formatted(date: .omitted, time: .shortened)', ops: 1, why: 'a Double (`epochMs: Double`) divided: floating point never traps' },
-  { file: 'Screens/Pieces.swift', line: 'max(0, lineHeight - UIFont.systemFont(ofSize: size, weight: weight.uiWeight).lineHeight)', ops: 1, why: 'two CGFloat line heights of the phone\'s own type scale' }
+  { file: 'Screens/Pieces.swift', line: 'max(0, lineHeight - UIFont.systemFont(ofSize: size, weight: weight.uiWeight).lineHeight)', ops: 1, why: 'two CGFloat line heights of the phone\'s own type scale' },
+  // Phase 316.6: the day this iPhone paired, `PairedClock.date` (SPEC §5.3.1).
+  { file: 'Screens/SettingsScreen.swift', line: 'Date(timeIntervalSince1970: epochMs / 1000).formatted(date: .abbreviated, time: .omitted)', ops: 1, why: 'a Double (`epochMs: Double`, the pairing\'s own pairedAt) divided: floating point never traps' }
+];
+
+/**
+ * THE ONE NAMED SCOPE (Phase 316.6, build/p3166/SPEC.md §6.1 (k)). The
+ * markdown renderer is a line parser, and a parser is index arithmetic: dozens
+ * of lines of `i + 1` and `count - 1`. Naming each would bury the table. So an
+ * operator in a file this scope covers needs no line entry, because the
+ * renderer's only input is a `String` and every integer in it is a count or a
+ * position inside at most `MarkdownCaps.answerBytes` bytes, so no sum
+ * approaches `Int.max`. THREE THINGS HOLD IT, read on every run:
+ *
+ *   - it is valid only while rule (y)'s clause y9 holds, that the renderer
+ *     names no door type, decoder or connection (`rendererBoundary`): a
+ *     renderer that names `PocketTurn` could hold a door number, and then
+ *     every operator in it needs its own reason again, so the scope is waived
+ *     for that run and its operators read as unexplained;
+ *   - it must still match at least one operator, or it is a stale waiver;
+ *   - an operand naming a door number field is red inside it, as everywhere.
+ */
+export const ARITHMETIC_SCOPES = [
+  {
+    label: 'Markdown/** and Screens/MarkdownView.swift',
+    covers: (name) => name.startsWith('Markdown/') || name === 'Screens/MarkdownView.swift',
+    why: "the markdown renderer: its only input is a String, and every integer in it is a count or a position inside at most MarkdownCaps.answerBytes bytes, so no sum approaches Int.max; valid only while (y)'s y9 holds"
+  }
 ];
 
 /**
@@ -1531,9 +1628,9 @@ const withoutClosures = (text) => {
  * Rule (k), pure over `files` (`{ name, source }`, names relative to the app
  * folder), the contract's name among them, and the named table.
  */
-export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED) {
+export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED, scopes = ARITHMETIC_SCOPES) {
   const findings = [];
-  const said = { fields: [], proved: 0, named: 0, sites: 0, helperAt: null };
+  const said = { fields: [], proved: 0, named: 0, sites: 0, helperAt: null, scoped: 0 };
   const contract = files.find((f) => f.name === contractName);
   if (contract === undefined) return { findings: [`${contractName} does not exist, so no door number is decoded through a bound`], said };
 
@@ -1599,6 +1696,20 @@ export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED
   const memberRe = fields.size === 0 ? null : new RegExp(`\\.\\s*(${alternatives})\\b(?!\\s*\\()`);
   const bareRe = fields.size === 0 ? null : new RegExp(`(?:^|[^A-Za-z0-9_$.])(${alternatives})\\b(?!\\s*\\()`);
   const unexplained = new Map();
+  // THE SCOPES, each judged before any operator is: valid only while every
+  // file it covers names no door type (y9), and counted so a scope that
+  // covers nothing is said.
+  const scopeState = scopes.map((scope) => {
+    const covered = files.filter((f) => scope.covers(f.name));
+    const crossing = covered.flatMap((f) => rendererBoundary(f.source).map((b) => `${f.name}:${String(b.line)} names ${b.name}`));
+    return { scope, covered: covered.length, crossing, operators: 0 };
+  });
+  for (const s of scopeState) {
+    if (s.crossing.length > 0) {
+      findings.push(`ARITHMETIC_SCOPES's ${s.scope.label} holds only while the renderer names no door type (rule y9), and ${s.crossing.slice(0, 3).join('; ')}, so its operators are not waived this run`);
+    }
+  }
+  const scopeOf = (name) => scopeState.find((s) => s.scope.covers(name)) ?? null;
   for (const f of files) {
     const { view, code, strings } = f === contract ? c : arithmeticView(f.source);
     const local = stringConstants(code);
@@ -1627,6 +1738,12 @@ export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED
         said.proved += 1;
         continue;
       }
+      const scoped = scopeOf(f.name);
+      if (scoped !== null && scoped.crossing.length === 0) {
+        scoped.operators += 1;
+        said.scoped += 1;
+        continue;
+      }
       const text = (codeLines[line - 1] ?? '').trim().replace(/\s+/g, ' ');
       const key = `${f.name}\u0000${text}`;
       if (!unexplained.has(key)) unexplained.set(key, { file: f.name, text, line, ops: [], sites: [] });
@@ -1652,6 +1769,12 @@ export function ruleDoorArithmetic(files, contractName, named = ARITHMETIC_NAMED
   for (const entry of named) {
     if (!used.has(entry)) findings.push(`ARITHMETIC_NAMED names ${entry.file} ${JSON.stringify(entry.line)}, which no longer holds an operator this rule reads; take the entry out`);
   }
+  for (const s of scopeState) {
+    if (s.crossing.length === 0 && s.operators === 0) {
+      findings.push(`ARITHMETIC_SCOPES's ${s.scope.label} covers ${String(s.covered)} file(s) and no operator this rule reads; a scope that waives nothing is stale, take it out`);
+    }
+  }
+  said.scopes = scopeState.map((s) => ({ label: s.scope.label, files: s.covered, operators: s.operators, valid: s.crossing.length === 0 }));
   return { findings, said };
 }
 
@@ -2637,12 +2760,12 @@ export const RELEASE_TEAM = '4GRQMF5T5U';
 export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
 
 /**
- * The build this round uploads: 1.0.0 (3) (Phase 316.5, build/p3165/SPEC.md
- * §5.7). 1.0.0 (2) is Phase 330's and is archived, so a build that did not
- * move would be refused by App Store Connect as a duplicate. The round that
- * uploads the next build moves this with the project, in the same commit.
+ * The build this round uploads: 1.0.0 (4) (Phase 316.6, build/p3166/SPEC.md
+ * §5.7). 1.0.0 (3) is Phase 316.5's and 1.0.0 (2) Phase 330's, so a build that
+ * did not move would be refused by App Store Connect as a duplicate. The round
+ * that uploads the next build moves this with the project, in the same commit.
  */
-export const PHONE_BUILD = '3';
+export const PHONE_BUILD = '4';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -3328,6 +3451,961 @@ export function ruleAlerts(files, tests = []) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 316.6: the tab bar, Settings, Unpair and the rendered conversation
+// (build/p3166/SPEC.md §6)
+// ---------------------------------------------------------------------------
+//
+// THE DECLARATIONS A RULE PLACES A CALL IN. Several clauses below are about
+// WHERE a name is called (only `KeychainSecretStore.remove` deletes a Keychain
+// item; `forgetAddress()` only in `AppModel.unpair`'s `.forgotten` arm), so
+// they read every type and function body by matching braces over the bare
+// text, and place a call in the innermost of each.
+
+/** Every type declaration with a body, over bare text: `{ kind, name, at, open, close }`. */
+export function typeSpans(bare) {
+  const out = [];
+  for (const m of bare.matchAll(/\b(struct|class|enum|actor|extension|protocol)\s+([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*)/g)) {
+    if (/^(?:func|var|let|init|subscript|static|override|final|private|public|internal|fileprivate)$/.test(m[2])) continue;
+    if (/\bimport\s+$/.test(bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+    const open = bare.indexOf('{', m.index + m[0].length);
+    if (open === -1) continue;
+    const between = bare.slice(m.index + m[0].length, open);
+    if (/[;}]/.test(between)) continue;
+    const close = matchForward(bare, open);
+    out.push({ kind: m[1], name: m[2], at: m.index, open, close: close === -1 ? bare.length : close });
+  }
+  return out;
+}
+
+/**
+ * Every function declaration, over bare text: `{ name, at, paramsOpen,
+ * paramsClose, params, bodyOpen, bodyClose }`, `bodyOpen` -1 for a
+ * requirement with no body. The body is the first `{` after the parameter
+ * list unless the signature ends first (a `}`, a `;`, or a new line whose
+ * next token does not continue a signature).
+ */
+export function funcSpans(bare) {
+  const out = [];
+  for (const m of bare.matchAll(/\bfunc\s+([A-Za-z_]\w*)\s*(?:<[^>{(]*>)?\s*\(/g)) {
+    const paramsOpen = m.index + m[0].length - 1;
+    const paramsClose = closeParen(bare, paramsOpen);
+    if (paramsClose === -1) continue;
+    let bodyOpen = -1;
+    for (let k = paramsClose + 1; k < bare.length; k += 1) {
+      const c = bare[k];
+      if (c === '{') {
+        bodyOpen = k;
+        break;
+      }
+      if (c === '}' || c === ';') break;
+      if (c === '\n') {
+        const next = /^\s*(\S+)/.exec(bare.slice(k + 1))?.[1] ?? '';
+        if (!/^(?:->|throws|rethrows|async|where|\{)/.test(next)) break;
+      }
+    }
+    const bodyClose = bodyOpen === -1 ? -1 : matchForward(bare, bodyOpen);
+    out.push({ name: m[1], at: m.index, paramsOpen, paramsClose, params: bare.slice(paramsOpen + 1, paramsClose), bodyOpen, bodyClose: bodyClose === -1 ? bare.length : bodyClose });
+  }
+  return out;
+}
+
+/** The innermost span holding `index`, by `open`/`close` or `bodyOpen`/`bodyClose`. */
+function innermost(spans, index) {
+  let best = null;
+  for (const s of spans) {
+    const open = s.bodyOpen ?? s.open;
+    const close = s.bodyClose ?? s.close;
+    if (open === -1 || index <= open || index >= close) continue;
+    if (best === null || open > (best.bodyOpen ?? best.open)) best = s;
+  }
+  return best;
+}
+
+/**
+ * The bodies a statement can sit in for "the same function": every func, every
+ * init and every computed property (`var body: some View {`), over bare text.
+ */
+function declSpans(bare) {
+  const out = funcSpans(bare).filter((f) => f.bodyOpen !== -1);
+  for (const m of bare.matchAll(/\binit\s*[?!]?\s*\(/g)) {
+    const paren = m.index + m[0].length - 1;
+    const closed = closeParen(bare, paren);
+    if (closed === -1) continue;
+    const open = bare.indexOf('{', closed);
+    if (open === -1 || /[;}]/.test(bare.slice(closed, open))) continue;
+    out.push({ name: 'init', at: m.index, bodyOpen: open, bodyClose: matchForward(bare, open) });
+  }
+  for (const m of bare.matchAll(/\bvar\s+([A-Za-z_]\w*)\s*:\s*[^={}\n]+\{/g)) {
+    const open = m.index + m[0].length - 1;
+    out.push({ name: m[1], at: m.index, bodyOpen: open, bodyClose: matchForward(bare, open) });
+  }
+  return out;
+}
+
+/** The arguments of a call's parentheses, split at their own commas. */
+function topLevelArgs(text) {
+  const out = [];
+  let depth = 0;
+  let from = 0;
+  for (let k = 0; k < text.length; k += 1) {
+    const c = text[k];
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') depth -= 1;
+    else if (c === ',' && depth === 0) {
+      out.push(text.slice(from, k).trim());
+      from = k + 1;
+    }
+  }
+  out.push(text.slice(from).trim());
+  return out.filter((a) => a !== '');
+}
+
+/** The right side of an assignment, from just past its `=` to the end of its statement. */
+function rightSide(bare, from) {
+  let depth = 0;
+  for (let k = from; k < bare.length; k += 1) {
+    const c = bare[k];
+    if (c === '(' || c === '[' || c === '{') depth += 1;
+    else if (c === ')' || c === ']' || c === '}') {
+      if (depth === 0) return bare.slice(from, k);
+      depth -= 1;
+    } else if ((c === '\n' || c === ';') && depth === 0) return bare.slice(from, k);
+  }
+  return bare.slice(from);
+}
+
+/** Tarjan's strongly connected components of a name graph; a cycle is a component of two or more, or one that calls itself. */
+function cyclesOf(nodes, edges) {
+  const index = new Map();
+  const low = new Map();
+  const onStack = new Set();
+  const stack = [];
+  const out = [];
+  let counter = 0;
+  const visit = (v) => {
+    index.set(v, counter);
+    low.set(v, counter);
+    counter += 1;
+    stack.push(v);
+    onStack.add(v);
+    for (const w of edges.get(v) ?? []) {
+      if (!index.has(w)) {
+        visit(w);
+        low.set(v, Math.min(low.get(v), low.get(w)));
+      } else if (onStack.has(w)) low.set(v, Math.min(low.get(v), index.get(w)));
+    }
+    if (low.get(v) === index.get(v)) {
+      const component = [];
+      let w;
+      do {
+        w = stack.pop();
+        onStack.delete(w);
+        component.push(w);
+      } while (w !== v);
+      if (component.length > 1 || (edges.get(v) ?? new Set()).has(v)) out.push(new Set(component));
+    }
+  };
+  for (const v of nodes) if (!index.has(v)) visit(v);
+  return out;
+}
+
+// ---- (a), widened: the badge's colour reaches UIKit's tab bar from Tokens.swift
+
+/** The one file that names the tab bar's UIKit look (and the one that writes a colour). */
+export const TAB_BAR_FILE = 'Style/Tokens.swift';
+const TAB_BAR_NAMES = [
+  [/\bUITabBar\w*/g, "UIKit's tab bar or its appearance"],
+  [/\bbadgeBackgroundColor\b/g, "a badge's ground"],
+  [/\bbadgeTextAttributes\b/g, "a badge's words"],
+  [/\.\s*appearance\s*\(\s*\)/g, 'a UIKit appearance proxy']
+];
+/** The badge's two colours and the token each is set from: the Mac's count badge, tokens.css --status-attention-badge-bg and -fg. */
+export const BADGE_COLOURS = Object.freeze({ badgeBackgroundColor: 'statusAttentionBadgeBg', badgeTextAttributes: 'statusAttentionBadgeFg' });
+
+/** Every colour token an expression names: `Token.x`, `Tokens.x`, or an implicit `.x` of a token's shape. */
+function tokensNamed(text) {
+  const out = new Set();
+  for (const m of text.matchAll(/\bTokens?\s*\.\s*([A-Za-z_]\w*)/g)) out.add(m[1]);
+  for (const m of text.matchAll(/(?<![\w.])\.\s*(status[A-Z]\w*|accent|error|graphLane\d+|bg[A-Z]\w*|border\w*|text[A-Z]\w*)\b/g)) out.add(m[1]);
+  return out;
+}
+
+/**
+ * Rule (a), the tab bar's look (SPEC §5.1.6, §6.1 (a)). SwiftUI sets no badge
+ * colour, so the badge's two colours reach UIKit's tab bar through
+ * `UITabBarAppearance`; and `Style/Tokens.swift` is the one file that writes
+ * a colour, so `UITabBar…`, `badgeBackgroundColor`, `badgeTextAttributes`
+ * and `.appearance()` are named there alone, each badge colour is set from its
+ * token and nothing else, and `TabBarLook.apply()` is called once, from
+ * `App/TortieApp.swift`. Files are named relative to the app folder.
+ */
+export function ruleTabBarLook(files) {
+  const findings = [];
+  const said = { ground: 0, words: 0, applied: 0 };
+  for (const f of files) {
+    const { bare } = lexSwift(f.source);
+    for (const m of bare.matchAll(/\bTabBarLook\s*\.\s*apply\s*\(/g)) {
+      said.applied += 1;
+      if (f.name !== 'App/TortieApp.swift') findings.push(`${f.name}:${String(lineOf(bare, m.index))} calls TabBarLook.apply(); it is called once, from App/TortieApp.swift, before the first TabView exists`);
+    }
+    if (f.name === TAB_BAR_FILE) continue;
+    for (const [re, what] of TAB_BAR_NAMES) {
+      for (const m of bare.matchAll(re)) findings.push(`${f.name}:${String(lineOf(bare, m.index))} names ${m[0].replace(/\s+/g, '')} (${what}); the tab bar's look is set in ${TAB_BAR_FILE} alone, the one file that writes a colour`);
+    }
+  }
+  const tokens = files.find((f) => f.name === TAB_BAR_FILE);
+  if (tokens === undefined) return { findings: [...findings, `${TAB_BAR_FILE} does not exist, so nothing sets the badge's colour`], said };
+  const { bare } = lexSwift(tokens.source);
+  for (const m of bare.matchAll(/\b(badgeBackgroundColor|badgeTextAttributes)\s*=(?!=)/g)) {
+    const want = BADGE_COLOURS[m[1]];
+    let rhs = rightSide(bare, m.index + m[0].length);
+    const alias = /^\s*([a-z_]\w*)\s*$/.exec(rhs)?.[1];
+    if (alias !== undefined) {
+      const bound = new RegExp(`\\b(?:let|var)\\s+${alias}\\b[^=\\n]*=(?!=)`).exec(bare);
+      if (bound !== null) rhs = rightSide(bare, bound.index + bound[0].length);
+    }
+    const named = tokensNamed(rhs);
+    if (m[1] === 'badgeBackgroundColor') said.ground += 1;
+    else said.words += 1;
+    if (!named.has(want) || named.size !== 1) {
+      findings.push(`${TAB_BAR_FILE}:${String(lineOf(bare, m.index))} sets ${m[1]} from ${named.size === 0 ? 'no token' : [...named].map((n) => `Token.${n}`).join(' and ')}; it is Token.${want}, the Mac's count badge (${kebab(want)}), and nothing else`);
+    }
+  }
+  if (said.ground === 0) findings.push(`${TAB_BAR_FILE} never sets badgeBackgroundColor, so the Needs input badge is iOS's red and not the Mac's ${kebab(BADGE_COLOURS.badgeBackgroundColor)}`);
+  if (said.words === 0) findings.push(`${TAB_BAR_FILE} never sets badgeTextAttributes, so the badge's number is not the Mac's ${kebab(BADGE_COLOURS.badgeTextAttributes)}`);
+  if (said.applied !== 1) findings.push(`TabBarLook.apply() is called ${String(said.applied)} time(s) in the app; it is called once, from App/TortieApp.swift, before the first TabView exists`);
+  return { findings, said };
+}
+
+// ---- (b), widened: three tabs, the bar never hidden, no tab stored
+
+/** The file that builds the tabs, relative to the app folder. */
+export const TAB_FILE = 'App/TortieApp.swift';
+/** The three tabs, in order: each one's Copy word and its SF Symbol (SPEC §5.1.1). */
+export const TABS = Object.freeze([
+  { copy: 'needsInput', image: 'bell' },
+  { copy: 'sessions', image: 'list.bullet' },
+  { copy: 'settings', image: 'gearshape' }
+]);
+
+/**
+ * Rule (b), the tab bar (SPEC §6.1 (b)): exactly three `Tab(` in
+ * `App/TortieApp.swift`, labelled `Copy.needsInput`, `Copy.sessions` and
+ * `Copy.settings` in that order with `bell`, `list.bullet` and `gearshape`,
+ * and none anywhere else; nothing hides the tab bar
+ * (`.toolbar(.hidden, for: .tabBar)`, `.toolbarVisibility(.hidden, for:
+ * .tabBar)`), because the bar stays on a pushed session; and no
+ * `@AppStorage`, `@SceneStorage` or `UserDefaults` in `App/TortieApp.swift`,
+ * because the app opens on Needs input every launch and stores no tab.
+ */
+export function ruleTabs(files) {
+  const findings = [];
+  const said = { tabs: 0 };
+  const app = files.find((f) => f.name === TAB_FILE);
+  if (app === undefined) findings.push(`${TAB_FILE} does not exist, so there is no tab bar to read`);
+  for (const f of files) {
+    const { bare, strings } = lexSwift(f.source);
+    const at = (i) => `${f.name}:${String(lineOf(bare, i))}`;
+    const calls = [...bare.matchAll(/(?<![A-Za-z0-9_.])Tab\s*\(/g)];
+    if (f.name !== TAB_FILE) {
+      for (const c of calls) findings.push(`${at(c.index)} builds a Tab; the three tabs are built in ${TAB_FILE}, and there is no fourth`);
+    } else {
+      said.tabs = calls.length;
+      if (calls.length !== TABS.length) {
+        findings.push(`${TAB_FILE} builds ${String(calls.length)} Tab(s); the app has three, Needs input, Sessions and Settings, and no fourth (a fourth would be search, Past Sessions or machines, which Phase 316 refuses)`);
+      }
+      calls.forEach((c, k) => {
+        const want = TABS[k];
+        if (want === undefined) return;
+        const open = c.index + c[0].length - 1;
+        const close = closeParen(bare, open);
+        const args = topLevelArgs(bare.slice(open + 1, close === -1 ? bare.length : close));
+        const first = (args[0] ?? '').replace(/\s+/g, '');
+        if (first !== `Copy.${want.copy}`) findings.push(`${at(c.index)}: tab ${String(k + 1)} is labelled ${first.trim() === '' || /^"\s*"$/.test(first) ? 'with a literal' : first}; it is Copy.${want.copy}`);
+        const image = strings.find((s) => s.start > open && (close === -1 || s.end <= close) && /\bsystemImage\s*:\s*$/.test(bare.slice(Math.max(open, s.start - 24), s.start)));
+        if (image?.value !== want.image) findings.push(`${at(c.index)}: tab ${String(k + 1)} draws the symbol ${JSON.stringify(image?.value ?? null)}; it is ${JSON.stringify(want.image)}`);
+      });
+    }
+    for (const m of bare.matchAll(/\.\s*(toolbar|toolbarVisibility)\s*\(/g)) {
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(bare, open);
+      const args = bare.slice(open + 1, close === -1 ? bare.length : close);
+      if (/\.\s*hidden\b/.test(args) && /\.\s*tabBar\b/.test(args)) findings.push(`${at(m.index)} hides the tab bar; it stays on a pushed session, so a session is one tap from Needs input (SPEC §5.1.1)`);
+    }
+    if (f.name === TAB_FILE) {
+      for (const m of bare.matchAll(/@AppStorage\b|@SceneStorage\b|\bUserDefaults\b/g)) findings.push(`${at(m.index)} names ${m[0]}; the app opens on Needs input every launch and stores no tab`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (n), widened: who deletes a pairing item, and in what order
+
+/**
+ * Rule (n), the deleters (SPEC §5.4, §6.1 (n)), over the app's Swift named
+ * relative to the app folder. `SecItemDelete(` only in `Door/Keys.swift`,
+ * inside `KeychainSecretStore.remove` and `KeychainClientKeys.delete`;
+ * `secrets.remove(` only inside `PairingStore`; `.delete(tag:` outside
+ * `KeychainClientKeys` only in `PairingStore.forget` and `PairingFlow.run`'s
+ * failed ending; the store's `forget()` called only by `PairingStore.load`,
+ * `PairingStore.forgetOnFreshInstall`, `LiveDoor.forget` and
+ * `LiveDoor.unpair`, and `door.forget()` only inside `#if DEBUG` in
+ * `AppModel.launch` (the forget seam); in `PairingStore.forget` the record's
+ * `try secrets.remove(Self.account)` comes before any `delete(tag:`, because
+ * the record holds both private halves, so a failed removal has touched
+ * nothing; and `LiveDoor.unpair` calls `try store.forget()` inside a `do`
+ * whose `catch` answers `.kept`, never `try?`, then asks `store.holdsRecord`.
+ */
+export function ruleDeleters(files) {
+  const findings = [];
+  const said = { secItemDeletes: 0, recordRemoves: 0, keyDeletes: 0, storeForgets: 0, doorForgets: 0 };
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    const bare = lx.bare;
+    const types = typeSpans(bare);
+    const funcs = funcSpans(bare).filter((fn) => fn.bodyOpen !== -1);
+    const place = (i) => ({ type: innermost(types, i)?.name ?? null, fn: innermost(funcs, i)?.name ?? null });
+    const at = (i) => `${f.name}:${String(lineOf(bare, i))}`;
+    const said2 = (p) => `${p.type ?? 'no type'}.${p.fn ?? 'no function'}`;
+    for (const m of bare.matchAll(/\bSecItemDelete\s*\(/g)) {
+      said.secItemDeletes += 1;
+      const p = place(m.index);
+      const ok = f.name === 'Door/Keys.swift' && ((p.type === 'KeychainSecretStore' && p.fn === 'remove') || (p.type === 'KeychainClientKeys' && p.fn === 'delete'));
+      if (!ok) findings.push(`${at(m.index)} calls SecItemDelete in ${said2(p)}; a Keychain item is deleted only by Door/Keys.swift's KeychainSecretStore.remove and KeychainClientKeys.delete`);
+    }
+    for (const m of bare.matchAll(/\bsecrets\s*\.\s*remove\s*\(/g)) {
+      said.recordRemoves += 1;
+      const p = place(m.index);
+      if (p.type !== 'PairingStore') findings.push(`${at(m.index)} removes a pairing record in ${said2(p)}; only PairingStore removes one`);
+    }
+    for (const m of bare.matchAll(/\.\s*delete\s*\(\s*tag\s*:/g)) {
+      said.keyDeletes += 1;
+      const p = place(m.index);
+      const ok = p.type === 'KeychainClientKeys' || (p.type === 'PairingStore' && p.fn === 'forget') || (f.name === 'Door/Pairing.swift' && p.type === 'PairingFlow' && p.fn === 'run');
+      if (!ok) findings.push(`${at(m.index)} deletes a client key in ${said2(p)}; outside KeychainClientKeys only PairingStore.forget and PairingFlow.run's failed ending delete one`);
+    }
+    const debug = debugLines(lx.code);
+    for (const m of bare.matchAll(/(?<![\w$])(?:([A-Za-z_]\w*(?:\s*\??\s*\.\s*[A-Za-z_]\w*)*)\s*\??\s*\.\s*)?forget\s*\(\s*\)/g)) {
+      if (/\bfunc\s+$/.test(bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+      const receiver = (m[1] ?? '').replace(/[\s?]+/g, '');
+      const p = place(m.index);
+      if (receiver === 'door') {
+        said.doorForgets += 1;
+        const ok = f.name === 'App/TortieApp.swift' && p.type === 'AppModel' && p.fn === 'launch' && debug[lineOf(bare, m.index)] === true;
+        if (!ok) findings.push(`${at(m.index)} calls door.forget() in ${said2(p)}; the DEBUG forget seam is called only inside #if DEBUG in AppModel.launch, and Unpair is door.unpair()`);
+        continue;
+      }
+      said.storeForgets += 1;
+      const ok =
+        (p.type === 'PairingStore' && (p.fn === 'load' || p.fn === 'forgetOnFreshInstall') && (receiver === '' || receiver === 'self')) ||
+        (p.type === 'LiveDoor' && (p.fn === 'forget' || p.fn === 'unpair') && receiver === 'store');
+      if (!ok) findings.push(`${at(m.index)} calls ${receiver === '' ? '' : `${receiver}.`}forget() in ${said2(p)}; the store's forget() is called only by PairingStore.load, PairingStore.forgetOnFreshInstall, LiveDoor.forget and LiveDoor.unpair`);
+    }
+  }
+  // The order inside PairingStore.forget.
+  const keys = files.find((f) => f.name === 'Door/Keys.swift');
+  if (keys === undefined) findings.push('Door/Keys.swift does not exist, so the order of deletion cannot be read');
+  else {
+    const bare = lexSwift(keys.source).bare;
+    const store = typeSpans(bare).find((t) => t.name === 'PairingStore' && t.kind !== 'extension');
+    const forget = store === undefined ? undefined : funcSpans(bare).find((fn) => fn.name === 'forget' && fn.bodyOpen > store.open && fn.bodyClose <= store.close);
+    if (forget === undefined) findings.push('Door/Keys.swift declares no PairingStore.forget() with a body');
+    else {
+      const body = bare.slice(forget.bodyOpen, forget.bodyClose);
+      const record = /\btry\s+secrets\s*\.\s*remove\s*\(\s*Self\s*\.\s*account\s*\)/.exec(body);
+      const firstKey = /\.\s*delete\s*\(\s*tag\s*:/.exec(body);
+      if (record === null) findings.push('PairingStore.forget does not remove the record with `try secrets.remove(Self.account)`, so a removal that fails is not seen and "Nothing was changed." could be false');
+      else if (firstKey !== null && firstKey.index < record.index) findings.push(`Door/Keys.swift:${String(lineOf(bare, forget.bodyOpen + firstKey.index))} deletes a client key before the record; the record goes FIRST, because it holds both private halves, so a failed removal has touched nothing (SPEC §5.4)`);
+    }
+  }
+  // LiveDoor.unpair: the store's error is seen, never swallowed.
+  const app = files.find((f) => f.name === 'App/TortieApp.swift');
+  if (app === undefined) findings.push('App/TortieApp.swift does not exist, so LiveDoor.unpair cannot be read');
+  else {
+    const bare = lexSwift(app.source).bare;
+    const live = typeSpans(bare).find((t) => t.name === 'LiveDoor' && t.kind !== 'extension');
+    const unpair = live === undefined ? undefined : funcSpans(bare).find((fn) => fn.name === 'unpair' && fn.bodyOpen > live.open && fn.bodyClose <= live.close);
+    if (unpair === undefined) findings.push('App/TortieApp.swift declares no LiveDoor.unpair(), so Unpair has nothing that reports whether the record went');
+    else {
+      const body = bare.slice(unpair.bodyOpen, unpair.bodyClose + 1);
+      if (/\btry\s*[?!]\s*(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair swallows the store's error with try? or try!; it calls try store.forget() inside a do whose catch answers .kept`);
+      if (!/\bdo\s*\{[^{}]*\btry\s+(?:self\s*\.\s*)?store\s*\.\s*forget\s*\(\s*\)[^{}]*\}\s*catch\b[^{]*\{[^{}]*\.\s*kept\b/.test(body)) {
+        findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair does not call try store.forget() inside a do whose catch answers .kept, so a record that would not go could read as forgotten`);
+      }
+      if (!/\bstore\s*\.\s*holdsRecord\b/.test(body)) findings.push(`App/TortieApp.swift:${String(lineOf(bare, unpair.at))} LiveDoor.unpair never asks store.holdsRecord, so a forget that answered and left the record would read as forgotten`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (x), widened: Unpair stops Apple taking alerts for this install
+
+/**
+ * Rule (x), Unpair's half (SPEC §5.4, §6.1 (x)), over the app's Swift named
+ * relative to the app folder and the tests' named relative to ios/:
+ * `unregisterForRemoteNotifications` exactly once in the app, in
+ * `Alerts/SystemAlerts.swift`, inside the `#else` of `#if DEBUG`, so a DEBUG
+ * build, which is every Simulator run, never speaks to Apple in either
+ * direction; `forgetAddress()` called exactly once, in `AppModel.unpair`'s
+ * `.forgotten` arm, after `door.unpair()`, so only a pairing that really went
+ * unregisters; and no test names `unregisterForRemoteNotifications`.
+ */
+export function ruleForgetAddress(files, tests = []) {
+  const findings = [];
+  const said = { unregisters: 0, forgets: 0 };
+  const unregisters = [];
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    for (const m of lx.bare.matchAll(/\bunregisterForRemoteNotifications\b/g)) unregisters.push({ f, lx, index: m.index, code: true });
+    for (const s of lx.strings) if (/\bunregisterForRemoteNotifications\b/.test(s.value)) unregisters.push({ f, lx, index: s.start, code: false });
+  }
+  said.unregisters = unregisters.length;
+  if (unregisters.length !== 1) findings.push(`the app names unregisterForRemoteNotifications ${String(unregisters.length)} time(s); it is named once, in ${ALERT_FILES.system}, in the #else of #if DEBUG`);
+  for (const u of unregisters) {
+    const where = `${u.f.name}:${String(lineOf(u.lx.bare, u.index))}`;
+    if (u.f.name !== ALERT_FILES.system || !u.code) findings.push(`${where} names unregisterForRemoteNotifications${u.code ? '' : ' in a string'}; only ${ALERT_FILES.system} unregisters`);
+    else if (releaseLines(u.lx.code)[lineOf(u.lx.bare, u.index)] !== true) findings.push(`${where} unregisters outside the #else of #if DEBUG, so a DEBUG build, which is every Simulator run, would speak to Apple`);
+  }
+  const calls = [];
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    for (const m of lx.bare.matchAll(/\bforgetAddress\s*\(/g)) {
+      if (/\bfunc\s+$/.test(lx.bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+      calls.push({ f, bare: lx.bare, index: m.index });
+    }
+  }
+  said.forgets = calls.length;
+  if (calls.length !== 1) findings.push(`the app calls forgetAddress() ${String(calls.length)} time(s); it is called once, in AppModel.unpair's .forgotten arm`);
+  for (const c of calls) {
+    const where = `${c.f.name}:${String(lineOf(c.bare, c.index))}`;
+    const fn = innermost(funcSpans(c.bare).filter((x) => x.bodyOpen !== -1), c.index);
+    const type = innermost(typeSpans(c.bare), c.index);
+    if (c.f.name !== 'App/TortieApp.swift' || type?.name !== 'AppModel' || fn?.name !== 'unpair') {
+      findings.push(`${where} calls forgetAddress() in ${type?.name ?? 'no type'}.${fn?.name ?? 'no function'}; only AppModel.unpair unregisters, once the record went`);
+      continue;
+    }
+    const before = c.bare.slice(fn.bodyOpen, c.index);
+    const door = /\bdoor\s*\.\s*unpair\s*\(\s*\)/.exec(before);
+    if (door === null) findings.push(`${where} calls forgetAddress() before door.unpair() has answered, so an Unpair that kept the record would still unregister`);
+    const arms = [...before.matchAll(/\bcase\s+\.\s*(\w+)\b|\bdefault\s*:/g)];
+    const last = arms.at(-1);
+    const compared = last === undefined && /==\s*\.\s*forgotten\b/.test(before);
+    if (!compared && (last === undefined || last[1] !== 'forgotten')) findings.push(`${where} calls forgetAddress() outside the .forgotten arm of door.unpair()'s answer, so it runs whether or not the record went`);
+  }
+  for (const t of tests) {
+    const { bare } = lexSwift(t.source);
+    for (const m of bare.matchAll(/\bunregisterForRemoteNotifications\b/g)) {
+      findings.push(`${t.name}:${String(lineOf(bare, m.index))} names unregisterForRemoteNotifications; a test runs in a Simulator, and in the Release test host it would speak to Apple`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (y) THE RENDERER'S BOUNDS (SPEC §5.5, §6.2) ----------------------------
+
+/** The renderer's files, relative to the app folder (SPEC §5.5.1). */
+export const RENDERER_FILES = Object.freeze(['Markdown/Caps.swift', 'Markdown/Blocks.swift', 'Markdown/Inline.swift', 'Markdown/Rendered.swift', 'Markdown/Links.swift', 'Screens/MarkdownView.swift']);
+/** Whether a file, relative to the app folder, is the renderer's. */
+export const isRenderer = (name) => name.startsWith('Markdown/') || name === 'Screens/MarkdownView.swift';
+/** The thirteen caps, each its pinned value and the one file that reads it (SPEC §5.5.3; `pieces` since the ruled round). */
+export const MARKDOWN_CAPS = Object.freeze({
+  answerBytes: { value: 32_768, readIn: 'Markdown/Blocks.swift' },
+  blocks: { value: 400, readIn: 'Markdown/Blocks.swift' },
+  depth: { value: 8, readIn: 'Markdown/Blocks.swift' },
+  inlineBytes: { value: 8_192, readIn: 'Markdown/Inline.swift' },
+  tableRows: { value: 50, readIn: 'Markdown/Blocks.swift' },
+  tableColumns: { value: 64, readIn: 'Markdown/Blocks.swift' },
+  cellCharacters: { value: 4_096, readIn: 'Markdown/Blocks.swift' },
+  cells: { value: 1_000, readIn: 'Markdown/Blocks.swift' },
+  fenceLines: { value: 4_096, readIn: 'Markdown/Blocks.swift' },
+  lineCharacters: { value: 4_096, readIn: 'Markdown/Blocks.swift' },
+  listNumberDigits: { value: 9, readIn: 'Markdown/Blocks.swift' },
+  linkBytes: { value: 2_048, readIn: 'Markdown/Links.swift' },
+  // The ruled round of 2026-10-01: an answer past it is drawn as written (y13).
+  // MARKDOWN OFF, his ruling of 2026-10-02 ("Ship tabs + Settings, markdown
+  // off"): 0, so every answer is past it and drawn as written, exactly as
+  // 28d89295 drew it. A later phase that draws the conversation lazily moves
+  // this pin when it switches markdown back on.
+  pieces: { value: 0, readIn: 'Markdown/Rendered.swift', why: "markdown is off by his ruling of 2026-10-02 ('Ship tabs + Settings, markdown off'): every answer is drawn as written until a later phase that draws the conversation lazily moves this pin" }
+});
+/** The modules each renderer file may import (y1). MarkdownView.swift draws, and is held by y8 instead. */
+const RENDERER_IMPORTS = { 'Markdown/Links.swift': ['Foundation', 'SwiftUI', 'UIKit'] };
+/** What the renderer may never name (y9): the boundary rule (k)'s scope rests on. */
+const RENDERER_BOUNDARY = /\b\w*(?:Pocket|Door)\w*|\bCodable\b|\bDecodable\b|\bJSONDecoder\b|\bURLSession\w*|\bNWConnection\b/g;
+
+/** Every name in one source the renderer may never name (y9), with its line. */
+export function rendererBoundary(source) {
+  const { bare } = lexSwift(source);
+  return [...bare.matchAll(RENDERER_BOUNDARY)].map((m) => ({ name: m[0], line: lineOf(bare, m.index) }));
+}
+
+const RENDERER_TRAPS = [
+  [/\b(?:re)?throws\b/g, 'a throwing declaration'],
+  [/\b(?:fatalError|precondition|preconditionFailure|assert|assertionFailure)\s*\(/g, 'a call that traps'],
+  [/\w*Unsafe\w*|\bunsafe\w*/g, 'an unsafe name']
+];
+const RENDERER_REGEX = [/\bNSRegularExpression\b/g, /\bRegex\w*/g, /#\//g, /\.\s*regularExpression\b/g, /\bwholeMatch\s*\(/g, /\bfirstMatch\s*\(\s*of\b/g, /\bmatches\s*\(\s*of\b/g, /\bNSPredicate\b/g];
+const LOCALIZED = [/\bLocalizedStringKey\b/g, /\bLocalizedStringResource\b/g, /\bText\s*\(\s*\.\s*init\s*\(/g, /\bString\s*\(\s*format\s*:/g, /\bString\s*\(\s*localized\s*:/g, /\bNSLocalizedString\b/g];
+/** The one parse's options, exactly (SPEC §5.5.4). */
+export const INLINE_OPTIONS = Object.freeze({ allowsExtendedAttributes: 'false', interpretedSyntax: '.inlineOnlyPreservingWhitespace', failurePolicy: '.returnPartiallyParsedIfPossible' });
+
+/** The names a file binds to an `AttributedString` (y8): a typed let, var or parameter, a constructed value, or the `.text` segment's payload. */
+function attributedNames(bare) {
+  const out = new Set(['attributed']);
+  for (const re of [
+    /\b(?:let|var)\s+(\w+)\s*:\s*AttributedString\b/g,
+    /[(,]\s*(?:\w+\s+)?(\w+)\s*:\s*AttributedString\b/g,
+    /\b(?:let|var)\s+(\w+)\s*=\s*AttributedString\s*\(/g,
+    /\.\s*text\s*\(\s*let\s+(\w+)\s*\)/g,
+    /\bcase\s+let\s+\.\s*text\s*\(\s*(\w+)\s*\)/g
+  ]) {
+    for (const m of bare.matchAll(re)) out.add(m[1]);
+  }
+  return out;
+}
+
+/**
+ * Rule (y), over the app's Swift named relative to the app folder (SPEC
+ * §6.2). y1 Foundation alone in the parser's files (Links.swift: Foundation,
+ * SwiftUI, UIKit); y2 one `enum MarkdownCaps`, in Caps.swift, of exactly the
+ * thirteen pinned integer literals, each read exactly once, in the file the SPEC
+ * names; y3 nothing in the renderer that throws, traps or force-unwraps, and
+ * no unsafe name; y4 no regular expression; y5 every function in a call
+ * cycle, and every view type that builds itself, takes `depth` and passes
+ * `depth: depth + 1`, and Blocks.swift compares depth with MarkdownCaps.depth;
+ * y6 `AttributedString(markdown:` exactly once in the app, in Inline.swift,
+ * with exactly the three pinned options, and no `.full` or bare `.inlineOnly`;
+ * y7 nothing localizes a string anywhere in the app, so `%@` draws as written;
+ * y8 every `Text(` in MarkdownView.swift is verbatim, a symbol or an
+ * AttributedString Inline.swift built; y9 the renderer names no door type;
+ * y10 to y12 the agent's own numbers and y13 to y16 the page cost (the ruled
+ * round of 2026-10-01, said in the file's header).
+ */
+export function ruleRenderer(files) {
+  const findings = [];
+  const said = { files: 0, caps: 0, reads: 0, cycles: 0, viewCycles: 0, parses: 0, texts: 0 };
+  const lexedFiles = files.map((f) => ({ ...f, lx: lexSwift(f.source) }));
+  const byName = new Map(lexedFiles.map((f) => [f.name, f]));
+  const renderer = lexedFiles.filter((f) => isRenderer(f.name));
+  said.files = renderer.length;
+  const at = (f, i) => `${f.name}:${String(lineOf(f.lx.bare, i))}`;
+  for (const want of RENDERER_FILES) if (!byName.has(want)) findings.push(`${want} does not exist, so the renderer this rule bounds is not all there (SPEC §5.5.1)`);
+
+  // y1: Foundation alone.
+  for (const f of renderer) {
+    if (f.name === 'Screens/MarkdownView.swift') continue;
+    const allowed = RENDERER_IMPORTS[f.name] ?? ['Foundation'];
+    for (const m of f.lx.bare.matchAll(/(?:^|\n)[ \t]*(?:@\w+[ \t]+)*import[ \t]+(?:(?:struct|class|enum|protocol|typealias|func|let|var|actor)[ \t]+)?`?([A-Za-z_]\w*)/g)) {
+      if (!allowed.includes(m[1])) findings.push(`${at(f, m.index + m[0].indexOf('import'))} imports ${m[1]}; ${f.name} imports ${allowed.join(', ')} and nothing else (y1)`);
+    }
+  }
+
+  // y2: the caps, declared once, each read once.
+  const declared = lexedFiles.flatMap((f) => [...f.lx.bare.matchAll(/\benum\s+MarkdownCaps\b/g)].map((m) => ({ f, index: m.index })));
+  if (declared.length !== 1 || declared[0].f.name !== 'Markdown/Caps.swift') {
+    findings.push(`enum MarkdownCaps is declared ${String(declared.length)} time(s)${declared.length > 0 ? ` (${declared.map((d) => at(d.f, d.index)).join(', ')})` : ''}; it is declared once, in Markdown/Caps.swift (y2)`);
+  }
+  const caps = byName.get('Markdown/Caps.swift');
+  const span = caps === undefined ? undefined : typeSpans(caps.lx.bare).find((t) => t.kind === 'enum' && t.name === 'MarkdownCaps');
+  if (span !== undefined) {
+    const body = caps.lx.bare.slice(span.open + 1, span.close);
+    const lets = [...body.matchAll(/\bstatic\s+let\s+(\w+)\s*(?::\s*Int\s*)?=\s*([0-9][0-9_]*)\s*(?=\n|;|$)/g)];
+    const decls = [...body.matchAll(/\b(?:static\s+)?(?:let|var|func|case|init|subscript|struct|enum|class|typealias)\b/g)];
+    if (decls.length !== lets.length) findings.push(`MarkdownCaps declares ${String(decls.length - lets.length)} thing(s) beside its static let integer literals; it holds the thirteen caps and nothing else (y2)`);
+    const got = new Map(lets.map((m) => [m[1], Number(m[2].replace(/_/g, ''))]));
+    said.caps = got.size;
+    for (const [name, cap] of Object.entries(MARKDOWN_CAPS)) {
+      if (!got.has(name)) findings.push(`MarkdownCaps has no static let ${name}; it is ${String(cap.value)} (SPEC §5.5.3, y2)`);
+      else if (got.get(name) !== cap.value) findings.push(`MarkdownCaps.${name} is ${String(got.get(name))}; the pinned cap is ${String(cap.value)}${cap.why === undefined ? '' : `, because ${cap.why}`} (y2)`);
+    }
+    for (const name of got.keys()) if (!Object.hasOwn(MARKDOWN_CAPS, name)) findings.push(`MarkdownCaps.${name} is not one of the thirteen pinned caps (y2)`);
+  }
+  const reads = new Map();
+  for (const f of lexedFiles) {
+    if (f.name === 'Markdown/Caps.swift') continue;
+    for (const m of f.lx.bare.matchAll(/\bMarkdownCaps\b(\s*\.\s*(\w+))?/g)) {
+      if (m[2] === undefined || m[2] === 'self' || m[2] === 'Type') {
+        findings.push(`${at(f, m.index)} takes MarkdownCaps as a value or a type; a cap is read by its name, at its one site (y2)`);
+        continue;
+      }
+      said.reads += 1;
+      if (!reads.has(m[2])) reads.set(m[2], []);
+      reads.get(m[2]).push({ f, index: m.index });
+    }
+  }
+  for (const [name, cap] of Object.entries(MARKDOWN_CAPS)) {
+    const r = reads.get(name) ?? [];
+    if (r.length !== 1) findings.push(`MarkdownCaps.${name} is read ${String(r.length)} time(s)${r.length > 0 ? ` (${r.map((x) => at(x.f, x.index)).join(', ')})` : ''}; each cap is read at exactly one site, in ${cap.readIn} (y2)`);
+    else if (r[0].f.name !== cap.readIn) findings.push(`${at(r[0].f, r[0].index)} reads MarkdownCaps.${name}; it is read in ${cap.readIn} (y2)`);
+  }
+  for (const name of reads.keys()) if (!Object.hasOwn(MARKDOWN_CAPS, name)) findings.push(`MarkdownCaps.${name} is read, and it is not one of the thirteen pinned caps (y2)`);
+
+  // y3, y4: nothing that throws, traps, force-unwraps or matches a pattern.
+  for (const f of renderer) {
+    const bare = f.lx.bare;
+    for (const [re, what] of RENDERER_TRAPS) for (const m of bare.matchAll(re)) findings.push(`${at(f, m.index)} writes ${m[0].replace(/\s+/g, '')}, ${what}; the renderer never throws, traps or reaches for unsafe memory (y3)`);
+    for (const m of bare.matchAll(/([\w)\]])!(?!=)/g)) {
+      const word = /\b(try|as)$/.exec(bare.slice(Math.max(0, m.index - 2), m.index + 1))?.[1];
+      findings.push(`${at(f, m.index)} writes ${word === undefined ? 'a postfix !, a force unwrap' : `${word}!`}; the renderer never force-unwraps, so no byte an agent wrote can end the app (y3)`);
+    }
+    for (const re of RENDERER_REGEX) for (const m of bare.matchAll(re)) findings.push(`${at(f, m.index)} writes ${m[0].replace(/\s+/g, '')}, a regular expression; the block parser reads lines character by character, so no pattern can run away (y4)`);
+  }
+
+  // y5: every recursion takes a depth and passes one more.
+  for (const f of renderer) {
+    const bare = f.lx.bare;
+    const types = typeSpans(bare);
+    const typeNames = new Set(types.map((t) => t.name));
+    const funcs = funcSpans(bare).filter((fn) => fn.bodyOpen !== -1);
+    const names = new Set(funcs.map((fn) => fn.name));
+    const calls = [];
+    for (const fn of funcs) {
+      const body = bare.slice(fn.bodyOpen, fn.bodyClose);
+      for (const m of body.matchAll(/(?<![\w$])((?:self|Self|[A-Z]\w*)\s*\.\s*)?([a-z_]\w*)\s*\(/g)) {
+        if (!names.has(m[2])) continue;
+        if (/\bfunc\s+$/.test(body.slice(Math.max(0, m.index - 12), m.index))) continue;
+        if (m[1] === undefined && /[.?]\s*$/.test(body.slice(Math.max(0, m.index - 2), m.index))) continue;
+        if (m[1] !== undefined && !/^(?:self|Self)$/.test(m[1].replace(/[\s.]/g, '')) && !typeNames.has(m[1].replace(/[\s.]/g, ''))) continue;
+        const open = fn.bodyOpen + m.index + m[0].length - 1;
+        const close = closeParen(bare, open);
+        calls.push({ from: fn.name, to: m[2], at: open, args: close === -1 ? '' : bare.slice(open + 1, close) });
+      }
+    }
+    const edges = new Map();
+    for (const c of calls) {
+      if (!edges.has(c.from)) edges.set(c.from, new Set());
+      edges.get(c.from).add(c.to);
+    }
+    const cycles = cyclesOf([...names], edges);
+    said.cycles += cycles.length;
+    for (const cycle of cycles) {
+      for (const fn of funcs.filter((x) => cycle.has(x.name))) {
+        if (!/(?:^|,)\s*depth\s*:/.test(fn.params)) findings.push(`${at(f, fn.at)} ${fn.name} calls itself, directly or through ${[...cycle].join(', ')}, and takes no depth:; every recursion takes depth and passes depth + 1 (y5)`);
+      }
+      for (const c of calls.filter((x) => cycle.has(x.from) && cycle.has(x.to))) {
+        if (!/\bdepth\s*:\s*depth\s*\+\s*1\b/.test(c.args)) findings.push(`${at(f, c.at)} ${c.from} calls ${c.to} again without depth: depth + 1, so the recursion is not bounded by MarkdownCaps.depth (y5)`);
+      }
+    }
+    if (f.name === 'Markdown/Blocks.swift' && cycles.length > 0) {
+      if (!/\bdepth\s*(?:<|<=|>|>=|==|!=)\s*MarkdownCaps\s*\.\s*depth\b|\bMarkdownCaps\s*\.\s*depth\s*(?:<|<=|>|>=|==|!=)\s*depth\b/.test(bare)) {
+        findings.push(`${f.name} recurses (${cycles.map((c) => [...c].join(', ')).join('; ')}) and never compares depth with MarkdownCaps.depth, so a container nested past the cap still opens (y5)`);
+      }
+    }
+    if (f.name === 'Screens/MarkdownView.swift') {
+      const views = types.filter((t) => t.kind === 'struct');
+      const viewNames = new Set(views.map((t) => t.name));
+      const builds = [];
+      for (const t of views) {
+        const body = bare.slice(t.open, t.close);
+        for (const m of body.matchAll(/(?<![\w$.])([A-Z]\w*)\s*\(/g)) {
+          if (!viewNames.has(m[1])) continue;
+          const open = t.open + m.index + m[0].length - 1;
+          const close = closeParen(bare, open);
+          builds.push({ from: t.name, to: m[1], at: open, args: close === -1 ? '' : bare.slice(open + 1, close) });
+        }
+      }
+      const vEdges = new Map();
+      for (const b of builds) {
+        if (!vEdges.has(b.from)) vEdges.set(b.from, new Set());
+        vEdges.get(b.from).add(b.to);
+      }
+      const vCycles = cyclesOf([...viewNames], vEdges);
+      said.viewCycles += vCycles.length;
+      for (const cycle of vCycles) {
+        for (const t of views.filter((x) => cycle.has(x.name))) {
+          if (!/\b(?:let|var)\s+depth\s*:\s*Int\b/.test(bare.slice(t.open, t.close))) findings.push(`${at(f, t.at)} ${t.name} builds itself, directly or through ${[...cycle].join(', ')}, and holds no depth: Int (y5)`);
+        }
+        for (const b of builds.filter((x) => cycle.has(x.from) && cycle.has(x.to))) {
+          if (!/\bdepth\s*:\s*depth\s*\+\s*1\b/.test(b.args)) findings.push(`${at(f, b.at)} ${b.from} builds ${b.to} again without depth: depth + 1 (y5)`);
+        }
+      }
+    }
+  }
+
+  // y6: the one inline parse, with exactly its three options.
+  const parses = lexedFiles.flatMap((f) => [...f.lx.bare.matchAll(/\bAttributedString\s*(?:\.\s*init\s*)?\(\s*markdown\s*:/g)].map((m) => ({ f, index: m.index })));
+  said.parses = parses.length;
+  if (parses.length !== 1 || parses[0].f.name !== 'Markdown/Inline.swift') {
+    findings.push(`the app parses markdown with AttributedString(markdown: ${String(parses.length)} time(s)${parses.length > 0 ? ` (${parses.map((p) => at(p.f, p.index)).join(', ')})` : ''}; it is the app's ONE parse, in Markdown/Inline.swift (y6)`);
+  }
+  for (const f of lexedFiles) {
+    const bare = f.lx.bare;
+    for (const m of bare.matchAll(/\bNSAttributedString\s*(?:\.\s*init\s*)?\(\s*markdown\b/g)) findings.push(`${at(f, m.index)} parses markdown with NSAttributedString; the one parse is Inline.swift's (y6)`);
+    for (const m of bare.matchAll(/\.\s*(?:allowsExtendedAttributes|interpretedSyntax|failurePolicy|languageCode|appliesSourcePositionAttributes)\s*=(?!=)/g)) findings.push(`${at(f, m.index)} changes a markdown parsing option after it is made; the options are the three pinned, once (y6)`);
+    for (const m of bare.matchAll(/\.\s*inlineOnly\b/g)) findings.push(`${at(f, m.index)} names .inlineOnly, which drops the agent's spaces and line breaks; the syntax is .inlineOnlyPreservingWhitespace (y6)`);
+    if (/\bMarkdownParsingOptions\b|\binterpretedSyntax\b|\bmarkdown\s*:/.test(bare)) {
+      for (const m of bare.matchAll(/\.\s*full\b/g)) findings.push(`${at(f, m.index)} names .full in a file that parses markdown; SwiftUI draws none of .full's intents and nothing caps its parse (y6)`);
+    }
+    const builders = [...bare.matchAll(/\b(?:MarkdownParsingOptions|init)\s*\(/g)].filter((m) => {
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(bare, open);
+      return /\binterpretedSyntax\s*:/.test(bare.slice(open, close === -1 ? bare.length : close)) || m[0].startsWith('MarkdownParsingOptions');
+    });
+    if (f.name !== 'Markdown/Inline.swift') {
+      for (const b of builders) findings.push(`${at(f, b.index)} makes markdown parsing options; they are made once, in Markdown/Inline.swift (y6)`);
+      continue;
+    }
+    if (builders.length !== 1) findings.push(`${f.name} makes markdown parsing options ${String(builders.length)} time(s); it makes them once, with exactly ${Object.keys(INLINE_OPTIONS).join(', ')} (y6)`);
+    for (const b of builders) {
+      const open = b.index + b[0].length - 1;
+      const close = closeParen(bare, open);
+      const args = topLevelArgs(bare.slice(open + 1, close === -1 ? bare.length : close)).map((a) => /^(\w+)\s*:\s*([\s\S]*)$/.exec(a)).filter((m) => m !== null);
+      const got = Object.fromEntries(args.map((m) => [m[1], m[2].replace(/\s+/g, '')]));
+      if (JSON.stringify(Object.keys(got).sort()) !== JSON.stringify(Object.keys(INLINE_OPTIONS).sort())) findings.push(`${at(f, b.index)} makes options with ${JSON.stringify(Object.keys(got))}; exactly ${Object.keys(INLINE_OPTIONS).join(', ')} (y6)`);
+      for (const [label, value] of Object.entries(INLINE_OPTIONS)) {
+        if (got[label] !== undefined && got[label] !== value) findings.push(`${at(f, b.index)} sets ${label}: ${got[label]}; it is ${value} (y6)`);
+      }
+    }
+  }
+
+  // y7: nothing localizes a string anywhere in the app.
+  for (const f of lexedFiles) {
+    for (const re of LOCALIZED) for (const m of f.lx.bare.matchAll(re)) findings.push(`${at(f, m.index)} writes ${m[0].replace(/\s+/g, '')}; nothing in the app localizes or formats a string, so an agent's %@ draws as written (y7)`);
+  }
+
+  // y8: every Text in MarkdownView.swift is verbatim, a symbol or an AttributedString.
+  const view = byName.get('Screens/MarkdownView.swift');
+  if (view !== undefined) {
+    const bare = view.lx.bare;
+    const attributed = attributedNames(bare);
+    for (const m of bare.matchAll(/(?<![\w$.])Text\s*\(/g)) {
+      said.texts += 1;
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(bare, open);
+      const inside = bare.slice(open + 1, close === -1 ? bare.length : close).trim();
+      if (/^verbatim\s*:/.test(inside) || /^Image\s*\(\s*systemName\s*:/.test(inside)) continue;
+      const last = /^(?:[A-Za-z_]\w*\s*\.\s*)*([A-Za-z_]\w*)$/.exec(inside)?.[1];
+      if (last !== undefined && attributed.has(last)) continue;
+      findings.push(`${at(view, m.index)} draws Text(${inside.slice(0, 40)}); every Text in MarkdownView.swift is Text(verbatim:, Text(Image(systemName: or Text of an AttributedString Inline.swift built (y8)`);
+    }
+  }
+
+  // y10 to y16: the ruled round of 2026-10-01 (build/p3166/SPEC.md "As built,
+  // the ruled round"). y10 to y12, THE AGENT'S OWN NUMBERS (difference D17):
+  // an ordered item draws the digits the agent wrote, never a counted number.
+  // y13 to y16, THE PAGE COST: an answer whose parse holds more pieces than
+  // MarkdownCaps.pieces is drawn as the build before this one drew it.
+  const rendered = byName.get('Markdown/Rendered.swift');
+  const blocksFile = byName.get('Markdown/Blocks.swift');
+  const inline = byName.get('Markdown/Inline.swift');
+  const drawing = byName.get('Screens/MarkdownView.swift');
+  const spanBody = (f, kind, name) => {
+    const t = typeSpans(f.lx.bare).find((x) => x.kind === kind && x.name === name);
+    return t === undefined ? null : { text: f.lx.bare.slice(t.open + 1, t.close), at: t.at };
+  };
+  const funcBody = (f, name) => {
+    const fn = funcSpans(f.lx.bare).find((x) => x.name === name && x.bodyOpen !== -1);
+    return fn === undefined ? null : { text: f.lx.bare.slice(fn.bodyOpen + 1, fn.bodyClose), at: fn.at };
+  };
+  const callArgs = (f, callee) => [...f.lx.bare.matchAll(new RegExp(`(?<![\\w$.])${callee}\\s*\\(`, 'g'))].map((m) => {
+    const open = m.index + m[0].length - 1;
+    const close = closeParen(f.lx.bare, open);
+    const args = topLevelArgs(f.lx.bare.slice(open + 1, close === -1 ? f.lx.bare.length : close));
+    return { index: m.index, args: Object.fromEntries(args.map((a) => /^(\w+)\s*:\s*([\s\S]*)$/.exec(a)).filter((x) => x !== null).map((x) => [x[1], x[2].replace(/\s+/g, ' ').trim()])) };
+  });
+  if (rendered !== undefined) {
+    // y10: the item's number is the one the parse kept, a String, never counted.
+    const item = spanBody(rendered, 'struct', 'RenderedItem');
+    if (item === null) findings.push('Markdown/Rendered.swift declares no struct RenderedItem, so nothing holds an item\'s number (y10)');
+    else if (!/\blet\s+number\s*:\s*String\s*\?/.test(item.text)) findings.push(`${at(rendered, item.at)} RenderedItem's number is not a String?: an ordered item draws the digits the agent wrote, never a counted Int (D17, y10)`);
+    const made = callArgs(rendered, 'RenderedItem');
+    if (made.length === 0) findings.push('Markdown/Rendered.swift makes no RenderedItem, so no item reaches the screen with its number (y10)');
+    for (const c of made) {
+      if (c.args.number !== 'item.number') findings.push(`${at(rendered, c.index)} makes a RenderedItem with number: ${c.args.number ?? '(none)'}; it is item.number, the digits the agent wrote, never a counted one (D17, y10)`);
+    }
+    // y13: past MarkdownCaps.pieces, the answer as written and no blocks.
+    const bare = rendered.lx.bare;
+    if (!/\bif\s+(?:Self\s*\.\s*)?pieces\s*\([^()]*\)\s*>\s*MarkdownCaps\s*\.\s*pieces\s*\{/.test(bare)) findings.push('Markdown/Rendered.swift never asks `if pieces(…) > MarkdownCaps.pieces {` and nothing more, so a page of answers past the cap is drawn as blocks again (y13)');
+    const asWritten = [...bare.matchAll(/\bInline\s*\.\s*asWritten\s*\(/g)];
+    if (asWritten.length !== 1) findings.push(`Markdown/Rendered.swift calls Inline.asWritten ${String(asWritten.length)} time(s); it is the one path an answer past MarkdownCaps.pieces takes (y13)`);
+    for (const c of callArgs(rendered, 'self\\s*\\.\\s*init')) {
+      const writes = /\bInline\s*\.\s*asWritten\s*\(/.test(c.args.written ?? '');
+      if (writes && c.args.blocks !== '[]') findings.push(`${at(rendered, c.index)} draws an answer as written AND as blocks (${c.args.blocks ?? '(none)'}); past MarkdownCaps.pieces there are no blocks at all (y13)`);
+      if (!writes && c.args.written !== 'nil') findings.push(`${at(rendered, c.index)} makes an answer of blocks with written: ${c.args.written ?? '(none)'}; it is nil (y13)`);
+    }
+    // y14: a piece is a block, a list item or a table cell.
+    const pieces = funcBody(rendered, 'pieces');
+    if (pieces === null) findings.push('Markdown/Rendered.swift has no func pieces, so nothing counts what an answer would draw (y14)');
+    else {
+      const counts = [[/\bfor\s+\w+\s+in\s+items\s*\{\s*count\s*\+=\s*containerPieces\s*\+/, 'every list item as the container it is'], [/\bcase\s+\.quote\b[^:]*:\s*count\s*\+=\s*containerPieces\s*-\s*1\b/, 'a quote as the container it is'], [/\.\s*header\s*\.\s*count\b/, 'the header\'s cells'], [/\.\s*rows\b/, 'the body rows\' cells'], [/\bcount\s*\+=\s*1\b/, 'every block'], [/\bcase\s+\.code\b[^:]*:\s*count\s*\+=\s*scrollPieces\s*-\s*1\b/, 'a code block as the scroll it is'], [/\bcase\s+\.table\b[^:]*:\s*count\s*\+=\s*scrollPieces\s*-\s*1\b/, 'a table as the scroll it is']];
+      for (const [re, what] of counts) if (!re.test(pieces.text)) findings.push(`${at(rendered, pieces.at)} pieces does not count ${what}; a piece is a block, a list item or a table cell, each one view (y14)`);
+    }
+  }
+  if (blocksFile !== undefined) {
+    // y11: the marker keeps the digits as written, and the item carries them.
+    const bare = blocksFile.lx.bare;
+    if (!/\bnumber\s*=\s*String\s*\(\s*decoding\s*:\s*bytes\s*\[/.test(bare)) findings.push('Markdown/Blocks.swift never keeps a list marker\'s digits from its own bytes, so 007 or a leading digit the agent wrote can be lost (D17, y11)');
+    const items = callArgs(blocksFile, 'MarkdownItem');
+    if (items.length === 0) findings.push('Markdown/Blocks.swift makes no MarkdownItem (y11)');
+    for (const c of items) if (!/^\w+\.number$/.test(c.args.number ?? '')) findings.push(`${at(blocksFile, c.index)} makes a MarkdownItem with number: ${c.args.number ?? '(none)'}; it is its marker's written number (D17, y11)`);
+  }
+  if (drawing !== undefined) {
+    // y12: the mark drawn is the item's own number.
+    const bare = drawing.lx.bare;
+    const marks = [...bare.matchAll(/\bCopy\s*\.\s*orderedMark\s*\(\s*([^()]*?)\s*\)/g)];
+    if (marks.length === 0) findings.push('Screens/MarkdownView.swift draws no Copy.orderedMark, so no ordered item shows its number (y12)');
+    for (const m of marks) {
+      const bound = new RegExp(`\\bif\\s+let\\s+${m[1].replace(/[^\w]/g, '')}\\s*=\\s*item\\s*\\.\\s*number\\b`).test(bare);
+      if (m[1] !== 'item.number' && !bound) findings.push(`${at(drawing, m.index)} draws Copy.orderedMark(${m[1]}); the mark is item.number, the digits the agent wrote (D17, y12)`);
+    }
+    // y16: an answer as written is drawn EXACTLY as the build before this one drew it.
+    if (!/\bif\s+let\s+\w+\s*=\s*answer\s*\.\s*written\b/.test(bare)) findings.push('Screens/MarkdownView.swift never draws answer.written, so an answer past MarkdownCaps.pieces draws nothing (y16)');
+    const parentFace = 'Text(attributed).font(Face.body.font).foregroundStyle(Tokens.textPrimary).lineSpacing(Face.body.spacing).fixedSize(horizontal:false,vertical:true).frame(maxWidth:.infinity,alignment:.leading)';
+    const writtenView = spanBody(drawing, 'struct', 'WrittenView');
+    if (writtenView === null) findings.push('Screens/MarkdownView.swift declares no WrittenView, the one way an answer as written is drawn (y16)');
+    else {
+      const body = /\bvar\s+body\s*:\s*some\s+View\s*\{([\s\S]*)\}\s*$/.exec(writtenView.text)?.[1]?.replace(/\s+/g, '') ?? '';
+      if (body !== parentFace) findings.push(`${at(drawing, writtenView.at)} WrittenView draws ${body.slice(0, 90) || '(nothing)'}; it is the parent's AnswerText exactly: ${parentFace} (y16)`);
+    }
+  }
+  if (inline !== undefined) {
+    // y15: as written, every link and image address removed, through the one parse.
+    const fn = funcBody(inline, 'asWritten');
+    if (fn === null) findings.push('Markdown/Inline.swift has no func asWritten, so an answer past MarkdownCaps.pieces has no way to be drawn (y15)');
+    else {
+      const aliases = (attr) => [attr, ...[...inline.lx.bare.matchAll(new RegExp(`typealias\\s+(\\w+)\\s*=\\s*[\\w.]*\\b${attr}\\b`, 'g'))].map((m) => m[1])];
+      const removes = (attr) => aliases(attr).some((name) => new RegExp(`\\[\\s*(?:[\\w.]*\\.)?${name}\\s*\\.\\s*self\\s*\\]\\s*=\\s*nil\\b`).test(fn.text));
+      if (!removes('LinkAttribute')) findings.push(`${at(inline, fn.at)} asWritten keeps a link: the answer as written is the parent's, every link removed, so nothing in it can be pressed (y15)`);
+      if (!removes('ImageURLAttribute')) findings.push(`${at(inline, fn.at)} asWritten keeps an image address: every image address is removed, so nothing can ever fetch it (y15)`);
+      if (/\bAttributedString\s*\(\s*markdown\s*:/.test(fn.text) || !/\bparsed\s*\(/.test(fn.text)) findings.push(`${at(inline, fn.at)} asWritten does not go through the one parse with its three options (y15)`);
+    }
+  }
+
+  // y9: the boundary (k)'s scope rests on.
+  for (const f of renderer) {
+    for (const b of rendererBoundary(f.source)) findings.push(`${f.name}:${String(b.line)} names ${b.name}; the renderer's only input is a String, and it names no door type, decoder or connection (y9)`);
+  }
+  return { findings, said };
+}
+
+// ---- (z) NOTHING FETCHED, AND ONE WAY OUT (SPEC §5.5.5, §6.3) --------------
+
+/** The one file that may open an address an answer wrote, relative to the app folder. */
+export const LINKS_FILE = 'Markdown/Links.swift';
+/** The one other file that may hand iOS an address: iOS's own notification settings. */
+export const SETTINGS_FILE = 'Screens/SettingsScreen.swift';
+const FETCHERS = [
+  [/\bAsyncImage\b/g, 'loads an image from an address'],
+  [/\bNSAttributedString\b/g, 'is the attributed string that imports HTML'],
+  [/\bDocumentType\b|\bdocumentType\b/g, 'names a document type, which is how HTML is imported']
+];
+const WAYS_OUT = /\bSFSafariViewController\b|\bSafariServices\b|\bASWebAuthenticationSession\b|\bAuthenticationServices\b|\bQLPreviewController\b|\bQuickLook\w*|\bUIDocumentInteractionController\b|\bcanOpenURL\b|(?<![\w$.])Link\s*\(/g;
+const OPENS = /\bUIApplication\s*\.\s*shared\s*\.\s*open\s*\(/g;
+const CONTROL_HEAD = /\b(?:if|guard|else|for|while|switch|do|repeat|catch|defer)\b[^{};]*$/;
+
+/** Where the closure or function holding `index` begins: the nearest `{` outward that is not an if, guard, loop or switch block. */
+function closureStart(bare, index) {
+  let k = innermostOpener(bare, index);
+  while (k !== -1) {
+    if (bare[k] === '{') {
+      let h = k - 1;
+      while (h >= 0 && !';{}\n'.includes(bare[h])) h -= 1;
+      const head = bare.slice(h + 1, k);
+      if (!CONTROL_HEAD.test(head)) return k;
+    }
+    k = innermostOpener(bare, k);
+  }
+  return 0;
+}
+
+/**
+ * Rule (z), over the app's Swift named relative to the app folder (SPEC
+ * §6.3). z1 nothing is fetched: no `AsyncImage`, `NSAttributedString`,
+ * document type, or `contentsOf:` initialiser outside a DEBUG arm; z2 no
+ * in-app browser, sign-in sheet, preview, document hand-off, `canOpenURL` or
+ * SwiftUI `Link(`; z3 `OpenURLAction` and `openURL` only in Links.swift, and
+ * `UIApplication.shared.open(` only there and in SettingsScreen.swift; z4 the
+ * one `OpenURLAction` asks `LinkPolicy.opens(` before it stages, and the
+ * closure that opens asks it again before the one open; z5 Settings opens
+ * only iOS's own notification settings; z6 `LinkPolicy.opens` names "https",
+ * `.user`, `.password`, `.port`, "xn--" and `MarkdownCaps.linkBytes`.
+ */
+export function ruleOneWayOut(files) {
+  const findings = [];
+  const said = { actions: 0, opens: 0, settingsOpens: 0 };
+  const lexedFiles = files.map((f) => ({ ...f, lx: lexSwift(f.source) }));
+  const at = (f, i) => `${f.name}:${String(lineOf(f.lx.bare, i))}`;
+  for (const f of lexedFiles) {
+    const bare = f.lx.bare;
+    const debug = debugLines(f.lx.code);
+    for (const [re, why] of FETCHERS) for (const m of bare.matchAll(re)) findings.push(`${at(f, m.index)} names ${m[0]}, which ${why}; nothing an answer names is fetched (z1)`);
+    for (const m of bare.matchAll(/(?:\b[A-Z]\w*(?:\s*\.\s*[A-Z]\w*)*\s*(?:\.\s*init\s*)?|\.\s*init\s*)\(\s*contentsOf\s*:/g)) {
+      if (debug[lineOf(bare, m.index)] === true) continue;
+      findings.push(`${at(f, m.index)} builds a value with contentsOf:, which can load an address; outside a DEBUG arm nothing is (z1)`);
+    }
+    for (const m of bare.matchAll(WAYS_OUT)) findings.push(`${at(f, m.index)} names ${m[0].replace(/\s+/g, '')}; the one way out of the app is Links.swift's alert, and Safari or the app that owns the address opens it, never a view inside Tortie (z2)`);
+    for (const m of bare.matchAll(/\bOpenURLAction\b|\bopenURL\b/g)) {
+      if (f.name !== LINKS_FILE) findings.push(`${at(f, m.index)} names ${m[0]}; the one OpenURLAction, and the openURL it answers, are Links.swift's (z3)`);
+    }
+    for (const m of bare.matchAll(OPENS)) {
+      if (f.name === LINKS_FILE) said.opens += 1;
+      else if (f.name === SETTINGS_FILE) said.settingsOpens += 1;
+      else findings.push(`${at(f, m.index)} calls UIApplication.shared.open(; only Links.swift, after his press, and Settings, with iOS's own notification settings, hand iOS an address (z3)`);
+    }
+  }
+  const links = lexedFiles.find((f) => f.name === LINKS_FILE);
+  if (links === undefined) findings.push(`${LINKS_FILE} does not exist, so no link has its one way out (z4)`);
+  else {
+    const bare = links.lx.bare;
+    const actions = [...bare.matchAll(/\bOpenURLAction\s*(?:\(\s*(?:handler\s*:\s*)?)?\{/g)];
+    said.actions = actions.length;
+    if (actions.length !== 1) findings.push(`${LINKS_FILE} makes ${String(actions.length)} OpenURLAction(s); there is ONE (z3)`);
+    for (const a of actions) {
+      const open = a.index + a[0].length - 1;
+      const close = matchForward(bare, open);
+      const body = bare.slice(open, close === -1 ? bare.length : close);
+      const ask = /\bLinkPolicy\s*\.\s*opens\s*\(/.exec(body);
+      const stage = /(?<![=!<>])=(?!=)|\.\s*handled\b/.exec(body);
+      if (ask === null) findings.push(`${at(links, a.index)} the OpenURLAction never asks LinkPolicy.opens(, so any address an answer wrote is staged (z4)`);
+      else if (stage !== null && stage.index < ask.index) findings.push(`${at(links, a.index)} the OpenURLAction stages the address before it asks LinkPolicy.opens( (z4)`);
+      if (!/\.\s*discarded\b/.test(body)) findings.push(`${at(links, a.index)} the OpenURLAction never answers .discarded, so a refused address is handed back to the system (z4)`);
+    }
+    for (const m of bare.matchAll(OPENS)) {
+      const from = closureStart(bare, m.index);
+      if (!/\bLinkPolicy\s*\.\s*opens\s*\(/.test(bare.slice(from, m.index))) findings.push(`${at(links, m.index)} opens an address without asking LinkPolicy.opens( again in the closure that opens it (z4)`);
+    }
+    if (said.opens === 0) findings.push(`${LINKS_FILE} never calls UIApplication.shared.open(, so Open opens nothing (z4)`);
+    // z6
+    const policy = typeSpans(bare).find((t) => t.name === 'LinkPolicy' && t.kind !== 'extension');
+    const own = policy === undefined ? [] : funcSpans(bare).filter((fn) => fn.bodyOpen > policy.open && fn.bodyClose <= policy.close && fn.bodyOpen !== -1);
+    const opens = own.find((fn) => fn.name === 'opens');
+    if (opens === undefined) findings.push(`${LINKS_FILE} declares no LinkPolicy.opens with a body (z6)`);
+    else {
+      // The body opens runs: its own, and that of every LinkPolicy function
+      // it names (a helper called, or handed as a predicate), followed
+      // through, because a clause asked in a helper opens calls is asked.
+      const reached = [opens];
+      for (let k = 0; k < reached.length; k += 1) {
+        const text = bare.slice(reached[k].bodyOpen, reached[k].bodyClose);
+        for (const fn of own) if (!reached.includes(fn) && new RegExp(`(?<![\\w$.])${fn.name}\\b`).test(text)) reached.push(fn);
+      }
+      const body = reached.map((fn) => bare.slice(fn.bodyOpen, fn.bodyClose)).join('\n');
+      const strings = links.lx.strings.filter((s) => reached.some((fn) => s.start > fn.bodyOpen && s.end <= fn.bodyClose)).map((s) => s.value);
+      const wants = [
+        ['"https"', strings.includes('https')],
+        ['.user', /\.\s*user\b/.test(body)],
+        ['.password', /\.\s*password\b/.test(body)],
+        ['.port', /\.\s*port\b/.test(body)],
+        ['"xn--"', strings.some((s) => s.includes('xn--'))],
+        ['MarkdownCaps.linkBytes', /\bMarkdownCaps\s*\.\s*linkBytes\b/.test(body)]
+      ];
+      for (const [name, ok] of wants) if (!ok) findings.push(`${LINKS_FILE}:${String(lineOf(bare, opens.at))} LinkPolicy.opens never names ${name}, so that clause of the policy is not asked (z6)`);
+    }
+  }
+  const settings = lexedFiles.find((f) => f.name === SETTINGS_FILE);
+  if (settings !== undefined) {
+    const bare = settings.lx.bare;
+    const decls = declSpans(bare);
+    for (const m of bare.matchAll(OPENS)) {
+      const d = innermost(decls, m.index);
+      const body = d === null ? '' : bare.slice(d.bodyOpen, d.bodyClose);
+      if (!/\bUIApplication\s*\.\s*openNotificationSettingsURLString\b/.test(body)) findings.push(`${at(settings, m.index)} opens an address not made from UIApplication.openNotificationSettingsURLString in the same function; Settings opens iOS's own notification settings and nothing else (z5)`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
 // The scanners, proved on texts this file holds, before any file is read
 // ---------------------------------------------------------------------------
 
@@ -3465,7 +4543,8 @@ const expect = (what, ok) => {
         { name: 'Screens/F.swift', source: screen }
       ],
       'Door/Contract.swift',
-      named
+      named,
+      []
     ).findings;
   expect('(k) passes a contract whose numbers are bounded and a screen with no arithmetic', kRun('let x = 1\n').length === 0);
   expect('(k) catches the shipped list defect, a sum on a door field', kRun('let n = others.count + max(0, answer.othersOmitted)\n').length > 0);
@@ -3971,8 +5050,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 4;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 4;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 5;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 5;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -4069,14 +5148,502 @@ const expect = (what, ok) => {
   expect('(x) catches the screen asking before it presents', xRun(xEdit(ALERT_FILES.screen, 'func read() async { _ = await door.pair(p, askForAlerts: { await alerts.askForPairing() })', 'func read() async { _ = await alerts.askForPairing(); _ = await door.pair(p, askForAlerts: { nil })')).length > 0);
   expect('(x) catches the launch check reading iOS with no guard on macSends', xRun(xEdit(ALERT_FILES.app, '    guard kept.macSends else { return }\n', '')).length > 0);
   expect('(x) catches iOS read outside the launch check', xRun({ 'Screens/ListScreen.swift': 'func f() async { _ = await alerts.authorization() }\n' }).length > 0);
+
+  // ---- Phase 316.6 (build/p3166/SPEC.md §6): every new clause, proved first --
+  // (a), widened: the tab bar's look.
+  const tokensLookOk = [
+    '@MainActor',
+    'enum TabBarLook {',
+    '    static func apply() {',
+    '        let item = UITabBarItemAppearance()',
+    '        for state in [item.normal, item.selected] {',
+    '            state.badgeBackgroundColor = Token.statusAttentionBadgeBg.uiColor',
+    '            state.badgeTextAttributes = [.foregroundColor: Token.statusAttentionBadgeFg.uiColor]',
+    '        }',
+    '        let look = UITabBarAppearance()',
+    '        look.stackedLayoutAppearance = item',
+    '        UITabBar.appearance().standardAppearance = look',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const appApplies = 'struct TortieApp {\n    init() { TabBarLook.apply() }\n}\n';
+  const aLook = (tokens = tokensLookOk, app = appApplies, extra = []) => ruleTabBarLook([{ name: 'Style/Tokens.swift', source: tokens }, { name: 'App/TortieApp.swift', source: app }, ...extra]).findings;
+  expect('(a) accepts the badge set from its two tokens in Tokens.swift, applied once from the app', aLook().length === 0);
+  expect('(a) catches UITabBar.appearance() in the app file', aLook(tokensLookOk, `${appApplies}func f() { _ = UITabBar.appearance() }\n`).length > 0);
+  expect("(a) catches the badge's ground set from statusAttention", aLook(tokensLookOk.replace('Token.statusAttentionBadgeBg.uiColor', 'Token.statusAttention.uiColor')).length > 0);
+  expect("(a) catches the badge's words set from another token", aLook(tokensLookOk.replace('Token.statusAttentionBadgeFg.uiColor', 'Token.textPrimary.uiColor')).length > 0);
+  expect("(a) catches the badge's words set from two tokens", aLook(tokensLookOk.replace('.foregroundColor: Token.statusAttentionBadgeFg.uiColor]', '.foregroundColor: Token.statusAttentionBadgeFg.uiColor, .backgroundColor: Token.bgSurface.uiColor]')).length > 0);
+  expect('(a) catches a badge colour never set', aLook(tokensLookOk.replace(/\n\s*state\.badgeTextAttributes[^\n]*/, '')).length > 0);
+  expect('(a) catches the look never applied', aLook(tokensLookOk, 'struct TortieApp {}\n').length > 0);
+  expect('(a) catches the look applied from a screen', aLook(tokensLookOk, appApplies, [{ name: 'Screens/ListScreen.swift', source: 'func f() { TabBarLook.apply() }\n' }]).length > 0);
+  expect('(a) follows a local binding to the token it names', aLook(tokensLookOk.replace('state.badgeBackgroundColor = Token.statusAttentionBadgeBg.uiColor', 'let ground = Token.statusAttentionBadgeBg.uiColor\n            state.badgeBackgroundColor = ground')).length === 0);
+  expect('(a) leaves a comment naming UITabBar alone', aLook(tokensLookOk, `${appApplies}// UITabBar.appearance() is Tokens.swift's\n`).length === 0);
+
+  // (b), widened: the three tabs.
+  const tabsOk = [
+    'struct RootView: View {',
+    '    var body: some View {',
+    '        TabView(selection: $app.tab) {',
+    '            Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) { NavigationStack(path: $app.waitingPath) { ListScreen() } }',
+    '                .badge(app.waitingBadge)',
+    '            Tab(Copy.sessions, systemImage: "list.bullet", value: AppTab.sessions) { NavigationStack(path: $app.sessionsPath) { ListScreen() } }',
+    '            Tab(Copy.settings, systemImage: "gearshape", value: AppTab.settings) { NavigationStack { SettingsScreen(app: app) } }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const bTabs = (app = tabsOk, extra = []) => ruleTabs([{ name: 'App/TortieApp.swift', source: app }, ...extra]).findings;
+  expect('(b) accepts the three tabs in order, with their words and symbols', bTabs().length === 0);
+  expect('(b) leaves the tabs to (b)\'s literal half, which reads Tab now', ruleNoVisibleLiteral('F', tabsOk).length === 0 && ruleNoVisibleLiteral('F', 'let t = Tab("Needs input", systemImage: "bell", value: 1) {}\n').length > 0);
+  expect('(b) catches a literal tab label', bTabs(tabsOk.replace('Tab(Copy.needsInput,', 'Tab("Needs input",')).length > 0);
+  expect('(b) catches a fourth tab', bTabs(tabsOk.replace('        }\n    }\n}', '            Tab(Copy.sessions, systemImage: "magnifyingglass", value: AppTab.sessions) { EmptyView() }\n        }\n    }\n}')).length > 0);
+  expect('(b) catches the tabs out of order', bTabs(tabsOk.replace('Tab(Copy.sessions, systemImage: "list.bullet"', 'Tab(Copy.settings, systemImage: "list.bullet"')).length > 0);
+  expect('(b) catches another symbol', bTabs(tabsOk.replace('"bell"', '"bell.fill"')).length > 0);
+  expect('(b) catches a tab built outside the app file', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'let t = Tab(Copy.sessions, systemImage: "x", value: 1) { EmptyView() }\n' }]).length > 0);
+  expect('(b) catches the bar hidden on a pushed screen', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .tabBar) }\n' }]).length > 0);
+  expect('(b) catches the bar hidden by toolbarVisibility', bTabs(tabsOk, [{ name: 'Screens/SessionScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbarVisibility(.hidden, for: .navigationBar, .tabBar) }\n' }]).length > 0);
+  expect('(b) leaves the navigation bar hidden alone', bTabs(tabsOk, [{ name: 'Screens/ListScreen.swift', source: 'func f(_ v: some View) -> some View { v.toolbar(.hidden, for: .navigationBar) }\n' }]).length === 0);
+  expect('(b) catches the tab kept in @AppStorage', bTabs(`${tabsOk}struct Kept { @AppStorage("tab") var tab = 0 }\n`).length > 0);
+  expect('(b) catches the tab kept in UserDefaults', bTabs(`${tabsOk}func keep() { UserDefaults.standard.set(1, forKey: "tab") }\n`).length > 0);
+
+  // (k), the one named scope.
+  const kScope = (renderer, extra = []) => ruleDoorArithmetic([{ name: 'Door/Contract.swift', source: contractOk }, { name: 'Markdown/Blocks.swift', source: renderer }, ...extra], 'Door/Contract.swift', []).findings;
+  expect("(k) waives the renderer's own index arithmetic under its one named scope", kScope('func f(_ i: Int) -> Int { i + 1 }\n').length === 0);
+  expect('(k) still catches a door field inside the scope', kScope('func f(_ t: (index: Int, x: Int)) -> Int { t.index + 1 }\n').length > 0);
+  expect('(k) waives nothing once the renderer names a door type (y9)', kScope('typealias T = PocketTurn\nfunc f(_ i: Int) -> Int { i + 1 }\n').length > 0);
+  expect("(k) an operator in a renderer that names a door type needs its own name again", kScope('typealias T = PocketTurn\nfunc f(_ i: Int) -> Int { i + 1 }\n').some((x) => /cannot prove is off the door/.test(x)));
+  expect('(k) catches a scope that covers no operator', kScope('let x = 1\n').length > 0);
+  expect('(k) still catches an unnamed operator outside the scope', kScope('func f(_ i: Int) -> Int { i + 1 }\n', [{ name: 'Screens/SettingsScreen.swift', source: 'func g(_ a: Int, _ b: Int) -> Int { a + b }\n' }]).length > 0);
+
+  // (n), widened: the deleters and their order.
+  const nKeys = [
+    'struct KeychainClientKeys: ClientKeyStore {',
+    '    func delete(tag: String) {',
+    '        SecItemDelete(key as CFDictionary)',
+    '        SecItemDelete(certificate as CFDictionary)',
+    '    }',
+    '}',
+    'struct KeychainSecretStore: SecretStore {',
+    '    func write(_ data: Data, account: String) throws {',
+    '        try remove(account)',
+    '    }',
+    '    func remove(_ account: String) throws {',
+    '        let status = SecItemDelete(query(account) as CFDictionary)',
+    '    }',
+    '}',
+    'final class PairingStore: Sendable {',
+    '    func load() -> PairedDoor? {',
+    '        if (try? secrets.read(Self.formerAccount)) != nil {',
+    '            try? secrets.remove(Self.formerAccount)',
+    '        }',
+    '        try? forget()',
+    '        return nil',
+    '    }',
+    '    func forget() throws {',
+    '        try secrets.remove(Self.account)',
+    '        try? secrets.remove(Self.formerAccount)',
+    '        for tag in clientKeys.tags() {',
+    '            clientKeys.delete(tag: tag)',
+    '        }',
+    '    }',
+    '    var holdsRecord: Bool { true }',
+    '    func forgetOnFreshInstall(_ mark: InstallMark) -> Bool {',
+    '        do {',
+    '            try forget()',
+    '        } catch {',
+    '            return true',
+    '        }',
+    '        return true',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const nFlow = 'final class PairingFlow: Sendable {\n    func run(_ p: P) async -> O {\n        if case .failed = outcome {\n            store.clientKeys.delete(tag: pending.clientKey.tag)\n        }\n        return outcome\n    }\n}\n';
+  const nApp = [
+    'final class AppModel {',
+    '    static func launch() -> AppModel {',
+    '        let door = LiveDoor(store: .keychain, transport: t)',
+    '        #if DEBUG',
+    '        if PairingDebugSeam.forgetRequested() { door.forget() }',
+    '        #endif',
+    '        return AppModel(door: door)',
+    '    }',
+    '}',
+    'struct LiveDoor: PhoneDoor {',
+    '    func forget() {',
+    '        try? store.forget()',
+    '    }',
+    '    func unpair() -> UnpairOutcome {',
+    '        do { try store.forget() } catch { return .kept }',
+    '        return store.holdsRecord ? .kept : .forgotten',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const nDel = (edits = {}) =>
+    ruleDeleters(
+      Object.entries({ 'Door/Keys.swift': nKeys, 'Door/Pairing.swift': nFlow, 'App/TortieApp.swift': nApp, ...edits })
+        .filter(([, v]) => v !== null)
+        .map(([name, source]) => ({ name, source }))
+    ).findings;
+  expect('(n) accepts the deleters where they are, the record first, and an unpair that sees its error', nDel().length === 0);
+  expect('(n) catches SecItemDelete in a screen', nDel({ 'Screens/ListScreen.swift': 'func f(_ q: CFDictionary) { _ = SecItemDelete(q) }\n' }).length > 0);
+  expect('(n) catches SecItemDelete in another function of the store', nDel({ 'Door/Keys.swift': nKeys.replace('    var holdsRecord: Bool { true }', '    func wipe() { SecItemDelete(q as CFDictionary) }\n    var holdsRecord: Bool { true }') }).length > 0);
+  expect('(n) catches the record removed outside PairingStore', nDel({ 'App/TortieApp.swift': `${nApp}struct Wiper {\n    func wipe() { try? secrets.remove("pairing-v2") }\n}\n` }).length > 0);
+  expect('(n) catches a client key deleted from a screen', nDel({ 'Screens/SettingsScreen.swift': 'func f() { store.clientKeys.delete(tag: t) }\n' }).length > 0);
+  expect('(n) catches the keys deleted before the record', nDel({ 'Door/Keys.swift': nKeys.replace('        try secrets.remove(Self.account)\n        try? secrets.remove(Self.formerAccount)\n        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n', '        for tag in clientKeys.tags() {\n            clientKeys.delete(tag: tag)\n        }\n        try secrets.remove(Self.account)\n        try? secrets.remove(Self.formerAccount)\n') }).length > 0);
+  expect('(n) catches the record removed with try?', nDel({ 'Door/Keys.swift': nKeys.replace('        try secrets.remove(Self.account)\n', '        try? secrets.remove(Self.account)\n') }).length > 0);
+  expect('(n) catches unpair through try? store.forget()', nDel({ 'App/TortieApp.swift': nApp.replace('do { try store.forget() } catch { return .kept }', 'try? store.forget()') }).length > 0);
+  expect('(n) catches an unpair that never forgets', nDel({ 'App/TortieApp.swift': nApp.replace('do { try store.forget() } catch { return .kept }', '_ = store') }).length > 0);
+  expect('(n) catches an unpair that never asks whether the record is still there', nDel({ 'App/TortieApp.swift': nApp.replace('return store.holdsRecord ? .kept : .forgotten', 'return .forgotten') }).length > 0);
+  expect('(n) catches no unpair at all', nDel({ 'App/TortieApp.swift': nApp.replace(/ {4}func unpair\(\)[\s\S]*?\n {4}\}\n/, '') }).length > 0);
+  expect('(n) catches door.forget() outside #if DEBUG', nDel({ 'App/TortieApp.swift': nApp.replace('        #if DEBUG\n', '').replace('        #endif\n', '') }).length > 0);
+  expect('(n) catches the store forgotten by the app model', nDel({ 'App/TortieApp.swift': nApp.replace('        return AppModel(door: door)', '        try? PairingStore.keychain.forget()\n        return AppModel(door: door)') }).length > 0);
+  expect('(n) leaves forgetOnFreshInstall( alone, a different name', nDel({ 'App/TortieApp.swift': nApp.replace('        let door = LiveDoor', '        PairingStore.keychain.forgetOnFreshInstall(mark)\n        let door = LiveDoor') }).length === 0);
+
+  // (x), widened: Unpair's unregister and its one caller.
+  const fxSystem = 'final class SystemPushAddressing {\n  func forgetAddress() async {\n    #if DEBUG\n    #else\n    UIApplication.shared.unregisterForRemoteNotifications()\n    #endif\n  }\n}\n';
+  const fxApp = [
+    'final class AppModel {',
+    '    func unpair() {',
+    '        guard root == .reading else { return }',
+    '        switch door.unpair() {',
+    '        case .kept:',
+    '            settingsLine = Copy.unpairFailed',
+    '        case .forgotten:',
+    '            settingsLine = nil',
+    '            forgetting = Task { await alerts.forgetAddress() }',
+    '            lostPairing()',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const xFa = (edits = {}, tests = []) =>
+    ruleForgetAddress(
+      Object.entries({ 'Alerts/SystemAlerts.swift': fxSystem, 'App/TortieApp.swift': fxApp, 'Alerts/Alerts.swift': 'protocol PushAddressing {\n    func forgetAddress() async\n}\n', ...edits }).map(([name, source]) => ({ name, source })),
+      tests
+    ).findings;
+  expect('(x) accepts one unregister in the #else and one forgetAddress() in the .forgotten arm', xFa().length === 0);
+  expect('(x) catches the unregister outside the #else', xFa({ 'Alerts/SystemAlerts.swift': fxSystem.replace('    #if DEBUG\n    #else\n', '').replace('    #endif\n', '') }).length > 0);
+  expect('(x) catches the unregister in the #if DEBUG arm', xFa({ 'Alerts/SystemAlerts.swift': fxSystem.replace('    #if DEBUG\n    #else\n    UIApplication', '    #if DEBUG\n    UIApplication').replace('    #endif', '    #else\n    #endif') }).length > 0);
+  expect('(x) catches a second unregister', xFa({ 'App/TortieApp.swift': `${fxApp}func again() { UIApplication.shared.unregisterForRemoteNotifications() }\n` }).length > 0);
+  expect('(x) catches forgetAddress() before door.unpair()', xFa({ 'App/TortieApp.swift': fxApp.replace('            forgetting = Task { await alerts.forgetAddress() }\n', '').replace('        switch door.unpair() {', '        forgetting = Task { await alerts.forgetAddress() }\n        switch door.unpair() {') }).length > 0);
+  expect('(x) catches forgetAddress() in the .kept arm', xFa({ 'App/TortieApp.swift': fxApp.replace('            forgetting = Task { await alerts.forgetAddress() }\n', '').replace('            settingsLine = Copy.unpairFailed\n', '            settingsLine = Copy.unpairFailed\n            forgetting = Task { await alerts.forgetAddress() }\n') }).length > 0);
+  expect('(x) catches forgetAddress() in a .forgotten arm that comes before door.unpair()', xFa({ 'App/TortieApp.swift': fxApp.replace('        switch door.unpair() {\n        case .kept:\n            settingsLine = Copy.unpairFailed\n        case .forgotten:\n            settingsLine = nil\n            forgetting = Task { await alerts.forgetAddress() }\n            lostPairing()\n        }\n', '        switch outcome {\n        case .kept:\n            break\n        case .forgotten:\n            forgetting = Task { await alerts.forgetAddress() }\n        }\n        _ = door.unpair()\n') }).length > 0);
+  expect('(x) catches forgetAddress() called twice', xFa({ 'App/TortieApp.swift': fxApp.replace('            lostPairing()\n', '            lostPairing()\n            forgetting = Task { await alerts.forgetAddress() }\n') }).length > 0);
+  expect('(x) catches a test naming the unregister', xFa({}, [{ name: 'TortieTests/T.swift', source: 'func f() { UIApplication.shared.unregisterForRemoteNotifications() }\n' }]).length > 0);
+  expect('(x) leaves registerForRemoteNotifications to its own clause', xFa({ 'Alerts/SystemAlerts.swift': `${fxSystem}// registerForRemoteNotifications\n` }).length === 0);
+
+  // (y) and (z): a whole renderer that keeps every bound.
+  const capsOk = ['import Foundation', 'enum MarkdownCaps {', ...Object.entries(MARKDOWN_CAPS).map(([n, c]) => `    static let ${n} = ${String(c.value)}`), '}', ''].join('\n');
+  const blocksOk = [
+    'import Foundation',
+    'enum MarkdownBlocks {',
+    '    static func parse(_ answer: String) -> MarkdownDocument {',
+    '        let cut = answer.utf8.count > MarkdownCaps.answerBytes',
+    '        return MarkdownDocument(blocks: blocks(lines(answer), depth: 0), cut: cut)',
+    '    }',
+    '    static func blocks(_ lines: [Substring], depth: Int) -> [MarkdownBlock] {',
+    '        var out: [MarkdownBlock] = []',
+    '        if depth < MarkdownCaps.depth, out.count < MarkdownCaps.blocks {',
+    '            out.append(.quote(blocks(lines, depth: depth + 1)))',
+    '        }',
+    '        let caps = [MarkdownCaps.tableRows, MarkdownCaps.tableColumns, MarkdownCaps.cellCharacters, MarkdownCaps.cells, MarkdownCaps.fenceLines, MarkdownCaps.lineCharacters, MarkdownCaps.listNumberDigits]',
+    '        _ = caps',
+    '        return out',
+    '    }',
+    '    static func lines(_ s: String) -> [Substring] { s.split(separator: "x") }',
+    '    static func item(_ bytes: [UInt8], marker: ListMarker) -> MarkdownItem {',
+    '        let number = String(decoding: bytes[0..<1], as: UTF8.self)',
+    '        _ = number',
+    '        return MarkdownItem(task: nil, bullet: marker.written, number: marker.number, blocks: [])',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const inlineOk = [
+    'import Foundation',
+    'enum Inline {',
+    '    typealias LinkKey = AttributeScopes.FoundationAttributes.LinkAttribute',
+    '    typealias ImageKey = AttributeScopes.FoundationAttributes.ImageURLAttribute',
+    '    private static func parsed(_ source: String) -> AttributedString? {',
+    '        let options = AttributedString.MarkdownParsingOptions(allowsExtendedAttributes: false, interpretedSyntax: .inlineOnlyPreservingWhitespace, failurePolicy: .returnPartiallyParsedIfPossible)',
+    '        return try? AttributedString(markdown: source, options: options)',
+    '    }',
+    '    static func render(_ source: String) -> InlineText {',
+    '        guard source.utf8.count <= MarkdownCaps.inlineBytes else { return InlineText(segments: [.text(AttributedString(source))]) }',
+    '        guard let drawn = parsed(source) else { return InlineText(segments: [.text(AttributedString(source))]) }',
+    '        return InlineText(segments: [.text(drawn)])',
+    '    }',
+    '    static func asWritten(_ answer: String) -> AttributedString {',
+    '        guard var drawn = parsed(answer) else { return AttributedString(answer) }',
+    '        let opened = drawn.runs.map { $0.range }',
+    '        for range in opened {',
+    '            drawn[range][LinkKey.self] = nil',
+    '            drawn[range][ImageKey.self] = nil',
+    '        }',
+    '        return drawn',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const renderedOk = [
+    'import Foundation',
+    'struct RenderedAnswer: Equatable, Sendable {',
+    '    let blocks: [RenderedBlock]',
+    '    let cut: Bool',
+    '    let written: AttributedString?',
+    '    init(_ answer: String) {',
+    '        let document = MarkdownBlocks.parse(answer)',
+    '        if Self.pieces(document.blocks, depth: 0) > MarkdownCaps.pieces {',
+    '            self.init(blocks: [], cut: document.cut, written: Inline.asWritten(answer))',
+    '        } else {',
+    '            self.init(blocks: Self.drawn(document.blocks), cut: document.cut, written: nil)',
+    '        }',
+    '    }',
+    '    init(blocks: [RenderedBlock], cut: Bool, written: AttributedString?) {',
+    '        self.blocks = blocks',
+    '        self.cut = cut',
+    '        self.written = written',
+    '    }',
+    '    static func drawn(_ blocks: [MarkdownBlock]) -> [RenderedBlock] { blocks.map { _ in RenderedBlock() } }',
+    '    static func item(_ item: MarkdownItem) -> RenderedItem { RenderedItem(n: 0, number: item.number, blocks: []) }',
+    '    static func pieces(_ blocks: [MarkdownBlock], depth: Int) -> Int {',
+    '        var count = 0',
+    '        for block in blocks {',
+    '            count += 1',
+    '            switch block {',
+    '            case .list(_, _, let items):',
+    '                for item in items { count += containerPieces + pieces(item.blocks, depth: depth + 1) }',
+    '            case .quote(let inner): count += containerPieces - 1',
+    '                count += pieces(inner, depth: depth + 1)',
+    '            case .table(let table): count += scrollPieces - 1',
+    '                count += table.header.count + table.rows.count',
+    '            case .code: count += scrollPieces - 1',
+    '            default: break',
+    '            }',
+    '        }',
+    '        return count',
+    '    }',
+    '}',
+    'struct RenderedItem: Equatable, Sendable {',
+    '    let n: Int',
+    '    let number: String?',
+    '    let blocks: [RenderedBlock]',
+    '}',
+    ''
+  ].join('\n');
+  const linksOk = [
+    'import Foundation',
+    'import SwiftUI',
+    'import UIKit',
+    'enum LinkPolicy {',
+    '    static func opens(_ url: URL) -> Bool {',
+    '        guard url.scheme == "https", url.user == nil, url.password == nil, url.port == nil else { return false }',
+    '        guard let host = url.host, !host.hasPrefix("xn--") else { return false }',
+    '        return url.absoluteString.utf8.count <= MarkdownCaps.linkBytes',
+    '    }',
+    '}',
+    'struct LinkGate: ViewModifier {',
+    '    @State private var staged: URL?',
+    '    func body(content: Content) -> some View {',
+    '        content',
+    '            .environment(\\.openURL, OpenURLAction { url in',
+    '                guard LinkPolicy.opens(url) else { return .discarded }',
+    '                staged = url',
+    '                return .handled',
+    '            })',
+    '            .alert(Text(verbatim: staged?.absoluteString ?? ""), isPresented: shown) {',
+    '                Button(Copy.cancel, role: .cancel) {}',
+    '                Button(Copy.open) {',
+    '                    if let url = staged, LinkPolicy.opens(url) { UIApplication.shared.open(url) }',
+    '                }',
+    '            }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const viewOk = [
+    'import SwiftUI',
+    'struct MarkdownView: View {',
+    '    let answer: RenderedAnswer',
+    '    let scope: String',
+    '    var body: some View {',
+    '        if let written = answer.written { WrittenView(attributed: written) } else { BlockView(block: answer.blocks[0], depth: 0) }',
+    '    }',
+    '}',
+    'struct WrittenView: View {',
+    '    let attributed: AttributedString',
+    '    var body: some View {',
+    '        Text(attributed)',
+    '            .font(Face.body.font)',
+    '            .foregroundStyle(Tokens.textPrimary)',
+    '            .lineSpacing(Face.body.spacing)',
+    '            .fixedSize(horizontal: false, vertical: true)',
+    '            .frame(maxWidth: .infinity, alignment: .leading)',
+    '    }',
+    '}',
+    'struct ItemMark: View {',
+    '    let item: RenderedItem',
+    '    var body: some View {',
+    '        if let number = item.number { Text(verbatim: Copy.orderedMark(number)) } else { Text(verbatim: item.bullet) }',
+    '    }',
+    '}',
+    'struct BlockView: View {',
+    '    let block: RenderedBlock',
+    '    let depth: Int',
+    '    var body: some View {',
+    '        switch block {',
+    '        case .quote(let inner):',
+    '            ForEach(inner) { b in BlockView(block: b, depth: depth + 1) }',
+    '        case .paragraph(let text):',
+    '            line(text)',
+    '        default:',
+    '            Text(verbatim: "")',
+    '        }',
+    '    }',
+    '    func line(_ text: InlineText) -> Text {',
+    '        text.segments.reduce(Text(verbatim: "")) { sum, segment in',
+    '            switch segment {',
+    '            case .text(let run): return sum + Text(run)',
+    '            case .image(let alt): return sum + Text(Image(systemName: "photo")) + Text(verbatim: alt)',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const settingsOk = 'struct SettingsScreen: View {\n    var body: some View {\n        Button(Copy.notifications) {\n            if let url = URL(string: UIApplication.openNotificationSettingsURLString) { UIApplication.shared.open(url) }\n        }\n    }\n}\n';
+  const yFiles = (edits = {}) =>
+    Object.entries({
+      'Markdown/Caps.swift': capsOk,
+      'Markdown/Blocks.swift': blocksOk,
+      'Markdown/Inline.swift': inlineOk,
+      'Markdown/Rendered.swift': renderedOk,
+      'Markdown/Links.swift': linksOk,
+      'Screens/MarkdownView.swift': viewOk,
+      'Screens/SettingsScreen.swift': settingsOk,
+      'App/DebugLaunch.swift': '#if DEBUG\nlet d = try? Data(contentsOf: f)\n#endif\n',
+      ...edits
+    })
+      .filter(([, v]) => v !== null)
+      .map(([name, source]) => ({ name, source }));
+  const yRun = (edits) => ruleRenderer(yFiles(edits)).findings;
+  const zRun = (edits) => ruleOneWayOut(yFiles(edits)).findings;
+  const yKept = yRun();
+  expect(`(y) accepts a renderer that keeps every bound${yKept.length > 0 ? `: ${yKept[0]}` : ''}`, yKept.length === 0);
+  const zKept = zRun();
+  expect(`(z) accepts one way out, asked twice, and Settings opening iOS's own settings${zKept.length > 0 ? `: ${zKept[0]}` : ''}`, zKept.length === 0);
+  expect('(y) catches a renderer file gone', yRun({ 'Markdown/Rendered.swift': null }).length > 0);
+  expect('(y1) catches SwiftUI imported by the parser', yRun({ 'Markdown/Blocks.swift': `import SwiftUI\n${blocksOk}` }).length > 0);
+  expect('(y1) catches a scoped import into the parser', yRun({ 'Markdown/Inline.swift': `import struct SwiftUI.Text\n${inlineOk}` }).length > 0);
+  expect('(y1) catches WebKit imported by Links.swift', yRun({ 'Markdown/Links.swift': `import WebKit\n${linksOk}` }).length > 0);
+  expect('(y2) catches a cap read twice', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let again = MarkdownCaps.blocks\n` }).length > 0);
+  expect('(y2) catches a cap read in another file', yRun({ 'Markdown/Inline.swift': inlineOk.replace('MarkdownCaps.inlineBytes', '8_192'), 'Markdown/Blocks.swift': `${blocksOk}let inline = MarkdownCaps.inlineBytes\n` }).length > 0);
+  expect('(y2) catches a cap at another value', yRun({ 'Markdown/Caps.swift': capsOk.replace('static let answerBytes = 32768', 'static let answerBytes = 65536') }).length > 0);
+  expect('(y2) catches markdown switched back on: MarkdownCaps.pieces put back to the ruled round\'s 26', yRun({ 'Markdown/Caps.swift': capsOk.replace(`static let pieces = ${String(MARKDOWN_CAPS.pieces.value)}`, 'static let pieces = 26') }).some((f) => f.includes('markdown is off')));
+  expect('(y2) catches a thirteenth member', yRun({ 'Markdown/Caps.swift': capsOk.replace(/\}\n$/, '    static var extra = 1\n}\n') }).length > 0);
+  expect('(y2) catches a second enum MarkdownCaps', yRun({ 'Markdown/Rendered.swift': `${renderedOk}enum MarkdownCaps {}\n` }).length > 0);
+  expect('(y2) catches a cap never read', yRun({ 'Markdown/Links.swift': linksOk.replace('MarkdownCaps.linkBytes', '2_048') }).length > 0);
+  expect('(y2) catches the caps taken as a value', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let all = MarkdownCaps.self\n` }).length > 0);
+  expect('(y3) catches a force unwrap', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let forced = Int("1")!\n` }).length > 0);
+  expect('(y3) catches try!', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let tried = try! f()\n` }).length > 0);
+  expect('(y3) catches as!', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let cast = x as! Int\n` }).length > 0);
+  expect('(y3) catches a throwing function', yRun({ 'Markdown/Rendered.swift': `${renderedOk}func g() throws {}\n` }).length > 0);
+  expect('(y3) catches fatalError', yRun({ 'Screens/MarkdownView.swift': `${viewOk}func h() -> Int { fatalError("x") }\n` }).length > 0);
+  expect('(y3) catches an unsafe name', yRun({ 'Markdown/Inline.swift': `${inlineOk}func u(_ d: Data) { d.withUnsafeBytes { _ in } }\n` }).length > 0);
+  expect('(y3) leaves a != and a prefix ! alone', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let fine = 1 != 2 && !false\n` }).length === 0);
+  expect('(y4) catches a Regex', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let r = try? Regex("a")\n` }).length > 0);
+  expect('(y4) catches NSRegularExpression', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let r = try? NSRegularExpression(pattern: "a")\n` }).length > 0);
+  expect('(y4) catches a regex literal', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let r = #/a+/#\n` }).length > 0);
+  expect('(y4) catches a range of a pattern', yRun({ 'Markdown/Inline.swift': `${inlineOk}func m(_ s: String) -> Bool { s.range(of: "a", options: .regularExpression) == nil }\n` }).length > 0);
+  expect('(y5) catches a recursion passing depth: depth', yRun({ 'Markdown/Blocks.swift': blocksOk.replace('depth: depth + 1', 'depth: depth') }).length > 0);
+  expect('(y5) catches a recursion that takes no depth', yRun({ 'Markdown/Rendered.swift': `${renderedOk}func walk(_ n: Int) -> Int { walk(n) }\n` }).length > 0);
+  expect('(y5) catches a mutual recursion without depth', yRun({ 'Markdown/Rendered.swift': `${renderedOk}func a(_ n: Int) -> Int { b(n) }\nfunc b(_ n: Int) -> Int { a(n) }\n` }).length > 0);
+  expect('(y5) catches a mutual recursion with depth', yRun({ 'Markdown/Rendered.swift': `${renderedOk}func a(_ n: Int, depth: Int) -> Int { b(n, depth: depth + 1) }\nfunc b(_ n: Int, depth: Int) -> Int { a(n, depth: depth + 1) }\n` }).length === 0);
+  expect('(y5) catches the depth never compared with its cap', yRun({ 'Markdown/Blocks.swift': blocksOk.replace('if depth < MarkdownCaps.depth,', 'if MarkdownCaps.depth > 0,') }).length > 0);
+  expect('(y5) catches a view that builds itself without depth + 1', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('BlockView(block: b, depth: depth + 1)', 'BlockView(block: b, depth: depth)') }).length > 0);
+  expect('(y5) catches a view that builds itself and holds no depth', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('    let depth: Int\n', '').replace('BlockView(block: answer.blocks[0], depth: 0)', 'BlockView(block: answer.blocks[0])').replace('BlockView(block: b, depth: depth + 1)', 'BlockView(block: b)') }).length > 0);
+  expect('(y5) leaves another file\'s member call by the same name alone', yRun({ 'Markdown/Rendered.swift': `${renderedOk}func render(_ s: String) -> Int { s.render() }\n` }).length === 0);
+  expect('(y6) catches a second parse', yRun({ 'Screens/AnswerText.swift': 'let parsed = try? AttributedString(markdown: "x")\n' }).length > 0);
+  expect('(y6) catches the full syntax', yRun({ 'Markdown/Inline.swift': inlineOk.replace('.inlineOnlyPreservingWhitespace', '.full') }).length > 0);
+  expect('(y6) catches the whitespace dropped', yRun({ 'Markdown/Inline.swift': inlineOk.replace('.inlineOnlyPreservingWhitespace', '.inlineOnly') }).length > 0);
+  expect('(y6) catches extended attributes on', yRun({ 'Markdown/Inline.swift': inlineOk.replace('allowsExtendedAttributes: false', 'allowsExtendedAttributes: true') }).length > 0);
+  expect('(y6) catches a fourth option', yRun({ 'Markdown/Inline.swift': inlineOk.replace('failurePolicy: .returnPartiallyParsedIfPossible)', 'failurePolicy: .returnPartiallyParsedIfPossible, languageCode: nil)') }).length > 0);
+  expect('(y6) catches an option changed after it is made', yRun({ 'Markdown/Inline.swift': `${inlineOk}func o(_ x: inout AttributedString.MarkdownParsingOptions) { x.allowsExtendedAttributes = true }\n` }).length > 0);
+  expect('(y6) catches options made in another file', yRun({ 'Screens/SessionScreen.swift': 'let o = AttributedString.MarkdownParsingOptions(interpretedSyntax: .inlineOnlyPreservingWhitespace)\n' }).length > 0);
+  expect('(y7) catches a localized key anywhere', yRun({ 'Screens/ListScreen.swift': 'let t = Text(LocalizedStringKey(x))\n' }).length > 0);
+  expect('(y7) catches String(format:)', yRun({ 'Style/Copy.swift': 'let s = String(format: "%d", n)\n' }).length > 0);
+  expect('(y7) catches Text(.init(', yRun({ 'Screens/MarkdownView.swift': `${viewOk}func k(_ s: String) -> Text { Text(.init(s)) }\n` }).length > 0);
+  expect('(y8) catches Text of a plain String', yRun({ 'Screens/MarkdownView.swift': `${viewOk}func cell(_ c: InlineText) -> Text { Text(c.plain) }\n` }).length > 0);
+  expect('(y8) accepts Text of a typed AttributedString', yRun({ 'Screens/MarkdownView.swift': `${viewOk}func run(_ a: AttributedString) -> Text { Text(a) }\n` }).length === 0);
+  expect('(y9) catches a door type in the renderer', yRun({ 'Markdown/Rendered.swift': `${renderedOk}typealias T = PocketTurn\n` }).length > 0);
+  expect('(y9) catches a decoder in the renderer', yRun({ 'Markdown/Blocks.swift': `${blocksOk}let decoder = JSONDecoder()\n` }).length > 0);
+  expect('(y9) leaves a door type outside the renderer alone', yRun({ 'Screens/SessionScreen.swift': 'let t: PocketTurn? = nil\n' }).length === 0);
+  expect('(y10) catches a counted number', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('number: item.number', 'number: String(start + offset)') }).length > 0);
+  expect('(y10) catches the number kept as an Int', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('    let number: String?', '    let number: Int?') }).length > 0);
+  expect('(y10) catches no RenderedItem made', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('RenderedItem(n: 0, number: item.number, blocks: [])', 'nil') }).length > 0);
+  expect('(y11) catches the digits parsed into an Int and written back', yRun({ 'Markdown/Blocks.swift': blocksOk.replace('let number = String(decoding: bytes[0..<1], as: UTF8.self)', 'let number = String(start)') }).length > 0);
+  expect('(y11) catches an item made with a counted number', yRun({ 'Markdown/Blocks.swift': blocksOk.replace('number: marker.number,', 'number: String(index + 1),') }).length > 0);
+  expect('(y12) catches a mark drawn from a count', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('Copy.orderedMark(number)', 'Copy.orderedMark(String(item.n))') }).length > 0);
+  expect('(y12) catches no ordered mark drawn', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('Copy.orderedMark(number)', 'number') }).length > 0);
+  expect('(y13) catches the cap loosened', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('> MarkdownCaps.pieces {', '> MarkdownCaps.pieces * 4 {') }).length > 0);
+  expect('(y13) catches the cap asked of something else', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('if Self.pieces(document.blocks, depth: 0) > MarkdownCaps.pieces {', 'if document.blocks.count > MarkdownCaps.pieces {') }).length > 0);
+  expect('(y13) catches an answer as written that also keeps its blocks', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('self.init(blocks: [], cut: document.cut, written: Inline.asWritten(answer))', 'self.init(blocks: Self.drawn(document.blocks), cut: document.cut, written: Inline.asWritten(answer))') }).length > 0);
+  expect('(y13) catches blocks that also carry a written answer', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('cut: document.cut, written: nil)', 'cut: document.cut, written: AttributedString(answer))') }).length > 0);
+  expect('(y14) catches the cells not counted', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('count += table.header.count + table.rows.count', 'count += 0') }).length > 0);
+  expect('(y14) catches a code block counted as one piece', yRun({ 'Markdown/Rendered.swift': renderedOk.replace("case .code: count += scrollPieces - 1", 'case .code: break') }).length > 0);
+  expect('(y14) catches the items not counted', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('for item in items { count += containerPieces + pieces(item.blocks, depth: depth + 1) }', '_ = items') }).length > 0);
+  expect('(y14) catches an item counted as one piece', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('for item in items { count += containerPieces + pieces(item.blocks, depth: depth + 1) }', 'for item in items { count += 1 + pieces(item.blocks, depth: depth + 1) }') }).length > 0);
+  expect('(y14) catches a quote counted as one piece', yRun({ 'Markdown/Rendered.swift': renderedOk.replace('case .quote(let inner): count += containerPieces - 1', 'case .quote(let inner): count += 0') }).length > 0);
+  expect('(y15) catches a link kept as written', yRun({ 'Markdown/Inline.swift': inlineOk.replace('            drawn[range][LinkKey.self] = nil\n', '') }).length > 0);
+  expect('(y15) catches an image address kept as written', yRun({ 'Markdown/Inline.swift': inlineOk.replace('            drawn[range][ImageKey.self] = nil\n', '') }).length > 0);
+  expect('(y15) catches a key aliased to another attribute', yRun({ 'Markdown/Inline.swift': inlineOk.replace('typealias LinkKey = AttributeScopes.FoundationAttributes.LinkAttribute', 'typealias LinkKey = AttributeScopes.FoundationAttributes.InlinePresentationIntentAttribute') }).length > 0);
+  expect('(y15) catches as written parsed outside the one parse', yRun({ 'Markdown/Inline.swift': inlineOk.replace('guard var drawn = parsed(answer) else', 'guard var drawn = Optional(AttributedString(answer)) else') }).length > 0);
+  expect('(y16) catches the as-written text not fixed vertically', yRun({ 'Screens/MarkdownView.swift': viewOk.replace("    '            .fixedSize(horizontal: false, vertical: true)',\n", '').replace('            .fixedSize(horizontal: false, vertical: true)\n', '') }).length > 0);
+  expect('(y16) catches the as-written text in another face', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('.font(Face.body.font)', '.font(Face.small.font)') }).length > 0);
+  expect('(y16) catches answer.written never drawn', yRun({ 'Screens/MarkdownView.swift': viewOk.replace('if let written = answer.written { WrittenView(attributed: written) } else { BlockView(block: answer.blocks[0], depth: 0) }', 'BlockView(block: answer.blocks[0], depth: 0)') }).length > 0);
+  expect('(z1) catches AsyncImage', zRun({ 'Screens/MarkdownView.swift': `${viewOk}func image(_ u: URL) -> some View { AsyncImage(url: u) }\n` }).length > 0);
+  expect('(z1) catches an HTML import', zRun({ 'Screens/X.swift': 'let s = try? NSAttributedString(data: d, options: [.documentType: NSAttributedString.DocumentType.html], documentAttributes: nil)\n' }).length > 0);
+  expect('(z1) catches contentsOf: outside DEBUG', zRun({ 'Screens/X.swift': 'let d = try? Data(contentsOf: u)\n' }).length > 0);
+  expect('(z1) leaves append(contentsOf:) alone', zRun({ 'Screens/X.swift': 'func f() { var a: [Int] = []; a.append(contentsOf: [1]) }\n' }).length === 0);
+  expect('(z2) catches SFSafariViewController', zRun({ 'Markdown/Links.swift': `${linksOk}func s(_ u: URL) -> Any { SFSafariViewController(url: u) }\n` }).length > 0);
+  expect('(z2) catches a SwiftUI Link', zRun({ 'Screens/MarkdownView.swift': `${viewOk}func l(_ u: URL) -> some View { Link(Copy.open, destination: u) }\n` }).length > 0);
+  expect('(z2) catches canOpenURL', zRun({ 'Markdown/Links.swift': `${linksOk}func c(_ u: URL) -> Bool { UIApplication.shared.canOpenURL(u) }\n` }).length > 0);
+  expect('(z2) leaves NavigationLink and ShareLink to their own rules', zRun({ 'Screens/X.swift': 'let n = NavigationLink(value: r) { EmptyView() }\n' }).length === 0);
+  expect('(z3) catches openURL in Settings', zRun({ 'Screens/SettingsScreen.swift': `${settingsOk}struct P: View {\n    @Environment(\\.openURL) private var open\n    var body: some View { EmptyView() }\n}\n` }).length > 0);
+  expect('(z3) catches UIApplication.shared.open in a screen', zRun({ 'Screens/ConversationScreen.swift': 'func o(_ u: URL) { UIApplication.shared.open(u) }\n' }).length > 0);
+  expect('(z3) catches a second OpenURLAction', zRun({ 'Markdown/Links.swift': `${linksOk}let again = OpenURLAction { _ in .discarded }\n` }).length > 0);
+  expect('(z4) catches the Open press without its second ask', zRun({ 'Markdown/Links.swift': linksOk.replace('if let url = staged, LinkPolicy.opens(url) {', 'if let url = staged {') }).length > 0);
+  expect('(z4) catches the action staging before it asks', zRun({ 'Markdown/Links.swift': linksOk.replace('                guard LinkPolicy.opens(url) else { return .discarded }\n                staged = url\n', '                staged = url\n                guard LinkPolicy.opens(url) else { return .discarded }\n') }).length > 0);
+  expect('(z4) catches an action that never discards', zRun({ 'Markdown/Links.swift': linksOk.replace('return .discarded', 'return .systemAction') }).length > 0);
+  expect('(z5) catches Settings opening another address', zRun({ 'Screens/SettingsScreen.swift': `${settingsOk}func other() { UIApplication.shared.open(URL(fileURLWithPath: "/")) }\n` }).length > 0);
+  for (const [what, from, to] of [
+    ['the scheme clause', 'url.scheme == "https", ', ''],
+    ['the user clause', ', url.user == nil', ''],
+    ['the password clause', ', url.password == nil', ''],
+    ['the port clause', ', url.port == nil', ''],
+    ['the IDN clause', ', !host.hasPrefix("xn--")', ''],
+    ['the length clause', 'url.absoluteString.utf8.count <= MarkdownCaps.linkBytes', 'true']
+  ]) {
+    if (!linksOk.includes(from)) selfFailures.push(`(z6) fixture: Links.swift holds no ${JSON.stringify(from)}`);
+    expect(`(z6) catches ${what} removed from LinkPolicy.opens`, zRun({ 'Markdown/Links.swift': linksOk.replace(from, to) }).length > 0);
+  }
+  const helped = linksOk.replace('enum LinkPolicy {\n', 'enum LinkPolicy {\n    private static func plain(_ h: String) -> Bool { !h.hasPrefix("xn--") }\n');
+  expect('(z6) follows a LinkPolicy helper that opens calls', zRun({ 'Markdown/Links.swift': helped.replace(', !host.hasPrefix("xn--")', ', plain(host)') }).length === 0);
+  expect('(z6) follows a LinkPolicy helper handed as a predicate', zRun({ 'Markdown/Links.swift': helped.replace('guard let host = url.host, !host.hasPrefix("xn--")', 'guard let host = url.host, [host].allSatisfy(plain)') }).length === 0);
+  expect('(z6) does not take a helper opens never reaches', zRun({ 'Markdown/Links.swift': helped.replace(', !host.hasPrefix("xn--")', '') }).length > 0);
 }
 
 // ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
-/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node; (w) and (x) are Phase 316.5's. */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x'];
+/** Every rule this gate holds. (m) and (q) were retired in Phase 330 with the tailnet node; (w) and (x) are Phase 316.5's; (y) and (z) are Phase 316.6's. */
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -4095,14 +5662,25 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     if (f.length === 0) table = ruleTokensTable(read(TOKENS_SWIFT), read(TOKENS_CSS));
     f.push(...table.findings);
     for (const p of others) f.push(...ruleNoColourLiteral(rel(p), read(p)));
-    record('a', 'Tokens.swift is tokens.css, and no colour is written anywhere else', f, `${String(table.mapped)} names mapped to ${String(table.distinct)} distinct hexes of the dark base; ${String(others.length)} other files hold no colour literal`);
+    // Phase 316.6: the badge's colour reaches UIKit's tab bar from here alone.
+    const look = ruleTabBarLook(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    f.push(...look.findings);
+    record(
+      'a',
+      'Tokens.swift is tokens.css, no colour is written anywhere else, and the tab bar\'s badge is the Mac\'s',
+      f,
+      `${String(table.mapped)} names mapped to ${String(table.distinct)} distinct hexes of the dark base; ${String(others.length)} other files hold no colour literal; the tab bar's UIKit look named in ${TAB_BAR_FILE} alone, the badge's ground set ${String(look.said.ground)} and its words ${String(look.said.words)} time(s), each from its token, applied ${String(look.said.applied)} time(s)`
+    );
   }
   // (b)
   {
     const f = [...missing(COPY_SWIFT)];
     const files = appSwift.filter((p) => p !== COPY_SWIFT);
     for (const p of files) f.push(...ruleNoVisibleLiteral(rel(p), read(p)));
-    record('b', 'no drawn string outside Copy.swift', f, `${String(files.length)} app files read`);
+    // Phase 316.6: three tabs, the bar never hidden, no tab stored.
+    const tabs = ruleTabs(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    f.push(...tabs.findings);
+    record('b', 'no drawn string outside Copy.swift, and three tabs', f, `${String(files.length)} app files read; ${String(tabs.said.tabs)} Tab(s) in ${TAB_FILE}, Copy.needsInput, Copy.sessions and Copy.settings with bell, list.bullet and gearshape; nothing hides the tab bar, and no tab is stored`);
   }
   // (c)
   {
@@ -4253,7 +5831,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'no trapping arithmetic on a number the door sends',
       r.findings,
       `${String(r.said.fields.length)} door numbers decoded through the bound (${r.said.fields.join(', ')}); the one checked helper at ${String(r.said.helperAt)}; ` +
-        `${String(r.said.sites)} arithmetic operators in ${String(files.length)} app files: ${String(r.said.proved)} proved off the integers by their own text, ${String(r.said.named)} named in ${String(ARITHMETIC_NAMED.length)} entries, none on a door number`
+        `${String(r.said.sites)} arithmetic operators in ${String(files.length)} app files: ${String(r.said.proved)} proved off the integers by their own text, ${String(r.said.named)} named in ${String(ARITHMETIC_NAMED.length)} entries, ${String(r.said.scoped)} under the one named scope (${(r.said.scopes ?? []).map((x) => `${x.label}: ${String(x.files)} file(s), ${String(x.operators)} operator(s)${x.valid ? '' : ', WAIVED for naming a door type'}`).join('; ')}), none on a door number`
     );
   }
 
@@ -4281,11 +5859,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   {
     const r = ruleKeychain(appFiles);
     const k = ruleClientKey(appFiles, rel(PAIRING), existsSync(PAIRING) ? read(PAIRING) : null);
+    // Phase 316.6: who deletes a pairing item, and in what order (Unpair).
+    const d = ruleDeleters(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     record(
       'n',
-      'every Keychain item is ThisDeviceOnly and never synchronised, and the client key is the enclave\'s where there is one',
-      [...r.findings, ...k.findings],
-      `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other; ${String(k.said.makers)} file(s) make a client key, ThisDeviceOnly by construction on both paths (the enclave's access control with .privateKeyUsage, made only inside the if on SecureEnclave.isAvailable; the software key's own kSecAttrAccessible), in the Secure Enclave only when it is available; every attempt that ends unpaired deletes its key by its tag`
+      'every Keychain item is ThisDeviceOnly and never synchronised, the client key is the enclave\'s where there is one, and only Unpair and a failed pairing delete one',
+      [...r.findings, ...k.findings, ...d.findings],
+      `${String(r.said.adds)} SecItemAdd call(s); ${String(r.said.thisDevice)} ThisDeviceOnly accessibility value(s) named, and no other; ${String(k.said.makers)} file(s) make a client key, ThisDeviceOnly by construction on both paths (the enclave's access control with .privateKeyUsage, made only inside the if on SecureEnclave.isAvailable; the software key's own kSecAttrAccessible), in the Secure Enclave only when it is available; every attempt that ends unpaired deletes its key by its tag; SecItemDelete ${String(d.said.secItemDeletes)} time(s), in KeychainSecretStore.remove and KeychainClientKeys.delete alone; the record removed only by PairingStore (${String(d.said.recordRemoves)}), a client key deleted outside its store only by PairingStore.forget and PairingFlow.run (${String(d.said.keyDeletes)}); the store's forget() ${String(d.said.storeForgets)} time(s) from its four callers and the DEBUG seam ${String(d.said.doorForgets)}; the record goes before any key, and LiveDoor.unpair sees the store's error`
     );
   }
   // (o)
@@ -4469,14 +6049,39 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const files = appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) }));
     const tests = testSwift.map((p) => ({ name: relative(IOS, p).split(sep).join('/'), source: read(p) }));
     const r = ruleAlerts(files, tests);
+    // Phase 316.6: Unpair unregisters, once, in Release, after the record went.
+    const u = ruleForgetAddress(files, tests);
     record(
       'x',
       'the alert\'s refusals',
-      r.findings,
+      [...r.findings, ...u.findings],
       `registerForRemoteNotifications ${String(r.said.registrations)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}; requestAuthorization ${String(r.said.asks)} time(s); UserNotifications named in ${r.said.unFiles.join(' and ') || 'no file'}; ` +
         `userInfo read ${String(r.said.userInfo)} time(s), inside AlertTap.parse or handed to it; PushEnvironment.current .development under DEBUG and .production in its #else (${String(r.said.arms)} arms); apt and ape declared ${String(r.said.fields)} time(s), by Inner and Record; ` +
         `iOS asked only for a Mac that says it can send: askForAlerts() ${String(r.said.flowAsks)} time(s) in the pending arm behind its word, askForPairing() ${String(r.said.pairingAsks)} time(s) inside the closure the pairing asks through, ${String(r.said.launchReads)} launch read(s) behind a guard on macSends; ` +
-        `no badge write, service extension, background delivery, print or log in ${String(files.length)} app files, and no test of ${String(tests.length)} names the registration`
+        `no badge write, service extension, background delivery, print or log in ${String(files.length)} app files, and no test of ${String(tests.length)} names the registration; ` +
+        `unregisterForRemoteNotifications ${String(u.said.unregisters)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}, and forgetAddress() ${String(u.said.forgets)} time(s), in AppModel.unpair's .forgotten arm after door.unpair()`
+    );
+  }
+  // Phase 316.6: (y) and (z), over the app named relative to its folder.
+  const appNamed = appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) }));
+  // (y)
+  {
+    const r = ruleRenderer(appNamed);
+    record(
+      'y',
+      "the renderer's bounds",
+      r.findings,
+      `${String(r.said.files)} renderer file(s); Foundation alone in the parser; MarkdownCaps's ${String(r.said.caps)} caps each read once (${String(r.said.reads)} read(s)); nothing throws, traps, force-unwraps or matches a pattern; ${String(r.said.cycles)} call cycle(s) and ${String(r.said.viewCycles)} view cycle(s), each passing depth + 1; AttributedString(markdown: ${String(r.said.parses)} time(s), with exactly its three options; nothing localized; ${String(r.said.texts)} Text(s) in MarkdownView.swift, each verbatim, a symbol or an AttributedString; no door type; an ordered item's mark is the number the agent wrote (D17), kept from its marker's own bytes; MarkdownCaps.pieces is ${String(MARKDOWN_CAPS.pieces.value)}${MARKDOWN_CAPS.pieces.value === 0 ? ' (markdown off, his ruling of 2026-10-02), so EVERY answer is' : ' blocks, items and cells, and an answer past it is'} drawn as written, every link and image address removed, exactly as 28d89295's AnswerText drew it`
+    );
+  }
+  // (z)
+  {
+    const r = ruleOneWayOut(appNamed);
+    record(
+      'z',
+      'nothing fetched, and one way out',
+      r.findings,
+      `no AsyncImage, NSAttributedString, document type or contentsOf: outside DEBUG; no in-app browser, sign-in sheet, preview, canOpenURL or Link; ${String(r.said.actions)} OpenURLAction in ${LINKS_FILE}, asking LinkPolicy.opens before it stages, and ${String(r.said.opens)} open(s) there asking it again; ${String(r.said.settingsOpens)} open(s) in ${SETTINGS_FILE}, of iOS's own notification settings; LinkPolicy.opens names https, the user part, the password, the port, xn-- and MarkdownCaps.linkBytes`
     );
   }
 }

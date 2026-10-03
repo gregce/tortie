@@ -118,6 +118,10 @@ protocol PushAddressing: Sendable {
     /// This phone's address now, asked only when alerts are allowed and the
     /// kept pairing's Mac said it could send.
     func currentAddress() async -> PushAddress?
+    /// Unpair forgot the pairing (Phase 316.6): stop Apple taking alerts for
+    /// this install. Called once per Unpair, only after the record went. A
+    /// later pairing with a Mac that can send registers again.
+    func forgetAddress() async
 }
 
 /// What a pairing agreed about alerts, kept with it (Door/Keys.swift).

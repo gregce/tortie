@@ -10,7 +10,9 @@
 // Catch Me Up card (main's outcome, the question, `you asked “…”`); the
 // options; the two cells, Messages and Last message, where a null is drawn the
 // way the Mac draws a null and never as 0 (ActivityCells.swift); the agent's
-// last answer as markdown; and the row that opens the whole conversation.
+// last answer as inline markdown, as written (markdown off since his ruling of
+// 2026-10-02), parsed once when the answer lands (316.6); and the
+// row that opens the whole conversation.
 //
 // Every word is main's or `Copy`'s. It reads on appear, on return to the
 // foreground and on pull.
@@ -37,8 +39,10 @@ struct SessionDrawing: Equatable, Sendable {
     let choices: [PocketChoiceOption]
     let messages: CellDrawing
     let lastMessage: CellDrawing
-    /// The agent's last answer, drawn as inline markdown.
+    /// The agent's last answer, as the door sent it.
     let lastAnswer: String?
+    /// The same answer parsed, once, here and never in a `body` (316.6).
+    let lastAnswerRendered: RenderedAnswer?
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
     /// could send (ActivityCells.swift), so the screen draws one sentence.
@@ -56,6 +60,7 @@ struct SessionDrawing: Equatable, Sendable {
         messages = try ActivityCells.messages(detail.activity, agent: detail.agent, remote: detail.machine != nil)
         lastMessage = try ActivityCells.lastMessage(detail.activity, agent: detail.agent, text: detail.lastMessageText)
         lastAnswer = detail.lastAnswer
+        lastAnswerRendered = detail.lastAnswer.map(RenderedAnswer.init)
     }
 
     /// The card is drawn when it has something to say.
@@ -183,7 +188,7 @@ private struct SessionBody: View {
             if drawing.hasCard { card }
             if !drawing.choices.isEmpty { choices }
             cells
-            if let answer = drawing.lastAnswer { lastAnswer(answer) }
+            if let answer = drawing.lastAnswerRendered { lastAnswer(answer) }
             conversationRow
         }
     }
@@ -270,11 +275,15 @@ private struct SessionBody: View {
         .padding(.top, Frame.cardGap)
     }
 
-    /// `THE AGENT`, 6 above the answer, which is inline markdown.
-    private func lastAnswer(_ answer: String) -> some View {
+    /// `THE AGENT`, 6 above the answer, which is inline markdown as written
+    /// (markdown off). The answer is a container of its one element,
+    /// `md-last-0`; the blocks a later phase switches back on would be
+    /// `md-last-<n>`, each an element of its own.
+    private func lastAnswer(_ answer: RenderedAnswer) -> some View {
         VStack(alignment: .leading, spacing: 6) {
             RaisedLabel(Copy.agentLabel)
-            AnswerText(answer: answer)
+            AnswerText(answer: answer, scope: ID.mdLastScope)
+                .accessibilityElement(children: .contain)
                 .accessibilityIdentifier(ID.sessionAnswer)
         }
         .frame(maxWidth: .infinity, alignment: .leading)

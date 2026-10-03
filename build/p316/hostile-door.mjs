@@ -61,6 +61,18 @@
  *   long-ask         the newest turn's ask is one 4,000-character word (drawn
  *                    whole, not refused: it is a legal answer)
  *
+ *   THE MARKDOWN ARMS (Phase 316.6, build/p3166/SPEC.md §7.3). Each answers
+ *   the pairing and the list honestly and serves a conversation whose answers
+ *   are somebody else's markdown, one per turn, and each must END DRAWN:
+ *   md-hostile       every ios/TortieTests/Fixtures/markdown/fixtures.json
+ *                    fixture whose `hostile` names it, then every built
+ *                    recipe that fits, one per turn, under 1.5 MiB together
+ *   md-huge          the two 5 MiB recipes (`fence-5mb`, `line-5mb`), each
+ *                    cut so the page holding both fits a 1.8 MiB answer
+ *   `{{MD3}}` in a fixture is the probe's loopback listener, handed in as
+ *   `--md3 127.0.0.1:<port>` (127.0.0.1:9 when none is), which must count
+ *   0 connections: nothing an answer names is fetched.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -81,6 +93,7 @@
  *
  *   node build/p316/hostile-door.mjs --self-test
  *   node build/p316/hostile-door.mjs serve --arm honest      (under tsx; the probe does this)
+ *   node build/p316/hostile-door.mjs serve --arm md-hostile --md3 127.0.0.1:<port>
  */
 
 import { spawnSync } from 'node:child_process';
@@ -164,7 +177,11 @@ export const HOSTILE_ARMS = Object.freeze({
   'huge-header': { what: 'a 20 KiB header on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable', 'answerTooLarge'] },
   'not-http11': { what: 'an HTTP/1.0 status line on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
   'early-close': { what: 'a Content-Length twice what is sent, then the close, on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
-  'not-json': { what: 'a 200 whose Content-Type is text/plain on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] }
+  'not-json': { what: 'a 200 whose Content-Type is text/plain on the list\'s refresh', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },
+  // THE MARKDOWN ARMS (Phase 316.6): somebody else's markdown, one answer per
+  // turn, and the conversation must end drawn.
+  'md-hostile': { what: 'every hostile markdown fixture and every built one that fits, one per turn, under 1.5 MiB together', ends: 'drawn', md: true },
+  'md-huge': { what: 'the two 5 MiB fixtures, each cut so their page fits a 1.8 MiB answer', ends: 'drawn', md: true }
 });
 
 /** The names of the HTTP arms, as conformance:ios (t) reads them. */
@@ -176,6 +193,100 @@ const HUGE_HEADER_BYTES = 20 * 1024;
 /** The raised word the `unknown-status` arm sends; the probe looks for it on the drawn rows. */
 export const UNKNOWN_STATUS_TITLE = 'Levitating';
 const LONG_ASK = `p316${'w'.repeat(4_000 - 4)}`;
+
+// ---------------------------------------------------------------------------
+// The markdown fixtures (Phase 316.6, build/p3166/SPEC.md §7.2 and §7.3)
+// ---------------------------------------------------------------------------
+
+/** The committed fixtures, ASCII only. */
+export const MARKDOWN_FIXTURES = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'markdown', 'fixtures.json');
+/** What `{{MD3}}` stands for when no listener is named, as the unit tests read it. */
+export const MD3_UNSET = '127.0.0.1:9';
+/** md-hostile's answers together stay under this. */
+export const MD_HOSTILE_BYTES = 1.5 * 1024 * 1024;
+/** md-huge's page fits an answer this size, under the phone's 2 MiB cap. */
+export const MD_HUGE_PAGE_BYTES = 1.8 * 1024 * 1024;
+
+/**
+ * One recipe's bytes, built the way the file's own `about` says, and the way
+ * ios/TortieTests/MarkdownHostileTests.swift builds them: its parts in order,
+ * `{text}` as itself, `{repeat, times}` repeated, `{index}` the named loop
+ * counter in decimal, and `{each, count, join, parts}` the parts once per
+ * counter value from 0 below count, joined by `join`.
+ */
+export function buildRecipe(recipe) {
+  const render = (parts, scope) => {
+    const out = [];
+    for (const p of parts) {
+      if (typeof p.text === 'string') out.push(p.text);
+      else if (typeof p.repeat === 'string') out.push(p.repeat.repeat(p.times));
+      else if (typeof p.index === 'string') {
+        if (!Object.hasOwn(scope, p.index)) throw new Error(`${recipe.name}: {index: ${p.index}} outside its loop`);
+        out.push(String(scope[p.index]));
+      } else if (typeof p.each === 'string') {
+        const rows = [];
+        for (let k = 0; k < p.count; k += 1) rows.push(render(p.parts, { ...scope, [p.each]: k }));
+        out.push(rows.join(p.join ?? ''));
+      } else throw new Error(`${recipe.name}: a part that is not text, repeat, index or each`);
+    }
+    return out.join('');
+  };
+  return render(recipe.parts, {});
+}
+
+/** `127.0.0.1:<port>` and nothing else, or null. */
+export function md3Of(value) {
+  const m = /^127\.0\.0\.1:([0-9]{1,5})$/.exec(String(value ?? ''));
+  return m !== null && Number(m[1]) > 0 && Number(m[1]) < 65_536 ? `127.0.0.1:${m[1]}` : null;
+}
+
+/**
+ * The committed fixtures with `{{MD3}}` filled, and the recipes. `md3` must
+ * be a loopback address and port; anything else is refused.
+ */
+export function markdownFixtures(md3 = MD3_UNSET) {
+  const at = md3Of(md3);
+  if (at === null) throw new Error(`{{MD3}} must be 127.0.0.1:<port>, not ${JSON.stringify(md3)}`);
+  const doc = JSON.parse(readFileSync(MARKDOWN_FIXTURES, 'utf8'));
+  const fill = (text) => text.split('{{MD3}}').join(at);
+  return { fixtures: doc.fixtures.map((f) => ({ ...f, source: fill(f.source) })), recipes: doc.recipes, md3: at };
+}
+
+/** The answers an md arm serves, in turn order, as `{ name, text }`. */
+export function markdownAnswers(arm, md3 = MD3_UNSET) {
+  const { fixtures, recipes } = markdownFixtures(md3);
+  if (arm === 'md-hostile') {
+    const answers = fixtures.filter((f) => f.hostile === 'md-hostile').map((f) => ({ name: f.name, text: f.source }));
+    let bytes = answers.reduce((n, a) => n + Buffer.byteLength(a.text), 0);
+    for (const r of recipes.filter((x) => x.hostile === 'md-hostile')) {
+      const text = buildRecipe(r);
+      if (bytes + Buffer.byteLength(text) >= MD_HOSTILE_BYTES) continue;
+      bytes += Buffer.byteLength(text);
+      answers.push({ name: r.name, text });
+    }
+    return answers;
+  }
+  if (arm === 'md-huge') {
+    const huge = recipes.filter((x) => x.hostile === 'md-huge').map((r) => ({ name: r.name, full: buildRecipe(r) }));
+    // Each cut to the same length, the longest whose page still fits.
+    let cut = Math.floor(MD_HUGE_PAGE_BYTES / Math.max(1, huge.length));
+    const pageBytes = (n) => Buffer.byteLength(JSON.stringify({ turns: huge.map((h) => ({ answerText: h.full.slice(0, n), askText: `p3166 md ${h.name}` })) })) + 1_024 * huge.length;
+    while (cut > 0 && pageBytes(cut) > MD_HUGE_PAGE_BYTES) cut -= 4_096;
+    return huge.map((h) => ({ name: h.name, text: h.full.slice(0, cut) }));
+  }
+  throw new Error(`${arm} is not a markdown arm`);
+}
+
+/** The honest world, its conversation's answers replaced by an md arm's. */
+function markdownWorld(arm, md3) {
+  const world = honestWorld();
+  const template = world.turns[0];
+  const answers = markdownAnswers(arm, md3);
+  world.turns = answers.map((a, i) => ({ ...template, index: i, askText: `p3166 md ${a.name}`, askClipped: false, answerText: a.text, answerClipped: false, absence: null }));
+  world.session = { ...world.session, session: { ...world.session.session, turnCount: answers.length, lastAnswer: answers.at(-1)?.text ?? null } };
+  world.answers = answers;
+  return world;
+}
 
 // ---------------------------------------------------------------------------
 // Under tsx, so Tortie's own tls.ts can issue the certificates
@@ -297,7 +408,7 @@ export function rawAnswerOf(arm, body) {
  * Start one arm's door on 127.0.0.1. Returns its facts and a `close()`. `emit`
  * receives one event per request and per handshake.
  */
-export async function startHostileDoor(arm, emit = () => undefined) {
+export async function startHostileDoor(arm, emit = () => undefined, options = {}) {
   if (!Object.prototype.hasOwnProperty.call(HOSTILE_ARMS, arm)) throw new Error(`no arm named ${arm}; the arms are ${Object.keys(HOSTILE_ARMS).join(', ')}`);
   const scratch = mkdtempSync(join(tmpdir(), 'p316-hostile-'));
   const sockets = new Set();
@@ -310,7 +421,7 @@ export async function startHostileDoor(arm, emit = () => undefined) {
   };
   try {
     const tls = await tlsModule();
-    const world = honestWorld();
+    const world = HOSTILE_ARMS[arm].md === true ? markdownWorld(arm, options.md3 ?? MD3_UNSET) : honestWorld();
     const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
     const served = arm === 'wrong-key' ? await issueIdentity(HOSTILE_NAME, scratch, 'impostor') : pinned;
     const doorSign = generateKeyPairSync('ed25519');
@@ -496,6 +607,7 @@ export async function startHostileDoor(arm, emit = () => undefined) {
       ps,
       sessionToOpen: world.sessionId,
       turnCount: world.turns.length,
+      answers: world.answers ?? null,
       counts,
       phone: () => phone,
       close: closeAll
@@ -510,9 +622,9 @@ export async function startHostileDoor(arm, emit = () => undefined) {
 // serve: one arm, for a parent that reads lines
 // ---------------------------------------------------------------------------
 
-async function serve(arm) {
+async function serve(arm, md3) {
   const out = (line) => process.stdout.write(`${line}\n`);
-  const door = await startHostileDoor(arm, (event) => out(`P316_DOOR_EVENT:${J(event)}`));
+  const door = await startHostileDoor(arm, (event) => out(`P316_DOOR_EVENT:${J(event)}`), { md3 });
   let ending = false;
   const end = async () => {
     if (ending) return;
@@ -536,7 +648,9 @@ async function serve(arm) {
       servedPin: door.servedPin,
       payload: door.payload,
       sessionToOpen: door.sessionToOpen,
-      turnCount: door.turnCount
+      turnCount: door.turnCount,
+      // Phase 316.6: an md arm's turns, by name and size only.
+      answers: door.answers === null ? null : door.answers.map((a) => ({ name: a.name, bytes: Buffer.byteLength(a.text) }))
     })}`
   );
 }
@@ -595,6 +709,9 @@ function vectorsAgree() {
   return { ok: rows.every(([, ok]) => ok), failed: rows.filter(([, ok]) => !ok).map(([name]) => name), count: rows.length };
 }
 
+/** The listener the self-test names; nothing listens there, and nothing dials it. */
+const SELF_TEST_MD3 = '127.0.0.1:9';
+
 async function selfTest() {
   const results = [];
   const check = (arm, ok, said) => {
@@ -611,7 +728,7 @@ async function selfTest() {
     const events = [];
     let door = null;
     try {
-      door = await startHostileDoor(arm, (e) => events.push(e));
+      door = await startHostileDoor(arm, (e) => events.push(e), { md3: SELF_TEST_MD3 });
       const qr = JSON.parse(door.payload);
       const d = doorFrom(qr, door.port);
       if (arm === 'wrong-key') {
@@ -688,6 +805,26 @@ async function selfTest() {
         check(arm, raw.handshook && says === true && mtls, `${first}the raw answer: ${J(status)}, ${String(lines.length)} header line(s) (${lengths.length} Content-Length${declared === null ? '' : ` = ${String(declared)}`}), ${String(body.length)} body byte(s); every signed read over TLS 1.3 with the client identity, the name as SNI and Host: ${String(mtls)}`);
         continue;
       }
+      if (HOSTILE_ARMS[arm].md === true) {
+        // THE MARKDOWN ARMS: the list honest, then the conversation paged
+        // whole, every answer the fixture byte for byte with {{MD3}} filled.
+        const blocked = await signedGet(phone, d, '/v1/blocked');
+        const paged = await pageBack(phone, d, door.sessionToOpen, 20, 50);
+        const all = paged.pages.slice().reverse().flatMap((p) => p.turns);
+        const want = markdownAnswers(arm, SELF_TEST_MD3);
+        const same = all.length === want.length && all.every((t, k) => t.answerText === want[k].text && t.askText === `p3166 md ${want[k].name}`);
+        const filled = all.every((t) => !t.answerText.includes('{{MD3}}')) && all.some((t) => t.answerText.includes(SELF_TEST_MD3)) === (arm === 'md-hostile');
+        const total = want.reduce((n, a) => n + Buffer.byteLength(a.text), 0);
+        const pageBytes = Math.max(...paged.pages.map((p) => Buffer.byteLength(J(p))));
+        const sized = arm === 'md-hostile' ? total < MD_HOSTILE_BYTES : pageBytes <= MD_HUGE_PAGE_BYTES && want.every((a) => a.text.length > 512 * 1024);
+        const mtls = mtlsNow();
+        check(
+          arm,
+          blocked.status === 200 && paged.ok && same && filled && sized && mtls,
+          `the list ${String(blocked.status)}; ${String(all.length)} of ${String(want.length)} turns paged back over ${String(paged.pages.length)} page(s), every answer the fixture byte for byte: ${String(same)}; {{MD3}} filled with ${SELF_TEST_MD3}: ${String(filled)}; ${String(total)} bytes in all, the largest page ${String(pageBytes)} bytes (${arm === 'md-hostile' ? 'under 1.5 MiB together' : 'each answer over 512 KiB, the page at most 1.8 MiB'}: ${String(sized)}); every read over TLS 1.3 with the client identity: ${String(mtls)}`
+        );
+        continue;
+      }
       const blocked = await signedGet(phone, d, '/v1/blocked', { timeoutMs: arm === 'never-completes' ? 3_000 : 20_000 });
       let body = null;
       try {
@@ -760,9 +897,15 @@ if (isMain && process.env[INNER] === '1') {
     process.exit(ok ? 0 : 1);
   } else if (args[0] === 'serve') {
     const at = args.indexOf('--arm');
-    await serve(at === -1 ? 'honest' : String(args[at + 1]));
+    const md3At = args.indexOf('--md3');
+    const md3 = md3At === -1 ? MD3_UNSET : md3Of(args[md3At + 1]);
+    if (md3 === null) {
+      process.stderr.write(`${TAG} --md3 takes 127.0.0.1:<port> and nothing else\n`);
+      process.exit(2);
+    }
+    await serve(at === -1 ? 'honest' : String(args[at + 1]), md3);
   } else {
-    process.stderr.write(`${TAG} usage: --self-test | serve --arm <${Object.keys(HOSTILE_ARMS).join('|')}>\n`);
+    process.stderr.write(`${TAG} usage: --self-test | serve --arm <${Object.keys(HOSTILE_ARMS).join('|')}> [--md3 127.0.0.1:<port>]\n`);
     process.exit(2);
   }
 }

@@ -164,7 +164,9 @@ final class ScreensDrawingTests: XCTestCase {
         XCTAssertEqual(drawing.asked, "you asked “make the **cookie** httpOnly and…”", "the ask stays as typed")
         XCTAssertEqual(drawing.choices.map(\.marker), ["1", "3"], "the agent's own markers, never an index")
         XCTAssertEqual(drawing.lastAnswer, "I can set `httpOnly`.")
+        XCTAssertEqual(drawing.lastAnswerRendered, RenderedAnswer("I can set `httpOnly`."), "parsed once, as the drawing is made")
         XCTAssertTrue(drawing.hasCard)
+        XCTAssertNil(try SessionDrawing(Answers.detail(row)).lastAnswerRendered)
     }
 
     /// Clause: with no Catch Me Up line and no question there is no card.
@@ -307,41 +309,84 @@ final class ScreensDrawingTests: XCTestCase {
         )
     }
 
-    // MARK: - The answer is markdown; nothing it links to opens
+    // MARK: - The answer is inline markdown, as written; nothing it links to opens
+
+    // MARKDOWN IS OFF (his ruling of 2026-10-02, "Ship tabs + Settings,
+    // markdown off"): every answer is drawn as written, exactly as 316.2 drew
+    // it, so these are 316.2's four clauses again, read from what the screen
+    // draws (`RenderedAnswer.written`, `WrittenView`). The block parser's own
+    // clauses are MarkdownSpecTests' and MarkdownHostileTests'.
+
+    /// The answer as the screen draws it.
+    private func drawn(_ answer: String, file: StaticString = #filePath, line: UInt = #line) throws -> AttributedString {
+        let rendered = RenderedAnswer(answer)
+        XCTAssertTrue(rendered.blocks.isEmpty, "markdown off: no block is drawn", file: file, line: line)
+        return try XCTUnwrap(rendered.written, "markdown off: every answer is drawn as written", file: file, line: line)
+    }
 
     /// Clause: the answer is drawn as inline markdown, so `**x**` loses its
-    /// asterisks and `code` is code.
-    func testTheAnswerIsInlineMarkdown() {
-        let drawn = AnswerMarkdown.render("say **x** and `y`")
-        XCTAssertEqual(String(drawn.characters), "say x and y")
+    /// asterisks and `code` is code; a heading or a list is the characters
+    /// that make it.
+    func testTheAnswerIsInlineMarkdown() throws {
+        let text = try drawn("say **x** and `y`")
+        XCTAssertEqual(String(text.characters), "say x and y")
         typealias Intent = AttributeScopes.FoundationAttributes.InlinePresentationIntentAttribute
-        let intents = drawn.runs.compactMap { $0[Intent.self] }
+        let intents = text.runs.compactMap { $0[Intent.self] }
         XCTAssertTrue(intents.contains(.stronglyEmphasized))
         XCTAssertTrue(intents.contains(.code))
+        let blocks = "## Done\n\n- a\n- b"
+        XCTAssertEqual(String(try drawn(blocks).characters), blocks)
     }
 
     /// Clause: whitespace kept. A list or a fence is its own characters, where
     /// the agent put them.
-    func testWhitespaceIsKept() {
+    func testWhitespaceIsKept() throws {
         let text = "one\n\n  - two\n    three"
-        XCTAssertEqual(String(AnswerMarkdown.render(text).characters), text)
+        XCTAssertEqual(String(try drawn(text).characters), text)
     }
 
     /// Clause: a link is drawn as its words and never opened, and an image is
     /// never loaded.
-    func testLinksAndImagesAreWordsOnly() {
-        let drawn = AnswerMarkdown.render("[here](https://example.com) and ![pic](file:///etc/hosts)")
+    func testLinksAndImagesAreWordsOnly() throws {
+        let text = try drawn("[here](https://p3166.example/a) and [there](http://p3166.example/b) and ![pic](file:///etc/hosts)")
         typealias Link = AttributeScopes.FoundationAttributes.LinkAttribute
         typealias Image = AttributeScopes.FoundationAttributes.ImageURLAttribute
-        XCTAssertTrue(drawn.runs.allSatisfy { $0[Link.self] == nil }, "a link survived")
-        XCTAssertTrue(drawn.runs.allSatisfy { $0[Image.self] == nil }, "an image survived")
-        XCTAssertTrue(String(drawn.characters).hasPrefix("here and "))
+        XCTAssertTrue(text.runs.allSatisfy { $0[Link.self] == nil }, "a link survived")
+        XCTAssertTrue(text.runs.allSatisfy { $0[Image.self] == nil }, "an image survived")
+        XCTAssertTrue(String(text.characters).hasPrefix("here and there and "))
+    }
+
+    /// Clause: the conversation parses every answer of a page as the page is
+    /// accepted, before the page is drawn; a refresh parses the turns it
+    /// carried again and keeps the older ones; a turn with no answer has none.
+    @MainActor
+    func testTheConversationParsesEachPageAsItIsAccepted() async {
+        func page(_ turns: [PocketTurn], more: Bool) -> PocketTurnsAnswer {
+            PocketTurnsAnswer(sessionId: "s", turns: turns, more: more, at: 1_758_600_000_000, note: nil)
+        }
+        let reader = ScriptedReader(turns: [
+            .success(page([Answers.turn(4, answer: "**four**"), Answers.turn(5, answer: nil)], more: true)),
+            .success(page([Answers.turn(2, answer: "two"), Answers.turn(3, answer: "- three")], more: false)),
+            .success(page([Answers.turn(4, answer: "**four**"), Answers.turn(5, answer: "five")], more: true))
+        ])
+        let model = ConversationModel(sessionId: "s", door: reader, routing: .stay)
+        await model.loadNewest()
+        XCTAssertEqual(Set(model.rendered.keys), [4])
+        XCTAssertEqual(model.rendered[4], RenderedAnswer("**four**"))
+        await model.top(visible: true)?.value
+        XCTAssertEqual(model.pages.turns.map(\.index), [2, 3, 4, 5])
+        XCTAssertEqual(Set(model.rendered.keys), [2, 3, 4])
+        XCTAssertEqual(model.rendered[3], RenderedAnswer("- three"))
+        await model.loadNewest()
+        XCTAssertEqual(Set(model.rendered.keys), [2, 3, 4, 5])
+        XCTAssertEqual(model.rendered[5], RenderedAnswer("five"))
     }
 
     /// Clause: no HTML path. A tag in an answer is text.
-    func testHTMLIsText() {
+    func testHTMLIsText() throws {
         let text = "<script>alert(1)</script><b>x</b>"
-        XCTAssertEqual(String(AnswerMarkdown.render(text).characters), text)
+        XCTAssertEqual(String(try drawn(text).characters), text)
+        XCTAssertEqual(String(try drawn("a <b>x</b> c").characters), "a <b>x</b> c")
     }
 
     // MARK: - The clock over a turn

@@ -5,6 +5,16 @@
 // and the per-agent glyph (S2's row is "its dot, name, the machine badge only
 // when the session is elsewhere, `ageText`, and a second line").
 //
+// TWO TABS, ONE READ (Phase 316.6, build/p3166/SPEC.md section 5.2). The
+// Sessions tab is the screen above, unchanged: both sections, every identifier
+// it had. The Needs input tab (docs/design/phone/NeedsInput.html) is its first
+// section alone, under a title of its own and a hairline, with no section
+// header (the title and the tab's badge say it), or main's empty line when
+// nothing waits. One `ListModel` feeds both, so the badge, the Needs input tab
+// and the Sessions tab's first section are always one answer; and every
+// identifier the Needs input tab draws carries `needs-`, so the two tabs never
+// share one.
+//
 // "Needs your input (n)" then "Everything else (n)", his ruling of 2026-09-22:
 // "Yes it should be able to open anything." Both lists are drawn in the order
 // the door answered them. THE PHONE DOES NO ARITHMETIC ON STATUS, AGE OR ORDER
@@ -215,15 +225,81 @@ final class ListModel {
     }
 }
 
+// MARK: - The two tabs
+
+/// Which list a tab draws from the one answer.
+enum ListKind: Equatable, Sendable {
+    /// The first tab: the waiting rows alone (NeedsInput.html).
+    case needsInput
+    /// The second tab: both sections, as Phase 316.2 drew the list (Main.html).
+    case sessions
+
+    /// The screen's title, and the back button's word on a pushed screen.
+    var title: String {
+        switch self {
+        case .needsInput: Copy.needsInput
+        case .sessions: Copy.sessions
+        }
+    }
+
+    /// The identifiers this tab's elements carry.
+    var names: ListNames {
+        switch self {
+        case .needsInput: .needsInput
+        case .sessions: .sessions
+        }
+    }
+}
+
+/// The identifiers one list tab draws (Screens/Identifiers.swift): the
+/// Sessions tab keeps every one Phase 316.2 gave the list, and the Needs input
+/// tab's carry `needs-`.
+struct ListNames: Sendable {
+    let screen: String
+    let title: String
+    let alertsLine: String
+    let notice: String
+    let loading: String
+    let failure: String
+    let empty: String
+    let ageNote: String
+    let read: String
+    let row: @Sendable (String) -> String
+    let rowDot: @Sendable (String) -> String
+    let rowName: @Sendable (String) -> String
+    let rowMachine: @Sendable (String) -> String
+    let rowAge: @Sendable (String) -> String
+    let rowLine: @Sendable (String) -> String
+
+    static let sessions = ListNames(
+        screen: ID.listScreen, title: ID.listTitle, alertsLine: ID.listAlertsLine, notice: ID.listNotice,
+        loading: ID.listLoading, failure: ID.listFailure, empty: ID.listEmpty, ageNote: ID.listAgeNote, read: ID.listRead,
+        row: { ID.row($0) }, rowDot: { ID.rowDot($0) }, rowName: { ID.rowName($0) },
+        rowMachine: { ID.rowMachine($0) }, rowAge: { ID.rowAge($0) }, rowLine: { ID.rowLine($0) }
+    )
+
+    static let needsInput = ListNames(
+        screen: ID.needsInputScreen, title: ID.needsInputTitle, alertsLine: ID.needsListAlertsLine, notice: ID.needsListNotice,
+        loading: ID.needsListLoading, failure: ID.needsListFailure, empty: ID.needsListEmpty, ageNote: ID.needsListAgeNote,
+        read: ID.needsListRead,
+        row: { ID.needsRow($0) }, rowDot: { ID.needsRowDot($0) }, rowName: { ID.needsRowName($0) },
+        rowMachine: { ID.needsRowMachine($0) }, rowAge: { ID.needsRowAge($0) }, rowLine: { ID.needsRowLine($0) }
+    )
+}
+
 // MARK: - The screen
 
 struct ListScreen: View {
     let model: ListModel
-    /// True while no session is pushed over the list, so a return to the
-    /// foreground reads the screen a person is looking at and nothing else.
+    let kind: ListKind
+    /// True while this tab is the one on screen and no session is pushed over
+    /// its list, so a return to the foreground reads the screen a person is
+    /// looking at and nothing else: one return, one read.
     let isTop: Bool
     let foregroundTick: Int
     let open: (RowDrawing) -> Void
+
+    private var names: ListNames { kind.names }
 
     var body: some View {
         ScrollView {
@@ -231,25 +307,31 @@ struct ListScreen: View {
                 title
                 if let line = model.alertsLine {
                     Words(line, .secondary, Tokens.textSecondary, lines: nil)
-                        .accessibilityIdentifier(ID.listAlertsLine)
+                        .accessibilityIdentifier(names.alertsLine)
                         .padding(.horizontal, Frame.gutter)
                         .padding(.bottom, 8)
                 }
                 if let notice = model.notice {
                     Words(notice, .secondary, Tokens.textSecondary, lines: nil)
-                        .accessibilityIdentifier(ID.listNotice)
+                        .accessibilityIdentifier(names.notice)
                         .padding(.horizontal, Frame.gutter)
                         .padding(.bottom, 8)
                 }
+                // NeedsInput.html: a hairline under the title, where Main.html
+                // draws its first section's header.
+                if kind == .needsInput { Hairline() }
                 switch model.state {
                 case .loading:
-                    LoadingView(id: ID.listLoading)
+                    LoadingView(id: names.loading)
                 case .failed(let sentence):
-                    FailureView(sentence: sentence, id: ID.listFailure) {
+                    FailureView(sentence: sentence, id: names.failure) {
                         Task { await model.load() }
                     }
                 case .loaded(let drawing):
-                    sections(drawing)
+                    switch kind {
+                    case .needsInput: waiting(drawing)
+                    case .sessions: sections(drawing)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -263,19 +345,35 @@ struct ListScreen: View {
             Task { await model.load() }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(ID.listScreen)
-        .navigationTitle(Copy.sessions)
+        .accessibilityIdentifier(names.screen)
+        .navigationTitle(kind.title)
         .toolbar(.hidden, for: .navigationBar)
     }
 
-    /// `Sessions`, 28/34 semibold, `padding: 0 16px 8px` under the status bar.
+    /// `Sessions` or `Needs input`, 28/34 semibold, `padding: 0 16px 8px`
+    /// under the status bar.
     private var title: some View {
-        Words(Copy.sessions, .title, Tokens.textPrimary)
+        Words(kind.title, .title, Tokens.textPrimary)
             .lineBox(.title)
             .accessibilityAddTraits(.isHeader)
-            .accessibilityIdentifier(ID.listTitle)
+            .accessibilityIdentifier(names.title)
             .padding(.horizontal, Frame.gutter)
             .padding(.bottom, 8)
+    }
+
+    /// The Needs input tab: the waiting rows in the door's order, the last
+    /// with no hairline (NeedsInput.html), or main's empty line, then the foot.
+    @ViewBuilder
+    private func waiting(_ drawing: ListDrawing) -> some View {
+        if !drawing.waiting.isEmpty {
+            rows(drawing.waiting, endsList: true)
+        } else if let empty = drawing.emptyLine {
+            Words(empty, .secondary, Tokens.textSecondary, lines: nil)
+                .accessibilityIdentifier(names.empty)
+                .padding(.horizontal, Frame.gutter)
+                .padding(.vertical, Frame.rowVertical)
+        }
+        foot(drawing)
     }
 
     @ViewBuilder
@@ -285,7 +383,7 @@ struct ListScreen: View {
             rows(drawing.waiting, endsList: drawing.othersHeader == nil)
         } else if let empty = drawing.emptyLine {
             Words(empty, .secondary, Tokens.textSecondary, lines: nil)
-                .accessibilityIdentifier(ID.listEmpty)
+                .accessibilityIdentifier(names.empty)
                 .padding(.horizontal, Frame.gutter)
                 .padding(.vertical, Frame.rowVertical)
         }
@@ -310,6 +408,7 @@ struct ListScreen: View {
     private func rows(_ rows: [RowDrawing], endsList: Bool) -> some View {
         ForEach(Array(rows.enumerated()), id: \.element.id) { offset, row in
             RowView(row: row, last: endsList && offset == rows.count - 1) { open(row) }
+                .named(names)
         }
     }
 
@@ -318,10 +417,10 @@ struct ListScreen: View {
     private func foot(_ drawing: ListDrawing) -> some View {
         VStack(alignment: .leading, spacing: Frame.rowVertical) {
             Words(drawing.ageNote, .small, Tokens.textMuted, lines: nil)
-                .accessibilityIdentifier(ID.listAgeNote)
+                .accessibilityIdentifier(names.ageNote)
             Words(drawing.readLine, .age, Tokens.textMuted)
                 .frame(maxWidth: .infinity, alignment: .trailing)
-                .accessibilityIdentifier(ID.listRead)
+                .accessibilityIdentifier(names.read)
         }
         .padding(Frame.gutter)
     }
@@ -359,31 +458,46 @@ private struct RowView: View {
     let row: RowDrawing
     let last: Bool
     let open: () -> Void
+    /// The tab's identifiers: the Sessions tab's unless `named(_:)` says.
+    private(set) var names = ListNames.sessions
+
+    init(row: RowDrawing, last: Bool, open: @escaping () -> Void) {
+        self.row = row
+        self.last = last
+        self.open = open
+    }
+
+    /// The same row, carrying `names`' identifiers.
+    func named(_ names: ListNames) -> RowView {
+        var copy = self
+        copy.names = names
+        return copy
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             VStack(alignment: .leading, spacing: Frame.rowLineGap) {
                 HStack(spacing: Frame.rowGap) {
                     DotView(dot: row.dot, title: row.statusTitle)
-                        .accessibilityIdentifier(ID.rowDot(row.id))
+                        .accessibilityIdentifier(names.rowDot(row.id))
                     Words(row.name, row.waiting ? .nameWaiting : .name, Tokens.textPrimary)
                         .lineBox(.name)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .combine)
-                        .accessibilityIdentifier(ID.rowName(row.id))
+                        .accessibilityIdentifier(names.rowName(row.id))
                     if let machine = row.machine {
                         MachineBadge(name: machine)
-                            .accessibilityIdentifier(ID.rowMachine(row.id))
+                            .accessibilityIdentifier(names.rowMachine(row.id))
                     }
                     Words(row.age, .age, Tokens.textMuted)
                         .fixedSize()
-                        .accessibilityIdentifier(ID.rowAge(row.id))
+                        .accessibilityIdentifier(names.rowAge(row.id))
                 }
                 Words(row.line, .secondary, Tokens.textSecondary)
                     .lineBox(.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .accessibilityElement(children: .combine)
-                    .accessibilityIdentifier(ID.rowLine(row.id))
+                    .accessibilityIdentifier(names.rowLine(row.id))
             }
             .padding(.vertical, Frame.rowVertical)
             .padding(.horizontal, Frame.gutter)
@@ -393,7 +507,7 @@ private struct RowView: View {
         .onTapGesture(perform: open)
         .accessibilityElement(children: .contain)
         .accessibilityAddTraits(.isButton)
-        .accessibilityIdentifier(ID.row(row.id))
+        .accessibilityIdentifier(names.row(row.id))
         .accessibilityAction(.default, open)
     }
 }

@@ -9,7 +9,9 @@
 //   the clock        formatTurnClock's rule, at the answer's own `at`
 //   you              the ask, `Text(verbatim:)`, NEVER markdown: a person's
 //                    words drawn as markdown would change what they wrote
-//   the agent        the answer as inline markdown (AnswerText.swift), or
+//   the agent        the answer as inline markdown, as written
+//                    (AnswerText.swift; markdown off, his ruling of
+//                    2026-10-02), parsed once as its page was accepted, or
 //                    main's `absence` sentence when there is none on record
 //   the notice       `the session stopped: …`, when the CLI left one
 //
@@ -79,6 +81,12 @@ final class ConversationModel {
     /// The one line drawn where older turns would be, when a page of them was
     /// refused or could not be read. Paging stops with it.
     private(set) var olderLine: String?
+    /// Every held turn's answer, parsed once as its page was accepted and
+    /// before `pages` changes, by turn index (316.6). Not observed: `pages` is,
+    /// and it is assigned after this, so a drawn turn always finds its answer.
+    /// The parse itself runs OFF the main actor (`rendering`), between the
+    /// door's answer and the page's acceptance.
+    @ObservationIgnored private(set) var rendered: [Int: RenderedAnswer] = [:]
 
     private let door: any DoorReading
     private let routing: ReadRouting
@@ -108,8 +116,11 @@ final class ConversationModel {
         do {
             let page = try await door.turns(sessionId, to: nil)
             guard mine == generation else { return }
+            let fresh = await Self.rendering(page.turns)
+            guard mine == generation else { return }
             var next = phase == .loaded ? pages : TurnPages(sessionId: sessionId)
             try next.acceptNewest(page)
+            rendered = Self.parsed(next.turns, fresh: fresh, held: rendered)
             pages = next
             answeredAt = page.at
             phase = .loaded
@@ -123,6 +134,37 @@ final class ConversationModel {
             return
         }
         await olderWhileTopVisible()
+    }
+
+    /// Every answer one page carries, parsed OFF THE MAIN ACTOR (the fix
+    /// round: a hostile page of twenty answers inside every cap parsed in
+    /// 2.3 s on iOS 18.3, which on the main actor is 2.3 s of a screen that
+    /// does not move). The parse reads the page's own strings and nothing
+    /// else, so it needs no actor; the page is accepted after it, on the main
+    /// actor, as before.
+    nonisolated static func rendering(_ turns: [PocketTurn]) async -> [Int: RenderedAnswer] {
+        await Task.detached(priority: .userInitiated) {
+            var out: [Int: RenderedAnswer] = [:]
+            for turn in turns {
+                guard let answer = turn.answerText else { continue }
+                out[turn.index] = RenderedAnswer(answer)
+            }
+            return out
+        }.value
+    }
+
+    /// The answers of the turns now held: a turn the accepted page carried
+    /// takes its fresh parse (the newest turn's answer may have arrived
+    /// since), and any other keeps what was parsed before. Turns no longer
+    /// held are dropped. A held answer with no parse at all, which acceptance
+    /// does not make, is parsed here rather than drawn as nothing.
+    static func parsed(_ turns: [PocketTurn], fresh: [Int: RenderedAnswer], held: [Int: RenderedAnswer]) -> [Int: RenderedAnswer] {
+        var out: [Int: RenderedAnswer] = [:]
+        for turn in turns {
+            guard let answer = turn.answerText else { continue }
+            out[turn.index] = fresh[turn.index] ?? held[turn.index] ?? RenderedAnswer(answer)
+        }
+        return out
     }
 
     /// The top of the conversation came into view, or left it. Answers the
@@ -155,7 +197,13 @@ final class ConversationModel {
         do {
             let page = try await door.turns(sessionId, to: to)
             guard mine == generation else { return false }
+            let fresh = await Self.rendering(page.turns)
+            guard mine == generation else { return false }
+            // Read again after the parse: the newest page may have been
+            // accepted while it ran.
+            next = pages
             try next.acceptOlder(page, askedTo: to)
+            rendered = Self.parsed(next.turns, fresh: fresh, held: rendered)
             pages = next
             if page.turns.isEmpty && page.more {
                 // `more` on a page that added nothing: the door broke its own
@@ -260,7 +308,8 @@ struct ConversationScreen: View {
                     ForEach(model.pages.turns) { turn in
                         TurnCard(
                             turn: turn,
-                            clock: TurnClock.clock(turn.askAt, answeredAt: model.answeredAt)
+                            clock: TurnClock.clock(turn.askAt, answeredAt: model.answeredAt),
+                            answer: model.rendered[turn.index]
                         )
                     }
                 }
@@ -329,6 +378,8 @@ struct ConversationScreen: View {
 private struct TurnCard: View {
     let turn: PocketTurn
     let clock: String?
+    /// The answer, parsed when its page was accepted.
+    let answer: RenderedAnswer?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -356,9 +407,22 @@ private struct TurnCard: View {
             RaisedLabel(Copy.agentLabel)
                 .padding(.top, Frame.cardGap)
                 .padding(.bottom, 6)
-            if let answer = turn.answerText {
-                AnswerText(answer: answer)
-                    .accessibilityIdentifier(ID.turnAnswer(turn.index))
+            if let text = turn.answerText {
+                // A container of the answer, `md-<index>-0` drawn as written
+                // while markdown is off (his ruling of 2026-10-02), its blocks
+                // `md-<index>-<n>` when a later phase switches them back on.
+                // Every accepted page is parsed before it is drawn, so the
+                // verbatim words are only a floor that keeps every word if it
+                // ever were not.
+                Group {
+                    if let answer {
+                        AnswerText(answer: answer, scope: String(turn.index))
+                    } else {
+                        Words(text, .body, Tokens.textPrimary, lines: nil)
+                    }
+                }
+                .accessibilityElement(children: .contain)
+                .accessibilityIdentifier(ID.turnAnswer(turn.index))
                 if turn.answerClipped {
                     Words(Copy.restNotShown, .small, Tokens.textMuted, lines: nil)
                         .accessibilityIdentifier(ID.turnAnswerClipped(turn.index))

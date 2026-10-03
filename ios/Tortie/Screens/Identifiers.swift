@@ -10,6 +10,11 @@
 //
 //   screen-list, screen-session, screen-conversation, screen-pairing
 //                                the four screens, one container each
+//   screen-needs-input, screen-settings
+//                                the first and third tabs (Phase 316.6); the
+//                                Sessions tab is screen-list. A tab's button
+//                                has no identifier: SwiftUI gives a `Tab`
+//                                none, so a test finds it by its label
 //   list-title                   "Sessions"
 //   list-alerts-line             `Pair again to get alerts.`, under the title
 //   list-notice                  the Mac's sentence for a session it no longer
@@ -53,11 +58,57 @@
 //   pairing-match, pairing-fingerprint, pairing-allow-on-mac,
 //   pairing-network, pairing-line, pairing-again
 //   <failure id>-retry           `Try again` under list-failure,
-//                                session-failure and conversation-failure
+//                                needs-list-failure, session-failure and
+//                                conversation-failure
 //
-// A turn's ask reads back WITH its asterisks and its answer without them:
-// the ask is `Text(verbatim:)` and the answer is inline markdown. That is the
-// probe's Method A, and it reads `turn-ask-<index>` and `turn-answer-<index>`.
+// THE NEEDS INPUT TAB (Phase 316.6) is the list's first section alone, under
+// a title of its own, and every element it shares with the Sessions tab
+// carries the prefix `needs-`, so the two tabs never share an identifier:
+//
+//   needs-input-title            "Needs input"
+//   needs-list-alerts-line, needs-list-notice, needs-list-loading,
+//   needs-list-failure, needs-list-empty, needs-list-age-note, needs-list-read
+//                                as the list's, on this tab
+//   needs-row-<sessionId>        one waiting row; a container, with its parts
+//   needs-row-dot-<id>, needs-row-name-<id>, needs-row-machine-<id>,
+//   needs-row-age-<id>, needs-row-line-<id>
+//
+// SETTINGS (Phase 316.6):
+//
+//   settings-title               "Settings"
+//   settings-mac                 the This Mac card; a container
+//   settings-mac-name            the public name's first label
+//   settings-mac-address         the public name and its port
+//   settings-mac-read            `read <time>` from the list's last answer
+//   settings-match               "Check this matches your Mac"
+//   settings-fingerprint         the six groups, as Pairing draws them
+//   settings-paired              `Paired · <date>`
+//   settings-alerts              the Alerts card, only for a Mac that sends
+//   settings-notifications       the row that opens iOS Settings; a button
+//   settings-notifications-state what iOS allows: Allowed, Off, Not asked, —
+//   settings-alerts-line         `Pair again to get alerts.`, when the list
+//                                says it
+//   settings-unpair              Unpair this iPhone; a button
+//   settings-unpair-line         the sentence when the phone could not forget
+//   settings-about, settings-version
+//                                the About card and its `1.0.0 (4)`
+//
+// THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
+// `<scope>` is the turn's index in the conversation, or `last` for the
+// Session screen's last answer; `<n>` a block's PRE-ORDER ordinal from 0 over
+// the drawn tree (a container before its children, items in order, a table
+// once and its cells not):
+//
+//   md-<scope>-<n>               one block, or one list item's content
+//   md-<scope>-<n>-r<i>c<j>      a table cell; row 0 is the header
+//   md-<scope>-<n>-mark          a list item's mark
+//   md-<scope>-<n>-more          a block's counted note (`3 more rows`)
+//   md-<scope>-rest              the line when the answer was cut short
+//
+// A turn's ask reads back WITH its asterisks: the ask is `Text(verbatim:)`.
+// Since Phase 316.6 `turn-answer-<index>` and `session-answer` are CONTAINERS
+// of the blocks above, whose own label is empty, so the probe's Method A
+// composes an answer from its `md-<scope>-*` labels in order.
 
 enum ID {
     // The four screens.
@@ -137,6 +188,51 @@ enum ID {
     static let pairingNetwork = "pairing-network"
     static let pairingLine = "pairing-line"
     static let pairingAgain = "pairing-again"
+
+    // The Needs input tab (Phase 316.6).
+    static let needsInputScreen = "screen-needs-input"
+    static let needsInputTitle = "needs-input-title"
+    static let needsListAlertsLine = "needs-list-alerts-line"
+    static let needsListNotice = "needs-list-notice"
+    static let needsListLoading = "needs-list-loading"
+    static let needsListFailure = "needs-list-failure"
+    static let needsListEmpty = "needs-list-empty"
+    static let needsListAgeNote = "needs-list-age-note"
+    static let needsListRead = "needs-list-read"
+    static func needsRow(_ id: String) -> String { "needs-row-" + id }
+    static func needsRowDot(_ id: String) -> String { "needs-row-dot-" + id }
+    static func needsRowName(_ id: String) -> String { "needs-row-name-" + id }
+    static func needsRowMachine(_ id: String) -> String { "needs-row-machine-" + id }
+    static func needsRowAge(_ id: String) -> String { "needs-row-age-" + id }
+    static func needsRowLine(_ id: String) -> String { "needs-row-line-" + id }
+
+    // Settings (Phase 316.6).
+    static let settingsScreen = "screen-settings"
+    static let settingsTitle = "settings-title"
+    static let settingsMac = "settings-mac"
+    static let settingsMacName = "settings-mac-name"
+    static let settingsMacAddress = "settings-mac-address"
+    static let settingsMacRead = "settings-mac-read"
+    static let settingsMatch = "settings-match"
+    static let settingsFingerprint = "settings-fingerprint"
+    static let settingsPaired = "settings-paired"
+    static let settingsAlerts = "settings-alerts"
+    static let settingsNotifications = "settings-notifications"
+    static let settingsNotificationsState = "settings-notifications-state"
+    static let settingsAlertsLine = "settings-alerts-line"
+    static let settingsUnpair = "settings-unpair"
+    static let settingsUnpairLine = "settings-unpair-line"
+    static let settingsAbout = "settings-about"
+    static let settingsVersion = "settings-version"
+
+    // The answer drawn as markdown (Phase 316.6).
+    /// The Session screen's scope; a conversation's is the turn's index.
+    static let mdLastScope = "last"
+    static func md(_ scope: String, _ n: Int) -> String { "md-" + scope + "-" + String(n) }
+    static func mdCell(_ scope: String, _ n: Int, row: Int, column: Int) -> String { md(scope, n) + "-r" + String(row) + "c" + String(column) }
+    static func mdMark(_ scope: String, _ n: Int) -> String { md(scope, n) + "-mark" }
+    static func mdMore(_ scope: String, _ n: Int) -> String { md(scope, n) + "-more" }
+    static func mdRest(_ scope: String) -> String { "md-" + scope + "-rest" }
 
     /// The `Try again` under a screen's failure sentence.
     static func retry(_ failure: String) -> String { failure + "-retry" }

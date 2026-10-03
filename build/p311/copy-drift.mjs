@@ -28,8 +28,9 @@
  * under the person's home and writes no file. It reads the mock and the modules
  * the ledger names, and that is all.
  *
- * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws the seven screens
- * through `<iframe src="…">` and its own prose is commentary about the mock. It
+ * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
+ * since Phase 316.6) through `<iframe src="…">` and its own prose is
+ * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
  * asserts that every screen the directory holds is shown through an iframe and
  * that the sheet draws no phone frame of its own.
@@ -189,6 +190,16 @@ const owned = (fields) => ({ verdict: 'owned', ...fields });
 const data = (fields) => ({ verdict: 'data', ...fields });
 /** Copy no module owns yet, with the phase that owes it. */
 const owed = (fields) => ({ verdict: 'owed', ...fields });
+
+/**
+ * MARKDOWN OFF, his ruling of 2026-10-02 ("Ship tabs + Settings, markdown
+ * off"). The phone draws every answer as written, as Phase 316.5 drew it, and
+ * no answer holds a link, so Conversation.html's answer drawn as markdown and
+ * Link.html's alert are the drawing a later phase switches back on. Their words
+ * are OWED to that phase, printed on every run, rather than declared as
+ * drawn.
+ */
+const MARKDOWN_LATER = 'the later phase that draws the conversation lazily and switches markdown back on (build/p3166/SPEC.md "As built, markdown off")';
 
 /**
  * RE-POINTED IN PHASE 316.1, both of them, because the words MOVED and were not
@@ -470,7 +481,112 @@ const LEDGER = [
     module: 'src/main/settings/window.ts',
     needle: "title: 'Settings'",
     draws: 'Settings',
-    why: "the Settings window's own title, spoken by the gear button"
+    why: "the Settings window's own title, the third tab's label and the Settings screen's title"
+  }),
+  // PHASE 316.6 (build/p3166/SPEC.md §4.2, §4.3): the tab bar, Settings,
+  // Unpair's question, the conversation's first approved mock and the link's
+  // alert. Each word is a `static let` in the phone's Copy.swift, whose own
+  // owner line says who owns it; three are the Mac's own, named here by the
+  // Mac module that holds them.
+  owned({
+    is: 'This Mac',
+    module: PHONE_COPY,
+    needle: 'static let thisMac = "This Mac"',
+    draws: 'This Mac',
+    why: 'the Settings card for the one Mac this iPhone is paired with'
+  }),
+  owned({
+    is: 'Paired',
+    module: PHONE_COPY,
+    needle: 'static let paired = "Paired"',
+    draws: 'Paired',
+    why: 'before the day this iPhone paired, on the This Mac card'
+  }),
+  owned({
+    is: 'Alerts',
+    module: 'src/renderer/settings/PhoneSection.tsx',
+    needle: "ALERTS_GROUP = 'Alerts'",
+    draws: 'Alerts',
+    why: "the Mac's own group heading in Settings then Phone, over the phone's alerts card"
+  }),
+  owned({
+    is: 'Notifications',
+    module: PHONE_COPY,
+    needle: 'static let notifications = "Notifications"',
+    draws: 'Notifications',
+    why: "the iOS setting the alerts row opens, by iOS's own name for it"
+  }),
+  owned({
+    is: 'Allowed',
+    module: PHONE_COPY,
+    needle: 'static let notificationsAllowed = "Allowed"',
+    draws: 'Allowed',
+    why: 'what iOS allows, never "On": the phone cannot see the Mac\'s switch'
+  }),
+  owned({
+    is: 'Unpair this iPhone',
+    module: PHONE_COPY,
+    needle: 'static let unpairThisIPhone = "Unpair this iPhone"',
+    draws: 'Unpair this iPhone',
+    why: "Settings' press that forgets the pairing on this iPhone"
+  }),
+  owned({
+    is: 'Unpair this iPhone?',
+    module: PHONE_COPY,
+    needle: 'static let unpairQuestion = "Unpair this iPhone?"',
+    draws: 'Unpair this iPhone?',
+    why: "Unpair's question, asked before anything is forgotten"
+  }),
+  owned({
+    is: 'It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone.',
+    module: PHONE_COPY,
+    needle: 'static let unpairNote = "It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone."',
+    draws: 'It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone.',
+    why: "what Unpair does and does not do, until Phase 317's signed verb; its three Mac nouns are pinned by the `/// Names:` lines above it in Copy.swift"
+  }),
+  owned({
+    is: 'Unpair',
+    module: PHONE_COPY,
+    needle: 'static let unpair = "Unpair"',
+    draws: 'Unpair',
+    why: "the question's destructive press"
+  }),
+  owned({
+    is: 'About',
+    module: PHONE_COPY,
+    needle: 'static let about = "About"',
+    draws: 'About',
+    why: "the heading over the app's own facts"
+  }),
+  owned({
+    is: 'Version',
+    module: PHONE_COPY,
+    needle: 'static let version = "Version"',
+    draws: 'Version',
+    why: "the row that says the app's version and build"
+  }),
+  owned({
+    is: 'Conversation',
+    module: PHONE_COPY,
+    needle: 'static let conversation = "Conversation"',
+    draws: 'Conversation',
+    why: "the conversation screen's title, the phone's own word for the turns a session has had"
+  }),
+  owned({
+    is: 'The terminal’s own output stays on your Mac.',
+    module: PHONE_COPY,
+    needle: 'static let terminalStaysOnMac = "The terminal’s own output stays on your Mac."',
+    draws: 'The terminal’s own output stays on your Mac.',
+    why: 'the line over the conversation: the phone draws turns and never the terminal (research 128, 4.2.7)'
+  }),
+  // Markdown off (2026-10-02): Link.html's press is owed, not drawn. The word
+  // stays the Mac's own (`ARCH_INSPECT_OPEN = 'Open'`), and Copy.swift's
+  // `open` still says so under its `/// Mac:` line; the owned-rule floor
+  // dropped from 48 to 47 with this rule.
+  owed({
+    is: 'Open',
+    phase: MARKDOWN_LATER,
+    why: "Link.html's press that hands a link's whole address to iOS. While markdown is off no answer holds a link, so the alert is never drawn"
   }),
   owned({
     is: 'Tortie',
@@ -515,6 +631,77 @@ const LEDGER = [
     when: /^[0-9A-Z]{4}$/,
     why: "a group of the pairing fingerprint, which is a key's digest"
   }),
+  // PHASE 316.6's data, each declared before the name rule below, because
+  // several are single lowercase words that rule would otherwise take.
+  data({
+    is: 'studio',
+    why: "the Mac's name, the first label of its public name, which Tailscale composes"
+  }),
+  data({
+    when: /^[a-z0-9-]+\.tail[0-9a-f]+\.ts\.net:\d+$/,
+    why: "the Mac's public name and port, which Tailscale composes and the code carries"
+  }),
+  data({
+    when: /^[0-9a-f]{4}(?: [0-9a-f]{4}){5}$/,
+    why: 'the pairing fingerprint, six groups of a digest of three keys, which the app draws in lower case hex'
+  }),
+  data({
+    when: /^[A-Z][a-z]{2} \d{1,2}, \d{4}$/,
+    why: "a date, in the phone's own format: the day this iPhone paired"
+  }),
+  data({
+    when: /^\d+\.\d+\.\d+ \(\d+\)$/,
+    why: "the app's own version and build, read from its bundle"
+  }),
+  data({
+    when: /^\d{1,2}:\d{2} [AP]M$/,
+    why: "a turn's clock, in the phone's own format"
+  }),
+  owed({
+    when: /^https:\/\/[a-z0-9.-]+\/\S*$/,
+    phase: MARKDOWN_LATER,
+    why: "an address an answer links to, which Link.html's alert draws whole before it opens. While markdown is off no link is pressable and the address is not drawn"
+  }),
+  owed({
+    is: '-',
+    phase: MARKDOWN_LATER,
+    why: "a bullet item's mark in Conversation.html's answer drawn as markdown: the bullet the agent wrote (`-`, `+` or `*`), so an unfenced diff's - and + lines stay told apart. While markdown is off the phone draws it as the agent's character in the answer as written"
+  }),
+  data({
+    is: 'make the session cookie httpOnly and show me what changed',
+    why: "the person's own ask, drawn as typed"
+  }),
+  ...[
+    'What changed',
+    'The cookie now sets httpOnly and sameSite. The pull request has the diff.',
+    'src/auth/session.ts',
+    'sets both flags',
+    'reads the parsed cookie',
+    'test/session.test.ts',
+    "res.cookie('sid', id, { httpOnly: true, sameSite: 'lax', secure: true });",
+    'The login handler is unchanged.',
+    'File',
+    'Added',
+    'Removed',
+    'Tests',
+    'Owner',
+    'Risk',
+    'Status',
+    'Merged',
+    'session.ts',
+    'session.test.ts',
+    'auth',
+    'low',
+    'done',
+    'no',
+    'the login screen before the fix'
+  ].map((is) =>
+    owed({
+      is,
+      phase: MARKDOWN_LATER,
+      why: "the agent's own answer in Conversation.html, drawn there as the markdown the later phase switches back on: one exact string each, never a shape. While markdown is off the phone draws these words as written, one text, as Phase 316.5 did"
+    })
+  ),
   data({
     when: /^[a-z][a-z0-9]*(?:-[a-z0-9]+)*$/,
     why: "a session's name or a project folder's name, which are the person's own words"
@@ -661,7 +848,7 @@ const OWED_ABSENCE_FLOOR = 16;
  * floor is what keeps this gate a comparison rather than a census. A deliberate
  * removal lowers it in the same commit and names the rule.
  */
-const OWNED_RULE_FLOOR = 34;
+const OWNED_RULE_FLOOR = 47;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -855,8 +1042,8 @@ function checkContactSheet(names, sheet) {
  * words on every run of this gate. Pure over its inputs so the self-test can
  * mutate the file and the modules in memory.
  */
-const PHONE_MAC_FLOOR = 30;
-const PHONE_NAMES_FLOOR = 3;
+const PHONE_MAC_FLOOR = 39;
+const PHONE_NAMES_FLOOR = 7;
 
 /** `src/x.ts ⟦text⟧` to [path, text], or null. */
 function pathAndNeedle(body) {
@@ -1026,6 +1213,13 @@ const PHONE_MUTATIONS = [
     what: 'a word declared twice',
     swift: (t) => t.replace('static let pairAgain = "Pair again"', 'static let pairAgain = "Try again"'),
     module: null
+  },
+  {
+    // Phase 316.6: Unpair's note sends him to the Mac's Remove, so a renamed
+    // button must turn Copy.unpairNote red.
+    what: "the Mac renames Remove, the button Unpair's note sends a person to",
+    swift: (t) => t,
+    module: ['src/renderer/settings/PhoneSection.tsx', (t) => t.replace("BTN_REMOVE = 'Remove'", "BTN_REMOVE = 'Forget'")]
   }
 ];
 
@@ -1137,6 +1331,17 @@ const MUTATIONS = [
       return next;
     },
     names: 'Run make install and then deploy?'
+  },
+  {
+    // Phase 316.6: a tab label re-cased, in the drawn text and not the
+    // document's <title>, which is exempt.
+    what: 'a tab label re-cased',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('NeedsInput.html', (next.get('NeedsInput.html') ?? '').replace('>Needs input<', '>Needs Input<'));
+      return next;
+    },
+    names: 'Needs Input'
   }
 ];
 

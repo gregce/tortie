@@ -464,7 +464,18 @@ export const CHECKS = [
   // curly quote straightened, a letter dropped, a status word swapped, an
   // undeclared sentence added, an agent name the registry does not carry — and
   // each must go red. It spawns nothing, writes nothing and reads only the mock
-  // and the modules the ledger names.
+  // and the modules the ledger names. PHASE 316.6 adds the Needs input and
+  // Settings tabs, Unpair's question, the conversation drawn as markdown and
+  // the link's alert to the twelve screens it judges: every word owned by
+  // Copy.swift or the Mac module it quotes, every agent word declared by its
+  // exact string, the owned-rule floor at 48 (the fix round dropped the `•`
+  // and `more columns` rules with the words) and Copy.swift's floors at 39 Mac
+  // words and 7 named controls, with two more mutations (a tab label
+  // re-cased, the Mac's Remove renamed). MARKDOWN OFF (his ruling of
+  // 2026-10-02): the conversation's answer drawn as markdown and the link's
+  // alert are owed to the later phase that switches markdown back on, their
+  // words printed as owed on every run, and the owned-rule floor is 47 with
+  // `Open` among them.
   pure('conformance:phonecopy'),
   // PHASE 313, the door. Two checks, and they are two because they are two
   // different METHODS against the same domain and neither is the other's
@@ -563,7 +574,21 @@ export const CHECKS = [
   // Mac whose pending answer says it can send (research 136), `userInfo` read
   // by the tap's parser alone, no badge written by the phone, no service
   // extension and no log call anywhere in the app. (d) counts five DEBUG seams
-  // with `-TortieDebugPushToken`, and (s) holds build 3.
+  // with `-TortieDebugPushToken`. PHASE 316.6 widens (a) (the tab bar's badge
+  // set in Tokens.swift alone, from its two tokens), (b) (three tabs, the bar
+  // never hidden, no tab stored), (k) (one named scope, the markdown renderer,
+  // valid only while it names no door type), (n) (who deletes a pairing item,
+  // the record before any key, Unpair seeing the store's error) and (x) (the
+  // unregister once, in the #else of #if DEBUG, after the record went), holds
+  // build 4 in (s), and adds (y), the renderer's bounds, and (z), nothing
+  // fetched and one way out: twenty-four rules. Its RULED ROUND (2026-10-01)
+  // adds to (y) the agent's own numbers (an ordered item draws the digits it
+  // wrote, D17) and the page cost (an answer past MarkdownCaps.pieces, the
+  // thirteenth cap, drawn as written, exactly as 28d89295's AnswerText drew it,
+  // every link and image address removed): clauses y10 to y16. MARKDOWN OFF
+  // (his ruling of 2026-10-02): y2 pins MarkdownCaps.pieces at 0, so every
+  // answer is drawn as written; the parser and its clauses stay, held, for a
+  // later phase.
   pure(
     'conformance:ios',
     'node and the repository install from package-lock.json, and macOS\'s own /usr/bin/plutil (every Mac has it, with or without Xcode), which reads every property list under ios/ as CoreFoundation does'
@@ -576,7 +601,10 @@ export const CHECKS = [
   // on a signal, and the working tree's bytes asserted unmoved. About a
   // minute and a half (133 arms, 88 s at Phase 316.4; 154 arms since Phase
   // 316.5, whose plants break (d)'s fifth seam, (w) and (x) one clause at a
-  // time). No Xcode, no Electron, no socket.
+  // time; 184 since Phase 316.6, whose thirty break (a), (b), (k), (n), (s)
+  // and (x) and every clause of (y) and (z); 191 since its ruled round, whose
+  // seven break y10 to y16; 192 since markdown went off, whose y2b puts the
+  // page cap's 26 back). No Xcode, no Electron, no socket.
   pure(
     'ablation:p316',
     "node and the repository install from package-lock.json, and macOS's own /usr/bin/plutil, which the gate it runs reads every property list with"
@@ -599,7 +627,12 @@ export const CHECKS = [
   // Release app holds `registerForRemoteNotifications` and the Debug app does
   // not, so no Simulator run can ask Apple for an address; the built Debug
   // app's entitlements read exactly `aps-environment` = `development`; and the
-  // AlertsTests rows. It never asks Apple for a token.
+  // AlertsTests rows. It never asks Apple for a token. PHASE 316.6 reads
+  // `unregisterForRemoteNotifications` both ways too (Release holds it, Debug
+  // none, its own problem line, the PASS words unchanged), runs the tabs,
+  // Settings, Unpair and markdown rows (UnpairKeychainTests on the real
+  // Simulator keychain), and hands P3166_OUTLINE_DIR and P3166_OUTLINE_INPUT
+  // to the tests for Method 2, each refused inside the repo or the home.
   xcode('test:ios'),
   // PHASE 316.2's app run, re-pointed by Phase 330: ONE Electron through
   // build/electron-run.mjs's withElectron (scratch profile, scratch HOME, the
@@ -626,7 +659,21 @@ export const CHECKS = [
   // alert from the LIST (N6) and from ANOTHER session's screen (N6b), read
   // from the dump before each tap, because a tap over the very session it
   // names changed nothing and passed over a defect every other tap showed. No model turn, and his key is never
-  // read. `--grader-self-test` grades every arm's fixtures and starts nothing.
+  // read. PHASE 316.6 adds a planted markdown session whose images and refused
+  // links point at a loopback listener in the probe's own process that must
+  // count no connection (MD3, closed in the `finally`), the relay counting the
+  // app's own connections (U1), and the arms T2a to T2d, MD1, MD2, S6, U1 on
+  // iOS 18.3 with a second drive, HM on the hostile door's markdown arms, and
+  // PR with P316_PARENT_IOS: the parent's own app, built into its own derived
+  // data and driven by its own UI test on one more Simulator, its link rule
+  // read from its own AnswerText.swift in either spelling (the ruled round
+  // reads the typealiased `[Link.self] = nil` the first regex missed); MD1
+  // holds table-at-caps, past MarkdownCaps.pieces, to one element drawn as
+  // written holding every word of its 51 rows. MARKDOWN OFF (his ruling of
+  // 2026-10-02): MD1 holds EVERY planted answer to one element drawn as
+  // written, MD2 to no link element at all (the drive taps none), and PR each
+  // answer to the parent's, character for character.
+  // `--grader-self-test` grades every arm's fixtures and starts nothing.
   xcode(
     'probe:p316',
     `${NEEDS.xcode}, and the iOS 18.3 runtime for the floor arm; beside it ${NEEDS.electron}`

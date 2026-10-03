@@ -178,6 +178,51 @@
  * The arms are reported in the SPEC's order: N3 is graded during N4's step
  * and written to the report with the order Simulator's other arms.
  *
+ * PHASE 316.6, THE TABS, SETTINGS AND THE RENDERED ANSWER (build/p3166/SPEC.md
+ * §7.4), woven into that order. A third planted session, `p316-md`: the
+ * stand-in's mode `md` plants the committed research 63 transcript (its id in
+ * P316_MD_SID) and this file appends one turn per
+ * ios/TortieTests/Fixtures/markdown/fixtures.json fixture marked `probe`, the
+ * ask `p3166 md <name>`, `{{MD3}}` filled with the port of a loopback listener
+ * this file holds (MD3), which counts every connection and must count none.
+ * The relay counts the app's connections too (U1).
+ *   T2a to T2d  order and floor: pairing lands on Needs input; the badge is
+ *       `/v1/blocked`'s waiting count, read by the node reader just before and
+ *       after (from the button's value, else a number-only label inside it;
+ *       none on iOS 26's glass bar is UNREADABLE); a session opened in
+ *       Sessions is still on top after Needs input and back; at the end of a
+ *       pushed session its last element ends at or above the tab bar
+ *   MARKDOWN OFF (his ruling of 2026-10-02, "Ship tabs + Settings, markdown
+ *   off"; build/p3166/SPEC.md "As built, markdown off"): MarkdownCaps.pieces
+ *   is 0, so the phone draws EVERY answer as written, exactly as the parent:
+ *   MD1 order and floor: every planted turn is ONE element, md-<turn>-0, and
+ *       no block, cell, mark or note; table-at-caps holds every word of its
+ *       51 rows, honest-wide its ten columns, `-` and `+` lines, long cell and
+ *       long line whole, loop-quote-comment what follows it; no `**` pair
+ *   MD2 order: no link can be pressed, as in the parent: no link element in
+ *       any planted answer, none of refused-schemes' words a link, the lying
+ *       link and the long link drawn as their words and the lying link's
+ *       address drawn nowhere. The drive taps no link: there is none
+ *   MD3 the whole run: the listener counted 0 connections
+ *   S6  order (Allowed), floor (Allowed), deny (Off), N11 (no Alerts card):
+ *       the Mac's name and address, the fingerprint the Mac's row and
+ *       Pairing's, the version the project builds
+ *   U1  floor, after F1+: Cancel changes no label; Unpair draws Pairing; the
+ *       relay counts no connection in the 20 s after; a relaunch with no
+ *       forget seam draws Pairing; the Mac still lists the phone; a second
+ *       drive pairs again onto Needs input
+ *   HM  hostile: `md-hostile` and `md-huge` end drawn, alive, MD3 still 0;
+ *       every turn from the oldest the drive reached to the newest drew (its
+ *       md-<turn>-0, drawn as written while markdown is off), and the older
+ *       ones it never reached are UNREADABLE
+ *   PR  with P316_PARENT_IOS: the parent's own app and UI test over the same
+ *       planted turns; no tab, a table as pipes, no pressable link (read from
+ *       its own AnswerText.swift), no word it drew that HEAD loses, except
+ *       a fence's info string and a task box's `x` (the fix round took away
+ *       the excuse for words past a table's caps: none is lost now), and,
+ *       markdown off, each planted answer HEAD draws EQUAL to the parent's,
+ *       character for character
+ *
  * THE LINE PROTOCOL the Swift tests speak, which this file is the reader of.
  * Every line is `P316|<run>|<one JSON object>` on the test runner's stdout,
  * written unbuffered, AND appended to the file `P316_LINES` names, because
@@ -263,6 +308,35 @@
  *     no-banner:<s>     press Home, print {"step":"ready-for-alert"}, wait that
  *                       long, and print {"step":"banner","label":null} when
  *                       none came
+ *   PHASE 316.6 adds ten steps (build/p3166/SPEC.md §7.4; `pair` now ends at
+ *   `screen-needs-input`, `list` selects the Sessions tab first, `open:`
+ *   returns the Sessions tab to its list first, every alert step accepts
+ *   `screen-needs-input`, and every dump carries `composed`, each `md-` scope's
+ *   answer composed from its labels in pre-order):
+ *     tab:<needs|sessions|settings>  {"step":"tab-before"}, the tab's button
+ *                       tapped by its label, its screen waited for, a dump
+ *                       `tab-<name>`, then {"step":"badge","label","value",
+ *                       "found"} read from the Needs input button
+ *     bar               the top screen scrolled to its end, then
+ *                       {"step":"bar","screen","via","frame"} and a dump `bar`
+ *     markdown          on a conversation, newest to oldest:
+ *                       {"step":"markdown","elements":[{id,label,frame}],
+ *                       "links":[{label,turn,md,frame}]}, then a dump
+ *     link:<words>      that link tapped, then {"step":"link","label","found",
+ *                       "alert":{"title","texts","buttons"}} (no drive asks
+ *                       for it while markdown is off: no answer holds a link)
+ *     link-cancel       Cancel pressed: {"step":"link-cancel","state"}
+ *     link-open         Open pressed, up to 10 s for Safari:
+ *                       {"step":"link-open","safari","forward","tortie"}, then
+ *                       Safari ended and Tortie brought back
+ *     settings          the Settings tab, and a dump `settings`
+ *     unpair-cancel, unpair     the question: {"step":"unpair-sheet","for",
+ *                       "via","title","texts","buttons"}, the press, a dump
+ *     relaunch-keep     relaunched with the carried seams, NO forget seam and
+ *                       no code, and a dump `relaunch-keep`
+ *     idle:<s>          {"step":"idle-start"}, nothing for <s> seconds,
+ *                       {"step":"idle-end"} (U1's 20 s)
+ *
  *   THIS FILE delivers ONE queued body for each `ready-for-alert` it reads, in
  *   order, through `handle.push`, and reads each tap from the `banner` line and
  *   the first dump after that ready line, and where the tap was made from from
@@ -319,6 +393,12 @@
  *                                         own re-derivation. The private key is
  *                                         deleted whatever this says.
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
+ *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
+ *                                         parent's ios/ (`git archive 28d89295 ios | tar -x`
+ *                                         into scratch), built and driven by its own UI test
+ *   P316_KEEP=1 also writes <run>/md1.json (the order Simulator's markdown line) and
+ *                                         <run>/rederive/md-answers.json (the door's own
+ *                                         answer text for every p316-md turn), 0600
  *   node build/p316/probe-p316.mjs --grader-self-test   every grader on its own fixtures; launches nothing
  *
  * Exit 0 when every arm passed, 1 when one failed, 2 when it could not run or
@@ -333,6 +413,7 @@ import {
   existsSync,
   lstatSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
   readdirSync,
   rmSync,
@@ -340,6 +421,7 @@ import {
 } from 'node:fs';
 import { readFile as readFileAsync } from 'node:fs/promises';
 import { connect as netConnect, createServer as createNetServer } from 'node:net';
+import { tmpdir } from 'node:os';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { wsConnect, cdpEval } from '../cdp-client.mjs';
@@ -357,7 +439,7 @@ import {
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, shaHex, signedGet } from './node-phone.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -432,7 +514,15 @@ const DIALOG = join(ROOT, 'src/main/activity/__tests__/fixtures/claude-permissio
 const STORE_SRC = join(ROOT, 'docs/research/assets/63-fixtures/claude-session.jsonl');
 const FIXTURE_SID = '11111111-2222-4333-8444-555555555555';
 const FIXTURE_CWD = '/Users/dev/demo-app';
-const N = { shell: 'p316-shell', talk: 'p316-talk', ask: 'p316-ask', alert: 'p316-alert', quiet: 'p316-quiet' };
+const N = { shell: 'p316-shell', talk: 'p316-talk', ask: 'p316-ask', alert: 'p316-alert', quiet: 'p316-quiet', md: 'p316-md' };
+/** Phase 316.6: where the stand-in writes the markdown session's id (P316_MD_SID). */
+const MD_SID = join(RUN, 'md-sid');
+/**
+ * Phase 316.6's parent arm (PR, SPEC §7.6): the directory holding the
+ * parent's `ios/`, made by `git archive 28d89295 ios | tar -x` into scratch.
+ * NOT `P316_PARENT_CHECKOUT`, which keeps its meaning (whether ios/ exists).
+ */
+const PARENT_IOS = (process.env['P316_PARENT_IOS'] ?? '').trim();
 
 // ---------------------------------------------------------------------------
 // Phase 316.5: the alerts' scratch world (build/p3165/SPEC.md §7.4)
@@ -728,7 +818,10 @@ const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
  */
 async function startRelay() {
   const sockets = new Set();
+  let connections = 0;
   const server = createNetServer((client) => {
+    // Phase 316.6 (U1): every connection the app opens to the door is counted.
+    connections += 1;
     sockets.add(client);
     client.on('close', () => sockets.delete(client));
     client.on('error', () => undefined);
@@ -748,12 +841,42 @@ async function startRelay() {
     client.pipe(upstream);
     upstream.pipe(client);
   });
+  return listenLoopback(server, sockets, () => connections);
+}
+
+/**
+ * MD3 (Phase 316.6, SPEC §7.4): a loopback listener every image and every
+ * refused link in the planted answers points at. It answers nothing and
+ * counts every connection, which must be none for the whole run. In this
+ * process; closed in the `finally`, by its handle.
+ */
+async function startMd3Listener() {
+  const sockets = new Set();
+  let connections = 0;
+  const server = createNetServer((socket) => {
+    connections += 1;
+    sockets.add(socket);
+    socket.on('error', () => undefined);
+    socket.destroy();
+  });
+  return listenLoopback(server, sockets, () => connections);
+}
+
+/**
+ * The relay's and MD3's one listening step (the integrator's extraction):
+ * 127.0.0.1 at a port the system picks, the connection count the caller
+ * keeps, and a close that ends every socket it holds and then the server.
+ * Called only by the two starters above; each handle is closed in the
+ * `finally`.
+ */
+async function listenLoopback(server, sockets, count) {
   await new Promise((ok, fail) => {
     server.once('error', fail);
     server.listen(0, '127.0.0.1', () => ok());
   });
   return {
     port: server.address().port,
+    count,
     close: () =>
       new Promise((done) => {
         for (const s of sockets) s.destroy();
@@ -766,9 +889,9 @@ async function startRelay() {
 // The planted conversation, and the turn appended to it
 // ---------------------------------------------------------------------------
 
-function talkRecord() {
-  if (!existsSync(TALK_SID)) return null;
-  const sid = readFileSync(TALK_SID, 'utf8').trim();
+function talkRecord(path = TALK_SID) {
+  if (!existsSync(path)) return null;
+  const sid = readFileSync(path, 'utf8').trim();
   if (sid === '') return null;
   return { sid, file: join(HOME, '.claude', 'projects', WORK.replace(/[^a-zA-Z0-9]/g, '-'), `${sid}.jsonl`) };
 }
@@ -777,15 +900,15 @@ function talkRecord() {
 const PLANTED_TURNS = 41;
 
 /** One exchange appended to the scratch COPY of the record. The committed fixture is never touched. */
-function appendTurn(record, nth, askText, answerText) {
+function appendTurn(record, nth, askText, answerText, of = { total: PLANTED_TURNS, tag: '316' }) {
   // Distinct, rising, in the last minute: after the fixture's own turns, and
-  // never in the future.
-  const at = new Date(Date.now() - (PLANTED_TURNS + 1 - nth) * 1_000).toISOString();
+  // never in the future. `of` keeps each planted session's ids its own.
+  const at = new Date(Date.now() - (of.total + 1 - nth) * 1_000).toISOString();
   const base = { isSidechain: false, userType: 'external', entrypoint: 'cli', cwd: WORK, sessionId: record.sid, version: '2.1.238', gitBranch: 'main' };
   const pad = String(nth).padStart(4, '0');
   const lines = [
-    J({ parentUuid: null, ...base, type: 'user', message: { role: 'user', content: askText }, uuid: `3160${pad}-1111-4111-8111-111111111111`, timestamp: at, promptSource: 'typed', promptId: `p316-${pad}`, origin: { kind: 'human' } }),
-    J({ parentUuid: null, ...base, message: { model: 'claude-opus-5', id: `msg_p316${pad}`, type: 'message', role: 'assistant', content: [{ type: 'text', text: answerText }] }, requestId: `req_p316${pad}`, type: 'assistant', uuid: `3161${pad}-1111-4111-8111-111111111111`, timestamp: at })
+    J({ parentUuid: null, ...base, type: 'user', message: { role: 'user', content: askText }, uuid: `${of.tag}0${pad}-1111-4111-8111-111111111111`, timestamp: at, promptSource: 'typed', promptId: `p${of.tag}-${pad}`, origin: { kind: 'human' } }),
+    J({ parentUuid: null, ...base, message: { model: 'claude-opus-5', id: `msg_p${of.tag}${pad}`, type: 'message', role: 'assistant', content: [{ type: 'text', text: answerText }] }, requestId: `req_p${of.tag}${pad}`, type: 'assistant', uuid: `${of.tag}1${pad}-1111-4111-8111-111111111111`, timestamp: at })
   ];
   appendFileSync(record.file, `${lines.join('\n')}\n`, 'utf8');
 }
@@ -1285,8 +1408,8 @@ function gradeNoSend(r) {
   const relaunch = lastDump(r.events, 'relaunch');
   if (relaunch === null) p.push('no "relaunch" dump after a relaunch with another token');
   else {
-    if (el(relaunch, 'screen-list') === null) p.push('the relaunch did not settle on the list');
-    if ((el(relaunch, 'list-alerts-line')?.label ?? '') !== '') p.push('the relaunch draws a line asking to pair again for alerts, from a Mac that cannot send');
+    if (el(relaunch, 'screen-needs-input') === null) p.push('the relaunch did not settle on the Needs input list');
+    if ((el(relaunch, 'needs-list-alerts-line')?.label ?? '') !== '') p.push('the relaunch draws a line asking to pair again for alerts, from a Mac that cannot send');
   }
   const promised = r.events
     .filter((e) => e.step === 'screen')
@@ -1367,7 +1490,7 @@ function gradeTap(r) {
   if (r.dump === null) p.push('no screen was dumped after the tap');
   else {
     if (String(r.dump.name).endsWith('-missing')) p.push(`the UI test dumped ${J(r.dump.name)}: no session or list after the tap`);
-    if (el(r.dump, 'screen-session') === null) p.push(`the tap opened no session${el(r.dump, 'screen-list') !== null ? ' (the list is drawn)' : ''}`);
+    if (el(r.dump, 'screen-session') === null) p.push(`the tap opened no session${el(r.dump, 'screen-list') !== null || el(r.dump, 'screen-needs-input') !== null ? ' (a list is drawn)' : ''}`);
     else if (el(r.dump, 'session-failure') !== null) p.push(`the session drew a failure${r.cold === true ? ' (a tap that launches the app carries none of the DEBUG launch arguments, so the door endpoint seam is absent unless the app keeps it)' : ''}`);
     else if (!titledWith(r.dump, r.name)) p.push(`the session is not titled with the door's name for it (${String(r.name).length} characters)`);
   }
@@ -1382,7 +1505,9 @@ function gradeTap(r) {
  * tap showed, so a tap not arranged as named is UNREADABLE, never a pass.
  */
 const TAP_FROM = {
-  list: { name: 'back', holds: (d) => el(d, 'screen-list') !== null && el(d, 'screen-session') === null },
+  // Since Phase 316.6 the list on top is either tab's: N5's tap opened its
+  // session on the Needs input tab, so `back` returns to that tab's list.
+  list: { name: 'back', holds: (d) => (el(d, 'screen-list') !== null || el(d, 'screen-needs-input') !== null) && el(d, 'screen-session') === null },
   session: { name: 'visit', holds: (d) => el(d, 'screen-session') !== null }
 };
 
@@ -1400,10 +1525,12 @@ function gradeGone(r) {
   if (r.word === null) p.push('the Mac\'s NO_SUCH_SESSION could not be read from src/renderer/app/reach-copy.ts');
   if (r.dump === null) p.push('no screen was dumped after the tap');
   else {
-    if (el(r.dump, 'screen-list') === null) p.push('the list is not drawn');
+    // Phase 316.6: an alert's tap selects the Needs input tab, whose list
+    // says the Mac's sentence (SPEC §5.1.5, §7.4).
+    if (el(r.dump, 'screen-needs-input') === null) p.push(`the Needs input list is not drawn${el(r.dump, 'screen-list') !== null ? ' (the Sessions list is)' : ''}`);
     if (el(r.dump, 'screen-session') !== null) p.push('a session screen is still drawn');
-    const notice = el(r.dump, 'list-notice')?.label ?? null;
-    if (r.word !== null && notice !== r.word) p.push(`the list's notice reads ${notice === null ? 'nothing' : `${String(notice.length)} characters that are not the Mac's sentence`}`);
+    const notice = el(r.dump, 'needs-list-notice')?.label ?? null;
+    if (r.word !== null && notice !== r.word) p.push(`the Needs input list's notice reads ${notice === null ? 'nothing' : `${String(notice.length)} characters that are not the Mac's sentence`}`);
   }
   if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended the drive in state ${J(r.alive)}`);
   return decide(p, [], `the door answered 404, the tap from ${r.from === 'list' ? 'the list' : 'another session\'s screen'} drew the list with the Mac's own sentence, and the app stayed up`);
@@ -1418,9 +1545,9 @@ function gradeListTaps(r) {
     if (tapUnreadable(t).length > 0) return;
     if (t.dump === null) p.push(`tap ${String(i + 1)}: no screen dumped`);
     else {
-      if (el(t.dump, 'screen-list') === null) p.push(`tap ${String(i + 1)}: the list is not drawn`);
+      if (el(t.dump, 'screen-needs-input') === null) p.push(`tap ${String(i + 1)}: the Needs input list is not drawn`);
       if (el(t.dump, 'screen-session') !== null) p.push(`tap ${String(i + 1)}: a session screen opened`);
-      const notice = el(t.dump, 'list-notice')?.label ?? '';
+      const notice = el(t.dump, 'needs-list-notice')?.label ?? '';
       if (notice !== '') p.push(`tap ${String(i + 1)}: the list carries a notice`);
     }
   });
@@ -1433,14 +1560,15 @@ function gradeRelaunch(r) {
   const p = [];
   const [changed, same] = r.dumps;
   if (r.dumps.length !== 2) p.push(`${String(r.dumps.length)} "relaunch" dump(s), not two (the changed token, then the paired one)`);
+  // Phase 316.6: the app opens on the Needs input tab, whose list carries the line.
   if (changed !== undefined) {
-    if (el(changed, 'screen-list') === null) p.push('the relaunch with a changed token did not settle on the list');
-    const line = el(changed, 'list-alerts-line')?.label ?? null;
+    if (el(changed, 'screen-needs-input') === null) p.push('the relaunch with a changed token did not settle on the Needs input list');
+    const line = el(changed, 'needs-list-alerts-line')?.label ?? null;
     if (line !== PAIR_AGAIN) p.push(`with a changed token the list's alerts line reads ${line === null ? 'nothing' : J(line)}, not ${J(PAIR_AGAIN)}`);
   }
   if (same !== undefined) {
-    if (el(same, 'screen-list') === null) p.push('the relaunch with the paired token did not settle on the list');
-    if ((el(same, 'list-alerts-line')?.label ?? '') !== '') p.push('with the token it paired with, the list still says to pair again');
+    if (el(same, 'screen-needs-input') === null) p.push('the relaunch with the paired token did not settle on the Needs input list');
+    if ((el(same, 'needs-list-alerts-line')?.label ?? '') !== '') p.push('with the token it paired with, the list still says to pair again');
   }
   return decide(p, [], `a changed token draws "${PAIR_AGAIN}" under the title, and the token it paired with draws nothing`);
 }
@@ -1523,6 +1651,758 @@ function tapReadings(events, deliveries) {
       before: earlier.at(-1) ?? null
     };
   });
+}
+
+// ---------------------------------------------------------------------------
+// Phase 316.6: the tab bar, Settings, Unpair and the rendered answer
+// (build/p3166/SPEC.md §7.4). Each grader is pure over what the run read, so
+// --grader-self-test proves every clause red on its own break.
+// ---------------------------------------------------------------------------
+
+/** The app's version and build, from the project the run builds (Settings' `1.0.0 (4)`). */
+const PHONE_VERSION = (() => {
+  try {
+    const pbx = readFileSync(join(ROOT, 'ios', 'Tortie.xcodeproj', 'project.pbxproj'), 'utf8');
+    const marketing = /MARKETING_VERSION = ([0-9.]+);/.exec(pbx)?.[1] ?? null;
+    const build = /CURRENT_PROJECT_VERSION = ([0-9]+);/.exec(pbx)?.[1] ?? null;
+    return marketing === null || build === null ? null : `${marketing} (${build})`;
+  } catch {
+    return null;
+  }
+})();
+
+/** The integer a badge's XCUITest value or label carries, or null when it carries none. */
+function badgeNumber(event) {
+  for (const text of [event?.value, event?.label]) {
+    const m = typeof text === 'string' ? /(\d+)/.exec(text) : null;
+    if (m !== null) return Number(m[1]);
+  }
+  // A label inside the button that is a number and nothing else (the fix
+  // round: the UI test also prints every label inside the button).
+  for (const text of Array.isArray(event?.inside) ? event.inside : []) {
+    const m = typeof text === 'string' ? /^\s*(\d+)\s*$/.exec(text) : null;
+    if (m !== null) return Number(m[1]);
+  }
+  return null;
+}
+
+/** Whether a badge reading came from iOS 26 or later, whose tab bar XCUITest reads no badge value from. */
+function glassBar(event) {
+  const major = Number(String(event?.system ?? '').split('.')[0]);
+  return Number.isFinite(major) && major >= 26;
+}
+
+/**
+ * An answer composed from its drawn `md-` labels, the way the UI test's
+ * `MarkdownLabels` composes one: each scope in pre-order (by block, then its
+ * mark, itself, its cells by row and column, its note), the cut last, joined
+ * with a new line. Answers `{ scope: text }`.
+ */
+function composeScopes(elements) {
+  const by = new Map();
+  for (const e of elements ?? []) {
+    const m = /^md-([^-]+)-(?:(rest)|(\d+)(?:(-mark)|(-more)|-r(\d+)c(\d+))?)$/.exec(String(e.id ?? ''));
+    if (m === null) continue;
+    const key = m[2] !== undefined ? [Number.MAX_SAFE_INTEGER, 0, 0, 0] : [Number(m[3]), m[4] !== undefined ? 0 : m[5] !== undefined ? 3 : m[6] !== undefined ? 2 : 1, Number(m[6] ?? 0), Number(m[7] ?? 0)];
+    if (!by.has(m[1])) by.set(m[1], []);
+    by.get(m[1]).push({ key, label: String(e.label ?? '') });
+  }
+  const out = {};
+  for (const [scope, parts] of by) {
+    parts.sort((a, b) => a.key[0] - b.key[0] || a.key[1] - b.key[1] || a.key[2] - b.key[2] || a.key[3] - b.key[3]);
+    out[scope] = parts.map((p) => p.label).filter((l) => l !== '').join('\n');
+  }
+  return out;
+}
+
+/** Every letter-or-digit word of a text, counted. */
+function wordCounts(text) {
+  const counts = new Map();
+  for (const w of String(text ?? '').match(/[\p{L}\p{N}]+/gu) ?? []) counts.set(w, (counts.get(w) ?? 0) + 1);
+  return counts;
+}
+
+/**
+ * The words a planted answer's source holds that HEAD leaves undrawn BY
+ * DESIGN, each named (SPEC §7.6): a fence's info string and a task box's `x`.
+ * Nothing else: since the fix round (2026-10-01) no cap an honest answer can
+ * reach drops a word, and a table row's cells past its header stay in its
+ * last cell, so the words of a table past its caps are no longer excused.
+ * Answers `{ fence: Map, task: Map }`.
+ */
+function undrawnByDesign(source) {
+  const fence = new Map();
+  const task = new Map();
+  const add = (map, text) => {
+    for (const [w, n] of wordCounts(text)) map.set(w, (map.get(w) ?? 0) + n);
+  };
+  for (const line of String(source ?? '').split(/\r\n|\r|\n/)) {
+    const f = /^ {0,3}(`{3,}|~{3,})(.*)$/.exec(line);
+    if (f !== null && f[2].trim() !== '') add(fence, f[2]);
+    const t = /^\s*(?:[-+*]|\d{1,9}[.)])\s+\[([xX])\]\s/.exec(line);
+    if (t !== null) add(task, t[1]);
+  }
+  return { fence, task };
+}
+
+/** T2a: the first screen after pairing is Needs input. */
+function gradeT2a(r) {
+  const d = r.pairEnd;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "pair-end" dump');
+  const p = [];
+  if (el(d, 'screen-needs-input') === null) p.push(`pairing landed on ${el(d, 'screen-list') !== null ? 'the Sessions list' : 'no list'}, not Needs input`);
+  return decide(p, [], 'pairing landed on the Needs input tab');
+}
+
+/**
+ * T2b: the badge's integer is the rows the door answered as waiting, read by
+ * the node reader just before and just after the app's read; no integer when
+ * nothing waits. A badge XCUITest could not find is UNREADABLE, and so is one
+ * with no number on iOS 26 or later, whose glass tab bar gives XCUITest an
+ * empty value while UIKit draws the badge (SPEC §12 concern 1; the
+ * rederive verifier read `badgeValue` "3" and a visible badge view off the
+ * real UITabBar on 26.3.1 in the run that graded it a FAIL).
+ */
+function gradeT2b(r) {
+  if (r.badges.length === 0) return verdict(null, 'the UI test printed no badge line');
+  const u = [];
+  const p = [];
+  r.badges.forEach((b, k) => {
+    if (b.event.found === false) {
+      u.push(`badge ${String(k + 1)}: XCUITest found no Needs input button (SPEC §12 concern 1)`);
+      return;
+    }
+    const counts = b.reads.filter((x) => x !== null).map((x) => (x.rows ?? []).length);
+    if (counts.length === 0) {
+      u.push(`badge ${String(k + 1)}: the node reader read nothing around it`);
+      return;
+    }
+    const n = badgeNumber(b.event);
+    if (counts.every((c) => c === 0)) {
+      if (n !== null) p.push(`badge ${String(k + 1)} reads ${String(n)} while the door answered no waiting row`);
+    } else if (n === null && glassBar(b.event)) u.push(`badge ${String(k + 1)}: iOS ${String(b.event.system)}'s tab bar gave XCUITest no number, and the door answered ${J(counts)} waiting row(s) (SPEC §12 concern 1)`);
+    else if (n === null) p.push(`badge ${String(k + 1)} carries no number, and the door answered ${J(counts)} waiting row(s)`);
+    else if (!counts.includes(n)) p.push(`badge ${String(k + 1)} reads ${String(n)}, and the door answered ${J(counts)} waiting row(s) around it`);
+  });
+  return decide(p, u, `${String(r.badges.length)} badge reading(s), each the door's waiting count read around it (${r.badges.map((b) => String(badgeNumber(b.event))).join(', ')})`);
+}
+
+/** T2c: a session opened in Sessions is still on top after Needs input and back. */
+function gradeT2c(r) {
+  const d = r.tabSessions;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "tab-sessions" dump');
+  const p = [];
+  if (el(d, 'screen-session') === null) p.push(`after Needs input and back, Sessions shows ${el(d, 'screen-list') !== null ? 'its list' : 'no session'}, not the session opened on it`);
+  else if (r.name !== null && !titledWith(d, r.name)) p.push('the session on top is not the one opened');
+  return decide(p, [], 'the session opened in Sessions was still on top after Needs input and back');
+}
+
+/** T2d: at the end of a pushed session, its last element ends at or above the tab bar's top. */
+function gradeT2d(r) {
+  if (r.bar === null || r.bar === undefined) return verdict(null, 'the UI test printed no bar line');
+  if (!Array.isArray(r.bar.frame)) return verdict(null, `the tab bar's frame could not be read (${J(r.bar.via ?? null)}; SPEC §12 concern 1)`);
+  if (r.dump === null || r.dump === undefined) return verdict(null, 'the UI test printed no "bar" dump');
+  const top = r.bar.frame[1];
+  const content = (r.dump.elements ?? []).filter((e) => typeof e.id === 'string' && e.id.startsWith('session-') && Array.isArray(e.frame) && e.frame[3] > 0);
+  if (content.length === 0) return verdict(null, 'the "bar" dump holds no session element to measure');
+  const lowest = content.reduce((a, b) => (a.frame[1] + a.frame[3] >= b.frame[1] + b.frame[3] ? a : b));
+  const end = lowest.frame[1] + lowest.frame[3];
+  const p = [];
+  if (r.bar.screen !== 'screen-session') p.push(`the bar was read over ${J(r.bar.screen)}, not a pushed session`);
+  if (end > top + 0.5) p.push(`the session's last element (${lowest.id}) ends at y ${String(Math.round(end * 100) / 100)}, under the tab bar's top at ${String(Math.round(top * 100) / 100)}`);
+  return decide(p, [], `the session's last element ends at y ${String(Math.round(end * 100) / 100)}, at or above the tab bar's top at ${String(Math.round(top * 100) / 100)}`);
+}
+
+/**
+ * MD1, MARKDOWN OFF (his ruling of 2026-10-02, "Ship tabs + Settings,
+ * markdown off"; build/p3166/SPEC.md "As built, markdown off"):
+ * `MarkdownCaps.pieces` is 0, so EVERY planted turn is drawn as written,
+ * exactly as the parent drew every answer: ONE element, `md-<turn>-0`, and no
+ * other `md-<turn>-` element (no block, cell, mark or counted note).
+ * table-at-caps holds its opening words, its header and every cell of its 51
+ * rows; honest-wide (when planted) its ten columns, the `-` and `+` lines of
+ * its unfenced diff, its long cell and its long code line whole;
+ * loop-quote-comment (when planted) its heading, table and list; and no label
+ * holds a `**` pair (a `**` beside no other `*`), because the inline markdown
+ * the parent drew is still drawn: `***`, a rule written as its characters,
+ * is not one. `planted` maps a turn index to its fixture.
+ */
+function gradeMd1(r) {
+  if (r.markdown === null || r.markdown === undefined) return verdict(null, 'the UI test printed no markdown line');
+  if (r.planted.size === 0) return verdict(null, 'the node reader found no planted turn in the markdown session');
+  const p = [];
+  const byScope = new Map();
+  for (const e of r.markdown.elements ?? []) {
+    const m = /^md-([^-]+)-/.exec(String(e.id ?? ''));
+    if (m === null) continue;
+    if (!byScope.has(m[1])) byScope.set(m[1], []);
+    byScope.get(m[1]).push(e);
+  }
+  const missing = [...r.planted].filter(([i]) => (byScope.get(String(i)) ?? []).length === 0).map(([, name]) => name);
+  if (missing.length > 0) p.push(`${String(missing.length)} planted turn(s) drew no md- element: ${missing.slice(0, 6).join(', ')}`);
+  // Every planted turn, drawn as written: one element, md-<turn>-0, alone.
+  const asBlocks = [...r.planted].filter(([i]) => {
+    const own = byScope.get(String(i)) ?? [];
+    return own.length > 0 && (own.length !== 1 || own[0].id !== `md-${String(i)}-0`);
+  });
+  for (const [i, name] of asBlocks.slice(0, 6)) {
+    const own = byScope.get(String(i)) ?? [];
+    p.push(`${name} drew ${String(own.length)} md- element(s) (${own.slice(0, 3).map((e) => e.id).join(', ')}), not the one md-${String(i)}-0 every answer is while markdown is off`);
+  }
+  if (asBlocks.length > 6) p.push(`… and ${String(asBlocks.length - 6)} more planted turn(s) drawn as blocks`);
+  const labelOf = (turn) => String((byScope.get(String(turn)) ?? []).find((e) => e.id === `md-${String(turn)}-0`)?.label ?? '');
+  const tableTurn = [...r.planted].find(([, name]) => name === 'table-at-caps')?.[0];
+  if (tableTurn === undefined) p.push('table-at-caps was not planted');
+  else {
+    const label = labelOf(tableTurn);
+    const words = ['p3166', 'past', ...Array.from({ length: 9 }, (_, c) => `h${String(c + 1)}`)];
+    for (let row = 1; row <= 51; row += 1) for (let column = 1; column <= 9; column += 1) words.push(`r${String(row)}c${String(column)}`);
+    const lost = words.filter((w) => !new RegExp(`(?:^|[^A-Za-z0-9])${w}(?:$|[^A-Za-z0-9])`).test(label));
+    if (label !== '' && lost.length > 0) p.push(`table-at-caps drawn as written lost ${String(lost.length)} word(s): ${lost.slice(0, 6).join(', ')}`);
+  }
+  const writtenWhole = (turn, name, words) => {
+    if (turn === undefined) return;
+    const label = labelOf(turn);
+    if (label === '') return;
+    const lost = words.filter((w) => !label.includes(w));
+    if (lost.length > 0) p.push(`${name} drawn as written lost ${J(lost.slice(0, 6))}`);
+  };
+  const wideTurn = [...r.planted].find(([, name]) => name === 'honest-wide')?.[0];
+  writtenWhole(wideTurn, 'honest-wide', ['nothing about a session is ever silent', 'c1 | c2', '| c10 |', 'ninth | tenth', 'p3166item0', 'p3166item49', '- res.cookie("sid", id);', '+ res.cookie("sid", id, { httpOnly: true });', 'That is all.']);
+  const loopTurn = [...r.planted].find(([, name]) => name === 'loop-quote-comment')?.[0];
+  writtenWhole(loopTurn, 'loop-quote-comment', ['# After heading', '| head a | head b |', '- item one', '- item two']);
+  const starred = [...r.planted].flatMap(([i]) => (byScope.get(String(i)) ?? []).filter((e) => /(?:^|[^*])\*\*(?:[^*]|$)/.test(String(e.label ?? ''))));
+  if (starred.length > 0) p.push(`${String(starred.length)} label(s) still hold a ** pair (${starred.slice(0, 3).map((e) => e.id).join(', ')}), so the inline markdown the parent drew was not drawn`);
+  return decide(p, [], `all ${String(r.planted.size)} planted turns drawn as written, markdown off: each ONE element md-<turn>-0 and no block, cell, mark or note (${String((r.markdown.elements ?? []).length)} md- elements in all); table-at-caps holding all 459 cells' words and its 51st row${wideTurn === undefined ? '' : '; honest-wide its ten columns, its - and + lines, its long cell and line whole'}${loopTurn === undefined ? '' : '; loop-quote-comment what follows the loop'}; no label holds a ** pair`);
+}
+
+/** The links an answer may never let him press (refused-schemes' words). */
+const REFUSED_LINK_WORDS = ['cleartext link', 'javascript link', 'data link', 'file link', 'shortcuts link', 'tel link', 'sms link', 'mailto link', 'facetime link', 'prefs link', 'app settings link', 'itms services link', 'itms apps link', 'maps link', 'tortie link', 'upper scheme link', 'ip host link', 'localhost link', 'port link', 'underscore link', 'empty host link'];
+/** The lying link's words, and the address they would have opened. */
+const LYING_WORDS = 'https://apple.com';
+const LYING_ADDRESS = 'https://evil.example/x';
+const LONG_WORDS = 'a long address';
+
+/**
+ * MD2, MARKDOWN OFF (his ruling of 2026-10-02): NO LINK IS PRESSABLE, as in
+ * the parent. The link's alert, Cancel and Open no longer apply, because no
+ * answer holds a link element to tap: the markdown step read the whole
+ * conversation and found none, and refused-schemes' words are no link
+ * either. The lying link and the long link are drawn as their WORDS in their
+ * answer's one element, and the address the lying link would have opened is
+ * drawn nowhere. `planted` maps a turn index to its fixture.
+ */
+function gradeMd2(r) {
+  if (r.markdown === null || r.markdown === undefined) return verdict(null, 'no markdown line to read the link elements from');
+  if (r.planted === undefined || r.planted.size === 0) return verdict(null, 'the node reader found no planted turn in the markdown session');
+  const p = [];
+  const u = [];
+  const links = r.markdown.links ?? [];
+  if (links.length > 0) p.push(`${String(links.length)} link element(s) drawn (${links.slice(0, 4).map((l) => J(String(l.label ?? '').slice(0, 40))).join(', ')}); while markdown is off no link can be pressed, as in the parent`);
+  for (const w of REFUSED_LINK_WORDS) if (links.some((l) => l.label === w)) p.push(`"${w}" is a link element; its address is refused`);
+  const labelOf = (name) => {
+    const turn = [...r.planted].find(([, n]) => n === name)?.[0];
+    if (turn === undefined) return null;
+    return String((r.markdown.elements ?? []).find((e) => e.id === `md-${String(turn)}-0`)?.label ?? '');
+  };
+  const lying = labelOf('lying-link');
+  if (lying === null) u.push('lying-link was not planted');
+  else {
+    if (!lying.includes(LYING_WORDS)) p.push(`lying-link's answer does not draw its words ${J(LYING_WORDS)}`);
+    if (lying.includes('evil.example')) p.push(`lying-link's answer draws the address ${LYING_ADDRESS}, which the parent's rendering removes`);
+  }
+  const long = labelOf('long-link');
+  if (long === null) u.push('long-link was not planted');
+  else if (!long.includes(LONG_WORDS)) p.push(`long-link's answer does not draw its words ${J(LONG_WORDS)}`);
+  const stray = (r.events ?? []).filter((e) => e.step === 'link' && e.alert !== null && e.alert !== undefined);
+  if (stray.length > 0) p.push(`a link tap showed an alert (${J(String(stray[0].alert?.title ?? '').slice(0, 60))})`);
+  return decide(p, u, `no link element in any planted answer (${String((r.markdown.elements ?? []).length)} md- elements read), none of ${String(REFUSED_LINK_WORDS.length)} refused links among them; the lying link and the long link drawn as their words, ${LYING_ADDRESS} drawn nowhere, as the parent drew every link`);
+}
+
+/** MD3: the loopback listener every image and refused link points at was never dialled. */
+function gradeMd3(r) {
+  if (r.port === null || r.port === undefined) return verdict(null, 'the MD3 listener never started');
+  if (r.planted === 0) return verdict(null, 'no turn naming the listener was planted');
+  return decide(r.connections === 0 ? [] : [`the listener on 127.0.0.1:${String(r.port)} counted ${String(r.connections)} connection(s)`], [], `the listener on 127.0.0.1:${String(r.port)} counted 0 connections over the whole run`);
+}
+
+/**
+ * S6: Settings names the paired Mac, its fingerprint is the Mac's row for
+ * this phone and the one Pairing drew, the version is the build's, and the
+ * Alerts card reads what iOS allows, or is absent for a Mac that cannot send.
+ */
+function gradeS6(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "settings" dump');
+  if (el(d, 'screen-settings') === null) return verdict(false, 'the Settings tab was not drawn');
+  const p = [];
+  const u = [];
+  const label = (id) => el(d, id)?.label ?? null;
+  const first = String(r.publicName ?? '').split('.')[0];
+  if (label('settings-mac-name') !== first) p.push(`the Mac's name reads ${J(label('settings-mac-name'))}, not ${J(first)}`);
+  if (label('settings-mac-address') !== `${String(r.publicName)}:${String(r.publicPort)}`) p.push(`the address reads ${J(label('settings-mac-address'))}, not ${J(`${String(r.publicName)}:${String(r.publicPort)}`)}`);
+  const fp = fingerprintDigits(label('settings-fingerprint'));
+  if (r.macFingerprint === null || r.macFingerprint === undefined) u.push('the Mac lists no row for this phone to compare the fingerprint with');
+  else if (fp !== fingerprintDigits(r.macFingerprint)) p.push('the fingerprint is not the Mac\'s row for this phone');
+  if (r.drawnFingerprint !== null && r.drawnFingerprint !== undefined && fp !== fingerprintDigits(r.drawnFingerprint)) p.push('the fingerprint is not the one Pairing drew');
+  if (fp.length !== 24) p.push(`the fingerprint holds ${String(fp.length)} hex digits, not 24`);
+  if (r.version === null) u.push('the project\'s version could not be read');
+  else if (label('settings-version') !== r.version) p.push(`the version reads ${J(label('settings-version'))}, not ${J(r.version)}`);
+  if (r.alerts === 'absent') {
+    if (el(d, 'settings-alerts') !== null || el(d, 'settings-notifications') !== null) p.push('the Alerts card is drawn for a Mac that cannot send');
+  } else {
+    const state = label('settings-notifications-state');
+    if (el(d, 'settings-alerts') === null) p.push('the Alerts card is not drawn for a Mac that can send');
+    else if (state !== r.alerts) p.push(`the Alerts row reads ${J(state)}, not ${J(r.alerts)}`);
+  }
+  return decide(p, u, `the Mac named ${first} at ${String(r.publicName)}:${String(r.publicPort)}, the fingerprint the Mac's row and Pairing's, ${String(r.version)}, and the Alerts card ${r.alerts === 'absent' ? 'absent' : `reading ${String(r.alerts)}`}`);
+}
+
+/**
+ * U1: Cancel changes no label; Unpair draws Pairing with its not-paired line;
+ * the app dials nothing in the 20 s after; a relaunch with no forget seam
+ * draws Pairing; the Mac still lists the phone; and a new code pairs again,
+ * landing on Needs input.
+ */
+function gradeU1(r) {
+  const p = [];
+  const u = [];
+  const before = r.settings;
+  const cancelled = r.cancelDump;
+  if (before === null || cancelled === null) u.push(`no ${before === null ? '"settings"' : '"unpair-cancel"'} dump`);
+  else {
+    const was = new Map((before.elements ?? []).filter((e) => String(e.id).startsWith('settings-')).map((e) => [e.id, e.label]));
+    const now = new Map((cancelled.elements ?? []).filter((e) => String(e.id).startsWith('settings-')).map((e) => [e.id, e.label]));
+    const moved = [...was].filter(([id, label]) => now.get(id) !== label).map(([id]) => id);
+    if (was.size === 0) u.push('the "settings" dump holds no settings element');
+    if (moved.length > 0) p.push(`Cancel changed ${moved.join(', ')}`);
+  }
+  if (r.sheet === null) u.push('the UI test printed no unpair-sheet line');
+  else {
+    const said = [r.sheet.title, ...(r.sheet.texts ?? [])].filter((x) => typeof x === 'string');
+    if (r.question !== null && !said.includes(r.question)) p.push(`the question does not read ${J(r.question)}`);
+    if (r.note !== null && !said.includes(r.note)) p.push('the question does not carry Unpair\'s note');
+    for (const b of ['Unpair', 'Cancel']) if (!(r.sheet.buttons ?? []).includes(b)) p.push(`the question has no ${b}`);
+  }
+  if (r.unpaired === null) u.push('no "unpair" dump');
+  else {
+    if (el(r.unpaired, 'screen-pairing') === null) p.push('Unpair did not draw Pairing');
+    if (el(r.unpaired, 'pairing-line')?.label !== r.notPaired) p.push(`Pairing's line reads ${J(el(r.unpaired, 'pairing-line')?.label ?? null)}, not the not-paired line`);
+  }
+  if (r.relay === null) u.push('the relay was not counted around Unpair');
+  else {
+    if (r.relay.waitedMs < 20_000) u.push(`only ${String(r.relay.waitedMs)} ms were counted, under 20 s`);
+    if (r.relay.after !== r.relay.before) p.push(`the app dialled the door ${String(r.relay.after - r.relay.before)} time(s) after Unpair`);
+  }
+  if (r.relaunch === null) u.push('no "relaunch-keep" dump');
+  else if (el(r.relaunch, 'screen-pairing') === null) p.push('a relaunch with no forget seam did not draw Pairing, so the pairing was kept');
+  if (r.stillListed === null) u.push('the Mac\'s status could not be read');
+  else if (!r.stillListed) p.push('the Mac no longer lists the phone (its half of Unpair is Phase 317\'s)');
+  if (r.again === null) u.push('the second drive printed no "pair-end" dump');
+  else if (el(r.again, 'screen-needs-input') === null) p.push('a new code did not pair again onto Needs input');
+  return decide(p, u, 'Cancel changed nothing; Unpair drew Pairing with its not-paired line; 0 dials in 20 s; a relaunch drew Pairing; the Mac still lists the phone; a new code paired again onto Needs input');
+}
+
+/**
+ * HM: a markdown arm of the hostile door ends drawn, alive, with an md-
+ * element for every turn the drive reached. The drive reads from the newest
+ * turn back, for as long as its wait allows; a turn OLDER than the oldest it
+ * reached was never on screen, so it is UNREADABLE, never a failure (the fix
+ * round: the rederive verifier's 60 s reached 20 of 32 turns of a 105,000
+ * point page, every one of them drawn, and the arm said FAIL). A turn missing
+ * between two that drew, or the newest one, is a failure.
+ */
+function gradeHm(r) {
+  if (r.events.length === 0) return verdict(null, 'the UI test printed no P316 line');
+  const p = [];
+  const u = [];
+  const md = r.events.find((e) => e.step === 'markdown') ?? null;
+  const d = lastDump(r.events, 'markdown') ?? lastDump(r.events, 'conversation');
+  if (d === null || el(d, 'screen-conversation') === null) p.push('the conversation was not drawn');
+  const failures = r.events.filter((e) => e.step === 'screen').flatMap((x) => x.elements ?? []).filter((e) => /-failure$/.test(String(e.id)) && String(e.label ?? '') !== '');
+  if (failures.length > 0) p.push(`a failure was drawn (${[...new Set(failures.map((e) => e.id))].join(', ')})`);
+  const scopes = new Set((md?.elements ?? []).map((e) => /^md-(\d+)-/.exec(String(e.id))?.[1]).filter((s) => s !== undefined).map(Number));
+  if (md === null) p.push('no markdown line');
+  else if (scopes.size === 0) p.push(`no turn drew an md- element, of ${String(r.turnCount)}`);
+  else {
+    const oldest = Math.min(...scopes);
+    const gaps = [];
+    for (let i = oldest; i < r.turnCount; i += 1) if (!scopes.has(i)) gaps.push(i);
+    if (gaps.length > 0) p.push(`${String(gaps.length)} turn(s) the drive passed drew no md- element (${gaps.slice(0, 8).join(', ')})`);
+    if (oldest > 0) u.push(`${String(oldest)} older turn(s) were never reached in the drive's time, so whether they drew is unread`);
+  }
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app ended in state ${J(r.alive)}`);
+  if (r.connections !== 0) p.push(`the MD3 listener counted ${String(r.connections)} connection(s)`);
+  return decide(p, u, `the conversation drawn, ${String(scopes.size)} of ${String(r.turnCount)} turns with md- elements, no failure, alive, the listener undialled`);
+}
+
+/**
+ * PR's no-regression check (SPEC §7.6): every letter-or-digit word the parent
+ * drew for a planted answer, HEAD draws at least as often, except, each
+ * counted and printed, a fence's info string and a task box's `x`. Since the
+ * fix round no word past a table's caps is excused: none is lost.
+ * `pairs` is `[{ name, parent, head, source }]`.
+ */
+function regressedWords(pairs) {
+  const lost = [];
+  const excused = { fence: 0, task: 0 };
+  for (const pair of pairs) {
+    const want = wordCounts(pair.parent);
+    const have = wordCounts(pair.head);
+    const design = undrawnByDesign(pair.source);
+    for (const [w, n] of want) {
+      let short = n - (have.get(w) ?? 0);
+      if (short <= 0) continue;
+      for (const kind of ['fence', 'task']) {
+        const room = Math.min(short, design[kind].get(w) ?? 0);
+        excused[kind] += room;
+        short -= room;
+      }
+      if (short > 0) lost.push({ name: pair.name, word: w, short });
+    }
+  }
+  return { lost, excused };
+}
+
+/**
+ * Whether a renderer's Swift source removes every link and every image
+ * address from what it draws (the PR arm's read of the parent's own rule).
+ * Two spellings mean the same removal: the attribute's property (`x.link =
+ * nil`, `x.imageURL = nil`) and its key, `[K.self] = nil`, where `K` is the
+ * attribute itself or a typealias of it. The parent (316.5, `28d89295`) writes
+ * the second through `typealias Link = …LinkAttribute` and `typealias Image =
+ * …ImageURLAttribute`, which the first regex here never matched, so PR read
+ * UNREADABLE at the real parent although it lost no word (the reverify of
+ * 2026-10-01, problem 3).
+ */
+function sourceStripsLinks(source) {
+  const text = String(source ?? '');
+  const removes = (property, attribute) => {
+    if (new RegExp(`\\.${property}\\s*=\\s*nil\\b`).test(text)) return true;
+    const names = [attribute, ...[...text.matchAll(new RegExp(`typealias\\s+(\\w+)\\s*=\\s*[\\w.]*\\b${attribute}\\b`, 'g'))].map((m) => m[1])];
+    return names.some((name) => new RegExp(`\\[\\s*(?:[\\w.]*\\.)?${name}\\.self\\s*\\]\\s*=\\s*nil\\b`).test(text));
+  };
+  return removes('link', 'LinkAttribute') && removes('imageURL', 'ImageURLAttribute');
+}
+
+/** The parent's link rule, read from ITS OWN ios/Tortie/Screens/AnswerText.swift under `parentRoot`: true, false, or null when that file cannot be read. */
+function readParentStripsLinks(parentRoot) {
+  try {
+    return sourceStripsLinks(readFileSync(join(parentRoot, 'ios', 'Tortie', 'Screens', 'AnswerText.swift'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * PR: the parent app over the same turns draws no tab, a table as pipes, no
+ * link, and no word HEAD loses. MARKDOWN OFF (his ruling of 2026-10-02): HEAD
+ * draws every planted answer as written, which IS the parent's drawing, so
+ * each pair's label is also held EQUAL to the parent's, character for
+ * character; the first difference is named.
+ */
+function gradePr(r) {
+  if (r.parent === null) return verdict(null, 'the parent app was not driven');
+  if (r.parent.events.length === 0) return verdict(null, 'the parent\'s own UI test printed no P316 line');
+  const p = [];
+  const u = [];
+  const screens = r.parent.events.filter((e) => e.step === 'screen');
+  if (screens.some((d) => el(d, 'screen-needs-input') !== null)) p.push('the parent drew a Needs input tab, which 316.5 did not have');
+  if (!screens.some((d) => el(d, 'screen-list') !== null)) u.push('the parent never drew its list');
+  const turns = r.parent.events.find((e) => e.step === 'turns') ?? null;
+  if (turns === null) u.push('the parent printed no turns line');
+  else {
+    const table = r.tableTurn === null ? null : turns.answers?.[String(r.tableTurn)] ?? null;
+    if (table === null) u.push('the parent drew no answer for table-at-caps');
+    else if (!table.includes('|')) p.push('the parent drew table-at-caps without its pipes, so it is not the parent');
+  }
+  if (r.parentStripsLinks !== true) u.push('the parent\'s own source was not read for its link rule');
+  const { lost, excused } = regressedWords(r.pairs);
+  if (r.pairs.length === 0) u.push('no planted answer was read at both builds');
+  for (const l of lost.slice(0, 8)) p.push(`${l.name}: HEAD draws "${l.word}" ${String(l.short)} time(s) fewer than the parent`);
+  if (lost.length > 8) p.push(`… and ${String(lost.length - 8)} more`);
+  const unequal = r.pairs.filter((pair) => pair.head !== pair.parent);
+  for (const pair of unequal.slice(0, 4)) {
+    let at = 0;
+    while (at < pair.head.length && at < pair.parent.length && pair.head[at] === pair.parent[at]) at += 1;
+    p.push(`${pair.name}: HEAD's drawn answer is not the parent's (${String(pair.head.length)} against ${String(pair.parent.length)} characters, first different at ${String(at)}: ${J(pair.head.slice(at, at + 24))} against ${J(pair.parent.slice(at, at + 24))}); markdown is off, so it is the parent's drawing exactly`);
+  }
+  if (unequal.length > 4) p.push(`… and ${String(unequal.length - 4)} more answer(s) not the parent's`);
+  return decide(p, u, `the parent drew no tab, table-at-caps as pipes, and (read from its own AnswerText.swift) no pressable link; over ${String(r.pairs.length)} planted answer(s) HEAD draws each one exactly as the parent did, character for character (markdown off), and so every word the parent drew, excused by design: ${String(excused.fence)} fence info word(s), ${String(excused.task)} task box x(s)`);
+}
+
+/** Every new grader above, proved on readings written here. Launches nothing. */
+function tabsSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  // The composer and the words.
+  const composed = composeScopes([
+    { id: 'md-3-1', label: 'para' },
+    { id: 'md-3-0', label: 'Head' },
+    { id: 'md-3-2-mark', label: '•' },
+    { id: 'md-3-2', label: 'item' },
+    { id: 'md-3-4-r1c0', label: 'b1' },
+    { id: 'md-3-4-r0c1', label: 'h2' },
+    { id: 'md-3-4-r0c0', label: 'h1' },
+    { id: 'md-3-4', label: '' },
+    { id: 'md-3-4-more', label: '1 more row' },
+    { id: 'md-3-rest', label: 'cut' },
+    { id: 'md-last-0', label: 'last' }
+  ]);
+  cases.push({ what: 'composer: pre-order, mark before its item, cells by row and column, the note, the cut last', got: () => composed['3'] === 'Head\npara\n•\nitem\nh1\nh2\nb1\n1 more row\ncut' && composed.last === 'last', want: true });
+  const design = undrawnByDesign('```ts\nx\n```\n- [x] done\n| a | b | c | d | e | f | g | h | i9 |\n| - | - | - | - | - | - | - | - | - |\n| 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | past |\n');
+  cases.push({ what: 'undrawn by design: the fence info and the task box, and no table word', got: () => design.fence.get('ts') === 1 && design.task.get('x') === 1 && design.cap === undefined, want: true });
+  cases.push({ what: 'badge: a number in the value', got: () => badgeNumber({ value: '3 items', label: 'Needs input' }) === 3 && badgeNumber({ value: null, label: 'Needs input' }) === null, want: true });
+  cases.push({ what: 'badge: a label inside that is only a number, and no other', got: () => badgeNumber({ value: '', label: 'Needs input', inside: ['Needs input', '3'] }) === 3 && badgeNumber({ value: '', label: 'Needs input', inside: ['Needs input', 'item 3'] }) === null, want: true });
+  // T2a
+  const pairEnd = { step: 'screen', name: 'pair-end', elements: [{ id: 'screen-needs-input', label: '' }] };
+  add('T2a honest', gradeT2a, { pairEnd }, true);
+  add('T2a landed on Sessions', gradeT2a, { pairEnd: { ...pairEnd, elements: [{ id: 'screen-list', label: '' }] } }, false);
+  add('T2a no dump (UNREADABLE)', gradeT2a, { pairEnd: null }, null);
+  // T2b
+  const read = (n) => ({ rows: Array.from({ length: n }, (_, i) => ({ sessionId: String(i) })) });
+  const t2b = { badges: [{ event: { step: 'badge', label: 'Needs input', value: '2', found: true }, reads: [read(2), read(2)] }] };
+  add('T2b honest', gradeT2b, t2b, true);
+  add('T2b a count that ticked between the reads', gradeT2b, edit(t2b, (x) => { x.badges[0].reads = [read(1), read(2)]; }), true);
+  add('T2b a badge that is not the door\'s count', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = '3'; }), false);
+  add('T2b no badge while rows wait', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = null; }), false);
+  add('T2b a badge while nothing waits', gradeT2b, edit(t2b, (x) => { x.badges[0].reads = [read(0), read(0)]; x.badges[0].event.value = '1'; }), false);
+  add('T2b no badge and nothing waits', gradeT2b, edit(t2b, (x) => { x.badges[0].reads = [read(0)]; x.badges[0].event.value = null; }), true);
+  add('T2b an empty value on iOS 26 (UNREADABLE)', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = ''; x.badges[0].event.system = '26.3.1'; }), null);
+  add('T2b an empty value on iOS 18 is a failure', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = ''; x.badges[0].event.system = '18.3.1'; }), false);
+  add('T2b the number read from inside the button on iOS 26', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = ''; x.badges[0].event.system = '26.3.1'; x.badges[0].event.inside = ['Needs input', '2']; }), true);
+  add('T2b a wrong number inside the button', gradeT2b, edit(t2b, (x) => { x.badges[0].event.value = ''; x.badges[0].event.system = '26.3.1'; x.badges[0].event.inside = ['5']; }), false);
+  add('T2b the button not found (UNREADABLE)', gradeT2b, edit(t2b, (x) => { x.badges[0].event.found = false; }), null);
+  add('T2b no badge line (UNREADABLE)', gradeT2b, { badges: [] }, null);
+  // T2c
+  const tabSessions = { step: 'screen', name: 'tab-sessions', elements: [{ id: 'screen-session', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] };
+  add('T2c honest', gradeT2c, { tabSessions, name: 'p316-talk' }, true);
+  add('T2c Sessions lost its place', gradeT2c, { tabSessions: { ...tabSessions, elements: [{ id: 'screen-list', label: '' }] }, name: 'p316-talk' }, false);
+  add('T2c another session on top', gradeT2c, { tabSessions, name: 'p316-md' }, false);
+  add('T2c no dump (UNREADABLE)', gradeT2c, { tabSessions: null, name: 'p316-talk' }, null);
+  // T2d
+  const barDump = { step: 'screen', name: 'bar', elements: [{ id: 'screen-session', label: '', frame: [0, 0, 402, 874] }, { id: 'session-status', label: 'Working', frame: [16, 100, 100, 20] }, { id: 'session-open-conversation', label: '', frame: [16, 700, 370, 54] }] };
+  const t2d = { bar: { step: 'bar', screen: 'screen-session', via: 'tabBar', frame: [0, 791, 402, 83] }, dump: barDump };
+  add('T2d honest', gradeT2d, t2d, true);
+  add('T2d the last element under the bar', gradeT2d, edit(t2d, (x) => { x.dump.elements[2].frame[1] = 760; }), false);
+  add('T2d read over the list', gradeT2d, edit(t2d, (x) => { x.bar.screen = 'screen-list'; }), false);
+  add('T2d no bar frame (UNREADABLE)', gradeT2d, edit(t2d, (x) => { x.bar.frame = null; }), null);
+  add('T2d no bar line (UNREADABLE)', gradeT2d, { bar: null, dump: barDump }, null);
+  // MD1
+  const tableCells = [];
+  for (let row = 0; row <= 50; row += 1) for (let column = 0; column < 9; column += 1) tableCells.push({ id: `md-7-1-r${String(row)}c${String(column)}`, label: `r${String(row)}c${String(column + 1)}` });
+  const tableWritten = ['p3166 a table one row and one column past its caps', '', `|${Array.from({ length: 9 }, (_, c) => `h${String(c + 1)}`).join('|')}|`, '|-|-|-|-|-|-|-|-|-|', ...Array.from({ length: 51 }, (_, r0) => `|${Array.from({ length: 9 }, (_, c) => `r${String(r0 + 1)}c${String(c + 1)}`).join('|')}|`)].join('\n');
+  const wideWritten = `p3166 an honest answer at every edge the first build cut\n\n| File | What changed |\n| src/auth/session.ts | ${'x'.repeat(300)} nothing about a session is ever silent |\n\n| c1 | c2 | c3 | c4 | c5 | c6 | c7 | c8 | c9 | c10 |\n| v1 | v2 | v3 | v4 | v5 | v6 | v7 | v8 | ninth | tenth |\n\n{"items":[{"id":"p3166item0","ok":true},{"id":"p3166item49","ok":true}]}\n\n- res.cookie("sid", id);\n+ res.cookie("sid", id, { httpOnly: true });\n\nThat is all.`;
+  const md1 = {
+    planted: new Map([[6, 'answer-realistic'], [7, 'table-at-caps'], [8, 'honest-wide'], [9, 'loop-quote-comment']]),
+    markdown: {
+      step: 'markdown',
+      elements: [
+        { id: 'md-6-0', label: 'What changed' }, { id: 'md-7-0', label: tableWritten },
+        { id: 'md-8-0', label: wideWritten },
+        { id: 'md-9-0', label: '> <!--\n> -->\n    x\n\n# After heading\n\n| head a | head b |\n| --- | --- |\n| one | two |\n\n- item one\n- item two\n' }
+      ],
+      links: []
+    }
+  };
+  add('MD1 honest', gradeMd1, md1, true);
+  add('MD1 a planted turn with no md- element', gradeMd1, edit(md1, (x) => { x.planted.set(10, 'quote-nested'); }), false);
+  add('MD1 table-at-caps drawn as blocks, markdown off', gradeMd1, edit(md1, (x) => { x.markdown.elements = x.markdown.elements.filter((e) => e.id !== 'md-7-0'); x.markdown.elements.push({ id: 'md-7-0', label: 'p3166 a table one row and one column past its caps' }, { id: 'md-7-1', label: '' }, ...tableCells, { id: 'md-7-2', label: 'r51c1' }); }), false);
+  add('MD1 table-at-caps as written lost its 51st row', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-7-0').label = tableWritten.split('\n').slice(0, -1).join('\n'); }), false);
+  add('MD1 table-at-caps as written lost one cell', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-7-0').label = tableWritten.replace('|r23c4|', '||'); }), false);
+  add('MD1 a counted note under the table', gradeMd1, edit(md1, (x) => { x.markdown.elements.push({ id: 'md-7-1-more', label: '1 more row' }); }), false);
+  add('MD1 table-at-caps drew a second element beside its written text', gradeMd1, edit(md1, (x) => { x.markdown.elements.push({ id: 'md-7-1', label: 'r51c1' }); }), false);
+  add('MD1 table-at-caps drew nothing', gradeMd1, edit(md1, (x) => { x.markdown.elements = x.markdown.elements.filter((e) => e.id !== 'md-7-0'); }), false);
+  add('MD1 honest-wide drawn as blocks, markdown off', gradeMd1, edit(md1, (x) => { x.markdown.elements.push({ id: 'md-8-3-r0c0', label: 'c1' }); }), false);
+  add('MD1 honest-wide as written lost its diff\'s + line', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-8-0').label = wideWritten.replace('+ res.cookie', 'res.cookie'); }), false);
+  add('MD1 honest-wide as written lost its long cell', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-8-0').label = wideWritten.replace(' nothing about a session is ever silent', '\u2026'); }), false);
+  add('MD1 honest-wide as written lost its long line', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-8-0').label = wideWritten.replace('p3166item49', 'p3166item4'); }), false);
+  add('MD1 loop-quote-comment as written lost its table', gradeMd1, edit(md1, (x) => { x.markdown.elements.find((e) => e.id === 'md-9-0').label = 'After heading\n- item one\n- item two'; }), false);
+  add('MD1 loop-quote-comment drawn as blocks', gradeMd1, edit(md1, (x) => { x.markdown.elements.push({ id: 'md-9-3', label: 'After heading' }); }), false);
+  add('MD1 a label holding **', gradeMd1, edit(md1, (x) => { x.markdown.elements[0].label = '**What changed**'; }), false);
+  // Markdown off (his ruling of 2026-10-02): EVERY planted answer is one
+  // element drawn as written, a short one included, and a rule written as
+  // `***` is its characters, not a ** pair.
+  add('MD1 a short answer drawn as blocks, markdown off', gradeMd1, edit(md1, (x) => { x.planted.set(10, 'quote-nested'); x.markdown.elements.push({ id: 'md-10-0', label: '' }, { id: 'md-10-1', label: 'nested' }); }), false);
+  add('MD1 answer-realistic with a mark beside its text', gradeMd1, edit(md1, (x) => { x.markdown.elements.push({ id: 'md-6-2-mark', label: '-' }); }), false);
+  add('MD1 a short answer drawn as written', gradeMd1, edit(md1, (x) => { x.planted.set(10, 'quote-nested'); x.markdown.elements.push({ id: 'md-10-0', label: '> one\n> > nested' }); }), true);
+  add('MD1 a rule written as *** is no ** pair', gradeMd1, edit(md1, (x) => { x.planted.set(10, 'setext-and-rules'); x.markdown.elements.push({ id: 'md-10-0', label: 'Title one\n=========\n\n***\n- - -' }); }), true);
+  add('MD1 no markdown line (UNREADABLE)', gradeMd1, { ...md1, markdown: null }, null);
+  // MD2, markdown off (his ruling of 2026-10-02): no link element at all.
+  const md2 = {
+    planted: new Map([[10, 'lying-link'], [11, 'long-link']]),
+    markdown: {
+      step: 'markdown',
+      elements: [{ id: 'md-10-0', label: LYING_WORDS }, { id: 'md-11-0', label: `${LONG_WORDS}.` }],
+      links: []
+    },
+    events: []
+  };
+  add('MD2 honest', gradeMd2, md2, true);
+  add('MD2 a link element drawn', gradeMd2, edit(md2, (x) => { x.markdown.links.push({ label: 'pull request' }); }), false);
+  add('MD2 the lying link a link element', gradeMd2, edit(md2, (x) => { x.markdown.links.push({ label: LYING_WORDS }); }), false);
+  add('MD2 a javascript link pressable', gradeMd2, edit(md2, (x) => { x.markdown.links.push({ label: 'javascript link' }); }), false);
+  add('MD2 the lying link\'s address drawn', gradeMd2, edit(md2, (x) => { x.markdown.elements[0].label = `${LYING_WORDS} ${LYING_ADDRESS}`; }), false);
+  add('MD2 the lying link\'s words lost', gradeMd2, edit(md2, (x) => { x.markdown.elements[0].label = ''; }), false);
+  add('MD2 the long link\'s words lost', gradeMd2, edit(md2, (x) => { x.markdown.elements[1].label = 'a long'; }), false);
+  add('MD2 a link tap that showed an alert', gradeMd2, edit(md2, (x) => { x.events.push({ step: 'link', label: LYING_WORDS, found: true, alert: { title: LYING_ADDRESS, texts: [], buttons: ['Cancel', 'Open'] } }); }), false);
+  add('MD2 lying-link not planted (UNREADABLE)', gradeMd2, edit(md2, (x) => { x.planted.delete(10); }), null);
+  add('MD2 no markdown line (UNREADABLE)', gradeMd2, { ...md2, markdown: null }, null);
+  // MD3
+  add('MD3 honest', gradeMd3, { port: 50_000, connections: 0, planted: 25 }, true);
+  add('MD3 one connection', gradeMd3, { port: 50_000, connections: 1, planted: 25 }, false);
+  add('MD3 no listener (UNREADABLE)', gradeMd3, { port: null, connections: 0, planted: 25 }, null);
+  // S6
+  const settingsDump = {
+    step: 'screen',
+    name: 'settings',
+    elements: [
+      { id: 'screen-settings', label: '' },
+      { id: 'settings-mac-name', label: 'studio' },
+      { id: 'settings-mac-address', label: 'studio.tail0000.ts.net:8443' },
+      { id: 'settings-fingerprint', label: '7c4d 2a9e 0f13 b6c2 91de 4a07' },
+      { id: 'settings-version', label: '1.0.0 (4)' },
+      { id: 'settings-alerts', label: '' },
+      { id: 'settings-notifications', label: 'Notifications' },
+      { id: 'settings-notifications-state', label: 'Allowed' }
+    ]
+  };
+  const s6 = { dump: settingsDump, publicName: 'studio.tail0000.ts.net', publicPort: 8443, macFingerprint: '7c4d2a9e0f13b6c291de4a07', drawnFingerprint: '7c4d 2a9e 0f13 b6c2 91de 4a07', version: '1.0.0 (4)', alerts: 'Allowed' };
+  add('S6 honest', gradeS6, s6, true);
+  add('S6 the name is not the public name\'s first label', gradeS6, edit(s6, (x) => { x.dump.elements[1].label = 'studio.tail0000'; }), false);
+  add('S6 the address without its port', gradeS6, edit(s6, (x) => { x.dump.elements[2].label = 'studio.tail0000.ts.net'; }), false);
+  add('S6 a fingerprint that is not the Mac\'s row', gradeS6, edit(s6, (x) => { x.macFingerprint = 'ffff2a9e0f13b6c291de4a07'; }), false);
+  add('S6 a fingerprint that is not Pairing\'s', gradeS6, edit(s6, (x) => { x.drawnFingerprint = 'ffff 2a9e 0f13 b6c2 91de 4a07'; }), false);
+  add('S6 the old build', gradeS6, edit(s6, (x) => { x.dump.elements[4].label = '1.0.0 (3)'; }), false);
+  add('S6 Off where iOS allows', gradeS6, edit(s6, (x) => { x.dump.elements[7].label = 'Off'; }), false);
+  add('S6 denied reads Off', gradeS6, edit(s6, (x) => { x.alerts = 'Off'; x.dump.elements[7].label = 'Off'; }), true);
+  add('S6 the card for a Mac that cannot send', gradeS6, edit(s6, (x) => { x.alerts = 'absent'; }), false);
+  add('S6 no card for a Mac that cannot send', gradeS6, edit(s6, (x) => { x.alerts = 'absent'; x.dump.elements.splice(5, 3); }), true);
+  add('S6 no card for a Mac that can send', gradeS6, edit(s6, (x) => { x.dump.elements.splice(5, 3); }), false);
+  add('S6 no Mac row (UNREADABLE)', gradeS6, edit(s6, (x) => { x.macFingerprint = null; }), null);
+  add('S6 no dump (UNREADABLE)', gradeS6, { ...s6, dump: null }, null);
+  // U1
+  const unpairDump = { step: 'screen', name: 'unpair', elements: [{ id: 'screen-pairing', label: '' }, { id: 'pairing-line', label: 'This iPhone is not paired with a Mac.' }] };
+  const u1 = {
+    settings: settingsDump,
+    // A dump of its own: structuredClone keeps a shared array shared.
+    cancelDump: structuredClone({ ...settingsDump, name: 'unpair-cancel' }),
+    sheet: { step: 'unpair-sheet', title: 'Unpair this iPhone?', texts: ['Unpair this iPhone?', 'The note.'], buttons: ['Unpair', 'Cancel'] },
+    question: 'Unpair this iPhone?',
+    note: 'The note.',
+    unpaired: unpairDump,
+    notPaired: 'This iPhone is not paired with a Mac.',
+    relay: { before: 7, after: 7, waitedMs: 20_100 },
+    relaunch: { step: 'screen', name: 'relaunch-keep', elements: [{ id: 'screen-pairing', label: '' }] },
+    stillListed: true,
+    again: pairEnd
+  };
+  add('U1 honest', gradeU1, u1, true);
+  add('U1 Cancel changed a label', gradeU1, edit(u1, (x) => { x.cancelDump.elements[3].label = '—'; }), false);
+  add('U1 the question in other words', gradeU1, edit(u1, (x) => { x.sheet.title = 'Forget this Mac?'; x.sheet.texts = ['Forget this Mac?', 'The note.']; }), false);
+  add('U1 no Cancel in the question', gradeU1, edit(u1, (x) => { x.sheet.buttons = ['Unpair']; }), false);
+  add('U1 Unpair left Settings up', gradeU1, edit(u1, (x) => { x.unpaired.elements = [{ id: 'screen-settings', label: '' }]; }), false);
+  add('U1 Pairing without its line', gradeU1, edit(u1, (x) => { x.unpaired.elements[1].label = ''; }), false);
+  add('U1 a dial after Unpair', gradeU1, edit(u1, (x) => { x.relay.after = 8; }), false);
+  add('U1 a short count (UNREADABLE)', gradeU1, edit(u1, (x) => { x.relay.waitedMs = 5_000; }), null);
+  add('U1 the pairing kept across a relaunch', gradeU1, edit(u1, (x) => { x.relaunch.elements = [{ id: 'screen-needs-input', label: '' }]; }), false);
+  add('U1 the Mac forgot the phone', gradeU1, edit(u1, (x) => { x.stillListed = false; }), false);
+  add('U1 the second pairing landed elsewhere', gradeU1, edit(u1, (x) => { x.again.elements = [{ id: 'screen-list', label: '' }]; }), false);
+  add('U1 no second drive (UNREADABLE)', gradeU1, edit(u1, (x) => { x.again = null; }), null);
+  // HM
+  const hm = {
+    turnCount: 2,
+    alive: RUNNING_FOREGROUND,
+    connections: 0,
+    events: [
+      { step: 'markdown', elements: [{ id: 'md-0-0', label: 'a' }, { id: 'md-1-0', label: 'b' }], links: [] },
+      { step: 'screen', name: 'markdown', elements: [{ id: 'screen-conversation', label: '' }] }
+    ]
+  };
+  add('HM honest', gradeHm, hm, true);
+  add('HM the newest turn drew nothing', gradeHm, edit(hm, (x) => { x.turnCount = 3; }), false);
+  add('HM a turn between two that drew drew nothing', gradeHm, edit(hm, (x) => { x.turnCount = 3; x.events[0].elements.push({ id: 'md-2-0', label: 'c' }); x.events[0].elements = x.events[0].elements.filter((e) => e.id !== 'md-1-0'); }), false);
+  add('HM older turns never reached (UNREADABLE)', gradeHm, edit(hm, (x) => { x.turnCount = 4; x.events[0].elements = [{ id: 'md-2-0', label: 'c' }, { id: 'md-3-0', label: 'd' }]; }), null);
+  add('HM a failure drawn', gradeHm, edit(hm, (x) => { x.events[1].elements.push({ id: 'conversation-failure', label: 'x' }); }), false);
+  add('HM the app ended', gradeHm, edit(hm, (x) => { x.alive = 1; }), false);
+  add('HM the listener dialled', gradeHm, edit(hm, (x) => { x.connections = 1; }), false);
+  add('HM no conversation', gradeHm, edit(hm, (x) => { x.events[1].elements = []; }), false);
+  add('HM no line (UNREADABLE)', gradeHm, { ...hm, events: [] }, null);
+  // PR
+  const pr = {
+    tableTurn: 7,
+    parentStripsLinks: true,
+    parent: { events: [{ step: 'screen', name: 'list', elements: [{ id: 'screen-list', label: '' }] }, { step: 'turns', answers: { 7: '| h1 | h2 |' } }] },
+    pairs: [{ name: 'answer-realistic', parent: '```ts\nWhat changed [x] done Reviewer', head: '```ts\nWhat changed [x] done Reviewer', source: '```ts\nx\n```\n- [x] done\n| a | b | c | d | e | f | g | h | Reviewer |\n| - | - | - | - | - | - | - | - | - |\n' }]
+  };
+  add('PR honest: each answer drawn exactly as the parent drew it', gradePr, pr, true);
+  // Markdown off: the ruled round's honest pair (blocks, every lost word
+  // excused by design) is now a failure, because HEAD draws the parent's.
+  add('PR an answer drawn as blocks, every loss excused by design', gradePr, edit(pr, (x) => { x.pairs[0].head = 'What changed\ndone\nReviewer'; }), false);
+  add('PR an answer that differs from the parent by its spacing alone', gradePr, edit(pr, (x) => { x.pairs[0].head = '```ts\nWhat changed  [x] done Reviewer'; }), false);
+  add('PR a word HEAD lost', gradePr, edit(pr, (x) => { x.pairs[0].head = 'What\ndone\nReviewer'; }), false);
+  add('PR a word past a table\'s old caps is no longer excused', gradePr, edit(pr, (x) => { x.pairs[0].head = 'What changed\ndone'; }), false);
+  add('PR the parent drew a tab', gradePr, edit(pr, (x) => { x.parent.events[0].elements.push({ id: 'screen-needs-input', label: '' }); }), false);
+  add('PR the parent drew the table without pipes', gradePr, edit(pr, (x) => { x.parent.events[1].answers[7] = 'h1 h2'; }), false);
+  add('PR no planted answer at both builds (UNREADABLE)', gradePr, edit(pr, (x) => { x.pairs = []; }), null);
+  add('PR the parent not driven (UNREADABLE)', gradePr, { ...pr, parent: null }, null);
+  // The parent's link rule, read from source. PARENT_ANSWER_TEXT is the body of
+  // `AnswerMarkdown.render` in 28d89295's ios/Tortie/Screens/AnswerText.swift,
+  // copied byte for byte: the typealias form the first regex never matched.
+  const PARENT_ANSWER_TEXT = [
+    '    static func render(_ answer: String) -> AttributedString {',
+    '        guard var drawn = try? AttributedString(markdown: answer, options: options) else {',
+    '            return AttributedString(answer)',
+    '        }',
+    '        typealias Link = AttributeScopes.FoundationAttributes.LinkAttribute',
+    '        typealias Image = AttributeScopes.FoundationAttributes.ImageURLAttribute',
+    '        let opened = drawn.runs.compactMap { run in',
+    '            run[Link.self] == nil && run[Image.self] == nil ? nil : run.range',
+    '        }',
+    '        for range in opened {',
+    '            drawn[range][Link.self] = nil',
+    '            drawn[range][Image.self] = nil',
+    '        }',
+    '        return drawn',
+    '    }'
+  ].join('\n');
+  const strips = (source) => ({ ok: sourceStripsLinks(source) });
+  add('PR reads the parent\'s typealias form as removing links and images', strips, PARENT_ANSWER_TEXT, true);
+  add('PR reads the property form as removing links and images', strips, 'drawn[r].link = nil\ndrawn[r].imageURL = nil', true);
+  add('PR reads the attribute\'s own key as removing it', strips, 'x[AttributeScopes.FoundationAttributes.LinkAttribute.self] = nil\nx[ImageURLAttribute.self] = nil', true);
+  add('PR a parent that removes links but keeps image addresses does not strip', strips, PARENT_ANSWER_TEXT.replace('            drawn[range][Image.self] = nil\n', ''), false);
+  add('PR a parent that removes image addresses but keeps links does not strip', strips, PARENT_ANSWER_TEXT.replace('            drawn[range][Link.self] = nil\n', ''), false);
+  add('PR a key aliased to another attribute is not a link removal', strips, PARENT_ANSWER_TEXT.replace('typealias Link = AttributeScopes.FoundationAttributes.LinkAttribute', 'typealias Link = AttributeScopes.FoundationAttributes.InlinePresentationIntentAttribute'), false);
+  add('PR a link only compared with nil is not removed', strips, PARENT_ANSWER_TEXT.replace(/\n {12}drawn\[range\]\[Link\.self\] = nil/, ''), false);
+  // And through the probe's own read of a parent checkout: the file written
+  // where P316_PARENT_IOS's ios/ keeps it, in a directory made and removed here.
+  const parentRootFixture = mkdtempSync(join(tmpdir(), 'p316-pr-parent-'));
+  try {
+    mkdirSync(join(parentRootFixture, 'ios', 'Tortie', 'Screens'), { recursive: true });
+    writeFileSync(join(parentRootFixture, 'ios', 'Tortie', 'Screens', 'AnswerText.swift'), `${PARENT_ANSWER_TEXT}\n`);
+    add('PR the parent graded with its own checkout\'s source read', gradePr, { ...pr, parentStripsLinks: readParentStripsLinks(parentRootFixture) }, true);
+    add('PR a parent checkout with no AnswerText.swift (UNREADABLE)', gradePr, { ...pr, parentStripsLinks: readParentStripsLinks(join(parentRootFixture, 'none')) }, null);
+  } finally {
+    rmSync(parentRootFixture, { recursive: true, force: true });
+  }
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${got === null ? 'UNREADABLE' : String(got)}`);
+  }
+  return { bad, total: cases.length };
 }
 
 // ---------------------------------------------------------------------------
@@ -1676,34 +2556,37 @@ function alertsSelfTest() {
 
   // N6
   const word = MAC.noSuchSession ?? 'the Mac word';
-  const fromList = { step: 'screen', name: 'back', elements: [{ id: 'screen-list', label: '' }] };
+  const fromList = { step: 'screen', name: 'back', elements: [{ id: 'screen-needs-input', label: '' }] };
   const fromOther = { step: 'screen', name: 'visit', elements: [{ id: 'screen-session', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] };
-  const gone = { ...tap, gone404: true, word, alive: RUNNING_FOREGROUND, from: 'list', before: fromList, dump: { step: 'screen', name: 'alert-gone', elements: [{ id: 'screen-list', label: '' }, { id: 'list-notice', label: word }] } };
+  const gone = { ...tap, gone404: true, word, alive: RUNNING_FOREGROUND, from: 'list', before: fromList, dump: { step: 'screen', name: 'alert-gone', elements: [{ id: 'screen-needs-input', label: '' }, { id: 'needs-list-notice', label: word }] } };
   add('N6 honest', gradeGone, gone, true);
+  add('N6 honest, tapped from the Sessions list', gradeGone, { ...gone, before: { ...fromList, elements: [{ id: 'screen-list', label: '' }] } }, true);
+  add('N6 the sentence on the Sessions list, not Needs input', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }, { id: 'list-notice', label: word }] } }, false);
   add('N6 tapped over the session it names (UNREADABLE)', gradeGone, { ...gone, before: { ...sessionDump, name: 'alert-cold' } }, null);
   add('N6 a session screen dumped as back (UNREADABLE)', gradeGone, { ...gone, before: { ...fromList, elements: [{ id: 'screen-session', label: '' }] } }, null);
   add('N6 nothing dumped before the tap (UNREADABLE)', gradeGone, { ...gone, before: null }, null);
   add('N6 no arrangement named (UNREADABLE)', gradeGone, { ...gone, from: undefined }, null);
   add('N6b honest, from another session', gradeGone, { ...gone, from: 'session', before: fromOther }, true);
   add('N6b from the list (UNREADABLE)', gradeGone, { ...gone, from: 'session', before: fromList }, null);
-  add('N6b no notice', gradeGone, { ...gone, from: 'session', before: fromOther, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }] } }, false);
+  add('N6b no notice', gradeGone, { ...gone, from: 'session', before: fromOther, dump: { ...gone.dump, elements: [{ id: 'screen-needs-input', label: '' }] } }, false);
   add('N6 the door still knew the session (UNREADABLE)', gradeGone, { ...gone, gone404: false }, null);
   add('N6 no banner found (UNREADABLE)', gradeGone, { ...gone, banner: { step: 'banner', label: null } }, null);
-  add('N6 no notice', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }] } }, false);
-  add('N6 a notice in other words', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-list', label: '' }, { id: 'list-notice', label: 'That session is gone.' }] } }, false);
+  add('N6 no notice', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-needs-input', label: '' }] } }, false);
+  add('N6 a notice in other words', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'screen-needs-input', label: '' }, { id: 'needs-list-notice', label: 'That session is gone.' }] } }, false);
   add('N6 a session still drawn', gradeGone, { ...gone, dump: { ...gone.dump, elements: [...gone.dump.elements, { id: 'screen-session', label: '' }] } }, false);
-  add('N6 no list', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'list-notice', label: word }] } }, false);
+  add('N6 no list', gradeGone, { ...gone, dump: { ...gone.dump, elements: [{ id: 'needs-list-notice', label: word }] } }, false);
   add('N6 no dump', gradeGone, { ...gone, dump: null }, false);
   add('N6 the app is gone', gradeGone, { ...gone, alive: 1 }, false);
   add('N6 the Mac\'s word unread', gradeGone, { ...gone, word: null }, false);
 
   // N7
-  const listDump = { step: 'screen', name: 'alert-list', elements: [{ id: 'screen-list', label: '' }] };
+  const listDump = { step: 'screen', name: 'alert-list', elements: [{ id: 'screen-needs-input', label: '' }] };
   const listTaps = { taps: [{ ...tap, dump: listDump }, { ...tap, dump: listDump }], alive: RUNNING_FOREGROUND };
   add('N7 honest', gradeListTaps, listTaps, true);
   add('N7 one tap read (UNREADABLE)', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0]] }, null);
   add('N7 no banner on either (UNREADABLE)', gradeListTaps, { ...listTaps, taps: listTaps.taps.map((t) => ({ ...t, banner: { step: 'banner', label: null } })) }, null);
-  add('N7 a notice', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [...listDump.elements, { id: 'list-notice', label: word }] } }] }, false);
+  add('N7 a notice', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [...listDump.elements, { id: 'needs-list-notice', label: word }] } }] }, false);
+  add('N7 the Sessions list, not Needs input', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [{ id: 'screen-list', label: '' }] } }] }, false);
   add('N7 ../x opened a session', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: sessionDump }] }, false);
   add('N7 a session screen drawn over the list', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [...listDump.elements, { id: 'screen-session', label: '' }] } }] }, false);
   add('N7 the app is gone', gradeListTaps, { ...listTaps, alive: 1 }, false);
@@ -1711,13 +2594,14 @@ function alertsSelfTest() {
   add('N7 no list drawn', gradeListTaps, { ...listTaps, taps: [listTaps.taps[0], { ...tap, dump: { ...listDump, elements: [] } }] }, false);
 
   // N8
-  const relaunch = { dumps: [{ step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }, { id: 'list-alerts-line', label: PAIR_AGAIN }] }, { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }] }] };
+  const relaunch = { dumps: [{ step: 'screen', name: 'relaunch', elements: [{ id: 'screen-needs-input', label: '' }, { id: 'needs-list-alerts-line', label: PAIR_AGAIN }] }, { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-needs-input', label: '' }] }] };
   add('N8 honest', gradeRelaunch, relaunch, true);
   add('N8 no line for a changed token', gradeRelaunch, { dumps: [relaunch.dumps[1], relaunch.dumps[1]] }, false);
   add('N8 the line without its full stop', gradeRelaunch, { dumps: [edit(relaunch.dumps[0], (d) => { d.elements[1].label = 'Pair again to get alerts'; }), relaunch.dumps[1]] }, false);
   add('N8 a line for the same token', gradeRelaunch, { dumps: [relaunch.dumps[0], relaunch.dumps[0]] }, false);
   add('N8 no second relaunch', gradeRelaunch, { dumps: [relaunch.dumps[0]] }, false);
-  add('N8 not on the list', gradeRelaunch, { dumps: [{ ...relaunch.dumps[0], elements: [{ id: 'list-alerts-line', label: PAIR_AGAIN }] }, relaunch.dumps[1]] }, false);
+  add('N8 not on the list', gradeRelaunch, { dumps: [{ ...relaunch.dumps[0], elements: [{ id: 'needs-list-alerts-line', label: PAIR_AGAIN }] }, relaunch.dumps[1]] }, false);
+  add('N8 the line on the Sessions list only', gradeRelaunch, { dumps: [{ ...relaunch.dumps[0], elements: [{ id: 'screen-needs-input', label: '' }, { id: 'list-alerts-line', label: PAIR_AGAIN }] }, relaunch.dumps[1]] }, false);
   add('N8 the control not on the list', gradeRelaunch, { dumps: [relaunch.dumps[0], { ...relaunch.dumps[1], elements: [] }] }, false);
   add('N8 no relaunch at all', gradeRelaunch, { dumps: [] }, false);
 
@@ -1771,7 +2655,7 @@ function alertsSelfTest() {
     { step: 'fingerprint', text: 'ab', seq: 1 },
     { step: 'notifications', asked: false, seq: 2 },
     { step: 'screen', name: 'list', elements: [{ id: 'screen-list', label: '' }, { id: 'row-name-s1', label: 'p316-ask' }], seq: 3 },
-    { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-list', label: '' }], seq: 4 }
+    { step: 'screen', name: 'relaunch', elements: [{ id: 'screen-needs-input', label: '' }], seq: 4 }
   ];
   const noSend = { canSend: false, events: noSendEvents, allowed: true, macLines: [alertLineFor('p316 reader', 'production', tok.reader)], alertLinesBefore: 1, token: tok.deny, phoneRow: { alerts: 'none' }, alive: RUNNING_FOREGROUND, alertWords: [PAIR_AGAIN] };
   add('N11 honest', gradeNoSend, noSend, true);
@@ -1790,7 +2674,7 @@ function alertsSelfTest() {
   add('N11 the row reads on', gradeNoSend, { ...noSend, phoneRow: { alerts: 'on' } }, false);
   add('N11 no relaunch', gradeNoSend, { ...noSend, events: noSendEvents.filter((e) => e.name !== 'relaunch') }, false);
   add('N11 the relaunch not on the list', gradeNoSend, edit(noSend, (n) => { n.events[3].elements = []; }), false);
-  add('N11 the relaunch asks to pair again', gradeNoSend, edit(noSend, (n) => { n.events[3].elements.push({ id: 'list-alerts-line', label: 'x' }); }), false);
+  add('N11 the relaunch asks to pair again', gradeNoSend, edit(noSend, (n) => { n.events[3].elements.push({ id: 'needs-list-alerts-line', label: 'x' }); }), false);
   add('N11 an alert word drawn elsewhere', gradeNoSend, edit(noSend, (n) => { n.events[2].elements.push({ id: 'list-title-note', label: `Sessions. ${PAIR_AGAIN}` }); }), false);
   add('N11 the app is gone', gradeNoSend, { ...noSend, alive: 1 }, false);
 
@@ -1870,7 +2754,8 @@ function alertsSelfTest() {
 /** Start one arm's door as a child under tsx; resolves with its first line and a live event list. */
 function startDoorChild(armName) {
   return new Promise((done) => {
-    const child = spawn(process.execPath, hostileDoorArgv(['serve', '--arm', armName]), {
+    // Phase 316.6: the markdown arms fill {{MD3}} with the probe's listener.
+    const child = spawn(process.execPath, hostileDoorArgv(['serve', '--arm', armName, '--md3', md.md3 ?? '127.0.0.1:9']), {
       cwd: ROOT,
       env: { ...process.env, P316_HOSTILE_INNER: '1' },
       stdio: ['pipe', 'pipe', 'pipe']
@@ -1932,7 +2817,10 @@ function drawnSentence(events) {
       // The `Copy.swift` word it is, by name, or null. The report keeps the
       // name, the length and a digest; the words stay out of it.
       const word = Object.entries(COPY_WORDS).find(([, text]) => text === hit.label)?.[0] ?? null;
-      return { id: hit.id, length: hit.label.length, rows: els(d, 'row-').length, sha: shaHex(hit.label).slice(0, 12), word };
+      // The rows beside it on the same tab: since Phase 316.6 the Needs input
+      // tab's carry the prefix `needs-` (its failure is `needs-list-failure`).
+      const rows = hit.id.startsWith('needs-') ? els(d, 'needs-row-').length : els(d, 'row-').length;
+      return { id: hit.id, length: hit.label.length, rows, sha: shaHex(hit.label).slice(0, 12), word };
     }
   }
   return null;
@@ -2030,7 +2918,14 @@ function selfTest() {
       ? `${TAG} alerts self-test PASS: ${String(alerts.total)} cases (the composer, the override's preflight, N0 to N11, D2+, F1+ and ND) graded as they must be.`
       : `${TAG} alerts self-test FAIL: ${String(alerts.bad)} of ${String(alerts.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 ? 0 : 1);
+  // Phase 316.6: the tabs, Settings, Unpair and the drawn answer.
+  const tabs = tabsSelfTest();
+  console.log(
+    tabs.bad === 0
+      ? `${TAG} tabs and markdown self-test PASS: ${String(tabs.total)} cases (the composer, T2a to T2d, MD1 to MD3, S6, U1, HM and PR's word check) graded as they must be.`
+      : `${TAG} tabs and markdown self-test FAIL: ${String(tabs.bad)} of ${String(tabs.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -2046,6 +2941,12 @@ preflight();
 
 const doorChildren = new Set();
 let relay = null;
+/**
+ * Phase 316.6: the markdown session (`p316-md`), the MD3 listener its answers
+ * point at, and what the arms read. The fixtures are the committed ones with
+ * {{MD3}} filled with the listener's port once it listens.
+ */
+const md = { listener: null, md3: null, fixtures: [], plantedNames: [], sid: null, sessionId: null, turns: null, readings: {} };
 let watch = null;
 let preflightOk = false;
 let ran = false;
@@ -2148,6 +3049,9 @@ try {
   watch = watchForRealTailscale({ roots: () => [shimPid, appPid].filter((p) => p > 0), everyMs: 1_000 });
   dns = await makeDnsStandin({ name: PUBLIC_NAME, mode: 'record' });
   relay = await startRelay();
+  md.listener = await startMd3Listener();
+  md.md3 = `127.0.0.1:${String(md.listener.port)}`;
+  md.fixtures = markdownFixtures(md.md3).fixtures;
 
   // ---- Phase 316.5: the scratch key, Apple's stand-in and the Mac's override --
   // THE KEY is made here and deleted in the `finally` whatever happened. It is
@@ -2213,6 +3117,16 @@ if [ "$mode" = "talk" ] && [ -n "$sid" ]; then
   printf '%s\\n' "$sid" > "$P316_TALK_SID"
   echo "p316 a planted conversation"
 fi
+if [ "$mode" = "md" ] && [ -n "$sid" ]; then
+  slug=$(printf '%s' "$PWD" | sed 's|[^a-zA-Z0-9]|-|g')
+  d="$HOME/.claude/projects/$slug"
+  mkdir -p "$d"
+  if [ ! -f "$d/$sid.jsonl" ]; then
+    sed -e "s|${FIXTURE_SID}|$sid|g" -e "s|${FIXTURE_CWD}|$PWD|g" "$P316_STORE" > "$d/$sid.jsonl"
+  fi
+  printf '%s\\n' "$sid" > "$P316_MD_SID"
+  echo "p316 a planted markdown conversation"
+fi
 if [ "$mode" = "ask" ]; then
   sleep 2
   cat "$P316_DIALOG"
@@ -2270,6 +3184,7 @@ exit 0
         P316_NEXT: NEXT,
         P316_STOP: STOP,
         P316_TALK_SID: TALK_SID,
+        P316_MD_SID: MD_SID,
         P316_DIALOG: DIALOG,
         P316_STORE: STORE_SRC
       }),
@@ -2296,6 +3211,12 @@ exit 0
         await cdpEval(cdp, `window.__gmuxP202.createSession(${J(N.talk)}, 'claude').then(() => true).catch(() => false)`);
         for (let i = 0; i < 60 && talkRecord() === null; i += 1) await sleep(500);
         rmSync(NEXT, { force: true });
+        // Phase 316.6: the markdown session, made BEFORE the waiting one, each
+        // stand-in reading its own mode before the next is written.
+        writeFileSync(NEXT, 'md', 'utf8');
+        await cdpEval(cdp, `window.__gmuxP202.createSession(${J(N.md)}, 'claude').then(() => true).catch(() => false)`);
+        for (let i = 0; i < 60 && talkRecord(MD_SID) === null; i += 1) await sleep(500);
+        rmSync(NEXT, { force: true });
         writeFileSync(NEXT, 'ask', 'utf8');
         await cdpEval(cdp, `window.__gmuxP202.createSession(${J(N.ask)}, 'claude').then(() => true).catch(() => false)`);
         const record = talkRecord();
@@ -2309,6 +3230,19 @@ exit 0
         if (record !== null) {
           appendTurn(record, 1, 'p316 the ask keeps **x** as typed', 'p316 the answer draws **x** in bold');
           for (let nth = 2; nth <= PLANTED_TURNS; nth += 1) appendTurn(record, nth, `p316 ask ${String(nth)}`, `p316 answer **${String(nth)}**`);
+        }
+        // Phase 316.6: the markdown session's turns. The same committed
+        // transcript, then one turn per fixtures.json fixture marked `probe`,
+        // in file order, the ask `p3166 md <name>` and {{MD3}} the listener's
+        // port. A committed .jsonl cannot carry that port, which is why the
+        // turns are appended at plant time. Main clips and redacts them as it
+        // does any answer.
+        const mdRecord = talkRecord(MD_SID);
+        if (mdRecord !== null) {
+          const planted = md.fixtures.filter((f) => f.probe === true);
+          planted.forEach((f, k) => appendTurn(mdRecord, k + 1, `p3166 md ${f.name}`, f.source, { total: planted.length, tag: '366' }));
+          md.plantedNames = planted.map((f) => f.name);
+          md.sid = mdRecord.sid;
         }
 
         // ---- D1: on, confirm, listening ----------------------------------
@@ -2391,6 +3325,9 @@ exit 0
           await sleep(1_000);
         }
         const talk = (await mainSessions(cdp)).find((s) => s.name === N.talk);
+        // Phase 316.6: the markdown session as Tortie names it (its row, its
+        // door reads); `md.sid` is the planted conversation's own id.
+        md.sessionId = md.sid === null ? null : (await mainSessions(cdp)).find((s) => s.name === N.md)?.id ?? null;
 
         // ---- N2 (Phase 316.5): alerts on, and Allow through the sheet's own lines
         // Step one: D0's session must be waiting in main BEFORE alerts arm, or
@@ -2476,10 +3413,17 @@ exit 0
               await sleep(100);
             }
           })();
+          // Phase 316.6: the door's waiting rows read around each badge, and
+          // the relay's count when Unpair is drawn and when the phone has
+          // idled 20 s after it (U1).
+          const badgeReads = [];
+          let readBeforeTab = null;
+          const relayAt = {};
           let result;
           try {
             result = await drive(sim, {
-              test: { id: UI_TEST },
+              test: { id: UI_TEST, project: opts.project },
+              derivedDataPath: opts.derivedDataPath ?? DD,
               label,
               env: {
                 P316_PAYLOAD: w.payload,
@@ -2569,6 +3513,11 @@ exit 0
                   const sent = await sim.push(BUNDLE_ID, body).catch((err) => ({ code: -1, stderr: String(err?.message ?? err) }));
                   deliveries.push({ arm: item.arm, readySeq, code: sent.code, bytes: Buffer.byteLength(body), sha: shaHex(body).slice(0, 12), body, why: sent.code === 0 ? null : String(sent.stderr ?? '').trim().slice(0, 200) });
                 }
+                if (event.step === 'tab-before') readBeforeTab = await readBlocked();
+                if (event.step === 'badge') badgeReads.push({ event, reads: [readBeforeTab, await readBlocked()] });
+                if (event.step === 'screen' && event.name === 'unpair') relayAt.unpair = { count: relay.count(), at: Date.now() };
+                if (event.step === 'idle-start') relayAt.idleStart = { count: relay.count(), at: Date.now() };
+                if (event.step === 'idle-end') relayAt.idleEnd = { count: relay.count(), at: Date.now() };
                 if (event.step === 'ready-for-remove') {
                   const phones = ((await pocket(cdp, 'status')).value?.phones ?? []).map((p) => p.id);
                   simPhoneId = phones.find((id) => !phonesBefore.includes(id)) ?? null;
@@ -2611,7 +3560,9 @@ exit 0
             deliveries,
             canSend,
             allowPressedAt,
-            settledBeforeAllow
+            settledBeforeAllow,
+            badgeReads,
+            relayAt
           };
         };
 
@@ -2752,6 +3703,81 @@ exit 0
         const tapOf = (taps, armId) => taps.find((t) => t.arm === armId) ?? { arm: armId, delivery: null, ready: null, banner: null, dump: null, before: null };
 
         // ==================================================================
+        // Phase 316.6: the tabs, the drawn answer and Settings, read the same
+        // way on every Simulator that drives them
+        // ==================================================================
+
+        /**
+         * The markdown session's turns as the door holds them, read once by the
+         * node reader: each planted turn's index and the fixture it is (its ask
+         * is `p3166 md <name>`), and the door's own answer text, which Method 2
+         * re-derives from (`rederive/md-answers.json`).
+         */
+        const mdTurns = async () => {
+          if (md.turns !== null || md.sessionId === null) return md.turns;
+          const paged = await pageBack(reader, readerDoor, md.sessionId, 20);
+          const all = paged.pages.slice().reverse().flatMap((p) => p.turns);
+          const planted = new Map();
+          for (const t of all) {
+            const m = /^p3166 md (\S+)$/.exec(String(t.askText ?? ''));
+            if (m !== null) planted.set(t.index, m[1]);
+          }
+          md.turns = { ok: paged.ok, all, planted };
+          return md.turns;
+        };
+
+        /** T2a to T2d, over one drive's lines. */
+        const gradeTabArms = (ev, run, where) => {
+          const v1 = gradeT2a({ pairEnd: lastDump(ev, 'pair-end') });
+          arm(`T2a ${where}: pairing lands on the Needs input tab`, v1.ok, v1.said);
+          const v2 = gradeT2b({ badges: run.badgeReads ?? [] });
+          arm(`T2b ${where}: the Needs input badge is the door's waiting count`, v2.ok, v2.said);
+          const v3 = gradeT2c({ tabSessions: lastDump(ev, 'tab-sessions'), name: talk?.name ?? null });
+          arm(`T2c ${where}: a session opened in Sessions is still on top after Needs input and back`, v3.ok, v3.said);
+          const v4 = gradeT2d({ bar: ev.find((e) => e.step === 'bar') ?? null, dump: lastDump(ev, 'bar') });
+          arm(`T2d ${where}: a pushed session's last element ends at or above the tab bar`, v4.ok, v4.said);
+        };
+
+        /** MD1 (and MD2 on the order Simulator), over one drive's lines. */
+        const gradeMarkdownArms = async (ev, where, withLinks) => {
+          const turns = await mdTurns();
+          const markdown = ev.find((e) => e.step === 'markdown') ?? null;
+          if (KEEP && markdown !== null) {
+            try {
+              // The order Simulator's is SPEC §7.4's `<run>/md1.json`; any other is named for its runtime.
+              const file = where === 'iOS 26.3' ? 'md1.json' : `md1-${where.replace(/[^a-z0-9.]+/gi, '-')}.json`;
+              writeFileSync(join(RUN, file), `${J({ planted: [...(turns?.planted ?? new Map())], markdown }, null, 1)}\n`, { mode: 0o600 });
+            } catch {
+              /* the kept world may be gone */
+            }
+          }
+          const v1 = gradeMd1({ markdown, planted: turns?.planted ?? new Map() });
+          md.readings[`MD1 ${where}`] = { elements: markdown?.elements?.length ?? null, links: markdown?.links?.length ?? null, planted: turns?.planted?.size ?? 0 };
+          arm(`MD1 ${where}: markdown off, every planted answer drawn as written, one element each, table-at-caps with every word, no ** pair left`, v1.ok, v1.said);
+          if (withLinks) {
+            const v2 = gradeMd2({ events: ev, markdown, planted: turns?.planted ?? new Map() });
+            arm(`MD2 ${where}: markdown off, no link can be pressed, as in the parent: no link element, the lying link and the long link drawn as their words`, v2.ok, v2.said);
+          }
+          return { markdown, turns };
+        };
+
+        /** S6 over one drive's "settings" dump; `alerts` is Allowed, Off or absent. */
+        const gradeSettingsArm = async (ev, run, alerts, where) => {
+          const st = (await pocket(cdp, 'status')).value ?? null;
+          const row = run.newPhoneRow ?? null;
+          const v = gradeS6({
+            dump: lastDump(ev, 'settings'),
+            publicName: st?.publicName ?? PUBLIC_NAME,
+            publicPort: st?.publicPort ?? 8443,
+            macFingerprint: row?.fingerprint ?? null,
+            drawnFingerprint: run.drawnFingerprint ?? null,
+            version: PHONE_VERSION,
+            alerts
+          });
+          arm(`S6 ${where}: Settings names the Mac, its fingerprint and the version, and the Alerts card says what iOS allows`, v.ok, v.said);
+        };
+
+        // ==================================================================
         // iOS 26.3: the order
         // ==================================================================
         if (!ARMS.has('order')) await runN2();
@@ -2763,7 +3789,8 @@ exit 0
             // determined: on a device that had already answered, "not asked"
             // would say nothing, because iOS asks only once.
             {
-              const noSendSteps = ['pair', 'list', `relaunch-token:${TOKENS.other}`];
+              // Phase 316.6: Settings too, whose Alerts card a Mac that cannot send never gets (S6).
+              const noSendSteps = ['pair', 'list', 'settings', `relaunch-token:${TOKENS.other}`];
               const run = await pairAndRead(sim, noSendSteps, 'no-send', { pushToken: TOKENS.nosend, notifications: 'allow' });
               if (!run.ok) {
                 arm('N11 a phone pairing with a Mac that cannot send is never asked and never told to pair again', false, run.why);
@@ -2794,6 +3821,7 @@ exit 0
                   alertWords: ALERT_WORDS
                 });
                 arm('N11 a phone pairing with a Mac that cannot send is never asked and never told to pair again', v.ok, v.said);
+                await gradeSettingsArm(ev, run, 'absent', 'iOS 26.3, a Mac that cannot send');
               }
             }
             await runN2();
@@ -2804,10 +3832,18 @@ exit 0
               // The fix round taps N6 from the LIST (`back` first: N5 leaves
               // the very session N6 names on screen, where a tap changes
               // nothing) and N6b from ANOTHER session's screen (`visit`).
+              // Phase 316.6 (SPEC §7.4): the tabs around the session (T2), the
+              // markdown session (MD1, MD2), and Settings (S6), before the
+              // alerts, which start from Home. Markdown off (his ruling of
+              // 2026-10-02): no answer holds a link to tap, so the drive no
+              // longer taps one; MD2 reads the markdown step's link list.
               const steps = [
                 'pair',
+                'tab:needs',
                 'list',
-                ...(talk !== undefined ? [`open:${talk.id}`, 'conversation', 'first'] : []),
+                ...(talk !== undefined ? [`open:${talk.id}`, 'bar', 'tab:needs', 'tab:sessions', 'conversation', 'first'] : []),
+                ...(md.sessionId !== null ? [`visit:${md.sessionId}`, 'conversation', 'markdown'] : []),
+                'settings',
                 'alert',
                 'alert-cold',
                 'back',
@@ -2872,7 +3908,10 @@ exit 0
                   if (detail.catchUp !== null && !(el(d, 'session-outcome')?.label ?? '').includes(detail.catchUp.outcome)) problems.push('the Catch Me Up outcome is not main\'s');
                   const last = el(d, 'session-last-message-small')?.label ?? el(d, 'session-last-message')?.label ?? '';
                   if (detail.lastMessageText === null && /(^|\s)0(\s|$)/.test(last)) problems.push('a missing last message is drawn as 0');
-                  const answer = el(d, 'session-answer')?.label ?? null;
+                  // Since Phase 316.6 `session-answer` is a container: the
+                  // answer is the UI test's composition of its md-last- blocks.
+                  const composedLast = typeof d.composed?.last === 'string' && d.composed.last !== '' ? d.composed.last : null;
+                  const answer = composedLast ?? (el(d, 'session-answer')?.label || null);
                   if (detail.lastAnswer !== null && (answer === null || answer.includes('**'))) problems.push(`the last answer is ${answer === null ? 'not drawn' : 'drawn with its asterisks, so not as markdown'}`);
                 }
                 arm('S1 one session, in main\'s words', problems.length === 0, problems.length === 0 ? `status, agent and project, the outcome, the counts and the last answer (markdown, ${String(detail?.lastAnswer?.length ?? 0)} characters) agree with the door` : problems.join('; '));
@@ -2900,6 +3939,13 @@ exit 0
                 }
                 arm('T1 the conversation, paged to the first turn, ask plain and answer formatted', tProblems.length === 0, tProblems.length === 0 ? `${String(all.length)} turn(s) drawn of ${String(detail.turnCount)} over the door's ${String(paged.pages.length)} pages; **x** kept in the ask, rendered in the answer; the terminal line drawn` : tProblems.join('; '));
               }
+              // ---- Phase 316.6: T2a to T2d, MD1, MD2 and S6 -----------------
+              gradeTabArms(ev, run, 'iOS 26.3');
+              const orderMarkdown = await gradeMarkdownArms(ev, 'iOS 26.3', true);
+              md.readings.headAnswers = composeScopes(orderMarkdown.markdown?.elements ?? []);
+              // The markdown session's own screen: the FIRST visit (N6b's comes later).
+              md.readings.headLast = md.sessionId === null ? null : dumps(ev, 'visit')[0]?.composed?.last ?? null;
+              await gradeSettingsArm(ev, run, 'Allowed', 'iOS 26.3');
               // ---- N3 to N8 (Phase 316.5), in the SPEC's order ------------
               {
                 const taps = tapReadings(ev, run.deliveries);
@@ -3001,7 +4047,24 @@ exit 0
           await confirmListening(cdp);
           await withSimulator({ label: 'p316-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             // Phase 316.5: F1+ is the tap on the floor, after F1's pairing.
-            const run = await pairAndRead(sim, ['pair', 'list', 'alert'], 'floor', { pushToken: TOKENS.floor, notifications: 'allow', queue: [{ arm: 'F1+', prepare: composeLive('F1+') }] });
+            // Phase 316.6 (SPEC §7.4): the tabs (T2), the markdown session
+            // (MD1) and Settings (S6) on the floor, then U1 after F1+: Unpair's
+            // question cancelled, then pressed, 20 s with nothing touched,
+            // and a relaunch with no forget seam.
+            const floorSteps = [
+              'pair',
+              'tab:needs',
+              'list',
+              ...(talk !== undefined ? [`open:${talk.id}`, 'bar', 'tab:needs', 'tab:sessions'] : []),
+              ...(md.sessionId !== null ? [`visit:${md.sessionId}`, 'conversation', 'markdown'] : []),
+              'alert',
+              'settings',
+              'unpair-cancel',
+              'unpair',
+              'idle:20',
+              'relaunch-keep'
+            ];
+            const run = await pairAndRead(sim, floorSteps, 'floor', { pushToken: TOKENS.floor, notifications: 'allow', queue: [{ arm: 'F1+', prepare: composeLive('F1+') }] });
             if (run.ok) alerts.deliveries.push(...run.deliveries);
             if (!run.ok) {
               arm('F1 iOS 18.3 pairing', false, run.why);
@@ -3017,6 +4080,34 @@ exit 0
               const pairing = { canSend: run.canSend, events: run.result.events, samples: run.samples, macLines: run.macLines, label: run.macLabel, token: TOKENS.floor, phoneRow: run.newPhoneRow };
               const v = name === null ? verdict(null, 'the door answered nothing for the live session, so no alert was composed for it') : gradeFloorTap({ pairing, tap: { ...t, name, cold: false } });
               arm(`F1+ iOS ${sim.runtime}: asked and allowed while the Mac can send, and a tap on an alert naming a live session opens it`, v.ok, v.said);
+              // ---- Phase 316.6 on the floor ----------------------------------
+              const ev = run.result.events;
+              gradeTabArms(ev, run, `iOS ${sim.runtime}`);
+              await gradeMarkdownArms(ev, `iOS ${sim.runtime}`, false);
+              await gradeSettingsArm(ev, run, 'Allowed', `iOS ${sim.runtime}`);
+              // U1: the Mac still lists the phone (its half is Phase 317's),
+              // and a new code pairs the same Simulator again onto Needs input.
+              const listed = (await pocket(cdp, 'status')).value ?? null;
+              const again = await pairAndRead(sim, ['pair'], 'floor-again', { notifications: 'allow' });
+              // That drive reads no list, whose first line is what shuts the window.
+              await pocket(cdp, 'cancelPairing');
+              const unpairSheet = ev.find((e) => e.step === 'unpair-sheet' && e.for === 'unpair') ?? null;
+              const at = run.relayAt ?? {};
+              const u1 = gradeU1({
+                settings: lastDump(ev, 'settings'),
+                cancelDump: lastDump(ev, 'unpair-cancel'),
+                sheet: unpairSheet,
+                question: copyOf('unpairQuestion'),
+                note: copyOf('unpairNote'),
+                unpaired: lastDump(ev, 'unpair'),
+                notPaired: COPY.notPaired,
+                relay: at.unpair === undefined || at.idleEnd === undefined ? null : { before: at.unpair.count, after: at.idleEnd.count, waitedMs: at.idleEnd.at - at.unpair.at },
+                relaunch: lastDump(ev, 'relaunch-keep'),
+                stillListed: listed === null || run.simPhoneId === null ? null : (listed.phones ?? []).some((ph) => ph.id === run.simPhoneId),
+                again: again.ok ? lastDump(again.result.events, 'pair-end') : null
+              });
+              md.readings.U1 = { relay: at, stillListed: listed === null ? null : (listed.phones ?? []).length, again: again.ok ? again.result.events.length : again.why };
+              arm(`U1 iOS ${sim.runtime}: Unpair forgets the pairing on the phone, dials nothing after, and a new code pairs again`, u1.ok, u1.said);
             }
             await secretScan(sim, `iOS ${sim.runtime}`);
           });
@@ -3030,7 +4121,8 @@ exit 0
           await withSimulator({ label: 'p316-deny', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-deny'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             // Handed a seam token all the same: a phone that denies must
             // present NO address, whatever it could have registered.
-            const steps = ['pair', 'list', ...(talk !== undefined ? [`open:${talk.id}`, 'conversation'] : []), 'no-banner:20'];
+            // Phase 316.6: Settings too, whose Alerts row reads Off (S6).
+            const steps = ['pair', 'list', ...(talk !== undefined ? [`open:${talk.id}`, 'conversation'] : []), 'settings', 'no-banner:20'];
             const run = await pairAndRead(sim, steps, 'deny', { pushToken: TOKENS.deny, notifications: 'deny', queue: [{ arm: 'ND', prepare: composeLive('ND') }] });
             if (!run.ok) {
               arm('ND notifications denied: it pairs with no address and works', false, run.why);
@@ -3051,6 +4143,7 @@ exit 0
                 alive: aliveOf(run.result.events)
               });
               arm('ND notifications denied: it pairs with no address, the list, a session and its conversation are drawn, and no banner shows', v.ok, v.said);
+              await gradeSettingsArm(run.result.events, run, 'Off', 'iOS 26.3, notifications denied');
             }
             await secretScan(sim, 'iOS 26.3, notifications denied,');
           });
@@ -3073,11 +4166,12 @@ exit 0
                   arm(`H ${name}`, null, door.why ?? 'the hostile door did not start');
                   continue;
                 }
-                const conversationArm = /^(pages-|more-|long-ask|honest)/.test(name);
+                const conversationArm = /^(pages-|more-|long-ask|honest)/.test(name) || spec.md === true;
                 const steps = [
                   'pair',
                   ...(name === 'wrong-key' || name === 'pair-word' ? [] : ['list']),
-                  ...(conversationArm ? [`open:${door.facts.sessionToOpen}`, 'conversation', 'first'] : []),
+                  // Phase 316.6's markdown arms read every drawn block (HM).
+                  ...(conversationArm ? [`open:${door.facts.sessionToOpen}`, 'conversation', spec.md === true ? 'markdown' : 'first'] : []),
                   // A list arm's body arrives on the list's refresh, and the
                   // one that never completes is said after the client's 15 s.
                   ...(spec.list === true ? ['sentence'] : [])
@@ -3097,7 +4191,13 @@ exit 0
                 }
                 let ok;
                 let said;
-                if (name === 'honest') {
+                if (spec.md === true) {
+                  // HM (Phase 316.6, SPEC §7.3): somebody else's markdown ends drawn.
+                  const v = gradeHm({ events: r.events, turnCount: door.facts.turnCount, alive, connections: md.listener?.count() ?? null });
+                  ok = v.ok;
+                  said = `${v.said}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}`;
+                  if (!identity && ok === true) ok = false;
+                } else if (name === 'honest') {
                   const t = r.events.find((e) => e.step === 'turns');
                   const drawn = new Set((t?.indexes ?? []).map(Number));
                   ok = alive === RUNNING_FOREGROUND && sentence === null && lastDump(r.events, 'list') !== null && drawn.size === door.facts.turnCount && verified.length > 0 && verified.every((e) => e.verified === 'ok') && identity;
@@ -3120,11 +4220,13 @@ exit 0
                   ok = alive === RUNNING_FOREGROUND && ask.length === 4_000 && frame !== null && frame[0] >= 0 && frame[0] + frame[2] <= (d?.window?.[0] ?? 0) + 0.5;
                   said = `the ask drawn ${String(ask.length)} characters long, its frame ${J(frame)} inside a window ${J(d?.window)}; state ${J(alive)}`;
                 } else {
-                  const halfDrawn = sentence !== null && sentence.rows > 0 && sentence.id === 'list-failure';
+                  const halfDrawn = sentence !== null && sentence.rows > 0 && (sentence.id === 'list-failure' || sentence.id === 'needs-list-failure');
                   // WHERE and WHICH (Phase 316.2's fix round): the first build
                   // passed an arm on any sentence anywhere, and every list arm
-                  // was in fact ending on the pairing screen.
-                  const where = spec.at === undefined || sentence?.id === spec.at;
+                  // was in fact ending on the pairing screen. Since Phase 316.6
+                  // a list's sentence may be drawn on the Needs input tab's
+                  // list too (`needs-list-failure`), the same words.
+                  const where = spec.at === undefined || sentence?.id === spec.at || (spec.at === 'list-failure' && sentence?.id === 'needs-list-failure');
                   const which = spec.expect === undefined || (sentence?.word !== null && spec.expect.includes(sentence?.word));
                   const honestFirst = spec.list !== true || door.events.some((e) => e.kind === 'request' && e.honestFirst === true);
                   ok = alive === RUNNING_FOREGROUND && sentence !== null && !halfDrawn && where && which && honestFirst && identity && (name !== 'wrong-key' || served === 0);
@@ -3137,6 +4239,64 @@ exit 0
               }
             }
           });
+        }
+
+        // ==================================================================
+        // Phase 316.6: PR, the parent app over the same planted turns
+        // (SPEC §7.6 item 4). Its own project, built here into its own derived
+        // data, driven by ITS OWN UI test against this Mac, which this phase
+        // does not change: no tab, a table as pipes, no pressable link, and
+        // no word it drew that HEAD loses.
+        // ==================================================================
+        if (PARENT_IOS !== '') {
+          const parentRoot = resolve(PARENT_IOS);
+          const parentProject = join(parentRoot, 'ios', 'Tortie.xcodeproj');
+          const parentDd = join(XCODE, 'dd-parent');
+          let parentRun = null;
+          let parentWhy = null;
+          // The parent's link rule, read from its own source: 316.2 drew every
+          // link as its words and removed every link and image address.
+          const parentStripsLinks = readParentStripsLinks(parentRoot);
+          if (!existsSync(parentProject)) parentWhy = `${parentProject} does not exist; P316_PARENT_IOS names the directory holding the parent's ios/`;
+          else {
+            const built = await xcodebuildRun({
+              label: 'parent',
+              scratch: XCODE,
+              derivedDataPath: parentDd,
+              args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator']
+            });
+            report.readings.builds = { ...(report.readings.builds ?? {}), parent: { code: built.code, ms: built.ms } };
+            if (built.code !== 0) parentWhy = `the parent's project exited ${String(built.code)} in ${String(built.ms)} ms`;
+            else {
+              await confirmListening(cdp);
+              await withSimulator({ label: 'p316-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                const parentSteps = ['pair', 'list', ...(md.sessionId !== null ? [`open:${md.sessionId}`, 'conversation', 'first'] : [])];
+                parentRun = await pairAndRead(sim, parentSteps, 'parent', { notifications: 'allow', project: parentProject, derivedDataPath: parentDd });
+              });
+            }
+          }
+          const turns = await mdTurns();
+          const parentEv = parentRun?.ok ? parentRun.result.events : null;
+          const parentTurns = parentEv?.find((e) => e.step === 'turns') ?? null;
+          const pairs = [];
+          for (const t of turns?.all ?? []) {
+            const name = turns.planted.get(t.index);
+            const parent = parentTurns?.answers?.[String(t.index)] ?? null;
+            const head = md.readings.headAnswers?.[String(t.index)] ?? null;
+            if (name === undefined || parent === null || head === null) continue;
+            pairs.push({ name, parent, head, source: t.answerText ?? '' });
+          }
+          const parentLast = parentEv === null ? null : el(lastDump(parentEv, 'session'), 'session-answer')?.label ?? null;
+          if (parentLast !== null && md.readings.headLast !== null && md.readings.headLast !== undefined) {
+            pairs.push({ name: 'session-answer', parent: parentLast, head: md.readings.headLast, source: turns?.all?.at(-1)?.answerText ?? '' });
+          }
+          const tableTurn = [...(turns?.planted ?? new Map())].find(([, name]) => name === 'table-at-caps')?.[0] ?? null;
+          const v = parentWhy !== null ? verdict(null, parentWhy) : !parentRun?.ok ? verdict(null, `the parent did not pair: ${String(parentRun?.why ?? 'it was not driven')}`) : gradePr({ parent: { events: parentEv }, tableTurn, parentStripsLinks, pairs });
+          const words = regressedWords(pairs);
+          md.readings.PR = { pairs: pairs.length, lost: words.lost, excused: words.excused, parentStripsLinks };
+          arm('PR the parent (316.5) over the same planted answers: no tab, a table as pipes, no pressable link, no word it drew that HEAD loses, and (markdown off) each answer HEAD draws equal to the parent\'s', v.ok, v.said);
+        } else {
+          report.readings.parent = 'not run: P316_PARENT_IOS is not set (the parent reading is SPEC §7.6 item 4\'s)';
         }
         ran = true;
       } finally {
@@ -3155,6 +4315,11 @@ exit 0
 } finally {
   for (const child of [...doorChildren]) await endDoorChild(child);
   await relay?.close().catch(() => undefined);
+  // Phase 316.6: MD3's count, read once the last app is gone, then the listener closed by its handle.
+  if (md.listener !== null) {
+    md.readings.md3 = { port: md.listener.port, connections: md.listener.count(), planted: md.plantedNames.length };
+    await md.listener.close().catch(() => undefined);
+  }
   // ---- Phase 316.5: the verifier's records, then Apple's stand-in and the key --
   // P316_KEEP=1 keeps what the verifier re-derives from (SPEC §7.4, §7.5
   // Method A): the reader's /v1/blocked answer at N3's block, every stand-in
@@ -3162,6 +4327,22 @@ exit 0
   // body delivered to a Simulator, the scratch PUBLIC key and each phone's
   // token with the environment it presented. 0600, under the kept world. The
   // private key is never written here, and its file goes whatever this says.
+  // Phase 316.6 (SPEC §7.4): the door's own answer text for every p316-md
+  // turn, read by the node reader: Method 2's input, for the verifier.
+  if (KEEP && md.turns !== null) {
+    try {
+      const dir = join(RUN, 'rederive');
+      mkdirSync(dir, { recursive: true, mode: 0o700 });
+      writeFileSync(
+        join(dir, 'md-answers.json'),
+        `${J({ sessionId: md.sessionId, md3: md.md3, turns: md.turns.all.map((t) => ({ index: t.index, fixture: md.turns.planted.get(t.index) ?? null, askText: t.askText, answerText: t.answerText, answerClipped: t.answerClipped })) }, null, 1)}\n`,
+        { mode: 0o600 }
+      );
+      say(`kept the markdown session's answers for re-derivation at ${join(dir, 'md-answers.json')}`);
+    } catch (err) {
+      say(`could not keep the markdown answers: ${String(err?.message ?? err)}`);
+    }
+  }
   if (KEEP && apns !== null) {
     try {
       const dir = join(RUN, 'rederive');
@@ -3190,6 +4371,7 @@ exit 0
       say(`could not keep the alerts' records: ${String(err?.message ?? err)}`);
     }
   }
+  report.readings.markdown = { md3: md.md3 === null ? null : 'a loopback port', planted: md.plantedNames, ...md.readings, headAnswers: undefined, headLast: undefined };
   if (apns !== null) {
     report.readings.alerts = {
       preflight: alerts.preflight,
@@ -3253,6 +4435,12 @@ if (ran) {
   const v = gradeLog({ log, printed: appText, needles });
   report.readings.alerts = { ...(report.readings.alerts ?? {}), N10: { logCharacters: log.length, looked: needles.length, jwts: jwts.length, bodies: bodies.length } };
   arm('N10 app.log and the app\'s output hold no device token, provider token, key line or alert body', v.ok, v.said);
+}
+
+// ---- MD3 (Phase 316.6): nothing an answer names was fetched, all run --------
+if (ran) {
+  const v = gradeMd3(md.readings.md3 ?? { port: null, connections: 0, planted: 0 });
+  arm('MD3 nothing an answer names was fetched: the loopback listener every image and refused link points at counted no connection', v.ok, v.said);
 }
 
 // ---- K2: the windows' secrets and any private key, on the Mac's side --------

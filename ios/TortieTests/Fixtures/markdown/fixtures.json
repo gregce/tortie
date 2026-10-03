@@ -1,0 +1,619 @@
+{
+  "version": 1,
+  "about": [
+    "Phase 316.6 (build/p3166/SPEC.md section 7.2): the markdown renderer's committed fixtures.",
+    "ASCII only: every other character is a JSON \\u escape, so no bidi, zero-width, BOM or control byte enters the tree.",
+    "{{MD3}} stands for 127.0.0.1:<port> of probe:p316's loopback listener, which must count 0 connections; a unit test reads it as 127.0.0.1:9.",
+    "Fields: name, source (the answer, before main's clip), why, probe (planted as one turn by probe:p316, in file order, the ask \"p3166 md <name>\"), hostile (the hostile door arm that serves it, or null).",
+    "recipes: the fifteen fixtures too large to commit, built in code by the SAME recipe in Swift (ios/TortieTests/MarkdownHostileTests.swift, whose header writes each one out) and in node (build/p316/hostile-door.mjs): concatenate parts in order, where {text} is itself, {repeat, times} is repeat written times times, {index} is the named loop counter in decimal, and {each, count, join, parts} writes its parts once for each counter value from 0 below count, joined by join."
+  ],
+  "recipes": [
+    {
+      "name": "bomb-emphasis",
+      "why": "an emphasis and bracket bomb, 180,001 bytes",
+      "parts": [
+        {
+          "repeat": "*a **a ",
+          "times": 20000
+        },
+        {
+          "repeat": "[",
+          "times": 20000
+        },
+        {
+          "text": "a"
+        },
+        {
+          "repeat": "]",
+          "times": 20000
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "nest-quotes",
+      "why": "10,000 nested quote markers, past MarkdownCaps.depth",
+      "parts": [
+        {
+          "repeat": "> ",
+          "times": 10000
+        },
+        {
+          "text": "deep"
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "nest-lists",
+      "why": "10,000 nested list markers, past MarkdownCaps.depth",
+      "parts": [
+        {
+          "repeat": "- ",
+          "times": 10000
+        },
+        {
+          "text": "deep"
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "table-10000-rows",
+      "why": "a table of 10,000 body rows, past MarkdownCaps.tableRows",
+      "parts": [
+        {
+          "text": "| a | b |\n| --- | --- |\n"
+        },
+        {
+          "each": "i",
+          "count": 10000,
+          "join": "",
+          "parts": [
+            {
+              "text": "| r"
+            },
+            {
+              "index": "i"
+            },
+            {
+              "text": " | v"
+            },
+            {
+              "index": "i"
+            },
+            {
+              "text": " |\n"
+            }
+          ]
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "table-200-columns",
+      "why": "a table of 200 columns and three rows, past MarkdownCaps.tableColumns",
+      "parts": [
+        {
+          "text": "|"
+        },
+        {
+          "each": "i",
+          "count": 200,
+          "join": "",
+          "parts": [
+            {
+              "text": " h"
+            },
+            {
+              "index": "i"
+            },
+            {
+              "text": " |"
+            }
+          ]
+        },
+        {
+          "text": "\n|"
+        },
+        {
+          "repeat": " --- |",
+          "times": 200
+        },
+        {
+          "text": "\n"
+        },
+        {
+          "each": "j",
+          "count": 3,
+          "join": "",
+          "parts": [
+            {
+              "text": "|"
+            },
+            {
+              "each": "i",
+              "count": 200,
+              "join": "",
+              "parts": [
+                {
+                  "text": " c"
+                },
+                {
+                  "index": "j"
+                },
+                {
+                  "text": "x"
+                },
+                {
+                  "index": "i"
+                },
+                {
+                  "text": " |"
+                }
+              ]
+            },
+            {
+              "text": "\n"
+            }
+          ]
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "fence-5mb",
+      "why": "a fence of 50,000 lines, 5,000,007 bytes, past every byte cap",
+      "parts": [
+        {
+          "text": "```\n"
+        },
+        {
+          "repeat": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\n",
+          "times": 50000
+        },
+        {
+          "text": "```"
+        }
+      ],
+      "hostile": "md-huge"
+    },
+    {
+      "name": "line-5mb",
+      "why": "one line of 5,000,000 bytes, no new line",
+      "parts": [
+        {
+          "repeat": "a",
+          "times": 5000000
+        }
+      ],
+      "hostile": "md-huge"
+    },
+    {
+      "name": "fence-long-line",
+      "why": "one 5,000-character line in a fence, past MarkdownCaps.lineCharacters",
+      "parts": [
+        {
+          "text": "```\n"
+        },
+        {
+          "repeat": "y",
+          "times": 5000
+        },
+        {
+          "text": "\n```"
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "fence-500-lines",
+      "why": "a fence of 500 lines, past MarkdownCaps.fenceLines",
+      "parts": [
+        {
+          "text": "```\n"
+        },
+        {
+          "each": "i",
+          "count": 500,
+          "join": "\n",
+          "parts": [
+            {
+              "text": "line "
+            },
+            {
+              "index": "i"
+            }
+          ]
+        },
+        {
+          "text": "\n```"
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "blocks-1000",
+      "why": "1,000 paragraphs, past MarkdownCaps.blocks",
+      "parts": [
+        {
+          "each": "i",
+          "count": 1000,
+          "join": "\n\n",
+          "parts": [
+            {
+              "text": "paragraph "
+            },
+            {
+              "index": "i"
+            }
+          ]
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "cells-1500",
+      "why": "30 tables of 50 cells each, past MarkdownCaps.cells",
+      "parts": [
+        {
+          "each": "t",
+          "count": 30,
+          "join": "\n\n",
+          "parts": [
+            {
+              "text": "| a | b | c | d | e |\n| - | - | - | - | - |\n"
+            },
+            {
+              "each": "r",
+              "count": 9,
+              "join": "\n",
+              "parts": [
+                {
+                  "text": "|"
+                },
+                {
+                  "each": "c",
+                  "count": 5,
+                  "join": "",
+                  "parts": [
+                    {
+                      "text": " t"
+                    },
+                    {
+                      "index": "t"
+                    },
+                    {
+                      "text": "r"
+                    },
+                    {
+                      "index": "r"
+                    },
+                    {
+                      "text": "c"
+                    },
+                    {
+                      "index": "c"
+                    },
+                    {
+                      "text": " |"
+                    }
+                  ]
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "code-spans-32k",
+      "why": "four paragraphs of code spans, 32,754 bytes: the slowest inline parse inside every cap",
+      "parts": [
+        {
+          "each": "p",
+          "count": 4,
+          "join": "\n\n",
+          "parts": [
+            {
+              "repeat": "`a` ",
+              "times": 2046
+            },
+            {
+              "text": "`a`"
+            }
+          ]
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "empty-items-2000",
+      "why": "two thousand empty items, an honest size: 400 drawn, the rest as their characters",
+      "parts": [
+        {
+          "repeat": "-\n",
+          "times": 2000
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "empty-items-32k",
+      "why": "16,384 empty items, 32,768 bytes: the first build drew every one, and a page of them ended the test host",
+      "parts": [
+        {
+          "repeat": "-\n",
+          "times": 16384
+        }
+      ],
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "empty-ordered-in-quote",
+      "why": "eight hundred empty ordered items inside a quote, an honest size",
+      "parts": [
+        {
+          "repeat": "> 1.\n",
+          "times": 800
+        }
+      ],
+      "hostile": "md-hostile"
+    }
+  ],
+  "fixtures": [
+    {
+      "name": "answer-realistic",
+      "source": "## What changed\n\nThe cookie now sets `httpOnly` and `sameSite`. The [pull request](https://p3166.example/pull/28) has the diff.\n\n- `src/auth/session.ts`\n  - sets both flags\n  - [x] reads the parsed cookie\n- `test/session.test.ts`\n\n```ts\nres.cookie('sid', id, { httpOnly: true, sameSite: 'lax', secure: true });\n```\n\n> The login handler is unchanged.\n\n| File | Added | Removed | Tests | Owner | Risk | Status | Merged |\n| :-- | --: | --: | --: | :-- | :-- | :-- | :-- |\n| session.ts | 4 | 1 | 2 | auth | low | done | no |\n| session.test.ts | 18 | 0 | 6 | auth | low | done | no |\n\n![the login screen before the fix](https://{{MD3}}/login.png)\n",
+      "why": "Conversation.html's answer: a heading, a paragraph with code and a link, a nested list with a done task, a fence, a quote, a table of eight columns that scrolls sideways, and an image",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "nested-list-task",
+      "source": "3. three\n4. four\n   - [ ] an open task\n   - [x] a done task\n     + [X] a deeper done task\n       * plain deepest\n5. five\n\n1) paren one\n2) paren two\n",
+      "why": "an ordered list starting at 3, nested bullets of three characters, the three task boxes, and a ) delimiter drawn as .",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "table-align",
+      "source": "| left | centre | right | none |\n| :-- | :-: | --: | --- |\n| a \\| b | `code cell` | 1 | x |\n| **bold** | _em_ | 22 | |\n| fewer |\n| one | two | three | four | five |\n",
+      "why": "each delimiter alignment, an escaped pipe, code in a cell, a row with fewer cells and one with more, whose extra cell stays in its last (difference D16), so 'five' is drawn",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "table-at-caps",
+      "source": "p3166 a table one row and one column past its caps\n\n|h1|h2|h3|h4|h5|h6|h7|h8|h9|\n|-|-|-|-|-|-|-|-|-|\n|r1c1|r1c2|r1c3|r1c4|r1c5|r1c6|r1c7|r1c8|r1c9|\n|r2c1|r2c2|r2c3|r2c4|r2c5|r2c6|r2c7|r2c8|r2c9|\n|r3c1|r3c2|r3c3|r3c4|r3c5|r3c6|r3c7|r3c8|r3c9|\n|r4c1|r4c2|r4c3|r4c4|r4c5|r4c6|r4c7|r4c8|r4c9|\n|r5c1|r5c2|r5c3|r5c4|r5c5|r5c6|r5c7|r5c8|r5c9|\n|r6c1|r6c2|r6c3|r6c4|r6c5|r6c6|r6c7|r6c8|r6c9|\n|r7c1|r7c2|r7c3|r7c4|r7c5|r7c6|r7c7|r7c8|r7c9|\n|r8c1|r8c2|r8c3|r8c4|r8c5|r8c6|r8c7|r8c8|r8c9|\n|r9c1|r9c2|r9c3|r9c4|r9c5|r9c6|r9c7|r9c8|r9c9|\n|r10c1|r10c2|r10c3|r10c4|r10c5|r10c6|r10c7|r10c8|r10c9|\n|r11c1|r11c2|r11c3|r11c4|r11c5|r11c6|r11c7|r11c8|r11c9|\n|r12c1|r12c2|r12c3|r12c4|r12c5|r12c6|r12c7|r12c8|r12c9|\n|r13c1|r13c2|r13c3|r13c4|r13c5|r13c6|r13c7|r13c8|r13c9|\n|r14c1|r14c2|r14c3|r14c4|r14c5|r14c6|r14c7|r14c8|r14c9|\n|r15c1|r15c2|r15c3|r15c4|r15c5|r15c6|r15c7|r15c8|r15c9|\n|r16c1|r16c2|r16c3|r16c4|r16c5|r16c6|r16c7|r16c8|r16c9|\n|r17c1|r17c2|r17c3|r17c4|r17c5|r17c6|r17c7|r17c8|r17c9|\n|r18c1|r18c2|r18c3|r18c4|r18c5|r18c6|r18c7|r18c8|r18c9|\n|r19c1|r19c2|r19c3|r19c4|r19c5|r19c6|r19c7|r19c8|r19c9|\n|r20c1|r20c2|r20c3|r20c4|r20c5|r20c6|r20c7|r20c8|r20c9|\n|r21c1|r21c2|r21c3|r21c4|r21c5|r21c6|r21c7|r21c8|r21c9|\n|r22c1|r22c2|r22c3|r22c4|r22c5|r22c6|r22c7|r22c8|r22c9|\n|r23c1|r23c2|r23c3|r23c4|r23c5|r23c6|r23c7|r23c8|r23c9|\n|r24c1|r24c2|r24c3|r24c4|r24c5|r24c6|r24c7|r24c8|r24c9|\n|r25c1|r25c2|r25c3|r25c4|r25c5|r25c6|r25c7|r25c8|r25c9|\n|r26c1|r26c2|r26c3|r26c4|r26c5|r26c6|r26c7|r26c8|r26c9|\n|r27c1|r27c2|r27c3|r27c4|r27c5|r27c6|r27c7|r27c8|r27c9|\n|r28c1|r28c2|r28c3|r28c4|r28c5|r28c6|r28c7|r28c8|r28c9|\n|r29c1|r29c2|r29c3|r29c4|r29c5|r29c6|r29c7|r29c8|r29c9|\n|r30c1|r30c2|r30c3|r30c4|r30c5|r30c6|r30c7|r30c8|r30c9|\n|r31c1|r31c2|r31c3|r31c4|r31c5|r31c6|r31c7|r31c8|r31c9|\n|r32c1|r32c2|r32c3|r32c4|r32c5|r32c6|r32c7|r32c8|r32c9|\n|r33c1|r33c2|r33c3|r33c4|r33c5|r33c6|r33c7|r33c8|r33c9|\n|r34c1|r34c2|r34c3|r34c4|r34c5|r34c6|r34c7|r34c8|r34c9|\n|r35c1|r35c2|r35c3|r35c4|r35c5|r35c6|r35c7|r35c8|r35c9|\n|r36c1|r36c2|r36c3|r36c4|r36c5|r36c6|r36c7|r36c8|r36c9|\n|r37c1|r37c2|r37c3|r37c4|r37c5|r37c6|r37c7|r37c8|r37c9|\n|r38c1|r38c2|r38c3|r38c4|r38c5|r38c6|r38c7|r38c8|r38c9|\n|r39c1|r39c2|r39c3|r39c4|r39c5|r39c6|r39c7|r39c8|r39c9|\n|r40c1|r40c2|r40c3|r40c4|r40c5|r40c6|r40c7|r40c8|r40c9|\n|r41c1|r41c2|r41c3|r41c4|r41c5|r41c6|r41c7|r41c8|r41c9|\n|r42c1|r42c2|r42c3|r42c4|r42c5|r42c6|r42c7|r42c8|r42c9|\n|r43c1|r43c2|r43c3|r43c4|r43c5|r43c6|r43c7|r43c8|r43c9|\n|r44c1|r44c2|r44c3|r44c4|r44c5|r44c6|r44c7|r44c8|r44c9|\n|r45c1|r45c2|r45c3|r45c4|r45c5|r45c6|r45c7|r45c8|r45c9|\n|r46c1|r46c2|r46c3|r46c4|r46c5|r46c6|r46c7|r46c8|r46c9|\n|r47c1|r47c2|r47c3|r47c4|r47c5|r47c6|r47c7|r47c8|r47c9|\n|r48c1|r48c2|r48c3|r48c4|r48c5|r48c6|r48c7|r48c8|r48c9|\n|r49c1|r49c2|r49c3|r49c4|r49c5|r49c6|r49c7|r49c8|r49c9|\n|r50c1|r50c2|r50c3|r50c4|r50c5|r50c6|r50c7|r50c8|r50c9|\n|r51c1|r51c2|r51c3|r51c4|r51c5|r51c6|r51c7|r51c8|r51c9|\n",
+      "why": "51 body rows by 9 columns, under 4,000 characters: 50 rows of 9 cells drawn as the table (MarkdownCaps.tableRows), and the 51st drawn as its characters right under it, so no word is lost",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "quote-nested",
+      "source": "> outer quote\n> > inner quote\n> > > third level\n> back to the outer\nlazy continuation\n\nafter the quote\n",
+      "why": "three levels of quote and a lazy continuation line",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "fence-unclosed",
+      "source": "before the fence\n\n```js\nconst open = true;\nnever closed\n\nstill inside the fence",
+      "why": "a fence that never closes runs to the end of its container",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "clipped-in-fence",
+      "source": "p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166\n\n```\ncode line 1\ncode line 2\ncode line 3\ncode line 4\ncode line 5\ncode line 6\ncode line 7\ncode line 8\ncode line 9\ncode line 10\ncode line 11\ncode line 12\n```\n\nafter the block xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "why": "4,200 characters: main's 4,000-character clip falls inside the fence",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "clipped-in-table",
+      "source": "p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166 clip words p3166\n\n| a | b |\n| - | - |\n| row 1 | cell 1 |\n| row 2 | cell 2 |\n| row 3 | cell 3 |\n| row 4 | cell 4 |\n| row 5 | cell 5 |\n| row 6 | cell 6 |\n| row 7 | cell 7 |\n| row 8 | cell 8 |\n| row 9 | cell 9 |\n| row 10 | cell 10 |\n| row 11 | cell 11 |\n| row 12 | cell 12 |\n\n\nafter the block xxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "why": "4,200 characters: main's 4,000-character clip falls inside a table row",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "lying-link",
+      "source": "[https://apple.com](https://evil.example/x)\n",
+      "why": "a link whose words are another address: the alert shows https://evil.example/x",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "long-link",
+      "source": "[a long address](https://p3166.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n",
+      "why": "an https link whose address is exactly 2,048 bytes, pressable, shown whole",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "link-over-cap",
+      "source": "[a long address](https://p3166.example/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa)\n",
+      "why": "one byte past MarkdownCaps.linkBytes: words only",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "user-part",
+      "source": "[apple](https://apple.com@evil.example/)\n",
+      "why": "a user part, which would put a trusted name before the real host: words only",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "idn-host",
+      "source": "[apple](https://\u0430pple.example/)\n",
+      "why": "a Cyrillic letter in the host, which Foundation hands back as xn-- punycode: words only",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "refused-schemes",
+      "source": "- [cleartext link](http://{{MD3}}/a)\n- [javascript link](javascript:alert(1))\n- [data link](data:text/html,p3166)\n- [file link](file:///etc/hosts)\n- [shortcuts link](shortcuts://run-shortcut?name=p3166)\n- [tel link](tel:5550100)\n- [sms link](sms:5550100)\n- [mailto link](mailto:p3166@p3166.example)\n- [facetime link](facetime://p3166@p3166.example)\n- [prefs link](prefs:root=General)\n- [app settings link](app-settings:)\n- [itms services link](itms-services://?action=download-manifest&url=https://{{MD3}}/m.plist)\n- [itms apps link](itms-apps://{{MD3}}/app)\n- [maps link](maps://{{MD3}}/?q=p3166)\n- [tortie link](tortie://{{MD3}}/x)\n- [upper scheme link](HTTPS://{{MD3}}/upper)\n- [ip host link](https://{{MD3}}/ip)\n- [localhost link](https://localhost/x)\n- [port link](https://p3166.example:8443/port)\n- [underscore link](https://p3166_x.example/x)\n- [empty host link](https:///nohost)\n",
+      "why": "every scheme and host the policy refuses, each at {{MD3}} where it has a host: words only, nothing opened or fetched",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "bare-urls",
+      "source": "see https://p3166.example/bare and <https://p3166.example/auto> and www.p3166.example for the bare ones\n",
+      "why": "a bare URL, an autolink and www.: Foundation links each, and none is pressable, because its words are its address",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "ten-kb-url",
+      "source": "[ten kilobytes](https://p3166.example/bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb)\n",
+      "why": "a 10 KB address, far past MarkdownCaps.linkBytes; longer than main's clip, so the hostile door serves it",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "images",
+      "source": "![a chart of p3166](https://{{MD3}}/chart.png)\n\n![](https://{{MD3}}/empty.png)\n\n<img src=\"https://{{MD3}}/tag.png\" alt=\"a tag\">\n\n[![inside a link](https://{{MD3}}/inner.png)](https://p3166.example/outer)\n",
+      "why": "an alt, an empty alt, an img tag and an image inside a link, all at {{MD3}}: none is fetched",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "script",
+      "source": "<script>alert(\"p3166\")</script>\n\ninline <script>alert(2)</script> words\n",
+      "why": "a script block and an inline script tag, drawn as their characters and never run",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "list-overflow",
+      "source": "9999999999. ten digits is a paragraph\n\n999999999. nine digits is a list\n",
+      "why": "a tenth digit makes the line a paragraph (CommonMark's own rule); nine digits is a list",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "format-specifiers",
+      "source": "%@ %n %d %s and ^[x](inflect: true) and ^[cats](morphology: { number: \"plural\" })\n",
+      "why": "format specifiers draw as written, and the inflection and morphology syntax keeps only its words, with no attribute",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "redacted",
+      "source": "[[REDACTED:bearer]](https://{{MD3}}/token)\n\n| key | value |\n| --- | --- |\n| auth | [REDACTED:bearer] |\n",
+      "why": "main's redaction marker in a link's words, whose address is at {{MD3}}, and in a table cell",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "bidi",
+      "source": "plain \u202eright to left and \u2066isolate\u2069 \u2067rtl\u2069 \u2068first strong\u2069 zero\u200bwidth jo\u200diner \ufeffmark\n\n[link\u202ewords](https://p3166\u200b.example/x)\n\n| a\u202eb | c\u2066d\u2069 |\n| --- | --- |\n| e\u200bf | g\ufeffh |\n",
+      "why": "right-to-left override, the isolates, zero-width space and joiner and a byte order mark in text, link words, a made-up host and a cell, each in a Text of its own",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "line-endings-cr",
+      "source": "# Title\r\rparagraph one\rstill one\r\r- item\r- item two\r",
+      "why": "CR line endings (CommonMark 2.1)",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "line-endings-crlf",
+      "source": "# Title\r\n\r\nparagraph one\r\nstill one\r\n\r\n- item\r\n- item two\r\n",
+      "why": "CRLF line endings (CommonMark 2.1)",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "empty",
+      "source": "",
+      "why": "an empty answer yields one empty paragraph",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "whitespace-only",
+      "source": "   \n\t\n  ",
+      "why": "an answer of whitespace yields one empty paragraph",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "setext-and-rules",
+      "source": "Title one\n=========\n\nTitle two\n---------\n\n***\n- - -\n___\n\npara\n---\n",
+      "why": "setext headings of = and -, three thematic breaks, and a --- under a paragraph read as a heading",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "indented-code",
+      "source": "para\n\n    indented code\n    second line\n\n\ttab indented\n",
+      "why": "indented code by spaces and by a tab, never interrupting a paragraph",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "html-kinds",
+      "source": "<pre>\npre block\n</pre>\n\n<!-- a comment -->\n\n<?php echo 1; ?>\n\n<!DOCTYPE html>\n\n<![CDATA[ some data ]]>\n\n<div>\nblock tag\n</div>\n\n<span class=\"x\">\ncomplete tag\n",
+      "why": "CommonMark's HTML block start conditions 1 to 7, each drawn as its characters",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "footnotes-definitions",
+      "source": "---\ntitle: p3166\n---\n\nA footnote[^1] and a [reference link][ref] and math $x^2$.\n\n[^1]: the note text.\n\n[ref]: https://p3166.example/ref\n\n$$\ny = x\n$$\n",
+      "why": "front matter, a footnote, a reference link and its definition, and math: each drawn as its characters (pinned differences D2 and D3)",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "inline-mix",
+      "source": "**bold** *em* ***both*** ~~strike~~ `code` \\*escaped\\* &amp; &copy; <span>inline html</span> line  \nbreak\n",
+      "why": "emphasis, strong, both, strikethrough, code, escapes, entities, inline HTML and a hard break",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "honest-wide",
+      "source": "p3166 an honest answer at every edge the first build cut\n\n| File | What changed |\n| --- | --- |\n| src/auth/session.ts | The login handler now sets the session cookie with httpOnly and sameSite lax, rotates the identifier after every successful sign in, refuses a cookie whose signature does not match the current key, and writes one line to the audit log naming the account, the address and the reason, so nothing about a session is ever silent |\n\n| c1 | c2 | c3 | c4 | c5 | c6 | c7 | c8 | c9 | c10 |\n| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |\n| v1 | v2 | v3 | v4 | v5 | v6 | v7 | v8 | ninth | tenth |\n\n| meaning | pattern |\n| --- | --- |\n| either a or b | `a||b` |\n| first line\u2028second line | separator |\n\nThe door answered:\n\n```json\n{\"items\":[{\"id\":\"p3166item0\",\"ok\":true},{\"id\":\"p3166item1\",\"ok\":true},{\"id\":\"p3166item2\",\"ok\":true},{\"id\":\"p3166item3\",\"ok\":true},{\"id\":\"p3166item4\",\"ok\":true},{\"id\":\"p3166item5\",\"ok\":true},{\"id\":\"p3166item6\",\"ok\":true},{\"id\":\"p3166item7\",\"ok\":true},{\"id\":\"p3166item8\",\"ok\":true},{\"id\":\"p3166item9\",\"ok\":true},{\"id\":\"p3166item10\",\"ok\":true},{\"id\":\"p3166item11\",\"ok\":true},{\"id\":\"p3166item12\",\"ok\":true},{\"id\":\"p3166item13\",\"ok\":true},{\"id\":\"p3166item14\",\"ok\":true},{\"id\":\"p3166item15\",\"ok\":true},{\"id\":\"p3166item16\",\"ok\":true},{\"id\":\"p3166item17\",\"ok\":true},{\"id\":\"p3166item18\",\"ok\":true},{\"id\":\"p3166item19\",\"ok\":true},{\"id\":\"p3166item20\",\"ok\":true},{\"id\":\"p3166item21\",\"ok\":true},{\"id\":\"p3166item22\",\"ok\":true},{\"id\":\"p3166item23\",\"ok\":true},{\"id\":\"p3166item24\",\"ok\":true},{\"id\":\"p3166item25\",\"ok\":true},{\"id\":\"p3166item26\",\"ok\":true},{\"id\":\"p3166item27\",\"ok\":true},{\"id\":\"p3166item28\",\"ok\":true},{\"id\":\"p3166item29\",\"ok\":true},{\"id\":\"p3166item30\",\"ok\":true},{\"id\":\"p3166item31\",\"ok\":true},{\"id\":\"p3166item32\",\"ok\":true},{\"id\":\"p3166item33\",\"ok\":true},{\"id\":\"p3166item34\",\"ok\":true},{\"id\":\"p3166item35\",\"ok\":true},{\"id\":\"p3166item36\",\"ok\":true},{\"id\":\"p3166item37\",\"ok\":true},{\"id\":\"p3166item38\",\"ok\":true},{\"id\":\"p3166item39\",\"ok\":true},{\"id\":\"p3166item40\",\"ok\":true},{\"id\":\"p3166item41\",\"ok\":true},{\"id\":\"p3166item42\",\"ok\":true},{\"id\":\"p3166item43\",\"ok\":true},{\"id\":\"p3166item44\",\"ok\":true},{\"id\":\"p3166item45\",\"ok\":true},{\"id\":\"p3166item46\",\"ok\":true},{\"id\":\"p3166item47\",\"ok\":true},{\"id\":\"p3166item48\",\"ok\":true},{\"id\":\"p3166item49\",\"ok\":true}]}\n```\n\nThe change:\n\n- res.cookie(\"sid\", id);\n+ res.cookie(\"sid\", id, { httpOnly: true });\n\nThat is all.\n",
+      "why": "an honest answer at every edge the first build cut: a cell over 300 characters, a table of ten columns, a row with more cells than its header (a | in a code span, kept in its last cell, D16), a line separator in a cell, a JSON line of about 1,500 characters in a fence, and an unfenced diff whose - and + marks are drawn as written; under 4,000 characters, so no word of it may be lost",
+      "probe": true,
+      "hostile": null
+    },
+    {
+      "name": "loop-quote-comment",
+      "source": "> <!--\n> -->\n    x\n\n# After heading\n\n| head a | head b |\n| --- | --- |\n| one | two |\n\n- item one\n- item two\n",
+      "why": "a quote holding an HTML comment, then a lazy line of four columns: the first build added 399 empty code blocks here and drew the rest as one raw block; now the line is words and the heading, table and list after it are drawn",
+      "probe": true,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "loop-nested-fence",
+      "source": "> > ~~~\n> > ===\n     word after\n\n**bold after** and `code after`\n",
+      "why": "a fence open inside a nested quote, then a lazy line of five columns: no empty block, and the words after it drawn",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "loop-item-comment",
+      "source": "- <!-- note\n  end -->\n      indented after\n\nThe **rest** of the answer.\n",
+      "why": "an HTML comment across two lines of a list item, then a line of six columns: no empty block, and the rest drawn",
+      "probe": false,
+      "hostile": "md-hostile"
+    },
+    {
+      "name": "ordered-as-written",
+      "source": "1. a\n2. b\n4. d\n\n7. seven\n8. CONTEXT\n\n3. **The quit path.** all ten exits code\n0. Nobody waits longer.\n5. **The two ghost channels.**\n\n007. bond\n\n1) one\n3) three\n",
+      "why": "an ordered list numbered out of sequence, a wrapped line that begins with a number and a full stop, leading zeros and a ) delimiter: every item is drawn with the number the agent wrote (D17), never a counted one, because the build before this one drew those digits; the delimiter is drawn as . (D7)",
+      "probe": false,
+      "hostile": null
+    }
+  ]
+}

@@ -12,7 +12,10 @@
 // A DEBUG build, which is every Simulator run, never registers: its address is
 // the one a launch argument names (`-TortieDebugPushToken <hex>`, the fifth
 // DEBUG seam, conformance:ios rule d) or none, so no test and no probe ever
-// asks Apple for anything.
+// asks Apple for anything. Unpair (Phase 316.6) is the one way back out: a
+// Release build unregisters (`unregisterForRemoteNotifications`, named ONCE,
+// in the `#else` of `#if DEBUG` in `forgetAddress`), so Apple stops taking
+// alerts for this install, and a DEBUG build does nothing.
 //
 // It writes no badge, reads no payload and logs nothing: a token never reaches
 // a log, and the tap is App/AppDelegate.swift's and Alerts/Alerts.swift's.
@@ -59,6 +62,19 @@ final class SystemPushAddressing: PushAddressing {
 
     func currentAddress() async -> PushAddress? {
         await address()
+    }
+
+    /// Unpair forgot the pairing (Phase 316.6, build/p3166/SPEC.md section
+    /// 5.4). A Release build tells Apple to stop taking alerts for this
+    /// install, named ONCE, in the `#else` of `#if DEBUG`. A DEBUG build,
+    /// which is every Simulator run, never speaks to Apple in either
+    /// direction, so it does nothing.
+    func forgetAddress() async {
+        #if DEBUG
+        return
+        #else
+        UIApplication.shared.unregisterForRemoteNotifications()
+        #endif
     }
 
     // MARK: What App/AppDelegate.swift hands over

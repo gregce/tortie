@@ -5,7 +5,7 @@
  * §6.4, build/p3165/SPEC.md §6.4).
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. `conformance:ios` reads the
- * phone app as text for twenty-two refusals, (a) to (x) with (m) and (q)
+ * phone app as text for twenty-four refusals, (a) to (z) with (m) and (q)
  * folded into (l) by Phase 330, and every one of them is a line a later round can add
  * in a hurry: a colour typed straight into a screen, a sentence in a `Text`, a
  * network call outside the door client, a DEBUG seam that leaked into Release,
@@ -44,8 +44,30 @@
  * DEBUG build presenting as production, and, from research 136 §9 (alerts are
  * the push key holder's alone), iOS asked before the Mac said it can send, a
  * pairing that asks whatever the Mac said, and a launch check that asks iOS
- * for a Mac that cannot send. THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE
- * SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
+ * for a Mac that cannot send.
+ *
+ * PHASE 316.6 GAVE THE PHONE TABS, SETTINGS WITH UNPAIR, AND MARKDOWN
+ * (build/p3166/SPEC.md §6), and its thirty arms are the ways those could reach
+ * further than they may: (a) the tab bar's look set outside Tokens.swift, the
+ * badge in the dot's amber; (b) a literal tab, a fourth tab, the bar hidden on
+ * a pushed session, the tab stored; (k) a door number in the renderer's scope,
+ * an unnamed operator in Settings; (n) a Keychain item deleted from a screen,
+ * the keys deleted before the record, Unpair swallowing the store's error; (s)
+ * the build left at 3; (x) the unregister in every build, before the record
+ * went, or in a test; (y) the parser importing SwiftUI, a cap read twice, a
+ * force unwrap, a regular expression, an unbounded recursion, a second parse,
+ * a localized key, a plain Text, a door type; (z) an image fetched, an in-app
+ * browser, a second way out, the Open press not asking again, Settings opening
+ * another address, the port clause gone. ITS RULED ROUND (2026-10-01) adds
+ * seven to (y): an ordered item drawn with a counted number, the marker's
+ * digits read back from an Int, a mark drawn from the item's place; the page
+ * cap loosened, the cells not counted, a link kept in an answer drawn as
+ * written, and that answer drawn in another face than the build before it
+ * drew. HIS RULING OF 2026-10-02 ("Ship tabs + Settings, markdown off") pins
+ * the page cap at 0, so every answer is drawn as written: one arm more puts
+ * the ruled round's 26 back (y2b), and the loosening arm (y13) adds 26 at the
+ * cap's one site rather than multiplying a 0. THIS SCRIPT PLANTS EACH ONE IN A
+ * CLONE OF THE SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
@@ -1083,7 +1105,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 3;/, '$1CURRENT_PROJECT_VERSION = 4;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 4;/, '$1CURRENT_PROJECT_VERSION = 5;')
   },
   {
     id: 's9',
@@ -1331,6 +1353,302 @@ const ARMS = [
     what: 'the launch check asking iOS for a Mac that cannot send (research 136 §9)',
     file: () => `${APP}/App/TortieApp.swift`,
     edit: (src) => src.replace(/\n\s*guard kept\.macSends else \{\n\s*list\.alertsLine = nil\n\s*return\n\s*\}\n/, '\n')
+  },
+  // Phase 316.6: the tab bar, Settings, Unpair and the rendered conversation
+  // (build/p3166/SPEC.md §6). Thirty arms, each red on its own rule, the
+  // ruled round's seven after y9, and markdown off's one (y2b, 2026-10-02).
+  {
+    id: 'a4',
+    rule: 'a',
+    what: 'UITabBar.appearance() named in the app file, outside Tokens.swift',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: append('func p316AblationBar() { _ = UITabBar.appearance() }\n')
+  },
+  {
+    id: 'a5',
+    rule: 'a',
+    what: "the badge's ground set from Token.statusAttention, the attention dot's amber",
+    file: () => `${APP}/Style/Tokens.swift`,
+    edit: (src) => src.replace(/(badgeBackgroundColor\s*=\s*[^\n]*?)\bstatusAttentionBadgeBg\b/, '$1statusAttention')
+  },
+  {
+    id: 'b3',
+    rule: 'b',
+    what: 'a literal tab label, Tab("Needs input", …)',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('Tab(Copy.needsInput,', 'Tab("Needs input",')
+  },
+  {
+    id: 'b4',
+    rule: 'b',
+    what: 'a fourth tab',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: append('struct P316AblationTabs: View {\n    var body: some View {\n        TabView {\n            Tab(Copy.sessions, systemImage: "magnifyingglass") { EmptyView() }\n        }\n    }\n}\n')
+  },
+  {
+    id: 'b5',
+    rule: 'b',
+    what: 'the tab bar hidden on a pushed session',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: append('func p316AblationHide(_ v: some View) -> some View { v.toolbar(.hidden, for: .tabBar) }\n')
+  },
+  {
+    id: 'b6',
+    rule: 'b',
+    what: 'the tab kept in @AppStorage',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: append('struct P316AblationKept {\n    @AppStorage("p316.tab") var tab = 0\n}\n')
+  },
+  {
+    id: 'k6',
+    rule: 'k',
+    what: "a door number in arithmetic inside the renderer's scope (`turn.index + 1`)",
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: append('func p316AblationNext(_ turn: (index: Int, at: Int)) -> Int { turn.index + 1 }\n')
+  },
+  {
+    id: 'k7',
+    rule: 'k',
+    what: 'an unnamed integer operator in Settings, outside the scope',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: append('func p316AblationCount(_ a: Int, _ b: Int) -> Int { a + b }\n')
+  },
+  {
+    id: 'n11',
+    rule: 'n',
+    what: 'SecItemDelete in a screen',
+    file: aScreen,
+    edit: append('func p316AblationDelete(_ q: CFDictionary) { _ = SecItemDelete(q) }\n')
+  },
+  {
+    id: 'n12',
+    rule: 'n',
+    what: 'the client keys deleted before the record, so a failed removal leaves the record without its identity',
+    file: () => `${APP}/Door/Keys.swift`,
+    edit: (src) =>
+      src.replace(
+        /(\n[ \t]*func forget\(\) throws \{\n)([ \t]*try secrets\.remove\(Self\.account\)\n[ \t]*try\? secrets\.remove\(Self\.formerAccount\)\n)([ \t]*for tag in clientKeys\.tags\(\) \{\n[ \t]*clientKeys\.delete\(tag: tag\)\n[ \t]*\}\n)/,
+        '$1$3$2'
+      )
+  },
+  {
+    id: 'n13',
+    rule: 'n',
+    what: 'Unpair through try? store.forget(), which swallows the error',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/do \{\s*try store\.forget\(\)\s*\} catch \{\s*return \.kept\s*\}/, 'try? store.forget()')
+  },
+  {
+    id: 's11',
+    rule: 's',
+    what: "the app's Release left at build 3, 316.5's, which App Store Connect refuses as a duplicate",
+    file: () => PBX,
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 4;/, '$1CURRENT_PROJECT_VERSION = 3;')
+  },
+  {
+    id: 'x10',
+    rule: 'x',
+    what: 'the unregister taken out of the #else, into every build',
+    file: () => `${APP}/Alerts/SystemAlerts.swift`,
+    edit: (src) => {
+      const line = /\n(?![ \t]*\/\/)[^\n]*\bunregisterForRemoteNotifications\(\)[^\n]*/.exec(src);
+      return line === null ? src : `${src.replace(line[0], '')}\nfunc p316AblationUnregister() { UIApplication.shared.unregisterForRemoteNotifications() }\n`;
+    }
+  },
+  {
+    id: 'x11',
+    rule: 'x',
+    what: 'forgetAddress() before door.unpair(), whether or not the record went',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => {
+      const call = /\n(?![ \t]*\/\/)[^\n]*\bforgetAddress\(\)[^\n]*/.exec(src);
+      if (call === null) return src;
+      const without = src.replace(call[0], '');
+      const at = without.search(/\n(?![ \t]*\/\/)[^\n]*\bdoor\.unpair\(\)/);
+      return at === -1 ? src : `${without.slice(0, at)}${call[0]}${without.slice(at)}`;
+    }
+  },
+  {
+    id: 'x12',
+    rule: 'x',
+    what: 'a test naming the unregister',
+    file: aTest,
+    edit: append('func p316AblationUnregister() { UIApplication.shared.unregisterForRemoteNotifications() }\n')
+  },
+  {
+    id: 'y1',
+    rule: 'y',
+    what: 'SwiftUI imported by the block parser',
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    edit: (src) => `import SwiftUI\n${src}`
+  },
+  {
+    id: 'y2',
+    rule: 'y',
+    what: 'a cap read twice',
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    edit: append('let p316AblationCap = MarkdownCaps.blocks\n')
+  },
+  {
+    id: 'y3',
+    rule: 'y',
+    what: 'a force unwrap in the block parser',
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    edit: append('let p316AblationForced = Int("1")!\n')
+  },
+  {
+    id: 'y4',
+    rule: 'y',
+    what: 'a regular expression in the block parser',
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    edit: append('let p316AblationPattern = try? Regex("a+")\n')
+  },
+  {
+    id: 'y5',
+    rule: 'y',
+    what: 'a recursive call passing depth: depth, so nesting is not bounded',
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    // The first such call in CODE: the file's own header names the rule in a comment.
+    edit: (src) => src.replace(/^(?![ \t]*\/\/)(.*?)\bdepth:\s*depth\s*\+\s*1\b/m, '$1depth: depth')
+  },
+  {
+    id: 'y6',
+    rule: 'y',
+    what: 'a second markdown parse, in AnswerText.swift',
+    file: () => `${APP}/Screens/AnswerText.swift`,
+    edit: append('let p316AblationParse = try? AttributedString(markdown: "**x**")\n')
+  },
+  {
+    id: 'y7',
+    rule: 'y',
+    what: 'Text(LocalizedStringKey(x)) in the drawing, which would read %@ as a format',
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: append('func p316AblationKey(_ x: String) -> Text { Text(LocalizedStringKey(x)) }\n')
+  },
+  {
+    id: 'y8',
+    rule: 'y',
+    what: 'Text(cell.plain), drawn neither verbatim nor as the AttributedString Inline.swift built',
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: append('func p316AblationCell(_ cell: InlineText) -> Text { Text(cell.plain) }\n')
+  },
+  {
+    id: 'y9',
+    rule: 'y',
+    what: "PocketTurn named by the renderer, the boundary (k)'s scope rests on",
+    file: () => `${APP}/Markdown/Rendered.swift`,
+    edit: append('typealias P316AblationTurn = PocketTurn\n')
+  },
+  // The ruled round of 2026-10-01: the agent's own numbers (y10 to y12) and
+  // the page cost (y13 to y16), one plant per clause.
+  {
+    id: 'y10',
+    rule: 'y',
+    what: 'an ordered item drawn with a counted number, its ordinal, not the one the agent wrote',
+    file: () => `${APP}/Markdown/Rendered.swift`,
+    edit: (src) => src.replace('number: item.number,', 'number: String(itemN),')
+  },
+  {
+    id: 'y11',
+    rule: 'y',
+    what: "the marker's digits parsed into an Int and written back, so 007 draws 7",
+    file: () => `${APP}/Markdown/Blocks.swift`,
+    edit: (src) => src.replace('self.number = String(decoding: bytes[lead.at..<p], as: UTF8.self)', 'self.number = String(number)')
+  },
+  {
+    id: 'y12',
+    rule: 'y',
+    what: "an ordered item's mark drawn from its place in the list",
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: (src) => src.replace('Copy.orderedMark(number)', 'Copy.orderedMark(String(item.n))')
+  },
+  {
+    // Restated for his ruling of 2026-10-02 (markdown off): the cap is 0, so
+    // the first build's fourfold loosening (`* 4`) moved nothing; this one
+    // puts the ruled round's 26 back at the cap's one site, which draws every
+    // answer under it as blocks again.
+    id: 'y13',
+    rule: 'y',
+    what: "the page cap loosened at its one site by the ruled round's 26, so every answer under it is drawn as blocks again",
+    file: () => `${APP}/Markdown/Rendered.swift`,
+    edit: (src) => src.replace('> MarkdownCaps.pieces {', '> MarkdownCaps.pieces + 26 {')
+  },
+  {
+    // His ruling of 2026-10-02, "Ship tabs + Settings, markdown off": y2 pins
+    // MarkdownCaps.pieces at 0. Putting the ruled round's 26 back switches
+    // markdown on again for every answer under it.
+    id: 'y2b',
+    rule: 'y',
+    what: "markdown switched back on: MarkdownCaps.pieces put back to the ruled round's 26",
+    file: () => `${APP}/Markdown/Caps.swift`,
+    edit: (src) => src.replace(/\bstatic let pieces = 0\b/, 'static let pieces = 26')
+  },
+  {
+    id: 'y14',
+    rule: 'y',
+    what: "a table's header cells not counted as pieces",
+    file: () => `${APP}/Markdown/Rendered.swift`,
+    edit: (src) => src.replace(/\n[ \t]*count \+= table\.header\.count\n/, '\n')
+  },
+  {
+    id: 'y15',
+    rule: 'y',
+    what: 'a link kept in an answer drawn as written, so it could be pressed',
+    file: () => `${APP}/Markdown/Inline.swift`,
+    edit: (src) => src.replace('            drawn[range][LinkKey.self] = nil\n            drawn[range][ImageKey.self] = nil\n', '            drawn[range][ImageKey.self] = nil\n')
+  },
+  {
+    id: 'y16',
+    rule: 'y',
+    what: 'an answer as written drawn in another face than the build before this one drew',
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: (src) => src.replace('        Text(attributed)\n            .font(Face.body.font)', '        Text(attributed)\n            .font(Face.small.font)')
+  },
+  {
+    id: 'z1',
+    rule: 'z',
+    what: 'AsyncImage in the drawing, which would fetch an image an answer names',
+    file: () => `${APP}/Screens/MarkdownView.swift`,
+    edit: append('func p316AblationImage(_ u: URL) -> some View { AsyncImage(url: u) }\n')
+  },
+  {
+    id: 'z2',
+    rule: 'z',
+    what: 'SFSafariViewController, an in-app browser',
+    file: () => `${APP}/Markdown/Links.swift`,
+    edit: append('func p316AblationSafari(_ u: URL) -> Any { SFSafariViewController(url: u) }\n')
+  },
+  {
+    id: 'z3',
+    rule: 'z',
+    what: '@Environment(\\.openURL) in Settings, a second way out',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: append('struct P316AblationOpen: View {\n    @Environment(\\.openURL) private var open\n    var body: some View { EmptyView() }\n}\n')
+  },
+  {
+    id: 'z4',
+    rule: 'z',
+    what: "the Open press's second ask removed",
+    file: () => `${APP}/Markdown/Links.swift`,
+    edit: (src) => {
+      const open = src.search(/UIApplication\.shared\.open\(/);
+      const ask = open === -1 ? -1 : src.lastIndexOf('LinkPolicy.opens(', open);
+      return ask === -1 ? src : `${src.slice(0, ask)}p316AblationTrue(${src.slice(ask + 'LinkPolicy.opens('.length)}\nfunc p316AblationTrue(_ u: URL) -> Bool { true }\n`;
+    }
+  },
+  {
+    id: 'z5',
+    rule: 'z',
+    what: "Settings opening an address that is not iOS's notification settings",
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: append('func p316AblationOther() { UIApplication.shared.open(URL(fileURLWithPath: "/")) }\n')
+  },
+  {
+    id: 'z6',
+    rule: 'z',
+    what: "LinkPolicy.opens's port clause removed",
+    file: () => `${APP}/Markdown/Links.swift`,
+    edit: (src) => src.replace(/\b\w+\.port\s*==\s*nil\b/, 'true')
   }
 ];
 
@@ -1531,7 +1849,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -1544,5 +1862,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (x) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

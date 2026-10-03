@@ -36,6 +36,10 @@ protocol DoorReading: Sendable {
     /// said it could send, and the address the Mac holds, which the list
     /// compares with the phone's own now.
     var alerts: AlertsKept { get }
+    /// What Settings says about the paired Mac (Phase 316.6), from the
+    /// pairing the app already holds in memory: no Keychain read and no door
+    /// read.
+    var facts: PairedFacts { get }
     func blocked() async throws -> PocketBlockedAnswer
     func session(_ sessionId: String) async throws -> PocketSessionAnswer
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer
@@ -66,8 +70,56 @@ protocol PhoneDoor: Sendable {
         askForAlerts: @escaping @Sendable () async -> PushAddress?,
         progress: @escaping @Sendable (PairingStep) -> Void
     ) async -> PairResult
-    /// Forget the kept pairing.
+    /// Forget the kept pairing (the DEBUG forget seam).
     func forget()
+    /// Unpair this iPhone (Phase 316.6): forget the pairing record, which
+    /// holds both private keys, FIRST, then every client key, and say whether
+    /// the record went. The Mac keeps its row until he presses Remove there
+    /// (its half is Phase 317's).
+    func unpair() -> UnpairOutcome
+}
+
+/// What Unpair did (build/p3166/SPEC.md section 5.4).
+enum UnpairOutcome: Equatable, Sendable {
+    /// The record is gone, and with it everything that can sign a read or
+    /// present the phone's identity.
+    case forgotten
+    /// The record is still there, or could not be proved gone; because it
+    /// goes first, nothing else was touched.
+    case kept
+}
+
+/// The paired Mac, as Settings draws it (Phase 316.6, SPEC section 5.3.2).
+/// Public facts ONLY: no key, pin, label, certificate, token or phone id is
+/// carried, so nothing here can sign, present or address anything.
+struct PairedFacts: Equatable, Sendable {
+    /// The Mac's public name up to its first `.`: `studio`.
+    let name: String
+    /// The whole public name and its port: `studio.tail0000.ts.net:8443`.
+    let address: String
+    /// The six groups both screens showed when this iPhone paired.
+    let fingerprint: String
+    /// Epoch ms of the first signed read that succeeded.
+    let pairedAt: Double
+    /// Whether the Mac said, as it held this phone, that it could send an
+    /// alert (Phase 316.5's `sends`).
+    let macSends: Bool
+
+    init(name: String, address: String, fingerprint: String, pairedAt: Double, macSends: Bool) {
+        self.name = name
+        self.address = address
+        self.fingerprint = fingerprint
+        self.pairedAt = pairedAt
+        self.macSends = macSends
+    }
+
+    init(_ door: PairedDoor) {
+        name = String(door.endpoint.name.prefix { $0 != "." })
+        address = door.endpoint.name + ":" + String(door.endpoint.port)
+        fingerprint = door.fingerprint
+        pairedAt = door.pairedAt
+        macSends = door.alerts.macSends
+    }
 }
 
 /// What a screen tells the app when a read means it belongs somewhere else.

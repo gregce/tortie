@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open this link?</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.mono { font-family: ui-monospace, Menlo, monospace; }
+.card { background: #191B20; border: 1px solid #25282E; border-radius: 10px; padding: 16px; }
+.cellhdr { font-size: 13px; line-height: 16px; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
+.md { font-size: 17px; line-height: 22px; color: #C9CACD; }
+.md > * + * { margin-top: 8px; }
+.md h2 { margin: 0; font-size: 17px; line-height: 22px; font-weight: 600; }
+.md p { margin: 0; }
+.md code { font-family: ui-monospace, Menlo, monospace; font-size: 15px; background: #202329; border-radius: 4px; padding: 1px 4px; }
+.md a { color: #4d9de8; text-decoration: none; }
+.li { display: flex; gap: 8px; }
+.mark { flex-shrink: 0; width: 12px; color: #9CA1AB; }
+.fence { background: #202329; border-radius: 6px; padding: 12px; overflow: hidden; white-space: pre; font-family: ui-monospace, Menlo, monospace; font-size: 15px; line-height: 20px; color: #C9CACD; }
+.quote { border-left: 1px solid #353943; padding-left: 12px; color: #9CA1AB; }
+.scroll { overflow: hidden; margin-right: -16px; }
+table { border-collapse: collapse; font-size: 15px; line-height: 20px; white-space: nowrap; }
+th, td { border: 1px solid #25282E; padding: 6px 12px; text-align: left; vertical-align: top; }
+th { background: #0E0F13; font-weight: 600; }
+td.r, th.r { text-align: right; }
+.more { font-size: 13px; line-height: 18px; color: #838996; }
+.img { display: flex; align-items: center; gap: 6px; color: #9CA1AB; }
+.dim { position: absolute; inset: 0; background: rgba(9, 10, 12, 0.55); }
+a { color: #4d9de8; }
+.tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
+.tab.on { color: #4d9de8; }
+.tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
+.badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }</style>
+</head>
+<body>
+<!-- Phase 316.6: the one way out of the app. A pressable link (https, a plain
+     host, no user part, at most 2,048 bytes) opens nothing by itself: the tap
+     shows its whole address as the alert's title, in ASCII, and only Open hands
+     it to iOS. Any other link is drawn as plain words and cannot be pressed.
+
+     OWED BY THE LATER PHASE that draws the conversation lazily and switches
+     markdown back on. His ruling of 2026-10-02, "Ship tabs + Settings,
+     markdown off": every answer is drawn as written and no link is pressable,
+     as in Phase 316.5, so this alert is never drawn today. conformance:phonecopy
+     prints Open and the address as owed. -->
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div style="height: 52px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; flex-shrink: 0;">
+    <a href="Session.html" style="display: flex; align-items: center; gap: 4px; font-size: 17px; color: #4d9de8; text-decoration: none;">
+      <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2 3 9l6 7"></path></svg>fix-login
+    </a>
+    <div style="font-size: 17px; font-weight: 600; color: #C9CACD;">Conversation</div>
+    <span style="width: 60px;"></span>
+  </div>
+
+  <div style="height: 1px; background: #25282E; flex-shrink: 0;"></div>
+  <div style="font-size: 13px; line-height: 18px; color: #838996; padding: 8px 16px; flex-shrink: 0;">The terminal’s own output stays on your Mac.</div>
+  <div style="height: 1px; background: #25282E; flex-shrink: 0;"></div>
+  <div style="padding: 12px 16px; flex-shrink: 0;">
+    <div class="card">
+      <div class="num" style="font-size: 13px; line-height: 16px; color: #838996; margin-bottom: 8px;">4:31 PM</div>
+      <div class="cellhdr" style="margin-bottom: 6px;">You</div>
+      <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">make the session cookie httpOnly and show me what changed</div>
+      <div class="cellhdr" style="margin-top: 12px; margin-bottom: 6px;">The agent</div>
+      <div class="md">
+      <h2>What changed</h2>
+      <p>The cookie now sets <code>httpOnly</code> and <code>sameSite</code>. The <a href="Link.html">pull request</a> has the diff.</p>
+      <div>
+        <div class="li"><span class="mark">-</span><div><code>src/auth/session.ts</code>
+          <div class="li" style="margin-top: 4px;"><span class="mark">-</span><div>sets both flags</div></div>
+          <div class="li" style="margin-top: 4px;"><span class="mark"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3"><rect x="1.5" y="1.5" width="13" height="13" rx="3"></rect><path d="M4.5 8.2 7 10.5l4.5-5"></path></svg></span><div>reads the parsed cookie</div></div>
+        </div></div>
+        <div class="li" style="margin-top: 4px;"><span class="mark">-</span><div><code>test/session.test.ts</code></div></div>
+      </div>
+      <div class="scroll"><div class="fence">res.cookie('sid', id, { httpOnly: true, sameSite: 'lax', secure: true });</div></div>
+      <div class="quote">The login handler is unchanged.</div>
+      <div class="scroll">
+        <table>
+          <tr><th>File</th><th class="r">Added</th><th class="r">Removed</th><th class="r">Tests</th><th>Owner</th><th>Risk</th><th>Status</th><th>Merged</th></tr>
+          <tr><td>session.ts</td><td class="r">4</td><td class="r">1</td><td class="r">2</td><td>auth</td><td>low</td><td>done</td><td>no</td></tr>
+          <tr><td>session.test.ts</td><td class="r">18</td><td class="r">0</td><td class="r">6</td><td>auth</td><td>low</td><td>done</td><td>no</td></tr>
+        </table>
+      </div>
+      <div class="img"><svg width="18" height="15" viewBox="0 0 18 15" fill="none" stroke="#838996" stroke-width="1.3"><rect x="1" y="1" width="16" height="13" rx="2"></rect><circle cx="6" cy="5.5" r="1.5"></circle><path d="m2 13 5-5 4 4 2-2 4 4"></path></svg><div>the login screen before the fix</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+
+  <div class="tabbar" style="position: absolute; left: 0; right: 0; bottom: 0;">
+    <a class="tab" href="NeedsInput.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
+        <div class="badge">3</div>
+      </div>
+      <div class="lbl">Needs input</div>
+    </a>
+    <a class="tab on" href="Main.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
+      </div>
+      <div class="lbl">Sessions</div>
+    </a>
+    <a class="tab" href="Settings.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+      </div>
+      <div class="lbl">Settings</div>
+    </a>
+  </div>
+
+  <div class="dim"></div>
+
+  <div style="position: absolute; left: 50px; right: 50px; top: 320px; background: #191B20; border: 1px solid #25282E; border-radius: 14px; overflow: hidden; text-align: center;">
+    <div style="padding: 18px 16px 16px 16px; border-bottom: 1px solid #25282E;">
+      <div class="mono" style="font-size: 15px; line-height: 20px; font-weight: 600; color: #C9CACD; word-break: break-all;">https://github.com/gregce/tortie/pull/28</div>
+    </div>
+    <div style="display: flex;">
+      <button type="button" style="flex: 1; height: 44px; border: 0; border-right: 1px solid #25282E; background: none; font: inherit; font-size: 17px; color: #4d9de8; cursor: pointer;">Cancel</button>
+      <button type="button" style="flex: 1; height: 44px; border: 0; background: none; font: inherit; font-size: 17px; font-weight: 600; color: #4d9de8; cursor: pointer;">Open</button>
+    </div>
+  </div>
+</div>
+</body>
+</html>

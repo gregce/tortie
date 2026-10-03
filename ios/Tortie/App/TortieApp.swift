@@ -1,6 +1,6 @@
 // Tortie on the iPhone: a READ-ONLY remote control for the Mac (Phase 316.2).
 //
-// Three screens he reads, and pairing:
+// The screens he reads, and pairing:
 //
 //   the list          every session, "Needs your input (n)" then "Everything
 //                     else (n)" (his ruling: the phone opens anything)
@@ -8,6 +8,16 @@
 //                     last answer
 //   the conversation  paged back from the newest turn
 //   pairing           the Mac's code, the fingerprint, and his Allow
+//
+// THREE TABS since Phase 316.6 (build/p3166/SPEC.md section 5.1): Needs input
+// (the list's first section alone, with the Mac's amber count badge), Sessions
+// (the list above) and Settings (the paired Mac, what iOS allows for alerts,
+// the version, and Unpair this iPhone). Each tab is its own navigation stack,
+// so each keeps its place, and the bar stays under a pushed session. The app
+// opens on Needs input every launch and stores no tab. One read of the list
+// feeds both list tabs and the badge. Unpair forgets the pairing on the phone
+// (the record first, then every client key), and in a Release build tells
+// Apple to stop taking alerts for this install; the Mac's half is Phase 317's.
 //
 // And since Phase 316.5, the alert: a tap on one opens the session it names
 // (`Route.alerted`), or the list with the Mac's own sentence when the Mac no
@@ -38,6 +48,12 @@ struct TortieApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var delegate
     @State private var app = AppModel.launch()
 
+    init() {
+        // The badge's two colours, once, before the first tab bar exists
+        // (Style/Tokens.swift, the one file that writes a colour).
+        TabBarLook.apply()
+    }
+
     var body: some Scene {
         WindowGroup {
             RootView(app: app)
@@ -49,7 +65,15 @@ struct TortieApp: App {
 
 // MARK: - Where the app is
 
-/// A screen pushed over the list.
+/// The three tabs, in the bar's order. A fourth would be search, Past Sessions
+/// or machines, and Phase 316 refuses each on the phone.
+enum AppTab: Hashable, Sendable {
+    case needsInput
+    case sessions
+    case settings
+}
+
+/// A screen pushed over a list.
 enum Route: Hashable {
     case session(id: String, name: String)
     /// `honestLine` is the session's own line, drawn when it has no turns.
@@ -69,18 +93,36 @@ final class AppModel {
     }
 
     private(set) var root: Root
-    var path: [Route] = []
+    /// The tab on screen. Needs input every launch, and never stored.
+    var tab: AppTab = .needsInput
+    /// What is pushed over the Needs input tab's list.
+    var waitingPath: [Route] = []
+    /// What is pushed over the Sessions tab's list. Settings pushes nothing
+    /// (Unpair's question and a link's address are sheets), so it has no path.
+    var sessionsPath: [Route] = []
     /// Moves each time the app comes back to the foreground; the screen on
-    /// top reads again. Not a timer: it moves only when he opens the app.
+    /// top of the tab on screen reads again. Not a timer: it moves only when
+    /// he opens the app.
     private(set) var foregroundTick = 0
+    /// ONE list model for both list tabs and the badge, so all three are
+    /// always one answer.
     private(set) var list: ListModel?
     private(set) var pairing: PairingModel!
     private(set) var reader: (any DoorReading)?
+    /// What iOS allows for alerts, for Settings: read only for a pairing
+    /// whose Mac said it could send (`readAlertPermission`), nil until then.
+    private(set) var alertPermission: PushAuthorization?
+    /// The sentence under Unpair this iPhone when the phone could not forget.
+    private(set) var settingsLine: String?
     /// The list's read that says the Mac's sentence about a gone session, and
     /// the alert-address check a pairing starts, held so a test can wait for
     /// them. Neither is drawn from.
     @ObservationIgnored private(set) var noticeRead: Task<Void, Never>?
     @ObservationIgnored private(set) var addressCheck: Task<Void, Never>?
+    /// The permission read a return to the foreground starts, and Unpair's
+    /// `forgetAddress()`, held so a test can wait for them.
+    @ObservationIgnored private(set) var permissionRead: Task<Void, Never>?
+    @ObservationIgnored private(set) var forgetting: Task<Void, Never>?
 
     private let door: any PhoneDoor
     /// What the app asks iOS about alerts (Alerts/SystemAlerts.swift).
@@ -104,7 +146,7 @@ final class AppModel {
         pairing = PairingModel(door: door, label: label, alerts: alerts) { [weak self] reader, first in
             self?.paired(reader, first: first)
         }
-        if let reader { list = ListModel(door: reader, routing: routing) }
+        if let reader { list = ListModel(door: reader, routing: listRouting) }
     }
 
     /// The app as it launches on a phone or in the Simulator.
@@ -128,16 +170,25 @@ final class AppModel {
         return AppModel(door: door, label: UIDevice.current.name, alerts: SystemPushAddressing.shared, launchCode: launchCode)
     }
 
-    /// What the screens call when a read means they belong elsewhere.
-    var routing: ReadRouting {
+    /// What a screen pushed over `tab`'s list calls when a read means it
+    /// belongs elsewhere: a refusal about one session pops THAT tab to its
+    /// list, and the door no longer knowing this iPhone goes to Pairing.
+    func routing(_ tab: AppTab) -> ReadRouting {
         ReadRouting(
-            backToList: { [weak self] in self?.backToList() },
+            backToList: { [weak self] in self?.backToList(in: tab) },
             pairAgain: { [weak self] in self?.lostPairing() }
         )
     }
 
-    /// The same for the session an alert opened: a refusal about it goes back
-    /// to the list with the Mac's own sentence for a session it no longer has.
+    /// The list's own: a refused list is a phone the door no longer knows, so
+    /// it only ever goes to Pairing (DoorWords, `ReadKind.list`).
+    private var listRouting: ReadRouting {
+        ReadRouting(backToList: {}, pairAgain: { [weak self] in self?.lostPairing() })
+    }
+
+    /// The same for the session an alert opened, which is pushed on the Needs
+    /// input tab: a refusal about it goes back to that list with the Mac's own
+    /// sentence for a session it no longer has.
     var alertedRouting: ReadRouting {
         ReadRouting(
             backToList: { [weak self] in self?.backToList(saying: Copy.noSuchSession) },
@@ -153,10 +204,10 @@ final class AppModel {
 
     func paired(_ reader: any DoorReading, first: PocketBlockedAnswer) {
         self.reader = reader
-        let list = ListModel(door: reader, routing: routing)
+        let list = ListModel(door: reader, routing: listRouting)
         list.adopt(first)
         self.list = list
-        path = []
+        startOver()
         root = .reading
         // The launch's check, at once (the 316.5 fix round): an Allow pressed
         // on the Mac while iOS was still asking pairs with no address, and
@@ -169,17 +220,32 @@ final class AppModel {
     /// 404 is every refusal the door makes, including one while the Mac is
     /// quitting, and a pairing that still works comes back on the next code.
     func lostPairing() {
-        path = []
+        startOver()
         list = nil
         reader = nil
         pairing.pairAgain()
         root = .pairing
     }
 
-    /// The door refused a read about one session. The list reads again on
-    /// appear, and it is the truth about what is still there.
-    func backToList() {
-        path = []
+    /// Nothing pushed on either tab, Needs input on screen, and nothing said
+    /// about a pairing that is not this one.
+    private func startOver() {
+        waitingPath = []
+        sessionsPath = []
+        tab = .needsInput
+        alertPermission = nil
+        settingsLine = nil
+    }
+
+    /// The door refused a read about one session on `tab`. That tab's list
+    /// reads again on appear, and it is the truth about what is still there;
+    /// the other tab keeps its place.
+    private func backToList(in tab: AppTab) {
+        switch tab {
+        case .needsInput: waitingPath = []
+        case .sessions: sessionsPath = []
+        case .settings: break
+        }
     }
 
     /// The door refused a read about the session an alert opened. The list
@@ -190,7 +256,7 @@ final class AppModel {
     /// A list the door refuses too is a phone it no longer knows, which goes
     /// to Pairing, so the sentence is never said over an unpaired phone.
     func backToList(saying sentence: String) {
-        path = []
+        waitingPath = []
         guard let list else { return }
         list.sayAfterRead(sentence)
         noticeRead = Task { await list.load() }
@@ -206,9 +272,13 @@ final class AppModel {
         list?.clearNotice()
     }
 
+    /// He came back: the screen on top of the tab on screen reads again, a
+    /// pairing the door had refused is tried again, and what iOS allows for
+    /// alerts is read again, since he may have changed it in iOS Settings.
     func cameToForeground() {
         foregroundTick += 1
         readKeptPairing()
+        permissionRead = Task { [weak self] in await self?.readAlertPermission() }
     }
 
     /// A pairing the door had refused (a quit, a Remove then a new Allow) is
@@ -216,27 +286,30 @@ final class AppModel {
     private func readKeptPairing() {
         guard root == .pairing, let reader = door.pairedReader() else { return }
         self.reader = reader
-        list = ListModel(door: reader, routing: routing)
+        list = ListModel(door: reader, routing: listRouting)
         root = .reading
     }
 
-    func open(_ row: RowDrawing) {
+    /// A row tapped on `tab`'s list opens that session on that tab.
+    func open(_ row: RowDrawing, in tab: AppTab) {
         list?.clearNotice()
-        path.append(.session(id: row.id, name: row.name))
+        push(.session(id: row.id, name: row.name), on: tab)
     }
 
     /// A tap on an alert. With no pairing kept, Pairing stays; with one, the
-    /// app reads, and the tap replaces whatever was pushed: the list, or the
-    /// one session the alert named.
+    /// app reads, Needs input comes on screen, and the tap replaces whatever
+    /// was pushed there: its list, or the one session the alert named. The
+    /// Sessions tab keeps its place.
     func openFromAlert(_ tap: AlertTap) {
         readKeptPairing()
         guard root == .reading, let list else { return }
         list.clearNotice()
+        tab = .needsInput
         switch tap {
         case .list:
-            path = []
+            waitingPath = []
         case .session(let id):
-            path = [.alerted(id: id)]
+            waitingPath = [.alerted(id: id)]
         }
     }
 
@@ -259,12 +332,76 @@ final class AppModel {
         list.alertsLine = shows ? Copy.pairAgainForAlerts : nil
     }
 
-    func openConversation(_ sessionId: String, honestLine: String?) {
-        path.append(.conversation(id: sessionId, honestLine: honestLine))
+    /// What iOS allows for alerts, for Settings: asked only for a pairing
+    /// whose Mac said it could send (research 136 section 9), so a phone
+    /// paired with any other Mac asks iOS nothing. On Settings' appear and on
+    /// every return to the foreground. Asking is not registering: nothing
+    /// here speaks to Apple.
+    func readAlertPermission() async {
+        guard root == .reading, let reader, reader.alerts.macSends else {
+            alertPermission = nil
+            return
+        }
+        alertPermission = await alerts.authorization()
     }
 
-    func isTop(_ route: Route?) -> Bool {
-        path.last == route
+    /// Unpair this iPhone, after he confirmed it (build/p3166/SPEC.md section
+    /// 5.4). The record goes first; if it stays, nothing else was touched and
+    /// Settings says so. If it went, Apple is told to stop taking alerts for
+    /// this install (Release only), and the app goes back to Pairing with its
+    /// not-paired line. The Mac lists this iPhone until he presses Remove.
+    func unpair() {
+        guard root == .reading else { return }
+        switch door.unpair() {
+        case .kept:
+            settingsLine = Copy.unpairFailed
+        case .forgotten:
+            settingsLine = nil
+            forgetting = Task { await alerts.forgetAddress() }
+            lostPairing()
+        }
+    }
+
+    /// The conversation, opened from a session on `tab`.
+    func openConversation(_ sessionId: String, honestLine: String?, in tab: AppTab) {
+        push(.conversation(id: sessionId, honestLine: honestLine), on: tab)
+    }
+
+    /// Whether `route` is the screen a person is looking at: `tab` is on
+    /// screen and `route` is on top of it (nil for its list).
+    func isTop(_ route: Route?, in tab: AppTab) -> Bool {
+        self.tab == tab && path(tab).last == route
+    }
+
+    /// Whether `tab`'s list is the screen a person is looking at.
+    func listIsTop(_ tab: AppTab) -> Bool {
+        self.tab == tab && path(tab).isEmpty
+    }
+
+    /// The number on the Needs input tab: the count of the rows the door's
+    /// last loaded answer called waiting, the same array that tab draws, so
+    /// the badge and the list never disagree. Zero, which draws no badge,
+    /// while nothing is loaded or the read failed. A count, never arithmetic
+    /// on a status.
+    var waitingBadge: Int {
+        guard case .loaded(let drawing)? = list?.state else { return 0 }
+        return drawing.waiting.count
+    }
+
+    private func path(_ tab: AppTab) -> [Route] {
+        switch tab {
+        case .needsInput: waitingPath
+        case .sessions: sessionsPath
+        case .settings: []
+        }
+    }
+
+    private func push(_ route: Route, on tab: AppTab) {
+        switch tab {
+        case .needsInput: waitingPath.append(route)
+        case .sessions: sessionsPath.append(route)
+        case .settings: break
+        }
     }
 }
 
@@ -294,17 +431,7 @@ struct RootView: View {
                     }
             case .reading:
                 if let list = app.list, let reader = app.reader {
-                    NavigationStack(path: $app.path) {
-                        ListScreen(
-                            model: list,
-                            isTop: app.path.isEmpty,
-                            foregroundTick: app.foregroundTick,
-                            open: { app.open($0) }
-                        )
-                        .navigationDestination(for: Route.self) { route in
-                            destination(route, reader: reader)
-                        }
-                    }
+                    tabs(list: list, reader: reader)
                 }
             }
         }
@@ -330,27 +457,70 @@ struct RootView: View {
         }
     }
 
+    /// The three tabs, each its own stack (build/p3166/SPEC.md section
+    /// 5.1.1). Nothing hides the bar: it stays under a pushed session, so a
+    /// session is one tap from Needs input. `.badge(0)` draws no badge.
+    private func tabs(list: ListModel, reader: any DoorReading) -> some View {
+        TabView(selection: $app.tab) {
+            Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) {
+                NavigationStack(path: $app.waitingPath) {
+                    listScreen(list, kind: .needsInput, tab: .needsInput)
+                        .navigationDestination(for: Route.self) { route in
+                            destination(route, reader: reader, tab: .needsInput)
+                        }
+                }
+            }
+            .badge(app.waitingBadge)
+            Tab(Copy.sessions, systemImage: "list.bullet", value: AppTab.sessions) {
+                NavigationStack(path: $app.sessionsPath) {
+                    listScreen(list, kind: .sessions, tab: .sessions)
+                        .navigationDestination(for: Route.self) { route in
+                            destination(route, reader: reader, tab: .sessions)
+                        }
+                }
+            }
+            Tab(Copy.settings, systemImage: "gearshape", value: AppTab.settings) {
+                NavigationStack {
+                    SettingsScreen(app: app)
+                }
+            }
+        }
+        // The one way out of the app for an address an answer names
+        // (Markdown/Links.swift), applied once, to the reading root.
+        .linkGate()
+    }
+
+    private func listScreen(_ list: ListModel, kind: ListKind, tab: AppTab) -> some View {
+        ListScreen(
+            model: list,
+            kind: kind,
+            isTop: app.listIsTop(tab),
+            foregroundTick: app.foregroundTick,
+            open: { app.open($0, in: tab) }
+        )
+    }
+
     @ViewBuilder
-    private func destination(_ route: Route, reader: any DoorReading) -> some View {
+    private func destination(_ route: Route, reader: any DoorReading, tab: AppTab) -> some View {
         switch route {
         case .session(let id, let name):
             SessionRoute(
-                id: id, name: name, reader: reader, routing: app.routing,
-                isTop: app.isTop(route), foregroundTick: app.foregroundTick
+                id: id, name: name, reader: reader, routing: app.routing(tab),
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
             ) { honestLine in
-                app.openConversation(id, honestLine: honestLine)
+                app.openConversation(id, honestLine: honestLine, in: tab)
             }
         case .conversation(let id, let honestLine):
             ConversationRoute(
-                id: id, honestLine: honestLine, reader: reader, routing: app.routing,
-                isTop: app.isTop(route), foregroundTick: app.foregroundTick
+                id: id, honestLine: honestLine, reader: reader, routing: app.routing(tab),
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
             )
         case .alerted(let id):
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
-                isTop: app.isTop(route), foregroundTick: app.foregroundTick
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
             ) { honestLine in
-                app.openConversation(id, honestLine: honestLine)
+                app.openConversation(id, honestLine: honestLine, in: tab)
             }
         }
     }
@@ -416,6 +586,11 @@ struct PairedReader: DoorReading {
         door.alerts
     }
 
+    /// Settings' facts, from the pairing in memory: no Keychain read.
+    var facts: PairedFacts {
+        PairedFacts(door)
+    }
+
     func blocked() async throws -> PocketBlockedAnswer {
         try await client.blocked(door)
     }
@@ -469,7 +644,21 @@ struct LiveDoor: PhoneDoor {
         }
     }
 
+    /// The DEBUG forget seam's. Unchanged, and NOT Unpair's: it swallows a
+    /// failure, which Unpair must not.
     func forget() {
         try? store.forget()
+    }
+
+    /// Unpair this iPhone: the store forgets the record first, then every
+    /// client key. A record whose removal throws, or that still reads back
+    /// (or cannot be read), is `.kept`, and the screen says nothing changed.
+    func unpair() -> UnpairOutcome {
+        do {
+            try store.forget()
+        } catch {
+            return .kept
+        }
+        return store.holdsRecord ? .kept : .forgotten
     }
 }

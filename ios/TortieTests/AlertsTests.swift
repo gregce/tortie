@@ -500,17 +500,26 @@ final class AlertsTests: XCTestCase {
 
     // MARK: Where a tap takes the app
 
-    /// Clause: a tap on a single alert opens that session, replacing whatever
-    /// was pushed; a tap on anything else opens the list.
+    /// Clause: a tap on a single alert selects Needs input and opens that
+    /// session there, replacing whatever was pushed on that tab; a tap on
+    /// anything else opens its list (Phase 316.6: the Sessions tab keeps its
+    /// place).
     @MainActor
     func testATapOpensWhatItNames() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.path = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        app.waitingPath = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        app.sessionsPath = [.session(id: "k", name: "k")]
+        app.tab = .settings
         app.openFromAlert(.session("s"))
-        XCTAssertEqual(app.path, [.alerted(id: "s")])
-        XCTAssertTrue(app.isTop(.alerted(id: "s")))
+        XCTAssertEqual(app.tab, .needsInput)
+        XCTAssertEqual(app.waitingPath, [.alerted(id: "s")])
+        XCTAssertTrue(app.isTop(.alerted(id: "s"), in: .needsInput))
+        XCTAssertEqual(app.sessionsPath, [.session(id: "k", name: "k")], "the tap moved the Sessions tab")
+        app.tab = .sessions
         app.openFromAlert(.list)
-        XCTAssertEqual(app.path, [])
+        XCTAssertEqual(app.tab, .needsInput)
+        XCTAssertEqual(app.waitingPath, [])
+        XCTAssertEqual(app.sessionsPath, [.session(id: "k", name: "k")])
         XCTAssertEqual(app.root, .reading)
     }
 
@@ -522,12 +531,12 @@ final class AlertsTests: XCTestCase {
         let app = AppModel(door: phone, label: "iPhone", alerts: StandInAlerts())
         app.openFromAlert(.session("s"))
         XCTAssertEqual(app.root, .pairing)
-        XCTAssertEqual(app.path, [])
+        XCTAssertEqual(app.waitingPath, [])
         XCTAssertNil(app.list)
         phone.keep(ScriptedReader())
         app.openFromAlert(.session("s"))
         XCTAssertEqual(app.root, .reading)
-        XCTAssertEqual(app.path, [.alerted(id: "s")])
+        XCTAssertEqual(app.waitingPath, [.alerted(id: "s")])
     }
 
     /// Clause (SPEC section 5.6.4): the session an alert named is refused (a
@@ -542,7 +551,7 @@ final class AlertsTests: XCTestCase {
         app.openFromAlert(.session("gone"))
         let session = SessionModel(sessionId: "gone", door: reader, routing: app.alertedRouting)
         await session.load()
-        XCTAssertEqual(app.path, [])
+        XCTAssertEqual(app.waitingPath, [])
         let list = try XCTUnwrap(app.list)
         XCTAssertNil(list.notice, "the sentence was said before the list's read answered")
         let read = try XCTUnwrap(app.noticeRead, "the refusal asked the list for no read of its own")
@@ -551,7 +560,7 @@ final class AlertsTests: XCTestCase {
         let blockedReads = await reader.blockedCalls
         XCTAssertEqual(blockedReads, 1)
         guard case .loaded(let drawing) = list.state else { return XCTFail("\(list.state)") }
-        app.open(try XCTUnwrap(drawing.others.first))
+        app.open(try XCTUnwrap(drawing.others.first), in: .sessions)
         XCTAssertNil(list.notice, "opening a row keeps the sentence")
     }
 
@@ -576,11 +585,12 @@ final class AlertsTests: XCTestCase {
     func testARefusalFromTheListSaysNothing() async throws {
         let reader = ScriptedReader(blocked: [.success(Answers.blocked(others: [Answers.row("o")]))], session: [.failure(.refused)])
         let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
-        app.path = [.session(id: "o", name: "o")]
-        await SessionModel(sessionId: "o", door: reader, routing: app.routing).load()
+        app.tab = .sessions
+        app.sessionsPath = [.session(id: "o", name: "o")]
+        await SessionModel(sessionId: "o", door: reader, routing: app.routing(.sessions)).load()
         let list = try XCTUnwrap(app.list)
         await list.load()
-        XCTAssertEqual(app.path, [])
+        XCTAssertEqual(app.sessionsPath, [])
         XCTAssertNil(list.notice)
     }
 
@@ -617,11 +627,11 @@ final class AlertsTests: XCTestCase {
                 session: [.failure(.refused)]
             )
             let app = AppModel(door: StandInPhone(kept: reader), label: "iPhone", alerts: StandInAlerts())
-            if from == "session" { app.path = [.session(id: "o", name: "o")] }
+            if from == "session" { app.waitingPath = [.session(id: "o", name: "o")] }
             // He left the app, and the alert's tap brings it back.
             app.wentAway()
             app.openFromAlert(.session("gone"))
-            XCTAssertEqual(app.path, [.alerted(id: "gone")], why)
+            XCTAssertEqual(app.waitingPath, [.alerted(id: "gone")], why)
             await SessionModel(sessionId: "gone", door: reader, routing: app.alertedRouting).load()
             let list = try XCTUnwrap(app.list)
             if readFirst {
@@ -633,7 +643,7 @@ final class AlertsTests: XCTestCase {
                 app.cameToForeground()
                 await app.noticeRead?.value
             }
-            XCTAssertEqual(app.path, [], why)
+            XCTAssertEqual(app.waitingPath, [], why)
             XCTAssertEqual(list.notice, Copy.noSuchSession, why)
         }
     }

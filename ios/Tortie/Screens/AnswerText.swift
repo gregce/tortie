@@ -1,4 +1,5 @@
-// The agent's answer, drawn as inline markdown (Phase 316.2).
+// The agent's answer, drawn as inline markdown, as written (Phase 316.2; the
+// blocks Phase 316.6 built are switched off, his ruling of 2026-10-02).
 //
 // HIS RULING, and the desktop's since Phase 137.1: the ANSWER renders as
 // markdown, because agents answer in markdown, and the ASK stays plain text,
@@ -6,64 +7,43 @@
 // never passed here: it is `Text(verbatim:)` in ConversationScreen.swift, and
 // `conformance:ios` rule (h) holds that it reaches nothing else.
 //
-// WHAT "INLINE MARKDOWN ONLY" MEANS HERE (build/p316/SPEC.md S2, the
-// conversation screen):
+// WHAT IS DRAWN. MARKDOWN IS OFF (his ruling of 2026-10-02, "Ship tabs +
+// Settings, markdown off"; build/p3166/SPEC.md "As built, markdown off"):
+// every answer is drawn exactly as 316.2 drew it, `RenderedAnswer.written`
+// drawn by `WrittenView`, which the reverify measured equal to 28d89295's
+// rendering attribute for attribute:
 //
-//   - `AttributedString(markdown:)` with `.inlineOnlyPreservingWhitespace`:
+//   - Foundation's inline markdown with `.inlineOnlyPreservingWhitespace`:
 //     bold, italic, code and strikethrough, and every space and line break the
-//     agent wrote kept where it wrote it. No block parsing, so a list or a
-//     fence is drawn as the characters that make it, exactly where they are.
-//   - NO HTML PATH. Foundation's markdown parser builds no HTML and loads
-//     nothing; an HTML tag in an answer is text.
-//   - A LINK IS DRAWN AS ITS WORDS AND NEVER OPENED. An answer is somebody
-//     else's bytes read over a network, and a tap on a read-only screen must
-//     not hand the phone a URL an agent wrote. Every `link` and `imageURL`
-//     attribute is removed; the words stay.
+//     agent wrote kept where it wrote it. A heading, a list or a table is
+//     drawn as the characters that make it, and a fence's backticks make a
+//     code span, as they did in 316.2.
+//   - NO HTML PATH. Nothing builds or interprets HTML and nothing is
+//     fetched; an HTML tag in an answer is its characters.
+//   - A LINK IS DRAWN AS ITS WORDS AND NEVER OPENED, as 316.2 said: every
+//     link and image address is removed (`Inline.asWritten`), so nothing in an
+//     answer can be pressed or fetched.
 //   - A text the parser refuses is drawn verbatim, never dropped.
 //
-// Nothing here clips: main already clipped the answer to 4,000 characters, and
-// a second cap would be a second place the truth about what he sees lives.
+// The block parser, the drawing of blocks and the one way out
+// (Markdown/Links.swift) stay in the tree, unused for drawing, for the later
+// phase that draws the conversation lazily and switches markdown back on
+// (Markdown/Caps.swift, `MarkdownCaps.pieces`).
+//
+// The parse happened once, before anything is drawn (`RenderedAnswer`, made
+// by `SessionDrawing` and `ConversationModel`). Main already clipped the
+// answer to 4,000 characters; `MarkdownCaps` is the second line, against a
+// door that sends something else.
 
 import SwiftUI
 
-enum AnswerMarkdown {
-    static var options: AttributedString.MarkdownParsingOptions {
-        AttributedString.MarkdownParsingOptions(
-            allowsExtendedAttributes: false,
-            interpretedSyntax: .inlineOnlyPreservingWhitespace,
-            failurePolicy: .returnPartiallyParsedIfPossible
-        )
-    }
-
-    /// The answer as the screen draws it.
-    static func render(_ answer: String) -> AttributedString {
-        guard var drawn = try? AttributedString(markdown: answer, options: options) else {
-            return AttributedString(answer)
-        }
-        typealias Link = AttributeScopes.FoundationAttributes.LinkAttribute
-        typealias Image = AttributeScopes.FoundationAttributes.ImageURLAttribute
-        let opened = drawn.runs.compactMap { run in
-            run[Link.self] == nil && run[Image.self] == nil ? nil : run.range
-        }
-        for range in opened {
-            drawn[range][Link.self] = nil
-            drawn[range][Image.self] = nil
-        }
-        return drawn
-    }
-}
-
-/// The agent's words, drawn as inline markdown in the body face.
+/// The agent's words, drawn as written (markdown off): one element,
+/// `md-<scope>-0` (Screens/Identifiers.swift).
 struct AnswerText: View {
-    let answer: String
-    var color: Color = Tokens.textPrimary
+    let answer: RenderedAnswer
+    let scope: String
 
     var body: some View {
-        Text(AnswerMarkdown.render(answer))
-            .font(Face.body.font)
-            .foregroundStyle(color)
-            .lineSpacing(Face.body.spacing)
-            .fixedSize(horizontal: false, vertical: true)
-            .frame(maxWidth: .infinity, alignment: .leading)
+        MarkdownView(answer: answer, scope: scope)
     }
 }

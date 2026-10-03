@@ -112,6 +112,17 @@ enum Answers {
         )
     }
 
+    /// Settings' facts about a paired Mac, as a pairing in memory gives them.
+    static func facts(
+        name: String = "studio",
+        address: String = "studio.tail0000.ts.net:8443",
+        fingerprint: String = "7k4d 2a9e 0f13 b6c2 91de 4a07",
+        pairedAt: Double = 1_759_190_400_000,
+        macSends: Bool = false
+    ) -> PairedFacts {
+        PairedFacts(name: name, address: address, fingerprint: fingerprint, pairedAt: pairedAt, macSends: macSends)
+    }
+
     static func page(
         _ indexes: [Int],
         more: Bool,
@@ -132,6 +143,9 @@ enum Answers {
 actor ScriptedReader: DoorReading {
     /// What this pairing agreed about alerts.
     nonisolated let alerts: AlertsKept
+    /// What Settings says about the paired Mac. Its `macSends` follows
+    /// `alerts` unless a test hands in facts of its own.
+    nonisolated let facts: PairedFacts
     private var blockedAnswers: [Result<PocketBlockedAnswer, DoorFailure>]
     private var sessionAnswers: [Result<PocketSessionAnswer, DoorFailure>]
     private var turnAnswers: [Result<PocketTurnsAnswer, DoorFailure>]
@@ -144,9 +158,11 @@ actor ScriptedReader: DoorReading {
         blocked: [Result<PocketBlockedAnswer, DoorFailure>] = [],
         session: [Result<PocketSessionAnswer, DoorFailure>] = [],
         turns: [Result<PocketTurnsAnswer, DoorFailure>] = [],
-        alerts: AlertsKept = .nothing
+        alerts: AlertsKept = .nothing,
+        facts: PairedFacts? = nil
     ) {
         self.alerts = alerts
+        self.facts = facts ?? Answers.facts(macSends: alerts.macSends)
         blockedAnswers = blocked
         sessionAnswers = session
         turnAnswers = turns
@@ -180,6 +196,10 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
     private(set) var begun: [String] = []
     private(set) var pairs = 0
     private(set) var forgets = 0
+    /// How many times Unpair asked, and what it answers: `.forgotten` also
+    /// drops the kept pairing, as the Keychain's would be gone.
+    private(set) var unpairs = 0
+    var unpairOutcome: UnpairOutcome = .forgotten
     /// Whether the Mac a pairing presents to says it can send an alert, in
     /// which case the pairing asks for the phone's address, once.
     var macSends = false
@@ -253,6 +273,14 @@ final class StandInPhone: PhoneDoor, @unchecked Sendable {
             kept = nil
         }
     }
+
+    func unpair() -> UnpairOutcome {
+        lock.withLock {
+            unpairs += 1
+            if unpairOutcome == .forgotten { kept = nil }
+            return unpairOutcome
+        }
+    }
 }
 
 /// What the app asks iOS about alerts, scripted, and when it asked.
@@ -264,6 +292,8 @@ final class StandInAlerts: PushAddressing, @unchecked Sendable {
     private(set) var pairingAsks = 0
     private(set) var currentAsks = 0
     private(set) var authorizationAsks = 0
+    /// How many times Unpair told it to forget this install's address.
+    private(set) var addressForgets = 0
     /// Where the order of a pairing's steps is written, when a test reads it.
     var events: Events?
     /// Run while the question is being asked, before it answers.
@@ -296,6 +326,10 @@ final class StandInAlerts: PushAddressing, @unchecked Sendable {
             currentAsks += 1
             return now
         }
+    }
+
+    func forgetAddress() async {
+        lock.withLock { addressForgets += 1 }
     }
 }
 

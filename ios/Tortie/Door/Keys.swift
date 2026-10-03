@@ -109,9 +109,10 @@ protocol ClientKeyStore: Sendable {
     func adopt(_ certificate: Data, for key: ClientKey) throws -> ClientIdentity
     /// The identity kept under `tag` for this certificate, or nil.
     func identity(tag: String, certificate: Data) -> ClientIdentity?
-    /// Delete the key and the certificate under `tag`.
+    /// Delete the certificate and then the key under `tag`.
     func delete(tag: String)
-    /// Every client key's tag this app holds.
+    /// Every client key's tag this app holds, and the tag of every client
+    /// certificate whose key is already gone.
     func tags() -> [String]
 }
 
@@ -254,25 +255,47 @@ struct KeychainClientKeys: ClientKeyStore {
         return nil
     }
 
+    /// THE CERTIFICATE GOES FIRST (the fix round of Phase 316.6): a key is
+    /// what `tags()` finds, so a process ended between the two deletes leaves
+    /// a key the next forget finds and deletes. The other order left a
+    /// certificate nothing listed, which no later Unpair reached (measured on
+    /// the iOS 18.3 Simulator's keychain by the verifier).
     func delete(tag: String) {
         guard ClientKeys.isTag(tag) else { return }
-        let key: [String: Any] = [
-            kSecClass as String: kSecClassKey,
-            kSecAttrApplicationTag as String: Data(tag.utf8),
-            kSecUseDataProtectionKeychain as String: true
-        ]
         let certificate: [String: Any] = [
             kSecClass as String: kSecClassCertificate,
             kSecAttrLabel as String: tag,
             kSecUseDataProtectionKeychain as String: true
         ]
-        SecItemDelete(key as CFDictionary)
+        let key: [String: Any] = [
+            kSecClass as String: kSecClassKey,
+            kSecAttrApplicationTag as String: Data(tag.utf8),
+            kSecUseDataProtectionKeychain as String: true
+        ]
         SecItemDelete(certificate as CFDictionary)
+        SecItemDelete(key as CFDictionary)
     }
 
+    /// The tags of every client key, and of every client certificate, so a
+    /// certificate whose key went first (a build before the order above, or
+    /// a delete the Keychain refused) is still found and forgotten.
     func tags() -> [String] {
+        let keys = attributes(of: kSecClassKey).compactMap { item -> String? in
+            guard let data = item[kSecAttrApplicationTag as String] as? Data else { return nil }
+            return String(decoding: data, as: UTF8.self)
+        }
+        let certificates = attributes(of: kSecClassCertificate).compactMap { item in
+            item[kSecAttrLabel as String] as? String
+        }
+        var seen = Set<String>()
+        return [keys, certificates].joined().filter { ClientKeys.isTag($0) && seen.insert($0).inserted }
+    }
+
+    /// The attributes of every item of one class in the app's data protection
+    /// keychain, or none.
+    private func attributes(of itemClass: CFString) -> [[String: Any]] {
         let query: [String: Any] = [
-            kSecClass as String: kSecClassKey,
+            kSecClass as String: itemClass,
             kSecMatchLimit as String: kSecMatchLimitAll,
             kSecReturnAttributes as String: true,
             kSecUseDataProtectionKeychain as String: true
@@ -280,11 +303,7 @@ struct KeychainClientKeys: ClientKeyStore {
         var found: CFTypeRef?
         guard SecItemCopyMatching(query as CFDictionary, &found) == errSecSuccess,
               let items = found as? [[String: Any]] else { return [] }
-        return items.compactMap { item in
-            guard let data = item[kSecAttrApplicationTag as String] as? Data else { return nil }
-            let tag = String(decoding: data, as: UTF8.self)
-            return ClientKeys.isTag(tag) ? tag : nil
-        }
+        return items
     }
 }
 #endif
@@ -487,11 +506,32 @@ final class PairingStore: Sendable {
 
     /// Forget the pairing and every client key the app holds. The Mac keeps
     /// its record until he presses Remove.
+    ///
+    /// THE ORDER IS THE PROMISE (Phase 316.6's Unpair, build/p3166/SPEC.md
+    /// section 5.4). The record goes FIRST, with `try`: it holds both private
+    /// halves and the client key's tag and certificate, so once it is gone
+    /// nothing on the phone can sign a read or present the identity, and a
+    /// client key that outlives it is useless. If its removal throws, nothing
+    /// else has been touched, so Unpair's "Nothing was changed." is true.
+    /// Deleting the keys first would leave, on a failed record delete, a
+    /// record whose identity is gone: half unpaired, and the sentence false.
     func forget() throws {
         try secrets.remove(Self.account)
         try? secrets.remove(Self.formerAccount)
         for tag in clientKeys.tags() {
             clientKeys.delete(tag: tag)
+        }
+    }
+
+    /// Whether the pairing record is still kept: true when it reads back, OR
+    /// when the read throws, because a record that cannot be read cannot be
+    /// proved gone. Unpair asks this after `forget`, and says the iPhone
+    /// forgot its Mac only when it answers false.
+    var holdsRecord: Bool {
+        do {
+            return try secrets.read(Self.account) != nil
+        } catch {
+            return true
         }
     }
 
