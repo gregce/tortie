@@ -39538,7 +39538,7 @@ Either way `build/battery.sh`-style landing runs and `build/electron-run.mjs` ch
 - **No new agent rule**, no change to `HIDDEN_AGENT_IDS`.
 - **No release.**
 
-## Phase 320.2 — "I want it behavior EXACTLY like a local session... like i don't want this in the app anymore" — the Read Last Lines window goes, everywhere (his ruling of 2026-09-30, "Remove it everywhere")
+## Phase 320.2 — "I want it behavior EXACTLY like a local session... like i don't want this in the app anymore" — the Read Last Lines window goes, everywhere (his ruling of 2026-09-30, "Remove it everywhere") ✅ LANDED `18e7e6b6`, 2026-10-04
 
 **Subject.** `feat(machines): remove the Read Last Lines window, because a session on another machine now scrolls back`
 
@@ -40704,3 +40704,5 @@ cycle rather than only the evening it was written.
 - 2026-10-04, **PHASE 320.2 QUEUED IN FULL — the Read Last Lines window removed everywhere**, its section written above this log from the tree at `225f9312` so it cites 320.1 as built; Tier 2 with the parent measured and the window's every door attacked. 316.7's fix round and 318's two verify lenses restarted the same day after the account's spend limit stopped them on 2026-10-03.
 
 - 2026-10-04, **HE RULED ON 316.7's DEFAULT: "running sessions first, old tucked away".** The Sessions tab opens on Active grouped by project, and under All a project with nothing running starts closed (D8 as built). Today's one flat list stays reachable as All plus Menu › Group by › None, remembered after once. The fix round corrects SPEC §9.8 row 1 and the checklist to say exactly that; no behaviour changes.
+
+- 2026-10-04, **PHASE 320.2 LANDED, `18e7e6b6`, unreleased — the Read Last Lines window removed everywhere.** A session on another machine's right-click menu loses its one Read Last Lines row; the window, its store state, the `machines:readSessionLines` channel and `probe:p100` are gone, and `conformance:machines` condition 54 now asserts their absence with fifteen put-back arms. Approved first time at Tier 2 (the parent driven beside HEAD on tmux 3.6a and 3.7b; a hostile call to the old channel finds no handler). Stated: condition 54's needles let a doubled or no-break space through. Owed at release: tortie.sh's docs table still lists the row. Next: 316.7 and 318, then the TestFlight build.
