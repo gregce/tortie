@@ -39636,6 +39636,67 @@ the ground that window stood on is gone.
 - **No menu row added** anywhere, and the application menus do not move.
 - **No release.**
 
+## Phase 336 — "behave similar to local..." — saving on another machine works in the projects you opened there, with no separate switch (operator asked 2026-10-04)
+
+**Subject.** `feat(machines): save in a project on another machine the way you save on your Mac`
+
+**First body line.** `Phase 336: remote saving bound to the projects you opened`
+
+**Semver.** Minor, unreleased: a person who opens a project on another machine can save, rename, make folders, stage
+and commit in it without first visiting Settings › Machines.
+
+**Tier 3.** It writes a person's files on another computer over ssh, and it replaces a confirmed, hashed field
+(refusal 8's ground) with a different human act. Two independent methods, one an attack: a hostile manifest and
+hostile paths against the shipping containment, and the parent measured on the loopback machine and on his Mac Pro.
+
+**Charter.** His words on 2026-10-04, after being told that sessions on another machine now behave like local ones
+(320.1, 320.2) but saving there still needs Settings › Machines › "Let Tortie save files here…" (`BTN_ALLOW_WRITES`,
+`src/renderer/settings/machines-copy.ts:298`): "behave similar to local...". On his Mac, Tortie saves inside any
+folder he opened as a project, and nothing else is asked. On another machine today, every Tortie write — a save
+(`src/main/machines/remote-file.ts`, Phase 101), a new folder or rename (`remote-entry.ts`, Phase 102), staging
+(`remote-stage.ts`, Phase 103) and a commit (`remote-commit.ts`, Phase 104) — answers `writesOff` unless the machine row
+carries `writeRoot`, the sixth execution-bearing field of the confirm hash (`src/main/machines/confirm.ts:36-60,
+200-263, 384-471`), set by typing one folder and confirming a sheet (`machines:allowWrites`, `src/main/machines/
+ipc.ts:824`). Phases 242, 242.1 and 242.2 rehearsed that path on his Mac Pro (research 102 to 105). Research 85 is the
+remote gap this closes.
+
+### The question research must answer before anything is built
+
+The write root exists because the machine row lives in a file an agent on his Mac can write, so a folder in it is a
+confirmed fact only through the hash. A project opened on another machine lives in the manifest, which an agent can
+also write. Locally that costs nothing, because a local agent can already write those files itself; remotely, Tortie's
+ssh write is a privilege the agent may not have. So the research lane (investigate, attack, judge, ONE document)
+answers:
+
+1. **What human act stands in for the typed folder and the sheet?** Candidates: (a) a project opened through Tortie's
+   own UI on a confirmed machine grants saving under that project's folder, with the grant recorded where a manifest
+   edit alone cannot mint it (bound to the machine's confirm agreement, or to a per-project agreement the open itself
+   makes); (b) the confirm sheet for a machine offers saving under the folder of the project being opened, pre-filled,
+   one press; (c) keep the field and offer it inside the open-a-project flow. Each is attacked as research 31's four
+   architectures were.
+2. **What bounds a write once the typed root is gone?** Containment under the opened project's folder on that machine,
+   resolved there (symlinks, `..`, a case-folding volume, a project folder that is itself a link), with Phase 242.1's
+   cwd-through-a-link and 242.2's planted-name findings re-run against the new bound.
+3. **What happens to machines that already carry a `writeRoot`**: kept as an additional allowed folder, or folded
+   away, without moving the hash of any row that has none (`APPENDED_KEYS`, condition 42).
+4. **Whether the four write verbs and the image drop (`remote-image.ts`) share one answer.**
+
+### The proof, run rather than read
+
+- The research document, attacked before it is written.
+- Then the build lane at Tier 3: `conformance:machines` with the new bound's conditions and ablations; a hostile
+  manifest (a project row an agent planted, a folder that is a link to `~/.ssh`, a project on an unconfirmed machine)
+  refused on its reason; a save, rename, stage and commit in an opened remote project on the loopback machine and on
+  his Mac Pro at the parent (refused, writes off) and at HEAD (done, contents compared before replacing, as today).
+
+### What is NOT in this phase
+
+- **No change to how a session on another machine runs or scrolls**, and no change to confirming a machine.
+- **No write outside an opened project's folder** unless the research rules an existing `writeRoot` stays as one.
+- **No remote conversation reading, needs-input detection or phone reply for remote sessions**: those differences are
+  their own entry if he asks.
+- **No release**, and nothing starts before this release's TestFlight build unless he says so.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40706,3 +40767,5 @@ cycle rather than only the evening it was written.
 - 2026-10-04, **HE RULED ON 316.7's DEFAULT: "running sessions first, old tucked away".** The Sessions tab opens on Active grouped by project, and under All a project with nothing running starts closed (D8 as built). Today's one flat list stays reachable as All plus Menu › Group by › None, remembered after once. The fix round corrects SPEC §9.8 row 1 and the checklist to say exactly that; no behaviour changes.
 
 - 2026-10-04, **PHASE 320.2 LANDED, `18e7e6b6`, unreleased — the Read Last Lines window removed everywhere.** A session on another machine's right-click menu loses its one Read Last Lines row; the window, its store state, the `machines:readSessionLines` channel and `probe:p100` are gone, and `conformance:machines` condition 54 now asserts their absence with fifteen put-back arms. Approved first time at Tier 2 (the parent driven beside HEAD on tmux 3.6a and 3.7b; a hostile call to the old channel finds no handler). Stated: condition 54's needles let a doubled or no-break space through. Owed at release: tortie.sh's docs table still lists the row. Next: 316.7 and 318, then the TestFlight build.
+
+- 2026-10-04, **PHASE 336 QUEUED IN FULL — saving on another machine works in the projects you opened there, with no separate switch.** His words: "behave similar to local...", on hearing that remote saving still needs Settings › Machines › Let Tortie save files here…. Research first, because the typed write root is a confirmed field of the machine hash and its replacement must be a human act a manifest edit cannot mint. After this release's TestFlight build, per his stop of 2026-10-01, unless he starts it sooner.
