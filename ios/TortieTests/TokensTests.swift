@@ -22,12 +22,16 @@ final class TokensTests: XCTestCase {
     }
 
     /// Clause: "the 15 colours" (Phase 316.6; 14 before it). The screens the
-    /// phone draws are the nine mocks below, and the set of hexes their CSS
+    /// phone draws are the ten mocks below, and the set of hexes their CSS
     /// spells is exactly the set this file holds: a colour dropped from
-    /// Tokens.swift, or one the mocks do not use, fails here.
+    /// Tokens.swift, or one the mocks do not use, fails here. Phase 318 took
+    /// the message strip off the two screens that need input (Session, Choice),
+    /// where it had been drawn at rest in --text-disabled, so its fix round
+    /// added Idle, the session idle at its own prompt with the strip at rest,
+    /// which is where the app draws that colour now (MessageStrip.swift).
     func testTheMocksSpellExactlyTheseColours() throws {
         var spelled = Set<UInt32>()
-        let mocks = ["Main", "NeedsInput", "Session", "Choice", "Pairing", "Settings", "Unpair", "Conversation", "Link"]
+        let mocks = ["Main", "NeedsInput", "Session", "Idle", "Choice", "Pairing", "Settings", "Unpair", "Conversation", "Link"]
         for mock in mocks {
             spelled.formUnion(StyleSource.hexesSpelled(try StyleSource.text("docs/design/phone/\(mock).html")))
         }

@@ -474,9 +474,10 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale'
     );
     expect(lines[2]).toBe('Answers only after you turn it on');
-    expect(lines[3]).toBe('Answers these and nothing else: blocked, end, pair, session, turns');
-    // PHASE 317: what the write lets a phone do, in words, straight after.
-    expect(lines[4]).toBe('Lets an allowed phone end a session');
+    expect(lines[3]).toBe('Answers these and nothing else: blocked, choose, end, pair, say, session, turns');
+    // PHASE 317: what the writes let a phone do, in words, straight after;
+    // PHASE 318 joins its two as a list (build/p318/SPEC.md §5.1.7, D28).
+    expect(lines[4]).toBe('Lets an allowed phone end a session, answer a numbered question and send a session one message');
     expect(lines[5]).toBe('Tells your phone nothing through Apple');
     expect(lines[6]).toBe('Allows no phone yet');
     expect(describePocketDoor({ ...BASE, bindAtLaunch: true }).lines[2]).toBe(
@@ -492,6 +493,14 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     expect(line(['pair', 'blocked', 'session', 'turns'])).toEqual([]);
     expect(line(['pair', 'blocked', 'end'])).toEqual(['Lets an allowed phone end a session']);
     expect(line(['end', 'pair'])).toEqual(['Lets an allowed phone end a session']);
+    // PHASE 318: two clauses joined by ` and `, three as a list, always in the
+    // closed list's order (end, choose, say) whatever order the field holds.
+    expect(line(['say', 'end'])).toEqual(['Lets an allowed phone end a session and send a session one message']);
+    expect(line(['choose'])).toEqual(['Lets an allowed phone answer a numbered question']);
+    expect(line(['say', 'choose', 'pair'])).toEqual(['Lets an allowed phone answer a numbered question and send a session one message']);
+    expect(line(['say', 'choose', 'end'])).toEqual([
+      'Lets an allowed phone end a session, answer a numbered question and send a session one message'
+    ]);
     expect(describePocketDoor({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] }).lines[4]).toBe(
       'Tells your phone nothing through Apple'
     );
@@ -503,7 +512,21 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
     const before = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] });
     expect(pocketExecutionHash(BASE)).not.toBe(before);
-    expect([...BASE.routes].sort()).toEqual(['blocked', 'end', 'pair', 'session', 'turns']);
+    expect([...BASE.routes].sort()).toEqual(['blocked', 'choose', 'end', 'pair', 'say', 'session', 'turns']);
+  });
+
+  // PHASE 318 (D28, refusal 8): Phase 317's door (five routes) and this one
+  // (seven) hash differently, so a Mac updated from 317 asks Allow once more;
+  // nothing else about the fields moves the hash.
+  it('moves the hash from Phase 317’s five routes to the seven, and only by the two the reply adds', () => {
+    const p317 = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end'] });
+    expect(pocketExecutionHash(BASE)).not.toBe(p317);
+    expect(pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say'] })).toBe(
+      pocketExecutionHash(BASE)
+    );
+    expect(pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose'] })).not.toBe(
+      pocketExecutionHash(BASE)
+    );
   });
 
   it('carries the warning beside them and never inside them', () => {

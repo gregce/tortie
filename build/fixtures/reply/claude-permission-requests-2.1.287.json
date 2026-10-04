@@ -1,0 +1,120 @@
+{
+ "source": "P318 REAL capture, 2026-10-02: the PermissionRequest bodies Claude Code 2.1.287 posted, under a scratch HOME with a loopback API stand-in and 0 model turns, to an http hook in Tortie's own shape (src/main/activity/hooks.ts), for the commands of claude-bash-*.txt in order (one, multiline, long, blank-line). Paths are the scratch run's.",
+ "bodies": [
+  {
+   "session_id": "982eea49-caf7-4c18-abde-dcb16ed24571",
+   "transcript_path": "/private/tmp/p318cap-claude-71621/home/.claude/projects/-private-tmp-p318cap-claude-71621-proj-claude/982eea49-caf7-4c18-abde-dcb16ed24571.jsonl",
+   "cwd": "/private/tmp/p318cap-claude-71621/proj-claude",
+   "prompt_id": "fe0b2ee7-bb95-4414-855f-05a51ec84354",
+   "permission_mode": "default",
+   "effort": {
+    "level": "medium"
+   },
+   "hook_event_name": "PermissionRequest",
+   "tool_name": "Bash",
+   "tool_input": {
+    "command": "touch p318-one.txt",
+    "description": "Run the command the stand-in names"
+   },
+   "permission_suggestions": [
+    {
+     "type": "addDirectories",
+     "directories": [
+      "/private/tmp/p318cap-claude-71621/proj-claude"
+     ],
+     "destination": "session"
+    },
+    {
+     "type": "setMode",
+     "mode": "acceptEdits",
+     "destination": "session"
+    }
+   ]
+  },
+  {
+   "session_id": "982eea49-caf7-4c18-abde-dcb16ed24571",
+   "transcript_path": "/private/tmp/p318cap-claude-71621/home/.claude/projects/-private-tmp-p318cap-claude-71621-proj-claude/982eea49-caf7-4c18-abde-dcb16ed24571.jsonl",
+   "cwd": "/private/tmp/p318cap-claude-71621/proj-claude",
+   "prompt_id": "b38c0545-cd1d-49f8-a057-a5edc0e8422a",
+   "permission_mode": "default",
+   "effort": {
+    "level": "medium"
+   },
+   "hook_event_name": "PermissionRequest",
+   "tool_name": "Bash",
+   "tool_input": {
+    "command": "echo ok\ntouch p318-two.txt",
+    "description": "Run the command the stand-in names"
+   },
+   "permission_suggestions": [
+    {
+     "type": "addDirectories",
+     "directories": [
+      "/private/tmp/p318cap-claude-71621/proj-claude"
+     ],
+     "destination": "session"
+    },
+    {
+     "type": "setMode",
+     "mode": "acceptEdits",
+     "destination": "session"
+    }
+   ]
+  },
+  {
+   "session_id": "982eea49-caf7-4c18-abde-dcb16ed24571",
+   "transcript_path": "/private/tmp/p318cap-claude-71621/home/.claude/projects/-private-tmp-p318cap-claude-71621-proj-claude/982eea49-caf7-4c18-abde-dcb16ed24571.jsonl",
+   "cwd": "/private/tmp/p318cap-claude-71621/proj-claude",
+   "prompt_id": "0c985a48-0f90-440e-ad57-fe72e68ca8d2",
+   "permission_mode": "default",
+   "effort": {
+    "level": "medium"
+   },
+   "hook_event_name": "PermissionRequest",
+   "tool_name": "Bash",
+   "tool_input": {
+    "command": "printf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04 p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09 p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 > p318-long.txt",
+    "description": "Run the command the stand-in names"
+   },
+   "permission_suggestions": [
+    {
+     "type": "addDirectories",
+     "directories": [
+      "/private/tmp/p318cap-claude-71621/proj-claude"
+     ],
+     "destination": "session"
+    }
+   ]
+  },
+  {
+   "session_id": "3be10471-0efb-43c0-bc82-63322f29d9f8",
+   "transcript_path": "/private/tmp/p318cap-claude-39290/home/.claude/projects/-private-tmp-p318cap-claude-39290-proj-claude/3be10471-0efb-43c0-bc82-63322f29d9f8.jsonl",
+   "cwd": "/private/tmp/p318cap-claude-39290/proj-claude",
+   "prompt_id": "c240fb8c-7fdf-4ff4-b7f8-d3e746b604f3",
+   "permission_mode": "default",
+   "effort": {
+    "level": "medium"
+   },
+   "hook_event_name": "PermissionRequest",
+   "tool_name": "Bash",
+   "tool_input": {
+    "command": "echo ok\n\ntouch p318-gap.txt",
+    "description": "Run the command the stand-in names"
+   },
+   "permission_suggestions": [
+    {
+     "type": "addDirectories",
+     "directories": [
+      "/private/tmp/p318cap-claude-39290/proj-claude"
+     ],
+     "destination": "session"
+    },
+    {
+     "type": "setMode",
+     "mode": "acceptEdits",
+     "destination": "session"
+    }
+   ]
+  }
+ ]
+}

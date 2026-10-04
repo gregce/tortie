@@ -1,5 +1,7 @@
 /**
- * THE PHONE'S END, implemented once (Phase 317, build/p317/SPEC.md §5.4).
+ * THE PHONE'S END, implemented once (Phase 317, build/p317/SPEC.md §5.4), and
+ * the one place the phone's other two writes are composed (Phase 318,
+ * build/p318/SPEC.md §5.1.5).
  *
  * The phone's door declares what it may ask for (`PocketWrites` in
  * `../pocket/routes.ts`) and cannot name the verb that does it
@@ -14,6 +16,12 @@
  *  - THE SHARED GATE, `sessionActionGates(…).canEnd` (src/shared/session-gates.ts),
  *    over the listed row. It refuses `exited`, `restorable` and, above all,
  *    `unknown`: a session Tortie cannot see is never ended from a pocket.
+ *
+ * PHASE 318: `choose` and `say` are DELEGATED, byte for byte, to the reply
+ * verbs `../capabilities.ts` hands in (`createReplyVerbs` in
+ * `src/main/reply/writer.ts`), so `PocketWrites` stays implemented in exactly
+ * one place and this module names nothing that types. `end` and `endOffer`
+ * are Phase 317's, unchanged.
  *
  * Neither alone is enough (D7), and `conformance:manager` G2 holds the place
  * where they disagree. The batch adds the Mac batch's ONE narrowing (D14,
@@ -46,7 +54,7 @@ import type { Session } from '@shared/types';
 import { isGmuxError } from '../errors';
 import { machineRow } from '../machines/store';
 import type { ManifestSessionRecord } from '../manifest';
-import type { PocketEndOutcome, PocketWrites } from '../pocket/routes';
+import type { PocketEndOutcome, PocketReplyOutcome, PocketWrites } from '../pocket/routes';
 import { endRefusal } from './lifecycle-gate';
 
 /** Why the phone's End was refused, as the door's answer words it. */
@@ -157,6 +165,12 @@ export function createPocketWrites(deps: {
   core: () => PocketWritesCore | null;
   /** Production: `(id) => machineRow(id) !== null`, from ../machines/store.ts. Tests inject. */
   machineKnown?: (machineId: string) => boolean;
+  /**
+   * The press and the message (Phase 318): the reply verbs, `createReplyVerbs`'s
+   * `choose` and `say`, handed in by `../capabilities.ts`. Each answers an
+   * outcome and never throws; this module only passes the call through.
+   */
+  reply: Pick<PocketWrites, 'choose' | 'say'>;
 }): PocketWrites & { endOffer(session: Session): PocketEndOffer } {
   const machineKnown = deps.machineKnown ?? machineKnownNow;
 
@@ -190,6 +204,10 @@ export function createPocketWrites(deps: {
       } catch (err) {
         return thrownOutcome(err, core, sessionId);
       }
-    }
+    },
+
+    // PHASE 318. Passed through to the reply verbs, and nothing else.
+    choose: (input, still): Promise<PocketReplyOutcome> => deps.reply.choose(input, still),
+    say: (input, still): Promise<PocketReplyOutcome> => deps.reply.say(input, still)
   };
 }

@@ -61,7 +61,7 @@ final class EndTests: XCTestCase {
         XCTAssertFalse(decodes(#"{"verb":"end","write":"\#(id)","outcome":"done","reason":null,"sentence":"s."}"#), "a sentence with done")
         XCTAssertFalse(decodes(#"{"verb":"end","write":"\#(id)","outcome":"failed","reason":null,"sentence":null}"#), "failed with no sentence")
         XCTAssertFalse(decodes(#"{"verb":"end","write":"\#(id)","outcome":"failed","reason":null,"sentence":""}"#), "an empty sentence")
-        XCTAssertFalse(decodes(#"{"verb":"say","write":"\#(id)","outcome":"done","reason":null,"sentence":null}"#), "a verb this build does not make")
+        XCTAssertFalse(decodes(#"{"verb":"interrupt","write":"\#(id)","outcome":"done","reason":null,"sentence":null}"#), "a verb this build does not make")
         XCTAssertFalse(decodes(#"{"verb":"end","write":"\#(id)","outcome":"refused","reason":"tired","sentence":"s."}"#), "a reason outside the set")
         XCTAssertFalse(decodes(#"{"verb":"end","write":"\#(id)","outcome":"done","sentence":null}"#), "a field left out")
     }

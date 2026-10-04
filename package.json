@@ -104,6 +104,8 @@
     "probe:p320": "node build/harness-socket.mjs --fresh gmux-p320 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; if [ \"${P320_FAR:-loopback}\" = real ]; then node build/p320/probe-p320.mjs; else node build/with-scratch-machine.mjs -- node build/p320/probe-p320.mjs; fi'",
     "probe:p320:rig": "node build/p3201/rig.mjs",
     "probe:p320:skew": "node build/harness-socket.mjs --fresh gmux-p320-skew 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; if [ \"${P3201_SKEW_FAR:-loopback}\" = real ]; then node build/p3201/skew.mjs; else node build/with-scratch-machine.mjs -- node build/p3201/skew.mjs; fi'",
+    "probe:p318": "node build/harness-socket.mjs --fresh gmux-p318 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; node build/with-scratch-machine.mjs -- node build/p318/probe-p318.mjs'",
+    "measure:p318": "node build/p318/measure-writer.mjs",
     "probe:p321": "node build/p321/probe-p321.mjs",
     "probe:p324": "node build/p324/probe-p324.mjs",
     "probe:p331": "node build/p331/probe-p331.mjs",

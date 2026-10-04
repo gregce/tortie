@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p -e at 120x40; the prompt at rest after three declined approvals, earlier prompts and a warning in the footer; build/fixtures/reply/real-captures.json has the rest; ESC and every other byte below 0x20 but LF, and each trailing space, written \xNN; a backslash written \\
+
+
+\x1b[38;5;1m✗ \x1b[39mYou \x1b[1mcanceled\x1b[0m the request to run \x1b[2mecho ok ...\x1b[0m
+
+\x1b[1m\x1b[38;5;1m•\x1b[0m \x1b[1mRan\x1b[0m \x1b[38;2;137;180;250mecho\x1b[38;2;205;214;244m ok\x1b[39m
+\x1b[2m  │ \x1b[0m\x1b[38;2;137;180;250mtouch\x1b[38;2;205;214;244m p318-two.txt\x1b[39m
+\x1b[2m  └ (no output)\x1b[0m
+
+■ Conversation interrupted - use /feedback if something went wrong
+
+
+\x1b[1;2m› \x1b[0mP318-LONG run the command the stand-in names
+
+
+\x1b[38;5;1m✗ \x1b[39mYou \x1b[1mcanceled\x1b[0m the request to run \x1b[2mprintf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-...\x1b[0m
+
+\x1b[1m\x1b[38;5;1m•\x1b[0m \x1b[1mRan\x1b[0m \x1b[38;2;137;180;250mprintf\x1b[38;2;205;214;244m \x1b[38;2;166;227;161m'%s\\n'\x1b[38;2;205;214;244m p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04\x1b[39m
+\x1b[2m  │ \x1b[0m\x1b[38;2;205;214;244mp318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09\x1b[39m
+\x1b[2m  │ \x1b[0m\x1b[38;2;205;214;244mp318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 \x1b[38;2;148;226;213m>\x1b[39m
+\x1b[2m  │ … +1 line\x1b[0m
+\x1b[2m  └ (no output)\x1b[0m
+
+■ Conversation interrupted - use /feedback if something went wrong
+
+
+\x1b[1m›\x1b[0m \x1b[2mAsk Codex to do anything\x1b[0m
+
+  \x1b[38;2;246;226;183mgpt-5.4 default\x1b[39m · \x1b[38;2;171;223;167m/private/tmp/p318cap-codex-78648/proj-codex\x1b[39m                                ⚠ \x1b[38;2;196;167;103m1 warning\x1b[39m · \x1b[1mf2\x1b[0m to view
+
+
+
+
+
+
+
+
+
+
+
+

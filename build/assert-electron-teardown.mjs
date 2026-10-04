@@ -387,6 +387,17 @@ const HELPER = 'electron-run.mjs';
  * behind its preflight and sampler and build/p332/dns-standin.mjs in the
  * probe's own process; the scratch machine's sshd pids it pauses for W6b are
  * resumed in its `finally` and on exit.
+ * PHASE 318 RAISED IT FROM 162 TO 163, for build/p318/probe-p318.mjs
+ * (`probe:p318`), a numbered choice answered and one message sent from the
+ * phone through the door's two new writes: ONE Electron at HEAD through the
+ * helper, and with P318_PARENT_CHECKOUT the parent's second, one after the
+ * other and never at once, on one scratch profile, a scratch HOME and the
+ * socket gmux-p318…, inside the loopback machine
+ * build/with-scratch-machine.mjs starts, with the stand-in Tailscale behind
+ * its preflight and sampler, build/p332/dns-standin.mjs in the probe's own
+ * process and build/p318/stand-in.mjs as every agent the run answers; every
+ * stand-in pid it saw is ended by pid in its `finally`. Phase 316.7 raises it
+ * by one too, so whichever of the two lands second sets 164.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where

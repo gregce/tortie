@@ -1,0 +1,39 @@
+# P318 RECONSTRUCTED, 2026-10-02, not a real capture: Claude Code's first-run "Security notes", two numbered notes and "Press Enter to continue", which the shipping detector reads as a choice with two options (research 135 §2.2: "1" changed nothing, Enter continued); no hook fires for it, so no press shape may read it
+
+ Security notes:
+
+ 1. Claude can make mistakes
+    You should always review Claude's responses, especially when
+    running code.
+
+ 2. Due to prompt injection risks, only use it with code you trust
+    For more details see:
+    https://docs.claude.com/s/claude-code-security
+
+ Press Enter to continue…
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

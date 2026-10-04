@@ -7,6 +7,9 @@
  * the defect it is testing for.
  */
 
+import { execFile } from 'node:child_process';
+import { existsSync, rmSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { GmuxError } from '../../errors';
 import {
@@ -482,5 +485,86 @@ describe('the remote execution ledger at the spawn seam', () => {
     expect(payload?.code).not.toBe('SHUTTING_DOWN');
     expect(liveRemoteExecutions()).toHaveLength(0);
     expect(settledRemoteExecutions()).toHaveLength(0);
+  });
+});
+
+/**
+ * PHASE 318 (build/p318/SPEC.md §5.6.3, D22). `ExecTmuxOptions.stdin` carries
+ * the phone's message to `load-buffer -` and nowhere else: refused for another
+ * machine before anything is composed, and written whole and closed for this
+ * Mac's tmux. The local arm runs the VENDORED tmux on a scratch socket of its
+ * own with an empty configuration (no session, so no shell is ever started),
+ * and ends that server and unlinks its socket in a `finally`. It never names
+ * the real socket.
+ */
+describe('standard input (Phase 318)', () => {
+  const WORDS = 'CANARY phone words; -R ls -la\nsecond line';
+
+  async function refusalOfStdin(work: () => Promise<unknown>): Promise<GmuxError | null> {
+    try {
+      await work();
+      return null;
+    } catch (err) {
+      return err instanceof GmuxError ? err : null;
+    }
+  }
+
+  it('is refused for a remote context before anything is composed or admitted', async () => {
+    setMachineRemotePath(CTX.machineId, '/usr/bin');
+    // A missing ssh, so that even a build without this refusal spawns nothing real.
+    const err = await refusalOfStdin(() =>
+      execOn({ ...CTX, sshBin: '/does/not/exist/ssh' }, ['display-message', '-p', '#{session_id}'], {
+        stdin: Buffer.from(WORDS, 'utf8')
+      })
+    );
+    expect(err?.payload.code).toBe('INVALID_INPUT');
+    expect(err?.payload.message).toBe('Tortie types only into sessions on this Mac.');
+    // Nothing was admitted to the ledger, so nothing was spawned.
+    expect(liveRemoteExecutions()).toHaveLength(0);
+    expect(settledRemoteExecutions()).toHaveLength(0);
+    expect(JSON.stringify(err?.payload)).not.toContain('CANARY');
+  });
+
+  it('the same remote read with no stdin is not refused for it', async () => {
+    setMachineRemotePath(CTX.machineId, '/usr/bin');
+    const err = await refusalOfStdin(() =>
+      execOn({ ...CTX, sshBin: '/does/not/exist/ssh' }, ['display-message', '-p', '#{session_id}'])
+    );
+    expect(err?.payload.message).not.toBe('Tortie types only into sessions on this Mac.');
+  });
+
+  const VENDORED = join(__dirname, '..', '..', '..', '..', 'build', 'vendor', 'tmux', 'bin', 'tmux');
+
+  it.skipIf(!existsSync(VENDORED))('is written whole and closed for this Mac, and never appears in an error', async () => {
+    const socket = `p318-v-${String(process.pid)}-exec`;
+    const local = {
+      kind: 'local',
+      machineId: 'local',
+      bin: VENDORED,
+      socket,
+      confPath: '/dev/null',
+      binSource: 'bundled',
+      packaged: false
+    } as unknown as Parameters<typeof execOn>[0];
+    const socketFile = join(process.env['TMUX_TMPDIR'] ?? '/tmp', `tmux-${String(process.getuid?.() ?? 0)}`, socket);
+    try {
+      const out = await execOn(
+        local,
+        ['start-server', ';', 'load-buffer', '-b', 'p318', '-', ';', 'show-buffer', '-b', 'p318'],
+        { stdin: Buffer.from(WORDS, 'utf8'), timeoutMs: 5_000 }
+      );
+      expect(out).toBe(WORDS);
+      // A failure's text carries its argv and never the words on stdin.
+      const failed = await refusalOfStdin(() =>
+        execOn(local, ['load-buffer', '-b', 'p318', '-t', 'no-such-target', '-'], { stdin: Buffer.from(WORDS, 'utf8'), timeoutMs: 5_000 })
+      );
+      expect(failed).not.toBeNull();
+      expect(JSON.stringify(failed?.payload)).not.toContain('CANARY');
+    } finally {
+      await new Promise<void>((resolve) => {
+        execFile(VENDORED, ['-L', socket, '-f', '/dev/null', 'kill-server'], () => resolve());
+      });
+      rmSync(socketFile, { force: true });
+    }
   });
 });

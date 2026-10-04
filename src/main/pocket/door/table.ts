@@ -3,8 +3,8 @@
  * (build/p330/SPEC.md §4.6) so the door process can refuse a path that is not
  * a route before main is told anything. `../routes.ts` re-exports all three
  * names, so no importer moved, and `conformance:pocket` R1 and R4 read the
- * table here. R4's membership sha256 did not move then, and Phase 317 moved it
- * on purpose by the write row below.
+ * table here. R4's membership sha256 did not move then; Phase 317 moved it on
+ * purpose by the `end` row below, and Phase 318 by its `choose` and `say` rows.
  *
  * ## Closed means closed
  *
@@ -30,10 +30,10 @@ export interface PocketRoute {
    * True when answering this route changes nothing on this Mac.
    *
    * A ROW WITH `reads: false` IS A WRITE, AND THE SET OF WRITES IS CLOSED
-   * (Phase 317, build/p317/SPEC.md §5.3.1): exactly `end`, a `POST` that is
-   * signed, alive outside any window, takes no query string and has its own
-   * body cap (`./limits.ts`). `build/conformance-pocket.mjs` R2 and
-   * X1 read it. The field is what makes adding a write a visible edit to this
+   * (Phase 317, build/p317/SPEC.md §5.3.1; Phase 318, build/p318/SPEC.md
+   * §5.1.1): exactly `end`, `choose` and `say`, each a `POST` that is signed,
+   * alive outside any window, takes no query string and has its own body cap
+   * (`./limits.ts`). `build/conformance-pocket.mjs` R2 and X1 read it. The field is what makes adding a write a visible edit to this
    * table rather than a quiet change inside a handler, and a write's body is
    * parsed in main by `../writes.ts` alone, never here.
    */
@@ -57,17 +57,25 @@ export interface PocketRoute {
  * from the one-shot secret in the QR, and it is dead outside the window — so
  * for almost all of the door's life it is not a route at all.
  *
- * `end` is the one write (Phase 317, build/p317/SPEC.md §5.3.1): a signed
+ * `end` is the first write (Phase 317, build/p317/SPEC.md §5.3.1): a signed
  * `POST` alive outside any window. The session id rides in the signed BODY,
  * never in the path or a query, so the table stays a set of exact strings and
  * the signature covers everything the write says.
+ *
+ * `choose` and `say` are the reply's two writes (Phase 318, build/p318/SPEC.md
+ * §5.1.1, D1), in the same shape and to the same one write path in main
+ * (`../writes.ts`) and its ledger: a press on a numbered question main
+ * offered, and one message. Their bodies, the question id and the words
+ * included, ride in the signed body too.
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
   { id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true },
   { id: 'session', method: 'GET', path: '/v1/session', reads: true, windowOnly: false, signed: true },
   { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },
-  { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true }
+  { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },
+  { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
+  { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true }
 ]);
 
 /**

@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Claude Code 2.1.287, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; Bash permission prompt, a 302-character command wrapped in the box (the hook question cuts it at 200); build/fixtures/reply/real-captures.json has the rest
+
+❯ P318-ONE run the command the stand-in names
+
+⏺ Bash(touch p318-one.txt)
+  ⎿  Interrupted · What should Claude do instead?
+
+✻ Churned for 0s · done 11:17 PM
+
+❯ P318-TWO run the command the stand-in names
+
+⏺ Bash(echo ok
+      touch p318-two.txt)
+  ⎿  Interrupted · What should Claude do instead?
+
+✻ Brewed for 0s · done 11:17 PM
+
+❯ P318-LONG run the command the stand-in names
+
+⏺ Bash(printf '%s\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04
+      p318-long-argument-05 p318-long-argument-06 p318-long-argu…)
+  ⎿  Waiting…
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+ Bash command
+ Tip: auto mode handles these prompts for you — choose "switch to auto mode" below
+ Run the command the stand-in names
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ │ printf '%s\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04
+ │ p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09
+ │ p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 >
+ │ p318-long.txt
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+ Do you want to proceed?
+ ❯ 1. Yes
+   2. Yes, and always allow access to /private/tmp/p318cap-claude-71621/proj-claude from this project
+   3. Yes, and switch to auto mode · auto mode handles these prompts for you
+   4. No
+
+ Esc to cancel · Tab to amend
+

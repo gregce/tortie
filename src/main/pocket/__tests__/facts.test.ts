@@ -574,3 +574,35 @@ describe('End on a row (Phase 317)', () => {
     expect([...answer.rows, ...answer.others].map((r) => r.end)).toEqual([{ state: 'none' }]);
   });
 });
+
+describe('the reply offer on one session (Phase 318, build/p318/SPEC.md §5.2)', () => {
+  it('hands the routes the injected replyOffer, untouched, so /v1/session reads the reply verbs through it', async () => {
+    const seen: { id: string; question: string | null; markers: string[] }[] = [];
+    const offer = { question: '0123456789abcdef-3', mark: 'a1b2c3d4e5f6', pressable: ['1'], command: null, canSay: false };
+    const replyOffer = async (s: Session, drawn: { question: string | null; choices: readonly { marker: string }[] }) => {
+      seen.push({ id: s.id, question: drawn.question, markers: drawn.choices.map((c) => c.marker) });
+      return offer;
+    };
+    const withReply = createPocketFacts({
+      core: () => core,
+      overview: { manifest: () => Promise.reject(new Error('unused')), store: () => store, now: () => NOW },
+      wakes: () => [],
+      replyOffer,
+      now: () => NOW
+    });
+    // A passthrough: the very function handed in, never a wrapper of its own.
+    expect(withReply.replyOffer).toBe(replyOffer);
+    const answer = await createPocketRoutes(withReply).session('S1');
+    expect(seen.map((s) => s.id)).toEqual(['S1']);
+    expect(seen[0]?.question).toBe(answer?.session.question ?? null);
+    expect(answer?.session.reply?.canSay).toBe(false);
+  });
+
+  it('carries no replyOffer when none was handed in, so every session reads the empty offer', async () => {
+    const plain = facts();
+    expect(plain.replyOffer).toBeUndefined();
+    expect('replyOffer' in plain).toBe(false);
+    const answer = await createPocketRoutes(plain).session('S1');
+    expect(answer?.session.reply).toEqual({ question: null, mark: null, pressable: [], command: null, canSay: false });
+  });
+});

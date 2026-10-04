@@ -541,8 +541,11 @@ export class PocketHost {
             // main's state and must not reach this composer at all.
             return null;
           case 'end':
-            // The one write (Phase 317) goes to the one write path in
-            // `./server.ts` and never reaches this composer of reads.
+          case 'choose':
+          case 'say':
+            // The writes (Phase 317's end, Phase 318's choose and say) go to
+            // the one write path in `./server.ts` and never reach this
+            // composer of reads.
             return null;
         }
       }

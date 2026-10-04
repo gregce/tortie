@@ -45,8 +45,10 @@
 //   values are percent-encoded here so the door's URL parser reads back the
 //   same bytes (see `queryValue`).
 //
-//   ONE WRITE SINCE PHASE 317, `POST /v1/end`, through ONE `signedPost`: a
-//   fresh 128-bit write id per call (`WriteId`),
+//   THREE WRITES SINCE PHASE 318, `POST /v1/end` (317), `/v1/choose` and
+//   `/v1/say` (318), through ONE `signedPost`: a fresh 128-bit write id per
+//   call (`WriteId`), or for a message whose answer did not come the id that
+//   message carried (build/p318/SPEC.md section 5.7.1, Revision R13),
 //   a JSON body with sorted keys, the signature over the method, the path and
 //   the body, and the phone's identity presented. A write is never retried:
 //   the Mac answers a repeated id with its first answer and never acts twice,
@@ -235,7 +237,30 @@ final class DoorClient: DoorExchanging {
     /// End gates over its own row and ends it with its own verb; `batch` asks
     /// for End these' one narrowing (build/p317/SPEC.md D14). Never retried.
     func end(_ sessionId: String, batch: Bool, door: PairedDoor) async -> WriteResult {
-        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)
+        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil).result
+    }
+
+    // MARK: The reply writes (Phase 318), signed, over the identity
+
+    /// `POST /v1/choose`: press ONE option of the question the phone was
+    /// shown. It echoes the question id and the mark that answer carried and
+    /// names one of its pressable markers; the Mac reads the screen again and
+    /// types the digit only when all three still hold (build/p318/SPEC.md
+    /// section 5.6.1). Never retried, and never a kept id: the question id
+    /// already refuses a second act.
+    func choose(_ sessionId: String, question: String, mark: String, marker: String, door: PairedDoor) async -> WriteResult {
+        let route = WriteRoute.choose(session: sessionId, question: question, mark: mark, marker: marker)
+        return await signedPost(route: route, door: door, limits: limits, write: nil).result
+    }
+
+    /// `POST /v1/say`: ONE message, exactly the words given. `write` is nil
+    /// for a new message, which `signedPost` gives a fresh id; it is the id a
+    /// message whose answer did not come carried, handed back by the reply
+    /// model, so the Mac answers what it recorded instead of typing the words
+    /// twice (Revision R13). A kept id that is not well formed is not used.
+    /// The result carries the id the write went with, for the model to keep.
+    func say(_ sessionId: String, text: String, write: String?, door: PairedDoor) async -> SentWrite {
+        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)
     }
 
     // MARK: Pairing
@@ -256,9 +281,11 @@ final class DoorClient: DoorExchanging {
 
     static let pairTarget = "/pair"
     static let blockedTarget = "/v1/blocked"
-    /// The write's target: a path and no query (the door refuses a query on
+    /// The writes' targets: a path and no query (the door refuses a query on
     /// a write).
     static let endTarget = "/v1/end"
+    static let chooseTarget = "/v1/choose"
+    static let sayTarget = "/v1/say"
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
@@ -314,13 +341,26 @@ final class DoorClient: DoorExchanging {
         return try Self.decode(type, from: reply)
     }
 
-    /// The one write path (build/p317/SPEC.md section 5.8.1): a fresh write id,
-    /// the body with sorted keys, the signature over `POST`, the path and the
-    /// body, and the phone's identity presented. Called by `end` alone, once
-    /// per press, and never in a loop: nothing retries a write.
-    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits) async -> WriteResult {
-        // Not one id per phone or per session: one per call, never kept.
-        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }
+    /// The one write path (build/p317/SPEC.md section 5.8.1, widened by
+    /// build/p318/SPEC.md section 5.7.1): a write id, the body with sorted
+    /// keys, the signature over `POST`, the path and the body, and the phone's
+    /// identity presented. Called by `end`, `choose` and `say` alone, once per
+    /// press, and never in a loop: nothing retries a write.
+    ///
+    /// THE ID. `end` and `choose` always pass nil, and so does a new message:
+    /// `WriteId.fresh()` makes one here. The one id that is ever handed in is
+    /// a message's whose answer did not come (Revision R13), used as it is
+    /// when it is well formed; anything else gets a fresh one.
+    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?) async -> SentWrite {
+        // Not one id per phone or per session: one per call, kept only by a
+        // say whose answer did not come.
+        let id: String
+        if let kept, WriteId.isWellFormed(kept) {
+            id = kept
+        } else {
+            guard let minted = WriteId.fresh() else { return SentWrite(result: .notSent(.notPaired), write: nil) }
+            id = minted
+        }
         let body: Data
         let headers: [(name: String, value: String)]
         do {
@@ -329,6 +369,10 @@ final class DoorClient: DoorExchanging {
             switch route {
             case .end(let session, let batch):
                 body = try encoder.encode(EndBody(batch: batch, session: session, write: id))
+            case .choose(let session, let question, let mark, let marker):
+                body = try encoder.encode(ChooseBody(mark: mark, marker: marker, question: question, session: session, write: id))
+            case .say(let session, let text):
+                body = try encoder.encode(SayBody(session: session, text: text, write: id))
             }
             headers = try door.signer.headers(
                 method: "POST",
@@ -338,7 +382,7 @@ final class DoorClient: DoorExchanging {
                 nonce: DoorSignature.freshNonce()
             )
         } catch {
-            return .notSent(.notPaired)
+            return SentWrite(result: .notSent(.notPaired), write: id)
         }
         // A write presents the phone's identity too (conformance:ios t).
         let ended: ExchangeEnd
@@ -349,9 +393,9 @@ final class DoorClient: DoorExchanging {
             )
         } catch {
             // Nothing was dialled, so nothing was handed.
-            return .notSent(error as? DoorFailure ?? .notPaired)
+            return SentWrite(result: .notSent(error as? DoorFailure ?? .notPaired), write: id)
         }
-        return WriteResult.of(ended, verb: route.verb, sent: id)
+        return SentWrite(result: WriteResult.of(ended, verb: route.verb, sent: id), write: id)
     }
 
     /// One request over one new connection, one answer under the caps, or a
@@ -482,15 +526,21 @@ final class DoorClient: DoorExchanging {
     }
 }
 
-// MARK: - The write (Phase 317)
+// MARK: - The writes (Phase 317, and Phase 318's two)
 
 /// Which write, and what it carries. A write's target is its path alone.
 enum WriteRoute: Equatable, Sendable {
     case end(session: String, batch: Bool)
+    /// Phase 318: one option of a question, by the id and mark it was shown.
+    case choose(session: String, question: String, mark: String, marker: String)
+    /// Phase 318: one message, exactly the words given.
+    case say(session: String, text: String)
 
     var target: String {
         switch self {
         case .end: DoorClient.endTarget
+        case .choose: DoorClient.chooseTarget
+        case .say: DoorClient.sayTarget
         }
     }
 
@@ -498,6 +548,8 @@ enum WriteRoute: Equatable, Sendable {
     var verb: PocketWriteAnswer.Verb {
         switch self {
         case .end: .end
+        case .choose: .choose
+        case .say: .say
         }
     }
 }
@@ -511,9 +563,35 @@ struct EndBody: Encodable, Sendable {
     let write: String
 }
 
+/// `POST /v1/choose`'s body (Phase 318): exactly these five keys, read
+/// strictly by the Mac (`mark,marker,question,session,write`). `question` is
+/// the id main minted and `mark` the reply's mark, both echoed as the session
+/// answer gave them; `marker` is the option's own number. Encoded with sorted
+/// keys.
+struct ChooseBody: Encodable, Sendable {
+    let mark: String
+    let marker: String
+    let question: String
+    let session: String
+    let write: String
+}
+
+/// `POST /v1/say`'s body (Phase 318): exactly these three keys
+/// (`session,text,write`). `text` is his words exactly as typed, never
+/// trimmed or rewritten; Swift's encoder writes `/` as `\/`, which the Mac's
+/// JSON parse reads back, and the door's 32,768-byte cap holds the worst it
+/// writes for a 4,096-byte message (build/p318/SPEC.md section 5.1.3).
+struct SayBody: Encodable, Sendable {
+    let session: String
+    let text: String
+    let write: String
+}
+
 /// A write's id: 128 bits from the system's random source, as 32 lowercase
-/// hex. One per call, never kept and never reused, so a press is a new id
-/// and the Mac's ledger answers a repeat of an id with its first answer.
+/// hex. One per call and never reused for another write, so a press is a new
+/// id and the Mac's ledger answers a repeat of an id with its first answer.
+/// The one id ever sent twice is a message's whose answer did not come, sent
+/// again with the same words (`SentWrite`, Screens/Reply.swift `KeptSay`).
 enum WriteId {
     static let byteCount = 16
     static let hexCount = 32
@@ -589,6 +667,16 @@ extension PocketWriteAnswer {
     var echoesNoId: Bool {
         write.isEmpty && outcome == .refused && reason == .malformed
     }
+}
+
+/// What one write came to, and the id it went with (Phase 318, Revision
+/// R13). `say` answers this rather than a bare `WriteResult`, because a
+/// message whose answer did not come is sent again under the SAME id, and
+/// `.noAnswer` carries none: the reply model keeps `write` beside his words.
+/// `write` is nil only when no id could be made, so nothing was sent.
+struct SentWrite: Equatable, Sendable {
+    let result: WriteResult
+    let write: String?
 }
 
 // MARK: - The pin
@@ -849,7 +937,7 @@ private final class DoorExchange: @unchecked Sendable {
     private let request: Data
     private let timeout: TimeInterval
     private let refused: PinRefusal
-    /// A write (`POST /v1/end`), whose cancellation
+    /// A write (`POST /v1/end`, `/v1/choose` or `/v1/say`), whose cancellation
     /// withholds rather than abandons.
     private let write: Bool
     private var reader: DoorResponseReader

@@ -1,24 +1,32 @@
 /**
- * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4): what main does
- * with a signed `POST /v1/end` once `./server.ts` has made refusals 1 and 6 (the quit, the door stopping, and the signature over
- * `POST`, the path and these exact body bytes).
+ * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4; widened by Phase
+ * 318, build/p318/SPEC.md §5.1.4): what main does with a signed `POST /v1/end`,
+ * `/v1/choose` or `/v1/say` once `./server.ts` has made refusals 1 and 6 (the
+ * quit, the door stopping, and the signature over `POST`, the path and these
+ * exact body bytes). Three verbs, ONE path, ONE ledger: there is no second
+ * gate.
  *
  * ## The order, held as code (research 135 §4.11, D3)
  *
  * Every step is named below by its number, in this order and no other:
  *
- *  1. **The strict parse.** The one place a write body is read. One
- *     `JSON.parse` inside a `try`; the keys compared exactly; the write id and
- *     the session id read one character at a time (`conformance:pocket` R1
- *     refuses a pattern in this domain). A body that does not parse is a 200
+ *  1. **The strict parse**, by the route's verb (`parseEndBody`,
+ *     `parseChooseBody`, `parseSayBody`). The one place a write body is read.
+ *     One `JSON.parse` inside a `try`; the keys compared exactly; the write id,
+ *     the session id, the question id, the mark and the marker read one
+ *     character at a time (`conformance:pocket` R1 refuses a pattern in this
+ *     domain). A message's text is any string here: its rules are the verb's,
+ *     each with its own sentence. A body that does not parse is a 200
  *     `refused` `malformed`, echoing its write id when it yields a well-formed
  *     one (§14 finding 14), and the ledger records nothing for it.
- *  2. **The ledger** (D5). A write id this phone already sent answers what it
- *     answered then, carrying its recorded `acted`, and acts on nothing; one
+ *  2. **The ledger** (D5), keyed on the phone, THE VERB (Phase 318, D4) and the
+ *     write id. A write id this phone already sent for this verb answers what
+ *     it answered then, carrying its recorded `acted`, and acts on nothing; one
  *     still in flight answers `busy` marked `acted`, because the write it
  *     duplicates may be acting now (§14 finding 9); a full ledger answers
  *     `busy`, unmarked, and never evicts a live entry.
- *  3. **One in flight**, per phone and per session. The claim and
+ *  3. **One in flight**, per phone and per session, ACROSS VERBS, so an End
+ *     and a message can never overlap on one session. The claim and
  *     the ledger's PENDING entry are made here, at the claim, not after the
  *     gates as research 135 §4.11 step 8 has it (§3 row 18, §14 finding 16):
  *     two requests carrying one write id can be in flight at once, a replay
@@ -28,36 +36,47 @@
  *     nothing behind.
  *  4. **The last check, then the act, with NOTHING between**: the quit, this
  *     door instance stopping, and the signing phone still paired. A 404 here
- *     is the door's refusal and nothing was done.
- *  5. **The act**, wrapped so it cannot throw past this point. From here every
- *     answer is a 200 marked `acted`, which `./bind.ts` never replaces.
+ *     is the door's refusal and nothing was done. For `choose` and `say`,
+ *     which READ the session before they type, the same three asks are handed
+ *     to the verb as `still` (Phase 318, D5), and the verb asks it AGAIN in its
+ *     own final synchronous check immediately before the one keystroke or
+ *     paste; a verb that finds it false answers `refused` `stopped`, 200, with
+ *     nothing typed.
+ *  5. **The act**, wrapped so it cannot throw past this point (`endSettled`,
+ *     `replySettled`). From here every answer is a 200 marked `acted`, which
+ *     `./bind.ts` never replaces.
  *  6. **The outcome**, recorded in the ledger and answered.
  *  7. **One log line**: the verb and the outcome word, and the session id.
- *     Never the body, the write id, a header or a sentence.
+ *     Never the body, the write id, a header, a sentence, the question id, the
+ *     mark, the marker or the text.
  *
  * ## What this module never does
  *
- * It names no verb (`conformance:pocket` R3): `end` reaches main's own End
- * through the {@link PocketWrites} it is handed. It sets no status, reads no
- * file and writes none: the ledger is memory, and a write is never queued for
- * later. (A second write, `unpair`, was removed by the fix round: the phone
- * waited on it before it could forget a Mac that did not answer, which made
- * Unpair slower than today. build/p317/SPEC.md "§Fix round".)
+ * It names no verb (`conformance:pocket` R3): `end`, `choose` and `say` reach
+ * main's own End and the reply's verbs through the {@link PocketWrites} it is
+ * handed. It sets no status, types nothing, reads no file and writes none: the
+ * ledger is memory, and a write is never queued for later. (A fourth write,
+ * `unpair`, was removed by Phase 317's fix round: the phone waited on it before
+ * it could forget a Mac that did not answer, which made Unpair slower than
+ * today. build/p317/SPEC.md "§Fix round".)
  */
 
 import {
+  POCKET_WRITE_ROUTE_IDS,
   POCKET_WRITE_SENTENCES,
+  type PocketRouteId,
   type PocketWriteAnswer,
   type PocketWriteOutcome,
   type PocketWriteReason,
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { END_FAILED } from '@shared/lifecycle-words';
+import { REPLY_FAILED } from '@shared/reply-copy';
 import { getLog } from '../log';
 import type { DoorAdmission, DoorAnswer } from './bind';
 import type { PocketRoute } from './door/table';
 import { POCKET_CLOCK_SKEW_MS } from './pairing';
-import type { PocketEndOutcome, PocketWrites } from './routes';
+import type { PocketEndOutcome, PocketReplyOutcome, PocketStillAllowed, PocketWrites } from './routes';
 
 const pocketLog = getLog('pocket');
 
@@ -80,6 +99,17 @@ const SESSION_ID_MAX = 128;
 
 /** The end body's keys, sorted and joined. Nothing more and nothing less. */
 const END_KEYS = 'batch,session,write';
+/** The choose body's keys, sorted and joined (Phase 318, §5.1.2). */
+const CHOOSE_KEYS = 'mark,marker,question,session,write';
+/** The say body's keys, sorted and joined (Phase 318, §5.1.2). */
+const SAY_KEYS = 'session,text,write';
+
+/** A question id's random prefix: 16 lowercase hex (`src/main/reply/question-id.ts`). */
+const QUESTION_PREFIX_CHARS = 16;
+/** A question id's count: 1 to 16 decimal digits, `Number.MAX_SAFE_INTEGER` being 16. */
+const QUESTION_COUNT_MAX_DIGITS = 16;
+/** A mark: `hashScreen`'s 12 lowercase hex. */
+const MARK_CHARS = 12;
 
 /** What the write path asks of everything around it. */
 export interface PocketWriteDeps {
@@ -100,20 +130,71 @@ export type PocketWriteHandler = (
   door: DoorAdmission
 ) => Promise<DoorAnswer>;
 
+/** What a malformed body still let the answer echo: its write id, or `""`. */
+export type PocketMalformedBody = { ok: false; write: string };
+
 /** A parsed end body, or what a malformed one still let the answer echo. */
 export type PocketEndBody =
   | { ok: true; verb: 'end'; write: string; session: string; batch: boolean }
-  | { ok: false; write: string };
+  | PocketMalformedBody;
 
-/** 32 lowercase hex, read one character at a time. */
-function isWriteId(value: unknown): value is string {
-  if (typeof value !== 'string' || value.length !== WRITE_ID_CHARS) return false;
+/** A parsed choose body (Phase 318), or what a malformed one still let the answer echo. */
+export type PocketChooseBody =
+  | { ok: true; verb: 'choose'; write: string; session: string; question: string; mark: string; marker: string }
+  | PocketMalformedBody;
+
+/** A parsed say body (Phase 318), or what a malformed one still let the answer echo. */
+export type PocketSayBody =
+  | { ok: true; verb: 'say'; write: string; session: string; text: string }
+  | PocketMalformedBody;
+
+/** Any parsed write body. */
+export type PocketWriteBody = PocketEndBody | PocketChooseBody | PocketSayBody;
+
+/** Exactly `chars` lowercase hex, read one character at a time. */
+function isLowerHex(value: string, chars: number): boolean {
+  if (value.length !== chars) return false;
   for (const ch of value) {
     const digit = ch >= '0' && ch <= '9';
     const lower = ch >= 'a' && ch <= 'f';
     if (!digit && !lower) return false;
   }
   return true;
+}
+
+/** 32 lowercase hex, read one character at a time. */
+function isWriteId(value: unknown): value is string {
+  return typeof value === 'string' && isLowerHex(value, WRITE_ID_CHARS);
+}
+
+/**
+ * A question id's shape (Phase 318, §5.1.2, §5.3): 16 lowercase hex, `-`, then
+ * 1 to 16 decimal digits with no leading zero but `0` itself. Read one
+ * character at a time. The shape only: whether it names the question a session
+ * holds now is the verb's to ask, by id.
+ */
+function isQuestionId(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  if (value.length < QUESTION_PREFIX_CHARS + 2 || value.length > QUESTION_PREFIX_CHARS + 1 + QUESTION_COUNT_MAX_DIGITS) {
+    return false;
+  }
+  if (!isLowerHex(value.substring(0, QUESTION_PREFIX_CHARS), QUESTION_PREFIX_CHARS)) return false;
+  if (value.charAt(QUESTION_PREFIX_CHARS) !== '-') return false;
+  const count = value.substring(QUESTION_PREFIX_CHARS + 1);
+  for (const ch of count) {
+    if (ch < '0' || ch > '9') return false;
+  }
+  return !(count.length > 1 && count.charAt(0) === '0');
+}
+
+/** A mark: exactly 12 lowercase hex, `hashScreen`'s shape. */
+function isMark(value: unknown): value is string {
+  return typeof value === 'string' && isLowerHex(value, MARK_CHARS);
+}
+
+/** A marker: exactly one character, `1` to `9`, the agent's own option number. */
+function isMarker(value: unknown): value is string {
+  return typeof value === 'string' && value.length === 1 && value >= '1' && value <= '9';
 }
 
 /** 1 to 128 of `[A-Za-z0-9._:-]`, read one character at a time. */
@@ -165,6 +246,42 @@ export function parseEndBody(body: Buffer): PocketEndBody {
   return { ok: true, verb: 'end', write, session, batch };
 }
 
+/** `{ mark, marker, question, session, write }` exactly, or malformed (Phase 318). */
+export function parseChooseBody(body: Buffer): PocketChooseBody {
+  const value = objectOf(body);
+  const write = echoOf(value);
+  if (value === null || Object.keys(value).sort().join(',') !== CHOOSE_KEYS) return { ok: false, write };
+  const session = value['session'];
+  const question = value['question'];
+  const mark = value['mark'];
+  const marker = value['marker'];
+  if (write === '' || !isSessionId(session) || !isQuestionId(question) || !isMark(mark) || !isMarker(marker)) {
+    return { ok: false, write };
+  }
+  return { ok: true, verb: 'choose', write, session, question, mark, marker };
+}
+
+/**
+ * `{ session, text, write }` exactly, or malformed (Phase 318). The text is any
+ * string, the empty one included: its rules (empty, too long, a character
+ * Tortie does not send) are the verb's, each with its own sentence, and
+ * nothing here strips, trims or normalizes it.
+ */
+export function parseSayBody(body: Buffer): PocketSayBody {
+  const value = objectOf(body);
+  const write = echoOf(value);
+  if (value === null || Object.keys(value).sort().join(',') !== SAY_KEYS) return { ok: false, write };
+  const session = value['session'];
+  const text = value['text'];
+  if (write === '' || !isSessionId(session) || typeof text !== 'string') return { ok: false, write };
+  return { ok: true, verb: 'say', write, session, text };
+}
+
+/** Whether a route id is one of the closed write list (Phase 318, §5.1.4 step 1). */
+function isWriteRoute(id: PocketRouteId): id is PocketWriteRouteId {
+  return (POCKET_WRITE_ROUTE_IDS as readonly PocketRouteId[]).includes(id);
+}
+
 /** The answer, composed field by field, so nothing else can ever leave. */
 function writeAnswer(
   verb: PocketWriteRouteId,
@@ -214,6 +331,29 @@ function endSettled(start: () => Promise<PocketEndOutcome>): Promise<ActOutcome>
   }
 }
 
+const REPLY_ACT_FAILED: ActOutcome = { outcome: 'failed', reason: null, sentence: REPLY_FAILED };
+
+/** A press's or a message's outcome as the answer says it. Only the three shapes; nothing else passes. */
+function replyActOf(result: PocketReplyOutcome): ActOutcome {
+  if (result.outcome === 'done') return { outcome: 'done', reason: null, sentence: null };
+  if (result.outcome === 'refused') return { outcome: 'refused', reason: result.reason, sentence: result.sentence };
+  if (result.outcome === 'failed') return { outcome: 'failed', reason: null, sentence: result.sentence };
+  return REPLY_ACT_FAILED;
+}
+
+/**
+ * Start `choose` or `say` NOW and never let it throw past here (Phase 318,
+ * §5.1.4 step 5): the same wrapper as {@link endSettled}, a rejection or a
+ * throw before the promise exists reading `failed` with `REPLY_FAILED`.
+ */
+function replySettled(start: () => Promise<PocketReplyOutcome>): Promise<ActOutcome> {
+  try {
+    return start().then(replyActOf, () => REPLY_ACT_FAILED);
+  } catch {
+    return Promise.resolve(REPLY_ACT_FAILED);
+  }
+}
+
 /** One write id the ledger holds. */
 interface LedgerEntry {
   readonly phone: string;
@@ -230,14 +370,16 @@ interface LedgerEntry {
 /** The write path. Holds the ledger and the claims, in memory, and nothing else. */
 export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHandler {
   const now = (): number => deps.now?.() ?? Date.now();
-  /** (phone, write id) → entry, keyed by a newline no id can hold. */
+  /** (phone, verb, write id) → entry, keyed by a newline no part can hold. */
   const ledger = new Map<string, LedgerEntry>();
   const perPhone = new Map<string, number>();
   /** The phones and the sessions with a write in flight. */
   const phonesInFlight = new Set<string>();
   const sessionsInFlight = new Set<string>();
 
-  const keyOf = (phone: string, write: string): string => `${phone}\n${write}`;
+  // PHASE 318 (D4, 317's fix-round nit): the verb is in the key, so the same
+  // write id under another verb is its own write and never another's answer.
+  const keyOf = (phone: string, verb: PocketWriteRouteId, write: string): string => `${phone}\n${verb}\n${write}`;
 
   const forget = (key: string, entry: LedgerEntry): void => {
     ledger.delete(key);
@@ -255,15 +397,18 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
 
   return async function write(route, body, verifiedPhone, door): Promise<DoorAnswer> {
     const writes = deps.writes;
-    // A host with no writes (the push seam, the tests) answers every write the
-    // way it answers a route it does not have, before anything is read.
-    if (writes === undefined || route.reads || route.id !== 'end') {
+    // A host with no writes (the push seam, the tests), a read, or an id not in
+    // the closed write list answers every write the way it answers a route it
+    // does not have, before anything is read.
+    if (writes === undefined || route.reads || !isWriteRoute(route.id)) {
       return { status: 404, body: null };
     }
     const verb: PocketWriteRouteId = route.id;
 
     // STEP 1. The strict parse.
-    const parsed = parseEndBody(body);
+    // By the verb (Phase 318): each verb's own key set, through the one JSON.parse.
+    const parsed: PocketWriteBody =
+      verb === 'end' ? parseEndBody(body) : verb === 'choose' ? parseChooseBody(body) : parseSayBody(body);
     if (!parsed.ok) {
       return {
         status: 200,
@@ -275,7 +420,7 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
     // STEP 2. The ledger.
     const at = now();
     prune(at);
-    const key = keyOf(verifiedPhone, parsed.write);
+    const key = keyOf(verifiedPhone, verb, parsed.write);
     const known = ledger.get(key);
     if (known !== undefined && known.state === 'recorded') {
       // Answered again, acting on nothing, and carrying what it recorded.
@@ -295,7 +440,8 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
       return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
     }
 
-    // STEP 3. One in flight, per phone and per session, and the pending entry.
+    // STEP 3. One in flight, per phone and per session, ACROSS verbs, and the
+    // pending entry.
     if (phonesInFlight.has(verifiedPhone) || sessionsInFlight.has(session)) {
       return { status: 200, body: writeAnswer(verb, parsed.write, 'busy', null, POCKET_WRITE_SENTENCES.busy) };
     }
@@ -304,11 +450,26 @@ export function createPocketWriteHandler(deps: PocketWriteDeps): PocketWriteHand
     const pending: LedgerEntry = { phone: verifiedPhone, state: 'pending', body: '', acted: false, at };
     ledger.set(key, pending);
     perPhone.set(verifiedPhone, (perPhone.get(verifiedPhone) ?? 0) + 1);
+    // PHASE 318 (D5): THE SAME THREE ASKS AS THE LAST CHECK BELOW, in its order,
+    // handed to a verb that reads the session before it types, which asks them
+    // AGAIN immediately before its one keystroke or paste. Building it asks
+    // nothing.
+    const still: PocketStillAllowed = (): boolean =>
+      !deps.shuttingDown() && !door.stopping() && deps.stillPaired(verifiedPhone);
     try {
       // STEP 4. The last check, and STEP 5, the act, started in the very next
       // statement: no await and no other statement sits between the two.
       if (deps.shuttingDown() || door.stopping() || !deps.stillPaired(verifiedPhone)) return { status: 404, body: null };
-      const acting = endSettled(() => writes.end({ sessionId: parsed.session, batch: parsed.batch }));
+      const acting = parsed.verb === 'end'
+        ? endSettled(() => writes.end({ sessionId: parsed.session, batch: parsed.batch }))
+        : parsed.verb === 'choose'
+          ? replySettled(() =>
+              writes.choose(
+                { sessionId: parsed.session, question: parsed.question, mark: parsed.mark, marker: parsed.marker },
+                still
+              )
+            )
+          : replySettled(() => writes.say({ sessionId: parsed.session, text: parsed.text }, still));
       // The act, awaited. It cannot throw past here, and from here every
       // answer is a 200 marked `acted`.
       const done = await acting;

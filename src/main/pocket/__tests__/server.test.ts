@@ -291,9 +291,35 @@ describe('refusal 7: the answer is admitted again before it leaves', () => {
 
 describe('the write goes to the one write path', () => {
   const BODY = Buffer.from('{"batch":false,"session":"s1","write":"' + '0'.repeat(32) + '"}');
-  function written(route: 'end' = 'end', channel = 'phone-a'): DoorRequest {
-    return { route, method: 'POST', target: `/v1/${route}`, headers: HEADERS, body: new Uint8Array(BODY), channel };
+  function written(route: 'end' | 'choose' | 'say' = 'end', channel = 'phone-a', body: Buffer = BODY): DoorRequest {
+    return { route, method: 'POST', target: `/v1/${route}`, headers: HEADERS, body: new Uint8Array(body), channel };
   }
+
+  // PHASE 318 (build/p318/SPEC.md §5.1.1, D1): the reply's two writes take the
+  // same branch to the same one write path, and never the composer of reads.
+  it('hands a press and a message to the same one write path, with their own row and their exact bytes', async () => {
+    const handed: unknown[] = [];
+    const handle = createPocketHandler(
+      deps({
+        verify: () => ({ ok: true, phoneId: 'phone-verified' }),
+        answer: async () => {
+          throw new Error('a write must never reach the composer of reads');
+        },
+        write: async (route, body, phone, door) => {
+          handed.push([route.id, route.method, route.path, route.reads, body.toString('utf8'), phone, door]);
+          return { status: 200, body: `"${route.id}"`, acted: true };
+        }
+      })
+    );
+    const choose = Buffer.from('{"mark":"a1b2c3d4e5f6","marker":"1","question":"0123456789abcdef-1","session":"s1","write":"' + '1'.repeat(32) + '"}');
+    const say = Buffer.from('{"session":"s1","text":"\\/exit \\"x\\" \\n \\ud83d\\udc4d","write":"' + '2'.repeat(32) + '"}');
+    expect(await handle(written('choose', 'phone-a', choose), open)).toEqual({ status: 200, body: '"choose"', acted: true });
+    expect(await handle(written('say', 'phone-a', say), open)).toEqual({ status: 200, body: '"say"', acted: true });
+    expect(handed).toEqual([
+      ['choose', 'POST', '/v1/choose', false, choose.toString('utf8'), 'phone-verified', open],
+      ['say', 'POST', '/v1/say', false, say.toString('utf8'), 'phone-verified', open]
+    ]);
+  });
 
   it('verifies the POST over its path and body bytes, then hands the write path the row, the bytes, the phone and the door', async () => {
     const verified: unknown[] = [];
@@ -555,21 +581,27 @@ describe('end to end on the shipping pairing and verifier', () => {
       }
     });
     const endBody = Buffer.from('{"batch":false,"session":"s1","write":"' + 'a'.repeat(32) + '"}');
-    const signedWrite = (method: string, body: Buffer, sent: Buffer = body): DoorRequest => {
+    const signedWrite = (
+      method: string,
+      body: Buffer,
+      sent: Buffer = body,
+      route: 'end' | 'choose' | 'say' = 'end',
+      signedFor: string = `/v1/${route}`
+    ): DoorRequest => {
       const timestamp = String(Date.now());
       const nonce = randomBytes(12).toString('hex');
       const signature = pairing.signAsPhone(good.sign, {
         method,
-        target: '/v1/end',
+        target: signedFor,
         bodySha256: createHash('sha256').update(body).digest('hex'),
         timestamp,
         nonce,
         binding: pairing.pairingBinding(identity, good.fields)
       });
       return {
-        route: 'end',
+        route,
         method: 'POST',
-        target: '/v1/end',
+        target: `/v1/${route}`,
         headers: {
           'x-tortie-phone': good.fields.id,
           'x-tortie-timestamp': timestamp,
@@ -589,5 +621,21 @@ describe('end to end on the shipping pairing and verifier', () => {
     expect(await writeHandle(signedWrite('POST', endBody, tampered), open)).toEqual({ status: 404, body: null });
     expect(writes).toHaveLength(1);
     expect(words()).toEqual(['warn refused a request at the door: signature']);
+
+    // PHASE 318. A signed message, its words in the signed bytes: honest, it
+    // reaches the write path; signed for another write's path, or with one byte
+    // of its words changed, it is refused `signature` and reaches nothing.
+    const sayBody = Buffer.from('{"session":"s1","text":"\\/exit and a line\\nbreak","write":"' + 'c'.repeat(32) + '"}');
+    expect(await writeHandle(signedWrite('POST', sayBody, sayBody, 'say'), open)).toEqual({ status: 200, body: '"acted"', acted: true });
+    expect(writes.at(-1)).toBe(`say ${good.fields.id} ${sayBody.toString('utf8')}`);
+    logged.length = 0;
+    expect(await writeHandle(signedWrite('POST', sayBody, sayBody, 'say', '/v1/choose'), open)).toEqual({ status: 404, body: null });
+    expect(await writeHandle(signedWrite('POST', sayBody, sayBody, 'choose', '/v1/say'), open)).toEqual({ status: 404, body: null });
+    const otherWords = Buffer.from(sayBody.toString('utf8').replace('exit', 'exiT'));
+    expect(await writeHandle(signedWrite('POST', sayBody, otherWords, 'say'), open)).toEqual({ status: 404, body: null });
+    expect(writes).toHaveLength(2);
+    // The handler logs each reason once (one line per reason), and `signature`
+    // was said above, so any line here can only be that word again.
+    for (const word of words()) expect(word).toBe('warn refused a request at the door: signature');
   });
 });

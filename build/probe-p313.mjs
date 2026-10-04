@@ -216,12 +216,16 @@ const ROUTE_ROWS = [...ROUTES_SRC.matchAll(/\{\s*id:\s*'(\w+)',\s*method:\s*'(\w
 const WRITE_ROWS = ROUTE_ROWS.filter((r) => !r.reads || (r.method !== 'GET' && r.path !== '/pair'));
 const WRITE_ROUTES = WRITE_ROWS.length;
 /**
- * PHASE 317 GAVE THE DOOR ONE WRITE, and its fix round took a second out: the
- * write rows are EXACTLY `end`, a signed POST to `/v1/end` alive outside any
- * window, as conformance:pocket R2 holds them. Until Phase 317 this arm read
- * "no write route", which that phase made false on purpose.
+ * PHASE 317 GAVE THE DOOR ONE WRITE, and its fix round took a second out; PHASE
+ * 318 ADDED TWO (build/p318/SPEC.md §5.1): the write rows are EXACTLY `end`,
+ * `choose` and `say`, in that order, each a signed POST to `/v1/<id>` alive
+ * outside any window, as conformance:pocket R2 holds them. Until Phase 317
+ * this arm read "no write route", which that phase made false on purpose, and
+ * until Phase 318's fix round it read 317's one write, which 318 made false on
+ * purpose (the run lens found C0 red at HEAD on 2026-10-04).
  */
-const WRITES_ARE_317S = WRITE_ROWS.length === 1 && WRITE_ROWS.every((r) => r.id === 'end' && r.method === 'POST' && r.path === '/v1/end' && r.reads === false && r.signed === true && r.windowOnly === false);
+const WRITE_IDS = Object.freeze(['end', 'choose', 'say']);
+const WRITES_ARE_318S = WRITE_ROWS.length === WRITE_IDS.length && WRITE_ROWS.every((r, i) => r.id === WRITE_IDS[i] && r.method === 'POST' && r.path === `/v1/${r.id}` && r.reads === false && r.signed === true && r.windowOnly === false);
 
 // ---------------------------------------------------------------------------
 // The scratch world. Outside the repository and outside the person's home.
@@ -737,8 +741,8 @@ exit 0
       }
       arm(
         'C0 every pocket channel answers from main',
-        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITES_ARE_317S,
-        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); the write routes are ${J(WRITE_ROWS.map((r) => `${r.method} ${r.path}${r.signed ? ' signed' : ''}`))}, exactly POST /v1/end signed`
+        hasPocket === true && CONTRACT_CHANNELS.length > 0 && registered === CONTRACT_CHANNELS.length && WRITES_ARE_318S,
+        `${String(registered)} of ${String(CONTRACT_CHANNELS.length)} contract channels registered (${J(census)}); the write routes are ${J(WRITE_ROWS.map((r) => `${r.method} ${r.path}${r.signed ? ' signed' : ''}`))}, exactly POST /v1/end, /v1/choose and /v1/say, each signed`
       );
       if (hasPocket !== true) return;
 

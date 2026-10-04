@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; HOSTILE: a command whose second line is blank; the row after $ is blank and the third line sits below it; build/fixtures/reply/real-captures.json has the rest
+
+  >_ OpenAI Codex (v0.160.0)
+     /private/tmp/p318cap-codex-26992/proj-codex
+
+  Your cursor called. It wants a plot.
+
+  Tip: Maximize usage with GPT-6.1 Sol. Try it on complex work for near-Astra performance at a lower cost.
+
+
+› P318-GAP run the command the stand-in names
+
+
+• Running echo ok
+  │
+  │ touch p318-gap.txt
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: The stand-in asks; the capture declines it
+
+  $ echo ok
+
+  touch p318-gap.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `echo ok` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel
+
+
+
+
+
+
+

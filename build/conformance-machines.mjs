@@ -11302,8 +11302,14 @@ process.stdout.write(
     // false match only while EVERY `sendCommand(` in it is handed a DevTools
     // method literal (`'Network.enable'`), so a tmux line written there would
     // move it into the writers and read red here.
+    // PHASE 318 (build/p318/SPEC.md D8): src/main/reply/writer.ts presses a
+    // digit with `copy-mode -q` then `send-keys -l` over the core's OWN control
+    // client, for a session on THIS Mac only (a remote context refuses before
+    // any spawn, D22), so it is a fourth writer on purpose and never one on a
+    // machine's carriage.
     const SEND_FILES = [
       'src/main/machines/control-plane.ts',
+      'src/main/reply/writer.ts',
       'src/main/sessions/core.ts',
       'src/main/tmux/control-client.ts'
     ];
@@ -11321,8 +11327,9 @@ process.stdout.write(
         `the production files that write a line to a tmux control connection with ` +
           `sendCommand( are ${JSON.stringify(senders)} rather than ` +
           `${JSON.stringify(SEND_FILES)}. control-client.ts defines it, core.ts is ` +
-          `this Mac's scroll runner and control-plane.ts is the one machine runner. ` +
-          `A fourth file is a new writer to a control connection.`
+          `this Mac's scroll runner, reply/writer.ts is the phone's press on this ` +
+          `Mac's own control client and control-plane.ts is the one machine runner. ` +
+          `A fifth file is a new writer to a control connection.`
       );
     }
     if (JSON.stringify(falseMatches) !== JSON.stringify(DEBUGGER_ONLY)) {

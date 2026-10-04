@@ -41,16 +41,32 @@ export const DOOR_STOP_CLOSE_MS = 1_000;
 export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 
 /**
- * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3). The door
- * process checks the size and drops a body over it whole; main parses.
+ * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3; Phase 318,
+ * build/p318/SPEC.md §5.1.3, D3). The door process checks the size and drops a
+ * body over it whole (404 `oversized`); main parses.
  *
- * Computed from the worst legal body, not guessed: `end`'s is
- * `{"session":"<128 chars>","write":"<32 hex>","batch":false}`, 199 bytes. A
- * vitest encodes it and holds it under this. Keyed by the route id, so the
- * listener reads the cap of the row it matched and a write route with no cap
- * here is a type error.
+ * Computed from the worst legal body, not guessed, and a vitest
+ * (`../__tests__/p318-body-caps.test.ts`) encodes each and holds it under its
+ * cap:
+ *
+ *   - `end`: `{"session":"<128 chars>","write":"<32 hex>","batch":false}`, 199
+ *     bytes. Cap 512.
+ *   - `choose`: `{"mark":"<12 hex>","marker":"9","question":"<16 hex>-
+ *     9007199254740991","session":"<128>","write":"<32 hex>"}`, 267 bytes.
+ *     Cap 512.
+ *   - `say`: the phone decides nothing, so it sends whatever was typed and the
+ *     Mac answers the text rules in words. A 4,096-byte text of C0 controls,
+ *     which both JSON encoders escape `\u00XX` (six bytes for one), is 24,771
+ *     bytes, and must reach main to be answered `refused character` rather than
+ *     be dropped here; a text of `"`, `\`, LF or Swift's `\/` is 8,387. Cap
+ *     32,768, which holds those and an encoder escaping every astral character
+ *     as a surrogate pair. A text past about 5,400 characters may still exceed
+ *     it and is the door's 404, which the phone reads as "did not take it".
+ *
+ * Keyed by the route id, so the listener reads the cap of the row it matched
+ * and a write route with no cap here is a type error.
  */
-export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512 } as const);
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);
 
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {

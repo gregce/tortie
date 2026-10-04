@@ -1,10 +1,10 @@
 // One session: its status, where it is, and what it last said (Phase 316.2).
 //
-// docs/design/phone/Session.html, frame for frame, WITHOUT the message strip
-// (no message box and no send control until Phase 318, his ruling) and WITHOUT
-// "Open in Claude" (316 draws no hand-off; the door answers `handoff: null`).
-// Plus Choice.html's options when the agent drew any, drawn UNPRESSABLE under
-// "Answer this in the session.", because pressing one is Phase 318's.
+// docs/design/phone/Session.html, frame for frame, WITHOUT "Open in Claude"
+// (316 draws no hand-off; the door answers `handoff: null`). Plus the
+// options when the agent drew any: Choice.html's, drawn unpressable under
+// "Answer this in the session.", and since Phase 318 Answer.html's, where
+// each option the Mac offers to press is a button.
 //
 // From the top: the status title in its dot's colour, `agent · project`; the
 // Catch Me Up card (main's outcome, the question, `you asked “…”`); the
@@ -20,7 +20,15 @@
 // END IS HERE since Phase 317 (Screens/EndBar.swift): a bar above the tab bar
 // on a session the Mac offers End for, whose press shows the Mac's own
 // confirmation and asks Face ID, Touch ID or the passcode before anything is
-// sent. Pressing an option the agent drew is still Phase 318's.
+// sent.
+//
+// AND SINCE PHASE 318, REPLY (Screens/Reply.swift, Screens/MessageStrip.swift):
+// pressing an option the Mac offers, and one message from a box above the End
+// bar while the session waits at its own empty prompt. NEITHER ASKS FACE ID
+// (his ruling, "Only for End"). What the agent asks to run is drawn whole
+// under its question, and every option whole, so a person never presses what
+// they could not read. While the box has the keyboard the End bar is not
+// drawn.
 
 import SwiftUI
 
@@ -52,6 +60,9 @@ struct SessionDrawing: Equatable, Sendable {
     /// for it (Phase 317): `.none` and nil from a Mac older than 317.
     let end: PocketEndOffer
     let endConfirm: PocketEndConfirm?
+    /// What may be pressed or sent (Phase 318): the empty offer from a Mac
+    /// older than 318, and from one whose offer did not agree with itself.
+    let reply: PocketReplyOffer
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
     /// could send (ActivityCells.swift), so the screen draws one sentence.
@@ -72,10 +83,11 @@ struct SessionDrawing: Equatable, Sendable {
         lastAnswerRendered = detail.lastAnswer.map(RenderedAnswer.init)
         end = detail.end
         endConfirm = detail.endConfirm
+        reply = detail.replyOffer
     }
 
     /// The card is drawn when it has something to say.
-    var hasCard: Bool { outcome != nil || question != nil || asked != nil }
+    var hasCard: Bool { outcome != nil || question != nil || reply.command != nil || asked != nil }
 }
 
 // MARK: - The model
@@ -155,11 +167,30 @@ struct SessionScreen: View {
     let openConversation: (_ honestLine: String?) -> Void
     /// End (Phase 317), or nil for a pairing that writes nothing.
     var end: EndModel?
+    /// The press and the message (Phase 318), or nil for a pairing that
+    /// writes nothing: then no option is a button and no box is drawn.
+    var reply: ReplyModel?
+    /// Whether the message box has the keyboard.
+    @State private var typing = false
 
     /// The offer and the confirmation the loaded answer carries.
     private var endOffer: (PocketEndOffer, PocketEndConfirm?) {
         guard case .loaded(let drawing) = model.phase else { return (.none, nil) }
         return (drawing.end, drawing.endConfirm)
+    }
+
+    /// The reply offer the loaded answer carries; the empty one otherwise.
+    private var replyOffer: PocketReplyOffer {
+        guard case .loaded(let drawing) = model.phase else { return .empty }
+        return drawing.reply
+    }
+
+    /// The box is drawn while the Mac says the session can take a message,
+    /// and after a message that was not sent, to hold his words and its line
+    /// until he pulls to read again.
+    private var boxDrawn: Bool {
+        guard let reply else { return false }
+        return replyOffer.canSay || reply.holdsWords
     }
 
     var body: some View {
@@ -173,26 +204,38 @@ struct SessionScreen: View {
                         Task { await model.load() }
                     }
                 case .loaded(let drawing):
-                    SessionBody(drawing: drawing) { openConversation(drawing.outcome) }
+                    SessionBody(drawing: drawing, reply: reply, reread: { await model.load() }) {
+                        openConversation(drawing.outcome)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.bottom, Frame.gutter)
         }
         .scrollIndicators(.hidden)
+        .scrollDismissesKeyboard(.interactively)
         .background(Tokens.bgSidebar.ignoresSafeArea())
-        .refreshable { await model.load() }
+        .refreshable {
+            reply?.readingAgain()
+            await model.load()
+        }
         .task { await model.load() }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
             end?.refreshKind()
             Task { await model.load() }
         }
-        // Above the tab bar, so the content ends above it.
+        // Above the tab bar, so the content ends above it: the message box,
+        // then the End bar, which is not drawn while the box has the keyboard.
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let end {
-                let (offer, confirm) = endOffer
-                EndBar(model: end, offer: offer, confirm: confirm) { await model.load() }
+            VStack(spacing: 0) {
+                if let reply, boxDrawn {
+                    MessageStrip(model: reply, focused: $typing) { await model.load() }
+                }
+                if let end, !(typing && boxDrawn) {
+                    let (offer, confirm) = endOffer
+                    EndBar(model: end, offer: offer, confirm: confirm) { await model.load() }
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -213,6 +256,10 @@ struct SessionScreen: View {
 
 private struct SessionBody: View {
     let drawing: SessionDrawing
+    /// The press (Phase 318), or nil: then no option is a button.
+    let reply: ReplyModel?
+    /// Read the session again, after a press.
+    let reread: @MainActor () async -> Bool
     let openConversation: () -> Void
 
     var body: some View {
@@ -220,6 +267,7 @@ private struct SessionBody: View {
             status
             if drawing.hasCard { card }
             if !drawing.choices.isEmpty { choices }
+            if let line = reply?.pressLine { pressLine(line) }
             cells
             if let answer = drawing.lastAnswerRendered { lastAnswer(answer) }
             conversationRow
@@ -266,10 +314,18 @@ private struct SessionBody: View {
                     .accessibilityIdentifier(ID.sessionQuestion)
                     .padding(.top, drawing.outcome == nil ? 0 : 8)
             }
+            // What the agent asks to run, when its question does not say it
+            // (Codex's `$` line, Phase 318): the agent's words, WHOLE, with
+            // no line limit, because Yes runs exactly this.
+            if let command = drawing.reply.command {
+                Words(command, .body, Tokens.textPrimary, lines: nil)
+                    .accessibilityIdentifier(ID.sessionCommand)
+                    .padding(.top, drawing.outcome == nil && drawing.question == nil ? 0 : 8)
+            }
             if let asked = drawing.asked {
                 Words(asked, .body, Tokens.textSecondary, lines: nil)
                     .accessibilityIdentifier(ID.sessionAsked)
-                    .padding(.top, drawing.outcome == nil && drawing.question == nil ? 0 : Frame.cardGap)
+                    .padding(.top, drawing.outcome == nil && drawing.question == nil && drawing.reply.command == nil ? 0 : Frame.cardGap)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -278,20 +334,47 @@ private struct SessionBody: View {
         .padding(.horizontal, Frame.gutter)
     }
 
-    /// Choice.html: the line, then each option as the agent drew it, with its
-    /// own marker. NOT PRESSABLE: no button, no tap, no action.
+    /// Each option as the agent drew it, with its own marker. An option whose
+    /// marker the Mac offers to press is a button (Answer.html, Phase 318);
+    /// every other is drawn as Choice.html draws it, NOT PRESSABLE, and the
+    /// line `Answer this in the session.` is drawn above them only when at
+    /// least one option is not pressable. While a press runs every button is
+    /// off and the pressed one draws a progress mark.
     private var choices: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Words(Copy.answerInTheSession, .secondary, Tokens.textSecondary, lines: nil)
-                .accessibilityIdentifier(ID.sessionChoicesNote)
-                .padding(EdgeInsets(top: Frame.gutter, leading: Frame.gutter, bottom: 8, trailing: Frame.gutter))
+        let offer = drawing.reply
+        let pressable: Set<String> = reply == nil ? [] : Set(offer.pressable)
+        let everyOnePressable = drawing.choices.allSatisfy { pressable.contains($0.marker) }
+        return VStack(alignment: .leading, spacing: 0) {
+            if !everyOnePressable {
+                Words(Copy.answerInTheSession, .secondary, Tokens.textSecondary, lines: nil)
+                    .accessibilityIdentifier(ID.sessionChoicesNote)
+                    .padding(EdgeInsets(top: Frame.gutter, leading: Frame.gutter, bottom: 8, trailing: Frame.gutter))
+            }
             VStack(alignment: .leading, spacing: Frame.optionGap) {
                 ForEach(Array(drawing.choices.enumerated()), id: \.offset) { n, option in
-                    OptionRow(option: option, n: n)
+                    OptionRow(option: option, n: n, press: press(option, offer: offer, pressable: pressable))
                 }
             }
             .padding(.horizontal, Frame.gutter)
+            .padding(.top, everyOnePressable ? Frame.gutter : 0)
         }
+    }
+
+    /// The press of one option, or nil when the Mac does not offer it. Asks
+    /// nothing first (his ruling, "Only for End").
+    private func press(_ option: PocketChoiceOption, offer: PocketReplyOffer, pressable: Set<String>) -> OptionPress? {
+        guard let reply, pressable.contains(option.marker) else { return nil }
+        return OptionPress(on: reply.phase == .idle, pressing: reply.phase == .pressing(option.marker)) {
+            reply.press(option.marker, offer: offer, reread: reread)
+        }
+    }
+
+    /// The one line under the options after a press: the Mac's sentence, or
+    /// the phone's when no answer came.
+    private func pressLine(_ line: String) -> some View {
+        Words(line, .secondary, Tokens.textSecondary, lines: nil)
+            .accessibilityIdentifier(ID.sessionReplyLine)
+            .padding(EdgeInsets(top: 8, leading: Frame.gutter, bottom: 0, trailing: Frame.gutter))
     }
 
     /// The two cells, `display: flex; gap: 16px`, in one card 12 below.
@@ -371,30 +454,62 @@ private struct Cell: View {
     }
 }
 
-/// `.opt`: min-height 54, the chip with the agent's marker, the option's text.
-/// Drawn in the secondary colour, because it is not a control.
+/// How one option is pressed (Phase 318): whether it may be pressed now, and
+/// whether its press is the one under way.
+private struct OptionPress {
+    let on: Bool
+    let pressing: Bool
+    let action: () -> Void
+}
+
+/// `.opt`: min-height 54, the chip with the agent's marker, the option's text,
+/// WHOLE (no line limit: a person never presses what they could not read).
+/// With no press it is drawn in the secondary colour, because it is not a
+/// control; with one it is a button, the chip and the text in the accent
+/// (Answer.html), muted while another press runs.
 private struct OptionRow: View {
     let option: PocketChoiceOption
     let n: Int
+    let press: OptionPress?
 
     var body: some View {
+        HStack(spacing: 0) {
+            if let press {
+                Button(action: press.action) {
+                    content(press.on || press.pressing ? Tokens.accent : Tokens.textMuted, pressing: press.pressing)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .disabled(!press.on)
+                .accessibilityIdentifier(ID.sessionChoicePress(n))
+            } else {
+                content(Tokens.textSecondary, pressing: false)
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(ID.sessionChoice(n))
+    }
+
+    private func content(_ ink: Color, pressing: Bool) -> some View {
         HStack(spacing: Frame.cardGap) {
-            Words(option.marker, .chipMarker, Tokens.textSecondary)
+            Words(option.marker, .chipMarker, ink)
                 .frame(width: Frame.chip, height: Frame.chip)
                 .background(
                     RoundedRectangle(cornerRadius: Frame.chipRadius, style: .continuous)
                         .fill(Tokens.bgRaised)
                 )
                 .accessibilityIdentifier(ID.sessionChoiceMarker(n))
-            Words(option.text, .body, Tokens.textSecondary, lines: nil)
+            Words(option.text, .body, ink, lines: nil)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .accessibilityIdentifier(ID.sessionChoiceText(n))
+            if pressing {
+                ProgressView()
+                    .tint(Tokens.textMuted)
+            }
         }
         .padding(.vertical, 8)
         .padding(.horizontal, Frame.cardGap)
         .frame(minHeight: Frame.optionHeight)
         .card(radius: Frame.optionRadius)
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(ID.sessionChoice(n))
     }
 }

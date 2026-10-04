@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Claude Code 2.1.287, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p -e at 120x40; a typed draft, no Return; build/fixtures/reply/real-captures.json has the rest; ESC and every other byte below 0x20 but LF, and each trailing space, written \xNN; a backslash written \\
+\x1b[38;5;174m ▐\x1b[48;5;16m▛███▛█\x1b[39m\x1b[49m   \x1b[1mClaude\x1b[0m \x1b[1mCode\x1b[0m \x1b[38;5;246mv2.1.287\x1b[39m
+\x1b[38;5;174m▝▜\x1b[48;5;16m█████\x1b[49m█▀\x1b[39m  \x1b[38;5;246mOpus\x1b[39m \x1b[38;5;246m5.5\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mAPI\x1b[39m \x1b[38;5;246mUsage\x1b[39m \x1b[38;5;246mBilling\x1b[39m
+\x1b[38;5;174m ▝▝\x1b[39m   \x1b[38;5;174m▝▝\x1b[39m   \x1b[38;5;246m/private/tmp/p318cap-claude-71621/proj-claude\x1b[39m
+
+
+\x1b[38;5;244m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+\x1b[39m❯ hello draft\x1b[7m \x1b[0m
+\x1b[38;5;244m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+\x1b[39m  \x1b[38;5;246m⏸\x1b[39m \x1b[38;5;246mmanual\x1b[39m \x1b[38;5;246mmode\x1b[39m \x1b[38;5;246mon\x1b[39m                                                                                  \x1b[38;5;246m◐\x1b[39m \x1b[38;5;246mmedium\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246m/effort\x1b[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

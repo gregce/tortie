@@ -31,7 +31,7 @@
 <body>
 <header>
   <h1>Tortie for iPhone</h1>
-  <p class="sub">A remote control for the Tortie client on your Mac — <b>not a terminal</b>. Thirteen screens.
+  <p class="sub">A remote control for the Tortie client on your Mac — <b>not a terminal</b>. Fifteen screens.
   Every word on them is a string Tortie already says, taken from the module that owns it, or a word of the
   phone's own, declared once with its reason. Colour is spent on state and nothing else: the amber dot is the loudest
   object on every screen and the only thing that pulses.</p>
@@ -46,16 +46,24 @@
       <div class="phone"><iframe src="Main.html" title="2 · Every session" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">3 · Is it done</span><span class="d">The plain-English answer, the counts, the agent's last reply, and the composer docked above the tab bar.</span></figcaption>
+      <figcaption><span class="n">3 · Is it done</span><span class="d">The plain-English answer, the counts and the agent's last reply. No message box while it waits on you: a question is answered with its buttons.</span></figcaption>
       <div class="phone"><iframe src="Session.html" title="3 · Is it done" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">4a · One message in</span><span class="d">Typing goes in as ONE message. Return makes a newline; Send is a press, deliberately. The keyboard covers the tab bar.</span></figcaption>
+      <figcaption><span class="n">3b · At its prompt</span><span class="d">A Claude Code or Codex session idle at its own empty prompt: the message box at rest above the End bar, Send not a press until it holds words.</span></figcaption>
+      <div class="phone"><iframe src="Idle.html" title="3b · At its prompt" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">4a · One message in</span><span class="d">Only while the agent sits idle at its own prompt. Typing goes in as ONE message, as a paste then Return; Return makes a newline, Send is a press, deliberately. The End bar steps aside while you type, and no Face ID.</span></figcaption>
       <div class="phone"><iframe src="Composer.html" title="4a · One message in" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">4b · Waiting on a choice</span><span class="d">The choices are drawn UNPRESSABLE on purpose — making them live needs your ruling.</span></figcaption>
+      <figcaption><span class="n">4b · Waiting on a choice</span><span class="d">Grok's choices stay UNPRESSABLE: only Claude Code's and Codex's measured questions are buttons, and every other agent is answered on the Mac.</span></figcaption>
       <div class="phone"><iframe src="Choice.html" title="4b · Waiting on a choice" loading="eager"></iframe></div>
+    </figure>
+    <figure>
+      <figcaption><span class="n">4c · One tap</span><span class="d">A Claude Code or Codex question: every option is a button, in the agent's own words and numbers, under the command it runs. One tap types the digit, never an Enter, and no Face ID.</span></figcaption>
+      <div class="phone"><iframe src="Answer.html" title="4c · One tap" loading="eager"></iframe></div>
     </figure>
     <figure>
       <figcaption><span class="n">5 · The whole conversation</span><span class="d">The answer drawn as markdown by the phone's own parser: code and tables scroll sideways, and an image is never loaded. Owed by a later phase: markdown is off, so today the answer is drawn as written.</span></figcaption>
@@ -91,7 +99,7 @@
     </figure>
 </main>
 <footer>
-  Scroll sideways for all thirteen. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
+  Scroll sideways for all fifteen. Tap the first row of screen 1 or 2 to walk list → session → composer, and the tab bar to move between the three tabs; screen 4b's
   hand-off goes back to the session. Grounds are Tortie's own surround <code>#0E0F13</code> with cards at
   <code>#191B20</code> — never the work's <code>#131417</code>, because the phone is the frame around the
   Mac's work rather than the work itself.

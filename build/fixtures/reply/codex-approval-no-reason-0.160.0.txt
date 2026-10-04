@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; command approval for an escalated one-line command, no justification sent, so no Reason row; build/fixtures/reply/real-captures.json has the rest
+
+  >_ OpenAI Codex (v0.160.0)
+     /private/tmp/p318cap-codex-58200/proj-codex
+
+  It’s dangerous to code alone. Take a prompt.
+
+  Tip: Maximize usage with GPT-6.1 Sol. Try it on complex work for near-Astra performance at a lower cost.
+
+
+› P318-PLAIN run the command the stand-in names
+
+
+• Running touch p318-plain.txt
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  $ touch p318-plain.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `touch p318-plain.txt` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel
+
+
+
+
+
+
+
+
+
+
+
+
+

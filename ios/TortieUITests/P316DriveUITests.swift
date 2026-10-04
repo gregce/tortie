@@ -59,6 +59,19 @@ import XCTest
 /// itself: there is no seam that skips the owner check. (The fix round took
 /// Unpair's Mac half out of the phase, and its steps `unpair-mac`,
 /// `unpair-mac-down` and `repair` with it.)
+///
+/// THE REPLY (Phase 318, build/p318/SPEC.md section 7.7, the `reply` group).
+/// Steps that press an option the Mac offers (`reply-press:<n>`, n the
+/// option's place from 0), send one message (`reply-say:<b64url>`,
+/// `reply-refused:<b64url>`, `reply-again`, `reply-edit:<b64url>`), read that
+/// nothing is offered (`reply-none`), leave at once (`reply-home:say:<b64url>`,
+/// `reply-home:press:<n>`), focus the box (`reply-focus`) and wait for the
+/// Mac (`reply-wait:<tag>`). The words come base64url, because the step list
+/// is split on commas. Before every press and every Send the step prints
+/// `reply-offer` or `reply-send-ready` and waits for the probe's file
+/// `reply-<seq>` in P316_ACKS, so the probe reads the agent's screen, types
+/// at the Mac or holds the relay at THAT moment. Nothing here asks Face ID,
+/// and every reading is a label or a frame.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -194,6 +207,21 @@ private enum Seen {
     static let batchLine = "batch-line"
     static func rowSelect(_ id: String) -> String { "row-select-" + id }
     static func rowOutcome(_ id: String) -> String { "row-outcome-" + id }
+    // Phase 318: the reply.
+    static func sessionChoicePress(_ n: Int) -> String { "session-choice-press-" + String(n) }
+    static let sessionChoicePressPrefix = "session-choice-press-"
+    static let sessionChoicesNote = "session-choices-note"
+    static let sessionReplyLine = "session-reply-line"
+    static let sessionCommand = "session-command"
+    static let sessionMessageStrip = "session-message-strip"
+    static let sessionMessageField = "session-message-field"
+    static let sessionMessageSend = "session-message-send"
+    static let sessionMessageLine = "session-message-line"
+    /// The strip's resting line and its line while a write runs: Copy.swift's
+    /// `oneMessage` and `sending`, spelled again because a UI test cannot
+    /// import the app. A line that is neither is a write's answer.
+    static let oneMessage = "Goes to this session as one message."
+    static let sending = "Sending…"
     /// iOS's own first-use Face ID question's allowing press, by label, and
     /// the press that ends its failed-match prompt.
     static let faceIDAllow = ["OK", "Allow"]
@@ -344,6 +372,26 @@ private final class Drive {
                 endThese(homeAfter: String(step.dropFirst("end-these-home:".count)))
             } else if step == "batch-done" {
                 batchDone()
+            } else if step.hasPrefix("reply-press:") {
+                replyPress(Int(String(step.dropFirst("reply-press:".count))) ?? 0)
+            } else if step.hasPrefix("reply-say:") {
+                replySay(String(step.dropFirst("reply-say:".count)), step: "reply-say", fresh: true)
+            } else if step.hasPrefix("reply-refused:") {
+                replySay(String(step.dropFirst("reply-refused:".count)), step: "reply-refused", fresh: true)
+            } else if step == "reply-again" {
+                replySay(nil, step: "reply-again", fresh: false)
+            } else if step.hasPrefix("reply-edit:") {
+                replySay(String(step.dropFirst("reply-edit:".count)), step: "reply-edit", fresh: true)
+            } else if step == "reply-none" {
+                replyNone()
+            } else if step.hasPrefix("reply-home:say:") {
+                replyHome(say: String(step.dropFirst("reply-home:say:".count)), press: nil)
+            } else if step.hasPrefix("reply-home:press:") {
+                replyHome(say: nil, press: Int(String(step.dropFirst("reply-home:press:".count))) ?? 0)
+            } else if step == "reply-focus" {
+                replyFocus()
+            } else if step.hasPrefix("reply-wait:") {
+                replyWait(String(step.dropFirst("reply-wait:".count)))
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -1351,6 +1399,238 @@ private final class Drive {
         if done.waitForExistence(timeout: 10) { done.tap() }
         _ = poll { self.settledList($0) && !self.has($0, Seen.batchDone) }
         dump("batch-done")
+    }
+
+    // MARK: Phase 318: the reply
+
+    /// A message's words, handed base64url (the step list is split on commas).
+    private static func words(_ b64url: String) -> String? {
+        var text = b64url.replacingOccurrences(of: "-", with: "+").replacingOccurrences(of: "_", with: "/")
+        while text.count % 4 != 0 { text += "=" }
+        guard let data = Data(base64Encoded: text) else { return nil }
+        return String(data: data, encoding: .utf8)
+    }
+
+    /// The options as drawn: each press's place, label and whether it can be
+    /// pressed, the note above them, the command line and the strip.
+    private func replyReading() -> [String: Any] {
+        let found = tree()
+        var presses: [[String: Any]] = []
+        for item in found {
+            guard let n = index(item.id, after: Seen.sessionChoicePressPrefix) else { continue }
+            presses.append(["n": n, "label": item.label, "enabled": element(item.id).isEnabled])
+        }
+        return [
+            "presses": presses,
+            "note": has(found, Seen.sessionChoicesNote),
+            "strip": has(found, Seen.sessionMessageStrip),
+            "command": find(found, Seen.sessionCommand).map { $0.label as Any } ?? NSNull(),
+            "choices": found.filter { index($0.id, after: "session-choice-text-") != nil }.count
+        ]
+    }
+
+    /// Prints `name` with `body` and waits for the probe's `reply-<seq>`.
+    @discardableResult
+    private func replyAck(_ name: String, _ body: [String: Any]) -> Bool {
+        var object = body
+        object["step"] = name
+        let seq = lines.emit(object)
+        let acked = ack("reply-\(seq)", within: 120)
+        lines.emit(["step": name + "-acked", "acked": acked])
+        return acked
+    }
+
+    /// Whether iOS is asking for Face ID, Touch ID or the passcode, or End's
+    /// own confirming mark is drawn: a reply must never cause either.
+    private func ownerCheckUp() -> Bool {
+        if element(Seen.endConfirming).exists { return true }
+        return springboard.alerts.allElementsBoundByIndex.contains { alert in
+            let label = alert.label
+            return label.contains("Face ID") || label.contains("Touch ID") || label.contains("Passcode")
+        }
+    }
+
+    /// Press option `n`: the offer read, the probe told (it reads the agent's
+    /// screen then), the press, and what the screen draws after it.
+    private func replyPress(_ n: Int) {
+        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-press") }
+        Thread.sleep(forTimeInterval: 1)
+        guard replyAck("reply-offer", ["for": "reply-press", "n": n, "reading": replyReading()]) else { return missing("reply-press") }
+        let press = element(Seen.sessionChoicePress(n))
+        guard press.exists, press.isHittable else { return missing("reply-press") }
+        press.tap()
+        var faceID = false
+        var line: String?
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if ownerCheckUp() { faceID = true }
+            let found = tree()
+            if let l = find(found, Seen.sessionReplyLine), !l.label.isEmpty { line = l.label }
+            let pressesLeft = found.contains { index($0.id, after: Seen.sessionChoicePressPrefix) != nil }
+            if line != nil || !pressesLeft { break }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        Thread.sleep(forTimeInterval: 2)
+        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+        lines.emit(["step": "reply-pressed", "faceId": faceID, "line": line.map { $0 as Any } ?? NSNull(), "after": replyReading()])
+        dump("reply-press")
+    }
+
+    /// The box set to `text` (cleared first) when `text` is given.
+    private func setBox(_ text: String) -> Bool {
+        let field = element(Seen.sessionMessageField)
+        guard field.waitForExistence(timeout: 10) else { return false }
+        field.tap()
+        let current = (field.value as? String) ?? ""
+        if !current.isEmpty {
+            field.typeText(String(repeating: XCUIKeyboardKey.delete.rawValue, count: current.count + 2))
+        }
+        field.typeText(text)
+        return true
+    }
+
+    /// The strip, the End bar, the tab bar and the content's lowest edge, read
+    /// with the session screen scrolled to its end.
+    private func stripFrames() -> [String: Any] {
+        let screen = element(Seen.sessionScreen)
+        for _ in 0..<3 where screen.exists { screen.swipeUp() }
+        Thread.sleep(forTimeInterval: 1)
+        let found = tree()
+        let strip = find(found, Seen.sessionMessageStrip)
+        let skip: Set<String> = [Seen.sessionScreen, Seen.sessionMessageStrip, Seen.sessionMessageField, Seen.sessionMessageSend, Seen.sessionMessageLine, Seen.sessionEndBar, Seen.sessionEnd, Seen.sessionEndLine]
+        var bottom: CGFloat = 0
+        if let strip {
+            for item in found where !skip.contains(item.id) && item.frame.minY < strip.frame.minY && item.frame.height > 0 {
+                bottom = max(bottom, item.frame.maxY)
+            }
+        }
+        let endBar = find(found, Seen.sessionEndBar)
+        let tabBar = app.tabBars.firstMatch
+        return [
+            "strip": strip.map { frameOf($0.frame) as Any } ?? NSNull(),
+            "endBar": endBar.map { frameOf($0.frame) as Any } ?? NSNull(),
+            "tabBar": tabBar.exists ? frameOf(tabBar.frame) as Any : NSNull(),
+            "contentBottom": strip == nil ? NSNull() : Double(bottom) as Any
+        ]
+    }
+
+    /// Every distinct line the strip draws from the press of Send until one is
+    /// a write's answer, and the box's words at the last moment it was drawn.
+    private func sampleSay() -> (lines: [String], field: String?) {
+        var seen: [String] = []
+        var field: String?
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            let box = element(Seen.sessionMessageField)
+            if box.exists { field = (box.value as? String) ?? "" }
+            let line = element(Seen.sessionMessageLine)
+            if line.exists {
+                let label = line.label
+                if seen.last != label { seen.append(label) }
+                if label != Seen.oneMessage && label != Seen.sending { break }
+            } else if !seen.isEmpty {
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        // The box and its line once the screen has read again after the answer.
+        Thread.sleep(forTimeInterval: 2)
+        let box = element(Seen.sessionMessageField)
+        if box.exists { field = (box.value as? String) ?? "" }
+        return (seen, field)
+    }
+
+    /// One message: the strip read (the first Send of a step that sets the
+    /// box), the words typed, the probe told, Send, and every line after it.
+    private func replySay(_ b64url: String?, step: String, fresh: Bool) {
+        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing(step) }
+        let frames = step == "reply-say" ? stripFrames() : [:]
+        if fresh {
+            guard let b64url, let text = Self.words(b64url), setBox(text) else { return missing(step) }
+        }
+        guard replyAck("reply-send-ready", ["for": step, "frames": frames, "reading": replyReading()]) else { return missing(step) }
+        let send = element(Seen.sessionMessageSend)
+        guard send.waitForExistence(timeout: 10), send.isEnabled else { return missing(step) }
+        send.tap()
+        let said = sampleSay()
+        lines.emit(["step": "reply-said", "for": step, "lines": said.lines, "fieldAfter": said.field.map { $0 as Any } ?? NSNull(), "faceId": ownerCheckUp(), "after": replyReading()])
+        dump(step)
+    }
+
+    /// Nothing offered here: the options and the strip as drawn.
+    private func replyNone() {
+        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-none") }
+        Thread.sleep(forTimeInterval: 2)
+        lines.emit(["step": "reply-none", "reading": replyReading()])
+        dump("reply-none")
+    }
+
+    /// Send or press, then Home at once (Paseo #3464); 10 s away, back, and
+    /// the screen read.
+    private func replyHome(say b64url: String?, press n: Int?) {
+        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-home") }
+        if let b64url {
+            guard let text = Self.words(b64url), setBox(text) else { return missing("reply-home") }
+            guard replyAck("reply-send-ready", ["for": "reply-home", "reading": replyReading()]) else { return missing("reply-home") }
+            let send = element(Seen.sessionMessageSend)
+            guard send.exists, send.isEnabled else { return missing("reply-home") }
+            send.tap()
+        } else if let n {
+            guard replyAck("reply-offer", ["for": "reply-home", "n": n, "reading": replyReading()]) else { return missing("reply-home") }
+            let press = element(Seen.sessionChoicePress(n))
+            guard press.exists, press.isHittable else { return missing("reply-home") }
+            press.tap()
+        }
+        home()
+        lines.emit(["step": "reply-home-pressed", "state": Int(app.state.rawValue)])
+        Thread.sleep(forTimeInterval: 10)
+        app.activate()
+        _ = app.wait(for: .runningForeground, timeout: 30)
+        Thread.sleep(forTimeInterval: 3)
+        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+        let found = tree()
+        let line = find(found, Seen.sessionMessageLine)?.label ?? find(found, Seen.sessionReplyLine)?.label
+        let box = element(Seen.sessionMessageField)
+        lines.emit([
+            "step": "reply-home-read",
+            "line": line.map { $0 as Any } ?? NSNull(),
+            "fieldAfter": box.exists ? ((box.value as? String) ?? "") as Any : NSNull(),
+            "after": replyReading()
+        ])
+        dump("reply-home")
+    }
+
+    /// The box focused: whether End is drawn beside the keyboard, and where
+    /// the strip and the keyboard are.
+    private func replyFocus() {
+        let field = element(Seen.sessionMessageField)
+        guard field.waitForExistence(timeout: 10) else { return missing("reply-focus") }
+        field.tap()
+        let keyboard = app.keyboards.firstMatch
+        _ = keyboard.waitForExistence(timeout: 5)
+        Thread.sleep(forTimeInterval: 1)
+        let found = tree()
+        lines.emit([
+            "step": "reply-focus",
+            "endBar": has(found, Seen.sessionEndBar),
+            "strip": find(found, Seen.sessionMessageStrip).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "keyboard": keyboard.exists ? frameOf(keyboard.frame) as Any : NSNull()
+        ])
+        dump("reply-focus")
+        // The keyboard away again: a press on the screen's title.
+        let bar = app.navigationBars.firstMatch
+        if bar.exists { bar.tap() }
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// The probe sets the Mac up (`tag` names what), then the screen reads
+    /// again, as a person pulls it.
+    private func replyWait(_ tag: String) {
+        guard replyAck("reply-wait", ["tag": tag]) else { return missing("reply-wait") }
+        pull(Seen.sessionScreen)
+        Thread.sleep(forTimeInterval: 2)
+        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+        dump("reply-wait")
     }
 
     // MARK: Reading

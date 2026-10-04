@@ -8,8 +8,9 @@
  * question. The door itself speaks https, since Phase 330 at the Mac's own
  * public `*.ts.net` name through Tailscale Funnel, with TLS ending inside
  * Tortie under the key the pairing code pins, and it answers a CLOSED table of
- * three reads and, since Phase 317, one narrow write, to a phone whose client
- * key completed the handshake. This file
+ * three reads and, since Phase 317, narrow writes (End; since Phase 318, a
+ * press on a numbered choice and one message), to a phone whose client key
+ * completed the handshake. This file
  * holds two separate things and it is worth saying which is which, because
  * they are easy to confuse:
  *
@@ -42,16 +43,27 @@
  * outbound hand-off, and the answer was to remove the thing rather than to
  * guard it. Pairing establishes keys each way and every request is signed.
  *
- * ONE WRITE ROUTE, AND WHAT IT CAN DO IS ALL IT CAN DO (Phase 317,
- * build/p317/SPEC.md §5.3). {@link POCKET_WRITE_ROUTE_IDS} is `end` alone: it
- * asks main to end ONE session by id, through both gates the Mac's own End
- * asks, and main's verb does the ending. Nothing here can type into a session,
- * set a status, start a process, or restore, remove, restart or rename a
- * session. The route ids in {@link POCKET_ROUTE_IDS} are a confirmed field of
- * the door's own hash, so the phase that added it asked the person again, and
- * a later phase that adds one asks again too. (The fix round removed a second
- * write, `unpair`, because the phone waited on it before it could forget a Mac
- * that did not answer: build/p317/SPEC.md "§Fix round".)
+ * THREE WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
+ * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1).
+ * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose` and `say`:
+ *
+ *   - `end` asks main to end ONE session by id, through both gates the Mac's
+ *     own End asks, and main's verb does the ending;
+ *   - `choose` asks main to press ONE option of a numbered question main
+ *     itself offered, naming the question id and the mark main minted: main
+ *     reads the session afresh and types the option's own digit, never an
+ *     Enter, only on a question shape measured and compiled in main;
+ *   - `say` asks main to put ONE message into a Claude Code or Codex session
+ *     on this Mac that sits idle at its own empty prompt, as a paste at the
+ *     Mac would, then Return.
+ *
+ * Nothing here can set a status, start a process, or restore, remove, restart
+ * or rename a session, and nothing reaches a session on another machine. The
+ * route ids in {@link POCKET_ROUTE_IDS} are a confirmed field of the door's
+ * own hash, so each phase that added one asked the person again, and a later
+ * phase that adds one asks again too. (The fix round removed a fourth write,
+ * `unpair`, because the phone waited on it before it could forget a Mac that
+ * did not answer: build/p317/SPEC.md "§Fix round".)
  *
  * MAIN: src/main/pocket/ipc.ts, server.ts, routes.ts, pairing.ts.
  */
@@ -84,17 +96,23 @@ export const POCKET_ROUTE_IDS = [
   /** `GET /v1/turns` — that session's conversation, redacted and clipped. */
   'turns',
   /** `POST /v1/end` — end one session, after both gates (Phase 317). */
-  'end'
+  'end',
+  /** `POST /v1/choose` — press one option of a question main offered (Phase 318). */
+  'choose',
+  /** `POST /v1/say` — one message into a session idle at its own prompt (Phase 318). */
+  'say'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
 
 /**
- * The write routes, and there are exactly these (Phase 317). A `reads: false`
- * row of the door's table is one of these, and `conformance:pocket` R2 holds
- * the table and this list to each other. Phase 318 adds two and no second gate.
+ * The write routes, and there are exactly these (Phase 317; Phase 318 added
+ * `choose` and `say` to the same door, the same write path and the same
+ * ledger, and no second gate). A `reads: false` row of the door's table is one
+ * of these, and `conformance:pocket` R2 holds the table and this list to each
+ * other. The ORDER is the order the confirm line names them in.
  */
-export const POCKET_WRITE_ROUTE_IDS = ['end'] as const satisfies readonly PocketRouteId[];
+export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say'] as const satisfies readonly PocketRouteId[];
 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
 
@@ -225,6 +243,48 @@ export interface PocketEndConfirm {
   confirmLabel: string;
 }
 
+/**
+ * What the phone may do with one session's question or prompt, decided in
+ * main over ONE fresh reading at the answer's `at` (Phase 318,
+ * build/p318/SPEC.md §5.2). A client draws it and decides nothing: a press and
+ * a message are asked again, by id, and main's answer is the one that counts.
+ *
+ * It is served on `GET /v1/session` alone, beside {@link
+ * PocketSessionDetail.endConfirm}; `/v1/blocked` and its rows carry none.
+ *
+ * Its invariants, held by the door's one composer (`src/main/pocket/routes.ts`)
+ * and decoded the same way on the phone: {@link question} and {@link mark} are
+ * null exactly when {@link pressable} is empty; every marker in it is one of
+ * the same answer's `choices` markers, in drawn order.
+ */
+export interface PocketReplyOffer {
+  /** The question id main minted, echoed by a press. Null exactly when `pressable` is empty. */
+  question: string | null;
+  /** The choice's mark when this was read, echoed by a press. Null exactly when `question` is. */
+  mark: string | null;
+  /** The markers of the options that may be pressed now, each one of `choices`' own markers, in drawn order. */
+  pressable: string[];
+  /** The command the agent asks to run, when the question does not say it (Codex's `$` line). Null otherwise. */
+  command: string | null;
+  /** Whether one message may be sent now. */
+  canSay: boolean;
+}
+
+/**
+ * The offer that offers nothing: no press, no command, no message box. What an
+ * absent `reply` reads as, on both sides, and what every session reads when
+ * main has no reader to ask (the push seam, the tests). Frozen, and its
+ * `pressable` frozen with it, so no composer can push onto the one shared
+ * value.
+ */
+export const POCKET_NO_REPLY: PocketReplyOffer = Object.freeze({
+  question: null,
+  mark: null,
+  pressable: Object.freeze([]) as unknown as string[],
+  command: null,
+  canSay: false
+});
+
 /** The Catch Me Up line, built in main and never written by a model. */
 export interface PocketCatchUp {
   /** The person's own ask, clipped to its first clause. Null when none. */
@@ -299,6 +359,14 @@ export interface PocketSessionDetail extends PocketBlockedRow {
    * draws an End whose words it would have to make up.
    */
   endConfirm: PocketEndConfirm | null;
+  /**
+   * What the phone may press or send on this session now (Phase 318,
+   * build/p318/SPEC.md §5.2, D18). The door's one composer always sets it, field
+   * by field, over one fresh reading in main. OPTIONAL for Phase 317's reason
+   * (hand-built literals in files no builder of this phase owns), and ABSENT
+   * READS {@link POCKET_NO_REPLY}, here and on the phone.
+   */
+  reply?: PocketReplyOffer;
 }
 
 /**
@@ -399,23 +467,46 @@ export interface PocketTurnsAnswer {
 }
 
 // ---------------------------------------------------------------------------
-// What a write answers (Phase 317, build/p317/SPEC.md §5.3)
+// What a write answers (Phase 317, build/p317/SPEC.md §5.3; Phase 318 §5.1.6)
 // ---------------------------------------------------------------------------
 
 /**
  * What became of a write. `done`: it happened. `refused`: a gate said no and
- * nothing was done. `failed`: it was asked for and did not happen. `busy`: an
- * earlier write from this phone, or on this session, is still being done, so
- * nothing was done for this one.
+ * nothing was done. `failed`: it was asked for and is not known to have
+ * happened; the sentence says what is known (since Phase 318 a press can be
+ * typed and not known to be taken, and its sentence says exactly that).
+ * `busy`: an earlier write from this phone, or on this session, is still being
+ * done, so nothing was done for this one.
  */
 export type PocketWriteOutcome = 'done' | 'refused' | 'failed' | 'busy';
 
-/** Why a write was refused. A word; the sentence beside it is what a person reads. */
-export type PocketWriteReason = 'removed' | 'unreachable' | 'ended' | 'gone' | 'malformed';
+/**
+ * Why a write was refused. A word; the sentence beside it is what a person reads.
+ *
+ * End's (Phase 317): `removed`, `unreachable`, `ended`, `gone`; the door's own:
+ * `malformed`. The reply's (Phase 318, build/p318/SPEC.md D19): `changed` (the
+ * question moved under the press, or the session did), `unpressable` (not a
+ * question the phone may press), `unsayable` (not ready for a message),
+ * `stopped` (the door's last check failed while the verb read), `empty`,
+ * `long` and `character` (the message's own three rules). `gone` is shared.
+ */
+export type PocketWriteReason =
+  | 'removed'
+  | 'unreachable'
+  | 'ended'
+  | 'gone'
+  | 'malformed'
+  | 'changed'
+  | 'unpressable'
+  | 'unsayable'
+  | 'stopped'
+  | 'empty'
+  | 'long'
+  | 'character';
 
 /**
- * The answer to `POST /v1/end`, composed field by field
- * in main, and these five fields are all of it.
+ * The answer to `POST /v1/end`, `/v1/choose` and `/v1/say`, composed field by
+ * field in main, and these five fields are all of it.
  *
  * EVERY OUTCOME A WRITE'S VERB DECIDES IS A 200 WITH THIS BODY. A 404 with no
  * body is the door's own refusal and means nothing was done: the quit, the door
@@ -440,10 +531,16 @@ export interface PocketWriteAnswer {
 /**
  * The door's own sentences for a write. Every other sentence a write answers is
  * its gate's or its verb's, spelled where that owner spells it.
+ *
+ * `stopped` (Phase 318, D5): a press or a message reads the session before it
+ * types, and the door's last check (the quit, this door stopping, the phone
+ * still paired) is asked AGAIN by the verb immediately before it types. When
+ * that answers no, nothing was typed, and this is what the phone reads.
  */
 export const POCKET_WRITE_SENTENCES = {
   busy: 'Tortie is still doing the last thing you asked from this phone. Nothing was done.',
-  unreadable: 'Your Mac could not read that request. Nothing was done.'
+  unreadable: 'Your Mac could not read that request. Nothing was done.',
+  stopped: 'Your Mac stopped answering this phone. Nothing was done.'
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -752,16 +849,19 @@ export const POCKET_CONFIRM_WARNING =
 /**
  * What the door can and cannot do, said on its own face (renamed from
  * `POCKET_READ_ONLY_HONESTY` by Phase 317, whose write route made the old
- * name false in code and its sentence false on screen).
+ * name false in code and its sentence false on screen; rewritten by Phase 318,
+ * whose two writes made "Nothing on it can type into a session" false).
  *
  * IT NAMES NO FACE ID, TOUCH ID OR PASSCODE, on purpose (build/p317/SPEC.md
  * D13, D19): the Mac cannot verify any of them, and any holder of the phone's
- * keys can sign an End without one, so the Mac's own sheet does not say it. The
- * phone app says it where it is true, on the phone. Phase 318 rewrites it again.
+ * keys can sign a write without one, so the Mac's own sheet does not say it.
+ * The phone app says it where it is true, on the phone (End alone, his ruling
+ * "Only for End"). It names the three writes in the words the confirm line
+ * uses (build/p318/SPEC.md D28).
  */
 export const POCKET_DOOR_HONESTY =
-  'A phone you allow can end a session. ' +
-  'Nothing on it can type into a session or change anything else on this Mac.';
+  'A phone you allow can end a session, answer a numbered question and send a session one message. ' +
+  'It can change nothing else on this Mac.';
 
 /**
  * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route

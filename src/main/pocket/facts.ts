@@ -31,7 +31,12 @@
  *   - `handoff` answers null for every session in Phase 316;
  *   - `endOffer` (Phase 317) is handed in: the one implementation in
  *     `../sessions/pocket-writes.ts`, which asks both gates the Mac's End asks
- *     over the row and its manifest record. Absent, every row offers none.
+ *     over the row and its manifest record. Absent, every row offers none;
+ *   - `replyOffer` (Phase 318) is handed in too, a passthrough like
+ *     `endOffer`: the reply's reader (`../reply/`), which reads one session
+ *     afresh and says what the phone may press or send on it. This module
+ *     never imports it, so the door's domain names nothing that types.
+ *     Absent, every session reads the empty offer.
  *
  * ## What this module never does
  *
@@ -44,7 +49,7 @@
  */
 
 import type { SessionChoiceInfo } from '@shared/ipc/sessions';
-import type { PocketCatchUp, PocketEndOffer, PocketTurn } from '@shared/ipc/pocket';
+import type { PocketCatchUp, PocketEndOffer, PocketReplyOffer, PocketTurn } from '@shared/ipc/pocket';
 import type {
   OverviewLineKind,
   OverviewSessionActivity,
@@ -61,7 +66,7 @@ import type { OverviewStore, StoredSession, StoredTurn } from '../overview/store
 import { toTurnView } from '../overview/turn-view';
 import { NOTHING_NEEDS_YOU, type WakeWindow } from '../tray/attention';
 import { blockedSinceMap, installBlockedFeed } from '../tray/blocked-feed';
-import type { PocketFacts } from './routes';
+import type { PocketFacts, PocketReplyDrawn } from './routes';
 
 /** What the facts read from the session core. Every member is a read but the feed's slot. */
 export interface PocketFactsCore {
@@ -97,6 +102,12 @@ export interface PocketFactsDeps {
    * `{ state: 'none' }`.
    */
   endOffer?(session: Session): PocketEndOffer;
+  /**
+   * What the phone may press or send on one session (Phase 318,
+   * build/p318/SPEC.md §5.2): the reply verbs' `offer`, handed in by
+   * `../capabilities.ts`. Absent, every session reads the empty offer.
+   */
+  replyOffer?(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;
   now?(): number;
 }
 
@@ -315,6 +326,7 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
 
     handoff: () => null,
     ...(deps.endOffer !== undefined ? { endOffer: deps.endOffer } : {}),
+    ...(deps.replyOffer !== undefined ? { replyOffer: deps.replyOffer } : {}),
     now
   };
 }

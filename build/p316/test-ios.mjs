@@ -55,6 +55,19 @@
  * adds and updates (`P317_SUITES`): each must be named in xcodebuild's own
  * suite lines, because a class that never ran is not a pass.
  *
+ * AND THE REPLY, MEASURED (Phase 318, build/p318/SPEC.md §6.3). Door A also
+ * takes `POST /v1/choose` and `POST /v1/say`, verified the same way over the
+ * body and answered with the body's write id echoed under the route's own verb,
+ * with 317's two hold modes, so `P318ReplyTransportTests` drives the SHIPPING
+ * `DoorClient`: a message or a press whose task is cancelled at 0.5 s while
+ * the handshake is held leaves ZERO requests and reads `.notSent(.cancelled)`;
+ * one whose request arrived before the cancel is answered; a message handed a
+ * kept id goes with THAT id. A write's body is read up to the say cap,
+ * 32,768 bytes, as the door's own limit. After each configuration
+ * `replyProblems` reads door A's counts: at least one press and one message
+ * verified and answered. The classes 318 adds are `P318_SUITES`, each named in
+ * xcodebuild's own suite lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
  *      device type. Missing any, it REFUSES with a sentence naming what is
@@ -490,7 +503,9 @@ export const P317_HOLD_MS = 2_000;
  * Phase 317's fix round, which took `unpair` out (build/p317/SPEC.md "§Fix
  * round"); a POST to `/v1/unpair` is a path door A does not have, a 404.
  */
-export const WRITE_ROUTES = Object.freeze({ '/v1/end': 'end' });
+export const WRITE_ROUTES = Object.freeze({ '/v1/end': 'end', '/v1/choose': 'choose', '/v1/say': 'say' });
+/** The most of a write's body door A reads: the say cap (Phase 318, `POCKET_WRITE_BODY_CAPS.say`). */
+export const WRITE_READ_CAP = 32_768;
 
 /**
  * The vectors' phone and the vectors' Mac (ios/TortieTests/Fixtures/vectors.json,
@@ -563,7 +578,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     a: { issued: [], read: [], refused: 0 },
     b: { handshakes: 0, served: 0 },
     // Phase 317. Every write door A read, by route and by the signature's word.
-    writes: { end: 0, verified: 0, refused: [], answered: 0 },
+    writes: { end: 0, choose: 0, say: 0, verified: 0, refused: [], answered: 0 },
     holdTls: { connections: 0, closedWhileHeld: 0, handshakes: 0, requests: 0, answered: 0 },
     holdAnswer: { connections: 0, handshakes: 0, requests: 0, answered: 0, hungUp: 0 }
   });
@@ -584,7 +599,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     let size = 0;
     req.on('data', (c) => {
       size += c.length;
-      if (size <= 4096) chunks.push(c);
+      if (size <= WRITE_READ_CAP) chunks.push(c);
     });
     req.on('end', () => {
       const pin = req.socket.p330Pin ?? null;
@@ -620,7 +635,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
         return answer(res, 200, JSON.stringify({ holdTls, holdAnswer, writes: { ...writes, refused: writes.refused.length } }));
       }
       const route = req.method === 'POST' ? WRITE_ROUTES[req.url ?? ''] : undefined;
-      if (route !== undefined && pin !== null && size <= 4096) {
+      if (route !== undefined && pin !== null && size <= WRITE_READ_CAP) {
         counts.writes[route] += 1;
         const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
         if (verdict !== 'ok') {
@@ -805,6 +820,22 @@ export function writeProblems(counts, configuration) {
 }
 
 /**
+ * What one configuration's reply rows left (Phase 318): door A read, verified
+ * and answered at least one press and one message, through the shipping
+ * client. Returns the problems (sentences).
+ */
+export function replyProblems(counts, configuration) {
+  const problems = [];
+  if (counts.writes.choose === 0) problems.push(`${configuration}: door A read no press (POST /v1/choose), so P318ReplyTransportTests never reached it`);
+  if (counts.writes.say === 0) problems.push(`${configuration}: door A read no message (POST /v1/say), so P318ReplyTransportTests never reached it`);
+  if (counts.writes.refused.length > 0) problems.push(`${configuration}: door A refused ${String(counts.writes.refused.length)} write(s) (${[...new Set(counts.writes.refused)].join(', ')}); every write the shipping client signs with the vectors' key holds`);
+  return problems;
+}
+
+/** The test classes Phase 318 adds or changes (build/p318/SPEC.md §7.2, §10). */
+export const P318_SUITES = Object.freeze(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests', 'CopyTests', 'DoorVectorTests', 'WriterTests']);
+
+/**
  * The test classes Phase 317 adds or changes (build/p317/SPEC.md §7.3), each of
  * which must appear in xcodebuild's own suite lines for a configuration's run.
  */
@@ -918,6 +949,30 @@ async function doorsSelfTest() {
     const a = doors.counts().writes;
     check('door A counted its writes by route', a.end === 4 && a.unpair === undefined && a.verified === 2 && a.answered === 2, J(a));
     doors.reset();
+    // Phase 318: the press and the message, each verified over its body and
+    // answered under its own verb with its id echoed; a body near the say cap
+    // read whole; the reply counts read by replyProblems both ways.
+    const pressId = randomBytes(16).toString('hex');
+    const pressBody = JSON.stringify({ mark: 'a1b2c3d4e5f6', marker: '1', question: '0123456789abcdef-42', session: 's1', write: pressId });
+    const press = await post(doors.portA, '/v1/choose', signed('/v1/choose', pressBody));
+    const pressSaid = (() => { try { return JSON.parse(press.body); } catch { return null; } })();
+    check('an honest press is verified and answered as choose with its id echoed', press.status === 200 && pressSaid?.verb === 'choose' && pressSaid?.write === pressId && pressSaid?.outcome === 'done', `${String(press.status)} ${press.body}`);
+    const sayId = randomBytes(16).toString('hex');
+    const sayBody = JSON.stringify({ session: 's1', text: `${'x'.repeat(20_000)} \/ "quoted"`, write: sayId });
+    const message = await post(doors.portA, '/v1/say', signed('/v1/say', sayBody));
+    const sayAnswer = (() => { try { return JSON.parse(message.body); } catch { return null; } })();
+    check('an honest message of 20,000 bytes is read whole, verified and answered as say with its id echoed', message.status === 200 && sayAnswer?.verb === 'say' && sayAnswer?.write === sayId, `${String(message.status)} ${message.body.slice(0, 120)}`);
+    const forgedSay = await post(doors.portA, '/v1/say', signed('/v1/say', sayBody, sayBody.replace('quoted', 'QUOTED')));
+    check('a message whose body changed after signing is answered 404', forgedSay.status === 404, String(forgedSay.status));
+    const r = doors.counts();
+    check('door A counted the press and the message', r.writes.choose === 1 && r.writes.say === 2 && r.writes.verified === 2, J(r.writes));
+    check('replyProblems refuses the refused message it saw', replyProblems(r, 'self-test').length === 1, J(replyProblems(r, 'self-test')));
+    const clean = structuredClone(r);
+    clean.writes.refused = [];
+    check('replyProblems passes a press and a message read and held', replyProblems(clean, 'self-test').length === 0, J(replyProblems(clean, 'self-test')));
+    check('replyProblems refuses a run that pressed nothing', replyProblems({ ...clean, writes: { ...clean.writes, choose: 0 } }, 'self-test').length > 0);
+    check('replyProblems refuses a run that sent no message', replyProblems({ ...clean, writes: { ...clean.writes, say: 0 } }, 'self-test').length > 0);
+    doors.reset();
 
     // (ad)'s first hold: closed while held, nothing read.
     const early = tlsConnect({ host: '127.0.0.1', port: doors.portHoldTls, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
@@ -974,6 +1029,7 @@ async function doorsSelfTest() {
     check('suitesNotRun reads every suite xcodebuild says passed', suitesNotRun(ran).length === 0);
     check('suitesNotRun names a suite that never ran', J(suitesNotRun(ran.replace("'EndBatchTests' passed", "'EndBatchTests' started"))) === J(['EndBatchTests']));
     check('suitesNotRun counts a failed suite as run', suitesNotRun(ran.replace("'WriterTests' passed", "'WriterTests' failed")).length === 0);
+    check('suitesNotRun names a Phase 318 suite that never ran', J(suitesNotRun(ran, P318_SUITES)) === J(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests']));
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -1167,10 +1223,10 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name)];
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name)];
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
-              `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ` +
+              `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
                 `${String(counted.writes.verified)} verified, ${String(counted.writes.refused.length)} refused (${[...new Set(counted.writes.refused)].join(', ') || 'none'}), ${String(counted.writes.answered)} answered; ` +
                 `the held handshake: ${String(counted.holdTls.connections)} connection(s), ${String(counted.holdTls.closedWhileHeld)} closed while held, ${String(counted.holdTls.requests)} request(s) read; ` +
                 `the held answer: ${String(counted.holdAnswer.connections)} connection(s), ${String(counted.holdAnswer.requests)} request(s) read, ${String(counted.holdAnswer.answered)} answered, ${String(counted.holdAnswer.hungUp)} hung up`
@@ -1188,7 +1244,7 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...P317_SUITES, ...P318_SUITES.filter((n) => !P317_SUITES.includes(n))]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');

@@ -104,6 +104,32 @@
  *   (`expect`), the door sentences (`door`, keys of the shipping
  *   `POCKET_WRITE_SENTENCES`) and the words it must never draw (`never`).
  *
+ *   THE REPLY ARMS (Phase 318, build/p318/SPEC.md §7.7 RH and §6.3 (t)). Each
+ *   answers the pairing, the list and the session honestly, the session
+ *   carrying a reply offer: a press arm's session WAITS, its options
+ *   pressable under a made-up question id and mark (the vectors'
+ *   `session-waiting`), and a message arm's session sits at its prompt with
+ *   `canSay` true (the vectors' `session-talk`). It answers the ONE
+ *   `POST /v1/choose` or `POST /v1/say` a press or a Send sends in its own way,
+ *   counted and verified over its body like End's:
+ *   reply-other-id          a 200 to a press whose write id is not the one sent
+ *   reply-refused-changed   a 200 `refused` `changed` to a press, with the
+ *                           Mac's own LIFECYCLE_SESSION_CHANGED: drawn as said
+ *   reply-unknown-reason    a 200 `refused` to a message with a reason word the
+ *                           Mac never says: no answer, and his words kept
+ *   reply-cut               a message's connection cut after its request was
+ *                           read: the no-answer line, over a read that came back
+ *   reply-cut-reread-refused  a message cut, then every read refused: the
+ *                           read's own consequence, Pairing, never the
+ *                           no-answer line
+ *   reply-404               a 404 with no body to a press: not taken
+ *   reply-late              no answer to a message for longer than 15 s
+ *   reply-say-done          a 200 `done` to a message: `Sent`, the box empty
+ *   Each names its verb, where it ends (`at`), the Copy.swift words it may end
+ *   in (`expect`), the Mac's own sentences (`mac`, constants of
+ *   src/shared/lifecycle-words.ts or src/shared/reply-copy.ts) and the words it
+ *   must never draw (`never`).
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -225,11 +251,26 @@ export const HOSTILE_ARMS = Object.freeze({
   'write-404': { what: 'a 404 with no body to the End, the door\'s own refusal', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNotTaken'], door: [], never: ['endNoAnswer'] },
   'write-malformed': { what: 'a 200 to the End that is not JSON', ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['endNoAnswer'], door: [], never: [] },
   'write-cut-reread-refused': { what: 'the End cut after its request, then every read refused', ends: 'pairing', write: true, posts: 1, at: 'screen-pairing', expect: [], door: [], never: ['endNoAnswer'] },
-  'write-unreachable-offer': { what: 'a session row whose End is unreachable, with the Mac\'s title under an End drawn off', ends: 'drawn', write: true, posts: 0, at: 'session-end-line', expect: [], door: [], never: ['endNoAnswer', 'endNotTaken'], title: 'unreachable' }
+  'write-unreachable-offer': { what: 'a session row whose End is unreachable, with the Mac\'s title under an End drawn off', ends: 'drawn', write: true, posts: 0, at: 'session-end-line', expect: [], door: [], never: ['endNoAnswer', 'endNotTaken'], title: 'unreachable' },
+  // THE REPLY ARMS (Phase 318, SPEC §7.7 RH). One POST per press or Send, each
+  // answered its own way; the line under the options or the box is graded.
+  'reply-other-id': { what: 'a 200 to a press whose write id is not the one sent', ends: 'sentence', reply: true, verb: 'choose', posts: 1, at: 'session-reply-line', expect: ['endNoAnswer'], mac: [], never: [] },
+  'reply-refused-changed': { what: 'a 200 refused changed to a press, with the Mac\'s own sentence', ends: 'sentence', reply: true, verb: 'choose', posts: 1, at: 'session-reply-line', expect: [], mac: ['LIFECYCLE_SESSION_CHANGED'], never: ['endNoAnswer'] },
+  'reply-unknown-reason': { what: 'a 200 refused to a message with a reason word the Mac never says', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['endNoAnswer'], mac: [], never: ['replySent'], kept: true },
+  'reply-cut': { what: 'a message\'s connection cut after its request was read', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['endNoAnswer'], mac: [], never: ['replySent'], kept: true },
+  'reply-cut-reread-refused': { what: 'a message cut after its request, then every read refused', ends: 'pairing', reply: true, verb: 'say', posts: 1, at: 'screen-pairing', expect: [], mac: [], never: ['endNoAnswer', 'replySent'] },
+  'reply-404': { what: 'a 404 with no body to a press, the door\'s own refusal', ends: 'sentence', reply: true, verb: 'choose', posts: 1, at: 'session-reply-line', expect: ['replyNotTaken'], mac: [], never: ['endNoAnswer'] },
+  'reply-late': { what: 'no answer to a message for longer than the phone\'s 15 s', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['endNoAnswer'], mac: [], never: ['replySent'], kept: true },
+  'reply-say-done': { what: 'a 200 done to a message: Sent, and the box empty', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['replySent'], mac: [], never: ['endNoAnswer'], cleared: true }
 });
 
 /** The names of the write arms (Phase 317), as conformance:ios (t) reads them. */
 export const WRITE_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].write === true));
+/** The names of the reply arms (Phase 318), as conformance:ios (t) and probe:p316's RH read them. */
+export const REPLY_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].reply === true));
+/** A made-up question id and mark a press arm's offer carries; the door checks the press echoes them. */
+export const HOSTILE_QUESTION = '0123456789abcdef-7';
+export const HOSTILE_MARK = 'a1b2c3d4e5f6';
 /** Past the phone's whole-exchange limit (15 s, DoorLimits.timeout), so write-late is the phone's timer and never this door's answer. */
 export const WRITE_LATE_MS = 20_000;
 
@@ -461,6 +502,47 @@ export function offerEnd(world, arm, words) {
   return world;
 }
 
+// ---------------------------------------------------------------------------
+// The reply arms' world (Phase 318)
+// ---------------------------------------------------------------------------
+
+/** The Mac's own words a reply arm draws from: LIFECYCLE_SESSION_CHANGED and the reply's own sentences. */
+async function replyWords() {
+  const lifecycle = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'lifecycle-words.ts')).href);
+  let reply = {};
+  try {
+    reply = await import(pathToFileURL(join(ROOT, 'src', 'shared', 'reply-copy.ts')).href);
+  } catch {
+    reply = {};
+  }
+  if (typeof lifecycle.LIFECYCLE_SESSION_CHANGED !== 'string') throw new Error('the shipping tree has no LIFECYCLE_SESSION_CHANGED, which a reply arm draws');
+  return { LIFECYCLE_SESSION_CHANGED: lifecycle.LIFECYCLE_SESSION_CHANGED, ...Object.fromEntries(Object.entries(reply).filter(([k, v]) => /^REPLY_/.test(k) && typeof v === 'string')) };
+}
+
+/**
+ * The session a reply arm opens, carrying the offer its verb needs: a press
+ * arm opens the vectors' WAITING session, every option pressable under
+ * HOSTILE_QUESTION and HOSTILE_MARK; a message arm opens the vectors' talking
+ * session at its prompt, `canSay` true. The offer is the door's shape
+ * (`PocketReplyOffer`), field by field.
+ */
+export function offerReply(world, arm) {
+  const spec = HOSTILE_ARMS[arm];
+  if (spec.verb === 'choose') {
+    const file = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json');
+    const waiting = JSON.parse(JSON.parse(readFileSync(file, 'utf8')).answers['session-waiting'].json);
+    const markers = (waiting.session.choices ?? []).map((c) => c.marker);
+    if (markers.length === 0) throw new Error(`${file}'s session-waiting draws no options, so a press arm has nothing to press`);
+    waiting.session.reply = { question: HOSTILE_QUESTION, mark: HOSTILE_MARK, pressable: markers, command: null, canSay: false };
+    world.session = waiting;
+    world.sessionId = waiting.session.sessionId;
+  } else {
+    world.session.session.reply = { question: null, mark: null, pressable: [], command: null, canSay: true };
+  }
+  world.replyOffer = world.session.session.reply;
+  return world;
+}
+
 /** A 32-hex write id that is not `id`. */
 const otherWriteId = (id) => createHash('sha256').update(`p316 hostile other ${id}`).digest('hex').slice(0, 32);
 
@@ -522,6 +604,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     // Phase 317: a write arm's session offers End with the Mac's own words.
     const words = HOSTILE_ARMS[arm].write === true ? await writeWords() : null;
     if (words !== null) offerEnd(world, arm, words);
+    // Phase 318: a reply arm's session offers a press or a message.
+    const replyWordsNow = HOSTILE_ARMS[arm].reply === true || arm === 'honest' ? await replyWords() : null;
+    if (HOSTILE_ARMS[arm].reply === true) offerReply(world, arm);
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
     const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
@@ -635,6 +720,53 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
               return send(res, 404, '', event);
             case 'write-malformed':
               return send(res, 200, `${done.slice(0, 20)} not json`, event);
+            default:
+              return send(res, 200, done, event);
+          }
+        }
+        if (req.method === 'POST' && (url.pathname === '/v1/choose' || url.pathname === '/v1/say')) {
+          // PHASE 318's two writes: counted, verified over the body, and
+          // answered the arm's way. Any other arm answers honestly.
+          counts.writes += 1;
+          const verb = url.pathname === '/v1/choose' ? 'choose' : 'say';
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(body.toString('utf8'));
+          } catch {
+            parsed = null;
+          }
+          const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
+          const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
+          // What the phone echoed, by shape only: never the words a message carried.
+          const echoed = verb === 'choose' ? parsed?.question === HOSTILE_QUESTION && parsed?.mark === HOSTILE_MARK : typeof parsed?.text === 'string';
+          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb, keys, echoed, query: url.search !== '' };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          const done = J({ verb, write: id, outcome: 'done', reason: null, sentence: null });
+          switch (arm) {
+            case 'reply-other-id':
+              return send(res, 200, J({ verb, write: otherWriteId(id), outcome: 'done', reason: null, sentence: null }), event);
+            case 'reply-refused-changed':
+              return send(res, 200, J({ verb, write: id, outcome: 'refused', reason: 'changed', sentence: replyWordsNow.LIFECYCLE_SESSION_CHANGED }), event);
+            case 'reply-unknown-reason':
+              return send(res, 200, J({ verb, write: id, outcome: 'refused', reason: 'sideways', sentence: replyWordsNow.LIFECYCLE_SESSION_CHANGED }), event);
+            case 'reply-cut':
+            case 'reply-cut-reread-refused':
+              if (arm === 'reply-cut-reread-refused') refuseReads = true;
+              emit({ kind: 'request', arm, ...event, status: 'cut', bytes: 0 });
+              req.socket.destroy();
+              return;
+            case 'reply-late': {
+              emit({ kind: 'request', arm, ...event, status: 200, bytes: 0, held: true });
+              const timer = setTimeout(() => {
+                if (!req.socket.destroyed) send(res, 200, done, { ...event, late: true });
+              }, WRITE_LATE_MS);
+              timer.unref?.();
+              return;
+            }
+            case 'reply-404':
+              return send(res, 404, '', event);
             default:
               return send(res, 200, done, event);
           }
@@ -765,6 +897,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       endConfirmFrom: world.endConfirmFrom ?? null,
       // The door's own write sentences, which a write arm's `door` keys name.
       writeSentences: words === null ? null : { ...words.POCKET_WRITE_SENTENCES },
+      // Phase 318: the reply offer the session carries, and the Mac's words a reply arm's `mac` names.
+      replyOffer: world.replyOffer ?? null,
+      replyWords: replyWordsNow,
       counts,
       phone: () => phone,
       close: closeAll
@@ -812,7 +947,10 @@ async function serve(arm, md3) {
       endOffer: door.endOffer,
       endConfirm: door.endConfirm,
       endConfirmFrom: door.endConfirmFrom,
-      writeSentences: door.writeSentences
+      writeSentences: door.writeSentences,
+      // Phase 318: the reply arms' offer and the Mac's words they draw.
+      replyOffer: door.replyOffer,
+      replyWords: door.replyWords
     })}`
   );
 }
@@ -1036,6 +1174,54 @@ async function selfTest() {
         );
         continue;
       }
+      if (HOSTILE_ARMS[arm].reply === true) {
+        // THE REPLY ARMS (Phase 318): the session offers what the verb needs,
+        // and the one POST is answered the arm's way, counted once.
+        const spec = HOSTILE_ARMS[arm];
+        const sessionTarget = `/v1/session?id=${encodeURIComponent(door.sessionToOpen)}`;
+        const read = await signedGet(phone, d, sessionTarget);
+        let s = null;
+        try {
+          s = JSON.parse(read.body).session;
+        } catch {
+          s = null;
+        }
+        const offered =
+          spec.verb === 'choose'
+            ? s?.reply?.question === HOSTILE_QUESTION && s?.reply?.mark === HOSTILE_MARK && Array.isArray(s?.reply?.pressable) && s.reply.pressable.length > 0 && s.reply.canSay === false && Array.isArray(s?.choices) && s.choices.length > 0
+            : s?.reply?.canSay === true && s?.reply?.question === null && s.reply.pressable.length === 0;
+        const id = randomBytes(16).toString('hex');
+        const fields = spec.verb === 'choose'
+          ? { mark: HOSTILE_MARK, marker: s?.reply?.pressable?.[0] ?? '1', question: HOSTILE_QUESTION, session: door.sessionToOpen, write: id }
+          : { session: door.sessionToOpen, text: 'p316 hostile message', write: id };
+        const got = await signedPost(phone, d, `/v1/${spec.verb}`, fields, { timeoutMs: arm === 'reply-late' ? 2_000 : 20_000 });
+        let said = null;
+        try {
+          said = JSON.parse(got.body);
+        } catch {
+          said = null;
+        }
+        const changed = door.replyWords?.LIFECYCLE_SESSION_CHANGED;
+        const shape = {
+          'reply-other-id': got.status === 200 && said?.write !== id && /^[0-9a-f]{32}$/.test(said?.write ?? '') && said?.outcome === 'done' && said?.verb === 'choose',
+          'reply-refused-changed': got.status === 200 && said?.write === id && said?.outcome === 'refused' && said?.reason === 'changed' && said?.sentence === changed,
+          'reply-unknown-reason': got.status === 200 && said?.write === id && said?.outcome === 'refused' && said?.reason === 'sideways' && said?.verb === 'say',
+          'reply-cut': got.status === 0,
+          'reply-cut-reread-refused': got.status === 0,
+          'reply-404': got.status === 404 && got.body === '',
+          'reply-late': got.status === 0 && /timed out/.test(got.error ?? ''),
+          'reply-say-done': got.status === 200 && said?.write === id && said?.outcome === 'done' && said?.verb === 'say'
+        }[arm];
+        const reread = arm === 'reply-cut-reread-refused' ? (await signedGet(phone, d, sessionTarget)).status : null;
+        const writeEvents = events.filter((e) => e.kind === 'request' && e.write !== undefined);
+        const signedOk = writeEvents.length === 1 && writeEvents[0].verified === 'ok' && writeEvents[0].channelHeld === true && writeEvents[0].verb === spec.verb && writeEvents[0].echoed === true;
+        check(
+          arm,
+          read.status === 200 && offered && shape === true && door.counts.writes === 1 && signedOk && (reread === null || reread === 404),
+          `the session offers ${J(s?.reply)}; the one POST /v1/${spec.verb} answered ${String(got.status)}${got.error ? ` (${got.error})` : ''} ${got.body.slice(0, 120)}; ${String(door.counts.writes)} write(s) counted, verified over its body with the client identity and its offer echoed: ${String(signedOk)}${reread === null ? '' : `; the read after it answered ${String(reread)}`}`
+        );
+        continue;
+      }
       const blocked = await signedGet(phone, d, '/v1/blocked', { timeoutMs: arm === 'never-completes' ? 3_000 : 20_000 });
       let body = null;
       try {
@@ -1076,11 +1262,18 @@ async function selfTest() {
             signedBody: writeBodyOf(writeFields),
             body: writeBodyOf({ ...writeFields, write: writeId.replace(/.$/, (c) => (c === 'a' ? 'b' : 'a')) })
           });
-          const writesHold = honestWrite.status === 200 && JSON.parse(honestWrite.body).write === writeId && forgedWrite.status === 404 && door.counts.writes === 2;
+          // Phase 318: an honest press and an honest message are answered done
+          // with their own ids, each counted once.
+          const pressId = randomBytes(16).toString('hex');
+          const sayId = randomBytes(16).toString('hex');
+          const honestPress = await signedPost(phone, d, '/v1/choose', { mark: HOSTILE_MARK, marker: '1', question: HOSTILE_QUESTION, session: door.sessionToOpen, write: pressId });
+          const honestSay = await signedPost(phone, d, '/v1/say', { session: door.sessionToOpen, text: 'p316 honest message', write: sayId });
+          const repliesHold = honestPress.status === 200 && JSON.parse(honestPress.body).write === pressId && JSON.parse(honestPress.body).verb === 'choose' && honestSay.status === 200 && JSON.parse(honestSay.body).write === sayId && JSON.parse(honestSay.body).verb === 'say';
+          const writesHold = honestWrite.status === 200 && JSON.parse(honestWrite.body).write === writeId && forgedWrite.status === 404 && repliesHold && door.counts.writes === 4;
           check(
             arm,
             blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false && writesHold,
-            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such; an honest write answered ${String(honestWrite.status)} with its id and the same signature over a changed body ${String(forgedWrite.status)}${certNote}`
+            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such; an honest write answered ${String(honestWrite.status)} with its id and the same signature over a changed body ${String(forgedWrite.status)}; an honest press and message answered ${String(honestPress.status)} and ${String(honestSay.status)} with their ids${certNote}`
           );
         } else if (arm === 'pages-backwards') {
           check(arm, pagesForward, `the older page starts at ${J(paged.pages[1]?.turns?.[0]?.index)} after a page that started at ${J(paged.pages[0]?.turns?.[0]?.index)}`);

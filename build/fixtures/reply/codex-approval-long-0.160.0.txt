@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; command approval, a 302-character command wrapped unprefixed; the question row is more than CHOICE_QUESTION_INK_ROWS above the options; build/fixtures/reply/real-captures.json has the rest
+
+
+✗ You canceled the request to run echo ok ...
+
+• Ran echo ok
+  │ touch p318-two.txt
+  └ (no output)
+
+■ Conversation interrupted - use /feedback if something went wrong
+
+
+› P318-LONG run the command the stand-in names
+
+
+• Running printf '%s\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04
+  │ p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09
+  │ p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14
+  │ … +1 line
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: The stand-in asks; the capture declines it
+
+  $ printf '%s\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04
+  p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09
+  p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 >
+  p318-long.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `printf '%s\n' p318-long-argument-01 p318-long-argument-02
+     p318-long-argument-03 p318-long-argument-04 p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-
+     long-argument-08 p318-long-argument-09 p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-
+     argument-13 p318-long-argument-14 > p318-long.txt` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

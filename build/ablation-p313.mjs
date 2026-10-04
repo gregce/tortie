@@ -53,6 +53,24 @@
  * the acted-guarded last ask, and `P1c` plants its source on the local `word`
  * the refusal's log line now reads (G1, Phase 317).
  *
+ * PHASE 318 ADDED FIFTY-SEVEN (build/p318/SPEC.md §6.1), 271 in all: `R2f`,
+ * `R2g` and `R4b` the third write list and its pin, `R3g` the door naming the
+ * writer, `X1g` to `X12f` the widened X rules (three verbs, three parses, the
+ * verb in the ledger key, one in flight across verbs, PocketWrites' three
+ * members and their one implementation, relayed sentences, the joined line and
+ * the honesty sentence), and `Y1a` to `Y18b`, at least one arm for each of the
+ * eighteen Y rules over src/main/reply/, the core's bumps, the attach host's
+ * filter, the exec plane's stdin and the shared pane reports. Four Phase 317
+ * arms moved with the shapes 318 changed under them: `R2e` (the caps object
+ * holds three writes), `X3e` (the key holds the verb), `X5a` (PocketWrites
+ * ends on say) and `X12a` (the line joins a list).
+ *
+ * PHASE 318'S FIX ROUND (2026-10-04) ADDED TWO, 273 in all: `Y6c` puts the
+ * release back behind the id's count, which a tick's `choice-gone` inside the
+ * read-back moves for the very question the press answered, and `Y6d` drops
+ * the "no choice on the read-back screen" half of the guard; `Y6a` plants over
+ * the new guard.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -155,6 +173,18 @@ const WRITES = 'src/main/pocket/writes.ts';
 const POCKET_WRITES = 'src/main/sessions/pocket-writes.ts';
 // PHASE 316.5: the key's port lives in ipc.ts; the bridge member is the
 // preload's; the push seam is the one other composer of a PocketHost.
+// PHASE 318: the module that types, outside the door's directory, and the
+// seams it moved through: the core's bumps, the attach host's filter, the exec
+// plane's stdin, and the shared pane reports.
+const WRITER = 'src/main/reply/writer.ts';
+const READER = 'src/main/reply/reader.ts';
+const REPLY_GATE = 'src/main/reply/gate.ts';
+const PRESS_SHAPES = 'src/main/reply/press-shapes.ts';
+const QUESTION_ID = 'src/main/reply/question-id.ts';
+const CORE = 'src/main/sessions/core.ts';
+const ATTACH = 'src/main/attach/attach-host.ts';
+const EXEC_PLANE = 'src/main/machines/exec-plane.ts';
+const FOCUS_REPORT = 'src/renderer/terminal/keys/focus-report.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -1767,8 +1797,8 @@ const ABLATIONS = [
     name: 'a write with no body cap of its own',
     why: 'the door process checks a write’s size before main reads a byte of it; a write with no cap of its own is one the door bounds by somebody else’s number.',
     file: LIMITS,
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({} as const);',
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512 } as const);',
     needs: ['gate']
   },
   {
@@ -1957,8 +1987,8 @@ const ABLATIONS = [
     name: 'the ledger keyed on the write id alone',
     why: 'a write id is the phone’s own; keyed without the phone, one phone’s write id answers another’s.',
     file: WRITES,
-    from: '    const key = keyOf(verifiedPhone, parsed.write);',
-    to: "    const key = keyOf('', parsed.write);",
+    from: '    const key = keyOf(verifiedPhone, verb, parsed.write);',
+    to: "    const key = keyOf('', verb, parsed.write);",
     needs: ['gate']
   },
   {
@@ -1997,8 +2027,8 @@ const ABLATIONS = [
     name: 'PocketWrites grows a second member',
     why: 'Restore and Remove stay on the Mac (research 127 §5); a member on the interface is a verb the door can reach.',
     file: ROUTES,
-    from: '  end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;\n}',
-    to: '  end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    from: '  say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n}',
+    to: '  say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -2327,7 +2357,7 @@ const ABLATIONS = [
     name: 'the write line spelled rather than derived',
     why: 'the lines are exactly the hashed facts; a spelled line stays the same when the route list moves.',
     file: PAIRING,
-    from: /  if \(clauses\.length > 0\) lines\.push\(`Lets an allowed phone \$\{clauses\.join\(' and '\)\}`\);/,
+    from: /  if \(clauses\.length > 0\) lines\.push\(`Lets an allowed phone \$\{clauseListOf\(clauses\)\}`\);/,
     to: "  if (clauses.length > 0) lines.push('Lets an allowed phone end a session');",
     needs: ['gate']
   },
@@ -2349,6 +2379,603 @@ const ABLATIONS = [
     file: SHARED,
     from: 'export const POCKET_DOOR_HONESTY =',
     to: "export const POCKET_READ_ONLY_HONESTY = 'This door only answers questions.';\nexport const POCKET_DOOR_HONESTY =",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 318, the reply (build/p318/SPEC.md §6.1). One arm per new or widened
+  // clause, each red on the rule that owns it. Arms on a file another builder
+  // writes in the same round anchor on its shipping text, or on a RegExp where
+  // a stray space should not decide whether a clause is proven.
+  // -------------------------------------------------------------------------
+  {
+    n: 'R2f',
+    rule: 'R2',
+    alsoRed: ['R4'],
+    name: 'a fourth write row',
+    why: 'THE WRITE LIST IS CLOSED: end, choose and say. A fourth write is a new thing a phone can do to this Mac, and it is its own phase with its own ruling.',
+    file: TABLE,
+    from: "  { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true }",
+    to: "  { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true },\n  { id: 'type', method: 'POST', path: '/v1/type', reads: false, windowOnly: false, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'R2g',
+    rule: 'R2',
+    name: 'the message write is not signed',
+    why: 'a write the signature does not cover is a write anyone who can reach the door can make, and this one types his words into a session.',
+    file: TABLE,
+    from: "{ id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true }",
+    to: "{ id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: false }",
+    needs: ['gate']
+  },
+  {
+    n: 'R4b',
+    rule: 'R4',
+    name: 'the press re-pathed under the same id',
+    why: 'R4 pins WHICH PATHS EXIST; a route re-pathed under its old id leaves every id-set comparison green.',
+    file: TABLE,
+    from: "path: '/v1/choose'",
+    to: "path: '/v1/press'",
+    needs: ['gate']
+  },
+  {
+    n: 'R3g',
+    rule: 'R3',
+    name: 'the door spells the writer’s factory',
+    why: 'the door reaches the press and the message only through what src/main/capabilities.ts hands it; a door that can name createReplyVerbs can build a second writer.',
+    file: ROUTES,
+    from: /^(import [^\n]*\n)/m,
+    to: (m, line) => `${line}const p318Writer = 'createReplyVerbs';\nvoid p318Writer;\n`,
+    needs: ['gate']
+  },
+  {
+    n: 'X1g',
+    rule: 'X1',
+    name: 'the message’s act moved out of the statement after the last check',
+    why: 'every verb’s act is the ONE statement after the last check; an act anywhere else has room for something between the check and the keystroke.',
+    file: WRITES,
+    from: /: replySettled\(\(\) => writes\.say\(\{ sessionId: parsed\.session, text: parsed\.text \}, still\)\);/,
+    to: ": Promise.resolve(REPLY_ACT_FAILED);\n      void writes.say;",
+    needs: ['gate']
+  },
+  {
+    n: 'X2e',
+    rule: 'X2',
+    name: 'the choose body’s keys are no longer compared exactly',
+    why: 'an unknown or missing key refuses the body whole (D2); a sixth key on a press is a field nobody signed off on.',
+    file: WRITES,
+    from: "Object.keys(value).sort().join(',') !== CHOOSE_KEYS",
+    to: "!Object.keys(value).includes('marker')",
+    needs: ['gate']
+  },
+  {
+    n: 'X2f',
+    rule: 'X2',
+    name: 'the say body’s keys are no longer compared exactly',
+    why: 'a fourth key on a message is a field nobody signed off on, riding beside his words.',
+    file: WRITES,
+    from: "Object.keys(value).sort().join(',') !== SAY_KEYS",
+    to: "!Object.keys(value).includes('text')",
+    needs: ['gate']
+  },
+  {
+    n: 'X2g',
+    rule: 'X2',
+    name: 'the question id read by a pattern',
+    why: 'the strict parse reads one character at a time, and R1 refuses a pattern in this domain.',
+    file: WRITES,
+    from: /function isQuestionId\(value: unknown\): value is string \{[\s\S]*?\n\}/,
+    to: "function isQuestionId(value: unknown): value is string {\n  return typeof value === 'string' && /^[0-9a-f]{16}-(?:0|[1-9][0-9]{0,15})$/.test(value);\n}",
+    needs: ['gate']
+  },
+  {
+    n: 'X3g',
+    rule: 'X3',
+    name: 'the ledger keyed without the verb',
+    why: '317’s fix round asked for it (D4): keyed without the verb, the same write id under another verb reads another write’s recorded answer.',
+    file: WRITES,
+    from: '    const key = keyOf(verifiedPhone, verb, parsed.write);',
+    to: "    const key = keyOf(verifiedPhone, 'end', parsed.write);",
+    needs: ['gate']
+  },
+  {
+    n: 'X3h',
+    rule: 'X3',
+    name: 'the key’s parts joined by one newline',
+    why: 'a key whose parts can run together is two writes’ key; a newline is the one character no part can hold.',
+    file: WRITES,
+    from: /`\$\{phone\}\\n\$\{verb\}\\n\$\{write\}`/,
+    to: '`${phone}\\n${verb}${write}`',
+    needs: ['gate']
+  },
+  {
+    n: 'X4c',
+    rule: 'X4',
+    name: 'the phone’s claim made for some verbs only',
+    why: 'one write in flight per phone and per session ACROSS verbs: an End and a message must never overlap on one session (D4).',
+    file: WRITES,
+    from: '    phonesInFlight.add(verifiedPhone);\n',
+    to: "    if (verb !== 'say') phonesInFlight.add(verifiedPhone);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'X5k',
+    rule: 'X5',
+    name: 'the one implementation does more than pass the message through',
+    why: 'pocket-writes.ts names nothing that types: choose and say pass through to the reply verbs, so PocketWrites stays implemented once.',
+    file: POCKET_WRITES,
+    from: '    say: (input, still): Promise<PocketReplyOutcome> => deps.reply.say(input, still)',
+    to: "    say: (input, still): Promise<PocketReplyOutcome> => (console.info('a message from the phone'), deps.reply.say(input, still))",
+    needs: ['gate']
+  },
+  {
+    n: 'X5l',
+    rule: 'X5',
+    name: 'the reply verbs claim to be a whole PocketWrites',
+    why: 'PocketWrites is implemented ONCE; a second implementer is a second idea of what the door can do.',
+    file: WRITER,
+    from: "): Pick<PocketWrites, 'choose' | 'say'> & {",
+    to: '): PocketWrites & {',
+    needs: ['gate']
+  },
+  {
+    n: 'X6e',
+    rule: 'X6',
+    name: 'a reply sentence spelled as a literal, through a relay',
+    why: 'every sentence the phone reads has one owner; a literal handed to failed( is a second spelling that drifts from src/shared/reply-copy.ts.',
+    file: WRITER,
+    from: '    if (core === null) return failed(REPLY_FAILED);',
+    to: "    if (core === null) return failed('Tortie could not type into this session.');",
+    needs: ['gate']
+  },
+  {
+    n: 'X12d',
+    rule: 'X12',
+    name: 'a write clause re-worded',
+    why: 'the line is what he allows; a clause that drifts from build/p318/SPEC.md §5.1.7 is a confirm line that says something else.',
+    file: PAIRING,
+    from: "  choose: 'answer a numbered question',",
+    to: "  choose: 'answer a question',",
+    needs: ['gate']
+  },
+  {
+    n: 'X12e',
+    rule: 'X12',
+    name: 'three clauses joined with and',
+    why: 'three clauses read as a list; "end a session and answer a numbered question and send a session one message" is not the line he was shown.',
+    file: PAIRING,
+    from: 'lines.push(`Lets an allowed phone ${clauseListOf(clauses)}`)',
+    to: "lines.push(`Lets an allowed phone ${clauses.join(' and ')}`)",
+    needs: ['gate']
+  },
+  {
+    n: 'X12f',
+    rule: 'X12',
+    name: 'the honesty sentence forgets the reply',
+    why: 'the sheet’s sentence says what a phone he allows can do; one that names End alone is false after this phase.',
+    file: SHARED,
+    from: "  'A phone you allow can end a session, answer a numbered question and send a session one message. ' +",
+    to: "  'A phone you allow can end a session. ' +",
+    needs: ['gate']
+  },
+  {
+    n: 'Y1a',
+    rule: 'Y1',
+    name: 'the message cap back at 16,384',
+    why: 'a 4,096-byte text of C0 controls escapes to 24,771 bytes; at 16,384 the door drops it oversized instead of the Mac answering refused character (§Revision R10, R18).',
+    file: LIMITS,
+    from: 'say: 32_768',
+    to: 'say: 16_384',
+    needs: ['gate']
+  },
+  {
+    n: 'Y1b',
+    rule: 'Y1',
+    name: 'the caps not frozen',
+    why: 'a cap anything can raise at run time is not a cap.',
+    file: LIMITS,
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768 } as const;',
+    needs: ['gate']
+  },
+  {
+    n: 'Y2a',
+    rule: 'Y2',
+    name: 'still forgets to ask whether the phone is still paired',
+    why: 'a press reads the screen before it types; a phone Removed on the Mac during that read would type through a still that does not ask (D5).',
+    file: WRITES,
+    from: /(\n\s*)!deps\.shuttingDown\(\) && !door\.stopping\(\) && deps\.stillPaired\(verifiedPhone\);/,
+    to: (m, sp) => `${sp}!deps.shuttingDown() && !door.stopping();`,
+    needs: ['gate']
+  },
+  {
+    n: 'Y2b',
+    rule: 'Y2',
+    name: 'the message is handed a still that always says yes',
+    why: 'the verb asks the door’s last check again before the paste; a still that answers true is no check.',
+    file: WRITES,
+    from: 'writes.say({ sessionId: parsed.session, text: parsed.text }, still)',
+    to: 'writes.say({ sessionId: parsed.session, text: parsed.text }, () => true)',
+    needs: ['gate']
+  },
+  {
+    n: 'Y2c',
+    rule: 'Y2',
+    name: 'the write path reads the message’s text for itself',
+    why: 'the text reaches writes.say( and nothing else, so no log line, ledger entry or answer can carry it.',
+    file: WRITES,
+    from: '    const session = parsed.session;\n',
+    to: "    const session = parsed.session;\n    const words = parsed.verb === 'say' ? parsed.text : '';\n    void words;\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y3a',
+    rule: 'Y3',
+    name: 'an Enter after the digit',
+    why: 'THE ONE THAT MATTERS MOST HERE. A separate Enter approved the next, unseen dialog 8 times of 8 once the gap passed about 200 ms (research 135 §2.3); a press is the digit alone.',
+    file: WRITER,
+    from: "core.control.sendCommand(line(['send-keys', '-t', pane, '-l', '--', input.marker]))",
+    to: "core.control.sendCommand(line(['send-keys', '-t', pane, '-l', '--', input.marker, 'Enter']))",
+    needs: ['gate']
+  },
+  {
+    n: 'Y3b',
+    rule: 'Y3',
+    name: 'the press aimed at the session, not the pane the reading captured',
+    why: 'a window made from the Mac would take a keystroke aimed at the session (§Revision R19 b).',
+    file: WRITER,
+    from: "line(['copy-mode', '-q', '-t', pane])",
+    to: "line(['copy-mode', '-q', '-t', tmuxId])",
+    needs: ['gate']
+  },
+  {
+    n: 'Y3c',
+    rule: 'Y3',
+    name: 'the reader types',
+    why: 'the reader reads, for the offer and the press alike; a keystroke from it is a keystroke no final check guards.',
+    file: READER,
+    from: '  if (pane === undefined || pane.dead) return null;\n',
+    to: "  if (pane === undefined || pane.dead) return null;\n  void deps.run(['send-keys', '-t', pane.paneId, 'Enter']);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y4a',
+    rule: 'Y4',
+    name: 'the message on the argv instead of standard input',
+    why: 'a failed tmux command’s text holds its argv (research 135 §4.8), and an argv is in ps for anyone to read; his words go on stdin and nowhere else.',
+    file: WRITER,
+    from: "await run(['load-buffer', '-b', name, '-'], { stdin: Buffer.from(input.text, 'utf8') });",
+    to: "await run(['set-buffer', '-b', name, input.text]);",
+    needs: ['gate']
+  },
+  {
+    n: 'Y4b',
+    rule: 'Y4',
+    name: 'the buffer named by the session rather than an id the writer mints',
+    why: 'a buffer another write can predict is a buffer another write can paste; the name is the writer’s own random id.',
+    file: WRITER,
+    from: "const name = BUFFER_PREFIX + randomBytes(16).toString('hex');",
+    to: 'const name = BUFFER_PREFIX + input.sessionId;',
+    needs: ['gate']
+  },
+  {
+    n: 'Y4c',
+    rule: 'Y4',
+    name: 'the buffer deleted outside a finally',
+    why: 'a refusal or a throw after load-buffer would leave his words in the private server (§13 item 11).',
+    file: WRITER,
+    from: /    \} finally \{\n(\s*\/\/[^\n]*\n)*\s*if \(!pasted\) await run\(\['delete-buffer', '-b', name\]\)\.catch\(\(\) => undefined\);\n    \}/,
+    to: "    }\n    await run(['delete-buffer', '-b', name]).catch(() => undefined);",
+    needs: ['gate']
+  },
+  {
+    n: 'Y5a',
+    rule: 'Y5',
+    name: 'something awaited between the press’s final check and its keystroke',
+    why: 'D5: the read before the press is the window a Removed phone or a moved question would type through; nothing is awaited from the final check to the act.',
+    file: WRITER,
+    from: '      deps.onLastCheck?.(id);\n',
+    to: '      deps.onLastCheck?.(id);\n      await Promise.resolve();\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Y5b',
+    rule: 'Y5',
+    name: 'the question id moved after the keystroke',
+    why: 'the phone’s own bump comes BEFORE the act, so a desk keystroke racing it, or a second press on the same offer, is told apart (D6).',
+    file: WRITER,
+    from: /      deps\.turns\.bump\(id, 'phone'\);\n([\s\S]*?)(      if \(!\(await typed\)\) return failed\(REPLY_FAILED\);\n)/,
+    to: (m, mid, act) => `${mid}${act}      deps.turns.bump(id, 'phone');\n`,
+    needs: ['gate']
+  },
+  {
+    n: 'Y5c',
+    rule: 'Y5',
+    name: 'Promise.all over the press’s two control lines',
+    why: 'a refused copy-mode line beside a resolved send-keys line would read “could not type” while the digit landed (§Revision R19 a).',
+    file: WRITER,
+    from: '? Promise.allSettled([',
+    to: '? Promise.all([',
+    needs: ['gate']
+  },
+  {
+    n: 'Y5d',
+    rule: 'Y5',
+    name: 'the reader’s capture is not its last read',
+    why: 'the process reads take a ps each, tens of milliseconds; the screen must be the youngest thing the final check reads (§Revision R15).',
+    file: READER,
+    from: '  return { tmuxId, pane, agentHolds, native, cursor, screen };\n}',
+    to: '  await deps.readProc();\n  return { tmuxId, pane, agentHolds, native, cursor, screen };\n}',
+    needs: ['gate']
+  },
+  {
+    n: 'Y6a',
+    rule: 'Y6',
+    name: 'the desk’s funnel called whatever moved the id',
+    why: 'after Claude approved A, ran it and asked B, B’s hook had already committed needs_input; a release then cleared the NEXT question (§Revision R11).',
+    file: WRITER,
+    from: '      if (later.hooks === at.hooks && !rows.atChoice) core.activity.noteUserInput(id);',
+    to: '      core.activity.noteUserInput(id);',
+    needs: ['gate']
+  },
+  {
+    n: 'Y6c',
+    rule: 'Y6',
+    name: 'the release guarded by the id’s count again',
+    why: 'a tick inside the 300 ms read-back answers choice-gone for the question the press answered and moves the count; the release skipped there left the Mac at needs input with nothing on the phone to clear it (the fix round of 2026-10-04).',
+    file: WRITER,
+    from: '      if (later.hooks === at.hooks && !rows.atChoice) core.activity.noteUserInput(id);',
+    to: '      if (later.n === at.n) core.activity.noteUserInput(id);',
+    needs: ['gate']
+  },
+  {
+    n: 'Y6d',
+    rule: 'Y6',
+    name: 'the release made over a choice still drawn',
+    why: 'a choice on the read-back screen is the next question (or the same one again), which the monitor’s own tick speaks for; a release there clears it (§Revision R11).',
+    file: WRITER,
+    from: '      if (later.hooks === at.hooks && !rows.atChoice) core.activity.noteUserInput(id);',
+    to: '      if (later.hooks === at.hooks) core.activity.noteUserInput(id);',
+    needs: ['gate']
+  },
+  {
+    n: 'Y6b',
+    rule: 'Y6',
+    name: 'a message calls a status setter',
+    why: 'refusal 5: no route and no verb sets a status; a message is refused on every needs_input row, so there is nothing to release (D17).',
+    file: WRITER,
+    from: '      pasted = true;\n',
+    to: "      pasted = true;\n      (core as unknown as { applyDetectedStatus(id: string, s: string): void }).applyDetectedStatus(id, 'idle');\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y7a',
+    rule: 'Y7',
+    name: 'a press shape read from settings',
+    why: 'refusal 5: a press shape is compiled, never configured; a table a setting can reach is a table an agent that can write the setting can widen.',
+    file: PRESS_SHAPES,
+    from: "import type { DialogRows } from '../activity/screen';",
+    to: "import { readSettings } from '../settings/store';\nimport type { DialogRows } from '../activity/screen';\nvoid readSettings;",
+    needs: ['gate']
+  },
+  {
+    n: 'Y7b',
+    rule: 'Y7',
+    name: 'a shape table left unfrozen',
+    why: 'a table anything can push a shape onto at run time is not compiled.',
+    file: PRESS_SHAPES,
+    from: 'const OPTIONS = Object.freeze({ min: 2, max: 9 });',
+    to: 'const OPTIONS = { min: 2, max: 9 };',
+    needs: ['gate']
+  },
+  {
+    n: 'Y7c',
+    rule: 'Y7',
+    name: 'the question id imports a second module',
+    why: 'question-id.ts imports node:crypto and nothing else (§5.3): it is the identity every press is checked against.',
+    file: QUESTION_ID,
+    from: "import { randomBytes } from 'node:crypto';",
+    to: "import { randomBytes } from 'node:crypto';\nimport { readFileSync } from 'node:fs';\nvoid readFileSync;",
+    needs: ['gate']
+  },
+  {
+    n: 'Y8a',
+    rule: 'Y8',
+    name: 'an error’s text read in the writer',
+    why: 'a failed tmux command’s text holds its argv (research 135 §4.8); errors are told apart by code alone.',
+    file: WRITER,
+    from: /    \} catch \{\n      return failed\(REPLY_FAILED\);\n    \} finally \{/,
+    to: '    } catch (err) {\n      void (err as Error).message;\n      return failed(REPLY_FAILED);\n    } finally {',
+    needs: ['gate']
+  },
+  {
+    n: 'Y9a',
+    rule: 'Y9',
+    name: 'a log line in the writer',
+    why: 'nothing in src/main/reply logs: the one line per write is writes.ts’s, and it carries the verb, the outcome word and the session id.',
+    file: WRITER,
+    from: "import { textRefusal } from './text-rules';",
+    to: "import { textRefusal } from './text-rules';\nimport { getLog } from '../log';\nconst p318Log = getLog('reply');\nvoid p318Log;",
+    needs: ['gate']
+  },
+  {
+    n: 'Y10a',
+    rule: 'Y10',
+    name: 'a tmux call before the gate',
+    why: 'a row on another machine is refused before any tmux call is composed, so nothing of a press ever reaches that machine.',
+    file: WRITER,
+    from: '      const gate = replyGate(row, kind, tmuxId);\n',
+    to: "      await run(['capture-pane', '-p', '-t', id]);\n      const gate = replyGate(row, kind, tmuxId);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y10b',
+    rule: 'Y10',
+    name: 'the gate reads the status before the remote and agent arm',
+    why: 'the remote and agent arm is first (§5.4.1), so a row on another machine is refused for what it is, whatever its status says.',
+    file: REPLY_GATE,
+    from: /(  if \(session\.machine !== undefined \|\| !REPLY_AGENTS\.includes\(session\.agent\)\) \{\n[^\n]*\n  \}\n)(  if \(kind === 'press'\) \{\n[^\n]*\n  \} else if [^\n]*\n[^\n]*\n  \}\n)/,
+    to: (m, remote, status) => `${status}${remote}`,
+    needs: ['gate']
+  },
+  {
+    n: 'Y10c',
+    rule: 'Y10',
+    name: 'standard input allowed to another machine',
+    why: 'his words never travel to another machine: spawnTmux refuses stdin for a remote context before anything is composed (D22).',
+    file: EXEC_PLANE,
+    from: "if (options.stdin !== undefined && ctx.kind === 'remote') {",
+    to: "if (options.stdin !== undefined && ctx.kind === 'remote' && false) {",
+    needs: ['gate']
+  },
+  {
+    n: 'Y11a',
+    rule: 'Y11',
+    name: 'the door imports the reply',
+    why: 'the door reaches the press and the message only through what src/main/capabilities.ts hands it; an import is a door that can build its own writer.',
+    file: ROUTES,
+    from: /^(import [^\n]*\n)/m,
+    to: (m, line) => `${line}import type { ReplyCore } from '../reply/writer';\nexport type P318Core = ReplyCore;\n`,
+    needs: ['gate']
+  },
+  {
+    n: 'Y12a',
+    rule: 'Y12',
+    name: 'the marker in a log line in the reply',
+    why: 'G1’s scope is src/main/reply too: a press’s marker, a mark, a screen or a message never reaches a log.',
+    file: WRITER,
+    from: "      if (deps.turns.current(id).id !== input.question) return refused('changed', LIFECYCLE_SESSION_CHANGED);\n",
+    to: "      if (deps.turns.current(id).id !== input.question) return refused('changed', LIFECYCLE_SESSION_CHANGED);\n      console.info('a press', input.marker);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y13a',
+    rule: 'Y13',
+    name: 'the writer moves the id a third time',
+    why: 'the writer bumps once before each act and nowhere else; a bump anywhere else clears a hook’s question a press was shown.',
+    file: WRITER,
+    from: '      pasted = true;\n',
+    to: "      pasted = true;\n      deps.turns.bump(id, 'phone');\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y13b',
+    rule: 'Y13',
+    name: 'a waiting status clears the question it belongs to',
+    why: 'a needs_input commit must never move the id: a press must survive its own question being committed (§Revision R16).',
+    file: CORE,
+    from: "        if (status !== 'needs_input') replyTurns.bump(sessionId, 'status');",
+    to: "        replyTurns.bump(sessionId, 'status');",
+    needs: ['gate']
+  },
+  {
+    n: 'Y13c',
+    rule: 'Y13',
+    name: 'the reader moves the id',
+    why: 'only the hook, the desk, the monitor’s choice moves, a committed status and the writer move it; an offer that moves it makes the next press refuse.',
+    file: READER,
+    from: '      const after = deps.turns.current(session.id);\n',
+    to: "      const after = deps.turns.current(session.id);\n      deps.turns.bump(session.id, 'desk');\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Y14a',
+    rule: 'Y14',
+    name: 'the reader asks the numbered verdict',
+    why: 'the reader reads the rows the monitor reads (detectDialogRows); detectDialog is the verdict conformance:choices pins to one call site.',
+    file: READER,
+    from: '  const rows = detectDialogRows(screen);\n  const press = readPress(',
+    to: '  void detectDialog(screen);\n  const rows = detectDialogRows(screen);\n  const press = readPress(',
+    needs: ['gate']
+  },
+  {
+    n: 'Y14b',
+    rule: 'Y14',
+    name: 'the door hands on the reader’s own pressable array',
+    why: 'composed field by field with a fresh array, so nothing the reader holds can leave and nothing outside can push onto the answer.',
+    file: ROUTES,
+    from: '    pressable: pressing ? pressable : [],',
+    to: '    pressable: pressing ? offer.pressable : [],',
+    needs: ['gate']
+  },
+  {
+    n: 'Y15a',
+    rule: 'Y15',
+    name: 'the message trimmed before its rules',
+    why: 'a message is exactly his bytes: nothing is stripped, trimmed or normalized, ever (§5.5).',
+    file: WRITER,
+    from: 'const rule = textRefusal(input.text);',
+    to: 'const rule = textRefusal(input.text.trim());',
+    needs: ['gate']
+  },
+  {
+    n: 'Y15b',
+    rule: 'Y15',
+    name: 'the text cap spelled twice',
+    why: 'two spellings of one cap agree until the day one moves.',
+    file: WRITER,
+    from: "const BUFFER_PREFIX = 'tortie-say-';",
+    to: "const BUFFER_PREFIX = 'tortie-say-';\nconst REPLY_TEXT_MAX_BYTES = 4_096;\nvoid REPLY_TEXT_MAX_BYTES;",
+    needs: ['gate']
+  },
+  {
+    n: 'Y16a',
+    rule: 'Y16',
+    name: 'PocketFacts.replyOffer made required',
+    why: 'the push seam’s and the tests’ facts offer no reply; required, they would stop compiling or invent one.',
+    file: ROUTES,
+    from: '  replyOffer?(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;',
+    to: '  replyOffer(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;',
+    needs: ['gate']
+  },
+  {
+    n: 'Y16b',
+    rule: 'Y16',
+    name: 'the empty offer’s pressable left unfrozen',
+    why: 'one push onto it would make every refused session pressable.',
+    file: SHARED,
+    from: 'pressable: Object.freeze([]) as unknown as string[],',
+    to: 'pressable: [] as string[],',
+    needs: ['gate']
+  },
+  {
+    n: 'Y17a',
+    rule: 'Y17',
+    name: 'a pane report moves the question id',
+    why: 'every blur and focus of the Mac’s window, and every return to a session, sends a report down this channel; under D7 each would clear a waiting Claude dialog’s question for good (§Revision R14).',
+    file: ATTACH,
+    from: 'if (req.machine === undefined && !isPaneReport(data)) {',
+    to: 'if (req.machine === undefined) {',
+    needs: ['gate']
+  },
+  {
+    n: 'Y17b',
+    rule: 'Y17',
+    name: 'the renderer declares its own focus report again',
+    why: 'the attach host’s filter and the renderer’s reader are one predicate; a second declaration drifts.',
+    file: FOCUS_REPORT,
+    from: "export {\n  FOCUS_IN_REPORT,\n  FOCUS_OUT_REPORT,\n  isFocusReport\n} from '@shared/pane-report';",
+    to: "export { FOCUS_IN_REPORT, FOCUS_OUT_REPORT } from '@shared/pane-report';\nexport function isFocusReport(data: string): boolean {\n  return data === '\\u001b[I' || data === '\\u001b[O';\n}",
+    needs: ['gate']
+  },
+  {
+    n: 'Y18a',
+    rule: 'Y18',
+    name: 'a message sent while the agent works',
+    why: 'a working agent draws a permission question at a moment of its own, and the paste’s Return approves it (§Revision R15; his ruling, “Only when idle at its prompt”).',
+    file: WRITER,
+    from: "        reading.native.state !== 'idle' ||",
+    to: "        (reading.native.state !== 'idle' && reading.native.state !== 'working') ||",
+    needs: ['gate']
+  },
+  {
+    n: 'Y18b',
+    rule: 'Y18',
+    name: 'the offer draws the box without asking the agent’s own reader',
+    why: 'the box is drawn only while the agent’s own reader reads idle; an offer that does not ask draws it over a working agent.',
+    file: READER,
+    from: "    reading.native.state === 'idle' &&\n",
+    to: '',
     needs: ['gate']
   },
   // -------------------------------------------------------------------------

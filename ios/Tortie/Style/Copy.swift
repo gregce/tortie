@@ -453,6 +453,39 @@ enum Copy {
     /// true.
     static let endNoAnswer = "Your Mac did not answer. This is the session as it reads now."
 
+    // MARK: - Reply (Phase 318: Answer.html, Composer.html, build/p318/SPEC.md section 5.7.5)
+    //
+    // A press and a message ask no Face ID (his ruling, "Only for End"). The
+    // options' words are the agent's own and the refusal sentences are the
+    // Mac's (`src/shared/reply-copy.ts`), both drawn as the door sends them,
+    // so neither is here. These are the message box's own words, which no Mac
+    // surface draws: on the Mac a person types into the session itself.
+
+    /// Phone: the message box's press. The Mac has no message box: a person
+    /// types into the session's own terminal there.
+    static let send = "Send"
+
+    /// Phone: the message box's placeholder and its accessible name. The Mac
+    /// has no message box to name.
+    static let messagePlaceholder = "Message this session"
+
+    /// Phone: under the message box, what Send does: one paste and Return,
+    /// never queued and never split. The Mac types into the session directly.
+    static let oneMessage = "Goes to this session as one message."
+
+    /// Phone: under the message box while the message is on its way to the
+    /// Mac. The Mac's own typing has no such wait.
+    static let sending = "Sending…"
+
+    /// Phone: the Mac answered that the message reached the session (`done`).
+    /// The Mac's own typing needs no such word.
+    static let replySent = "Sent"
+
+    /// Phone: the door refused a press or a message before acting (a 404), or
+    /// the app left before its bytes were handed and it was never sent. Both
+    /// are true of each: nothing was sent.
+    static let replyNotTaken = "Your Mac did not take it. Nothing was sent."
+
     // MARK: - The answer, drawn as markdown (Phase 316.6: Conversation.html, Link.html)
 
     /// Mac: src/renderer/arch/copy.ts ⟦ARCH_INSPECT_OPEN = 'Open'⟧

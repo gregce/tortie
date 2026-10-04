@@ -9,7 +9,7 @@
  * for everything else. A path that is not in the list does not exist, and the
  * door refuses it before it reads a header, a query or a byte of body.
  *
- * ## Three questions, and two narrow writes declared here and done elsewhere
+ * ## Three questions, and three narrow writes declared here and done elsewhere
  *
  * The blocked list (with, since Phase 316, every other session Tortie lists),
  * one session, and that session's turns. Every answer is composed here in main
@@ -36,12 +36,19 @@
  *   - (Phase 317) whether End is offered on a row, and the Mac's own End
  *     confirmation for one session, are composed by the one implementation
  *     outside this domain that asks both gates ({@link PocketFacts.endOffer})
- *     and by the shared `endSessionConfirm` over main's own row.
+ *     and by the shared `endSessionConfirm` over main's own row;
+ *   - (Phase 318) what the phone may press or send on ONE session is read by
+ *     the reply's reader outside this domain ({@link PocketFacts.replyOffer})
+ *     over one fresh reading, handed the very question and options this answer
+ *     draws, and copied onto `/v1/session` field by field. `/v1/blocked` and
+ *     its rows carry none of it.
  *
- * The one write (Phase 317, build/p317/SPEC.md §5.4) is DECLARED here, as
- * {@link PocketWrites}, a hand-written interface with one member, and done
- * outside this domain (`src/main/sessions/pocket-writes.ts`), which is handed
- * in. Nothing in this module can name the verb a write reaches.
+ * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
+ * build/p318/SPEC.md §5.1.5) are DECLARED here, as {@link PocketWrites}, a
+ * hand-written interface with three members, and done outside this domain
+ * (`src/main/sessions/pocket-writes.ts`, which hands the reply's two to the
+ * verbs in `src/main/reply/`), which is handed in. Nothing in this module can
+ * name the verb a write reaches.
  *
  * ## Fresh before read (Phase 316)
  *
@@ -91,14 +98,17 @@ import { OUTCOME_REMOTE } from '@shared/overview-copy';
 import { raisedLabel } from '@shared/status-words';
 import {
   POCKET_AGE_HONESTY,
+  POCKET_NO_REPLY,
   POCKET_OTHERS_MAX,
   POCKET_ROUTE_IDS,
+  POCKET_WRITE_ROUTE_IDS,
   type PocketBlockedAnswer,
   type PocketBlockedRow,
   type PocketCatchUp,
   type PocketEndConfirm,
   type PocketEndOffer,
   type PocketHandoff,
+  type PocketReplyOffer,
   type PocketRouteId,
   type PocketSessionAnswer,
   type PocketSessionDetail,
@@ -129,16 +139,21 @@ export function pocketRouteIds(): readonly PocketRouteId[] {
   return POCKET_ROUTES.map((r) => r.id);
 }
 
+/** Whether a route id is one of the contract's closed write list. */
+function isWriteRouteId(id: PocketRouteId): id is PocketWriteRouteId {
+  return (POCKET_WRITE_ROUTE_IDS as readonly PocketRouteId[]).includes(id);
+}
+
 /**
- * The write rows' ids, read from the table (Phase 317). Exactly `end`, and
- * `routes.test.ts` holds it to that list. It replaces
- * `pocketTableIsReadOnly()`, which this phase made false.
+ * The write rows' ids, read from the table (Phase 317; Phase 318 added two).
+ * Exactly `end`, `choose` and `say`, and `routes.test.ts` holds it to that
+ * list. It replaces `pocketTableIsReadOnly()`, which Phase 317 made false.
  */
 export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
   const ids: PocketWriteRouteId[] = [];
   for (const route of POCKET_ROUTES) {
     if (route.reads) continue;
-    if (route.id === 'end') ids.push(route.id);
+    if (isWriteRouteId(route.id)) ids.push(route.id);
   }
   return ids;
 }
@@ -239,16 +254,69 @@ export interface PocketFacts {
    * for a field neither needs.
    */
   endOffer?(session: Session): PocketEndOffer;
+  /**
+   * What the phone may press or send on ONE session now (Phase 318,
+   * build/p318/SPEC.md §5.2, D18): the reply's reader in
+   * `src/main/reply/reader.ts`, outside this domain, over one fresh reading of
+   * the session, handed in. A READ, like every member here: it writes nothing,
+   * sets no status, and types nothing.
+   *
+   * IT IS HANDED WHAT THIS ANSWER DRAWS (§Revision R1). `drawn` is the question
+   * and the options the same `/v1/session` answer serves, which come from the
+   * activity map and move only on the monitor's tick; the reader offers a
+   * press only when its fresh reading composes exactly those, so a person can
+   * never tap an option drawn under one question and have it answer another.
+   *
+   * Asked by `/v1/session` alone. OPTIONAL, AND ABSENT READS
+   * {@link POCKET_NO_REPLY}: the push seam and the tests build their own facts
+   * and offer no reply. A reader that rejects reads the empty offer too, and
+   * the session read still answers.
+   */
+  replyOffer?(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;
   now?(): number;
 }
 
 /**
- * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4), implemented ONCE,
- * OUTSIDE this domain (`src/main/sessions/pocket-writes.ts`), and handed in.
- * Nothing here can name the verb it reaches (`conformance:pocket` R3).
+ * What one `/v1/session` answer draws of a session's question, handed to the
+ * reply's reader (Phase 318, §Revision R1). Main only, never on the wire.
+ */
+export interface PocketReplyDrawn {
+  /** The question this answer serves, or null. */
+  readonly question: string | null;
+  /** The options this answer serves, in drawn order. */
+  readonly choices: readonly SessionChoiceOption[];
+}
+
+/** What a press echoes: the question id and the mark it was shown, and the option pressed. */
+export interface PocketChooseInput {
+  sessionId: string;
+  question: string;
+  mark: string;
+  marker: string;
+}
+
+/** One message, as the phone sent it. */
+export interface PocketSayInput {
+  sessionId: string;
+  text: string;
+}
+
+/**
+ * The door's last check, handed to a verb that reads before it acts (Phase 318,
+ * D5): the quit, this door instance stopping, the signing phone still paired.
+ * The verb asks it AGAIN in its own final synchronous check, with nothing
+ * awaited between that and the keystroke.
+ */
+export type PocketStillAllowed = () => boolean;
+
+/**
+ * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
+ * build/p318/SPEC.md §5.1.5), implemented ONCE, OUTSIDE this domain
+ * (`src/main/sessions/pocket-writes.ts`), and handed in. Nothing here can name
+ * the verb it reaches (`conformance:pocket` R3).
  *
- * Hand written and narrow, like {@link PocketFacts}, with ONE member. Phase 318
- * adds two; no member may set a status.
+ * Hand written and narrow, like {@link PocketFacts}, with THREE members and no
+ * fourth; no member may set a status.
  */
 export interface PocketWrites {
   /**
@@ -257,12 +325,33 @@ export interface PocketWrites {
    * never throws.
    */
   end(input: { sessionId: string; batch: boolean }): Promise<PocketEndOutcome>;
+  /** Press one option of a measured question. Answers an outcome and never throws. */
+  choose(input: PocketChooseInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
+  /** Send one message. Answers an outcome and never throws. */
+  say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
 }
 
 /** What one End came to, as the write path answers it. */
 export type PocketEndOutcome =
   | { outcome: 'done' }
   | { outcome: 'refused'; reason: 'removed' | 'unreachable' | 'ended' | 'gone'; sentence: string }
+  | { outcome: 'failed'; sentence: string };
+
+/** Why a press or a message was refused, as the door's answer words it (Phase 318, D19). */
+export type PocketReplyRefusal =
+  | 'gone'
+  | 'changed'
+  | 'unpressable'
+  | 'unsayable'
+  | 'stopped'
+  | 'empty'
+  | 'long'
+  | 'character';
+
+/** What one press or one message came to, as the write path answers it. */
+export type PocketReplyOutcome =
+  | { outcome: 'done' }
+  | { outcome: 'refused'; reason: PocketReplyRefusal; sentence: string }
   | { outcome: 'failed'; sentence: string };
 
 /** End on a row when no implementation was handed in: none. */
@@ -276,6 +365,44 @@ const NO_END: PocketEndOffer = Object.freeze({ state: 'none' }) as PocketEndOffe
 function endConfirmOf(session: Session): PocketEndConfirm {
   const confirm = endSessionConfirm(session);
   return { title: confirm.title, body: confirm.body, confirmLabel: confirm.confirmLabel };
+}
+
+/**
+ * The reply offer as the door serves it (Phase 318, build/p318/SPEC.md §5.2),
+ * COMPOSED FIELD BY FIELD from what the reader answered, with a fresh array for
+ * `pressable`, so nothing else on the reader's object can ever leave.
+ *
+ * The offer's invariants are held HERE, at the one composer, whatever a reader
+ * says, because the phone draws them and decides nothing:
+ *
+ *   - `pressable` holds only markers of the options THIS answer draws, in
+ *     their drawn order, each once, so no button can be drawn for an option
+ *     the person cannot see;
+ *   - the press half is all or nothing: `question`, `mark` and `command` are
+ *     null, and `pressable` empty, unless a question id, a mark and at least
+ *     one pressable marker are all there;
+ *   - `canSay` is true only when the reader said exactly `true`.
+ */
+function replyOf(offer: PocketReplyOffer, drawn: PocketReplyDrawn): PocketReplyOffer {
+  const offered = new Set<string>();
+  if (Array.isArray(offer.pressable)) {
+    for (const marker of offer.pressable) if (typeof marker === 'string') offered.add(marker);
+  }
+  const pressable: string[] = [];
+  for (const choice of drawn.choices) {
+    if (offered.has(choice.marker) && !pressable.includes(choice.marker)) pressable.push(choice.marker);
+  }
+  const question = typeof offer.question === 'string' && offer.question.length > 0 ? offer.question : null;
+  const mark = typeof offer.mark === 'string' && offer.mark.length > 0 ? offer.mark : null;
+  const command = typeof offer.command === 'string' && offer.command.length > 0 ? offer.command : null;
+  const pressing = question !== null && mark !== null && pressable.length > 0;
+  return {
+    question: pressing ? question : null,
+    mark: pressing ? mark : null,
+    pressable: pressing ? pressable : [],
+    command: pressing ? command : null,
+    canSay: offer.canSay === true
+  };
 }
 
 /**
@@ -471,6 +598,25 @@ export function createPocketRoutes(facts: PocketFacts): {
     }
   };
 
+  /**
+   * PHASE 318. What the phone may press or send on one session, asked of the
+   * reply's reader ONCE and composed field by field. It never rejects: no
+   * reader, or a reader that throws or rejects, reads the empty offer, and the
+   * session read still answers.
+   */
+  const replyFor = async (session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer> => {
+    let offer: PocketReplyOffer = POCKET_NO_REPLY;
+    if (facts.replyOffer !== undefined) {
+      try {
+        offer = await facts.replyOffer(session, drawn);
+      } catch {
+        offer = POCKET_NO_REPLY;
+      }
+    }
+    if (typeof offer !== 'object' || offer === null) offer = POCKET_NO_REPLY;
+    return replyOf(offer, drawn);
+  };
+
   return {
     blocked(): PocketBlockedAnswer {
       const at = now();
@@ -534,6 +680,12 @@ export function createPocketRoutes(facts: PocketFacts): {
         since,
         at
       );
+      // PHASE 318. The reply offer, asked beside the conversation reads and
+      // HANDED WHAT THIS ANSWER DRAWS (build/p318/SPEC.md §Revision R1): the
+      // very question and options `base` carries, so a press is offered only
+      // over the question the person will see. Started now, so it overlaps
+      // the reads below; it never rejects.
+      const replying = replyFor(session, { question: base.question, choices: base.choices });
       // A read that throws (a store that will not open) is answered as nothing
       // to answer, never left hanging: `./bind.ts` swallows a rejected handler
       // without ending the response, and a phone would wait out the timeout.
@@ -548,6 +700,7 @@ export function createPocketRoutes(facts: PocketFacts): {
         return null;
       }
       const lastMessageAt = activity?.lastMessageAt;
+      const reply = await replying;
       const detail: PocketSessionDetail = {
         ...base,
         catchUp,
@@ -562,7 +715,10 @@ export function createPocketRoutes(facts: PocketFacts): {
         // PHASE 317. The Mac's own End confirmation, word for word: the shared
         // composer over main's own row, and only when End is offered on it, so
         // a client never draws an End whose words it would have to make up.
-        endConfirm: base.end?.state === 'offered' ? endConfirmOf(session) : null
+        endConfirm: base.end?.state === 'offered' ? endConfirmOf(session) : null,
+        // PHASE 318. Always set, field by field (`replyOf`), so a client never
+        // draws a button or a box main did not offer on this very answer.
+        reply
       };
       return { session: detail, at };
     },

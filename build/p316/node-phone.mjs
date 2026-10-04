@@ -40,6 +40,14 @@
  * time (a test may hand `signedPost` any target, the removed `/v1/unpair`
  * included); `writeAnswerOf` reads an answer the phone's way. Nothing here
  * retries a write.
+ *
+ * PHASE 318 (build/p318/SPEC.md §5.1.2, §7.6): the reply's two writes,
+ * `chooseOption` (`POST /v1/choose`, the question id and mark the door offered
+ * and one marker) and `sayText` (`POST /v1/say`, one message), each through
+ * the same `signedPost` with a fresh write id unless the caller hands one (the
+ * kept say, §Revision R13, re-sends an id on purpose). `sayText` can write the
+ * body the way Swift's `JSONEncoder` does, `/` as `\/`, so a probe can send
+ * the bytes the phone sends. `writeAnswerOf` reads every verb's answer.
  */
 
 import {
@@ -332,11 +340,19 @@ export const freshWriteId = () => randomBytes(16).toString('hex');
 
 /**
  * A write's body the phone's way: JSON with its keys SORTED, as `JSONEncoder`
- * with `.sortedKeys` writes it: `{ batch, session, write }` for `end`. The
- * session id alphabet has no character JSON
- * escapes, so this and Swift's encoder write the same bytes.
+ * with `.sortedKeys` writes it: `{ batch, session, write }` for `end`,
+ * `{ mark, marker, question, session, write }` for `choose`, `{ session, text,
+ * write }` for `say`. The session id alphabet has no character JSON escapes,
+ * so for `end` and `choose` this and Swift's encoder write the same bytes.
+ * `options.swiftSlashes` writes every `/` as `\/`, which is the one place
+ * Swift's default encoding of a message's text differs from `JSON.stringify`
+ * that the door's cap and the Mac's parse care about (build/p318/SPEC.md
+ * §5.1.3).
  */
-export const writeBodyOf = (fields) => Buffer.from(sortedJson(fields), 'utf8');
+export const writeBodyOf = (fields, options = {}) => {
+  const json = sortedJson(fields);
+  return Buffer.from(options.swiftSlashes === true ? json.split('/').join('\\/') : json, 'utf8');
+};
 
 /**
  * One signed POST to a write route, presenting the phone's client identity.
@@ -363,13 +379,57 @@ export async function endSession(phone, door, sessionId, { batch = false, write 
 }
 
 /**
- * A write's answer, read the way the phone must (SPEC §5.8.1): exactly the five
- * fields, closed outcome and reason words, and the echo equal to the id sent,
- * or `""` with `refused` and `malformed`, the one answer that cannot echo.
- * Anything else is `{ ok: false }` with a reason, which the phone reads as no
- * answer.
+ * `POST /v1/choose` (Phase 318): press ONE option of the question the door
+ * offered. `question` and `mark` are exactly the `reply.question` and
+ * `reply.mark` a `/v1/session` answer carried, and `marker` one of its
+ * `reply.pressable`. Answers `request`'s reading with the write id it sent.
+ * Nothing here decides whether a press is allowed; the Mac does, by id.
  */
-export function writeAnswerOf(answer, sentWrite) {
+export async function chooseOption(phone, door, sessionId, { question, mark, marker, write = freshWriteId(), ...options } = {}) {
+  const answer = await signedPost(phone, door, '/v1/choose', { mark, marker, question, session: sessionId, write }, options);
+  return { ...answer, write };
+}
+
+/**
+ * `POST /v1/say` (Phase 318): ONE message, exactly the text given, never
+ * trimmed or normalized here. `swiftSlashes: true` writes `/` as `\/`, as the
+ * phone's encoder does; `write` re-sends a kept id (§Revision R13) and is
+ * otherwise fresh. Answers `request`'s reading with the write id it sent.
+ */
+export async function sayText(phone, door, sessionId, text, { write = freshWriteId(), swiftSlashes = false, ...options } = {}) {
+  const fields = { session: sessionId, text, write };
+  const body = options.body ?? writeBodyOf(fields, { swiftSlashes });
+  const answer = await signedPost(phone, door, '/v1/say', fields, { ...options, body });
+  return { ...answer, write };
+}
+
+/** The verbs a write answer may name (Phase 317's `end`, Phase 318's `choose` and `say`). */
+export const WRITE_VERBS = Object.freeze(['end', 'choose', 'say']);
+
+/** Every refusal word a write answer may carry (End's, the door's, and the reply's seven). */
+export const WRITE_REASONS = Object.freeze([
+  'removed',
+  'unreachable',
+  'ended',
+  'gone',
+  'malformed',
+  'changed',
+  'unpressable',
+  'unsayable',
+  'stopped',
+  'empty',
+  'long',
+  'character'
+]);
+
+/**
+ * A write's answer, read the way the phone must (SPEC §5.8.1): exactly the five
+ * fields, the verb the request was sent to (`end` unless told), closed outcome
+ * and reason words, and the echo equal to the id sent, or `""` with `refused`
+ * and `malformed`, the one answer that cannot echo. Anything else is
+ * `{ ok: false }` with a reason, which the phone reads as no answer.
+ */
+export function writeAnswerOf(answer, sentWrite, verb = 'end') {
   if (answer.status !== 200) return { ok: false, why: `status ${String(answer.status)}${answer.error ? ` (${answer.error})` : ''}` };
   let body;
   try {
@@ -379,9 +439,9 @@ export function writeAnswerOf(answer, sentWrite) {
   }
   const keys = J(Object.keys(body ?? {}));
   if (keys !== J(['verb', 'write', 'outcome', 'reason', 'sentence'])) return { ok: false, why: `the keys are ${keys}` };
-  if (body.verb !== 'end') return { ok: false, why: `verb ${J(body.verb)}` };
+  if (!WRITE_VERBS.includes(verb) || body.verb !== verb) return { ok: false, why: `verb ${J(body.verb)}` };
   if (!['done', 'refused', 'failed', 'busy'].includes(body.outcome)) return { ok: false, why: `outcome ${J(body.outcome)}` };
-  if (body.reason !== null && !['removed', 'unreachable', 'ended', 'gone', 'malformed'].includes(body.reason)) return { ok: false, why: `reason ${J(body.reason)}` };
+  if (body.reason !== null && !WRITE_REASONS.includes(body.reason)) return { ok: false, why: `reason ${J(body.reason)}` };
   if ((body.outcome === 'refused') !== (body.reason !== null)) return { ok: false, why: 'a reason without a refusal, or a refusal without a reason' };
   if ((body.outcome === 'done') !== (body.sentence === null)) return { ok: false, why: 'a sentence on done, or none on anything else' };
   const echoed = body.write === sentWrite || (body.write === '' && body.outcome === 'refused' && body.reason === 'malformed');

@@ -108,6 +108,10 @@ import { postDurabilityNotice } from '../notice';
 import { recordLaunchContext } from '../context/snapshot';
 // LEAF restore modules only — ../restore/ipc imports this file (no cycles).
 import { restoreRecordOf, restoreSessionInTmux } from '../restore/restore';
+// PHASE 318. The phone's question id (one process-wide counter) and the pure
+// read of whether a Bash hook says its command whole. Both are leaves.
+import { hookBashOf } from '../reply/hook-says';
+import { replyTurns } from '../reply/question-id';
 import {
   resolveRestoreJournal,
   type LiveIdentity
@@ -1078,6 +1082,17 @@ export class GmuxCore {
     return this.activityNow.get(sessionId);
   }
 
+  /**
+   * PHASE 318. The live tmux `$-id` of a session on this Mac, or null when it
+   * has none (not running, or on another machine). A READ of the map every
+   * reconcile rebuilds; the phone's reply reads it before its reading and
+   * again in its final check, so a session replaced underneath a press is
+   * never typed into (build/p318/SPEC.md §5.6, §Revision R12).
+   */
+  tmuxIdOf(sessionId: string): string | null {
+    return this.liveIds.get(sessionId) ?? null;
+  }
+
   private constructor(manifest: ManifestStore) {
     this.manifest = manifest;
     // PHASE 125. The maps are handed over BY REFERENCE, so the feed and this
@@ -1122,7 +1137,13 @@ export class GmuxCore {
       // connection, behind a cancel, because the pane is or may be scrolled back
       // or a scroll is on its way, or that it is kept for that connection to
       // come back (the fix round, F4); the host then writes nothing.
-      routeRemoteInput: (sessionId, data) => routeKey(sessionId, data) !== 'attach'
+      routeRemoteInput: (sessionId, data) => routeKey(sessionId, data) !== 'attach',
+      // PHASE 318 (D23). The person typed at the Mac, into a session on this
+      // Mac, and it was not a report the pane sent about itself: the phone's
+      // question id moves, so a press it was shown before this types nothing.
+      onInput: (sessionId) => {
+        replyTurns.bump(sessionId, 'desk');
+      }
     });
     this.control = new tmux.TmuxControlClient();
     // PHASE 141. Built before the monitor, because the monitor's own
@@ -1154,13 +1175,19 @@ export class GmuxCore {
         // parse a body on every tool call of every turn for a word no row
         // draws. The composed words reach the renderer on the activity channel
         // that already carries screen text and nowhere else — never a log.
-        this.activity.noteHookEvent(
-          sessionId,
-          state,
+        const asked =
           state === 'needs_input' && body !== undefined
             ? questionFromHookBody(body)
-            : null
+            : null;
+        // PHASE 318 (§5.3 item 1). Every hook moves the phone's question id,
+        // and a `PermissionRequest`'s question is kept beside it with whether
+        // its Bash command is said whole. Composed ONCE, above, for both.
+        replyTurns.hook(
+          sessionId,
+          asked,
+          asked !== null && body !== undefined ? hookBashOf(body, asked) : null
         );
+        this.activity.noteHookEvent(sessionId, state, asked);
       },
       // PHASE 182. The usage tap: one form encoded post from this session's
       // managed status line, carrying the `rate_limits` block claude already
@@ -1171,6 +1198,8 @@ export class GmuxCore {
         applyUsageTap(sessionId, body);
       },
       onSessionEnd: (sessionId) => {
+        // PHASE 318. The agent's own last hook moves the phone's question id.
+        replyTurns.hook(sessionId, null, null);
         // PHASE 141. THE FREE ACCELERATOR, and it runs BEFORE the state that
         // holds the witness is dropped. Claude's own hook reaches this line the
         // instant a claude session ends, which removes the poll wait for the
@@ -1208,6 +1237,12 @@ export class GmuxCore {
       exec: tmux.execTmux,
       run: this.runScrollCommand,
       onStatus: (sessionId, status) => {
+        // PHASE 318 (§Revision R16). A wait that ended moves the phone's
+        // question id, so a hook's question never outlives the wait it was
+        // asked in. `needs_input` moves nothing: a hook or a choice moving
+        // already moved it, and a press must survive its own question being
+        // committed. An id and never a status.
+        if (status !== 'needs_input') replyTurns.bump(sessionId, 'status');
         this.applyDetectedStatus(sessionId, status);
       },
       onActivity: (updates) => {
@@ -1236,6 +1271,11 @@ export class GmuxCore {
       // ./resume-in-place.ts. It may never set a status and it does not.
       onHandback: (sessionId, observation) => {
         this.resumeInPlace.noteHandback(sessionId, observation);
+      },
+      // PHASE 318 (§5.3 item 3). The choice a tick read appeared, moved or went:
+      // the phone's question id moves (D7's one exemption is the counter's).
+      onChoiceMoved: (sessionId, kind) => {
+        replyTurns.bump(sessionId, `choice-${kind}`);
       },
       // PHASE 141, wired at integration, and it closes the codex hole the
       // builder left open on purpose because it is a cost decision.

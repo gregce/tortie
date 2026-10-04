@@ -160,8 +160,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 /** The snapshot 317 is built on (build/p317/SPEC.md §4.1): menu.ts must read as it does there. */
 export const SNAPSHOT = '551312f7';
 export const MACHINE_ID = 'p317far';
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, end, pair, session, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session';
+/*
+ * Phase 318 added two writes beside End (build/p318/SPEC.md §4.2, §5.1.7), so
+ * the route line names `choose` and `say` too and the write line names all
+ * three clauses; End's arms below read nothing else of them. Phase 316.7's
+ * `sessions` joins the route line at whichever lands second.
+ */
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question and send a session one message';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
 export const DONE_LINE = "the phone's end: done";
 export const WRITE_LINE_PREFIX = "the phone's ";
@@ -630,7 +636,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'end', 'pair', 'session', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.

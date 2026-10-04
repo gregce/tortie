@@ -574,3 +574,100 @@ describe('AttachHost, a session on another machine', () => {
     expect(listenerCount(termAckChannel(SID))).toBe(0);
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 318: onInput, the person typing at the Mac (build/p318/SPEC.md D23,
+// §Revision R14)
+// ---------------------------------------------------------------------------
+
+describe('AttachHost onInput (Phase 318)', () => {
+  const ESC = String.fromCharCode(0x1b);
+  const REPORTS = [
+    `${ESC}[I`,
+    `${ESC}[O`,
+    `${ESC}]10;rgb:d8d8/dbdb/e2e2${ESC}\\`,
+    `${ESC}]11;rgb:1313/1414/1717${ESC}\\`,
+    `${ESC}[?1;2c`,
+    `${ESC}[>0;276;0c`
+  ];
+
+  function hostWithInput(calls: string[], order?: string[]) {
+    return new AttachHost({
+      tmuxBin: '/opt/fake/tmux',
+      confPath: '/opt/fake/gmux-tmux.conf',
+      socketName: 'gmux-attach-test',
+      onInput: (id) => {
+        calls.push(id);
+        order?.push('onInput');
+      }
+    });
+  }
+
+  it('is called once per write from a local client, in the same turn, right after the write', () => {
+    const calls: string[] = [];
+    const order: string[] = [];
+    const sender = makeSender();
+    attach(hostWithInput(calls, order), sender);
+    const pty = spawnedPtys[0]!;
+    pty.write.mockImplementation(() => order.push('write'));
+    fire(termInputChannel(SID), sender, '1');
+    // Synchronously, with no await in between.
+    expect(calls).toEqual([SID]);
+    expect(order).toEqual(['write', 'onInput']);
+    fire(termInputChannel(SID), sender, 'ls\r');
+    expect(calls).toEqual([SID, SID]);
+  });
+
+  it('is never called for a pane report, which is still forwarded exactly as before', () => {
+    const calls: string[] = [];
+    const sender = makeSender();
+    attach(hostWithInput(calls), sender);
+    const pty = spawnedPtys[0]!;
+    for (const report of REPORTS) fire(termInputChannel(SID), sender, report);
+    expect(calls).toEqual([]);
+    expect(pty.write.mock.calls.map((c) => c[0])).toEqual(REPORTS);
+  });
+
+  it('a chunk holding a report AND a keystroke is typing, and is counted', () => {
+    const calls: string[] = [];
+    const sender = makeSender();
+    attach(hostWithInput(calls), sender);
+    fire(termInputChannel(SID), sender, `${ESC}[I1`);
+    fire(termInputChannel(SID), sender, `x${ESC}[?1;2c`);
+    expect(calls).toEqual([SID, SID]);
+  });
+
+  it('is never called for another sender, an empty or non-string chunk, or a cleaned client', () => {
+    const calls: string[] = [];
+    const sender = makeSender();
+    const h = hostWithInput(calls);
+    attach(h, sender);
+    fire(termInputChannel(SID), makeSender(), 'rm -rf /\r');
+    fire(termInputChannel(SID), sender, '');
+    fire(termInputChannel(SID), sender, 42);
+    expect(calls).toEqual([]);
+    // A listener captured before the detach, fired after it: the client is cleaned.
+    const listener = (ipcListeners.get(termInputChannel(SID)) ?? [])[0];
+    h.detach(SID);
+    listener?.({ sender }, 'late');
+    expect(calls).toEqual([]);
+  });
+
+  it('is never called for a remote client: the phone never types into a session on another machine', () => {
+    const calls: string[] = [];
+    const sender = makeSender();
+    const h = hostWithInput(calls);
+    h.attach({ sessionId: SID, tmuxName: 'proj--one', sender: sender as never, machine: MACHINE });
+    const pty = spawnedPtys[0]!;
+    fire(termInputChannel(SID), sender, 'ls\r');
+    expect(pty.write).toHaveBeenCalledWith('ls\r');
+    expect(calls).toEqual([]);
+  });
+
+  it('with no onInput the host types exactly as before', () => {
+    const sender = makeSender();
+    attach(host(), sender);
+    fire(termInputChannel(SID), sender, 'ls\r');
+    expect(spawnedPtys[0]!.write).toHaveBeenCalledWith('ls\r');
+  });
+});

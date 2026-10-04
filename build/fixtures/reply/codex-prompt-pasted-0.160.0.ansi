@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p -e at 120x40; a three-line bracketed paste, no Return: continuation rows indented two spaces, cursor on the last; build/fixtures/reply/real-captures.json has the rest; ESC and every other byte below 0x20 but LF, and each trailing space, written \xNN; a backslash written \\
+
+  \x1b[38;2;99;168;248m>_ \x1b[1m\x1b[39mOpenAI Codex\x1b[0;2m (v0.160.0)\x1b[0m
+     \x1b[2m/private/tmp/p318cap-codex-78648/proj-codex\x1b[0m
+
+  \x1b[38;2;99;168;248mFollow the white cursor.\x1b[39m
+
+  \x1b[1mTip:\x1b[0m Maximize usage with GPT-6.1 Sol. Try it on complex work for near-Astra performance at a lower cost.
+
+
+\x1b[1m›\x1b[0m first pasted line
+  second pasted line
+  third pasted line
+
+  \x1b[38;2;246;226;183mgpt-5.4 default\x1b[39m · \x1b[38;2;171;223;167m/private/tmp/p318cap-codex-78648/proj-codex\x1b[39m
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

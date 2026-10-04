@@ -56,6 +56,17 @@
  * read-removal arm (WE15) touches read paths alone, so it runs unchanged in a
  * parent clone.
  *
+ * PHASE 318 ADDED THE REPLY'S TWO WRITES (build/p318/SPEC.md §6.2): `choose`
+ * and `say`, through the same shipping write path, over the same recording
+ * fake, whose `choose` and `say` record their inputs and ask the `still` the
+ * write path handed them, as the reply's verbs do in their final check. The
+ * RW arms assert each on its reason or outcome AND on the fake's count of
+ * calls: an honest press and message, a replay, a re-signed write id, the same
+ * id under another verb, an End and a message on one session, every malformed
+ * body shape, a message over the say cap, a query, a wrong signature, another
+ * phone's connection, a phone removed before and during the act, the door
+ * stopping during a message, and main answering past the bound.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -79,7 +90,15 @@ import { join } from 'node:path';
 import { connect as tlsConnect, type TLSSocket } from 'node:tls';
 
 import type { DoorListenerHandle } from '../../src/main/pocket/door/listener.js';
-import type { PocketEndOutcome, PocketFacts, PocketRoute, PocketWrites } from '../../src/main/pocket/routes.js';
+import type {
+  PocketChooseInput,
+  PocketEndOutcome,
+  PocketFacts,
+  PocketReplyOutcome,
+  PocketRoute,
+  PocketSayInput,
+  PocketWrites
+} from '../../src/main/pocket/routes.js';
 import type { PocketExecutionFields, PocketIdentity, PocketPhoneFields } from '../../src/main/pocket/pairing.js';
 import type { StoredTurn } from '../../src/main/overview/store/index.js';
 import type { Session, SessionStatus } from '../../src/shared/types.js';
@@ -122,7 +141,8 @@ const { POCKET_PAIR_BODY_CAP_BYTES } = await import('../../src/main/pocket/door/
 const { POCKET_ROUTES, createPocketRoutes, readTurnRange } = await import('../../src/main/pocket/routes.js');
 const { createPocketFacts, readPocketTurns } = await import('../../src/main/pocket/facts.js');
 const pairingModule = await import('../../src/main/pocket/pairing.js');
-const { POCKET_OTHERS_MAX } = await import('../../src/shared/ipc/pocket.js');
+const { POCKET_NO_REPLY, POCKET_OTHERS_MAX, POCKET_WRITE_SENTENCES } = await import('../../src/shared/ipc/pocket.js');
+const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.js');
 const { OUTCOME_REMOTE } = await import('../../src/shared/overview-copy.js');
 const { statusVisual } = await import('../../src/shared/status-words.js');
 
@@ -655,13 +675,32 @@ try {
   const acts: { sessionId: string; batch: boolean }[] = [];
   let holdAct: Promise<void> | null = null;
   let actsReached = 0;
+  /**
+   * PHASE 318. Every press and message the write path handed the fake, and
+   * what the `still` it was handed answered when the fake asked it, AFTER any
+   * hold: the reply's verbs ask it in their final check, after their reads.
+   */
+  const replies: { verb: 'choose' | 'say'; sessionId: string; input: PocketChooseInput | PocketSayInput; still: boolean }[] = [];
+  const replyAnswer = async (
+    verb: 'choose' | 'say',
+    input: PocketChooseInput | PocketSayInput,
+    still: () => boolean
+  ): Promise<PocketReplyOutcome> => {
+    actsReached += 1;
+    if (holdAct !== null) await holdAct;
+    const allowed = still();
+    replies.push({ verb, sessionId: input.sessionId, input, still: allowed });
+    return allowed ? { outcome: 'done' } : { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
+  };
   const recordingWrites: PocketWrites = {
     end: async (input): Promise<PocketEndOutcome> => {
       acts.push(input);
       actsReached += 1;
       if (holdAct !== null) await holdAct;
       return { outcome: 'done' };
-    }
+    },
+    choose: (input, still) => replyAnswer('choose', input, still),
+    say: (input, still) => replyAnswer('say', input, still)
   };
   const writeHandler = createPocketWriteHandler({
     shuttingDown: () => false,
@@ -718,6 +757,8 @@ try {
         case 'pair':
           return null;
         case 'end':
+        case 'choose':
+        case 'say':
           return null;
       }
     },
@@ -1498,6 +1539,199 @@ try {
       record('WE11', 'the door switched off just after the act', '200:done-1', `${said(answer)}-${String(acts.filter((a) => a.sessionId === 'ses_w11').length)}`, 'D4: after the act nothing replaces the answer, whatever the door is doing.');
       await restart();
       record('WE11b', 'and the door that starts again reads, after three stops and three new processes', 'ok-4', `${verdict(await signedAsk(good, '/v1/blocked'))}-${String(doorSpawn.doors.length)}`, 'the arms above stopped the door three times; the control is that each stop happened and the door answers again.');
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 318 (build/p318/SPEC.md §6.2): the reply's two writes, on the same
+    // door, through the same write path, ledger and claims, over the recording
+    // fake whose `choose` and `say` ask the `still` they were handed.
+    // -----------------------------------------------------------------------
+    {
+      const QID = '0123456789abcdef-12';
+      const MARK = 'a1b2c3d4e5f6';
+      const chooseBody = (session: string, write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ mark: MARK, marker: '1', question: QID, session, write, ...over }), 'utf8');
+      const sayBody = (session: string, write: string, text: unknown = 'hello phone'): Buffer =>
+        Buffer.from(JSON.stringify({ session, text, write }), 'utf8');
+      /** The say body as Swift's `JSONEncoder` writes it: sorted keys, `/` as `\/`. */
+      const swiftSayBody = (session: string, write: string, text: string): Buffer =>
+        Buffer.from(JSON.stringify({ session, text, write }).split('/').join('\\/'), 'utf8');
+      const callsOn = (sessionId: string): number => replies.filter((r) => r.sessionId === sessionId).length;
+      const echoOf = (answer: Answer): string => String(bodyOf(answer)['write']);
+
+      // RW1. An honest press: done, one call, exactly its four fields.
+      const pressId = writeId();
+      const pressBody = chooseBody('ses_r1', pressId, { marker: '2' });
+      const pressHeaders = writeHeaders(wA, '/v1/choose', pressBody);
+      const press = await ask('POST', '/v1/choose', pressHeaders, pressBody, { as: wA });
+      const pressed = replies.find((r) => r.sessionId === 'ses_r1');
+      record('RW1', 'an honest press over the phone’s own connection', '200:done-1-exact', `${said(press)}-${String(callsOn('ses_r1'))}-${pressed !== undefined && pressed.verb === 'choose' && JSON.stringify(pressed.input) === JSON.stringify({ sessionId: 'ses_r1', question: QID, mark: MARK, marker: '2' }) ? 'exact' : 'other'}`, 'a press reaches main’s one write path with the question id, the mark and the marker the phone was shown, and nothing else.');
+      const pressEcho = bodyOf(press);
+      record('RW1b', 'its answer names the verb choose and echoes the write id', `choose-${pressId}-5`, `${String(pressEcho['verb'])}-${String(pressEcho['write'])}-${String(Object.keys(pressEcho).length)}`, 'the phone accepts an answer only for the write and the verb it sent.');
+
+      // RW2. An honest message, its words holding `/`, a quote, a line feed and
+      // an emoji, written the Swift way: done, one call, the words exact.
+      const words = `/review "this" please${String.fromCharCode(0x0a)}then !ls ${String.fromCodePoint(0x1f44d)}`;
+      const sayId = writeId();
+      const saidBody = swiftSayBody('ses_r2', sayId, words);
+      const sayHeaders = writeHeaders(wA, '/v1/say', saidBody);
+      const say = await ask('POST', '/v1/say', sayHeaders, saidBody, { as: wA });
+      const sent = replies.find((r) => r.sessionId === 'ses_r2');
+      record('RW2', 'an honest message, written the Swift way, over the phone’s own connection', '200:done-1-exact', `${said(say)}-${String(callsOn('ses_r2'))}-${sent !== undefined && sent.verb === 'say' && (sent.input as PocketSayInput).text === words ? 'exact' : 'other'}`, 'the words reach main byte for byte: `\\/` is the same `/`, and nothing is trimmed or normalized.');
+
+      // RW3. The same bytes again: the nonce is spent.
+      record('RW3', 'a press and a message, the same bytes again', 'refused-404:replay/refused-404:replay-1-1', `${verdict(await ask('POST', '/v1/choose', pressHeaders, pressBody, { as: wA }))}:${lastVerify}/${verdict(await ask('POST', '/v1/say', sayHeaders, saidBody, { as: wA }))}:${lastVerify}-${String(callsOn('ses_r1'))}-${String(callsOn('ses_r2'))}`, 'a signed request is spent once, whatever it carries.');
+
+      // RW4. The same write id under a fresh nonce: the ledger answers, nothing is typed again.
+      {
+        const againPress = await writeAs(wA, '/v1/choose', pressBody);
+        const againSay = await writeAs(wA, '/v1/say', saidBody);
+        record('RW4', 'the same write id, signed afresh, for a press and for a message', 'recorded/recorded-1-1', `${againPress.body === press.body ? 'recorded' : `other(${said(againPress)})`}/${againSay.body === say.body ? 'recorded' : `other(${said(againSay)})`}-${String(callsOn('ses_r1'))}-${String(callsOn('ses_r2'))}`, 'research 135 §4.4 A8: the same paste sent twice was submitted twice, so the write id makes a message happen once.');
+      }
+
+      // RW5. The same write id under ANOTHER verb: its own write (D4).
+      {
+        const answer = await writeAs(wA, '/v1/choose', chooseBody('ses_r5', sayId));
+        record('RW5', 'the say’s write id sent again as a press', `200:done-choose-${sayId}-1`, `${said(answer)}-${String(bodyOf(answer)['verb'])}-${echoOf(answer)}-${String(callsOn('ses_r5'))}`, 'the ledger keys on the verb, so one verb’s recorded answer never stands in for another verb’s write.');
+      }
+
+      // RW6. An End and a message on one session at once: the second is busy.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const ending = writeAs(wA, '/v1/end', endBody('ses_r6', writeId()));
+        await until(() => actsReached > reachedBefore);
+        const message = await writeAs(wB, '/v1/say', sayBody('ses_r6', writeId()));
+        release();
+        const ended = await ending;
+        record('RW6', 'an End and a message on one session at once', '200:done/200:busy-unmarked-0', `${said(ended)}/${said(message)}-${message.status === 200 && bodyOf(message)['outcome'] === 'busy' ? 'unmarked' : 'other'}-${String(callsOn('ses_r6'))}`, 'one write in flight per session ACROSS verbs: a message can never land while End is ending the same session.');
+      }
+
+      // RW7. Every malformed body: 200 refused malformed, the id echoed, no call.
+      {
+        const shapes: [string, string, '/v1/choose' | '/v1/say', (id: string) => Buffer][] = [
+          ['RW7a', 'a press with a sixth key', '/v1/choose', (id) => chooseBody('ses_r7', id, { session2: 'ses_r7b' })],
+          ['RW7b', 'a press with no mark', '/v1/choose', (id) => Buffer.from(JSON.stringify({ marker: '1', question: QID, session: 'ses_r7', write: id }), 'utf8')],
+          ['RW7c', 'a press whose question is 15 hex', '/v1/choose', (id) => chooseBody('ses_r7', id, { question: '0123456789abcde-12' })],
+          ['RW7d', 'a press whose question count has a leading zero', '/v1/choose', (id) => chooseBody('ses_r7', id, { question: '0123456789abcdef-012' })],
+          ['RW7e', 'a press whose mark is 11 hex', '/v1/choose', (id) => chooseBody('ses_r7', id, { mark: MARK.slice(1) })],
+          ['RW7f', 'a press whose mark is 13 hex', '/v1/choose', (id) => chooseBody('ses_r7', id, { mark: `${MARK}0` })],
+          ['RW7g', 'a press whose mark is upper case', '/v1/choose', (id) => chooseBody('ses_r7', id, { mark: MARK.toUpperCase() })],
+          ['RW7h', 'a press whose marker is 0', '/v1/choose', (id) => chooseBody('ses_r7', id, { marker: '0' })],
+          ['RW7i', 'a press whose marker is 10', '/v1/choose', (id) => chooseBody('ses_r7', id, { marker: '10' })],
+          ['RW7j', 'a press whose marker is a', '/v1/choose', (id) => chooseBody('ses_r7', id, { marker: 'a' })],
+          ['RW7k', 'a message with a fourth key', '/v1/say', (id) => Buffer.from(JSON.stringify({ session: 'ses_r7', text: 'hi', write: id, also: 'ses_r7b' }), 'utf8')],
+          ['RW7l', 'a message with no text', '/v1/say', (id) => Buffer.from(JSON.stringify({ session: 'ses_r7', write: id }), 'utf8')],
+          ['RW7m', 'a message whose text is a number', '/v1/say', (id) => sayBody('ses_r7', id, 7)],
+          ['RW7n', 'a message whose text is an array', '/v1/say', (id) => sayBody('ses_r7', id, ['hi'])]
+        ];
+        for (const [n, name, target, bodyFor] of shapes) {
+          const id = writeId();
+          const answer = await writeAs(wA, target, bodyFor(id));
+          const b = bodyOf(answer);
+          record(n, name, `200:refused:malformed-${id}-unreadable-0`, `${said(answer)}-${echoOf(answer)}-${b['sentence'] === POCKET_WRITE_SENTENCES.unreadable ? 'unreadable' : String(b['sentence'])}-${String(callsOn('ses_r7') + callsOn('ses_r7b'))}`, 'each body is parsed strictly in main by its own verb: anything else refuses it whole, and its well-formed id is echoed.');
+        }
+      }
+
+      // RW8. A message over the say cap: dropped whole at the door. And one of
+      // 4,096 control characters, 24,771 bytes escaped, is NOT dropped: the Mac
+      // must answer it in words (D3).
+      {
+        const before = stats();
+        const big = sayBody('ses_r8', writeId(), 'x'.repeat(POCKET_WRITE_BODY_CAPS.say));
+        const answer = await writeAs(wA, '/v1/say', big);
+        const after = stats();
+        record('RW8', `a message body over the say cap (${String(big.length)} bytes)`, 'refused-404-oversized-not-forwarded-0', `${verdict(answer)}-${after.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}-${String(callsOn('ses_r8'))}`, 'the say cap is 32,768 and a body over it never reaches main.');
+        const controls = sayBody('ses_r8b', writeId(), String.fromCharCode(0x01).repeat(4_096));
+        const reached = await writeAs(wA, '/v1/say', controls);
+        const span = controls.length > POCKET_WRITE_BODY_CAPS.end * 16 && controls.length <= POCKET_WRITE_BODY_CAPS.say ? 'past-16k-under-say-cap' : `${String(controls.length)} bytes`;
+        record('RW8b', `a message of 4,096 control characters (${String(controls.length)} bytes escaped)`, 'past-16k-under-say-cap-200:done-1', `${span}-${said(reached)}-${String(callsOn('ses_r8b'))}`, 'D3, §Revision R10: past the 16,384 an earlier draft named and under the say cap, so it reaches main, whose text rules answer it in words; the fake here answers done.');
+      }
+
+      // RW9. A query on /v1/say: refused at the door, never forwarded.
+      {
+        const before = stats();
+        const answer = await writeAs(wA, '/v1/say?session=ses_r9', sayBody('ses_r9', writeId()));
+        const after = stats();
+        record('RW9', 'a query on /v1/say', 'refused-404-route-not-forwarded', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'a write takes no query: everything it says, the words included, is in its signed body.');
+      }
+
+      // RW10. A GET signature on a POST, and a press's signature on a message.
+      record('RW10', 'a GET signature on POST /v1/choose', 'refused-404:signature-0', `${verdict(await writeAs(wA, '/v1/choose', chooseBody('ses_r10', writeId()), { signAs: 'GET' }))}:${lastVerify}-${String(callsOn('ses_r10'))}`, 'the method is in the signed bytes.');
+      {
+        const body = sayBody('ses_r10b', writeId());
+        const answer = await ask('POST', '/v1/say', writeHeaders(wA, '/v1/choose', body), body, { as: wA });
+        record('RW10b', 'a body signed for /v1/choose, sent to /v1/say', 'refused-404:signature-0', `${verdict(answer)}:${lastVerify}-${String(callsOn('ses_r10b'))}`, 'the path is in the signed bytes, so one write’s signature is never another’s.');
+      }
+
+      // RW11. A valid signature over another phone's connection.
+      record('RW11', 'a message signed by one phone, sent over the other’s connection', 'refused-404:channel-0', `${verdict(await writeAs(wA, '/v1/say', sayBody('ses_r11', writeId()), { over: wB }))}:${lastVerify}-${String(callsOn('ses_r11'))}`, 'a write needs the phone’s own key at the handshake.');
+
+      // RW12. A phone removed BEFORE the act: 404, the verb never asked.
+      {
+        removeBeforeWrite = wB.fields.id;
+        const answer = await writeAs(wB, '/v1/choose', chooseBody('ses_r12', writeId()));
+        record('RW12a', 'a phone removed after its signature held and before the press', 'refused-404-0', `${verdict(answer)}-${String(callsOn('ses_r12'))}`, 'the last check before the act asks again whether the phone is paired.');
+        phones = [...phones, wB.fields];
+      }
+      // RW12b. Removed WHILE the verb reads: the verb's own final check sees it.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const inFlight = writeAs(wB, '/v1/say', sayBody('ses_r12b', writeId()));
+        await until(() => actsReached > reachedBefore);
+        phones = phones.filter((p) => p.id !== wB.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await new Promise((resolve) => setTimeout(resolve, 50));
+        release();
+        const answer = await inFlight;
+        const asked = replies.find((r) => r.sessionId === 'ses_r12b');
+        record('RW12b', 'a phone removed while its message is being read: refused stopped, 200, never a 404', '200:refused:stopped-acted-still-false-1', `${said(answer)}-${answer.status === 200 ? 'acted' : 'not-acted'}-still-${String(asked?.still)}-${String(callsOn('ses_r12b'))}`, 'D5: the door’s last check is handed to the verb as `still`, and the verb asks it again before it types; a 404 would say nothing was asked when the write path had already started the verb.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+      }
+
+      // RW13. Main later than the bound: the connection is CUT, never 404.
+      {
+        const release = holding();
+        const before = stats();
+        const lateBody = chooseBody('ses_r13', writeId());
+        const answer = await writeAs(wA, '/v1/choose', lateBody);
+        const after = stats();
+        release();
+        await until(() => replies.some((r) => r.sessionId === 'ses_r13'));
+        record('RW13', 'main answers a press later than the bound', 'nosocket-nobytes-cut-1', `${verdict(answer)}-${answer.body === '' && answer.status === 0 ? 'nobytes' : 'BYTES'}-${after.writesCut === before.writesCut + 1 ? 'cut' : `writesCut ${String(after.writesCut - before.writesCut)}`}-${String(callsOn('ses_r13'))}`, 'D4: main may be pressing now, so the phone reads “no answer” and reads the session again.');
+        await new Promise((resolve) => setTimeout(resolve, 20));
+        const recorded = await writeAs(wA, '/v1/choose', lateBody);
+        record('RW13b', 'and the same write id afterwards reads what the press came to, pressing nothing again', '200:done-1', `${said(recorded)}-${String(callsOn('ses_r13'))}`, 'the ledger recorded the late press.');
+      }
+
+      // RW14. The door begins to stop WHILE a message is read: the verb's own
+      // check sees it, and the answer is 200 and never replaced.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const inFlight = writeAs(wA, '/v1/say', sayBody('ses_r14', writeId()));
+        await until(() => actsReached > reachedBefore);
+        const stopping = bind.stopPocketDoor();
+        release();
+        const answer = await inFlight;
+        await stopping;
+        doorStarted = false;
+        const asked = replies.find((r) => r.sessionId === 'ses_r14');
+        record('RW14', 'the door switched off while a message is being read', '200:refused:stopped-still-false-1', `${said(answer)}-still-${String(asked?.still)}-${String(callsOn('ses_r14'))}`, 'D5 and D4: the stopping door is in `still`, so nothing is typed, and after the act nothing replaces the answer.');
+        await restart();
+        record('RW14b', 'and the door that starts again reads', 'ok-5', `${verdict(await signedAsk(good, '/v1/blocked'))}-${String(doorSpawn.doors.length)}`, 'the control: the stop happened and the door answers again.');
+      }
+
+      // RW15. A composer with no reply reader serves the empty offer, field by field.
+      {
+        const detail = (bodyOf(await signedAsk(good, '/v1/session?id=ses_1')) as { session?: { reply?: unknown } }).session;
+        record('RW15', '/v1/session on a door with no reply reader', JSON.stringify(POCKET_NO_REPLY), JSON.stringify(detail?.reply), 'absent reads the empty offer: no button and no box, which is what this phase does on every agent it does not serve.');
+        const list = bodyOf(await signedAsk(good, '/v1/blocked')) as { rows?: Record<string, unknown>[]; others?: Record<string, unknown>[] };
+        const carrying = [...(list.rows ?? []), ...(list.others ?? [])].filter((row) => 'reply' in row).length;
+        record('RW15b', 'and /v1/blocked’s rows carry no reply', '0', String(carrying), 'D18: the reply is on /v1/session alone; the list answers do not change.');
+      }
     }
 
     phones = phonesBefore;

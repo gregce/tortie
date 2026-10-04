@@ -89,8 +89,25 @@
  * persisted (the fix round took Unpair's Mac half, and its arm, out); (t) a write with no identity and a hostile
  * write arm dropped or expecting a sentence the door never says; (v) End's line
  * optional, a result with no sentence, an empty line; (k) an operator in End
- * these; (s) the build left at 4. THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE
- * SHIPPING TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
+ * these; (s) the build left at 4.
+ *
+ * PHASE 318 GAVE THE PHONE A REPLY WITH NO FACE ID (build/p318/SPEC.md §6.3),
+ * and its twenty-seven arms are the ways a press or a message could go out
+ * twice, rewritten, behind a check his ruling refused, or after the app left:
+ * (ab) a press body built in a screen, a sixth key, a message posted twice;
+ * (ae) the writer's say or choose called outside the runner, his words
+ * trimmed, smart dashes left on, Send not off while a write runs, the command
+ * or an option cut short; (af) Face ID asked by a press, LocalAuthentication
+ * in the strip, the owner check in the choice press; (ag) a runner registered
+ * after its task starts, wentAway stopping no reply, a message persisted, a
+ * send while one runs, the kept window past the Mac's ledger, a say kept on
+ * any refusal, a say handed an id that is no kept say's, a press that sends
+ * an id, the kept words held as a String; (t) a hostile reply arm dropped or
+ * letting a press POST twice; (v) a reply's sentence optional, a result with
+ * none, the message line emptied. Three Phase 317 arms moved with the shapes
+ * 318 changed: `ab3` (the id is `minted` now), and `s8` and `s11` (build 6,
+ * and 5 is the one App Store Connect has seen). THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE SHIPPING
+ * TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
@@ -1128,7 +1145,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 5;/, '$1CURRENT_PROJECT_VERSION = 6;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 6;/, '$1CURRENT_PROJECT_VERSION = 7;')
   },
   {
     id: 's9',
@@ -1464,9 +1481,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 4, 316.6's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 5, 317's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 5;/, '$1CURRENT_PROJECT_VERSION = 4;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 6;/, '$1CURRENT_PROJECT_VERSION = 5;')
   },
   {
     id: 'x10',
@@ -1694,7 +1711,7 @@ const ARMS = [
     rule: 'ab',
     what: 'a second write id made in one write',
     file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', 'guard let id = WriteId.fresh() else { return .notSent(.notPaired) }\n        let spare = WriteId.fresh()\n        _ = spare')
+    edit: (src) => src.replace(/(guard let minted = WriteId\.fresh\(\) else \{[^\n]*\}\n)/, '$1            let spare = WriteId.fresh()\n            _ = spare\n')
   },
   {
     id: 'ab4',
@@ -2007,6 +2024,204 @@ const ARMS = [
     what: "an unnamed count operator in End these",
     file: () => `${APP}/Screens/EndBatch.swift`,
     edit: append('func p317AblationCount(_ n: Int) -> Int { n + 1 }\n')
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 318: a reply from the phone, with no Face ID (build/p318/SPEC.md §6.3).
+  // -------------------------------------------------------------------------
+  // (ab) widened: three writes through the one path.
+  {
+    id: 'ab15',
+    rule: 'ab',
+    what: 'a press body built outside signedPost',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: append('func p318AblationBody() -> ChooseBody { ChooseBody(mark: "", marker: "", question: "", session: "", write: "") }\n')
+  },
+  {
+    id: 'ab16',
+    rule: 'ab',
+    what: 'a sixth key in the press body',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/(struct ChooseBody: Encodable[^{]*\{\n)/, '$1    let face: Bool\n')
+  },
+  {
+    id: 'ab17',
+    rule: 'ab',
+    what: 'a message posted twice by its one caller',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)', '        _ = await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)\n        return await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)')
+  },
+  // (ae) the reply writes.
+  {
+    id: 'ae1',
+    rule: 'ae',
+    what: "the writer's say called a second time, outside the runner",
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(\n)(\s*)(let runner = ReplyRunner\(verb: \.say\()/, (m, nl, sp, rest) => `${nl}${sp}Task { _ = await writer.say(sessionId, text: text, write: nil) }${nl}${sp}${rest}`)
+  },
+  {
+    id: 'ae2',
+    rule: 'ae',
+    what: "the writer's choose called outside the runner",
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(\n)(\s*)(phase = \.pressing\(marker\)\n)/, (m, nl, sp, rest) => `${nl}${sp}Task { _ = await writer.choose(sessionId, question: question, mark: mark, marker: marker) }${nl}${sp}${rest}`)
+  },
+  {
+    id: 'ae3',
+    rule: 'ae',
+    what: 'his words trimmed before they are sent',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/let words = text\n/, 'let words = text.trimmingCharacters(in: .whitespacesAndNewlines)\n')
+  },
+  {
+    id: 'ae4',
+    rule: 'ae',
+    what: 'smart dashes left on in the message box',
+    file: () => `${APP}/Screens/MessageStrip.swift`,
+    edit: (src) => src.replace(/\n[ \t]*view\.smartDashesType = \.no\n/, '\n')
+  },
+  {
+    id: 'ae5',
+    rule: 'ae',
+    what: 'Send not off while a write runs',
+    file: () => `${APP}/Screens/MessageStrip.swift`,
+    edit: (src) => src.replace('.disabled(model.text.isEmpty || model.phase != .idle)', '.disabled(model.text.isEmpty)')
+  },
+  {
+    id: 'ae6',
+    rule: 'ae',
+    what: 'the command Yes runs cut to two lines',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('Words(command, .body, Tokens.textPrimary, lines: nil)', 'Words(command, .body, Tokens.textPrimary, lines: 2)')
+  },
+  {
+    id: 'ae7',
+    rule: 'ae',
+    what: "an option's text cut to one line",
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('Words(option.text, .body, ink, lines: nil)', 'Words(option.text, .body, ink, lines: 1)')
+  },
+  // (af) no owner check on a reply ("Only for End").
+  {
+    id: 'af1',
+    rule: 'af',
+    what: 'a press that asks Face ID first',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(\n)(\s*)(phase = \.pressing\(marker\)\n)/, (m, nl, sp, rest) => `${nl}${sp}Task { _ = await DeviceOwnerCheck().confirm(reason: Copy.send) }${nl}${sp}${rest}`)
+  },
+  {
+    id: 'af2',
+    rule: 'af',
+    what: 'LocalAuthentication in the message strip',
+    file: () => `${APP}/Screens/MessageStrip.swift`,
+    edit: (src) => src.replace('import SwiftUI\n', 'import LocalAuthentication\nimport SwiftUI\n')
+  },
+  {
+    id: 'af3',
+    rule: 'af',
+    what: 'the owner check asked by the choice press',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace(/(\n)(\s*)(reply\.press\(option\.marker, offer: offer, reread: reread\))/, (m, nl, sp, rest) => `${nl}${sp}Task { _ = await ownerCheck.confirm(reason: Copy.send) }${nl}${sp}${rest}`)
+  },
+  // (ag) a reply is sent once or not at all.
+  {
+    id: 'ag1',
+    rule: 'ag',
+    what: 'a message runner registered after its task starts',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(write: reusing\?\.write\), writer: writer\)\n)\s*registry\?\.registerReply\(runner\)\n([\s\S]*?)(\n[ \t]*runner\.task = task\n)/, '$1$2$3        registry?.registerReply(runner)\n')
+  },
+  {
+    id: 'ag2',
+    rule: 'ag',
+    what: 'wentAway that stops no reply',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/\n[ \t]*for runner in liveReplies \{\n[ \t]*runner\.stop\(\)\n[ \t]*\}\n/, '\n')
+  },
+  {
+    id: 'ag3',
+    rule: 'ag',
+    what: 'a message persisted',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/let words = text\n/, 'let words = text\n        UserDefaults.standard.set(words, forKey: "p318")\n')
+  },
+  {
+    id: 'ag4',
+    rule: 'ag',
+    what: 'a send while one runs',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace('guard phase == .idle, !text.isEmpty else { return }', 'guard !text.isEmpty else { return }')
+  },
+  {
+    id: 'ag5',
+    rule: 'ag',
+    what: "the kept window past the Mac's ledger",
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(static let keptSayWindow: TimeInterval = )60/, '$1120')
+  },
+  {
+    id: 'ag6',
+    rule: 'ag',
+    what: 'a say kept on any refusal, not only busy on a kept id',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace('kept = answer.outcome == .busy ? reusing : nil', 'kept = reusing')
+  },
+  {
+    id: 'ag7',
+    rule: 'ag',
+    what: "a say handed an id that is no kept say's",
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace('write: reusing?.write), writer: writer)', 'write: sessionId), writer: writer)')
+  },
+  {
+    id: 'ag8',
+    rule: 'ag',
+    what: 'a press that sends an id of its own',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        return await signedPost(route: route, door: door, limits: limits, write: nil).result', '        return await signedPost(route: route, door: door, limits: limits, write: question).result')
+  },
+  {
+    id: 'ag9',
+    rule: 'ag',
+    what: 'the kept words held as a String, which calls é and e with a combining acute equal',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace(/(struct KeptSay[^{]*\{[\s\S]*?)let bytes: \[UInt8\]/, '$1let bytes: String')
+  },
+  // (t) widened: the hostile reply arms.
+  {
+    id: 't13',
+    rule: 't',
+    what: "a hostile door's reply arm dropped",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n\s*'reply-cut': \{[^\n]*\},?\n/, '\n')
+  },
+  {
+    id: 't14',
+    rule: 't',
+    what: 'a hostile reply arm that lets a press POST twice',
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/('reply-404': \{[^\n]*posts: )1/, '$12')
+  },
+  // (v) widened: a reply's line is always a sentence.
+  {
+    id: 'v9',
+    rule: 'v',
+    what: 'replySentence optional, so a reply could draw nothing',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('static func replySentence(for result: WriteResult) -> String {', 'static func replySentence(for result: WriteResult) -> String? {')
+  },
+  {
+    id: 'v10',
+    rule: 'v',
+    what: 'a reply result with no sentence of its own',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace(/(static func replySentence\(for result: WriteResult\) -> String \{[\s\S]*?)\n[ \t]*case \.notTaken:\n[ \t]*return Copy\.replyNotTaken/, '$1')
+  },
+  {
+    id: 'v11',
+    rule: 'v',
+    what: 'the message line emptied after a message landed',
+    file: () => `${APP}/Screens/Reply.swift`,
+    edit: (src) => src.replace('sayLine = Copy.replySent', 'sayLine = ""')
   }
 ];
 
@@ -2207,7 +2422,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad', 'ae', 'af', 'ag']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -2220,5 +2435,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z), (ab), (ac) and (ad) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (ab) to (ag) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

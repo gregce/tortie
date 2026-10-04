@@ -211,6 +211,48 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertEqual(Array(fields.keys).sorted(), ["batch", "session", "write"])
     }
 
+    /// Clause (Phase 318, build/p318/SPEC.md section 6.3): the press and the
+    /// message are the requests the shipping verifier accepted over the
+    /// phone's channel: POST, the client's own targets, and the bodies Swift's
+    /// encoder writes with sorted keys, byte for byte, the message's text
+    /// holding `/` (which Swift writes `\/`), `"`, a line break and an emoji.
+    /// The signature loops above sign and verify both with the rest.
+    func testTheReplyWritesAreTheDoorsByteForByte() throws {
+        let byName = Dictionary(uniqueKeysWithValues: v.requests.map { ($0.name, $0) })
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+
+        let choose = try XCTUnwrap(byName["choose"], "vectors.json carries no choose write; run build/p316/vectors.mjs")
+        XCTAssertEqual(choose.method, "POST")
+        XCTAssertEqual(choose.target, DoorClient.chooseTarget)
+        let pressed = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(choose.body.utf8)) as? [String: String])
+        XCTAssertEqual(Array(pressed.keys).sorted(), ["mark", "marker", "question", "session", "write"])
+        let chooseBody = ChooseBody(
+            mark: try XCTUnwrap(pressed["mark"]), marker: try XCTUnwrap(pressed["marker"]),
+            question: try XCTUnwrap(pressed["question"]), session: try XCTUnwrap(pressed["session"]),
+            write: try XCTUnwrap(pressed["write"])
+        )
+        XCTAssertEqual(String(decoding: try encoder.encode(chooseBody), as: UTF8.self), choose.body)
+        XCTAssertTrue(WriteId.isWellFormed(chooseBody.write))
+        XCTAssertTrue(PocketReplyOffer.isQuestionId(chooseBody.question), chooseBody.question)
+        XCTAssertTrue(PocketReplyOffer.isMark(chooseBody.mark), chooseBody.mark)
+        XCTAssertTrue(PocketReplyOffer.isMarker(chooseBody.marker), chooseBody.marker)
+
+        let say = try XCTUnwrap(byName["say"], "vectors.json carries no say write; run build/p316/vectors.mjs")
+        XCTAssertEqual(say.method, "POST")
+        XCTAssertEqual(say.target, DoorClient.sayTarget)
+        let said = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(say.body.utf8)) as? [String: String])
+        XCTAssertEqual(Array(said.keys).sorted(), ["session", "text", "write"])
+        let text = try XCTUnwrap(said["text"])
+        let sayBody = SayBody(session: try XCTUnwrap(said["session"]), text: text, write: try XCTUnwrap(said["write"]))
+        XCTAssertEqual(String(decoding: try encoder.encode(sayBody), as: UTF8.self), say.body)
+        XCTAssertTrue(WriteId.isWellFormed(sayBody.write))
+        XCTAssertTrue(text.contains("/") && say.body.contains(#"\/"#), "the vector's text has no slash written as Swift writes it")
+        XCTAssertTrue(text.contains("\""), "the vector's text has no quote")
+        XCTAssertTrue(text.contains("\n"), "the vector's text has no line break")
+        XCTAssertTrue(text.unicodeScalars.contains { $0.properties.isEmoji && !$0.isASCII }, "the vector's text has no emoji")
+    }
+
     /// Clause: the body is covered, not only the target. The door refused the
     /// end write's signature over its body with one byte changed
     /// (`signature`), and so does CryptoKit.

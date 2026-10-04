@@ -1,0 +1,77 @@
+{
+ "written": "2026-10-02",
+ "by": "Phase 318 verbs builder",
+ "how": "build/p318/SPEC.md §7.3: every RECONSTRUCTED fixture says so on its first line; none is a real capture",
+ "fixtures": [
+  {
+   "file": "claude-edit.txt",
+   "kind": "press",
+   "agent": "claude",
+   "from": "src/main/activity/__tests__/fixtures/claude-permission-prompt.txt (REAL, older)",
+   "expect": {
+    "shape": null
+   }
+  },
+  {
+   "file": "claude-security-notes-reconstructed.txt",
+   "kind": "press",
+   "agent": "claude",
+   "from": "research 135 §2.2",
+   "expect": {
+    "shape": null
+   }
+  },
+  {
+   "file": "non-agent-proceed-reconstructed.txt",
+   "kind": "press",
+   "agent": "claude",
+   "from": "research 135 §2.8",
+   "expect": {
+    "shape": null,
+    "note": "with no hook; with a hook, only the foreground check refuses it"
+   }
+  },
+  {
+   "file": "claude-bash-resized-reconstructed.txt",
+   "kind": "press",
+   "agent": "claude",
+   "from": "claude-bash-2.1.287.txt at 80 columns",
+   "expect": {
+    "shape": null,
+    "note": "the hook question is cleared by the move"
+   }
+  },
+  {
+   "file": "claude-prompt-dim-draft-reconstructed.ansi",
+   "kind": "prompt",
+   "agent": "claude",
+   "from": "claude-prompt-draft-2.1.287.ansi",
+   "cursor": {
+    "x": 13,
+    "y": 6
+   },
+   "truth": {
+    "typed": "hello draft"
+   },
+   "expect": {
+    "empty": false
+   }
+  },
+  {
+   "file": "codex-prompt-dim-run-reconstructed.ansi",
+   "kind": "prompt",
+   "agent": "codex",
+   "from": "codex-prompt-draft-0.160.0.ansi",
+   "cursor": {
+    "x": 13,
+    "y": 9
+   },
+   "truth": {
+    "typed": "hello draft"
+   },
+   "expect": {
+    "empty": false
+   }
+  }
+ ]
+}

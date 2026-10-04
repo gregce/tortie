@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Claude Code 2.1.287, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p -e at 120x40; the prompt at rest after three declined Bash prompts, earlier prompts in the transcript above; build/fixtures/reply/real-captures.json has the rest; ESC and every other byte below 0x20 but LF, and each trailing space, written \xNN; a backslash written \\
+\x1b[38;5;174m ▐\x1b[48;5;16m▛███▛█\x1b[39m\x1b[49m   \x1b[1mClaude\x1b[0m \x1b[1mCode\x1b[0m \x1b[38;5;246mv2.1.287\x1b[39m
+\x1b[38;5;174m▝▜\x1b[48;5;16m█████\x1b[49m█▀\x1b[39m  \x1b[38;5;246mOpus\x1b[39m \x1b[38;5;246m5.5\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mAPI\x1b[39m \x1b[38;5;246mUsage\x1b[39m \x1b[38;5;246mBilling\x1b[39m
+\x1b[38;5;174m ▝▝\x1b[39m   \x1b[38;5;174m▝▝\x1b[39m   \x1b[38;5;246m/private/tmp/p318cap-claude-71621/proj-claude\x1b[39m
+
+
+\x1b[38;5;246m\x1b[48;5;237m❯ \x1b[38;5;231mP318-ONE run the command the stand-in names\x1b[39m
+
+\x1b[38;5;211m\x1b[49m⏺\x1b[39m \x1b[1mBash\x1b[0m(touch p318-one.txt)
+\x1b[38;5;246m \x1b[39m \x1b[38;5;246m⎿\x1b[39m \x1b[38;5;246m Interrupted\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mWhat\x1b[39m \x1b[38;5;246mshould\x1b[39m \x1b[38;5;246mClaude\x1b[39m \x1b[38;5;246mdo\x1b[39m \x1b[38;5;246minstead?\x1b[39m
+
+\x1b[38;5;246m✻\x1b[39m \x1b[38;5;246mChurned\x1b[39m \x1b[38;5;246mfor\x1b[39m \x1b[38;5;246m0s\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mdone\x1b[39m \x1b[38;5;246m11:17\x1b[39m \x1b[38;5;246mPM\x1b[39m
+
+\x1b[38;5;246m\x1b[48;5;237m❯ \x1b[38;5;231mP318-TWO run the command the stand-in names\x1b[39m
+
+\x1b[38;5;211m\x1b[49m⏺\x1b[39m \x1b[1mBash\x1b[0m(echo ok
+      touch p318-two.txt)
+\x1b[38;5;246m \x1b[39m \x1b[38;5;246m⎿\x1b[39m \x1b[38;5;246m Interrupted\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mWhat\x1b[39m \x1b[38;5;246mshould\x1b[39m \x1b[38;5;246mClaude\x1b[39m \x1b[38;5;246mdo\x1b[39m \x1b[38;5;246minstead?\x1b[39m
+
+\x1b[38;5;246m✻\x1b[39m \x1b[38;5;246mBrewed\x1b[39m \x1b[38;5;246mfor\x1b[39m \x1b[38;5;246m0s\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mdone\x1b[39m \x1b[38;5;246m11:17\x1b[39m \x1b[38;5;246mPM\x1b[39m
+
+\x1b[38;5;246m\x1b[48;5;237m❯ \x1b[38;5;231mP318-LONG run the command the stand-in names\x1b[39m
+
+\x1b[38;5;211m\x1b[49m⏺\x1b[39m \x1b[1mBash\x1b[0m(printf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04
+      p318-long-argument-05 p318-long-argument-06 p318-long-argu…)
+\x1b[38;5;246m \x1b[39m \x1b[38;5;246m⎿\x1b[39m \x1b[38;5;246m Interrupted\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mWhat\x1b[39m \x1b[38;5;246mshould\x1b[39m \x1b[38;5;246mClaude\x1b[39m \x1b[38;5;246mdo\x1b[39m \x1b[38;5;246minstead?\x1b[39m
+
+\x1b[38;5;246m✻\x1b[39m \x1b[38;5;246mSautéed\x1b[39m \x1b[38;5;246mfor\x1b[39m \x1b[38;5;246m0s\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246mdone\x1b[39m \x1b[38;5;246m11:17\x1b[39m \x1b[38;5;246mPM\x1b[39m
+
+\x1b[38;5;244m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+\x1b[39m❯ \x1b[7m \x1b[0m
+\x1b[38;5;244m────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+\x1b[39m  \x1b[38;5;246m⏸\x1b[39m \x1b[38;5;246mmanual\x1b[39m \x1b[38;5;246mmode\x1b[39m \x1b[38;5;246mon\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246m?\x1b[39m \x1b[38;5;246mfor\x1b[39m \x1b[38;5;246mshortcuts\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246m←\x1b[39m \x1b[38;5;246mfor\x1b[39m \x1b[38;5;246magents\x1b[39m                                                 \x1b[38;5;246m◐\x1b[39m \x1b[38;5;246mmedium\x1b[39m \x1b[38;5;246m·\x1b[39m \x1b[38;5;246m/effort\x1b[39m
+
+
+
+
+
+
+
+

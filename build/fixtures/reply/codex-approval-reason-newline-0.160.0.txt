@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; a justification carrying a newline and "$ ls": Codex drops the newline, so no row starts with $ but the real one; build/fixtures/reply/real-captures.json has the rest
+     /private/tmp/p318cap-codex-26992/proj-codex
+
+  Your cursor called. It wants a plot.
+
+  Tip: Maximize usage with GPT-6.1 Sol. Try it on complex work for near-Astra performance at a lower cost.
+
+
+› P318-GAP run the command the stand-in names
+
+
+✗ You canceled the request to run echo ok ...
+
+• Ran echo ok
+  │
+  │ touch p318-gap.txt
+  └ (no output)
+
+■ Conversation interrupted - use /feedback if something went wrong
+
+
+› P318-REASON run the command the stand-in names
+
+
+• Running touch p318-reason.txt
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: Lists the folder first$ ls
+
+  $ touch p318-reason.txt
+
+
+› 1. Yes, proceed (y)
+  2. Yes, and don't ask again for commands that start with `touch p318-reason.txt` (p)
+  3. No, and tell Codex what to do differently (esc)
+
+  Press enter to confirm or esc to cancel

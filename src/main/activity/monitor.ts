@@ -225,6 +225,19 @@ export interface ActivityMonitorDeps {
    */
   onHandback?(sessionId: string, fact: HandbackFact): void;
   /**
+   * PHASE 318 (build/p318/SPEC.md §5.3 item 3). The choice a tick read MOVED:
+   * it appeared, it became a different choice, or it went. Called at the one
+   * caller of `choiceUpdate`, exactly when that answers news, and never from
+   * inside it, so its body and its single `detectDialogRows` call do not move.
+   *
+   * It is the phone's question id's reason to move (src/main/reply/
+   * question-id.ts): a press is shown one question and must not land on the
+   * next. It is a fact about a screen and never a status: it may not set one,
+   * it never throws into the tick and it is never awaited. Optional, so tests
+   * and the smoke harness need not care.
+   */
+  onChoiceMoved?(sessionId: string, kind: ChoiceMove): void;
+  /**
    * Phase 141, and NOTHING WIRES THIS YET ON PURPOSE.
    *
    * The witness is free for an agent whose oracle answers nothing, because a
@@ -252,6 +265,12 @@ export interface ActivityMonitorDeps {
   readProcForWitness?: () => Promise<ProcSnapshot | null>;
   now?(): number;
 }
+
+/**
+ * PHASE 318. How a session's choice moved on one tick: it `appeared` where
+ * there was none, it `moved` from one real choice to another, or it is `gone`.
+ */
+export type ChoiceMove = 'appeared' | 'moved' | 'gone';
 
 /**
  * What the witness saw (Phase 141). Two edges and no levels: the loop reports
@@ -1052,6 +1071,31 @@ export class SessionActivityMonitor {
   }
 
   /**
+   * PHASE 318 (build/p318/SPEC.md §5.4.2 step 3, D14). What the agent's OWN
+   * reader says of one session right now, over pane facts and a process table
+   * the caller just read: claude's registry entry for the pane, codex's title,
+   * exactly the tier-0 verdict the tick would take. Null for a session this
+   * monitor is not tracking, and null when the agent's reader has nothing to
+   * say.
+   *
+   * A READ AND NOTHING ELSE. It writes no state, commits nothing and refreshes
+   * nothing: the registry it asks is the one the tick and the file watch keep.
+   * The phone's message offer asks it, because a message may go only to an
+   * agent whose own reader says it is idle at its prompt.
+   */
+  nativeReadingOf(
+    sessionId: string,
+    agent: string,
+    cwd: string,
+    pane: PaneFacts,
+    proc: ProcSnapshot | null
+  ): ActivityVerdict | null {
+    const st = this.states.get(sessionId);
+    if (st === undefined) return null;
+    return nativeVerdict(pane, activityProfileFor(agent), st, cwd, this.claude, proc);
+  }
+
+  /**
    * Pair each session with its pane, reaping any that died. A session with no
    * pane is not this module's problem — reconcile owns that.
    */
@@ -1095,10 +1139,14 @@ export class SessionActivityMonitor {
         update.excerpt = excerpt;
         dirty = true;
       }
+      // PHASE 318. The mark BEFORE `choiceUpdate`, which writes the one it
+      // answers about, so the move can be told: appeared, moved or gone.
+      const had = this.choiceMark.get(e.session.id);
       const choice = this.choiceUpdate(e, capture);
       if (choice !== null) {
         update.choice = choice;
         dirty = true;
+        this.deps.onChoiceMoved?.(e.session.id, choiceMoveOf(choice, had));
       }
     }
     // PHASES 311 AND 312, RECONCILED — THE ONE PLACE THE QUESTION IS DECIDED.
@@ -1310,10 +1358,24 @@ const NO_CHOICE_MARK = '-';
  * PHASE 312. A hash of the choice, for the one question the monitor asks about
  * it: has it moved since the last tick? `hashScreen` is the detector's own
  * hash, reused rather than a second one, and the rows themselves are not kept.
+ *
+ * EXPORTED SINCE PHASE 318, and nothing about it changed: the phone's reply
+ * reader (src/main/reply/reader.ts) marks the choice it offers with THIS hash,
+ * so the press and the monitor never mean two things by "the same choice".
  */
-function choiceMarkOf(choice: SessionChoiceInfo, question: string): string {
+export function choiceMarkOf(choice: SessionChoiceInfo, question: string): string {
   if (!choice.atChoice) return NO_CHOICE_MARK;
   return hashScreen(JSON.stringify([question, choice.options]));
+}
+
+/**
+ * PHASE 318. How the choice moved, told from the news `choiceUpdate` answered
+ * and the mark it held before: no choice now is `gone`; a choice where there
+ * was none (never one, or the no-choice mark) `appeared`; otherwise `moved`.
+ */
+function choiceMoveOf(choice: SessionChoiceInfo, had: string | undefined): ChoiceMove {
+  if (!choice.atChoice) return 'gone';
+  return had === undefined || had === NO_CHOICE_MARK ? 'appeared' : 'moved';
 }
 
 /** One claude registry entry, as the conversation question needs it. */

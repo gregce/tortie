@@ -21,10 +21,28 @@ final class WriterTests: XCTestCase {
     }
 
     /// Clause: a reader that writes nothing (every 316.6 fake) reads nil, so
-    /// it draws no End and no Select.
+    /// it draws no End and no Select, and since Phase 318 no button and no
+    /// message box.
     func testAReaderThatWritesNothingReadsNil() {
         XCTAssertNil((ScriptedReader() as any DoorReading).writer)
         XCTAssertNil((WritingReader(reads: ScriptedReader(), writes: nil) as any DoorReading).writer)
+    }
+
+    /// Clause (Phase 318): the press and the message are REQUIREMENTS of
+    /// `DoorWriting`, so the writer the app holds as an existential reaches
+    /// the reader's own `choose` and `say`, with the id handed to it.
+    func testTheRepliesReachTheWriterThroughTheExistential() async throws {
+        let replier = ScriptedReplier(chooses: [ReplyAnswers.chosen], says: [ReplyAnswers.sent])
+        let reader: any DoorReading = WritingReader(reads: ScriptedReader(), writes: replier)
+        let writer = try XCTUnwrap(reader.writer)
+        let pressed = await writer.choose("s", question: ReplyAnswers.question, mark: ReplyAnswers.mark, marker: "1")
+        XCTAssertEqual(pressed, ReplyAnswers.chosen)
+        let said = await writer.say("s", text: "x", write: ReplyAnswers.mintedIds[3])
+        XCTAssertEqual(said, SentWrite(result: ReplyAnswers.sent, write: ReplyAnswers.mintedIds[3]))
+        let chooses = await replier.chooseCount
+        let says = await replier.says
+        XCTAssertEqual(chooses, 1)
+        XCTAssertEqual(says.map(\.write), [ReplyAnswers.mintedIds[3]])
     }
 
     #if os(iOS)

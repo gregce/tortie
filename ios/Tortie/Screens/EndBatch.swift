@@ -249,7 +249,10 @@ final class EndBatchModel {
                     case .unreachable?: return Copy.unreachable
                     // The Mac batch reads a removed row as gone.
                     case .gone?, .removed?: return Copy.noLongerHere
-                    case .malformed?, nil: return Copy.notEnded(DoorWords.endSentence(for: result))
+                    // Phase 318's reasons answer only a press or a message; an End
+                    // that somehow reads one draws the Mac's own sentence.
+                    case .malformed?, .changed?, .unpressable?, .unsayable?, .stopped?, .empty?, .long?, .character?, nil:
+                        return Copy.notEnded(DoorWords.endSentence(for: result))
                     }
                 case .failed, .busy:
                     return Copy.notEnded(DoorWords.endSentence(for: result))

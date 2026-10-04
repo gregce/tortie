@@ -34,7 +34,8 @@ import {
   type PocketFacts,
   type PocketRoute
 } from '../routes';
-import { POCKET_WRITE_ROUTE_IDS, type PocketEndOffer } from '@shared/ipc/pocket';
+import { POCKET_NO_REPLY, POCKET_WRITE_ROUTE_IDS, type PocketEndOffer, type PocketReplyOffer } from '@shared/ipc/pocket';
+import type { PocketReplyDrawn } from '../routes';
 import { endSessionConfirm } from '@shared/lifecycle-words';
 import { POCKET_AGE_HONESTY, POCKET_OTHERS_MAX } from '@shared/ipc/pocket';
 import * as DOOR_TABLE from '../door/table';
@@ -154,7 +155,7 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    expect(POCKET_ROUTES).toHaveLength(5);
+    expect(POCKET_ROUTES).toHaveLength(7);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -163,20 +164,21 @@ describe('the table is closed', () => {
       (POCKET_ROUTES as PocketRoute[]).push({
         id: 'blocked',
         method: 'POST',
-        path: '/v1/say',
+        path: '/v1/type',
         reads: false,
         windowOnly: false,
         signed: true
       })
     ).toThrow();
-    expect(POCKET_ROUTES).toHaveLength(5);
-    expect(matchPocketRoute('POST', '/v1/say')).toBeNull();
+    expect(POCKET_ROUTES).toHaveLength(7);
+    expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
-  // PHASE 317 (SPEC §5.3.1, §14 finding 18). It replaces the Phase 313 test
-  // "holds NO write route in this phase", which this phase made false.
-  it('holds EXACTLY one write route, end, a signed POST alive outside a window', () => {
-    expect(pocketWriteRouteIds()).toEqual(['end']);
+  // PHASE 317 (SPEC §5.3.1, §14 finding 18) replaced the Phase 313 test "holds
+  // NO write route in this phase"; PHASE 318 (build/p318/SPEC.md §5.1.1) widens
+  // it to the reply's two writes, on the same door and no second family.
+  it('holds EXACTLY three write routes, end, choose and say, each a signed POST alive outside a window', () => {
+    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say']);
     expect([...pocketWriteRouteIds()]).toEqual([...POCKET_WRITE_ROUTE_IDS]);
     for (const route of POCKET_ROUTES) {
       if (route.reads) continue;
@@ -184,15 +186,22 @@ describe('the table is closed', () => {
       expect(route.signed, route.id).toBe(true);
       expect(route.windowOnly, route.id).toBe(false);
     }
-    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end']);
+    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end', '/v1/choose', '/v1/say']);
     // Every other row is still a read.
     expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual(['blocked', 'pair', 'session', 'turns']);
   });
 
   it('matches a write only as a POST to its exact path', () => {
     expect(matchPocketRoute('POST', '/v1/end')?.id).toBe('end');
+    expect(matchPocketRoute('POST', '/v1/choose')?.id).toBe('choose');
+    expect(matchPocketRoute('POST', '/v1/say')?.id).toBe('say');
     for (const method of ['GET', 'PUT', 'DELETE', 'post']) {
       expect(matchPocketRoute(method, '/v1/end')).toBeNull();
+      expect(matchPocketRoute(method, '/v1/choose')).toBeNull();
+      expect(matchPocketRoute(method, '/v1/say')).toBeNull();
+    }
+    for (const near of ['/v1/choose/', '/v1/Choose', '/v1/chooses', '/v1/say/', '/v1/Say', '/v1/says', '/v1/say?x', '/v1/reply']) {
+      expect(matchPocketRoute('POST', near), near).toBeNull();
     }
     // The write the fix round removed is no route at all (build/p317/SPEC.md "§Fix round").
     for (const method of ['POST', 'GET']) expect(matchPocketRoute(method, '/v1/unpair')).toBeNull();
@@ -875,5 +884,193 @@ describe('End on the rows (Phase 317, SPEC §5.4)', () => {
     ).session('r');
     expect(answer?.session.endConfirm?.body).toBe(endSessionConfirm(remote).body);
     expect(answer?.session.endConfirm?.body).toContain('on Mac Pro');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('the reply offer on one session (Phase 318, build/p318/SPEC.md §5.2, D18)', () => {
+  const OFFER: PocketReplyOffer = {
+    question: '0123456789abcdef-7',
+    mark: 'a1b2c3d4e5f6',
+    pressable: ['1', '2'],
+    command: null,
+    canSay: false
+  };
+
+  it('reads the empty offer, a fresh object every time, when no reader was handed in', async () => {
+    const routes = createPocketRoutes(facts());
+    const one = await routes.session('a');
+    const two = await routes.session('a');
+    expect(one?.session.reply).toEqual({ question: null, mark: null, pressable: [], command: null, canSay: false });
+    expect(one?.session.reply).toEqual(POCKET_NO_REPLY);
+    expect(one?.session.reply).not.toBe(POCKET_NO_REPLY);
+    expect(one?.session.reply?.pressable).not.toBe(two?.session.reply?.pressable);
+  });
+
+  it('holds the empty offer frozen, its pressable list too, so no composer can push onto it', () => {
+    expect(Object.isFrozen(POCKET_NO_REPLY)).toBe(true);
+    expect(Object.isFrozen(POCKET_NO_REPLY.pressable)).toBe(true);
+    expect(() => (POCKET_NO_REPLY.pressable as string[]).push('1')).toThrow();
+  });
+
+  it('hands the reader EXACTLY the question and options this answer draws (§Revision R1), once, after the refresh', async () => {
+    const log: string[] = [];
+    const handed: { session: string; drawn: PocketReplyDrawn }[] = [];
+    const routes = createPocketRoutes(
+      facts({
+        refresh: async (id) => {
+          log.push(`refresh:${id}`);
+          return null;
+        },
+        replyOffer: async (s, drawn) => {
+          log.push(`reply:${s.id}`);
+          handed.push({ session: s.id, drawn });
+          return OFFER;
+        }
+      })
+    );
+    const answer = await routes.session('a');
+    expect(log).toEqual(['refresh:a', 'reply:a']);
+    expect(handed).toHaveLength(1);
+    expect(handed[0]?.session).toBe('a');
+    expect(handed[0]?.drawn.question).toBe(answer?.session.question);
+    expect(handed[0]?.drawn.question).toBe('May I run the tests?');
+    expect(handed[0]?.drawn.choices).toEqual(answer?.session.choices);
+    expect(answer?.session.reply).toEqual(OFFER);
+    // A session with no question hands null and no options.
+    await routes.session('e');
+    expect(handed[1]?.drawn).toEqual({ question: null, choices: [] });
+  });
+
+  it('never asks the reader for /v1/blocked, and no blocked or other row carries a reply', async () => {
+    let asked = 0;
+    const routes = createPocketRoutes(
+      facts({
+        replyOffer: async () => {
+          asked += 1;
+          return OFFER;
+        }
+      })
+    );
+    const list = routes.blocked();
+    expect(asked).toBe(0);
+    for (const row of [...list.rows, ...list.others]) expect('reply' in row, row.sessionId).toBe(false);
+    await routes.turns('a', {});
+    expect(asked).toBe(0);
+  });
+
+  it('never asks the reader for a session removed while the refresh ran', async () => {
+    let live = SESSIONS;
+    let asked = 0;
+    const routes = createPocketRoutes(
+      facts({
+        sessions: () => live,
+        refresh: async () => {
+          live = SESSIONS.filter((s) => s.id !== 'a');
+          return null;
+        },
+        replyOffer: async () => {
+          asked += 1;
+          return OFFER;
+        }
+      })
+    );
+    expect(await routes.session('a')).toBeNull();
+    expect(asked).toBe(0);
+  });
+
+  it('composes the offer FIELD BY FIELD: nothing else on the reader’s object leaves, and pressable is a fresh array', async () => {
+    const fromReader = { ...OFFER, pressable: ['1', '2'], secret: 'CANARY', hookAsk: 'Bash rm -rf ~' } as PocketReplyOffer;
+    const answer = await createPocketRoutes(facts({ replyOffer: async () => fromReader })).session('a');
+    expect(Object.keys(answer?.session.reply ?? {})).toEqual(['question', 'mark', 'pressable', 'command', 'canSay']);
+    expect(JSON.stringify(answer)).not.toContain('CANARY');
+    expect(answer?.session.reply?.pressable).not.toBe(fromReader.pressable);
+    fromReader.pressable.push('9');
+    expect(answer?.session.reply?.pressable).toEqual(['1', '2']);
+  });
+
+  it('keeps only markers of the options THIS answer draws, in drawn order, each once', async () => {
+    const offer = (pressable: string[]) =>
+      createPocketRoutes(facts({ replyOffer: async () => ({ ...OFFER, pressable }) })).session('a');
+    expect((await offer(['2', '1']))?.session.reply?.pressable).toEqual(['1', '2']);
+    expect((await offer(['1', '1', '2']))?.session.reply?.pressable).toEqual(['1', '2']);
+    expect((await offer(['2', '3', '9']))?.session.reply?.pressable).toEqual(['2']);
+    // A marker the answer does not draw alone offers nothing at all.
+    expect((await offer(['3']))?.session.reply).toEqual(POCKET_NO_REPLY);
+    // A session that draws no options can be offered no press, whatever the reader says.
+    const none = await createPocketRoutes(facts({ replyOffer: async () => OFFER })).session('e');
+    expect(none?.session.reply).toEqual(POCKET_NO_REPLY);
+  });
+
+  it('holds the press half all or nothing: no question id, no mark or nothing pressable offers no press and no command', async () => {
+    const offer = (over: Partial<PocketReplyOffer>) =>
+      createPocketRoutes(facts({ replyOffer: async () => ({ ...OFFER, command: 'ls -la', ...over }) })).session('a');
+    expect((await offer({}))?.session.reply).toEqual({ ...OFFER, command: 'ls -la' });
+    for (const over of [{ question: null }, { question: '' }, { mark: null }, { mark: '' }, { pressable: [] }] as Partial<PocketReplyOffer>[]) {
+      expect((await offer(over))?.session.reply, JSON.stringify(over)).toEqual(POCKET_NO_REPLY);
+    }
+    // A message offer stands on its own.
+    expect((await offer({ question: null, canSay: true }))?.session.reply).toEqual({ ...POCKET_NO_REPLY, canSay: true });
+  });
+
+  it('offers a message only when the reader said exactly true', async () => {
+    for (const [canSay, want] of [[true, true], [false, false], ['true', false], [1, false], [undefined, false]] as const) {
+      const answer = await createPocketRoutes(
+        facts({ replyOffer: async () => ({ ...POCKET_NO_REPLY, canSay } as unknown as PocketReplyOffer) })
+      ).session('f');
+      expect(answer?.session.reply?.canSay, String(canSay)).toBe(want);
+    }
+  });
+
+  it('reads the empty offer, and still answers the session, when the reader rejects, throws or answers nothing', async () => {
+    const readers: Array<PocketFacts['replyOffer']> = [
+      async () => {
+        throw new Error('CANARY tmux capture-pane failed');
+      },
+      () => {
+        throw new Error('CANARY sync');
+      },
+      async () => null as unknown as PocketReplyOffer,
+      async () => ({}) as unknown as PocketReplyOffer
+    ];
+    for (const [i, replyOffer] of readers.entries()) {
+      const answer = await createPocketRoutes(facts({ replyOffer })).session('a');
+      expect(answer?.session.name, String(i)).toBe('aardvark');
+      expect(answer?.session.catchUp, String(i)).toEqual({ ask: 'wire the door', outcome: 'Done, and git agrees' });
+      expect(answer?.session.reply, String(i)).toEqual(POCKET_NO_REPLY);
+      expect(JSON.stringify(answer)).not.toContain('CANARY');
+    }
+  });
+
+  it('asks the reader beside the conversation reads, not after them', async () => {
+    const order: string[] = [];
+    let release = (): void => undefined;
+    const held = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const routes = createPocketRoutes(
+      facts({
+        replyOffer: async () => {
+          order.push('reply:start');
+          await held;
+          order.push('reply:end');
+          return OFFER;
+        },
+        catchUp: async () => {
+          order.push('catchUp');
+          return null;
+        },
+        lastTurn: async () => {
+          order.push('lastTurn');
+          return { answerText: null, turnCount: 0 };
+        }
+      })
+    );
+    const pending = routes.session('a');
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(order).toEqual(['reply:start', 'catchUp', 'lastTurn']);
+    release();
+    expect((await pending)?.session.reply).toEqual(OFFER);
   });
 });

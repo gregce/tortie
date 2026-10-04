@@ -81,6 +81,8 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["buildOpen"], Copy.buildOpen)
         XCTAssertEqual(byName["endNotTaken"], Copy.endNotTaken)
         XCTAssertEqual(byName["space"], Copy.space)
+        XCTAssertEqual(byName["send"], Copy.send)
+        XCTAssertEqual(byName["replyNotTaken"], Copy.replyNotTaken)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -98,6 +100,8 @@ final class CopyTests: XCTestCase {
         let link = try StyleSource.text("docs/design/phone/Link.html")
         let end = try StyleSource.text("docs/design/phone/End.html")
         let endThese = try StyleSource.text("docs/design/phone/EndThese.html")
+        let composer = try StyleSource.text("docs/design/phone/Composer.html")
+        let answer = try StyleSource.text("docs/design/phone/Answer.html")
         let drawn: [(String, String)] = [
             (main, Copy.sessions),
             (main, Copy.needsYourInput(3)),
@@ -172,10 +176,19 @@ final class CopyTests: XCTestCase {
             (endThese, Copy.batchSkippedLine([.ended]) ?? ""),
             (endThese, Copy.batchConfirmLabel(2)),
             (endThese, Copy.cancel),
+            // Phase 318: the message box's own words, and a pressable question
+            // under the End bar with no line asking him to answer it at the Mac.
+            (composer, Copy.messagePlaceholder),
+            (composer, Copy.oneMessage),
+            (answer, Copy.endSessionMenu),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")
         }
+        XCTAssertFalse(
+            answer.contains(">" + Copy.answerInTheSession + "<"),
+            "every option Answer.html draws is pressable, so it draws no line sending him to the Mac"
+        )
     }
 
     /// Clause: the composed lines Phase 316.6 adds say the singular for one,
@@ -189,13 +202,14 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(Copy.versionLine("1.0.0", "4"), "1.0.0" + Copy.buildOpen + "4" + Copy.countClose)
     }
 
-    /// Clause: his rulings. No message box and no send control until Phase 318,
-    /// no hand-off and no typed code; and End is the Mac's own words, so the
-    /// approved mock's `End with Face ID` is not a word the phone says (Phase
-    /// 317 brought `Select`): none of their words is here.
+    /// Clause: his rulings. No hand-off and no typed code; and End is the
+    /// Mac's own words, so the approved mock's `End with Face ID` is not a
+    /// word the phone says (Phase 317 brought `Select`): none of their words
+    /// is here. Phase 318 brought the message box, so its four words left
+    /// this list and are the phone's own (`send`, `messagePlaceholder`,
+    /// `sending`, `oneMessage`).
     func testNoWordOfAControlThePhoneDoesNotHave() throws {
         let refused = [
-            "Message this session", "Send", "Sending…", "Goes to this session as one message.",
             "Open in Claude", "Open in Terminal", "Enter a code instead", "End with Face ID",
             "The agent stops. Its saved output stays.",
         ]

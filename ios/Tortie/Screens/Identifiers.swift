@@ -115,6 +115,21 @@
 //   batch-line                   the one line in End these' bar (the owner
 //                                check's answer when it did not confirm)
 //
+// REPLY (Phase 318, build/p318/SPEC.md section 5.7.6):
+//
+//   session-choice-press-<n>     an option the Mac offers to press, a button
+//                                inside session-choice-<n> (n counts from 0)
+//   session-reply-line           the one line under the options after a press
+//   session-command              the command the agent asks to run, drawn
+//                                under the question (Codex's `$` line)
+//   session-message-strip        the message box above the End bar; a
+//                                container
+//   session-message-field        the box itself, `Message this session`
+//   session-message-send         `Send`; a button
+//   session-message-line         the one line under the box: `Goes to this
+//                                session as one message.`, `Sending…`, `Sent`
+//                                or the Mac's sentence
+//
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
 // Session screen's last answer; `<n>` a block's PRE-ORDER ordinal from 0 over
@@ -263,6 +278,16 @@ enum ID {
     static let batchLine = "batch-line"
     static let settingsAbout = "settings-about"
     static let settingsVersion = "settings-version"
+
+    // Reply (Phase 318).
+    /// An option the Mac offers to press: a button.
+    static func sessionChoicePress(_ n: Int) -> String { "session-choice-press-" + String(n) }
+    static let sessionReplyLine = "session-reply-line"
+    static let sessionCommand = "session-command"
+    static let sessionMessageStrip = "session-message-strip"
+    static let sessionMessageField = "session-message-field"
+    static let sessionMessageSend = "session-message-send"
+    static let sessionMessageLine = "session-message-line"
 
     // The answer drawn as markdown (Phase 316.6).
     /// The Session screen's scope; a conversation's is the turn's index.

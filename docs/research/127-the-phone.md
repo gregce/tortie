@@ -663,8 +663,12 @@ The structured reply (v2, on the row). Allow or deny for a Claude permission thr
 until the phone answers with `decision.behavior` (the hooks reference, saved copy `hooks.md:1933-1960`);
 a numbered option for the dialogs `detectDialog` recognises on codex, gemini and qwen, typed as one
 digit and Enter with the screen read before and after (`src/main/machines/remote-arm.ts` rule 4), one
-press at a time; an AskUserQuestion answered through `PreToolUse`'s `updatedInput`. Free text into a
-pane stays refused (`remote-arm.ts` rule 1). Not built until one fact is measured — whether Claude's
+press at a time (refuted by research 135 §2.3: the digit alone commits the dialog and a later Enter
+approved the next, unseen one 8 times of 8, so Phase 318 presses the digit and never an Enter); an
+AskUserQuestion answered through `PreToolUse`'s `updatedInput`. Free text into a pane stays refused
+(`remote-arm.ts` rule 1; for a Claude Code or Codex session on this Mac idle at its own prompt, his
+ruling of 2026-09-30 lets one message through as a bracketed paste, research 135 §3 and Phase 318,
+and rule 1 still holds for every other machine). Not built until one fact is measured — whether Claude's
 terminal dialog and a pending http hook coexist — and until he rules whether a paired phone may press
 the buttons the agent drew. **Supported by §3.1 in two ways.** A shipped product's `terminal.send` is
 a typed-text verb rather than a keyboard, framing multi-line input server-side as a bracketed paste so
@@ -1309,7 +1313,10 @@ Seven questions, in his words, and the document ends with them. The seventh was 
 2. "May a phone I paired press the buttons the agent drew — allow or deny, 1 or 2 — or only tell me?
    And may it ever type a line into a session?" The structured reply is v2 and needs one measurement
    first (whether Claude's terminal prompt and a pending hook coexist); free text is the remote arm's
-   rule 1 and stays refused unless he says otherwise.
+   rule 1 and stays refused unless he says otherwise. (He said otherwise on 2026-09-30, and research 135
+   is the reply this question became: the phone presses a numbered option of a measured Claude Code or
+   Codex question with the digit alone, and sends one message, as a paste, to a Claude Code or Codex
+   session on this Mac idle at its own prompt; rule 1 still holds for every other machine. Phase 318.)
 3. "Should the door answer on my home Wi-Fi too, so the app works without Tailscale, or only on the
    tailnet?" The tailnet alone is the charter's line and needs the Tailscale app for everything,
    which is guideline 4.2.3(i)'s shape; Wi-Fi over Bonjour is CC Pocket's answer and a widening made

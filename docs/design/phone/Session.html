@@ -76,17 +76,9 @@ a { color: #4d9de8; }
 
   <div style="flex-grow: 1;"></div>
 
-  <div style="border-top: 1px solid #25282E; padding: 8px 16px 16px 16px; background: #0E0F13; flex-shrink: 0;">
-    <div style="display: flex; align-items: flex-end; gap: 6px;">
-      <label for="msg" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%);">Message this session</label>
-      <input id="msg" type="text" placeholder="Message this session" style="flex-grow: 1; min-height: 36px; box-sizing: border-box; background: #191B20; border: 1px solid #353943; border-radius: 4px; padding: 6px 8px; font: inherit; font-size: 17px; color: #C9CACD;">
-      <button type="button" aria-label="Send" style="width: 32px; height: 32px; border-radius: 50%; border: 0; background: #202329; color: #565B66; display: flex; align-items: center; justify-content: center; cursor: pointer;">
-        <svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 13V3.5M3.5 8 8 3.5 12.5 8"></path></svg>
-      </button>
-    </div>
-    <div style="font-size: 13px; color: #838996; margin-top: 6px;">Goes to this session as one message.</div>
-  </div>
-
+  <!-- Phase 318: no message box here. This session needs input, and the box is
+       drawn only while the agent sits idle at its own prompt (his ruling of
+       2026-10-02, "Only when idle at its prompt"); Composer.html draws it. -->
   <!-- Phase 317: End sits in a bar above the tab bar, with the mark of what the
        phone has and the Mac's own words; it replaces the actions button. -->
   <div class="endbar">
@@ -95,7 +87,7 @@ a { color: #4d9de8; }
   </div>
 
 <!-- Phase 316.6: the tab bar stays on a pushed session, so a session is one tap
-     from Needs input; Phase 318's strip docks above the End bar. -->
+     from Needs input. -->
   <div class="tabbar">
     <a class="tab" href="NeedsInput.html">
       <div class="ico">

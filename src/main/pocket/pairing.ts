@@ -399,14 +399,27 @@ export interface PocketDoorSummary {
 
 /**
  * What each write lets an allowed phone do, in the words the line says it
- * (Phase 317, build/p317/SPEC.md §5.6). Keyed by the closed write list, so a
- * write added to it without its clause here is a compile error rather than a
- * route the lines never mention. Phase 318 adds its two and joins them as a
- * comma list.
+ * (Phase 317, build/p317/SPEC.md §5.6; Phase 318, build/p318/SPEC.md §5.1.7).
+ * Keyed by the closed write list, so a write added to it without its clause
+ * here is a compile error rather than a route the lines never mention.
  */
 const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
-  end: 'end a session'
+  end: 'end a session',
+  choose: 'answer a numbered question',
+  say: 'send a session one message'
 });
+
+/**
+ * The clauses as one list, the way the line says them (Phase 318): commas
+ * between all but the last two, and ` and ` before the last. One clause is
+ * itself; none is the empty string.
+ */
+function clauseListOf(clauses: readonly string[]): string {
+  const last = clauses[clauses.length - 1];
+  if (last === undefined) return '';
+  if (clauses.length === 1) return last;
+  return `${clauses.slice(0, -1).join(', ')} and ${last}`;
+}
 
 /** Read the door as the lines a person is asked to agree to. Pure. */
 export function describePocketDoor(
@@ -428,8 +441,9 @@ export function describePocketDoor(
   // PHASE 317: what the writes in that list let a phone do, in words, DERIVED
   // from the hashed route list through the compiled map and in the closed
   // list's order, so "the lines are exactly the hashed facts" holds for it too.
+  // PHASE 318 joins them as a list (`clauseListOf`).
   const clauses = POCKET_WRITE_ROUTE_IDS.filter((id) => fields.routes.includes(id)).map((id) => WRITE_CLAUSES[id]);
-  if (clauses.length > 0) lines.push(`Lets an allowed phone ${clauses.join(' and ')}`);
+  if (clauses.length > 0) lines.push(`Lets an allowed phone ${clauseListOf(clauses)}`);
   lines.push(
     fields.pushAlerts
       ? 'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps'

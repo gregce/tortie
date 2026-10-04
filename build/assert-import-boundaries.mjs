@@ -280,10 +280,10 @@ const DIRECTORY_WALLS = [
   },
   {
     dir: 'main/pocket/',
-    forbidden: ['main/credentials/', 'main/logins/', 'main/push/', 'main/alerts/'],
+    forbidden: ['main/credentials/', 'main/logins/', 'main/push/', 'main/alerts/', 'main/reply/'],
     why:
       'the tailnet door is the first surface Tortie offers to anything outside ' +
-      'this Mac, and every route in it is a read. A door that cannot NAME the ' +
+      'this Mac. A door that cannot NAME the ' +
       'two domains that hold a person’s credentials cannot be made to read one ' +
       'by a later round, whatever a handler is asked to compose. Phase 313 ' +
       'mechanism 4 is the wall and CLAUDE.md refusal 5 is beside it: the same ' +
@@ -296,7 +296,12 @@ const DIRECTORY_WALLS = [
       'and a door that can name the sender can be made to send. Phase 316.5 ' +
       'adds main/alerts/, the composition that holds the sender and the ' +
       'Apple push key: the door reaches it only through the PocketAlertsPort ' +
-      'it is handed (conformance:pocket K3).'
+      'it is handed (conformance:pocket K3). Phase 318 adds main/reply/, ' +
+      'the one module outside the door that types into a session: the door ' +
+      'reaches the press and the message only through the PocketWrites and ' +
+      'PocketFacts members src/main/capabilities.ts hands it, so it cannot ' +
+      'name the writer, its tmux argv or its reader (conformance:pocket R3 ' +
+      'and Y11).'
   },
   {
     dir: 'main/push/',

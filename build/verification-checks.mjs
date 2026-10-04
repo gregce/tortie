@@ -1161,6 +1161,36 @@ export const CHECKS = [
   // token. `--self-test` drives the whole measurement over a local scratch tmux
   // with no ssh.
   remote('probe:p320:skew'),
+  // PHASE 318's app run, the Mac side of a reply from the phone
+  // (build/p318/SPEC.md §7.6): a numbered choice pressed and one message sent
+  // through the door's two new writes. ONE Electron at HEAD through
+  // build/electron-run.mjs's withElectron, and with P318_PARENT_CHECKOUT the
+  // parent's SECOND on the same profile, one after the other and never at
+  // once, on a scratch profile, a scratch HOME and the socket gmux-p318…,
+  // inside build/with-scratch-machine.mjs's loopback machine (its remote shell
+  // is arm R8), which is why this is `remote` and not `electron`. Tailscale is
+  // build/p330/tailscale-standin.mjs behind its preflight and sampler, the
+  // name check asks build/p332/dns-standin.mjs in the probe's own process, the
+  // phones are build/p316/node-phone.mjs, and every agent the run answers is
+  // build/p318/stand-in.mjs behind a /bin/sh `claude` or `codex` on the
+  // scratch HOME's PATH, which the probe refuses to start without. It renames
+  // five agents' binaries before each launch, runs no vendor process and
+  // spends no token; every stand-in pid is ended by pid in its `finally`.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p318'),
+  // PHASE 318's measurement (build/p318/SPEC.md §7.5): the SHIPPING
+  // src/main/reply/writer.ts and reader.ts under the pinned tsx, against the
+  // vendored tmux on a scratch -L socket of its own (and Homebrew's 3.6a on a
+  // second when it is installed; that row reads UNREADABLE when it is not),
+  // each under a copy of resources/gmux-tmux.conf, with build/p318/stand-in.mjs
+  // in its panes and the shipping TmuxControlClient on a scratch transport.
+  // No Electron, no door, no agent, no token. Every tmux server and stand-in
+  // it starts is killed, and its socket unlinked, in a `finally`.
+  // `--self-test` grades recorded fixtures and starts nothing.
+  tmux(
+    'measure:p318',
+    'the vendored tmux on scratch -L sockets of its own (and Homebrew tmux 3.6a when present, on a second); the pinned tsx; the operator server is never named'
+  ),
   remote('probe:p131'),
   // PHASE 193. The reproduction behind npm run gate:knownhosts, run rather
   // than read: the mechanism is proved live against this run's own sshd, a

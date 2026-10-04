@@ -185,6 +185,17 @@ export interface ExecTmuxOptions {
      */
     readonly machineLabel?: string;
   };
+  /**
+   * PHASE 318 (build/p318/SPEC.md §5.6.3, D22). Bytes written to the tmux
+   * client's standard input and then closed. The phone's message reaches
+   * `load-buffer -` this way and no other, so no argv element and no error
+   * message ever holds the person's words: a failed command's text carries its
+   * argv (research 135 §3.3, §4.8).
+   *
+   * REFUSED FOR A REMOTE CONTEXT, before anything is composed, so the words
+   * never travel to another machine. Absent, nothing about any spawn changes.
+   */
+  stdin?: Buffer;
 }
 
 // ---------------------------------------------------------------------------
@@ -609,6 +620,15 @@ async function spawnTmux(
   args: readonly string[],
   options: ExecTmuxOptions
 ): Promise<string> {
+  // PHASE 318. The person's words go to this Mac's tmux and nowhere else:
+  // standard input for a machine is refused here, before anything is composed.
+  if (options.stdin !== undefined && ctx.kind === 'remote') {
+    throw gmuxError(
+      'INVALID_INPUT',
+      'Tortie types only into sessions on this Mac.',
+      'refused stdin for a remote context'
+    );
+  }
   // PHASE 118. The composition is INSIDE the run, so a call refused because
   // Tortie is quitting never composes an argv at all.
   const run = async (hold: RemoteExecutionHold | null): Promise<string> => {
@@ -621,6 +641,13 @@ async function spawnTmux(
         env: process.env
       });
       hold?.own(running.child);
+      // PHASE 318. Written whole and closed right after the spawn. A tmux that
+      // exits before reading it fails on its own terms, and the pipe's error
+      // (EPIPE) is swallowed here so it can never surface as an unhandled one.
+      if (options.stdin !== undefined) {
+        running.child.stdin?.on('error', () => undefined);
+        running.child.stdin?.end(options.stdin);
+      }
       const { stdout } = await running;
       return stdout;
     } catch (err) {

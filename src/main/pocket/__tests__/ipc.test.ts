@@ -1515,7 +1515,10 @@ describe('the phone’s writes, through the host', () => {
         end: async (input) => {
           asked.push(input);
           return { outcome: 'done' };
-        }
+        },
+        // Phase 318's two verbs, unused here: this test asks End alone.
+        choose: async () => ({ outcome: 'done' }),
+        say: async () => ({ outcome: 'done' })
       }
     });
     await pairAndAllow(one);
@@ -1541,7 +1544,13 @@ describe('the phone’s writes, through the host', () => {
   // answer, which made Unpair slower than today. Its path is no route now, so
   // the handler refuses it and nothing about the phones moves.
   it('refuses the removed unpair path and removes nobody, whatever the body says', async () => {
-    const one = host({ writes: { end: async () => ({ outcome: 'failed', sentence: 'not in this test' }) } });
+    const one = host({
+      writes: {
+        end: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        choose: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        say: async () => ({ outcome: 'failed', sentence: 'not in this test' })
+      }
+    });
     await pairAndAllow(one);
     await namePairable(one);
     const a = await writer(one, 'A');
@@ -1708,8 +1717,9 @@ describe('where a push may go', () => {
 describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
-    // Phase 317 added the two writes after the reads; the window did not move.
-    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end']);
+    // Phase 317 added the write after the reads, and Phase 318 the two after
+    // it; the window did not move.
+    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say']);
   });
 });
 

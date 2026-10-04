@@ -1,0 +1,786 @@
+{
+ "written": "2026-10-02",
+ "by": "Phase 318 capture step",
+ "how": "build/p318/SPEC.md §Revision R20",
+ "fixtures": [
+  {
+   "files": [
+    "claude-bash-2.1.287.txt"
+   ],
+   "kind": "press",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 1,
+    "y": 18,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "waiting",
+    "waitingFor": "permission prompt"
+   },
+   "onScreen": "Bash permission prompt, one-line command",
+   "truth": {
+    "command": "touch p318-one.txt"
+   }
+  },
+  {
+   "files": [
+    "claude-bash-multiline-2.1.287.txt"
+   ],
+   "kind": "press",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 1,
+    "y": 27,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "waiting",
+    "waitingFor": "permission prompt"
+   },
+   "onScreen": "Bash permission prompt, two-line command (drawn whole behind a gutter; the hook question flattens it)",
+   "truth": {
+    "command": "echo ok\ntouch p318-two.txt"
+   }
+  },
+  {
+   "files": [
+    "claude-bash-long-2.1.287.txt"
+   ],
+   "kind": "press",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 1,
+    "y": 33,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "waiting",
+    "waitingFor": "permission prompt"
+   },
+   "onScreen": "Bash permission prompt, a 302-character command wrapped in the box (the hook question cuts it at 200)",
+   "truth": {
+    "command": "printf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04 p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09 p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 > p318-long.txt"
+   }
+  },
+  {
+   "files": [
+    "claude-bash-blank-line-2.1.287.txt"
+   ],
+   "kind": "press",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 1,
+    "y": 20,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "waiting",
+    "waitingFor": "permission prompt"
+   },
+   "onScreen": "Bash permission prompt, a command with a blank second line",
+   "truth": {
+    "command": "echo ok\n\ntouch p318-gap.txt"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 28,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "command approval for an escalated one-line command, with the model's Reason row",
+   "truth": {
+    "command": "touch p318-one.txt",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-no-reason-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 26,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "command approval for an escalated one-line command, no justification sent, so no Reason row",
+   "truth": {
+    "command": "touch p318-plain.txt",
+    "justification": null
+   }
+  },
+  {
+   "files": [
+    "codex-approval-multiline-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 39,
+    "visible": false
+   },
+   "title": "[ ! ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "command approval, two-line command: the second line drawn unprefixed under the $ row",
+   "truth": {
+    "command": "echo ok\ntouch p318-two.txt",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-long-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 39,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "command approval, a 302-character command wrapped unprefixed; the question row is more than CHOICE_QUESTION_INK_ROWS above the options",
+   "truth": {
+    "command": "printf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04 p318-long-argument-05 p318-long-argument-06 p318-long-argument-07 p318-long-argument-08 p318-long-argument-09 p318-long-argument-10 p318-long-argument-11 p318-long-argument-12 p318-long-argument-13 p318-long-argument-14 > p318-long.txt",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-blank-line-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 32,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "HOSTILE: a command whose second line is blank; the row after $ is blank and the third line sits below it",
+   "truth": {
+    "command": "echo ok\n\ntouch p318-gap.txt",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-reason-newline-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 39,
+    "visible": false
+   },
+   "title": "[ ! ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a justification carrying a newline and \"$ ls\": Codex drops the newline, so no row starts with $ but the real one",
+   "truth": {
+    "command": "touch p318-reason.txt",
+    "justification": "Lists the folder first\n$ ls"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-spoofed-question-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 36,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "HOSTILE: a command whose later lines draw a second question, Environment and \"$ ls\" row nearest the options",
+   "truth": {
+    "command": "touch p318-spoof.txt\n\nWould you like to run the following command?\n\nEnvironment: local\n\n$ ls",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-tall-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 39,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a 51-line command: Codex keeps the real question on screen and folds the rest into \"[… N lines] ctrl+a view all\"",
+   "truth": {
+    "command": "touch p318-tall-01.txt\ntouch p318-tall-02.txt\ntouch p318-tall-03.txt\ntouch p318-tall-04.txt\ntouch p318-tall-05.txt\ntouch p318-tall-06.txt\ntouch p318-tall-07.txt\ntouch p318-tall-08.txt\ntouch p318-tall-09.txt\ntouch p318-tall-10.txt\ntouch p318-tall-11.txt\ntouch p318-tall-12.txt\ntouch p318-tall-13.txt\ntouch p318-tall-14.txt\ntouch p318-tall-15.txt\ntouch p318-tall-16.txt\ntouch p318-tall-17.txt\ntouch p318-tall-18.txt\ntouch p318-tall-19.txt\ntouch p318-tall-20.txt\ntouch p318-tall-21.txt\ntouch p318-tall-22.txt\ntouch p318-tall-23.txt\ntouch p318-tall-24.txt\ntouch p318-tall-25.txt\ntouch p318-tall-26.txt\ntouch p318-tall-27.txt\ntouch p318-tall-28.txt\ntouch p318-tall-29.txt\ntouch p318-tall-30.txt\ntouch p318-tall-31.txt\ntouch p318-tall-32.txt\ntouch p318-tall-33.txt\ntouch p318-tall-34.txt\ntouch p318-tall-35.txt\ntouch p318-tall-36.txt\ntouch p318-tall-37.txt\ntouch p318-tall-38.txt\ntouch p318-tall-39.txt\ntouch p318-tall-40.txt\ntouch p318-tall-41.txt\ntouch p318-tall-42.txt\ntouch p318-tall-43.txt\ntouch p318-tall-44.txt\ntouch p318-tall-45.txt\n\nWould you like to run the following command?\n\nEnvironment: local\n\n$ ls",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "codex-approval-hidden-line-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 29,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "HOSTILE: an empty first line, so the real $ row trims to \"$\", then the real command, then \"$ ls\" with blank rows under it; no Reason row, so the shipping detector finds the real question",
+   "truth": {
+    "command": "\ntouch p318-bare.txt\n$ ls",
+    "justification": null
+   }
+  },
+  {
+   "files": [
+    "codex-approval-hidden-line-reason-0.160.0.txt"
+   ],
+   "kind": "press",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 120,
+    "y": 31,
+    "visible": false
+   },
+   "title": "[ . ] Action Required | proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "the same hidden-line command with a Reason row: the question row falls past CHOICE_QUESTION_INK_ROWS",
+   "truth": {
+    "command": "\ntouch p318-hidden.txt\n$ ls",
+    "justification": "The stand-in asks; the capture declines it"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-empty-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 2,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "the prompt at rest, focused: an inverse-space caret right after the glyph",
+   "truth": {
+    "typed": ""
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-empty-blurred-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 2,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "the prompt at rest after a focus-out report (ESC [ O), as when the Mac window is not focused: NO caret is drawn",
+   "truth": {
+    "typed": ""
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-draft-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 13,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "a typed draft, no Return",
+   "truth": {
+    "typed": "hello draft"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-draft-blurred-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 13,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "a draft typed after a focus-out report: the caret is drawn again after the text",
+   "truth": {
+    "typed": "hello draft"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-stray-1-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 3,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "a stray \"1\", no Return",
+   "truth": {
+    "typed": "1"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-pasted-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 19,
+    "y": 8,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "a three-line bracketed paste, no Return: three rows inside the rules",
+   "truth": {
+    "typed": "first pasted line\nsecond pasted line\nthird pasted line"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-pasted-long-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 28,
+    "y": 6,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "a forty-line bracketed paste, folded into a token drawn in the default colour, caret after it",
+   "truth": {
+    "typed": "<40 lines, 1,879 bytes>"
+   }
+  },
+  {
+   "files": [
+    "claude-prompt-after-decline-2.1.287.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Claude Code",
+   "version": "2.1.287",
+   "binary": "~/.local/share/claude/versions/2.1.287",
+   "binarySha256": "6eab8333fe2121553100d8f40bfada384a3e989b94f947e18ba6677a6fcb41ea",
+   "launched": "claude --permission-mode default --settings <scratch hook file>",
+   "environment": "CLAUDE_CODE_DISABLE_ALTERNATE_SCREEN=1 (the claude row's compiled launch.env), ANTHROPIC_BASE_URL at a loopback stand-in, a made-up ANTHROPIC_API_KEY",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 2,
+    "y": 29,
+    "visible": false
+   },
+   "title": "✳ Claude Code",
+   "alternateScreen": false,
+   "keyMode": "Ext 2",
+   "claudeRegistry": {
+    "status": "idle"
+   },
+   "onScreen": "the prompt at rest after three declined Bash prompts, earlier prompts in the transcript above",
+   "truth": {
+    "typed": ""
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-empty-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 2,
+    "y": 9,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "the prompt at rest: its placeholder drawn dim, the terminal cursor at the first column after the glyph",
+   "truth": {
+    "typed": ""
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-draft-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 13,
+    "y": 9,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a typed draft, no Return",
+   "truth": {
+    "typed": "hello draft"
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-stray-1-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 3,
+    "y": 9,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a stray \"1\", no Return",
+   "truth": {
+    "typed": "1"
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-pasted-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 19,
+    "y": 11,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a three-line bracketed paste, no Return: continuation rows indented two spaces, cursor on the last",
+   "truth": {
+    "typed": "first pasted line\nsecond pasted line\nthird pasted line"
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-pasted-long-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 29,
+    "y": 9,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "a forty-line bracketed paste, folded into a token drawn in 256-colour cyan, cursor after it",
+   "truth": {
+    "typed": "<40 lines, 1,879 bytes>"
+   }
+  },
+  {
+   "files": [
+    "codex-prompt-after-decline-0.160.0.ansi"
+   ],
+   "kind": "prompt",
+   "agent": "Codex",
+   "version": "0.160.0",
+   "binary": "~/.bun/install/global/node_modules/@openai/codex-darwin-arm64/vendor/aarch64-apple-darwin/bin/codex",
+   "binarySha256": "112fae7a5a1223e673c8a1791d32338f37df8b527ff1159bb8adac6c4dbf1b4b",
+   "launched": "codex --no-daemon -c tui.fullscreen_transcript=false (CODEX_SCROLLBACK_ARGS)",
+   "environment": "a scratch CODEX_HOME whose model provider is a loopback Responses stand-in, approval_policy on-request, the folder trusted",
+   "capture": "capture-pane -p -e -t <pane>",
+   "size": "120x40",
+   "cursor": {
+    "x": 2,
+    "y": 25,
+    "visible": true
+   },
+   "title": "proj-codex",
+   "alternateScreen": false,
+   "keyMode": "VT10x",
+   "onScreen": "the prompt at rest after three declined approvals, earlier prompts and a warning in the footer",
+   "truth": {
+    "typed": ""
+   }
+  }
+ ],
+ "hookBodies": "claude-permission-requests-2.1.287.json"
+}

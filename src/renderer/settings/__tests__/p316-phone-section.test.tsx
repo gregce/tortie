@@ -323,10 +323,16 @@ describe('nothing starts before a person reads', () => {
     expect(page).toContain(POCKET_DOOR_HONESTY);
     // PHASE 317 (SPEC D13, D19, §14 finding 12): the sentence says what an
     // allowed phone can do now, and claims no check the Mac cannot make.
+    // PHASE 318 (build/p318/SPEC.md §5.1.7, D28) rewrote it: the phone can now
+    // answer a numbered question and send one message too, named in the words
+    // the confirm line uses, and "Nothing on it can type into a session" is
+    // gone because it is no longer true.
     expect(POCKET_DOOR_HONESTY).toBe(
-      'A phone you allow can end a session. Nothing on it can type into a session or change anything else on this Mac.'
+      'A phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.'
     );
     expect(POCKET_DOOR_HONESTY).not.toMatch(/Face ID|Touch ID|passcode/);
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/cannot type|can type into|Nothing on it/);
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/\b(pane|window|prefix)\b/);
     expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
     expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
     expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');

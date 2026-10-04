@@ -30,6 +30,16 @@
  *   writeTampered  (Phase 317) the end write's signature presented over its
  *             body with ONE BYTE CHANGED, which the shipping verifier refuses
  *             `signature`: the body is covered, not only the target.
+ *             Phase 318 adds the press and the message (build/p318/SPEC.md
+ *             §6.3): `POST /v1/choose` and `POST /v1/say`, each body written
+ *             AS SWIFT WRITES IT, keys sorted and every `/` escaped `\/`, the
+ *             message's text holding `/`, `"`, a line break and an emoji (built
+ *             from its code point here, so this file holds no such character);
+ *             each accepted by the shipping verifier over the phone's channel,
+ *             each at most its route's shipping cap, and each read back by
+ *             JSON.parse, the Mac's own reader, to the same fields.
+ *   replyTampered  (Phase 318) the say write's signature presented over its
+ *             body with one byte changed: refused `signature`.
  *   pins      two door certificates issued by the shipping `tls.ts` for the
  *             public name, with the `publicKeyFingerprint` it reports and the
  *             QR pin `spkiPinOf` makes of it.
@@ -73,6 +83,10 @@
  *             offered End and End these, the idle one on a machine Tortie
  *             holds no row for is offered End alone (`batch: false`, the Mac
  *             batch's one narrowing), and the exited one is offered nothing.
+ *             Since Phase 318 every `/v1/session` answer carries `reply`,
+ *             composed field by field by the SHIPPING `session()` over a fixed
+ *             offer: the waiting session's options pressable under a question
+ *             id and a mark, the talking session `canSay`.
  *
  * --check. Regenerates everything in memory and compares. The deterministic
  * vectors must match byte for byte. The ones that carry a random value (the
@@ -295,6 +309,21 @@ const SESSION_TALK = '4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02';
 const ODD_ID = 'a b/c?d&e=f%g#h~i.j_k-l’';
 /** Phase 317: a fixed write id, 32 lowercase hex, from a public label. */
 const WRITE_END = sha256hex('tortie-p317-vector write end').slice(0, 32);
+/** Phase 318: the press's and the message's write ids, a question id and a mark, from public labels. */
+const WRITE_CHOOSE = sha256hex('tortie-p318-vector write choose').slice(0, 32);
+const WRITE_SAY = sha256hex('tortie-p318-vector write say').slice(0, 32);
+const QUESTION_ID = `${sha256hex('tortie-p318-vector question').slice(0, 16)}-41`;
+const REPLY_MARK = sha256hex('tortie-p318-vector mark').slice(0, 12);
+/** The message: `/`, `"`, a line break and an emoji, the emoji from its code point. */
+const SAY_TEXT = `run "ls /tmp" now\nthen /exit ${String.fromCodePoint(0x1f44d)}`;
+/**
+ * A write's body AS SWIFT'S JSONEncoder WRITES IT with `.sortedKeys`: the keys
+ * sorted, `/` escaped as `\/`, everything else as JSON.stringify writes it (a
+ * quote `\"`, a line break `\n`, a non-ASCII character as itself). Only a
+ * string holds a `/` in these bodies, so escaping every one is exact.
+ */
+const swiftJson = (fields) =>
+  JSON.stringify(Object.fromEntries(Object.keys(fields).sort().map((k) => [k, fields[k]]))).replace(/\//g, '\\/');
 
 const requestShapes = [
   { name: 'blocked', method: 'GET', target: '/v1/blocked', body: '', id: null },
@@ -314,7 +343,10 @@ const requestShapes = [
   // (build/p317/SPEC.md §5.8.1). The body is what Swift's JSONEncoder writes
   // with `.sortedKeys`, a fresh 32-hex write id each time; the id here is
   // fixed so the vector is.
-  { name: 'end', method: 'POST', target: '/v1/end', body: JSON.stringify({ batch: false, session: SESSION_TALK, write: WRITE_END }), id: null }
+  { name: 'end', method: 'POST', target: '/v1/end', body: JSON.stringify({ batch: false, session: SESSION_TALK, write: WRITE_END }), id: null },
+  // PHASE 318: the press and the message, each body as Swift writes it.
+  { name: 'choose', method: 'POST', target: '/v1/choose', body: swiftJson({ mark: REPLY_MARK, marker: '2', question: QUESTION_ID, session: SESSION_TALK, write: WRITE_CHOOSE }), id: null },
+  { name: 'say', method: 'POST', target: '/v1/say', body: swiftJson({ session: SESSION_TALK, text: SAY_TEXT, write: WRITE_SAY }), id: null }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -414,7 +446,7 @@ const tampered = (() => {
 // PHASE 317: the write is within the shipping cap, written with sorted keys,
 // and a body with one byte changed is refused `signature`.
 const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.ts');
-for (const name of ['end']) {
+for (const name of ['end', 'choose', 'say']) {
   const r = requests.find((x) => x.name === name);
   const cap = POCKET_WRITE_BODY_CAPS?.[name];
   if (typeof cap !== 'number') {
@@ -426,11 +458,29 @@ for (const name of ['end']) {
   if (keys.join() !== [...keys].sort().join()) fail(`write ${name}: its body's keys are not sorted, which is how Swift's JSONEncoder writes them with .sortedKeys`);
   if (!/^[0-9a-f]{32}$/.test(JSON.parse(r.body).write)) fail(`write ${name}: its write id is not 32 lowercase hex`);
 }
-const writeTampered = (() => {
-  const base = requests.find((x) => x.name === 'end');
-  // One byte of the body changed: the session id's last character.
-  const at = base.body.indexOf(SESSION_TALK) + SESSION_TALK.length - 1;
-  const body = `${base.body.slice(0, at)}${base.body[at] === '3' ? '4' : '3'}${base.body.slice(at + 1)}`;
+// PHASE 318: the Mac's own reader (JSON.parse) reads the Swift bytes back to
+// the very fields the phone wrote, the slash escapes included, and the text
+// holds what the Swift test asks of it.
+{
+  const choose = JSON.parse(requests.find((x) => x.name === 'choose').body);
+  if (choose.question !== QUESTION_ID || choose.mark !== REPLY_MARK || choose.marker !== '2' || choose.session !== SESSION_TALK || choose.write !== WRITE_CHOOSE) {
+    fail('write choose: the Mac\'s JSON.parse does not read the Swift bytes back to the fields written');
+  }
+  const sayBody = requests.find((x) => x.name === 'say').body;
+  const say = JSON.parse(sayBody);
+  if (say.text !== SAY_TEXT || say.session !== SESSION_TALK || say.write !== WRITE_SAY) fail('write say: the Mac\'s JSON.parse does not read the Swift bytes back to the words written');
+  if (!sayBody.includes('\\/') || !SAY_TEXT.includes('"') || !SAY_TEXT.includes('\n') || ![...SAY_TEXT].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) {
+    fail('write say: the vector does not hold a slash written as Swift writes it, a quote, a line break and an emoji');
+  }
+}
+/**
+ * A write's signature presented over its body with one byte changed: the
+ * shipping verifier must refuse it `signature`. One composition for every
+ * write vector (Phase 317's end, Phase 318's say), so the two read the same
+ * way and the vector's fields are the same five.
+ */
+function tamperedWrite(name, body) {
+  const base = requests.find((x) => x.name === name);
   const verifier = new pairing.PocketRequestVerifier({
     identity: () => identity,
     phones: () => [phoneFields],
@@ -439,7 +489,7 @@ const writeTampered = (() => {
   const verdict = verifier.verify({
     method: 'POST',
     target: base.target,
-    body: Buffer.from(body, 'utf8'),
+    body: Buffer.from(body(base.body), 'utf8'),
     channel: identityVectors.phoneId,
     headers: {
       'x-tortie-phone': identityVectors.phoneId,
@@ -449,23 +499,35 @@ const writeTampered = (() => {
     }
   });
   if (verdict.ok || verdict.reason !== 'signature') {
-    fail(`the end write with one body byte changed was not refused 'signature' (${verdict.ok ? 'accepted' : verdict.reason})`);
+    fail(`the ${name} write with one body byte changed was not refused 'signature' (${verdict.ok ? 'accepted' : verdict.reason})`);
   }
+  const changed = body(base.body);
   return {
     signedFor: base.name,
-    body,
-    bodySha256: sha256hex(Buffer.from(body, 'utf8')),
+    body: changed,
+    bodySha256: sha256hex(Buffer.from(changed, 'utf8')),
     canonical: pairing.canonicalRequestText({
       method: 'POST',
       target: base.target,
-      bodySha256: sha256hex(Buffer.from(body, 'utf8')),
+      bodySha256: sha256hex(Buffer.from(changed, 'utf8')),
       timestamp: base.timestamp,
       nonce: base.nonce,
       binding
     }),
     doorSays: verdict.ok ? 'ok' : verdict.reason
   };
-})();
+}
+// PHASE 318: the message's body with one byte changed (`now` to `NOW`).
+const replyTampered = tamperedWrite('say', (body) => {
+  const at = body.indexOf('now');
+  return `${body.slice(0, at)}NOW${body.slice(at + 3)}`;
+});
+// PHASE 317: the end's body with one byte changed: the session id's last
+// character.
+const writeTampered = tamperedWrite('end', (body) => {
+  const at = body.indexOf(SESSION_TALK) + SESSION_TALK.length - 1;
+  return `${body.slice(0, at)}${body[at] === '3' ? '4' : '3'}${body.slice(at + 1)}`;
+});
 
 // ---------------------------------------------------------------------------
 // The existing file, whose random-bearing parts are kept while they hold
@@ -956,6 +1018,18 @@ const facts = {
   // PHASE 317: the shipping verdict over each row, its record (the manifest's
   // status, as written) and the one machine Tortie holds no row for here.
   endOffer: (session) => endOfferOfRow(session),
+  // PHASE 318: a fixed reply offer, which the SHIPPING session() composes field
+  // by field against what it draws: the waiting session's two options
+  // pressable, the talking session at its prompt. The offer is FIXED, not
+  // read: whether a session may take a message is main's reader's to decide
+  // (build/p318/SPEC.md D14), which the vectors do not hold; they hold the
+  // shape the phone decodes.
+  replyOffer: async (session) =>
+    session.id === S.waiting
+      ? { question: QUESTION_ID, mark: REPLY_MARK, pressable: ['1', '2'], command: null, canSay: false }
+      : session.id === S.talk
+        ? { question: null, mark: null, pressable: [], command: null, canSay: true }
+        : { question: null, mark: null, pressable: [], command: null, canSay: false },
   now: () => T
 };
 const routes = createPocketRoutes(facts);
@@ -1003,6 +1077,15 @@ for (const [name, compose] of answerShapes) {
   for (const [id, end] of want) {
     if (JSON.stringify(offerOf(id)) !== JSON.stringify(end)) fail(`the shipping /v1/blocked offers ${JSON.stringify(offerOf(id))} on ${id}, not ${JSON.stringify(end)}`);
   }
+  // PHASE 318: the reply each session answer carries, composed by the shipping session().
+  const waitingReply = JSON.parse(answers['session-waiting']?.json ?? '{}').session?.reply;
+  const talkReply = JSON.parse(answers['session-talk']?.json ?? '{}').session?.reply;
+  if (JSON.stringify(waitingReply) !== JSON.stringify({ question: QUESTION_ID, mark: REPLY_MARK, pressable: ['1', '2'], command: null, canSay: false })) {
+    fail(`the shipping /v1/session answers ${JSON.stringify(waitingReply)} as the waiting session's reply, not its two options pressable under the question id and the mark`);
+  }
+  if (JSON.stringify(talkReply) !== JSON.stringify({ question: null, mark: null, pressable: [], command: null, canSay: true })) {
+    fail(`the shipping /v1/session answers ${JSON.stringify(talkReply)} as the talking session's reply, not canSay alone`);
+  }
   const talkConfirm = JSON.parse(answers['session-talk']?.json ?? '{}').session?.endConfirm;
   if (talkConfirm?.title !== "End 'talk'?" || talkConfirm?.confirmLabel !== 'End session' || typeof talkConfirm?.body !== 'string' || talkConfirm.body === '') {
     fail(`the shipping /v1/session answers ${JSON.stringify(talkConfirm)} as the talk session's endConfirm, not the Mac's own confirmation`);
@@ -1043,6 +1126,7 @@ const vectors = {
   requests,
   tampered,
   writeTampered,
+  replyTampered,
   pins,
   client,
   seal,
@@ -1079,7 +1163,7 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests, 1 of them a write (and 1 tampered target, 1 tampered write body), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
+  `${String(requests.length)} signed requests, 3 of them writes (and 1 tampered target, 2 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
   `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);

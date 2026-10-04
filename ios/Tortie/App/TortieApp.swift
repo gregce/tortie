@@ -35,13 +35,23 @@
 // runner and stops each one when it goes to the background, which withholds a
 // write whose bytes were not yet handed (`wentAway`).
 //
-// WHAT IT NEVER DOES. It sends no message and draws no message box or send
-// control (Phase 318). It draws no terminal scrollback, ever. It restores and
-// removes nothing, and it ends a session only on his press, his confirmation
-// and his face, finger or passcode. It has no timer and no background mode: it
-// reads on appear, on return to the foreground and on pull (build/p316/SPEC.md
-// section 4.0), and an alert that arrives while it is open refreshes nothing.
-// Nothing keeps it running to finish a write. Dark only, iPhone, portrait.
+// AND SINCE PHASE 318, REPLY (build/p318/SPEC.md section 5.7): an option the
+// Mac offers to press is a button on the session's screen, and a Claude Code
+// or Codex session waiting at its own empty prompt takes one message from a
+// box above the End bar. Neither asks Face ID (his ruling, "Only for End").
+// The app keeps every live reply's runner too and stops each one on the way
+// to the background, the same way.
+//
+// WHAT IT NEVER DOES. It types nothing he did not press or write; it offers
+// no message box while the agent works, asks him something or holds words
+// typed at the Mac (the Mac decides, and asks again when the write arrives);
+// and it retries, queues or stores no write. It draws no terminal scrollback,
+// ever. It restores and removes nothing, and it ends a session only on his
+// press, his confirmation and his face, finger or passcode. It has no timer
+// and no background mode: it reads on appear, on return to the foreground and
+// on pull (build/p316/SPEC.md section 4.0), and an alert that arrives while
+// it is open refreshes nothing. Nothing keeps it running to finish a write.
+// Dark only, iPhone, portrait.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -136,6 +146,9 @@ final class AppModel {
     /// Every End under way, single or batch: registered at the destructive
     /// press and stopped together when the app goes to the background.
     @ObservationIgnored private(set) var liveRunners: [EndRunner] = []
+    /// Every press and message under way (Phase 318): registered at the
+    /// press, before its write starts, and stopped with the Ends.
+    @ObservationIgnored private(set) var liveReplies: [ReplyRunner] = []
 
     private let door: any PhoneDoor
     /// What the app asks iOS about alerts (Alerts/SystemAlerts.swift).
@@ -297,11 +310,18 @@ final class AppModel {
     /// whose bytes were not yet handed to the connection, so a handshake iOS
     /// resumes on the way back cannot carry it. Nothing keeps the app running
     /// to finish one.
+    ///
+    /// Every press and message stops the same way (Phase 318, research 137
+    /// section 5): a reply whose bytes were not handed is withheld, never sent
+    /// on the way back in, and never retried.
     func wentAway() {
         list?.clearNotice()
         for runner in liveRunners {
             runner.stopRequested = true
             runner.task?.cancel()
+        }
+        for runner in liveReplies {
+            runner.stop()
         }
     }
 
@@ -455,6 +475,18 @@ extension AppModel: EndRunnerRegistry {
     }
 }
 
+/// The app keeps every live reply's runner until it ends, so `wentAway` can
+/// stop each one (Phase 318).
+extension AppModel: ReplyRunnerRegistry {
+    func registerReply(_ runner: ReplyRunner) {
+        liveReplies.append(runner)
+    }
+
+    func releaseReply(_ runner: ReplyRunner) {
+        liveReplies.removeAll { $0 === runner }
+    }
+}
+
 /// `dump` and `Mirror` would show `launchCode`, the code handed in at launch,
 /// which carries the one-shot secret: the model mirrors itself with nothing in
 /// it (conformance:ios rule p).
@@ -558,7 +590,7 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: name, reader: reader, routing: app.routing(tab),
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app
+                ownerCheck: app.ownerCheck, registry: app, replies: app
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
@@ -571,7 +603,7 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app
+                ownerCheck: app.ownerCheck, registry: app, replies: app
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
@@ -579,12 +611,15 @@ struct RootView: View {
     }
 }
 
-/// Holds one session screen's model, and its End's, for as long as the
-/// screen is pushed. The End is built from the reader's writer: a reader that
-/// writes nothing draws no End.
+/// Holds one session screen's model, its End's and its reply's, for as long
+/// as the screen is pushed. Both are built from the reader's writer: a reader
+/// that writes nothing draws no End, no button and no message box. The reply
+/// asks no owner check (his ruling, "Only for End"), and its box, its kept
+/// say and its lines are forgotten when the screen is left.
 private struct SessionRoute: View {
     @State private var model: SessionModel
     @State private var end: EndModel?
+    @State private var reply: ReplyModel?
     let name: String
     let isTop: Bool
     let foregroundTick: Int
@@ -593,11 +628,15 @@ private struct SessionRoute: View {
     init(
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
+        replies: any ReplyRunnerRegistry,
         openConversation: @escaping (String?) -> Void
     ) {
         _model = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
         _end = State(initialValue: reader.writer.map {
             EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
+        })
+        _reply = State(initialValue: reader.writer.map {
+            ReplyModel(sessionId: id, writer: $0, registry: replies)
         })
         self.name = name
         self.isTop = isTop
@@ -608,7 +647,7 @@ private struct SessionRoute: View {
     var body: some View {
         SessionScreen(
             model: model, name: name, isTop: isTop, foregroundTick: foregroundTick,
-            openConversation: openConversation, end: end
+            openConversation: openConversation, end: end, reply: reply
         )
     }
 }
@@ -637,9 +676,10 @@ private struct ConversationRoute: View {
 
 // MARK: - The seam to Door/
 
-/// The kept pairing's three reads and one write, through the one network
-/// user. It is its own writer, answered through `DoorReading`'s requirement,
-/// so the app's `any DoorReading` reads it.
+/// The kept pairing's three reads and three writes (End, and Phase 318's
+/// press and message), through the one network user. It is its own writer,
+/// answered through `DoorReading`'s requirement, so the app's
+/// `any DoorReading` reads it.
 struct PairedReader: DoorReading, DoorWriting {
     let client: DoorClient
     let door: PairedDoor
@@ -672,6 +712,17 @@ struct PairedReader: DoorReading, DoorWriting {
     /// `POST /v1/end`, once.
     func end(_ sessionId: String, batch: Bool) async -> WriteResult {
         await client.end(sessionId, batch: batch, door: door)
+    }
+
+    /// `POST /v1/choose`, once (Phase 318).
+    func choose(_ sessionId: String, question: String, mark: String, marker: String) async -> WriteResult {
+        await client.choose(sessionId, question: question, mark: mark, marker: marker, door: door)
+    }
+
+    /// `POST /v1/say`, once (Phase 318), under a kept say's id when `write`
+    /// names one.
+    func say(_ sessionId: String, text: String, write: String?) async -> SentWrite {
+        await client.say(sessionId, text: text, write: write, door: door)
     }
 }
 

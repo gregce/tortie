@@ -118,7 +118,11 @@ describe('every public method of GmuxCore kept its name', () => {
     // Phase 316. A READ of the map written beside the `activity:changed`
     // broadcast (./activity-now.ts): the question, the choice and the last
     // output the renderer is sent, for the phone's door to answer from.
-    'activityOf'
+    'activityOf',
+    // Phase 318. A READ of the live `$`-id map every reconcile rebuilds: the
+    // phone's reply reads it before its reading and again in its final check,
+    // so a session replaced underneath a press is never typed into.
+    'tmuxIdOf'
   ];
 
   const core = read('core.ts');

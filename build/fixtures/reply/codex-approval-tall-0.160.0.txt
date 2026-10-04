@@ -1,0 +1,41 @@
+# P318 REAL capture, 2026-10-02: Codex 0.160.0, scratch HOME, loopback API stand-in, 0 model turns; tmux 3.7b capture-pane -p at 120x40; a 51-line command: Codex keeps the real question on screen and folds the rest into "[… N lines] ctrl+a view all"; build/fixtures/reply/real-captures.json has the rest
+
+
+  Would you like to run the following command?
+
+  Environment: local
+
+  Reason: The stand-in asks; the capture declines it
+
+  $ touch p318-tall-01.txt
+  touch p318-tall-02.txt
+  touch p318-tall-03.txt
+  touch p318-tall-04.txt
+  touch p318-tall-05.txt
+  touch p318-tall-06.txt
+  touch p318-tall-07.txt
+  touch p318-tall-08.txt
+  touch p318-tall-09.txt
+  touch p318-tall-10.txt
+  touch p318-tall-11.txt
+  touch p318-tall-12.txt
+  touch p318-tall-13.txt
+  touch p318-tall-14.txt
+  touch p318-tall-15.txt
+  touch p318-tall-16.txt
+  touch p318-tall-17.txt
+  touch p318-tall-18.txt
+  touch p318-tall-19.txt
+  touch p318-tall-20.txt
+  touch p318-tall-21.txt
+  touch p318-tall-22.txt
+  touch p318-tall-23.txt
+  touch p318-tall-24.txt
+  touch p318-tall-25.txt
+  touch p318-tall-26.txt
+  touch p318-tall-27.txt
+  touch p318-tall-28.txt
+  [… 57 lines] ctrl+a view all
+› 1. Yes, proceed (y)
+  2. No, and tell Codex what to do differently (esc)
+  Press enter to confirm or esc to cancel

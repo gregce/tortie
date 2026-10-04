@@ -1,0 +1,38 @@
+# P318 RECONSTRUCTED, 2026-10-02, not a real capture: the screen a shell, cat or an npm postinstall can print (research 135 §2.8), "Do you want to proceed? 1. Yes 2. No" with a confirm hint, which the shipping detector reads as a choice; only the foreground check (the agent holds the terminal) keeps a press away from it
+$ ./scripts/install.sh
+Installing dependencies...
+added 214 packages in 3s
+
+Do you want to proceed?
+1. Yes
+2. No
+press enter to confirm · esc to cancel
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

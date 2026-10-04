@@ -57,6 +57,7 @@ import {
   termInputChannel
 } from '@shared/ipc';
 import type { TermExitPayload } from '@shared/ipc';
+import { isPaneReport } from '@shared/pane-report';
 import type { GmuxErrorPayload } from '@shared/types';
 import { withUtf8Locale } from '../tmux/env';
 import {
@@ -164,6 +165,29 @@ export interface AttachHostOptions {
    * (src/main/machines/scroll-order.ts).
    */
   routeRemoteInput?: (sessionId: string, data: string) => boolean;
+  /**
+   * PHASE 318 (build/p318/SPEC.md D23, §Revision R14). Fired once for every
+   * chunk the person types into a LOCAL session through this window, in the
+   * same synchronous handler as the write, right after it.
+   *
+   * It is how main learns that the person answered at the Mac: the phone's
+   * question id moves on it (src/main/reply/question-id.ts), so a press the
+   * phone was shown before the keystroke types nothing after it. Both run in
+   * main's one event loop, so a keystroke lands before a press's last check or
+   * after its keystroke, never between.
+   *
+   * NEVER FOR A PANE REPORT. A focus report (every blur and focus of the Mac's
+   * window), a colour report or a device-attributes answer (every return to a
+   * session) arrives on this same channel and is forwarded exactly as before,
+   * but nobody typed it, and counting it would clear a waiting Claude
+   * question's hook words for good (`isPaneReport`, src/shared/pane-report.ts).
+   * NEVER FOR A REMOTE CLIENT, whose session the phone never types into.
+   *
+   * Phase 325 plans its tap on this same seam; whichever of 318 and 325 lands
+   * second shares it, filter included. It never sets a status and nothing here
+   * reads what was typed.
+   */
+  onInput?: (sessionId: string) => void;
 }
 
 export interface AttachRequest {
@@ -302,6 +326,11 @@ export class AttachHost {
           return;
         }
         client.pty.write(data);
+        // PHASE 318. The person typed at the Mac: a local client, and not a
+        // report the pane sent about itself. See `onInput`.
+        if (req.machine === undefined && !isPaneReport(data)) {
+          this.opts.onInput?.(req.sessionId);
+        }
       }
     };
     ipcMain.on(inputChannel, onInput);

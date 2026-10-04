@@ -421,6 +421,56 @@
  *       Select, and its Unpair, seen to run, leaves the Mac's row, which
  *       HEAD's U1 now reads too
  *
+ * PHASE 318, THE `reply` GROUP (build/p318/SPEC.md §7.7, `P316_ARMS=reply`):
+ * a numbered choice pressed and one message sent from the phone, with no Face
+ * ID (his ruling, "Only for End"). The agents are build/p318/stand-in.mjs as
+ * Claude Code and Codex, drawing the COMMITTED REAL screens of Claude Code
+ * 2.1.287 and Codex 0.160.0 (build/fixtures/reply/) and logging every byte
+ * they read with a monotonic stamp and the serial of the screen drawn: this
+ * file's own `claude` hands a launch to the stand-in's when the next mode is
+ * `p318`, and the scratch PATH's `codex` IS the stand-in, so no real Claude
+ * Code or Codex runs and no model turn is spent. Before every press and every
+ * Send the UI test prints `reply-offer` or `reply-send-ready` and waits for
+ * this file's `reply-<seq>` (a fresh directory per drive), so the agent's
+ * screen is read, a draft typed at the Mac (down the Mac's own terminal,
+ * `window.gmux.term.sendInput`) or the relay held at THAT moment. The steps
+ * are P316DriveUITests.swift's `reply-press:<n>`, `reply-say:<b64url>`,
+ * `reply-refused:<b64url>`, `reply-again`, `reply-edit:<b64url>`,
+ * `reply-none`, `reply-home:say:<b64url>`, `reply-home:press:<n>`,
+ * `reply-focus` and `reply-wait:<tag>`. The arms:
+ *   P1  26.3: a waiting Claude Code question's options are buttons
+ *       (`session-choice-press-<n>`), no strip; Yes tapped: ONE byte 31 on the
+ *       question shown, no Enter; the screen reads again and the session no
+ *       longer waits; no Face ID and no End confirmation at any moment
+ *   P2  26.3: a Codex approval, the command drawn under the question; No: 33
+ *   P3  26.3: an idle Claude Code session, scrolled to its end: the strip
+ *       between the content and the End bar's top, the End bar above the tab
+ *       bar; Send: `Sending…` then `Sent`, the box empty, and the stand-in read
+ *       exactly ESC [200~, the words, ESC [201~, CR, and submitted it once
+ *   P4  26.3: no strip on a waiting row or the shell, no press on the shell
+ *       (the row on another machine is probe:p318's R8: this run has no
+ *       machine)
+ *   P5  26.3: a draft typed at the Mac after the box is drawn, then Send: the
+ *       Mac's REPLY_NOT_READY drawn, his words still in the box, nothing pasted
+ *   P6  26.3 (Paseo #3464): Send then Home at once with the relay HOLDING the
+ *       connection before its handshake: on return `Your Mac did not take it.
+ *       Nothing was sent.`, no act, and the stand-in reads nothing in 20 s more
+ *   P7  26.3: a press then Home with the relay passing: at most one digit, and
+ *       on return the screen tells the truth either way (graded like E5)
+ *   P8  26.3: the box focused: no End bar in the tree, the strip above the
+ *       keyboard
+ *   P9  18.3, the floor: P1 and P3
+ *   P10 26.3 (§Revision R13): the relay CUTS a message's answer once main has
+ *       logged the act: the no-answer line and the words kept; Send again: the
+ *       kept id, so `Sent` and ONE act and ONE submit; then an edit and Send: a
+ *       fresh id, a second act and a second submit
+ *   RH  26.3: every reply arm of build/p316/hostile-door.mjs (REPLY_ARMS), each
+ *       ending in its drawn line or on Pairing after exactly one POST; the
+ *       hostile group's own loop leaves them to RH, as it leaves the write arms
+ *       to EH
+ *   RP  with P318_PARENT_IOS (c1a5fd38's ios/): the parent's app and its OWN
+ *       UI test over the same sessions: no press and no strip in its dumps
+ *
  * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
  * now asks the `ts.net` zone's own servers whether its public name answers
  * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
@@ -458,7 +508,7 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
  *   P316_KEEP=1                           keep the scratch world, and write
@@ -473,6 +523,8 @@
  *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
  *                                         parent's ios/ (`git archive 28d89295 ios | tar -x`
  *                                         into scratch), built and driven by its own UI test
+ *   P318_PARENT_IOS=<dir>                 Phase 318's RP arm: the directory holding c1a5fd38's
+ *                                         ios/ (`git archive c1a5fd38 ios | tar -x` into scratch)
  *   P317_PARENT_IOS=<dir>                 Phase 317's EP arm: the directory holding 551312f7's
  *                                         ios/ (`git archive 551312f7 ios | tar -x` into scratch)
  *   P316_KEEP=1 also writes <run>/md1.json (the order Simulator's markdown line) and
@@ -518,7 +570,8 @@ import {
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, shaHex, signedGet } from './node-phone.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -544,15 +597,15 @@ if (PARENT !== '') {
 
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end').split(',').map((s) => s.trim()));
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
   console.error(`${TAG} the ats arm was retired in Phase 330; the transport is the order and floor arms, through the stand-in's forwarder.`);
   ARMS.delete('ats');
 }
-// Phase 317: the end group's E10 is the floor's too.
-const runtimes = ARMS.has('floor') || ARMS.has('end') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+// Phase 317: the end group's E10 is the floor's too; Phase 318's P9 likewise.
+const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -609,6 +662,21 @@ const PARENT_IOS = (process.env['P316_PARENT_IOS'] ?? '').trim();
  * one variable for two parents graded one of them against the wrong one.
  */
 const PARENT_IOS_317 = (process.env['P317_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 318's RP (build/p318/SPEC.md §7.7): the directory holding c1a5fd38's
+ * ios/ (`git archive c1a5fd38 ios | tar -x` into scratch), built and driven by
+ * its OWN UI test, which knows no reply step, so RP reads its session dumps.
+ */
+const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
+ * file's own `claude` hands a launch to its `claude` when the next mode is
+ * `p318`, and the PATH's `codex` is its `codex`) and the directory its
+ * stand-ins report in, OUTSIDE the profile.
+ */
+const P318_DIR = join(RUN, 'p318');
+const P318_BIN = join(P318_DIR, 'bin');
+const P318_STANDIN = join(P318_DIR, 'standin');
 
 // ---------------------------------------------------------------------------
 // Phase 316.5: the alerts' scratch world (build/p3165/SPEC.md §7.4)
@@ -902,6 +970,32 @@ const forwarderPort = () => standin?.readFunnel()[0]?.forwarderPort ?? 0;
  * re-confirm) moves nothing the app was told. It adds no byte and reads none.
  * In this process; closed in the `finally`.
  */
+/**
+ * P10 (Phase 318's fix round): where the phone's side of a TLS 1.3 connection
+ * has sent its first APPLICATION DATA record (content type 23), read off the
+ * record headers of the bytes it sends and nothing else. The phone's Finished
+ * and its request are such records, so from that moment the phone needs
+ * nothing more from the door to send its write, and everything the door sends
+ * after it (its session tickets, then its answer) is what P10 holds. As first
+ * written the door's handshake was let through for 10 ms after its first byte
+ * and dropped after: under load its first flight came in pieces more than 10 ms
+ * apart, the handshake failed, the phone dialled again on a connection the
+ * relay passed whole, and P10 read "never cut" (the fixer's run, 2026-10-04).
+ * Returns the new state; `state` is `{ buf: Buffer, sent: boolean }`.
+ */
+export function tlsClientRecords(state, chunk) {
+  if (state.sent) return state;
+  let buf = Buffer.concat([state.buf, chunk]);
+  for (;;) {
+    if (buf.length < 5) return { buf, sent: false };
+    const type = buf[0];
+    const len = buf.readUInt16BE(3);
+    if (type === 23) return { buf: Buffer.alloc(0), sent: true };
+    if (buf.length < 5 + len) return { buf, sent: false };
+    buf = buf.subarray(5 + len);
+  }
+}
+
 async function startRelay() {
   const sockets = new Set();
   let connections = 0;
@@ -913,6 +1007,19 @@ async function startRelay() {
   let allowance = Infinity;
   let heldTotal = 0;
   const held = new Set();
+  // Phase 318 (P10): the NEXT connection is piped both ways, its first burst
+  // from the door (the TLS handshake, which carries no answer) let through,
+  // and everything after it HELD; once `cutWhen()` (main logged the act) the
+  // connection is cut, so the app sees no answer to a write the Mac acted on.
+  let cutNext = null;
+  let cuts = 0;
+  /** P10's account of the connection the cut took, for the report (the fix round). */
+  let cutDiag = null;
+  // Phase 318 (P3, P9): the NEXT connection is forwarded only after this
+  // long, its first bytes kept, so the strip's `Sending…` is drawn long enough
+  // for XCUITest to read it; nothing is changed and nothing is dropped.
+  let delayNext = 0;
+  let closed = false;
   const server = createNetServer((client) => {
     // Phase 316.6 (U1): every connection the app opens to the door is counted.
     connections += 1;
@@ -931,6 +1038,88 @@ async function startRelay() {
       client.destroy();
       return;
     }
+    if (delayNext > 0) {
+      const delay = delayNext;
+      delayNext = 0;
+      const early = [];
+      const keep = (b) => early.push(b);
+      client.on('data', keep);
+      const timer = setTimeout(() => {
+        client.off('data', keep);
+        if (closed || client.destroyed) return;
+        const upstream = netConnect({ host: '127.0.0.1', port: forwarderPort() || port });
+        sockets.add(upstream);
+        upstream.on('close', () => {
+          sockets.delete(upstream);
+          client.destroy();
+        });
+        upstream.on('error', () => client.destroy());
+        client.on('close', () => upstream.destroy());
+        for (const b of early) upstream.write(b);
+        client.pipe(upstream);
+        upstream.pipe(client);
+      }, delay);
+      client.on('close', () => clearTimeout(timer));
+      return;
+    }
+    if (cutNext !== null) {
+      const cutWhen = cutNext;
+      cutNext = null;
+      const diag = { connection: connections, openedAt: Date.now(), clientBytes: 0, doorBytesPassed: 0, doorBytesHeld: 0, heldAt: 0, endedBy: null };
+      // `endedBy` is set once, by the first end, so a cut is never counted twice.
+      cutDiag = diag;
+      const upstream = netConnect({ host: '127.0.0.1', port });
+      sockets.add(upstream);
+      let records = { buf: Buffer.alloc(0), sent: false };
+      let heldAt = 0;
+      let timer = null;
+      const end = (why) => {
+        if (timer !== null) clearInterval(timer);
+        timer = null;
+        // The door ends every connection after its one answer (one request
+        // per connection, `Connection: close`), so its close often comes
+        // before the relay's own cut can: the answer was held all the same
+        // and never reached the phone, which is the cut P10 means. Counted
+        // once, when the phone had sent its request and door bytes were held
+        // (the fixer's runs read acts and lines exactly as a cut but `cuts` 0).
+        if (diag.endedBy === null && heldAt !== 0 && diag.doorBytesHeld > 0 && (why === 'door-closed' || why === 'door-error')) {
+          cuts += 1;
+          why = 'answer-held-door-closed';
+        }
+        diag.endedBy ??= why;
+        client.destroy();
+        upstream.destroy();
+        sockets.delete(upstream);
+      };
+      client.on('data', (b) => {
+        diag.clientBytes += b.length;
+        records = tlsClientRecords(records, b);
+        if (records.sent && heldAt === 0) heldAt = Date.now();
+        diag.heldAt = heldAt === 0 ? 0 : heldAt - diag.openedAt;
+        upstream.write(b);
+      });
+      // The door's handshake passes whole, however it is split; once the
+      // phone has sent application data, the door's bytes are held (dropped).
+      upstream.on('data', (b) => {
+        if (!records.sent) {
+          diag.doorBytesPassed += b.length;
+          client.write(b);
+        } else {
+          diag.doorBytesHeld += b.length;
+        }
+      });
+      upstream.on('close', () => end('door-closed'));
+      upstream.on('error', () => end('door-error'));
+      client.on('close', () => end('phone-closed'));
+      timer = setInterval(() => {
+        if (heldAt === 0) return;
+        if (cutWhen() || Date.now() - heldAt > 15_000) {
+          cuts += 1;
+          end(cutWhen() ? 'cut-after-act' : 'cut-at-15-s');
+        }
+      }, 5);
+      return;
+    }
     const upstream = netConnect({ host: '127.0.0.1', port });
     sockets.add(upstream);
     upstream.on('close', () => {
@@ -945,6 +1134,10 @@ async function startRelay() {
   const handle = await listenLoopback(server, sockets, () => connections);
   return {
     ...handle,
+    close: () => {
+      closed = true;
+      return handle.close();
+    },
     /** Hold every new connection from now. */
     pause: () => {
       allowance = 0;
@@ -955,6 +1148,19 @@ async function startRelay() {
     },
     /** How many connections were ever held. */
     held: () => heldTotal,
+    /** Phase 318 (P3, P9): forward the next connection only after `ms`. */
+    delayNextBy: (ms) => {
+      delayNext = ms;
+    },
+    /** Phase 318 (P10): cut the next connection's answer once `when()` says so. */
+    cutNextAfter: (when) => {
+      cutNext = when;
+    },
+    /** How many connections the cut ended. */
+    cuts: () => cuts,
+    /** P10: the cut connection's account, and how many connections the relay has taken. */
+    cutDiag: () => (cutDiag === null ? null : { ...cutDiag }),
+    connections: () => connections,
     resume: () => {
       allowance = Infinity;
       for (const s of held) s.destroy();
@@ -3472,6 +3678,353 @@ function drawnSentence(events) {
 // --grader-self-test: the list grader, proved on dumps written here. Nothing launches.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// PHASE 318, THE `reply` GROUP (build/p318/SPEC.md §7.7): the graders, pure
+// over readings, each proved both ways by replySelfTest below.
+// ---------------------------------------------------------------------------
+
+/** The phone's own words for the reply's lines, from Copy.swift. */
+const REPLY_WORDS = {
+  send: copyOf('send'),
+  sending: copyOf('sending'),
+  sent: copyOf('replySent'),
+  oneMessage: copyOf('oneMessage'),
+  notTaken: copyOf('replyNotTaken'),
+  noAnswer: copyOf('endNoAnswer'),
+  answerInSession: copyOf('answerInTheSession')
+};
+/** The Mac's own sentences a reply may be refused with, from src/shared/reply-copy.ts and lifecycle-words.ts. */
+const REPLY_MAC = {
+  notReady: macWord('src/shared/reply-copy.ts', 'REPLY_NOT_READY'),
+  changed: macWord('src/shared/lifecycle-words.ts', 'LIFECYCLE_SESSION_CHANGED')
+};
+/** A message's text handed to the UI test in a step, which splits on commas: base64url. */
+const b64uText = (text) => Buffer.from(text, 'utf8').toString('base64url');
+/** The bracketed frame a message must reach the agent as (research 135 §3.3): LF as CR, then Return. */
+const pasteFrame = (text) => Buffer.concat([Buffer.from('\u001b[200~', 'latin1'), Buffer.from(text.replace(/\n/g, '\r'), 'utf8'), Buffer.from('\u001b[201~\r', 'latin1')]).toString('hex');
+
+/**
+ * P1 (and P9's half): a waiting Claude Code question, every option a button and
+ * no message box; the tap is ONE digit, on the question the phone was shown;
+ * no Face ID prompt and no End confirmation; the screen reads the session
+ * again and it no longer waits.
+ */
+function gradeP1(r) {
+  const problems = [];
+  const unread = [];
+  if (r.offer === null || (r.offer?.pressable ?? []).length === 0) return verdict(null, 'the door never offered the waiting session a press, so there was nothing to tap');
+  if (r.before === null) return verdict(null, 'the UI test read no offer before its press');
+  if (r.before.presses.length !== r.optionCount || !r.before.presses.every((p) => p.enabled === true)) problems.push(`${String(r.before.presses.length)} of ${String(r.optionCount)} option(s) drawn as buttons that can be pressed`);
+  if (r.before.note === true) problems.push('"Answer this in the session." drawn over options that are all pressable');
+  if (r.before.strip === true) problems.push('a message box drawn on a session that is waiting on a question');
+  if (r.faceId === true || r.endConfirming === true) problems.push('a press asked for Face ID or drew End\'s confirmation ("Only for End")');
+  if (r.commits.length !== 1) problems.push(`the stand-in took ${String(r.commits.length)} press(es), not one`);
+  else {
+    if (r.commits[0].marker !== r.marker) problems.push(`the stand-in took ${J(r.commits[0].marker)}, not ${J(r.marker)}`);
+    if (r.commits[0].serial !== r.drawnSerial) problems.push(`the digit landed on screen ${String(r.commits[0].serial)}, not the question the phone was shown (${String(r.drawnSerial)})`);
+  }
+  if (r.digits !== r.marker) problems.push(`the stand-in read the digits ${J(r.digits)}, not exactly ${J(r.marker)}`);
+  if (r.enters > 0) problems.push(`the stand-in read ${String(r.enters)} Enter(s) at its question; a press is the digit alone`);
+  if (r.after === null) unread.push('the screen after the press was not read');
+  else if (r.after.presses.length > 0) problems.push('the screen after the press still draws pressable options');
+  return decide(problems, unread, `${String(r.before.presses.length)} buttons, no box; one digit ${J(r.marker)} on screen ${String(r.drawnSerial)}; no Face ID; the session moved on`);
+}
+
+/** P2: a Codex approval, the command drawn under the question, No pressed: one byte, its digit. */
+function gradeP2(r) {
+  const problems = [];
+  if (r.offer === null || (r.offer?.pressable ?? []).length === 0) return verdict(null, 'the door never offered the Codex approval a press');
+  if (r.command !== r.offer.command || typeof r.command !== 'string' || r.command === '') problems.push(`the command drawn is ${J(r.command)}, not the door's ${J(r.offer?.command)}`);
+  if (r.commits.length !== 1 || r.commits[0].marker !== r.marker) problems.push(`the stand-in took ${J(r.commits.map((c) => c.marker))}, not exactly ${J(r.marker)}`);
+  else if (r.commits[0].serial !== r.drawnSerial) problems.push('the digit landed on another screen than the one the phone was shown');
+  if (r.digits !== r.marker) problems.push(`the stand-in read the digits ${J(r.digits)}`);
+  if (r.faceId === true) problems.push('a press asked for Face ID');
+  return decide(problems, [], `the command ${J(r.command)} drawn; ${J(r.marker)} pressed, one digit`);
+}
+
+/**
+ * P3 (and P9's half): an idle Claude Code session, the strip between the
+ * content and the End bar's top and the End bar above the tab bar; Send says
+ * Sending… then Sent, the box empties, and the stand-in read exactly the
+ * bracketed frame and submitted it once.
+ */
+function gradeP3(r) {
+  const problems = [];
+  const unread = [];
+  if (r.offer === null || r.offer.canSay !== true) return verdict(null, 'the door never offered the idle session a message box');
+  if (r.strip === null) return verdict(null, 'the UI test read no message strip');
+  const { strip, endBar, tabBar, contentBottom } = r.strip;
+  if (strip === null) problems.push('no message strip drawn on a session idle at its prompt');
+  else {
+    if (endBar !== null && strip[1] + strip[3] > endBar[1] + 1) problems.push(`the strip ends at ${String(strip[1] + strip[3])}, below the End bar's top ${String(endBar[1])}`);
+    if (typeof contentBottom === 'number' && contentBottom > strip[1] + 1) problems.push(`the content ends at ${String(contentBottom)}, under the strip's top ${String(strip[1])}`);
+    if (endBar !== null && tabBar !== null && endBar[1] + endBar[3] > tabBar[1] + 1) problems.push('the End bar is not above the tab bar');
+  }
+  if (!r.lines.includes(REPLY_WORDS.sent)) problems.push(`the line never read ${J(REPLY_WORDS.sent)} (read ${J(r.lines)})`);
+  else if (r.lines.includes(REPLY_WORDS.sending) && r.lines.indexOf(REPLY_WORDS.sending) > r.lines.indexOf(REPLY_WORDS.sent)) problems.push('Sending… after Sent');
+  if (!r.lines.includes(REPLY_WORDS.sending)) unread.push('Sending… was not caught (the write may have been quicker than the 100 ms sample)');
+  if (r.fieldAfter !== '' && r.fieldAfter !== null) problems.push(`the box still holds ${J(r.fieldAfter)} after Sent`);
+  if (r.submits.length !== 1 || r.submits[0] !== Buffer.from(r.text, 'utf8').toString('hex')) problems.push(`the stand-in submitted ${String(r.submits.length)} message(s)${r.submits.length === 1 ? ', not the words typed' : ''}`);
+  if (!r.readHex.includes(pasteFrame(r.text))) problems.push('the stand-in never read the bracketed frame, ESC [200~ the words ESC [201~ and a carriage return');
+  return decide(problems, unread, `the strip above the End bar, ${J(r.lines)}, the box empty, one submit of exactly the words`);
+}
+
+/** P4: no box on a waiting row or a shell; the remote row is probe:p318's (R8) and is said so. */
+function gradeP4(r) {
+  const problems = [];
+  if (r.waiting === null || r.shell === null) return verdict(null, 'the waiting row and the shell were not both read');
+  if (r.waiting.strip === true) problems.push('a message box on the waiting row');
+  if (r.shell.strip === true) problems.push('a message box on the shell');
+  if (r.shell.presses.length > 0) problems.push('a press drawn on the shell');
+  return decide(problems, [], 'no box on the waiting row or the shell, no press on the shell (the remote row is probe:p318\'s R8: probe:p316 runs no machine)');
+}
+
+/** P5: a draft typed at the Mac, then Send: the Mac's not-ready sentence, his words still in the box, nothing reached the agent, the draft untouched. */
+function gradeP5(r) {
+  const problems = [];
+  if (r.drafted !== true) return verdict(null, 'the draft was not typed at the Mac before the Send');
+  if (r.line !== REPLY_MAC.notReady) problems.push(`the line reads ${J(r.line)}, not the Mac's ${J(REPLY_MAC.notReady)}`);
+  if (r.fieldAfter !== r.text) problems.push(`the box holds ${J(r.fieldAfter)}, not his words`);
+  if (r.submits.length !== 0) problems.push(`the stand-in submitted ${String(r.submits.length)} message(s)`);
+  if (r.pastes !== 0) problems.push('a paste reached the agent over a draft');
+  if (!(r.typedBytes > 0)) problems.push('the draft at the Mac is gone');
+  return decide(problems, [], `${J(r.line)}, his words kept, nothing pasted, the draft untouched`);
+}
+
+/** P6 (Paseo #3464): Send then Home with the write HELD before its handshake: never sent, on return the not-taken line, and nothing in 20 s more. */
+function gradeP6(r) {
+  const problems = [];
+  const unread = [];
+  // Phase 318's fix round: no Send at all (the box was not drawn when the step
+  // ran) tested nothing, which is unreadable and never a failure of the app.
+  if (r.sent !== true) return verdict(null, 'no Send was made: the box was not drawn when the step ran, so nothing was tested');
+  if (!(r.held >= 1)) unread.push('the relay held no connection, so the write was not caught before its bytes were handed');
+  if (r.line !== REPLY_WORDS.notTaken) problems.push(`on return the line reads ${J(r.line)}, not ${J(REPLY_WORDS.notTaken)}`);
+  if (r.submits.length !== 0 || r.pastes !== 0) problems.push('the message reached the agent');
+  if (r.acts !== 0) problems.push(`main logged ${String(r.acts)} message act(s)`);
+  if (!(r.waitedMs >= 20_000)) unread.push(`only ${String(r.waitedMs)} ms were waited after the return`);
+  return decide(problems, unread, `withheld: ${J(r.line)}, no act, nothing reached the agent in 20 s`);
+}
+
+/** P7: a press then Home with the relay passing: at most one digit, and the screen on return honest about which. */
+function gradeP7(r) {
+  const problems = [];
+  if (r.pressed !== true) return verdict(null, 'no press was made: the question was not drawn as buttons when the step ran, so nothing was tested');
+  if (r.commits.length > 1) problems.push(`the stand-in took ${String(r.commits.length)} presses`);
+  if (r.commits.length === 1 && r.afterPresses > 0) problems.push('the press landed and the screen still draws the question');
+  if (r.commits.length === 0 && r.afterPresses === 0 && r.line === null) problems.push('nothing landed and the screen draws neither the question nor a line');
+  return decide(problems, [], `${r.commits.length === 1 ? 'the digit landed and the screen says the session moved on' : 'nothing landed and the screen still offers the question'} (printed, graded as E5 was: honest either way)`);
+}
+
+/** P8: the box focused: no End bar in the tree, the strip above the keyboard. */
+function gradeP8(r) {
+  const problems = [];
+  const unread = [];
+  if (r.focus === null) return verdict(null, 'the focus step printed nothing');
+  if (r.focus.keyboard === null) unread.push('no keyboard was drawn, so the strip above it cannot be read');
+  if (r.focus.endBar === true) problems.push('the End bar is drawn beside the keyboard');
+  if (r.focus.strip !== null && r.focus.keyboard !== null && r.focus.strip[1] + r.focus.strip[3] > r.focus.keyboard[1] + 1) problems.push('the strip is under the keyboard');
+  return decide(problems, unread, 'no End bar while the box has the keyboard, the strip above it');
+}
+
+/**
+ * P10 (§Revision R13): the answer CUT after main logged the act: the no-answer
+ * line and his words kept; Send again: Sent under the SAME id (one act, one
+ * submit); an edit then Send: a fresh id (a second act, a second submit).
+ */
+function gradeP10(r) {
+  const problems = [];
+  const unread = [];
+  if (r.cut !== true) return verdict(null, 'the relay never cut an answer after main logged the act');
+  if (r.first.line !== REPLY_WORDS.noAnswer) problems.push(`after the cut the line reads ${J(r.first.line)}, not ${J(REPLY_WORDS.noAnswer)}`);
+  if (r.first.fieldAfter !== r.text) problems.push('the words left the box after an answer that did not come');
+  if (r.second.line !== REPLY_WORDS.sent || (r.second.fieldAfter !== '' && r.second.fieldAfter !== null)) problems.push(`Send again read ${J(r.second.line)} with ${J(r.second.fieldAfter)} in the box, not Sent and empty`);
+  if (r.actsAfterSecond !== 1) problems.push(`main logged ${String(r.actsAfterSecond)} message act(s) for the two sends; the second carries the kept id and the ledger answers it`);
+  if (r.submitsAfterSecond !== 1) problems.push(`the stand-in submitted ${String(r.submitsAfterSecond)} time(s) for the two sends; once`);
+  if (r.third === null) unread.push('the edited send was not read');
+  else {
+    if (r.actsAfterThird !== 2) problems.push(`an edited message made ${String(r.actsAfterThird - r.actsAfterSecond)} more act(s); a fresh id is a new message`);
+    if (r.submitsAfterThird !== 2) problems.push('the edited message did not reach the agent as a new one');
+  }
+  return decide(problems, unread, 'cut: the no-answer line, the words kept; again: Sent, one act and one submit; edited: a fresh id');
+}
+
+/** RH: one hostile reply arm, ending where its row says, after exactly one POST. */
+function gradeRh(r) {
+  const problems = [];
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (r.posts !== 1) problems.push(`${String(r.posts)} POST(s) reached the door for one ${r.verb === 'choose' ? 'press' : 'Send'}`);
+  if (r.ends === 'sentence') {
+    const ok = [...(r.expect ?? []).map((w) => COPY_WORDS[w]), ...(r.mac ?? [])].includes(r.line);
+    if (!ok) problems.push(`the line reads ${J(r.line)}, none of the words its row names`);
+  } else if (r.ends === 'pairing') {
+    if (r.onPairing !== true) problems.push('the app did not land on Pairing after every read was refused');
+  }
+  for (const w of r.never ?? []) if (r.line !== null && r.line === COPY_WORDS[w]) problems.push(`the line is ${w}, which this arm must never draw`);
+  if (r.kept === true && r.fieldAfter !== r.text) problems.push('his words left the box after an answer that did not come');
+  if (r.cleared === true && r.fieldAfter !== '' && r.fieldAfter !== null) problems.push('the box still holds his words after Sent');
+  return decide(problems, [], `ended ${r.ends === 'sentence' ? `in ${J(r.line)}` : r.ends} after ${String(r.posts)} POST`);
+}
+
+/** RP: the parent's app (c1a5fd38's ios/, named by P318_PARENT_IOS) draws no press and no box. */
+function gradeRp(r) {
+  const problems = [];
+  if (r.waiting === null || r.idle === null) return verdict(null, 'the parent\'s app did not draw both sessions');
+  if (r.waiting.presses.length > 0) problems.push('the parent draws a pressable option');
+  if (r.idle.strip === true || r.waiting.strip === true) problems.push('the parent draws a message box');
+  return decide(problems, [], 'no press and no message box in the parent\'s app');
+}
+
+/** Every reply grader, proved both ways on readings written here. */
+function replySelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const presses = [0, 1, 2, 3].map((n) => ({ n, enabled: true }));
+  const p1 = {
+    offer: { question: '0123456789abcdef-3', mark: 'a1b2c3d4e5f6', pressable: ['1', '2', '3', '4'], command: null, canSay: false },
+    optionCount: 4,
+    before: { presses, note: false, strip: false },
+    faceId: false,
+    endConfirming: false,
+    commits: [{ marker: '1', serial: 5 }],
+    marker: '1',
+    drawnSerial: 5,
+    digits: '1',
+    enters: 0,
+    after: { presses: [] }
+  };
+  add('P1 passes its honest reading', gradeP1, p1, true);
+  add('P1 is red on a Face ID prompt', gradeP1, edit(p1, (r) => void (r.faceId = true)), false);
+  add('P1 is red on End\'s confirmation drawn', gradeP1, edit(p1, (r) => void (r.endConfirming = true)), false);
+  add('P1 is red on a box over a question', gradeP1, edit(p1, (r) => void (r.before.strip = true)), false);
+  add('P1 is red on the note over all-pressable options', gradeP1, edit(p1, (r) => void (r.before.note = true)), false);
+  add('P1 is red on an option drawn off', gradeP1, edit(p1, (r) => void (r.before.presses[1].enabled = false)), false);
+  add('P1 is red on a digit that landed on the next question', gradeP1, edit(p1, (r) => void (r.commits[0].serial = 6)), false);
+  add('P1 is red on two presses', gradeP1, edit(p1, (r) => void r.commits.push({ marker: '1', serial: 5 })), false);
+  add('P1 is red on an Enter after the digit', gradeP1, edit(p1, (r) => void (r.enters = 1)), false);
+  add('P1 is red on another digit', gradeP1, edit(p1, (r) => Object.assign(r, { commits: [{ marker: '2', serial: 5 }], digits: '2' })), false);
+  add('P1 is red on a question still drawn after', gradeP1, edit(p1, (r) => void (r.after.presses = [{ n: 0 }])), false);
+  add('P1 is UNREADABLE when nothing was offered', gradeP1, edit(p1, (r) => void (r.offer = null)), null);
+  const p2 = { offer: { pressable: ['1', '2', '3'], command: 'ls -la' }, command: 'ls -la', commits: [{ marker: '3', serial: 2 }], marker: '3', drawnSerial: 2, digits: '3', faceId: false };
+  add('P2 passes its honest reading', gradeP2, p2, true);
+  add('P2 is red on the command not drawn', gradeP2, edit(p2, (r) => void (r.command = null)), false);
+  add('P2 is red on a command drawn cut', gradeP2, edit(p2, (r) => void (r.command = 'ls')), false);
+  add('P2 is red on the wrong digit', gradeP2, edit(p2, (r) => Object.assign(r, { commits: [{ marker: '1', serial: 2 }], digits: '1' })), false);
+  const text = 'hello from the phone';
+  const p3 = {
+    offer: { canSay: true },
+    strip: { strip: [0, 640, 402, 70], endBar: [0, 711, 402, 51], tabBar: [0, 762, 402, 83], contentBottom: 600 },
+    lines: [REPLY_WORDS.oneMessage, REPLY_WORDS.sending, REPLY_WORDS.sent],
+    fieldAfter: '',
+    submits: [Buffer.from(text, 'utf8').toString('hex')],
+    text,
+    readHex: `00${pasteFrame(text)}00`
+  };
+  add('P3 passes its honest reading', gradeP3, p3, true);
+  add('P3 is red on a strip under the End bar', gradeP3, edit(p3, (r) => void (r.strip.strip = [0, 720, 402, 70])), false);
+  add('P3 is red on content under the strip', gradeP3, edit(p3, (r) => void (r.strip.contentBottom = 700)), false);
+  add('P3 is red on no Sent', gradeP3, edit(p3, (r) => void (r.lines = [REPLY_WORDS.sending])), false);
+  add('P3 is red on the words left in the box', gradeP3, edit(p3, (r) => void (r.fieldAfter = text)), false);
+  add('P3 is red on two submits', gradeP3, edit(p3, (r) => void r.submits.push(r.submits[0])), false);
+  add('P3 is red on words typed rather than pasted', gradeP3, edit(p3, (r) => void (r.readHex = Buffer.from(`${text}\r`).toString('hex'))), false);
+  add('P3 is UNREADABLE when Sending… was too quick to see', gradeP3, edit(p3, (r) => void (r.lines = [REPLY_WORDS.sent])), null);
+  const p4 = { waiting: { strip: false, presses: [{}] }, shell: { strip: false, presses: [] } };
+  add('P4 passes its honest reading', gradeP4, p4, true);
+  add('P4 is red on a box on the waiting row', gradeP4, edit(p4, (r) => void (r.waiting.strip = true)), false);
+  add('P4 is red on a box on the shell', gradeP4, edit(p4, (r) => void (r.shell.strip = true)), false);
+  const p5 = { drafted: true, line: REPLY_MAC.notReady, fieldAfter: 'p5 words', text: 'p5 words', submits: [], pastes: 0, typedBytes: 5 };
+  add('P5 passes its honest reading', gradeP5, p5, true);
+  add('P5 is red on a message pasted over the draft', gradeP5, edit(p5, (r) => void (r.pastes = 1)), false);
+  add('P5 is red on his words gone from the box', gradeP5, edit(p5, (r) => void (r.fieldAfter = '')), false);
+  add('P5 is red on another sentence', gradeP5, edit(p5, (r) => void (r.line = REPLY_WORDS.sent)), false);
+  add('P5 is red on the draft at the Mac gone', gradeP5, edit(p5, (r) => void (r.typedBytes = 0)), false);
+  const p6 = { sent: true, held: 1, line: REPLY_WORDS.notTaken, submits: [], pastes: 0, acts: 0, waitedMs: 20_100 };
+  add('P6 passes its honest reading', gradeP6, p6, true);
+  add('P6 is red on a message that reached the agent', gradeP6, edit(p6, (r) => void (r.submits = ['aa'])), false);
+  add('P6 is red on an act logged', gradeP6, edit(p6, (r) => void (r.acts = 1)), false);
+  add('P6 is red on another line', gradeP6, edit(p6, (r) => void (r.line = REPLY_WORDS.noAnswer)), false);
+  add('P6 is UNREADABLE when the relay held nothing', gradeP6, edit(p6, (r) => void (r.held = 0)), null);
+  add('P6 is UNREADABLE, never red, when no Send was made (the box not drawn)', gradeP6, edit(p6, (r) => Object.assign(r, { sent: false, held: 0, line: null })), null);
+  const p7 = { pressed: true, commits: [{ marker: '1' }], afterPresses: 0, line: null };
+  add('P7 passes a press that landed and a screen that moved on', gradeP7, p7, true);
+  add('P7 passes nothing landed and the question still offered', gradeP7, edit(p7, (r) => Object.assign(r, { commits: [], afterPresses: 4 })), true);
+  add('P7 is red on two presses', gradeP7, edit(p7, (r) => void r.commits.push({ marker: '1' })), false);
+  add('P7 is red on a landed press with the question still drawn', gradeP7, edit(p7, (r) => void (r.afterPresses = 4)), false);
+  add('P7 is UNREADABLE, never red, when no press was made', gradeP7, edit(p7, (r) => Object.assign(r, { pressed: false, commits: [], afterPresses: 0, line: null })), null);
+  const p8 = { focus: { endBar: false, strip: [0, 400, 402, 70], keyboard: [0, 480, 402, 300] } };
+  add('P8 passes its honest reading', gradeP8, p8, true);
+  add('P8 is red on the End bar beside the keyboard', gradeP8, edit(p8, (r) => void (r.focus.endBar = true)), false);
+  add('P8 is red on a strip under the keyboard', gradeP8, edit(p8, (r) => void (r.focus.strip = [0, 500, 402, 70])), false);
+  const p10 = {
+    cut: true,
+    text: 'p10 words',
+    first: { line: REPLY_WORDS.noAnswer, fieldAfter: 'p10 words' },
+    second: { line: REPLY_WORDS.sent, fieldAfter: '' },
+    actsAfterSecond: 1,
+    submitsAfterSecond: 1,
+    third: { line: REPLY_WORDS.sent },
+    actsAfterThird: 2,
+    submitsAfterThird: 2
+  };
+  add('P10 passes its honest reading', gradeP10, p10, true);
+  add('P10 is red on the words typed twice (the kept id not sent)', gradeP10, edit(p10, (r) => Object.assign(r, { actsAfterSecond: 2, submitsAfterSecond: 2, actsAfterThird: 3, submitsAfterThird: 3 })), false);
+  add('P10 is red on the words dropped after no answer', gradeP10, edit(p10, (r) => void (r.first.fieldAfter = '')), false);
+  add('P10 is red on an edited message that reused the id', gradeP10, edit(p10, (r) => Object.assign(r, { actsAfterThird: 1, submitsAfterThird: 1 })), false);
+  add('P10 is UNREADABLE when nothing was cut', gradeP10, edit(p10, (r) => void (r.cut = false)), null);
+  // The relay's record reader (the fix round): a handshake record, a change
+  // cipher spec and an application data record, split across chunks anywhere.
+  {
+    const rec = (type, n) => Buffer.concat([Buffer.from([type, 3, 3, n >> 8, n & 255]), Buffer.alloc(n, 7)]);
+    const stream = Buffer.concat([rec(22, 300), rec(20, 1), rec(23, 40)]);
+    const feed = (cuts) => {
+      let st = { buf: Buffer.alloc(0), sent: false };
+      const marks = [];
+      let at = 0;
+      for (const c of [...cuts, stream.length]) {
+        st = tlsClientRecords(st, stream.subarray(at, c));
+        marks.push(st.sent);
+        at = c;
+      }
+      return marks;
+    };
+    cases.push({ what: 'tlsClientRecords is not set by a handshake and a change cipher spec, however split', got: () => !feed([3, 100, 304, 310]).slice(0, 4).some(Boolean), want: true });
+    cases.push({ what: 'tlsClientRecords is set by the first application data record, even split mid-header', got: () => feed([307, 313]).at(-1) === true && feed([308]).at(-1) === true, want: true });
+  }
+  const rh = { alive: RUNNING_FOREGROUND, posts: 1, verb: 'say', ends: 'sentence', expect: ['endNoAnswer'], mac: [], never: ['replySent'], line: COPY_WORDS.endNoAnswer ?? 'x', kept: true, text: 't', fieldAfter: 't' };
+  add('RH passes a sentence arm', gradeRh, rh, true);
+  add('RH is red on two POSTs', gradeRh, edit(rh, (r) => void (r.posts = 2)), false);
+  add('RH is red on another line', gradeRh, edit(rh, (r) => void (r.line = 'Something else.')), false);
+  add('RH is red on the words dropped', gradeRh, edit(rh, (r) => void (r.fieldAfter = '')), false);
+  add('RH passes the Pairing arm', gradeRh, edit(rh, (r) => Object.assign(r, { ends: 'pairing', expect: [], line: null, onPairing: true, kept: false })), true);
+  add('RH is red on a Pairing arm still on the session', gradeRh, edit(rh, (r) => Object.assign(r, { ends: 'pairing', expect: [], line: null, onPairing: false, kept: false })), false);
+  add('RH is red on an app that died', gradeRh, edit(rh, (r) => void (r.alive = 1)), false);
+  const rp = { waiting: { presses: [], strip: false }, idle: { strip: false } };
+  add('RP passes its honest reading', gradeRp, rp, true);
+  add('RP is red on a parent that presses', gradeRp, edit(rp, (r) => void (r.waiting.presses = [{ n: 0 }])), false);
+  add('RP is red on a parent with a box', gradeRp, edit(rp, (r) => void (r.idle.strip = true)), false);
+  // The pure helpers.
+  add('pasteFrame writes LF as CR between the paste marks and ends with a carriage return', () => verdict(pasteFrame('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), ''), null, true);
+  add('b64uText carries a comma the step list would split on', () => verdict(!b64uText('a, b').includes(',') && Buffer.from(b64uText('a, b'), 'base64url').toString('utf8') === 'a, b', ''), null, true);
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
 function selfTest() {
   const reads = [
     {
@@ -3570,7 +4123,14 @@ function selfTest() {
       ? `${TAG} End self-test PASS: ${String(ends.total)} cases (E1 to E7, EH and EP) graded as they must be.`
       : `${TAG} End self-test FAIL: ${String(ends.bad)} of ${String(ends.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 ? 0 : 1);
+  // Phase 318: the reply group (P1 to P10, RH and RP).
+  const replies = replySelfTest();
+  console.log(
+    replies.bad === 0
+      ? `${TAG} reply self-test PASS: ${String(replies.total)} cases (P1 to P10, RH and RP) graded as they must be.`
+      : `${TAG} reply self-test FAIL: ${String(replies.bad)} of ${String(replies.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -3752,6 +4312,9 @@ if [ -n "$P316_NEXT" ] && [ -f "$P316_NEXT" ]; then
   mode=$(cat "$P316_NEXT")
   rm -f "$P316_NEXT"
 fi
+if [ "$mode" = "p318" ]; then
+  exec '${P318_BIN}/claude' "$@"
+fi
 if [ "$mode" = "talk" ] && [ -n "$sid" ]; then
   slug=$(printf '%s' "$PWD" | sed 's|[^a-zA-Z0-9]|-|g')
   d="$HOME/.claude/projects/$slug"
@@ -3782,6 +4345,12 @@ exit 0
     'utf8'
   );
   chmodSync(join(BIN, 'claude'), 0o755);
+  // Phase 318: build/p318/stand-in.mjs's wrappers, and the PATH's `codex`,
+  // which is that stand-in and nothing else (no real Codex runs).
+  mkdirSync(P318_STANDIN, { recursive: true });
+  p318WriteWrappers({ dir: P318_DIR, bin: P318_BIN, standinDir: P318_STANDIN });
+  writeFileSync(join(BIN, 'codex'), `#!/bin/sh\n# probe:p316. Not Codex: build/p318/stand-in.mjs.\nexec '${P318_BIN}/codex' "$@"\n`, 'utf8');
+  chmodSync(join(BIN, 'codex'), 0o755);
   writeFileSync(join(HOME, '.zprofile'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
   writeFileSync(join(HOME, '.zshrc'), `export PATH="${BIN}:$PATH"\n`, 'utf8');
   const git = (args) => spawnSync('git', args, { cwd: WORK, encoding: 'utf8', env: { ...process.env, HOME } });
@@ -5159,6 +5728,498 @@ exit 0
           }
         }
 
+        // ==================================================================
+        // Phase 318: THE REPLY GROUP (build/p318/SPEC.md §7.7). The sessions
+        // are build/p318/stand-in.mjs as Claude Code and Codex (this file's
+        // own `claude` hands a launch to it when the next mode is `p318`; the
+        // PATH's `codex` is it), drawing the committed real screens and
+        // logging every byte they read: that log is the ground truth. Before
+        // every press and every Send the UI test waits for this file's
+        // `reply-<seq>`, so the agent's screen is read, a draft typed at the
+        // Mac or the relay held at THAT moment. Nothing here answers Face ID.
+        // ==================================================================
+        if (ARMS.has('reply')) {
+          // A FRESH directory per drive: a UI test's `seq` starts at 1 every run,
+          // so a file left by an earlier drive would answer a later one at once.
+          const ackDir = (label) => {
+            const dir = join(RUN, `reply-acks-${label}`);
+            mkdirSync(dir, { recursive: true });
+            return { dir, ack: (seq) => writeFileSync(join(dir, `reply-${String(seq)}`), 'ok\n') };
+          };
+          const hr = () => process.hrtime.bigint();
+          const sessionsNow = async () =>
+            JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status, agent: x.agent }))))'));
+          const statusNow = async (id) => (await sessionsNow()).find((x) => x.id === id)?.status ?? null;
+          const waitUntil = async (test, ms, every = 250) => {
+            const until = Date.now() + ms;
+            for (;;) {
+              const v = await test();
+              if (v !== null && v !== undefined && v !== false) return v;
+              if (Date.now() > until) return null;
+              await sleep(every);
+            }
+          };
+          /** The stand-in a session runs now: the newest hello naming its id. */
+          const helloOf = (id) => p318Hellos(P318_STANDIN).filter((h) => h.session === id).sort((a, b) => Number(a.at) - Number(b.at)).at(-1) ?? null;
+          const seqs = new Map();
+          const tellP318 = async (id, ops) => {
+            const h = helloOf(id);
+            if (h === null) throw new Error(`no stand-in said hello for ${id}`);
+            const seq = (seqs.get(h.pid) ?? 0) + 1;
+            seqs.set(h.pid, seq);
+            p318SendOps(P318_STANDIN, h.pid, seq, ops);
+            await waitUntil(() => Number(p318ReadState(P318_STANDIN, h.pid)?.seq ?? 0) >= seq, 5_000, 25);
+          };
+          const stateP318 = (id) => {
+            const h = helloOf(id);
+            return h === null ? null : p318ReadState(P318_STANDIN, h.pid);
+          };
+          /** A stand-in's log lines between two of this process's hrtime stamps (one clock for every process). */
+          const logP318 = (id, from, to = null) => {
+            const h = helloOf(id);
+            return h === null ? [] : p318ReadLog(P318_STANDIN, h.pid).filter((l) => l.t >= BigInt(from) && (to === null || l.t < BigInt(to)));
+          };
+          const bytesP318 = (id, from, to = null) => logP318(id, from, to).filter((l) => l.kind === 'read').map((l) => String(l.hex)).join('');
+          const commitsP318 = (id, from, to = null) => logP318(id, from, to).filter((l) => l.kind === 'commit').map((l) => ({ marker: String(l.marker), serial: Number(l.serial) }));
+          const submitsP318 = (id, from, to = null) => logP318(id, from, to).filter((l) => l.kind === 'submitted').map((l) => String(l.hex));
+          const digitsOf = (hex) => Buffer.from(hex, 'hex').toString('latin1').replace(/[^0-9]/g, '');
+          const pastesOf = (hex) => hex.split('1b5b3230307e').length - 1;
+          const replySession = async (name, agent) => {
+            if (agent === 'claude') writeFileSync(NEXT, 'p318', 'utf8');
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent })}).then(() => true).catch(() => false)`);
+            const s = await waitUntil(async () => (await sessionsNow()).find((x) => x.name === name && ['running', 'idle', 'needs_input'].includes(x.status)) ?? null, 60_000, 500);
+            const hello = s === null || agent === 'shell' ? null : await waitUntil(() => helloOf(s.id), 60_000);
+            rmSync(NEXT, { force: true });
+            if (s === null || (agent !== 'shell' && hello === null)) return null;
+            if (agent !== 'shell') await tellP318(s.id, [{ op: 'afterSubmit', then: { op: 'work', ms: 400 } }]);
+            return s;
+          };
+          const offerOf = async (id) => (await readJson(`/v1/session?id=${encodeURIComponent(id)}`))?.session?.reply ?? null;
+          const canSayReady = (id) => waitUntil(async () => ((await offerOf(id))?.canSay === true ? true : null), 25_000, 300);
+          /** A press drawn, main reading it waiting, and the door offering it (SPEC §5.4.5: a tick to bind, bounded). */
+          const drawPress = async (id, command) => {
+            await tellP318(id, [{ op: 'press', command }]);
+            await waitUntil(async () => ((await statusNow(id)) === 'needs_input' ? true : null), 20_000);
+            return waitUntil(async () => {
+              const o = await offerOf(id);
+              return o !== null && o.pressable.length > 0 ? o : null;
+            }, 15_000, 300);
+          };
+          const replyActs = async (id) => (await appLogText()).split('\n').filter((l) => l.includes("the phone's say:") && l.includes(id)).length;
+          const desk = (id, text) => cdpEval(cdp, `(window.gmux.term.sendInput(${J(id)}, ${J(text)}), true)`);
+          const selectAtMac = (id) => cdpEval(cdp, `window.__gmuxP95.select(${J(id)}).then(() => true).catch(() => false)`);
+          const ofStep = (events, step) => events.filter((e) => e.step === step);
+          const forStep = (events, step, name) => events.filter((e) => e.step === step && e.for === name);
+          const presses = (reading) => (reading?.presses ?? []).map((p) => ({ n: Number(p.n), enabled: p.enabled === true, label: String(p.label ?? '') }));
+
+          const R = {
+            claude: await replySession('p318-reply-claude', 'claude'),
+            codex: await replySession('p318-reply-codex', 'codex'),
+            wait: await replySession('p318-reply-wait', 'claude'),
+            shell: await replySession('p318-reply-shell', 'shell'),
+            floor: await replySession('p318-reply-floor', 'claude')
+          };
+          if (Object.values(R).some((x) => x === null)) {
+            arm('P the reply group\'s sessions', null, `not every session was made, or a stand-in never said hello as its agent: ${J(Object.fromEntries(Object.entries(R).map(([k, v]) => [k, v?.status ?? null])))}`);
+          } else {
+            const canary = () => `p318c${randomBytes(6).toString('hex')}`;
+            const T = { p3: `hello from the phone ${canary()}`, p5: `over a draft ${canary()}`, p6: `sent as it left ${canary()}`, p10: `kept ${canary()}`, p9: `floor ${canary()}` };
+            T.p10edit = `${T.p10}!`;
+            // ---- the starting states: two questions offered, one waiting row --
+            await drawPress(R.claude.id, 'ls');
+            await drawPress(R.codex.id, 'touch p318-p2.txt');
+            await drawPress(R.wait.id, 'ls -la');
+            const marks = { at: {}, offer: {}, send: {}, acts: {}, wait: {}, home: {} };
+            const orderAcks = ackDir('order');
+            const rack = orderAcks.ack;
+            const offerPlan = ['p1', 'p2', 'p7'];
+            const sendPlan = ['p3', 'p5', 'p6', 'p10a', 'p10b', 'p10c'];
+            const offerSession = { p1: R.claude.id, p2: R.codex.id, p7: R.claude.id };
+            let cutLogged = false;
+            let cutPoll = null;
+            let lastSend = null;
+            const react = async (event) => {
+              marks.at[event.seq] = hr();
+              if (event.step === 'reply-offer') {
+                const tag = offerPlan.shift() ?? 'extra';
+                const id = offerSession[tag] ?? R.claude.id;
+                marks.offer[tag] = { from: hr(), serial: Number(stateP318(id)?.serial ?? 0), offer: await offerOf(id), event };
+                rack(event.seq);
+              }
+              if (event.step === 'reply-send-ready') {
+                const tag = sendPlan.shift() ?? 'extra';
+                lastSend = tag;
+                marks.acts[tag] = await replyActs(R.claude.id);
+                if (tag === 'p5') {
+                  // His letters at the Mac, typed down the Mac's own terminal after the box was drawn.
+                  await selectAtMac(R.claude.id);
+                  await desk(R.claude.id, 'draft');
+                  marks.p5drafted = (await waitUntil(() => (Number(stateP318(R.claude.id)?.typedBytes ?? 0) > 0 ? true : null), 5_000, 50)) === true;
+                }
+                if (tag === 'p6') {
+                  marks.p6heldBefore = relay.held();
+                  relay.pause();
+                }
+                if (tag === 'p10a') {
+                  const before = marks.acts.p10a;
+                  cutLogged = false;
+                  cutPoll = setInterval(() => {
+                    void replyActs(R.claude.id).then((n) => {
+                      if (n > before) cutLogged = true;
+                    });
+                  }, 20);
+                  marks.cutsBefore = relay.cuts();
+                  marks.p10connectionsAtArm = relay.connections();
+                  relay.cutNextAfter(() => cutLogged);
+                }
+                // P3: the strip's `Sending…` held on screen long enough to read.
+                if (tag === 'p3') relay.delayNextBy(1_500);
+                marks.send[tag] = { from: hr(), event };
+                rack(event.seq);
+              }
+              if (event.step === 'reply-home-pressed' && lastSend === 'p6' && marks.home.p6 === undefined) {
+                marks.home.p6 = hr();
+                await sleep(3_000);
+                marks.p6held = relay.held() - (marks.p6heldBefore ?? relay.held());
+                relay.resume();
+              } else if (event.step === 'reply-home-pressed') {
+                marks.home.p7 = hr();
+              }
+              if (event.step === 'reply-said' && event.for === 'reply-refused') marks.p5typed = Number(stateP318(R.claude.id)?.typedBytes ?? 0);
+              if (event.step === 'reply-said' && event.for === 'reply-say' && lastSend === 'p10a') {
+                if (cutPoll !== null) clearInterval(cutPoll);
+                cutPoll = null;
+                marks.p10cut = relay.cuts() > (marks.cutsBefore ?? 0) && cutLogged;
+                marks.p10diag = { logged: cutLogged, connectionsAtArm: marks.p10connectionsAtArm ?? null, connectionsAtSaid: relay.connections(), cut: relay.cutDiag(), lines: event.lines ?? null };
+              }
+              if (event.step === 'reply-wait') {
+                const tag = String(event.tag);
+                marks.wait[tag] = { from: hr() };
+                if (tag === 'p3' || tag === 'p10') await canSayReady(R.claude.id);
+                if (tag === 'p6') {
+                  await desk(R.claude.id, '\u0015');
+                  await waitUntil(() => (Number(stateP318(R.claude.id)?.typedBytes ?? 0) === 0 ? true : null), 5_000, 50);
+                  await canSayReady(R.claude.id);
+                }
+                if (tag === 'p7') {
+                  marks.acts.end = await replyActs(R.claude.id);
+                  marks.wait.p7.afterP10 = hr();
+                  await drawPress(R.claude.id, 'touch p318-p7.txt');
+                }
+                rack(event.seq);
+              }
+            };
+            const steps = [
+              'pair',
+              'list',
+              `open:${R.claude.id}`,
+              'reply-press:0',
+              'back',
+              `open:${R.codex.id}`,
+              'reply-press:2',
+              'back',
+              `open:${R.wait.id}`,
+              'reply-none',
+              'back',
+              `open:${R.shell.id}`,
+              'reply-none',
+              'back',
+              `open:${R.claude.id}`,
+              'reply-wait:p3',
+              `reply-say:${b64uText(T.p3)}`,
+              'reply-focus',
+              `reply-refused:${b64uText(T.p5)}`,
+              // Phase 318's fix round: after each wait the session is opened
+              // again, which reads it as the screen's own `.task` does. The
+              // wait's pull alone did not: after P5 the box held his words and
+              // had the keyboard, the drag dismissed the keyboard
+              // (`.scrollDismissesKeyboard(.interactively)`) rather than
+              // refreshing, so the strip the Mac offered again was never drawn
+              // and P6, P10 and P7 were never driven (the run lens, 2026-10-04).
+              'reply-wait:p6',
+              'back',
+              `open:${R.claude.id}`,
+              `reply-home:say:${b64uText(T.p6)}`,
+              'idle:20',
+              'reply-wait:p10',
+              'back',
+              `open:${R.claude.id}`,
+              `reply-say:${b64uText(T.p10)}`,
+              'reply-again',
+              `reply-edit:${b64uText(T.p10edit)}`,
+              'reply-wait:p7',
+              'back',
+              `open:${R.claude.id}`,
+              'reply-home:press:0',
+              'idle:5'
+            ];
+            try {
+              await withSimulator({ label: 'p316-reply', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-reply'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const run = await pairAndRead(sim, steps, 'reply', { env: { P316_ACKS: orderAcks.dir }, react });
+                const ev = run.ok ? run.result.events : [];
+                if (!run.ok || ev.length === 0) {
+                  arm('P1 a waiting Claude Code question\'s options are buttons; one tap, one digit, no Face ID', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                  return;
+                }
+                const id = R.claude.id;
+                const offered = ofStep(ev, 'reply-offer');
+                const pressed = ofStep(ev, 'reply-pressed');
+                const said = ofStep(ev, 'reply-said');
+                const homes = ofStep(ev, 'reply-home-read');
+                const nones = ofStep(ev, 'reply-none');
+                const end = hr();
+                // P1
+                {
+                  const o = marks.offer.p1;
+                  const from = o?.from ?? end;
+                  const to = marks.offer.p2?.from ?? end;
+                  const hex = bytesP318(id, from, to);
+                  const v = gradeP1({
+                    offer: o?.offer ?? null,
+                    optionCount: Number(offered[0]?.reading?.choices ?? 0),
+                    before: offered[0] === undefined ? null : { presses: presses(offered[0].reading), note: offered[0].reading?.note === true, strip: offered[0].reading?.strip === true },
+                    faceId: pressed[0]?.faceId === true,
+                    endConfirming: false,
+                    commits: commitsP318(id, from, to),
+                    marker: '1',
+                    drawnSerial: o?.serial ?? null,
+                    digits: digitsOf(hex),
+                    enters: logP318(id, from, to).filter((l) => l.kind === 'enter').length,
+                    after: pressed[0] === undefined ? null : { presses: presses(pressed[0].after) }
+                  });
+                  arm('P1 a waiting Claude Code question: every option a button, no box; one tap, one digit on the question shown; no Face ID, no End confirmation; the session moves on', v.ok, v.said);
+                }
+                // P2
+                {
+                  const o = marks.offer.p2;
+                  const from = o?.from ?? end;
+                  const hex = bytesP318(R.codex.id, from);
+                  const v = gradeP2({ offer: o?.offer ?? null, command: offered[1]?.reading?.command ?? null, commits: commitsP318(R.codex.id, from), marker: '3', drawnSerial: o?.serial ?? null, digits: digitsOf(hex), faceId: pressed[1]?.faceId === true });
+                  arm('P2 a Codex approval: the command under the question; No pressed, one digit', v.ok, v.said);
+                }
+                // P4
+                {
+                  const read = (e) => (e === undefined ? null : { strip: e.reading?.strip === true, presses: presses(e.reading) });
+                  const v = gradeP4({ waiting: read(nones[0]), shell: read(nones[1]) });
+                  arm('P4 no box on a waiting row or a shell, no press on the shell', v.ok, v.said);
+                }
+                // P3
+                {
+                  const s = marks.send.p3;
+                  const from = s?.from ?? end;
+                  const to = marks.send.p5?.from ?? end;
+                  const e = forStep(ev, 'reply-said', 'reply-say')[0];
+                  const v = gradeP3({
+                    offer: { canSay: s !== undefined },
+                    strip: s?.event?.frames?.strip === undefined ? null : s.event.frames,
+                    lines: e?.lines ?? [],
+                    fieldAfter: e?.fieldAfter ?? null,
+                    submits: submitsP318(id, from, to),
+                    text: T.p3,
+                    readHex: bytesP318(id, from, to)
+                  });
+                  arm('P3 an idle Claude Code session: the strip between the content and the End bar, Sending… then Sent, the box empty, the bytes exact', v.ok, v.said);
+                }
+                // P8
+                {
+                  const f = ofStep(ev, 'reply-focus')[0] ?? null;
+                  const v = gradeP8({ focus: f === null ? null : { endBar: f.endBar === true, strip: Array.isArray(f.strip) ? f.strip : null, keyboard: Array.isArray(f.keyboard) ? f.keyboard : null } });
+                  arm('P8 the box focused: no End bar beside the keyboard, the strip above it', v.ok, v.said);
+                }
+                // P5
+                {
+                  const s = marks.send.p5;
+                  const from = s?.from ?? end;
+                  const to = marks.wait.p6?.from ?? end;
+                  const e = forStep(ev, 'reply-said', 'reply-refused')[0];
+                  const hex = bytesP318(id, from, to);
+                  const v = gradeP5({ drafted: marks.p5drafted === true, line: (e?.lines ?? []).at(-1) ?? null, fieldAfter: e?.fieldAfter ?? null, text: T.p5, submits: submitsP318(id, from, to), pastes: pastesOf(hex), typedBytes: marks.p5typed ?? 0 });
+                  arm('P5 a draft typed at the Mac, then Send: the Mac\'s not-ready sentence, his words kept, nothing pasted', v.ok, v.said);
+                }
+                // P6
+                {
+                  const s = marks.send.p6;
+                  const from = s?.from ?? end;
+                  const idleEnd = ofStep(ev, 'idle-end')[0];
+                  const to = (idleEnd === undefined ? undefined : marks.at[idleEnd.seq]) ?? end;
+                  const hex = bytesP318(id, from, to);
+                  const v = gradeP6({
+                    sent: marks.send.p6 !== undefined && marks.home.p6 !== undefined,
+                    held: marks.p6held ?? 0,
+                    line: homes[0]?.line ?? null,
+                    submits: submitsP318(id, from, to),
+                    pastes: pastesOf(hex),
+                    acts: (marks.acts.p10a ?? 0) - (marks.acts.p6 ?? 0),
+                    waitedMs: marks.home.p6 === undefined ? 0 : Number(to - marks.home.p6) / 1e6
+                  });
+                  arm('P6 Send then Home with the write held before its handshake (Paseo #3464): not taken, never sent', v.ok, v.said);
+                }
+                // P10
+                {
+                  const fromA = marks.send.p10a?.from ?? end;
+                  const atC = marks.send.p10c?.from ?? end;
+                  const atEnd = marks.wait.p7?.afterP10 ?? end;
+                  const first = forStep(ev, 'reply-said', 'reply-say')[1];
+                  const second = forStep(ev, 'reply-said', 'reply-again')[0];
+                  const third = forStep(ev, 'reply-said', 'reply-edit')[0];
+                  const v = gradeP10({
+                    cut: marks.p10cut === true,
+                    text: T.p10,
+                    first: { line: (first?.lines ?? []).at(-1) ?? null, fieldAfter: first?.fieldAfter ?? null },
+                    second: { line: (second?.lines ?? []).at(-1) ?? null, fieldAfter: second?.fieldAfter ?? null },
+                    actsAfterSecond: (marks.acts.p10c ?? 0) - (marks.acts.p10a ?? 0),
+                    submitsAfterSecond: submitsP318(id, fromA, atC).length,
+                    third: third === undefined ? null : { line: (third.lines ?? []).at(-1) ?? null },
+                    actsAfterThird: (marks.acts.end ?? 0) - (marks.acts.p10a ?? 0),
+                    submitsAfterThird: submitsP318(id, fromA, atEnd).length
+                  });
+                  arm('P10 the answer cut after the act: the no-answer line, the words kept; Send again goes as the same message, once; an edit is a new one', v.ok, v.said);
+                }
+                // P7
+                {
+                  const o = marks.offer.p7;
+                  const from = o?.from ?? end;
+                  const v = gradeP7({ pressed: o !== undefined && homes[1] !== undefined, commits: commitsP318(id, from), afterPresses: presses(homes[1]?.after).length, line: homes[1]?.line ?? null });
+                  arm('P7 a press then Home, the relay passing: at most one digit, and the screen tells the truth', v.ok, v.said);
+                }
+                report.readings.reply = { marks: { p5drafted: marks.p5drafted, p5typed: marks.p5typed, p6held: marks.p6held, p10cut: marks.p10cut, p10diag: marks.p10diag ?? null, acts: marks.acts } };
+              });
+            } finally {
+              if (cutPoll !== null) clearInterval(cutPoll);
+              relay.resume();
+            }
+
+            // ---- P9: the floor, iOS 18.3: P1 and P3 ---------------------------
+            await confirmListening(cdp);
+            await drawPress(R.floor.id, 'ls');
+            {
+              const fmarks = { offer: null, send: null };
+              const floorAcks = ackDir('floor');
+              const rack = floorAcks.ack;
+              const freact = async (event) => {
+                if (event.step === 'reply-offer') {
+                  fmarks.offer = { from: hr(), serial: Number(stateP318(R.floor.id)?.serial ?? 0), offer: await offerOf(R.floor.id) };
+                  rack(event.seq);
+                }
+                if (event.step === 'reply-wait') {
+                  await canSayReady(R.floor.id);
+                  rack(event.seq);
+                }
+                if (event.step === 'reply-send-ready') {
+                  relay.delayNextBy(1_500);
+                  fmarks.send = { from: hr(), event };
+                  rack(event.seq);
+                }
+              };
+              await withSimulator({ label: 'p316-reply-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-reply-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                const run = await pairAndRead(sim, ['pair', 'list', `open:${R.floor.id}`, 'reply-press:0', 'reply-wait:p9', `reply-say:${b64uText(T.p9)}`], 'reply-floor', { env: { P316_ACKS: floorAcks.dir }, react: freact });
+                const ev = run.ok ? run.result.events : [];
+                const end = hr();
+                const offered = ofStep(ev, 'reply-offer')[0];
+                const pressed = ofStep(ev, 'reply-pressed')[0];
+                const from = fmarks.offer?.from ?? end;
+                const to = fmarks.send?.from ?? end;
+                const v1 = gradeP1({
+                  offer: fmarks.offer?.offer ?? null,
+                  optionCount: Number(offered?.reading?.choices ?? 0),
+                  before: offered === undefined ? null : { presses: presses(offered.reading), note: offered.reading?.note === true, strip: offered.reading?.strip === true },
+                  faceId: pressed?.faceId === true,
+                  endConfirming: false,
+                  commits: commitsP318(R.floor.id, from, to),
+                  marker: '1',
+                  drawnSerial: fmarks.offer?.serial ?? null,
+                  digits: digitsOf(bytesP318(R.floor.id, from, to)),
+                  enters: logP318(R.floor.id, from, to).filter((l) => l.kind === 'enter').length,
+                  after: pressed === undefined ? null : { presses: presses(pressed.after) }
+                });
+                arm('P9 the floor (iOS 18.3): P1', v1.ok, v1.said);
+                const e = forStep(ev, 'reply-said', 'reply-say')[0];
+                const v3 = gradeP3({ offer: { canSay: fmarks.send !== null }, strip: fmarks.send?.event?.frames?.strip === undefined ? null : fmarks.send.event.frames, lines: e?.lines ?? [], fieldAfter: e?.fieldAfter ?? null, submits: submitsP318(R.floor.id, to), text: T.p9, readHex: bytesP318(R.floor.id, to) });
+                arm('P9 the floor (iOS 18.3): P3', v3.ok, v3.said);
+              });
+            }
+
+            // ---- RH: the hostile door's reply arms ----------------------------
+            await withSimulator({ label: 'p316-reply-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-reply-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              for (const name of REPLY_ARMS) {
+                const spec = HOSTILE_ARMS[name];
+                await sim.simctl('keychain', 'reset');
+                const door = await startDoorChild(name);
+                doorChildren.add(door.child);
+                try {
+                  if (door.facts === null) {
+                    arm(`RH ${name}`, null, door.why ?? 'the hostile door did not start');
+                    continue;
+                  }
+                  const text = 'p316 hostile message';
+                  const armAcks = ackDir(`hostile-${name}`);
+                  const steps = ['pair', 'list', `open:${door.facts.sessionToOpen}`, spec.verb === 'choose' ? 'reply-press:0' : `reply-say:${b64uText(text)}`];
+                  const r = await drive(sim, {
+                    test: { id: UI_TEST },
+                    label: `reply-hostile-${name}`,
+                    env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: armAcks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                    onEvent: async (event) => {
+                      if (event.step === 'reply-offer' || event.step === 'reply-send-ready') armAcks.ack(event.seq);
+                    }
+                  });
+                  if (r.events.length === 0) {
+                    arm(`RH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                    continue;
+                  }
+                  const d = [...r.events].reverse().find((e) => e.step === 'screen') ?? null;
+                  const saidE = r.events.filter((e) => e.step === 'reply-said').at(-1) ?? null;
+                  const pressedE = r.events.filter((e) => e.step === 'reply-pressed').at(-1) ?? null;
+                  const line = spec.verb === 'choose' ? pressedE?.line ?? el(d, 'session-reply-line')?.label ?? null : (saidE?.lines ?? []).at(-1) ?? el(d, 'session-message-line')?.label ?? null;
+                  const v = gradeRh({
+                    alive: aliveOf(r.events),
+                    posts: door.events.filter((e) => e.kind === 'request' && (e.route === 'POST /v1/choose' || e.route === 'POST /v1/say')).length,
+                    verb: spec.verb,
+                    ends: spec.ends,
+                    expect: spec.expect,
+                    mac: (spec.mac ?? []).map((k) => door.facts.replyWords?.[k] ?? null).filter((x) => x !== null),
+                    never: spec.never,
+                    line,
+                    kept: spec.kept === true,
+                    cleared: spec.cleared === true,
+                    text,
+                    fieldAfter: saidE?.fieldAfter ?? null,
+                    onPairing: el(d, 'screen-pairing') !== null
+                  });
+                  arm(`RH ${name}: ${spec.what}`, v.ok, v.said);
+                } finally {
+                  await endDoorChild(door.child);
+                  doorChildren.delete(door.child);
+                }
+              }
+            });
+
+            // ---- RP: the parent's app -----------------------------------------
+            if (PARENT_IOS_318 !== '') {
+              const parentProject = join(resolve(PARENT_IOS_318), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, 'dd-parent-318');
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label: 'parent-reply', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) arm('RP the parent\'s app: options unpressable and no box', null, `the parent's project did not build (${String(built.code)})`);
+              else {
+                await confirmListening(cdp);
+                await drawPress(R.wait.id, 'ls -la');
+                await tellP318(R.claude.id, [{ op: 'idle' }]);
+                await canSayReady(R.claude.id);
+                await withSimulator({ label: 'p316-reply-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-reply-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                  // Its OWN UI test, which knows no reply step: its session dumps are read.
+                  const run = await pairAndRead(sim, ['pair', 'list', `open:${R.wait.id}`, 'back', `open:${R.claude.id}`], 'reply-parent', { project: parentProject, derivedDataPath: parentDd });
+                  const ev = run.ok ? run.result.events : [];
+                  const sessionDumps = ev.filter((e) => e.step === 'screen' && e.name === 'session');
+                  const read = (d) => (d === undefined ? null : { presses: (d.elements ?? []).filter((x) => String(x.id).startsWith('session-choice-press-')), strip: (d.elements ?? []).some((x) => x.id === 'session-message-strip') });
+                  const v = gradeRp({ waiting: read(sessionDumps[0]), idle: read(sessionDumps[1]) });
+                  arm('RP the parent\'s app: options unpressable and no box', v.ok, v.said);
+                });
+              }
+            } else report.readings.replyParent = 'not run: P318_PARENT_IOS is not set';
+          }
+        }
+
         if (ARMS.has('hostile')) {
           // THE WRITE ARMS ARE THE END GROUP'S (EH), never this loop's: this
           // loop drives a read and grades it as one, so a write arm here read
@@ -5167,7 +6228,7 @@ exit 0
           const wanted = ((process.env['P316_HOSTILE'] ?? '').trim() || Object.keys(HOSTILE_ARMS).join(','))
             .split(',')
             .map((s) => s.trim())
-            .filter((name) => HOSTILE_ARMS[name]?.write !== true);
+            .filter((name) => HOSTILE_ARMS[name]?.write !== true && HOSTILE_ARMS[name]?.reply !== true);
           await withSimulator({ label: 'p316-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
             for (const name of wanted) {
               const spec = HOSTILE_ARMS[name];
@@ -5329,6 +6390,35 @@ exit 0
 } finally {
   for (const child of [...doorChildren]) await endDoorChild(child);
   await relay?.close().catch(() => undefined);
+  // Phase 318: every build/p318/stand-in.mjs this run's sessions ran, and the
+  // runner beside each, by the pids they wrote in their hellos, never a pattern.
+  {
+    const pids = p318Hellos(P318_STANDIN).flatMap((h) => [Number(h.pid), Number(h.runnerPid)]).filter((p) => Number.isInteger(p) && p > 1);
+    const alive = (pid) => {
+      try {
+        process.kill(pid, 0);
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    for (const pid of pids) {
+      try {
+        process.kill(pid, 'SIGTERM');
+      } catch {
+        /* gone with its pane */
+      }
+    }
+    for (let i = 0; i < 20 && pids.some(alive); i += 1) await sleep(100);
+    for (const pid of pids.filter(alive)) {
+      try {
+        process.kill(pid, 'SIGKILL');
+      } catch {
+        /* gone */
+      }
+    }
+    report.readings.p318StandinsLeft = pids.filter(alive).length;
+  }
   // Phase 316.6: MD3's count, read once the last app is gone, then the listener closed by its handle.
   if (md.listener !== null) {
     md.readings.md3 = { port: md.listener.port, connections: md.listener.count(), planted: md.plantedNames.length };
@@ -5475,8 +6565,14 @@ const ours = electronLines.filter((l) => {
   return (appPid > 0 && (pid === appPid || ppid === appPid)) || (shimPid > 0 && (pid === shimPid || ppid === shimPid));
 });
 arm('no Electron of this run is left', ours.length === 0, `${String(electronLines.length)} Electron line(s) on the machine, ${String(ours.length)} of this run`);
-const devices = countDevicesNamed('p316-');
-arm('no p316- Simulator is left, and none is booted', devices.readable && devices.named === 0 && devices.booted === 0, `${String(devices.named)} device(s) named p316-, ${String(devices.booted)} booted`);
+// THIS RUN'S devices only: withSimulator names each `p316-<this pid>-<n>`
+// (build/simulator-run.mjs), and a device another run made at the same time
+// is that run's to end, which simulator-run itself says and leaves alone (the
+// Phase 318 run lens failed this arm on another lens's `p316-39433-1`).
+const OWN_DEVICES = `p316-${String(process.pid)}-`;
+const devices = countDevicesNamed(OWN_DEVICES);
+const others = countDevicesNamed('p316-');
+arm('no p316- Simulator of this run is left, and none is booted', devices.readable && devices.named === 0 && devices.booted === 0, `${String(devices.named)} device(s) named ${OWN_DEVICES}…, ${String(devices.booted)} booted; ${String(others.named - devices.named)} other p316- device(s) on this Mac, another run's, left alone`);
 
 const OUT = join(ROOT, 'out', 'p316');
 mkdirSync(OUT, { recursive: true });

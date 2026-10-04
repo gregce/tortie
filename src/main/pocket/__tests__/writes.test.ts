@@ -1,6 +1,7 @@
 /**
- * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4), driven step by
- * step over a recording fake of what it is handed.
+ * THE ONE WRITE PATH (Phase 317, build/p317/SPEC.md §5.3.4; widened by Phase
+ * 318, build/p318/SPEC.md §5.1.4), driven step by step over a recording fake
+ * of what it is handed.
  *
  * What this file proves that reading `../writes.ts` cannot:
  *
@@ -21,6 +22,10 @@
  *    14), and the worst legal body measured against its cap (§14 finding 17).
  *  - ONE LOG LINE per write that acted, naming the verb, the outcome word and
  *    the session id, and nothing else.
+ *  - (Phase 318) the two reply verbs through the same path: their strict
+ *    parses, the verb in the ledger key, one in flight per phone and per
+ *    session ACROSS verbs, the `still` handed in built from the last check's
+ *    three asks, and `replySettled`'s `REPLY_FAILED`.
  *
  * Nothing here opens a socket, reads a file or touches Electron.
  */
@@ -56,14 +61,21 @@ const { POCKET_WRITE_BODY_CAPS } = await import('../door/limits');
 const { POCKET_CLOCK_SKEW_MS } = await import('../pairing');
 const { POCKET_WRITE_SENTENCES } = await import('@shared/ipc/pocket');
 const { END_FAILED } = await import('@shared/lifecycle-words');
+const { REPLY_FAILED } = await import('@shared/reply-copy');
 type PocketWriteDeps = import('../writes').PocketWriteDeps;
 type PocketEndOutcome = import('../routes').PocketEndOutcome;
+type PocketReplyOutcome = import('../routes').PocketReplyOutcome;
+type PocketChooseInput = import('../routes').PocketChooseInput;
+type PocketSayInput = import('../routes').PocketSayInput;
+type PocketStillAllowed = import('../routes').PocketStillAllowed;
 type PocketRoute = import('../door/table').PocketRoute;
 type DoorAnswer = import('../bind').DoorAnswer;
 type DoorAdmission = import('../bind').DoorAdmission;
 type PocketWriteAnswer = import('@shared/ipc/pocket').PocketWriteAnswer;
 
 const END = POCKET_ROUTES.find((r) => r.id === 'end') as PocketRoute;
+const CHOOSE = POCKET_ROUTES.find((r) => r.id === 'choose') as PocketRoute;
+const SAY = POCKET_ROUTES.find((r) => r.id === 'say') as PocketRoute;
 const BLOCKED = POCKET_ROUTES.find((r) => r.id === 'blocked') as PocketRoute;
 const OPEN: DoorAdmission = { stopping: () => false };
 
@@ -74,6 +86,19 @@ function wid(n: number): string {
 
 function endBody(session: string, write: string, batch = false): Buffer {
   return Buffer.from(JSON.stringify({ session, write, batch }), 'utf8');
+}
+
+/** A question id in `src/main/reply/question-id.ts`'s shape. */
+const QID = '0123456789abcdef-42';
+/** A mark in `hashScreen`'s shape. */
+const MARK = 'a1b2c3d4e5f6';
+
+function chooseBody(session: string, write: string, over: Record<string, unknown> = {}): Buffer {
+  return Buffer.from(JSON.stringify({ mark: MARK, marker: '1', question: QID, session, write, ...over }), 'utf8');
+}
+
+function sayBody(session: string, write: string, text: unknown = 'hello phone'): Buffer {
+  return Buffer.from(JSON.stringify({ session, text, write }), 'utf8');
 }
 
 function parsed(answer: DoorAnswer): PocketWriteAnswer {
@@ -94,24 +119,33 @@ interface Rig {
   readonly handle: ReturnType<typeof createPocketWriteHandler>;
   /** Every act the recording fake was asked for, in order. */
   readonly ends: { sessionId: string; batch: boolean }[];
-  /** What was asked, in order: `shuttingDown`, `stillPaired`, `end`. */
+  /** Every press the recording fake was asked for, with the `still` it was handed. */
+  readonly chooses: { input: PocketChooseInput; still: PocketStillAllowed }[];
+  /** Every message the recording fake was asked for, with the `still` it was handed. */
+  readonly says: { input: PocketSayInput; still: PocketStillAllowed }[];
+  /** What was asked, in order: `shuttingDown`, `stillPaired`, `end`, `choose`, `say`. */
   readonly asked: string[];
   clock: number;
   paired: boolean;
   quitting: boolean;
   /** What `end` answers next, or a function that answers it. */
   endWith: () => Promise<PocketEndOutcome>;
+  /** What `choose` and `say` answer next. */
+  replyWith: (still: PocketStillAllowed) => Promise<PocketReplyOutcome>;
 }
 
 function rig(over: { writes?: false } = {}): Rig {
   const self: Rig = {
     handle: undefined as unknown as Rig['handle'],
     ends: [],
+    chooses: [],
+    says: [],
     asked: [],
     clock: 1_000_000,
     paired: true,
     quitting: false,
-    endWith: async () => ({ outcome: 'done' })
+    endWith: async () => ({ outcome: 'done' }),
+    replyWith: async () => ({ outcome: 'done' })
   };
   const deps: PocketWriteDeps = {
     shuttingDown: () => {
@@ -131,6 +165,16 @@ function rig(over: { writes?: false } = {}): Rig {
               self.asked.push('end');
               self.ends.push(input);
               return self.endWith();
+            },
+            choose: (input: PocketChooseInput, still: PocketStillAllowed) => {
+              self.asked.push('choose');
+              self.chooses.push({ input, still });
+              return self.replyWith(still);
+            },
+            say: (input: PocketSayInput, still: PocketStillAllowed) => {
+              self.asked.push('say');
+              self.says.push({ input, still });
+              return self.replyWith(still);
             }
           }
         })
@@ -138,6 +182,13 @@ function rig(over: { writes?: false } = {}): Rig {
   (self as { handle: Rig['handle'] }).handle = createPocketWriteHandler(deps);
   return self;
 }
+
+/** The writes a test hands in directly, every member answering done. */
+const doneWrites = {
+  end: async (): Promise<PocketEndOutcome> => ({ outcome: 'done' }),
+  choose: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
+  say: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' })
+};
 
 // ---------------------------------------------------------------------------
 
@@ -152,8 +203,8 @@ describe('the body caps, computed from the worst legal body (§5.3.3, §14 findi
     expect(JSON.stringify({ batch: false, session: longest, write: wid(1) }).length).toBe(199);
   });
 
-  it('holds it under its cap, the one write route has the one cap, and the worst legal body parses', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512 });
+  it('holds it under its cap, each write route has its own cap, and the worst legal body parses', () => {
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768 });
     expect(endBody(longest, wid(1)).byteLength).toBeLessThanOrEqual(POCKET_WRITE_BODY_CAPS.end);
     // The whole alphabet at the longest length.
     const every = 'aZ09._:-'.repeat(16);
@@ -283,6 +334,7 @@ describe('step 4, the last check, then the act with nothing between', () => {
         return true;
       },
       writes: {
+        ...doneWrites,
         end: async () => {
           seenAtAct = flipped;
           return { outcome: 'done' };
@@ -511,5 +563,446 @@ describe('step 7, one log line', () => {
     r.paired = false;
     await r.handle(END, endBody('s1', wid(2)), 'phone-a', OPEN);
     expect(logged).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 318 (build/p318/SPEC.md §5.1.2, §5.1.4): the reply's two writes
+// through the same path, the same ledger and the same claims.
+// ---------------------------------------------------------------------------
+
+describe('Phase 318, step 1: the strict parse of a press and a message', () => {
+  const W = wid(31);
+  const malformedChooses: [string, string][] = [
+    ['a sixth key', JSON.stringify({ mark: MARK, marker: '1', question: QID, session: 's1', write: W, extra: 1 })],
+    ['a missing mark', JSON.stringify({ marker: '1', question: QID, session: 's1', write: W })],
+    ['a missing marker', JSON.stringify({ mark: MARK, question: QID, session: 's1', write: W })],
+    ['a question of 15 hex', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcde-1', session: 's1', write: W })],
+    ['a question of 17 hex', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcdef0-1', session: 's1', write: W })],
+    ['a question with upper-case hex', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789ABCDEF-1', session: 's1', write: W })],
+    ['a question with a leading-zero count', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcdef-01', session: 's1', write: W })],
+    ['a question with no count', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcdef-', session: 's1', write: W })],
+    ['a question with 17 digits', JSON.stringify({ mark: MARK, marker: '1', question: `0123456789abcdef-${'1'.repeat(17)}`, session: 's1', write: W })],
+    ['a question with no dash', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcdef_1', session: 's1', write: W })],
+    ['a question with a sign', JSON.stringify({ mark: MARK, marker: '1', question: '0123456789abcdef--1', session: 's1', write: W })],
+    ['a question that is a number', JSON.stringify({ mark: MARK, marker: '1', question: 42, session: 's1', write: W })],
+    ['a mark of 11 hex', JSON.stringify({ mark: MARK.slice(1), marker: '1', question: QID, session: 's1', write: W })],
+    ['a mark of 13 hex', JSON.stringify({ mark: `${MARK}0`, marker: '1', question: QID, session: 's1', write: W })],
+    ['an upper-case mark', JSON.stringify({ mark: MARK.toUpperCase(), marker: '1', question: QID, session: 's1', write: W })],
+    ['a marker of 0', JSON.stringify({ mark: MARK, marker: '0', question: QID, session: 's1', write: W })],
+    ['a marker of 10', JSON.stringify({ mark: MARK, marker: '10', question: QID, session: 's1', write: W })],
+    ['a marker of a', JSON.stringify({ mark: MARK, marker: 'a', question: QID, session: 's1', write: W })],
+    ['a marker that is a number', JSON.stringify({ mark: MARK, marker: 1, question: QID, session: 's1', write: W })],
+    ['a session with a slash', JSON.stringify({ mark: MARK, marker: '1', question: QID, session: 'a/b', write: W })],
+    ['an end body sent to choose', JSON.stringify({ batch: false, session: 's1', write: W })],
+    ['a say body sent to choose', JSON.stringify({ session: 's1', text: 'hi', write: W })]
+  ];
+  for (const [name, text] of malformedChooses) {
+    it(`refuses a choose body with ${name}: 200, refused, malformed, the write id echoed, and nothing acts`, async () => {
+      const r = rig();
+      const answer = await r.handle(CHOOSE, Buffer.from(text, 'utf8'), 'phone-a', OPEN);
+      const body = parsed(answer);
+      expect(body).toEqual({ verb: 'choose', write: W, outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES.unreadable });
+      expect(answer.acted).toBeUndefined();
+      expect(r.chooses).toEqual([]);
+      expect(r.asked).toEqual([]);
+    });
+  }
+
+  const malformedSays: [string, string][] = [
+    ['a fourth key', JSON.stringify({ session: 's1', text: 'hi', write: W, also: 's2' })],
+    ['a missing text', JSON.stringify({ session: 's1', write: W })],
+    ['a text that is a number', JSON.stringify({ session: 's1', text: 7, write: W })],
+    ['a text that is null', JSON.stringify({ session: 's1', text: null, write: W })],
+    ['a text that is an array', JSON.stringify({ session: 's1', text: ['hi'], write: W })],
+    ['a text that is an object', JSON.stringify({ session: 's1', text: { t: 'hi' }, write: W })],
+    ['an empty session', JSON.stringify({ session: '', text: 'hi', write: W })],
+    ['a choose body sent to say', JSON.stringify({ mark: MARK, marker: '1', question: QID, session: 's1', write: W })]
+  ];
+  for (const [name, text] of malformedSays) {
+    it(`refuses a say body with ${name}: 200, refused, malformed, the write id echoed, and nothing acts`, async () => {
+      const r = rig();
+      const answer = await r.handle(SAY, Buffer.from(text, 'utf8'), 'phone-a', OPEN);
+      expect(parsed(answer)).toEqual({ verb: 'say', write: W, outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES.unreadable });
+      expect(answer.acted).toBeUndefined();
+      expect(r.says).toEqual([]);
+      expect(r.asked).toEqual([]);
+    });
+  }
+
+  it('echoes "" for a press or a message whose write id is not well formed', async () => {
+    const r = rig();
+    expect(parsed(await r.handle(CHOOSE, chooseBody('s1', 'nope'), 'phone-a', OPEN)).write).toBe('');
+    expect(parsed(await r.handle(SAY, sayBody('s1', W.toUpperCase().replace(/0/g, 'A')), 'phone-a', OPEN)).write).toBe('');
+    expect(parsed(await r.handle(SAY, Buffer.from('}{'), 'phone-a', OPEN)).write).toBe('');
+  });
+
+  it('reads a question id at both ends of its shape: one digit, `0` itself, and sixteen digits', () => {
+    for (const question of ['0123456789abcdef-0', '0123456789abcdef-1', `0123456789abcdef-${String(Number.MAX_SAFE_INTEGER)}`]) {
+      expect(writesModule.parseChooseBody(chooseBody('s1', W, { question })), question).toEqual({
+        ok: true,
+        verb: 'choose',
+        write: W,
+        session: 's1',
+        question,
+        mark: MARK,
+        marker: '1'
+      });
+    }
+    for (const marker of ['1', '5', '9']) {
+      expect(writesModule.parseChooseBody(chooseBody('s1', W, { marker })).ok, marker).toBe(true);
+    }
+  });
+
+  it('takes a message text EXACTLY as sent: empty, slash, bang, control characters and a lone surrogate all reach the verb untouched', async () => {
+    // The text rules are the verb's (§5.5): the parse decides nothing about them.
+    const texts = [
+      '',
+      '/exit',
+      '!touch x',
+      '  padded  ',
+      'a\nb',
+      `${String.fromCharCode(0x1b)}[201~`,
+      String.fromCharCode(0xd800),
+      'é',
+      'é',
+      'x'.repeat(5_000)
+    ];
+    const r = rig();
+    for (const [i, text] of texts.entries()) {
+      const answer = await r.handle(SAY, sayBody(`s${String(i)}`, wid(100 + i), text), 'phone-a', OPEN);
+      expect(parsed(answer).outcome).toBe('done');
+    }
+    expect(r.says.map((s) => s.input.text)).toEqual(texts);
+    // A body written the Swift way, `/` as `\/`, is the same text.
+    const swift = Buffer.from('{"session":"s99","text":"\\/exit","write":"' + wid(999) + '"}', 'utf8');
+    await r.handle(SAY, swift, 'phone-a', OPEN);
+    expect(r.says.at(-1)?.input).toEqual({ sessionId: 's99', text: '/exit' });
+  });
+
+  it('answers a write row whose id is not in the closed write list 404, before anything is read', async () => {
+    const r = rig();
+    const forged = { ...BLOCKED, method: 'POST' as const, reads: false };
+    expect(await r.handle(forged, sayBody('s1', wid(1)), 'phone-a', OPEN)).toEqual({ status: 404, body: null });
+    expect(r.asked).toEqual([]);
+  });
+
+  it('answers a press and a message 404 on a host with no writes', async () => {
+    const r = rig({ writes: false });
+    expect(await r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', OPEN)).toEqual({ status: 404, body: null });
+    expect(await r.handle(SAY, sayBody('s1', wid(2)), 'phone-a', OPEN)).toEqual({ status: 404, body: null });
+    expect(r.asked).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('Phase 318, steps 4 to 6: the last check, `still`, the act and the outcome', () => {
+  it('hands choose the session, the question id, the mark and the marker, and say the session and the text, and nothing else', async () => {
+    const r = rig();
+    const chose = await r.handle(CHOOSE, chooseBody('sess-c', wid(1), { marker: '3' }), 'phone-a', OPEN);
+    expect(chose.acted).toBe(true);
+    expect(parsed(chose)).toEqual({ verb: 'choose', write: wid(1), outcome: 'done', reason: null, sentence: null });
+    expect(r.chooses.map((c) => c.input)).toEqual([{ sessionId: 'sess-c', question: QID, mark: MARK, marker: '3' }]);
+    const said = await r.handle(SAY, sayBody('sess-s', wid(2), 'hello phone'), 'phone-a', OPEN);
+    expect(said.acted).toBe(true);
+    expect(parsed(said)).toEqual({ verb: 'say', write: wid(2), outcome: 'done', reason: null, sentence: null });
+    expect(r.says.map((s) => s.input)).toEqual([{ sessionId: 'sess-s', text: 'hello phone' }]);
+    expect(r.ends).toEqual([]);
+  });
+
+  it('asks the quit, the door and the phone before a press, and the act is the next thing asked', async () => {
+    const r = rig();
+    const door: DoorAdmission = {
+      stopping: () => {
+        r.asked.push('stopping');
+        return false;
+      }
+    };
+    await r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', door);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'choose']);
+    r.asked.length = 0;
+    await r.handle(SAY, sayBody('s1', wid(2)), 'phone-a', door);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'say']);
+  });
+
+  it('awaits nothing between the check and a press or a message: a microtask queued by the check has not run when the verb starts', async () => {
+    for (const route of [CHOOSE, SAY]) {
+      let flipped = false;
+      let seenAtAct: boolean | null = null;
+      const handle = createPocketWriteHandler({
+        shuttingDown: () => false,
+        stillPaired: () => {
+          queueMicrotask(() => {
+            flipped = true;
+          });
+          return true;
+        },
+        writes: {
+          ...doneWrites,
+          choose: async () => {
+            seenAtAct = flipped;
+            return { outcome: 'done' };
+          },
+          say: async () => {
+            seenAtAct = flipped;
+            return { outcome: 'done' };
+          }
+        }
+      });
+      const body = route === CHOOSE ? chooseBody('s1', wid(1)) : sayBody('s1', wid(1));
+      await handle(route, body, 'phone-a', OPEN);
+      expect(seenAtAct, route.id).toBe(false);
+    }
+  });
+
+  it('hands choose and say a `still` that asks the same three things as the last check, in its order, and asks nothing until the verb calls it', async () => {
+    const r = rig();
+    let stopping = false;
+    const door: DoorAdmission = {
+      stopping: () => {
+        r.asked.push('stopping');
+        return stopping;
+      }
+    };
+    await r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', door);
+    await r.handle(SAY, sayBody('s2', wid(2)), 'phone-a', door);
+    const [chose] = r.chooses;
+    const [said] = r.says;
+    if (chose === undefined || said === undefined) throw new Error('the verbs were not called');
+    // Building it asked nothing: the asks recorded are the last checks' and the verbs'.
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'choose', 'shuttingDown', 'stopping', 'stillPaired', 'say']);
+    for (const still of [chose.still, said.still]) {
+      r.asked.length = 0;
+      expect(still()).toBe(true);
+      expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired']);
+      r.quitting = true;
+      expect(still()).toBe(false);
+      r.quitting = false;
+      stopping = true;
+      expect(still()).toBe(false);
+      stopping = false;
+      r.paired = false;
+      expect(still()).toBe(false);
+      r.paired = true;
+      expect(still()).toBe(true);
+    }
+  });
+
+  it('hands `still` the phone the signature was verified for, and never another', async () => {
+    const asked: string[] = [];
+    const paired = new Set(['phone-z']);
+    let handed: PocketStillAllowed | null = null;
+    const handle = createPocketWriteHandler({
+      shuttingDown: () => false,
+      stillPaired: (phone) => {
+        asked.push(phone);
+        return paired.has(phone);
+      },
+      writes: {
+        ...doneWrites,
+        say: async (_input, still) => {
+          handed = still;
+          return { outcome: 'done' };
+        }
+      }
+    });
+    await handle(SAY, sayBody('s1', wid(1)), 'phone-z', OPEN);
+    asked.length = 0;
+    expect((handed as PocketStillAllowed | null)?.()).toBe(true);
+    expect(asked).toEqual(['phone-z']);
+    // Removing THAT phone is what `still` sees; another phone's pairing is nothing to it.
+    paired.delete('phone-z');
+    paired.add('phone-a');
+    expect((handed as PocketStillAllowed | null)?.()).toBe(false);
+  });
+
+  it('answers a verb that found `still` false with its refusal, 200, marked acted, never a 404', async () => {
+    const r = rig();
+    const held = deferred<void>();
+    r.replyWith = async (still) => {
+      await held.promise;
+      return still() ? { outcome: 'done' } : { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
+    };
+    const inFlight = r.handle(SAY, sayBody('s1', wid(1)), 'phone-a', OPEN);
+    await Promise.resolve();
+    // Removed while the verb reads: its own final check sees it.
+    r.paired = false;
+    held.resolve();
+    const answer = await inFlight;
+    expect(answer.status).toBe(200);
+    expect(answer.acted).toBe(true);
+    expect(parsed(answer)).toEqual({ verb: 'say', write: wid(1), outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped });
+  });
+
+  it('refuses 404 with no body at the last check for a press and a message, and the verb is never asked', async () => {
+    for (const route of [CHOOSE, SAY]) {
+      const r = rig();
+      r.paired = false;
+      const body = route === CHOOSE ? chooseBody('s1', wid(1)) : sayBody('s1', wid(1));
+      expect(await r.handle(route, body, 'phone-a', OPEN), route.id).toEqual({ status: 404, body: null });
+      expect(await r.handle(route, body, 'phone-a', { stopping: () => true }), route.id).toEqual({ status: 404, body: null });
+      r.paired = true;
+      r.quitting = true;
+      expect(await r.handle(route, body, 'phone-a', OPEN), route.id).toEqual({ status: 404, body: null });
+      expect(r.chooses).toEqual([]);
+      expect(r.says).toEqual([]);
+      // Nothing was left in the ledger: the same id acts once the check passes.
+      r.quitting = false;
+      expect(parsed(await r.handle(route, body, 'phone-a', OPEN)).outcome, route.id).toBe('done');
+    }
+  });
+
+  it('carries every reply refusal word and its sentence through, marked acted', async () => {
+    const reasons = ['gone', 'changed', 'unpressable', 'unsayable', 'stopped', 'empty', 'long', 'character'] as const;
+    const r = rig();
+    for (const [i, reason] of reasons.entries()) {
+      r.replyWith = async () => ({ outcome: 'refused', reason, sentence: `the ${reason} sentence` });
+      const answer = await r.handle(i % 2 === 0 ? CHOOSE : SAY, i % 2 === 0 ? chooseBody(`s${String(i)}`, wid(i)) : sayBody(`s${String(i)}`, wid(i)), 'phone-a', OPEN);
+      expect(answer.acted).toBe(true);
+      expect(parsed(answer)).toMatchObject({ outcome: 'refused', reason, sentence: `the ${reason} sentence` });
+    }
+    r.replyWith = async () => ({ outcome: 'failed', sentence: 'Your answer was typed and the question is still there.' });
+    const failed = await r.handle(CHOOSE, chooseBody('s-f', wid(50)), 'phone-a', OPEN);
+    expect(parsed(failed)).toEqual({ verb: 'choose', write: wid(50), outcome: 'failed', reason: null, sentence: 'Your answer was typed and the question is still there.' });
+  });
+
+  it('reads a rejected press or message, and one that throws before its promise exists, as failed with REPLY_FAILED', async () => {
+    const r = rig();
+    logged.length = 0;
+    r.replyWith = () => Promise.reject(new Error('CANARY-argv tmux send-keys -t secret'));
+    for (const [i, route] of [CHOOSE, SAY].entries()) {
+      const body = route === CHOOSE ? chooseBody('s1', wid(10 + i)) : sayBody('s2', wid(10 + i), 'CANARY-words');
+      const answer = await r.handle(route, body, 'phone-a', OPEN);
+      expect(answer.acted).toBe(true);
+      expect(parsed(answer)).toEqual({ verb: route.id, write: wid(10 + i), outcome: 'failed', reason: null, sentence: REPLY_FAILED });
+    }
+    r.replyWith = () => {
+      throw new Error('CANARY-sync');
+    };
+    const thrown = await r.handle(SAY, sayBody('s3', wid(20)), 'phone-a', OPEN);
+    expect(parsed(thrown)).toMatchObject({ outcome: 'failed', sentence: REPLY_FAILED });
+    expect(JSON.stringify(logged)).not.toContain('CANARY');
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('Phase 318, steps 2 and 3: the verb in the ledger key, and one in flight across verbs', () => {
+  it('keys the ledger on the verb: the same write id under another verb is its own write', async () => {
+    const r = rig();
+    const said = await r.handle(SAY, sayBody('s1', wid(1)), 'phone-a', OPEN);
+    const chose = await r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', OPEN);
+    const ended = await r.handle(END, endBody('s1', wid(1)), 'phone-a', OPEN);
+    expect(parsed(said).verb).toBe('say');
+    expect(parsed(chose).verb).toBe('choose');
+    expect(parsed(ended).verb).toBe('end');
+    expect([r.says.length, r.chooses.length, r.ends.length]).toEqual([1, 1, 1]);
+    // And within one verb the id still answers its recorded body.
+    const again = await r.handle(SAY, sayBody('s1', wid(1), 'other words'), 'phone-a', OPEN);
+    expect(again.body).toBe(said.body);
+    expect(again.acted).toBe(true);
+    expect(r.says).toHaveLength(1);
+  });
+
+  it('answers a message re-sent with the same write id what it recorded, and types it once (the kept say, §Revision R13)', async () => {
+    const r = rig();
+    const first = await r.handle(SAY, sayBody('s1', wid(7), 'run it'), 'phone-a', OPEN);
+    const resent = await r.handle(SAY, sayBody('s1', wid(7), 'run it'), 'phone-a', OPEN);
+    expect(resent.body).toBe(first.body);
+    expect(r.says).toHaveLength(1);
+    // While the first is still acting, the re-send is busy MARKED acted.
+    const held = deferred<void>();
+    r.replyWith = async () => {
+      await held.promise;
+      return { outcome: 'done' };
+    };
+    const slow = r.handle(SAY, sayBody('s2', wid(8), 'slow'), 'phone-a', OPEN);
+    const dup = await r.handle(SAY, sayBody('s2', wid(8), 'slow'), 'phone-a', OPEN);
+    expect(dup.acted).toBe(true);
+    expect(parsed(dup)).toEqual({ verb: 'say', write: wid(8), outcome: 'busy', reason: null, sentence: POCKET_WRITE_SENTENCES.busy });
+    held.resolve();
+    expect(parsed(await slow).outcome).toBe('done');
+    expect(r.says.filter((s) => s.input.sessionId === 's2')).toHaveLength(1);
+  });
+
+  it('holds one write in flight per SESSION across verbs: an End and a message never overlap on one session', async () => {
+    const r = rig();
+    const held = deferred<PocketEndOutcome>();
+    r.endWith = () => held.promise;
+    const ending = r.handle(END, endBody('s1', wid(1)), 'phone-a', OPEN);
+    const say = await r.handle(SAY, sayBody('s1', wid(2)), 'phone-b', OPEN);
+    expect(say.acted).toBeUndefined();
+    expect(parsed(say)).toEqual({ verb: 'say', write: wid(2), outcome: 'busy', reason: null, sentence: POCKET_WRITE_SENTENCES.busy });
+    const choose = await r.handle(CHOOSE, chooseBody('s1', wid(3)), 'phone-c', OPEN);
+    expect(parsed(choose).outcome).toBe('busy');
+    // Another session from another phone is not held up.
+    expect(parsed(await r.handle(SAY, sayBody('s2', wid(4)), 'phone-b', OPEN)).outcome).toBe('done');
+    held.resolve({ outcome: 'done' });
+    await ending;
+    expect(r.says.map((s) => s.input.sessionId)).toEqual(['s2']);
+    expect(r.chooses).toEqual([]);
+    // The busy left nothing behind: the same ids act now.
+    expect(parsed(await r.handle(SAY, sayBody('s1', wid(2)), 'phone-b', OPEN)).outcome).toBe('done');
+  });
+
+  it('holds one write in flight per PHONE across verbs', async () => {
+    const r = rig();
+    const held = deferred<void>();
+    r.replyWith = async () => {
+      await held.promise;
+      return { outcome: 'done' };
+    };
+    const pressing = r.handle(CHOOSE, chooseBody('s1', wid(1)), 'phone-a', OPEN);
+    const end = await r.handle(END, endBody('s2', wid(2)), 'phone-a', OPEN);
+    expect(end.acted).toBeUndefined();
+    expect(parsed(end).outcome).toBe('busy');
+    const say = await r.handle(SAY, sayBody('s3', wid(3)), 'phone-a', OPEN);
+    expect(parsed(say).outcome).toBe('busy');
+    held.resolve();
+    expect(parsed(await pressing).outcome).toBe('done');
+    expect(r.ends).toEqual([]);
+    expect(r.says).toEqual([]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+
+describe('Phase 318, step 7: one log line, and never the words', () => {
+  it('writes one line per press or message that acted, naming the verb and the outcome, with the session id alone', async () => {
+    logged.length = 0;
+    const r = rig();
+    const canaryText = 'CANARY-TEXT /exit !rm';
+    await r.handle(SAY, sayBody('sess-say', wid(0xabc), canaryText), 'phone-a', OPEN);
+    r.replyWith = async () => ({ outcome: 'refused', reason: 'changed', sentence: 'CANARY-SENTENCE' });
+    await r.handle(CHOOSE, chooseBody('sess-choose', wid(0xdef), { marker: '7' }), 'phone-a', OPEN);
+    expect(logged).toEqual([
+      { level: 'info', msg: "the phone's say: done", fields: { session: 'sess-say' } },
+      { level: 'info', msg: "the phone's choose: refused", fields: { session: 'sess-choose' } }
+    ]);
+    const text = JSON.stringify(logged);
+    for (const never of [canaryText, 'CANARY', wid(0xabc), wid(0xdef), QID, MARK, '"7"', 'phone-a']) {
+      expect(text, never).not.toContain(never);
+    }
+  });
+
+  it('writes nothing for a press or a message that never acted', async () => {
+    const r = rig();
+    logged.length = 0;
+    await r.handle(CHOOSE, chooseBody('s1', wid(1), { marker: '0' }), 'phone-a', OPEN);
+    await r.handle(SAY, Buffer.from('{"session":"s1","text":5,"write":"' + wid(2) + '"}'), 'phone-a', OPEN);
+    r.paired = false;
+    await r.handle(SAY, sayBody('s1', wid(3)), 'phone-a', OPEN);
+    expect(logged).toEqual([]);
+  });
+});
+
+describe('Phase 318, the door’s own sentence for a verb whose last check failed', () => {
+  it('says the Mac stopped answering and that nothing was done, in the door’s words and no tmux word', () => {
+    expect(POCKET_WRITE_SENTENCES.stopped).toBe('Your Mac stopped answering this phone. Nothing was done.');
+    expect(Object.keys(POCKET_WRITE_SENTENCES).sort()).toEqual(['busy', 'stopped', 'unreadable']);
+    for (const sentence of Object.values(POCKET_WRITE_SENTENCES)) {
+      expect(sentence).not.toMatch(/\b(pane|window|prefix|tmux)\b/i);
+    }
   });
 });

@@ -77,6 +77,8 @@ describe('what the door forwards', () => {
     expect(doorRequestOf(read({ channel: null }))).toBeNull();
     expect(doorRequestOf(read({ route: 'pair' }))).toBeNull();
     expect(doorRequestOf(read({ route: 'end' }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'choose' }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'say' }))).toBeNull();
     expect(doorRequestOf(read({ method: 'POST' }))).toBeNull();
   });
 
@@ -116,10 +118,11 @@ describe('what the door forwards', () => {
   });
 });
 
-// PHASE 317 (build/p317/SPEC.md §5.3.1): the two writes. The method is POST
-// EXACTLY for a write and GET exactly for a read, a write's target is its
-// route's path byte for byte with no query, and its body is at most its OWN
-// route's cap. Nothing here parses the body.
+// PHASE 317 (build/p317/SPEC.md §5.3.1), widened by PHASE 318 (build/p318/SPEC.md
+// §5.1.1): the three writes, end, choose and say. The method is POST EXACTLY for
+// a write and GET exactly for a read, a write's target is its route's path byte
+// for byte with no query, and its body is at most its OWN route's cap. Nothing
+// here parses the body.
 describe('a write the door forwards', () => {
   function write(over: Record<string, unknown> = {}): Record<string, unknown> {
     return {
@@ -156,7 +159,7 @@ describe('a write the door forwards', () => {
   });
 
   it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512 });
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();
@@ -164,9 +167,36 @@ describe('a write the door forwards', () => {
     expect(POCKET_READ_BODY_CAP_BYTES).toBe(1024);
   });
 
-  it('refuses a route that is neither a read nor the one write', () => {
-    expect(doorRequestOf(write({ route: 'say', target: '/v1/say' }))).toBeNull();
-    expect(doorRequestOf(write({ route: 'choose', target: '/v1/choose' }))).toBeNull();
+  it('lets a POST to /v1/choose and /v1/say through, each its own route and its own path (Phase 318)', () => {
+    for (const route of ['choose', 'say'] as const) {
+      const got = doorRequestOf(write({ route, target: `/v1/${route}` }));
+      expect(got, route).toMatchObject({ route, method: 'POST', target: `/v1/${route}`, channel: 'phone-a' });
+      expect(Object.keys(got ?? {}).sort()).toEqual(['body', 'channel', 'headers', 'method', 'route', 'target']);
+      // Never as a GET, never at another write's path, never with a query.
+      expect(doorRequestOf(write({ route, target: `/v1/${route}`, method: 'GET' })), route).toBeNull();
+      expect(doorRequestOf(write({ route, target: '/v1/end' })), route).toBeNull();
+      for (const near of [`/v1/${route}?x=1`, `/v1/${route}/`, `/v1/${route.toUpperCase()}`, `/v1/${route}s`]) {
+        expect(doorRequestOf(write({ route, target: near })), near).toBeNull();
+      }
+    }
+    expect(doorRequestOf(write({ route: 'end', target: '/v1/say' }))).toBeNull();
+  });
+
+  it('holds choose to 512 bytes and say to 32,768, each exactly at its cap through and one byte over refused (Phase 318)', () => {
+    const at = (route: 'choose' | 'say', n: number) => doorRequestOf(write({ route, target: `/v1/${route}`, body: new Uint8Array(n) }));
+    expect(at('choose', 512)).not.toBeNull();
+    expect(at('choose', 513)).toBeNull();
+    expect(at('say', 32_768)).not.toBeNull();
+    expect(at('say', 32_769)).toBeNull();
+    // Each route's own cap, never another's: a say body over end's 512 still crosses.
+    expect(at('say', 24_771)).not.toBeNull();
+    expect(doorRequestOf(write({ body: new Uint8Array(24_771) }))).toBeNull();
+  });
+
+  it('refuses a route that is neither a read nor one of the three writes', () => {
+    for (const route of ['unpair', 'reply', 'type', 'interrupt']) {
+      expect(doorRequestOf(write({ route, target: `/v1/${route}` })), route).toBeNull();
+    }
   });
 
   it('copies the body rather than handing on the caller’s bytes', () => {

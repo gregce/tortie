@@ -129,6 +129,11 @@ import { PocketHost, registerPocketIpc } from './pocket/ipc';
 // PHASE 317: the phone's End, implemented once outside the door's domain and
 // handed to it, beside the facts the rows carry its offer from.
 import { createPocketWrites } from './sessions/pocket-writes';
+// PHASE 318: the reply's verbs (a press and a message) and the one process-wide
+// question id, built once here and handed to the door's writes and facts; the
+// door's domain imports neither.
+import { replyTurns } from './reply/question-id';
+import { createReplyVerbs } from './reply/writer';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
 import { WakeMark } from './power/wake-mark';
@@ -368,11 +373,23 @@ export function installMainCapabilities(
     await firstWindow();
     pocketCore = await getGmuxCore();
   };
+  // PHASE 318: the reply's verbs, built ONCE over the same core and the one
+  // process-wide question id. Their `choose` and `say` go to the door's writes
+  // below (the one `PocketWrites`), and their `offer` to the facts as
+  // `replyOffer`, which `/v1/session` alone asks. Each handed as an arrow, so
+  // neither side is handed more of the verbs than its member.
+  const reply = createReplyVerbs({ core: () => pocketCore, turns: replyTurns });
   // PHASE 317: the phone's End. ONE implementation, over the same core the
   // facts read, asking both gates the Mac's End asks; it reaches the verb only
   // through the `PocketWrites` the door is handed, and the rows carry its offer
   // through the facts. Its machine question is the store's own `machineRow`.
-  const pocketWrites = createPocketWrites({ core: () => pocketCore });
+  const pocketWrites = createPocketWrites({
+    core: () => pocketCore,
+    reply: {
+      choose: (input, still) => reply.choose(input, still),
+      say: (input, still) => reply.say(input, still)
+    }
+  });
   const facts = createPocketFacts({
     core: () => pocketCore,
     overview: {
@@ -381,7 +398,8 @@ export function installMainCapabilities(
       foldChosen: () => foldChosenNow()
     },
     wakes: () => wakes.wakes(),
-    endOffer: (session) => pocketWrites.endOffer(session)
+    endOffer: (session) => pocketWrites.endOffer(session),
+    replyOffer: (session, drawn) => reply.offer(session, drawn)
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

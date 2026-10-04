@@ -618,6 +618,37 @@ const LEDGER = [
     draws: 'It forgets this Mac and its keys. Your Mac lists this iPhone until you press Remove in Settings then Phone.',
     why: "what Unpair does and does not do: the Mac's half is not built (Phase 317's fix round took its signed unpair out); its three Mac nouns are pinned by the `/// Names:` lines above it in Copy.swift"
   }),
+  // PHASE 318 LANDED THE FOUR IT OWED (build/p318/SPEC.md §5.7.5, §6.3). They
+  // were owed by Phase 318 since Phase 316.2 re-pointed them, and the gate's own
+  // instruction, "move the rule to the owned table and name the module", is
+  // what this is: the message strip is the phone's own, drawn ONLY on a session
+  // idle at its own prompt (Composer.html, at rest), so each word is a
+  // `/// Phone:` line in Copy.swift. Three are drawn and judged here. The
+  // fourth, `Sending…`, is the strip's line while its write runs, which no
+  // screen draws at rest (the redrawn Composer shows the strip before Send, and
+  // the old one's sending bubble is not what the phone draws); it is judged with
+  // `Sent` and the not-taken sentence by REPLY_PHONE_WORDS against Copy.swift.
+  owned({
+    is: 'Send',
+    module: PHONE_COPY,
+    needle: 'static let send = "Send"',
+    draws: 'Send',
+    why: "the message strip's press, its arrow's accessibility label: Send is a press, deliberately, and Return in the field is a new line"
+  }),
+  owned({
+    is: 'Message this session',
+    module: PHONE_COPY,
+    needle: 'static let messagePlaceholder = "Message this session"',
+    draws: 'Message this session',
+    why: "the message field's placeholder and its accessibility label"
+  }),
+  owned({
+    is: 'Goes to this session as one message.',
+    module: PHONE_COPY,
+    needle: 'static let oneMessage = "Goes to this session as one message."',
+    draws: 'Goes to this session as one message.',
+    why: 'the line under the strip at rest: the words go in as ONE paste and one Return, never as keystrokes'
+  }),
   // PHASE 317: Select is the phone's own word now (SPEC §5.8.4, §5.8.7). No Mac
   // surface says it, so Copy.swift declares it with its reason.
   owned({
@@ -807,6 +838,19 @@ const LEDGER = [
   // no module owns them. A phase that wants `Run …?` on a real row writes a verb
   // map, owns these strings here, and amends the mock or the leaf so the two
   // agree; until then the gate declares the gap instead of hiding it.
+  // PHASE 318: Answer.html draws a PRESSABLE Claude Code question, and its
+  // question is what the leaf really composes, not the design's wording: the
+  // tool's name and its command, `Bash npm test`, with no question mark. It is
+  // pressable only because hook-says.ts found that question to be `Bash `
+  // followed by the hook's own command byte for byte (build/p318/SPEC.md D12).
+  data({
+    is: 'Bash npm test',
+    why: "the question Phase 311's leaf composes from Claude Code's Bash PermissionRequest: the tool's own name and the command the agent asks to run, which is the agent's"
+  }),
+  data({
+    is: 'auto mode handles these prompts for you',
+    why: "the tail of Claude Code 2.1.287's own third option, after its own ` · ` (build/fixtures/reply/claude-bash-2.1.287.txt); the phone draws an option verbatim, so the agent's separator splits it here"
+  }),
   data({
     is: 'Edit src/auth/session.ts?',
     why: "the mock's illustration of a question. The leaf composes `Edit src/auth/session.ts` — the tool's own name and its file path, with no question mark"
@@ -827,10 +871,9 @@ const LEDGER = [
     is: "I can set httpOnly and sameSite: 'lax' on the session cookie. That touches the login handler and the two tests that read the raw header — shall I edit them too?",
     why: "the agent's own answer, from the store, redacted and clipped there"
   }),
-  data({
-    is: 'yes, edit the tests too — keep the assertions but read the parsed cookie',
-    why: "the person's own message, typed into the composer"
-  }),
+  // PHASE 318 took out the person's sent message: Composer.html was redrawn as
+  // the strip at rest (build/p318/SPEC.md §3 row 18), and the phone draws no
+  // bubble for a message it sent; the box clears and its line reads Sent.
   data({
     is: 'and run the suite when you are done',
     why: "the person's own message, mid-typing"
@@ -840,31 +883,10 @@ const LEDGER = [
   // Copy no module owns yet. Each names the phase that owes it. THESE ARE
   // PRINTED AND COUNTED, and one whose words the tree has since grown fails.
   // -------------------------------------------------------------------------
-  // RE-POINTED IN PHASE 316.2 (build/p316/SPEC.md §2 row 31, §7). The message
-  // box stays the approved design for the reply door, so its four rows are owed
-  // there; the ssh hand-off is removed from the product and owed to nobody; and
-  // "Open in Claude" waits for the phase that first measures where the Remote
-  // Control URL is recorded.
-  owed({
-    is: 'Send',
-    phase: 'Phase 318',
-    why: "the composer's press. The reply door is Phase 318 and nothing ships this word yet"
-  }),
-  owed({
-    is: 'Message this session',
-    phase: 'Phase 318',
-    why: "the composer's placeholder and its label"
-  }),
-  owed({
-    is: 'Goes to this session as one message.',
-    phase: 'Phase 318',
-    why: 'the sentence under the composer that says the reply is one message rather than keystrokes'
-  }),
-  owed({
-    is: 'Sending…',
-    phase: 'Phase 318',
-    why: "the composer's in-flight word"
-  }),
+  // RE-POINTED IN PHASE 316.2 (build/p316/SPEC.md §2 row 31, §7): the ssh
+  // hand-off is removed from the product and owed to nobody, and "Open in
+  // Claude" waits for the phase that first measures where the Remote Control URL
+  // is recorded.
   owed({
     is: 'Open in Terminal',
     phase: 'no phase: removed by Phase 316 (build/p316/SPEC.md §7)',
@@ -902,7 +924,11 @@ const OWED_ABSENCE_FLOOR = 16;
  * skipped line and press, and Select), and the six owed 317 rows and the
  * `Actions for` data rule left with the refusals card and the actions button.
  */
-const OWNED_RULE_FLOOR = 57;
+/* PHASE 318 RAISED IT BY THREE, FROM 57 TO 60, the count the run matches: the
+   three message strip words Composer.html draws at rest, owned by Copy.swift
+   now rather than owed (Send, Message this session, Goes to this session as
+   one message.). */
+const OWNED_RULE_FLOOR = 60;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1251,6 +1277,89 @@ function judgeCopySwift(swift, readModule) {
   return { findings, mac, phone, named, words: entries.length };
 }
 
+// ---------------------------------------------------------------------------
+// Phase 318's words (build/p318/SPEC.md §5.7.5, D20, §6.3)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE MESSAGE STRIP'S WORDS, judged against Copy.swift whether or not a screen
+ * draws them. Each must be one `static let` of exactly this name and literal,
+ * declared `/// Phone:` with a reason: no Mac surface says them, because the
+ * strip is the phone's alone. `sending`, `replySent` and `replyNotTaken` are
+ * drawn only after a press (the strip's line while its write runs, after a
+ * message landed, and after a write the Mac did not take), so no screen at rest
+ * holds them and this is where a drift in them is caught.
+ */
+export const REPLY_PHONE_WORDS = Object.freeze([
+  ['send', 'Send'],
+  ['messagePlaceholder', 'Message this session'],
+  ['oneMessage', 'Goes to this session as one message.'],
+  ['sending', 'Sending…'],
+  ['replySent', 'Sent'],
+  ['replyNotTaken', 'Your Mac did not take it. Nothing was sent.']
+]);
+/** The Mac's sentence for a choice the phone may not press, spelled once more for main (D20). */
+const REPLY_COPY = 'src/shared/reply-copy.ts';
+const CHOICE_MODULE = 'src/renderer/choice.ts';
+
+/** The value of `export const NAME = '…'` in a module's text, or null. */
+function exportedWord(text, name) {
+  if (typeof text !== 'string') return null;
+  const m = new RegExp(`\\bexport\\s+const\\s+${name}\\s*(?::\\s*string\\s*)?=\\s*'((?:[^'\\\\]|\\\\.)*)'`).exec(text);
+  return m === null ? null : m[1].replace(/\\(.)/g, '$1');
+}
+
+/**
+ * Judge Phase 318's words. Pure over Copy.swift's text and a module reader, so
+ * the self-test hands it a mutation. Two halves: every strip word is a phone
+ * word in Copy.swift, exactly; and REPLY_ANSWER_IN_SESSION in
+ * src/shared/reply-copy.ts is CHOICE_NOT_PRESSABLE in src/renderer/choice.ts,
+ * byte for byte, because main cannot import the renderer and the phone draws
+ * main's spelling under every option it may not press.
+ */
+function judgeReplyWords(swift, readModule) {
+  const findings = [];
+  const { entries } = copySwiftEntries(swift);
+  for (const [name, literal] of REPLY_PHONE_WORDS) {
+    const e = entries.find((x) => x.name === name);
+    if (e === undefined) {
+      findings.push({ file: PHONE_COPY, text: `static let ${name} = "${literal}"`, why: `the message strip's word ${name} is not declared, so the phone draws it from somewhere this gate cannot read (build/p318/SPEC.md §5.7.5)` });
+    } else if (e.literal !== literal) {
+      findings.push({ file: PHONE_COPY, text: e.literal, why: `${name} is ${JSON.stringify(e.literal)}; it is ${JSON.stringify(literal)}, the word build/p318/SPEC.md §5.7.5 pins` });
+    } else if (e.owner?.kind !== 'phone') {
+      findings.push({ file: PHONE_COPY, text: name, why: `${name} is not declared /// Phone: with a reason; no Mac surface says it, so its reason is the ledger entry` });
+    }
+  }
+  const mine = exportedWord(readModule(REPLY_COPY), 'REPLY_ANSWER_IN_SESSION');
+  const macs = exportedWord(readModule(CHOICE_MODULE), 'CHOICE_NOT_PRESSABLE');
+  if (mine === null) findings.push({ file: REPLY_COPY, text: 'REPLY_ANSWER_IN_SESSION', why: 'main declares no REPLY_ANSWER_IN_SESSION, the sentence the door sends for a choice the phone may not press (D20)' });
+  if (macs === null) findings.push({ file: CHOICE_MODULE, text: 'CHOICE_NOT_PRESSABLE', why: "the Mac's own sentence for an unpressable choice cannot be read, so main's copy of it is held against nothing" });
+  if (mine !== null && macs !== null && mine !== macs) findings.push({ file: REPLY_COPY, text: mine, why: `REPLY_ANSWER_IN_SESSION drifted from the Mac's CHOICE_NOT_PRESSABLE, ${JSON.stringify(macs)}; it is the same sentence spelled once more for main` });
+  return findings;
+}
+
+/** The mutations that prove Phase 318's words are judged. */
+const REPLY_MUTATIONS = [
+  {
+    what: 'REPLY_ANSWER_IN_SESSION changed by one letter',
+    swift: (t) => t,
+    module: [REPLY_COPY, (t) => t.replace("REPLY_ANSWER_IN_SESSION = 'Answer this in the session.'", "REPLY_ANSWER_IN_SESSION = 'Answer this in the sessions.'")],
+    names: 'REPLY_ANSWER_IN_SESSION'
+  },
+  {
+    what: "the strip's Sent re-worded on the phone",
+    swift: (t) => t.replace('static let replySent = "Sent"', 'static let replySent = "Delivered"'),
+    module: null,
+    names: 'replySent'
+  },
+  {
+    what: "the not-taken sentence drops a word",
+    swift: (t) => t.replace('static let replyNotTaken = "Your Mac did not take it. Nothing was sent."', 'static let replyNotTaken = "Your Mac did not take it."'),
+    module: null,
+    names: 'replyNotTaken'
+  }
+];
+
 /** The mutations that prove the Copy.swift judgement can fail. */
 const PHONE_MUTATIONS = [
   {
@@ -1425,6 +1534,17 @@ const MUTATIONS = [
       return next;
     },
     names: 'This stops what is running in it. The scrollback and the conversation are kept first, so you can restore this session later.'
+  },
+  {
+    // Phase 318: the message strip's press renamed in the mock must go red
+    // against Copy.swift's `send` (build/p318/SPEC.md §6.3).
+    what: "the strip's Send renamed in the mock",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Composer.html', (next.get('Composer.html') ?? '').replace('aria-label="Send"', 'aria-label="Submit"'));
+      return next;
+    },
+    names: 'Submit'
   },
   {
     // Phase 316.6: a tab label re-cased, in the drawn text and not the
@@ -1678,6 +1798,10 @@ function main() {
   };
   const phone = judgeCopySwift(phoneSwift, readModule);
   findings.push(...phone.findings);
+  // Phase 318's words: the strip's six phone words, and main's copy of the
+  // Mac's unpressable sentence.
+  const replyFindings = judgeReplyWords(phoneSwift, readModule);
+  findings.push(...replyFindings);
 
   // Mechanism 6. It rides this script rather than a second one because the
   // entry says so: "the phase adds a rule to the copy gate below".
@@ -1772,6 +1896,28 @@ function main() {
       } else if (!named) {
         failed = true;
         console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} went red without naming ${mutation.names}, so the word it was written for is not the one judged`);
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of REPLY_MUTATIONS) {
+      const mutatedSwift = mutation.swift(phoneSwift);
+      const reader = mutation.module === null
+        ? readModule
+        : (path) => (path === mutation.module[0] ? mutation.module[1](readModule(path) ?? '') : readModule(path));
+      const moved = mutatedSwift !== phoneSwift || (mutation.module !== null && reader(mutation.module[0]) !== (readModule(mutation.module[0]) ?? ''));
+      if (!moved) {
+        // The anchor is absent: the word it breaks is not there to break,
+        // which the base run has already failed on by name.
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing, so it proves nothing (the word it breaks is not in the tree yet)`);
+        continue;
+      }
+      const mutated = judgeReplyWords(mutatedSwift, reader);
+      const red = mutated.length > replyFindings.length && mutated.some((f) => `${f.text} ${f.why}`.includes(mutation.names));
+      if (!red) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${mutation.names}, so Phase 318's words are not judged`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

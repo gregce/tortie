@@ -72,7 +72,12 @@ process.stdout.write(
     'parser counter where it was. The one write (Phase 317) went through the shipping write path over a ' +
     'recording fake: an honest End acted once, every refused write acted never, an answer after the act was ' +
     'never replaced by a 404, a late write was cut rather than refused, the unpair its fix round took out was ' +
-    'no route, and a removed phone’s read was cut with no byte. One loopback listener in-process at a time and one scratch ' +
+    'no route, and a removed phone’s read was cut with no byte. The reply’s two writes (Phase 318) took the same ' +
+    'path: an honest press and message each reached the fake once with their exact fields and words, a replay ' +
+    'and a re-signed write id typed nothing again, the same id under another verb was its own write, a message ' +
+    'on a session End was ending was busy, every malformed body was refused whole with its id echoed, a message ' +
+    'over 32,768 bytes was dropped at the door, a phone removed or a door stopping while the verb read was ' +
+    'answered refused stopped and never 404, and a late press was cut. One loopback listener in-process at a time and one scratch ' +
     'directory, both gone. ' +
     'No Swift, no Apple, no phone, no Electron, no Tailscale, no real interface.\n'
 );

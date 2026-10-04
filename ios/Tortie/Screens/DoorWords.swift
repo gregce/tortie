@@ -35,6 +35,11 @@
 // extension's nil is the default for a reader that writes nothing (316.6's
 // fakes). A write's result becomes a sentence here too (`endSentence`), and
 // every one is Copy.swift's or the Mac's own.
+//
+// THE REPLY WRITES (Phase 318, build/p318/SPEC.md section 5.7.2). The same
+// writer presses an option (`choose`) and sends one message (`say`), each
+// sent at most once and never retried, and NEITHER asks Face ID (his ruling,
+// "Only for End"). Their results become sentences in `replySentence`.
 
 import Foundation
 
@@ -63,12 +68,21 @@ extension DoorReading {
     var writer: (any DoorWriting)? { nil }
 }
 
-/// The one signed write (Phase 317), sent at most once and never retried,
-/// and only after the owner check (his ruling: "Only for End").
+/// The signed writes, each sent at most once and never retried: End (Phase
+/// 317), only after the owner check (his ruling: "Only for End"), and the two
+/// replies (Phase 318), which ask none.
 protocol DoorWriting: Sendable {
     /// `POST /v1/end` for one session. `batch` asks for End these' one
     /// narrowing. The ONE caller in the app is `EndRunner.run`.
     func end(_ sessionId: String, batch: Bool) async -> WriteResult
+    /// `POST /v1/choose`: one option of the question the session answer
+    /// offered, echoing its question id and mark. The ONE caller in the app is
+    /// `ReplyRunner.run`.
+    func choose(_ sessionId: String, question: String, mark: String, marker: String) async -> WriteResult
+    /// `POST /v1/say`: one message. `write` is nil, or the id a message with
+    /// the same words carried when its answer did not come (Revision R13).
+    /// The ONE caller in the app is `ReplyRunner.run`.
+    func say(_ sessionId: String, text: String, write: String?) async -> SentWrite
 }
 
 /// How a pairing ended, for the screen.
@@ -251,6 +265,30 @@ enum DoorWords {
             return Copy.endNoAnswer
         case .notSent(let failure):
             return failure == .cancelled ? Copy.endNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// A reply's line for a write's result (Phase 318, build/p318/SPEC.md
+    /// section 5.7.2): ALWAYS a sentence, never empty (conformance:ios rule
+    /// v). A `done` press draws nothing (the session reads again and no
+    /// longer waits) and a `done` message draws `Sent`, its word here. An
+    /// answered refusal, failure or busy is the Mac's own sentence. A 404 and
+    /// a write withheld because the app left are both "nothing was sent",
+    /// which is true of each; no answer is End's own line, whose words are
+    /// true of any write; anything else not sent says why.
+    static func replySentence(for result: WriteResult) -> String {
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.replySent }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.replyNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.replyNotTaken : sentence(for: failure)
         }
     }
 

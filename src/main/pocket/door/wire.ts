@@ -103,8 +103,11 @@ export type ToDoor =
 /** The signed reads, and nothing a phone could name that is not one. */
 export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns'>;
 
-/** The one write (Phase 317). A `POST`, signed, its target its path exactly. */
-export type DoorWriteRoute = Extract<PocketRouteId, 'end'>;
+/**
+ * The writes (Phase 317's `end`; Phase 318's `choose` and `say`). Each a
+ * `POST`, signed, its target its path exactly, its body at most its own cap.
+ */
+export type DoorWriteRoute = Extract<PocketRouteId, 'end' | 'choose' | 'say'>;
 
 /** One request the door admitted, as main is handed it. */
 export type DoorRequest =
@@ -271,7 +274,7 @@ export function presentationOf(value: unknown): DoorPresentation | null {
 }
 
 const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns'];
-const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end'];
+const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say'];
 
 /** A write route's exact path, read from the one table. */
 function writePathOf(route: DoorWriteRoute): string | null {

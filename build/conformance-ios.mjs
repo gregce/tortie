@@ -352,6 +352,38 @@
  *        composers), so the table names none of theirs, and an arm plants one.
  *   (s)  the build is 5 (`PHONE_BUILD`), and its "not uploaded" fixtures 6.
  *
+ *   PHASE 318, a reply from the phone, with no Face ID (build/p318/SPEC.md
+ *   §6.3; his rulings "Only for End", "Yes, allow them" and "Only when idle at
+ *   its prompt"). Three rules are new and four widen:
+ *
+ *   (ae) THE REPLY WRITES. The writer's `choose(` and `say(` each called once,
+ *        in `ReplyRunner.run`, never in a loop; nothing on a message's path
+ *        trims, normalizes or replaces its words; `MessageField` turns smart
+ *        quotes, smart dashes and smart insert off; Send's `.disabled(` reads
+ *        the empty box and the running phase; the command and every option are
+ *        drawn with `lines: nil` (§Revision R19 d).
+ *   (af) NO OWNER CHECK ON A REPLY. Reply.swift, MessageStrip.swift and the
+ *        choice press name no owner check, LAContext or evaluatePolicy, and both
+ *        new files are in OWNER_CHECK_ABSENT.
+ *   (ag) A REPLY IS SENT ONCE OR NOT AT ALL. Every `ReplyRunner(` registered
+ *        before its task starts; `AppModel.wentAway()` stops every reply
+ *        runner; nothing persists a message or a write; a press or a send while
+ *        one runs does nothing; and the ONE kept id (§Revision R13): nil or a
+ *        kept say's `write`, kept only from a say's own no-answer or busy,
+ *        compared as UTF-8 bytes, bounded by one 60 s constant; `end` and
+ *        `choose` pass no id.
+ *   (ab) also: `signedPost` called by `end`, `choose` and `say` alone, once
+ *        each; its bodies `EndBody`, `ChooseBody` (`mark,marker,question,
+ *        session,write`) and `SayBody` (`session,text,write`), each built in
+ *        `signedPost` alone with sorted keys.
+ *   (t)  also: hostile-door.mjs names the eight reply arms of SPEC §7.7 RH, each
+ *        `reply: true` with its verb and one POST counted, ending in the press
+ *        line, the message line or Pairing, in Copy words or the Mac's own.
+ *   (v)  also: `DoorWords.replySentence(for:)` is a non-optional `String` for
+ *        every `WriteResult` case, and `ReplyModel`'s two lines are nil or a
+ *        sentence, never empty.
+ *   (s)  the build is 6 (`PHONE_BUILD`), and its "not uploaded" fixtures 7.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -2552,9 +2584,9 @@ function bodyAfter(bare, at) {
  * Rule (t), pure over the door client's source, the pairing flow's, the keys',
  * every app file, hostile-door.mjs's text (or null) and Copy.swift's.
  */
-export function ruleClientTransport({ client, pairing, keys, files = [], hostile, copy, writeSentences = null }) {
+export function ruleClientTransport({ client, pairing, keys, files = [], hostile, copy, writeSentences = null, macNames = null }) {
   const findings = [];
-  const said = { exchanges: 0, identityCalls: 0, arms: [], writeArms: [], connects: 0 };
+  const said = { exchanges: 0, identityCalls: 0, arms: [], writeArms: [], replyArms: [], connects: 0 };
   if (client === null) return { findings: ['Door/DoorClient.swift does not exist, so the phone has no client this rule can read'], said };
   const c = lexSwift(client);
   const at = (i) => `Door/DoorClient.swift:${String(lineOf(c.bare, i))}`;
@@ -2705,6 +2737,13 @@ export function ruleClientTransport({ client, pairing, keys, files = [], hostile
       if (ends === 'sentence' && expected.length + door.length === 0) findings.push(`hostile-door.mjs's ${arm} ends in a sentence and names none it may be`);
       for (const w of [...expected, ...never]) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} names Copy.${w}, which Copy.swift does not hold`);
       for (const k of door) if (!doorKeys.has(k)) findings.push(`hostile-door.mjs's ${arm} expects the door's ${k} sentence, which POCKET_WRITE_SENTENCES does not hold`);
+    }
+    // Phase 318: RH's reply arms, each ending in the press line, the message
+    // line or Pairing, in a Copy word or the Mac's own, one POST counted.
+    if (macNames !== null) {
+      const r = ruleHostileReplyArms(hostile, copy, macNames);
+      findings.push(...r.findings);
+      said.replyArms = r.said.arms;
     }
   }
   return { findings, said };
@@ -2875,7 +2914,7 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * as a duplicate. The round that uploads the next build moves this with the
  * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
  */
-export const PHONE_BUILD = '5';
+export const PHONE_BUILD = '6';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -4567,7 +4606,7 @@ export const END_BATCH_FILE = 'Screens/EndBatch.swift';
 /** Info.plist's Face ID purpose string, pinned (SPEC §5.8.2, research 136 §13). */
 export const FACE_ID_USAGE = 'Tortie asks for Face ID before it ends a session on your Mac.';
 /** Where nothing may name the owner check: reading, pairing, Settings, the door (his ruling: "Only for End"). */
-export const OWNER_CHECK_ABSENT = Object.freeze(['Screens/SettingsScreen.swift', 'Screens/PairingScreen.swift', 'Screens/ConversationScreen.swift', 'Screens/DoorWords.swift']);
+export const OWNER_CHECK_ABSENT = Object.freeze(['Screens/SettingsScreen.swift', 'Screens/PairingScreen.swift', 'Screens/ConversationScreen.swift', 'Screens/DoorWords.swift', 'Screens/Reply.swift', 'Screens/MessageStrip.swift']);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
 
@@ -4644,17 +4683,18 @@ export function ruleWrite(files) {
       if (file.name !== 'Door/DoorClient.swift' || (p.fn !== 'present' && p.fn !== 'signedPost')) findings.push(`${atLine(file, s.start)} writes "POST" in ${p.fn ?? 'no function'}; a POST is sent only by present (POST /pair) and signedPost (the write)`);
     }
   }
-  // (ab2) signedPost( called by end( alone, once.
+  // (ab2) signedPost( called by end(, choose( and say( alone, once each
+  // (Phase 318 added the two reply writes).
   const signedPost = fnOf('signedPost');
   if (signedPost === null) findings.push('Door/DoorClient.swift declares no signedPost(route:door:limits:) with a body, so the write has no one path');
-  const callers = { end: 0 };
+  const callers = { end: 0, choose: 0, say: 0 };
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bsignedPost\s*\(/g)) {
       if (isDecl(file.bare, m.index)) continue;
       said.signedPosts += 1;
       const p = placeOf(file, m.index);
-      if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && p.fn === 'end') callers[p.fn] += 1;
-      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end calls it`);
+      if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && Object.hasOwn(callers, p.fn)) callers[p.fn] += 1;
+      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose and say call it`);
     }
   }
   for (const [name, n] of Object.entries(callers)) if (n !== 1) findings.push(`DoorClient.${name} calls signedPost ${String(n)} time(s); each write is one call of the one path`);
@@ -4687,7 +4727,7 @@ export function ruleWrite(files) {
   }
   // (ab4) The body, encoded in signedPost alone, with exactly its keys, sorted.
   for (const file of all) {
-    for (const m of file.bare.matchAll(/\b(EndBody)\s*\(/g)) {
+    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody)\s*\(/g)) {
       if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
       const p = placeOf(file, m.index);
       if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} builds a ${m[1]} in ${p.fn ?? 'no function'}; a write's body is made in signedPost alone`);
@@ -4696,10 +4736,10 @@ export function ruleWrite(files) {
   if (signedPost !== null) {
     const body = bodyText(client, signedPost);
     if (!/\.\s*sortedKeys\b/.test(body)) findings.push('signedPost does not encode the body with .sortedKeys, so its bytes would not be the ones the Mac and the vectors expect');
-    if (!/\bEndBody\s*\(/.test(body)) findings.push('signedPost does not build an EndBody, so the write is encoded somewhere else');
+    for (const name of ['EndBody', 'ChooseBody', 'SayBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
     if (/\b(?:while|repeat)\b/.test(body)) findings.push('signedPost holds a while or repeat; a write is sent once and never retried');
   }
-  for (const [name, want] of [['EndBody', 'batch,session,write']]) {
+  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write']]) {
     const t = client.types.find((x) => x.name === name && x.kind === 'struct');
     if (t === undefined) {
       findings.push(`Door/DoorClient.swift declares no struct ${name}`);
@@ -4708,7 +4748,7 @@ export function ruleWrite(files) {
     const fields = storedFields(client.bare, t).sort().join(',');
     if (fields !== want) findings.push(`Door/DoorClient.swift's ${name} holds ${fields || 'nothing'}; the Mac reads exactly ${want} and refuses any other key`);
   }
-  for (const name of ['end']) {
+  for (const name of ['end', 'choose', 'say']) {
     const fn = fnOf(name, 'DoorClient');
     if (fn !== null && /\b(?:while|repeat|for)\b/.test(bodyText(client, fn))) findings.push(`DoorClient.${name} loops; a write is one call and never retried`);
   }
@@ -5091,6 +5131,405 @@ export function ruleEndSentence(words, files) {
         if (strings.some((x) => x.value === '') || (rhs !== 'nil' && !/\b(?:Copy|DoorWords)\s*\./.test(rhs))) findings.push(`${at} assigns ${t.name}.line = ${rhs.slice(0, 50)}; its line is nil or a Copy or DoorWords sentence, never empty`);
       }
     }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 318: the reply, from the phone (build/p318/SPEC.md §6.3 (ae), (af),
+// (ag), and (ab), (t), (v), (s) widened)
+// ---------------------------------------------------------------------------
+//
+// The press and the message are the second and third things the phone does
+// that change anything on the Mac, and the first that TYPE into a session.
+// Three rules hold their shape as text, the way (ab) to (ad) hold End's; what
+// the Swift DOES is test:ios's (ReplyTests, ReplyClientTests,
+// P318ReplyTransportTests) and probe:p316's `reply` arms.
+//
+// (ae) THE REPLY WRITES. The writer's `choose(` and `say(` each called ONCE in
+//      the app, in `ReplyRunner.run`, with no while, repeat or retry around
+//      either; nothing in Reply.swift, MessageStrip.swift or the write path
+//      trims, normalizes or replaces the message text; `MessageField` turns
+//      the three smart types off; Send's `.disabled(` reads the empty text and
+//      the running phase; and the `Words(` that draws `reply.command`, and
+//      `OptionRow`'s option text, pass `lines: nil` (§Revision R19 d).
+// (af) NO OWNER CHECK ON A REPLY. Reply.swift, MessageStrip.swift and the
+//      choice press in SessionScreen.swift name no `OwnerCheck`, `LAContext`,
+//      `evaluatePolicy` or `confirm(reason:` (his ruling, "Only for End"); the
+//      two new files are in OWNER_CHECK_ABSENT.
+// (ag) A REPLY IS SENT ONCE OR NOT AT ALL. Every `ReplyRunner(` made at the
+//      press and registered before its task starts; `AppModel.wentAway()`
+//      stops every registered reply runner; nothing persists a message or a
+//      write; a press or a send while one runs does nothing; and THE ONE KEPT
+//      ID (§Revision R13): the id handed to the writer's say is nil or a kept
+//      say's `write`, `KeptSay` is assigned only from a say's own result (no
+//      answer, or busy on a kept id), compared as UTF-8 bytes and never with
+//      `String ==`, bounded by a 60 s constant declared once; `choose(` and
+//      `end(` never pass an id; `WriteId.fresh()` stays the one source of a new
+//      one (ab).
+
+/** The reply's files (build/p318/SPEC.md §5.7.3, §5.7.4). */
+export const REPLY_FILE = 'Screens/Reply.swift';
+export const MESSAGE_STRIP_FILE = 'Screens/MessageStrip.swift';
+export const SESSION_SCREEN_FILE = 'Screens/SessionScreen.swift';
+/** Calls that rewrite a string, which nothing on a message's path may name. */
+const REWRITES = /\btrimmingCharacters\s*\(|\b(?:precomposed|decomposed)String(?:With(?:Canonical|Compatibility)Mapping)?\b|\breplacingOccurrences\s*\(|\b(?:text|words|message)\s*\.\s*filter\s*\(|\bapplyingTransform\s*\(|\bfolding\s*\(\s*options\s*:/g;
+
+/**
+ * The writer's reply calls in every app file: a member call `.choose(` with a
+ * `question:` argument and no `door:`, and `.say(` with a `text:` argument and
+ * no `door:` (the client's own take the door).
+ */
+function writerReplyCalls(lexedFiles, verb) {
+  const out = [];
+  for (const file of lexedFiles) {
+    for (const m of file.bare.matchAll(new RegExp(`\\.\\s*${verb}\\s*\\(`, 'g'))) {
+      const lead = file.bare.slice(Math.max(0, m.index - 40), m.index);
+      if (!/[\w)\]?!]\s*$/.test(lead)) continue;
+      // `WriteRoute.choose(…)` builds an enum case on a type; the writer is a value.
+      if (/\b[A-Z]\w*\s*$/.test(lead)) continue;
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
+      const want = verb === 'choose' ? /\bquestion\s*:/ : /\btext\s*:/;
+      if (!want.test(args) || /\bdoor\s*:/.test(args)) continue;
+      out.push({ file, at: m.index, args });
+    }
+  }
+  return out;
+}
+
+/** Rule (ae), pure over the app's Swift files. */
+export function ruleReplyWrites(files) {
+  const findings = [];
+  const said = { chooses: 0, says: 0, smart: 0, commandLines: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const reply = all.find((f) => f.name === REPLY_FILE) ?? null;
+  const strip = all.find((f) => f.name === MESSAGE_STRIP_FILE) ?? null;
+  const screen = all.find((f) => f.name === SESSION_SCREEN_FILE) ?? null;
+  if (reply === null) findings.push(`${REPLY_FILE} does not exist, so no press or message has one runner`);
+  if (strip === null) findings.push(`${MESSAGE_STRIP_FILE} does not exist, so the message box cannot be read`);
+  // (ae1) The writer's choose( and say( once each, in ReplyRunner.run.
+  for (const verb of ['choose', 'say']) {
+    const calls = writerReplyCalls(all, verb);
+    said[verb === 'choose' ? 'chooses' : 'says'] = calls.length;
+    for (const c of calls) {
+      const p = placeOf(c.file, c.at);
+      if (p.type !== 'ReplyRunner' || p.fn !== 'run') findings.push(`${atLine(c.file, c.at)} calls the writer's ${verb}( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the app's one call of it is ReplyRunner.run`);
+    }
+    if (calls.length !== 1) findings.push(`the writer's ${verb}( is called ${String(calls.length)} time(s) in the app; exactly once, in ReplyRunner.run, so every ${verb === 'choose' ? 'press' : 'message'} is one runner`);
+  }
+  const run = reply === null ? null : funcsNamed(reply, 'run', 'ReplyRunner')[0] ?? null;
+  if (reply !== null && run === null) findings.push(`${REPLY_FILE}'s ReplyRunner has no run`);
+  if (run !== null && /\b(?:while|repeat|for)\b/.test(bodyText(reply, run))) findings.push(`${REPLY_FILE}'s ReplyRunner.run loops; a reply is ONE awaited write, never retried`);
+  // (ae2) Nothing on the path rewrites the words.
+  const client = all.find((f) => f.name === 'Door/DoorClient.swift') ?? null;
+  const pathSpans = [];
+  for (const f of [reply, strip].filter((x) => x !== null)) pathSpans.push({ file: f, from: 0, to: f.bare.length });
+  if (client !== null) {
+    for (const fn of [...funcsNamed(client, 'say', 'DoorClient'), ...funcsNamed(client, 'signedPost')]) pathSpans.push({ file: client, from: fn.bodyOpen, to: fn.bodyClose + 1 });
+    for (const t of client.types.filter((x) => x.name === 'SayBody')) pathSpans.push({ file: client, from: t.open, to: t.close + 1 });
+  }
+  for (const s of pathSpans) {
+    for (const m of s.file.bare.slice(s.from, s.to).matchAll(REWRITES)) findings.push(`${atLine(s.file, s.from + m.index)} names ${m[0].replace(/\s+/g, '')} on a message's path; a message is exactly his words, never trimmed, normalized or replaced (§5.5)`);
+  }
+  // (ae3) The field turns the three smart types off, in makeUIView.
+  if (strip !== null) {
+    const make = funcsNamed(strip, 'makeUIView')[0] ?? null;
+    const body = make === null ? '' : bodyText(strip, make);
+    for (const name of ['smartQuotesType', 'smartDashesType', 'smartInsertDeleteType']) {
+      if (new RegExp(`\\.\\s*${name}\\s*=\\s*\\.no\\b`).test(body)) said.smart += 1;
+      else findings.push(`${MESSAGE_STRIP_FILE}'s MessageField does not set ${name} = .no in makeUIView; it rewrites what he typed (\`--\` to an em dash breaks \`!git log --oneline\`, D25)`);
+    }
+    // (ae4) Send's .disabled reads the empty text and the running phase.
+    const idAt = strip.bare.search(/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionMessageSend\s*\)/);
+    if (idAt === -1) findings.push(`${MESSAGE_STRIP_FILE} identifies no element ID.sessionMessageSend, so Send cannot be read`);
+    else {
+      const buttonAt = strip.bare.lastIndexOf('Button', idAt);
+      const chain = buttonAt === -1 ? '' : strip.bare.slice(buttonAt, idAt);
+      const disabled = [...chain.matchAll(/\.\s*disabled\s*\(/g)].pop();
+      const args = disabled === undefined ? '' : chain.slice(disabled.index + disabled[0].length, closeParen(chain, disabled.index + disabled[0].length - 1));
+      if (!/\bisEmpty\b/.test(args) || !/\bphase\b/.test(args)) findings.push(`${MESSAGE_STRIP_FILE}'s Send carries ${disabled === undefined ? 'no .disabled' : `.disabled(${args.trim()})`}; it is off exactly while the box is empty or a write runs, so it reads off to VoiceOver and cannot send twice`);
+    }
+  }
+  // (ae5) What will run, and every option, drawn whole: lines: nil.
+  if (screen === null) findings.push(`${SESSION_SCREEN_FILE} does not exist, so the command line and the options cannot be read`);
+  else {
+    const wordsCalls = [...screen.bare.matchAll(/\bWords\s*\(/g)].map((m) => {
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(screen.bare, open);
+      return { at: m.index, args: screen.bare.slice(open + 1, close === -1 ? screen.bare.length : close) };
+    });
+    const command = wordsCalls.filter((w) => /^\s*(?:[\w.]*\.)?command\b/.test(w.args));
+    said.commandLines = command.length;
+    if (command.length === 0) findings.push(`${SESSION_SCREEN_FILE} draws no Words( of the reply's command, so Codex's $ line is drawn nowhere`);
+    for (const w of command) if (!/\blines\s*:\s*nil\b/.test(w.args)) findings.push(`${atLine(screen, w.at)} draws the command with a line limit; what will run is drawn WHOLE, because Yes runs exactly this (§Revision R19 d)`);
+    const optionRow = screen.types.find((t) => t.name === 'OptionRow');
+    const optionText = optionRow === undefined ? [] : wordsCalls.filter((w) => w.at > optionRow.open && w.at < optionRow.close && /^\s*option\s*\.\s*text\b/.test(w.args));
+    if (optionText.length === 0) findings.push(`${SESSION_SCREEN_FILE}'s OptionRow draws no Words(option.text, …)`);
+    for (const w of optionText) if (!/\blines\s*:\s*nil\b/.test(w.args)) findings.push(`${atLine(screen, w.at)} draws an option's text with a line limit; a person never presses what they could not read (§Revision R19 d)`);
+  }
+  return { findings, said };
+}
+
+/** Rule (af), pure over the app's Swift files. */
+export function ruleNoOwnerOnReply(files) {
+  const findings = [];
+  const said = { files: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  for (const name of [REPLY_FILE, MESSAGE_STRIP_FILE]) {
+    const file = all.find((f) => f.name === name);
+    if (file === undefined) {
+      findings.push(`${name} does not exist, so whether a reply asks the owner check cannot be read`);
+      continue;
+    }
+    said.files += 1;
+    if (!OWNER_CHECK_ABSENT.includes(name)) findings.push(`${name} is not in OWNER_CHECK_ABSENT, so (ac) does not hold it to "Only for End"`);
+    for (const m of file.bare.matchAll(/\bOwnerCheck\b|\bownerCheck\b|\bLAContext\b|\bevaluatePolicy\b|\bconfirm\s*\(\s*reason\s*:|\bLocalAuthentication\b/g)) {
+      findings.push(`${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; a press and a message ask no Face ID, Touch ID or passcode (his ruling, "Only for End")`);
+    }
+  }
+  // The choice press in SessionScreen.swift: OptionRow, the choices section,
+  // the press of one option and the press line.
+  const screen = all.find((f) => f.name === SESSION_SCREEN_FILE) ?? null;
+  if (screen !== null) {
+    const spans = [
+      ...screen.types.filter((t) => ['OptionRow', 'OptionPress'].includes(t.name)).map((t) => ({ from: t.open, to: t.close })),
+      ...screen.funcs.filter((fn) => ['press', 'pressLine', 'choices'].includes(fn.name)).map((fn) => ({ from: fn.bodyOpen, to: fn.bodyClose }))
+    ];
+    for (const s of spans) {
+      for (const m of screen.bare.slice(s.from, s.to + 1).matchAll(/\bOwnerCheck\b|\bownerCheck\b|\bLAContext\b|\bevaluatePolicy\b|\bconfirm\s*\(\s*reason\s*:/g)) {
+        findings.push(`${atLine(screen, s.from + m.index)} names ${m[0].replace(/\s+/g, '')} in the choice press; a press asks no Face ID ("Only for End")`);
+      }
+    }
+    if (!screen.bare.includes('.press(')) findings.push(`${SESSION_SCREEN_FILE} presses no option through the reply model (.press(), so the choice press cannot be read`);
+  }
+  return { findings, said };
+}
+
+/** Rule (ag), pure over the app's Swift files. */
+export function ruleReplyOnce(files) {
+  const findings = [];
+  const said = { runners: 0, registered: 0, keptSets: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const reply = all.find((f) => f.name === REPLY_FILE) ?? null;
+  if (reply === null) return { findings: [`${REPLY_FILE} does not exist`], said };
+  // (ag1) Every ReplyRunner( made at the press, registered, then its task.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\bReplyRunner\s*\(/g)) {
+      if (/\b(?:class|struct)\s+$/.test(file.bare.slice(Math.max(0, m.index - 8), m.index))) continue;
+      const lead = file.bare.slice(Math.max(0, m.index - 60), m.index);
+      const bound = /\blet\s+([A-Za-z_]\w*)\s*=\s*$/.exec(lead);
+      if (bound === null) {
+        findings.push(`${atLine(file, m.index)} makes a ReplyRunner without binding it, so it cannot be registered before its task starts`);
+        continue;
+      }
+      said.runners += 1;
+      const fn = innermost(file.funcs, m.index);
+      const after = fn === null ? '' : file.bare.slice(m.index, fn.bodyClose);
+      const reg = new RegExp(`\\bregisterReply\\s*\\(\\s*${bound[1]}\\s*\\)`).exec(after);
+      const task = /\bTask\s*(?:\(|\{)/.exec(after);
+      if (reg !== null) said.registered += 1;
+      if (reg === null || task === null || reg.index > task.index) findings.push(`${atLine(file, m.index)} makes a reply runner that is not registered before its task starts; a trip to the background must stop it before it sends (research 137 §5)`);
+    }
+  }
+  if (said.runners === 0) findings.push('nothing in the app makes a ReplyRunner');
+  // (ag2) The runner's stop sets stopRequested and cancels its task; run reads it first.
+  const runnerType = reply.types.find((t) => t.name === 'ReplyRunner' && t.kind === 'class');
+  if (runnerType === undefined) findings.push(`${REPLY_FILE} declares no class ReplyRunner`);
+  else {
+    const stop = reply.funcs.find((fn) => fn.name === 'stop' && fn.at > runnerType.open && fn.at < runnerType.close);
+    const body = stop === undefined ? '' : bodyText(reply, stop);
+    if (!/\bstopRequested\s*=\s*true\b/.test(body) || !/\btask\s*\??\s*\.\s*cancel\s*\(\s*\)/.test(body)) findings.push(`${REPLY_FILE}'s ReplyRunner.stop does not set stopRequested and cancel its task; the cancel is what withholds a write not yet handed`);
+    const run = reply.funcs.find((fn) => fn.name === 'run' && fn.at > runnerType.open && fn.at < runnerType.close);
+    const runBody = run === undefined ? '' : bodyText(reply, run);
+    const guardAt = runBody.search(/\bguard\s+!\s*stopRequested\b|\bif\s+stopRequested\b/);
+    const writeAt = runBody.search(/\bwriter\s*\.\s*(?:choose|say)\s*\(/);
+    if (guardAt === -1 || (writeAt !== -1 && guardAt > writeAt)) findings.push(`${REPLY_FILE}'s ReplyRunner.run does not read stopRequested before its write; a runner stopped before it ran must send nothing`);
+  }
+  for (const m of reply.bare.matchAll(/(?<![\w])(?:[A-Za-z_]\w*\s*\??\s*\.\s*)?stopRequested\s*=\s*([^=\n;}][^\n;}]*)/g)) {
+    if (/\b(?:var|let)\s+$/.test(reply.bare.slice(Math.max(0, m.index - 8), m.index))) continue;
+    if (m[1].trim() !== 'true') findings.push(`${atLine(reply, m.index)} sets stopRequested = ${m[1].trim()}; once true it stays true`);
+  }
+  // (ag3) AppModel.wentAway stops every registered reply runner.
+  const app = all.find((f) => f.name === 'App/TortieApp.swift') ?? null;
+  const spans = app === null ? [] : app.types.filter((t) => t.name === 'AppModel' && (t.kind === 'class' || t.kind === 'extension'));
+  const inModel = (name) => (app === null ? undefined : app.funcs.find((fn) => fn.name === name && spans.some((s) => fn.at > s.open && fn.at < s.close)));
+  const away = inModel('wentAway');
+  const register = inModel('registerReply');
+  if (away === undefined || register === undefined) findings.push(`AppModel has ${away === undefined ? 'no wentAway()' : 'no registerReply(_:)'}, so a reply runner made at the press is not stopped when the app leaves`);
+  else {
+    const kept = /\b([A-Za-z_]\w*)\s*(?:\.\s*(?:append|insert)\s*\(|\[[^\]]+\]\s*=)/.exec(bodyText(app, register))?.[1] ?? null;
+    const awayBody = bodyText(app, away);
+    const loop = kept === null ? null : new RegExp(`\\bfor\\s+([A-Za-z_]\\w*)\\s+in\\s+(?:self\\s*\\.\\s*)?${kept}(?:\\s*\\.\\s*values)?\\s*\\{([^}]*)\\}`).exec(awayBody);
+    const stops =
+      (loop !== null && new RegExp(`\\b${loop[1]}\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(loop[2])) ||
+      (kept !== null && new RegExp(`\\b${kept}(?:\\s*\\.\\s*values)?\\s*\\.\\s*forEach\\s*\\{\\s*\\$0\\s*\\.\\s*stop\\s*\\(\\s*\\)`).test(awayBody));
+    if (!stops) findings.push(`AppModel.wentAway does not stop every reply runner registerReply(_:) keeps${kept === null ? '' : ` in ${kept}`}; a reply not yet handed must be withheld when the app leaves (research 137 §5)`);
+  }
+  // (ag4) Nothing persists a message or a write.
+  for (const name of [REPLY_FILE, MESSAGE_STRIP_FILE]) {
+    const file = all.find((f) => f.name === name);
+    if (file === undefined) continue;
+    for (const m of file.bare.matchAll(PERSISTS)) findings.push(`${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; nothing persists a message or a write, so nothing can be sent again after a relaunch`);
+  }
+  // (ag5) A press or a send while one runs does nothing.
+  const model = reply.types.find((t) => t.name === 'ReplyModel' && t.kind === 'class');
+  if (model === undefined) findings.push(`${REPLY_FILE} declares no class ReplyModel`);
+  else {
+    for (const name of ['press', 'send']) {
+      const fn = reply.funcs.find((f) => f.name === name && f.at > model.open && f.at < model.close);
+      const body = fn === undefined ? '' : bodyText(reply, fn).replace(/^\{\s*/, '');
+      if (fn === undefined || !/^guard\s+phase\s*==\s*\.\s*idle\b/.test(body)) findings.push(`${REPLY_FILE}'s ReplyModel.${name} does not begin with guard phase == .idle; a ${name} while one runs must do nothing`);
+    }
+  }
+  // (ag6) THE ONE KEPT ID.
+  const keptType = reply.types.find((t) => t.name === 'KeptSay' && t.kind === 'struct');
+  if (keptType === undefined) findings.push(`${REPLY_FILE} declares no struct KeptSay, so a message whose answer did not come cannot be asked about again`);
+  else {
+    const fields = storedFields(reply.bare, keptType).sort().join(',');
+    if (fields !== 'at,bytes,session,write') findings.push(`${REPLY_FILE}'s KeptSay holds ${fields}; it holds exactly session, bytes, write and at`);
+    if (!/\blet\s+bytes\s*:\s*\[\s*UInt8\s*\]/.test(reply.bare.slice(keptType.open, keptType.close))) findings.push(`${REPLY_FILE}'s KeptSay.bytes is not [UInt8]; the words are compared as UTF-8 bytes, never with String ==, which calls é and e with a combining acute equal`);
+  }
+  if (!/\bArray\s*\(\s*[\w.]+\s*\.\s*utf8\s*\)/.test(reply.bare)) findings.push(`${REPLY_FILE} never takes a message's bytes as Array(….utf8)`);
+  for (const m of reply.bare.matchAll(/\bkept\b[^\n]*\.\s*text\b|\btext\s*==\s*[\w.]*kept\b|\bkept\s*\??\s*\.\s*\w+\s*==\s*text\b/g)) findings.push(`${atLine(reply, m.index)} compares a kept say with the box's String; the comparison is of UTF-8 bytes`);
+  const windows = [...reply.bare.matchAll(/\bstatic\s+let\s+(\w*[Ww]indow\w*)\s*:\s*TimeInterval\s*=\s*([0-9_.]+)\s*$/gm)];
+  if (windows.length !== 1 || Number(windows[0][2].replace(/_/g, '')) !== 60) findings.push(`${REPLY_FILE} declares ${String(windows.length)} kept-say window constant(s)${windows.length === 1 ? ` of ${windows[0][2]} s` : ''}; one, 60 s, inside the Mac ledger's life (§5.7.3)`);
+  else if (!new RegExp(`<\\s*Self\\s*\\.\\s*${windows[0][1]}\\b`).test(reply.bare)) findings.push(`${REPLY_FILE}'s ${windows[0][1]} bounds nothing (no age < Self.${windows[0][1]}), so a kept id could be sent again after the Mac forgot it`);
+  // KeptSay assigned only from a say's own result: nil, or inside a function
+  // that takes the say's SentWrite, in its no-answer arm or a busy answer.
+  for (const m of reply.bare.matchAll(/(?<![\w.])(?:self\s*\??\s*\.\s*)?kept\s*=(?!=)\s*([^\n;]*)/g)) {
+    if (/\b(?:var|let)\s+$/.test(reply.bare.slice(Math.max(0, m.index - 12), m.index))) continue;
+    const rhs = m[1].replace(/\s*\}+\s*$/, '').trim();
+    if (rhs === 'nil') continue;
+    said.keptSets += 1;
+    const fn = innermost(reply.funcs, m.index);
+    const before = fn === null ? '' : reply.bare.slice(fn.bodyOpen, m.index);
+    const lastCase = [...before.matchAll(/\bcase\s+\.\s*([A-Za-z_]\w*)\b/g)].pop()?.[1] ?? null;
+    const fromSay = fn !== null && /\bSentWrite\b/.test(fn.params);
+    const arm = lastCase === 'noAnswer' || (lastCase === 'answered' && /\.\s*busy\b/.test(rhs));
+    if (fromSay && lastCase === 'noAnswer') said.noAnswerSets = (said.noAnswerSets ?? 0) + 1;
+    if (!fromSay || !arm) findings.push(`${atLine(reply, m.index)} keeps a say (kept = ${rhs.slice(0, 50)}) outside a say's own no-answer or busy-on-a-kept-id result; the one id ever sent twice is a message's whose answer did not come (§Revision R13)`);
+  }
+  if ((said.noAnswerSets ?? 0) === 0) findings.push(`${REPLY_FILE} never keeps a say whose answer did not come, so it is typed twice when Send is pressed again (§Revision R13)`);
+  // The id handed to a say is nil or a kept say's write; choose and end pass none.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\.\s*say\s*\(/g)) {
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open + 1, close === -1 ? file.bare.length : close);
+      const w = /\bwrite\s*:\s*([^,)]+)/.exec(args);
+      if (w === null || !/\btext\s*:/.test(args)) continue;
+      const value = w[1].trim();
+      const p = placeOf(file, m.index);
+      const relayed = value === 'write' && ((p.type === 'ReplyRunner' && p.fn === 'run') || (p.type === 'PairedReader' && p.fn === 'say') || (p.type === 'DoorClient' && p.fn === 'say'));
+      if (value !== 'nil' && !/\.\s*write$/.test(value) && !relayed) findings.push(`${atLine(file, m.index)} hands a say the id ${JSON.stringify(value)}; it is nil (a fresh id) or a kept say's write, and nothing else`);
+    }
+  }
+  const client = all.find((f) => f.name === 'Door/DoorClient.swift') ?? null;
+  if (client !== null) {
+    for (const name of ['end', 'choose']) {
+      const fn = funcsNamed(client, name, 'DoorClient')[0] ?? null;
+      if (fn === null) {
+        findings.push(`Door/DoorClient.swift's DoorClient has no ${name}`);
+        continue;
+      }
+      const body = bodyText(client, fn);
+      const at = /\bsignedPost\s*\(/.exec(body);
+      const args = at === null ? '' : body.slice(at.index + at[0].length, closeParen(body, at.index + at[0].length - 1));
+      if (at === null || !/\bwrite\s*:\s*nil\b/.test(args)) findings.push(`DoorClient.${name} does not call signedPost with write: nil; only a say whose answer did not come ever sends an id twice`);
+    }
+  }
+  return { findings, said };
+}
+
+/** Rule (v)'s reply half: replySentence(for:) is a non-optional String for every WriteResult case, and the two lines are nil or a sentence. */
+export function ruleReplySentence(words, files) {
+  const findings = [];
+  const said = { cases: 0, assignments: 0 };
+  if (words === null) return { findings: ['Screens/DoorWords.swift does not exist, so what a reply\'s line says cannot be read'], said };
+  const w = lexSwift(words);
+  const decl = /\bstatic\s+func\s+replySentence\s*\(\s*for\s+\w+\s*:\s*WriteResult\s*\)\s*->\s*([^{]+)\{/.exec(w.bare);
+  if (decl === null) findings.push('Screens/DoorWords.swift declares no replySentence(for: WriteResult)');
+  else {
+    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's replySentence returns ${decl[1].trim()}; it returns String, so every reply's result draws a sentence`);
+    const body = bodyAfter(w.bare, decl.index);
+    const bodyStart = w.bare.indexOf(body, decl.index);
+    for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, bodyStart + m.index))} replySentence returns nil`);
+    for (const x of w.strings) if (x.start > bodyStart && x.start < bodyStart + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} replySentence returns an empty string`);
+    if (/\bdefault\s*:/.test(body)) findings.push("Screens/DoorWords.swift's replySentence has a default, so a new WriteResult case would draw a line nobody chose");
+    const client = files.find((f) => f.name === 'Door/DoorClient.swift');
+    const cases = client === undefined ? [] : enumCases(client.source, 'WriteResult') ?? [];
+    said.cases = cases.length;
+    for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's replySentence draws nothing for .${cs}`);
+  }
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    for (const t of typeSpans(lx.bare).filter((x) => x.name === 'ReplyModel' && x.kind === 'class')) {
+      const text = lx.bare.slice(t.open, t.close + 1);
+      for (const m of text.matchAll(/(?:^|[^\w.?])(?:self\s*\??\s*\.\s*)?(pressLine|sayLine)\s*=(?!=)\s*([^\n;]*)/g)) {
+        said.assignments += 1;
+        const rhs = m[2].trim();
+        const at = `${f.name}:${String(lineOf(lx.bare, t.open + m.index + 1))}`;
+        const strings = lx.strings.filter((x) => x.start > t.open + m.index && x.start < t.open + m.index + m[0].length);
+        const ok = rhs === 'nil' || /^(?:Copy|DoorWords)\s*\./.test(rhs) || /\?\s*(?:Copy|DoorWords)\s*\.[\s\S]*:\s*nil$/.test(rhs);
+        if (strings.some((x) => x.value === '') || !ok) findings.push(`${at} assigns ReplyModel.${m[1]} = ${rhs.slice(0, 60)}; its line is nil or a Copy or DoorWords sentence, never empty`);
+      }
+    }
+  }
+  return { findings, said };
+}
+
+/** Phase 318's reply arms (build/p318/SPEC.md §7.7 RH), as (t) requires build/p316/hostile-door.mjs to name them. */
+export const HOSTILE_REPLY_ARMS = Object.freeze([
+  'reply-other-id',
+  'reply-refused-changed',
+  'reply-unknown-reason',
+  'reply-cut',
+  'reply-cut-reread-refused',
+  'reply-404',
+  'reply-late',
+  'reply-say-done'
+]);
+/** Where a reply arm may end: a line under the options or the box, Pairing (a re-read refused), or drawn. */
+const REPLY_ARM_ENDS = new Set(['sentence', 'pairing', 'drawn']);
+
+/** The exported string constants of src/shared/lifecycle-words.ts and src/shared/reply-copy.ts, by name. */
+export function macWordNames(...texts) {
+  const out = new Set();
+  for (const t of texts) {
+    if (typeof t !== 'string') continue;
+    for (const m of t.matchAll(/\bexport\s+const\s+([A-Z][A-Z0-9_]*)\s*(?::\s*string\s*)?=/g)) out.add(m[1]);
+  }
+  return out;
+}
+
+/** (t)'s reply half: the hostile door names the reply arms, each ending where it names. */
+export function ruleHostileReplyArms(hostile, copy, macNames) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist, so no hostile answer to a reply is served'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  const listOf = (row, key) => [...(new RegExp(`\\b${key}:\\s*\\[([^\\]]*)\\]`).exec(row)?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+  for (const arm of HOSTILE_REPLY_ARMS) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+    if (row === null) {
+      findings.push(`build/p316/hostile-door.mjs names no reply arm ${JSON.stringify(arm)}`);
+      continue;
+    }
+    said.arms.push(arm);
+    if (!/\breply:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} is not marked reply: true`);
+    if (!/\bverb:\s*'(?:choose|say)'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} names no verb, choose or say`);
+    if (!/\bposts:\s*1\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not count exactly one POST per press or Send (posts: 1)`);
+    const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+    if (ends === null || !REPLY_ARM_ENDS.has(ends)) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not a drawn line, Pairing, or drawn`);
+    if (!/\bat:\s*'(?:session-reply-line|session-message-line|screen-pairing)'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not end at the press line, the message line or Pairing (at:)`);
+    const expected = listOf(row[1], 'expect');
+    const mac = listOf(row[1], 'mac');
+    const never = listOf(row[1], 'never');
+    if (ends === 'sentence' && expected.length + mac.length === 0) findings.push(`hostile-door.mjs's ${arm} ends in a sentence and names none it may be`);
+    for (const word of [...expected, ...never]) if (!copyWords.has(word)) findings.push(`hostile-door.mjs's ${arm} names Copy.${word}, which Copy.swift does not hold`);
+    for (const k of mac) if (!macNames.has(k)) findings.push(`hostile-door.mjs's ${arm} expects the Mac's ${k}, which neither src/shared/lifecycle-words.ts nor src/shared/reply-copy.ts exports`);
   }
   return { findings, said };
 }
@@ -5605,10 +6044,12 @@ const expect = (what, ok) => {
   const armLine = (name) => `  ${name.includes('-') ? `'${name}'` : name}: { what: 'x', ends: 'sentence', list: true, raw: true, at: 'list-failure', expect: ['answerUnreadable'] },`;
   // Phase 317: the write arms, each ending where it names (SPEC §7.5 EH).
   const writeArmLine = (name, rest = "ends: 'sentence', write: true, posts: 1, at: 'session-end-line', expect: ['answerUnreadable'], door: ['unreadable'], never: []") => `  '${name}': { what: 'x', ${rest} },`;
-  const hostileOk = `export const HOSTILE_ARMS = Object.freeze({\n${HOSTILE_HTTP_ARMS.map(armLine).join('\n')}\n${HOSTILE_WRITE_ARMS.map((a) => writeArmLine(a)).join('\n')}\n});\n`;
+  // Phase 318: the reply arms beside them, each with its verb and one POST.
+  const replyArmLine = (name, rest = "ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['answerUnreadable'], mac: ['LIFECYCLE_SESSION_CHANGED'], never: []") => `  '${name}': { what: 'x', ${rest} },`;
+  const hostileOk = `export const HOSTILE_ARMS = Object.freeze({\n${HOSTILE_HTTP_ARMS.map(armLine).join('\n')}\n${HOSTILE_WRITE_ARMS.map((a) => writeArmLine(a)).join('\n')}\n${HOSTILE_REPLY_ARMS.map((a) => replyArmLine(a)).join('\n')}\n});\n`;
   const copyOk = 'enum Copy {\n    static let answerUnreadable = "Tortie could not read your Mac’s answer."\n}\n';
-  const tRun = ({ client = clientOk, pairing = pairingOk, keys = keysOk2, hostile = hostileOk, copy = copyOk, writeSentences = ['busy', 'unreadable'] } = {}) =>
-    ruleClientTransport({ client, pairing, keys, files: [{ name: 'Door/DoorClient.swift', source: client }], hostile, copy, writeSentences }).findings;
+  const tRun = ({ client = clientOk, pairing = pairingOk, keys = keysOk2, hostile = hostileOk, copy = copyOk, writeSentences = ['busy', 'unreadable'], macNames = new Set(['LIFECYCLE_SESSION_CHANGED']) } = {}) =>
+    ruleClientTransport({ client, pairing, keys, files: [{ name: 'Door/DoorClient.swift', source: client }], hostile, copy, writeSentences, macNames }).findings;
   expect('(t) passes a pinned client with an identity on every paired read', tRun().length === 0);
   expect('(t) catches no local identity', tRun({ client: clientOk.replace('        if let identity { sec_protocol_options_set_local_identity(options, sec_identity_create(identity.identity)!) }\n', '') }).length > 0);
   expect('(t) catches a signed read with no identity', tRun({ client: clientOk.replace('identity: door.identity)', 'identity: nil)') }).length > 0);
@@ -5630,6 +6071,13 @@ const expect = (what, ok) => {
   expect('(t) catches a hostile arm that ends in no sentence', tRun({ hostile: hostileOk.replace(`'not-json': { what: 'x', ends: 'sentence'`, `'not-json': { what: 'x', ends: 'drawn'`) }).length > 0);
   expect('(t) catches a hostile arm expecting a word Copy lacks', tRun({ copy: 'enum Copy {}\n' }).length > 0);
   expect('(t) catches no hostile door', tRun({ hostile: null }).length > 0);
+  // Phase 318: the reply arms.
+  expect('(t) catches a reply arm gone', tRun({ hostile: hostileOk.replace(replyArmLine('reply-say-done'), '') }).length > 0);
+  expect('(t) catches a reply arm that lets a press send two POSTs', tRun({ hostile: hostileOk.replace(replyArmLine('reply-404'), replyArmLine('reply-404').replace('posts: 1', 'posts: 2')) }).length > 0);
+  expect('(t) catches a reply arm with no verb', tRun({ hostile: hostileOk.replace(replyArmLine('reply-cut'), replyArmLine('reply-cut').replace("verb: 'say', ", '')) }).length > 0);
+  expect('(t) catches a reply arm ending under End', tRun({ hostile: hostileOk.replace(replyArmLine('reply-late'), replyArmLine('reply-late').replace("at: 'session-message-line'", "at: 'session-end-line'")) }).length > 0);
+  expect('(t) catches a reply arm expecting a Mac sentence nobody exports', tRun({ macNames: new Set() }).length > 0);
+  expect('(t) catches a reply arm not marked reply', tRun({ hostile: hostileOk.replace(replyArmLine('reply-other-id'), replyArmLine('reply-other-id').replace('reply: true, ', '')) }).length > 0);
 
   // (u) no DEBUG in Release.
   const adHocU = '        CODE_SIGN_IDENTITY = "-";\n';
@@ -5771,8 +6219,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 6;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 6;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 7;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 7;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -6364,13 +6812,26 @@ const expect = (what, ok) => {
   const W_CLIENT = [
     'final class DoorClient {',
     '    func end(_ sessionId: String, batch: Bool, door: PairedDoor) async -> WriteResult {',
-    '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)',
+    '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)',
+    '    }',
+    '    func choose(_ sessionId: String, question: String, mark: String, marker: String, door: PairedDoor) async -> WriteResult {',
+    '        let route = WriteRoute.choose(session: sessionId, question: question, mark: mark, marker: marker)',
+    '        return await signedPost(route: route, door: door, limits: limits, write: nil)',
+    '    }',
+    '    func say(_ sessionId: String, text: String, write: String?, door: PairedDoor) async -> WriteResult {',
+    '        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)',
     '    }',
     '    func present(_ p: Data, door: DoorEndpoint) async throws -> DoorReply {',
     '        try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
     '    }',
-    '    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits) async -> WriteResult {',
-    '        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }',
+    '    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?) async -> WriteResult {',
+    '        let id: String',
+    '        if let kept, WriteId.isWellFormed(kept) {',
+    '            id = kept',
+    '        } else {',
+    '            guard let minted = WriteId.fresh() else { return .notSent(.notPaired) }',
+    '            id = minted',
+    '        }',
     '        let body: Data',
     '        do {',
     '            let encoder = JSONEncoder()',
@@ -6378,6 +6839,10 @@ const expect = (what, ok) => {
     '            switch route {',
     '            case .end(let session, let batch):',
     '                body = try encoder.encode(EndBody(batch: batch, session: session, write: id))',
+    '            case .choose(let session, let question, let mark, let marker):',
+    '                body = try encoder.encode(ChooseBody(mark: mark, marker: marker, question: question, session: session, write: id))',
+    '            case .say(let session, let text):',
+    '                body = try encoder.encode(SayBody(session: session, text: text, write: id))',
     '            }',
     '        } catch {',
     '            return .notSent(.notPaired)',
@@ -6385,6 +6850,18 @@ const expect = (what, ok) => {
     '        let ended = await connect(method: "POST", target: route.target, body: body, door: door.endpoint, identity: door.identity, write: true)',
     '        return WriteResult.of(ended, verb: route.verb, sent: id)',
     '    }',
+    '}',
+    'struct ChooseBody: Encodable {',
+    '    let mark: String',
+    '    let marker: String',
+    '    let question: String',
+    '    let session: String',
+    '    let write: String',
+    '}',
+    'struct SayBody: Encodable {',
+    '    let session: String',
+    '    let text: String',
+    '    let write: String',
     '}',
     'struct EndBody: Encodable {',
     '    let batch: Bool',
@@ -6731,7 +7208,7 @@ const expect = (what, ok) => {
   one('(ab) catches signedPost building no EndBody', abRun, swap(C, '                body = try encoder.encode(EndBody(batch: batch, session: session, write: id))', '                body = try encoder.encode(["write": id])'));
   one('(ab) catches signedPost looping', abRun, swap(C, '        let ended = await connect(', '        while false {}\n        let ended = await connect('));
   one('(ab) catches no EndBody struct', abRun, swap(C, 'struct EndBody: Encodable {', 'struct EndBodyRenamed: Encodable {'));
-  one('(ab) catches DoorClient.end looping', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)', '        for _ in 0..<1 {}\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)'));
+  one('(ab) catches DoorClient.end looping', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)', '        for _ in 0..<1 {}\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)'));
   one('(ab) catches the one writer end moved out of EndRunner.run', abRun, {
     ...swap(W, '            let result = await writer.end(id, batch: batch)', '            let result = await self.send(id)'),
     ...swap(B, '    func press(_ confirm: BatchConfirm) {', '    func elsewhere(_ w: any DoorWriting) async { _ = await w.end("x", batch: true) }\n    func press(_ confirm: BatchConfirm) {')
@@ -6742,12 +7219,12 @@ const expect = (what, ok) => {
     ['    private func cancelled() {', '    private func mark() {\n        handed = true\n    }\n    private func cancelled() {']
   ]));
   one('(ab) catches handed set false in send', abRun, swap(C, '        handed = true\n        connection.send(', '        handed = false\n        connection.send('));
-  one('(ab) catches signedPost called twice by end', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)', '        _ = await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits)'));
+  one('(ab) catches signedPost called twice by end', abRun, swap(C, '        await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)', '        _ = await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)\n        return await signedPost(route: .end(session: sessionId, batch: batch), door: door, limits: limits, write: nil)'));
   one('(ab) catches the one write id made outside signedPost', abRun, swaps(C, [
-    ['        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', '        guard let id = Self.newId() else { return .notSent(.notPaired) }'],
+    ['            guard let minted = WriteId.fresh() else { return .notSent(.notPaired) }', '            guard let minted = Self.newId() else { return .notSent(.notPaired) }'],
     ['    private func signedPost(', '    static func newId() -> String? {\n        let id = WriteId.fresh()\n        return id\n    }\n    private func signedPost(']
   ]));
-  one('(ab) catches a write id not bound to a local', abRun, swap(C, '        guard let id = WriteId.fresh() else { return .notSent(.notPaired) }', '        guard let id = [WriteId.fresh()].first ?? nil else { return .notSent(.notPaired) }'));
+  one('(ab) catches a write id not bound to a local', abRun, swap(C, '            guard let minted = WriteId.fresh() else { return .notSent(.notPaired) }', '            guard let minted = [WriteId.fresh()].first ?? nil else { return .notSent(.notPaired) }'));
   one('(ab) catches a second write id bound in signedPost', abRun, swap(C, '        let body: Data\n', '        let spare = WriteId.fresh()\n        let body: Data\n'));
   one('(ab) catches no WriteId', abRun, swap(C, 'enum WriteId {', 'enum WriteIdent {'));
   one('(ab) catches withheld set twice', abRun, swap(C, '        finish(.failure(DoorFailure.cancelled))', '        if !handed {\n            withheld = true\n        }\n        finish(.failure(DoorFailure.cancelled))'));
@@ -6793,6 +7270,247 @@ const expect = (what, ok) => {
   expect('(v) catches endSentence returning an empty string, on its own', vRun2(vWords.replace('            return Copy.endNotTaken', '            return ""')).length > 0);
   expect('(v) catches endSentence with a default, on its own', vRun2(vWords.replace('        case .notTaken:\n            return Copy.endNotTaken\n', '        default:\n            return Copy.endNotTaken\n        case .notTaken:\n            return Copy.endNotTaken\n')).length > 0);
   expect('(v) catches no enum WriteResult to read, on its own', vRun2(vWords, wFiles(swap(C, 'enum WriteResult: Equatable {', 'enum WriteOutcome: Equatable {'))).length > 0);
+
+  // ---- Phase 318: (ab) widened, (ae), (af), (ag), and (v)'s reply half ----
+  // One small reply in the shape build/p318/SPEC.md §5.7 names, every clause
+  // green on it, and one edit per clause that must turn its rule red.
+  expect('(ab) catches a ChooseBody built outside signedPost', abRun(swap(C, '    func present(', '    func peek() { _ = ChooseBody(mark: "", marker: "", question: "", session: "", write: "") }\n    func present(')).length > 0);
+  expect('(ab) catches a sixth key on a press', abRun(swap(C, 'struct ChooseBody: Encodable {\n    let mark: String', 'struct ChooseBody: Encodable {\n    let face: Bool\n    let mark: String')).length > 0);
+  expect('(ab) catches the message body without its text', abRun(swap(C, '    let session: String\n    let text: String\n', '    let session: String\n')).length > 0);
+  expect('(ab) catches a message that calls signedPost twice', abRun(swap(C, '        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)', '        _ = await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)\n        return await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)')).length > 0);
+  expect('(ab) catches signedPost no longer building a SayBody', abRun(swap(C, '                body = try encoder.encode(SayBody(session: session, text: text, write: id))', '                body = Data(text.utf8)')).length > 0);
+  const R_REPLY = [
+    'protocol ReplyRunnerRegistry: AnyObject {',
+    '    func registerReply(_ runner: ReplyRunner)',
+    '    func releaseReply(_ runner: ReplyRunner)',
+    '}',
+    'final class ReplyRunner {',
+    '    enum Verb: Equatable {',
+    '        case choose(session: String, question: String, mark: String, marker: String)',
+    '        case say(session: String, text: String, write: String?)',
+    '    }',
+    '    let verb: Verb',
+    '    private let writer: any DoorWriting',
+    '    private(set) var stopRequested = false',
+    '    var task: Task<Void, Never>?',
+    '    init(verb: Verb, writer: any DoorWriting) {',
+    '        self.verb = verb',
+    '        self.writer = writer',
+    '    }',
+    '    func stop() {',
+    '        stopRequested = true',
+    '        task?.cancel()',
+    '    }',
+    '    func run() async -> SentWrite {',
+    '        guard !stopRequested else { return SentWrite(result: .notSent(.cancelled), write: nil) }',
+    '        switch verb {',
+    '        case .choose(let session, let question, let mark, let marker):',
+    '            let result = await writer.choose(session, question: question, mark: mark, marker: marker)',
+    '            return SentWrite(result: result, write: nil)',
+    '        case .say(let session, let text, let write):',
+    '            return await writer.say(session, text: text, write: write)',
+    '        }',
+    '    }',
+    '}',
+    'struct KeptSay: Equatable {',
+    '    let session: String',
+    '    let bytes: [UInt8]',
+    '    let write: String',
+    '    let at: Date',
+    '}',
+    'final class ReplyModel {',
+    '    static let keptSayWindow: TimeInterval = 60',
+    '    let sessionId: String',
+    '    private(set) var text = ""',
+    '    private(set) var phase: Phase = .idle',
+    '    private(set) var pressLine: String?',
+    '    private(set) var sayLine: String?',
+    '    private(set) var kept: KeptSay?',
+    '    private let writer: any DoorWriting',
+    '    private let registry: (any ReplyRunnerRegistry)?',
+    '    func edit(_ new: String) {',
+    '        guard !new.utf8.elementsEqual(text.utf8) else { return }',
+    '        text = new',
+    '        kept = nil',
+    '        sayLine = nil',
+    '    }',
+    '    func press(_ marker: String, offer: PocketReplyOffer, reread: @escaping () async -> Bool) {',
+    '        guard phase == .idle, let question = offer.question, let mark = offer.mark else { return }',
+    '        let runner = ReplyRunner(verb: .choose(session: sessionId, question: question, mark: mark, marker: marker), writer: writer)',
+    '        registry?.registerReply(runner)',
+    '        phase = .pressing(marker)',
+    '        let task = Task { [weak self] in',
+    '            let sent = await runner.run()',
+    '            self?.pressLine = DoorWords.replySentence(for: sent.result)',
+    '            self?.phase = .idle',
+    '        }',
+    '        runner.task = task',
+    '    }',
+    '    func send(reread: @escaping () async -> Bool) {',
+    '        guard phase == .idle, !text.isEmpty else { return }',
+    '        let words = text',
+    '        let bytes = Array(words.utf8)',
+    '        let at = Date()',
+    '        let reusing = keptSay(for: bytes, at: at)',
+    '        let runner = ReplyRunner(verb: .say(session: sessionId, text: words, write: reusing?.write), writer: writer)',
+    '        registry?.registerReply(runner)',
+    '        phase = .sending',
+    '        let task = Task { [weak self] in',
+    '            let sent = await runner.run()',
+    '            await self?.afterSay(sent, bytes: bytes, at: at, reusing: reusing)',
+    '            self?.phase = .idle',
+    '        }',
+    '        runner.task = task',
+    '    }',
+    '    private func keptSay(for bytes: [UInt8], at now: Date) -> KeptSay? {',
+    '        guard let kept, kept.session == sessionId, kept.bytes == bytes else { return nil }',
+    '        let age = now.timeIntervalSince(kept.at)',
+    '        guard age >= 0, age < Self.keptSayWindow else { return nil }',
+    '        return kept',
+    '    }',
+    '    private func afterSay(_ sent: SentWrite, bytes: [UInt8], at: Date, reusing: KeptSay?) async {',
+    '        switch sent.result {',
+    '        case .answered(let answer) where answer.outcome == .done:',
+    '            kept = nil',
+    '            sayLine = Copy.replySent',
+    '        case .answered(let answer):',
+    '            kept = answer.outcome == .busy ? reusing : nil',
+    '            sayLine = DoorWords.replySentence(for: sent.result)',
+    '        case .noAnswer:',
+    '            kept = reusing ?? sent.write.map { KeptSay(session: sessionId, bytes: bytes, write: $0, at: at) }',
+    '            sayLine = DoorWords.replySentence(for: sent.result)',
+    '        case .notTaken, .notSent:',
+    '            sayLine = DoorWords.replySentence(for: sent.result)',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const R_STRIP = [
+    'struct MessageStrip: View {',
+    '    let model: ReplyModel',
+    '    private var send: some View {',
+    '        Button {',
+    '            model.send(reread: reread)',
+    '        } label: {',
+    '            Image(systemName: "arrow.up")',
+    '        }',
+    '        .buttonStyle(.plain)',
+    '        .disabled(model.text.isEmpty || model.phase != .idle)',
+    '        .accessibilityLabel(Text(verbatim: Copy.send))',
+    '        .accessibilityIdentifier(ID.sessionMessageSend)',
+    '    }',
+    '}',
+    'struct MessageField: UIViewRepresentable {',
+    '    func makeUIView(context: Context) -> UITextView {',
+    '        let view = UITextView()',
+    '        view.smartQuotesType = .no',
+    '        view.smartDashesType = .no',
+    '        view.smartInsertDeleteType = .no',
+    '        return view',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const R_SCREEN = [
+    'struct SessionBody: View {',
+    '    let reply: ReplyModel?',
+    '    var body: some View {',
+    '        if let command = drawing.reply.command {',
+    '            Words(command, .body, Tokens.textPrimary, lines: nil)',
+    '                .accessibilityIdentifier(ID.sessionCommand)',
+    '        }',
+    '    }',
+    '    private func press(_ option: PocketChoiceOption, offer: PocketReplyOffer, pressable: Set<String>) -> OptionPress? {',
+    '        guard let reply, pressable.contains(option.marker) else { return nil }',
+    '        return OptionPress(on: reply.phase == .idle, pressing: false) {',
+    '            reply.press(option.marker, offer: offer, reread: reread)',
+    '        }',
+    '    }',
+    '}',
+    'private struct OptionRow: View {',
+    '    let option: PocketChoiceOption',
+    '    private func content(_ ink: Color, pressing: Bool) -> some View {',
+    '        Words(option.text, .body, ink, lines: nil)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const R_APP = [
+    'final class AppModel {',
+    '    private(set) var liveReplies: [ReplyRunner] = []',
+    '    func wentAway() {',
+    '        for runner in liveReplies {',
+    '            runner.stop()',
+    '        }',
+    '    }',
+    '}',
+    'extension AppModel: ReplyRunnerRegistry {',
+    '    func registerReply(_ runner: ReplyRunner) {',
+    '        liveReplies.append(runner)',
+    '    }',
+    '    func releaseReply(_ runner: ReplyRunner) {',
+    '        liveReplies.removeAll { $0 === runner }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const R_WORDS = 'enum DoorWords {\n    static func replySentence(for result: WriteResult) -> String {\n        switch result {\n        case .answered(let answer):\n            guard answer.outcome != .done else { return Copy.replySent }\n            return answer.sentence ?? Copy.answerUnreadable\n        case .notTaken:\n            return Copy.replyNotTaken\n        case .noAnswer:\n            return Copy.endNoAnswer\n        case .notSent(let failure):\n            return failure == .cancelled ? Copy.replyNotTaken : sentence(for: failure)\n        }\n    }\n}\n';
+  const rFiles = (edits = {}) =>
+    [
+      ['Door/DoorClient.swift', W_CLIENT],
+      [REPLY_FILE, R_REPLY],
+      [MESSAGE_STRIP_FILE, R_STRIP],
+      [SESSION_SCREEN_FILE, R_SCREEN],
+      ['App/TortieApp.swift', R_APP]
+    ]
+      .map(([name, source]) => ({ name, source: typeof edits[name] === 'function' ? edits[name](source) : source }))
+      .filter((f) => f.source !== null);
+  const aeRun = (edits) => ruleReplyWrites(rFiles(edits)).findings;
+  const afRun = (edits) => ruleNoOwnerOnReply(rFiles(edits)).findings;
+  const agRun = (edits) => ruleReplyOnce(rFiles(edits)).findings;
+  const vrRun = (words = R_WORDS, edits = {}) => ruleReplySentence(words, rFiles(edits)).findings;
+  expect('(ae) passes the reply writes in the shape SPEC §5.7.3 names', aeRun().length === 0);
+  expect('(af) passes a reply that asks no owner check', afRun().length === 0);
+  expect('(ag) passes a reply sent once, with its one kept id', agRun().length === 0);
+  expect('(v) passes a reply line that is always a sentence', vrRun().length === 0);
+  // (ae)
+  expect('(ae) catches a second call of the writer\'s say', aeRun(swap(REPLY_FILE, '        runner.task = task\n    }\n    private func keptSay', '        runner.task = task\n        Task { _ = await writer.say(sessionId, text: words, write: nil) }\n    }\n    private func keptSay')).length > 0);
+  expect('(ae) catches the writer\'s choose called outside run', aeRun(swap(REPLY_FILE, '        phase = .pressing(marker)\n', '        phase = .pressing(marker)\n        Task { _ = await writer.choose(sessionId, question: question, mark: mark, marker: marker) }\n')).length > 0);
+  expect('(ae) catches a retry inside run', aeRun(swap(REPLY_FILE, '        switch verb {', '        while stopRequested { return SentWrite(result: .notSent(.cancelled), write: nil) }\n        switch verb {')).length > 0);
+  expect('(ae) catches the message trimmed', aeRun(swap(REPLY_FILE, '        let words = text\n', '        let words = text.trimmingCharacters(in: .whitespaces)\n')).length > 0);
+  expect('(ae) catches the message normalized in the client', aeRun(swap(C, '        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)', '        await signedPost(route: .say(session: sessionId, text: text.precomposedStringWithCanonicalMapping), door: door, limits: limits, write: write)')).length > 0);
+  expect('(ae) catches smart quotes left on', aeRun(swap(MESSAGE_STRIP_FILE, '        view.smartQuotesType = .no\n', '')).length > 0);
+  expect('(ae) catches Send that does not read the running phase', aeRun(swap(MESSAGE_STRIP_FILE, '.disabled(model.text.isEmpty || model.phase != .idle)', '.disabled(model.text.isEmpty)')).length > 0);
+  expect('(ae) catches the command drawn with a line limit', aeRun(swap(SESSION_SCREEN_FILE, 'Words(command, .body, Tokens.textPrimary, lines: nil)', 'Words(command, .body, Tokens.textPrimary, lines: 2)')).length > 0);
+  expect('(ae) catches an option drawn with a line limit', aeRun(swap(SESSION_SCREEN_FILE, 'Words(option.text, .body, ink, lines: nil)', 'Words(option.text, .body, ink, lines: 1)')).length > 0);
+  // (af)
+  expect('(af) catches the owner check asked by a press', afRun(swap(REPLY_FILE, '        phase = .pressing(marker)\n', '        phase = .pressing(marker)\n        Task { _ = await ownerCheck.confirm(reason: "x") }\n')).length > 0);
+  expect('(af) catches LAContext in the message strip', afRun(swap(MESSAGE_STRIP_FILE, '        let view = UITextView()\n', '        let view = UITextView()\n        _ = LAContext()\n')).length > 0);
+  expect('(af) catches the owner check in the choice press', afRun(swap(SESSION_SCREEN_FILE, '            reply.press(option.marker, offer: offer, reread: reread)', '            Task { _ = await ownerCheck.confirm(reason: "x") }\n            reply.press(option.marker, offer: offer, reread: reread)')).length > 0);
+  // (ag)
+  expect('(ag) catches a runner registered after its task starts', agRun(swap(REPLY_FILE, '        registry?.registerReply(runner)\n        phase = .sending\n        let task = Task { [weak self] in\n            let sent = await runner.run()\n            await self?.afterSay(sent, bytes: bytes, at: at, reusing: reusing)\n            self?.phase = .idle\n        }\n', '        phase = .sending\n        let task = Task { [weak self] in\n            let sent = await runner.run()\n            await self?.afterSay(sent, bytes: bytes, at: at, reusing: reusing)\n            self?.phase = .idle\n        }\n        registry?.registerReply(runner)\n')).length > 0);
+  expect('(ag) catches a press runner never registered', agRun(swap(REPLY_FILE, '        registry?.registerReply(runner)\n        phase = .pressing(marker)\n', '        phase = .pressing(marker)\n')).length > 0);
+  expect('(ag) catches wentAway that stops no reply runner', agRun(swap('App/TortieApp.swift', '        for runner in liveReplies {\n            runner.stop()\n        }\n', '')).length > 0);
+  expect('(ag) catches a stop that does not cancel the task', agRun(swap(REPLY_FILE, '        stopRequested = true\n        task?.cancel()', '        stopRequested = true')).length > 0);
+  expect('(ag) catches a run that writes before reading stopRequested', agRun(swap(REPLY_FILE, '        guard !stopRequested else { return SentWrite(result: .notSent(.cancelled), write: nil) }\n', '')).length > 0);
+  expect('(ag) catches a message persisted', agRun(swap(REPLY_FILE, '        let words = text\n', '        let words = text\n        UserDefaults.standard.set(words, forKey: "m")\n')).length > 0);
+  expect('(ag) catches a press while one runs', agRun(swap(REPLY_FILE, '        guard phase == .idle, let question = offer.question', '        guard let question = offer.question')).length > 0);
+  expect('(ag) catches the kept words held as a String', agRun(swap(REPLY_FILE, '    let bytes: [UInt8]\n', '    let bytes: [UInt8]\n    let text: String\n')).length > 0);
+  expect('(ag) catches the kept window past the ledger', agRun(swap(REPLY_FILE, 'static let keptSayWindow: TimeInterval = 60', 'static let keptSayWindow: TimeInterval = 120')).length > 0);
+  expect('(ag) catches a kept window that bounds nothing', agRun(swap(REPLY_FILE, '        guard age >= 0, age < Self.keptSayWindow else { return nil }\n', '')).length > 0);
+  expect('(ag) catches a say kept from an edit', agRun(swap(REPLY_FILE, '        text = new\n        kept = nil\n', '        text = new\n        kept = KeptSay(session: sessionId, bytes: [], write: "x", at: Date())\n')).length > 0);
+  expect('(ag) catches a say kept on any refusal, not only busy', agRun(swap(REPLY_FILE, '            kept = answer.outcome == .busy ? reusing : nil', '            kept = reusing')).length > 0);
+  expect('(ag) catches a say handed an id that is no kept say\'s', agRun(swap(REPLY_FILE, 'write: reusing?.write), writer: writer)', 'write: sessionId), writer: writer)')).length > 0);
+  expect('(ag) catches a press that sends an id', agRun(swap(C, '        return await signedPost(route: route, door: door, limits: limits, write: nil)', '        return await signedPost(route: route, door: door, limits: limits, write: "kept")')).length > 0);
+  expect('(ag) catches no say ever kept', agRun(swap(REPLY_FILE, '            kept = reusing ?? sent.write.map { KeptSay(session: sessionId, bytes: bytes, write: $0, at: at) }\n', '')).length > 0);
+  // (v), the reply half
+  expect('(v) catches replySentence made optional', vrRun(R_WORDS.replace('-> String {', '-> String? {')).length > 0);
+  expect('(v) catches replySentence returning nil', vrRun(R_WORDS.replace('            return Copy.replyNotTaken\n        case .noAnswer', '            return nil\n        case .noAnswer')).length > 0);
+  expect('(v) catches a WriteResult case with no reply sentence', vrRun(R_WORDS.replace('        case .noAnswer:\n            return Copy.endNoAnswer\n', '')).length > 0);
+  expect('(v) catches replySentence with a default', vrRun(R_WORDS.replace('        case .notTaken:\n', '        default:\n            return Copy.replyNotTaken\n        case .notTaken:\n')).length > 0);
+  expect('(v) catches an empty reply line', vrRun(R_WORDS, swap(REPLY_FILE, '            sayLine = Copy.replySent', '            sayLine = ""')).length > 0);
+  expect('(v) catches a reply line that is not a sentence', vrRun(R_WORDS, swap(REPLY_FILE, '            self?.pressLine = DoorWords.replySentence(for: sent.result)', '            self?.pressLine = String(describing: sent)')).length > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -7160,13 +7878,15 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       files: appFiles,
       hostile: existsSync(hostilePath) ? read(hostilePath) : null,
       copy: existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null,
-      writeSentences: writeSentenceKeys(existsSync(POCKET_TS) ? read(POCKET_TS) : null)
+      writeSentences: writeSentenceKeys(existsSync(POCKET_TS) ? read(POCKET_TS) : null),
+      // Phase 318: the Mac's own words a reply arm may end in.
+      macNames: macWordNames(...[join(ROOT, 'src', 'shared', 'lifecycle-words.ts'), join(ROOT, 'src', 'shared', 'reply-copy.ts')].map((q) => (existsSync(q) ? read(q) : null)))
     });
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
       r.findings,
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, and ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own`
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, and ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing`
     );
   }
   // (u)
@@ -7180,11 +7900,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const r = rulePairingSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, existsSync(PAIRING_SCREEN) ? read(PAIRING_SCREEN) : null, existsSync(PAIRING) ? read(PAIRING) : null);
     // Phase 317: End's line too.
     const e = ruleEndSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    // Phase 318: a reply's line too.
+    const rs = ruleReplySentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     record(
       'v',
       'the phone always draws a sentence',
-      [...r.findings, ...e.findings],
-      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty`
+      [...r.findings, ...e.findings, ...rs.findings],
+      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty`
     );
   }
   // (w)
@@ -7262,7 +7984,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'ab',
       'the write: one signed path, one id per write, handed only once withheld is asked, and never retried',
       r.findings,
-      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end alone; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
+      `"POST" ${String(r.said.posts)} time(s), in present and signedPost alone; signedPost called ${String(r.said.signedPosts)} time(s), by DoorClient.end, choose and say alone, once each; WriteId.fresh() ${String(r.said.freshIds)} time(s), 16 random bytes bound to a local; the body encoded with sorted keys and exactly its keys in signedPost alone; the writer's end( ${String(r.said.writerEnds)} time(s), in EndRunner.run, never in a while; handed set ${String(r.said.handed)} time(s), in send() just before connection.send and after withheld is asked; withheld set ${String(r.said.withheld)} time(s), only while handed is false; the result classified by handed, and an answer taken only with its id echoed or "" with refused and malformed`
     );
   }
   // (ac)
@@ -7291,6 +8013,32 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'the list only shrinks, and nothing is sent after the app left',
       r.findings,
       `EndRunner.targets a let, never grown; ${String(r.said.loops)} loop over it with one awaited write per turn and stopRequested read before each, the first included, and never set false; ${String(r.said.runners)} runner(s) made at the press, ${String(r.said.registered)} registered before the owner check is asked; AppModel.wentAway stops every registered runner (stopRequested set and its task cancelled); nothing in ${END_BAR_FILE}, ${END_BATCH_FILE} or the write path persists a write or a target`
+    );
+  }
+  // Phase 318: (ae), (af) and (ag), over the app named relative to its folder.
+  // (ae)
+  {
+    const r = ruleReplyWrites(appNamed);
+    record(
+      'ae',
+      'the reply writes: one runner each, his words exactly, and what will run drawn whole',
+      r.findings,
+      `the writer's choose( ${String(r.said.chooses)} time(s) and say( ${String(r.said.says)} time(s), in ReplyRunner.run, never in a loop; nothing on a message's path trims, normalizes or replaces it; MessageField turns ${String(r.said.smart)} of 3 smart types off; Send's .disabled reads the empty box and the running phase; the command drawn ${String(r.said.commandLines)} time(s) and every option with lines: nil`
+    );
+  }
+  // (af)
+  {
+    const r = ruleNoOwnerOnReply(appNamed);
+    record('af', 'no owner check on a reply', r.findings, `${String(r.said.files)} reply file(s), both in OWNER_CHECK_ABSENT, and the choice press name no owner check, LAContext or evaluatePolicy (his ruling, "Only for End")`);
+  }
+  // (ag)
+  {
+    const r = ruleReplyOnce(appNamed);
+    record(
+      'ag',
+      'a reply is sent once or not at all, and its one kept id is the one message whose answer did not come',
+      r.findings,
+      `${String(r.said.runners)} reply runner(s) made at the press, ${String(r.said.registered)} registered before their task starts; AppModel.wentAway stops every one; nothing persists a message or a write; a press or a send while one runs does nothing; the kept say set ${String(r.said.keptSets)} time(s), each from a say's own no-answer or busy, compared as UTF-8 bytes and bounded by one 60 s constant; end and choose pass no id`
     );
   }
 }

@@ -288,7 +288,8 @@ extension PocketEndConfirm: Codable {
     }
 }
 
-/// `PocketWriteAnswer`: what `POST /v1/end` answers with a 200. Every word is
+/// `PocketWriteAnswer`: what a write (`POST /v1/end`, and since Phase 318
+/// `/v1/choose` and `/v1/say`) answers with a 200. Every word is
 /// one of a CLOSED set, and the answer refuses whole when a word is not, or
 /// when its fields disagree with its outcome (a reason exactly
 /// when refused, a sentence exactly when not done). The client turns any
@@ -296,9 +297,18 @@ extension PocketEndConfirm: Codable {
 /// `WriteResult`), because the bytes reached the Mac and what it did is not
 /// known.
 struct PocketWriteAnswer: Equatable, Sendable {
-    enum Verb: String, Sendable, Codable { case end }
+    /// The write the answer is about. `choose` and `say` are Phase 318's.
+    enum Verb: String, Sendable, Codable { case end, choose, say }
     enum Outcome: String, Sendable, Codable { case done, refused, failed, busy }
-    enum Reason: String, Sendable, Codable { case removed, unreachable, ended, gone, malformed }
+    /// Why a write was refused. The last seven are Phase 318's: the question
+    /// moved (`changed`), a press the Mac does not offer (`unpressable`), a
+    /// session not at its own empty prompt (`unsayable`), the door stopping
+    /// before the act (`stopped`), and the message's own three (`empty`,
+    /// `long`, `character`). The phone draws the Mac's sentence, never the word.
+    enum Reason: String, Sendable, Codable {
+        case removed, unreachable, ended, gone, malformed
+        case changed, unpressable, unsayable, stopped, empty, long, character
+    }
 
     let verb: Verb
     /// The write id the request carried, echoed; `""` only on the one
@@ -338,6 +348,117 @@ extension PocketWriteAnswer: Codable {
         try c.encode(outcome, forKey: .outcome)
         try c.encode(reason, forKey: .reason)
         try c.encode(sentence, forKey: .sentence)
+    }
+}
+
+// MARK: - Reply (Phase 318)
+
+/// `PocketReplyOffer`: what the phone may do with one session's question or
+/// prompt, decided in main over ONE fresh reading (build/p318/SPEC.md section
+/// 5.2). The phone draws it and decides nothing: a press echoes `question`
+/// and `mark` and names one of `pressable`, and the Mac asks everything again
+/// by id when the write arrives.
+///
+///   - `question` and `mark`: what a press echoes. Null exactly when
+///     `pressable` is empty.
+///   - `pressable`: the markers of the options that may be pressed now, each
+///     one of the same answer's own `choices`, in the order they are drawn.
+///   - `command`: what the agent asks to run, when its question does not say
+///     it (Codex's `$` line), drawn under the question. Null otherwise.
+///   - `canSay`: whether one message may be sent now.
+///
+/// DECODED STRICTLY. A `reply` the Mac did not send (a Mac older than 318)
+/// is the empty offer: no button and no box. A `reply` with a field missing
+/// or of the wrong type refuses the whole answer, as every field does here.
+/// An offer whose fields disagree with each other or with the options the
+/// same answer draws (`agrees(with:)`) is read as the empty offer: a door
+/// that says something this build cannot square never becomes a button.
+struct PocketReplyOffer: Equatable, Sendable {
+    let question: String?
+    let mark: String?
+    let pressable: [String]
+    let command: String?
+    let canSay: Bool
+
+    /// No button and no box: main's `POCKET_NO_REPLY`.
+    static let empty = PocketReplyOffer(question: nil, mark: nil, pressable: [], command: nil, canSay: false)
+
+    /// A question id's two halves, as main mints it (`src/main/reply/question-id.ts`):
+    /// 16 lowercase hex, `-`, then 1 to 16 decimal digits with no leading zero.
+    static let questionPrefixLength = 16
+    static let questionCountDigits = 1...16
+    /// A mark is `hashScreen`'s shape: 12 lowercase hex.
+    static let markLength = 12
+
+    /// Whether this offer says one thing, and only about options `choices`
+    /// draws: a press half that is all there or all absent, well formed,
+    /// naming drawn options in drawn order once each, a command only beside a
+    /// press, and never a press and a message at once (a press needs a waiting
+    /// session, a message one that is not).
+    func agrees(with choices: [PocketChoiceOption]) -> Bool {
+        guard !pressable.isEmpty else {
+            return question == nil && mark == nil && command == nil
+        }
+        guard let question, let mark, !canSay,
+              Self.isQuestionId(question), Self.isMark(mark),
+              pressable.allSatisfy(Self.isMarker) else { return false }
+        // A subsequence of the drawn markers: in drawn order, each once.
+        var wanted = pressable.makeIterator()
+        var next = wanted.next()
+        for option in choices where option.marker == next {
+            next = wanted.next()
+        }
+        return next == nil
+    }
+
+    /// `<16 lowercase hex>-<1 to 16 digits, no leading zero but 0 itself>`.
+    static func isQuestionId(_ text: String) -> Bool {
+        let halves = text.split(separator: "-", omittingEmptySubsequences: false)
+        guard halves.count == 2, let prefix = halves.first, let count = halves.last else { return false }
+        guard prefix.utf8.count == questionPrefixLength, prefix.utf8.allSatisfy(isLowerHex) else { return false }
+        guard questionCountDigits.contains(count.utf8.count), count.utf8.allSatisfy(isDigit) else { return false }
+        return count == "0" || count.first != "0"
+    }
+
+    /// 12 lowercase hex.
+    static func isMark(_ text: String) -> Bool {
+        text.utf8.count == markLength && text.utf8.allSatisfy(isLowerHex)
+    }
+
+    /// One character, `1` to `9`: the agent's own marker as main reads it.
+    static func isMarker(_ text: String) -> Bool {
+        guard text.utf8.count == 1, let byte = text.utf8.first else { return false }
+        return byte >= UInt8(ascii: "1") && byte <= UInt8(ascii: "9")
+    }
+
+    private static func isLowerHex(_ byte: UInt8) -> Bool {
+        isDigit(byte) || (byte >= UInt8(ascii: "a") && byte <= UInt8(ascii: "f"))
+    }
+
+    private static func isDigit(_ byte: UInt8) -> Bool {
+        byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")
+    }
+}
+
+extension PocketReplyOffer: Codable {
+    enum CodingKeys: String, CodingKey { case question, mark, pressable, command, canSay }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        question = try c.nullable(String.self, forKey: .question)
+        mark = try c.nullable(String.self, forKey: .mark)
+        pressable = try c.decode([String].self, forKey: .pressable)
+        command = try c.nullable(String.self, forKey: .command)
+        canSay = try c.decode(Bool.self, forKey: .canSay)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(question, forKey: .question)
+        try c.encode(mark, forKey: .mark)
+        try c.encode(pressable, forKey: .pressable)
+        try c.encode(command, forKey: .command)
+        try c.encode(canSay, forKey: .canSay)
     }
 }
 
@@ -442,6 +563,14 @@ struct PocketSessionDetail: Equatable, Sendable {
     /// than 317. An End is drawn only with it, so the phone never makes up
     /// the words of a confirmation.
     var endConfirm: PocketEndConfirm?
+    /// What the phone may press or send on this session (Phase 318), as the
+    /// door sent it: nil from a Mac older than 318, and the empty offer when
+    /// what it sent does not agree with itself or with this answer's options.
+    /// Read through `replyOffer`.
+    var reply: PocketReplyOffer?
+
+    /// The offer to draw: absent reads as the empty offer (no button, no box).
+    var replyOffer: PocketReplyOffer { reply ?? .empty }
 
     subscript<T>(dynamicMember path: KeyPath<PocketBlockedRow, T>) -> T {
         row[keyPath: path]
@@ -450,7 +579,7 @@ struct PocketSessionDetail: Equatable, Sendable {
 
 extension PocketSessionDetail: Codable {
     enum CodingKeys: String, CodingKey {
-        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm
+        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm, reply
     }
 
     init(from decoder: Decoder) throws {
@@ -465,6 +594,14 @@ extension PocketSessionDetail: Codable {
         // Absent on a Mac older than Phase 317, and null on every row End is
         // not offered on.
         endConfirm = try c.decodeIfPresent(PocketEndConfirm.self, forKey: .endConfirm)
+        // Absent on a Mac older than Phase 318. A present offer is read
+        // strictly, and one that does not agree with this answer's own
+        // options is the empty offer (PocketReplyOffer).
+        if let offered = try c.decodeIfPresent(PocketReplyOffer.self, forKey: .reply) {
+            reply = offered.agrees(with: row.choices) ? offered : .empty
+        } else {
+            reply = nil
+        }
     }
 
     func encode(to encoder: Encoder) throws {
@@ -477,6 +614,7 @@ extension PocketSessionDetail: Codable {
         try c.encodeIfPresent(activity, forKey: .activity)
         try c.encodeIfPresent(lastMessageText, forKey: .lastMessageText)
         try c.encodeIfPresent(endConfirm, forKey: .endConfirm)
+        try c.encodeIfPresent(reply, forKey: .reply)
     }
 }
 
