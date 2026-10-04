@@ -82,7 +82,7 @@ describe('the loader answers safely where there is no window', () => {
 describe('App.tsx no longer carries the probes', () => {
   const app = read(APP_DIR, 'App.tsx');
 
-  it('imports none of the fourteen probe modules', () => {
+  it('imports none of the thirteen probe modules', () => {
     for (const spec of [
       './p93-attention-drive',
       './p96-remote-surfaces-drive',
@@ -93,7 +93,6 @@ describe('App.tsx no longer carries the probes', () => {
       '../context/shot-probe',
       './focus-shot-drive',
       './shell-path-shot-drive',
-      './p100-lines-shot',
       '../scm/p105-runs-shot',
       '../scm/p106-branch-shot',
       '../scm/p107-history-shot',

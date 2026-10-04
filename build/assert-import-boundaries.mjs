@@ -39,9 +39,9 @@
  *   src/main      allowed. Main is the Node process.
  *   src/preload   allowed. The preload must reach contextBridge.
  *
- * One directory has ONE door (Phase 125). src/shared/ipc/machines/ holds nine
+ * One directory has ONE door (Phase 125). src/shared/ipc/machines/ holds eight
  * domain files and src/shared/ipc/machines.ts is the barrel that composes
- * them. Only a file already inside src/shared/ipc/ may name one of the nine.
+ * them. Only a file already inside src/shared/ipc/ may name one of the eight.
  * Phase 42 set that shape when it split src/shared/ipc.ts into domain files
  * behind index.ts, and a second door is how the declared surface and the
  * installed one drift apart. Tests are exempt, as they are from every rule

@@ -77,7 +77,7 @@ import './focus-mode.css';
 // PHASE 165: mounted through its lazy door, so the page's chunk is fetched
 // on the first open and not at boot.
 import { OverviewLayerLazy } from '../overview/lazy';
-// PHASE 165. The eight sheets no launch needs during boot, each behind its
+// PHASE 165. The seven sheets no launch needs during boot, each behind its
 // own lazy door in ./lazy-modals.tsx and all in one chunk behind ./modals.ts.
 // Every door reads the same store bit its sheet reads first, so nothing about
 // when a sheet draws has changed, only when its code is fetched. The comments
@@ -87,7 +87,6 @@ import {
   CreateSessionModalLazy,
   AddLoginModalLazy,
   NewProjectModalLazy,
-  RemoteLinesModalLazy,
   RemoteProjectModalLazy,
   SavedOutputModalLazy,
   ShortcutsOverlayLazy
@@ -393,11 +392,6 @@ export function App(): React.JSX.Element {
           unless the store says a session's saved output is open, and only
           the session menu opens it. */}
       <SavedOutputModalLazy />
-      {/* Phase 100. Mounted beside the saved output panel, which is its
-          nearest sibling. It renders null unless the store says a session's
-          last lines are open, and the button in the band above the terminal
-          and one session menu item are the only two things that open it. */}
-      <RemoteLinesModalLazy />
       <ShortcutsOverlayLazy />
       <AttentionOverlay />
       <QuickOpenPaletteLazy />

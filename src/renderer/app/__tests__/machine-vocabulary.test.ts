@@ -57,7 +57,6 @@ const FILES: readonly string[] = [
   'src/renderer/machines/machine-choice.ts',
   'src/renderer/machines/project-tab.ts',
   'src/renderer/machines/quick-open.ts',
-  'src/renderer/machines/read-lines.ts',
   'src/renderer/machines/review.ts',
   'src/renderer/machines/runs.ts',
   'src/renderer/machines/scm.ts',
@@ -156,16 +155,9 @@ const FILES: readonly string[] = [
   // export in presentation.ts, which is the first file on this list. The panel
   // is read as well, so a later round cannot type a sentence straight into it.
   'src/renderer/quickopen/QuickOpenPalette.tsx',
-  // Phase 100. The panel that reads the last lines of a session on another
-  // machine. It draws a machine's label, an instant, a count and a size, and it
-  // draws the sentence for each of the three answers that mean no lines. Every
-  // one of those is a named export in presentation.ts, which is the first file
-  // on this list. The panel is read as well, so a later round cannot type a
-  // sentence straight into it.
-  'src/renderer/app/RemoteLinesModal.tsx',
-  // Phase 100. The session menu draws the item that opens that panel. Its label
-  // is composed in presentation.ts and the file is read here so it stays that
-  // way.
+  // The session menu. Phase 100 drew a sentence about a machine in it and
+  // Phase 320.2 removed it; the file stays on this list so a later round cannot
+  // type one straight into it.
   'src/renderer/terminal/terminal-menu.ts',
   // Phase 105. The Runs group for a folder on another machine, being the store
   // that holds one answer per folder and the section that draws it. Between

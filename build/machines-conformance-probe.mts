@@ -16,12 +16,8 @@
  * writes nothing anywhere. Every function it calls is pure. It is safe to run
  * on a machine with live sessions on it.
  *
- * PHASE 100 ADDED ONE MODULE LOAD, said here rather than left to be noticed.
- * `remote-capsule.ts` holds `remoteCaptureArgs`, which is the composer the
- * Phase 100 read reuses, and loading it pulls in the restore snapshot store and
- * the control plane. Loading those modules starts no timer, opens no window and
- * reads no file: `startRemoteCaptures` is never called here, and every function
- * this probe calls from that side is pure.
+ * PHASE 100 ADDED ONE MODULE LOAD, `remote-capsule.ts`, for a read Phase
+ * 320.2 deleted, and the load went with it.
  *
  * PHASE 79.1 ADDED ONE MODULE LOAD, said here rather than left to be noticed.
  * `key-material.ts` reads the record directory from `../src/main/machines/store`,
@@ -222,9 +218,9 @@ const machinesDir = join(repoRoot, 'src', 'main', 'machines');
  * The machines contract as ONE piece of text.
  *
  * Phase 125 split src/shared/ipc/machines.ts into nine domain files under
- * src/shared/ipc/machines/ and left the file itself as the barrel, so a
- * condition that reads a member of the contract now reads the barrel plus the
- * nine. Three conditions below did their own single-file read, and this is
+ * src/shared/ipc/machines/ (eight since Phase 320.2) and left the file itself
+ * as the barrel, so a condition that reads a member of the contract now reads
+ * the barrel plus the eight. Three conditions below did their own single-file read, and this is
  * that read written once. It changes what is scanned and no condition.
  */
 function machinesContractSource(): string {
@@ -1233,23 +1229,12 @@ const {
   REMOTE_FILE_LIST_MAX_BYTES,
   // The most names one read carries, so the gate can say the number out loud.
   REMOTE_FILE_LIST_MAX,
-  // Phase 100, condition 54. The depths the panel offers and the two ceilings
-  // the read is bounded by. All four are compiled constants.
-  REMOTE_SESSION_LINE_DEPTHS,
-  REMOTE_SESSION_LINES_BYTES_MAX,
-  REMOTE_SESSION_LINES_DEFAULT,
-  REMOTE_SESSION_LINES_MAX,
   // Phase 107, condition 57j. The page and the ceiling, being the two numbers
   // that keep one history answer under about 162,000 bytes and keep this phase
   // at tier 2. Both are compiled constants.
   REMOTE_HISTORY_PAGE,
   REMOTE_HISTORY_MAX_COMMITS
 } = await import('../src/shared/ipc');
-// Phase 100, condition 54. The composer the read reuses. It is pure: it reads no
-// machine, opens no file and starts nothing.
-const { remoteCaptureArgs } = await import(
-  '../src/main/machines/remote-capsule'
-);
 // Phase 105, condition 55. The gh argv builder and the allowlist that refuses a
 // command line that would mutate GitHub. BOTH ARE PURE. `src/main/actions/argv`
 // imports nothing at all, `src/main/actions/watch` imports one type, and NO gh
@@ -3896,50 +3881,6 @@ process.stdout.write(
         )
       ].sort()
     },
-
-    // --- Phase 100, condition 54 -------------------------------------------
-    // Pure. It composes one argv, reads one module's own source text and reads
-    // four compiled numbers. It starts nothing, opens no file under the
-    // person's home and contacts no machine.
-    phase100: (() => {
-      const linesPath = join(machinesDir, 'remote-lines.ts');
-      let source = '';
-      try {
-        source = readFileSync(linesPath, 'utf8');
-      } catch {
-        source = '';
-      }
-      return {
-        present: source.length > 0,
-        // The argv this phase sends, at the deepest depth it offers and at the
-        // screen alone. The gate holds both element by element.
-        argvDeep: remoteCaptureArgs('$9', REMOTE_SESSION_LINES_MAX),
-        argvScreen: remoteCaptureArgs('$9', 0),
-        depths: [...REMOTE_SESSION_LINE_DEPTHS],
-        defaultDepth: REMOTE_SESSION_LINES_DEFAULT,
-        maxDepth: REMOTE_SESSION_LINES_MAX,
-        maxBytes: REMOTE_SESSION_LINES_BYTES_MAX,
-        // The executable form of the refusal in research 57 section 3.1. A
-        // builder who needs either verb has designed a scrollbar, which this
-        // phase refused rather than deferred. The two names are composed rather
-        // than written, so this probe's own text does not trip the rule.
-        namesAScrollVerb: [`copy${'-'}mode`, `send${'-'}keys`].filter((one) =>
-          source.includes(one)
-        ),
-        // A read is not a capsule. The one name this module may take from the
-        // saved output side is the control stripper.
-        snapshotImports: [
-          ...source.matchAll(
-            /import\s+\{([^}]*)\}\s+from\s+'\.\.\/restore\/snapshots'/g
-          )
-        ].map((hit) => (hit[1] ?? '').replace(/\s+/g, '')),
-        callsCapsuleStore: source.includes('storeCapsuleText('),
-        // The one command this module sends, counted in its own text. A second
-        // verb here would be a second thing a person's session can be asked.
-        execCalls: [...source.matchAll(/execOn\(/g)].length,
-        composerCalls: [...source.matchAll(/remoteCaptureArgs\(/g)].length
-      };
-    })(),
 
     // --- Phase 105, condition 55 -------------------------------------------
     // Pure. It reads one compiled script text, one composed command, one

@@ -102,11 +102,28 @@
  *   R3L The control for R3: the same stand-in, on THIS Mac. It receives the
  *       alternate-scroll keys xterm sends for it, which is how it scrolls here,
  *       unchanged.
- *   R5  REGRADED BY 320.1. The band above a remote session draws no Read Last
- *       Lines control in either orientation, and the panel, opened through the
- *       product's own store action (`openRemoteLines`, reached through
- *       `__gmuxShotDrive`'s remoteLines knob), draws the count line and not
- *       the deleted sentence. Red at the parent (the band's button is there).
+ *   R5  REGRADED BY 320.2: THE READ LAST LINES WINDOW IS GONE, everywhere (his
+ *       ruling of 2026-09-30). The band above a remote session draws no
+ *       read-back control in either orientation (320.1's clause, unchanged).
+ *       Then the session's right-click menu is read AS MAIN BUILT IT: over
+ *       main's inspector (`--inspect=0`), `Menu.prototype.popup` is replaced by
+ *       a recorder that opens nothing and closes at once, and a REAL right-click
+ *       goes in over DevTools, on the remote plain shell `p320-sh` in the remote
+ *       group and on a session on this Mac in the FIRST block of this Mac's
+ *       arms, so R5 has two parts. Graded once both are read: no row of either
+ *       menu, nor of the application menu (`Open Recent`'s rows left out), says
+ *       Read Last Lines; the remote rows are this Mac's less the two history
+ *       presets with Clear disabled, every `Scrollback …` row and every Read
+ *       Last Lines row left out of both first, because main draws the
+ *       scrollback row for a session on this Mac alone; the old harness knob
+ *       opens no window; the bridge has no `readSessionLines`; main has no
+ *       invoke handler for `machines:readSessionLines`, asked through
+ *       `ipcMain.handle` with `machines:listFiles` as the control; and the
+ *       built `out/{renderer/assets,preload,main}` name none of
+ *       `openRemoteLines`, `remote-lines-modal` and the channel, which is the
+ *       store action's half, because the page exposes no store a probe can
+ *       call. Each half opens and closes its own main inspector session. Red at
+ *       320.2's parent on exactly its five window clauses.
  *   R6  The local fullscreen control, unchanged.
  *   T6  THE BYTES A KEY IS (the second build, D7), remote only: a recorder that
  *       asked for application cursor keys; a, é, 日本, 😀, Enter, Backspace,
@@ -196,7 +213,14 @@
  * Expected at 320.1's parent: R1, R3L, R6, A1 and A2 pass; R2, R3, R5, C1 and
  * the remote T2 fail (nothing on a machine parks, and the band still draws its
  * control); the remote T1, T3 and T5 read 0 lost, which is the bar HEAD must
- * equal (build/p3201/SPEC.md D18).
+ * equal (build/p3201/SPEC.md D18). Expected at 320.2's parent (`d9f98b54`), with
+ * `P320_ARMS=R5,R2`: R5 FAILS on its five window clauses (the row in the remote
+ * menu, the window the knob opens, the bridge member, main's handler and the
+ * built bundle) and on nothing else, the menu equality included, and R2 passes
+ * (build/p3202/SPEC.md §9.2). `--compare` then grades R5X: this Mac's menu byte
+ * for byte, the remote menu the parent's less exactly its one Read Last Lines
+ * row, no scrollback row on the remote menu at either build, the application
+ * menus equal, and the bundle counts zero at HEAD and above zero at the parent.
  *
  *   node build/p320/probe-p320.mjs --compare --head <a.json,c.json> --parent <b.json,d.json>
  *
@@ -211,6 +235,16 @@
  * the pooled first 40 read HEAD above the parent, which is when the second 40
  * is owed.
  *
+ * ## The five hidden agents (Phase 320.2, build/p3202/SPEC.md D9)
+ *
+ * This run launches with `GMUX_PROBES`, which version-probes every agent the
+ * detection scan resolves, and gemini, qwen, agy, grok and droid are never
+ * started. So before the launch the checkout's OWN overlay parser is asked
+ * (`hiddenAgentsPrecheck`, build/hidden-agents.mjs) and a scratch
+ * `<profile>/gmux/config/agents.json` renames the five; after the page load
+ * and before any arm the app's own `agents:list` is read back, and a scan that
+ * resolved any of them ends the run UNREADABLE, exit 2, before an arm runs.
+ *
  * ## What it refuses
  *
  *   - No `GMUX_TMUX_SOCKET`, the sockets `gmux` and `default` by name, and any
@@ -222,6 +256,8 @@
  *     but R1, R7, T1, T2, T3 and T6, and P320_WHERE=local.
  *   - On the loopback machine, a far shell that is not the quiet one (its
  *     ZDOTDIR not the yard's own), before any session is made there.
+ *   - A checkout whose own overlay parser does not hide the five agents, before
+ *     the launch; and an app whose scan resolved one, before any arm (exit 2).
  *
  * ## Environment
  *
@@ -282,6 +318,8 @@ import { withElectron, withoutDevRenderer } from '../electron-run.mjs';
 import { cdpEval, wsConnect } from '../cdp-client.mjs';
 import { keyscanText } from '../ssh-run.mjs';
 import { tsxCli } from '../ts-runner.mjs';
+// Phase 320.2 (D9): the five agents a GMUX_PROBES launch must never start.
+import * as hidden from '../hidden-agents.mjs';
 import {
   controlEntries,
   dotfilesMoved,
@@ -322,11 +360,11 @@ export function notchPx(cell) {
 /** Between two notches. More than the 16 ms coalescing window, less than a person's pause. */
 const NOTCH_GAP_MS = 60;
 /**
- * The sentence Phase 320 deleted and the band's control Phase 320.1 deletes,
- * by value, so a build that kept either is named. Neither is imported: a probe
- * that read them from the source it judges would agree with a wrong one.
+ * The band's control Phase 320.1 deleted, by value, so a build that kept it is
+ * named. Not imported: a probe that read it from the source it judges would
+ * agree with a wrong one. (Phase 320's deleted sentence went with the window
+ * Phase 320.2 removed, and so did this file's reading of it.)
  */
-export const FALSE_SENTENCE = 'That is everything this session has kept.';
 export const REMOTE_ONLY_TOOLTIP = 'cannot scroll back';
 /** The reverifier's M3 text (build/p320/SPEC.md item 22). */
 export const TYPED = 'fix the bug';
@@ -527,21 +565,76 @@ export function remoteAltFindings(remote) {
   return out;
 }
 
-/** R5, regraded by Phase 320.1. `r` is { notes: [top, right], panel }. */
-export function bandFindings(r) {
+/**
+ * R5, regraded by Phase 320.2 (build/p3202/SPEC.md §5.3). The two history
+ * presets Phase 96 withholds from a session on another machine, the row the
+ * window had, and a menu row of main's: a separator is `—`, an item its label
+ * with ` [off]` when disabled, and a scrollback row is normalised to
+ * `Scrollback …` because its numbers are whatever the session printed.
+ */
+export const R5_PRESETS = ['Capture Last 250 Lines', 'Capture Last 1,000 Lines'];
+export const READ_ROW = /read last lines/i;
+export const SCROLLBACK_ROW = /^Scrollback /;
+/** The window's three names the built bundle is read for (the store action, the class, the channel). */
+export const BUNDLE_NAMES = ['openRemoteLines', 'remote-lines-modal', 'machines:readSessionLines'];
+
+/** Runs of separators collapsed to one. */
+export function collapseSeparators(rows) {
+  const out = [];
+  for (const r of rows) {
+    if (r === '—' && out[out.length - 1] === '—') continue;
+    out.push(r);
+  }
+  return out;
+}
+/** A menu as the equality reads it: every scrollback row and every Read Last Lines row left out (§Attack A2). */
+export function menuForEquality(rows) {
+  return collapseSeparators(rows.filter((r) => !SCROLLBACK_ROW.test(r) && !READ_ROW.test(r)));
+}
+/** What a remote session's menu must read, from this Mac's: less the two presets, Clear disabled. */
+export function remoteMenuWanted(localRows) {
+  return collapseSeparators(menuForEquality(localRows).filter((r) => !R5_PRESETS.includes(r)).map((r) => (r === 'Clear' ? 'Clear [off]' : r)));
+}
+
+/**
+ * R5's grade, once both menus are read. `r` is { notes: [top, right], menus:
+ * { remote, local }, appMenu, opened, bridge, handler: { control, removed },
+ * bundle: { name: count } }. At HEAD it answers nothing; at 320.2's parent it
+ * answers exactly five, one per window clause, and none from the equality.
+ */
+export function windowFindings(r) {
   const out = [];
   for (const [which, note] of [['top', r.notes?.[0]], ['right', r.notes?.[1]]]) {
     if (note !== null && note !== undefined) {
-      out.push(`R5 the band above a session on another machine still draws a Read last lines control in the ${which} orientation (${J(note)}); it scrolls like a session on this Mac now, and the read is in the terminal menu`);
+      out.push(`R5 the band above a session on another machine still draws a read-back control in the ${which} orientation (${J(note)}); it scrolls like a session on this Mac now`);
     }
   }
-  const p = r.panel;
-  if (!p || p.open !== true) {
-    out.push('R5 the Read Last Lines panel did not open through the store action, so nothing it says was read');
-    return out;
+  const remote = r.menus?.remote;
+  const local = r.menus?.local;
+  const read = Array.isArray(remote) && Array.isArray(local);
+  if (!read) out.push('R5 the right-click menu was not read, so nothing about its rows is known');
+  const offered = [];
+  if (Array.isArray(remote) && remote.some((row) => READ_ROW.test(row))) offered.push("a remote session's right-click menu");
+  if (Array.isArray(local) && local.some((row) => READ_ROW.test(row))) offered.push("this Mac's session's right-click menu");
+  if (Array.isArray(r.appMenu) && r.appMenu.some((row) => READ_ROW.test(row))) offered.push('the application menu');
+  if (offered.length > 0) out.push(`R5 ${offered.join(' and ')} still offers Read Last Lines, which Phase 320.2 removed everywhere`);
+  if (read) {
+    const want = remoteMenuWanted(local);
+    const got = menuForEquality(remote);
+    if (J(got) !== J(want)) {
+      out.push(`R5 a remote session's right-click menu reads ${J(got)}, not this Mac's ${J(want)} (less the two history presets, Clear disabled, every Scrollback and Read Last Lines row left out of both)`);
+    }
   }
-  if ((p.text ?? '').includes(FALSE_SENTENCE)) out.push(`R5 Read Last Lines says "${FALSE_SENTENCE}", which is not true`);
-  if (typeof p.counts !== 'string' || p.counts.trim() === '') out.push('R5 the count line, which says what came back, is not drawn');
+  if (r.opened === true) out.push('R5 the Read Last Lines window opened through the harness knob');
+  if (r.bridge === 'function') out.push('R5 the bridge still carries window.gmux.machines.readSessionLines');
+  if (r.handler?.control !== true) {
+    out.push(`R5 UNREADABLE: main's invoke handlers could not be asked, the control machines:listFiles read ${J(r.handler?.control ?? null)}, so the channel's absence is not proved`);
+  } else if (r.handler.removed === true) {
+    out.push('R5 main still registers an invoke handler for machines:readSessionLines');
+  }
+  const named = Object.entries(r.bundle ?? {}).filter(([, n]) => typeof n === 'number' && n > 0);
+  if (r.bundle === null || r.bundle === undefined) out.push('R5 the built bundle was not read, so whether it carries the window is not known');
+  else if (named.length > 0) out.push(`R5 the built bundle still names ${named.map(([k, n]) => `${k} ${String(n)} time(s)`).join(', ')}`);
   return out;
 }
 
@@ -784,6 +877,9 @@ export function planParts(chosen, { local, remote }) {
   const plan = {};
   for (const arm of chosen) {
     if (TYPING.includes(arm)) plan[arm] = [...(remote ? ['remote'] : []), ...(local ? ['local'] : [])];
+    // Phase 320.2: R5 reads a remote session's menu in the remote group and a
+    // session on this Mac's after it, which needs no flag (this Mac is always there).
+    else if (arm === 'R5') plan[arm] = ['remote', 'local'];
     else if (LOCAL_ONLY.includes(arm)) plan[arm] = ['local'];
     else plan[arm] = ['remote'];
   }
@@ -1009,6 +1105,53 @@ export function compareBuilds(heads, parents) {
       if (where === 'remote' && kept(h) < kept(p)) findings.push(`T4 ${where} ${mode} HEAD delivered ${J(h)} where the parent delivered ${J(p)}: fewer of "bc"`);
     }
   }
+  // R5X (Phase 320.2, build/p3202/SPEC.md §5.3 item 6): the menus across the
+  // builds, and the parent measurement of the bundle.
+  {
+    const r5 = (list) => list.map((one) => one?.readings?.R5).find((r) => r !== null && typeof r === 'object') ?? null;
+    const h = r5(heads);
+    const p = r5(parents);
+    if (h === null || p === null) {
+      lines.push('R5X: R5 was not read on both builds.');
+    } else {
+      const hl = h.menus?.local;
+      const pl = p.menus?.local;
+      if (!Array.isArray(hl) || !Array.isArray(pl)) findings.push('R5X this Mac\'s right-click menu was not read at both builds');
+      else {
+        lines.push(`R5X this Mac's menu: HEAD ${J(hl)}, the parent ${J(pl)}`);
+        if (J(hl) !== J(pl)) findings.push(`R5X this Mac's right-click menu moved: HEAD ${J(hl)}, the parent ${J(pl)}`);
+      }
+      const hr = h.menus?.remote;
+      const pr = p.menus?.remote;
+      if (!Array.isArray(hr) || !Array.isArray(pr)) findings.push('R5X a remote session\'s right-click menu was not read at both builds');
+      else {
+        const rows = pr.filter((row) => READ_ROW.test(row));
+        lines.push(`R5X a remote session's menu: HEAD ${J(hr)}, the parent ${J(pr)}`);
+        if (rows.length !== 1) {
+          findings.push(`R5X the parent's remote menu holds ${String(rows.length)} Read Last Lines row(s), not one, so the parent was not measured`);
+        } else {
+          const at = pr.findIndex((row) => READ_ROW.test(row));
+          const less = [...pr.slice(0, at), ...pr.slice(at + 1)];
+          if (J(hr) !== J(less)) findings.push(`R5X a remote session's menu at HEAD is ${J(hr)}, not the parent's less its one Read Last Lines row (${J(less)})`);
+        }
+      }
+      for (const [build, r] of [['HEAD', h], ['the parent', p]]) {
+        if (r.scrollbackRows?.remote !== false) findings.push(`R5X a remote session's menu at ${build} read ${J(r.scrollbackRows?.remote ?? null)} for a scrollback row; it draws none at either build`);
+      }
+      if (!Array.isArray(h.appMenu) || !Array.isArray(p.appMenu)) findings.push('R5X the application menu was not read at both builds');
+      else if (J(h.appMenu) !== J(p.appMenu)) {
+        const gone = p.appMenu.filter((l) => !h.appMenu.includes(l));
+        const added = h.appMenu.filter((l) => !p.appMenu.includes(l));
+        findings.push(`R5X the application menu moved between the builds: gone ${J(gone)}, added ${J(added)}`);
+      } else lines.push(`R5X the application menu: ${String(h.appMenu.length)} labels, equal at both builds`);
+      const counts = (r) => BUNDLE_NAMES.map((name) => (typeof r.bundle?.[name] === 'number' ? r.bundle[name] : null));
+      const hc = counts(h);
+      const pc = counts(p);
+      lines.push(`R5X the built bundle names ${BUNDLE_NAMES.join(', ')}: HEAD ${J(hc)}, the parent ${J(pc)}`);
+      if (hc.some((n) => n !== 0)) findings.push(`R5X HEAD's built bundle names the window: ${J(hc)} for ${J(BUNDLE_NAMES)}`);
+      if (pc.some((n) => !(typeof n === 'number' && n > 0))) findings.push(`R5X the parent's built bundle reads ${J(pc)} for ${J(BUNDLE_NAMES)}, so the parent was not measured`);
+    }
+  }
   return { findings, lines };
 }
 
@@ -1024,6 +1167,7 @@ export function ownerOfFinding(finding) {
   if (/^(?:R1L|R7L)\b/.test(f)) return 'D1 and D2 on this Mac (§9: a local flag takes them out here)';
   if (/^(?:R1|R7)\b/.test(f)) return "D1 and D2's arms for a pane on another machine (§9: Phase 320's pass-through while not parked)";
   if (/^(?:T3 remote|T4 remote|T5)\b/.test(f)) return 'the remote key road, D6 to D9 and the fix round\'s F1 and F4 (§9: remote parking does not land, and it goes to him)';
+  if (/^R5X\b/.test(f)) return "Phase 320.2's removal of the Read Last Lines window (build/p3202/SPEC.md §5.3)";
   return 'the part that owns it (read SPEC §9)';
 }
 
@@ -1037,6 +1181,29 @@ function selfTest() {
   const headLog = [{ kind: 'ready', top: 4971 }, ...Array.from({ length: 20 }, (_, k) => [input(sgrUp, [up]), { kind: 'state', top: 4971 - 3 * (k + 1) }]).flat()];
   const t1 = (got, o = {}) => ({ got, lastRow: o.lastRow ?? '', paneMode: o.paneMode ?? 'copy-mode', inMode: o.inMode ?? 1 });
   const fisher = fisherExact(114, 770, 24, 550);
+  // R5's readings (Phase 320.2): a HEAD shape and a 320.2-parent shape. The
+  // menus are the rows terminal-menu.ts draws with nothing selected.
+  const R5_REMOTE_ROWS = ['New Session…', 'Split Session', '—', 'Copy [off]', 'Copy as HTML [off]', 'Paste', 'Select All', '—', 'Capture Screen', 'Capture Selection [off]', '—', 'Clear [off]'];
+  const R5_LOCAL_ROWS = ['New Session…', 'Split Session', '—', 'Copy [off]', 'Copy as HTML [off]', 'Paste', 'Select All', '—', 'Capture Screen', 'Capture Selection [off]', ...R5_PRESETS, '—', 'Clear'];
+  const R5_LOCAL_ROWS_LIVE = [...R5_LOCAL_ROWS.slice(0, -1), 'Scrollback … [off]', 'Clear'];
+  const r5Head = (o = {}) => ({
+    notes: [null, null],
+    menus: { remote: o.remote ?? R5_REMOTE_ROWS, local: o.local ?? R5_LOCAL_ROWS },
+    scrollbackRows: { remote: false, local: (o.local ?? R5_LOCAL_ROWS).some((r) => SCROLLBACK_ROW.test(r)) },
+    appMenu: ['Tortie > About Tortie', 'File > Open Recent', 'Session > End Session'],
+    opened: false,
+    bridge: 'undefined',
+    handler: { control: true, removed: false },
+    bundle: Object.fromEntries(BUNDLE_NAMES.map((n) => [n, 0]))
+  });
+  const r5Parent = (o = {}) => ({
+    ...r5Head(o),
+    menus: { remote: [...R5_REMOTE_ROWS.slice(0, 10), 'Read Last Lines…', ...R5_REMOTE_ROWS.slice(10)], local: o.local ?? R5_LOCAL_ROWS },
+    opened: true,
+    bridge: 'function',
+    handler: { control: true, removed: true },
+    bundle: { openRemoteLines: 2, 'remote-lines-modal': 2, 'machines:readSessionLines': 2 }
+  });
   const fixtures = [
     ['tally reads reports, other bytes and the last top', () => tally(headLog, 1), { up: 20, down: 0, reports: 20, other: '', bytes: '\x1b[<64;20;10M'.repeat(20), top: 4911 }],
     ['tally counts a report with a modifier bit as the wheel', () => tally([input('', [{ b: 64 | 16, x: 1, y: 1 }])]).up, 1],
@@ -1057,9 +1224,27 @@ function selfTest() {
     ['R3 HEAD and the parent alike: the far stand-in receives nothing', () => remoteAltFindings(''), []],
     ['R3 the fix round: nothing reaching the remote stand-in passes', () => remoteAltFindings(''), []],
     ['R3 the fix round: a cursor key reaching it is named', () => remoteAltFindings('\x1bOA\x1bOA').length, 1],
-    ['R5 HEAD: no band control either way, the count drawn', () => bandFindings({ notes: [null, null], panel: { open: true, text: 'Tortie brought back 44 lines.', counts: 'Tortie brought back 44 lines.' } }), []],
-    ['R5 the parent of 320.1: the band draws the button both ways', () => bandFindings({ notes: [{ text: 'Read last lines', title: '' }, { text: 'Read last lines', title: '' }], panel: { open: true, text: 'x', counts: 'x' } }).length, 2],
-    ['R5 a panel that did not open is a finding, not a pass', () => bandFindings({ notes: [null, null], panel: { open: false } }), ['R5 the Read Last Lines panel did not open through the store action, so nothing it says was read']],
+    // Phase 320.2: R5 is the window's absence, graded once both menus are read.
+    ['R5 HEAD: no row, menus equal, no window, no member, no handler, no name in the bundle', () => windowFindings(r5Head()), []],
+    ['R5 HEAD, the live shape: this Mac\'s menu carries a scrollback row and the remote one does not', () => windowFindings(r5Head({ local: R5_LOCAL_ROWS_LIVE })), []],
+    ['R5 320.2\'s parent: exactly five, one per window clause, and none from the equality', () => windowFindings(r5Parent()).length, 5],
+    ['R5 320.2\'s parent: the five are the row, the window, the member, the handler and the bundle', () => windowFindings(r5Parent()).map((f) => f.slice(0, 28)), ['R5 a remote session\'s right-', 'R5 the Read Last Lines windo', 'R5 the bridge still carries ', 'R5 main still registers an i', 'R5 the built bundle still na']],
+    ['R5 a control that reads false is one finding, never a pass', () => windowFindings({ ...r5Head(), handler: { control: false, removed: false } }).length, 1],
+    ['R5 menus not read are one finding, not a pass', () => windowFindings({ ...r5Head(), menus: { remote: null, local: null } }), ['R5 the right-click menu was not read, so nothing about its rows is known']],
+    ['R5 the band control 320.1 deleted is still named in each orientation', () => windowFindings({ ...r5Head(), notes: [{ text: 'x' }, { text: 'x' }] }).length, 2],
+    ['R5 a remote menu that lost a row this Mac\'s has is named by the equality', () => windowFindings(r5Head({ remote: R5_REMOTE_ROWS.filter((r) => r !== 'Paste') })).length, 1],
+    ['R5 the row in the application menu is named', () => windowFindings({ ...r5Head(), appMenu: ['Session > Read Last Lines…'] }).length, 1],
+    ['R5 runs of separators collapse to one', () => collapseSeparators(['a', '—', '—', 'b', '—']), ['a', '—', 'b', '—']],
+    ['R5X HEAD against 320.2\'s parent: nothing to find', () => compareBuilds([{ readings: { R5: r5Head({ local: R5_LOCAL_ROWS_LIVE }) } }], [{ readings: { R5: r5Parent({ local: R5_LOCAL_ROWS_LIVE }) } }]).findings, []],
+    ['R5X a parent reading with no Read Last Lines row was not measured', () => compareBuilds([{ readings: { R5: r5Head() } }], [{ readings: { R5: r5Head() } }]).findings.filter((f) => /not measured/.test(f)).length, 2],
+    ['R5X this Mac\'s menu moving between the builds is a finding', () => compareBuilds([{ readings: { R5: r5Head() } }], [{ readings: { R5: r5Parent({ local: R5_LOCAL_ROWS_LIVE }) } }]).findings.filter((f) => /this Mac's right-click menu moved/.test(f)).length, 1],
+    ['R5X a remote menu that grew a scrollback row is a finding', () => compareBuilds([{ readings: { R5: { ...r5Head(), scrollbackRows: { remote: true, local: true } } } }], [{ readings: { R5: r5Parent() } }]).findings.filter((f) => /scrollback row/.test(f)).length, 1],
+    ['R5X a finding names Phase 320.2\'s removal', () => /Phase 320\.2/.test(ownerOfFinding('R5X HEAD\'s built bundle names the window')), true],
+    // Phase 320.2 (D9): p326's four hidden-agent fixtures, build/p326/probe-p326.mjs:951-954.
+    ['hidden agents: a clean scan passes', () => hidden.hiddenAgentsScanVerdict([{ id: 'claude', installed: true, binPath: '/x' }, { id: 'gemini', installed: false, binPath: null, version: null }]).ok, true],
+    ['hidden agents: a resolved gemini stops the run', () => hidden.hiddenAgentsScanVerdict([{ id: 'gemini', installed: true, binPath: '/opt/homebrew/bin/gemini' }]).ok, false],
+    ['hidden agents: a version alone stops the run', () => hidden.hiddenAgentsScanVerdict([{ id: 'grok', installed: false, binPath: null, version: '1.0' }]).ok, false],
+    ['hidden agents: no list is not a pass', () => hidden.hiddenAgentsScanVerdict(null).ok, false],
     ['lcs of equal texts is their length', () => lcsLength(TYPED, TYPED), 11],
     ['M3 loss is counted by LCS', () => charsLost(TYPED, 'fx th bg'), 3],
     ['a stray byte is not a loss', () => charsLost(TYPED, `${TYPED}\u001b`), 0],
@@ -1112,7 +1297,8 @@ function selfTest() {
     ['the arms: A2 beside a remote arm is refused', () => armsRefusal(['R1', 'A2'], 'loopback') !== null, true],
     ['the arms: A2 alone is accepted', () => armsRefusal(['A2'], 'loopback'), null],
     ['the arms: the real machine runs R1, R7, T1, T2, T3 and T6 beside this Mac\'s arms, and nothing else', () => [armsRefusal(['R1', 'R7', 'T1', 'T2', 'T3', 'T6', 'R1L', 'R6'], 'real'), armsRefusal(['C1'], 'real') !== null, armsRefusal(['A1'], 'real') !== null], [null, true, true]],
-    ['the parts: a typing arm runs remote then here, a remote arm once, a local arm once', () => planParts(['R1', 'T1', 'R1L'], { local: true, remote: true }), { R1: ['remote'], T1: ['remote', 'local'], R1L: ['local'] }],
+    ['the parts: a typing arm runs remote then here, a remote arm once, R5 remote then here, a local arm once', () => planParts(['R1', 'R5', 'T1', 'R1L'], { local: true, remote: true }), { R1: ['remote'], R5: ['remote', 'local'], T1: ['remote', 'local'], R1L: ['local'] }],
+    ['the parts: R5 has its two parts whatever the typing flags say, so a remote half that threw prints not run', () => [planParts(['R5'], { local: false, remote: false }), summaryRows(planParts(['R5'], { local: true, remote: true }), new Set(['R5:remote']), { ...Object.fromEntries(ALL_ARMS.map((a) => [a, []])), RUN: [] }).find(([a]) => a === 'R5')], [{ R5: ['remote', 'local'] }, ['R5', 'not run']]],
     ['the summary: an arm after the stage that threw prints not run, never PASS (the first attempt printed PASS)', () => summaryRows(planParts(['R3', 'T1', 'C1'], { local: true, remote: true }), new Set(['T1:remote']), { ...Object.fromEntries(ALL_ARMS.map((a) => [a, []])), RUN: ['stopped during R3'] }).filter(([a]) => ['R3', 'T1', 'C1', 'R1', 'RUN'].includes(a)), [['R1', 'not asked'], ['R3', 'not run'], ['T1', 'not run'], ['C1', 'not run'], ['RUN', 'FAIL 1']]],
     ['the summary: an arm whose every part ran is PASS or FAIL', () => summaryRows({ T6: ['remote'], C1: ['remote'] }, new Set(['T6:remote', 'C1:remote']), { ...Object.fromEntries(ALL_ARMS.map((a) => [a, []])), C1: ['x'], RUN: [] }).filter(([a]) => ['T6', 'C1'].includes(a)), [['T6', 'PASS'], ['C1', 'FAIL 1']]],
     ['R1: every notch, nothing parked, passes', () => sweepFindings('R1', [{ wait: 0, run: 1, reports: 10, notches: 10, parkedAfter: false, took: true }, { wait: 1500, run: 1, reports: 10, notches: 10, parkedAfter: false, took: true }]), []],
@@ -1259,10 +1445,14 @@ if (!existsSync(join(checkout, 'out', 'main', 'index.js'))) {
 
 /** The sources the readings are made of, per bundle. A file the checkout lacks reads mtime 0. */
 const SCROLL_DIR = join('src', 'renderer', 'terminal', 'scroll');
+// Phase 320.2: the window's two files left this list with the window, and the
+// files where its row, its store action and its knob lived joined it, so a
+// build older than any of them is refused as stale rather than read.
 const RENDERER_SOURCES = [
   join('src', 'renderer', 'terminal', 'TerminalPane.tsx'),
-  join('src', 'renderer', 'machines', 'read-lines.ts'),
-  join('src', 'renderer', 'app', 'RemoteLinesModal.tsx'),
+  join('src', 'renderer', 'terminal', 'terminal-menu.ts'),
+  join('src', 'renderer', 'state', 'sessions-slice.ts'),
+  join('src', 'renderer', 'app', 'probe-registry.ts'),
   join('src', 'renderer', 'app', 'session-actions.tsx'),
   join('src', 'renderer', 'terminal', 'capture', 'history-copy.ts'),
   join('src', 'renderer', 'terminal', 'capture', 'index.ts')
@@ -1278,7 +1468,9 @@ const MAIN_SOURCES = [
   join('src', 'main', 'machines', 'scroll-order.ts'),
   join('src', 'main', 'attach', 'attach-host.ts'),
   join('src', 'main', 'capture', 'ipc.ts'),
-  join('src', 'main', 'capture', 'service.ts')
+  join('src', 'main', 'capture', 'service.ts'),
+  // Phase 320.2: where the channel's handler was registered.
+  join('src', 'main', 'machines', 'ipc.ts')
 ];
 // The integrator's round of the second build: the report predicate both processes ask.
 const SHARED_SOURCES = [join('src', 'shared', 'ipc', 'terminal.ts'), join('src', 'shared', 'pane-report.ts')];
@@ -1374,6 +1566,12 @@ for (const d of [home, shHome, project, farProjectLocal, logs, profile]) {
 }
 writeFileSync(join(home, '.zshrc'), "PS1='p320 %# '\n");
 writeFileSync(join(home, '.hushlogin'), '');
+// THE FIVE HIDDEN AGENTS (Phase 320.2, D9), before anything starts: this
+// checkout's own overlay parser must hide them, and the overlay is the
+// profile's agents.json before the launch, so the boot warm runs none of them.
+const hiddenPre = hidden.hiddenAgentsPrecheck({ checkout, prefix: 'p320', home, userPath: process.env['PATH'] ?? '' });
+if (!hiddenPre.ok) refuse(`${checkout}'s own overlay parser does not hide the five agents (exit ${String(hiddenPre.exit)}): ${hiddenPre.said}`);
+hidden.writeHiddenAgents(profile, 'p320');
 writeFileSync(join(project, 'README.md'), '# Phase 320, this Mac\n');
 writeFileSync(join(farProjectLocal, 'README.md'), '# Phase 320, the loopback machine\n');
 const NODE = process.execPath;
@@ -1543,18 +1741,16 @@ const PAGE_KIT = String.raw`
     const el = document.querySelector('.strip-readback');
     return el ? { box: box(el), title: el.getAttribute('title'), text: (el.textContent || '').trim() } : null;
   };
-  kit.panel = () => {
-    const m = document.querySelector('.remote-lines-modal');
-    if (!m) return null;
-    const counts = m.querySelector('.remote-lines-counts');
-    return {
-      open: true,
-      text: (m.textContent || '').replace(/\s+/g, ' ').trim(),
-      counts: counts ? (counts.textContent || '').trim() : null,
-      allThereEl: m.querySelector('.remote-lines-all-there') !== null,
-      reading: m.querySelector('.remote-lines-reading') !== null,
-      empty: m.querySelector('.remote-lines-empty') !== null
-    };
+  // R5 (Phase 320.2): whether the Read Last Lines window is drawn. Its class,
+  // by value, because a probe that read it from the source would agree with it.
+  kit.linesWindow = () => document.querySelector('.remote-lines-modal') !== null;
+  // R5: the bottom-right cell of the terminal, where the right-click goes.
+  kit.lastCell = () => {
+    const g = kit.geometry();
+    if (!g.screen || !(g.rows > 0) || !(g.cols > 0)) return null;
+    const w = g.screen.width / g.cols;
+    const h = g.screen.height / g.rows;
+    return { x: Math.round(g.screen.left + g.screen.width - w / 2), y: Math.round(g.screen.top + g.screen.height - h / 2) };
   };
   // T2: when the terminal's top row first changes after the swipe began.
   kit.watchTop = () => {
@@ -1632,7 +1828,7 @@ async function cdpForAppWindow(profileDir, timeoutMs) {
   }
 }
 
-/** The MAIN process, over the node inspector `--inspect=0` opened (C1 only). */
+/** The MAIN process, over the node inspector `--inspect=0` opened (C1 and R5). */
 async function cdpForMain(handle, timeoutMs) {
   const started = Date.now();
   for (;;) {
@@ -1678,6 +1874,113 @@ const CLIP_RESTORE = `(() => {
   if (globalThis.__p320Clip) { clipboard.write = globalThis.__p320Clip.original; delete globalThis.__p320Clip; }
   return true;
 })()`;
+
+/**
+ * R5 (Phase 320.2, D8) reads a right-click menu AS MAIN BUILT IT, without
+ * raising it: `Menu.prototype.popup` is replaced by a recorder that keeps the
+ * menu's rows and calls the popup's own close callback on the next turn,
+ * opening nothing. A row is `—` for a separator, else its label with ` [off]`
+ * when disabled; a scrollback row's numbers are whatever the session printed,
+ * so its label is normalised to `Scrollback …`. The patch is proved to have
+ * taken on a fresh menu, or the menu clause is unreadable. Why not the Phase
+ * 198 knob: it answers only under GMUX_SHOT, which dispatches the screenshot
+ * harness, and this round takes no screenshot.
+ */
+const MENU_PATCH = `(() => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { Menu } = load('electron');
+  if (globalThis.__p320Menu) return Menu.prototype.popup === globalThis.__p320Menu.patched;
+  const original = Menu.prototype.popup;
+  const rec = { original, patched: null, menus: [] };
+  const rowOf = (item) => {
+    if (item.type === 'separator') return '—';
+    const label = String(item.label ?? '');
+    return (label.startsWith('Scrollback ') ? 'Scrollback …' : label) + (item.enabled === false ? ' [off]' : '');
+  };
+  rec.patched = function (options) {
+    rec.menus.push(this.items.map(rowOf));
+    const done = options && typeof options.callback === 'function' ? options.callback : null;
+    if (done !== null) setImmediate(() => done());
+  };
+  Menu.prototype.popup = rec.patched;
+  globalThis.__p320Menu = rec;
+  return Menu.buildFromTemplate([{ label: 'x' }]).popup === rec.patched;
+})()`;
+const MENU_COUNT = `(globalThis.__p320Menu ? globalThis.__p320Menu.menus.length : -1)`;
+const MENU_READ = `JSON.stringify(globalThis.__p320Menu ? globalThis.__p320Menu.menus : null)`;
+const MENU_RESTORE = `(() => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { Menu } = load('electron');
+  if (globalThis.__p320Menu) { Menu.prototype.popup = globalThis.__p320Menu.original; delete globalThis.__p320Menu; }
+  return true;
+})()`;
+/** Every label of the application menu, submenus included, as `A > B`; `Open Recent`'s rows are what this run opened. */
+const APP_MENU_READ = `JSON.stringify((() => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { Menu } = load('electron');
+  const top = Menu.getApplicationMenu();
+  if (!top) return null;
+  const out = [];
+  const walk = (menu, path) => {
+    for (const item of menu.items) {
+      if (item.type === 'separator') continue;
+      const label = String(item.label ?? '');
+      const here = path === '' ? label : path + ' > ' + label;
+      out.push(here);
+      if (item.submenu && label !== 'Open Recent') walk(item.submenu, here);
+    }
+  };
+  walk(top, '');
+  return out;
+})())`;
+/**
+ * R5's handler read (D11), through public Electron API: `ipcMain.handle`
+ * throws "Attempted to register a second handler" exactly when a handler
+ * exists, and when it does not throw the dummy is removed in the same turn.
+ * `machines:listFiles` is the control and must read present.
+ */
+const HANDLER_READ = `(() => {
+  const load = typeof require === 'function' ? require : process.mainModule.require.bind(process.mainModule);
+  const { ipcMain } = load('electron');
+  const has = (channel) => {
+    try { ipcMain.handle(channel, () => null); }
+    catch (err) { return /second handler/i.test(String(err && err.message)); }
+    ipcMain.removeHandler(channel);
+    return false;
+  };
+  return { control: has('machines:listFiles'), removed: has('machines:readSessionLines') };
+})()`;
+
+/**
+ * R5's store half, read as an artifact (§Attack A12): how often each of the
+ * window's three names occurs in the checkout's built renderer chunks, preload
+ * and main. Never `out/` whole: `out/p320/` holds readings that quote the
+ * parent's menu. A store action whose name is in no shipped chunk cannot be
+ * called by anything.
+ */
+function bundleCounts(dir) {
+  const counts = Object.fromEntries(BUNDLE_NAMES.map((n) => [n, 0]));
+  const files = [];
+  const walk = (at) => {
+    let entries = [];
+    try {
+      entries = readdirSync(at);
+    } catch {
+      return;
+    }
+    for (const name of entries) {
+      const full = join(at, name);
+      if (statSync(full).isDirectory()) walk(full);
+      else if (/\.(?:js|cjs|mjs)$/.test(name)) files.push(full);
+    }
+  };
+  for (const sub of [['out', 'renderer', 'assets'], ['out', 'preload'], ['out', 'main']]) walk(join(dir, ...sub));
+  for (const file of files) {
+    const text = readFileSync(file, 'utf8');
+    for (const name of BUNDLE_NAMES) counts[name] += text.split(name).length - 1;
+  }
+  return files.length === 0 ? null : counts;
+}
 
 /** A stand-in's log, one record per line; a half written last line is skipped. */
 function recordsOf(text) {
@@ -1752,6 +2055,9 @@ const note = (l) => {
   readings.notes.push(l);
   say(`note: ${l}`);
 };
+readings.hiddenPrecheck = hiddenPre;
+/** A reading that cannot be believed, which ends the run at exit 2 rather than as a finding (D9). */
+let unreadable = null;
 
 /**
  * The loopback machine's own tmux server, ended by the pid it reports through
@@ -1802,7 +2108,7 @@ try {
       cwd: checkout,
       args: [
         '--remote-debugging-port=0',
-        ...(on('C1') ? ['--inspect=0'] : []),
+        ...(on('C1') || on('R5') ? ['--inspect=0'] : []),
         '--use-mock-keychain',
         '--disable-backgrounding-occluded-windows',
         '--disable-renderer-backgrounding',
@@ -1843,6 +2149,26 @@ try {
         await cdp.call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false });
         await sleep(600);
         await cdpEval(cdp, PAGE_KIT);
+
+        // THE FIVE HIDDEN AGENTS (D9), read back from the app's own scan before
+        // any arm. A scan that resolved one of them is UNREADABLE: the run ends
+        // at exit 2 and no arm runs.
+        stage = 'the hidden agents';
+        {
+          let scan = null;
+          try {
+            scan = JSON.parse(await cdpEval(cdp, hidden.AGENTS_LIST_EXPR, 90_000));
+          } catch {
+            scan = null;
+          }
+          const verdict = hidden.hiddenAgentsScanVerdict(scan);
+          readings.hiddenScan = verdict;
+          if (!verdict.ok) {
+            unreadable = `UNREADABLE: the five hidden agents were not hidden in the app's own scan: ${verdict.said}`;
+            throw new Error(unreadable);
+          }
+          say(`${tag}: ${verdict.said}`);
+        }
 
         /** Show a session and wait until its terminal is the one mounted. */
         const show = async (id) => {
@@ -1986,7 +2312,10 @@ try {
           const needs = [
             ['fs', on('R1') || on('R7') || on('R5') || on('A2')],
             ['alt', on('R3')],
-            ['sh', on('R2') || on('A2')],
+            // R5 reads the right-click menu on the remote plain shell R2
+            // scrolls: the full-screen stand-in asks for the mouse and takes a
+            // right-click as a report (Phase 320.2).
+            ['sh', on('R2') || on('A2') || on('R5')],
             ['rec', typingRemote && (on('T1') || on('T2') || on('T3') || on('T4')) || on('T5') || on('C1') || on('A1')],
             ['other', typingRemote && on('T3')],
             ['keys', on('T6')]
@@ -2319,6 +2648,51 @@ try {
           await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', ...b }, 5000);
         };
 
+        // ------------------------------------------------ R5's menu reader (Phase 320.2)
+        /**
+         * One half of R5: a FRESH main inspector session, the recorder put in and
+         * proved, `body(main, took)` run, then the recorder taken out and the
+         * session closed whatever happened, so C1, which runs after R5, finds
+         * the inspector free (§Attack A4).
+         */
+        const withMenuRecorder = async (body) => {
+          let main = null;
+          try {
+            main = await cdpForMain(handle, 30_000);
+            const took = (await mainEval(main, MENU_PATCH)) === true;
+            return await body(main, took);
+          } finally {
+            if (main !== null) {
+              await mainEval(main, MENU_RESTORE).catch(() => undefined);
+              try {
+                main.close();
+              } catch {
+                /* closed */
+              }
+            }
+          }
+        };
+        /**
+         * Show a session, clear its selection, put a REAL right-click on its
+         * bottom-right cell, and answer the rows of the one menu main built for
+         * it within 3 s, or null when the recorder did not take or no menu came.
+         */
+        const rightClickMenu = async (main, took, sessionId) => {
+          await show(sessionId);
+          await cdpEval(cdp, '(window.__p320.term && window.__p320.term.clearSelection(), true)');
+          if (!took) return null;
+          const before = Number(await mainEval(main, MENU_COUNT));
+          const cell = await kit('lastCell()');
+          if (cell === null) return null;
+          await cdp.call('Input.dispatchMouseEvent', { type: 'mouseMoved', x: cell.x, y: cell.y });
+          await cdp.call('Input.dispatchMouseEvent', { type: 'mousePressed', x: cell.x, y: cell.y, button: 'right', buttons: 2, clickCount: 1 });
+          await cdp.call('Input.dispatchMouseEvent', { type: 'mouseReleased', x: cell.x, y: cell.y, button: 'right', buttons: 0, clickCount: 1 });
+          const deadline = Date.now() + 3000;
+          while (Date.now() < deadline && Number(await mainEval(main, MENU_COUNT)) <= before) await sleep(100);
+          const menus = JSON.parse((await mainEval(main, MENU_READ)) ?? 'null') ?? [];
+          return menus.length > before ? menus[menus.length - 1] : null;
+        };
+
         // ================================================ THE REMOTE ARMS, FIRST (D13)
         let r3 = null;
         if (far !== null) {
@@ -2367,26 +2741,55 @@ try {
             }
           }
 
-          // ------------------------------------------------------------- R5
+          // ------------------------------------------------------------- R5, the remote half
+          // Phase 320.2: the window is gone. The band, a remote session's
+          // right-click menu as main built it, the application menu, the old
+          // harness knob, the bridge member, main's handler and the built
+          // bundle, all in this half; this Mac's menu is read FIRST under "THEN
+          // THIS MAC" below, and only then is R5 graded (§Attack A3).
           if (on('R5')) {
             stage = 'R5';
-            await show(ids.fs);
-            const notes = [];
-            for (const o of ['top', 'right']) {
-              const st = await d('orientation', o);
-              notes.push(st.note ?? null);
-            }
-            await d('orientation', 'top');
-            const fsRow = await sessionRow(ids.fs);
-            await cdpEval(cdp, `window.__gmuxShotDrive(${J({ remoteLines: { session: fsRow?.name ?? 'p320-fs', waitMs: 30_000 } })}).then(() => true)`, 60_000);
-            const drawn = await cdpEval(cdp, `(window.__gmuxP100Lines || []).slice(-1)[0] || null`);
-            const panel = (await kit('panel()')) ?? (drawn === null ? null : { open: drawn.open, text: `${drawn.counts} ${drawn.bodyHead}`, counts: drawn.counts });
-            readings.R5 = { notes, panel, drawn };
-            say(`R5: band control ${J(notes)}; panel counts ${J(panel?.counts ?? null)}, false sentence ${String((panel?.text ?? '').includes(FALSE_SENTENCE))}`);
-            findings.R5.push(...bandFindings({ notes, panel }));
-            await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
-            await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
-            await sleep(500);
+            const r5 = { notes: [], menus: { remote: null, local: null }, scrollbackRows: { remote: null, local: null }, appMenu: null, opened: null, bridge: null, handler: null, bundle: null };
+            readings.R5 = r5;
+            await withMenuRecorder(async (main, took) => {
+              // The band, unchanged (320.1): read on the full-screen session.
+              await show(ids.fs);
+              for (const o of ['top', 'right']) {
+                const st = await d('orientation', o);
+                r5.notes.push(st.note ?? null);
+              }
+              await d('orientation', 'top');
+              // A remote session's menu, on the plain shell.
+              if (!took) note('R5: Menu.prototype.popup could not be replaced in main, so the remote menu was not read');
+              r5.menus.remote = await rightClickMenu(main, took, ids.sh);
+              r5.scrollbackRows.remote = r5.menus.remote === null ? null : r5.menus.remote.some((row) => SCROLLBACK_ROW.test(row));
+              // The application menu, Open Recent's rows left out.
+              r5.appMenu = JSON.parse((await mainEval(main, APP_MENU_READ)) ?? 'null');
+              // The window, through the old harness knob: at HEAD the knob is
+              // gone and nothing opens; at the parent it opens.
+              const shName = (await sessionRow(ids.sh))?.name ?? 'p320-sh';
+              const drive = await cdpEval(
+                cdp,
+                `(async () => { try { await window.__gmuxShotDrive(${J({ remoteLines: { session: shName, waitMs: 30_000 } })}); return true; } catch (err) { return String(err); } })()`,
+                60_000
+              );
+              if (drive !== true) note(`R5: the harness drive answered ${J(drive)}`);
+              r5.opened = await waitFor('the Read Last Lines window', async () => (await kit('linesWindow()')) === true, 5000, 100).then(
+                () => true,
+                () => false
+              );
+              if (r5.opened) {
+                await cdp.call('Input.dispatchKeyEvent', { type: 'keyDown', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+                await cdp.call('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Escape', code: 'Escape', windowsVirtualKeyCode: 27, nativeVirtualKeyCode: 27 });
+                await waitFor('the window to close', async () => (await kit('linesWindow()')) === false, 3000, 100).catch(() => note('R5: the Read Last Lines window did not close on Escape'));
+              }
+              // The bridge member, from the page, and main's handler (D11).
+              r5.bridge = await cdpEval(cdp, 'typeof window.gmux?.machines?.readSessionLines');
+              r5.handler = await mainEval(main, HANDLER_READ);
+            });
+            // The store's half, read as an artifact of the build this run measures.
+            r5.bundle = bundleCounts(checkout);
+            say(`R5 remote: band ${J(r5.notes)}; menu ${J(r5.menus.remote)}; window opened ${String(r5.opened)}; bridge ${String(r5.bridge)}; handler ${J(r5.handler)}; bundle ${J(r5.bundle)}`);
             finish('R5', 'remote');
           }
 
@@ -2689,6 +3092,24 @@ try {
         }
 
         // ================================================ THEN THIS MAC
+        // ------------------------------------------------------------- R5, this Mac's half, FIRST
+        // A session on this Mac's right-click menu, read the same way in a
+        // fresh main session of its own, BEFORE R3L: R5's remote half ran in the
+        // remote group, and every remote arm runs before any arm touches this
+        // Mac (§Attack A3). Then R5 is graded, once both menus are read.
+        if (on('R5') && readings.R5 !== undefined) {
+          stage = 'R5 local';
+          const row = await createLocal('p320-r5l');
+          await withMenuRecorder(async (main, took) => {
+            if (!took) note('R5: Menu.prototype.popup could not be replaced in main, so this Mac\'s menu was not read');
+            readings.R5.menus.local = await rightClickMenu(main, took, row.id);
+            readings.R5.scrollbackRows.local = readings.R5.menus.local === null ? null : readings.R5.menus.local.some((r) => SCROLLBACK_ROW.test(r));
+          });
+          say(`R5 local: menu ${J(readings.R5.menus.local)}`);
+          finish('R5', 'local');
+          findings.R5.push(...windowFindings(readings.R5));
+        }
+
         // ------------------------------------------------------------- R3L, and R3 graded against it
         if (on('R3L') || (on('R3') && r3 !== null)) {
           stage = 'R3L';
@@ -2799,7 +3220,13 @@ const notRun = readings.summary.filter(([, v]) => v.startsWith('not run')).map((
 if (notRun.length > 0 && findings.RUN.length === 0) findings.RUN.push(`${notRun.join(', ')} did not run to their end, so nothing they would have graded was read`);
 say(`readings: ${readingsPath}`);
 if (tag === 'checkout') {
-  say('this run measured ANOTHER checkout. At 320.1\'s parent R2, R5, C1, T6 and the remote T2 are expected to FAIL (nothing on a machine parks), and R1, R3, R7, R3L, R6, A1, A2 and the remote T1 and T3 to pass; R1L, R7L and T5 are graded against HEAD by --compare. Grade what spans the two builds with --compare.');
+  say('this run measured ANOTHER checkout. At 320.1\'s parent R2, R5, C1, T6 and the remote T2 are expected to FAIL (nothing on a machine parks), and R1, R3, R7, R3L, R6, A1, A2 and the remote T1 and T3 to pass; R1L, R7L and T5 are graded against HEAD by --compare. At 320.2\'s parent (d9f98b54) R5 is expected to FAIL on exactly its five window clauses (the row, the window, the member, the handler and the bundle) and on nothing else, and R2 to pass; R5X grades the menus across the builds. Grade what spans the two builds with --compare.');
+}
+// THE HIDDEN AGENTS (D9): a scan that resolved one of the five is not a
+// finding about the build, it is a run that cannot be believed. Exit 2.
+if (unreadable !== null) {
+  process.stderr.write(`${TAG} ${unreadable}\n`);
+  process.exit(2);
 }
 const failures = [...ALL_ARMS, 'RUN'].flatMap((arm) => findings[arm].map((f) => `${tag.toUpperCase()} ${f}`));
 if (failures.length > 0) {

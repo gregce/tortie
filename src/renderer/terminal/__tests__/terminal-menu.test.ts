@@ -240,55 +240,55 @@ describe('a session that runs on another machine', () => {
 });
 
 /**
- * PHASE 100. The one item this phase adds, and the two Phase 96 removals it
- * must not undo.
+ * PHASE 320.2. A session on another machine scrolls back now (Phase 320.1),
+ * so the one row Phase 100 drew for it alone is gone, on the operator's ruling
+ * of 2026-09-30, "Remove it everywhere".
  *
- * The item reads the last lines of a session on another machine. It is drawn
- * for exactly the set the two history presets are NOT drawn for, so the two
- * rules do not overlap and the capture group is never empty for a remote row.
+ * These cases never spell the row they prove absent. They compare the two
+ * menus as rows, so ANY row drawn for one machine and not the other reads red,
+ * whatever it is called. The only differences allowed are Phase 96's: the two
+ * history presets are not drawn for a session on another machine, and Clear
+ * is drawn there disabled.
  */
-describe('reading the last lines of a session on another machine', () => {
-  it('draws the item for a session on another machine', () => {
-    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
-    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
-    expect(enabled(items, 'Read Last Lines…')).toBe(true);
-  });
+describe('a session on another machine, since Phase 320.2', () => {
+  /** A built menu as rows: a separator as `—`, an item as its label. */
+  function rows(items: ReturnType<typeof terminalMenuItems>): string[] {
+    return items.map((one) =>
+      one === 'sep'
+        ? '—'
+        : one.disabled === true
+          ? `${one.label} (off)`
+          : one.label
+    );
+  }
 
-  it('does not draw it for a session on this Mac', () => {
-    // Absent rather than disabled. A session on this Mac has a scrollbar, a
-    // wheel and the two history presets, so there is nothing for this item to
-    // be about.
+  it('a session on another machine has the menu a session on this Mac has, less the two history presets', () => {
+    const selection = { text: 'one\ntwo', position: RANGE };
     unregister = registerTerminal(SESSION.id, fakeTerminal(null));
-    const items = terminalMenuItems(SESSION, { selection: null });
-    expect(enabled(items, 'Read Last Lines…')).toBe('missing');
-  });
-
-  it("still draws neither of Phase 96's two removed items", () => {
+    const local = rows(terminalMenuItems(SESSION, { selection }));
+    unregister();
     unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
-    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
-    expect(enabled(items, 'Capture Last 250 Lines')).toBe('missing');
-    expect(enabled(items, 'Capture Last 1,000 Lines')).toBe('missing');
+    const remote = rows(terminalMenuItems(REMOTE_SESSION, { selection }));
+    // The local menu really carries what the comparison takes out, or the
+    // equality below would prove nothing about it.
+    expect(local).toContain('Capture Last 250 Lines');
+    expect(local).toContain('Capture Last 1,000 Lines');
+    expect(local).toContain('Clear');
+    const expected = local
+      .filter(
+        (row) =>
+          row !== 'Capture Last 250 Lines' && row !== 'Capture Last 1,000 Lines'
+      )
+      .map((row) => (row === 'Clear' ? 'Clear (off)' : row));
+    expect(remote).toEqual(expected);
   });
 
-  it('is drawn even on a build with no capture bridge', () => {
-    // It does not touch this window's own buffer, so nothing about it depends
-    // on that bridge. With no terminal mounted `canCapture` is false and the
-    // capture group is gone, and the item is still there.
-    const items = terminalMenuItems(REMOTE_SESSION, { selection: null });
-    expect(enabled(items, 'Capture Screen')).toBe('missing');
-    expect(enabled(items, 'Read Last Lines…')).toBe(true);
-  });
-
-  it('sits after the capture items and before Clear', () => {
-    unregister = registerTerminal(REMOTE_SESSION.id, fakeTerminal(null));
-    const labels = terminalMenuItems(REMOTE_SESSION, { selection: null })
-      .filter((one): one is Exclude<typeof one, 'sep'> => one !== 'sep')
-      .map((one) => one.label);
-    expect(labels.indexOf('Read Last Lines…')).toBeGreaterThan(
-      labels.indexOf('Capture Selection')
-    );
-    expect(labels.indexOf('Read Last Lines…')).toBeLessThan(
-      labels.indexOf('Clear')
-    );
+  it('with no terminal mounted, a session on another machine has exactly the menu a session on this Mac has', () => {
+    // No capture bridge target, so there is no capture group on either side
+    // and Clear is disabled on both, which leaves nothing for the two to
+    // differ by.
+    const local = rows(terminalMenuItems(SESSION, { selection: null }));
+    const remote = rows(terminalMenuItems(REMOTE_SESSION, { selection: null }));
+    expect(remote).toEqual(local);
   });
 });

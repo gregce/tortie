@@ -24,9 +24,8 @@ import { branchNoAnswer, branchNotConnected, branchReading } from './branch';
  *
  * NO PROSE CROSSES THE CHANNEL. Main answers a mode word, a branch, a commit
  * and a set of rows, and this file holds every sentence a person reads about
- * them. That is the shape `machines:listFiles` and `machines:readSessionLines`
- * already use, and it keeps every sentence about a machine inside the one file
- * the vocabulary audit reads.
+ * them. That is the shape `machines:listFiles` already uses, and it keeps every
+ * sentence about a machine inside the one file the vocabulary audit reads.
  *
  * PHASE 105 DREW A BAND AND FOUR SENTENCES UNDER THE ROWS SAYING WHAT IS NOT
  * TRUE, and PHASE 228 TOOK THEM OFF, on the operator's rule of 2026-09-07

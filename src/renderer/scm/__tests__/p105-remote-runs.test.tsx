@@ -11,7 +11,7 @@
  * HOW THIS RENDERS. `environment` is node and this repository carries no jsdom
  * and no @testing-library/react, so the section is rendered with
  * `renderToStaticMarkup`, which is the shape ../../app/__tests__/
- * p100-remote-lines.test.tsx uses. That is also why `RemoteRunsPanel` is pure
+ * p93-attention-row.test.tsx uses. That is also why `RemoteRunsPanel` is pure
  * over its props and `RemoteRunsSection` is a store connected wrapper with no
  * markup of its own.
  *

@@ -6,8 +6,8 @@
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
  * call plus one subscription in Phase 109, three more in Phase 101 and two
  * more in Phase 102 and two more in Phase 103 and one more in Phase 104, and
- * two more in Phase 233). One object, thirty nine calls
- * and three subscriptions,
+ * two more in Phase 233; Phase 320.2 removed Phase 100's). One object, thirty
+ * eight calls and three subscriptions,
  * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
@@ -126,13 +126,6 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // file contents, it writes nothing on either computer, and main refuses it
   // while it is not connected to that machine.
   listFiles: (input) => invoke('machines:listFiles', input),
-  // Phase 100. THIS ONE READS. It asks a machine for the last lines one session
-  // over there printed, so a person can read back what an agent said instead of
-  // being told that scrolling back is not available. It writes nothing on
-  // either computer, it stores nothing on this Mac, and main refuses it while
-  // it is not connected to that machine. It is not a scrollbar: research 57
-  // section 3.1 refused one and this is the smaller affordance it adopted.
-  readSessionLines: (input) => invoke('machines:readSessionLines', input),
   // Phase 105. THIS ONE READS. It asks a machine which branch is checked out in
   // one folder and which repository that folder is, then asks GitHub about that
   // branch with the gh on THIS Mac. No token, no gh invocation and no GitHub

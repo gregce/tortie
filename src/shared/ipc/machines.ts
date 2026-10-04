@@ -1,5 +1,5 @@
 /**
- * The machines contract (Phase 68, M1). Thirty seven invoke channels behind ONE
+ * The machines contract (Phase 68, M1). Thirty eight invoke channels behind ONE
  * optional preload extra, `window.gmux.machines`, plus three event channels,
  * one for the connection test's own bytes, one for the link state and one for
  * which agents each machine has.
@@ -15,12 +15,17 @@
  * event count was stale in the same sentence, reading two while three channels
  * existed, because Phase 109 added `machines:agentsChanged` without moving it.
  *
+ * PHASE 320.2 REMOVED ONE CHANNEL, Phase 100's read of a session's last lines.
+ * This line read thirty seven while the map held thirty nine, because Phase
+ * 233's two commit reads came in without moving it, and it says so rather than
+ * quietly fixing it. Both counts now say thirty eight.
+ *
  * PHASE 125 SPLIT THIS FILE AND THIS FILE IS NOW THE BARREL. The one hundred
- * and three shapes moved into nine domain files under src/shared/ipc/machines/,
- * one per capability family, and each of the nine declares its own channels and
- * its own bridge methods. What stays here is the two compositions that span
- * every family, being `MachinesInvokeChannelMap` and `GmuxMachinesExtras`, plus
- * the whole contract table below.
+ * and three shapes moved into nine domain files under src/shared/ipc/machines/
+ * (eight since Phase 320.2), one per capability family, and each of the eight
+ * declares its own channels and its own bridge methods. What stays here is the
+ * two compositions that span every family, being `MachinesInvokeChannelMap`
+ * and `GmuxMachinesExtras`, plus the whole contract table below.
  *
  *   rows.ts        the machine as a configuration row a person confirms
  *   connection.ts  the connection test and the key install
@@ -28,11 +33,12 @@
  *   filesystem.ts  folders, files and image bytes on a machine
  *   scm.ts         git on a machine
  *   projects.ts    finding and cloning a folder on a machine
- *   sessions.ts    reading a session's lines from a machine
  *   search.ts      searching a machine's files
  *   context.ts     the Context panel's read of a folder on a machine
  *
- * NOTHING OUTSIDE src/shared/ipc/ IMPORTS ONE OF THE NINE. This file is the one
+ * Phase 320.2 deleted a ninth family, `sessions.ts`, with the read it declared.
+ *
+ * NOTHING OUTSIDE src/shared/ipc/ IMPORTS ONE OF THE EIGHT. This file is the one
  * door and src/shared/ipc/index.ts re-exports it, which is the shape Phase 42
  * set when it split src/shared/ipc.ts. The FACADE_ONLY rule in
  * build/assert-import-boundaries.mjs fails a second door, and
@@ -97,10 +103,6 @@ import type {
   MachinesProjectsInvokeChannelMap
 } from './machines/projects';
 import type {
-  MachinesSessionsApi,
-  MachinesSessionsInvokeChannelMap
-} from './machines/sessions';
-import type {
   MachinesSearchApi,
   MachinesSearchInvokeChannelMap
 } from './machines/search';
@@ -109,7 +111,7 @@ import type {
   MachinesContextInvokeChannelMap
 } from './machines/context';
 
-// The one door. Every shape the nine families declare is re-exported here, so
+// The one door. Every shape the eight families declare is re-exported here, so
 // `export * from './machines'` in src/shared/ipc/index.ts still reaches all of
 // them and no caller outside this directory changes one line.
 export * from './machines/rows';
@@ -118,7 +120,6 @@ export * from './machines/presence';
 export * from './machines/filesystem';
 export * from './machines/scm';
 export * from './machines/projects';
-export * from './machines/sessions';
 export * from './machines/search';
 export * from './machines/context';
 
@@ -127,7 +128,7 @@ export * from './machines/context';
 // ---------------------------------------------------------------------------
 
 /**
- * The thirty seven channels, and what each one may do. Each family declares
+ * The thirty eight channels, and what each one may do. Each family declares
  * its own, and this table is the whole contract in one place.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
@@ -142,10 +143,10 @@ export * from './machines/context';
  * PHASE 99 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `listFiles`.
  *
  * IT WAS STALE AGAIN WHEN PHASE 105 ARRIVED, and this says so rather than
- * quietly fixing it. Phase 100 added `readSessionLines` without a row, so the
- * count read twenty three while the file held twenty four. That row and Phase
- * 105's own `readRuns` are both in the table below, and the count is twenty
- * five.
+ * quietly fixing it. Phase 100 added its read of one session's last lines
+ * without a row, so the count read twenty three while the file held twenty
+ * four. That row and Phase 105's own `readRuns` are both in the table below,
+ * and the count is twenty five.
  *
  * PHASE 106 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `readBranch`. The
  * count is twenty six.
@@ -174,6 +175,10 @@ export * from './machines/context';
  * is thirty seven. It is the eighth channel here that writes on another
  * computer and the third that changes a git repository over there.
  *
+ * PHASE 320.2 REMOVES ONE ROW, Phase 100's read of a session's last lines. The
+ * count is thirty eight, and the table below lists thirty six of them: Phase
+ * 233's `readCommitFiles` and `readCommitFile` were never given rows.
+ *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
  * | rows | memory in main, plus the sealed record | nothing | nothing |
@@ -201,7 +206,6 @@ export * from './machines/context';
  * | listTree | one folder tree on that machine | nothing | ssh |
  * | searchContent | one folder on that machine | nothing | ssh |
  * | listFiles | one folder on that machine | nothing | ssh |
- * | readSessionLines | the last lines of one session there | nothing | ssh |
  * | readRuns | one folder on that machine, then github.com | nothing | ssh, then gh ON THIS MAC |
  * | readBranch | one folder on that machine | nothing | ssh |
  * | readHistory | one folder on that machine | nothing | ssh |
@@ -244,7 +248,6 @@ export type MachinesInvokeChannelMap = MachinesRowsInvokeChannelMap &
   MachinesFilesystemInvokeChannelMap &
   MachinesScmInvokeChannelMap &
   MachinesProjectsInvokeChannelMap &
-  MachinesSessionsInvokeChannelMap &
   MachinesSearchInvokeChannelMap &
   MachinesContextInvokeChannelMap;
 
@@ -267,7 +270,6 @@ export interface GmuxMachinesExtras {
     MachinesFilesystemApi &
     MachinesScmApi &
     MachinesProjectsApi &
-    MachinesSessionsApi &
     MachinesSearchApi &
     MachinesContextApi;
 }

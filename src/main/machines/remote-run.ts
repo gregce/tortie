@@ -144,9 +144,9 @@ export function machineLinkAnswering(machineId: string): boolean {
  * THE FEED QUESTION (Phase 231). True while the link answers AND the last
  * session poll completed.
  *
- * This is what the session list's own family asks: the lines of one session,
- * the agent board, and the two passes that walk the session rows. A missed
- * poll refuses them and nothing else.
+ * This is what the session list's own family asks: the agent board and the
+ * two passes that walk the session rows. A missed poll refuses them and
+ * nothing else.
  */
 export function machineFeedAnswering(machineId: string): boolean {
   return feedAnswering(machineLinkFacts(machineId));

@@ -148,7 +148,7 @@ export interface RemoteRunsPanelProps {
  * It is pure so that ./__tests__/p105-remote-runs.test.tsx can render every one
  * of the eight modes and read the sentence back. This repository carries no
  * jsdom and no testing library, so a store connected component cannot be driven
- * by a test at all, which is the shape ../app/RemoteLinesModal.tsx already uses.
+ * by a test at all.
  */
 export function RemoteRunsPanel({
   entry,

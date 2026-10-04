@@ -770,8 +770,8 @@ async function main() {
     //
     // PHASE 320.1 TURNED THE WHOLE STEP AROUND. A session on another machine
     // now scrolls like one on this Mac, over that machine's live connection,
-    // so the band's Read last lines control is deleted (its read stays in the
-    // terminal's context menu, where this Mac's capture items sit), and this
+    // so the band's Read last lines control is deleted (Phase 320.2 removed the
+    // read and its menu row too), and this
     // step asserts it is ABSENT in both orientations: the drive's `note` reads
     // null. Both orientations still, for the reason above.
     const readBack = (s) => s.note === null;

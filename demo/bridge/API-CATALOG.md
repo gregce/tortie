@@ -25,7 +25,7 @@ else is feature-detected and can be omitted, rejected from, or returned empty. S
 - [sessions](#sessions--installedsessionsapi-16) · [projects](#projects--installedprojectsapi-11) · [recents](#recents-4) · [specstory](#specstory-6)
 - [git](#git--installedgitapi-28) · [fs](#fs--installedfsapi-15) · [term](#term--installedtermapi-4) · [drop](#drop-3--pathforfile) · [capture](#capture-7) · [scroll](#scroll-4)
 - [search](#search-4) · [context](#context-11) · [config](#config-3) · [symbols](#symbols-4) · [quickOpen](#quickopen-2) · [scrollback](#scrollback-5)
-- [machines](#machines-40) · [notice](#notice-1) · [preview](#preview-2) · [overview](#overview-5) · [arch](#arch-7) · [actions](#actions-5) · [log](#log-5) · [updates](#updates-5) · [meta](#meta-2-properties-not-functions)
+- [machines](#machines-39) · [notice](#notice-1) · [preview](#preview-2) · [overview](#overview-5) · [arch](#arch-7) · [actions](#actions-5) · [log](#log-5) · [updates](#updates-5) · [meta](#meta-2-properties-not-functions)
 - [Top-level functions](#top-level-functions-26)
 - Answers: [1 GmuxSettings](#1-gmuxsettings-and-the-reusable-default) · [2 Terminal attach](#2-terminal-attach-flow-end-to-end) · [3 bootBlock](#3-bootblock--tmux-check) · [4 gmux.meta](#4-what-reads-gmuxmeta) · [5 Must-resolve](#5-members-that-must-resolve-vs-members-safe-to-omit) · [6 Minimum surface](#6-minimum-non-crashing-surface)
 
@@ -551,9 +551,9 @@ scrollback.onNotice(cb: (n: GmuxNotice) => void) -> Unsubscribe — () => {}
 
 ---
 
-## machines (40)
+## machines (39)
 
-`src/shared/ipc/machines.ts:263`, split across `src/shared/ipc/machines/*.ts`.
+`src/shared/ipc/machines.ts:266`, split across `src/shared/ipc/machines/*.ts`.
 Installed: `src/preload/machines.ts:48`.
 
 > **Omit the whole object.** Every call site guards it
@@ -604,8 +604,6 @@ machines.readHistory(input: MachineHistoryInput) -> Promise<MachineHistoryResult
 # projects.ts
 machines.findProject(input: RemoteProjectFindInput) -> Promise<RemoteProjectFindResult>
 machines.cloneProject(input: RemoteCloneInput) -> Promise<RemoteCloneResult>
-# sessions.ts
-machines.readSessionLines(input: MachineSessionLinesInput) -> Promise<MachineSessionLinesResult>
 # search.ts
 machines.searchContent(input: MachineSearchInput) -> Promise<MachineSearchResult>
 # context.ts

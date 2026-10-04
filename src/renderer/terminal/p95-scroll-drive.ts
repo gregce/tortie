@@ -59,18 +59,18 @@ export interface P95State {
    * The read back button's text and its tooltip, or null when it is not drawn.
    *
    * PHASE 100 changed what this element is. It was a span saying that scrolling
-   * back was not available. It is a button that opens the last lines panel now.
-   * The FIELD keeps its name, because the thing the probe reads is still "what
-   * the band above a session on another machine carries". Step 5 of
-   * `build/probe-p95-scroll.mjs` reads the text and the tooltip out of it.
+   * back was not available, and Phase 100 made it a button that opened the last
+   * lines panel. The FIELD keeps its name, because the thing the probe reads is
+   * still "what the band above a session on another machine carries". Step 5
+   * of `build/probe-p95-scroll.mjs` reads the text and the tooltip out of it.
    * PHASE 320 deleted the tooltip's sentence, so `title` is read to prove it
    * is ABSENT, and step 5 was changed in the same commit.
    * PHASE 320.1 deleted the button itself: a session on another machine
-   * scrolls like one on this Mac now, and the read stays in the terminal's
-   * context menu. So this reads null in both orientations, and step 5 of
-   * `build/probe-p95-scroll.mjs` and arm R5 of `build/p320/probe-p320.mjs`
-   * assert exactly that. The field keeps its name so a build that drew the
-   * control again is named by the same reading.
+   * scrolls like one on this Mac now, and Phase 320.2 removed the read it
+   * opened, menu row and all. So this reads null in both orientations, and
+   * step 5 of `build/probe-p95-scroll.mjs` and arm R5 of
+   * `build/p320/probe-p320.mjs` assert exactly that. The field keeps its name
+   * so a build that drew the control again is named by the same reading.
    */
   note: { text: string; title: string } | null;
   /** True while a terminal pane is mounted. */
@@ -101,9 +101,9 @@ function readState(): P95State {
   const app = useApp.getState();
   const activeProjectId = app.activeProjectId;
   // PHASE 100 renamed the element this reads. Phase 95 drew a span saying that
-  // scrolling back was not available, with class `strip-note`. It is a button
-  // that opens the last lines panel now, with class `strip-readback`. It
-  // carried a sentence as its tooltip until Phase 320 deleted it, and Phase
+  // scrolling back was not available, with class `strip-note`. Phase 100 made
+  // it a button that opened the last lines panel, with class `strip-readback`.
+  // It carried a sentence as its tooltip until Phase 320 deleted it, and Phase
   // 320.1 deleted the button, so this reads null wherever the band is drawn.
   // The reading is otherwise unchanged, so a control drawn again is named.
   const noteEl = document.querySelector('.strip-readback');

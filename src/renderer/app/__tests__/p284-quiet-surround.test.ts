@@ -495,7 +495,7 @@ describe('nothing was added below the S4A marker', () => {
     // purpose moves this number and says so; this phase must not.
     //
     // MOVED BY PHASE 320.1, from 7218 to 5611: Phase 100 had appended the
-    // `.strip-readback` rules (the band's Read last lines button) below the
+    // `.strip-readback` rules (the band's read-back button) below the
     // marker, and Phase 320.1 deleted that button and its rules, 1607 bytes.
     // Nothing of the split block itself moved.
     expect(Buffer.byteLength(below, 'utf8')).toBe(5611);

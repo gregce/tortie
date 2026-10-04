@@ -83,13 +83,6 @@ export function SavedOutputModalLazy(): React.JSX.Element | null {
   return <mod.SavedOutputModal />;
 }
 
-/** Phase 100. The last lines panel. Open while a session id is set. */
-export function RemoteLinesModalLazy(): React.JSX.Element | null {
-  const mod = door.use(useApp((s) => s.remoteLinesSessionId !== null));
-  if (mod === null) return null;
-  return <mod.RemoteLinesModal />;
-}
-
 /** The ⌘/ shortcuts overlay. Reads `shortcutsOpen`. */
 export function ShortcutsOverlayLazy(): React.JSX.Element | null {
   const mod = door.use(useApp((s) => s.shortcutsOpen));

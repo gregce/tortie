@@ -30,7 +30,7 @@
  *
  * PHASE 125 CHANGED HOW THE DECLARED SET IS FOUND, and nothing about what is
  * checked. `GmuxInvokeChannelMap` used to name interfaces only. It now names
- * `MachinesInvokeChannelMap`, which is itself an intersection of nine domain
+ * `MachinesInvokeChannelMap`, which is itself an intersection of eight domain
  * interfaces, so the walk below follows an alias to an alias.
  *
  * WHEN THIS FAILS, the fix is never to widen an allow list. There is no allow
@@ -80,9 +80,9 @@ function aliasMembers(name: string): string[] | null {
  * alias that names another alias.
  *
  * It used to read one level, because every member was an interface. Phase 125
- * split the machines contract into nine domain files, so
- * `MachinesInvokeChannelMap` is an intersection of nine interfaces rather than
- * one interface with thirty seven keys. This walk is the same rule at any
+ * split the machines contract into nine domain files (eight since Phase
+ * 320.2), so `MachinesInvokeChannelMap` is an intersection of eight interfaces
+ * rather than one interface with thirty eight keys. This walk is the same rule at any
  * depth, so a later domain split needs no edit here. An alias that names
  * itself is stopped by `seen`.
  */

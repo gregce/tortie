@@ -101,7 +101,7 @@ describe('each room has exactly one production importer, its door', () => {
 
 describe('the shell reaches the split domains through leaves, never through a door barrel', () => {
   const forbidden: Array<[string, string[]]> = [
-    ['app/App.tsx', ["from '../editor'", "from '../quickopen'", "from '../search'", "from '../context'", "from '../overview/OverviewLayer'", "from './CreateSessionModal'", "from './NewProjectModal'", "from './RemoteProjectModal'", "from './CloneRepoModal'", "from '../session-manager/SessionManagerSheet'", "from './SavedOutputModal'", "from './RemoteLinesModal'", "from './ShortcutsOverlay'"]],
+    ['app/App.tsx', ["from '../editor'", "from '../quickopen'", "from '../search'", "from '../context'", "from '../overview/OverviewLayer'", "from './CreateSessionModal'", "from './NewProjectModal'", "from './RemoteProjectModal'", "from './CloneRepoModal'", "from '../session-manager/SessionManagerSheet'", "from './SavedOutputModal'", "from './ShortcutsOverlay'"]],
     ['app/Sidebar.tsx', ["from '../scm'", "from '../tree'", "from '../search'", "from '../context'", "from '../arch'", "from '../scm/ScmSection'", "from '../tree/FilesSection'", "from '../search/SearchView'", "from '../context/ContextView'", "from '../arch/ArchView'"]],
     // Phase 293. Both controllers name the session manager's two leaves and
     // never the sheet or its door: `App.tsx` is the door's only importer.
@@ -195,7 +195,6 @@ describe('every door reads the bit its surface reads first', () => {
     // modal is the session manager's second tab and the bit is the sheet's.
     ['session-manager/lazy.tsx', 's.sessionSheet !== null', 'session-manager/SessionManagerSheet.tsx'],
     ['app/lazy-modals.tsx', 's.savedOutputSessionId', 'app/SavedOutputModal.tsx'],
-    ['app/lazy-modals.tsx', 's.remoteLinesSessionId', 'app/RemoteLinesModal.tsx'],
     ['app/lazy-modals.tsx', 's.shortcutsOpen', 'app/ShortcutsOverlay.tsx'],
     ['quickopen/lazy.tsx', 'useQuickOpen((s) => s.open)', 'quickopen/QuickOpenPalette.tsx'],
     ['search/lazy.tsx', 'useSymbols((s) => s.open)', 'search/SymbolPalette.tsx'],

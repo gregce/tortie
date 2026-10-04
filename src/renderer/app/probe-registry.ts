@@ -98,10 +98,6 @@ import { driveOverview } from '../overview/shot-probe';
 import type { OverviewProbeSpec } from '../overview/shot-probe';
 import { armShellPathProbe, driveShellPath } from './shell-path-shot-drive';
 import type { ShellPathProbeSpec } from './shell-path-shot-drive';
-// PHASE 100. The screenshot read's own hook. It opens the last lines panel on a
-// real session on a real machine and reports what the panel drew.
-import { driveRemoteLines } from './p100-lines-shot';
-import type { RemoteLinesProbeSpec } from './p100-lines-shot';
 import { driveRemoteRuns } from '../scm/p105-runs-shot';
 import type { RemoteRunsProbeSpec } from '../scm/p105-runs-shot';
 import { driveRemoteBranch } from '../scm/p106-branch-shot';
@@ -259,16 +255,6 @@ interface ShotLayoutExtras {
    * a drive to stage, and the console report names which route ran.
    */
   overview?: OverviewProbeSpec;
-  /**
-   * Phase 100. Open the last lines panel on a session that runs on another
-   * machine, wait for the read to answer, and report what the panel drew.
-   *
-   * The screenshot is the point of this one. What has to be read off the image
-   * is a set of sentences, and a sentence is a thing a person reads rather than
-   * a number a test can compare. The hook is what gets the panel open and
-   * settled before the harness takes the picture.
-   */
-  remoteLines?: RemoteLinesProbeSpec;
   /**
    * Phase 105. Seed one runs answer for a tab whose folder is on another
    * machine, open the group through its own control, and report every sentence
@@ -656,13 +642,6 @@ function installShotLayoutExtras(): void {
     if (ext.overview !== undefined) {
       window.__gmuxShotReady = false;
       await driveOverview(ext.overview);
-      window.__gmuxShotReady = true;
-    }
-    // Phase 100. After everything else, so the panel opens over the finished
-    // layout and the picture shows it in its real surroundings.
-    if (ext.remoteLines !== undefined) {
-      window.__gmuxShotReady = false;
-      await driveRemoteLines(ext.remoteLines);
       window.__gmuxShotReady = true;
     }
     // Phase 105. After the layout has settled, so the group opens in its real

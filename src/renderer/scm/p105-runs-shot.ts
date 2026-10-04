@@ -3,7 +3,8 @@
  * machine (Phase 105 verification).
  *
  * Driven from the GMUX_SHOT_DRIVE spec (`remoteRuns: {…}`) and inert otherwise.
- * It follows ../app/p100-lines-shot.ts, which is the nearest working sibling.
+ * It follows the shape of Phase 100's drive, which Phase 320.2 removed with the
+ * window it opened.
  *
  * ## What the screenshot read has to settle, and why a test cannot
  *

@@ -102,7 +102,6 @@ const CHANNEL_MODULE: Readonly<Record<string, { module: string; asks: 'self' | '
   'machines:unstage': { module: 'remote-stage.ts', asks: 'door' },
   'machines:commit': { module: 'remote-commit.ts', asks: 'self' },
   'machines:cloneProject': { module: 'remote-clone.ts', asks: 'self' },
-  'machines:readSessionLines': { module: 'remote-lines.ts', asks: 'self' },
   'machines:agents': { module: 'machine-agents.ts', asks: 'self' }
 };
 
@@ -164,13 +163,14 @@ function theVerbMatrix(mod: Liveness): void {
 
 /** Rule 3. The classification, held against the source. */
 function theClassification(mod: Liveness): void {
-  // 3a. Twenty-three channels, and exactly these two are the session's own.
-  //     Phase 233 moved this from twenty-one by the two commit reads.
+  // 3a. Twenty-two channels, and exactly this one is the session's own.
+  //     Phase 233 moved this from twenty-one by the two commit reads, and
+  //     Phase 320.2 to twenty-two by Phase 100's read.
   const channels = Object.keys(mod.CHANNEL_FACT).sort();
   expect(channels).toEqual(Object.keys(CHANNEL_MODULE).sort());
-  expect(channels).toHaveLength(23);
+  expect(channels).toHaveLength(22);
   const feedChannels = channels.filter((one) => mod.CHANNEL_FACT[one] === 'feed');
-  expect(feedChannels).toEqual(['machines:agents', 'machines:readSessionLines']);
+  expect(feedChannels).toEqual(['machines:agents']);
 
   // 3b. Every channel's handler module asks the fact the table says, or
   //     reaches the door and asks nothing, and the door asks the link.
@@ -320,9 +320,9 @@ const ABLATIONS: readonly Ablation[] = [
     to: "'machines:listTree': 'feed',"
   },
   {
-    name: 'the lines of one session become a read verb',
-    from: "'machines:readSessionLines': 'feed',",
-    to: "'machines:readSessionLines': 'link',"
+    name: 'the agent board becomes a read verb',
+    from: "'machines:agents': 'feed'",
+    to: "'machines:agents': 'link'"
   },
   {
     name: 'a caller drops out of the module table',

@@ -11,9 +11,9 @@
  * wherever its machine runs a tmux Tortie has measured a live connection on,
  * so the button is gone: it existed only because nothing scrolled, and a
  * control drawn on a remote surface alone is exactly what the operator's rule
- * that a remote session feels identical to a local one removes. The panel
- * stays, opened from the terminal's menu beside this Mac's capture items
- * (build/p3201/SPEC.md D16). This file keeps its name and its job, which is
+ * that a remote session feels identical to a local one removes. Phase 320.2
+ * removed the panel and its menu row as well, so nothing on any surface opens
+ * it (build/p3202/SPEC.md). This file keeps its name and its job, which is
  * the two bands, and now says that NEITHER draws the control.
  *
  * WHY BOTH BANDS STILL. There is no single band always on screen above a
@@ -73,7 +73,6 @@ vi.stubGlobal('document', {
 
 const { IdentityStrip } = await import('../TerminalRegion');
 const actions = await import('../session-actions');
-const lines = await import('../../machines/read-lines');
 
 /**
  * The three names Phase 320.1 deleted. This file is the one place they are
@@ -191,8 +190,8 @@ describe('the tab strip, the band in the "top" orientation, and the shared file'
   });
 
   it('the scan reads names whole, so a longer name that holds one is not a finding', () => {
-    // p100-remote-lines.test.tsx pins `READ_LAST_LINES_HERE_TITLE` absent by
-    // name, and that line must not read as the constant this phase deleted.
+    // A longer name that holds one, like the tooltip constant Phase 320
+    // deleted, must not read as the name itself.
     expect('all.READ_LAST_LINES_HERE_TITLE'.match(GONE_RE)).toBeNull();
     expect('<ReadLastLinesButton session={s} />'.match(GONE_RE)).toEqual([
       'ReadLastLinesButton'
@@ -200,29 +199,7 @@ describe('the tab strip, the band in the "top" orientation, and the shared file'
   });
 
   it('no module still exports them', () => {
-    const all = { ...actions, ...lines } as unknown as Record<string, unknown>;
+    const all = { ...actions } as unknown as Record<string, unknown>;
     for (const name of GONE) expect([name, all[name]]).toEqual([name, undefined]);
-  });
-});
-
-// ---------------------------------------------------------------------------
-// What stays
-// ---------------------------------------------------------------------------
-
-describe('the read stays where this Mac keeps its capture items', () => {
-  it('is still the terminal menu item, and the menu still offers it', () => {
-    expect(lines.READ_LAST_LINES_ITEM).toBe('Read Last Lines…');
-    const menu = readFileSync(
-      resolve(ROOT, 'src/renderer/terminal/terminal-menu.ts'),
-      'utf8'
-    );
-    expect(menu).toMatch(/\bREAD_LAST_LINES_ITEM\b/);
-    expect(menu).toContain('openRemoteLines');
-  });
-
-  it('keeps the tooltip Phase 320 deleted deleted', () => {
-    expect(
-      (lines as unknown as Record<string, unknown>).READ_LAST_LINES_HERE_TITLE
-    ).toBeUndefined();
   });
 });

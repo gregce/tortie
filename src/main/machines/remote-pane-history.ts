@@ -60,7 +60,7 @@ export const REMOTE_EXTENT_FORMAT = '#{history_size} #{pane_height}';
 
 /**
  * How long a history capture may take on a machine: the 30,000 ms this Mac's
- * `capturePane` gives a big capture, and the Read Last Lines panel's value.
+ * `capturePane` gives a big capture.
  */
 export const REMOTE_HISTORY_TIMEOUT_MS = 30_000;
 

@@ -1072,8 +1072,9 @@ export const CHECKS = [
   // another machine that asked for the mouse (R1), a remote plain shell that
   // PARKS under the wheel and types nothing (R2), a remote alternate-screen
   // program receiving the bytes the same program on this Mac does (R3 beside
-  // its local control R3L), no Read last lines control on the band and the
-  // panel through the store action (R5), the local fullscreen control (R6);
+  // its local control R3L), (R5) no read-back control on the band, and since
+  // Phase 320.2 no Read Last Lines row, window, bridge member or handler, the
+  // local fullscreen control (R6);
   // and 320.1's typing arms: the reverifier's fast-flick ruler (T1), a swipe
   // right after a key (T2), a key over a parked session as the session is left
   // (T3), modes (T4), the carriage dropped while parked (T5, by the far
@@ -1313,7 +1314,6 @@ export const CHECKS = [
   // scratch git repositories, no Electron, no tmux, no ssh.
   adapter('probe:p98', 'git and the lockfile ripgrep over scratch repositories'),
   adapter('probe:p99', 'git over scratch repositories'),
-  adapter('probe:p100', 'git over scratch repositories'),
   adapter('probe:p101', 'git over scratch repositories'),
   adapter('probe:p102', 'git over scratch repositories'),
   adapter('probe:p103', 'git over scratch repositories'),
@@ -1864,6 +1864,9 @@ export const CHECKS = [
   // while anybody else is editing. It launches no Electron and starts no
   // process but node.
   pure('ablation:p324'),
+  // PHASE 320.2's attack on conformance:machines condition 54, the window's absence: fifteen arms,
+  // one piece put back each, red on its own sub-clause, files back by sha256; no process but node.
+  pure('ablation:p3202'),
   // PHASE 275's attack on `conformance:agents` section 9, the rules about the
   // SHARED shell-variable list every agent reads, and on the two renderer suites
   // that carry the picker. It breaks THIRTY-ONE clauses one at a time in two

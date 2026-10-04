@@ -19,7 +19,7 @@
  *                                                    drawn and Clear is enabled
  *   5     that same session is given a machine       those two are gone and
  *                                                    Clear is disabled
- *   6     the two menus are compared cell by cell    exactly four cells moved
+ *   6     the two menus are compared cell by cell    exactly three cells moved
  *
  * ## WHAT IS REAL, AND WHAT THIS PROBE SUPPLIES
  *
@@ -744,7 +744,7 @@ async function main() {
         JSON.stringify((menuB?.rows ?? []).map((r) => r.label))
     );
 
-    // -- 6. exactly four cells moved, and no fifth ----------------------------
+    // -- 6. exactly three cells moved, and no fourth --------------------------
     //
     // The list was three until Phase 100 shipped "Read Last Lines…", which is
     // drawn ONLY for a session on another machine (terminal-menu.ts guards it
@@ -752,6 +752,9 @@ async function main() {
     // nobody added it here, so this step read FAIL from 2026-08-20 until Phase
     // 127 ran the probe again on 2026-08-22. The product was right and the
     // expectation was stale.
+    //
+    // PHASE 320.2 took Read Last Lines… out of the session menu, so the list is
+    // three again.
     const labels = allLabels(menuA, menuB);
     const table = labels.map((label) => ({
       label,
@@ -762,11 +765,10 @@ async function main() {
     const wanted = [
       'Capture Last 250 Lines',
       'Capture Last 1,000 Lines',
-      'Clear',
-      'Read Last Lines…'
+      'Clear'
     ];
     const step6 =
-      moved.length === 4 && moved.every((r) => wanted.includes(r.label));
+      moved.length === 3 && moved.every((r) => wanted.includes(r.label));
     console.log('');
     say('the two menus, cell by cell');
     console.log('  item                        on this Mac   on another machine');
@@ -779,7 +781,7 @@ async function main() {
     console.log('');
     note(
       6,
-      'exactly four cells moved, and every other item is untouched',
+      'exactly three cells moved, and every other item is untouched',
       step6 ? 'pass' : 'FAIL',
       `moved ${JSON.stringify(moved.map((r) => r.label))}, wanted ` +
         JSON.stringify(wanted)

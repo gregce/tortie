@@ -210,7 +210,8 @@
  * THE NUMBERED LIST ABOVE STOPS AT 49 AND THE FILE HOLDS MORE. Phases 90.3, 98,
  * 100, 105 and 106 each added a condition and left the list where it was, so
  * this says so rather than quietly renumbering. Conditions 50 and 51 are Phase
- * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, 55 is Phase
+ * 90.3's, 52 is Phase 98's, 53 is Phase 99's, 54 is Phase 100's, which Phase
+ * 320.2 turned around to hold the Read Last Lines window's absence, 55 is Phase
  * 105's and 56 is Phase 106's. Conditions 63 to 68 are Phase 89's, 69 to 73 are
  * Phase 117's, 74 to 78 are Phase 118's and 79 and 80 are Phase 101's, and the
  * last three sets are described at their own blocks at the foot of this file.
@@ -4624,166 +4625,294 @@ const P99_FORBIDDEN = P98_FORBIDDEN;
 }
 
 // ---------------------------------------------------------------------------
-// 54. Phase 100. The read that is not a scrollbar
+// 54. Phase 100's read, TURNED AROUND by Phase 320.2: the Read Last Lines
+// window is gone, everywhere (his ruling of 2026-09-30, "Remove it everywhere")
 // ---------------------------------------------------------------------------
 //
-// A person can now read the last lines one session on another machine printed.
-// Research 57 section 3.1 ruled AGAINST a real remote scrollbar and FOR this
-// smaller affordance, and the deciding reasons were the verb ledger and one
-// door Phase 89 deliberately narrowed. A rule written in a document is a rule a
-// later round can read past, so this condition makes it executable.
+// Phase 100 built a window that read the last lines one session on another
+// machine printed, because research 57 section 3.1 ruled AGAINST a real remote
+// scrollbar and FOR that smaller affordance. Phase 320.1 is the scrollbar: a
+// session on another machine scrolls back over that machine's control
+// connection. The ground the window stood on is gone, and the operator ruled it
+// removed in full. This condition held the window IN PLACE, failing when its
+// module was absent; it now holds the window's ABSENCE.
 //
-// THE CHECKABLE SENTENCE. The read composes `capture-pane -p -e -J -t <id> -S
-// -<n>` and nothing else, `src/main/machines/remote-lines.ts` names neither of
-// the two verbs a scrollbar would need, it takes exactly one name from the
-// saved output side and never writes a capsule, and the ledger still holds
-// `capture-pane` as a read row with repeat class safe.
+// THE CHECKABLE SENTENCE. None of the window's seven files is there and no file
+// under src/ is named like one (54a); `copy-mode` is on no row of the verb
+// ledger (54b); no line of any file under src/ that is not binary spells the
+// channel (54c) or the window, its menu row, its store, its words or its knob
+// (54d); the scanner reads its own fixtures right, read enough files, and its
+// one named exception still matches (54e); and `capture-pane` is still a read
+// row with repeat class safe (54f).
 //
-// Every check below reads one composed argv, one module's own source text and
-// four compiled numbers. It sends nothing, starts nothing and contacts no
-// machine.
+// 54b KEEPS RESEARCH 57'S REFUSAL EXECUTABLE FOR THE EXEC PLANE. It used to be
+// read out of the window's module, which is gone, so it is read from the ledger
+// itself: research 130 section 4 narrowed that refusal for the CONTROL
+// connection alone (conditions 101 to 112), whose closed table is the only road
+// a scroll takes to another machine. 54f stays because the remote screen read,
+// the saved output capsule and the arming read still ride on that row.
+//
+// It reads RAW text, comments included: a comment that names a deleted module
+// is a false sentence. Every failure line starts with its sub-clause and a
+// colon, `54a: ` to `54f: `, because `ablation:p3202` (build/p3202/ablation.mjs)
+// reads the owner from that prefix; it puts one piece of the window back at a
+// time and requires this condition red on the sub-clause that owns it. It
+// sends nothing, starts nothing and contacts no machine.
 
-/** The argv this phase may send, element by element, at the deepest depth. */
-const P100_ARGV_DEEP = [
-  'capture-pane',
-  '-p',
-  '-e',
-  '-J',
-  '-t',
-  '$9',
-  '-S',
-  '-25000'
+const P3202_GONE_FILES = [
+  'src/main/machines/remote-lines.ts',
+  'src/main/machines/__tests__/remote-lines.test.ts',
+  'src/renderer/app/RemoteLinesModal.tsx',
+  'src/renderer/app/remote-lines.css',
+  'src/renderer/machines/read-lines.ts',
+  'src/renderer/app/p100-lines-shot.ts',
+  'src/renderer/app/__tests__/p100-remote-lines.test.tsx'
 ];
-/** The same at the screen alone, which is what `lines: 0` composes. */
-const P100_ARGV_SCREEN = [
-  'capture-pane',
-  '-p',
-  '-e',
-  '-J',
-  '-t',
-  '$9',
-  '-S',
-  '-0'
+// `read-lines` is anchored on a word start, so a later `thread-lines.ts` is not
+// a finding (the attack's A6).
+const P3202_GONE_NAME = /remote[-_]?lines|(?:^|[^a-z])read[-_]?lines|p100[-_]?lines/i;
+// Every file is read EXCEPT a known binary one. An allowlist of text extensions
+// let a new extension (a `.jsx`, a `.scss`, a fixture with none) hide a spelling
+// (the attack's A5). A file whose first 8 KB hold a NUL byte is skipped as
+// binary too, and the count of files read is the floor's.
+const P3202_BINARY = /\.(?:png|jpe?g|gif|ico|icns|webp|woff2?|ttf|otf|wasm|node|zip|gz|pdf|mp4|mov)$/i;
+/** Each family's sub-clause. Raw text, every line of every text file under src/. */
+const P3202_NEEDLES = [
+  { family: 'channel', clause: '54c', re: /readSessionLines|MachineSessionLines|REMOTE_SESSION_LINES?_/ },
+  { family: 'menu-row', clause: '54d', re: /read[ _-]?last[ _-]?lines/i },
+  { family: 'window', clause: '54d', re: /remote[ _-]?lines|\bread-lines\b|p100[-_]?lines/i },
+  { family: 'words', clause: '54d', re: /\breadLines[A-Z]\w*|\bREAD_LINES_[A-Z]/ }
 ];
+/** Exempt for ONE family each, and each must still match (54e). */
+const P3202_EXCEPTIONS = [
+  {
+    file: 'src/renderer/app/__tests__/p95-strip-note.test.tsx',
+    family: 'menu-row',
+    why: "Phase 320.1's band test writes the three names it deleted, and the band's words, once, to prove them absent"
+  }
+];
+/** Measured at 2590 text files on the tree the spec read, less the eight deleted
+ *  files (the attack's own binary-denylist reader read 2598 before the
+ *  deletions, 2590 after). */
+const P3202_SCAN_FLOOR = 2500;
+/** The most hits one sub-clause prints by name; the rest are counted. */
+const P3202_HITS_SHOWN = 40;
+
+/** The families one line of text spells, in needle order. */
+function p3202FamiliesOf(line) {
+  return P3202_NEEDLES.filter((needle) => needle.re.test(line)).map((needle) => needle.family);
+}
+/** True when a file of this name and these first bytes is NOT read. */
+function p3202SkipsAsBinary(name, head) {
+  if (P3202_BINARY.test(name)) return true;
+  return head.subarray(0, 8192).includes(0);
+}
+
+// 54e (1). The scanner reads its fixtures right, run in memory before the real
+// scan. A misread here means nothing below can be believed, so 54a, 54c and
+// 54d are reported as cannot be judged and never as passing.
+const P3202_LINE_FIXTURES = [
+  ['Read Last Lines…', ['menu-row']],
+  ['READ_LAST_LINES_ITEM', ['menu-row']],
+  ['openRemoteLines(id)', ['window']],
+  ['.remote-lines-modal', ['window']],
+  ["invoke('machines:readSessionLines', x)", ['channel']],
+  ['export const READ_LINES_CUT = 1', ['words']],
+  ['the last lines of stderr', []],
+  ['Capture Last 250 Lines', []],
+  ['thread-lines', []],
+  ['readLines(', []],
+  ['the last lines panel', []]
+];
+const P3202_NAME_FIXTURES = [
+  ['RemoteLinesModal.tsx', true],
+  ['read-lines.ts', true],
+  ['ReadLinesPanel.tsx', true],
+  ['p100-remote-lines.test.tsx', true],
+  ['thread-lines.ts', false],
+  ['spreadlines.ts', false],
+  ['lines.ts', false]
+];
+const P3202_READER_FIXTURES = [
+  ['logo.png', Buffer.from('Read Last Lines', 'utf8'), true],
+  ['blob.txt', Buffer.concat([Buffer.from('Read Last Lines', 'utf8'), Buffer.from([0]), Buffer.from('x')]), true],
+  ['notes.jsx', Buffer.from('Read Last Lines', 'utf8'), false],
+  ['Fixture', Buffer.from('Read Last Lines', 'utf8'), false]
+];
+
+const P3202 = (() => {
+  const root = process.cwd();
+  const misread = [];
+  for (const [text, wanted] of P3202_LINE_FIXTURES) {
+    const found = p3202FamiliesOf(text);
+    if (JSON.stringify(found) !== JSON.stringify(wanted)) {
+      misread.push(
+        `the scanner reads ${JSON.stringify(text)} as ${JSON.stringify(found)}, not ${JSON.stringify(wanted)}`
+      );
+    }
+  }
+  for (const [name, wanted] of P3202_NAME_FIXTURES) {
+    const found = P3202_GONE_NAME.test(name);
+    if (found !== wanted) {
+      misread.push(
+        `the scanner reads the file name ${JSON.stringify(name)} as ${found ? 'a window file' : 'nothing'}, ` +
+          `not ${wanted ? 'a window file' : 'nothing'}`
+      );
+    }
+  }
+  for (const [name, bytes, wanted] of P3202_READER_FIXTURES) {
+    const found = p3202SkipsAsBinary(name, bytes);
+    if (found !== wanted) {
+      misread.push(
+        `the scanner reads ${JSON.stringify(name)} as ${found ? 'skipped' : 'read'}, ` +
+          `not ${wanted ? 'skipped' : 'read'}`
+      );
+    }
+  }
+
+  const present = P3202_GONE_FILES.filter((rel) => existsSync(join(root, rel)));
+  const named = [];
+  const hits = { '54c': [], '54d': [] };
+  const exceptionHits = new Map(P3202_EXCEPTIONS.map((one) => [one.file, 0]));
+  let read = 0;
+  const walk = (dir) => {
+    let entries;
+    try {
+      entries = readdirSync(dir).sort();
+    } catch {
+      return;
+    }
+    for (const entry of entries) {
+      const path = join(dir, entry);
+      let stat;
+      try {
+        stat = statSync(path);
+      } catch {
+        continue;
+      }
+      if (stat.isDirectory()) {
+        walk(path);
+        continue;
+      }
+      const rel = relative(root, path);
+      if (P3202_GONE_NAME.test(entry) && !P3202_GONE_FILES.includes(rel)) named.push(rel);
+      if (P3202_BINARY.test(entry)) continue;
+      let bytes;
+      try {
+        bytes = readFileSync(path);
+      } catch {
+        continue;
+      }
+      if (p3202SkipsAsBinary(entry, bytes)) continue;
+      read += 1;
+      const exempt = P3202_EXCEPTIONS.filter((one) => one.file === rel).map((one) => one.family);
+      const lines = bytes.toString('utf8').split('\n');
+      for (const [index, line] of lines.entries()) {
+        for (const needle of P3202_NEEDLES) {
+          if (!needle.re.test(line)) continue;
+          if (exempt.includes(needle.family)) {
+            exceptionHits.set(rel, (exceptionHits.get(rel) ?? 0) + 1);
+            continue;
+          }
+          hits[needle.clause].push({ rel, line: index + 1, text: line.trim().slice(0, 80), family: needle.family });
+        }
+      }
+    }
+  };
+  walk(join(root, 'src'));
+
+  const ledger = Array.isArray(data.ledger) ? data.ledger : null;
+  return {
+    misread,
+    present,
+    named,
+    hits,
+    exceptionHits,
+    read,
+    ledger,
+    copyMode: ledger === null ? null : ledger.filter((row) => row.verb === 'copy-mode').length,
+    capture: ledger === null ? undefined : ledger.find((row) => row.verb === 'capture-pane')
+  };
+})();
 
 {
-  const p100 = data.phase100 ?? {};
-  if (p100.present !== true) {
-    fail(
-      'src/main/machines/remote-lines.ts is not there, so a person has no way ' +
-        'to read back what a session on another machine printed and Phase 95 ' +
-        'sentence saying so has nothing to replace it.'
-    );
+  const at = failures.length;
+  const judged = P3202.misread.length === 0;
+  // 54e (1), first, so a misreading scanner is said before what it would say.
+  for (const one of P3202.misread) fail(`54e: ${one}.`);
+  if (!judged) {
+    for (const clause of ['54a', '54c', '54d']) {
+      fail(
+        `${clause}: cannot be judged, because the scanner misreads its own fixtures (54e). ` +
+          'A scanner nobody can believe is a failure and never a pass.'
+      );
+    }
   } else {
-    // 54a. The argv, element by element, at both ends of the range the panel
-    //      offers. A gained or lost element is a different command.
-    const deep = [...(p100.argvDeep ?? [])];
-    if (JSON.stringify(deep) !== JSON.stringify(P100_ARGV_DEEP)) {
+    // 54a. None of the seven files, and no file named like one.
+    for (const rel of [...P3202.present, ...P3202.named]) {
       fail(
-        `the deepest read composes ${JSON.stringify(deep)}. It composes ` +
-          `${JSON.stringify(P100_ARGV_DEEP)} exactly. An element gained or ` +
-          `lost here is a different command sent to somebody else's computer.`
+        `54a: ${rel} is there. Phase 320.2 removed the Read Last Lines window everywhere, on the operator's ` +
+          'ruling of 2026-09-30, and a session on another machine scrolls back instead.'
       );
     }
-    const screen = [...(p100.argvScreen ?? [])];
-    if (JSON.stringify(screen) !== JSON.stringify(P100_ARGV_SCREEN)) {
-      fail(
-        `the screen alone composes ${JSON.stringify(screen)}. It composes ` +
-          `${JSON.stringify(P100_ARGV_SCREEN)} exactly, being -S -0.`
-      );
+    // 54c and 54d. Every line of every file under src/ that is not binary.
+    const sentence = {
+      '54c': 'spells the channel Phase 320.2 removed',
+      '54d': 'spells the Read Last Lines window, its menu row, its store, its words or its knob'
+    };
+    for (const clause of ['54c', '54d']) {
+      const list = P3202.hits[clause];
+      for (const hit of list.slice(0, P3202_HITS_SHOWN)) {
+        fail(`${clause}: ${hit.rel}:${String(hit.line)} ${sentence[clause]} (${hit.text})`);
+      }
+      if (list.length > P3202_HITS_SHOWN) {
+        fail(`${clause}: and ${String(list.length - P3202_HITS_SHOWN)} more line(s) like those, not printed.`);
+      }
     }
-    // 54b. The executable form of research 57 section 3.1's refusal.
-    const named = p100.namesAScrollVerb ?? [];
-    if (named.length > 0) {
+  }
+  // 54b. Research 57 section 3.1's refusal, for the EXEC PLANE, read from the
+  //      ledger now that the module it used to be read from is gone.
+  if (P3202.ledger === null || P3202.ledger.length === 0) {
+    fail('54b: the verb ledger was not read, so whether copy-mode is on it cannot be judged.');
+  } else if (P3202.copyMode > 0) {
+    fail(
+      '54b: copy-mode is on the remote verb ledger. Research 57 section 3.1 refused a scrollbar over the exec ' +
+        'plane, and that refusal stands there: research 130 section 4 narrowed it for the CONTROL connection ' +
+        'alone (conditions 101 to 112), whose closed table is the only road a scroll takes to another machine.'
+    );
+  }
+  // 54e (2). Enough files were read that a walk which stopped early is seen.
+  if (P3202.read < P3202_SCAN_FLOOR) {
+    fail(
+      `54e: the scan read ${String(P3202.read)} text files under src/, fewer than the floor of ` +
+        `${String(P3202_SCAN_FLOOR)}, so a walk that stopped early would read as clean.`
+    );
+  }
+  // 54e (3). Every exception still matches, or it hides a name nobody reviewed.
+  for (const one of P3202_EXCEPTIONS) {
+    if ((P3202.exceptionHits.get(one.file) ?? 0) === 0) {
       fail(
-        `src/main/machines/remote-lines.ts names ${named.join(', ')}. It may ` +
-          `name neither. Research 57 section 3.1 refused a real remote ` +
-          `scrollbar over the exec plane twice over, and that refusal stands: ` +
-          `one of those verbs is on no row of the ledger, and the other is the ` +
-          `one unsafe row, reachable only through a door Phase 89 narrowed to a ` +
-          `fixed five element argv. Research 130 section 4 narrowed the refusal ` +
-          `for the CONTROL connection alone (Phase 320.1, conditions 101 to ` +
-          `112), whose closed table moves the view and, on his word of ` +
-          `2026-09-30, types the keys a person types over a scrolled-back ` +
-          `session, and this read goes over the exec plane. A builder who needs ` +
-          `either verb here has designed the thing that stays refused.`
-      );
-    }
-    // 54c. A read is not a capsule. One name crosses from the saved output
-    //      side, being the control stripper, and no read writes a generation.
-    const imports = p100.snapshotImports ?? [];
-    if (JSON.stringify(imports) !== JSON.stringify(['stripControls'])) {
-      fail(
-        `src/main/machines/remote-lines.ts takes ` +
-          `${imports.join(', ') || 'nothing'} from ../restore/snapshots. It ` +
-          `takes exactly stripControls. A second copy of that regular ` +
-          `expression is how two answers to "which bytes are text" come to ` +
-          `exist, and anything else from that module would make a person ` +
-          `pressing a menu item write to this Mac.`
-      );
-    }
-    if (p100.callsCapsuleStore === true) {
-      fail(
-        'src/main/machines/remote-lines.ts calls storeCapsuleText. This read ' +
-          'is a live read a person asked for, and it writes nothing on either ' +
-          'computer. The background copy is ./remote-capsule.ts and it stays ' +
-          'the only writer.'
-      );
-    }
-    // 54d. One command per read, composed in one place.
-    if (p100.execCalls !== 1 || p100.composerCalls !== 1) {
-      fail(
-        `src/main/machines/remote-lines.ts sends ` +
-          `${String(p100.execCalls)} command(s) through ` +
-          `${String(p100.composerCalls)} composer call(s). It sends one ` +
-          `through one. A second call site is a second thing a person's ` +
-          `session can be asked without anybody reading this file again.`
-      );
-    }
-    // 54e. The four depths the panel offers, and the two ceilings.
-    const depths = [...(p100.depths ?? [])];
-    if (JSON.stringify(depths) !== JSON.stringify([0, 1000, 10000, 25000])) {
-      fail(
-        `the panel offers depths ${depths.join(', ') || 'none'}. It offers ` +
-          `0, 1000, 10000 and 25000, shallowest first. Research 57 section ` +
-          `3.2 measured the deepest one and nothing deeper has been measured.`
-      );
-    }
-    if (p100.maxDepth !== 25_000 || p100.defaultDepth !== 1000) {
-      fail(
-        `the read clamps at ${String(p100.maxDepth)} lines and opens at ` +
-          `${String(p100.defaultDepth)}. It clamps at 25000, which research ` +
-          `57 section 3.2 measured at 4,200,243 bytes and about 0.51 s ` +
-          `composed, and it opens at 1000.`
-      );
-    }
-    if (p100.maxBytes !== 8_388_608) {
-      fail(
-        `the read cuts at ${String(p100.maxBytes)} bytes. It cuts at 8388608, ` +
-          `which is about twice the measured worst case, so an ordinary read ` +
-          `is never cut and a runaway one is bounded before the 64 MB exec ` +
-          `plane buffer is reached.`
+        `54e: the exception for ${one.file} matches nothing (or the file is not there), so it would hide a ` +
+          'name nobody reviewed; take it off the list.'
       );
     }
   }
-  // 54f. The ledger row this read rides on has not moved. A row edited to
-  //      `mutating`, or to an unsafe repeat class, would change what a person's
-  //      machine is being asked without anything else in this phase changing.
-  const capture = (data.ledger ?? []).find((row) => row.verb === 'capture-pane');
-  if (capture === undefined) {
+  // 54f. The ledger row the remote screen read, the capsule and the arming
+  //      read ride on has not moved. A row edited to `mutating`, or to an
+  //      unsafe repeat class, would change what a person's machine is asked.
+  if (P3202.capture === undefined) {
     fail(
-      'capture-pane is not on the verb ledger, so the read this phase added ' +
-        'has no row to ride on and the exec plane would refuse it.'
+      '54f: capture-pane is not on the verb ledger, so the remote screen read, the saved output capsule and ' +
+        'the arming read have no row to ride on.'
     );
-  } else if (capture.kind !== 'read' || capture.repeat !== 'safe') {
+  } else if (P3202.capture.kind !== 'read' || P3202.capture.repeat !== 'safe') {
     fail(
-      `capture-pane reads ${String(capture.kind)} with repeat class ` +
-        `${String(capture.repeat)}. It is a read and it is safe: with -p it ` +
-        `prints what is on a screen and writes nothing, and two prints of one ` +
-        `screen leave the machine exactly as one does. Phase 100 added no verb ` +
-        `to this ledger and moved no row on it.`
+      `54f: capture-pane reads ${String(P3202.capture.kind)} with repeat class ` +
+        `${String(P3202.capture.repeat)}. It is a read and it is safe: with -p it prints what is on a screen ` +
+        'and writes nothing, and two prints of one screen leave the machine exactly as one does.'
     );
   }
+  P3202.green = failures.length === at;
 }
 
 // ---------------------------------------------------------------------------
@@ -6322,26 +6451,19 @@ process.stdout.write(
 }
 
 // ---------------------------------------------------------------------------
-// Phase 100's line
+// Phase 320.2's line, where Phase 100's was: condition 54 turned around
 // ---------------------------------------------------------------------------
 
 {
-  const p100 = data.phase100 ?? {};
-  const capture = (data.ledger ?? []).find((row) => row.verb === 'capture-pane');
+  const exceptions = P3202_EXCEPTIONS.length;
   process.stdout.write(
-    p100.present !== true
-      ? 'src/main/machines/remote-lines.ts is NOT there, so nobody can read ' +
-          'back what a session on another machine printed.\n'
-      : `reading the last lines of a session on a machine sends ` +
-          `${[...(p100.argvDeep ?? [])].join(' ')}, one command per read, and ` +
-          `nothing else. It rides on the ${String(capture?.kind)} row ` +
-          `capture-pane, repeat class ${String(capture?.repeat)}, which Phase ` +
-          `72 put on the ledger and Phase 100 did not move. It offers ` +
-          `${[...(p100.depths ?? [])].join(', ')} lines, cuts at ` +
-          `${String(p100.maxBytes)} bytes on this Mac, names neither verb a ` +
-          `scrollbar would need, and writes nothing on either computer. ` +
-          `Research 57 section 3.1 refused the scrollbar and this is the ` +
-          `smaller affordance it adopted.\n`
+    P3202.green === true
+      ? `the Read Last Lines window is gone: none of its ${String(P3202_GONE_FILES.length)} files, and no ` +
+          `spelling of its channel, its menu row, its store, its words or its knob in ${String(P3202.read)} ` +
+          `text files under src/ (${String(exceptions)} named exception${exceptions === 1 ? '' : 's'}, still ` +
+          'matching); copy-mode is on no ledger row, and capture-pane is still a read row with repeat class safe.\n'
+      : 'the Read Last Lines window is NOT gone, or the scan that says so cannot be believed: condition 54 ' +
+          'names what is back below.\n'
   );
 }
 

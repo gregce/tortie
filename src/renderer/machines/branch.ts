@@ -25,7 +25,7 @@ import { commitCount } from './presentation';
  * NO PROSE CROSSES THE CHANNEL. Main answers a mode word, a branch name, two
  * commit strings, an upstream name, two counts and two flags. Every sentence a
  * person reads about them is here, which is the shape `machines:readRuns` and
- * `machines:readSessionLines` already use.
+ * `machines:listFiles` already use.
  *
  * PHASE 106 DREW FOUR SENTENCES UNDER THE GROUP SAYING WHAT IS NOT TRUE, and
  * a band above it, and three fact sentences inside it. PHASE 228 TOOK THEM

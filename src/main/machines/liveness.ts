@@ -148,15 +148,17 @@ export function isLinkFailure(cls: string | null): boolean {
 /**
  * Every far-side machines channel, and the fact its verb asks.
  *
- * Twenty-one channels reach the far side (research 90 section 1). This table
- * is the classification the charter asks to be printed, and
+ * Twenty-two channels reach the far side: research 90 section 1 counted
+ * twenty-one, Phase 233 added two and Phase 320.2 removed one. This table is
+ * the classification the charter asks to be printed, and
  * `src/main/machines/__tests__/p231-liveness.test.ts` holds it against the
  * source: a module listed as `link` must ask the link question and never the
  * feed one, and the other way round.
  *
- * `feed` is the session list's own family: the lines of one session, and the
- * agent board a machine tab draws, which is a statement about what that machine
- * can run and is read once the machine is ready. Everything else is one ssh
+ * `feed` is the session list's own family: the agent board a machine tab
+ * draws, which is a statement about what that machine can run and is read once
+ * the machine is ready. Phase 100's read of one session's lines was the other
+ * member until Phase 320.2 removed it. Everything else is one ssh
  * running one script over a folder or a repository, and the session list has
  * nothing to do with whether that answers.
  */
@@ -182,7 +184,6 @@ export const CHANNEL_FACT: Readonly<Record<string, LivenessFact>> = Object.freez
   'machines:unstage': 'link',
   'machines:commit': 'link',
   'machines:cloneProject': 'link',
-  'machines:readSessionLines': 'feed',
   'machines:agents': 'feed'
 });
 
@@ -205,8 +206,6 @@ export const MODULE_FACT: Readonly<Record<string, LivenessFact>> = Object.freeze
   'remote-search.ts': 'link',
   'remote-clone.ts': 'link',
   'remote-commit.ts': 'link',
-  // The lines of one session. A session verb.
-  'remote-lines.ts': 'feed',
   // The agent board. What that machine can run, read once it is ready.
   'machine-agents.ts': 'feed',
   // The two passes that walk the SESSION rows the feed listed and write what
