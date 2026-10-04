@@ -39538,6 +39538,104 @@ Either way `build/battery.sh`-style landing runs and `build/electron-run.mjs` ch
 - **No new agent rule**, no change to `HIDDEN_AGENT_IDS`.
 - **No release.**
 
+## Phase 320.2 — "I want it behavior EXACTLY like a local session... like i don't want this in the app anymore" — the Read Last Lines window goes, everywhere (his ruling of 2026-09-30, "Remove it everywhere")
+
+**Subject.** `feat(machines): remove the Read Last Lines window, because a session on another machine now scrolls back`
+
+**First body line.** `Phase 320.2: the Read Last Lines window removed everywhere`
+
+**Semver.** Minor, unreleased: a user-visible menu row and the window it opens go. Nothing a person relies on for a
+session on THIS Mac moves.
+
+**Tier 2.** A rendered surface removed with no new state, plus one IPC channel removed. It cannot lose a person's work
+(the read wrote nothing on either computer), spawns nothing new and sends nothing anywhere. Budget: the gates, ONE app
+run that drives every claim, and two independent methods because the contract moves: **measure the parent** (the row
+and window present at the parent, absent at HEAD, the session still scrolling back at both) and **attack** (a caller
+that still names `machines:readSessionLines` through the bridge or `invoke` must find no handler and no preload member,
+and every path a person could take to the window must be shown dead, not assumed).
+
+**Charter.** His ruling of 2026-09-30, quoted in the heading and logged in the running log that day: once 320.1 gives a
+session on another machine the local scroll, the Read Last Lines window is removed IN FULL, not only the strip button
+320.1 already removed. 320.1 landed as `62f832ae` on 2026-10-03: remote scroll-back on the control connection on tmux
+3.6, 3.6a, 3.6b, 3.7b and 3.7c (`MEASURED` in `src/main/machines/__tests__/p324-stale-acceptance.test.ts:129`), and
+"Fall back to today" on any other tmux, where only full-screen programs that use the mouse scroll. He accepted that on
+such a machine a session then shows only its screen and the remedy is upgrading tmux. Phase 100 built the window;
+research 57 §3.1 ruled for it as the smaller affordance AGAINST a real remote scrollbar, and 320.1 is the scrollbar, so
+the ground that window stood on is gone.
+
+### What is in the tree today (read from `225f9312`)
+
+- **The one door a person has**: the session's right-click menu, `src/renderer/terminal/terminal-menu.ts:236-246`,
+  draws `READ_LAST_LINES_ITEM` ("Read Last Lines…", `src/renderer/machines/read-lines.ts:54`) for a session NOT on this
+  Mac, running `useApp.getState().openRemoteLines(session.id)`. The header comment at lines 19-21 lists it. No row in
+  `src/main/menu.ts` names it, and no other caller of `openRemoteLines` exists outside the harness.
+- **The window**: `src/renderer/app/RemoteLinesModal.tsx` (with `remote-lines.css`), mounted through
+  `RemoteLinesModalLazy` in `src/renderer/app/lazy-modals.tsx:87-90`, `src/renderer/app/modals.ts:26` and
+  `src/renderer/app/App.tsx:90,400`. Its words live in `src/renderer/machines/read-lines.ts` ("Last lines of …").
+- **The store**: `remoteLinesSessionId`, `openRemoteLines`, `closeRemoteLines` and the read they drive in
+  `src/renderer/state/sessions-slice.ts:447-489` and `:1772-1855`.
+- **The channel**: `machines:readSessionLines`, registered in `src/main/machines/ipc.ts:1449-1480` over
+  `readSessionLinesOnMachine` from `src/main/machines/remote-lines.ts`, exposed by `src/preload/machines.ts:135`, typed in
+  `src/shared/ipc/machines/sessions.ts:43-63,162`, tabled in `src/shared/ipc/machines.ts:204`, classed `feed` in
+  `src/main/machines/liveness.ts:185,209`, named in `src/main/machines/index.ts:118`, and pinned in
+  `docs/audits/contract-baseline.txt:146`.
+- **The harness knob**: `remoteLines` in the `GMUX_SHOT_DRIVE` spec, `src/renderer/app/p100-lines-shot.ts`.
+- **What stays because others use it**: `capture-pane` on the verb ledger (`src/main/machines/exec-plane.ts:288`; read by
+  `remote-arm.ts:447` and the capsule), `stripControls` in `src/main/restore/snapshots.ts:651` (its comment names Phase
+  100's import and is corrected, the function stays), and `remote-pane-history.ts` (its comment at line 63 names the
+  panel and is corrected).
+- **The gates and probes that hold the window in place today**: `conformance:machines` Phase 100's condition
+  (`build/conformance-machines.mjs:4630-4740` and its line at `:6325-6340`, which FAILS when `remote-lines.ts` is absent)
+  and `build/machines-conformance-probe.mts:3905`; `probe:p100` (`build/probe-p100-lines.mjs`, node only, no Electron, and
+  its `package.json` entry); `probe:p96`'s expected menu list (`build/probe-p96-remote-surfaces.mjs:749-766`); `probe:p95`'s
+  note (`build/probe-p95-scroll.mjs:773`); `build/verification-checks.mjs:1075`; and `probe:p320`'s R5 arm
+  (`build/p320/probe-p320.mjs:535-543,1061-1062,1264-1265,1547-1556,2381`). Tests: `p100-remote-lines.test.tsx`,
+  `remote-lines.test.ts`, the machines `ipc.test.ts`, `machine-vocabulary.test.ts`, `p284-quiet-surround.test.ts`,
+  `p95-strip-note.test.tsx` and `terminal-menu.test.ts`.
+
+### The mechanism
+
+1. **Delete** `src/main/machines/remote-lines.ts`, `src/renderer/app/RemoteLinesModal.tsx`, `remote-lines.css`,
+   `src/renderer/machines/read-lines.ts`, `src/renderer/app/p100-lines-shot.ts`, `build/probe-p100-lines.mjs` and the
+   tests that exist only for them.
+2. **Remove** the menu row and its header lines in `terminal-menu.ts`, the lazy mount, the modal export, the store
+   fields and actions, the `machines:readSessionLines` registration, preload member, types, table row and liveness
+   entries, and the harness knob. A remote session's right-click menu then reads as a local one's does minus the two
+   capture rows Phase 96 already withholds from it.
+3. **Turn the gates around rather than delete them**: Phase 100's `conformance:machines` condition becomes an assertion
+   that no `remote-lines.ts`, no `machines:readSessionLines` and no `Read Last Lines` string exist anywhere under `src/`,
+   each shown red by a one-clause ablation that puts one back; `probe:p96`'s list and `probe:p320`'s R5 arm read the
+   row's ABSENCE; `gate:checks`' classification loses `probe:p100`.
+4. **Regenerate the contract baseline** with `node build/contract-inventory.mjs --out docs/audits/contract-baseline.txt`;
+   the commit body names the line that moved (`machines:readSessionLines`) and any harness line with it.
+5. **The menus**: the session's right-click menu loses "Read Last Lines…" for a session on another machine; the
+   application menus do not move. The phase brief says exactly this.
+
+### The proof, run rather than read
+
+- The gates: `typecheck`, `build`, the whole vitest, `conformance:machines`, `conformance:farattach`,
+  `conformance:remoteclose`, `gate:contract` with the regenerated baseline, `gate:checks`, `gate:electron` (the floor is
+  unchanged: `probe-p100-lines.mjs` reaches no Electron; if the spec finds otherwise it lowers the floor and names the
+  file), `smoke:t1`, `smoke`, `smoke:t3`, `package`.
+- **ONE app run at the parent and at HEAD** over the loopback machine (a scratch socket, a scratch HOME, the 3.6a and
+  3.7b binaries 320.1 measured): right-click a remote session and read the native menu's rows through the harness's
+  `ui:popupMenu` record (parent: the row present; HEAD: absent), drive the store's old action name and the old channel
+  name (HEAD: neither exists), and scroll the same session back with the wheel (both builds: it scrolls, its place
+  held). A session on this Mac's menu is byte for byte the parent's.
+- **The attack**: the verifier's own grep over the built `out/` and `src/` for every spelling of the window
+  ("Read Last Lines", "Last lines of", `readSessionLines`, `remoteLines`, `remote-lines`), and a hostile renderer call to
+  `invoke('machines:readSessionLines', …)` refused for want of a handler.
+
+### What is NOT in this phase
+
+- **No new way to read a remote session's past output**: the Capture Last 250 and 1000 Lines rows stay withheld from a
+  session on another machine as Phase 96 ruled, and nothing replaces the window. Scrolling back is the way.
+- **No change to 320.1's scroll**, its version list or its fall-back on an unmeasured tmux.
+- **No change to `capture-pane`'s ledger row**, the remote screen read, the capsule or Saved Output for a session on this
+  Mac.
+- **No menu row added** anywhere, and the application menus do not move.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40602,3 +40700,5 @@ cycle rather than only the evening it was written.
 - 2026-10-02, **PHASE 317 LANDED, `467b4e4a`, unreleased — End from the phone, behind Face ID, through one gate.** An End bar above the tab bar draws the Mac's own confirmation; Face ID, Touch ID or the passcode guards the press (his "Only for End"); Select ends several from a list that can only shrink; the door's one write route `POST /v1/end` asks main's gate and the shared gate by id at the press, acts at most once, sets no status. Unpair's Mac half was REMOVED in the fix round (it measured worse) and is owed its own entry. At landing, replayed onto 316.6: probe:p317 13 of 13, End live on iOS 18.3 (E10) PASS, battery green with test:ios on both runtimes, ablation:p316 238 of 238. R4's route pin d1fefb71…; `HELPER_USER_FLOOR` 163; phone build 5. The 2026-09-21 entry is replaced in place by the as-built entry (his named exception). **Next:** 318 and 316.7 are building on 317's tree; 320.1's verdict is due.
 
 - 2026-10-03, **PHASE 320.1 LANDED, `62f832ae`, unreleased — remote scroll-back on the control connection.** A session on another machine now scrolls back like one on your Mac on tmux 3.6, 3.6a, 3.6b, 3.7b and 3.7c, falling back to today on any other tmux (his "Fall back to today"); landed under his "Accept and land now" with the reverify's four worse rows stated as limits (a reconnect that misses its greeting twice while scrolled back loses typing until Tortie reconnects). Next: 320.2, then 316.7 and 318 once agents run again.
+
+- 2026-10-04, **PHASE 320.2 QUEUED IN FULL — the Read Last Lines window removed everywhere**, its section written above this log from the tree at `225f9312` so it cites 320.1 as built; Tier 2 with the parent measured and the window's every door attacked. 316.7's fix round and 318's two verify lenses restarted the same day after the account's spend limit stopped them on 2026-10-03.
