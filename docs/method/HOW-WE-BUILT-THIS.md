@@ -129,6 +129,7 @@ in the backlog because the next agent reads this file and does not read a table
    clones with their own `node_modules`, and an Xcode DerivedData folder per agent. On 2026-10-01 that
    had filled the disk to 99 percent. The landing is not done until the phase's worktree, parents,
    clones and scratch are gone (CLAUDE.md, "Machine discipline").
+
 ## What the phone round cost, in four lessons
 
 Phases 316.6 to 320.2 ran from 30 September to 4 October 2026 and took about five days for one TestFlight build.
