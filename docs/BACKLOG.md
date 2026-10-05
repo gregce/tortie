@@ -39742,6 +39742,58 @@ limits; `.ssh` and `.git` stay refused by name and identity wherever they are.
 - **No Linux far side measured** (none is available).
 - **No release.**
 
+## Phase 318.1 — "there is no place to type" — a message box in every conversation, like a terminal's prompt, and End in the top bar (operator, testing TestFlight build 6, 2026-10-05)
+
+**Subject.** `feat(pocket): a place to type in every conversation, and End in the top bar`
+
+**First body line.** `Phase 318.1: the conversation takes a message whenever you type, like a terminal`
+
+**Semver.** Minor, unreleased: he can message any running session from its conversation, idle or working.
+
+**Tier 3.** It types into running agents from outside the Mac. Two independent methods, one an attack, plus the phone
+driven on iOS 26.3 and the 18.3 floor beside the parent.
+
+**Charter.** Testing TestFlight build 6 against his Mac at `c981efde`, he opened ISSUE SOLVING, an idle Claude Code
+session on this Mac, and found no message box on the Session screen and none in its Conversation. His words: "when i
+enter a conversation, I can't actually send a message. I think it would be better, if, we made it as similar to using a
+terminal as possible because unless there is a reply that needs you, you can't interact with a conversation", "there is
+no place to type", and "when I open a session i see "end session" down at the bottom near the needs input, sessions,
+settings pane. there should just be a toggle on the top right before you go into the conversation". This supersedes his
+318 ruling "Only when idle at its prompt". Phase 318 offers the message strip only when `canSay` holds
+(`src/main/reply/gate.ts`, D14 of `build/p318/SPEC.md`: Claude Code or Codex, this Mac, idle by the agent's own reader,
+holding the terminal, and `src/main/reply/input-row.ts` reading the prompt row empty over a styled capture) and draws it
+on the Session screen only (`ios/Tortie/Screens/SessionScreen.swift:230-237`, `MessageStrip.swift`); 317's End is a bar
+above the tab bar (`EndBar.swift`). A session started before Phase 331 runs Claude Code full screen, and the spec measures
+whether that is why his box never drew.
+
+### The mechanism, for the spec to settle
+
+1. **The Conversation screen** (`ios/Tortie/Screens/ConversationScreen.swift`) gets a message field pinned above the tab
+   bar for any running session, like a terminal's prompt; the Session screen keeps a way into it. Send pastes the words
+   as one bracketed paste and Return through 318's one write path (`/v1/say`, its ledger, its at-most-once write id).
+2. **The gate narrows to one refusal:** a numbered question drawn on the screen at the final check refuses the message
+   and the phone shows that question's buttons, so a Return never answers a dialog. Idle-at-an-empty-prompt, the agent
+   kind and the input-row reading stop deciding whether he may type. A working agent takes the message as typing at the
+   desk does.
+3. **A session on another machine** takes a message too if the spec measures 320.1's control-connection typing
+   (`type-bytes`) carrying a bracketed paste and Return safely; otherwise it is a stated limit.
+4. **End moves to the top right** of the Session screen's navigation bar, behind Face ID as in 317; the bottom bar goes.
+5. The conversation re-reads after a send so his message shows. The phone's build number moves to 7.
+
+### The proof, run rather than read
+
+- The gates, including `conformance:pocket`, `:hostile`, `:ios`, `:phonecopy`, `test:ios` on both runtimes.
+- **The attack:** a hostile phone against the narrowed gate; a message landing while a question is drawn, and while one
+  appears within the check window; control bytes and paste markers still refused; replays answered from the ledger.
+- **The app run:** an idle and a working Claude Code stand-in and a Codex one, a full-screen pre-331 Claude screen, and a
+  shell: the box draws in each Conversation, Send delivers exactly once (the stand-in's byte log), End sits top right.
+
+### What is NOT in this phase
+
+- **No change to Face ID's scope** (End only), to the numbered-question buttons, or to markdown (still off).
+- **No live terminal screen on the phone.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40830,3 +40882,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 336 LANDED, `c06175f6`, unreleased, with research 138 (`71fc113a`) — remote saving like local.** Any project opened on a confirmed machine saves, renames, makes folders, stages and commits with nothing asked (his "Zero presses"); the folder is pinned by identity at open and checked at every write through an anchored prelude, `/` and home folders are never write folders, `.git` and `.ssh` refused in every spelling the disk folds, and the local readers take local rows only. Manifest migration 019 (additive). Verify, fix, reverify needs_work on a test-harness wrap; his ruling "Narrow tool fix, then land"; the ruled round approved with his history unchanged. A verifier's `smoke:remote` run before the fix appended about 150 bytes to his `~/.zsh_history` (03:18, disclosed). Owed findings, not yet queued: `smoke:remote` starts his real Claude Code briefly with his real far HOME; seven loopback probes do not set the quiet shell; a refused `-L gmux` listing is read as zero by the smoke and the census. His Mac Pro check is the first step of his own acceptance.
 
 - 2026-10-05, **PHASE 336.1 QUEUED IN FULL AND STARTED, on his word ("Yes, fix it now")** — after updating, his project `~/dev` on the Mac Pro read greyed out, because 336 refused a home's first-level children as write folders. Only the home itself, what holds it, and `/` stay off limits.
+
+- 2026-10-05, **PHASE 318.1 QUEUED IN FULL AND STARTED, on his report from TestFlight build 6 ("there is no place to type")** — a message box in every conversation like a terminal prompt, refused only while a numbered question is drawn; End moves to the top right. Supersedes his 318 ruling "Only when idle at its prompt".
