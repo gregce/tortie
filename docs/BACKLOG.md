@@ -39794,6 +39794,75 @@ whether that is why his box never drew.
 - **No live terminal screen on the phone.**
 - **No release.**
 
+## Phase 337 — "connecting to a session behaves as if i'm in that session on my mac and I can interact with it from my phone" — the Screen: a session's own terminal on the phone, typed into with every key (operator, 2026-10-05)
+
+**Subject.** `feat(pocket): see a session's own screen on the phone and type into it`
+
+**First body line.** `Phase 337: the Screen, composed on the Mac and drawn natively`
+
+**Semver.** Minor, unreleased: he can watch any session's terminal live on the phone and type into it with every key.
+
+**Tier 3.** It types into running sessions from outside the Mac, adds a read and a write to the door on the public
+internet, and lifts a standing refusal. Two independent methods, one an attack, plus the phone driven on iOS 26.3 and
+the 18.3 floor beside the parent; a per-provider matrix over the committed captures.
+
+**Charter.** Research 139 (`docs/research/139-a-live-session-on-the-phone.md`, read from ten products' code) and his
+rulings of 2026-10-05, each binding:
+1. "Yes, for a session's screen": research 136's "no raw terminal on the phone, ever" is LIFTED for a session's own
+   screen, reached from inside a session, with Conversation the first-run default and the store text saying "the
+   session's screen", never SSH or remote desktop; See a Sample shows a canned Screen.
+2. "Never": the phone never changes the size of a session on his Mac. It draws the Mac's width; he zooms, pans or
+   turns the phone sideways. Nothing attaches as a sized client (research 139 §4.2: a control client never resizes).
+3. "Every key, including Ctrl-C": every key, the printable keyboard, dictation and a key bar (Esc, Tab, Shift-Tab, the
+   arrows, Ctrl, Return), with no Face ID. Face ID stays on End alone. This covers sessions on another machine too,
+   so a named-key shape joins 320.1's carriage as his yes (`src/main/machines/scroll-shapes.ts:43-60, 160-165`).
+4. "Screen first", then "Yes: simple delivery first": the Mac composes the screen and the phone fetches it (research
+   139 §6.1); a live byte stream into SwiftTerm (§6.2) is Phase 338, built only if his own use on TestFlight finds
+   this one laggy. Phase 318.1's message box follows; End's move to the top right moves into this phase.
+
+### The mechanism, for the spec to settle with real paths
+
+- **On the Mac:** one signed read, `/v1/screen`, answered by main: `capture-pane -p -e` and the cursor, size and
+  alternate-screen state in one control-client command block (measured 0.2 ms and about 5 KB for 120 by 40,
+  research 139 §4.2); remote sessions through the exec plane's `capture-pane`. Main turns the styled screen into rows
+  of styled runs (widening `src/main/reply/input-row.ts`'s reader into one module), stamps a revision, and answers a
+  long poll: the phone sends the revision it has and main answers when the screen changes or about 10 s passes,
+  whole, with a `Content-Length`, inside the 15 s timer (`src/main/pocket/door/limits.ts:21-35`). The phone may reuse
+  its connection under the 5 s keep-alive.
+- **Typing:** one signed write, `/v1/keys`: printable text as literal keys and every other key by tmux key name, so
+  tmux encodes it for the program's current mode; through 318's write path and ledger, at most once, and
+  `noteUserInput` like a keystroke at the desk. The one refusal: a key carrying the question id he was looking at is
+  refused if a numbered question has appeared since (research 135 §2.3, a late Return approved an unseen dialog 8 of 8).
+- **The door:** the route list grows by one read and one write, so Allow is asked again once with a clause for the
+  write (`src/main/pocket/pairing.ts:342, 406, 445`); R4's pin and the contract baseline move on purpose.
+- **On the phone** (`ios/Tortie/**`), with no package, no web view and no JavaScript: a Screen beside Conversation on
+  the Session screen; rows drawn with Apple's text system the way Paseo's native renderer does (Apache-2.0, credited:
+  only visible rows, runs of identical style, a cache keyed by a row's hash, box drawing as shapes, native selection
+  by gesture, a hidden text field for the keyboard and dictation, a key bar); pinch, pan and landscape; End in the top
+  bar, behind Face ID, and the bottom End bar removed. Terminal colours: the spec rules how 256- and 24-bit colours
+  meet rule (a)'s tokens without losing what agents draw. Build number 7.
+
+### The proof, run rather than read
+
+- The gates: `conformance:pocket`, `:hostile`, `:ios`, `:phonecopy`, `:choices`, `:manager`, `gate:contract`,
+  `test:ios` on 26.3 and 18.3, `ablation:p313`, `ablation:p316`.
+- **A per-provider matrix** over the committed captures (`build/fixtures/reply/**`, research 63's fixtures) and
+  stand-ins for Claude Code inline and full screen, Codex, Gemini's and Qwen's recorded screens, and a shell: the drawn
+  rows compared byte for byte with `capture-pane`'s text, colours compared with what was mapped.
+- **The attack:** a hostile phone against `/v1/screen` and `/v1/keys`: a key aimed at a dialog that appeared after the
+  picture, replays, a key for a session the door did not offer, control sequences that would leave the pane in a bad
+  state, a remote session; and the Mac's window size read before and after every arm.
+- **The app run:** the Screen on both runtimes at the parent and HEAD, typing in a stand-in, Ctrl-C reaching a shell,
+  End at the top right, Conversation unchanged.
+
+### What is NOT in this phase
+
+- **No live byte stream and no terminal emulator on the phone** (Phase 338, only if needed).
+- **No change to the size of any session**, and no "take control".
+- **No message box** (Phase 318.1, after this).
+- **No markdown** in the Conversation (still off).
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40888,3 +40957,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **RESEARCH 139 STARTED, on his word — a live session on the phone, "as if i'm in that session on my mac", for every provider — and PHASE 318.1 HELD for it.** His frame: "it may be worth taking a step back to evaluate how to achieve this coherently within our current design." The research reopens the standing refusal "no raw terminal on the phone" (research 127, 128, 136, 137: App Store 4.2.7 over Funnel), designs the whole session experience on the phone as one model, and rules what 318.1 (a message box in every conversation, End top right) should become. 318.1's spec run was stopped before it wrote anything.
 
 - 2026-10-05, **RESEARCH 139 DELIVERED, `0b13e4be` — a live session on the phone, read from ten products that have one** (Paseo, Happy, Happier, VibeTunnel, cmux, Orca, CC Pocket, Omnara, Termix, Superset), pure research on his word with no adversary round. Recommendation: a Screen beside each Conversation, composed on the Mac from tmux and drawn natively at the Mac's width (no library, no web view), typed into through 318.1's box and a small key bar; a live SwiftTerm stream only if the measured feel misses his bar. 318.1 goes first with one added refusal (unsent words at the Mac's prompt). Three questions for him: lift "no raw terminal" for a session's own screen, never resize the Mac, and which keys need no Face ID.
+
+- 2026-10-05, **PHASE 337 QUEUED IN FULL AND STARTED — the Screen**, on his rulings after research 139: lift "no raw terminal" for a session's own screen; never resize the Mac; every key including Ctrl-C with no Face ID; the Screen first, with the simple delivery (the Mac composes, the phone fetches) and a stream only in Phase 338 if his own use finds it laggy. End's move to the top right joins this phase; Phase 318.1 (the message box) follows it.
