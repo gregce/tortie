@@ -39636,7 +39636,7 @@ the ground that window stood on is gone.
 - **No menu row added** anywhere, and the application menus do not move.
 - **No release.**
 
-## Phase 336 — "behave similar to local..." — saving on another machine works in the projects you opened there, with no separate switch (operator asked 2026-10-04)
+## Phase 336 — "behave similar to local..." — saving on another machine works in the projects you opened there, with no separate switch (operator asked 2026-10-04) ✅ LANDED `c06175f6`, 2026-10-05
 
 **Subject.** `feat(machines): save in a project on another machine the way you save on your Mac`
 
@@ -40781,3 +40781,5 @@ cycle rather than only the evening it was written.
 - 2026-10-04, **TESTFLIGHT BUILD 1.0.0 (6) ARCHIVED from `035a4c30` and placed in Organizer for him to upload** — the one build after every phone phase of this release (316.6, 316.7, 317, 318), per his ruling of 2026-10-01. `test-ios.mjs --read-app` passed on the archive (no NetworkExtension or TailscaleKit, no coverage, no DEBUG seam, the alert entitlement asked). The Mac side needs main built and restarted, and asks once to allow the phone door again because the route list grew to eight. Then the stop he set: nothing after this starts without his word (336 is queued, its research held as `held/research-138`).
 
 - 2026-10-04, **PHASE 336 STARTED, overnight on his word ("go ahead and queue 336 overnight")** — remote saving like local with no grant (his ruling), the folder pinned at open and checked at every write, reserved names refused in any case, the local readers taking local rows only. Tier 3, built in `/private/tmp/wt-p336` on main plus the held research 138 commit, which lands with the fix. The lane adds a probe review before verification (method rule 9).
+
+- 2026-10-05, **PHASE 336 LANDED, `c06175f6`, unreleased, with research 138 (`71fc113a`) — remote saving like local.** Any project opened on a confirmed machine saves, renames, makes folders, stages and commits with nothing asked (his "Zero presses"); the folder is pinned by identity at open and checked at every write through an anchored prelude, `/` and home folders are never write folders, `.git` and `.ssh` refused in every spelling the disk folds, and the local readers take local rows only. Manifest migration 019 (additive). Verify, fix, reverify needs_work on a test-harness wrap; his ruling "Narrow tool fix, then land"; the ruled round approved with his history unchanged. A verifier's `smoke:remote` run before the fix appended about 150 bytes to his `~/.zsh_history` (03:18, disclosed). Owed findings, not yet queued: `smoke:remote` starts his real Claude Code briefly with his real far HOME; seven loopback probes do not set the quiet shell; a refused `-L gmux` listing is read as zero by the smoke and the census. His Mac Pro check is the first step of his own acceptance.
