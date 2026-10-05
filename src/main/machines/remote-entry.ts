@@ -8,49 +8,40 @@
  * `./remote-file.ts`'s shape, and it is the only production caller of the
  * `dir-new` and `entry-rename` scripts.
  *
- * ## The one field that decides everything, and it is not a new one
+ * ## What decides whether anything happens (Phase 336)
  *
- * `writeRoot` on the machine row, which is the sixth confirmed field Phase 101
- * added. PHASE 102 ADDS NO CONFIRMED FIELD. The hash still covers six fields,
- * `APPENDED_KEYS` in `./confirm.ts` is untouched, and no machine anybody
- * already confirmed is asked to confirm anything again.
- *
- * A machine that carries no folder cannot be written to at all, and both verbs
- * answer `writesOff` without composing anything.
- *
- * ## Why this path asks the confirm gate, which no read script channel does
- *
- * The same reason `./remote-file.ts` gives. These two paths read `writeRoot`
- * out of the row on disk AT CALL TIME, and the agreement is the only thing that
- * makes that value a confirmed fact. A row whose file changed after the
- * connection was made would otherwise contain the write with a root nobody
- * agreed to. Both verbs call {@link confirmedWriteRoot}, which is
- * `./remote-file.ts`'s own helper, so there is ONE implementation of that
- * decision rather than three copies of it.
+ * The rule a save follows, in `./write-folder.ts`: the row is in the machines
+ * file, the confirm gate passes, and a legacy `writeRoot` or the deepest open
+ * project on that machine holds the path. No field is confirmed by this module
+ * and no machine anybody already confirmed is asked to confirm anything again.
+ * Until Phase 336 it was the typed `writeRoot` alone, read through one shared
+ * function in `./remote-file.ts`, which is gone.
  *
  * ## No root crosses either channel
  *
- * `$1` is ALWAYS the confirmed `writeRoot` read from the row here in main.
- * Neither input type has a member called `root`, so no folder chosen in the
- * renderer can decide what is written under. That is the shape Phase 101
- * shipped and this module copies it exactly.
+ * `$1` is ALWAYS the folder main chose from the open project rows or the
+ * legacy root, and the folder's pin goes last. Neither input type has a member
+ * called `root`, so no folder chosen in the renderer can decide what is
+ * written under. That is the shape Phase 101 shipped and this module copies it.
  *
- * ## Containment lives in three places and this is one of them
+ * ## Containment lives in four places and this is one of them
  *
- * The schema refuses a root that is not absolute, holds a single quote, holds a
- * `..` segment or ends in a slash. Each script's own `case` lines refuse the
- * same shapes on the far side, plus `.git`, so the rule still holds when main
- * is bypassed. And `relativeUnderRoot` resolves both sides and requires the
- * root plus a separator as a prefix. A RENAME HAS TWO PATHS AND BOTH ARE
- * CHECKED. Either one outside the folder refuses the whole call.
+ * `pickWriteFolder` chooses over path text, and `relativeUnderRoot` resolves
+ * both sides and requires the folder plus a separator as a prefix. A RENAME
+ * HAS TWO PATHS AND BOTH ARE CHECKED: it is bound by the deepest folder that
+ * holds BOTH ends (`pickWriteFolderForPair`), and two ends no one folder holds
+ * refuse the whole call. Each script's own guards refuse an absolute or
+ * climbing path and a `.git` or `.ssh` segment on the far side, and its folder
+ * check compares the folder's device and inode with its pin, so the rule still
+ * holds when main is bypassed.
  *
- * WHAT NONE OF THE THREE COVERS, AND WHAT PHASE 242 ADDED BECAUSE OF IT. All
- * three compare path TEXT, so none of them can see a symbolic link. Research
+ * WHAT THE TEXT RULES DO NOT COVER, AND WHAT PHASE 242 ADDED BECAUSE OF IT.
+ * They compare path TEXT, so none of them can see a symbolic link. Research
  * 102 section 5.2 drove that at the operator's own Mac Pro: a link inside the
  * confirmed folder pointing out of it let `dir-new` make a folder outside it
  * and let `entry-rename` take a file OUT of the folder the person confirmed.
  *
- * So there is a fourth layer and it lives where the write does. `noLinkWalk` in
+ * So there is a layer that lives where the write does. `noLinkWalk` in
  * `./remote-scripts.ts` asks the shell's own `-L` about every directory
  * component, once per guarded value, in the same call that would otherwise have
  * moved something. It resolves NOTHING, so the objection above still holds and
@@ -59,7 +50,9 @@
  * script's `[ -e ] || [ -L ]` presence test was written for and `mv` renames
  * the link rather than following it. The word both scripts print is
  * {@link REMOTE_ENTRY_OUTSIDE} and it lands on the `outsideRoot` outcome they
- * already had.
+ * already had. Since Phase 336 the folder itself is checked too, by device and
+ * inode against its pin, in the same call, and both scripts write through `.`
+ * once they have entered it; a different folder answers `folderChanged`.
  *
  * ## A failure is NOT proof that nothing happened
  *
@@ -67,12 +60,15 @@
  * the far side was writing, and the far side finished the write. Only the
  * answer was lost. So both verbs catch and rethrow a sentence that says the
  * machine did not answer and the work may have gone through. Neither ever says
- * nothing was changed.
+ * nothing was changed. SINCE PHASE 336 a refusal the far side makes is always a
+ * word inside the markers, so "may have been made" is no longer said about a
+ * name the far side refused (research 138 section 2.5 item 3).
  *
  * ## What this module does not import
  *
  * Nothing from `../manifest/`. `./remote-record.ts` is the one place a remote
- * path meets the manifest and this phase does not widen that.
+ * path meets the manifest, and `./write-folder.ts` reads the open project rows
+ * through it.
  */
 
 import type {
@@ -83,11 +79,25 @@ import type {
   MachineRenameOutcome,
   MachineRenameResult
 } from '@shared/ipc';
+import type { MachineRowV1 } from '@shared/machines';
 import { gmuxError } from '../errors';
-import { confirmedWriteRoot, relativeUnderRoot } from './remote-file';
-import { runRemoteWrite } from './remote-run';
+import { remoteNameRefused } from './remote-copy';
+import {
+  isRemoteFolderWord,
+  relativeUnderRoot,
+  REMOTE_FOLDER_WORDS,
+  type RemoteFolderWord
+} from './remote-file';
+import { runFolderWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { machineLabelOf } from './store';
+import {
+  heldFolder,
+  namesProtected,
+  readyWriteFolder,
+  writeFolderFor,
+  writeFolderForPair
+} from './write-folder';
 
 /**
  * How long one of these two commands gets. 15,000 ms.
@@ -116,11 +126,23 @@ export const REMOTE_ENTRY_TIMEOUT_MS = 15_000;
  */
 export const REMOTE_ENTRY_OUTSIDE = 'outside';
 
-/** The four words `dir-new` prints, plus Phase 242's refusal. */
-export type MakeDirWord = 'made' | 'exists' | 'denied' | 'noparent' | 'outside';
+/** The four words `dir-new` prints, plus Phase 242's and Phase 336's refusals. */
+export type MakeDirWord =
+  | 'made'
+  | 'exists'
+  | 'denied'
+  | 'noparent'
+  | 'outside'
+  | RemoteFolderWord;
 
-/** The four words `entry-rename` prints, plus Phase 242's refusal. */
-export type RenameWord = 'moved' | 'done' | 'exists' | 'gone' | 'outside';
+/** The four words `entry-rename` prints, plus Phase 242's and Phase 336's refusals. */
+export type RenameWord =
+  | 'moved'
+  | 'done'
+  | 'exists'
+  | 'gone'
+  | 'outside'
+  | RemoteFolderWord;
 
 /** What the far side printed after it was asked to make one folder. */
 export interface RemoteMakeDirAnswer {
@@ -139,14 +161,16 @@ const MAKE_DIR_WORDS = new Set<string>([
   'exists',
   'denied',
   'noparent',
-  REMOTE_ENTRY_OUTSIDE
+  REMOTE_ENTRY_OUTSIDE,
+  ...REMOTE_FOLDER_WORDS
 ]);
 const RENAME_WORDS = new Set<string>([
   'moved',
   'done',
   'exists',
   'gone',
-  REMOTE_ENTRY_OUTSIDE
+  REMOTE_ENTRY_OUTSIDE,
+  ...REMOTE_FOLDER_WORDS
 ]);
 
 /**
@@ -225,13 +249,14 @@ export function resetRemoteEntrySendCountForTests(): void {
  *
  *  1. The row has to be in the machines file, or this throws.
  *  2. The confirm gate.
- *  3. A machine with no confirmed folder answers `writesOff`.
- *  4. A path outside the confirmed folder answers `outsideRoot`.
- *  5. The connection, through `readyRemoteContext`.
- *  6. One `runRemoteWrite`, and the send counter moves immediately before it.
+ *  3. The folder (`writeFolderFor` in `./write-folder.ts`): no open project
+ *     holding the path answers `writesOff` with no folder, a never-listed one
+ *     answers `writesOff` naming it.
+ *  4. A `.git` or `.ssh` path answers `protected`, and a name holding two dots
+ *     in a row throws the sentence that says so.
+ *  5. The connection, through `readyRemoteContext`, then the folder's pin.
+ *  6. One `runFolderWrite`, and the send counter moves immediately before it.
  *  7. The answer, parsed. A word the parser does not know throws.
- *
- * Steps 1 to 3 are one call to {@link confirmedWriteRoot}.
  */
 export async function makeRemoteDir(
   input: MachineMakeDirInput
@@ -248,24 +273,34 @@ export async function makeRemoteDir(
     tookMs: Date.now() - from
   });
 
-  // 1 to 3. The row, the gate and the confirmed folder.
-  const ready = confirmedWriteRoot(input.machineId);
-  if (ready === null) return answer('writesOff', null, null);
-  const { row, writeRoot } = ready;
+  // 1 to 3. The row, the gate and the folder.
+  const choice = writeFolderFor(input.machineId, input.path, 'file');
+  const { row, pick } = choice;
+  if (!heldFolder(pick)) {
+    return answer('writesOff', null, pick.refused === 'never' ? pick.path : null);
+  }
+  const writeRoot = pick.path;
 
-  // 4. Containment, main's own copy of it.
+  // Containment, main's own copy of it.
   const rel = relativeUnderRoot(writeRoot, input.path);
   if (rel === null) return answer('outsideRoot', null, writeRoot);
 
-  // 5. The connection.
-  const ctx = readyRemoteContext(input.machineId);
+  // 4. The reserved names, then the one name shape the far side cannot parse.
+  if (namesProtected(pick, [rel])) return answer('protected', null, writeRoot);
+  refuseTwoDots(row, [rel]);
 
-  // 6. The one write. The root that crosses is the CONFIRMED one, read from the
-  // row above. Nothing the caller sent decides which folder is written under.
+  // 5. The connection, then the folder's pin (a READ when the row has none).
+  const ctx = readyRemoteContext(input.machineId);
+  const folder = await readyWriteFolder(ctx, choice, pick);
+  if (folder === 'folderChanged') return answer('folderChanged', null, writeRoot);
+
+  // 6. The one write. The folder that crosses is the one main chose, and its
+  // pin goes last. Nothing the caller sent decides which folder is written
+  // under.
   sends += 1;
   let out;
   try {
-    out = await runRemoteWrite(ctx, 'dir-new', [writeRoot, rel], {
+    out = await runFolderWrite(ctx, folder, 'dir-new', [folder.path, rel], {
       timeoutMs: REMOTE_ENTRY_TIMEOUT_MS,
       execution: { kind: 'command', subject: `${writeRoot}/${rel}` }
     });
@@ -301,6 +336,11 @@ export async function makeRemoteDir(
   if (said.word === REMOTE_ENTRY_OUTSIDE) {
     return answer('outsideRoot', null, writeRoot);
   }
+  // PHASE 336. The far side's folder check and text guards, every one printed
+  // above the `mkdir`, so nothing was made.
+  if (isRemoteFolderWord(said.word)) {
+    return answer(folderOutcome(row, said.word, rel), null, writeRoot);
+  }
   return answer(said.word, said.mode, writeRoot);
 }
 
@@ -308,8 +348,10 @@ export async function makeRemoteDir(
  * Rename one file or one folder on one machine.
  *
  * The order is {@link makeRemoteDir}'s order, with one difference that matters:
- * BOTH paths are checked against the confirmed folder and either one outside it
- * refuses the whole call, before anything is composed.
+ * the folder is the deepest one holding BOTH ends (`writeFolderForPair`), and
+ * two ends no one folder holds refuse the whole call before anything is
+ * composed: `outsideRoot` when the source end is in a folder, `writesOff` when
+ * it is in none, as each meant before Phase 336.
  *
  * ## What the answers mean, and what one of them cannot tell apart
  *
@@ -357,27 +399,48 @@ export async function renameRemoteEntry(
     tookMs: Date.now() - from
   });
 
-  // 1 to 3. The row, the gate and the confirmed folder.
-  const ready = confirmedWriteRoot(input.machineId);
-  if (ready === null) return answer('writesOff', null);
-  const { row, writeRoot } = ready;
+  // 1 to 3. The row, the gate and the folder holding BOTH ends.
+  const choice = writeFolderForPair(input.machineId, input.from, input.to);
+  const { row, pick, source } = choice;
+  if (!heldFolder(pick)) {
+    if (pick.refused === 'never') return answer('writesOff', pick.path);
+    // No one folder holds both ends. A source end in a folder is a rename out
+    // of it, which is what `outsideRoot` has always said; a source end in no
+    // folder is a path nobody opened.
+    if (heldFolder(source)) return answer('outsideRoot', source.path);
+    return answer('writesOff', source.refused === 'never' ? source.path : null);
+  }
+  const writeRoot = pick.path;
 
-  // 4. Containment, for BOTH paths. Either one outside refuses the whole call.
+  // Containment, for BOTH paths. Either one outside refuses the whole call.
   const relFrom = relativeUnderRoot(writeRoot, input.from);
   const relTo = relativeUnderRoot(writeRoot, input.to);
   if (relFrom === null || relTo === null) return answer('outsideRoot', writeRoot);
 
-  // 5. The connection.
+  // 4. The reserved names on both ends, then the one name shape the far side
+  // cannot parse.
+  if (namesProtected(pick, [relFrom, relTo])) return answer('protected', writeRoot);
+  refuseTwoDots(row, [relFrom, relTo]);
+
+  // 5. The connection, then the folder's pin (a READ when the row has none).
   const ctx = readyRemoteContext(input.machineId);
+  const folder = await readyWriteFolder(ctx, choice, pick);
+  if (folder === 'folderChanged') return answer('folderChanged', writeRoot);
 
   // 6. The one write.
   sends += 1;
   let out;
   try {
-    out = await runRemoteWrite(ctx, 'entry-rename', [writeRoot, relFrom, relTo], {
-      timeoutMs: REMOTE_ENTRY_TIMEOUT_MS,
-      execution: { kind: 'command', subject: `${writeRoot}/${relFrom}` }
-    });
+    out = await runFolderWrite(
+      ctx,
+      folder,
+      'entry-rename',
+      [folder.path, relFrom, relTo],
+      {
+        timeoutMs: REMOTE_ENTRY_TIMEOUT_MS,
+        execution: { kind: 'command', subject: `${writeRoot}/${relFrom}` }
+      }
+    );
   } catch (err) {
     throw gmuxError(
       'INVALID_INPUT',
@@ -403,5 +466,49 @@ export async function renameRemoteEntry(
   // this verb already has. `noLinkWalk` prints it above the `mv` and never
   // below it, so nothing was moved.
   if (said.word === REMOTE_ENTRY_OUTSIDE) return answer('outsideRoot', writeRoot);
+  // PHASE 336. The far side's folder check and text guards, every one printed
+  // above the `mv`, so nothing was moved.
+  if (isRemoteFolderWord(said.word)) {
+    return answer(folderOutcome(row, said.word, relFrom), writeRoot);
+  }
   return answer(said.word, writeRoot);
+}
+
+/**
+ * The one name shape the far side refuses without a parser (SPEC D12): a part
+ * holding two dots in a row, such as `a..b`. Refused here, before anything is
+ * composed, with the sentence that says so.
+ *
+ * @throws GmuxError INVALID_INPUT
+ */
+function refuseTwoDots(row: MachineRowV1, rels: readonly string[]): void {
+  const bad = rels.find((rel) => rel.includes('..'));
+  if (bad === undefined) return;
+  throw gmuxError(
+    'INVALID_INPUT',
+    remoteNameRefused(machineLabelOf(row)),
+    `${row.id} was asked to write "${bad.slice(0, 120)}", which holds two dots in a row`
+  );
+}
+
+/**
+ * A far-side Phase 336 refusal word onto the outcome these two verbs answer.
+ * `notsame` is `folderChanged`, never `outsideRoot`; `offlimits` and `nohome`
+ * are `writesOff` naming the folder; `badname` throws the D12 sentence.
+ *
+ * @throws GmuxError INVALID_INPUT for `badname`
+ */
+function folderOutcome(
+  row: MachineRowV1,
+  word: RemoteFolderWord,
+  rel: string
+): 'folderChanged' | 'writesOff' | 'protected' {
+  if (word === 'notsame') return 'folderChanged';
+  if (word === 'offlimits' || word === 'nohome') return 'writesOff';
+  if (word === 'protected') return 'protected';
+  throw gmuxError(
+    'INVALID_INPUT',
+    remoteNameRefused(machineLabelOf(row)),
+    `${row.id} refused the shape of "${rel.slice(0, 120)}" and changed nothing`
+  );
 }

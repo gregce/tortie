@@ -7,43 +7,43 @@
  * reading of what the machine said afterwards. It is `./remote-image.ts`'s
  * shape, and it is the only production caller of the `file-put` script.
  *
- * ## The one field that decides everything
+ * ## What decides whether a byte lands (Phase 336)
  *
- * `writeRoot` on the machine row, which is the sixth confirmed field. It is the
- * one folder on that machine under which Tortie may replace a file. A machine
- * that carries none cannot be saved to at all, and this module answers
- * `writesOff` without composing anything.
+ * Until Phase 336 it was `writeRoot` on the machine row, a typed folder a
+ * person confirmed on a sheet in Settings, and a machine carrying none could
+ * not be saved to at all. His ruling ended that (research 138 section 9): a
+ * file inside a project open on a CONFIRMED machine saves, as one on this Mac
+ * does, with nothing asked. `writeFolderFor` and `readyWriteFolder` in
+ * `./write-folder.ts` make that decision, in this order: the row is in the
+ * machines file, the confirm gate passes, and a legacy `writeRoot` that holds
+ * the file or else the deepest open project that holds it is the folder. A row
+ * that still carries a `writeRoot` keeps saving under it as before.
  *
  * ## Why this path asks the confirm gate, which no read script channel does
  *
  * No READ script channel calls `assertMachineMayConnect`, and `./ipc.ts` says
- * so in four places. The two Phase 102 write verbs in `./remote-entry.ts` do
- * call it, through {@link confirmedWriteRoot} below, for the same reason this
- * one does. What stands in its place on those channels
- * is `readyRemoteContext`, and that is sound for them because none of them
- * reads a value out of the row at call time: a registered context has already
- * been through the gate.
+ * so in four places. Every folder-bound write asks it, through
+ * `./write-folder.ts`, because the decision reads the machine row: a row whose
+ * file changed after the connection was made must write nothing until it is
+ * confirmed again. The gate reads the IN-MEMORY SNAPSHOT of the machines file,
+ * which the store's watcher refreshes about 300 ms after the file changes
+ * (`./store.ts`); this comment used to say "the row on disk at call time",
+ * which research 138 section 7.1 found was not true. It is asked first, then
+ * `readyRemoteContext`. The connected-only check and the generation check come
+ * from the door, which every caller gets, rather than from a copy held here.
  *
- * THIS ONE READS `writeRoot` OUT OF THE ROW ON DISK AT CALL TIME, and the
- * agreement is the only thing that makes that value a confirmed fact. A row
- * whose file changed after the connection was made would otherwise contain the
- * write with a root nobody agreed to. So it calls BOTH, in this order: the gate
- * first, then `readyRemoteContext`. The connected-only check and the generation
- * check come from `runRemoteWrite`, which every caller of that door gets,
- * rather than from a copy held here.
+ * ## Containment lives in several places and this is one of them
  *
- * ## Containment lives in three places and this is one of them
- *
- * The schema refuses a root that is not absolute, holds a single quote, holds a
- * `..` segment or ends in a slash. The script's own two `case` lines refuse the
- * same shapes on the far side, so the rule holds when main is bypassed. And
+ * `pickWriteFolder` chooses the folder over path text, and
  * {@link relativeUnderRoot} below resolves both paths and requires the file's
- * resolved path to start with the resolved root PLUS a separator. Without the
- * separator a root of `/Users/gdc` would contain `/Users/gdcx`.
+ * resolved path to start with the folder PLUS a separator. Without the
+ * separator a folder of `/Users/gdc` would contain `/Users/gdcx`. The script's
+ * own guards refuse an absolute or climbing relative path and a `.git` or
+ * `.ssh` segment on the far side, so the rule holds when main is bypassed.
  *
- * WHAT NONE OF THE THREE COVERS, AND WHAT PHASE 242 ADDED BECAUSE OF IT. None
- * of the three can see a symbolic link, because all three compare path TEXT and
- * a link on another computer cannot be followed from this one. That was a hole
+ * WHAT THE TEXT RULES DO NOT COVER, AND WHAT PHASE 242 ADDED BECAUSE OF IT.
+ * None of them can see a symbolic link, because all compare path TEXT and a
+ * link on another computer cannot be followed from this one. That was a hole
  * rather than a limit, and it was measured rather than argued: research 102
  * section 5.2 drove it at the operator's own Mac Pro and a link inside the
  * confirmed folder pointing out of it carried a save, a folder and a rename
@@ -59,6 +59,14 @@
  * word it prints is {@link REMOTE_FILE_PUT_OUTSIDE} and it lands on the
  * `outsideRoot` outcome this module already had.
  *
+ * AND PHASE 336 ADDED THE FOLDER ITSELF. The walk starts below the folder, so
+ * it never asked whether the FOLDER had been swapped for a link (research 138
+ * section 2.5 item 1). The far side's `folderCheck` now enters the folder once
+ * with `cd -P`, compares its device and inode with the pin taken when the
+ * project was opened, and writes through `.` from then on, in the same call;
+ * a different folder answers `folderChanged`, and the home and reserved-folder
+ * rules are judged there by identity too.
+ *
  * ## No sixth kind of remote work is declared
  *
  * The five kinds in `../manifest/remote-executions.ts` are a durable enum and
@@ -70,7 +78,6 @@
 
 import { createHash } from 'node:crypto';
 import { posix } from 'node:path';
-import type { MachineRowV1 } from '@shared/machines';
 import {
   REMOTE_FILE_MAX_BYTES,
   type MachineFilePutInput,
@@ -78,10 +85,16 @@ import {
   type MachineFilePutResult
 } from '@shared/ipc';
 import { gmuxError } from '../errors';
-import { assertMachineMayConnect } from './confirm';
 import { readyRemoteContext } from './ready-context';
-import { runRemoteWrite } from './remote-run';
-import { machineFieldsOf, machineLabelOf, machineRow } from './store';
+import { remoteNameRefused } from './remote-copy';
+import { runFolderWrite } from './remote-run';
+import { machineLabelOf } from './store';
+import {
+  heldFolder,
+  namesProtected,
+  readyWriteFolder,
+  writeFolderFor
+} from './write-folder';
 
 export { REMOTE_FILE_MAX_BYTES };
 
@@ -138,9 +151,34 @@ export const REMOTE_FILE_PUT_UNSURE = 'unsure';
  */
 export const REMOTE_FILE_PUT_OUTSIDE = 'outside';
 
+/**
+ * The words the far side's folder check and text guards print (Phase 336),
+ * each above every line that writes, so each means nothing was written.
+ *
+ * `notsame`: the folder is not the one that was pinned. `offlimits`: it is `/`,
+ * the account's home, directly inside it, or holds it. `nohome`: the account's
+ * home could not be read. `protected`: a `.git` or `.ssh` folder. `badname`:
+ * a path shape the far side refuses without a parser (a name holding `..`).
+ */
+export const REMOTE_FOLDER_WORDS = [
+  'notsame',
+  'offlimits',
+  'nohome',
+  'protected',
+  'badname'
+] as const;
+
+/** One of {@link REMOTE_FOLDER_WORDS}. */
+export type RemoteFolderWord = (typeof REMOTE_FOLDER_WORDS)[number];
+
+/** True for one of {@link REMOTE_FOLDER_WORDS}. PURE. */
+export function isRemoteFolderWord(word: string): word is RemoteFolderWord {
+  return (REMOTE_FOLDER_WORDS as readonly string[]).includes(word);
+}
+
 /** What the far side printed after it was asked to save one file. */
 export interface RemoteFilePutAnswer {
-  /** One of the seven words the script prints. */
+  /** One of the twelve words the script prints, `unsure` excepted. */
   readonly word:
     | 'wrote'
     | 'stale'
@@ -148,21 +186,23 @@ export interface RemoteFilePutAnswer {
     | 'exists'
     | 'nomode'
     | 'nosum'
-    | 'outside';
+    | 'outside'
+    | RemoteFolderWord;
   /** The checksum the machine reported, or null when it reported none. */
   readonly sha256: string | null;
   /** The size the machine reported, or null when it reported none. */
   readonly bytes: number | null;
 }
 
-const WORDS = new Set([
+const WORDS = new Set<string>([
   'wrote',
   'stale',
   'missing',
   'exists',
   'nomode',
   'nosum',
-  REMOTE_FILE_PUT_OUTSIDE
+  REMOTE_FILE_PUT_OUTSIDE,
+  ...REMOTE_FOLDER_WORDS
 ]);
 
 /**
@@ -191,8 +231,13 @@ export function parseFilePutAnswer(payload: string): RemoteFilePutAnswer | null 
 }
 
 /**
- * The file's path relative to the confirmed root, or null when it is not under
- * it. PURE.
+ * The file's path relative to the folder, or null when it is not under it.
+ * PURE.
+ *
+ * `relativeInFolder(root, path, 'file')` in src/shared/remote-write-folder.ts
+ * is the same rule without a `node:` import, for the renderer; condition 113 of
+ * `build/conformance-machines.mjs` drives the two over one corpus and requires
+ * them to agree.
  *
  * Both sides are resolved first, so `/Users/gdc/./code/x.ts` and
  * `/Users/gdc/code/x.ts` are one path. The separator is part of the comparison,
@@ -211,48 +256,6 @@ export function relativeUnderRoot(root: string, path: string): string | null {
   return rel.length === 0 ? null : rel;
 }
 
-/**
- * The row and the folder it confirmed, or null when there is no folder.
- *
- * PHASE 102 EXTRACTED THIS FROM {@link putFileOnMachine} rather than writing a
- * second copy of it. It is steps 1 to 3 of that function, and it is what every
- * verb that writes on another computer under a confirmed folder has to do
- * before it composes anything.
- *
- *  1. The row has to be in the machines file, or this throws the sentence that
- *     says so and names nothing was started.
- *  2. `assertMachineMayConnect`, for the reason this file's header gives. This
- *     path reads a value out of the row on disk at CALL TIME, and the agreement
- *     is the only thing that makes that value a confirmed fact.
- *  3. A machine with no `writeRoot` answers null, which every caller reports as
- *     `writesOff`. Nothing is composed and nothing is sent.
- *
- * It contacts no machine, opens no connection and starts nothing.
- *
- * @throws GmuxError INVALID_INPUT when the row is not in the file, and whatever
- *   the confirm gate throws for a machine nobody confirmed.
- */
-export function confirmedWriteRoot(
-  machineId: string
-): { row: MachineRowV1; writeRoot: string } | null {
-  const row = machineRow(machineId);
-  if (row === null) {
-    throw gmuxError(
-      'INVALID_INPUT',
-      `There is no machine called ${machineId} in the machines file. ` +
-        `Nothing was started.`
-    );
-  }
-  const fields = machineFieldsOf(row);
-  assertMachineMayConnect(row.id, fields);
-  const writeRoot =
-    typeof fields.writeRoot === 'string' && fields.writeRoot.length > 0
-      ? fields.writeRoot
-      : null;
-  if (writeRoot === null) return null;
-  return { row, writeRoot };
-}
-
 /** A result with nothing sent and nothing written. */
 function refused(
   outcome: MachineFilePutOutcome,
@@ -265,22 +268,25 @@ function refused(
 /**
  * Save one file on one machine.
  *
- * The order below is the design. Steps 1 to 5 all happen before anything is
- * composed and before anything is sent, so every one of their answers means the
- * machine was never asked.
+ * The order below is the design (build/p336/SPEC.md D14). Steps 1 to 5 all
+ * happen before anything is composed and before anything is sent, so every one
+ * of their answers means the machine was never asked.
  *
  *  1. The row has to be in the machines file.
  *  2. The confirm gate, for the reason in this file's header.
- *  3. A machine with no confirmed folder answers `writesOff`.
- *
- *     PHASE 102 MOVED THOSE THREE INTO {@link confirmedWriteRoot}, which the
- *     two verbs in `./remote-entry.ts` call as well. One implementation, three
- *     call sites, no behaviour change.
- *  4. A file over {@link REMOTE_FILE_MAX_BYTES} answers `tooLarge`.
- *  5. A path outside the confirmed folder answers `outsideRoot`.
+ *  3. The folder, by `writeFolderFor`: a file no open project holds answers
+ *     `writesOff` with no folder, and one only a never-listed project holds
+ *     (`/`, a home, a folder directly inside or holding one) answers
+ *     `writesOff` naming that folder.
+ *  4. A `.git` or `.ssh` path answers `protected`.
+ *  5. A file over {@link REMOTE_FILE_MAX_BYTES} answers `tooLarge`, and a name
+ *     holding two dots in a row throws the sentence that says so.
  *  6. The connection, through `readyRemoteContext`.
- *  7. The one write, through `runRemoteWrite`.
- *  8. The answer, with the `stale` rule below applied to it.
+ *  7. The folder's pin, by `readyWriteFolder`: stored, or one READ.
+ *  8. The one write, through `runFolderWrite`, which appends the pin.
+ *  9. The answer, with the `stale` rule below applied to it. `notsame` is
+ *     `folderChanged`, `offlimits` and `nohome` are `writesOff` naming the
+ *     folder, `protected` is `protected`, and `badname` throws.
  *
  * ## A link that drops during step 7 is NOT a failed save
  *
@@ -302,38 +308,54 @@ function refused(
 export async function putFileOnMachine(
   input: MachineFilePutInput
 ): Promise<MachineFilePutResult> {
-  // 1 to 3. The row, the confirm gate and the confirmed folder, in one call.
-  // PHASE 102 moved these three steps into {@link confirmedWriteRoot} so that
-  // this function and the two verbs in `./remote-entry.ts` run one
-  // implementation rather than three copies. Nothing about the order or the
-  // sentences changed.
-  const ready = confirmedWriteRoot(input.machineId);
-  if (ready === null) return refused('writesOff', null);
-  const { row, writeRoot } = ready;
+  // 1 to 3. The row, the confirm gate and the folder, in one call.
+  const choice = writeFolderFor(input.machineId, input.path, 'file');
+  const { row, pick } = choice;
+  if (!heldFolder(pick)) {
+    return refused('writesOff', pick.refused === 'never' ? pick.path : null);
+  }
+  const writeRoot = pick.path;
 
-  // 4. The size, before anything is encoded.
+  // Main's own copy of the containment, over the two texts the pick compared.
+  const rel = relativeUnderRoot(writeRoot, input.path);
+  if (rel === null) return refused('outsideRoot', writeRoot);
+
+  // 4. The reserved names, in any case and any spelling the volume folds.
+  if (namesProtected(pick, [rel])) return refused('protected', writeRoot);
+
+  // 5. The size, before anything is encoded, then the one name shape the far
+  // side refuses without a parser.
   const payloadBytes = Buffer.from(input.contents, 'utf8');
   if (payloadBytes.byteLength > REMOTE_FILE_MAX_BYTES) {
     return refused('tooLarge', writeRoot, payloadBytes.byteLength);
   }
-
-  // 5. Containment, main's own copy of it.
-  const rel = relativeUnderRoot(writeRoot, input.path);
-  if (rel === null) return refused('outsideRoot', writeRoot);
+  if (rel.includes('..')) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      remoteNameRefused(machineLabelOf(row)),
+      `${row.id} was asked to save "${rel.slice(0, 120)}", which holds two dots in a row`
+    );
+  }
 
   // 6. The connection.
   const ctx = readyRemoteContext(input.machineId);
 
-  // 7. The one write. The root that crosses is the CONFIRMED one, read from the
-  // row above. Nothing the caller sent decides which folder is written under.
+  // 7. The folder's pin. A READ when the row has none, and nothing else.
+  const folder = await readyWriteFolder(ctx, choice, pick);
+  if (folder === 'folderChanged') return refused('folderChanged', writeRoot);
+
+  // 8. The one write. The folder that crosses is the one main chose, from the
+  // open project rows or the legacy root, and its pin goes last. Nothing the
+  // caller sent decides which folder is written under.
   const expect =
     input.expect === REMOTE_FILE_PUT_NEW ? REMOTE_FILE_PUT_NEW : input.expect;
   let answer;
   try {
-    answer = await runRemoteWrite(
+    answer = await runFolderWrite(
       ctx,
+      folder,
       'file-put',
-      [writeRoot, rel, expect, payloadBytes.toString('base64')],
+      [folder.path, rel, expect, payloadBytes.toString('base64')],
       {
         timeoutMs: REMOTE_FILE_PUT_TIMEOUT_MS,
         execution: { kind: 'command', subject: `${writeRoot}/${rel}` }
@@ -359,7 +381,7 @@ export async function putFileOnMachine(
     );
   }
 
-  // 8. The answer.
+  // 9. The answer.
   // A word this module does not know, which includes REMOTE_FILE_PUT_UNSURE.
   // The sentence below is the only true thing to say about it, and it is
   // deliberately not one of the refusals: it does not claim nothing was
@@ -399,6 +421,20 @@ export async function putFileOnMachine(
   // already right for a path outside the confirmed folder.
   if (said.word === REMOTE_FILE_PUT_OUTSIDE) {
     return refused('outsideRoot', writeRoot);
+  }
+  // PHASE 336. The far side's folder check and text guards, every one printed
+  // above every line that writes.
+  if (isRemoteFolderWord(said.word)) {
+    if (said.word === 'notsame') return refused('folderChanged', writeRoot);
+    if (said.word === 'protected') return refused('protected', writeRoot);
+    if (said.word === 'badname') {
+      throw gmuxError(
+        'INVALID_INPUT',
+        remoteNameRefused(machineLabelOf(row)),
+        `${row.id} refused the shape of "${rel.slice(0, 120)}" and wrote nothing`
+      );
+    }
+    return refused('writesOff', writeRoot);
   }
   return refused(said.word, writeRoot);
 }

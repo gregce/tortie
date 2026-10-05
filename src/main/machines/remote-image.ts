@@ -18,7 +18,14 @@
  * The two sentences here that said "the one write" and "exactly one script with
  * `mode: 'write'`" were already false at two, and Phase 101 is the phase that
  * makes the count three, so leaving them would be the accumulation this
- * codebase refuses.
+ * codebase refuses. (The count is eight since Phase 104.)
+ *
+ * PHASE 336 KEPT THIS WRITE BOUND BY THE MACHINE AND BY NO FOLDER, on his
+ * ruling of 4 October 2026 (research 138 section 9: pictures stay as they
+ * were). Its catalogue row is `bound: 'machine'`, so it is one of the two
+ * writes `runRemoteWrite` still carries; the six writes a project folder bounds
+ * cross only through `runFolderWrite`. A picture lands under
+ * `~/.tortie/images` on a confirmed machine whatever project is open there.
  *
  * ## The four things that decide a byte ever leaves this Mac
  *

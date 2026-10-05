@@ -224,11 +224,13 @@ function versionField(value: unknown, field: string): string {
  * this value is compared against a file's path to decide whether Tortie may
  * write over that file.
  *
- * It is EXPORTED so that `machines:writeSheet` and `machines:allowWrites` in
- * `./ipc.ts` check a folder a person typed with the same code that checks a
- * folder they wrote into the file by hand. Two validators for one field is how
- * one of them goes stale. It throws on a value it refuses, and the caller turns
- * that into the sentence a person reads.
+ * It was EXPORTED so that Phase 101's two channels in `./ipc.ts`, the sheet
+ * for a typed folder and the write that recorded it, checked a folder a person
+ * typed with the same code that checks a folder written into the file by hand.
+ * Phase 336 removed both channels (research 138 section 9), so the file is now
+ * the only way a row comes to carry one, and this is its one validator. It
+ * throws on a value it refuses, and `validateRow` turns that into the row's
+ * dropped-with-a-reason entry.
  */
 export function writeRootField(value: unknown, field: string): string {
   const text = remotePathField(value, field);

@@ -51,9 +51,12 @@ import { remoteSaveRefusal } from '../machines/editor';
 import { announceRemoteWrite } from '../machines/remote-writes';
 import {
   remoteEntryExists,
+  remoteEntryFolderChanged,
   remoteEntryGone,
   remoteEntryLostAnswer,
+  remoteEntryNever,
   remoteEntryOutsideRoot,
+  remoteEntryProtected,
   remoteEntryWritesOff,
   remoteParentGone,
   remoteRenameAlreadyDone,
@@ -404,17 +407,45 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   };
 
   /**
+   * PHASE 336. The sentence for the four words about the FOLDER a change was
+   * bound by, shared by New Folder and Rename because the state each one
+   * names is the same whichever verb reached it.
+   *
+   * `folder` is the folder main bound the change by. `writesOff` with none
+   * means the path is outside every project opened on that machine, and with
+   * one means that folder is one Tortie never writes in. `outsideRoot` with
+   * none falls back to the first, which is `remoteSaveRefusal`'s own rule.
+   */
+  const folderRefusal = (
+    outcome: 'writesOff' | 'outsideRoot' | 'folderChanged' | 'protected',
+    folder: string | null,
+    label: string
+  ): string => {
+    switch (outcome) {
+      case 'writesOff':
+        return folder === null
+          ? remoteEntryWritesOff(label)
+          : remoteEntryNever(label);
+      case 'outsideRoot':
+        return folder === null
+          ? remoteEntryWritesOff(label)
+          : remoteEntryOutsideRoot(folder, label);
+      case 'folderChanged':
+        return remoteEntryFolderChanged(folder, label);
+      case 'protected':
+        return remoteEntryProtected(label);
+    }
+  };
+
+  /**
    * PHASE 102. The sentence for one refused New Folder.
    *
    * `made` cannot reach here: the caller has already tested for it, which is
-   * what narrows the parameter to the five refusals. `outsideRoot` with no
-   * folder can only mean saving is off for that machine, so it falls back to
-   * the sentence that says exactly that rather than drawing a folder nobody
-   * confirmed. That is `remoteSaveRefusal`'s own rule and this copies it.
+   * what narrows the parameter to the refusals.
    */
   const makeDirRefusal = (
     outcome: Exclude<MachineMakeDirResult['outcome'], 'made'>,
-    writeRoot: string | null,
+    writeFolder: string | null,
     canonical: string,
     label: string
   ): string => {
@@ -429,11 +460,10 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
           label
         );
       case 'writesOff':
-        return remoteEntryWritesOff(label);
       case 'outsideRoot':
-        return writeRoot === null
-          ? remoteEntryWritesOff(label)
-          : remoteEntryOutsideRoot(writeRoot, label);
+      case 'folderChanged':
+      case 'protected':
+        return folderRefusal(outcome, writeFolder, label);
     }
   };
 
@@ -447,7 +477,7 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
    */
   const renameRefusal = (
     outcome: Exclude<MachineRenameResult['outcome'], 'moved' | 'done'>,
-    writeRoot: string | null,
+    writeFolder: string | null,
     sourceCanonical: string,
     destCanonical: string,
     label: string
@@ -458,11 +488,10 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       case 'gone':
         return remoteEntryGone(baseNameOf(sourceCanonical), label);
       case 'writesOff':
-        return remoteEntryWritesOff(label);
       case 'outsideRoot':
-        return writeRoot === null
-          ? remoteEntryWritesOff(label)
-          : remoteEntryOutsideRoot(writeRoot, label);
+      case 'folderChanged':
+      case 'protected':
+        return folderRefusal(outcome, writeFolder, label);
     }
   };
 

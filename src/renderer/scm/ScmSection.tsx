@@ -43,7 +43,7 @@ import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import {
   machineAnswering,
   machineLabelFor,
-  machineWriteRootFor
+  remoteWriteFolderIn
 } from '../state/machines-slice';
 import type { ConfirmSpec, MenuItemSpec } from '../state/store';
 import {
@@ -73,9 +73,9 @@ import {
   remoteCommitTitle,
   remoteConflictNoVerb,
   remoteIndexWritePartial,
+  remoteIndexWriteRefusal,
   remoteIndexWriteUnsure,
-  remoteStageOutsideRoot,
-  remoteWritesNotConfirmed
+  remoteStageOutsideRoot
 } from '../machines/scm';
 import type { RemoteCommitFacts } from '../machines/scm';
 import {
@@ -782,8 +782,21 @@ function RemoteCommitBox({
   const commit = useRemoteChanges((s) => s.commit);
   const checkCommit = useRemoteChanges((s) => s.checkCommit);
   const machineStates = useApp((s) => s.machineStates);
+  const projects = useApp((s) => s.projects);
   const taRef = useRef<HTMLTextAreaElement | null>(null);
   const connected = machineAnswering(machineStates, target.machineId);
+  /**
+   * PHASE 336. Whether Tortie commits in this folder at all: a project open on
+   * a confirmed machine is a folder it may write under, as on this Mac. Asked
+   * of the folder itself, in `folder` mode, by the same rule main asks.
+   */
+  const writeFolder = remoteWriteFolderIn(
+    machineStates,
+    projects,
+    target.machineId,
+    target.path,
+    'folder'
+  );
 
   /**
    * PHASE 229. Whether git over there can commit at all, read BEFORE the
@@ -822,11 +835,10 @@ function RemoteCommitBox({
   const conflicted = entry.files.some((file) => isConflict(file));
   const facts: RemoteCommitFacts = {
     committing: entry.committing,
-    // PRESENTATIONAL AND NEVER THE SAFEGUARD. Main reads the confirmed folder
-    // off the record on disk at call time and refuses there, with a sentence of
-    // its own. This decides whether a button is pressable and nothing more.
-    writesConfirmed:
-      machineWriteRootFor(machineStates, target.machineId) !== null,
+    // PRESENTATIONAL AND NEVER THE SAFEGUARD. Main decides the folder again
+    // at call time and refuses there, with a sentence of its own. This decides
+    // whether a button is pressable and nothing more.
+    writeRefused: 'refused' in writeFolder ? writeFolder.refused : null,
     connected,
     identity: commitIdentityFact(branch.identity),
     conflicted,
@@ -1085,7 +1097,18 @@ function RemoteScmSection({
   target: WorkspaceTarget;
 }): React.JSX.Element {
   const machineStates = useApp((s) => s.machineStates);
+  const projects = useApp((s) => s.projects);
   const label = machineLabelFor(machineStates, target.machineId);
+  // PHASE 336. This folder as main's own rule reads it, for the sentences
+  // about a stage or unstage refused for the FOLDER rather than for git: which
+  // folder main bound it by, and whether that folder is on the never-list.
+  const writeFolder = remoteWriteFolderIn(
+    machineStates,
+    projects,
+    target.machineId,
+    target.path,
+    'folder'
+  );
   // PHASE 235, item 4. The sentence for a machine whose details changed, or
   // null. It replaces the sentence below rather than joining it: that machine
   // answers ssh and was never asked, so "did not answer" is false about it.
@@ -1201,7 +1224,14 @@ function RemoteScmSection({
       case 'nothingToDo':
         return null;
       case 'writesOff':
-        return remoteWritesNotConfirmed(label);
+      case 'folderChanged':
+      case 'protected':
+        return remoteIndexWriteRefusal(
+          outcome,
+          'refused' in writeFolder ? writeFolder.refused : null,
+          'kind' in writeFolder ? writeFolder.folder : target.path,
+          label
+        );
       case 'outsideRoot':
         return remoteStageOutsideRoot(label);
       case 'notRepo':

@@ -37,15 +37,19 @@
  * that as a refusal would be wrong, so an `exists` answer is followed by one
  * read at the destination.
  *
- * ## IT ASKS FOR NO CONFIRMED FOLDER, and it is one of exactly two that do not
+ * ## IT IS BOUND BY THE MACHINE AND BY NO FOLDER, and it is one of exactly two
  *
- * `confirmedWriteRoot` in `./remote-file.ts` is the one implementation of the
- * write gate, and it is reached from five call sites: `./remote-file.ts`'s own
- * save, `./remote-entry.ts` twice, `./remote-stage.ts` and `./remote-commit.ts`.
- * THIS FILE IS NOT ONE OF THEM and neither is `./remote-image.ts`, so neither
- * verb makes the containment promise Phase 242 and Phase 242.1 built for the
- * other six. It is written here rather than left to be re-derived, because the
- * Phase 242.1 verifier had to drive it to find out.
+ * SINCE PHASE 336 the folder a write is bound by is chosen in
+ * `./write-folder.ts` (an open project on that machine, or a legacy
+ * `writeRoot`), and the six writes it bounds cross only through
+ * `runFolderWrite`, carrying the folder's pin for the far side to check. THIS
+ * FILE IS NOT ONE OF THEM and neither is `./remote-image.ts`: both catalogue
+ * rows are `bound: 'machine'`, both cross through `runRemoteWrite`, and his
+ * ruling of 4 October 2026 kept them that way, gated by a confirmed machine and
+ * outside any folder bound (research 138 section 9). So neither verb makes the
+ * containment promise Phase 242 and Phase 242.1 built for the other six. It is
+ * written here rather than left to be re-derived, because the Phase 242.1
+ * verifier had to drive it to find out.
  *
  * WHAT STANDS IN ITS PLACE HERE IS THE `-e` TEST, and it is enough for the one
  * shape the missing root would otherwise open. The destination is a folder that

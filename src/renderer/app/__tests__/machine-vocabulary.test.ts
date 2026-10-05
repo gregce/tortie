@@ -271,12 +271,29 @@ const FORBIDDEN: readonly string[] = [
  */
 const BOUNDED: ReadonlySet<string> = new Set(['pane']);
 
+/**
+ * The name of a FOLDER, which is not the transport.
+ *
+ * PHASE 336 ADDED THIS. The refusal for a write into a reserved folder on
+ * another machine names the two folders a person sees in their own tree:
+ * "Tortie does not touch .git or .ssh folders on Mac Pro." `.ssh` there is a
+ * folder's name, written with its dot, and the audit failed on it with `ssh in
+ * \`Tortie does not touch .git or .ssh folders on ${label}.\``. The dotted
+ * folder name is taken out of the literal before the transport words are
+ * matched, and nothing else is, so `ssh` and `sshd` anywhere else in the same
+ * literal still fail.
+ */
+const FOLDER_NAMES = /(^|[^\w.])\.ssh\b/gi;
+
 /** Whether one literal carries one forbidden word. */
 export function carriesWord(literal: string, word: string): boolean {
   if (BOUNDED.has(word)) {
     return new RegExp(`\\b${word}s?\\b`, 'i').test(literal);
   }
-  return literal.toLowerCase().includes(word.toLowerCase());
+  return literal
+    .replace(FOLDER_NAMES, '$1')
+    .toLowerCase()
+    .includes(word.toLowerCase());
 }
 
 /** Block and line comments out. The `[^:]` guard spares a `https://` inside a string. */
@@ -374,5 +391,18 @@ describe('the machine vocabulary audit', () => {
     expect(carriesWord("'the panel stays open'", 'pane')).toBe(false);
     // Every other word is still matched anywhere in the literal.
     expect(carriesWord("'gmux-tmuxish'", 'tmux')).toBe(true);
+  });
+
+  it('tells the .ssh folder from the transport (Phase 336)', () => {
+    // The folder's name, with its dot, is a name a person sees in a tree.
+    expect(
+      carriesWord("'Tortie does not touch .git or .ssh folders on X.'", 'ssh')
+    ).toBe(false);
+    expect(carriesWord("'a/.SSH/b'", 'ssh')).toBe(false);
+    // The transport, alone or beside the folder, still fails.
+    expect(carriesWord("'Tortie could not reach ssh.'", 'ssh')).toBe(true);
+    expect(carriesWord("'ssh into .ssh'", 'ssh')).toBe(true);
+    expect(carriesWord("'the sshd there'", 'sshd')).toBe(true);
+    expect(carriesWord("'x.ssh'", 'ssh')).toBe(true);
   });
 });

@@ -93,11 +93,29 @@ const textOf = (id: string): string => {
   return row.text;
 };
 
-/** Run one shipped script text the way the far side runs it. */
+/**
+ * Run one shipped script text the way the far side runs it.
+ *
+ * PHASE 336. Every folder-bound write takes the folder's pin as its LAST
+ * positional, appended by `runFolderWrite`. These arms are about the confirmed
+ * folder of Phase 242, which is a legacy `writeRoot`, so the pin is `-`: the
+ * far side skips its identity check for it, exactly as before, and every arm
+ * below keeps its meaning. `p336-far-prelude.test.ts` drives a pinned folder.
+ * The shell runs with a scratch HOME and ZDOTDIR, no history file and no
+ * terminal session id.
+ */
 function run(id: string, args: string[], path?: string): { out: string; word: string } {
-  const done = spawnSync('/bin/sh', ['-c', textOf(id), 'sh', ...args], {
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    HOME: dir,
+    ZDOTDIR: dir,
+    HISTFILE: '/dev/null',
+    ...(path === undefined ? {} : { PATH: path })
+  };
+  delete env['TERM_SESSION_ID'];
+  const done = spawnSync('/bin/sh', ['-c', textOf(id), 'sh', ...args, '-'], {
     encoding: 'utf8',
-    env: path === undefined ? process.env : { ...process.env, PATH: path }
+    env
   });
   const out = `${done.stdout ?? ''}${done.stderr ?? ''}`;
   const at = out.match(/__TORTIE_RUN__(.*?)__TORTIE_RUN__/);

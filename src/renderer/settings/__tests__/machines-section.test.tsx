@@ -697,11 +697,12 @@ describe('an open row whose Prepare has not answered', () => {
     expect(inside).not.toContain('mach-prepare-note');
   });
 
-  it('keeps the four consent facts on the face of the row', () => {
+  it('keeps the consent facts on the face of the row', () => {
     // None of these may move behind the disclosure. The row's own lines say
-    // what Tortie runs there and who it signs in as, the key line says which
-    // key it uses, and the Saving files block says whether it may replace a
-    // file.
+    // what Tortie runs there and who it signs in as, and the key line says
+    // which key it uses. PHASE 336 REMOVED the Saving files block, which was
+    // the fourth: a project open on a confirmed machine is a folder Tortie may
+    // write under, so there is nothing to turn on, and it is drawn nowhere.
     const inside = rowMore(html);
     expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
     expect(inside).not.toContain(
@@ -711,8 +712,7 @@ describe('an open row whose Prepare has not answered', () => {
     expect(inside).not.toContain('Signs in as: greg');
     expect(html).toContain('data-machine-key-line');
     expect(inside).not.toContain('data-machine-key-line');
-    expect(html).toContain('data-machines-writes="pop-os"');
-    expect(inside).not.toContain('data-machines-writes');
+    expect(html).not.toContain('data-machines-writes');
   });
 });
 
@@ -765,14 +765,13 @@ describe('an open row whose Prepare refused a version nobody measured', () => {
     const state = html.indexOf('class="mach-prepare-result"');
     const ownLines = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
     const prepare = html.indexOf('data-machines-action="prepare"');
-    const saving = html.indexOf('data-machines-writes="pop-os"');
     const sheet = html.indexOf('data-machines-accept="pop-os"');
     expect(state).toBeGreaterThan(-1);
     expect(sheet).toBeGreaterThan(-1);
     expect(state).toBeLessThan(ownLines);
     expect(ownLines).toBeLessThan(prepare);
-    expect(prepare).toBeLessThan(saving);
-    expect(saving).toBeLessThan(sheet);
+    // PHASE 336 removed the Saving files block that stood between these two.
+    expect(prepare).toBeLessThan(sheet);
   });
 
   it('draws no copy of the row lines inside the state block', () => {

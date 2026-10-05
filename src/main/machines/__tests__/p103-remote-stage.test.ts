@@ -58,13 +58,19 @@ vi.mock('../remote-run', async () => {
     runRemoteRead: async (): Promise<never> => {
       throw new Error('this module never reads through the door');
     },
-    runRemoteWrite: async (
+    runRemoteWrite: async (_ctx: unknown, id: string): Promise<never> => {
+      throw new Error(`a folder-bound write crossed the machine door with ${id}`);
+    },
+    // PHASE 336. Both verbs cross the FOLDER door, which appends the folder's
+    // pin last; `args` here are what the far side would read.
+    runFolderWrite: async (
       _ctx: unknown,
+      folder: { pin: string },
       id: string,
       args: readonly string[],
       options: { timeoutMs?: number } = {}
     ): Promise<{ payload: string; generation: number; bytes: number }> => {
-      ran.push({ id, args: [...args], timeoutMs: options.timeoutMs });
+      ran.push({ id, args: [...args, folder.pin], timeoutMs: options.timeoutMs });
       const payload = answers.shift() ?? '0 none';
       if (payload === '__throw__') {
         throw new Error('Command failed: /usr/bin/ssh');
@@ -102,6 +108,8 @@ vi.mock('../confirm', () => ({
 
 vi.mock('../store', () => ({
   machineRow: () => row,
+  machineLabelOf: (one: Record<string, unknown>) =>
+    typeof one['label'] === 'string' && one['label'].length > 0 ? one['label'] : one['host'],
   machineFieldsOf: (one: Record<string, unknown>) => ({
     host: one['host'] ?? '',
     user: null,
@@ -374,17 +382,17 @@ describe('what leaves this Mac', () => {
     expect(remoteStageSendCount()).toBe(0);
   });
 
-  it('answers outsideRoot for a tab folder outside the confirmed folder, and contacts nothing', async () => {
-    // This is the layer the far side cannot make, because parameter 1 is the
-    // repository root and not the confirmed folder. It is decided before the
-    // read, so this answer costs that machine nothing at all.
+  it('answers writesOff for a tab folder no folder holds, and contacts nothing', async () => {
+    // PHASE 336. A tab's folder outside the legacy root and every open project
+    // is `writesOff` with no folder named. It is decided before the read, so
+    // this answer costs that machine nothing at all.
     const out = await stageOnMachine({
       machineId: 'studio',
       cwd: '/Users/gdc/other/api',
       paths: ['src/a.ts']
     });
-    expect(out.outcome).toBe('outsideRoot');
-    expect(out.writeRoot).toBe(ROOT);
+    expect(out.outcome).toBe('writesOff');
+    expect(out.writeRoot).toBeNull();
     expect(reads).toBe(0);
     expect(remoteStageSendCount()).toBe(0);
   });
@@ -438,6 +446,9 @@ describe('what leaves this Mac', () => {
     expect(ran).toHaveLength(1);
     expect(ran[0]?.id).toBe('git-stage');
     expect(ran[0]?.args[0]).toBe(REPO);
+    // PHASE 336. The folder, the tab's folder relative to it, and the pin last
+    // (`-` for this row's legacy root).
+    expect(ran[0]?.args.slice(2)).toEqual([ROOT, 'api/src', '-']);
     expect(ran[0]?.timeoutMs).toBe(REMOTE_STAGE_TIMEOUT_MS);
   });
 

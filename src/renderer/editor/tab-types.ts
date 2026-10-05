@@ -192,6 +192,22 @@ export interface EditorTab {
    */
   remote?: OpenFileRemoteRef;
   /**
+   * PHASE 336. A file on another machine that is larger than Tortie can save
+   * there, so the tab opened READ ONLY rather than being refused.
+   *
+   * Phase 101 refused the open on a machine with saving on, because a tab that
+   * could never be saved was worse than a refusal. Research 138's ruling is
+   * that a file is never refused for OPENING because of the save cap, so the
+   * tab opens and this is the fifth reason `tabIsReadOnly` gives for a tab on
+   * another machine. `bytes` is what the read measured, and `over` says the
+   * read itself was cut, so `bytes` is a floor and the band says "over" rather
+   * than printing the floor as the size.
+   *
+   * Absent on every tab under the cap, on every tab on this Mac, and on every
+   * tab built before this phase.
+   */
+  saveCapped?: { readonly bytes: number; readonly over: boolean };
+  /**
    * PHASE 63 — the bytes a DRAFT tab opened with, or null for every other tab.
    *
    * Non-null means the tab was opened from composed text rather than from

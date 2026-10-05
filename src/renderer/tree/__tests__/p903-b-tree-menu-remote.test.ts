@@ -29,18 +29,19 @@ import {
 } from '../tree-menu';
 
 /**
- * PHASE 229. The note on a machine with no confirmed folder is the sentence
- * that names the door, being the same one the Explorer's disabled New file and
- * New folder buttons carry. `remoteTreeReadOnly`, which said Tortie only reads
- * files there and named no way to change it, is deleted.
+ * PHASE 229. The note on a folder Tortie will not change is the same sentence
+ * the Explorer's disabled New file and New folder buttons carry.
+ * `remoteTreeReadOnly`, which said Tortie only reads files there and named no
+ * way to change it, is deleted. PHASE 336 made it say which folders Tortie
+ * changes files in, rather than naming a door in Settings that is gone.
  */
 const NOTE =
-  'Tortie cannot change anything on mac-pro. Open Settings, then Machines, ' +
-  'then mac-pro, and let Tortie save files there.';
-/** PHASE 102. What the same row's note says when writing is on. */
-const CAN_WRITE =
-  'Tortie reads files on mac-pro and can change what is under /Users/gdc. ' +
-  'It cannot move anything there to the Trash.';
+  'Tortie changes files on mac-pro only inside a project you opened there.';
+/**
+ * PHASE 102. What the same row's note says when writing is on. PHASE 336 made
+ * it name only the verb that is still absent.
+ */
+const CAN_WRITE = 'Tortie cannot move files on mac-pro to the Trash.';
 /** The two verbs that stay absent on another machine in EVERY state. */
 const NEVER = ['Duplicate', 'Move to Trash'];
 /** The two that are absent only while nobody has confirmed a folder. */

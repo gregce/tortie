@@ -413,6 +413,30 @@ export const WRITE_THROUGH_READ_DOOR =
   'came through the wrong door. Nothing was sent.';
 
 /**
+ * A write bound by a folder reached through the machine's write door (Phase
+ * 336).
+ *
+ * The six writes a project folder bounds cross only through `runFolderWrite`,
+ * which carries the folder's pin for the far side to check. Through the other
+ * door they would cross with no folder check at all. It is a programming error
+ * rather than a state a person can reach, and it is a sentence anyway, for the
+ * reason {@link SCRIPT_NOT_IN_CATALOGUE} gives.
+ */
+export const FOLDER_SCRIPT_THROUGH_MACHINE_DOOR =
+  'Tortie will not run that on another machine, because a command that ' +
+  'writes inside a project goes through its own door and this one came ' +
+  'through the wrong door. Nothing was sent.';
+
+/**
+ * The folder door refusing what it was handed (Phase 336): a write that is not
+ * bound by a folder, a folder for another machine, a folder argument that is
+ * not the folder, or a pin that is not one. Nothing was composed.
+ */
+export const MACHINE_SCRIPT_THROUGH_FOLDER_DOOR =
+  'Tortie will not run that on another machine, because it was not handed ' +
+  'the folder it writes in. Nothing was sent.';
+
+/**
  * The machine is not answering, so nothing was asked of it.
  *
  * PINNED as `machine.not-connected`. This is where connected only lives for
@@ -916,13 +940,16 @@ export const STAGE_PATH_NOT_REPORTED =
 // today. It is this one because a person has to read Tortie's own sentence and
 // that machine's own words together, and only main has both.
 //
-// `commitWritesOff` below is close to the renderer's own sentence for a machine
-// whose writes are not confirmed, and it is a second sentence on purpose. The
-// two live in two processes and main cannot import the renderer's copy file.
-// Main's version names the commit, so a person who reaches it after pressing
-// the button reads what did not happen rather than a general statement about
-// saving. The near duplication is recorded here so a later round can decide to
-// move one of them rather than finding the pair by accident.
+// `commitWritesOff` below is close to the renderer's own sentence for a file
+// outside every project opened on that machine, and it is a second sentence on
+// purpose. The two live in two processes and main cannot import the renderer's
+// copy file. Main's version names the commit, so a person who reaches it after
+// pressing the button reads what did not happen rather than a general
+// statement about saving. The near duplication is recorded here so a later
+// round can decide to move one of them rather than finding the pair by
+// accident. PHASE 336 rewrote the writes-off sentences on both sides: no
+// sentence sends a person to Settings any more, because there is nothing to
+// turn on there (build/p336/SPEC.md section 10).
 
 /** That machine made the commit. The sha is shortened for the panel. */
 export function commitDone(label: string, sha: string): string {
@@ -1030,27 +1057,75 @@ export const COMMIT_NO_MESSAGE =
   'Tortie was given no commit message, so it committed nothing.';
 
 /**
- * Saving is not turned on for that machine, so nothing was sent.
+ * The tab's folder is in no project opened on that machine, so nothing was
+ * sent.
  *
- * IT NAMES THE FOLDER'S DOOR AND NOT THE MACHINE'S, and Phase 242 is why. It
- * used to end "Open Settings, then Machines, and confirm that machine", which
- * is the one thing a person meeting this has already done: his own Mac Pro has
- * been confirmed since 18 August and what is missing is the FOLDER. Research
- * 102 section 6 read it off the live refusal and called it a sentence that
- * sends him to a button he has already pressed. Phase 229 wrote the right
- * wording for the Explorer and these two did not get it, so the second half is
- * now `remoteEntryWritesOffLabel`'s, word for word, and it names the machine
- * on the way to its own row.
+ * PHASE 336 REWROTE IT. It used to end "Open Settings, then Machines, then
+ * <label>, and let Tortie save files there", which was the door to a typed
+ * folder on the machine row. That door is gone (research 138 section 9: "I
+ * don't want any grants"), and saving follows the projects opened on a
+ * machine, as it does on this Mac, so the sentence says that and sends nobody
+ * anywhere.
  */
 export function commitWritesOff(label: string): string {
   return (
-    `Tortie cannot save on ${label}, so it committed nothing. Open Settings, ` +
-    `then Machines, then ${label}, and let Tortie save files there.`
+    `Tortie commits on ${label} only in a project you opened there, so it ` +
+    `committed nothing.`
   );
 }
 
 /**
- * The tab's folder is outside the folder the person confirmed.
+ * The folder at the project's path is not the folder that was opened (Phase
+ * 336), found on that machine above every git, so nothing was committed.
+ *
+ * It is never {@link commitHeadMoved}, whose "press Refresh" could never clear
+ * this: opening the folder again is what pins it again.
+ */
+export function commitFolderChanged(label: string, folder: string): string {
+  return (
+    `${folder} on ${label} is not the folder you opened any more, so Tortie ` +
+    `committed nothing. Open it again to commit there.`
+  );
+}
+
+/** The tab's folder names a `.git` or `.ssh` folder (Phase 336). */
+export function commitProtected(label: string): string {
+  return (
+    `Tortie does not commit from inside a .git or .ssh folder on ${label}, ` +
+    `so it committed nothing.`
+  );
+}
+
+/**
+ * The folder is one Tortie never writes in: a home folder, a folder directly
+ * inside one, or a folder holding one (Phase 336, research 138 section 9). The
+ * same sentence for the far side's `offlimits` and `nohome`, because both mean
+ * Tortie will not write in or around a home folder there.
+ */
+export function commitNeverFolder(label: string): string {
+  return (
+    `Tortie does not commit in a home folder, a folder directly inside one, ` +
+    `or a folder holding one, on ${label}.`
+  );
+}
+
+/**
+ * A name Tortie will not send to another machine (Phase 336, SPEC D12): one
+ * holding two dots in a row, such as `a..b.md`, which the far side's own
+ * containment line refuses because it has no parser to tell it from a `..`
+ * step. Until Phase 336 that refusal printed nothing and main read it as a
+ * machine that did not answer, saying a folder "may have been made" when
+ * nothing was. It is the one such shape a person can reach.
+ */
+export function remoteNameRefused(label: string): string {
+  return (
+    `Tortie cannot change a name holding two dots in a row on ${label}. ` +
+    `Nothing was written.`
+  );
+}
+
+/**
+ * The tab's folder is outside the folder this commit was bound by.
  *
  * IT SAID "Nothing was sent." UNTIL PHASE 242.1. This outcome has two reasons
  * now: main refuses a folder that is textually outside before it composes
@@ -1059,11 +1134,16 @@ export function commitWritesOff(label: string): string {
  * case a command really was sent and nothing was committed, measured on the
  * operator's own Mac Pro on 2026-09-08 at `sent: 1` with HEAD and the staged
  * set both unmoved. "Nothing was changed" is true of both.
+ *
+ * PHASE 336'S FIX ROUND took out "the folder Tortie was given permission to
+ * write in", because nothing is given any more: the folder is the project
+ * opened there. It now says what `remoteStageOutsideRoot` in
+ * src/renderer/machines/scm.ts says for the same outcome, in the same words.
  */
 export function commitOutsideRoot(label: string): string {
   return (
-    `That folder on ${label} is outside the folder Tortie was given ` +
-    `permission to write in. Nothing was changed.`
+    `That folder on ${label} is outside the projects you opened there. ` +
+    `Nothing was changed.`
   );
 }
 

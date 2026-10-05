@@ -373,11 +373,13 @@ export function setMachineAcceptedVersion(
  * (Phase 101).
  *
  * It writes one field of one row and nothing else. It starts nothing, contacts
- * no machine and does not record an agreement: `machines:allowWrites` in
- * `./ipc.ts` is the one caller that sets it, it checks the hash a person read
- * BEFORE this runs, and it records the agreement after. `machines:forget` is
- * the one caller that clears it. A machine this id does not name leaves the
- * file untouched.
+ * no machine and does not record an agreement. `machines:forget` in `./ipc.ts`
+ * is its one caller, and it only ever CLEARS the field, with the confirmation.
+ * Phase 336 removed the channel that set it from a sheet a person read (research
+ * 138 section 9), so nothing in Tortie sets a folder any more: a row carries
+ * one only when machines.json was written by hand. The `root` parameter keeps
+ * its type so that forget's call reads as it always did. A machine this id
+ * does not name leaves the file untouched.
  */
 export function setMachineWriteRoot(
   id: string,

@@ -19,7 +19,11 @@
 
 import type { StateCreator } from 'zustand';
 import type { MachineAgentsView, MachineStateView } from '@shared/ipc';
-import type { SessionMachine } from '@shared/types';
+import {
+  pickWriteFolder,
+  type WriteFolderMode
+} from '@shared/remote-write-folder';
+import type { Project, SessionMachine } from '@shared/types';
 import type { AppState } from './app-state';
 
 export interface MachinesSlice {
@@ -230,28 +234,100 @@ export function machineAgentsFor(
 }
 
 /**
- * The folder Tortie may replace a file under on one machine, or null.
+ * The folder Tortie may write a path under on one machine, or why it may not.
  *
- * PHASE 101. Null means saving is off for that machine, which is every machine
- * in every build before this phase and every machine a person has not turned
- * saving on for. A machine with no row here is null for the same reason
- * `machineLabelFor` falls back to the id: Tortie holds no statement about it.
+ * PHASE 336 REPLACED `machineWriteRootFor`, which answered one typed folder per
+ * machine. A project open on a confirmed machine is now a folder Tortie may
+ * write under, as a project open on this Mac is, so the answer depends on the
+ * path as well as the machine. Four answers:
  *
- * WHY THE ANSWER LIVES ON THE LINK STATE RATHER THAN ON THE TAB. Main pushes
- * the whole list on every change, and the confirmation record is one of the
- * three sources that fire it, so this answer is never older than the last
- * confirmation. A field written into a tab when the tab was opened would be
- * stale the moment a person turned saving on or off in Settings, and a tab
- * that had been open for an hour would then be read only after they granted
- * saving, or editable after they withdrew it.
+ *  - `{ folder, kind }`: the folder that holds the path. `kind` is `project`
+ *    for the deepest open project on that machine that holds it, or `legacy`
+ *    for a folder a person typed in an earlier build, which is chosen FIRST
+ *    whenever it holds the path (research 138's adversary round, G4), so a
+ *    machine that carries one behaves exactly as it did.
+ *  - `unconfirmed`: the machine is not confirmed right now, including a
+ *    machine whose details changed, so nothing is written there until it is
+ *    confirmed again.
+ *  - `outside`: no open project on that machine holds the path.
+ *  - `never`: the only project holding it is a folder Tortie never writes
+ *    under, being `/`, a home folder, a folder directly inside one, a folder
+ *    holding one, or a `.git` or `.ssh` folder.
  *
- * IT IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD. Main reads the confirmed
- * folder off the row on disk at call time and refuses there. This read decides
- * whether a surface is drawn as an edit surface, and nothing more.
+ * THE CHOICE IS MADE BY ONE SHARED FUNCTION, `pickWriteFolder` in
+ * `@shared/remote-write-folder`, which main's own write path calls too, so the
+ * renderer and main cannot disagree about which folder holds a path.
+ *
+ * `mode` is `file` for a path that must sit strictly below the folder (a tab's
+ * file) and `folder` for a folder that may be the folder itself (the tree's
+ * root, the Explorer header's project, Source control's folder).
+ *
+ * WHY IT READS THE LINK STATE AND THE PROJECT LIST, NEVER THE TAB. Both are
+ * pushed by main on every change, so this answer is never older than the last
+ * confirmation or the last project opened or closed. A field written into a
+ * tab when it was opened would be stale the moment either moved.
+ *
+ * IT IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD. Main decides every write
+ * again, against the machine's confirmation, its open projects and, on that
+ * machine in the same call, the identity of the folder that was opened. This
+ * read decides whether a surface is drawn as an edit surface, and nothing more.
  */
-export function machineWriteRootFor(
+export type RemoteWriteFolder =
+  | { readonly folder: string; readonly kind: 'project' | 'legacy' }
+  | { readonly refused: 'unconfirmed' }
+  | { readonly refused: 'outside' }
+  | { readonly refused: 'never'; readonly folder: string };
+
+/** The three reasons a path on a machine is not written. */
+export type RemoteWriteRefusal = 'unconfirmed' | 'outside' | 'never';
+
+export function remoteWriteFolderIn(
   states: readonly MachineStateView[],
-  machineId: string
-): string | null {
-  return states.find((one) => one.id === machineId)?.writeRoot ?? null;
+  projects: readonly Project[],
+  machineId: string,
+  path: string,
+  mode: WriteFolderMode
+): RemoteWriteFolder {
+  const view = states.find((one) => one.id === machineId);
+  if (view === undefined) return { refused: 'unconfirmed' };
+  // A folder a person typed in an earlier build. Main reports one only for a
+  // confirmed row, and an empty one reads as none.
+  const legacyRoot =
+    view.writeRoot !== undefined &&
+    view.writeRoot !== null &&
+    view.writeRoot.length > 0
+      ? view.writeRoot
+      : null;
+  // `savesInProjects` is main's statement that the row is confirmed. A view
+  // from a build before Phase 336 has no such field, and its legacy folder is
+  // then the only evidence of a confirmed row, exactly as it was.
+  if (
+    view.savesInProjects === false ||
+    (view.savesInProjects !== true && legacyRoot === null)
+  ) {
+    return { refused: 'unconfirmed' };
+  }
+  const candidates = projects
+    .filter((one) => (one.machineId ?? 'local') === machineId)
+    .map((one) => one.path);
+  const pick = pickWriteFolder(
+    path,
+    { projects: candidates, legacyRoot },
+    mode
+  );
+  if ('kind' in pick) return { folder: pick.path, kind: pick.kind };
+  if (pick.refused === 'never') return { refused: 'never', folder: pick.path };
+  return { refused: 'outside' };
+}
+
+/** The folder in an answer, or null when the answer is a refusal. */
+export function writeFolderOf(answer: RemoteWriteFolder): string | null {
+  return 'kind' in answer ? answer.folder : null;
+}
+
+/** The refusal in an answer, or null when the answer is a folder. */
+export function writeRefusalOf(
+  answer: RemoteWriteFolder
+): RemoteWriteRefusal | null {
+  return 'refused' in answer ? answer.refused : null;
 }

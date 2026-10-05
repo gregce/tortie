@@ -175,7 +175,7 @@ export function applyReshape(
 
 export interface EditorMenuOptions {
   tab: EditorTab;
-  /** `tabIsReadOnly` inverted — the four reasons a tab takes no keystroke. */
+  /** `tabIsReadOnly` inverted — every reason a tab takes no keystroke. */
   writable: boolean;
   /** The live editor, owned by ./MonacoHost.tsx. */
   editorRef: React.RefObject<CodeEditor | null>;

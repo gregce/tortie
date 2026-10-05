@@ -307,7 +307,12 @@ export const CHECKS = [
   // Phase 242.2. It stays `pure`: condition 88g runs the shipping image-put
   // text under /bin/sh, synchronously, over a scratch directory it removes in
   // a finally, which needs node and the repository install and nothing else on
-  // the host. `conformance:redline-write` below is the same shape.
+  // the host. `conformance:redline-write` below is the same shape. PHASE 336:
+  // conditions 115 to 117 run the six folder-bound texts and folder-pin under
+  // /bin/sh AND /bin/dash, with git and shasum under them, over one scratch
+  // tree under /private/tmp removed in a finally and with HOME pointed inside
+  // it (build/p336/script-arms.mjs); both shells ship with macOS, and nothing
+  // under the person's home is named.
   pure('conformance:machines'),
   // Phase 187's guard. It is a vitest file rather than a tsx probe because the
   // exec plane is replaced by a function, which is the seam vitest owns, and it
@@ -867,6 +872,23 @@ export const CHECKS = [
   // starts is ended by pid in a `finally`, and survivors are counted by working
   // directory.
   tmux('probe:p323:harness'),
+  // PHASE 336's far half run alone (build/p336/SPEC.md §8.3): the SHIPPING
+  // texts of the six folder-bound writes and folder-pin, read through
+  // build/p336/far-texts.mts under the pinned tsx, handed to /bin/sh AND
+  // /bin/dash with main bypassed over scratch trees under one mkdtemp in
+  // /private/tmp, removed in a finally and on a signal: the adversary's 29
+  // prelude shapes through all six scripts, a folder swapped for a link or a
+  // new folder, folders at links into a scratch home's .ssh, reserved names in
+  // the relative path, the far home rules, a link swapped in inside one write,
+  // and the 242 family with pin -. Both shells must agree on every row. Every
+  // shell's environment is built from nothing (PATH, a scratch HOME, a scratch
+  // ZDOTDIR, HISTFILE=/dev/null, no TERM_SESSION_ID). With P336_CASE_VOLUME=1
+  // it also makes a 20 MB case-sensitive APFS image with hdiutil (no sudo),
+  // detached and deleted in a finally. No Electron, no ssh, no tmux, no agent.
+  adapter(
+    'probe:p336:script',
+    '/bin/sh, /bin/dash, git and shasum on the host, and hdiutil only with P336_CASE_VOLUME=1; node and the repository install'
+  ),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -1097,6 +1119,21 @@ export const CHECKS = [
   // received; it reads no drive of its own and uses probe:p95's. It spawns no
   // agent and spends no token. `--compare` grades what spans two builds.
   remote('probe:p320'),
+  // PHASE 336's app run (build/p336/SPEC.md §9): saving in a project on
+  // another machine the way it is saved on this Mac. ONE Electron at a time
+  // through build/electron-run.mjs's withElectron on one scratch profile, a
+  // scratch HOME and the socket gmux-p336-<pid>, inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell and
+  // its scratch HOME (SCRATCH_MACHINE_SCRATCH_HOME, D23), which is why this is
+  // `remote` and not `electron` (probe:p320's rule above): the PARENT first
+  // with P336_PARENT_CHECKOUT, then HEAD on the same profile. Every far folder
+  // is under the loopback yard. A scratch agents.json renames the Gemini,
+  // Qwen, Antigravity, Grok and Droid binaries before every launch. No model
+  // turn and no token. With P336_FAR=real the far side is the operator's own
+  // machine through build/p3201/real-machine.mjs (verifiers only), every folder
+  // under its /tmp/p3201-<pid>/far/, removed in that harness's finally.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p336'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
   // profile through build/electron-run.mjs's withElectron, a scratch HOME and
@@ -2234,6 +2271,18 @@ export const CHECKS = [
   // signal. No Electron, no tmux, no ssh, no agent, no token. P320_ONLY runs
   // named arms.
   pure('ablation:p320'),
+  // PHASE 336's attack on its own gates (build/p336/SPEC.md §8.2): fifty arms,
+  // one clause each, over a `cp -Rc` clone of src/, build/ and resources/ under
+  // /private/tmp (node_modules symlinked): every clause of conformance:machines
+  // conditions 113 to 121 and the p336 vitest cases that own what a plain
+  // probe cannot reach (a changed row composing nothing, the pin read once,
+  // the swap in the window, the nohome branch, the open over the save cap, the
+  // renderer's edit surface). Each must turn THE CONDITION OR CASE THAT OWNS
+  // IT newly red, every clone file is restored and proved by sha256 in a
+  // `finally`, the clone is removed in a `finally` and on a signal, and the
+  // worktree's bytes are asserted unmoved. P336_ONLY runs named arms; --list
+  // and --self-test run nothing. No Electron, no tmux, no ssh, no agent.
+  pure('ablation:p336', NEEDS.vitest),
   // PHASE 321's attack on its own behaviour (build/p321/SPEC.md §5.3), one
   // clause at a time from the SHIPPING source over a `cp -Rc` clone of src/:
   // each shape's options, focus, hint and tail clauses, the shapes' term in

@@ -74,6 +74,7 @@ import type {
 import type { GuardedRunOptions, GuardedRunResult } from '../proc/guarded';
 import { runGuarded } from '../proc/guarded';
 import { resolveInsideRoot, resolveOpenProjectRoot } from './paths';
+import { localProjectRoots } from './project-roots';
 
 // ---------------------------------------------------------------------------
 // Constants the tests assert rather than re-spell
@@ -593,18 +594,18 @@ export function launchRecorder():
 /**
  * Production dependencies.
  *
- * `listProjectRoots` reads the manifest through the singleton core, so the
- * authority on "what is a project root" is the same list the tabs render
- * from. Imported lazily for the same reason file-ops.ts imports it lazily:
- * the fs channels must not drag the tmux core into the module graph at boot.
+ * `listProjectRoots` is the open project folders ON THIS MAC, read through
+ * the singleton core by ./project-roots.ts, so the authority on "what is a
+ * project root" is the same list the tabs render from. PHASE 336: it used to
+ * be every project row, and a row for a folder on another machine made the
+ * same path HERE a folder Open With would hand to an application (research 138
+ * section 2.5 item 5). The lazy import that keeps the tmux core out of the
+ * module graph at boot moved there with it.
  */
 export function defaultOpenWithDeps(): OpenWithDeps {
   return {
     run: (bin, args, options) => runGuarded(bin, args, options),
-    listProjectRoots: async () => {
-      const { getGmuxCore } = await import('../sessions');
-      return (await getGmuxCore()).listProjects().map((p) => p.path);
-    },
+    listProjectRoots: () => localProjectRoots(),
     isAppBundle: isAppBundleOnDisk,
     recordLaunch: launchRecorder()
   };

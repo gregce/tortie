@@ -328,7 +328,7 @@ describe('what a person reads on the tab', () => {
     expect(line).toBe('changelog.md on Studio. This view is read only.');
   });
 
-  it('refuses every keystroke, on a machine saving is on for', async () => {
+  it('refuses every keystroke, in a folder Tortie may write under', async () => {
     useEditor.getState().openFromRequest(commitReq());
     await flush();
     const tab = useEditor.getState().activeTab() as EditorTab;
@@ -342,14 +342,18 @@ describe('what a person reads on the tab', () => {
     // The panel is not rendered here, so the ORDER of its three branches is
     // read off its source. A remote tab whose commit is null keeps the Phase
     // 90.3 band; a remote tab carrying a commit falls through to the commit
-    // band, which is the sentence the local commit tab draws.
+    // band, which is the sentence the local commit tab draws. PHASE 336 made
+    // the remote bands two (the save cap and the refusals), and both are
+    // computed from one reading that is null for a tab carrying a commit.
     const source = readFileSync(
       resolve(ROOT, 'src/renderer/editor/EditorPanel.tsx'),
       'utf8'
     );
     expect(source).toContain(
-      'activeTab.remote !== undefined &&\n          activeTab.commit === null &&\n          remoteWriteRoot === null'
+      'const remoteFolder =\n    activeTab.remote === undefined || activeTab.commit !== null\n      ? null'
     );
+    expect(source).toContain(') : remoteRefusedBand !== null ? (');
+    expect(source).toContain(') : remoteCapBand !== null ? (');
     expect(source).toContain('Viewing this file as of {activeTab.commit.shortSha}');
   });
 });

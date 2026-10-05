@@ -71,26 +71,27 @@ export function canWriteEntries(): boolean {
  * and Phase 233 needed the same answer at four more places, being `canDrag`,
  * `canDrop`, and the two doors in ./use-tree-drag.ts, so it is written once
  * here beside the flag it reads. A tree on THIS Mac answers true always. A
- * tree on a machine answers true only when that machine carries a folder the
- * person confirmed and this build can reach both entry writes.
+ * tree on a machine answers true only when its root is in a folder Tortie may
+ * write under (Phase 336: a project open on a confirmed machine) and this
+ * build can reach both entry writes.
  *
- * IT IS NOT A PERMISSION. Main refuses the write on the row on disk at call
- * time, against the confirmed folder, and nothing chosen in the renderer can
- * widen that. This only decides whether a gesture is offered.
+ * IT IS NOT A PERMISSION. Main decides the folder again at call time and
+ * refuses there, and nothing chosen in the renderer can widen that. This only
+ * decides whether a gesture is offered.
  */
 export function mayWriteEntriesHere(
   isRemote: boolean,
-  remoteWriteRoot: string | null
+  remoteWriteFolder: string | null
 ): boolean {
-  return !isRemote || (remoteWriteRoot !== null && canWriteEntries());
+  return !isRemote || (remoteWriteFolder !== null && canWriteEntries());
 }
 
 /**
  * Make one folder on one machine.
  *
  * It carries the absolute path on that machine and no folder of its own. The
- * folder Tortie may write under is read in main, off the row a person
- * confirmed, so nothing chosen here can widen what may be written.
+ * folder Tortie may write under is chosen in main, from the projects open on
+ * that machine, so nothing chosen here can widen what may be written.
  *
  * @returns the answer word and, after a `made`, the mode the folder was given.
  *   It rejects only when this build cannot reach the call, and when the machine
@@ -109,8 +110,9 @@ export async function makeDir(
 /**
  * Rename one file or folder on one machine.
  *
- * BOTH paths are checked against the confirmed folder in main and either one
- * outside it refuses the whole call. Nothing here decides that.
+ * Main chooses ONE folder holding both paths (Phase 336: the deepest open
+ * project holding both) and refuses the whole call when none does. Nothing
+ * here decides that.
  */
 export async function renameEntry(
   input: MachineRenameInput

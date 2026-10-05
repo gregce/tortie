@@ -90,11 +90,27 @@ const textOf = (id: string): string => {
   return row.text;
 };
 
-/** Run one shipped script text the way the far side runs it. */
+/**
+ * Run one shipped script text the way the far side runs it.
+ *
+ * PHASE 336. Every folder-bound write takes the folder's pin as its LAST
+ * positional, appended by `runFolderWrite`. These arms are about the confirmed
+ * folder of Phase 242.1, which is a legacy `writeRoot`, so the pin is `-` and
+ * every arm keeps its meaning; `p336-far-prelude.test.ts` drives a pinned
+ * folder. The shell runs with a scratch HOME and ZDOTDIR, no history file and
+ * no terminal session id.
+ */
 function run(id: string, args: string[]): { out: string; word: string } {
-  const done = spawnSync('/bin/sh', ['-c', textOf(id), 'sh', ...args], {
+  const env: NodeJS.ProcessEnv = {
+    ...GIT_ENV,
+    HOME: dir,
+    ZDOTDIR: dir,
+    HISTFILE: '/dev/null'
+  };
+  delete env['TERM_SESSION_ID'];
+  const done = spawnSync('/bin/sh', ['-c', textOf(id), 'sh', ...args, '-'], {
     encoding: 'utf8',
-    env: GIT_ENV
+    env
   });
   const out = `${done.stdout ?? ''}${done.stderr ?? ''}`;
   const at = out.match(/__TORTIE_RUN__(.*?)__TORTIE_RUN__/);
@@ -237,9 +253,12 @@ describe('a cwd reached through a link is refused before any git runs', () => {
   });
 
   it('refuses a relative part that is absolute or climbs, before the walk', () => {
+    // PHASE 336. The refusal is a word inside the markers now, `badname`,
+    // rather than an exit 1 that printed nothing and read as no answer
+    // (research 138 section 2.5 item 3).
     for (const rel of [sibling, '../sibling', 'a/../../sibling']) {
       const said = run('git-stage', [sibling, 'dirty-link.txt', root, rel]);
-      expect(said.word).toBe('');
+      expect(said.word).toBe('badname');
       expect(stagedIn(sibling)).toEqual([]);
     }
   });

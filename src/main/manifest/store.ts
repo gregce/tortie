@@ -24,6 +24,7 @@
  * - ./projects-repository.ts  the `projects` table reads and writes
  * - ./restore-journal.ts      the `restore_attempts` table
  * - ./reconciliation.ts       the manifest judged against live tmux truth
+ * - ./remote-folder-pins.ts   the `remote_folder_pins` table (Phase 336)
  */
 
 import Database from 'better-sqlite3';
@@ -78,6 +79,10 @@ import {
   type RemoteExecutionRecord
 } from './remote-executions';
 import {
+  RemoteFolderPins,
+  type RemoteFolderPin
+} from './remote-folder-pins';
+import {
   reconcileManifest,
   type LiveTmuxSession,
   type ReconcileOptions,
@@ -122,6 +127,11 @@ export type {
   MachineTombstoneEntry,
   MarkMachinesForgottenHooks
 } from './sessions-repository';
+export {
+  REMOTE_FOLDER_IDENTITY_PATTERN,
+  isRemoteFolderIdentity,
+  type RemoteFolderPin
+} from './remote-folder-pins';
 export type {
   LiveTmuxSession,
   ReconcileOptions,
@@ -245,6 +255,7 @@ export class ManifestStore {
   private readonly projects: ProjectsRepository;
   private readonly journal: RestoreJournal;
   private readonly remoteExecutions: RemoteExecutionJournal;
+  private readonly folderPins: RemoteFolderPins;
 
   /**
    * Opens (creating if needed) the manifest DB. Pass an explicit path for
@@ -301,6 +312,7 @@ export class ManifestStore {
       this.projects = new ProjectsRepository(this.db);
       this.journal = new RestoreJournal(this.db);
       this.remoteExecutions = new RemoteExecutionJournal(this.db);
+      this.folderPins = new RemoteFolderPins(this.db);
       // Phase 29: retention for removed sessions, BEFORE the attempt prune so
       // the restore attempts orphaned here are swept in the same open.
       this.pruneDiscardedSessions();
@@ -644,5 +656,35 @@ export class ManifestStore {
 
   deleteProject(id: string): void {
     this.projects.deleteProject(id);
+  }
+
+  // -------------------------------------------------------------------------
+  // Folder pins — delegated to ./remote-folder-pins.ts (Phase 336, migration
+  // 019). The identity of one folder on another machine, taken when a person
+  // opened it as a project and compared on that machine at every write. This
+  // store keeps it and reads it back; the write path in
+  // ../machines/write-folder.ts decides when one is taken.
+  // -------------------------------------------------------------------------
+
+  /**
+   * Phase 336. The pin for one folder on one machine, keyed by the project
+   * row's stored path byte for byte, or undefined when there is none or the
+   * stored identity is not `<device>:<inode>`.
+   */
+  remoteFolderPin(machineId: string, path: string): RemoteFolderPin | undefined {
+    return this.folderPins.remoteFolderPin(machineId, path);
+  }
+
+  /**
+   * Phase 336. Record or replace one folder's pin, durably. Refuses an
+   * identity that is not `<device>:<inode>` and writes nothing.
+   */
+  setRemoteFolderPin(
+    machineId: string,
+    path: string,
+    identity: string,
+    at: number = Date.now()
+  ): void {
+    this.folderPins.setRemoteFolderPin(machineId, path, identity, at);
   }
 }

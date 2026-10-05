@@ -17,10 +17,12 @@
  * make on another computer and rule 6 below now says two rather than one.
  *
  * PHASE 101 ADDED ONE MORE, and it is the THIRD write. `file-put` replaces one
- * file under one confirmed folder on a machine, or makes a new empty one there.
- * It is the first command this product sends that can replace a file a person
- * already had, and what bounds it is a sixth confirmed field on the machine row
- * called `writeRoot`. A machine that carries none cannot be saved to at all.
+ * file under one folder on a machine, or makes a new empty one there. It is
+ * the first command this product sends that can replace a file a person
+ * already had. What bounded it until Phase 336 was a sixth confirmed field on
+ * the machine row called `writeRoot`; since Phase 336 it is the folder of a
+ * project open on that machine (a legacy `writeRoot` still counts, first), and
+ * the PHASE 336 paragraph below says how the far side holds that folder.
  * The script computes the file's checksum on the far side and refuses unless it
  * equals the checksum Tortie read, so no command Tortie sends can replace a
  * file whose contents Tortie did not just verify by checksum. Rule 6 below says
@@ -37,9 +39,10 @@
  * WHAT PHASE 102 CANNOT PROMISE, said here rather than left implied. Between
  * `entry-rename`'s test and its `mv` another writer on that machine can create
  * the destination, and the `mv` then replaces it. The gate reads text and
- * cannot see a race. And the two new writers carry a WIDER containment line
- * than `file-put` does, being the line with the `.git` half in it, so `.git` is
- * guarded on them and not on `file-put`.
+ * cannot see a race. And the two new writers carried a WIDER containment line
+ * than `file-put` did, being the line with the `.git` half in it, so `.git` was
+ * guarded on them and not on `file-put` until Phase 336 gave all three the same
+ * two lines (research 138 section 2.5 item 2).
  *
  * PHASE 103 ADDED TWO MORE, and both are writes. They are the SIXTH and the
  * SEVENTH, and they are the first two commands this product sends that change a
@@ -59,6 +62,23 @@
  * nothing. Its standard input is `/dev/null`, so a passphrase program that
  * reads a terminal fails at once instead of holding the link. TORTIE ANSWERS NO
  * PASSPHRASE, ANYWHERE.
+ *
+ * PHASE 336 ADDED ONE MORE, and it is a read. `folder-pin` prints the device
+ * and inode of one folder on a machine, taken THROUGH the folder (`"$1/."`), so
+ * a folder reached through a linked ancestor keeps one identity. Main reads it
+ * when a project is opened by hand and stores it, and every one of the six
+ * folder-bound writes (`file-put`, `dir-new`, `entry-rename`, `git-stage`,
+ * `git-unstage`, `git-commit`) carries that pin as its LAST positional. A
+ * prelude above each write's link walk and above every line that writes then
+ * enters the folder ONCE with `cd -P`, names it `.` from then on, and compares
+ * device and inode rather than path text (research 138 section 9, build/p336/
+ * SPEC.md D5, D8 and D9, §Attack G1 and G2): a folder that is not the pinned
+ * one answers `notsame`, `/` or the account's home or a folder directly inside
+ * or holding it answers `offlimits`, a `.git` or `.ssh` folder (in any
+ * spelling the volume folds) answers `protected`, and a home that cannot be
+ * read answers `nohome`. Every refusal a write prints is a word inside the
+ * markers since Phase 336: no write text names `exit 1`, so a refusal is never
+ * read as "the machine did not answer".
  *
  * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
  * matching line in one folder on a machine, using that machine's own `grep`.
@@ -262,13 +282,14 @@
  *     without committing when the two differ. The first run moves `HEAD`, so
  *     the second run of one request always finds it moved.
  *
- *     WHAT PHASE 102 ADDED TO THE TWO IT ADDED, and did not add anywhere else.
- *     Both carry the wider containment line from
+ *     WHAT PHASE 102 ADDED TO THE TWO IT ADDED, and what Phase 336 widened.
+ *     Both carried the wider containment line from
  *     `docs/research/57-i3-file-writes.md` section 12, which holds a `.git`
  *     half, and `entry-rename` carries it twice because the line names the
- *     value it guards. `file-put` keeps `review-file`'s narrower line, so
- *     `.git` is guarded on the two new writers and NOT on `file-put`. Widening
- *     a shipped writer with pinned gate literals is its own round.
+ *     value it guards. `file-put` kept `review-file`'s narrower line until
+ *     Phase 336, which was that round: all three path writers now carry
+ *     {@link relGuards}, refusing `.git` AND `.ssh` in any ASCII case with
+ *     `protected`, and every refusal prints a word rather than exiting 1.
  *
  *     THE PROMISE THAT CHANGED IN PHASE 101, said plainly rather than left for
  *     a reader to notice. Until Phase 101 all writers refused a destination
@@ -405,6 +426,15 @@
 /** A script either reads the machine or writes to it. There is no third kind. */
 export type RemoteScriptMode = 'read' | 'write';
 
+/**
+ * What bounds a write (Phase 336). `folder`: a folder Tortie may write under,
+ * whose pin the script carries last and checks on the far side; such a script
+ * crosses ONLY through `runFolderWrite` in `./remote-run.ts`. `machine`: a
+ * confirmed machine and nothing narrower, which is the picture drop and a
+ * clone (research 138 section 9).
+ */
+export type RemoteScriptBound = 'folder' | 'machine';
+
 /** One command Tortie is allowed to run on another machine. */
 export interface RemoteScript {
   /** The name the catalogue is searched by, and the far side's `$0`. */
@@ -416,6 +446,18 @@ export interface RemoteScript {
   readonly text: string;
   /** Why running it twice leaves the machine as running it once does. */
   readonly reason: string;
+  /**
+   * PHASE 336. On every `write` row, and on no `read` row: what bounds it. Six
+   * rows are `folder` and two are `machine`.
+   */
+  readonly bound?: RemoteScriptBound;
+  /**
+   * PHASE 336. On a `folder` row only: the index, in the arguments a caller
+   * composes, of the folder positional. `runFolderWrite` refuses arguments
+   * whose element there is not the folder it was handed, and appends the pin
+   * after the last of them.
+   */
+  readonly folderArg?: number;
 }
 
 /**
@@ -740,8 +782,9 @@ const STORE_COPY = [
  * `outside` becomes the sentence a put that did not arrive already had: no new
  * word crosses the channel and no sentence anywhere changes.
  *
- * It is still true that `putImagesOnMachine` never asks `confirmedWriteRoot`,
- * so image-put makes no containment promise for a link to BREAK, and that the
+ * It is still true that `putImagesOnMachine` is bound by the machine alone and
+ * by no folder (Phase 336 kept it that way, research 138 section 9), so
+ * image-put makes no containment promise for a link to BREAK, and that the
  * name is `remoteImageName(sessionId, sha256, ext)`, so anything planted at
  * either name had to be predicted first. What is closed is a write Tortie
  * composes that would follow somebody else's name out of the one directory
@@ -2400,10 +2443,11 @@ const CONTEXT_READ = [
  * Both modes emit TEN lines, because `build/conformance-machines.mjs`
  * condition 88 reads a fixed slice from the line that names the value.
  *
- * `root` exists for the same three verbs. The path verbs carry the confirmed
- * folder as `$1`; these three carry the repository root there and the confirmed
- * folder further along, because their earlier positionals were ruled by the
- * Phase 103 and Phase 104 entries and the message has to stay `$3`.
+ * `root` is where the walk starts. SINCE PHASE 336 IT IS `.` FOR ALL SIX, never
+ * a positional: {@link folderCheck} has already entered the folder with
+ * `cd -P` above this walk, and every component is asked about relative to the
+ * directory that check verified, so a link swapped in for the folder after the
+ * check cannot move the walk (§Attack G2 in build/p336/SPEC.md).
  *
  * ## The word it prints
  *
@@ -2421,7 +2465,7 @@ const CONTEXT_READ = [
 const noLinkWalk = (
   value: string,
   fields: 2 | 3,
-  root = '$1',
+  root = '.',
   last: 'skip' | 'walk' = 'skip'
 ): readonly string[] => [
   `lr="${value}"`,
@@ -2441,14 +2485,215 @@ const noLinkWalk = (
 ];
 
 /**
+ * One refusal word, printed with the script's own field count (Phase 336).
+ *
+ * Every write in this catalogue answers a fixed number of fields between the
+ * markers, with `none` for a field that has no value, so a short answer is a
+ * machine that printed something else. A refusal keeps that count.
+ */
+const say = (word: string, fields: 2 | 3): string =>
+  `printf '__TORTIE_RUN__${word} ${fields === 3 ? 'none none' : 'none'}__TORTIE_RUN__\\n'`;
+
+/**
+ * The reserved names as whole segments, in any ASCII case (Phase 336, D10).
+ *
+ * POSIX bracket classes, so `.GIT`, `.Git/hooks/x` and `a/.sSH/b` match and
+ * `.github`, `x.git` and `.gitignore` do not. This is the far side's BACKSTOP
+ * for a relative path, and its limit is stated rather than hidden: a
+ * non-ASCII spelling an APFS volume folds to `.ssh` (`.ßh`, `.ſsh`) is not in
+ * it. Main refuses those on every product path with `isProtectedRemotePath`
+ * in src/shared/remote-write-folder.ts before anything is composed, and a
+ * FOLDER that is or sits inside a reserved folder is refused here by identity
+ * in {@link folderCheck}, which needs no name match at all.
+ */
+const RESERVED_SEGMENTS =
+  '.[Gg][Ii][Tt]|.[Gg][Ii][Tt]/*|*/.[Gg][Ii][Tt]|*/.[Gg][Ii][Tt]/*|' +
+  '.[Ss][Ss][Hh]|.[Ss][Ss][Hh]/*|*/.[Ss][Ss][Hh]|*/.[Ss][Ss][Hh]/*';
+
+/**
+ * The two text guards on one relative value (Phase 336, D10 and D12).
+ *
+ * The first refuses an absolute value or one holding `..` with `badname`; the
+ * `*..*` half still refuses a real name holding two dots in a row (`a..b.md`),
+ * which is the false refusal `review-file` takes, and main says so in a
+ * sentence rather than as a machine that did not answer. The second refuses a
+ * `.git` or `.ssh` segment with `protected`. Both print inside the markers and
+ * exit 0, because a refusal that exits 1 prints nothing and main used to read
+ * that as "it may have been made" (research 138 section 2.5 item 3).
+ */
+const relGuards = (value: string, fields: 2 | 3): readonly string[] => [
+  `case "${value}" in /*|*..*) ${say('badname', fields)}; exit 0;; esac`,
+  `case "${value}" in ${RESERVED_SEGMENTS}) ${say('protected', fields)}; exit 0;; esac`
+];
+
+/**
+ * THE FOLDER CHECK every folder-bound write carries, above its link walk and
+ * above every line that writes (Phase 336, build/p336/SPEC.md D5, D8, D9).
+ *
+ * `folder` is the positional naming the folder Tortie may write under and
+ * `pin` the positional carrying that folder's pinned identity, which
+ * `runFolderWrite` in `./remote-run.ts` always appends LAST. `legacyMiss` is
+ * the word a legacy root that cannot be entered answers with, being the word
+ * that verb already printed for a folder that is not there.
+ *
+ * ## It enters the folder ONCE and names it `.` from then on (§Attack G2)
+ *
+ * A check through `"$1"` and a write through `"$1"` are two resolutions of one
+ * path, and a link swapped in between them lands the write outside the folder
+ * that was checked; that was measured at `wrote` with the victim overwritten.
+ * So the folder is entered with `cd -P` here, once, and the identity check and
+ * every write line below it reach the folder as `.`, which is the directory
+ * the shell is standing in and is not resolved again. A swap after the `cd`
+ * is a no-op against it. The same holds across the ROUND TRIP between main's
+ * `folder-pin` read and this write: the pin is read in one call and carried
+ * here, and this check compares it against the live `.`.
+ *
+ * ## It compares device and inode, never path text (§Attack G1)
+ *
+ * The macOS `/bin/sh` is bash 3.2, and its `cd -P "$HOME"; pwd -P` keeps the
+ * spelling it was handed, while dash returns the stored one, so a folder typed
+ * `/USERS/gdc` compared as text passed under one shell and was refused under
+ * the other. Device and inode read the same under both. GNU `stat -c` is
+ * chosen ONCE by probing `/`, and BSD `stat -f` otherwise, because a BSD
+ * spelling tried first on Linux prints a file system block into the answer
+ * (the reason `context-read` gives).
+ *
+ * ## What it refuses, in this order
+ *
+ *  1. `badname`: a folder that is not absolute.
+ *  2. `nohome`: an empty or relative `$HOME`, or a home whose identity cannot
+ *     be read. dash stayed where it was on `cd -P ""` and would have passed
+ *     the rest (M1 row 17), so this is asked before anything is resolved.
+ *  3. `notsame`: a folder `cd -P` cannot enter, a folder whose identity cannot
+ *     be read, or one whose identity is not the pin. Main maps it to
+ *     `folderChanged` and never stores a pin because of it.
+ *  4. `offlimits`: the folder IS `/`, IS the home, is a direct child of the
+ *     home, or HOLDS the home as an ancestor (walked up from the home by
+ *     `..`). Main maps it to `writesOff` naming the folder.
+ *  5. `protected`: the folder, or any folder above it, is the `.git` or the
+ *     `.ssh` of its own parent, found by comparing its identity with
+ *     `<parent>/.git/.` and `<parent>/.ssh/.`, so the VOLUME decides what
+ *     folds to those names (`.SSH`, `.ßh`, `.ſsh` on this Mac's data volume).
+ *
+ * A walk longer than 255 steps fails closed with `notsame`.
+ *
+ * ## A legacy root (pin `-`) skips all of it, as today (SPEC D16)
+ *
+ * It is still entered with `cd -P`, so its writes go through `.` too, and its
+ * old `..` refusal stays. Research 138 section 2.5 item 1 (a root that is
+ * itself a link is followed) is the stated limit that remains for a legacy
+ * root and for nothing else.
+ *
+ * It names no mutating program, no redirection but `2>/dev/null`, and no
+ * `exit 1`. Every variable it sets starts with `w`, which no script below it
+ * uses.
+ */
+const folderCheck = (
+  folder: string,
+  pin: string,
+  fields: 2 | 3,
+  legacyMiss: string
+): readonly string[] => [
+  `case "${folder}" in /*) ;; *) ${say('badname', fields)}; exit 0;; esac`,
+  "wq=$(stat -c '%d:%i' / 2>/dev/null || true)",
+  'if [ -n "$wq" ]; then wq=-c; else wq=-f; fi',
+  `if [ "${pin}" = - ]; then`,
+  `  case "${folder}" in *..*) ${say('badname', fields)}; exit 0;; esac`,
+  `  cd -P -- "${folder}" 2>/dev/null || { ${say(legacyMiss, fields)}; exit 0; }`,
+  'else',
+  `  case "$HOME" in /*) ;; *) ${say('nohome', fields)}; exit 0;; esac`,
+  `  wh=$(stat "$wq" '%d:%i' "$HOME/." 2>/dev/null || true)`,
+  `  if [ -z "$wh" ]; then ${say('nohome', fields)}; exit 0; fi`,
+  `  cd -P -- "${folder}" 2>/dev/null || { ${say('notsame', fields)}; exit 0; }`,
+  '  wd=.',
+  '  wn=0',
+  '  wp=',
+  '  while :; do',
+  `    wx=$(stat "$wq" '%d:%i' "$wd" 2>/dev/null || true)`,
+  `    if [ -z "$wx" ]; then ${say('notsame', fields)}; exit 0; fi`,
+  `    if [ "$wn" = 0 ] && [ "$wx" != "${pin}" ]; then ${say('notsame', fields)}; exit 0; fi`,
+  '    if [ "$wx" = "$wp" ]; then break; fi',
+  `    if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]; then ${say('offlimits', fields)}; exit 0; fi`,
+  `    wg=$(stat "$wq" '%d:%i' "$wd/../.git/." 2>/dev/null || true)`,
+  `    ws=$(stat "$wq" '%d:%i' "$wd/../.ssh/." 2>/dev/null || true)`,
+  `    if [ "$wx" = "$wg" ] || [ "$wx" = "$ws" ]; then ${say('protected', fields)}; exit 0; fi`,
+  '    wp=$wx',
+  '    wd="$wd/.."',
+  '    wn=$((wn + 1))',
+  `    if [ "$wn" -gt 255 ]; then ${say('notsame', fields)}; exit 0; fi`,
+  '  done',
+  `  if [ "$wn" -le 1 ]; then ${say('offlimits', fields)}; exit 0; fi`,
+  '  wd="$HOME/.."',
+  '  wp=$wh',
+  '  wn=0',
+  '  while :; do',
+  `    wx=$(stat "$wq" '%d:%i' "$wd" 2>/dev/null || true)`,
+  '    if [ -z "$wx" ] || [ "$wx" = "$wp" ]; then break; fi',
+  `    if [ "$wx" = "${pin}" ]; then ${say('offlimits', fields)}; exit 0; fi`,
+  '    wp=$wx',
+  '    wd="$wd/.."',
+  '    wn=$((wn + 1))',
+  `    if [ "$wn" -gt 255 ]; then ${say('notsame', fields)}; exit 0; fi`,
+  '  done',
+  'fi'
+];
+
+/**
+ * The repository root, reached FROM THE FOLDER rather than by its path (Phase
+ * 336), for the three writes that take a `cwd`: `git-stage`, `git-unstage`
+ * and `git-commit`.
+ *
+ * `root` is the root main's own review read printed, which that machine's git
+ * wrote as a PHYSICAL path, and `cwd` is the tab's folder relative to the
+ * folder {@link folderCheck} entered. Until Phase 336 these three ended
+ * `cd "$r"` (or `cd "$1"`), a second resolution of a path, so a link swapped in
+ * for the folder after the check would have moved every git to another
+ * repository (§Attack G2, applied to the verbs that take a `cwd`). Now the
+ * shell steps into the tab's folder from `.`, then climbs by `..` one step at a
+ * time, comparing each step's device and inode with the root's, and enters
+ * the step that matches. Every step is relative to the directory that was
+ * checked, so nothing is resolved by name again. A root that is not an
+ * ancestor of the tab's folder, or cannot be read, answers `notsame`, and so
+ * does a climb that reaches `/` or runs past 255 steps.
+ *
+ * It adds no git line: the climb is `stat` and `cd`, so each verb still sends
+ * exactly the one git that writes. It reads `wq`, the `stat` spelling
+ * {@link folderCheck} chose.
+ */
+const repoAnchor = (
+  root: string,
+  cwd: string,
+  fields: 2 | 3
+): readonly string[] => [
+  `cd -P -- "./${cwd}" 2>/dev/null || { ${say('notsame', fields)}; exit 0; }`,
+  `wr=$(stat "$wq" '%d:%i' "${root}/." 2>/dev/null || true)`,
+  `if [ -z "$wr" ]; then ${say('notsame', fields)}; exit 0; fi`,
+  'wd=.',
+  'wn=0',
+  'wp=',
+  'while :; do',
+  `  wx=$(stat "$wq" '%d:%i' "$wd" 2>/dev/null || true)`,
+  '  if [ "$wx" = "$wr" ]; then break; fi',
+  `  if [ -z "$wx" ] || [ "$wx" = "$wp" ] || [ "$wn" -gt 255 ]; then ${say('notsame', fields)}; exit 0; fi`,
+  '  wp=$wx',
+  '  wd="$wd/.."',
+  '  wn=$((wn + 1))',
+  'done',
+  `cd -P -- "$wd" 2>/dev/null || { ${say('notsame', fields)}; exit 0; }`
+];
+
+/**
  * The third write, and the first one that can replace a file a person already
  * had (Phase 101).
  *
  * ## What it does, in order
  *
- * `$1` is the confirmed folder Tortie may save under. `$2` is the file's path
- * relative to it. `$3` is either the sha256 of the file as Tortie last read it,
- * or the word `new`. `$4` is the payload, encoded.
+ * `$1` is the folder Tortie may save under: an open project's stored path, or
+ * a legacy `writeRoot`. `$2` is the file's path relative to it. `$3` is either
+ * the sha256 of the file as Tortie last read it, or the word `new`. `$4` is
+ * the payload, encoded. `$5` is the folder's pin, or `-` for a legacy root,
+ * appended by `runFolderWrite` (Phase 336); {@link folderCheck} reads it before
+ * anything else touches the disk, and from then on the folder is `.`.
  *
  * ## The checksum program is PROVED to work before anything is written
  *
@@ -2514,12 +2759,14 @@ const noLinkWalk = (
  *
  *  0. The checksum program is RUN before either arm, as the paragraph above
  *     says, and no refusal word appears after the first write.
- *  1. TWO containment lines guard `$1` and one guards `$2`. The single line
- *     `case "$2" in /*|*..*) exit 1;; esac` is copied from `REVIEW_FILE`, which
- *     already carries it and already takes one false refusal, being a file
- *     whose own name holds two dots in a row. That false refusal is repeated
- *     here and it is the price of a rule with no parser in it. `$1` gets its
- *     own two lines, because the shipped line guards `$2` only.
+ *  1. `$2` is guarded by {@link relGuards} and `$1` by {@link folderCheck}.
+ *     The `*..*` half is copied from `REVIEW_FILE`, which already takes one
+ *     false refusal, being a file whose own name holds two dots in a row. That
+ *     false refusal is repeated here and it is the price of a rule with no
+ *     parser in it. SINCE PHASE 336 it answers `badname` inside the markers
+ *     rather than exiting 1, so main says what happened, and the `.git` and
+ *     `.ssh` half this writer lacked until Phase 336 answers `protected`
+ *     (research 138 section 2.5 items 2 and 3).
  *  2. The temporary name is DETERMINISTIC, being `"$f.tortie-part"`.
  *     `image-put` used `$$` and that was defect 3 of research 57 section 9,
  *     which Phase 96 fixed. A deterministic name means an interrupted save
@@ -2553,12 +2800,15 @@ const noLinkWalk = (
  *     first save is a replacement of a file Tortie just created at 600, so its
  *     mode is read on the next save like any other.
  *
- * ## What is NOT kept, and the confirm sheet says so before a person agrees
+ * ## What is NOT kept
  *
  * Hard links and extended attributes. The same measurement showed two hard
  * links becoming one and one extended attribute disappearing. That is in
- * `MACHINE_WRITE_HONESTY` in `./confirm.ts`, drawn beside every sheet that
- * grants file replacement, and it is deliberately not in the hashed lines.
+ * `MACHINE_WRITE_HONESTY` in `./confirm.ts`, drawn beside a machine row that
+ * carries a legacy `writeRoot`, and it is deliberately not in the hashed
+ * lines. Since Phase 336 a project folder needs no sheet to save in, as a
+ * project on this Mac needs none, so for a project it is a stated limit of
+ * the save rather than a line a person reads before agreeing.
  *
  * Containment over the PATH TEXT is the schema's, main's and the two `case`
  * lines' half, and no symlink is RESOLVED by any of them, for the reason
@@ -2582,9 +2832,8 @@ const noLinkWalk = (
 const FILE_PUT = [
   'set -e',
   'umask 077',
-  'case "$1" in /*) ;; *) exit 1;; esac',
-  'case "$1" in *..*) exit 1;; esac',
-  'case "$2" in /*|*..*) exit 1;; esac',
+  ...relGuards('$2', 3),
+  ...folderCheck('$1', '$5', 3, 'missing'),
   ...noLinkWalk('$2', 3),
   'p=$(command -v shasum 2>/dev/null || true)',
   'if [ -z "$p" ]; then p=$(command -v sha256sum 2>/dev/null || true); fi',
@@ -2597,7 +2846,11 @@ const FILE_PUT = [
   "  printf '__TORTIE_RUN__nosum none none__TORTIE_RUN__\\n'",
   '  exit 0',
   'fi',
-  'f="$1/$2"',
+  // PHASE 336. THROUGH `.`, NEVER THROUGH "$1". `folderCheck` above entered
+  // the folder with `cd -P` and checked that `.` is the pinned folder; naming
+  // it by path here would resolve it a second time, and a link swapped in
+  // between the two would take the bytes (§Attack G2, M9).
+  'f="./$2"',
   't="$f.tortie-part"',
   // PHASE 242. The last component and the staged name, which the walk above
   // deliberately does not ask about. A link at "$f" means the file this call
@@ -2677,38 +2930,24 @@ const FILE_PUT = [
   "printf '__TORTIE_RUN__wrote %s %s__TORTIE_RUN__\\n' \"$c\" \"$n\""
 ].join('\n');
 
-/**
- * The containment line the two Phase 102 writers carry, once per guarded value.
- *
- * IT IS WIDER THAN `file-put`'s AND THAT DIFFERENCE IS DELIBERATE.
- * `docs/research/57-i3-file-writes.md` section 12 rules this exact string for a
- * write. `review-file` carries the narrower `case "$2" in /*|*..*) exit 1;; esac`
- * because it is a read, and `file-put` shipped in Phase 101 carrying that same
- * narrower line. Phase 102 adds the `.git` half to the two writers it adds and
- * does NOT widen a shipped writer, so `.git` is guarded here and not on
- * `file-put`.
- *
- * There are two constants rather than one because the line names the value it
- * guards. `entry-rename` has two guarded values and it carries both lines.
- * `build/conformance-machines.mjs` pins both strings byte for byte as
- * `WRITE_PATH_GUARD`, and it also asserts each line stands above the first line
- * that uses the value it guards.
- *
- * The `*..*` half refuses a real name holding two dots in a row, e.g.
- * `notes..md`. That false refusal is taken on purpose and `review-file` already
- * takes it.
+/*
+ * THE CONTAINMENT LINE THE TWO PHASE 102 WRITERS CARRIED, `WRITE_PATH_GUARD_2`
+ * and `WRITE_PATH_GUARD_3`, became {@link relGuards} in Phase 336. Each was one
+ * `case` per guarded value with a case-sensitive `.git` half and `exit 1`; the
+ * value is now guarded by two lines, `badname` for an absolute value or one
+ * holding `..` and `protected` for a `.git` or `.ssh` segment in any ASCII
+ * case, both printed inside the markers. `file-put` carries the same two lines,
+ * so the three path writers no longer differ in what they guard (research 138
+ * section 2.5 item 2). `build/conformance-machines.mjs` pins them byte for byte.
  */
-const WRITE_PATH_GUARD_2 =
-  'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
-
-/** The same line for `$3`, which only `entry-rename` has. */
-const WRITE_PATH_GUARD_3 =
-  'case "$3" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
 
 /**
- * The fourth write. One new folder under one confirmed folder (Phase 102).
+ * The fourth write. One new folder under one folder (Phase 102).
  *
- * `$1` is the confirmed folder. `$2` is the new folder's path relative to it.
+ * `$1` is the folder Tortie may write under: an open project's stored path or
+ * a legacy `writeRoot`. `$2` is the new folder's path relative to it. `$3` is
+ * the folder's pin, or `-` for a legacy root, appended by `runFolderWrite`
+ * (Phase 336); {@link folderCheck} reads it first and the folder is `.` after.
  * It answers `made`, `exists`, `denied` or `noparent`, and it answers with two
  * fields always, with `none` for a field that has no value. That is
  * `git-clone`'s rule and `parseImagePutAnswer`'s rule. A short answer is a
@@ -2723,10 +2962,10 @@ const WRITE_PATH_GUARD_3 =
  *     and no third parameter is needed.
  *  2. `mkdir` CARRIES NO `-p`. A recursive make would create folders nobody
  *     named, and the gate asserts the absence of `-p`.
- *  3. AN EMPTY `$2` IS DETERMINED RATHER THAN SPECIAL. It makes `d="$1/"`,
- *     `${d%/*}` resolves to `"$1"`, the `-d` test passes, the `-e` test on
- *     `"$1/"` answers yes and the script answers `exists`. Nothing is created
- *     and no guard has to widen for it.
+ *  3. AN EMPTY `$2` IS DETERMINED RATHER THAN SPECIAL. It makes `d="./"`,
+ *     `${d%/*}` resolves to `.`, the `-d` test passes, the `-e` test on `./`
+ *     answers yes and the script answers `exists`. Nothing is created and no
+ *     guard has to widen for it.
  *  4. THE ORDER IS PARENT, THEN DESTINATION, THEN WRITABILITY. A parent that is
  *     gone answers `noparent` before anything else, because that is the state a
  *     person reaches from a tree read a minute ago.
@@ -2749,13 +2988,13 @@ const WRITE_PATH_GUARD_3 =
  * between the markers" refusal, and that is a state the product cannot describe
  * precisely.
  *
- * ## The containment line here is WIDER than `file-put`'s
+ * ## The containment lines (Phase 336)
  *
- * `docs/research/57-i3-file-writes.md` section 12 rules the write line, and it
- * carries a `.git` half that `review-file`'s line does not. `file-put` shipped
- * with `review-file`'s narrower line and Phase 102 does not widen a shipped
- * writer, so `.git` is guarded here and on `entry-rename` and NOT on
- * `file-put`. That is said out loud rather than left for a reader to notice.
+ * {@link relGuards} on `$2`, the same two lines `file-put` and `entry-rename`
+ * carry: `badname` for an absolute path or one holding `..`, `protected` for a
+ * `.git` or `.ssh` segment in any ASCII case. Until Phase 336 this writer had a
+ * case-sensitive `.git` half that `file-put` lacked, and a refusal here exited
+ * 1 with no answer, which main read as "it may have been made".
  *
  * The `*..*` half refuses a real name holding two dots in a row, e.g.
  * `notes..md`. That false refusal is taken on purpose and `review-file` already
@@ -2764,11 +3003,11 @@ const WRITE_PATH_GUARD_3 =
 const DIR_NEW = [
   'set -e',
   'umask 077',
-  'case "$1" in /*) ;; *) exit 1;; esac',
-  'case "$1" in *..*) exit 1;; esac',
-  WRITE_PATH_GUARD_2,
+  ...relGuards('$2', 2),
+  ...folderCheck('$1', '$3', 2, 'noparent'),
   ...noLinkWalk('$2', 2),
-  'd="$1/$2"',
+  // PHASE 336. Through `.`, for the reason `file-put` gives at its `f=`.
+  'd="./$2"',
   'p="${d%/*}"',
   'if [ ! -d "$p" ]; then',
   "  printf '__TORTIE_RUN__noparent none__TORTIE_RUN__\\n'",
@@ -2793,10 +3032,12 @@ const DIR_NEW = [
 ].join('\n');
 
 /**
- * The fifth write. One rename inside one confirmed folder (Phase 102).
+ * The fifth write. One rename inside one folder (Phase 102).
  *
- * `$1` is the confirmed folder. `$2` is the path the entry has now and `$3` is
- * the path wanted, both relative to it. It answers `moved`, `done`, `exists` or
+ * `$1` is the folder Tortie may write under, the deepest one holding BOTH ends
+ * (`pickWriteFolderForPair` in src/shared/remote-write-folder.ts). `$2` is the
+ * path the entry has now and `$3` is the path wanted, both relative to it. `$4`
+ * is the folder's pin, or `-` for a legacy root (Phase 336). It answers `moved`, `done`, `exists` or
  * `gone`, with two fields always.
  *
  * ## The five branches, which are the whole safe to run twice argument
@@ -2849,23 +3090,23 @@ const DIR_NEW = [
  * answer can leave a partial copy. The shipped surface is a rename inside one
  * folder, so no surface in this product can reach a cross device move.
  *
- * ## The containment line is carried twice, once per guarded value
+ * ## The containment lines are carried twice, once per guarded value
  *
- * The line names the value it guards, so `$3` gets its own copy spelled
- * `case "$3" in ...`. Either path outside the confirmed folder refuses the whole
+ * {@link relGuards} names the value it guards, so `$3` gets its own pair.
+ * Either path outside the folder, or naming `.git` or `.ssh`, refuses the whole
  * call, in main and again here.
  */
 const ENTRY_RENAME = [
   'set -e',
   'umask 077',
-  'case "$1" in /*) ;; *) exit 1;; esac',
-  'case "$1" in *..*) exit 1;; esac',
-  WRITE_PATH_GUARD_2,
-  WRITE_PATH_GUARD_3,
+  ...relGuards('$2', 2),
+  ...relGuards('$3', 2),
+  ...folderCheck('$1', '$4', 2, 'gone'),
   ...noLinkWalk('$2', 2),
   ...noLinkWalk('$3', 2),
-  's="$1/$2"',
-  't="$1/$3"',
+  // PHASE 336. Through `.`, for the reason `file-put` gives at its `f=`.
+  's="./$2"',
+  't="./$3"',
   'sp=0',
   'tp=0',
   'if [ -e "$s" ] || [ -L "$s" ]; then sp=1; fi',
@@ -2896,11 +3137,14 @@ const ENTRY_RENAME = [
  * The per element guard the two Phase 103 writers carry, over EVERY element of
  * the list before any git runs.
  *
- * It is `WRITE_PATH_GUARD_2` with three more shapes on it, being the empty
- * element, the single dot and a trailing slash. The `.git` half comes from
+ * It is {@link relGuards}'s first line with three more shapes on it, being the
+ * empty element, the single dot and a trailing slash, and its second line
+ * as it stands. The `.git` half comes from
  * `docs/research/57-i3-file-writes.md` section 12 and is carried here for the
  * reason Phase 102 carries it: git never reports a path under `.git`, so
- * refusing one costs nothing.
+ * refusing one costs nothing. SINCE PHASE 336 the shapes answer `badname` and
+ * the reserved names (`.git` and `.ssh`, any ASCII case) answer `protected`,
+ * both inside the markers, rather than `exit 1`.
  *
  * THE SINGLE DOT IS THE ONE THAT MATTERS MOST. `git add -A -- ":(literal)."`
  * stages every change in that repository in one call, which is not what any
@@ -2916,16 +3160,33 @@ const ENTRY_RENAME = [
  * `build/conformance-machines.mjs` pins this string byte for byte and asserts
  * that it stands above the `cd` and above every git in both scripts.
  */
-const INDEX_PATH_GUARD =
-  "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+const INDEX_PATH_GUARD = [
+  `  case "$p" in ''|.|/*|*..*|*/) ${say('badname', 2)}; exit 0;; esac`,
+  `  case "$p" in ${RESERVED_SEGMENTS}) ${say('protected', 2)}; exit 0;; esac`
+];
 
 /**
  * The head both Phase 103 writers share, and every line of it is load bearing.
  *
  * `$1` is the REPOSITORY ROOT on that machine. `$2` is the list of repository
- * relative paths, one per line. `$3` is the folder the person confirmed, as
- * they gave it. `$4` is the tab's own folder written relative to `$3`, and it
- * is EMPTY for the ordinary case of a tab opened at the confirmed folder.
+ * relative paths, one per line. `$3` is the folder Tortie may write under, as
+ * stored (an open project's path or a legacy `writeRoot`). `$4` is the tab's
+ * own folder written relative to `$3`, and it is EMPTY for the ordinary case of
+ * a tab opened at that folder. `$5` is the folder's pin, or `-` for a legacy
+ * root, appended by `runFolderWrite` (Phase 336).
+ *
+ * ## PHASE 336: THE FOLDER IS ENTERED ONCE, AND GIT RUNS WHERE IT WAS ENTERED
+ *
+ * {@link folderCheck} enters `$3` with `cd -P` and checks its identity, the
+ * walk then asks about `$4` from `.`, and {@link repoAnchor} reaches the
+ * repository FROM THAT DIRECTORY rather than by its path: it steps into the
+ * tab's folder and climbs by `..` until a step's device and inode are the
+ * root's. Until Phase 336 the text ended `cd "$r"`, a second resolution of a
+ * path, so a link swapped in for the folder after the check would have moved
+ * every git to another repository (§Attack G2 applied to the three verbs that
+ * take a `cwd`). A root that is not above the tab's folder answers `notsame`.
+ * The climb is `stat` and `cd` alone, so the one git that writes is still the
+ * only git this text runs.
  *
  * ## THE GAP THIS HEAD USED TO LEAVE OPEN, and what closed it (Phase 242.1)
  *
@@ -2983,8 +3244,8 @@ const INDEX_PATH_GUARD =
  *  5. `:(literal)` is attached PER WORD, which is why the loop exists at all.
  *     It is what `literalSpec` in `src/main/git/service.ts` already does for a
  *     local path, so a name holding `*` or `[` cannot glob.
- *  6. `[ "$#" -gt 0 ] || exit 1` refuses an empty list, so no git ever runs
- *     with a bare `--`.
+ *  6. An empty list answers `badname` (Phase 336; it was `exit 1`), so no git
+ *     ever runs with a bare `--`.
  *
  * ## The loop spawns nothing
  *
@@ -2998,21 +3259,24 @@ const INDEX_WRITE_HEAD = [
   'umask 077',
   'r="$1"',
   'l="$2"',
-  'case "$r" in /*) ;; *) exit 1;; esac',
-  'case "$r" in *..*) exit 1;; esac',
-  'case "$3" in /*) ;; *) exit 1;; esac',
-  'case "$3" in *..*) exit 1;; esac',
-  'case "$4" in /*|*..*) exit 1;; esac',
-  ...noLinkWalk('$4', 2, '$3', 'walk'),
+  'c="$4"',
+  `case "$r" in /*) ;; *) ${say('badname', 2)}; exit 0;; esac`,
+  `case "$r" in *..*) ${say('badname', 2)}; exit 0;; esac`,
+  ...relGuards('$4', 2),
+  ...folderCheck('$3', '$5', 2, 'notsame'),
+  ...noLinkWalk('$4', 2, '.', 'walk'),
   "IFS='",
   "'",
   'set --',
   'for p in $l; do',
-  `  ${INDEX_PATH_GUARD}`,
+  ...INDEX_PATH_GUARD,
   '  set -- "$@" ":(literal)$p"',
   'done',
-  '[ "$#" -gt 0 ] || exit 1',
-  'cd "$r"'
+  `if [ "$#" = 0 ]; then ${say('badname', 2)}; exit 0; fi`,
+  // PHASE 336. The repository is reached from the folder `folderCheck`
+  // entered, never by its path. `$c` is the tab's folder relative to it, read
+  // before `set --` replaced the positionals.
+  ...repoAnchor('$r', '$c', 2)
 ];
 
 /**
@@ -3048,8 +3312,7 @@ const GIT_STAGE = [
 /**
  * The seventh write. Take a list of paths back out of one index (Phase 103).
  *
- * `$1`, `$2`, `$3` and `$4` are `git-stage`'s four values and mean the same
- * things.
+ * `$1` to `$5` are `git-stage`'s five values and mean the same things.
  *
  * ## The unborn branch, tested ON THAT MACHINE
  *
@@ -3096,8 +3359,11 @@ const GIT_UNSTAGE = [
  * `$1` is the repository root on that machine. `$2` is the commit `HEAD` was
  * pointing at when Tortie read that folder, or the word `none` for a repository
  * with no commit yet. `$3` is the message the person typed. `$4` is the folder
- * the person confirmed, as they gave it, and `$5` is the tab's own folder
- * written relative to `$4`, empty when the two are the same folder.
+ * Tortie may write under, as stored, and `$5` is the tab's own folder written
+ * relative to `$4`, empty when the two are the same folder. `$6` is the
+ * folder's pin, or `-` for a legacy root (Phase 336); {@link folderCheck}
+ * reads it, and the repository is then reached from the folder it entered,
+ * as {@link INDEX_WRITE_HEAD} reaches it, rather than by `cd "$1"`.
  *
  * ## `$4` AND `$5` ARE THE CONTAINMENT, and they were added in Phase 242.1
  *
@@ -3171,16 +3437,21 @@ const GIT_UNSTAGE = [
  * ## The answer is three fields and always three
  *
  * A word, then a base64 blob or `none`, then a sha or `none`. The three words
- * are `moved`, `committed` and `failed`.
+ * are `moved`, `committed` and `failed`, and since Phase 336 a refusal printed
+ * above every git (`badname`, `protected`, `notsame`, `offlimits`, `nohome`,
+ * and Phase 242.1's `outside`) carries `none none`.
  */
 const GIT_COMMIT = [
   'set -e',
   'umask 077',
-  'case "$4" in /*) ;; *) exit 1;; esac',
-  'case "$4" in *..*) exit 1;; esac',
-  'case "$5" in /*|*..*) exit 1;; esac',
-  ...noLinkWalk('$5', 3, '$4', 'walk'),
-  'cd "$1"',
+  `case "$1" in /*) ;; *) ${say('badname', 3)}; exit 0;; esac`,
+  `case "$1" in *..*) ${say('badname', 3)}; exit 0;; esac`,
+  ...relGuards('$5', 3),
+  ...folderCheck('$4', '$6', 3, 'notsame'),
+  ...noLinkWalk('$5', 3, '.', 'walk'),
+  // PHASE 336. The repository is reached from the folder `folderCheck`
+  // entered, never by its path, for the reason `repoAnchor` gives.
+  ...repoAnchor('$1', '$5', 3),
   'h=$(git rev-parse --verify --quiet HEAD 2>/dev/null || true)',
   'if [ -z "$h" ]; then h=none; fi',
   'if [ "$h" != "$2" ]; then',
@@ -3496,13 +3767,59 @@ const ENV_NAMES = [
 ].join('\n');
 
 /**
- * The whole catalogue. Twenty nine scripts, and this release holds no others.
+ * One folder's device and inode on a machine (Phase 336).
+ *
+ * `$1` is the folder, absolute, as the project row stores it. The answer is ONE
+ * value between the markers: `<dev>:<ino>` of the folder, or
+ * {@link REMOTE_SCRIPT_EMPTY} when the folder is not absolute, is not there or
+ * cannot be read.
+ *
+ * IT IS TAKEN THROUGH THE FOLDER, over `"$1/."`, which is the same expression
+ * the first step of {@link folderCheck}'s walk reads once it has entered the
+ * folder, so a pin and a check taken the same way agree. A folder reached
+ * through a linked ANCESTOR therefore keeps one identity however it is spelled,
+ * and a folder that is itself a link pins the folder it leads to, which the
+ * write's own check then judges for the home and reserved-folder rules.
+ *
+ * THE `stat` SPELLING IS CHOSEN ONCE, GNU FIRST. `stat -c` is probed on `/`;
+ * on a machine where it answers, only `stat -c` is used, and otherwise only
+ * `stat -f`. That is the order `context-read` uses, for its reason: GNU
+ * `stat -f` is file system status and prints a block before failing, while
+ * BSD `stat -c` prints nothing at all. {@link folderCheck} chooses the same
+ * way, so the pin and the check read one dialect.
+ *
+ * It writes nothing: it names `case`, `stat`, `printf` and `test`, and its only
+ * redirection is `2>/dev/null`. Running it twice reads the same folder twice.
+ */
+const FOLDER_PIN = [
+  'set -e',
+  'umask 077',
+  "case \"$1\" in /*) ;; *) printf '__TORTIE_RUN__none__TORTIE_RUN__\\n'; exit 0;; esac",
+  'd="$1"',
+  "q=$(stat -c '%d:%i' / 2>/dev/null || true)",
+  'if [ -n "$q" ]; then',
+  "  i=$(stat -c '%d:%i' \"$d/.\" 2>/dev/null || true)",
+  'else',
+  "  i=$(stat -f '%d:%i' \"$d/.\" 2>/dev/null || true)",
+  'fi',
+  "printf '__TORTIE_RUN__%s__TORTIE_RUN__\\n' \"${i:-none}\""
+].join('\n');
+
+/**
+ * The whole catalogue. Thirty scripts, and this release holds no others.
+ * PHASE 336 ADDED THE THIRTIETH, `folder-pin`, a read, at the foot.
  *
  * A name that is not here is refused by `./remote-run.ts` before anything is
  * composed, which is the shape the verb ledger has as well: the refusal happens
  * before a string exists, rather than after one was built and then inspected.
  *
- * EIGHT of the twenty nine write, being `image-put`, `git-clone`, `file-put`,
+ * PHASE 336 SPLIT THE WRITES BY WHAT BOUNDS THEM. Six are `bound: 'folder'`
+ * (`file-put`, `dir-new`, `entry-rename`, `git-stage`, `git-unstage`,
+ * `git-commit`), carry the folder's pin as their last positional and cross
+ * only through `runFolderWrite`; two are `bound: 'machine'` (`image-put`,
+ * `git-clone`) and cross through `runRemoteWrite`.
+ *
+ * EIGHT of the thirty write, being `image-put`, `git-clone`, `file-put`,
  * `dir-new`, `entry-rename`, `git-stage`, `git-unstage` and `git-commit`, and
  * they are in that order in this array. {@link remoteWriteScripts} returns them
  * in it.
@@ -3554,6 +3871,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'image-put',
     mode: 'write',
+    bound: 'machine',
     params: 2,
     text: IMAGE_PUT,
     reason:
@@ -3695,6 +4013,7 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-clone',
     mode: 'write',
+    bound: 'machine',
     params: 2,
     text: GIT_CLONE,
     reason:
@@ -3705,7 +4024,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'file-put',
     mode: 'write',
-    params: 4,
+    bound: 'folder',
+    folderArg: 0,
+    params: 5,
     text: FILE_PUT,
     reason:
       'A run that finds the file already carrying the checksum of the payload ' +
@@ -3716,7 +4037,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'dir-new',
     mode: 'write',
-    params: 2,
+    bound: 'folder',
+    folderArg: 0,
+    params: 3,
     text: DIR_NEW,
     reason:
       'A second run with the same two values finds the folder the first run ' +
@@ -3726,7 +4049,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'entry-rename',
     mode: 'write',
-    params: 3,
+    bound: 'folder',
+    folderArg: 0,
+    params: 4,
     text: ENTRY_RENAME,
     reason:
       'A second run with the same three values finds the source gone and the ' +
@@ -3740,7 +4065,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-stage',
     mode: 'write',
-    params: 4,
+    bound: 'folder',
+    folderArg: 2,
+    params: 5,
     text: GIT_STAGE,
     reason:
       'A second run with the same list asks that machine own git to put the ' +
@@ -3751,7 +4078,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-unstage',
     mode: 'write',
-    params: 4,
+    bound: 'folder',
+    folderArg: 2,
+    params: 5,
     text: GIT_UNSTAGE,
     reason:
       'A second run with the same list asks that machine own git to take the ' +
@@ -3764,7 +4093,9 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
   {
     id: 'git-commit',
     mode: 'write',
-    params: 5,
+    bound: 'folder',
+    folderArg: 3,
+    params: 6,
     text: GIT_COMMIT,
     reason:
       'A commit runs only when HEAD on that machine is still the sha Tortie ' +
@@ -3800,6 +4131,13 @@ export const REMOTE_SCRIPTS: readonly RemoteScript[] = [
       'It asks that machine\'s own login shell which of a list of variable ' +
       'names it has a usable value for, prints the NAMES it has and no value ' +
       'at all, and writes nothing. Running it twice asks the same question.'
+  },
+  {
+    id: 'folder-pin',
+    mode: 'read',
+    params: 1,
+    text: FOLDER_PIN,
+    reason: "It prints one folder's device and inode and writes nothing."
   }
 ];
 

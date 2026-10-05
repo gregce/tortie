@@ -38,17 +38,24 @@ let gateThrows: string | null = null;
 /** The row the store holds, or null for a machine that is not in the file. */
 let row: Record<string, unknown> | null = null;
 
+// PHASE 336. Both verbs cross the FOLDER door, which appends the folder's pin
+// last; `args` here are what the far side would read. A legacy `writeRoot`
+// carries the pin `-`.
 vi.mock('../remote-run', () => ({
   runRemoteRead: async (): Promise<never> => {
     throw new Error('this module never reads');
   },
-  runRemoteWrite: async (
+  runRemoteWrite: async (_ctx: unknown, id: string): Promise<never> => {
+    throw new Error(`a folder-bound write crossed the machine door with ${id}`);
+  },
+  runFolderWrite: async (
     _ctx: unknown,
+    folder: { pin: string },
     id: string,
     args: readonly string[],
     options: { timeoutMs?: number } = {}
   ): Promise<{ payload: string; generation: number; bytes: number }> => {
-    ran.push({ id, args: [...args], timeoutMs: options.timeoutMs });
+    ran.push({ id, args: [...args, folder.pin], timeoutMs: options.timeoutMs });
     // The one word that makes the door itself fail, which is what a dropped
     // link does.
     if (answer === '__throw__') throw new Error('Command failed: /usr/bin/ssh');
@@ -177,7 +184,11 @@ describe('makeRemoteDir', () => {
       writeRoot: ROOT
     });
     expect(ran).toEqual([
-      { id: 'dir-new', args: [ROOT, 'src/new'], timeoutMs: REMOTE_ENTRY_TIMEOUT_MS }
+      {
+        id: 'dir-new',
+        args: [ROOT, 'src/new', '-'],
+        timeoutMs: REMOTE_ENTRY_TIMEOUT_MS
+      }
     ]);
     expect(remoteEntrySendCount()).toBe(1);
   });
@@ -197,20 +208,23 @@ describe('makeRemoteDir', () => {
     expect(remoteEntrySendCount()).toBe(0);
   });
 
-  it('refuses a path outside the confirmed folder, and sends nothing', async () => {
+  it('refuses a path no folder holds, and sends nothing', async () => {
+    // PHASE 336. Outside the legacy root and every open project is `writesOff`
+    // with no folder named, which is what "only inside a project you opened"
+    // means.
     const out = await makeRemoteDir({
       machineId: 'studio',
       path: '/Users/gdc/.ssh/x'
     });
-    expect(out.outcome).toBe('outsideRoot');
-    expect(out.writeRoot).toBe(ROOT);
+    expect(out.outcome).toBe('writesOff');
+    expect(out.writeRoot).toBeNull();
     expect(ran).toEqual([]);
     expect(remoteEntrySendCount()).toBe(0);
   });
 
   it('refuses the confirmed folder itself, because that folder is already there', async () => {
     const out = await makeRemoteDir({ machineId: 'studio', path: ROOT });
-    expect(out.outcome).toBe('outsideRoot');
+    expect(out.outcome).toBe('writesOff');
     expect(ran).toEqual([]);
   });
 
@@ -275,7 +289,7 @@ describe('renameRemoteEntry', () => {
     expect(ran).toEqual([
       {
         id: 'entry-rename',
-        args: [ROOT, 'src/a.ts', 'src/b.ts'],
+        args: [ROOT, 'src/a.ts', 'src/b.ts', '-'],
         timeoutMs: REMOTE_ENTRY_TIMEOUT_MS
       }
     ]);
@@ -306,14 +320,18 @@ describe('renameRemoteEntry', () => {
     expect(remoteEntrySendCount()).toBe(0);
   });
 
-  it('refuses when the SOURCE is outside the folder, and sends nothing', async () => {
+  it('refuses when the SOURCE is outside every folder, and sends nothing', async () => {
+    // PHASE 336. A source no folder holds is a path nobody opened, so it is
+    // `writesOff`; a source in a folder whose destination is not is
+    // `outsideRoot`, as the test above holds.
     const out = await renameRemoteEntry({
       machineId: 'studio',
       from: '/etc/hosts',
       to: `${ROOT}/hosts`,
       kind: 'file'
     });
-    expect(out.outcome).toBe('outsideRoot');
+    expect(out.outcome).toBe('writesOff');
+    expect(out.writeRoot).toBeNull();
     expect(ran).toEqual([]);
     expect(remoteEntrySendCount()).toBe(0);
   });
@@ -392,10 +410,10 @@ describe('the two script rows this module is the only caller of', () => {
     ]);
   });
 
-  it('declare the parameter counts this module sends', () => {
-    expect(REMOTE_SCRIPTS.find((one) => one.id === 'dir-new')?.params).toBe(2);
+  it('declare the parameter counts this module sends, the pin last', () => {
+    expect(REMOTE_SCRIPTS.find((one) => one.id === 'dir-new')?.params).toBe(3);
     expect(REMOTE_SCRIPTS.find((one) => one.id === 'entry-rename')?.params).toBe(
-      3
+      4
     );
   });
 

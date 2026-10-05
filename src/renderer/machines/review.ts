@@ -39,13 +39,25 @@ export function reviewNotAnsweringSublabel(machineLabel: string): string {
 export const REVIEW_READING = 'Reading what changed on that machine…';
 
 /**
- * The tooltip on a review tab.
+ * The tooltip on a tab holding a file on another machine.
  *
- * It says the machine and it says the tab is read only, because a diff tab in
- * Tortie is usually a file a person can edit and this one is not.
+ * It says the machine, and it says the tab is read only WHEN IT IS, because a
+ * diff tab in Tortie is usually a file a person can edit. PHASE 336 made the
+ * second sentence conditional: a file inside a project open on a confirmed
+ * machine is an edit surface, as it is on this Mac, and a tooltip telling a
+ * person typing into it that the view is read only would be false. The caller
+ * passes the editor's own answer (`tabIsReadOnly` in ../editor/tab-readonly),
+ * so the tooltip and Monaco cannot disagree; it defaults to read only, which
+ * is what every caller that cannot ask meant before.
  */
-export function reviewTabTooltip(name: string, machineLabel: string): string {
-  return `${name} on ${machineLabel}. This view is read only.`;
+export function reviewTabTooltip(
+  name: string,
+  machineLabel: string,
+  readOnly = true
+): string {
+  return readOnly
+    ? `${name} on ${machineLabel}. This view is read only.`
+    : `${name} on ${machineLabel}.`;
 }
 
 /**

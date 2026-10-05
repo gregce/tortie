@@ -1,4 +1,22 @@
 /**
+ * RETIRED BY PHASE 336, and it refuses at start, exit 2, with one sentence. It
+ * sends git-commit through `runRemoteWrite`, which since Phase 336 refuses
+ * every folder-bound write before anything is composed: those scripts cross
+ * only through `runFolderWrite` with a `WriteFolder` that
+ * src/main/machines/write-folder.ts alone makes, and each now takes the
+ * folder's pin as its last positional. A run would have failed at its first
+ * send. The Phase 336 integrator did not port it, because it could not run a
+ * port: this probe counts the operator's own tmux server, which no Phase 336
+ * builder or integrator may touch, so a port would have been a claim nobody
+ * ran. What covers the far texts now is `npm run probe:p336:script` (every
+ * folder-bound text under /bin/sh and /bin/dash over scratch trees, the 242
+ * family's arms with the legacy pin `-`) and
+ * src/main/machines/__tests__/p336-far-prelude.test.ts. A later round that
+ * wants these legs back over a real link ports the driver to
+ * `runFolderWrite` with a legacy folder (pin `-`, which is today's far text
+ * below the folder check), appends `-` to every direct /bin/sh run of the
+ * text, and re-reads the legs that read how the commit reaches the repository, which Phase 336 now enters from the checked folder by identity rather than by its path.
+ *
  * `node build/probe-p104-commit.mjs`. The Tier 3 live probe of Phase 104, being
  * the EIGHTH command this product can send that changes bytes on another
  * computer, and the first one that makes a commit over there.
@@ -101,6 +119,14 @@ import {
 import { tsxCli } from './ts-runner.mjs';
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
+
+// PHASE 336. Refused before anything is made, connected or counted: the door
+// this probe sends through refuses every one of its writes now.
+process.stderr.write(
+  '[p104-commit] REFUSING TO RUN. It sends git-commit through runRemoteWrite, which Phase 336 closed to folder-bound writes; ' +
+    'npm run probe:p336:script (build/p336/script-arms.mjs) runs the shipping texts it drove.\n'
+);
+process.exit(2);
 
 /** The only address this probe may ever contact. */
 const TARGET = '127.0.0.1';

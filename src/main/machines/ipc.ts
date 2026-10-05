@@ -5,7 +5,14 @@
  * Phase 98, one more in Phase 99 and one more in Phase 100, which Phase
  * 320.2 removed).
  *
- * Twenty four channels, and what is NOT here is the point of the file.
+ * Thirty six channels, and what is NOT here is the point of the file.
+ *
+ * THIS LINE SAID TWENTY FOUR UNTIL PHASE 336 and it is corrected rather than
+ * quietly moved: it was written at Phase 99 and every phase after it added
+ * channels without counting them here. The registrar held thirty eight when
+ * Phase 336 removed the two that typed a folder to save under, and the test
+ * in __tests__/ipc.test.ts names every one, which is the fact this sentence
+ * only restates.
  *
  *  - There is no `machines:connect`, no `machines:attach` and no
  *    `machines:createSession`. Neither Phase 68 nor Phase 69 opens a session on
@@ -145,11 +152,10 @@ import type {
   MachineContextResult,
   // ---- END PHASE 108 ----
   // ---- PHASE 101 ----
-  MachineAllowWritesInput,
-  MachineConfirmSheet,
+  // Phase 336 removed the two inputs of the sheet that typed a folder, with
+  // the two channels that took them.
   MachineFilePutInput,
   MachineFilePutResult,
-  MachineWriteSheetInput,
   // ---- END PHASE 101 ----
   // ---- PHASE 102 ----
   MachineMakeDirInput,
@@ -319,9 +325,6 @@ import { reviewFileOn, reviewFilesOn } from './remote-review';
 // said. It starts no process of its own: the bytes go through the write door in
 // ./remote-run.ts, which refuses a machine Tortie is not connected to.
 import { putFileOnMachine } from './remote-file';
-// The schema's own validator for the folder, so the sentence a person reads
-// when they type a bad one is written in exactly one place.
-import { writeRootField } from './schema';
 // ---- END PHASE 101 ----
 // ---- PHASE 102 ----
 // Making a folder and renaming an entry on one machine. It owns both write
@@ -749,113 +752,42 @@ export function registerMachinesIpc(ipc: IpcMain): void {
 
   // ---- PHASE 101 BLOCK ----
   //
-  // Three channels rather than one, and the split is the design.
+  // ONE CHANNEL SINCE PHASE 336, and the two it lost are written out here
+  // rather than quietly deleted.
   //
-  // A person turns saving on for one machine by typing a folder and pressing a
-  // button. The renderer may never compose that sheet's lines or its hash, and
-  // there is no prior result to take the sheet from, because the person types
-  // the folder. So there is a READ that answers the sheet and a WRITE that
-  // records the agreement. A single channel that previewed when `hashRead` was
-  // null and wrote when it was not was rejected: a channel that both previews
-  // and writes is a channel where one wrong argument writes.
+  // Phase 101 shipped three: a read that answered the sheet for a folder a
+  // person typed, a write that put that folder into the row as `writeRoot` and
+  // recorded the agreement, and the save. Phase 336 removed the first two
+  // (research 138 section 9, his ruling: "Zero presses ... I don't want any
+  // grants. I want it to act like i'm operating it locally."). A project a
+  // person opened on a confirmed machine is a folder Tortie may save under,
+  // with nothing asked, the way a project opened on this Mac is, so there is
+  // no folder left for a sheet to type.
   //
-  // The third is the save itself, and it is the only door to `file-put`.
-
-  /**
-   * The folder a person typed, checked with the schema's own validator.
-   *
-   * The validator throws its own sentence naming the field and the reason, and
-   * that sentence is what a person reads. Nothing is written and nothing is
-   * started when it refuses.
-   */
-  const writeRootOrThrow = (id: string, value: unknown): string => {
-    try {
-      return writeRootField(value, 'The folder Tortie may save under');
-    } catch (err) {
-      throw gmuxError(
-        'INVALID_INPUT',
-        `${(err as Error).message} Nothing was written for ${id} and nothing ` +
-          `was started.`
-      );
-    }
-  };
-
-  // THIS ONE READS. It composes the sheet for the row as it is now plus the
-  // folder, and answers it. It starts nothing, opens no connection, sends
-  // nothing to any machine and writes nothing at all.
-  handle(
-    ipc,
-    'machines:writeSheet',
-    (_event, input: MachineWriteSheetInput): MachineConfirmSheet => {
-      const row = rowOrThrow(input.id);
-      const root = writeRootOrThrow(row.id, input.writeRoot);
-      const summary = describeMachine(row.id, {
-        ...machineFieldsOf(row),
-        writeRoot: root
-      });
-      return {
-        hash: summary.hash,
-        lines: [...summary.lines],
-        warning: summary.warning,
-        // The paragraph that says what a save costs. It is answered by main and
-        // it is not one of `lines`, so the hash does not cover it and no sheet
-        // that grants file replacement can be drawn without it.
-        writeHonesty: summary.writeHonesty
-      };
-    }
-  );
-
-  // PHASE 101. A person turns saving on for one machine. The order below is
-  // `machines:acceptVersion`'s order, because that channel is this one's
-  // precedent, and it is the order that makes a stale sheet write nothing.
-  //
-  //  1. The machine has to be in the file.
-  //  2. The folder has to pass the schema's validator. A value that does not
-  //     refuses HERE, with nothing written and nothing started.
-  //  3. The hash is recomputed over the row as it is now plus the proposed
-  //     folder, and compared against the hash the sheet was drawn from. A
-  //     mismatch refuses and NOTHING is written.
-  //  4. Only then is the field written, and only then is the agreement
-  //     recorded.
-  //
-  // It contacts no machine, starts nothing and opens no connection.
-  handle(
-    ipc,
-    'machines:allowWrites',
-    (_event, input: MachineAllowWritesInput): MachineRowView => {
-      const row = rowOrThrow(input.id);
-      const root = writeRootOrThrow(row.id, input.writeRoot);
-      const next: MachineExecutionFields = {
-        ...machineFieldsOf(row),
-        writeRoot: root
-      };
-      const summary = describeMachine(row.id, next);
-      if (input.hashRead !== summary.hash) {
-        throw gmuxError(
-          'INVALID_INPUT',
-          `Tortie did not turn saving on for ${row.id}, because the machine ` +
-            `changed after it was shown. Read it again and confirm what it ` +
-            `says now. Nothing was written.`
-        );
-      }
-      setMachineWriteRoot(row.id, root);
-      // The field is on disk from here on. A keychain that refuses to seal
-      // leaves it in place and returns the sentence, rather than dropping what
-      // a person just chose.
-      recordAgreement(row.id, next, input.hashRead, input.linesRead);
-      const written = machineRow(row.id);
-      return viewOf(written ?? row);
-    }
-  );
+  // A dormant channel that writes a hashed field is surface a later round
+  // could re-wire, so they went whole rather than being left unreachable.
+  // Nothing in Tortie can set a `writeRoot` now. A row whose machines.json
+  // still carries one by hand reaches the confirm sheet as it always did, it
+  // is a hashed field, and it keeps the bound it had (build/p336/SPEC.md D16).
+  // `machines:forget` below still clears it with the confirmation, which is
+  // why `setMachineWriteRoot` is still imported.
 
   // PHASE 101. The save. It is the third channel in this product that can write
   // on another computer, and the only door to the `file-put` script.
   //
-  // EVERY REFUSAL IT CAN ANSWER MEANS NOTHING WAS WRITTEN. The three main
-  // decides on this Mac, being `writesOff`, `tooLarge` and `outsideRoot`,
-  // happen before anything is composed. The five the machine reports, being
-  // `stale`, `missing`, `exists`, `nomode` and `nosum`, are all printed above
-  // the line in the script that writes and none of them below it. That is a
+  // PHASE 336. What bounds it is no longer one confirmed field. It is the
+  // folder ./write-folder.ts picks: a legacy write root that holds the path,
+  // else the deepest project a person opened on that machine that holds it,
+  // with that folder's identity, pinned at the open, compared on the machine in
+  // the same call that writes. ./remote-file.ts asks it before composing.
+  //
+  // EVERY REFUSAL IT CAN ANSWER MEANS NOTHING WAS WRITTEN. The ones main
+  // decides on this Mac, being `writesOff`, `tooLarge`, `outsideRoot` and,
+  // since Phase 336, `protected`, happen before anything is composed. The ones
+  // the machine reports, being `stale`, `missing`, `exists`, `nomode` and
+  // `nosum`, and since Phase 336 the folder check's own words above them, are
+  // all printed above the line in the script that writes and none of them
+  // below it. That is a
   // property of the script text and the gate's condition 80 reads it out of
   // that text, rather than a claim made here. The first fix round of this
   // phase found `nosum` being printed after the write and closed it.
@@ -1239,16 +1171,23 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // in this product. They sit beside `machines:listTree` because they are what
   // the same Explorer does after it has listed rows.
   //
-  // WHAT BOUNDS THEM IS THE SAME ONE FIELD `machines:putFile` is bounded by,
-  // being `writeRoot` on the machine row. PHASE 102 ADDS NO CONFIRMED FIELD and
-  // no hash moves. A machine that carries no folder answers `writesOff` and
-  // nothing is composed.
+  // WHAT BOUNDS THEM IS WHAT BOUNDS `machines:putFile`. Phase 102 wrote that
+  // this was one confirmed field, `writeRoot` on the machine row, and PHASE 336
+  // CHANGED IT, so the sentence is corrected here rather than left to say
+  // something false. It is the folder ./write-folder.ts picks: a legacy write
+  // root that holds the path, else the deepest project a person opened on that
+  // machine that holds it (for a rename, the deepest that holds BOTH ends),
+  // with that folder's pinned identity compared on the machine in the same
+  // call. Phase 102 added no confirmed field and Phase 336 added none either,
+  // and no hash moved in either. A path outside every such folder answers
+  // `writesOff` and nothing is composed.
   //
   // NEITHER CARRIES A ROOT FROM THE RENDERER. `machines:listTree` above passes
   // `input.root` straight through, and its comment justifies that by saying the
   // channel cannot compose what it asks and carries no file contents. That
   // argument holds for a read and it does not carry to a write, so these two
-  // take a path and main reads the confirmed folder off the row itself.
+  // take a path and main picks the folder itself, from rows the renderer does
+  // not send.
   //
   // EVERY REFUSAL EITHER OF THEM CAN ANSWER MEANS NOTHING WAS CHANGED. The two
   // main decides on this Mac, being `writesOff` and `outsideRoot`, happen
@@ -1297,9 +1236,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // an absolute folder and relative paths under it would let one call stage
   // inside any repository on that machine.
   //
-  // WHAT BOUNDS THEM IS THE SAME ONE FIELD `machines:putFile` is bounded by,
-  // being `writeRoot` on the machine row. PHASE 103 ADDS NO CONFIRMED FIELD and
-  // no hash moves.
+  // WHAT BOUNDS THEM IS WHAT BOUNDS `machines:putFile`. Phase 103 wrote that
+  // this was one confirmed field, `writeRoot` on the machine row; since PHASE
+  // 336 it is the folder ./write-folder.ts picks from that machine's open
+  // projects (or a legacy write root that holds the tab's folder), with its
+  // pinned identity compared on the machine in the same call. Neither phase
+  // added a confirmed field and no hash moved.
   //
   // A CALL THAT ANSWERED `unsure` IS NOT A CALL THAT CHANGED NOTHING. Phase 101
   // measured a killed ssh completing the far side write, so that word means the
@@ -1338,9 +1280,12 @@ export function registerMachinesIpc(ipc: IpcMain): void {
   // tab's folder, and ./remote-commit.ts runs its own review read on it and
   // uses the root that machine's own rev-parse answered.
   //
-  // WHAT BOUNDS IT IS THE SAME ONE FIELD `machines:putFile` is bounded by,
-  // being `writeRoot` on the machine row. PHASE 104 ADDS NO CONFIRMED FIELD and
-  // no hash moves.
+  // WHAT BOUNDS IT IS WHAT BOUNDS `machines:putFile`. Phase 104 wrote that
+  // this was one confirmed field, `writeRoot` on the machine row; since PHASE
+  // 336 it is the folder ./write-folder.ts picks from that machine's open
+  // projects (or a legacy write root that holds the tab's folder), with its
+  // pinned identity compared on the machine in the same call. Neither phase
+  // added a confirmed field and no hash moved.
   //
   // THE REPEAT IS GUARDED BY HEAD. Main re-reads the folder immediately before
   // it composes, sends the sha it just read, and that machine refuses to commit

@@ -54,8 +54,10 @@ export interface TreeMenuCapabilities {
    *  - Copy Relative Path crosses unchanged, because a relative path is true on
    *    both computers.
    *  - Copy Path crosses with the machine in front of it.
-   *  - New File crosses on a machine a person has let Tortie save on, under
-   *    `remoteCreateFile` below. Phase 101 shipped it.
+   *  - New File crosses in a folder Tortie may write under on that machine
+   *    (since Phase 336, any project open on a confirmed machine, outside the
+   *    folders it never writes in; until then, the folder a person typed in
+   *    Settings), under `remoteCreateFile` below. Phase 101 shipped it.
    *  - New Folder and Rename cross under the same condition, under
    *    `remoteWriteEntries` below. Phase 102 shipped both.
    *  - Duplicate is absent. It has no script on the far side and research 57

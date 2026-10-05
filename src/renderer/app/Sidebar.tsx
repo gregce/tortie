@@ -38,7 +38,11 @@
 import React, { useMemo, useRef } from 'react';
 import { localPathOf, targetOfProject } from '@shared/workspace-target';
 import { liveChromeGeometry, useApp } from '../state/store';
-import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
+import {
+  machineLabelFor,
+  remoteWriteFolderIn,
+  type RemoteWriteRefusal
+} from '../state/machines-slice';
 import {
   activityBarIsRow,
   activityBarRenderedWidth,
@@ -81,7 +85,7 @@ import { Codicon } from '../icons';
 // drawn here as a 36px row while the projects are on the left, and only
 // one of the two is ever on screen.
 import { ActivityBar } from './ActivityBar';
-import { remoteEntryWritesOffLabel } from '../machines/explorer';
+import { remoteWriteRefusedLabel } from '../machines/explorer';
 
 /**
  * The machine a tab's folder is on, as a label, or null when it is this Mac.
@@ -91,8 +95,17 @@ import { remoteEntryWritesOffLabel } from '../machines/explorer';
  * PAIR through `localPathOf` rather than looking at a path, which is the rule
  * Phase 90.1 put in `@shared/workspace-target` and the reason two projects with
  * the same path on two computers cannot be confused for each other.
+ *
+ * PHASE 336. `refused` is why Tortie will not change files in this project's
+ * folder on that machine, or null when it will, asked of the project's own
+ * root in `folder` mode. A project open on a confirmed machine is a folder
+ * Tortie may write under, as a project open on this Mac is, so it is null for
+ * every ordinary project and the two buttons behave as they do here.
  */
-function useMachineWrite(): { label: string; writeRoot: string | null } | null {
+function useMachineWrite(): {
+  label: string;
+  refused: RemoteWriteRefusal | null;
+} | null {
   const projects = useApp((s) => s.projects);
   const activeProjectId = useApp((s) => s.activeProjectId);
   const machineStates = useApp((s) => s.machineStates);
@@ -102,10 +115,16 @@ function useMachineWrite(): { label: string; writeRoot: string | null } | null {
     [projects, activeProjectId]
   );
   if (target === null || localPathOf(target) !== null) return null;
-  const root = machineWriteRootFor(machineStates, target.machineId);
+  const folder = remoteWriteFolderIn(
+    machineStates,
+    projects,
+    target.machineId,
+    target.path,
+    'folder'
+  );
   return {
     label: machineLabelFor(machineStates, target.machineId),
-    writeRoot: root !== null && root.length > 0 ? root : null
+    refused: 'refused' in folder ? folder.refused : null
   };
 }
 
@@ -161,19 +180,18 @@ function ExplorerHeader(): React.JSX.Element {
   //
   // PHASE 102 BROUGHT THE SECOND BUTTON BACK ON. `dir-new` makes a folder on
   // that machine, so both buttons now read the same condition and both are
-  // pressable on a machine that carries a confirmed folder. They are still two
+  // pressable on a machine that carried a confirmed folder. They are still two
   // constants, because they gate two different writes and a later round may
   // move one without the other.
+  //
+  // PHASE 336. The condition is now the project's own folder: pressable in a
+  // project open on a confirmed machine, as on this Mac, with nothing asked.
   const machine = useMachineWrite();
-  const machineLabel = machine?.label ?? null;
+  const machineRefused = machine?.refused ?? null;
   const canCreateFolder =
-    treeHandle !== null &&
-    canMutate() &&
-    (machineLabel === null || machine?.writeRoot !== null);
+    treeHandle !== null && canMutate() && machineRefused === null;
   const canCreateFile =
-    treeHandle !== null &&
-    canMutate() &&
-    (machineLabel === null || machine?.writeRoot !== null);
+    treeHandle !== null && canMutate() && machineRefused === null;
 
   const create = (kind: 'file' | 'dir'): void => {
     if (treeHandle === null) return;
@@ -206,9 +224,9 @@ function ExplorerHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="New file"
         title={
-          machineLabel === null || machine?.writeRoot !== null
+          machine === null || machineRefused === null
             ? 'New file'
-            : remoteEntryWritesOffLabel(machineLabel)
+            : remoteWriteRefusedLabel(machineRefused, machine.label)
         }
         disabled={!canCreateFile}
         onClick={() => create('file')}
@@ -220,9 +238,9 @@ function ExplorerHeader(): React.JSX.Element {
         className="icon-btn view-header-action"
         aria-label="New folder"
         title={
-          machineLabel === null || machine?.writeRoot !== null
+          machine === null || machineRefused === null
             ? 'New folder'
-            : remoteEntryWritesOffLabel(machineLabel)
+            : remoteWriteRefusedLabel(machineRefused, machine.label)
         }
         disabled={!canCreateFolder}
         onClick={() => create('dir')}

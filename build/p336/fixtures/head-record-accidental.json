@@ -1,0 +1,190 @@
+{
+  "_note": "RECORDED, not hand-written: the HEAD record of the one real app run of build/p336/probe-p336.mjs in Phase 336, the integrator's accidental run of 2026-10-05 (HEAD only, no parent, the loopback machine; SPEC.md §As built, THE ACCIDENTAL RUN). Copied byte for byte from out/p336/p336-report.json records.head, except that the TMPDIR segment of every path is replaced by xx. Its honest verdicts: every arm passes except H5 (no parent launch made a manifest, so nothing was planted) and R (the Explorer was never shown, so the editor read missing). The self-test holds the graders to those verdicts.",
+  "build": "head",
+  "far": "loopback",
+  "arms": {
+    "L": {
+      "confirmedWithoutPress": false,
+      "hash": "e345cc15e308a87755e74741f0ee90223037d4c1b6f242ddee2ad70962d475ef",
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done",
+        "commit": "committed"
+      },
+      "payloadSum": "17997fd2d870a7366896148d8afb67515a3db1c0b18ee1a8ca0fce5759642f60",
+      "farSum": "17997fd2d870a7366896148d8afb67515a3db1c0b18ee1a8ca0fce5759642f60"
+    },
+    "A": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "rename": "moved",
+        "stage": "done",
+        "unstage": "done",
+        "commit": "committed"
+      },
+      "payloadSum": "f1fa2bd37cc699ae1e0945deff99893201c21ea73c25df630d809202277fca18",
+      "farSum": "f1fa2bd37cc699ae1e0945deff99893201c21ea73c25df630d809202277fca18",
+      "madeOnFar": true,
+      "renamedOnFar": true,
+      "commitsBefore": 1,
+      "commitsAfter": 2
+    },
+    "A2": {
+      "put": "wrote",
+      "payloadSum": "52874dcbbf5d030804f758032a6986713e96e9b8d16c8ed6b7c5f536143ed354",
+      "farSum": "52874dcbbf5d030804f758032a6986713e96e9b8d16c8ed6b7c5f536143ed354"
+    },
+    "B": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done"
+      }
+    },
+    "H1": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "folderChanged",
+        "rename": "folderChanged",
+        "stage": "folderChanged",
+        "commit": "folderChanged"
+      },
+      "victimBefore": ".git,README.md,a.txt,dirty.txt,notes.md,staged.txt,v.txt,|1384640818 7|3073069613 342|1",
+      "victimAfter": ".git,README.md,a.txt,dirty.txt,notes.md,staged.txt,v.txt,|1384640818 7|3073069613 342|1",
+      "reopen": {
+        "put": "wrote"
+      }
+    },
+    "H2": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "folderChanged",
+        "rename": "folderChanged"
+      },
+      "oldBefore": ".git,README.md,a.txt,before-swap.md,notes-ha.md,p336-ha-dir,p336-ha.md,",
+      "oldAfter": ".git,README.md,a.txt,before-swap.md,notes-ha.md,p336-ha-dir,p336-ha.md,",
+      "newBefore": "",
+      "newAfter": ""
+    },
+    "H3": {
+      "outcomes": {
+        "innocent": "protected",
+        "inn2": "protected"
+      },
+      "sshBefore": "authorized_keys,",
+      "sshAfter": "authorized_keys,"
+    },
+    "H4": {
+      "outcomes": {
+        "gitConfig": "protected",
+        "hook": "protected",
+        "gitDir": "protected",
+        "intoSsh": "protected",
+        "stageCwd": "protected",
+        "ssfold": "protected",
+        "longs": "protected"
+      },
+      "gitConfigBefore": "374867486 187",
+      "gitConfigAfter": "374867486 187",
+      "hooksBefore": "applypatch-msg.sample,commit-msg.sample,fsmonitor-watchman.sample,post-update.sample,pre-applypatch.sample,pre-commit.sample,pre-merge-commit.sample,pre-push.sample,pre-rebase.sample,pre-receive.sample,prepare-commit-msg.sample,push-to-checkout.sample,sendemail-validate.sample,update.sample,",
+      "hooksAfter": "applypatch-msg.sample,commit-msg.sample,fsmonitor-watchman.sample,post-update.sample,pre-applypatch.sample,pre-commit.sample,pre-merge-commit.sample,pre-push.sample,pre-rebase.sample,pre-receive.sample,prepare-commit-msg.sample,push-to-checkout.sample,sendemail-validate.sample,update.sample,",
+      "sshBefore": "",
+      "sshAfter": "",
+      "volume": "folds"
+    },
+    "H5": {
+      "root": {
+        "outcome": "writesOff",
+        "folder": null
+      },
+      "home": {
+        "outcome": "writesOff",
+        "folder": null
+      },
+      "planted": {
+        "outcome": "writesOff",
+        "folder": null
+      },
+      "rootWrote": false,
+      "homeWrote": false
+    },
+    "H5L": {
+      "outcome": "refused",
+      "why": "projectClosed",
+      "fileBefore": "planted\n",
+      "fileAfter": "planted\n"
+    },
+    "H6": {
+      "verbs": {
+        "put": {
+          "threw": true,
+          "message": "Error invoking remote method 'machines:putFile': GmuxError: {\"code\":\"INVALID_INPUT\",\"message\":\"Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started.\"}"
+        },
+        "makeDir": {
+          "threw": true,
+          "message": "Error invoking remote method 'machines:makeDir': GmuxError: {\"code\":\"INVALID_INPUT\",\"message\":\"Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started.\"}"
+        },
+        "rename": {
+          "threw": true,
+          "message": "Error invoking remote method 'machines:renameEntry': GmuxError: {\"code\":\"INVALID_INPUT\",\"message\":\"Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started.\"}"
+        },
+        "stage": {
+          "threw": true,
+          "message": "Error invoking remote method 'machines:stage': GmuxError: {\"code\":\"INVALID_INPUT\",\"message\":\"Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started.\"}"
+        },
+        "commit": {
+          "threw": true,
+          "message": "Error invoking remote method 'machines:commit': GmuxError: {\"code\":\"INVALID_INPUT\",\"message\":\"Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started.\"}"
+        }
+      },
+      "farBefore": "o.txt,p336-ha2.md,",
+      "farAfter": "o.txt,p336-ha2.md,",
+      "savesInProjects": false,
+      "afterUndo": {
+        "put": "wrote"
+      },
+      "confirmPressed": false
+    },
+    "H8": {
+      "home": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-75051/home"
+      },
+      "child": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-75051/home/child"
+      },
+      "grand": {
+        "outcome": "wrote",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-75051/home/child/grand"
+      }
+    },
+    "R": {
+      "editor": {
+        "missing": true
+      },
+      "save": null,
+      "farHasTyped": false,
+      "headerButtonsEnabled": null,
+      "bigFile": {
+        "opened": false,
+        "readOnly": null,
+        "chip": null,
+        "error": null
+      },
+      "drawnSettings": [],
+      "bundleNamesBrowseWrites": false,
+      "bundleNamesLetTortie": false
+    }
+  },
+  "run": {
+    "parentWanted": [],
+    "gmuxBefore": "65",
+    "gmuxAfter": "65",
+    "dotfilesMoved": [],
+    "electronsLeft": 0,
+    "farLeft": false
+  }
+}

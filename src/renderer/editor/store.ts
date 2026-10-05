@@ -150,7 +150,6 @@ import {
   targetOfProject
 } from '@shared/workspace-target';
 import { useApp } from '../state/store';
-import { machineWriteRootFor } from '../state/machines-slice';
 import { onOpenFile } from '../state/open-file';
 import { onRepoChanged } from '../state/repo-changed';
 import type { OpenFileRequest } from '../state/open-file';
@@ -178,7 +177,7 @@ import { createAutoSave } from './auto-save';
 // remembered place, which goes with the tab at every site a tab is dropped.
 import { createRereadFloor, REREAD_FLOOR_MS } from './reread-on-return';
 import { forgetRedlineScroll } from './redline-scroll';
-import { tabIsReadOnly } from './tab-readonly';
+import { remoteTabWriteFolder, tabIsReadOnly } from './tab-readonly';
 import type { AutoSaveStopWhy } from './auto-save';
 import { useSettingsStore } from '../settings/settings-store';
 // Direct module import, not the ./markdown barrel: the barrel re-exports the
@@ -1560,11 +1559,18 @@ export const useEditor = create<EditorState>((set, get) => {
       // asks MonacoHost's own question with MonacoHost's own folder, so a tab a
       // person can type into is a tab that can be dirty, and a review tab on a
       // machine with no folder is still refused exactly as before.
+      //
+      // PHASE 336. The folder is now the open project that holds the file, read
+      // through the same `remoteTabWriteFolder` MonacoHost reads.
       const remoteReadOnly =
         tab.remote !== undefined &&
         tabIsReadOnly(
           tab,
-          machineWriteRootFor(useApp.getState().machineStates, tab.remote.machineId)
+          remoteTabWriteFolder(
+            tab,
+            useApp.getState().machineStates,
+            useApp.getState().projects
+          )
         );
       if (
         tab.commit !== null ||

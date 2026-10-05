@@ -604,6 +604,58 @@ export const MIGRATIONS: readonly SqliteMigration[] = [
     up: (db) => {
       addColumnIfMissing(db, 'sessions', 'login', 'TEXT');
     }
+  },
+  {
+    // Phase 336: `remote_folder_pins`, the identity of one folder on another
+    // machine, taken when a person opened it as a project.
+    //
+    // WHAT IT FIXES. Since Phase 336 a project open on a confirmed machine is a
+    // folder Tortie may save under, with nothing asked, the way a project open
+    // on this Mac is (research 138 section 9, his ruling). A folder named only
+    // by its path is whatever sits at that path when the save arrives: swapped
+    // for a link, or deleted and made again, it is a different folder, and
+    // research 138 section 2.5 item 1 measured a write followed through such a
+    // link. So the far `<device>:<inode>` of the folder is recorded at the open
+    // and every write carries it, and that machine compares it to the folder
+    // it is about to write under in the same call that writes.
+    //
+    // WHY A TABLE AND NOT A COLUMN ON `remote_projects`. The pin is not the
+    // project row's question, and ./projects-repository.ts, which owns that
+    // table, is pinned by digest in `conformance:samefolder` rule 4. The key is
+    // the same, `(machine_id, path)`, so one pin per folder per machine. A
+    // closed tab deletes its project row and leaves its pin inert, because only
+    // open project rows are candidates for a write; opening the folder again
+    // by hand overwrites it. ./remote-folder-pins.ts owns every read and write.
+    //
+    // WHAT IS IN IT. The machine row's id, the project row's stored path on
+    // that machine byte for byte, the identity as `<device>:<inode>` in
+    // decimal, and the local instant it was taken. Nothing about a session,
+    // nothing about a connection, and no file contents.
+    //
+    // ADDITIVE, NOT BREAKING, by the rule in research 27 section 4.3, and the
+    // minimum stays at 13. It is a NEW TABLE, so the test is the one migrations
+    // 015 and 017 answered: a build at schema 13 to 18 has never heard of this
+    // table, never writes a row into it and never reads one. There is no row it
+    // can write that this build reads wrongly, and no row this build writes
+    // that it reads wrongly. Such a build cannot save on another machine
+    // without a typed folder at all, so a pin it does not keep is a pin it has
+    // no use for. Nothing on the restore path reads the table and no launch
+    // depends on it.
+    //
+    // So MANIFEST_SCHEMA_VERSION moves to 19 and
+    // MANIFEST_MIN_COMPATIBLE_VERSION STAYS AT 13.
+    name: '019-remote-folder-pins',
+    up: (db) => {
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS remote_folder_pins (
+          machine_id TEXT NOT NULL,
+          path       TEXT NOT NULL,
+          identity   TEXT NOT NULL,
+          pinned_at  INTEGER NOT NULL,
+          PRIMARY KEY (machine_id, path)
+        );
+      `);
+    }
   }
 ];
 
@@ -625,7 +677,7 @@ export const MANIFEST_APPLICATION_ID = 0x54525445;
  * one. Keep it that way: a number that has to be reasoned about is a number
  * that gets set wrong under time pressure.
  */
-export const MANIFEST_SCHEMA_VERSION = 18;
+export const MANIFEST_SCHEMA_VERSION = 19;
 
 /**
  * The oldest schema version whose code may still write this manifest.
@@ -731,6 +783,23 @@ export const MANIFEST_SCHEMA_VERSION = 18;
  * under the default, which is the same fallback this build uses when the
  * login has been removed. So the migration is additive by the same rule as
  * the ones above and the number does not move.
+ *
+ * PHASE 336 LEFT IT AT 13 TOO, and this paragraph is the record of that
+ * decision. Migration 019 adds the `remote_folder_pins` table. A build at
+ * schema 13 to 18 has never heard of that table, so it writes no row into it
+ * and reads none. There is no row it can write that this build reads wrongly,
+ * and no row this build writes that it reads wrongly, because it does not read
+ * the table at all. What such a build lacks is the pin, and it lacks with it
+ * the whole of saving in a project on another machine without a typed folder,
+ * so there is nothing the missing pin would have guarded. A file that such a
+ * build opens and then this build opens again keeps every pin it held: the
+ * older build's stamp moves `user_version` back to its own number, the
+ * migration row for 019 stays, the table stays, and nothing is re-run. A pin
+ * that has gone stale meanwhile answers that the folder is not the one that
+ * was opened, and opening it again by hand pins it again, which fails closed.
+ * Nothing on the restore path reads the table and no launch depends on it, so
+ * the migration is additive by the same rule as 015 and 017 and the number
+ * does not move.
  */
 export const MANIFEST_MIN_COMPATIBLE_VERSION = 13;
 

@@ -162,12 +162,22 @@ describe('every answer New Folder can meet', () => {
       says: 'Tortie cannot write in /home/greg/api/src on Studio.'
     },
     {
+      // PHASE 336. With no folder, `writesOff` is a path outside every project
+      // opened there, and the sentence says which folders Tortie changes
+      // files in rather than sending a person to Settings.
       outcome: 'writesOff',
       writeRoot: null,
       says:
-        'Tortie cannot change anything on Studio. Open Settings, then ' +
-        'Machines, then Studio, and let Tortie save files there. Nothing was ' +
-        'changed.'
+        'Tortie changes files on Studio only inside a project you opened ' +
+        'there. Nothing was changed.'
+    },
+    {
+      // PHASE 336. Naming a folder, it is a folder on the never-list.
+      outcome: 'writesOff',
+      writeRoot: WRITE_ROOT,
+      says:
+        'Tortie does not save in a home folder, a folder directly inside ' +
+        'one, or a folder holding one, on Studio. Nothing was changed.'
     },
     {
       outcome: 'outsideRoot',
@@ -175,11 +185,26 @@ describe('every answer New Folder can meet', () => {
       says:
         'Tortie may only change what is under /home/greg on Studio, and that ' +
         'folder is outside it. Nothing was changed.'
+    },
+    {
+      // PHASE 336. The folder at that path is not the folder that was opened.
+      outcome: 'folderChanged',
+      writeRoot: WRITE_ROOT,
+      says:
+        '/home/greg on Studio is not the folder you opened any more, so ' +
+        'Tortie changed nothing. Open it again to change files there.'
+    },
+    {
+      outcome: 'protected',
+      writeRoot: WRITE_ROOT,
+      says:
+        'Tortie does not touch .git or .ssh folders on Studio. Nothing was ' +
+        'changed.'
     }
   ];
 
   for (const one of cases) {
-    it(`takes the row back out and says why on ${one.outcome}`, async () => {
+    it(`takes the row back out and says why on ${one.outcome}${one.writeRoot === null ? ' with no folder' : ''}`, async () => {
       const rig = makeRig();
       rig.makeDirAnswer.value = Promise.resolve({
         outcome: one.outcome,
@@ -197,9 +222,10 @@ describe('every answer New Folder can meet', () => {
     });
   }
 
-  it('falls back to the saving off line when no folder came back', async () => {
-    // Main sends the folder on the word that names one. A null there can only
-    // mean saving is off, so a folder composed out of nothing is never drawn.
+  it('falls back to the outside-every-project line when no folder came back', async () => {
+    // Main sends the folder on the word that names one. A null there is drawn
+    // as a path outside every project, so a folder composed out of nothing is
+    // never drawn.
     const rig = makeRig();
     rig.makeDirAnswer.value = Promise.resolve({
       outcome: 'outsideRoot',
@@ -210,7 +236,10 @@ describe('every answer New Folder can meet', () => {
     rig.ops.newEntry('src/', 'dir');
     commitCreate(rig, rig.ops.pendingPath() ?? '', 'src/notes');
     await flush();
-    expect(toasts()[0]?.text).toContain('Tortie cannot change anything on Studio.');
+    expect(toasts()[0]?.text).toBe(
+      'Tortie changes files on Studio only inside a project you opened ' +
+        'there. Nothing was changed.'
+    );
   });
 
   it('never says nothing was changed when the machine did not answer', async () => {
@@ -309,17 +338,30 @@ describe('every answer Rename can meet', () => {
         'that folder again.'
     },
     {
+      // PHASE 336. The answer names a folder (`renamedAnswer` always does), so
+      // `writesOff` is the never-list.
       outcome: 'writesOff',
       says:
-        'Tortie cannot change anything on Studio. Open Settings, then ' +
-        'Machines, then Studio, and let Tortie save files there. Nothing was ' +
-        'changed.'
+        'Tortie does not save in a home folder, a folder directly inside ' +
+        'one, or a folder holding one, on Studio. Nothing was changed.'
     },
     {
       outcome: 'outsideRoot',
       says:
         'Tortie may only change what is under /home/greg on Studio, and that ' +
         'folder is outside it. Nothing was changed.'
+    },
+    {
+      outcome: 'folderChanged',
+      says:
+        '/home/greg on Studio is not the folder you opened any more, so ' +
+        'Tortie changed nothing. Open it again to change files there.'
+    },
+    {
+      outcome: 'protected',
+      says:
+        'Tortie does not touch .git or .ssh folders on Studio. Nothing was ' +
+        'changed.'
     }
   ];
 

@@ -11,26 +11,23 @@
  * another computer. After that phase two could, and both of them only chose
  * what the next commit would hold. This module makes the commit.
  *
- * ## The one field that decides everything, and it is not a new one
+ * ## What decides whether anything happens (Phase 336)
  *
- * `writeRoot` on the machine row, which is the sixth confirmed field Phase 101
- * added. PHASE 104 ADDS NO CONFIRMED FIELD. The hash still covers six fields,
- * `APPENDED_KEYS` in `./confirm.ts` is untouched, and no machine anybody
- * already confirmed is asked to confirm anything again.
+ * The rule a save follows, in `./write-folder.ts`: the row is in the machines
+ * file, the confirm gate passes, and a legacy `writeRoot` or the deepest open
+ * project on that machine holds THE TAB'S FOLDER. No field is confirmed by
+ * this module and no machine anybody already confirmed is asked again.
  *
- * ## The gate is NOT in the door, and this phase did not move it there
+ * ## The gate IS a door now (Phase 336)
  *
- * `runRemoteWrite` in `./remote-run.ts` has eight steps and none of them reads
- * a machine row. The gate is `confirmedWriteRoot` in `./remote-file.ts`, and
- * each of the write callers calls it as its first act. This module follows that
- * shipped shape.
- *
- * WHAT IS THEREFORE NOT TRUE AFTER THIS PHASE, said rather than left implied.
- * There is still no single place in the door that refuses a write for a machine
- * whose writes are off. Eight callers each ask one shared function, which is a
- * discipline rather than a door. The remedy costs one read of the machine row
- * inside `runRemoteScript` and is written down here for the round that takes
- * it.
+ * Until Phase 336 this header said there was no single place in the door that
+ * refused a write for a machine whose writes were off, and that "eight callers
+ * each ask one shared function, which is a discipline rather than a door".
+ * Five call sites covered six scripts through one shared function in
+ * `./remote-file.ts` (research 138 section 2.5 item 6), which is gone. Now the six folder-bound writes, this one
+ * among them, cross only through `runFolderWrite` in `./remote-run.ts`, which
+ * takes a `WriteFolder` that only `./write-folder.ts` can make, and
+ * `runRemoteWrite` refuses all six by their catalogue row.
  *
  * ## Containment, and it is the same four layers stage has
  *
@@ -38,9 +35,9 @@
  * NOT TAKE IT. {@link commitOnMachine} takes the machine id and the tab's own
  * folder, and it runs the review read itself.
  *
- *  1. `confirmedWriteRoot`, which is the one implementation of the confirm gate
- *     and the confirmed folder. Null is the outcome `refused` with the
- *     writes-off sentence, and nothing is composed.
+ *  1. `writeFolderFor`, which is the one implementation of the confirm gate and
+ *     the folder. No folder is the outcome `refused` with the writes-off
+ *     sentence, and nothing is composed.
  *  2. {@link rootRelativeCwd} over THE TAB'S OWN FOLDER, imported from
  *     `./remote-stage.ts` because it is pure, already exported, and already
  *     carries the measurement about paths a far side resolved. False is
@@ -113,23 +110,34 @@ import {
   commitConflicts,
   commitDone,
   commitFailed,
+  commitFolderChanged,
   commitHeadMoved,
   commitIdentityUnset,
+  commitNeverFolder,
   commitNotRepo,
   commitNothingStaged,
   commitOffline,
   commitOutsideRoot,
+  commitProtected,
   commitStagedChanged,
   commitTimedOut,
   commitUnsure,
-  commitWritesOff
+  commitWritesOff,
+  remoteNameRefused
 } from './remote-copy';
-import { confirmedWriteRoot } from './remote-file';
+import { isRemoteFolderWord, type RemoteFolderWord } from './remote-file';
 import { reviewFilesOn } from './remote-review';
-import { machineLinkAnswering, runRemoteWrite } from './remote-run';
+import { machineLinkAnswering, runFolderWrite } from './remote-run';
 import { readyRemoteContext } from './ready-context';
 import { rootRelativeCwd } from './remote-stage';
 import { machineLabelOf, machineRow } from './store';
+import {
+  heldFolder,
+  namesProtected,
+  readyWriteFolder,
+  writeFolderFor,
+  type WriteFolder
+} from './write-folder';
 
 /**
  * How long one commit gets on the machine. 300,000 ms.
@@ -189,8 +197,11 @@ export const REMOTE_COMMIT_OUTSIDE = 'outside';
 
 /** What one `git-commit` payload said. */
 export interface RemoteCommitAnswer {
-  /** `moved`, `committed` or `failed`. Nothing else parses. */
-  readonly word: 'moved' | 'committed' | 'failed' | 'outside';
+  /**
+   * `moved`, `committed` or `failed`, Phase 242.1's `outside`, and Phase 336's
+   * folder check and text guard words. Nothing else parses.
+   */
+  readonly word: 'moved' | 'committed' | 'failed' | 'outside' | RemoteFolderWord;
   /** What git or a hook printed over there, decoded, or null. */
   readonly said: string | null;
   /** What that machine's HEAD holds now, or the empty string for none. */
@@ -219,7 +230,8 @@ export function parseCommitAnswer(payload: string): RemoteCommitAnswer | null {
     word !== 'moved' &&
     word !== 'committed' &&
     word !== 'failed' &&
-    word !== REMOTE_COMMIT_OUTSIDE
+    word !== REMOTE_COMMIT_OUTSIDE &&
+    !isRemoteFolderWord(word)
   ) {
     return null;
   }
@@ -351,11 +363,13 @@ function labelOf(machineId: string): string {
  * machine was never asked and the send counter did not move.
  *
  *  1. The message. Empty after trimming, or holding a NUL, answers `refused`.
- *  2. The row, the confirm gate and the confirmed folder, in one call to
- *     `confirmedWriteRoot`. Null answers `refused` with the writes-off
- *     sentence.
+ *  2. The row, the confirm gate and the folder, in one call to
+ *     `writeFolderFor`. No folder answers `refused` with the writes-off
+ *     sentence, or with the never-list sentence for a never-listed folder.
  *  3. `rootRelativeCwd` over the TAB'S FOLDER. Null answers `refused` with the
- *     outside-root sentence, and the machine is not contacted at all.
+ *     outside-root sentence, and the machine is not contacted at all. Then
+ *     (Phase 336) a `.git` or `.ssh` tab folder answers `refused` with its
+ *     sentence, and two dots in a row with theirs.
  *  4. The connection. Not connected answers `offline`.
  *  5. The fresh read. An empty `repoPath` answers `refused` with the
  *     not-a-repository sentence.
@@ -363,9 +377,13 @@ function labelOf(machineId: string): string {
  *     `refused`.
  *  7. The staged set, then the conflicts, then an empty set. Each answers its
  *     own sentence.
- *  8. One `runRemoteWrite`. The send counter moves immediately before it.
+ *  8. The folder's pin (a READ when the row has none; one that answers no
+ *     identity is `folderChanged`), then one `runFolderWrite`. The send counter
+ *     moves immediately before the write.
  *  9. The answer, parsed. `committed`, `moved`, or `failed` with the machine's
- *     own words. An answer that does not parse answers `unsure`.
+ *     own words. `notsame` is `folderChanged`, the home and reserved-folder
+ *     words are `refused` with their sentences. An answer that does not parse
+ *     answers `unsure`.
  * 10. A throw from the door. Elapsed time at or past the deadline answers
  *     `timeout`, and anything else answers `unsure`. That is
  *     `cloneProjectOnMachine`'s own discrimination, reused rather than
@@ -403,19 +421,32 @@ export async function commitOnMachine(
     return answer('refused', [COMMIT_NO_MESSAGE]);
   }
 
-  // 2. The row, the gate and the confirmed folder.
-  const ready = confirmedWriteRoot(input.machineId);
-  if (ready === null) return answer('refused', [commitWritesOff(label)]);
-  const { writeRoot } = ready;
-
-  // 3. The folder this tab is about has to sit under the folder the person
-  //    confirmed. BOTH ARE PATHS AS GIVEN, for the reason written in the header
-  //    of ./remote-stage.ts: that machine's git resolves every link before it
-  //    prints a path and this Mac cannot follow a link on another computer.
+  // 2. The row, the gate and the folder that holds the tab's folder.
   const cwd = typeof input.cwd === 'string' ? input.cwd : '';
+  const choice = writeFolderFor(input.machineId, cwd, 'folder');
+  const { pick } = choice;
+  if (!heldFolder(pick)) {
+    return answer('refused', [
+      pick.refused === 'never' ? commitNeverFolder(label) : commitWritesOff(label)
+    ]);
+  }
+  const writeRoot = pick.path;
+
+  // 3. The folder this tab is about has to sit under that folder. BOTH ARE
+  //    PATHS AS GIVEN, for the reason written in the header of
+  //    ./remote-stage.ts: that machine's git resolves every link before it
+  //    prints a path and this Mac cannot follow a link on another computer.
   const cwdRel = rootRelativeCwd(writeRoot, cwd);
   if (cwdRel === null) {
     return answer('refused', [commitOutsideRoot(label)]);
+  }
+  // 3b. PHASE 336. The reserved names, then the one name shape the far side
+  //     refuses without a parser. Both before anything is composed.
+  if (namesProtected(pick, [cwdRel])) {
+    return answer('refused', [commitProtected(label)]);
+  }
+  if (cwdRel.includes('..')) {
+    return answer('refused', [remoteNameRefused(label)]);
   }
 
   // 4. The connection, asked before the read so a machine that is not answering
@@ -480,7 +511,22 @@ export async function commitOnMachine(
     });
   }
 
-  // 8. The one write. The guard is main's own sha, and the word `none` is what
+  // 8. The folder's pin, a READ when the row has none. A read that throws
+  //    sent nothing that writes, so it reads as offline; a read that answers
+  //    no identity is the folder not being the one that was opened.
+  let folder: WriteFolder | 'folderChanged';
+  try {
+    folder = await readyWriteFolder(ctx, choice, pick);
+  } catch {
+    return answer('offline', [commitOffline(label)], { headSha: list.headSha });
+  }
+  if (folder === 'folderChanged') {
+    return answer('folderChanged', [commitFolderChanged(label, writeRoot)], {
+      headSha: list.headSha
+    });
+  }
+
+  //    The one write. The guard is main's own sha, and the word `none` is what
   //    a repository with no commit sends, so an unborn branch is a state rather
   //    than a special case.
   const guard = list.headSha.length === 0 ? 'none' : list.headSha;
@@ -488,10 +534,11 @@ export async function commitOnMachine(
   sent = 1;
   let said;
   try {
-    const out = await runRemoteWrite(
+    const out = await runFolderWrite(
       ctx,
+      folder,
       'git-commit',
-      [list.repoPath, guard, message, writeRoot, cwdRel],
+      [list.repoPath, guard, message, folder.path, cwdRel],
       {
         timeoutMs: REMOTE_COMMIT_TIMEOUT_MS,
         execution: { kind: 'command', subject: list.repoPath }
@@ -523,6 +570,18 @@ export async function commitOnMachine(
     // sentence this verb already had for a folder outside the confirmed one,
     // and nothing was committed: the walk stands above every git in the script.
     return answer('refused', [commitOutsideRoot(label)]);
+  }
+  // PHASE 336. The far side's folder check and text guards, each printed above
+  // every git in the script, so nothing was committed.
+  if (isRemoteFolderWord(said.word)) {
+    if (said.word === 'notsame') {
+      return answer('folderChanged', [commitFolderChanged(label, writeRoot)], {
+        headSha: list.headSha
+      });
+    }
+    if (said.word === 'protected') return answer('refused', [commitProtected(label)]);
+    if (said.word === 'badname') return answer('refused', [remoteNameRefused(label)]);
+    return answer('refused', [commitNeverFolder(label)]);
   }
   if (said.word === 'moved') {
     return answer('moved', [commitHeadMoved(label)], {

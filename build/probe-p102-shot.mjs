@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 /**
+ * RETIRED BY PHASE 336, and it refuses at start, exit 2, with one sentence
+ * naming `npm run probe:p336`. It photographed Settings › Machines' saving
+ * sheet, which Phase 336 removed: a project open on a confirmed machine is now
+ * the folder Tortie may write under, with nothing asked. The file stays so its
+ * import of build/electron-run.mjs keeps it in `gate:electron`'s population.
+ *
  * `build/probe-p102-shot.mjs`. The Phase 102 photographs, taken by driving the
  * REAL app against a real machine on 127.0.0.1.
  *
@@ -114,6 +120,14 @@ import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
 import { keyscanText } from './ssh-run.mjs';
+
+// PHASE 336. Refused before anything is made, launched or photographed: the
+// sheet this run drives is gone, and a run that reached it would fail halfway.
+process.stderr.write(
+  '[p102-shot] REFUSING TO RUN. It photographs the Settings › Machines saving sheet that Phase 336 removed; ' +
+    'npm run probe:p336 (build/p336/probe-p336.mjs) is the app run that replaced it.\n'
+);
+process.exit(2);
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TAG = '[probe:p102shot]';

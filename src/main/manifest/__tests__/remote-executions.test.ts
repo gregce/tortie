@@ -67,10 +67,11 @@ function begin(
 }
 
 describe('the numbers', () => {
-  it('is at schema 18 and still lets a build at 13 write', () => {
-    expect(MANIFEST_SCHEMA_VERSION).toBe(18);
+  it('is at schema 19 and still lets a build at 13 write', () => {
+    // Phase 336 appended 019-remote-folder-pins. 017 keeps its place.
+    expect(MANIFEST_SCHEMA_VERSION).toBe(19);
     expect(MANIFEST_MIN_COMPATIBLE_VERSION).toBe(13);
-    expect(MIGRATIONS).toHaveLength(18);
+    expect(MIGRATIONS).toHaveLength(19);
     expect(MIGRATIONS[16]?.name).toBe('017-remote-executions');
   });
 

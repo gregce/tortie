@@ -83,8 +83,12 @@ import {
   saveEditorWidths
 } from './panel-width';
 import { stagedMapWidth } from './map-stage';
-import { remoteFileChip } from '../machines/editor';
-import { machineWriteRootFor } from '../state/machines-slice';
+import {
+  remoteFileRefusedChip,
+  remoteSaveCapChip,
+  remoteSaveCapChipOver
+} from '../machines/editor';
+import { remoteWriteFolderIn } from '../state/machines-slice';
 import { focusTerminal as focusSessionTerminal } from '../app/session-focus';
 import './editor.css';
 
@@ -721,14 +725,56 @@ export function EditorPanel(): React.JSX.Element | null {
   if (!panelOpen || tabs.length === 0 || activeTab === null) return null;
 
   /**
-   * PHASE 101. The folder a person let Tortie save under on the machine this
-   * tab's file lives on, or null when there is none and for every tab whose
-   * file is on this Mac.
+   * PHASE 336. The band over a file on another machine that Tortie will not
+   * save, by reason, or null. Two bands rather than one, because they sit in
+   * two places in the chain below:
+   *
+   *  - `remoteCapBand` is the file larger than Tortie can save there, inside a
+   *    folder it may write under. It comes BEFORE the cut-file band, because a
+   *    remote read cut at its ceiling is also over the save cap, and the band
+   *    that says "over" is the true one for it.
+   *  - `remoteRefusedBand` is a file outside every project opened there, in a
+   *    folder Tortie never writes in, or on a machine that is not confirmed
+   *    right now. It comes where Phase 90.3's band always stood.
+   *
+   * A file inside a project open on a confirmed machine, under the cap, draws
+   * NO band, and behaves like a file on this Mac. A tab of one commit is
+   * neither: it draws the commit band below (Phase 233).
    */
-  const remoteWriteRoot =
-    activeTab.remote === undefined
+  const remoteFolder =
+    activeTab.remote === undefined || activeTab.commit !== null
       ? null
-      : machineWriteRootFor(machineStates, activeTab.remote.machineId);
+      : remoteWriteFolderIn(
+          machineStates,
+          projects,
+          activeTab.remote.machineId,
+          activeTab.path,
+          'file'
+        );
+  const remoteRefusedBand =
+    remoteFolder !== null &&
+    'refused' in remoteFolder &&
+    activeTab.remote !== undefined
+      ? remoteFileRefusedChip(
+          remoteFolder.refused,
+          activeTab.remote.machineLabel
+        )
+      : null;
+  const remoteCapBand =
+    remoteFolder !== null &&
+    remoteRefusedBand === null &&
+    activeTab.saveCapped !== undefined &&
+    activeTab.remote !== undefined
+      ? activeTab.saveCapped.over
+        ? remoteSaveCapChipOver(
+            activeTab.saveCapped.bytes,
+            activeTab.remote.machineLabel
+          )
+        : remoteSaveCapChip(
+            activeTab.saveCapped.bytes,
+            activeTab.remote.machineLabel
+          )
+      : null;
 
   // A view that needs a HEAD version falls back when there is none. The
   // redline was one of those (Phase 194); since Phase 225 it draws against
@@ -985,6 +1031,13 @@ activeTab.error !== null ? (
               Close tab
             </button>
           </div>
+        ) : remoteCapBand !== null ? (
+          // PHASE 336. A file larger than Tortie can save on that machine,
+          // opened read only rather than refused. See `remoteCapBand` above.
+          <div className="banner ed-banner-readonly" data-remote-band="cap">
+            <Codicon name="lock" size="md" />
+            <span className="banner-text">{remoteCapBand}</span>
+          </div>
         ) : activeTab.truncated ? (
           <div className="banner banner-warning">
             <span>
@@ -992,9 +1045,7 @@ activeTab.error !== null ? (
               read-only.
             </span>
           </div>
-        ) : activeTab.remote !== undefined &&
-          activeTab.commit === null &&
-          remoteWriteRoot === null ? (
+        ) : remoteRefusedBand !== null ? (
           // PHASE 90.3. The fourth read-only reason, and the only one whose
           // file is not on this Mac. It says two things and both are needed.
           // The file is over there, which is why the bytes on screen may be
@@ -1002,9 +1053,11 @@ activeTab.error !== null ? (
           // changes nothing. Not a warning, because nothing is wrong: a folder
           // on another machine being read only is what this product promises.
           //
-          // PHASE 101 MADE IT CONDITIONAL. A tab on a machine a person has let
-          // Tortie save on draws NO band at all, and behaves like a tab on this
-          // Mac. The tab tooltip still names the machine, so nothing is hidden.
+          // PHASE 101 MADE IT CONDITIONAL, and PHASE 336 changed the condition:
+          // a tab inside a project open on a confirmed machine draws NO band at
+          // all, and behaves like a tab on this Mac. A band is drawn only for a
+          // file Tortie will not save, and it says why without sending anybody
+          // to Settings. The tab tooltip still names the machine.
           //
           // PHASE 233 ASKS THE COMMIT FIRST. A tab carrying both is one file of
           // one commit on that machine, and it draws the commit band below,
@@ -1015,11 +1068,9 @@ activeTab.error !== null ? (
           // dot clears on Save, would be a sentence contradicting the thing
           // beside it, and two behaviours on one surface are harder to learn
           // than one.
-          <div className="banner ed-banner-readonly">
+          <div className="banner ed-banner-readonly" data-remote-band="refused">
             <Codicon name="lock" size="md" />
-            <span className="banner-text">
-              {remoteFileChip(activeTab.remote.machineLabel)}
-            </span>
+            <span className="banner-text">{remoteRefusedBand}</span>
           </div>
         ) : activeTab.compare !== undefined ? (
           // PHASE 240. The fifth read-only reason, and the only one where

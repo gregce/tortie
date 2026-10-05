@@ -25,6 +25,14 @@
  * redline-write` is the precedent: a gate on a write channel has to run the
  * channel, because reading it is what let the defect ship.
  *
+ * PHASE 336 ADDED THE SECOND, said here for the same reason. Conditions 115 to
+ * 117 hand the six folder-bound write texts and `folder-pin` to `/bin/sh` AND
+ * `/bin/dash` (with `git` and `shasum` under them), through
+ * build/p336/script-arms.mjs, over real folders, links and a swap made in the
+ * window between a check and a write, in ONE scratch directory under
+ * `/private/tmp` removed in a `finally`, with `HOME` pointed inside it and
+ * every shell's environment built from nothing. It adds about ten seconds.
+ *
  * THE SEVENTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
@@ -344,6 +352,50 @@
  * file alone asks past the greeting set, for a keystroke, so nothing retries
  * on a timer.
  *
+ * PHASE 336 APPENDED 113 TO 121 and left the list where it was, in the same
+ * way, as one block at the foot of this file (build/p336/SPEC.md §8.1). They
+ * are about one sentence, his ruling of 4 October 2026: a project open on a
+ * CONFIRMED machine is a folder Tortie may write under, "like i'm operating it
+ * locally", with nothing asked. 113 is the folder: one shared rule
+ * (`pickWriteFolder`) over THAT machine's open project rows and its legacy
+ * `writeRoot`, the legacy root first, the confirm gate asked before any
+ * candidate, a rename bound by the folder holding both ends, and main's
+ * containment and the shared rule agreeing path for path over a driven corpus.
+ * 114 is the door: six folder-bound writes and two machine-bound ones,
+ * `runFolderWrite` appending the pin last and comparing the folder argument,
+ * a brand nobody else can name, and both doors' refusals driven before
+ * anything is composed. 115 is the identity: `folder-pin` one value with GNU
+ * `stat` first, every folder-bound text entering its folder ONCE with `cd -P`,
+ * comparing device and inode against its LAST positional, never reading the
+ * folder's path again below that line, printing its own field count, and main
+ * reading `notsame` as `folderChanged` with no verb storing a pin. 116 is the
+ * never-list, both halves, by identity on the far side. 117 is `.git` and
+ * `.ssh` in every spelling the volume folds: main's fold, the far folder by
+ * identity, the far relative parts by the ASCII bracket backstop, and no write
+ * text naming `exit 1`. 118 is the open that pins and the write that never
+ * re-pins; 119 the four local readers taking local rows only, the shipping
+ * `writeGuarded` driven; 120 that no machine hash moves (three literals taken
+ * at the parent) and no door asks him anything, and (the fix round) that no
+ * sentence the open sheet, Home's row or a write surface draws names a grant,
+ * and (his ruled round) that no piece of text in any production source does
+ * either, read with the TypeScript parser so a sentence typed into a component
+ * as JSX text or a literal is read and a comment is not;
+ * 121 that a changed machine saves nothing. 115 to 117 are DRIVEN under `/bin/sh` and `/bin/dash` through
+ * build/p336/script-arms.mjs over the shipping texts, and the two shells must
+ * agree on every row. `npm run ablation:p336` breaks each clause and proves it
+ * goes red on its own condition, or on the vitest case that owns it.
+ *
+ * PHASE 336 ALSO RE-POINTED, NEVER WEAKENED: condition 38's file-put,
+ * git-stage and git-unstage lines (each refusal now a word inside the markers,
+ * file-put gaining the reserved-name line it lacked), 50b's write line (split
+ * into a shape line and a reserved-name line for `.git` and `.ssh` in any ASCII
+ * case), `INDEX_PATH_GUARD` likewise, 80's refusal words (the five new ones),
+ * 81, 84 and 86's door (`runFolderWrite`) and gate (`writeFolderFor`), the
+ * parameter counts of the six (each gained the pin), 86m's account of the door
+ * (fault 6: it said "Eight callers each ask confirmedWriteRoot"), 88's walk
+ * root (".", the folder the prelude checked) and its plants, 88l's reader (the
+ * third door), and `REMOTE_SCRIPT_COUNT` 29 to 30 for `folder-pin`.
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -503,12 +555,23 @@ import { join, relative } from 'node:path';
 import {
   blockAt,
   callArguments,
+  closeOf,
   functionBodyOf,
   lineAt,
+  namedFunctions,
   stripComments
 } from './scan-source.mjs';
 import { tsxCli } from './ts-runner.mjs';
 import { walkScripts } from './build-scripts.mjs';
+// PHASE 336'S RULED ROUND. Condition 120 reads every piece of TEXT in the
+// production sources with the TypeScript parser, so a grant sentence written
+// as a literal in a component is read as text and a comment never is.
+import ts from 'typescript';
+// PHASE 336. Conditions 115 to 117 DRIVE the shipping far texts under /bin/sh
+// and /bin/dash through the same arms `npm run probe:p336:script` runs, over a
+// scratch tree under the system temporary directory removed in a `finally`,
+// with `HOME` pointed inside it. Loading the module starts nothing.
+import { ownerOfProblem as ownerOfP336Problem, runArms as runP336Arms } from './p336/script-arms.mjs';
 
 const probe = spawnSync(
   process.execPath,
@@ -3180,11 +3243,41 @@ const stagedUnlinkFacts = (text) => {
  * It is defined here rather than beside `WRITE_PATH_GUARD` at condition 50
  * because condition 38 reads it, and a `const` read before its own line throws.
  */
-const INDEX_PATH_GUARD =
-  "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+/**
+ * PHASE 336 (SPEC D12). One far refusal as a write text spells it: the word and
+ * its `none` fields inside the markers, then `exit 0`. Until Phase 336 every
+ * guard below ended `exit 1`, which printed nothing, and main read that as a
+ * machine that did not answer and told a person the folder "may have been
+ * made" when nothing had been (research 138 section 2.5, fault 3).
+ */
+const farRefusal = (word, fields) =>
+  `printf '__TORTIE_RUN__${[word, ...Array.from({ length: fields - 1 }, () => 'none')].join(' ')}__TORTIE_RUN__\\n'; exit 0`;
 
 /**
- * How many scripts the catalogue holds. Twenty eight.
+ * PHASE 336 (SPEC D10). `.git` and `.ssh` as whole segments in ANY ASCII case,
+ * in POSIX bracket classes, which every write text refuses on each relative
+ * part it names. It is WIDER than the `.git` half it replaced, never narrower:
+ * the old half matched one spelling of one name, this one matches every ASCII
+ * spelling of both, and a fold outside ASCII is refused by main before anything
+ * is composed (`foldReservedSegment`, condition 117).
+ */
+const RESERVED_SEGMENT_PATTERN =
+  '.[Gg][Ii][Tt]|.[Gg][Ii][Tt]/*|*/.[Gg][Ii][Tt]|*/.[Gg][Ii][Tt]/*|' +
+  '.[Ss][Ss][Hh]|.[Ss][Ss][Hh]/*|*/.[Ss][Ss][Hh]|*/.[Ss][Ss][Hh]/*';
+
+/**
+ * PHASE 336 RE-POINTED IT TO TWO LINES, never weakening it. The shapes guard
+ * (`''`, `.`, absolute, `..`, a trailing slash) answers `badname`, and the
+ * reserved names answer `protected`, both inside the markers. Every shape the
+ * one old line refused is still refused, `.git` in any case and `.ssh` with it.
+ */
+const INDEX_PATH_GUARD = [
+  `case "$p" in ''|.|/*|*..*|*/) ${farRefusal('badname', 2)};; esac`,
+  `case "$p" in ${RESERVED_SEGMENT_PATTERN}) ${farRefusal('protected', 2)};; esac`
+];
+
+/**
+ * How many scripts the catalogue holds. Thirty.
  *
  * Four later conditions pinned this number as a literal `19` each. Phase 101
  * made them one constant, because four copies of one number is how three of
@@ -3199,8 +3292,12 @@ const INDEX_PATH_GUARD =
  * `env-names`, which asks a machine which of a person's named shell variables
  * it has and answers with NAMES. `ALLOWED_WRITERS` did not grow for it either,
  * and condition 95 below asserts its own seven rules besides.
+ * PHASE 336 MOVED IT FROM TWENTY NINE TO THIRTY BY ONE MORE READ, being
+ * `folder-pin`, which prints one folder's device and inode and writes
+ * nothing. Condition 35's walk classifies it as a read because
+ * `ALLOWED_WRITERS` did not grow, and condition 115 asserts its own rules.
  */
-const REMOTE_SCRIPT_COUNT = 29;
+const REMOTE_SCRIPT_COUNT = 30;
 
 {
   // 35. The catalogue's shape.
@@ -3480,10 +3577,16 @@ const REMOTE_SCRIPT_COUNT = 29;
       // TWO containment lines for the root and one for the path under it. The
       // line copied from REVIEW_FILE guards `$2` only, and `$1` is the folder
       // the whole write is bounded by, so it gets its own two.
+      // PHASE 336 RE-POINTED ALL THREE AND ADDED A FOURTH, never weakening
+      // one (SPEC D10, D12): each prints its word and exits 0; the root's
+      // `..` line stands in the legacy branch, because a pinned folder is
+      // judged by identity instead (D9); and the relative part gained the
+      // reserved-name line file-put lacked (fault 2).
       for (const line of [
-        'case "$1" in /*) ;; *) exit 1;; esac',
-        'case "$1" in *..*) exit 1;; esac',
-        'case "$2" in /*|*..*) exit 1;; esac'
+        `case "$1" in /*) ;; *) ${farRefusal('badname', 3)};; esac`,
+        `case "$1" in *..*) ${farRefusal('badname', 3)};; esac`,
+        `case "$2" in /*|*..*) ${farRefusal('badname', 3)};; esac`,
+        `case "$2" in ${RESERVED_SEGMENT_PATTERN}) ${farRefusal('protected', 3)};; esac`
       ]) {
         if (row.text.includes(line)) continue;
         fail(
@@ -3711,7 +3814,10 @@ const REMOTE_SCRIPT_COUNT = 29;
       // element has to refuse the whole call rather than stage half of it, and
       // `git add -A -- ":(literal)."` would stage every change in that
       // repository in one call.
-      const guardAt = row.text.indexOf(INDEX_PATH_GUARD);
+      // PHASE 336: two lines, both present; the later of the two is the one
+      // that has to stand above the cd and the git.
+      const guardAts = INDEX_PATH_GUARD.map((line) => row.text.indexOf(line));
+      const guardAt = guardAts.includes(-1) ? -1 : Math.max(...guardAts);
       if (guardAt < 0) {
         fail(
           `write script ${row.id} does not carry the per element guard ` +
@@ -3720,7 +3826,11 @@ const REMOTE_SCRIPT_COUNT = 29;
             `is bypassed.`
         );
       }
-      const cdAt = row.text.indexOf('cd "$r"');
+      // PHASE 336 RE-POINTED THE cd. The text no longer changes into the
+      // root by its path: it enters the checked folder, walks to the tab's own
+      // folder below it, finds the repository root BY IDENTITY above that and
+      // enters it with this one line (build/p336/SPEC.md D9).
+      const cdAt = row.text.indexOf('cd -P -- "$wd"');
       const firstGitAt = row.text.indexOf('git ');
       if (cdAt < 0) {
         fail(`write script ${row.id} never changes into the repository root.`);
@@ -3750,7 +3860,7 @@ const REMOTE_SCRIPT_COUNT = 29;
         );
       }
       // AN EMPTY LIST RUNS NO GIT AT ALL, so no git ever sees a bare --.
-      if (!row.text.includes('[ "$#" -gt 0 ] || exit 1')) {
+      if (!row.text.includes(`if [ "$#" = 0 ]; then ${farRefusal('badname', 2)}; fi`)) {
         fail(
           `write script ${row.id} does not refuse an empty list, so a call ` +
             `naming nothing would reach git with a bare --.`
@@ -4168,11 +4278,21 @@ const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
  * there are two constants rather than one: the line names the value it guards
  * and `entry-rename` guards two values.
  */
-const WRITE_PATH_GUARD =
-  'case "%s" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac';
+const WRITE_PATH_GUARD = `case "%s" in /*|*..*) ${farRefusal('badname', 2)};; esac`;
+
+/**
+ * PHASE 336 SPLIT THE WRITE LINE IN TWO AND WIDENED IT (SPEC D10, D12). The
+ * shape half answers `badname` and the `.git` half became its own line that
+ * answers `protected` for `.git` AND `.ssh` in any ASCII case, both inside the
+ * markers. Each value the two writers guard carries both lines, each above the
+ * first line that uses the value. Nothing the one old line refused passes.
+ */
+const WRITE_RESERVED_GUARD = `case "%s" in ${RESERVED_SEGMENT_PATTERN}) ${farRefusal('protected', 2)};; esac`;
 
 /** The write line for one positional, e.g. `$2`. */
 const writeGuardFor = (name) => WRITE_PATH_GUARD.replace('%s', name);
+/** The reserved-name line for one positional (Phase 336). */
+const writeReservedFor = (name) => WRITE_RESERVED_GUARD.replace('%s', name);
 
 {
   const p903 = data.phase903 ?? {};
@@ -4253,6 +4373,20 @@ const writeGuardFor = (name) => WRITE_PATH_GUARD.replace('%s', name);
           `${JSON.stringify(want)}. This is the WIDER write line from research ` +
           `57 i3 section 12, and the .git half of it is what stops a write ` +
           `reaching a repository's internals on somebody else's machine.`
+      );
+    }
+    const wantReserved = writeReservedFor(wanted.value);
+    if (row.reserved !== wantReserved) {
+      fail(
+        `${wanted.id} carries ${JSON.stringify(row.reserved)} where its ` +
+          `reserved-name line for ${wanted.value} should be. It is exactly ` +
+          `${JSON.stringify(wantReserved)}: .git and .ssh in any ASCII case, ` +
+          `refused inside the markers (Phase 336, D10).`
+      );
+    } else if (row.firstUseAt >= 0 && row.reservedAt > row.firstUseAt) {
+      fail(
+        `${wanted.id} uses ${wanted.value} at line ${String(row.firstUseAt)} ` +
+          `and refuses a reserved name in it only at line ${String(row.reservedAt)}.`
       );
     }
     if (row.guardAt < 0 || row.firstUseAt < 0) {
@@ -7422,8 +7556,11 @@ process.stdout.write(
     //      one call that sends. An order that put any of them after the send
     //      would be a check that decides nothing.
     for (const [what, at] of [
-      ['assertMachineMayConnect, through confirmedWriteRoot', module.gateAt],
-      ['the confirmed folder read', module.rootAt],
+      // PHASE 336 re-pointed both: the confirm gate is asked inside
+      // writeFolderFor (condition 113 reads that order), and the folder with
+      // its pin is readyWriteFolder's.
+      ['assertMachineMayConnect, through writeFolderFor', module.gateAt],
+      ['the folder the write is bound by, through readyWriteFolder', module.rootAt],
       ['relativeUnderRoot', module.containAt]
     ]) {
       if (at < 0) {
@@ -7436,7 +7573,7 @@ process.stdout.write(
       } else if (module.sendAt < 0 || at > module.sendAt) {
         fail(
           `src/main/machines/remote-entry.ts names ${what} at ` +
-            `${String(at)} and calls runRemoteWrite at ` +
+            `${String(at)} and calls runFolderWrite at ` +
             `${String(module.sendAt)}. A check after the send decides nothing.`
         );
       }
@@ -7454,7 +7591,7 @@ process.stdout.write(
     // 81c. One door, and it is the write door.
     if (!module.namesWriteDoor) {
       fail(
-        'src/main/machines/remote-entry.ts never calls runRemoteWrite, so ' +
+        'src/main/machines/remote-entry.ts never calls runFolderWrite, so ' +
           'either the two verbs went somewhere else or this gate is reading ' +
           'the wrong file.'
       );
@@ -7462,7 +7599,7 @@ process.stdout.write(
     for (const forbidden of module.forbiddenDoors ?? []) {
       fail(
         `src/main/machines/remote-entry.ts names ${forbidden}. Every write in ` +
-          `this product goes through runRemoteWrite and through no other door.`
+          `this product goes through runFolderWrite or runRemoteWrite and through no other door.`
       );
     }
     // 81d. NO ROOT CROSSES. The two input types carry a path each and no
@@ -7530,19 +7667,21 @@ process.stdout.write(
         `by remote-run.ts before anything is composed.`
     );
   }
+  // PHASE 336 MOVED BOTH BY ONE, the folder's pin as the LAST value (SPEC
+  // D8), which runFolderWrite appends and the far folder check reads.
   for (const row of modes) {
-    const wanted = row.id === 'dir-new' ? 2 : 3;
+    const wanted = row.id === 'dir-new' ? 3 : 4;
     if (row.params === wanted) continue;
     fail(
       `${row.id} declares ${String(row.params)} value(s) and it reads ` +
-        `${String(wanted)}.`
+        `${String(wanted)}, the folder's pin last (Phase 336).`
     );
   }
   process.stdout.write(
     `\nthe two writers Phase 102 added:\n` +
-      `  dir-new       2 values, answers made, exists, denied or noparent. One ` +
+      `  dir-new       3 values since Phase 336 (the pin last), answers made, exists, denied or noparent. One ` +
       `mkdir with no -p, then one chmod capped at 755 or 700.\n` +
-      `  entry-rename  3 values, answers moved, done, exists or gone. One mv, ` +
+      `  entry-rename  4 values since Phase 336 (the pin last), answers moved, done, exists or gone. One mv, ` +
       `after a device and inode test that closes the case only rename.\n` +
       `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
       `which ${String(ALLOWED_WRITERS.length)} write.\n` +
@@ -7685,7 +7824,7 @@ process.stdout.write(
     //      put any of them after the send would be a check that decides
     //      nothing.
     for (const [what, at] of [
-      ['confirmedWriteRoot, being the confirm gate', module.gateAt],
+      ['writeFolderFor, being the confirm gate and the folder (Phase 336)', module.gateAt],
       ['reviewFilesOn, being the fresh read', module.readAt],
       ['rootRelativeCwd, being the tab folder under the confirmed folder', module.holdsAt],
       ['the test that the fresh read reported the path', module.reportedAt]
@@ -7700,7 +7839,7 @@ process.stdout.write(
       } else if (module.sendAt < 0 || at > module.sendAt) {
         fail(
           `src/main/machines/remote-stage.ts names ${what} at ${String(at)} ` +
-            `and calls runRemoteWrite at ${String(module.sendAt)}. A check ` +
+            `and calls runFolderWrite at ${String(module.sendAt)}. A check ` +
             `after the send decides nothing.`
         );
       }
@@ -7708,7 +7847,7 @@ process.stdout.write(
     // 84b. One door, and it is the write door.
     if (!module.namesWriteDoor) {
       fail(
-        'src/main/machines/remote-stage.ts never calls runRemoteWrite, so ' +
+        'src/main/machines/remote-stage.ts never calls runFolderWrite, so ' +
           'either the two verbs went somewhere else or this gate is reading ' +
           'the wrong file.'
       );
@@ -7716,7 +7855,7 @@ process.stdout.write(
     for (const forbidden of module.forbiddenDoors ?? []) {
       fail(
         `src/main/machines/remote-stage.ts names ${forbidden}. Every write in ` +
-          `this product goes through runRemoteWrite and through no other door, ` +
+          `this product goes through runFolderWrite or runRemoteWrite and through no other door, ` +
           `and every long running ssh child is owned by the ledger rather than ` +
           `by a caller.`
       );
@@ -7792,12 +7931,12 @@ process.stdout.write(
           `by remote-run.ts before anything is composed.`
       );
     }
-    if (row.params !== 4) {
+    if (row.params !== 5) {
       fail(
-        `${row.id} declares ${String(row.params)} value(s) and it reads four, ` +
-          `being the repository root, the list of paths, and the Phase 242.1 ` +
-          `pair: the folder the person confirmed and the tab's own folder ` +
-          `relative to it.`
+        `${row.id} declares ${String(row.params)} value(s) and it reads five, ` +
+          `being the repository root, the list of paths, the Phase 242.1 ` +
+          `pair (the folder Tortie writes under and the tab's own folder ` +
+          `relative to it) and, since Phase 336, that folder's pin last.`
       );
     }
     if (!row.fits) {
@@ -7896,7 +8035,7 @@ process.stdout.write(
     //      put any of them after the send would be a check that decides
     //      nothing. This is condition 84a's shape, read by index.
     for (const [what, at] of [
-      ['confirmedWriteRoot, being the confirm gate', module.gateAt],
+      ['writeFolderFor, being the confirm gate and the folder (Phase 336)', module.gateAt],
       ['rootRelativeCwd, being the tab folder under the confirmed folder', module.holdsAt],
       ['reviewFilesOn, being the fresh read', module.readAt],
       ['stagedPathsOf, being the staged set comparison', module.stagedAt]
@@ -7911,7 +8050,7 @@ process.stdout.write(
       } else if (module.sendAt < 0 || at > module.sendAt) {
         fail(
           `src/main/machines/remote-commit.ts names ${what} at ${String(at)} ` +
-            `and calls runRemoteWrite at ${String(module.sendAt)}. A check ` +
+            `and calls runFolderWrite at ${String(module.sendAt)}. A check ` +
             `after the send decides nothing.`
         );
       }
@@ -7919,7 +8058,7 @@ process.stdout.write(
     // 86b. One door, and it is the write door.
     if (!module.namesWriteDoor) {
       fail(
-        'src/main/machines/remote-commit.ts never calls runRemoteWrite, so ' +
+        'src/main/machines/remote-commit.ts never calls runFolderWrite, so ' +
           'either the commit went somewhere else or this gate is reading the ' +
           'wrong file.'
       );
@@ -7927,7 +8066,7 @@ process.stdout.write(
     for (const forbidden of module.forbiddenDoors ?? []) {
       fail(
         `src/main/machines/remote-commit.ts names ${forbidden}. Every write in ` +
-          `this product goes through runRemoteWrite and through no other door, ` +
+          `this product goes through runFolderWrite or runRemoteWrite and through no other door, ` +
           `and every long running ssh child is owned by the ledger rather than ` +
           `by a caller.`
       );
@@ -8015,13 +8154,13 @@ process.stdout.write(
           `before anything is composed.`
       );
     }
-    if (row.params !== 5) {
+    if (row.params !== 6) {
       fail(
-        `git-commit declares ${String(row.params)} value(s) and it reads five, ` +
-          `being the repository root, the sha Tortie read, the message, and the ` +
-          `Phase 242.1 pair: the folder the person confirmed and the tab's own ` +
-          `folder relative to it. The message is still $3, so -m "$3" did not ` +
-          `move.`
+        `git-commit declares ${String(row.params)} value(s) and it reads six, ` +
+          `being the repository root, the sha Tortie read, the message, the ` +
+          `Phase 242.1 pair (the folder Tortie writes under and the tab's own ` +
+          `folder relative to it) and, since Phase 336, that folder's pin. The ` +
+          `message is still $3, so -m "$3" did not move.`
       );
     }
     if (!row.fits) {
@@ -8074,10 +8213,10 @@ process.stdout.write(
     // 86m. The summary.
     process.stdout.write(
       `\nthe one writer Phase 104 added:\n` +
-        `  git-commit    5 values, being the repository root, the sha Tortie ` +
-        `read, the message, and the Phase 242.1 pair, the folder the person ` +
-        `confirmed and the tab's own folder relative to it. The message is ` +
-        `still $3. One git commit per call.\n` +
+        `  git-commit    6 values, being the repository root, the sha Tortie ` +
+        `read, the message, the Phase 242.1 pair (the folder Tortie writes ` +
+        `under and the tab's own folder relative to it) and that folder's pin ` +
+        `(Phase 336). The message is still $3. One git commit per call.\n` +
         `  it is the EIGHTH write and it is last in the list, so ` +
         `biggestImageCommand still measures image-put.\n` +
         `  the catalogue now holds ${String(REMOTE_SCRIPT_COUNT)} scripts of ` +
@@ -8099,15 +8238,21 @@ process.stdout.write(
         `unfiltered, and the operation own word commit excluded because the ` +
         `channel is called machines:commit.\n` +
         `  WHAT THE FAR SIDE CHECKS SINCE PHASE 242.1: $1 is the repository ` +
-        `root, which git resolved, so this script cannot bound it by the ` +
-        `folder the person confirmed. $4 and $5 carry that folder and the ` +
-        `tab's own folder relative to it, and condition 88 below reads the ` +
-        `walk that refuses a symbolic link in any component of it, above the ` +
-        `cd. Condition 86a above reads the layers that make the same check in ` +
+        `root, which git resolved. $4 and $5 carry the folder Tortie writes ` +
+        `under and the tab's own folder relative to it, and condition 88 below ` +
+        `reads the walk that refuses a symbolic link in any component of it, ` +
+        `above the cd. Since Phase 336 $6 is that folder's pin, checked by ` +
+        `identity in the same call (condition 115), and the repository root is ` +
+        `reached by identity from the tab's folder rather than by its path. ` +
+        `Condition 86a above reads the layers that make the same check in ` +
         `main.\n` +
-        `  WHAT NOTHING CHECKS: the writes gate is not in the door. Eight ` +
-        `callers each ask confirmedWriteRoot, which is a discipline rather ` +
-        `than a door.\n`
+        `  THE DOOR, SINCE PHASE 336 (fault 6 of research 138 section 2.5): ` +
+        `six folder-bound scripts cross ONE typed door, runFolderWrite, which ` +
+        `takes a WriteFolder only write-folder.ts can make and appends its pin; ` +
+        `runRemoteWrite refuses every one of them before anything is composed ` +
+        `(condition 114). It used to say eight callers each asked ` +
+        `confirmedWriteRoot, a discipline rather than a door, and there were ` +
+        `five call sites covering six scripts.\n`
     );
   }
 }
@@ -8347,7 +8492,12 @@ process.stdout.write(
      * time, and the `-L` test refuses by printing a word and leaving rather
      * than by falling through.
      */
-    const walkFor = (text, value, root = '$1', last = 'skip') => {
+    // PHASE 336 RE-POINTED THE ROOT, never weakening the walk (build/p336/
+    // SPEC.md D9, §Attack G2). Every walk now starts at ".", the folder the
+    // prelude entered with ONE cd -P and checked by identity, rather than at
+    // the folder's PATH. Starting at the path would be a second resolution of
+    // it, which a link swapped in after the check would win.
+    const walkFor = (text, value, root = '.', last = 'skip') => {
       const lines = text.split('\n');
       const at = lines.findIndex((line) => line === `lr="${value}"`);
       if (at < 0) return null;
@@ -8422,8 +8572,9 @@ process.stdout.write(
         }
         if (!walk.fromRoot) {
           fail(
-            `${wanted.id}'s walk over ${value} does not start at "$1". A walk ` +
-              'that starts anywhere else is asking about the wrong path.'
+            `${wanted.id}'s walk over ${value} does not start at ".", the ` +
+              'folder its prelude entered and checked (Phase 336). A walk that ' +
+              'starts anywhere else is asking about the wrong path.'
           );
         }
         if (!walk.climbs) {
@@ -8656,30 +8807,41 @@ process.stdout.write(
     //      `<root>` and a tab at `<root>/escape` the relative part is `escape`,
     //      holds no `/`, and the `skip` loop's body never runs at all.
     //
-    //      NOTHING IS RESOLVED here either. No `readlink`, no `realpath`, no
-    //      `cd -P` and no second round trip. The other answer on the table was
-    //      `pwd -P` against `$1`, and it refuses NOTHING, because `$1` is
+    //      NOTHING BELOW THE CHECKED FOLDER IS RESOLVED. No `readlink`, no
+    //      `realpath` and no second round trip. The other answer on the table
+    //      was `pwd -P` against `$1`, and it refuses NOTHING, because `$1` is
     //      already a physical path; research 104 section 5 has that reading on
-    //      both machines.
+    //      both machines. PHASE 336 CHANGED ONE THING ABOVE THE WALK AND IT IS
+    //      SAID HERE: the prelude enters the FOLDER itself once with `cd -P`
+    //      and checks its device and inode against the pin in the same call
+    //      (condition 115), and the walk then starts at "." from inside it.
+    //      The tab's own folder and the repository root below that are reached
+    //      by `cd -P` too, after the walk has refused every link on the way.
     const WANTED_CWD = [
+      // PHASE 336: `folder` is the positional that carries the folder Tortie
+      // writes under; the walk itself starts at "." (`root`), the folder the
+      // prelude entered with one cd -P and checked by identity.
       {
         id: 'git-stage',
         text: p242.gitStage,
-        root: '$3',
+        folder: '$3',
+        root: '.',
         value: '$4',
         fields: 2
       },
       {
         id: 'git-unstage',
         text: p242.gitUnstage,
-        root: '$3',
+        folder: '$3',
+        root: '.',
         value: '$4',
         fields: 2
       },
       {
         id: 'git-commit',
         text: p242.gitCommit,
-        root: '$4',
+        folder: '$4',
+        root: '.',
         value: '$5',
         fields: 3
       }
@@ -8697,7 +8859,11 @@ process.stdout.write(
         if (/(^|[\s$(])git (add|restore|rm|commit|rev-parse) /.test(line)) {
           out.push(at);
         }
-        if (/^\s*cd "\$[0-9r]"/.test(line)) out.push(at);
+        // PHASE 336: the cds below the prelude, into the tab's own folder
+        // ("./$c", "./$5") and into the repository root found by identity
+        // ("$wd"). The prelude's own cd -P into the checked folder stands
+        // ABOVE the walk by design and is not one of these.
+        if (/^\s*cd (?:-P )?(?:-- )?"(?:\.\/|\$wd)/.test(line)) out.push(at);
       });
       return out;
     };
@@ -8724,7 +8890,7 @@ process.stdout.write(
       if (!walk.fromRoot) {
         fail(
           `${wanted.id}'s walk over ${wanted.value} does not start at ` +
-            `"${wanted.root}", which is the folder the person confirmed. A ` +
+            `".", the folder its prelude entered and checked (Phase 336). A ` +
             'walk that starts anywhere else is asking about the wrong path.'
         );
       }
@@ -8781,17 +8947,21 @@ process.stdout.write(
       //      the folder and then ask whether that path is a link, which is a
       //      question about the wrong place.
       const lines = wanted.text.split('\n');
+      // PHASE 336 RE-POINTED ALL THREE (SPEC D12): each prints badname inside
+      // the markers and exits 0. The folder's `..` line stands in the legacy
+      // branch, so it is matched indented; a pinned folder is judged by
+      // identity instead (D9).
       const guards = [
-        [wanted.root, `case "${wanted.root}" in /*) ;; *) exit 1;; esac`, 'is absolute'],
-        [wanted.root, `case "${wanted.root}" in *..*) exit 1;; esac`, 'holds no ..'],
+        [wanted.folder, `case "${wanted.folder}" in /*) ;; *) ${farRefusal('badname', wanted.fields)};; esac`, 'is absolute'],
+        [wanted.folder, `case "${wanted.folder}" in *..*) ${farRefusal('badname', wanted.fields)};; esac`, 'holds no .. (a legacy root)'],
         [
           wanted.value,
-          `case "${wanted.value}" in /*|*..*) exit 1;; esac`,
+          `case "${wanted.value}" in /*|*..*) ${farRefusal('badname', wanted.fields)};; esac`,
           'neither climbs nor is absolute'
         ]
       ];
       for (const [name, line, why] of guards) {
-        const at = lines.indexOf(line);
+        const at = lines.findIndex((one) => one.trim() === line);
         if (at < 0) {
           fail(
             `${wanted.id} never asserts that ${name} ${why}. ` +
@@ -8817,7 +8987,7 @@ process.stdout.write(
     for (const wanted of WANTED) {
       if (typeof wanted.text !== 'string' || wanted.text.length === 0) continue;
       for (const value of wanted.values) {
-        const walk = walkFor(wanted.text, value, '$1', 'skip');
+        const walk = walkFor(wanted.text, value, '.', 'skip');
         if (walk !== null && !walk.walksLast) {
           fail(
             `${wanted.id}'s walk over ${value} took the Phase 242.1 walk mode, ` +
@@ -8875,13 +9045,23 @@ process.stdout.write(
     const ARITY_ROOTS = ['src', 'build'];
     const ARITY_DOOR_TEST = 'src/main/machines/__tests__/remote-run.test.ts';
     const ARITY_SELF = 'build/conformance-machines.mjs';
-    /** Measured on 2026-09-09. See the paragraph above before changing it. */
-    const ARITY_SITE_FLOOR = 60;
+    /**
+     * Measured on 2026-09-09 at 60. PHASE 336 RAISED IT TO 67, measured on
+     * 2026-10-05 over its build: the third door (`runFolderWrite`) is read
+     * now, and the phase added its sites in the five verbs, `folder-pin`'s
+     * reads in write-folder.ts and the p336 suites. See the paragraph above
+     * before changing it.
+     */
+    const ARITY_SITE_FLOOR = 67;
     /** The one arm of the door's own test that is wrong on purpose. */
     const ARITY_DELIBERATE = 1;
 
     const paramsOf = new Map(
       scripts.map((row) => [row.id, row.params])
+    );
+    /** PHASE 336: the ids whose pin runFolderWrite appends (D13). */
+    const folderBoundIds = new Set(
+      ((data.phase336 ?? {}).catalogue ?? []).filter((row) => row.bound === 'folder').map((row) => row.id)
     );
     if (paramsOf.size === 0) {
       fail(
@@ -8894,23 +9074,31 @@ process.stdout.write(
      * Every door call in one file's text that names a literal script and hands
      * it a literal list. `{ id, count, line }` per site, and nothing else.
      */
+    //      PHASE 336 ADDED THE THIRD DOOR. `runFolderWrite(ctx, folder, id,
+    //      list)` names its script one argument later and APPENDS THE PIN, so
+    //      a site there sends its list plus one; and a folder-bound id called
+    //      through `runRemoteWrite` is refused at the door's step 2b, before
+    //      the count, so the list it composes is read against the count
+    //      WITHOUT the pin (condition 114 owns the refusal itself).
     const arityCallsIn = (code) => {
       const found = [];
-      const re = /\b(runRemoteRead|runRemoteWrite)\s*\(/g;
+      const re = /\b(runRemoteRead|runRemoteWrite|runFolderWrite)\s*\(/g;
       let at;
       while ((at = re.exec(code)) !== null) {
         const open = at.index + at[0].length - 1;
         const parts = callArguments(code, open);
-        const named = /^'([a-z0-9-]+)'$/.exec(parts[1] ?? '');
+        const viaFolder = at[1] === 'runFolderWrite';
+        const named = /^'([a-z0-9-]+)'$/.exec(parts[viaFolder ? 2 : 1] ?? '');
         if (named === null) continue;
-        const list = parts[2] ?? '';
+        const list = parts[viaFolder ? 3 : 2] ?? '';
         if (!list.startsWith('[') || !list.endsWith(']')) continue;
         const inner = callArguments(list, 0);
         if (inner.some((one) => one.startsWith('...'))) continue;
         const values = inner.length === 1 && inner[0] === '' ? [] : inner;
         found.push({
           id: named[1],
-          count: values.length,
+          count: values.length + (viaFolder ? 1 : 0),
+          door: at[1],
           line: lineAt(code, at.index)
         });
       }
@@ -8955,12 +9143,23 @@ process.stdout.write(
         continue;
       }
       for (const site of arityCallsIn(code)) {
-        const wanted = paramsOf.get(site.id);
+        const declared = paramsOf.get(site.id);
         // A name nobody wrote down is step 1 of the door and condition 82's
         // business, not this rule's.
-        if (typeof wanted !== 'number') continue;
+        if (typeof declared !== 'number') continue;
+        // A script that is not folder-bound, sent through the folder door, is
+        // refused at the door's step 2 or 2b before anything is counted:
+        // condition 114's business, not this rule's (the p336 suite's own arm
+        // sends a read through it on purpose).
+        if (site.door === 'runFolderWrite' && !folderBoundIds.has(site.id)) continue;
+        // A folder-bound id through the MACHINE door is refused at step 2b,
+        // also before the count, so either list a caller could have meant is
+        // read as right: the one main composes, and the one with a pin on it.
+        const wanted = declared;
+        const also =
+          site.door === 'runRemoteWrite' && folderBoundIds.has(site.id) ? declared - 1 : declared;
         arityRead += 1;
-        if (site.count === wanted) continue;
+        if (site.count === wanted || site.count === also) continue;
         if (where === ARITY_DOOR_TEST) {
           arityDeliberate += 1;
           continue;
@@ -9046,12 +9245,12 @@ process.stdout.write(
     const planted = [
       {
         why: 'the walk removed whole',
-        text: putText.replace(/lr="\$2"\nlp="\$1"\nwhile[\s\S]*?\ndone\n/, ''),
+        text: putText.replace(/lr="\$2"\nlp="\."\nwhile[\s\S]*?\ndone\n/, ''),
         expect: (t) => walkFor(t, '$2') === null
       },
       {
         why: 'the walk started somewhere other than the confirmed folder',
-        text: putText.replace('lr="$2"\nlp="$1"', 'lr="$2"\nlp="/"'),
+        text: putText.replace('lr="$2"\nlp="."', 'lr="$2"\nlp="$1"'),
         expect: (t) => walkFor(t, '$2')?.fromRoot === false
       },
       {
@@ -9086,7 +9285,7 @@ process.stdout.write(
       },
       {
         why: "entry-rename's walk over $3 removed",
-        text: renameText.replace(/lr="\$3"\nlp="\$1"\nwhile[\s\S]*?\ndone\n/, ''),
+        text: renameText.replace(/lr="\$3"\nlp="\."\nwhile[\s\S]*?\ndone\n/, ''),
         expect: (t) => walkFor(t, '$3') === null
       },
       // The fix round's three, one per clause of 88f. The first is the shape
@@ -9165,14 +9364,14 @@ process.stdout.write(
       {
         why: "git-stage's walk over the tab's own folder removed whole",
         from: stageText,
-        text: stageText.replace(/lr="\$4"\nlp="\$3"\nwhile[\s\S]*?\ndone\n/, ''),
-        expect: (t) => walkFor(t, '$4', '$3', 'walk') === null
+        text: stageText.replace(/lr="\$4"\nlp="\."\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$4', '.', 'walk') === null
       },
       {
         why: "git-stage's walk started at the repository root rather than the confirmed folder",
         from: stageText,
-        text: stageText.replace('lr="$4"\nlp="$3"', 'lr="$4"\nlp="$1"'),
-        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.fromRoot === false
+        text: stageText.replace('lr="$4"\nlp="."', 'lr="$4"\nlp="$1"'),
+        expect: (t) => walkFor(t, '$4', '.', 'walk')?.fromRoot === false
       },
       {
         why: "git-stage's walk put back into the mode that skips the last component",
@@ -9183,25 +9382,25 @@ process.stdout.write(
             '  case "$lr" in */*) lr="${lr#*/}";; *) lr=;; esac',
             '  lr="${lr#*/}"'
           ),
-        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.walksLast === false
+        expect: (t) => walkFor(t, '$4', '.', 'walk')?.walksLast === false
       },
       {
         why: "the -L test taken out of git-stage's walk",
         from: stageText,
         text: stageText.replace('if [ -L "$lp" ]; then', 'if false; then'),
-        expect: (t) => walkFor(t, '$4', '$3', 'walk')?.tests === false
+        expect: (t) => walkFor(t, '$4', '.', 'walk')?.tests === false
       },
       {
         why: "git-stage's guard on the relative part removed, so the walk composes paths outside the folder",
         from: stageText,
-        text: stageText.replace('case "$4" in /*|*..*) exit 1;; esac\n', ''),
-        expect: (t) => t.split('\n').indexOf('case "$4" in /*|*..*) exit 1;; esac') < 0
+        text: stageText.replace(`case "$4" in /*|*..*) ${farRefusal('badname', 2)};; esac\n`, ''),
+        expect: (t) => t.split('\n').indexOf(`case "$4" in /*|*..*) ${farRefusal('badname', 2)};; esac`) < 0
       },
       {
         why: "git-commit's walk over the tab's own folder removed whole",
         from: commitText242,
-        text: commitText242.replace(/lr="\$5"\nlp="\$4"\nwhile[\s\S]*?\ndone\n/, ''),
-        expect: (t) => walkFor(t, '$5', '$4', 'walk') === null
+        text: commitText242.replace(/lr="\$5"\nlp="\."\nwhile[\s\S]*?\ndone\n/, ''),
+        expect: (t) => walkFor(t, '$5', '.', 'walk') === null
       },
       {
         why: "git-commit's walk moved below the cd that follows the link",
@@ -9211,12 +9410,14 @@ process.stdout.write(
           const at = lines.findIndex((line) => line === 'lr="$5"');
           if (at < 0) return commitText242;
           const walk = lines.splice(at, 10);
-          const cd = lines.findIndex((line) => line === 'cd "$1"');
+          // PHASE 336: the cd that follows the link is the one into the
+          // tab's own folder below the checked folder.
+          const cd = lines.findIndex((line) => line.startsWith('cd -P -- "./$5"'));
           lines.splice(cd + 1, 0, ...walk);
           return lines.join('\n');
         })(),
         expect: (t) => {
-          const walk = walkFor(t, '$5', '$4', 'walk');
+          const walk = walkFor(t, '$5', '.', 'walk');
           const gits = gitLinesOf(t);
           return walk !== null && gits.length > 0 && walk.at > Math.min(...gits);
         }
@@ -9263,8 +9464,10 @@ process.stdout.write(
         `image-put has no confirmed folder and so no walk, and it is read ` +
         `here because the name it stages is one it composed for itself. ` +
         `entry-rename ` +
-        `still renames a link, which it was written to do. Nothing is ` +
-        `resolved: no readlink, no realpath and no second round trip.\n` +
+        `still renames a link, which it was written to do. Nothing below the ` +
+        `folder is resolved: no readlink, no realpath and no second round trip; ` +
+        `since Phase 336 the folder itself is entered once with cd -P, checked ` +
+        `by device and inode against its pin, and walked from "." (condition 115).\n` +
         `  AND SINCE PHASE 242.1 THE THREE THAT TAKE A cwd DO IT TOO. ` +
         `git-stage and git-unstage carry the confirmed folder as $3 and the ` +
         `tab's own folder relative to it as $4, git-commit as $4 and $5 so the ` +
@@ -11063,6 +11266,114 @@ process.stdout.write(
   }
 }
 
+/**
+ * Every production source under src/, tests excluded, with its code alone
+ * (comments blanked). Phase 320.1's block and Phase 336's block both read it;
+ * the Phase 336 integrator hoisted it here when the second copy appeared.
+ */
+function productionSources() {
+  const out = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir)) {
+      if (entry === 'node_modules' || entry === '__tests__') continue;
+      const path = join(dir, entry);
+      if (statSync(path).isDirectory()) walk(path);
+      else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
+        const text = readFileSync(path, 'utf8');
+        out.push({ file: relative(process.cwd(), path), text, code: stripComments(text) });
+      }
+    }
+  };
+  walk(join(process.cwd(), 'src'));
+  return out;
+}
+
+/**
+ * PHASE 336'S RULED ROUND (condition 120). Every piece of TEXT in one source
+ * file, read with the TypeScript parser rather than with a pattern over the
+ * code: a string literal, a template's literal parts, JSX text and a JSX
+ * attribute's string. Three joins make a sentence read whole however it was
+ * typed: a `+` chain is ONE run from its top (the parts that are not text
+ * stand as `…`), a template's parts are joined around a `…` for each hole, and
+ * a JSX element's children are ONE run (JSX text, a literal in braces, `…` for
+ * any other expression). Every run has its white space folded to one space,
+ * so a sentence broken across lines reads as it is drawn. Comments are not
+ * text and are never read, which is what lets a doc comment quote a removed
+ * sentence to say why it was removed.
+ *
+ * Answers `[{ line, text }]`, one entry per run, `line` 1-based.
+ */
+function textRunsOf(file, source) {
+  const HOLE = ' … ';
+  const PLUS = ts.SyntaxKind.PlusToken;
+  const isPlus = (n) => n !== undefined && ts.isBinaryExpression(n) && n.operatorToken.kind === PLUS;
+  const textOf = (n) => {
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) return n.text;
+    if (ts.isTemplateExpression(n)) return n.head.text + n.templateSpans.map((span) => HOLE + span.literal.text).join('');
+    if (ts.isParenthesizedExpression(n)) return textOf(n.expression);
+    if (isPlus(n)) return textOf(n.left) + textOf(n.right);
+    return HOLE;
+  };
+  const sf = ts.createSourceFile(file, source, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  const runs = [];
+  const push = (node, text) => runs.push({ line: sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1, text: text.replace(/\s+/g, ' ') });
+  const visit = (n) => {
+    if (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n) || ts.isTemplateExpression(n)) push(n, textOf(n));
+    else if (isPlus(n) && !isPlus(n.parent)) push(n, textOf(n));
+    else if (ts.isJsxText(n)) push(n, n.text);
+    if (ts.isJsxElement(n) || ts.isJsxFragment(n)) {
+      push(
+        n,
+        n.children
+          .map((child) => (ts.isJsxText(child) ? child.text : ts.isJsxExpression(child) && child.expression !== undefined ? textOf(child.expression) : HOLE))
+          .join('')
+      );
+    }
+    ts.forEachChild(n, visit);
+  };
+  visit(sf);
+  return runs;
+}
+
+/**
+ * The runs of `files` (`{ file, text }`) that `re` matches, one per file and
+ * line, sorted: `[{ file, line, text }]`.
+ */
+function textRunsMatching(files, re) {
+  const out = [];
+  for (const one of files) {
+    const seen = new Set();
+    for (const run of textRunsOf(one.file, one.text)) {
+      if (!re.test(run.text) || seen.has(run.line)) continue;
+      seen.add(run.line);
+      out.push({ file: one.file, line: run.line, text: run.text });
+    }
+  }
+  return out.sort((a, b) => (a.file === b.file ? a.line - b.line : a.file < b.file ? -1 : 1));
+}
+
+/**
+ * The shapes the literal scan must read right before its answer over the tree
+ * is trusted: `hit` true must be found, false must not. Each is one way a grant
+ * sentence can be typed into a component, or one way a sentence that is NOT a
+ * grant sits beside the words.
+ */
+const GRANT_SCAN_FIXTURES = [
+  {
+    what: "the parent's open-sheet caption as JSX text around an expression, broken across lines (the reverify's plant)",
+    file: 'fixture.tsx',
+    source: 'export const C = ({ label }: { label: string }) => (\n  <p className="field-caption">\n    Tortie reads this folder on {label}. It writes there only where you\n    have let it save.\n  </p>\n);\n',
+    hit: true
+  },
+  { what: 'a phrase split across a + chain, no piece of which matches alone', file: 'fixture.ts', source: "export const s = 'Tortie saves here because you ' + 'let ' + 'it save.';\n", hit: true },
+  { what: 'a template with a hole', file: 'fixture.ts', source: 'export const s = (label: string) => `That folder on ${label} is outside the folder Tortie was given permission to write in.`;\n', hit: true },
+  { what: "a JSX attribute's string", file: 'fixture.tsx', source: 'export const B = () => <button type="button" title="Let Tortie save files here" />;\n', hit: true },
+  { what: "a phrase split by {' '} in JSX", file: 'fixture.tsx', source: "export const P = () => <p>Tortie writes there only where you have{' '}let it save.</p>;\n", hit: true },
+  { what: 'a line comment quoting the removed words', file: 'fixture.ts', source: '// The caption said "It writes there only where you have let it save", and Phase 336 removed it.\nexport const s = \'The folder stays on that machine.\';\n', hit: false },
+  { what: 'a doc comment quoting the removed words', file: 'fixture.tsx', source: '/**\n * Home said "Tortie writes there only where you have let it save."\n */\nexport const R = () => <p>The folder stays on that machine.</p>;\n', hit: false },
+  { what: "a sentence about signing in, not a grant (src/main/machines/errors.ts's own)", file: 'fixture.ts', source: "export const s = 'That machine answered and would not let Tortie in. ' + 'An expired key and a changed permission both look like this.';\n", hit: false }
+];
+
 // ---------------------------------------------------------------------------
 // 101 to 112. PHASE 320.1. The carriage door: a session on another machine
 // scrolls over that machine's own control connection, through ONE closed door.
@@ -11167,22 +11478,7 @@ process.stdout.write(
   }
 
   /** Every production source under src/, tests excluded, with its code alone. */
-  const p3201Files = (() => {
-    const out = [];
-    const walk = (dir) => {
-      for (const entry of readdirSync(dir)) {
-        if (entry === 'node_modules' || entry === '__tests__') continue;
-        const path = join(dir, entry);
-        if (statSync(path).isDirectory()) walk(path);
-        else if (/\.tsx?$/.test(entry) && !/\.test\.tsx?$/.test(entry)) {
-          const text = readFileSync(path, 'utf8');
-          out.push({ file: relative(process.cwd(), path), text, code: stripComments(text) });
-        }
-      }
-    };
-    walk(join(process.cwd(), 'src'));
-    return out;
-  })();
+  const p3201Files = productionSources();
   const codeOf = (file) => p3201Files.find((one) => one.file === file)?.code ?? null;
   const filesNaming = (needle) =>
     p3201Files.filter((one) => one.code.includes(needle)).map((one) => one.file).sort();
@@ -12434,6 +12730,651 @@ process.stdout.write(
   );
 }
 
+// ---------------------------------------------------------------------------
+// 113 to 121. PHASE 336. Saving in a project on another machine the way it is
+// saved on this Mac, bound to the projects opened there (build/p336/SPEC.md
+// §8.1, research 138 section 9).
+// ---------------------------------------------------------------------------
+//
+// His ruling of 4 October 2026: "Zero presses ... I don't want any grants. I
+// want it to act like i'm operating it locally." So a project open on a
+// CONFIRMED machine is a folder Tortie may write under, with nothing asked,
+// and what research 138 section 4 kept because it asks him nothing is what
+// these nine conditions hold: the folder chosen by one shared rule (113), one
+// typed door for the six folder-bound writes (114), the folder's identity
+// pinned and compared ON THAT MACHINE in the same call as every write, with
+// every write line reaching its target through the anchored `.` (115), the
+// never-list judged by identity (116), `.git` and `.ssh` in every spelling the
+// volume folds (117), the open that pins (118), the local readers taking local
+// rows only (119), nothing he confirmed moving and no door asking him (120),
+// and a changed machine writing nothing (121). Each failure line begins
+// `condition 1NN:`, so `ablation:p336` reads the owner off the line.
+//
+// THE FAR HALF IS DRIVEN, under `/bin/sh` AND `/bin/dash`, through
+// build/p336/script-arms.mjs's `runArms` over the SHIPPING texts this gate's
+// probe read: real folders, real links, a real swap in the window between a
+// check and a write, a scratch HOME, every tree under one mkdtemp removed in a
+// `finally`. Both shells must AGREE on every row (§Attack G1). It starts
+// `/bin/sh`, `/bin/dash`, `git` and `shasum` and nothing else, and names
+// nothing under the person's home.
+//
+// WHAT THIS GATE DOES NOT OWN, named so a later round does not believe it
+// does. Each clause below needs the machines store, the manifest or the
+// confirm record, which a plain node cannot open, so its vitest file owns it
+// and `ablation:p336` has an arm proving that file reads red without it:
+//
+//   a changed row throws with zero composes, all five verbs     121  p336-write-folder
+//   a missing pin makes ONE folder-pin read, then the write      118  p336-write-folder
+//   a stored pin makes no read                                   118  p336-write-folder
+//   pinOpenedFolder swallows a throwing read, keeps the old pin  118  p336-write-folder
+//   a second hand open with a new identity overwrites the pin    118  p336-folder-pins
+//   a file over the save cap opens read only                     D19  p336-remote-tab-writable
+//   the renderer draws an open project as an edit surface        D18  p336-remote-tab-writable
+//
+// The source reads below blank comments first, so a sentence about a removed
+// name never reads as the name.
+{
+  const d = data.phase336 ?? {};
+  const cantJudge = (which, what) =>
+    failures.push(`condition ${which}: cannot be judged: ${what}. A missing module is a failure and never a skip.`);
+  for (const why of Object.values(d.loadErrors ?? {})) {
+    failures.push(`condition 113 to 121: Phase 336's folder bound cannot be judged: ${String(why)}.`);
+  }
+  const J = (v) => JSON.stringify(v);
+
+  /** Every production source under src/, tests excluded, with its code alone. */
+  const p336Files = productionSources();
+  const codeOf = (file) => p336Files.find((one) => one.file === file)?.code ?? null;
+  const fnsOf = (file) => {
+    const code = codeOf(file);
+    return code === null ? new Map() : namedFunctions(code);
+  };
+  /**
+   * The body of a function, a `const` arrow or a CLASS METHOD named `name` in
+   * one file, read by matching brackets, or undefined. `namedFunctions` reads
+   * the first two; a method (`private async addRemoteProjectAdmitted(`) is read
+   * here, past a return type that may itself hold braces.
+   */
+  const bodyNamed = (file, name) => {
+    const found = fnsOf(file).get(name);
+    if (found !== undefined) return found;
+    const code = codeOf(file);
+    if (code === null) return undefined;
+    const head = new RegExp(`(?:^|\\n)[ \\t]*(?:(?:export|private|public|protected|static|async)\\s+)*${name}\\s*(?:<[^>]*>)?\\(`).exec(code);
+    if (head === null) return undefined;
+    const params = closeOf(code, head.index + head[0].length - 1);
+    if (params === -1) return undefined;
+    let depth = 0;
+    let angle = 0;
+    for (let i = params + 1; i < code.length; i += 1) {
+      const c = code[i];
+      if (c === '<') angle += 1;
+      else if (c === '>' && angle > 0 && code[i - 1] !== '=') angle -= 1;
+      else if (c === '(' || c === '[') depth += 1;
+      else if (c === ')' || c === ']') depth -= 1;
+      else if (c === '{' && depth === 0 && angle === 0) return blockAt(code, i) ?? undefined;
+      else if (c === '{') depth += 1;
+      else if (c === '}') depth -= 1;
+      else if (c === ';' && depth === 0 && angle === 0) return undefined;
+    }
+    return undefined;
+  };
+  /** The files whose CODE names `needle`, sorted. */
+  const naming = (needle, where = () => true) =>
+    p336Files.filter((one) => where(one.file) && one.code.includes(needle)).map((one) => one.file).sort();
+
+  const WRITE_FOLDER = 'src/main/machines/write-folder.ts';
+  const RUN = 'src/main/machines/remote-run.ts';
+  /** The five verbs and the file each lives in (SPEC D14). */
+  const VERBS = [
+    ['src/main/machines/remote-file.ts', 'putFileOnMachine'],
+    ['src/main/machines/remote-entry.ts', 'makeRemoteDir'],
+    ['src/main/machines/remote-entry.ts', 'renameRemoteEntry'],
+    ['src/main/machines/remote-stage.ts', 'writeIndexOnMachine'],
+    ['src/main/machines/remote-commit.ts', 'commitOnMachine']
+  ];
+  const VERB_FILES = [...new Set(VERBS.map(([file]) => file))];
+  /** SPEC D8: the six folder-bound writes, their parameter count and their folder's argument index. */
+  const FOLDER_WRITES = { 'file-put': [5, 0], 'dir-new': [3, 0], 'entry-rename': [4, 0], 'git-stage': [5, 2], 'git-unstage': [5, 2], 'git-commit': [6, 3] };
+  /** Each folder-bound text's fixed field count, which every refusal it prints must have. */
+  const FIELDS = { 'file-put': 3, 'dir-new': 2, 'entry-rename': 2, 'git-stage': 2, 'git-unstage': 2, 'git-commit': 3 };
+  const scriptsById = new Map((data.remoteRun?.scripts ?? []).map((row) => [row.id, row]));
+  const catalogueById = new Map((d.catalogue ?? []).map((row) => [row.id, row]));
+
+  /**
+   * Where `name(` is first called in `body`, counting a call to any local
+   * function of `fns` whose own body calls it, one level down. -1 when never.
+   */
+  const firstCall = (body, name, fns) => {
+    const at = [];
+    const direct = body.search(new RegExp(`\\b${name}\\s*\\(`));
+    if (direct >= 0) at.push(direct);
+    for (const [local, inner] of fns) {
+      if (local === name || !new RegExp(`\\b${name}\\s*\\(`).test(inner)) continue;
+      const via = body.search(new RegExp(`\\b${local}\\s*\\(`));
+      if (via >= 0) at.push(via);
+    }
+    return at.length === 0 ? -1 : Math.min(...at);
+  };
+
+  // --- 113. The folder ------------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 113: ${message}`);
+    const legacyGate = naming('confirmedWriteRoot');
+    if (legacyGate.length > 0) {
+      fail(`${legacyGate.join(', ')} still name confirmedWriteRoot. Phase 336 deleted it: every write is bound by writeFolderFor (D13).`);
+    }
+    const wf = fnsOf(WRITE_FOLDER);
+    if (codeOf(WRITE_FOLDER) === null) cantJudge(113, `${WRITE_FOLDER} is not there`);
+    else {
+      for (const name of ['writeFolderFor', 'writeFolderForPair']) {
+        const body = wf.get(name);
+        if (body === undefined) {
+          fail(`${WRITE_FOLDER} has no ${name}.`);
+          continue;
+        }
+        const confirmAt = firstCall(body, 'assertMachineMayConnect', wf);
+        const candidatesAt = Math.min(
+          ...['listRemoteProjects', 'pickWriteFolder', 'pickWriteFolderForPair']
+            .map((n) => firstCall(body, n, wf))
+            .filter((n) => n >= 0)
+            .concat([Number.MAX_SAFE_INTEGER])
+        );
+        if (confirmAt < 0) fail(`${name} never asks assertMachineMayConnect, so opening a project would stand in for confirming the machine (D14 step 2).`);
+        else if (!(confirmAt < candidatesAt)) fail(`${name} reads the candidates at ${String(candidatesAt)} before it asks assertMachineMayConnect at ${String(confirmAt)}. The gate comes FIRST (D14 step 2).`);
+      }
+      const forPair = wf.get('writeFolderForPair') ?? '';
+      if (!/\bpickWriteFolderForPair\s*\(/.test(forPair)) fail('writeFolderForPair does not ask pickWriteFolderForPair, so a rename is not bound by the folder that holds BOTH ends (D2).');
+      // D3: the candidates are THAT machine's open project rows and nothing else.
+      const readers = [...wf].filter(([, body]) => /\blistRemoteProjects\s*\(/.test(body));
+      if (readers.length === 0) fail(`${WRITE_FOLDER} never reads listRemoteProjects, so it cannot be choosing among that machine's open projects (D3).`);
+      for (const [name, body] of readers) {
+        if (!/\.filter\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.machineId\s*===\s*[\w.]+\s*\)/.test(body)) {
+          fail(`${name} reads listRemoteProjects without keeping only the rows whose machineId is this machine's, so a project open on ANOTHER machine would widen this one (D3).`);
+        }
+      }
+      if (/\blistProjects\s*\(/.test(codeOf(WRITE_FOLDER) ?? '')) fail(`${WRITE_FOLDER} reads listProjects, which holds every machine's rows and this Mac's (D3).`);
+    }
+    // The five verbs reach the folder before they compose or connect.
+    for (const [file, verb] of VERBS) {
+      const body = bodyNamed(file, verb);
+      if (body === undefined) {
+        cantJudge(113, `${file} has no ${verb}`);
+        continue;
+      }
+      const folderAt = Math.min(...['writeFolderFor', 'writeFolderForPair'].map((n) => body.search(new RegExp(`\\b${n}\\s*\\(`))).filter((n) => n >= 0).concat([Number.MAX_SAFE_INTEGER]));
+      const later = ['readyRemoteContext', 'runFolderWrite', 'readyWriteFolder'].map((n) => [n, body.search(new RegExp(`\\b${n}\\s*\\(`))]);
+      if (folderAt === Number.MAX_SAFE_INTEGER) fail(`${verb} in ${file} never asks writeFolderFor, so nothing bounds what it writes (D14).`);
+      for (const [n, at] of later) {
+        if (at >= 0 && at < folderAt) fail(`${verb} in ${file} calls ${n} at ${String(at)} before it asks writeFolderFor at ${String(folderAt)} (D14).`);
+      }
+      if (verb === 'renameRemoteEntry' && !/\bwriteFolderForPair\s*\(/.test(body)) {
+        fail('renameRemoteEntry does not ask writeFolderForPair, so a rename is not bound by the one folder holding both ends (D2).');
+      }
+    }
+    // DRIVEN: D2's corpus, its expected answers the probe's own.
+    for (const row of d.corpus ?? []) {
+      if (J(row.got) !== J(row.want)) {
+        fail(`pickWriteFolder("${row.target}", ${J(row.projects)}, legacy ${J(row.legacy)}, ${row.mode}) answered ${J(row.got)}${row.threw ? ` (threw ${row.threw})` : ''}; ${row.name} is ${J(row.want)}.`);
+      }
+    }
+    for (const row of d.pairs ?? []) {
+      if (J(row.got) !== J(row.want)) fail(`pickWriteFolderForPair, ${row.name}: answered ${J(row.got)}, not ${J(row.want)}.`);
+    }
+    if ((d.corpus ?? []).length < 20 || (d.pairs ?? []).length < 4) cantJudge(113, `the probe drove ${String((d.corpus ?? []).length)} pick rows and ${String((d.pairs ?? []).length)} pair rows`);
+    // DRIVEN: main and the shared rule agree, path for path.
+    const agree = d.agree ?? [];
+    if (agree.length < 80) cantJudge(113, `the agreement corpus has ${String(agree.length)} rows`);
+    for (const row of agree) {
+      const where = `folder ${J(row.folder)} target ${J(row.target)}`;
+      if (row.sharedFile !== row.mainFile) fail(`relativeInFolder(file) answered ${J(row.sharedFile)} and relativeUnderRoot ${J(row.mainFile)} for ${where}; main and the renderer would disagree about one path.`);
+      if (row.sharedFolder !== row.mainFolder) fail(`relativeInFolder(folder) answered ${J(row.sharedFolder)} and rootRelativeCwd ${J(row.mainFolder)} for ${where}.`);
+      const pickFile = row.folderNever === true ? false : row.mainFile !== null;
+      const pickFolder = row.folderNever === true ? false : row.mainFolder !== null;
+      if (row.pickFile !== pickFile || row.pickFolder !== pickFolder) {
+        fail(`pickWriteFolder over the one project ${where} chose ${J([row.pickFile, row.pickFolder])} where main's containment says ${J([pickFile, pickFolder])}.`);
+      }
+    }
+  }
+
+  // --- 114. The door --------------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 114: ${message}`);
+    const writers = (d.catalogue ?? []).filter((row) => row.mode === 'write');
+    const folderIds = writers.filter((row) => row.bound === 'folder').map((row) => row.id);
+    const machineIds = writers.filter((row) => row.bound === 'machine').map((row) => row.id);
+    if (J(folderIds) !== J(Object.keys(FOLDER_WRITES))) fail(`the catalogue's folder-bound writes are ${J(folderIds)}; they are exactly ${J(Object.keys(FOLDER_WRITES))} (D13).`);
+    if (J(machineIds) !== J(['image-put', 'git-clone'])) fail(`the catalogue's machine-bound writes are ${J(machineIds)}; they are exactly image-put and git-clone (D13, D20).`);
+    if (writers.length !== folderIds.length + machineIds.length) fail(`a write row carries no bound: ${J(writers.filter((r) => r.bound !== 'folder' && r.bound !== 'machine').map((r) => r.id))}.`);
+    for (const row of d.catalogue ?? []) {
+      if (row.mode === 'read' && (row.bound !== null || row.hasFolderArg)) fail(`read script ${row.id} carries ${row.bound !== null ? 'a bound' : 'a folderArg'}; only a write has one.`);
+      const want = FOLDER_WRITES[row.id];
+      if (want !== undefined && (row.params !== want[0] || row.folderArg !== want[1])) {
+        fail(`${row.id} declares ${String(row.params)} value(s) with its folder at argument ${String(row.folderArg)}; D8 says ${String(want[0])} with the folder at ${String(want[1])} and the pin last.`);
+      }
+      if (row.bound === 'machine' && row.hasFolderArg) fail(`${row.id} is machine-bound and carries a folderArg.`);
+    }
+    // The text of the folder door.
+    const runBody = bodyNamed(RUN, 'runFolderWrite');
+    if (runBody === undefined) cantJudge(114, `${RUN} has no runFolderWrite`);
+    else {
+      if (!/\[\s*\.\.\.args\s*,\s*folder\.pin\s*\]/.test(runBody)) fail('runFolderWrite does not hand the door [...args, folder.pin], so the pin is not the LAST positional every folder-bound text reads (D13).');
+      if (!/args\s*\[\s*\w+\s*\]\s*!==\s*folder\.path/.test(runBody)) fail("runFolderWrite does not compare the arguments' folder element with folder.path, so a caller could bind one folder and write another (D13).");
+    }
+    // The brand: declared once, and a WriteFolder made in one file.
+    const brandName = /declare\s+const\s+(\w+)\s*:\s*unique\s+symbol/.exec(codeOf(WRITE_FOLDER) ?? '')?.[1] ?? null;
+    if (brandName === null) fail(`${WRITE_FOLDER} declares no unique symbol brand, so any object literal is a WriteFolder (D13).`);
+    else {
+      const elsewhere = naming(brandName, (file) => file !== WRITE_FOLDER);
+      if (elsewhere.length > 0) fail(`the brand ${brandName} is named outside ${WRITE_FOLDER}: ${elsewhere.join(', ')}.`);
+      if (/\bexport\b[^;\n]*\b(?:declare\s+)?const\s+\w+\s*:\s*unique\s+symbol/.test(codeOf(WRITE_FOLDER) ?? '')) fail('the brand is exported, so any module can make a WriteFolder.');
+    }
+    const casts = naming('as WriteFolder', (file) => file !== WRITE_FOLDER);
+    if (casts.length > 0) fail(`a WriteFolder is made by a cast outside ${WRITE_FOLDER}: ${casts.join(', ')}.`);
+    // DRIVEN: the doors over a context no machine answers, so a refusal that
+    // falls through its own check lands on the link gate (the control).
+    const doors = d.doors ?? {};
+    const s = d.sentences ?? {};
+    const control = doors.control ?? {};
+    if (control.threw !== true || control.message === '') cantJudge(114, `the control write through the machine door read ${J(control)}`);
+    else {
+      for (const one of doors.folderThroughMachineDoor ?? []) {
+        if (!one.threw || one.message === control.message || one.message !== s.FOLDER_SCRIPT_THROUGH_MACHINE_DOOR) {
+          fail(`runRemoteWrite was handed folder-bound ${one.id} and ${one.threw ? `refused with ${J(one.message.slice(0, 120))}` : 'did not refuse'}; it refuses before anything is composed with FOLDER_SCRIPT_THROUGH_MACHINE_DOOR (D13).`);
+        }
+      }
+      for (const one of doors.folderThroughMachineDoorShort ?? []) {
+        if (!one.threw || one.message === control.message) fail(`runRemoteWrite was handed folder-bound ${one.id} without its pin and reached the link gate; it is refused at the door.`);
+      }
+      if ((doors.folderThroughMachineDoor ?? []).length !== 6) cantJudge(114, `the machine door was driven with ${String((doors.folderThroughMachineDoor ?? []).length)} folder-bound ids`);
+      for (const one of doors.machineThroughFolderDoor ?? []) {
+        if (!one.threw || one.message === control.message || one.message !== s.MACHINE_SCRIPT_THROUGH_FOLDER_DOOR) {
+          fail(`runFolderWrite was handed machine-bound ${one.id} and ${one.threw ? `refused with ${J(one.message.slice(0, 120))}` : 'did not refuse'}; it refuses with MACHINE_SCRIPT_THROUGH_FOLDER_DOOR.`);
+        }
+      }
+      for (const one of doors.mismatchedFolder ?? []) {
+        if (!one.threw || one.message === control.message) fail(`runFolderWrite was handed ${one.id} with a folder argument that is not the folder it was given, and it reached the link gate rather than refusing (D13).`);
+      }
+      for (const one of doors.folderControl ?? []) {
+        if (one.message !== control.message) {
+          fail(`runFolderWrite over ${one.id} with its own folder answered ${J(one.message.slice(0, 160))}, not the link gate's sentence. With the pin appended the count is right and nothing else refuses, so anything else is the pin missing or a door that refuses its own folder.`);
+        }
+      }
+    }
+  }
+
+  // --- 115, 116, 117: the far texts, read -----------------------------------
+  const textOf = (id) => String(scriptsById.get(id)?.text ?? '');
+  const lines = (id) => textOf(id).split('\n');
+  /** Lines that write: a mutating program, a redirection into the staged name, or git doing its write. */
+  const WRITES = /(?:^|[\s;(|&])(?:mv|mkdir|rm|chmod|cp|ln|touch)\s|>\s*"\$t"|\bgit\s+(?:add|restore|rm|commit)\b/;
+  const markerFields = (line) => {
+    const m = /__TORTIE_RUN__(.*?)__TORTIE_RUN__/.exec(line);
+    return m === null ? null : m[1].split(' ').length;
+  };
+  {
+    const fail = (message) => failures.push(`condition 115: ${message}`);
+    // folder-pin: one value, GNU first.
+    const pin = catalogueById.get('folder-pin');
+    const pinText = textOf('folder-pin');
+    if (pin === undefined) fail('the catalogue holds no folder-pin read (D6).');
+    else {
+      if (pin.mode !== 'read' || pin.params !== 1) fail(`folder-pin is a ${pin.mode} taking ${String(pin.params)} value(s); it is a read of ONE folder.`);
+      const gnu = pinText.indexOf("stat -c '%d:%i'");
+      const bsd = pinText.indexOf("stat -f '%d:%i'");
+      if (gnu < 0 || bsd < 0 || !(gnu < bsd)) fail(`folder-pin names GNU stat -c at ${String(gnu)} and BSD stat -f at ${String(bsd)}; GNU comes first, so a Linux machine never puts a usage banner into the answer (M3).`);
+      // The FOLDER is read GNU first too, not only the dialect probe: the first
+      // line that stats "$d/." (or "$1/.") is the GNU spelling.
+      const folderReads = pinText.split('\n').filter((l) => /"\$(?:d|1)\/\."/.test(l));
+      if (folderReads.length === 0 || !/stat -c '%d:%i'/.test(folderReads[0])) {
+        fail(`folder-pin reads the folder first with ${J((folderReads[0] ?? 'nothing').trim())}; the GNU spelling comes first (M3).`);
+      }
+      const multi = pinText.split('\n').filter((l) => (markerFields(l) ?? 1) !== 1);
+      if (multi.length > 0) fail(`folder-pin prints more than one value: ${J(multi[0])}. It prints the pair or none.`);
+      if (!/"\$d\/\."|"\$1\/\."/.test(pinText)) fail('folder-pin does not read the folder THROUGH itself ("$1/."), so a pin and the prelude\'s first step would not agree.');
+    }
+    for (const [id, [params, folderArg]] of Object.entries(FOLDER_WRITES)) {
+      const text = textOf(id);
+      if (text === '') {
+        fail(`${id} has no text to read.`);
+        continue;
+      }
+      const N = folderArg + 1;
+      const all = lines(id);
+      const cdRe = new RegExp(`cd -P (?:-- )?"\\$${String(N)}"`);
+      const cds = all.map((l, i) => (cdRe.test(l) ? i : -1)).filter((i) => i >= 0);
+      const walkAt = all.findIndex((l) => /^lr="/.test(l.trim()));
+      const writeAt = all.findIndex((l) => WRITES.test(l));
+      const pinCompare = new RegExp(`"\\$wx"\\s*!=\\s*"\\$${String(params)}"`);
+      if (cds.length === 0 || !/notsame/.test(text) || !/offlimits/.test(text) || !/nohome/.test(text) || !pinCompare.test(text)) {
+        fail(`${id} does not carry the folder check: it must enter its folder with cd -P -- "$${String(N)}" and compare the folder's identity with its LAST positional "$${String(params)}", answering notsame, offlimits, nohome and protected (D9).`);
+        continue;
+      }
+      const lastCd = Math.max(...cds);
+      if (walkAt >= 0 && !(lastCd < walkAt)) fail(`${id} runs its link walk at line ${String(walkAt + 1)} before the folder check's cd at line ${String(lastCd + 1)}; the check stands above the walk (D8).`);
+      if (writeAt >= 0 && !(lastCd < writeAt)) fail(`${id} writes at line ${String(writeAt + 1)} before the folder check at line ${String(lastCd + 1)}.`);
+      // §Attack G2: from the cd on, the folder is "." and its path is never read again.
+      const ref = new RegExp(`\\$\\{?${String(N)}\\b`);
+      const reread = all.slice(lastCd + 1).find((l) => ref.test(l));
+      if (reread !== undefined) {
+        fail(`${id} reads its folder's path "$${String(N)}" again below the cd -P that checked it, on the line ${J(reread.trim())}. Every line below the check reaches the folder through the anchored ".", or a link swapped in during the window lands the write outside (§Attack G2, M9).`);
+      }
+      // The compare is against the LAST positional, and against nothing else.
+      const otherPins = [...text.matchAll(/"\$wx"\s*!?=\s*"\$(\d)"/g)].map((m) => Number(m[1])).filter((n) => n !== params);
+      if (otherPins.length > 0) fail(`${id} compares the folder's identity with $${String(otherPins[0])}; the pin is its last positional, $${String(params)} (D8).`);
+      // The legacy branch is keyed on the same positional.
+      if (!new RegExp(`\\[ "\\$${String(params)}" = - \\]`).test(text)) fail(`${id} does not skip the folder check for a legacy root on [ "$${String(params)}" = - ] (D16).`);
+      // Every refusal prints the script's own field count.
+      const bad = all.filter((l) => /__TORTIE_RUN__/.test(l)).filter((l) => markerFields(l) !== FIELDS[id]);
+      if (bad.length > 0) fail(`${id} prints ${J(bad[0].trim().slice(0, 140))}, which is not its ${String(FIELDS[id])} fields; a parser reading a fixed count would read a refusal as something else.`);
+    }
+    // Main reads notsame as folderChanged, and no verb stores a pin.
+    for (const file of VERB_FILES) {
+      const code = codeOf(file) ?? '';
+      const compares = [...code.matchAll(/===\s*'notsame'/g)];
+      if (compares.length === 0) fail(`${file} never reads the far word notsame, so a swapped folder would read as some other outcome.`);
+      for (const m of compares) {
+        const next = /'([A-Za-z]+)'/.exec(code.slice(m.index + m[0].length, m.index + m[0].length + 400))?.[1] ?? null;
+        if (next !== 'folderChanged') fail(`${file} maps notsame to ${J(next)}; it is folderChanged, never outsideRoot or moved (D11).`);
+      }
+      for (const name of ['setRemoteFolderPin', 'pinOpenedFolder']) {
+        if (new RegExp(`\\b${name}\\s*\\(`).test(code)) fail(`${file} calls ${name}; a write never stores a pin, so notsame can never adopt a swapped folder (D6). Only readyWriteFolder's first read and a hand open do.`);
+      }
+    }
+  }
+  {
+    const fail = (message) => failures.push(`condition 116: ${message}`);
+    for (const row of d.neverRows ?? []) {
+      if (row.got !== row.want) fail(`neverWriteFolder(${J(row.path)}) answered ${J(row.got)}; D4's table says ${J(row.want)}.`);
+    }
+    if ((d.neverRows ?? []).length < 25) cantJudge(116, `the probe drove ${String((d.neverRows ?? []).length)} never-list rows`);
+    for (const id of Object.keys(FOLDER_WRITES)) {
+      const text = textOf(id);
+      if (text === '') continue;
+      if (!/case "\$HOME" in \/\*\) ;; \*\)[^\n]*nohome/.test(text)) fail(`${id} does not refuse an empty or relative $HOME with nohome before it resolves anything (D9, M1 row 17).`);
+      if (!/"\$HOME\/\."/.test(text) || !/if \[ -z "\$wh" \]; then[^\n]*nohome/.test(text)) fail(`${id} does not read the home's identity through "$HOME/." and answer nohome when it cannot.`);
+      if (!/"\$wx" = "\$wh" \] && \[ "\$wn" -le 1 \]/.test(text)) fail(`${id} does not refuse the home and a folder directly inside it BY IDENTITY ("$wx" = "$wh" within one step), so a home typed in another case would pass (§Attack G1).`);
+      if (!/"\$wn" -le 1 \]; then[^\n]*offlimits/.test(text.split('done').slice(1).join('done'))) fail(`${id} does not refuse a folder that IS / or the home once its walk reaches the top.`);
+      if (!/wd="\$HOME\/\.\."/.test(text)) fail(`${id} never walks up from the home, so a folder that HOLDS the home would pass (D5).`);
+      if (/\bpwd\b|\$PWD/.test(text)) fail(`${id} reads pwd; a path TEXT comparison is not portable between bash and dash, which is §Attack G1 (compare <dev>:<ino>).`);
+      const legacyAt = text.search(/if \[ "\$\d" = - \]; then/);
+      const homeAt = text.indexOf('case "$HOME"');
+      const elseAt = text.indexOf('\nelse\n', legacyAt);
+      if (!(legacyAt >= 0 && elseAt > legacyAt && homeAt > elseAt)) fail(`${id} applies the home rules to a legacy root (pin -); D16 keeps today's bound for it.`);
+    }
+  }
+  {
+    const fail = (message) => failures.push(`condition 117: ${message}`);
+    for (const row of d.foldRows ?? []) {
+      if (row.reserved !== row.want) fail(`foldReservedSegment(${J(row.segment)}) is ${J(row.folded)}; it ${row.want ? 'folds to .git or .ssh' : 'is not reserved'} (§Attack M5).`);
+    }
+    for (const row of d.protectedRows ?? []) {
+      if (row.got !== row.want) fail(`isProtectedRemotePath(${J(row.rel)}) answered ${J(row.got)}, not ${J(row.want)}.`);
+    }
+    if ((d.foldRows ?? []).length < 20) cantJudge(117, `the probe drove ${String((d.foldRows ?? []).length)} fold rows`);
+    // Main asks before it composes, for every path a verb names.
+    for (const [file, verb] of VERBS) {
+      const body = bodyNamed(file, verb);
+      if (body === undefined) continue;
+      const askAt = Math.min(...['namesProtected', 'isProtectedRemotePath'].map((n) => body.search(new RegExp(`\\b${n}\\s*\\(`))).filter((n) => n >= 0).concat([Number.MAX_SAFE_INTEGER]));
+      const sendAt = body.search(/\brunFolderWrite\s*\(/);
+      if (askAt === Number.MAX_SAFE_INTEGER) fail(`${verb} in ${file} never asks isProtectedRemotePath, so a .GIT or .ßh path would be composed (D10, D14 step 4).`);
+      else if (sendAt >= 0 && askAt > sendAt) fail(`${verb} asks about reserved names at ${String(askAt)} after it sends at ${String(sendAt)}.`);
+      if (verb === 'renameRemoteEntry') {
+        const named = /\bnamesProtected\s*\([^,]+,\s*\[([^\]]*)\]/.exec(body)?.[1] ?? '';
+        const viaHelper = named.split(',').filter((s2) => s2.trim() !== '').length;
+        const direct = (body.match(/\bisProtectedRemotePath\s*\(/g) ?? []).length;
+        if (viaHelper < 2 && direct < 2) fail('renameRemoteEntry asks about one end of the rename only; a rename INTO .SSH/ is a write into it (D10).');
+      }
+      if (verb === 'writeIndexOnMachine' && !/\.some\(\s*\(?\s*\w+\s*\)?\s*=>\s*isProtectedRemotePath\(/.test(body)) {
+        fail('writeIndexOnMachine does not ask about every staged path (D10).');
+      }
+    }
+    // The far side: the folder by identity, the relative parts by the bracket backstop, no exit 1.
+    for (const id of Object.keys(FOLDER_WRITES)) {
+      const text = textOf(id);
+      if (text === '') continue;
+      if (!/"\$wd\/\.\.\/\.git\/\."/.test(text) || !/"\$wd\/\.\.\/\.ssh\/\."/.test(text) || !/"\$wx" = "\$wg" \] \|\| \[ "\$wx" = "\$ws" \]/.test(text)) {
+        fail(`${id} does not refuse a folder that IS, or sits inside, a .git or .ssh BY IDENTITY, so a project at .ßh/keys (which APFS folds to .ssh) would pass (§Attack G3).`);
+      }
+      if (/\bexit 1\b/.test(text)) fail(`${id} names exit 1. Every far refusal prints its word inside the markers and exits 0, or main reads it as "may have been made" (D12, fault 3).`);
+      const guarded = [...text.matchAll(/case "\$(\w+)" in ([^)]*)\)[^\n]*protected/g)].filter((m) => /\.\[Gg\]\[Ii\]\[Tt\]/.test(m[2]) && /\.\[Ss\]\[Ss\]\[Hh\]/.test(m[2])).map((m) => m[1]);
+      const want = { 'file-put': ['2'], 'dir-new': ['2'], 'entry-rename': ['2', '3'], 'git-stage': ['4', 'p'], 'git-unstage': ['4', 'p'], 'git-commit': ['5'] }[id];
+      const missing = want.filter((v) => !guarded.includes(v));
+      if (missing.length > 0) fail(`${id} has no ASCII bracket backstop for .git and .ssh on $${missing.join(', $')} (D10${id === 'file-put' ? '; file-put gains the guard it lacked, fault 2' : ''}).`);
+    }
+  }
+
+  // --- 115, 116, 117: the far texts, DRIVEN under both shells ---------------
+  {
+    const texts = {
+      marker: data.remoteRun?.marker ?? '__TORTIE_RUN__',
+      scripts: (data.remoteRun?.scripts ?? []).map((row) => {
+        const cat = catalogueById.get(row.id);
+        return { id: row.id, mode: row.mode, params: row.params, text: row.text, folderPositional: cat && cat.folderArg !== null ? cat.folderArg + 1 : null };
+      })
+    };
+    let driven = null;
+    try {
+      // M8's 29 shapes through file-put and git-stage, one path verb and one
+      // git verb, because the six share ONE prelude builder and 115 reads every
+      // text for it; the swap arms (h1, h2, m9) still run all six.
+      // `npm run probe:p336:script` runs M8 through all six.
+      driven = await runP336Arms({ texts, only: ['pin', 'm8', 'h1', 'h2', 'h3', 'h4', 'h8', 'm9', 'legacy'], windowSeconds: 0.5, m8Scripts: ['file-put', 'git-stage'] });
+    } catch (err) {
+      failures.push(`condition 115: the far arms threw: ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (driven !== null) {
+      for (const problem of driven.problems) {
+        failures.push(`condition ${String(ownerOfP336Problem(problem))}: driven under /bin/sh and /bin/dash: ${problem}`);
+      }
+      if (driven.rows.length < 120) cantJudge(115, `the far arms ran ${String(driven.rows.length)} rows`);
+      if (driven.scratchGone === false) failures.push('condition 115: the far arms left their scratch tree behind.');
+      process.stdout.write(
+        `\nthe far half, driven: ${String(driven.rows.length)} rows over the shipping texts under /bin/sh and /bin/dash, ` +
+          `${String(driven.rows.filter((r) => r.ok).length)} holding, the shells agreeing on every one; ` +
+          `${String(driven.residual.length)} stated residual(s) printed by probe:p336:script.\n`
+      );
+    }
+  }
+
+  // --- 118. The open pins ---------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 118: ${message}`);
+    const core = bodyNamed('src/main/sessions/core.ts', 'addRemoteProjectAdmitted');
+    if (core === undefined) cantJudge(118, 'core.ts has no addRemoteProjectAdmitted');
+    else {
+      const upsertAt = core.search(/\bupsertRemoteProject\s*\(/);
+      const pinAt = core.search(/\bawait\s+pinOpenedFolder\s*\(/);
+      if (pinAt < 0) fail('addRemoteProjectAdmitted does not await pinOpenedFolder, so a folder opened by hand is never pinned (D6).');
+      else if (!(upsertAt >= 0 && upsertAt < pinAt)) fail(`addRemoteProjectAdmitted pins at ${String(pinAt)} before the row is stored at ${String(upsertAt)}.`);
+    }
+    const wf = fnsOf(WRITE_FOLDER);
+    const pinOpen = wf.get('pinOpenedFolder');
+    if (pinOpen === undefined) cantJudge(118, `${WRITE_FOLDER} has no pinOpenedFolder`);
+    else {
+      const trimmed = pinOpen.trim();
+      const catchAt = trimmed.search(/\}\s*catch\s*(?:\([^)]*\))?\s*\{/);
+      const catchBody = catchAt < 0 ? '' : trimmed.slice(catchAt);
+      if (!trimmed.startsWith('try') || catchAt < 0 || /\bthrow\b/.test(catchBody)) {
+        fail('pinOpenedFolder is not one try whose catch keeps quiet, so a failed pin read could fail the open (D6: a failed pin read never fails the open).');
+      }
+    }
+    const ready = wf.get('readyWriteFolder');
+    if (ready === undefined) cantJudge(118, `${WRITE_FOLDER} has no readyWriteFolder`);
+    else {
+      const readAt = ready.search(/\bremoteFolderPin\s*\(/);
+      const askAt = ready.search(/\brunRemoteRead\s*\(/);
+      const between = readAt >= 0 && askAt > readAt ? ready.slice(readAt, askAt) : '';
+      if (readAt < 0 || askAt < 0 || !/\breturn\b/.test(between)) {
+        fail('readyWriteFolder does not return a stored pin before it reads folder-pin, so a write would re-pin over a stored pin and adopt a swapped folder (D6).');
+      }
+      const storeAt = ready.search(/\bsetRemoteFolderPin\s*\(/);
+      if (storeAt >= 0 && !(storeAt > askAt && /===\s*null\)\s*return/.test(ready.slice(askAt, storeAt)))) {
+        fail('readyWriteFolder stores a pin without first refusing an answer that is not an identity (none answers folderChanged and stores nothing).');
+      }
+    }
+    for (const [file, name] of [
+      ['src/main/machines/remote-rehome.ts', 'rehomeRemoteSessions'],
+      ['src/main/sessions/core.ts', 'openTabsForRemoteCreate'],
+      ['src/main/sessions/core.ts', 'releaseFoldersAfterFailedRemoteCreate']
+    ]) {
+      const located = p336Files.filter((one) => bodyNamed(one.file, name) !== undefined).map((one) => one.file);
+      if (located.length === 0) cantJudge(118, `no file under src/ holds ${name} (looked first in ${file})`);
+      for (const f of located) {
+        const body = bodyNamed(f, name);
+        if (body === undefined) continue;
+        if (/\b(?:pinOpenedFolder|setRemoteFolderPin|remoteFolderPin)\s*\(/.test(body)) fail(`${name} in ${f} names a pin function; only a hand open pins (D6).`);
+      }
+    }
+  }
+
+  // --- 119. The local readers -----------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 119: ${message}`);
+    const rows = d.filterRows;
+    if (!Array.isArray(rows)) cantJudge(119, 'localRootsOf did not run');
+    else if (J(rows) !== J(['/Users/me/local-a', '/Users/me/local-b'])) fail(`localRootsOf kept ${J(rows)}; it keeps the rows with no machine and the word local, and drops every other, an empty one included.`);
+    const g = d.guarded ?? {};
+    if (g.remoteRow === undefined) cantJudge(119, 'writeGuarded was not driven');
+    else {
+      if (g.remoteRow.outcome !== 'refused' || g.remoteRow.why !== 'projectClosed' || g.remoteRow.after !== 'before\n') {
+        fail(`the SHIPPING writeGuarded, with a remote project row naming a folder on this Mac, answered ${J(g.remoteRow)}; it is refused projectClosed with the file unchanged (fault 5).`);
+      }
+      if (g.localRow?.outcome !== 'wrote' || g.localRow?.after !== 'LOCAL ROW\n') fail(`the same folder as a LOCAL row answered ${J(g.localRow)}; it writes, or the refusal above proves nothing.`);
+    }
+    const roots = codeOf('src/main/fs/project-roots.ts') ?? '';
+    if (!/\bmachineId\b/.test(fnsOf('src/main/fs/project-roots.ts').get('localRootsOf') ?? '')) fail('localRootsOf does not read a row\'s machineId.');
+    if (!/\blocalRootsOf\s*\(/.test(fnsOf('src/main/fs/project-roots.ts').get('localProjectRoots') ?? '')) fail('localProjectRoots does not filter through localRootsOf.');
+    void roots;
+    for (const [file, name] of [
+      ['src/main/fs/ipc.ts', 'defaultFileOpsDeps'],
+      ['src/main/fs/ipc.ts', 'defaultDragOutDeps'],
+      ['src/main/fs/open-with.ts', 'defaultOpenWithDeps'],
+      ['src/main/baselines/ipc.ts', 'baselineStore']
+    ]) {
+      const code = codeOf(file);
+      if (code === null) {
+        cantJudge(119, `${file} is not there`);
+        continue;
+      }
+      const at = code.search(new RegExp(`\\b(?:const|let|function)\\s+${name}\\b`));
+      const open = at < 0 ? -1 : code.indexOf('{', at);
+      const body = open < 0 ? null : blockAt(code, open);
+      if (body === null) fail(`${file} has no ${name} to read.`);
+      else if (!/\blocalProjectRoots\s*\(/.test(body)) fail(`${name} in ${file} does not take its roots from localProjectRoots, so a remote project row widens a reader on this Mac (fault 5, D15).`);
+    }
+    // ONE NAMED EXCEPTION, and it must still match or the list has rotted. The
+    // overview fold's `openProjectPaths` in the session core asks whether a
+    // SESSION's project is still open, for the fold's own "project-closed"
+    // skip (src/main/overview/fold/scheduler.ts). It reads no file on this Mac
+    // and admits nothing, and a remote session's fold is keyed by its remote
+    // project's path, so it keeps every machine's rows on purpose.
+    const EXCEPTED = [{ file: 'src/main/sessions/core.ts', near: 'openProjectPaths' }];
+    const exceptedHits = new Map(EXCEPTED.map((one) => [one.file, 0]));
+    const mappers = [];
+    for (const one of p336Files.filter((f) => f.file.startsWith('src/main/'))) {
+      for (const m of one.code.matchAll(/\blistProjects\(\)\s*\)?\s*\.map\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\1\.path\b/g)) {
+        const ex = EXCEPTED.find((e) => e.file === one.file && one.code.slice(Math.max(0, m.index - 200), m.index).includes(e.near));
+        if (ex !== undefined) exceptedHits.set(ex.file, (exceptedHits.get(ex.file) ?? 0) + 1);
+        else mappers.push(one.file);
+      }
+    }
+    if (mappers.length > 0) fail(`${[...new Set(mappers)].join(', ')} map listProjects() to paths, which holds every machine's rows; the local readers take localProjectRoots (D15).`);
+    for (const [file, hits] of exceptedHits) {
+      if (hits !== 1) fail(`the named exception in ${file} (the fold's openProjectPaths) matched ${String(hits)} time(s); it matches once, or it has rotted and is removed from this list.`);
+    }
+  }
+
+  // --- 120. Nothing he confirmed moves, and no door asks him ----------------
+  {
+    const fail = (message) => failures.push(`condition 120: ${message}`);
+    const appended = /const APPENDED_KEYS[^=]*=\s*\[([^\]]*)\]/.exec(codeOf('src/main/machines/confirm.ts') ?? '')?.[1] ?? null;
+    const keys = appended === null ? null : [...appended.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    if (J(keys) !== J(['acceptedTmuxVersion', 'writeRoot'])) fail(`APPENDED_KEYS reads ${J(keys)}; it is exactly acceptedTmuxVersion then writeRoot, or a row carrying a write root hashes differently and every such machine is asked again (D22).`);
+    const ROW_KEYS = ['id', 'label', 'color', 'host', 'user', 'port', 'remoteTmuxPath', 'acceptedTmuxVersion', 'writeRoot'];
+    if (J(d.machineRowKeys) !== J(ROW_KEYS)) fail(`MACHINE_ROW_KEYS reads ${J(d.machineRowKeys)}; Phase 336 adds no key to a machine row (D22).`);
+    // Taken at the parent, 2867bc39, from this gate's own probe (build/p336/SPEC.md M2).
+    const PINNED = {
+      none: 'dbd8aa39c1dd0154b556593a2a4ef56e2471afd575d98f3f8431abe20c445d46',
+      gdc: 'f09ddd90382dc9e6f52326f9b4938c00a37031e6c96f2f757573ca18af6d9e66',
+      code: '4273b4f1c49df5b60c90c86f2a63d019581ca64cdaa3aa4da88526532044e3db'
+    };
+    for (const [which, want] of Object.entries(PINNED)) {
+      if ((d.hashes ?? {})[which] !== want) fail(`the base row ${which === 'none' ? 'with no writeRoot' : `with writeRoot ${which === 'gdc' ? '/Users/gdc' : '/Users/gdc/code'}`} hashes to ${String((d.hashes ?? {})[which])}; at the parent it hashed to ${want}, and a moved hash un-confirms every such machine.`);
+    }
+    for (const channel of ['machines:writeSheet', 'machines:allowWrites']) {
+      const named = naming(channel);
+      if (named.length > 0) fail(`${channel} is still named in ${named.join(', ')}; Phase 336 removed it (D17).`);
+    }
+    for (const word of ['BTN_ALLOW_WRITES', 'Let Tortie save files here']) {
+      const named = naming(word, (file) => file.startsWith('src/renderer/'));
+      if (named.length > 0) fail(`${J(word)} is still named in ${named.join(', ')}; the Saving files block is gone (D1).`);
+    }
+    const drawn = d.drawn ?? [];
+    if (drawn.length < 50) cantJudge(120, `the probe drew ${String(drawn.length)} sentence(s) from the copy modules`);
+    const sends = drawn.filter((one) => /Settings|then Machines/.test(one.text));
+    for (const one of sends.slice(0, 6)) fail(`${one.module}'s ${one.name} draws ${J(one.text.slice(0, 160))}; no write sentence sends him to Settings any more (his ruling, §10).`);
+    // PHASE 336'S FIX ROUND. A sentence that names a GRANT is false after this
+    // phase whether or not it names Settings: the open sheet and Home's row
+    // said "Tortie writes there only where you have let it save", and the
+    // commit's outside sentence "the folder Tortie was given permission to
+    // write in", and the scan above read neither. project-tab.ts is now among
+    // the modules the probe calls, and these phrases are asked of every one.
+    //
+    // HIS RULED ROUND widened the phrases by four that name the same grant
+    // (`let Tortie write`, `allowed Tortie to save`, `permission to write`,
+    // `writes there only where`), each read over the whole tree's text first
+    // and matching nothing there.
+    const GRANT =
+      /let it save|let Tortie (?:save|write)|given permission|you have let|where you let|allow(?:ed|s)? Tortie to (?:save|write)|permission to (?:save|write)|writes? there only where/i;
+    if (!drawn.some((one) => one.module === 'src/renderer/machines/project-tab.ts')) cantJudge(120, 'the probe drew nothing from src/renderer/machines/project-tab.ts');
+    const grants = drawn.filter((one) => GRANT.test(one.text));
+    for (const one of grants.slice(0, 6)) fail(`${one.module}'s ${one.name} draws ${J(one.text.slice(0, 160))}; nothing is granted any more, so no sentence may say Tortie writes where somebody let it (his ruling, research 138 section 9).`);
+    // HIS RULED ROUND (2026-10-05, "Narrow tool fix, then land"). The scan
+    // above reads what the probe DREW by calling the copy modules' exports, and
+    // a component that writes its sentence as a literal draws nothing the probe
+    // can call: the reverify put the parent's own caption back at
+    // src/renderer/app/RemoteProjectModal.tsx:255 as JSX text and this
+    // condition stayed green. So every production source under src/ is also
+    // read with the TypeScript parser (textRunsOf), and every piece of TEXT in
+    // it is asked the same question, after a `+` chain, a template and a JSX
+    // element's children are each joined into one run and white space folded.
+    // The scan is proved on its own fixtures first, and a misread fixture means
+    // the tree's answer cannot be judged.
+    const misread = GRANT_SCAN_FIXTURES.filter((one) => textRunsMatching([{ file: one.file, text: one.source }], GRANT).length > 0 !== one.hit);
+    for (const one of misread) cantJudge(120, `the literal scan misread its own fixture (${one.what}): it ${one.hit ? 'found nothing' : 'found a grant'}`);
+    if (p336Files.length < 1000) cantJudge(120, `the literal scan read ${String(p336Files.length)} production source(s) under src/`);
+    if (misread.length === 0) {
+      const literal = textRunsMatching(p336Files, GRANT);
+      for (const one of literal.slice(0, 6)) fail(`${one.file}:${String(one.line)} writes ${J(one.text.trim().slice(0, 160))} as text; nothing is granted any more, so no sentence a surface draws may say Tortie writes where somebody let it, whether it is composed in a copy module or typed into a component (his ruling, research 138 section 9).`);
+      if (literal.length > 6) fail(`and ${String(literal.length - 6)} more run(s) of text name a grant.`);
+    }
+  }
+
+  // --- 121. A changed machine -----------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 121: ${message}`);
+    const v = d.views ?? {};
+    if (v.confirmed === undefined) cantJudge(121, 'machineStateViewOf was not driven');
+    else {
+      if (v.confirmed.savesInProjects !== true) fail(`a confirmed row's view reads savesInProjects ${J(v.confirmed.savesInProjects)}; it is true.`);
+      for (const which of ['changed', 'never', 'changedWithRoot']) {
+        if (v[which]?.savesInProjects !== false) fail(`a ${which} row's view reads savesInProjects ${J(v[which]?.savesInProjects)}; a machine whose details changed, or nobody confirmed, saves nothing until it is confirmed again (D21).`);
+      }
+      if (v.changedWithRoot?.writeRoot !== null) fail('a changed row still reports its write root.');
+      if (v.confirmedWithRoot?.savesInProjects !== true || v.confirmedWithRoot?.writeRoot !== '/srv/legacy') fail(`a confirmed row with a legacy root reads ${J(v.confirmedWithRoot)}; it saves in its projects and under its root (D16).`);
+    }
+  }
+
+  process.stdout.write(
+    '\nthe folder bound holds: one shared rule chooses the folder (a legacy root first, then the deepest open ' +
+      'project, never a home or a reserved folder), six writes cross one typed door that appends the pin, every ' +
+      'far text checks the folder by identity in the same call and writes through the anchored ".", the local ' +
+      'readers take local rows only, no machine hash moved, and no door asks him anything.\n'
+  );
+}
+
 if (failures.length > 0) {
   process.stdout.write(`\nFAIL, ${failures.length}:\n`);
   for (const failure of failures) process.stdout.write(`  - ${failure}\n`);
@@ -12446,6 +13387,7 @@ process.stdout.write(
     'before its precheck, which reads the version through the program the child ' +
     "runs, and the rows built here name the pin's own tarball. " +
     'Nothing was started by this gate but ' +
-    "condition 88g's own /bin/sh arms, over a scratch directory removed in a " +
-    'finally.\n'
+    "condition 88g's own /bin/sh arms and conditions 115 to 117's /bin/sh and " +
+    '/bin/dash arms (with git and shasum under them), each over a scratch ' +
+    'directory removed in a finally.\n'
 );

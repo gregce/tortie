@@ -1,12 +1,12 @@
 /**
  * Phase 90.3. Saving a file that is on another machine is refused OUT LOUD.
  *
- * PHASE 101 CHANGED THE SENTENCE AND NOT THE BEHAVIOUR HERE. The machine in
- * this file carries no folder anybody confirmed, which is the ordinary case and
- * the default, so the save is still refused and nothing is written on either
- * computer. The sentence names the one thing a person can do about it now,
- * because there is one. A machine that DOES carry a folder is driven in
- * ./p101-remote-save.test.ts.
+ * PHASE 101 CHANGED THE SENTENCE AND NOT THE BEHAVIOUR HERE, and PHASE 336
+ * changed it again. The file in this file is outside every project opened on
+ * its machine, so the save is still refused and nothing is written on either
+ * computer, and the sentence says which folders Tortie saves in there rather
+ * than sending a person to Settings. A file inside a project open on that
+ * machine saves, and is driven in ./p101-remote-save.test.ts.
  *
  * WHAT WAS WRONG. Phase 73 refused the save and said nothing. A person who
  * typed into a review tab and pressed Save was told nothing at all, and silence
@@ -59,7 +59,7 @@ vi.stubGlobal('document', {
 
 const { useEditor } = await import('../store');
 const { useApp } = await import('../../state/store');
-const { remoteSaveRefused } = await import('../../machines/editor');
+const { remoteSaveOutsideProjects } = await import('../../machines/editor');
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 
 const REMOTE = {
@@ -90,6 +90,20 @@ beforeEach(() => {
   toasts = [];
   useEditor.setState({ tabs: [], activeId: null, panelOpen: false });
   useApp.setState({
+    // PHASE 336. A confirmed machine with no project open on it.
+    machineStates: [
+      {
+        id: 'studio',
+        label: 'Studio',
+        color: 'blue',
+        link: 'connected',
+        everAnswered: true,
+        lastAnsweredAt: 0,
+        detail: null,
+        savesInProjects: true
+      }
+    ],
+    projects: [],
     toast: (kind: string, text: string) => {
       toasts.push({ kind, text });
     }
@@ -104,11 +118,11 @@ describe('pressing Save on a file that is on another machine', () => {
     await useEditor.getState().save();
     expect(writeFile).not.toHaveBeenCalled();
     expect(toasts).toEqual([
-      { kind: 'error', text: remoteSaveRefused('Studio') }
+      { kind: 'error', text: remoteSaveOutsideProjects('Studio') }
     ]);
     expect(toasts[0]?.text).toBe(
-      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
-        'Studio, and let Tortie save files there. Nothing was written.'
+      'Tortie saves on Studio only inside a project you opened there. ' +
+        'Nothing was written.'
     );
   });
 

@@ -41,7 +41,7 @@ export interface TreeMenuOptions
   rootPath: string;
   remote: TreeRemote | null;
   isRemote: boolean;
-  remoteWriteRoot: string | null;
+  remoteWriteFolder: string | null;
   /** The tree's open gesture, which the menu's Open and Open in New Tab reuse. */
   openRel: (canonical: string, keep?: boolean) => void;
 }
@@ -55,7 +55,7 @@ export function useTreeMenu({
   rootPath,
   remote,
   isRemote,
-  remoteWriteRoot,
+  remoteWriteFolder,
   model,
   treeInput,
   opsRef,
@@ -210,7 +210,7 @@ export function useTreeMenu({
           // because `mutate` gates five verbs and only this one has a script
           // on the far side.
           remoteCreateFile:
-            isRemote && ops !== null && remoteWriteRoot !== null,
+            isRemote && ops !== null && remoteWriteFolder !== null,
           // PHASE 102. A second flag for the two entry verbs, and it reads the
           // channel as well as the folder. A build whose preload predates this
           // phase leaves New Folder and Rename off a remote row rather than
@@ -218,7 +218,7 @@ export function useTreeMenu({
           remoteWriteEntries:
             isRemote &&
             ops !== null &&
-            remoteWriteRoot !== null &&
+            remoteWriteFolder !== null &&
             canWriteEntries()
         },
         {
@@ -251,7 +251,7 @@ export function useTreeMenu({
       treeInput,
       isRemote,
       remote,
-      remoteWriteRoot,
+      remoteWriteFolder,
       openRel,
       revealPath,
       copyPaths,

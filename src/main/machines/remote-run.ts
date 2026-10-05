@@ -26,7 +26,11 @@
  *     refusal happens before a string that could be sent exists.
  *  2. Compare the script's mode with the door that was called. A `write` script
  *     reached through {@link runRemoteRead}, or a `read` script reached through
- *     {@link runRemoteWrite}, is refused. Nothing is sent.
+ *     {@link runRemoteWrite}, is refused. Nothing is sent. PHASE 336 ADDED THE
+ *     THIRD DOOR AND THE SECOND HALF OF THIS STEP: a write whose catalogue row
+ *     is `bound: 'folder'` crosses only through {@link runFolderWrite}, and a
+ *     `bound: 'machine'` write only through {@link runRemoteWrite}. Either
+ *     refusal happens before anything is composed.
  *  3. Count the arguments against `script.params`. A mismatch is a programming
  *     error rather than something a person did, so it throws with the two
  *     counts in the detail and carries no sentence for a person to read.
@@ -79,6 +83,8 @@ import { execRemoteShell, type ExecTmuxOptions } from './exec-plane';
 import { machineClassOf } from './errors';
 import { feedAnswering, isLinkFailure, linkAnswering } from './liveness';
 import {
+  FOLDER_SCRIPT_THROUGH_MACHINE_DOOR,
+  MACHINE_SCRIPT_THROUGH_FOLDER_DOOR,
   machineNotConnected,
   SCRIPT_NOT_IN_CATALOGUE,
   WRITE_THROUGH_READ_DOOR
@@ -87,9 +93,9 @@ import {
   REMOTE_SCRIPT_MARKER,
   REMOTE_SCRIPT_MAX_BYTES,
   remoteScript,
-  type RemoteScript,
-  type RemoteScriptMode
+  type RemoteScript
 } from './remote-scripts';
+import type { WriteFolder } from './write-folder';
 
 /**
  * How long one script gets before it is killed. 15,000 ms.
@@ -213,13 +219,17 @@ export async function runRemoteRead(
 }
 
 /**
- * Run a `write` script on one machine.
+ * Run a MACHINE-BOUND `write` script on one machine.
  *
- * It is the only door to a write on another computer in this product. The
- * catalogue holds EIGHT scripts with `mode: 'write'`, being `image-put`,
+ * The catalogue holds EIGHT scripts with `mode: 'write'`, being `image-put`,
  * `git-clone`, `file-put`, `dir-new`, `entry-rename`, `git-stage`,
- * `git-unstage` and `git-commit` in that order, so this function has exactly
- * eight things it can send.
+ * `git-unstage` and `git-commit` in that order. SINCE PHASE 336 THIS DOOR SENDS
+ * TWO OF THEM, `image-put` and `git-clone`, the two rows marked
+ * `bound: 'machine'`, which are gated by a confirmed machine and by no folder
+ * (research 138 section 9: pictures and clone stay as they were). The other
+ * six are `bound: 'folder'` and this function refuses each of them at step 2
+ * with {@link FOLDER_SCRIPT_THROUGH_MACHINE_DOOR}, before anything is
+ * composed; they cross only through {@link runFolderWrite}.
  *
  * THE NUMBER LIVES IN THE CATALOGUE AND IN THE GATE RATHER THAN IN THIS
  * SENTENCE. `ALLOWED_WRITERS` in `build/conformance-machines.mjs` holds the
@@ -228,13 +238,17 @@ export async function runRemoteRead(
  * caught by the same call the product makes. This sentence has gone stale three
  * times and it is written out each time rather than quietly fixed.
  *
- * THERE IS NO WRITES GATE IN THIS FUNCTION AND PHASE 104 DID NOT ADD ONE. None
- * of the eight steps below reads a machine row, so nothing here refuses a write
- * for a machine whose writes were never confirmed. That decision lives in
- * `confirmedWriteRoot` in `./remote-file.ts`, and each of the callers that
- * writes under a confirmed folder calls it as its first act. It is a discipline
- * rather than a door, and the remedy costs one read of the machine row inside
- * {@link runRemoteScript}.
+ * WHAT IS A DOOR NOW, AND WHAT STILL IS NOT. Until Phase 336 this comment said
+ * there was no writes gate here, that eight callers each asked one shared
+ * function, and that this was "a discipline rather than a door". That is no
+ * longer true for the six folder-bound writes: they cannot cross without a
+ * `WriteFolder`, which only `./write-folder.ts` can make, and only after the
+ * row is in the file, the confirm gate passed and an open project (or a legacy
+ * `writeRoot`) holds the target. What remains a discipline is the two
+ * machine-bound writes: their callers (`./remote-image.ts`,
+ * `./remote-clone.ts`) reach this door through a registered context, which
+ * passed the confirm gate when it was built, and nothing here reads the row
+ * again at the press.
  *
  * ## What makes each of the eight safe to run twice, because they differ
  *
@@ -277,6 +291,75 @@ export async function runRemoteWrite(
   return runRemoteScript(ctx, scriptId, args, 'write', options);
 }
 
+/** A pin `folderCheck` can compare: `-` for a legacy root, else `<dev>:<ino>`. */
+const PIN_SHAPE = /^(?:-|[0-9]{1,20}:[0-9]{1,20})$/;
+
+/**
+ * Run a FOLDER-BOUND `write` script on one machine (Phase 336).
+ *
+ * THE ONE TYPED DOOR for the six writes a folder bounds, being `file-put`,
+ * `dir-new`, `entry-rename`, `git-stage`, `git-unstage` and `git-commit`. It
+ * takes a `WriteFolder`, a branded value that only `./write-folder.ts` can
+ * make, so the compiler refuses a caller that did not go through the row, the
+ * confirm gate and the folder choice first. Before anything is composed it:
+ *
+ *  1. refuses an id the catalogue does not hold, a read, and a write marked
+ *     `bound: 'machine'` (step 2 of the header, through the shared steps);
+ *  2. refuses a folder handed for another machine;
+ *  3. refuses `args` whose element at the row's `folderArg` is not the folder's
+ *     path byte for byte, so the folder the far side checks is the folder main
+ *     chose and nothing a caller composed;
+ *  4. refuses a pin that is neither `-` nor `<dev>:<ino>`;
+ *
+ * and then APPENDS THE PIN as the last positional, which the far side's
+ * `folderCheck` in `./remote-scripts.ts` compares against the folder's live
+ * identity in the same call as the write. Everything after that is the shared
+ * eight steps: connected only, the generation, the byte cap, the markers.
+ *
+ * @throws GmuxError INVALID_INPUT for the refusals above, and everything
+ *   {@link runRemoteWrite} throws.
+ */
+export async function runFolderWrite(
+  ctx: RemoteMachineContext,
+  folder: WriteFolder,
+  scriptId: string,
+  args: readonly string[],
+  options: RemoteRunOptions = {}
+): Promise<RemoteRunResult> {
+  const script = remoteScript(scriptId);
+  if (script !== null && script.mode === 'write' && script.bound === 'folder') {
+    const at = script.folderArg ?? -1;
+    if (folder.machineId !== ctx.machineId) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        MACHINE_SCRIPT_THROUGH_FOLDER_DOOR,
+        `refused "${scriptId}" for machine ${ctx.machineId}: the folder it was ` +
+          `handed belongs to ${folder.machineId}`
+      );
+    }
+    if (at < 0 || args[at] !== folder.path) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        MACHINE_SCRIPT_THROUGH_FOLDER_DOOR,
+        `refused "${scriptId}" for machine ${ctx.machineId}: its folder ` +
+          `argument is not the folder it was handed`
+      );
+    }
+    if (!PIN_SHAPE.test(folder.pin)) {
+      throw gmuxError(
+        'INVALID_INPUT',
+        MACHINE_SCRIPT_THROUGH_FOLDER_DOOR,
+        `refused "${scriptId}" for machine ${ctx.machineId}: the folder's pin ` +
+          `is not a device and inode`
+      );
+    }
+  }
+  return runRemoteScript(ctx, scriptId, [...args, folder.pin], 'folder', options);
+}
+
+/** Which door a call came through. `folder` is a write door too. */
+type RemoteDoor = 'read' | 'write' | 'folder';
+
 /**
  * The eight steps in the header, in that order.
  *
@@ -287,7 +370,7 @@ async function runRemoteScript(
   ctx: RemoteMachineContext,
   scriptId: string,
   args: readonly string[],
-  door: RemoteScriptMode,
+  door: RemoteDoor,
   options: RemoteRunOptions
 ): Promise<RemoteRunResult> {
   // 1. The catalogue decides, before anything is composed.
@@ -301,12 +384,33 @@ async function runRemoteScript(
     );
   }
   // 2. The door and the mode have to agree.
-  if (script.mode !== door) {
+  const doorMode = door === 'read' ? 'read' : 'write';
+  if (script.mode !== doorMode) {
     throw gmuxError(
       'INVALID_INPUT',
       WRITE_THROUGH_READ_DOOR,
       `refused "${scriptId}" for machine ${ctx.machineId}: it is a ` +
         `${script.mode} script and it came through the ${door} door`
+    );
+  }
+  // 2b. PHASE 336. A write and its bound have to agree too. A folder-bound
+  //     write through the machine door would cross with no folder check at
+  //     all, and a machine-bound write through the folder door would carry a
+  //     pin its text never reads.
+  if (door === 'write' && script.bound !== 'machine') {
+    throw gmuxError(
+      'INVALID_INPUT',
+      FOLDER_SCRIPT_THROUGH_MACHINE_DOOR,
+      `refused "${scriptId}" for machine ${ctx.machineId}: it is bound by a ` +
+        `folder and it came through the machine door`
+    );
+  }
+  if (door === 'folder' && script.bound !== 'folder') {
+    throw gmuxError(
+      'INVALID_INPUT',
+      MACHINE_SCRIPT_THROUGH_FOLDER_DOOR,
+      `refused "${scriptId}" for machine ${ctx.machineId}: it is not bound ` +
+        `by a folder and it came through the folder door`
     );
   }
   // 3. A count that does not match is a programming error, not a person's.

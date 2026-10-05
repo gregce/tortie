@@ -18,6 +18,7 @@ import { app, type IpcMain } from 'electron';
 import { join } from 'node:path';
 import { handle } from '../typed-ipc';
 import { resolveProjectRoot } from '../fs/paths';
+import { localProjectRoots } from '../fs/project-roots';
 import {
   BASELINE_PRUNE_INTERVAL_MS,
   createBaselineStore,
@@ -40,20 +41,21 @@ let store: BaselineStore | null = null;
 /**
  * The one store, built on first use.
  *
- * `listProjectRoots` reads the manifest through the singleton core, so the
- * authority on "what is a project root" is the same list every file verb asks
- * and the same list the tabs render from. Imported lazily for the reason
- * src/main/fs/ipc.ts gives: these channels must not drag the tmux core into
- * the module graph at boot.
+ * `listProjectRoots` is the open project folders ON THIS MAC, read through
+ * the singleton core by src/main/fs/project-roots.ts, so the authority on
+ * "what is a project root" is the same list every file verb asks and the same
+ * list the tabs render from. PHASE 336: it used to be every project row, and a
+ * row for a folder on another machine made the same path HERE a root this
+ * store would keep a baseline for. It is the fourth such reader, the one
+ * research 138 section 2.5 item 5 did not name (build/p336/SPEC.md M4). The
+ * lazy import that keeps the tmux core out of the module graph at boot moved
+ * there with it.
  */
 export function baselineStore(): BaselineStore {
   if (store === null) {
     store = createBaselineStore({
       dir: baselinesDir(),
-      listProjectRoots: async () => {
-        const { getGmuxCore } = await import('../sessions');
-        return (await getGmuxCore()).listProjects().map((p) => p.path);
-      },
+      listProjectRoots: () => localProjectRoots(),
       realRootOf: (root) => resolveProjectRoot(root)
     });
   }

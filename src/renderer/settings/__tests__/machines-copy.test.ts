@@ -156,17 +156,10 @@ function everyString(): { name: string; text: string }[] {
     name: 'rescanAgentsLabel',
     text: copy.rescanAgentsLabel('Studio')
   });
-  // PHASE 101. The two sentences the Saving files block composes. A function's
-  // output is audited exactly the way a constant is, so a shape left out here
-  // is a sentence nothing checks.
-  out.push({
-    name: 'savingOffExplain',
-    text: copy.savingOffExplain('Studio')
-  });
-  out.push({
-    name: 'savingOnLine',
-    text: copy.savingOnLine('/Users/gdc', 'Studio')
-  });
+  // PHASE 101 pushed the two sentences the Saving files block composed here.
+  // PHASE 336 removed the block and both sentences with it, so there is
+  // nothing left of it to audit; `p336-no-saving-block.test.tsx` pins that
+  // they stay gone.
   return out;
 }
 

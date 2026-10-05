@@ -183,10 +183,9 @@ describe('the fourth action row', () => {
     const row = homeActions(input)[1];
     expect(row?.title).toBe('Open on Mac Pro…');
     // PHASE 102 REWROTE THE SECOND FACT. It read "Tortie never writes there".
-    expect(row?.subtitle).toBe(
-      'The folder stays on that machine. Tortie writes there only where you ' +
-        'have let it save.'
-    );
+    // PHASE 336'S FIX ROUND took it out: it read "Tortie writes there only
+    // where you have let it save", and Phase 336 removed that act.
+    expect(row?.subtitle).toBe('The folder stays on that machine.');
     expect(row?.icon).toBe('vm');
     // No chord, for the reason Clone has none.
     expect(row?.chip).toBeNull();

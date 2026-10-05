@@ -107,7 +107,10 @@ const CHANNEL_MODULE: Readonly<Record<string, { module: string; asks: 'self' | '
 
 const LINK_QUESTIONS = ['machineLinkAnswering(', 'assertMachineLinkAnswering('];
 const FEED_QUESTIONS = ['machineFeedAnswering(', 'assertMachineFeedAnswering('];
-const DOORS = ['runRemoteRead(', 'runRemoteWrite('];
+// PHASE 336 added the third door, `runFolderWrite`, which the six writes a
+// project folder bounds cross. It runs the same eight steps, the link question
+// among them, so a module reaching it reaches the door.
+const DOORS = ['runRemoteRead(', 'runRemoteWrite(', 'runFolderWrite('];
 
 function source(module: string): string {
   return readFileSync(join(MACHINES, module), 'utf8');

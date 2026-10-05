@@ -202,7 +202,7 @@ export function leftPathFor(req: OpenFileRequest): string | null {
  * says so, a working tree diff says what it is against, and everything else is
  * its own absolute path on this Mac.
  */
-export function tabTooltipIdentity(tab: EditorTab): string {
+export function tabTooltipIdentity(tab: EditorTab, readOnly = true): string {
   // PHASE 240. A compare tab's `path` names the live file, and the tab is not
   // that file: it is two versions of it, neither of which is on disk. Asked
   // first, for the map tab's reason.
@@ -228,8 +228,12 @@ export function tabTooltipIdentity(tab: EditorTab): string {
   // commit tab on either computer and which the local commit tab does not
   // say; drawing it here and not there would be a sentence a person reads
   // only because the folder is on another machine.
+  // PHASE 336. `readOnly` is the editor's own answer for this tab, because a
+  // file inside a project open on a confirmed machine is now an edit surface
+  // and the second sentence would be false of it. The strip passes it; a
+  // caller that cannot ask gets the old sentence.
   if (tab.remote !== undefined && tab.commit === null) {
-    return reviewTabTooltip(tab.name, tab.remote.machineLabel);
+    return reviewTabTooltip(tab.name, tab.remote.machineLabel, readOnly);
   }
   if (tab.commit !== null) {
     const subject =

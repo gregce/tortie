@@ -19,6 +19,14 @@
  * PHASE 100 ADDED ONE MODULE LOAD, `remote-capsule.ts`, for a read Phase
  * 320.2 deleted, and the load went with it.
  *
+ * PHASE 336 ADDED ONE WRITE, said here because the paragraph above says this
+ * probe writes nothing. Condition 119 drives the SHIPPING `writeGuarded`, the
+ * local guarded save, once with a remote project row and once with a local one
+ * naming the same folder, and that folder is a scratch directory under the
+ * system temporary directory made and removed by the block itself. It still
+ * spawns nothing, and the two write doors condition 114 drives are refused
+ * before anything is composed, over a context no machine answers.
+ *
  * PHASE 79.1 ADDED ONE MODULE LOAD, said here rather than left to be noticed.
  * `key-material.ts` reads the record directory from `../src/main/machines/store`,
  * which imports Electron's `app` and the watcher package. Loading those modules
@@ -1487,8 +1495,27 @@ const REFUSAL_WORDS = [
   'stale',
   'missing',
   'exists',
-  'nomode'
+  'nomode',
+  // PHASE 336 (SPEC D9, D12). The folder check's four words and the shape
+  // guards' one, every one of which means nothing was written, so none of
+  // them may stand below the first write either.
+  'notsame',
+  'offlimits',
+  'nohome',
+  'protected',
+  'badname'
 ] as const;
+
+/**
+ * PHASE 336 (D12). One far refusal as the text spells it: the word and its
+ * `none` fields inside the markers, then `exit 0`, never `exit 1`.
+ */
+const farRefusal = (word: string, fields: number): string =>
+  `printf '__TORTIE_RUN__${[word, ...Array.from({ length: fields - 1 }, () => 'none')].join(' ')}__TORTIE_RUN__\\n'; exit 0`;
+/** PHASE 336 (D10). `.git` and `.ssh` as whole segments, any ASCII case. */
+const RESERVED_SEGMENT_PATTERN =
+  '.[Gg][Ii][Tt]|.[Gg][Ii][Tt]/*|*/.[Gg][Ii][Tt]|*/.[Gg][Ii][Tt]/*|' +
+  '.[Ss][Ss][Hh]|.[Ss][Ss][Hh]/*|*/.[Ss][Ss][Hh]|*/.[Ss][Ss][Hh]/*';
 
 const writeBranches = (() => {
   const textOf = (id: string): string =>
@@ -1528,9 +1555,15 @@ const writeBranches = (() => {
       .split('\n')
       .map((line) => line.trim())
       .filter((line) => /(^|[\s;|&(){}])rm([\s;|&(){}]|$)/.test(line)),
-    filePutHasRootCase: filePut.includes('case "$1" in /*) ;; *) exit 1;; esac'),
-    filePutHasRootDotDotCase: filePut.includes('case "$1" in *..*) exit 1;; esac'),
-    filePutHasRelCase: filePut.includes('case "$2" in /*|*..*) exit 1;; esac'),
+    // PHASE 336 (D12) RE-POINTED THE THREE, never weakened: each now prints
+    // its word and exits 0, the root's `..` line stands in the legacy branch
+    // (a pinned folder is judged by identity instead, D9), and the relative
+    // part gained the reserved-name line file-put lacked (D10, fault 2).
+    filePutHasRootCase: filePut.includes(`case "$1" in /*) ;; *) ${farRefusal('badname', 3)};; esac`),
+    filePutHasRootDotDotCase: filePut.includes(`case "$1" in *..*) ${farRefusal('badname', 3)};; esac`),
+    filePutHasRelCase:
+      filePut.includes(`case "$2" in /*|*..*) ${farRefusal('badname', 3)};; esac`) &&
+      filePut.includes(`case "$2" in ${RESERVED_SEGMENT_PATTERN}) ${farRefusal('protected', 3)};; esac`),
     filePutMovesIntoPlace: filePut.includes('mv "$t" "$f"'),
     // The program is looked up before either arm. This is what the first
     // version of this fact checked, and on its own it is not enough: a
@@ -1675,6 +1708,31 @@ const armedResumeWrapCounts = {
   absent: countOccurrences('Gregs-Mac-Pro%\n\n\n', ARMED_WRAP_TEXT)
 };
 
+/**
+ * A module loader that records why a module did not load rather than throwing,
+ * so a tree where one half of a phase has not landed fails in the checker with
+ * a sentence naming the missing piece. Phase 320.1's block and Phase 336's
+ * both use it; the Phase 336 integrator hoisted it when the second copy
+ * appeared.
+ */
+function optionalLoader(
+  loadErrors: Record<string, string>
+): (key: string, rel: string) => Promise<Record<string, unknown> | null> {
+  return async (key, rel) => {
+    const path = join(repoRoot, rel);
+    if (!existsSync(path)) {
+      loadErrors[key] = `${rel} is not there`;
+      return null;
+    }
+    try {
+      return (await import(pathToFileURL(path).href)) as Record<string, unknown>;
+    } catch (err) {
+      loadErrors[key] = `${rel} did not load: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`;
+      return null;
+    }
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Phase 320.1, conditions 101 to 112. The carriage door, DRIVEN.
 // ---------------------------------------------------------------------------
@@ -1696,19 +1754,7 @@ const armedResumeWrapCounts = {
 // A FAILURE in the checker and never a skip.
 const p3201 = await (async () => {
   const loadErrors: Record<string, string> = {};
-  const load = async (key: string, rel: string): Promise<Record<string, unknown> | null> => {
-    const path = join(repoRoot, rel);
-    if (!existsSync(path)) {
-      loadErrors[key] = `${rel} is not there`;
-      return null;
-    }
-    try {
-      return (await import(pathToFileURL(path).href)) as Record<string, unknown>;
-    } catch (err) {
-      loadErrors[key] = `${rel} did not load: ${err instanceof Error ? err.message.split('\n')[0] : String(err)}`;
-      return null;
-    }
-  };
+  const load = optionalLoader(loadErrors);
   const shapesMod = await load('shapes', 'src/main/machines/scroll-shapes.ts');
   const scrollMod = await load('scroll', 'src/main/tmux/scroll.ts');
   const planeMod = await load('controlPlane', 'src/main/machines/control-plane.ts');
@@ -2626,11 +2672,393 @@ const p3201 = await (async () => {
   };
 })();
 
+// ---------------------------------------------------------------------------
+// PHASE 336, conditions 113 to 121. Saving in a project on another machine the
+// way it is saved on this Mac (build/p336/SPEC.md §8.1).
+// ---------------------------------------------------------------------------
+//
+// THE MODULES THIS BLOCK LOADS, said here rather than left to be noticed.
+// `src/shared/remote-write-folder.ts` is pure and imports nothing. The two
+// copy modules and the two containment helpers are pure. `machine-state.ts`'s
+// `machineStateViewOf` is pure. `project-roots.ts` imports a type and, lazily,
+// the core, which this block never calls. `guarded-write.ts`'s `writeGuarded`
+// is DRIVEN once, against a scratch folder under the system temporary
+// directory made and removed here, with the project list handed to it as a
+// function: it writes into that scratch folder and nowhere else, and starts
+// nothing. `write-folder.ts` is NOT loaded: it reaches the manifest and the
+// confirm record, which a plain node cannot open, so the gate reads it as text
+// and its vitest file drives it.
+const p336 = await (async () => {
+  const loadErrors: Record<string, string> = {};
+  const load = optionalLoader(loadErrors);
+  const fnOf = <T>(mod: Record<string, unknown> | null, name: string): T | null =>
+    mod !== null && typeof mod[name] === 'function' ? (mod[name] as T) : null;
+  const tryIt = <T>(f: () => T): { value: T | null; threw: string | null } => {
+    try {
+      return { value: f(), threw: null };
+    } catch (err) {
+      return { value: null, threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+
+  const shared = await load('shared', 'src/shared/remote-write-folder.ts');
+  const fileMod = await load('remoteFile', 'src/main/machines/remote-file.ts');
+  const stageMod = await load('remoteStage', 'src/main/machines/remote-stage.ts');
+  const runMod = await load('remoteRun', 'src/main/machines/remote-run.ts');
+  const copyMod = await load('remoteCopy', 'src/main/machines/remote-copy.ts');
+  const stateMod = await load('machineState', 'src/main/machines/machine-state.ts');
+  const rootsMod = await load('projectRoots', 'src/main/fs/project-roots.ts');
+  const guardedMod = await load('guardedWrite', 'src/main/fs/guarded-write.ts');
+  const scriptsMod = await load('remoteScripts', 'src/main/machines/remote-scripts.ts');
+  const sharedMachines = await load('sharedMachines', 'src/shared/machines.ts');
+  const editorCopy = await load('editorCopy', 'src/renderer/machines/editor.ts');
+  const explorerCopy = await load('explorerCopy', 'src/renderer/machines/explorer.ts');
+  const scmCopy = await load('scmCopy', 'src/renderer/machines/scm.ts');
+  // PHASE 336'S FIX ROUND. The sheet that opens a folder on a machine and
+  // Home's row for it said "Tortie writes there only where you have let it
+  // save" after this phase removed that act; no module the scan read drew it.
+  const projectTabCopy = await load('projectTabCopy', 'src/renderer/machines/project-tab.ts');
+
+  type Pick = { path?: string; kind?: string; refused?: string };
+  const pick = fnOf<(t: string, c: { projects: readonly string[]; legacyRoot: string | null }, m: string) => Pick>(shared, 'pickWriteFolder');
+  const pickPair = fnOf<(f: string, t: string, c: { projects: readonly string[]; legacyRoot: string | null }) => Pick>(shared, 'pickWriteFolderForPair');
+  const never = fnOf<(p: string) => boolean>(shared, 'neverWriteFolder');
+  const fold = fnOf<(s: string) => string>(shared, 'foldReservedSegment');
+  const isProtected = fnOf<(r: string) => boolean>(shared, 'isProtectedRemotePath');
+  const relIn = fnOf<(f: string, t: string, m: string) => string | null>(shared, 'relativeInFolder');
+  const relUnder = fnOf<(r: string, p: string) => string | null>(fileMod, 'relativeUnderRoot');
+  const relCwd = fnOf<(r: string, p: string) => string | null>(stageMod, 'rootRelativeCwd');
+
+  // --- 113. D2's corpus, its EXPECTED answers written here from the spec ----
+  //
+  // Every expected value below is this file's own, taken from
+  // build/p336/SPEC.md D2 and §Attack G4, and never read from the module it
+  // judges. `legacy` is the machine's `writeRoot`; `projects` is that machine's
+  // open project rows, and ONLY that machine's (another machine's rows are
+  // absent by construction, which is D3).
+  const CORPUS: readonly {
+    name: string;
+    target: string;
+    projects: readonly string[];
+    legacy: string | null;
+    mode: 'file' | 'folder';
+    want: Pick;
+  }[] = [
+    { name: 'nested projects, the deepest holds', target: '/srv/a/b/x.ts', projects: ['/srv/a', '/srv/a/b'], legacy: null, mode: 'file', want: { path: '/srv/a/b', kind: 'project' } },
+    { name: 'nested projects, the outer alone holds', target: '/srv/a/y.ts', projects: ['/srv/a/b', '/srv/a'], legacy: null, mode: 'file', want: { path: '/srv/a', kind: 'project' } },
+    { name: 'a legacy root holding a project is chosen first (G4)', target: '/srv/a/x.ts', projects: ['/srv/a'], legacy: '/srv', mode: 'file', want: { path: '/srv', kind: 'legacy' } },
+    { name: 'a legacy root alone', target: '/opt/w/f', projects: [], legacy: '/opt/w', mode: 'file', want: { path: '/opt/w', kind: 'legacy' } },
+    { name: 'a legacy root that does not hold leaves the project', target: '/srv/a/f', projects: ['/srv/a'], legacy: '/opt/w', mode: 'file', want: { path: '/srv/a', kind: 'project' } },
+    { name: 'a legacy root at a home is not never-listed (D16)', target: '/Users/gdc/x', projects: [], legacy: '/Users/gdc', mode: 'file', want: { path: '/Users/gdc', kind: 'legacy' } },
+    { name: '/a/bx is not under /a/b', target: '/a/bx/f', projects: ['/a/b'], legacy: null, mode: 'file', want: { refused: 'outside' } },
+    { name: 'a stored path holding . crosses byte for byte', target: '/srv/c/f.ts', projects: ['/srv/./c'], legacy: null, mode: 'file', want: { path: '/srv/./c', kind: 'project' } },
+    { name: 'a stored path holding // crosses byte for byte', target: '/srv/d/f', projects: ['/srv//d'], legacy: null, mode: 'file', want: { path: '/srv//d', kind: 'project' } },
+    { name: 'a stored path holding .. crosses byte for byte', target: '/srv/f/g.ts', projects: ['/srv/e/../f'], legacy: null, mode: 'file', want: { path: '/srv/e/../f', kind: 'project' } },
+    { name: 'file mode refuses the folder itself', target: '/srv/a', projects: ['/srv/a'], legacy: null, mode: 'file', want: { refused: 'outside' } },
+    { name: 'folder mode accepts the folder itself', target: '/srv/a', projects: ['/srv/a'], legacy: null, mode: 'folder', want: { path: '/srv/a', kind: 'project' } },
+    { name: 'a never-listed project alone holds it', target: '/Users/gdc/x.ts', projects: ['/Users/gdc'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc' } },
+    { name: 'a home child is never-listed (§16 Q1, as kept)', target: '/Users/gdc/gmux/x', projects: ['/Users/gdc/gmux'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc/gmux' } },
+    { name: 'nested with the outer never-listed, the inner holds', target: '/Users/gdc/code/p/x', projects: ['/Users/gdc', '/Users/gdc/code/p'], legacy: null, mode: 'file', want: { path: '/Users/gdc/code/p', kind: 'project' } },
+    { name: 'nested with the outer never-listed, the outer alone holds', target: '/Users/gdc/y', projects: ['/Users/gdc', '/Users/gdc/code/p'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc' } },
+    { name: 'a project inside a reserved folder is never-listed', target: '/srv/r/.git/config', projects: ['/srv/r/.git'], legacy: null, mode: 'file', want: { refused: 'never', path: '/srv/r/.git' } },
+    { name: 'no project at all', target: '/x', projects: [], legacy: null, mode: 'file', want: { refused: 'outside' } },
+    { name: 'a relative target', target: 'srv/a/x', projects: ['/srv/a'], legacy: null, mode: 'file', want: { refused: 'outside' } },
+    { name: 'a target that climbs out with ..', target: '/srv/a/../b/x', projects: ['/srv/a'], legacy: null, mode: 'file', want: { refused: 'outside' } }
+  ];
+  const PAIRS: readonly { name: string; from: string; to: string; projects: readonly string[]; legacy: string | null; want: Pick }[] = [
+    { name: 'a rename within one project', from: '/srv/a/x', to: '/srv/a/y', projects: ['/srv/a'], legacy: null, want: { path: '/srv/a', kind: 'project' } },
+    { name: 'across two nested projects, held by the outer', from: '/srv/a/b/x', to: '/srv/a/y', projects: ['/srv/a', '/srv/a/b'], legacy: null, want: { path: '/srv/a', kind: 'project' } },
+    { name: 'both ends in the inner, held by the inner', from: '/srv/a/b/x', to: '/srv/a/b/y', projects: ['/srv/a', '/srv/a/b'], legacy: null, want: { path: '/srv/a/b', kind: 'project' } },
+    { name: 'across two unrelated projects, refused', from: '/srv/a/x', to: '/srv/c/y', projects: ['/srv/a', '/srv/c'], legacy: null, want: { refused: 'outside' } }
+  ];
+  const corpus = CORPUS.map((row) => ({
+    ...row,
+    ...(pick === null ? { got: null, threw: 'pickWriteFolder is not exported' } : (() => {
+      const r = tryIt(() => pick(row.target, { projects: row.projects, legacyRoot: row.legacy }, row.mode));
+      return { got: r.value, threw: r.threw };
+    })())
+  }));
+  const pairs = PAIRS.map((row) => ({
+    ...row,
+    ...(pickPair === null ? { got: null, threw: 'pickWriteFolderForPair is not exported' } : (() => {
+      const r = tryIt(() => pickPair(row.from, row.to, { projects: row.projects, legacyRoot: row.legacy }));
+      return { got: r.value, threw: r.threw };
+    })())
+  }));
+  // The agreement corpus: the shared function and main's two containment
+  // helpers, over every pair of these folders and targets.
+  const AGREE_FOLDERS = ['/srv/a', '/', '/srv/./c', '/srv//d', '/srv/e/../f', '/srv/a/', '/opt/w'];
+  const AGREE_TARGETS = ['/srv/a', '/srv/a/x', '/srv/ax', '/srv/a/b/c.ts', '/srv/c/x', '/srv/f/g', '/x', 'rel/x', '/srv/a/../a/x', '/srv/a/.', '/srv/a//x', '/opt/w/f', '/'];
+  const agree: { folder: string; folderNever: unknown; target: string; sharedFile: unknown; mainFile: unknown; sharedFolder: unknown; mainFolder: unknown; pickFile: unknown; pickFolder: unknown }[] = [];
+  if (relIn !== null && relUnder !== null && relCwd !== null && pick !== null) {
+    for (const folder of AGREE_FOLDERS) {
+      for (const target of AGREE_TARGETS) {
+        const pf = tryIt(() => pick(target, { projects: [folder], legacyRoot: null }, 'file')).value;
+        const pd = tryIt(() => pick(target, { projects: [folder], legacyRoot: null }, 'folder')).value;
+        agree.push({
+          folder,
+          folderNever: never === null ? null : tryIt(() => never(folder)).value,
+          target,
+          sharedFile: tryIt(() => relIn(folder, target, 'file')).value,
+          mainFile: tryIt(() => relUnder(folder, target)).value,
+          sharedFolder: tryIt(() => relIn(folder, target, 'folder')).value,
+          mainFolder: tryIt(() => relCwd(folder, target)).value,
+          pickFile: pf !== null && typeof pf.path === 'string' && pf.refused === undefined,
+          pickFolder: pd !== null && typeof pd.path === 'string' && pd.refused === undefined
+        });
+      }
+    }
+  }
+
+  // --- 114. The catalogue's bounds, and the two doors driven ----------------
+  const rawScripts = scriptsMod !== null && Array.isArray(scriptsMod['REMOTE_SCRIPTS'])
+    ? (scriptsMod['REMOTE_SCRIPTS'] as Record<string, unknown>[])
+    : [];
+  const catalogue = rawScripts.map((row) => ({
+    id: String(row['id']),
+    mode: String(row['mode']),
+    params: Number(row['params']),
+    bound: row['bound'] === undefined ? null : String(row['bound']),
+    folderArg: typeof row['folderArg'] === 'number' ? (row['folderArg'] as number) : null,
+    hasFolderArg: Object.prototype.hasOwnProperty.call(row, 'folderArg')
+  }));
+  // THE DOORS, DRIVEN. A fake context names a machine this process has never
+  // heard of, so the link gate (step 4 of runRemoteScript) refuses it with the
+  // not-connected sentence before anything is composed or sent. That refusal
+  // is the CONTROL: a refusal of a folder-bound id through the machine door,
+  // or of a machine-bound id through the folder door, must come BEFORE it and
+  // so must carry a different sentence. A door that forgot its check falls
+  // through to step 4 and reads exactly like the control.
+  const FAKE_CTX = { kind: 'remote', machineId: 'p336-conformance-nowhere', label: 'P336 nowhere' } as unknown;
+  const runWrite = fnOf<(ctx: unknown, id: string, args: readonly string[]) => Promise<unknown>>(runMod, 'runRemoteWrite');
+  const runFolder = fnOf<(ctx: unknown, folder: unknown, id: string, args: readonly string[]) => Promise<unknown>>(runMod, 'runFolderWrite');
+  const refusalOf = async (f: () => Promise<unknown>): Promise<{ threw: boolean; message: string }> => {
+    try {
+      await f();
+      return { threw: false, message: '' };
+    } catch (err) {
+      // A GmuxError's message is its JSON payload; the sentence a person reads
+      // is that payload's own `message`, which is what the gate compares.
+      const raw = err instanceof Error ? err.message : String(err);
+      let sentence = raw;
+      try {
+        const parsed = JSON.parse(raw) as { message?: unknown };
+        if (typeof parsed.message === 'string') sentence = parsed.message;
+      } catch {
+        /* a plain Error: its message is the sentence */
+      }
+      return { threw: true, message: sentence };
+    }
+  };
+  const argsOfLength = (n: number): string[] => Array.from({ length: n }, (_, i) => (i === 0 ? '/srv/p336' : `v${String(i)}`));
+  const doors: Record<string, unknown> = {};
+  if (runWrite !== null) {
+    const image = catalogue.find((row) => row.id === 'image-put');
+    doors['control'] = await refusalOf(() => runWrite(FAKE_CTX, 'image-put', argsOfLength(image?.params ?? 2)));
+    doors['folderThroughMachineDoor'] = await Promise.all(
+      catalogue
+        .filter((row) => row.mode === 'write' && row.bound === 'folder')
+        .map(async (row) => ({ id: row.id, ...(await refusalOf(() => runWrite(FAKE_CTX, row.id, argsOfLength(row.params)))) }))
+    );
+    // The same count WITHOUT the pin, which is what a caller that bypassed
+    // runFolderWrite would hand the machine door.
+    doors['folderThroughMachineDoorShort'] = await Promise.all(
+      catalogue
+        .filter((row) => row.mode === 'write' && row.bound === 'folder')
+        .map(async (row) => ({ id: row.id, ...(await refusalOf(() => runWrite(FAKE_CTX, row.id, argsOfLength(Math.max(0, row.params - 1))))) }))
+    );
+  }
+  if (runFolder !== null) {
+    // A WriteFolder made here. Its brand is a TYPE: at run time any object
+    // with these fields is what the door is handed, which is what lets the
+    // door's own checks be driven rather than read.
+    const folder = { machineId: 'p336-conformance-nowhere', row: null, path: '/srv/p336', kind: 'project', pin: '1:2' };
+    doors['machineThroughFolderDoor'] = await Promise.all(
+      catalogue
+        .filter((row) => row.mode === 'write' && row.bound === 'machine')
+        .map(async (row) => ({ id: row.id, ...(await refusalOf(() => runFolder(FAKE_CTX, folder, row.id, argsOfLength(row.params)))) }))
+    );
+    doors['mismatchedFolder'] = await Promise.all(
+      catalogue
+        .filter((row) => row.mode === 'write' && row.bound === 'folder' && row.folderArg !== null)
+        .map(async (row) => {
+          const args = argsOfLength(row.params - 1).map((v, i) => (i === row.folderArg ? '/srv/somewhere-else' : v));
+          return { id: row.id, ...(await refusalOf(() => runFolder(FAKE_CTX, folder, row.id, args))) };
+        })
+    );
+    // The control for the folder door: the right folder, so it reaches the
+    // link gate and is refused there.
+    doors['folderControl'] = await Promise.all(
+      catalogue
+        .filter((row) => row.mode === 'write' && row.bound === 'folder' && row.folderArg !== null)
+        .map(async (row) => {
+          const args = argsOfLength(row.params - 1).map((v, i) => (i === row.folderArg ? '/srv/p336' : v));
+          return { id: row.id, ...(await refusalOf(() => runFolder(FAKE_CTX, folder, row.id, args))) };
+        })
+    );
+  }
+  const sentences = Object.fromEntries(
+    ['FOLDER_SCRIPT_THROUGH_MACHINE_DOOR', 'MACHINE_SCRIPT_THROUGH_FOLDER_DOOR', 'WRITE_THROUGH_READ_DOOR', 'MACHINE_NOT_CONNECTED']
+      .map((name) => [name, copyMod !== null && typeof copyMod[name] === 'string' ? (copyMod[name] as string) : null])
+  );
+
+  // --- 116. D4's table, both ways, written here from the spec ---------------
+  const NEVER_ROWS: readonly [string, boolean][] = [
+    ['/', true], ['/Users', true], ['/home', true], ['/Users/gdc', true], ['/home/gdc', true], ['/root', true],
+    ['/var/root', true], ['/Users/gdc/code', true], ['/home/gdc/x', true], ['/root/x', true], ['/var/root/x', true],
+    ['/Users/gdc/./', true], ['/Users/gdc/code/..', true], ['/srv/./../Users/gdc', true], ['/Users/Shared/x', true],
+    ['/srv/a/.git', true], ['/srv/a/.SSH/b', true], ['/srv/a/.ßh', true], ['relative/x', true],
+    ['/var/www/site', false], ['/tmp/x', false], ['/private/tmp/x', false], ['/Users/x/code/p', false],
+    ['/srv/a', false], ['/opt/me', false], ['/Users/gdc/code/p/q', false], ['/home/gdc/a/b', false], ['/var/rootx/a', false]
+  ];
+  const neverRows = NEVER_ROWS.map(([path, want]) => ({ path, want, got: never === null ? null : tryIt(() => never(path)).value }));
+
+  // --- 117. The fold, written here from §Attack M5 --------------------------
+  const FOLD_ROWS: readonly [string, boolean][] = [
+    ['.git', true], ['.GIT', true], ['.Git', true], ['.gIT', true], ['.ssh', true], ['.SSH', true], ['.Ssh', true],
+    ['.ßh', true], ['.ſsh', true], ['.sſh', true], ['.ſſh', true], ['.ẞh', true], ['.g‌it', true], ['.git‍', true],
+    ['.github', false], ['x.git', false], ['.gitignore', false], ['.gıt', false], ['.config', false], ['.gitkeep', false],
+    ['git', false], ['ssh', false], ['.sshd', false], ['.ssh.bak', false], ['notes..md', false]
+  ];
+  const foldRows = FOLD_ROWS.map(([segment, want]) => {
+    const folded = fold === null ? null : tryIt(() => fold(segment)).value;
+    return { segment, want, folded, reserved: folded === '.git' || folded === '.ssh' };
+  });
+  const PROTECTED_ROWS: readonly [string, boolean][] = [
+    ['.GIT/config', true], ['.Git/hooks/x', true], ['.gIT/x', true], ['a/.sSH/b', true], ['.SSH/README.md', true],
+    ['.Ssh/x', true], ['.ßh/x', true], ['.ſsh/x', true], ['x/.ẞh', true], ['.GIT', true],
+    ['.github/x', false], ['src/x.git', false], ['.gitignore', false], ['a/.gıt/b', false], ['docs/notes..md', false], ['', false]
+  ];
+  const protectedRows = PROTECTED_ROWS.map(([rel, want]) => ({ rel, want, got: isProtected === null ? null : tryIt(() => isProtected(rel)).value }));
+
+  // --- 119. The local readers' filter, and the SHIPPING writeGuarded --------
+  const localRootsOf = fnOf<(rows: readonly { path: string; machineId?: string }[]) => string[]>(rootsMod, 'localRootsOf');
+  const filterRows = localRootsOf === null ? null : tryIt(() =>
+    localRootsOf([
+      { path: '/Users/me/local-a' },
+      { path: '/Users/me/local-b', machineId: 'local' },
+      { path: '/Users/me/remote-a', machineId: 'pop-os' },
+      { path: '/Users/me/remote-b', machineId: '' }
+    ])
+  ).value;
+  const writeGuarded = fnOf<(deps: { listProjectRoots(): Promise<readonly string[]> }, input: unknown) => Promise<{ outcome: string; why?: string }>>(guardedMod, 'writeGuarded');
+  const guarded: Record<string, unknown> = {};
+  if (writeGuarded !== null && localRootsOf !== null) {
+    const { mkdtempSync, writeFileSync: write, rmSync, readFileSync: read } = await import('node:fs');
+    const { tmpdir } = await import('node:os');
+    const { createHash } = await import('node:crypto');
+    const dir = mkdtempSync(join(tmpdir(), 'p336-guarded-'));
+    try {
+      write(join(dir, 'x.txt'), 'before\n');
+      const expect = createHash('sha256').update('before\n').digest('hex');
+      const remoteRows = [{ path: dir, machineId: 'pop-os' }];
+      const asRemote = await writeGuarded(
+        { listProjectRoots: async () => localRootsOf(remoteRows) },
+        { root: dir, path: 'x.txt', contents: 'REMOTE ROW\n', expect }
+      ).catch((err: unknown) => ({ outcome: 'threw', why: String(err) }));
+      guarded['remoteRow'] = { outcome: asRemote.outcome, why: (asRemote as { why?: string }).why ?? null, after: read(join(dir, 'x.txt'), 'utf8') };
+      const asLocal = await writeGuarded(
+        { listProjectRoots: async () => localRootsOf([{ path: dir }]) },
+        { root: dir, path: 'x.txt', contents: 'LOCAL ROW\n', expect }
+      ).catch((err: unknown) => ({ outcome: 'threw', why: String(err) }));
+      guarded['localRow'] = { outcome: asLocal.outcome, why: (asLocal as { why?: string }).why ?? null, after: read(join(dir, 'x.txt'), 'utf8') };
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  // --- 120. The row keys, read from the module rather than remembered -------
+  const machineRowKeys = sharedMachines !== null && Array.isArray(sharedMachines['MACHINE_ROW_KEYS'])
+    ? [...(sharedMachines['MACHINE_ROW_KEYS'] as string[])]
+    : null;
+  // The write sentences, called with a fixed label. Every exported function
+  // of the four renderer copy modules (the three write surfaces and, since the
+  // fix round, the open sheet and Home's row in project-tab.ts) is called with
+  // the label in every string position and with each outcome word a refusal
+  // could carry, and every string export is read as it stands.
+  const LABEL = 'P336 Machine';
+  const OUTCOMES = ['writesOff', 'outsideRoot', 'folderChanged', 'protected', 'never', 'unconfirmed', 'outside', 'refused', 'stale', 'missing', 'exists', 'unsure', 'nosum', 'nomode', 'tooLarge', 'noparent', 'denied', 'gone', 'moved', 'done', 'failed'];
+  const drawn: { module: string; name: string; text: string }[] = [];
+  for (const [module, mod] of [['src/renderer/machines/editor.ts', editorCopy], ['src/renderer/machines/explorer.ts', explorerCopy], ['src/renderer/machines/scm.ts', scmCopy], ['src/renderer/machines/project-tab.ts', projectTabCopy]] as const) {
+    if (mod === null) continue;
+    for (const [name, value] of Object.entries(mod)) {
+      if (typeof value === 'string') {
+        drawn.push({ module, name, text: value });
+        continue;
+      }
+      if (typeof value !== 'function') continue;
+      const f = value as (...a: unknown[]) => unknown;
+      const shapes: unknown[][] = [
+        [LABEL], [LABEL, LABEL], [LABEL, LABEL, LABEL], [90_001, LABEL], ['/srv/p336', LABEL],
+        ...OUTCOMES.map((o) => [o, LABEL]), ...OUTCOMES.map((o) => [{ kind: o, refused: o, outcome: o, folder: '/srv/p336' }, LABEL])
+      ];
+      for (const args of shapes.slice(0, Math.max(1, f.length === 0 ? 1 : shapes.length))) {
+        const r = tryIt(() => f(...args));
+        if (typeof r.value === 'string' && r.value.length > 0) drawn.push({ module, name, text: r.value });
+      }
+    }
+  }
+  // remote-copy.ts's commit set: every export whose name says commit.
+  if (copyMod !== null) {
+    for (const [name, value] of Object.entries(copyMod)) {
+      if (!/commit/i.test(name)) continue;
+      if (typeof value === 'string') drawn.push({ module: 'src/main/machines/remote-copy.ts', name, text: value });
+      else if (typeof value === 'function') {
+        for (const args of [[LABEL], [LABEL, LABEL], ['/srv/p336', LABEL]]) {
+          const r = tryIt(() => (value as (...a: unknown[]) => unknown)(...args));
+          if (typeof r.value === 'string') drawn.push({ module: 'src/main/machines/remote-copy.ts', name, text: r.value });
+        }
+      }
+    }
+  }
+
+  // --- 121. The view a changed row draws, driven ----------------------------
+  const viewOf = fnOf<(row: unknown, facts: unknown) => { savesInProjects?: boolean; writeRoot?: string | null }>(stateMod, 'machineStateViewOf');
+  const views: Record<string, unknown> = {};
+  if (viewOf !== null) {
+    const row0 = { id: 'pop-os', label: 'Pop OS', color: 'blue', refusal: null, changed: false, writeRoot: null };
+    const read = (row: unknown) => {
+      const r = tryIt(() => viewOf(row, undefined));
+      return r.value === null ? { threw: r.threw } : { savesInProjects: r.value.savesInProjects ?? null, writeRoot: r.value.writeRoot ?? null };
+    };
+    views['confirmed'] = read({ ...row0, confirmed: true });
+    views['changed'] = read({ ...row0, confirmed: false, changed: true, refusal: 'the gate refused it' });
+    views['never'] = read({ ...row0, confirmed: false, refusal: 'nobody confirmed it' });
+    views['changedWithRoot'] = read({ ...row0, confirmed: false, changed: true, refusal: 'the gate refused it', writeRoot: '/srv/legacy' });
+    views['confirmedWithRoot'] = read({ ...row0, confirmed: true, writeRoot: '/srv/legacy' });
+  }
+
+  return {
+    loadErrors,
+    corpus,
+    pairs,
+    agree,
+    catalogue,
+    doors,
+    sentences,
+    neverRows,
+    foldRows,
+    protectedRows,
+    filterRows,
+    guarded,
+    machineRowKeys,
+    drawn,
+    views,
+    hashes: {
+      none: base,
+      gdc: machineExecutionHash(ID, { ...BASE, writeRoot: '/Users/gdc' }),
+      code: machineExecutionHash(ID, { ...BASE, writeRoot: '/Users/gdc/code' })
+    }
+  };
+})();
+
 process.stdout.write(
   JSON.stringify({
     id: ID,
     // Phase 320.1, conditions 101 to 112.
     phase3201: p3201,
+    // Phase 336, conditions 113 to 121.
+    phase336: p336,
     base,
     sameAgain: machineExecutionHash(ID, { ...BASE }),
     fields: fieldRows,
@@ -3318,6 +3746,15 @@ process.stdout.write(
             lines.find(
               (line) => line.startsWith('case ') && line.includes(`"${value}"`)
             ) ?? null,
+          // PHASE 336 (D10): the reserved-name line for the same value, which
+          // stands beside the shape line rather than inside it.
+          reserved:
+            lines.find(
+              (line) => line.startsWith('case ') && line.includes(`"${value}"`) && line.includes('[Gg][Ii][Tt]')
+            ) ?? null,
+          reservedAt: lines.findIndex(
+            (line) => line.startsWith('case ') && line.includes(`"${value}"`) && line.includes('[Gg][Ii][Tt]')
+          ),
           guardAt: lines.findIndex(
             (line) => line.startsWith('case ') && line.includes(`"${value}"`)
           ),
@@ -3349,7 +3786,8 @@ process.stdout.write(
         const body = contractSource.slice(at, contractSource.indexOf('\n}', at));
         if (/^\s*(readonly\s+)?root[?]?:/m.test(body)) rootMembers.push(name);
       }
-      const sendAt = entrySource.indexOf('runRemoteWrite(');
+      // PHASE 336: the send is runFolderWrite, the folder-bound door (D13).
+      const sendAt = entrySource.indexOf('runFolderWrite(');
       return {
         guards: [
           guardTriple('dir-new', '$2'),
@@ -3379,8 +3817,11 @@ process.stdout.write(
         module: {
           present: entryPresent,
           // The three checks that all have to stand above the one send.
-          gateAt: entrySource.indexOf('confirmedWriteRoot('),
-          rootAt: entrySource.indexOf('writeRoot'),
+          // PHASE 336: the confirm gate is asked inside writeFolderFor
+          // (condition 113 reads that order), and the folder the write is
+          // bound by, with its pin, is readyWriteFolder's.
+          gateAt: entrySource.indexOf('writeFolderFor('),
+          rootAt: entrySource.indexOf('readyWriteFolder('),
           containAt: entrySource.indexOf('relativeUnderRoot('),
           containCalls: [...entrySource.matchAll(/relativeUnderRoot\(/g)].length,
           sendAt,
@@ -3468,7 +3909,8 @@ process.stdout.write(
         return end < 0 ? rest : rest.slice(0, end);
       })();
 
-      const sendAt = stageSource.indexOf('runRemoteWrite(');
+      // PHASE 336: the send is runFolderWrite, the folder-bound door (D13).
+      const sendAt = stageSource.indexOf('runFolderWrite(');
       const inputMembers = (name: string): string[] => {
         const at = contractSource.indexOf(`export interface ${name} {`);
         if (at < 0) return [`${name} is not in the contract`];
@@ -3492,7 +3934,7 @@ process.stdout.write(
         module: {
           present: stagePresent,
           // The four checks that all have to stand above the one send.
-          gateAt: stageSource.indexOf('confirmedWriteRoot('),
+          gateAt: stageSource.indexOf('writeFolderFor('),
           readAt: stageSource.indexOf('reviewFilesOn('),
           holdsAt: stageSource.indexOf('rootRelativeCwd('),
           reportedAt: stageSource.indexOf('reported.has('),
@@ -3607,7 +4049,8 @@ process.stdout.write(
 
       const commitRow = REMOTE_SCRIPTS.find((one) => one.id === 'git-commit');
       const commitText = commitRow?.text ?? '';
-      const sendAt = commitSource.indexOf('runRemoteWrite(');
+      // PHASE 336: the send is runFolderWrite, the folder-bound door (D13).
+      const sendAt = commitSource.indexOf('runFolderWrite(');
       const inputMembers = (name: string): string[] => {
         const at = contractSource.indexOf(`export interface ${name} {`);
         if (at < 0) return [`${name} is not in the contract`];
@@ -3702,7 +4145,7 @@ process.stdout.write(
         module: {
           present: commitPresent,
           // The four checks that all have to stand above the one send.
-          gateAt: commitSource.indexOf('confirmedWriteRoot('),
+          gateAt: commitSource.indexOf('writeFolderFor('),
           readAt: commitSource.indexOf('reviewFilesOn('),
           holdsAt: commitSource.indexOf('rootRelativeCwd('),
           stagedAt: commitSource.indexOf('stagedPathsOf('),
@@ -3960,7 +4403,8 @@ process.stdout.write(
         namesAbsoluteDir: text.includes(`--absolute${'-'}git-dir`),
         // 55g. What the module does, counted in its own text.
         remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
-        callsRemoteWrite: source.includes('runRemoteWrite'),
+        // PHASE 336: either write door is a write.
+        callsRemoteWrite: source.includes('runRemoteWrite') || source.includes('runFolderWrite'),
         // Every catalogue id this module names as a quoted string. It may name
         // exactly one.
         scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
@@ -4043,7 +4487,8 @@ process.stdout.write(
           .map((one) => one.trim()),
         // 56g and 56j. What the module does, counted in its own text.
         remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
-        callsRemoteWrite: source.includes('runRemoteWrite'),
+        // PHASE 336: either write door is a write.
+        callsRemoteWrite: source.includes('runRemoteWrite') || source.includes('runFolderWrite'),
         scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
           source.includes(`'${id}'`)
         ),
@@ -4143,7 +4588,8 @@ process.stdout.write(
         ),
         // 57i. What the module does, counted in its own text.
         remoteReads: [...source.matchAll(/runRemoteRead\(/g)].length,
-        callsRemoteWrite: source.includes('runRemoteWrite'),
+        // PHASE 336: either write door is a write.
+        callsRemoteWrite: source.includes('runRemoteWrite') || source.includes('runFolderWrite'),
         scriptIdsNamed: REMOTE_SCRIPTS.map((row) => row.id).filter((id) =>
           source.includes(`'${id}'`)
         ),

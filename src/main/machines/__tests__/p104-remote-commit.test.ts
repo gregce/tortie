@@ -29,6 +29,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MachineCommitInput, MachineReviewFile } from '@shared/ipc';
 import { groupRemoteFiles } from '../../../renderer/scm/groups';
+import { remoteStageOutsideRoot } from '../../../renderer/machines/scm';
+import { commitOutsideRoot } from '../remote-copy';
 
 // ---------------------------------------------------------------------------
 // The world this module lives in, replaced
@@ -54,15 +56,24 @@ let listing: {
 /** How many review reads happened. */
 let reads = 0;
 
+// PHASE 336. The commit crosses the FOLDER door, which appends the folder's
+// pin last; `args` here are what the far side would read.
 vi.mock('../remote-run', () => ({
   machineLinkAnswering: (): boolean => connected,
-  runRemoteWrite: async (
+  runRemoteRead: async (): Promise<never> => {
+    throw new Error('a legacy root needs no pin read');
+  },
+  runRemoteWrite: async (_ctx: unknown, id: string): Promise<never> => {
+    throw new Error(`a folder-bound write crossed the machine door with ${id}`);
+  },
+  runFolderWrite: async (
     _ctx: unknown,
+    folder: { pin: string },
     id: string,
     args: readonly string[],
     options: { timeoutMs?: number } = {}
   ): Promise<{ payload: string; generation: number; bytes: number }> => {
-    ran.push({ id, args: [...args], timeoutMs: options.timeoutMs });
+    ran.push({ id, args: [...args, folder.pin], timeoutMs: options.timeoutMs });
     const payload = answers.shift() ?? 'committed none abc1234';
     if (payload === '__throw__') {
       throw new Error('Command failed: /usr/bin/ssh');
@@ -334,7 +345,7 @@ describe('commitOnMachine', () => {
     // The five values, being the root THAT MACHINE reported, main's own sha,
     // the person's message, and the Phase 242.1 pair: the confirmed folder as
     // the person gave it and the tab's own folder relative to it.
-    expect(ran[0]?.args).toEqual([REPO, HEAD, 'a message', ROOT, 'api']);
+    expect(ran[0]?.args).toEqual([REPO, HEAD, 'a message', ROOT, 'api', '-']);
     expect(out.sentences.join(' ')).toContain('Mac Pro');
   });
 
@@ -371,16 +382,30 @@ describe('commitOnMachine', () => {
     expect(remoteCommitSendCount()).toBe(0);
   });
 
-  it('refuses a machine with no confirmed folder and sends nothing', async () => {
+  it('refuses a folder no open project holds and sends nothing', async () => {
+    // PHASE 336. The sentence says where Tortie commits, and sends nobody to
+    // Settings: there is nothing to turn on there any more.
     row = { id: 'studio', host: 'studio.example', writeRoot: null };
     const out = await commitOnMachine(good());
     expect(out.outcome).toBe('refused');
-    expect(out.sentences.join(' ')).toContain('Settings');
+    expect(out.sentences.join(' ')).toContain('only in a project you opened there');
+    expect(out.sentences.join(' ')).not.toContain('Settings');
     expect(remoteCommitSendCount()).toBe(0);
     expect(reads).toBe(0);
     // The confirm gate was still asked, which is what makes the folder on the
     // row a confirmed fact rather than a value read off disk.
     expect(gated).toEqual(['studio']);
+  });
+
+  it('says outside in the words stage says, naming no grant (Phase 336 fix round)', () => {
+    // It read "outside the folder Tortie was given permission to write in"
+    // until Phase 336's fix round, and nothing is given any more.
+    expect(commitOutsideRoot('Studio')).toBe(
+      'That folder on Studio is outside the projects you opened there. ' +
+        'Nothing was changed.'
+    );
+    expect(commitOutsideRoot('Studio')).toBe(remoteStageOutsideRoot('Studio'));
+    expect(commitOutsideRoot('Studio')).not.toMatch(/permission|Settings/);
   });
 
   it('refuses a folder outside the confirmed folder before it reads', async () => {

@@ -180,6 +180,10 @@ say(
     `${machine.remoteTmuxPath}, sessions under ${machine.tmuxTmp}`
 );
 say(`wrote ${carriagePath}`);
+if (machine.shortPrompt !== null) {
+  // PHASE 336's ruled round: said, so a log shows which far prompt a gate read.
+  say(`the far zsh prompt is two columns (SCRATCH_MACHINE_SHORT_PROMPT=1), from ${machine.shortPrompt}`);
+}
 
 const child = spawn('/bin/sh', ['-c', args.command], {
   stdio: 'inherit',

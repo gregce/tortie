@@ -61,19 +61,23 @@ export type TreeModel = UseFileTreeResult['model'];
  * src/renderer/machines/explorer.ts and passed in, because the tree writes
  * no sentence of its own.
  *
- * PHASE 101 ADDED `writeRoot`, being the folder on that machine a person
- * confirmed Tortie may change files under, or null when they confirmed none.
+ * PHASE 101 ADDED the folder on that machine Tortie may change files under,
+ * or null when there is none. PHASE 336 RENAMED IT `writeFolder` and changed
+ * where it comes from: it is the open project that holds the tree's root (or a
+ * folder a person typed in an earlier build), as `remoteWriteFolderIn` in
+ * ../state/machines-slice answers it, because a project open on a confirmed
+ * machine is a folder Tortie may write under, as a project open on this Mac is.
  *
  * PHASE 102 GAVE IT TWO MORE VERBS. It decides three now rather than one,
  * being New File, New Folder and Rename, and it still decides nothing about
- * what may be written: main reads the confirmed folder off the row on disk at
- * call time, checks every path the tree names against it, and refuses there.
- * Nothing chosen in the renderer can widen what may be written.
+ * what may be written: main decides the folder again at call time, checks
+ * every path the tree names against it, and refuses there. Nothing chosen in
+ * the renderer can widen what may be written.
  */
 export interface TreeRemote {
   machineId: string;
   label: string;
-  writeRoot: string | null;
+  writeFolder: string | null;
   readOnlyNote: string;
 }
 
@@ -82,8 +86,8 @@ export interface TreeModelOptions {
   remote: TreeRemote | null;
   /** `remote !== null`, computed once by the component and passed to all four hooks. */
   isRemote: boolean;
-  /** The confirmed folder on that machine, or null. See TreeRemote. */
-  remoteWriteRoot: string | null;
+  /** The folder on that machine Tortie may write under, or null. See TreeRemote. */
+  remoteWriteFolder: string | null;
   statusFiles: readonly GitFileStatus[];
   isRepo: boolean;
   density: TreeDensity;
@@ -298,7 +302,7 @@ export function useTreeModel({
   rootPath,
   remote,
   isRemote,
-  remoteWriteRoot,
+  remoteWriteFolder,
   statusFiles,
   isRepo,
   density
@@ -320,19 +324,20 @@ export function useTreeModel({
    * Mac. The menu never offered Rename, so the keyboard was the only way in.
    *
    * A tree on this Mac answers true, exactly as before. A tree on a machine
-   * answers true only when that machine carries a confirmed folder and this
-   * build can reach the channel, and the commit then lands on
-   * `machines:renameEntry` and never on `fs:rename`.
+   * answers true only when its root is in a folder Tortie may write under
+   * (Phase 336: a project open on a confirmed machine) and this build can
+   * reach the channel, and the commit then lands on `machines:renameEntry`
+   * and never on `fs:rename`.
    *
-   * PHASE 233 gave `canDrag` and `canDrop` below the same answer, so a machine
-   * with no confirmed folder never starts a drag at all, which is the same
-   * nothing an absent Rename item is, and no path is sent anywhere.
+   * PHASE 233 gave `canDrag` and `canDrop` below the same answer, so a tree in
+   * no such folder never starts a drag at all, which is the same nothing an
+   * absent Rename item is, and no path is sent anywhere.
    *
    * It is read through a ref because @pierre/trees captures its options once at
-   * construction, and a person can confirm a folder in Settings while this tree
-   * is mounted.
+   * construction, and the answer can move while this tree is mounted, when the
+   * machine's confirmation changes.
    */
-  const canRenameHere = mayWriteEntriesHere(isRemote, remoteWriteRoot);
+  const canRenameHere = mayWriteEntriesHere(isRemote, remoteWriteFolder);
   const canRenameHereRef = useRef(canRenameHere);
   canRenameHereRef.current = canRenameHere;
   const storeKey = useMemo(
@@ -435,12 +440,13 @@ export function useTreeModel({
       // contract for a machine), and it was never a reason to refuse the move.
       //
       // So the question here is the one the menu's Rename already asks, being
-      // `canRenameHere`: this machine carries a confirmed folder and this
-      // build can reach the channel. A machine with no write root answers
-      // false and the gesture never starts, which is the same nothing the
-      // absent Rename item is, and nothing is sent. It is read through the ref
-      // for the reason the file's header gives: the options are captured once
-      // and a person can confirm a folder in Settings while the tree is up.
+      // `canRenameHere`: this tree's root is in a folder Tortie may write
+      // under (Phase 336: a project open on a confirmed machine) and this
+      // build can reach the channel. A tree in no such folder answers false
+      // and the gesture never starts, which is the same nothing the absent
+      // Rename item is, and nothing is sent. It is read through the ref for
+      // the reason the file's header gives: the options are captured once and
+      // the machine's confirmation can change while the tree is up.
       if (!canRenameHereRef.current) return false;
       const ops = opsRef.current;
       if (ops === null || paths.some(isProtectedFsPath)) return false;

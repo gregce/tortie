@@ -44,17 +44,20 @@ import { MachineConfirmAction } from '../app/MachineConfirmAction';
 import { MachinePrepareAction } from '../app/MachinePrepareAction';
 import { onRepoChanged } from '../state/repo-changed';
 import {
-  remoteEntryWritesOffLabel,
-  remoteTreeCanWrite,
   remoteTreeDenied,
   remoteTreeMissingBody,
   remoteTreeMissingTitle,
   remoteTreeNotAFolder,
+  remoteTreeNoTrash,
   remoteTreeNotConnected,
   remoteTreeTruncated,
-  remoteTreeUnreachable
+  remoteTreeUnreachable,
+  remoteWriteRefusedLabel
 } from '../machines/explorer';
-import { machineLabelFor, machineWriteRootFor } from '../state/machines-slice';
+import {
+  machineLabelFor,
+  remoteWriteFolderIn
+} from '../state/machines-slice';
 import { useRemoteReread } from '../machines/use-remote-reread';
 import {
   remoteChangesAvailable,
@@ -155,30 +158,37 @@ export function FilesSection({
   const remote = useMemo(() => {
     if (target === null || isLocalTarget(target)) return null;
     const label = machineLabelFor(machineStates, target.machineId);
-    // PHASE 101. The folder a person confirmed Tortie may replace a file
-    // under on that machine, or null when they confirmed none. It decides
-    // which of the two notes the menu ends with, and PHASE 102 made it decide
-    // three verbs on that menu rather than one, being New File, New Folder and
-    // Rename. Main refuses a write against the row on disk either way, so this
+    // PHASE 101. The folder Tortie may change files under on that machine, or
+    // null. It decides which of the two notes the menu ends with, and PHASE
+    // 102 made it decide three verbs on that menu rather than one, being New
+    // File, New Folder and Rename. PHASE 336 made it the open project holding
+    // this tree's root, asked in `folder` mode because the root itself is a
+    // folder those verbs work in. Main decides every write again, so this
     // copy is presentational.
-    const root = machineWriteRootFor(machineStates, target.machineId);
-    const writeRoot = root !== null && root.length > 0 ? root : null;
+    const folder = remoteWriteFolderIn(
+      machineStates,
+      projects,
+      target.machineId,
+      target.path,
+      'folder'
+    );
+    const writeFolder = 'refused' in folder ? null : folder.folder;
     return {
       machineId: target.machineId,
       label,
-      writeRoot,
-      // PHASE 229. With no folder confirmed, the note is the sentence that
-      // names the door, being the same one the disabled New file and New
-      // folder buttons carry, so a person who meets the short menu is told
-      // where saving is turned on rather than told that Tortie only reads. It
-      // is the label form, read before any action, so it does not say that
-      // nothing was changed.
+      writeFolder,
+      // PHASE 229 gave the short menu the same sentence the disabled New file
+      // and New folder buttons carry. PHASE 336 made it say which folders
+      // Tortie changes files in, rather than sending a person to Settings,
+      // and the long menu's note the one verb that is still absent. Both are
+      // label forms, read before any action, so neither says that nothing was
+      // changed.
       readOnlyNote:
-        writeRoot === null
-          ? remoteEntryWritesOffLabel(label)
-          : remoteTreeCanWrite(writeRoot, label)
+        'refused' in folder
+          ? remoteWriteRefusedLabel(folder.refused, label)
+          : remoteTreeNoTrash(label)
     };
-  }, [target, machineStates]);
+  }, [target, machineStates, projects]);
 
   /**
    * PHASE 235, item 4. The sentence for a machine whose details changed, or

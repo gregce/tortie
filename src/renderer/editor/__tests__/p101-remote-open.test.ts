@@ -1,21 +1,24 @@
 /**
- * PHASE 101. Opening a file on a machine Tortie may save on.
+ * PHASE 101, REVERSED BY PHASE 336. Opening a file on another machine that is
+ * larger than Tortie can save there.
  *
- * WHY THE OPEN IS REFUSED AND NOT THE SAVE. The read cap is 2,097,152 bytes
- * and the save cap is 90,000. The save cap cannot be raised to meet the read
- * cap, because the whole command Tortie sends is capped as well and a file that
- * size does not fit at any encoding. So the choice is between refusing the open
- * and shipping a tab that can never be saved, and a tab that can never be saved
- * is the defect Phase 96 fixed by accident.
+ * Phase 101 REFUSED the open on a machine with saving on, because a tab that
+ * could never be saved was worse than a refusal. Research 138's ruling is that
+ * a file is never refused for OPENING because of the save cap, so it OPENS,
+ * read only, marked `saveCapped`, which is the fifth reason `tabIsReadOnly`
+ * gives for a tab on another machine. The read cap is 2,097,152 bytes and the
+ * save cap is 90,000, and the save cap still cannot move, because the whole
+ * command Tortie sends is capped as well.
  *
- * THE FOUR CASES, and the third is the one that would be easy to get wrong.
+ * THE FOUR CASES.
  *
- *  1. Saving on, file over the cap, read whole. Refused, naming the size.
- *  2. Saving on, file over the cap, read cut. Refused, saying over, because the
- *     size is a floor rather than a measurement.
- *  3. Saving OFF, file over the cap. OPENED. The tab is read only anyway, so
- *     refusing would take away a read a person has today and give nothing back.
- *  4. Saving on, file under the cap. Opened, which is the ordinary case.
+ *  1. In a folder Tortie may write under, over the cap, read whole. Opened,
+ *     read only, the mark carrying the measured size.
+ *  2. The same, read cut. Opened, read only, the mark saying `over`, because
+ *     the size is a floor rather than a measurement.
+ *  3. Outside every folder Tortie may write under, over the cap. Opened, as it
+ *     always was, and marked too, because the size is a fact about the file.
+ *  4. Under the cap. Opened with no mark, which is the ordinary case.
  */
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -65,7 +68,7 @@ vi.stubGlobal('document', {
 
 const { useEditor } = await import('../store');
 const { useApp } = await import('../../state/store');
-const copy = await import('../../machines/editor');
+const { tabIsReadOnly, remoteTabWriteFolder } = await import('../tab-readonly');
 type OpenFileRequest = import('../../state/open-file').OpenFileRequest;
 type MachineStateView = import('@shared/ipc').MachineStateView;
 
@@ -116,52 +119,73 @@ const req: OpenFileRequest = {
 const flush = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 /** Open the file and answer the tab as the store holds it afterwards. */
-async function open(): Promise<{ error: string | null; savedContents: string }> {
+async function open(): Promise<{
+  error: string | null;
+  savedContents: string;
+  saveCapped: { bytes: number; over: boolean } | undefined;
+  readOnly: boolean;
+}> {
   useEditor.setState({ tabs: [], activeId: null, panelOpen: false });
   useEditor.getState().openFromRequest(req);
   await flush();
   const tab = useEditor.getState().activeTab();
+  if (tab === null) throw new Error('no tab');
+  const app = useApp.getState();
   return {
-    error: tab?.error ?? null,
-    savedContents: tab?.savedContents ?? ''
+    error: tab.error,
+    savedContents: tab.savedContents,
+    saveCapped: tab.saveCapped,
+    readOnly: tabIsReadOnly(
+      tab,
+      remoteTabWriteFolder(tab, app.machineStates, app.projects)
+    )
   };
 }
 
 beforeEach(() => {
-  useApp.setState({ machineStates: states(ROOT), toast: () => undefined } as never);
+  useApp.setState({
+    machineStates: states(ROOT),
+    projects: [],
+    toast: () => undefined
+  } as never);
   vi.clearAllMocks();
 });
 
-describe('a file too large to save, on a machine that can be saved to', () => {
-  it('is not opened, and the sentence names what it measures', async () => {
+describe('a file too large to save, in a folder Tortie may write under', () => {
+  it('opens read only, and the mark carries what it measures', async () => {
     reviewFile.mockResolvedValue(pair(1_238_904));
     const tab = await open();
-    expect(tab.error).toBe(copy.remoteOpenTooLarge(1_238_904, 'Studio'));
-    expect(tab.savedContents).toBe('');
+    expect(tab.error).toBe(null);
+    expect(tab.savedContents).toBe('after\n');
+    expect(tab.saveCapped).toEqual({ bytes: 1_238_904, over: false });
+    expect(tab.readOnly).toBe(true);
   });
 
   it('says over when the read was cut, because the size is a floor', async () => {
     reviewFile.mockResolvedValue(pair(REVIEW_CAP, true));
     const tab = await open();
-    expect(tab.error).toBe(copy.remoteOpenTooLargeOver(REVIEW_CAP, 'Studio'));
-    expect(tab.error).toContain('over');
-    expect(tab.savedContents).toBe('');
+    expect(tab.error).toBe(null);
+    expect(tab.saveCapped).toEqual({ bytes: REVIEW_CAP, over: true });
+    expect(tab.readOnly).toBe(true);
   });
 
-  it('opens a file under the cap, which is the ordinary case', async () => {
+  it('opens a file under the cap with no mark, which is the ordinary case', async () => {
     reviewFile.mockResolvedValue(pair(6));
     const tab = await open();
     expect(tab.error).toBe(null);
     expect(tab.savedContents).toBe('after\n');
+    expect(tab.saveCapped).toBeUndefined();
+    expect(tab.readOnly).toBe(false);
   });
 });
 
-describe('the same file on a machine nobody has let Tortie save on', () => {
-  it('opens, because refusing would take away a read a person has', async () => {
+describe('the same file outside every folder Tortie may write under', () => {
+  it('opens, as it always did, and is read only', async () => {
     useApp.setState({ machineStates: states(null) } as never);
     reviewFile.mockResolvedValue(pair(1_238_904));
     const tab = await open();
     expect(tab.error).toBe(null);
     expect(tab.savedContents).toBe('after\n');
+    expect(tab.readOnly).toBe(true);
   });
 });

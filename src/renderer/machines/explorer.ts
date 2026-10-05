@@ -6,6 +6,9 @@
  * they are drawn in is described in ./project-tab.ts.
  */
 
+import type { RemoteWriteRefusal } from '../state/machines-slice';
+import { remoteNeverFolderLine } from './editor';
+
 // PHASE 230 TOOK `remoteTreeReadAt` OFF, the Explorer's name for the read-at
 // clock that ./presentation.ts defined once for it and Source control. The
 // record is on that file's header, and the Explorer reads again by itself now.
@@ -65,26 +68,17 @@ export function remoteTreeTruncated(
 }
 
 /**
- * The same line on a machine a person has let Tortie save on.
+ * The note the tree menu ends with on a folder Tortie may change on another
+ * machine.
  *
- * PHASE 102 REPLACED `remoteTreeCanSave`, which said Tortie can save under one
- * folder. Three verbs cross now rather than one, being New File, New Folder and
- * Rename, so the sentence says Tortie can change what is under that folder. The
- * second half names the one thing that is still absent, because a person who
- * reads the first half will look for Move to Trash next.
- *
- * PHASE 229 DELETED `remoteTreeReadOnly`, which said Tortie only reads files
- * on that machine. It named no way to change that and read as a permanent
- * limit, and it was the title of the disabled New file and New folder buttons
- * as well as the tree menu's last row. All three draw `remoteEntryWritesOff`
- * below now, which names the door, so a machine with no confirmed folder
- * draws one sentence everywhere and that sentence says what to do.
+ * PHASE 336 REPLACED `remoteTreeCanWrite`, which named the one folder a person
+ * had confirmed. Every project open on a confirmed machine is now a folder
+ * Tortie may change, as it is on this Mac, so naming the folder would be a
+ * sentence about a grant that no longer exists. What is left is the one verb a
+ * person will look for next and not find.
  */
-export function remoteTreeCanWrite(root: string, label: string): string {
-  return (
-    `Tortie reads files on ${label} and can change what is under ${root}. ` +
-    `It cannot move anything there to the Trash.`
-  );
+export function remoteTreeNoTrash(label: string): string {
+  return `Tortie cannot move files on ${label} to the Trash.`;
 }
 
 // -- making a folder and renaming an entry on a machine (Phase 102) ----------
@@ -142,42 +136,97 @@ export function remoteRenameAlreadyDone(label: string): string {
 }
 
 /**
- * Nobody has let Tortie change anything on that machine, said BEFORE any
- * action, as the title of a control that is not pressable (Phase 229).
+ * The folder is outside every project opened on that machine, said BEFORE any
+ * action, as the title of a control that is not pressable and as the note on
+ * the short tree menu.
  *
- * It names the three steps to the one surface that turns saving on, because a
- * person who meets this has no other way to find it. It does NOT say that
- * nothing was changed, because nothing was attempted: this is the hover title
- * of the disabled New file and New folder buttons and the note on the short
- * tree menu, read before a press rather than after one. The Phase 229
- * verifier read that trailer on the disabled buttons and called it a sentence
- * about an action nobody had taken.
+ * PHASE 336 REWROTE IT. It named three steps through Settings to the one
+ * surface that turned saving on, and that surface is gone: a project open on a
+ * confirmed machine is a folder Tortie may change, as it is on this Mac. So it
+ * says which folders those are. It does NOT say that nothing was changed,
+ * because nothing was attempted.
  */
 export function remoteEntryWritesOffLabel(label: string): string {
   return (
-    `Tortie cannot change anything on ${label}. Open Settings, then ` +
-    `Machines, then ${label}, and let Tortie save files there.`
+    `Tortie changes files on ${label} only inside a project you opened ` +
+    `there.`
   );
 }
 
 /**
- * Nobody has let Tortie change anything on that machine, said AFTER an action
- * main refused.
- *
- * It is the label above with one more sentence, saying that nothing was
- * changed, which is true of every path that reaches it: main answers this
- * before it composes anything and before it sends anything. It is composed
- * from the label rather than written twice so the two cannot drift.
+ * The same, said AFTER an action was refused before anything was sent. It is
+ * composed from the label so the two cannot drift.
  */
 export function remoteEntryWritesOff(label: string): string {
   return `${remoteEntryWritesOffLabel(label)} Nothing was changed.`;
 }
 
 /**
- * The path is outside the folder that person confirmed.
+ * The machine is not confirmed right now, which includes one whose details
+ * changed, said before any action. Nothing is written there until it is
+ * confirmed again, and the project tab already offers that.
+ */
+export function remoteEntryUnconfirmedLabel(label: string): string {
+  return (
+    `Tortie does not change files on ${label} until that machine is ` +
+    `confirmed.`
+  );
+}
+
+/**
+ * The label for one refusal, before any action: the disabled New file and New
+ * folder buttons, and the note the short tree menu ends with.
+ */
+export function remoteWriteRefusedLabel(
+  reason: RemoteWriteRefusal,
+  label: string
+): string {
+  switch (reason) {
+    case 'unconfirmed':
+      return remoteEntryUnconfirmedLabel(label);
+    case 'outside':
+      return remoteEntryWritesOffLabel(label);
+    case 'never':
+      return remoteNeverFolderLine(label);
+  }
+}
+
+/** The never-list, said after an action was refused. */
+export function remoteEntryNever(label: string): string {
+  return `${remoteNeverFolderLine(label)} Nothing was changed.`;
+}
+
+/**
+ * The folder at that path is not the folder that was opened (Phase 336).
  *
- * Main decides this on this Mac, before anything is sent, so nothing was
- * changed on that machine and the sentence says so.
+ * `./editor.ts`'s `remoteSaveFolderChanged` says why; this is its form for the
+ * verbs that change a folder rather than save a file.
+ */
+export function remoteEntryFolderChanged(
+  folder: string | null,
+  label: string
+): string {
+  return (
+    `${folder ?? 'That folder'} on ${label} is not the folder you opened any ` +
+    `more, so Tortie changed nothing. Open it again to change files there.`
+  );
+}
+
+/** A `.git` or `.ssh` folder, in any case and any spelling the volume folds. */
+export function remoteEntryProtected(label: string): string {
+  return (
+    `Tortie does not touch .git or .ssh folders on ${label}. Nothing was ` +
+    `changed.`
+  );
+}
+
+/**
+ * The path is outside the folder the change was bound by.
+ *
+ * PHASE 336. The folder is the open project that holds the path, or a folder a
+ * person typed in an earlier build. Main answers it for a rename whose two
+ * ends no one folder holds, and the machine answers it for a path that leads
+ * out of the folder through a link. Nothing was changed either way.
  */
 export function remoteEntryOutsideRoot(root: string, label: string): string {
   return (

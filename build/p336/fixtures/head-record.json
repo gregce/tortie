@@ -1,0 +1,221 @@
+{
+  "_note": "HAND-WRITTEN to the shape an honest HEAD run of build/p336/probe-p336.mjs records (no builder launches Electron in Phase 336). P336_KEEP=1 keeps a real run's head-record.json, which may replace this file. Read by --grader-self-test only.",
+  "build": "head",
+  "far": "loopback",
+  "arms": {
+    "L": {
+      "confirmedWithoutPress": true,
+      "hash": "f09ddd90382dc9e6f52326f9b4938c00a37031e6c96f2f757573ca18af6d9e66",
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done",
+        "commit": "committed"
+      },
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c"
+    },
+    "A": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "rename": "moved",
+        "stage": "done",
+        "unstage": "done",
+        "commit": "committed"
+      },
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "madeOnFar": true,
+      "renamedOnFar": true,
+      "commitsBefore": 1,
+      "commitsAfter": 2
+    },
+    "A2": {
+      "put": "wrote",
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c"
+    },
+    "B": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done"
+      }
+    },
+    "H1": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "folderChanged",
+        "rename": "folderChanged",
+        "stage": "folderChanged",
+        "commit": "folderChanged"
+      },
+      "victimBefore": ".git,dirty.txt,notes.md,README.md,a.txt,staged.txt,v.txt,|2738411370 7|3141592653 352|1",
+      "victimAfter": ".git,dirty.txt,notes.md,README.md,a.txt,staged.txt,v.txt,|2738411370 7|3141592653 352|1",
+      "reopen": {
+        "put": "wrote"
+      }
+    },
+    "H2": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "folderChanged",
+        "rename": "folderChanged"
+      },
+      "oldBefore": ".git,README.md,a.txt,before-swap.md,notes.md,",
+      "oldAfter": ".git,README.md,a.txt,before-swap.md,notes.md,",
+      "newBefore": "",
+      "newAfter": ""
+    },
+    "H3": {
+      "outcomes": {
+        "innocent": "protected",
+        "inn2": "protected"
+      },
+      "sshBefore": "authorized_keys,",
+      "sshAfter": "authorized_keys,"
+    },
+    "H4": {
+      "outcomes": {
+        "gitConfig": "protected",
+        "hook": "protected",
+        "gitDir": "protected",
+        "intoSsh": "protected",
+        "stageCwd": "protected",
+        "ssfold": "protected",
+        "longs": "protected"
+      },
+      "gitConfigBefore": "1234567890 180",
+      "gitConfigAfter": "1234567890 180",
+      "hooksBefore": "",
+      "hooksAfter": "",
+      "sshBefore": "",
+      "sshAfter": "",
+      "volume": "folds"
+    },
+    "H5": {
+      "plant": {
+        "landed": true,
+        "rows": [
+          "p336-planted-home",
+          "p336-planted-plain",
+          "p336-planted-root"
+        ]
+      },
+      "root": {
+        "outcome": "writesOff",
+        "folder": "/"
+      },
+      "home": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home"
+      },
+      "planted": {
+        "outcome": "wrote",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/p336/far/planted-h5"
+      },
+      "rootWrote": false,
+      "homeWrote": false
+    },
+    "H5L": {
+      "outcome": "refused",
+      "why": "projectClosed",
+      "fileBefore": "planted\n",
+      "fileAfter": "planted\n"
+    },
+    "H6": {
+      "verbs": {
+        "put": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "makeDir": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "rename": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "stage": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "commit": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        }
+      },
+      "farBefore": "o.txt,p336-ha2.md,",
+      "farAfter": "o.txt,p336-ha2.md,",
+      "savesInProjects": false,
+      "afterUndo": {
+        "put": "wrote"
+      },
+      "confirmPressed": false
+    },
+    "H8": {
+      "home": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home"
+      },
+      "child": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child"
+      },
+      "grand": {
+        "outcome": "wrote",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child/grand"
+      }
+    },
+    "R": {
+      "editor": {
+        "missing": false,
+        "tabId": "tab-a",
+        "mode": "file",
+        "remote": true,
+        "readOnly": false,
+        "before": "a\n",
+        "after": "Xa\n",
+        "accepted": true,
+        "dirtyBefore": false,
+        "dirtyAfter": true
+      },
+      "save": "wrote",
+      "farHasTyped": true,
+      "headerButtonsEnabled": true,
+      "bigFile": {
+        "opened": true,
+        "mode": "file",
+        "readOnly": true,
+        "remote": true,
+        "tabId": "tab-big",
+        "chip": "That file is 150,000 bytes and Tortie saves files up to 90,000 bytes on P336 Machine, so it is shown read only.",
+        "error": null
+      },
+      "drawnSettings": [],
+      "bundleNamesBrowseWrites": false,
+      "bundleNamesLetTortie": false,
+      "explorer": {
+        "shown": true,
+        "rows": 5,
+        "why": null
+      }
+    }
+  },
+  "run": {
+    "parentWanted": [
+      "L",
+      "A",
+      "B",
+      "H4",
+      "H5L"
+    ],
+    "gmuxBefore": "7",
+    "gmuxAfter": "7",
+    "dotfilesMoved": [],
+    "electronsLeft": 0,
+    "farLeft": false
+  }
+}

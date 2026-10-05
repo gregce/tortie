@@ -11,15 +11,17 @@
  * Until this phase no command Tortie sent could change a git repository on
  * another computer. After it, two can.
  *
- * ## The one field that decides everything, and it is not a new one
+ * ## What decides whether anything happens (Phase 336)
  *
- * `writeRoot` on the machine row, which is the sixth confirmed field Phase 101
- * added. PHASE 103 ADDS NO CONFIRMED FIELD. The hash still covers six fields,
- * `APPENDED_KEYS` in `./confirm.ts` is untouched, and no machine anybody
- * already confirmed is asked to confirm anything again.
- *
- * A machine that carries no folder cannot be written to at all, and both verbs
- * answer `writesOff` without composing anything.
+ * The rule a save follows, in `./write-folder.ts`: the row is in the machines
+ * file, the confirm gate passes, and a legacy `writeRoot` or the deepest open
+ * project on that machine holds THE TAB'S FOLDER. No field is confirmed by this
+ * module and no machine anybody already confirmed is asked again. A tab's
+ * folder no open project holds answers `writesOff` without composing anything.
+ * Until Phase 336 it was the typed `writeRoot` alone, read through one shared
+ * function in `./remote-file.ts`, which is gone. The paragraphs below say "the confirmed
+ * folder" for what is now "the folder the write is bound by"; the measurements
+ * in them are unchanged.
  *
  * ## Containment, and it is four layers rather than one
  *
@@ -28,9 +30,9 @@
  * and the list of repository relative paths, and it runs the review read
  * itself.
  *
- *  1. The confirm gate and the confirmed folder, through `confirmedWriteRoot`
- *     in `./remote-file.ts`, which is the one implementation of that decision.
- *     Null is the outcome `writesOff` and nothing is composed.
+ *  1. The confirm gate and the folder, through `writeFolderFor` in
+ *     `./write-folder.ts`, which is the one implementation of that decision.
+ *     No folder is the outcome `writesOff` and nothing is composed.
  *  2. {@link rootHolds}, being THE TAB'S OWN FOLDER under the confirmed folder.
  *     False is the outcome `outsideRoot`, and it is decided before the machine
  *     is contacted at all.
@@ -108,8 +110,9 @@
  * person reads is the one thing about it that is not exact. A component of the
  * tab's own folder that is a link pointing BACK INSIDE the confirmed folder is
  * refused too, and the sentence `outsideRoot` carries says that folder is
- * outside the folder Tortie was given permission to write in, which for that
- * one case is not what happened. It stays that way for two reasons. Telling the
+ * outside the projects opened there (Phase 336; it named the folder Tortie
+ * was given permission to write in before), which for that one case is not
+ * what happened. It stays that way for two reasons. Telling the
  * two apart needs a `readlink` and then a comparison of a RESOLVED path, which
  * is `./remote-record.ts`'s standing refusal and the thing this whole layer is
  * built to avoid. And it is exactly what Phase 242 already shipped for the
@@ -126,10 +129,12 @@
  * that person exactly as they were.
  *
  * What still holds when main is bypassed is that the root is absolute, that the
- * confirmed folder is absolute and holds no `..`, that the relative part is
- * neither absolute nor climbing, that no component of it is a symbolic link,
- * that no element of the list escapes the repository, that no element names
- * `.git`, and that no element is `.` or a folder.
+ * folder is absolute and is the pinned folder by device and inode (Phase 336),
+ * that the relative part is neither absolute nor climbing nor a `.git` or
+ * `.ssh` folder, that no component of it is a symbolic link, that no element
+ * of the list escapes the repository, that no element names `.git` or `.ssh`,
+ * that no element is `.` or a folder, and that the repository git reaches from
+ * the folder is the one main's own review read named.
  *
  * ## What layer 4 cannot see, also named rather than hidden
  *
@@ -177,17 +182,26 @@ import type {
   MachineIndexWriteResult,
   MachineReviewFile
 } from '@shared/ipc';
+import { isProtectedRemotePath } from '@shared/remote-write-folder';
 import { gmuxError } from '../errors';
 import {
+  remoteNameRefused,
   STAGE_NAME_HOLDS_LINE_BREAK,
   STAGE_PATH_NOT_REPORTED,
   STAGE_PATH_TOO_LONG
 } from './remote-copy';
-import { confirmedWriteRoot } from './remote-file';
+import { isRemoteFolderWord, type RemoteFolderWord } from './remote-file';
 import { reviewFilesOn } from './remote-review';
-import { composeRemoteScriptCommand, runRemoteWrite } from './remote-run';
+import { composeRemoteScriptCommand, runFolderWrite } from './remote-run';
 import { remoteScript } from './remote-scripts';
 import { readyRemoteContext } from './ready-context';
+import { machineLabelOf } from './store';
+import {
+  heldFolder,
+  namesProtected,
+  readyWriteFolder,
+  writeFolderFor
+} from './write-folder';
 
 /**
  * How long one stage or one unstage gets on the machine. 20,000 ms.
@@ -217,6 +231,12 @@ export const REMOTE_STAGE_BUDGET_BYTES = 118_000;
 
 /** Which of the two scripts a call is. The verb is never a value. */
 type IndexVerb = 'stage' | 'unstage';
+
+/**
+ * The longest pin there is, being two twenty-digit numbers and a colon, so a
+ * chunk measured with it fits whatever pin crosses (Phase 336).
+ */
+const INDEX_PIN_CEILING = '99999999999999999999:99999999999999999999';
 
 const SCRIPT_OF: Readonly<Record<IndexVerb, string>> = {
   stage: 'git-stage',
@@ -310,6 +330,12 @@ export interface RemoteIndexWriteAnswer {
    * the tab's own folder is a symbolic link. `ok` is false and `said` is null.
    */
   readonly outside: boolean;
+  /**
+   * PHASE 336. Present only when the far side's folder check or text guards
+   * refused before any git ran: `notsame`, `offlimits`, `nohome`, `protected`
+   * or `badname`. `ok` and `outside` are false and `said` is null.
+   */
+  readonly refusal?: RemoteFolderWord;
   /** What git printed on stderr, decoded, or null when it printed nothing. */
   readonly said: string | null;
 }
@@ -338,6 +364,11 @@ export function parseIndexWriteAnswer(
   if (status === REMOTE_INDEX_WRITE_OUTSIDE) {
     if (word !== 'none') return null;
     return { ok: false, outside: true, said: null };
+  }
+  // PHASE 336. The folder check and the text guards, printed the same way.
+  if (isRemoteFolderWord(status)) {
+    if (word !== 'none') return null;
+    return { ok: false, outside: false, refusal: status, said: null };
   }
   if (status !== '0' && status !== '1') return null;
   if (word === 'none') {
@@ -368,23 +399,26 @@ export function chunkIndexPaths(
   repoPath: string,
   paths: readonly string[],
   writeRoot: string,
-  cwdRel: string
+  cwdRel: string,
+  pin: string = INDEX_PIN_CEILING
 ): string[][] {
   const script = remoteScript(SCRIPT_OF[verb]);
   if (script === null) {
     throw new Error(`the catalogue holds no script called ${SCRIPT_OF[verb]}`);
   }
-  // THE CONFIRMED FOLDER AND THE RELATIVE CWD ARE MEASURED TOO, because they
+  // THE FOLDER, THE RELATIVE CWD AND THE PIN ARE MEASURED TOO, because they
   // ride on every command this chunker composes and a chunk that fits here has
-  // to fit there. Phase 242.1 added them and this line is why the budget did
-  // not quietly move.
+  // to fit there. Phase 242.1 added the first two and Phase 336 the pin, which
+  // `runFolderWrite` appends last; this line is why the budget did not quietly
+  // move.
   const bytesOf = (list: readonly string[]): number =>
     Buffer.byteLength(
       composeRemoteScriptCommand(script, [
         repoPath,
         list.join('\n'),
         writeRoot,
-        cwdRel
+        cwdRel,
+        pin
       ]),
       'utf8'
     );
@@ -487,19 +521,27 @@ export async function unstageOnMachine(
  * machine was never asked.
  *
  *  1. An empty list answers `nothingToDo`.
- *  2. The row, the confirm gate and the confirmed folder, in one call. Null
- *     answers `writesOff`.
- *  3. Every path is tested for a line break, which throws.
- *  4. `rootHolds` over the TAB'S FOLDER. False answers `outsideRoot`, and the
- *     machine is not contacted at all, so that answer costs nothing over there.
- *  5. The fresh read. An empty `repoPath` answers `notRepo`.
- *  6. The reported set. A path that is not in it throws. A row's `origPath` is
+ *  2. The row, the confirm gate and the folder holding the TAB'S FOLDER
+ *     (`writeFolderFor` in `./write-folder.ts`, `folder` mode). No folder
+ *     answers `writesOff`, naming a never-listed one when that is the reason.
+ *  3. `rootRelativeCwd` over the tab's folder. Null answers `outsideRoot`,
+ *     and the machine is not contacted at all.
+ *  4. The reserved names: the tab's folder relative part and every path.
+ *     Either one naming `.git` or `.ssh` answers `protected`.
+ *  5. Every path is tested for a line break, and the relative part for two
+ *     dots in a row, each of which throws.
+ *  6. The fresh read. An empty `repoPath` answers `notRepo`.
+ *  7. The reported set. A path that is not in it throws. A row's `origPath` is
  *     appended here, because `git status` reports the new path for a git
- *     detected rename and staging it needs the old one too.
- *  7. The chunking. A single path over the budget throws.
- *  8. The connection, then one `runRemoteWrite` per chunk, in series. The send
- *     counter moves immediately before each one.
- *  9. The answer of each chunk, parsed. THE FIRST CHUNK GIT REFUSES ENDS THE
+ *     detected rename and staging it needs the old one too. Every path that
+ *     will cross is then tested for two dots in a row, which throws, and for
+ *     a reserved name, which answers `protected`.
+ *  8. The connection, then the folder's pin (a READ when the row has none),
+ *     then the chunking, measured with that pin. A single path over the budget
+ *     throws.
+ *  9. One `runFolderWrite` per chunk, in series. The send counter moves
+ *     immediately before each one.
+ * 10. The answer of each chunk, parsed. THE FIRST CHUNK GIT REFUSES ENDS THE
  *     LOOP, because the sentence for that word says Tortie stopped.
  */
 async function writeIndexOnMachine(
@@ -532,14 +574,42 @@ async function writeIndexOnMachine(
   const asked = Array.isArray(input.paths) ? input.paths : [];
   if (asked.length === 0) return answer('nothingToDo');
 
-  // 2. The row, the gate and the confirmed folder.
-  const ready = confirmedWriteRoot(input.machineId);
-  if (ready === null) return answer('writesOff');
-  const { row, writeRoot } = ready;
+  // 2. The row, the gate and the folder that holds the tab's folder.
+  const choice = writeFolderFor(input.machineId, input.cwd, 'folder');
+  const { row, pick } = choice;
+  if (!heldFolder(pick)) {
+    return answer('writesOff', {
+      writeRoot: pick.refused === 'never' ? pick.path : null
+    });
+  }
+  const writeRoot = pick.path;
 
-  // 3. A name holding a line break, refused before anything is composed. The
+  // 3. The folder this tab is about has to sit under that folder. BOTH ARE
+  // PATHS AS GIVEN. The repository root is not compared here, because that
+  // machine's git resolves every link before it prints it and this Mac cannot
+  // follow a link on another computer. The header carries the measurement,
+  // what this does not prove, and what the exact comparison would cost.
+  const cwdRel = rootRelativeCwd(writeRoot, input.cwd);
+  if (cwdRel === null) {
+    return answer('outsideRoot', { writeRoot });
+  }
+
+  // 4. PHASE 336. The reserved names, over the tab's folder and every path, in
+  // any case and any spelling the volume folds. Before anything is composed.
+  const names = asked.filter((path): path is string => typeof path === 'string');
+  if (
+    namesProtected(pick, [cwdRel]) ||
+    names.some((path) => isProtectedRemotePath(path))
+  ) {
+    return answer('protected', { writeRoot });
+  }
+
+  // 5. A name holding a line break, refused before anything is composed. The
   // list travels as one positional split on a newline, so such a name would
-  // arrive as two paths and stage a file nobody named.
+  // arrive as two paths and stage a file nobody named. Then the one name shape
+  // the far side refuses without a parser, two dots in a row (SPEC D12), for
+  // the tab's folder here and for the paths once the fresh read has reported
+  // them, so a climbing path keeps its own sentence below.
   for (const path of asked) {
     if (typeof path !== 'string' || !/[\r\n]/.test(path)) continue;
     throw gmuxError(
@@ -549,19 +619,18 @@ async function writeIndexOnMachine(
         `list of paths travels as one value separated by newlines`
     );
   }
+  const refuseTwoDots = (one: string): void => {
+    if (!one.includes('..')) return;
+    throw gmuxError(
+      'INVALID_INPUT',
+      remoteNameRefused(machineLabelOf(row)),
+      `${row.id} was asked to ${verb} "${one.slice(0, 120)}", which holds two ` +
+        `dots in a row`
+    );
+  };
+  refuseTwoDots(cwdRel);
 
-  // 4. The folder this tab is about has to sit under the folder the person
-  // confirmed. BOTH ARE PATHS AS GIVEN. The repository root is not compared
-  // here, because that machine's git resolves every link before it prints it
-  // and this Mac cannot follow a link on another computer. The header carries
-  // the measurement, what this does not prove, and what the exact comparison
-  // would cost.
-  const cwdRel = rootRelativeCwd(writeRoot, input.cwd);
-  if (cwdRel === null) {
-    return answer('outsideRoot', { writeRoot });
-  }
-
-  // 5. The fresh read. THE REPOSITORY ROOT COMES FROM THAT MACHINE'S OWN
+  // 6. The fresh read. THE REPOSITORY ROOT COMES FROM THAT MACHINE'S OWN
   // rev-parse and never from the caller.
   const readFrom = Date.now();
   const list = await reviewFilesOn({
@@ -573,7 +642,7 @@ async function writeIndexOnMachine(
     return answer('notRepo', { writeRoot });
   }
 
-  // 6. Every path is one that fresh read named, and a rename sends both ends.
+  // 7. Every path is one that fresh read named, and a rename sends both ends.
   const reported = reportedPaths(list.files, list.untracked);
   const wanted: string[] = [];
   const seen = new Set<string>();
@@ -597,18 +666,28 @@ async function writeIndexOnMachine(
     )?.origPath;
     if (typeof orig === 'string' && orig.length > 0) addOnce(orig);
   }
+  for (const path of wanted) {
+    refuseTwoDots(path);
+    if (isProtectedRemotePath(path)) return answer('protected', { writeRoot });
+  }
 
-  // 7. The chunking, measured against the exact composer the door uses.
+  // 8. The connection, then the folder's pin, then the chunking, measured
+  // against the exact composer the door uses with that pin on it.
+  const ctx = readyRemoteContext(input.machineId);
+  const folder = await readyWriteFolder(ctx, choice, pick);
+  if (folder === 'folderChanged') {
+    return answer('folderChanged', { repoPath: list.repoPath, writeRoot });
+  }
   const chunks = chunkIndexPaths(
     verb,
     list.repoPath,
     wanted,
-    writeRoot,
-    cwdRel
+    folder.path,
+    cwdRel,
+    folder.pin
   );
 
-  // 8. The connection, then one command per chunk, in series.
-  const ctx = readyRemoteContext(input.machineId);
+  // 9. One command per chunk, in series.
   let outcome: MachineIndexWriteOutcome = 'done';
   let machineSaid: string | null = null;
   let sent = 0;
@@ -616,10 +695,11 @@ async function writeIndexOnMachine(
     sends += 1;
     let out;
     try {
-      out = await runRemoteWrite(
+      out = await runFolderWrite(
         ctx,
+        folder,
         SCRIPT_OF[verb],
-        [list.repoPath, chunk.join('\n'), writeRoot, cwdRel],
+        [list.repoPath, chunk.join('\n'), folder.path, cwdRel],
         {
           timeoutMs: REMOTE_STAGE_TIMEOUT_MS,
           execution: { kind: 'command', subject: list.repoPath }
@@ -634,10 +714,31 @@ async function writeIndexOnMachine(
       break;
     }
     sent += 1;
-    // 9. The answer.
+    // 10. The answer.
     const said = parseIndexWriteAnswer(out.payload);
     if (said === null) {
       outcome = 'unsure';
+      break;
+    }
+    if (said.refusal !== undefined) {
+      // 10a. PHASE 336. The far side's folder check or text guards refused
+      // above every git in the script, so nothing in THIS chunk was staged.
+      // `badname` is a shape main refused above, so it can only arrive from a
+      // machine that disagrees with this side's reading; on the first chunk
+      // it throws the sentence, and after one it is `partial`, because an
+      // earlier chunk did cross.
+      if (said.refusal === 'notsame') outcome = 'folderChanged';
+      else if (said.refusal === 'protected') outcome = 'protected';
+      else if (said.refusal === 'badname') {
+        if (sent === 1) {
+          throw gmuxError(
+            'INVALID_INPUT',
+            remoteNameRefused(machineLabelOf(row)),
+            `${row.id} refused the shape of a path in the list and staged nothing`
+          );
+        }
+        outcome = 'partial';
+      } else outcome = 'writesOff';
       break;
     }
     if (said.outside) {

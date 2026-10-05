@@ -156,7 +156,9 @@ describe('which trees offer a write gesture at all', () => {
     // The WHOLE statement, semicolon included, so a clause bolted onto the
     // end of it turns this red rather than sliding past a substring.
     expect(model).toContain(
-      'const canRenameHere = mayWriteEntriesHere(isRemote, remoteWriteRoot);\n'
+      // PHASE 336 renamed the second argument: it is the folder Tortie may
+      // write under, the open project holding the tree's root.
+      'const canRenameHere = mayWriteEntriesHere(isRemote, remoteWriteFolder);\n'
     );
     // `isRemote` is no longer a drag refusal anywhere in the model.
     expect(model).not.toContain('if (isRemote) return false;');
@@ -305,12 +307,22 @@ describe('every answer a remote drop can meet', () => {
       says: () => copy.remoteEntryGone('notes.md', 'Studio')
     },
     {
+      // PHASE 336. The answer names a folder, so `writesOff` is the
+      // never-list; the no-folder form is the case below this table.
       outcome: 'writesOff' as const,
-      says: () => copy.remoteEntryWritesOff('Studio')
+      says: () => copy.remoteEntryNever('Studio')
     },
     {
       outcome: 'outsideRoot' as const,
       says: () => copy.remoteEntryOutsideRoot('/home/greg', 'Studio')
+    },
+    {
+      outcome: 'folderChanged' as const,
+      says: () => copy.remoteEntryFolderChanged('/home/greg', 'Studio')
+    },
+    {
+      outcome: 'protected' as const,
+      says: () => copy.remoteEntryProtected('Studio')
     }
   ];
 
@@ -328,7 +340,7 @@ describe('every answer a remote drop can meet', () => {
     });
   }
 
-  it('says saving is off when a refusal came back with no folder at all', async () => {
+  it('says outside every project when a refusal came back with no folder at all', async () => {
     const rig = makeRig();
     rig.rows.add('lib/notes.md');
     rig.renameAnswer.value = Promise.resolve({

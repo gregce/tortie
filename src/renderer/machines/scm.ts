@@ -7,6 +7,14 @@
  */
 
 import type { MachineGitIdentity } from '@shared/ipc';
+import type { RemoteWriteRefusal } from '../state/machines-slice';
+import {
+  remoteEntryFolderChanged,
+  remoteEntryNever,
+  remoteEntryProtected,
+  remoteEntryUnconfirmedLabel,
+  remoteEntryWritesOff
+} from './explorer';
 
 // -- Source Control ----------------------------------------------------------
 
@@ -24,50 +32,62 @@ import type { MachineGitIdentity } from '@shared/ipc';
  */
 
 /**
- * Saving is not turned on for that machine, so nothing was sent (Phase 103).
+ * Why a stage or an unstage changed nothing, for the words that are about the
+ * FOLDER rather than about git (Phase 336).
  *
- * It names the steps rather than one, because Settings holds several pages and
- * a person who is told only to open Settings has to hunt. Main decides this
- * against the record on disk, so the sentence is what a person reads after the
- * refusal rather than a prediction made before it.
+ * PHASE 336 REPLACED `remoteWritesNotConfirmed`, which named three steps
+ * through Settings to the one surface that turned saving on. That surface is
+ * gone: a project open on a confirmed machine is a folder Tortie may change,
+ * as it is on this Mac. So these say which folders those are, or that the
+ * folder is not the one that was opened, or that it is a `.git` or `.ssh`
+ * folder, and they are the Explorer's own sentences so the two views say one
+ * thing.
  *
- * IT NAMES THE FOLDER'S DOOR AND NOT THE MACHINE'S, and Phase 242 is why. It
- * used to end "confirm that machine", which is the one thing a person meeting
- * this has already done: what is missing is the FOLDER, not the machine.
- * Research 102 section 6 read that off the live refusal. Phase 229 wrote the
- * right wording in `./explorer.ts` and this one did not get it, so the middle
- * is now `remoteEntryWritesOffLabel`'s, word for word.
+ * `refused` is the renderer's own reading of the folder, because the stage
+ * store keeps main's word and not the folder main named. Main answers
+ * `writesOff` for a folder outside every open project and for a folder on the
+ * never-list, which it also judges on that machine, where the renderer cannot
+ * see. So `writesOff` reads as outside only when the renderer also finds the
+ * folder outside, and as the never-list whenever the renderer found a folder.
  */
-export function remoteWritesNotConfirmed(label: string): string {
-  return (
-    `Tortie cannot save on ${label}. Open Settings, then Machines, then ` +
-    `${label}, and let Tortie save files there. Nothing was sent.`
-  );
+export function remoteIndexWriteRefusal(
+  outcome: 'writesOff' | 'folderChanged' | 'protected',
+  refused: RemoteWriteRefusal | null,
+  folder: string | null,
+  label: string
+): string {
+  switch (outcome) {
+    case 'writesOff':
+      if (refused === 'outside') return remoteEntryWritesOff(label);
+      if (refused === 'unconfirmed') {
+        return `${remoteEntryUnconfirmedLabel(label)} Nothing was changed.`;
+      }
+      return remoteEntryNever(label);
+    case 'folderChanged':
+      return remoteEntryFolderChanged(folder, label);
+    case 'protected':
+      return remoteEntryProtected(label);
+  }
 }
 
 /**
- * The repository over there is outside the folder a person confirmed
- * (Phase 103).
+ * The folder over there leads outside the folder the stage was bound by
+ * (Phase 103, rewritten by Phase 336).
  *
  * It does not name either folder. The tab already names the folder it is
- * about, and the confirmed folder is in Settings under the machine's own row.
- * Naming both here would put two absolute paths in one sentence in a column
- * that is 300 px wide.
+ * about, and naming both here would put two absolute paths in one sentence in
+ * a column that is 300 px wide.
  *
- * IT SAID "Nothing was sent." UNTIL PHASE 242.1 AND THAT WORD WAS THE ONE THAT
- * WENT FALSE. This outcome has two reasons now. Main still refuses a folder
- * that is textually outside before it composes anything, and there nothing was
- * indeed sent. But a folder reached through a SYMBOLIC LINK is textually
- * inside, so main sends and the far side refuses above every git — measured on
- * the operator's own Mac Pro on 2026-09-08, `sent: 1` with the index unmoved.
- * "Nothing was changed" is true of both and is the promise a person cares
- * about. It is the same word `remoteSaveOutsideRoot` has always used, which is
- * why the three path verbs could reuse their sentence unedited.
+ * PHASE 242.1 made it say "Nothing was changed." rather than "Nothing was
+ * sent.", because a folder reached through a SYMBOLIC LINK is textually inside,
+ * so main sends and the far side refuses above every git. PHASE 336 took out
+ * "the folder Tortie was given permission to write in", because nothing is
+ * given any more: the folder is the project opened there.
  */
 export function remoteStageOutsideRoot(label: string): string {
   return (
-    `That folder on ${label} is outside the folder Tortie was given ` +
-    `permission to write in. Nothing was changed.`
+    `That folder on ${label} is outside the projects you opened there. ` +
+    `Nothing was changed.`
   );
 }
 
@@ -352,12 +372,42 @@ export function remoteCommitCheckNoAnswer(label: string): string {
   return `${label} did not answer, so Tortie cannot say whether the commit ran.`;
 }
 
+/**
+ * Why the Commit button is off when the folder is not one Tortie writes in,
+ * said before any press (Phase 336). The first two are main's own commit
+ * sentences without their "so it committed nothing", because nothing was
+ * attempted.
+ */
+export function remoteCommitRefusedLabel(
+  reason: RemoteWriteRefusal,
+  label: string
+): string {
+  switch (reason) {
+    case 'outside':
+      return `Tortie commits on ${label} only in a project you opened there.`;
+    case 'never':
+      return (
+        `Tortie does not commit in a home folder, a folder directly inside ` +
+        `one, or a folder holding one, on ${label}.`
+      );
+    case 'unconfirmed':
+      return (
+        `Tortie does not commit on ${label} until that machine is ` +
+        `confirmed.`
+      );
+  }
+}
+
 /** What the commit button knows before it is pressed. */
 export interface RemoteCommitFacts {
   /** True while a commit for this folder is in flight. */
   committing: boolean;
-  /** True when a person has given Tortie permission to write on that machine. */
-  writesConfirmed: boolean;
+  /**
+   * PHASE 336. Why Tortie will not commit in that folder, or null when it may.
+   * It is the renderer's own reading of the folder against the projects opened
+   * on that machine, presentational and never the safeguard.
+   */
+  writeRefused: RemoteWriteRefusal | null;
   /** True when that machine is answering right now. */
   connected: boolean;
   /**
@@ -403,7 +453,9 @@ export function commitIdentityFact(
  * would change nothing.
  *
  *  1. A commit is already running.
- *  2. Tortie has no permission to write on that machine.
+ *  2. Tortie will not commit in that folder (Phase 336: outside every project
+ *     opened on that machine, a folder on the never-list, or a machine that
+ *     is not confirmed right now).
  *  3. That machine is not answering.
  *  4. git on that machine has no name or no email address to commit as
  *     (Phase 229). It sits with the machine facts and ABOVE the staged and
@@ -413,9 +465,9 @@ export function commitIdentityFact(
  *  6. Nothing is staged over there.
  *  7. The box is empty.
  *
- * THE PERMISSION READ HERE IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD.
- * Main reads the confirmed folder off the record on disk at call time and
- * refuses there, with a sentence of its own. This decides whether a button is
+ * THE FOLDER READ HERE IS PRESENTATIONAL AND IT IS NEVER THE SAFEGUARD.
+ * Main decides the folder again at call time and refuses there, with a
+ * sentence of its own. This decides whether a button is
  * pressable, and nothing more. The identity read is presentational the same
  * way: the commit script is unchanged and git's own refusal still stands
  * behind a press that lands.
@@ -425,7 +477,9 @@ export function remoteCommitDisabledReason(
   label: string
 ): string | null {
   if (facts.committing) return 'Committing…';
-  if (!facts.writesConfirmed) return remoteWritesNotConfirmed(label);
+  if (facts.writeRefused !== null) {
+    return remoteCommitRefusedLabel(facts.writeRefused, label);
+  }
   if (!facts.connected) return remoteCommitNotConnected(label);
   if (facts.identity === 'missing') return remoteCommitIdentityMissing(label);
   if (facts.conflicted) return remoteCommitConflicts(label);

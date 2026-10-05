@@ -19,13 +19,17 @@
  * the machine. No sentence below says "remote", and none of them composes a
  * host name.
  *
- * WHAT THESE SENTENCES MAY CLAIM. Tortie reads a folder on that machine, and it
- * writes there only where the person has let it save. It read and never wrote
+ * WHAT THESE SENTENCES MAY CLAIM. Tortie reads a folder on that machine, and
+ * since Phase 336 it saves there in any project opened there, as it does on
+ * this Mac, outside the folders it never writes in. It read and never wrote
  * until Phase 101, and three sentences in this directory still said so after
  * that phase shipped. Phase 102 rewrote all three, being the band's body, the
- * Source Control note and the home row's subtitle. Every refusal in this
- * directory is a plain statement of something Tortie does not do rather than a
- * report of a failure.
+ * Source Control note and the home row's subtitle. Phase 336's fix round took
+ * the write clause out of the two that were left, because a sentence about
+ * where Tortie may save on another machine is either long or false, and a
+ * folder on another machine is opened the way one on this Mac is, with nothing
+ * said about saving. Every refusal in this directory is a plain statement of
+ * something Tortie does not do rather than a report of a failure.
  *
  * The doctrine that binds these sentences is in ./presentation.ts.
  */
@@ -58,22 +62,29 @@ export function openRemoteFolderLabel(label: string): string {
 /**
  * The honesty line, drawn every time the sheet is open.
  *
- * TWO facts, in the order a person needs them. Tortie reads that folder, and
- * what it does about writing there. The second is the one people are surprised
- * by, so it is said before they press the button rather than after.
+ * ONE fact: the folder stays on that machine, which is the one thing about
+ * opening it that differs from opening a folder on this Mac.
  *
  * IT SAID THREE UNTIL PHASE 98. The third was "and it does not search it", and
  * the Search view of a tab on a machine searches that folder now.
  *
  * PHASE 101 REWROTE THE SECOND. It read "It never writes there", and that
- * became false for a machine a person has let Tortie save on. After this phase
- * no part of this sentence is stale.
+ * became false for a machine a person has let Tortie save on.
+ *
+ * PHASE 336'S FIX ROUND TOOK BOTH OLD FACTS OUT. The second had read "It
+ * writes there only where you have let it save", and Phase 336 removed the
+ * only act that let it save: a project open on a confirmed machine saves with
+ * nothing asked. A true replacement has to name the folders Tortie never
+ * writes in there (a home folder, a folder directly inside one, a folder
+ * holding one, and every .git and .ssh folder), which is a paragraph on a
+ * sheet whose local twin says nothing about saving at all (his rule that a
+ * remote surface carries no explanation just because it is remote). The first,
+ * "Tortie reads this folder", went with it, because on its own it reads as
+ * "and only reads". Where a folder is one Tortie never writes in, the
+ * editor's band or the refused save says so, on the file it applies to.
  */
 export function openRemoteHonesty(label: string): string {
-  return (
-    `Tortie reads this folder on ${label}. It writes there only where you ` +
-    `have let it save.`
-  );
+  return `The folder stays on ${label}.`;
 }
 
 /** The sheet's button. */
@@ -149,17 +160,18 @@ export const OPEN_ON_ANY_MACHINE_TITLE = 'Open on another machine…';
 /**
  * The row's second line, in both cases.
  *
- * Two facts and no more. The folder stays where it is, and what Tortie does
- * about writing in it. That is the pair people are surprised by, and the sheet
- * says the same two things again before the folder is opened.
+ * One fact. The folder stays where it is, which the sheet says again before
+ * the folder is opened, in `openRemoteHonesty`'s words.
  *
  * PHASE 102 REWROTE THE SECOND FACT. It read "Tortie never writes there", and
- * that became false for a machine a person has let Tortie save on. It now says
- * the same thing `openRemoteHonesty` says, in the same words.
+ * that became false for a machine a person has let Tortie save on.
+ *
+ * PHASE 336'S FIX ROUND TOOK THAT SECOND FACT OUT. It read "Tortie writes
+ * there only where you have let it save", and Phase 336 removed the only act
+ * that let it save, so the line sent a person looking for a grant that no
+ * longer exists. `openRemoteHonesty` says why nothing replaces it.
  */
-export const OPEN_ON_MACHINE_SUBTITLE =
-  'The folder stays on that machine. Tortie writes there only where you have ' +
-  'let it save.';
+export const OPEN_ON_MACHINE_SUBTITLE = 'The folder stays on that machine.';
 
 /**
  * A recent project on another machine, on hover.

@@ -53,8 +53,8 @@ import {
   remoteCommitNotConnected,
   remoteCommitNothingStagedYet,
   remoteCommitStanding,
-  remoteCommitTitle,
-  remoteWritesNotConfirmed
+  remoteCommitRefusedLabel,
+  remoteCommitTitle
 } from '../../machines/scm';
 import type { RemoteCommitFacts } from '../../machines/scm';
 
@@ -133,7 +133,7 @@ beforeEach(() => {
 /** Every fact true, so each case below turns exactly one of them false. */
 const READY: RemoteCommitFacts = {
   committing: false,
-  writesConfirmed: true,
+  writeRefused: null,
   connected: true,
   identity: 'known',
   conflicted: false,
@@ -149,16 +149,38 @@ describe('why the commit button is disabled', () => {
   it('says a commit is already running, before anything else', () => {
     expect(
       remoteCommitDisabledReason(
-        { ...READY, committing: true, writesConfirmed: false, message: '' },
+        { ...READY, committing: true, writeRefused: 'outside', message: '' },
         'Mac Pro'
       )
     ).toBe('Committing…');
   });
 
-  it('says saving is off for that machine, and names the two steps', () => {
+  /**
+   * PHASE 336. The folder is one Tortie commits in when it is a project open
+   * on a confirmed machine, as on this Mac, so the reason says which folders
+   * those are, one sentence per refusal, and never names Settings.
+   */
+  it('says why Tortie will not commit in that folder, naming no Settings', () => {
     expect(
-      remoteCommitDisabledReason({ ...READY, writesConfirmed: false }, 'Mac Pro')
-    ).toBe(remoteWritesNotConfirmed('Mac Pro'));
+      remoteCommitDisabledReason({ ...READY, writeRefused: 'outside' }, 'Mac Pro')
+    ).toBe('Tortie commits on Mac Pro only in a project you opened there.');
+    expect(
+      remoteCommitDisabledReason({ ...READY, writeRefused: 'never' }, 'Mac Pro')
+    ).toBe(
+      'Tortie does not commit in a home folder, a folder directly inside ' +
+        'one, or a folder holding one, on Mac Pro.'
+    );
+    expect(
+      remoteCommitDisabledReason(
+        { ...READY, writeRefused: 'unconfirmed' },
+        'Mac Pro'
+      )
+    ).toBe('Tortie does not commit on Mac Pro until that machine is confirmed.');
+    for (const reason of ['outside', 'never', 'unconfirmed'] as const) {
+      const said = remoteCommitRefusedLabel(reason, 'Mac Pro');
+      expect(said).not.toContain('Settings');
+      expect(said).not.toContain('then Machines');
+    }
   });
 
   it('says the machine is not answering', () => {
@@ -227,10 +249,10 @@ describe('why the commit button is disabled', () => {
     ).toBe(remoteCommitNotConnected('Mac Pro'));
     expect(
       remoteCommitDisabledReason(
-        { ...READY, identity: 'missing', writesConfirmed: false },
+        { ...READY, identity: 'missing', writeRefused: 'outside' },
         'Mac Pro'
       )
-    ).toBe(remoteWritesNotConfirmed('Mac Pro'));
+    ).toBe(remoteCommitRefusedLabel('outside', 'Mac Pro'));
   });
 
   it('says the conflicts have to be resolved over there', () => {
@@ -256,8 +278,8 @@ describe('why the commit button is disabled', () => {
     // then refuses the write, typed for nothing.
     const empty = { ...READY, message: '' };
     expect(
-      remoteCommitDisabledReason({ ...empty, writesConfirmed: false }, 'Mac Pro')
-    ).toBe(remoteWritesNotConfirmed('Mac Pro'));
+      remoteCommitDisabledReason({ ...empty, writeRefused: 'outside' }, 'Mac Pro')
+    ).toBe(remoteCommitRefusedLabel('outside', 'Mac Pro'));
     expect(
       remoteCommitDisabledReason({ ...empty, connected: false }, 'Mac Pro')
     ).toBe(remoteCommitNotConnected('Mac Pro'));
@@ -271,7 +293,9 @@ describe('why the commit button is disabled', () => {
 
   it('names the machine in every reason that is a sentence', () => {
     const said = [
-      remoteWritesNotConfirmed('Mac Pro'),
+      remoteCommitRefusedLabel('outside', 'Mac Pro'),
+      remoteCommitRefusedLabel('never', 'Mac Pro'),
+      remoteCommitRefusedLabel('unconfirmed', 'Mac Pro'),
       remoteCommitNotConnected('Mac Pro'),
       remoteCommitIdentityMissing('Mac Pro'),
       remoteCommitConflicts('Mac Pro'),
@@ -298,7 +322,7 @@ describe('the standing line and the button', () => {
     // sentences.
     const standing = remoteCommitStanding('Mac Pro');
     expect(remoteCommitTitle('Mac Pro', null)).toBe(standing);
-    const why = remoteWritesNotConfirmed('Mac Pro');
+    const why = remoteCommitRefusedLabel('outside', 'Mac Pro');
     expect(remoteCommitTitle('Mac Pro', why)).toBe(why);
     expect(remoteCommitTitle('Mac Pro', 'Enter a commit message')).toBe(
       'Enter a commit message'

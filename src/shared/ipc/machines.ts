@@ -1,5 +1,5 @@
 /**
- * The machines contract (Phase 68, M1). Thirty eight invoke channels behind ONE
+ * The machines contract (Phase 68, M1). Thirty six invoke channels behind ONE
  * optional preload extra, `window.gmux.machines`, plus three event channels,
  * one for the connection test's own bytes, one for the link state and one for
  * which agents each machine has.
@@ -19,6 +19,10 @@
  * This line read thirty seven while the map held thirty nine, because Phase
  * 233's two commit reads came in without moving it, and it says so rather than
  * quietly fixing it. Both counts now say thirty eight.
+ *
+ * PHASE 336 REMOVED TWO CHANNELS, Phase 101's read of the sheet for a folder a
+ * person typed and the write that recorded it as the folder Tortie may save
+ * under. Both counts now say thirty six.
  *
  * PHASE 125 SPLIT THIS FILE AND THIS FILE IS NOW THE BARREL. The one hundred
  * and three shapes moved into nine domain files under src/shared/ipc/machines/
@@ -50,7 +54,10 @@
  * the agreement is bound to a hash of the six fields that decide what runs.
  * Change one of those fields and it asks again. Phase 68 shipped four of them,
  * Phase 83 added the accepted tmux version as the fifth, and Phase 101 added
- * the folder Tortie may save under as the sixth.
+ * the folder Tortie may save under as the sixth. Phase 336 removed the only
+ * way Tortie had of setting that sixth field and left it hashed exactly as it
+ * was, so a row that carries one by hand neither moves its hash nor loses its
+ * confirmation.
  *
  * WHAT NO CHANNEL HERE DOES, and this is the point of the list rather than a
  * caveat on it.
@@ -128,7 +135,7 @@ export * from './machines/context';
 // ---------------------------------------------------------------------------
 
 /**
- * The thirty eight channels, and what each one may do. Each family declares
+ * The thirty six channels, and what each one may do. Each family declares
  * its own, and this table is the whole contract in one place.
  *
  * THE COUNT USED TO SAY THIRTEEN and the table listed thirteen rows, which was
@@ -160,8 +167,11 @@ export * from './machines/context';
  * PHASE 109 ADDS ONE ROW AND MOVES THE COUNT WITH IT, being `agents`. The
  * count is twenty nine.
  *
- * PHASE 101 ADDS THREE ROWS AND MOVES THE COUNT WITH THEM, being `writeSheet`,
- * `allowWrites` and `putFile`. The count is thirty two.
+ * PHASE 101 ADDS THREE ROWS AND MOVES THE COUNT WITH THEM, being the read of
+ * the sheet for a folder a person typed, the write that recorded it, and
+ * `putFile`. The count is thirty two. PHASE 336 TOOK THE FIRST TWO OUT AGAIN,
+ * and their names with them, which is why this paragraph no longer spells
+ * them.
  *
  * PHASE 102 ADDS TWO ROWS AND MOVES THE COUNT WITH THEM, being `makeDir` and
  * `renameEntry`. The count is thirty four.
@@ -178,6 +188,15 @@ export * from './machines/context';
  * PHASE 320.2 REMOVES ONE ROW, Phase 100's read of a session's last lines. The
  * count is thirty eight, and the table below lists thirty six of them: Phase
  * 233's `readCommitFiles` and `readCommitFile` were never given rows.
+ *
+ * PHASE 336 REMOVES TWO ROWS, Phase 101's sheet read and the grant write that
+ * followed it (research 138 section 9: a project a person opened on a
+ * confirmed machine is a folder Tortie may save under, with nothing asked).
+ * The count is thirty six, and the table below lists thirty four of them,
+ * Phase 233's two still having no rows. The six rows that write on another
+ * computer inside a folder now also read that machine's open projects and the
+ * folder's pin on this Mac, and a first write into a folder with no pin
+ * records one here, which is the one write on THIS Mac those rows can make.
  *
  * | Channel | Reads | Writes | Spawns |
  * | --- | --- | --- | --- |
@@ -198,8 +217,8 @@ export * from './machines/context';
  * | putImage | one file on this Mac | one file on that machine | ssh |
  * | reviewFiles | one folder on that machine | nothing | ssh |
  * | reviewFile | one file on that machine | nothing | ssh |
- * | stage | one folder on that machine, twice | that repository's index | ssh |
- * | unstage | one folder on that machine, twice | that repository's index | ssh |
+ * | stage | one folder on that machine, twice, and its open projects here | that repository's index, and at most one pin here | ssh |
+ * | unstage | one folder on that machine, twice, and its open projects here | that repository's index, and at most one pin here | ssh |
  * | listDir | one folder on that machine | nothing | ssh |
  * | findProject | one git config here, one folder walk there | nothing | ssh |
  * | cloneProject | one git config here | one folder on that machine | ssh |
@@ -211,12 +230,10 @@ export * from './machines/context';
  * | readHistory | one folder on that machine | nothing | ssh |
  * | readContext | agent configuration files on that machine | nothing | ssh |
  * | agents | memory in main, or one batched read of that machine | nothing | ssh only when fresh is true |
- * | writeSheet | one row and the sealed record | nothing | nothing |
- * | allowWrites | the sheet's hash and one row | machines.json and one record | nothing |
- * | putFile | one row and one file's bytes from the renderer | one file on that machine | ssh |
- * | makeDir | one row and one path from the renderer | one folder on that machine | ssh |
- * | renameEntry | one row and two paths from the renderer | one entry moved on that machine | ssh |
- * | commit | one row, then one folder on that machine | one commit in that repository | ssh |
+ * | putFile | one row, its open projects and one file's bytes from the renderer | one file on that machine, and at most one pin here | ssh |
+ * | makeDir | one row, its open projects and one path from the renderer | one folder on that machine, and at most one pin here | ssh |
+ * | renameEntry | one row, its open projects and two paths from the renderer | one entry moved on that machine, and at most one pin here | ssh |
+ * | commit | one row and its open projects, then one folder on that machine | one commit in that repository, and at most one pin here | ssh |
  *
  * `readRuns` is the one row whose Spawns column names two programs. The ssh is
  * the read of that machine's branch. The gh runs HERE and never leaves this Mac,

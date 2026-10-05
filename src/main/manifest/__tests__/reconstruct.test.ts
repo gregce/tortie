@@ -479,6 +479,10 @@ describe('rebuilding from capsules and stamps', () => {
       // which a quit may have ended. It is a user table like the rest, so the
       // digest covers it.
       'remote_executions',
+      // Phase 336. The additive table that keeps the identity of each folder
+      // opened on another machine. It is a user table like the rest, so the
+      // digest covers it.
+      'remote_folder_pins',
       // Phase 90.3. The additive table for a folder on another machine. It is a
       // user table like the rest, so the digest covers it.
       'remote_projects',

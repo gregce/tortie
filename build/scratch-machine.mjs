@@ -166,6 +166,21 @@ export function machineTmuxTmp(prefix, id) {
  *
  * OFF BY DEFAULT, so every other harness's sshd configuration is byte for byte
  * what it was; `probe:p320`, `probe:p292:remote` and `probe:p320:skew` set it.
+ * `smoke:remote` sets it since Phase 336's fix round: the Lens 2 verifier ran
+ * that gate as the spec told verifiers to, and his real `~/.zsh_history` grew
+ * by 150 bytes inside the run's window, the one run of the day that did not
+ * set it. The fixer then drove a far login shell through a machine built with
+ * it on: the typed line landed in the yard's `zdot/.zsh_history` and his own
+ * file's size and modified time did not move. `smoke:remote` does NOT set the
+ * scratch home below, because its arm 10a looks for an agent under the far
+ * account's home, and its arm 17a compares the folder tmux falls back to with
+ * the home the machine states: with the scratch home on, a far command still
+ * STARTS in the account's own home while `$HOME` names the yard's (measured by
+ * the fixer, `pwd -P` and `$HOME` read over one connection), so the two would
+ * differ by construction. It DOES set the short prompt (see shortPromptFor,
+ * Phase 336's ruled round): the reverify ran it with the quiet shell and it
+ * failed at 10a, because the default prompt plus the armed resume command
+ * passed the far pane's 80 columns.
  * Answers `{ zdot }` when it is on, else null.
  */
 export function quietShellFor(root, env) {
@@ -175,11 +190,101 @@ export function quietShellFor(root, env) {
   return { zdot };
 }
 
-/** The sshd `SetEnv` line: TMUX_TMPDIR always, and the quiet shell's two when it is on. */
-export function setEnvLine(tmuxTmp, quiet) {
-  return quiet === null
-    ? `SetEnv TMUX_TMPDIR=${tmuxTmp}`
-    : `SetEnv TMUX_TMPDIR=${tmuxTmp} ZDOTDIR=${quiet.zdot} HISTFILE=/dev/null`;
+/**
+ * THE SCRATCH HOME, opt in (Phase 336, build/p336/SPEC.md D23):
+ * `SCRATCH_MACHINE_SCRATCH_HOME=1` gives every session of this machine
+ * `HOME=<yard>/home`, a folder of the yard's own made mode 0700, appended to
+ * the one `SetEnv` line beside the quiet shell.
+ *
+ * WHY. On the loopback machine the far `$HOME` is otherwise HIS REAL HOME on
+ * this Mac, because sshd starts the account's own login shell with the account's
+ * own home. Phase 336's far rules are judged against the far home (a home, a
+ * folder directly inside one and a folder holding one are never written under),
+ * and an arm that drives those rules toward his real home is an arm that writes
+ * toward it. With this on, the far home is a folder the yard made and removes.
+ *
+ * IT REQUIRES THE QUIET SHELL, and refuses without it: a far zsh with a moved
+ * `HOME` and no `ZDOTDIR` of the yard's own would still read his rc files out of
+ * the passwd home's spelling and write a history file into the new one.
+ *
+ * OFF BY DEFAULT, so every other harness's sshd configuration is byte for byte
+ * what it was. Answers `{ home }` when it is on, else null.
+ *
+ * MEASURED, not assumed (OpenSSH_9.9p2's `sshd_config(5)`: "Environment
+ * variables set by SetEnv override the default environment"): the builder drove
+ * `echo "$HOME"` through a machine built with this on and read the yard's home
+ * back, and the result is in build/p336/SPEC.md §As built.
+ */
+export function scratchHomeFor(root, env, quiet) {
+  if (String(env?.['SCRATCH_MACHINE_SCRATCH_HOME'] ?? '') !== '1') return null;
+  if (quiet === null) {
+    throw new Error(
+      'SCRATCH_MACHINE_SCRATCH_HOME=1 needs SCRATCH_MACHINE_QUIET_SHELL=1 as well: a far shell with a moved HOME and ' +
+        "no ZDOTDIR of the yard's own still reads the account's own rc files."
+    );
+  }
+  const home = join(root, 'home');
+  if (/\s/.test(home)) throw new Error(`the scratch HOME ${home} holds a space, and sshd's SetEnv reads it as two values`);
+  return { home };
+}
+
+/**
+ * THE SHORT PROMPT, opt in (Phase 336's ruled round, build/p336/SPEC.md
+ * "§As built, his ruled round"): `SCRATCH_MACHINE_SHORT_PROMPT=1` writes ONE
+ * file into the quiet shell's own `ZDOTDIR`, a `.zshrc` that sets the far
+ * zsh's prompt to `%# ` (two columns) and its right prompt to nothing.
+ *
+ * WHY. With the quiet shell on, a far zsh reads no rc file of his, so its
+ * prompt is macOS's `/etc/zshrc` default, `%n@%m %1~ %# `: on this Mac
+ * `gdc@Gregs-MacBook-Pro-2 tmp % `, 30 columns. `smoke:remote`'s arm 10a types
+ * a 74-character resume command into an 80-column far pane and counts it with
+ * `capture-pane -p -J` as ONE CONTIGUOUS string; 30 + 74 is past 80, zsh
+ * breaks the line itself, tmux never marks the row as wrapped, `-J` has
+ * nothing to join, and the gate read 0 while the product's own counter
+ * (`countOccurrences` in src/main/machines/remote-arm.ts, which ignores line
+ * breaks for exactly this reason) read 1. MEASURED by the fixer of the ruled
+ * round on a scratch tmux socket, an 80-column detached pane, a login zsh with
+ * an empty `ZDOTDIR`: contiguous 0, spaces removed 1, the line broken at
+ * column 80; the same with this file: contiguous 1, spaces removed 1, one
+ * line. The product's counter is right and is not touched; the harness gives
+ * the gate a prompt that leaves the line room.
+ *
+ * IT REQUIRES THE QUIET SHELL, and refuses without it: the only `ZDOTDIR` this
+ * may write into is the yard's own, never his.
+ *
+ * OFF BY DEFAULT, so `probe:p95`, `probe:p292:remote`, `probe:p320`,
+ * `probe:p320:skew` and `probe:p336`, which set the quiet shell and read their
+ * far panes with the default prompt, keep the far shell they were measured
+ * with; the sshd configuration is byte for byte the same either way, because
+ * this is a file in the yard and not a `SetEnv` value. Answers `{ zshrc }`,
+ * the file's path, when it is on, else null.
+ */
+export function shortPromptFor(env, quiet) {
+  if (String(env?.['SCRATCH_MACHINE_SHORT_PROMPT'] ?? '') !== '1') return null;
+  if (quiet === null) {
+    throw new Error(
+      "SCRATCH_MACHINE_SHORT_PROMPT=1 needs SCRATCH_MACHINE_QUIET_SHELL=1 as well: the prompt is written into the yard's own ZDOTDIR, and without the quiet shell there is none."
+    );
+  }
+  return { zshrc: join(quiet.zdot, '.zshrc') };
+}
+
+/** The short prompt's whole file: two columns of prompt and no right prompt. */
+export const SHORT_PROMPT_ZSHRC =
+  "# Written by build/scratch-machine.mjs (SCRATCH_MACHINE_SHORT_PROMPT=1) into this yard's own ZDOTDIR.\n" +
+  "PROMPT='%# '\n" +
+  "RPROMPT=''\n";
+
+/**
+ * The sshd `SetEnv` line: TMUX_TMPDIR always, the quiet shell's two when it is
+ * on, and the scratch home's one after them when that is on.
+ */
+export function setEnvLine(tmuxTmp, quiet, scratchHome = null) {
+  const line =
+    quiet === null
+      ? `SetEnv TMUX_TMPDIR=${tmuxTmp}`
+      : `SetEnv TMUX_TMPDIR=${tmuxTmp} ZDOTDIR=${quiet.zdot} HISTFILE=/dev/null`;
+  return scratchHome === null ? line : `${line} HOME=${scratchHome.home}`;
 }
 
 /**
@@ -308,6 +413,17 @@ export function scratchMachine(yard, { id, port }) {
   mkdirSync(tmuxTmp, { recursive: true, mode: 0o700 });
   const quiet = quietShellFor(yard.root, process.env);
   if (quiet !== null) mkdirSync(quiet.zdot, { recursive: true, mode: 0o700 });
+  // PHASE 336's ruled round. Written before sshd starts, so no far zsh of this
+  // machine ever starts without it.
+  const shortPrompt = shortPromptFor(process.env, quiet);
+  if (shortPrompt !== null) writeFileSync(shortPrompt.zshrc, SHORT_PROMPT_ZSHRC, { encoding: 'utf8', mode: 0o600 });
+  // PHASE 336 (D23). Made 0700 even when it already exists, because a far
+  // shell's history and rc files would land in it.
+  const scratchHome = scratchHomeFor(yard.root, process.env, quiet);
+  if (scratchHome !== null) {
+    mkdirSync(scratchHome.home, { recursive: true, mode: 0o700 });
+    chmodSync(scratchHome.home, 0o700);
+  }
 
   writeFileSync(
     conf,
@@ -323,8 +439,9 @@ export function scratchMachine(yard, { id, port }) {
       'LogLevel QUIET',
       // The one line that makes this machine a machine rather than an alias for
       // this Mac. See rule 2 in the header. With SCRATCH_MACHINE_QUIET_SHELL=1
-      // it also carries the quiet shell (see quietShellFor).
-      setEnvLine(tmuxTmp, quiet),
+      // it also carries the quiet shell (see quietShellFor), and with
+      // SCRATCH_MACHINE_SCRATCH_HOME=1 the scratch home (see scratchHomeFor).
+      setEnvLine(tmuxTmp, quiet, scratchHome),
       ''
     ].join('\n'),
     'utf8'
@@ -339,6 +456,10 @@ export function scratchMachine(yard, { id, port }) {
     host: '127.0.0.1',
     user: yard.user,
     remoteTmuxPath: yard.tmuxPath,
+    /** The far `$HOME` this machine lends its sessions (D23), or null when it lends none. */
+    scratchHome: scratchHome === null ? null : scratchHome.home,
+    /** The `.zshrc` holding the short prompt (Phase 336's ruled round), or null when it is off. */
+    shortPrompt: shortPrompt === null ? null : shortPrompt.zshrc,
 
     start() {
       const child = spawn('/usr/sbin/sshd', ['-D', '-f', conf], {

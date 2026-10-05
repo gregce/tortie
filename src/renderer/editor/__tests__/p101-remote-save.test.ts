@@ -7,9 +7,13 @@
  *     go through `machines.putFile` or they go nowhere, and a path on another
  *     computer handed to this Mac's writer would land on whatever this Mac
  *     happens to hold at that name.
- *  2. A machine with no confirmed folder refuses, sends nothing, and says the
- *     one thing a person can do about it.
- *  3. A machine WITH a confirmed folder saves, and the tab comes back clean.
+ *  2. A file outside every project opened on that machine, or on a machine
+ *     that is not confirmed right now, refuses, sends nothing, and says which
+ *     folders Tortie saves in, with no button: PHASE 336 took "Open settings"
+ *     off, because nothing in Settings turns saving on any more.
+ *  3. A file inside a project open on a confirmed machine saves, with nothing
+ *     asked, as on this Mac (Phase 336), and so does a file under a folder a
+ *     person typed in an earlier build; the tab comes back clean.
  *  4. Every refusal word main can answer with reaches the person as its own
  *     sentence, and the tab is left exactly as it was in every one of them.
  *
@@ -49,7 +53,10 @@ vi.mock('../monaco-loader', () => ({
 }));
 
 const writeFile = vi.fn(async () => undefined);
-/** PHASE 229. What the refusal toast's button presses. */
+/**
+ * PHASE 229 gave the refusal toast a button that pressed this. PHASE 336 took
+ * the button off, and the bridge keeps the method so a press would be seen.
+ */
 const openSettings = vi.fn(async () => undefined);
 type PutInput = import('@shared/ipc').MachineFilePutInput;
 type PutResult = import('@shared/ipc').MachineFilePutResult;
@@ -101,12 +108,25 @@ type MachineStateView = import('@shared/ipc').MachineStateView;
 const REMOTE = {
   machineId: 'studio',
   machineLabel: 'Studio',
-  repoPath: '/home/greg/api'
+  repoPath: '/home/greg/code/api'
 };
 const ROOT = '/home/greg';
+/** PHASE 336. The project open on that machine, which holds the file. */
+const PROJECT = {
+  id: 'p-api',
+  path: '/home/greg/code/api',
+  name: 'api',
+  machineId: 'studio'
+};
 
-/** One machine's link state, with or without a folder Tortie may save under. */
-function states(writeRoot: string | null): MachineStateView[] {
+/**
+ * One machine's link state. `writeRoot` is a folder typed in an earlier build,
+ * and `saves` is main's statement that the row is confirmed (Phase 336).
+ */
+function states(
+  writeRoot: string | null,
+  saves?: boolean
+): MachineStateView[] {
   return [
     {
       id: 'studio',
@@ -116,7 +136,8 @@ function states(writeRoot: string | null): MachineStateView[] {
       everAnswered: true,
       lastAnsweredAt: 0,
       detail: null,
-      writeRoot
+      writeRoot,
+      ...(saves === undefined ? {} : { savesInProjects: saves })
     }
   ];
 }
@@ -160,6 +181,7 @@ beforeEach(() => {
   useEditor.setState({ tabs: [], activeId: null, panelOpen: false });
   useApp.setState({
     machineStates: states(null),
+    projects: [],
     toast: (kind: string, text: string, opts?: ToastOpts) => {
       toasts.push({ kind, text });
       toastOpts.push(opts);
@@ -168,50 +190,89 @@ beforeEach(() => {
   vi.clearAllMocks();
 });
 
-describe('a machine nobody has let Tortie save on', () => {
-  it('sends nothing and names the one thing a person can do', async () => {
+describe('a file outside every project opened on a confirmed machine', () => {
+  beforeEach(() => {
+    useApp.setState({ machineStates: states(null, true), projects: [] } as never);
+  });
+
+  it('sends nothing and says which folders Tortie saves in', async () => {
     await openDirty();
     await useEditor.getState().save();
     expect(putFile).not.toHaveBeenCalled();
     expect(writeFile).not.toHaveBeenCalled();
     expect(toasts).toEqual([
-      { kind: 'error', text: copy.remoteSaveRefused('Studio') }
+      { kind: 'error', text: copy.remoteSaveOutsideProjects('Studio') }
     ]);
   });
 
   /**
-   * PHASE 229. The sentence names Settings, Machines and the machine, and the
-   * toast carries the one button that opens the first of those. Its doc
-   * comment had promised the button since Phase 101 and the call site passed
-   * only `{ sticky: true }`; research 88 section 4.4 read zero action buttons
-   * on the toast at the parent. The refusal stays sticky, because a person
-   * who is told where the door is should not have the sentence fade before
-   * they have read it.
+   * PHASE 336 TOOK THE BUTTON OFF. Phase 229 gave this toast "Open settings",
+   * because the one door that turned saving on was in Settings. That door is
+   * gone, so the toast carries no action at all, stays sticky, and names no
+   * Settings.
    */
-  it('carries an Open settings button that opens the Settings window', async () => {
+  it('carries no button and names no Settings', async () => {
     await openDirty();
     await useEditor.getState().save();
     expect(toastOpts).toHaveLength(1);
     const opts = toastOpts[0];
     expect(opts?.sticky).toBe(true);
-    expect(opts?.action?.label).toBe('Open settings');
+    expect(opts?.action).toBeUndefined();
+    expect(toasts[0]?.text).not.toContain('Settings');
     expect(openSettings).not.toHaveBeenCalled();
-    opts?.action?.run();
-    expect(openSettings).toHaveBeenCalledTimes(1);
-    // Nothing was written by the press either.
-    expect(putFile).not.toHaveBeenCalled();
-    expect(writeFile).not.toHaveBeenCalled();
   });
 
-  it('reads an empty folder as no folder at all', async () => {
-    useApp.setState({ machineStates: states('') } as never);
+  it('reads an empty typed folder as no folder at all', async () => {
+    useApp.setState({ machineStates: states('', true) } as never);
     await openDirty();
     await useEditor.getState().save();
     expect(putFile).not.toHaveBeenCalled();
   });
 });
 
-describe('a machine that carries a confirmed folder', () => {
+describe('a machine that is not confirmed right now (Phase 336)', () => {
+  it('sends nothing even with the project open, and says so', async () => {
+    useApp.setState({
+      machineStates: states(null, false),
+      projects: [PROJECT]
+    } as never);
+    await openDirty();
+    await useEditor.getState().save();
+    expect(putFile).not.toHaveBeenCalled();
+    expect(toasts).toEqual([
+      { kind: 'error', text: copy.remoteSaveUnconfirmed('Studio') }
+    ]);
+    expect(toasts[0]?.text).not.toContain('Settings');
+  });
+});
+
+describe('a project open on a confirmed machine (Phase 336)', () => {
+  it('saves with nothing asked, as on this Mac', async () => {
+    useApp.setState({
+      machineStates: states(null, true),
+      projects: [PROJECT]
+    } as never);
+    const id = await openDirty();
+    await useEditor.getState().save();
+    expect(writeFile).not.toHaveBeenCalled();
+    expect(putFile).toHaveBeenCalledTimes(1);
+    expect(toasts).toEqual([]);
+    const tab = useEditor.getState().tabs.find((one) => one.id === id);
+    expect([tab?.dirty, tab?.savedContents]).toEqual([false, 'typed\n']);
+  });
+
+  it("does not let another machine's project stand in for this one's", async () => {
+    useApp.setState({
+      machineStates: states(null, true),
+      projects: [{ ...PROJECT, machineId: 'elsewhere' }]
+    } as never);
+    await openDirty();
+    await useEditor.getState().save();
+    expect(putFile).not.toHaveBeenCalled();
+  });
+});
+
+describe('a machine that carries a folder typed in an earlier build', () => {
   beforeEach(() => {
     useApp.setState({ machineStates: states(ROOT) } as never);
   });
@@ -223,7 +284,7 @@ describe('a machine that carries a confirmed folder', () => {
     expect(putFile).toHaveBeenCalledTimes(1);
     const sent = putFile.mock.calls[0]?.[0] as PutInput;
     expect(sent.machineId).toBe('studio');
-    expect(sent.path).toBe('/home/greg/api/src/auth.ts');
+    expect(sent.path).toBe('/home/greg/code/api/src/auth.ts');
     expect(sent.contents).toBe('typed\n');
     // The checksum of what Tortie READ, and never of what it is sending.
     expect(sent.expect).toMatch(/^[0-9a-f]{64}$/);
@@ -238,12 +299,12 @@ describe('a machine that carries a confirmed folder', () => {
     expect(toasts).toEqual([]);
   });
 
-  it('never sends a folder, because main reads the confirmed one', async () => {
-    // The call carries four things and none of them is the folder. Main reads
-    // the confirmed folder off the row on disk at call time, which is the only
-    // reading of it that an agreement covers. The path below starts with the
-    // folder because the file is inside it, and that is a fact about the file
-    // rather than a field.
+  it('never sends a folder, because main chooses it', async () => {
+    // The call carries four things and none of them is the folder. Main
+    // chooses the folder at call time from the machine's row and the projects
+    // open on it (Phase 336). The path below starts with the folder because
+    // the file is inside it, and that is a fact about the file rather than a
+    // field.
     await openDirty();
     await useEditor.getState().save();
     expect(Object.keys(putFile.mock.calls[0]?.[0] ?? {}).sort()).toEqual([
@@ -261,7 +322,11 @@ describe('a machine that carries a confirmed folder', () => {
     ['nomode', copy.remoteSaveNoMode('Studio')],
     ['nosum', copy.remoteSaveNoSum('Studio')],
     ['outsideRoot', copy.remoteSaveOutsideRoot(ROOT, 'Studio')],
-    ['writesOff', copy.remoteSaveRefused('Studio')]
+    // PHASE 336. `writesOff` naming a folder is the never-list; with none it
+    // is outside every project (the next test). The two new words.
+    ['writesOff', copy.remoteSaveNever('Studio')],
+    ['folderChanged', copy.remoteSaveFolderChanged(ROOT, 'Studio')],
+    ['protected', copy.remoteSaveProtected('Studio')]
   ] as const;
 
   for (const [word, sentence] of refusals) {
@@ -279,6 +344,20 @@ describe('a machine that carries a confirmed folder', () => {
       expect(tab?.savedContents).toBe('after\n');
     });
   }
+
+  it('says outside every project for writesOff naming no folder', async () => {
+    putFile.mockResolvedValueOnce({
+      outcome: 'writesOff',
+      sha256: null,
+      bytes: null,
+      writeRoot: null
+    });
+    await openDirty();
+    await useEditor.getState().save();
+    expect(toasts).toEqual([
+      { kind: 'error', text: copy.remoteSaveOutsideProjects('Studio') }
+    ]);
+  });
 
   // FIX ROUND. `build/probe-p101-save.mjs` leg 14 killed a real ssh over a real
   // link while the far side was decoding an 89,000 byte payload, and the far
@@ -375,7 +454,7 @@ describe('the announcement a landed save makes (Phase 230)', () => {
     expect(heard).toEqual([
       {
         machineId: 'studio',
-        path: '/home/greg/api/src/auth.ts',
+        path: '/home/greg/code/api/src/auth.ts',
         kind: 'file',
         by: 'editor'
       }
@@ -397,8 +476,8 @@ describe('the announcement a landed save makes (Phase 230)', () => {
     expect(heard).toEqual([]);
   });
 
-  it('announces nothing when no folder was confirmed, because nothing was sent', async () => {
-    useApp.setState({ machineStates: states(null) } as never);
+  it('announces nothing for a file outside every project, because nothing was sent', async () => {
+    useApp.setState({ machineStates: states(null, true) } as never);
     await openDirty();
     await useEditor.getState().save();
     expect(putFile).not.toHaveBeenCalled();

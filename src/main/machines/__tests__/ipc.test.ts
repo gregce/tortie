@@ -276,11 +276,11 @@ describe('every channel is registered, and only the ones listed here', () => {
       'machines:agents',
       // ---- END PHASE 109 ----
       // ---- PHASE 101 ----
-      // The one call that turns saving on for one machine. It writes the folder
-      // into the row and records the agreement, on this Mac and nowhere else.
-      // It contacts no machine, opens no connection and starts nothing, and a
-      // stale hash refuses before either write.
-      'machines:allowWrites',
+      // PHASE 336 REMOVED the call that turned saving on for one machine by
+      // writing a typed folder into the row. A project a person opens on a
+      // confirmed machine is a folder Tortie may save under, with nothing
+      // asked, so this list no longer names it, and a re-added channel fails
+      // here before anything else notices.
       // ---- END PHASE 101 ----
       // ---- PHASE 90.2 ----
       // The SECOND write this product can make on another computer, and the
@@ -355,10 +355,12 @@ describe('every channel is registered, and only the ones listed here', () => {
       // channel or it names none.
       // ---- PHASE 101 ----
       // Phase 101's one WRITE ON ANOTHER COMPUTER, being the save. Main asks
-      // the confirm gate, refuses a machine with no confirmed folder, refuses a
-      // file that is too large and refuses a path outside that folder, all
-      // before anything is composed. The machine then refuses again unless the
-      // file's contents still match what Tortie read.
+      // the confirm gate, refuses a path outside every folder it may save
+      // under on that machine (since Phase 336 the projects opened there, or a
+      // legacy write root), refuses a file that is too large, all before
+      // anything is composed. The machine then refuses again unless the folder
+      // is the one that was opened and the file's contents still match what
+      // Tortie read.
       'machines:putFile',
       // ---- END PHASE 101 ----
       'machines:putImage',
@@ -459,15 +461,24 @@ describe('every channel is registered, and only the ones listed here', () => {
       // same list instead, which leaves every file in the folder. Neither this
       // nor machines:stage can discard a change, commit or mark a conflict
       // resolved.
-      'machines:unstage',
+      'machines:unstage'
       // ---- END PHASE 103 ----
       // ---- PHASE 101 ----
-      // One READ. It answers the sheet for the row as it is now plus the folder
-      // a person typed, so the renderer never composes a sheet's hash. It
-      // starts nothing, sends nothing to any machine and writes nothing at all.
-      'machines:writeSheet'
+      // PHASE 336 REMOVED the read that answered the sheet for a folder a
+      // person typed, with the write above that recorded it. Nothing in Tortie
+      // sets a folder to save under any more.
       // ---- END PHASE 101 ----
     ]);
+  });
+
+  it('registers no channel that types a folder to save under (Phase 336)', () => {
+    // Asked by SHAPE as well as by the list above, so a channel re-added under
+    // another name that still writes a folder into a row is named here.
+    const channels = [...handlers.keys()];
+    expect(channels).toHaveLength(36);
+    for (const channel of channels) {
+      expect(channel).not.toMatch(/writeSheet|allowWrites|writeRoot/i);
+    }
   });
 
   it('registers no channel that opens a session', () => {
@@ -1358,126 +1369,69 @@ describe('machines:acceptVersion', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PHASE 101. The three channels that let a person save a file on a machine
+// PHASE 101, as Phase 336 left it. One channel saves; none types a folder.
 // ---------------------------------------------------------------------------
 
-describe('the three channels of Phase 101', () => {
+describe('saving on a machine after Phase 336', () => {
   const ROOT = '/Users/gdc/code';
 
-  /** The sheet main would draw for granting saving under one folder. */
-  function sheetFor(root: string): { hash: string; lines: string[] } {
-    const summary = describeMachine('pop-os', {
-      ...machineFieldsOf(POP),
-      writeRoot: root
-    });
-    return { hash: summary.hash, lines: [...summary.lines] };
-  }
+  /** A row whose machines.json carries a write root BY HAND. */
+  const POP_WITH_ROOT = { ...POP, writeRoot: ROOT };
 
   beforeEach(() => {
     writeFile({ schema: 1, machines: [POP] });
     loadMachines('boot');
   });
 
-  it('answers a sheet naming the folder, and writes nothing at all', () => {
-    const sheet = call<{
-      hash: string;
-      lines: string[];
-      warning: string;
-      writeHonesty: string | null;
-    }>('machines:writeSheet', { id: 'pop-os', writeRoot: ROOT });
-    expect(sheet.hash).toBe(sheetFor(ROOT).hash);
-    expect(sheet.lines.join('\n')).toContain(
+  it('a write root written by hand still reaches the confirm sheet as a hashed line', () => {
+    // Nothing in Tortie can set one any more, and the field is still hashed,
+    // so the row's sheet still says what it grants and still carries the
+    // paragraph that says what a save costs (build/p336/SPEC.md D16, D17).
+    writeFile({ schema: 1, machines: [POP_WITH_ROOT] });
+    loadMachines('reload');
+    const rows = call<{
+      rows: { id: string; lines: string[]; writeRoot: string | null; writeHonesty: string | null; state: string }[];
+    }>('machines:rows').rows;
+    const row = rows.find((one) => one.id === 'pop-os');
+    expect(row?.writeRoot).toBe(ROOT);
+    expect(row?.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
+    expect(row?.lines.join('\n')).toContain(
       `May replace files under this folder on that machine: ${ROOT}`
     );
-    expect(sheet.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
-    // Nothing was written and nothing was started.
-    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
+    expect(row?.lines.join('\n')).not.toContain(MACHINE_WRITE_HONESTY);
+    // Its hash is the hash of the row WITH the folder, so a confirmation taken
+    // before this phase still matches and the machine stays confirmed.
+    expect(describeMachine('pop-os', machineFieldsOf(POP_WITH_ROOT)).hash).not.toBe(
+      describeMachine('pop-os', machineFieldsOf(POP)).hash
+    );
+    expect(row?.state).toBe('never');
     expect(spawned).toHaveLength(0);
-    expect(machineSshSpawnCount()).toBe(0);
   });
 
-  it('keeps the honesty paragraph out of the sheet lines', () => {
-    const sheet = call<{ lines: string[] }>('machines:writeSheet', {
-      id: 'pop-os',
-      writeRoot: ROOT
-    });
-    expect(sheet.lines.join('\n')).not.toContain(MACHINE_WRITE_HONESTY);
-  });
-
-  it('refuses a folder that is not a folder, on both channels', () => {
-    for (const bad of ['code', '/Users/gdc/../..', "/Users/o'brien", '/Users/gdc/']) {
-      expect(() =>
-        call('machines:writeSheet', { id: 'pop-os', writeRoot: bad })
-      ).toThrow(/The folder Tortie may save under/);
-      expect(() =>
-        call('machines:allowWrites', {
-          id: 'pop-os',
-          writeRoot: bad,
-          hashRead: 'whatever',
-          linesRead: []
-        })
-      ).toThrow(/The folder Tortie may save under/);
-    }
-    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
-  });
-
-  it('writes the folder and records the agreement in one call', () => {
-    const sheet = sheetFor(ROOT);
-    const view = call<{
-      state: string;
-      usable: boolean;
-      writeRoot: string | null;
-      writeHonesty: string | null;
-    }>('machines:allowWrites', {
-      id: 'pop-os',
-      writeRoot: ROOT,
-      hashRead: sheet.hash,
-      linesRead: sheet.lines
-    });
-    expect(view.writeRoot).toBe(ROOT);
-    expect(view.writeHonesty).toBe(MACHINE_WRITE_HONESTY);
+  it('a hand-written write root confirms through machines:confirm and stays confirmed', () => {
+    writeFile({ schema: 1, machines: [POP_WITH_ROOT] });
+    loadMachines('reload');
+    const sheet = describeMachine('pop-os', machineFieldsOf(POP_WITH_ROOT));
+    const view = call<{ state: string; usable: boolean; writeRoot: string | null }>(
+      'machines:confirm',
+      { id: 'pop-os', hashRead: sheet.hash, linesRead: [...sheet.lines] }
+    );
     expect(view.state).toBe('confirmed');
     expect(view.usable).toBe(true);
+    expect(view.writeRoot).toBe(ROOT);
     expect(machineRow('pop-os')?.writeRoot).toBe(ROOT);
     expect(spawned).toHaveLength(0);
     expect(machineSshSpawnCount()).toBe(0);
   });
 
-  it('refuses a stale sheet and writes NOTHING', () => {
-    const stale = describeMachine('pop-os', machineFieldsOf(POP));
-    expect(() =>
-      call('machines:allowWrites', {
-        id: 'pop-os',
-        writeRoot: ROOT,
-        hashRead: stale.hash,
-        linesRead: [...stale.lines]
-      })
-    ).toThrow(/changed after it was shown/);
-    expect(machineRow('pop-os')?.writeRoot).toBeUndefined();
-    expect(spawned).toHaveLength(0);
-  });
-
-  it('refuses a machine that is not in the file, on both channels', () => {
-    expect(() =>
-      call('machines:writeSheet', { id: 'nowhere', writeRoot: ROOT })
-    ).toThrow(/There is no machine called nowhere/);
-    expect(() =>
-      call('machines:allowWrites', {
-        id: 'nowhere',
-        writeRoot: ROOT,
-        hashRead: 'whatever',
-        linesRead: []
-      })
-    ).toThrow(/There is no machine called nowhere/);
-  });
-
   it('takes the folder away when the agreement is withdrawn', () => {
-    const sheet = sheetFor(ROOT);
-    call('machines:allowWrites', {
+    writeFile({ schema: 1, machines: [POP_WITH_ROOT] });
+    loadMachines('reload');
+    const sheet = describeMachine('pop-os', machineFieldsOf(POP_WITH_ROOT));
+    call('machines:confirm', {
       id: 'pop-os',
-      writeRoot: ROOT,
       hashRead: sheet.hash,
-      linesRead: sheet.lines
+      linesRead: [...sheet.lines]
     });
     const view = call<{ state: string; writeRoot: string | null }>(
       'machines:forget',

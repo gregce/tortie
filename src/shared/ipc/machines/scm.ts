@@ -189,10 +189,10 @@ export interface MachineReviewPair {
 // Neither marks a conflict resolved, so a conflicted row offers no verb at
 // all. Neither stages part of a file, because the local list cannot either.
 //
-// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
-// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
-// hash still covers six fields, and no machine anybody already confirmed is
-// asked again.
+// WHAT DECIDES WHETHER ANYTHING HAPPENS (Phase 336). The rule a save follows:
+// a confirmed machine, and a tab's folder inside a project open on it (or
+// under a legacy `writeRoot`). NO FIELD IS CONFIRMED BY THIS BLOCK and no
+// machine anybody already confirmed is asked again.
 //
 // NO REPOSITORY ROOT CROSSES EITHER CHANNEL. The input carries the tab's
 // folder and main runs its own review read on it, so the root that reaches
@@ -208,7 +208,7 @@ export interface MachineIndexWriteInput {
 }
 
 /**
- * What happened to one stage or one unstage. Seven words, and none of them
+ * What happened to one stage or one unstage. Nine words, and none of them
  * claims more than Tortie knows.
  *
  *  - `done`: every command crossed and that machine's git exited 0 for each.
@@ -218,6 +218,14 @@ export interface MachineIndexWriteInput {
  *    not read. This never means nothing changed.
  *  - `writesOff`, `outsideRoot`, `notRepo`, `nothingToDo`: decided on this Mac
  *    before anything was composed, so each of them means nothing was sent.
+ *    `writesOff` and `outsideRoot` can also be the far side's own refusal,
+ *    printed above every git, so they still mean nothing was staged.
+ *  - `folderChanged` (Phase 336): the folder at the project's path is not the
+ *    folder that was opened, found on that machine above every git. Nothing
+ *    was staged. Opening the folder again is what clears it.
+ *  - `protected` (Phase 336): a path or the tab's folder names a `.git` or
+ *    `.ssh` folder in any case or any spelling the volume folds. Nothing was
+ *    staged.
  */
 export type MachineIndexWriteOutcome =
   | 'done'
@@ -226,7 +234,9 @@ export type MachineIndexWriteOutcome =
   | 'writesOff'
   | 'outsideRoot'
   | 'notRepo'
-  | 'nothingToDo';
+  | 'nothingToDo'
+  | 'folderChanged'
+  | 'protected';
 
 /** What one stage or one unstage did, in the shape the surface reads. */
 export interface MachineIndexWriteResult {
@@ -237,7 +247,10 @@ export interface MachineIndexWriteResult {
   readonly chunks: number;
   /** The repository root THAT MACHINE answered. Empty when there is none. */
   readonly repoPath: string;
-  /** The confirmed folder, for the sentences that name it. Null when none. */
+  /**
+   * The folder this write was bound by, for the sentences that name it. Null
+   * when no open project holds the tab's folder (Phase 336, SPEC D11).
+   */
   readonly writeRoot: string | null;
   /**
    * What that machine's git printed on the first command that failed, decoded.
@@ -273,10 +286,10 @@ export interface MachineIndexWriteResult {
 // catalogue and condition 83 of `build/conformance-machines.mjs` makes the
 // discard refusal executable over the whole catalogue.
 //
-// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
-// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
-// hash still covers six fields, and no machine anybody already confirmed is
-// asked again.
+// WHAT DECIDES WHETHER ANYTHING HAPPENS (Phase 336). The rule a save follows:
+// a confirmed machine, and a tab's folder inside a project open on it (or
+// under a legacy `writeRoot`). NO FIELD IS CONFIRMED BY THIS BLOCK and no
+// machine anybody already confirmed is asked again.
 //
 // NO REPOSITORY ROOT CROSSES THIS CHANNEL. The input carries the tab's folder
 // and main runs its own review read on it, so the root that reaches that
@@ -310,7 +323,7 @@ export interface MachineCommitInput {
 }
 
 /**
- * What happened to one commit. Eight words, and none of them claims more than
+ * What happened to one commit. Nine words, and none of them claims more than
  * Tortie knows.
  *
  *  - `committed`: that machine's git exited 0 and named a new commit.
@@ -329,12 +342,19 @@ export interface MachineCommitInput {
  *    deadline, and one sentence for both would say "within 5 minutes" about a
  *    thing that took three.
  *  - `offline`: Tortie is not connected to that machine, so nothing was sent.
- *  - `refused`: main decided on THIS MAC, before anything was composed. It
- *    covers seven states, being no message, writes not confirmed for that
- *    machine, a folder outside the confirmed folder, a folder that is not a
- *    repository, a sha the panel and main disagree on, a conflicted file, and
- *    nothing staged. Each carries its own sentence, so a person still reads
- *    exactly which one. `refused` always comes with `sent` equal to 0.
+ *  - `refused`: nothing was committed, for a reason that carries its own
+ *    sentence: no message, a folder no open project holds, a folder Tortie
+ *    never writes in (a home, a folder directly inside or holding one), a
+ *    `.git` or `.ssh` folder, a folder outside the one it was bound by, a
+ *    folder that is not a repository, a sha the panel and main disagree on, a
+ *    conflicted file, or nothing staged. Most are decided on THIS MAC with
+ *    `sent` equal to 0; the far side's own refusals (a link below the folder,
+ *    the home and reserved-folder rules judged by identity) arrive with `sent`
+ *    equal to 1 and are printed above every git, so nothing was committed.
+ *  - `folderChanged` (Phase 336): the folder at the project's path is not the
+ *    folder that was opened, found on that machine above every git. Nothing
+ *    was committed. Opening the folder again is what clears it. It is never
+ *    `moved`, which means something else committed and is cleared by Refresh.
  */
 export type MachineCommitOutcome =
   | 'committed'
@@ -344,7 +364,8 @@ export type MachineCommitOutcome =
   | 'timeout'
   | 'unsure'
   | 'offline'
-  | 'refused';
+  | 'refused'
+  | 'folderChanged';
 
 /** What one commit did, in the shape the surface reads. */
 export interface MachineCommitResult {

@@ -248,6 +248,7 @@ import {
 // PHASE 90.3. The one check a folder on another machine gets before it becomes
 // a tab. It reads that folder once and writes nothing.
 import { listRemoteDir } from '../machines/dir-list';
+import { pinOpenedFolder } from '../machines/write-folder';
 import {
   restoreRemoteSession,
   type RemoteRestoreOutcome
@@ -4009,6 +4010,13 @@ export class GmuxCore {
       path: stored,
       machineId: input.machineId
     });
+    // PHASE 336. A project open on a confirmed machine is a folder Tortie may
+    // write under, so the folder a person just opened BY HAND is pinned here:
+    // its device and inode on that machine, read once, which every write then
+    // compares in the same call. An already-open row is pinned again, which is
+    // how a person re-pins a folder after a write answered that it changed. It
+    // never throws and never fails the open; a failed read keeps the old pin.
+    await pinOpenedFolder(input.machineId, stored);
     return { ok: true, project, alreadyOpen };
   }
 

@@ -22,8 +22,9 @@
  *      exists to reach ANOTHER computer; the loopback row is the other file).
  *   3. `P3201_REAL_TMUX` is the far tmux's ABSOLUTE path, in the plain
  *      characters a path needs and nothing a shell reads.
- *   4. The harness socket is a `gmux-p320…` or `gmux-p292…` harness socket
- *      (probe:p320 and probe:p292 are this row's two readers) ending in a pid, and
+ *   4. The harness socket is a `gmux-p320…`, `gmux-p292…` or `gmux-p336…`
+ *      harness socket (probe:p320, probe:p292 and, since Phase 336, probe:p336
+ *      with `P336_FAR=real`, are this row's three readers) ending in a pid, and
  *      never `gmux` or `default`. Tortie's far socket IS the local
  *      `GMUX_TMUX_SOCKET` (`activeTmuxSocket`, src/main/machines/context.ts),
  *      so the app talks to `-L <that socket>` there and never to `-L gmux`.
@@ -199,7 +200,7 @@ export function realRefusal(env, socket, { app = false, scratchAgent = null } = 
   }
   const s = String(socket ?? '');
   if (s === HIS_SOCKET || s === 'default' || s === '') return `the socket ${JSON.stringify(s)} is not a harness socket.`;
-  if (!/^gmux-p(?:320|292)[a-z0-9-]*-\d+$/.test(s)) return `the socket ${JSON.stringify(s)} is not a gmux-p320 or gmux-p292 harness socket ending in its pid.`;
+  if (!/^gmux-p(?:320|292|336)[a-z0-9-]*-\d+$/.test(s)) return `the socket ${JSON.stringify(s)} is not a gmux-p320, gmux-p292 or gmux-p336 harness socket ending in its pid.`;
   const identity = String(env['P3201_REAL_IDENTITY'] ?? '');
   if (identity !== '' && (!PLAIN_PATH.test(identity) || identity.includes('..'))) {
     return `P3201_REAL_IDENTITY ${JSON.stringify(identity)} is not an absolute path in plain characters.`;
@@ -1016,6 +1017,10 @@ function selfTest() {
     ['a socket of another probe is refused', () => realRefusal(OK_ENV, 'gmux-p95-scroll-wt-12') !== null, true],
     ['a socket with no pid is refused', () => realRefusal(OK_ENV, 'gmux-p320-wt') !== null, true],
     ['probe:p292\'s harness socket is accepted', () => realRefusal(OK_ENV, 'gmux-p292-wt-p3201-77'), null],
+    // PHASE 336: probe:p336's harness socket (`gmux-p336-<slug>-<pid>`) is a
+    // reader of this row, and one with no pid is refused like any other.
+    ['probe:p336\'s harness socket is accepted', () => realRefusal(OK_ENV, 'gmux-p336-wt-p336-77'), null],
+    ['a gmux-p336 socket with no pid is refused', () => realRefusal(OK_ENV, 'gmux-p336') !== null, true],
     ['no agent and no key is refused', () => realRefusal(without('SSH_AUTH_SOCK'), SOCK) !== null, true],
     ['a key by path and no agent is accepted for this file\'s own reads', () => realRefusal({ ...without('SSH_AUTH_SOCK'), P3201_REAL_IDENTITY: '/Users/someone/.ssh/id_ed25519' }, SOCK), null],
     ['a key by path and no agent is refused for the app', () => starts(realRefusal({ ...without('SSH_AUTH_SOCK'), P3201_REAL_IDENTITY: '/Users/someone/.ssh/id_ed25519' }, SOCK, { app: true })), 'SSH_AUTH_SOCK is not set. The app signs in'.slice(0, 40)],

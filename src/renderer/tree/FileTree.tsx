@@ -74,17 +74,19 @@
  *   that machine.
  *
  * ── PHASE 101, one of those verbs crosses ─────────────────────────────────
- * `remote.writeRoot` is the folder on that machine a person confirmed Tortie
- * may replace a file under, and null means they confirmed none. When it is
- * set, New File is on the menu and a create lands over there through
- * `machines.putFile` rather than through `fs:createFile`. Nothing else moves.
+ * `remote.writeFolder` is the folder on that machine Tortie may write under,
+ * and null means there is none (PHASE 336: it is the open project holding the
+ * tree's root on a confirmed machine, where it was one folder a person typed
+ * in Settings). When it is set, New File is on the menu and a create lands
+ * over there through `machines.putFile` rather than through `fs:createFile`.
+ * Nothing else moved in that phase.
  * New Folder, Rename, Duplicate and Move to Trash stay absent on a folder on
  * another machine in both states, dragging is still refused at the source, and
- * a tab opened from such a tree is an edit surface only because that machine
- * carries a folder, never because the tab was opened from here.
+ * a tab opened from such a tree is an edit surface only because its file is in
+ * such a folder, never because the tab was opened from here.
  *
  * ── PHASE 102, two more of those verbs cross ──────────────────────────────
- * New Folder and Rename join New File on the same `remote.writeRoot` branch.
+ * New Folder and Rename join New File on the same `remote.writeFolder` branch.
  * A create of a folder lands over there through `machines.makeDir` and a
  * rename through `machines.renameEntry`. Duplicate and Move to Trash are
  * still absent in both states, and dragging is still refused at the source
@@ -183,19 +185,22 @@ export function FileTree({
   const isRemote = remote !== null;
   /**
    * PHASE 101. The folder on that machine Tortie may write a file under, or
-   * null. Null for every folder on this Mac, and null for a machine nobody has
-   * confirmed a folder for, which is every machine before that phase.
+   * null. Null for every folder on this Mac, and (PHASE 336) null for a tree
+   * whose root is outside every project open on a confirmed machine, or in a
+   * folder Tortie never writes in.
    */
-  const remoteWriteRoot =
-    remote !== null && remote.writeRoot !== null && remote.writeRoot.length > 0
-      ? remote.writeRoot
+  const remoteWriteFolder =
+    remote !== null &&
+    remote.writeFolder !== null &&
+    remote.writeFolder.length > 0
+      ? remote.writeFolder
       : null;
 
   const bridge = useTreeModel({
     rootPath,
     remote,
     isRemote,
-    remoteWriteRoot,
+    remoteWriteFolder,
     statusFiles,
     isRepo,
     density
@@ -219,7 +224,7 @@ export function FileTree({
   const { opsCreated, nameError, createPending } = useTreeRename({
     rootPath,
     remote,
-    remoteWriteRoot,
+    remoteWriteFolder,
     model,
     hostRef,
     treeShadow,
@@ -594,7 +599,7 @@ export function FileTree({
     rootPath,
     remote,
     isRemote,
-    remoteWriteRoot,
+    remoteWriteFolder,
     model,
     treeInput,
     opsRef,

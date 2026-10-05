@@ -154,7 +154,13 @@ export function machineStateViewOf(
       // root, even when machines.json holds one, because an unconfirmed root is
       // not a confirmed fact. Main refuses that case anyway; this copy is
       // presentational and it must not disagree with main.
-      writeRoot: null
+      writeRoot: null,
+      // PHASE 336. THE SAME RULE, for the projects a person opened there: a row
+      // nobody confirmed, or one whose details changed, saves nothing until it
+      // is confirmed again, so no tab on it is drawn as something to type into.
+      // Main refuses it anyway (`assertMachineMayConnect`, first, in
+      // ./write-folder.ts); this copy must not disagree with main.
+      savesInProjects: false
     };
   }
   const link: MachineLink = facts?.link ?? 'quiet';
@@ -175,7 +181,14 @@ export function machineStateViewOf(
     // PHASE 101. The row is confirmed here, so the root it carries is a
     // confirmed fact. An empty one reads as none.
     writeRoot:
-      row.writeRoot !== null && row.writeRoot.length > 0 ? row.writeRoot : null
+      row.writeRoot !== null && row.writeRoot.length > 0 ? row.writeRoot : null,
+    // PHASE 336. The row is confirmed here, so every project a person opened on
+    // it is a folder Tortie may save under, with nothing asked (research 138
+    // section 9, his ruling). It is the CONFIRMATION that decides it and never
+    // a field of the row, so nothing written into machines.json turns it on:
+    // this line is reached only past `row.confirmed` above, which is the gate's
+    // own word for the row as it is now.
+    savesInProjects: true
   };
 }
 

@@ -6,8 +6,9 @@
  * one more in Phase 106, one more in Phase 107, one more in Phase 108 and one
  * call plus one subscription in Phase 109, three more in Phase 101 and two
  * more in Phase 102 and two more in Phase 103 and one more in Phase 104, and
- * two more in Phase 233; Phase 320.2 removed Phase 100's). One object, thirty
- * eight calls and three subscriptions,
+ * two more in Phase 233; Phase 320.2 removed Phase 100's, and Phase 336
+ * removed two of Phase 101's). One object, thirty six calls and three
+ * subscriptions,
  * typed from the shared contract. THE COUNT HAD GONE
  * STALE and Phase 108 says so rather than quietly fixing it: this header named
  * neither Phase 107 nor its call while the object already carried
@@ -17,8 +18,10 @@
  * `cloneProject`, `putFile`, `makeDir`, `renameEntry`, `stage`, `unstage` and
  * `commit`. The last three are the only ones that change a git repository over
  * there, and `commit` is the only one that makes a commit.
- * `allowWrites` writes on THIS Mac, being one field of one row and one record.
- * Everything else on this bridge reads.
+ * Everything else on this bridge reads, or writes one row and one record on
+ * THIS Mac. PHASE 336 removed the one call that wrote a folder to save under
+ * into a row, with the read that drew its sheet: a project a person opened on
+ * a confirmed machine is a folder Tortie may save under, with nothing asked.
  *
  * Four of these calls can start a process from Settings, and every one of them
  * is a person pressing a button there. `tailscaleNames` runs the Tailscale program at
@@ -171,32 +174,29 @@ export const machines: GmuxMachinesExtras['machines'] = {
   agents: (id, fresh) => invoke('machines:agents', id, fresh),
   onAgentsChanged: (cb) => on(EVT_MACHINE_AGENTS, cb),
   // ---- PHASE 101 BLOCK ----
-  // Phase 101. THIS ONE READS. It answers the sheet a person reads before they
-  // let Tortie save on one machine. It starts nothing, sends nothing to any
-  // machine and writes nothing. The renderer never composes a sheet's hash, and
-  // this call is what makes that true for a folder the person typed.
-  writeSheet: (input) => invoke('machines:writeSheet', input),
-  // Phase 101. THIS ONE WRITES, on this Mac and nowhere else. It writes the
-  // folder into the row and records the agreement, over the sheet the person
-  // read. Main refuses a stale hash and writes nothing.
-  allowWrites: (input) => invoke('machines:allowWrites', input),
+  // Phase 336 removed the two calls above this one, the read that drew the
+  // sheet for a folder a person typed and the write that recorded it. Nothing
+  // on this bridge can set a folder to save under any more.
+  //
   // Phase 101. THIS ONE WRITES ON ANOTHER COMPUTER, and it was the third call on
-  // this bridge that could. Main asks the confirm gate, refuses a machine with
-  // no confirmed folder, refuses a file that is too large and refuses a path
-  // outside that folder, all before anything is sent.
+  // this bridge that could. Main asks the confirm gate, refuses a path outside
+  // every project opened on that machine (or a legacy folder that holds it),
+  // refuses a file that is too large, all before anything is sent, and the
+  // machine compares the folder's identity to the one pinned when it was
+  // opened, in the same call that writes.
   putFile: (input) => invoke('machines:putFile', input),
   // ---- END PHASE 101 BLOCK ----
   // ---- PHASE 102 BLOCK ----
   // Phase 102. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the fourth call
   // on this bridge that can. It makes ONE folder, with no `-p`, under the same
-  // confirmed folder a save is bounded by. Main asks the confirm gate, refuses
-  // a machine with no confirmed folder and refuses a path outside that folder,
-  // all before anything is sent. No folder chosen here decides what is written
-  // under, because main reads the confirmed one off the row.
+  // folder a save is bounded by. Main asks the confirm gate and refuses a path
+  // outside that folder, all before anything is sent. No folder chosen here
+  // decides what is written under: since Phase 336 main picks it from the
+  // projects opened on that machine, and before that it read it off the row.
   makeDir: (input) => invoke('machines:makeDir', input),
   // Phase 102. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the fifth. It
   // renames ONE file or folder with one `mv`, and BOTH paths are checked
-  // against the confirmed folder before anything is composed. The machine
+  // against the one folder that holds them before anything is composed. The machine
   // tests the destination before it moves, and between that test and the move
   // another writer on that machine can create the destination.
   renameEntry: (input) => invoke('machines:renameEntry', input),
@@ -206,8 +206,8 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // this bridge that can. It is also the first that changes a git repository
   // over there. It puts a list of paths into one repository's index. Main asks
   // the confirm gate, runs its own review read on the tab's folder, refuses a
-  // repository outside the confirmed folder and refuses every path that read
-  // did not name, all before anything is sent. No repository root chosen here
+  // folder outside the one a save is bounded by and refuses every path that
+  // read did not name, all before anything is sent. No repository root chosen here
   // decides where git runs.
   stage: (input) => invoke('machines:stage', input),
   // Phase 103. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the seventh. It
@@ -221,9 +221,9 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // Phase 104. THIS ONE WRITES ON ANOTHER COMPUTER, and it is the eighth call
   // on this bridge that can. It commits what is staged in one repository over
   // there. Main asks the confirm gate, runs its own review read on the tab's
-  // folder, refuses a folder outside the confirmed folder, refuses a sha this
-  // side and main disagree on, and refuses a staged set that moved, all before
-  // anything is sent. That machine's own hooks and its own signing
+  // folder, refuses a folder outside the one a save is bounded by, refuses a
+  // sha this side and main disagree on, and refuses a staged set that moved,
+  // all before anything is sent. That machine's own hooks and its own signing
   // configuration run over there, and Tortie answers no passphrase anywhere.
   // The sentences a surface draws come back on this call, composed in main.
   commit: (input) => invoke('machines:commit', input)

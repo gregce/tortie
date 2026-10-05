@@ -7,63 +7,183 @@
  */
 
 import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
+import type { MachineFilePutOutcome } from '@shared/ipc';
+import type { RemoteWriteRefusal } from '../state/machines-slice';
 
 // -- the editor --------------------------------------------------------------
 
 /**
- * The band under a tab holding a file from another machine, when saving is off.
+ * The band under a tab holding a file on another machine that Tortie will not
+ * save, one sentence per reason (Phase 336).
  *
- * It says two things and both are needed. The file is over there, which is why
- * the bytes on screen may be older than the file. And Tortie cannot save it
- * yet, which is why typing changes nothing.
- *
- * PHASE 101 REWROTE THE SECOND HALF, and the rewrite is the phase. The old
- * sentence said Tortie cannot save changes, full stop, which is now false for a
- * machine a person has let Tortie save on. It names the one thing that changes
- * the answer instead. THERE IS NO BAND AT ALL when saving is on: the tab
- * behaves like a tab on this Mac, and a band over a tab that saves would be a
- * sentence contradicting the dirty dot beside it.
+ * PHASE 336 REPLACED `remoteFileChip`, which said Tortie cannot save the file
+ * until a person lets it save on that machine, and named Settings as the way.
+ * Nothing is granted any more. A project open on a confirmed machine is a
+ * folder Tortie may write under, the way a project open on this Mac is, so a
+ * tab inside one draws NO band at all and behaves like a tab on this Mac. A
+ * band is drawn only for a file Tortie will not save, and it says why in the
+ * person's terms: the file is outside the projects opened there, the folder is
+ * one Tortie never writes in, the file is too large to save there, or the
+ * machine is not confirmed right now. None of them sends anybody to Settings.
  */
-export function remoteFileChip(label: string): string {
+
+/** A file outside every project opened on that machine. */
+export function remoteFileOutsideChip(label: string): string {
   return (
-    `This file is on ${label}. Tortie is showing what it read and cannot ` +
-    `save it until you let it save on that machine.`
+    `This file is on ${label}, outside the projects you opened there, so ` +
+    `Tortie only shows it.`
   );
 }
 
 /**
- * What a person reads when they press Save on a tab whose machine has no
- * folder Tortie may save under.
+ * The folders Tortie never writes in on another machine.
  *
- * PHASE 101 REWROTE IT. The old sentence said the file is on that machine, so
- * Tortie cannot save it, which named the machine as the reason. The reason is
- * not the machine. The reason is that nobody has told Tortie which folder on
- * that machine it may replace a file under, and one person doing one thing once
- * changes it. So the sentence names that thing, and it names the path to it,
- * because `settings:openWindow` takes no argument and cannot open the section
- * itself.
- *
- * The toast that carries it also carries a button labelled Open settings. The
- * sentence still names the path, because a person who reads the sentence
- * somewhere else, e.g. in a screenshot, needs the same answer. PHASE 229 MADE
- * THAT SENTENCE TRUE: the one call site, `saveOnMachine` in
- * `src/renderer/editor/tab-io.ts`, passed only `{ sticky: true }` from
- * Phase 101 until then, and research 88 section 4.4 read zero action buttons
- * on the toast.
+ * It is the band, the label and, with "Nothing was written." or "Nothing was
+ * changed." after it, the refusal, so the rule is stated in one place.
+ * Research 138's ruling keeps `/`, a home folder and its first-level children
+ * off the list of folders Tortie writes under, and a folder HOLDING a home is
+ * the same rule from above.
  */
-export function remoteSaveRefused(label: string): string {
+export function remoteNeverFolderLine(label: string): string {
   return (
-    `Tortie cannot save on ${label}. Open Settings, then Machines, then ` +
-    `${label}, and let Tortie save files there. Nothing was written.`
+    `Tortie does not save in a home folder, a folder directly inside one, or ` +
+    `a folder holding one, on ${label}.`
   );
 }
 
 /**
- * The file is not under the folder this person confirmed for that machine.
+ * The machine is not confirmed right now, which includes a machine whose
+ * details changed after it was confirmed. Nothing is written there until it
+ * is confirmed again, and the project tab already offers that.
+ */
+export function remoteFileUnconfirmedChip(label: string): string {
+  return (
+    `This file is on ${label}, which is not confirmed right now, so Tortie ` +
+    `only shows it.`
+  );
+}
+
+/**
+ * A file larger than Tortie can save on that machine, opened read only.
  *
- * Main refuses this before it composes anything, so nothing was sent. The
- * sentence names the folder, because the folder is the fact the person agreed
- * to and the one they would change.
+ * PHASE 336 OPENS IT. Phase 101 refused the open on a machine with saving on,
+ * because a tab that could never be saved was worse than a refusal. Research
+ * 138's ruling is that a file is never refused for OPENING because of the save
+ * cap, so it opens and this band says why typing changes nothing.
+ */
+export function remoteSaveCapChip(bytes: number, label: string): string {
+  return (
+    `That file is ${bytes.toLocaleString()} bytes and Tortie saves files up ` +
+    `to ${REMOTE_FILE_MAX_BYTES.toLocaleString()} bytes on ${label}, so it ` +
+    `is shown read only.`
+  );
+}
+
+/**
+ * The same band when the read itself was cut, so the size is a floor and the
+ * sentence says over rather than printing the floor as the size.
+ */
+export function remoteSaveCapChipOver(floor: number, label: string): string {
+  return (
+    `That file is over ${floor.toLocaleString()} bytes and Tortie saves ` +
+    `files up to ${REMOTE_FILE_MAX_BYTES.toLocaleString()} bytes on ` +
+    `${label}, so it is shown read only.`
+  );
+}
+
+/** The band for one refusal. */
+export function remoteFileRefusedChip(
+  reason: RemoteWriteRefusal,
+  label: string
+): string {
+  switch (reason) {
+    case 'unconfirmed':
+      return remoteFileUnconfirmedChip(label);
+    case 'outside':
+      return remoteFileOutsideChip(label);
+    case 'never':
+      return remoteNeverFolderLine(label);
+  }
+}
+
+/**
+ * The file is outside every project opened on that machine, said after a save
+ * main or this renderer refused before anything was sent.
+ */
+export function remoteSaveOutsideProjects(label: string): string {
+  return (
+    `Tortie saves on ${label} only inside a project you opened there. ` +
+    `Nothing was written.`
+  );
+}
+
+/** The never-list, said after a save was refused. */
+export function remoteSaveNever(label: string): string {
+  return `${remoteNeverFolderLine(label)} Nothing was written.`;
+}
+
+/** The machine is not confirmed right now, said after a save was refused. */
+export function remoteSaveUnconfirmed(label: string): string {
+  return (
+    `Tortie does not save on ${label} until that machine is confirmed. ` +
+    `Nothing was written.`
+  );
+}
+
+/**
+ * The folder at that path on that machine is not the folder that was opened.
+ *
+ * Main compares the folder's identity on that machine, in the same call as the
+ * write, against the identity it read when the project was opened. A folder
+ * swapped for a link, or deleted and made again, is a different folder, and
+ * Tortie writes nothing until the person opens it again, which is how it
+ * learns the new one. It never names a moved or outside folder, because the
+ * folder did not move and the file is not outside it.
+ */
+export function remoteSaveFolderChanged(
+  folder: string | null,
+  label: string
+): string {
+  return (
+    `${folder ?? 'That folder'} on ${label} is not the folder you opened any ` +
+    `more, so Tortie wrote nothing. Open it again to save there.`
+  );
+}
+
+/**
+ * The path names a `.git` or `.ssh` folder, in any case and in every spelling
+ * the volume folds to one. Local's own refusal is "Tortie does not touch the
+ * .git folder."
+ */
+export function remoteSaveProtected(label: string): string {
+  return (
+    `Tortie does not touch .git or .ssh folders on ${label}. Nothing was ` +
+    `written.`
+  );
+}
+
+/** The sentence for a save this renderer refused before anything was sent. */
+export function remoteSaveRefusedFor(
+  reason: RemoteWriteRefusal,
+  label: string
+): string {
+  switch (reason) {
+    case 'unconfirmed':
+      return remoteSaveUnconfirmed(label);
+    case 'outside':
+      return remoteSaveOutsideProjects(label);
+    case 'never':
+      return remoteSaveNever(label);
+  }
+}
+
+/**
+ * The file is not under the folder this write was bound by.
+ *
+ * PHASE 336. The folder is the open project that holds the file, or a folder a
+ * person typed in an earlier build. The word reaches here when that machine
+ * found the path leads out of the folder through a link, and nothing was
+ * written. The sentence names the folder, because it is the fact that decided.
  */
 export function remoteSaveOutsideRoot(root: string, label: string): string {
   return (
@@ -102,10 +222,13 @@ export function remoteSaveMissing(label: string): string {
  * folder the tree is showing and a person reading this needs to know which one
  * that is.
  */
-export function remoteCreateExists(root: string, label: string): string {
+export function remoteCreateExists(
+  root: string | null,
+  label: string
+): string {
   return (
     `Tortie did not make that file, because a file of that name is already ` +
-    `on ${label} under ${root}. Nothing was written.`
+    `on ${label}${root === null ? '' : ` under ${root}`}. Nothing was written.`
   );
 }
 
@@ -183,40 +306,20 @@ export function remoteSaveTooLarge(bytes: number, label: string): string {
 }
 
 /**
- * Opening a file on a machine Tortie may save on, when the file is over the
- * save cap.
+ * A file of one past commit on that machine, when the larger side is over the
+ * save cap (Phase 233).
  *
- * WHY THE OPEN IS REFUSED RATHER THAN THE SAVE. A tab that can never be saved
- * is the defect Phase 96 fixed by accident, and it would come straight back for
- * every file over the cap. The cap cannot be raised to meet the read cap,
- * because the whole command Tortie sends is capped as well and a file of that
- * size does not fit at any encoding.
- *
- * IT IS REFUSED ONLY WHEN SAVING IS ON for that machine. With saving off the
- * tab is read only anyway, and refusing the open would take away a read a
- * person has today for nothing.
+ * PHASE 336 KEEPS IT FOR THE COMMIT TAB ALONE. A file in the working tree over
+ * the cap now opens read only with `remoteSaveCapChip`. A commit tab's two
+ * sides are both CUT at the ceiling by the script that reads them, so a file
+ * over it cannot be shown whole at all, and a diff of two cut files would be a
+ * diff of two files neither of which is the one that was asked for.
  */
 export function remoteOpenTooLarge(bytes: number, label: string): string {
   return (
     `That file is ${bytes.toLocaleString()} bytes and Tortie can save files ` +
     `up to ${REMOTE_FILE_MAX_BYTES.toLocaleString()} bytes on ${label}, so ` +
     `it did not open it. Nothing on that machine changed.`
-  );
-}
-
-/**
- * The same refusal when the read itself was cut, so the size is a floor.
- *
- * TWO SENTENCES RATHER THAN ONE, and the reason is that a truncated read gives
- * a floor rather than a measurement. Printing the floor as the size would put a
- * false number on screen, so this one says over and names the number the read
- * stopped at.
- */
-export function remoteOpenTooLargeOver(floor: number, label: string): string {
-  return (
-    `That file is over ${floor.toLocaleString()} bytes and Tortie can save ` +
-    `files up to ${REMOTE_FILE_MAX_BYTES.toLocaleString()} bytes on ` +
-    `${label}, so it did not open it. Nothing on that machine changed.`
   );
 }
 
@@ -229,23 +332,19 @@ export function remoteOpenTooLargeOver(floor: number, label: string): string {
  * shape `machines:listDir` used before it. Every sentence a person reads about
  * a machine stays inside the one file the vocabulary audit reads.
  */
-export type MachineSaveRefusalReason =
-  | 'writesOff'
-  | 'outsideRoot'
-  | 'stale'
-  | 'missing'
-  | 'exists'
-  | 'nomode'
-  | 'nosum'
-  | 'tooLarge';
+export type MachineSaveRefusalReason = Exclude<
+  MachineFilePutOutcome,
+  'wrote'
+>;
 
 /**
  * The sentence for one refusal word.
  *
- * `root` is the confirmed folder, which main sends on both words that name one.
- * A null there can only mean saving is off for that machine, so those two words
- * fall back to the sentence that says exactly that, rather than drawing a
- * folder nobody confirmed.
+ * `root` is the folder the write was bound by, which main sends on the words
+ * that name one. PHASE 336: `writesOff` with no folder means the path is
+ * outside every project opened on that machine, and `writesOff` naming a
+ * folder means that folder is one Tortie never writes in. A null on the other
+ * words that name a folder falls back to the sentence that names none.
  *
  * `bytes` is what the file measures, and only `tooLarge` reads it.
  */
@@ -257,19 +356,23 @@ export function remoteSaveRefusal(
 ): string {
   switch (reason) {
     case 'writesOff':
-      return remoteSaveRefused(label);
+      return root === null
+        ? remoteSaveOutsideProjects(label)
+        : remoteSaveNever(label);
     case 'outsideRoot':
       return root === null
-        ? remoteSaveRefused(label)
+        ? remoteSaveOutsideProjects(label)
         : remoteSaveOutsideRoot(root, label);
+    case 'folderChanged':
+      return remoteSaveFolderChanged(root, label);
+    case 'protected':
+      return remoteSaveProtected(label);
     case 'stale':
       return remoteSaveStale(label);
     case 'missing':
       return remoteSaveMissing(label);
     case 'exists':
-      return root === null
-        ? remoteSaveRefused(label)
-        : remoteCreateExists(root, label);
+      return remoteCreateExists(root, label);
     case 'nomode':
       return remoteSaveNoMode(label);
     case 'nosum':

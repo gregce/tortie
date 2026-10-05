@@ -380,13 +380,15 @@ export const MACHINE_WRITE_HONESTY =
  * {@link MACHINE_WRITE_HONESTY} when these fields carry a write root, else
  * null. Pure.
  *
- * THIS IS WHY THE RULING IS MECHANICAL RATHER THAN REMEMBERED. Three doors can
- * put the write root line on a sheet, being `machines:allowWrites`,
- * `machines:confirm` and `machines:add`. A renderer that decided the question
- * by matching a prefix against a line would be a second copy of main's sentence
- * in a file the vocabulary audit does not read. So main answers it here, every
- * sheet carries the answer, and every sheet drawing site draws the paragraph
- * when it is not null.
+ * THIS IS WHY THE RULING IS MECHANICAL RATHER THAN REMEMBERED. Two doors can
+ * put the write root line on a sheet, being `machines:confirm` and
+ * `machines:add`. There were three until Phase 336 removed the one that wrote
+ * a typed folder into a row; a row carrying one by hand still reaches both of
+ * these, because the field is still hashed. A renderer that decided the
+ * question by matching a prefix against a line would be a second copy of
+ * main's sentence in a file the vocabulary audit does not read. So main
+ * answers it here, every sheet carries the answer, and every sheet drawing
+ * site draws the paragraph when it is not null.
  */
 export function writeHonestyOf(fields: MachineExecutionFields): string | null {
   const root = fields.writeRoot;
@@ -415,8 +417,8 @@ export interface MachineSummary {
    *
    * It is NOT one of `lines` and the hash does not cover it. It is carried here
    * so that a sheet granting file replacement cannot be drawn without the
-   * paragraph that says what replacement costs, whichever of the three doors
-   * opened it.
+   * paragraph that says what replacement costs, whichever of the two doors
+   * opened it (three until Phase 336).
    */
   readonly writeHonesty: string | null;
 }

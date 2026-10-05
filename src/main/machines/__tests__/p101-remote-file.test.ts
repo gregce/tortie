@@ -24,8 +24,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 // The world this module lives in, replaced
 // ---------------------------------------------------------------------------
 
-/** Every script the door was asked to run, in order. */
-let ran: Array<{ door: 'read' | 'write'; id: string; args: string[] }> = [];
+/**
+ * Every script the door was asked to run, in order. PHASE 336: a save crosses
+ * the FOLDER door, which appends the folder's pin, so `args` here are what the
+ * far side would read, pin last.
+ */
+let ran: Array<{ door: 'read' | 'write' | 'folder'; id: string; args: string[] }> = [];
 /** What the far side answers. */
 let answer = '';
 /** Every call the confirm gate was asked to make, in order. */
@@ -39,12 +43,16 @@ vi.mock('../remote-run', () => ({
   runRemoteRead: async (): Promise<never> => {
     throw new Error('this module never reads');
   },
-  runRemoteWrite: async (
+  runRemoteWrite: async (_ctx: unknown, id: string): Promise<never> => {
+    throw new Error(`a folder-bound save crossed the machine door with ${id}`);
+  },
+  runFolderWrite: async (
     _ctx: unknown,
+    folder: { pin: string },
     id: string,
     args: readonly string[]
   ): Promise<{ payload: string; generation: number; bytes: number }> => {
-    ran.push({ door: 'write', id, args: [...args] });
+    ran.push({ door: 'folder', id, args: [...args, folder.pin] });
     // The one word that makes the door itself fail, which is what a dropped
     // link does.
     if (answer === '__throw__') throw new Error('Command failed: /usr/bin/ssh');
@@ -232,25 +240,33 @@ describe('putFileOnMachine', () => {
     expect(ran).toEqual([]);
   });
 
-  it('answers outsideRoot for a file under another folder, and sends nothing', async () => {
+  it('answers writesOff for a file no folder holds, and sends nothing', async () => {
+    // PHASE 336. A file outside the legacy root and outside every open project
+    // is `writesOff` with no folder: Tortie saves on a machine only inside a
+    // folder it may write under. `outsideRoot` is still the far side's word
+    // for a link below the folder, which the 242 family drives.
     const out = await call({ path: '/etc/passwd' });
     expect(out).toEqual({
-      outcome: 'outsideRoot',
+      outcome: 'writesOff',
       sha256: null,
       bytes: null,
-      writeRoot: ROOT
+      writeRoot: null
     });
     expect(ran).toEqual([]);
   });
 
-  it('sends the CONFIRMED folder and the path relative to it', async () => {
+  it('sends the CONFIRMED folder and the path relative to it, the pin last', async () => {
     answer = `wrote ${sha('hello')} 5`;
     const out = await call({ path: `${ROOT}/src/a.ts` });
     expect(ran).toHaveLength(1);
+    expect(ran[0]?.door).toBe('folder');
     expect(ran[0]?.id).toBe('file-put');
     expect(ran[0]?.args[0]).toBe(ROOT);
     expect(ran[0]?.args[1]).toBe('src/a.ts');
     expect(ran[0]?.args[3]).toBe(Buffer.from('hello', 'utf8').toString('base64'));
+    // A legacy `writeRoot` carries the pin `-`, so the far side skips its
+    // folder check, which is today's behaviour byte for byte (SPEC D16).
+    expect(ran[0]?.args[4]).toBe('-');
     expect(out.outcome).toBe('wrote');
     expect(out.sha256).toBe(sha('hello'));
     expect(out.bytes).toBe(5);

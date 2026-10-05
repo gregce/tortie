@@ -110,6 +110,8 @@ import {
   // writer. Both were already reachable and neither was ever watched.
   // PHASE 231. The connected one is composed with the label the context
   // carries, the way every door refusal is now.
+  // PHASE 336. The third: a folder-bound write through the machine door.
+  FOLDER_SCRIPT_THROUGH_MACHINE_DOOR,
   machineNotConnected,
   WRITE_THROUGH_READ_DOOR,
   RESTORE_CREATE_UNCONFIRMED,
@@ -1311,19 +1313,25 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
         `zero commands and wrote nothing`
     );
 
-    // --- 10k. PHASE 104. The two door refusals for the eighth writer --------
+    // --- 10k. PHASE 104. The door refusals for the writers ------------------
     //
-    // Both are branches a bundler folds away, and both stand between a person
-    // and a command that changes a git repository on somebody else's computer.
+    // Each is a branch a bundler folds away, and each stands between a person
+    // and a command that changes something on somebody else's computer.
     //
     // The FIRST is the mode check, which is step 2 of the door and fires before
-    // the machine is asked anything at all. The SECOND is the connected only
-    // check, which is step 4. They are driven here rather than in a unit test
-    // because they are properties of the real door with a real context in hand,
-    // and the link is already cut on purpose at this point in the run.
+    // the machine is asked anything at all. The SECOND (Phase 336) is the bound
+    // check beside it: `git-commit` is bound by a folder and crosses only
+    // through `runFolderWrite`, so the machine door refuses it before anything
+    // is composed. The THIRD is the connected only check, which is step 4; it
+    // used to be driven with `git-commit`, which the bound check now stops one
+    // step earlier, so it is driven with `image-put`, a write bound by the
+    // machine alone, which still reaches step 4. They are driven here rather
+    // than in a unit test because they are properties of the real door with a
+    // real context in hand, and the link is already cut on purpose at this
+    // point in the run.
     //
-    // Neither call can reach a repository. The first is refused for its door
-    // and the second for the link, both before a command exists.
+    // None of the three can reach a repository or a file. Each is refused for
+    // its door or for the link, before a command exists.
     await assertRefused(
       '10k. git-commit sent through the read door',
       WRITE_THROUGH_READ_DOOR,
@@ -1333,19 +1341,30 @@ export async function runRemoteSessionsSmoke(): Promise<void> {
           'none',
           'this never leaves this Mac',
           '/nowhere',
-          'p104'
+          'p104',
+          '-'
         ])
     );
     await assertRefused(
-      '10k. git-commit sent while the machine is not answering',
-      machineNotConnected(labelOf(ctx)),
+      '10k. git-commit sent through the machine door',
+      FOLDER_SCRIPT_THROUGH_MACHINE_DOOR,
       () =>
         runRemoteWrite(ctx, 'git-commit', [
           '/nowhere/p104',
           'none',
           'this never leaves this Mac',
           '/nowhere',
-          'p104'
+          'p104',
+          '-'
+        ])
+    );
+    await assertRefused(
+      '10k. image-put sent while the machine is not answering',
+      machineNotConnected(labelOf(ctx)),
+      () =>
+        runRemoteWrite(ctx, 'image-put', [
+          'p336-never-sent.png',
+          Buffer.from('this never leaves this Mac', 'utf8').toString('base64')
         ])
     );
 

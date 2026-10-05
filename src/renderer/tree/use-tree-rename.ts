@@ -70,7 +70,7 @@ export interface TreeRenameOptions
   > {
   rootPath: string;
   remote: TreeRemote | null;
-  remoteWriteRoot: string | null;
+  remoteWriteFolder: string | null;
 }
 
 export interface TreeRenameResult {
@@ -91,7 +91,7 @@ export interface TreeRenameResult {
 export function useTreeRename({
   rootPath,
   remote,
-  remoteWriteRoot,
+  remoteWriteFolder,
   model,
   hostRef,
   treeShadow,
@@ -117,11 +117,12 @@ export function useTreeRename({
   // which are exactly the two things a file operation has to keep in step.
   useEffect(() => {
     // PHASE 101. The one member that says where a create lands. It is absent
-    // for a folder on this Mac and for a machine nobody confirmed a folder
-    // for, and `finishCreate` in ./tree-ops.ts branches on exactly that.
+    // for a folder on this Mac and for a tree in no folder Tortie may write
+    // under (Phase 336), and `finishCreate` in ./tree-ops.ts branches on
+    // exactly that.
     const machineId = remote?.machineId ?? null;
     const remoteCreate =
-      machineId === null || remoteWriteRoot === null
+      machineId === null || remoteWriteFolder === null
         ? undefined
         : {
             machineId,
@@ -150,10 +151,10 @@ export function useTreeRename({
           };
     // PHASE 102. The sibling member that says where a new folder and a rename
     // land. It is built under the same condition as the create above, and it is
-    // absent for a folder on this Mac, for a machine nobody confirmed a folder
-    // for, and for a build whose preload predates the two channels.
+    // absent for a folder on this Mac, for a tree in no folder Tortie may write
+    // under, and for a build whose preload predates the two channels.
     const remoteEntry =
-      machineId === null || remoteWriteRoot === null || !canWriteEntries()
+      machineId === null || remoteWriteFolder === null || !canWriteEntries()
         ? undefined
         : {
             machineId,
@@ -188,7 +189,7 @@ export function useTreeRename({
     return () => {
       opsRef.current = null;
     };
-  }, [model, rootPath, hold, editorBridge, remote, remoteWriteRoot]);
+  }, [model, rootPath, hold, editorBridge, remote, remoteWriteFolder]);
 
   // ----- the create editor's live refusal (Phase 37) ------------------------
   // While a New File / New Folder editor is open, every keystroke is judged

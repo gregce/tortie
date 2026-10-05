@@ -17,6 +17,7 @@ import { useApp } from '../state/store';
 import type { MenuItemSpec } from '../state/store';
 import { showNativeMenu } from '../app/ContextMenu';
 import { tabTooltipIdentity } from './tab-identity';
+import { remoteTabWriteFolder, tabIsReadOnly } from './tab-readonly';
 import { canReveal, reveal } from '../tree/fs-bridge';
 import { buildTabMenu } from './tab-menu';
 import { Codicon } from '../icons';
@@ -95,7 +96,15 @@ function TabButton({
   // Five answers, one per kind of tab, and they live in ./tab-identity.ts so a
   // test can read them without rendering the strip. A REVIEW tab is the first
   // one asked about, because its `path` is a path on another computer.
-  const identity = tabTooltipIdentity(tab);
+  // PHASE 336. A tab holding a file on another machine says it is read only
+  // only when it is, by the same answer MonacoHost gives the editor: the
+  // machine's confirmation and the projects open on it.
+  const machineStates = useApp((s) => s.machineStates);
+  const projects = useApp((s) => s.projects);
+  const readOnly =
+    tab.remote === undefined ||
+    tabIsReadOnly(tab, remoteTabWriteFolder(tab, machineStates, projects));
+  const identity = tabTooltipIdentity(tab, readOnly);
 
   // The italic slant is the only thing on screen saying this tab is on loan,
   // and italics teach nobody (Phase 12.4). The tooltip says what it is AND

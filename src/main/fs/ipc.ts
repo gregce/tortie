@@ -57,6 +57,10 @@ import { createOpenWith, defaultOpenWithDeps } from './open-with';
 import type { DragOutDeps } from './drag-out';
 import { createDragOut } from './drag-out';
 import { writeGuarded } from './guarded-write';
+// PHASE 336. The one reader of "which folders on this Mac are open projects",
+// shared by the file operations, the guarded save and the drag out here, by
+// Open With in ./open-with.ts and by the baseline store.
+import { localProjectRoots } from './project-roots';
 import type { PathOpenDeps } from './path-open';
 import { defaultPathOpenDeps, openPathExternally } from './path-open';
 
@@ -112,19 +116,18 @@ async function readTextCapped(abs: string): Promise<ReadFileResult> {
 /**
  * Production dependencies for the file-operations service.
  *
- * `listProjectRoots` reads the manifest through the singleton core, so the
- * authority on "what is a project root" is the same list the tabs render
- * from. Imported lazily: the fs channels must not drag the tmux core into
- * the module graph at boot, and by the time a user renames a file the core
- * has long since resolved.
+ * `listProjectRoots` is the open project folders ON THIS MAC, read through the
+ * singleton core by ./project-roots.ts, so the authority on "what is a project
+ * root" is the same list the tabs render from. PHASE 336: it used to be every
+ * project row, and a row for a folder on another machine is a path on THAT
+ * machine, so it made the same path here a folder this gate admitted (research
+ * 138 section 2.5 item 5). `fs:writeGuarded` shares these deps, so the save is
+ * bound by the same list.
  */
 function defaultFileOpsDeps(): FileOpsDeps {
   return {
     trashItem: (path) => shell.trashItem(path),
-    listProjectRoots: async () => {
-      const { getGmuxCore } = await import('../sessions');
-      return (await getGmuxCore()).listProjects().map((p) => p.path);
-    }
+    listProjectRoots: () => localProjectRoots()
   };
 }
 
@@ -140,17 +143,15 @@ function defaultFileOpsDeps(): FileOpsDeps {
  * Production dependencies for the drag out (Phase 154).
  *
  * `listProjectRoots` is the same reader the file verbs use, so "what is a
- * project root" has one authority. `startDrag` belongs to the sender, which
+ * project root" has one authority, and since Phase 336 it is the folders on
+ * THIS Mac alone (./project-roots.ts). `startDrag` belongs to the sender, which
  * is why these are built per call rather than once. The placeholder icon is a
  * one pixel transparent image: macOS throws on an empty one, and
  * `nativeImage.createEmpty()` IS empty, so it cannot be the fallback.
  */
 function defaultDragOutDeps(event: IpcMainInvokeEvent): DragOutDeps {
   return {
-    listProjectRoots: async () => {
-      const { getGmuxCore } = await import('../sessions');
-      return (await getGmuxCore()).listProjects().map((p) => p.path);
-    },
+    listProjectRoots: () => localProjectRoots(),
     fileIcon: (path) => app.getFileIcon(path),
     placeholderIcon: () =>
       nativeImage.createFromDataURL(

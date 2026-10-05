@@ -412,12 +412,23 @@ const HELPER = 'electron-run.mjs';
  * build/p332/dns-standin.mjs in the probe's own process. It signals no
  * process of its own.
  *
+ * PHASE 336 RAISED IT FROM 165 TO 166, by one for build/p336/probe-p336.mjs
+ * (`probe:p336`), saving in a project on another machine the way it is saved
+ * on this Mac: ONE Electron at a time through the helper, the parent's first
+ * with P336_PARENT_CHECKOUT and then HEAD's on the same scratch profile, a
+ * scratch HOME and the socket gmux-p336…, inside the loopback machine
+ * build/with-scratch-machine.mjs starts with the quiet shell and its scratch
+ * HOME. The five drives of the Settings sheet Phase 336 removed
+ * (build/probe-p242-write-path.mjs and build/probe-p10{1,2,3,4}-shot.mjs) now
+ * refuse at start and keep their import of the helper, so none left the
+ * population.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 165;
+const HELPER_USER_FLOOR = 166;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

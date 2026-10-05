@@ -15,7 +15,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type * as monacoNs from 'monaco-editor';
 import { monacoThemeNameFor } from './monaco-theme-name';
-import { tabIsReadOnly } from './tab-readonly';
+import { remoteTabWriteFolder, tabIsReadOnly } from './tab-readonly';
 import { useChromeTheme } from '../theme/chrome-theme';
 import {
   getLoadedMonaco,
@@ -36,7 +36,6 @@ import { useEditorMenu } from './use-editor-menu';
 // surface is a fact about that MACHINE, not about the tab, so it is read from
 // the link state main pushes rather than from anything written into the tab.
 import { useApp } from '../state/store';
-import { machineWriteRootFor } from '../state/machines-slice';
 // Phase 12.11: the editor region's zoom reaches Monaco through its OWN
 // font-size API — a CSS zoom around the editor would leave its cursor,
 // selection and hit-testing measuring a coordinate space it does not use.
@@ -225,16 +224,15 @@ export function MonacoHost({
 
   // -- (re)wire the editor whenever the shown path changes ------------------
   // The reasons a tab refuses every keystroke are in `tabIsReadOnly` above.
-  // PHASE 101. The fourth reason needs one fact from outside the tab, being
-  // the folder a person let Tortie save under on that machine. It is read here
-  // rather than inside the predicate so the predicate stays pure and its test
-  // can drive both answers without a store.
+  // PHASE 101. The fourth reason needs facts from outside the tab. PHASE 336
+  // made them the machine's confirmation and the projects open on it, because
+  // a project open on a confirmed machine is a folder Tortie may write under.
+  // They are read here rather than inside the predicate so the predicate stays
+  // pure and its test can drive both answers without a store.
   const machineStates = useApp((s) => s.machineStates);
-  const remoteWriteRoot =
-    tab.remote === undefined
-      ? null
-      : machineWriteRootFor(machineStates, tab.remote.machineId);
-  const readOnly = tabIsReadOnly(tab, remoteWriteRoot);
+  const projects = useApp((s) => s.projects);
+  const remoteWriteFolder = remoteTabWriteFolder(tab, machineStates, projects);
+  const readOnly = tabIsReadOnly(tab, remoteWriteFolder);
   const contentReady = !tab.loading && tab.error === null;
 
   // PHASE 241. The editor's native context menu. It is hung on `.ed-mount`

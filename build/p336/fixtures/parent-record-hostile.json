@@ -1,0 +1,44 @@
+{
+  "_note": "HOSTILE parent, hand-written: an A that WROTE at the parent (which no parent can do in a project opened by hand) and no H5L arm at all.",
+  "build": "parent",
+  "far": "loopback",
+  "arms": {
+    "B": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done"
+      }
+    },
+    "A": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "writesOff",
+        "rename": "writesOff",
+        "stage": "writesOff",
+        "unstage": "writesOff",
+        "commit": "refused"
+      }
+    },
+    "H4": {
+      "outcomes": {
+        "gitConfig": "writesOff",
+        "hook": "writesOff",
+        "gitDir": "writesOff",
+        "intoSsh": "writesOff",
+        "stageCwd": "writesOff",
+        "ssfold": "writesOff",
+        "longs": "writesOff"
+      }
+    },
+    "L": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done",
+        "commit": "committed"
+      },
+      "hash": "f09ddd90382dc9e6f52326f9b4938c00a37031e6c96f2f757573ca18af6d9e66"
+    }
+  }
+}

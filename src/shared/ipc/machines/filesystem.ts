@@ -2,12 +2,14 @@
  * Folders, files and image bytes on a machine (Phase 125, from Phases 73, 84,
  * 90.3, 99, 101 and 102).
  *
- * Thirty members and nine invoke channels. Five of the nine WRITE on another
- * computer, being `putImage`, `putFile`, `makeDir` and `renameEntry`, plus
- * `allowWrites`, which writes the confirmed folder into the row on this Mac and
- * sends nothing anywhere. What bounds every remote write is one field on the
- * machine row, being `writeRoot`. Main reads it off the row, so nothing chosen
- * in the renderer decides what is written under.
+ * Seven invoke channels since Phase 336, which removed the two that previewed
+ * and set a typed folder on the machine row. Four of the seven WRITE on
+ * another computer, being `putImage`, `putFile`, `makeDir` and `renameEntry`.
+ * What bounds the
+ * last three is the folder of a project open on that machine, chosen in main
+ * by `pickWriteFolder` in src/shared/remote-write-folder.ts (a legacy
+ * `writeRoot` first, then the deepest open project), so nothing chosen in the
+ * renderer decides what is written under.
  *
  * THE READS CANNOT COMPOSE WHAT THEY ASK. Every command that crosses is chosen
  * by name from the frozen catalogue in src/main/machines/remote-scripts.ts,
@@ -19,11 +21,6 @@
  *
  * MAIN: src/main/machines/ipc.ts, the one `machines:*` registrar.
  */
-
-import type {
-  MachineConfirmSheet,
-  MachineRowView
-} from './rows';
 
 // ---------------------------------------------------------------------------
 // The folder picker for another machine (Phase 84, item 6)
@@ -295,17 +292,18 @@ export interface MachineFileListResult {
 // Tortie tab. This block is what lets them change it and press Save, and what
 // lets them make a new empty file there.
 //
-// WHAT DECIDES WHETHER A BYTE EVER LANDS. One confirmed field on the machine
-// row, being `writeRoot`. A machine that carries none cannot be saved to at
-// all, and it hashes exactly as it did before this block existed. A person
-// turns saving on for one machine, once, by reading a sheet and pressing a
-// button in Settings, then Machines. Nothing automates past that moment.
+// WHAT DECIDES WHETHER A BYTE EVER LANDS (Phase 336). The machine is
+// confirmed, and the file sits in a project open on that machine, the way a
+// save on this Mac sits in an open project. Nothing is asked of a person: no
+// sheet, no Settings field. A row that still carries a legacy `writeRoot`
+// keeps saving under it exactly as before, and hashes as before. The far side
+// checks, in the same call as the write, that the folder is still the one
+// that was opened (its device and inode, pinned at the open).
 //
-// WHAT NONE OF THESE THREE CALLS DOES. None of them removes anything on either
-// computer. None of them makes a folder, renames anything or moves anything to
-// a Trash. None of them carries a root chosen in the renderer: main reads the
-// confirmed root out of the row and refuses a path that does not sit under it,
-// before it composes anything.
+// WHAT THE CALL DOES NOT DO. It removes nothing on either computer, makes no
+// folder, renames nothing and moves nothing to a Trash. It carries no root
+// chosen in the renderer: main chooses the folder from the open project rows
+// and refuses a path no such folder holds, before it composes anything.
 
 /**
  * The largest file this door will save, in bytes. 90,000.
@@ -322,49 +320,17 @@ export interface MachineFileListResult {
  * one program at 131,072 bytes. Encoding adds a third. So 90,000 bytes of file
  * becomes 120,000 bytes of payload and fits.
  *
- * A larger file is refused on this Mac before anything is sent, and a remote
- * file larger than this is refused at OPEN when saving is on for that machine,
- * because a tab that can never be saved is worse than a refusal that says why.
+ * A larger file is refused on this Mac before anything is sent. Since Phase 336
+ * a remote file larger than this OPENS read only rather than being refused at
+ * open (research 138 section 9: a file is never refused for opening because of
+ * the save cap).
  */
 export const REMOTE_FILE_MAX_BYTES = 90_000;
-
-/**
- * What the renderer sends to read the sheet for a folder a person typed.
- *
- * IT READS ONLY. It starts nothing, sends nothing to any machine and writes
- * nothing. It exists because the renderer may never compose a sheet's lines or
- * its hash, and there is no prior result to take this sheet from: the person
- * types the folder. A root that fails validation throws the validator's own
- * sentence.
- */
-export interface MachineWriteSheetInput {
-  id: string;
-  /** The absolute folder on that machine, as the person typed it. */
-  writeRoot: string;
-}
-
-/**
- * What the renderer sends when a person turns saving on for one machine.
- *
- * It is the shape {@link MachineAcceptVersionInput} takes, because it IS a
- * confirmation: main writes the field into the row and records the agreement in
- * one call, over the sheet the person read. A stale hash refuses and writes
- * nothing.
- */
-export interface MachineAllowWritesInput {
-  id: string;
-  /** The absolute folder on that machine. Main validates it again. */
-  writeRoot: string;
-  /** The hash the sheet was drawn from. Main refuses a stale one. */
-  hashRead: string;
-  /** The lines that were on the sheet. Recorded verbatim. */
-  linesRead: string[];
-}
 
 /** Which file on which machine is being saved, and what it should hold. */
 export interface MachineFilePutInput {
   machineId: string;
-  /** The absolute path ON THAT MACHINE. Main refuses one outside the root. */
+  /** The absolute path ON THAT MACHINE. Main refuses one no open project holds. */
   path: string;
   /** The whole file, as text. Main refuses more than REMOTE_FILE_MAX_BYTES. */
   contents: string;
@@ -380,7 +346,7 @@ export interface MachineFilePutInput {
 }
 
 /**
- * What happened to one save. Nine words, and six of them come from the machine.
+ * What happened to one save. Eleven words, and six of them come from the machine.
  *
  * `wrote` is the only one that means bytes landed. `writesOff`, `outsideRoot`
  * and `tooLarge` are decided on this Mac before anything is sent. `stale`,
@@ -388,6 +354,17 @@ export interface MachineFilePutInput {
  * every one of them means nothing was written there, because the script prints
  * all five of them above the line that writes and none of them below it. The
  * gate's condition 80 reads that property out of the script text.
+ *
+ * PHASE 336 APPENDED TWO, both meaning nothing was written. `folderChanged` is
+ * the far side finding that the folder at the project's path is not the folder
+ * that was opened (a different device and inode, or none at all); it is never
+ * `outsideRoot` and never `moved`, because Refresh could not clear it and the
+ * folder is not outside anything. Opening the folder again is what clears it.
+ * `protected` is a path naming a `.git` or `.ssh` folder in any case or any
+ * spelling the volume folds, refused in main before composing and again on the
+ * far side. `writesOff` now means "no open project holds this file" when its
+ * `writeRoot` is null, and "a folder Tortie never writes under" (`/`, a home,
+ * a folder directly inside or holding one) when it names the folder.
  *
  * THE SCRIPT HAS ONE MORE WORD AND IT IS NOT HERE ON PURPOSE. `unsure` is what
  * it prints when the bytes are already in place and it cannot describe them.
@@ -404,7 +381,9 @@ export type MachineFilePutOutcome =
   | 'nosum'
   | 'writesOff'
   | 'outsideRoot'
-  | 'tooLarge';
+  | 'tooLarge'
+  | 'folderChanged'
+  | 'protected';
 
 /** What one save did, in the shape the surface that asked for it reads. */
 export interface MachineFilePutResult {
@@ -413,7 +392,12 @@ export interface MachineFilePutResult {
   readonly sha256: string | null;
   /** The bytes on the far side after a `wrote`, or the bytes refused for `tooLarge`. */
   readonly bytes: number | null;
-  /** The confirmed root, for the two sentences that name it. Null when there is none. */
+  /**
+   * The folder this write was bound by, for the sentences that name it: an open
+   * project's stored path or a legacy `writeRoot`. Null when no open project
+   * holds the file. Kept by this name since Phase 101 so the contract is
+   * appended to rather than renamed (Phase 336, SPEC D11).
+   */
   readonly writeRoot: string | null;
 }
 // ---- END PHASE 101 BLOCK ----
@@ -425,15 +409,15 @@ export interface MachineFilePutResult {
 // another machine and make a new empty one there. These two calls let them
 // make a folder there and rename a file or a folder there, from the Explorer.
 //
-// WHAT DECIDES WHETHER ANYTHING HAPPENS. The same one confirmed field Phase
-// 101 added, being `writeRoot`. NO NEW FIELD IS CONFIRMED BY THIS BLOCK, the
-// hash still covers six fields, and no machine anybody already confirmed is
-// asked again.
+// WHAT DECIDES WHETHER ANYTHING HAPPENS (Phase 336). The same rule a save
+// follows: a confirmed machine, and a path inside a project open on it (or
+// under a legacy `writeRoot`). NO FIELD IS CONFIRMED BY THIS BLOCK and no
+// machine anybody already confirmed is asked again.
 //
 // NO ROOT CROSSES EITHER CHANNEL. Neither input type has a member called
-// `root`. Main reads the confirmed folder off the machine row at call time and
-// refuses every path that does not sit under it, before it composes anything.
-// A folder chosen in the renderer therefore cannot decide what is written
+// `root`. Main chooses the folder from that machine's open project rows and
+// refuses every path no such folder holds, before it composes anything. A
+// folder chosen in the renderer therefore cannot decide what is written
 // under, which is the shape Phase 101 shipped.
 //
 // NEITHER EVER THROWS FOR SOMETHING THE MACHINE SAID. A folder that is already
@@ -457,13 +441,14 @@ export interface MachineMakeDirInput {
 }
 
 /**
- * What happened to one new folder. Six words, and four come from the machine.
+ * What happened to one new folder. Eight words, and four come from the machine.
  *
  * `made` is the only one that means a folder is there that was not there
  * before. `writesOff` and `outsideRoot` are decided on this Mac before anything
  * is sent. `exists`, `denied` and `noparent` are what the machine reported, and
  * all three are printed above the `mkdir` and none below it, so every one of
- * them means nothing was created.
+ * them means nothing was created. Phase 336 appended `folderChanged` and
+ * `protected`, which mean what they mean on a save and also made nothing.
  */
 export type MachineMakeDirOutcome =
   | 'made'
@@ -471,7 +456,9 @@ export type MachineMakeDirOutcome =
   | 'denied'
   | 'noparent'
   | 'writesOff'
-  | 'outsideRoot';
+  | 'outsideRoot'
+  | 'folderChanged'
+  | 'protected';
 
 /** What one new folder did, in the shape the surface that asked for it reads. */
 export interface MachineMakeDirResult {
@@ -486,7 +473,10 @@ export interface MachineMakeDirResult {
    * parent's last two octal digits are each 5 or 7, and 700 otherwise.
    */
   readonly mode: string | null;
-  /** The confirmed folder, for the sentences that name it. Null when none. */
+  /**
+   * The folder this write was bound by, for the sentences that name it. Null
+   * when no open project holds the path (Phase 336, SPEC D11).
+   */
   readonly writeRoot: string | null;
   readonly tookMs: number;
 }
@@ -511,7 +501,10 @@ export interface MachineRenameInput {
  * APART from a machine where somebody else already held a file at the
  * destination while the source never existed, and the product does not pretend
  * to. `exists` and `gone` mean nothing was moved. `writesOff` and `outsideRoot`
- * are decided on this Mac before anything is sent.
+ * are decided on this Mac before anything is sent. Phase 336 appended
+ * `folderChanged` and `protected`, which mean what they mean on a save and also
+ * moved nothing. `outsideRoot` is still the answer for a rename whose two ends
+ * no one open folder holds.
  */
 export type MachineRenameOutcome =
   | 'moved'
@@ -519,7 +512,9 @@ export type MachineRenameOutcome =
   | 'exists'
   | 'gone'
   | 'writesOff'
-  | 'outsideRoot';
+  | 'outsideRoot'
+  | 'folderChanged'
+  | 'protected';
 
 /** What one rename did, in the shape the surface that asked for it reads. */
 export interface MachineRenameResult {
@@ -534,7 +529,10 @@ export interface MachineRenameResult {
    * only does prefix arithmetic for descendants when this says `dir`.
    */
   readonly kind: 'file' | 'dir';
-  /** The confirmed folder, for the sentences that name it. Null when none. */
+  /**
+   * The folder this write was bound by, for the sentences that name it. Null
+   * when no open project holds the path (Phase 336, SPEC D11).
+   */
   readonly writeRoot: string | null;
   readonly tookMs: number;
 }
@@ -652,32 +650,16 @@ export interface MachinesFilesystemInvokeChannelMap {
     res: MachineFileListResult;
   };
   // ---- PHASE 101 BLOCK ----
-  // THIS ONE READS. It answers the sheet for the row as it is now plus the
-  // folder a person typed, so the renderer never composes a sheet's hash. It
-  // starts nothing, sends nothing to any machine and writes nothing. A folder
-  // that fails validation throws the validator's own sentence.
-  //
-  // A `machines:allowWrites` that previewed when `hashRead` was null was
-  // rejected. A channel that both previews and writes is a channel where one
-  // wrong argument writes.
-  'machines:writeSheet': {
-    req: [input: MachineWriteSheetInput];
-    res: MachineConfirmSheet;
-  };
-  // THIS ONE WRITES, on this Mac and nowhere else. It writes the folder into
-  // the row and records the agreement in one call, over the sheet the person
-  // read. A stale hash refuses before either write. It starts no process, opens
-  // no connection and sends nothing to any machine.
-  'machines:allowWrites': {
-    req: [input: MachineAllowWritesInput];
-    res: MachineRowView;
-  };
+  // PHASE 336 REMOVED THE TWO CHANNELS that previewed and set a typed folder
+  // on the machine row. Saving follows
+  // the projects opened on a machine now, so nothing in Tortie sets a
+  // `writeRoot` any more (research 138 section 9).
   // THIS ONE WRITES ON ANOTHER COMPUTER, and it was the third channel in this
-  // contract that could. Phase 102 added the fourth and the fifth. Main asks the confirm gate, refuses a machine with no
-  // confirmed folder, refuses a file over REMOTE_FILE_MAX_BYTES and refuses a
-  // path outside the confirmed folder, all before anything is composed. The
-  // machine then refuses again unless the file's contents still match what
-  // Tortie read.
+  // contract that could. Phase 102 added the fourth and the fifth. Main asks the confirm gate, refuses a path no open
+  // project on that machine holds, refuses a file over REMOTE_FILE_MAX_BYTES
+  // and refuses a `.git` or `.ssh` path, all before anything is composed. The
+  // machine then refuses again unless the folder is still the one that was
+  // opened and the file's contents still match what Tortie read.
   'machines:putFile': {
     req: [input: MachineFilePutInput];
     res: MachineFilePutResult;
@@ -685,11 +667,11 @@ export interface MachinesFilesystemInvokeChannelMap {
   // ---- END PHASE 101 BLOCK ----
   // ---- PHASE 102 BLOCK ----
   // BOTH OF THESE WRITE ON ANOTHER COMPUTER, and they are the fourth and the
-  // fifth channels in this contract that can. Main asks the confirm gate,
-  // refuses a machine with no confirmed folder and refuses every path outside
-  // that folder, all before anything is composed. NEITHER CARRIES A ROOT: main
-  // reads the confirmed folder off the row, so nothing chosen in the renderer
-  // decides what is written under.
+  // fifth channels in this contract that can. Main asks the confirm gate and
+  // refuses every path no open project on that machine holds, all before
+  // anything is composed. NEITHER CARRIES A ROOT: main chooses the folder from
+  // the open project rows, so nothing chosen in the renderer decides what is
+  // written under.
   //
   // Neither throws for anything the machine said. A machine Tortie is not
   // signed in to throws `MACHINE_NOT_CONNECTED`, which is main's own sentence
@@ -741,13 +723,8 @@ export interface MachinesFilesystemApi {
   // contents. It reads and never writes.
   listFiles(input: MachineFileListInput): Promise<MachineFileListResult>;
   // ---- PHASE 101 BLOCK ----
-  // Phase 101. Reads the sheet for the row as it is now plus the folder a
-  // person typed. It starts nothing, sends nothing and writes nothing.
-  writeSheet(input: MachineWriteSheetInput): Promise<MachineConfirmSheet>;
-  // Phase 101. Turns saving on for one machine. It writes the folder into
-  // the row and records the agreement, on this Mac and nowhere else. It
-  // contacts no machine and starts nothing.
-  allowWrites(input: MachineAllowWritesInput): Promise<MachineRowView>;
+  // Phase 336 removed the two methods that previewed and set a typed folder
+  // on the machine row, with their channels.
   // Phase 101. Saves one file on one machine. It was the third call in this
   // contract that writes on another computer, and Phase 102 added two more.
   putFile(input: MachineFilePutInput): Promise<MachineFilePutResult>;

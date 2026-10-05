@@ -1,5 +1,10 @@
 #!/usr/bin/env node
 /**
+ * RETIRED BY PHASE 336, and it refuses at start, exit 2, with one sentence
+ * naming `npm run probe:p336`. Phase 336 removed the Settings › Machines saving
+ * sheet that launch C below drives. The file stays because probe:p336 imports
+ * `ATTACK_ARMS`, and `--self-test` still proves the grader.
+ *
  * Phase 242. THE REHEARSAL. Every write verb Tortie has, driven in one run
  * against the operator's own Mac Pro over the real link, with every result read
  * back from that machine by an `ssh` Tortie did not compose.
@@ -520,7 +525,26 @@ function selfTest() {
   process.exit(bad === 0 ? 0 : 1);
 }
 
-if (process.argv.includes('--self-test')) selfTest();
+// PHASE 336 RETIRED THIS RUN, and it refuses rather than failing halfway.
+// Launch C named a folder and confirmed it through Settings › Machines' saving
+// sheet, and Phase 336 removed that sheet with its two channels
+// (`machines:writeSheet`, `machines:allowWrites`): a project open on a
+// confirmed machine is now the folder Tortie may write under, with nothing
+// asked. Its successor is `npm run probe:p336` (build/p336/probe-p336.mjs),
+// which IMPORTS `ATTACK_ARMS` above, so this file stays and keeps exporting
+// them. The refusal is asked only when this file is the program being run, so
+// an import of the arms neither exits nor launches anything. `--self-test`
+// still proves the grader on its fixtures.
+export const P242_RETIRED_BY_P336 =
+  'probe:p242 drove the Settings › Machines saving sheet that Phase 336 removed, so it no longer runs; ' +
+  'npm run probe:p336 (build/p336/probe-p336.mjs) is the run that replaced it, and it imports this file\'s ATTACK_ARMS.';
+const runAsProgram =
+  process.argv[1] !== undefined && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (runAsProgram && process.argv.includes('--self-test')) selfTest();
+if (runAsProgram) {
+  process.stderr.write(`${TAG} REFUSING TO RUN. ${P242_RETIRED_BY_P336}\n`);
+  process.exit(2);
+}
 
 // ---------------------------------------------------------------------------
 // The run
@@ -1210,4 +1234,6 @@ async function main() {
   }
 }
 
-await main().catch((e) => { say(`FAILED ${String((e && e.stack) || e)}`); process.exitCode = 1; });
+// Unreachable since Phase 336 (the refusal above exits first), and guarded so
+// that an import of ATTACK_ARMS can never start it.
+if (runAsProgram) await main().catch((e) => { say(`FAILED ${String((e && e.stack) || e)}`); process.exitCode = 1; });

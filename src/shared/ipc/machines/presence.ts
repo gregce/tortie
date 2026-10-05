@@ -126,8 +126,42 @@ export interface MachineStateView {
    * main refuses that case anyway, and this copy must never disagree with main.
    *
    * Optional, and absent reads as null.
+   *
+   * PHASE 336 MADE IT A LEGACY FIELD, and this paragraph says so rather than
+   * rewriting the one above. Nothing in Tortie can set a write root any more:
+   * Settings › Machines lost the block that typed one, and the two channels
+   * that wrote it are gone. A row whose machines.json still carries one, by
+   * hand, keeps it, hashes as it did, and still saves under it with exactly
+   * the bound it had (build/p336/SPEC.md D16), so this copy still names it. It
+   * is no longer the only folder a tab may be saved under on that machine:
+   * {@link MachineStateView.savesInProjects} is the other half.
    */
   readonly writeRoot?: string | null;
+  /**
+   * PHASE 336. Whether a project a person opened on this machine is a folder
+   * Tortie may save under, which is the question the renderer asks before it
+   * draws a tab on that machine as something to type into.
+   *
+   * IT IS TRUE FOR A CONFIRMED ROW AND FALSE FOR ANY OTHER, by the one rule
+   * that already decided {@link MachineStateView.writeRoot}: a row nobody
+   * confirmed, or whose details changed after it was confirmed, writes nothing
+   * until a person confirms it again (research 138 section 9, "a changed
+   * machine writes nothing until confirmed again"). It is the confirmation and
+   * never a field of the row, so nothing written into machines.json can turn
+   * it on. It is carried on this view for the reason `writeRoot` is: this list
+   * is pushed whenever the link, the machines file or the confirmation record
+   * moves, so a tab never draws an answer older than the last confirmation.
+   *
+   * It says nothing about WHICH folder. That is decided from the window's own
+   * open projects on this machine, by the one shared rule main also asks
+   * (`src/shared/remote-write-folder.ts`), and main is the safeguard: this copy
+   * is presentational and must never disagree with it.
+   *
+   * Optional, and absent reads as false, so a view written before the field
+   * existed draws a tab on that machine read only unless a write root holds
+   * it, which is what it drew then.
+   */
+  readonly savesInProjects?: boolean;
 }
 
 /**

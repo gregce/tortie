@@ -21,11 +21,12 @@
  * cheaper to state that twice, right where the write would happen, than to
  * rely on every caller remembering.
  *
- * PHASE 101 SPLIT `save` IN TWO. A review tab whose machine carries a folder a
- * person confirmed Tortie may save under is saved on that machine, through the
- * one channel that can write there. A review tab whose machine carries none is
- * refused, out loud, exactly as it was. Nothing about a history tab moved: the
- * past is not an edit surface on any computer.
+ * PHASE 101 SPLIT `save` IN TWO. A review tab Tortie may save is saved on that
+ * machine, through the one channel that can write there, and any other review
+ * tab is refused, out loud. PHASE 336 changed which tabs those are: a file
+ * inside a project open on a confirmed machine saves, as a file inside a
+ * project open on this Mac does, with nothing asked. Nothing about a history
+ * tab moved: the past is not an edit surface on any computer.
  *
  * PHASE 240 SPLIT THE LOCAL HALF IN TWO AS WELL, and it is issue 16, Sean
  * Johnson: "When I edit a file, then save, there's no warning if someone else
@@ -74,13 +75,12 @@
 
 import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
 import { errorText, useApp } from '../state/store';
-import { machineWriteRootFor } from '../state/machines-slice';
+import { remoteWriteFolderIn } from '../state/machines-slice';
 import {
   remoteOpenTooLarge,
-  remoteOpenTooLargeOver,
   remoteSaveLostAnswer,
   remoteSaveRefusal,
-  remoteSaveRefused
+  remoteSaveRefusedFor
 } from '../machines/editor';
 import { announceRemoteWrite } from '../machines/remote-writes';
 import { requestOpenFile } from '../state/open-file';
@@ -591,47 +591,33 @@ export function createTabIo(deps: TabIoDeps): TabIo {
         return;
       }
       /**
-       * PHASE 101. A file Tortie could never save is not opened at all, on a
-       * machine where saving is on.
+       * PHASE 336. A file larger than Tortie can save on that machine OPENS,
+       * read only, where Phase 101 refused the open on a machine with saving
+       * on. Research 138's ruling is that a file is never refused for OPENING
+       * because of the save cap.
        *
-       * WHY THE OPEN AND NOT THE SAVE. The read cap is 2,097,152 bytes and the
-       * save cap is 90,000. The save cap cannot be raised to meet the read cap,
-       * because the whole command Tortie sends is capped as well and a file
-       * that size does not fit at any encoding. So the choice is between
-       * refusing the open and shipping a tab that can never be saved, and a tab
-       * that can never be saved is the defect Phase 96 fixed by accident.
-       *
-       * IT IS REFUSED ONLY WHEN SAVING IS ON. With saving off the tab is read
-       * only anyway, so refusing the open would take away a read a person has
-       * today and give nothing back.
+       * WHY THE CAP CANNOT MOVE INSTEAD. The read cap is 2,097,152 bytes and
+       * the save cap is 90,000. The whole command Tortie sends is capped as
+       * well and a file that size does not fit at any encoding, so a tab over
+       * the save cap can never be saved. It is marked `saveCapped`, which is
+       * the fifth reason `tabIsReadOnly` gives for a tab on another machine,
+       * and the band says why typing changes nothing.
        *
        * TWO SENTENCES, because a cut read gives a floor rather than a
        * measurement. `pair.bytes` is the file's real size when the read was
-       * whole, and it is the read cap when the read was cut, so the second
-       * sentence says over and never prints the floor as the size.
+       * whole, and it is the read cap when the read was cut, so the band says
+       * over and never prints the floor as the size. A tab under the cap
+       * carries no mark, so a re-read of a file that shrank clears it.
        */
-      const writeRoot = machineWriteRootFor(
-        useApp.getState().machineStates,
-        remote.machineId
-      );
-      if (
-        writeRoot !== null &&
-        writeRoot.length > 0 &&
-        pair.bytes > REMOTE_FILE_MAX_BYTES
-      ) {
-        deps.patch(id, {
-          loading: false,
-          error: pair.truncated
-            ? remoteOpenTooLargeOver(pair.bytes, remote.machineLabel)
-            : remoteOpenTooLarge(pair.bytes, remote.machineLabel)
-        });
-        return;
-      }
       deps.patch(id, {
         headContents: pair.oldContents,
         savedContents: pair.newContents,
         loading: false,
-        error: null
+        error: null,
+        saveCapped:
+          pair.bytes > REMOTE_FILE_MAX_BYTES
+            ? { bytes: pair.bytes, over: pair.truncated }
+            : undefined
       });
       // The cap is a fact about what is on screen, so it is said once here
       // rather than drawn as a permanent banner. `truncated` also puts the tab
@@ -668,13 +654,12 @@ export function createTabIo(deps: TabIoDeps): TabIo {
    * already uses for a large remote file, naming that size, and the tab shows
    * nothing else.
    *
-   * IT IS REFUSED WHETHER OR NOT SAVING IS ON, which is where it parts from
-   * the review tab above. That refusal exists so a person is not handed a tab
-   * whose every save would be refused, so with saving off it does not apply
-   * and the whole 2 MiB read is shown. Here BOTH SIDES ARE CUT at the ceiling
-   * by the script itself, so a file over it cannot be shown whole at all and
-   * a tab drawn from the cut bytes would be a diff of two files neither of
-   * which is the one that was asked for.
+   * IT IS REFUSED WHATEVER FOLDER HOLDS IT, which is where it parts from the
+   * review tab above: since Phase 336 a review tab over the save cap opens
+   * read only, and the whole 2 MiB read is shown. Here BOTH SIDES ARE CUT at
+   * the ceiling by the script itself, so a file over it cannot be shown whole
+   * at all and a tab drawn from the cut bytes would be a diff of two files
+   * neither of which is the one that was asked for.
    */
   const loadRemoteCommitDiff = async (
     id: string,
@@ -900,13 +885,15 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   /**
    * Save one tab whose file is on another machine (Phase 101).
    *
-   * THE ORDER MATTERS AND IT IS THE SAFETY PROPERTY. Saving off is answered
-   * here, on this Mac, before anything is composed. Everything past that is
-   * main's decision: main reads the confirmed folder off the row on disk at
-   * call time, checks the machine's agreement, refuses a path outside the
-   * folder, and refuses a payload over the cap. This function never sends a
-   * folder and never chooses one, so the folder that decides what may be
-   * written is the one a person read on a sheet and confirmed.
+   * THE ORDER MATTERS AND IT IS THE SAFETY PROPERTY. A file outside every
+   * project open on that machine is answered here, on this Mac, before
+   * anything is composed. Everything past that is main's decision: main checks
+   * the machine's agreement, chooses the folder from that machine's open
+   * projects by the same shared rule this renderer read, refuses a `.git` or
+   * `.ssh` path and a payload over the cap, and has that machine compare the
+   * folder's identity with the one it read when the project was opened, in
+   * the same call as the write. This function never sends a folder and never
+   * chooses one (Phase 336).
    *
    * A SUCCESS SHOWS NOTHING. The dirty dot clears, which is exactly what a save
    * on this Mac does. Two behaviours on one surface are harder to learn than
@@ -920,29 +907,35 @@ export function createTabIo(deps: TabIoDeps): TabIo {
   ): Promise<boolean> => {
     const label = remote.machineLabel;
     const sticky = { sticky: true } as const;
-    const writeRoot = machineWriteRootFor(
-      useApp.getState().machineStates,
-      remote.machineId
+    const app = useApp.getState();
+    const folder = remoteWriteFolderIn(
+      app.machineStates,
+      app.projects,
+      remote.machineId,
+      tab.path,
+      'file'
     );
-    if (writeRoot === null || writeRoot.length === 0) {
-      // PHASE 229. The toast carries the button its own sentence names.
-      // `settings:openWindow` takes no argument, so the button opens the
-      // Settings window and the sentence still says which section.
-      useApp.getState().toast('error', remoteSaveRefused(label), {
-        ...sticky,
-        action: {
-          label: 'Open settings',
-          run: () => {
-            void gmux?.openSettings?.();
-          }
-        }
-      });
+    if ('refused' in folder) {
+      // PHASE 336. The toast says which folders Tortie saves in on that
+      // machine, and carries NO button. Phase 229 gave it "Open settings",
+      // because the one door that turned saving on was there; that door is
+      // gone, and a project open on a confirmed machine saves with nothing
+      // asked, so there is nothing in Settings for a person to do.
+      app.toast('error', remoteSaveRefusedFor(folder.refused, label), sticky);
       return false;
     }
-    // The three tabs that are not edit surfaces on any computer. They are
-    // checked after the refusal above so that a machine with saving off still
-    // says the one thing a person can act on.
-    if (tab.deleted || tab.truncated || tab.error !== null) return false;
+    // The tabs that are not edit surfaces on any computer, and a file larger
+    // than Tortie can save there (Phase 336), whose band already says so. They
+    // are checked after the refusal above so that a file outside every
+    // project still says the one thing a person can act on.
+    if (
+      tab.deleted ||
+      tab.truncated ||
+      tab.saveCapped !== undefined ||
+      tab.error !== null
+    ) {
+      return false;
+    }
     const machines = gmux ? gmux.machines : undefined;
     if (machines === undefined || typeof machines.putFile !== 'function') {
       useApp.getState().toast('error', NO_REMOTE_SAVE, sticky);

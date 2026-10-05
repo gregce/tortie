@@ -33,8 +33,9 @@ const STUDIO: MachineStateRow = {
   refusal: null,
   // PHASE 235. A confirmed row's details have not changed.
   changed: false,
-  // PHASE 101. This machine grants no saving, which is what every row in every
-  // file says today.
+  // PHASE 101. No folder typed for saving, which is what every row in every
+  // file says today. Since Phase 336 that no longer means no saving: a
+  // confirmed row saves in the projects open on it (`savesInProjects`).
   writeRoot: null
 };
 
@@ -122,8 +123,11 @@ describe('machineStateViewOf', () => {
       everAnswered: true,
       lastAnsweredAt: 1_700_000_000_000,
       detail: null,
-      // Phase 101. This machine grants no saving.
-      writeRoot: null
+      // Phase 101. This machine grants no saving under a typed folder.
+      writeRoot: null,
+      // PHASE 336. It is confirmed, so the projects opened on it save, with no
+      // folder typed anywhere. ./p336-saves-in-projects.test.ts holds the rule.
+      savesInProjects: true
     });
   });
 

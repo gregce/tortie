@@ -1,0 +1,50 @@
+{
+  "_note": "HAND-WRITTEN from the parent source (2867bc39), for the arm order run() uses: the parent sets B's writeRoot (<far>/link-above/repo) BEFORE it drives A and H4, so every path verb there is outside that folder and answers outsideRoot (remote-file.ts:321-322, remote-entry.ts:258 and :368, remote-stage.ts:561), and commit answers refused. writesOff is the answer only when no writeRoot is set (P336_ARMS without B). Read by --grader-self-test only.",
+  "build": "parent",
+  "far": "loopback",
+  "arms": {
+    "B": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done"
+      }
+    },
+    "A": {
+      "outcomes": {
+        "put": "outsideRoot",
+        "makeDir": "outsideRoot",
+        "rename": "outsideRoot",
+        "stage": "outsideRoot",
+        "unstage": "outsideRoot",
+        "commit": "refused"
+      }
+    },
+    "H5L": {
+      "outcome": "wrote",
+      "why": null,
+      "fileBefore": "planted\n",
+      "fileAfter": "PARENT WROTE\n"
+    },
+    "H4": {
+      "outcomes": {
+        "gitConfig": "outsideRoot",
+        "hook": "outsideRoot",
+        "gitDir": "outsideRoot",
+        "intoSsh": "outsideRoot",
+        "stageCwd": "outsideRoot",
+        "ssfold": "outsideRoot",
+        "longs": "outsideRoot"
+      }
+    },
+    "L": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done",
+        "commit": "committed"
+      },
+      "hash": "f09ddd90382dc9e6f52326f9b4938c00a37031e6c96f2f757573ca18af6d9e66"
+    }
+  }
+}

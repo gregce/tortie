@@ -110,32 +110,27 @@ export interface P104CommitSpec {
    */
   offline?: boolean;
   /**
-   * The confirmed folder to put on that machine's row, or null for none.
+   * Whether that machine's row reads as one Tortie saves in projects on.
    *
-   * IT IS PRESENTATIONAL AND IT DECIDES ONE BUTTON. Main reads the confirmed
-   * folder off the record on disk at call time and refuses there whatever this
-   * says, so a caller writing a folder here cannot make a machine writable.
-   * What it can do is put the panel into the state where saving is off, which
-   * is one of the six reasons the commit button is disabled and is one of the
-   * photographs the phase asks for.
+   * PHASE 336 REPLACED the `writeRoot` knob, which wrote one confirmed folder
+   * onto the row. A project open on a confirmed machine is now a folder Tortie
+   * may write under, so the tab this drive opens is writable whenever its
+   * machine is confirmed, and `false` here is the one way left to draw the
+   * button refused for its folder: the row reads as a machine that is not
+   * confirmed right now.
+   *
+   * IT IS PRESENTATIONAL AND IT DECIDES ONE BUTTON. Main decides the folder
+   * again at call time and refuses there whatever this says, so a caller
+   * cannot make a machine writable with it.
    *
    * Left out, THE REAL ROW MAIN PUSHED IS WHAT THE PANEL READS, on an injected
    * tab as well as on a real one. Only when this renderer holds no row for that
-   * machine at all does an injected tab fall back to its own folder, so the
-   * seeded modes are not all stuck on the saving-off reason.
-   *
-   * IT DEFAULTED TO THE TAB'S OWN FOLDER ON EVERY INJECTED TAB UNTIL
-   * 2026-08-21, and that made one photograph race. The row that photographs
-   * saving being off pressed Commit before the real tab had reached the
-   * renderer's project list, so the drive injected a tab, wrote the tab's own
-   * folder into the row, and the button was PRESSABLE in the picture that is
-   * meant to show it refused. Three seconds later the same call reported it
-   * disabled with the saving-off reason. Nothing crossed either way, because
-   * main refuses on the record on disk, and the commit count over there was 1
-   * before and 1 after. A caller that wants the saving-off state now passes
-   * `writeRoot: null` and gets it whichever way the race lands.
+   * machine at all does an injected row read as confirmed, so the seeded modes
+   * are not all stuck on the refused reason. Phase 104's race note still holds:
+   * a caller that wants the refused state passes `false` and gets it whichever
+   * way the race between the real tab and the injected one lands.
    */
-  writeRoot?: string | null;
+  savesInProjects?: boolean;
   /**
    * Type this into the commit box before anything is pressed.
    *
@@ -282,14 +277,14 @@ export function registerP104CommitDrive(): void {
       everAnswered: true,
       lastAnsweredAt: Date.now(),
       detail: null,
-      // The real row when this renderer has one, so an injected tab reads the
-      // same confirmed folder a real tab reads. The tab's own folder is the
-      // fallback only when there is no row for this machine at all.
-      writeRoot:
-        spec?.writeRoot !== undefined
-          ? spec.writeRoot
+      // The real row's answer when this renderer has one, so an injected tab
+      // reads what a real tab reads. A confirmed row is the fallback only when
+      // there is no row for this machine at all.
+      savesInProjects:
+        spec?.savesInProjects !== undefined
+          ? spec.savesInProjects
           : (useApp.getState().machineStates.find((one) => one.id === machineId)
-              ?.writeRoot ?? path)
+              ?.savesInProjects ?? true)
     };
     const injectedProject: Project = {
       id: `${machineId}-p104`,
@@ -355,11 +350,12 @@ export function registerP104CommitDrive(): void {
           machineRow
         ]
       });
-    } else if (spec?.offline === true || spec?.writeRoot !== undefined) {
+    } else if (spec?.offline === true || spec?.savesInProjects !== undefined) {
       // The tab is real and the caller wants the link down, or wants the
-      // confirmed folder changed. Only the machine's own row is rewritten, so
-      // the tab and its rows stay exactly as they were. A caller that asked for
-      // neither leaves the row main pushed exactly as main pushed it.
+      // row's confirmation read differently. Only the machine's own row is
+      // rewritten, so the tab and its rows stay exactly as they were. A caller
+      // that asked for neither leaves the row main pushed exactly as main
+      // pushed it.
       const real = useApp
         .getState()
         .machineStates.find((one) => one.id === machineId);
@@ -371,8 +367,8 @@ export function registerP104CommitDrive(): void {
           {
             ...(real ?? machineRow),
             ...(spec?.offline === true ? { link: 'quiet' as const } : {}),
-            ...(spec?.writeRoot !== undefined
-              ? { writeRoot: spec.writeRoot }
+            ...(spec?.savesInProjects !== undefined
+              ? { savesInProjects: spec.savesInProjects }
               : {})
           }
         ]

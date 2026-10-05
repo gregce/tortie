@@ -150,8 +150,8 @@ function positionals(text: string): Positional[] {
 }
 
 describe('the catalogue', () => {
-  it('holds twenty nine scripts and this release holds no others', () => {
-    expect(REMOTE_SCRIPTS).toHaveLength(29);
+  it('holds thirty scripts and this release holds no others', () => {
+    expect(REMOTE_SCRIPTS).toHaveLength(30);
     expect(REMOTE_SCRIPTS.map((script) => script.id).sort()).toEqual([
       // PHASE 104 added `git-commit`, and it WRITES. It is the eighth writer,
       // so the write count below moved from seven to eight. It is the third
@@ -274,6 +274,12 @@ describe('the catalogue', () => {
       // GIT_VERBS above did not move either.
       'env-names',
       'file-put',
+      // PHASE 336 added `folder-pin`, which prints one folder's device and
+      // inode, taken through the folder, so main can pin a project folder when
+      // a person opens it and every folder-bound write can carry that pin. It
+      // is a read, it writes nothing and it names no git verb, so neither the
+      // write count below nor GIT_VERBS above moved.
+      'folder-pin',
       'git-clone',
       'git-commit',
       'git-stage',
@@ -341,13 +347,13 @@ describe('the catalogue', () => {
     // These read the TEXT, because what makes it safe is a property of that
     // text. It is the one write whose repeat safety is a guard it carries
     // itself rather than a destination test or an end state.
-    it('declares five values and writes', () => {
-      // Three since Phase 104, plus the Phase 242.1 pair: the confirmed folder
-      // and the tab's own folder relative to it. The message stayed `$3`, so
-      // `-m "$3"` did not move.
+    it('declares six values and writes', () => {
+      // Three since Phase 104, plus the Phase 242.1 pair (the folder and the
+      // tab's own folder relative to it), plus Phase 336's pin, last. The
+      // message stayed `$3`, so `-m "$3"` did not move.
       const script = remoteScript('git-commit');
       expect(script?.mode).toBe('write');
-      expect(script?.params).toBe(5);
+      expect(script?.params).toBe(6);
     });
 
     it('compares the sha Tortie read before it commits anything', () => {
@@ -447,12 +453,13 @@ describe('the catalogue', () => {
       message: string
     ): { word: string; blob: string; sha: string } {
       const text = remoteScript('git-commit')?.text ?? '';
-      // The Phase 242.1 pair, with the repository itself as the confirmed
-      // folder and an empty relative part, which is the ordinary shape of a tab
-      // opened at the folder the person confirmed.
+      // The Phase 242.1 pair, with the repository itself as the folder and an
+      // empty relative part, which is the ordinary shape of a tab opened at
+      // the folder, and Phase 336's pin `-`, a legacy root, so the folder
+      // check is skipped and these rows hold what they held before.
       const out = execFileSync(
         '/bin/sh',
-        ['-c', text, 'sh', root, guard, message, root, ''],
+        ['-c', text, 'sh', root, guard, message, root, '', '-'],
         {
           encoding: 'utf8',
           env: GIT_ENV
@@ -532,16 +539,18 @@ describe('the catalogue', () => {
     // These read the TEXT, because what makes them safe is a property of that
     // text. Both send ONE git process per call and the loop that builds the
     // pathspec list spawns nothing at all.
+    // PHASE 336. The guard's shape half answers `badname` and its reserved
+    // half answers `protected`, both inside the markers, rather than exit 1.
     const guard =
-      "case \"$p\" in ''|.|/*|*..*|*/|.git|.git/*|*/.git|*/.git/*) exit 1;; esac";
+      "  case \"$p\" in ''|.|/*|*..*|*/) printf '__TORTIE_RUN__badname none__TORTIE_RUN__\\n'; exit 0;; esac";
 
-    it('declares four values each and both write', () => {
-      // Two since Phase 103, plus the Phase 242.1 pair: the confirmed folder
-      // and the tab's own folder relative to it.
+    it('declares five values each and both write', () => {
+      // Two since Phase 103, plus the Phase 242.1 pair (the folder and the
+      // tab's own folder relative to it), plus Phase 336's pin, last.
       for (const id of ['git-stage', 'git-unstage']) {
         const script = remoteScript(id);
         expect(script?.mode).toBe('write');
-        expect(script?.params).toBe(4);
+        expect(script?.params).toBe(5);
       }
     });
 
@@ -566,7 +575,9 @@ describe('the catalogue', () => {
         const text = remoteScript(id)?.text ?? '';
         const guardAt = text.indexOf(guard);
         expect(guardAt).toBeGreaterThanOrEqual(0);
-        expect(guardAt).toBeLessThan(text.indexOf('cd "$r"'));
+        // PHASE 336. The repository is reached from the folder the check
+        // entered (`repoAnchor`), and its first step is into the tab's folder.
+        expect(guardAt).toBeLessThan(text.indexOf('cd -P -- "./$c"'));
         expect(guardAt).toBeLessThan(text.indexOf('git '));
       }
     });
@@ -575,7 +586,9 @@ describe('the catalogue', () => {
       for (const id of ['git-stage', 'git-unstage']) {
         const text = remoteScript(id)?.text ?? '';
         expect(text).toContain('set -- "$@" ":(literal)$p"');
-        expect(text).toContain('[ "$#" -gt 0 ] || exit 1');
+        expect(text).toContain(
+          `if [ "$#" = 0 ]; then printf '__TORTIE_RUN__badname none__TORTIE_RUN__\\n'; exit 0; fi`
+        );
       }
     });
 
@@ -782,9 +795,9 @@ describe('a read script', () => {
 describe('the folder write', () => {
   const write = remoteScript('dir-new');
 
-  it('is a write taking two values', () => {
+  it('is a write taking three values, the pin last', () => {
     expect(write?.mode).toBe('write');
-    expect(write?.params).toBe(2);
+    expect(write?.params).toBe(3);
   });
 
   it('tests the destination before it makes anything', () => {
@@ -829,22 +842,23 @@ describe('the folder write', () => {
     expect(write?.text).toContain('|| true');
   });
 
-  it('carries the WIDER containment line, being the one with .git in it', () => {
-    // `file-put` carries `review-file`'s narrower line and Phase 102 does not
-    // widen a shipped writer, so `.git` is guarded here and not there.
-    expect(write?.text).toContain(
-      'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
-    );
-    expect(remoteScript('file-put')?.text).not.toContain('.git');
+  it('carries the two containment lines, and so does file-put since Phase 336', () => {
+    // Until Phase 336 this writer carried a case-sensitive `.git` half that
+    // `file-put` lacked, and refused with exit 1. Now all three path writers
+    // carry the same two lines, each answering inside the markers.
+    for (const text of [write?.text ?? '', remoteScript('file-put')?.text ?? '']) {
+      expect(text).toMatch(/case "\$2" in \/\*\|\*\.\.\*\) printf '__TORTIE_RUN__badname /);
+      expect(text).toContain('case "$2" in .[Gg][Ii][Tt]|.[Gg][Ii][Tt]/*|*/.[Gg][Ii][Tt]|*/.[Gg][Ii][Tt]/*|.[Ss][Ss][Hh]|');
+    }
   });
 });
 
 describe('the rename write', () => {
   const write = remoteScript('entry-rename');
 
-  it('is a write taking three values', () => {
+  it('is a write taking four values, the pin last', () => {
     expect(write?.mode).toBe('write');
-    expect(write?.params).toBe(3);
+    expect(write?.params).toBe(4);
   });
 
   it('tests the destination before it moves, and never forces', () => {
@@ -876,13 +890,13 @@ describe('the rename write', () => {
     expect(write?.text).toContain('__TORTIE_RUN__gone none__TORTIE_RUN__');
   });
 
-  it('carries the wider containment line ONCE PER guarded value', () => {
-    expect(write?.text).toContain(
-      'case "$2" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
-    );
-    expect(write?.text).toContain(
-      'case "$3" in /*|*..*|.git|.git/*|*/.git|*/.git/*) exit 1;; esac'
-    );
+  it('carries the two containment lines ONCE PER guarded value', () => {
+    for (const value of ['$2', '$3']) {
+      expect(write?.text).toContain(
+        `case "${value}" in /*|*..*) printf '__TORTIE_RUN__badname none__TORTIE_RUN__\\n'; exit 0;; esac`
+      );
+      expect(write?.text).toContain(`case "${value}" in .[Gg][Ii][Tt]|`);
+    }
   });
 
   it('names mv and no other program that changes a file', () => {

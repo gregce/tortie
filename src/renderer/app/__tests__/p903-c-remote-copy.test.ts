@@ -39,6 +39,15 @@
  * them are what a person reads when a New Folder or a Rename on a machine
  * refuses, answers late or turns out to have already gone through.
  *
+ * PHASE 336 REWROTE EVERY SENTENCE THAT SENT A PERSON TO SETTINGS. A project
+ * open on a confirmed machine is a folder Tortie may write under, as a project
+ * open on this Mac is, so nothing is turned on any more and no write sentence
+ * names Settings: the editor's band, the save refusal, the Explorer's two
+ * writes-off forms and the stage refusal all say which folders Tortie writes
+ * in instead. `remoteFileChip`, `remoteSaveRefused`, `remoteTreeCanWrite`,
+ * `remoteOpenTooLargeOver` and `remoteWritesNotConfirmed` are deleted, and the
+ * phase's new sentences are pinned in their own describe near the foot.
+ *
  * PHASE 99 REPLACED THE QUICK OPEN PAIR WITH SEVEN SENTENCES. The pair said
  * "Quick Open does not reach Studio", and Quick Open reads that machine's own
  * file names now, so the refusal had become false. The seven that replaced it
@@ -52,30 +61,43 @@ import { join, resolve } from 'node:path';
 import { REMOTE_FILE_MAX_BYTES } from '@shared/ipc';
 import {
   remoteCreateExists,
-  remoteFileChip,
+  remoteFileOutsideChip,
+  remoteFileRefusedChip,
+  remoteFileUnconfirmedChip,
+  remoteNeverFolderLine,
   remoteOpenTooLarge,
-  remoteOpenTooLargeOver,
+  remoteSaveCapChip,
+  remoteSaveCapChipOver,
+  remoteSaveFolderChanged,
   remoteSaveLostAnswer,
   remoteSaveMissing,
+  remoteSaveNever,
   remoteSaveNoMode,
   remoteSaveNoSum,
+  remoteSaveOutsideProjects,
   remoteSaveOutsideRoot,
+  remoteSaveProtected,
   remoteSaveRefusal,
-  remoteSaveRefused,
+  remoteSaveRefusedFor,
   remoteSaveStale,
-  remoteSaveTooLarge
+  remoteSaveTooLarge,
+  remoteSaveUnconfirmed
 } from '../../machines/editor';
 import {
   REMOTE_COPIED_WITH_MACHINE,
   remoteEntryExists,
+  remoteEntryFolderChanged,
   remoteEntryGone,
   remoteEntryLostAnswer,
+  remoteEntryNever,
   remoteEntryOutsideRoot,
+  remoteEntryProtected,
+  remoteEntryUnconfirmedLabel,
   remoteEntryWritesOff,
   remoteEntryWritesOffLabel,
   remoteParentGone,
   remoteRenameAlreadyDone,
-  remoteTreeCanWrite,
+  remoteTreeNoTrash,
   remoteTreeDenied,
   remoteTreeEmpty,
   remoteTreeMissingBody,
@@ -84,7 +106,8 @@ import {
   remoteTreeNotConnected,
   remoteTreeTruncated,
   remoteTreeUnreachable,
-  remoteWriteDenied
+  remoteWriteDenied,
+  remoteWriteRefusedLabel
 } from '../../machines/explorer';
 import * as presentation from '../../machines/presentation';
 import { readClockTime } from '../../machines/presentation';
@@ -128,10 +151,11 @@ import {
   remoteChangesNotRepo,
   remoteChangesUnreachable,
   remoteConflictNoVerb,
+  remoteCommitRefusedLabel,
   remoteIndexWritePartial,
+  remoteIndexWriteRefusal,
   remoteIndexWriteUnsure,
-  remoteStageOutsideRoot,
-  remoteWritesNotConfirmed
+  remoteStageOutsideRoot
 } from '../../machines/scm';
 import { SYMBOLS_ELSEWHERE_BODY, symbolsElsewhereTitle } from '../../machines/search';
 
@@ -154,7 +178,10 @@ const MACHINES_SOURCE = ((): string => {
 })();
 const L = 'Studio';
 const P = '/home/greg/api';
-/** PHASE 101. One machine's confirmed folder, and the save cap in bytes. */
+/**
+ * PHASE 101. One machine's confirmed folder, and the save cap in bytes. Since
+ * PHASE 336 it is the folder a write was bound by.
+ */
 const R = '/home/greg';
 const MAX = 90_000;
 
@@ -207,8 +234,9 @@ describe('the Explorer', () => {
   });
 
   it('says what Copy Path did', () => {
-    // PHASE 229. The menu's own note on a machine with no confirmed folder is
-    // `remoteEntryWritesOff`, pinned under the Phase 102 verbs below.
+    // PHASE 229. The menu's own note on a folder Tortie will not change is
+    // `remoteEntryWritesOffLabel` (Phase 336: `remoteWriteRefusedLabel`),
+    // pinned under the Phase 102 verbs below.
     // `remoteTreeReadOnly` is deleted.
     expect(REMOTE_COPIED_WITH_MACHINE).toBe(
       'Copied the path with the machine in front of it.'
@@ -341,15 +369,43 @@ describe('Quick Open on a folder that is on a machine (Phase 99)', () => {
 });
 
 describe('the editor', () => {
-  it('says the file is over there and what would let Tortie save it', () => {
-    expect(remoteFileChip(L)).toBe(
-      'This file is on Studio. Tortie is showing what it read and cannot ' +
-        'save it until you let it save on that machine.'
+  // PHASE 336. A band only over a file Tortie will not save, one sentence per
+  // reason, none of them naming Settings.
+  it('says why a file on that machine is only shown', () => {
+    expect(remoteFileOutsideChip(L)).toBe(
+      'This file is on Studio, outside the projects you opened there, so ' +
+        'Tortie only shows it.'
     );
-    expect(remoteSaveRefused(L)).toBe(
-      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
-        'Studio, and let Tortie save files there. Nothing was written.'
+    expect(remoteNeverFolderLine(L)).toBe(
+      'Tortie does not save in a home folder, a folder directly inside one, ' +
+        'or a folder holding one, on Studio.'
     );
+    expect(remoteFileUnconfirmedChip(L)).toBe(
+      'This file is on Studio, which is not confirmed right now, so Tortie ' +
+        'only shows it.'
+    );
+    expect(remoteFileRefusedChip('outside', L)).toBe(remoteFileOutsideChip(L));
+    expect(remoteFileRefusedChip('never', L)).toBe(remoteNeverFolderLine(L));
+    expect(remoteFileRefusedChip('unconfirmed', L)).toBe(
+      remoteFileUnconfirmedChip(L)
+    );
+  });
+
+  it('says a refused save in the same terms, and that nothing was written', () => {
+    expect(remoteSaveOutsideProjects(L)).toBe(
+      'Tortie saves on Studio only inside a project you opened there. ' +
+        'Nothing was written.'
+    );
+    expect(remoteSaveNever(L)).toBe(
+      `${remoteNeverFolderLine(L)} Nothing was written.`
+    );
+    expect(remoteSaveUnconfirmed(L)).toBe(
+      'Tortie does not save on Studio until that machine is confirmed. ' +
+        'Nothing was written.'
+    );
+    expect(remoteSaveRefusedFor('outside', L)).toBe(remoteSaveOutsideProjects(L));
+    expect(remoteSaveRefusedFor('never', L)).toBe(remoteSaveNever(L));
+    expect(remoteSaveRefusedFor('unconfirmed', L)).toBe(remoteSaveUnconfirmed(L));
   });
 });
 
@@ -406,11 +462,13 @@ describe('every way a save can be refused', () => {
       'exists',
       'nomode',
       'nosum',
-      'tooLarge'
+      'tooLarge',
+      'protected'
     ] as const;
-    // Every one of the eight says that nothing was written, because in every
-    // one of them nothing was. `stale` is the only one that says a second
-    // thing after it, which is to open the file again.
+    // Every one of these says that nothing was written, because in every one
+    // of them nothing was. `stale` is the only one that says a second thing
+    // after it, which is to open the file again. PHASE 336's `folderChanged`
+    // says "wrote nothing" in its own words, below.
     for (const word of words) {
       const said = remoteSaveRefusal(word, L, R, 96_231);
       expect([word, said.includes('Nothing was written.')]).toEqual([
@@ -418,6 +476,14 @@ describe('every way a save can be refused', () => {
         true
       ]);
     }
+    expect(remoteSaveRefusal('folderChanged', L, R, 0)).toBe(
+      remoteSaveFolderChanged(R, L)
+    );
+    expect(remoteSaveRefusal('protected', L, R, 0)).toBe(remoteSaveProtected(L));
+    expect(remoteSaveRefusal('writesOff', L, R, 0)).toBe(remoteSaveNever(L));
+    expect(remoteSaveRefusal('writesOff', L, null, 0)).toBe(
+      remoteSaveOutsideProjects(L)
+    );
     expect(remoteSaveRefusal('outsideRoot', L, R, 0)).toBe(
       remoteSaveOutsideRoot(R, L)
     );
@@ -427,45 +493,58 @@ describe('every way a save can be refused', () => {
     );
   });
 
-  it('never draws a folder nobody confirmed', () => {
-    // Main sends the folder on both words that name one. A null there can
-    // only mean saving is off, so the sentence that says exactly that is what
-    // a person reads, rather than a folder composed out of nothing.
+  it('never draws a folder main did not name', () => {
+    // Main sends the folder on the words that name one. A null there is drawn
+    // as a sentence that names no folder, rather than a folder composed out of
+    // nothing (Phase 336: outside every project for `outsideRoot`).
     expect(remoteSaveRefusal('outsideRoot', L, null, 0)).toBe(
-      remoteSaveRefused(L)
+      remoteSaveOutsideProjects(L)
     );
-    expect(remoteSaveRefusal('exists', L, null, 0)).toBe(remoteSaveRefused(L));
+    expect(remoteSaveRefusal('exists', L, null, 0)).toBe(
+      'Tortie did not make that file, because a file of that name is ' +
+        'already on Studio. Nothing was written.'
+    );
+    expect(remoteSaveRefusal('folderChanged', L, null, 0)).toBe(
+      remoteSaveFolderChanged(null, L)
+    );
   });
 });
 
-describe('opening a file that could never be saved', () => {
+describe('a file larger than Tortie can save there', () => {
+  // PHASE 336. It opens read only, and the band says so; the refusal at open
+  // stays for a commit tab alone, whose two sides are cut at the ceiling.
   it('names the size when the read was whole', () => {
+    expect(remoteSaveCapChip(1_238_904, L)).toBe(
+      'That file is 1,238,904 bytes and Tortie saves files up to 90,000 ' +
+        'bytes on Studio, so it is shown read only.'
+    );
+  });
+
+  it('says over when the read was cut, because the size is a floor', () => {
+    expect(remoteSaveCapChipOver(2_097_152, L)).toBe(
+      'That file is over 2,097,152 bytes and Tortie saves files up to ' +
+        '90,000 bytes on Studio, so it is shown read only.'
+    );
+  });
+
+  it('still refuses a commit tab over the ceiling', () => {
     expect(remoteOpenTooLarge(1_238_904, L)).toBe(
       'That file is 1,238,904 bytes and Tortie can save files up to 90,000 ' +
         'bytes on Studio, so it did not open it. Nothing on that machine ' +
         'changed.'
     );
   });
-
-  it('says over when the read was cut, because the size is a floor', () => {
-    expect(remoteOpenTooLargeOver(2_097_152, L)).toBe(
-      'That file is over 2,097,152 bytes and Tortie can save files up to ' +
-        '90,000 bytes on Studio, so it did not open it. Nothing on that ' +
-        'machine changed.'
-    );
-  });
 });
 
-describe('the Explorer, on a machine that can be changed', () => {
-  it('says both halves, and leaves the read only line alone', () => {
-    // PHASE 102 REWROTE THE FIRST HALF and added the second. Three verbs cross
-    // now rather than one, so the sentence says what Tortie can change rather
-    // than what it can save. The Trash half is there because a person who
-    // reads the first half looks for Move to Trash next, and it is absent
-    // permanently.
-    expect(remoteTreeCanWrite(R, L)).toBe(
-      'Tortie reads files on Studio and can change what is under /home/greg. ' +
-        'It cannot move anything there to the Trash.'
+describe('the Explorer, in a folder Tortie may change', () => {
+  it('names the one verb that is still absent', () => {
+    // PHASE 336 REPLACED `remoteTreeCanWrite`, which named the one folder a
+    // person had confirmed. Every project open on a confirmed machine is now
+    // such a folder, so naming it would be a sentence about a grant that no
+    // longer exists. The Trash half stays, because a person looks for Move to
+    // Trash next, and it is absent permanently.
+    expect(remoteTreeNoTrash(L)).toBe(
+      'Tortie cannot move files on Studio to the Trash.'
     );
   });
 });
@@ -505,10 +584,10 @@ describe('making a folder and renaming an entry on a machine', () => {
     );
   });
 
-  it('names the three steps to the surface that turns saving on', () => {
+  it('says which folders Tortie changes files in (Phase 336)', () => {
     expect(remoteEntryWritesOff(L)).toBe(
-      'Tortie cannot change anything on Studio. Open Settings, then Machines, ' +
-        'then Studio, and let Tortie save files there. Nothing was changed.'
+      'Tortie changes files on Studio only inside a project you opened ' +
+        'there. Nothing was changed.'
     );
   });
 
@@ -519,8 +598,7 @@ describe('making a folder and renaming an entry on a machine', () => {
     // that one sentence, composed from it so the two cannot drift.
     const label = remoteEntryWritesOffLabel(L);
     expect(label).toBe(
-      'Tortie cannot change anything on Studio. Open Settings, then Machines, ' +
-        'then Studio, and let Tortie save files there.'
+      'Tortie changes files on Studio only inside a project you opened there.'
     );
     expect(label).not.toContain('Nothing was');
     expect(remoteEntryWritesOff(L)).toBe(`${label} Nothing was changed.`);
@@ -556,14 +634,14 @@ describe('opening a folder on a machine', () => {
     // PHASE 98 DROPPED THE THIRD CLAUSE. It read "and it does not search it",
     // and the Search view of a tab on a machine searches that folder now.
     // PHASE 101 REWROTE THE SECOND. It read "It never writes there", and that
-    // became false for a machine a person has let Tortie save on. After this
-    // phase no part of this sentence is stale.
-    expect(openRemoteHonesty(L)).toBe(
-      'Tortie reads this folder on Studio. It writes there only where you ' +
-        'have let it save.'
-    );
+    // became false for a machine a person has let Tortie save on. PHASE 336'S
+    // FIX ROUND took the write clause out: "It writes there only where you
+    // have let it save" named an act Phase 336 removed, and a true clause is a
+    // paragraph his rule keeps off a remote surface.
+    expect(openRemoteHonesty(L)).toBe('The folder stays on Studio.');
     expect(openRemoteHonesty(L)).not.toContain('search');
     expect(openRemoteHonesty(L)).not.toContain('never writes');
+    expect(openRemoteHonesty(L)).not.toMatch(/let it save|writes there/);
     expect(OPEN_REMOTE_BUTTON).toBe('Open it');
   });
 
@@ -689,7 +767,12 @@ const EVERY: readonly string[] = [
   remoteChangesUnreachable(L),
   remoteChangesNotRepo(L),
   // PHASE 103. Five more, every one of them read by the five rules below.
-  remoteWritesNotConfirmed(L),
+  // PHASE 336 replaced `remoteWritesNotConfirmed` with the folder refusals.
+  remoteIndexWriteRefusal('writesOff', 'outside', P, L),
+  remoteIndexWriteRefusal('writesOff', 'never', P, L),
+  remoteIndexWriteRefusal('writesOff', 'unconfirmed', P, L),
+  remoteIndexWriteRefusal('folderChanged', null, P, L),
+  remoteIndexWriteRefusal('protected', null, P, L),
   remoteStageOutsideRoot(L),
   remoteIndexWriteUnsure(L, 'stage'),
   remoteIndexWriteUnsure(L, 'unstage'),
@@ -707,8 +790,6 @@ const EVERY: readonly string[] = [
   quickOpenFolderMissing(L),
   quickOpenNotConnected(L),
   quickOpenNoAnswer(L),
-  remoteFileChip(L),
-  remoteSaveRefused(L),
   openRemoteHonesty(L),
   // PHASE 101. Eleven more, every one of them read by the five rules below.
   remoteSaveOutsideRoot(R, L),
@@ -720,8 +801,28 @@ const EVERY: readonly string[] = [
   remoteSaveLostAnswer(L),
   remoteSaveTooLarge(96_231, L),
   remoteOpenTooLarge(1_238_904, L),
-  remoteOpenTooLargeOver(2_097_152, L),
-  remoteTreeCanWrite(R, L),
+  // PHASE 336. The bands and refusals that replaced the Settings sentences.
+  remoteFileOutsideChip(L),
+  remoteNeverFolderLine(L),
+  remoteFileUnconfirmedChip(L),
+  remoteSaveCapChip(1_238_904, L),
+  remoteSaveCapChipOver(2_097_152, L),
+  remoteSaveOutsideProjects(L),
+  remoteSaveNever(L),
+  remoteSaveUnconfirmed(L),
+  remoteSaveFolderChanged(R, L),
+  remoteSaveProtected(L),
+  remoteTreeNoTrash(L),
+  remoteEntryUnconfirmedLabel(L),
+  remoteEntryNever(L),
+  remoteEntryFolderChanged(R, L),
+  remoteEntryProtected(L),
+  remoteWriteRefusedLabel('outside', L),
+  remoteWriteRefusedLabel('never', L),
+  remoteWriteRefusedLabel('unconfirmed', L),
+  remoteCommitRefusedLabel('outside', L),
+  remoteCommitRefusedLabel('never', L),
+  remoteCommitRefusedLabel('unconfirmed', L),
   // PHASE 102. Eight more, every one of them read by the five rules below.
   remoteEntryExists('notes', L),
   remoteParentGone(L),
@@ -830,21 +931,38 @@ describe('the house writing rules, over every Phase 90.3 sentence', () => {
 });
 
 describe('the five sentences Phase 103 added', () => {
-  // PHASE 242 REWORDED THIS ONE. It used to end "confirm that machine", which
-  // is the one thing a person who meets it has already done — what is missing
-  // is the FOLDER. The middle is now `remoteEntryWritesOffLabel`'s wording,
-  // which Phase 229 wrote for the Explorer and this sentence did not get.
-  it('says saving is not on for that machine, and that nothing was sent', () => {
-    expect(remoteWritesNotConfirmed(L)).toBe(
-      'Tortie cannot save on Studio. Open Settings, then Machines, then ' +
-        'Studio, and let Tortie save files there. Nothing was sent.'
+  // PHASE 336 REPLACED `remoteWritesNotConfirmed`, which Phase 242 had
+  // reworded to name the FOLDER's door in Settings. That door is gone: a
+  // project open on a confirmed machine is a folder Tortie may change. The
+  // stage refusals are the Explorer's own sentences, so the two views say one
+  // thing, and `writesOff` reads as outside only when the renderer also finds
+  // the folder outside, because main judges the never-list on that machine too.
+  it('says which folders Tortie changes files in, and that nothing changed', () => {
+    expect(remoteIndexWriteRefusal('writesOff', 'outside', P, L)).toBe(
+      remoteEntryWritesOff(L)
+    );
+    expect(remoteIndexWriteRefusal('writesOff', 'never', P, L)).toBe(
+      remoteEntryNever(L)
+    );
+    expect(remoteIndexWriteRefusal('writesOff', null, P, L)).toBe(
+      remoteEntryNever(L)
+    );
+    expect(remoteIndexWriteRefusal('writesOff', 'unconfirmed', P, L)).toBe(
+      'Tortie does not change files on Studio until that machine is ' +
+        'confirmed. Nothing was changed.'
+    );
+    expect(remoteIndexWriteRefusal('folderChanged', null, P, L)).toBe(
+      remoteEntryFolderChanged(P, L)
+    );
+    expect(remoteIndexWriteRefusal('protected', null, P, L)).toBe(
+      remoteEntryProtected(L)
     );
   });
 
-  it('says the folder is outside the one that was confirmed', () => {
+  it('says the folder is outside the projects opened there', () => {
     expect(remoteStageOutsideRoot(L)).toBe(
-      'That folder on Studio is outside the folder Tortie was given ' +
-        'permission to write in. Nothing was changed.'
+      'That folder on Studio is outside the projects you opened there. ' +
+        'Nothing was changed.'
     );
   });
 

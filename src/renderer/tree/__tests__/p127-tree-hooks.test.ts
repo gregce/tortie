@@ -82,7 +82,7 @@ const MOVED_EFFECTS: { what: string; file: string; deps: string }[] = [
   {
     what: 'build the verbs for this mounted root',
     file: 'use-tree-rename.ts',
-    deps: '}, [model, rootPath, hold, editorBridge, remote, remoteWriteRoot]);'
+    deps: '}, [model, rootPath, hold, editorBridge, remote, remoteWriteFolder]);'
   },
   {
     what: 'the create editor listeners on the host',

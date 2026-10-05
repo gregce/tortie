@@ -1,0 +1,222 @@
+{
+  "_note": "HOSTILE, hand-written: one realistic wrong answer in every arm (a refusal that wrote, a victim that moved, a lost confirmation, a parent arm missing). Every grader must fail it, on the clause named in RECORDED_FIXTURES.",
+  "build": "head",
+  "far": "loopback",
+  "arms": {
+    "L": {
+      "confirmedWithoutPress": false,
+      "hash": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "stage": "done",
+        "commit": "committed"
+      },
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c"
+    },
+    "A": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "made",
+        "rename": "moved",
+        "stage": "done",
+        "unstage": "done",
+        "commit": "refused"
+      },
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "madeOnFar": true,
+      "renamedOnFar": true,
+      "commitsBefore": 1,
+      "commitsAfter": 2
+    },
+    "A2": {
+      "put": "writesOff",
+      "payloadSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c",
+      "farSum": "b5bb9d8014a0f9b1d61e21e796d78dccdf1352f23cd32812f4850b878ae4944c"
+    },
+    "B": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "made",
+        "stage": "done"
+      }
+    },
+    "H1": {
+      "outcomes": {
+        "put": "wrote",
+        "makeDir": "folderChanged",
+        "rename": "folderChanged",
+        "stage": "folderChanged",
+        "commit": "folderChanged"
+      },
+      "victimBefore": ".git,dirty.txt,notes.md,README.md,a.txt,staged.txt,v.txt,|2738411370 7|3141592653 352|1",
+      "victimAfter": ".git,dirty.txt,notes.md,p336-h1.md,README.md,a.txt,staged.txt,v.txt,|2738411370 7|3141592653 352|1",
+      "reopen": {
+        "put": "wrote"
+      }
+    },
+    "H2": {
+      "outcomes": {
+        "put": "folderChanged",
+        "makeDir": "made",
+        "rename": "folderChanged"
+      },
+      "oldBefore": ".git,README.md,a.txt,before-swap.md,notes.md,",
+      "oldAfter": ".git,README.md,a.txt,before-swap.md,notes.md,",
+      "newBefore": "",
+      "newAfter": "p336-h2-dir,"
+    },
+    "H3": {
+      "outcomes": {
+        "innocent": "protected",
+        "inn2": "wrote"
+      },
+      "sshBefore": "authorized_keys,",
+      "sshAfter": "authorized_keys,p336-h3.txt,"
+    },
+    "H4": {
+      "outcomes": {
+        "gitConfig": "protected",
+        "hook": "protected",
+        "gitDir": "protected",
+        "intoSsh": "protected",
+        "stageCwd": "protected",
+        "ssfold": "wrote",
+        "longs": "protected"
+      },
+      "gitConfigBefore": "1234567890 180",
+      "gitConfigAfter": "1234567890 180",
+      "hooksBefore": "",
+      "hooksAfter": "",
+      "sshBefore": "",
+      "sshAfter": "x,",
+      "volume": "folds"
+    },
+    "H5": {
+      "plant": {
+        "landed": true,
+        "rows": [
+          "p336-planted-home",
+          "p336-planted-plain",
+          "p336-planted-root"
+        ]
+      },
+      "root": {
+        "outcome": "writesOff",
+        "folder": null
+      },
+      "home": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home"
+      },
+      "planted": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/p336/far/planted-h5"
+      },
+      "rootWrote": false,
+      "homeWrote": true
+    },
+    "H5L": {
+      "outcome": "wrote",
+      "why": null,
+      "fileBefore": "planted\n",
+      "fileAfter": "HEAD WROTE\n"
+    },
+    "H6": {
+      "verbs": {
+        "put": {
+          "threw": false,
+          "message": ""
+        },
+        "makeDir": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "rename": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "stage": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        },
+        "commit": {
+          "threw": true,
+          "message": "Tortie will not connect to p336-machine, because its details changed after you confirmed them. Read the change and confirm it again if it is what you want. Nothing was started."
+        }
+      },
+      "farBefore": "o.txt,p336-ha2.md,",
+      "farAfter": "h6.md,o.txt,p336-ha2.md,",
+      "savesInProjects": false,
+      "afterUndo": {
+        "put": "wrote"
+      },
+      "confirmPressed": false
+    },
+    "H8": {
+      "home": {
+        "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home"
+      },
+      "child": {
+        "outcome": "wrote",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child"
+      },
+      "grand": {
+        "outcome": "wrote",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child/grand"
+      }
+    },
+    "R": {
+      "editor": {
+        "missing": false,
+        "tabId": "tab-a",
+        "mode": "file",
+        "remote": true,
+        "readOnly": true,
+        "before": "a\n",
+        "after": "Xa\n",
+        "accepted": false,
+        "dirtyBefore": false,
+        "dirtyAfter": false
+      },
+      "save": null,
+      "farHasTyped": false,
+      "headerButtonsEnabled": true,
+      "bigFile": {
+        "opened": false,
+        "readOnly": null,
+        "remote": null,
+        "tabId": null,
+        "chip": null,
+        "error": "That file is too large to save on P336 Machine."
+      },
+      "drawnSettings": [
+        "Turn saving on in Settings, then Machines."
+      ],
+      "bundleNamesBrowseWrites": false,
+      "bundleNamesLetTortie": false,
+      "explorer": {
+        "shown": true,
+        "rows": 5,
+        "why": null
+      }
+    }
+  },
+  "run": {
+    "parentWanted": [
+      "L",
+      "A",
+      "B",
+      "H4",
+      "H5L"
+    ],
+    "gmuxBefore": "7",
+    "gmuxAfter": "8",
+    "dotfilesMoved": [],
+    "electronsLeft": 1,
+    "farLeft": false
+  }
+}
