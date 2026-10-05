@@ -11,8 +11,8 @@ installed and paired.
 
 1. **The Mac.** Open Tortie, then **Settings then Phone**.
    **You should see** the door asking you to allow it again, with the lines
-   `Answers these and nothing else: blocked, end, pair, session, turns` (318 adds `choose` and `say` to that
-   line) and `Lets an allowed phone end a session`.
+   `Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns` (the union with Phases 318 and 316.7, which land beside this one) and
+   `Lets an allowed phone end a session, answer a numbered question and send a session one message`.
    Press **Allow**.
 
 2. **The build.** The archive and upload row is the combined checklist's (build/p316/CHECKLIST.md). This build
@@ -60,7 +60,7 @@ move; the file and the name do not.
 
 | Word on the screen | Where it is | Name there |
 | --- | --- | --- |
-| `Answers these and nothing else: blocked, end, pair, session, turns` | `src/main/pocket/pairing.ts:427` | `describePocketDoor`, the route line, over the hashed route list |
+| `Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns` | `src/main/pocket/pairing.ts:427` | `describePocketDoor`, the route line, over the hashed route list |
 | `Lets an allowed phone end a session` | `src/main/pocket/pairing.ts:432` (`:408` `end: 'end a session'`) | `describePocketDoor`'s write line, from `WRITE_CLAUSES` |
 | **Allow** (the Mac's sheet) | `src/renderer/settings/PhoneSection.tsx:74` | `BTN_ALLOW` |
 | **Settings then Phone** | `src/main/settings/window.ts:65`, `src/renderer/settings/PhoneSection.tsx:68` | `title: 'Settings'`, `PHONE_TITLE` |

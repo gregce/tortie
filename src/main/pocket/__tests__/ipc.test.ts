@@ -45,7 +45,7 @@ import {
 import type { IpcMain } from 'electron';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import type { PocketNameProgress, PocketStatus } from '@shared/ipc/pocket';
+import type { PocketNameProgress, PocketRouteId, PocketStatus } from '@shared/ipc/pocket';
 import type { Session } from '@shared/types';
 import type { FunnelChild, FunnelDeps } from '../funnel';
 import type { PocketAlertsPort } from '../ipc';
@@ -501,6 +501,70 @@ async function pairAndAllow(one: Host): Promise<void> {
     await one.confirmDoor({ linesRead: lines.confirmLines, hashRead: lines.confirmHash });
     await settled(one);
   }
+}
+
+/**
+ * A phone paired through the host's own window, and the request it sends over
+ * its own channel, signed exactly as the phone signs one, over the binding the
+ * pairing's HKDF derives from the exchange. The ONE spelling of that prelude
+ * for every test here that talks to the door as a paired phone: the session
+ * read held in flight, the Sessions read (Phase 316.7) and the writes (Phase
+ * 317), which each carried a copy of it until 316.7's integrator drew it out.
+ * `allowed` is what Allow answered; a caller that needs the window shut
+ * cancels it itself.
+ */
+async function signingPhone(one: Host, label: string): Promise<{
+  id: string;
+  allowed: boolean;
+  request: (route: PocketRouteId, method: 'GET' | 'POST', target: string, body?: Buffer) => Parameters<Host['handler']>[0];
+}> {
+  const phone = makePhone(label);
+  const offer = await one.beginPairing();
+  const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
+  one.pairing.present(presentationOf(secret, phone));
+  const view = one.pairing.view();
+  const { allowed } = one.allowPhone({ linesRead: view.lines, hashRead: view.hash ?? '' });
+  const id = phoneIdOf(phone.signPublic);
+  const dx = String((JSON.parse(offer.payload) as { dx: string }).dx);
+  const shared = diffieHellman({
+    privateKey: phone.exchange,
+    publicKey: createPublicKey({ key: Buffer.from(dx, 'base64url'), format: 'der', type: 'spki' })
+  });
+  const binding = Buffer.from(
+    hkdfSync('sha256', shared, Buffer.from(`${dx}\n${phone.exchangePublic}`, 'utf8'), 'tortie-pocket-bind-v1', 32)
+  ).toString('hex');
+  const request = (
+    route: PocketRouteId,
+    method: 'GET' | 'POST',
+    target: string,
+    body: Buffer = Buffer.alloc(0)
+  ): Parameters<Host['handler']>[0] => {
+    const timestamp = String(clock);
+    const nonce = randomBytes(12).toString('hex');
+    // One shape for a read and a write: the caller names a route and method
+    // that go together, as the door's table does.
+    return {
+      route,
+      method,
+      target,
+      body: new Uint8Array(body),
+      channel: id,
+      headers: {
+        [POCKET_HEADERS.phone]: id,
+        [POCKET_HEADERS.timestamp]: timestamp,
+        [POCKET_HEADERS.nonce]: nonce,
+        [POCKET_HEADERS.signature]: signAsPhone(phone.sign, {
+          method,
+          target,
+          bodySha256: createHash('sha256').update(body).digest('hex'),
+          timestamp,
+          nonce,
+          binding
+        })
+      } as never
+    } as Parameters<Host['handler']>[0];
+  };
+  return { id, allowed, request };
 }
 
 /** A host whose door is on, confirmed and published, and whose name is not yet confirmed. */
@@ -1369,53 +1433,14 @@ describe('removing a phone', () => {
       });
       await pairAndAllow(one);
       await namePairable(one);
-      const phone = makePhone('Held iPhone');
-      const offer = await one.beginPairing();
-      const { id } = await (async () => {
-        const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
-        one.pairing.present(presentationOf(secret, phone));
-        const view = one.pairing.view();
-        one.allowPhone({ linesRead: view.lines, hashRead: view.hash ?? '' });
-        return { id: phoneIdOf(phone.signPublic) };
-      })();
-      const dx = String((JSON.parse(offer.payload) as { dx: string }).dx);
-      const shared = diffieHellman({
-        privateKey: phone.exchange,
-        publicKey: createPublicKey({ key: Buffer.from(dx, 'base64url'), format: 'der', type: 'spki' })
-      });
-      const binding = Buffer.from(
-        hkdfSync('sha256', shared, Buffer.from(`${dx}\n${phone.exchangePublic}`, 'utf8'), 'tortie-pocket-bind-v1', 32)
-      ).toString('hex');
+      const phone = await signingPhone(one, 'Held iPhone');
       const ask = async (): Promise<number> => {
-        const target = `/v1/session?id=${session.id}`;
-        const timestamp = String(clock);
-        const nonce = randomBytes(12).toString('hex');
-        const answer = await one.handler(
-          {
-            route: 'session',
-            method: 'GET',
-            target,
-            body: new Uint8Array(0),
-            channel: id,
-            headers: {
-              [POCKET_HEADERS.phone]: id,
-              [POCKET_HEADERS.timestamp]: timestamp,
-              [POCKET_HEADERS.nonce]: nonce,
-              [POCKET_HEADERS.signature]: signAsPhone(phone.sign, {
-                method: 'GET',
-                target,
-                bodySha256: createHash('sha256').update(Buffer.alloc(0)).digest('hex'),
-                timestamp,
-                nonce,
-                binding
-              })
-            } as never
-          },
-          { stopping: () => false }
-        );
+        const answer = await one.handler(phone.request('session', 'GET', `/v1/session?id=${session.id}`), {
+          stopping: () => false
+        });
         return answer.status;
       };
-      return { one, held, ask, phoneId: id };
+      return { one, held, ask, phoneId: phone.id };
     }
 
     it('answers the paired phone when nothing changed (the control)', async () => {
@@ -1447,6 +1472,59 @@ describe('removing a phone', () => {
 });
 
 // ---------------------------------------------------------------------------
+// The Sessions tab's read through the host (Phase 316.7, build/p3167/SPEC.md
+// §6.2 step 2): the answer switch hands the whole query to the route.
+// ---------------------------------------------------------------------------
+
+describe('the Sessions tab’s read, through the host', () => {
+  /** A paired phone that signs a read the way the phone does, over its own channel. */
+  async function reader(one: Host, label: string): Promise<(target: string) => ReturnType<Host['handler']>> {
+    const phone = await signingPhone(one, label);
+    expect(phone.allowed).toBe(true);
+    one.cancelPairing();
+    return (target: string) => one.handler(phone.request('sessions', 'GET', target), { stopping: () => false });
+  }
+
+  const LISTED = [
+    { id: 's-live', name: 'live one', tmuxName: 'l', projectPath: '/w/app', cwd: '/w/app', agent: 'claude', status: 'idle', createdAt: 5 },
+    { id: 's-ended', name: 'ended one', tmuxName: 'e', projectPath: '/w/app', cwd: '/w/app', agent: 'claude', status: 'exited', createdAt: 4 }
+  ] as Session[];
+
+  it('answers GET /v1/sessions with the rows the route composed for the words asked', async () => {
+    const one = host({ facts: { ...FACTS, sessions: () => LISTED } });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const get = await reader(one, 'Reader');
+    const all = await get('/v1/sessions?show=all&group=none');
+    expect(all.status).toBe(200);
+    const body = JSON.parse(all.body as string) as { asked: { show: string }; rows: { sessionId: string }[]; total: number };
+    expect(body.asked.show).toBe('all');
+    expect(body.rows.map((r) => r.sessionId)).toEqual(['s-live', 's-ended']);
+    expect(body.total).toBe(2);
+    // No words: Active, so the ended session is out of sight.
+    const fresh = await get('/v1/sessions');
+    expect((JSON.parse(fresh.body as string) as { rows: { sessionId: string }[] }).rows.map((r) => r.sessionId)).toEqual(['s-live']);
+  });
+
+  it('refuses a query the route refuses with a 404, logged as route, and logs no query value', async () => {
+    const one = host({ facts: { ...FACTS, sessions: () => LISTED } });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const get = await reader(one, 'Reader');
+    const from = logged.length;
+    for (const target of ['/v1/sessions?show=bogusword', '/v1/sessions?limit=9', '/v1/sessions?agent=Zed_Agent']) {
+      expect(await get(target), target).toEqual({ status: 404, body: null });
+    }
+    const lines = logged.slice(from);
+    // One line per reason per process, a word and never a value.
+    expect(lines.filter((l) => l.includes('refused a request at the door: route'))).toHaveLength(1);
+    for (const line of lines) {
+      for (const value of ['bogusword', 'limit', 'Zed_Agent']) expect(line).not.toContain(value);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The phone's writes through the host (Phase 317, build/p317/SPEC.md §5.5)
 // ---------------------------------------------------------------------------
 
@@ -1456,53 +1534,16 @@ describe('the phone’s writes, through the host', () => {
     id: string;
     post: (route: 'end' | 'unpair', body: Record<string, unknown>) => ReturnType<Host['handler']>;
   }> {
-    const phone = makePhone(label);
-    const offer = await one.beginPairing();
-    const secret = (JSON.parse(offer.payload) as { ps: string }).ps;
-    one.pairing.present(presentationOf(secret, phone));
-    const view = one.pairing.view();
-    expect(one.allowPhone({ linesRead: view.lines, hashRead: view.hash ?? '' }).allowed).toBe(true);
+    const phone = await signingPhone(one, label);
+    expect(phone.allowed).toBe(true);
     one.cancelPairing();
-    const id = phoneIdOf(phone.signPublic);
-    const dx = String((JSON.parse(offer.payload) as { dx: string }).dx);
-    const shared = diffieHellman({
-      privateKey: phone.exchange,
-      publicKey: createPublicKey({ key: Buffer.from(dx, 'base64url'), format: 'der', type: 'spki' })
-    });
-    const binding = Buffer.from(
-      hkdfSync('sha256', shared, Buffer.from(`${dx}\n${phone.exchangePublic}`, 'utf8'), 'tortie-pocket-bind-v1', 32)
-    ).toString('hex');
-    const post = (route: 'end' | 'unpair', fields: Record<string, unknown>): ReturnType<Host['handler']> => {
-      const target = `/v1/${route}`;
-      const body = Buffer.from(JSON.stringify(fields), 'utf8');
-      const timestamp = String(clock);
-      const nonce = randomBytes(12).toString('hex');
-      return one.handler(
-        {
-          // `unpair` is no route since the fix round; a test still sends it, as a stranger could.
-          route: route as 'end',
-          method: 'POST',
-          target,
-          body: new Uint8Array(body),
-          channel: id,
-          headers: {
-            [POCKET_HEADERS.phone]: id,
-            [POCKET_HEADERS.timestamp]: timestamp,
-            [POCKET_HEADERS.nonce]: nonce,
-            [POCKET_HEADERS.signature]: signAsPhone(phone.sign, {
-              method: 'POST',
-              target,
-              bodySha256: createHash('sha256').update(body).digest('hex'),
-              timestamp,
-              nonce,
-              binding
-            })
-          } as never
-        },
+    const post = (route: 'end' | 'unpair', fields: Record<string, unknown>): ReturnType<Host['handler']> =>
+      one.handler(
+        // `unpair` is no route since the fix round; a test still sends it, as a stranger could.
+        phone.request(route as 'end', 'POST', `/v1/${route}`, Buffer.from(JSON.stringify(fields), 'utf8')),
         { stopping: () => false }
       );
-    };
-    return { id, post };
+    return { id: phone.id, post };
   }
 
   const W1 = 'a'.repeat(32);
@@ -1717,9 +1758,10 @@ describe('where a push may go', () => {
 describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
-    // Phase 317 added the write after the reads, and Phase 318 the two after
-    // it; the window did not move.
-    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say']);
+    // Phase 317 added the write after the reads, Phase 318 the two after it,
+    // and Phase 316.7 the Sessions tab's read after those; the window did not
+    // move.
+    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions']);
   });
 });
 

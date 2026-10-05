@@ -8,9 +8,10 @@
  * question. The door itself speaks https, since Phase 330 at the Mac's own
  * public `*.ts.net` name through Tailscale Funnel, with TLS ending inside
  * Tortie under the key the pairing code pins, and it answers a CLOSED table of
- * three reads and, since Phase 317, narrow writes (End; since Phase 318, a
+ * four reads and, since Phase 317, narrow writes (End; since Phase 318, a
  * press on a numbered choice and one message), to a phone whose client key
- * completed the handshake. This file
+ * completed the handshake. (The fourth read is Phase 316.7's `/v1/sessions`.)
+ * This file
  * holds two separate things and it is worth saying which is which, because
  * they are easy to confuse:
  *
@@ -100,7 +101,12 @@ export const POCKET_ROUTE_IDS = [
   /** `POST /v1/choose` — press one option of a question main offered (Phase 318). */
   'choose',
   /** `POST /v1/say` — one message into a session idle at its own prompt (Phase 318). */
-  'say'
+  'say',
+  /**
+   * `GET /v1/sessions` — every listed session, shown, grouped and sorted as
+   * asked (Phase 316.7).
+   */
+  'sessions'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
@@ -436,6 +442,163 @@ export interface PocketBlockedAnswer {
    * The sentence drawn under the ages: {@link POCKET_AGE_HONESTY}, Phase 314's
    * one spelling, handed over rather than spelled by a client.
    */
+  ageNote: string;
+}
+
+// ---------------------------------------------------------------------------
+// The Sessions tab's answer (Phase 316.7, build/p3167/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Which sessions `GET /v1/sessions` lists: the active ones, the ended ones, or
+ * every one Tortie lists. The partition is the session manager's own
+ * (`lifecycleKeeps` in src/shared/session-list.ts over `sessionActionGates`),
+ * so the phone's Active and the sheet's Active are one set.
+ */
+export const POCKET_SESSIONS_SHOW = ['active', 'ended', 'all'] as const;
+/** How the answer groups its rows: by project (a folder on a machine), or not at all. */
+export const POCKET_SESSIONS_GROUP = ['project', 'none'] as const;
+/**
+ * The order of the rows inside each group: Recent activity (today's list's
+ * order, waiting first), Name, or Oldest first. Groups never reorder.
+ */
+export const POCKET_SESSIONS_SORT = ['recent', 'name', 'oldest'] as const;
+export type PocketSessionsShow = (typeof POCKET_SESSIONS_SHOW)[number];
+export type PocketSessionsGroupBy = (typeof POCKET_SESSIONS_GROUP)[number];
+export type PocketSessionsSortBy = (typeof POCKET_SESSIONS_SORT)[number];
+/** What an absent word reads. */
+export const POCKET_SESSIONS_DEFAULT = Object.freeze({ show: 'active', group: 'project', sort: 'recent' } as const);
+/** The most rows one answer carries (build/p3167/SPEC.md D4). */
+export const POCKET_SESSIONS_MAX = 2000;
+/** The most bytes the rows and their groups take together (D4). */
+export const POCKET_SESSIONS_BUDGET_BYTES = 1_048_576;
+/** The one clip for a string main did not already cap (D5). */
+export const POCKET_SESSIONS_CLIP_CHARS = 200;
+/** The most agents, and the most machines, the menu is offered (D4). */
+export const POCKET_SESSIONS_CHOICES_MAX = 64;
+
+/** The words main read, echoed so a client can refuse an answer to another question. */
+export interface PocketSessionsAsked {
+  show: PocketSessionsShow;
+  group: PocketSessionsGroupBy;
+  sort: PocketSessionsSortBy;
+  /** A registry id, or null for no filter. */
+  agent: string | null;
+  /** A machine id, `local` for this Mac, or null for no filter. */
+  machine: string | null;
+}
+
+/** One session on the Sessions tab, as a client draws it. */
+export interface PocketSessionsRow {
+  sessionId: string;
+  /** The session's own name, clipped at {@link POCKET_SESSIONS_CLIP_CHARS} (D5). */
+  name: string;
+  /** An index into {@link PocketSessionsAnswer.groups}. */
+  group: number;
+  /** Clipped; null on this Mac. */
+  machine: PocketMachineLabel;
+  /** `attention`, `working`, `idle`, `ended`, `failed` — the dot's name. */
+  statusDot: string;
+  /** Main's own status word, raised to start a line. */
+  statusTitle: string;
+  /**
+   * How long ago, drawn by main, from the clock that placed the row (D11): a
+   * waiting row's wait (`4m`), any other row's last output (`2h`), else its
+   * creation said as one (`3d old`). Under Oldest first every row draws its
+   * creation. NULL WHEN THE ROW HAS NO CLOCK, and a client draws the dash, never
+   * a zero and never an age from the epoch.
+   */
+  ageText: string | null;
+  /** The session is waiting on a human: `session.status === 'needs_input'`, `rowOf`'s own predicate. */
+  waiting: boolean;
+  /** What the agent is asking, only on a waiting row; capped in main already. */
+  question: string | null;
+  /**
+   * Whether the phone may offer End on this row (Phase 317). REQUIRED here,
+   * because only the door's one composer builds these rows.
+   */
+  end: PocketEndOffer;
+}
+
+/** One project on the Sessions tab: a folder on a machine (D7). */
+export interface PocketSessionsGroup {
+  /**
+   * The first 16 base64url characters of sha256 of the group's key: the same
+   * for one folder on one machine across answers and choices, so a client can
+   * remember which groups a person opened. It is not the path.
+   */
+  id: string;
+  /** The open tab's name, else the closed tab's, else the folder's own; clipped. */
+  label: string;
+  /** Clipped; null on this Mac. */
+  machine: PocketMachineLabel;
+  /**
+   * Home-relative on this Mac, as the machine states it elsewhere; clipped.
+   * ONLY when another group over the whole list shares the label and the
+   * machine label, so a group reads the same under every choice (D7).
+   */
+  folder: string | null;
+  /** The rows the words keep in this group, cut or not. */
+  count: number;
+  /**
+   * Of {@link count}, the rows the caps left out (§15 F4), so
+   * `count` = the rows drawn under this group + `omitted`.
+   */
+  omitted: number;
+  /**
+   * Some row the words keep in this group is waiting on a human (§15 F3). A
+   * client draws the needs-input mark on the header open or closed, so a
+   * project a person closed never hides a session that needs him.
+   */
+  waiting: boolean;
+  /** Under All, true when none of this group's rows is active (D8). */
+  collapsed: boolean;
+}
+
+/** One choice of the Agent or Machine menu. */
+export interface PocketSessionsChoice {
+  /** The id the query names: a registry id, a machine id, or `local`. */
+  id: string;
+  /** The drawn name, clipped; null only for machine `local`, which a client words itself. */
+  label: string | null;
+}
+
+/** The answer to `GET /v1/sessions` (Phase 316.7). */
+export interface PocketSessionsAnswer {
+  asked: PocketSessionsAsked;
+  /**
+   * The rows, in the order asked: under Project, group by group in the groups'
+   * order, each group's rows sorted inside it; under None, the sort itself.
+   * WHICH rows are here when the caps cut is chosen by Recent activity, waiting
+   * first, whatever the words (D4).
+   */
+  rows: PocketSessionsRow[];
+  /**
+   * Exactly the groups `rows` name, in the order their first row is emitted
+   * (the groups' order under Project, the rows' order under None) (§15 F16).
+   */
+  groups: PocketSessionsGroup[];
+  /**
+   * The agents among the rows Show keeps, before the filters, ordered by
+   * label; only ids the query can name (§15 F8). At most
+   * {@link POCKET_SESSIONS_CHOICES_MAX}.
+   */
+  agents: PocketSessionsChoice[];
+  /** The machines the same way, `local` first when this Mac has a row. */
+  machines: PocketSessionsChoice[];
+  /** Every listed session, before Show and the filters. */
+  total: number;
+  /**
+   * Rows the words keep that the caps left out: the kept count minus
+   * `rows.length`. It is the sum of the groups' {@link
+   * PocketSessionsGroup.omitted} whenever every group the words keep has a row
+   * drawn. A group whose EVERY row the caps left out is named by no row, so it
+   * is not in `groups` and its rows are counted here alone.
+   */
+  omitted: number;
+  /** Epoch ms this answer was composed. */
+  at: number;
+  /** {@link POCKET_AGE_HONESTY}, handed over rather than spelled by a client. */
   ageNote: string;
 }
 

@@ -4,7 +4,8 @@
  * a route before main is told anything. `../routes.ts` re-exports all three
  * names, so no importer moved, and `conformance:pocket` R1 and R4 read the
  * table here. R4's membership sha256 did not move then; Phase 317 moved it on
- * purpose by the `end` row below, and Phase 318 by its `choose` and `say` rows.
+ * purpose by the `end` row below, Phase 318 by its `choose` and `say` rows, and
+ * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1).
  *
  * ## Closed means closed
  *
@@ -57,6 +58,10 @@ export interface PocketRoute {
  * from the one-shot secret in the QR, and it is dead outside the window — so
  * for almost all of the door's life it is not a route at all.
  *
+ * `sessions` is the Sessions tab's read (Phase 316.7, build/p3167/SPEC.md
+ * §6.2): a signed `GET` whose query names what to show and how, and nothing a
+ * person typed (D3, D14).
+ *
  * `end` is the first write (Phase 317, build/p317/SPEC.md §5.3.1): a signed
  * `POST` alive outside any window. The session id rides in the signed BODY,
  * never in the path or a query, so the table stays a set of exact strings and
@@ -73,6 +78,7 @@ export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'blocked', method: 'GET', path: '/v1/blocked', reads: true, windowOnly: false, signed: true },
   { id: 'session', method: 'GET', path: '/v1/session', reads: true, windowOnly: false, signed: true },
   { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },
+  { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },
   { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },
   { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
   { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true }

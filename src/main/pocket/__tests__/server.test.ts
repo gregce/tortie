@@ -461,7 +461,7 @@ describe('end to end on the shipping pairing and verifier', () => {
       tailnet: 'example.github',
       publicName: 'mac.tail00000.ts.net',
       publicPort: 8443,
-      routes: ['pair', 'blocked', 'session', 'turns'],
+      routes: ['pair', 'blocked', 'session', 'turns', 'end', 'sessions'],
       phones
     });
     const owner = new pairing.PocketPairing({

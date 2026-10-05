@@ -102,12 +102,34 @@ final class CopyTests: XCTestCase {
         let endThese = try StyleSource.text("docs/design/phone/EndThese.html")
         let composer = try StyleSource.text("docs/design/phone/Composer.html")
         let answer = try StyleSource.text("docs/design/phone/Answer.html")
+        // Phase 316.7: the parent's list is the older-Mac face, byte for byte.
+        let older = try StyleSource.text("docs/design/phone/SessionsOlderMac.html")
+        let menu = try StyleSource.text("docs/design/phone/SessionsMenu.html")
         let drawn: [(String, String)] = [
+            (older, Copy.sessions),
+            (older, Copy.needsYourInput(3)),
+            (older, Copy.everythingElse(9)),
+            (older, Copy.readAt("4:32 PM")),
+            (older, Copy.joined(["Working", "webapp"])),
+            (older, Copy.select),
             (main, Copy.sessions),
-            (main, Copy.needsYourInput(3)),
-            (main, Copy.everythingElse(9)),
             (main, Copy.readAt("4:32 PM")),
-            (main, Copy.joined(["Working", "webapp"])),
+            // Phase 316.7: Show, the menu, and the face when nothing matches.
+            (main, Copy.showAll),
+            (main, Copy.showActive),
+            (main, Copy.ended),
+            (menu, Copy.groupBy),
+            (menu, Copy.groupProject),
+            (menu, Copy.sortBy),
+            (menu, Copy.sortRecent),
+            (menu, Copy.agent),
+            (menu, Copy.machine),
+            (menu, Copy.allMachines),
+            (menu, Copy.clearFilters),
+            (menu, Copy.noMatchingSessions),
+            (menu, Copy.showAll),
+            (menu, Copy.showActive),
+            (menu, Copy.ended),
             (session, Copy.youAsked("make the session cookie httpOnly and…")),
             (session, Copy.messages),
             (session, Copy.lastMessage),
@@ -189,6 +211,10 @@ final class CopyTests: XCTestCase {
             answer.contains(">" + Copy.answerInTheSession + "<"),
             "every option Answer.html draws is pressable, so it draws no line sending him to the Mac"
         )
+        // The menu button draws no words; its spoken name is the phone's.
+        for mock in [main, menu] {
+            XCTAssertTrue(mock.contains("aria-label=\"" + Copy.sessionsOptions + "\""), "the menu button is not named \(Copy.sessionsOptions)")
+        }
     }
 
     /// Clause: the composed lines Phase 316.6 adds say the singular for one,
@@ -207,11 +233,13 @@ final class CopyTests: XCTestCase {
     /// word the phone says (Phase 317 brought `Select`): none of their words
     /// is here. Phase 318 brought the message box, so its four words left
     /// this list and are the phone's own (`send`, `messagePlaceholder`,
-    /// `sending`, `oneMessage`).
+    /// `sending`, `oneMessage`). Nor is a search (Phase 316.7, D14).
     func testNoWordOfAControlThePhoneDoesNotHave() throws {
         let refused = [
             "Open in Claude", "Open in Terminal", "Enter a code instead", "End with Face ID",
             "The agent stops. Its saved output stays.",
+            // Phase 316.7, D14: no search, so no word of one.
+            "Search",
         ]
         for entry in try entries() {
             for word in refused where entry.literal.contains(word) {

@@ -12,7 +12,13 @@
  * `P318_PARENT_CHECKOUT` (a BUILT `c1a5fd38`) a SECOND Electron runs that
  * parent on the same profile, one after the other and never at once: it runs
  * FIRST, so the HEAD launch that follows reads the door's agreement `changed`
- * (R0), the route list being a hashed field (D28).
+ * (R0), the route list being a hashed field (D28). RP needs a parent with no
+ * reply route: `c1a5fd38`, or `e657dfbf` (318's parent on main). A parent
+ * at or after `42becaeb` has both writes, so RP reads red there by design.
+ *
+ * PHASE 316.7 LANDED SECOND (its `GET /v1/sessions`, build/p3167/SPEC.md),
+ * so HEAD's door names EIGHT routes and ROUTE_LINE says so; the seven-route
+ * line this probe landed with is 318 alone, and R0 refuses it.
  *
  * WHAT IS REAL. The door, switched on, confirmed and published through the
  * STAND-IN Tailscale (build/p330/tailscale-standin.mjs behind
@@ -195,7 +201,8 @@ const msBetween = (from, to) => Number(BigInt(to) - BigInt(from)) / 1e6;
 /** The snapshot 318 is built on (build/p318/SPEC.md §4.1): menu.ts must read as it does there. */
 export const SNAPSHOT = 'c1a5fd38';
 export const MACHINE_ID = 'p318far';
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
+/** HEAD's route line: 318's writes and 316.7's `sessions` read, eight routes. */
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns';
 export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question and send a session one message';
 /** The parent's own lines: one write. */
 export const PARENT_WRITE_LINE = 'Lets an allowed phone end a session';
@@ -553,7 +560,7 @@ export const GRADER_FIXTURES = {
   R0: {
     pass: { lines: ['Publishes https://x.ts.net:8443', ROUTE_LINE, WRITE_LINE], honesty: WORDS.honesty, confirmBlock: `${ROUTE_LINE}\n${WRITE_LINE}\n${WORDS.honesty}\nAllow`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
     breaks: {
-      'the lines name every route, choose and say among them': (r) => void (r.lines = ['Answers these and nothing else: blocked, end, pair, session, turns', WRITE_LINE]),
+      'the lines name every route, choose and say among them': (r) => void (r.lines = ['Answers these and nothing else: blocked, choose, end, pair, say, session, turns', WRITE_LINE]),
       'the lines say what the three writes do': (r) => void (r.lines = [ROUTE_LINE, PARENT_WRITE_LINE]),
       'Settings then Phone draws the honesty sentence and both lines in its confirm block, before Allow': (r) => void (r.confirmBlock = null),
       'the agreement read changed after the parent confirmed it, and anything but confirmed on a fresh profile': (r) => void (r.confirmStateBefore = 'confirmed'),
@@ -812,9 +819,13 @@ function graderSelfTest() {
     process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${text}\n`);
   };
   const clauses = gradeFixtures({ graders: GRADERS, fixtures: GRADER_FIXTURES, grade, clone: (x) => structuredClone(x), say, J });
+  // ROUTE_LINE against the tree's own POCKET_ROUTE_IDS, so a phase that adds a route turns this self-test red
+  // rather than the live confirm arm (the replay of 316.7 beside 318 left this line naming one route too few).
+  const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'))?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+  say(treeIds.length > 0 && J(ROUTE_LINE.slice(ROUTE_LINE.indexOf(':') + 1).split(',').map((s) => s.trim())) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
   // The pure readers.
   say(constWord("export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n", 'B') === 'two, three.', 'constWord reads a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(frameHexOf('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), 'frameHexOf writes LF as CR inside the paste marks and ends with one CR');
   say(quantile([1, 2, 3, 4], 0.5) === 2 && quantile([], 0.5) === null, 'quantile reads the nearest rank');
   say(actedOf({ status: 200, body: '{"outcome":"refused","reason":"character"}' }) === 'yes', 'actedOf counts a refusal the verb made (logged after step 5)');

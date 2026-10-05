@@ -130,6 +130,40 @@
 //                                session as one message.`, `Sending…`, `Sent`
 //                                or the Mac's sentence
 //
+// THE SESSIONS TAB (Phase 316.7, build/p3167/SPEC.md section 6.4.9) keeps
+// every name above on its new screen: screen-list, list-title, list-select,
+// list-loading, list-failure, list-alerts-line, list-notice, list-age-note,
+// list-read and row-* (its rows are `RowView`s), so every existing UI test step
+// finds them. On the older-Mac face it IS the list above, every name as it
+// was. New:
+//
+//   list-show                    the Show control; a container
+//   list-show-all, list-show-active, list-show-ended
+//                                its three buttons; the chosen one carries the
+//                                selected trait
+//   list-menu                    the menu beside Select (Group by, Sort by,
+//                                Agent, Machine, Clear filters); a button
+//   group-<id>                   one project's header; a button laid over its
+//                                parts, one tap opens or closes it, off while
+//                                End these takes taps (the fix round,
+//                                2026-10-03). `<id>` is main's 16 character
+//                                group id
+//   group-label-<id>, group-count-<id>
+//                                its label, and how many sessions it has under
+//                                the words
+//   group-machine-<id>           its machine's badge, when it is elsewhere
+//   group-folder-<id>            its folder, when two projects share a name
+//   group-waiting-<id>           the needs-input dot, when one of its sessions
+//                                waits, open or closed
+//   group-left-out-<id>          `n more not shown.`, its last line, when the
+//                                caps left some of its sessions out
+//   list-no-match                `No matching sessions`
+//   list-clear-filters           the Clear filters under it; a button
+//   list-no-sessions             `No sessions to manage`, when the Mac lists
+//                                none at all
+//   list-sessions-left-out       `n more not shown.` above the foot, when the
+//                                caps left any session out
+//
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
 // Session screen's last answer; `<n>` a block's PRE-ORDER ordinal from 0 over
@@ -288,6 +322,32 @@ enum ID {
     static let sessionMessageField = "session-message-field"
     static let sessionMessageSend = "session-message-send"
     static let sessionMessageLine = "session-message-line"
+
+    // The Sessions tab (Phase 316.7).
+    static let listShow = "list-show"
+    static let listShowAll = "list-show-all"
+    static let listShowActive = "list-show-active"
+    static let listShowEnded = "list-show-ended"
+    /// The Show control's button for `show`.
+    static func showButton(_ show: SessionsShow) -> String {
+        switch show {
+        case .all: listShowAll
+        case .active: listShowActive
+        case .ended: listShowEnded
+        }
+    }
+    static let listMenu = "list-menu"
+    static func group(_ id: String) -> String { "group-" + id }
+    static func groupLabel(_ id: String) -> String { "group-label-" + id }
+    static func groupCount(_ id: String) -> String { "group-count-" + id }
+    static func groupMachine(_ id: String) -> String { "group-machine-" + id }
+    static func groupFolder(_ id: String) -> String { "group-folder-" + id }
+    static func groupWaiting(_ id: String) -> String { "group-waiting-" + id }
+    static func groupLeftOut(_ id: String) -> String { "group-left-out-" + id }
+    static let listNoMatch = "list-no-match"
+    static let listClearFilters = "list-clear-filters"
+    static let listNoSessions = "list-no-sessions"
+    static let listSessionsLeftOut = "list-sessions-left-out"
 
     // The answer drawn as markdown (Phase 316.6).
     /// The Session screen's scope; a conversation's is the turn's index.

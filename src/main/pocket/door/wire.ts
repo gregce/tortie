@@ -100,8 +100,11 @@ export type ToDoor =
   /** Close, join bounded, then `stopped`. */
   | { readonly kind: 'stop' };
 
-/** The signed reads, and nothing a phone could name that is not one. */
-export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns'>;
+/**
+ * The signed reads, and nothing a phone could name that is not one. Phase
+ * 316.7 added `sessions` (build/p3167/SPEC.md §6.2).
+ */
+export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns' | 'sessions'>;
 
 /**
  * The writes (Phase 317's `end`; Phase 318's `choose` and `say`). Each a
@@ -273,7 +276,7 @@ export function presentationOf(value: unknown): DoorPresentation | null {
   return { iv, ct, tag, ek, sig };
 }
 
-const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns'];
+const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns', 'sessions'];
 const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say'];
 
 /** A write route's exact path, read from the one table. */

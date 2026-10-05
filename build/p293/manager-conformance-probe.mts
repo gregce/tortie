@@ -25,6 +25,13 @@
  *     `settleSessionSheetInline`, `selectSheetView`, and the policy's own
  *     `sessionMenuItems` with and without a host.
  *
+ * PHASE 316.7 (build/p3167/SPEC.md §8.3) moved the sheet's grouping rule to
+ * src/shared/session-list.ts so the phone's door groups by it too, and G3a and
+ * G3b drive BOTH over one fixture: the shipping `buildManageProjection` beside
+ * the shipping `createPocketRoutes(…).sessions` (src/main/pocket/routes.ts,
+ * loaded inside the two rules so a tree without it fails them by name and no
+ * other rule), with no tab open on either side, then the same tabs on both.
+ *
  * WHY THE STORE IS REAL AND THE VERBS ARE NOT. Every rule of the press lives in
  * the store and in actions.ts, so a gate over a copy of either would agree with
  * a wrong one. The seven verbs that reach main are recorders instead, so a
@@ -960,6 +967,131 @@ try {
     c.eq(selectSheetView(useApp.getState())?.visibleIds, ['gone'], 'the Past list is drawn whole');
     useApp.setState({ sessionSheet: { ...sheet(), lifecycle: 'active' } });
     c.eq(selectSheetView(useApp.getState())?.visibleIds, ['gone'], 'a value written past the reset is coerced to All off Managed');
+  });
+
+  // =========================================================================
+  // Phase 316.7 (build/p3167/SPEC.md §8.3): THE PHONE'S GROUPS ARE THE SHEET'S
+  // =========================================================================
+
+  // G3. The phone's door groups by the sheet's own functions, moved to
+  // src/shared/session-list.ts. Driven here over ONE fixture, the shipping
+  // `buildManageProjection` beside the shipping `createPocketRoutes(…).sessions`,
+  // in two arms because the door names an open folder by its tab and the sheet
+  // with no tabs cannot (§15 F11). The fixture holds what can split them: two
+  // local folders named app, a remote app, a closed tab whose name is on a
+  // member that is NOT the group's first (the sheet's `??=`, §15 F12), a folder
+  // with no tab, a folder whose sessions all ended, and live, unknown and ended
+  // rows. A group's id on the door is read against sha256 of the sheet's key,
+  // spelled HERE from D7 (16 base64url characters), so the two sides are
+  // matched by identity rather than by position.
+  const G3_FIXTURE: Session[] = [
+    sess('a1', { projectPath: '/w/one/app', status: 'running' }),
+    sess('a2', { projectPath: '/w/one/app', status: 'exited', hasSavedScrollback: true } as Partial<Session>),
+    sess('b1', { projectPath: '/w/two/app', status: 'idle' }),
+    sess('b2', { projectPath: '/w/two/app', status: 'unknown' }),
+    sess('r1', { projectPath: '/w/far/app', machine: STUDIO, status: 'running' }),
+    sess('r2', { projectPath: '/w/far/app', machine: STUDIO, status: 'restorable' }),
+    sess('c1', { projectPath: '/w/three/proj', status: 'idle' }),
+    sess('c2', { projectPath: '/w/three/proj', status: 'exited', closedProject: { name: 'Named Later', path: '/w/three/proj', closedAt: NOW - 60_000 } } as Partial<Session>),
+    sess('p1', { projectPath: '/w/plain/folder', status: 'restorable' }),
+    sess('p2', { projectPath: '/w/plain/folder', status: 'needs_input' }),
+    sess('e1', { projectPath: '/w/ended/only', status: 'exited', hasSavedScrollback: true } as Partial<Session>)
+  ];
+  const G3_TABS: Project[] = [
+    { id: 'tab-two', path: '/w/two/app', name: 'Second App' },
+    { id: 'tab-far', path: '/w/far/app', name: 'Far Tab', machineId: 'm1' },
+    { id: 'tab-three', path: '/w/three/proj', name: 'Three Open' }
+  ];
+  const { createHash } = await import('node:crypto');
+  const idOfKey = (key: string): string => createHash('sha256').update(key).digest('base64url').slice(0, 16);
+
+  interface DoorGroup { id: string; label: string; machine: string | null; folder: string | null; count: number; omitted: number; collapsed: boolean }
+  interface DoorAnswer { rows: { sessionId: string; group: number }[]; groups: DoorGroup[]; total: number; omitted: number }
+  /** The SHIPPING door's answer over the fixture and the open tabs given. */
+  const doorOver = async (projects: Project[], query: string): Promise<DoorAnswer> => {
+    const routesMod = await load('main/pocket/routes.ts');
+    const statusWords = await load('shared/status-words.ts');
+    const createPocketRoutes = routesMod['createPocketRoutes'] as (facts: unknown) => { sessions?: (q: URLSearchParams) => DoorAnswer | null };
+    const statusVisual = statusWords['statusVisual'] as (status: SessionStatus, s: Session) => { dot: string; label: string };
+    const routes = createPocketRoutes({
+      sessions: () => G3_FIXTURE,
+      projects: () => projects,
+      blockedSince: () => new Map(),
+      wakes: () => [],
+      activity: () => undefined,
+      statusWord: (s: Session) => {
+        const v = statusVisual(s.status, s);
+        return { dot: v.dot, label: v.label };
+      },
+      agentLabel: (agent: string) => agent,
+      machineLabel: (s: Session) => s.machine?.label ?? null,
+      emptyLine: 'Nothing needs you',
+      catchUp: () => Promise.resolve(null),
+      lastTurn: () => Promise.resolve({ answerText: null, turnCount: 0 }),
+      turns: () => Promise.resolve({ turns: [], more: false }),
+      handoff: () => null,
+      now: () => NOW
+    });
+    if (typeof routes.sessions !== 'function') throw new Error('createPocketRoutes answers no sessions member (src/main/pocket/routes.ts)');
+    const answer = routes.sessions(new URLSearchParams(query));
+    if (answer === null) throw new Error(`the door refused ${query}`);
+    return answer;
+  };
+  /** The ids a door answer draws, sorted, for a set comparison. */
+  const doorIds = (a: DoorAnswer): string[] => a.rows.map((r) => r.sessionId).sort();
+  /** The sheet's Active and Ended segments against the door's Show, over one projection. */
+  const segmentsAgree = async (c: Check, projects: Project[], p: { managed: unknown[] }, arm: string): Promise<void> => {
+    for (const lifecycle of ['active', 'ended'] as const) {
+      const sheetIds = visibleIds(visibleGroups(p.managed, { ...ALL, lifecycle }, null)).sort();
+      const door = await doorOver(projects, `show=${lifecycle}&group=none&sort=recent`);
+      c.eq(doorIds(door), sheetIds, `${arm}: the sheet's ${lifecycle === 'active' ? 'Active' : 'Ended'} segment and the door's show=${lifecycle} keep exactly the same sessions`);
+    }
+    const all = await doorOver(projects, 'show=all&group=none&sort=recent');
+    c.eq(doorIds(all), G3_FIXTURE.map((s) => s.id).sort(), `${arm}: the door's show=all keeps every listed session`);
+  };
+
+  await rule('G3a', 'Phase 316.7 §8.3, §15 F11, F12', 'with NO project open on either side, the door\'s groups under show=all&group=project are the sheet\'s Managed groups: the same identities in the same order, each with the same label, machine and number of sessions, a folder only where two groups draw alike, and the same sessions under Active and under Ended', async (c) => {
+    const p = projection(G3_FIXTURE);
+    const door = await doorOver([], 'show=all&group=project&sort=recent');
+    const sheet = p.managed as { key: string; label: string; path: string; machineId: string | null; machineLabel: string | null; rows: { id: string }[] }[];
+    c.eq(door.groups.map((g) => g.id), sheet.map((g) => idOfKey(g.key)), 'the groups, by identity, in order');
+    c.eq(door.groups.map((g) => g.label), sheet.map((g) => g.label), 'each group\'s label');
+    c.eq(door.groups.map((g) => g.machine), sheet.map((g) => g.machineLabel), 'each group\'s machine');
+    c.eq(door.groups.map((g) => g.count), sheet.map((g) => g.rows.length), 'each group\'s number of sessions');
+    c.ok(sheet.some((g) => g.label === 'Named Later'), 'the fixture\'s closed tab names its group on the sheet (the name sits on the group\'s SECOND member)');
+    c.eq(door.groups.map((g) => g.omitted), sheet.map(() => 0), 'nothing is cut from eleven sessions');
+    // D7: a folder only where the label AND the machine collide, which is the
+    // two local folders named app and never the remote one.
+    const withFolder = door.groups.filter((g) => g.folder !== null).map((g) => g.id).sort();
+    const alike = sheet.filter((g) => sheet.some((o) => o !== g && o.label === g.label && o.machineLabel === g.machineLabel)).map((g) => idOfKey(g.key)).sort();
+    c.eq(withFolder, alike, 'a folder exactly on the groups that would otherwise draw alike');
+    c.ok(alike.length === 2, 'the fixture holds two groups that draw alike, so the folder clause read something');
+    // Contiguity and the row's index: every row names a group, and the groups' rows are runs.
+    const runs = door.rows.map((r) => r.group);
+    c.ok(runs.every((g, i) => i === 0 || g === runs[i - 1] || !runs.slice(0, i).includes(g)), 'each group\'s rows are one run under Project');
+    await segmentsAgree(c, [], p, 'no tabs');
+  });
+
+  await rule('G3b', 'Phase 316.7 §8.3, §15 F11', 'with the SAME projects open on both sides, every group\'s label and number of sessions agree by identity, and the door\'s order is the sheet\'s groups re-sorted by compareSessionGroups with an EMPTY tab map, which is the sheet\'s order with its one named difference, open tabs first, taken out', async (c) => {
+    const listMod = await load('shared/session-list.ts');
+    const compareSessionGroups = listMod['compareSessionGroups'] as (a: { key: string; label: string }, b: { key: string; label: string }, openAt: ReadonlyMap<string, number>) => number;
+    const p = projection(G3_FIXTURE, { projects: G3_TABS });
+    const door = await doorOver(G3_TABS, 'show=all&group=project&sort=recent');
+    const sheet = p.managed as { key: string; label: string; machineLabel: string | null; tabOpen: boolean; rows: { id: string }[] }[];
+    const byId = new Map(sheet.map((g) => [idOfKey(g.key), g]));
+    c.eq(door.groups.length, sheet.length, 'as many groups on the door as on the sheet');
+    for (const g of door.groups) {
+      const s = byId.get(g.id);
+      c.ok(s !== undefined, `the door's group ${g.label} is one of the sheet's`);
+      if (s === undefined) continue;
+      c.eq(g.label, s.label, `the label of ${s.key}`);
+      c.eq(g.count, s.rows.length, `the number of sessions of ${s.key}`);
+    }
+    c.eq(sheet.filter((g) => g.tabOpen).map((g) => g.label), ['Second App', 'Far Tab', 'Three Open'], 'the sheet draws the open tabs first, in the tabs\' own order, under the tabs\' names');
+    const reSorted = [...sheet].sort((a, b) => compareSessionGroups(a, b, new Map())).map((g) => idOfKey(g.key));
+    c.eq(door.groups.map((g) => g.id), reSorted, 'the door\'s order is the sheet\'s groups ordered with no tab first');
+    c.ok(JSON.stringify(reSorted) !== JSON.stringify(sheet.map((g) => idOfKey(g.key))), 'and that order differs from the sheet\'s own here, so the comparison read the one named difference');
+    await segmentsAgree(c, G3_TABS, p, 'the same tabs');
   });
 
   // =========================================================================

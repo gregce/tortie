@@ -29,7 +29,8 @@
  * the ledger names, and that is all.
  *
  * THE CONTACT SHEET IS NOT A SCREEN. `index.html` draws every screen (twelve
- * since Phase 316.6, thirteen since Phase 317's End these) through
+ * since Phase 316.6, thirteen since Phase 317's End these, fifteen since Phase
+ * 316.7's Sessions tab, its menu and its older-Mac face) through
  * `<iframe src="…">` and its own prose is
  * commentary about the mock. It
  * is exempt as a class, with that reason, and the exemption is paid for: the run
@@ -709,6 +710,112 @@ const LEDGER = [
     draws: 'Tortie',
     why: "the product's name, from the one place the bundle takes it"
   }),
+  // PHASE 316.7 (build/p3167/SPEC.md §6.5, §7): the Sessions tab shows, groups,
+  // sorts and filters. Show is the session manager's own lifecycle segment, word
+  // for word; Clear filters and the empty face are the sheet's; Group by, Sort
+  // by and their sort words are the phone's own, because no Mac surface offers
+  // that choice, and Copy.swift declares each with its reason.
+  owned({
+    is: 'All',
+    module: MANAGER_COPY,
+    needle: "label: 'All'",
+    draws: 'All',
+    why: "the Show control's first word, the session manager's lifecycle segment"
+  }),
+  owned({
+    is: 'Active',
+    module: MANAGER_COPY,
+    needle: "label: 'Active'",
+    draws: 'Active',
+    why: "the Show control's word the tab opens on, the session manager's lifecycle segment"
+  }),
+  owned({
+    is: 'Ended',
+    module: MANAGER_COPY,
+    needle: "label: 'Ended'",
+    draws: 'Ended',
+    why: "the Show control's third word, the session manager's lifecycle segment"
+  }),
+  owned({
+    is: 'Group, sort and filter',
+    module: PHONE_COPY,
+    needle: 'static let sessionsOptions = "Group, sort and filter"',
+    draws: 'Group, sort and filter',
+    why: "the menu button's spoken name; the button draws no words"
+  }),
+  owned({
+    is: 'Group by',
+    module: PHONE_COPY,
+    needle: 'static let groupBy = "Group by"',
+    draws: 'Group by',
+    why: 'the menu\'s grouping choice; no Mac surface offers one, the sheet always groups by project'
+  }),
+  owned({
+    is: 'Project',
+    module: MANAGER_COPY,
+    needle: "project: 'Project'",
+    draws: 'Project',
+    why: "Group by's default, the session manager's own word for the column a session's project is in"
+  }),
+  owned({
+    is: 'Sort by',
+    module: PHONE_COPY,
+    needle: 'static let sortBy = "Sort by"',
+    draws: 'Sort by',
+    why: 'the menu\'s order choice; the sheet sorts by pressing a column heading, which a phone does not have'
+  }),
+  owned({
+    is: 'Recent activity',
+    module: PHONE_COPY,
+    needle: 'static let sortRecent = "Recent activity"',
+    draws: 'Recent activity',
+    why: "Sort by's default, the order today's list already has: waiting first, then output, then creation"
+  }),
+  owned({
+    is: 'Agent',
+    module: 'src/renderer/diagnostics/copy.ts',
+    needle: "COL_AGENT = 'Agent'",
+    draws: 'Agent',
+    why: "the menu's agent filter, the Mac's own column word for an agent"
+  }),
+  owned({
+    is: 'Machine',
+    module: 'src/renderer/machines/machine-choice.ts',
+    needle: "MACHINE_FIELD_LABEL = 'Machine'",
+    draws: 'Machine',
+    why: "the menu's machine filter, the Mac's own field word for a machine"
+  }),
+  owned({
+    is: 'All machines',
+    module: PHONE_COPY,
+    needle: 'static let allMachines = "All machines"',
+    draws: 'All machines',
+    why: "the machine filter's no-filter value; no Mac surface filters sessions by machine"
+  }),
+  owned({
+    is: 'Clear filters',
+    module: MANAGER_COPY,
+    needle: "CLEAR_FILTERS = 'Clear filters'",
+    draws: 'Clear filters',
+    why: "the session manager's own reset, with its meaning: Show to All and both filters cleared (D12)"
+  }),
+  owned({
+    is: 'No matching sessions',
+    module: MANAGER_COPY,
+    needle: "NO_MATCH_HEADING = 'No matching sessions'",
+    draws: 'No matching sessions',
+    why: "the session manager's face when the words keep nothing"
+  }),
+  owned({
+    // The age is main's (`formatAge`), and the word after it is `createdOld`'s,
+    // which Phase 316.7 moved byte for byte from the sheet's copy.ts to
+    // src/shared/age.ts so main can say it to the phone (§6.3, D11).
+    when: /^\d+[smhd] old$/,
+    module: 'src/shared/age.ts',
+    needle: '`${age} old`',
+    draws: ' old',
+    why: "an age counted from a session's creation, which the sheet's Created cell also says with `old`, so one clock is never drawn as another"
+  }),
 
   // -------------------------------------------------------------------------
   // Not copy
@@ -775,6 +882,10 @@ const LEDGER = [
     when: /^https:\/\/[a-z0-9.-]+\/\S*$/,
     phase: MARKDOWN_LATER,
     why: "an address an answer links to, which Link.html's alert draws whole before it opens. While markdown is off no link is pressable and the address is not drawn"
+  }),
+  data({
+    when: /^~\/[a-z0-9-]+(?:\/[a-z0-9-]+)*$/,
+    why: "a project's folder, home-relative as main states it, drawn under a header only when two projects share a name (Phase 316.7, D7)"
   }),
   owed({
     is: '-',
@@ -923,12 +1034,21 @@ const OWED_ABSENCE_FLOOR = 16;
  * End bar's word, the batch bar's count and press, the batch heading, body,
  * skipped line and press, and Select), and the six owed 317 rows and the
  * `Actions for` data rule left with the refusals card and the actions button.
+ *
+ * PHASE 316.7 RAISED IT FROM 58 TO 72, the count the run matches: fourteen
+ * owned rules for the Sessions tab joined (All, Active and Ended, the menu
+ * button's spoken name, Group by, Project, Sort by, Recent activity, Agent,
+ * Machine, All machines, Clear filters, No matching sessions, and a creation
+ * age's ` old`). Every rule the parent's list matched still matches, in
+ * SessionsOlderMac.html, which is that list byte for byte but its title.
  */
 /* PHASE 318 RAISED IT BY THREE, FROM 57 TO 60, the count the run matches: the
    three message strip words Composer.html draws at rest, owned by Copy.swift
    now rather than owed (Send, Message this session, Goes to this session as
-   one message.). */
-const OWNED_RULE_FLOOR = 60;
+   one message.). PHASE 316.7 RAISED IT BY FOURTEEN, FROM 60 TO 74, landing
+   second: the fourteen owned rules its Sessions mocks (Main.html,
+   SessionsMenu.html, SessionsOlderMac.html) draw. */
+const OWNED_RULE_FLOOR = 74;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1136,8 +1256,17 @@ function checkContactSheet(names, sheet) {
  * count the run matches: Unpair's three `/// Names:` pins stay on unpairNote,
  * the words that send a person to Remove (the fix round took the line that
  * would have carried them, unpairMacMayList, out with Unpair's Mac half).
+ *
+ * PHASE 316.7 RAISED PHONE_MAC_FLOOR FROM 68 TO 79, the count the run
+ * matches, and not the 80 build/p3167/SPEC.md §7 wrote: eleven of its twelve
+ * `/// Mac:` words joined or moved (All, Active, Project, None, Agent, All
+ * agents, Machine, Clear filters, No matching sessions, No sessions to manage,
+ * and This Mac, which was the phone's own and is now the Mac's machine-choice
+ * word), and the twelfth, the Show control's `Ended`, is `Copy.ended`, which
+ * was already declared, because a word is declared once (the duplicate rule
+ * above, and CopyTests.testEveryWordIsDeclaredOnceWithItsOwner).
  */
-const PHONE_MAC_FLOOR = 68;
+const PHONE_MAC_FLOOR = 79;
 const PHONE_NAMES_FLOOR = 7;
 
 /** `src/x.ts ⟦text⟧` to [path, text], or null. */
@@ -1406,6 +1535,14 @@ const PHONE_MUTATIONS = [
     swift: (t) => t,
     module: [MANAGER_COPY, (t) => t.replace("END_SELECTED = 'End selected sessions…'", "END_SELECTED = 'End the selected sessions…'")],
     names: 'endSelected'
+  },
+  {
+    // Phase 316.7: the Show control's words are the sheet's lifecycle segment,
+    // so a Mac that renames Active must turn Copy.showActive red, by name.
+    what: "the Mac renames Active, the Show word the phone copied",
+    swift: (t) => t,
+    module: [MANAGER_COPY, (t) => t.replace("label: 'Active'", "label: 'Live'")],
+    names: 'showActive'
   }
 ];
 
@@ -1449,8 +1586,8 @@ const MUTATIONS = [
     apply(screens) {
       const next = new Map(screens);
       next.set(
-        'Main.html',
-        (next.get('Main.html') ?? '').replace(
+        'SessionsOlderMac.html',
+        (next.get('SessionsOlderMac.html') ?? '').replace(
           'Needs your input (3)',
           'Needs your inpt (3)'
         )
@@ -1464,8 +1601,8 @@ const MUTATIONS = [
     apply(screens) {
       const next = new Map(screens);
       next.set(
-        'Main.html',
-        (next.get('Main.html') ?? '').replace('Unreachable', 'Offline')
+        'SessionsOlderMac.html',
+        (next.get('SessionsOlderMac.html') ?? '').replace('Unreachable', 'Offline')
       );
       return next;
     },
@@ -1508,8 +1645,8 @@ const MUTATIONS = [
     apply(screens) {
       const next = new Map(screens);
       next.set(
-        'Main.html',
-        (next.get('Main.html') ?? '').replace(
+        'SessionsOlderMac.html',
+        (next.get('SessionsOlderMac.html') ?? '').replace(
           'Run rm -rf build?',
           'Run make install and then deploy?'
         )
@@ -1556,6 +1693,27 @@ const MUTATIONS = [
       return next;
     },
     names: 'Needs Input'
+  },
+  {
+    // Phase 316.7: the Show control is the session manager's lifecycle
+    // segment, word for word, so a word re-typed on the phone must fail by name.
+    what: 'a Show word re-typed',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Main.html', (next.get('Main.html') ?? '').replace('>Ended<', '>Over<'));
+      return next;
+    },
+    names: 'Over'
+  },
+  {
+    // Phase 316.7: Clear filters is the Mac's own reset (D12).
+    what: "the Mac's Clear filters re-worded in the menu",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('SessionsMenu.html', (next.get('SessionsMenu.html') ?? '').replace('>Clear filters<', '>Clear all filters<'));
+      return next;
+    },
+    names: 'Clear all filters'
   }
 ];
 

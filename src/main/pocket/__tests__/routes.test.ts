@@ -18,22 +18,56 @@
  * Nothing here opens a socket, reads a file or touches Electron.
  */
 
-import { describe, expect, it } from 'vitest';
+import { createHash } from 'node:crypto';
+import { describe, expect, it, vi } from 'vitest';
 import type { Project, Session } from '@shared/types';
 import { POCKET_ROUTE_IDS } from '@shared/ipc/pocket';
 import { MAX_TURN_LIMIT } from '../../overview/turn-view';
 import {
   POCKET_DEFAULT_TURN_LIMIT,
   POCKET_ROUTES,
+  clipSessionText,
   createPocketRoutes,
+  isSessionsId,
   matchPocketRoute,
   pocketRouteIds,
   pocketRouteIdsAgree,
   pocketWriteRouteIds,
+  readSessionsQuery,
   readTurnRange,
   type PocketFacts,
   type PocketRoute
 } from '../routes';
+import {
+  POCKET_SESSIONS_BUDGET_BYTES,
+  POCKET_SESSIONS_CHOICES_MAX,
+  POCKET_SESSIONS_CLIP_CHARS,
+  POCKET_SESSIONS_MAX,
+  type PocketSessionsAnswer,
+  type PocketSessionsRow
+} from '@shared/ipc/pocket';
+
+/**
+ * PHASE 316.7. The Sessions tab's two caps, SHORTENED BY INJECTION for the
+ * tests that need a cut of a few rows (build/p3167/SPEC.md §9.2, §15 F2). The
+ * contract module is the real one with the two numbers read through getters,
+ * so a test sets `caps.rows` or `caps.bytes` and puts it back, and every other
+ * test reads the contract's own numbers. Nothing in the shipping module is a
+ * seam for it: the route imports the numbers and reads each once.
+ */
+const caps = vi.hoisted(() => ({ rows: null as number | null, bytes: null as number | null }));
+vi.mock('@shared/ipc/pocket', async (importOriginal) => {
+  const real = await importOriginal<typeof import('@shared/ipc/pocket')>();
+  return {
+    ...real,
+    get POCKET_SESSIONS_MAX(): number {
+      return caps.rows ?? real.POCKET_SESSIONS_MAX;
+    },
+    get POCKET_SESSIONS_BUDGET_BYTES(): number {
+      return caps.bytes ?? real.POCKET_SESSIONS_BUDGET_BYTES;
+    }
+  };
+});
 import { POCKET_NO_REPLY, POCKET_WRITE_ROUTE_IDS, type PocketEndOffer, type PocketReplyOffer } from '@shared/ipc/pocket';
 import type { PocketReplyDrawn } from '../routes';
 import { endSessionConfirm } from '@shared/lifecycle-words';
@@ -155,7 +189,8 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    expect(POCKET_ROUTES).toHaveLength(7);
+    // Eight since Phase 318's `choose` and `say` and Phase 316.7's `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(8);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -170,7 +205,8 @@ describe('the table is closed', () => {
         signed: true
       })
     ).toThrow();
-    expect(POCKET_ROUTES).toHaveLength(7);
+    // Eight since Phase 318's two writes and Phase 316.7's `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(8);
     expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
@@ -188,7 +224,7 @@ describe('the table is closed', () => {
     }
     expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end', '/v1/choose', '/v1/say']);
     // Every other row is still a read.
-    expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual(['blocked', 'pair', 'session', 'turns']);
+    expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual(['blocked', 'pair', 'session', 'sessions', 'turns']);
   });
 
   it('matches a write only as a POST to its exact path', () => {
@@ -238,7 +274,7 @@ describe('the table is closed', () => {
     const pair = POCKET_ROUTES.find((r) => r.id === 'pair');
     expect(pair?.windowOnly).toBe(true);
     expect(pair?.signed).toBe(false);
-    for (const id of ['blocked', 'session', 'turns'] as const) {
+    for (const id of ['blocked', 'session', 'turns', 'sessions'] as const) {
       const route = POCKET_ROUTES.find((r) => r.id === id);
       expect(route?.windowOnly).toBe(false);
       expect(route?.signed).toBe(true);
@@ -1072,5 +1108,745 @@ describe('the reply offer on one session (Phase 318, build/p318/SPEC.md §5.2, D
     expect(order).toEqual(['reply:start', 'catchUp', 'lastTurn']);
     release();
     expect((await pending)?.session.reply).toEqual(OFFER);
+  });
+});
+
+// ===========================================================================
+// THE SESSIONS TAB (Phase 316.7, build/p3167/SPEC.md §6.2, §9.2, §15)
+//
+// Every expected value below is written by hand from the SPEC, never computed
+// by the module under test: the membership table, the group keys, labels,
+// order and folders, every age, and the three orders. The matrix walks every
+// Show × Group × Sort with and without each filter.
+// ===========================================================================
+
+const NOW = Date.UTC(2026, 9, 2, 12, 0, 0);
+// `MIN`, one minute, is the wake section's above.
+const HOUR = 60 * MIN;
+const DAY = 24 * HOUR;
+
+function machineOf(id: string, label: string): NonNullable<Session['machine']> {
+  return {
+    id,
+    label,
+    color: 'blue',
+    answering: true,
+    canRestore: false,
+    restoreReason: null
+  } as NonNullable<Session['machine']>;
+}
+
+function listed(over: Partial<Session> & { id: string }): Session {
+  return {
+    name: over.id,
+    tmuxName: over.id,
+    projectPath: '/Users/x/work/app',
+    cwd: '/Users/x/work/app',
+    agent: 'claude',
+    status: 'idle',
+    createdAt: NOW - DAY,
+    ...over
+  } as Session;
+}
+
+/**
+ * 300 UTF-16 units ending in a surrogate pair, whose 199th unit (index 198) is
+ * the HIGH half of a pair: the clip keeps 199 units, and the one surrogate-safe
+ * step backs off to 198 so no character is cut in two.
+ */
+const LONG_NAME = `${'n'.repeat(198)}😀${'x'.repeat(98)}😀`;
+
+/**
+ * The world: waiting (stamped, unstamped, unstamped at epoch 0), running,
+ * idle, unknown, exited and restorable rows; a remote machine; THREE folders
+ * named `app` (two on this Mac, one on the machine); an open project; a closed
+ * tab whose name is on its SECOND member; an agent id the query would refuse;
+ * a machine whose id is `local`; a `createdAt` of 0; a 300-unit name.
+ */
+const WORLD: Session[] = [
+  listed({ id: 'w1', name: 'wait stamped', status: 'needs_input', projectPath: '/Users/x/work/zeta', createdAt: NOW - 6 * DAY }),
+  listed({ id: 'w2', name: 'wait unstamped', status: 'needs_input', projectPath: '/Users/x/work/app', createdAt: NOW - 3 * DAY }),
+  listed({ id: 'w3', name: 'wait epoch', status: 'needs_input', projectPath: '/Users/y/app', createdAt: 0 }),
+  listed({ id: 'r1', name: 'runner', status: 'running', projectPath: '/Users/x/work/app', createdAt: NOW - 4 * DAY }),
+  listed({ id: 'i1', name: 'idler', status: 'idle', projectPath: '/Users/y/app', createdAt: NOW - 5 * DAY }),
+  listed({ id: 'u1', name: 'unreached', status: 'unknown', projectPath: '/srv/app', machine: machineOf('devbox', 'Dev Box'), createdAt: NOW - DAY }),
+  listed({ id: 'x1', name: 'ended a', status: 'exited', projectPath: '/Users/x/work/old', createdAt: NOW - 10 * DAY }),
+  listed({ id: 'x2', name: 'ended b', status: 'restorable', projectPath: '/Users/x/work/old', createdAt: 0 }),
+  listed({ id: 'n1', name: LONG_NAME, agent: 'codex', projectPath: '/Users/x/work/beta', createdAt: NOW - 2 * DAY }),
+  listed({ id: 'c0', name: 'closed first', projectPath: '/Users/x/work/shut', createdAt: NOW - 7 * DAY }),
+  listed({
+    id: 'c1',
+    name: 'closed second',
+    projectPath: '/Users/x/work/shut',
+    createdAt: NOW - 8 * DAY,
+    closedProject: { name: 'Shut Tab', path: '/Users/x/work/shut', closedAt: 1 }
+  }),
+  // An agent id the manifest can store (codecs.ts) and the query cannot name.
+  listed({ id: 'b1', name: 'bad agent', agent: 'Bad_Id' as Session['agent'], projectPath: '/Users/x/work/zeta', createdAt: NOW - 9 * DAY }),
+  listed({ id: 'k1', name: 'local id', projectPath: '/Users/x/work/zeta', machine: machineOf('local', 'Local'), createdAt: NOW - 11 * DAY }),
+  listed({ id: 'd1', name: 'remote idle', projectPath: '/srv/app', machine: machineOf('devbox', 'Dev Box'), createdAt: NOW - 12 * DAY })
+];
+
+const WORLD_STAMPS = new Map<string, number>([['w1', NOW - 4 * MIN]]);
+const WORLD_ACTIVITY: Record<string, { question?: string; lastActivityAt?: number }> = {
+  w1: { question: 'May I run the tests?' },
+  // Waiting with output but NO stamp: aged by its creation, never its output.
+  w2: { lastActivityAt: NOW - MIN, question: '' },
+  r1: { lastActivityAt: NOW - 2 * HOUR, question: 'not waiting, so never drawn' },
+  x1: { lastActivityAt: NOW - 9 * DAY }
+};
+const WORLD_PROJECTS: Project[] = [{ id: 'p1', path: '/Users/x/work/beta', name: 'Beta Renamed' }];
+
+function sessionsFacts(
+  list: readonly Session[],
+  over: Partial<PocketFacts> & {
+    stamps?: ReadonlyMap<string, number>;
+    feed?: Record<string, { question?: string; lastActivityAt?: number }>;
+  } = {}
+): PocketFacts {
+  const { stamps, feed, ...rest } = over;
+  return {
+    sessions: () => list,
+    projects: () => [],
+    blockedSince: () => stamps ?? new Map(),
+    wakes: () => [],
+    activity: (id) => feed?.[id],
+    statusWord: (s) =>
+      s.status === 'needs_input'
+        ? { dot: 'attention', label: 'needs input' }
+        : s.status === 'running'
+          ? { dot: 'working', label: 'working' }
+          : s.status === 'exited' || s.status === 'restorable'
+            ? { dot: 'ended', label: 'ended' }
+            : s.status === 'unknown'
+              ? { dot: 'unknown', label: 'unreachable' }
+              : { dot: 'idle', label: 'idle' },
+    agentLabel: (id) => (id === 'claude' ? 'Claude Code' : id === 'codex' ? 'Codex' : id),
+    machineLabel: (s) => s.machine?.label ?? null,
+    emptyLine: 'Nothing needs you',
+    catchUp: async () => null,
+    lastTurn: async () => ({ answerText: null, turnCount: 0 }),
+    turns: async () => ({ turns: [], more: false }),
+    handoff: () => null,
+    now: () => NOW,
+    ...rest
+  };
+}
+
+const worldFacts = (over: Partial<PocketFacts> = {}): PocketFacts =>
+  sessionsFacts(WORLD, { stamps: WORLD_STAMPS, feed: WORLD_ACTIVITY, projects: () => WORLD_PROJECTS, ...over });
+
+function ask(routes: ReturnType<typeof createPocketRoutes>, query: string): PocketSessionsAnswer {
+  const answer = routes.sessions(new URLSearchParams(query));
+  if (answer === null) throw new Error(`refused: ${query}`);
+  return answer;
+}
+
+/** By hand: what Show keeps. */
+const SHOW_KEEPS: Record<'active' | 'ended' | 'all', readonly string[]> = {
+  active: ['running', 'idle', 'needs_input', 'unknown'],
+  ended: ['exited', 'restorable'],
+  all: ['running', 'idle', 'needs_input', 'unknown', 'exited', 'restorable']
+};
+/** By hand: the machine each row is on, `local` for this Mac and for the machine whose id is `local`. */
+const MACHINE_OF: Record<string, string> = Object.fromEntries(
+  WORLD.map((s) => [s.id, s.id === 'u1' || s.id === 'd1' ? 'devbox' : 'local'])
+);
+/** By hand: each row's group key. */
+const KEY_OF: Record<string, string> = {
+  w1: '/Users/x/work/zeta', b1: '/Users/x/work/zeta', k1: '/Users/x/work/zeta',
+  w2: '/Users/x/work/app', r1: '/Users/x/work/app',
+  w3: '/Users/y/app', i1: '/Users/y/app',
+  u1: 'devbox:/srv/app', d1: 'devbox:/srv/app',
+  x1: '/Users/x/work/old', x2: '/Users/x/work/old',
+  n1: '/Users/x/work/beta',
+  c0: '/Users/x/work/shut', c1: '/Users/x/work/shut'
+};
+/** By hand: the groups in order (label, then key), with their drawn fields. */
+const GROUPS_BY_HAND: { key: string; label: string; machine: string | null; folder: string | null }[] = [
+  { key: '/Users/x/work/app', label: 'app', machine: null, folder: '~/work/app' },
+  { key: '/Users/y/app', label: 'app', machine: null, folder: '~/app' },
+  { key: 'devbox:/srv/app', label: 'app', machine: 'Dev Box', folder: null },
+  { key: '/Users/x/work/beta', label: 'Beta Renamed', machine: null, folder: null },
+  { key: '/Users/x/work/old', label: 'old', machine: null, folder: null },
+  { key: '/Users/x/work/shut', label: 'Shut Tab', machine: null, folder: null },
+  { key: '/Users/x/work/zeta', label: 'zeta', machine: 'Local', folder: null }
+];
+/** By hand: every age under Recent activity and Name, and under Oldest first. */
+const AGE_RECENT: Record<string, string | null> = {
+  w1: '4m', w2: '3d old', w3: null, r1: '2h', i1: '5d old', u1: '1d old', x1: '9d', x2: null,
+  n1: '2d old', c0: '7d old', c1: '8d old', b1: '9d old', k1: '11d old', d1: '12d old'
+};
+const AGE_OLDEST: Record<string, string | null> = {
+  w1: '6d old', w2: '3d old', w3: null, r1: '4d old', i1: '5d old', u1: '1d old', x1: '10d old', x2: null,
+  n1: '2d old', c0: '7d old', c1: '8d old', b1: '9d old', k1: '11d old', d1: '12d old'
+};
+/**
+ * By hand: Recent activity over the whole world. Waiting first, newest since
+ * first (the stamp, else creation, which ORDERS and never labels); then output
+ * newest first; then no output, newest created first.
+ */
+const RECENT_BY_HAND = ['w1', 'w2', 'w3', 'r1', 'x1', 'u1', 'n1', 'i1', 'c0', 'c1', 'b1', 'k1', 'd1', 'x2'];
+/** By hand: Name (localeCompare), then id. */
+const NAME_BY_HAND = ['b1', 'c0', 'c1', 'x1', 'x2', 'i1', 'k1', 'n1', 'd1', 'r1', 'u1', 'w3', 'w1', 'w2'];
+/** By hand: creation ascending, a clock of 0 last, then id. */
+const OLDEST_BY_HAND = ['d1', 'k1', 'x1', 'b1', 'c1', 'c0', 'w1', 'i1', 'r1', 'w2', 'n1', 'u1', 'w3', 'x2'];
+
+const idOfKey = (key: string): string => createHash('sha256').update(key).digest('base64url').slice(0, 16);
+
+describe('the Sessions tab: every Show × Group × Sort, with and without each filter (Phase 316.7)', () => {
+  const routes = createPocketRoutes(worldFacts());
+  const orders = { recent: RECENT_BY_HAND, name: NAME_BY_HAND, oldest: OLDEST_BY_HAND } as const;
+  let combinations = 0;
+  for (const show of ['active', 'ended', 'all'] as const) {
+    for (const group of ['project', 'none'] as const) {
+      for (const sort of ['recent', 'name', 'oldest'] as const) {
+        for (const agent of [null, 'claude', 'codex', 'nobody'] as const) {
+          for (const machine of [null, 'local', 'devbox', 'nowhere'] as const) {
+            combinations += 1;
+            const query = [
+              `show=${show}`,
+              `group=${group}`,
+              `sort=${sort}`,
+              ...(agent === null ? [] : [`agent=${agent}`]),
+              ...(machine === null ? [] : [`machine=${machine}`])
+            ].join('&');
+            it(query, () => {
+              const answer = ask(routes, query);
+              expect(answer.asked).toEqual({ show, group, sort, agent, machine });
+              // MEMBERSHIP, by the hand table.
+              const keptIds = WORLD.filter(
+                (s) =>
+                  SHOW_KEEPS[show].includes(s.status) &&
+                  (agent === null || s.agent === agent) &&
+                  (machine === null || MACHINE_OF[s.id] === machine)
+              ).map((s) => s.id);
+              const ids = answer.rows.map((r) => r.sessionId);
+              expect(new Set(ids).size).toBe(ids.length);
+              expect([...ids].sort()).toEqual([...keptIds].sort());
+              // ORDER: the hand order, partitioned by the hand group order under Project.
+              const sorted = orders[sort].filter((id) => keptIds.includes(id));
+              const expected =
+                group === 'none'
+                  ? sorted
+                  : GROUPS_BY_HAND.flatMap((g) => sorted.filter((id) => KEY_OF[id] === g.key));
+              expect(ids).toEqual(expected);
+              // GROUPS: exactly the ones the rows name, each once, in first-emitted order.
+              const firstSeen: string[] = [];
+              for (const id of ids) {
+                const key = KEY_OF[id] ?? '';
+                if (!firstSeen.includes(key)) firstSeen.push(key);
+              }
+              expect(answer.groups.map((g) => g.id)).toEqual(firstSeen.map(idOfKey));
+              for (const row of answer.rows) {
+                expect(answer.groups[row.group]?.id, row.sessionId).toBe(idOfKey(KEY_OF[row.sessionId] ?? ''));
+              }
+              if (group === 'project') {
+                // Contiguous: a group's rows are one run.
+                const runs = answer.rows.map((r) => r.group).filter((g, i, all) => i === 0 || all[i - 1] !== g);
+                expect(new Set(runs).size).toBe(runs.length);
+              }
+              for (const g of answer.groups) {
+                const hand = GROUPS_BY_HAND.find((h) => idOfKey(h.key) === g.id);
+                const members = keptIds.filter((id) => KEY_OF[id] === hand?.key);
+                expect(g.label).toBe(hand?.label);
+                expect(g.machine).toBe(hand?.machine);
+                expect(g.folder).toBe(hand?.folder);
+                expect(g.count).toBe(members.length);
+                expect(g.omitted).toBe(0);
+                expect(g.waiting).toBe(members.some((id) => WORLD.find((s) => s.id === id)?.status === 'needs_input'));
+                expect(g.collapsed).toBe(
+                  show === 'all' &&
+                    !members.some((id) => SHOW_KEEPS.active.includes(WORLD.find((s) => s.id === id)?.status ?? ''))
+                );
+              }
+              // THE ROWS' WORDS.
+              for (const row of answer.rows) {
+                const id = row.sessionId;
+                expect(row.ageText, id).toBe((sort === 'oldest' ? AGE_OLDEST : AGE_RECENT)[id]);
+                expect(row.waiting).toBe(['w1', 'w2', 'w3'].includes(id));
+                expect(row.question).toBe(id === 'w1' ? 'May I run the tests?' : null);
+                expect(row.machine).toBe(id === 'k1' ? 'Local' : id === 'u1' || id === 'd1' ? 'Dev Box' : null);
+                expect(row.end).toEqual({ state: 'none' });
+              }
+              // THE CHOICES: over what Show keeps, before the filters.
+              const shown = WORLD.filter((s) => SHOW_KEEPS[show].includes(s.status));
+              const agents: string[] = [...new Set(shown.map((s) => String(s.agent)))].filter((a) => a !== 'Bad_Id');
+              expect(answer.agents).toEqual(
+                [
+                  { id: 'claude', label: 'Claude Code' },
+                  { id: 'codex', label: 'Codex' }
+                ].filter((c) => agents.includes(c.id))
+              );
+              expect(answer.machines).toEqual(
+                [
+                  { id: 'local', label: null },
+                  { id: 'devbox', label: 'Dev Box' }
+                ].filter((c) => shown.some((s) => MACHINE_OF[s.id] === c.id))
+              );
+              expect(answer.total).toBe(WORLD.length);
+              expect(answer.omitted).toBe(0);
+              expect(answer.at).toBe(NOW);
+              expect(answer.ageNote).toBe(POCKET_AGE_HONESTY);
+            });
+          }
+        }
+      }
+    }
+  }
+  it('walked every combination', () => {
+    expect(combinations).toBe(3 * 2 * 3 * 4 * 4);
+  });
+});
+
+describe('the Sessions tab: the words, the defaults and the refusals (Phase 316.7, D3)', () => {
+  it('reads absent words as the contract’s defaults, and no filter', () => {
+    expect(readSessionsQuery(new URLSearchParams(''))).toEqual({
+      ok: true,
+      asked: { show: 'active', group: 'project', sort: 'recent', agent: null, machine: null }
+    });
+  });
+
+  it('refuses every malformed query whole, with its reason word', () => {
+    const table: [string, string][] = [
+      ['limit=1', 'parameter'],
+      ['limit=1&show=bogus', 'parameter'],
+      ['search=app', 'parameter'],
+      ['Show=active', 'parameter'],
+      ['show=active&show=ended', 'repeated'],
+      ['agent=claude&agent=codex', 'repeated'],
+      ['show=Active', 'word'],
+      ['show=', 'word'],
+      ['show', 'word'],
+      ['show=%41ctive', 'word'],
+      ['show=act%00ive', 'word'],
+      ['show=active%20', 'word'],
+      ['show=act+ive', 'word'],
+      ['group=folder', 'word'],
+      ['sort=newest', 'word'],
+      ['agent=', 'id'],
+      ['agent=Claude', 'id'],
+      ['agent=Bad_Id', 'id'],
+      ['agent=9x', 'id'],
+      ['agent=-a', 'id'],
+      [`agent=${'a'.repeat(33)}`, 'id'],
+      ['agent=a/b', 'id'],
+      ['agent=..', 'id'],
+      ['agent=a%00', 'id'],
+      ['agent=%C3%A9', 'id'],
+      ['machine=LOCAL', 'id'],
+      ['machine=', 'id']
+    ];
+    const routes = createPocketRoutes(worldFacts());
+    for (const [query, reason] of table) {
+      expect(readSessionsQuery(new URLSearchParams(query)), query).toEqual({ ok: false, reason });
+      expect(routes.sessions(new URLSearchParams(query)), query).toBeNull();
+    }
+  });
+
+  it('answers a percent-escaped closed word as that word, and a well-formed id that names nothing with no rows', () => {
+    const routes = createPocketRoutes(worldFacts());
+    expect(ask(routes, 'show=%61ctive').asked.show).toBe('active');
+    const nobody = ask(routes, 'show=all&agent=nobody');
+    expect(nobody.rows).toEqual([]);
+    expect(nobody.groups).toEqual([]);
+    expect(nobody.omitted).toBe(0);
+    expect(nobody.total).toBe(WORLD.length);
+    expect(ask(routes, `agent=${'a'.repeat(32)}`).rows).toEqual([]);
+    expect(ask(routes, 'agent=a-').rows).toEqual([]);
+    expect(ask(routes, 'machine=local').asked.machine).toBe('local');
+  });
+
+  it('reads an id one character at a time: a letter, then letters, digits or a dash, 1 to 32', () => {
+    for (const ok of ['a', 'claude', 'web-1', 'a9', 'local', 'a'.repeat(32), 'z-']) expect(isSessionsId(ok), ok).toBe(true);
+    for (const no of ['', 'A', '9', '-', 'a_b', 'a b', 'a.b', 'a/b', 'é', 'a'.repeat(33), 'aZ', 'a\u0000']) {
+      expect(isSessionsId(no), JSON.stringify(no)).toBe(false);
+    }
+  });
+});
+
+describe('the Sessions tab: the one clip (Phase 316.7, D5)', () => {
+  it('keeps 200 units whole and clips past it with …, never between the halves of a pair', () => {
+    const cap = POCKET_SESSIONS_CLIP_CHARS;
+    expect(cap).toBe(200);
+    expect(clipSessionText('a'.repeat(cap))).toBe('a'.repeat(cap));
+    expect(clipSessionText('a'.repeat(cap + 1))).toBe(`${'a'.repeat(cap - 1)}…`);
+    // The last unit kept is a HIGH surrogate: step back one.
+    expect(clipSessionText(LONG_NAME)).toBe(`${'n'.repeat(198)}…`);
+    // The last unit kept is a LOW surrogate: the pair is whole, keep it.
+    const pairWhole = `${'n'.repeat(197)}😀${'x'.repeat(50)}`;
+    expect(clipSessionText(pairWhole)).toBe(`${'n'.repeat(197)}😀…`);
+    for (const text of [LONG_NAME, pairWhole]) {
+      const clipped = clipSessionText(text);
+      expect(clipped.length).toBeLessThanOrEqual(cap);
+      const last = clipped.charCodeAt(clipped.length - 2);
+      expect(last >= 0xd800 && last <= 0xdbff).toBe(false);
+    }
+  });
+
+  it('clips the name, the label, the folder and the choices’ labels, and never the question', () => {
+    const longPath = `/Users/x/${'p'.repeat(300)}`;
+    const long = 'q'.repeat(300);
+    const routes = createPocketRoutes(
+      sessionsFacts(
+        [
+          listed({ id: 'a', name: LONG_NAME, status: 'needs_input', projectPath: longPath, agent: 'claude', machine: machineOf('devbox', 'M'.repeat(300)) }),
+          listed({ id: 'b', projectPath: `/Users/y/${'p'.repeat(300)}`, machine: machineOf('devbox', 'M'.repeat(300)) })
+        ],
+        { feed: { a: { question: long } }, agentLabel: () => 'A'.repeat(300) }
+      )
+    );
+    const answer = ask(routes, 'show=all');
+    const row = answer.rows.find((r) => r.sessionId === 'a');
+    expect(row?.name).toBe(`${'n'.repeat(198)}…`);
+    expect(row?.machine).toBe(`${'M'.repeat(199)}…`);
+    expect(row?.question).toBe(long);
+    for (const g of answer.groups) {
+      expect(g.label).toBe(`${'p'.repeat(199)}…`);
+      expect(g.machine).toBe(`${'M'.repeat(199)}…`);
+      expect(g.folder?.length).toBe(200);
+      expect(g.folder?.endsWith('…')).toBe(true);
+    }
+    expect(answer.agents).toEqual([{ id: 'claude', label: `${'A'.repeat(199)}…` }]);
+    expect(answer.machines).toEqual([{ id: 'devbox', label: `${'M'.repeat(199)}…` }]);
+  });
+});
+
+describe('the Sessions tab: today’s list, and the rules the revision added (Phase 316.7, §15)', () => {
+  it('Show All · None · Recent is blocked()’s rows then others, id for id', () => {
+    const world = worldFacts();
+    const blocked = createPocketRoutes(world).blocked();
+    const all = ask(createPocketRoutes(world), 'show=all&group=none&sort=recent');
+    expect(all.rows.map((r) => r.sessionId)).toEqual([...blocked.rows, ...blocked.others].map((r) => r.sessionId));
+    // And over the route-test world of the blocked list too.
+    const other = facts();
+    const today = createPocketRoutes(other).blocked();
+    expect(ask(createPocketRoutes(other), 'show=all&group=none').rows.map((r) => r.sessionId)).toEqual(
+      [...today.rows, ...today.others].map((r) => r.sessionId)
+    );
+  });
+
+  it('F1: a waiting row is aged by its stamp ALONE; with none it is aged by creation, or not at all — never 20728d', () => {
+    const answer = ask(createPocketRoutes(worldFacts()), 'show=active&group=none');
+    const age = (id: string): string | null | undefined => answer.rows.find((r) => r.sessionId === id)?.ageText;
+    expect(age('w1')).toBe('4m');
+    expect(age('w2')).toBe('3d old');
+    expect(age('w3')).toBeNull();
+    // The shape the adversary measured through today's blocked(): a feed row
+    // with createdAt 0 that waits with no stamp.
+    const epoch = listed({ id: 'e', status: 'needs_input', createdAt: 0, machine: machineOf('devbox', 'Dev Box') });
+    const one = ask(createPocketRoutes(sessionsFacts([epoch])), '');
+    expect(one.rows[0]?.ageText).toBeNull();
+    for (const row of answer.rows) expect(row.ageText ?? '', row.sessionId).not.toMatch(/^\d{4,}d/);
+  });
+
+  it('F3: a group holding a waiting row reads waiting under every choice that keeps the row', () => {
+    const routes = createPocketRoutes(worldFacts());
+    for (const group of ['project', 'none']) {
+      for (const sort of ['recent', 'name', 'oldest']) {
+        for (const show of ['active', 'all']) {
+          const answer = ask(routes, `show=${show}&group=${group}&sort=${sort}`);
+          for (const id of ['w1', 'w2', 'w3']) {
+            const row = answer.rows.find((r) => r.sessionId === id);
+            expect(answer.groups[row?.group ?? -1]?.waiting, `${id} ${group} ${sort} ${show}`).toBe(true);
+          }
+        }
+      }
+    }
+    // A group with no waiting row says so.
+    const ended = ask(routes, 'show=all');
+    expect(ended.groups.find((g) => g.id === idOfKey('/Users/x/work/old'))?.waiting).toBe(false);
+  });
+
+  it('F8: an agent the query could not name is never offered, and its row is still listed', () => {
+    const answer = ask(createPocketRoutes(worldFacts()), 'show=all');
+    expect(answer.agents.map((a) => a.id)).not.toContain('Bad_Id');
+    expect(answer.rows.map((r) => r.sessionId)).toContain('b1');
+  });
+
+  it('F9: a machine whose id is local is this Mac: its group, its filter, and named once', () => {
+    const routes = createPocketRoutes(worldFacts());
+    const answer = ask(routes, 'show=all');
+    const k1 = answer.rows.find((r) => r.sessionId === 'k1');
+    const w1 = answer.rows.find((r) => r.sessionId === 'w1');
+    expect(k1?.group).toBe(w1?.group);
+    expect(answer.machines.filter((m) => m.id === 'local')).toEqual([{ id: 'local', label: null }]);
+    expect(answer.machines[0]).toEqual({ id: 'local', label: null });
+    expect(ask(routes, 'show=all&machine=local').rows.map((r) => r.sessionId)).toContain('k1');
+    expect(ask(routes, 'show=all&machine=devbox').rows.map((r) => r.sessionId).sort()).toEqual(['d1', 'u1']);
+  });
+
+  it('F12: a closed-tab name on the SECOND member labels the group', () => {
+    const answer = ask(createPocketRoutes(worldFacts()), 'show=all');
+    expect(answer.groups.find((g) => g.id === idOfKey('/Users/x/work/shut'))?.label).toBe('Shut Tab');
+  });
+
+  it('D7: a group’s id is the same under every choice, and is never the path', () => {
+    const routes = createPocketRoutes(worldFacts());
+    const zeta = idOfKey('/Users/x/work/zeta');
+    for (const query of ['show=all', 'show=active&sort=name', 'group=none&sort=oldest', 'agent=claude']) {
+      const answer = ask(routes, query);
+      const w1 = answer.rows.find((r) => r.sessionId === 'w1');
+      expect(answer.groups[w1?.group ?? -1]?.id, query).toBe(zeta);
+    }
+    expect(zeta).toHaveLength(16);
+    expect(zeta).not.toContain('/');
+  });
+
+  it('is synchronous, reads the session list once, and reads no conversation', () => {
+    let lists = 0;
+    const never = (): never => {
+      throw new Error('read a conversation');
+    };
+    const counted = worldFacts({
+      sessions: () => {
+        lists += 1;
+        return WORLD;
+      },
+      refresh: never,
+      catchUp: never,
+      lastTurn: never,
+      turns: never
+    });
+    const answer = createPocketRoutes(counted).sessions(new URLSearchParams('show=all'));
+    expect(answer).not.toBeInstanceOf(Promise);
+    expect(answer?.rows).toHaveLength(WORLD.length);
+    expect(lists).toBe(1);
+  });
+
+  it('puts the handed-in End offer on every row', () => {
+    const answer = ask(
+      createPocketRoutes(worldFacts({ endOffer: (s) => (s.status === 'running' ? { state: 'offered', batch: true } : { state: 'none' }) })),
+      'show=all'
+    );
+    for (const row of answer.rows) {
+      expect(row.end, row.sessionId).toEqual(row.sessionId === 'r1' ? { state: 'offered', batch: true } : { state: 'none' });
+    }
+  });
+
+  it('breaks a Name tie and a creation tie by id, where the sheet keeps the incoming order (§15 F17)', () => {
+    // Listed against id order, so only the id tie-break draws them a, b, c.
+    const list = [
+      listed({ id: 'c', name: 'same', createdAt: NOW - DAY }),
+      listed({ id: 'b', name: 'same', createdAt: NOW - DAY }),
+      listed({ id: 'a', name: 'same', createdAt: NOW - DAY })
+    ];
+    const routes = createPocketRoutes(sessionsFacts(list));
+    expect(ask(routes, 'sort=name&group=none').rows.map((r) => r.sessionId)).toEqual(['a', 'b', 'c']);
+    expect(ask(routes, 'sort=oldest&group=none').rows.map((r) => r.sessionId)).toEqual(['a', 'b', 'c']);
+    // Recent activity's own tie is `othersOrder`'s, the id too.
+    expect(ask(routes, 'sort=recent&group=none').rows.map((r) => r.sessionId)).toEqual(['a', 'b', 'c']);
+  });
+
+  it('orders the agents and the machines by their drawn label, then id, whatever order the rows came in', () => {
+    const list = [
+      listed({ id: 's1', agent: 'zed' as Session['agent'], machine: machineOf('zz', 'Zulu'), createdAt: NOW - MIN }),
+      // The tied pair comes in AGAINST id order, so only the id tie-break puts it right.
+      listed({ id: 's2', agent: 'mid' as Session['agent'], machine: machineOf('mm', 'Alpha'), createdAt: NOW - 2 * MIN }),
+      listed({ id: 's3', agent: 'amp' as Session['agent'], machine: machineOf('aa', 'Alpha'), createdAt: NOW - 3 * MIN }),
+      listed({ id: 's4', agent: 'claude', createdAt: NOW - 4 * MIN })
+    ];
+    const labels: Record<string, string> = { zed: 'Zed', amp: 'Amp', mid: 'Amp', claude: 'Claude Code' };
+    const answer = ask(
+      createPocketRoutes(sessionsFacts(list, { agentLabel: (id) => labels[id] ?? id })),
+      'show=all'
+    );
+    expect(answer.agents).toEqual([
+      { id: 'amp', label: 'Amp' },
+      { id: 'mid', label: 'Amp' },
+      { id: 'claude', label: 'Claude Code' },
+      { id: 'zed', label: 'Zed' }
+    ]);
+    // This Mac first, then by label, then id.
+    expect(answer.machines).toEqual([
+      { id: 'local', label: null },
+      { id: 'aa', label: 'Alpha' },
+      { id: 'mm', label: 'Alpha' },
+      { id: 'zz', label: 'Zulu' }
+    ]);
+  });
+
+  it('names a machine by the first label a row on it draws, and by its id when none does', () => {
+    const list = [
+      listed({ id: 'q1', machine: machineOf('quiet', 'unused'), createdAt: NOW - MIN }),
+      listed({ id: 'q2', machine: machineOf('quiet', 'unused'), createdAt: NOW - 2 * MIN }),
+      listed({ id: 'n1', machine: machineOf('nameless', 'unused'), createdAt: NOW - 3 * MIN })
+    ];
+    // The first row on `quiet` draws no label, the second does; nothing on
+    // `nameless` draws one.
+    const labels: Record<string, string | null> = { q1: null, q2: 'Quiet Box', n1: null };
+    const answer = ask(
+      createPocketRoutes(sessionsFacts(list, { machineLabel: (s) => labels[s.id] ?? null })),
+      'show=all'
+    );
+    expect(answer.machines).toEqual([
+      { id: 'nameless', label: 'nameless' },
+      { id: 'quiet', label: 'Quiet Box' }
+    ]);
+  });
+
+  it('cuts the agents and the machines at the contract’s number', () => {
+    const many = Array.from({ length: POCKET_SESSIONS_CHOICES_MAX + 6 }, (_, i) =>
+      listed({ id: `s${String(i)}`, agent: `agent-${String(i).padStart(3, '0')}` as Session['agent'], machine: machineOf(`m-${String(i).padStart(3, '0')}`, `M ${String(i).padStart(3, '0')}`) })
+    );
+    const answer = ask(createPocketRoutes(sessionsFacts(many)), 'show=all');
+    expect(answer.agents).toHaveLength(POCKET_SESSIONS_CHOICES_MAX);
+    expect(answer.machines).toHaveLength(POCKET_SESSIONS_CHOICES_MAX);
+    expect(answer.agents[0]?.id).toBe('agent-000');
+    expect(answer.machines[0]?.id).toBe('m-000');
+    expect(answer.rows).toHaveLength(many.length);
+  });
+});
+
+describe('the Sessions tab: the caps choose by Recent activity and the answer says what they left out (§15 F2, F4)', () => {
+  /** Run `body` with the caps shortened, and put them back whatever happens. */
+  function withCaps<T>(rows: number | null, bytes: number | null, body: () => T): T {
+    caps.rows = rows;
+    caps.bytes = bytes;
+    try {
+      return body();
+    } finally {
+      caps.rows = null;
+      caps.bytes = null;
+    }
+  }
+
+  /** Every group's count is its drawn rows plus its omitted, and nothing is drawn twice. */
+  function holdsTogether(answer: PocketSessionsAnswer): void {
+    const ids = answer.rows.map((r) => r.sessionId);
+    expect(new Set(ids).size).toBe(ids.length);
+    answer.groups.forEach((g, index) => {
+      const drawn = answer.rows.filter((r) => r.group === index).length;
+      expect(drawn, g.id).toBeGreaterThan(0);
+      expect(g.count, g.id).toBe(drawn + g.omitted);
+    });
+    expect(answer.total).toBeGreaterThanOrEqual(answer.rows.length + answer.omitted);
+  }
+
+  // The adversary's attack A3: three groups by label, the waiting row in the
+  // group whose label sorts LAST, a cap of 4.
+  const LATE = [
+    listed({ id: 'a1', projectPath: '/w/alpha', createdAt: NOW - MIN }),
+    listed({ id: 'a2', projectPath: '/w/alpha', createdAt: NOW - 2 * MIN }),
+    listed({ id: 'm1', projectPath: '/w/mid', createdAt: NOW - 3 * MIN }),
+    listed({ id: 'm2', projectPath: '/w/mid', createdAt: NOW - 4 * MIN }),
+    listed({ id: 'z1', projectPath: '/w/zeta', status: 'needs_input', createdAt: NOW - DAY })
+  ];
+  const LATE_STAMPS = new Map([['z1', NOW - 30 * MIN]]);
+
+  it('F2: a waiting row in a late group is never cut while a row that is not waiting is drawn', () => {
+    for (const query of ['group=project&sort=recent', 'group=project&sort=name', 'group=none&sort=oldest', 'group=project&sort=oldest', 'group=none&sort=name']) {
+      const answer = withCaps(4, null, () => ask(createPocketRoutes(sessionsFacts(LATE, { stamps: LATE_STAMPS })), query));
+      const ids = answer.rows.map((r) => r.sessionId);
+      expect(ids, query).toContain('z1');
+      expect(ids, query).not.toContain('m2');
+      expect(ids).toHaveLength(4);
+      holdsTogether(answer);
+      // F4: the group the cut reached says so, on its own line.
+      const mid = answer.groups.find((g) => g.id === idOfKey('/w/mid'));
+      expect(mid?.count).toBe(2);
+      expect(mid?.omitted).toBe(1);
+      expect(answer.omitted).toBe(1);
+      expect(answer.groups.reduce((sum, g) => sum + g.omitted, 0)).toBe(answer.omitted);
+    }
+    // Under Project · Name the rows still come out in the order drawn.
+    const drawn = withCaps(4, null, () => ask(createPocketRoutes(sessionsFacts(LATE, { stamps: LATE_STAMPS })), 'group=project&sort=name'));
+    expect(drawn.rows.map((r) => r.sessionId)).toEqual(['a1', 'a2', 'm1', 'z1']);
+  });
+
+  it('cuts at the contract’s 2,000 rows, a prefix of Recent activity, with every omitted exact', () => {
+    const over = POCKET_SESSIONS_MAX + 50;
+    let offers = 0;
+    const many = Array.from({ length: over }, (_, i) =>
+      listed({ id: `s${String(i).padStart(5, '0')}`, projectPath: i % 2 === 0 ? '/w/even' : '/w/odd', createdAt: NOW - i * MIN })
+    );
+    const answer = ask(
+      createPocketRoutes(
+        sessionsFacts(many, {
+          endOffer: () => {
+            offers += 1;
+            return { state: 'none' };
+          }
+        })
+      ),
+      'show=all&group=project&sort=name'
+    );
+    expect(POCKET_SESSIONS_MAX).toBe(2000);
+    expect(answer.rows).toHaveLength(POCKET_SESSIONS_MAX);
+    expect(answer.omitted).toBe(50);
+    expect(answer.total).toBe(over);
+    // The chosen set is the NEWEST 2,000, whatever order they are drawn in.
+    expect(new Set(answer.rows.map((r) => r.sessionId))).toEqual(new Set(many.slice(0, POCKET_SESSIONS_MAX).map((s) => s.id)));
+    for (const g of answer.groups) {
+      expect(g.count).toBe(over / 2);
+      expect(g.omitted).toBe(25);
+    }
+    expect(answer.groups.reduce((sum, g) => sum + g.omitted, 0)).toBe(answer.omitted);
+    holdsTogether(answer);
+    // The End offers are asked of the rows walked, never of the whole list.
+    expect(offers).toBeLessThanOrEqual(POCKET_SESSIONS_MAX + 1);
+  });
+
+  it('cuts at the contract’s byte budget, waiting rows first, and the answer stays under it', () => {
+    const big = 'q'.repeat(40_000);
+    const many = Array.from({ length: 60 }, (_, i) =>
+      listed({ id: `w${String(i).padStart(3, '0')}`, status: i < 40 ? 'needs_input' : 'idle', projectPath: `/w/p${String(i % 3)}`, createdAt: NOW - i * MIN })
+    );
+    const stamps = new Map(many.filter((s) => s.status === 'needs_input').map((s, i) => [s.id, NOW - i * MIN]));
+    const feed = Object.fromEntries(many.map((s) => [s.id, { question: big }]));
+    const answer = ask(createPocketRoutes(sessionsFacts(many, { stamps, feed })), 'show=all&sort=name');
+    expect(POCKET_SESSIONS_BUDGET_BYTES).toBe(1_048_576);
+    const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value));
+    const used =
+      answer.rows.reduce((sum, row: PocketSessionsRow) => sum + bytes(row), 0) +
+      answer.groups.reduce((sum, g) => sum + bytes(g), 0);
+    expect(used).toBeLessThanOrEqual(POCKET_SESSIONS_BUDGET_BYTES);
+    expect(answer.rows.length).toBeGreaterThan(0);
+    expect(answer.rows.length).toBeLessThan(40);
+    // A prefix of the priority: the newest-stamped waiting rows.
+    const chosen = new Set(answer.rows.map((r) => r.sessionId));
+    expect(chosen).toEqual(new Set(many.slice(0, answer.rows.length).map((s) => s.id)));
+    expect(answer.omitted).toBe(many.length - answer.rows.length);
+    expect(answer.groups.reduce((sum, g) => sum + g.omitted, 0)).toBe(answer.omitted);
+    holdsTogether(answer);
+  });
+
+  it('a shortened byte budget cuts the same way, and one more row would not have fitted', () => {
+    const many = Array.from({ length: 30 }, (_, i) =>
+      listed({ id: `s${String(i).padStart(2, '0')}`, projectPath: i % 2 === 0 ? '/w/a' : '/w/b', createdAt: NOW - i * MIN })
+    );
+    const full = ask(createPocketRoutes(sessionsFacts(many)), 'show=all&group=none');
+    const bytes = (value: unknown): number => Buffer.byteLength(JSON.stringify(value));
+    // Room for exactly ten rows and the two groups, as the route measures them.
+    const budget =
+      full.rows.slice(0, 10).reduce((sum, r) => sum + bytes(r), 0) + full.groups.reduce((sum, g) => sum + bytes(g), 0) + 40;
+    const cut = withCaps(null, budget, () => ask(createPocketRoutes(sessionsFacts(many)), 'show=all&group=none'));
+    expect(cut.rows.length).toBeGreaterThanOrEqual(9);
+    expect(cut.rows.length).toBeLessThanOrEqual(10);
+    expect(cut.rows.map((r) => r.sessionId)).toEqual(full.rows.slice(0, cut.rows.length).map((r) => r.sessionId));
+    expect(cut.omitted).toBe(30 - cut.rows.length);
+    holdsTogether(cut);
+  });
+
+  /**
+   * THE SPEC'S OWN EDGE, NAMED RATHER THAN HIDDEN. §6.1 says `groups` is
+   * exactly the groups `rows` name AND that the top-level `omitted` is the sum
+   * of the groups' `omitted`. Both cannot hold when the caps leave out EVERY row
+   * of a group: no row names it, so it is in no group, and its rows are counted
+   * in the top-level `omitted` alone (`kept − rows`, §6.2 step 9, O2(e)). Held
+   * here so a later round that settles it changes this test on purpose.
+   */
+  it('a group whose every row the caps left out is in no row’s group, and the top-level omitted still counts its rows', () => {
+    const list = [
+      listed({ id: 'a1', projectPath: '/w/a', createdAt: NOW - MIN }),
+      listed({ id: 'a2', projectPath: '/w/a', createdAt: NOW - 2 * MIN }),
+      listed({ id: 'b1', projectPath: '/w/b', createdAt: NOW - DAY })
+    ];
+    const answer = withCaps(2, null, () => ask(createPocketRoutes(sessionsFacts(list)), 'show=all'));
+    expect(answer.rows.map((r) => r.sessionId)).toEqual(['a1', 'a2']);
+    expect(answer.groups.map((g) => g.id)).toEqual([idOfKey('/w/a')]);
+    expect(answer.omitted).toBe(1);
+    expect(answer.groups.reduce((sum, g) => sum + g.omitted, 0)).toBe(0);
+    holdsTogether(answer);
   });
 });

@@ -603,9 +603,22 @@ async function runFunnel(dir, argv, classified) {
       upstream.pipe(client);
     });
     sockets.add(upstream);
-    upstream.on('close', () => {
+    // The door's bytes reach the client before the client is let go, as a real
+    // relay forwards the FIN after the data: `pipe` has already ended `client`
+    // behind the last chunk, and a destroy() here dropped whatever `client` had
+    // not yet handed to a phone that was slow to read. Phase 316.7's fix round
+    // measured it: 9 of 1,600 reads of a 2,000-row /v1/sessions answer cut
+    // `aborted` through this forwarder and 0 of 1,600 read directly
+    // (probe:p3167 Q3 failed on one such read). A close with an error still
+    // cuts at once, and a client that never closes is cut after 5 s.
+    upstream.on('close', (hadError) => {
       sockets.delete(upstream);
-      client.destroy();
+      if (hadError) {
+        client.destroy();
+        return;
+      }
+      client.end();
+      setTimeout(() => client.destroy(), 5_000).unref();
     });
     upstream.on('error', () => client.destroy());
     client.on('close', () => upstream.destroy());

@@ -290,8 +290,8 @@
  *       `MarkdownCaps.linkBytes` (z6).
  *
  *   PHASE 317, End from the phone behind Face ID (build/p317/SPEC.md §6.3).
- *   (aa) is left for Phase 316.7, so either order of landing works. Three
- *   rules are new and four widen:
+ *   (aa) was left for Phase 316.7, so either order of landing works; it is
+ *   below. Three rules are new and four widen:
  *
  *   (ab) THE WRITE. `"POST"` only in `present` and `signedPost`; `signedPost`
  *        called by `DoorClient.end` alone, once (the fix round took the
@@ -351,6 +351,49 @@
  *        no arithmetic operator today (the counts are `.count` and Copy's
  *        composers), so the table names none of theirs, and an arm plants one.
  *   (s)  the build is 5 (`PHONE_BUILD`), and its "not uploaded" fixtures 6.
+ *
+ *   PHASE 316.7, the Sessions tab shows, groups, sorts and filters every
+ *   session (build/p3167/SPEC.md §8.4). Main composes the list for the words
+ *   the phone asks with, and the phone lays it out and keeps three words. One
+ *   rule is new, ten clauses, each finding ending with its clause; (s) reads
+ *   Phase 318's build 6, because the main session numbers the one archive
+ *   (D15):
+ *
+ *   (aa) THE SESSIONS TAB LAYS OUT WHAT MAIN COMPOSED, AND KEEPS THREE WORDS.
+ *        (1) `Screens/SessionsScreen.swift` and `Screens/SessionsChoices.swift`
+ *        name no `sorted`, `.sort(`, `reversed`, `.filter(`, `.min(`, `.max(`
+ *        or `shuffled`; (2) `UserDefaults` (or `@AppStorage`) in
+ *        SessionsChoices.swift alone across the app, every `forKey:` a literal
+ *        and exactly `tortie.sessions.show`, `.group` and `.sort`, each
+ *        spelled once, every `set(` storing the `.rawValue` of a
+ *        SessionsShow, SessionsGroupBy or SessionsSortBy, every read
+ *        `string(forKey:)` inside one of those three's `init(rawValue:` with
+ *        `??` after it; (3) no `TextField`, `SecureField`, `TextEditor`,
+ *        `.searchable`, `@AppStorage` or `@SceneStorage` in either file; (4)
+ *        `DoorClient.sessionsTarget` the one place a `/v1/sessions` target is
+ *        spelled, its parameters exactly show, group, sort, agent, machine in
+ *        that order, every value through `queryValue`; (5) the privacy
+ *        manifest declares `NSPrivacyAccessedAPICategoryUserDefaults` with
+ *        exactly `["CA92.1"]`; (6) the Show control, the menu and every
+ *        project header carry, in their own chain, a `.disabled(` reading End
+ *        these' `takesTaps`, and a header's press is a `Button` with no
+ *        `.onTapGesture` and no `.accessibilityElement(` in that chain,
+ *        because `.disabled(` sets the not-enabled trait only on a control's
+ *        own element (the fix round, 2026-10-03); (7) `.olderMac` set in one
+ *        place, `state = .olderMac`, after an await of the list's read on every path to it
+ *        (`load()`, or a Task made over it, traced through the model's own
+ *        callers) and inside a branch reading the list's `.loaded` state; (8)
+ *        `SessionsModel.load`
+ *        asks `batchHeld` before anything that reaches a `.sessions(` read and
+ *        returns without one, End these' Done sets `batchHeld = false` before
+ *        it calls `load()`, and End these sets `batchHeld` from its phase (F5);
+ *        (9) the `/v1/sessions` read held in ONE stored `Task`, cancelled in
+ *        the same function before another starts (F7); (10) `.endBatch(` once
+ *        in SessionsScreen.swift, in `SessionsTab`, over a receiver drawing
+ *        both SessionsScreen and ListScreen, every ListScreen there given
+ *        `ends: nil`, and TortieApp.swift's `Tab(Copy.sessions` body drawing
+ *        `SessionsTab(` and building no ListScreen, directly or through a
+ *        helper (F6).
  *
  *   PHASE 318, a reply from the phone, with no Face ID (build/p318/SPEC.md
  *   §6.3; his rulings "Only for End", "Yes, allow them" and "Only when idle at
@@ -5564,6 +5607,838 @@ export function writeSentenceKeys(pocketTs) {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 316.7: the Sessions tab lays out what main composed, and keeps three
+// words (build/p3167/SPEC.md §8.4 (aa), §6.4, §15 F5 to F7)
+// ---------------------------------------------------------------------------
+//
+// Main composes the Sessions tab's list for the words the phone asks with
+// (`GET /v1/sessions`), so the phone decides no membership, order or age
+// (build/p316/SPEC.md §4.0, D1). What it may keep is three words, Show, Group
+// by and Sort by, in UserDefaults; a filter and an opened project last only
+// as long as the app does (D13). Ten clauses, each read as text over the
+// comment-blanked, string-blanked Swift with the spans above; what the Swift
+// DOES with them is test:ios's (SessionsTests, SessionsChoicesTests) and
+// probe:p316's `sessions` arms. Every finding ends with its clause, `(aaN)`.
+//
+// (aa1)  SessionsScreen.swift and SessionsChoices.swift order and drop
+//        nothing: no `sorted`, `.sort(`, `reversed`, `.filter(`, `.min(`,
+//        `.max(` or `shuffled`, a trailing closure counting as a call.
+// (aa2)  `UserDefaults` (and `@AppStorage`, which is UserDefaults by another
+//        name) in SessionsChoices.swift alone across the app. Every `forKey:`
+//        there resolves to a string literal, the three it resolves to are
+//        exactly SESSIONS_KEYS, each spelled once, and no other `tortie.`
+//        literal is in the file; every `set(` stores the `.rawValue` of a name
+//        the file declares as SessionsShow, SessionsGroupBy or SessionsSortBy;
+//        every read is `string(forKey:)` inside one of those three's
+//        `init(rawValue:` with `??` after it; and nothing registers defaults
+//        or reads the whole domain.
+// (aa3)  No `TextField`, `SecureField`, `TextEditor`, `.searchable`,
+//        `@AppStorage` or `@SceneStorage` in either file (D14: no search).
+// (aa4)  `DoorClient.sessionsTarget` is the one place a `/v1/sessions` target
+//        is spelled: its static text names exactly show, group, sort, agent
+//        and machine, each once and in that order, after `/v1/sessions?`, and
+//        every value is `queryValue(…)`.
+// (aa5)  PrivacyInfo.xcprivacy declares
+//        NSPrivacyAccessedAPICategoryUserDefaults with exactly ["CA92.1"] (the
+//        app's own data, read by the app alone). Rule (o) asks only that the
+//        category exists, because the Swift names UserDefaults.
+// (aa6)  The Show control (`list-show`, or each of its options), the menu
+//        (`list-menu`) and every project header (`group-<id>`) carry, in their
+//        own modifier chain, a `.disabled(` that reads End these' `takesTaps`
+//        (directly or through one computed property), not negated, so nothing
+//        but a row's tap is taken while End these is selecting or running.
+// (aa7)  `.olderMac` is set in ONE place in the app, `state = .olderMac`,
+//        after an await of the list's read ON EVERY PATH to it in its
+//        function (a statement at the level of the function or of a block
+//        holding the set, in a switch the set's own arm, or an if/else every
+//        branch of which awaits; the read is `list.load()`, an `async let` of
+//        it, or `.value` of a Task made over it, traced through the model's
+//        own callers when it is a parameter), inside a branch that reads the
+//        list's `.loaded` state (`if case`, `guard case` or a `switch` arm).
+//        D9: a Mac older than this phase is today's tab only once the app's
+//        own /v1/blocked read ANSWERED.
+// (aa8)  SessionsModel's `load()` reads `batchHeld` before its first call
+//        that reaches a `.sessions(` read, and that branch returns without
+//        one; EndBatch.swift's Done sets `batchHeld = false` before it calls
+//        `load()`; and EndBatch.swift sets `batchHeld` from the batch's phase
+//        (F5: a pull, the foreground or Done never replaces the drawing under
+//        End these).
+// (aa9)  SessionsModel holds its `/v1/sessions` read in ONE stored `Task`:
+//        every `.sessions(` call in the model sits in a Task stored to that
+//        one property (or in a function only such a Task calls), and every
+//        function that starts one cancels the stored Task first (F7: the door
+//        holds four connections per source, so three quick choices must never
+//        leave six reads open).
+// (aa10) `.endBatch(` appears once in SessionsScreen.swift, in SessionsTab,
+//        on a chain whose receiver draws BOTH SessionsScreen and ListScreen;
+//        every ListScreen there is passed `ends: nil`; and TortieApp.swift's
+//        `Tab(Copy.sessions` body draws `SessionsTab(` and builds no
+//        ListScreen, directly or through a helper that does (read over that
+//        call's braces, because the helper names its kind by a variable, F6).
+
+/** The Sessions tab (SPEC §6.4.5). */
+export const SESSIONS_SCREEN_FILE = 'Screens/SessionsScreen.swift';
+/** The three remembered words and their one store (SPEC §6.4.4). */
+export const SESSIONS_CHOICES_FILE = 'Screens/SessionsChoices.swift';
+/** The only UserDefaults keys in the app (D13). */
+export const SESSIONS_KEYS = Object.freeze(['tortie.sessions.show', 'tortie.sessions.group', 'tortie.sessions.sort']);
+/** The three closed words a key may hold, by their Swift enum. */
+export const SESSIONS_WORDS = Object.freeze(['SessionsShow', 'SessionsGroupBy', 'SessionsSortBy']);
+/** The query's parameters, in the one order `sessionsTarget` writes them (§6.4.2). */
+export const SESSIONS_QUERY_ORDER = Object.freeze(['show', 'group', 'sort', 'agent', 'machine']);
+/** The one reason the app's UserDefaults use carries (D13). */
+export const SESSIONS_DEFAULTS_REASONS = Object.freeze(['CA92.1']);
+/** The identifiers (aa6) reads, by value: Identifiers.swift names them. */
+const SESSIONS_IDS = Object.freeze({ show: 'list-show', menu: 'list-menu', showOptions: ['list-show-all', 'list-show-active', 'list-show-ended'], groupPrefix: 'group-' });
+
+/** What (aa1) refuses: an order or a membership decided on the phone. */
+const PHONE_ORDERS = /\bsorted\b|\.\s*sort\s*[({]|\breversed\b|\.\s*filter\s*[({]|\.\s*(?:min|max)\s*[({]|\bshuffled?\b/g;
+/** What (aa3) refuses: free text in, or storage beside the one store. */
+const SESSIONS_TEXT_IN = /\bTextField\b|\bSecureField\b|\bTextEditor\b|\.\s*searchable\b|@AppStorage\b|@SceneStorage\b/g;
+/** UserDefaults by any name (aa2). */
+const DEFAULTS_NAMES = /\bUserDefaults\b|\bNSUserDefaults\b|@AppStorage\b/g;
+/** UserDefaults calls that bypass a key the rule can read (aa2). */
+const DEFAULTS_BYPASS = /\bregister\s*\(\s*defaults\s*:|\bsetValuesForKeys\s*\(|\bdictionaryRepresentation\s*\(|\b(?:set|remove)PersistentDomain\s*\(|\bsetVolatileDomain\s*\(|\bpersistentDomain\s*\(|\baddSuite\s*\(/g;
+/** UserDefaults reads by key; only `string(forKey:` may hold one of the three words. */
+const DEFAULTS_READS = /\.\s*(string|object|value|integer|bool|double|float|data|array|dictionary|stringArray|url)\s*\(\s*forKey\s*:/g;
+
+/** The end of a call's tail from `k`: its `(…)`, then its trailing closures, `label:` ones included. */
+function skipCallTail(bare, k) {
+  let p = k;
+  const paren = /^[ \t]*\(/.exec(bare.slice(p));
+  if (paren !== null) {
+    const close = closeParen(bare, p + paren[0].length - 1);
+    if (close === -1) return p;
+    p = close + 1;
+  }
+  const first = /^[ \t]*\{/.exec(bare.slice(p));
+  if (first === null) return p;
+  let close = matchForward(bare, p + first[0].length - 1);
+  if (close === -1) return p;
+  p = close + 1;
+  for (;;) {
+    const labelled = /^\s*[A-Za-z_]\w*\s*:\s*\{/.exec(bare.slice(p));
+    if (labelled === null) return p;
+    close = matchForward(bare, p + labelled[0].length - 1);
+    if (close === -1) return p;
+    p = close + 1;
+  }
+}
+
+/**
+ * Where the postfix chain holding the member `.` at `dot` begins: back over
+ * `.name`, `(…)`, `[…]`, trailing closures (labelled ones too), `?` and `!`, to
+ * the first term, which is not itself after a `.`.
+ */
+function postfixRoot(bare, dot) {
+  let k = dot;
+  for (let turns = 0; turns < 10_000; turns += 1) {
+    let j = k - 1;
+    while (j >= 0 && /\s/.test(bare[j])) j -= 1;
+    if (j < 0) return k;
+    const c = bare[j];
+    if (c === ')' || c === ']' || c === '}') {
+      const open = matchBack(bare, j);
+      if (open === -1) return k;
+      k = open;
+      if (c === '}') {
+        const lab = /\}\s*[A-Za-z_]\w*\s*:\s*$/.exec(bare.slice(Math.max(0, k - 64), k));
+        if (lab !== null) k = k - lab[0].length + 1;
+      }
+      continue;
+    }
+    if (c === '?' || c === '!') {
+      k = j;
+      continue;
+    }
+    if (/\w/.test(c)) {
+      let s = j;
+      while (s > 0 && /\w/.test(bare[s - 1])) s -= 1;
+      let p = s - 1;
+      while (p >= 0 && /\s/.test(bare[p])) p -= 1;
+      if (p >= 0 && bare[p] === '.' && !/\d/.test(bare[p - 1] ?? '')) {
+        k = p;
+        continue;
+      }
+      return s;
+    }
+    return k;
+  }
+  return k;
+}
+
+/** The postfix chain starting at `root`: its first term, then every `.member` with its arguments. */
+function postfixChain(bare, root) {
+  let k = root;
+  const head = /^[A-Za-z_]\w*/.exec(bare.slice(k));
+  if (head !== null) k += head[0].length;
+  k = skipCallTail(bare, k);
+  const mods = [];
+  for (;;) {
+    const m = /^\s*[?!]?\s*\.\s*([A-Za-z_]\w*)/.exec(bare.slice(k));
+    if (m === null) break;
+    const at = k + m[0].lastIndexOf('.', m[0].length - m[1].length);
+    const after = k + m[0].length;
+    let args = null;
+    const paren = /^[ \t]*\(/.exec(bare.slice(after));
+    if (paren !== null) {
+      const open = after + paren[0].length - 1;
+      const close = closeParen(bare, open);
+      if (close === -1) break;
+      args = bare.slice(open + 1, close);
+    }
+    const end = skipCallTail(bare, after);
+    mods.push({ name: m[1], args, at, end });
+    k = end;
+  }
+  return { root, end: k, mods };
+}
+
+/** The `{` positions still open at `to`, scanning from `from` (a body's `{`), outermost first. */
+function openBlocksAt(bare, from, to) {
+  const stack = [];
+  for (let k = from; k < to; k += 1) {
+    if (bare[k] === '{') stack.push(k);
+    else if (bare[k] === '}') stack.pop();
+  }
+  return stack;
+}
+
+/** The header of the block opened at `open`: back to the last `{`, `}`, `;` or line start before it. */
+function blockHeader(bare, open) {
+  let k = open - 1;
+  let depth = 0;
+  for (; k >= 0; k -= 1) {
+    const c = bare[k];
+    if (c === ')' || c === ']') depth += 1;
+    else if (c === '(' || c === '[') depth -= 1;
+    else if (depth === 0 && (c === '{' || c === '}' || c === ';' || c === '\n')) break;
+  }
+  return bare.slice(k + 1, open);
+}
+
+/**
+ * `text` (from a block's own `{`) with what sits INSIDE every nested block
+ * blanked, the nested block's own braces kept, so a search reads that one
+ * block's statements and the headers of the blocks under it.
+ */
+function ownStatements(text) {
+  const out = text.split('');
+  let depth = 0;
+  for (let k = 0; k < out.length; k += 1) {
+    const c = out[k];
+    if (c === '{') {
+      depth += 1;
+      if (depth > 2) out[k] = ' ';
+    } else if (c === '}') {
+      if (depth > 2) out[k] = ' ';
+      depth -= 1;
+    } else if (depth > 1 && c !== '\n') out[k] = ' ';
+  }
+  return out.join('');
+}
+
+/** The literal at `quote` (its first `"` or `#`) in a lexed file, or null. */
+const literalAt = (file, quote) => file.strings.find((s) => s.start === quote) ?? null;
+
+/** A computed property's or a stored one's text, by name, in `text`: `var NAME: T { … }` or `= …`. */
+function propertyText(bare, name) {
+  const m = new RegExp(`\\b(?:var|let)\\s+${name}\\b\\s*(?::\\s*[^={\\n]+)?([={])`).exec(bare);
+  if (m === null) return null;
+  const at = m.index + m[0].length - 1;
+  if (m[1] === '{') {
+    const close = matchForward(bare, at);
+    return bare.slice(at, close === -1 ? bare.length : close + 1);
+  }
+  return rightSide(bare, at + 1);
+}
+
+/**
+ * Does a `.disabled(` argument read End these' `takesTaps`, in the sense that
+ * disables while it takes taps? Directly, or through a name the type holding
+ * the modifier declares: a computed or initialised property, read in turn, or
+ * a stored `Bool`, read at every place the file makes that type (`Type(…,
+ * name: EXPR)`), each EXPR in the type that makes it.
+ */
+function readsTakesTaps(args, file, at, depth = 0) {
+  const plain = (args ?? '').replace(/\s+/g, ' ').trim();
+  const sense = (t) => /\btakesTaps\b/.test(t) && !/!\s*\(*\s*(?:[\w?.]*\.)?takesTaps\b/.test(t) && !/\btakesTaps\s*(?:==\s*false|!=\s*true|\?\?\s*true)\b/.test(t);
+  if (sense(plain)) return true;
+  if (depth > 3) return false;
+  const name = /^(?:self\s*\.\s*)?([A-Za-z_]\w*)$/.exec(plain)?.[1] ?? null;
+  if (name === null || name === 'true' || name === 'false') return false;
+  const type = innermost(file.types, at);
+  if (type === null) return false;
+  const typeText = file.bare.slice(type.open, type.close + 1);
+  const text = propertyText(typeText, name);
+  if (text !== null) {
+    const expr = text.replace(/^[{=]\s*(?:return\s+)?/, '').replace(/\s*\}\s*$/, '').trim();
+    return sense(expr.replace(/\s+/g, ' ')) || readsTakesTaps(expr, file, type.open + 1 + typeText.indexOf(text), depth + 1);
+  }
+  if (!new RegExp(`\\b(?:let|var)\\s+${name}\\s*:\\s*Bool\\b`).test(typeText)) return false;
+  const made = [...file.bare.matchAll(new RegExp(`\\b${type.name.replace(/\./g, '\\.')}\\s*\\(`, 'g'))];
+  if (made.length === 0) return false;
+  return made.every((m) => {
+    const open = m.index + m[0].length - 1;
+    const arg = topLevelArgs(file.bare.slice(open + 1, closeParen(file.bare, open))).find((a) => new RegExp(`^${name}\\s*:`).test(a));
+    return arg !== undefined && readsTakesTaps(arg.replace(new RegExp(`^${name}\\s*:\\s*`), ''), file, m.index, depth + 1);
+  });
+}
+
+/** The names Identifiers.swift gives (aa6)'s identifiers: `static let NAME = "list-show"`, and the `group-` maker. */
+function sessionsIdNames(idSource) {
+  if (idSource === null) return null;
+  const { bare, strings } = lexSwift(idSource);
+  const lets = new Map();
+  for (const m of bare.matchAll(/\bstatic\s+let\s+([A-Za-z_]\w*)\s*(?::\s*String\s*)?=\s*(?=")/g)) {
+    const s = strings.find((x) => x.start === m.index + m[0].length);
+    if (s !== undefined) lets.set(s.value, m[1]);
+  }
+  let group = null;
+  for (const m of bare.matchAll(/\bstatic\s+func\s+([A-Za-z_]\w*)\s*\([^)]*\)\s*->\s*String\s*\{\s*(?=")/g)) {
+    const s = strings.find((x) => x.start === m.index + m[0].length);
+    if (s !== undefined && s.value === SESSIONS_IDS.groupPrefix) group = m[1];
+  }
+  return { show: lets.get(SESSIONS_IDS.show) ?? null, menu: lets.get(SESSIONS_IDS.menu) ?? null, options: SESSIONS_IDS.showOptions.map((v) => lets.get(v) ?? null), group };
+}
+
+/** The type spans named `name` in a lexed file: the declaration of `kind` and its extensions. */
+const spansOf = (file, name, kind) => file.types.filter((t) => t.name === name && (t.kind === kind || t.kind === 'extension'));
+const inSpans = (spans, i) => spans.some((s) => i > s.open && i < s.close);
+
+/** A call of `name` at `i` in `bare`: not after a `.` unless after `self.`, and not its declaration. */
+function callsOf(bare, name, from = 0, to = bare.length) {
+  const out = [];
+  for (const m of bare.slice(from, to).matchAll(new RegExp(`\\b${name}\\s*\\(`, 'g'))) {
+    const i = from + m.index;
+    if (isDecl(bare, i)) continue;
+    const before = bare.slice(Math.max(0, i - 24), i);
+    if (/\.\s*$/.test(before) && !/\bself\s*\??\s*\.\s*$/.test(before)) continue;
+    out.push(i);
+  }
+  return out;
+}
+
+/** Rule (aa), pure over the app's Swift files (named relative to the app folder) and the privacy manifest as CoreFoundation reads it (or null). */
+export function ruleSessionsTab(files, privacy) {
+  const findings = [];
+  const push = (clause, text) => findings.push(`${text} (${clause})`);
+  const said = { orders: 0, keys: 0, sets: 0, reads: 0, params: [], values: 0, disabled: 0, olderMac: 0, stored: null, cancels: 0, endBatch: 0 };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const named = (name) => all.find((f) => f.name === name) ?? null;
+  const screen = named(SESSIONS_SCREEN_FILE);
+  const choices = named(SESSIONS_CHOICES_FILE);
+  if (screen === null) push('aa1', `${SESSIONS_SCREEN_FILE} does not exist, so the Sessions tab cannot be read`);
+  if (choices === null) push('aa2', `${SESSIONS_CHOICES_FILE} does not exist, so the three remembered words cannot be read`);
+
+  // (aa1) Nothing ordered or dropped on the phone.
+  for (const file of [screen, choices]) {
+    if (file === null) continue;
+    for (const m of file.bare.matchAll(PHONE_ORDERS)) {
+      said.orders += 1;
+      push('aa1', `${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; main composes the list's membership and order, and the phone lays out what it was sent`);
+    }
+  }
+
+  // (aa2) UserDefaults in SessionsChoices.swift alone, three keys, closed words.
+  for (const file of all) {
+    if (file.name === SESSIONS_CHOICES_FILE) continue;
+    for (const m of file.bare.matchAll(DEFAULTS_NAMES)) push('aa2', `${atLine(file, m.index)} names ${m[0]}; UserDefaults is ${SESSIONS_CHOICES_FILE}'s alone, for three words`);
+  }
+  if (choices !== null) {
+    const { bare } = choices;
+    for (const m of bare.matchAll(DEFAULTS_BYPASS)) push('aa2', `${atLine(choices, m.index)} names ${m[0].replace(/\s+/g, '')}; the store reads and writes its three keys by name and nothing else`);
+    // Every forKey: resolves to a literal.
+    const resolved = [];
+    for (const m of bare.matchAll(/\bforKey\s*:\s*/g)) {
+      const from = m.index + m[0].length;
+      const arg = rightSide(bare, from).split(',')[0].trim();
+      let value = null;
+      if (bare[from] === '"' || bare[from] === '#') value = literalAt(choices, from)?.value ?? null;
+      else {
+        const chain = /^(?:[A-Za-z_]\w*\s*\.\s*)*([A-Za-z_]\w*)(?:\s*\.\s*rawValue)?$/.exec(arg);
+        const name = chain === null ? null : /\.\s*rawValue$/.test(arg) ? /([A-Za-z_]\w*)\s*\.\s*rawValue$/.exec(arg)[1] : chain[1];
+        if (name !== null) {
+          const decl = new RegExp(`\\b(?:(?:static\\s+)?(?:let|var)\\s+${name}\\s*(?::\\s*String\\s*)?|case\\s+${name}\\s*)=\\s*(?=["#])`).exec(bare);
+          if (decl !== null) value = literalAt(choices, decl.index + decl[0].length)?.value ?? null;
+        }
+      }
+      if (value === null) push('aa2', `${atLine(choices, m.index)} passes forKey: ${arg.slice(0, 40)}, which is not a key literal this rule can read; the three keys are literals`);
+      else resolved.push({ at: m.index, value });
+    }
+    const distinct = [...new Set(resolved.map((r) => r.value))].sort();
+    said.keys = distinct.length;
+    for (const r of resolved) if (!SESSIONS_KEYS.includes(r.value)) push('aa2', `${atLine(choices, r.at)} keys a value by ${JSON.stringify(r.value)}; the store's keys are exactly ${SESSIONS_KEYS.join(', ')}`);
+    for (const k of SESSIONS_KEYS) {
+      const spelled = choices.strings.filter((s) => s.value === k).length;
+      if (!distinct.includes(k)) push('aa2', `${SESSIONS_CHOICES_FILE} never keys a value by ${JSON.stringify(k)}; the store keeps exactly three words`);
+      if (spelled !== 1) push('aa2', `${SESSIONS_CHOICES_FILE} spells ${JSON.stringify(k)} ${String(spelled)} time(s); each key is one literal`);
+    }
+    for (const s of choices.strings) {
+      if (/^tortie\./.test(s.value) && !SESSIONS_KEYS.includes(s.value)) push('aa2', `${atLine(choices, s.start)} holds the key-shaped literal ${JSON.stringify(s.value)}; the store's keys are exactly three`);
+    }
+    // Every set( stores a closed word's rawValue.
+    for (const m of bare.matchAll(/\.\s*set(?:Value)?\s*\(/g)) {
+      said.sets += 1;
+      const open = m.index + m[0].length - 1;
+      const close = closeParen(bare, open);
+      const first = topLevelArgs(bare.slice(open + 1, close === -1 ? bare.length : close))[0] ?? '';
+      const raw = /^(?:([A-Za-z_]\w*)\s*\.\s*)*([A-Za-z_]\w*|\d+)\s*\.\s*rawValue$/.exec(first.replace(/\s+/g, ' ').trim());
+      let ok = false;
+      if (raw !== null) {
+        const words = SESSIONS_WORDS.join('|');
+        const declared = new RegExp(`\\b${raw[2]}\\s*:\\s*(?:${words})\\b`).test(bare);
+        const literal = new RegExp(`^(?:${words})\\s*\\.`).test(first.trim());
+        ok = declared || literal;
+      }
+      if (!ok) push('aa2', `${atLine(choices, m.index)} stores ${first.slice(0, 50) || 'nothing'}; every set( stores the .rawValue of a ${SESSIONS_WORDS.join(', ')}, never a word the door answered`);
+    }
+    if (said.sets === 0) push('aa2', `${SESSIONS_CHOICES_FILE} stores nothing, so the three words are not remembered`);
+    // Every read is string(forKey:) inside a closed word's init(rawValue:, with ?? after it.
+    const inits = [...bare.matchAll(new RegExp(`\\b(?:${SESSIONS_WORDS.join('|')})\\s*(?:\\.\\s*init\\s*)?\\(\\s*rawValue\\s*:`, 'g'))].map((m) => {
+      const open = bare.indexOf('(', m.index);
+      const close = closeParen(bare, open);
+      return { open, close, defaulted: close !== -1 && /^\s*\?\?/.test(bare.slice(close + 1)) };
+    });
+    for (const m of bare.matchAll(DEFAULTS_READS)) {
+      said.reads += 1;
+      const holder = inits.find((x) => m.index > x.open && m.index < x.close);
+      if (m[1] !== 'string') push('aa2', `${atLine(choices, m.index)} reads ${m[1]}(forKey:); a word is read as string(forKey:) into its own init(rawValue:)`);
+      else if (holder === undefined) push('aa2', `${atLine(choices, m.index)} reads string(forKey:) outside ${SESSIONS_WORDS.join(', ')}(rawValue:); anything the store holds is decoded into its closed word or not read`);
+      else if (!holder.defaulted) push('aa2', `${atLine(choices, m.index)} decodes a word with no ?? after its init(rawValue:); anything else reads the default`);
+    }
+    if (said.reads === 0) push('aa2', `${SESSIONS_CHOICES_FILE} reads nothing back, so the three words are not remembered`);
+  }
+
+  // (aa3) No free text, no other storage.
+  for (const file of [screen, choices]) {
+    if (file === null) continue;
+    for (const m of file.bare.matchAll(SESSIONS_TEXT_IN)) push('aa3', `${atLine(file, m.index)} names ${m[0].replace(/\s+/g, '')}; the Sessions tab takes no text and stores nothing but its three words (D14)`);
+  }
+
+  // (aa4) One target, five parameters in order, every value through queryValue.
+  const client = named('Door/DoorClient.swift');
+  for (const file of all) {
+    for (const s of file.strings) {
+      if (!s.value.includes('/v1/sessions')) continue;
+      const fn = innermost(file.funcs, s.start);
+      if (file.name !== 'Door/DoorClient.swift' || fn === null || fn.name !== 'sessionsTarget') push('aa4', `${atLine(file, s.start)} spells a /v1/sessions target outside DoorClient.sessionsTarget; it is spelled once`);
+    }
+  }
+  const builders = client === null ? [] : funcsNamed(client, 'sessionsTarget');
+  if (builders.length !== 1) push('aa4', `Door/DoorClient.swift declares ${String(builders.length)} sessionsTarget(s); the /v1/sessions target is built in one place`);
+  else {
+    const fn = builders[0];
+    const pieces = client.strings.filter((s) => s.start > fn.bodyOpen && s.start < fn.bodyClose);
+    const markers = [];
+    let started = false;
+    for (const s of pieces) {
+      if (s.value.includes('/v1/sessions')) {
+        started = true;
+        if (!s.value.startsWith('/v1/sessions?')) push('aa4', `${atLine(client, s.start)} spells the path as ${JSON.stringify(s.value.slice(0, 20))}; it is /v1/sessions? and its query`);
+      }
+      // Each `name=` in the static text, and what follows it.
+      const holes = [...s.holes];
+      let hole = 0;
+      for (let k = 0; k < s.value.length; k += 1) {
+        if (s.value[k] === '￼') {
+          hole += 1;
+          continue;
+        }
+        const nm = /^([A-Za-z_][\w-]*)=/.exec(s.value.slice(k));
+        if (nm === null || (k > 0 && /[\w-]/.test(s.value[k - 1]))) continue;
+        const valueAt = k + nm[0].length;
+        let through = false;
+        if (s.value[valueAt] === '￼') {
+          const h = holes[hole];
+          const code = h === undefined ? '' : client.code.slice(h.start, h.end);
+          through = /^\s*(?:(?:Self|DoorClient)\s*\.\s*)?queryValue\s*\(/.test(code) && closeParen(code, code.indexOf('(')) === code.trimEnd().length - 1;
+        } else if (valueAt === s.value.length) {
+          through = /^\s*\+\s*(?:(?:Self|DoorClient)\s*\.\s*)?queryValue\s*\(/.test(client.bare.slice(s.end));
+        }
+        markers.push({ name: nm[1], at: s.start, through });
+        said.values += through ? 1 : 0;
+        if (!through) push('aa4', `${atLine(client, s.start)} writes ${nm[1]}= with a value that is not queryValue(…); every value is percent-encoded the one way the door reads back`);
+        k = valueAt - 1;
+      }
+    }
+    if (!started) push('aa4', 'DoorClient.sessionsTarget spells no /v1/sessions path');
+    said.params = markers.map((x) => x.name);
+    if (markers.map((x) => x.name).join() !== SESSIONS_QUERY_ORDER.join()) push('aa4', `DoorClient.sessionsTarget writes the parameters ${markers.map((x) => x.name).join(', ') || 'none'}; it writes exactly ${SESSIONS_QUERY_ORDER.join(', ')}, once each and in that order`);
+  }
+
+  // (aa5) The privacy manifest's reason.
+  const types = privacy !== null && typeof privacy === 'object' && Array.isArray(privacy.NSPrivacyAccessedAPITypes) ? privacy.NSPrivacyAccessedAPITypes : null;
+  if (types === null) push('aa5', 'PrivacyInfo.xcprivacy cannot be read as a manifest with NSPrivacyAccessedAPITypes');
+  else {
+    const entries = types.filter((t) => t?.NSPrivacyAccessedAPIType === 'NSPrivacyAccessedAPICategoryUserDefaults');
+    const reasons = entries.length === 1 ? entries[0].NSPrivacyAccessedAPITypeReasons : undefined;
+    if (entries.length !== 1 || JSON.stringify(reasons) !== JSON.stringify(SESSIONS_DEFAULTS_REASONS)) {
+      push('aa5', `PrivacyInfo.xcprivacy declares NSPrivacyAccessedAPICategoryUserDefaults ${entries.length === 1 ? `with ${JSON.stringify(reasons)}` : `${String(entries.length)} time(s)`}; it is declared once with exactly ${JSON.stringify(SESSIONS_DEFAULTS_REASONS)}, the app's own data read by the app alone`);
+    }
+  }
+
+  // (aa6) Nothing but a row's tap while End these takes taps.
+  const ids = sessionsIdNames(files.find((f) => f.name === 'Screens/Identifiers.swift')?.source ?? null);
+  if (screen !== null) {
+    const sitesOf = (name, call) => (name === null ? [] : [...screen.bare.matchAll(new RegExp(`\\.\\s*accessibilityIdentifier\\s*\\(\\s*ID\\s*\\.\\s*${name}\\b${call ? '\\s*\\(' : '(?!\\s*\\()'}`, 'g'))].map((m) => m.index));
+    const held = (at) => {
+      const chain = postfixChain(screen.bare, postfixRoot(screen.bare, at));
+      return chain.mods.some((x) => x.at === at) && chain.mods.some((x) => x.name === 'disabled' && readsTakesTaps(x.args, screen, x.at));
+    };
+    const want = [
+      ['the Show control', SESSIONS_IDS.show, ids?.show ?? null, false],
+      ['the menu', SESSIONS_IDS.menu, ids?.menu ?? null, false],
+      ['a project header', `${SESSIONS_IDS.groupPrefix}<id>`, ids?.group ?? null, true]
+    ];
+    for (const [what, id, name, call] of want) {
+      if (name === null) {
+        push('aa6', `Screens/Identifiers.swift names no ${id}, so ${what} cannot be found`);
+        continue;
+      }
+      const sites = sitesOf(name, call);
+      if (sites.length === 0) {
+        push('aa6', `${SESSIONS_SCREEN_FILE} identifies no element ID.${name} (${id}), so ${what} cannot be read`);
+        continue;
+      }
+      for (const at of sites) {
+        if (held(at)) {
+          said.disabled += 1;
+          // A header's press is a Button's own element: `.disabled(` sets the
+          // not-enabled trait only on a control, so a view taking taps by
+          // `.onTapGesture`, and then a Button made a container by
+          // `.accessibilityElement(`, each read as an enabled button to
+          // VoiceOver and XCUITest while End these took taps (the fix round,
+          // 2026-10-03, both measured on iOS 26.3).
+          if (call) {
+            const root = postfixRoot(screen.bare, at);
+            const head = /^[A-Za-z_]\w*/.exec(screen.bare.slice(root))?.[0] ?? '';
+            const mods = postfixChain(screen.bare, root).mods;
+            const tap = mods.some((x) => x.name === 'onTapGesture');
+            const container = mods.some((x) => x.name === 'accessibilityElement');
+            if (head !== 'Button' || tap || container) push('aa6', `${atLine(screen, at)} draws ${what} as ${head === '' ? 'no named view' : head}${tap ? ' taking taps by .onTapGesture' : ''}${container ? ' made a container by .accessibilityElement(' : ''}; a header's press is a Button's own element, because .disabled( sets the not-enabled trait only on a control, and anything else reads as an enabled button while End these takes taps`);
+          }
+          continue;
+        }
+        // The Show control may carry it on each of its three options instead.
+        if (id === SESSIONS_IDS.show && (ids?.options ?? []).every((o) => o !== null && sitesOf(o, false).length > 0 && sitesOf(o, false).every(held))) {
+          said.disabled += 1;
+          continue;
+        }
+        push('aa6', `${atLine(screen, at)} draws ${what} with no .disabled( reading End these' takesTaps in its own chain; while End these selects or runs, only a row's tap is taken`);
+      }
+    }
+  }
+
+  // The model, for (aa7) to (aa9).
+  const modelSpans = screen === null ? [] : spansOf(screen, 'SessionsModel', 'class');
+  if (screen !== null && modelSpans.length === 0) push('aa7', `${SESSIONS_SCREEN_FILE} declares no class SessionsModel`);
+  const modelFuncs = screen === null ? [] : screen.funcs.filter((fn) => inSpans(modelSpans, fn.at));
+  const list = screen === null ? null : (/\b(?:let|var)\s+([A-Za-z_]\w*)\s*:\s*ListModel\b/.exec(modelSpans.map((s) => screen.bare.slice(s.open, s.close)).join('\n'))?.[1] ?? null);
+
+  // (aa7) .olderMac set once, after the list answered, under its .loaded state.
+  if (screen !== null && modelSpans.length > 0) {
+    if (list === null) push('aa7', 'SessionsModel holds no ListModel, so whether the list answered before .olderMac cannot be read');
+    const sets = [];
+    for (const file of all) {
+      for (const m of file.bare.matchAll(/\.\s*olderMac\b/g)) {
+        // What precedes it decides: a comparison and a pattern (`case`, a
+        // case list, `if case .olderMac =`) read the state; anything else
+        // (an assignment, a return, an argument, a branch of ?:) sets it.
+        const before = file.bare.slice(Math.max(0, m.index - 200), m.index);
+        const statement = before.slice(Math.max(before.lastIndexOf('\n'), before.lastIndexOf('{'), before.lastIndexOf(';')) + 1);
+        const token = /(==|!=|~=|=|\bcase|,)\s*$/.exec(before)?.[1] ?? 'other';
+        if (token === '==' || token === '!=' || token === '~=' || token === 'case') continue;
+        if (token === ',' && /\bcase\b[^=]*$/.test(statement)) continue;
+        sets.push({ file, at: m.index, token, before });
+      }
+    }
+    said.olderMac = sets.length;
+    if (sets.length !== 1) push('aa7', `${String(sets.length)} place(s) in the app set .olderMac; it is set in one place`);
+    for (const s of sets) {
+      if (s.file !== screen || s.token !== '=' || !/(?:^|[^\w.])(?:self\s*\.\s*)?state\s*=\s*$/.test(s.before)) {
+        push('aa7', `${atLine(s.file, s.at)} sets .olderMac other than as SessionsModel's \`state = .olderMac\``);
+        continue;
+      }
+      const decl = innermost(declSpans(screen.bare), s.at);
+      if (decl === null || list === null) continue;
+      // An await of the list's read ON THE PATH to the set: a statement at
+      // the level of the function or of a block holding the set (in a
+      // switch, the set's own arm), or an if/else every branch of which
+      // awaits it. The list's read is `await list.load()`, an `async let` of
+      // it, or `await X.value` of a Task made over it, X a local or a
+      // parameter every caller in the model hands one (`listTask`).
+      const fnOf = (at) => innermost(modelFuncs, at);
+      const listTask = (name, fn, seen = new Set()) => {
+        if (fn === null || seen.has(`${fn.name}@${String(fn.at)}:${name}`)) return false;
+        seen.add(`${fn.name}@${String(fn.at)}:${name}`);
+        const body = screen.bare.slice(fn.bodyOpen, fn.bodyClose);
+        const local = new RegExp(`\\b(?:let|var)\\s+${name}\\b[^=\\n]*=\\s*`).exec(body);
+        if (local !== null) {
+          const rhs = rightSide(screen.bare, fn.bodyOpen + local.index + local[0].length);
+          return /\bTask\b/.test(rhs) && new RegExp(`\\bawait\\s+(?:self\\s*\\.\\s*)?${list}\\s*\\.\\s*load\\s*\\(\\s*\\)`).test(rhs);
+        }
+        const params = topLevelArgs(fn.params).map((p) => /^\s*(?:([A-Za-z_]\w*)\s+)?([A-Za-z_]\w*)\s*:/.exec(p));
+        const at = params.findIndex((m) => m !== null && m[2] === name);
+        if (at === -1) return false;
+        const label = params[at][1] ?? params[at][2];
+        const sites = modelFuncs.flatMap((g) => callsOf(screen.bare, fn.name, g.bodyOpen, g.bodyClose));
+        return (
+          sites.length > 0 &&
+          sites.every((site) => {
+            const open = screen.bare.indexOf('(', site);
+            const args = topLevelArgs(screen.bare.slice(open + 1, closeParen(screen.bare, open)));
+            const arg = label === '_' ? args[at] : args.find((a) => new RegExp(`^${label}\\s*:`).test(a));
+            const expr = (arg ?? '').replace(new RegExp(`^${label}\\s*:\\s*`), '').trim();
+            return /^[A-Za-z_]\w*$/.test(expr) && listTask(expr, fnOf(site), seen);
+          })
+        );
+      };
+      const awaitsList = (text, at) =>
+        new RegExp(`\\bawait\\s+(?:self\\s*\\.\\s*)?${list}\\s*\\.\\s*load\\s*\\(\\s*\\)`).test(text) ||
+        [...text.matchAll(/\bawait\s+([A-Za-z_]\w*)\s*\??\s*\.\s*value\b/g)].some((m) => listTask(m[1], fnOf(at))) ||
+        [...text.matchAll(/\bawait\s+([A-Za-z_]\w*)\b(?!\s*[.(?])/g)].some((m) => new RegExp(`\\basync\\s+let\\s+${m[1]}\\b[^=\\n]*=\\s*(?:self\\s*\\.\\s*)?${list}\\s*\\.\\s*load\\s*\\(\\s*\\)`).test(screen.bare.slice(decl.bodyOpen, s.at)));
+      const path = openBlocksAt(screen.bare, decl.bodyOpen, s.at);
+      let awaited = false;
+      for (let b = 0; b < path.length && !awaited; b += 1) {
+        const open = path[b];
+        const until = b + 1 < path.length ? path[b + 1] : s.at;
+        let from = open;
+        if (/\bswitch\b[^{]*$/.test(blockHeader(screen.bare, open))) {
+          const arm = [...ownStatements(screen.bare.slice(open, until)).matchAll(/\b(?:case\b[^:]*|default)\s*:/g)].pop();
+          if (arm !== undefined) from = open + arm.index;
+        }
+        const level = ownStatements(`{${screen.bare.slice(from + (from === open ? 1 : 0), until)}`);
+        if (awaitsList(level, s.at)) awaited = true;
+        // An if/else chain at this level, closed before the set, every branch awaiting.
+        for (const m of level.matchAll(/\bif\b[^{};]*\{/g)) {
+          let brace = from + (from === open ? 1 : 0) + m.index + m[0].length - 2;
+          const branches = [];
+          let complete = false;
+          for (;;) {
+            const close = matchForward(screen.bare, brace);
+            if (close === -1 || close > s.at) break;
+            branches.push(screen.bare.slice(brace, close + 1));
+            const next = /^\s*else\s*(if\b[^{]*)?\{/.exec(screen.bare.slice(close + 1));
+            if (next === null) break;
+            brace = close + 1 + next[0].length - 1;
+            if (next[1] === undefined) {
+              const last = matchForward(screen.bare, brace);
+              if (last !== -1 && last < s.at) {
+                branches.push(screen.bare.slice(brace, last + 1));
+                complete = true;
+              }
+              break;
+            }
+          }
+          if (complete && branches.every((t) => awaitsList(t, s.at))) awaited = true;
+        }
+      }
+      if (!awaited) push('aa7', `${atLine(screen, s.at)} sets .olderMac in ${decl.name} with no await of ${list}'s read on every path before it (${list}.load(), or a Task made over it); the older face is drawn only once the app's own /v1/blocked read answered`);
+      const state = `(?:self\\s*\\.\\s*)?${list}\\s*\\.\\s*state\\b`;
+      const blocks = openBlocksAt(screen.bare, decl.bodyOpen, s.at);
+      let underLoaded = false;
+      for (const open of blocks) {
+        const header = blockHeader(screen.bare, open);
+        if (new RegExp(`\\bif\\s+case\\s+(?:let\\s+)?\\.\\s*loaded\\b[^{]*=\\s*${state}`).test(header)) underLoaded = true;
+        if (new RegExp(`\\bswitch\\s+${state}\\s*$`).test(header.trimEnd())) {
+          const inner = ownStatements(screen.bare.slice(open, s.at));
+          const label = [...inner.matchAll(/\b(case\b[^:]*|default)\s*:/g)].pop()?.[1] ?? '';
+          if (/^case\b.*\.\s*loaded\b/.test(label)) underLoaded = true;
+        }
+      }
+      // `guard case .loaded = list.state else { … }` earlier in a block the set sits in.
+      for (const open of blocks) {
+        const own = ownStatements(screen.bare.slice(open, s.at));
+        if (new RegExp(`\\bguard\\s+case\\s+(?:let\\s+)?\\.\\s*loaded\\b[^{]*=\\s*${state}[^{]*\\belse\\b`).test(own)) underLoaded = true;
+      }
+      if (!underLoaded) push('aa7', `${atLine(screen, s.at)} sets .olderMac outside a branch that reads ${list}.state as .loaded; a list read that drew a sentence draws that sentence, and one refused goes to Pairing (D9, F19)`);
+    }
+  }
+
+  // The functions of the model that reach a /v1/sessions read, directly or through another.
+  const direct = (fn) => /\.\s*sessions\s*\(/.test(bodyText(screen, fn));
+  const reaching = new Set(modelFuncs.filter(direct).map((fn) => fn.name));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const fn of modelFuncs) {
+      if (reaching.has(fn.name)) continue;
+      if ([...reaching].some((n) => callsOf(screen.bare, n, fn.bodyOpen, fn.bodyClose).length > 0)) {
+        reaching.add(fn.name);
+        grew = true;
+      }
+    }
+  }
+  const firstReach = (from, to) => {
+    const at = [...[...screen.bare.slice(from, to).matchAll(/\.\s*sessions\s*\(/g)].map((m) => from + m.index), ...[...reaching].flatMap((n) => callsOf(screen.bare, n, from, to))];
+    return at.length === 0 ? -1 : Math.min(...at);
+  };
+
+  // (aa8) The hold: load() asks batchHeld first; Done clears it before load(); the batch sets it.
+  if (screen !== null && modelSpans.length > 0) {
+    const HOLD = /\b(?:if\s+(?:self\s*\.\s*)?batchHeld\s*(?:==\s*true\s*)?|guard\s+(?:!\s*(?:self\s*\.\s*)?batchHeld|(?:self\s*\.\s*)?batchHeld\s*==\s*false)\s*else\s*)\{/;
+    const callLabels = (text) => topLevelArgs(text).map((a) => /^([A-Za-z_]\w*)\s*:/.exec(a)?.[1] ?? '_');
+    const funcLabels = (fn) => topLevelArgs(fn.params).map((p) => /^\s*(?:@\w+\s+)*([A-Za-z_]\w*)/.exec(p)?.[1] ?? '?');
+    // Whether `fn` asks batchHeld, and returns without a read, before its
+    // first call that reaches one; or hands that call to another of the
+    // model's functions (an overload by its labels) that does.
+    const holdsFirst = (fn, seen = new Set()) => {
+      if (seen.has(fn)) return { ok: false, at: -1 };
+      seen.add(fn);
+      const first = firstReach(fn.bodyOpen + 1, fn.bodyClose);
+      if (first === -1) return { ok: false, at: -1 };
+      const hold = HOLD.exec(ownStatements(screen.bare.slice(fn.bodyOpen, first)));
+      if (hold !== null) {
+        const open = fn.bodyOpen + hold.index + hold[0].length - 1;
+        const close = matchForward(screen.bare, open);
+        return { ok: /\breturn\b/.test(screen.bare.slice(open, close + 1)) && firstReach(open, close) === -1, at: first };
+      }
+      const call = /^(?:self\s*\.\s*)?([A-Za-z_]\w*)\s*\(/.exec(screen.bare.slice(first));
+      if (call !== null) {
+        const open = first + call[0].length - 1;
+        const labels = callLabels(screen.bare.slice(open + 1, closeParen(screen.bare, open))).join();
+        const callees = modelFuncs.filter((g) => g !== fn && g.name === call[1] && funcLabels(g).join() === labels);
+        if (callees.length > 0 && callees.every((g) => holdsFirst(g, seen).ok)) return { ok: true, at: first };
+      }
+      return { ok: false, at: first };
+    };
+    const loads = modelFuncs.filter((fn) => fn.name === 'load' && funcLabels(fn).length === 0);
+    if (loads.length !== 1) push('aa8', `SessionsModel declares ${String(loads.length)} load() with no arguments; the one load() is what appear, pull, the foreground and Done call`);
+    for (const fn of loads) {
+      const r = holdsFirst(fn);
+      if (r.at === -1) push('aa8', 'SessionsModel.load() starts no /v1/sessions read; a pull reads the Sessions answer and the list together (D16)');
+      else if (!r.ok) push('aa8', `SessionsModel.load() does not read batchHeld, and return without a /v1/sessions read, before ${atLine(screen, r.at)}; while End these runs a pull, the foreground and Done must not replace the drawing under it (F5)`);
+    }
+  }
+  const batch = named(END_BATCH_FILE);
+  if (batch === null) push('aa8', `${END_BATCH_FILE} does not exist, so End these' hold cannot be read`);
+  else {
+    const done = [...batch.bare.matchAll(/\bButton\s*\(\s*Copy\s*\.\s*done\s*\)\s*\{/g)];
+    if (done.length === 0) push('aa8', `${END_BATCH_FILE} draws no Button(Copy.done) { … }, so what Done does cannot be read`);
+    for (const m of done) {
+      const open = m.index + m[0].length - 1;
+      const action = batch.bare.slice(open, matchForward(batch.bare, open) + 1);
+      const cleared = /\bbatchHeld\s*=\s*false\b/.exec(action);
+      const loaded = /\.\s*load\s*\(\s*\)/.exec(action);
+      if (cleared === null || loaded === null || cleared.index > loaded.index) push('aa8', `${atLine(batch, m.index)} Done ${cleared === null ? 'never clears batchHeld' : loaded === null ? 'reads nothing' : 'calls load() before it clears batchHeld'}; Done clears the hold, then asks for the read it is held from`);
+    }
+    if (![...batch.bare.matchAll(/\bbatchHeld\s*=\s*([^\n;]+)/g)].some((m) => !/^\s*(?:true|false)\b/.test(m[1]) && /\b(?:phase|takesTaps)\b/.test(m[1]))) push('aa8', `${END_BATCH_FILE} never sets batchHeld from End these' phase, so nothing holds the drawing while it selects or runs`);
+  }
+
+  // (aa9) One stored Task for the /v1/sessions read, cancelled before another.
+  if (screen !== null && modelSpans.length > 0) {
+    const decls = [...modelSpans.map((s) => screen.bare.slice(s.open, s.close)).join('\n').matchAll(/\bvar\s+([A-Za-z_]\w*)\s*:\s*Task\s*</g)].map((m) => m[1]);
+    const starts = [];
+    for (const m of screen.bare.matchAll(/\bTask\s*(?:\.\s*detached\s*)?(?:<[^>{]*>\s*)?(?:\([^(){}]*\)\s*)?\{/g)) {
+      if (!inSpans(modelSpans, m.index)) continue;
+      const open = m.index + m[0].length - 1;
+      const close = matchForward(screen.bare, open);
+      const fn = innermost(modelFuncs, m.index);
+      const into = /(?:^|[^\w.])(?:self\s*\.\s*)?([A-Za-z_]\w*)\s*=\s*$/.exec(screen.bare.slice(Math.max(0, m.index - 80), m.index))?.[1] ?? null;
+      let stored = into !== null && decls.includes(into) ? into : null;
+      if (stored === null && into !== null && fn !== null) {
+        // `let task = Task { … }` then `stored = task` in the same function.
+        const later = screen.bare.slice(close, fn.bodyClose);
+        stored = decls.find((d) => new RegExp(`(?:^|[^\\w.])(?:self\\s*\\.\\s*)?${d}\\s*=\\s*${into}\\b`).test(later)) ?? null;
+      }
+      starts.push({ at: m.index, open, close, fn, stored });
+    }
+    const holders = new Set();
+    const held = (at, seen = new Set()) => {
+      const task = starts.filter((t) => at > t.open && at < t.close).pop();
+      if (task !== undefined) {
+        if (task.stored !== null) holders.add(task.stored);
+        return task.stored !== null;
+      }
+      const fn = innermost(modelFuncs, at);
+      if (fn === null || seen.has(fn.name)) return false;
+      seen.add(fn.name);
+      const calls = modelFuncs.flatMap((g) => callsOf(screen.bare, fn.name, g.bodyOpen, g.bodyClose));
+      return calls.length > 0 && calls.every((c) => held(c, seen));
+    };
+    const reads = [...screen.bare.matchAll(/\.\s*sessions\s*\(/g)].filter((m) => inSpans(modelSpans, m.index));
+    if (reads.length === 0) push('aa9', 'SessionsModel makes no /v1/sessions read');
+    for (const m of reads) if (!held(m.index)) push('aa9', `${atLine(screen, m.index)} reads /v1/sessions outside the one stored Task; only a stored Task can be cancelled, which closes its connection (F7)`);
+    said.stored = [...holders].join(', ') || null;
+    if (holders.size > 1) push('aa9', `SessionsModel holds its /v1/sessions read in ${String(holders.size)} stored Tasks (${[...holders].join(', ')}); it keeps one`);
+    for (const t of starts.filter((x) => x.stored !== null)) {
+      const from = t.fn === null ? null : t.fn.bodyOpen;
+      const cancelled = from !== null && new RegExp(`\\b(?:self\\s*\\.\\s*)?${t.stored}\\s*\\??\\s*\\.\\s*cancel\\s*\\(\\s*\\)`).test(screen.bare.slice(from, t.at));
+      if (cancelled) said.cancels += 1;
+      else push('aa9', `${atLine(screen, t.at)} starts a /v1/sessions read into ${t.stored} with no ${t.stored}?.cancel() before it in ${t.fn?.name ?? 'its function'}; three quick choices would hold six reads against the door's four (F7)`);
+    }
+  }
+
+  // (aa10) One End these attachment over both faces; the tab draws SessionsTab.
+  if (screen !== null) {
+    const attaches = [...screen.bare.matchAll(/\.\s*endBatch\s*\(/g)];
+    said.endBatch = attaches.length;
+    if (attaches.length !== 1) push('aa10', `${SESSIONS_SCREEN_FILE} attaches End these ${String(attaches.length)} time(s); it is attached once, in SessionsTab, over both faces (F6)`);
+    for (const m of attaches) {
+      const type = innermost(screen.types, m.index);
+      if (type?.name !== 'SessionsTab') {
+        push('aa10', `${atLine(screen, m.index)} attaches End these in ${type?.name ?? 'no type'}, not SessionsTab`);
+        continue;
+      }
+      // The receiver, with each member or type it names read once more.
+      const root = postfixRoot(screen.bare, m.index);
+      let receiver = screen.bare.slice(root, m.index);
+      for (let depth = 0; depth < 2; depth += 1) {
+        let grown = receiver;
+        for (const w of new Set(receiver.match(/\b[A-Za-z_]\w*\b/g) ?? [])) {
+          const member = screen.bare.slice(type.open, type.close);
+          const prop = propertyText(member, w);
+          if (prop !== null) grown += `\n${prop}`;
+          const fn = screen.funcs.find((f) => f.name === w && f.at > type.open && f.at < type.close);
+          if (fn !== undefined) grown += `\n${bodyText(screen, fn)}`;
+          const other = screen.types.find((t) => t.name === w && t.kind === 'struct' && t.name !== 'SessionsScreen');
+          if (other !== undefined) grown += `\n${screen.bare.slice(other.open, other.close)}`;
+        }
+        receiver = grown;
+      }
+      if (!/\bSessionsScreen\s*\(/.test(receiver) || !/\bListScreen\s*\(/.test(receiver)) push('aa10', `${atLine(screen, m.index)} attaches End these over ${/\bSessionsScreen\s*\(/.test(receiver) ? 'the new face alone' : /\bListScreen\s*\(/.test(receiver) ? 'the older face alone' : 'neither face'}; one attachment over both keeps End these' selection when the face changes (F6)`);
+    }
+    for (const m of screen.bare.matchAll(/\bListScreen\s*\(/g)) {
+      if (/\b(?:struct|class)\s+$/.test(screen.bare.slice(Math.max(0, m.index - 8), m.index))) continue;
+      const open = m.index + m[0].length - 1;
+      const args = topLevelArgs(screen.bare.slice(open + 1, closeParen(screen.bare, open)));
+      if (!args.some((a) => /^ends\s*:\s*nil$/.test(a.replace(/\s+/g, ' ')))) push('aa10', `${atLine(screen, m.index)} draws the older face's ListScreen without ends: nil; End these is SessionsTab's one attachment`);
+    }
+  }
+  const app = named('App/TortieApp.swift');
+  if (app === null) push('aa10', 'App/TortieApp.swift does not exist, so the Sessions tab cannot be read');
+  else {
+    const tab = /\bTab\s*\(\s*Copy\s*\.\s*sessions\b/.exec(app.bare);
+    const paren = tab === null ? -1 : app.bare.indexOf('(', tab.index);
+    const after = paren === -1 ? -1 : closeParen(app.bare, paren);
+    const brace = after === -1 ? null : /^\s*\{/.exec(app.bare.slice(after + 1));
+    if (tab === null || brace === null) push('aa10', `App/TortieApp.swift draws no Tab(Copy.sessions …) { … } to read`);
+    else {
+      const bodyOpen = after + 1 + brace[0].length - 1;
+      const body = app.bare.slice(bodyOpen, matchForward(app.bare, bodyOpen) + 1);
+      // The helpers in the file that build `type(`, directly or through each other.
+      const makersOf = (type) => {
+        const out = new Set(app.funcs.filter((fn) => new RegExp(`\\b${type}\\s*\\(`).test(bodyText(app, fn))).map((fn) => fn.name));
+        for (let grew = true; grew; ) {
+          grew = false;
+          for (const fn of app.funcs) {
+            if (out.has(fn.name) || ![...out].some((n) => callsOf(app.bare, n, fn.bodyOpen, fn.bodyClose).length > 0)) continue;
+            out.add(fn.name);
+            grew = true;
+          }
+        }
+        return out;
+      };
+      const calls = (names) => [...names].filter((n) => callsOf(body, n).length > 0);
+      if (!/\bSessionsTab\s*\(/.test(body) && calls(makersOf('SessionsTab')).length === 0) push('aa10', `${atLine(app, tab.index)} the Sessions tab draws no SessionsTab(`);
+      if (/\bListScreen\s*\(/.test(body)) push('aa10', `${atLine(app, tab.index)} the Sessions tab builds a ListScreen of its own; its older face is SessionsTab's, under the one attachment`);
+      for (const n of calls(makersOf('ListScreen'))) push('aa10', `${atLine(app, tab.index)} the Sessions tab calls ${n}(, which builds a ListScreen; its older face is SessionsTab's, under the one attachment`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---------------------------------------------------------------------------
 // The scanners, proved on texts this file holds, before any file is read
 // ---------------------------------------------------------------------------
 
@@ -7511,6 +8386,461 @@ const expect = (what, ok) => {
   expect('(v) catches replySentence with a default', vrRun(R_WORDS.replace('        case .notTaken:\n', '        default:\n            return Copy.replyNotTaken\n        case .notTaken:\n')).length > 0);
   expect('(v) catches an empty reply line', vrRun(R_WORDS, swap(REPLY_FILE, '            sayLine = Copy.replySent', '            sayLine = ""')).length > 0);
   expect('(v) catches a reply line that is not a sentence', vrRun(R_WORDS, swap(REPLY_FILE, '            self?.pressLine = DoorWords.replySentence(for: sent.result)', '            self?.pressLine = String(describing: sent)')).length > 0);
+
+  // ---- Phase 316.7: (aa), the Sessions tab --------------------------------
+  // One small app in the shape build/p3167/SPEC.md §6.4 names, every clause
+  // green on it, the other spellings a clause accepts green too, and one edit
+  // per clause that must turn it red.
+  const S_SCREEN = [
+    'import SwiftUI',
+    'struct SessionsDrawing: Equatable {',
+    '    let groups: [PocketSessionsGroup]',
+    '    let rows: [PocketSessionsRow]',
+    '    init(_ answer: PocketSessionsAnswer, asked: PocketSessionsAsked) throws {',
+    '        guard answer.asked == asked else { throw SessionsRefused() }',
+    '        var seen = Set<String>()',
+    '        for row in answer.rows where !seen.insert(row.sessionId).inserted {',
+    '            throw SessionsRefused()',
+    '        }',
+    '        groups = answer.groups',
+    '        rows = answer.rows',
+    '    }',
+    '}',
+    'enum SessionsState: Equatable {',
+    '    case loading',
+    '    case loaded(SessionsDrawing)',
+    '    case failed(String)',
+    '    case olderMac',
+    '}',
+    '@MainActor',
+    '@Observable',
+    'final class SessionsModel: EndBatchList {',
+    '    private(set) var state: SessionsState = .loading',
+    '    let list: ListModel',
+    '    private let door: any DoorReading',
+    '    private let store: any SessionsChoicesStore',
+    '    private(set) var show: SessionsShow',
+    '    var batchHeld = false',
+    '    private var generation = 0',
+    '    @ObservationIgnored private var reading: Task<Void, Never>?',
+    '    init(door: any DoorReading, list: ListModel, store: any SessionsChoicesStore) {',
+    '        self.door = door',
+    '        self.list = list',
+    '        self.store = store',
+    '        (show, _, _) = store.load()',
+    '    }',
+    '    var batchRows: [RowDrawing] {',
+    '        switch state {',
+    '        case .loaded(let drawing):',
+    '            return drawing.drawnRows',
+    '        case .olderMac:',
+    '            return list.batchRows',
+    '        case .loading, .failed:',
+    '            return []',
+    '        }',
+    '    }',
+    '    func load() async {',
+    '        if batchHeld {',
+    '            await list.load()',
+    '            return',
+    '        }',
+    '        async let listed: Void = list.load()',
+    '        await read()',
+    '        await listed',
+    '    }',
+    '    func choose(_ show: SessionsShow) {',
+    '        self.show = show',
+    '        store.save(show: show, group: .project, sort: .recent)',
+    '        Task { await read() }',
+    '    }',
+    '    private func read() async {',
+    '        reading?.cancel()',
+    '        generation += 1',
+    '        let mine = generation',
+    '        let query = SessionsQuery(show: show, group: .project, sort: .recent, agent: nil, machine: nil)',
+    '        let task = Task {',
+    '            do {',
+    '                let answer = try await door.sessions(query)',
+    '                guard mine == generation else { return }',
+    '                state = Self.drawn(answer, asked: query)',
+    '            } catch {',
+    '                guard mine == generation, !Task.isCancelled else { return }',
+    '                await fallBack(after: error, mine: mine)',
+    '            }',
+    '        }',
+    '        reading = task',
+    '        await task.value',
+    '    }',
+    '    private func fallBack(after error: Error, mine: Int) async {',
+    '        guard DoorWords.isRefusal(error) else {',
+    '            state = .failed(DoorWords.sentence(for: error))',
+    '            return',
+    '        }',
+    '        await list.load()',
+    '        guard mine == generation else { return }',
+    '        if case .loaded = list.state {',
+    '            state = .olderMac',
+    '        } else if case .failed(let sentence) = list.state {',
+    '            state = .failed(sentence)',
+    '        }',
+    '    }',
+    '}',
+    'struct SessionsTab: View {',
+    '    let model: SessionsModel',
+    '    let ends: EndBatchSetup?',
+    '    var body: some View {',
+    '        face',
+    '            .endBatch(ends, list: model)',
+    '    }',
+    '    @ViewBuilder private var face: some View {',
+    '        if case .olderMac = model.state {',
+    '            ListScreen(model: model.list, kind: .sessions, ends: nil, reload: { await model.load() })',
+    '        } else {',
+    '            SessionsScreen(model: model)',
+    '        }',
+    '    }',
+    '}',
+    'struct SessionsScreen: View {',
+    '    let model: SessionsModel',
+    '    @Environment(\\.endBatch) private var batch',
+    '    var body: some View {',
+    '        ScrollView {',
+    '            LazyVStack(alignment: .leading, spacing: 0) {',
+    '                showControl',
+    '                menu',
+    '            }',
+    '        }',
+    '        .refreshable { await model.load() }',
+    '    }',
+    '    private var held: Bool { batch?.takesTaps ?? false }',
+    '    private var showControl: some View {',
+    '        HStack(spacing: 0) {',
+    '            Button(Copy.showAll) { model.choose(.all) }',
+    '                .accessibilityIdentifier(ID.listShowAll)',
+    '        }',
+    '        .disabled(batch?.takesTaps == true)',
+    '        .accessibilityIdentifier(ID.listShow)',
+    '    }',
+    '    private var menu: some View {',
+    '        Menu {',
+    '            Button(Copy.clearFilters) { model.clearFilters() }',
+    '        } label: {',
+    '            Image(systemName: "line.3.horizontal.decrease.circle")',
+    '        }',
+    '        .accessibilityLabel(Copy.sessionsOptions)',
+    '        .disabled(held)',
+    '        .accessibilityIdentifier(ID.listMenu)',
+    '    }',
+    '    private func header(_ group: PocketSessionsGroup) -> some View {',
+    '        Button {',
+    '            model.toggle(group.id)',
+    '        } label: {',
+    '            Words(group.label, .body, Tokens.textPrimary)',
+    '        }',
+    '        .buttonStyle(.plain)',
+    '        .disabled(batch?.takesTaps ?? false)',
+    '        .accessibilityIdentifier(ID.group(group.id))',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const S_CHOICES = [
+    'import Foundation',
+    'enum SessionsShow: String, Sendable { case active, ended, all }',
+    'enum SessionsGroupBy: String, Sendable { case project, none }',
+    'enum SessionsSortBy: String, Sendable { case recent, name, oldest }',
+    'struct SessionsQuery: Equatable, Sendable {',
+    '    var show: SessionsShow',
+    '    var group: SessionsGroupBy',
+    '    var sort: SessionsSortBy',
+    '    var agent: String?',
+    '    var machine: String?',
+    '}',
+    'protocol SessionsChoicesStore {',
+    '    func load() -> (SessionsShow, SessionsGroupBy, SessionsSortBy)',
+    '    func save(show: SessionsShow, group: SessionsGroupBy, sort: SessionsSortBy)',
+    '}',
+    'struct DefaultsSessionsChoices: SessionsChoicesStore {',
+    '    static let showKey = "tortie.sessions.show"',
+    '    static let groupKey = "tortie.sessions.group"',
+    '    static let sortKey = "tortie.sessions.sort"',
+    '    let defaults: UserDefaults',
+    '    func load() -> (SessionsShow, SessionsGroupBy, SessionsSortBy) {',
+    '        (',
+    '            SessionsShow(rawValue: defaults.string(forKey: Self.showKey) ?? "") ?? .active,',
+    '            SessionsGroupBy(rawValue: defaults.string(forKey: Self.groupKey) ?? "") ?? .project,',
+    '            SessionsSortBy(rawValue: defaults.string(forKey: Self.sortKey) ?? "") ?? .recent',
+    '        )',
+    '    }',
+    '    func save(show: SessionsShow, group: SessionsGroupBy, sort: SessionsSortBy) {',
+    '        defaults.set(show.rawValue, forKey: Self.showKey)',
+    '        defaults.set(group.rawValue, forKey: Self.groupKey)',
+    '        defaults.set(sort.rawValue, forKey: Self.sortKey)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const S_CLIENT = [
+    'final class DoorClient {',
+    '    func sessions(_ query: SessionsQuery, door: PairedDoor) async throws -> PocketSessionsAnswer {',
+    '        try await signedGet(PocketSessionsAnswer.self, target: Self.sessionsTarget(query), door: door)',
+    '    }',
+    '    static func sessionTarget(_ sessionId: String) -> String {',
+    '        "/v1/session?id=\\(queryValue(sessionId))"',
+    '    }',
+    '    static func sessionsTarget(_ query: SessionsQuery) -> String {',
+    '        var target = "/v1/sessions?show=\\(queryValue(query.show.rawValue))&group=\\(queryValue(query.group.rawValue))&sort=\\(queryValue(query.sort.rawValue))"',
+    '        if let agent = query.agent { target += "&agent=\\(queryValue(agent))" }',
+    '        if let machine = query.machine { target += "&machine=\\(queryValue(machine))" }',
+    '        return target',
+    '    }',
+    '    static func queryValue(_ value: String) -> String { value }',
+    '}',
+    ''
+  ].join('\n');
+  const S_APP = [
+    'struct RootView: View {',
+    '    private func tabs(list: ListModel, sessions: SessionsModel) -> some View {',
+    '        TabView(selection: $app.tab) {',
+    '            Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) {',
+    '                NavigationStack(path: $app.waitingPath) {',
+    '                    listScreen(list, kind: .needsInput)',
+    '                }',
+    '            }',
+    '            Tab(Copy.sessions, systemImage: "list.bullet", value: AppTab.sessions) {',
+    '                NavigationStack(path: $app.sessionsPath) {',
+    '                    SessionsTab(model: sessions, ends: app.reader.flatMap { app.endBatchSetup($0) })',
+    '                }',
+    '            }',
+    '        }',
+    '    }',
+    '    private func listScreen(_ list: ListModel, kind: ListKind) -> some View {',
+    '        ListScreen(model: list, kind: kind, ends: nil)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const S_BATCH = [
+    'private struct Attached: View {',
+    '    let content: Content',
+    '    let list: any EndBatchList',
+    '    @State private var model: EndBatchModel',
+    '    var body: some View {',
+    '        content',
+    '            .onChange(of: model.phase, initial: true) {',
+    '                list.batchHeld = model.phase != .off',
+    '            }',
+    '    }',
+    '    private func bar() -> some View {',
+    '        Button(Copy.done) {',
+    '            model.finish()',
+    '            list.batchHeld = false',
+    '            Task { await list.load() }',
+    '        }',
+    '        .accessibilityIdentifier(ID.batchDone)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const S_IDS = [
+    'enum ID {',
+    '    static let listShow = "list-show"',
+    '    static let listShowAll = "list-show-all"',
+    '    static let listShowActive = "list-show-active"',
+    '    static let listShowEnded = "list-show-ended"',
+    '    static let listMenu = "list-menu"',
+    '    static func group(_ id: String) -> String { "group-" + id }',
+    '    static func groupLabel(_ id: String) -> String { "group-label-" + id }',
+    '}',
+    ''
+  ].join('\n');
+  const S_PRIVACY = {
+    NSPrivacyTracking: false,
+    NSPrivacyTrackingDomains: [],
+    NSPrivacyCollectedDataTypes: [],
+    NSPrivacyAccessedAPITypes: [{ NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults', NSPrivacyAccessedAPITypeReasons: ['CA92.1'] }]
+  };
+  const sFiles = (edits = {}) =>
+    [
+      [SESSIONS_SCREEN_FILE, S_SCREEN],
+      [SESSIONS_CHOICES_FILE, S_CHOICES],
+      ['Door/DoorClient.swift', S_CLIENT],
+      ['App/TortieApp.swift', S_APP],
+      [END_BATCH_FILE, S_BATCH],
+      ['Screens/Identifiers.swift', S_IDS],
+      // A file an edit names that the app above does not have is added.
+      ...Object.keys(edits).filter((name) => ![SESSIONS_SCREEN_FILE, SESSIONS_CHOICES_FILE, 'Door/DoorClient.swift', 'App/TortieApp.swift', END_BATCH_FILE, 'Screens/Identifiers.swift'].includes(name)).map((name) => [name, ''])
+    ]
+      .map(([name, source]) => ({ name, source: typeof edits[name] === 'function' ? edits[name](source) : source }))
+      .filter((f) => f.source !== null);
+  /** Every finding of the run, or only those of one clause. */
+  const aaRun = (edits, privacy = S_PRIVACY, clause = null) => ruleSessionsTab(sFiles(edits), privacy).findings.filter((f) => clause === null || f.endsWith(`(${clause})`));
+  const sSwap = (name, from, to) => ({ [name]: (s) => {
+    if (!s.includes(from)) throw new Error(`self-test edit anchor missing in ${name}: ${from}`);
+    return s.replace(from, to);
+  } });
+  const sSwaps = (name, pairs) => ({ [name]: (s) => pairs.reduce((t, [from, to]) => {
+    if (!t.includes(from)) throw new Error(`self-test edit anchor missing in ${name}: ${from}`);
+    return t.replace(from, to);
+  }, s) });
+  /** One edit must redden exactly its own clause. */
+  const aaRed = (clause, what, edits, privacy) => {
+    const got = aaRun(edits, privacy);
+    expect(`(${clause}) catches ${what}`, got.length > 0 && got.every((f) => f.endsWith(`(${clause})`)));
+  };
+  const aaFirst = aaRun();
+  expect(`(aa) passes the Sessions tab in the shape SPEC §6.4 names${aaFirst.length > 0 ? `: ${aaFirst[0]}` : ''}`, aaFirst.length === 0);
+  const SC = SESSIONS_SCREEN_FILE;
+  const CH = SESSIONS_CHOICES_FILE;
+  const DC = 'Door/DoorClient.swift';
+  const TA = 'App/TortieApp.swift';
+  // Other spellings each clause accepts.
+  expect('(aa) passes a guard on batchHeld, a .disabled on each Show option, a switch arm on the list, a key enum and Task(priority:)', aaRun({
+    ...sSwaps(SC, [
+      ['        if batchHeld {\n            await list.load()\n            return\n        }\n', '        guard !batchHeld else {\n            await list.load()\n            return\n        }\n'],
+      ['            Button(Copy.showAll) { model.choose(.all) }\n                .accessibilityIdentifier(ID.listShowAll)\n        }\n        .disabled(batch?.takesTaps == true)\n', '            Button(Copy.showAll) { model.choose(.all) }\n                .disabled(held)\n                .accessibilityIdentifier(ID.listShowAll)\n            Button(Copy.showActive) { model.choose(.active) }\n                .disabled(held)\n                .accessibilityIdentifier(ID.listShowActive)\n            Button(Copy.showEnded) { model.choose(.ended) }\n                .disabled(held)\n                .accessibilityIdentifier(ID.listShowEnded)\n        }\n'],
+      ['        if case .loaded = list.state {\n            state = .olderMac\n        } else if case .failed(let sentence) = list.state {\n            state = .failed(sentence)\n        }\n', '        switch list.state {\n        case .loaded:\n            state = .olderMac\n        case .failed(let sentence):\n            state = .failed(sentence)\n        case .loading:\n            break\n        }\n'],
+      ['        let task = Task {\n', '        let task = Task(priority: .userInitiated) {\n']
+    ]),
+    ...sSwaps(CH, [
+      ['    static let showKey = "tortie.sessions.show"\n    static let groupKey = "tortie.sessions.group"\n    static let sortKey = "tortie.sessions.sort"\n', '    enum Key: String {\n        case show = "tortie.sessions.show"\n        case group = "tortie.sessions.group"\n        case sort = "tortie.sessions.sort"\n    }\n'],
+      ['forKey: Self.showKey) ?? "")', 'forKey: Key.show.rawValue) ?? "")'],
+      ['forKey: Self.groupKey) ?? "")', 'forKey: Key.group.rawValue) ?? "")'],
+      ['forKey: Self.sortKey) ?? "")', 'forKey: Key.sort.rawValue) ?? "")'],
+      ['forKey: Self.showKey)\n', 'forKey: Key.show.rawValue)\n'],
+      ['forKey: Self.groupKey)\n', 'forKey: Key.group.rawValue)\n'],
+      ['forKey: Self.sortKey)\n', 'forKey: Key.sort.rawValue)\n']
+    ])
+  }).length === 0);
+  expect('(aa) passes a read whose Task is stored directly, a guard case on the list, and a Tab body through a SessionsTab helper', aaRun({
+    ...sSwaps(SC, [
+      ['        let task = Task {\n', '        reading = Task {\n'],
+      ['        reading = task\n        await task.value\n', '        await reading?.value\n'],
+      ['        if case .loaded = list.state {\n            state = .olderMac\n        } else if case .failed(let sentence) = list.state {\n            state = .failed(sentence)\n        }\n', '        guard case .loaded = list.state else {\n            if case .failed(let sentence) = list.state { state = .failed(sentence) }\n            return\n        }\n        state = .olderMac\n']
+    ]),
+    ...sSwaps(TA, [
+      ['                    SessionsTab(model: sessions, ends: app.reader.flatMap { app.endBatchSetup($0) })\n', '                    sessionsTab(sessions)\n'],
+      ['    private func listScreen(', '    private func sessionsTab(_ sessions: SessionsModel) -> some View {\n        SessionsTab(model: sessions, ends: nil)\n    }\n    private func listScreen(']
+    ])
+  }).length === 0);
+  // The shape the phone builder took: load() handing its read to an overload
+  // that guards, and a header type given `held` by the screen that makes it.
+  const S_SPLIT = (src) =>
+    [
+      ['    func load() async {\n        if batchHeld {\n            await list.load()\n            return\n        }\n        async let listed: Void = list.load()\n        await read()\n        await listed\n    }\n', '    func load(listToo: Bool) async {\n        guard !batchHeld else {\n            await list.load()\n            return\n        }\n        await read()\n    }\n    func load() async {\n        await load(listToo: true)\n    }\n'],
+      ['    private func header(_ group: PocketSessionsGroup) -> some View {\n        Button {\n            model.toggle(group.id)\n        } label: {\n            Words(group.label, .body, Tokens.textPrimary)\n        }\n        .buttonStyle(.plain)\n        .disabled(batch?.takesTaps ?? false)\n        .accessibilityIdentifier(ID.group(group.id))\n    }\n}\n', '    private func header(_ group: PocketSessionsGroup) -> some View {\n        GroupHeader(group: group, held: held) { model.toggle(group.id) }\n    }\n}\nprivate struct GroupHeader: View {\n    let group: PocketSessionsGroup\n    let held: Bool\n    let toggle: () -> Void\n    var body: some View {\n        VStack { Words(group.label, .body, Tokens.textPrimary) }\n            .overlay {\n                Button(action: toggle) {\n                    Color.clear.contentShape(Rectangle())\n                }\n                .buttonStyle(.plain)\n                .disabled(held)\n                .accessibilityIdentifier(ID.group(group.id))\n            }\n    }\n}\n']
+    ].reduce((t, [from, to]) => {
+      if (!t.includes(from)) throw new Error(`self-test edit anchor missing in ${SESSIONS_SCREEN_FILE}: ${from}`);
+      return t.replace(from, to);
+    }, src);
+  const splitRun = (more = (x) => x) => aaRun({ [SESSIONS_SCREEN_FILE]: (src) => more(S_SPLIT(src)) });
+  const splitFirst = splitRun();
+  expect(`(aa) passes load() handing its read to an overload that guards, and a header given held by its maker${splitFirst.length > 0 ? `: ${splitFirst[0]}` : ''}`, splitFirst.length === 0);
+  const splitRed = (clause, what, more) => {
+    const got = splitRun(more);
+    expect(`(${clause}) catches ${what}`, got.length > 0 && got.every((f) => f.endsWith(`(${clause})`)));
+  };
+  splitRed('aa8', 'an overload load() hands its read to with no batchHeld check', (t) => t.replace('        guard !batchHeld else {\n            await list.load()\n            return\n        }\n        await read()\n', '        await read()\n'));
+  splitRed('aa8', 'load() handing its read to a function of another name that does not guard', (t) => t.replace('        await load(listToo: true)\n', '        await read()\n'));
+  splitRed('aa6', 'a header type given held: false by its maker', (t) => t.replace('GroupHeader(group: group, held: held)', 'GroupHeader(group: group, held: false)'));
+  splitRed('aa6', 'a header type whose held no maker passes', (t) => t.replace('        GroupHeader(group: group, held: held) { model.toggle(group.id) }\n', '        EmptyView()\n'));
+  // The fix round (2026-10-03): the header the phone builder first drew, a
+  // view taking taps by .onTapGesture, read enabled to XCUITest while selecting.
+  splitRed('aa6', 'a header type taking taps by .onTapGesture, as first built', (t) => t.replace('                Button(action: toggle) {\n                    Color.clear.contentShape(Rectangle())\n                }\n                .buttonStyle(.plain)\n', '                Color.clear.contentShape(Rectangle())\n                .onTapGesture(perform: toggle)\n'));
+  splitRed('aa6', 'a Button header that also takes taps by .onTapGesture', (t) => t.replace('                .buttonStyle(.plain)\n                .disabled(held)\n', '                .buttonStyle(.plain)\n                .onTapGesture(perform: toggle)\n                .disabled(held)\n'));
+  splitRed('aa6', 'a Button header made a container by .accessibilityElement(children: .contain), as the fix round first built it', (t) => t.replace('                .disabled(held)\n                .accessibilityIdentifier', '                .disabled(held)\n                .accessibilityElement(children: .contain)\n                .accessibilityIdentifier'));
+  // (aa7)'s path: the list's read handed in as a Task, or read here, on every branch.
+  const S_HANDED = (src) =>
+    [
+      ['        let task = Task {\n', '        let listRead: Task<Void, Never>? = Task { await list.load() }\n        let task = Task {\n'],
+      ['                await fallBack(after: error, mine: mine)\n', '                await fallBack(after: error, mine: mine, listRead: listRead)\n'],
+      ['    private func fallBack(after error: Error, mine: Int) async {', '    private func fallBack(after error: Error, mine: Int, listRead: Task<Void, Never>?) async {'],
+      ['        await list.load()\n        guard mine == generation else { return }\n        if case .loaded', '        if let listRead {\n            await listRead.value\n        } else {\n            await list.load()\n        }\n        guard mine == generation else { return }\n        if case .loaded']
+    ].reduce((t, [from, to]) => {
+      if (!t.includes(from)) throw new Error(`self-test edit anchor missing in ${SESSIONS_SCREEN_FILE}: ${from}`);
+      return t.replace(from, to);
+    }, src);
+  const handedRun = (more = (x) => x) => aaRun({ [SESSIONS_SCREEN_FILE]: (src) => more(S_HANDED(src)) });
+  const handedFirst = handedRun();
+  expect(`(aa7) passes the list's read awaited through a Task handed in, or read here, on each branch${handedFirst.length > 0 ? `: ${handedFirst[0]}` : ''}`, handedFirst.length === 0);
+  const handedRed = (what, more) => {
+    const got = handedRun(more);
+    expect(`(aa7) catches ${what}`, got.length > 0 && got.every((f) => f.endsWith('(aa7)')));
+  };
+  handedRed('a branch that awaits nothing before .olderMac', (t) => t.replace('        if let listRead {\n            await listRead.value\n        } else {', '        if let listRead {\n            _ = listRead\n        } else {'));
+  handedRed('an if with no else around the only await', (t) => t.replace('        if let listRead {\n            await listRead.value\n        } else {\n            await list.load()\n        }\n', '        if listRead == nil {\n            await list.load()\n        }\n'));
+  handedRed('a Task handed in that is not the list\'s read', (t) => t.replace('        let listRead: Task<Void, Never>? = Task { await list.load() }\n', '        let listRead: Task<Void, Never>? = Task { await Task.yield() }\n'));
+  handedRed('the await in another arm of a switch', (t) => t.replace('        if let listRead {\n            await listRead.value\n        } else {\n            await list.load()\n        }\n        guard mine == generation else { return }\n        if case .loaded = list.state {\n            state = .olderMac\n        } else if case .failed(let sentence) = list.state {\n            state = .failed(sentence)\n        }\n', '        switch mine {\n        case 0:\n            await list.load()\n        default:\n            if case .loaded = list.state {\n                state = .olderMac\n            }\n        }\n'));
+  // (aa1)
+  aaRed('aa1', 'a .sorted on the phone', sSwap(SC, '        groups = answer.groups', '        groups = answer.groups.sorted { $0.label < $1.label }'));
+  aaRed('aa1', 'a .filter with a trailing closure', sSwap(SC, '        rows = answer.rows', '        rows = answer.rows.filter { $0.waiting }'));
+  aaRed('aa1', 'reversed', sSwap(SC, '        rows = answer.rows', '        rows = Array(answer.rows.reversed())'));
+  aaRed('aa1', 'a .max(by:) in the choices', sSwap(CH, '    var machine: String?\n}', '    var machine: String?\n    static func newest(_ all: [SessionsShow]) -> SessionsShow? { all.max(by: { $0.rawValue < $1.rawValue }) }\n}'));
+  aaRed('aa1', 'shuffled', sSwap(SC, '        rows = answer.rows', '        rows = answer.rows.shuffled()'));
+  aaRed('aa1', 'an in-place .sort(', sSwap(SC, '        var seen = Set<String>()', '        var seen = Set<String>()\n        var order = answer.rows\n        order.sort(by: { $0.name < $1.name })'));
+  // (aa2)
+  aaRed('aa2', 'UserDefaults named in SessionsScreen.swift', sSwap(SC, '    var batchHeld = false', '    var batchHeld = false\n    private let kept = UserDefaults.standard'));
+  aaRed('aa2', '@AppStorage in another file', { 'Screens/Other.swift': () => 'struct Other: View {\n    @AppStorage("tortie.sessions.show") var show = "active"\n    var body: some View { EmptyView() }\n}\n' });
+  aaRed('aa2', 'a fourth key', sSwap(CH, '        defaults.set(sort.rawValue, forKey: Self.sortKey)', '        defaults.set(sort.rawValue, forKey: Self.sortKey)\n        defaults.set(show.rawValue, forKey: "tortie.sessions.agent")'));
+  aaRed('aa2', 'a key that is not a literal', sSwap(CH, '        defaults.set(sort.rawValue, forKey: Self.sortKey)', '        defaults.set(sort.rawValue, forKey: Self.sortKey + "x")'));
+  aaRed('aa2', 'a key spelled twice', sSwap(CH, '    let defaults: UserDefaults', '    static let again = "tortie.sessions.show"\n    let defaults: UserDefaults'));
+  aaRed('aa2', 'a door string stored', sSwap(CH, '        defaults.set(show.rawValue, forKey: Self.showKey)', '        defaults.set(agentLabel, forKey: Self.showKey)'));
+  aaRed('aa2', 'a word read with no ?? after its init', sSwap(CH, 'SessionsShow(rawValue: defaults.string(forKey: Self.showKey) ?? "") ?? .active,', 'SessionsShow(rawValue: defaults.string(forKey: Self.showKey) ?? "")!,'));
+  aaRed('aa2', 'a read outside init(rawValue:', sSwap(CH, '    func save(', '    func agent() -> String? { defaults.string(forKey: Self.showKey) }\n    func save('));
+  aaRed('aa2', 'a read that is not string(forKey:)', sSwap(CH, '    func save(', '    func agent() -> Any? { defaults.object(forKey: Self.showKey) }\n    func save('));
+  aaRed('aa2', 'defaults registered', sSwap(CH, '    func save(', '    func seed() { defaults.register(defaults: [Self.showKey: "all"]) }\n    func save('));
+  aaRed('aa2', 'no SessionsChoices.swift', { [CH]: () => null });
+  // (aa3)
+  aaRed('aa3', 'a TextField', sSwap(SC, '                menu\n', '                menu\n                TextField(Copy.sessions, text: .constant(""))\n'));
+  aaRed('aa3', 'a .searchable', sSwap(SC, '        .refreshable { await model.load() }', '        .refreshable { await model.load() }\n        .searchable(text: .constant(""))'));
+  aaRed('aa3', '@SceneStorage', sSwap(SC, '    @Environment(\\.endBatch) private var batch', '    @Environment(\\.endBatch) private var batch\n    @SceneStorage("p") private var p = ""'));
+  // (aa4)
+  aaRed('aa4', 'the parameters swapped', sSwap(DC, '/v1/sessions?show=\\(queryValue(query.show.rawValue))&group=\\(queryValue(query.group.rawValue))', '/v1/sessions?group=\\(queryValue(query.group.rawValue))&show=\\(queryValue(query.show.rawValue))'));
+  aaRed('aa4', 'a value not through queryValue', sSwap(DC, '"&agent=\\(queryValue(agent))"', '"&agent=\\(agent)"'));
+  aaRed('aa4', 'a value only partly through queryValue', sSwap(DC, '"&agent=\\(queryValue(agent))"', '"&agent=\\(queryValue(agent) + agent)"'));
+  aaRed('aa4', 'a sixth parameter', sSwap(DC, '        return target', '        target += "&q=\\(queryValue(query.show.rawValue))"\n        return target'));
+  aaRed('aa4', 'a value joined bare after its name', sSwap(DC, '"&machine=\\(queryValue(machine))"', '"&machine=" + machine'));
+  expect('(aa4) passes a value joined through queryValue after its name', aaRun(sSwap(DC, '"&machine=\\(queryValue(machine))"', '"&machine=" + queryValue(machine)')).length === 0);
+  aaRed('aa4', 'a second target built elsewhere', sSwap(DC, '    static func queryValue(', '    static func everything() -> String { "/v1/sessions?show=all&group=none&sort=recent" }\n    static func queryValue('));
+  aaRed('aa4', 'no sessionsTarget', sSwap(DC, 'static func sessionsTarget(', 'static func listTarget('));
+  // (aa5)
+  aaRed('aa5', 'CA92.2', undefined, { ...S_PRIVACY, NSPrivacyAccessedAPITypes: [{ NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults', NSPrivacyAccessedAPITypeReasons: ['CA92.2'] }] });
+  aaRed('aa5', 'a second reason beside CA92.1', undefined, { ...S_PRIVACY, NSPrivacyAccessedAPITypes: [{ NSPrivacyAccessedAPIType: 'NSPrivacyAccessedAPICategoryUserDefaults', NSPrivacyAccessedAPITypeReasons: ['CA92.1', '1C8F.1'] }] });
+  aaRed('aa5', 'no UserDefaults category', undefined, { ...S_PRIVACY, NSPrivacyAccessedAPITypes: [] });
+  aaRed('aa5', 'a manifest that cannot be read', undefined, null);
+  // (aa6)
+  aaRed('aa6', "the Show control's .disabled removed", sSwap(SC, '        .disabled(batch?.takesTaps == true)\n', ''));
+  aaRed('aa6', "the menu's .disabled removed", sSwap(SC, '        .disabled(held)\n        .accessibilityIdentifier(ID.listMenu)', '        .accessibilityIdentifier(ID.listMenu)'));
+  aaRed('aa6', "a header's .disabled removed", sSwap(SC, '        .disabled(batch?.takesTaps ?? false)\n', ''));
+  aaRed('aa6', 'a header disabled the other way round', sSwap(SC, '        .disabled(batch?.takesTaps ?? false)\n', '        .disabled(!(batch?.takesTaps ?? false))\n'));
+  aaRed('aa6', 'a header disabled by something that is not End these', sSwap(SC, '        .disabled(batch?.takesTaps ?? false)\n', '        .disabled(model.batchHeld == false)\n'));
+  aaRed('aa6', ".disabled moved onto the header's label", sSwaps(SC, [['        .disabled(batch?.takesTaps ?? false)\n', ''], ['            Words(group.label, .body, Tokens.textPrimary)\n', '            Words(group.label, .body, Tokens.textPrimary)\n                .disabled(batch?.takesTaps ?? false)\n']]));
+  aaRed('aa6', 'no header identified', sSwap(SC, '        .accessibilityIdentifier(ID.group(group.id))', '        .accessibilityIdentifier(ID.groupLabel(group.id))'));
+  // (aa7)
+  aaRed('aa7', '.olderMac set before the list answered', sSwaps(SC, [['        await list.load()\n        guard mine == generation else { return }\n        if case .loaded', '        state = .olderMac\n        await list.load()\n        guard mine == generation else { return }\n        if case .loaded'], ['        if case .loaded = list.state {\n            state = .olderMac\n        } else if', '        if case .loaded = list.state {\n            state = .loading\n        } else if']]));
+  aaRed('aa7', '.olderMac set whatever the list answered', sSwap(SC, '        if case .loaded = list.state {\n            state = .olderMac\n        } else if case .failed(let sentence) = list.state {\n            state = .failed(sentence)\n        }\n', '        state = .olderMac\n'));
+  aaRed('aa7', '.olderMac set in a second place', sSwap(SC, '    func choose(', '    func older() { state = .olderMac }\n    func choose('));
+  aaRed('aa7', '.olderMac returned from a helper', sSwap(SC, '    func choose(', '    static func older() -> SessionsState { .olderMac }\n    func choose('));
+  aaRed('aa7', 'no ListModel held', sSwap(SC, '    let list: ListModel\n', '    let list: any EndBatchList\n'));
+  // (aa8)
+  aaRed('aa8', 'the batchHeld check removed', sSwap(SC, '        if batchHeld {\n            await list.load()\n            return\n        }\n', ''));
+  aaRed('aa8', 'the batchHeld check after the read starts', sSwap(SC, '        if batchHeld {\n            await list.load()\n            return\n        }\n        async let listed: Void = list.load()\n        await read()\n', '        async let listed: Void = list.load()\n        await read()\n        if batchHeld {\n            await list.load()\n            return\n        }\n'));
+  aaRed('aa8', 'a held load() that still reads /v1/sessions', sSwap(SC, '        if batchHeld {\n            await list.load()\n            return\n        }\n', '        if batchHeld {\n            await read()\n            return\n        }\n'));
+  aaRed('aa8', 'Done calling load() before it clears batchHeld', sSwap(END_BATCH_FILE, '            list.batchHeld = false\n            Task { await list.load() }\n', '            Task { await list.load() }\n            list.batchHeld = false\n'));
+  aaRed('aa8', 'Done never clearing batchHeld', sSwap(END_BATCH_FILE, '            list.batchHeld = false\n', ''));
+  aaRed('aa8', 'nothing setting batchHeld from the phase', sSwap(END_BATCH_FILE, '                list.batchHeld = model.phase != .off\n', ''));
+  // (aa9)
+  aaRed('aa9', 'the .cancel() removed', sSwap(SC, '        reading?.cancel()\n', ''));
+  aaRed('aa9', 'a read outside the stored Task', sSwap(SC, '    func choose(', '    func peek(_ q: SessionsQuery) async { _ = try? await door.sessions(q) }\n    func choose('));
+  aaRed('aa9', 'a read in a Task stored nowhere', sSwap(SC, '        reading = task\n        await task.value\n', '        await task.value\n'));
+  aaRed('aa9', 'a second stored Task for the read', sSwaps(SC, [['    @ObservationIgnored private var reading: Task<Void, Never>?', '    @ObservationIgnored private var reading: Task<Void, Never>?\n    @ObservationIgnored private var again: Task<Void, Never>?'], ['    func choose(', '    func twice(_ q: SessionsQuery) {\n        again?.cancel()\n        again = Task { _ = try? await door.sessions(q) }\n    }\n    func choose(']]));
+  // (aa10)
+  aaRed('aa10', 'a second .endBatch( on SessionsScreen', sSwap(SC, '        .refreshable { await model.load() }', '        .refreshable { await model.load() }\n        .endBatch(nil, list: model)'));
+  aaRed('aa10', 'End these attached over the new face alone', sSwaps(SC, [['        face\n            .endBatch(ends, list: model)\n', '        face\n'], ['            SessionsScreen(model: model)\n', '            SessionsScreen(model: model)\n                .endBatch(ends, list: model)\n']]));
+  aaRed('aa10', "the older face's ListScreen given the ends", sSwap(SC, 'kind: .sessions, ends: nil, reload:', 'kind: .sessions, ends: ends, reload:'));
+  aaRed('aa10', 'the Sessions tab building its own ListScreen', sSwap(TA, '                    SessionsTab(model: sessions, ends: app.reader.flatMap { app.endBatchSetup($0) })\n', '                    listScreen(list, kind: .sessions)\n'));
+  aaRed('aa10', 'the Sessions tab drawing a ListScreen beside SessionsTab', sSwap(TA, '                    SessionsTab(model: sessions, ends: app.reader.flatMap { app.endBatchSetup($0) })\n', '                    SessionsTab(model: sessions, ends: nil)\n                    ListScreen(model: list, kind: .sessions, ends: nil)\n'));
+  aaRed('aa10', 'End these attached outside SessionsTab', sSwaps(SC, [['        face\n            .endBatch(ends, list: model)\n', '        face\n'], ['        .refreshable { await model.load() }', '        .refreshable { await model.load() }\n        .endBatch(nil, list: model)']]));
 }
 
 // ---------------------------------------------------------------------------
@@ -7520,10 +8850,10 @@ const expect = (what, ok) => {
 /**
  * Every rule this gate holds. (m) and (q) were retired in Phase 330 with the
  * tailnet node; (w) and (x) are Phase 316.5's; (y) and (z) are Phase 316.6's;
- * (ab), (ac) and (ad) are Phase 317's, and (aa) is left for Phase 316.7
- * (build/p317/SPEC.md §4.3), so either order of landing works.
+ * (ab), (ac) and (ad) are Phase 317's; and (aa), the letter Phase 317 left for
+ * it (build/p317/SPEC.md §4.3), is Phase 316.7's (build/p3167/SPEC.md §8.4).
  */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad'];
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -7974,6 +9304,28 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'nothing fetched, and one way out',
       r.findings,
       `no AsyncImage, NSAttributedString, document type or contentsOf: outside DEBUG; no in-app browser, sign-in sheet, preview, canOpenURL or Link; ${String(r.said.actions)} OpenURLAction in ${LINKS_FILE}, asking LinkPolicy.opens before it stages, and ${String(r.said.opens)} open(s) there asking it again; ${String(r.said.settingsOpens)} open(s) in ${SETTINGS_FILE}, of iOS's own notification settings; LinkPolicy.opens names https, the user part, the password, the port, xn-- and MarkdownCaps.linkBytes`
+    );
+  }
+  // Phase 316.7: (aa), over the app named relative to its folder and its own
+  // privacy manifest as CoreFoundation reads it.
+  {
+    const manifests = walk(APP, (n) => n === 'PrivacyInfo.xcprivacy');
+    let privacy = null;
+    const f = [];
+    if (manifests.length !== 1) f.push(`${rel(APP)} holds ${String(manifests.length)} PrivacyInfo.xcprivacy file(s), so the UserDefaults reason cannot be read from the one (aa5)`);
+    else {
+      try {
+        privacy = readPlistFile(manifests[0]);
+      } catch (err) {
+        f.push(`${rel(manifests[0])} could not be read: ${String(err?.message ?? err)} (aa5)`);
+      }
+    }
+    const r = ruleSessionsTab(appNamed, privacy);
+    record(
+      'aa',
+      'the Sessions tab lays out what main composed, and keeps three words',
+      [...f, ...r.findings],
+      `${SESSIONS_SCREEN_FILE} and ${SESSIONS_CHOICES_FILE} order and drop nothing and take no text; UserDefaults in ${SESSIONS_CHOICES_FILE} alone, keyed by ${String(r.said.keys)} literal(s) (${SESSIONS_KEYS.join(', ')}), ${String(r.said.sets)} set( of a closed word's rawValue and ${String(r.said.reads)} read(s), each into its init(rawValue:) with ??; DoorClient.sessionsTarget writes ${r.said.params.join(', ') || 'nothing'}, ${String(r.said.values)} value(s) through queryValue; the UserDefaults reason ${JSON.stringify(SESSIONS_DEFAULTS_REASONS)}; ${String(r.said.disabled)} control(s) disabled while End these takes taps; .olderMac set ${String(r.said.olderMac)} time(s), after the list answered and under its .loaded state; load() asks batchHeld first and Done clears it before load(); the read held in ${r.said.stored ?? 'no'} Task, cancelled ${String(r.said.cancels)} time(s) before another starts; .endBatch( ${String(r.said.endBatch)} time(s), in SessionsTab over both faces, and the Sessions tab draws SessionsTab`
     );
   }
   // Phase 317: (ab), (ac) and (ad), over the app named relative to its folder.

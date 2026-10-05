@@ -105,7 +105,27 @@
  * who moves the question id (Y13), the reader's one way and the field composed
  * field by field (Y14), nothing stripped (Y15), the optional fields (Y16),
  * pane reports moving nothing (Y17) and a message only at an idle prompt
- * (Y18). Eighty-three rules in all.
+ * (Y18).
+ *
+ * PHASE 316.7 GAVE THE PHONE EVERY SESSION (build/p3167/SPEC.md §8.1): one more
+ * signed read, `GET /v1/sessions`, whose answer main composes for five closed
+ * words the phone sends, so R4's pin moved on purpose again (0e8c9f46… to
+ * d95ecd27…, over 318's seven routes and this read) and fourteen rules
+ * joined, one per clause. O2a to O2m: the answer
+ * is synchronous (a), reads the session list once (b), reads each of its four
+ * bounds from the contract once and re-spells none (c), clips every string main
+ * does not already cap at ONE function that never splits a surrogate pair (d),
+ * says how many rows the caps left out (e), indexes a row's group where the
+ * group is pushed (f), reads the query by equality and one character at a
+ * time (g), shows what the gates' own partition keeps (h), groups by the
+ * sheet's own functions and builds no key of its own (i), says a creation clock
+ * as one (j), CHOOSES what the caps keep in today's priority and EMITS in the
+ * order he asked for (k, the adversary's F2: a cut in display order dropped a
+ * waiting session in a late group), never draws an attentionRows row's since
+ * (l, F1: that since is the creation clock and drew 20728d), and offers only
+ * ids the query reads and filters by the groups' own machine (m, F8 and F9).
+ * O3: it reads no conversation. With Phase 318's Y1 to Y18, ninety-seven
+ * rules in all.
  *
  * HOW IT READS. The source, parsed with the TypeScript compiler's own parser,
  * so a comment, a string and a call are each read as what they are. A rule
@@ -228,6 +248,22 @@ const RULES = [
   ['Y16', 'build/p318/SPEC.md §5.2', 'THE OPTIONAL FIELDS: PocketFacts.replyOffer and PocketSessionDetail.reply are optional; POCKET_NO_REPLY is frozen, its pressable a frozen empty array'],
   ['Y17', 'build/p318/SPEC.md D23, §Revision R14', 'PANE REPORTS MOVE NOTHING: attach-host.ts calls onInput?.( once, after client.pty.write(, under req.machine === undefined and !isPaneReport( of the same chunk; isPaneReport, isFocusReport, isColorReport and isDeviceReport are declared once each, in src/shared/pane-report.ts'],
   ['Y18', 'build/p318/SPEC.md D14, §Revision R15; his ruling of 2026-10-02', 'ONLY WHEN IDLE AT ITS PROMPT: no working or busy literal in gate.ts, reader.ts or writer.ts, and the reply compares the native reading’s .state with idle'],
+  // PHASE 316.7, the phone's Sessions tab (build/p3167/SPEC.md §8.1): one
+  // read, composed in main for the words the phone asks with, and bounded.
+  ['O2a', 'build/p3167/SPEC.md §6.2 step 3, D1', 'THE SESSIONS ANSWER IS MAIN’S AND SYNCHRONOUS: createPocketRoutes’s sessions member is not async, and neither it nor any routes.ts function it reaches holds an await'],
+  ['O2b', 'build/p3167/SPEC.md §6.2 step 3.2', 'sessions reads facts.sessions() exactly ONCE, so every row, group, count and total is cut from one list'],
+  ['O2c', 'build/p3167/SPEC.md D4, D5', 'POCKET_SESSIONS_MAX, POCKET_SESSIONS_BUDGET_BYTES, POCKET_SESSIONS_CLIP_CHARS and POCKET_SESSIONS_CHOICES_MAX are imported from the contract, each read ONCE in routes.ts, and none is re-spelled as a number'],
+  ['O2d', 'build/p3167/SPEC.md D5', 'ONE clipSessionText, reading the clip once and comparing a unit with 0xD800 and 0xDBFF, clips a row’s name and machine, a group’s label, folder and machine, and every agent and machine choice’s label'],
+  ['O2e', 'build/p3167/SPEC.md §6.2 step 9', 'the answer’s omitted is the kept count minus the rows the answer carries'],
+  ['O2f', 'build/p3167/SPEC.md §6.2 step 9, §15 F16', 'a row’s group is the length of groups read where its group is pushed, never a count of rows'],
+  ['O2g', 'build/p3167/SPEC.md D3, §6.2 step 3', 'readSessionsQuery compares the words with the contract’s three lists, reads an id one character at a time through isSessionsId, and holds no regular expression literal and no RegExp, test, match or exec call'],
+  ['O2h', 'build/p3167/SPEC.md D8, §6.2 step 3.3', 'Show is lifecycleKeeps( over sessionActionGates( with DOOR_GATE_ENV, both imported from @shared/, and the only status literal the answer names is needs_input'],
+  ['O2i', 'build/p3167/SPEC.md D6, D7', 'the groups come from collectSessionGroups( (or sessionGroupIdentity(), sessionGroupLabel( and compareSessionGroups( imported from @shared/session-list, and routes.ts builds no key from targetKey('],
+  ['O2j', 'build/p3167/SPEC.md D11', 'a creation age is drawn through createdOld( from @shared/age around formatAge(, every formatAge( of a createdAt is inside one, and formatAge is the only formatter'],
+  ['O2k', 'build/p3167/SPEC.md §6.2 step 9, §15 F2, F4', 'THE CUT CHOOSES BY PRIORITY AND EMITS IN DISPLAY ORDER: the loop that measures the bytes walks an order built from attentionRows( and othersOrder( that reads neither the sort nor the group word, the loop that fills rows walks an order that does, and a group’s omitted is its kept rows minus its chosen rows'],
+  ['O2l', 'build/p3167/SPEC.md D11, §15 F1', 'NO CLOCK DRAWN AS ANOTHER: no age is composed from the since of an attentionRows( row, and a waiting row’s age reads the stamp map facts.blockedSince() answered'],
+  ['O2m', 'build/p3167/SPEC.md §6.2 step 5, §15 F8, F9', 'ONE isSessionsId, called by the query reader AND by the agent choices, and the machine filter and choices read the group identity’s target.machineId, never a session’s .machine'],
+  ['O3', 'build/p3167/SPEC.md §6.2 step 3, §8.1', 'THE SESSIONS ANSWER READS NO CONVERSATION: it names none of facts.refresh, catchUp, lastTurn or turns, and routes.ts imports nothing from ../overview/ but MAX_TURN_LIMIT'],
   ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress']
 ];
 
@@ -833,13 +869,17 @@ function routeRules() {
  * by its two write rows `POST /v1/choose` and `POST /v1/say`
  * (build/p318/SPEC.md D29): seven sorted lines, `--write-route-pin`'s method,
  * re-derived by the proof builder with `printf | shasum -a 256` over the seven
- * lines and equal to research 135 §4.1's. With Phase 316.7's `GET
- * /v1/sessions` beside them it reads
- * `d95ecd272da5fbab8eadd9379ecce4eace9fd69c963be996aa6726ae7a22cf77`; whichever
- * of the two phases lands second re-derives it, and the commit names both
- * values.
+ * lines and equal to research 135 §4.1's.
+ *
+ * PHASE 316.7 MOVED IT ON PURPOSE AGAIN, landing second, from Phase 318's
+ * `0e8c9f46733b7fe7b706f071fa68bbedf135145757cef2e39d686feb9f5a7841` (seven
+ * lines) to the value below, by the one read row `GET /v1/sessions`
+ * (build/p3167/SPEC.md §3 row 1, §8.1): eight sorted lines, written by
+ * `--write-route-pin` and re-derived by `printf '<lines>' | shasum -a 256`,
+ * both equal to `d95ecd27…`, the value 318's spec predicted. (316.7 alone, over
+ * six lines, had pinned `a6c1bb3c…`.)
  */
-const ROUTE_PIN = '0e8c9f46733b7fe7b706f071fa68bbedf135145757cef2e39d686feb9f5a7841';
+const ROUTE_PIN = 'd95ecd272da5fbab8eadd9379ecce4eace9fd69c963be996aa6726ae7a22cf77';
 
 /** The `METHOD path` line of every row of POCKET_ROUTES, sorted. */
 function routeLines(file) {
@@ -7262,6 +7302,823 @@ function replyRules() {
 }
 
 // ---------------------------------------------------------------------------
+// O2, O3 — the sessions answer (Phase 316.7, build/p3167/SPEC.md §8.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE SESSIONS ANSWER IS MAIN'S AND IT IS BOUNDED. `GET /v1/sessions` is the
+ * first read on a door that faces the internet whose answer is shaped by words
+ * the phone sends, and the first that can carry every session Tortie lists
+ * rather than the waiting ones and 200 more. Each clause below is one line a
+ * later round can take back with every other gate green: a second read of the
+ * list, a cap re-spelled, a clip that splits a surrogate pair, a cut that drops
+ * a session waiting on him while an idle one is drawn (§15 F2), a creation
+ * clock drawn as a wait (§15 F1), a choice offered that the query refuses (§15
+ * F8), a filter that disagrees with its own groups (§15 F9).
+ *
+ * WHAT "THE ANSWER" IS, READ. The `sessions` member `createPocketRoutes`
+ * returns, and every function of routes.ts it reaches BY NAME, transitively:
+ * a helper the door builder factors out is read as part of the answer, and a
+ * function the answer never reaches (`blocked`, `rowOf`, `refresh`) is not.
+ * The query reader is the part reached from `readSessionsQuery`, and the
+ * order rules (O2k) never read through it, because the words it answers are
+ * what those rules look for.
+ *
+ * HOW A NAME IS FOLLOWED. Lexically, the way the language binds it: the
+ * nearest enclosing parameter, loop variable, block-scoped declaration or
+ * function. A value is then read through its initializer AND through every
+ * write to it (`xs.push(…)`, `m.set(…)`, `s.add(…)`, `x = …`), with the loop it
+ * is written inside, because `const rows = []` says nothing of where the rows
+ * came from and the loop that fills it says everything.
+ */
+
+/** Every function-like declaration of routes.ts, by the name it is called with. */
+function localFunctionsOf(file) {
+  const out = new Map();
+  for (const node of nodesOf(file)) {
+    let name = null;
+    let fn = null;
+    if (ts.isFunctionDeclaration(node) && node.name !== undefined && node.body !== undefined) {
+      name = node.name.text;
+      fn = node;
+    } else if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
+      let init = node.initializer;
+      while (ts.isParenthesizedExpression(init) || ts.isAsExpression(init)) init = init.expression;
+      if (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) {
+        name = node.name.text;
+        fn = init;
+      }
+    }
+    if (name === null) continue;
+    if (!out.has(name)) out.set(name, []);
+    out.get(name).push(fn);
+  }
+  return out;
+}
+
+/** Every node under a root, the root included. */
+function subtree(root) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(root);
+  return out;
+}
+
+/** Whether a binding name (an identifier or a pattern) binds `name`. */
+function bindsName(bindingName, name) {
+  if (bindingName === undefined) return false;
+  if (ts.isIdentifier(bindingName)) return bindingName.text === name;
+  if (ts.isObjectBindingPattern(bindingName) || ts.isArrayBindingPattern(bindingName)) {
+    return bindingName.elements.some((el) => !ts.isOmittedExpression(el) && bindsName(el.name, name));
+  }
+  return false;
+}
+
+/** An identifier that is a REFERENCE: not a property name, not a declaration's own name. */
+function isReference(n) {
+  const p = n.parent;
+  if (p === undefined) return true;
+  if (ts.isPropertyAccessExpression(p) && p.name === n) return false;
+  if ((ts.isPropertyAssignment(p) || ts.isPropertyDeclaration(p) || ts.isMethodDeclaration(p) || ts.isPropertySignature(p)) && p.name === n) return false;
+  if ((ts.isVariableDeclaration(p) || ts.isParameter(p) || ts.isFunctionDeclaration(p) || ts.isBindingElement(p)) && p.name === n) return false;
+  if (ts.isBindingElement(p) && p.propertyName === n) return false;
+  if (ts.isImportSpecifier(p) || ts.isExportSpecifier(p) || ts.isTypeReferenceNode(p) || ts.isQualifiedName(p)) return false;
+  return true;
+}
+
+/**
+ * What a reference names, lexically: `{ kind: 'var', decl, init }`, `{ kind:
+ * 'param', param }`, `{ kind: 'loop', decl, walks }`, `{ kind: 'fn', fn }`, or
+ * null for an import or a global.
+ */
+function resolveName(id) {
+  const name = id.text;
+  for (let a = id.parent; a !== undefined; a = a.parent) {
+    if (ts.isFunctionLike(a) && a.parameters !== undefined) {
+      const param = a.parameters.find((p) => bindsName(p.name, name));
+      if (param !== undefined) return { kind: 'param', param };
+    }
+    if ((ts.isForOfStatement(a) || ts.isForInStatement(a)) && ts.isVariableDeclarationList(a.initializer)) {
+      const decl = a.initializer.declarations.find((d) => bindsName(d.name, name));
+      if (decl !== undefined) return { kind: 'loop', decl, walks: a.expression };
+    }
+    if (ts.isForStatement(a) && a.initializer !== undefined && ts.isVariableDeclarationList(a.initializer)) {
+      const decl = a.initializer.declarations.find((d) => bindsName(d.name, name));
+      if (decl !== undefined) return { kind: 'var', decl, init: decl.initializer ?? null };
+    }
+    if (ts.isBlock(a) || ts.isSourceFile(a) || ts.isModuleBlock(a) || ts.isCaseClause(a) || ts.isDefaultClause(a)) {
+      for (const st of a.statements) {
+        if (ts.isVariableStatement(st)) {
+          const decl = st.declarationList.declarations.find((d) => bindsName(d.name, name));
+          if (decl !== undefined) return { kind: 'var', decl, init: decl.initializer ?? null };
+        }
+        if (ts.isFunctionDeclaration(st) && st.name?.text === name && st.body !== undefined) return { kind: 'fn', fn: st };
+      }
+    }
+  }
+  return null;
+}
+
+/** The function a reference names, when it names one: a declaration or a function-valued const. */
+function functionNamed(id) {
+  const r = resolveName(id);
+  if (r === null) return null;
+  if (r.kind === 'fn') return r.fn;
+  if (r.kind === 'var' && r.init !== null) {
+    const init = unwrap(r.init);
+    if (init !== undefined && (ts.isArrowFunction(init) || ts.isFunctionExpression(init))) return init;
+  }
+  return null;
+}
+
+/**
+ * The roots reached from `start` by name: `start` itself, then every function
+ * of the file a reference in it names (a call, or a function handed on as a
+ * value), transitively. Answers the function-like nodes, `start` first.
+ */
+function reachedFrom(start, skip = new Set()) {
+  const seen = new Set([start]);
+  const queue = [start];
+  while (queue.length > 0) {
+    const fn = queue.shift();
+    for (const n of subtree(fn)) {
+      if (!ts.isIdentifier(n) || !isReference(n)) continue;
+      const target = functionNamed(n);
+      if (target === null || seen.has(target) || skip.has(target)) continue;
+      seen.add(target);
+      queue.push(target);
+    }
+  }
+  return [...seen];
+}
+
+const O_RULES = ['O2a', 'O2b', 'O2c', 'O2d', 'O2e', 'O2f', 'O2g', 'O2h', 'O2i', 'O2j', 'O2k', 'O2l', 'O2m', 'O3'];
+
+/** The sessions member and what it reaches, or null with every O rule failed by name. */
+function sessionsAnswer(routes) {
+  const member = returnedMethod(routes, 'createPocketRoutes', 'sessions');
+  if (member === null) {
+    for (const id of O_RULES) {
+      fail(id, `${rel(routes)}: createPocketRoutes answers no sessions member this rule can read. GET /v1/sessions is composed THERE (build/p3167/SPEC.md §6.2), and a gate that passed with no composer would go green on the day the route answers nothing.`);
+    }
+    return null;
+  }
+  const readers = functionsNamed(routes, 'readSessionsQuery');
+  const readerRoots = readers.length === 0 ? [] : reachedFrom(readers[0]);
+  const readerNodes = new Set(readerRoots.flatMap((r) => subtree(r)));
+  const roots = reachedFrom(member);
+  const nodes = [...new Set(roots.flatMap((r) => subtree(r)))];
+  return { member, roots, nodes, readers, readerRoots: new Set(readerRoots), readerNodes };
+}
+
+function unwrap(e) {
+  let x = e;
+  while (x !== undefined && x !== null && (ts.isParenthesizedExpression(x) || ts.isAsExpression(x) || ts.isNonNullExpression(x) || (ts.isSatisfiesExpression !== undefined && ts.isSatisfiesExpression(x)))) x = x.expression;
+  return x;
+}
+
+/** The property of an object literal by name, as its value expression (a shorthand answers its identifier). */
+function propValue(obj, name) {
+  for (const p of obj.properties) {
+    if (memberName(p) !== name) continue;
+    if (ts.isPropertyAssignment(p)) return p.initializer;
+    if (ts.isShorthandPropertyAssignment(p)) return p.name;
+  }
+  return null;
+}
+const hasProps = (obj, names) => names.every((n) => obj.properties.some((p) => memberName(p) === n));
+
+/** The writes to a declared value inside `scope`: what each write hands it, and the loops it sits in. */
+function writesTo(decl, scope) {
+  const out = [];
+  for (const n of scope) {
+    if (!ts.isIdentifier(n) || !isReference(n)) continue;
+    const r = resolveName(n);
+    if (r === null || (r.kind !== 'var' && r.kind !== 'loop') || r.decl !== decl) continue;
+    const p = n.parent;
+    let handed = [];
+    let at = null;
+    if (ts.isPropertyAccessExpression(p) && p.expression === n && ['push', 'unshift', 'set', 'add', 'splice'].includes(p.name.text) && p.parent !== undefined && ts.isCallExpression(p.parent) && p.parent.expression === p) {
+      handed = [...p.parent.arguments];
+      at = p.parent;
+    } else if (ts.isBinaryExpression(p) && p.left === n && p.operatorToken.kind === ts.SyntaxKind.EqualsToken) {
+      handed = [p.right];
+      at = p;
+    }
+    if (at === null) continue;
+    // The loops and the conditions the write sits in, up to the declaration.
+    for (let a = at.parent; a !== undefined && a !== decl.parent; a = a.parent) {
+      if (ts.isForOfStatement(a) || ts.isForInStatement(a)) handed.push(a.expression);
+      if (ts.isIfStatement(a)) handed.push(a.expression);
+      if (ts.isCallExpression(a) && ts.isPropertyAccessExpression(a.expression) && a.arguments.some((x) => ts.isArrowFunction(x) || ts.isFunctionExpression(x))) {
+        handed.push(a.expression.expression);
+      }
+    }
+    out.push(...handed);
+  }
+  return out;
+}
+
+/**
+ * Everything an expression is made from: every name in it followed to its
+ * initializer and its writes, and every function of the file it calls followed
+ * into its body, transitively — but never into the query reader, whose words
+ * are what the order rules look for. Answers the nodes.
+ */
+function derivation(answer, expr) {
+  const seen = new Set();
+  const out = [];
+  const queue = [expr];
+  while (queue.length > 0) {
+    const root = queue.shift();
+    if (root === undefined || root === null || seen.has(root)) continue;
+    seen.add(root);
+    for (const n of subtree(root)) {
+      if (answer.readerNodes.has(n)) continue;
+      out.push(n);
+      if (!ts.isIdentifier(n) || !isReference(n)) continue;
+      const r = resolveName(n);
+      if (r === null) continue;
+      if (r.kind === 'fn') {
+        if (!answer.readerRoots.has(r.fn)) queue.push(r.fn);
+      } else if (r.kind === 'var') {
+        const init = unwrap(r.init);
+        if (init !== undefined && init !== null && (ts.isArrowFunction(init) || ts.isFunctionExpression(init)) && answer.readerRoots.has(init)) continue;
+        queue.push(r.init);
+        queue.push(...writesTo(r.decl, answer.nodes));
+      } else if (r.kind === 'loop') {
+        queue.push(r.walks);
+      }
+    }
+  }
+  return out;
+}
+
+/** A property READ named `name` that is not the callee of a call: `asked.sort`, never `xs.sort(`. */
+const readsWord = (nodes, name) =>
+  nodes.some(
+    (n) =>
+      ts.isPropertyAccessExpression(n) &&
+      n.name.text === name &&
+      !(n.parent !== undefined && ts.isCallExpression(n.parent) && n.parent.expression === n)
+  );
+const callsNamed = (nodes, name) => nodes.filter((n) => ts.isCallExpression(n) && calleeName(n) === name);
+
+/** The answer's own object literal: the one that carries asked, rows, groups and total. */
+function answerLiteral(answer) {
+  return answer.nodes.find((n) => ts.isObjectLiteralExpression(n) && hasProps(n, ['asked', 'rows', 'groups', 'total'])) ?? null;
+}
+
+/** The identifier an answer property holds, or null. */
+function propIdentifier(obj, name) {
+  const v = unwrap(propValue(obj, name) ?? undefined);
+  return v !== undefined && v !== null && ts.isIdentifier(v) ? v.text : null;
+}
+
+/** Every loop (or array method's callback) under a set of nodes, with what it walks. */
+function loopsIn(nodes) {
+  const out = [];
+  for (const n of nodes) {
+    if (ts.isForOfStatement(n) || ts.isForInStatement(n)) {
+      out.push({ node: n, body: n.statement, walks: n.expression });
+    } else if (ts.isForStatement(n) || ts.isWhileStatement(n) || ts.isDoStatement(n)) {
+      // An index loop walks the array it indexes: `xs[i]` in its body.
+      const indexed = subtree(n.statement).find((m) => ts.isElementAccessExpression(m) && ts.isIdentifier(unwrap(m.expression)));
+      out.push({ node: n, body: n.statement, walks: indexed === undefined ? null : indexed.expression });
+    } else if (
+      ts.isCallExpression(n) &&
+      ts.isPropertyAccessExpression(n.expression) &&
+      ['forEach', 'some', 'every', 'find', 'filter', 'map', 'reduce', 'flatMap'].includes(n.expression.name.text) &&
+      n.arguments.some((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a))
+    ) {
+      const cb = n.arguments.find((a) => ts.isArrowFunction(a) || ts.isFunctionExpression(a));
+      out.push({ node: n, body: cb.body, walks: n.expression.expression });
+    }
+  }
+  return out;
+}
+
+/** Whether a root reaches a call named `name`, directly or through a function of the file it calls. */
+const reachesCall = (root, name) => reachedFrom(root).some((fn) => callsNamed(subtree(fn), name).length > 0) || callsNamed(subtree(root), name).length > 0;
+
+/** The interface or type a declaration is annotated with, by name, or null. */
+function annotatedType(r) {
+  const node = r === null ? null : r.kind === 'param' ? r.param : r.kind === 'var' || r.kind === 'loop' ? r.decl : null;
+  const type = node?.type;
+  return type !== undefined && ts.isTypeReferenceNode(type) && ts.isIdentifier(type.typeName) ? type.typeName.text : null;
+}
+
+/** Every object literal of the file written AS a type: annotated, asserted or returned as it. */
+function literalsOfType(file, typeName) {
+  const out = [];
+  const isType = (t) => t !== undefined && ts.isTypeReferenceNode(t) && ts.isIdentifier(t.typeName) && t.typeName.text === typeName;
+  for (const n of nodesOf(file)) {
+    if (ts.isVariableDeclaration(n) && isType(n.type) && n.initializer !== undefined) {
+      const init = unwrap(n.initializer);
+      if (ts.isObjectLiteralExpression(init)) out.push(init);
+    }
+    if ((ts.isAsExpression(n) || (ts.isSatisfiesExpression !== undefined && ts.isSatisfiesExpression(n))) && isType(n.type)) {
+      const inner = unwrap(n.expression);
+      if (ts.isObjectLiteralExpression(inner)) out.push(inner);
+    }
+    if (ts.isFunctionLike(n) && isType(n.type) && n.body !== undefined) {
+      for (const m of subtree(n.body)) {
+        if (ts.isReturnStatement(m) && m.expression !== undefined && ts.isObjectLiteralExpression(unwrap(m.expression))) out.push(unwrap(m.expression));
+      }
+      if (!ts.isBlock(n.body) && ts.isObjectLiteralExpression(unwrap(n.body))) out.push(unwrap(n.body));
+    }
+  }
+  return out;
+}
+
+/**
+ * Whether an expression is CLIPPED: the one clip called on it, a function of
+ * the file that calls the one clip, null, a choice between clipped values, a
+ * name whose value is clipped, or a property of a value whose type's every
+ * literal clips that property and every write to it does too.
+ */
+function clipped(file, answer, expr, depth = 0) {
+  const e = unwrap(expr);
+  if (e === undefined || e === null || depth > 8) return false;
+  if (e.kind === ts.SyntaxKind.NullKeyword) return true;
+  if (ts.isConditionalExpression(e)) return clipped(file, answer, e.whenTrue, depth + 1) && clipped(file, answer, e.whenFalse, depth + 1);
+  if (ts.isBinaryExpression(e) && e.operatorToken.kind === ts.SyntaxKind.QuestionQuestionToken) {
+    return clipped(file, answer, e.left, depth + 1) && clipped(file, answer, e.right, depth + 1);
+  }
+  if (ts.isCallExpression(e)) {
+    if (calleeName(e) === 'clipSessionText') return true;
+    if (ts.isIdentifier(e.expression)) {
+      const fn = functionNamed(e.expression);
+      return fn !== null && callsNamed(subtree(fn), 'clipSessionText').length > 0;
+    }
+    return false;
+  }
+  if (ts.isIdentifier(e)) {
+    const r = resolveName(e);
+    if (r === null || r.kind !== 'var' || r.init === null) return false;
+    return clipped(file, answer, r.init, depth + 1) && writesTo(r.decl, answer.nodes).every((w) => clipped(file, answer, w, depth + 1));
+  }
+  if (ts.isPropertyAccessExpression(e) && ts.isIdentifier(e.expression)) {
+    const prop = e.name.text;
+    const r = resolveName(e.expression);
+    const writes = answer.nodes
+      .filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === prop)
+      .map((n) => n.right);
+    if (!writes.every((w) => clipped(file, answer, w, depth + 1))) return false;
+    // A value whose initializer is one object literal.
+    if (r !== null && r.kind === 'var' && r.init !== null && ts.isObjectLiteralExpression(unwrap(r.init))) {
+      const v = propValue(unwrap(r.init), prop);
+      return v !== null && clipped(file, answer, v, depth + 1);
+    }
+    // A value of a type declared here: every literal of that type clips it.
+    const typeName = annotatedType(r);
+    if (typeName === null) return false;
+    const lits = literalsOfType(file, typeName);
+    return lits.length > 0 && lits.every((lit) => {
+      const v = propValue(lit, prop);
+      return v !== null && clipped(file, answer, v, depth + 1);
+    });
+  }
+  return false;
+}
+
+/** Names bound to `facts.<member>()` in the answer, e.g. the stamp map, as their declarations. */
+function boundTo(answer, member) {
+  const out = new Set();
+  for (const n of answer.nodes) {
+    if (!ts.isVariableDeclaration(n) || !ts.isIdentifier(n.name) || n.initializer === undefined) continue;
+    const init = unwrap(n.initializer);
+    if (ts.isCallExpression(init) && ts.isPropertyAccessExpression(init.expression) && init.expression.name.text === member && init.expression.expression.getText() === 'facts') {
+      out.add(n);
+    }
+  }
+  return out;
+}
+
+/** Whether a file imports `name` from a specifier `test` accepts. */
+function importsName(file, name, test) {
+  return nodesOf(file).some(
+    (n) =>
+      ts.isImportDeclaration(n) &&
+      ts.isStringLiteral(n.moduleSpecifier) &&
+      test(n.moduleSpecifier.text) &&
+      n.importClause?.namedBindings !== undefined &&
+      ts.isNamedImports(n.importClause.namedBindings) &&
+      n.importClause.namedBindings.elements.some((el) => (el.propertyName ?? el.name).text === name)
+  );
+}
+
+/** The reads of an identifier in a file: every reference but its import binding. */
+function readsOfName(file, name) {
+  return nodesOf(file).filter((n) => ts.isIdentifier(n) && n.text === name && isReference(n));
+}
+
+/** A numeric literal or a product of them, as a number; null for anything else. */
+function constantValue(e) {
+  const x = unwrap(e);
+  if (x === undefined || x === null) return null;
+  if (ts.isNumericLiteral(x)) return Number(x.text.replace(/_/g, ''));
+  if (ts.isBinaryExpression(x)) {
+    const a = constantValue(x.left);
+    const b = constantValue(x.right);
+    if (a === null || b === null) return null;
+    if (x.operatorToken.kind === ts.SyntaxKind.AsteriskToken) return a * b;
+    if (x.operatorToken.kind === ts.SyntaxKind.AsteriskAsteriskToken) return a ** b;
+    if (x.operatorToken.kind === ts.SyntaxKind.LessThanLessThanToken) return a << b;
+  }
+  return null;
+}
+
+/**
+ * Whether an object a property is read off is a SESSION: named `session` or
+ * `s`, a `.session` of something, or a name declared as a `Session` or walked
+ * out of a list of sessions.
+ */
+function isSessionObject(e) {
+  const x = unwrap(e);
+  if (x === undefined || x === null) return false;
+  if (ts.isPropertyAccessExpression(x)) return x.name.text === 'session';
+  if (!ts.isIdentifier(x)) return false;
+  if (x.text === 'session' || x.text === 's') return true;
+  const r = resolveName(x);
+  if (annotatedType(r) === 'Session') return true;
+  if (r !== null && r.kind === 'loop') return /sessions/i.test(r.walks.getText());
+  return false;
+}
+
+function sessionsAnswerRules() {
+  const routes = moduleNamed('routes', 'O2a', "Phase 316.7 builder door's (src/main/pocket/routes.ts)");
+  if (routes === null) {
+    for (const id of O_RULES.filter((r) => r !== 'O2a')) fail(id, 'src/main/pocket/routes.ts does not exist, so this rule read nothing');
+    return;
+  }
+  const answer = sessionsAnswer(routes);
+  if (answer === null) return;
+  const sf = astOf(routes);
+  const text = (n) => n.getText(sf);
+  const contract = (spec) => /shared\/ipc\/pocket$/.test(spec);
+
+  // (a) Synchronous: no async modifier, no await anywhere it reaches.
+  checked('O2a', 2);
+  const asyncMember = (answer.member.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword);
+  if (asyncMember) fail('O2a', `${where(routes, answer.member)}: sessions is async. The answer is composed synchronously on main from what main already holds (§6.2 step 3), so a read cannot wait on anything a Remove can change under it.`);
+  for (const n of answer.nodes) {
+    if (ts.isAwaitExpression(n) || ((ts.isArrowFunction(n) || ts.isFunctionExpression(n) || ts.isFunctionDeclaration(n)) && (n.modifiers ?? []).some((m) => m.kind === ts.SyntaxKind.AsyncKeyword))) {
+      fail('O2a', `${where(routes, n)}: the sessions answer awaits (or declares an async function) here. Nothing it composes is awaited.`);
+      break;
+    }
+  }
+
+  // (b) One read of the list.
+  const listReads = answer.nodes.filter(
+    (n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && n.expression.name.text === 'sessions' && text(n.expression.expression) === 'facts'
+  );
+  checked('O2b');
+  if (listReads.length !== 1) {
+    fail('O2b', `${where(routes, answer.member)}: the sessions answer reads facts.sessions() ${String(listReads.length)} time(s). Every row, group, count and total is cut from ONE read, or a session that moves between two reads is counted in one and drawn in the other.`);
+  }
+
+  // (c) The four numbers: imported, read once each, never re-spelled.
+  const NUMBERS = [
+    ['POCKET_SESSIONS_MAX', 2000],
+    ['POCKET_SESSIONS_BUDGET_BYTES', 1_048_576],
+    ['POCKET_SESSIONS_CLIP_CHARS', 200],
+    ['POCKET_SESSIONS_CHOICES_MAX', 64]
+  ];
+  const contractFile = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  for (const [name, value] of NUMBERS) {
+    checked('O2c', 3);
+    if (!existsSync(contractFile) || constNumber(contractFile, name) !== value) {
+      fail('O2c', `src/shared/ipc/pocket.ts does not declare ${name} = ${String(value)}, so the phone and the Mac do not read one number (build/p3167/SPEC.md §6.1)`);
+    }
+    if (!importsName(routes, name, contract)) fail('O2c', `${rel(routes)} does not import ${name} from the contract, so the bound a phone is told and the bound the door applies can drift apart`);
+    const reads = readsOfName(routes, name);
+    if (reads.length !== 1) fail('O2c', `${rel(routes)} reads ${name} ${String(reads.length)} time(s); it is read ONCE, so there is one place the bound is applied`);
+  }
+  for (const n of nodesOf(routes)) {
+    const v = ts.isNumericLiteral(n) || ts.isBinaryExpression(n) ? constantValue(n) : null;
+    if (v === null) continue;
+    // A literal inside a product that is itself a re-spelling is reported once, at the product.
+    if (ts.isNumericLiteral(n) && n.parent !== undefined && ts.isBinaryExpression(n.parent) && constantValue(n.parent) !== null) continue;
+    const hit = NUMBERS.find(([, value]) => value === v);
+    checked('O2c');
+    if (hit !== undefined) fail('O2c', `${where(routes, n)}: ${text(n)} is ${hit[0]} written a second time. Import it from the contract instead.`);
+  }
+
+  // (d) The one clip, and what it clips.
+  const clips = functionsNamed(routes, 'clipSessionText');
+  checked('O2d', 2);
+  if (clips.length !== 1) {
+    fail('O2d', `${rel(routes)} declares clipSessionText ${String(clips.length)} time(s); there is ONE clip (D5), or the name and the label are clipped by two rules`);
+  } else {
+    const inside = subtree(clips[0]);
+    const comparesUnit = (value) =>
+      inside.some(
+        (n) =>
+          ts.isBinaryExpression(n) &&
+          [ts.SyntaxKind.LessThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.GreaterThanEqualsToken, ts.SyntaxKind.EqualsEqualsEqualsToken].includes(n.operatorToken.kind) &&
+          [n.left, n.right].some((side) => constantValue(side) === value)
+      );
+    if (!comparesUnit(0xd800) || !comparesUnit(0xdbff)) {
+      fail('O2d', `${where(routes, clips[0])}: clipSessionText does not compare a unit with both 0xD800 and 0xDBFF, so a cut can land between the two halves of a surrogate pair and the phone is handed a lone half`);
+    }
+    if (!inside.some((n) => ts.isIdentifier(n) && n.text === 'POCKET_SESSIONS_CLIP_CHARS')) {
+      fail('O2d', `${where(routes, clips[0])}: clipSessionText does not read POCKET_SESSIONS_CLIP_CHARS, so the clip is not the contract's`);
+    }
+  }
+  const literals = answer.nodes.filter((n) => ts.isObjectLiteralExpression(n));
+  const rowLits = literals.filter((o) => hasProps(o, ['sessionId', 'statusDot']));
+  const groupLits = literals.filter((o) => hasProps(o, ['collapsed', 'count']));
+  const choiceLits = literals.filter((o) => o.properties.length === 2 && hasProps(o, ['id', 'label']));
+  const mustClip = [
+    ...rowLits.flatMap((o) => [['a row’s name', o, 'name'], ['a row’s machine', o, 'machine']]),
+    ...groupLits.flatMap((o) => [['a group’s label', o, 'label'], ['a group’s folder', o, 'folder'], ['a group’s machine', o, 'machine']]),
+    ...choiceLits.map((o) => ['a choice’s label', o, 'label'])
+  ];
+  checked('O2d', 3);
+  if (rowLits.length === 0) fail('O2d', `${where(routes, answer.member)}: no row literal (sessionId, statusDot) was read in the sessions answer, so what it clips cannot be read`);
+  if (groupLits.length === 0) fail('O2d', `${where(routes, answer.member)}: no group literal (count, collapsed) was read in the sessions answer`);
+  if (choiceLits.length === 0) fail('O2d', `${where(routes, answer.member)}: no choice literal ({ id, label }) was read in the sessions answer`);
+  for (const [what, obj, prop] of mustClip) {
+    checked('O2d');
+    const v = propValue(obj, prop);
+    if (v === null) {
+      fail('O2d', `${where(routes, obj)}: ${what} is missing from its literal`);
+    } else if (!clipped(routes, answer, v)) {
+      fail('O2d', `${where(routes, v)}: ${what} is ${text(v).slice(0, 80)}, which is not clipped by clipSessionText. Every string main does not already cap is clipped at the one function (D5).`);
+    }
+  }
+
+  // (e) The answer's omitted.
+  const lit = answerLiteral(answer);
+  const rowsName = lit === null ? null : propIdentifier(lit, 'rows');
+  const groupsName = lit === null ? null : propIdentifier(lit, 'groups');
+  checked('O2e', 2);
+  if (lit === null || rowsName === null) {
+    fail('O2e', `${where(routes, answer.member)}: no answer literal holding asked, rows (a name), groups and total was read, so omitted cannot be read`);
+  } else {
+    const omitted = unwrap(propValue(lit, 'omitted'));
+    const named = omitted !== undefined && omitted !== null && ts.isIdentifier(omitted) ? resolveName(omitted) : null;
+    const resolved = named !== null && named.kind === 'var' ? unwrap(named.init) : omitted;
+    const isDifference =
+      resolved !== undefined &&
+      resolved !== null &&
+      ts.isBinaryExpression(resolved) &&
+      resolved.operatorToken.kind === ts.SyntaxKind.MinusToken &&
+      ts.isPropertyAccessExpression(unwrap(resolved.left)) &&
+      unwrap(resolved.left).name.text === 'length' &&
+      text(unwrap(resolved.right)) === `${rowsName}.length`;
+    if (!isDifference) {
+      fail('O2e', `${where(routes, lit)}: the answer's omitted is ${omitted === undefined || omitted === null ? 'missing' : text(omitted).slice(0, 80)}; it is the kept count minus ${rowsName}.length, or a phone is told nothing was left out of a list the caps cut`);
+    }
+  }
+
+  // (f) A row's group index is read off groups where its group is pushed.
+  checked('O2f', 2);
+  if (groupsName === null) {
+    fail('O2f', `${where(routes, answer.member)}: the answer's groups is not a name this rule can follow`);
+  } else {
+    const readAtPush = answer.nodes.some((n) => {
+      if (!(ts.isPropertyAccessExpression(n) && n.name.text === 'length' && text(n.expression) === groupsName)) return false;
+      // The statement it sits in, and the block that holds that statement.
+      let stmt = n;
+      while (stmt.parent !== undefined && !ts.isBlock(stmt.parent) && !ts.isSourceFile(stmt.parent)) stmt = stmt.parent;
+      const block = stmt.parent;
+      if (block === undefined || !ts.isBlock(block)) return false;
+      const at = block.statements.indexOf(stmt);
+      return block.statements.slice(at + 1).some((later) => callsNamed(subtree(later), 'push').some((c) => text(c.expression) === `${groupsName}.push`));
+    });
+    if (!readAtPush) {
+      fail('O2f', `${where(routes, answer.member)}: no ${groupsName}.length is read in the block that pushes the group, before the push. A row's group is that index, or a row names a group that is not the one drawn over it.`);
+    }
+    for (const o of literals.filter((x) => propValue(x, 'group') !== null && (hasProps(x, ['sessionId']) || x.properties.some((p) => ts.isSpreadAssignment(p))))) {
+      const v = propValue(o, 'group');
+      const lengths = subtree(v).filter((m) => ts.isPropertyAccessExpression(m) && m.name.text === 'length');
+      if (lengths.some((m) => text(m.expression) !== groupsName)) {
+        fail('O2f', `${where(routes, v)}: a row's group is ${text(v).slice(0, 60)}, a length of something that is not ${groupsName}`);
+      }
+    }
+  }
+
+  // (g) The query reader.
+  checked('O2g', 4);
+  if (answer.readers.length !== 1) {
+    fail('O2g', `${rel(routes)} declares readSessionsQuery ${String(answer.readers.length)} time(s); the query has ONE reader`);
+  } else {
+    if (!answer.nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'readSessionsQuery')) {
+      fail('O2g', `${where(routes, answer.member)}: the sessions answer never calls readSessionsQuery(, so the words it composes for were read by something else`);
+    }
+    const readerNodes = [...answer.readerNodes];
+    for (const list of ['POCKET_SESSIONS_SHOW', 'POCKET_SESSIONS_GROUP', 'POCKET_SESSIONS_SORT']) {
+      if (!readerNodes.some((n) => ts.isIdentifier(n) && n.text === list) || !importsName(routes, list, contract)) {
+        fail('O2g', `${where(routes, answer.readers[0])}: the reader does not compare with the contract's ${list}, so the words it takes and the words the phone sends are two lists`);
+      }
+    }
+    if (!readerNodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'isSessionsId')) {
+      fail('O2g', `${where(routes, answer.readers[0])}: the reader never calls isSessionsId(, so an id is not read one character at a time`);
+    }
+    for (const n of readerNodes) {
+      const pattern =
+        n.kind === ts.SyntaxKind.RegularExpressionLiteral ||
+        (ts.isCallExpression(n) && ['test', 'match', 'exec', 'matchAll'].includes(calleeName(n) ?? '') && ts.isPropertyAccessExpression(n.expression)) ||
+        ((ts.isCallExpression(n) || ts.isNewExpression(n)) && ts.isIdentifier(n.expression) && n.expression.text === 'RegExp');
+      if (pattern) fail('O2g', `${where(routes, n)}: the query reader holds ${text(n).slice(0, 60)}. A word is compared for equality and an id is read one character at a time; a pattern is the thing a closed reader refuses (R1's reason).`);
+    }
+  }
+  const ids = functionsNamed(routes, 'isSessionsId');
+  checked('O2g');
+  if (ids.length === 1) {
+    const walk = subtree(ids[0]);
+    const loops = walk.some((n) => ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n));
+    const perChar = walk.some((n) => ts.isCallExpression(n) && ['charAt', 'charCodeAt', 'codePointAt'].includes(calleeName(n) ?? '')) || walk.some((n) => ts.isForOfStatement(n)) || walk.some((n) => ts.isElementAccessExpression(n));
+    if (!loops || !perChar) fail('O2g', `${where(routes, ids[0])}: isSessionsId does not read the id one character at a time`);
+  }
+
+  // (h) Show is the shared partition, asked with the door's environment.
+  checked('O2h', 5);
+  if (!importsName(routes, 'lifecycleKeeps', (s) => s === '@shared/session-list')) fail('O2h', `${rel(routes)} does not import lifecycleKeeps from @shared/session-list`);
+  if (!importsName(routes, 'sessionActionGates', (s) => s === '@shared/session-gates')) fail('O2h', `${rel(routes)} does not import sessionActionGates from @shared/session-gates`);
+  if (!importsName(routes, 'DOOR_GATE_ENV', (s) => s === '@shared/session-gates')) fail('O2h', `${rel(routes)} does not import DOOR_GATE_ENV from @shared/session-gates`);
+  const keeps = callsNamed(answer.nodes, 'lifecycleKeeps');
+  if (keeps.length === 0) fail('O2h', `${where(routes, answer.member)}: Show never calls lifecycleKeeps(, so the door's Active and the sheet's Active are two rules`);
+  const gateCalls = callsNamed(answer.nodes, 'sessionActionGates');
+  if (gateCalls.length === 0 || !gateCalls.every((c) => c.arguments.length === 3 && ts.isIdentifier(c.arguments[2]) && c.arguments[2].text === 'DOOR_GATE_ENV')) {
+    fail('O2h', `${where(routes, answer.member)}: the sessions answer does not ask sessionActionGates( with DOOR_GATE_ENV at every call`);
+  }
+  const statuses = (() => {
+    const TYPES = join(ROOT, 'src', 'shared', 'types.ts');
+    const decl = nodesOf(TYPES).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'SESSION_STATUSES');
+    return new Set(decl === undefined ? [] : subtree(decl).filter((n) => ts.isStringLiteral(n)).map((n) => n.text));
+  })();
+  checked('O2h');
+  if (statuses.size < 7) fail('O2h', `SESSION_STATUSES read ${String(statuses.size)} statuses out of src/shared/types.ts; the alphabet has seven`);
+  for (const n of answer.nodes) {
+    if (!(ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n))) continue;
+    if (!statuses.has(n.text) || n.text === 'needs_input') continue;
+    fail('O2h', `${where(routes, n)}: the sessions answer names the status ${JSON.stringify(n.text)}. Show reads the gates' partition and names no status of its own; the one status it names is needs_input, the waiting row's own predicate.`);
+  }
+
+  // (i) The groups are the sheet's.
+  checked('O2i', 4);
+  const fromList = (s) => s === '@shared/session-list';
+  const collects = importsName(routes, 'collectSessionGroups', fromList) || importsName(routes, 'sessionGroupIdentity', fromList);
+  const collectCalls = callsNamed(answer.nodes, 'collectSessionGroups').length + callsNamed(answer.nodes, 'sessionGroupIdentity').length;
+  if (!collects || collectCalls === 0) fail('O2i', `${where(routes, answer.member)}: the groups are not collected by collectSessionGroups( or sessionGroupIdentity( from @shared/session-list, so a door group and a sheet group can be two different sets of sessions`);
+  for (const name of ['sessionGroupLabel', 'compareSessionGroups']) {
+    if (!importsName(routes, name, fromList) || callsNamed(answer.nodes, name).length === 0) {
+      fail('O2i', `${where(routes, answer.member)}: the sessions answer does not call ${name}( from @shared/session-list`);
+    }
+  }
+  for (const n of nodesOf(routes)) {
+    if (ts.isIdentifier(n) && n.text === 'targetKey') {
+      fail('O2i', `${where(routes, n)}: routes.ts names targetKey. A group's key is the shared identity's, built in one place, and a second key here is the door's own grouping`);
+      break;
+    }
+  }
+
+  // (j) Ages: createdOld around formatAge, and no other formatter.
+  checked('O2j', 3);
+  if (!importsName(routes, 'createdOld', (s) => s === '@shared/age')) fail('O2j', `${rel(routes)} does not import createdOld from @shared/age`);
+  const olds = callsNamed(answer.nodes, 'createdOld');
+  if (olds.length === 0) fail('O2j', `${where(routes, answer.member)}: the sessions answer never calls createdOld(, so a creation clock is drawn bare, as if it were a wait or a last output`);
+  for (const c of olds) {
+    const arg = unwrap(c.arguments[0]);
+    if (arg === undefined || !ts.isCallExpression(arg) || calleeName(arg) !== 'formatAge') {
+      fail('O2j', `${where(routes, c)}: createdOld( is handed ${arg === undefined ? 'nothing' : text(arg).slice(0, 60)}, not a formatAge( call`);
+    }
+  }
+  for (const c of callsNamed(answer.nodes, 'formatAge')) {
+    const first = c.arguments[0];
+    if (first === undefined || !subtree(first).some((m) => (ts.isPropertyAccessExpression(m) && m.name.text === 'createdAt') || (ts.isIdentifier(m) && m.text === 'createdAt'))) continue;
+    const parent = c.parent;
+    const wrapped = parent !== undefined && ts.isCallExpression(parent) && calleeName(parent) === 'createdOld';
+    checked('O2j');
+    if (!wrapped) fail('O2j', `${where(routes, c)}: a createdAt is aged by formatAge( outside createdOld(, so a creation clock reads as one of the other two`);
+  }
+  const locals = localFunctionsOf(routes);
+  for (const c of answer.nodes.filter((n) => ts.isCallExpression(n))) {
+    const name = calleeName(c);
+    if (name === null || name === 'formatAge' || name === 'createdOld' || locals.has(name)) continue;
+    if (/^age[A-Z]|^age$|Age(?:[A-Z].*)?$/.test(name)) {
+      fail('O2j', `${where(routes, c)}: the sessions answer formats an age with ${name}(; formatAge is the one formatter the phone's ages come from`);
+    }
+  }
+
+  // (k) Choose by priority, emit in display order.
+  const loops = loopsIn(answer.nodes);
+  const cuts = loops.filter((l) => reachesCall(l.body, 'byteLength'));
+  const emits = rowsName === null ? [] : loops.filter((l) => callsNamed(subtree(l.body), 'push').some((c) => text(c.expression) === `${rowsName}.push`));
+  checked('O2k', 4);
+  if (cuts.length === 0) {
+    fail('O2k', `${where(routes, answer.member)}: no loop in the sessions answer measures a row with byteLength(, so nothing holds it to POCKET_SESSIONS_BUDGET_BYTES`);
+  }
+  if (emits.length === 0) {
+    fail('O2k', `${where(routes, answer.member)}: no loop pushes onto ${String(rowsName)}, so the emission order cannot be read`);
+  }
+  const wordsOf = (nodes) => readsWord(nodes, 'sort') || readsWord(nodes, 'group');
+  for (const cut of cuts) {
+    if (cut.walks === null || cut.walks === undefined) {
+      fail('O2k', `${where(routes, cut.node)}: the loop that measures rows walks nothing this rule can follow`);
+      continue;
+    }
+    const made = derivation(answer, cut.walks);
+    const fromAttention = callsNamed(made, 'attentionRows').length > 0;
+    const fromOthers = callsNamed(made, 'othersOrder').length > 0;
+    if (!fromAttention || !fromOthers) {
+      fail('O2k', `${where(routes, cut.node)}: the loop that stops at the caps walks ${text(cut.walks)}, which is not built from attentionRows( and othersOrder(. The caps keep rows in today's priority, waiting first, whatever the words drawn (§15 F2).`);
+    }
+    if (wordsOf(made)) {
+      fail('O2k', `${where(routes, cut.node)}: the loop that stops at the caps walks ${text(cut.walks)}, which reads the sort or group word. It walks the DISPLAY order, so under Project, Name or Oldest first a session waiting on him in a late group falls past the cap while idle rows are drawn (§15 F2).`);
+    }
+    for (const emit of emits) {
+      if (emit.walks !== null && emit.walks !== undefined && text(emit.walks) === text(cut.walks)) {
+        fail('O2k', `${where(routes, cut.node)}: the cut and the emission walk one order, ${text(cut.walks)}; the cut chooses in the priority and the rows leave in the order the words ask for`);
+      }
+    }
+  }
+  for (const emit of emits) {
+    if (emit.walks === null || emit.walks === undefined || !wordsOf(derivation(answer, emit.walks))) {
+      fail('O2k', `${where(routes, emit.node)}: the loop that fills ${String(rowsName)} walks an order that reads neither the sort nor the group word, so the rows do not leave in the order he asked for`);
+    }
+  }
+  // A group's omitted: its kept rows minus its chosen rows.
+  const groupOmitted = [
+    ...groupLits.map((o) => propValue(o, 'omitted')).filter((v) => v !== null),
+    ...answer.nodes
+      .filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'omitted')
+      .map((n) => n.right)
+  ].map((v) => unwrap(v));
+  const minus = (v) => v !== undefined && ts.isBinaryExpression(v) && v.operatorToken.kind === ts.SyntaxKind.MinusToken;
+  checked('O2k');
+  if (groupLits.length > 0 && !groupOmitted.some(minus)) {
+    fail('O2k', `${where(routes, groupLits[0])}: a group's omitted is never its kept rows minus its chosen rows, so a header can count fifty over ten rows with nothing beside it to say so (§15 F4)`);
+  }
+
+  // (l) No since of an attentionRows row is drawn; the stamp map is.
+  checked('O2l', 2);
+  for (const n of answer.nodes) {
+    const since =
+      (ts.isPropertyAccessExpression(n) && n.name.text === 'since') ||
+      (ts.isBindingElement(n) && ((n.propertyName !== undefined && ts.isIdentifier(n.propertyName) && n.propertyName.text === 'since') || (n.propertyName === undefined && ts.isIdentifier(n.name) && n.name.text === 'since')));
+    if (since) {
+      fail('O2l', `${where(routes, n)}: the sessions answer reads an attentionRows row's since. That since falls back to createdAt (src/main/tray/attention.ts), so it draws a creation clock as a wait, and 20728d for a createdAt of 0 (§15 F1). It orders; it never labels.`);
+    }
+  }
+  const stampDecls = boundTo(answer, 'blockedSince');
+  const stampRead = answer.nodes.some((n) => {
+    if (!ts.isCallExpression(n) || calleeName(n) !== 'get' || !ts.isPropertyAccessExpression(n.expression) || !ts.isIdentifier(n.expression.expression)) return false;
+    const r = resolveName(n.expression.expression);
+    return r !== null && r.kind === 'var' && stampDecls.has(r.decl);
+  });
+  if (stampDecls.size === 0 || !stampRead) {
+    fail('O2l', `${where(routes, answer.member)}: no stamp map bound to facts.blockedSince() is read with .get( in the sessions answer, so a waiting row's age is not its wait`);
+  }
+
+  // (m) One id reader, used twice; the machine is the identity's.
+  const idDecls = functionsNamed(routes, 'isSessionsId');
+  checked('O2m', 4);
+  if (idDecls.length !== 1) fail('O2m', `${rel(routes)} declares isSessionsId ${String(idDecls.length)} time(s); there is ONE`);
+  const composerNodes = answer.nodes.filter((n) => !answer.readerNodes.has(n));
+  if (callsNamed([...answer.readerNodes], 'isSessionsId').length === 0) fail('O2m', `${rel(routes)}: the query reader never calls isSessionsId(`);
+  // The agent choices are what the answer's `agents` is made from, read
+  // through every write to it and the condition each write sits under.
+  const agentsValue = lit === null ? null : propValue(lit, 'agents');
+  if (agentsValue === null || callsNamed(derivation(answer, agentsValue), 'isSessionsId').length === 0) {
+    fail('O2m', `${where(routes, lit ?? answer.member)}: the answer's agents are not made under an isSessionsId( check, so the menu can offer an id the query refuses, and choosing it reads as a Mac older than this phase (§15 F8)`);
+  }
+  for (const n of composerNodes) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'machine' || !isSessionObject(n.expression)) continue;
+    fail('O2m', `${where(routes, n)}: the sessions answer reads ${text(n)}, a session's own machine. The machine a row is on is its group identity's target.machineId, or the filter and the groups disagree for a machine whose id is local (§15 F9).`);
+  }
+  if (!composerNodes.some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'machineId' && /target$/.test(text(n.expression)))) {
+    fail('O2m', `${where(routes, answer.member)}: the sessions answer never reads a target's machineId, so the machine filter is not the groups' own rule`);
+  }
+
+  // O3. No conversation.
+  checked('O3', 2);
+  for (const n of answer.nodes) {
+    if (ts.isPropertyAccessExpression(n) && ['refresh', 'catchUp', 'lastTurn', 'turns'].includes(n.name.text) && text(n.expression) === 'facts') {
+      fail('O3', `${where(routes, n)}: the sessions answer names facts.${n.name.text}. It reads no conversation: a list of every session is not a reason to read anybody's words.`);
+    }
+    if (ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'refresh') {
+      fail('O3', `${where(routes, n)}: the sessions answer calls the refresh, which reads a conversation through the one read path`);
+    }
+  }
+  for (const n of nodesOf(routes)) {
+    if (!ts.isImportDeclaration(n) || !ts.isStringLiteral(n.moduleSpecifier)) continue;
+    const spec = n.moduleSpecifier.text;
+    if (!/(^|\/)overview\//.test(spec) || spec.startsWith('@shared/')) continue;
+    const names = n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings) ? n.importClause.namedBindings.elements.map((e) => (e.propertyName ?? e.name).text) : ['(default or namespace)'];
+    if (spec !== '../overview/turn-view' || names.join(',') !== 'MAX_TURN_LIMIT' || n.importClause?.name !== undefined) {
+      fail('O3', `${where(routes, n)}: routes.ts imports ${names.join(', ')} from ${spec}. It keeps MAX_TURN_LIMIT from ../overview/turn-view and nothing else of the overview, so no route composes a conversation it was not asked for.`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -7319,7 +8176,9 @@ const PHASES = [
   ['a phone removed by Remove alone', phoneRemovalRules, 'X9'],
   ['the lines say it', writeLinesRule, 'X12'],
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
-  ['the reply', replyRules, 'Y1']
+  ['the reply', replyRules, 'Y1'],
+  // PHASE 316.7, the sessions answer (build/p3167/SPEC.md §8.1).
+  ['the sessions answer', sessionsAnswerRules, 'O2a']
 ];
 
 for (const [name, run, onError] of PHASES) {

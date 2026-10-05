@@ -27,6 +27,16 @@
 //
 // It reads on appear, on return to the foreground and on pull. No timer.
 //
+// SINCE PHASE 316.7 the Sessions tab is Screens/SessionsScreen.swift: every
+// session, shown, grouped and sorted as the phone asks, composed in main. This
+// screen's `.sessions` kind is that tab's OLDER-MAC FACE, drawn byte for byte
+// as it was, Select included, when the paired Mac's door has no sessions read;
+// its reads are then the Sessions model's (`reload`), which asks the new read
+// first, so the first answer from an updated Mac brings the new tab back.
+// End these is attached once, over both faces, by `SessionsTab`, which is why
+// `ListModel` is still an `EndBatchList` and this file's own `.endBatch` line
+// is handed nil there.
+//
 // Two lines of the phone's own may sit under the title (Phase 316.5):
 // `Pair again to get alerts.` when this phone's alert address is not the one
 // its Mac holds and that Mac said it could send, and the Mac's own sentence
@@ -48,6 +58,11 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
     let statusTitle: String
     /// Nil on this Mac. A session elsewhere carries its machine's name.
     let machine: String?
+    /// Whether the row draws the machine's badge. False under a project's
+    /// header, which draws it once for the project (Phase 316.7); the name
+    /// stays on the row, because End these' confirmation says the remote tail
+    /// for a target on another machine.
+    let drawsMachine: Bool
     let age: String
     let line: String
     /// A waiting row's name is drawn at weight 500, as Main.html draws it.
@@ -65,6 +80,7 @@ struct RowDrawing: Equatable, Identifiable, Sendable {
         dot = row.dot
         statusTitle = row.statusTitle
         machine = row.machine
+        drawsMachine = true
         age = row.ageText
         self.waiting = waiting
         end = row.end
@@ -146,7 +162,7 @@ enum ListState: Equatable {
 
 @MainActor
 @Observable
-final class ListModel {
+final class ListModel: EndBatchList {
     private(set) var state: ListState = .loading
     private let door: any DoorReading
     /// Told when the door no longer knows this iPhone, so the app goes back to
@@ -164,6 +180,17 @@ final class ListModel {
     private(set) var notice: String?
     /// A sentence waiting for the list's next read to answer.
     private var noticeAfterRead: String?
+    /// `EndBatchList`'s hold. Never read here: since Phase 316.7 End these is
+    /// attached over the Sessions model, never over this one, and the line in
+    /// `ListScreen` that hands this model nil needs the conformance to compile.
+    @ObservationIgnored var batchHeld = false
+
+    /// Every row the Sessions tab drew before Phase 316.7, in drawn order: the
+    /// older-Mac face's rows.
+    var batchRows: [RowDrawing] {
+        guard case .loaded(let drawing) = state else { return [] }
+        return [drawing.waiting, drawing.others].flatMap { $0 }
+    }
 
     init(door: any DoorReading, routing: ReadRouting) {
         self.door = door
@@ -308,6 +335,11 @@ struct ListScreen: View {
     /// End these (Phase 317), for the Sessions tab of a pairing that writes;
     /// nil draws no `Select`.
     var ends: EndBatchSetup?
+    /// The read a pull, the appearance, the foreground and Try again ask for
+    /// instead of this list's own (Phase 316.7): the Sessions model's, on the
+    /// older-Mac face, which asks the Mac's sessions read first. Nil is the
+    /// list's own reads.
+    var reload: (() async -> Void)? = nil
 
     private var names: ListNames { kind.names }
 
@@ -335,7 +367,7 @@ struct ListScreen: View {
                     LoadingView(id: names.loading)
                 case .failed(let sentence):
                     FailureView(sentence: sentence, id: names.failure) {
-                        Task { await model.load() }
+                        Task { await read() }
                     }
                 case .loaded(let drawing):
                     switch kind {
@@ -348,11 +380,17 @@ struct ListScreen: View {
         }
         .scrollIndicators(.hidden)
         .background(Tokens.bgSidebar.ignoresSafeArea())
-        .refreshable { await model.load() }
-        .task { await model.appeared() }
+        .refreshable { await read() }
+        .task {
+            if let reload {
+                await reload()
+            } else {
+                await model.appeared()
+            }
+        }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
-            Task { await model.load() }
+            Task { await read() }
         }
         // End these, on the Sessions tab alone: the ONE line that attaches it.
         .endBatch(kind == .sessions ? ends : nil, list: model)
@@ -360,6 +398,16 @@ struct ListScreen: View {
         .accessibilityIdentifier(names.screen)
         .navigationTitle(kind.title)
         .toolbar(.hidden, for: .navigationBar)
+    }
+
+    /// A pull, the foreground and Try again: `reload` when it is set, else
+    /// the list's own read.
+    private func read() async {
+        if let reload {
+            await reload()
+        } else {
+            await model.load()
+        }
     }
 
     /// `Sessions` or `Needs input`, 28/34 semibold, `padding: 0 16px 8px`
@@ -469,8 +517,9 @@ private struct SectionHeader: View {
 
 /// `.row`: `padding: 6px 16px`, two lines 2 pt apart, a hairline under every
 /// row but the last. The row is a container, so XCUITest reads its frame and
-/// each part's frame; tapping anywhere on it opens the session.
-private struct RowView: View {
+/// each part's frame; tapping anywhere on it opens the session. Internal since
+/// Phase 316.7: the Sessions tab draws its rows with it too.
+struct RowView: View {
     let row: RowDrawing
     let last: Bool
     let open: () -> Void
@@ -509,7 +558,7 @@ private struct RowView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .accessibilityElement(children: .combine)
                         .accessibilityIdentifier(names.rowName(row.id))
-                    if let machine = row.machine {
+                    if let machine = row.machine, row.drawsMachine {
                         MachineBadge(name: machine)
                             .accessibilityIdentifier(names.rowMachine(row.id))
                     }

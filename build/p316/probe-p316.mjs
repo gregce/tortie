@@ -471,6 +471,76 @@
  *   RP  with P318_PARENT_IOS (c1a5fd38's ios/): the parent's app and its OWN
  *       UI test over the same sessions: no press and no strip in its dumps
  *
+ * PHASE 316.7, THE SESSIONS TAB (build/p3167/SPEC.md §9.4 and §9.5). The
+ * Sessions tab reads `GET /v1/sessions` now and lays out what main composed:
+ * Show (All, Active, Ended), projects with a count, one menu for Group by,
+ * Sort by, Agent, Machine and Clear filters. Before the launch,
+ * build/p3167/seed-sessions.mts (`--shape p316`) writes 120 ended sessions over
+ * four folders, two named `app` and the bidi name among them, into the scratch
+ * manifest through the SHIPPING store (SL0). Records only: nothing runs.
+ * EVERY ARM THAT READ THE LIST reads the new face by the node reader's
+ * `/v1/sessions` for the default words (L1, F1: `gradeSessionsList`, the rows
+ * the same RowView and held to the same `.row` box), or, over a Mac without
+ * the route, today's two sections by `/v1/blocked` (`gradeList`); E4 shows All
+ * before its Select, because its third row is ended and the tab opens on
+ * Active, and E7's drawn order is `/v1/sessions`'.
+ *   THE `sessions` GROUP (P316_ARMS=sessions), on a fresh iOS 26.3 Simulator
+ *   of its own, so no other arm meets a remembered choice. The planted
+ *   conversation's session is ended on the Mac first (SL6) and three shells
+ *   are made for SL7. Every grade reads the door for the drive's words just
+ *   before the drive's own read (`sessions-mark:<tag>`, which waits for this
+ *   file's `sessions-<seq>`) and again when the walk is printed; two answers
+ *   that differ (but for the clock and the ages) are UNREADABLE, never a pass.
+ *   SL1 (26.3 and 18.3) a fresh install is Active, Project, Recent, each header
+ *       the door's, nothing ended drawn
+ *   SL2 every Show × Group × Sort: the rows drawn in the door's order (a closed
+ *       project's absent), each age the door's or the dash, each header's
+ *       label, count, badge, folder and needs-input mark
+ *   SL3 Agent narrows to the door's answer for that agent; Clear filters draws
+ *       Show All with no filter
+ *   SL4 a relaunch keeps the three words and drops the filter and every opened
+ *       or closed project; `-tortie.sessions.show bogus` (UserDefaults' own
+ *       argument domain, no DEBUG seam) reads Active
+ *   SL5 under All a project with only ended sessions starts closed with its
+ *       count, and a tap opens it
+ *   SL6 (26.3 and 18.3) the ended session under Ended opens, its conversation
+ *       pages to its first turn, and no End is drawn on it
+ *   SL7 End these: Select draws the Show control, the menu and the headers
+ *       off; three end in the drawn order; BEFORE Done, a pull, and every
+ *       target's row and its outcome word, read by `row-outcome-<id>`, still
+ *       drawn (SPEC §15 F5); after Done, under Active, the ended rows gone and
+ *       the rows the next answer's
+ *   SL8 (26.3 and, since the fix round, 18.3, whose tab bar's badge is
+ *       readable where iOS 26's glass bar's is not) the Needs input tab and its
+ *       badge are `/v1/blocked`'s waiting rows before and after a pull on
+ *       Sessions
+ *   Every SL grade reads a row's age as the door's word just before or just
+ *   after the drive's read, or a word of the same clock between the two
+ *   (`ageBetween`, the fix round: the two reads can be minutes apart), and a
+ *   combination that needs no choice is read by a pull, so the phone's read
+ *   lies between them
+ *   THE HOSTILE SESSIONS ARMS (hostile-door.mjs), on 26.3 and, for those it
+ *   marks `floor` (or every one with P316_HOSTILE_FLOOR=all), on 18.3:
+ *   `sessions-cap` (the first row within 2 s of the door's answer, the walk to
+ *   the last row and the left-out lines, the bidi name its characters with its
+ *   age inside its row, the two local `app` headers with their folders and the
+ *   one elsewhere with its badge and no folder, the Machine section offered, no
+ *   XCUITest busy line); `sessions-older-mac` (today's two sections and
+ *   Select); `sessions-older-mac-recovers` (the older face, then ONE pull draws
+ *   `list-show`: the door refuses `/v1/sessions` until the drive's
+ *   `sessions-pull-ready` line, when the probe tells it the Mac updated over
+ *   the door's stdin and answers `pull-<seq>`); and the malformed bodies, each `Copy.answerUnreadable` drawn
+ *   with the app alive. The older list arms answer `/v1/sessions` too.
+ *   The steps P316DriveUITests.swift adds: `show:<word>`,
+ *   `menu:<section>:<label>`, `menu-read`, `clear-filters`, `group:<id>`,
+ *   `sessions-mark:<tag>`, `sessions-dump:<tag>` (the lazy list walked top to
+ *   end, every `row-`, `group-`, `list-` and `section-` element printed once in
+ *   the order met, `complete` false when the wait ran out), `sessions-face`,
+ *   `sessions-pull` (`sessions-pull:ack` waits for the probe's `pull-<seq>`
+ *   first), `sessions-first-row`, `batch-pull` and
+ *   `relaunch-choices[:<key>=<value>]`; `open:` and `select:` bring a row into
+ *   view before they press it.
+ *
  * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
  * now asks the `ts.net` zone's own servers whether its public name answers
  * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
@@ -508,8 +578,9 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,sessions    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `sessions` Phase 316.7's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
+ *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
  *   P316_KEEP=1                           keep the scratch world, and write
  *                                         <run>/rederive/records.json (0600): the
@@ -572,7 +643,8 @@ import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, w
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
-import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, shaHex, signedGet } from './node-phone.mjs';
+import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, readSessions, shaHex, signedGet } from './node-phone.mjs';
+import { tsxCli } from '../ts-runner.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[p316]';
@@ -597,7 +669,8 @@ if (PARENT !== '') {
 
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply').split(',').map((s) => s.trim()));
+// `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,sessions').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -605,7 +678,8 @@ if (ARMS.has('ats')) {
   ARMS.delete('ats');
 }
 // Phase 317: the end group's E10 is the floor's too; Phase 318's P9 likewise.
-const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+// Phase 316.7: the sessions group's SL1, SL6 and SL8, and the hostile sessions arms marked `floor`, run on the floor too.
+const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('sessions') || ARMS.has('hostile') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -677,6 +751,15 @@ const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
 const P318_DIR = join(RUN, 'p318');
 const P318_BIN = join(P318_DIR, 'bin');
 const P318_STANDIN = join(P318_DIR, 'standin');
+/**
+ * Phase 316.7's seeded world (SPEC §9.4): what build/p3167/seed-sessions.mts
+ * wrote into the scratch manifest before the launch, its folders under this
+ * root and its ids in this file.
+ */
+const SEED_ROOT = join(RUN, 'p316-seed');
+const SEED_OUT = join(RUN, 'seed-p316.json');
+/** Where the sessions group's UI test waits for the probe's files. */
+const ACKS_SESSIONS = join(RUN, 'acks-sessions');
 
 // ---------------------------------------------------------------------------
 // Phase 316.5: the alerts' scratch world (build/p3165/SPEC.md §7.4)
@@ -734,7 +817,20 @@ const unsecret = (text) => SECRETS.reduce((t, secret) => t.split(secret).join('<
 
 // What the mocks' CSS says a frame must be, read from the approved mock itself.
 const MAIN_HTML = readFileSync(join(ROOT, 'docs', 'design', 'phone', 'Main.html'), 'utf8');
-const cssRule = (selector) => new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(MAIN_HTML)?.[1] ?? '';
+/**
+ * Phase 316.7: Main.html is the new Sessions tab, and today's two-section
+ * face, which a Mac older than this phase still draws, is its own mock,
+ * SessionsOlderMac.html. Its section header is read there when it exists.
+ */
+const OLDER_HTML = (() => {
+  try {
+    return readFileSync(join(ROOT, 'docs', 'design', 'phone', 'SessionsOlderMac.html'), 'utf8');
+  } catch {
+    return MAIN_HTML;
+  }
+})();
+const cssRuleIn = (html, selector) => new RegExp(`\\${selector}\\s*\\{([^}]*)\\}`).exec(html)?.[1] ?? '';
+const cssRule = (selector) => cssRuleIn(MAIN_HTML, selector);
 const px = (text, prop) => {
   // `padding: 0 16px` writes its zero with no unit, so the unit is optional.
   const m = new RegExp(`${prop}\\s*:\\s*([0-9.]+)(?:px)?(?:\\s+([0-9.]+)(?:px)?)?`).exec(text);
@@ -746,8 +842,8 @@ const lineBoxOf = (size) => {
   return m === null ? null : Number(m[1]);
 };
 const FRAMES = {
-  headerHeight: px(cssRule('.hdr'), 'height')?.[0] ?? null,
-  gutter: px(cssRule('.hdr'), 'padding')?.[1] ?? null,
+  headerHeight: px(cssRuleIn(OLDER_HTML, '.hdr'), 'height')?.[0] ?? null,
+  gutter: px(cssRuleIn(OLDER_HTML, '.hdr'), 'padding')?.[1] ?? null,
   rowPadding: px(cssRule('.row'), 'padding'),
   // Grading a row by its LINE BOXES and its HEIGHT, never by glyph boxes
   // (Phase 316.2's fix round). XCUITest reports a Text by the glyphs it drew
@@ -1378,7 +1474,9 @@ async function drive(sim, { test, env, derivedDataPath, label, onEvent = null, t
   const text = `${r.stdout}${r.stderr}`;
   const executed = /Executed (\d+) tests?/.exec(text)?.[1] ?? null;
   const skipped = /with (\d+) tests? skipped/.exec(text)?.[1] ?? '0';
-  return { code: r.code, ms: r.ms, timedOut: r.timedOut, events, reactionErrors, executed: executed === null ? null : Number(executed), skipped: Number(skipped) };
+  // Phase 316.7 (sessions-cap): XCUITest's own word that the app's main thread did not go idle.
+  const busyLines = text.split('\n').filter((l) => BUSY_LINE.test(l)).map((l) => l.trim().slice(0, 160));
+  return { code: r.code, ms: r.ms, timedOut: r.timedOut, events, reactionErrors, executed: executed === null ? null : Number(executed), skipped: Number(skipped), busy: busyLines.length, busyLines: busyLines.slice(0, 5) };
 }
 
 const dumps = (events, name) => events.filter((e) => e.step === 'screen' && e.name === name);
@@ -1470,6 +1568,21 @@ function gradeList(dump, reads) {
     }
     frames.push({ id, textX: round(t.frame[0] - screenX), textCentre: round(centre(t)), nextRowTop: next === null ? null : round(next.frame[1]), height });
   }
+  measureRows(dump, drawn, problems, frames);
+  if (frames.length === 0) problems.push('no section header or row frame was read, so the frames were not measured');
+  return problems.length > 0 ? problems : { frames };
+}
+
+/**
+ * Every drawn row measured against the mock's `.row` box, read from Main.html
+ * (Phase 316.7 split it out of `gradeList`, so the Sessions tab's rows, which
+ * are the same RowView, are held to the same box). Pushes onto `problems` and
+ * `frames`.
+ */
+function measureRows(dump, drawn, problems, frames) {
+  const round = (n) => Math.round(n * 100) / 100;
+  const centre = (e) => e.frame[1] + e.frame[3] / 2;
+  const known = (...values) => values.every((n) => typeof n === 'number' && Number.isFinite(n));
   const [vertical, horizontal] = FRAMES.rowPadding ?? [null, null];
   const lineBoxes = known(vertical, horizontal, FRAMES.rowGap, FRAMES.hairline, FRAMES.nameLine, FRAMES.secondLine);
   // THE RIGHT GUTTER (his nit of 2026-09-23: the grader measured the left one
@@ -1514,8 +1627,6 @@ function gradeList(dump, reads) {
       lineCentre: line === null ? null : round(centre(line) - top)
     });
   }
-  if (frames.length === 0) problems.push('no section header or row frame was read, so the frames were not measured');
-  return problems.length > 0 ? problems : { frames };
 }
 
 // ---------------------------------------------------------------------------
@@ -3592,6 +3703,859 @@ function endSelfTest() {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 316.7: the Sessions tab (build/p3167/SPEC.md §9.4 and §9.5)
+// ---------------------------------------------------------------------------
+
+/** The phone's words for the tab, from Copy.swift, else the SPEC's §7 words. */
+const SESSIONS_WORDS = Object.freeze({
+  groupBy: copyOf('groupBy') ?? 'Group by',
+  sortBy: copyOf('sortBy') ?? 'Sort by',
+  agent: copyOf('agent') ?? 'Agent',
+  machine: copyOf('machine') ?? 'Machine',
+  thisMac: copyOf('thisMac') ?? 'This Mac',
+  clearFilters: copyOf('clearFilters') ?? 'Clear filters',
+  dash: copyOf('dash') ?? '—',
+  leftOutTail: copyOf('othersOmittedTail') ?? ' more not shown.',
+  group: Object.freeze({ project: copyOf('groupProject') ?? 'Project', none: copyOf('groupNone') ?? 'None' }),
+  sort: Object.freeze({ recent: copyOf('sortRecent') ?? 'Recent activity', name: copyOf('sortName') ?? 'Name', oldest: copyOf('sortOldest') ?? 'Oldest first' })
+});
+
+/** A row's own element, never one of its parts. */
+const isRowId = (id) => typeof id === 'string' && /^row-/.test(id) && !/^row-(dot|name|machine|age|line|select|outcome)-/.test(id);
+/** The session ids a list of elements draws as rows, in its order. */
+const rowIdsOf = (elements) => (elements ?? []).filter((e) => isRowId(e.id)).map((e) => e.id.slice('row-'.length));
+/** A sessions dump's elements by id. */
+const byIdOf = (dump) => new Map((dump?.elements ?? []).map((e) => [e.id, e]));
+
+/**
+ * Two answers to one question, the same but for their clock and the ages that
+ * ticked between them: a grade reads the door just before and just after the
+ * drive's own read, and two that differ otherwise make the reading
+ * UNREADABLE, never a pass (SPEC §9.4).
+ */
+export function sameAnswer(a, b) {
+  if (a === null || a === undefined || b === null || b === undefined) return false;
+  const strip = (x) => J({ ...x, at: 0, rows: (x.rows ?? []).map((r) => ({ ...r, ageText: null })) });
+  return strip(a) === strip(b);
+}
+
+/**
+ * The steps that make the phone read `/v1/sessions`: a Show or menu choice
+ * (the drive asks for one only when it changes the word), Clear filters, a
+ * pull, a relaunch, and End these' Done. A header's tap reads nothing: it
+ * opens or closes a project the phone already holds.
+ */
+export const SESSIONS_READ_STEP = /^(?:show:|menu:|clear-filters$|sessions-pull(?::ack)?$|relaunch-choices|batch-done$)/;
+
+/**
+ * The marks whose window (`sessions-mark:<tag>` to `sessions-dump:<tag>`)
+ * holds no step that makes the phone read. Every grade takes the door's two
+ * reads at the window's ends and assumes the phone's own read lies between
+ * them; a window with none grades a drawing read BEFORE the mark against the
+ * door after it, and an honest `20m` read as a failure against the door's
+ * `21m` (SL5's opened project, a header's tap alone, in the fix round's run
+ * of 2026-10-04; SL1's window was the same and passed only while no minute
+ * turned). A drive with such a window is not run.
+ */
+export function marksWithoutRead(steps) {
+  const bare = [];
+  steps.forEach((step, i) => {
+    if (!step.startsWith('sessions-mark:')) return;
+    const tag = step.slice('sessions-mark:'.length);
+    const end = steps.indexOf(`sessions-dump:${tag}`, i + 1);
+    if (end === -1 || !steps.slice(i + 1, end).some((s) => SESSIONS_READ_STEP.test(s))) bare.push(tag);
+  });
+  return bare;
+}
+
+/**
+ * An age word as minutes and its clock's mark, or null: `now`, `4m`, `2h`,
+ * `3d`, each maybe ending ` old` (src/shared/age.ts, `formatAge` and
+ * `createdOld`). The minutes rise with the clock across every unit change
+ * (`59m` 59, `1h` 60; `23h` 1380, `1d` 1440), so an age read between two
+ * others is between them here.
+ */
+export function ageValue(text) {
+  if (typeof text !== 'string') return null;
+  const m = /^(?:now|(\d+)([mhd]))( old)?$/.exec(text);
+  if (m === null) return null;
+  const minutes = m[1] === undefined ? 0 : Number(m[1]) * { m: 1, h: 60, d: 1_440 }[m[2]];
+  return { minutes, old: m[3] !== undefined };
+}
+
+/**
+ * Whether `drawn` is an age the door said, or could have said, between its
+ * answer just before the drive's read (`before`) and just after (`after`):
+ * either word exactly, or a word of the same clock (` old` on all three or on
+ * none) whose minutes lie between theirs. `sameAnswer` leaves ages out, so the
+ * two reads can be minutes apart, and the fix round (2026-10-03) found the
+ * grader failing an honest `6m` between a door's `5m` and `7m`. The dash
+ * matches only itself, and a clock drawn as another never matches.
+ */
+export function ageBetween(drawn, before, after) {
+  if (drawn === before || drawn === after) return true;
+  const d = ageValue(drawn);
+  const b = ageValue(before);
+  const a = ageValue(after);
+  if (d === null || b === null || a === null) return false;
+  if (d.old !== b.old || d.old !== a.old) return false;
+  return Math.min(b.minutes, a.minutes) <= d.minutes && d.minutes <= Math.max(b.minutes, a.minutes);
+}
+
+/**
+ * The session ids a person sees for an answer, in order: under Project a
+ * group's rows only while it is open, which is its `collapsed` turned over
+ * unless he opened or closed it (`state`, group id to `open` or `closed`, for
+ * the app's life); under None every row.
+ */
+export function drawnRowsOf(answer, state = new Map()) {
+  return (answer?.rows ?? [])
+    .filter((r) => {
+      if (answer.asked?.group === 'none') return true;
+      const g = answer.groups[r.group];
+      return state.has(g.id) ? state.get(g.id) === 'open' : !g.collapsed;
+    })
+    .map((r) => r.sessionId);
+}
+
+/**
+ * ONE sessions dump against the door's answers around it: the rows in the
+ * answer's order (closed projects' rows absent), each name, age, badge and
+ * line; each header's label, count, badge, folder and needs-input dot; each
+ * `n more not shown.`; and the Show control on its word. `state` is the
+ * opened-or-closed map the drive made. Problems are a FAIL, an unreadable
+ * premise is UNREADABLE.
+ */
+export function gradeSessionsDump({ dump, before, after, state = new Map(), tag = '' }) {
+  const problems = [];
+  const unread = [];
+  if (dump === null || dump === undefined) return decide([], [`${tag}: the UI test printed no sessions dump`], '');
+  if (before === null || before === undefined || after === null || after === undefined) return decide([], [`${tag}: the node reader could not read the door around the drive's read`], '');
+  if (!sameAnswer(before, after)) return decide([], [`${tag}: the door's answers just before and after the drive's read differ, so which one the phone drew is not known`], '');
+  if (dump.complete !== true) unread.push(`${tag}: the walk did not reach the list's end in ${String(dump.swipes)} swipe(s)`);
+  const at = byIdOf(dump);
+  const label = (id) => at.get(id)?.label ?? null;
+  const want = drawnRowsOf(before, state);
+  const drawn = rowIdsOf(dump.elements);
+  if (J(drawn) !== J(want)) problems.push(`${tag}: the rows drawn are ${J(drawn.slice(0, 6))}… (${String(drawn.length)}), and the door's order is ${J(want.slice(0, 6))}… (${String(want.length)})`);
+  const project = before.asked.group === 'project';
+  const ages = (id) => [before, after].map((a) => a.rows.find((r) => r.sessionId === id)?.ageText).map((t) => (t === null ? SESSIONS_WORDS.dash : t));
+  for (const r of before.rows) {
+    if (!drawn.includes(r.sessionId)) continue;
+    const id = r.sessionId;
+    if (label(`row-name-${id}`) !== r.name) problems.push(`${tag}: row ${id} draws the name ${J(label(`row-name-${id}`))}, not the door's`);
+    if (!ageBetween(label(`row-age-${id}`), ...ages(id))) problems.push(`${tag}: row ${id} draws the age ${J(label(`row-age-${id}`))}; the door said ${J(ages(id))} around the read`);
+    const badge = at.get(`row-machine-${id}`) ?? null;
+    if (project ? badge !== null : (r.machine === null) !== (badge === null)) problems.push(`${tag}: row ${id} ${badge === null ? 'draws no machine badge' : 'draws a machine badge'} ${project ? 'under Project, whose header carries it' : 'against the door'}`);
+    const g = before.groups[r.group];
+    const second = r.waiting && r.question !== null ? r.question : r.statusTitle;
+    const wantLine = project ? second : r.waiting && r.question !== null ? `${g.label}${SEPARATOR}${r.question}` : `${r.statusTitle}${SEPARATOR}${g.label}`;
+    if (label(`row-line-${id}`) !== wantLine) problems.push(`${tag}: row ${id}'s line reads ${J(String(label(`row-line-${id}`)).slice(0, 80))}, not ${J(wantLine.slice(0, 80))}`);
+  }
+  before.groups.forEach((g) => {
+    const header = at.get(`group-${g.id}`) ?? null;
+    if (!project) {
+      if (header !== null) problems.push(`${tag}: a project header is drawn under None`);
+      return;
+    }
+    if (header === null) return void problems.push(`${tag}: project ${g.id} (${J(g.label)}) has no header`);
+    if (label(`group-label-${g.id}`) !== g.label) problems.push(`${tag}: header ${g.id} reads ${J(label(`group-label-${g.id}`))}, not ${J(g.label)}`);
+    if (label(`group-count-${g.id}`) !== String(g.count)) problems.push(`${tag}: header ${g.id} counts ${J(label(`group-count-${g.id}`))}, not ${String(g.count)}`);
+    if ((g.machine === null) !== !at.has(`group-machine-${g.id}`) || (g.machine !== null && label(`group-machine-${g.id}`) !== g.machine)) problems.push(`${tag}: header ${g.id}'s machine badge is ${J(label(`group-machine-${g.id}`))}, the door's ${J(g.machine)}`);
+    if ((g.folder === null) !== !at.has(`group-folder-${g.id}`) || (g.folder !== null && label(`group-folder-${g.id}`) !== g.folder)) problems.push(`${tag}: header ${g.id}'s folder is ${J(label(`group-folder-${g.id}`))}, the door's ${J(g.folder)}`);
+    if (g.waiting !== at.has(`group-waiting-${g.id}`)) problems.push(`${tag}: header ${g.id} ${g.waiting ? 'draws no needs-input mark over a waiting session' : 'draws a needs-input mark over no waiting session'}`);
+    const open = state.has(g.id) ? state.get(g.id) === 'open' : !g.collapsed;
+    if (typeof header.selected === 'boolean' && header.selected !== open) problems.push(`${tag}: header ${g.id} reads ${header.selected ? 'open' : 'closed'}, and it is ${open ? 'open' : 'closed'}`);
+    const leftOut = at.get(`group-left-out-${g.id}`) ?? null;
+    if (open && g.omitted > 0 && leftOut?.label !== `${String(g.omitted)}${SESSIONS_WORDS.leftOutTail}`) problems.push(`${tag}: open project ${g.id} leaves out ${String(g.omitted)} and its line reads ${J(leftOut?.label ?? null)}`);
+    if (g.omitted === 0 && leftOut !== null) problems.push(`${tag}: project ${g.id} leaves out nothing and draws ${J(leftOut.label)}`);
+  });
+  const total = at.get('list-sessions-left-out') ?? null;
+  if (before.omitted > 0 && total?.label !== `${String(before.omitted)}${SESSIONS_WORDS.leftOutTail}`) problems.push(`${tag}: the door left out ${String(before.omitted)} and the list's line reads ${J(total?.label ?? null)}`);
+  const shown = at.get(`list-show-${before.asked.show}`) ?? null;
+  if (shown === null) problems.push(`${tag}: the Show control draws no ${before.asked.show} segment`);
+  else if (shown.selected === false) problems.push(`${tag}: the Show control's ${before.asked.show} segment is not the selected one`);
+  for (const other of ['all', 'active', 'ended'].filter((w) => w !== before.asked.show)) if (at.get(`list-show-${other}`)?.selected === true) problems.push(`${tag}: the Show control marks ${other} selected under ${before.asked.show}`);
+  return decide(problems, unread, `${tag}: ${String(drawn.length)} row(s) and ${String(before.groups.length)} project(s) as the door answered`);
+}
+
+/** SL1: a fresh install's Sessions tab is Active, Project, Recent; nothing ended drawn. */
+export function gradeSl1({ reading, endedIds }) {
+  const v = gradeSessionsDump({ ...reading, tag: 'SL1' });
+  const problems = v.ok === false ? [v.said] : [];
+  const a = reading.before;
+  if (a !== null && a !== undefined && J([a.asked.show, a.asked.group, a.asked.sort]) !== J(['active', 'project', 'recent'])) problems.push(`the reading was taken for ${J(a.asked)}, not the default words`);
+  const ended = rowIdsOf(reading.dump?.elements).filter((id) => endedIds.includes(id));
+  if (ended.length > 0) problems.push(`${String(ended.length)} ended session(s) drawn on a fresh install's Sessions tab`);
+  return problems.length > 0 ? verdict(false, problems.join('; ')) : v;
+}
+
+/** Every reading of a group, folded: a failure anywhere fails, then an unreadable one, then the pass. */
+function foldVerdicts(vs, green) {
+  const bad = vs.filter((v) => v.ok === false);
+  const unread = vs.filter((v) => v.ok === null);
+  if (bad.length > 0) return verdict(false, bad.map((v) => v.said).join(' | '));
+  if (unread.length > 0) return verdict(null, unread.map((v) => v.said).join(' | '));
+  return verdict(true, green);
+}
+
+/** SL2: every Show × Group × Sort drawn as the door answered it. */
+export function gradeSl2({ combos }) {
+  if ((combos ?? []).length !== 18) return verdict(null, `${String((combos ?? []).length)} of 18 combinations were read`);
+  return foldVerdicts(combos.map((c) => gradeSessionsDump({ ...c, tag: c.tag })), 'all 18 combinations draw the door\'s rows in its order, each age the door\'s or the dash, each header its count');
+}
+
+/** SL3: Agent narrows to the answer for that agent; Clear filters draws Show All with no filter. */
+export function gradeSl3({ agent, clear, agentId }) {
+  const vs = [gradeSessionsDump({ ...agent, tag: 'SL3 agent' }), gradeSessionsDump({ ...clear, tag: 'SL3 cleared' })];
+  const problems = [];
+  if (agent.before !== null && agent.before !== undefined && agent.before.asked.agent !== agentId) problems.push(`the agent reading was taken for ${J(agent.before.asked)}`);
+  if (clear.before !== null && clear.before !== undefined && (clear.before.asked.show !== 'all' || clear.before.asked.agent !== null || clear.before.asked.machine !== null)) problems.push(`the cleared reading was taken for ${J(clear.before.asked)}, not Show All with no filter`);
+  if (problems.length > 0) return verdict(false, problems.join('; '));
+  return foldVerdicts(vs, `the agent ${agentId} narrows the list to the door's answer for it, and Clear filters draws Show All with no filter`);
+}
+
+/** SL4: a relaunch keeps the three words and drops the filter and every opened project; `bogus` reads Active. */
+export function gradeSl4({ filtered, r1, closed, r2, bogus, closedGroup }) {
+  const vs = [
+    // The premise: the filter really narrowed the list before the relaunch.
+    gradeSessionsDump({ ...filtered, tag: 'SL4 filtered before the relaunch' }),
+    gradeSessionsDump({ ...r1, tag: 'SL4 relaunch (Ended, None, Name; the filter gone)' }),
+    gradeSessionsDump({ ...closed, state: new Map([[closedGroup, 'closed']]), tag: 'SL4 a project closed' }),
+    gradeSessionsDump({ ...r2, tag: 'SL4 relaunch (the closed project open again)' }),
+    gradeSessionsDump({ ...bogus, tag: 'SL4 bogus planted (Active)' })
+  ];
+  const problems = [];
+  const words = (x) => (x?.before ? J([x.before.asked.show, x.before.asked.group, x.before.asked.sort, x.before.asked.agent]) : null);
+  if (filtered?.before && filtered.before.asked.agent === null) problems.push('the reading before the relaunch was taken with no filter, so dropping one says nothing');
+  if (words(r1) !== null && words(r1) !== J(['ended', 'none', 'name', null])) problems.push(`the first relaunch was read for ${words(r1)}`);
+  if (words(r2) !== null && words(r2) !== J(['ended', 'project', 'name', null])) problems.push(`the second relaunch was read for ${words(r2)}`);
+  if (words(bogus) !== null && words(bogus) !== J(['active', 'project', 'name', null])) problems.push(`the planted relaunch was read for ${words(bogus)}`);
+  if (closed?.before && !closed.before.groups.some((g) => g.id === closedGroup)) problems.push(`the project closed (${closedGroup}) is not in the door's answer`);
+  if (problems.length > 0) return verdict(false, problems.join('; '));
+  return foldVerdicts(vs, 'a relaunch kept Show, Group by and Sort by and dropped the filter and the closed project, and `bogus` read Active');
+}
+
+/** SL5: under All, a project with only ended rows starts closed with its count, and a tap opens it. */
+export function gradeSl5({ closed, opened, gid }) {
+  const problems = [];
+  const g = closed?.before?.groups?.find((x) => x.id === gid) ?? null;
+  if (g === null) return verdict(null, `the project chosen (${String(gid)}) is not in the door's answer under All`);
+  if (g.collapsed !== true) problems.push(`the project chosen reads collapsed ${String(g.collapsed)} under All`);
+  const vs = [gradeSessionsDump({ ...closed, tag: 'SL5 closed' }), gradeSessionsDump({ ...opened, state: new Map([[gid, 'open']]), tag: 'SL5 opened' })];
+  if (problems.length > 0) return verdict(false, problems.join('; '));
+  return foldVerdicts(vs, `an all-ended project starts closed with its count (${String(g.count)}), and a tap draws its rows in the door's order`);
+}
+
+/** SL6: an ended session, under Ended; it opens, its conversation pages to its first turn, and no End is drawn. */
+export function gradeSl6({ underEnded, session, turns, doorIndexes, turnCount }) {
+  const problems = [];
+  if (underEnded !== true) return verdict(null, 'the ended session is not in the door\'s Ended answer, so it was not there to open');
+  if (session === null) problems.push('no session screen was drawn');
+  else if (el(session, 'session-end-bar') !== null || el(session, 'session-end') !== null) problems.push('an End is drawn on an ended session');
+  if (turns === null) problems.push('no "turns" line');
+  else {
+    const drawnIdx = [...new Set((turns.indexes ?? []).map(Number))].sort((a, b) => a - b);
+    if (J(drawnIdx) !== J(doorIndexes)) problems.push(`the turns drawn ${J(drawnIdx.slice(0, 5))}… are not the ${String(doorIndexes.length)} the door holds`);
+    if (drawnIdx[0] !== 0) problems.push('the conversation was not paged to its first turn');
+    if (typeof turnCount === 'number' && drawnIdx.length !== turnCount) problems.push(`${String(drawnIdx.length)} turn(s) drawn, the door's turnCount ${String(turnCount)}`);
+  }
+  return decide(problems, [], `the ended session opened under Ended, its ${String(doorIndexes.length)} turns paged to the first, and no End drawn`);
+}
+
+/**
+ * SL7: End these over the rows drawn. Select drew the Show control and the
+ * menu off; the run ended the three in the drawn order the confirmation
+ * names; a pull before Done kept every target's row and its word; after Done
+ * the ended rows are gone and the rows are the next answer's.
+ */
+export function gradeSl7(r) {
+  const problems = [];
+  const unread = [];
+  if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never seen up and answered');
+  const controls = r.controls ?? {};
+  const offs = Object.entries(controls).filter(([id]) => id === 'list-menu' || id.startsWith('list-show-'));
+  if (offs.length === 0) problems.push('no Show segment and no menu was read while selecting');
+  else if (offs.some(([, enabled]) => enabled !== false)) problems.push(`while selecting, ${J(offs.filter(([, e]) => e !== false).map(([id]) => id))} still take presses`);
+  if (Object.entries(controls).some(([id, enabled]) => id.startsWith('group-') && enabled !== false)) problems.push('a project header takes presses while selecting');
+  if (unread.length === 0) {
+    for (const id of r.targets) if (r.outcomes?.[id] !== END_WORDS.ended) problems.push(`target ${id} reads ${J(r.outcomes?.[id])}, not Ended`);
+    if (r.acts !== r.targets.length) problems.push(`${String(r.acts)} act(s) for ${String(r.targets.length)} target(s)`);
+    if (!Array.isArray(r.order?.drawn) || !Array.isArray(r.order?.confirmed)) unread.push('the drawn order or the confirmation\'s order was not read');
+    else if (J(r.order.drawn) !== J(r.order.confirmed)) problems.push(`the batch ran in ${J(r.order.confirmed)}, not the drawn order ${J(r.order.drawn)}`);
+    for (const id of r.targets) {
+      if (!(r.pull?.rows ?? []).includes(id)) problems.push(`after a pull before Done, target ${id}'s row is gone (§15 F5)`);
+      else if (r.pull?.outcomes?.[id] !== END_WORDS.ended) problems.push(`after a pull before Done, target ${id} reads ${J(r.pull?.outcomes?.[id])}`);
+    }
+    const after = gradeSessionsDump({ ...r.after, tag: 'SL7 after Done' });
+    if (after.ok === false) problems.push(after.said);
+    else if (after.ok === null) unread.push(after.said);
+    const drawnAfter = rowIdsOf(r.after?.dump?.elements);
+    for (const id of r.targets) if (drawnAfter.includes(id)) problems.push(`ended target ${id} is still drawn under Active after Done`);
+  }
+  return decide(problems, unread, 'Select drew the Show control and the menu off; three ended in the drawn order; a pull before Done kept every row and its word; after Done the list is the next answer\'s');
+}
+
+/** SL8: the Needs input tab and its badge, before and after a pull on Sessions, are /v1/blocked's waiting rows. */
+export function gradeSl8({ tabs }) {
+  const problems = [];
+  const unread = [];
+  if ((tabs ?? []).length < 2) return verdict(null, `${String((tabs ?? []).length)} Needs input reading(s), not one before and one after the pull`);
+  tabs.forEach((t, k) => {
+    const when = k === 0 ? 'before the pull' : 'after the pull';
+    const wantSets = t.reads.filter((x) => x !== null).map((x) => J(x.rows.map((r) => r.sessionId)));
+    const drawn = (t.dump?.elements ?? []).filter((e) => /^needs-row-[^-]/.test(e.id) && !/^needs-row-(dot|name|machine|age|line)-/.test(e.id)).sort((a, b) => a.frame[1] - b.frame[1]).map((e) => e.id.slice('needs-row-'.length));
+    if (wantSets.length === 0) unread.push(`the door was not read ${when}`);
+    else if (!wantSets.includes(J(drawn))) problems.push(`${when}, the Needs input tab draws ${J(drawn)}, the door's waiting rows ${wantSets[0]}`);
+    const n = badgeNumber(t.badge);
+    const counts = t.reads.filter((x) => x !== null).map((x) => x.rows.length);
+    if (n === null) {
+      if (counts.some((c) => c > 0)) unread.push(`${when}, no badge number could be read${glassBar(t.badge) ? ' (iOS 26\'s bar)' : ''}`);
+    } else if (!counts.includes(n)) problems.push(`${when}, the badge reads ${String(n)}, the door's waiting count ${J(counts)}`);
+  });
+  return decide(problems, unread, 'the Needs input tab and its badge are the door\'s waiting rows before and after a pull on Sessions');
+}
+
+/**
+ * H sessions-cap: the 2,000-row answer drawn. The first row within 2 s of the
+ * door's answer, the walk reaching the last row and the list's left-out line,
+ * the bidi name its characters with its age inside the row, the three `app`
+ * headers apart, every open project's left-out line, the Machine section in the
+ * menu, the app alive and never reported busy.
+ */
+export function gradeCap(r) {
+  const problems = [];
+  const unread = [];
+  const a = r.answer;
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}`);
+  if (r.busy > 0) problems.push(`XCUITest reported the app busy ${String(r.busy)} time(s): ${J(r.busyLines)}`);
+  if (a === null || a === undefined) return decide(problems, ['the door sent no /v1/sessions answer to grade against'], '');
+  if (typeof r.firstRowAt !== 'number' || typeof r.answerAt !== 'number') unread.push('the first row or the door\'s answer was not timed');
+  else if (r.firstRowAt - r.answerAt > 2_000) problems.push(`the first row was drawn ${String(Math.round(r.firstRowAt - r.answerAt))} ms after the door's answer, past 2 s`);
+  if (r.dump?.complete !== true) unread.push(`the walk did not reach the end in ${String(r.dump?.swipes)} swipe(s)`);
+  const at = byIdOf(r.dump);
+  const groups = a.groupList ?? [];
+  const want = a.ids.filter((_, k) => !groups[a.groupOf[k]]?.collapsed);
+  const drawn = rowIdsOf(r.dump?.elements);
+  if (r.dump?.complete === true) {
+    if (J(drawn) !== J(want)) problems.push(`the rows drawn (${String(drawn.length)}) are not the door's ${String(want.length)} in its order`);
+    if (at.get('list-sessions-left-out')?.label !== `${String(a.omitted)}${SESSIONS_WORDS.leftOutTail}`) problems.push(`the list's left-out line reads ${J(at.get('list-sessions-left-out')?.label ?? null)}, the door left out ${String(a.omitted)}`);
+    for (const g of groups.filter((x) => x.omitted > 0 && !x.collapsed)) if (at.get(`group-left-out-${g.id}`)?.label !== `${String(g.omitted)}${SESSIONS_WORDS.leftOutTail}`) problems.push(`project ${g.id} leaves out ${String(g.omitted)} and draws ${J(at.get(`group-left-out-${g.id}`)?.label ?? null)}`);
+  }
+  if (a.bidi === null || a.bidi === undefined) unread.push('the door\'s answer holds no bidi row');
+  else {
+    const name = at.get(`row-name-${a.bidi.id}`);
+    const age = at.get(`row-age-${a.bidi.id}`);
+    const row = at.get(`row-${a.bidi.id}`);
+    if (name === undefined) problems.push('the bidi row was never drawn');
+    else if (name.label !== a.bidi.name) problems.push(`the bidi row's label is not its characters (${String(name.label.length)} units against ${String(a.bidi.name.length)})`);
+    if (age !== undefined && row !== undefined && age.frame[0] + age.frame[2] > row.frame[0] + row.frame[2] + 0.5) problems.push(`the bidi row's age ends at ${String(age.frame[0] + age.frame[2])}, past its row's right edge ${String(row.frame[0] + row.frame[2])}`);
+    if (age === undefined) problems.push('the bidi row draws no age');
+  }
+  const apps = groups.filter((g) => g.label === 'app');
+  for (const g of apps) {
+    if (!at.has(`group-${g.id}`)) {
+      problems.push(`the app project ${g.id} has no header`);
+      continue;
+    }
+    if (g.machine === null && at.get(`group-folder-${g.id}`)?.label !== g.folder) problems.push(`the local app project ${g.id} draws the folder ${J(at.get(`group-folder-${g.id}`)?.label ?? null)}, not ${J(g.folder)}`);
+    if (g.machine !== null && (at.get(`group-machine-${g.id}`)?.label !== g.machine || at.has(`group-folder-${g.id}`))) problems.push(`the app project elsewhere ${g.id} must draw its badge ${J(g.machine)} and no folder`);
+  }
+  if (apps.length !== 3 || apps.filter((g) => g.machine === null && g.folder !== null).length !== 2 || apps.filter((g) => g.machine !== null && g.folder === null).length !== 1) problems.push(`the door's app projects are ${J(apps.map((g) => [g.machine, g.folder]))}`);
+  // The menu is read at the list's top, after the walk to its end. A drive
+  // whose scroll back stopped short of the title never reached the menu, which
+  // is the drive's premise and not the phone's answer (the fix round,
+  // 2026-10-03: 60 swipes left the walk at the end of 2,000 rows and this read
+  // a missing menu as a phone that offers no Machine section). A menu not
+  // found at the top is still the phone's.
+  if (r.menu === null || r.menu === undefined) {
+    if (r.scrolledShort === true) unread.push('the drive\'s scroll back to the list\'s top stopped short, so the menu was never read');
+    else problems.push('the menu was not found at the list\'s top');
+  } else if (!r.menu.some((l) => typeof l === 'string' && (l.startsWith(SESSIONS_WORDS.machine) || l.includes(SESSIONS_WORDS.thisMac)))) problems.push(`the menu offers no Machine section (${J(r.menu)})`);
+  return decide(problems, unread, `the first row ${typeof r.firstRowAt === 'number' ? String(Math.round(r.firstRowAt - r.answerAt)) : '?'} ms after the answer; ${String(drawn.length)} rows to the last, the left-out lines, the bidi name whole, three app projects apart, Machine offered`);
+}
+
+/** H sessions-older-mac: today's Sessions tab, its two sections and Select, never Pairing. */
+export function gradeOlder({ alive, face }) {
+  const problems = [];
+  if (alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(alive)}`);
+  if (face === null) return decide(['no sessions-face dump'], [], '');
+  if (el(face, 'screen-pairing') !== null) problems.push('the app went to Pairing');
+  if (el(face, 'section-others') === null || el(face, 'section-blocked') === null) problems.push('today\'s two sections are not drawn');
+  if (el(face, 'list-select') === null) problems.push('Select is not drawn');
+  if (el(face, 'list-show') !== null) problems.push('the new Show control is drawn over a Mac without the route');
+  return decide(problems, [], 'today\'s two sections and Select, over a Mac without the route');
+}
+
+/**
+ * H sessions-older-mac-recovers: the older face, then ONE pull draws the new
+ * tab, with no relaunch. `released` is whether the door was told the Mac
+ * updated before that pull (and the drive saw it say so); without it the pull
+ * met a door still refusing, and the reading says nothing of the phone.
+ */
+export function gradeRecovers({ alive, face, pulled, released = true }) {
+  if (face === null || el(face, 'section-others') === null) return decide([], ['the first face was not the older one, so the recovery could not be read'], '');
+  if (released !== true) return decide([], ['the door was not told the Mac updated before the pull, so the recovery could not be read'], '');
+  const problems = [];
+  if (alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(alive)}`);
+  if (pulled === null) problems.push('no dump after the pull');
+  else {
+    if (el(pulled, 'list-show') === null) problems.push('one pull after the Mac answered did not draw the new tab (§15 F6)');
+    if (el(pulled, 'screen-pairing') !== null) problems.push('the app went to Pairing');
+  }
+  return decide(problems, [], 'the older face, then one pull drew the new tab');
+}
+
+/**
+ * The E7 sessions in the order the phone DRAWS them on the Sessions tab since
+ * Phase 316.7: the door's `/v1/sessions` rows for the drive's words, a closed
+ * project's rows left out. Null when any is not drawn.
+ */
+export function sessionsDrawnOrderOf(sessions, answer, state = new Map()) {
+  const drawn = drawnRowsOf(answer, state);
+  const at = sessions.map((s) => drawn.indexOf(s?.id));
+  if (at.some((i) => i === -1)) return null;
+  return sessions.map((s, k) => ({ s, i: at[k] })).sort((a, b) => a.i - b.i).map((x) => x.s);
+}
+
+/**
+ * L1 and F1 on the new face: what the node reader's `/v1/sessions` answers
+ * (the default words, read around the app's read) say the list must draw,
+ * against the labels and frames XCUITest read on screen. The rows are the
+ * same RowView as the older face's, so their frames are measured the same way.
+ */
+function gradeSessionsList(dump, reads) {
+  const problems = [];
+  if (dump === null) return ['the UI test printed no "list" dump'];
+  const first = reads.find((x) => x !== null && x !== undefined) ?? null;
+  if (first === null) return ['the node reader read no /v1/sessions answer around the list'];
+  const want = drawnRowsOf(first);
+  const drawn = els(dump, 'row-').filter((e) => isRowId(e.id)).sort((a, b) => a.frame[1] - b.frame[1]).map((e) => e.id.slice('row-'.length));
+  const visible = want.filter((id) => drawn.includes(id));
+  if (visible.length === 0) problems.push('no row main sent was drawn');
+  if (J(drawn.filter((id) => want.includes(id))) !== J(visible)) problems.push(`the rows are drawn in the order ${J(drawn)}, and main sent ${J(want)}`);
+  const project = first.asked.group === 'project';
+  for (const row of first.rows) {
+    if (!drawn.includes(row.sessionId)) continue;
+    const id = row.sessionId;
+    const name = el(dump, `row-name-${id}`)?.label;
+    if (name !== row.name) problems.push(`row ${id} draws the name ${J(name)}, not ${J(row.name)}`);
+    const ages = reads.filter((x) => x !== null && x !== undefined).map((r) => r.rows.find((x) => x.sessionId === id)?.ageText).filter((a) => a !== undefined).map((a) => (a === null ? SESSIONS_WORDS.dash : a));
+    const age = el(dump, `row-age-${id}`)?.label;
+    // The reads are in time order; an age between the first and the last is main's at the app's moment (the fix round).
+    if (!ages.includes(age) && !(ages.length >= 2 && ageBetween(age, ages[0], ages.at(-1)))) problems.push(`row ${id} draws the age ${J(age)}; main said ${J(ages)}`);
+    const g = first.groups[row.group];
+    const second = row.waiting && row.question !== null ? row.question : row.statusTitle;
+    const wantLine = project ? second : row.waiting && row.question !== null ? `${g.label}${SEPARATOR}${row.question}` : `${row.statusTitle}${SEPARATOR}${g.label}`;
+    const line = el(dump, `row-line-${id}`)?.label ?? '';
+    if (line !== wantLine) problems.push(`row ${id}'s second line ${J(line.slice(0, 80))} is not ${J(wantLine.slice(0, 80))}`);
+    const badge = el(dump, `row-machine-${id}`);
+    if (project ? badge !== null : (row.machine === null) !== (badge === null)) problems.push(`row ${id}'s machine badge is wrong for ${project ? 'a row under its project' : 'a row elsewhere'}`);
+  }
+  for (const g of first.groups) {
+    if (!project || el(dump, `group-${g.id}`) === null) continue;
+    if (el(dump, `group-label-${g.id}`)?.label !== g.label) problems.push(`header ${g.id} reads ${J(el(dump, `group-label-${g.id}`)?.label)}, not ${J(g.label)}`);
+    if (el(dump, `group-count-${g.id}`)?.label !== String(g.count)) problems.push(`header ${g.id} counts ${J(el(dump, `group-count-${g.id}`)?.label)}, not ${String(g.count)}`);
+  }
+  const note = el(dump, 'list-age-note')?.label;
+  if (note !== undefined && note !== first.ageNote) problems.push(`the age note reads ${J(note)}, not main's ${J(first.ageNote)}`);
+  const read = el(dump, 'list-read')?.label;
+  if (read !== undefined && COPY.readLead !== null && !read.startsWith(COPY.readLead)) problems.push(`the foot reads ${J(read)}, which does not start with ${J(COPY.readLead)}`);
+  const frames = [];
+  measureRows(dump, drawn, problems, frames);
+  return problems.length > 0 ? problems : { frames };
+}
+
+/** The XCUITest lines that say the app's main thread did not go idle. */
+const BUSY_LINE = /main thread (?:was |is )?busy|timed out while waiting for .* to idle|failed to get matching snapshot.*idle/i;
+
+/**
+ * Every Sessions grader, proved both ways on readings written here. The honest
+ * readings are SYNTHESIZED from an answer by the rules the graders hold
+ * (`walkOf`), so each break is one edit away from an honest reading and every
+ * clause has a case that fails on it alone (shown by ablating each clause in a
+ * scratch copy of this file, Phase 316.7's builder).
+ */
+function sessionsSelfTest() {
+  const cases = [];
+  const add = (what, got, want) => cases.push({ what, got, want });
+  const tail = SESSIONS_WORDS.leftOutTail;
+  const row = (id, group, extra = {}) => ({ sessionId: id, name: `n-${id}`, group, machine: null, statusDot: 'idle', statusTitle: 'Idle', ageText: '3d old', waiting: false, question: null, end: { state: 'none' }, ...extra });
+  const group = (id, count, extra = {}) => ({ id, label: `L${id}`, machine: null, folder: null, count, omitted: 0, waiting: false, collapsed: false, ...extra });
+  const base = (edit) => {
+    const a = {
+      asked: { show: 'all', group: 'project', sort: 'recent', agent: null, machine: null },
+      rows: [row('w', 0, { waiting: true, question: 'Edit x?', statusTitle: 'Needs input', ageText: '2m' }), row('a', 0), row('e', 1, { ageText: null, machine: 'Mac Pro' })],
+      groups: [group('g1', 2, { waiting: true }), group('g2', 1, { collapsed: true, machine: 'Mac Pro' })],
+      agents: [],
+      machines: [],
+      total: 3,
+      omitted: 0,
+      at: 1,
+      ageNote: 'note'
+    };
+    edit?.(a);
+    return a;
+  };
+  const elem = (id, label, extra = {}) => ({ id, label, frame: [0, 0, 10, 10], ...extra });
+  /** The walk a phone that draws `answer` honestly prints. */
+  const walkOf = (answer, state = new Map()) => {
+    const project = answer.asked.group === 'project';
+    const out = [elem('list-title', 'Sessions'), ...['all', 'active', 'ended'].map((w) => elem(`list-show-${w}`, w, { selected: w === answer.asked.show }))];
+    const open = (g) => (state.has(g.id) ? state.get(g.id) === 'open' : !g.collapsed);
+    const rowEls = (r) => {
+      const g = answer.groups[r.group];
+      const second = r.waiting && r.question !== null ? r.question : r.statusTitle;
+      const line = project ? second : r.waiting && r.question !== null ? `${g.label}${SEPARATOR}${r.question}` : `${r.statusTitle}${SEPARATOR}${g.label}`;
+      const id = r.sessionId;
+      return [elem(`row-${id}`, ''), elem(`row-name-${id}`, r.name), ...(project || r.machine === null ? [] : [elem(`row-machine-${id}`, r.machine)]), elem(`row-age-${id}`, r.ageText ?? SESSIONS_WORDS.dash), elem(`row-line-${id}`, line)];
+    };
+    if (project) {
+      answer.groups.forEach((g, k) => {
+        out.push(elem(`group-${g.id}`, '', { selected: open(g) }), elem(`group-label-${g.id}`, g.label), elem(`group-count-${g.id}`, String(g.count)));
+        if (g.waiting) out.push(elem(`group-waiting-${g.id}`, 'Needs input'));
+        if (g.machine !== null) out.push(elem(`group-machine-${g.id}`, g.machine));
+        if (g.folder !== null) out.push(elem(`group-folder-${g.id}`, g.folder));
+        if (!open(g)) return;
+        for (const r of answer.rows.filter((x) => x.group === k)) out.push(...rowEls(r));
+        if (g.omitted > 0) out.push(elem(`group-left-out-${g.id}`, `${String(g.omitted)}${tail}`));
+      });
+    } else for (const r of answer.rows) out.push(...rowEls(r));
+    if (answer.omitted > 0) out.push(elem('list-sessions-left-out', `${String(answer.omitted)}${tail}`));
+    return { complete: true, swipes: 3, elements: out };
+  };
+  const reading = (answer, state) => ({ dump: walkOf(answer, state), before: answer, after: structuredClone(answer), ...(state === undefined ? {} : { state }) });
+  const find = (r, id) => r.dump.elements.find((x) => x.id === id);
+  const drop = (r, id) => void (r.dump.elements = r.dump.elements.filter((x) => x.id !== id));
+  const leftOut = (a) => {
+    a.groups[0].omitted = 1;
+    a.groups[0].count = 3;
+    a.omitted = 1;
+  };
+  const dumpCase = (what, fn, want, answerEdit) => {
+    const r = reading(base(answerEdit));
+    fn(r);
+    add(`the dump reader ${what}`, gradeSessionsDump(r).ok, want);
+  };
+  dumpCase('passes its honest reading', () => undefined, true);
+  dumpCase('is red on two rows drawn in the other order', (r) => {
+    const e = r.dump.elements;
+    const i = e.findIndex((x) => x.id === 'row-w');
+    const j = e.findIndex((x) => x.id === 'row-a');
+    [e[i], e[j]] = [e[j], e[i]];
+  }, false);
+  dumpCase('is green on a closed project opened by him', (r) => {
+    r.state = new Map([['g2', 'open']]);
+    r.dump = walkOf(r.before, r.state);
+  }, true);
+  dumpCase('is red on a name the door did not send', (r) => void (find(r, 'row-name-a').label = 'x'), false);
+  dumpCase('is red on an age the door did not say', (r) => void (find(r, 'row-age-a').label = '20000d'), false);
+  // The fix round (2026-10-03): the door read just before and just after the
+  // drive's read can be minutes apart, and an honest age drawn between them
+  // is the door's own word at the phone's moment.
+  const between = (what, before, after, drawn, want) => {
+    const r = reading(base((a) => void (a.rows[0].ageText = before)));
+    r.after.rows[0].ageText = after;
+    find(r, 'row-age-w').label = drawn;
+    add(`the dump reader ${what}`, gradeSessionsDump(r).ok, want);
+  };
+  between('passes an age between the door\'s two reads (6m between 5m and 7m)', '5m', '7m', '6m', true);
+  between('passes either read\'s own age (5m, 7m)', '5m', '7m', '5m', true);
+  between('passes an age across a unit change (59m between 58m and 1h)', '58m', '1h', '59m', true);
+  between('passes a creation age between two (16d old between 15d old and 17d old)', '15d old', '17d old', '16d old', true);
+  between('is red on an age past the read after (8m after 5m and 7m)', '5m', '7m', '8m', false);
+  between('is red on an age before the read before (4m before 5m and 7m)', '5m', '7m', '4m', false);
+  between('is red on a creation clock drawn as a wait (6m old between 5m and 7m)', '5m', '7m', '6m old', false);
+  between('is red on a wait drawn as a creation clock (6m between 5m old and 7m old)', '5m old', '7m old', '6m', false);
+  between('is red on an age where the door drew the dash both times', null, null, '6m', false);
+  add('marksWithoutRead names a window holding only a header\'s tap, and one with no dump', J(marksWithoutRead(['pair', 'sessions-mark:a', 'group:g', 'sessions-dump:a', 'sessions-mark:b', 'show:all'])) === J(['a', 'b']), true);
+  add('marksWithoutRead passes a window read by a pull, a choice, Clear filters, a relaunch or Done', J(marksWithoutRead(['sessions-mark:a', 'group:g', 'sessions-pull', 'sessions-dump:a', 'sessions-mark:b', 'menu:Sort by:Name', 'sessions-dump:b', 'sessions-mark:c', 'clear-filters', 'sessions-dump:c', 'sessions-mark:d', 'relaunch-choices:tortie.sessions.show=bogus', 'sessions-dump:d', 'sessions-mark:e', 'batch-done', 'sessions-dump:e'])) === J([]), true);
+  add('ageValue reads now, minutes, hours, days and old, and nothing else', J(['now', '4m', '2h', '3d', '3d old', 'now old', '20000d', 'x', '3w', '', null].map(ageValue)) === J([{ minutes: 0, old: false }, { minutes: 4, old: false }, { minutes: 120, old: false }, { minutes: 4320, old: false }, { minutes: 4320, old: true }, { minutes: 0, old: true }, { minutes: 28_800_000, old: false }, null, null, null, null]), true);
+  dumpCase('is red on a row badge under Project', (r) => void r.dump.elements.push(elem('row-machine-a', 'Mac Pro')), false);
+  dumpCase('is red on a line that is not the row\'s', (r) => void (find(r, 'row-line-a').label = 'x'), false);
+  dumpCase('is red on a project with no header', (r) => drop(r, 'group-g1'), false);
+  dumpCase('is red on a header label that is not the door\'s', (r) => void (find(r, 'group-label-g1').label = 'x'), false);
+  dumpCase('is red on a header count that is not the door\'s', (r) => void (find(r, 'group-count-g1').label = '3'), false);
+  dumpCase('is red on a header with its machine badge missing', (r) => drop(r, 'group-machine-g2'), false);
+  dumpCase('is red on a folder drawn where the door sent none (D7)', (r) => void r.dump.elements.push(elem('group-folder-g2', '/srv/app')), false);
+  dumpCase('is red on a header that hides its needs-input mark (§15 F3)', (r) => drop(r, 'group-waiting-g1'), false);
+  dumpCase('is red on an open header read as closed', (r) => void (find(r, 'group-g1').selected = false), false);
+  dumpCase('is red on an open project\'s left-out line missing', (r) => drop(r, 'group-left-out-g1'), false, leftOut);
+  dumpCase('is red on a left-out line under a project that left nothing out', (r) => void r.dump.elements.push(elem('group-left-out-g1', `1${tail}`)), false);
+  dumpCase('is red on the list\'s left-out line saying another count', (r) => void (find(r, 'list-sessions-left-out').label = `2${tail}`), false, leftOut);
+  dumpCase('is red on the Show control without its word', (r) => drop(r, 'list-show-all'), false);
+  dumpCase('is red on the Show control\'s word not selected', (r) => void (find(r, 'list-show-all').selected = false), false);
+  dumpCase('is red on another word selected beside it', (r) => void (find(r, 'list-show-active').selected = true), false);
+  dumpCase('is UNREADABLE when the answers before and after differ', (r) => void r.after.rows.pop(), null);
+  dumpCase('is green when only an age ticked between the answers', (r) => void (r.after.rows[1].ageText = '4d old'), true);
+  dumpCase('is UNREADABLE when the walk did not reach the end', (r) => void (r.dump.complete = false), null);
+  dumpCase('is UNREADABLE with no walk printed', (r) => void (r.dump = null), null);
+  const none = (a) => void (a.asked.group = 'none');
+  dumpCase('passes None: every row with 316.6\'s line and its badge', () => undefined, true, none);
+  dumpCase('is red on a header drawn under None', (r) => void r.dump.elements.push(elem('group-g1', '')), false, none);
+  dumpCase('is red under None on a row elsewhere without its badge', (r) => drop(r, 'row-machine-e'), false, none);
+  dumpCase('is red under None on a line without its project', (r) => void (find(r, 'row-line-a').label = 'Idle'), false, none);
+  // SL1.
+  const active = (a) => {
+    a.asked.show = 'active';
+    a.groups[1].collapsed = false;
+  };
+  add('SL1 passes a fresh install drawn on the default words', gradeSl1({ reading: reading(base(active)), endedIds: [] }).ok, true);
+  add('SL1 is red on an ended session drawn', gradeSl1({ reading: reading(base(active)), endedIds: ['e'] }).ok, false);
+  add('SL1 is red over a reading not taken for the default words', gradeSl1({ reading: reading(base((a) => { active(a); a.asked.sort = 'name'; })), endedIds: [] }).ok, false);
+  // SL2.
+  const honest = () => reading(base());
+  add('SL2 is UNREADABLE with fewer than 18 combinations', gradeSl2({ combos: [honest()] }).ok, null);
+  add('SL2 passes 18 honest combinations', gradeSl2({ combos: Array.from({ length: 18 }, honest) }).ok, true);
+  add('SL2 is red on one combination drawn out of order', gradeSl2({ combos: Array.from({ length: 18 }, (_, k) => { const r = honest(); if (k === 7) find(r, 'row-name-a').label = 'x'; return r; }) }).ok, false);
+  add('SL2 is UNREADABLE on one combination whose walk stopped short', gradeSl2({ combos: Array.from({ length: 18 }, (_, k) => { const r = honest(); if (k === 3) r.dump.complete = false; return r; }) }).ok, null);
+  // SL3.
+  const agentReading = () => reading(base((a) => void (a.asked.agent = 'codex')));
+  add('SL3 passes the agent and the cleared readings', gradeSl3({ agent: agentReading(), clear: honest(), agentId: 'codex' }).ok, true);
+  add('SL3 is red on an agent reading taken for another agent', gradeSl3({ agent: agentReading(), clear: honest(), agentId: 'claude' }).ok, false);
+  add('SL3 is red on a cleared reading that is not Show All', gradeSl3({ agent: agentReading(), clear: reading(base(active)), agentId: 'codex' }).ok, false);
+  // SL4.
+  const words = (show, group, sort, agent = null) => (a) => {
+    a.asked = { ...a.asked, show, group, sort, agent };
+    if (show !== 'all') a.groups[1].collapsed = false;
+  };
+  const closedState = new Map([['g1', 'closed']]);
+  const sl4 = () => ({
+    filtered: reading(base(words('ended', 'none', 'name', 'codex'))),
+    r1: reading(base(words('ended', 'none', 'name'))),
+    closed: reading(base(words('ended', 'project', 'name')), closedState),
+    r2: reading(base(words('ended', 'project', 'name'))),
+    bogus: reading(base(words('active', 'project', 'name'))),
+    closedGroup: 'g1'
+  });
+  const sl4Case = (what, fn, want) => {
+    const r = sl4();
+    fn(r);
+    delete r.closed.state;
+    add(`SL4 ${what}`, gradeSl4(r).ok, want);
+  };
+  sl4Case('passes its honest readings', () => undefined, true);
+  sl4Case('is red when the reading before the relaunch had no filter', (r) => void (r.filtered = reading(base(words('ended', 'none', 'name')))), false);
+  sl4Case('is red on a first relaunch read for other words', (r) => void (r.r1 = reading(base(words('ended', 'none', 'recent')))), false);
+  sl4Case('is red on a second relaunch read for other words', (r) => void (r.r2 = reading(base(words('ended', 'project', 'recent')))), false);
+  sl4Case('is red on the planted relaunch read for other words', (r) => void (r.bogus = reading(base(words('ended', 'project', 'name')))), false);
+  sl4Case('is red on a closed project the door does not hold', (r) => Object.assign(r, { closed: reading(base(words('ended', 'project', 'name'))), closedGroup: 'nope' }), false);
+  sl4Case('is red when the relaunch kept the closed project closed', (r) => {
+    // The walk drawn with the project still closed, graded as the relaunch must read: every project open.
+    r.r2 = reading(base(words('ended', 'project', 'name')), closedState);
+    delete r.r2.state;
+  }, false);
+  // SL5.
+  const opened = reading(base(), new Map([['g2', 'open']]));
+  delete opened.state;
+  add('SL5 passes a closed project opened by a tap', gradeSl5({ closed: honest(), opened, gid: 'g2' }).ok, true);
+  add('SL5 is red when the tap drew nothing', gradeSl5({ closed: honest(), opened: honest(), gid: 'g2' }).ok, false);
+  add('SL5 is red on a project that does not start closed', gradeSl5({ closed: reading(base((a) => void (a.groups[1].collapsed = false))), opened: reading(base((a) => void (a.groups[1].collapsed = false))), gid: 'g2' }).ok, false);
+  add('SL5 is UNREADABLE on a project the door does not hold', gradeSl5({ closed: honest(), opened, gid: 'nope' }).ok, null);
+  // SL6.
+  const sl6 = (edit) => {
+    const r = { underEnded: true, session: { elements: [] }, turns: { indexes: [0, 1, 2] }, doorIndexes: [0, 1, 2], turnCount: 3 };
+    edit?.(r);
+    return gradeSl6(r).ok;
+  };
+  add('SL6 passes an ended session paged to its first turn with no End', sl6(), true);
+  add('SL6 is red on an End drawn on an ended session', sl6((r) => void (r.session = { elements: [{ id: 'session-end', label: '', frame: [0, 0, 1, 1] }] })), false);
+  add('SL6 is red on no session screen', sl6((r) => void (r.session = null)), false);
+  add('SL6 is red on no turns line', sl6((r) => void (r.turns = null)), false);
+  add('SL6 is red on turns drawn that are not the door\'s', sl6((r) => Object.assign(r, { doorIndexes: [0, 1, 2, 3], turnCount: null })), false);
+  add('SL6 is red on a conversation not paged to its first turn', sl6((r) => Object.assign(r, { turns: { indexes: [1, 2] }, doorIndexes: [1, 2], turnCount: null })), false);
+  add('SL6 is red on fewer turns drawn than the door counts', sl6((r) => void (r.turnCount = 4)), false);
+  add('SL6 is UNREADABLE when the session was not under Ended', sl6((r) => void (r.underEnded = false)), null);
+  // SL7.
+  const ended = END_WORDS.ended;
+  const sl7 = () => ({
+    authUp: true,
+    acked: true,
+    controls: { 'list-show-all': false, 'list-show-active': false, 'list-show-ended': false, 'list-menu': false, 'group-g1': false },
+    targets: ['x', 'y', 'z'],
+    outcomes: { x: ended, y: ended, z: ended },
+    acts: 3,
+    order: { drawn: ['x', 'y', 'z'], confirmed: ['x', 'y', 'z'] },
+    pull: { rows: ['x', 'y', 'z'], outcomes: { x: ended, y: ended, z: ended } },
+    after: honest()
+  });
+  const sl7Case = (what, fn, want) => {
+    const r = sl7();
+    fn(r);
+    add(`SL7 ${what}`, gradeSl7(r).ok, want);
+  };
+  sl7Case('passes its honest reading', () => undefined, true);
+  sl7Case('is red when no Show segment or menu was read while selecting', (r) => void (r.controls = {}), false);
+  sl7Case('is red on the menu taking presses while selecting', (r) => void (r.controls['list-menu'] = true), false);
+  sl7Case('is red on a header taking presses while selecting', (r) => void (r.controls['group-g1'] = true), false);
+  sl7Case('is red on a target that did not end', (r) => void (r.outcomes.y = 'Not run'), false);
+  sl7Case('is red on two acts for three targets', (r) => void (r.acts = 2), false);
+  sl7Case('is UNREADABLE when the drawn order was not read', (r) => void (r.order.drawn = null), null);
+  sl7Case('is red on a batch run out of the drawn order', (r) => void (r.order.confirmed = ['y', 'x', 'z']), false);
+  sl7Case('is red on a target\'s row gone after a pull before Done (§15 F5)', (r) => void (r.pull.rows = ['x', 'y']), false);
+  sl7Case('is red on a target\'s word gone after a pull before Done (§15 F5)', (r) => void (r.pull.outcomes.z = null), false);
+  sl7Case('is red on the list after Done not drawn as the door answered', (r) => void (find(r.after, 'row-name-a').label = 'x'), false);
+  sl7Case('is UNREADABLE when the list after Done could not be read', (r) => void r.after.after.rows.pop(), null);
+  sl7Case('is red on an ended target still drawn after Done', (r) => Object.assign(r, { targets: ['w', 'y', 'z'], outcomes: { w: ended, y: ended, z: ended }, order: { drawn: ['w', 'y', 'z'], confirmed: ['w', 'y', 'z'] }, pull: { rows: ['w', 'y', 'z'], outcomes: { w: ended, y: ended, z: ended } } }), false);
+  sl7Case('is UNREADABLE when the owner check was never answered', (r) => void (r.acked = false), null);
+  // SL8.
+  const blocked = { rows: [{ sessionId: 'w' }] };
+  const tab = (ids, badge, reads = [blocked, blocked]) => ({ dump: { elements: ids.map((id, k) => ({ id: `needs-row-${id}`, label: '', frame: [0, 100 + k * 50, 10, 10] })) }, badge, reads });
+  add('SL8 passes the tab and its badge before and after', gradeSl8({ tabs: [tab(['w'], { value: '1' }), tab(['w'], { value: '1' })] }).ok, true);
+  add('SL8 is red on a badge that is not the waiting count', gradeSl8({ tabs: [tab(['w'], { value: '2' }), tab(['w'], { value: '1' })] }).ok, false);
+  add('SL8 is red on a waiting row missing from the tab', gradeSl8({ tabs: [tab([], { value: '1' }), tab(['w'], { value: '1' })] }).ok, false);
+  add('SL8 is UNREADABLE with an unreadable badge over a waiting row', gradeSl8({ tabs: [tab(['w'], { value: null, system: '26.3' }), tab(['w'], { value: '1' })] }).ok, null);
+  add('SL8 is UNREADABLE when the door was not read', gradeSl8({ tabs: [tab(['w'], { value: null }, [null, null]), tab(['w'], { value: '1' })] }).ok, null);
+  add('SL8 is UNREADABLE with one reading', gradeSl8({ tabs: [tab(['w'], { value: '1' })] }).ok, null);
+  // The cap arm.
+  const capCase = (what, fn, want) => {
+    const answer = {
+      omitted: 5,
+      ids: ['a', 'b', 'c', 'd'],
+      groupOf: [0, 0, 1, 2],
+      groupList: [
+        { id: 'l1', label: 'app', machine: null, folder: '~/one/app', count: 4, omitted: 2, collapsed: false },
+        { id: 'r1', label: 'app', machine: 'Far box', folder: null, count: 4, omitted: 3, collapsed: false },
+        { id: 'l2', label: 'app', machine: null, folder: '~/two/app', count: 1, omitted: 0, collapsed: false }
+      ],
+      bidi: { id: 'b', name: 'bidi' }
+    };
+    const dump = {
+      complete: true,
+      swipes: 9,
+      elements: [
+        elem('group-l1', ''), elem('group-label-l1', 'app'), elem('group-folder-l1', '~/one/app'),
+        elem('row-a', '', { frame: [0, 0, 402, 57] }), elem('row-b', '', { frame: [0, 57, 402, 57] }), elem('row-name-b', 'bidi'), elem('row-age-b', '3m', { frame: [360, 60, 26, 16] }),
+        elem('group-left-out-l1', `2${tail}`),
+        elem('group-r1', ''), elem('group-label-r1', 'app'), elem('group-machine-r1', 'Far box'), elem('row-c', ''), elem('group-left-out-r1', `3${tail}`),
+        elem('group-l2', ''), elem('group-label-l2', 'app'), elem('group-folder-l2', '~/two/app'), elem('row-d', ''),
+        elem('list-sessions-left-out', `5${tail}`)
+      ]
+    };
+    const r = { alive: RUNNING_FOREGROUND, busy: 0, busyLines: [], answer, firstRowAt: 1_500, answerAt: 1_000, dump, menu: ['Group by', 'Sort by', 'Agent', 'Machine', 'Clear filters'] };
+    fn(r);
+    add(`cap ${what}`, gradeCap(r).ok, want);
+  };
+  const capFind = (r, id) => r.dump.elements.find((x) => x.id === id);
+  const capDrop = (r, id) => void (r.dump.elements = r.dump.elements.filter((x) => x.id !== id));
+  capCase('passes its honest reading', () => undefined, true);
+  capCase('is red on an app that died', (r) => void (r.alive = 1), false);
+  capCase('is red on the app reported busy', (r) => Object.assign(r, { busy: 1, busyLines: ['main thread busy'] }), false);
+  capCase('is UNREADABLE when the first row was not timed', (r) => void (r.firstRowAt = null), null);
+  capCase('is red on a first row past 2 s', (r) => void (r.firstRowAt = 3_500), false);
+  capCase('is UNREADABLE when the walk did not reach the end', (r) => void (r.dump.complete = false), null);
+  capCase('is red on rows drawn out of the door\'s order', (r) => {
+    const e = r.dump.elements;
+    const i = e.findIndex((x) => x.id === 'row-a');
+    const j = e.findIndex((x) => x.id === 'row-c');
+    [e[i], e[j]] = [e[j], e[i]];
+  }, false);
+  capCase('is red on the list\'s left-out line saying another count', (r) => void (capFind(r, 'list-sessions-left-out').label = `4${tail}`), false);
+  capCase('is red on a project\'s left-out line missing', (r) => capDrop(r, 'group-left-out-r1'), false);
+  capCase('is UNREADABLE with no bidi row in the answer', (r) => void (r.answer.bidi = null), null);
+  capCase('is red when the bidi row was never drawn', (r) => capDrop(r, 'row-name-b'), false);
+  capCase('is red on a bidi label that is not its characters', (r) => void (capFind(r, 'row-name-b').label = `bidi${String.fromCharCode(0x202c)}`), false);
+  capCase('is red on the bidi age past its row\'s edge', (r) => void (capFind(r, 'row-age-b').frame = [390, 60, 26, 16]), false);
+  capCase('is red on the bidi row with no age', (r) => capDrop(r, 'row-age-b'), false);
+  capCase('is red on an app project with no header', (r) => capDrop(r, 'group-l2'), false);
+  capCase('is red on a local app project\'s folder not the door\'s', (r) => void (capFind(r, 'group-folder-l1').label = '~/x'), false);
+  capCase('is red on a folder drawn on the app project elsewhere (§15 F10)', (r) => void r.dump.elements.push(elem('group-folder-r1', '/srv/app')), false);
+  capCase('is red when the door\'s app projects are not three apart', (r) => void (r.answer.groupList[2].label = 'app2'), false);
+  capCase('is red on no Machine section in the menu', (r) => void (r.menu = ['Group by', 'Sort by', 'Agent']), false);
+  capCase('is UNREADABLE when the scroll back to the top stopped short and the menu was never read', (r) => Object.assign(r, { menu: null, scrolledShort: true }), null);
+  capCase('is red when the scroll reached the top and the menu was not found there', (r) => Object.assign(r, { menu: null, scrolledShort: false }), false);
+  capCase('is UNREADABLE with no answer sent', (r) => void (r.answer = null), null);
+  // The older face and its recovery.
+  const ids = (...xs) => ({ elements: xs.map((id) => ({ id, label: '', frame: [0, 0, 1, 1] })) });
+  const faceOld = ids('screen-list', 'section-blocked', 'section-others', 'list-select');
+  const faceNew = ids('screen-list', 'list-show', 'list-select');
+  add('older passes today\'s face', gradeOlder({ alive: RUNNING_FOREGROUND, face: faceOld }).ok, true);
+  add('older is red on an app that died', gradeOlder({ alive: 1, face: faceOld }).ok, false);
+  add('older is red on Pairing', gradeOlder({ alive: RUNNING_FOREGROUND, face: ids('screen-list', 'section-blocked', 'section-others', 'list-select', 'screen-pairing') }).ok, false);
+  add('older is red without today\'s two sections', gradeOlder({ alive: RUNNING_FOREGROUND, face: ids('screen-list', 'section-others', 'list-select') }).ok, false);
+  add('older is red on no Select', gradeOlder({ alive: RUNNING_FOREGROUND, face: ids('screen-list', 'section-blocked', 'section-others') }).ok, false);
+  add('older is red on the new Show control over a Mac without the route', gradeOlder({ alive: RUNNING_FOREGROUND, face: ids('screen-list', 'section-blocked', 'section-others', 'list-select', 'list-show') }).ok, false);
+  add('older is red on no face read', gradeOlder({ alive: RUNNING_FOREGROUND, face: null }).ok, false);
+  add('recovers passes the older face then the new one', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: faceNew }).ok, true);
+  add('recovers is red on an app that died', gradeRecovers({ alive: 1, face: faceOld, pulled: faceNew }).ok, false);
+  add('recovers is red with no dump after the pull', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: null }).ok, false);
+  add('recovers is red when the pull kept the older face (§15 F6)', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: faceOld }).ok, false);
+  add('recovers is red when the pull went to Pairing', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: ids('screen-list', 'list-show', 'screen-pairing') }).ok, false);
+  add('recovers is UNREADABLE when the first face was already the new one', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceNew, pulled: faceNew }).ok, null);
+  add('recovers is UNREADABLE when the door was never told the Mac updated before the pull', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: faceOld, released: false }).ok, null);
+  add('recovers passes the older face then the new one once the door was told', gradeRecovers({ alive: RUNNING_FOREGROUND, face: faceOld, pulled: faceNew, released: true }).ok, true);
+  // L1 and F1 on the new face: the list as drawn on screen, with its frames.
+  const rowAt = (id, y, name, age, line, last) => [
+    { id: `row-${id}`, label: '', frame: [0, y, 402, last ? 56 : 57] },
+    { id: `row-dot-${id}`, label: '', frame: [16, y + 12, 10, 10] },
+    { id: `row-name-${id}`, label: name, frame: [34, y + 6.8333, 60.33, 20.3333] },
+    { id: `row-age-${id}`, label: age, frame: [361, y + 9.1667, 25, 15.6667] },
+    { id: `row-line-${id}`, label: line, frame: [16, y + 31, 200, 18] }
+  ];
+  const l1Answer = base((a) => {
+    active(a);
+    a.rows = a.rows.slice(0, 2);
+    a.groups = a.groups.slice(0, 1);
+    a.total = 2;
+  });
+  const l1 = (edit) => {
+    const d = {
+      step: 'screen',
+      name: 'list',
+      window: [402, 874],
+      elements: [
+        { id: 'screen-list', label: '', frame: [0, 0, 402, 874] },
+        { id: 'list-show', label: '', frame: [16, 100, 370, 32] },
+        { id: 'group-g1', label: '', frame: [0, 140, 402, 36] },
+        { id: 'group-label-g1', label: 'Lg1', frame: [33, 148, 40, 20] },
+        { id: 'group-count-g1', label: '2', frame: [80, 150, 10, 16] },
+        ...rowAt('w', 177, 'n-w', '2m', 'Edit x?', false),
+        ...rowAt('a', 234, 'n-a', '3d old', 'Idle', true),
+        { id: 'list-age-note', label: 'note', frame: [16, 300, 357, 33] },
+        { id: 'list-read', label: `${String(COPY.readLead)}4:32 PM`, frame: [306, 340, 80, 15] }
+      ]
+    };
+    edit?.(d);
+    const got = gradeSessionsList(d, [l1Answer, structuredClone(l1Answer)]);
+    return !Array.isArray(got);
+  };
+  const l1Find = (d, id) => d.elements.find((x) => x.id === id);
+  add('L1 on the new face passes its honest dump', l1(), true);
+  add('L1 on the new face is red with no row drawn', l1((d) => void (d.elements = d.elements.filter((x) => !x.id.startsWith('row-')))), false);
+  add('L1 on the new face is red on rows in the other order', l1((d) => {
+    // The two rows swapped whole, each still the mock's box (the last one without its hairline).
+    for (const x of d.elements) {
+      if (x.id.startsWith('row-') && x.id.endsWith('-a')) x.frame[1] -= 57;
+      if (x.id.startsWith('row-') && x.id.endsWith('-w')) x.frame[1] += 57;
+    }
+    l1Find(d, 'row-a').frame[3] = 57;
+    l1Find(d, 'row-w').frame[3] = 56;
+  }), false);
+  add('L1 on the new face is red on a name that is not the door\'s', l1((d) => void (l1Find(d, 'row-name-a').label = 'x')), false);
+  add('L1 on the new face is red on an age that is not the door\'s', l1((d) => void (l1Find(d, 'row-age-a').label = '4m')), false);
+  add('L1 on the new face is red on a line that is not the row\'s', l1((d) => void (l1Find(d, 'row-line-w').label = 'Needs input')), false);
+  add('L1 on the new face is red on a row badge under Project', l1((d) => void d.elements.push({ id: 'row-machine-a', label: 'Mac Pro', frame: [300, 240, 50, 16] })), false);
+  add('L1 on the new face is red on a header label that is not the door\'s', l1((d) => void (l1Find(d, 'group-label-g1').label = 'x')), false);
+  add('L1 on the new face is red on a header count that is not the door\'s', l1((d) => void (l1Find(d, 'group-count-g1').label = '3')), false);
+  add('L1 on the new face is red on an age note that is not main\'s', l1((d) => void (l1Find(d, 'list-age-note').label = 'x')), false);
+  add('L1 on the new face is red on a foot that is not the read line', l1((d) => void (l1Find(d, 'list-read').label = 'x')), false);
+  add('L1 on the new face is red on a row off the mock\'s box', l1((d) => void (l1Find(d, 'row-w').frame[3] = 61)), false);
+  // E7's drawn order, and the small readers.
+  const order = (xs) => (xs === null ? null : xs.map((x) => x.id).join(','));
+  add('sessionsDrawnOrderOf reads the door\'s rows in order', order(sessionsDrawnOrderOf([{ id: 'a' }, { id: 'w' }], base())) === 'w,a', true);
+  add('sessionsDrawnOrderOf is null for a row of a closed project', sessionsDrawnOrderOf([{ id: 'e' }], base()) === null, true);
+  add('sameAnswer ignores the clock and the ages only', sameAnswer(base(), { ...base(), at: 9, rows: base().rows.map((r) => ({ ...r, ageText: 'x' })) }) && !sameAnswer(base(), { ...base(), omitted: 1 }), true);
+  add('BUSY_LINE reads XCUITest\'s busy line', BUSY_LINE.test('Wait for com.itavero.tortie.phone to idle: main thread busy') && !BUSY_LINE.test('Tap "Sessions" Button'), true);
+  let bad = 0;
+  for (const c of cases) {
+    const ok = c.got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}: ${c.got === true ? 'green' : c.got === false ? 'red' : c.got === null ? 'UNREADABLE' : String(c.got)}`);
+  }
+  return { bad, total: cases.length };
+}
+
+// ---------------------------------------------------------------------------
 // The hostile door, in a process of its own
 // ---------------------------------------------------------------------------
 
@@ -4130,7 +5094,14 @@ function selfTest() {
       ? `${TAG} reply self-test PASS: ${String(replies.total)} cases (P1 to P10, RH and RP) graded as they must be.`
       : `${TAG} reply self-test FAIL: ${String(replies.bad)} of ${String(replies.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 ? 0 : 1);
+  // Phase 316.7: the Sessions tab.
+  const sessionsCases = sessionsSelfTest();
+  console.log(
+    sessionsCases.bad === 0
+      ? `${TAG} Sessions self-test PASS: ${String(sessionsCases.total)} cases (the dump reader, SL1 to SL8, the cap, the older face and its recovery, the drawn order) graded as they must be.`
+      : `${TAG} Sessions self-test FAIL: ${String(sessionsCases.bad)} of ${String(sessionsCases.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && sessionsCases.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -4359,6 +5330,18 @@ exit 0
   git(['add', '-A']);
   git(['-c', 'user.email=p@x', '-c', 'user.name=p', 'commit', '-qm', 'seed']);
 
+  // ---- Phase 316.7: the sessions group's world, before the launch ---------
+  // 120 ended sessions over four folders (two named `app`, the bidi name)
+  // written into the scratch manifest through the SHIPPING store by
+  // build/p3167/seed-sessions.mts. Records only: nothing of theirs runs.
+  if (ARMS.has('sessions')) {
+    const seeded = spawnSync(process.execPath, [tsxCli(), '--tsconfig', 'tsconfig.node.json', join(ROOT, 'build', 'p3167', 'seed-sessions.mts'), '--manifest', join(PROFILE, 'gmux', 'manifest.db'), '--shape', 'p316', '--root', SEED_ROOT, '--out', SEED_OUT], { cwd: ROOT, encoding: 'utf8', timeout: 300_000, maxBuffer: 16 * 1024 * 1024, env: { ...process.env, HOME } });
+    const line = String(seeded.stdout ?? '').trim().split('\n').filter((l) => l.startsWith('{')).pop() ?? null;
+    const summary = line === null ? null : JSON.parse(line);
+    report.readings.sessionsSeed = summary ?? { status: seeded.status, stderr: String(seeded.stderr ?? '').slice(0, 300) };
+    arm('SL0 the sessions world is seeded through the shipping store before the launch', seeded.status === 0 && summary?.listedBack === 120, `seed-sessions.mts exited ${String(seeded.status)}; ${J(summary === null ? null : { written: summary.written, listedBack: summary.listedBack, folders: summary.folders, folderNames: summary.folderNames })}`);
+  }
+
   // ---- Electron ------------------------------------------------------------
   // Phase 332: the name check's servers are the loopback stand-in's, or nothing launches.
   const dnsPre = await dns.preflight(dns.servers);
@@ -4532,6 +5515,8 @@ exit 0
           }
         };
         const readBlocked = () => readJson('/v1/blocked');
+        /** Phase 316.7: one `/v1/sessions` read by the node reader for `query`'s words, or null. */
+        const readSessionsAs = async (query = {}) => (await readSessions(reader, readerDoor, query)).answer ?? null;
 
         // The waiting session must really be waiting before the list is graded.
         for (let i = 0; i < 90; i += 1) {
@@ -4587,6 +5572,9 @@ exit 0
           let allowed = false;
           let simPhoneId = null;
           const readsAroundList = [];
+          // Phase 316.7: the Sessions tab draws `/v1/sessions` for the default
+          // words on a fresh Simulator, so the list is read that way too.
+          const sessionsAroundList = [];
           const opened = steps.find((st) => st.startsWith('open:'));
           const sessionIdOpened = opened === undefined ? null : opened.slice('open:'.length);
           let sessionAround = null;
@@ -4639,10 +5627,11 @@ exit 0
               test: { id: UI_TEST, project: opts.project },
               derivedDataPath: opts.derivedDataPath ?? DD,
               label,
+              ...(opts.timeoutMs === undefined ? {} : { timeoutMs: opts.timeoutMs }),
               env: {
                 P316_PAYLOAD: w.payload,
                 P316_STEPS: steps.join(','),
-                P316_WAIT_S: '150',
+                P316_WAIT_S: opts.waitS ?? '150',
                 P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}`,
                 ...(opts.pushToken === undefined ? {} : { P316_PUSH_TOKEN: opts.pushToken }),
                 ...(opts.notifications === undefined ? {} : { P316_NOTIFICATIONS: opts.notifications }),
@@ -4695,12 +5684,31 @@ exit 0
                   // age that ticks over a minute in between is one of them.
                   await pocket(cdp, 'cancelPairing');
                   readsAroundList.push(await readBlocked());
+                  sessionsAroundList.push(await readSessionsAs({}));
                   const st = (await pocket(cdp, 'status')).value ?? null;
                   newPhoneRow = (st?.phones ?? []).find((ph) => !phonesBefore.includes(ph.id)) ?? null;
                 }
                 if (event.step === 'screen' && event.name === 'list') {
                   await pocket(cdp, 'cancelPairing');
                   readsAroundList.push(await readBlocked());
+                  sessionsAroundList.push(await readSessionsAs({}));
+                }
+                // Phase 316.7: the sessions group's marks. The door is read for
+                // the mark's words before the drive's own read (the step goes on
+                // only once this file wrote `sessions-<seq>`), and again when the
+                // walk is printed, so the two bracket what the phone drew.
+                if (opts.sessions !== undefined && event.step === 'sessions-before') {
+                  // A sessions drive reads no `list`: its first mark is what
+                  // says the phone is paired, so the window is shut here.
+                  sampling = false;
+                  await pocket(cdp, 'cancelPairing');
+                  const query = opts.sessions.queries.get(String(event.tag)) ?? null;
+                  opts.sessions.reads.set(String(event.tag), { query, before: query === null ? null : await readSessionsAs(query), after: null });
+                  writeFileSync(join(opts.sessions.acks, `sessions-${String(event.seq)}`), 'ok\n');
+                }
+                if (opts.sessions !== undefined && event.step === 'sessions-dump') {
+                  const got = opts.sessions.reads.get(String(event.tag));
+                  if (got !== undefined && got.query !== null) got.after = await readSessionsAs(got.query);
                 }
                 if (event.step === 'screen' && event.name === 'session' && sessionIdOpened !== null) {
                   // The session as the door answered it at the moment the app drew
@@ -4754,6 +5762,7 @@ exit 0
             await sampler;
           }
           if (readsAroundList.length > 0) readsAroundList.push(await readBlocked());
+          if (sessionsAroundList.length > 0) sessionsAroundList.push(await readSessionsAs({}));
           // The phone this run just paired, as the Mac lists it, for M1: the
           // pins its handshakes must have presented.
           const statusAfter = (await pocket(cdp, 'status')).value ?? null;
@@ -4768,6 +5777,7 @@ exit 0
             drawnFingerprint,
             allowed,
             readsAroundList: readsAroundList.filter((r) => r !== null),
+            sessionsAroundList: sessionsAroundList.filter((r) => r !== null),
             removed,
             simPhoneId: simPhoneId ?? phonesAfter.find((id) => !phonesBefore.includes(id)) ?? null,
             sessionAround,
@@ -5110,8 +6120,14 @@ exit 0
                 arm('N0 the Mac can send, so the phone asks for notifications after the fingerprint and before it is allowed, and the Mac holds its development address', v.ok, v.said);
               }
               // L1
-              const listGrade = run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(ev, 'list'), run.readsAroundList);
-              arm('L1 the list says what main sent, in its order, at the mocks\' frames', !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 8).join('; ') : `sections and ${String(run.readsAroundList[0].rows.length + run.readsAroundList[0].others.length)} row(s) agree; frames ${J(listGrade.frames)}`);
+              // Phase 316.7: the Sessions tab draws `/v1/sessions` (the new
+              // face, `list-show` drawn) or, over a Mac without the route,
+              // today's two sections from `/v1/blocked`; each is held to its own.
+              const newFace = el(lastDump(ev, 'list'), 'list-show') !== null;
+              const listGrade = newFace
+                ? run.sessionsAroundList.length === 0 ? ['the node reader read no /v1/sessions around the list'] : gradeSessionsList(lastDump(ev, 'list'), run.sessionsAroundList)
+                : run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(ev, 'list'), run.readsAroundList);
+              arm('L1 the list says what main sent, in its order, at the mocks\' frames', !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 8).join('; ') : newFace ? `the Sessions tab's ${String(run.sessionsAroundList[0].rows.length)} row(s) and ${String(run.sessionsAroundList[0].groups.length)} project(s) agree; frames ${J(listGrade.frames)}` : `sections and ${String(run.readsAroundList[0].rows.length + run.readsAroundList[0].others.length)} row(s) agree; frames ${J(listGrade.frames)}`);
               report.readings.frames.measured = Array.isArray(listGrade) ? null : listGrade.frames;
               // S1
               if (talk !== undefined) {
@@ -5290,7 +6306,11 @@ exit 0
             } else if (run.result.events.length === 0) {
               arm('F1 iOS 18.3 pairing', null, `the UI test printed no P316 line on iOS ${sim.runtime} (xcodebuild exited ${String(run.result.code)})`);
             } else {
-              const listGrade = run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(lastDump(run.result.events, 'list'), run.readsAroundList);
+              // Phase 316.7: the new face or the older one, each by its own read.
+              const floorList = lastDump(run.result.events, 'list');
+              const listGrade = el(floorList, 'list-show') !== null
+                ? run.sessionsAroundList.length === 0 ? ['the node reader read no /v1/sessions around the list'] : gradeSessionsList(floorList, run.sessionsAroundList)
+                : run.readsAroundList.length === 0 ? ['the node reader read nothing around the list'] : gradeList(floorList, run.readsAroundList);
               arm(`F1 iOS ${sim.runtime}: the fingerprint matches, Allow, the signed read, the list`, fingerprintDigits(run.drawnFingerprint ?? '') === fingerprintDigits(run.macFingerprint ?? 'x') && run.allowed && !Array.isArray(listGrade), Array.isArray(listGrade) ? listGrade.slice(0, 6).join('; ') : `paired and the list agrees; frames ${J(listGrade.frames)}`);
               const t = tapOf(tapReadings(run.result.events, run.deliveries), 'F1+');
               const name = alerts.readings['F1+']?.name ?? null;
@@ -5463,7 +6483,12 @@ exit 0
             // output first, so row one is the last made, never e7a). The drive
             // waits on the first drawn row and the grade reads them in this
             // order; the confirmation's order is read after and must agree.
-            const e7Drawn = drawnOrderOf([S.e7a, S.e7b, S.e7c], await readJson('/v1/blocked'));
+            // Phase 316.7: the Sessions tab draws `/v1/sessions` now, under
+            // All by E7's turn (E4 shows All before its Select), so the drawn
+            // order is read there; a Mac without the route answers none, and
+            // the older face's order is `/v1/blocked`'s.
+            const e7Answer = await readSessionsAs({ show: 'all' });
+            const e7Drawn = e7Answer !== null ? sessionsDrawnOrderOf([S.e7a, S.e7b, S.e7c], e7Answer) : drawnOrderOf([S.e7a, S.e7b, S.e7c], await readJson('/v1/blocked'));
             const E7 = e7Drawn ?? [S.e7a, S.e7b, S.e7c];
             report.readings.E7Order = { drawn: e7Drawn === null ? null : e7Drawn.map((s) => s.name) };
 
@@ -5481,6 +6506,10 @@ exit 0
                 `open:${S.e2.id}`,
                 'end-cancel',
                 'back',
+                // Phase 316.7: the Sessions tab opens on Active, and E4's third
+                // row is ended, so the tab shows All before Select (Select works
+                // as 317 built it, over the rows drawn).
+                'show:all',
                 `select:${S.e4a.id}+${S.e4b.id}+${S.e4c.id}`,
                 'end-these',
                 'batch-done',
@@ -6220,6 +7249,217 @@ exit 0
           }
         }
 
+        // ==================================================================
+        // Phase 316.7: THE SESSIONS GROUP (build/p3167/SPEC.md §9.4). Its own
+        // fresh Simulator, so no other arm meets a remembered choice; SL1 and
+        // SL6 again on the floor. Every grade reads the door just before the
+        // drive's own read (`sessions-mark:`, which waits for this file's
+        // `sessions-<seq>`) and when the walk is printed; two answers that
+        // differ make that reading UNREADABLE, never a pass.
+        // ==================================================================
+        if (ARMS.has('sessions')) {
+          await confirmListening(cdp);
+          mkdirSync(ACKS_SESSIONS, { recursive: true });
+          const listAll = async () => JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, status: x.status, agent: x.agent }))))'));
+          const ended = (x) => x.status === 'exited' || x.status === 'restorable';
+          // SL6: the planted conversation's session, ended on the Mac.
+          let talkEnded = false;
+          if (talk !== undefined) {
+            await cdpEval(cdp, `window.gmux.sessions.kill(${J(talk.id)}).then(() => true).catch(() => false)`);
+            for (let i = 0; i < 40 && !talkEnded; i += 1) {
+              talkEnded = ended((await listAll()).find((x) => x.id === talk.id) ?? { status: '' });
+              if (!talkEnded) await sleep(500);
+            }
+          }
+          // SL7: three live shells of its own, in the project folder.
+          const sl7Names = ['p3167-sl7a', 'p3167-sl7b', 'p3167-sl7c'];
+          for (const name of sl7Names) await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent: 'shell' })}).then(() => true).catch(() => false)`);
+          let sl7 = [];
+          for (let i = 0; i < 60; i += 1) {
+            const now = await listAll();
+            sl7 = sl7Names.map((n) => now.find((x) => x.name === n) ?? null);
+            if (sl7.every((x) => x !== null && ['running', 'idle', 'needs_input'].includes(x.status))) break;
+            await sleep(500);
+          }
+          // What the drive will meet, read before it so the steps can name it.
+          const allAnswer = await readSessionsAs({ show: 'all', group: 'project', sort: 'recent' });
+          const endedAnswer = await readSessionsAs({ show: 'ended', group: 'project', sort: 'name' });
+          const agentChoice = (allAnswer?.agents ?? []).find((c) => c.id === 'codex') ?? (allAnswer?.agents ?? [])[0] ?? null;
+          // SL5's project: the smallest one All draws closed. SL4's: one Ended
+          // draws open, the seeded `billing` folder's when it is there.
+          const gid5 = [...(allAnswer?.groups ?? [])].filter((g) => g.collapsed).sort((a, b) => a.count - b.count)[0]?.id ?? null;
+          const gid4 = (endedAnswer?.groups ?? []).find((g) => g.label === 'billing')?.id ?? (endedAnswer?.groups ?? [])[0]?.id ?? null;
+          const endedAtStart = (await listAll()).filter(ended).map((x) => x.id);
+          const premise = [];
+          if (allAnswer === null) premise.push('the node reader read no /v1/sessions answer');
+          if (sl7.some((x) => x === null)) premise.push('the three SL7 shells were not all made live');
+          if (agentChoice === null || gid5 === null || gid4 === null) premise.push(`the world offers no agent, no closed project under All or no project under Ended (${J({ agent: agentChoice?.id ?? null, gid5, gid4 })})`);
+          if (premise.length > 0) {
+            arm('SL the sessions group\'s world', null, premise.join('; '));
+          } else {
+            const W = SESSIONS_WORDS;
+            /** SL8's readings of the Needs input tab: each tab press, its dump, its badge and the door's reads around it. */
+            const sl8TabsOf = (run, events) => {
+              const names = events.filter((e) => e.step === 'tab-before').map((e) => e.name);
+              return run.badgeReads.map((b, k) => ({ name: names[k], dump: dumps(events, 'tab-needs')[names.slice(0, k + 1).filter((n) => n === 'needs').length - 1] ?? null, badge: b.event, reads: b.reads })).filter((t) => t.name === 'needs');
+            };
+            /** SL8's steps: the Needs input tab, a pull on Sessions, the Needs input tab again. */
+            const SL8_STEPS = ['tab:needs', 'tab:sessions', 'sessions-pull', 'tab:needs'];
+            const queries = new Map();
+            const steps = ['pair'];
+            const mark = (tag, query, ...between) => {
+              queries.set(tag, query);
+              steps.push(`sessions-mark:${tag}`, ...between, `sessions-dump:${tag}`);
+            };
+            // SL1: a fresh install opens on Active, Project, Recent.
+            // Read by a pull, so the phone's read lies between the door's two
+            // (`marksWithoutRead`, the fix round of 2026-10-04).
+            mark('sl1', { show: 'active', group: 'project', sort: 'recent' }, 'sessions-pull');
+            // SL8: the Needs input tab and its badge, around a pull on Sessions.
+            steps.push(...SL8_STEPS);
+            // SL2: every Show × Group × Sort, each choice made only when it changes.
+            const combos = [];
+            let now = { show: 'active', group: 'project', sort: 'recent' };
+            for (const show of ['active', 'ended', 'all']) {
+              for (const group of ['project', 'none']) {
+                for (const sort of ['recent', 'name', 'oldest']) {
+                  const tag = `c-${show}-${group}-${sort}`;
+                  const between = [];
+                  if (show !== now.show) between.push(`show:${show}`);
+                  if (group !== now.group) between.push(`menu:${W.groupBy}:${W.group[group]}`);
+                  if (sort !== now.sort) between.push(`menu:${W.sortBy}:${W.sort[sort]}`);
+                  // A combination that needs no choice is read by a pull, so the
+                  // phone's read lies between the door's two reads (the fix round).
+                  mark(tag, { show, group, sort }, ...(between.length > 0 ? between : ['sessions-pull']));
+                  combos.push(tag);
+                  now = { show, group, sort };
+                }
+              }
+            }
+            // SL5: under All a closed project opens with a tap (now All, None, Oldest first).
+            mark('sl5-closed', { show: 'all', group: 'project', sort: 'recent' }, `menu:${W.groupBy}:${W.group.project}`, `menu:${W.sortBy}:${W.sort.recent}`);
+            // A header's tap reads nothing, so a pull reads the opened project
+            // (it stays open for the model's life, D13); before, SL5 failed an
+            // honest `20m` against the door's `21m` (the fix round, 2026-10-04).
+            mark('sl5-open', { show: 'all', group: 'project', sort: 'recent' }, `group:${gid5}`, 'sessions-pull');
+            // SL3: one agent, then Clear filters (Show All, the filter gone).
+            mark('sl3-agent', { show: 'all', group: 'project', sort: 'recent', agent: agentChoice.id }, `menu:${W.agent}:${String(agentChoice.label)}`);
+            mark('sl3-clear', { show: 'all', group: 'project', sort: 'recent' }, 'clear-filters');
+            // SL6: the ended conversation, under Ended.
+            if (talk !== undefined) steps.push('show:ended', `open:${talk.id}`, 'conversation', 'first', 'back');
+            // SL7: End these over the rows drawn, a pull before Done, then Done.
+            mark('sl7-pre', { show: 'active', group: 'project', sort: 'recent' }, 'show:active');
+            // The door is read BEFORE Done, whose own read draws the rows after
+            // it, so the phone's read lies between the two door reads the grade
+            // takes (the fix round: read just after Done, the phone's read came
+            // first, and an age that ticked in between read as a failure).
+            steps.push(`select:${sl7.map((x) => x.id).join('+')}`, 'end-these', 'batch-pull');
+            mark('sl7-after', { show: 'active', group: 'project', sort: 'recent' }, 'batch-done');
+            // SL4: the three words kept across a relaunch, the filter and the
+            // closed project dropped, and a planted `bogus` read as Active.
+            mark('sl4-filtered', { show: 'ended', group: 'none', sort: 'name', agent: agentChoice.id }, 'show:ended', `menu:${W.groupBy}:${W.group.none}`, `menu:${W.sortBy}:${W.sort.name}`, `menu:${W.agent}:${String(agentChoice.label)}`);
+            mark('sl4-r1', { show: 'ended', group: 'none', sort: 'name' }, 'relaunch-choices');
+            mark('sl4-closed', { show: 'ended', group: 'project', sort: 'name' }, `menu:${W.groupBy}:${W.group.project}`, `group:${gid4}`);
+            mark('sl4-r2', { show: 'ended', group: 'project', sort: 'name' }, 'relaunch-choices');
+            mark('sl4-bogus', { show: 'active', group: 'project', sort: 'name' }, 'relaunch-choices:tortie.sessions.show=bogus');
+            if (marksWithoutRead(steps).length > 0) throw new Error(`the sessions drive has a mark with no read before its dump: ${J(marksWithoutRead(steps))}`);
+            const ev = await withSimulator({ label: 'p316-sessions', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-sessions'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              await sim.biometry('enrol');
+              const reads = new Map();
+              const marks = {};
+              const react = async (event) => {
+                // End these is behind Face ID (Phase 317): answered from the host.
+                if (event.step === 'end-auth-up') {
+                  marks.doneBefore = await countLogLines(DONE_LINE);
+                  const b = await sim.biometry('match').catch(() => ({ code: -1 }));
+                  marks.biometry = b.code;
+                  writeFileSync(join(ACKS_SESSIONS, `auth-${String(event.seq)}`), 'ok\n');
+                }
+                if (event.step === 'sessions-before' && event.tag === 'sl7-after') marks.doneAfter = await countLogLines(DONE_LINE);
+              };
+              const run = await pairAndRead(sim, steps, 'sessions', { env: { P316_ACKS: ACKS_SESSIONS }, react, sessions: { queries, acks: ACKS_SESSIONS, reads }, timeoutMs: 3_600_000, waitS: '240' });
+              return { run, reads, marks };
+            });
+            if (!ev.run.ok || ev.run.result.events.length === 0) {
+              arm('SL the sessions group', null, `the drive did not run: ${String(ev.run.why ?? `no P316 line (xcodebuild exited ${String(ev.run.result?.code)})`)}`);
+            } else {
+              const events = ev.run.result.events;
+              const R = (tag, state) => ({ dump: events.find((e) => e.step === 'sessions-dump' && e.tag === tag) ?? null, before: ev.reads.get(tag)?.before ?? null, after: ev.reads.get(tag)?.after ?? null, ...(state === undefined ? {} : { state }) });
+              report.readings.sessions = { lines: events.length, xcodebuild: ev.run.result.code, ms: ev.run.result.ms, reactionErrors: ev.run.result.reactionErrors, menus: events.filter((e) => e.step === 'menu').map((e) => ({ label: e.label, found: e.found, path: e.path ?? null, seen: e.seen ?? null })) };
+              let v = gradeSl1({ reading: R('sl1'), endedIds: endedAtStart });
+              arm('SL1 iOS 26.3: a fresh install\'s Sessions tab is Active, Project, Recent, each header the door\'s, nothing ended drawn', v.ok, v.said);
+              v = gradeSl2({ combos: combos.map((tag) => ({ ...R(tag), tag })) });
+              arm('SL2 every Show × Group × Sort draws the door\'s rows in its order, each age the door\'s or the dash', v.ok, v.said);
+              const opened5 = new Map([[gid5, 'open']]);
+              v = gradeSl3({ agent: R('sl3-agent', opened5), clear: R('sl3-clear', opened5), agentId: agentChoice.id });
+              arm('SL3 Agent narrows the list to the door\'s answer for it, and Clear filters draws Show All with no filter', v.ok, v.said);
+              v = gradeSl4({ filtered: R('sl4-filtered'), r1: R('sl4-r1'), closed: R('sl4-closed'), r2: R('sl4-r2'), bogus: R('sl4-bogus'), closedGroup: gid4 });
+              arm('SL4 a relaunch keeps Show, Group by and Sort by, drops the filter and every opened or closed project, and `bogus` reads Active', v.ok, v.said);
+              v = gradeSl5({ closed: R('sl5-closed'), opened: R('sl5-open'), gid: gid5 });
+              arm('SL5 under All a project with only ended sessions starts closed with its count, and a tap opens it', v.ok, v.said);
+              if (talk === undefined || !talkEnded) arm('SL6 iOS 26.3: an ended session opens from Ended and its conversation pages to its first turn', null, 'the planted conversation\'s session was not ended on the Mac');
+              else {
+                const paged = await pageBack(reader, readerDoor, talk.id, 20);
+                const detail = (await readJson(`/v1/session?id=${encodeURIComponent(talk.id)}`))?.session ?? null;
+                const underEnded = (await readSessionsAs({ show: 'ended', group: 'project', sort: 'recent' }))?.rows?.some((r) => r.sessionId === talk.id) === true;
+                v = gradeSl6({ underEnded, session: lastDump(events, 'session'), turns: events.find((e) => e.step === 'turns') ?? null, doorIndexes: paged.pages.slice().reverse().flatMap((p) => p.turns).map((t) => t.index), turnCount: detail?.turnCount ?? null });
+                arm('SL6 iOS 26.3: an ended session opens from Ended, its conversation pages to its first turn, and no End is drawn', v.ok, v.said);
+              }
+              {
+                const sel = events.find((e) => e.step === 'select') ?? null;
+                const done = events.find((e) => e.step === 'end-these' && e.for === 'end-these') ?? null;
+                const dialog = events.find((e) => e.step === 'end-dialog' && e.for === 'end-these') ?? null;
+                const drawn = R('sl7-pre').before === null ? null : sessionsDrawnOrderOf(sl7, R('sl7-pre').before);
+                const confirmed = confirmOrderOf(dialog, sl7);
+                const pull = events.find((e) => e.step === 'batch-pull') ?? null;
+                v = gradeSl7({
+                  authUp: events.some((e) => e.step === 'end-auth-up' && e.for === 'end-these'),
+                  acked: events.some((e) => e.step === 'end-auth-answered' && e.for === 'end-these' && e.acked === true),
+                  controls: sel?.controls ?? {},
+                  targets: sl7.map((x) => x.id),
+                  outcomes: done?.outcomes ?? {},
+                  acts: typeof ev.marks.doneAfter === 'number' && typeof ev.marks.doneBefore === 'number' ? ev.marks.doneAfter - ev.marks.doneBefore : null,
+                  order: { drawn: drawn === null ? null : drawn.map((x) => x.id), confirmed: confirmed === null ? null : confirmed.map((x) => x.id) },
+                  pull: pull === null ? null : { rows: pull.rows ?? [], outcomes: pull.outcomes ?? {} },
+                  after: R('sl7-after')
+                });
+                arm('SL7 End these: Select draws the Show control and the menu off, three end in the drawn order, a pull before Done keeps every row and its word, and after Done the list is the next answer\'s', v.ok, v.said);
+              }
+              v = gradeSl8({ tabs: sl8TabsOf(ev.run, events) });
+              arm('SL8 iOS 26.3: the Needs input tab and its badge are the door\'s waiting rows before and after a pull on Sessions', v.ok, v.said);
+            }
+            // ---- SL1, SL8 and SL6 on the floor, iOS 18.3 ------------------------
+            // SL8 here too since the fix round: iOS 26's glass tab bar draws its
+            // badge where XCUITest cannot read the number, so on 26.3 alone SL8
+            // was UNREADABLE every run; 18.3's bar is readable.
+            const floorQueries = new Map([['sl1', { show: 'active', group: 'project', sort: 'recent' }]]);
+            const floorSteps = ['pair', 'sessions-mark:sl1', 'sessions-pull', 'sessions-dump:sl1', ...SL8_STEPS, ...(talk !== undefined ? ['show:ended', `open:${talk.id}`, 'conversation', 'first'] : [])];
+            if (marksWithoutRead(floorSteps).length > 0) throw new Error(`the floor drive has a mark with no read before its dump: ${J(marksWithoutRead(floorSteps))}`);
+            await confirmListening(cdp);
+            const fl = await withSimulator({ label: 'p316-sessions-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-sessions-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const reads = new Map();
+              const run = await pairAndRead(sim, floorSteps, 'sessions-floor', { env: { P316_ACKS: ACKS_SESSIONS }, sessions: { queries: floorQueries, acks: ACKS_SESSIONS, reads }, timeoutMs: 1_800_000, waitS: '240' });
+              return { run, reads, runtime: sim.runtime };
+            });
+            if (!fl.run.ok || fl.run.result.events.length === 0) {
+              arm('SL1 the floor', null, `the floor drive did not run: ${String(fl.run.why ?? `no P316 line (xcodebuild exited ${String(fl.run.result?.code)})`)}`);
+            } else {
+              const events = fl.run.result.events;
+              let v = gradeSl1({ reading: { dump: events.find((e) => e.step === 'sessions-dump' && e.tag === 'sl1') ?? null, before: fl.reads.get('sl1')?.before ?? null, after: fl.reads.get('sl1')?.after ?? null }, endedIds: endedAtStart });
+              arm(`SL1 iOS ${fl.runtime}: a fresh install's Sessions tab is Active, Project, Recent, each header the door's, nothing ended drawn`, v.ok, v.said);
+              v = gradeSl8({ tabs: sl8TabsOf(fl.run, events) });
+              arm(`SL8 iOS ${fl.runtime}: the Needs input tab and its badge are the door's waiting rows before and after a pull on Sessions`, v.ok, v.said);
+              if (talk !== undefined && talkEnded) {
+                const paged = await pageBack(reader, readerDoor, talk.id, 20);
+                const detail = (await readJson(`/v1/session?id=${encodeURIComponent(talk.id)}`))?.session ?? null;
+                const underEnded = (await readSessionsAs({ show: 'ended', group: 'project', sort: 'recent' }))?.rows?.some((r) => r.sessionId === talk.id) === true;
+                v = gradeSl6({ underEnded, session: lastDump(events, 'session'), turns: events.find((e) => e.step === 'turns') ?? null, doorIndexes: paged.pages.slice().reverse().flatMap((p) => p.turns).map((t) => t.index), turnCount: detail?.turnCount ?? null });
+                arm(`SL6 iOS ${fl.runtime}: an ended session opens from Ended, its conversation pages to its first turn, and no End is drawn`, v.ok, v.said);
+              }
+            }
+          }
+        }
+
         if (ARMS.has('hostile')) {
           // THE WRITE ARMS ARE THE END GROUP'S (EH), never this loop's: this
           // loop drives a read and grades it as one, so a write arm here read
@@ -6229,91 +7469,161 @@ exit 0
             .split(',')
             .map((s) => s.trim())
             .filter((name) => HOSTILE_ARMS[name]?.write !== true && HOSTILE_ARMS[name]?.reply !== true);
-          await withSimulator({ label: 'p316-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
-            for (const name of wanted) {
-              const spec = HOSTILE_ARMS[name];
-              if (spec === undefined) continue;
-              await sim.simctl('keychain', 'reset');
-              const door = await startDoorChild(name);
-              doorChildren.add(door.child);
-              try {
-                if (door.facts === null) {
-                  arm(`H ${name}`, null, door.why ?? 'the hostile door did not start');
-                  continue;
-                }
-                const conversationArm = /^(pages-|more-|long-ask|honest)/.test(name) || spec.md === true;
-                const steps = [
-                  'pair',
-                  ...(name === 'wrong-key' || name === 'pair-word' ? [] : ['list']),
-                  // Phase 316.6's markdown arms read every drawn block (HM).
-                  ...(conversationArm ? [`open:${door.facts.sessionToOpen}`, 'conversation', spec.md === true ? 'markdown' : 'first'] : []),
-                  // A list arm's body arrives on the list's refresh, and the
-                  // one that never completes is said after the client's 15 s.
-                  ...(spec.list === true ? ['sentence'] : [])
-                ];
-                const r = await drive(sim, { test: { id: UI_TEST }, label: `hostile-${name}`, env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` } });
-                const alive = aliveOf(r.events);
-                const sentence = drawnSentence(r.events);
-                const served = door.events.filter((e) => e.kind === 'request').length;
-                const verified = door.events.filter((e) => e.kind === 'request' && e.verified !== undefined);
-                // (t): every signed read presented the phone's client identity,
-                // over TLS 1.3, with the code's name as SNI and in Host.
-                const identity = verified.every((e) => e.channelHeld === true && e.tls === 'TLSv1.3' && e.servername === HOSTILE_NAME && e.host === `${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`);
-                report.readings[`hostile-${name}`] = { lines: r.events.length, alive, sentence, served, signedReads: verified.length, signaturesHeld: verified.every((e) => e.verified === 'ok'), identity };
-                if (r.events.length === 0) {
-                  arm(`H ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
-                  continue;
-                }
-                let ok;
-                let said;
-                if (spec.md === true) {
-                  // HM (Phase 316.6, SPEC §7.3): somebody else's markdown ends drawn.
-                  const v = gradeHm({ events: r.events, turnCount: door.facts.turnCount, alive, connections: md.listener?.count() ?? null });
-                  ok = v.ok;
-                  said = `${v.said}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}`;
-                  if (!identity && ok === true) ok = false;
-                } else if (name === 'honest') {
-                  const t = r.events.find((e) => e.step === 'turns');
-                  const drawn = new Set((t?.indexes ?? []).map(Number));
-                  ok = alive === RUNNING_FOREGROUND && sentence === null && lastDump(r.events, 'list') !== null && drawn.size === door.facts.turnCount && verified.length > 0 && verified.every((e) => e.verified === 'ok') && identity;
-                  said = `the control: the list drawn, ${String(drawn.size)} of ${String(door.facts.turnCount)} turns drawn, ${String(verified.length)} signed read(s) all verified by the door's own reader, ${identity ? 'every one with the client identity and the code\'s name' : 'NOT every one with the client identity and the code\'s name'}, no sentence`;
-                } else if (name === 'unknown-status' || name === 'unknown-dot') {
-                  // Drawn, not refused (hostile-door.mjs's table says why): the
-                  // list is there, every row has its dot, nothing is a failure
-                  // sentence, and an unknown word is drawn as main sent it.
-                  const d = lastDump(r.events, 'list');
-                  const dots = els(d, 'row-dot-');
-                  const word = name === 'unknown-status' ? dots.some((e) => e.label === UNKNOWN_STATUS_TITLE) : true;
-                  ok = alive === RUNNING_FOREGROUND && sentence === null && d !== null && dots.length > 0 && word;
-                  said = `${d === null ? 'NO list drawn' : `the list drawn with ${String(dots.length)} dot(s)`}${name === 'unknown-status' ? `, main's unknown word ${word ? 'drawn as sent' : 'NOT drawn'}` : ''}; ${sentence === null ? 'no failure sentence' : `a sentence in ${sentence.id}`}; state ${J(alive)}`;
-                } else if (name === 'long-ask') {
-                  const t = r.events.find((e) => e.step === 'turns');
-                  const top = Math.max(...(t?.indexes ?? [-1]).map(Number));
-                  const ask = t?.asks?.[String(top)] ?? '';
-                  const d = lastDump(r.events, 'conversation');
-                  const frame = el(d, `turn-ask-${String(top)}`)?.frame ?? null;
-                  ok = alive === RUNNING_FOREGROUND && ask.length === 4_000 && frame !== null && frame[0] >= 0 && frame[0] + frame[2] <= (d?.window?.[0] ?? 0) + 0.5;
-                  said = `the ask drawn ${String(ask.length)} characters long, its frame ${J(frame)} inside a window ${J(d?.window)}; state ${J(alive)}`;
-                } else {
-                  const halfDrawn = sentence !== null && sentence.rows > 0 && (sentence.id === 'list-failure' || sentence.id === 'needs-list-failure');
-                  // WHERE and WHICH (Phase 316.2's fix round): the first build
-                  // passed an arm on any sentence anywhere, and every list arm
-                  // was in fact ending on the pairing screen. Since Phase 316.6
-                  // a list's sentence may be drawn on the Needs input tab's
-                  // list too (`needs-list-failure`), the same words.
-                  const where = spec.at === undefined || sentence?.id === spec.at || (spec.at === 'list-failure' && sentence?.id === 'needs-list-failure');
-                  const which = spec.expect === undefined || (sentence?.word !== null && spec.expect.includes(sentence?.word));
-                  const honestFirst = spec.list !== true || door.events.some((e) => e.kind === 'request' && e.honestFirst === true);
-                  ok = alive === RUNNING_FOREGROUND && sentence !== null && !halfDrawn && where && which && honestFirst && identity && (name !== 'wrong-key' || served === 0);
-                  said = `${sentence === null ? 'NO sentence drawn' : `a sentence drawn in ${sentence.id} (${String(sentence.length)} characters, Copy.${String(sentence.word ?? 'none of its words')})`}${halfDrawn ? ' BESIDE rows' : ''}${where ? '' : `, NOT in ${String(spec.at)}`}${which ? '' : `, NOT ${String(spec.expect.join(' or '))}`}${spec.list === true ? `; pairing's first read ${honestFirst ? 'answered honestly' : 'NEVER answered honestly'}` : ''}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}; state ${J(alive)}; the door served ${String(served)} request(s)`;
-                }
-                arm(`H ${name}: ${spec.what}`, ok, said);
-              } finally {
-                await endDoorChild(door.child);
-                doorChildren.delete(door.child);
+          /** One hostile arm on `sim`: its door started, the app driven, graded, the door ended in a `finally`. */
+          const hostileArm = async (sim, name, where) => {
+            const spec = HOSTILE_ARMS[name];
+            if (spec === undefined) return;
+            await sim.simctl('keychain', 'reset');
+            const door = await startDoorChild(name);
+            doorChildren.add(door.child);
+            try {
+              if (door.facts === null) {
+                arm(`H ${name}${where}`, null, door.why ?? 'the hostile door did not start');
+                return;
               }
+              const conversationArm = /^(pages-|more-|long-ask|honest)/.test(name) || spec.md === true;
+              // Phase 316.7: the sessions arms read the Sessions tab's faces.
+              const sessionsSteps = {
+                cap: ['pair', 'sessions-first-row', 'sessions-dump:cap', 'menu-read'],
+                missing: ['pair', 'sessions-face'],
+                // The pull waits for the probe to tell the door the Mac updated
+                // (`sessions-pull:ack`), so the older face is still the older
+                // face when it is made (the fix round, 2026-10-03).
+                'missing-first': ['pair', 'sessions-face', 'sessions-pull:ack'],
+                malformed: ['pair', 'list', 'sentence']
+              }[spec.sessions] ?? null;
+              const steps = sessionsSteps ?? [
+                'pair',
+                ...(name === 'wrong-key' || name === 'pair-word' ? [] : ['list']),
+                // Phase 316.6's markdown arms read every drawn block (HM).
+                ...(conversationArm ? [`open:${door.facts.sessionToOpen}`, 'conversation', spec.md === true ? 'markdown' : 'first'] : []),
+                // A list arm's body arrives on the list's refresh, and the
+                // one that never completes is said after the client's 15 s.
+                ...(spec.list === true ? ['sentence'] : [])
+              ];
+              // The cap's walk over 2,000 lazy rows takes minutes, so its wait is long.
+              const cap = spec.sessions === 'cap';
+              // `missing-first`: on the drive's `sessions-pull-ready` line the
+              // door is told the Mac updated, over its stdin, and only once it
+              // says so is the drive's `pull-<seq>` written.
+              const recovers = spec.sessions === 'missing-first';
+              const acks = join(XCODE, `acks-${name}${where === '' ? '' : '-floor'}`);
+              if (recovers) mkdirSync(acks, { recursive: true });
+              let released = false;
+              const onEvent = recovers
+                ? async (event) => {
+                    if (event?.step !== 'sessions-pull-ready') return;
+                    door.child.stdin.write('sessions-honest\n');
+                    for (let i = 0; i < 100 && !released; i += 1) {
+                      released = door.events.some((e) => e.kind === 'sessions-released');
+                      if (!released) await sleep(50);
+                    }
+                    if (released) writeFileSync(join(acks, `pull-${String(event.seq)}`), 'ok\n');
+                  }
+                : null;
+              const r = await drive(sim, { test: { id: UI_TEST }, label: `hostile-${name}${where === '' ? '' : '-floor'}`, timeoutMs: cap ? 2_400_000 : 900_000, onEvent, env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: cap ? '1200' : '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}`, ...(recovers ? { P316_ACKS: acks } : {}) } });
+              const alive = aliveOf(r.events);
+              const sentence = drawnSentence(r.events);
+              const served = door.events.filter((e) => e.kind === 'request').length;
+              const verified = door.events.filter((e) => e.kind === 'request' && e.verified !== undefined);
+              // (t): every signed read presented the phone's client identity,
+              // over TLS 1.3, with the code's name as SNI and in Host.
+              const identity = verified.every((e) => e.channelHeld === true && e.tls === 'TLSv1.3' && e.servername === HOSTILE_NAME && e.host === `${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`);
+              report.readings[`hostile-${name}${where}`] = { lines: r.events.length, alive, sentence, served, signedReads: verified.length, signaturesHeld: verified.every((e) => e.verified === 'ok'), identity };
+              if (r.events.length === 0) {
+                arm(`H ${name}${where}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                return;
+              }
+              let ok;
+              let said;
+              if (spec.sessions === 'cap') {
+                // Phase 316.7 (SPEC §9.5): graded against what this door SENT.
+                const sent = door.events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/sessions' && e.sessions !== undefined);
+                const firstRow = r.events.find((e) => e.step === 'first-row') ?? null;
+                const answerEv = (typeof firstRow?.at === 'number' ? sent.filter((e) => e.at <= firstRow.at) : sent).at(-1) ?? null;
+                const v = gradeCap({
+                  alive,
+                  busy: r.busy,
+                  busyLines: r.busyLines,
+                  answer: sent.at(-1)?.sessions ?? null,
+                  firstRowAt: typeof firstRow?.at === 'number' ? firstRow.at : null,
+                  answerAt: answerEv?.at ?? null,
+                  dump: r.events.find((e) => e.step === 'sessions-dump' && e.tag === 'cap') ?? null,
+                  menu: r.events.find((e) => e.step === 'menu-read')?.labels ?? null,
+                  // Only the scroll the menu's own step made, after the walk.
+                  scrolledShort: r.events.slice(Math.max(0, r.events.findIndex((e) => e.step === 'sessions-dump' && e.tag === 'cap'))).some((e) => e.step === 'scroll-to-top' && e.reached === false)
+                });
+                ok = v.ok;
+                said = `${v.said}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}`;
+                if (!identity && ok === true) ok = false;
+              } else if (spec.sessions === 'missing') {
+                const v = gradeOlder({ alive, face: lastDump(r.events, 'sessions-face') });
+                ok = v.ok;
+                said = v.said;
+              } else if (spec.sessions === 'missing-first') {
+                const v = gradeRecovers({ alive, face: lastDump(r.events, 'sessions-face'), pulled: lastDump(r.events, 'sessions-pull'), released: released && r.events.some((e) => e.step === 'sessions-pull-acked' && e.acked === true) });
+                ok = v.ok;
+                said = v.said;
+              } else if (spec.md === true) {
+                // HM (Phase 316.6, SPEC §7.3): somebody else's markdown ends drawn.
+                const v = gradeHm({ events: r.events, turnCount: door.facts.turnCount, alive, connections: md.listener?.count() ?? null });
+                ok = v.ok;
+                said = `${v.said}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}`;
+                if (!identity && ok === true) ok = false;
+              } else if (name === 'honest') {
+                const t = r.events.find((e) => e.step === 'turns');
+                const drawn = new Set((t?.indexes ?? []).map(Number));
+                ok = alive === RUNNING_FOREGROUND && sentence === null && lastDump(r.events, 'list') !== null && drawn.size === door.facts.turnCount && verified.length > 0 && verified.every((e) => e.verified === 'ok') && identity;
+                said = `the control: the list drawn, ${String(drawn.size)} of ${String(door.facts.turnCount)} turns drawn, ${String(verified.length)} signed read(s) all verified by the door's own reader, ${identity ? 'every one with the client identity and the code\'s name' : 'NOT every one with the client identity and the code\'s name'}, no sentence`;
+              } else if (name === 'unknown-status' || name === 'unknown-dot') {
+                // Drawn, not refused (hostile-door.mjs's table says why): the
+                // list is there, every row has its dot, nothing is a failure
+                // sentence, and an unknown word is drawn as main sent it.
+                const d = lastDump(r.events, 'list');
+                const dots = els(d, 'row-dot-');
+                const word = name === 'unknown-status' ? dots.some((e) => e.label === UNKNOWN_STATUS_TITLE) : true;
+                ok = alive === RUNNING_FOREGROUND && sentence === null && d !== null && dots.length > 0 && word;
+                said = `${d === null ? 'NO list drawn' : `the list drawn with ${String(dots.length)} dot(s)`}${name === 'unknown-status' ? `, main's unknown word ${word ? 'drawn as sent' : 'NOT drawn'}` : ''}; ${sentence === null ? 'no failure sentence' : `a sentence in ${sentence.id}`}; state ${J(alive)}`;
+              } else if (name === 'long-ask') {
+                const t = r.events.find((e) => e.step === 'turns');
+                const top = Math.max(...(t?.indexes ?? [-1]).map(Number));
+                const ask = t?.asks?.[String(top)] ?? '';
+                const d = lastDump(r.events, 'conversation');
+                const frame = el(d, `turn-ask-${String(top)}`)?.frame ?? null;
+                ok = alive === RUNNING_FOREGROUND && ask.length === 4_000 && frame !== null && frame[0] >= 0 && frame[0] + frame[2] <= (d?.window?.[0] ?? 0) + 0.5;
+                said = `the ask drawn ${String(ask.length)} characters long, its frame ${J(frame)} inside a window ${J(d?.window)}; state ${J(alive)}`;
+              } else {
+                const halfDrawn = sentence !== null && sentence.rows > 0 && (sentence.id === 'list-failure' || sentence.id === 'needs-list-failure');
+                // WHERE and WHICH (Phase 316.2's fix round): the first build
+                // passed an arm on any sentence anywhere, and every list arm
+                // was in fact ending on the pairing screen. Since Phase 316.6
+                // a list's sentence may be drawn on the Needs input tab's
+                // list too (`needs-list-failure`), the same words.
+                const where = spec.at === undefined || sentence?.id === spec.at || (spec.at === 'list-failure' && sentence?.id === 'needs-list-failure');
+                const which = spec.expect === undefined || (sentence?.word !== null && spec.expect.includes(sentence?.word));
+                const honestFirst = spec.list !== true || door.events.some((e) => e.kind === 'request' && e.honestFirst === true);
+                ok = alive === RUNNING_FOREGROUND && sentence !== null && !halfDrawn && where && which && honestFirst && identity && (name !== 'wrong-key' || served === 0);
+                said = `${sentence === null ? 'NO sentence drawn' : `a sentence drawn in ${sentence.id} (${String(sentence.length)} characters, Copy.${String(sentence.word ?? 'none of its words')})`}${halfDrawn ? ' BESIDE rows' : ''}${where ? '' : `, NOT in ${String(spec.at)}`}${which ? '' : `, NOT ${String(spec.expect.join(' or '))}`}${spec.list === true ? `; pairing's first read ${honestFirst ? 'answered honestly' : 'NEVER answered honestly'}` : ''}${identity ? '' : '; a signed read WITHOUT the client identity or the code\'s name'}; state ${J(alive)}; the door served ${String(served)} request(s)`;
+              }
+              arm(`H ${name}${where}: ${spec.what}`, ok, said);
+            } finally {
+              await endDoorChild(door.child);
+              doorChildren.delete(door.child);
             }
+          };
+          await withSimulator({ label: 'p316-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+            for (const name of wanted) await hostileArm(sim, name, '');
           });
+          // Phase 316.7 (SPEC §9.5): the sessions arms on the 18.3 floor too,
+          // those marked `floor` unless P316_HOSTILE_FLOOR names more (`all`
+          // for every sessions arm).
+          const floorWanted = (process.env['P316_HOSTILE_FLOOR'] ?? '').trim();
+          const onFloor = wanted.filter((name) => typeof HOSTILE_ARMS[name]?.sessions === 'string' && (floorWanted === 'all' || floorWanted.split(',').includes(name) || (floorWanted === '' && HOSTILE_ARMS[name].floor === true)));
+          if (onFloor.length > 0) {
+            await withSimulator({ label: 'p316-hostile-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-hostile-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              for (const name of onFloor) await hostileArm(sim, name, ` (iOS ${sim.runtime})`);
+            });
+          }
         }
 
         // ==================================================================

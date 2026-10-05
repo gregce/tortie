@@ -536,6 +536,10 @@ export class PocketHost {
                   to: query.get('to')
                 });
           }
+          case 'sessions':
+            // Phase 316.7: the whole query goes to the route, which reads its
+            // five closed parameters and refuses anything else with null.
+            return routes.sessions(query);
           case 'pair':
             // Answered in `./server.ts`, because presenting reads nothing of
             // main's state and must not reach this composer at all.

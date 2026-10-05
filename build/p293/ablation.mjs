@@ -12,7 +12,9 @@
  * edges 2 and 6 settled, and since Phase 303 the lifecycle control's one
  * clause (T23), which reads `row.gates` and names no status, and since Phase
  * 317 the End partition between main's gate and the shared one (G2), the move
- * of the gate to src/shared (T24) and the phone's door asking both (T25). This script
+ * of the gate to src/shared (T24) and the phone's door asking both (T25), and
+ * since Phase 316.7 one grouping rule for the sheet and the phone's door (T26)
+ * and the two driven against each other (G3a, G3b). This script
  * breaks ONE CLAUSE AT A TIME in the shipping source and proves it reddens
  * THE RULE THAT OWNS IT.
  *
@@ -52,7 +54,9 @@
  *
  * No Electron, no tmux, no ssh, no agent, no token and no network. The gate
  * spawns one plain node per run, its own TypeScript probe. About two minutes
- * for the whole list (85 entries since Phase 317, which added G2a to G2c, T24
+ * for the whole list (91 entries since Phase 316.7, which re-anchored 18, 19,
+ * T13 and L1 on the moved code and added L3, T26a to T26d and G3; 85 since
+ * Phase 317, which added G2a to G2c, T24
  * to T24c, T25a to T25g and T10b; 71 since Phase 303; 69 since Phase 298,
  * measured at 84.4 s), one gate run per entry plus the base and the restore; it runs once
  * per phase beside the gate it attacks, and is not in the commit battery.
@@ -108,6 +112,12 @@ const KEYBOARD = 'src/renderer/app/keyboard.ts';
 const MENU = 'src/renderer/app/menu-actions.ts';
 const LAUNCH = 'src/renderer/settings/launch-agent.ts';
 const CSS = 'src/renderer/session-manager/session-manager.css';
+// Phase 316.7. The grouping rule moved to src/shared/session-list.ts, and the
+// phone's door groups by it in src/main/pocket/routes.ts; displayPath moved to
+// src/shared/display-path.ts, re-exported by format.ts.
+const SESSION_LIST = 'src/shared/session-list.ts';
+const ROUTES = 'src/main/pocket/routes.ts';
+const FORMAT = 'src/renderer/format.ts';
 
 /**
  * The ablations. `n` is the row of build/p293/SPEC.md §7's table where it has
@@ -430,17 +440,17 @@ const ABLATIONS = [
     n: '18',
     rule: 'R1',
     name: 'groups keyed by basename',
-    why: 'two folders named app are two projects, and a batch named by the group would reach both.',
-    file: PROJECTION,
+    why: 'two folders named app are two projects, and a batch named by the group would reach both. (Phase 316.7 moved the key line, with sessionGroupIdentity, to src/shared/session-list.ts, which has no baseName import, so the basename is spelled as the editor spells it.)',
+    file: SESSION_LIST,
     from: '    key: targetKey(resolved),',
-    to: '    key: baseName(resolved.path),'
+    to: "    key: resolved.path.slice(resolved.path.lastIndexOf('/') + 1),"
   },
   {
     n: '19',
     rule: 'R2',
     name: 'the machine dropped from the group key',
-    why: 'one path on this Mac and on a machine are two folders on two computers.',
-    file: PROJECTION,
+    why: 'one path on this Mac and on a machine are two folders on two computers. (Re-anchored on sessionGroupIdentity in src/shared/session-list.ts, Phase 316.7.)',
+    file: SESSION_LIST,
     from: '    key: targetKey(resolved),',
     to: '    key: resolved.path,'
   },
@@ -642,8 +652,10 @@ const ABLATIONS = [
     name: 'the projection imports from diagnostics',
     why: 'a diagnostics row can carry no session id, and nothing without one is ever a target; the sheet\'s only inputs are the session lists.',
     file: PROJECTION,
-    from: "import { baseName } from '../editor/paths';",
-    to: "import { baseName } from '../editor/paths';\nimport type {} from '@shared/ipc/diagnostics';"
+    // Phase 316.7: projection.ts no longer imports baseName (the label moved to
+    // sessionGroupLabel), so the arm anchors on an import it still has.
+    from: "import { statusVisual, type StatusVisual } from '../app/status';",
+    to: "import { statusVisual, type StatusVisual } from '../app/status';\nimport type {} from '@shared/ipc/diagnostics';"
   },
   // -------------------------------------------------------------------------
   // The fix round: what the verifiers measured worse than today, or unsafe
@@ -917,8 +929,10 @@ const ABLATIONS = [
     name: 'the Active clause rewritten as a status list instead of the gates',
     why: 'the filter would then be a fourth spelling of "live" beside main\'s removeRefusal, sessionActionGates and login-switch.ts, one more place for the four to drift apart, and the partition test that holds the gates equal to main would no longer be about the filter at all.',
     file: VIEW,
-    from: "  if (filters.lifecycle === 'active' && !(row.gates.live || row.gates.unknown)) return false;",
-    to: "  if (filters.lifecycle === 'active' && row.status !== 'running' && row.status !== 'idle' && row.status !== 'needs_input' && row.status !== 'unknown') return false;"
+    // Phase 316.7 moved the two lines to lifecycleKeeps; rowPasses calls it, so
+    // the fourth spelling is written back over that call.
+    from: '  if (!lifecycleKeeps(filters.lifecycle, row.gates)) return false;',
+    to: "  if (filters.lifecycle === 'active' && row.status !== 'running' && row.status !== 'idle' && row.status !== 'needs_input' && row.status !== 'unknown') return false;\n  if (filters.lifecycle === 'ended' && !row.gates.ended) return false;"
   },
   {
     n: 'L2',
@@ -928,6 +942,64 @@ const ABLATIONS = [
     file: VIEW,
     from: 'export function stateFilterKeeps(',
     to: "const LIVE_AGAIN: readonly SessionStatus[] = ['running', 'idle', 'needs_input'];\nexport function stateFilterKeeps("
+  },
+  {
+    n: 'L3',
+    rule: 'T23',
+    name: 'the phone\'s Show written as a status list in routes.ts',
+    why: 'Phase 316.7: the door asks the sheet\'s own partition for Active; a list of live statuses there is the fourth spelling again, on the one surface that cannot see the sheet.',
+    file: ROUTES,
+    from: '        if (!lifecycleKeeps(asked.show, gates)) continue;',
+    to: "        if (asked.show === 'active' && !['running', 'idle', 'needs_input', 'unknown'].includes(session.status)) continue;\n        if (asked.show === 'ended' && !gates.ended) continue;"
+  },
+  // -------------------------------------------------------------------------
+  // Phase 316.7 (build/p3167/SPEC.md §8.3): one grouping rule, and the phone's
+  // groups driven against the sheet's. Each must redden its own rule.
+  // -------------------------------------------------------------------------
+  {
+    n: 'T26a',
+    rule: 'T26',
+    name: 'a second label rule in routes.ts',
+    why: 'the door labels a group by the sheet\'s own sessionGroupLabel; a second spelling of open, then closed, then the folder\'s name agrees with the sheet until either moves.',
+    file: ROUTES,
+    from: 'const label = sessionGroupLabel(firstNamed(open?.name), draft.closedName, identity.path);',
+    to: "const label = firstNamed(open?.name) ?? draft.closedName ?? identity.path.slice(identity.path.lastIndexOf('/') + 1);"
+  },
+  {
+    n: 'T26b',
+    rule: 'T26',
+    name: 'the door\'s groups ordered tabs first',
+    why: 'a phone has no tabs, so the door hands compareSessionGroups an EMPTY map; a map built from the Mac\'s open projects orders the phone\'s list by tabs it cannot see.',
+    file: ROUTES,
+    from: 'unordered.sort((a, b) => compareSessionGroups(a, b, NO_TABS));',
+    to: 'unordered.sort((a, b) => compareSessionGroups(a, b, new Map(projects.map((p, i) => [p.path, i]))));'
+  },
+  {
+    n: 'T26c',
+    rule: 'T26',
+    name: 'displayPath declared again in format.ts',
+    why: 'the folder under a phone\'s group header and under the sheet\'s are drawn by one rule; a second declaration is the one that drifts.',
+    file: FORMAT,
+    from: "export { displayPath } from '@shared/display-path';",
+    to: 'export function displayPath(path: string, machineId?: string): string {\n  return machineId === undefined ? path : path;\n}'
+  },
+  {
+    n: 'T26d',
+    rule: 'T26',
+    name: 'the door re-derives the closed-tab name with its own ??=',
+    why: 'the adversary\'s F12: the sheet takes the FIRST non-empty closed-tab name among a group\'s members; a door that re-derived it took the first member\'s, and labelled a group by its folder where the sheet labels it by its tab.',
+    file: ROUTES,
+    from: 'const label = sessionGroupLabel(firstNamed(open?.name), draft.closedName, identity.path);',
+    to: 'let closedName: string | null = null;\n        for (const member of draft.members) closedName ??= firstNamed(member.session.closedProject?.name);\n        const label = sessionGroupLabel(firstNamed(open?.name), closedName, identity.path);'
+  },
+  {
+    n: 'G3',
+    rule: 'G3a',
+    name: 'the door\'s label falls back to the folder before the closed tab\'s name',
+    why: 'with no tab open, the sheet labels a group by the name its tab had when it closed; a door that skipped it draws the folder\'s name, and the phone and the Mac call one project two things.',
+    file: ROUTES,
+    from: 'const label = sessionGroupLabel(firstNamed(open?.name), draft.closedName, identity.path);',
+    to: 'const label = sessionGroupLabel(firstNamed(open?.name), null, identity.path);'
   }
 ];
 
@@ -959,7 +1031,8 @@ function runGate() {
     timeout: 120_000
   });
   const text = `${r.stdout ?? ''}${r.stderr ?? ''}`;
-  const red = [...new Set([...text.matchAll(/\[p293 ([A-Z]+[0-9]*)\]/g)].map((m) => m[1]))];
+  // A rule id may end in one lowercase letter (Phase 316.7's G3a and G3b).
+  const red = [...new Set([...text.matchAll(/\[p293 ([A-Z]+[0-9]*[a-z]?)\]/g)].map((m) => m[1]))];
   return { code: r.status ?? 1, red, text };
 }
 

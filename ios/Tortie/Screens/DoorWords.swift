@@ -1,7 +1,7 @@
 // What the screens ask of the door, and what they say when it does not answer
 // (Phase 316.2).
 //
-// THE SEAM. The three reading screens ask `DoorReading` and the pairing screen
+// THE SEAM. The reading screens ask `DoorReading` and the pairing screen
 // asks `PhoneDoor`; App/TortieApp.swift composes both from Door/ (`DoorClient`
 // over the kept `PairedDoor`, `PairingFlow`, `PairingStore`). The screens hold
 // no key, build no request and name no network type (conformance:ios rule c),
@@ -40,12 +40,20 @@
 // writer presses an option (`choose`) and sends one message (`say`), each
 // sent at most once and never retried, and NEITHER asks Face ID (his ruling,
 // "Only for End"). Their results become sentences in `replySentence`.
+//
+// THE SESSIONS READ (Phase 316.7, build/p3167/SPEC.md section 6.4.3).
+// `sessions(_:)` is a REQUIREMENT too, for the same reason as `writer`, and
+// its extension default throws `DoorFailure.refused`: a reader with no such
+// read (the tests' fakes) behaves exactly as a Mac older than this phase,
+// whose door answers the route with a 404. The Sessions tab reads that
+// refusal as today's tab, never as Pairing, once the list's own read has
+// answered (Screens/SessionsScreen.swift `SessionsModel`).
 
 import Foundation
 
 // MARK: - The seam
 
-/// The three signed reads, for the pairing this phone keeps.
+/// The four signed reads, for the pairing this phone keeps.
 protocol DoorReading: Sendable {
     /// What this pairing agreed about alerts (Phase 316.5): whether its Mac
     /// said it could send, and the address the Mac holds, which the list
@@ -61,11 +69,20 @@ protocol DoorReading: Sendable {
     func blocked() async throws -> PocketBlockedAnswer
     func session(_ sessionId: String) async throws -> PocketSessionAnswer
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer
+    /// `GET /v1/sessions` with `query`'s words (Phase 316.7). A requirement,
+    /// so `any DoorReading` reads the reader's own.
+    func sessions(_ query: SessionsQuery) async throws -> PocketSessionsAnswer
 }
 
 extension DoorReading {
     /// A reader that writes nothing: no End and no Select.
     var writer: (any DoorWriting)? { nil }
+
+    /// A reader with no sessions read is a Mac older than Phase 316.7: its
+    /// door refuses the route.
+    func sessions(_ query: SessionsQuery) async throws -> PocketSessionsAnswer {
+        throw DoorFailure.refused
+    }
 }
 
 /// The signed writes, each sent at most once and never retried: End (Phase

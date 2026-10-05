@@ -69,6 +69,18 @@
  *  neither file reads `.answering`. G2, driven, is the partition between the
  *  two gates. T10 reads lifecycle-words.ts as well as copy.ts.
  *
+ *  READ AND DRIVEN, THE PHONE'S GROUPS (Phase 316.7, build/p3167/SPEC.md §8.3).
+ *  The sheet's group identity, collection, label, order and lifecycle
+ *  partition moved, token for token, to src/shared/session-list.ts, and
+ *  `displayPath` and `createdOld` to src/shared/display-path.ts and age.ts, so
+ *  the phone's door (src/main/pocket/routes.ts) groups, labels and ages by the
+ *  sheet's own rule. T23 follows the partition to `lifecycleKeeps` and holds
+ *  view.ts and routes.ts to it; T26 holds each moved function to one
+ *  declaration, both readers to calling it, routes.ts to no `??=` and an empty
+ *  tab map, and the tree to one label comparator. G3a and G3b, driven, put
+ *  the shipping sheet and the shipping door over one fixture, with no tab open
+ *  and then the same tabs on both sides.
+ *
  * WHAT IT FAILS ON. Every failure is printed as `[p293 <rule>]` with the clause
  * of the spec that owns it, which is what `npm run ablation:p293` reads to
  * prove each rule can go red on its own.
@@ -119,11 +131,14 @@ const TEXT_RULES = [
   // (lifecycle-gate.ts, session-gates.ts since Phase 317 moved it out of
   // resume.ts, and login-switch.ts); the lifecycle control reads the partition
   // the row carries as `row.gates` and adds no fourth.
-  ['T23', '§2.4, Phase 303', 'the domain names no second live-status set: rowPasses reads row.gates and no status literal, and the only array holding two or more statuses is STATE_FILTER_KEEPS'],
+  ['T23', '§2.4, Phase 303; re-pointed by Phase 316.7 §8.3', 'the domain names no second live-status set: the partition is lifecycleKeeps in src/shared/session-list.ts, reading gates and no status literal; rowPasses and routes.ts reach it over the gates and name no status for it; and the only array holding two or more statuses is STATE_FILTER_KEEPS'],
   // Phase 317, build/p317/SPEC.md §6.2. The gate moved below the renderer so
   // main can ask it, and the phone's door asks it beside main's own gate.
   ['T24', '§6.2, Phase 317', 'the gate moved and was not copied: resume.ts declares and re-exports none of the moved names, and nothing under src/ declares a second sessionActionGates'],
-  ['T25', '§6.2, Phase 317', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering']
+  ['T25', '§6.2, Phase 317', 'the phone asks both gates: pocket-writes.ts imports sessionActionGates from @shared/session-gates and endRefusal from ./lifecycle-gate, endVerdict asks both, its batch arm is the Mac batch\'s predicate read as text in both files, and neither reads .answering'],
+  // Phase 316.7, build/p3167/SPEC.md §8.3. The grouping rule moved below the
+  // renderer so the phone's door groups by it too.
+  ['T26', '§8.3, Phase 316.7', 'one grouping rule: sessionGroupIdentity, collectSessionGroups, sessionGroupLabel, compareSessionGroups, firstNamed and lifecycleKeeps are declared once, in src/shared/session-list.ts; projection.ts and routes.ts import and call them; routes.ts writes no ??=; no other function compares group labels with localeCompare beside a key; orderGroups hands its tab map and routes.ts an empty one; displayPath and createdOld are declared once, in their shared homes']
 ];
 
 if (process.argv.includes('--list')) {
@@ -933,20 +948,38 @@ function sessionStatuses() {
 }
 
 /**
- * T23. Two clauses over the domain, read with the parser as T4, T10 and T12
- * are. The lifecycle control is one clause in `rowPasses` reading the four
- * booleans `sessionActionGates` already computed for the row, so the filter
- * cannot disagree with main's `removeRefusal` unless the gates do, and the
- * partition test beside the filter holds those two equal. A status literal in
- * `rowPasses`, or a second array of statuses anywhere in the domain, would be
- * the fourth spelling of "live" the phase refused.
+ * T23, RE-POINTED BY PHASE 316.7 (build/p3167/SPEC.md §8.3). The lifecycle
+ * control was two lines of `rowPasses` reading the four booleans
+ * `sessionActionGates` already computed for the row. Phase 316.7 MOVED those
+ * two lines, unchanged, to `lifecycleKeeps` in src/shared/session-list.ts, so
+ * the phone's door asks the same partition for its Show control. The rule
+ * follows them and still refuses a fourth spelling of "live":
  *
- *  (i)  `rowPasses` in view.ts reaches `gates.live`, `gates.unknown` and
- *       `gates.ended`, and holds no string literal that is a status.
- *  (ii) every array literal, and every `new Set([...])`, holding two or more
- *       status strings in any domain file sits inside the variable
- *       declaration named `STATE_FILTER_KEEPS`.
+ *  (i)   `lifecycleKeeps`, in src/shared/session-list.ts, reaches `gates.live`,
+ *        `gates.unknown` and `gates.ended` and holds no status literal;
+ *  (ii)  view.ts's `rowPasses` calls `lifecycleKeeps(` over the row's own
+ *        `gates`, imported from @shared/session-list, and holds no status
+ *        literal;
+ *  (iii) src/main/pocket/routes.ts imports and calls `lifecycleKeeps(` too, and
+ *        hands it no status literal;
+ *  (iv)  every array literal holding two or more status strings in the domain,
+ *        in session-list.ts or in routes.ts sits inside the declaration
+ *        STATE_FILTER_KEEPS.
  */
+const SESSION_LIST = join(ROOT, 'src', 'shared', 'session-list.ts');
+const ROUTES = join(ROOT, 'src', 'main', 'pocket', 'routes.ts');
+
+/** Every node under a root, the root included. */
+function under(root) {
+  const out = [];
+  const visit = (n) => {
+    out.push(n);
+    ts.forEachChild(n, visit);
+  };
+  visit(root);
+  return out;
+}
+
 function partitionRules() {
   const VIEW = join(DOMAIN, 'view.ts');
   const statuses = sessionStatuses();
@@ -954,45 +987,80 @@ function partitionRules() {
     fail('T23', `SESSION_STATUSES read ${String(statuses.size)} statuses out of src/shared/types.ts; the alphabet has seven and a gate that lost it reads nothing`);
     return;
   }
-  const sf = astOf(VIEW);
-  const rowPasses = nodesOf(VIEW).find(
-    (n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.name.text === 'rowPasses'
-  );
+  // A literal in a TYPE (`Pick<SessionActionGates, 'live' | 'unknown' | 'ended'>`)
+  // names a field of the gates, never a status, and is not read.
+  const isStatus = (n) =>
+    (ts.isStringLiteral(n) || ts.isNoSubstitutionTemplateLiteral(n)) &&
+    statuses.has(n.text) &&
+    !(n.parent !== undefined && ts.isLiteralTypeNode(n.parent));
+
+  // (i) The partition, where it lives now.
   checked('T23');
-  if (rowPasses === undefined) {
-    fail('T23', `${rel(VIEW)} declares no function rowPasses, so the filter's one clause is not where the rule reads it`);
+  const keeps = existsSync(SESSION_LIST) ? functionDeclared(SESSION_LIST, 'lifecycleKeeps') : null;
+  if (keeps === null) {
+    fail('T23', `${rel(SESSION_LIST)} declares no function lifecycleKeeps, so the lifecycle partition is not where the rule reads it (Phase 316.7 moved it there from view.ts)`);
   } else {
-    const inside = [];
-    const visit = (n) => {
-      inside.push(n);
-      ts.forEachChild(n, visit);
-    };
-    visit(rowPasses);
-    // (i) The three readings, each a property access whose object ends in
-    // `gates`: `row.gates.live` and a destructured `gates.live` both answer.
+    const inside = under(keeps);
     const reads = new Set(
       inside
-        .filter((n) => ts.isPropertyAccessExpression(n) && /(^|\.)gates$/.test(n.expression.getText(sf)))
+        .filter((n) => ts.isPropertyAccessExpression(n) && /(^|\.)gates$/.test(n.expression.getText(astOf(SESSION_LIST))))
         .map((n) => n.name.text)
     );
     for (const want of ['live', 'unknown', 'ended']) {
       checked('T23');
       if (!reads.has(want)) {
-        fail('T23', `${where(VIEW, rowPasses)} rowPasses never reads gates.${want}; the lifecycle clause reads the partition the row carries and nothing else`);
+        fail('T23', `${where(SESSION_LIST, keeps)} lifecycleKeeps never reads gates.${want}; the lifecycle clause reads the partition the row carries and nothing else`);
       }
     }
     for (const n of inside) {
-      if (!ts.isStringLiteral(n) && !ts.isNoSubstitutionTemplateLiteral(n)) continue;
       checked('T23');
-      if (statuses.has(n.text)) {
-        fail('T23', `${where(VIEW, n)} rowPasses names the status ${JSON.stringify(n.text)}; a status list here is the fourth spelling of "live" mechanism 1 refuses`);
+      if (isStatus(n)) fail('T23', `${where(SESSION_LIST, n)} lifecycleKeeps names the status ${JSON.stringify(n.text)}; a status list here is the fourth spelling of "live" mechanism 1 refuses`);
+    }
+  }
+
+  // (ii) The sheet's filter reaches it, over the row's own gates.
+  const rowPasses = nodesOf(VIEW).find(
+    (n) => ts.isFunctionDeclaration(n) && n.name !== undefined && n.name.text === 'rowPasses'
+  );
+  checked('T23', 2);
+  if (!importsFrom(VIEW, 'lifecycleKeeps', '@shared/session-list')) {
+    fail('T23', `${rel(VIEW)} does not import lifecycleKeeps from @shared/session-list`);
+  }
+  if (rowPasses === undefined) {
+    fail('T23', `${rel(VIEW)} declares no function rowPasses, so the filter's one clause is not where the rule reads it`);
+  } else {
+    const inside = under(rowPasses);
+    const calls = inside.filter((n) => ts.isCallExpression(n) && calleeName(n) === 'lifecycleKeeps');
+    checked('T23');
+    if (calls.length === 0 || !calls.every((c) => c.arguments.some((a) => /(^|\.)gates$/.test(a.getText(astOf(VIEW)))))) {
+      fail('T23', `${where(VIEW, rowPasses)} rowPasses does not call lifecycleKeeps( over the row's gates; the lifecycle clause reads the partition the row carries and nothing else`);
+    }
+    for (const n of inside) {
+      checked('T23');
+      if (isStatus(n)) fail('T23', `${where(VIEW, n)} rowPasses names the status ${JSON.stringify(n.text)}; a status list here is the fourth spelling of "live" mechanism 1 refuses`);
+    }
+  }
+
+  // (iii) The phone's door reaches the same partition and names no status for it.
+  checked('T23', 2);
+  if (!existsSync(ROUTES) || !importsFrom(ROUTES, 'lifecycleKeeps', '@shared/session-list')) {
+    fail('T23', `${rel(ROUTES)} does not import lifecycleKeeps from @shared/session-list, so the phone's Show is not the sheet's lifecycle control`);
+  } else {
+    const calls = nodesOf(ROUTES).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'lifecycleKeeps');
+    if (calls.length === 0) fail('T23', `${rel(ROUTES)} never calls lifecycleKeeps(`);
+    for (const c of calls) {
+      for (const a of c.arguments) {
+        if (under(a).some(isStatus)) fail('T23', `${where(ROUTES, c)} hands lifecycleKeeps( a status literal; it is asked with a lifecycle word and the row's gates`);
       }
     }
   }
-  // (ii) No second table. An array of two or more statuses, or a Set built
-  // from one, belongs to STATE_FILTER_KEEPS and nowhere else in the domain.
+
+  // (iv) No second table. An array of two or more statuses, or a Set built
+  // from one, belongs to STATE_FILTER_KEEPS and nowhere else in the domain,
+  // nowhere in the shared file the partition moved to, and nowhere in the
+  // phone's door that asks it.
   let arrays = 0;
-  for (const path of domainFiles) {
+  for (const path of [...domainFiles, ...[SESSION_LIST, ROUTES].filter((one) => existsSync(one))]) {
     const file = astOf(path);
     for (const n of nodesOf(path)) {
       if (!ts.isArrayLiteralExpression(n)) continue;
@@ -1014,6 +1082,153 @@ function partitionRules() {
   }
   checked('T23');
   if (arrays === 0) fail('T23', 'no array of two or more statuses was read anywhere in the domain, so STATE_FILTER_KEEPS itself has moved or this clause reads nothing');
+}
+
+// ---------------------------------------------------------------------------
+// One grouping rule (Phase 316.7, build/p3167/SPEC.md §8.3)
+// ---------------------------------------------------------------------------
+
+/** The functions Phase 316.7 moved to src/shared/session-list.ts, declared there and nowhere else. */
+const SHARED_LIST_NAMES = ['sessionGroupIdentity', 'collectSessionGroups', 'sessionGroupLabel', 'compareSessionGroups', 'firstNamed', 'lifecycleKeeps'];
+const DISPLAY_PATH = join(ROOT, 'src', 'shared', 'display-path.ts');
+const AGE = join(ROOT, 'src', 'shared', 'age.ts');
+
+/**
+ * T26. ONE GROUPING RULE. The sheet's group identity, its collection (the
+ * closed-tab name and machine label each the FIRST non-empty among the
+ * members, the sheet's `??=`), its label, its order and the lifecycle
+ * partition moved to src/shared/session-list.ts, and the phone's door groups by
+ * them. A door that grouped by a second spelling would agree with the sheet
+ * until either moved, which is the drift Phase 316.7 exists to refuse.
+ *
+ *  (i)   each moved name is declared ONCE under src/, in session-list.ts;
+ *  (ii)  projection.ts and routes.ts import and CALL collectSessionGroups,
+ *        compareSessionGroups, sessionGroupLabel and firstNamed from
+ *        @shared/session-list (routes.ts lifecycleKeeps too, which T23 reads);
+ *  (iii) routes.ts writes no `??=`, so it re-derives no closed-tab name and no
+ *        machine label of its own (§15 F12);
+ *  (iv)  no function under src/ but compareSessionGroups compares `.label`s
+ *        with localeCompare beside a `.key`;
+ *  (v)   projection.ts's orderGroups hands compareSessionGroups its tab map,
+ *        and routes.ts hands it an EMPTY map that nothing fills: a phone has
+ *        no tabs, the one named difference;
+ *  (vi)  displayPath is declared once, in src/shared/display-path.ts, and
+ *        createdOld once, in src/shared/age.ts.
+ */
+function groupingRules() {
+  const PROJECTION = join(DOMAIN, 'projection.ts');
+  const all = sourcesUnder(join(ROOT, 'src'));
+  const declarationsOf = (name) => {
+    const out = [];
+    for (const path of all) {
+      if (!readFileSync(path, 'utf8').includes(name)) continue;
+      for (const n of nodesOf(path)) {
+        let named = null;
+        if ((ts.isFunctionDeclaration(n) || ts.isMethodDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name)) named = n.name.text;
+        else if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) named = n.name.text;
+        if (named === name) out.push({ path, node: n });
+      }
+    }
+    return out;
+  };
+  // (i) and (vi). One declaration each, in its shared home.
+  for (const [name, home] of [...SHARED_LIST_NAMES.map((n) => [n, SESSION_LIST]), ['displayPath', DISPLAY_PATH], ['createdOld', AGE]]) {
+    const found = declarationsOf(name);
+    checked('T26', found.length + 1);
+    if (found.length === 0) fail('T26', `no ${name} is declared anywhere under src/; it is declared once, in ${rel(home)}`);
+    for (const d of found) {
+      if (d.path !== home) fail('T26', `${where(d.path, d.node)} declares ${name}; it is declared ONCE, in ${rel(home)}, or the sheet and the phone's door group, label or age by two rules`);
+    }
+    if (found.filter((d) => d.path === home).length > 1) fail('T26', `${rel(home)} declares ${name} more than once`);
+  }
+  // (ii) Both readers import and call the moved functions.
+  for (const [path, names] of [
+    [PROJECTION, ['collectSessionGroups', 'compareSessionGroups', 'sessionGroupLabel', 'firstNamed']],
+    [ROUTES, ['collectSessionGroups', 'compareSessionGroups', 'sessionGroupLabel', 'firstNamed', 'lifecycleKeeps']]
+  ]) {
+    if (!existsSync(path)) {
+      checked('T26');
+      fail('T26', `${rel(path)} is missing, so this rule reads nothing`);
+      continue;
+    }
+    for (const name of names) {
+      checked('T26', 2);
+      if (!importsFrom(path, name, '@shared/session-list')) fail('T26', `${rel(path)} does not import ${name} from @shared/session-list`);
+      if (!nodesOf(path).some((n) => ts.isCallExpression(n) && calleeName(n) === name)) fail('T26', `${rel(path)} never calls ${name}(, so it reaches a second spelling of the rule or none`);
+    }
+  }
+  // (iii) No `??=` in the door.
+  if (existsSync(ROUTES)) {
+    for (const n of nodesOf(ROUTES)) {
+      if (!ts.isBinaryExpression(n) || n.operatorToken.kind !== ts.SyntaxKind.QuestionQuestionEqualsToken) continue;
+      fail('T26', `${where(ROUTES, n)} writes ${n.getText(astOf(ROUTES)).slice(0, 60)}; the closed-tab name and the machine label are the shared collection's, first non-empty among the members, and a second ??= is a second rule (§15 F12)`);
+    }
+    checked('T26');
+  }
+  // (iv) No second label comparator beside a key, anywhere under src/.
+  let comparators = 0;
+  for (const path of all) {
+    const text = readFileSync(path, 'utf8');
+    if (!text.includes('localeCompare')) continue;
+    const sf = astOf(path);
+    for (const n of nodesOf(path)) {
+      if (!(ts.isFunctionDeclaration(n) || ts.isFunctionExpression(n) || ts.isArrowFunction(n) || ts.isMethodDeclaration(n))) continue;
+      const inside = under(n);
+      const labels = inside.some(
+        (m) =>
+          ts.isCallExpression(m) &&
+          calleeName(m) === 'localeCompare' &&
+          ts.isPropertyAccessExpression(m.expression) &&
+          /\.label\b/.test(m.expression.expression.getText(sf))
+      );
+      const keys = inside.some((m) => ts.isPropertyAccessExpression(m) && m.name.text === 'key');
+      if (!labels || !keys) continue;
+      // A function nested in one already counted is that one.
+      let p = n.parent;
+      let nested = false;
+      for (; p !== undefined; p = p.parent) {
+        if ((ts.isFunctionDeclaration(p) || ts.isFunctionExpression(p) || ts.isArrowFunction(p) || ts.isMethodDeclaration(p)) && under(p).some((m) => ts.isCallExpression(m) && calleeName(m) === 'localeCompare')) {
+          nested = true;
+          break;
+        }
+      }
+      if (nested) continue;
+      comparators += 1;
+      checked('T26');
+      const isShared = path === SESSION_LIST && ts.isFunctionDeclaration(n) && n.name?.text === 'compareSessionGroups';
+      if (!isShared) fail('T26', `${where(path, n)} compares group labels with localeCompare beside a key; the one group order is compareSessionGroups in ${rel(SESSION_LIST)}`);
+    }
+  }
+  checked('T26');
+  if (comparators === 0) fail('T26', 'no function under src/ compares group labels beside a key, so compareSessionGroups itself has moved or this clause reads nothing');
+  // (v) The sheet hands its tab map; the door hands an empty one.
+  const orderGroups = existsSync(PROJECTION) ? functionDeclared(PROJECTION, 'orderGroups') : null;
+  checked('T26', 2);
+  if (orderGroups === null) {
+    fail('T26', `${rel(PROJECTION)} declares no orderGroups`);
+  } else {
+    const calls = under(orderGroups).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'compareSessionGroups');
+    const handsItsMap = calls.length > 0 && calls.every((c) => c.arguments[2] !== undefined && ts.isIdentifier(c.arguments[2]) && orderGroups.parameters.some((p) => ts.isIdentifier(p.name) && p.name.text === c.arguments[2].text));
+    if (!handsItsMap) fail('T26', `${where(PROJECTION, orderGroups)} orderGroups does not hand compareSessionGroups its own tab map, so the sheet's open tabs no longer come first`);
+  }
+  if (existsSync(ROUTES)) {
+    const sf = astOf(ROUTES);
+    const calls = nodesOf(ROUTES).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'compareSessionGroups');
+    if (calls.length === 0) fail('T26', `${rel(ROUTES)} never orders its groups with compareSessionGroups(`);
+    const emptyMap = (e) => e !== undefined && ts.isNewExpression(e) && ts.isIdentifier(e.expression) && e.expression.text === 'Map' && (e.arguments === undefined || e.arguments.length === 0);
+    for (const c of calls) {
+      const third = c.arguments[2];
+      let ok = emptyMap(third);
+      if (!ok && third !== undefined && ts.isIdentifier(third)) {
+        const decl = nodesOf(ROUTES).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === third.text);
+        const filled = nodesOf(ROUTES).some(
+          (n) => ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && ['set', 'clear', 'delete'].includes(n.expression.name.text) && n.expression.expression.getText(sf) === third.text
+        );
+        ok = decl !== undefined && emptyMap(decl.initializer) && !filled;
+      }
+      if (!ok) fail('T26', `${where(ROUTES, c)} hands compareSessionGroups ${third === undefined ? 'no tab map' : third.getText(sf).slice(0, 60)}; the door hands it an EMPTY map, because a phone has no tabs and no group comes first`);
+    }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1261,6 +1476,11 @@ try {
   partitionRules();
 } catch (err) {
   fail('T23', `the partition rule could not read the domain: ${err instanceof Error ? err.message : String(err)}`);
+}
+try {
+  groupingRules();
+} catch (err) {
+  fail('T26', `the grouping rule could not read the tree: ${err instanceof Error ? err.message : String(err)}`);
 }
 try {
   moveRules();

@@ -85,6 +85,70 @@ enum Copy {
     /// Mac: src/shared/overview-copy.ts ⟦return `read ${clock}`⟧
     static let readLead = "read "
 
+    // MARK: - Show, group, sort and filter (Phase 316.7: Main.html, SessionsMenu.html)
+    //
+    // Show is the session manager's lifecycle segment, word for word. Its third
+    // word, `Ended`, is `ended` below (End these' outcome word, the same word in
+    // the same module), because a word is declared once. The sort words and
+    // Group by are the phone's own: no Mac surface offers that choice.
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦label: 'All'⟧
+    static let showAll = "All"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦label: 'Active'⟧
+    static let showActive = "Active"
+
+    /// Phone: the menu's grouping choice. No Mac surface offers a choice of
+    /// grouping; the sheet always groups by project.
+    static let groupBy = "Group by"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦project: 'Project'⟧
+    static let groupProject = "Project"
+
+    /// Mac: src/renderer/settings/fold-copy.ts ⟦FOLD_NONE_OPTION = 'None'⟧
+    static let groupNone = "None"
+
+    /// Phone: the menu's order choice. The sheet sorts by pressing a column
+    /// heading, which a phone does not have.
+    static let sortBy = "Sort by"
+
+    /// Phone: the order today's list already has, waiting first, then output,
+    /// then creation; no Mac column is that clock.
+    static let sortRecent = "Recent activity"
+
+    /// Phone: the sheet's column for it is headed `Session`, which as a sort
+    /// reads as nothing.
+    static let sortName = "Name"
+
+    /// Phone: the sheet's Created column ascending, said as a direction
+    /// because a menu has no arrow.
+    static let sortOldest = "Oldest first"
+
+    /// Mac: src/renderer/diagnostics/copy.ts ⟦COL_AGENT = 'Agent'⟧
+    static let agent = "Agent"
+
+    /// Mac: src/renderer/context/ContextHeader.tsx ⟦All agents`⟧
+    static let allAgents = "All agents"
+
+    /// Mac: src/renderer/machines/machine-choice.ts ⟦MACHINE_FIELD_LABEL = 'Machine'⟧
+    static let machine = "Machine"
+
+    /// Phone: the machine filter's no-filter value. No Mac surface filters
+    /// sessions by machine.
+    static let allMachines = "All machines"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦CLEAR_FILTERS = 'Clear filters'⟧
+    static let clearFilters = "Clear filters"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦NO_MATCH_HEADING = 'No matching sessions'⟧
+    static let noMatchingSessions = "No matching sessions"
+
+    /// Mac: src/renderer/session-manager/copy.ts ⟦heading: 'No sessions to manage'⟧
+    static let noSessions = "No sessions to manage"
+
+    /// Phone: the menu button's spoken name; the button draws no words.
+    static let sessionsOptions = "Group, sort and filter"
+
     // MARK: - One session (Session.html, Choice.html)
 
     /// Mac: src/shared/overview-copy.ts ⟦YOU_ASKED_LEAD = 'you asked '⟧
@@ -269,9 +333,10 @@ enum Copy {
 
     // MARK: - Settings (Phase 316.6: Settings.html, Unpair.html)
 
-    /// Phone: the card for the one Mac this iPhone is paired with. The Mac
-    /// says This Mac of ITSELF (src/renderer/machines/machine-choice.ts), which
-    /// is another machine's view, so the phone owns its own.
+    /// Mac: src/renderer/machines/machine-choice.ts ⟦THIS_MAC = 'This Mac'⟧
+    /// The machine filter's word for the Mac itself (Phase 316.7), which is
+    /// what the Mac's own machine choice calls it, and the Settings card for
+    /// the one Mac this iPhone is paired with (Phase 316.6), the same Mac.
     static let thisMac = "This Mac"
 
     /// Phone: before the date this iPhone was paired, `Paired · Sep 30, 2026`.
@@ -413,6 +478,8 @@ enum Copy {
     static let ending = "Ending…"
 
     /// Mac: src/renderer/session-manager/copy.ts ⟦return 'Ended';⟧
+    /// Also the Show control's third word (Phase 316.7), the lifecycle
+    /// segment's `label: 'Ended'` in the same module.
     static let ended = "Ended"
 
     /// Mac: src/renderer/session-manager/copy.ts ⟦? 'Already ended'⟧

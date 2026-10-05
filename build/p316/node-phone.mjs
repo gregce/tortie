@@ -48,6 +48,13 @@
  * kept say, §Revision R13, re-sends an id on purpose). `sayText` can write the
  * body the way Swift's `JSONEncoder` does, `/` as `\/`, so a probe can send
  * the bytes the phone sends. `writeAnswerOf` reads every verb's answer.
+ *
+ * PHASE 316.7: the Sessions tab's read. `sessionsTarget` spells a
+ * `/v1/sessions` target the phone's way (show, group, sort, then agent and
+ * machine when set, every value through the phone's `queryValue`), and
+ * `sessionsAnswerProblems` is the phone's refusals of an answer re-derived
+ * from build/p3167/SPEC.md §6.1 and §6.4.5, never from the door's composer
+ * or the Swift: an empty list is an answer the phone draws.
  */
 
 import {
@@ -570,6 +577,175 @@ export async function pairThrough(door, offer, phone, { tries = 30, everyMs = 1_
   }
   return { ok: false, words, why: `still ${words[words.length - 1]} after ${String(tries)} presentations` };
 }
+
+// ---------------------------------------------------------------------------
+// Phase 316.7: the sessions read (build/p3167/SPEC.md §6.1, §6.4.2, §6.4.5)
+// ---------------------------------------------------------------------------
+
+/** The three closed lists and what an absent word reads, as SPEC §6.1 writes them. */
+export const SESSIONS_SHOW = Object.freeze(['active', 'ended', 'all']);
+export const SESSIONS_GROUP = Object.freeze(['project', 'none']);
+export const SESSIONS_SORT = Object.freeze(['recent', 'name', 'oldest']);
+export const SESSIONS_DEFAULT = Object.freeze({ show: 'active', group: 'project', sort: 'recent' });
+/** The caps (SPEC D4): rows, and the bytes the rows and their groups take together. */
+export const SESSIONS_MAX_ROWS = 2000;
+export const SESSIONS_BUDGET_BYTES = 1_048_576;
+/** The most either side reads of one answer (wire.ts and DoorClient.swift's 2 MiB). */
+export const ANSWER_MAX_BYTES = 2 * 1024 * 1024;
+
+/**
+ * A query value the phone's way (DoorClient.swift `queryValue`): the RFC 3986
+ * unreserved bytes kept, every other byte of the UTF-8 percent-encoded with
+ * uppercase hex. Not `encodeURIComponent`, which keeps `!'()*` as they are.
+ */
+export function queryValue(value) {
+  let out = '';
+  for (const byte of Buffer.from(String(value), 'utf8')) {
+    const c = String.fromCharCode(byte);
+    out += /[A-Za-z0-9\-._~]/.test(c) ? c : `%${byte.toString(16).toUpperCase().padStart(2, '0')}`;
+  }
+  return out;
+}
+
+/** The phone's one spelling of a `/v1/sessions` target: show, group, sort, then agent and machine when set. */
+export function sessionsTarget({ show = SESSIONS_DEFAULT.show, group = SESSIONS_DEFAULT.group, sort = SESSIONS_DEFAULT.sort, agent = null, machine = null } = {}) {
+  let target = `/v1/sessions?show=${queryValue(show)}&group=${queryValue(group)}&sort=${queryValue(sort)}`;
+  if (agent !== null && agent !== undefined) target += `&agent=${queryValue(agent)}`;
+  if (machine !== null && machine !== undefined) target += `&machine=${queryValue(machine)}`;
+  return target;
+}
+
+/** The `asked` an honest answer to `query` echoes: the three words, and null for a filter not set. */
+export function askedOf(query = {}) {
+  return {
+    show: query.show ?? SESSIONS_DEFAULT.show,
+    group: query.group ?? SESSIONS_DEFAULT.group,
+    sort: query.sort ?? SESSIONS_DEFAULT.sort,
+    agent: query.agent ?? null,
+    machine: query.machine ?? null
+  };
+}
+
+/** One signed `/v1/sessions` read: the status, the parsed answer or null, its bytes and how long it took. */
+export async function readSessions(phone, door, query = {}, options = {}) {
+  const target = options.target ?? sessionsTarget(query);
+  const started = Date.now();
+  const reply = await signedGet(phone, door, target, options);
+  const ms = Date.now() - started;
+  let answer = null;
+  try {
+    answer = reply.status === 200 ? JSON.parse(reply.body) : null;
+  } catch {
+    answer = null;
+  }
+  return { target, status: reply.status, answer, bytes: reply.bytes ?? 0, ms, error: reply.error ?? null };
+}
+
+/**
+ * What the phone refuses in a `/v1/sessions` answer (SPEC §6.4.5, the fields of
+ * §6.1), re-derived here, so the Swift's refusals and the door's composer are
+ * each judged by a third reading. Answers a list of reasons; an empty list is
+ * an answer the phone draws. `asked` is the question sent (`askedOf`), or null
+ * to skip the echo.
+ *
+ * Refused WHOLE: an `asked` that is not the question; a word outside its list;
+ * a row id twice; a row whose `group` is outside `groups`; a group no row
+ * names; two groups with one id; under Project, a group whose rows are not
+ * together; groups not in the order their first row is emitted; a count that
+ * is not its drawn rows plus its `omitted`; group omitted that sum ABOVE the
+ * top-level `omitted` (below is honest: a project whose every row the caps
+ * left out is in no group, and its rows are counted in the top-level
+ * `omitted` alone, build/p3167/SPEC.md "§As built"); a group whose `waiting`
+ * is false over a drawn
+ * waiting row; a number the checked sums cannot hold (negative, not an
+ * integer, past 2^53, as `Int.max` is); `total` below the rows plus the
+ * omitted; and a field of the wrong type.
+ */
+export function sessionsAnswerProblems(answer, asked = null) {
+  const problems = [];
+  const say = (p) => problems.push(p);
+  if (answer === null || typeof answer !== 'object' || Array.isArray(answer)) return ['the answer is not an object'];
+  const isCount = (n) => Number.isSafeInteger(n) && n >= 0;
+  const isText = (s) => typeof s === 'string';
+  const isTextOrNull = (s) => s === null || typeof s === 'string';
+  const a = answer.asked;
+  if (a === null || typeof a !== 'object') say('the answer carries no asked');
+  else {
+    if (!SESSIONS_SHOW.includes(a.show)) say(`asked.show ${J(a.show)} is not a Show word`);
+    if (!SESSIONS_GROUP.includes(a.group)) say(`asked.group ${J(a.group)} is not a Group by word`);
+    if (!SESSIONS_SORT.includes(a.sort)) say(`asked.sort ${J(a.sort)} is not a Sort by word`);
+    if (!isTextOrNull(a.agent) || !isTextOrNull(a.machine)) say('asked.agent or asked.machine is neither an id nor null');
+    if (asked !== null) {
+      const pick = (x) => J([x.show, x.group, x.sort, x.agent ?? null, x.machine ?? null]);
+      if (pick(a) !== pick(asked)) say(`asked ${pick(a)} is not the question sent, ${pick(asked)}`);
+    }
+  }
+  for (const k of ['rows', 'groups', 'agents', 'machines']) if (!Array.isArray(answer[k])) say(`${k} is not a list`);
+  if (problems.some((p) => p.endsWith('is not a list'))) return problems;
+  for (const k of ['total', 'omitted']) if (!isCount(answer[k])) say(`${k} ${J(answer[k])} is not a count the phone's checked sums hold`);
+  if (typeof answer.at !== 'number' || !Number.isFinite(answer.at)) say('at is not a time');
+  if (!isText(answer.ageNote)) say('ageNote is not a string');
+  for (const k of ['agents', 'machines']) {
+    for (const c of answer[k]) if (c === null || typeof c !== 'object' || !isText(c.id) || !isTextOrNull(c.label)) say(`a ${k} choice is not { id, label }`);
+  }
+  const ids = new Set();
+  answer.groups.forEach((g, i) => {
+    if (g === null || typeof g !== 'object') return say(`group ${String(i)} is not an object`);
+    if (!isText(g.id) || g.id === '') say(`group ${String(i)} carries no id`);
+    else if (ids.has(g.id)) say(`two groups carry the id ${J(g.id)}`);
+    else ids.add(g.id);
+    if (!isText(g.label)) say(`group ${String(i)}'s label is not a string`);
+    if (!isTextOrNull(g.machine) || !isTextOrNull(g.folder)) say(`group ${String(i)}'s machine or folder is neither a string nor null`);
+    if (!isCount(g.count) || !isCount(g.omitted)) say(`group ${String(i)}'s count ${J(g.count)} or omitted ${J(g.omitted)} is not a count`);
+    if (typeof g.waiting !== 'boolean' || typeof g.collapsed !== 'boolean') say(`group ${String(i)}'s waiting or collapsed is not a Bool`);
+  });
+  const seen = new Set();
+  const drawn = new Map();
+  const firstEmitted = [];
+  const done = new Set();
+  let current = -1;
+  answer.rows.forEach((r, i) => {
+    if (r === null || typeof r !== 'object') return say(`row ${String(i)} is not an object`);
+    if (!isText(r.sessionId) || r.sessionId === '') say(`row ${String(i)} carries no sessionId`);
+    else if (seen.has(r.sessionId)) say(`the row ${J(r.sessionId)} is listed twice`);
+    else seen.add(r.sessionId);
+    if (!isText(r.name) || !isText(r.statusDot) || !isText(r.statusTitle)) say(`row ${String(i)}'s name, statusDot or statusTitle is not a string`);
+    if (!isTextOrNull(r.machine) || !isTextOrNull(r.ageText) || !isTextOrNull(r.question)) say(`row ${String(i)}'s machine, ageText or question is neither a string nor null`);
+    if (typeof r.waiting !== 'boolean') say(`row ${String(i)}'s waiting is not a Bool`);
+    if (r.end === null || typeof r.end !== 'object' || !isText(r.end.state)) say(`row ${String(i)} carries no End offer`);
+    if (!Number.isInteger(r.group) || r.group < 0 || r.group >= answer.groups.length) return say(`row ${String(i)}'s group ${J(r.group)} is outside groups`);
+    drawn.set(r.group, (drawn.get(r.group) ?? 0) + 1);
+    if (!firstEmitted.includes(r.group)) firstEmitted.push(r.group);
+    if (a?.group === 'project' && r.group !== current) {
+      if (done.has(r.group)) say(`group ${String(r.group)}'s rows are not together under Project`);
+      if (current !== -1) done.add(current);
+      current = r.group;
+    }
+    if (r.waiting === true && answer.groups[r.group]?.waiting === false) say(`group ${String(r.group)} reads waiting false over a waiting row`);
+  });
+  answer.groups.forEach((_, i) => {
+    if (!drawn.has(i)) say(`group ${String(i)} names no row`);
+  });
+  if (J(firstEmitted) !== J(firstEmitted.map((_, k) => k))) say(`the groups are not in the order their first row is emitted (${J(firstEmitted.slice(0, 8))})`);
+  let omittedSum = 0;
+  let sumHolds = true;
+  answer.groups.forEach((g, i) => {
+    if (!isCount(g?.count) || !isCount(g?.omitted)) {
+      sumHolds = false;
+      return;
+    }
+    if (g.count !== (drawn.get(i) ?? 0) + g.omitted) say(`group ${String(i)}'s count ${String(g.count)} is not its ${String(drawn.get(i) ?? 0)} drawn row(s) plus ${String(g.omitted)} omitted`);
+    omittedSum += g.omitted;
+  });
+  if (!Number.isSafeInteger(omittedSum)) say('the groups\' omitted overflow the checked sum');
+  else if (sumHolds && isCount(answer.omitted) && omittedSum > answer.omitted) say(`the groups' omitted sum to ${String(omittedSum)}, above the answer's ${String(answer.omitted)}`);
+  if (isCount(answer.total) && isCount(answer.omitted) && answer.total < answer.rows.length + answer.omitted) say(`total ${String(answer.total)} is below the ${String(answer.rows.length)} rows plus ${String(answer.omitted)} omitted`);
+  return problems;
+}
+
+/** The bytes the rows and their groups take together, the measure SPEC D4 caps. */
+export const sessionsBudgetBytes = (answer) =>
+  (answer?.rows ?? []).reduce((n, r) => n + Buffer.byteLength(J(r)), 0) + (answer?.groups ?? []).reduce((n, g) => n + Buffer.byteLength(J(g)), 0);
 
 /** Every page of one conversation, newest first, back to the first turn, as the phone must page it. */
 export async function pageBack(phone, door, sessionId, limit, maxPages = 400) {

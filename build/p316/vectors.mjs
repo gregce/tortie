@@ -17,7 +17,7 @@
  *             the Swift derives the same binding from the phone's) and
  *             `clientKeyPinOf`, the pin the door admits the client key by.
  *   requests  `canonicalRequestText` and `signAsPhone` (Node's Ed25519 is
- *             deterministic) for six requests, each ACCEPTED by the shipping
+ *             deterministic) for seven requests, each ACCEPTED by the shipping
  *             `PocketRequestVerifier` here over the phone's own channel, and
  *             one tampered target it refuses `signature`. The targets are
  *             spelled the way the Swift client spells them, and the door's own
@@ -26,7 +26,14 @@
  *             /v1/end` with a fixed body, the bytes Swift's JSONEncoder writes
  *             with `.sortedKeys`, at most its route's cap in the shipping
  *             `POCKET_WRITE_BODY_CAPS`. (Its fix round took `POST /v1/unpair`
- *             out, and its vector with it.)
+ *             out, and its vector with it.) Phase 316.7 adds `GET
+ *             /v1/sessions` (build/p3167/SPEC.md §6.4.2, §9.2): every
+ *             parameter set, in the one order `DoorClient.sessionsTarget`
+ *             writes them (show, group, sort, agent, machine), with the words
+ *             it asks as `asked`; the shipping `readSessionsQuery` reads the
+ *             door's own parse of the target back to exactly those words, and
+ *             the route is one of the shipping `POCKET_ROUTE_IDS`. It is
+ *             appended, so every earlier request keeps its clock and nonce.
  *   writeTampered  (Phase 317) the end write's signature presented over its
  *             body with ONE BYTE CHANGED, which the shipping verifier refuses
  *             `signature`: the body is covered, not only the target.
@@ -87,6 +94,11 @@
  *             composed field by field by the SHIPPING `session()` over a fixed
  *             offer: the waiting session's options pressable under a question
  *             id and a mark, the talking session `canSay`.
+ *             Since Phase 316.7, two `/v1/sessions` answers composed by the
+ *             SHIPPING `routes.sessions` over the same facts (All under
+ *             projects by Recent activity, and Active with no grouping by
+ *             Name), so the phone's decoder and its SessionsDrawing meet main's
+ *             own bytes in DoorVectorTests.
  *
  * --check. Regenerates everything in memory and compares. The deterministic
  * vectors must match byte for byte. The ones that carry a random value (the
@@ -163,7 +175,7 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
 const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
-const { createPocketRoutes } = await import('../../src/main/pocket/routes.ts');
+const { createPocketRoutes, readSessionsQuery } = await import('../../src/main/pocket/routes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { POCKET_ROUTE_IDS } = await import('../../src/shared/ipc/pocket.ts');
@@ -324,6 +336,12 @@ const SAY_TEXT = `run "ls /tmp" now\nthen /exit ${String.fromCodePoint(0x1f44d)}
  */
 const swiftJson = (fields) =>
   JSON.stringify(Object.fromEntries(Object.keys(fields).sort().map((k) => [k, fields[k]]))).replace(/\//g, '\\/');
+/**
+ * Phase 316.7: the words the sessions vector asks with, in the order
+ * `PocketSessionsAsked` names them. The ids are made up and have the one
+ * shape the door reads (`isSessionsId`).
+ */
+const SESSIONS_ASKED = Object.freeze({ show: 'ended', group: 'none', sort: 'oldest', agent: 'claude', machine: 'studio-mac' });
 
 const requestShapes = [
   { name: 'blocked', method: 'GET', target: '/v1/blocked', body: '', id: null },
@@ -346,7 +364,19 @@ const requestShapes = [
   { name: 'end', method: 'POST', target: '/v1/end', body: JSON.stringify({ batch: false, session: SESSION_TALK, write: WRITE_END }), id: null },
   // PHASE 318: the press and the message, each body as Swift writes it.
   { name: 'choose', method: 'POST', target: '/v1/choose', body: swiftJson({ mark: REPLY_MARK, marker: '2', question: QUESTION_ID, session: SESSION_TALK, write: WRITE_CHOOSE }), id: null },
-  { name: 'say', method: 'POST', target: '/v1/say', body: swiftJson({ session: SESSION_TALK, text: SAY_TEXT, write: WRITE_SAY }), id: null }
+  { name: 'say', method: 'POST', target: '/v1/say', body: swiftJson({ session: SESSION_TALK, text: SAY_TEXT, write: WRITE_SAY }), id: null },
+  // PHASE 316.7: the Sessions tab's read (build/p3167/SPEC.md §6.4.2). Every
+  // word other than its default and both filters set, so the target carries
+  // all five parameters in the one order the Swift writes them; each value is
+  // already in the unreserved set, so `queryValue` leaves it as it is.
+  {
+    name: 'sessions',
+    method: 'GET',
+    target: `/v1/sessions?show=${queryValue(SESSIONS_ASKED.show)}&group=${queryValue(SESSIONS_ASKED.group)}&sort=${queryValue(SESSIONS_ASKED.sort)}&agent=${queryValue(SESSIONS_ASKED.agent)}&machine=${queryValue(SESSIONS_ASKED.machine)}`,
+    body: '',
+    id: null,
+    asked: SESSIONS_ASKED
+  }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -390,11 +420,23 @@ const requests = requestShapes.map((shape, i) => {
   if (shape.id !== null && url.searchParams.get('id') !== shape.id) {
     fail(`request ${shape.name}: the door reads a different id`);
   }
+  // PHASE 316.7: the door's own query reader reads the sessions target back
+  // to exactly the words it was written from, and the route is the door's.
+  if (shape.asked !== undefined) {
+    if (typeof readSessionsQuery !== 'function') fail(`request ${shape.name}: the shipping routes.ts exports no readSessionsQuery to read it`);
+    else {
+      const read = readSessionsQuery(url.searchParams);
+      if (!read.ok) fail(`request ${shape.name}: the shipping readSessionsQuery refused it (${read.reason})`);
+      else if (JSON.stringify(read.asked) !== JSON.stringify(shape.asked)) fail(`request ${shape.name}: the shipping readSessionsQuery reads ${JSON.stringify(read.asked)}, not ${JSON.stringify(shape.asked)}`);
+    }
+    if (url.pathname !== '/v1/sessions' || !POCKET_ROUTE_IDS.includes('sessions')) fail(`request ${shape.name}: /v1/sessions is not one of the shipping POCKET_ROUTE_IDS`);
+  }
   return {
     name: shape.name,
     method: shape.method,
     target: shape.target,
     id: shape.id,
+    ...(shape.asked === undefined ? {} : { asked: shape.asked }),
     body: shape.body,
     bodySha256: facts.bodySha256,
     timestamp,
@@ -1051,7 +1093,10 @@ const answerShapes = [
   ['turns-to-24', () => routes.turns(S.talk, { limit: '20', to: '24' })],
   ['turns-to-4', () => routes.turns(S.talk, { limit: '20', to: '4' })],
   ['turns-quiet', () => routes.turns(S.quiet, { limit: '20' })],
-  ['turns-remote', () => routes.turns(S.remote, { limit: '20' })]
+  ['turns-remote', () => routes.turns(S.remote, { limit: '20' })],
+  // PHASE 316.7: the Sessions tab's read, composed by the shipping composer.
+  ['sessions-all-project', () => routes.sessions(new URLSearchParams('show=all&group=project&sort=recent'))],
+  ['sessions-active-none-name', () => routes.sessions(new URLSearchParams('show=active&group=none&sort=name'))]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {

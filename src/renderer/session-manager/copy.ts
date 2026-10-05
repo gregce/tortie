@@ -36,6 +36,7 @@ import type {
   SessionSheetState
 } from '../state/session-manager-slice';
 import { raisedLabel } from '@shared/status-words';
+import { createdOld } from '@shared/age';
 import { ageTwoUnits, dayLabel, exactTime } from './format';
 
 // ---------------------------------------------------------------------------
@@ -253,9 +254,10 @@ export const NOTHING_TO_RESTORE_TITLE =
 export const TOMBSTONE_RESTORE_REFUSED =
   'Add the machine again to bring this session back.';
 
-export function createdOld(age: string): string {
-  return `${age} old`;
-}
+// `createdOld` moved to src/shared/age.ts in Phase 316.7, beside `formatAge`,
+// so main says a creation age on the phone with these words. It is re-exported
+// here so its importers did not move.
+export { createdOld };
 
 // `raisedLabel` moved to src/shared/status-words.ts in Phase 316, so main
 // raises the phone's status title with the rule this sheet raises its own

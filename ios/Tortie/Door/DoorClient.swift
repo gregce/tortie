@@ -40,6 +40,10 @@
 //   exchange has 15 seconds. The door always writes an explicit length and
 //   never streams (conformance:pocket C1).
 //
+//   FOUR READS SINCE PHASE 316.7: `/v1/blocked`, `/v1/session`, `/v1/turns`
+//   and `/v1/sessions`, whose query is five closed words the door refuses
+//   whole when one is not its own.
+//
 //   EVERY READ IS SIGNED, exactly as src/main/pocket/server.ts verifies it:
 //   the target signed is the path and query exactly as sent, whose query
 //   values are percent-encoded here so the door's URL parser reads back the
@@ -218,6 +222,15 @@ final class DoorClient: DoorExchanging {
         return answer
     }
 
+    /// `GET /v1/sessions?show=&group=&sort=[&agent=][&machine=]` (Phase
+    /// 316.7): every session Tortie lists, shown, grouped and sorted as
+    /// `query` asks, composed in main. The answer echoes the words it was
+    /// asked with, and the Sessions tab refuses one that answers another
+    /// question (Screens/SessionsScreen.swift `SessionsDrawing`).
+    func sessions(_ query: SessionsQuery, door: PairedDoor) async throws -> PocketSessionsAnswer {
+        try await signedGet(PocketSessionsAnswer.self, target: Self.sessionsTarget(query), door: door)
+    }
+
     /// `GET /v1/turns?id=&limit=[&to=]`: the newest page when `to` is nil,
     /// else the newest `limit` turns at or below `to`. `TurnPages` checks it.
     func turns(
@@ -289,6 +302,19 @@ final class DoorClient: DoorExchanging {
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
+    }
+
+    /// The ONE builder of a `/v1/sessions` target (Phase 316.7, conformance:ios
+    /// rule aa): the three words always, in the order show, group, sort, then
+    /// the agent and the machine only when a filter is set, every value
+    /// through `queryValue`, so the door reads back the bytes signed here.
+    static func sessionsTarget(_ query: SessionsQuery) -> String {
+        var target = "/v1/sessions?show=\(queryValue(query.show.rawValue))"
+            + "&group=\(queryValue(query.group.rawValue))"
+            + "&sort=\(queryValue(query.sort.rawValue))"
+        if let agent = query.agent { target += "&agent=\(queryValue(agent))" }
+        if let machine = query.machine { target += "&machine=\(queryValue(machine))" }
+        return target
     }
 
     static func turnsTarget(_ sessionId: String, limit: Int, to: Int?) -> String {

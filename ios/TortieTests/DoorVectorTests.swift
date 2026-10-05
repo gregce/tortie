@@ -184,6 +184,38 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertEqual(DoorClient.pairTarget, byName["lowercase-method-with-body"]?.target)
     }
 
+    /// Clause (Phase 316.7): every `/v1/sessions` target the vectors sign is
+    /// the one the client's single builder spells for the same words, byte for
+    /// byte, so the door reads back exactly what the phone signed. The words
+    /// are read out of each vector's own query; at least one vector must hold
+    /// a sessions read, or the file predates the route
+    /// (`node build/p316/vectors.mjs`).
+    func testTheSessionsTargetIsTheDoorsByteForByte() throws {
+        let sessions = v.requests.filter { $0.target.hasPrefix("/v1/sessions?") }
+        XCTAssertFalse(sessions.isEmpty, "vectors.json holds no /v1/sessions request: run node build/p316/vectors.mjs")
+        for request in sessions {
+            XCTAssertEqual(request.method, "GET")
+            let query = try XCTUnwrap(Self.sessionsQuery(request.target), "\(request.name): \(request.target) is not five closed words")
+            XCTAssertEqual(DoorClient.sessionsTarget(query), request.target, request.name)
+        }
+    }
+
+    /// The words a `/v1/sessions` target asks with, or nil when it is not
+    /// spelled as the door reads one.
+    private static func sessionsQuery(_ target: String) -> SessionsQuery? {
+        guard let question = target.split(separator: "?", maxSplits: 1).last, target.contains("?") else { return nil }
+        var values: [String: String] = [:]
+        for pair in question.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            guard parts.count == 2, values[parts[0]] == nil, let value = parts[1].removingPercentEncoding else { return nil }
+            values[parts[0]] = value
+        }
+        guard let show = values["show"].flatMap(SessionsShow.init(rawValue:)),
+              let group = values["group"].flatMap(SessionsGroupBy.init(rawValue:)),
+              let sort = values["sort"].flatMap(SessionsSortBy.init(rawValue:)) else { return nil }
+        return SessionsQuery(show: show, group: group, sort: sort, agent: values["agent"], machine: values["machine"])
+    }
+
     // MARK: The writes (Phase 317)
 
     /// Clause: the write's request is the one the shipping verifier accepted:
@@ -511,6 +543,24 @@ final class DoorVectorTests: XCTestCase {
         }
         let remote = try JSONDecoder().decode(PocketTurnsAnswer.self, from: Data(try answer("turns-remote").json.utf8))
         XCTAssertNotNil(remote.note, "a remote row's turns carry main's sentence, not an error")
+    }
+
+    /// Clause (Phase 316.7): every `/v1/sessions` answer the SHIPPING composer
+    /// wrote reads back as the door wrote it, unknown fields ignored, and is
+    /// one the Sessions tab draws for the words it echoes: never refused.
+    /// vectors.mjs composes two (the integrator's addition to section 9.2);
+    /// a file with none predates the route and fails here by name.
+    func testTheSessionsAnswersReadBackAndDraw() throws {
+        let names = v.answers.keys.filter { $0.hasPrefix("sessions") }.sorted()
+        XCTAssertEqual(names, ["sessions-active-none-name", "sessions-all-project"], "vectors.json holds no /v1/sessions answer: run node build/p316/vectors.mjs")
+        for name in names {
+            let answer = try assertRoundTrip(PocketSessionsAnswer.self, name)
+            let asked = SessionsQuery(
+                show: answer.asked.show, group: answer.asked.group, sort: answer.asked.sort,
+                agent: answer.asked.agent, machine: answer.asked.machine
+            )
+            XCTAssertNoThrow(try SessionsDrawing(answer, asked: asked), "\(name): the shipping composer's answer is refused")
+        }
     }
 
     /// Clause: the ask arrives exactly as he typed it, markdown characters and

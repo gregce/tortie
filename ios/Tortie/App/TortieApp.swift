@@ -15,11 +15,12 @@
 // the version, and Unpair this iPhone). Each tab is its own navigation stack,
 // so each keeps its place, and the bar stays under a pushed session. The app
 // opens on Needs input every launch and stores no tab. One read of the list
-// feeds both list tabs and the badge. Unpair forgets the pairing on the phone
-// (the record first, then every client key), and in a Release build tells
-// Apple to stop taking alerts for this install; the Mac's half is not built
-// (Phase 317's fix round took it out, because waiting on it made Unpair slower
-// than today when the Mac did not answer).
+// feeds the Needs input tab and the badge (and, until Phase 316.7, the
+// Sessions tab, which now has a read of its own beside it). Unpair forgets
+// the pairing on the phone (the record first, then every client key), and in
+// a Release build tells Apple to stop taking alerts for this install; the
+// Mac's half is not built (Phase 317's fix round took it out, because waiting
+// on it made Unpair slower than today when the Mac did not answer).
 //
 // And since Phase 316.5, the alert: a tap on one opens the session it names
 // (`Route.alerted`), or the list with the Mac's own sentence when the Mac no
@@ -27,6 +28,12 @@
 // alert address is not the one that Mac holds, says `Pair again to get
 // alerts.` on the list (Alerts/Alerts.swift). A phone paired with a Mac that
 // cannot send asks iOS nothing and says nothing about alerts.
+//
+// SINCE PHASE 316.7 the Sessions tab is every session Tortie lists, shown,
+// grouped and sorted as the phone asks and composed in main
+// (Screens/SessionsScreen.swift): its own model reads `/v1/sessions` beside
+// the list's read, keeps Show, Group by and Sort by across launches, and
+// against a Mac older than that phase draws the list above, as it was.
 //
 // AND SINCE PHASE 317, END (build/p317/SPEC.md section 5.8): a session the
 // Mac offers End for ends from its screen, and End these from the Sessions
@@ -127,6 +134,9 @@ final class AppModel {
     /// ONE list model for both list tabs and the badge, so all three are
     /// always one answer.
     private(set) var list: ListModel?
+    /// The Sessions tab's model (Phase 316.7), made wherever the list is, over
+    /// the same reader and the same list, and dropped with it.
+    private(set) var sessions: SessionsModel?
     private(set) var pairing: PairingModel!
     private(set) var reader: (any DoorReading)?
     /// What iOS allows for alerts, for Settings: read only for a pairing
@@ -156,6 +166,8 @@ final class AppModel {
     /// Face ID, Touch ID or the passcode, asked before an End and nothing
     /// else (App/OwnerCheck.swift).
     let ownerCheck: any OwnerCheck
+    /// Where the Sessions tab keeps its three words (Screens/SessionsChoices.swift).
+    private let choices: any SessionsChoicesStore
     /// A code handed in at launch (DEBUG only), read once by the first
     /// pairing screen and never again, so a pairing that is later removed
     /// draws the not-paired line rather than retrying a spent code.
@@ -166,11 +178,13 @@ final class AppModel {
         label: String,
         alerts: any PushAddressing,
         launchCode: String? = nil,
-        ownerCheck: any OwnerCheck = DeviceOwnerCheck()
+        ownerCheck: any OwnerCheck = DeviceOwnerCheck(),
+        choices: any SessionsChoicesStore = KeptSessionsWords.onThisPhone()
     ) {
         self.door = door
         self.alerts = alerts
         self.ownerCheck = ownerCheck
+        self.choices = choices
         if let reader = door.pairedReader() {
             root = .reading
             self.reader = reader
@@ -182,7 +196,7 @@ final class AppModel {
         pairing = PairingModel(door: door, label: label, alerts: alerts) { [weak self] reader, first in
             self?.paired(reader, first: first)
         }
-        if let reader { list = ListModel(door: reader, routing: listRouting) }
+        if let reader { makeLists(reader) }
     }
 
     /// The app as it launches on a phone or in the Simulator.
@@ -240,9 +254,7 @@ final class AppModel {
 
     func paired(_ reader: any DoorReading, first: PocketBlockedAnswer) {
         self.reader = reader
-        let list = ListModel(door: reader, routing: listRouting)
-        list.adopt(first)
-        self.list = list
+        makeLists(reader).adopt(first)
         startOver()
         root = .reading
         // The launch's check, at once (the 316.5 fix round): an Allow pressed
@@ -258,6 +270,7 @@ final class AppModel {
     func lostPairing() {
         startOver()
         list = nil
+        sessions = nil
         reader = nil
         pairing.pairAgain()
         root = .pairing
@@ -339,8 +352,18 @@ final class AppModel {
     private func readKeptPairing() {
         guard root == .pairing, let reader = door.pairedReader() else { return }
         self.reader = reader
-        list = ListModel(door: reader, routing: listRouting)
+        makeLists(reader)
         root = .reading
+    }
+
+    /// The list and the Sessions tab's model, over one reader: made together
+    /// and dropped together. Answers the list.
+    @discardableResult
+    private func makeLists(_ reader: any DoorReading) -> ListModel {
+        let list = ListModel(door: reader, routing: listRouting)
+        self.list = list
+        sessions = SessionsModel(door: reader, list: list, store: choices)
+        return list
     }
 
     /// A row tapped on `tab`'s list opens that session on that tab.
@@ -512,8 +535,8 @@ struct RootView: View {
                         }
                     }
             case .reading:
-                if let list = app.list, let reader = app.reader {
-                    tabs(list: list, reader: reader)
+                if let list = app.list, let sessions = app.sessions, let reader = app.reader {
+                    tabs(list: list, sessions: sessions, reader: reader)
                 }
             }
         }
@@ -542,7 +565,7 @@ struct RootView: View {
     /// The three tabs, each its own stack (build/p3166/SPEC.md section
     /// 5.1.1). Nothing hides the bar: it stays under a pushed session, so a
     /// session is one tap from Needs input. `.badge(0)` draws no badge.
-    private func tabs(list: ListModel, reader: any DoorReading) -> some View {
+    private func tabs(list: ListModel, sessions: SessionsModel, reader: any DoorReading) -> some View {
         TabView(selection: $app.tab) {
             Tab(Copy.needsInput, systemImage: "bell", value: AppTab.needsInput) {
                 NavigationStack(path: $app.waitingPath) {
@@ -555,10 +578,19 @@ struct RootView: View {
             .badge(app.waitingBadge)
             Tab(Copy.sessions, systemImage: "list.bullet", value: AppTab.sessions) {
                 NavigationStack(path: $app.sessionsPath) {
-                    listScreen(list, kind: .sessions, tab: .sessions)
-                        .navigationDestination(for: Route.self) { route in
-                            destination(route, reader: reader, tab: .sessions)
-                        }
+                    // Phase 316.7: every session, shown, grouped and sorted,
+                    // or today's list for a Mac older than that phase, under
+                    // ONE End these (Screens/SessionsScreen.swift).
+                    SessionsTab(
+                        model: sessions,
+                        isTop: app.listIsTop(.sessions),
+                        foregroundTick: app.foregroundTick,
+                        open: { app.open($0, in: .sessions) },
+                        ends: app.reader.flatMap { app.endBatchSetup($0) }
+                    )
+                    .navigationDestination(for: Route.self) { route in
+                        destination(route, reader: reader, tab: .sessions)
+                    }
                 }
             }
             Tab(Copy.settings, systemImage: "gearshape", value: AppTab.settings) {
@@ -572,6 +604,8 @@ struct RootView: View {
         .linkGate()
     }
 
+    /// The Needs input tab's list. It draws no Select: End these is the
+    /// Sessions tab's alone.
     private func listScreen(_ list: ListModel, kind: ListKind, tab: AppTab) -> some View {
         ListScreen(
             model: list,
@@ -676,10 +710,10 @@ private struct ConversationRoute: View {
 
 // MARK: - The seam to Door/
 
-/// The kept pairing's three reads and three writes (End, and Phase 318's
-/// press and message), through the one network user. It is its own writer,
-/// answered through `DoorReading`'s requirement, so the app's
-/// `any DoorReading` reads it.
+/// The kept pairing's four reads (Phase 316.7's Sessions read the fourth) and
+/// three writes (End, and Phase 318's press and message), through the one
+/// network user. It is its own writer, answered through `DoorReading`'s
+/// requirement, so the app's `any DoorReading` reads it.
 struct PairedReader: DoorReading, DoorWriting {
     let client: DoorClient
     let door: PairedDoor
@@ -707,6 +741,11 @@ struct PairedReader: DoorReading, DoorWriting {
 
     func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer {
         try await client.turns(sessionId, to: to, door: door)
+    }
+
+    /// `GET /v1/sessions` (Phase 316.7).
+    func sessions(_ query: SessionsQuery) async throws -> PocketSessionsAnswer {
+        try await client.sessions(query, door: door)
     }
 
     /// `POST /v1/end`, once.

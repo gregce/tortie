@@ -71,6 +71,18 @@
  * the "no choice on the read-back screen" half of the guard; `Y6a` plants over
  * the new guard.
  *
+ * PHASE 316.7 ADDED NINETEEN (build/p3167/SPEC.md §8.1), 292 entries in the
+ * table with 318's: one per clause of the sessions answer, `O2a` to `O2m`
+ * with a second arm for the three clauses that read two things (`O2db` the clip on a name,
+ * `O2kb` a group's omitted, `O2mb` the machine filter), `O3a` and `O3b` the
+ * conversation it never reads, and `R4x` a seventh route beside
+ * `/v1/sessions`. `O2k` and `O2l` must ALSO redden a third check, `unit`, which
+ * runs `src/main/pocket/__tests__/routes.test.ts` in the clone: the cut walking
+ * the display order loses the waiting row of a late group under a cap of 4,
+ * and a waiting row aged from `attentionRows`' since draws 20728d. Those two
+ * are the adversary's F2 and F1, and a text rule alone could miss a spelling of
+ * either that nobody has written yet. The clone now carries vitest.config.ts.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -124,6 +136,7 @@
  * Usage:
  *   node build/ablation-p313.mjs
  *   P313_ONLY=L2,R2,S2 node build/ablation-p313.mjs        named entries only
+ *   P313_ONLY=O2a,O2k,O2l,R4x node build/ablation-p313.mjs  the Phase 316.7 arms, for one
  *   P313_ALLOW_RED_BASE=1 node build/ablation-p313.mjs
  */
 
@@ -192,7 +205,12 @@ const FOCUS_REPORT = 'src/renderer/terminal/keys/focus-report.ts';
  */
 const CHECKS = [
   ['gate', ['build/conformance-pocket.mjs']],
-  ['hostile', ['build/p313/hostile-client.mjs']]
+  ['hostile', ['build/p313/hostile-client.mjs']],
+  // PHASE 316.7: the route's own unit fixtures, DRIVEN, for the two arms whose
+  // clause a text rule could miss in a shape nobody wrote yet (O2k, O2l). It
+  // runs vitest over the one file, in the clone, and a failure is the tag
+  // `[p313 unit]`, which this harness writes itself because vitest prints none.
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/routes.test.ts'], { tag: 'unit', relative: true }]
 ];
 
 /**
@@ -2979,6 +2997,206 @@ const ABLATIONS = [
     needs: ['gate']
   },
   // -------------------------------------------------------------------------
+  // PHASE 316.7: the sessions answer (build/p3167/SPEC.md §8.1). One arm per
+  // clause of O2 and O3, each red on its own rule, and R4x for the pin. O2k
+  // and O2l are ALSO driven through routes.test.ts's fixtures (the `unit`
+  // check), so a shape the text rule misses is still red where the behaviour
+  // is: O2k loses the waiting row of a late group under a cap of 4, and O2l
+  // draws 20728d for a waiting row with no stamp and a createdAt of 0.
+  // -------------------------------------------------------------------------
+  {
+    n: 'O2a',
+    rule: 'O2a',
+    name: 'the sessions answer made async, with an await',
+    why: 'composed synchronously, the answer is one reading of main’s state; an await is a moment a Remove can land between the list and the rows cut from it.',
+    file: ROUTES,
+    from: '    sessions(query: URLSearchParams): PocketSessionsAnswer | null {',
+    to: '    async sessions(query: URLSearchParams): Promise<PocketSessionsAnswer | null> {\n      await Promise.resolve();',
+    needs: ['gate']
+  },
+  {
+    n: 'O2b',
+    rule: 'O2b',
+    name: 'the total read from a second facts.sessions()',
+    why: 'every count and every row is cut from ONE read, or a session that moved between two reads is counted in one and drawn in the other.',
+    file: ROUTES,
+    from: '        total: sessions.length,',
+    to: '        total: facts.sessions().length,',
+    needs: ['gate']
+  },
+  {
+    n: 'O2c',
+    rule: 'O2c',
+    name: 'the row cap re-spelled as 2000',
+    why: 'the bound a phone is told and the bound the door applies are one number, read from the contract; a second spelling is the one that drifts (D4’s fallback moves it to 1,000).',
+    file: ROUTES,
+    from: '        if (chosen.size >= POCKET_SESSIONS_MAX) break;',
+    to: '        if (chosen.size >= 2000) break;',
+    needs: ['gate']
+  },
+  {
+    n: 'O2d',
+    rule: 'O2d',
+    name: 'the clip’s surrogate step removed',
+    why: 'a cut between the two halves of a pair hands the phone a lone surrogate, which a strict decoder refuses and a lax one draws as a box (D5).',
+    file: ROUTES,
+    from: '  if (last >= 0xd800 && last <= 0xdbff) keep -= 1;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'O2db',
+    rule: 'O2d',
+    name: 'a row’s name sent unclipped',
+    why: 'a 300-character name is 300 characters on a 390-point row and on the wire; the one clip is the bound.',
+    file: ROUTES,
+    from: '          name: clipSessionText(session.name),',
+    to: '          name: session.name,',
+    needs: ['gate']
+  },
+  {
+    n: 'O2e',
+    rule: 'O2e',
+    name: 'the answer’s omitted written as 0',
+    why: 'a list the caps cut that says it left nothing out is a list a person believes is whole.',
+    file: ROUTES,
+    from: '        omitted: kept.length - rows.length,',
+    to: '        omitted: 0,',
+    needs: ['gate']
+  },
+  {
+    n: 'O2f',
+    rule: 'O2f',
+    name: 'a row’s group index taken from rows.length',
+    why: 'the index names a group in groups; a count of rows names whatever group happens to sit there, and a row is drawn under another project’s header.',
+    file: ROUTES,
+    from: '          index = groups.length;',
+    to: '          index = rows.length;',
+    needs: ['gate']
+  },
+  {
+    n: 'O2g',
+    rule: 'O2g',
+    name: 'a pattern in the query reader',
+    why: 'the reader compares words for equality and reads an id one character at a time; a pattern is the thing the closed table refuses (R1’s reason, D3).',
+    file: ROUTES,
+    from: '  if (value.length < 1 || value.length > 32) return false;',
+    to: '  if (/[^a-z0-9-]/u.exec(value) !== null) return false;\n  if (value.length < 1 || value.length > 32) return false;',
+    needs: ['gate']
+  },
+  {
+    n: 'O2h',
+    rule: 'O2h',
+    name: 'a status literal in Show',
+    why: 'Show reads the gates’ own partition; a status list here is a fourth spelling of “live” beside main’s, the gates’ and the sheet’s (T23’s reason).',
+    file: ROUTES,
+    from: '        if (!lifecycleKeeps(asked.show, gates)) continue;',
+    to: "        if (!lifecycleKeeps(asked.show, gates)) continue;\n        if (asked.show === 'active' && session.status === 'exited') continue;",
+    needs: ['gate']
+  },
+  {
+    n: 'O2i',
+    rule: 'O2i',
+    name: 'a group key built from targetKey( in routes.ts',
+    why: 'the key is the shared identity’s; a second key here is the door grouping by its own rule, which drifts from the sheet the day either moves.',
+    file: ROUTES,
+    from: '          id: sessionsGroupId(identity.key),',
+    to: "          id: sessionsGroupId(targetKey(identity.target ?? { machineId: 'local', path: identity.path })),",
+    needs: ['gate']
+  },
+  {
+    n: 'O2j',
+    rule: 'O2j',
+    name: 'a creation age drawn without createdOld',
+    why: 'a creation clock drawn bare reads as a last output or a wait: one clock drawn as another (D11).',
+    file: ROUTES,
+    from: '        const created = session.createdAt > 0 ? createdOld(formatAge(session.createdAt, at)) : null;',
+    to: '        const created = session.createdAt > 0 ? formatAge(session.createdAt, at) : null;',
+    needs: ['gate']
+  },
+  {
+    n: 'O2k',
+    rule: 'O2k',
+    alsoRed: ['unit'],
+    name: 'the cut walking the display order',
+    why: 'THE ADVERSARY’S F2: under Project, Name or Oldest first a session waiting on him in a late group falls past the cap while idle rows in early groups are drawn. Today’s /v1/blocked never cuts a waiting row.',
+    file: ROUTES,
+    from: '      for (const session of priority) {\n        if (chosen.size >= POCKET_SESSIONS_MAX) break;',
+    to: '      for (const session of display) {\n        if (chosen.size >= POCKET_SESSIONS_MAX) break;',
+    needs: ['gate', 'unit']
+  },
+  {
+    n: 'O2kb',
+    rule: 'O2k',
+    name: 'a group’s omitted written as 0',
+    why: 'THE ADVERSARY’S F4: after the cut, the rows it left out can sit in the middle of a group, and a header counting fifty over ten rows with nothing beside it is a count that lies.',
+    file: ROUTES,
+    from: '          omitted: under.count - drawn,',
+    to: '          omitted: 0,',
+    needs: ['gate']
+  },
+  {
+    n: 'O2l',
+    rule: 'O2l',
+    alsoRed: ['unit'],
+    name: 'a waiting row aged from attentionRows’ since',
+    why: 'THE ADVERSARY’S F1: that since falls back to createdAt, so a row the poll has not stamped draws its creation age as a wait, and 20728d for a createdAt of 0.',
+    file: ROUTES,
+    from: '        const stamp = stamps.get(session.id);',
+    to: '        const stamp = attentionRows([session], projects, stamps)[0]?.since;',
+    needs: ['gate', 'unit']
+  },
+  {
+    n: 'O2m',
+    rule: 'O2m',
+    name: 'the agent choices offered with no isSessionsId(',
+    why: 'THE ADVERSARY’S F8: the manifest stores an agent as any string, so the menu offers an id the query refuses, and choosing it reads as a Mac older than this phase.',
+    file: ROUTES,
+    from: '        if (!agentSeen.has(agent) && isSessionsId(agent)) {',
+    to: '        if (!agentSeen.has(agent)) {',
+    needs: ['gate']
+  },
+  {
+    n: 'O2mb',
+    rule: 'O2m',
+    name: 'the machine filter reads the session’s own machine',
+    why: 'THE ADVERSARY’S F9: a machine whose id is local is This Mac’s group but not This Mac’s filter, so the filter and the groups disagree.',
+    file: ROUTES,
+    from: '          (asked.machine === null || one.machineId === asked.machine)',
+    to: "          (asked.machine === null || (one.session.machine?.id ?? 'local') === asked.machine)",
+    needs: ['gate']
+  },
+  {
+    n: 'O3a',
+    rule: 'O3',
+    name: 'the sessions answer reads a Catch Me Up line',
+    why: 'a list of every session is not a reason to read anybody’s conversation.',
+    file: ROUTES,
+    from: '      if (!read.ok) return null;',
+    to: "      if (!read.ok) return null;\n      void facts.catchUp('');",
+    needs: ['gate']
+  },
+  {
+    n: 'O3b',
+    rule: 'O3',
+    name: 'routes.ts imports more of the overview',
+    why: 'routes.ts keeps MAX_TURN_LIMIT from the overview and nothing else, so no route composes a conversation it was not asked for.',
+    file: ROUTES,
+    from: "import { MAX_TURN_LIMIT } from '../overview/turn-view';",
+    to: "import { MAX_TURN_LIMIT, toTurnView } from '../overview/turn-view';\nvoid toTurnView;",
+    needs: ['gate']
+  },
+  {
+    n: 'R4x',
+    rule: 'R4',
+    name: 'a SEVENTH route row beside /v1/sessions',
+    why: 'the pin moved once, on purpose, by /v1/sessions; a seventh path is a change to what the phone can ask for, and it is a visible edit to the pin or a red build.',
+    file: TABLE,
+    from: "  { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },",
+    to: "  { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },\n  { id: 'sessions', method: 'GET', path: '/v1/sessions/all', reads: true, windowOnly: false, signed: true },",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
   // THE HOSTILE CLIENT'S OWN: clauses the source reads cannot tell from a guard.
   // -------------------------------------------------------------------------
   {
@@ -3019,7 +3237,8 @@ function buildClone() {
   // clone holding one alone dies on a missing sibling (ablation:p275's lesson).
   // AND electron.vite.config.ts, whose door entry conformance:pocket U5 reads
   // (Phase 330).
-  for (const name of ['package.json', 'electron.vite.config.ts', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
+  // PHASE 316.7: and vitest.config.ts, which the `unit` check runs under.
+  for (const name of ['package.json', 'electron.vite.config.ts', 'vitest.config.ts', ...readdirSync(REPO).filter((f) => /^tsconfig(\.[a-z]+)?\.json$/.test(f))]) {
     writeFileSync(join(scratch, name), readFileSync(join(REPO, name)));
   }
   symlinkSync(join(REPO, 'node_modules'), join(scratch, 'node_modules'));
@@ -3040,9 +3259,9 @@ function runChecks(which = CHECKS.map(([name]) => name)) {
   const red = new Set();
   let code = 0;
   let text = '';
-  for (const [name, argv] of CHECKS) {
+  for (const [name, argv, options] of CHECKS) {
     if (!which.includes(name)) continue;
-    const r = spawnSync(process.execPath, argv.map((a) => join(scratch, a)), {
+    const r = spawnSync(process.execPath, options?.relative === true ? argv : argv.map((a) => join(scratch, a)), {
       cwd: scratch,
       encoding: 'utf8',
       maxBuffer: 64 * 1024 * 1024,
@@ -3051,6 +3270,10 @@ function runChecks(which = CHECKS.map(([name]) => name)) {
     const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
     text += out;
     if ((r.status ?? 1) !== 0) code = 1;
+    if ((r.status ?? 1) !== 0 && options?.tag !== undefined) {
+      red.add(options.tag);
+      text += `\n[p313 ${options.tag}] ${name} exited ${String(r.status)}: ${out.split('\n').filter((l) => /FAIL|✗|×|AssertionError|expected/.test(l)).slice(0, 4).join(' // ')}\n`;
+    }
     // LOWERCASE TAGS COUNT TOO. The hostile client prints `[p313 hostile]` and
     // the first draft of this regex demanded a leading capital, so every arm
     // driven by the client was invisible here: the S4 entry below reddens the

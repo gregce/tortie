@@ -38,24 +38,7 @@ export function parentDir(path: string): string {
   return i <= 0 ? '/' : path.slice(0, i);
 }
 
-/**
- * Home-relative path for display ("~/src/webapp").
- *
- * PHASE 90.3 GAVE IT A SECOND ARGUMENT, and the reason is that a tilde is a
- * claim about whose home folder a path is in. `/Users/gdc/src` on THIS Mac is
- * this person's home folder. The same string on another machine is that
- * machine's account, which may be a different person, and rewriting it to `~`
- * says something Tortie does not know. So a path on another machine is drawn
- * exactly as that machine states it.
- *
- * The argument is optional and an omitted value means this Mac, so every caller
- * that has never heard of a machine reads exactly what it read before.
- */
-export function displayPath(path: string, machineId?: string): string {
-  if (machineId !== undefined && machineId !== '' && machineId !== 'local') {
-    return path;
-  }
-  const m = /^\/Users\/[^/]+(\/.*)?$/.exec(path);
-  if (m) return `~${m[1] ?? ''}`;
-  return path;
-}
+// `displayPath` moved to `src/shared/display-path.ts` in Phase 316.7, so main
+// draws the folder under a phone's group header with the rule the session
+// manager draws it with. It is re-exported here so none of its importers moved.
+export { displayPath } from '@shared/display-path';

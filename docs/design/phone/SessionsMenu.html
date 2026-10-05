@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Sessions — group, sort and filter</title>
+<style>
+html,body{background:#0E0F13}
+body { margin: 0; }
+.t { font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif; }
+.num { font-variant-numeric: tabular-nums; }
+.seg { display: flex; margin: 0 16px 8px 16px; padding: 2px; background: #191B20; border: 1px solid #25282E; border-radius: 9px; flex-shrink: 0; }
+.seg button { flex: 1; height: 28px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #9CA1AB; cursor: pointer; }
+.seg button.on { background: #202329; color: #C9CACD; }
+.menu { position: absolute; top: 88px; right: 16px; width: 250px; background: #202329; border: 1px solid #353943; border-radius: 12px; overflow: hidden; }
+.item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 16px; border-bottom: 1px solid #353943; }
+.item:last-child { border-bottom: 0; }
+.item-name { font-size: 17px; line-height: 22px; color: #C9CACD; }
+.item-value { font-size: 13px; line-height: 18px; color: #9CA1AB; }
+.chev { width: 9px; height: 15px; flex-shrink: 0; }
+.gap { height: 8px; background: #191B20; border-bottom: 1px solid #353943; }
+.dim { position: absolute; inset: 0; background: rgba(9, 10, 12, 0.55); }
+a { color: #4d9de8; }
+.tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
+.tab.on { color: #4d9de8; }
+.tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
+.tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
+.badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<!-- Phase 316.7 (build/p3167/SPEC.md §6.5, D12): the one menu beside Select,
+     open. Group by and Sort by each show what is chosen; Agent and Machine are
+     there only when the Mac names more than one; Clear filters only while Show
+     is not All or a filter is set, and it is the Mac's: it sets Show to All and
+     clears both filters. The menu is iOS's own, so its material and metrics are
+     the system's; its words are the phone's. Under it, the face the list draws
+     when the words keep nothing: "No matching sessions" and the same Clear
+     filters. The menu button is filled while a filter is set. Show, Group by and
+     Sort by are remembered across launches; a filter lasts until the app quits.
+     There is no search. -->
+<div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden; position: relative;">
+
+  <div style="height: 44px; flex-shrink: 0;"></div>
+
+  <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 0 16px 8px 16px; flex-shrink: 0;">
+    <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Sessions</div>
+    <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 4px;">
+      <button type="button" aria-label="Group, sort and filter" style="background: none; border: 0; padding: 0; width: 22px; height: 22px; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="10.5" fill="#4d9de8"></circle><path d="M6 8h10M8 11h6M10 14h2" stroke="#0E0F13" stroke-width="1.5"></path></svg></button>
+    </div>
+  </div>
+
+  <div class="seg">
+    <button type="button">All</button>
+    <button type="button">Active</button>
+    <button type="button" class="on">Ended</button>
+  </div>
+
+  <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start;">
+    <div style="font-size: 17px; line-height: 22px; color: #9CA1AB;">No matching sessions</div>
+    <button type="button" style="background: none; border: 0; padding: 0; font: inherit; font-size: 17px; line-height: 22px; color: #4d9de8; cursor: pointer;">Clear filters</button>
+  </div>
+
+  <div style="flex-grow: 1;"></div>
+  <div class="num" style="font-size: 13px; color: #838996; text-align: right; padding: 16px;">read 4:32 PM</div>
+
+  <div class="tabbar">
+    <a class="tab" href="NeedsInput.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
+        <div class="badge">2</div>
+      </div>
+      <div class="lbl">Needs input</div>
+    </a>
+    <a class="tab on" href="Main.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="5" cy="7" r="1.1" fill="currentColor"></circle><circle cx="5" cy="12" r="1.1" fill="currentColor"></circle><circle cx="5" cy="17" r="1.1" fill="currentColor"></circle><path d="M9 7h11M9 12h11M9 17h11"></path></svg>
+      </div>
+      <div class="lbl">Sessions</div>
+    </a>
+    <a class="tab" href="Settings.html">
+      <div class="ico">
+        <svg width="24" height="24" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.1"><circle cx="8" cy="8" r="2.4"></circle><path d="M8 1.6v1.8M8 12.6v1.8M1.6 8h1.8M12.6 8h1.8M3.5 3.5l1.3 1.3M11.2 11.2l1.3 1.3M12.5 3.5l-1.3 1.3M4.8 11.2l-1.3 1.3"></path></svg>
+      </div>
+      <div class="lbl">Settings</div>
+    </a>
+  </div>
+
+  <div class="dim"></div>
+
+  <div class="menu">
+    <div class="item">
+      <div>
+        <div class="item-name">Group by</div>
+        <div class="item-value">Project</div>
+      </div>
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+    </div>
+    <div class="item">
+      <div>
+        <div class="item-name">Sort by</div>
+        <div class="item-value">Recent activity</div>
+      </div>
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+    </div>
+    <div class="gap"></div>
+    <div class="item">
+      <div>
+        <div class="item-name">Agent</div>
+        <div class="item-value">Codex CLI</div>
+      </div>
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+    </div>
+    <div class="item">
+      <div>
+        <div class="item-name">Machine</div>
+        <div class="item-value">All machines</div>
+      </div>
+      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
+    </div>
+    <div class="gap"></div>
+    <div class="item">
+      <div class="item-name">Clear filters</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

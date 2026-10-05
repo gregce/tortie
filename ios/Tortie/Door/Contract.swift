@@ -688,6 +688,200 @@ extension PocketBlockedAnswer: Codable {
     }
 }
 
+// MARK: - Every session, shown, grouped and sorted as asked (Phase 316.7)
+//
+// `GET /v1/sessions`, build/p3167/SPEC.md section 6.1. Main decides which
+// sessions the words keep, which project each is in, the order, every age and
+// every count, and the caps (2,000 rows and 1 MiB, chosen waiting first); the
+// phone checks the answer is one main could have composed
+// (Screens/SessionsScreen.swift `SessionsDrawing`) and lays it out.
+//
+// Every whole number here is a door number, decoded through the bound, and
+// each Swift name is distinct from every other name in the app (`groupIndex`,
+// `sessionCount`, `omittedRows`, `totalSessions`), because conformance:ios
+// rule (k) reads an operand naming a door field as arithmetic on the door's
+// number, and a field called `count` would make every `.count` in the app one.
+
+/// `PocketSessionsAsked`: the words main read, echoed. A word this build does
+/// not know refuses the whole answer, so an answer to another question is
+/// never drawn as this one.
+struct PocketSessionsAsked: Equatable, Sendable {
+    let show: SessionsShow
+    let group: SessionsGroupBy
+    let sort: SessionsSortBy
+    let agent: String?
+    let machine: String?
+
+    /// Whether this is the question `query` asked, word for word.
+    func answers(_ query: SessionsQuery) -> Bool {
+        show == query.show && group == query.group && sort == query.sort
+            && agent == query.agent && machine == query.machine
+    }
+}
+
+extension PocketSessionsAsked: Codable {
+    enum CodingKeys: String, CodingKey { case show, group, sort, agent, machine }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        show = try c.decode(SessionsShow.self, forKey: .show)
+        group = try c.decode(SessionsGroupBy.self, forKey: .group)
+        sort = try c.decode(SessionsSortBy.self, forKey: .sort)
+        agent = try c.nullable(String.self, forKey: .agent)
+        machine = try c.nullable(String.self, forKey: .machine)
+    }
+}
+
+/// `PocketSessionsRow`: one session as the Sessions tab draws it.
+struct PocketSessionsRow: Equatable, Sendable, Identifiable {
+    let sessionId: String
+    /// Clipped in main to 200 UTF-16 units; the session screen draws it whole.
+    let name: String
+    /// An index into the answer's `groups`.
+    let groupIndex: Int
+    /// Where the session runs, drawn. Nil is this Mac.
+    let machine: String?
+    let statusDot: String
+    let statusTitle: String
+    /// Main's age for the clock that placed this row (D11): `4m`, `3d old`,
+    /// or nil, which draws the dash, for a row with no clock at all.
+    let ageText: String?
+    /// The session is waiting on him (`needs_input`).
+    let waiting: Bool
+    /// The question, only on a waiting row, capped in main.
+    let question: String?
+    /// Required here: only main's composer builds these rows (Phase 317's
+    /// decoder reads it, and a state word it does not know is `.none`).
+    let end: PocketEndOffer
+
+    var id: String { sessionId }
+}
+
+extension PocketSessionsRow: Codable {
+    enum CodingKeys: String, CodingKey {
+        case sessionId, name, machine, statusDot, statusTitle, ageText, waiting, question, end
+        case groupIndex = "group"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sessionId = try c.decode(String.self, forKey: .sessionId)
+        name = try c.decode(String.self, forKey: .name)
+        groupIndex = try c.doorNumber(forKey: .groupIndex)
+        machine = try c.nullable(String.self, forKey: .machine)
+        statusDot = try c.decode(String.self, forKey: .statusDot)
+        statusTitle = try c.decode(String.self, forKey: .statusTitle)
+        ageText = try c.nullable(String.self, forKey: .ageText)
+        waiting = try c.decode(Bool.self, forKey: .waiting)
+        question = try c.nullable(String.self, forKey: .question)
+        end = try c.decode(PocketEndOffer.self, forKey: .end)
+    }
+}
+
+/// `PocketSessionsGroup`: one project, a folder AND its machine (the Mac's
+/// rule), as main named and counted it.
+struct PocketSessionsGroup: Equatable, Sendable, Identifiable {
+    /// 16 base64url characters of a hash of the group's key: stable across
+    /// answers and choices, and never the path.
+    let id: String
+    let label: String
+    /// The machine's label; nil on this Mac.
+    let machine: String?
+    /// The folder, only when another project shares the label and the
+    /// machine (D7).
+    let folder: String?
+    /// How many sessions the words keep in this project, drawn or not.
+    let sessionCount: Int
+    /// Of `sessionCount`, the ones the caps left out.
+    let omittedRows: Int
+    /// Some session the words keep in this project waits on him.
+    let waiting: Bool
+    /// Main's: the project starts closed (under All, when none of its
+    /// sessions is active).
+    let collapsed: Bool
+}
+
+extension PocketSessionsGroup: Codable {
+    enum CodingKeys: String, CodingKey {
+        case id, label, machine, folder, waiting, collapsed
+        case sessionCount = "count"
+        case omittedRows = "omitted"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.decode(String.self, forKey: .label)
+        machine = try c.nullable(String.self, forKey: .machine)
+        folder = try c.nullable(String.self, forKey: .folder)
+        sessionCount = try c.doorNumber(forKey: .sessionCount)
+        omittedRows = try c.doorNumber(forKey: .omittedRows)
+        waiting = try c.decode(Bool.self, forKey: .waiting)
+        collapsed = try c.decode(Bool.self, forKey: .collapsed)
+    }
+}
+
+/// `PocketSessionsChoice`: one agent or machine the menu may offer. The label
+/// is null only for the machine `local`, which the phone calls This Mac.
+struct PocketSessionsChoice: Equatable, Sendable, Identifiable {
+    let id: String
+    let label: String?
+
+    /// The machine id main gives this Mac, in a filter and in a choice.
+    static let thisMacId = "local"
+}
+
+extension PocketSessionsChoice: Codable {
+    enum CodingKeys: String, CodingKey { case id, label }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+        label = try c.nullable(String.self, forKey: .label)
+    }
+}
+
+/// `PocketSessionsAnswer`: what `GET /v1/sessions` answers.
+struct PocketSessionsAnswer: Equatable, Sendable {
+    let asked: PocketSessionsAsked
+    let rows: [PocketSessionsRow]
+    /// Exactly the groups `rows` name, in the order their first row is emitted.
+    let groups: [PocketSessionsGroup]
+    /// Over the sessions Show keeps, before the filters.
+    let agents: [PocketSessionsChoice]
+    let machines: [PocketSessionsChoice]
+    /// Every session Tortie lists, before Show and the filters.
+    let totalSessions: Int
+    /// The sessions the words keep that the caps left out: the kept count
+    /// less the rows. At least the sum of the groups' `omittedRows`, and more
+    /// when the caps left out every row of a project, which is then in no
+    /// group.
+    let omittedRows: Int
+    let at: Double
+    let ageNote: String
+}
+
+extension PocketSessionsAnswer: Codable {
+    enum CodingKeys: String, CodingKey {
+        case asked, rows, groups, agents, machines, at, ageNote
+        case totalSessions = "total"
+        case omittedRows = "omitted"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        asked = try c.decode(PocketSessionsAsked.self, forKey: .asked)
+        rows = try c.decode([PocketSessionsRow].self, forKey: .rows)
+        groups = try c.decode([PocketSessionsGroup].self, forKey: .groups)
+        agents = try c.decode([PocketSessionsChoice].self, forKey: .agents)
+        machines = try c.decode([PocketSessionsChoice].self, forKey: .machines)
+        totalSessions = try c.doorNumber(forKey: .totalSessions)
+        omittedRows = try c.doorNumber(forKey: .omittedRows)
+        at = try c.decode(Double.self, forKey: .at)
+        ageNote = try c.decode(String.self, forKey: .ageNote)
+    }
+}
+
 /// `PocketSessionAnswer`.
 struct PocketSessionAnswer: Equatable, Sendable {
     let session: PocketSessionDetail

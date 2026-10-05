@@ -82,6 +82,26 @@ describe('what the door forwards', () => {
     expect(doorRequestOf(read({ method: 'POST' }))).toBeNull();
   });
 
+  // PHASE 316.7 (build/p3167/SPEC.md §6.2): the Sessions tab's read is a signed
+  // GET like the other three, its query carried in the target untouched, and
+  // nothing else about the door moved.
+  it('forwards the Sessions read, a signed GET with its query, and refuses it as a POST', () => {
+    const target = '/v1/sessions?show=all&group=none&sort=name&agent=claude&machine=local';
+    const got = doorRequestOf(read({ route: 'sessions', target }));
+    expect(got).toEqual({
+      route: 'sessions',
+      method: 'GET',
+      target,
+      headers: HEADERS,
+      body: new Uint8Array(0),
+      channel: 'phone-a'
+    });
+    expect(doorRequestOf(read({ route: 'sessions', method: 'POST', target }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'sessions', target: `/v1/sessions?${'x'.repeat(1024)}` }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'session', target: '/v1/session?id=a' }))).not.toBeNull();
+    expect(doorRequestOf(read({ route: 'sessionz', target: '/v1/sessions' }))).toBeNull();
+  });
+
   it('holds a presentation to its five bounded base64url fields', () => {
     expect(presentationOf(PRESENTATION)).toEqual(PRESENTATION);
     for (const [name, value] of [

@@ -130,6 +130,42 @@
  *   src/shared/lifecycle-words.ts or src/shared/reply-copy.ts) and the words it
  *   must never draw (`never`).
  *
+ * THE SESSIONS READ (Phase 316.7, build/p3167/SPEC.md §9.5). Every arm now
+ * answers `GET /v1/sessions` too, because the Sessions tab reads it first: the
+ * honest answer is composed by the SHIPPING `createPocketRoutes(facts).sessions`
+ * (src/main/pocket/routes.ts) over facts built from the vectors' own
+ * `/v1/blocked` rows, so the rows a conversation arm opens are the rows the
+ * Sessions tab draws. The list arms answer the FIRST `/v1/sessions` honestly
+ * and every one after it with their hostile body, as they do `/v1/blocked`
+ * (the Sessions tab's refresh meets the body; the Needs input tab's meets
+ * `/v1/blocked`'s). The write arm that refuses every read after its write
+ * refuses `/v1/sessions` too. The new arms:
+ *   sessions-cap          the 2,000-row cap over build/p3167/seed-sessions.mts'
+ *                         `cap` world (every name at the clip, the bidi name,
+ *                         three `app` groups one of them on a second machine,
+ *                         two machines, two agents, `omitted` above 0),
+ *                         composed by the shipping composer for whatever words
+ *                         the phone sends: it must END DRAWN
+ *   sessions-older-mac    `/v1/sessions` refused 404, `/v1/blocked` honest: a
+ *                         Mac older than this phase, which the Sessions tab
+ *                         draws as today's two sections with Select
+ *   sessions-older-mac-recovers   404 for every `/v1/sessions` read until the
+ *                         door is told the Mac updated (`releaseSessions()`, or
+ *                         the line `sessions-honest` on a served door's stdin),
+ *                         honest after: a Mac updated under the phone, whose
+ *                         new tab one pull brings back (SPEC §15 F6). Until the
+ *                         fix round (2026-10-03) it refused only the FIRST
+ *                         read, and the older face's own appear read was
+ *                         answered, so the arm could never be read
+ *   sessions-dup-id, sessions-group-range, sessions-split-group,
+ *   sessions-count, sessions-omitted-sum, sessions-waiting-false,
+ *   sessions-omitted-negative, sessions-omitted-max, sessions-asked,
+ *   sessions-show-word    one malformed `/v1/sessions` body each, every read,
+ *                         each refused whole by the phone (SPEC §6.4.5):
+ *                         `Copy.answerUnreadable` drawn, the app alive
+ * Every `/v1/sessions` request event carries `at` and, for the sessions arms,
+ * the answer's ids and groups, so the probe grades what this door SENT.
+ *
  * The ATS arm (a SOCKS5 stand-in dialling 100.64.0.1) left with TailscaleKit in
  * Phase 330: the phone has no tailnet and no ATS exception any more.
  *
@@ -185,7 +221,15 @@ import {
   signedHeaders,
   signedPost,
   verifySigned,
-  writeBodyOf
+  writeBodyOf,
+  ANSWER_MAX_BYTES,
+  SESSIONS_BUDGET_BYTES,
+  SESSIONS_MAX_ROWS,
+  askedOf,
+  readSessions,
+  sessionsAnswerProblems,
+  sessionsBudgetBytes,
+  sessionsTarget
 } from './node-phone.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -261,8 +305,31 @@ export const HOSTILE_ARMS = Object.freeze({
   'reply-cut-reread-refused': { what: 'a message cut after its request, then every read refused', ends: 'pairing', reply: true, verb: 'say', posts: 1, at: 'screen-pairing', expect: [], mac: [], never: ['endNoAnswer', 'replySent'] },
   'reply-404': { what: 'a 404 with no body to a press, the door\'s own refusal', ends: 'sentence', reply: true, verb: 'choose', posts: 1, at: 'session-reply-line', expect: ['replyNotTaken'], mac: [], never: ['endNoAnswer'] },
   'reply-late': { what: 'no answer to a message for longer than the phone\'s 15 s', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['endNoAnswer'], mac: [], never: ['replySent'], kept: true },
-  'reply-say-done': { what: 'a 200 done to a message: Sent, and the box empty', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['replySent'], mac: [], never: ['endNoAnswer'], cleared: true }
+  'reply-say-done': { what: 'a 200 done to a message: Sent, and the box empty', ends: 'sentence', reply: true, verb: 'say', posts: 1, at: 'session-message-line', expect: ['replySent'], mac: [], never: ['endNoAnswer'], cleared: true },
+  // THE SESSIONS ARMS (Phase 316.7, build/p3167/SPEC.md §9.5). `sessions` marks
+  // them; `floor: true` names the ones probe:p316 also drives on iOS 18.3 by
+  // default. A malformed arm's `breaks` names the refusal of §6.4.5 its body
+  // must meet, which the self-test reads back through the node phone's own
+  // re-derivation (`sessionsAnswerProblems`).
+  'sessions-cap': { what: 'the 2,000-row cap: every name at the clip, the bidi name, three app groups one elsewhere, two machines, two agents, omitted above 0', ends: 'drawn', sessions: 'cap', floor: true },
+  'sessions-older-mac': { what: 'a Mac older than this phase: /v1/sessions refused 404, /v1/blocked honest', ends: 'older', sessions: 'missing', floor: true },
+  'sessions-older-mac-recovers': { what: 'a Mac updated under the phone: /v1/sessions 404 until the probe says the Mac updated, honest after', ends: 'recovers', sessions: 'missing-first', floor: true },
+  'sessions-dup-id': { what: 'a /v1/sessions row id twice', ends: 'sentence', sessions: 'malformed', breaks: 'listed twice', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-group-range': { what: 'a /v1/sessions row whose group is outside groups', ends: 'sentence', sessions: 'malformed', breaks: 'is outside groups', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-split-group': { what: 'a /v1/sessions group whose rows are not together under Project', ends: 'sentence', sessions: 'malformed', breaks: 'not together', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-count': { what: 'a /v1/sessions group whose count is not its drawn rows plus its omitted', ends: 'sentence', sessions: 'malformed', breaks: 'drawn row(s) plus', at: 'list-failure', expect: ['answerUnreadable'], floor: true },
+  'sessions-omitted-sum': { what: '/v1/sessions groups whose omitted sum above the top-level omitted', ends: 'sentence', sessions: 'malformed', breaks: 'omitted sum to', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-waiting-false': { what: 'a /v1/sessions group reading waiting false over a waiting row', ends: 'sentence', sessions: 'malformed', breaks: 'waiting false', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-omitted-negative': { what: 'a /v1/sessions omitted below zero', ends: 'sentence', sessions: 'malformed', breaks: 'omitted -1', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-omitted-max': { what: 'a /v1/sessions omitted of Int.max', ends: 'sentence', sessions: 'malformed', breaks: 'omitted 9223372036854776000', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-asked': { what: 'a /v1/sessions answer to another question', ends: 'sentence', sessions: 'malformed', breaks: 'is not the question sent', at: 'list-failure', expect: ['answerUnreadable'] },
+  'sessions-show-word': { what: 'a /v1/sessions answer with a Show word the Mac never says', ends: 'sentence', sessions: 'malformed', breaks: 'is not a Show word', at: 'list-failure', expect: ['answerUnreadable'] }
 });
+
+/** The names of the sessions arms (Phase 316.7). */
+export const SESSIONS_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => typeof HOSTILE_ARMS[a].sessions === 'string'));
+/** `Int.max`, written into a body as its digits (a JS number would round it). */
+export const INT_MAX_TEXT = '9223372036854775807';
 
 /** The names of the write arms (Phase 317), as conformance:ios (t) reads them. */
 export const WRITE_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].write === true));
@@ -543,6 +610,168 @@ export function offerReply(world, arm) {
   return world;
 }
 
+// ---------------------------------------------------------------------------
+// The sessions read (Phase 316.7)
+// ---------------------------------------------------------------------------
+
+/** build/p3167/seed-sessions.mts and the shipping composer it loads, under tsx. */
+async function sessionsModules() {
+  const seed = await import(pathToFileURL(join(ROOT, 'build', 'p3167', 'seed-sessions.mts')).href);
+  const shipping = await seed.shippingSessions();
+  if (shipping.compose === null) throw new Error(`the shipping tree cannot compose /v1/sessions: ${shipping.why}`);
+  return { seed, shipping };
+}
+
+/** A vectors row's status word as a Session status: the row says it, this reads it back. */
+export function statusOfRow(row, waiting) {
+  if (waiting) return 'needs_input';
+  const label = String(row?.statusLabel ?? '');
+  if (label === 'working') return 'running';
+  if (label === 'idle') return 'idle';
+  if (label === 'restorable') return 'restorable';
+  if (label === 'unknown') return 'unknown';
+  if (label === 'needs input') return 'needs_input';
+  return 'exited';
+}
+
+/** An age a row draws (`now`, `4m`, `2h`, `3d`), in milliseconds, or null. */
+const ageMsOf = (text) => {
+  const m = /^(\d+)([mhd])$/.exec(String(text ?? ''));
+  if (text === 'now') return 0;
+  return m === null ? null : Number(m[1]) * { m: 60_000, h: 3_600_000, d: 86_400_000 }[m[2]];
+};
+
+/**
+ * The facts the honest world's `/v1/sessions` is composed over: one Session
+ * per row of the vectors' own `/v1/blocked` (waiting rows waiting, the rest by
+ * the status the row names), each row's own status word, agent name and End
+ * offer handed back unchanged, so every row the Sessions tab draws is a row the
+ * door's `/v1/session` answers for. Built per request, after a write arm has
+ * set its End offer on the rows.
+ */
+export function factsFromBlocked(seed, blocked, now = Date.now()) {
+  const rows = [...(blocked.rows ?? []).map((r) => ({ r, waiting: true })), ...(blocked.others ?? []).map((r) => ({ r, waiting: false }))];
+  const sessions = [];
+  const byId = new Map();
+  const stamps = new Map();
+  const activity = new Map();
+  const questions = new Map();
+  rows.forEach(({ r, waiting }, i) => {
+    const status = statusOfRow(r, waiting);
+    const machine = r.machine === null || r.machine === undefined ? undefined : { id: String(r.machine).toLowerCase().replace(/[^a-z0-9]+/g, '') || 'far', label: r.machine, color: 'blue', answering: true, canRestore: false, restoreReason: null };
+    const s = {
+      id: r.sessionId,
+      name: r.name,
+      tmuxName: r.name,
+      projectPath: `/Users/p316/${String(r.project ?? 'p316')}`,
+      cwd: `/Users/p316/${String(r.project ?? 'p316')}`,
+      agent: r.agent ?? 'claude',
+      status,
+      createdAt: now - (i + 2) * 86_400_000,
+      ...(r.statusDot === 'failed' ? { exitCode: 1 } : {}),
+      ...(machine === undefined ? {} : { machine })
+    };
+    sessions.push(s);
+    byId.set(s.id, r);
+    if (waiting) {
+      stamps.set(s.id, now - (ageMsOf(r.ageText) ?? 120_000));
+      if (typeof r.question === 'string') questions.set(s.id, r.question);
+    } else if (status === 'running' || status === 'idle') {
+      activity.set(s.id, now - (ageMsOf(r.ageText) ?? 60_000));
+    }
+  });
+  const labels = new Map(rows.map(({ r }) => [r.agent, r.agentLabel]));
+  return seed.factsOf(sessions, {
+    stamps,
+    activity,
+    questions,
+    statusWord: (s) => ({ dot: byId.get(s.id)?.statusDot ?? 'idle', label: byId.get(s.id)?.statusLabel ?? 'idle' }),
+    agentLabel: (id) => labels.get(id) ?? id,
+    endOffer: (s) => byId.get(s.id)?.end ?? { state: 'none' }
+  });
+}
+
+/** What a sessions request event carries: the counts, and for the sessions arms the ids and groups sent. */
+export function sessionsSummary(answer, whole) {
+  const base = { rows: answer.rows.length, groups: answer.groups.length, omitted: answer.omitted, total: answer.total, asked: answer.asked };
+  if (!whole) return base;
+  return {
+    ...base,
+    ids: answer.rows.map((r) => r.sessionId),
+    groupOf: answer.rows.map((r) => r.group),
+    groupList: answer.groups.map((g) => ({ id: g.id, label: g.label, machine: g.machine, folder: g.folder, count: g.count, omitted: g.omitted, waiting: g.waiting, collapsed: g.collapsed })),
+    agents: answer.agents.map((c) => c.id),
+    machines: answer.machines.map((c) => c.id)
+  };
+}
+
+/**
+ * A malformed arm's body, built from the honest answer for the same words with
+ * ONE thing broken (SPEC §6.4.5), so the refusal the phone meets is the arm's
+ * own and nothing else. Answers the body's text: `Int.max` is written as its
+ * digits, which a JavaScript number would round.
+ */
+export function malformedSessions(arm, honest) {
+  const a = structuredClone(honest);
+  const runOf = (g) => a.rows.map((r, i) => ({ r, i })).filter((x) => x.r.group === g);
+  const big = a.groups.findIndex((_, g) => runOf(g).length >= 2);
+  switch (arm) {
+    case 'sessions-dup-id': {
+      // A copy of the first row, beside it, its group's count raised to match.
+      a.rows.splice(1, 0, structuredClone(a.rows[0]));
+      a.groups[a.rows[0].group].count += 1;
+      break;
+    }
+    case 'sessions-group-range': {
+      const last = runOf(big).at(-1);
+      a.rows[last.i].group = a.groups.length;
+      a.groups[big].count -= 1;
+      break;
+    }
+    case 'sessions-split-group': {
+      // The big group's last row moved past the next group's rows: not
+      // together, and every group still first emitted in its own order.
+      const next = big + 1 < a.groups.length ? big + 1 : -1;
+      if (next === -1) {
+        a.groups.reverse();
+        break;
+      }
+      const last = runOf(big).at(-1);
+      const [moved] = a.rows.splice(last.i, 1);
+      const nextEnd = a.rows.map((r) => r.group).lastIndexOf(next);
+      a.rows.splice(nextEnd + 1, 0, moved);
+      break;
+    }
+    case 'sessions-count':
+      a.groups[0].count += 1;
+      break;
+    case 'sessions-omitted-sum':
+      a.groups[0].omitted += 1;
+      a.groups[0].count += 1;
+      break;
+    case 'sessions-waiting-false': {
+      const g = a.rows.find((r) => r.waiting === true)?.group ?? 0;
+      a.groups[g].waiting = false;
+      break;
+    }
+    case 'sessions-omitted-negative':
+      a.omitted = -1;
+      break;
+    case 'sessions-omitted-max':
+      a.omitted = '__P316_INT_MAX__';
+      return J(a).replace('"__P316_INT_MAX__"', INT_MAX_TEXT);
+    case 'sessions-asked':
+      a.asked = { ...a.asked, sort: a.asked.sort === 'name' ? 'oldest' : 'name' };
+      break;
+    case 'sessions-show-word':
+      a.asked = { ...a.asked, show: 'everything' };
+      break;
+    default:
+      throw new Error(`${arm} is not a malformed sessions arm`);
+  }
+  return J(a);
+}
+
 /** A 32-hex write id that is not `id`. */
 const otherWriteId = (id) => createHash('sha256').update(`p316 hostile other ${id}`).digest('hex').slice(0, 32);
 
@@ -609,6 +838,36 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
     if (HOSTILE_ARMS[arm].reply === true) offerReply(world, arm);
     /** write-cut-reread-refused: every signed read after its write is refused. */
     let refuseReads = false;
+    // PHASE 316.7: the sessions read, composed by the SHIPPING composer. A
+    // sessions arm cannot run without it; any other arm answers 404 for
+    // /v1/sessions then, which the phone reads as a Mac older than this phase,
+    // and its event says why.
+    let sessionsKit = null;
+    let sessionsKitWhy = null;
+    try {
+      sessionsKit = await sessionsModules();
+    } catch (err) {
+      sessionsKitWhy = String(err?.message ?? err);
+    }
+    if (typeof HOSTILE_ARMS[arm].sessions === 'string' && sessionsKit === null) throw new Error(`${arm} needs the shipping /v1/sessions composer: ${String(sessionsKitWhy)}`);
+    const cap = HOSTILE_ARMS[arm].sessions === 'cap'
+      ? (() => {
+          const w = sessionsKit.seed.worldOf('cap');
+          return { world: w, facts: sessionsKit.seed.factsOf(w.sessions, { stamps: w.stamps, activity: w.activity }) };
+        })()
+      : null;
+    /** The answer to one `/v1/sessions` query, as the shipping composer writes it, or null when it refuses the words. */
+    const composeSessions = (query) => (sessionsKit === null ? null : sessionsKit.shipping.compose(cap?.facts ?? factsFromBlocked(sessionsKit.seed, world.blocked), query));
+    /** Signed `/v1/sessions` reads answered. */
+    let sessionsReads = 0;
+    /** `missing-first`: whether the door has been told the Mac updated. */
+    let sessionsReleased = false;
+    /** The Mac updated under the phone: `/v1/sessions` is answered from now on. */
+    const releaseSessions = () => {
+      if (sessionsReleased) return;
+      sessionsReleased = true;
+      emit({ kind: 'sessions-released', arm, at: Date.now(), sessionsReads });
+    };
     const pinned = await issueIdentity(HOSTILE_NAME, scratch, 'door');
     const served = arm === 'wrong-key' ? await issueIdentity(HOSTILE_NAME, scratch, 'impostor') : pinned;
     const doorSign = generateKeyPairSync('ed25519');
@@ -640,7 +899,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       const bytes = Buffer.byteLength(body);
       res.writeHead(status, { 'content-type': 'application/json; charset=utf-8', 'content-length': String(bytes), 'cache-control': 'no-store' });
       res.end(body);
-      emit({ kind: 'request', arm, ...event, status, bytes });
+      emit({ kind: 'request', arm, ...event, status, bytes, at: event.at ?? Date.now() });
     };
     const sendRaw = (req, raw, event) => {
       const socket = req.socket;
@@ -771,7 +1030,7 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
               return send(res, 200, done, event);
           }
         }
-        if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns'].includes(url.pathname)) {
+        if (req.method !== 'GET' || !['/v1/blocked', '/v1/session', '/v1/turns', '/v1/sessions'].includes(url.pathname)) {
           return send(res, 404, '', { route, ...seen });
         }
         const verified = verifySigned({
@@ -787,6 +1046,47 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
         const event = { route, ...seen, verified, channelHeld };
         if (verified !== 'ok') return send(res, 404, '', event);
         if (refuseReads) return send(res, 404, '', { ...event, refusedAfterWrite: true });
+        if (url.pathname === '/v1/sessions') {
+          // PHASE 316.7. The Sessions tab's read, answered the arm's way.
+          sessionsReads += 1;
+          const n = sessionsReads;
+          const spec = HOSTILE_ARMS[arm];
+          const at = Date.now();
+          const ev = { ...event, sessionsRead: n, at };
+          if (spec.sessions === 'missing' || (spec.sessions === 'missing-first' && !sessionsReleased)) return send(res, 404, '', { ...ev, olderMac: true });
+          const answer = composeSessions(url.searchParams);
+          if (answer === null || answer === undefined) return send(res, 404, '', { ...ev, refused: sessionsKit === null ? `no composer: ${String(sessionsKitWhy)}` : 'the composer refused the words' });
+          const summary = sessionsSummary(answer, typeof spec.sessions === 'string');
+          if (cap !== null) {
+            const bidi = answer.rows.find((r) => r.sessionId === cap.world.bidiId) ?? null;
+            summary.bidi = bidi === null ? null : { id: bidi.sessionId, name: bidi.name, ageText: bidi.ageText };
+          }
+          // A list arm answers the Sessions tab's FIRST read honestly, so the
+          // tab draws, and its refresh meets the body.
+          if (spec.list === true && n === 1) return send(res, 200, J(answer), { ...ev, honestFirst: true, sessions: summary });
+          if (spec.list === true) {
+            if (spec.raw === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), ev);
+            if (arm === 'huge-row') return send(res, 200, J({ ...answer, rows: [{ ...answer.rows[0], question: 'q'.repeat(HUGE_BYTES) }, ...answer.rows.slice(1)] }), ev);
+            if (arm === 'malformed') return send(res, 200, `${J(answer).slice(0, 40)}`, ev);
+            if (arm === 'missing-fields') {
+              for (const r of answer.rows) {
+                delete r.statusDot;
+                delete r.sessionId;
+              }
+              return send(res, 200, J(answer), ev);
+            }
+            if (arm === 'never-completes') {
+              res.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-length': '100000' });
+              res.write('{"asked":');
+              emit({ kind: 'request', arm, ...ev, status: 200, bytes: 9, held: true });
+              return;
+            }
+          }
+          if (spec.sessions === 'malformed') return send(res, 200, malformedSessions(arm, answer), { ...ev, malformed: arm });
+          if (arm === 'unknown-status') for (const r of answer.rows) r.statusTitle = UNKNOWN_STATUS_TITLE;
+          if (arm === 'unknown-dot') for (const r of answer.rows) r.statusDot = 'plaid';
+          return send(res, 200, J(answer), { ...ev, sessions: summary });
+        }
         if (url.pathname === '/v1/blocked') {
           blockedReads += 1;
           const answer = structuredClone(world.blocked);
@@ -901,6 +1201,13 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       replyOffer: world.replyOffer ?? null,
       replyWords: replyWordsNow,
       counts,
+      // Phase 316.7: whether this door can compose /v1/sessions, and the cap world's own facts.
+      sessionsComposer: sessionsKit !== null,
+      sessionsComposerWhy: sessionsKitWhy,
+      capBidiId: cap?.world.bidiId ?? null,
+      capMachine: cap === null ? null : sessionsKit.seed.CAP_MACHINE,
+      composeSessions,
+      releaseSessions,
       phone: () => phone,
       close: closeAll
     };
@@ -929,6 +1236,16 @@ async function serve(arm, md3) {
   // A parent that dies closes this pipe; the door must not outlive it.
   process.stdin.on('end', () => void end());
   process.stdin.on('close', () => void end());
+  // The one line a parent may send: the Mac updated (`missing-first`).
+  let said = '';
+  process.stdin.on('data', (chunk) => {
+    said += chunk.toString('utf8');
+    let at;
+    while ((at = said.indexOf('\n')) !== -1) {
+      if (said.slice(0, at).trim() === 'sessions-honest') door.releaseSessions();
+      said = said.slice(at + 1);
+    }
+  });
   process.stdin.resume();
   out(
     `P316_DOOR:${J({
@@ -950,7 +1267,12 @@ async function serve(arm, md3) {
       writeSentences: door.writeSentences,
       // Phase 318: the reply arms' offer and the Mac's words they draw.
       replyOffer: door.replyOffer,
-      replyWords: door.replyWords
+      replyWords: door.replyWords,
+      // Phase 316.7: the sessions read.
+      sessionsComposer: door.sessionsComposer,
+      sessionsComposerWhy: door.sessionsComposerWhy,
+      capBidiId: door.capBidiId,
+      capMachine: door.capMachine
     })}`
   );
 }
@@ -958,6 +1280,24 @@ async function serve(arm, md3) {
 // ---------------------------------------------------------------------------
 // --self-test: every arm driven by the node phone, no Simulator
 // ---------------------------------------------------------------------------
+
+/** Whether a raw answer is the shape its HTTP arm claims, and the parts it was read from. */
+export function rawSays(arm, bytes) {
+  const { status, headers: lines, body, headBytes } = splitRaw(bytes);
+  const lengths = lines.filter((l) => /^content-length:/i.test(l));
+  const declared = lengths.length === 1 ? Number(lengths[0].split(':')[1]) : null;
+  const says = {
+    chunked: lines.some((l) => /^transfer-encoding:\s*chunked$/i.test(l)) && lengths.length === 0,
+    'no-length': lengths.length === 0 && !lines.some((l) => /^transfer-encoding:/i.test(l)) && body.length > 0,
+    'two-lengths': lengths.length === 2,
+    'over-cap': declared !== null && declared > 2 * 1024 * 1024 && body.length === declared,
+    'huge-header': lines.some((l) => l.length >= HUGE_HEADER_BYTES) && headBytes > 16 * 1024,
+    'not-http11': /^HTTP\/1\.0 200 /.test(status),
+    'early-close': declared !== null && body.length < declared,
+    'not-json': status.startsWith('HTTP/1.1 200 ') && lines.some((l) => /^content-type:\s*text\/plain/i.test(l)) && declared === body.length
+  }[arm];
+  return { status, headers: lines, body, headBytes, lengths, declared, says };
+}
 
 /** Split a raw answer into its status line, its header lines and its body. */
 export function splitRaw(bytes) {
@@ -1059,6 +1399,55 @@ async function selfTest() {
         check(arm, false, `pairing answered ${J(paired.words)} (${paired.why}); a proof by another key answered ${J(forged.body)}`);
         continue;
       }
+      // PHASE 316.7: THE SESSIONS ARMS, read with the node phone's own
+      // re-derivation of the phone's refusals (`sessionsAnswerProblems`).
+      if (typeof HOSTILE_ARMS[arm].sessions === 'string') {
+        const spec = HOSTILE_ARMS[arm];
+        const asked = askedOf({});
+        const first = await readSessions(phone, d, {});
+        const blockedRead = await signedGet(phone, d, '/v1/blocked');
+        const honest = door.composeSessions(new URLSearchParams(sessionsTarget({}).split('?')[1]));
+        const honestProblems = honest === null ? ['the composer refused the default words'] : sessionsAnswerProblems(honest, asked);
+        if (spec.sessions === 'missing' || spec.sessions === 'missing-first') {
+          // The older face's own appear read: still refused, on both arms.
+          const again = await readSessions(phone, d, {});
+          // `missing-first` answers only once it is told the Mac updated.
+          const releasedAt = events.length;
+          if (spec.sessions === 'missing-first') door.releaseSessions();
+          const told = spec.sessions === 'missing' || events.slice(releasedAt).some((e) => e.kind === 'sessions-released');
+          const after = await readSessions(phone, d, {});
+          const wantAfter = spec.sessions === 'missing' ? after.status === 404 : after.status === 200 && sessionsAnswerProblems(after.answer, asked).length === 0;
+          check(arm, first.status === 404 && blockedRead.status === 200 && again.status === 404 && told && wantAfter && honestProblems.length === 0, `the first /v1/sessions answered ${String(first.status)}, /v1/blocked ${String(blockedRead.status)}, the next /v1/sessions ${String(again.status)}${spec.sessions === 'missing-first' ? `, then, ${told ? 'told' : 'NOT told'} the Mac updated, ${String(after.status)}${after.answer !== null ? ` with ${String(after.answer.rows.length)} row(s), refused for ${J(sessionsAnswerProblems(after.answer, asked))}` : ''}` : `, and after that ${String(after.status)}`}`);
+          continue;
+        }
+        if (spec.sessions === 'cap') {
+          const a = first.answer;
+          const problems = a === null ? ['no answer'] : sessionsAnswerProblems(a, asked);
+          const apps = (a?.groups ?? []).filter((g) => g.label === 'app');
+          const localApps = apps.filter((g) => g.machine === null && typeof g.folder === 'string' && g.folder !== '');
+          const remoteApp = apps.filter((g) => g.machine === door.capMachine?.label && g.folder === null);
+          const bidi = (a?.rows ?? []).find((r) => r.sessionId === door.capBidiId) ?? null;
+          // The one clip (SPEC D5): 199 units then the ellipsis, one fewer when
+          // the last kept unit is a high surrogate, which none may end on.
+          const clipped = (a?.rows ?? []).filter((r) => r.name.length <= 200 && r.name.endsWith('\u2026'));
+          const torn = clipped.filter((r) => {
+            const c = r.name.charCodeAt(r.name.length - 2);
+            return c >= 0xd800 && c <= 0xdbff;
+          });
+          const leftOut = (a?.groups ?? []).filter((g) => g.omitted > 0).length;
+          const ok = first.status === 200 && problems.length === 0 && a.rows.length === SESSIONS_MAX_ROWS && a.omitted > 0 && leftOut > 0 && localApps.length === 2 && remoteApp.length === 1 && bidi !== null && a.machines.length === 2 && a.agents.length === 2 && sessionsBudgetBytes(a) <= SESSIONS_BUDGET_BYTES && first.bytes <= ANSWER_MAX_BYTES && clipped.length > 0 && torn.length === 0;
+          check(arm, ok, `${String(first.status)}: ${String(a?.rows?.length)} row(s), omitted ${String(a?.omitted)} over ${String(leftOut)} group(s), ${String(sessionsBudgetBytes(a))} budget bytes and ${String(first.bytes)} on the wire; app groups: ${String(localApps.length)} local with a folder, ${String(remoteApp.length)} on ${String(door.capMachine?.label)} with none; the bidi row ${bidi === null ? 'NOT drawn' : `${String(bidi.name.length)} units`}; ${String(clipped.length)} name(s) clipped with an ellipsis, ${String(torn.length)} torn inside a surrogate pair; ${String(a?.machines?.length)} machine and ${String(a?.agents?.length)} agent choice(s); refused for ${J(problems)}`);
+          continue;
+        }
+        // A malformed arm: every read answers its body, which the phone's
+        // re-derived refusals must refuse for the arm's own reason, beside an
+        // honest answer to the same words that they draw.
+        const again = await readSessions(phone, d, {});
+        const problems = first.answer === null ? ['the body does not parse'] : sessionsAnswerProblems(first.answer, asked);
+        const own = problems.some((p) => p.includes(spec.breaks));
+        check(arm, first.status === 200 && again.status === 200 && own && honestProblems.length === 0 && blockedRead.status === 200, `the body is refused for ${J(problems)}${own ? '' : `, NOT for its own reason (${spec.breaks})`}; the honest answer to the same words ${honestProblems.length === 0 ? 'is drawn' : `is refused too: ${J(honestProblems)}`}; /v1/blocked ${String(blockedRead.status)}`);
+        continue;
+      }
       // A list arm answers pairing's first signed read honestly and the
       // list's next read with its body, so both are read here, in that order.
       const listArm = HOSTILE_ARMS[arm].list === true;
@@ -1080,6 +1469,32 @@ async function selfTest() {
         return reads.length > 0 && reads.every((e) => e.channelHeld === true && e.servername === HOSTILE_NAME && e.host === `${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}` && e.tls === 'TLSv1.3');
       };
       const first = listArm ? 'the first read honest and presenting its identity, then ' : '';
+      if (listArm) {
+        // PHASE 316.7: the Sessions tab's read meets the same body, its first
+        // answer honest and its refresh the arm's.
+        const s1 = await readSessions(phone, d, {});
+        const s1Problems = s1.answer === null ? ['no answer'] : sessionsAnswerProblems(s1.answer, askedOf({}));
+        let s2Says = false;
+        let s2Said = '';
+        if (HOSTILE_ARMS[arm].raw === true) {
+          const target = sessionsTarget({});
+          const request = Buffer.from([`GET ${target} HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(signedHeaders(phone, target)).map(([k, v]) => `${k}: ${v}`), 'Connection: close', '', ''].join('\r\n'), 'utf8');
+          const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+          const r = rawSays(arm, raw.bytes);
+          s2Says = raw.handshook && r.says === true;
+          s2Said = `the raw answer ${J(r.status)}`;
+        } else {
+          const s2 = await readSessions(phone, d, {}, { timeoutMs: arm === 'never-completes' ? 3_000 : 20_000 });
+          s2Says = {
+            'huge-row': s2.bytes > HUGE_BYTES,
+            malformed: s2.status === 200 && s2.answer === null,
+            'missing-fields': s2.status === 200 && s2.answer !== null && s2.answer.rows.every((r) => r.sessionId === undefined && r.statusDot === undefined),
+            'never-completes': s2.status === 0 && /timed out|socket hang up/.test(s2.error ?? '')
+          }[arm] === true;
+          s2Said = `${String(s2.status)}, ${String(s2.bytes)} byte(s)${s2.error ? ` (${s2.error})` : ''}`;
+        }
+        check(`${arm} (sessions)`, s1.status === 200 && s1Problems.length === 0 && s2Says, `the Sessions tab's first /v1/sessions answered ${String(s1.status)}, refused for ${J(s1Problems)}; its refresh ${s2Said}, the arm's shape: ${String(s2Says)}`);
+      }
       if (HOSTILE_ARMS[arm].raw === true) {
         const target = '/v1/blocked';
         const headers = signedHeaders(phone, target);
@@ -1089,19 +1504,7 @@ async function selfTest() {
         );
         const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
         const mtls = mtlsNow();
-        const { status, headers: lines, body, headBytes } = splitRaw(raw.bytes);
-        const lengths = lines.filter((l) => /^content-length:/i.test(l));
-        const declared = lengths.length === 1 ? Number(lengths[0].split(':')[1]) : null;
-        const says = {
-          chunked: lines.some((l) => /^transfer-encoding:\s*chunked$/i.test(l)) && lengths.length === 0,
-          'no-length': lengths.length === 0 && !lines.some((l) => /^transfer-encoding:/i.test(l)) && body.length > 0,
-          'two-lengths': lengths.length === 2,
-          'over-cap': declared !== null && declared > 2 * 1024 * 1024 && body.length === declared,
-          'huge-header': lines.some((l) => l.length >= HUGE_HEADER_BYTES) && headBytes > 16 * 1024,
-          'not-http11': /^HTTP\/1\.0 200 /.test(status),
-          'early-close': declared !== null && body.length < declared,
-          'not-json': status.startsWith('HTTP/1.1 200 ') && lines.some((l) => /^content-type:\s*text\/plain/i.test(l)) && declared === body.length
-        }[arm];
+        const { status, headers: lines, body, lengths, declared, says } = rawSays(arm, raw.bytes);
         check(arm, raw.handshook && says === true && mtls, `${first}the raw answer: ${J(status)}, ${String(lines.length)} header line(s) (${lengths.length} Content-Length${declared === null ? '' : ` = ${String(declared)}`}), ${String(body.length)} body byte(s); every signed read over TLS 1.3 with the client identity, the name as SNI and Host: ${String(mtls)}`);
         continue;
       }
@@ -1164,7 +1567,8 @@ async function selfTest() {
           'write-malformed': got.status === 200 && said === null,
           'write-cut-reread-refused': got.status === 0
         }[arm];
-        const reread = arm === 'write-cut-reread-refused' ? (await signedGet(phone, d, sessionTarget)).status : null;
+        // Phase 316.7: every read after the cut is refused, the Sessions tab's too.
+        const reread = arm === 'write-cut-reread-refused' ? Math.max((await signedGet(phone, d, sessionTarget)).status, (await readSessions(phone, d, {})).status) : null;
         const writeEvents = events.filter((e) => e.kind === 'request' && e.write !== undefined);
         const signedOk = writeEvents.length === 1 && writeEvents[0].verified === 'ok' && writeEvents[0].channelHeld === true;
         check(
@@ -1270,10 +1674,16 @@ async function selfTest() {
           const honestSay = await signedPost(phone, d, '/v1/say', { session: door.sessionToOpen, text: 'p316 honest message', write: sayId });
           const repliesHold = honestPress.status === 200 && JSON.parse(honestPress.body).write === pressId && JSON.parse(honestPress.body).verb === 'choose' && honestSay.status === 200 && JSON.parse(honestSay.body).write === sayId && JSON.parse(honestSay.body).verb === 'say';
           const writesHold = honestWrite.status === 200 && JSON.parse(honestWrite.body).write === writeId && forgedWrite.status === 404 && repliesHold && door.counts.writes === 4;
+          // Phase 316.7: the honest /v1/sessions, drawn by the phone's own
+          // refusals, every row one the door's /v1/session answers for.
+          const sessionsRead = await readSessions(phone, d, {});
+          const known = new Set([...(body?.rows ?? []), ...(body?.others ?? [])].map((r) => r.sessionId));
+          const sessionsProblems = sessionsRead.answer === null ? ['no answer'] : sessionsAnswerProblems(sessionsRead.answer, askedOf({}));
+          const sessionsHold = sessionsRead.status === 200 && sessionsProblems.length === 0 && sessionsRead.answer.rows.length > 0 && sessionsRead.answer.rows.every((r) => known.has(r.sessionId)) && sessionsRead.answer.rows.some((r) => r.sessionId === door.sessionToOpen);
           check(
             arm,
-            blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false && writesHold,
-            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such; an honest write answered ${String(honestWrite.status)} with its id and the same signature over a changed body ${String(forgedWrite.status)}; an honest press and message answered ${String(honestPress.status)} and ${String(honestSay.status)} with their ids${certNote}`
+            blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false && writesHold && sessionsHold,
+            `paired (a proof by another key refused), the list read, the conversation paged to the first turn: ${String(all.length)} of ${String(door.turnCount)} turns, contiguous ${String(contiguous)}; every signature verified; every read over TLS 1.3 with the client identity and the name: ${String(mtls)}; a read without the identity is recorded as such; an honest write answered ${String(honestWrite.status)} with its id and the same signature over a changed body ${String(forgedWrite.status)}; an honest press and message answered ${String(honestPress.status)} and ${String(honestSay.status)} with their ids; /v1/sessions answered ${String(sessionsRead.status)} with ${String(sessionsRead.answer?.rows?.length ?? 0)} row(s), refused for ${J(sessionsProblems)}, the session a conversation arm opens ${sessionsRead.answer?.rows?.some((r) => r.sessionId === door.sessionToOpen) ? 'among them' : 'NOT among them'}${certNote}`
           );
         } else if (arm === 'pages-backwards') {
           check(arm, pagesForward, `the older page starts at ${J(paged.pages[1]?.turns?.[0]?.index)} after a page that started at ${J(paged.pages[0]?.turns?.[0]?.index)}`);

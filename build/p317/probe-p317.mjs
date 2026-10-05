@@ -29,8 +29,10 @@
  * THE ARMS (SPEC §7.4)
  *   W1  the door reads `changed` (after the parent confirmed it; `never` on a
  *       fresh profile, which has nothing to change); its lines hold
- *       `Answers these and nothing else: blocked, end, pair, session, turns`
- *       and `Lets an allowed phone end a session`;
+ *       `Answers these and nothing else: blocked, choose, end, pair, say,
+ *       session, sessions, turns` and `Lets an allowed phone end a session,
+ *       answer a numbered question and send a session one message` (the union
+ *       with Phases 318 and 316.7, ROUTE_LINE and WRITE_LINE below);
  *       Settings then Phone draws POCKET_DOOR_HONESTY and both lines INSIDE
  *       ITS CONFIRM BLOCK, read while that block is drawn and before Allow,
  *       because PhoneSection.tsx draws the sentence there and nowhere else
@@ -164,9 +166,9 @@ export const MACHINE_ID = 'p317far';
  * Phase 318 added two writes beside End (build/p318/SPEC.md §4.2, §5.1.7), so
  * the route line names `choose` and `say` too and the write line names all
  * three clauses; End's arms below read nothing else of them. Phase 316.7's
- * `sessions` joins the route line at whichever lands second.
+ * `sessions` joined the route line when it landed second.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns';
 export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question and send a session one message';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
 export const DONE_LINE = "the phone's end: done";
@@ -623,6 +625,10 @@ function graderSelfTest() {
     process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${text}\n`);
   };
   const clauses = gradeFixtures({ graders: GRADERS, fixtures: GRADER_FIXTURES, grade, clone: (x) => structuredClone(x), say, J });
+  // ROUTE_LINE against the tree's own POCKET_ROUTE_IDS, so a phase that adds a route turns this self-test red
+  // rather than the live confirm arm (the replay of 316.7 beside 318 left this line naming one route too few).
+  const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'))?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+  say(treeIds.length > 0 && J(ROUTE_LINE.slice(ROUTE_LINE.indexOf(':') + 1).split(',').map((s) => s.trim())) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
   // The probe's own reading of the two gates.
   say(deepEqual(expectedOffer({ status: 'running', remote: false, machineKnown: true }, TITLE), { state: 'offered', batch: true }), 'a live local row is offered End and End these');
   say(deepEqual(expectedOffer({ status: 'idle', remote: true, machineKnown: false }, TITLE), { state: 'offered', batch: false }), 'a live row on a machine with no row is offered End alone');
@@ -636,7 +642,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.

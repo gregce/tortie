@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Sessions — every session, under its project</title>
+<title>Sessions — a Mac older than this phase</title>
 <style>
 html,body{background:#0E0F13}
 body { margin: 0; }
@@ -18,16 +18,6 @@ body { margin: 0; }
 @media (prefers-reduced-motion: reduce) { .dot-attention { animation: none; } }
 .row { display: flex; flex-direction: column; gap: 2px; padding: 6px 16px; border-bottom: 1px solid #25282E; text-decoration: none; }
 .hdr { height: 28px; display: flex; align-items: center; padding: 0 16px; border-bottom: 1px solid #25282E; font-size: 13px; font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; color: #9CA1AB; }
-.seg { display: flex; margin: 0 16px 8px 16px; padding: 2px; background: #191B20; border: 1px solid #25282E; border-radius: 9px; flex-shrink: 0; }
-.seg button { flex: 1; height: 28px; border: 0; border-radius: 7px; background: none; font: inherit; font-size: 13px; font-weight: 500; color: #9CA1AB; cursor: pointer; }
-.seg button.on { background: #202329; color: #C9CACD; }
-.grp { display: flex; flex-direction: column; padding: 8px 16px 6px 16px; border-bottom: 1px solid #25282E; cursor: pointer; }
-.grp-line { display: flex; align-items: center; gap: 8px; }
-.grp-name { font-size: 15px; line-height: 20px; font-weight: 600; color: #C9CACD; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.grp-count { font-size: 13px; line-height: 16px; color: #838996; }
-.grp-folder { font-size: 13px; line-height: 18px; color: #838996; padding-left: 17px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.chev { width: 9px; height: 15px; flex-shrink: 0; }
-.badge-mac { font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0; }
 a { color: #4d9de8; }
 .tabbar { flex-shrink: 0; height: 83px; box-sizing: border-box; padding-top: 7px; background: #191B20; border-top: 1px solid #25282E; display: flex; }
 .tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; color: #838996; text-decoration: none; }
@@ -38,17 +28,6 @@ a { color: #4d9de8; }
 </style>
 </head>
 <body>
-<!-- Phase 316.7 (build/p3167/SPEC.md §6.5): the Sessions tab, every session
-     Tortie lists, under its project. It opens on Active, so ended sessions are
-     out of sight until he taps All or Ended. A project is a folder AND its
-     machine (the Mac's rule): its header has a chevron that opens and closes
-     it, its label, how many sessions it has under the words, the machine's
-     badge when it is elsewhere, the folder muted under the label only when two
-     projects share a name, and the amber dot when a session in it waits, open
-     or closed, so closing a project never hides one. One menu beside Select
-     groups, sorts and filters (SessionsMenu.html). Ages are main's: a row aged
-     from its creation says `old`. Main composed every count, order and age; the
-     phone lays them out. A Mac older than this phase draws SessionsOlderMac.html. -->
 <div class="t" style="width: 390px; height: 844px; box-sizing: border-box; background: #0E0F13; color: #C9CACD; display: flex; flex-direction: column; overflow: hidden;">
 
   <div style="height: 44px; flex-shrink: 0;"></div>
@@ -56,25 +35,11 @@ a { color: #4d9de8; }
   <div style="display: flex; align-items: flex-end; justify-content: space-between; padding: 0 16px 8px 16px; flex-shrink: 0;">
     <div style="font-size: 28px; line-height: 34px; font-weight: 600; color: #C9CACD;">Sessions</div>
     <div style="display: flex; align-items: center; gap: 16px; padding-bottom: 4px;">
-      <button type="button" aria-label="Group, sort and filter" style="background: none; border: 0; padding: 0; width: 22px; height: 22px; cursor: pointer;"><svg width="22" height="22" viewBox="0 0 22 22" fill="none" stroke="#4d9de8" stroke-width="1.5"><circle cx="11" cy="11" r="10"></circle><path d="M6 8h10M8 11h6M10 14h2"></path></svg></button>
       <button type="button" style="background: none; border: 0; padding: 0; font: inherit; font-size: 17px; color: #4d9de8; cursor: pointer;">Select</button>
     </div>
   </div>
 
-  <div class="seg">
-    <button type="button">All</button>
-    <button type="button" class="on">Active</button>
-    <button type="button">Ended</button>
-  </div>
-
-  <div class="grp">
-    <div class="grp-line">
-      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
-      <span class="grp-name">webapp</span>
-      <span class="grp-count num">2</span>
-      <span class="dot dot-attention"></span>
-    </div>
-  </div>
+  <div class="hdr">Needs your input (3)</div>
 
   <a class="row" href="Session.html">
     <div style="display: flex; align-items: center; gap: 8px;">
@@ -83,8 +48,30 @@ a { color: #4d9de8; }
       <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">fix-login</span>
       <span class="num" style="font-size: 13px; color: #838996;">2m</span>
     </div>
-    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">Edit src/auth/session.ts?</div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">webapp · Edit src/auth/session.ts?</div>
   </a>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">codex-migrate</span>
+      <span class="num" style="font-size: 13px; color: #838996;">9m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">api · Apply patch to 4 files?</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-attention"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M2.5 13 8 3l5.5 10z"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; font-weight: 500; color: #C9CACD; flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">grok-docs</span>
+      <span class="num" style="font-size: 13px; color: #838996;">14m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">docs-site · Run rm -rf build?</div>
+  </div>
+
+  <div class="hdr" style="margin-top: 20px;">Everything else (9)</div>
 
   <div class="row">
     <div style="display: flex; align-items: center; gap: 8px;">
@@ -93,17 +80,7 @@ a { color: #4d9de8; }
       <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">refactor-parser</span>
       <span class="num" style="font-size: 13px; color: #838996;">1m</span>
     </div>
-    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working</div>
-  </div>
-
-  <div class="grp">
-    <div class="grp-line">
-      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
-      <span class="grp-name">monorepo</span>
-      <span class="grp-count num">1</span>
-      <span style="flex-grow: 1;"></span>
-      <span class="badge-mac">Mac&nbsp;Pro</span>
-    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working · webapp</div>
   </div>
 
   <div class="row">
@@ -111,18 +88,10 @@ a { color: #4d9de8; }
       <span class="dot dot-working"></span>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
       <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">mac-pro-build</span>
+      <span style="font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0;">Mac&nbsp;Pro</span>
       <span class="num" style="font-size: 13px; color: #838996;">3m</span>
     </div>
-    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working</div>
-  </div>
-
-  <div class="grp">
-    <div class="grp-line">
-      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8" style="transform: rotate(90deg);"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
-      <span class="grp-name">app</span>
-      <span class="grp-count num">2</span>
-    </div>
-    <div class="grp-folder">~/work/app</div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Working · monorepo</div>
   </div>
 
   <div class="row">
@@ -130,29 +99,40 @@ a { color: #4d9de8; }
       <span class="dot dot-idle"></span>
       <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
       <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">review-pr</span>
+      <span class="num" style="font-size: 13px; color: #838996;">12m</span>
+    </div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle · api</div>
+  </div>
+
+  <div class="row">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-failed"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><path d="M3 8.2 6 11l7-7"></path><path d="M2 3h5"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">nightly-tests</span>
       <span class="num" style="font-size: 13px; color: #838996;">1h</span>
     </div>
-    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle</div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Failed (exit 1) · webapp</div>
   </div>
 
   <div class="row">
     <div style="display: flex; align-items: center; gap: 8px;">
       <span class="dot dot-idle"></span>
-      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
-      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">scratch</span>
-      <span class="num" style="font-size: 13px; color: #838996;">3d old</span>
+      <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#838996" stroke-width="1.4" style="flex-shrink: 0;"><path d="M8 4v4l3 2"></path><circle cx="8" cy="8" r="6"></circle></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">old-spike</span>
+      <span class="num" style="font-size: 13px; color: #838996;">3d</span>
     </div>
-    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Idle</div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Saved · webapp</div>
   </div>
 
-  <div class="grp">
-    <div class="grp-line">
-      <svg class="chev" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5 1.5 13.5"></path></svg>
-      <span class="grp-name">app</span>
-      <span class="grp-count num">1</span>
-      <span class="dot dot-attention"></span>
+  <div class="row" style="border-bottom: 0;">
+    <div style="display: flex; align-items: center; gap: 8px;">
+      <span class="dot dot-ended"></span>
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#9CA1AB" stroke-width="1.3" style="flex-shrink: 0;"><circle cx="8" cy="8" r="6"></circle><path d="M5.6 8h4.8"></path></svg>
+      <span style="font-size: 17px; line-height: 22px; color: #C9CACD; flex-grow: 1;">remote-idle</span>
+      <span style="font-size: 11px; line-height: 16px; color: #56c2c0; border: 1px solid #56c2c0; border-radius: 4px; padding: 0 4px; flex-shrink: 0;">Mac&nbsp;Pro</span>
+      <span class="num" style="font-size: 13px; color: #838996;">2h</span>
     </div>
-    <div class="grp-folder">~/clients/app</div>
+    <div style="font-size: 15px; line-height: 20px; color: #9CA1AB;">Unreachable · monorepo</div>
   </div>
 
   <div style="flex-grow: 1;"></div>
@@ -162,7 +142,7 @@ a { color: #4d9de8; }
     <a class="tab" href="NeedsInput.html">
       <div class="ico">
         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 17v-6a6 6 0 0 1 12 0v6l1.5 2h-15z"></path><path d="M10 21.5h4"></path></svg>
-        <div class="badge">2</div>
+        <div class="badge">3</div>
       </div>
       <div class="lbl">Needs input</div>
     </a>

@@ -72,12 +72,18 @@ final class InfoPlistTests: XCTestCase {
 
     /// Clause (Phase 316.3): the BUILT app carries its own privacy manifest,
     /// tracking nothing and collecting nothing; since Phase 330 it carries no
-    /// framework of anybody else's, and so no second manifest.
+    /// framework of anybody else's, and so no second manifest. Since Phase
+    /// 316.7 it declares the one required-reason API the app calls, the
+    /// Sessions tab's three kept words, with exactly the app's-own-data reason.
     func testTheAppsPrivacyManifestShipsInTheBundle() throws {
         let app = try XCTUnwrap(Bundle.main.url(forResource: "PrivacyInfo", withExtension: "xcprivacy"))
         let own = try XCTUnwrap(PropertyListSerialization.propertyList(from: Data(contentsOf: app), format: nil) as? [String: Any])
         XCTAssertEqual(own["NSPrivacyTracking"] as? Bool, false)
         XCTAssertEqual((own["NSPrivacyCollectedDataTypes"] as? [Any])?.count, 0)
+        let types = try XCTUnwrap(own["NSPrivacyAccessedAPITypes"] as? [[String: Any]])
+        XCTAssertEqual(types.count, 1)
+        XCTAssertEqual(types.first?["NSPrivacyAccessedAPIType"] as? String, "NSPrivacyAccessedAPICategoryUserDefaults")
+        XCTAssertEqual(types.first?["NSPrivacyAccessedAPITypeReasons"] as? [String], ["CA92.1"])
         let frameworks = Bundle.main.privateFrameworksURL.map { $0.path(percentEncoded: false) } ?? ""
         let embedded = (try? FileManager.default.contentsOfDirectory(atPath: frameworks)) ?? []
         XCTAssertFalse(embedded.contains { $0.hasPrefix("TailscaleKit") }, "\(embedded)")

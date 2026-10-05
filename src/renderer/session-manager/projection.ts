@@ -28,7 +28,12 @@
  * is ever compared case-folded or normalised: the projection compares the
  * strings main stored, so one folder is one group exactly when main made it
  * one row (Phase 274, `src/shared/workspace-target.ts`). The one
- * `localeCompare` in this file orders group LABELS, which are names.
+ * `localeCompare` that orders the groups orders their LABELS, which are names.
+ *
+ * SINCE PHASE 316.7 THAT RULE LIVES IN `src/shared/session-list.ts`, moved
+ * token for token, and this file calls it, so the phone's door groups, labels
+ * and orders by the same functions (build/p3167/SPEC.md D6). The one ordering
+ * step the door does not take, open tabs first, is this file's argument.
  *
  * A CLOSED TAB FILTERS NOTHING OUT. `useApp().projects` holds only the open
  * tabs, and the renderer has no list of closed projects, so a closed
@@ -40,15 +45,18 @@ import type { MachineStateView } from '@shared/ipc';
 import type { OverviewSessionActivity } from '@shared/overview';
 import type { Project, Session, SessionStatus } from '@shared/types';
 import {
-  localTarget,
   sameTarget,
-  targetKey,
   targetOfProject,
-  targetOfSession,
   type WorkspaceTarget
 } from '@shared/workspace-target';
+import {
+  collectSessionGroups,
+  compareSessionGroups,
+  firstNamed,
+  sessionGroupLabel,
+  type SessionGroupIdentity
+} from '@shared/session-list';
 import { statusVisual, type StatusVisual } from '../app/status';
-import { baseName } from '../editor/paths';
 import { displayPath } from '../format';
 import { agentShortLabel } from '../state/agents';
 import { machineLabelFor } from '../state/machines-slice';
@@ -147,49 +155,10 @@ export interface ManageProjection {
   pastTotal: number;
 }
 
-/** Where one session belongs, before its group is built. */
-interface Identity {
-  key: string;
-  target: WorkspaceTarget | null;
-  path: string;
-  machineId: string | null;
-}
-
-/**
- * The group a session belongs to, from its target and nothing looser.
- *
- * A past row whose machine a person removed carries `machineGone` and NO
- * machine id, by design (`src/main/manifest/codecs.ts`), so nothing could say
- * which computer its path is on. It keys under `!gone:<label>:<path>` and
- * carries no target. `!` cannot start a machine id or an absolute path, so
- * that key can never meet a live group's key, and a restore can never try to
- * open that path on this Mac.
- */
-function groupIdentity(session: Session): Identity {
-  const gone = session.machineGone;
-  if (gone !== undefined) {
-    return {
-      key: `!gone:${gone.label}:${session.projectPath}`,
-      target: null,
-      path: session.projectPath,
-      machineId: null
-    };
-  }
-  // `targetOfSession` answers null only for a null session, so the fallback
-  // is for the type and is never taken.
-  const resolved = targetOfSession(session) ?? localTarget(session.projectPath);
-  return {
-    key: targetKey(resolved),
-    target: resolved,
-    path: resolved.path,
-    machineId: session.machine === undefined ? null : resolved.machineId
-  };
-}
-
-/** A label that says something: a string with at least one character. */
-function named(label: string | undefined | null): string | null {
-  return typeof label === 'string' && label.length > 0 ? label : null;
-}
+// WHICH GROUP A SESSION IS IN, WHAT THE GROUP IS CALLED AND THE ORDER GROUPS
+// COME IN moved to src/shared/session-list.ts in Phase 316.7, token for token,
+// so the phone's door groups by this sheet's own rule (build/p3167/SPEC.md D6).
+// This file calls them where it computed them.
 
 /**
  * The machine a group is on, in words. The row's own label first, then the
@@ -203,7 +172,7 @@ function machineLabelOf(
   if (session.machineGone !== undefined) return session.machineGone.label;
   const machine = session.machine;
   if (machine === undefined) return null;
-  return named(machine.label) ?? machineLabelFor(states, machine.id);
+  return firstNamed(machine.label) ?? machineLabelFor(states, machine.id);
 }
 
 /** What the gates need that is not on the row, read from the input once. */
@@ -305,46 +274,9 @@ function primaryOf(
   };
 }
 
-/** A group while it is being collected. */
-interface GroupDraft {
-  identity: Identity;
-  /** Each session with its place in the incoming list. */
-  members: { session: Session; at: number }[];
-  closedName: string | null;
-  machineLabel: string | null;
-}
-
-/**
- * Collect one list into groups, in first-seen order, each holding its rows in
- * the incoming order. A later row's closed-tab record still names its group.
- */
-function collect(
-  list: readonly Session[],
-  states: readonly MachineStateView[]
-): GroupDraft[] {
-  const byKey = new Map<string, GroupDraft>();
-  list.forEach((session, at) => {
-    const identity = groupIdentity(session);
-    let draft = byKey.get(identity.key);
-    if (draft === undefined) {
-      draft = {
-        identity,
-        members: [],
-        closedName: null,
-        machineLabel: null
-      };
-      byKey.set(identity.key, draft);
-    }
-    draft.members.push({ session, at });
-    draft.closedName ??= named(session.closedProject?.name);
-    draft.machineLabel ??= machineLabelOf(session, states);
-  });
-  return [...byKey.values()];
-}
-
 /** The open tab a group's target is, or -1. A removed machine's never is. */
 function openIndex(
-  identity: Identity,
+  identity: SessionGroupIdentity,
   projects: readonly Project[]
 ): number {
   const target = identity.target;
@@ -354,22 +286,11 @@ function openIndex(
 
 /**
  * Groups with an open tab first, in the tabs' own order; then closed groups by
- * label, ties by key. The label is a NAME, so it is compared as one; the key
- * holds a path, and it is compared byte for byte with `<`, which folds nothing.
+ * label, ties by key: `compareSessionGroups`, handed this sheet's tab map. The
+ * phone's door hands it an empty one, because a phone has no tabs.
  */
 function orderGroups(groups: ManageGroup[], openAt: Map<string, number>): void {
-  groups.sort((a, b) => {
-    const ia = openAt.get(a.key) ?? -1;
-    const ib = openAt.get(b.key) ?? -1;
-    if (ia !== -1 || ib !== -1) {
-      if (ia === -1) return 1;
-      if (ib === -1) return -1;
-      return ia - ib;
-    }
-    const byLabel = a.label.localeCompare(b.label);
-    if (byLabel !== 0) return byLabel;
-    return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
-  });
+  groups.sort((a, b) => compareSessionGroups(a, b, openAt));
 }
 
 /**
@@ -388,16 +309,19 @@ function buildTab(
 ): { groups: ManageGroup[]; inOrder: ManageRow[] } {
   const openAt = new Map<string, number>();
   const inOrder: ManageRow[] = new Array<ManageRow>(list.length);
-  const groups: ManageGroup[] = collect(list, input.machineStates).map(
+  const groups: ManageGroup[] = collectSessionGroups(list, (session) =>
+    machineLabelOf(session, input.machineStates)
+  ).map(
     (draft) => {
       const { identity } = draft;
       const at = openIndex(identity, input.projects);
       openAt.set(identity.key, at);
       const tabOpen = at !== -1;
-      const label =
-        (tabOpen ? named(input.projects[at]?.name) : null) ??
-        draft.closedName ??
-        baseName(identity.path);
+      const label = sessionGroupLabel(
+        tabOpen ? firstNamed(input.projects[at]?.name) : null,
+        draft.closedName,
+        identity.path
+      );
       const where = displayPath(identity.path, identity.machineId ?? undefined);
       const rows = draft.members.map(({ session, at: place }): ManageRow => {
         const status = effectiveStatusOf(session);
@@ -433,7 +357,7 @@ function buildTab(
             session.cwd === identity.path ? null : session.cwd,
             draft.machineLabel
           ]
-            .filter((part): part is string => named(part) !== null)
+            .filter((part): part is string => firstNamed(part) !== null)
             .join(' ')
         };
         inOrder[place] = row;

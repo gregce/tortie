@@ -12,6 +12,12 @@
  * Every importer was re-pointed to this module; nothing re-exports it, so there
  * is one spelling of the rule and one path to it.
  *
+ * PHASE 316.7 moved {@link createdOld} here beside it, unchanged, so the phone's
+ * Sessions tab says `3d old` for an age taken from a session's creation with the
+ * words the session manager's Created cell says it with
+ * (build/p3167/SPEC.md D6, D11). `src/renderer/session-manager/copy.ts`
+ * re-exports that one, so its importers did not move.
+ *
  * Pure. The clock is an argument.
  */
 
@@ -24,4 +30,13 @@ export function formatAge(sinceEpochMs: number, nowMs: number = Date.now()): str
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours}h`;
   return `${Math.floor(hours / 24)}d`;
+}
+
+/**
+ * An age taken from a session's CREATION, said as one: `3d old`, `2d 1h old`.
+ * One clock is never drawn as another, so a creation age always carries the
+ * word, and a wait or a last output never does.
+ */
+export function createdOld(age: string): string {
+  return `${age} old`;
 }

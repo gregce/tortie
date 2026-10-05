@@ -14,7 +14,7 @@ anything but the command the row names.
 
 1. **The Mac.** Open Tortie, then **Settings then Phone**.
    **You should see** the door asking you to allow it again, with the lines
-   `Answers these and nothing else: blocked, choose, end, pair, say, session, turns` and
+   `Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns` (Phase 316.7's `sessions` landed beside it) and
    `Lets an allowed phone end a session, answer a numbered question and send a session one message`, and under
    them `A phone you allow can end a session, answer a numbered question and send a session one message. It can
    change nothing else on this Mac.`
@@ -81,7 +81,7 @@ name alone.
 
 | Word on the screen | Where it is | Name there |
 | --- | --- | --- |
-| `Answers these and nothing else: blocked, choose, end, pair, say, session, turns` | `src/main/pocket/pairing.ts` | `describePocketDoor`, the route line, over the hashed route list |
+| `Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns` | `src/main/pocket/pairing.ts` | `describePocketDoor`, the route line, over the hashed route list |
 | `Lets an allowed phone end a session, answer a numbered question and send a session one message` | `src/main/pocket/pairing.ts` | `describePocketDoor`'s write line, joined from `WRITE_CLAUSES` |
 | `A phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.` | `src/shared/ipc/pocket.ts` | `POCKET_DOOR_HONESTY`, drawn by name in `src/renderer/settings/PhoneSection.tsx` |
 | **Allow** (the Mac's sheet) | `src/renderer/settings/PhoneSection.tsx:74` | `BTN_ALLOW` |

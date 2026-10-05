@@ -833,32 +833,46 @@ describe('nothing without a session id is ever a target (Phase 293, SPEC 2.7)', 
 
 describe('source-text pins on the domain (Phase 293)', () => {
   const dir = resolve(import.meta.dirname, '..');
-  const source = readFileSync(resolve(dir, 'projection.ts'), 'utf8');
-  const code = source
-    .replace(/\/\*[\s\S]*?\*\//g, ' ')
-    .replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const strip = (text: string): string =>
+    text.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/.*$/gm, '$1');
+  const code = strip(readFileSync(resolve(dir, 'projection.ts'), 'utf8'));
+  // PHASE 316.7 moved the grouping rule to the shared file, token for token,
+  // so the phone's door groups by the same functions (build/p3167/SPEC.md D6).
+  // Every pin below that was about the rule now reads it where it lives.
+  const shared = strip(
+    readFileSync(resolve(dir, '..', '..', 'shared', 'session-list.ts'), 'utf8')
+  );
 
   it('projection.ts case-folds nothing and normalises nothing', () => {
-    expect(code).not.toMatch(/toLowerCase|toUpperCase|toLocaleLowerCase/);
-    expect(code).not.toMatch(/\.normalize\(/);
+    for (const text of [code, shared]) {
+      expect(text).not.toMatch(/toLowerCase|toUpperCase|toLocaleLowerCase/);
+      expect(text).not.toMatch(/\.normalize\(/);
+    }
   });
 
   it('its one localeCompare compares LABELS, and a path is compared byte for byte', () => {
-    const compares = code.match(/localeCompare/g) ?? [];
+    // The sheet orders its groups through the shared comparator, handed its tabs.
+    expect(code.match(/localeCompare/g) ?? []).toEqual([]);
+    expect(code).toMatch(/compareSessionGroups\(a, b, openAt\)/);
+    const compares = shared.match(/localeCompare/g) ?? [];
     expect(compares.length).toBe(1);
-    expect(code).toMatch(/a\.label\.localeCompare\(b\.label\)/);
+    expect(shared).toMatch(/a\.label\.localeCompare\(b\.label\)/);
     // The tie is the key, compared with `<`, which folds nothing.
-    expect(code).toMatch(/a\.key < b\.key/);
+    expect(shared).toMatch(/a\.key < b\.key/);
   });
 
   it('groups by targetKey over targetOfSession, never by a basename', () => {
-    expect(code).toMatch(/targetKey\(/);
-    expect(code).toMatch(/targetOfSession\(/);
-    const keyFn = code.slice(
-      code.indexOf('function groupIdentity'),
-      code.indexOf('function groupIdentity') + 900
+    expect(shared).toMatch(/targetKey\(/);
+    expect(shared).toMatch(/targetOfSession\(/);
+    const keyFn = shared.slice(
+      shared.indexOf('function sessionGroupIdentity'),
+      shared.indexOf('function sessionGroupIdentity') + 900
     );
-    expect(keyFn).not.toMatch(/baseName/);
+    expect(keyFn).toMatch(/targetKey\(resolved\)/);
+    expect(keyFn).not.toMatch(/baseName|lastIndexOf/);
+    // And the sheet groups through it, by way of the one collection.
+    expect(code).toMatch(/collectSessionGroups\(/);
+    expect(code).not.toMatch(/function (collect|groupIdentity|named)\b/);
   });
 
   it('no production file in the domain imports anything from diagnostics', () => {

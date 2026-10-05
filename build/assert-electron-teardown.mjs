@@ -396,15 +396,28 @@ const HELPER = 'electron-run.mjs';
  * build/with-scratch-machine.mjs starts, with the stand-in Tailscale behind
  * its preflight and sampler, build/p332/dns-standin.mjs in the probe's own
  * process and build/p318/stand-in.mjs as every agent the run answers; every
- * stand-in pid it saw is ended by pid in its `finally`. Phase 316.7 raises it
- * by one too, so whichever of the two lands second sets 164.
+ * stand-in pid it saw is ended by pid in its `finally`.
+ * PHASE 316.7 RAISED IT FROM 163 TO 165, landing second: by one for
+ * build/p318/probe-p318.mjs, which 318's landing owed (main read 164 helper
+ * users against a floor of 163, because 317's and 318's snapshots each raised
+ * 162 to 163 and main took the raise once, beside b07c12f1's for
+ * build/p334/probe-p334.mjs), and by one for
+ * build/p3167/probe-p3167.mjs (`probe:p3167`), the phone's Sessions read over
+ * a 2,000-row world seeded by build/p3167/seed-sessions.mts through the
+ * shipping store before the launch: ONE Electron at HEAD through the helper,
+ * and with P3167_PARENT_CHECKOUT the parent's first, one after the other and
+ * never at once, on one scratch profile, a scratch HOME and the socket
+ * gmux-p3167…, inside the loopback machine build/with-scratch-machine.mjs
+ * starts, with the stand-in Tailscale behind its preflight and sampler and
+ * build/p332/dns-standin.mjs in the probe's own process. It signals no
+ * process of its own.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 163;
+const HELPER_USER_FLOOR = 165;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

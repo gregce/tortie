@@ -2,11 +2,15 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   The app's own privacy manifest (Phase 316.3, build/p316/SPEC.md section 4 S3).
-  Tortie tracks nobody, contacts no tracking domain and collects nothing. The
-  app's own Swift calls none of Apple's required-reason APIs, which
-  conformance:ios rule (o) reads from the source rather than from this file.
-  Since Phase 330 the app carries no framework of anybody else's, so this is
-  the bundle's only manifest.
+  Tortie tracks nobody, contacts no tracking domain and collects nothing. Since
+  Phase 316.7 the app's own Swift calls ONE of Apple's required-reason APIs,
+  UserDefaults, in Screens/SessionsChoices.swift alone: the Sessions tab keeps
+  three words there (Show, Group by and Sort by), written and read by the app
+  itself and by nothing else, which is reason CA92.1 (build/p3167/SPEC.md D13).
+  conformance:ios rule (o) reads the categories from the source rather than
+  from this file, and rule (aa) holds the reason to exactly CA92.1. Since Phase
+  330 the app carries no framework of anybody else's, so this is the bundle's
+  only manifest.
 -->
 <plist version="1.0">
 <dict>
@@ -17,6 +21,15 @@
   <key>NSPrivacyCollectedDataTypes</key>
   <array/>
   <key>NSPrivacyAccessedAPITypes</key>
-  <array/>
+  <array>
+    <dict>
+      <key>NSPrivacyAccessedAPIType</key>
+      <string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+      <key>NSPrivacyAccessedAPITypeReasons</key>
+      <array>
+        <string>CA92.1</string>
+      </array>
+    </dict>
+  </array>
 </dict>
 </plist>

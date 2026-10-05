@@ -67,9 +67,12 @@ if (problems.length > 0) {
 }
 process.stdout.write(
   `\n${TAG} PASS in ${seconds} s. ${String(arms.length)} arms: the honest phone paired by proof, was allowed and ` +
-    'handed its certificate, and read the three reads over mutual TLS through the shipping route composer, pinning ' +
+    'handed its certificate, and read the four reads over mutual TLS through the shipping route composer, pinning ' +
     'the QR’s public key; every attack was refused with its own reason, and every refusal before HTTP left the ' +
-    'parser counter where it was. The one write (Phase 317) went through the shipping write path over a ' +
+    'parser counter where it was. The sessions query (Phase 316.7) answered its defaults, today’s list id for id ' +
+    'and an escaped word as that word, and refused every malformed one whole with no body, two long targets before ' +
+    'main was asked, and a removed phone’s composed answer; the log held the word and no value. ' +
+    'The one write (Phase 317) went through the shipping write path over a ' +
     'recording fake: an honest End acted once, every refused write acted never, an answer after the act was ' +
     'never replaced by a 404, a late write was cut rather than refused, the unpair its fix round took out was ' +
     'no route, and a removed phone’s read was cut with no byte. The reply’s two writes (Phase 318) took the same ' +

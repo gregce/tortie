@@ -43,6 +43,7 @@
 import type { SessionStatus } from '@shared/types';
 import type { SessionSheetState } from '../state/session-manager-slice';
 import { raisedLabel } from '@shared/status-words';
+import { lifecycleKeeps } from '@shared/session-list';
 import {
   drawnLastMessageAt,
   drawnMessageTotal,
@@ -102,6 +103,10 @@ export function stateFilterKeeps(
  * a third spelling here would be one more place for the two to drift from.
  * `unknown` is Active because Restore never acts on it, so Ended, the segment
  * for what can be restored, would promise a verb the row does not offer.
+ *
+ * Since Phase 316.7 those two lines are `lifecycleKeeps` in
+ * src/shared/session-list.ts, moved and not rewritten, which the phone's door
+ * asks for its Show control too (build/p3167/SPEC.md D6, D8).
  */
 function rowPasses(
   row: ManageRow,
@@ -113,8 +118,7 @@ function rowPasses(
   if (filters.tabFilter === 'open' && !group.tabOpen) return false;
   if (filters.tabFilter === 'closed' && group.tabOpen) return false;
   if (!stateFilterKeeps(filters.stateFilter, row.status)) return false;
-  if (filters.lifecycle === 'active' && !(row.gates.live || row.gates.unknown)) return false;
-  if (filters.lifecycle === 'ended' && !row.gates.ended) return false;
+  if (!lifecycleKeeps(filters.lifecycle, row.gates)) return false;
   if (needle !== '' && !row.searchText.toLowerCase().includes(needle)) {
     return false;
   }

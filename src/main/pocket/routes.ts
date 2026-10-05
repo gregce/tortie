@@ -9,12 +9,13 @@
  * for everything else. A path that is not in the list does not exist, and the
  * door refuses it before it reads a header, a query or a byte of body.
  *
- * ## Three questions, and three narrow writes declared here and done elsewhere
+ * ## Four questions, and three narrow writes declared here and done elsewhere
  *
  * The blocked list (with, since Phase 316, every other session Tortie lists),
- * one session, and that session's turns. Every answer is composed here in main
- * from what main already computes, and every string a person reads is one main
- * already drew:
+ * one session, that session's turns, and (Phase 316.7) every listed session
+ * shown, grouped and sorted as the phone asked. Every answer is composed here
+ * in main from what main already computes, and every string a person reads is
+ * one main already drew:
  *
  *   - the ORDER and the SET come from `../tray/attention.ts`'s own
  *     `attentionRows`, which is what already drives the menu-bar sentinel, so
@@ -40,8 +41,14 @@
  *   - (Phase 318) what the phone may press or send on ONE session is read by
  *     the reply's reader outside this domain ({@link PocketFacts.replyOffer})
  *     over one fresh reading, handed the very question and options this answer
- *     draws, and copied onto `/v1/session` field by field. `/v1/blocked` and
- *     its rows carry none of it.
+ *     draws, and copied onto `/v1/session` field by field. `/v1/blocked`, its
+ *     rows and `/v1/sessions` carry none of it;
+ *   - (Phase 316.7) the Sessions tab's groups, their labels and order, and
+ *     which sessions Active and Ended keep, come from the session manager's
+ *     own functions, moved to `@shared/session-list` so the sheet and this
+ *     door call the same ones. The phone sorts, filters and groups nothing
+ *     (build/p3167/SPEC.md D1): it sends five closed words and lays out what
+ *     this module answers.
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
  * build/p318/SPEC.md §5.1.5) are DECLARED here, as {@link PocketWrites}, a
@@ -90,17 +97,37 @@
  * is asked.
  */
 
+import { createHash } from 'node:crypto';
 import type { Project, Session } from '@shared/types';
 import type { SessionChoiceInfo, SessionChoiceOption } from '@shared/ipc/sessions';
 import type { OverviewSessionActivity } from '@shared/overview';
-import { formatAge } from '@shared/age';
+import { createdOld, formatAge } from '@shared/age';
+import { displayPath } from '@shared/display-path';
 import { OUTCOME_REMOTE } from '@shared/overview-copy';
 import { raisedLabel } from '@shared/status-words';
+import { DOOR_GATE_ENV, sessionActionGates } from '@shared/session-gates';
+import {
+  collectSessionGroups,
+  compareSessionGroups,
+  firstNamed,
+  lifecycleKeeps,
+  sessionGroupIdentity,
+  sessionGroupLabel
+} from '@shared/session-list';
+import { LOCAL_MACHINE_ID, sameTarget, targetOfProject } from '@shared/workspace-target';
 import {
   POCKET_AGE_HONESTY,
   POCKET_NO_REPLY,
   POCKET_OTHERS_MAX,
   POCKET_ROUTE_IDS,
+  POCKET_SESSIONS_BUDGET_BYTES,
+  POCKET_SESSIONS_CHOICES_MAX,
+  POCKET_SESSIONS_CLIP_CHARS,
+  POCKET_SESSIONS_DEFAULT,
+  POCKET_SESSIONS_GROUP,
+  POCKET_SESSIONS_MAX,
+  POCKET_SESSIONS_SHOW,
+  POCKET_SESSIONS_SORT,
   POCKET_WRITE_ROUTE_IDS,
   type PocketBlockedAnswer,
   type PocketBlockedRow,
@@ -112,6 +139,11 @@ import {
   type PocketRouteId,
   type PocketSessionAnswer,
   type PocketSessionDetail,
+  type PocketSessionsAnswer,
+  type PocketSessionsAsked,
+  type PocketSessionsChoice,
+  type PocketSessionsGroup,
+  type PocketSessionsRow,
   type PocketTurn,
   type PocketTurnsAnswer,
   type PocketWriteRouteId
@@ -568,7 +600,183 @@ function projectNameOf(projects: readonly Project[], path: string): string {
   return at === -1 ? cut : cut.slice(at + 1);
 }
 
-/** The three answers. Holds no state; composes on every call. */
+// ---------------------------------------------------------------------------
+// The Sessions tab (Phase 316.7, build/p3167/SPEC.md §6.2)
+// ---------------------------------------------------------------------------
+
+/** Why a sessions query was refused. A word, never a value. */
+export type PocketSessionsQueryRefusal = 'parameter' | 'repeated' | 'word' | 'id';
+
+/** The five names a sessions query may carry, and no other. */
+const SESSIONS_QUERY_NAMES: readonly string[] = ['show', 'group', 'sort', 'agent', 'machine'];
+
+/**
+ * Whether a value is an id a sessions query may name: a letter `a`-`z` first,
+ * then letters, digits or `-`, 1 to 32 characters in all. That is the shape
+ * `src/shared/machines.ts` and `src/shared/agent-overlay.ts` both declare for
+ * an id (`^[a-z][a-z0-9-]{0,31}$`).
+ *
+ * READ ONE CHARACTER AT A TIME, never by a pattern, because this module holds
+ * the closed route table and `conformance:pocket` R1 refuses any pattern in it.
+ * ONE function, called by the query reader AND by the menu's agent and machine
+ * choices, so the menu never offers a choice the query would refuse
+ * (SPEC §15 F8): an agent the manifest stored under some other spelling keeps
+ * its rows listed, and no filter names it.
+ */
+export function isSessionsId(value: string): boolean {
+  if (value.length < 1 || value.length > 32) return false;
+  for (let at = 0; at < value.length; at += 1) {
+    const ch = value.charAt(at);
+    const letter = ch >= 'a' && ch <= 'z';
+    if (at === 0) {
+      if (!letter) return false;
+      continue;
+    }
+    const digit = ch >= '0' && ch <= '9';
+    if (!letter && !digit && ch !== '-') return false;
+  }
+  return true;
+}
+
+/**
+ * A closed word, compared for EQUALITY with its list: the word, the default
+ * when the parameter is absent, or undefined when it is anything else (an
+ * empty value included).
+ */
+function closedWord<W extends string>(
+  value: string | null,
+  words: readonly W[],
+  absent: W
+): W | undefined {
+  if (value === null) return absent;
+  for (const word of words) {
+    if (word === value) return word;
+  }
+  return undefined;
+}
+
+/**
+ * An id parameter: null when absent, undefined when it is not an id. `local`,
+ * the word for this Mac, IS an id of that shape, so `machine=local` is read by
+ * the same walk and needs no second rule.
+ */
+function idParameter(value: string | null): string | null | undefined {
+  if (value === null) return null;
+  return isSessionsId(value) ? value : undefined;
+}
+
+/**
+ * The words a `/v1/sessions` query asks with, or why it is refused (D3).
+ *
+ * Five closed parameters, each at most once. `show`, `group` and `sort` are one
+ * of the contract's words, and absent reads the contract's default; `agent` and
+ * `machine` are ids (see {@link isSessionsId}), and `machine=local` is this
+ * Mac; absent is no filter. An unknown parameter, a
+ * repeated one, an empty value, a word not in its list or a malformed id
+ * REFUSES the request whole, and the route answers it as it answers an unknown
+ * id. Never a fallback, because a fallback draws a list the phone did not ask
+ * for. `URLSearchParams` has already decoded every percent-escape, so an
+ * escaped closed word is that word. No parameter carries free text.
+ */
+export function readSessionsQuery(
+  query: URLSearchParams
+): { ok: true; asked: PocketSessionsAsked } | { ok: false; reason: PocketSessionsQueryRefusal } {
+  const seen = new Set<string>();
+  for (const name of query.keys()) {
+    if (!SESSIONS_QUERY_NAMES.includes(name)) return { ok: false, reason: 'parameter' };
+    if (seen.has(name)) return { ok: false, reason: 'repeated' };
+    seen.add(name);
+  }
+  const show = closedWord(query.get('show'), POCKET_SESSIONS_SHOW, POCKET_SESSIONS_DEFAULT.show);
+  const group = closedWord(query.get('group'), POCKET_SESSIONS_GROUP, POCKET_SESSIONS_DEFAULT.group);
+  const sort = closedWord(query.get('sort'), POCKET_SESSIONS_SORT, POCKET_SESSIONS_DEFAULT.sort);
+  if (show === undefined || group === undefined || sort === undefined) {
+    return { ok: false, reason: 'word' };
+  }
+  const agent = idParameter(query.get('agent'));
+  const machine = idParameter(query.get('machine'));
+  if (agent === undefined || machine === undefined) return { ok: false, reason: 'id' };
+  return { ok: true, asked: { show, group, sort, agent, machine } };
+}
+
+/**
+ * THE ONE CLIP for a string main does not already cap (D5): a session's name,
+ * a group's label and folder, an agent's and a machine's label. Past
+ * {@link POCKET_SESSIONS_CLIP_CHARS} UTF-16 units it keeps one unit fewer,
+ * steps back one more when the last unit kept is the high half of a pair, so
+ * a character is never cut in two, and marks the cut with `…`. The question is
+ * NOT clipped here: main capped it once, in `../activity/screen.ts`, and a
+ * second cap would be a second truth about what a person sees.
+ */
+export function clipSessionText(text: string): string {
+  const cap = POCKET_SESSIONS_CLIP_CHARS;
+  if (text.length <= cap) return text;
+  let keep = cap - 1;
+  const last = text.charCodeAt(keep - 1);
+  if (last >= 0xd800 && last <= 0xdbff) keep -= 1;
+  return `${text.slice(0, keep)}…`;
+}
+
+/**
+ * A group's id: the first 16 base64url characters of sha256 of its key. The
+ * same for one folder on one machine across answers and choices, so a phone
+ * can remember which groups a person opened, and never the path itself (D7).
+ */
+function sessionsGroupId(key: string): string {
+  return createHash('sha256').update(key).digest('base64url').slice(0, 16);
+}
+
+/** The sheet's tab map, empty: a phone has no tabs, so no group comes first. */
+const NO_TABS: ReadonlyMap<string, number> = new Map<string, number>();
+
+/** A tie between two sessions, broken by the id, byte for byte. */
+function byId(a: Session, b: Session): number {
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** Name: the sheet's comparison of a name (`view.ts`), the id breaking a tie. */
+function byNameThenId(a: Session, b: Session): number {
+  const byName = a.name.localeCompare(b.name);
+  return byName !== 0 ? byName : byId(a, b);
+}
+
+/**
+ * Oldest first: creation ascending. A `createdAt` that is not above 0 is no
+ * clock, the sheet's rule, and sorts last; the id breaks every tie.
+ */
+function byCreatedThenId(a: Session, b: Session): number {
+  const ca = a.createdAt > 0 ? a.createdAt : null;
+  const cb = b.createdAt > 0 ? b.createdAt : null;
+  if (ca !== null && cb === null) return -1;
+  if (ca === null && cb !== null) return 1;
+  if (ca !== null && cb !== null && ca !== cb) return ca - cb;
+  return byId(a, b);
+}
+
+/** The menu's choices, by their drawn label, the id breaking a tie. */
+function byChoiceLabel(a: PocketSessionsChoice, b: PocketSessionsChoice): number {
+  const byLabel = (a.label ?? '').localeCompare(b.label ?? '');
+  if (byLabel !== 0) return byLabel;
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** At most {@link POCKET_SESSIONS_CHOICES_MAX} choices of one kind (D4). */
+function firstChoices(list: readonly PocketSessionsChoice[]): PocketSessionsChoice[] {
+  return list.slice(0, POCKET_SESSIONS_CHOICES_MAX);
+}
+
+/** One group over every listed session, before the words choose its rows. */
+interface SessionsPlace {
+  id: string;
+  /** Drawn: clipped. */
+  label: string;
+  /** Drawn: clipped; null on this Mac. */
+  machine: string | null;
+  /** Drawn: clipped; null unless another group shares label and machine. */
+  folder: string | null;
+}
+
+/** The four answers. Holds no state; composes on every call. */
 export function createPocketRoutes(facts: PocketFacts): {
   blocked(): PocketBlockedAnswer;
   session(sessionId: string): Promise<PocketSessionAnswer | null>;
@@ -576,6 +784,7 @@ export function createPocketRoutes(facts: PocketFacts): {
     sessionId: string,
     query: { limit?: string | null; from?: string | null; to?: string | null }
   ): Promise<PocketTurnsAnswer | null>;
+  sessions(query: URLSearchParams): PocketSessionsAnswer | null;
 } {
   const now = (): number => facts.now?.() ?? Date.now();
 
@@ -769,6 +978,279 @@ export function createPocketRoutes(facts: PocketFacts): {
         more: answered.turns.length > 0 && answered.more,
         at: now(),
         note: null
+      };
+    },
+
+    /**
+     * EVERY LISTED SESSION, shown, grouped and sorted as the phone asked
+     * (Phase 316.7, build/p3167/SPEC.md §6.2). SYNCHRONOUS: nothing is awaited
+     * and no conversation is read, so the list is ONE reading of main's state,
+     * and a session removed before this runs is in no answer composed after.
+     */
+    sessions(query: URLSearchParams): PocketSessionsAnswer | null {
+      // 1. The words, or a refusal answered exactly as an unknown id is.
+      const read = readSessionsQuery(query);
+      if (!read.ok) return null;
+      const asked = read.asked;
+      // 2. One reading of each fact. The session list is read ONCE, so every
+      //    count below and every row is cut from the same list.
+      const at = now();
+      const sessions = facts.sessions();
+      const projects = facts.projects();
+      const stamps = facts.blockedSince();
+
+      // 4. THE GROUPS, OVER EVERY LISTED SESSION (D7), by the session
+      //    manager's own collection, label and order, so a group reads the
+      //    same under every choice. The machine labeller is the door's.
+      const drafts = collectSessionGroups(sessions, (session) => facts.machineLabel(session));
+      const placeOf = new Map<Session, SessionsPlace>();
+      const unordered = drafts.map((draft) => {
+        const { identity } = draft;
+        const target = identity.target;
+        const open =
+          target === null
+            ? undefined
+            : projects.find((project) => sameTarget(targetOfProject(project), target));
+        const label = sessionGroupLabel(firstNamed(open?.name), draft.closedName, identity.path);
+        const place: SessionsPlace = {
+          id: sessionsGroupId(identity.key),
+          label: clipSessionText(label),
+          machine: draft.machineLabel === null ? null : clipSessionText(draft.machineLabel),
+          folder: null
+        };
+        for (const member of draft.members) placeOf.set(member.session, place);
+        return { key: identity.key, label, place, path: identity.path, machineId: identity.machineId };
+      });
+      // The sheet's comparator over the sheet's label, with no tab first.
+      unordered.sort((a, b) => compareSessionGroups(a, b, NO_TABS));
+      const places = unordered.map((one) => one.place);
+      // The folder, ONLY where two groups would otherwise draw alike: the same
+      // drawn label on the same drawn machine, over the whole list.
+      const alike = (place: SessionsPlace): string => JSON.stringify([place.label, place.machine]);
+      const drawnAlike = new Map<string, number>();
+      for (const place of places) drawnAlike.set(alike(place), (drawnAlike.get(alike(place)) ?? 0) + 1);
+      for (const one of unordered) {
+        if ((drawnAlike.get(alike(one.place)) ?? 0) < 2) continue;
+        one.place.folder = clipSessionText(displayPath(one.path, one.machineId ?? undefined));
+      }
+
+      // 3 and 5. What Show keeps (the gates' own partition, D8), and the
+      //    machine each row is on: its target's machine, `local` for this Mac,
+      //    which is the groups' own rule, so the filter and the groups agree.
+      interface Shown {
+        session: Session;
+        place: SessionsPlace;
+        machineId: string | null;
+        active: boolean;
+      }
+      const shown: Shown[] = [];
+      for (const session of sessions) {
+        const place = placeOf.get(session);
+        if (place === undefined) continue;
+        const gates = sessionActionGates(session, session.status, DOOR_GATE_ENV);
+        if (!lifecycleKeeps(asked.show, gates)) continue;
+        shown.push({
+          session,
+          place,
+          machineId: sessionGroupIdentity(session).target?.machineId ?? null,
+          active: lifecycleKeeps('active', gates)
+        });
+      }
+
+      // 5. The menu's choices, over what Show keeps and before the filters,
+      //    offering only ids the query can name (§15 F8).
+      const agentSeen = new Set<string>();
+      const agentChoices: PocketSessionsChoice[] = [];
+      const machineLabels = new Map<string, string | null>();
+      let onThisMac = false;
+      for (const one of shown) {
+        const agent = one.session.agent;
+        if (!agentSeen.has(agent) && isSessionsId(agent)) {
+          agentSeen.add(agent);
+          agentChoices.push({ id: agent, label: clipSessionText(facts.agentLabel(agent)) });
+        }
+        const machine = one.machineId;
+        if (machine === null) continue;
+        if (machine === LOCAL_MACHINE_ID) {
+          onThisMac = true;
+          continue;
+        }
+        if (!isSessionsId(machine)) continue;
+        // The first label a row on that machine draws names it.
+        if ((machineLabels.get(machine) ?? null) === null) {
+          machineLabels.set(machine, facts.machineLabel(one.session));
+        }
+      }
+      agentChoices.sort(byChoiceLabel);
+      const machineChoices: PocketSessionsChoice[] = [...machineLabels].map(([id, label]) => ({
+        id,
+        label: clipSessionText(label ?? id)
+      }));
+      machineChoices.sort(byChoiceLabel);
+      if (onThisMac) machineChoices.unshift({ id: LOCAL_MACHINE_ID, label: null });
+
+      // 6. The filters. Kept = Show and the filters.
+      const kept = shown.filter(
+        (one) =>
+          (asked.agent === null || one.session.agent === asked.agent) &&
+          (asked.machine === null || one.machineId === asked.machine)
+      );
+      const keptSessions = kept.map((one) => one.session);
+
+      // 7. THE PRIORITY is today's list's order over everything kept: the
+      //    waiting rows in `attentionRows`' order, then `othersOrder`, the same
+      //    two functions `blocked()` reads. Recent activity IS that order.
+      const keptById = new Map(keptSessions.map((s) => [s.id, s]));
+      const waitingRows: Session[] = [];
+      const waitingIds = new Set<string>();
+      for (const row of attentionRows(keptSessions, projects, stamps)) {
+        const session = keptById.get(row.sessionId);
+        if (session === undefined) continue;
+        waitingIds.add(session.id);
+        waitingRows.push(session);
+      }
+      const priority: Session[] = [
+        ...waitingRows,
+        ...keptSessions.filter((s) => !waitingIds.has(s.id)).sort(othersOrder(facts))
+      ];
+      // The order drawn: the sort inside each group, groups never reordering.
+      const sorted =
+        asked.sort === 'recent'
+          ? priority
+          : asked.sort === 'name'
+            ? [...keptSessions].sort(byNameThenId)
+            : [...keptSessions].sort(byCreatedThenId);
+      const keptOf = new Map(kept.map((one) => [one.session, one]));
+      let display: Session[] = sorted;
+      if (asked.group === 'project') {
+        // A stable partition of the sort, group by group in the groups' order.
+        const inPlace = new Map<SessionsPlace, Session[]>();
+        for (const session of sorted) {
+          const place = keptOf.get(session)?.place;
+          if (place === undefined) continue;
+          const list = inPlace.get(place);
+          if (list === undefined) inPlace.set(place, [session]);
+          else list.push(session);
+        }
+        display = places.flatMap((place) => inPlace.get(place) ?? []);
+      }
+
+      // Each group's facts under the words: its kept rows, whether any waits,
+      // whether any is active.
+      const keptIn = new Map<SessionsPlace, { count: number; waiting: boolean; active: boolean }>();
+      for (const one of kept) {
+        const was = keptIn.get(one.place) ?? { count: 0, waiting: false, active: false };
+        keptIn.set(one.place, {
+          count: was.count + 1,
+          waiting: was.waiting || one.session.status === 'needs_input',
+          active: was.active || one.active
+        });
+      }
+      const groupOf = (place: SessionsPlace, drawn: number): PocketSessionsGroup => {
+        const under = keptIn.get(place) ?? { count: 0, waiting: false, active: false };
+        return {
+          id: place.id,
+          label: place.label,
+          machine: place.machine,
+          folder: place.folder,
+          count: under.count,
+          omitted: under.count - drawn,
+          waiting: under.waiting,
+          collapsed: asked.show === 'all' && !under.active
+        };
+      };
+
+      // 8. One row, aged by the clock that placed it (D11). One clock is never
+      //    drawn as another: a creation age says `old`, a row with no clock is
+      //    null, and a waiting row's wait comes from its STAMP alone, never
+      //    from `attentionRows`' `since`, which falls back to the creation
+      //    clock and would draw it bare as a wait (§15 F1).
+      const sessionsRow = (session: Session, group: number): PocketSessionsRow => {
+        const activity = facts.activity(session.id);
+        const word = facts.statusWord(session);
+        const waiting = session.status === 'needs_input';
+        const created = session.createdAt > 0 ? createdOld(formatAge(session.createdAt, at)) : null;
+        const stamp = stamps.get(session.id);
+        const lastOutput = activity?.lastActivityAt;
+        const ageText =
+          asked.sort === 'oldest'
+            ? created
+            : waiting && stamp !== undefined
+              ? formatAge(stamp, at)
+              : !waiting && typeof lastOutput === 'number' && Number.isFinite(lastOutput)
+                ? formatAge(lastOutput, at)
+                : created;
+        const question = activity?.question;
+        const machine = facts.machineLabel(session);
+        return {
+          sessionId: session.id,
+          name: clipSessionText(session.name),
+          group,
+          machine: machine === null ? null : clipSessionText(machine),
+          statusDot: word.dot,
+          statusTitle: raisedLabel(word.label),
+          ageText,
+          waiting,
+          question: waiting && typeof question === 'string' && question.length > 0 ? question : null,
+          end: facts.endOffer?.(session) ?? NO_END
+        };
+      };
+
+      // 9. CHOOSE BY PRIORITY, THEN EMIT IN ORDER (§15 F2). The caps keep a
+      //    PREFIX of the priority whatever the words drawn, so no cap drops a
+      //    session that needs input while one that does not is drawn. A row is
+      //    measured as its JSON with its group index at the number of groups,
+      //    which bounds every index's digits; a group, the first time one of
+      //    its rows is chosen, as its JSON with `omitted` at its count. Rows are
+      //    built only as they are walked, so the End offers never grow with the
+      //    list.
+      const chosen = new Map<Session, PocketSessionsRow>();
+      const measured = new Set<SessionsPlace>();
+      let bytes = 0;
+      for (const session of priority) {
+        if (chosen.size >= POCKET_SESSIONS_MAX) break;
+        const place = keptOf.get(session)?.place;
+        if (place === undefined) continue;
+        const row = sessionsRow(session, places.length);
+        let cost = Buffer.byteLength(JSON.stringify(row));
+        if (!measured.has(place)) cost += Buffer.byteLength(JSON.stringify(groupOf(place, 0)));
+        if (bytes + cost > POCKET_SESSIONS_BUDGET_BYTES) break;
+        bytes += cost;
+        measured.add(place);
+        chosen.set(session, row);
+      }
+      const drawnIn = new Map<SessionsPlace, number>();
+      for (const session of chosen.keys()) {
+        const place = keptOf.get(session)?.place;
+        if (place !== undefined) drawnIn.set(place, (drawnIn.get(place) ?? 0) + 1);
+      }
+      // Emitted in the order drawn. A group is pushed the first time one of its
+      // rows is emitted, and that row's `group` is the length `groups` had then.
+      const rows: PocketSessionsRow[] = [];
+      const groups: PocketSessionsGroup[] = [];
+      const indexOf = new Map<SessionsPlace, number>();
+      for (const session of display) {
+        const row = chosen.get(session);
+        const place = keptOf.get(session)?.place;
+        if (row === undefined || place === undefined) continue;
+        let index = indexOf.get(place);
+        if (index === undefined) {
+          index = groups.length;
+          groups.push(groupOf(place, drawnIn.get(place) ?? 0));
+          indexOf.set(place, index);
+        }
+        rows.push({ ...row, group: index });
+      }
+      return {
+        asked,
+        rows,
+        groups,
+        agents: firstChoices(agentChoices),
+        machines: firstChoices(machineChoices),
+        total: sessions.length,
+        omitted: kept.length - rows.length,
+        at,
+        ageNote: POCKET_AGE_HONESTY
       };
     }
   };

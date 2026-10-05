@@ -3,9 +3,12 @@
 //
 // ONE ATTACHABLE PIECE. The selection, the bar above the tab bar, the Mac
 // sheet's confirmation and the run live here, behind ONE modifier,
-// `.endBatch(_:list:)`, which the Sessions tab applies on one line
-// (Screens/ListScreen.swift). Phase 316.7's SessionsScreen adopts it by moving
-// that line. The list's title and rows carry three small hooks from this file
+// `.endBatch(_:list:)`, which the Sessions tab applies on one line. Since
+// Phase 316.7 that line is `SessionsTab`'s (Screens/SessionsScreen.swift),
+// applied ONCE over both of the tab's faces, so a face that changes while End
+// these runs keeps its bar, its selection and its words; the list it reads is
+// an `EndBatchList`, which the Sessions model is and `ListModel` still is.
+// The list's title and rows carry three small hooks from this file
 // (`EndBatchTitleControl`, `EndBatchRowMark`, `EndBatchOutcome`), and a row's
 // tap asks the piece first (`takesTaps`). The piece reaches them through the
 // environment; where it is not attached (the Needs input tab) the title draws
@@ -271,9 +274,24 @@ final class EndBatchModel {
 
 // MARK: - The one line the Sessions tab applies
 
+/// The list End these selects over (Phase 316.7, build/p3167/SPEC.md section
+/// 6.4.7): the rows it draws, in drawn order; a hold the piece sets while End
+/// these is on, so no read replaces what is drawn under a selection or a run
+/// (the Mac batch's "the targets are the ids named at open"); and the read
+/// Done asks for.
+@MainActor
+protocol EndBatchList: AnyObject {
+    /// Every row drawn, in drawn order: the rows End these selects over and
+    /// confirms with.
+    var batchRows: [RowDrawing] { get }
+    /// True while End these is on. Set by the piece alone.
+    var batchHeld: Bool { get set }
+    func load() async
+}
+
 extension View {
     /// End these on this list, or nothing when `setup` is nil.
-    func endBatch(_ setup: EndBatchSetup?, list: ListModel) -> some View {
+    func endBatch(_ setup: EndBatchSetup?, list: any EndBatchList) -> some View {
         modifier(EndBatchPiece(setup: setup, list: list))
     }
 }
@@ -302,7 +320,7 @@ extension EnvironmentValues {
 
 private struct EndBatchPiece: ViewModifier {
     let setup: EndBatchSetup?
-    let list: ListModel
+    let list: any EndBatchList
 
     func body(content: Content) -> some View {
         if let setup {
@@ -314,11 +332,11 @@ private struct EndBatchPiece: ViewModifier {
 
     private struct Attached: View {
         let content: Content
-        let list: ListModel
+        let list: any EndBatchList
         @State private var model: EndBatchModel
         @State private var asking = false
 
-        init(content: Content, setup: EndBatchSetup, list: ListModel) {
+        init(content: Content, setup: EndBatchSetup, list: any EndBatchList) {
             self.content = content
             self.list = list
             _model = State(initialValue: EndBatchModel(setup: setup))
@@ -326,8 +344,7 @@ private struct EndBatchPiece: ViewModifier {
 
         /// Every row the Sessions tab draws, in drawn order.
         private var rows: [RowDrawing] {
-            guard case .loaded(let drawing) = list.state else { return [] }
-            return [drawing.waiting, drawing.others].flatMap { $0 }
+            list.batchRows
         }
 
         var body: some View {
@@ -336,6 +353,11 @@ private struct EndBatchPiece: ViewModifier {
             content
                 .environment(\.endBatch, model)
                 .environment(\.endBatchRows, rows)
+                // The hold (Phase 316.7, F5): while End these is on, a pull,
+                // the foreground and a choice replace nothing that is drawn.
+                .onChange(of: model.phase, initial: true) {
+                    list.batchHeld = model.phase != .off
+                }
                 .safeAreaInset(edge: .bottom) {
                     if model.phase != .off {
                         bar(confirm)
@@ -370,6 +392,8 @@ private struct EndBatchPiece: ViewModifier {
                         } else {
                             Button(Copy.done) {
                                 model.finish()
+                                // The read Done asks for is never held.
+                                list.batchHeld = false
                                 Task { await list.load() }
                             }
                             .accessibilityIdentifier(ID.batchDone)

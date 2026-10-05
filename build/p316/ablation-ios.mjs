@@ -91,6 +91,22 @@
  * optional, a result with no sentence, an empty line; (k) an operator in End
  * these; (s) the build left at 4.
  *
+ * PHASE 316.7 GAVE THE SESSIONS TAB SHOW, GROUP BY, SORT BY AND TWO FILTERS
+ * (build/p3167/SPEC.md §8.4), composed by main, and its eighteen (aa) arms are
+ * the ways the phone could start deciding the list, keep more than three words
+ * or lose End these: a `.sorted` on the tab, UserDefaults outside its one
+ * store, a fourth key, a string the door answered stored, a TextField, the
+ * target's parameters swapped and a value written bare, the UserDefaults reason
+ * CA92.2, the menu's `.disabled(` taken out, a project header taking taps by
+ * `.onTapGesture` rather than as a Button and a header's Button made a
+ * container (the fix round, 2026-10-03, when the header first built and then
+ * the fix's first try each read enabled to XCUITest while selecting),
+ * `.olderMac` set without awaiting
+ * the list, load()'s `batchHeld` check taken out, Done no longer clearing the
+ * hold, nothing setting it from End these' phase, the stored read's `.cancel()`
+ * taken out, a second `.endBatch(` on SessionsScreen, and the Sessions tab
+ * building a ListScreen of its own.
+ *
  * PHASE 318 GAVE THE PHONE A REPLY WITH NO FACE ID (build/p318/SPEC.md §6.3),
  * and its twenty-seven arms are the ways a press or a message could go out
  * twice, rewritten, behind a check his ruling refused, or after the app left:
@@ -157,6 +173,96 @@ const sha = (buf) => createHash('sha256').update(buf).digest('hex');
 // The arms. Each names its rule, the file it plants into (relative to the
 // clone), and an edit that must CHANGE that file or the arm fails by name.
 // ---------------------------------------------------------------------------
+
+/** Phase 316.7's two files (build/p3167/SPEC.md §6.4.4, §6.4.5). */
+const SESSIONS_SCREEN = 'ios/Tortie/Screens/SessionsScreen.swift';
+const SESSIONS_CHOICES = 'ios/Tortie/Screens/SessionsChoices.swift';
+
+/** A line written after the LAST line matching `re`, at that line's indent. */
+function afterLastLine(re, line) {
+  return (src) => {
+    const lines = src.split('\n');
+    let k = -1;
+    lines.forEach((l, i) => {
+      if (re.test(l)) k = i;
+    });
+    if (k === -1) return src;
+    lines.splice(k + 1, 0, line(/^[ \t]*/.exec(lines[k])[0]));
+    return lines.join('\n');
+  };
+}
+
+/** The end of the bracket opened at `open` in `src`, or -1. */
+function closeOf(src, open) {
+  const pair = { '(': ')', '{': '}' };
+  let depth = 0;
+  for (let k = open; k < src.length; k += 1) {
+    if (src[k] === src[open]) depth += 1;
+    else if (src[k] === pair[src[open]]) {
+      depth -= 1;
+      if (depth === 0) return k;
+    }
+  }
+  return -1;
+}
+
+/**
+ * The modifier `.name(…)` taken out of the chain that holds the first line
+ * matching `at`: the lines from the chain's first term (the line above its
+ * leading-dot lines) to its last leading-dot line.
+ */
+function dropFromChain(at, name) {
+  return (src) => {
+    const lines = src.split('\n');
+    const k = lines.findIndex((l) => at.test(l));
+    if (k === -1) return src;
+    let lo = k;
+    while (lo > 0 && /^\s*\./.test(lines[lo])) lo -= 1;
+    let hi = k;
+    while (hi + 1 < lines.length && /^\s*\./.test(lines[hi + 1])) hi += 1;
+    const from = lines.slice(0, lo).join('\n').length + (lo > 0 ? 1 : 0);
+    const to = lines.slice(0, hi + 1).join('\n').length;
+    const chain = src.slice(from, to);
+    const m = new RegExp(`\\.\\s*${name}\\s*\\(`).exec(chain);
+    if (m === null) return src;
+    const close = closeOf(chain, m.index + m[0].length - 1);
+    if (close === -1) return src;
+    const cut = `${chain.slice(0, m.index)}${chain.slice(close + 1)}`.replace(/\n[ \t]*(?=\n)/, '');
+    return `${src.slice(0, from)}${cut}${src.slice(to)}`;
+  };
+}
+
+/** The list property SessionsModel holds (`let list: ListModel`), by its declaration. */
+const listNameOf = (src) => /\b(?:let|var)\s+([A-Za-z_]\w*)\s*:\s*ListModel\b/.exec(src)?.[1] ?? null;
+
+/** `state = .olderMac` left where it is, and the await of the list's read before it taken out. */
+function olderMacUnawaited(src) {
+  const set = /\bstate\s*=\s*\.olderMac\b/.exec(src);
+  const list = listNameOf(src);
+  if (set === null || list === null) return src;
+  let last = null;
+  for (const m of src.slice(0, set.index).matchAll(new RegExp(`\\bawait\\s+(?:self\\.)?${list}\\.load\\(\\)`, 'g'))) last = m;
+  if (last === null) return src;
+  return `${src.slice(0, last.index)}_ = ${list}${src.slice(last.index + last[0].length)}`;
+}
+
+/** The first `if batchHeld { … }` or `guard !batchHeld else { … }` in SessionsModel, taken out whole. */
+function dropHold(src) {
+  const load = /\bclass\s+SessionsModel\b/.exec(src);
+  if (load === null) return src;
+  const hold = /\n[ \t]*(?:if\s+(?:self\.)?batchHeld\b[^{\n]*|guard\s+!\s*(?:self\.)?batchHeld\b[^{\n]*else\s*)\{/.exec(src.slice(load.index));
+  if (hold === null) return src;
+  const start = load.index + hold.index;
+  const close = closeOf(src, start + hold[0].length - 1);
+  return close === -1 ? src : `${src.slice(0, start)}${src.slice(close + 1)}`;
+}
+
+/** Every `?.cancel()` of the model's stored Task taken out. */
+function dropCancel(src) {
+  const name = /\bvar\s+([A-Za-z_]\w*)\s*:\s*Task\s*</.exec(src)?.[1] ?? null;
+  if (name === null) return src;
+  return src.replace(new RegExp(`\\n[ \\t]*(?:self\\.)?${name}\\s*\\??\\.cancel\\(\\)[ \\t]*(?=\\n)`, 'g'), '');
+}
 
 const APP = 'ios/Tortie';
 /** The first app Swift file under a screens directory, found rather than named. */
@@ -2222,6 +2328,165 @@ const ARMS = [
     what: 'the message line emptied after a message landed',
     file: () => `${APP}/Screens/Reply.swift`,
     edit: (src) => src.replace('sayLine = Copy.replySent', 'sayLine = ""')
+  },
+  // ---- PHASE 316.7 (build/p3167/SPEC.md §8.4): one arm per clause of (aa),
+  // and one more for each clause with a second half.
+  // (aa1) nothing ordered or dropped on the phone.
+  {
+    id: 'aa1',
+    rule: 'aa',
+    what: 'a .sorted on the Sessions tab',
+    file: () => SESSIONS_SCREEN,
+    edit: append('func p3167Sorted(_ rows: [PocketSessionsRow]) -> [PocketSessionsRow] { rows.sorted { $0.name < $1.name } }\n')
+  },
+  // (aa2) UserDefaults in SessionsChoices.swift alone, three keys, closed words.
+  {
+    id: 'aa2',
+    rule: 'aa',
+    what: 'UserDefaults named in SessionsScreen.swift',
+    file: () => SESSIONS_SCREEN,
+    edit: append('func p3167Kept() -> UserDefaults { .standard }\n')
+  },
+  {
+    id: 'aa2b',
+    rule: 'aa',
+    what: 'a fourth key',
+    file: () => SESSIONS_CHOICES,
+    edit: (src) => afterLastLine(/\bdefaults\s*\.\s*set\s*\(/, (indent) => `${indent}defaults.set(SessionsShow.all.rawValue, forKey: "tortie.sessions.agent")`)(src)
+  },
+  {
+    id: 'aa2c',
+    rule: 'aa',
+    what: 'a string the door answered stored beside the three words',
+    file: () => SESSIONS_CHOICES,
+    edit: (src) => src.replace(/\n([ \t]*)func save\(/, '\n$1func p3167Keep(_ answer: PocketSessionsAnswer) { defaults.set(answer.rows.first?.name, forKey: Self.showKey) }\n$1func save(')
+  },
+  // (aa3) no free text, no other storage.
+  {
+    id: 'aa3',
+    rule: 'aa',
+    what: 'a TextField on the Sessions tab',
+    file: () => SESSIONS_SCREEN,
+    edit: append('struct P3167Search: View {\n    @State private var text = ""\n    var body: some View { TextField(Copy.sessions, text: $text) }\n}\n')
+  },
+  // (aa4) one target, five parameters in order, every value through queryValue.
+  {
+    id: 'aa4',
+    rule: 'aa',
+    what: "the target's parameters swapped, sort first and show third",
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => {
+      // Inside sessionsTarget's body alone, never its doc comment.
+      const at = /\bfunc\s+sessionsTarget\s*\(/.exec(src);
+      const open = at === null ? -1 : src.indexOf('{', at.index);
+      const close = open === -1 ? -1 : closeOf(src, open);
+      if (close === -1) return src;
+      const body = src.slice(open, close + 1);
+      if (!body.includes('/v1/sessions?show=') || !body.includes('&sort=')) return src;
+      const swapped = body.replace('/v1/sessions?show=', '/v1/sessions?p3167=').replace('&sort=', '&show=').replace('/v1/sessions?p3167=', '/v1/sessions?sort=');
+      return `${src.slice(0, open)}${swapped}${src.slice(close + 1)}`;
+    }
+  },
+  {
+    id: 'aa4b',
+    rule: 'aa',
+    what: 'the agent written into the target bare, not through queryValue',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace(/agent=\\\((?:(?:Self|DoorClient)\.)?queryValue\(([^()]*)\)\)/, 'agent=\\($1)')
+  },
+  // (aa5) the UserDefaults reason.
+  {
+    id: 'aa5',
+    rule: 'aa',
+    what: 'the UserDefaults reason CA92.2',
+    file: appManifest,
+    edit: (src) => src.replace('<string>CA92.1</string>', '<string>CA92.2</string>')
+  },
+  // (aa6) nothing but a row's tap while End these takes taps.
+  {
+    id: 'aa6',
+    rule: 'aa',
+    what: "the menu's .disabled( taken out",
+    file: () => SESSIONS_SCREEN,
+    edit: dropFromChain(/\.accessibilityIdentifier\(\s*ID\.listMenu\s*\)/, 'disabled')
+  },
+  {
+    // The fix round (2026-10-03): the header as first built, a view taking
+    // taps by .onTapGesture, read as an enabled button while End these took
+    // taps, its .disabled( notwithstanding.
+    id: 'aa6b',
+    rule: 'aa',
+    what: 'a project header taking taps by .onTapGesture, not a Button',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace(/Button\(action:\s*tapped\)\s*\{\s*Color\.clear\s*\.contentShape\(Rectangle\(\)\)\s*\}\s*\.buttonStyle\(\.plain\)/, 'Color.clear\n                    .contentShape(Rectangle())\n                    .onTapGesture(perform: tapped)')
+  },
+  {
+    // The fix round's own first try: the header wrapped in a Button made a
+    // container, which read enabled to XCUITest on iOS 26.3 all the same.
+    id: 'aa6c',
+    rule: 'aa',
+    what: "a project header's Button made a container by .accessibilityElement(children: .contain)",
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => src.replace(/(\.disabled\(batch\?\.takesTaps \?\? false\))(\s*\.accessibilityLabel\(Text\(verbatim:\s*group\.label\)\))/, '$1\n                .accessibilityElement(children: .contain)$2')
+  },
+  // (aa7) .olderMac set once, after the list answered, under its .loaded state.
+  {
+    id: 'aa7',
+    rule: 'aa',
+    what: '.olderMac set before the list answered (its await taken out)',
+    file: () => SESSIONS_SCREEN,
+    edit: olderMacUnawaited
+  },
+  // (aa8) the hold.
+  {
+    id: 'aa8',
+    rule: 'aa',
+    what: "load()'s batchHeld check taken out, so a pull replaces the drawing under End these",
+    file: () => SESSIONS_SCREEN,
+    edit: dropHold
+  },
+  {
+    id: 'aa8b',
+    rule: 'aa',
+    what: 'Done no longer clearing batchHeld before it reads',
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: (src) => src.replace(/\n[ \t]*(?:self\.)?list\.batchHeld\s*=\s*false[ \t]*(?=\n)/, '')
+  },
+  {
+    id: 'aa8c',
+    rule: 'aa',
+    what: "nothing setting batchHeld from End these' phase",
+    file: () => `${APP}/Screens/EndBatch.swift`,
+    edit: (src) => src.replace(/\b(?:self\.)?list\.batchHeld\s*=\s*([^\n;}]*\bphase\b[^\n;}]*)/, '_ = $1')
+  },
+  // (aa9) one stored Task, cancelled before another.
+  {
+    id: 'aa9',
+    rule: 'aa',
+    what: "the stored read's .cancel() taken out",
+    file: () => SESSIONS_SCREEN,
+    edit: dropCancel
+  },
+  // (aa10) one End these attachment over both faces; the tab draws SessionsTab.
+  {
+    id: 'aa10',
+    rule: 'aa',
+    what: 'a second .endBatch( on SessionsScreen',
+    file: () => SESSIONS_SCREEN,
+    edit: (src) => {
+      const at = src.indexOf('struct SessionsScreen');
+      const refresh = at === -1 ? null : /\n([ \t]*)\.refreshable\b/.exec(src.slice(at));
+      if (refresh === null) return src;
+      const k = at + refresh.index;
+      return `${src.slice(0, k)}\n${refresh[1]}.endBatch(nil, list: model)${src.slice(k)}`;
+    }
+  },
+  {
+    id: 'aa10b',
+    rule: 'aa',
+    what: 'the Sessions tab building a ListScreen of its own',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/\bSessionsTab\s*\(/, 'ListScreen(')
   }
 ];
 
@@ -2422,7 +2687,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'ab', 'ac', 'ad', 'ae', 'af', 'ag']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -2435,5 +2700,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (ab) to (ag) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ag) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

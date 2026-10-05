@@ -72,6 +72,21 @@ import XCTest
 /// `reply-<seq>` in P316_ACKS, so the probe reads the agent's screen, types
 /// at the Mac or holds the relay at THAT moment. Nothing here asks Face ID,
 /// and every reading is a label or a frame.
+///
+/// THE SESSIONS TAB (Phase 316.7, build/p3167/SPEC.md section 9.4). The tab
+/// is a lazy list now, so a row off screen is not in the tree: `open:` and
+/// `select:` bring a row into view before they press it, and `sessions-dump`
+/// walks the list from its top to its end and prints every `row-`, `group-`
+/// and `list-` element it met, in the order it met them. New steps press the
+/// Show control (`show:`), choose in the one menu (`menu:<section>:<label>`,
+/// found by the Copy words the probe hands in), read the menu (`menu-read`),
+/// clear the filters, open or close a project (`group:`), mark a reading the
+/// probe brackets (`sessions-mark:`, which waits for the probe's file), read
+/// the face the tab draws with and without a pull, time the first row, pull
+/// while End these is done, and relaunch keeping the pairing with an
+/// optional planted defaults value (`relaunch-choices:<key>=<value>`, a launch
+/// argument in UserDefaults' own argument domain, so no DEBUG seam is added).
+/// Nothing here sorts, filters or decides what is drawn; it reads.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -222,6 +237,23 @@ private enum Seen {
     /// import the app. A line that is neither is a write's answer.
     static let oneMessage = "Goes to this session as one message."
     static let sending = "Sending…"
+    // Phase 316.7: the Sessions tab's controls and its project headers.
+    /// The list's title, the first line the tab draws: drawn and pressable
+    /// only at the list's top, because the tab is lazy and it scrolls away.
+    static let listTitle = "list-title"
+    static let listShow = "list-show"
+    static func showSegment(_ word: String) -> String { "list-show-" + word }
+    static let listMenu = "list-menu"
+    static let listClearFilters = "list-clear-filters"
+    static let listNoMatch = "list-no-match"
+    static let listNoSessions = "list-no-sessions"
+    static let listSessionsLeftOut = "list-sessions-left-out"
+    static func group(_ id: String) -> String { "group-" + id }
+    /// The menu's Clear filters item, `Copy.clearFilters` spelled again (a UI
+    /// test cannot import the app).
+    static let clearFiltersWords = "Clear filters"
+    /// The prefixes a sessions dump keeps: the rows, the headers, and the list's own.
+    static let sessionsPrefixes = ["row-", "group-", "list-", "section-"]
     /// iOS's own first-use Face ID question's allowing press, by label, and
     /// the press that ends its failed-match prompt.
     static let faceIDAllow = ["OK", "Allow"]
@@ -392,6 +424,33 @@ private final class Drive {
                 replyFocus()
             } else if step.hasPrefix("reply-wait:") {
                 replyWait(String(step.dropFirst("reply-wait:".count)))
+            } else if step.hasPrefix("show:") {
+                show(String(step.dropFirst("show:".count)))
+            } else if step.hasPrefix("menu:") {
+                let parts = step.dropFirst("menu:".count).split(separator: ":", maxSplits: 1, omittingEmptySubsequences: false).map(String.init)
+                menu(section: parts.first ?? "", label: parts.count > 1 ? parts[1] : "")
+            } else if step == "menu-read" {
+                menuRead()
+            } else if step == "clear-filters" {
+                clearFilters()
+            } else if step.hasPrefix("group:") {
+                groupPress(String(step.dropFirst("group:".count)))
+            } else if step.hasPrefix("sessions-mark:") {
+                sessionsMark(String(step.dropFirst("sessions-mark:".count)))
+            } else if step.hasPrefix("sessions-dump:") {
+                sessionsDump(String(step.dropFirst("sessions-dump:".count)))
+            } else if step == "sessions-face" {
+                sessionsFace()
+            } else if step == "sessions-pull" {
+                sessionsPull()
+            } else if step == "sessions-pull:ack" {
+                sessionsPull(acked: true)
+            } else if step == "sessions-first-row" {
+                sessionsFirstRow()
+            } else if step == "batch-pull" {
+                batchPull()
+            } else if step == "relaunch-choices" || step.hasPrefix("relaunch-choices:") {
+                relaunchChoices(step.hasPrefix("relaunch-choices:") ? String(step.dropFirst("relaunch-choices:".count)) : nil)
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -456,8 +515,8 @@ private final class Drive {
             }
         }
         guard onSessionsList() else { return missing("open") }
-        let row = element(Seen.row(sessionId))
-        guard row.waitForExistence(timeout: 5) else { return missing("open") }
+        // Phase 316.7: the list is lazy, so the row is brought into view first.
+        guard let row = reveal(Seen.row(sessionId)) else { return missing("open") }
         row.tap()
         guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else {
             return missing(name)
@@ -1338,17 +1397,21 @@ private final class Drive {
                 tries += 1
             }
         }
+        // Phase 316.7: Select sits in the title, which scrolls with the lazy list.
+        if !element(Seen.listSelect).exists { scrollToTop() }
         let press = element(Seen.listSelect)
         guard onSessionsList(), press.waitForExistence(timeout: 10) else { return missing("select") }
         press.tap()
         for id in ids {
-            let row = element(Seen.row(id))
-            guard row.waitForExistence(timeout: 5) else { return missing("select") }
+            // Phase 316.7: the list is lazy, so each row is brought into view first.
+            guard let row = reveal(Seen.row(id)) else { return missing("select") }
             row.tap()
             Thread.sleep(forTimeInterval: 0.3)
         }
         let ticked = ids.filter { element(Seen.rowSelect($0)).isSelected }
-        lines.emit(["step": "select", "asked": ids, "ticked": ticked])
+        // Phase 316.7: while End these takes taps, the Show control, the menu
+        // and every project header are drawn off (SPEC section 6.4.5).
+        lines.emit(["step": "select", "asked": ids, "ticked": ticked, "controls": controlsEnabled()])
         dump("select")
     }
 
@@ -1631,6 +1694,430 @@ private final class Drive {
         Thread.sleep(forTimeInterval: 2)
         _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
         dump("reply-wait")
+    }
+
+    // MARK: Phase 316.7: the Sessions tab
+
+    /// The Sessions tab's list, its own path's root: selected, and walked
+    /// back past any session pushed on it.
+    private func goToSessionsList() {
+        if onSessionsList() { return }
+        _ = selectTab(Seen.tabSessions)
+        var tries = 0
+        while !onSessionsList() && tries < 6 {
+            let back = app.navigationBars.buttons.element(boundBy: 0)
+            if back.exists { back.tap() }
+            Thread.sleep(forTimeInterval: 1)
+            tries += 1
+        }
+    }
+
+    /// What one snapshot of the list holds, as one string: the identifiers and
+    /// labels of its rows, headers and lines. Equal twice means it has settled.
+    private func signature() -> String {
+        tree().filter { f in Seen.sessionsPrefixes.contains { f.id.hasPrefix($0) } }.map { "\($0.id)=\($0.label)" }.joined(separator: "|")
+    }
+
+    /// A choice's read lands with no mark of its own (the old drawing is kept
+    /// until the newest answer lands), so the list is read again until two
+    /// readings three quarters of a second apart agree.
+    private func settleSessions() {
+        Thread.sleep(forTimeInterval: 1.5)
+        var last = "\u{0}"
+        let deadline = Date().addingTimeInterval(min(wait, 20))
+        while Date() < deadline {
+            let now = signature()
+            if now == last { return }
+            last = now
+            Thread.sleep(forTimeInterval: 0.75)
+        }
+    }
+
+    /// The element a list scrolls by: the screen itself when it is the scroll
+    /// view, else the first scroll view inside it.
+    private func scrollTarget() -> XCUIElement {
+        let list = element(Seen.listScreen)
+        if list.elementType == .scrollView { return list }
+        let inner = list.scrollViews.firstMatch
+        return inner.exists ? inner : list
+    }
+
+    /// Up to the list's top: swiped down until the title is drawn and
+    /// pressable, then until two readings agree, so the list is at its very
+    /// top as before. The bound is the step's wait (at least two minutes),
+    /// never a count of swipes: the walk over 2,000 rows takes about 175 to
+    /// reach the end, and the 60 swipes this once allowed left the
+    /// sessions-cap arm at the list's end with no menu to read (the fix round,
+    /// 2026-10-03). A stop short of the title, by the clock or by a swipe
+    /// that moved nothing, is said as `{"step":"scroll-to-top","reached":false}`
+    /// rather than left for a later step to fail on silently.
+    private func scrollToTop() {
+        let scroll = scrollTarget()
+        let title = element(Seen.listTitle)
+        var last = "\u{0}"
+        var settling = 0
+        let deadline = Date().addingTimeInterval(max(wait, 120))
+        while Date() < deadline {
+            if title.exists && title.isHittable {
+                // The title is drawn: at most a few more swipes, until nothing moves.
+                settling += 1
+                if settling > 3 { return }
+            }
+            scroll.swipeDown(velocity: .fast)
+            Thread.sleep(forTimeInterval: 0.3)
+            let now = signature()
+            if now == last { break }
+            last = now
+        }
+        if title.exists && title.isHittable { return }
+        lines.emit(["step": "scroll-to-top", "reached": false])
+    }
+
+    /// The top of the tab bar, or the window's bottom when there is none.
+    private func barTop() -> CGFloat {
+        let bars = app.tabBars.firstMatch
+        return bars.exists ? bars.frame.minY : app.frame.maxY
+    }
+
+    /// The element `id`, brought into view on the list: the tab is lazy, so
+    /// a row off screen is not in the tree. Up to the top, then down a swipe
+    /// at a time until it is there, above the tab bar and pressable.
+    private func reveal(_ id: String) -> XCUIElement? {
+        let target = element(id)
+        let shown = { target.exists && target.isHittable && target.frame.midY < self.barTop() - 4 }
+        if target.waitForExistence(timeout: 2) && shown() { return target }
+        guard has(tree(), Seen.listScreen) else { return target.exists ? target : nil }
+        scrollToTop()
+        let scroll = scrollTarget()
+        var last = "\u{0}"
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if shown() { return target }
+            if target.exists && target.frame.midY >= barTop() - 4 {
+                scroll.swipeUp(velocity: .slow)
+            } else {
+                scroll.swipeUp()
+            }
+            Thread.sleep(forTimeInterval: 0.4)
+            let now = signature()
+            if now == last && !target.exists { break }
+            last = now
+        }
+        return shown() ? target : nil
+    }
+
+    /// Whether the Show control, the menu and the project headers on screen
+    /// take presses, by identifier.
+    private func controlsEnabled() -> [String: Bool] {
+        var out: [String: Bool] = [:]
+        guard let root = try? app.snapshot() else { return out }
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            let id = node.identifier
+            if id == Seen.listMenu || id.hasPrefix(Seen.listShow + "-") || (id.hasPrefix("group-") && !Self.isGroupPart(id)) {
+                out[id] = node.isEnabled
+            }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        return out
+    }
+
+    /// A header's part (`group-label-<id>` and its kin), never the header.
+    static func isGroupPart(_ id: String) -> Bool {
+        ["group-label-", "group-count-", "group-machine-", "group-folder-", "group-waiting-", "group-left-out-"].contains { id.hasPrefix($0) }
+    }
+
+    /// `show:<word>`: the Show control's segment pressed, and the read it starts settled.
+    private func show(_ word: String) {
+        goToSessionsList()
+        // The control scrolls with the list, which is lazy: up to the top when it is not drawn.
+        if !element(Seen.showSegment(word)).exists { scrollToTop() }
+        let segment = element(Seen.showSegment(word))
+        guard segment.waitForExistence(timeout: 10) else { return missing("show") }
+        let enabled = segment.isEnabled
+        segment.tap()
+        lines.emit(["step": "show", "word": word, "found": true, "enabled": enabled])
+        settleSessions()
+    }
+
+    /// An item of the open menu by its words: a menu's own buttons first,
+    /// then any button so named that is not a row or a header. A section
+    /// drawn as a submenu reads its title and its current choice together, so
+    /// a title is matched by its start.
+    private func menuItem(_ label: String, prefix: Bool = false) -> XCUIElement? {
+        let predicate = prefix ? NSPredicate(format: "label BEGINSWITH %@", label) : NSPredicate(format: "label == %@", label)
+        let inMenu = app.collectionViews.buttons.matching(predicate).firstMatch
+        if inMenu.waitForExistence(timeout: 2) { return inMenu }
+        let named = app.buttons.matching(predicate).allElementsBoundByIndex.filter {
+            $0.exists && !$0.identifier.hasPrefix("row-") && !$0.identifier.hasPrefix("group-") && !$0.identifier.hasPrefix("list-show")
+        }
+        return named.first
+    }
+
+    /// Every button the open menu draws, by its words.
+    private func menuLabels() -> [String] {
+        let inMenu = app.collectionViews.buttons.allElementsBoundByIndex.filter(\.exists).map(\.label)
+        return inMenu.isEmpty ? app.buttons.allElementsBoundByIndex.filter(\.exists).map(\.label) : inMenu
+    }
+
+    /// An open menu put away: a press on the title's row, which no menu covers.
+    private func dismissMenu() {
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.06, dy: 0.12)).tap()
+        Thread.sleep(forTimeInterval: 0.6)
+    }
+
+    /// `menu:<section>:<label>`: the menu opened, the section's submenu opened
+    /// when it is one, and the choice pressed; the read it starts settled.
+    private func menu(section: String, label: String) {
+        goToSessionsList()
+        if !element(Seen.listMenu).exists { scrollToTop() }
+        let button = element(Seen.listMenu)
+        guard button.waitForExistence(timeout: 10) else { return missing("menu") }
+        button.tap()
+        Thread.sleep(forTimeInterval: 0.8)
+        var path: [String] = []
+        if !section.isEmpty, menuItem(label) == nil, let sub = menuItem(section, prefix: true) {
+            sub.tap()
+            path.append(section)
+            Thread.sleep(forTimeInterval: 0.8)
+        }
+        guard let item = menuItem(label) else {
+            lines.emit(["step": "menu", "section": section, "label": label, "found": false, "seen": menuLabels()])
+            dismissMenu()
+            return
+        }
+        item.tap()
+        path.append(label)
+        lines.emit(["step": "menu", "section": section, "label": label, "found": true, "path": path])
+        settleSessions()
+    }
+
+    /// `menu-read`: the menu opened, every button it draws printed, and put away.
+    private func menuRead() {
+        goToSessionsList()
+        if !element(Seen.listMenu).exists { scrollToTop() }
+        let button = element(Seen.listMenu)
+        guard button.waitForExistence(timeout: 10) else { return missing("menu-read") }
+        button.tap()
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit(["step": "menu-read", "labels": menuLabels(), "button": button.label])
+        dismissMenu()
+    }
+
+    /// Clear filters: the "No matching sessions" face's button when it is
+    /// drawn, else the menu's item; the read it starts settled.
+    private func clearFilters() {
+        goToSessionsList()
+        scrollToTop()
+        let face = element(Seen.listClearFilters)
+        var via = "none"
+        if face.waitForExistence(timeout: 2) && face.isHittable {
+            face.tap()
+            via = "face"
+        } else {
+            let button = element(Seen.listMenu)
+            if button.waitForExistence(timeout: 10) {
+                button.tap()
+                Thread.sleep(forTimeInterval: 0.8)
+                if let item = menuItem(Seen.clearFiltersWords) {
+                    item.tap()
+                    via = "menu"
+                } else {
+                    dismissMenu()
+                }
+            }
+        }
+        lines.emit(["step": "clear-filters", "via": via])
+        settleSessions()
+    }
+
+    /// `group:<id>`: that project's header brought into view and pressed.
+    private func groupPress(_ id: String) {
+        goToSessionsList()
+        guard let header = reveal(Seen.group(id)) else {
+            lines.emit(["step": "group", "id": id, "found": false])
+            return missing("group")
+        }
+        let enabled = header.isEnabled
+        header.tap()
+        lines.emit(["step": "group", "id": id, "found": true, "enabled": enabled])
+        settleSessions()
+    }
+
+    /// `sessions-mark:<tag>`: the probe reads the door before the drive's own
+    /// read, and the step goes on once its file `sessions-<seq>` is there.
+    private func sessionsMark(_ tag: String) {
+        let seq = lines.emit(["step": "sessions-before", "tag": tag])
+        lines.emit(["step": "sessions-marked", "tag": tag, "acked": acks == nil ? false : ack("sessions-\(seq)", within: 60)])
+    }
+
+    /// `sessions-dump:<tag>`: the list settled, then walked from its top to its
+    /// end, every row, header and line it met printed once, in the order it met
+    /// them (a lazy list draws only what is on screen). `complete` is false when
+    /// the step's wait ran out before the end.
+    private func sessionsDump(_ tag: String) {
+        goToSessionsList()
+        guard poll({ self.has($0, Seen.listScreen) && !self.has($0, Seen.listLoading) }) else { return missing("sessions-dump") }
+        settleSessions()
+        scrollToTop()
+        var order: [String] = []
+        var index: [String: Int] = [:]
+        var items: [String: [String: Any]] = [:]
+        var quiet = 0
+        var swipes = 0
+        var complete = false
+        let scroll = scrollTarget()
+        let deadline = Date().addingTimeInterval(wait)
+        let rebuild = { index = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($1, $0) }) }
+        while Date() < deadline {
+            guard let root = try? app.snapshot() else { break }
+            var found: [XCUIElementSnapshot] = []
+            var stack: [XCUIElementSnapshot] = [root]
+            while let node = stack.popLast() {
+                if Seen.sessionsPrefixes.contains(where: { node.identifier.hasPrefix($0) }) { found.append(node) }
+                stack.append(contentsOf: node.children.reversed())
+            }
+            found.sort { $0.frame.minY < $1.frame.minY }
+            var anchor: Int?
+            var added = 0
+            for (k, node) in found.enumerated() {
+                let id = node.identifier
+                if let at = index[id] {
+                    anchor = at
+                    continue
+                }
+                // Before the first element of this snapshot already known, when
+                // none came before it here; else after the last one that did.
+                let before = anchor ?? found[(k + 1)...].compactMap { index[$0.identifier] }.first.map { $0 - 1 }
+                if let before, before + 1 < order.count {
+                    order.insert(id, at: before + 1)
+                    rebuild()
+                } else {
+                    order.append(id)
+                    index[id] = order.count - 1
+                }
+                anchor = index[id]
+                added += 1
+                let f = node.frame
+                var item: [String: Any] = [
+                    "id": id,
+                    "label": node.label,
+                    "frame": [f.origin.x, f.origin.y, f.size.width, f.size.height].map { $0.isFinite ? Double($0) : -1 }
+                ]
+                if id.hasPrefix(Seen.listShow) || (id.hasPrefix("group-") && !Self.isGroupPart(id)) || id == Seen.listMenu {
+                    item["selected"] = node.isSelected
+                    item["enabled"] = node.isEnabled
+                    if let value = node.value as? String { item["value"] = value }
+                }
+                items[id] = item
+            }
+            quiet = added == 0 ? quiet + 1 : 0
+            if quiet >= 2 {
+                complete = true
+                break
+            }
+            scroll.swipeUp()
+            swipes += 1
+            Thread.sleep(forTimeInterval: 0.35)
+        }
+        lines.emit([
+            "step": "sessions-dump",
+            "tag": tag,
+            "complete": complete,
+            "swipes": swipes,
+            "window": [Double(app.frame.width), Double(app.frame.height)],
+            "elements": order.compactMap { items[$0] }
+        ])
+    }
+
+    /// `sessions-face`: the Sessions tab selected and its face read as drawn,
+    /// with no pull: the older-Mac face or the new one (SPEC D9).
+    private func sessionsFace() {
+        goToSessionsList()
+        guard poll({ self.has($0, Seen.listScreen) && !self.has($0, Seen.listLoading) }) else { return missing("sessions-face") }
+        settleSessions()
+        dump("sessions-face")
+    }
+
+    /// `sessions-pull`: one pull on the Sessions tab, and its face read again.
+    /// `sessions-pull:ack` first says `sessions-pull-ready` and waits for the
+    /// probe's file `pull-<seq>`: the hostile door refuses `/v1/sessions` until
+    /// the probe tells it the Mac updated, so the older face is still the
+    /// older face when this ONE pull is made (the fix round, 2026-10-03: a door
+    /// that refused only its first read was answered by the older face's own
+    /// appear read, and the arm could never be read).
+    private func sessionsPull(acked: Bool = false) {
+        goToSessionsList()
+        // A pull refreshes only from the top of the list.
+        scrollToTop()
+        if acked {
+            let seq = lines.emit(["step": "sessions-pull-ready"])
+            lines.emit(["step": "sessions-pull-acked", "acked": ack("pull-\(seq)", within: 60)])
+        }
+        pull(Seen.listScreen)
+        Thread.sleep(forTimeInterval: 3)
+        _ = poll { self.has($0, Seen.listScreen) && !self.has($0, Seen.listLoading) }
+        settleSessions()
+        dump("sessions-pull")
+    }
+
+    /// `sessions-first-row`: the moment the Sessions tab is pressed, and the
+    /// moment its first row is in the tree, by the clock (the probe holds them
+    /// to the door's answer: within 2 s, SPEC section 9.5).
+    private func sessionsFirstRow() {
+        lines.emit(["step": "first-row-start", "at": Date().timeIntervalSince1970 * 1000])
+        _ = selectTab(Seen.tabSessions)
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if let row = tree().first(where: { $0.id.hasPrefix("row-") && Self.isRow($0.id) }) {
+                lines.emit(["step": "first-row", "at": Date().timeIntervalSince1970 * 1000, "id": row.id])
+                return
+            }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        lines.emit(["step": "first-row", "at": NSNull(), "id": NSNull()])
+    }
+
+    /// A row's own identifier, never one of its parts.
+    static func isRow(_ id: String) -> Bool {
+        !["row-dot-", "row-name-", "row-machine-", "row-age-", "row-line-", "row-select-", "row-outcome-"].contains { id.hasPrefix($0) }
+    }
+
+    /// `batch-pull`: a pull while End these is done and before Done, and every
+    /// row and outcome word read after it (SPEC section 15 F5).
+    private func batchPull() {
+        // A pull refreshes only from the top of the list.
+        scrollToTop()
+        pull(Seen.listScreen)
+        Thread.sleep(forTimeInterval: 3)
+        let found = tree()
+        var outcomes: [String: String] = [:]
+        for item in found where item.id.hasPrefix("row-outcome-") {
+            outcomes[String(item.id.dropFirst("row-outcome-".count))] = item.label
+        }
+        let rows = found.filter { $0.id.hasPrefix("row-") && Self.isRow($0.id) }.map { String($0.id.dropFirst("row-".count)) }
+        lines.emit(["step": "batch-pull", "outcomes": outcomes, "rows": rows, "done": has(found, Seen.batchDone)])
+        dump("batch-pull")
+    }
+
+    /// `relaunch-choices[:<key>=<value>]`: the app ended and launched again
+    /// with the carried seams and NO forget seam, so the pairing and the three
+    /// remembered words stay, and with `-<key> <value>` when one is planted
+    /// (UserDefaults' own argument domain). Then the Sessions tab, read.
+    private func relaunchChoices(_ planted: String?) {
+        app.terminate()
+        _ = app.wait(for: .notRunning, timeout: 10)
+        var arguments = carried
+        if let planted, let eq = planted.firstIndex(of: "=") {
+            arguments += ["-" + String(planted[..<eq]), String(planted[planted.index(after: eq)...])]
+        }
+        app.launchArguments = arguments
+        app.launch()
+        guard poll({ found in self.settledList(found) || self.has(found, Seen.pairingScreen) }) else { return missing("relaunch-choices") }
+        goToSessionsList()
+        _ = poll { self.has($0, Seen.listScreen) && !self.has($0, Seen.listLoading) }
+        settleSessions()
+        lines.emit(["step": "relaunched", "planted": planted.map { $0 as Any } ?? NSNull()])
     }
 
     // MARK: Reading

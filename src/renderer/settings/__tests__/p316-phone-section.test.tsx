@@ -134,7 +134,10 @@ const LINES = [
   `Answers on the internet at https://${NAME}:8443, through Tailscale Funnel on example.github`,
   'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale',
   'Starts answering when Tortie starts',
-  'Answers these and nothing else: blocked, pair, session, turns',
+  // The eight routes since Phases 318 and 316.7 (build/p3167/SPEC.md §3 row 1),
+  // and the line the three writes add after them, as main composes them.
+  'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns',
+  'Lets an allowed phone end a session, answer a numbered question and send a session one message',
   'Tells your phone nothing through Apple',
   'Allows no phone yet'
 ];
@@ -163,7 +166,7 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     nameCheck: listening ? 'confirmed' : 'none',
     pairable: listening,
     nameProgress: null,
-    routes: ['pair', 'blocked', 'session', 'turns'],
+    routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions'],
     pushAlerts: false,
     pushKeyId: null,
     pushSentence: null,
@@ -718,9 +721,9 @@ describe('the alert switch', () => {
 
 describe('turning the alerts off re-confirms only the one line it moved', () => {
   const onLines = [
-    ...LINES.slice(0, 4),
+    ...LINES.slice(0, 5),
     'Tells your phone through Apple when a session starts waiting on you, never what it asks, and nothing while this Mac sleeps',
-    LINES[5] ?? ''
+    LINES[6] ?? ''
   ];
 
   it('when exactly the switch’s line moved, and never otherwise', () => {
