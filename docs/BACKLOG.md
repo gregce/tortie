@@ -39156,7 +39156,7 @@ phases get the test slot first (his rule, 2026-09-30).
 - **No stored tab, text selection, copy menu, light mode or landscape.**
 - **No release.**
 
-## Phase 316.7 — "a way of grouping, filtering sessions and sorting them because many many sessions are old that tortie stores" — the phone's Sessions tab (operator, 2026-09-30)
+## Phase 316.7 — "a way of grouping, filtering sessions and sorting them because many many sessions are old that tortie stores" — the phone's Sessions tab (operator, 2026-09-30) ✅ LANDED `851b3c4c`, 2026-10-04
 
 **Subject.** `feat(ios): show, group, sort and filter the phone's sessions`
 
@@ -40775,3 +40775,5 @@ cycle rather than only the evening it was written.
 - 2026-10-04, **PHASE 318 LANDED, `42becaeb`, unreleased — Reply from the phone.** A Claude Code or Codex numbered question answers with one tap (every option, no Face ID), and an idle session on this Mac takes one message; `/v1/choose` and `/v1/say` ride 317's one write door. Two lenses, one fix (a phone No could leave the Mac stuck at needs input; released by the read-back rule), an independent reverify approved: 30 of 30 phone No presses with 0 stuck. Replayed from the snapshot onto main beside 320.1: one shared pane-report predicate, both attach-host hooks, condition 101 naming the reply writer. R4 pin 0e8c9f46…, phone build 6. Next: 316.7's replay, then the TestFlight build.
 
 - 2026-10-04, **PHASE 336 RESEARCH DONE, and HE RULED: "Zero presses ... I don't want any grants. I want it to act like i'm operating it locally."** A project open on a confirmed machine is a folder Tortie may save in, however it was opened, with no grant, sheet or Settings field; the folder is pinned when opened and checked at every write, `/` and home folders are never write roots, and `.git` and `.ssh` are refused in any case. Pictures and clone stay gated to a confirmed machine only. The research also found weaknesses in today's tree, folded into 336 on his word, so research 138 is held as the local branch `held/research-138` and pushed with 336's fix rather than before it. 336 builds after the TestFlight build.
+
+- 2026-10-04, **PHASE 316.7 LANDED, `851b3c4c`, unreleased — the phone's Sessions tab groups, filters and sorts.** Active by default and grouped by project (his "running sessions first, old tucked away"), All with idle projects folded, sort by recent, name or oldest, filter by agent or machine, through one new signed read, `GET /v1/sessions`. Verified twice: the phase (fix round, independent reverify) and its replay onto main beside 318 (31 files merged, an independent hostile phone against the eight-route door, one probe-only fix, reverify approved). R4 pin d95ecd27…, the Mac asks once to allow the door again, phone build 6, HELPER_USER_FLOOR 165. Every phone phase of this release has landed; next is the one TestFlight build, then the stop he set.
