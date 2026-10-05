@@ -39697,7 +39697,7 @@ answers:
   their own entry if he asks.
 - **No release**, and nothing starts before this release's TestFlight build unless he says so.
 
-## Phase 336.1 — "when i try to make a new folder or new file it is greyed out" — a folder directly inside a home, or directly under `/`, is writable on another machine as it is on his Mac (operator, 2026-10-05)
+## Phase 336.1 — "when i try to make a new folder or new file it is greyed out" — a folder directly inside a home, or directly under `/`, is writable on another machine as it is on his Mac (operator, 2026-10-05) ✅ LANDED `47c3c79e`, 2026-10-05
 
 **Subject.** `fix(machines): save in a project directly inside your home on another machine`
 
@@ -40959,3 +40959,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **RESEARCH 139 DELIVERED, `0b13e4be` — a live session on the phone, read from ten products that have one** (Paseo, Happy, Happier, VibeTunnel, cmux, Orca, CC Pocket, Omnara, Termix, Superset), pure research on his word with no adversary round. Recommendation: a Screen beside each Conversation, composed on the Mac from tmux and drawn natively at the Mac's width (no library, no web view), typed into through 318.1's box and a small key bar; a live SwiftTerm stream only if the measured feel misses his bar. 318.1 goes first with one added refusal (unsent words at the Mac's prompt). Three questions for him: lift "no raw terminal" for a session's own screen, never resize the Mac, and which keys need no Face ID.
 
 - 2026-10-05, **PHASE 337 QUEUED IN FULL AND STARTED — the Screen**, on his rulings after research 139: lift "no raw terminal" for a session's own screen; never resize the Mac; every key including Ctrl-C with no Face ID; the Screen first, with the simple delivery (the Mac composes, the phone fetches) and a stream only in Phase 338 if his own use finds it laggy. End's move to the top right joins this phase; Phase 318.1 (the message box) follows it.
+
+- 2026-10-05, **PHASE 336.1 LANDED, `47c3c79e`, unreleased — saving in a project directly inside a remote home.** `~/dev` and its kind are written like any opened project; only the home itself, what holds it, `/`, and `.git` and `.ssh` stay refused. Verify needs_work (a checklist line), fix, reverify needs_work (the never-folder sentence false for `.ssh`/`.git` projects); his ruling "Fix the wording, then land", done by the main session with the copy and machine gates re-run. His history unchanged across every agent run.
