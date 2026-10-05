@@ -39697,6 +39697,51 @@ answers:
   their own entry if he asks.
 - **No release**, and nothing starts before this release's TestFlight build unless he says so.
 
+## Phase 336.1 — "when i try to make a new folder or new file it is greyed out" — a folder directly inside a home, or directly under `/`, is writable on another machine as it is on his Mac (operator, 2026-10-05)
+
+**Subject.** `fix(machines): save in a project directly inside your home on another machine`
+
+**First body line.** `Phase 336.1: only the home itself, and what holds it, stay off limits`
+
+**Semver.** Patch, unreleased: a project at `~/dev`, `~/code` or `/workspace` on another machine saves as one does on his Mac.
+
+**Tier 3.** It widens where Tortie writes on another computer. Two independent methods, one an attack: hostile far
+fixtures against the shipping texts, and the parent (`c06175f6`) measured beside HEAD.
+
+**Charter.** He opened his project `~/dev` on his Mac Pro after updating to `c981efde` and found New File and New Folder
+greyed out. Phase 336 refuses a home, its first-level children and `/`'s first-level children as write folders, on
+both sides: `neverWriteFolder` in `src/shared/remote-write-folder.ts:148-162` (`/Users/<x>/<y>` has three segments and
+reads never) and the far prelude `folderCheck` in `src/main/machines/remote-scripts.ts:2589-2636` (`[ "$wx" = "$wh" ] &&
+[ "$wn" -le 1 ]`, and `[ "$wn" -le 1 ]` once the walk reaches `/`). His Mac refuses none of these, and his ruling for 336
+was "act like i'm operating it locally". Asked, he chose "Yes, fix it now": only the home folder itself and `/` stay off
+limits; `.ssh` and `.git` stay refused by name and identity wherever they are.
+
+### The mechanism
+
+1. `neverWriteFolder` reads never for `/`, `/Users`, `/home`, a home (`/Users/<x>`, `/home/<x>`, `/root`, `/var/root`)
+   and nothing deeper; the protected-name rule is unchanged.
+2. The far prelude refuses a folder whose identity IS the home (`wn = 0` against `$HOME/.`), a folder that HOLDS the
+   home (the existing walk up from `$HOME/..`, unchanged), and `/` itself (`wn = 0` at the top of the walk), and nothing
+   else; the `protected` identity check and the pin comparison are unchanged.
+3. The sentences, the CHANGELOG item 336 wrote ("a folder directly inside one"), `build/p336/SPEC.md`, the tests and
+   `conformance:machines`' conditions and ablation arms that pin the old depth move with it, each still red on the rule
+   it owns.
+
+### The proof, run rather than read
+
+- The gates: typecheck, build, the whole vitest, `conformance:machines` with its ablations, `ablation:p336`.
+- **The attack:** the far texts under `/bin/sh` and `/bin/dash` on the loopback machine: `~/dev` and `/tmp/x`'s parent
+  `/tmp` written at HEAD and refused at the parent; the home itself, `/`, `/Users`, a link named `dev` pointing at the
+  home, a link pointing at `~/.ssh`, and `.SSH`/`.ẞh` spellings still refused at HEAD, each read on the far disk.
+- **The app run:** a project at the far home's first-level child on the loopback machine: New File, New Folder, a save,
+  a rename, a stage and a commit at HEAD; greyed and refused at the parent.
+
+### What is NOT in this phase
+
+- **No change to the pin, the anchored `.`, the protected names, the legacy write root or the local readers.**
+- **No Linux far side measured** (none is available).
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40783,3 +40828,5 @@ cycle rather than only the evening it was written.
 - 2026-10-04, **PHASE 336 STARTED, overnight on his word ("go ahead and queue 336 overnight")** — remote saving like local with no grant (his ruling), the folder pinned at open and checked at every write, reserved names refused in any case, the local readers taking local rows only. Tier 3, built in `/private/tmp/wt-p336` on main plus the held research 138 commit, which lands with the fix. The lane adds a probe review before verification (method rule 9).
 
 - 2026-10-05, **PHASE 336 LANDED, `c06175f6`, unreleased, with research 138 (`71fc113a`) — remote saving like local.** Any project opened on a confirmed machine saves, renames, makes folders, stages and commits with nothing asked (his "Zero presses"); the folder is pinned by identity at open and checked at every write through an anchored prelude, `/` and home folders are never write folders, `.git` and `.ssh` refused in every spelling the disk folds, and the local readers take local rows only. Manifest migration 019 (additive). Verify, fix, reverify needs_work on a test-harness wrap; his ruling "Narrow tool fix, then land"; the ruled round approved with his history unchanged. A verifier's `smoke:remote` run before the fix appended about 150 bytes to his `~/.zsh_history` (03:18, disclosed). Owed findings, not yet queued: `smoke:remote` starts his real Claude Code briefly with his real far HOME; seven loopback probes do not set the quiet shell; a refused `-L gmux` listing is read as zero by the smoke and the census. His Mac Pro check is the first step of his own acceptance.
+
+- 2026-10-05, **PHASE 336.1 QUEUED IN FULL AND STARTED, on his word ("Yes, fix it now")** — after updating, his project `~/dev` on the Mac Pro read greyed out, because 336 refused a home's first-level children as write folders. Only the home itself, what holds it, and `/` stay off limits.
