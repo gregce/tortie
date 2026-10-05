@@ -182,17 +182,36 @@ describe('the shared pick decides the folder', () => {
     ).toEqual({ folder: '/srv/greg', kind: 'legacy' });
   });
 
-  it('answers never, naming the folder, for a home child', () => {
-    const home = '/Users/gdc/gmux';
+  it('answers never, naming the folder, for a home itself and a folder holding one', () => {
+    for (const folder of ['/Users/gdc', '/Users']) {
+      expect(
+        remoteWriteFolderIn(
+          [view()],
+          [project(folder, 'studio')],
+          'studio',
+          '/Users/gdc/a.ts',
+          'file'
+        )
+      ).toEqual({ refused: 'never', folder });
+    }
+  });
+
+  // Phase 336.1: his ~/dev on his Mac Pro was drawn read only because Phase
+  // 336 never-listed a home's direct child. It is an edit surface now.
+  it('answers the project for a folder directly inside a home', () => {
+    const dev = '/Users/gdc/dev';
     expect(
       remoteWriteFolderIn(
         [view()],
-        [project(home, 'studio')],
+        [project(dev, 'studio')],
         'studio',
-        `${home}/a.ts`,
+        `${dev}/a.ts`,
         'file'
       )
-    ).toEqual({ refused: 'never', folder: home });
+    ).toEqual({ folder: dev, kind: 'project' });
+    expect(
+      remoteWriteFolderIn([view()], [project(dev, 'studio')], 'studio', dev, 'folder')
+    ).toEqual({ folder: dev, kind: 'project' });
   });
 
   it('answers never for a project that is a .ssh folder in any fold', () => {

@@ -33,7 +33,11 @@
  *   H5L  `fs:writeGuarded` with a remote row naming a folder on this Mac.
  *   H6   the machines file's port moved while the app runs: every verb throws
  *        the gate's own sentence; put back, writes resume with no confirm.
- *   H8   projects at the far home and its child writesOff, a grandchild writes.
+ *   H8   a project at the far home writesOff, and so does a link named like a
+ *        project (`<far>/dev`) that leads to it; its child and a grandchild
+ *        write; and in `~/dev`, a repository directly inside the far home,
+ *        every verb is done and the Explorer offers New File and New Folder
+ *        (Phase 336.1, the project he reported greyed out on 2026-10-05).
  *   R    the renderer: the editor takes a keystroke, goes dirty and saves; the
  *        Explorer header buttons are enabled; the 150,000-byte file OPENS read
  *        only with its chip; no drawn write sentence names Settings; and the
@@ -254,11 +258,18 @@ export const GRADERS = {
       ['once the edit was undone a save wrote with no confirm', (r) => r.afterUndo?.put === 'wrote' && r.confirmPressed === false]
     ]
   },
+  // Phase 336.1 (his ruling of 2026-10-05, "Yes, fix it now"): only the home
+  // itself, a folder holding it and / stay off limits. Phase 336 graded the
+  // home's child as writesOff, which is the greyed-out ~/dev he reported.
   H8: {
-    title: 'the far home and its child are never written; a grandchild is',
+    title: 'the far home is never written; a project directly inside it is, every verb and both Explorer buttons',
     clauses: [
-      ['the far home and its child answered writesOff naming the folder', (r) => r.home?.outcome === 'writesOff' && typeof r.home?.folder === 'string' && r.child?.outcome === 'writesOff' && typeof r.child?.folder === 'string'],
-      ['a grandchild wrote', (r) => r.grand?.outcome === 'wrote']
+      ['the far home answered writesOff naming the folder', (r) => r.home?.outcome === 'writesOff' && typeof r.home?.folder === 'string'],
+      ['a link named like a project that leads to the far home answered writesOff', (r) => r.linkHome?.outcome === 'writesOff' && typeof r.linkHome?.folder === 'string'],
+      ['a project directly inside the far home wrote', (r) => r.child?.outcome === 'wrote'],
+      ['a grandchild wrote', (r) => r.grand?.outcome === 'wrote'],
+      ['in ~/dev every verb wrote, made, moved, done, done and committed', (r) => same(r.dev?.outcomes, { put: 'wrote', makeDir: 'made', rename: 'moved', stage: 'done', unstage: 'done', commit: 'committed' })],
+      ['in ~/dev the Explorer offered New File and New Folder', (r) => r.dev?.headerButtonsEnabled === true]
     ]
   },
   R: {
@@ -435,8 +446,14 @@ const BREAKS = {
     'once the edit was undone a save wrote with no confirm': (r) => { r.confirmPressed = true; }
   },
   H8: {
-    'the far home and its child answered writesOff naming the folder': (r) => { r.child.outcome = 'wrote'; },
-    'a grandchild wrote': (r) => { r.grand.outcome = 'writesOff'; }
+    'the far home answered writesOff naming the folder': (r) => { r.home.outcome = 'wrote'; },
+    'a link named like a project that leads to the far home answered writesOff': (r) => { r.linkHome.outcome = 'wrote'; },
+    // THE DEFECT HE REPORTED: the home's direct child refused.
+    'a project directly inside the far home wrote': (r) => { r.child.outcome = 'writesOff'; },
+    'a grandchild wrote': (r) => { r.grand.outcome = 'writesOff'; },
+    'in ~/dev every verb wrote, made, moved, done, done and committed': (r) => { r.dev.outcomes.makeDir = 'writesOff'; },
+    // THE BUTTONS GREYED, as he saw them.
+    'in ~/dev the Explorer offered New File and New Folder': (r) => { r.dev.headerButtonsEnabled = false; }
   },
   R: {
     'the editor took a keystroke and went dirty': (r) => { r.editor.readOnly = true; },
@@ -486,6 +503,14 @@ export const RECORDED_FIXTURES = [
     parent: null,
     fail: {
       H5: ['the three rows were planted while the app was down'],
+      // Recorded at Phase 336, which refused the home's child: the build Phase
+      // 336.1 fixes, so its H8 fails the clauses 336.1 added, honestly.
+      H8: [
+        'a link named like a project that leads to the far home answered writesOff',
+        'a project directly inside the far home wrote',
+        'in ~/dev every verb wrote, made, moved, done, done and committed',
+        'in ~/dev the Explorer offered New File and New Folder'
+      ],
       R: ['the editor took a keystroke and went dirty', 'the Explorer header buttons were enabled', 'the 150 KB file opened read only with its chip']
     }
   },
@@ -504,7 +529,7 @@ export const RECORDED_FIXTURES = [
       H5: ['/ and the far home answered writesOff naming the folder', 'nothing was written at / or the far home', 'the planted ordinary folder behaves as ruled (the risk he accepted)'],
       H5L: ['HEAD refused it projectClosed with the file unchanged', 'the parent wrote (fault 5, measured)'],
       H6: ["each verb threw the gate's own sentence", 'nothing moved on that machine'],
-      H8: ['the far home and its child answered writesOff naming the folder'],
+      H8: ['a project directly inside the far home wrote'],
       R: ['the editor took a keystroke and went dirty', 'the save wrote the typed bytes', 'the 150 KB file opened read only with its chip', 'no drawn write string names Settings'],
       RUN: ['the parent ran every arm it was asked for', 'his -L gmux count did not move', 'no Electron, far folder or scratch process was left']
     }
@@ -822,6 +847,11 @@ async function run() {
     if (far.home !== null) {
       const h = far.home;
       far.sh([`mkdir -p '${h}/.ssh' '${h}/child/grand'`, `printf 'p336 scratch, never a real key\\n' > '${h}/.ssh/authorized_keys'`, `ln -sfn '${h}/.ssh' '${F}/innocent'`, `ln -sfn '${h}/.ßh' '${F}/inn2'`].join('\n'));
+      // Phase 336.1: `~/dev`, a repository directly inside the far home (the
+      // project he reported greyed out), and a link NAMED like a project that
+      // leads to the home itself.
+      const devMade = far.sh(['set -e', repo(`${h}/dev`), `ln -sfn '${h}' '${F}/dev'`, 'echo ready'].join('\n'));
+      if (!devMade.stdout.includes('ready')) throw new Error(`the far ~/dev was not made: ${devMade.stderr.trim().slice(0, 300)}`);
     }
   };
 
@@ -1284,7 +1314,18 @@ async function run() {
           const got = await outcome(cdp, M('putFile', { machineId: MACHINE_ID, path: `${folder}/p336-h8.txt`, contents: 'H8\n', expect: 'new' }));
           return { outcome: got.word, folder: got.value?.writeRoot ?? null };
         };
-        headRecord.arms.H8 = { home: await put(far.home), child: await put(`${far.home}/child`), grand: await put(`${far.home}/child/grand`) };
+        const home = await put(far.home);
+        const linkHome = await put(`${F}/dev`);
+        const child = await put(`${far.home}/child`);
+        const grand = await put(`${far.home}/child/grand`);
+        // ~/dev: every verb, then the Explorer header a person reads (his
+        // screenshot of 2026-10-05 is these two buttons greyed).
+        const devPath = `${far.home}/dev`;
+        await openRemote(cdp, devPath);
+        const devVerbs = await verbsIn(cdp, devPath, { tag: 'h8' });
+        const devExplorer = await showExplorer(cdp);
+        const dev = { outcomes: devVerbs.outcomes, explorer: devExplorer, headerButtonsEnabled: devExplorer?.shown === true ? await headerButtons(cdp) : null };
+        headRecord.arms.H8 = { home, linkHome, child, grand, dev };
       }
       // ---- R: the renderer ----------------------------------------------------
       if (wants('R')) {
@@ -1406,6 +1447,41 @@ async function run() {
   }
 
   /**
+   * Show the Explorer for the project in front, the way a person does: press
+   * its item on the activity rail only when it is not active (pressing the
+   * active one hides the sidebar), then wait for the first tree row. Answers
+   * `{ shown, rows, why }`. R and, since Phase 336.1, H8 read it.
+   */
+  async function showExplorer(cdp) {
+    const shown = await bridge(
+      cdp,
+      `(async () => {
+        const rail = Array.from(document.querySelectorAll('button.ab-item')).find((b) => (b.getAttribute('title') || '').startsWith('Explorer ('));
+        if (rail === undefined) return { shown: false, rows: 0, why: 'no Explorer item on the activity rail' };
+        if (rail.className.indexOf('active') === -1) rail.click();
+        const until = Date.now() + 60000;
+        for (;;) {
+          const host = document.querySelector('file-tree-container');
+          const rows = host !== null && host.shadowRoot ? host.shadowRoot.querySelectorAll('[role="treeitem"]').length : 0;
+          if (rows > 0) return { shown: true, rows, why: null };
+          if (Date.now() > until) return { shown: false, rows: 0, why: 'no tree row within 60 s of the Explorer being shown' };
+          await new Promise((r) => setTimeout(r, 250));
+        }
+      })()`
+    );
+    return shown.ok ? shown.value : { shown: false, rows: 0, why: `the page threw: ${shown.error}` };
+  }
+
+  /**
+   * Whether the Explorer header's New File and New Folder buttons are both
+   * enabled (true), any is greyed (false), or fewer than two were found (null).
+   */
+  async function headerButtons(cdp) {
+    const header = await bridge(cdp, `Array.from(document.querySelectorAll('[data-slot="sidebar"] button')).filter((x) => /new file|new folder/i.test((x.getAttribute('title') || '') + ' ' + (x.getAttribute('aria-label') || ''))).map((x) => x.disabled === true || x.getAttribute('aria-disabled') === 'true')`);
+    return header.ok && Array.isArray(header.value) && header.value.length >= 2 ? header.value.every((d) => d === false) : null;
+  }
+
+  /**
    * R: the renderer, one project opened by hand, read through the shipped
    * surfaces. A surface the probe could not REACH (the project would not open,
    * the Explorer never listed the file, the editor never drew it) answers
@@ -1442,23 +1518,7 @@ async function run() {
     const opened = await openRemote(cdp, repo);
     if (opened === null) return { unreadable: `the project ${repo} did not open (window.__gmuxP95.openRemote answered no ok result six times), so no remote surface was reached` };
     await sleep(1_000);
-    const shown = await bridge(
-      cdp,
-      `(async () => {
-        const rail = Array.from(document.querySelectorAll('button.ab-item')).find((b) => (b.getAttribute('title') || '').startsWith('Explorer ('));
-        if (rail === undefined) return { shown: false, rows: 0, why: 'no Explorer item on the activity rail' };
-        if (rail.className.indexOf('active') === -1) rail.click();
-        const until = Date.now() + 60000;
-        for (;;) {
-          const host = document.querySelector('file-tree-container');
-          const rows = host !== null && host.shadowRoot ? host.shadowRoot.querySelectorAll('[role="treeitem"]').length : 0;
-          if (rows > 0) return { shown: true, rows, why: null };
-          if (Date.now() > until) return { shown: false, rows: 0, why: 'no tree row within 60 s of the Explorer being shown' };
-          await new Promise((r) => setTimeout(r, 250));
-        }
-      })()`
-    );
-    const explorer = shown.ok ? shown.value : { shown: false, rows: 0, why: `the page threw: ${shown.error}` };
+    const explorer = await showExplorer(cdp);
     if (explorer?.shown !== true) return { unreadable: `the Explorer for ${repo} drew no file row: ${String(explorer?.why)}` };
     // Open a file the way a person does: its row in the Explorer (a shadow root), found by its path.
     const clickRow = async (name) =>
@@ -1541,8 +1601,7 @@ async function run() {
       await sleep(500);
       farHasTyped = farText(`${repo}/a.txt`).startsWith('X');
     }
-    const header = await bridge(cdp, `Array.from(document.querySelectorAll('[data-slot="sidebar"] button')).filter((x) => /new file|new folder/i.test((x.getAttribute('title') || '') + ' ' + (x.getAttribute('aria-label') || ''))).map((x) => x.disabled === true || x.getAttribute('aria-disabled') === 'true')`);
-    const headerButtonsEnabled = header.ok && Array.isArray(header.value) && header.value.length >= 2 ? header.value.every((d) => d === false) : null;
+    const headerButtonsEnabled = await headerButtons(cdp);
     const bigClicked = await clickRow('big.txt');
     // The verifier's own drive waited 2.5 s here: the tab it left still draws
     // its switch, File already on, until the new tab's panel replaces it.

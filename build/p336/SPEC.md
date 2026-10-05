@@ -1421,3 +1421,205 @@ started a shell, a far session or the app: `732653 1791184720` and `23166 179070
   `probe:p326`, `smoke:p93remote`, `smoke:capture:remote`) still do not set the quiet shell; outside the ruling.
 - `smoke:remote` leaves one `chrome_crashpad_handler` behind (it launches `electron .` directly, not through
   `build/electron-run.mjs`); this round ended its own by pid and changed nothing about it.
+
+## §As built, Phase 336.1 (the builder, 2026-10-05)
+
+His report on 2026-10-05, on `0.110.0 (c981efde-dirty)`: "when i try to make a new folder or new file it is greyed out?"
+His project `~/dev` on his Mac Pro is a folder directly inside a home, which this phase never-listed on both sides (D4,
+D5, and §16 Q1, which said so and asked). His ruling, asked: "Yes, fix it now". Only the home folder ITSELF, a folder
+that HOLDS the home (`/`, `/Users`, `/home`) and `/` stay off limits; a folder directly inside a home (`~/dev`) or
+directly under `/` (`/tmp`, `/workspace`, `/opt`) is written like any other opened project; `.ssh` and `.git` stay
+refused by name and by identity wherever they are, and a link named like a project that leads to the home or to its
+`.ssh` is still refused. The pin, the anchored `.`, the legacy `writeRoot` path (D16) and the local readers (D18) do
+not change. Built in `/private/tmp/wt-p3361` at origin/main `3f52411e`; nothing committed, staged or stashed.
+
+### What changed, in the two places that decide
+
+1. **Main's text half, `neverWriteFolder`** (`src/shared/remote-write-folder.ts`). True for `/`; `/Users` and `/home`;
+   a home itself (`/Users/<x>`, `/home/<x>`, `/root`, `/var/root`); any path with a segment that folds to `.git` or
+   `.ssh`. Nothing deeper: the three depth lines read `<= 2`, `=== 1` and `=== 2` where they read `<= 3`, `<= 2` and
+   `<= 3`. The stated cost moves from `/Users/Shared/x` (now written) to `/Users/Shared` (still read as a home).
+   `/var` stays unlisted, as it was: it holds `/var/root` only, and the far side refuses it by identity when the
+   account's home is there.
+2. **The far prelude, `folderCheck`** (`src/main/machines/remote-scripts.ts`). The home clause is
+   `[ "$wx" = "$wh" ] && [ "$wn" = 0 ]` (the folder IS the home, at the first step of the walk) where it was
+   `-le 1` (the home or a folder directly inside it). The holder walk up from `$HOME/..` is unchanged. The line after
+   the first walk reads `[ "$wn" = 1 ]` where it read `-le 1`, which is the SAME rule written as what it does: the walk
+   stops at `/` (whose `..` is itself) one step after it began only when the folder is `/`, so `-le 1` never refused a
+   direct child of `/` and the entry's charter read it wrong (measured below). The `protected` identity check, the pin
+   comparison and the anchored `.` are byte for byte what they were.
+
+### What the parent really refused, measured with its own texts
+
+The builder dumped the parent's far texts before any edit (`far-texts.mts` over the unedited tree, sha256
+`aebde8fc…`) and ran them beside HEAD's under `/bin/sh` and `/bin/dash` (the builder's `attack.mjs`, scratch only; a
+scratch home under this scratchpad, a second scratch home made under `/Users/Shared` so a home exists that `/private`
+does not hold, both removed in a `finally`; no ssh, no tmux, no Electron). Both shells agreed on every row.
+
+| Row (`file-put` unless named) | Parent `c06175f6`'s texts | HEAD |
+| --- | --- | --- |
+| a home's direct child, `~/dev` (home under `/private`, and home under `/Users`) | `offlimits`, nothing written | `wrote`, on disk |
+| `~/dev` `dir-new`, `entry-rename` | `offlimits`, `offlimits` | `made`, `moved`, on disk |
+| `/private`, a direct child of `/`, with the home under `/Users` (it holds nothing of it), written through into the scratch tree | **`wrote`** | `wrote` |
+| `/private` with the home AT `/` (a direct child of the home too) | `offlimits` | `wrote` |
+| `/usr`, a direct child of `/`, a sha for an absent file (past the check, nothing written) | `missing` | `missing` |
+| `/private` holding the home (home under `/private`) | `offlimits` | `offlimits` |
+| the home itself; `/`; `/Users` and `/Users/Shared`, each holding the home | `offlimits` | `offlimits` |
+| a link named `dev` leading to the home | `offlimits` | `offlimits` |
+| a link leading to `~/.ssh`; `~/.SSH`, `~/.ẞh`, `~/.ßh`, `~/.ſsh` | `protected` | `protected` |
+| `~/.ssh`'s listing before and after | `authorized_keys` | `authorized_keys` |
+
+**So the parent already wrote in a direct child of `/` that is not the home's child and does not hold the home, on
+both sides** (main's text rule never listed `/tmp`, `/workspace` or `/opt`; the far tail reached `/` alone). What 336.1
+changes for `/`'s children is the case where `/` IS the home (`HOME=/`), and main's `/root/<x>` and `/var/root/<x>`.
+The entry's attack row "`/tmp/x`'s parent `/tmp` written at HEAD and refused at the parent" therefore cannot hold: on
+the loopback machine `/tmp` (`/private/tmp`) neither is the far home's child nor holds the yard's home, and it is
+written at BOTH builds. A `/` child is refused at either build only when it holds the far home, which is the holder rule
+and is unchanged. The discriminating rows for `/` are `HOME=/` (above, and M8 9d and H8 below).
+
+### What his ruling admits that §16 Q1's recommendation kept, stated
+
+Q1 recommended narrowing to non-dot children plus `Library`. His ruling is wider: a project opened at `~/.config`,
+`~/.aws`, `~/.gnupg`, `~/.kube` or `~/Library` on a confirmed machine is now a folder Tortie writes under, as it is on
+his Mac. Only `.ssh` and `.git` are refused by name and identity. The planted-row risk he accepted in research 138 §9
+(a project row an agent writes into the manifest is a folder a person's own save can then reach) widens by the same
+amount: a planted row at a home's direct child was refused on both sides at the parent and is admitted now. It is still
+only ever written by a person's own press, the pin and the anchored `.` still bind the write to the folder that was
+checked, and the home itself, its holders, `/`, `.ssh` and `.git` stay refused on the far side by identity whatever the
+manifest says.
+
+### The words
+
+`remoteNeverFolderLine` (`src/renderer/machines/editor.ts`): "Tortie does not save in a project that is a home folder
+or holds one, on <label>." (and with " Nothing was written." / " Nothing was changed." after it, as before).
+`remoteCommitRefusedLabel('never')` (`src/renderer/machines/scm.ts`) and `commitNeverFolder`
+(`src/main/machines/remote-copy.ts`): "Tortie does not commit in a project that is a home folder or holds one, on
+<label>." It names the PROJECT because "does not save in a home folder" alone reads as every folder in one, which is
+what 336.1 stops being true. The CHANGELOG item 336 wrote under `## Unreleased` now says "Tortie still does not save in
+a project that is a home folder or holds one, or inside a .git or .ssh folder there", its commit link kept. Comments
+naming the old depth moved with it (`remote-file.ts`, `machines-slice.ts`, `project-tab.ts`, the two `src/shared/ipc`
+comments, `build/scratch-machine.mjs`); no contract line moved (`gate:contract` byte for byte).
+
+### The gates, re-pointed rather than weakened
+
+- **Condition 116** (`build/conformance-machines.mjs`): the home clause must read `"$wn" = 0`; a NEW negative clause is
+  red on any `"$wx" = "$wh" ] && [ "$wn" -le N` (the Phase 336 depth, the greyed-out `~/dev`); the top line must read
+  `"$wn" = 1`, and a NEW negative clause is red on a depth rule there. The probe's never-list table
+  (`build/machines-conformance-probe.mts`) is 40 rows, 19 true and 21 false (floor 25): homes and holders `true`, `.ssh`/`.Git`/`.ẞh`
+  directly inside a home `true`, `~/code`, `~/gmux`, `~/dev`, `~/.config`, `/root/x`, `/var/root/x`, `/Users/Shared/x`,
+  `/tmp`, `/workspace`, `/opt`, `/srv` `false`. Condition 113's corpus: "a home child is never-listed" became "a home
+  child is a project like any other", and two rows were added (`/Users` never-listed; `/workspace` a project).
+- **The far half** (`build/p336/script-arms.mjs`): M8 row 3 (a home child typed upper case) is a pass through all six
+  scripts; row 9d is `HOME=/` with the folder `/` itself (`offlimits`), because no row can write directly in
+  `/private`; H8 is six rows (the home `offlimits`, its child and grandchild `wrote`, a link named `dev` to the home
+  `offlimits`, `/private` holding the home `offlimits`, `/private` with `HOME=/` `wrote` through into the run's own
+  scratch tree); H3 gains the far `.ssh` opened directly as `.SSH` and `.ẞh`, `protected`.
+- **`ablation:p336`** (`build/p336/ablation.mjs`): a116a now drops the home-itself clause (`= 0` to `= -1`); a116b is
+  TURNED ROUND, putting the Phase 336 depth back (`= 0` to `-le 1`) and proving the gate reads his defect as red, with
+  a116b-v doing the same against the far-prelude suite; a116f drops main's home (`<= 2` to `<= 1`); a116f2 and
+  a116f2-v put main's Phase 336 depth back (`<= 2` to `<= 3`) against the gate and the renderer's tab rule; a116h's
+  `from` follows the new `/root` line; a116i removes the far `/` line, which no driven row can isolate because `/`
+  also holds every home and the holder walk refuses it, so condition 116 reads it as text; a-d18b-v's owner follows
+  the renamed renderer case.
+- **`probe:p336`** (`build/p336/probe-p336.mjs`): H8 is re-graded and extended to his scenario. Six clauses: the far
+  home `writesOff` naming the folder; a link named like a project (`<far>/dev`) that leads to the home `writesOff`; the
+  home's child `wrote`; a grandchild `wrote`; in `~/dev`, a repository directly inside the far home, every verb
+  `wrote, made, moved, done, done, committed`; and the Explorer's New File and New Folder enabled there (the buttons
+  in his screenshot). `setupFar` makes `~/dev` and the link. R's Explorer reading moved into two helpers,
+  `showExplorer` and `headerButtons`, which H8 calls too. The hand-written HEAD fixtures carry the new shape; the
+  hostile one's wrong answer is the defect he reported (the child refused); the RECORDED accidental run, kept byte
+  for byte, is a Phase 336 HEAD and so the parent's reading, and it now fails H8's four 336.1 clauses, as listed in
+  `RECORDED_FIXTURES`. **The probe's parent leg drives `2867bc39`'s Settings sheet, which Phase 336 removed, so it
+  cannot run `c06175f6`**: the probe reads H8 at HEAD, and the parent's H8 is the recorded accidental run (child
+  `writesOff`).
+- **Tests**: the shared never-list (homes and holders true; a home's direct children, `/`'s direct children and
+  `/Users/Shared/x` false; dot steps both ways; reserved names directly inside a home true), main's write-folder (a
+  folder holding a home `writesOff`; `~/dev`, `/home/u/dev`, `/root/dev`, `/workspace`, `/tmp` each pinned and
+  written), the far prelude under both shells (the home, an ancestor, `/`, a link to the home, a link NAMED `dev` to
+  the home, the home typed upper case and `/private` holding the home all `offlimits`; `~/dev` written, made and
+  renamed, the home's child typed upper case written, `/private` with `HOME=/` written; `.SSH` and a link named `dev`
+  into `.ssh` `protected`), the renderer's slice and tab rule (`~/dev` an edit surface that saves), and the five
+  sentence pins.
+
+### Run, with exit codes
+
+Every command ran with a scratch `HOME` and `ZDOTDIR`, `HISTFILE=/dev/null` and no `TERM_SESSION_ID`. His history
+files read `732999 1791229874` and `23166 1790702242` before and after every command that started a shell, never moved.
+
+| Command | Result |
+| --- | --- |
+| The parent's far texts dumped before any edit (`loadFarTexts` over the unedited tree) | exit 0; 30 scripts, sha256 `aebde8fc…` |
+| The builder's `attack.mjs` (the table above; parent and HEAD texts, `/bin/sh` and `/bin/dash`) | exit 0; both shells agreed on every row; both scratch roots removed; `/Users/Shared` listed the same before and after |
+| `npm run -s typecheck` | exit 0; 1404 production files, 0 boundary violations, 0 runtime cycles |
+| `npm run -s build` | exit 0, 34 to 35 s; `HELPER_USER_FLOOR` 166 of 166; 258 check scripts classified; the contract inventory byte for byte |
+| `node_modules/.bin/vitest run` (the whole suite) | exit 0, 48 to 55 s; 1072 files passed, 2 skipped; 19,488 tests passed, 14 skipped (five new cases, one in each of the shared, main write-folder, far-prelude, renderer slice and tab-rule suites) |
+| The ten touched suites alone | exit 0; 10 files, 250 tests |
+| `node build/conformance-machines.mjs` | exit 0, 18 to 20 s; 113 to 121 green; the far half 146 rows under both shells, every one agreeing (five more than the parent's: H8's three and H3's two) |
+| `node build/p336/script-arms.mjs` (`probe:p336:script`, all six scripts) | exit 0, 26.5 s; 258 rows: pin 4, m8 168, h1 16, h2 12, h3 6, h4 9, h8 6, m9 7, legacy 30; the two D10 residuals printed as before; cs not run |
+| `node build/p336/ablation.mjs` (every arm) | exit 0, 1103.0 s; 60 of 60 newly red on the condition or case that owns them against a green base (machines; main, 104 cases; renderer, 43 cases); every clone file restored by sha256, the worktree never written, no clone left |
+| `node build/p336/ablation.mjs --self-test` | exit 0; 11 fixtures |
+| `node build/p336/probe-p336.mjs --grader-self-test` | exit 0; 48 clauses, 168 checks, nothing started (Phase 336's 44 and 164; H8 grew from two clauses to six) |
+| `npm run -s gate:contract`, `gate:checks`, `gate:background`, `gate:knownhosts` | exit 0 each; byte for byte; 258 classified; 529 files, 3 long-lived starts each ended in a `finally`; 557 files, none outside `build/ssh-run.mjs` |
+| At the end | after the last comment edit, typecheck, build, `conformance:machines`, the whole vitest, both self-tests and the four gates were run once more, every one exit 0; no `/private/tmp/p336-*` left |
+
+### Not done, and why
+
+- **No Electron.** The builder launches none; `probe:p336` (H8 as above) is the verifier's app run, at HEAD only for
+  the reason given.
+- **No Linux far side** (none is available): the GNU `stat` branch is read, as in Phase 336.
+- **The case-sensitive volume arm** (`P336_CASE_VOLUME=1`) was not run; it is about reserved names, which did not move.
+
+### The fix round, Phase 336.1 (the fixer, 2026-10-05)
+
+The verifier answered `needs_work` on one minor and one nit, and on nothing worse than today: all ten of its
+no-regression rows read `worse: false`, so nothing was removed. It ran the far texts of `c06175f6` and HEAD over ssh to
+the loopback machine (276 rows, `/bin/sh` and `/bin/dash` agreeing), three ablations of its own, and one app run per
+build that pressed New file, New folder, F2, Cmd+S, Stage and Commit in `~/dev` and through a `/Users/Shared` link to
+it; the parent drew his greyed-out screenshot and HEAD wrote every press to the far disk.
+
+- **Minor, fixed.** `docs/ACCEPTANCE-p242.md`'s preface (lines 7 and 8, which Phase 336 added) said "Tortie still never
+  saves in a home folder or a folder directly inside one", which the HEAD app run showed false. It now reads "Tortie
+  still never saves in a project that is a home folder or holds one, or inside a `.git` or `.ssh` folder there", the
+  CHANGELOG item's own words. No gate reads the file: `build/probe-p242-write-path.mjs` names it in a comment only.
+- **Where the old wording still stands, and why.** A grep of the tree (`node_modules`, `out`, `.git` and `vendor` left
+  out) for "directly inside one" finds it in research 138 (a historical record), in `docs/BACKLOG.md`'s 336.1 charter,
+  which quotes it, and in this file: §10's word table and its CHANGELOG draft (the record of what Phase 336 specified,
+  superseded by "The words" above) and this section's own account of the old rule. Nothing a person reads in the app
+  or in a checklist still says it. Every `src/` comment or test name that says "directly inside a home" (or "the home")
+  says such a folder is written, or names Phase 336's old refusal as history.
+- **Nit, owed to the follow-up docs commit.** The CHANGELOG item now describes Phase 336 and 336.1 and carries only
+  `c06175f6`'s link, because a commit cannot name its own hash. The follow-up docs commit that writes the running-log
+  line appends 336.1's as `, ([`<hash>`](https://github.com/gregce/tortie/commit/<hash>))`.
+
+#### Commands, exit codes and numbers (fixer, this worktree, after the edit)
+
+Every command ran with a scratch `HOME` and `ZDOTDIR`, `HISTFILE=/dev/null` and no `TERM_SESSION_ID`. No Electron, no
+ssh, no tmux. His history files read `732999 1791229874` and `23166 1790702242` before and after every command that
+started a shell, never moved.
+
+| Command | Result |
+| --- | --- |
+| `npm run -s typecheck` | exit 0; 1404 production files, 0 boundary violations, 0 runtime cycles |
+| `npm run -s build` | exit 0, 33 s; `HELPER_USER_FLOOR` 166 of 166; 258 check scripts classified; the contract inventory byte for byte |
+| `node_modules/.bin/vitest run` (the whole suite) | exit 0, 48 s; 1072 files passed, 2 skipped; 19,488 tests passed, 14 skipped |
+| `node build/conformance-machines.mjs` | exit 0, 19 s; the far half 146 rows holding, the shells agreeing on every one |
+| `node build/p336/script-arms.mjs` | exit 0, 23.1 s; 258 rows under both shells, agreeing; the two D10 residuals printed as before; cs not run |
+| `node build/p336/ablation.mjs` (every arm) | exit 0, 1036.5 s; 60 of 60 newly red on the condition or case that owns them against a green base (machines; main, 104 cases; renderer, 43 cases); every clone file restored by sha256, no clone left |
+| `node build/p336/ablation.mjs --self-test` | exit 0; 11 fixtures |
+| `node build/p336/probe-p336.mjs --grader-self-test` | exit 0; 48 clauses, 168 checks, nothing started |
+| `npm run -s gate:contract`, `gate:checks`, `gate:background`, `gate:knownhosts` | exit 0 each; byte for byte; 258 classified; 529 files, 3 long-lived starts each ended in a `finally`; 557 files, none outside `build/ssh-run.mjs` |
+
+The worktree's delta against `3f52411e` is now 31 files (the verifier's 30 and `docs/ACCEPTANCE-p242.md`); nothing
+committed, staged or stashed. The reverify is a re-read of the preface's two lines and the grep above.
+
+## §As built, Phase 336.1, his ruled round (the main session, 2026-10-05)
+
+The reverify answered needs_work on one sentence: the never-folder refusal also covers a project whose path holds a
+`.git` or `.ssh` segment (`isProtectedRemotePath` inside `neverWriteFolder`), so "a project that is a home folder or
+holds one" was a false reason there. His ruling, "Fix the wording, then land". The three sentences
+(`remoteNeverFolderLine` in `src/renderer/machines/editor.ts`, `remoteCommitRefusedLabel`'s never arm in
+`src/renderer/machines/scm.ts`, `commitNeverFolder` in `src/main/machines/remote-copy.ts`) now read "…a project that is a
+home folder or holds one, or in a .git or .ssh folder, on <label>." The seven pins in four renderer test files moved with
+them. `docs/ACCEPTANCE-p242.md` already read true after the fix round. Re-run: typecheck, vitest over src/renderer,
+src/main/machines and src/shared (565 files, 10,276 tests), conformance:machines, conformance:phonecopy and probe-p336's
+grader self-test, all exit 0; his history stat unchanged across the run.

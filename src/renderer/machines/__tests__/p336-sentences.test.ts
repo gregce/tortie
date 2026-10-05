@@ -33,8 +33,8 @@ describe('section 10, byte for byte', () => {
         'Tortie only shows it.'
     );
     expect(editor.remoteNeverFolderLine(L)).toBe(
-      'Tortie does not save in a home folder, a folder directly inside one, ' +
-        'or a folder holding one, on Studio.'
+      'Tortie does not save in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio.'
     );
     expect(editor.remoteSaveCapChip(150_000, L)).toBe(
       'That file is 150,000 bytes and Tortie saves files up to 90,000 bytes ' +
@@ -52,8 +52,8 @@ describe('section 10, byte for byte', () => {
         'Nothing was written.'
     );
     expect(editor.remoteSaveNever(L)).toBe(
-      'Tortie does not save in a home folder, a folder directly inside one, ' +
-        'or a folder holding one, on Studio. Nothing was written.'
+      'Tortie does not save in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio. Nothing was written.'
     );
     expect(editor.remoteSaveFolderChanged(F, L)).toBe(
       '/srv/greg/api on Studio is not the folder you opened any more, so ' +
@@ -130,8 +130,8 @@ describe('section 10, byte for byte', () => {
       'Tortie commits on Studio only in a project you opened there.'
     );
     expect(scm.remoteCommitRefusedLabel('never', L)).toBe(
-      'Tortie does not commit in a home folder, a folder directly inside ' +
-        'one, or a folder holding one, on Studio.'
+      'Tortie does not commit in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio.'
     );
   });
 });

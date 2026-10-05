@@ -13093,8 +13093,15 @@ const GRANT_SCAN_FIXTURES = [
       if (text === '') continue;
       if (!/case "\$HOME" in \/\*\) ;; \*\)[^\n]*nohome/.test(text)) fail(`${id} does not refuse an empty or relative $HOME with nohome before it resolves anything (D9, M1 row 17).`);
       if (!/"\$HOME\/\."/.test(text) || !/if \[ -z "\$wh" \]; then[^\n]*nohome/.test(text)) fail(`${id} does not read the home's identity through "$HOME/." and answer nohome when it cannot.`);
-      if (!/"\$wx" = "\$wh" \] && \[ "\$wn" -le 1 \]/.test(text)) fail(`${id} does not refuse the home and a folder directly inside it BY IDENTITY ("$wx" = "$wh" within one step), so a home typed in another case would pass (§Attack G1).`);
-      if (!/"\$wn" -le 1 \]; then[^\n]*offlimits/.test(text.split('done').slice(1).join('done'))) fail(`${id} does not refuse a folder that IS / or the home once its walk reaches the top.`);
+      // Phase 336.1 (his ruling of 2026-10-05, "Yes, fix it now"): the home
+      // ITSELF, at the walk's first step, and nothing deeper. A home's direct
+      // child is written like any other opened project, so a line that still
+      // refuses it ("-le 1", the Phase 336 depth) is red here too: it is the
+      // greyed-out ~/dev he reported.
+      if (!/"\$wx" = "\$wh" \] && \[ "\$wn" = 0 \]; then[^\n]*offlimits/.test(text)) fail(`${id} does not refuse the home itself BY IDENTITY ("$wx" = "$wh" at the walk's first step, "$wn" = 0), so a home typed in another case would pass (§Attack G1).`);
+      if (/"\$wx" = "\$wh" \] && \[ "\$wn" -le [1-9]/.test(text)) fail(`${id} still refuses a folder directly inside the home ("$wx" = "$wh" past the first step), which greys out a project like ~/dev that Phase 336.1 made writable.`);
+      if (!/"\$wn" = 1 \]; then[^\n]*offlimits/.test(text.split('done').slice(1).join('done'))) fail(`${id} does not refuse a folder that IS / once its walk reaches the top (the walk stopped one step after it began, "$wn" = 1).`);
+      if (/"\$wn" -le [1-9][^\n]*offlimits/.test(text.split('done').slice(1).join('done'))) fail(`${id} refuses by depth once its walk reaches the top ("$wn" -le N), which refuses folders below / that do not hold the home.`);
       if (!/wd="\$HOME\/\.\."/.test(text)) fail(`${id} never walks up from the home, so a folder that HOLDS the home would pass (D5).`);
       if (/\bpwd\b|\$PWD/.test(text)) fail(`${id} reads pwd; a path TEXT comparison is not portable between bash and dash, which is §Attack G1 (compare <dev>:<ino>).`);
       const legacyAt = text.search(/if \[ "\$\d" = - \]; then/);

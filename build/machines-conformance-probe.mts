@@ -2757,7 +2757,9 @@ const p336 = await (async () => {
     { name: 'file mode refuses the folder itself', target: '/srv/a', projects: ['/srv/a'], legacy: null, mode: 'file', want: { refused: 'outside' } },
     { name: 'folder mode accepts the folder itself', target: '/srv/a', projects: ['/srv/a'], legacy: null, mode: 'folder', want: { path: '/srv/a', kind: 'project' } },
     { name: 'a never-listed project alone holds it', target: '/Users/gdc/x.ts', projects: ['/Users/gdc'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc' } },
-    { name: 'a home child is never-listed (§16 Q1, as kept)', target: '/Users/gdc/gmux/x', projects: ['/Users/gdc/gmux'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc/gmux' } },
+    { name: 'a home child is a project like any other (§16 Q1, narrowed by Phase 336.1)', target: '/Users/gdc/gmux/x', projects: ['/Users/gdc/gmux'], legacy: null, mode: 'file', want: { path: '/Users/gdc/gmux', kind: 'project' } },
+    { name: 'a folder holding a home is never-listed', target: '/Users/gdc/x', projects: ['/Users'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users' } },
+    { name: 'a folder directly under / is a project like any other (Phase 336.1)', target: '/workspace/x', projects: ['/workspace'], legacy: null, mode: 'file', want: { path: '/workspace', kind: 'project' } },
     { name: 'nested with the outer never-listed, the inner holds', target: '/Users/gdc/code/p/x', projects: ['/Users/gdc', '/Users/gdc/code/p'], legacy: null, mode: 'file', want: { path: '/Users/gdc/code/p', kind: 'project' } },
     { name: 'nested with the outer never-listed, the outer alone holds', target: '/Users/gdc/y', projects: ['/Users/gdc', '/Users/gdc/code/p'], legacy: null, mode: 'file', want: { refused: 'never', path: '/Users/gdc' } },
     { name: 'a project inside a reserved folder is never-listed', target: '/srv/r/.git/config', projects: ['/srv/r/.git'], legacy: null, mode: 'file', want: { refused: 'never', path: '/srv/r/.git' } },
@@ -2903,11 +2905,19 @@ const p336 = await (async () => {
   );
 
   // --- 116. D4's table, both ways, written here from the spec ---------------
+  // Phase 336.1 (his ruling of 2026-10-05, "Yes, fix it now"): only a home
+  // itself, a folder holding one and / are never-listed; a home's direct child
+  // and a direct child of / are projects like any other, and the reserved
+  // names are refused wherever they stand.
   const NEVER_ROWS: readonly [string, boolean][] = [
     ['/', true], ['/Users', true], ['/home', true], ['/Users/gdc', true], ['/home/gdc', true], ['/root', true],
-    ['/var/root', true], ['/Users/gdc/code', true], ['/home/gdc/x', true], ['/root/x', true], ['/var/root/x', true],
-    ['/Users/gdc/./', true], ['/Users/gdc/code/..', true], ['/srv/./../Users/gdc', true], ['/Users/Shared/x', true],
-    ['/srv/a/.git', true], ['/srv/a/.SSH/b', true], ['/srv/a/.ßh', true], ['relative/x', true],
+    ['/var/root', true], ['/Users/Shared', true],
+    ['/Users/gdc/./', true], ['/Users/gdc/code/..', true], ['/srv/./../Users/gdc', true], ['/home/gdc/x/../..', true],
+    ['/srv/a/.git', true], ['/srv/a/.SSH/b', true], ['/srv/a/.ßh', true], ['/Users/gdc/.ssh', true], ['/home/gdc/.Git', true],
+    ['/root/.ẞh', true], ['relative/x', true],
+    ['/Users/gdc/code', false], ['/Users/gdc/gmux', false], ['/Users/gdc/dev', false], ['/home/gdc/x', false],
+    ['/root/x', false], ['/var/root/x', false], ['/Users/Shared/x', false], ['/Users/gdc/.config', false],
+    ['/tmp', false], ['/workspace', false], ['/opt', false], ['/srv', false],
     ['/var/www/site', false], ['/tmp/x', false], ['/private/tmp/x', false], ['/Users/x/code/p', false],
     ['/srv/a', false], ['/opt/me', false], ['/Users/gdc/code/p/q', false], ['/home/gdc/a/b', false], ['/var/rootx/a', false]
   ];

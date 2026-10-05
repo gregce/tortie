@@ -73,12 +73,13 @@
  * enters the folder ONCE with `cd -P`, names it `.` from then on, and compares
  * device and inode rather than path text (research 138 section 9, build/p336/
  * SPEC.md D5, D8 and D9, §Attack G1 and G2): a folder that is not the pinned
- * one answers `notsame`, `/` or the account's home or a folder directly inside
- * or holding it answers `offlimits`, a `.git` or `.ssh` folder (in any
- * spelling the volume folds) answers `protected`, and a home that cannot be
- * read answers `nohome`. Every refusal a write prints is a word inside the
- * markers since Phase 336: no write text names `exit 1`, so a refusal is never
- * read as "the machine did not answer".
+ * one answers `notsame`, `/` or the account's home itself or a folder holding
+ * it answers `offlimits` (a folder directly inside the home, or directly under
+ * `/`, is written like any other since Phase 336.1), a `.git` or `.ssh` folder
+ * (in any spelling the volume folds) answers `protected`, and a home that
+ * cannot be read answers `nohome`. Every refusal a write prints is a word
+ * inside the markers since Phase 336: no write text names `exit 1`, so a
+ * refusal is never read as "the machine did not answer".
  *
  * PHASE 98 ADDED ONE MORE, and it is a read. `repo-search` prints every
  * matching line in one folder on a machine, using that machine's own `grep`.
@@ -2567,9 +2568,23 @@ const relGuards = (value: string, fields: 2 | 3): readonly string[] => [
  *  3. `notsame`: a folder `cd -P` cannot enter, a folder whose identity cannot
  *     be read, or one whose identity is not the pin. Main maps it to
  *     `folderChanged` and never stores a pin because of it.
- *  4. `offlimits`: the folder IS `/`, IS the home, is a direct child of the
- *     home, or HOLDS the home as an ancestor (walked up from the home by
- *     `..`). Main maps it to `writesOff` naming the folder.
+ *  4. `offlimits`: the folder IS the home (its identity is the home's at the
+ *     first step of the walk, `wn` 0), HOLDS the home as an ancestor (walked
+ *     up from the home by `..`), or IS `/`. `/` holds every home, so the walk
+ *     up from the home refuses it too; the line after the first walk (the
+ *     walk stopped one step after it began, `wn` 1, which only `/` does) is
+ *     its backstop and names it on its own. Main maps the word to `writesOff`
+ *     naming the folder.
+ *
+ *     NOTHING DEEPER (Phase 336.1, his ruling of 5 October 2026, "Yes, fix it
+ *     now"). Phase 336 also refused a folder directly inside the home, which
+ *     greyed out his project `~/dev` on his Mac Pro where his Mac refuses
+ *     nothing of the kind. A folder directly inside the home (`~/dev`,
+ *     `~/.config`) or directly under `/` (`/tmp`, `/workspace`) is now written
+ *     like any other opened project; a `.ssh` or `.git` there is still
+ *     refused by identity in step 5, and a link named like a project that
+ *     leads to the home or to its `.ssh` is still judged as the folder it
+ *     leads to, because `cd -P` has already followed it.
  *  5. `protected`: the folder, or any folder above it, is the `.git` or the
  *     `.ssh` of its own parent, found by comparing its identity with
  *     `<parent>/.git/.` and `<parent>/.ssh/.`, so the VOLUME decides what
@@ -2613,7 +2628,7 @@ const folderCheck = (
   `    if [ -z "$wx" ]; then ${say('notsame', fields)}; exit 0; fi`,
   `    if [ "$wn" = 0 ] && [ "$wx" != "${pin}" ]; then ${say('notsame', fields)}; exit 0; fi`,
   '    if [ "$wx" = "$wp" ]; then break; fi',
-  `    if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]; then ${say('offlimits', fields)}; exit 0; fi`,
+  `    if [ "$wx" = "$wh" ] && [ "$wn" = 0 ]; then ${say('offlimits', fields)}; exit 0; fi`,
   `    wg=$(stat "$wq" '%d:%i' "$wd/../.git/." 2>/dev/null || true)`,
   `    ws=$(stat "$wq" '%d:%i' "$wd/../.ssh/." 2>/dev/null || true)`,
   `    if [ "$wx" = "$wg" ] || [ "$wx" = "$ws" ]; then ${say('protected', fields)}; exit 0; fi`,
@@ -2622,7 +2637,7 @@ const folderCheck = (
   '    wn=$((wn + 1))',
   `    if [ "$wn" -gt 255 ]; then ${say('notsame', fields)}; exit 0; fi`,
   '  done',
-  `  if [ "$wn" -le 1 ]; then ${say('offlimits', fields)}; exit 0; fi`,
+  `  if [ "$wn" = 1 ]; then ${say('offlimits', fields)}; exit 0; fi`,
   '  wd="$HOME/.."',
   '  wp=$wh',
   '  wn=0',

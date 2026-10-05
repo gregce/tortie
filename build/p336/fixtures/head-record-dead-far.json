@@ -160,13 +160,33 @@
         "outcome": "writesOff",
         "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home"
       },
-      "child": {
+      "linkHome": {
         "outcome": "writesOff",
+        "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/p336/far/dev"
+      },
+      "child": {
+        "outcome": "wrote",
         "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child"
       },
       "grand": {
         "outcome": "wrote",
         "folder": "/private/var/folders/xx/T/gmux-p336-wt-p336-4242/home/child/grand"
+      },
+      "dev": {
+        "outcomes": {
+          "put": "wrote",
+          "makeDir": "made",
+          "rename": "moved",
+          "stage": "done",
+          "unstage": "done",
+          "commit": "committed"
+        },
+        "explorer": {
+          "shown": true,
+          "rows": 4,
+          "why": null
+        },
+        "headerButtonsEnabled": true
       }
     },
     "R": {

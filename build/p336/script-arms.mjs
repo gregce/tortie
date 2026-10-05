@@ -44,8 +44,12 @@
  *        `.git/config` and the hooks listing unchanged; the Unicode folds
  *        PRINTED as the stated residual (D10: main refuses them on every
  *        product path; with main bypassed the far rel backstop is ASCII).
- *   H8   projects at the scratch home and a child of it `offlimits`, a
- *        grandchild writes.
+ *   H8   a project at the scratch home `offlimits`, a child of it and a
+ *        grandchild write (Phase 336.1, his ruling of 2026-10-05: only the
+ *        home itself, a folder holding it and `/` stay off limits); a folder
+ *        directly under `/` that holds the home (`/private`) `offlimits`, the
+ *        same folder with the home at `/` written through, and a link named
+ *        like a project (`dev`) that leads to the home `offlimits`.
  *   M9   the check-to-write window: a link swapped in between a `folder-pin`
  *        read and the write answers `notsame` for all six verbs; and a link
  *        swapped in INSIDE one `file-put` call, after its prelude and before
@@ -423,7 +427,9 @@ export async function runArms({ texts, only = [], caseVolume = false, windowSeco
       const shapes = [
         ['1 pinned folder home/code/proj', H, join(H, 'code', 'proj'), identityOf(join(H, 'code', 'proj')), PASS],
         ['2 folder = HOME (typed upper case)', H, join(T, 'HOME'), identityOf(join(T, 'HOME')), 'offlimits'],
-        ['3 HOME child, upper case', H, join(T, 'HOME', 'CHILD'), identityOf(join(T, 'HOME', 'CHILD')), 'offlimits'],
+        // Phase 336.1: a home's direct child is written like any other opened
+        // project (his ruling of 2026-10-05). Phase 336 answered offlimits here.
+        ['3 HOME child, upper case', H, join(T, 'HOME', 'CHILD'), identityOf(join(T, 'HOME', 'CHILD')), PASS],
         ['3b HOME grandchild, upper case', H, join(T, 'HOME', 'CHILD', 'GRAND'), identityOf(join(T, 'HOME', 'CHILD', 'GRAND')), PASS],
         ['4 link to HOME', H, join(T, 'linkhome'), identityOf(join(T, 'linkhome')), 'offlimits'],
         ['5 link to HOME/.ssh/keys', H, join(T, 'innocent'), identityOf(join(T, 'innocent')), 'protected'],
@@ -435,7 +441,10 @@ export async function runArms({ texts, only = [], caseVolume = false, windowSeco
         ['9b HOME relative', 'home', join(H, 'code', 'proj'), identityOf(join(H, 'code', 'proj')), 'nohome'],
         ['9c HOME missing', join(T, 'nohere'), join(H, 'code', 'proj'), identityOf(join(H, 'code', 'proj')), 'nohome'],
         ['9f HOME unset', undefined, join(H, 'code', 'proj'), identityOf(join(H, 'code', 'proj')), 'nohome'],
-        ['9d HOME=/, folder /private', '/', '/private', identityOf('/private'), 'offlimits'],
+        // Phase 336.1: with the home at /, /private is a direct child of the
+        // home and is written through (H8 drives it, because no row here can
+        // write directly in /private); the folder that IS the home is refused.
+        ['9d HOME=/, folder / (the home itself)', '/', '/', identityOf('/'), 'offlimits'],
         ['9e HOME=/, folder deep', '/', join(H, 'code', 'proj'), identityOf(join(H, 'code', 'proj')), PASS],
         ['10 linked ancestor', H, join(T, 'linkabove', 'repo'), identityOf(join(T, 'realabove', 'repo')), PASS],
         ['11 inside .GIT typed', H, join(T, 'repo', '.GIT', 'hooks'), identityOf(join(T, 'repo', '.git', 'hooks')), 'protected'],
@@ -624,6 +633,22 @@ export async function runArms({ texts, only = [], caseVolume = false, windowSeco
         });
         record('h3', label, 'dir-new', answersDir, ['protected']);
       }
+      // The far .ssh opened directly, typed in another case and in a Unicode
+      // fold. It is a direct child of the home, which Phase 336.1 made
+      // writable in general, so it must stay refused by identity on its own
+      // (on a volume that folds those spellings; one that does not has no such
+      // folder and the row is not driven).
+      for (const [label, folder] of [
+        ['opened at .SSH, the far .ssh in another case', join(H, '.SSH')],
+        ['opened at .ẞh, the far .ssh in a Unicode fold', join(H, '.ẞh')]
+      ]) {
+        if (!existsSync(folder)) continue;
+        const answers = SHELLS.map((sh) => {
+          const pin = far.pin(sh, folder, { home: H });
+          return far.run(sh, 'file-put', argsFor('file-put', { folder, pin, rel: `h3f-${sh.split('/').pop()}.txt` }), { home: H });
+        });
+        record('h3', label, 'file-put', answers, ['protected']);
+      }
       if (listing(join(H, '.ssh')) !== sshBefore) problems.push(`h3: the scratch home's .ssh changed (${sshBefore} to ${listing(join(H, '.ssh'))})`);
     }
 
@@ -674,16 +699,38 @@ export async function runArms({ texts, only = [], caseVolume = false, windowSeco
 
     // ---------------------------------------------------------------- H8
     if (want('h8')) {
-      for (const [label, folder, expected] of [
-        ['a project at the far home', H, 'offlimits'],
-        ['a project directly inside it', join(H, 'child'), 'offlimits'],
-        ['a project two below it', join(H, 'child', 'grand'), 'wrote']
-      ]) {
+      // A link NAMED LIKE A PROJECT that leads to the home: `cd -P` follows it,
+      // so it is judged as the home it leads to (Phase 336.1 made the home's
+      // own `dev` writable, and this is the shape that must not ride on that).
+      mkdirSync(join(T, 'h8'), { recursive: true });
+      symlinkSync(H, join(T, 'h8', 'dev'));
+      // /private holds the scratch home (T is under /private/tmp). With the
+      // home at / instead, /private is a direct child of the home and of /,
+      // and the write is reached THROUGH it into this run's own scratch tree,
+      // because no account writes directly in /private.
+      const viaPrivate = T.startsWith('/private/') ? T.slice('/private/'.length) : null;
+      /** [label, folder, expected, home, the folder-relative directory the file goes in]. */
+      const rows = [
+        ['a project at the far home', H, 'offlimits', H, ''],
+        ['a project directly inside it', join(H, 'child'), 'wrote', H, ''],
+        ['a project two below it', join(H, 'child', 'grand'), 'wrote', H, ''],
+        ['a link named like a project (dev) that leads to the far home', join(T, 'h8', 'dev'), 'offlimits', H, '']
+      ];
+      if (viaPrivate !== null) {
+        rows.push(['a project directly under / that holds the far home (/private)', '/private', 'offlimits', H, viaPrivate]);
+        rows.push(['a project directly under / that does not hold the home (/private, HOME=/)', '/private', 'wrote', '/', viaPrivate]);
+      } else {
+        problems.push(`h8: the scratch directory ${T} is not under /private, so the two rows directly under / were not driven`);
+      }
+      for (const [label, folder, expected, home, relDir] of rows) {
+        const tag = label.replace(/[^a-z]+/gi, '-').slice(0, 40);
+        const relOf = (sh) => `${relDir === '' ? '' : `${relDir}/`}h8-${tag}-${sh.split('/').pop()}.txt`;
+        const landed = (sh) => join(relDir === '' ? folder : T, relDir === '' ? relOf(sh) : `h8-${tag}-${sh.split('/').pop()}.txt`);
         const answers = SHELLS.map((sh) => {
-          const pin = far.pin(sh, folder, { home: H });
-          return far.run(sh, 'file-put', argsFor('file-put', { folder, pin, rel: `h8-${sh.split('/').pop()}.txt` }), { home: H });
+          const pin = far.pin(sh, folder, { home });
+          return far.run(sh, 'file-put', argsFor('file-put', { folder, pin, rel: relOf(sh) }), { home });
         });
-        const wroteAny = SHELLS.some((sh) => existsSync(join(folder, `h8-${sh.split('/').pop()}.txt`)));
+        const wroteAny = SHELLS.some((sh) => existsSync(landed(sh)));
         record('h8', label, 'file-put', answers, [expected], { farOk: expected === 'wrote' ? wroteAny : !wroteAny, farWhy: 'the file is where the answer says it is not' });
       }
     }

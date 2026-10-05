@@ -75,10 +75,10 @@ export function openRemoteFolderLabel(label: string): string {
  * writes there only where you have let it save", and Phase 336 removed the
  * only act that let it save: a project open on a confirmed machine saves with
  * nothing asked. A true replacement has to name the folders Tortie never
- * writes in there (a home folder, a folder directly inside one, a folder
- * holding one, and every .git and .ssh folder), which is a paragraph on a
- * sheet whose local twin says nothing about saving at all (his rule that a
- * remote surface carries no explanation just because it is remote). The first,
+ * writes in there (a home folder itself, a folder holding one, and every
+ * .git and .ssh folder), which is a paragraph on a sheet whose local twin
+ * says nothing about saving at all (his rule that a remote surface carries
+ * no explanation just because it is remote). The first,
  * "Tortie reads this folder", went with it, because on its own it reads as
  * "and only reads". Where a folder is one Tortie never writes in, the
  * editor's band or the refused save says so, on the file it applies to.

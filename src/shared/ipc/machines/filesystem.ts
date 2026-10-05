@@ -363,8 +363,8 @@ export interface MachineFilePutInput {
  * `protected` is a path naming a `.git` or `.ssh` folder in any case or any
  * spelling the volume folds, refused in main before composing and again on the
  * far side. `writesOff` now means "no open project holds this file" when its
- * `writeRoot` is null, and "a folder Tortie never writes under" (`/`, a home,
- * a folder directly inside or holding one) when it names the folder.
+ * `writeRoot` is null, and "a folder Tortie never writes under" (`/`, a home
+ * itself, a folder holding one) when it names the folder.
  *
  * THE SCRIPT HAS ONE MORE WORD AND IT IS NOT HERE ON PURPOSE. `unsure` is what
  * it prints when the bytes are already in place and it cannot describe them.

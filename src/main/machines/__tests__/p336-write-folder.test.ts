@@ -247,17 +247,31 @@ describe('the order of a write (SPEC D14)', () => {
     expect(sent).toEqual([]);
   });
 
-  it('a never-listed project (a home, a home child) is writesOff naming it, and sends nothing', async () => {
+  it('a never-listed project (a home, a folder holding one) is writesOff naming it, and sends nothing', async () => {
     projects = [
       { id: 'h', path: '/home/u', name: 'u', machineId: 'studio' },
-      { id: 'c', path: '/Users/u/proj', name: 'proj', machineId: 'studio' }
+      { id: 'c', path: '/Users', name: 'Users', machineId: 'studio' }
     ];
     expect(await put('/home/u/a.ts')).toMatchObject({ outcome: 'writesOff', writeRoot: '/home/u' });
     expect(await put('/Users/u/proj/a.ts')).toMatchObject({
       outcome: 'writesOff',
-      writeRoot: '/Users/u/proj'
+      writeRoot: '/Users'
     });
     expect(sent).toEqual([]);
+  });
+
+  // Phase 336.1: his ~/dev on his Mac Pro read greyed out because Phase 336
+  // never-listed a home's direct child. It is a project like any other now,
+  // so main reads its pin and sends the write, and the far side decides.
+  it('a project directly inside a home, or directly under /, writes like any other', async () => {
+    for (const folder of ['/Users/u/dev', '/home/u/dev', '/root/dev', '/workspace', '/tmp']) {
+      projects = [{ id: folder, path: folder, name: 'dev', machineId: 'studio' }];
+      sent = [];
+      pinned = [];
+      expect([folder, (await put(`${folder}/a.ts`)).outcome]).toEqual([folder, 'wrote']);
+      expect(scriptsSent()).toEqual(['folder-pin', 'file-put']);
+      expect(pinned).toEqual([['studio', folder, PIN]]);
+    }
   });
 
   it('a .git or .ssh path in any case or volume fold is protected, and sends nothing', async () => {

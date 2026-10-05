@@ -344,7 +344,7 @@ export interface MachineCommitInput {
  *  - `offline`: Tortie is not connected to that machine, so nothing was sent.
  *  - `refused`: nothing was committed, for a reason that carries its own
  *    sentence: no message, a folder no open project holds, a folder Tortie
- *    never writes in (a home, a folder directly inside or holding one), a
+ *    never writes in (a home itself, or a folder holding one), a
  *    `.git` or `.ssh` folder, a folder outside the one it was bound by, a
  *    folder that is not a repository, a sha the panel and main disagree on, a
  *    conflicted file, or nothing staged. Most are decided on THIS MAC with

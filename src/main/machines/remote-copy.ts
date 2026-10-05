@@ -1097,15 +1097,16 @@ export function commitProtected(label: string): string {
 }
 
 /**
- * The folder is one Tortie never writes in: a home folder, a folder directly
- * inside one, or a folder holding one (Phase 336, research 138 section 9). The
- * same sentence for the far side's `offlimits` and `nohome`, because both mean
- * Tortie will not write in or around a home folder there.
+ * The folder is one Tortie never writes in: a home folder itself, or a folder
+ * holding one (Phase 336, research 138 section 9; narrowed by Phase 336.1,
+ * when a folder directly inside a home stopped being one). The same sentence
+ * for the far side's `offlimits` and `nohome`, because both mean Tortie will
+ * not write in or around a home folder there.
  */
 export function commitNeverFolder(label: string): string {
   return (
-    `Tortie does not commit in a home folder, a folder directly inside one, ` +
-    `or a folder holding one, on ${label}.`
+    `Tortie does not commit in a project that is a home folder or holds one, ` +
+    `or in a .git or .ssh folder, on ${label}.`
   );
 }
 

@@ -142,7 +142,7 @@ describe('pickWriteFolderForPair', () => {
 // ---------------------------------------------------------------------------
 
 describe('neverWriteFolder', () => {
-  it('is true for /, a folder holding a home, a home and a home child', () => {
+  it('is true for /, a folder holding a home, and a home itself', () => {
     for (const path of [
       '/',
       '/Users',
@@ -151,24 +151,66 @@ describe('neverWriteFolder', () => {
       '/home/x',
       '/root',
       '/var/root',
-      '/Users/x/y',
-      '/home/x/y',
-      '/root/y',
-      '/var/root/y',
-      '/Users/Shared/x'
+      '/Users/Shared'
     ]) {
       expect([path, neverWriteFolder(path)]).toEqual([path, true]);
     }
   });
 
+  // Phase 336.1, his ruling of 5 October 2026 ("Yes, fix it now"): a folder
+  // directly inside a home, or directly under /, is written like any other
+  // opened project. Phase 336 refused the first and greyed out his ~/dev.
+  it('is false for a folder directly inside a home and a folder directly under /', () => {
+    for (const path of [
+      '/Users/x/dev',
+      '/Users/gdc/gmux',
+      '/home/x/dev',
+      '/root/dev',
+      '/var/root/dev',
+      '/Users/x/.config',
+      '/Users/Shared/x',
+      '/tmp',
+      '/workspace',
+      '/opt',
+      '/srv',
+      '/private'
+    ]) {
+      expect([path, neverWriteFolder(path)]).toEqual([path, false]);
+    }
+  });
+
   it('judges the resolved text, so a dot step cannot dodge it', () => {
-    for (const path of ['/Users/x/./y', '/Users/x/y/../z', '/srv/../Users/x', '//home//x/', '/Users/x/..']) {
+    for (const path of [
+      '/Users/x/.',
+      '/Users/x/y/..',
+      '/srv/../Users/x',
+      '//home//x/',
+      '/Users/x/..',
+      '/home/x/y/../..',
+      '/Users/./x/dev/../'
+    ]) {
       expect([path, neverWriteFolder(path)]).toEqual([path, true]);
+    }
+    // ...and cannot pull a home child back onto the list either.
+    for (const path of ['/Users/x/./y', '/Users/x/y/../z', '//home//x//dev/']) {
+      expect([path, neverWriteFolder(path)]).toEqual([path, false]);
     }
   });
 
   it('is true for a folder that is, or sits in, a reserved folder, and for a relative path', () => {
-    for (const path of ['/srv/.git', '/srv/app/.GIT/hooks', '/srv/x/.SSH/y', 'relative/x', '']) {
+    for (const path of [
+      '/srv/.git',
+      '/srv/app/.GIT/hooks',
+      '/srv/x/.SSH/y',
+      // A reserved folder directly inside a home stays refused by name after
+      // Phase 336.1 widened the home's other direct children.
+      '/Users/x/.ssh',
+      '/home/x/.SSH',
+      '/Users/x/.ẞh',
+      '/root/.git',
+      'relative/x',
+      ''
+    ]) {
       expect([path, neverWriteFolder(path)]).toEqual([path, true]);
     }
   });

@@ -227,7 +227,7 @@ describe('the shipped folder check answers the same word under both shells', () 
     for (const row of answers) expect(row).toEqual(['wrote', 'wrote', 'made']);
   });
 
-  it('refuses a home, a home child, a home ancestor and /, each by identity', () => {
+  it('refuses a home, a home ancestor and /, each by identity', () => {
     const answers: string[][] = [];
     for (const shell of SHELLS) {
       const t = tree(`home-${shell.replace(/\//g, '')}`);
@@ -242,27 +242,78 @@ describe('the shipped folder check answers the same word under both shells', () 
           )
         );
       row.push(at(t.home));
-      row.push(at(t.child));
       row.push(at(t.root));
       row.push(at('/'));
       // A folder that is a LINK to the home is judged as the folder it leads to.
       const toHome = join(t.root, 'innocent-home');
       symlinkSync(t.home, toHome);
       row.push(at(toHome));
-      // The home and its child typed in ANOTHER CASE, which a path text rule
-      // passed under bash and refused under dash (§Attack G1).
-      if (foldsCase(t.root)) {
-        row.push(at(join(t.root, 'HOME')));
-        row.push(at(join(t.root, 'HOME', 'CHILD')));
-      } else {
-        row.push('offlimits', 'offlimits');
-      }
-      for (const folder of [t.home, t.child, t.root]) {
+      // A link NAMED LIKE A PROJECT (`dev`) that leads to the home is still the
+      // home, after Phase 336.1 made the home's own `dev` a folder Tortie
+      // writes in.
+      const devLink = join(t.root, 'dev');
+      symlinkSync(t.home, devLink);
+      row.push(at(devLink));
+      // The home typed in ANOTHER CASE, which a path text rule passed under
+      // bash and refused under dash (§Attack G1).
+      row.push(foldsCase(t.root) ? at(join(t.root, 'HOME')) : 'offlimits');
+      // A folder directly under / that HOLDS the home (the scratch home is
+      // under /private on this Mac) is a holder, whatever its depth.
+      row.push(t.home.startsWith('/private/') ? at('/private') : 'offlimits');
+      for (const folder of [t.home, t.root]) {
         expect(existsSync(join(folder, 'x.txt'))).toBe(false);
       }
       answers.push(row);
     }
     for (const row of answers) expect(row).toEqual(Array(7).fill('offlimits'));
+  });
+
+  // Phase 336.1, his ruling of 5 October 2026 ("Yes, fix it now"): only the
+  // home itself, a folder holding it, and / stay off limits. Phase 336 also
+  // refused the home's direct children, which greyed out his ~/dev.
+  it('writes in a folder directly inside the home, in any spelling, and directly under /', () => {
+    const answers: string[][] = [];
+    for (const shell of SHELLS) {
+      const s = shell.replace(/\//g, '');
+      const t = tree(`homechild-${s}`);
+      const dev = join(t.home, 'dev');
+      mkdirSync(dev);
+      const row: string[] = [];
+      const pin = pinOf(shell, dev, t.home);
+      row.push(word(run(shell, 'file-put', [dev, 'a.txt', 'new', PAYLOAD, pin], t.home)));
+      row.push(word(run(shell, 'dir-new', [dev, 'made', pin], t.home)));
+      writeFileSync(join(dev, 'r.txt'), 'r\n');
+      row.push(word(run(shell, 'entry-rename', [dev, 'r.txt', 'r2.txt', pin], t.home)));
+      expect(readFileSync(join(dev, 'a.txt'), 'utf8')).toBe('hello from tortie');
+      expect(existsSync(join(dev, 'made'))).toBe(true);
+      expect(existsSync(join(dev, 'r2.txt'))).toBe(true);
+      // The home's other direct child, typed in another case.
+      if (foldsCase(t.root)) {
+        const upper = join(t.root, 'HOME', 'CHILD');
+        row.push(
+          word(run(shell, 'file-put', [upper, 'u.txt', 'new', PAYLOAD, pinOf(shell, upper, t.home)], t.home))
+        );
+        expect(existsSync(join(t.child, 'u.txt'))).toBe(true);
+      } else {
+        row.push('wrote');
+      }
+      // A folder directly under / that does not hold the home. The only one
+      // this account can write below is /private, so the home is / here and
+      // the write lands inside this test's own scratch directory, reached
+      // THROUGH /private: the folder check is judged on /private itself.
+      if (scratch.startsWith('/private/')) {
+        const rel = `${scratch.slice('/private/'.length)}/rootchild-${s}.txt`;
+        const rootChild = word(
+          run(shell, 'file-put', ['/private', rel, 'new', PAYLOAD, pinOf(shell, '/private', '/')], '/')
+        );
+        row.push(rootChild);
+        expect(existsSync(join(scratch, `rootchild-${s}.txt`))).toBe(rootChild === 'wrote');
+      } else {
+        row.push('wrote');
+      }
+      answers.push(row);
+    }
+    for (const row of answers) expect(row).toEqual(['wrote', 'made', 'moved', 'wrote', 'wrote']);
   });
 
   it('refuses a .ssh or .git folder by identity, in every spelling the volume folds', () => {
@@ -291,6 +342,13 @@ describe('the shipped folder check answers the same word under both shells', () 
       const innocent = join(t.root, 'innocent');
       symlinkSync(t.ssh, innocent);
       row.push(at(innocent));
+      // The home's .ssh is a direct child of the home, which Phase 336.1 made
+      // writable in general; it stays refused by identity, typed in another
+      // case too, and through a link named like a project.
+      row.push(foldsCase(t.root) ? at(join(t.home, '.SSH')) : 'protected');
+      const devLink = join(t.root, 'dev');
+      symlinkSync(t.ssh, devLink);
+      row.push(at(devLink));
       // The Unicode folds an APFS volume makes (§Attack M5): sharp s and long s.
       if (existsSync(join(t.home, '.ßh'))) {
         row.push(at(join(t.home, '.ßh')));
@@ -303,7 +361,7 @@ describe('the shipped folder check answers the same word under both shells', () 
       expect(md5(join(repo, '.git', 'config'))).toBe(gitBefore);
       answers.push(row);
     }
-    for (const row of answers) expect(row).toEqual(Array(6).fill('protected'));
+    for (const row of answers) expect(row).toEqual(Array(8).fill('protected'));
   });
 
   it('refuses a folder swapped for a link, or for a new folder, after its pin was read', () => {

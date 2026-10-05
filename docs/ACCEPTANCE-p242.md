@@ -4,8 +4,8 @@
 Machines any more, no folder to type, no *Let Tortie save files here…*, no *Confirm saving on this
 machine* and no *Stop Tortie saving files here*. Saving now follows the projects you open on a machine:
 every project open on a confirmed machine saves, renames, makes folders, stages and commits as it does
-on your Mac, with nothing to turn on, and Tortie still never saves in a home folder or a folder
-directly inside one, or inside a `.git` or `.ssh` folder there. The steps below are kept as the record
+on your Mac, with nothing to turn on, and Tortie still never saves in a project that is a home folder or
+holds one, or inside a `.git` or `.ssh` folder there. The steps below are kept as the record
 of what Phase 242 asked you to do; they no longer match the app.
 
 Tortie can change files on another machine, and it has never once done it for you. Every proof it has

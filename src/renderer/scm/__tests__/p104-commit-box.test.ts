@@ -167,8 +167,8 @@ describe('why the commit button is disabled', () => {
     expect(
       remoteCommitDisabledReason({ ...READY, writeRefused: 'never' }, 'Mac Pro')
     ).toBe(
-      'Tortie does not commit in a home folder, a folder directly inside ' +
-        'one, or a folder holding one, on Mac Pro.'
+      'Tortie does not commit in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Mac Pro.'
     );
     expect(
       remoteCommitDisabledReason(

@@ -251,8 +251,9 @@ export function machineAgentsFor(
  *    confirmed again.
  *  - `outside`: no open project on that machine holds the path.
  *  - `never`: the only project holding it is a folder Tortie never writes
- *    under, being `/`, a home folder, a folder directly inside one, a folder
- *    holding one, or a `.git` or `.ssh` folder.
+ *    under, being `/`, a home folder itself, a folder holding one, or a
+ *    `.git` or `.ssh` folder (a folder directly inside a home is written
+ *    since Phase 336.1).
  *
  * THE CHOICE IS MADE BY ONE SHARED FUNCTION, `pickWriteFolder` in
  * `@shared/remote-write-folder`, which main's own write path calls too, so the

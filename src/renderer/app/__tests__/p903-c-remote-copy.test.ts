@@ -377,8 +377,8 @@ describe('the editor', () => {
         'Tortie only shows it.'
     );
     expect(remoteNeverFolderLine(L)).toBe(
-      'Tortie does not save in a home folder, a folder directly inside one, ' +
-        'or a folder holding one, on Studio.'
+      'Tortie does not save in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio.'
     );
     expect(remoteFileUnconfirmedChip(L)).toBe(
       'This file is on Studio, which is not confirmed right now, so Tortie ' +

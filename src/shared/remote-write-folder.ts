@@ -130,10 +130,17 @@ function segmentsOf(resolved: string): string[] {
  *  - `/`;
  *  - `/Users` and `/home`, because a folder HOLDING a home holds every file the
  *    home rule protects;
- *  - a home: `/Users/<x>`, `/home/<x>`, `/root`, `/var/root`;
- *  - a direct child of one of those four home shapes;
+ *  - a home itself: `/Users/<x>`, `/home/<x>`, `/root`, `/var/root`;
  *  - any path with a segment that folds to `.git` or `.ssh`, because a folder
  *    inside a reserved folder is that folder's contents.
+ *
+ * Nothing deeper. A folder directly inside a home (`~/dev`, `~/code`) or
+ * directly under `/` (`/tmp`, `/workspace`, `/opt`) is a folder Tortie writes
+ * under like any other opened project, because his Mac refuses none of them
+ * (Phase 336.1, his ruling of 5 October 2026, "Yes, fix it now": only the home
+ * folder itself, a folder holding it, and `/` stay off limits). Phase 336 also
+ * refused a home's direct children, which greyed out his project `~/dev` on
+ * his Mac Pro.
  *
  * A path that is not absolute is never a folder Tortie writes under either.
  *
@@ -142,8 +149,9 @@ function segmentsOf(resolved: string): string[] {
  * that is a link to the far home, or a home that lives somewhere else on that
  * machine, passes it and is caught by the far prelude in
  * `src/main/machines/remote-scripts.ts`, which compares device and inode. The
- * stated cost: `/Users/Shared/x` is refused as a home child. It applies to
- * PROJECT candidates only, never to a legacy `writeRoot` (SPEC D16).
+ * stated cost: `/Users/Shared` is refused as a home, though `/Users/Shared/x`
+ * is not. It applies to PROJECT candidates only, never to a legacy
+ * `writeRoot` (SPEC D16).
  */
 export function neverWriteFolder(path: string): boolean {
   const resolved = resolveRemotePath(path);
@@ -152,12 +160,12 @@ export function neverWriteFolder(path: string): boolean {
   const parts = segmentsOf(resolved);
   if (parts.length === 0) return true;
   const top = parts[0] ?? '';
-  // `/Users`, `/home`, a home under either, and a direct child of that home.
-  if (top === 'Users' || top === 'home') return parts.length <= 3;
-  // `/root` and a direct child of it.
-  if (top === 'root') return parts.length <= 2;
-  // `/var/root` and a direct child of it.
-  if (top === 'var' && parts[1] === 'root') return parts.length <= 3;
+  // `/Users`, `/home`, and a home under either.
+  if (top === 'Users' || top === 'home') return parts.length <= 2;
+  // `/root`, a home.
+  if (top === 'root') return parts.length === 1;
+  // `/var/root`, a home.
+  if (top === 'var' && parts[1] === 'root') return parts.length === 2;
   return false;
 }
 

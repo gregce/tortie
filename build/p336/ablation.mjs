@@ -148,7 +148,7 @@ export const ABLATIONS = [
   {
     n: 'a113d', check: 'machines', owner: 'C113', file: SHARED,
     name: 'the never-list skipped for projects',
-    why: 'a project at a home, a home child or a reserved folder would be a folder Tortie writes under.',
+    why: 'a project at a home, a folder holding one or a reserved folder would be a folder Tortie writes under.',
     from: '  const open = candidates.projects.filter((path) => !neverWriteFolder(path));', to: '  const open = candidates.projects;'
   },
   {
@@ -233,13 +233,24 @@ export const ABLATIONS = [
     n: 'a116a', check: 'machines', owner: 'C116', file: SCRIPTS,
     name: 'the far home itself no longer refused by identity',
     why: 'a project at the far home would be written in.',
-    from: 'if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]', to: 'if [ "$wx" = "$wh" ] && [ "$wn" = 1 ]'
+    from: 'if [ "$wx" = "$wh" ] && [ "$wn" = 0 ]', to: 'if [ "$wx" = "$wh" ] && [ "$wn" = -1 ]'
   },
+  // Phase 336.1 turned this arm round. Phase 336 refused a folder directly
+  // inside the far home and its arm proved that refusal could not be dropped;
+  // his ruling of 2026-10-05 ("Yes, fix it now") made that folder writable, so
+  // the arm now puts the Phase 336 depth BACK and proves the gate reads the
+  // defect he reported (his ~/dev greyed out) as red.
   {
     n: 'a116b', check: 'machines', owner: 'C116', file: SCRIPTS,
-    name: 'a far home child no longer refused',
-    why: 'a project directly inside the far home (~/.config, ~/Library) would be written in.',
-    from: 'if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]', to: 'if [ "$wx" = "$wh" ] && [ "$wn" = 0 ]'
+    name: 'a far home child refused again (the Phase 336 depth)',
+    why: 'a project directly inside the far home (his ~/dev) would be refused where his Mac writes, which is the defect Phase 336.1 fixes.',
+    from: 'if [ "$wx" = "$wh" ] && [ "$wn" = 0 ]', to: 'if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]'
+  },
+  {
+    n: 'a116b-v', check: 'main', owner: /writes in a folder directly inside the home, in any spelling, and directly under \//, file: SCRIPTS,
+    name: 'the same Phase 336 depth, against the far-prelude suite',
+    why: 'the suite drives the shipping texts under both shells over a home child and must see it refused.',
+    from: 'if [ "$wx" = "$wh" ] && [ "$wn" = 0 ]', to: 'if [ "$wx" = "$wh" ] && [ "$wn" -le 1 ]'
   },
   {
     n: 'a116c', check: 'machines', owner: 'C116', file: SCRIPTS,
@@ -267,9 +278,22 @@ export const ABLATIONS = [
   },
   {
     n: 'a116f', check: 'machines', owner: 'C116', file: SHARED,
-    name: "main's never-list stops refusing a home child",
-    why: 'the renderer would draw ~/x as an edit surface and main would compose a write the far side must catch alone.',
-    from: "  if (top === 'Users' || top === 'home') return parts.length <= 3;", to: "  if (top === 'Users' || top === 'home') return parts.length <= 2;"
+    name: "main's never-list stops refusing a home",
+    why: 'the renderer would draw a project at the home as an edit surface and main would compose a write the far side must catch alone.',
+    from: "  if (top === 'Users' || top === 'home') return parts.length <= 2;", to: "  if (top === 'Users' || top === 'home') return parts.length <= 1;"
+  },
+  // Phase 336.1: the reverse of a116f, the Phase 336 depth put back in main.
+  {
+    n: 'a116f2', check: 'machines', owner: 'C116', file: SHARED,
+    name: "main's never-list refuses a home child again (the Phase 336 depth)",
+    why: 'his ~/dev would be drawn read only and refused before any round trip, which is the defect Phase 336.1 fixes.',
+    from: "  if (top === 'Users' || top === 'home') return parts.length <= 2;", to: "  if (top === 'Users' || top === 'home') return parts.length <= 3;"
+  },
+  {
+    n: 'a116f2-v', check: 'renderer', owner: /answers the project for a folder directly inside a home|is an edit surface in a project directly inside a home/, file: SHARED,
+    name: "the same Phase 336 depth, against the renderer's tab rule",
+    why: 'the renderer asks the shared rule, so a tab in ~/dev would be drawn read only with New File and New Folder greyed.',
+    from: "  if (top === 'Users' || top === 'home') return parts.length <= 2;", to: "  if (top === 'Users' || top === 'home') return parts.length <= 3;"
   },
   {
     n: 'a116g', check: 'machines', owner: 'C116', file: SHARED,
@@ -281,7 +305,17 @@ export const ABLATIONS = [
     n: 'a116h', check: 'machines', owner: 'C116', file: SHARED,
     name: "main's never-list stops refusing /root",
     why: "root's home is a home like any other.",
-    from: "  if (top === 'root') return parts.length <= 2;\n", to: ''
+    from: "  if (top === 'root') return parts.length === 1;\n", to: ''
+  },
+  // Phase 336.1. The far line that refuses / itself once the first walk
+  // reaches the top. / also holds every home, so the walk up from the home
+  // refuses it too and no driven row can isolate this line: its owner reads it
+  // as TEXT (condition 116's "$wn" = 1 clause), which is the line it is.
+  {
+    n: 'a116i', check: 'machines', owner: 'C116', file: SCRIPTS,
+    name: 'the far / backstop removed',
+    why: 'a / whose home walk could not be read would be written in; the line is the backstop the holder walk leans on.',
+    from: '`  if [ "$wn" = 1 ]; then', to: '`  if [ "$wn" = -1 ]; then'
   },
   // ---------------------------------------------------------------- 117 reserved names
   {
@@ -499,7 +533,7 @@ export const ABLATIONS = [
     from: "    .filter((one) => (one.machineId ?? 'local') === machineId)", to: '    .filter(() => false)'
   },
   {
-    n: 'a-d18b-v', check: 'renderer', owner: /answers never, naming the folder, for a home child|is read only in a project Tortie never writes in/, file: SLICE,
+    n: 'a-d18b-v', check: 'renderer', owner: /answers never, naming the folder, for a home itself and a folder holding one|is read only in a project Tortie never writes in/, file: SLICE,
     name: 'a never-listed project drawn as an edit surface',
     why: 'the renderer must draw the never-list read only before any round trip.',
     from: "  if (pick.refused === 'never') return { refused: 'never', folder: pick.path };",

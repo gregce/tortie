@@ -387,8 +387,8 @@ export function remoteCommitRefusedLabel(
       return `Tortie commits on ${label} only in a project you opened there.`;
     case 'never':
       return (
-        `Tortie does not commit in a home folder, a folder directly inside ` +
-        `one, or a folder holding one, on ${label}.`
+        `Tortie does not commit in a project that is a home folder or holds ` +
+        `one, or in a .git or .ssh folder, on ${label}.`
       );
     case 'unconfirmed':
       return (

@@ -40,14 +40,17 @@ export function remoteFileOutsideChip(label: string): string {
  *
  * It is the band, the label and, with "Nothing was written." or "Nothing was
  * changed." after it, the refusal, so the rule is stated in one place.
- * Research 138's ruling keeps `/`, a home folder and its first-level children
- * off the list of folders Tortie writes under, and a folder HOLDING a home is
- * the same rule from above.
+ * His ruling of 5 October 2026 (Phase 336.1, "Yes, fix it now") keeps a home
+ * folder ITSELF off the list of folders Tortie writes under, and a folder
+ * HOLDING a home (`/`, `/Users`, `/home`) is the same rule from above. A
+ * folder directly inside a home, such as `~/dev`, is written like any other
+ * opened project, which is why the line names the PROJECT that is or holds
+ * a home rather than every folder in one.
  */
 export function remoteNeverFolderLine(label: string): string {
   return (
-    `Tortie does not save in a home folder, a folder directly inside one, or ` +
-    `a folder holding one, on ${label}.`
+    `Tortie does not save in a project that is a home folder or holds one, ` +
+    `or in a .git or .ssh folder, on ${label}.`
   );
 }
 

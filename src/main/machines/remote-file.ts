@@ -156,9 +156,10 @@ export const REMOTE_FILE_PUT_OUTSIDE = 'outside';
  * each above every line that writes, so each means nothing was written.
  *
  * `notsame`: the folder is not the one that was pinned. `offlimits`: it is `/`,
- * the account's home, directly inside it, or holds it. `nohome`: the account's
- * home could not be read. `protected`: a `.git` or `.ssh` folder. `badname`:
- * a path shape the far side refuses without a parser (a name holding `..`).
+ * the account's home itself, or holds it (a folder directly inside the home
+ * is written since Phase 336.1). `nohome`: the account's home could not be
+ * read. `protected`: a `.git` or `.ssh` folder. `badname`: a path shape the
+ * far side refuses without a parser (a name holding `..`).
  */
 export const REMOTE_FOLDER_WORDS = [
   'notsame',
@@ -276,8 +277,8 @@ function refused(
  *  2. The confirm gate, for the reason in this file's header.
  *  3. The folder, by `writeFolderFor`: a file no open project holds answers
  *     `writesOff` with no folder, and one only a never-listed project holds
- *     (`/`, a home, a folder directly inside or holding one) answers
- *     `writesOff` naming that folder.
+ *     (`/`, a home itself, a folder holding one) answers `writesOff` naming
+ *     that folder.
  *  4. A `.git` or `.ssh` path answers `protected`.
  *  5. A file over {@link REMOTE_FILE_MAX_BYTES} answers `tooLarge`, and a name
  *     holding two dots in a row throws the sentence that says so.

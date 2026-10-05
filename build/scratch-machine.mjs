@@ -198,10 +198,10 @@ export function quietShellFor(root, env) {
  *
  * WHY. On the loopback machine the far `$HOME` is otherwise HIS REAL HOME on
  * this Mac, because sshd starts the account's own login shell with the account's
- * own home. Phase 336's far rules are judged against the far home (a home, a
- * folder directly inside one and a folder holding one are never written under),
- * and an arm that drives those rules toward his real home is an arm that writes
- * toward it. With this on, the far home is a folder the yard made and removes.
+ * own home. Phase 336's far rules are judged against the far home (a home and a
+ * folder holding one are never written under, and since Phase 336.1 a folder
+ * directly inside it is), and an arm that drives those rules toward his real
+ * home is an arm that writes toward it. With this on, the far home is a folder the yard made and removes.
  *
  * IT REQUIRES THE QUIET SHELL, and refuses without it: a far zsh with a moved
  * `HOME` and no `ZDOTDIR` of the yard's own would still read his rc files out of

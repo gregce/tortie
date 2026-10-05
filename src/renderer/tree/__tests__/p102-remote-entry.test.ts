@@ -176,8 +176,8 @@ describe('every answer New Folder can meet', () => {
       outcome: 'writesOff',
       writeRoot: WRITE_ROOT,
       says:
-        'Tortie does not save in a home folder, a folder directly inside ' +
-        'one, or a folder holding one, on Studio. Nothing was changed.'
+        'Tortie does not save in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio. Nothing was changed.'
     },
     {
       outcome: 'outsideRoot',
@@ -342,8 +342,8 @@ describe('every answer Rename can meet', () => {
       // `writesOff` is the never-list.
       outcome: 'writesOff',
       says:
-        'Tortie does not save in a home folder, a folder directly inside ' +
-        'one, or a folder holding one, on Studio. Nothing was changed.'
+        'Tortie does not save in a project that is a home folder or holds ' +
+        'one, or in a .git or .ssh folder, on Studio. Nothing was changed.'
     },
     {
       outcome: 'outsideRoot',

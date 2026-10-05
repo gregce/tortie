@@ -11,7 +11,9 @@
  *     keystroke (`tabIsReadOnly` false through `remoteTabWriteFolder`), the
  *     store lets the tab go dirty, and ⌘S sends it.
  *  2. A file outside every project opened there: read only, never dirty.
- *  3. A file in a project Tortie never writes in (a home's child): read only.
+ *  3. A file in a project Tortie never writes in (a home itself): read only;
+ *     a file in a project directly inside a home (`~/dev`, Phase 336.1) is an
+ *     edit surface like any other.
  *  4. A machine whose details changed: read only, even with the project open.
  *  5. A 150,000-byte file in an open project: it OPENS (research 138 section
  *     9: never refused for opening because of the save cap), read only, marked
@@ -85,6 +87,7 @@ type MachineStateView = import('@shared/ipc').MachineStateView;
 type EditorTab = import('../tab-types').EditorTab;
 
 const REPO = '/srv/greg/api';
+const HOME = '/home/greg';
 const HOME_CHILD = '/home/greg/api';
 const LABEL = 'Studio';
 
@@ -183,6 +186,16 @@ describe('a file in a project open on a confirmed machine', () => {
     expect(writeFile).not.toHaveBeenCalled();
     expect(toasts).toEqual([]);
   });
+
+  // Phase 336.1: the project he reported greyed out, ~/dev on his Mac Pro.
+  it('is an edit surface in a project directly inside a home', async () => {
+    useApp.setState({ projects: [project(HOME_CHILD)] } as never);
+    const seen = await openAndType(HOME_CHILD);
+    expect([seen.readOnly, seen.dirtyAfterTyping]).toEqual([false, true]);
+    await useEditor.getState().save();
+    expect(putFile).toHaveBeenCalledTimes(1);
+    expect(toasts).toEqual([]);
+  });
 });
 
 describe('a file Tortie will not save', () => {
@@ -193,8 +206,8 @@ describe('a file Tortie will not save', () => {
   });
 
   it('is read only in a project Tortie never writes in', async () => {
-    useApp.setState({ projects: [project(HOME_CHILD)] } as never);
-    const seen = await openAndType(HOME_CHILD);
+    useApp.setState({ projects: [project(HOME)] } as never);
+    const seen = await openAndType(HOME);
     expect([seen.readOnly, seen.dirtyAfterTyping]).toEqual([true, false]);
   });
 
