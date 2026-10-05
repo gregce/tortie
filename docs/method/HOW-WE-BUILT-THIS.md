@@ -129,3 +129,29 @@ in the backlog because the next agent reads this file and does not read a table
    clones with their own `node_modules`, and an Xcode DerivedData folder per agent. On 2026-10-01 that
    had filled the disk to 99 percent. The landing is not done until the phase's worktree, parents,
    clones and scratch are gone (CLAUDE.md, "Machine discipline").
+## What the phone round cost, in four lessons
+
+Phases 316.6 to 320.2 ran from 30 September to 4 October 2026 and took about five days for one TestFlight build.
+The operator asked why. These four are the answer, largest first, and rules 8 to 11 below are what they changed.
+
+| The lesson | What it cost |
+| --- | --- |
+| A spend or usage limit stops every agent at once, and a verifier stopped partway leaves locks, booted Simulators and half-built parents | 316.7 and 318 sat half-verified for about a day; each restart began with a cleanup |
+| A phone phase is verified live on two iOS versions, and only two app or Simulator runs may hold the lock at once | One `probe:p316` sessions run took 34 to 74 minutes; phases queued behind each other for the two slots |
+| Building two phases in parallel on an unlanded snapshot moves the merge to landing, where it needs its own integration and check | 318 met 14 conflicted files and 316.7 met 31; the second needed a whole integrate, verify, fix and reverify round |
+| Builders write the probes that drive the app, and a verifier spends rounds finding defects in the probe rather than in the product | Several majors were graders, not Tortie: an age compared too strictly, a scroll that gave up early, a null turned into a string, a relay that counted the wrong close |
+
+8. **Build phone phases one after another, not stacked on a snapshot.** Parallel building saved hours
+   in the build and cost them back at landing. Two phases that share the door's route table, the
+   phone's screens or the same gates are sequenced; only phases with disjoint files run at once.
+9. **A probe is checked before the verifier uses it.** A probe a builder wrote gets its own short
+   review: its graders run against recorded honest and hostile fixtures (`--grader-self-test`), and
+   one person who did not write it reads every clause that can say FAIL. A verifier who finds the
+   probe wrong reports it as a tooling defect, and it never counts as the product's.
+10. **Run the long live arms only for what the phase changed.** A phase that does not touch the
+    Sessions tab does not run its 34-minute group; the fast gates (`conformance:*`, `test:ios`, the
+    grader self-tests) cover the rest, and the brief names which arms the phase earns.
+11. **Check the account before a long round, and restart cleanly after a stop.** Before a round that
+    will run for hours, confirm the account has room. After a limit stops one, release its lock
+    slots only with the owner's pid proven dead, delete its Simulators and parent worktrees, and say
+    in the resumed briefs what the stopped run left behind.
