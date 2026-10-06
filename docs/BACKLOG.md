@@ -40090,6 +40090,44 @@ should fix that".
 
 - **No Windows.** **No release.**
 
+## Phase 340.1 — the two edge cases Phase 340's ruled reverify left: a portless host record, and a Prepare already running when changed details are confirmed (main session, under his delegation, 2026-10-06)
+
+**Subject.** `fix(machines): match ssh's portless host record, and stop a Prepare whose details changed`
+
+**First body line.** `Phase 340.1: the first-seen question and the late Prepare`
+
+**Semver.** Patch, unreleased.
+
+**Tier 3.** The machine identity and the first thing Tortie starts on another machine. Two independent methods, one an attack.
+
+**Charter.** Phase 340's ruled round fixed the four named items; its independent reverify (`/usr/bin/ssh` as the oracle over
+27 known-hosts shapes, and a race attack) found two narrower cases, neither able to start anything that could not start
+today and neither drawing a false Ready: (1) `hostKeyRecorded` (`src/main/machines/host-record.ts`) asks only `[host]:port`
+for a machine on a non-default port, where OpenSSH falls back to a bare `host` line, so a machine ssh already knows that way
+still gets Tortie's first-seen question, in all three record files; (2) confirming changed details does not stop a Prepare
+already running under the old ones (`machines:confirm` with `retireMachineRoute`, `src/main/machines/ipc.ts`,
+`remote-sessions.ts`): it keeps signing in over the old details, its late `startMachineFeed` re-arms the feed, and the chip
+reads Offline, which is false. The main session landed 340 and queued this, recording the decision in the log.
+
+### The mechanism
+
+1. When the port is set and is not 22, also match `hostRecordName(host, null)` in every record file, as ssh does; the safe
+   direction.
+2. The route retire bumps a per-machine epoch that `prepareMachineOnce` checks after each await, so a Prepare whose
+   details moved stops before `ensureRemoteServer` and `startMachineFeed`; the row reads Not ready.
+3. Optional, if the spec measures it cheaply: ask `ssh -G` with the check's own argv for the known-hosts files and host
+   alias it will use, so a `GlobalKnownHostsFile` set in his ssh config is read too; otherwise a stated limit.
+
+### The proof
+
+- `/usr/bin/ssh` as the oracle over the reverify's 27 shapes plus non-default ports: 0 unsafe rows.
+- A Prepare held on a deferred version read, then Confirm of changed details, then the read resolves: no ssh start after
+  the confirm, never Ready, never a false Offline.
+
+### What is NOT in this phase
+
+- **No change to 340's flow or words.** **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41212,3 +41250,5 @@ cycle rather than only the evening it was written.
 - 2026-10-06, **PHASE 341 LANDED, `6e407148`, unreleased — New Folder on another machine in one step.** Cause measured at the parent: every session poll pushes the machine list, the Explorer's remote memo became a new object and rebuilt the tree's verbs mid-box, so Return renamed an "untitled folder" that never existed. The verbs now depend on the machine id and dispose cleanly. Approved first time; the verifier typed every character as a real key press at both builds.
 
 - 2026-10-06, **PHASE 340 REVERIFY ANSWERED needs_work; the main session applied his delegation ("just go with a logical decision ... and record in backlog") to 340 as well**, because every finding is minor or nit and his rulings on each earlier second needs_work were a narrow fix then land. The ruled round fixes only: (1) the first-seen host-key question also reads ssh's global known-hosts files (or the test pins them), so a far login file cannot draw a spoofed first-seen question on a machine known only system-wide; (2) confirming a prepared machine's changed details never reads Ready over the context registered under the old details (unregister it, or Not ready with Prepare next); (3) the chip after a key fixed elsewhere agrees with the check it shows; (4) probe:p340 A9 reports a deviation as FAIL, not UNREADABLE. Then an independent reverify, then land. He may stop it.
+
+- 2026-10-06, **PHASE 340'S RULED REVERIFY ANSWERED needs_work on two new minor edge cases; the main session decided, under his delegation: LAND 340 and QUEUE 340.1 IN FULL.** All four ruled items were confirmed fixed live (16 of 16, 10 of 10 and 12 of 12 samples; A9 now FAILs instead of UNREADABLE). The two new cases (a portless host record on a non-default port; a Prepare already running when changed details are confirmed) start nothing that could not start today and never draw a false Ready, so 340's large gain for him is not held for them.
