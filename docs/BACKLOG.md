@@ -40090,7 +40090,7 @@ should fix that".
 
 - **No Windows.** **No release.**
 
-## Phase 340.1 — the two edge cases Phase 340's ruled reverify left: a portless host record, and a Prepare already running when changed details are confirmed (main session, under his delegation, 2026-10-06)
+## Phase 340.1 — the two edge cases Phase 340's ruled reverify left: a portless host record, and a Prepare already running when changed details are confirmed (main session, under his delegation, 2026-10-06) ✅ LANDED `b23135e3`, 2026-10-06
 
 **Subject.** `fix(machines): match ssh's portless host record, and stop a Prepare whose details changed`
 
@@ -41262,3 +41262,5 @@ cycle rather than only the evening it was written.
 - 2026-10-06, **PHASE 337 LANDED, `d3d59055`, unreleased — the Screen.** A session's own terminal on the phone, composed on the Mac and drawn natively, typed into with every key, the Mac never resized, End in the top bar; local and on another machine. Replayed onto main after 336.1, 339, 340 and 341 (HELPER_USER_FLOOR 169; the machines probe's JSON passed spawnSync's 1 MiB default once both phases' readings were in it, so the gate now reads it with 64 MiB). The selection-after-keyboard glitch and the two missing gates go into 337.1, which starts now; then TestFlight build 7.
 
 - 2026-10-06, **PHASE 337.1 STARTED — terminal first.** Tapping a session opens its terminal, Catch Me Up an icon in the top bar, the Screen scrolls back, the rename, the iOS 26.3 keyboard glitch fixed and 337's two missing gates added. Phone build stays 7. TestFlight build 7 follows it.
+
+- 2026-10-06, **PHASE 340.1 LANDED, `b23135e3`, unreleased — the late Prepare.** Confirming a machine's changed details now stops a Prepare already running under the old ones: no further sign-in over the old details, no late feed, and the row reads Not ready with a sentence saying to press Prepare again, instead of a false Offline. The portless host record was left as it was: its reverify measured, with ssh itself as the oracle, 108 machines that would lose Tortie's first-seen question for every 192 it fixed, and a reading of the files cannot tell the two apart, so the change was taken out and pinned by a test. 342 (Linux in Docker) is next once 337.1 and TestFlight build 7 are done.
