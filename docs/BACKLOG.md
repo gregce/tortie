@@ -39913,7 +39913,7 @@ Up reads, still first on the session page.
 - **No paste** (his "i don't think we need paste to start").
 - **No release.**
 
-## Phase 339 — "its show many funnel-ingress-nodes which is confusing, can we revmoe that?" — Add a Machine lists only machines (operator, 2026-10-05)
+## Phase 339 — "its show many funnel-ingress-nodes which is confusing, can we revmoe that?" — Add a Machine lists only machines (operator, 2026-10-05) ✅ LANDED `c10a5892`, 2026-10-05
 
 **Subject.** `fix(machines): Add a Machine no longer lists Tailscale's Funnel relay nodes`
 
@@ -41056,3 +41056,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **HE DELEGATED THE RULINGS FOR THE 337 → 337.1 → TESTFLIGHT 7 CHAIN: "just go with a logical decision if there are more than 2 failing checks and record in backlog".** If a phase in this chain answers needs_work after its fix and reverify, the main session decides (a narrow, verified fix of a tooling or wording defect and land; or remove the part that is worse than today and land the rest; never land a product defect that loses or misdirects his input), and records the decision and its reason here. He asked to go straight from 337 into 337.1 and have build 7 ready to upload.
 
 - 2026-10-05, **PHASE 339 QUEUED IN FULL AND STARTED, beside 337 on his word ("something you can parallelize")** — Add a Machine stops listing Tailscale's Funnel relay nodes (23 of his 26 peers).
+
+- 2026-10-05, **PHASE 339 LANDED, `c10a5892`, unreleased — Add a Machine lists only machines.** A peer is skipped only when shared in, tagged `tag:ingress`, nameless and with no OS (all four; the builder narrowed the entry's OR so a machine of his own tagged `tag:ingress` stays listed). Approved first time at Tier 2: a 47-peer hostile fixture judged at parent and HEAD with 0 mismatches, one app run per build. The first landing battery failed on a full disk (1.6 GB free; his Docker image holds 44 GB), cleared by removing our idle leftovers, and the re-run passed whole.
