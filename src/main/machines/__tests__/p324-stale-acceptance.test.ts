@@ -51,7 +51,10 @@ vi.mock('../context', () => ({
     acceptedTmuxVersion: input.fields.acceptedTmuxVersion ?? null
   }),
   registerRemoteMachineContext: <T>(ctx: T): T => ctx,
-  machineGeneration: () => ({ generation: 1, remotePath: '/usr/bin:/bin' })
+  machineGeneration: () => ({ generation: 1, remotePath: '/usr/bin:/bin' }),
+  // PHASE 340.1. Prepare asks the route epoch after every await; no route is
+  // retired in this file, so it never moves.
+  machineRouteEpoch: () => 0
 }));
 
 vi.mock('../exec-plane', () => ({

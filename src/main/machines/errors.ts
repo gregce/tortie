@@ -448,6 +448,20 @@ export const MACHINE_FEED_NOT_STARTED =
   'sessions, so the sessions on it are not shown here yet. Press Prepare again.';
 
 /**
+ * PHASE 340.1. What a Prepare answers when a person confirmed CHANGED details
+ * while it was running (`./prepare.ts`, "A confirm of changed details stops
+ * it"). It was signing in with the old details, so it stopped before starting
+ * anything more. The detail says only what is true whether it stopped before
+ * the server was started or after, and names the one next step, which is the
+ * row's own.
+ */
+export const MACHINE_PREPARE_OVERTAKEN_HEADLINE =
+  'Tortie stopped preparing this machine, because its details changed.';
+
+export const MACHINE_PREPARE_OVERTAKEN_DETAIL =
+  'Press Prepare again to sign in with the details you confirmed.';
+
+/**
  * What a person reads when a check signed in and its login files did not
  * finish within the test's minute (Phase 340, D9 as revised).
  *

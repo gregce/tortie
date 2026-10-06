@@ -661,3 +661,47 @@ export function clearMachineRemotePathForHarness(machineId: string): void {
     remotePath: null
   });
 }
+
+// ---------------------------------------------------------------------------
+// The route epoch (Phase 340.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * How many times each machine's route has been RETIRED in this run.
+ *
+ * WHY. `retireMachineRoute` (`./remote-sessions.ts`) is what a confirm of
+ * changed details calls, and it drops the context Prepare signed in with. A
+ * Prepare already running under the old details held that context in a local
+ * and did not notice: Phase 340's ruled reverify measured it signing in again
+ * over the old details, its late `startMachineFeed` re-arming the feed with no
+ * context to send a list over, and the row reading Offline about a machine
+ * nothing had asked. The generation number cannot answer the question, because
+ * a forgotten machine starts again at generation 1 and a server birth moves it
+ * too; a registered context's identity cannot either, because a second Prepare
+ * of the SAME details replaces it and must not stop the first.
+ *
+ * So this number moves on exactly one event, the retire, and on nothing else.
+ * A Prepare reads it before it registers its context and asks it again after
+ * every await (`./prepare.ts`), and so do the feed's start and the list it
+ * issues (`./remote-sessions.ts`) and the live connection's open
+ * (`./control-plane.ts`): a different number means the details that work was
+ * started under are no longer the ones a person confirmed, and it stops
+ * without touching anything a later Prepare may already hold.
+ *
+ * It is never cleared, by {@link forgetMachineRuntime} or by
+ * {@link resetMachineContexts}, so a number read before a reset can never be
+ * read again after one and mistaken for the same route.
+ */
+const routeEpochs = new Map<string, number>();
+
+/** This machine's route epoch now. Zero for a route never retired in this run. */
+export function machineRouteEpoch(machineId: string): number {
+  return routeEpochs.get(machineId) ?? 0;
+}
+
+/** Move the epoch. Called by `retireMachineRoute` alone. */
+export function bumpMachineRouteEpoch(machineId: string): number {
+  const next = machineRouteEpoch(machineId) + 1;
+  routeEpochs.set(machineId, next);
+  return next;
+}

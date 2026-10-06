@@ -67,6 +67,32 @@
  * a machine keeps the class D9 had: a login file there can still draw Tortie's
  * first-seen question, Trust it sends `yes` to that file, and nothing is
  * recorded.
+ *
+ * The way to read what ssh will look up is to ask `ssh -G` with the test's own
+ * argv, and Phase 340.1 did not take it, on a measurement: `ssh -G` evaluates
+ * the settings' `Match exec` lines, which RUN a command. On this Mac
+ * (OpenSSH_9.9p2), with a scratch settings file whose `Match exec` touched a
+ * file, `ssh -G -F <it> tortie-check.invalid` created the file and applied the
+ * block's `Port`. Asking it before every test would run a person's command one
+ * more time each test, for a narrower class.
+ *
+ * ## A bare host line, for a machine on another port (Phase 340.1, kept as it is)
+ *
+ * Off port 22 ssh asks `[host]:port` first and, finding no key there, asks the
+ * bare `host` over the same files (OpenSSH's `check_host_key`, "without port
+ * identifier"). It accepts the bare line only when that line holds the key the
+ * machine presents, and this module reads the files before the test, when that
+ * key is not known. So both readings are wrong for some machine. Asking the
+ * bare name as well stops a login file drawing Tortie's question over a
+ * machine ssh accepts by such a line; it also takes Tortie's own first-seen
+ * question and Trust it away from a machine whose bare line holds another key,
+ * which ssh still asks about. Phase 340.1's reverify measured both with
+ * `/usr/bin/ssh` as the oracle, 192 rows of the first kind and 108 of the
+ * second over 1,026, and no reading of the files can tell the two apart. The
+ * second kind is worse than the build before it, so only the name ssh asks
+ * first is asked here, as before. Telling them apart needs the key the machine
+ * presents, before any login file runs, which only a change to the test's own
+ * command line could give.
  */
 
 import { createHmac } from 'node:crypto';

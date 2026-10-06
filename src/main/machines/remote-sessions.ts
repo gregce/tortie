@@ -190,9 +190,11 @@ import { launchableAgentEntry } from '../config/store';
 // second of the three moments Tortie is allowed to sign in to a machine.
 import { onMachineWake } from '../power';
 import {
+  bumpMachineRouteEpoch,
   forgetMachineRuntime,
   machineContext,
   machineGeneration,
+  machineRouteEpoch,
   type RemoteMachineContext
 } from './context';
 // PHASE 340's ruled round. Type only: the confirm module is never a runtime
@@ -663,6 +665,21 @@ interface MachineSessions {
    * and no list issued before the new connection greeted can then address it.
    */
   rowsEpoch: number;
+  /**
+   * The route epoch ({@link machineRouteEpoch}) this machine's feed was last
+   * started under, by {@link startMachineFeed} (Phase 340.1).
+   *
+   * A pass asks the machine only while this equals the epoch now. A confirm of
+   * changed details retires the route ({@link retireMachineRoute}) and moves
+   * the epoch, so from that instant until Prepare starts the feed again, no
+   * list is issued over the old route and none speaks for the machine: not the
+   * feed a late Prepare started, not one already in flight, and not the list a
+   * window's focus or the Mac's wake asks every machine for, each of which
+   * found no context and marked a machine nothing had asked as not answering.
+   * Zero until a feed starts, and zero is the epoch of a route never retired,
+   * so a machine whose details nobody changed is asked exactly as before.
+   */
+  feedEpoch: number;
 }
 
 const machines = new Map<string, MachineSessions>();
@@ -752,7 +769,8 @@ function stateOf(machineId: string): MachineSessions {
     lastMachineStatus: null,
     seeded: false,
     controlEpoch: 0,
-    rowsEpoch: 0
+    rowsEpoch: 0,
+    feedEpoch: 0
   };
   machines.set(machineId, fresh);
   return fresh;
@@ -1625,6 +1643,11 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
     throw gmuxError('INVALID_INPUT', 'Session name cannot be empty.');
   }
   const ctx = readyRemoteContext(input.machineId);
+  // PHASE 340.1's fix round. The route this create signs in over, read in the
+  // same tick as its context. A confirm of changed details retires the route
+  // while the create is out (the reverify's arm D), and the create's last step
+  // below then starts no feed for it: see the line before that step.
+  const routeEpoch = machineRouteEpoch(input.machineId);
   const sessionId = randomUUID();
   const entry = remoteLaunchEntry(input.agent);
   // PHASE 84, item 9. A fresh conversation id for the agents that take one on
@@ -1921,7 +1944,21 @@ export async function remoteCreate(input: RemoteCreateInput): Promise<Session> {
 
     // Once, at once, so the row is on screen without waiting a cadence, and the
     // machine's feed is running from here on.
-    await startMachineFeed(input.machineId);
+    //
+    // PHASE 340.1's fix round. Not when a confirm of changed details retired
+    // the route while this create was out. A feed started now adopts the new
+    // route with no context to send a list over, and its first list marked the
+    // machine as not answering, so the row read Offline about a machine
+    // nothing under the new details had asked (the reverify's arm D, at the
+    // parent and at the build). Prepare starts the feed again.
+    if (machineRouteEpoch(input.machineId) === routeEpoch) {
+      await startMachineFeed(input.machineId);
+    } else {
+      machinesLog.info(
+        `${input.machineId}'s details changed while a session was being ` +
+          `created there, so no list was started for it. Prepare reads it.`
+      );
+    }
     const row = remoteSessionRow(sessionId);
     if (row === null) {
       throw gmuxError(
@@ -2414,25 +2451,42 @@ export function registeredRouteDiffers(
  * Ready with Open a folder on it… as the next step.
  *
  * WHAT. In this order, and nothing is sent to the machine:
+ *  0. PHASE 340.1. The route epoch moves ({@link bumpMachineRouteEpoch}), so a
+ *     Prepare, a feed start or a list already running under the old details
+ *     stops at its next step and writes nothing, and no list of either feed,
+ *     a window's focus or the Mac's wake is issued until Prepare starts the
+ *     feed again (`feedEpoch`). Without it a Prepare already running went on
+ *     over the old details and its late feed read the machine as Offline.
+ *     A create or a restore already out reads the epoch beside its context
+ *     and starts no feed at its end when it moved (340.1's fix round, the
+ *     reverify's arm D), because a feed started then adopts the NEW epoch.
  *  1. Both feeds stop: the fallback timer and the status list beside a live
  *     connection. A list on the old route is a list of a machine the person
  *     has said is somewhere else, and a list with no context to send it over
  *     would mark the machine as not answering, which nothing has measured.
- *  2. The live connection, made under the old details, is closed.
+ *  2. The live connection, made under the old details, is closed, and a link
+ *     a sign-in under them left at `connecting`, or never wrote at all (the
+ *     launch sign-in writes none before its feed), reads `polling` as a closed
+ *     connection's does (Phase 340.1), because nothing will now move it.
  *  3. The context and its generation go ({@link forgetMachineRuntime}), so
  *     `ready` reads false and every verb refuses with "Prepare the machine
  *     first", exactly as for a machine nobody prepared in this run.
  *  4. The session rows Tortie holds for that machine read `unknown`, the
  *     verdict a list that did not arrive writes, because none will arrive
  *     until Prepare: a stale "working" is never drawn about a machine Tortie
- *     stopped reading. The LINK is left where it was, so the row reads Not
- *     ready with Prepare this machine rather than Offline over a machine
- *     nothing asked.
+ *     stopped reading. Any other LINK is left where it was, so the row reads
+ *     Not ready with Prepare this machine rather than Offline over a machine
+ *     nothing asked; a `quiet` link stays quiet, because that machine did not
+ *     answer when it was asked.
  *
  * Prepare is what brings it all back: it registers a context under the new
  * details and starts the feed again (`startMachineFeed`).
  */
 export function retireMachineRoute(machineId: string): void {
+  // PHASE 340.1. First, before anything is stopped: a Prepare, a feed start or
+  // a list already running under the old details reads this and stops at its
+  // next step, touching nothing (see `machineRouteEpoch` in ./context.ts).
+  bumpMachineRouteEpoch(machineId);
   const state = machines.get(machineId);
   let hadContext = true;
   try {
@@ -2445,7 +2499,9 @@ export function retireMachineRoute(machineId: string): void {
     clearStatusTimer(state);
     state.onControl = false;
   }
-  closeControlPlane(machineId);
+  // PHASE 340.1. `routeRetired` also settles a link a sign-in under the old
+  // details left at `connecting`, which no step of that sign-in will now move.
+  closeControlPlane(machineId, { routeRetired: true });
   forgetMachineRuntime(machineId);
   if (state !== undefined) {
     applyMachineEvent(machineId, {
@@ -2682,6 +2738,12 @@ async function onePass(
   machineId: string,
   state: MachineSessions
 ): Promise<void> {
+  // PHASE 340.1. A route retired since this feed started is asked nothing and
+  // no list speaks for it until Prepare starts the feed again (see
+  // `feedEpoch`). Read once, and asked again when the list comes back, so a
+  // list issued over a route retired while it was out writes nothing either.
+  const routeEpoch = machineRouteEpoch(machineId);
+  if (state.feedEpoch !== routeEpoch) return;
   // PHASE 320.1, D4. Which connection this pass started on, read before
   // anything is issued, so the rows it writes can only be scrolled while that
   // connection is still the machine's.
@@ -2714,6 +2776,9 @@ async function onePass(
       timeoutMs: REMOTE_POLL_TIMEOUT_MS
     });
   } catch (err) {
+    // PHASE 340.1. Issued over a route since retired: its failure is about the
+    // old details, so it marks nothing.
+    if (machineRouteEpoch(machineId) !== routeEpoch) return;
     // ONLY tmux's own "no server running on <path>" is read as a completed
     // answer of zero sessions. That is the same rule Phase 67 wrote for this
     // Mac, and it is the reason it exists: a timeout, a refused connection or a
@@ -2749,6 +2814,8 @@ async function onePass(
       return;
     }
   }
+  // PHASE 340.1. And its answer is the old route's, so it writes no row.
+  if (machineRouteEpoch(machineId) !== routeEpoch) return;
 
   // PHASE 326. Read AFTER the list answered and before a line of it is parsed, so
   // an answer a create received while this list was out is seen. The flights are
@@ -3291,11 +3358,19 @@ export async function startMachineFeed(machineId: string): Promise<void> {
   installControlSink();
   hookWake();
   const state = stateOf(machineId);
+  // PHASE 340.1. The feed belongs to the route as it is NOW, so a route a
+  // confirm of changed details retired earlier is asked again from here on.
+  const routeEpoch = machineRouteEpoch(machineId);
+  state.feedEpoch = routeEpoch;
   noteMachineConnecting(machineId);
   // It never throws. A machine with no registered connection, a machine that did
   // not answer and a machine whose dialect has no measurement all come back as
   // false, and all three keep the timer below.
   await openControlPlane(machineId);
+  // PHASE 340.1. Retired while the connection was being opened: the details
+  // this feed was started under are no longer the confirmed ones, so it arms
+  // nothing and lists nothing. Prepare starts the feed again.
+  if (machineRouteEpoch(machineId) !== routeEpoch) return;
   if (!isControlPlaneLive(machineId) && state.timer === null) armTimer(machineId);
   await pollRemoteMachine(machineId);
 }

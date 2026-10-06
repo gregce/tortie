@@ -254,6 +254,9 @@ import {
   type RemoteRestoreOutcome
 } from '../machines/remote-restore';
 import type { RemoteMachineContext } from '../machines/context';
+// PHASE 340.1. Whether a confirm of changed details retired a machine's route
+// while its launch sign-in was running, read around that one call.
+import { machineRouteEpoch } from '../machines/context';
 import { gmuxError, gmuxErrorPayloadOf, isGmuxError } from '../errors';
 import { broadcastEvent } from '../typed-events';
 import { getLog } from '../log';
@@ -1589,6 +1592,8 @@ export class GmuxCore {
     const signIn = async (row: (typeof rows)[number]): Promise<void> => {
       const fields = machineFieldsOf(row);
       if (!isMachineConfirmed(row.id, fields)) return;
+      // PHASE 340.1. Read before the sign-in, asked after it on both arms.
+      const routeEpoch = machineRouteEpoch(row.id);
       try {
         // Phase 109 fix round. The label rides along here the way it does on
         // the ipc door, so a refusal composed after a boot sign-in names the
@@ -1599,6 +1604,18 @@ export class GmuxCore {
           tortieHostKeys: machineHostKeysPath(),
           label: machineLabelOf(row)
         });
+        // PHASE 340.1. A person confirmed changed details while this sign-in
+        // ran, so it stopped (or failed) under the OLD ones. The confirm has
+        // already said what the row reads, Not ready with Prepare next: this
+        // sign-in marks no machine quiet that nothing under the new details
+        // asked, and arms no retry that would sign in under them unasked.
+        if (machineRouteEpoch(row.id) !== routeEpoch) {
+          sessionsLog.info(
+            `${row.id}'s details changed while it was being signed in to at ` +
+              `launch, so it waits for Prepare.`
+          );
+          return;
+        }
         if (result.class !== 'prepared') {
           sessionsLog.warn(
             `${row.id} answered ${result.class} at launch: ${result.detail}`
@@ -1618,6 +1635,8 @@ export class GmuxCore {
         sessionsLog.warn(
           `signing in to ${row.id} failed: ${(err as Error).message}`
         );
+        // PHASE 340.1. As above: a failure under details since replaced.
+        if (machineRouteEpoch(row.id) !== routeEpoch) return;
         markMachineQuiet(row.id);
         armSignInRetry(row.id);
       }

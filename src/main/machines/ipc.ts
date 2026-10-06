@@ -826,9 +826,15 @@ export function registerMachinesIpc(ipc: IpcMain): void {
         // what the last Prepare read about the machine goes with it, and a
         // launch sign-in retry still armed for it stops too, so the next step
         // is Prepare this machine and nothing reaches the machine before it.
+        //
+        // PHASE 340.1's fix round. The retry stops FIRST. The retire can move
+        // the link to `polling`, and an armed retry hears every link change
+        // and signs in when a link starts answering: with the retire first it
+        // could start a sign-in under the new details, from Confirm, before
+        // the line that stops it ran.
+        stopSignInRetry(row.id, 'confirmation-moved');
         retireMachineRoute(row.id);
         forgetRowFacts(row.id);
-        stopSignInRetry(row.id, 'confirmation-moved');
       }
       return viewOf(row);
     }

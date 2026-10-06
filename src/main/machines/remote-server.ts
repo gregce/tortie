@@ -132,45 +132,90 @@ export async function remoteServerVerdict(
 }
 
 /**
+ * Why {@link ensureRemoteServer} stopped part way (Phase 340.1's fix round):
+ * its caller's `stillRouted` answered false. `born` is whether this call had
+ * already started the server when it stopped.
+ */
+export class RemoteServerSetUpStopped extends Error {
+  constructor(readonly born: boolean) {
+    super(
+      'the machine’s details changed while its server was being set up, so ' +
+        'nothing more was sent to it'
+    );
+    this.name = 'RemoteServerSetUpStopped';
+  }
+}
+
+/** What a caller may hand {@link ensureRemoteServer} (Phase 340.1's fix round). */
+export interface RemoteServerSetUpOptions {
+  /**
+   * Asked after every command this call sends. False stops the call there,
+   * before the next command, with {@link RemoteServerSetUpStopped}.
+   *
+   * Prepare alone passes it, as "the route this Prepare signed in over is
+   * still the confirmed one" (`machineRouteEpoch`, `./context.ts`). Without it
+   * a confirm of changed details that landed inside this call let the rest of
+   * the set-up go to the old details: the reverify's arm B counted 24 commands
+   * after the confirm. A restore and a create pass nothing and are unchanged.
+   */
+  readonly stillRouted?: () => boolean;
+}
+
+/**
  * Make sure the machine is running what Tortie needs, and say what it found.
  *
  * @throws GmuxError when the machine cannot be read at all, when it would not
  *   report its program search list, or when a command over the connection failed.
+ * @throws RemoteServerSetUpStopped when `how.stillRouted` answered false.
  */
 export async function ensureRemoteServer(
-  ctx: RemoteMachineContext
+  ctx: RemoteMachineContext,
+  how: RemoteServerSetUpOptions = {}
 ): Promise<RemoteServerResult> {
+  let born = false;
+  const stillRouted = (): void => {
+    if (how.stillRouted !== undefined && !how.stillRouted()) {
+      throw new RemoteServerSetUpStopped(born);
+    }
+  };
   const verdict = await remoteServerVerdict(ctx);
+  stillRouted();
   if (verdict === 'unknown') {
     // Nothing is asserted on a machine Tortie cannot read. Rethrowing the
     // classifier's own error would lose the reason, so the read runs again and
     // its error travels up with its own sentence.
     await execOn(ctx, ['list-sessions', '-F', '#{session_id}']);
+    stillRouted();
   }
 
-  const born = verdict === 'no-server';
+  born = verdict === 'no-server';
   if (born) {
     // A new server is a new connection's worth of state, so the generation moves
     // and the PATH captured for the previous one is dropped rather than carried.
     bumpMachineGeneration(ctx.machineId);
     await execOn(ctx, remoteBootArgs());
+    stillRouted();
   }
 
   // Step 3. Before any option is written, and before any environment is set.
   const remotePath = await captureRemotePath(ctx);
+  stillRouted();
   await execOn(ctx, ['set-environment', '-g', 'PATH', remotePath]);
+  stillRouted();
 
   const scrollback = getSettings().scrollbackLines;
   const rows = remoteBootOptions();
   for (const row of rows) {
     const value = runtimeValueOf(row, scrollback);
     await execOn(ctx, setOptionArgs(row, value));
+    stillRouted();
   }
 
   const options: RemoteOptionReadback[] = [];
   for (const row of rows) {
     const wanted = runtimeValueOf(row, scrollback);
     const observed = await readOption(ctx, row);
+    stillRouted();
     options.push({
       name: row.name,
       wanted,

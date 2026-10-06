@@ -39,6 +39,30 @@
  *     could not fix it. A feed that will not start does not fail the prepare.
  *  6. Compose one class, one headline and one detail, all in main.
  *
+ * ## A confirm of changed details stops it (Phase 340.1)
+ *
+ * The context this function registers in step 2 is held in a local for the
+ * rest of the call. A person who confirms CHANGED details while the version
+ * read is out retires that route (`retireMachineRoute`, `./remote-sessions.ts`),
+ * and before this phase the call went on regardless: it started the server
+ * over the OLD details, and its late `startMachineFeed` re-armed a feed with
+ * no context to send a list over, which marked the machine as not answering,
+ * so the row read Offline about a machine nothing had asked (Phase 340's
+ * ruled reverify measured it). So the route epoch (`machineRouteEpoch`,
+ * `./context.ts`) is read before step 2 and asked again after every await. A
+ * different number stops the call there, before `ensureRemoteServer` and
+ * before `startMachineFeed`, and it answers {@link MACHINE_PREPARE_OVERTAKEN_HEADLINE}
+ * and touches nothing: not the route, not the link and not the row's memory,
+ * because a later Prepare under the new details may already hold them. The
+ * row reads Not ready, with Prepare this machine as the next step.
+ *
+ * The fix round of 340.1 carried the same question INTO the server set-up
+ * (`stillRouted`, `./remote-server.ts`), which asks it after every command it
+ * sends: a confirm that lands there stops the set-up at its next command,
+ * where before it let the rest go to the old details (24 commands, the
+ * reverify's arm B). The check after the set-up returns is kept beside it; it
+ * is reached only if the set-up stops asking after its last command.
+ *
  * ## What it is not, and why the connection test was left alone
  *
  * The connection test starts nothing that stays. Starting a durable server from
@@ -77,18 +101,21 @@ import {
   buildRemoteMachineContext,
   registerRemoteMachineContext,
   machineGeneration,
+  machineRouteEpoch,
   type RemoteMachineContext
 } from './context';
 import { execOn, execRemoteShell } from './exec-plane';
 import { shellQuoteArgv } from '../restore/command';
 import {
   MACHINE_FEED_NOT_STARTED,
+  MACHINE_PREPARE_OVERTAKEN_DETAIL,
+  MACHINE_PREPARE_OVERTAKEN_HEADLINE,
   MACHINE_VERSION_ACCEPT_MISMATCH,
   MACHINE_VERSION_ACCEPT_OFFER,
   classifyMachineOutput,
   composeOutcomeCopy
 } from './errors';
-import { ensureRemoteServer } from './remote-server';
+import { ensureRemoteServer, RemoteServerSetUpStopped } from './remote-server';
 // PHASE 84, item 4. Preparing a machine is what makes its sessions visible, and
 // until this phase it started nothing that reads them. `startMachineFeed` is a
 // no-op for a machine that already has one, so calling it here and at the launch
@@ -278,8 +305,14 @@ export async function readRemoteTmuxVersion(
 export async function prepareMachine(
   input: PrepareInput
 ): Promise<MachinePrepareResult> {
+  const routeEpoch = machineRouteEpoch(input.machineId);
   const result = await prepareMachineOnce(input);
-  noteRowSignIn(input.machineId, result);
+  // PHASE 340.1. A Prepare a confirm of changed details overtook signed in
+  // under the OLD details, so what it read is not the row's last sign-in: the
+  // confirm forgot the old facts, and they stay forgotten.
+  if (machineRouteEpoch(input.machineId) === routeEpoch) {
+    noteRowSignIn(input.machineId, result);
+  }
   return result;
 }
 
@@ -295,6 +328,11 @@ export async function prepareMachineOnce(
   input: PrepareInput
 ): Promise<MachinePrepareResult> {
   const startedAt = Date.now();
+  // PHASE 340.1. Read before the context is registered, asked after every
+  // await below. See "A confirm of changed details stops it" above.
+  const routeEpoch = machineRouteEpoch(input.machineId);
+  const overtaken = (): boolean =>
+    machineRouteEpoch(input.machineId) !== routeEpoch;
   const supported = TESTED_REMOTE_TMUX_VERSIONS.filter(
     (row) => row.measured.exec
   ).map((row) => row.version);
@@ -309,6 +347,29 @@ export async function prepareMachineOnce(
     // machine Tortie measured needs no acceptance and a machine that would not
     // name a version has nothing for an acceptance to bind to.
     acceptSheet: null as MachinePrepareResult['acceptSheet']
+  };
+  /**
+   * The answer of a Prepare a confirm of changed details overtook. Not
+   * Offline and not a refusal of the machine, whose new details nothing has
+   * asked yet; `born` is true when the old details' sign-in is known to have
+   * started the server before it stopped. Logged, and nothing else is
+   * touched.
+   */
+  const stopped = (born: boolean): MachinePrepareResult => {
+    machinesLog.info(
+      `${input.machineId}'s details changed while it was being prepared, so ` +
+        `Tortie stopped before starting anything more there. Prepare signs in ` +
+        `with the new details.`
+    );
+    return {
+      ...base,
+      serverBorn: born,
+      class: 'unknown',
+      alarm: false,
+      headline: MACHINE_PREPARE_OVERTAKEN_HEADLINE,
+      detail: MACHINE_PREPARE_OVERTAKEN_DETAIL,
+      durationMs: Date.now() - startedAt
+    };
   };
 
   let ctx: RemoteMachineContext;
@@ -343,6 +404,9 @@ export async function prepareMachineOnce(
   // Step 3 and 4. The version is read BEFORE any server is started, so a machine
   // running a version nobody measured never has anything started on it.
   const read = await readRemoteTmuxVersion(ctx);
+  // PHASE 340.1. Before every arm below, so neither a version nor a machine
+  // nothing reached is reported about details a person has since replaced.
+  if (overtaken()) return stopped(false);
 
   // A machine nothing reached is reported as a machine nothing reached. It is
   // said here, before the version gate, because the gate's whole vocabulary is
@@ -479,8 +543,16 @@ export async function prepareMachineOnce(
   }
 
   // Step 5.
+  let serverBorn = false;
   try {
-    const server = await ensureRemoteServer(ctx);
+    // PHASE 340.1's fix round. The set-up asks the route epoch after every
+    // command it sends, so a confirm of changed details that lands inside it
+    // stops it at the next command rather than after the last.
+    const server = await ensureRemoteServer(ctx, { stillRouted: () => !overtaken() });
+    serverBorn = server.born;
+    // PHASE 340.1. The server over the old details is as far as it got: no
+    // feed is started for a route that was retired while it was being set up.
+    if (overtaken()) return stopped(server.born);
     // Step 5a. PHASE 84, item 4. The feed, started HERE rather than in the
     // channel above, because `signInToConfirmedMachines` in
     // `../sessions/core.ts` already calls this function and then started a feed
@@ -498,6 +570,9 @@ export async function prepareMachineOnce(
           `read: ${sentenceOf(err)}`
       );
     }
+    // PHASE 340.1. Retired while the feed was starting: the feed stopped
+    // itself, and this is not the prepared machine the new details describe.
+    if (overtaken()) return stopped(server.born);
     // Step 5b. PHASE 109. One batched read of which agents this machine has,
     // started with `void` so nothing a person is waiting on awaits it. It
     // runs on the prepared arm ONLY, because every other arm is a machine
@@ -545,6 +620,12 @@ export async function prepareMachineOnce(
       durationMs: Date.now() - startedAt
     };
   } catch (err) {
+    // PHASE 340.1. A failure of the old details' server is not this machine's,
+    // and neither is a set-up the confirm stopped part way, which says whether
+    // it had started the server by then.
+    if (overtaken()) {
+      return stopped(serverBorn || (err instanceof RemoteServerSetUpStopped && err.born));
+    }
     const cls = classOfFailure(err);
     const copy = composeOutcomeCopy(cls, { lastLine: sentenceOf(err) });
     return {

@@ -105,6 +105,7 @@ import {
 import {
   machineContext,
   machineGeneration,
+  machineRouteEpoch,
   tmuxCommand,
   type RemoteMachineContext,
   type SpawnPlan
@@ -634,6 +635,8 @@ export async function openControlPlane(
     );
   }
   noteMachineConnecting(machineId);
+  // PHASE 340.1. Read before the precheck's await, asked after it.
+  const routeEpoch = machineRouteEpoch(machineId);
 
   let ctx: RemoteMachineContext;
   try {
@@ -655,6 +658,17 @@ export async function openControlPlane(
     machinesLog.info(
       `${machineId} did not answer the read that stands in front of a live ` +
         `connection, so it stays on the timer: ${(err as Error).message}`
+    );
+    return false;
+  }
+  // PHASE 340.1. A confirm of changed details retired this route while the
+  // precheck was out. A connection made now would be the old details' (its
+  // transport finds no context, and its own retries would mark the machine
+  // as not answering), so none is made. Prepare opens one again.
+  if (machineRouteEpoch(machineId) !== routeEpoch) {
+    machinesLog.info(
+      `${machineId}'s details changed while a live connection was being ` +
+        `opened, so none was opened. Nothing was changed on either machine.`
     );
     return false;
   }
@@ -745,15 +759,43 @@ function wire(machineId: string, client: TmuxControlClient): void {
   });
 }
 
-/** Close one machine's connection. Nothing is sent to that machine. */
-export function closeControlPlane(machineId: string): void {
+/**
+ * Close one machine's connection. Nothing is sent to that machine.
+ *
+ * PHASE 340.1. `routeRetired` is passed by `retireMachineRoute` alone, when a
+ * confirm of changed details retires the route. A sign-in under the old
+ * details that was still opening left the link at `connecting`, and every step
+ * that would have moved it now stops without writing (the route epoch), so the
+ * row would read Connecting, with nothing to press, until Prepare. The link
+ * reads what closing a live connection makes it read, `polling` with "is not
+ * on a live connection", and the row reads Not ready with Prepare next. Every
+ * other caller passes nothing and nothing about it changed.
+ *
+ * The fix round of 340.1 settles a machine with NO link record the same way.
+ * The launch sign-in writes no link until its feed starts, so a confirm that
+ * overtakes it finds none, and {@link machineLinkFacts} reads a missing record
+ * as `quiet`, which the row draws as Offline, "has not been signed in to in
+ * this run" (the reverify's arm C). Nothing under the new details has asked
+ * the machine anything, so the row reads Not ready, as above. A `quiet` record
+ * is left as it is: that is a machine that did not answer when it was asked.
+ */
+export function closeControlPlane(
+  machineId: string,
+  how: { readonly routeRetired?: boolean } = {}
+): void {
   const client = clients.get(machineId);
-  if (client === undefined) return;
-  clients.delete(machineId);
-  client.removeAllListeners();
-  client.stop();
-  const record = recordOf(machineId);
-  if (record.link === 'connected') {
+  if (client !== undefined) {
+    clients.delete(machineId);
+    client.removeAllListeners();
+    client.stop();
+    const record = recordOf(machineId);
+    if (record.link === 'connected') {
+      setLink(machineId, 'polling', 'is not on a live connection');
+    }
+  }
+  if (how.routeRetired !== true) return;
+  const left = links.get(machineId);
+  if (left === undefined || left.link === 'connecting') {
     setLink(machineId, 'polling', 'is not on a live connection');
   }
 }

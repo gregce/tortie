@@ -258,14 +258,14 @@ describe('prepareMachine', () => {
 
   it('starts the machine’s feed in the success arm', () => {
     const arm = src.slice(
-      src.indexOf('const server = await ensureRemoteServer(ctx);'),
+      src.indexOf('const server = await ensureRemoteServer(ctx'),
       src.indexOf("const copy = composeOutcomeCopy('prepared'")
     );
     expect(arm).toContain('await startMachineFeed(input.machineId);');
   });
 
   it('starts it AFTER the server, because there is nothing to list before it', () => {
-    expect(src.indexOf('ensureRemoteServer(ctx)')).toBeLessThan(
+    expect(src.indexOf('ensureRemoteServer(ctx')).toBeLessThan(
       src.indexOf('startMachineFeed(input.machineId)')
     );
   });
@@ -315,7 +315,7 @@ describe('the agent scan Prepare starts (Phase 109)', () => {
   it('starts it on the prepared arm, AFTER the feed', () => {
     // The prepared arm begins at the server boot. Every refusal arm returns
     // before that line, so an index after it is an index on the success path.
-    const server = src.indexOf('const server = await ensureRemoteServer(ctx);');
+    const server = src.indexOf('const server = await ensureRemoteServer(ctx');
     const feed = src.indexOf('await startMachineFeed(input.machineId);');
     const scan = src.indexOf('scanMachineAgents(input.machineId)');
     expect(server).toBeGreaterThan(-1);

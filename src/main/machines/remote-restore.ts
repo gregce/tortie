@@ -108,6 +108,9 @@ import { assertArgvBelongsToMachine, findRemoteProgram } from './remote-argv';
 import { noteMachineAgent } from './machine-agents';
 import { execOn } from './exec-plane';
 import { ensureRemoteServer } from './remote-server';
+// PHASE 340.1's fix round. Whether a confirm of changed details retired this
+// machine's route while a restore was out, read around the restore's feed.
+import { machineRouteEpoch } from './context';
 import {
   REPLAY_IS_NOT_ATTEMPTED,
   RESTORE_NO_RECORD,
@@ -316,6 +319,9 @@ export async function restoreRemoteSession(
   // command for one machine and send it to another.
   const ctx = readyRemoteContext(machineId);
   assertArgvBelongsToMachine(machineId, ctx.machineId);
+  // PHASE 340.1's fix round. Read in the same tick as the context, and asked
+  // again before step 8's feed.
+  const routeEpoch = machineRouteEpoch(machineId);
 
   // Step 3. The server, its options and the program search list, before any
   // mutation. A machine that rebooted between two passes has a fresh server with
@@ -601,7 +607,19 @@ export async function restoreRemoteSession(
     status: 'running',
     lastSeen: Date.now()
   });
-  await startMachineFeed(machineId);
+  // PHASE 340.1's fix round. Not when a confirm of changed details retired the
+  // route while this restore was out: a feed started now adopts the new route
+  // with no context to send a list over, and its first list marks the machine
+  // as not answering, so the row would read Offline about a machine nothing
+  // under the new details asked. Prepare starts the feed again.
+  if (machineRouteEpoch(machineId) === routeEpoch) {
+    await startMachineFeed(machineId);
+  } else {
+    machinesLog.info(
+      `${machineId}'s details changed while ${sessionId} was being restored ` +
+        `there, so no list was started for it. Prepare reads it.`
+    );
+  }
 
   // PHASE 270, THE VERIFIER'S ROUND. The same sentence the create raises, at the
   // same moment and for the same reason: the session exists and is bound, so the
