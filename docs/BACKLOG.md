@@ -39950,7 +39950,7 @@ the phone, and Tailscale then lists its Funnel relays as peers. Measured on 2026
 - **No change to Funnel, pairing or the phone door.**
 - **No release.**
 
-## Phase 340 — "end to end i want to redesign the add a machine steps ... it should be much simpler" — add a machine in three steps, find tmux by itself, and a machine row with just enough words (operator, 2026-10-05)
+## Phase 340 — "end to end i want to redesign the add a machine steps ... it should be much simpler" — add a machine in three steps, find tmux by itself, and a machine row with just enough words (operator, 2026-10-05) ✅ LANDED `4ff8e7fa`, 2026-10-06
 
 **Subject.** `feat(machines): add a machine by picking it, and Tortie checks and prepares it`
 
@@ -41252,3 +41252,5 @@ cycle rather than only the evening it was written.
 - 2026-10-06, **PHASE 340 REVERIFY ANSWERED needs_work; the main session applied his delegation ("just go with a logical decision ... and record in backlog") to 340 as well**, because every finding is minor or nit and his rulings on each earlier second needs_work were a narrow fix then land. The ruled round fixes only: (1) the first-seen host-key question also reads ssh's global known-hosts files (or the test pins them), so a far login file cannot draw a spoofed first-seen question on a machine known only system-wide; (2) confirming a prepared machine's changed details never reads Ready over the context registered under the old details (unregister it, or Not ready with Prepare next); (3) the chip after a key fixed elsewhere agrees with the check it shows; (4) probe:p340 A9 reports a deviation as FAIL, not UNREADABLE. Then an independent reverify, then land. He may stop it.
 
 - 2026-10-06, **PHASE 340'S RULED REVERIFY ANSWERED needs_work on two new minor edge cases; the main session decided, under his delegation: LAND 340 and QUEUE 340.1 IN FULL.** All four ruled items were confirmed fixed live (16 of 16, 10 of 10 and 12 of 12 samples; A9 now FAILs instead of UNREADABLE). The two new cases (a portless host record on a non-default port; a Prepare already running when changed details are confirmed) start nothing that could not start today and never draw a false Ready, so 340's large gain for him is not held for them.
+
+- 2026-10-06, **PHASE 340 LANDED, `4ff8e7fa`, unreleased — add a machine in three steps.** Pick, check, add (4 presses, 0 typed fields, 34 words to Ready in the seeded run), tmux found through the login shell and the install folders, one Add press that confirms and prepares, a compact row with a native ⋯ menu, and an honest sentence when ssh fails to launch. HELPER_USER_FLOOR 168. 340.1 follows for the two edge cases.
