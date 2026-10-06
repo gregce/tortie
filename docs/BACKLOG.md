@@ -39913,6 +39913,43 @@ Up reads, still first on the session page.
 - **No paste** (his "i don't think we need paste to start").
 - **No release.**
 
+## Phase 339 — "its show many funnel-ingress-nodes which is confusing, can we revmoe that?" — Add a Machine lists only machines (operator, 2026-10-05)
+
+**Subject.** `fix(machines): Add a Machine no longer lists Tailscale's Funnel relay nodes`
+
+**First body line.** `Phase 339: the machine list skips Tailscale's own relay nodes`
+
+**Semver.** Patch, unreleased: Settings › Machines › Add a Machine lists his machines, not 23 rows of `funnel-ingress-node`.
+
+**Tier 2.** A rendered list with no new state; it must never hide a machine he could add. One app run and one independent
+method: a hostile fixture of peers that look almost like relay nodes.
+
+**Charter.** His screenshot of Settings › Machines › Add a Machine: "26 other machines found", then his MacBook Pro, his
+Mac Pro and row after row of `funnel-ingress-node funnel-ingress-node`. Since Phase 330 his Mac runs Tailscale Funnel for
+the phone, and Tailscale then lists its Funnel relays as peers. Measured on 2026-10-05 from `tailscale status --json`
+(fields only, no keys or addresses read out): 26 peers, 23 of them relays, each with `HostName` `funnel-ingress-node`,
+`DNSName` "", `OS` "", `ShareeNode` true and `Tags` ["tag:ingress"]. The list is built from
+`parseTailscaleStatus` (`src/main/machines/tailscale.ts:158-300`) and drawn by `src/renderer/settings/AddMachine.tsx`.
+
+### The mechanism
+
+- `parseTailscaleStatus` drops a peer that is Tailscale infrastructure: tagged `tag:ingress`, or shared in
+  (`ShareeNode` true) with no `DNSName` and no `OS`. The count line counts what is listed. Nothing else in the list moves:
+  an offline machine, an expired key, a shared machine that has a name, a phone and a Linux box all stay.
+
+### The proof, run rather than read
+
+- The gates and `tailscale.test.ts` over a committed fixture in that shape (synthetic, no real key or address).
+- **The hostile fixture:** peers one field away from a relay (a `ShareeNode` machine with a name, an untagged nameless peer,
+  a peer tagged `tag:ingress-proxy`), each judged and the rule written down.
+- **The app run:** Settings › Machines › Add a Machine through a stand-in Tailscale printing that fixture: the relays gone,
+  the count true, every other row as at the parent.
+
+### What is NOT in this phase
+
+- **No change to Funnel, pairing or the phone door.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41017,3 +41054,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **HIS RULING ON THE SESSION PAGE, folded into PHASE 337.1: option B, "lets do B".** Tapping a session in the list opens its live terminal at once, full screen; the status line (status, agent, project) sits under the title; Catch Me Up is an icon in the top bar (`clock.arrow.circlepath` or `text.bubble`) beside End, which stays top right behind Face ID; the terminal is named Terminal in the app (his word), the store text still "the session's screen". He asked that Catch Me Up not be prominent, "as most people will want to use their terminal", and for icons rather than full-width rows. This reverses research 139's "Conversation the first-run default" for App Review, accepted as a modest risk beside Paseo and Orca. For the spec to settle without losing anything that works today: an ended session (no terminal) opens on Catch Me Up; the numbered-question buttons and End stay reachable from the terminal page; 318.1's message box later sits under the terminal.
 
 - 2026-10-05, **HE DELEGATED THE RULINGS FOR THE 337 → 337.1 → TESTFLIGHT 7 CHAIN: "just go with a logical decision if there are more than 2 failing checks and record in backlog".** If a phase in this chain answers needs_work after its fix and reverify, the main session decides (a narrow, verified fix of a tooling or wording defect and land; or remove the part that is worse than today and land the rest; never land a product defect that loses or misdirects his input), and records the decision and its reason here. He asked to go straight from 337 into 337.1 and have build 7 ready to upload.
+
+- 2026-10-05, **PHASE 339 QUEUED IN FULL AND STARTED, beside 337 on his word ("something you can parallelize")** — Add a Machine stops listing Tailscale's Funnel relay nodes (23 of his 26 peers).
