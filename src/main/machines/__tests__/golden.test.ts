@@ -32,7 +32,7 @@ import { classifyMachineOutput, MACHINE_OUTCOME_CLASSES } from '../errors';
 // `no-program`, are decided from the markers plus the exit code rather than from
 // the phrase table, so asking the phrase table about them would check a function
 // that is not the one deciding.
-import { classifyProbeOutput } from '../connection-test';
+import { classifyCheckOutput, classifyProbeOutput } from '../connection-test';
 
 const dir = join(__dirname, 'golden');
 
@@ -54,6 +54,11 @@ interface Manifest {
      */
     exitCode: number | null;
     bytes: number;
+    /**
+     * PHASE 340. Set on the two captures of the `command -v` probe this phase
+     * retired. The live test no longer prints those bytes.
+     */
+    retiredProbe?: string;
   }[];
   noGolden: { class: string; reason: string }[];
 }
@@ -99,6 +104,32 @@ describe('every captured file classifies to the class it was captured for', () =
       );
     });
   }
+});
+
+describe('the two captures of the probe Phase 340 retired', () => {
+  const retired = manifest.captures.filter((row) => row.retiredProbe !== undefined);
+
+  it('are exactly ok.txt and no-program.txt, each saying so in words', () => {
+    expect(retired.map((row) => row.file).sort()).toEqual(['no-program.txt', 'ok.txt']);
+    for (const row of retired) expect(row.retiredProbe?.length ?? 0).toBeGreaterThan(40);
+  });
+
+  it('the live decision does not read the retired path pair as ok', () => {
+    // The probe's own pair with no check block means the far side never ran
+    // Tortie's check, so the class that decides a live test refuses it.
+    const ok = readFileSync(join(dir, 'ok.txt'), 'utf8');
+    expect(classifyProbeOutput(ok, 0)).toBe('ok');
+    expect(classifyCheckOutput(ok, 0)).toBe('unknown');
+  });
+
+  it('every capture that is not the retired probe’s classifies the same through both', () => {
+    for (const row of manifest.captures.filter((r) => r.retiredProbe === undefined)) {
+      const text = readFileSync(join(dir, row.file), 'utf8');
+      expect(classifyCheckOutput(text, row.exitCode ?? -1), row.file).toBe(
+        classifyProbeOutput(text, row.exitCode ?? -1)
+      );
+    }
+  });
 });
 
 describe('what has no golden, and why', () => {

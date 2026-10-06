@@ -1,5 +1,13 @@
 #!/usr/bin/env node
 /**
+ * RETIRED BY PHASE 340, and it refuses at start, exit 2, with one sentence
+ * naming `npm run probe:p340`. Phase 340 replaced the Settings › Machines face
+ * this run drives (the add form, Show what it runs, the open row's paragraphs
+ * and buttons) with pick, check and add and a compact row whose rest is in a
+ * native menu, so a run that reached it would fail halfway on words and
+ * buttons that are gone. The file stays for its history and its import of
+ * build/electron-run.mjs (assert-electron-teardown's floor counts it).
+ *
  * `npm run probe:p131`. Phase 131's own Tier 2 probe for the machine row.
  *
  * IT DRIVES THE REAL SETTINGS WINDOW. A real `/usr/sbin/sshd` is started on
@@ -63,6 +71,14 @@ import { fileURLToPath } from 'node:url';
 
 import { withElectron } from './electron-run.mjs';
 import { endAgentWithThisProcess } from './scratch-machine.mjs';
+
+// PHASE 340. Refused before anything is made, launched or reached: the face
+// this run drives is gone, and a run that reached it would fail halfway.
+process.stderr.write(
+  '[p131-row] REFUSING TO RUN. It drives the machine row Phase 340 replaced (Show what it runs, the expand button and its paragraphs); ' +
+    'npm run probe:p340 (build/p340/probe-p340.mjs) is the app run that replaced it.\n'
+);
+process.exit(2);
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const scratch = join(

@@ -3062,6 +3062,229 @@ const p336 = await (async () => {
   };
 })();
 
+// ---------------------------------------------------------------------------
+// Phase 340, conditions 125 to 139. Adding a machine in three steps.
+// ---------------------------------------------------------------------------
+//
+// THE MODULES THIS BLOCK LOADS, said here rather than left to be noticed.
+// `check-script.ts` is pure and imports the quoting helper and a marker.
+// `connection-test.ts` is already loaded above for condition 8; only its pure
+// composers are CALLED here (`composeTestArgv` with and without a key, and
+// `checkViewOf` is left to build/p340/far-check.mts, which drives the runner).
+// `errors.ts` is pure. `src/renderer/settings/machine-status.ts` is pure and
+// imports the copy module, which imports types only. `machine-menu.ts` is the
+// renderer's menu table: it is loaded LAST with a bare `window` object put in
+// place only if none exists, because the module registers its probe hook on
+// the window when it is imported, and the shim is taken away again at once. No
+// command runs, no file is written and nothing is spawned by any of them; the
+// shells this phase drives are build/p340/far-check.mts's, which the checker
+// starts itself.
+const p340 = await (async () => {
+  const loadErrors: Record<string, string> = {};
+  const load = optionalLoader(loadErrors);
+  const fnOf = <T>(mod: Record<string, unknown> | null, name: string, key: string): T | null => {
+    if (mod === null) return null;
+    if (typeof mod[name] !== 'function') {
+      loadErrors[`${key}.${name}`] = `${key} exports no function ${name}`;
+      return null;
+    }
+    return mod[name] as T;
+  };
+  const tryIt = <T>(f: () => T): { value: T | null; threw: string | null } => {
+    try {
+      return { value: f(), threw: null };
+    } catch (err) {
+      return { value: null, threw: err instanceof Error ? err.message : String(err) };
+    }
+  };
+
+  const checkMod = await load('check-script', 'src/main/machines/check-script.ts');
+  const testMod = await load('connection-test', 'src/main/machines/connection-test.ts');
+  const errorsMod = await load('errors', 'src/main/machines/errors.ts');
+  const statusMod = await load('machine-status', 'src/renderer/settings/machine-status.ts');
+
+  // --- 125 and 126: the text and how it reaches ssh -------------------------
+  const texts = (() => {
+    if (checkMod === null) return null;
+    const compose = fnOf<(t: string | null) => string>(checkMod, 'composeCheckCommand', 'check-script');
+    const script = typeof checkMod['CHECK_SCRIPT'] === 'string' ? (checkMod['CHECK_SCRIPT'] as string) : null;
+    const probeText = typeof checkMod['LOGIN_PATH_PROBE'] === 'string' ? (checkMod['LOGIN_PATH_PROBE'] as string) : null;
+    const folders = Array.isArray(checkMod['REMOTE_TMUX_INSTALL_FOLDERS']) ? (checkMod['REMOTE_TMUX_INSTALL_FOLDERS'] as string[]) : null;
+    return {
+      script,
+      loginProbe: probeText,
+      checkMarker: checkMod['CHECK_MARKER'] ?? null,
+      loginMarker: checkMod['LOGIN_MARKER'] ?? null,
+      folders,
+      composedNull: compose === null ? null : tryIt(() => compose(null)).value,
+      composedSaved: compose === null ? null : tryIt(() => compose(BASE.remoteTmuxPath)).value,
+      recomposedNull:
+        script === null || probeText === null || folders === null
+          ? null
+          : shellQuoteArgv(['/bin/sh', '-c', script, 'tortie-check', '', probeText, folders.join(':')]),
+      recomposedSaved:
+        script === null || probeText === null || folders === null
+          ? null
+          : shellQuoteArgv(['/bin/sh', '-c', script, 'tortie-check', String(BASE.remoteTmuxPath), probeText, folders.join(':')])
+    };
+  })();
+  /** The last argv element of a draft check (no program path) and of a saved row's. */
+  const testArgv = (() => {
+    const compose = testMod === null ? null : (testMod['composeTestArgv'] as typeof composeTestArgv | undefined) ?? null;
+    if (compose === null) return null;
+    const draft = tryIt(() => compose({ ...BASE, remoteTmuxPath: null }, HOST_KEYS));
+    const saved = tryIt(() => compose(BASE, HOST_KEYS));
+    return {
+      draftLast: draft.value === null ? null : draft.value[draft.value.length - 1] ?? null,
+      savedLast: saved.value === null ? null : saved.value[saved.value.length - 1] ?? null,
+      threw: draft.threw ?? saved.threw
+    };
+  })();
+
+  // --- 129: the reason composer, driven ------------------------------------
+  const reasons = (() => {
+    const reasonOf = fnOf<(err: unknown) => string>(errorsMod, 'clientFailedReason', 'errors');
+    const copyOf = fnOf<(cls: string, facts: Record<string, unknown>) => { headline: string; detail: string }>(errorsMod, 'composeOutcomeCopy', 'errors');
+    if (reasonOf === null || copyOf === null) return null;
+    const withCode = (code: string): Error => Object.assign(new Error(`spawn failed ${code}`), { code });
+    const errors: [string, unknown][] = [
+      ['posix_spawnp failed.', new Error('posix_spawnp failed.')],
+      ['EACCES', withCode('EACCES')],
+      ['EPERM', withCode('EPERM')],
+      ['EMFILE', withCode('EMFILE')],
+      ['ENFILE', withCode('ENFILE')],
+      ['EAGAIN', withCode('EAGAIN')],
+      ['ENOENT', withCode('ENOENT')],
+      ['a bare string', 'something else'],
+      ['a forkpty failure', new Error('forkpty(3) failed.')]
+    ];
+    return {
+      rows: errors.map(([name, err]) => ({ name, reason: tryIt(() => reasonOf(err)).value })),
+      failedCopy: tryIt(() => copyOf('client-failed', { sshPath: '/usr/bin/ssh', clientReason: reasonOf(new Error('posix_spawnp failed.')) })).value,
+      missingCopy: tryIt(() => copyOf('client-missing', {})).value
+    };
+  })();
+
+  // --- 138: Tortie's key on the visible test --------------------------------
+  const identity = (() => {
+    const compose = testMod === null ? null : (testMod['composeTestArgv'] as ((f: MachineExecutionFields, h: typeof HOST_KEYS, k?: string | null) => string[]) | undefined) ?? null;
+    if (compose === null) return null;
+    const keyPath = keyPathFor(ID, KEY_USER_DATA);
+    const withKey = tryIt(() => compose(BASE, HOST_KEYS, keyPath));
+    const withNull = tryIt(() => compose(BASE, HOST_KEYS, null));
+    const without = tryIt(() => compose(BASE, HOST_KEYS));
+    const draftWithKey = tryIt(() => compose({ ...BASE, remoteTmuxPath: null }, HOST_KEYS, keyPath));
+    return {
+      keyDir: keyDirFor(KEY_USER_DATA),
+      keyPath,
+      withKey: withKey.value,
+      withNull: withNull.value,
+      without: without.value,
+      draftWithKey: draftWithKey.value,
+      threw: withKey.threw ?? withNull.threw ?? without.threw ?? draftWithKey.threw
+    };
+  })();
+
+  // --- 139: the row's chip, over the D11 table as revised ------------------
+  const status = (() => {
+    const statusOf = fnOf<(row: unknown, facts: { preparing: boolean }) => { chip: string; next: string | null; word: string }>(statusMod, 'machineStatusOf', 'machine-status');
+    if (statusOf === null) return null;
+    const row = (over: Record<string, unknown>) => ({
+      id: 'p340',
+      label: 'P340',
+      color: 'blue',
+      host: '127.0.0.1',
+      user: null,
+      port: null,
+      remoteTmuxPath: '/opt/homebrew/bin/tmux',
+      state: 'confirmed',
+      ready: false,
+      link: null,
+      linkDetail: null,
+      signIn: null,
+      os: null,
+      ...over
+    });
+    const signIn = (cls: string) => ({ class: cls, at: 1, version: '3.6a', headline: `headline ${cls}`, detail: 'detail' });
+    // [name, row, preparing, the chip, the next step] in the order of the
+    // spec's revised table, first match wins, plus the rows the attack added.
+    const TABLE: [string, Record<string, unknown>, boolean, string, string | null][] = [
+      ['unknown', { state: 'unknown' }, false, 'not-usable', 'review'],
+      ['never', { state: 'never' }, false, 'not-confirmed', 'review'],
+      ['changed', { state: 'changed', ready: true, link: 'connected' }, false, 'changed', 'review'],
+      ['host-key-changed', { signIn: signIn('host-key-changed'), ready: true, link: 'connected' }, false, 'identity-changed', null],
+      ['auth-refused', { signIn: signIn('auth-refused') }, false, 'needs-key', 'set-up-sign-in'],
+      ['password-required', { signIn: signIn('password-required') }, false, 'needs-key', 'set-up-sign-in'],
+      ['version-unmeasured', { signIn: signIn('version-unmeasured') }, false, 'new-version', 'review-version'],
+      ['a Prepare in flight', { signIn: signIn('prepared') }, true, 'connecting', null],
+      ['link connecting', { link: 'connecting' }, false, 'connecting', null],
+      ['ready and connected', { ready: true, link: 'connected', signIn: signIn('prepared') }, false, 'ready', 'open-folder'],
+      ['ready and polling', { ready: true, link: 'polling', signIn: signIn('prepared') }, false, 'ready', 'open-folder'],
+      // THE ATTACK'S ROW (R1): a registered context on a machine that went to
+      // sleep. `ready` stays true and the link is quiet.
+      ['ready and quiet', { ready: true, link: 'quiet', signIn: signIn('prepared') }, false, 'offline', 'prepare'],
+      ['ready with no link', { ready: true, link: null, signIn: signIn('prepared') }, false, 'not-ready', 'prepare'],
+      ['ready and disconnected', { ready: true, link: 'disconnected', signIn: signIn('prepared') }, false, 'not-ready', 'prepare'],
+      ['connected, not ready', { ready: false, link: 'connected', signIn: signIn('prepared') }, false, 'not-ready', 'prepare'],
+      ['unreachable', { signIn: signIn('unreachable') }, false, 'offline', 'prepare'],
+      ['refused', { signIn: signIn('refused') }, false, 'offline', 'prepare'],
+      ['not-resolved', { signIn: signIn('not-resolved') }, false, 'offline', 'prepare'],
+      ['timed-out', { signIn: signIn('timed-out') }, false, 'offline', 'prepare'],
+      ['link quiet', { link: 'quiet' }, false, 'offline', 'prepare'],
+      ['no sign in', {}, false, 'not-ready', 'prepare'],
+      ['no-program', { signIn: signIn('no-program') }, false, 'not-ready', 'prepare'],
+      ['no-server', { signIn: signIn('no-server') }, false, 'not-ready', 'prepare'],
+      ['client-missing', { signIn: signIn('client-missing') }, false, 'not-ready', 'prepare'],
+      ['client-failed', { signIn: signIn('client-failed') }, false, 'not-ready', 'prepare']
+    ];
+    return TABLE.map(([name, over, preparing, chip, next]) => {
+      const got = tryIt(() => statusOf(row(over), { preparing }));
+      return { name, want: { chip, next }, got: got.value === null ? { threw: got.threw } : { chip: got.value.chip, next: got.value.next, word: got.value.word } };
+    });
+  })();
+
+  // --- 134: the menu's rows, per state -------------------------------------
+  // Loaded last, with a bare window shim only if none exists (see above).
+  const menu = await (async () => {
+    const g = globalThis as Record<string, unknown>;
+    const shimmed = typeof g['window'] === 'undefined';
+    if (shimmed) g['window'] = {};
+    try {
+      const menuMod = await load('machine-menu', 'src/renderer/settings/machine-menu.ts');
+      const itemsOf = fnOf<(row: unknown, facts: Record<string, unknown>) => unknown[]>(menuMod, 'machineMenuItems', 'machine-menu');
+      if (itemsOf === null) return null;
+      const base = { id: 'p340', label: 'P340', color: 'blue', host: '127.0.0.1', user: null, port: null, remoteTmuxPath: '/opt/homebrew/bin/tmux', ready: true, link: 'connected', signIn: null, os: null, acceptedTmuxVersion: null };
+      const shape = (items: unknown[] | null) =>
+        (items ?? []).map((raw) => {
+          const one = (raw ?? {}) as Record<string, unknown>;
+          return {
+            id: typeof one['id'] === 'string' ? one['id'] : null,
+            label: typeof one['label'] === 'string' ? one['label'] : null,
+            type: typeof one['type'] === 'string' ? one['type'] : null,
+            enabled: one['enabled'] === undefined ? true : one['enabled'] === true,
+            sublabel: typeof one['sublabel'] === 'string' ? one['sublabel'] : null
+          };
+        });
+      // `usable` is true exactly when the state is confirmed, as main's view
+      // composes it (rows.ts), so the menu reads the row a person's window gets.
+      const read = (over: Record<string, unknown>) => {
+        const row = { ...base, ...over };
+        const got = tryIt(() => itemsOf({ ...row, usable: row['state'] === 'confirmed' }, { preparing: false, testing: false, busy: false }));
+        return got.value === null ? { threw: got.threw } : { items: shape(got.value) };
+      };
+      return {
+        confirmed: read({ state: 'confirmed' }),
+        never: read({ state: 'never', ready: false, link: null }),
+        accepted: read({ state: 'confirmed', acceptedTmuxVersion: '3.9z' })
+      };
+    } finally {
+      if (shimmed) delete g['window'];
+    }
+  })();
+
+  return { loadErrors, texts, testArgv, reasons, identity, status, menu };
+})();
+
 process.stdout.write(
   JSON.stringify({
     id: ID,
@@ -3069,6 +3292,8 @@ process.stdout.write(
     phase3201: p3201,
     // Phase 336, conditions 113 to 121.
     phase336: p336,
+    // Phase 340, conditions 125 to 139.
+    phase340: p340,
     base,
     sameAgain: machineExecutionHash(ID, { ...BASE }),
     fields: fieldRows,

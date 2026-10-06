@@ -423,12 +423,27 @@ const HELPER = 'electron-run.mjs';
  * refuse at start and keep their import of the helper, so none left the
  * population.
  *
+ * PHASE 340 RAISED IT FROM 166 TO 167, by one for build/p340/probe-p340.mjs
+ * (`probe:p340`), adding a machine in three steps: ONE Electron at a time
+ * through the helper, the parent's first with P340_PARENT_CHECKOUT and then
+ * HEAD's, each on a scratch profile with a scratch HOME and the socket
+ * gmux-p340…, against its OWN loopback machine (build/scratch-machine.mjs's
+ * scratchYard and scratchMachine, never build/with-scratch-machine.mjs, whose
+ * isolated() reads the person's ~/.ssh/config) behind an ssh wrapper and a
+ * Tailscale stand-in it preflights by sha256. The five drives of the old
+ * Settings › Machines face (build/probe-machines.mjs,
+ * build/probe-p130-prose.mjs, build/probe-p130-spacing.mjs,
+ * build/probe-p131-row.mjs and build/probe-p235-nits.mjs) now refuse at start
+ * and keep their import of the helper, so none left the population. Phase
+ * 337, building at the same time, raises the same constant from 166 to 167
+ * for build/p337's probe; whichever of the two lands second makes it 168.
+ *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 167;
+const HELPER_USER_FLOOR = 168;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

@@ -40,6 +40,17 @@
  * This file's own behaviour did not change. It still calls
  * `addRemoteProject(machineId, path)` and nothing else, and main does the
  * remembering.
+ *
+ * ## What changed in Phase 340
+ *
+ * A second door names the machine. Settings → a machine's row → Open a folder
+ * on it… arrives here as the menu action `open-folder-on:<id>`, which writes
+ * the id beside the open flag (`remoteProjectMachineId`, set only by
+ * `setRemoteProjectOpen`). The sheet starts on that machine when its list
+ * holds it, and on its first machine otherwise, which is what every opening did
+ * before (`startingMachineId` below). Nothing else here moved: it still reads
+ * the list once per opening, starts nothing, and a machine a person chose
+ * while the list was being read is never replaced by the one the door named.
  */
 
 import React, { useEffect, useRef, useState } from 'react';
@@ -69,6 +80,24 @@ import { modalKeyDown } from './focus-trap';
 const REMOTE_PROJECT_BUSY = 'Opening…';
 const REMOTE_PROJECT_CANCEL = 'Cancel';
 const REMOTE_PROJECT_CHOOSE = 'Choose…';
+
+/**
+ * PHASE 340. The machine the sheet starts on, or `null` when it lists none.
+ *
+ * The one the door named, when the list holds it; otherwise the first, which
+ * is where every opening started before this phase. The list is the usable
+ * rows, so a named machine that is not confirmed, or that was removed between
+ * the press in Settings and this read, is simply not chosen: the sheet invents
+ * no sentence for it, and the machine field above the folder shows which one
+ * is.
+ */
+export function startingMachineId(
+  rows: readonly MachineRowView[],
+  asked: string | null
+): string | null {
+  if (asked !== null && rows.some((row) => row.id === asked)) return asked;
+  return rows[0]?.id ?? null;
+}
 
 export function RemoteProjectModal(): React.JSX.Element | null {
   const open = useApp((s) => s.remoteProjectOpen);
@@ -108,14 +137,22 @@ export function RemoteProjectModal(): React.JSX.Element | null {
       setMachines([]);
       return undefined;
     }
+    // PHASE 340. The machine the door named, read once, at the opening, from
+    // the same `set` that raised the flag. It is read here rather than
+    // subscribed to, so the list is still read once per opening and a later
+    // door cannot re-aim a sheet that is already open.
+    const asked = useApp.getState().remoteProjectMachineId;
     let cancelled = false;
     void api.rows().then(
       (result) => {
         if (cancelled) return;
         const rows = result.rows.filter((row) => row.usable);
         setMachines(rows);
-        const first = rows[0];
-        if (first !== undefined) setMachineId((id) => (id === '' ? first.id : id));
+        // PHASE 340. The named machine when the list holds it, else the first.
+        // A choice the person already made (`id !== ''`) wins over both, as it
+        // always did over the first.
+        const start = startingMachineId(rows, asked);
+        if (start !== null) setMachineId((id) => (id === '' ? start : id));
       },
       () => {
         if (!cancelled) setMachines([]);

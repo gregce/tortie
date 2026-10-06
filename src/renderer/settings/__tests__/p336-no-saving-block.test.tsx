@@ -14,6 +14,11 @@
  * and its `writeHonesty` paragraph, and Withdraw clears it with the
  * confirmation, through the same `machines:forget` it always used.
  *
+ * PHASE 340 moved Withdraw into the row's native menu, as Stop trusting this
+ * machine, and the lines into a panel a press opens. The pins below follow
+ * them: the panel is opened through the store, the way the row's own button
+ * opens it, and Withdraw is driven through the menu's one runner.
+ *
  * THE REMOVED WORDS ARE SPELLED IN PIECES HERE ON PURPOSE. The phase's gate
  * (`conformance:machines` condition 120) fails when the old button's label or
  * its constant's name appears anywhere under src/renderer, so this file never
@@ -29,6 +34,23 @@ import type { MachineRowView, MachinesResult } from '@shared/ipc';
 import { MachinesView } from '../MachinesSection';
 import * as copy from '../machines-copy';
 
+/**
+ * PHASE 340. The panel open under each row, seeded. zustand serves its INITIAL
+ * state to a server render, so seeding the real store would change nothing on
+ * the page; this replacement runs the same selector over the initial state
+ * with this one field overridden, the pattern machines-section.test.tsx uses.
+ * Every call a test makes through `getState` still reaches the real store.
+ */
+let panelSeed: Readonly<Record<string, 'review' | 'what'>> = {};
+
+vi.mock('../machines-store', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../machines-store')>();
+  const real = actual.useMachinesStore;
+  const hook = (selector: (state: unknown) => unknown): unknown =>
+    selector({ ...real.getInitialState(), panels: panelSeed });
+  return { ...actual, useMachinesStore: Object.assign(hook, real) };
+});
+
 const forget = vi.fn(async () => undefined);
 const rowsCall = vi.fn(async () => result([]));
 vi.stubGlobal('window', {
@@ -36,6 +58,7 @@ vi.stubGlobal('window', {
 });
 
 const { useMachinesStore } = await import('../machines-store');
+const { runMachineMenuItem } = await import('../machine-menu');
 
 /** The removed button label, in two pieces (see the header). */
 const OLD_BUTTON = ['Let Tortie', 'save files here'].join(' ');
@@ -96,7 +119,10 @@ function result(rows: MachineRowView[]): MachinesResult {
   };
 }
 
-function draw(rows: MachineRowView[]): string {
+function draw(rows: MachineRowView[], open: 'review' | 'what' | null = null): string {
+  // PHASE 340. A row draws its lines in a panel under it, and one press opens
+  // it. The press sets the store's `panels`, which the seed stands in for.
+  panelSeed = open === null ? {} : Object.fromEntries(rows.map((r) => [r.id, open]));
   return renderToStaticMarkup(
     <MachinesView
       machines={result(rows)}
@@ -128,7 +154,7 @@ function blockMarkers(html: string): string[] {
 
 describe('the Saving files block is gone from every row', () => {
   it('draws none of it on an open row nobody has confirmed', () => {
-    const html = draw([row({ state: 'never', usable: false })]);
+    const html = draw([row({ state: 'never', usable: false })], 'review');
     expect(html).toContain('data-machines-action="confirm"');
     expect(blockMarkers(html)).toEqual([]);
   });
@@ -137,6 +163,8 @@ describe('the Saving files block is gone from every row', () => {
     const html = draw([row({})]);
     expect(html).toContain('data-machine-id="pop-os"');
     expect(blockMarkers(html)).toEqual([]);
+    // Nor in the panel that holds everything else about it.
+    expect(blockMarkers(draw([row({})], 'what'))).toEqual([]);
   });
 
   it('draws none of it on a row carrying a folder from an earlier build', () => {
@@ -155,27 +183,31 @@ describe('the Saving files block is gone from every row', () => {
 
 describe('a folder typed in an earlier build is still drawn', () => {
   it("in the row's lines and its honesty paragraph, as main sends them", () => {
-    const html = draw([
-      row({
-        state: 'changed',
-        usable: false,
-        writeRoot: '/srv/greg',
-        lines: ['Machine: pop-os.tail1a2b.ts.net', LEGACY_LINE],
-        writeHonesty: LEGACY_HONESTY
-      })
-    ]);
+    const html = draw(
+      [
+        row({
+          state: 'changed',
+          usable: false,
+          writeRoot: '/srv/greg',
+          lines: ['Machine: pop-os.tail1a2b.ts.net', LEGACY_LINE],
+          writeHonesty: LEGACY_HONESTY
+        })
+      ],
+      'review'
+    );
     expect(html).toContain(LEGACY_LINE);
     expect(html).toContain('data-machine-write-honesty');
     expect(html).toContain(LEGACY_HONESTY);
   });
 
   it('is cleared by Withdraw, through the forget it always used', async () => {
-    const source = readFileSync(resolve(__dirname, '../MachineRow.tsx'), 'utf8');
-    const at = source.indexOf('data-machines-action="withdraw"');
-    expect(at).toBeGreaterThan(-1);
-    expect(source.slice(at, at + 200)).toContain('void forget(row.id).then(setError);');
+    // PHASE 340. Withdraw is the menu row Stop trusting this machine, and a
+    // pick runs through the menu's one runner, which calls the same store verb
+    // and so the same `machines:forget`.
+    const confirmed = row({ writeRoot: '/srv/greg' });
+    useMachinesStore.setState({ machines: result([confirmed]), busy: null });
     forget.mockClear();
-    const said = await useMachinesStore.getState().forgetMachine('pop-os');
+    const said = await runMachineMenuItem('forget', confirmed);
     expect(said).toBe(null);
     expect(forget).toHaveBeenCalledTimes(1);
     expect(forget).toHaveBeenCalledWith('pop-os');

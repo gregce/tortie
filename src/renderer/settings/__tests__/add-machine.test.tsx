@@ -1,37 +1,34 @@
 /**
- * Phase 68. Add a machine, and the connection test view.
+ * Phase 68. Add a machine, and the check view. PHASE 340 rewrote both as pick,
+ * check and add (build/p340/SPEC.md section 5.1, D8, D9, D17, D28).
  *
  * What these tests hold:
- * - The confirm button is off until a connection test has come back `ok` with
- *   an absolute path the machine itself reported, and the reason is written
- *   under it for as long as it is off. A control that is off without saying
- *   why is a puzzle rather than a safeguard.
- * - The picker prints the pinned absolute path Tortie ran, before it runs
- *   anything.
- * - PHASE 79. The panel above the picker has three states and each one says
- *   what a person can do. A Mac with no Tailscale gets the install command in
- *   mono with a copy control beside it, which is what the agent scan already
- *   does for an agent that is not installed. The operator pressed the button,
- *   read one sentence saying no program was found, and had nowhere to go.
+ * - No Add button exists until main has composed a sheet, which is every check
+ *   that answered ok and nothing else. Before that there is nothing a person
+ *   could meaningfully agree to: the lines name a program the machine itself
+ *   reports at the end of the check.
+ * - The Add step draws main's own lines, warning and sealing sentence under
+ *   What it runs, beside the one press, and a version Tortie has not measured
+ *   is one line on that press.
+ * - PHASE 79. The tailnet list has three states and each says what a person
+ *   can do. A Mac with no Tailscale gets the install command in mono with a
+ *   copy control beside it, which Tortie never runs. Its head is two words;
+ *   what Tailscale is for, where Tortie ran it from and when it last looked
+ *   are its hover.
  * - PHASE 79. A device that cannot keep a session alive is marked and its
- *   button is off. It is never removed from the list, because a device a
- *   person can see in the Tailscale app and not in Tortie reads as Tortie
- *   being broken.
- * - PHASE 79. An outcome a person can act on carries what to do next, and an
- *   outcome that worked carries nothing.
+ *   button is off. It is never removed from the list.
  * - PHASE 79.1. A machine that turned the sign in down is offered a key on
- *   this sheet, before it has been added at all. That is the case the rung
- *   exists for: a machine that refuses cannot pass the test, and a machine
- *   that cannot pass the test can never be added. The block itself is drawn by
- *   the connection test view, and it is proven in key-install.test.tsx. What
- *   is proven here is that this sheet reaches it.
+ *   this sheet, before it has been added at all; the step itself is proven in
+ *   key-install.test.tsx.
  * - A changed host key draws the alarm state. An unreachable machine does
- *   not. The two must never look the same, because three ordinary events
- *   wearing the alarm colour teach a person to ignore the one that is not.
+ *   not. The two must never look the same.
  * - The renderer composes none of the outcome copy. Both sentences come from
  *   main on the outcome, so they are asserted as the fixture sent them.
  * - The id a new row will carry is derived and made unique, so a person never
  *   has to type one and two machines never share a confirmation.
+ *
+ * Each step's own shape, its words at rest and the store's chained actions are
+ * in p340-add-steps.test.tsx.
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server rather than a mounted DOM.
@@ -40,21 +37,27 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import type {
+  MachineCheckView,
   MachineTestOutcome,
   MachineTestStarted,
   MachinesResult,
   TailscaleSourceResult
 } from '@shared/ipc';
-import { AddMachineView, peerCanHost, peerDisplayName } from '../AddMachine';
+import {
+  AddMachineView,
+  peerCanHost,
+  peerDisplayName,
+  type AddMachineViewProps
+} from '../AddMachine';
 import { ConnectionTestView } from '../ConnectionTestView';
 import {
   MEASURED_VERSIONS,
+  PREPARE_SUPPORTED_LABEL,
   REMEDY,
   REMEDY_LABEL,
+  TAILSCALE_EXPLAIN,
   TAILSCALE_INSTALL_COMMAND,
   TAILSCALE_NOT_INSTALLED,
-  TAILSCALE_NOT_LOOKED,
-  TAILSCALE_TITLE,
   TAILSCALE_WHY
 } from '../machines-copy';
 import {
@@ -76,10 +79,9 @@ const STARTED: MachineTestStarted = {
 };
 
 /**
- * The sheet main sends back at the end of a test that worked. These are
- * `describeMachine`'s own lines, copied from src/main/machines/confirm.ts, so
- * the fixture is what the surface actually receives rather than something the
- * renderer could have written for itself.
+ * The sheet main sends back at the end of a check that worked. These are
+ * `describeMachine`'s own lines, so the fixture is what the surface actually
+ * receives rather than something the renderer could have written for itself.
  */
 const SHEET = {
   hash: 'f'.repeat(64),
@@ -91,10 +93,24 @@ const SHEET = {
   warning:
     'This names a machine Tortie will sign in to as you, and a program it ' +
     'will run there with your files and your credentials.',
-  // PHASE 101. Main answers this on every sheet. Null is the ordinary case,
-  // being a machine nobody has let Tortie save files on.
+  // PHASE 101. Main answers this on every sheet. Null is the ordinary case.
   writeHonesty: null
 };
+
+/** What the check read, as main composes it from the one block. */
+function check(over: Partial<MachineCheckView> = {}): MachineCheckView {
+  return {
+    signedInAs: 'greg',
+    os: 'Darwin',
+    loginRead: true,
+    program: { path: '/usr/bin/tmux', source: 'path' },
+    candidates: [{ path: '/usr/bin/tmux', source: 'path' }],
+    typedMissing: false,
+    version: '3.6a',
+    versionKind: 'measured',
+    ...over
+  };
+}
 
 function outcome(over: Partial<MachineTestOutcome>): MachineTestOutcome {
   return {
@@ -107,11 +123,12 @@ function outcome(over: Partial<MachineTestOutcome>): MachineTestOutcome {
     exitCode: 0,
     durationMs: 1_240,
     sheet: SHEET,
+    check: check(),
     ...over
   };
 }
 
-/** One finished draft test, as the store holds it. */
+/** One finished draft check, as the store holds it. */
 function draftTest(over: Partial<LiveTest> = {}): LiveTest {
   return {
     started: STARTED,
@@ -121,6 +138,7 @@ function draftTest(over: Partial<LiveTest> = {}): LiveTest {
     transcript: '',
     outcome: outcome({}),
     running: false,
+    ask: null,
     ...over
   };
 }
@@ -146,6 +164,46 @@ function form(over: Partial<MachineFormState>): MachineFormState {
   return { ...emptyForm(), ...over };
 }
 
+const noop = (): undefined => undefined;
+
+/** Every prop the view takes, with nothing pressed and nothing open. */
+function props(over: Partial<AddMachineViewProps> = {}): AddMachineViewProps {
+  return {
+    machines: machines(),
+    form: emptyForm(),
+    tailscale: null,
+    tailscaleBusy: false,
+    tailscaleReadAt: null,
+    test: null,
+    keyInstall: null,
+    addressOpen: false,
+    advancedOpen: false,
+    detailsOpen: false,
+    added: null,
+    busy: false,
+    error: null,
+    onSetForm: noop,
+    onClose: noop,
+    onFindTailnet: noop,
+    onUsePeer: noop,
+    onSetAddressOpen: noop,
+    onSetAdvancedOpen: noop,
+    onSetDetailsOpen: noop,
+    onStartTest: noop,
+    onCheckAgain: noop,
+    onPickCandidate: noop,
+    onAnswer: noop,
+    onSendInput: noop,
+    onCancelTest: noop,
+    onInstallKey: noop,
+    onAdd: noop,
+    onAcceptVersion: noop,
+    onOpenFolder: noop,
+    onDone: noop,
+    ...over
+  };
+}
+
 function seed(state: {
   form?: MachineFormState;
   test?: LiveTest | null;
@@ -155,34 +213,15 @@ function seed(state: {
 }): string {
   return renderToStaticMarkup(
     <AddMachineView
-      machines={machines()}
-      form={state.form ?? emptyForm()}
-      tailscale={state.tailscale ?? null}
-      tailscaleBusy={false}
-      tailscaleReadAt={state.tailscaleReadAt ?? null}
-      test={state.test ?? null}
-      keyInstall={state.keyInstall ?? null}
-      busy={false}
-      error={null}
-      onSetForm={() => undefined}
-      onClose={() => undefined}
-      onFindTailnet={() => undefined}
-      onUsePeer={() => undefined}
-      onStartTest={() => undefined}
-      onSendInput={() => undefined}
-      onCancelTest={() => undefined}
-      onInstallKey={() => undefined}
-      onAdd={() => undefined}
+      {...props({
+        form: state.form ?? emptyForm(),
+        test: state.test ?? null,
+        tailscale: state.tailscale ?? null,
+        tailscaleReadAt: state.tailscaleReadAt ?? null,
+        keyInstall: state.keyInstall ?? null
+      })}
     />
   );
-}
-
-/** The one button's opening tag, so `disabled` can be read off it alone. */
-function addButtonTag(html: string): string {
-  const at = html.indexOf('data-machines-action="add-confirm"');
-  expect(at).toBeGreaterThan(-1);
-  const open = html.lastIndexOf('<button', at);
-  return html.slice(open, html.indexOf('>', at) + 1);
 }
 
 /** One peer row's opening tag, found by the address it carries. */
@@ -193,134 +232,103 @@ function peerButtonTag(html: string, host: string): string {
   return html.slice(open, html.indexOf('>', at) + 1);
 }
 
-describe('the confirm button waits for the machine to answer', () => {
-  it('is off with no test at all, and says why', () => {
+describe('the Add press waits for the machine to answer', () => {
+  it('does not exist with no check at all', () => {
     const html = seed({ form: form({ host: '127.0.0.1' }) });
-    expect(addButtonTag(html)).toContain('disabled');
-    expect(html).toContain(
-      'Run the connection test first. Tortie needs to see the machine ' +
-        'answer, and it needs the program path the machine reports.'
-    );
-    // Phase 87. The reason is on the button rather than under it. It is the
-    // same words, in a place that costs no standing paragraph.
-    expect(addButtonTag(html)).toContain(
-      'title="Run the connection test first.'
-    );
+    expect(html).not.toContain('data-machines-action="add-confirm"');
+    expect(html).not.toContain('data-machines-step="add"');
   });
 
-  it('is still off while the test is running', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: draftTest({ outcome: null, running: true })
-    });
-    expect(addButtonTag(html)).toContain('disabled');
+  it('does not exist while the check is running', () => {
+    const html = seed({ test: draftTest({ outcome: null, running: true }) });
+    expect(html).not.toContain('data-machines-action="add-confirm"');
   });
 
-  it('is still off when the test came back with anything other than ok', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: draftTest({
-        outcome: outcome({
-          class: 'refused',
-          headline: 'That machine answered and refused the connection.',
-          detail:
-            'Something is at that address and it is not accepting ' +
-            'connections on this port.',
-          resolvedPath: null,
-          exitCode: 255,
-          sheet: null
+  it('does not exist when the check came back with anything other than ok', () => {
+    for (const cls of ['unreachable', 'no-program', 'program-choice', 'auth-refused'] as const) {
+      const html = seed({
+        test: draftTest({
+          outcome: outcome({ class: cls, resolvedPath: null, sheet: null })
         })
-      })
-    });
-    expect(addButtonTag(html)).toContain('disabled');
+      });
+      expect({ cls, add: html.includes('data-machines-action="add-confirm"') }).toEqual({
+        cls,
+        add: false
+      });
+    }
   });
 
-  it('is still off when the test worked and main sent no sheet back', () => {
-    // This is the shape the first build shipped in. The test succeeded, the
-    // path came back, and there was no hash for the agreement to bind to, so
-    // every add was refused by main as stale. The button must be off rather
-    // than send a hash the renderer made up.
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: draftTest({ outcome: outcome({ sheet: null }) })
-    });
-    expect(addButtonTag(html)).toContain('disabled');
+  it('does not exist when the check worked and main sent no sheet back', () => {
+    const html = seed({ test: draftTest({ outcome: outcome({ sheet: null }) }) });
+    expect(html).not.toContain('data-machines-action="add-confirm"');
   });
 
-  it('is still off when the test was started before the machine was named', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: draftTest({ draftId: null })
-    });
-    expect(addButtonTag(html)).toContain('disabled');
+  it('does not exist when the check was started with no id', () => {
+    const html = seed({ test: draftTest({ draftId: null }) });
+    expect(html).not.toContain('data-machines-action="add-confirm"');
   });
 
-  it('comes on once the machine answered and main sent the sheet, and drops the reason', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: draftTest()
-    });
-    expect(addButtonTag(html)).not.toContain('disabled');
-    expect(html).not.toContain('Run the connection test first.');
-    // Phase 87. The tooltip is spread only while the button is off, so an
-    // enabled button carries no title at all.
-    expect(addButtonTag(html)).not.toContain('title=');
+  it('exists, enabled, once the machine answered ok and main sent the sheet', () => {
+    const html = seed({ form: form({ label: 'Studio' }), test: draftTest() });
+    const at = html.indexOf('data-machines-action="add-confirm"');
+    expect(at).toBeGreaterThan(-1);
+    const tag = html.slice(html.lastIndexOf('<button', at), html.indexOf('>', at) + 1);
+    expect(tag).not.toContain('disabled');
+    expect(html).toContain('>Add Studio<');
   });
 
-  it('draws main’s own sheet lines, and no name and no colour', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1', label: 'Scratch box', color: 'green', port: '2222' }),
-      test: draftTest()
-    });
-    for (const line of SHEET.lines) expect(html).toContain(line);
-    // The name and the colour are presentation. They are not in the hash, so
-    // they are never in the lines a person agrees to.
-    expect(html).not.toContain('Machine: Scratch box');
-    expect(html).not.toContain('Color: ');
-    expect(html).not.toContain('Colour');
+  it('draws main’s own sheet lines, warning and sealing sentence under What it runs', () => {
+    const html = seed({ test: draftTest() });
+    const what = html.indexOf('data-machines-what-it-runs="1"');
+    expect(what).toBeGreaterThan(-1);
+    for (const line of SHEET.lines) {
+      expect(html.indexOf(line)).toBeGreaterThan(what);
+    }
+    expect(html).toContain(machines().warning);
+    expect(html).toContain(machines().honesty);
   });
 
-  it('carries both sentences main sent on the result, in one paragraph', () => {
-    const html = seed({ form: form({ host: '127.0.0.1' }) });
+  it('keeps the measured list inside What it runs, where condition 100(e) reads it', () => {
+    const html = seed({ test: draftTest() });
+    expect(html).toContain(PREPARE_SUPPORTED_LABEL);
     expect(html).toContain(
-      'This names a machine Tortie will sign in to as you, and a program it ' +
-        'will run there with your files and your credentials.'
+      `<span class="mach-prepare-value" data-measured-versions="1">${MEASURED_VERSIONS.join(', ')}</span>`
     );
-    expect(html).toContain(
-      'Confirming seals which program Tortie runs on that machine. It can ' +
-        'never seal the bytes of that program.'
+    expect(html.indexOf('data-measured-versions="1"')).toBeGreaterThan(
+      html.indexOf('data-machines-what-it-runs="1"')
     );
-    // Phase 87 draws the pair in one paragraph rather than two, and it also
-    // cut the third sentence of the sealing line in main. The warning is
-    // unchanged. The count below is what proves the pair is one block.
-    expect(html.match(/set-config-warning/g) ?? []).toHaveLength(1);
+  });
+
+  it('draws no measured list before a check has answered', () => {
+    expect(seed({ form: form({ host: '127.0.0.1' }) })).not.toContain(
+      'data-measured-versions'
+    );
   });
 });
 
-describe('the Tailscale panel, before anything is pressed', () => {
-  it('says what Tailscale is for and that Tortie has not looked yet', () => {
-    const html = seed({});
+describe('the tailnet list before it has answered', () => {
+  const html = seed({});
+
+  it('heads the list with two words and carries why as its hover', () => {
     expect(html).toContain('data-tailscale-state="unlooked"');
-    expect(html).toContain(TAILSCALE_TITLE);
-    expect(html).toContain(TAILSCALE_NOT_LOOKED);
+    expect(html).toContain('>Your tailnet<');
     expect(html).toContain(TAILSCALE_WHY);
-    expect(html).toContain('Find machines on your tailnet');
+    expect(html).not.toContain('Find machines on your tailnet');
+    expect(html).not.toContain('Tortie has not looked yet.');
   });
 
   it('says a person can type an address instead, so this is not the only path', () => {
     expect(TAILSCALE_WHY).toContain('type an address');
+    expect(html).toContain('data-machines-action="type-address"');
   });
 
-  it('offers the button once, and starts nothing by being drawn', () => {
-    const html = seed({});
+  it('offers Look again once, and starts nothing by being drawn', () => {
     expect(html.match(/data-machines-action="find-tailnet"/g) ?? []).toHaveLength(1);
-    // No path, no count and no peer list until a person has pressed it.
-    expect(html).not.toContain('Reading from:');
     expect(html).not.toContain('mach-peers');
   });
 });
 
-describe('the Tailscale panel on a Mac with no Tailscale', () => {
+describe('the tailnet list on a Mac with no Tailscale', () => {
   const html = seed({
     tailscale: { binary: null, source: 'missing', peers: [], note: null },
     tailscaleReadAt: 1_760_000_000_000
@@ -329,19 +337,12 @@ describe('the Tailscale panel on a Mac with no Tailscale', () => {
   it('says it is not installed and gives the command that installs it', () => {
     expect(html).toContain('data-tailscale-state="missing"');
     expect(html).toContain(TAILSCALE_NOT_INSTALLED);
-    expect(html).toContain(
-      `<code class="set-agent-cmd">${TAILSCALE_INSTALL_COMMAND}</code>`
-    );
+    expect(html).toContain(`<code class="set-agent-cmd">${TAILSCALE_INSTALL_COMMAND}</code>`);
   });
 
   it('puts the copy control beside the command', () => {
     expect(html).toContain('Copy the install command');
     expect(html).toContain('set-copy');
-  });
-
-  it('still says what Tailscale is for, and offers the button again', () => {
-    expect(html).toContain(TAILSCALE_WHY);
-    expect(html).toContain('Look again');
   });
 
   it('draws no pinned path, because no program was found', () => {
@@ -366,7 +367,7 @@ describe('the Tailscale panel on a Mac with no Tailscale', () => {
   });
 });
 
-describe('the Tailscale panel once it has looked', () => {
+describe('the tailnet list once it has looked', () => {
   const installed = (
     peers: TailscaleSourceResult['peers'],
     note: string | null = null
@@ -377,7 +378,7 @@ describe('the Tailscale panel once it has looked', () => {
     note
   });
 
-  it('prints the pinned path Tortie ran', () => {
+  it('puts the pinned path Tortie ran, and when it looked, in the head’s hover', () => {
     const html = seed({
       tailscale: installed([
         {
@@ -389,43 +390,20 @@ describe('the Tailscale panel once it has looked', () => {
           alreadyAdded: false
         }
       ]),
-      tailscaleReadAt: 1_760_000_000_000
+      tailscaleReadAt: Date.now()
     });
     expect(html).toContain('data-tailscale-state="installed"');
-    expect(html).toContain('Reading from:');
-    expect(html).toContain('/Applications/Tailscale.app/Contents/MacOS/Tailscale');
+    const head = html.slice(html.indexOf('class="mach-scan-title"'));
+    const title = head.slice(head.indexOf('title="'), head.indexOf('">'));
+    expect(title).toContain('Reading from: /Applications/Tailscale.app/Contents/MacOS/Tailscale');
+    expect(title).toContain(TAILSCALE_EXPLAIN);
+    expect(title).toContain('Tortie looked just now.');
     expect(html).toContain('pop-os.tail1a2b.ts.net');
   });
 
-  it('counts the other machines it found', () => {
-    const one = seed({
-      tailscale: installed([
-        {
-          host: 'pop-os.tail1a2b.ts.net',
-          name: 'pop-os',
-          os: 'linux',
-          online: true,
-          isThisMac: false,
-          alreadyAdded: false
-        },
-        {
-          host: 'this-mac.tail1a2b.ts.net',
-          name: 'this-mac',
-          os: 'macOS',
-          online: true,
-          isThisMac: true,
-          alreadyAdded: false
-        }
-      ]),
-      tailscaleReadAt: 1_760_000_000_000
-    });
-    // This Mac is not another machine, so one row of two is counted.
-    expect(one).toContain('1 other machine found.');
-  });
-
-  it('counts exactly the rows it draws, this Mac aside (Phase 339)', () => {
-    // Main leaves Tailscale's Funnel relays out of `peers`, and the count line
-    // reads the same `peers`, so the number and the rows can never disagree.
+  it('draws exactly the rows main sent, this Mac included and marked', () => {
+    // Main leaves Tailscale's Funnel relays out of `peers` (Phase 339), and the
+    // list draws `peers` and counts nothing.
     const peer = (name: string, isThisMac = false) => ({
       host: `${name}.fixture-p339.ts.net`,
       name,
@@ -443,12 +421,11 @@ describe('the Tailscale panel once it has looked', () => {
       ]),
       tailscaleReadAt: 1_760_000_000_000
     });
-    const drawn = (html.match(/class="mach-peer"/g) ?? []).length;
-    expect(drawn).toBe(4);
-    expect(html).toContain(`${drawn - 1} other machines found.`);
+    expect((html.match(/class="mach-peer"/g) ?? []).length).toBe(4);
+    expect(html).not.toContain('other machines found');
   });
 
-  it('says so plainly when the tailnet answered with nothing, once', () => {
+  it('draws main’s note once when the tailnet answered with nothing', () => {
     const html = seed({
       tailscale: installed(
         [],
@@ -457,12 +434,7 @@ describe('the Tailscale panel once it has looked', () => {
       ),
       tailscaleReadAt: 1_760_000_000_000
     });
-    expect(html).toContain('No other machines found.');
-    // Main's note, drawn once. The renderer used to keep a copy of the same
-    // sentence and print both.
-    expect(
-      html.match(/Tailscale answered and listed no other machines\./g) ?? []
-    ).toHaveLength(1);
+    expect(html.match(/Tailscale answered and listed no other machines\./g) ?? []).toHaveLength(1);
   });
 
   it('marks this Mac, a machine already added, and a machine that is off', () => {
@@ -491,12 +463,10 @@ describe('the Tailscale panel once it has looked', () => {
     expect(html).toContain('Already added');
     expect(html).toContain('Offline');
     expect(html).toContain('data-peer-online="no"');
+    expect(peerButtonTag(html, 'pop-os.tail1a2b.ts.net')).toContain('disabled');
   });
 
   it('names a machine whose name Tailscale did not supply', () => {
-    // Tailscale reports the HostName `localhost` for an iOS device and main
-    // falls back to it, so two of the operator's four rows read localhost.
-    // The first label of the address is the name Tailscale itself shows.
     const html = seed({
       tailscale: installed([
         {
@@ -529,8 +499,6 @@ describe('the Tailscale panel once it has looked', () => {
       ]),
       tailscaleReadAt: 1_760_000_000_000
     });
-    // Marked, never omitted. A device a person can see in the Tailscale app
-    // and cannot see here reads as Tortie being broken.
     expect(html).toContain('gregs-iphone.tail1a2b.ts.net');
     expect(html).toContain('Cannot run a session');
     const tag = peerButtonTag(html, 'gregs-iphone.tail1a2b.ts.net');
@@ -538,13 +506,21 @@ describe('the Tailscale panel once it has looked', () => {
     expect(tag).toContain('disabled');
   });
 
-  it('says when Tortie last looked', () => {
+  it('turns every peer off while a check runs, so a second pick waits', () => {
     const html = seed({
-      tailscale: installed([]),
-      tailscaleReadAt: Date.now()
+      tailscale: installed([
+        {
+          host: 'pop-os.tail1a2b.ts.net',
+          name: 'pop-os',
+          os: 'linux',
+          online: true,
+          isThisMac: false,
+          alreadyAdded: false
+        }
+      ]),
+      test: draftTest({ outcome: null, running: true })
     });
-    expect(html).toContain('Tortie looked just now.');
-    expect(html).not.toContain('Tortie has not looked yet.');
+    expect(peerButtonTag(html, 'pop-os.tail1a2b.ts.net')).toContain('disabled');
   });
 
   it('leaves a machine it has never heard of alone', () => {
@@ -563,6 +539,7 @@ describe('the Tailscale panel once it has looked', () => {
     });
     expect(html).toContain('data-peer-can-host="yes"');
     expect(html).not.toContain('Cannot run a session');
+    expect(peerButtonTag(html, 'odd-box.tail1a2b.ts.net')).not.toContain('disabled');
   });
 });
 
@@ -583,11 +560,8 @@ describe('the two judgements the peer list makes, on their own', () => {
     expect(peerDisplayName(peer('LocalHost', 'gregs-ipad.tail1a2b.ts.net'))).toBe(
       'gregs-ipad'
     );
-    expect(
-      peerDisplayName(peer('localhost.localdomain', 'box.tail1a2b.ts.net'))
-    ).toBe('box');
+    expect(peerDisplayName(peer('localhost.localdomain', 'box.tail1a2b.ts.net'))).toBe('box');
     expect(peerDisplayName(peer('', 'box.tail1a2b.ts.net'))).toBe('box');
-    // Nothing better to offer, so the name it was given stands.
     expect(peerDisplayName(peer('localhost', ''))).toBe('localhost');
   });
 
@@ -595,59 +569,46 @@ describe('the two judgements the peer list makes, on their own', () => {
     for (const os of ['ios', 'iOS', 'iPadOS', 'android', 'Android', 'tvOS', ' ios ']) {
       expect(peerCanHost(os)).toBe(false);
     }
-    // Everything else, including a value Tortie has never seen and an empty
-    // one, is treated as able. Tortie must not refuse a machine on a string it
-    // does not know.
     for (const os of ['macOS', 'linux', 'windows', 'freebsd', '', 'plan9']) {
       expect(peerCanHost(os)).toBe(true);
     }
   });
 });
 
-describe('the versions Tortie has measured, before any test runs', () => {
-  it('is on screen with no test at all', () => {
-    const html = seed({ form: form({ host: '127.0.0.1' }) });
-    expect(html).toContain('Versions Tortie has measured:');
-    expect(html).toContain(MEASURED_VERSIONS.join(', '));
-    // Phase 87 cut the paragraph beside the list. The list is the useful part
-    // and the sentence explained the rule a person meets in the refusal.
-    expect(html).not.toContain(
-      'Tortie only uses versions of that program it has measured.'
-    );
-    // Proven to be before the test rather than after it: nothing has run.
-    expect(html).not.toContain('data-machines-transcript');
-  });
-});
-
-describe('the connection test view', () => {
-  const draw = (o: MachineTestOutcome | null, transcript = ''): string =>
+describe('the check view', () => {
+  const draw = (
+    o: MachineTestOutcome | null,
+    transcript = '',
+    over: { running?: boolean; detailsOpen?: boolean } = {}
+  ): string =>
     renderToStaticMarkup(
       <ConnectionTestView
         started={STARTED}
         transcript={transcript}
         outcome={o}
-        running={false}
-        onSend={() => undefined}
-        onCancel={() => undefined}
+        running={over.running ?? false}
+        detailsOpen={over.detailsOpen ?? false}
+        host="127.0.0.1"
+        port={2222}
+        label="Studio"
+        onSend={noop}
+        onCancel={noop}
       />
     );
 
-  it('writes exactly two lines of its own, and marks what the rest is', () => {
+  it('writes exactly two lines of its own in Details, and marks what the rest is', () => {
     const html = draw(null, 'Warning: Permanently added ...');
-    expect(html).toContain('Tortie is running:');
-    expect(html).toContain('/usr/bin/ssh');
-    // PHASE 130. The line no longer claims Tortie does not change the bytes,
-    // because main removes the ANSI control sequences and this view is handed
-    // a transcript with the marker pair already taken out. The two promises
-    // that are exact are still made.
-    expect(html).toContain(
+    const details = html.slice(html.indexOf('data-machines-details="1"'));
+    expect(details).toContain('Tortie is running:');
+    expect(details).toContain('/usr/bin/ssh');
+    expect(details).toContain(
       'Everything below this line comes from that program and from the ' +
         'machine. Tortie does not store it and does not answer it for you.'
     );
-    expect(html).toContain('Warning: Permanently added ...');
+    expect(details).toContain('Warning: Permanently added ...');
   });
 
-  it('draws the alarm state for a changed host key', () => {
+  it('draws the alarm state for a changed host key, as its one failed row', () => {
     const html = draw(
       outcome({
         class: 'host-key-changed',
@@ -657,13 +618,17 @@ describe('the connection test view', () => {
           'The program reports that the key this machine presented is not ' +
           'the key it presented before.',
         resolvedPath: null,
-        exitCode: 255
+        exitCode: 255,
+        sheet: null,
+        check: null
       })
     );
     expect(html).toContain('data-alarm="yes"');
-    expect(html).toContain('mach-outcome alarm');
+    expect(html).toContain('mach-check alarm');
+    expect(html).toContain('data-check-tone="alarm"');
     expect(html).toContain('data-outcome-class="host-key-changed"');
     expect(html).toContain('The identity of this machine changed.');
+    expect(html).not.toContain('data-machines-action="trust"');
   });
 
   it('draws an unreachable machine calmly, and never as the alarm', () => {
@@ -676,11 +641,15 @@ describe('the connection test view', () => {
           'Nothing was changed on either machine. The machine may be off, ' +
           'asleep, or off the network.',
         resolvedPath: null,
-        exitCode: 255
+        exitCode: 255,
+        sheet: null,
+        check: null
       })
     );
     expect(html).toContain('data-alarm="no"');
-    expect(html).not.toContain('mach-outcome alarm');
+    expect(html).not.toContain('mach-check alarm');
+    expect(html).not.toContain('data-check-tone="alarm"');
+    expect(html).toContain('data-check-tone="failed"');
     expect(html).toContain('Tortie could not reach this machine.');
   });
 
@@ -695,15 +664,13 @@ describe('the connection test view', () => {
           'on this port.',
         resolvedPath: null,
         exitCode: 255,
-        sheet: null
+        sheet: null,
+        check: null
       })
     );
     expect(html).toContain(REMEDY_LABEL);
     expect(html).toContain('data-remedy-class="refused"');
     expect(html).toContain(REMEDY.refused);
-    // The advice names the four places a person has to go, in order.
-    expect(html).toContain('System Settings');
-    expect(html).toContain('Remote Login');
   });
 
   it('says nothing at all about an outcome that worked', () => {
@@ -712,19 +679,14 @@ describe('the connection test view', () => {
     expect(html).not.toContain('mach-remedy');
   });
 
-  it('offers the answer field only while the program is still running', () => {
-    const running = renderToStaticMarkup(
-      <ConnectionTestView
-        started={STARTED}
-        transcript="Are you sure you want to continue connecting?"
-        outcome={null}
-        running={true}
-        onSend={() => undefined}
-        onCancel={() => undefined}
-      />
-    );
-    expect(running).toContain('data-machines-field="answer"');
-    expect(running).toContain(
+  it('keeps today’s answer field and Send in Details only while the program runs', () => {
+    const running = draw(null, 'Are you sure you want to continue connecting?', {
+      running: true
+    });
+    const details = running.slice(running.indexOf('data-machines-details="1"'));
+    expect(details).toContain('data-machines-field="answer"');
+    expect(details).toContain('data-machines-action="send"');
+    expect(details).toContain(
       'What you type here goes straight to the program above and nowhere else.'
     );
     expect(draw(null)).not.toContain('data-machines-field="answer"');
@@ -737,16 +699,12 @@ describe('the values a new row is written from', () => {
   });
 
   it('falls back to the address when there is no name', () => {
-    expect(machineIdFrom('', 'pop-os.tail1a2b.ts.net', new Set())).toBe(
-      'pop-os-tail1a2b-ts-net'
-    );
+    expect(machineIdFrom('', 'pop-os.tail1a2b.ts.net', new Set())).toBe('pop-os-tail1a2b-ts-net');
   });
 
   it('never hands a second row the id of the first', () => {
     expect(machineIdFrom('Pop OS', '', new Set(['pop-os']))).toBe('pop-os-2');
-    expect(machineIdFrom('Pop OS', '', new Set(['pop-os', 'pop-os-2']))).toBe(
-      'pop-os-3'
-    );
+    expect(machineIdFrom('Pop OS', '', new Set(['pop-os', 'pop-os-2']))).toBe('pop-os-3');
   });
 
   it('always answers with something the id rule accepts', () => {
@@ -765,20 +723,17 @@ describe('the values a new row is written from', () => {
     expect(portOf('22a')).toBeNull();
   });
 
-  it('takes the sheet from main, and only from a finished draft test', () => {
+  it('takes the sheet from main, and only from a finished draft check', () => {
     expect(sheetOf(draftTest())).toEqual(SHEET);
     expect(sheetOf(null)).toBeNull();
-    // A saved row's test belongs to a row that already exists. It never feeds
+    // A saved row's check belongs to a row that already exists. It never feeds
     // the Add flow, whatever it came back with.
     expect(sheetOf(draftTest({ savedId: 'pop-os' }))).toBeNull();
-    // Started before the machine was named, so main had no id to hash.
     expect(sheetOf(draftTest({ draftId: null }))).toBeNull();
     expect(sheetOf(draftTest({ outcome: null, running: true }))).toBeNull();
     expect(sheetOf(draftTest({ outcome: outcome({ sheet: null }) }))).toBeNull();
     expect(
-      sheetOf(
-        draftTest({ outcome: outcome({ class: 'unreachable', resolvedPath: null }) })
-      )
+      sheetOf(draftTest({ outcome: outcome({ class: 'unreachable', resolvedPath: null }) }))
     ).toBeNull();
   });
 });
@@ -806,36 +761,31 @@ describe('the key a machine can be given before it is added', () => {
         resolvedPath: null,
         exitCode: 255,
         sheet: null,
+        check: null,
         keySheet
       })
     });
 
   it('offers the key on this sheet, for a machine with no row yet', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: refused(KEY_SHEET)
-    });
+    const html = seed({ form: form({ host: '127.0.0.1' }), test: refused(KEY_SHEET) });
     expect(html).toContain('data-machines-key="1"');
     expect(html).toContain('data-machines-field="machine-password"');
     for (const line of KEY_SHEET.lines) expect(html).toContain(line);
   });
 
   it('offers nothing when main sent no key sheet back', () => {
-    const html = seed({
-      form: form({ host: '127.0.0.1' }),
-      test: refused(null)
-    });
+    const html = seed({ form: form({ host: '127.0.0.1' }), test: refused(null) });
     expect(html).not.toContain('data-machines-key="1"');
   });
 
-  it('leaves the add button off, because the machine has still not answered', () => {
+  it('draws no Add press, because the machine has still not answered ok', () => {
     // A key on the machine is not the machine answering. The row is written
-    // from a test that came back ok with a program path, and nothing else.
+    // from a check that came back ok with a program path, and nothing else.
     const html = seed({
       form: form({ host: '127.0.0.1' }),
       test: refused(KEY_SHEET),
       keyInstall: { savedId: null, running: false, result: null }
     });
-    expect(addButtonTag(html)).toContain('disabled');
+    expect(html).not.toContain('data-machines-action="add-confirm"');
   });
 });

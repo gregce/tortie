@@ -1,0 +1,27 @@
+{
+  "_note": "PROBE REVIEW (rule 9), written by the reviewer: an honest parent (ae38b831) record to the shape probe-p340.mjs's parent drives record. A1: open-add, Find, the peer, Test, Send after typing yes, Advanced, the path typed, Test, Add this machine and confirm it, Show what it runs, Prepare (10 presses, 2 typed; M17). A8 counts one more press than A1 (Accept this version and prepare it). A5(c) at the parent reads the real probe's empty first pair as no-program.",
+  "arms": {
+    "A1": { "ready": true, "presses": 10, "typed": 2, "advancedOpened": true, "wordsAtRest": 114, "hash": "9f2c4b7d0e1a3c5b7d9f1e3a5c7b9d1f3e5a7c9b1d3f5e7a9c1b3d5f7e9a1c3b" },
+    "A2": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+    "A4": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+    "A5": {
+      "a": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+      "b": { "cls": "ok", "detail": "Tortie will run /evil/tmux on it." },
+      "c": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." }
+    },
+    "A6": {
+      "fingerprint": "SHA256:Q2xhdWRlUHJvYmVSZXZpZXdGaW5nZXJwcmludDAwMDE",
+      "wantFingerprint": "SHA256:Q2xhdWRlUHJvYmVSZXZpZXdGaW5nZXJwcmludDAwMDE",
+      "recordBefore": "absent",
+      "recordAfterStop": "absent",
+      "entriesBefore": 0,
+      "entriesAfterTrust": 1,
+      "changed": { "cls": "host-key-changed", "alarm": null, "trustDrawn": false, "addDrawn": false },
+      "userRecordBefore": false,
+      "userRecordAfter": false
+    },
+    "A7b": { "cls": "auth-refused" },
+    "A8": { "presses": 11, "typed": 2, "accepted": "3.9z", "prepared": true },
+    "A12": { "wordsShut": 25, "wordsOpen": 163 }
+  }
+}

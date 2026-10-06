@@ -12,7 +12,11 @@ import type {
   AnyMenuActionWithProjects,
   MenuActionWithFind
 } from '@shared/ipc';
-import { OPEN_RECENT_ON_PREFIX, OPEN_RECENT_PREFIX } from '@shared/ipc';
+import {
+  OPEN_FOLDER_ON_PREFIX,
+  OPEN_RECENT_ON_PREFIX,
+  OPEN_RECENT_PREFIX
+} from '@shared/ipc';
 import { keyDisplay } from '@shared/keymap';
 import { sessionsPositionForMenuAction } from '@shared/sessions-position';
 // Phase 129. The projects radio pair's own table, read for the same reason:
@@ -88,6 +92,52 @@ const FOCUS_SESSION_PREFIX = 'focus-session:';
 
 /** The one sentence the three Edit > reshape rows say with no editor open. */
 const RESHAPE_NEEDS_EDITOR = 'Open a file in the editor to reshape it.';
+
+/**
+ * What both doors into the Open a Folder on a Machine sheet say on a preload
+ * with no `projects:addRemote`: File › Open Folder on a Machine… and, since
+ * Phase 340, Settings' Open a folder on it…. One constant, so the two cannot
+ * word it differently.
+ */
+const REMOTE_PROJECT_UNSUPPORTED = 'This build cannot open a folder on a machine.';
+
+/**
+ * PHASE 340. `open-folder-on:<id>`, being Settings → a machine's row → Open a
+ * folder on it….
+ *
+ * Main's `machines:openFolder` refuses a machine that is not confirmed, brings
+ * this window forward and sends the id. This opens the sheet File › Open
+ * Folder on a Machine… opens (`open-remote-project` below), starting on that
+ * machine when the sheet's list holds it. It starts nothing and reaches no
+ * machine: the sheet reads its list as it does from every door, and nothing
+ * goes to the machine until a person presses Choose… or Open there.
+ *
+ * IT RETURNS IN SILENCE AND CHANGES NOTHING in three states, each one in which
+ * the sheet would be put where nobody can use it:
+ *  - under the session manager, exactly as `open-remote-project` does (Phase
+ *    293's fix round, P2: the sheet was drawn UNDER it, with the keyboard in a
+ *    field nobody could see);
+ *  - while the sheet is already open, because a person is part way through
+ *    choosing a folder in it, and aiming it at another machine would throw away
+ *    the folder typed for the first (the machine field's own change handler
+ *    clears it for that reason). The window still comes forward, which is
+ *    main's doing, and shows the sheet as it was;
+ *  - under a boot block, because no sheet mounts there (App.tsx returns before
+ *    the sheets), and an open flag over nothing would hold `modalLayerOpen()`
+ *    true for the rest of the launch, which is the reason `manage-sessions`
+ *    gives for its own first guard.
+ */
+export function openFolderOnMachineAction(machineId: string): void {
+  const s = useApp.getState();
+  if (s.bootBlock !== null) return;
+  if (s.sessionSheet !== null) return;
+  if (s.remoteProjectOpen) return;
+  if (!s.canAddRemoteProject()) {
+    s.toast('info', REMOTE_PROJECT_UNSUPPORTED);
+    return;
+  }
+  s.setRemoteProjectOpen(true, machineId);
+}
 
 /**
  * PHASE 141 — Session > Resume Conversation.
@@ -227,7 +277,7 @@ export function runMenuAction(action: AnyMenuActionWithProjects): void {
     case 'open-remote-project':
       if (sheetOpen) return;
       if (s.canAddRemoteProject()) s.setRemoteProjectOpen(true);
-      else s.toast('info', 'This build cannot open a folder on a machine.');
+      else s.toast('info', REMOTE_PROJECT_UNSUPPORTED);
       return;
     case 'clone-repository': {
       if (sheetOpen) return;
@@ -583,6 +633,15 @@ export function useMenuActions(): void {
           action.slice(OPEN_RECENT_ON_PREFIX.length),
           useApp.getState()
         );
+        return;
+      }
+      // PHASE 340: Settings → a machine's row → Open a folder on it…. The id
+      // travels on the action because a union member cannot carry one, the
+      // shape the two Open Recent families above already have. The prefix
+      // differs from both of theirs at its sixth character, so where it sits
+      // among them decides nothing.
+      if (action.startsWith(OPEN_FOLDER_ON_PREFIX)) {
+        openFolderOnMachineAction(action.slice(OPEN_FOLDER_ON_PREFIX.length));
         return;
       }
       // Phase 51: a warm launch delivered a folder (`tortie .` or a Finder

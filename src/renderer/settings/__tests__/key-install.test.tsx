@@ -25,6 +25,12 @@
  * the call is made. That the STORE holds no password is measured, in
  * machines-store.test.ts.
  *
+ * PHASE 340 MADE THE BLOCK ONE STEP OF THE CHECK (build/p340/SPEC.md D10). On
+ * its face: the password field, one hint and one button. Main's lines, its
+ * warning and all five of its notes stand behind What this does, drawn byte
+ * for byte, one press away. That supersedes Phase 130's rule that the consent
+ * facts stand on the face; the hash binds them exactly as before.
+ *
  * The fixtures below stand in for main's own strings. They are fixtures and
  * not pins. Main owns that copy and pins it on main's side, for the same
  * reason the connection test's headline and detail are pinned there.
@@ -45,10 +51,8 @@ import { keySheetOf, type KeyInstallState } from '../machines-store';
 import {
   BTN_INSTALL_KEY,
   INSTALLING_KEY,
-  KEY_BLOCK_LABEL,
   KEY_DISABLED_REASON,
   KEY_FINGERPRINT_LABEL,
-  KEY_LINES_LABEL,
   KEY_MADE_NEW,
   KEY_MADE_REUSED,
   KEY_PASSWORD_HINT,
@@ -56,7 +60,7 @@ import {
   KEY_RESULT_LABEL,
   KEY_TRANSCRIPT_LABEL,
   KEY_WROTE_ADDED,
-  KEY_MORE_LABEL,
+  KEY_WHAT_THIS_DOES,
   KEY_WROTE_PRESENT,
   REMEDY
 } from '../machines-copy';
@@ -193,14 +197,14 @@ describe('when the block exists at all', () => {
     const html = panel({ class: 'password-required' });
     expect(html).toContain('data-machines-key="1"');
     expect(html).toContain('data-machines-field="machine-password"');
-    expect(has(html, KEY_BLOCK_LABEL)).toBe(true);
+    expect(has(html, BTN_INSTALL_KEY)).toBe(true);
   });
 
   it('is drawn for a machine that turned the sign in down', () => {
     const html = panel({ class: 'auth-refused' });
     expect(html).toContain('data-machines-key="1"');
     expect(html).toContain('data-machines-field="machine-password"');
-    expect(has(html, KEY_BLOCK_LABEL)).toBe(true);
+    expect(has(html, BTN_INSTALL_KEY)).toBe(true);
   });
 
   it('is drawn for a machine that refused the connection', () => {
@@ -224,7 +228,10 @@ describe('when the block exists at all', () => {
       'timed-out',
       'unknown',
       'no-server',
-      'version-unmeasured'
+      'version-unmeasured',
+      // PHASE 340's two classes. Neither is a sign in a key could change.
+      'client-failed',
+      'program-choice'
     ];
     for (const cls of others) {
       const html = panel({ class: cls });
@@ -267,26 +274,21 @@ describe('what a person reads before they type anything', () => {
 
   it('draws every line main composed, unchanged', () => {
     for (const line of SHEET.lines) expect(has(html, line)).toBe(true);
-    expect(has(html, KEY_LINES_LABEL)).toBe(true);
   });
 
   it('draws main’s warning and every one of main’s notes', () => {
-    // PHASE 130 made this the case that proves nothing was deleted. Two of
-    // main's notes are now behind a shut disclosure, and a shut `<details>`
+    // This is the case that proves nothing was deleted. A shut `<details>`
     // still writes its children into the markup, so every one of main's five
-    // notes is still here word for word. Where each one sits is held by the
-    // three cases under `the disclosure` below.
+    // notes is here word for word. Where each sits is held under `the
+    // disclosure` below.
     expect(has(html, SHEET.warning)).toBe(true);
     for (const note of SHEET.notes) expect(has(html, note)).toBe(true);
   });
 
-  it('says Remote Login comes before the key, in main’s first note', () => {
-    // The order matters and the screen has to say so. A key on a machine that
-    // is not accepting connections still cannot sign in.
-    const first = html.indexOf(esc(SHEET.notes[0] ?? ''));
-    const field = html.indexOf('data-machines-field="machine-password"');
-    expect(first).toBeGreaterThan(-1);
-    expect(first).toBeLessThan(field);
+  it('keeps main’s notes in main’s order, Remote Login first', () => {
+    const at = SHEET.notes.map((note) => html.indexOf(esc(note)));
+    for (const one of at) expect(one).toBeGreaterThan(-1);
+    expect([...at].sort((a, b) => a - b)).toEqual(at);
   });
 
   it('says what becomes of the password, beside the field', () => {
@@ -415,16 +417,16 @@ describe('the advice under a refused install', () => {
 });
 
 // ---------------------------------------------------------------------------
-// PHASE 130. Which of main's notes a person reads first
+// PHASE 340. What is on the face, and what is one press away (D10)
 // ---------------------------------------------------------------------------
 
-describe('the disclosure under the key block', () => {
+describe('the key step, and What this does', () => {
   /** Where a string starts in the markup, or -1. */
   const at = (html: string, text: string): number => html.indexOf(esc(text));
 
   /** Where the disclosure opens, and where it closes. */
-  const more = (html: string): { open: number; close: number } => {
-    const marker = html.indexOf('data-p130-key-more="1"');
+  const what = (html: string): { open: number; close: number } => {
+    const marker = html.indexOf('data-machines-key-what="1"');
     expect(marker).toBeGreaterThan(-1);
     const open = html.lastIndexOf('<details', marker);
     const close = html.indexOf('</details>', marker);
@@ -432,76 +434,57 @@ describe('the disclosure under the key block', () => {
   };
 
   const inside = (html: string, text: string): boolean => {
-    const { open, close } = more(html);
+    const { open, close } = what(html);
     const where = at(html, text);
     return where > open && where < close;
   };
 
   it('is shut, and says what is behind it', () => {
     const html = panel({ class: 'auth-refused' });
-    const { open } = more(html);
+    const { open } = what(html);
     const tag = html.slice(open, html.indexOf('>', open) + 1);
     // React writes `open` as a bare attribute when it is set. A disclosure a
     // person has to press is the whole point, so it must not be there.
     expect(tag).not.toContain('open');
-    expect(has(html, KEY_MORE_LABEL)).toBe(true);
+    expect(has(html, KEY_WHAT_THIS_DOES)).toBe(true);
   });
 
-  it('hides only the passphrase note when nothing above said Remote Login', () => {
-    // On `auth-refused` the advice above says nothing about Remote Login, so
-    // main's first note is the only place a person reads it and it stays in
-    // the stack, above the password field.
-    const html = panel({ class: 'auth-refused' });
-    const field = html.indexOf('data-machines-field="machine-password"');
-    const { open } = more(html);
-
-    expect(inside(html, SHEET.notes[1] ?? '')).toBe(true);
-    expect(inside(html, SHEET.notes[0] ?? '')).toBe(false);
-    expect(at(html, SHEET.notes[0] ?? '')).toBeLessThan(open);
-    expect(at(html, SHEET.notes[0] ?? '')).toBeLessThan(field);
-    for (const i of [2, 3, 4]) {
-      expect({ i, hidden: inside(html, SHEET.notes[i] ?? '') }).toEqual({
-        i,
-        hidden: false
-      });
-    }
-  });
-
-  it('also hides the Remote Login note when the advice above already said it', () => {
-    // On `refused` the remedy four lines up tells a person to turn on Remote
-    // Login. Reading it twice in one screen is what this moves.
-    expect(REMEDY.refused ?? '').toContain('Remote Login');
-    const html = panel({ class: 'refused' });
-    expect(inside(html, SHEET.notes[0] ?? '')).toBe(true);
-    expect(inside(html, SHEET.notes[1] ?? '')).toBe(true);
-    for (const i of [2, 3, 4]) {
-      expect({ i, hidden: inside(html, SHEET.notes[i] ?? '') }).toEqual({
-        i,
-        hidden: false
-      });
-    }
-  });
-
-  it('keeps every consent fact on screen with nothing to press', () => {
-    // The five facts a person agrees to. Each one is outside the disclosure on
-    // both answers that offer a key, so nothing a person consents to is one
-    // press away.
-    for (const cls of ['auth-refused', 'refused'] as MachineTestClass[]) {
+  it('holds every one of main’s lines, its warning and all five notes, on both answers', () => {
+    for (const cls of ['auth-refused', 'refused', 'password-required'] as MachineTestClass[]) {
       const html = panel({ class: cls });
-      const facts = [
-        ...SHEET.lines,
-        SHEET.warning,
-        SHEET.notes[2] ?? '',
-        SHEET.notes[3] ?? '',
-        KEY_PASSWORD_HINT
-      ];
-      for (const fact of facts) {
-        expect({ cls, fact, hidden: inside(html, fact) }).toEqual({
+      for (const fact of [...SHEET.lines, SHEET.warning, ...SHEET.notes]) {
+        expect({ cls, fact, behind: inside(html, fact) }).toEqual({
           cls,
           fact,
-          hidden: false
+          behind: true
         });
       }
     }
+  });
+
+  it('puts the field, the hint and the button on the face, above the disclosure', () => {
+    const html = panel({ class: 'password-required' });
+    const { open } = what(html);
+    const field = html.indexOf('data-machines-field="machine-password"');
+    const hint = at(html, KEY_PASSWORD_HINT);
+    const button = html.indexOf('data-machines-action="install-key"');
+    for (const one of [field, hint, button]) {
+      expect(one).toBeGreaterThan(-1);
+      expect(one).toBeLessThan(open);
+    }
+    expect(inside(html, KEY_PASSWORD_HINT)).toBe(false);
+  });
+
+  it('writes no heading of its own above the field', () => {
+    // The block's two headings went in Phase 340. What stands before the field
+    // is its label and nothing else this file wrote.
+    const html = panel({ class: 'auth-refused' });
+    const key = html.indexOf('>', html.indexOf('data-machines-key="1"')) + 1;
+    const field = html.lastIndexOf(
+      '<input',
+      html.indexOf('data-machines-field="machine-password"')
+    );
+    const before = html.slice(key, field).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+    expect(before).toBe(esc(KEY_PASSWORD_LABEL));
   });
 });

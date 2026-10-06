@@ -346,6 +346,10 @@ describe('every channel is registered, and only the ones listed here', () => {
       // folder chosen in the renderer crosses it.
       'machines:makeDir',
       // ---- END PHASE 102 ----
+      // Phase 340's one new channel. It hands Open a folder on it… to the main
+      // window for a confirmed machine, answering false for any other, and it
+      // starts nothing on either computer.
+      'machines:openFolder',
       // Phase 69's one new channel. It starts something on another machine, and
       // it is the only channel in the product that does.
       'machines:prepare',
@@ -475,7 +479,8 @@ describe('every channel is registered, and only the ones listed here', () => {
     // Asked by SHAPE as well as by the list above, so a channel re-added under
     // another name that still writes a folder into a row is named here.
     const channels = [...handlers.keys()];
-    expect(channels).toHaveLength(36);
+    // 37 since Phase 340 added `machines:openFolder`.
+    expect(channels).toHaveLength(37);
     for (const channel of channels) {
       expect(channel).not.toMatch(/writeSheet|allowWrites|writeRoot/i);
     }
@@ -1715,5 +1720,137 @@ describe('machines:agents', () => {
     expect(body).not.toContain('removeMachineRow(');
     expect(body).not.toContain('forgetMachineRuntime(');
     expect(body).not.toContain('forgetMachine(id)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 340's RULED ROUND. A confirm of changed details retires the old route
+// ---------------------------------------------------------------------------
+
+const { setMachineRemotePath, registeredMachineIds } = await import('../context');
+const { noteRowSignIn, resetRowFactsForTests, rowSignInOf } = await import(
+  '../row-facts'
+);
+const { armSignInRetry, resetSignInRetryForTests, signInRetryFacts } =
+  await import('../sign-in-retry');
+
+describe('machines:confirm of changed details (Phase 340, the ruled round)', () => {
+  // The reverify: a prepared machine's port rewritten on disk, Confirm the
+  // new details, and twelve seconds of Ready with Open a folder on it… as the
+  // next step, over the context Prepare registered under the OLD port.
+  type Fields = { host: string; user: string | null; port: number | null; remoteTmuxPath: string };
+  /** What Prepare leaves: a context under these details, its search list read. */
+  function prepareAs(fields: Fields): void {
+    registerRemoteMachineContext({
+      kind: 'remote',
+      machineId: 'pop-os',
+      sshBin: '/usr/bin/ssh',
+      ...fields,
+      socket: 'gmux-p340-ipc',
+      controlPath: '/tmp/tortie-501/m-p340',
+      hostKeys: { tortie: '/t/known-machines', user: '/u/known_hosts' },
+      label: 'Pop OS'
+    });
+    setMachineRemotePath('pop-os', '/usr/bin:/bin');
+    noteRowSignIn('pop-os', { class: 'prepared', version: '3.6a', headline: 'h', detail: 'd' });
+  }
+  /** Confirm the row as the file holds it now, from the sheet drawn of it. */
+  function confirmAsItIs(): { state: string; ready?: boolean; signIn?: unknown } {
+    const now = machineRow('pop-os');
+    if (now === null) throw new Error('pop-os is not in the file');
+    const summary = describeMachine('pop-os', machineFieldsOf(now));
+    return call('machines:confirm', {
+      id: 'pop-os',
+      hashRead: summary.hash,
+      linesRead: [...summary.lines]
+    });
+  }
+  const readyOf = (): boolean | undefined =>
+    call<{ rows: { id: string; ready?: boolean }[] }>('machines:rows').rows.find(
+      (one) => one.id === 'pop-os'
+    )?.ready;
+
+  afterEach(() => {
+    forgetRuntime('pop-os');
+    resetRowFactsForTests();
+    resetSignInRetryForTests();
+  });
+
+  it('reads Not ready after Confirm the new details, never Ready over the old route', () => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    confirmAsItIs();
+    prepareAs(POP);
+    expect(readyOf()).toBe(true);
+    // The port rewritten on disk: the row reads changed and is refused.
+    writeFile({ schema: 1, machines: [{ ...POP, port: 2223 }] });
+    loadMachines('boot');
+    expect(
+      call<{ rows: { state: string }[] }>('machines:rows').rows[0]?.state
+    ).toBe('changed');
+    armSignInRetry('pop-os');
+    const view = confirmAsItIs();
+    expect(view.state).toBe('confirmed');
+    // The route made under port 2222 is gone, so nothing reads Ready over it.
+    expect(view.ready).toBe(false);
+    expect(readyOf()).toBe(false);
+    expect(registeredMachineIds()).not.toContain('pop-os');
+    expect(() => machineContext('pop-os')).toThrow();
+    // What the last Prepare read was about the old details, and goes too.
+    expect(view.signIn).toBeNull();
+    expect(rowSignInOf('pop-os')).toBeNull();
+    // A launch sign-in retry still armed would start a server unasked.
+    expect(signInRetryFacts('pop-os')).toBeNull();
+    // Confirm still starts nothing (D12).
+    expect(spawned).toHaveLength(0);
+    expect(machineSshSpawnCount()).toBe(0);
+  });
+
+  it('retires the old route on a withdrawn agreement whose details were then edited', () => {
+    // Stop trusting, edit, Confirm: the row reads `never`, not `changed`, and
+    // the context is just as old.
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    confirmAsItIs();
+    prepareAs(POP);
+    call('machines:forget', 'pop-os');
+    writeFile({ schema: 1, machines: [{ ...POP, host: '127.0.0.2' }] });
+    loadMachines('boot');
+    expect(call<{ rows: { state: string }[] }>('machines:rows').rows[0]?.state).toBe('never');
+    const view = confirmAsItIs();
+    expect(view.state).toBe('confirmed');
+    expect(view.ready).toBe(false);
+    expect(registeredMachineIds()).not.toContain('pop-os');
+  });
+
+  it('keeps the route when nothing it was built from moved', () => {
+    // The control: Stop trusting, then Confirm the same details again. The
+    // context is the one Prepare made for exactly these, so it stays Ready.
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    confirmAsItIs();
+    prepareAs(POP);
+    call('machines:forget', 'pop-os');
+    const view = confirmAsItIs();
+    expect(view.state).toBe('confirmed');
+    expect(view.ready).toBe(true);
+    expect(registeredMachineIds()).toContain('pop-os');
+    expect(rowSignInOf('pop-os')).not.toBeNull();
+  });
+
+  it('changes nothing when the confirm itself is refused', () => {
+    writeFile({ schema: 1, machines: [POP] });
+    loadMachines('boot');
+    confirmAsItIs();
+    prepareAs(POP);
+    writeFile({ schema: 1, machines: [{ ...POP, port: 2223 }] });
+    loadMachines('boot');
+    // A sheet drawn before the edit: its hash is the old one.
+    const stale = describeMachine('pop-os', machineFieldsOf(POP));
+    expect(() =>
+      call('machines:confirm', { id: 'pop-os', hashRead: stale.hash, linesRead: [...stale.lines] })
+    ).toThrow();
+    expect(registeredMachineIds()).toContain('pop-os');
+    expect(rowSignInOf('pop-os')).not.toBeNull();
   });
 });

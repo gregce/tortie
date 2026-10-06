@@ -107,7 +107,26 @@ export interface ProjectsSlice {
    * ../app/App.tsx until Phase 127 cut the keyboard controller out.
    */
   remoteProjectOpen: boolean;
-  setRemoteProjectOpen(open: boolean): void;
+  /**
+   * PHASE 340. The machine the sheet starts on, when the door that opened it
+   * named one.
+   *
+   * Settings → a machine's row → Open a folder on it… reaches this window as
+   * the menu action `open-folder-on:<id>` (../app/menu-actions.ts), and the
+   * sheet starts on that machine when its list holds it
+   * (../app/RemoteProjectModal.tsx). Every other door names none, so this is
+   * `null` and the sheet starts on its first machine exactly as it always has.
+   *
+   * It is written ONLY by `setRemoteProjectOpen`, in the same `set` as the
+   * flag, so a sheet never starts on a machine an EARLIER door named: every
+   * opening names its own machine or none, and every close forgets it.
+   */
+  remoteProjectMachineId: string | null;
+  /**
+   * Show or hide the sheet. `machineId` (Phase 340) is the machine to start
+   * on; leaving it out, an empty one and every close all write `null`.
+   */
+  setRemoteProjectOpen(open: boolean, machineId?: string): void;
   /**
    * PHASE 90.3. Open one folder on one machine as a project tab.
    *
@@ -171,6 +190,7 @@ export const createProjectsSlice: StateCreator<
     tabOrder: loadLocal<string[]>(LS_TAB_ORDER, []),
     activeProjectId: null,
     remoteProjectOpen: false,
+    remoteProjectMachineId: null,
 
     setActiveProject(projectId) {
       set({ activeProjectId: projectId });
@@ -244,8 +264,14 @@ export const createProjectsSlice: StateCreator<
       }
     },
 
-    setRemoteProjectOpen(open) {
-      set({ remoteProjectOpen: open });
+    setRemoteProjectOpen(open, machineId) {
+      set({
+        remoteProjectOpen: open,
+        remoteProjectMachineId:
+          open && machineId !== undefined && machineId.length > 0
+            ? machineId
+            : null
+      });
     },
 
     canAddRemoteProject() {

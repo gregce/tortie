@@ -32,6 +32,12 @@
  * reach a person, and this is where they read it. It mirrors the configured
  * agents block for the same reason the row mirrors the agent row.
  *
+ * PHASE 340. The Add a machine button is the one caller of `openAdd`, which
+ * now also looks at the tailnet, so pressing it is the press that runs the
+ * pinned Tailscale program on this Mac (D6). Every row is a name, a chip, one
+ * line of facts and one button (./MachineRow.tsx). The title, the caption, the
+ * dropped rows block, the toolbar and the disclosure are as they were.
+ *
  * WHY THERE ARE TWO EXPORTS. `MachinesView` draws, and takes everything it
  * draws as a prop. `MachinesSection` reads the store and hands it over. The
  * split is what lets the unit tests render this surface at all: zustand
@@ -57,6 +63,11 @@ import {
   droppedRowsLine
 } from './machines-copy';
 import { useMachinesStore } from './machines-store';
+// PHASE 340. The native ⋯ menu's module assigns its one probe hook when it is
+// imported (build/p340/SPEC.md section 5.2), so importing it here is what makes
+// the hook exist whenever this section has been drawn. MachineRow.tsx imports
+// it as well, for the menu itself.
+import './machine-menu';
 import './machines.css';
 
 export interface MachinesViewProps {
@@ -156,7 +167,7 @@ export function MachinesView({
             type="button"
             className="btn btn-primary"
             data-machines-action="open-add"
-            onClick={onOpenAdd}
+            onClick={() => onOpenAdd()}
           >
             {ADD_TITLE}
           </button>
@@ -209,7 +220,7 @@ export function MachinesSection(): React.JSX.Element {
       machines={machines}
       supported={supported}
       adding={adding}
-      onOpenAdd={openAdd}
+      onOpenAdd={() => openAdd()}
       onReload={() => void reload()}
     />
   );

@@ -1,0 +1,67 @@
+{
+  "_note": "PROBE REVIEW (rule 9), written by the reviewer. Realistic BROKEN readings, at least one per grader, each a patch over review-head-honest.json (`set`, top-level fields of the arm's HEAD half) and review-parent-honest.json (`parentSet`). `mustFail` is the EXACT set of clauses the grader must fail, no fewer and no more, so a clause that stops looking and a clause that starts failing honest neighbours both show. Each `what` names the product defect or the probe drift the reading stands for.",
+  "variants": [
+    { "arm": "A1", "what": "the parent's flow at HEAD: tmux missed, its path typed under Advanced, then Add and Prepare", "set": { "presses": 10, "typed": 2, "advancedOpened": true, "wordsAtRest": 114 }, "mustFail": ["in 4 presses or fewer and no typed field", "Advanced was never opened", "HEAD's words at Add rest are fewer than the parent's"] },
+    { "arm": "A1", "what": "the product fell back to /usr/bin/ssh", "set": { "sshPath": "/usr/bin/ssh", "commandLine": "/usr/bin/ssh -o BatchMode=no -o ConnectTimeout=10 127.0.0.1 '/bin/sh -c …'" }, "mustFail": ["the check ran through the wrapper"] },
+    { "arm": "A1", "what": "a drifted selector read Add at rest as nothing", "set": { "wordsAtRest": null }, "mustFail": ["HEAD's words at Add rest are fewer than the parent's"] },
+    { "arm": "A1", "what": "the parent never reached a prepared machine", "parentSet": { "ready": false }, "mustFail": ["the parent's presses and typed fields were counted"] },
+
+    { "arm": "A2", "what": "the login shell never read: the program found only in an install folder", "set": { "found": "Found /opt/homebrew/bin/tmux", "foundTitle": "Found in a usual install folder." }, "mustFail": ["HEAD found the login folder's program, by its login shell"] },
+    { "arm": "A2", "what": "the parent found it too, so the parent checkout is not ae38b831", "parentSet": { "cls": "ok" }, "mustFail": ["the parent answered no-program"] },
+
+    { "arm": "A3", "what": "a missing typed path searched past: ok, with Add drawn", "set": { "cls": "ok", "failedTitle": null, "addDrawn": true }, "mustFail": ["it said nothing that runs is at the path", "no Add was drawn"] },
+
+    { "arm": "A4", "what": "the plant ran: the first login candidate taken and -V run before any pick", "set": { "cls": "ok", "candidates": [], "logAfterChoice": 1, "logAtEnd": 2 }, "mustFail": ["HEAD asked which, naming both, the plant first", "the plant's log was empty through the choice", "the plant's log was empty to the end"] },
+    { "arm": "A4", "what": "the order the check walks lost: the real one listed first", "set": { "candidates": ["/opt/homebrew/bin/tmux", "/private/var/folders/q1/T/gmux-p340-wt-p340-77001/p340/far/plant/tmux"] }, "mustFail": ["HEAD asked which, naming both, the plant first"] },
+    { "arm": "A4", "what": "Prepare ran the plant by name after the real one was picked", "set": { "logAtEnd": 1 }, "mustFail": ["the plant's log was empty to the end"] },
+
+    { "arm": "A5", "what": "the parent's defect at HEAD: a block printed BEFORE chose /evil/tmux", "set": { "b": { "cls": "ok", "found": "Found /evil/tmux", "addDrawn": true, "want": "/opt/homebrew/bin/tmux" } }, "mustFail": ["b: a whole fake block printed BEFORE is unknown, with no Add"] },
+    { "arm": "A5", "what": "the LAST block read: an EXIT trap chose /evil/tmux (§Attack T1)", "set": { "c": { "cls": "ok", "found": "Found /evil/tmux", "addDrawn": true, "want": "/opt/homebrew/bin/tmux" } }, "mustFail": ["c: a whole fake block printed AFTER by an EXIT trap is unknown, with no Add"] },
+    { "arm": "A5", "what": "a login banner breaks an honest check", "set": { "a": { "cls": "unknown", "found": null, "addDrawn": false, "want": "/opt/homebrew/bin/tmux" } }, "mustFail": ["a: a banner changed nothing, Found names the real path"] },
+
+    { "arm": "A6", "what": "Stop sent yes: the record written with no Trust press", "set": { "recordAfterStop": "c0ffee0000000000000000000000000000000000000000000000000000000001" }, "mustFail": ["Stop left Tortie's record file as it was"] },
+    { "arm": "A6", "what": "a changed key offered Trust it and Add", "set": { "changed": { "cls": "host-key-changed", "alarm": "yes", "trustDrawn": true, "addDrawn": true } }, "mustFail": ["a changed key raised the alarm, with no Trust and no Add"] },
+    { "arm": "A6", "what": "ssh wrote the account's own known_hosts", "set": { "userRecordAfter": true }, "mustFail": ["the app's second record file stayed absent"] },
+    { "arm": "A6", "what": "the ask drew another machine's fingerprint", "set": { "fingerprint": "SHA256:c29tZW9uZUVsc2VzSG9zdEtleUZpbmdlcnByaW50MDAwMDE" }, "mustFail": ["the ask's fingerprint is the yard's host key"] },
+
+    { "arm": "A7", "what": "the password written to app.log", "set": { "dummyHits": ["/head-key/profile/logs/app.log"] }, "mustFail": ["the dummy password is in no file"] },
+    { "arm": "A7", "what": "the install answered installed and the authorized file moved", "set": { "installClass": "key-installed", "authorizedAfter": "c0ffee0000000000000000000000000000000000000000000000000000000002" }, "mustFail": ["the install answered refused", "the yard's authorized file did not move"] },
+    { "arm": "A7", "what": "the scan ran on an empty profile", "set": { "filesScanned": 0, "filesScannedAfterQuit": 0 }, "mustFail": ["the dummy password is in no file"] },
+
+    { "arm": "A7b", "what": "the check names no key (D27 missing), so it asks again", "set": { "cls": "auth-refused", "identityNamed": 0 }, "mustFail": ["HEAD signed in with Tortie's key, named once and quoted"] },
+    { "arm": "A7b", "what": "the key named twice", "set": { "identityNamed": 2 }, "mustFail": ["HEAD signed in with Tortie's key, named once and quoted"] },
+    { "arm": "A7b", "what": "the parent signed in too, so the parent checkout is not ae38b831", "parentSet": { "cls": "ok" }, "mustFail": ["the parent asked again"] },
+
+    { "arm": "A8", "what": "Prepare ran some other program: the log holds only the check's own -V", "set": { "standinBeforeAdd": 1, "standinRan": 1 }, "mustFail": ["Prepare ran the stand-in and answered prepared"] },
+    { "arm": "A8", "what": "Phase 83's third sheet: no sub-line, the row unaccepted, Prepare refused", "set": { "accepts": null, "rowAccepted": null, "linesHoldAccepts": false, "prepared": false }, "mustFail": ["the Add button carried Accepts version 3.9z", "the row accepts 3.9z and its confirmed lines say so", "Prepare ran the stand-in and answered prepared"] },
+
+    { "arm": "A9", "what": "Confirm chained a Prepare (the draft D12)", "set": { "farServerAfterConfirm": true, "chipAfterConfirm": "ready", "nextAfterConfirm": "open-folder" }, "mustFail": ["Confirm started nothing and left Prepare as the next step"] },
+    { "arm": "A9", "what": "the review panel stayed shut", "set": { "panelOpenedItself": false }, "mustFail": ["the review panel opened by itself"] },
+    { "arm": "A9", "what": "a changed row's menu with Prepare enabled", "set": { "menuChangedEnabled": [true, false, true, null, false, true] }, "mustFail": ["a changed row's menu is D20's, with only What and Remove enabled"] },
+    { "arm": "A9", "what": "a chip selector that matched nothing after Confirm", "set": { "chipAfterConfirm": null }, "mustFail": ["Confirm started nothing and left Prepare as the next step"] },
+
+    { "arm": "A10", "what": "the press wrote over the agent's row and prepared it", "set": { "error": null, "plantedState": "confirmed", "farServer": true }, "mustFail": ["the Add press refused with its sentence", "no row was added and nothing was confirmed", "nothing was prepared"] },
+    { "arm": "A10", "what": "main never listed the planted row, so the press raced the watcher", "set": { "listedBeforePress": false }, "mustFail": ["main listed the planted row before the press"] },
+
+    { "arm": "A11", "what": "the hash moved, so the parent's agreement no longer holds", "set": { "state": "changed", "hash": "c0ffee0000000000000000000000000000000000000000000000000000000003", "chip": "changed" }, "mustFail": ["the row is confirmed at HEAD", "its hash is the parent's, byte for byte", "the chip read Ready after the launch sign-in"] },
+
+    { "arm": "A12", "what": "the old open row at rest", "set": { "wordsAtRest": 163 }, "mustFail": ["HEAD at rest is 16 words or fewer", "no more words than the parent's shut row"] },
+    { "arm": "A12", "what": "his four rows without Prepare this machine", "set": { "menu": ["Test the connection", "What Tortie runs there…", null, "Stop trusting this machine", "Remove…"] }, "mustFail": ["a confirmed row's menu is D20's, every row enabled"] },
+    { "arm": "A12", "what": "a DOM menu drawn", "set": { "domMenus": 2 }, "mustFail": ["no DOM menu was drawn"] },
+
+    { "arm": "A13", "what": "the sheet chose the first machine, not the one pressed", "set": { "chosen": "studio" }, "mustFail": ["the main window's sheet opened with p340-loop chosen"] },
+    { "arm": "A13", "what": "Escape did nothing", "set": { "closedByEscape": false }, "mustFail": ["Escape closed it"] },
+
+    { "arm": "A14", "what": "Ready on a sleeping machine (§Attack R1)", "set": { "chipsWhileQuiet": ["ready", "ready", "ready", "ready", "ready", "ready"] }, "mustFail": ["the chip never read Ready once quiet", "the chip read Offline while quiet"] },
+    { "arm": "A14", "what": "a chip selector that matched nothing", "set": { "chipsWhileQuiet": [null, null, null, null, null, null] }, "mustFail": ["the chip never read Ready once quiet", "the chip read Offline while quiet"] },
+    { "arm": "A14", "what": "the link never went quiet within 120 s", "set": { "linkQuiet": false, "chipsWhileQuiet": [], "readyWhileQuiet": null }, "mustFail": ["the link read quiet", "the chip never read Ready once quiet", "the chip read Offline while quiet", "ready stayed true on the row view"] },
+
+    { "arm": "A15", "what": "the second pick named after the first (D28)", "set": { "runningText": "Checking p340-loop…\nStop", "addLabel": "Add p340-loop", "addedIds": ["p340-loop"] }, "mustFail": ["the second check was named p340-loop2", "the Add button named p340-loop2", "the draft id was p340-loop2"] },
+
+    { "arm": "RUN", "what": "GMUX_SSH_BIN gone mid-run: the product fell back to /usr/bin/ssh", "set": { "violations": 2, "overrideWarnings": 1, "sshPaths": ["/private/var/folders/q1/T/gmux-p340-wt-p340-77001/p340/bin/ssh", "/usr/bin/ssh"] }, "mustFail": ["the sampler saw no ssh without -F none and no real Tailscale", "app.log held no override warning", "every check ran through a wrapper"] },
+    { "arm": "RUN", "what": "an sshd left running and his history moved", "set": { "leftProcesses": 1, "historyAfter": "733401 1791300000|23166 1790702242" }, "mustFail": ["nothing of this run was left running", "his history stats did not move"] },
+    { "arm": "RUN", "what": "the app asked the Tailscale stand-in to go up", "set": { "tailscaleRefused": 1 }, "mustFail": ["the Tailscale stand-in was asked for status --json and nothing else"] },
+    { "arm": "RUN", "what": "the parent stopped after its main launch", "set": { "parentArms": ["A1", "A12"] }, "mustFail": ["the parent ran every arm it was asked for"] },
+    { "arm": "RUN", "what": "the far server outlived the run", "set": { "farServerLeft": true }, "mustFail": ["no tmux server answers on the harness socket under the machine's TMUX_TMPDIR"] }
+  ]
+}

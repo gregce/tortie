@@ -2,7 +2,8 @@
  * The connection test and the key install (Phase 125, from Phase 68 and Phase
  * 79.1).
  *
- * Ten members, four invoke channels and one event channel. These are the two
+ * Ten members, four invoke channels and one event channel (twelve members since
+ * Phase 340 added `MachineCheckView` and `MachineTestAsk`). These are the two
  * buttons in Settings that start a process. Everything else in the machines
  * contract reads memory, or writes one row and one record.
  *
@@ -85,7 +86,15 @@ export type MachineTestClass =
   | 'version-unmeasured'
   | 'prepared'
   | 'key-installed'
-  | 'password-required';
+  | 'password-required'
+  // PHASE 340 (build/p340/SPEC.md D14). ssh is on this Mac and Tortie could not
+  // start it. `client-missing` is kept for a missing or non-executable ssh,
+  // because the two have different causes and different remedies, and until
+  // this phase a launch that failed was reported as a missing program.
+  | 'client-failed'
+  // PHASE 340 (D4). The check found more than one distinct program, and ran
+  // none of them. The person chooses, and only then is one asked its version.
+  | 'program-choice';
 
 /**
  * The outcome, composed in main.
@@ -135,7 +144,94 @@ export interface MachineTestOutcome {
    * would compute, and that is the safe direction.
    */
   keySheet?: MachineKeySheet | null;
+  /**
+   * APPENDED (Phase 340, build/p340/SPEC.md §4.1): what the check read on that
+   * machine, from the ONE block Tortie's own check printed.
+   *
+   * Null unless the class is `ok`, `program-choice` or `no-program`, because
+   * those three are decided from a well formed block and nothing else is. A
+   * buffer holding other than exactly one block is `unknown` and carries no
+   * view at all (D15).
+   *
+   * Optional as well as nullable, so a surface written against the older
+   * contract still compiles.
+   */
+  check?: MachineCheckView | null;
+  /**
+   * APPENDED (Phase 340's fix round): true when that machine was reached and
+   * signed in to, which is when the first of Tortie's own check markers came
+   * back. It is what lets a surface say "Reached" above an answer it could not
+   * read, rather than calling a machine it signed in to unreachable: an
+   * `unknown` that carries it is a machine whose answer something else printed
+   * into, and a `timed-out` that carries it is one whose login files did not
+   * finish. Absent reads as not known.
+   */
+  signedIn?: boolean;
 }
+
+/**
+ * What the check read on one machine, composed in main (Phase 340, D2, D8).
+ *
+ * Every value is the machine's own report, read from inside the one block
+ * between Tortie's two markers. Nothing a login file printed outside that block
+ * reaches any field here.
+ */
+export interface MachineCheckView {
+  /** The account that signed in, as `id -un` answered. Null when it did not say. */
+  signedInAs: string | null;
+  /** What `uname -s` answered, e.g. `Darwin`. Null when it did not say. */
+  os: string | null;
+  /** True when that machine's login shell answered the PATH read. */
+  loginRead: boolean;
+  /**
+   * The one program Tortie found, and how it found it. Null unless exactly one
+   * distinct program was found.
+   *
+   *  - `login`: a folder on the PATH that machine's login shell gives.
+   *  - `path`: a folder on the PATH a command run there gets.
+   *  - `install`: a folder on Tortie's compiled list of install folders.
+   *  - `typed`: the path the person typed.
+   */
+  program: {
+    path: string;
+    source: 'login' | 'path' | 'install' | 'typed';
+  } | null;
+  /** Every distinct program found, in the order Tortie looked. */
+  candidates: {
+    path: string;
+    source: 'login' | 'path' | 'install' | 'typed';
+  }[];
+  /** True when the person typed a path and nothing that runs is there. */
+  typedMissing: boolean;
+  /** The version the one program reported, e.g. `3.6a`. Null when none was read. */
+  version: string | null;
+  /**
+   * Which of four answers the version is (D8 as revised). Null unless exactly
+   * one program was found.
+   *
+   *  - `measured`: a version Tortie has measured.
+   *  - `unmeasured`: a version Tortie read and has not measured. The sheet then
+   *    carries it as the accepted version, and the Add press accepts it.
+   *  - `not-read`: the one program was found only in an install folder, so
+   *    Tortie did not run it before the Add press. Prepare reads it.
+   *  - `unreadable`: the program answered nothing Tortie could read as a
+   *    version.
+   */
+  versionKind: 'measured' | 'unmeasured' | 'not-read' | 'unreadable' | null;
+}
+
+/**
+ * One question a running check is waiting on (Phase 340, D9).
+ *
+ *  - `host-key`: ssh's first-seen question, with the fingerprint it named. It
+ *    is raised at most once per check, and only before Tortie's check printed
+ *    anything, because ssh always asks before the far side runs.
+ *  - `prompt`: the last line the program printed, after it fell quiet with that
+ *    line unfinished. A passphrase question is the usual one.
+ */
+export type MachineTestAsk =
+  | { kind: 'host-key'; fingerprint: string; keyType: string }
+  | { kind: 'prompt'; text: string };
 
 /** The one event channel: the connection test's own bytes and its end. */
 export const EVT_MACHINE_TEST = 'machines:testEvent';
@@ -148,7 +244,10 @@ export const EVT_MACHINE_TEST = 'machines:testEvent';
  */
 export type MachineTestEvent =
   | { testId: string; kind: 'output'; text: string }
-  | { testId: string; kind: 'end'; outcome: MachineTestOutcome };
+  | { testId: string; kind: 'end'; outcome: MachineTestOutcome }
+  // APPENDED (Phase 340, D9). A question the running check is waiting on. It is
+  // never the last event for a test id: `end` still is.
+  | { testId: string; kind: 'ask'; ask: MachineTestAsk };
 
 export interface MachineTestEventPayloadMap {
   [EVT_MACHINE_TEST]: [event: MachineTestEvent];

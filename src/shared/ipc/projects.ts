@@ -474,6 +474,23 @@ export type OpenRecentOnMachineActionId = `open-recent-on:${string}`;
 /** The prefix above, so main and the renderer split the id the same way. */
 export const OPEN_RECENT_ON_PREFIX = 'open-recent-on:' as const;
 
+/**
+ * APPENDED by Phase 340 (build/p340/SPEC.md D13). The fifth template family:
+ * Settings then Machines, Open a folder on it…, carries one machine id.
+ *
+ * It opens the main window's Open a Folder on a Machine sheet with that machine
+ * chosen, and nothing else. It names no path, so the main window's own sheet
+ * still asks which folder. Main sends it only for a confirmed machine, through
+ * `machines:openFolder`, and it starts no process on either computer.
+ *
+ * It cannot be confused with the two families above: `open-folder-on:` differs
+ * from `open-recent-on:` and from `open-recent:` at the sixth character.
+ */
+export type OpenFolderOnMachineActionId = `open-folder-on:${string}`;
+
+/** The prefix above, so main and the renderer split the id the same way. */
+export const OPEN_FOLDER_ON_PREFIX = 'open-folder-on:' as const;
+
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 74 (GitHub issue 6). One folder picker channel that takes
 // an argument.

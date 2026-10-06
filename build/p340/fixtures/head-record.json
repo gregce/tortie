@@ -1,0 +1,148 @@
+{
+  "_note": "HAND-WRITTEN to the shape an honest HEAD run of build/p340/probe-p340.mjs records (no builder launches Electron). The paths are made up and stand for the run's own: $RUN is <harness dir>/p340. A verifier's P340_KEEP=1 run may replace this file with a real record.",
+  "arms": {
+    "A1": {
+      "ready": true,
+      "presses": 4,
+      "typed": 0,
+      "advancedOpened": false,
+      "wordsAtRest": 12,
+      "sshPath": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh",
+      "commandLine": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh -o BatchMode=no -o ConnectTimeout=10 -o StrictHostKeyChecking=ask -o 'UserKnownHostsFile=\"/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/head-main/profile/gmux/machines/known-machines\" \"/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/head-main/home/.ssh/known_hosts\"' 127.0.0.1 '/bin/sh -c …'",
+      "wrapper": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh"
+    },
+    "A2": {
+      "cls": "ok",
+      "found": "Found /private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/loginbin/tmux",
+      "foundTitle": "Found by its login shell.",
+      "want": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/loginbin/tmux"
+    },
+    "A3": {
+      "cls": "no-program",
+      "path": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/missing/tmux",
+      "failedTitle": "Nothing that runs is at /private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/missing/tmux on that machine.",
+      "addDrawn": false
+    },
+    "A4": {
+      "cls": "program-choice",
+      "candidates": ["/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/plant/tmux", "/opt/homebrew/bin/tmux"],
+      "want": ["/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/far/plant/tmux", "/opt/homebrew/bin/tmux"],
+      "logAfterChoice": 0,
+      "ready": true,
+      "logAtEnd": 0
+    },
+    "A5": {
+      "a": { "cls": "ok", "found": "Found /opt/homebrew/bin/tmux", "addDrawn": true, "want": "/opt/homebrew/bin/tmux" },
+      "b": { "cls": "unknown", "found": null, "addDrawn": false, "want": "/opt/homebrew/bin/tmux" },
+      "c": { "cls": "unknown", "found": null, "addDrawn": false, "want": "/opt/homebrew/bin/tmux" },
+      "farServer": false
+    },
+    "A6": {
+      "fingerprint": "SHA256:p340MadeUpFingerprintOfTheYardHostKey0000000",
+      "wantFingerprint": "SHA256:p340MadeUpFingerprintOfTheYardHostKey0000000",
+      "recordBefore": "absent",
+      "recordAfterStop": "absent",
+      "entriesBefore": 0,
+      "entriesAfterTrust": 1,
+      "changed": { "cls": "host-key-changed", "alarm": "yes", "trustDrawn": false, "addDrawn": false },
+      "userRecordBefore": false,
+      "userRecordAfter": false
+    },
+    "A7": {
+      "cls": "auth-refused",
+      "keyStep": true,
+      "installClass": "refused",
+      "dummyHits": [],
+      "filesScanned": 41,
+      "dummyHitsAfterQuit": [],
+      "filesScannedAfterQuit": 44,
+      "authorizedBefore": "1111111111111111111111111111111111111111111111111111111111111111",
+      "authorizedAfter": "1111111111111111111111111111111111111111111111111111111111111111",
+      "keyMade": true
+    },
+    "A7b": {
+      "cls": "ok",
+      "identityNamed": 1,
+      "keyPath": "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/head-key/profile/gmux/machines/keys/machine-0123456789ab",
+      "restored": true
+    },
+    "A8": {
+      "accepts": "3.9z",
+      "addPresses": 1,
+      "rowAccepted": "3.9z",
+      "linesHoldAccepts": true,
+      "standinBeforeAdd": 1,
+      "standinRan": 3,
+      "prepared": true,
+      "presses": 5
+    },
+    "A9": {
+      "chip": "changed",
+      "next": "review",
+      "bothLists": true,
+      "panelOpenedItself": true,
+      "farServerBeforeConfirm": false,
+      "farServerAfterConfirm": false,
+      "chipAfterConfirm": "not-ready",
+      "nextAfterConfirm": "prepare",
+      "readyAfterPrepare": true,
+      "menuChanged": ["Prepare this machine", "Test the connection", "What Tortie runs there…", null, "Stop trusting this machine", "Remove…"],
+      "menuChangedEnabled": [false, false, true, null, false, true]
+    },
+    "A10": {
+      "listedBeforePress": true,
+      "error": "There is already a machine called p340-loop. Pick another name. Nothing was added.",
+      "rowsAfter": 1,
+      "plantedState": "never",
+      "farServer": false
+    },
+    "A11": {
+      "state": "confirmed",
+      "hash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "parentHash": "2222222222222222222222222222222222222222222222222222222222222222",
+      "chip": "ready"
+    },
+    "A12": {
+      "wordsAtRest": 9,
+      "menu": ["Prepare this machine", "Test the connection", "What Tortie runs there…", null, "Stop trusting this machine", "Remove…"],
+      "menuAllEnabled": true,
+      "domMenus": 0
+    },
+    "A13": { "open": true, "chosen": "p340-loop", "closedByEscape": true },
+    "A14": {
+      "linkQuiet": true,
+      "chipsWhileQuiet": ["offline", "offline", "offline", "offline", "offline", "offline"],
+      "readyWhileQuiet": true,
+      "restarted": true
+    },
+    "A15": {
+      "runningText": "Checking p340-loop2… Stop",
+      "addLabel": "Add p340-loop2",
+      "addedIds": ["p340-loop2"]
+    }
+  },
+  "run": {
+    "parentWanted": ["A1", "A2", "A4", "A5", "A6", "A7b", "A8", "A12"],
+    "preflights": [true, true, true, true, true, true, true, true, true, true, true],
+    "samples": 812,
+    "violations": 0,
+    "violationLines": [],
+    "overrideWarnings": 0,
+    "logsRead": 11,
+    "sshPaths": [
+      "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh",
+      "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh-noid"
+    ],
+    "wrappers": [
+      "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh",
+      "/private/var/folders/x/T/gmux-p340-wt-p340-4242/p340/bin/ssh-noid"
+    ],
+    "farServerLeft": false,
+    "leftProcesses": 0,
+    "tailscaleAnswered": 9,
+    "tailscaleRefused": 0,
+    "tailscaleOther": 0,
+    "historyBefore": "733353 1791256765|23166 1790702242",
+    "historyAfter": "733353 1791256765|23166 1790702242"
+  }
+}

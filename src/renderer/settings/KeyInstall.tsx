@@ -1,36 +1,32 @@
 /**
- * Phase 79.1. Setting up a key for one machine, drawn.
+ * Phase 79.1. Setting up a key for one machine, drawn. PHASE 340 made it one
+ * step of the check (build/p340/SPEC.md D10).
  *
- * WHAT THIS IS. The block under a connection test that came back with the
- * machine turning the sign in down, or with the machine not accepting
- * connections at all. It says what Tortie is about to do, takes that machine's
- * password once, and hands both to main. Main makes a key, puts its public
- * half on that machine, and the store then starts the real connection test
- * again so the last thing a person reads is the machine's own answer.
+ * WHAT THIS IS. The step under a check that came back with the machine asking
+ * for a password, turning the sign in down, or not accepting connections. It
+ * takes that machine's password once and hands it to main with main's own
+ * hash. Main makes a key, puts its public half on that machine, and the store
+ * then runs the check again so the last thing a person reads is the machine's
+ * own answer.
  *
- * WHERE THE WORDS COME FROM, and this is the whole reason the block can be
+ * WHAT IS ON ITS FACE, AND WHAT IS ONE PRESS AWAY. The password field, one
+ * hint saying where the password goes, and one button. Main's lines, its
+ * warning and its five notes stand behind What this does, drawn byte for byte,
+ * because his design asked for a password once and "just enough words". This
+ * supersedes Phase 130's rule that the file written on that machine and where
+ * the private half lives stand on the face: they are one press away, and the
+ * hash binds them exactly as before, because the hash is main's and nothing
+ * here composes a line of it.
+ *
+ * WHERE THE WORDS COME FROM, and this is the whole reason the step can be
  * trusted. The lines, the warning and the notes are main's, composed beside
  * the hash that binds the agreement, and they are drawn here exactly as they
  * arrived. So is every sentence about what happened afterwards. This file
- * writes labels, one button and one hint, and nothing else. It names no file,
- * no path, no program and no part of the key.
+ * writes labels, one button and one hint, and nothing else.
  *
  * THE PASSWORD. It lives in this component's own state and nowhere else. It is
  * never put in the store, so no snapshot of the store holds it, and the field
- * is cleared on the same tick the call is made. That is the same shape the
- * connection test's answer field already has.
- *
- * PHASE 130. Two of main's five notes now sit behind a shut disclosure rather
- * than in the stack above the password field. They are still main's words,
- * still drawn byte for byte, and one press opens them. The rule that decides
- * which two is written beside the partition in the component below. Nothing
- * was deleted, nothing was reworded, and no consent fact moved.
- *
- * PHASE 123. `Remedy` used to be defined in ConnectionTestView.tsx, which
- * renders this component, so the two modules imported each other. It lives in
- * Remedy.tsx now and both files read it from there. A second copy of the remedy
- * block was never an option, because one advice table drawn two ways is how two
- * answers to the same question start to disagree.
+ * is cleared on the same tick the call is made.
  */
 
 import React, { useState } from 'react';
@@ -38,21 +34,19 @@ import type { MachineKeySheet, MachineTestClass } from '@shared/ipc';
 import { Remedy } from './Remedy';
 import {
   BTN_INSTALL_KEY,
+  DETAILS_LABEL,
   INSTALLING_KEY,
-  KEY_BLOCK_LABEL,
   KEY_DISABLED_REASON,
   KEY_FINGERPRINT_LABEL,
-  KEY_LINES_LABEL,
   KEY_MADE_NEW,
   KEY_MADE_REUSED,
-  KEY_MORE_LABEL,
   KEY_PASSWORD_HINT,
   KEY_PASSWORD_LABEL,
   KEY_RESULT_LABEL,
   KEY_TRANSCRIPT_LABEL,
+  KEY_WHAT_THIS_DOES,
   KEY_WROTE_ADDED,
-  KEY_WROTE_PRESENT,
-  REMEDY_ALREADY_SAYS_REMOTE_LOGIN
+  KEY_WROTE_PRESENT
 } from './machines-copy';
 import type { KeyInstallState } from './machines-store';
 import './key-install.css';
@@ -61,17 +55,15 @@ export interface KeyInstallProps {
   /**
    * Main's sheet for this machine, or null when there is nothing to offer.
    * The caller reads it through `keySheetOf`, so one rule decides when the
-   * block exists.
+   * step exists.
    */
   sheet: MachineKeySheet | null;
   /** The install for this machine, or null before one has been started. */
   state: KeyInstallState | null;
   /**
-   * The class the panel above has already given advice for, or null.
-   *
-   * A refused install under a refused test would otherwise draw the same
-   * paragraph twice on one panel, one line apart. The advice is worth reading
-   * once.
+   * The class the check above has already given advice for, or null. A refused
+   * install under a refused check would otherwise draw the same paragraph twice
+   * on one panel. The advice is worth reading once.
    */
   adviceAbove: MachineTestClass | null;
   /** Takes the password once. This component keeps no copy of it. */
@@ -89,42 +81,12 @@ export function KeyInstall({
   const running = state?.running === true;
   const result = state?.result ?? null;
 
-  // Nothing to offer and nothing to report. The block does not exist rather
+  // Nothing to offer and nothing to report. The step does not exist rather
   // than existing empty, so a machine that is working shows no password field
   // at all.
   if (sheet === null && result === null) return null;
 
   const ready = password !== '' && !running;
-
-  // PHASE 130. Main writes five notes and this surface drew all five, in one
-  // stack, above the password field. The operator read the whole thing and
-  // asked for what a person needs at that moment. Two of them move behind a
-  // shut disclosure and the rest stay where they were.
-  //
-  // WHAT MOVES, AND WHY EACH ONE MOVES:
-  //  - notes[1], why the key has no passphrase. It explains a design choice.
-  //    The fact it defends, that the file is what protects the key, is already
-  //    the second sentence of main's warning above it.
-  //  - notes[0], turn on Remote Login first, and ONLY when the advice above
-  //    has already said it. On `refused` the remedy four lines up says exactly
-  //    this. On the other two classes that offer a key nothing above says it,
-  //    so it stays in place there.
-  //
-  // NOTHING IS DELETED AND NOTHING IS REWORDED. Both are main's own strings,
-  // drawn byte for byte, one press away. No consent fact moves: what happened,
-  // the next action, the file written on that machine, where the private half
-  // lives and what becomes of the password are all still on screen with
-  // nothing to press.
-  const behindIndexes = new Set<number>([1]);
-  if (
-    adviceAbove !== null &&
-    REMEDY_ALREADY_SAYS_REMOTE_LOGIN.includes(adviceAbove)
-  ) {
-    behindIndexes.add(0);
-  }
-  const notes = sheet === null ? [] : sheet.notes;
-  const shownNotes = notes.filter((_, i) => !behindIndexes.has(i));
-  const behindNotes = notes.filter((_, i) => behindIndexes.has(i));
 
   const press = (): void => {
     onInstall(password);
@@ -135,74 +97,56 @@ export function KeyInstall({
 
   return (
     <div className="mach-key" data-machines-key="1">
-      <div className="mach-key-label">{KEY_BLOCK_LABEL}</div>
-
       {sheet === null ? null : (
         <>
-          {/* Main's own lines, being exactly the facts its hash covers. */}
-          <div className="mach-key-lines">
-            <div className="mach-key-sublabel">{KEY_LINES_LABEL}</div>
+          <div className="mach-key-row">
+            <label className="mach-field-row mach-key-field">
+              <span className="mach-field-label">{KEY_PASSWORD_LABEL}</span>
+              <input
+                type="password"
+                className="mach-field"
+                data-machines-field="machine-password"
+                spellCheck={false}
+                autoComplete="off"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && ready) press();
+                }}
+              />
+            </label>
+            {/* The reason the button is off rides on the button as its hover,
+                the shape the Add flow uses, and an enabled button carries no
+                hover at all. */}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={!ready}
+              {...(ready || running ? {} : { title: KEY_DISABLED_REASON })}
+              data-machines-action="install-key"
+              onClick={press}
+            >
+              {running ? INSTALLING_KEY : BTN_INSTALL_KEY}
+            </button>
+          </div>
+          <div className="mach-hint">{KEY_PASSWORD_HINT}</div>
+
+          {/* Main's own lines, warning and notes, in main's order, unchanged,
+              one press away (D10). Nothing here is deleted or reworded. */}
+          <details className="mach-key-more" data-machines-key-what="1">
+            <summary>{KEY_WHAT_THIS_DOES}</summary>
             <ul className="set-config-lines">
               {sheet.lines.map((line) => (
                 <li key={line}>{line}</li>
               ))}
             </ul>
-          </div>
-
-          {/* Main's warning and main's notes, in main's order, unchanged. The
-              note that says Remote Login comes before the key stays here on
-              every answer whose advice has not already said it, because a key
-              on a machine that is not accepting connections still cannot sign
-              in. The partition above decides which notes are here and which
-              are one press away, and it deletes none of them. */}
-          <p className="set-config-warning">{sheet.warning}</p>
-          {shownNotes.map((note) => (
-            <p className="mach-key-note" key={note}>
-              {note}
-            </p>
-          ))}
-          {behindNotes.length === 0 ? null : (
-            <details className="mach-key-more" data-p130-key-more="1">
-              <summary>{KEY_MORE_LABEL}</summary>
-              {behindNotes.map((note) => (
-                <p className="mach-key-note" key={note}>
-                  {note}
-                </p>
-              ))}
-            </details>
-          )}
-
-          <label className="mach-field-row mach-key-field">
-            <span className="mach-field-label">{KEY_PASSWORD_LABEL}</span>
-            <input
-              type="password"
-              className="mach-field"
-              data-machines-field="machine-password"
-              spellCheck={false}
-              autoComplete="off"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && ready) press();
-              }}
-            />
-          </label>
-          <div className="mach-hint">{KEY_PASSWORD_HINT}</div>
-
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!ready}
-            data-machines-action="install-key"
-            onClick={press}
-          >
-            {running ? INSTALLING_KEY : BTN_INSTALL_KEY}
-          </button>
-          {/* A control that is off without saying why is a puzzle rather than
-              a safeguard, which is the shape the Add button already has. */}
-          {ready || running ? null : (
-            <div className="mach-hint">{KEY_DISABLED_REASON}</div>
-          )}
+            <p className="set-config-warning">{sheet.warning}</p>
+            {sheet.notes.map((note) => (
+              <p className="mach-key-note" key={note}>
+                {note}
+              </p>
+            ))}
+          </details>
         </>
       )}
 
@@ -212,41 +156,40 @@ export function KeyInstall({
           data-key-class={result.class}
           data-key-alarm={result.alarm ? 'yes' : 'no'}
         >
-          <div className="mach-key-sublabel">{KEY_RESULT_LABEL}</div>
           {/* Both sentences are main's, for the reason the outcome's are. */}
           <div className="mach-outcome-head">{result.headline}</div>
           <div className="mach-outcome-detail">{result.detail}</div>
 
-          <p className="mach-key-note">
-            {result.keyMade ? KEY_MADE_NEW : KEY_MADE_REUSED}
-          </p>
-          {result.wrote === null ? null : (
-            <p className="mach-key-note">
-              {result.wrote === 'added' ? KEY_WROTE_ADDED : KEY_WROTE_PRESENT}
-            </p>
-          )}
-
-          {result.fingerprint === null ? null : (
-            <div className="mach-prepare-fact">
-              <span className="mach-prepare-label">
-                {KEY_FINGERPRINT_LABEL}
-              </span>
-              <span className="mach-prepare-value" data-key-fingerprint>
-                {result.fingerprint}
-              </span>
-            </div>
-          )}
-
-          {result.transcript === '' ? null : (
-            <>
-              <div className="mach-key-sublabel">{KEY_TRANSCRIPT_LABEL}</div>
-              <pre className="mach-transcript" data-key-transcript="1">
-                {result.transcript}
-              </pre>
-            </>
-          )}
-
           {result.class === adviceAbove ? null : <Remedy cls={result.class} />}
+
+          <details className="mach-key-more" data-machines-key-result-details="1">
+            <summary>{DETAILS_LABEL}</summary>
+            <div className="mach-key-sublabel">{KEY_RESULT_LABEL}</div>
+            <p className="mach-key-note">
+              {result.keyMade ? KEY_MADE_NEW : KEY_MADE_REUSED}
+            </p>
+            {result.wrote === null ? null : (
+              <p className="mach-key-note">
+                {result.wrote === 'added' ? KEY_WROTE_ADDED : KEY_WROTE_PRESENT}
+              </p>
+            )}
+            {result.fingerprint === null ? null : (
+              <div className="mach-prepare-fact">
+                <span className="mach-prepare-label">{KEY_FINGERPRINT_LABEL}</span>
+                <span className="mach-prepare-value" data-key-fingerprint>
+                  {result.fingerprint}
+                </span>
+              </div>
+            )}
+            {result.transcript === '' ? null : (
+              <>
+                <div className="mach-key-sublabel">{KEY_TRANSCRIPT_LABEL}</div>
+                <pre className="mach-transcript" data-key-transcript="1">
+                  {result.transcript}
+                </pre>
+              </>
+            )}
+          </details>
         </div>
       )}
     </div>

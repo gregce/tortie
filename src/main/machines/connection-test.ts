@@ -5,7 +5,8 @@
  * It runs ssh once, shows the person the bytes the program printed, and lets
  * them answer the program's own questions. Two things are taken out of what
  * reaches the screen and nothing else is: the ANSI control sequences, and the
- * marker pair Tortie asked the other machine to print around its answer. The
+ * markers Tortie asked the other machine to print around its answer (since
+ * Phase 340 the check's own pair as well as the path pair inside it). The
  * answer itself is left exactly as the machine sent it. It is the first and
  * only place in Tortie where ssh vocabulary is on screen, and it is on screen
  * because the bytes belong to a real program rather than to Tortie.
@@ -80,7 +81,10 @@
  *
  * It writes no passphrase and no configuration file into the person's home
  * folder, on either machine, and it reads nothing from `~/.ssh` except the
- * identity record file named on the command. It stores nothing a person types.
+ * identity record file named on the command. Since Phase 340's fix round Tortie
+ * reads that one file itself as well, once per test, through `./host-record.ts`,
+ * to know whether ssh could be asking about the machine for the first time. It
+ * stores nothing a person types.
  * It kills only the pid it started, and there is no `pkill` anywhere in this
  * phase.
  *
@@ -95,14 +99,25 @@ import { homedir } from 'node:os';
 import * as nodePty from 'node-pty';
 import type { IPty } from 'node-pty';
 import type {
+  MachineCheckView,
   MachineConfirmSheet,
   MachineKeySheet,
   MachineTestClass,
   MachineTestEvent,
   MachineTestOutcome
 } from '@shared/ipc';
+import { MACHINE_VERSION_PATTERN } from '@shared/machines';
 import { stripAnsi } from '../ansi';
 import { shellQuoteArgv } from '../restore/command';
+import { decideRemoteVersionGate, parseTmuxVersion } from '../tmux/version';
+// PHASE 340. The far check, composed and read purely. This file runs it.
+import {
+  CHECK_MARKER,
+  composeCheckCommand,
+  countMarker,
+  parseCheckAnswer,
+  type MachineCheckFacts
+} from './check-script';
 import {
   PINNED_SSH_PATH,
   REMOTE_PATH_MARKER,
@@ -113,11 +128,16 @@ import {
   type MachineHostKeyFiles
 } from './carriage';
 import {
+  MACHINE_VERSION_ACCEPT_OFFER,
   classifyMachineOutput,
+  clientFailedReason,
   composeOutcomeCopy,
   lastPrintedLine
 } from './errors';
 import { describeMachine, type MachineExecutionFields } from './confirm';
+// PHASE 340's fix round. Whether ssh could be asking about this machine for the
+// first time, read from the two record files the command names.
+import { hostKeyRecorded } from './host-record';
 // Phase 79.1. Every sentence, every hash and every composed string about
 // putting a key on a machine lives in ./key-install.ts, which starts nothing.
 // This file holds the one runner that does.
@@ -197,22 +217,12 @@ export const KEY_INSTALL_DEADLINE_MS = 30_000;
 
 const REMOTE_PATH_RE = /__TORTIE_PATH__(.*?)__TORTIE_PATH__/s;
 
-/**
- * The command Tortie asks the other machine to run.
- *
- * `command -v` answers with a full path when the program is there, and with
- * nothing when it is not. `|| true` keeps a missing program from turning into a
- * non zero exit that says less than the empty answer does.
- *
- * The program name is quoted with `shellQuoteArgv`, which is the one quoting
- * helper in this process, so a path holding a space is safe on the other
- * machine's shell. A path holding a single quote is refused by the schema, so
- * no quoting question is left open at all.
- */
-export function remoteProbeCommand(program: string): string {
-  const quoted = shellQuoteArgv([program]);
-  return `printf '${REMOTE_PATH_MARKER}%s${REMOTE_PATH_MARKER}\\n' "$(command -v ${quoted} || true)"`;
-}
+// PHASE 340 REMOVED `remoteProbeCommand`, the `command -v` probe this test ran
+// from Phase 68. It asked in the shell ssh hands a command to with `-c`, which
+// is not a login shell (build/p340/SPEC.md M1), so a tmux in `/usr/local/bin` or
+// `/opt/homebrew/bin` read as missing. The far command is now
+// `composeCheckCommand` in `./check-script.ts`, and nothing else about the test
+// moved (D1).
 
 /**
  * The whole argv, composed from the fields and the two record files. Pure, and
@@ -225,12 +235,22 @@ export function remoteProbeCommand(program: string): string {
  * The record files are a required argument rather than a default, so a caller
  * that forgets them is a compile error rather than a run that writes into the
  * person's home folder.
+ *
+ * PHASE 340 (D27). `identityFile` is the key Tortie made for this machine's id,
+ * or null. Phase 84 item 7 named that key on every command the carriage sends
+ * (`./ssh.ts`) and missed this one, so the test the key install restarts never
+ * offered the key the install had just put there, and a machine that trusts
+ * none of the person's own keys asked for the password again. It is named the
+ * way the carriage names it: one `-o IdentityFile="<path>"`, quoted because
+ * Tortie's data directory has a space in its name, after the record files and
+ * before `-p`, and never with `IdentitiesOnly`, so the person's own keys are
+ * still offered. It changes no hashed field.
  */
 export function composeTestArgv(
   fields: MachineExecutionFields,
-  hostKeys: MachineHostKeyFiles
+  hostKeys: MachineHostKeyFiles,
+  identityFile: string | null = null
 ): string[] {
-  const program = fields.remoteTmuxPath ?? 'tmux';
   const argv: string[] = [
     '-o',
     SSH_BATCH_MODE_INTERACTIVE,
@@ -241,13 +261,18 @@ export function composeTestArgv(
     '-o',
     composeKnownHostsOption(hostKeys)
   ];
+  if (identityFile !== null && identityFile.length > 0) {
+    argv.push('-o', `IdentityFile="${identityFile}"`);
+  }
   if (fields.port !== null) argv.push('-p', String(fields.port));
   if (fields.user !== null) argv.push('-l', fields.user);
   argv.push(fields.host);
   // ONE argument, carrying the whole remote command. There is no local shell
   // here: node-pty runs the client directly, so this element reaches ssh
-  // verbatim and ssh hands it to the other machine's login shell.
-  argv.push(remoteProbeCommand(program));
+  // verbatim, and ssh hands it to the account's shell with `-c`, which is not
+  // a login shell (Phase 340, M1, corrected from "login shell"). The check
+  // asks the login shell itself, inside the script.
+  argv.push(composeCheckCommand(fields.remoteTmuxPath));
   return argv;
 }
 
@@ -256,14 +281,16 @@ export function composeTestArgv(
  *
  * It carries the record files as well, so the exact path Tortie writes a
  * machine's identity to is on screen in the command a person can read, rather
- * than being something they have to take on trust.
+ * than being something they have to take on trust. Since Phase 340 it carries
+ * Tortie's key for the machine too, when one is named.
  */
 export function composeTestCommandLine(
   sshPath: string,
   fields: MachineExecutionFields,
-  hostKeys: MachineHostKeyFiles
+  hostKeys: MachineHostKeyFiles,
+  identityFile: string | null = null
 ): string {
-  return shellQuoteArgv([sshPath, ...composeTestArgv(fields, hostKeys)]);
+  return shellQuoteArgv([sshPath, ...composeTestArgv(fields, hostKeys, identityFile)]);
 }
 
 /**
@@ -282,6 +309,13 @@ export function parseResolvedPath(text: string): string | null {
 }
 
 /**
+ * The markers Tortie asks the other machine to print, which come out of what a
+ * person reads (Phase 73.1, row 1; the check's own marker since Phase 340). Both
+ * begin `__TORTIE_`, so the held tail rule below is the rule it always was.
+ */
+const DISPLAY_MARKERS: readonly string[] = [CHECK_MARKER, REMOTE_PATH_MARKER];
+
+/**
  * The longest tail of `text` that could still be the start of a marker.
  *
  * The terminal hands over whatever bytes have arrived, so one marker can be cut
@@ -290,11 +324,30 @@ export function parseResolvedPath(text: string): string | null {
  * is the most that can ever be held, because a whole one would have been found.
  */
 function markerTailLength(text: string): number {
-  const most = Math.min(text.length, REMOTE_PATH_MARKER.length - 1);
-  for (let len = most; len > 0; len -= 1) {
-    if (REMOTE_PATH_MARKER.startsWith(text.slice(text.length - len))) return len;
+  let longest = 0;
+  for (const marker of DISPLAY_MARKERS) {
+    const most = Math.min(text.length, marker.length - 1);
+    for (let len = most; len > longest; len -= 1) {
+      if (marker.startsWith(text.slice(text.length - len))) {
+        longest = len;
+        break;
+      }
+    }
   }
-  return 0;
+  return longest;
+}
+
+/** The earliest whole marker at or after `from`, of any kind, or null. */
+function firstMarkerAt(
+  text: string,
+  from: number
+): { at: number; marker: string } | null {
+  let best: { at: number; marker: string } | null = null;
+  for (const marker of DISPLAY_MARKERS) {
+    const at = text.indexOf(marker, from);
+    if (at !== -1 && (best === null || at < best.at)) best = { at, marker };
+  }
+  return best;
 }
 
 /**
@@ -319,12 +372,14 @@ export function splitTranscriptForDisplay(pending: string): {
   show: string;
   hold: string;
 } {
-  const width = REMOTE_PATH_MARKER.length;
   let show = '';
   let at = 0;
   for (;;) {
-    const open = pending.indexOf(REMOTE_PATH_MARKER, at);
-    if (open === -1) {
+    // PHASE 340. The earliest marker of EITHER kind opens a pair, and its pair
+    // is the next copy of the same marker. The check's block holds the path
+    // pair inside it, so what sits between a pair has every marker taken out.
+    const first = firstMarkerAt(pending, at);
+    if (first === null) {
       const rest = pending.slice(at);
       const held = markerTailLength(rest);
       return {
@@ -332,11 +387,13 @@ export function splitTranscriptForDisplay(pending: string): {
         hold: rest.slice(rest.length - held)
       };
     }
-    const close = pending.indexOf(REMOTE_PATH_MARKER, open + width);
+    const width = first.marker.length;
+    const open = first.at;
+    const close = pending.indexOf(first.marker, open + width);
     if (close === -1) {
       return { show: show + pending.slice(at, open), hold: pending.slice(open) };
     }
-    show += pending.slice(at, open) + pending.slice(open + width, close);
+    show += pending.slice(at, open) + stripPathMarkers(pending.slice(open + width, close));
     at = close + width;
   }
 }
@@ -345,10 +402,13 @@ export function splitTranscriptForDisplay(pending: string): {
  * Remove every marker from a whole transcript. For the paths that never stream.
  *
  * A key install resolves once with the whole text rather than pushing it out as
- * it arrives, so it has no held tail to carry and this is all it needs.
+ * it arrives, so it has no held tail to carry and this is all it needs. Since
+ * Phase 340 it takes out the check's marker as well as the path marker.
  */
 export function stripPathMarkers(text: string): string {
-  return text.split(REMOTE_PATH_MARKER).join('');
+  let out = text;
+  for (const marker of DISPLAY_MARKERS) out = out.split(marker).join('');
+  return out;
 }
 
 // ---------------------------------------------------------------------------
@@ -366,6 +426,15 @@ export interface StartTestInput {
    * directory is, and this module stays free of any import that would reach it.
    */
   hostKeys: MachineHostKeyFiles;
+  /**
+   * PHASE 340's ruled round. ssh's own global record files, which the command
+   * line does not name and ssh reads all the same. Absent reads as
+   * `SSH_GLOBAL_HOST_RECORD_FILES` in `./host-record.ts`, which is what Tortie
+   * passes. Only a test, or a drive that cannot write `/etc` and names a
+   * scratch global record through ssh's own `GlobalKnownHostsFile` option,
+   * hands its own files here: the same ones ssh was told to read.
+   */
+  globalHostKeys?: readonly string[];
   /**
    * The machine id this test is about, when there is one.
    *
@@ -388,7 +457,21 @@ export interface StartTestInput {
    * to anything.
    */
   keyPath: string | null;
-  /** Called for every push, being output and the one end event. */
+  /**
+   * PHASE 340 (D27). Tortie's own key for this machine's id, when the pair is on
+   * this Mac, else null. The caller decides, as it does for Prepare, because
+   * only main knows where the key lives. Named on the argv, never required.
+   */
+  identityFile?: string | null;
+  /**
+   * PHASE 340 (D7, D8). Whether this is the Add form's check (`draft`) or a
+   * saved row's (`saved`). Only a draft's sheet binds a version Tortie has not
+   * measured as accepted, because only a draft's sheet is ever sent back to
+   * `machines:add`; a saved row that reports such a version meets Phase 83's
+   * own sheet at Prepare. Absent reads as `draft`.
+   */
+  mode?: 'draft' | 'saved';
+  /** Called for every push, being output, asks and the one end event. */
   emit(event: MachineTestEvent): void;
 }
 
@@ -435,6 +518,28 @@ interface LiveTest {
   emit(event: MachineTestEvent): void;
   /** Set for an install, null for a test. Resolves the one promise. */
   settle: ((cls: MachineTestClass, exitCode: number | null) => void) | null;
+  /**
+   * PHASE 340 (D9). True once the first-seen question was raised. One test
+   * raises it at most once, and only before the check's first marker.
+   */
+  hostKeyAsked: boolean;
+  /** The buffer length when the first-seen question was raised, or -1. */
+  hostKeyAskedAt: number;
+  /**
+   * PHASE 340's fix round. True when either record file already holds this
+   * machine, read once before the test starts. ssh asks nothing about such a
+   * machine, so Tortie's own first-seen question is never raised for it.
+   */
+  hostRecorded: boolean;
+  /** PHASE 340 (D9). The quiet timer that raises a `prompt` ask, or null. */
+  quiet: NodeJS.Timeout | null;
+  /**
+   * PHASE 340 (D14). Set when ssh was there and would not start: the path and
+   * the reason in plain words. Null otherwise.
+   */
+  clientFailure: { sshPath: string; reason: string } | null;
+  /** PHASE 340 (D8). True when this test's sheet may bind an accepted version. */
+  bindsVersion: boolean;
 }
 
 /**
@@ -496,6 +601,11 @@ function finish(
     clearTimeout(test.deadline);
     test.deadline = null;
   }
+  // PHASE 340 (D9). A finished test asks nothing more.
+  if (test.quiet !== null) {
+    clearTimeout(test.quiet);
+    test.quiet = null;
+  }
   if (live === test) live = null;
   // PHASE 79.1. An install has no window to push to and no outcome to compose.
   // It hands its class and its exit code to the one promise its caller is
@@ -515,19 +625,57 @@ function finish(
       test.emit({ testId: test.testId, kind: 'output', text: rest });
     }
   }
-  const resolvedPath = cls === 'ok' ? parseResolvedPath(test.buffer) : null;
+  // PHASE 340 (D15). The path and the sheet come ONLY from a well formed
+  // block: exactly one, every line the script's own. A buffer holding anything
+  // else carries no path and no sheet, whatever else it holds.
+  const answer = parseCheckAnswer(test.buffer, test.fields.remoteTmuxPath);
+  const facts: MachineCheckFacts | null =
+    typeof answer === 'object' &&
+    answer !== null &&
+    (cls === 'ok' || cls === 'program-choice' || cls === 'no-program')
+      ? answer
+      : null;
+  const check = facts === null ? null : checkViewOf(facts);
+  const resolvedPath =
+    cls === 'ok' && check !== null && check.program !== null ? check.program.path : null;
+  const typedPath = test.fields.remoteTmuxPath;
+  // PHASE 340's fix round. One of Tortie's own markers came back, so the far
+  // side ran Tortie's command, which it does only after the sign in. An
+  // `unknown` that carries a refused block is therefore a machine that WAS
+  // reached and signed in to, and its copy says so rather than "could not
+  // reach" (the verifiers' finding), and it quotes no marker.
+  const markersBack = countMarker(test.buffer, CHECK_MARKER);
   const copy = composeOutcomeCopy(cls, {
     resolvedPath,
-    lastLine: lastPrintedLine(test.buffer)
+    lastLine: lastPrintedLine(test.buffer),
+    // PHASE 340. A typed path that holds nothing that runs is named.
+    typedPath: check !== null && check.typedMissing ? typedPath : null,
+    // PHASE 340 (D14). ssh was there and would not start.
+    sshPath: test.clientFailure?.sshPath ?? null,
+    clientReason: test.clientFailure?.reason ?? null,
+    // PHASE 340 (D9 as revised). The opening marker arrived and the closing
+    // one did not: it signed in, and its login files did not finish.
+    signedIn: cls === 'timed-out' && markersBack === 1,
+    answerUnread: cls === 'unknown' && answer === 'malformed'
   });
   // The sheet is composed here, and only here, because this is the first moment
   // both halves of the hash exist: the id the person typed, and the program
   // path the machine itself reported.
+  //
+  // PHASE 340 (D8 as revised). For EVERY `ok`, whatever the version kind. A
+  // version Tortie read and has not measured is bound as the accepted version
+  // on a draft's sheet, so one Add press accepts it; every other kind binds
+  // none, and Prepare decides as it always has.
   let sheet: MachineConfirmSheet | null = null;
-  if (cls === 'ok' && resolvedPath !== null && test.sheetId !== null) {
+  if (cls === 'ok' && resolvedPath !== null && check !== null && test.sheetId !== null) {
+    const accepts =
+      test.bindsVersion && check.versionKind === 'unmeasured' && check.version !== null
+        ? check.version
+        : null;
     const summary = describeMachine(test.sheetId, {
       ...test.fields,
-      remoteTmuxPath: resolvedPath
+      remoteTmuxPath: resolvedPath,
+      ...(accepts !== null ? { acceptedTmuxVersion: accepts } : {})
     });
     sheet = {
       hash: summary.hash,
@@ -537,7 +685,14 @@ function finish(
       // every row a connection test has ever produced a sheet for. It is
       // carried rather than omitted so that no sheet drawing site has to
       // remember the rule and none of them can forget it.
-      writeHonesty: summary.writeHonesty
+      writeHonesty: summary.writeHonesty,
+      // PHASE 340 (D7, D8). The version this hash binds, echoed by the
+      // renderer into `machines:add`, and the paragraph that says what
+      // accepting it means. A draft carries no version of its own, so for a
+      // draft this is the one accepted here or null; a saved row's sheet names
+      // the row's own, which it already binds.
+      acceptedTmuxVersion: accepts ?? test.fields.acceptedTmuxVersion ?? null,
+      versionHonesty: accepts !== null ? MACHINE_VERSION_ACCEPT_OFFER : null
     };
   }
   // PHASE 79.1. The block that offers to make a key, composed HERE for the same
@@ -583,9 +738,52 @@ function finish(
     exitCode,
     durationMs: Date.now() - test.startedAt,
     sheet,
-    keySheet
+    keySheet,
+    check,
+    signedIn: markersBack >= 1
   };
   test.emit({ testId: test.testId, kind: 'end', outcome });
+}
+
+/**
+ * Which of the four version answers one check's one program gave (Phase 340,
+ * D8 as revised). Pure.
+ *
+ * Read with the parser Prepare uses and the gate Prepare asks, so the check and
+ * Prepare cannot disagree about a version. A version that fails the schema's
+ * own pattern is `unreadable`, because no row could carry it.
+ */
+export function checkVersionOf(facts: MachineCheckFacts): {
+  version: string | null;
+  versionKind: MachineCheckView['versionKind'];
+} {
+  if (facts.candidates.length !== 1) return { version: null, versionKind: null };
+  if (facts.vskip === 'install') return { version: null, versionKind: 'not-read' };
+  const parsed = facts.version === null ? null : parseTmuxVersion(facts.version);
+  if (parsed === null || !new RegExp(MACHINE_VERSION_PATTERN).test(parsed)) {
+    return { version: null, versionKind: 'unreadable' };
+  }
+  return {
+    version: parsed,
+    versionKind:
+      decideRemoteVersionGate(parsed).kind === 'measured' ? 'measured' : 'unmeasured'
+  };
+}
+
+/** One well formed block as the view the renderer draws. Pure. */
+export function checkViewOf(facts: MachineCheckFacts): MachineCheckView {
+  const { version, versionKind } = checkVersionOf(facts);
+  const only = facts.candidates.length === 1 ? facts.candidates[0] : undefined;
+  return {
+    signedInAs: facts.user,
+    os: facts.os,
+    loginRead: facts.login === 'read',
+    program: only === undefined ? null : { path: only.path, source: only.source },
+    candidates: facts.candidates.map((c) => ({ path: c.path, source: c.source })),
+    typedMissing: facts.typedMissing,
+    version,
+    versionKind
+  };
 }
 
 /** Kill the pty this module started, and only that one. */
@@ -686,6 +884,147 @@ export function classifyProbeOutput(
   return 'unknown';
 }
 
+// PHASE 340. `classifyProbeOutput` above is kept BYTE FOR BYTE: the goldens in
+// `__tests__/golden/` and `build/probe-key-install.mjs` read the captures of
+// the probe this phase retired through it. It no longer decides a live test.
+
+/**
+ * Decide the class of one finished CHECK (Phase 340, D15 as revised). Pure, and
+ * it is what the test's exit handler calls.
+ *
+ *  1. A well formed block decides: one program is `ok`, more than one is
+ *     `program-choice`, none is `no-program`.
+ *  2. A malformed block, being any buffer with other than exactly two check
+ *     markers or a block whose lines are not the script's own, is `unknown`,
+ *     whatever else the buffer holds.
+ *  3. With no block at all, today's order exactly, with one change: the legacy
+ *     path pair can no longer answer `ok`, because the far side did not run
+ *     Tortie's check. It answers `unknown`.
+ *
+ * `typed` (the fix round) is the path the check was run with, or null. With a
+ * typed path, a buffer of more than one block is read for the one block that
+ * names that path (see `parseCheckAnswer`), so a login file that prints
+ * Tortie's marker no longer refuses a machine whose path the person typed.
+ */
+export function classifyCheckOutput(
+  text: string,
+  exitCode: number,
+  typed: string | null = null
+): MachineTestClass {
+  const answer = parseCheckAnswer(text, typed);
+  if (answer === 'malformed') return 'unknown';
+  if (answer !== null) {
+    if (answer.candidates.length === 1) return 'ok';
+    if (answer.candidates.length > 1) return 'program-choice';
+    return 'no-program';
+  }
+  if (parseResolvedPath(text) !== null) return 'unknown';
+  const named = classifyMachineOutput(text);
+  if (named !== 'unknown') return named;
+  if (PASSWORD_PROMPT_SEEN_RE.test(text)) return 'password-required';
+  if (exitCode === 0) return 'no-program';
+  return 'unknown';
+}
+
+// ---------------------------------------------------------------------------
+// The questions a running check asks (Phase 340, D9 as revised)
+// ---------------------------------------------------------------------------
+
+/** How long the program must be quiet, mid line, before its line is a question. */
+export const TEST_PROMPT_QUIET_MS = 700;
+
+/** The longest question text carried on an ask. */
+export const TEST_PROMPT_MAX_CHARS = 512;
+
+/**
+ * ssh's first-seen question, anchored on the bytes OpenSSH 9.9p2 printed over
+ * the loopback machine (`scratchpad/p340/adversary/cap/capture.json`):
+ *
+ *   The authenticity of host '<…>' can't be established.\r\n
+ *   <TYPE> key fingerprint is SHA256:<…>.\r\n
+ *   <any lines>
+ *   Are you sure you want to continue connecting (yes/no/[fingerprint])? <end>
+ *
+ * Anchored at the END of the buffer, so it is true only while ssh is waiting.
+ */
+const HOST_KEY_QUESTION_RE =
+  /The authenticity of host '[^'\r\n]*' can't be established\.\r*\n([A-Za-z0-9-]+) key fingerprint is (SHA256:[A-Za-z0-9+/]+=*)\.\r*\n(?:[^\n]*\n){0,20}?Are you sure you want to continue connecting \(yes\/no\/\[fingerprint\]\)\? $/;
+
+/**
+ * The first-seen question the buffer ends on, or null. Pure, exported for the
+ * tests that read it over the captured bytes.
+ */
+export function hostKeyQuestionOf(
+  buffer: string
+): { fingerprint: string; keyType: string } | null {
+  const match = HOST_KEY_QUESTION_RE.exec(buffer);
+  if (match === null) return null;
+  return { keyType: match[1] ?? '', fingerprint: match[2] ?? '' };
+}
+
+/**
+ * The unfinished last line a quiet program left, or null. Pure.
+ *
+ * ssh's prompts end without a line end and the check's own lines end with one,
+ * so a last line that is not empty after its `\r` is removed is the program
+ * waiting on an answer. The first chunk ssh sends is a lone `\r`, which is
+ * empty after that and is never a question.
+ */
+export function unfinishedLineOf(buffer: string): string | null {
+  const at = buffer.lastIndexOf('\n');
+  const last = buffer.slice(at + 1).replace(/\r/g, '');
+  if (last.trim().length === 0) return null;
+  return last.length > TEST_PROMPT_MAX_CHARS ? last.slice(-TEST_PROMPT_MAX_CHARS) : last;
+}
+
+/**
+ * Raise the first-seen question, once, and only before the check printed its
+ * first marker: ssh always asks before the far side prints anything, and a
+ * login file can print ssh's own words after it.
+ */
+function maybeAskHostKey(test: LiveTest): void {
+  if (test.finished || test.hostKeyAsked) return;
+  // PHASE 340's fix round (the verifiers' finding). The rule above holds only
+  // when ssh DOES ask, which it does only about a machine no record file it
+  // reads holds, its global ones included (the ruled round). On one already on
+  // record the far side's login files are the first bytes, and one that prints
+  // ssh's words would get Tortie's question over a fingerprint of its own
+  // choosing. Such a machine's question, if it prints one, is quoted as the
+  // program's own line by the quiet rule instead.
+  if (test.hostRecorded) return;
+  if (test.buffer.includes(CHECK_MARKER)) return;
+  const question = hostKeyQuestionOf(test.buffer);
+  if (question === null) return;
+  test.hostKeyAsked = true;
+  test.hostKeyAskedAt = test.buffer.length;
+  test.emit({
+    testId: test.testId,
+    kind: 'ask',
+    ask: { kind: 'host-key', fingerprint: question.fingerprint, keyType: question.keyType }
+  });
+}
+
+/**
+ * Arm the quiet timer again. When it fires with the program still mid line, the
+ * line is raised as a `prompt` ask. Not after the check's first marker, because
+ * nothing Tortie's own script prints is a question, and not over the first-seen
+ * question, which has its own ask. Today's answer field stays under Details for
+ * a question this rule misses.
+ */
+function armQuiet(test: LiveTest): void {
+  if (test.quiet !== null) clearTimeout(test.quiet);
+  test.quiet = setTimeout(() => {
+    test.quiet = null;
+    if (test.finished) return;
+    if (test.buffer.includes(CHECK_MARKER)) return;
+    if (test.hostKeyAskedAt === test.buffer.length) return;
+    const text = unfinishedLineOf(test.buffer);
+    if (text === null) return;
+    test.emit({ testId: test.testId, kind: 'ask', ask: { kind: 'prompt', text } });
+  }, TEST_PROMPT_QUIET_MS);
+  test.quiet.unref?.();
+}
+
 /**
  * Start one test.
  *
@@ -703,7 +1042,13 @@ export function startMachineTest(input: StartTestInput): StartedTest {
   const testId = randomUUID();
   const resolution = resolveSsh({ packaged: input.packaged, env: input.env });
   const sshPath = resolution.path ?? PINNED_SSH_PATH;
-  const commandLine = composeTestCommandLine(sshPath, input.fields, input.hostKeys);
+  const identityFile = input.identityFile ?? null;
+  const commandLine = composeTestCommandLine(
+    sshPath,
+    input.fields,
+    input.hostKeys,
+    identityFile
+  );
 
   const test: LiveTest = {
     kind: 'test',
@@ -722,7 +1067,18 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     promptCursor: 0,
     passwordSent: false,
     emit: input.emit,
-    settle: null
+    settle: null,
+    hostKeyAsked: false,
+    hostKeyAskedAt: -1,
+    hostRecorded: hostKeyRecorded(
+      input.hostKeys,
+      input.fields.host,
+      input.fields.port,
+      input.globalHostKeys
+    ),
+    quiet: null,
+    clientFailure: null,
+    bindsVersion: (input.mode ?? 'draft') === 'draft'
   };
   live = test;
 
@@ -730,6 +1086,13 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     // Nothing was started, and the outcome says so. The end event is sent on a
     // later turn so the caller has its StartedTest back first, which is what
     // gives the renderer the test id before the outcome for it arrives.
+    //
+    // PHASE 340 (D14). This branch, and only this one, is `client-missing`:
+    // no executable file was found where ssh lives. It is logged now, naming
+    // the path, so the two classes are both in the log.
+    machinesLog.warn(
+      `the connection test found no ssh program it can run at ${PINNED_SSH_PATH}`
+    );
     setTimeout(() => {
       finish(test, 'client-missing', null);
     }, 0);
@@ -739,19 +1102,30 @@ export function startMachineTest(input: StartTestInput): StartedTest {
   let pty: IPty;
   try {
     sshSpawnCount += 1;
-    pty = nodePty.spawn(resolution.path, composeTestArgv(input.fields, input.hostKeys), {
-      name: 'xterm-256color',
-      cols: 100,
-      rows: 30,
-      cwd: homedir(),
-      env: plainEnv(input.env)
-    });
-  } catch (err) {
-    machinesLog.warn(
-      `the connection test could not start ${resolution.path}: ${(err as Error).message}`
+    pty = nodePty.spawn(
+      resolution.path,
+      composeTestArgv(input.fields, input.hostKeys, identityFile),
+      {
+        name: 'xterm-256color',
+        cols: 100,
+        rows: 30,
+        cwd: homedir(),
+        env: plainEnv(input.env)
+      }
     );
+  } catch (err) {
+    // PHASE 340 (D14). ssh IS there, because the branch above found an
+    // executable file, and it would not start. Until this phase that was
+    // reported as a missing ssh. The raw message and any code are in the log;
+    // the person reads the reason in plain words.
+    const code = (err as { code?: unknown }).code;
+    machinesLog.warn(
+      `the connection test could not start ${resolution.path}: ${(err as Error).message}` +
+        (typeof code === 'string' ? ` (${code})` : '')
+    );
+    test.clientFailure = { sshPath: resolution.path, reason: clientFailedReason(err) };
     setTimeout(() => {
-      finish(test, 'client-missing', null);
+      finish(test, 'client-failed', null);
     }, 0);
     return { testId, commandLine, sshPath };
   }
@@ -763,9 +1137,9 @@ export function startMachineTest(input: StartTestInput): StartedTest {
     const text = stripAnsi(chunk);
     test.bytes += Buffer.byteLength(chunk, 'utf8');
     test.buffer += text;
-    // Phase 73.1, row 1. The buffer keeps the raw bytes, because
-    // `parseResolvedPath` and `classifyProbeOutput` both read it and both need
-    // the markers. Only the copy that reaches the screen has them taken out.
+    // Phase 73.1, row 1. The buffer keeps the raw bytes, because the check's
+    // reader needs the markers. Only the copy that reaches the screen has them
+    // taken out.
     const split = splitTranscriptForDisplay(test.held + text);
     test.held = split.hold;
     if (split.show.length > 0) {
@@ -783,12 +1157,23 @@ export function startMachineTest(input: StartTestInput): StartedTest {
       finish(test, 'unknown', null);
       return;
     }
-    stopAtPasswordPrompt(test);
+    if (stopAtPasswordPrompt(test)) return;
+    // PHASE 340 (D9). The questions, raised inline. The first-seen question
+    // is read at once; any other unfinished line waits for the program to fall
+    // quiet.
+    maybeAskHostKey(test);
+    armQuiet(test);
   });
 
   pty.onExit(({ exitCode }: { exitCode: number }) => {
     if (test.finished) return;
-    finish(test, classifyProbeOutput(test.buffer, exitCode), exitCode);
+    // PHASE 340 (D15). The check's own reader decides a live test, with the
+    // path the check carried, which the fix round reads past a refused block.
+    finish(
+      test,
+      classifyCheckOutput(test.buffer, exitCode, test.fields.remoteTmuxPath),
+      exitCode
+    );
   });
 
   test.deadline = setTimeout(() => {
@@ -855,6 +1240,11 @@ export interface KeyInstallRun {
   transcript: string;
   exitCode: number | null;
   durationMs: number;
+  /**
+   * PHASE 340 (D14). Set when ssh was there and would not start: the path and
+   * the reason in plain words, for `client-failed`'s detail. Null otherwise.
+   */
+  clientFailure: { sshPath: string; reason: string } | null;
 }
 
 /**
@@ -963,13 +1353,26 @@ export function startKeyInstall(
             redactPassword(test.buffer, input.password)
           ),
           exitCode,
-          durationMs: Date.now() - startedAt
+          durationMs: Date.now() - startedAt,
+          clientFailure: test.clientFailure
         });
-      }
+      },
+      hostKeyAsked: false,
+      hostKeyAskedAt: -1,
+      // An install asks nothing inline: it runs StrictHostKeyChecking=yes.
+      hostRecorded: false,
+      quiet: null,
+      clientFailure: null,
+      bindsVersion: false
     };
     live = test;
 
     if (resolution.path === null) {
+      // PHASE 340 (D14). No executable ssh was found, and only this branch is
+      // `client-missing`. Logged, naming the path.
+      machinesLog.warn(
+        `the key install found no ssh program it can run at ${PINNED_SSH_PATH}`
+      );
       setTimeout(() => {
         finish(test, 'client-missing', null);
       }, 0);
@@ -987,11 +1390,16 @@ export function startKeyInstall(
         env: plainEnv(input.env)
       });
     } catch (err) {
+      // PHASE 340 (D14). ssh is there and would not start, which is not a
+      // missing ssh. The raw message and any code are in the log.
+      const code = (err as { code?: unknown }).code;
       machinesLog.warn(
-        `the key install could not start ${resolution.path}: ${(err as Error).message}`
+        `the key install could not start ${resolution.path}: ${(err as Error).message}` +
+          (typeof code === 'string' ? ` (${code})` : '')
       );
+      test.clientFailure = { sshPath: resolution.path, reason: clientFailedReason(err) };
       setTimeout(() => {
-        finish(test, 'client-missing', null);
+        finish(test, 'client-failed', null);
       }, 0);
       return;
     }
@@ -1051,6 +1459,7 @@ export function resetMachineTestForTests(): void {
   const test = live;
   if (test !== null) {
     if (test.deadline !== null) clearTimeout(test.deadline);
+    if (test.quiet !== null) clearTimeout(test.quiet);
     killLive(test);
   }
   live = null;

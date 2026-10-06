@@ -40,6 +40,16 @@
  * `key-installed`, and it is null because the surface starts the connection
  * test itself and there is nothing for a person to do while it runs.
  *
+ * WHAT PHASE 340 CHANGED (build/p340/SPEC.md section 8). Adding a machine is
+ * pick, check and add, and a machine row is a name, a status chip, one line of
+ * facts and one button, with the rest in a native menu. So most of the words
+ * this file held moved behind a hover, a menu row or a disclosure, and the
+ * ones nothing described any more were deleted. The words that stayed did not
+ * change unless the spec names the change. The check a person reads is a list
+ * of ticks composed here from facts main read, being the address, the account,
+ * the program and its version, and every one of those values arrives from
+ * main; this file writes only the words around them.
+ *
  * THE COLON RULE, and the two places it bends. House style allows a colon only
  * to introduce a list. Two shapes on this surface are neither prose nor a list:
  * a field label that stands immediately before the value drawn after it, and
@@ -150,22 +160,50 @@ export const BRIDGE_MISSING =
 // ---------------------------------------------------------------------------
 
 /**
- * The chip beside a machine's name. Three of the four states read the same,
- * because they mean the same thing to the person standing in front of them,
- * which is that Tortie will not sign in. The sentence under the chip says
- * which of the three it is.
+ * PHASE 340. The chip beside a machine's name, one word or two for each of the
+ * ten answers `machineStatusOf` in ./machine-status.ts gives (D11 as revised).
+ *
+ * The chip says what a person needs to know at a glance and nothing else. The
+ * sentence that explains it is its hover, being `STATE_SENTENCE` for the three
+ * confirmation states and main's own sentence for the rest, so nothing here
+ * says why. `Ready` is drawn only for a machine that is prepared AND answering
+ * now, because a machine that went to sleep keeps its registered context and
+ * would otherwise read Ready while it does not answer.
  */
-export const STATE_CHIP: Readonly<Record<MachineConfirmState, string>> = {
-  confirmed: 'Confirmed',
-  never: 'Not usable',
-  changed: 'Not usable',
-  unknown: 'Not usable'
+export const CHIP_WORDS: Readonly<
+  Record<
+    | 'not-usable'
+    | 'not-confirmed'
+    | 'changed'
+    | 'identity-changed'
+    | 'needs-key'
+    | 'new-version'
+    | 'connecting'
+    | 'ready'
+    | 'offline'
+    | 'not-ready',
+    string
+  >
+> = {
+  'not-usable': 'Not usable',
+  'not-confirmed': 'Not confirmed',
+  changed: 'Changed',
+  'identity-changed': 'Identity changed',
+  'needs-key': 'Needs a key',
+  'new-version': 'New version',
+  connecting: 'Connecting',
+  ready: 'Ready',
+  offline: 'Offline',
+  'not-ready': 'Not ready'
 };
 
 /**
- * One sentence under the chip, written for the moment before, where the
- * person still has the button in front of them. `MachineRowView.refusal` is
+ * One sentence about a row's confirmation, written for the moment before, where
+ * the person still has the button in front of them. `MachineRowView.refusal` is
  * main's sentence for the moment after, and it is drawn too, unchanged.
+ *
+ * PHASE 340. These are the chip's hover now, and the review panel draws main's
+ * refusal beside the button. The words did not change.
  */
 export const STATE_SENTENCE: Readonly<Record<MachineConfirmState, string>> = {
   confirmed:
@@ -191,13 +229,64 @@ export const CURRENT_LIST_LABEL = 'It now says:';
 // Row buttons
 // ---------------------------------------------------------------------------
 
-export const BTN_SHOW = 'Show what it runs';
-export const BTN_HIDE = 'Hide what it runs';
 export const BTN_CONFIRM = 'Confirm this machine';
 export const BTN_CONFIRM_CHANGED = 'Confirm the new details';
-export const BTN_WITHDRAW = 'Withdraw confirmation';
-export const BTN_TEST_AGAIN = 'Test the connection again';
-export const BTN_REMOVE = 'Remove this machine';
+
+// ---------------------------------------------------------------------------
+// The row's one next step and its native menu (Phase 340)
+// ---------------------------------------------------------------------------
+//
+// WHAT PHASE 340 DELETED HERE. `Show what it runs`, `Hide what it runs`,
+// `Withdraw confirmation`, `Test the connection again` and `Remove this machine`
+// were the row's buttons. The row has one button now, for the next thing, and
+// the rest are rows of the native menu behind the ellipsis, drawn through
+// `ui:popupMenu` and never in the DOM. The menu rows are below, in the order
+// the menu draws them.
+
+/** The next step of a row whose agreement a person has to read first. */
+export const BTN_REVIEW = 'Review…';
+
+/** The next step of a row whose machine asked for a password or a key. */
+export const BTN_SET_UP_SIGN_IN = 'Set up sign-in…';
+
+/** The next step of a row that is ready, and the Add flow's last button. */
+export const BTN_OPEN_FOLDER = 'Open a folder on it…';
+
+/** Said when main refuses to open a folder on a row nobody confirmed. */
+export const OPEN_FOLDER_NEEDS_CONFIRM =
+  'Confirm this machine before Tortie opens a folder on it.';
+
+/** The menu row that runs the connection test on a saved machine. */
+export const MENU_TEST = 'Test the connection';
+
+/** The menu row that opens what a machine runs, and everything beside it. */
+export const MENU_WHAT = 'What Tortie runs there…';
+
+/**
+ * The menu row that withdraws the confirmation. It is the same call the old
+ * Withdraw button made, and it is the only row that also takes back an
+ * accepted version, which its sub-line says.
+ */
+export const MENU_FORGET = 'Stop trusting this machine';
+
+/** The sub-line under that row while an acceptance of a version stands. */
+export function alsoTakesBackVersion(version: string): string {
+  return `Also takes back version ${version}`;
+}
+
+/** The menu row that asks the removal question under the row. */
+export const MENU_REMOVE = 'Remove…';
+
+/** Closes the panel open under a row. */
+export const BTN_CLOSE = 'Close';
+
+/**
+ * The ellipsis button's own label, because up to 32 of them would otherwise
+ * read the same to anybody reading the page rather than looking at it.
+ */
+export function moreLabel(label: string): string {
+  return `More for ${label}`;
+}
 
 // ---------------------------------------------------------------------------
 // Prepare this machine (Phase 69)
@@ -210,9 +299,16 @@ export const BTN_REMOVE = 'Remove this machine';
 
 export const BTN_PREPARE = 'Prepare this machine';
 
+/**
+ * The hover of Prepare this machine.
+ *
+ * PHASE 340 deleted the second sentence, which said this is the first thing
+ * Tortie runs there. It stopped being true when the check began asking the one
+ * program it found for its version before the Add press.
+ */
 export const PREPARE_EXPLAIN =
   'Tortie starts the program on that machine that keeps your work alive, and ' +
-  'sets it up the way Tortie needs. This is the first thing Tortie runs there.';
+  'sets it up the way Tortie needs.';
 
 export const PREPARING = 'Preparing this machine';
 
@@ -245,19 +341,9 @@ export const ACCEPTED_VERSION_LABEL = 'Version you accepted:';
 export const ACCEPTED_VERSION_NONE =
   'You have not accepted this version for this machine.';
 
-export const BTN_WITHDRAW_VERSION = 'Withdraw this version';
-
-/**
- * Drawn beside the withdraw button, because withdrawing does two things.
- *
- * The version is one of the five facts the confirmation covers, so it cannot be
- * dropped on its own. Saying so here is cheaper than a person finding out by
- * pressing the button.
- */
-export const WITHDRAW_VERSION_EXPLAIN =
-  'Withdrawing the version also withdraws your confirmation of this machine, ' +
-  'because the version is one of the things you confirmed. Confirm the ' +
-  'machine again to use it.';
+// PHASE 340 DELETED `Withdraw this version` and the paragraph beside it. The
+// button made the same call Withdraw made, so it is the one menu row Stop
+// trusting this machine now, and the paragraph became that row's sub-line.
 
 // ---------------------------------------------------------------------------
 // Letting Tortie save a file on one machine (Phase 101), removed (Phase 336)
@@ -299,15 +385,13 @@ export const PREPARE_PATH_MISSING =
   'so it will not start work there.';
 
 // ---------------------------------------------------------------------------
-// The one disclosure a machine row has (Phase 131)
+// What Tortie runs there (Phase 131, moved by Phase 340)
 // ---------------------------------------------------------------------------
 //
-// Four things a person needs when they go looking and does not need on every
-// visit. It is shut on every render and it remembers nothing, because a row
-// that opened itself would put the height straight back.
-
-/** The summary of the one disclosure a machine row has. */
-export const ROW_MORE_LABEL = 'More about this machine';
+// Phase 131 put four things behind a disclosure named "More about this
+// machine". Phase 340 moved them, with the row's lines, warning and key line,
+// into the panel the menu row What Tortie runs there… opens, so the disclosure
+// and its label are gone.
 
 /**
  * Stands immediately before the first twelve characters of the confirm hash.
@@ -460,27 +544,39 @@ export function droppedRowsLine(count: number): string {
 export const BTN_CHECK_AGAIN = 'Check the file again';
 
 // ---------------------------------------------------------------------------
-// Add a machine
+// Add a machine (Phase 340: pick, check, add)
 // ---------------------------------------------------------------------------
+//
+// THREE STEPS AND ONE PRESS. A person picks a machine from the tailnet or types
+// its address, Tortie checks it by itself, and one press, Add <name>, confirms
+// the same hashed lines and prepares it. At rest the sheet is twelve words
+// besides the tailnet's own rows (build/p340/SPEC.md section 8.1), and every
+// sentence that used to stand on it is a hover, a disclosure or gone.
+//
+// WHAT PHASE 340 DELETED HERE. `Find machines on your tailnet` (the sheet looks
+// when it opens), `Tortie has not looked yet.`, the count of other machines,
+// `Test the connection`, `Testing the connection`, `Cancel the test`,
+// `Add this machine and confirm it` and the paragraph that said why that button
+// was off (no Add is drawn until the check has answered).
 
 export const ADD_TITLE = 'Add a machine';
 export const BTN_ADD_CANCEL = 'Cancel';
 
-export const BTN_FIND_TAILNET = 'Find machines on your tailnet';
-
 // ---------------------------------------------------------------------------
-// The Tailscale panel (Phase 79)
+// The tailnet list (Phase 79, reshaped by Phase 340)
 // ---------------------------------------------------------------------------
 //
-// The operator asked for the shape Settings then Agents already uses for the
-// agent scan, and these are that shape's words. A title, when Tortie last
-// looked, an action that looks again, and for a program that is not there the
-// install command in code font with a copy control beside it.
-//
-// Nothing here runs anything. The panel is drawn before any look happens, and
-// a person presses the button.
+// The panel's head is two words and one button. What Tailscale is for, where
+// Tortie read it from and when it last looked are the hover of the head, so a
+// person who wants them has them and a person who does not reads two words.
+// For a Mac with no Tailscale the install command is still drawn in code font
+// with a copy control beside it, and Tortie never runs it.
 
-export const TAILSCALE_TITLE = 'Tailscale';
+/**
+ * The head of the list. Its hover carries the sentences below. PHASE 340 put it
+ * in place of the one word `Tailscale` the head read until then.
+ */
+export const TAILNET_TITLE = 'Your tailnet';
 
 /**
  * Why Tortie wants Tailscale, and the sentence that stops the missing state
@@ -500,18 +596,9 @@ export const TAILSCALE_INSTALL_COMMAND = 'brew install --cask tailscale';
 
 export const COPY_INSTALL_COMMAND_LABEL = 'Copy the install command';
 
-export const TAILSCALE_NOT_LOOKED = 'Tortie has not looked yet.';
-
 export const TAILSCALE_LOOKING = 'Looking';
 
 export const BTN_TAILSCALE_LOOK_AGAIN = 'Look again';
-
-/** How many other machines the last look found. */
-export function tailnetCountLine(others: number): string {
-  if (others === 0) return 'No other machines found.';
-  if (others === 1) return '1 other machine found.';
-  return `${others} other machines found.`;
-}
 
 /** When the last look happened. `age` comes from formatAge. */
 export function lastLookedLine(age: string): string {
@@ -525,7 +612,7 @@ export const TAILSCALE_EXPLAIN =
   'runs the copy at this exact path, and nothing that a PATH could point ' +
   'somewhere else.';
 
-/** Stands immediately before the absolute path Tortie ran. */
+/** Stands immediately before the absolute path Tortie ran, in the hover. */
 export const TAILSCALE_SOURCE_LABEL = 'Reading from:';
 
 export const PEER_THIS_MAC = 'This Mac';
@@ -543,8 +630,17 @@ export const PEER_OFFLINE = 'Offline';
  */
 export const PEER_CANNOT_HOST = 'Cannot run a session';
 
+// ---------------------------------------------------------------------------
+// Typing an address, and the fields behind Advanced
+// ---------------------------------------------------------------------------
+
+/** Reveals the address field and Check. */
+export const BTN_TYPE_ADDRESS = 'Type an address…';
+
+/** Checks a typed address. Return in the field does the same. */
+export const BTN_CHECK = 'Check';
+
 export const FIELD_HOST = 'Machine address';
-export const FIELD_LABEL = 'Name in Tortie';
 /** Spelled the way the app spells it everywhere a person reads it (Phase 197 item 20). */
 export const FIELD_COLOR = 'Color';
 export const FIELD_USER = 'Sign in as';
@@ -557,10 +653,14 @@ export const FIELD_PORT = 'Port';
 export const FIELD_PORT_HINT = 'Leave this empty for the usual port.';
 
 export const FIELD_REMOTE_PATH = 'Program path on that machine';
-export const FIELD_REMOTE_PATH_HINT =
-  'Tortie runs one program on the machine you add, and that program is what ' +
-  'keeps your work alive after you close the lid. Leave this empty and the ' +
-  'connection test will find it.';
+
+/**
+ * PHASE 340. The hint was three sentences about what the program is for. The
+ * check now looks through that machine's own shell and the usual install
+ * folders by itself, so the field is for an odd place only, and the hint says
+ * the one thing a person needs to know about leaving it empty.
+ */
+export const FIELD_REMOTE_PATH_HINT = 'Leave this empty and Tortie finds it.';
 
 /** The six colour names, for the picker. Identity, never state. */
 export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
@@ -573,12 +673,18 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
 };
 
 // ---------------------------------------------------------------------------
-// The connection test
+// The check (Phase 340), a list of ticks
 // ---------------------------------------------------------------------------
+//
+// Every value these compose arrives from main: the address the check ran
+// against, the account the machine said it signed in as, the path the machine
+// reported and the version that program printed. This file writes the words
+// around them and nothing else, so a later edit here cannot change what the
+// agreement binds.
 
 /**
- * The versions Tortie has measured on another machine, drawn before the test
- * runs rather than after it refuses.
+ * The versions Tortie has measured on another machine, drawn inside What it
+ * runs beside the Add button.
  *
  * A renderer may not import main, so this list is a copy, and a copy going
  * stale is exactly how the deleted sentence above happened.
@@ -588,20 +694,128 @@ export const COLOUR_LABEL: Readonly<Record<MachineColor, string>> = {
  */
 export const MEASURED_VERSIONS: readonly string[] = ['3.6', '3.6a', '3.6b', '3.7b', '3.7c'];
 
-export const BTN_TEST = 'Test the connection';
-export const TESTING = 'Testing the connection';
-export const BTN_CANCEL_TEST = 'Cancel the test';
+/** The one row drawn while the check runs. `label` is the machine's name. */
+export function checkingLine(label: string): string {
+  return `Checking ${label}…`;
+}
 
-export const BTN_ADD_CONFIRM = 'Add this machine and confirm it';
+export const BTN_STOP = 'Stop';
+
+/** Runs the same check again, against the same machine. */
+export const BTN_RECHECK = 'Check again';
+
+/** The first tick: the address the check reached, with the port when one is set. */
+export function reachedLine(host: string, port: number | null): string {
+  return port === null ? `Reached ${host}` : `Reached ${host}:${String(port)}`;
+}
+
+/** The second tick: the account the machine said it signed in as. */
+export function signedInLine(account: string): string {
+  return `Signed in as ${account}`;
+}
+
+/** The third tick: the program the machine reported, by its path. */
+export function foundLine(path: string): string {
+  return `Found ${path}`;
+}
 
 /**
- * Why the confirm button is off. Phase 87 moved it onto the button itself as
- * its tooltip, so the reason is still there and it costs no standing
- * paragraph. The words did not change.
+ * How the check found the program, as the hover of the third tick. Keyed by
+ * the source main names on `MachineCheckView.program`.
  */
-export const ADD_DISABLED_REASON =
-  'Run the connection test first. Tortie needs to see the machine answer, ' +
-  'and it needs the program path the machine reports.';
+export const FOUND_SOURCE_HOVER: Readonly<
+  Record<'login' | 'path' | 'install' | 'typed', string>
+> = {
+  login: 'Found by its login shell.',
+  path: 'Found on the list a command uses there.',
+  install: 'Found in a usual install folder.',
+  typed: 'The path you typed.'
+};
+
+/** The fourth tick, for a version Tortie has measured. */
+export function versionLine(version: string): string {
+  return `Version ${version}`;
+}
+
+/** The fourth tick, for a version Tortie read and has not measured. */
+export function versionUnmeasuredLine(version: string): string {
+  return `Version ${version}, not yet measured`;
+}
+
+/**
+ * The fourth tick, for a program found only in a usual install folder. The
+ * check does not run such a program before the Add press, because nothing says
+ * that machine's own shell would run it under that name, so Prepare reads its
+ * version afterwards.
+ */
+export const VERSION_NOT_READ = 'Version: read when it is added';
+
+/** The fourth tick, for a program whose answer was not a version. */
+export const VERSION_UNREADABLE = 'It did not say its version.';
+
+/** Stands over the programs a check found when it found more than one. */
+export const CHOOSE_PROGRAM = 'Which one should Tortie run?';
+
+/** The question a first-seen machine raises, beside its fingerprint. */
+export const HOST_KEY_ASK = 'Tortie has not met this machine before.';
+
+/** The fingerprint the machine presented, as the program printed it. */
+export function fingerprintLine(fingerprint: string): string {
+  return `Fingerprint ${fingerprint}`;
+}
+
+/** Answers the first-seen question yes, and nothing else. */
+export const BTN_TRUST = 'Trust it';
+
+/** Opens Advanced on the program path, after a check found no program. */
+export const BTN_TYPE_PATH = 'Type its path…';
+
+/** The disclosure that holds the transcript, main's detail and the answer field. */
+export const DETAILS_LABEL = 'Details';
+
+export const BTN_SEND = 'Send';
+
+// ---------------------------------------------------------------------------
+// The Add step, and what follows it
+// ---------------------------------------------------------------------------
+
+/** The name a machine carries in Tortie. Presentation, never hashed. */
+export const FIELD_NAME = 'Name';
+
+/** The one press that confirms the machine and prepares it. */
+export function addLabel(label: string): string {
+  return `Add ${label}`;
+}
+
+/** The one line on that button for a version Tortie has not measured. */
+export function acceptsVersionLine(version: string): string {
+  return `Accepts version ${version}`;
+}
+
+/** The disclosure beside the button that holds every line the press binds. */
+export const WHAT_IT_RUNS = 'What it runs';
+
+/** The button while the add and the prepare after it are in flight. */
+export const ADDING = 'Adding…';
+
+/** Said when the add and the prepare both answered. */
+export function readyLine(label: string): string {
+  return `${label} is ready.`;
+}
+
+/** Stands immediately before the agents the scan found on that machine. */
+export const AGENTS_ON_IT = 'Agents on it:';
+
+/** Closes the Add flow once the machine is ready. */
+export const BTN_DONE = 'Done';
+
+/**
+ * Returned by the store when the Add press arrives with no sheet to bind, which
+ * the surface never draws a button for. It is a sentence rather than silence,
+ * because a call that did nothing should say so.
+ */
+export const ADD_NEEDS_CHECK =
+  'Tortie adds a machine only after it has checked it.';
 
 /**
  * The first of the two lines Tortie writes into the transcript. It stands
@@ -625,7 +839,6 @@ export const TRANSCRIPT_SOURCE_LINE =
   'Tortie does not store it and does not answer it for you.';
 
 export const ANSWER_LABEL = 'Answer';
-export const BTN_SEND = 'Send';
 export const ANSWER_HINT =
   'What you type here goes straight to the program above and nowhere else.';
 
@@ -742,6 +955,15 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
     'That program ships with macOS, so a missing one means something removed ' +
     'it or the disk is damaged. Restore this Mac from a backup, or reinstall ' +
     'macOS.',
+  // PHASE 340 (D14). The program is on this Mac and macOS would not start it.
+  // Main's detail names the reason when there is one. What a person can do is
+  // the same whatever the reason, and it is not what `client-missing` says,
+  // which is why the two classes were split.
+  'client-failed':
+    'Quit Tortie and open it again. If this keeps happening, restart this Mac.',
+  // PHASE 340 (D4). The check found more than one program and ran none. The
+  // buttons under the question are the next step, so there is nothing to add.
+  'program-choice': null,
   'timed-out':
     'Test it again. If it times out every time, that machine is answering ' +
     'too slowly to use, and a slow network or a machine under heavy load is ' +
@@ -764,30 +986,28 @@ export const REMEDY: Readonly<Record<MachineTestClass, string | null>> = {
 };
 
 /**
- * The outcome classes whose remedy already tells a person to turn on Remote
- * Login (Phase 130).
- *
- * WHY THIS SET EXISTS. Main's first note on the key sheet says to turn on
- * Remote Login on that machine first. On the classes named here the advice
- * four lines above has just said the same thing, so a person reads it twice in
- * one screen. `KeyInstall.tsx` moves that note behind the disclosure on these
- * classes and leaves it in place on every other one, where nothing above says
- * it. Main's words are not changed and nothing is deleted.
- *
- * IT IS A NAMED SET RATHER THAN A SEARCH ON MAIN'S TEXT, so a reworded note in
- * main cannot quietly change which sentences a person reads first.
- * `machines-copy.test.ts` derives the same set from the REMEDY text and fails
- * when the two disagree, which keeps the set honest by a test rather than by a
- * memory.
- *
- * These members are class ids rather than sentences, and the copy audit walks
- * every array in this module, so it reads them as if they were prose. They
- * carry no dash, no colon and no forbidden word, so they pass, and a later
- * reader meeting them in that walk is meant to find this note.
+ * PHASE 340's fix round. The advice under a check that signed in and whose
+ * answer Tortie could not read, being an `unknown` outcome main marks
+ * `signedIn`. REMEDY's `unknown` row tells a person to read the last line the
+ * program printed, which here is Tortie's own marker or a line of something
+ * else, so these name the usual cause and the way past it instead. A check
+ * whose path was typed reads the one answer that names that path, so the
+ * first, beside Type its path…, says so; the second is for a check that
+ * already carried a path, where typing one again would change nothing.
  */
-export const REMEDY_ALREADY_SAYS_REMOTE_LOGIN: readonly MachineTestClass[] = [
-  'refused'
-];
+export const CHECK_UNREAD_REMEDY =
+  'A file that machine reads when you sign in printed into the answer. Type ' +
+  "the program's path and Tortie reads past it, or quiet that file and check " +
+  'again.';
+
+export const CHECK_UNREAD_REMEDY_TYPED =
+  'A file that machine reads when you sign in printed into the answer. Quiet ' +
+  'that file, then check again.';
+
+// PHASE 340 DELETED `REMEDY_ALREADY_SAYS_REMOTE_LOGIN`. It decided which of
+// main's key notes stood on the face of the key block and which stood behind
+// its disclosure. Every one of main's lines, its warning and its five notes now
+// stands behind What this does, so there is nothing left for it to decide.
 
 // ---------------------------------------------------------------------------
 // Setting up a key for one machine (Phase 79.1)
@@ -806,30 +1026,35 @@ export const REMEDY_ALREADY_SAYS_REMOTE_LOGIN: readonly MachineTestClass[] = [
 // not have and where the password goes, are main's and live in
 // src/main/machines/key-install.ts.
 
-/** The heading of the block, and what pressing the button will start. */
-export const KEY_BLOCK_LABEL = 'Set up a key for this machine';
-
-/** Stands over main's own lines, which are the facts the agreement covers. */
-export const KEY_LINES_LABEL = 'What Tortie will do';
+// PHASE 340 DELETED `Set up a key for this machine` and `What Tortie will do`,
+// the block's two headings. The key step is a password field, one hint and one
+// button, and main's lines, warning and notes stand behind What this does.
 
 export const KEY_PASSWORD_LABEL = "That machine's password";
 
 /**
  * What happens to what a person types, said beside the field rather than
- * after it. It is the same promise the answer field on the connection test
- * makes, and it is true for the same reason: the bytes cross one call and
- * nothing keeps a copy of them.
+ * after it. The bytes cross one call and nothing keeps a copy of them.
+ *
+ * PHASE 340 shortened it from seventeen words to eight, because the key step
+ * is now one line on the check rather than a block of its own.
  */
-export const KEY_PASSWORD_HINT =
-  'This goes straight to the sign in program for one call. Tortie keeps no ' +
-  'copy of it.';
+export const KEY_PASSWORD_HINT = 'Sent once to sign in. Tortie keeps no copy.';
 
-export const BTN_INSTALL_KEY = 'Make a key and put it on this machine';
+/** Makes a key, puts its public half on that machine, then checks again. */
+export const BTN_INSTALL_KEY = "Put Tortie's key on it";
+
+/**
+ * The disclosure that holds main's own lines, warning and five notes, drawn
+ * byte for byte, one press away (PHASE 340, D10).
+ */
+export const KEY_WHAT_THIS_DOES = 'What this does';
 
 export const INSTALLING_KEY = 'Setting up the key';
 
 /**
- * Drawn under the button for as long as it is off.
+ * The button's hover for as long as it is off. PHASE 340 moved it from a line
+ * under the button onto the button, the shape the Add flow's button has.
  *
  * PHASE 130. The second sentence went. KEY_PASSWORD_HINT stands immediately
  * above the button and already says the password crosses one call and that
@@ -866,14 +1091,8 @@ export const KEY_WROTE_PRESENT =
 /** Stands immediately before the fingerprint main computed. */
 export const KEY_FINGERPRINT_LABEL = 'Key fingerprint';
 
-/**
- * The summary of the disclosure that holds the notes a person does not need
- * before they press the button (Phase 130).
- *
- * What is behind it is main's own words, drawn byte for byte, one press away.
- * Nothing is deleted and nothing is reworded.
- */
-export const KEY_MORE_LABEL = 'More about this key';
+// PHASE 340 DELETED `More about this key`. Its two notes stand behind What
+// this does with the other three, and that disclosure has one label.
 
 // ---------------------------------------------------------------------------
 // Which key Tortie uses, said on the row (Phase 84, item 7)
@@ -1057,5 +1276,15 @@ export const LABELS_ENDING_IN_A_COLON: readonly string[] = [
   ACCEPTED_VERSION_LABEL,
   // Phase 131. It stands immediately before the first twelve characters of the
   // confirm hash and carries nothing of its own past the colon.
-  ROW_HASH_LABEL
+  ROW_HASH_LABEL,
+  // Phase 340. It stands immediately before the agents the scan found on a
+  // machine that was just added, and carries nothing of its own past the colon.
+  AGENTS_ON_IT
 ];
+
+/**
+ * PHASE 340. The one string whose colon follows its first word, being a fact
+ * row's label and the value that row reads. It is named here so the colon check
+ * stays exact: a colon anywhere else in any string still fails.
+ */
+export const LINES_WITH_A_LABEL_COLON: readonly string[] = [VERSION_NOT_READ];

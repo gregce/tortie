@@ -41,11 +41,25 @@
  *
  * ## What it is not, and why the connection test was left alone
  *
- * The connection test stays the read only `command -v` probe it is. Starting a
- * durable server from a button labelled "Test the connection" would surprise a
- * person about what is now running on their machine, and surprising a person
- * about that is what the whole confirm gate exists to prevent. So Prepare is its
- * own button and it says what it will do before it does it.
+ * The connection test starts nothing that stays. Starting a durable server from
+ * a button labelled "Test the connection" would surprise a person about what is
+ * now running on their machine, and surprising a person about that is what the
+ * whole confirm gate exists to prevent. So Prepare is its own step and it says
+ * what it will do before it does it.
+ *
+ * PHASE 340 corrected the sentence above, which said the test "stays the read
+ * only `command -v` probe it is". The test is now the check in
+ * `./check-script.ts`: it reads the far login shell's PATH and, for one program
+ * it found by a name the person's own shell runs, that program's `-V`. It still
+ * starts no server and leaves nothing of Tortie's running. Add a machine now
+ * confirms and then calls THIS function in the same press (build/p340/SPEC.md
+ * D7), which is the one place a confirmation is followed by a prepare.
+ *
+ * ## The row's memory of this answer (Phase 340, D24)
+ *
+ * {@link prepareMachine} is a wrapper: it runs {@link prepareMachineOnce} and
+ * records what it answered in `./row-facts.ts`, in memory only, whoever started
+ * it, so the Settings row can draw the last sign in's class and version.
  */
 
 import { app } from 'electron';
@@ -85,6 +99,8 @@ import { startMachineFeed } from './remote-sessions';
 // sheet opens and nothing a person waits on waits for it.
 import { scanMachineAgents } from './machine-agents';
 import { describeMachine, type MachineExecutionFields } from './confirm';
+// PHASE 340 (D24). The last Prepare's answer, in memory, for the Settings row.
+import { noteRowSignIn } from './row-facts';
 
 const machinesLog = getLog('config');
 
@@ -157,6 +173,9 @@ const UNREACHED_CLASSES: readonly MachineTestClass[] = [
   'password-required',
   'host-key-changed',
   'client-missing',
+  // Phase 340. ssh present and not starting is unreached for the same reason a
+  // missing one is: nothing left this Mac.
+  'client-failed',
   'timed-out'
 ];
 
@@ -249,6 +268,22 @@ export async function readRemoteTmuxVersion(
 }
 
 /**
+ * Prepare one machine, and remember what it answered (Phase 340, D24).
+ *
+ * The ONE wrapper around every return of {@link prepareMachineOnce}: the launch
+ * sign in, its retry and a person's press all reach this name, so the row's
+ * memory of the last sign in is written whoever started it. The memory is in
+ * `./row-facts.ts`, never in machines.json.
+ */
+export async function prepareMachine(
+  input: PrepareInput
+): Promise<MachinePrepareResult> {
+  const result = await prepareMachineOnce(input);
+  noteRowSignIn(input.machineId, result);
+  return result;
+}
+
+/**
  * Prepare one machine, and answer with one class and one piece of copy.
  *
  * It never throws for a machine level failure. A refusal from the gate, a machine
@@ -256,7 +291,7 @@ export async function readRemoteTmuxVersion(
  * carrying the class and the sentence, because the surface has to draw them and a
  * thrown error would arrive there as a bare message with no class beside it.
  */
-export async function prepareMachine(
+export async function prepareMachineOnce(
   input: PrepareInput
 ): Promise<MachinePrepareResult> {
   const startedAt = Date.now();

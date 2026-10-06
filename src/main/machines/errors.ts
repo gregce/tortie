@@ -4,7 +4,7 @@
  *
  * ## Why the copy is composed here and not in the renderer
  *
- * Fifteen of these sixteen classes are calm. One is not. A changed host key means
+ * Seventeen of these eighteen classes are calm. One is not. A changed host key means
  * the program is warning that the machine presenting itself is not the machine
  * that presented itself before, and somebody may be reading the connection.
  * That case gets its own alarming state and it may never share calm copy with
@@ -76,6 +76,20 @@
  *    `build/probe-key-install.mjs` leg 4, answered `password-required` in
  *    33 ms and was offered the key block. The 27 bytes the client printed are
  *    in `__tests__/golden/password-required.txt`.
+ *
+ * ## The two classes Phase 340 added (build/p340/SPEC.md D4, D14)
+ *
+ *  - `client-failed` is ssh present on this Mac and not starting. Until this
+ *    phase both runners answered `client-missing` for it, so the operator, re-
+ *    adding his Mac Pro with `/usr/bin/ssh` in place, read that this Mac had no
+ *    ssh. node-pty on macOS throws the one string `posix_spawnp failed.` for
+ *    every failure of its spawn (no pty to open, the helper not executable, a
+ *    failed `posix_spawn`), with no errno, so {@link clientFailedReason} says
+ *    "did not say why" for it rather than guessing a cause.
+ *  - `program-choice` is a check that found more than one distinct program and
+ *    ran none of them. The person picks one.
+ *
+ * Both are Tortie's own words, so neither has a golden: no program prints them.
  */
 
 import type { MachineTestClass } from '@shared/ipc';
@@ -153,6 +167,23 @@ const PHRASE_TABLE: readonly {
       'Too many authentication failures',
       'no matching host key type'
     ]
+  },
+  // PHASE 340's fix round, from a verifier's measurement (the same at the
+  // parent). After a few refused sign ins, sshd's per source penalty (OpenSSH
+  // 9.8 and later, on by default) drops every new connection from that address
+  // before the two programs have exchanged a word, and ssh prints
+  // `kex_exchange_identification: read: Connection reset by peer` (MaxStartups
+  // and a firewall that closes the socket print `...: Connection closed by
+  // remote host`; an older ssh says `ssh_exchange_identification`). The table
+  // knew none of it, so Prepare's version read took it for a machine whose
+  // program would not report its version, of a machine nothing had reached.
+  // It is the far side declining the connection, which is `refused`, and it is
+  // LAST so a sign in the same text says was refused keeps `auth-refused`. The
+  // bare "Connection reset by peer" is not matched, because a connection that
+  // drops after the sign in prints it too.
+  {
+    cls: 'refused',
+    phrases: ['kex_exchange_identification', 'ssh_exchange_identification']
   }
 ];
 
@@ -243,6 +274,21 @@ const COPY: Readonly<Record<MachineTestClass, MachineOutcomeCopy>> = {
     detail:
       'Tortie cannot reach any machine without it. This is a broken system ' +
       'rather than a broken machine.'
+  },
+  // PHASE 340 (D14). ssh is there and would not start. The detail is composed
+  // below with the path and the reason, because both are facts of this run.
+  'client-failed': {
+    class: 'client-failed',
+    alarm: false,
+    headline: 'Tortie could not start ssh on this Mac.',
+    detail: 'Nothing was sent to any machine.'
+  },
+  // PHASE 340 (D4). More than one distinct program, and none of them was run.
+  'program-choice': {
+    class: 'program-choice',
+    alarm: false,
+    headline: 'Tortie found the program in more than one place.',
+    detail: 'Choose the one Tortie should run. Tortie runs none of them until you do.'
   },
   cancelled: {
     class: 'cancelled',
@@ -401,6 +447,69 @@ export const MACHINE_FEED_NOT_STARTED =
   'Tortie signed in to this machine and could not start reading its list of ' +
   'sessions, so the sessions on it are not shown here yet. Press Prepare again.';
 
+/**
+ * What a person reads when a check signed in and its login files did not
+ * finish within the test's minute (Phase 340, D9 as revised).
+ *
+ * The test sees Tortie's opening marker and not its closing one, so the machine
+ * was reached and signed in to, and what held it was the login shell's own
+ * files, which run at any sign in. Measured by the adversary: a login file that
+ * sleeps adds its time, and one that leaves a child holding its output keeps the
+ * check waiting until that child exits.
+ */
+export const MACHINE_CHECK_SIGNED_IN_TIMED_OUT =
+  'It signed in, and its login files did not finish within a minute. Nothing ' +
+  'was changed on either machine.';
+
+/**
+ * What a person reads when a check signed in and its answer could not be read
+ * (Phase 340's fix round, from the verifiers' finding).
+ *
+ * The strict reader refuses any buffer that holds other than exactly one of
+ * Tortie's blocks (D15), which is what a login file printing Tortie's own
+ * marker, before the check or after it through an exit trap, looks like, and so
+ * does output something else on that machine writes into the middle of the
+ * block. The first build said "Tortie could not reach this machine" for it and
+ * quoted Tortie's own marker as the last line the program printed. Both were
+ * false: the marker came back, so the machine was reached and signed in to.
+ * The class stays `unknown`, because Tortie still does not know which program
+ * runs there, and only the two sentences change.
+ */
+export const MACHINE_CHECK_UNREAD_HEADLINE =
+  'Tortie signed in to this machine and could not read its answer.';
+
+export const MACHINE_CHECK_UNREAD_DETAIL =
+  'Something that machine runs when you sign in printed into the answer ' +
+  'Tortie asked for, so Tortie cannot tell which program it found, and it ' +
+  'will not guess. Nothing was changed on either machine.';
+
+/**
+ * Why ssh would not start, in plain words, from what the spawn threw (Phase 340,
+ * D14 as revised by §Attack R10).
+ *
+ * Only an error that carries a `code` names a cause. node-pty on macOS throws
+ * `posix_spawnp failed.` with no code for seven different failures
+ * (`node_modules/node-pty/src/unix/pty.cc`), so that string, and anything else,
+ * answers that macOS did not say why. The raw message and any code go to the
+ * log, never to this sentence.
+ */
+export function clientFailedReason(err: unknown): string {
+  const code =
+    err !== null && typeof err === 'object' && 'code' in err
+      ? (err as { code?: unknown }).code
+      : undefined;
+  if (code === 'EACCES' || code === 'EPERM') {
+    return 'macOS would not let Tortie run it';
+  }
+  if (code === 'EMFILE' || code === 'ENFILE') {
+    return 'Tortie has too many files open';
+  }
+  if (code === 'EAGAIN') {
+    return 'this Mac is running too many programs to start another';
+  }
+  return 'macOS would not start it and did not say why';
+}
+
 export function lastPrintedLine(text: string): string {
   const lines = text
     .split('\n')
@@ -416,6 +525,13 @@ export function lastPrintedLine(text: string): string {
  * reported, `unknown` names the last line it printed, and `prepared` and
  * `version-unmeasured` name the path plus the versions. Everything else is the
  * fixed sentence.
+ *
+ * PHASE 340 added three more that carry a fact. `client-failed` names the ssh
+ * path and the reason it would not start; `no-program` names a typed path that
+ * holds nothing that runs; and `timed-out` says the machine signed in when the
+ * check's opening marker arrived and its closing one did not. Its fix round
+ * added a fourth: an `unknown` whose check signed in and whose answer the
+ * strict reader refused says so, in place of "could not reach".
  */
 export function composeOutcomeCopy(
   cls: MachineTestClass,
@@ -436,9 +552,47 @@ export function composeOutcomeCopy(
      * can accept. A refusal with no sheet beside it does not offer one.
      */
     acceptOffered?: boolean;
+    /** PHASE 340. The path a person typed, for a `no-program` that names it. */
+    typedPath?: string | null;
+    /** PHASE 340. The ssh this run tried to start, for `client-failed`. */
+    sshPath?: string | null;
+    /** PHASE 340. {@link clientFailedReason}'s words, for `client-failed`. */
+    clientReason?: string | null;
+    /** PHASE 340. True when a `timed-out` check had signed in. */
+    signedIn?: boolean;
+    /**
+     * PHASE 340's fix round. True when an `unknown` check signed in and the
+     * strict reader refused its answer, so the copy says that rather than that
+     * the machine could not be reached.
+     */
+    answerUnread?: boolean;
   }
 ): MachineOutcomeCopy {
   const base = COPY[cls];
+  if (cls === 'unknown' && facts.answerUnread === true) {
+    return {
+      ...base,
+      headline: MACHINE_CHECK_UNREAD_HEADLINE,
+      detail: MACHINE_CHECK_UNREAD_DETAIL
+    };
+  }
+  if (cls === 'client-failed') {
+    const path = facts.sshPath ?? '';
+    const reason = facts.clientReason ?? '';
+    if (path.length === 0 || reason.length === 0) return base;
+    return {
+      ...base,
+      detail: `ssh is at ${path}, but ${reason}. Nothing was sent to any machine.`
+    };
+  }
+  if (cls === 'no-program') {
+    const typed = facts.typedPath ?? '';
+    if (typed.length === 0) return base;
+    return { ...base, detail: `Nothing that runs is at ${typed} on that machine.` };
+  }
+  if (cls === 'timed-out' && facts.signedIn === true) {
+    return { ...base, detail: MACHINE_CHECK_SIGNED_IN_TIMED_OUT };
+  }
   if (cls === 'ok') {
     const path = facts.resolvedPath ?? '';
     return { ...base, detail: `Tortie will run ${path} on it.` };

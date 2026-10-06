@@ -190,10 +190,14 @@ import { launchableAgentEntry } from '../config/store';
 // second of the three moments Tortie is allowed to sign in to a machine.
 import { onMachineWake } from '../power';
 import {
+  forgetMachineRuntime,
   machineContext,
   machineGeneration,
   type RemoteMachineContext
 } from './context';
+// PHASE 340's ruled round. Type only: the confirm module is never a runtime
+// edge of this one.
+import type { MachineExecutionFields } from './confirm';
 // Phase 123. Two leaves this file used to own, moved out so the six module
 // runtime cycle under src/main/machines/ is gone. Both are re-exported below,
 // so every caller of this module is unchanged. `./ready-context.ts` holds the
@@ -2359,6 +2363,107 @@ export function dropMachineRowsFromMemory(machineId: string): void {
 
 /** Tell every surface the remote rows changed. The announce, by its own name. */
 export function notifyRemoteRowsChanged(): void {
+  announce();
+}
+
+// ---------------------------------------------------------------------------
+// A confirm of changed details (Phase 340's ruled round)
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether the context registered for this machine was built from other
+ * details than these: the address, the account, the port, the program or the
+ * accepted version. False when none is registered. It reads memory and asks
+ * the machine nothing.
+ *
+ * It is asked by `machines:confirm` beside the row's own `changed` state,
+ * because a row whose agreement was withdrawn and whose details were then
+ * edited reads `never` rather than `changed`, and its context is just as old.
+ */
+export function registeredRouteDiffers(
+  machineId: string,
+  fields: MachineExecutionFields
+): boolean {
+  let ctx;
+  try {
+    ctx = machineContext(machineId);
+  } catch {
+    return false;
+  }
+  if (ctx.kind !== 'remote') return false;
+  return (
+    ctx.host !== fields.host ||
+    ctx.user !== fields.user ||
+    ctx.port !== fields.port ||
+    ctx.remoteTmuxPath !== fields.remoteTmuxPath ||
+    (ctx.acceptedTmuxVersion ?? null) !== (fields.acceptedTmuxVersion ?? null)
+  );
+}
+
+/**
+ * Stop using the route a machine was signed in to under details a person has
+ * since replaced (Phase 340's ruled round, from the reverify).
+ *
+ * WHY. Prepare registers a context holding the address, account, port and
+ * program it signed in with, and `ready` on a row is only "a context with a
+ * captured search list is registered" ({@link machineCanHoldSession}). So a
+ * prepared machine whose details changed and were confirmed read Ready, and
+ * Open a folder on it… and every far-side verb went over the context made
+ * under the OLD details, until somebody pressed Prepare. The reverify measured
+ * it: the port rewritten, Confirm the new details, then twelve seconds of
+ * Ready with Open a folder on it… as the next step.
+ *
+ * WHAT. In this order, and nothing is sent to the machine:
+ *  1. Both feeds stop: the fallback timer and the status list beside a live
+ *     connection. A list on the old route is a list of a machine the person
+ *     has said is somewhere else, and a list with no context to send it over
+ *     would mark the machine as not answering, which nothing has measured.
+ *  2. The live connection, made under the old details, is closed.
+ *  3. The context and its generation go ({@link forgetMachineRuntime}), so
+ *     `ready` reads false and every verb refuses with "Prepare the machine
+ *     first", exactly as for a machine nobody prepared in this run.
+ *  4. The session rows Tortie holds for that machine read `unknown`, the
+ *     verdict a list that did not arrive writes, because none will arrive
+ *     until Prepare: a stale "working" is never drawn about a machine Tortie
+ *     stopped reading. The LINK is left where it was, so the row reads Not
+ *     ready with Prepare this machine rather than Offline over a machine
+ *     nothing asked.
+ *
+ * Prepare is what brings it all back: it registers a context under the new
+ * details and starts the feed again (`startMachineFeed`).
+ */
+export function retireMachineRoute(machineId: string): void {
+  const state = machines.get(machineId);
+  let hadContext = true;
+  try {
+    machineContext(machineId);
+  } catch {
+    hadContext = false;
+  }
+  if (state !== undefined) {
+    clearTimer(state);
+    clearStatusTimer(state);
+    state.onControl = false;
+  }
+  closeControlPlane(machineId);
+  forgetMachineRuntime(machineId);
+  if (state !== undefined) {
+    applyMachineEvent(machineId, {
+      kind: 'transport-lost',
+      at: Date.now(),
+      errorClass: 'details-changed'
+    });
+    noteMachineFeedMissed(machineId);
+  }
+  // Said only when there was a route to retire: a changed row nobody
+  // prepared in this run had none, and the sentence would be false of it.
+  if (hadContext || state !== undefined) {
+    machinesLog.info(
+      `${machineId}'s new details were confirmed, so the connection made ` +
+        `under its old ones is no longer used. Nothing was sent to that ` +
+        `machine; Prepare signs in again.`
+    );
+  }
   announce();
 }
 

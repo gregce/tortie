@@ -1,55 +1,53 @@
 /**
- * Phase 68. Add a machine.
+ * Phase 68. Add a machine. PHASE 340 rewrote it as pick, check and add
+ * (build/p340/SPEC.md section 5.1, the design he was shown).
  *
- * FOUR STEPS, IN ORDER, and the order is the design. A person picks or types
- * an address, tests the connection and watches it happen, reads the lines the
- * agreement will be bound to, and presses one button that writes the row and
- * records the confirmation together. The button is disabled until the machine
- * itself has answered, and Phase 87 moved the reason onto the button as its
- * tooltip rather than under it as a paragraph, because a control that is off
- * without saying why is a puzzle rather than a safeguard.
+ * THREE STEPS AND ONE PRESS, and the order is the design.
  *
- * WHY THE ADD BUTTON WAITS FOR THE TEST. The row names a program Tortie will
- * run on another machine. Until the connection test comes back with an
- * absolute path that the machine itself reported, Tortie has never seen that
- * program and a person cannot meaningfully agree to it. Typing a path under
- * Advanced does not skip the test. It only tells the test what to look for.
+ *  1. PICK (`data-machines-step="pick"`). The tailnet's own rows, which the Add
+ *     a machine press already asked for, or Type an address… and Check. Advanced
+ *     holds the account, the port and a program path for an odd place.
+ *  2. CHECK (`check`). A pick or Check starts it, and Tortie signs in, finds
+ *     the program through that machine's own shell and the usual install
+ *     folders, and reads its version. It asks inline only when it must: trust a
+ *     first-seen machine, a password once to put Tortie's key on it, which of
+ *     two programs to run, or a prompt it does not recognise.
+ *  3. ADD (`add`), drawn for every check that answered ok. One button,
+ *     `Add <name>`, confirms the exact lines main hashed and prepares the
+ *     machine. A version Tortie has not measured is one line on that button,
+ *     and the agreement carries it.
  *
- * THE TAILNET PICKER, and the one thing it is careful about. Tortie runs the
- * Tailscale program at a pinned absolute path and shows that path on screen
- * before it runs anything. A name served by PATH is never used, because a
- * planted program earlier on PATH is the exact attack the confirm gate exists
- * for.
+ * Then READY (`ready`): `<name> is ready.`, the agents on it and Open a folder
+ * on it…, or main's own answer when Prepare refused.
  *
- * PHASE 79. The picker is now reachable from two presses of the same button
- * rather than one, and both of them are a person's. The panel above it is
- * drawn before either press, and it says what Tailscale is for here, when
- * Tortie last looked, and how to install Tailscale when there is none. Opening
- * this sheet still runs nothing. The panel is built from what the last look
- * left in the store, so the first press is the first process.
+ * WHY THE ADD BUTTON WAITS FOR THE CHECK. The row names a program Tortie will
+ * run on another machine. Until the check comes back with an absolute path the
+ * machine itself reported, and main has composed the lines and the hash over
+ * it, there is nothing a person could meaningfully agree to, so no Add button
+ * exists. Typing a path under Advanced does not skip the check. It only tells
+ * the check where to look.
  *
- * The panel copies the agent scan in Settings, which answers the same three
- * questions for an agent that is not on this Mac. A person who has read one
- * has read the other.
+ * WHAT THE PICK STARTS, and why refusal 8 still holds (D5). A pick, a Check, a
+ * candidate button and Check again are each a person's own press in Tortie's
+ * own window. The check they start reads; it writes nothing on either machine
+ * except Tortie's own record of a host key a person pressed Trust it for, and
+ * it leaves nothing of Tortie's running. Nothing here starts on a keystroke: an
+ * edit to the address, the account, the port or the path drops a finished
+ * check, and checking again is a press.
  *
- * PHASE 79.1. A draft test that came back with the machine turning the sign in
- * down offers to set up a key, and the block that does it is drawn by
- * ConnectionTestView, which this sheet already renders. So this file gains two
- * props and no markup. A machine can be given a key BEFORE it is added, which
- * is the case the whole rung exists for: the operator's own Mac refused him,
- * and a machine that refuses cannot be tested, so it can never be added.
- *
- * WHAT THIS SURFACE NEVER DOES. It writes nothing until the button is
- * pressed. It starts nothing on a keystroke. It reads no file. It sends no
- * answer to the program on a person's behalf.
+ * WHAT IS ONE PRESS AWAY (D17). Every hashed fact is on the face of the check
+ * when Add can be pressed: the address and port, the account, the program and
+ * its version. The exact lines, main's warning and sealing sentence, any write
+ * paragraph and the version offer are under What it runs beside the button.
  *
  * `AddMachineView` draws and takes everything as a prop. `AddMachine` reads
- * the store and hands it over. The reason for the split is in the header of
- * MachinesSection.tsx.
+ * the store and hands it over, for the reason in MachinesSection.tsx's header.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import type {
+  MachineAgentsView,
+  MachinePrepareResult,
   MachinesResult,
   TailscalePeerView,
   TailscaleSourceResult
@@ -57,23 +55,25 @@ import type {
 import { MACHINE_COLORS } from '@shared/machines';
 import { formatAge } from '@shared/age';
 import { useNow } from '../format';
-import { Codicon } from '../icons';
 import { ConnectionTestView } from './ConnectionTestView';
 import { CopyButton } from './CopyButton';
+import { AcceptVersionSheet, PrepareResult } from './MachineRow';
 import {
-  ADD_DISABLED_REASON,
+  ADDING,
   ADD_TITLE,
   ADVANCED,
+  AGENTS_ON_IT,
   BTN_ADD_CANCEL,
-  BTN_ADD_CONFIRM,
-  BTN_FIND_TAILNET,
+  BTN_CHECK,
+  BTN_DONE,
+  BTN_OPEN_FOLDER,
   BTN_TAILSCALE_LOOK_AGAIN,
-  BTN_TEST,
+  BTN_TYPE_ADDRESS,
   COLOUR_LABEL,
   COPY_INSTALL_COMMAND_LABEL,
   FIELD_COLOR,
   FIELD_HOST,
-  FIELD_LABEL,
+  FIELD_NAME,
   FIELD_PORT,
   FIELD_PORT_HINT,
   FIELD_REMOTE_PATH,
@@ -86,52 +86,34 @@ import {
   PEER_OFFLINE,
   PEER_THIS_MAC,
   PREPARE_SUPPORTED_LABEL,
+  PREPARING,
+  TAILNET_TITLE,
   TAILSCALE_EXPLAIN,
   TAILSCALE_INSTALL_COMMAND,
   TAILSCALE_LOOKING,
   TAILSCALE_NOT_INSTALLED,
-  TAILSCALE_NOT_LOOKED,
   TAILSCALE_SOURCE_LABEL,
-  TAILSCALE_TITLE,
   TAILSCALE_WHY,
-  TESTING,
+  WHAT_IT_RUNS,
+  acceptsVersionLine,
+  addLabel,
   lastLookedLine,
-  tailnetCountLine
+  readyLine
 } from './machines-copy';
 import {
+  peerDisplayName,
   sheetOf,
   useMachinesStore,
+  type AddedMachine,
   type KeyInstallState,
   type LiveTest,
   type MachineFormState
 } from './machines-store';
+import { useSettingsStore } from './settings-store';
 
-/**
- * The names Tailscale hands back for a machine that has no useful one.
- *
- * An iOS device reports the HostName `localhost`, and main falls back to the
- * HostName when it has nothing better, so a person with two iPhones on their
- * tailnet reads `localhost` twice and cannot tell the rows apart.
- */
-const PLACEHOLDER_NAMES: ReadonlySet<string> = new Set([
-  '',
-  'localhost',
-  'localhost.localdomain'
-]);
-
-/**
- * The name to draw for one machine.
- *
- * The full address is already on the wire as `host`, and its first label is
- * the name Tailscale itself shows in its own list. When the name Tortie was
- * given says nothing, that label is used instead. The address is drawn beside
- * it either way, so nothing is hidden by this.
- */
-export function peerDisplayName(peer: TailscalePeerView): string {
-  if (!PLACEHOLDER_NAMES.has(peer.name.trim().toLowerCase())) return peer.name;
-  const label = peer.host.split('.')[0] ?? '';
-  return label === '' ? peer.name : label;
-}
+// The name a tailnet row draws now lives beside the pick that writes it into
+// the form (D28). It is re-exported so every reader keeps one import.
+export { peerDisplayName };
 
 /** The systems that cannot keep a session alive. Lowercase, trimmed. */
 const CANNOT_HOST: ReadonlySet<string> = new Set([
@@ -145,21 +127,22 @@ const CANNOT_HOST: ReadonlySet<string> = new Set([
  * False for a device that cannot run a session.
  *
  * The judgement comes from one string another program supplied, so it narrows
- * what a person can press and it never removes a row. A phone a person can see
- * in the Tailscale app and cannot see in Tortie reads as Tortie being broken.
- * Anything Tortie has not seen before, including an empty value, is treated as
- * able, because Tortie must not refuse a machine on a string it does not know.
+ * what a person can press and it never removes a row. Anything Tortie has not
+ * seen before, including an empty value, is treated as able, because Tortie
+ * must not refuse a machine on a string it does not know.
  */
 export function peerCanHost(os: string): boolean {
   return !CANNOT_HOST.has(os.trim().toLowerCase());
 }
 
-/** One machine the tailnet reported, as a button that fills the form. */
+/** One machine the tailnet reported, as a button that checks it. */
 function PeerRow({
   peer,
+  disabled,
   onPick
 }: {
   peer: TailscalePeerView;
+  disabled: boolean;
   onPick(peer: TailscalePeerView): void;
 }): React.JSX.Element {
   const canHost = peerCanHost(peer.os);
@@ -179,7 +162,7 @@ function PeerRow({
       data-peer-online={peer.online ? 'yes' : 'no'}
       data-peer-can-host={canHost ? 'yes' : 'no'}
       data-peer-name-source={name === peer.name ? 'hostname' : 'tailnet'}
-      disabled={peer.alreadyAdded || !canHost}
+      disabled={peer.alreadyAdded || !canHost || disabled}
       onClick={() => onPick(peer)}
     >
       <span className="mach-peer-name">{name}</span>
@@ -194,7 +177,7 @@ function PeerRow({
   );
 }
 
-/** The three things the panel can be saying, derived and never stored. */
+/** The three things the list can be saying, derived and never stored. */
 type TailnetState = 'unlooked' | 'missing' | 'installed';
 
 function tailnetStateOf(tailscale: TailscaleSourceResult | null): TailnetState {
@@ -204,23 +187,34 @@ function tailnetStateOf(tailscale: TailscaleSourceResult | null): TailnetState {
 }
 
 /**
- * PHASE 79. What Tailscale is for here, when Tortie last looked, and what to
- * do when there is no Tailscale on this Mac.
- *
- * The operator pressed the one button this sheet used to offer, read a single
- * sentence saying no program was found, and had nowhere to go. The panel now
- * answers the three questions the agent scan answers for a missing agent,
- * which are what this is, whether it is here, and how to get it.
- *
- * IT STARTS NOTHING. Everything drawn here comes from what the last press left
- * in the store. The button is the only thing that can run the program, and a
- * person presses it.
+ * The hover of the list's head: what Tailscale is for, the path Tortie ran it
+ * from and when it last looked. Every sentence the panel used to stand on its
+ * face is here, one hover away (section 8.2).
  */
-function TailscalePanel({
+export function tailnetHover(
+  tailscale: TailscaleSourceResult | null,
+  readAt: number | null,
+  now: number
+): string {
+  const lines: string[] = [TAILSCALE_WHY];
+  if (tailscale !== null && tailscale.binary !== null) {
+    lines.push(TAILSCALE_EXPLAIN);
+    lines.push(`${TAILSCALE_SOURCE_LABEL} ${tailscale.binary}`);
+  }
+  if (readAt !== null) lines.push(lastLookedLine(formatAge(readAt, now)));
+  return lines.join('\n');
+}
+
+/**
+ * The list of machines on the tailnet. It starts nothing by being drawn: the
+ * Add a machine press already asked, and Look again is a press.
+ */
+function TailnetList({
   tailscale,
   tailscaleBusy,
   readAt,
   now,
+  checking,
   onFindTailnet,
   onUsePeer
 }: {
@@ -228,26 +222,16 @@ function TailscalePanel({
   tailscaleBusy: boolean;
   readAt: number | null;
   now: number;
+  checking: boolean;
   onFindTailnet(): void;
   onUsePeer(peer: TailscalePeerView): void;
 }): React.JSX.Element {
   const state = tailnetStateOf(tailscale);
-
-  // The same population main's own note counts, being everything that is not
-  // the Mac this window is running on.
-  const others =
-    tailscale === null
-      ? 0
-      : tailscale.peers.filter((peer) => !peer.isThisMac).length;
-
   return (
     <div className="mach-block mach-scan" data-tailscale-state={state}>
       <div className="mach-scan-head">
-        <span className="mach-scan-title">{TAILSCALE_TITLE}</span>
-        <span className="set-scan-age">
-          {readAt === null
-            ? TAILSCALE_NOT_LOOKED
-            : lastLookedLine(formatAge(readAt, now))}
+        <span className="mach-scan-title" title={tailnetHover(tailscale, readAt, now)}>
+          {TAILNET_TITLE}
         </span>
         <button
           type="button"
@@ -256,63 +240,141 @@ function TailscalePanel({
           data-machines-action="find-tailnet"
           onClick={onFindTailnet}
         >
-          {tailscaleBusy ? (
-            <span className="set-spinner" aria-hidden="true" />
-          ) : (
-            <Codicon name="search" size="sm" />
-          )}
-          {tailscaleBusy
-            ? TAILSCALE_LOOKING
-            : state === 'unlooked'
-              ? BTN_FIND_TAILNET
-              : BTN_TAILSCALE_LOOK_AGAIN}
+          {tailscaleBusy ? <span className="set-spinner" aria-hidden="true" /> : null}
+          {tailscaleBusy ? TAILSCALE_LOOKING : BTN_TAILSCALE_LOOK_AGAIN}
         </button>
       </div>
 
-      {state === 'unlooked' ? <div className="mach-hint">{TAILSCALE_WHY}</div> : null}
-
       {/* The command is drawn and never run. Tortie has no installer and this
-          is a line for a person to paste into their own terminal.
-          Main's own note is NOT drawn in this state. It says the same thing as
-          the sentence beside the command, in other words, and a person should
-          not read it twice. Do not add it back. */}
+          is a line for a person to paste into their own terminal. Main's own
+          note is not drawn in this state, because it says the same thing. */}
       {state === 'missing' ? (
-        <>
-          <div className="set-agent-detail">
-            <span className="set-agent-missing">{TAILSCALE_NOT_INSTALLED}</span>
-            <code className="set-agent-cmd">{TAILSCALE_INSTALL_COMMAND}</code>
-            <CopyButton
-              text={TAILSCALE_INSTALL_COMMAND}
-              label={COPY_INSTALL_COMMAND_LABEL}
-            />
-          </div>
-          <div className="mach-hint">{TAILSCALE_WHY}</div>
-        </>
+        <div className="set-agent-detail">
+          <span className="set-agent-missing">{TAILSCALE_NOT_INSTALLED}</span>
+          <code className="set-agent-cmd">{TAILSCALE_INSTALL_COMMAND}</code>
+          <CopyButton
+            text={TAILSCALE_INSTALL_COMMAND}
+            label={COPY_INSTALL_COMMAND_LABEL}
+          />
+        </div>
       ) : null}
 
       {state === 'installed' && tailscale !== null ? (
         <>
-          <div className="mach-source">
-            <span className="mach-source-label">{TAILSCALE_SOURCE_LABEL}</span>
-            <span className="mach-source-path">{tailscale.binary}</span>
-          </div>
-          <div className="mach-scan-count">{tailnetCountLine(others)}</div>
-          <div className="mach-hint">{TAILSCALE_EXPLAIN}</div>
-          {/* Main's note, drawn once and nowhere else. An empty tailnet used to
-              print the same sentence twice, because this file kept a copy of
-              it under its own name. */}
+          {/* Main's note, drawn once and nowhere else. */}
           {tailscale.note === null ? null : (
             <div className="mach-note">{tailscale.note}</div>
           )}
           {tailscale.peers.length > 0 ? (
             <div className="mach-peers">
               {tailscale.peers.map((peer) => (
-                <PeerRow key={peer.host} peer={peer} onPick={onUsePeer} />
+                <PeerRow
+                  key={peer.host}
+                  peer={peer}
+                  disabled={checking}
+                  onPick={onUsePeer}
+                />
               ))}
             </div>
           ) : null}
         </>
       ) : null}
+    </div>
+  );
+}
+
+/** The name the Add step and the running row use for the machine. */
+export function effectiveLabel(form: MachineFormState, test: LiveTest | null): string {
+  const typed = form.label.trim();
+  if (typed !== '') return typed;
+  return test?.draft?.host ?? form.host.trim();
+}
+
+/** The present agents' names, from the scan answer for one machine. */
+function presentAgentNames(
+  view: MachineAgentsView | undefined,
+  names: ReadonlyMap<string, string>
+): string[] {
+  if (view === undefined) return [];
+  return view.agents
+    .filter((one) => one.presence === 'present')
+    .map((one) => names.get(one.agentId) ?? one.agentId);
+}
+
+/** The last step: the machine is added, and what Prepare answered. */
+function ReadyStep({
+  added,
+  result,
+  preparing,
+  agents,
+  error,
+  accepting,
+  onAccept,
+  onOpenFolder,
+  onDone
+}: {
+  added: AddedMachine;
+  result: MachinePrepareResult | undefined;
+  preparing: boolean;
+  agents: string[] | null;
+  error: string | null;
+  accepting: boolean;
+  onAccept(): void;
+  onOpenFolder(): void;
+  onDone(): void;
+}): React.JSX.Element {
+  const ready = result !== undefined && result.class === 'prepared';
+  return (
+    <div className="mach-block mach-ready" data-machines-step="ready">
+      {result === undefined && preparing ? (
+        <div className="mach-check-running">
+          <span className="set-spinner" aria-hidden="true" />
+          <span className="mach-check-text">{PREPARING}</span>
+        </div>
+      ) : null}
+      {ready ? (
+        <>
+          <div className="mach-ready-line" data-machines-ready={added.id}>
+            {readyLine(added.label)}
+          </div>
+          {/* D19. The agents appear after Add, from the one scan Prepare
+              starts, and only once that scan has answered. */}
+          {agents === null || agents.length === 0 ? null : (
+            <div className="mach-prepare-fact" data-machines-agents={added.id}>
+              <span className="mach-prepare-label">{AGENTS_ON_IT}</span>
+              <span className="mach-prepare-value">{agents.join(', ')}</span>
+            </div>
+          )}
+        </>
+      ) : null}
+      {result !== undefined && !ready ? (
+        <>
+          <PrepareResult result={result} />
+          <AcceptVersionSheet result={result} accepting={accepting} onAccept={onAccept} />
+        </>
+      ) : null}
+      {error !== null ? <div className="set-row-error">{error}</div> : null}
+      <div className="mach-ready-actions">
+        {ready ? (
+          <button
+            type="button"
+            className="btn btn-primary"
+            data-machines-action="open-folder"
+            onClick={onOpenFolder}
+          >
+            {BTN_OPEN_FOLDER}
+          </button>
+        ) : null}
+        <button
+          type="button"
+          className="btn btn-secondary"
+          data-machines-action="add-done"
+          disabled={preparing && result === undefined}
+          onClick={onDone}
+        >
+          {BTN_DONE}
+        </button>
+      </div>
     </div>
   );
 }
@@ -325,13 +387,26 @@ export interface AddMachineViewProps {
   tailscaleBusy: boolean;
   /** When the last look at Tailscale finished. Null until one has. */
   tailscaleReadAt: number | null;
-  /** The draft test, or null. A saved row's test never reaches this view. */
+  /** The draft check, or null. A saved row's check never reaches this view. */
   test: LiveTest | null;
-  /**
-   * The key install for the machine being added, or null. A saved row's
-   * install never reaches this view, for the reason its test does not.
-   */
+  /** The key install for the machine being added, or null. */
   keyInstall: KeyInstallState | null;
+  /** True once Type an address… has revealed the address field. */
+  addressOpen: boolean;
+  /** True while Advanced is open. */
+  advancedOpen: boolean;
+  /** True while the check's Details is open. */
+  detailsOpen: boolean;
+  /** The machine the Add press wrote, while the flow shows it ready. */
+  added: AddedMachine | null;
+  /** What Prepare answered for that machine, or undefined. */
+  addedResult?: MachinePrepareResult | undefined;
+  /** True while the add, or the prepare after it, is in flight. */
+  preparing?: boolean;
+  /** The agents found present on the added machine, by display name. */
+  addedAgents?: string[] | null;
+  /** True while an acceptance for the added machine is in flight. */
+  accepting?: boolean;
   /** True while the add call is in flight. */
   busy: boolean;
   /** Main's sentence when a call was refused. Null otherwise. */
@@ -340,12 +415,22 @@ export interface AddMachineViewProps {
   onClose(): void;
   onFindTailnet(): void;
   onUsePeer(peer: TailscalePeerView): void;
+  onSetAddressOpen(open: boolean): void;
+  onSetAdvancedOpen(open: boolean): void;
+  onSetDetailsOpen(open: boolean): void;
+  /** Check, or Return in the address field. */
   onStartTest(): void;
+  onCheckAgain(): void;
+  onPickCandidate(path: string): void;
+  onAnswer(text?: string): void;
   onSendInput(text: string): void;
   onCancelTest(): void;
   /** Sends that machine's password once. Nothing here keeps a copy of it. */
   onInstallKey(password: string): void;
   onAdd(): void;
+  onAcceptVersion(): void;
+  onOpenFolder(): void;
+  onDone(): void;
 }
 
 export function AddMachineView({
@@ -356,27 +441,59 @@ export function AddMachineView({
   tailscaleReadAt,
   test,
   keyInstall,
+  addressOpen,
+  advancedOpen,
+  detailsOpen,
+  added,
+  addedResult,
+  preparing = false,
+  addedAgents = null,
+  accepting = false,
   busy,
   error,
   onSetForm,
   onClose,
   onFindTailnet,
   onUsePeer,
+  onSetAddressOpen,
+  onSetAdvancedOpen,
+  onSetDetailsOpen,
   onStartTest,
+  onCheckAgain,
+  onPickCandidate,
+  onAnswer,
   onSendInput,
   onCancelTest,
   onInstallKey,
-  onAdd
+  onAdd,
+  onAcceptVersion,
+  onOpenFolder,
+  onDone
 }: AddMachineViewProps): React.JSX.Element {
-  // The sheet main composed at the end of the test. It is the only source of
-  // the lines below and of the hash the agreement binds to, so the button is
-  // off for exactly as long as there is no sheet.
+  // The sheet main composed at the end of the check. It is the only source of
+  // the lines below and of the hash the agreement binds to, so the Add step
+  // exists for exactly as long as there is a sheet.
   const sheet = sheetOf(test);
-  const canAdd = sheet !== null && !busy;
-  const testing = test !== null && test.running;
+  const checking = test !== null && test.running;
+  const label = effectiveLabel(form, test);
+  // The version the SHEET binds, and nothing else decides it (D7 as revised).
+  // The one line on the Add button is drawn only for a version the check read
+  // and Tortie has not measured (D8), and it names what the sheet binds, so the
+  // words under the button and the value the press sends are one value.
+  const accepted = sheet?.acceptedTmuxVersion ?? null;
+  const acceptsLine =
+    accepted !== null &&
+    accepted !== '' &&
+    test?.outcome?.check?.versionKind === 'unmeasured'
+      ? accepted
+      : null;
 
-  // Only so the age in the panel head stays honest while the sheet is open.
+  // Only so the age in the head's hover stays honest while the sheet is open.
   const now = useNow();
+  // Type its path… lands the caret in the path field, which is what it is for.
+  const pathRef = React.useRef<HTMLInputElement>(null);
+
+  const typed = (patch: Partial<MachineFormState>): void => onSetForm(patch);
 
   return (
     <div className="mach-add" data-machines-add="1">
@@ -393,208 +510,263 @@ export function AddMachineView({
       </div>
 
       <div className="set-card mach-card">
-        {/* Step one. One button, and nothing runs before it is pressed. */}
-        <TailscalePanel
-          tailscale={tailscale}
-          tailscaleBusy={tailscaleBusy}
-          readAt={tailscaleReadAt}
-          now={now}
-          onFindTailnet={onFindTailnet}
-          onUsePeer={onUsePeer}
-        />
-
-        {/* Step two. The person's own keystrokes.
-            PHASE 130. This is the only .mach-block in the sheet that is a
-            stack of labelled field rows, and a labelled row is a group of
-            two. It carries .mach-fields so a field sits closer to its own
-            hint than to the next field. The Tailscale panel, the test block
-            and the confirm sheet are stacks of paragraphs and keep the plain
-            .mach-block rhythm. */}
-        <div className="mach-block mach-fields">
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_HOST}</span>
-            <input
-              type="text"
-              className="mach-field"
-              data-machines-field="host"
-              spellCheck={false}
-              autoComplete="off"
-              value={form.host}
-              onChange={(e) => onSetForm({ host: e.target.value })}
-            />
-          </label>
-
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_LABEL}</span>
-            <input
-              type="text"
-              className="mach-field"
-              data-machines-field="label"
-              spellCheck={false}
-              autoComplete="off"
-              value={form.label}
-              onChange={(e) => onSetForm({ label: e.target.value })}
-            />
-          </label>
-
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_COLOR}</span>
-            <select
-              className="set-select"
-              data-machines-field="color"
-              value={form.color}
-              onChange={(e) =>
-                onSetForm({ color: e.target.value as MachineFormState['color'] })
-              }
-            >
-              {MACHINE_COLORS.map((color) => (
-                <option key={color} value={color}>
-                  {COLOUR_LABEL[color]}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_USER}</span>
-            <input
-              type="text"
-              className="mach-field"
-              data-machines-field="user"
-              spellCheck={false}
-              autoComplete="off"
-              value={form.user}
-              onChange={(e) => onSetForm({ user: e.target.value })}
-            />
-          </label>
-          <div className="mach-hint">{FIELD_USER_HINT}</div>
-        </div>
-
-        {/* Step two and a half. Two fields most people never open. */}
-        <details className="mach-advanced">
-          <summary>{ADVANCED}</summary>
-
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_PORT}</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              className="mach-field mach-field-short"
-              data-machines-field="port"
-              spellCheck={false}
-              autoComplete="off"
-              value={form.port}
-              onChange={(e) => onSetForm({ port: e.target.value })}
-            />
-          </label>
-          <div className="mach-hint">{FIELD_PORT_HINT}</div>
-
-          <label className="mach-field-row">
-            <span className="mach-field-label">{FIELD_REMOTE_PATH}</span>
-            <input
-              type="text"
-              className="mach-field"
-              data-machines-field="remoteTmuxPath"
-              spellCheck={false}
-              autoComplete="off"
-              value={form.remoteTmuxPath}
-              onChange={(e) => onSetForm({ remoteTmuxPath: e.target.value })}
-            />
-          </label>
-          <div className="mach-hint">{FIELD_REMOTE_PATH_HINT}</div>
-        </details>
-
-        {/* Step three. The only affordance here that starts a process.
-            PHASE 79. The versions Tortie has measured are on screen BEFORE the
-            test runs, not only in the refusal afterwards. A person about to
-            add a machine can go and check what it runs first, rather than
-            learning the rule from a machine that was turned down. */}
-        <div className="mach-block">
-          <div className="mach-prepare-fact">
-            <span className="mach-prepare-label">{PREPARE_SUPPORTED_LABEL}</span>
-            <span className="mach-prepare-value" data-measured-versions="1">
-              {MEASURED_VERSIONS.join(', ')}
-            </span>
-          </div>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            disabled={testing || form.host.trim() === ''}
-            data-machines-action="test-draft"
-            onClick={onStartTest}
-          >
-            {testing ? TESTING : BTN_TEST}
-          </button>
-        </div>
-
-        {test !== null ? (
-          <ConnectionTestView
-            started={test.started}
-            transcript={test.transcript}
-            outcome={test.outcome}
-            running={test.running}
-            onSend={onSendInput}
-            onCancel={onCancelTest}
-            keyInstall={keyInstall}
-            onInstallKey={onInstallKey}
+        {added !== null ? (
+          <ReadyStep
+            added={added}
+            result={addedResult}
+            preparing={preparing}
+            agents={addedAgents}
+            error={error}
+            accepting={accepting}
+            onAccept={onAcceptVersion}
+            onOpenFolder={onOpenFolder}
+            onDone={onDone}
           />
-        ) : null}
+        ) : (
+          <>
+            {/* Step one. A pick, or an address a person types. */}
+            <div className="mach-block mach-pick" data-machines-step="pick">
+              <TailnetList
+                tailscale={tailscale}
+                tailscaleBusy={tailscaleBusy}
+                readAt={tailscaleReadAt}
+                now={now}
+                checking={checking}
+                onFindTailnet={onFindTailnet}
+                onUsePeer={onUsePeer}
+              />
 
-        {/* Step four. The lines are exactly the facts the hash covers, and
-            they arrive from main on the outcome rather than being composed
-            here. The name and the colour are not among them and never appear
-            here. */}
-        <div className="mach-block mach-sheet">
-          {sheet !== null ? (
-            <ul className="set-config-lines">
-              {sheet.lines.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          ) : null}
+              {addressOpen ? (
+                <div className="mach-address" data-machines-address="1">
+                  <label className="mach-field-row">
+                    <span className="mach-field-label">{FIELD_HOST}</span>
+                    <input
+                      type="text"
+                      className="mach-field"
+                      data-machines-field="host"
+                      spellCheck={false}
+                      autoComplete="off"
+                      value={form.host}
+                      onChange={(e) => typed({ host: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && !checking && form.host.trim() !== '') {
+                          onStartTest();
+                        }
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    disabled={checking || form.host.trim() === ''}
+                    data-machines-action="test-draft"
+                    onClick={onStartTest}
+                  >
+                    {BTN_CHECK}
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  className="btn-text mach-type-address"
+                  aria-expanded={false}
+                  data-machines-action="type-address"
+                  onClick={() => onSetAddressOpen(true)}
+                >
+                  {BTN_TYPE_ADDRESS}
+                </button>
+              )}
 
-          {/* Both come from main on the result, so this surface can neither
-              omit them nor reword them. Phase 87 draws them in one paragraph
-              rather than two, which removes one paragraph gap. The shortening
-              itself happened in main, where MACHINE_PATH_HONESTY lost its
-              third sentence. This surface still draws whatever main sends,
-              word for word. */}
-          {machines !== null ? (
-            <p className="set-config-warning">
-              {`${machines.warning} ${machines.honesty}`}
-            </p>
-          ) : null}
+              <details
+                className="mach-advanced"
+                data-machines-advanced="1"
+                open={advancedOpen}
+                onToggle={(e) =>
+                  onSetAdvancedOpen((e.currentTarget as HTMLDetailsElement).open)
+                }
+              >
+                <summary>{ADVANCED}</summary>
 
-          {/* PHASE 101. The paragraph that says what replacing a file costs.
-              A machines file an agent can write can carry a folder on a NEW
-              row, and this sheet would then grant file replacement. The answer
-              to whether the paragraph is drawn is main's, off the same fields
-              the lines above come from, so a sheet whose lines name a folder
-              can never be read without it. It is drawn nowhere else on this
-              sheet and it is not one of the lines, because the lines are
-              exactly what the hash covers. */}
-          {sheet === null || sheet.writeHonesty === null ? null : (
-            <p className="set-config-warning" data-machine-write-honesty>
-              {sheet.writeHonesty}
-            </p>
-          )}
+                <label className="mach-field-row">
+                  <span className="mach-field-label">{FIELD_USER}</span>
+                  <input
+                    type="text"
+                    className="mach-field"
+                    data-machines-field="user"
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={form.user}
+                    onChange={(e) => typed({ user: e.target.value })}
+                  />
+                </label>
+                <div className="mach-hint">{FIELD_USER_HINT}</div>
 
-          {/* The reason the button is off rides on the button rather than
-              standing under it. A control that is off without saying why is a
-              puzzle, and the tooltip is only spread while it is off, so an
-              enabled button carries no title at all. */}
-          <button
-            type="button"
-            className="btn btn-primary"
-            disabled={!canAdd}
-            {...(canAdd ? {} : { title: ADD_DISABLED_REASON })}
-            data-machines-action="add-confirm"
-            onClick={onAdd}
-          >
-            {BTN_ADD_CONFIRM}
-          </button>
-          {error !== null ? <div className="set-row-error">{error}</div> : null}
-        </div>
+                <label className="mach-field-row">
+                  <span className="mach-field-label">{FIELD_PORT}</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    className="mach-field mach-field-short"
+                    data-machines-field="port"
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={form.port}
+                    onChange={(e) => typed({ port: e.target.value })}
+                  />
+                </label>
+                <div className="mach-hint">{FIELD_PORT_HINT}</div>
+
+                <label className="mach-field-row">
+                  <span className="mach-field-label">{FIELD_REMOTE_PATH}</span>
+                  <input
+                    type="text"
+                    className="mach-field"
+                    data-machines-field="remoteTmuxPath"
+                    ref={pathRef}
+                    spellCheck={false}
+                    autoComplete="off"
+                    value={form.remoteTmuxPath}
+                    onChange={(e) => typed({ remoteTmuxPath: e.target.value })}
+                  />
+                </label>
+                <div className="mach-hint">{FIELD_REMOTE_PATH_HINT}</div>
+              </details>
+            </div>
+
+            {/* Step two. Started by a pick, Check or Return, and by nothing
+                else. Its questions appear here only when they must. */}
+            {test !== null ? (
+              <div className="mach-block mach-step" data-machines-step="check">
+                <ConnectionTestView
+                  started={test.started}
+                  transcript={test.transcript}
+                  outcome={test.outcome}
+                  running={test.running}
+                  ask={test.ask ?? null}
+                  mode="draft"
+                  label={label}
+                  host={test.draft?.host ?? form.host}
+                  port={test.draft?.port ?? null}
+                  detailsOpen={detailsOpen}
+                  onDetailsToggle={onSetDetailsOpen}
+                  onSend={onSendInput}
+                  onCancel={onCancelTest}
+                  onAnswer={onAnswer}
+                  onPickCandidate={onPickCandidate}
+                  onTypePath={() => {
+                    onSetAdvancedOpen(true);
+                    onSetAddressOpen(true);
+                    if (typeof requestAnimationFrame === 'function') {
+                      requestAnimationFrame(() => pathRef.current?.focus());
+                    }
+                  }}
+                  onCheckAgain={onCheckAgain}
+                  pathTyped={(test.draft?.remoteTmuxPath ?? null) !== null}
+                  keyInstall={keyInstall}
+                  onInstallKey={onInstallKey}
+                />
+              </div>
+            ) : null}
+
+            {/* Step three, drawn only once main has composed a sheet, which is
+                every check that answered ok. The name and the colour are
+                presentation, never hashed: editing the name changes the label
+                and never the id the check ran under (D28). */}
+            {sheet === null ? null : (
+              <div className="mach-block mach-step mach-add-step" data-machines-step="add">
+                <div className="mach-fields">
+                  <label className="mach-field-row">
+                    <span className="mach-field-label">{FIELD_NAME}</span>
+                    <input
+                      type="text"
+                      className="mach-field"
+                      data-machines-field="label"
+                      spellCheck={false}
+                      autoComplete="off"
+                      placeholder={label}
+                      value={form.label}
+                      onChange={(e) => typed({ label: e.target.value })}
+                    />
+                  </label>
+                  <label className="mach-field-row">
+                    <span className="mach-field-label">{FIELD_COLOR}</span>
+                    <select
+                      className="set-select"
+                      data-machines-field="color"
+                      value={form.color}
+                      onChange={(e) =>
+                        typed({ color: e.target.value as MachineFormState['color'] })
+                      }
+                    >
+                      {MACHINE_COLORS.map((color) => (
+                        <option key={color} value={color}>
+                          {COLOUR_LABEL[color]}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="mach-add-press">
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={busy}
+                    data-machines-action="add-confirm"
+                    onClick={onAdd}
+                  >
+                    {busy ? ADDING : addLabel(label)}
+                  </button>
+                  {/* The one line a version Tortie has not measured adds. The
+                      press accepts exactly what the sheet carries. */}
+                  {acceptsLine === null ? null : (
+                    <span className="mach-add-subline" data-machines-accepts={acceptsLine}>
+                      {acceptsVersionLine(acceptsLine)}
+                    </span>
+                  )}
+                </div>
+                {error !== null ? <div className="set-row-error">{error}</div> : null}
+
+                {/* What the press binds, exactly as main composed it, one press
+                    away. */}
+                <details className="mach-what" data-machines-what-it-runs="1">
+                  <summary>{WHAT_IT_RUNS}</summary>
+                  <ul className="set-config-lines">
+                    {sheet.lines.map((line) => (
+                      <li key={line}>{line}</li>
+                    ))}
+                  </ul>
+                  {machines !== null ? (
+                    <p className="set-config-warning">
+                      {`${machines.warning} ${machines.honesty}`}
+                    </p>
+                  ) : null}
+                  {sheet.writeHonesty === null ? null : (
+                    <p className="set-config-warning" data-machine-write-honesty>
+                      {sheet.writeHonesty}
+                    </p>
+                  )}
+                  {sheet.versionHonesty === undefined || sheet.versionHonesty === null ? null : (
+                    <p className="set-config-warning" data-machine-version-honesty>
+                      {sheet.versionHonesty}
+                    </p>
+                  )}
+                  <div className="mach-prepare-fact">
+                    <span className="mach-prepare-label">{PREPARE_SUPPORTED_LABEL}</span>
+                    <span className="mach-prepare-value" data-measured-versions="1">{MEASURED_VERSIONS.join(', ')}</span>
+                  </div>
+                </details>
+              </div>
+            )}
+
+            {/* An Add refused before any check is drawn, and the add-step's own
+                error line is not on screen, so the sentence still reaches a
+                person. */}
+            {sheet === null && error !== null ? (
+              <div className="set-row-error">{error}</div>
+            ) : null}
+          </>
+        )}
       </div>
     </div>
   );
@@ -605,6 +777,7 @@ export function AddMachine(): React.JSX.Element {
   const form = useMachinesStore((s) => s.form);
   const setForm = useMachinesStore((s) => s.setForm);
   const closeAdd = useMachinesStore((s) => s.closeAdd);
+  const finishAdd = useMachinesStore((s) => s.finishAdd);
   const tailscale = useMachinesStore((s) => s.tailscale);
   const tailscaleBusy = useMachinesStore((s) => s.tailscaleBusy);
   const tailscaleReadAt = useMachinesStore((s) => s.tailscaleReadAt);
@@ -612,21 +785,41 @@ export function AddMachine(): React.JSX.Element {
   const usePeer = useMachinesStore((s) => s.usePeer);
   const test = useMachinesStore((s) => s.test);
   const startDraftTest = useMachinesStore((s) => s.startDraftTest);
+  const checkAgain = useMachinesStore((s) => s.checkAgain);
+  const pickCandidate = useMachinesStore((s) => s.pickCandidate);
+  const answerAsk = useMachinesStore((s) => s.answerAsk);
   const sendTestInput = useMachinesStore((s) => s.sendTestInput);
   const cancelTest = useMachinesStore((s) => s.cancelTest);
   const addMachine = useMachinesStore((s) => s.addMachine);
   const installKey = useMachinesStore((s) => s.installKey);
   const keyInstall = useMachinesStore((s) => s.keyInstall);
+  const addressOpen = useMachinesStore((s) => s.addressOpen);
+  const advancedOpen = useMachinesStore((s) => s.advancedOpen);
+  const detailsOpen = useMachinesStore((s) => s.detailsOpen);
+  const setAddressOpen = useMachinesStore((s) => s.setAddressOpen);
+  const setAdvancedOpen = useMachinesStore((s) => s.setAdvancedOpen);
+  const setDetailsOpen = useMachinesStore((s) => s.setDetailsOpen);
+  const added = useMachinesStore((s) => s.added);
+  const prepared = useMachinesStore((s) => s.prepared);
+  const preparingId = useMachinesStore((s) => s.preparing);
+  const accepting = useMachinesStore((s) => s.accepting);
+  const acceptVersion = useMachinesStore((s) => s.acceptVersion);
+  const openFolder = useMachinesStore((s) => s.openFolder);
+  const agentsByMachine = useMachinesStore((s) => s.agentsByMachine);
   const busy = useMachinesStore((s) => s.busy) === 'add';
+  const scan = useSettingsStore((s) => s.scan);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = React.useState<string | null>(null);
 
-  // A test started from a saved row belongs to that row and is drawn there.
+  // A check started from a saved row belongs to that row and is drawn there.
   const draftTest = test !== null && test.savedId === null ? test : null;
   // The same rule for the install. A row's install carries that row's id, and
   // the machine being added has none yet.
   const draftKeyInstall =
     keyInstall !== null && keyInstall.savedId === null ? keyInstall : null;
+
+  const names = new Map((scan?.agents ?? []).map((a) => [a.id, a.displayName]));
+  const addedView = added === null ? undefined : agentsByMachine[added.id];
 
   return (
     <AddMachineView
@@ -637,6 +830,14 @@ export function AddMachine(): React.JSX.Element {
       tailscaleReadAt={tailscaleReadAt}
       test={draftTest}
       keyInstall={draftKeyInstall}
+      addressOpen={addressOpen}
+      advancedOpen={advancedOpen}
+      detailsOpen={detailsOpen}
+      added={added}
+      addedResult={added === null ? undefined : prepared[added.id]}
+      preparing={added !== null && (preparingId === added.id || busy)}
+      addedAgents={addedView === undefined ? null : presentAgentNames(addedView, names)}
+      accepting={added !== null && accepting === added.id}
       busy={busy}
       error={error}
       onSetForm={setForm}
@@ -645,11 +846,26 @@ export function AddMachine(): React.JSX.Element {
         closeAdd();
       }}
       onFindTailnet={() => void findTailnet()}
-      onUsePeer={usePeer}
+      onUsePeer={(peer) => {
+        setError(null);
+        void usePeer(peer).then(setError);
+      }}
+      onSetAddressOpen={setAddressOpen}
+      onSetAdvancedOpen={setAdvancedOpen}
+      onSetDetailsOpen={setDetailsOpen}
       onStartTest={() => {
         setError(null);
         void startDraftTest().then(setError);
       }}
+      onCheckAgain={() => {
+        setError(null);
+        void checkAgain().then(setError);
+      }}
+      onPickCandidate={(path) => {
+        setError(null);
+        void pickCandidate(path).then(setError);
+      }}
+      onAnswer={(text) => void answerAsk(text)}
       onSendInput={(text) => void sendTestInput(text)}
       onCancelTest={() => void cancelTest()}
       onInstallKey={(password) => {
@@ -659,6 +875,20 @@ export function AddMachine(): React.JSX.Element {
       onAdd={() => {
         setError(null);
         void addMachine().then(setError);
+      }}
+      onAcceptVersion={() => {
+        if (added === null) return;
+        setError(null);
+        void acceptVersion(added.id).then(setError);
+      }}
+      onOpenFolder={() => {
+        if (added === null) return;
+        setError(null);
+        void openFolder(added.id).then(setError);
+      }}
+      onDone={() => {
+        setError(null);
+        finishAdd();
       }}
     />
   );

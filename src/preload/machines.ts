@@ -68,6 +68,9 @@ export const machines: GmuxMachinesExtras['machines'] = {
   // production caller of the exec plane. Main asks the confirm gate before it
   // spawns anything.
   prepare: (id) => invoke('machines:prepare', id),
+  // Phase 340. Hands Open a folder on it… to the main window with this machine
+  // chosen. Main refuses a row that is not confirmed and starts nothing.
+  openFolder: (id) => invoke('machines:openFolder', id),
   // Phase 79.1. Makes a key for one machine and puts its public half on it. The
   // password crosses this one call and is kept nowhere: this side stores none
   // of it, and main writes it to the sign in program once and drops it.

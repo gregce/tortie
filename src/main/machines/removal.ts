@@ -93,6 +93,9 @@ import { stopSyncingMachine } from './remote-store-sync';
 // anything to any machine.
 import { forgetMachineAgents } from './machine-agents';
 import { forgetRemoteMachineHome } from './remote-image';
+// PHASE 340 (build/p340/SPEC.md D24). The two facts the Settings row draws,
+// held in memory only, go with the machine.
+import { forgetRowFacts } from './row-facts';
 // Phase 72, Builder A. The one place a remote session meets the manifest.
 import {
   remoteRecordsForMachine,
@@ -252,6 +255,7 @@ export function removeMachineCompletely(
   stopSyncingMachine(machineId);
   forgetMachineAgents(machineId);
   forgetRemoteMachineHome(machineId);
+  forgetRowFacts(machineId);
   closeControlPlane(machineId);
   forgetMachineRuntime(machineId);
   removeMachineRow(machineId);

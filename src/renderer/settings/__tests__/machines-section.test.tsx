@@ -1,37 +1,41 @@
 /**
- * Phase 68. Settings → Machines, the section and one row.
+ * Phase 68. Settings → Machines, the section and one row. PHASE 340 rewrote the
+ * row half (build/p340/SPEC.md D11 as revised, D12, D17, D20, section 5.5).
  *
  * What these tests hold:
  * - An empty list draws a heading, one sentence and one button, and nothing
  *   else at all. Phase 79 counts the buttons, because the screen the operator
  *   photographed put four sentences of small print between a person and the
  *   only thing there was to do.
- * - The sentences that block used to hold are drawn where each of them decides
- *   something, being the row above Prepare and the block above Confirm, and
- *   the two that are background sit behind one disclosure.
- * - A row that has never been confirmed draws `Not usable` and the sentence
- *   that says what to do about it. It does NOT draw `Confirmed`.
- * - A row whose details moved draws both lists, both list headings and both
- *   sets of lines, so a person reads the change rather than guessing at it.
- * - A confirmed row draws `Confirmed`.
- * - PHASE 79.1. No row asks for another machine's password until a connection
- *   test has come back asking for one.
+ * - The two background sentences sit behind the section's one disclosure.
+ * - PHASE 340. A row at rest is a name, a status chip, one line of facts and
+ *   one button for the next thing, beside a ⋯ button. Nothing a person agrees
+ *   to stands on its face: the lines, main's warning, main's sealing sentence
+ *   and main's refusal are in the review panel a row nobody confirmed opens
+ *   with its one button, and in the panel the menu row What Tortie runs there…
+ *   opens. A row whose details moved draws both lists and both headings there.
+ * - PHASE 79.1. No row asks for another machine's password until a check has
+ *   come back asking for one.
+ * - PHASE 83 and 324. A version a person accepted is named in What Tortie runs
+ *   there…, and only while Tortie has not measured it; a measured one reads as
+ *   a row with no acceptance at all. Withdrawing it is the menu row Stop
+ *   trusting this machine, whose sub-line says so (p340-machine-menu.test.ts).
+ * - PHASE 131. Prepare's settings, the program list note, the fingerprint of
+ *   what was confirmed and the promise to adopt nothing are in What Tortie runs
+ *   there…. A Prepare answer that is not `prepared` is the prepare panel, with
+ *   Phase 83's sheet under it.
  * - The dropped rows block names the field and the reason, and counts.
  * - The honesty sentence and the confirm warning appear exactly as main sent
  *   them. Neither is composed here, so a passing test proves this surface
  *   cannot reword them.
- * - PHASE 83. A row that carries a version a person accepted says which one,
- *   says that withdrawing it withdraws the confirmation too, and offers the one
- *   button that does it. A row that carries none draws none of that.
- * - PHASE 131. Whether the machine works is the first thing in an open row,
- *   and the four things a person only goes looking for sit behind the row's
- *   own disclosure, shut.
  *
  * The vitest environment is node, so these read static markup from
  * react-dom/server rather than a mounted DOM. They render `MachinesView`
- * rather than `MachinesSection`, because zustand serves its INITIAL state to
- * a server render: a test that seeded the store and rendered the connected
- * component would read defaults and assert nothing at all.
+ * rather than `MachinesSection`, because zustand serves its INITIAL state to a
+ * server render: a test that seeded the store and rendered the connected
+ * component would read defaults and assert nothing at all. The row reads the
+ * store for the panel open under it and for what Prepare answered, so those
+ * are seeded through the replacement below.
  */
 
 import { describe, expect, it, vi } from 'vitest';
@@ -45,36 +49,34 @@ import type {
 import { MachinesView } from '../MachinesSection';
 import {
   ACCEPTED_VERSION_LABEL,
-  BTN_WITHDRAW_VERSION,
   DISCLOSURE_LABEL,
   HONESTY_NO_ADOPTION,
   HONESTY_OWN_RECORD,
   MEASURED_VERSIONS,
+  PREPARE_EXPLAIN,
   ROW_HASH_LABEL,
-  ROW_MORE_LABEL,
   SECTION_CAPTION,
   SECTION_CONFIRM_LINE,
-  WITHDRAW_VERSION_EXPLAIN
+  STATE_SENTENCE
 } from '../machines-copy';
+import type { MachinesStoreState } from '../machines-store';
 
 /**
- * PHASE 131. What Prepare answered for one row, seeded.
+ * What the row reads from the store, seeded.
  *
  * The store is zustand 5, and a server render reads `getInitialState` rather
  * than the live state, so seeding the real store would change nothing on the
  * page. This replacement runs the same selector against the same initial
- * state with one field overridden, which is what the real hook returns on a
- * server render. Every other test in this file reads exactly what it read
- * before, because `preparedSeed` is empty for all of them.
+ * state with the seeded fields overridden, which is what the real hook returns
+ * on a server render. A test that seeds nothing reads the initial state.
  */
-let preparedSeed: Readonly<Record<string, MachinePrepareResult>> = {};
+let seed: Partial<MachinesStoreState> = {};
 
 vi.mock('../machines-store', async (importOriginal) => {
-  const actual =
-    await importOriginal<typeof import('../machines-store')>();
+  const actual = await importOriginal<typeof import('../machines-store')>();
   const real = actual.useMachinesStore;
   const hook = (selector: (state: unknown) => unknown): unknown =>
-    selector({ ...real.getInitialState(), prepared: preparedSeed });
+    selector({ ...real.getInitialState(), ...seed });
   return { ...actual, useMachinesStore: Object.assign(hook, real) };
 });
 
@@ -87,6 +89,10 @@ const HONESTY =
 const WARNING =
   'This names a machine Tortie will sign in to as you, and a program it ' +
   'will run there with your files and your credentials.';
+
+const NEVER_REFUSAL =
+  'Tortie will not connect to pop-os, because nobody has confirmed it. Read ' +
+  'what it will run and confirm it in Tortie first. Nothing was started.';
 
 function row(over: Partial<MachineRowView>): MachineRowView {
   return {
@@ -118,11 +124,41 @@ function row(over: Partial<MachineRowView>): MachineRowView {
   };
 }
 
+/** A row nobody has confirmed, with main's refusal. */
+function never(over: Partial<MachineRowView> = {}): MachineRowView {
+  return row({
+    state: 'never',
+    usable: false,
+    confirmedHash: null,
+    confirmedAt: null,
+    confirmedLines: [],
+    refusal: NEVER_REFUSAL,
+    ...over
+  });
+}
+
 /** The one row element, so what is inside it can be read alone. */
 function machineRow(html: string): string {
   const at = html.indexOf('<div class="mach-row"');
   expect(at).toBeGreaterThan(-1);
   return html.slice(at);
+}
+
+/** The row's head, being everything a person reads at rest. */
+function rowHead(html: string): string {
+  const inRow = machineRow(html);
+  const at = inRow.indexOf('<div class="mach-head"');
+  const panel = inRow.indexOf('data-machines-panel=');
+  return panel === -1 ? inRow.slice(at) : inRow.slice(at, panel);
+}
+
+/** The one disclosure element, so what is inside it can be read alone. */
+function disclosure(html: string): string {
+  const at = html.indexOf('<details class="mach-disclosure"');
+  expect(at).toBeGreaterThan(-1);
+  const end = html.indexOf('</details>', at);
+  expect(end).toBeGreaterThan(at);
+  return html.slice(at, end + '</details>'.length);
 }
 
 function result(over: Partial<MachinesResult>): MachinesResult {
@@ -139,24 +175,6 @@ function result(over: Partial<MachinesResult>): MachinesResult {
   };
 }
 
-/** The row's own disclosure, so what is inside it can be read alone. */
-function rowMore(html: string): string {
-  const at = html.indexOf('<details class="mach-more"');
-  expect(at).toBeGreaterThan(-1);
-  const end = html.indexOf('</details>', at);
-  expect(end).toBeGreaterThan(at);
-  return html.slice(at, end + '</details>'.length);
-}
-
-/** The one disclosure element, so what is inside it can be read alone. */
-function disclosure(html: string): string {
-  const at = html.indexOf('<details class="mach-disclosure"');
-  expect(at).toBeGreaterThan(-1);
-  const end = html.indexOf('</details>', at);
-  expect(end).toBeGreaterThan(at);
-  return html.slice(at, end + '</details>'.length);
-}
-
 function draw(machines: MachinesResult | null): string {
   return renderToStaticMarkup(
     <MachinesView
@@ -167,6 +185,25 @@ function draw(machines: MachinesResult | null): string {
       onReload={() => undefined}
     />
   );
+}
+
+/** One row, drawn with the store fields seeded, and the seed put back. */
+function drawRow(one: MachineRowView, seeded: Partial<MachinesStoreState> = {}): string {
+  seed = seeded;
+  try {
+    return draw(result({ rows: [one] }));
+  } finally {
+    seed = {};
+  }
+}
+
+/** One row with one panel open under it. */
+function drawPanel(
+  one: MachineRowView,
+  panel: 'review' | 'what' | 'remove' | 'prepare',
+  seeded: Partial<MachinesStoreState> = {}
+): string {
+  return drawRow(one, { ...seeded, panels: { [one.id]: panel } });
 }
 
 describe('the empty section', () => {
@@ -183,6 +220,7 @@ describe('the empty section', () => {
     // small print, an empty card and a second button about a file that does
     // not exist yet, above the one button a person came here for.
     expect(html.match(/<button/g) ?? []).toHaveLength(1);
+    expect(html).toContain('data-machines-action="open-add"');
   });
 
   it('offers no file to check, because nothing has been added', () => {
@@ -218,10 +256,8 @@ describe('the section once there is a machine', () => {
   it('offers the way to read the file again', () => {
     // MEASURED: the live probe changed the address in machines.json from
     // outside the app. Main knew 429 ms later and the row on screen still read
-    // Confirmed, because nothing pushes a file change to this window and the
-    // only re-read button appeared when a row had failed a check. Nothing
-    // unsafe happened, since the gate refuses on the connect path either way,
-    // but the screen said one thing and Tortie would have done another.
+    // Confirmed, because nothing pushed a file change to this window and the
+    // only re-read button appeared when a row had failed a check.
     expect(html).toContain('data-machines-action="reload"');
     expect(html).toContain('Check the file again');
   });
@@ -235,7 +271,7 @@ describe('the section once there is a machine', () => {
     const inside = disclosure(html);
     expect(inside).toContain(SECTION_CONFIRM_LINE);
     expect(inside).toContain(HONESTY_OWN_RECORD);
-    // The other two are drawn on the row, where each decides something.
+    // The other two are in the row's own panels, where each decides something.
     expect(inside).not.toContain(HONESTY_NO_ADOPTION);
     expect(inside).not.toContain(HONESTY);
   });
@@ -246,38 +282,131 @@ describe('the section once there is a machine', () => {
   });
 });
 
-describe('the honesty sentences, where they now stand', () => {
-  const html = draw(
-    result({ rows: [row({ state: 'never', usable: false })] })
-  );
+// ---------------------------------------------------------------------------
+// PHASE 340. A row at rest
+// ---------------------------------------------------------------------------
 
-  it('keeps the promise never to adopt other work, one press away', () => {
-    // PHASE 131. It stood immediately above Prepare from Phase 79 until this
-    // phase, and the row said the same thing three times. The other two
-    // tellings were deleted and this one is the survivor. It is behind the
-    // row's own disclosure, which is shut, and the Prepare button is outside
-    // that disclosure and above it.
-    expect(html).toContain(HONESTY_NO_ADOPTION);
-    expect(rowMore(html)).toContain(HONESTY_NO_ADOPTION);
+describe('a row nobody has confirmed, at rest', () => {
+  const html = drawRow(never());
+  const head = rowHead(html);
 
-    const button = html.indexOf('data-machines-action="prepare"');
-    const more = html.indexOf('<details class="mach-more"');
-    expect(button).toBeGreaterThan(-1);
-    expect(more).toBeGreaterThan(button);
-    expect(rowMore(html)).not.toContain('data-machines-action="prepare"');
+  it('wears the Not confirmed chip, with the sentence that explains it as its hover', () => {
+    expect(head).toContain('data-machine-chip="not-confirmed"');
+    expect(head).toContain('>Not confirmed<');
+    expect(head).toContain(`title="${STATE_SENTENCE.never}"`);
+    // The sentence is a hover now, never a paragraph on the face.
+    expect(head).not.toContain(`>${STATE_SENTENCE.never}<`);
   });
 
-  it('draws main’s sealing sentence in the block a person confirms from', () => {
-    // It arrives on the result and is handed to the row as a prop, so a
-    // passing test proves this surface can neither drop it nor reword it.
-    expect(html).toContain(HONESTY);
+  it('offers Review… as its one next step, shut, with the attribute old probes press', () => {
+    // D22. Five setup helpers press `toggle-lines` when its aria-expanded is
+    // not `true`, then press `confirm`.
+    expect(head).toContain('data-machines-next="review"');
+    expect(head).toContain('data-machines-action="toggle-lines"');
+    expect(head).toContain('aria-expanded="false"');
+    expect(head).toContain('>Review…<');
+  });
+
+  it('draws no line, no warning and no refusal until Review… is pressed', () => {
+    expect(html).not.toContain('Runs this program on that machine: /usr/bin/tmux');
+    expect(html).not.toContain(WARNING);
+    expect(html).not.toContain(NEVER_REFUSAL);
+    expect(html).not.toContain('data-machines-action="confirm"');
+  });
+
+  it('asks for no password until a check has come back asking for one', () => {
+    // PHASE 79.1. The key step hangs off a finished check, and a row with no
+    // check has none.
+    expect(html).not.toContain('data-machines-key="1"');
+    expect(html).not.toContain('data-machines-field="machine-password"');
+    expect(html).not.toContain("Put Tortie's key on it");
+  });
+});
+
+describe('a confirmed row, at rest', () => {
+  const html = drawRow(row({}));
+  const head = rowHead(html);
+
+  it('reads Not ready with Prepare this machine when nothing has prepared it in this run', () => {
+    expect(head).toContain('data-machine-chip="not-ready"');
+    expect(head).toContain('>Not ready<');
+    expect(head).toContain(`title="${PREPARE_EXPLAIN}"`);
+    expect(head).toContain('data-machines-next="prepare"');
+    expect(head).toContain('data-machines-action="prepare"');
+    expect(head).toContain('>Prepare this machine<');
+  });
+
+  it('keeps the lines, the test and the removal off its face', () => {
+    expect(html).not.toContain('Runs this program on that machine:');
+    expect(html).not.toContain('Test the connection');
+    expect(html).not.toContain('Remove');
+    expect(html).not.toContain('Withdraw');
+    expect(html).not.toContain('Stop trusting this machine');
+  });
+
+  it('draws its address as the line of facts, and nothing it does not know', () => {
+    expect(head).toContain('data-machine-facts="pop-os"');
+    expect(head).toContain('>pop-os.tail1a2b.ts.net<');
+  });
+
+  it('reads Ready only while it answers, with Open a folder on it…', () => {
+    const ready = rowHead(
+      drawRow(
+        row({
+          ready: true,
+          link: 'connected',
+          os: 'Darwin',
+          signIn: {
+            class: 'prepared',
+            at: 1,
+            version: '3.6a',
+            headline: 'This machine is ready.',
+            detail: 'detail'
+          }
+        })
+      )
+    );
+    expect(ready).toContain('data-machine-chip="ready"');
+    expect(ready).toContain('>pop-os.tail1a2b.ts.net · macOS · 3.6a<');
+    expect(ready).toContain('data-machines-action="open-folder"');
+    const asleep = rowHead(drawRow(row({ ready: true, link: 'quiet' })));
+    expect(asleep).toContain('data-machine-chip="offline"');
+    expect(asleep).not.toContain('data-machine-chip="ready"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 340. The review panel, where a person agrees
+// ---------------------------------------------------------------------------
+
+describe('the review panel of a row nobody has confirmed', () => {
+  const html = drawPanel(never(), 'review');
+
+  it('draws the lines main composed, unchanged', () => {
+    expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
+    expect(html).toContain('Signs in as: greg');
+  });
+
+  it('carries the confirm warning and the refusal main sent with the row', () => {
+    expect(html).toContain(WARNING);
+    expect(html).toContain(NEVER_REFUSAL);
+  });
+
+  it('draws main’s sealing sentence before the button a person confirms with', () => {
+    // It arrives on the result and is handed to the row as a prop, so a passing
+    // test proves this surface can neither drop it nor reword it.
     const sealing = html.indexOf(HONESTY);
     const confirm = html.indexOf('data-machines-action="confirm"');
     expect(sealing).toBeGreaterThan(-1);
     expect(confirm).toBeGreaterThan(sealing);
+    expect(html).toContain('>Confirm this machine<');
   });
 
-  it('draws it nowhere at all before the first read has answered', () => {
+  it('marks the next step open', () => {
+    expect(rowHead(html)).toContain('aria-expanded="true"');
+  });
+
+  it('draws the sealing sentence nowhere before the first read has answered', () => {
     const before = renderToStaticMarkup(
       <MachinesView
         machines={null}
@@ -291,96 +420,31 @@ describe('the honesty sentences, where they now stand', () => {
   });
 });
 
-describe('a row that has never been confirmed', () => {
-  const html = draw(
-    result({
-      rows: [
-        row({
-          state: 'never',
-          usable: false,
-          confirmedHash: null,
-          confirmedAt: null,
-          confirmedLines: [],
-          refusal:
-            'Tortie will not connect to pop-os, because nobody has confirmed ' +
-            'it. Read what it will run and confirm it in Tortie first. ' +
-            'Nothing was started.'
-        })
-      ]
-    })
-  );
-
-  it('draws the not usable chip and not the confirmed one', () => {
-    expect(html).toContain('Not usable');
-    expect(html).not.toContain('>Confirmed<');
+describe('the review panel of a row whose details moved after it was confirmed', () => {
+  const changed = row({
+    state: 'changed',
+    usable: false,
+    host: 'pop-os-2.tail1a2b.ts.net',
+    hash: 'ffffffffffffffffffff',
+    confirmedLines: [
+      'Machine: pop-os.tail1a2b.ts.net',
+      'Runs this program on that machine: /usr/bin/tmux'
+    ],
+    lines: [
+      'Machine: pop-os-2.tail1a2b.ts.net',
+      'Runs this program on that machine: /usr/local/bin/tmux'
+    ],
+    refusal:
+      'Tortie will not connect to pop-os, because its details changed after ' +
+      'you confirmed them. Read the change and confirm it again if it is what ' +
+      'you want. Nothing was started.'
   });
+  const html = drawPanel(changed, 'review');
 
-  it('draws the sentence that says what to do about it', () => {
-    expect(html).toContain(
-      'Tortie will not sign in to this machine until you read what it will ' +
-        'run and confirm it.'
-    );
+  it('wears the Changed chip, with the sentence that explains it as its hover', () => {
+    expect(rowHead(html)).toContain('data-machine-chip="changed"');
+    expect(rowHead(html)).toContain(`title="${STATE_SENTENCE.changed}"`);
   });
-
-  it('draws the refusal sentence main sent, unchanged', () => {
-    expect(html).toContain(
-      'Tortie will not connect to pop-os, because nobody has confirmed it.'
-    );
-  });
-
-  it('opens the lines by default, and offers the button that fixes it', () => {
-    expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
-    expect(html).toContain('Confirm this machine');
-    expect(html).toContain('Hide what it runs');
-  });
-
-  it('carries the confirm warning main sent with the row', () => {
-    expect(html).toContain(WARNING);
-  });
-
-  it('offers the connection test and the two step removal', () => {
-    expect(html).toContain('Test the connection again');
-    expect(html).toContain('Remove this machine');
-    // The second step is not on screen until the first is pressed.
-    expect(html).not.toContain('Remove it');
-  });
-
-  it('asks for no password until a test has come back asking for one', () => {
-    // PHASE 79.1. The key block hangs off a finished connection test, and a
-    // row with no test has none. A field asking for another machine's
-    // password on a row nobody has tested would be a field a person cannot
-    // judge, because nothing on the screen would have said why it is there.
-    expect(html).not.toContain('data-machines-key="1"');
-    expect(html).not.toContain('data-machines-field="machine-password"');
-    expect(html).not.toContain('Make a key and put it on this machine');
-  });
-});
-
-describe('a row whose details moved after it was confirmed', () => {
-  const html = draw(
-    result({
-      rows: [
-        row({
-          state: 'changed',
-          usable: false,
-          host: 'pop-os-2.tail1a2b.ts.net',
-          hash: 'ffffffffffffffffffff',
-          confirmedLines: [
-            'Machine: pop-os.tail1a2b.ts.net',
-            'Runs this program on that machine: /usr/bin/tmux'
-          ],
-          lines: [
-            'Machine: pop-os-2.tail1a2b.ts.net',
-            'Runs this program on that machine: /usr/local/bin/tmux'
-          ],
-          refusal:
-            'Tortie will not connect to pop-os, because its details changed ' +
-            'after you confirmed them. Read the change and confirm it again ' +
-            'if it is what you want. Nothing was started.'
-        })
-      ]
-    })
-  );
 
   it('draws both list headings', () => {
     expect(html).toContain('You confirmed:');
@@ -391,37 +455,180 @@ describe('a row whose details moved after it was confirmed', () => {
     expect(html).toContain('Machine: pop-os.tail1a2b.ts.net');
     expect(html).toContain('Machine: pop-os-2.tail1a2b.ts.net');
     expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
-    expect(html).toContain(
-      'Runs this program on that machine: /usr/local/bin/tmux'
-    );
+    expect(html).toContain('Runs this program on that machine: /usr/local/bin/tmux');
   });
 
-  it('says the details changed, and offers the button that agrees again', () => {
-    expect(html).toContain(
-      'The details changed after you confirmed them, so Tortie will not sign ' +
-        'in to this machine. Read what changed and confirm it again.'
-    );
-    expect(html).toContain('Confirm the new details');
+  it('offers the button that agrees again', () => {
+    expect(html).toContain('>Confirm the new details<');
+    expect(html).toContain('data-machines-action="confirm"');
   });
 });
 
-describe('a confirmed row', () => {
-  const html = draw(result({ rows: [row({})] }));
+describe('a confirmed row draws no review panel, whatever the store says', () => {
+  it('because there is nothing to agree to again', () => {
+    const html = drawPanel(row({}), 'review');
+    expect(html).not.toContain('data-machines-panel="review"');
+    expect(html).not.toContain('data-machines-action="confirm"');
+  });
+});
 
-  it('draws the confirmed chip and the sentence that goes with it', () => {
-    expect(html).toContain('>Confirmed<');
-    expect(html).toContain(
-      'You confirmed this machine. Tortie may sign in to it when you ask it to.'
-    );
+// ---------------------------------------------------------------------------
+// PHASE 340. What Tortie runs there…, the panel a menu row opens
+// ---------------------------------------------------------------------------
+
+/** What Prepare answered for a machine that works. */
+function preparedResult(over: Partial<MachinePrepareResult> = {}): MachinePrepareResult {
+  return {
+    id: 'pop-os',
+    class: 'prepared',
+    alarm: false,
+    headline: 'This machine is ready.',
+    detail:
+      'Tortie started the program at /usr/bin/tmux on this machine and set ' +
+      'it up the way it needs.',
+    version: '3.5a',
+    supported: ['3.4', '3.5a'],
+    serverBorn: true,
+    options: [
+      { name: 'escape-time', wanted: '0', observed: '0', agrees: true },
+      { name: 'history-limit', wanted: '50000', observed: '2000', agrees: false }
+    ],
+    pathCaptured: true,
+    durationMs: 412,
+    ...over
+  };
+}
+
+describe('What Tortie runs there…', () => {
+  const html = drawPanel(row({ keyFile: 'machine-a1b2c3d4e5f6' }), 'what');
+
+  it('holds the lines, the warning and main’s sealing sentence', () => {
+    expect(html).toContain('data-machines-panel="what"');
+    expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
+    expect(html).toContain(WARNING);
+    expect(html).toContain(HONESTY);
   });
 
-  it('keeps the lines shut until they are asked for', () => {
-    expect(html).toContain('Show what it runs');
-    expect(html).not.toContain('Runs this program on that machine:');
+  it('holds the key line, the fingerprint under its label, the promise and the id', () => {
+    expect(html).toContain('data-machine-key-line');
+    expect(html).toContain('machine-a1b2c3d4e5f6');
+    expect(html).toContain(ROW_HASH_LABEL);
+    expect(html.indexOf(ROW_HASH_LABEL)).toBeLessThan(html.indexOf('>a1b2c3d4e5f6<'));
+    expect(html).toContain(HONESTY_NO_ADOPTION);
+    expect(html).toContain('>pop-os<');
   });
 
-  it('shows nothing that can start a process until the row is opened', () => {
-    expect(html).not.toContain('Test the connection again');
+  it('draws no settings and no program list note before Prepare has answered', () => {
+    expect(html).not.toContain('data-prepare-option');
+    expect(html).not.toContain('mach-prepare-note');
+  });
+
+  it('draws Prepare’s settings once Prepare has answered', () => {
+    const answered = drawPanel(row({}), 'what', { prepared: { 'pop-os': preparedResult() } });
+    expect(answered).toContain('data-prepare-option="escape-time"');
+    expect(answered).toContain('data-prepare-agrees="no"');
+  });
+
+  it('draws neither key sentence when main did not say which key it uses', () => {
+    const silent = drawPanel(row({}), 'what');
+    expect(silent).not.toContain('data-machine-key-line');
+  });
+
+  it('is shut by a Close button that starts nothing', () => {
+    expect(html).toContain('data-machines-action="close-panel"');
+    expect(html).toContain('>Close<');
+  });
+});
+
+describe('a version a person accepted, in What Tortie runs there…', () => {
+  it('names a version Tortie has not measured, under a label that says what it is', () => {
+    for (const version of ['3.9a', '3.5a', '3.6c', '3.6A']) {
+      const html = drawPanel(row({ acceptedTmuxVersion: version }), 'what');
+      expect(html).toContain(ACCEPTED_VERSION_LABEL);
+      expect(html).toContain(`>${version}<`);
+      expect(html).toContain('data-machines-accepted="pop-os"');
+    }
+  });
+
+  // PHASE 324, the ruled round. A measured version needs no acceptance, so a
+  // row carrying one reads exactly as a row carrying none.
+  for (const version of MEASURED_VERSIONS) {
+    it(`draws nothing about accepting ${version}, exactly as a row with no acceptance`, () => {
+      const accepted = drawPanel(row({ acceptedTmuxVersion: version }), 'what');
+      const none = drawPanel(row({}), 'what');
+      expect(accepted).not.toContain(ACCEPTED_VERSION_LABEL);
+      expect(accepted).not.toContain('data-machines-accepted=');
+      expect(accepted).toBe(none);
+    });
+  }
+
+  it('draws no accept button, because Prepare has not answered', () => {
+    const html = drawPanel(row({ acceptedTmuxVersion: '3.9a' }), 'what');
+    expect(html).not.toContain('data-machines-action="accept-version"');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The prepare panel, and Phase 83's sheet under it
+// ---------------------------------------------------------------------------
+
+describe('the prepare panel of a row whose Prepare refused a version nobody measured', () => {
+  const refused = preparedResult({
+    class: 'version-unmeasured',
+    alarm: true,
+    headline: 'Tortie has not measured the version that machine runs.',
+    detail:
+      'The program at /usr/bin/tmux reports version 3.6a. This release has ' +
+      'measured 3.4 and 3.5a, so nothing was started.',
+    version: '3.6a',
+    serverBorn: false,
+    options: [],
+    pathCaptured: false,
+    acceptSheet: {
+      hash: 'a1b2c3d4e5f6a7b8c9d0',
+      lines: [
+        'Machine: pop-os.tail1a2b.ts.net',
+        'Runs this program on that machine: /usr/bin/tmux',
+        'Accepts this version of the program, which Tortie has not measured: 3.6a'
+      ],
+      warning: WARNING,
+      writeHonesty: null
+    }
+  });
+  const html = drawPanel(row({}), 'prepare', { prepared: { 'pop-os': refused } });
+
+  it('draws main’s refusal, then the sheet and the accept button under it', () => {
+    const state = html.indexOf('class="mach-prepare-result"');
+    const sheet = html.indexOf('data-machines-accept="pop-os"');
+    expect(html).toContain('Tortie has not measured the version that machine runs.');
+    expect(state).toBeGreaterThan(-1);
+    expect(sheet).toBeGreaterThan(state);
+    expect(html).toContain('data-machines-action="accept-version"');
+  });
+
+  it('says it is preparing over an earlier answer while a new Prepare runs', () => {
+    const busy = drawPanel(row({}), 'prepare', {
+      prepared: { 'pop-os': refused },
+      preparing: 'pop-os'
+    });
+    expect(busy).toContain('data-machines-panel="preparing"');
+    expect(busy).not.toContain('data-machines-accept="pop-os"');
+    expect(busy).not.toContain('Tortie has not measured the version that machine runs.');
+  });
+
+  it('draws nothing for an answer that is prepared, because the chip says it', () => {
+    const fine = drawPanel(row({}), 'prepare', { prepared: { 'pop-os': preparedResult() } });
+    expect(fine).not.toContain('data-machines-panel="prepare"');
+  });
+});
+
+describe('the removal question', () => {
+  it('is asked under the row, in two steps, and removes nothing by being drawn', () => {
+    const html = drawPanel(row({ sessions: 2 }), 'remove');
+    expect(html).toContain('data-machines-panel="remove"');
+    expect(html).toContain('Remove Pop OS?');
+    expect(html).toContain('data-machines-action="remove-confirm"');
+    expect(html).toContain('data-machines-action="remove-keep"');
   });
 });
 
@@ -444,9 +651,7 @@ describe('the rows Tortie dropped', () => {
   );
 
   it('counts them and says nothing from them was used', () => {
-    expect(html).toContain(
-      'Tortie dropped 2 rows whole. Nothing from them was used.'
-    );
+    expect(html).toContain('Tortie dropped 2 rows whole. Nothing from them was used.');
   });
 
   it('names the field and the reason for each one', () => {
@@ -466,14 +671,10 @@ describe('the rows Tortie dropped', () => {
   it('says one row in the singular', () => {
     const one = draw(
       result({
-        errors: [
-          { id: 'bad', field: 'id', reason: 'An id must be unique in the file.' }
-        ]
+        errors: [{ id: 'bad', field: 'id', reason: 'An id must be unique in the file.' }]
       })
     );
-    expect(one).toContain(
-      'Tortie dropped 1 row whole. Nothing from it was used.'
-    );
+    expect(one).toContain('Tortie dropped 1 row whole. Nothing from it was used.');
   });
 });
 
@@ -490,301 +691,5 @@ describe('a build whose preload has no machines surface', () => {
     );
     expect(html).toContain('Machines are not available in this build.');
     expect(html).not.toContain('No machines yet.');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// PHASE 83. The version a person accepted for one machine
-// ---------------------------------------------------------------------------
-
-describe('a row carrying a version the person accepted', () => {
-  // The row is drawn in a state whose detail is open, because a confirmed row
-  // starts shut and a server render cannot press Show what it runs. Everything
-  // on this row lives behind that one disclosure and this block is no
-  // exception.
-  const html = machineRow(
-    draw(
-      result({
-        rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: '3.9a' })]
-      })
-    )
-  );
-
-  it('names the version, under a label that says what it is', () => {
-    expect(html).toContain(ACCEPTED_VERSION_LABEL);
-    expect(html).toContain('>3.9a<');
-  });
-
-  it('says that withdrawing it withdraws the confirmation too', () => {
-    expect(html).toContain(WITHDRAW_VERSION_EXPLAIN);
-  });
-
-  it('offers the one button that withdraws it', () => {
-    expect(html).toContain('data-machines-action="withdraw-version"');
-    expect(html).toContain(BTN_WITHDRAW_VERSION);
-  });
-});
-
-// PHASE 324, the ruled round. A person who accepted 3.6 or 3.6b on a build that
-// had not measured them upgrades to the build that has. The acceptance decides
-// nothing any more (measured beats accepted), so the row reads as any measured
-// machine's row: no "Version you accepted", no "Withdraw this version" offering
-// to take back something that no longer needs accepting at the price of the
-// confirmation. At the build before this round the block was drawn for both.
-describe('a row carrying an acceptance of a version Tortie has since measured', () => {
-  for (const version of MEASURED_VERSIONS) {
-    it(`draws nothing about accepting ${version}, exactly as a row with no acceptance`, () => {
-      const accepted = machineRow(
-        draw(
-          result({
-            rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: version })]
-          })
-        )
-      );
-      const none = machineRow(
-        draw(result({ rows: [row({ state: 'never', usable: false })] }))
-      );
-      expect(accepted).not.toContain(ACCEPTED_VERSION_LABEL);
-      expect(accepted).not.toContain(BTN_WITHDRAW_VERSION);
-      expect(accepted).not.toContain('data-machines-accepted=');
-      expect(accepted).toBe(none);
-    });
-  }
-
-  it('still draws an acceptance of a version Tortie has not measured beside it', () => {
-    for (const version of ['3.5a', '3.6c', '3.6A']) {
-      const html = machineRow(
-        draw(
-          result({
-            rows: [row({ state: 'never', usable: false, acceptedTmuxVersion: version })]
-          })
-        )
-      );
-      expect(html).toContain(ACCEPTED_VERSION_LABEL);
-      expect(html).toContain(`>${version}<`);
-      expect(html).toContain('data-machines-action="withdraw-version"');
-    }
-  });
-});
-
-describe('a row carrying no accepted version', () => {
-  const html = machineRow(
-    draw(result({ rows: [row({ state: 'never', usable: false })] }))
-  );
-
-  it('draws nothing at all about accepting a version', () => {
-    expect(html).not.toContain(ACCEPTED_VERSION_LABEL);
-    expect(html).not.toContain(BTN_WITHDRAW_VERSION);
-    expect(html).not.toContain('data-machines-action="withdraw-version"');
-  });
-
-  it('draws no accept button, because Prepare has not answered yet', () => {
-    expect(html).not.toContain('data-machines-action="accept-version"');
-  });
-});
-
-// ---------------------------------------------------------------------------
-// PHASE 131. The answer first, and one disclosure for the rest
-// ---------------------------------------------------------------------------
-
-/** What Prepare answered for a machine that works. */
-function preparedResult(
-  over: Partial<MachinePrepareResult> = {}
-): MachinePrepareResult {
-  return {
-    id: 'pop-os',
-    class: 'prepared',
-    alarm: false,
-    headline: 'This machine is ready.',
-    detail:
-      'Tortie started the program at /usr/bin/tmux on this machine and set ' +
-      'it up the way it needs.',
-    version: '3.5a',
-    supported: ['3.4', '3.5a'],
-    serverBorn: true,
-    options: [
-      { name: 'escape-time', wanted: '0', observed: '0', agrees: true },
-      { name: 'history-limit', wanted: '50000', observed: '2000', agrees: false }
-    ],
-    pathCaptured: true,
-    durationMs: 412,
-    ...over
-  };
-}
-
-describe('an open row whose Prepare has answered', () => {
-  preparedSeed = { 'pop-os': preparedResult() };
-  const html = machineRow(
-    draw(result({ rows: [row({ state: 'never', usable: false })] }))
-  );
-  preparedSeed = {};
-
-  it('puts the readiness answer above everything else in the row', () => {
-    // The operator's complaint, made mechanical. The headline sat at block 9
-    // of 15 and it is block 1 now.
-    const headline = html.indexOf('This machine is ready.');
-    const firstLine = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
-    expect(headline).toBeGreaterThan(-1);
-    expect(firstLine).toBeGreaterThan(-1);
-    expect(headline).toBeLessThan(firstLine);
-  });
-
-  it('puts the settings and the program list note behind the disclosure', () => {
-    const inside = rowMore(html);
-    expect(inside).toContain('escape-time');
-    expect(inside).toContain('history-limit');
-    expect(inside).toContain('data-prepare-option="escape-time"');
-    expect(inside).toContain('data-prepare-agrees="no"');
-  });
-
-  it('keeps the version fact on the face of the row', () => {
-    expect(rowMore(html)).not.toContain('data-prepare-version');
-    expect(html).toContain('data-prepare-version');
-    expect(html).toContain('>3.5a<');
-  });
-
-  it('says the born fact once, in the sentence main wrote', () => {
-    expect(html).toContain('Tortie started the program at /usr/bin/tmux');
-    expect(html).not.toContain(
-      'Tortie started the program on that machine on this visit.'
-    );
-    expect(html).not.toContain(
-      'The program was already running on that machine, so Tortie left it ' +
-        'running.'
-    );
-  });
-});
-
-describe('an open row whose Prepare has not answered', () => {
-  // `unknown` is the state of a row whose confirmation record cannot be read.
-  // It gets a render here rather than a photograph, because reaching it on a
-  // running Mac needs the record in the system keychain to be unreadable.
-  const html = machineRow(
-    draw(
-      result({
-        rows: [
-          row({
-            state: 'unknown',
-            usable: false,
-            keyFile: '/Users/x/Library/Application Support/Tortie/gmux/keys/pop-os'
-          })
-        ]
-      })
-    )
-  );
-
-  it('draws the disclosure, shut', () => {
-    expect(html).toContain(ROW_MORE_LABEL);
-    expect(rowMore(html)).not.toContain('open');
-  });
-
-  it('holds the fingerprint under a label that says what it is', () => {
-    const inside = rowMore(html);
-    expect(inside).toContain(ROW_HASH_LABEL);
-    expect(inside).toContain('a1b2c3d4e5f6');
-    expect(inside.indexOf(ROW_HASH_LABEL)).toBeLessThan(
-      inside.indexOf('a1b2c3d4e5f6')
-    );
-  });
-
-  it('holds the promise that Tortie adopts nothing', () => {
-    expect(rowMore(html)).toContain(HONESTY_NO_ADOPTION);
-  });
-
-  it('draws no settings and no program list note, because none were read', () => {
-    const inside = rowMore(html);
-    expect(inside).not.toContain('data-prepare-option');
-    expect(inside).not.toContain('mach-prepare-note');
-  });
-
-  it('keeps the consent facts on the face of the row', () => {
-    // None of these may move behind the disclosure. The row's own lines say
-    // what Tortie runs there and who it signs in as, and the key line says
-    // which key it uses. PHASE 336 REMOVED the Saving files block, which was
-    // the fourth: a project open on a confirmed machine is a folder Tortie may
-    // write under, so there is nothing to turn on, and it is drawn nowhere.
-    const inside = rowMore(html);
-    expect(html).toContain('Runs this program on that machine: /usr/bin/tmux');
-    expect(inside).not.toContain(
-      'Runs this program on that machine: /usr/bin/tmux'
-    );
-    expect(html).toContain('Signs in as: greg');
-    expect(inside).not.toContain('Signs in as: greg');
-    expect(html).toContain('data-machine-key-line');
-    expect(inside).not.toContain('data-machine-key-line');
-    expect(html).not.toContain('data-machines-writes');
-  });
-});
-
-describe('an open row whose Prepare refused a version nobody measured', () => {
-  // PHASE 131 FIX ROUND. `sheet.lines` is the row's own lines with one entry
-  // added for the version being accepted, and `sheet.warning` is the row's own
-  // warning. Moving the state block to the top of the row put that sheet
-  // directly above the row's own copy, so a person read the same four lines
-  // twice with one short block between them. The sheet now sits beside the
-  // row's other agreements, which is where it was before this phase.
-  preparedSeed = {
-    'pop-os': preparedResult({
-      class: 'version-unmeasured',
-      alarm: true,
-      headline: 'Tortie has not measured the version that machine runs.',
-      detail:
-        'The program at /usr/bin/tmux reports version 3.6a. This release has ' +
-        'measured 3.4 and 3.5a, so nothing was started.',
-      version: '3.6a',
-      serverBorn: false,
-      options: [],
-      pathCaptured: false,
-      acceptSheet: {
-        hash: 'a1b2c3d4e5f6a7b8c9d0',
-        lines: [
-          'Machine: pop-os.tail1a2b.ts.net',
-          'Signs in as: greg',
-          'Runs this program on that machine: /usr/bin/tmux',
-          'Accepts this version of the program, which Tortie has not ' +
-            'measured: 3.6a'
-        ],
-        warning: WARNING,
-        writeHonesty: null
-      }
-    })
-  };
-  const html = machineRow(
-    draw(result({ rows: [row({ state: 'never', usable: false })] }))
-  );
-  preparedSeed = {};
-
-  it('draws the refusal and the accept button', () => {
-    expect(html).toContain(
-      'Tortie has not measured the version that machine runs.'
-    );
-    expect(html).toContain('data-machines-action="accept-version"');
-  });
-
-  it('keeps the state block at the top and the sheet far below it', () => {
-    const state = html.indexOf('class="mach-prepare-result"');
-    const ownLines = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
-    const prepare = html.indexOf('data-machines-action="prepare"');
-    const sheet = html.indexOf('data-machines-accept="pop-os"');
-    expect(state).toBeGreaterThan(-1);
-    expect(sheet).toBeGreaterThan(-1);
-    expect(state).toBeLessThan(ownLines);
-    expect(ownLines).toBeLessThan(prepare);
-    // PHASE 336 removed the Saving files block that stood between these two.
-    expect(prepare).toBeLessThan(sheet);
-  });
-
-  it('draws no copy of the row lines inside the state block', () => {
-    const state = html.indexOf('class="mach-prepare-result"');
-    const ownLines = html.indexOf('Machine: pop-os.tail1a2b.ts.net');
-    const block = html.slice(state, ownLines);
-    expect(block).not.toContain('Machine: pop-os.tail1a2b.ts.net');
-    expect(block).not.toContain(WARNING);
-    expect(block).not.toContain('data-machines-accept');
-  });
-
-  it('leaves the sheet outside the row disclosure', () => {
-    expect(rowMore(html)).not.toContain('data-machines-accept');
-    expect(rowMore(html)).not.toContain('data-machines-action="accept-version"');
   });
 });

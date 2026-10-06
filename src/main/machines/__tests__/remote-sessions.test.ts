@@ -239,7 +239,9 @@ const {
   remoteMachinesWoke,
   setRemotePollFocused,
   startMachineFeed,
-  stopMachineFeeds
+  stopMachineFeeds,
+  registeredRouteDiffers,
+  retireMachineRoute
 } = await import('../remote-sessions');
 
 const { machineLinkFacts, resetControlPlanesForTests } = await import('../control-plane');
@@ -1849,5 +1851,87 @@ describe('dropping one machine from memory', () => {
     expect(() => {
       dropMachineRowsFromMemory('nobody');
     }).not.toThrow();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 340's RULED ROUND. A confirm of changed details retires the old route
+// ---------------------------------------------------------------------------
+
+// `machineContext` is replaced in this file; the registry under it is not, so
+// a real registration is what `forgetMachineRuntime` is seen to drop.
+const { registerRemoteMachineContext, registeredMachineIds } = await import('../context');
+
+describe('retiring the route made under details a person has replaced', () => {
+  function listCount(): number {
+    return sent.filter((argv) => argv[0] === 'list-sessions').length;
+  }
+
+  it('stops both feeds, closes the connection, drops the context and reads the rows unknown', async () => {
+    vi.useFakeTimers();
+    try {
+      answers['display-message'] = 'tmux 3.6a\n';
+      answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+      await startMachineFeed(MACHINE);
+      const client = FakeControlClient.made[0];
+      if (client === undefined) throw new Error('no control client was made');
+      client.connected = true;
+      client.emit('connected');
+      await vi.advanceTimersByTimeAsync(0);
+      registerRemoteMachineContext({ ...CTX, machineId: MACHINE });
+      expect(registeredMachineIds()).toContain(MACHINE);
+      expect(remoteMachineFacts(MACHINE).statusTimerArmed).toBe(true);
+      expect(remoteSessions()[0]?.status).not.toBe('unknown');
+
+      retireMachineRoute(MACHINE);
+      const facts = remoteMachineFacts(MACHINE);
+      expect(facts.onControl).toBe(false);
+      expect(facts.statusTimerArmed).toBe(false);
+      expect(facts.timerArmed).toBe(false);
+      expect(client.connected).toBe(false);
+      expect(registeredMachineIds()).not.toContain(MACHINE);
+      // No list will arrive until Prepare, so the rows read what a list that
+      // did not arrive makes them read.
+      expect(remoteSessions()[0]?.status).toBe('unknown');
+      // And nothing asks the machine again: no list on either cadence, and
+      // so no failed list marking the link quiet about a machine nothing asked.
+      const before = listCount();
+      await vi.advanceTimersByTimeAsync(3 * REMOTE_POLL_IDLE_MS);
+      expect(listCount()).toBe(before);
+      expect(machineLinkFacts(MACHINE).link).not.toBe('quiet');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stops the fallback timer of a machine with no live connection', async () => {
+    vi.useFakeTimers();
+    try {
+      answers['list-sessions'] = line({ tmuxId: '$1', gmuxId: 'ours-1' });
+      await startMachineFeed(MACHINE);
+      expect(remoteMachineFacts(MACHINE).timerArmed).toBe(true);
+      retireMachineRoute(MACHINE);
+      expect(remoteMachineFacts(MACHINE).timerArmed).toBe(false);
+      const before = listCount();
+      await vi.advanceTimersByTimeAsync(3 * REMOTE_POLL_IDLE_MS);
+      expect(listCount()).toBe(before);
+      expect(machineLinkFacts(MACHINE).link).toBe('polling');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('compares the registered context with the details being confirmed', () => {
+    const same = { host: CTX.host, user: CTX.user, port: CTX.port, remoteTmuxPath: CTX.remoteTmuxPath };
+    expect(registeredRouteDiffers(MACHINE, same)).toBe(false);
+    expect(registeredRouteDiffers(MACHINE, { ...same, acceptedTmuxVersion: null })).toBe(false);
+    expect(registeredRouteDiffers(MACHINE, { ...same, port: 2222 })).toBe(true);
+    expect(registeredRouteDiffers(MACHINE, { ...same, host: 'studio.tail1a2b.ts.net' })).toBe(true);
+    expect(registeredRouteDiffers(MACHINE, { ...same, user: 'greg' })).toBe(true);
+    expect(registeredRouteDiffers(MACHINE, { ...same, remoteTmuxPath: '/opt/homebrew/bin/tmux' })).toBe(true);
+    expect(registeredRouteDiffers(MACHINE, { ...same, acceptedTmuxVersion: '3.9z' })).toBe(true);
+    // Nothing registered: nothing to retire.
+    registered = false;
+    expect(registeredRouteDiffers(MACHINE, { ...same, port: 2222 })).toBe(false);
   });
 });

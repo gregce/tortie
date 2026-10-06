@@ -55,7 +55,8 @@ import type { IpcMain, MenuItemConstructorOptions } from 'electron';
 import { handle } from './typed-ipc';
 import {
   EVT_MENU_ACTION,
-  EVT_QUIT_REQUESTED
+  EVT_QUIT_REQUESTED,
+  OPEN_FOLDER_ON_PREFIX
 } from '@shared/ipc';
 import type { MenuActionWithFind } from '@shared/ipc';
 // Every accelerator below comes from the ONE keymap (Phase 12.12). Do not
@@ -108,7 +109,7 @@ import {
 // Phase 90.3. Whether File > Open Folder on a Machine… has anything to open.
 // Direct module imports, NOT the ./machines barrel, which re-exports the whole
 // remote layer and would pull the session feed into the menu's import graph.
-import { isMachineConfirmed } from './machines/confirm';
+import { isMachineConfirmed, onMachineConfirmationsChanged } from './machines/confirm';
 import {
   currentMachines,
   machineFieldsOf,
@@ -196,6 +197,33 @@ export function sendMenuAction(action: MenuActionWithFind): boolean {
   }
   sendEvent(win.webContents, EVT_MENU_ACTION, action);
   return true;
+}
+
+/**
+ * Settings then Machines, Open a folder on it… (Phase 340, build/p340/SPEC.md
+ * D13). Raise the app window and send it `open-folder-on:<id>`, which opens the
+ * existing Open a Folder on a Machine sheet with that machine chosen.
+ *
+ * It sends ONLY that action and starts no process: the sheet it opens is the one
+ * File then Open Folder on a Machine… already opens, and that sheet asks the
+ * machine nothing until a person types or picks a folder. `machines:openFolder`
+ * in `./machines/ipc.ts` asks `isMachineConfirmed` before it calls this, so an
+ * unconfirmed machine never reaches it.
+ *
+ * The window is raised first because the press happens in the Settings window,
+ * which is never a menu action target, and the sheet opens in the window
+ * behind it. Returns whether the action was delivered.
+ */
+export function openFolderOnMachine(id: string): boolean {
+  const win = menuActionTarget();
+  if (win === null) {
+    menuLog.warn('Open a folder on a machine had no window to open in, so it was dropped');
+    return false;
+  }
+  if (win.isMinimized()) win.restore();
+  win.show();
+  win.focus();
+  return sendMenuAction(`${OPEN_FOLDER_ON_PREFIX}${id}`);
 }
 
 /**
@@ -1400,6 +1428,13 @@ function watchMachinesForMenu(): void {
   if (watchingMachines) return;
   watchingMachines = true;
   onMachinesChanged(() => applyMenu());
+  // PHASE 340's fix round, from a verifier's measurement (the same at the
+  // parent). A confirmation is not `machines.json`: Add writes the row first,
+  // which rebuilt the menu while the row was still unconfirmed, and records
+  // the agreement after it, which rebuilt nothing, so File > Open Folder on a
+  // Machine… stayed off after Add until Tortie was relaunched. The enabled rule
+  // reads the confirmations, so the menu follows them too.
+  onMachineConfirmationsChanged(() => applyMenu());
 }
 
 export function installAppMenu(): void {

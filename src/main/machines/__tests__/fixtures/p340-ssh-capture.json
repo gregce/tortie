@@ -1,0 +1,109 @@
+{
+ "note": "Real bytes from /usr/bin/ssh (OpenSSH_9.9p2) in a pty, over the Phase 340 loopback machine (build/scratch-machine.mjs, quiet shell, scratch home), with Tortie's own test options and the REVISED check as the far command. Captured by the Phase 340 adversary (scratchpad/p340/adversary/capture.mjs, 2026-10-06). $R stands for that run's scratch directory; the test substitutes an absolute path for it. Nothing here was typed by hand.",
+ "sshClient": "OpenSSH_9.9p2, LibreSSL 3.3.6",
+ "firstSeenAnsweredNo": {
+  "ms": 21,
+  "answered": true,
+  "status": 65280,
+  "chunks": [
+   {
+    "gap_ms": 20,
+    "text": "\r"
+   },
+   {
+    "gap_ms": 0,
+    "text": "The authenticity of host '[127.0.0.1]:46998 ([127.0.0.1]:46998)' can't be established.\r\nED25519 key fingerprint is SHA256:7O9lF4bhmRapXv/UV7IgsA9Y40MpO9jVsP95m757Mug.\r\nThis key is not known by any other names.\r\nAre you sure you want to continue connecting (yes/no/[fingerprint])? "
+   },
+   {
+    "gap_ms": 0,
+    "text": "no\r\n"
+   },
+   {
+    "gap_ms": 0,
+    "text": "Host key verification failed.\r\r\n"
+   }
+  ]
+ },
+ "firstSeenAnsweredYes": {
+  "ms": 68,
+  "answered": true,
+  "status": 0,
+  "chunks": [
+   {
+    "gap_ms": 18,
+    "text": "\r"
+   },
+   {
+    "gap_ms": 0,
+    "text": "The authenticity of host '[127.0.0.1]:46998 ([127.0.0.1]:46998)' can't be established.\r\nED25519 key fingerprint is SHA256:7O9lF4bhmRapXv/UV7IgsA9Y40MpO9jVsP95m757Mug.\r\nThis key is not known by any other names.\r\nAre you sure you want to continue connecting (yes/no/[fingerprint])? "
+   },
+   {
+    "gap_ms": 0,
+    "text": "yes\r\n"
+   },
+   {
+    "gap_ms": 0,
+    "text": "Warning: Permanently added '[127.0.0.1]:46998' (ED25519) to the list of known hosts.\r\r\n"
+   },
+   {
+    "gap_ms": 34,
+    "text": "__TORTIE_CHECK__\r\n"
+   },
+   {
+    "gap_ms": 3,
+    "text": "user=gdc\r\n"
+   },
+   {
+    "gap_ms": 2,
+    "text": "os=Darwin\r\n"
+   },
+   {
+    "gap_ms": 6,
+    "text": "login=read\r\n"
+   },
+   {
+    "gap_ms": 4,
+    "text": "cand=install $R/inst/tmux\r\ncount=1\r\nvskip=install\r\n__TORTIE_PATH__$R/inst/tmux__TORTIE_PATH__\r\n__TORTIE_CHECK__\r\n"
+   }
+  ]
+ },
+ "known": {
+  "ms": 68,
+  "answered": false,
+  "status": 0,
+  "chunks": [
+   {
+    "gap_ms": 51,
+    "text": "__TORTIE_CHECK__\r\n"
+   },
+   {
+    "gap_ms": 3,
+    "text": "user=gdc\r\n"
+   },
+   {
+    "gap_ms": 2,
+    "text": "os=Darwin\r\n"
+   },
+   {
+    "gap_ms": 6,
+    "text": "login=read\r\n"
+   },
+   {
+    "gap_ms": 5,
+    "text": "cand=install $R/inst/tmux\r\ncount=1\r\nvskip=install\r\n__TORTIE_PATH__$R/inst/tmux__TORTIE_PATH__\r\n__TORTIE_CHECK__\r\n"
+   }
+  ]
+ },
+ "knownBefore": {
+  "tortie": null,
+  "user": null
+ },
+ "knownAfterNo": {
+  "tortie": null,
+  "user": null
+ },
+ "knownAfterYes": {
+  "tortie": 99,
+  "user": null
+ }
+}

@@ -81,6 +81,9 @@ import {
 import { machineGeneration, type RemoteMachineContext } from './context';
 import { readyRemoteContext } from './ready-context';
 import { runRemoteRead, runRemoteWrite } from './remote-run';
+// PHASE 340 (build/p340/SPEC.md D24). What `uname -s` answered, remembered in
+// memory for the Settings row. It writes no file and starts nothing.
+import { noteRowOs } from './row-facts';
 import { REMOTE_SCRIPT_EMPTY } from './remote-scripts';
 
 const imageLog = getLog('machines');
@@ -146,7 +149,10 @@ export async function readRemoteMachineFacts(
   const answer = await runRemoteRead(ctx, 'machine-facts', [], {
     timeoutMs: REMOTE_FACTS_TIMEOUT_MS
   });
-  return parseMachineFacts(answer.payload);
+  const facts = parseMachineFacts(answer.payload);
+  // PHASE 340. The row draws the system name; this is where it is read.
+  noteRowOs(machineId, facts.uname);
+  return facts;
 }
 
 /**
@@ -252,7 +258,11 @@ export async function remoteMachineHomeAnswer(
     const answer = await runRemoteRead(ctx, 'machine-facts', [], {
       timeoutMs: REMOTE_FACTS_TIMEOUT_MS
     });
-    home = parseMachineFacts(answer.payload).home;
+    const facts = parseMachineFacts(answer.payload);
+    home = facts.home;
+    // PHASE 340. The same read answers the system name, which the Settings row
+    // draws. Prepare's agent scan is what reaches this read.
+    noteRowOs(ctx.machineId, facts.uname);
   } catch {
     // Nothing reached the machine, so nothing was learned about its home.
     // Not cached, so the next call asks again.

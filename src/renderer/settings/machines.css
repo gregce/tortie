@@ -131,20 +131,60 @@
   background: var(--graph-lane-6);
 }
 
-/* Confirmed reads as ready. The other three read the same as each other,
-   because they mean the same thing to the person in front of them, which is
-   that Tortie will not sign in. None of them is an alarm: a machine that has
-   not been confirmed yet is the ordinary state of a machine, not a fault. */
-.set-chip.mach-confirmed {
+/* PHASE 340. The chip carries the row's status in one word or two (D11 as
+   revised). Ready reads as ready and wears the success pair the old Confirmed
+   chip wore. Identity changed is the ONE alarm, the same --error pair the
+   changed host key wears everywhere else on this surface. Every other chip is
+   the ordinary raised tone, because a machine that is not confirmed, offline
+   or not prepared yet is the ordinary state of a machine, not a fault. */
+.set-chip.mach-chip {
+  background: var(--bg-raised);
+  color: var(--text-secondary);
+  cursor: default;
+}
+
+.set-chip.mach-chip[data-machine-chip='ready'] {
   background: var(--success-wash);
   color: var(--success);
 }
 
-.set-chip.mach-never,
-.set-chip.mach-changed,
-.set-chip.mach-unknown {
-  background: var(--bg-raised);
+.set-chip.mach-chip.alarm {
+  background: var(--error-wash);
+  color: var(--error);
+}
+
+/* The name and its chip share one line, and the facts sit under them. */
+.mach-name-line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.mach-facts {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: var(--lh-xs);
   color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+/* The one next step and the ellipsis sit at the row's right edge, centred on
+   the name line rather than on the two lines together. */
+.mach-head > .mach-next,
+.mach-head > .mach-more-btn {
+  flex: 0 0 auto;
+  align-self: center;
+}
+
+.mach-more-btn:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* One panel at a time opens under a row. It is the old open-row card. */
+.mach-panel {
+  margin-top: var(--space-4);
 }
 
 /* Main's own refusal sentence, told apart from the sentence written for the
@@ -227,28 +267,6 @@
   color: var(--text-secondary);
 }
 
-/* The pinned path Tortie ran, shown BEFORE it runs anything. A person has to
-   be able to see which program answered, so it gets the mono face and the
-   brighter tone rather than the hint colour. */
-.mach-source {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-  flex-wrap: wrap;
-}
-
-.mach-source-label {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-}
-
-.mach-source-path {
-  font-family: var(--font-mono);
-  font-size: var(--text-xs);
-  color: var(--text-primary);
-  overflow-wrap: anywhere;
-}
-
 /* ---------------------------------------------------------------------------
    The Tailscale panel (Phase 79)
    ---------------------------------------------------------------------------
@@ -274,12 +292,6 @@
   font-size: var(--text-base);
   font-weight: var(--weight-medium);
   color: var(--text-primary);
-}
-
-.mach-scan-count {
-  font-size: var(--text-xs);
-  color: var(--text-secondary);
-  font-variant-numeric: tabular-nums;
 }
 
 .mach-peers {
@@ -434,16 +446,6 @@
   margin-top: var(--space-5);
 }
 
-/* PHASE 130. The gap was the 8px .mach-block sets. This sheet is a stack of
-   paragraphs with one button at the foot, and at 8px the button read as part
-   of the last paragraph rather than as the thing the paragraphs lead to.
-   .mach-sheet is drawn only on the Add a machine card, so no other surface
-   moves. */
-.mach-sheet {
-  align-self: stretch;
-  gap: var(--space-5);
-}
-
 /* ------------------------------------------------- the connection test view */
 
 .mach-test {
@@ -522,8 +524,7 @@
   color: var(--text-primary);
 }
 
-.mach-answer-hint,
-.mach-testing {
+.mach-answer-hint {
   padding: 0 var(--space-5) var(--space-4);
   font-size: var(--text-sm);
   line-height: var(--lh-sm);
@@ -602,20 +603,9 @@
 /* ---------------------------------------------------------------------------
    Prepare this machine (Phase 69)
    ---------------------------------------------------------------------------
-   The one affordance on this surface that starts something on another
-   computer. The explaining sentence sits ABOVE the button rather than under
-   it, because a person should read what will happen before their eye reaches
-   the thing that makes it happen. */
-
-.mach-prepare {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-start;
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-}
+   PHASE 340. Prepare is a row's next step and a menu row, and the sentence
+   that says what it does is that button's hover. The class below sets the
+   short explanatory paragraphs the panels under a row still draw. */
 
 .mach-prepare-explain {
   margin: 0;
@@ -709,8 +699,9 @@
    warning border the refusal around it already carries, so it reads as part
    of that answer rather than as a new thing.
 
-   `.mach-accepted` stands on the row itself and says what a person accepted
-   earlier, with the one button that withdraws it. */
+   PHASE 340 moved what a person accepted into What Tortie runs there…, as one
+   fact row, and the button that withdrew it is the menu row Stop trusting this
+   machine, so `.mach-accepted` went with it. */
 
 .mach-accept {
   display: flex;
@@ -720,77 +711,6 @@
   margin-top: var(--space-2);
   padding-top: var(--space-3);
   border-top: 1px solid var(--border);
-}
-
-.mach-accepted {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-start;
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-
-/* ---------------------------------------------------------------------------
-   Letting Tortie save a file on one machine (Phase 101)
-   ---------------------------------------------------------------------------
-   One block, in both of its states, and it copies `.mach-accepted` above
-   exactly. Both are things a person granted for one machine, both sit on the
-   row rather than in a sheet of their own, and a person who has learned to
-   read one should not have to learn a second shape to read the other. */
-
-.mach-writes {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  align-items: flex-start;
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-
-/* The folder field stretches, because a path is long and a person has to be
-   able to read the whole of what they are about to confirm. */
-.mach-writes > .mach-field-row {
-  align-self: stretch;
-}
-
-/* ---------------------------------------------------------------------------
-   The one disclosure a machine row has (Phase 131)
-   ---------------------------------------------------------------------------
-   It copies `.mach-key-more` in key-install.css, which Phase 130 built one
-   screen away, so a person who has opened one has learned the other. It sits
-   on the same top border `.mach-writes` and `.mach-accepted` sit on, because
-   it is the next band of the same row. */
-
-.mach-more {
-  margin-top: var(--space-3);
-  padding-top: var(--space-3);
-  border-top: 1px solid var(--border);
-}
-
-.mach-more > summary {
-  cursor: pointer;
-  font-size: var(--text-sm);
-  line-height: var(--lh-sm);
-  color: var(--text-muted);
-}
-
-.mach-more > summary:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
-
-.mach-more[open] > summary {
-  margin-bottom: var(--space-3);
-}
-
-.mach-more > .mach-prepare-explain + .mach-prepare-fact,
-.mach-more > .mach-prepare-fact + .mach-prepare-note,
-.mach-more > .mach-prepare-fact + .mach-prepare-options,
-.mach-more > .mach-prepare-note + .mach-prepare-options {
-  margin-top: var(--space-3);
 }
 
 /* ---------------------------------------------------------------------------
@@ -812,24 +732,11 @@
   gap: var(--space-3);
 }
 
-.mach-key-label {
-  font-size: var(--text-base);
-  line-height: var(--lh-base);
-  color: var(--text-primary);
-}
-
 /* The two headings inside the block. They are quieter than the block's own
    label, because they sort what is under them rather than naming the block. */
 .mach-key-sublabel {
   font-size: var(--text-xs);
   color: var(--text-muted);
-}
-
-.mach-key-lines {
-  align-self: stretch;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
 }
 
 /* Main's notes. Each one is its own paragraph, because they answer four
@@ -924,8 +831,8 @@
    The fifth reading is the one that was two rules adding up. Only padding,
    gap and margin values change here. No height, no width, no font size, no
    colour and no border is touched, and every value is a --space-* token from
-   src/renderer/styles/tokens.css. .mach-sheet's own gap is set in its
-   existing block above rather than here, so there is one rule for it.
+   src/renderer/styles/tokens.css. PHASE 340 removed .mach-sheet, the old
+   confirm sheet, with the Add step that replaced it.
 --------------------------------------------------------------------------- */
 
 /* 6px is the within-group distance, so a hint sits 6px under the field it
@@ -954,4 +861,271 @@
    dropped for this one parent and the saved row keeps it. */
 .mach-add .mach-card > .mach-test {
   margin-top: 0;
+}
+
+/* ---------------------------------------------------------------------------
+   PHASE 340. Pick, check, add (build/p340/SPEC.md section 5)
+   ---------------------------------------------------------------------------
+   The Add flow is three steps and one press, and a check is a list of ticks.
+   Every rule below reaches existing shapes where one exists (the bordered
+   .mach-test card, the field rows, the advice block) and adds only what the
+   new steps need. Every colour and every measure is a token; there is not one
+   literal here. The one alarm is still the changed host key and nothing else
+   wears --error. */
+
+/* Step one: the tailnet list, then a quiet text button that reveals the
+   address field and Check, then Advanced. */
+.mach-pick {
+  align-self: stretch;
+  gap: var(--space-5);
+}
+
+.mach-scan-title {
+  cursor: default;
+}
+
+.mach-address {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.mach-address > .mach-field-row {
+  flex: 1;
+  min-width: 0;
+}
+
+.mach-type-address {
+  padding-left: 0;
+}
+
+/* Steps two and three stretch to the card's width, as the old test panel did. */
+.mach-step {
+  align-self: stretch;
+}
+
+.mach-add .mach-card > .mach-step > .mach-test {
+  margin-top: 0;
+}
+
+/* The one row drawn while a check runs: a spinner, `Checking <name>…`, Stop. */
+.mach-check-running {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-5);
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+.mach-check-running > .btn {
+  margin-left: auto;
+}
+
+/* The ticks. One line each, a mark and the words, the value in the words. */
+.mach-check {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+}
+
+.mach-check-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.mach-check-mark {
+  flex: 0 0 auto;
+  color: var(--success);
+}
+
+.mach-check-row.failed .mach-check-mark,
+.mach-check-row.note .mach-check-mark {
+  color: var(--text-muted);
+}
+
+/* THE ONE ALARM, on the check exactly as it was on the old outcome block. */
+.mach-check-row.alarm {
+  color: var(--error);
+}
+
+.mach-check-row.alarm .mach-check-mark {
+  color: var(--error);
+}
+
+.mach-check.alarm {
+  background: var(--error-wash);
+}
+
+.mach-check-text {
+  min-width: 0;
+}
+
+.mach-check-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: 0 var(--space-5) var(--space-4);
+}
+
+/* A question the check is waiting on: the question, the fingerprint or the
+   program's own line, and the one answer. */
+.mach-ask {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--border);
+}
+
+.mach-ask-question {
+  font-size: var(--text-base);
+  line-height: var(--lh-base);
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.mach-ask-fingerprint {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+
+.mach-ask-answer {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+/* Which of two programs: one button per path, the path in the mono face. */
+.mach-candidates {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.mach-candidate,
+.mach-candidate-text {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.mach-candidate-text {
+  color: var(--text-primary);
+}
+
+/* Details: the transcript, Tortie's two lines, main's detail and the answer
+   field, one press away. Its summary copies .mach-advanced's. */
+.mach-details {
+  border-top: 1px solid var(--border);
+}
+
+.mach-details > summary {
+  cursor: pointer;
+  padding: var(--space-3) var(--space-5);
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-details > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+}
+
+.mach-details > .mach-test-head {
+  border-top: 1px solid var(--border);
+}
+
+/* The key step sits inside the check card, with the field and the button on
+   one line. */
+.mach-key-row {
+  align-self: stretch;
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.mach-key-row > .mach-key-field {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Step three: the name and colour, the one press with its one line, and What
+   it runs. */
+.mach-add-step {
+  gap: var(--space-5);
+}
+
+.mach-add-step > .mach-fields {
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+}
+
+.mach-add-press {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.mach-add-subline {
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+.mach-what {
+  align-self: stretch;
+}
+
+.mach-what > summary {
+  cursor: pointer;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-muted);
+}
+
+.mach-what > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.mach-what[open] > summary {
+  margin-bottom: var(--space-3);
+}
+
+.mach-what > .mach-prepare-fact {
+  margin-top: var(--space-4);
+}
+
+/* Ready: one line, the agents, and the next press. */
+.mach-ready {
+  align-self: stretch;
+  gap: var(--space-4);
+}
+
+.mach-ready-line {
+  font-size: var(--text-base);
+  font-weight: var(--weight-medium);
+  color: var(--text-primary);
+}
+
+.mach-ready-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
 }

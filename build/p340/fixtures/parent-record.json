@@ -1,0 +1,27 @@
+{
+  "_note": "HAND-WRITTEN to the shape an honest parent run (ae38b831) of build/p340/probe-p340.mjs records. M17 predicts A1's 10 presses and 2 typed fields; M16 the 114 words at rest and the row's 25 shut and 163 open words. A5(b) is the parent's defect, recorded: a fake path pair printed by .zshenv BEFORE the probe is the first pair parseResolvedPath takes.",
+  "arms": {
+    "A1": { "ready": true, "presses": 10, "typed": 2, "advancedOpened": true, "wordsAtRest": 114, "hash": "2222222222222222222222222222222222222222222222222222222222222222" },
+    "A2": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+    "A4": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+    "A5": {
+      "a": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." },
+      "b": { "cls": "ok", "detail": "Tortie will run /evil/tmux on it." },
+      "c": { "cls": "no-program", "detail": "That machine answered and has no tmux on the search path a command gets there." }
+    },
+    "A6": {
+      "fingerprint": "SHA256:p340MadeUpFingerprintOfTheYardHostKey0000000",
+      "wantFingerprint": "SHA256:p340MadeUpFingerprintOfTheYardHostKey0000000",
+      "recordBefore": "absent",
+      "recordAfterStop": "absent",
+      "entriesBefore": 0,
+      "entriesAfterTrust": 1,
+      "changed": { "cls": "host-key-changed", "alarm": null, "trustDrawn": false, "addDrawn": false },
+      "userRecordBefore": false,
+      "userRecordAfter": false
+    },
+    "A7b": { "cls": "auth-refused" },
+    "A8": { "presses": 10, "typed": 2, "accepted": "3.9z", "prepared": true },
+    "A12": { "wordsShut": 25, "wordsOpen": 163 }
+  }
+}

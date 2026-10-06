@@ -228,7 +228,9 @@ export function composeKeyInstallArgv(
   argv.push(fields.host);
   // ONE argument, carrying the whole remote command. There is no local shell
   // here: node-pty runs the client directly, so this element reaches ssh
-  // verbatim and ssh hands it to the other machine's login shell.
+  // verbatim, and ssh hands it to the account's shell with `-c`, which is not
+  // a login shell (Phase 340, build/p340/SPEC.md M1, corrected from "login
+  // shell": `[[ -o login ]]` answered not-login over the loopback machine).
   argv.push(composeAuthorizedKeysCommand(publicKeyLine));
   return argv;
 }
@@ -432,8 +434,19 @@ export function composeKeyInstallCopy(input: {
   cls: MachineTestClass;
   text: string;
   exitCode: number | null;
+  /**
+   * PHASE 340 (D14). The ssh path and the plain reason, when ssh was there and
+   * would not start. Absent or null otherwise.
+   */
+  clientFailure?: { sshPath: string; reason: string } | null;
 }): MachineOutcomeCopy {
   const { cls, text, exitCode } = input;
+  if (cls === 'client-failed') {
+    return composeOutcomeCopy('client-failed', {
+      sshPath: input.clientFailure?.sshPath ?? null,
+      clientReason: input.clientFailure?.reason ?? null
+    });
+  }
   if (cls === 'key-installed') {
     const copy = machineOutcomeCopy('key-installed');
     // PHASE 84, item 7. Tortie now names its own key on every command it sends

@@ -117,6 +117,19 @@ describe('readRemoteTmuxVersion', () => {
     if (read.kind === 'unreached') expect(read.cls).toBe('refused');
   });
 
+  // PHASE 340's fix round, from a verifier's measurement. sshd's per source
+  // penalty resets a connection before the version exchange after a few
+  // refused sign ins, and this read used to call that a program that would
+  // not report its version, of a machine nothing had reached.
+  it('says the machine was not reached when it resets the connection at key exchange', async () => {
+    const reset = new Error('kex_exchange_identification: read: Connection reset by peer');
+    verbAnswer = reset;
+    shellAnswer = reset;
+    const read = await readRemoteTmuxVersion(CTX);
+    expect(read.kind).toBe('unreached');
+    if (read.kind === 'unreached') expect(read.cls).toBe('refused');
+  });
+
   it('says the machine was not reached when it is off the network', async () => {
     verbAnswer = TIMED_OUT;
     shellAnswer = TIMED_OUT;

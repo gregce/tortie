@@ -1,10 +1,10 @@
 /*
- * PHASE 130. The disclosure under the key block.
+ * PHASE 130. The disclosure under the key block. PHASE 340 made it What this
+ * does, and the same shape holds the install's own Details.
  *
- * It holds two of main's five notes, being the explanation of why the key has
- * no passphrase and, on an answer whose advice already said it, the sentence
- * about turning on Remote Login first. Both are main's words, drawn byte for
- * byte, one press away. Nothing here hides a consent fact.
+ * Every one of main's lines, its warning and its five notes stand behind it,
+ * drawn byte for byte, one press away, and the hash binds them exactly as
+ * before. Nothing here hides a consent fact.
  *
  * It shares the summary treatment with .mach-disclosure in machines.css rather
  * than inventing a second one, and it is written in its own file so this

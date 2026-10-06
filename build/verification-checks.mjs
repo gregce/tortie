@@ -312,7 +312,13 @@ export const CHECKS = [
   // /bin/sh AND /bin/dash, with git and shasum under them, over one scratch
   // tree under /private/tmp removed in a finally and with HOME pointed inside
   // it (build/p336/script-arms.mjs); both shells ship with macOS, and nothing
-  // under the person's home is named.
+  // under the person's home is named. PHASE 340: conditions 127, 130, 137 and
+  // 138 run build/p340/far-check.mts once in the pinned tsx, being the
+  // shipping far check under /bin/sh, /bin/dash and /bin/ksh inside /bin/zsh
+  // over thirteen scratch trees, and the shipping test runner over a FAKE ssh
+  // (a /bin/sh script, under node-pty) at a host under `.invalid`; those
+  // shells ship with macOS, no real ssh starts, and everything is under one
+  // mkdtemp in /private/tmp removed in a finally.
   pure('conformance:machines'),
   // Phase 187's guard. It is a vitest file rather than a tsx probe because the
   // exec plane is replaced by a function, which is the seam vitest owns, and it
@@ -889,6 +895,29 @@ export const CHECKS = [
     'probe:p336:script',
     '/bin/sh, /bin/dash, git and shasum on the host, and hdiutil only with P336_CASE_VOLUME=1; node and the repository install'
   ),
+  // PHASE 340's far check run alone (build/p340/SPEC.md §9.3): the SHIPPING
+  // CHECK_SCRIPT of src/main/machines/check-script.ts, handed to real shells by
+  // build/p340/script-arms.mjs inside the pinned tsx (build/p340/far-check.mts)
+  // and read back by the SHIPPING parseCheckAnswer and classifyCheckOutput,
+  // over the adversary's thirteen fixture trees (one program in an install
+  // folder, none, two distinct, a link to the same file, a login-only folder, a
+  // ~/ folder, a typed path present and missing, a fake block printed before
+  // and after by an rc file, a newline and a glob on the login PATH, a space).
+  // Two matrices: the inner interpreter over /bin/sh, /bin/dash, /bin/ksh,
+  // zsh --emulate sh and bash --posix inside /bin/zsh, and the outer shell over
+  // /bin/sh, bash, zsh, dash, ksh, csh and tcsh around /bin/sh, every fixture's
+  // rows agreeing. The far login shell is a stand-in (`/bin/zsh -d`, no global
+  // rc files), which the script itself asks with `-lc`; the header says why no
+  // far login shell is needed. Every stand-in logs each run, so "not run" is
+  // read. Every shell's environment is built from nothing (PATH, a scratch
+  // HOME and ZDOTDIR, HISTFILE=/dev/null, no TERM_SESSION_ID), every tree is
+  // under one mkdtemp in /private/tmp removed in a finally and on a signal. No
+  // Electron, no ssh, no tmux, no agent. About six seconds (5.6 s measured,
+  // 143 rows).
+  adapter(
+    'probe:p340:script',
+    '/bin/sh, /bin/bash, /bin/zsh, /bin/dash, /bin/ksh, /bin/csh and /bin/tcsh on the host; node and the repository install'
+  ),
   // PHASE 312. The choices the agent drew. build/conformance-choices.mjs reads
   // this repository's own source and asserts twenty clauses over it: the
   // verdict's own loop pinned byte for byte with OPT1, OPT2, HINT and QUEST, the
@@ -1147,6 +1176,27 @@ export const CHECKS = [
   // no token. `P341_CHECKOUT` launches a built parent; `--grader-self-test`
   // grades hand-written readings and starts nothing.
   remote('probe:p341'),
+  // PHASE 340's app run (build/p340/SPEC.md §10): adding a machine by picking
+  // it, Tortie checking and preparing it, and the compact row with its native
+  // menu, graded at HEAD with the parent's reading printed beside it. ONE
+  // Electron at a time through build/electron-run.mjs's withElectron on a
+  // scratch profile, a scratch HOME and the socket gmux-p340-<pid>, against its
+  // OWN loopback machine (build/scratch-machine.mjs's scratchYard and
+  // scratchMachine with the quiet shell and the scratch home; never
+  // build/with-scratch-machine.mjs, whose isolated() reads the person's
+  // ~/.ssh/config), which is why this is `remote` and not `electron`. It
+  // sanitises itself before the yard is built (scratch HOME, ZDOTDIR,
+  // HISTFILE=/dev/null, no SSH_AUTH_SOCK, exit 2 if one survives), reaches the
+  // machine only through an ssh wrapper named by GMUX_SSH_BIN and the tailnet
+  // only through build/p340/tailscale-peers.mjs named by GMUX_TAILSCALE_BIN,
+  // both preflighted by sha256 before every launch, samples the process table
+  // every second and fails the run on any /usr/bin/ssh without `-F none` first
+  // or any real Tailscale, fails on the override warning in app.log, and ends
+  // the far tmux server on the harness socket under the machine's TMUX_TMPDIR
+  // in its finally. A scratch agents.json renames the Gemini, Qwen,
+  // Antigravity, Grok and Droid binaries. No model turn and no token.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p340'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
   // profile through build/electron-run.mjs's withElectron, a scratch HOME and
@@ -2296,6 +2346,20 @@ export const CHECKS = [
   // worktree's bytes are asserted unmoved. P336_ONLY runs named arms; --list
   // and --self-test run nothing. No Electron, no tmux, no ssh, no agent.
   pure('ablation:p336', NEEDS.vitest),
+  // PHASE 340's attack on its own gate (build/p340/SPEC.md §9.2): one clause
+  // at a time broken in the SHIPPING source of a `cp -Rc` clone of src/,
+  // build/ and resources/ under /private/tmp (node_modules symlinked), each
+  // required to turn THE CONDITION THAT OWNS IT (125 to 139 and condition 10's
+  // two classes) newly red in `conformance:machines`, plus one control arm that
+  // edits a comment and must leave the gate green. Every clone file is
+  // restored and proved by sha256 in a `finally`, the clone is removed in a
+  // `finally` and on a signal, and the worktree's bytes are asserted unmoved.
+  // The gate it runs starts the shells its conditions 88g, 115 to 117 and 127
+  // name over scratch trees it removes, and conditions 130 and 138's fake ssh
+  // (a /bin/sh script under node-pty). P340_ONLY runs named arms; --list and
+  // --self-test run nothing. No Electron, no tmux, no real ssh, no agent.
+  // About twenty minutes for every arm (1,182 s measured, 31 arms).
+  pure('ablation:p340'),
   // PHASE 321's attack on its own behaviour (build/p321/SPEC.md §5.3), one
   // clause at a time from the SHIPPING source over a `cp -Rc` clone of src/:
   // each shape's options, focus, hint and tail clauses, the shapes' term in

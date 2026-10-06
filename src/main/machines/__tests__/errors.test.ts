@@ -84,6 +84,33 @@ describe('the class each fixture is read as', () => {
     expect(classifyMachineOutput(FIXTURES['unknown'] ?? '')).toBe('unknown');
   });
 
+  it('names a reset before the two programs spoke as a refused connection (the fix round)', () => {
+    // A verifier's measurement over the loopback machine (OpenSSH 9.9p2): after
+    // three refused sign ins, sshd's per source penalty reset the next
+    // connection before the version exchange. The table knew none of these,
+    // and Prepare's version read then said the program would not report its
+    // version, of a machine nothing had reached.
+    expect(
+      classifyMachineOutput('kex_exchange_identification: read: Connection reset by peer\r\n')
+    ).toBe('refused');
+    expect(
+      classifyMachineOutput('kex_exchange_identification: Connection closed by remote host\r\n')
+    ).toBe('refused');
+    expect(
+      classifyMachineOutput('ssh_exchange_identification: read: Connection reset by peer\n')
+    ).toBe('refused');
+    // A sign in the same text says was refused keeps its own class.
+    expect(
+      classifyMachineOutput(
+        'greg@box: Permission denied (publickey).\nkex_exchange_identification: read: Connection reset by peer\n'
+      )
+    ).toBe('auth-refused');
+    // A connection that drops after the sign in is not a refusal of it.
+    expect(
+      classifyMachineOutput('Read from remote host box: Connection reset by peer\n')
+    ).toBe('unknown');
+  });
+
   it('does not call a plain verification failure a changed host key', () => {
     // This is what a FIRST contact refusal prints. It is not the alarm.
     expect(classifyMachineOutput('Host key verification failed.\n')).toBe('unknown');
@@ -117,12 +144,15 @@ describe('every class carries copy', () => {
     }
   });
 
-  it('carries all sixteen classes', () => {
+  it('carries all eighteen classes', () => {
     // Eleven in Phase 68 and three more in Phase 69: `no-server` for a machine
     // that answered with nothing of Tortie's on it, `version-unmeasured` for one
     // running a version nobody measured, and `prepared` for the success answer.
     // Phase 79.1 added two, being `key-installed` and `password-required`.
-    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(16);
+    // Phase 340 added two, being `client-failed` and `program-choice`.
+    expect(MACHINE_OUTCOME_CLASSES).toHaveLength(18);
+    expect(MACHINE_OUTCOME_CLASSES).toContain('client-failed');
+    expect(MACHINE_OUTCOME_CLASSES).toContain('program-choice');
   });
 
   it('tells a machine asking for a password apart from one refusing a sign in', () => {

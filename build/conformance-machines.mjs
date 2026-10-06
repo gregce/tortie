@@ -33,6 +33,19 @@
  * `/private/tmp` removed in a `finally`, with `HOME` pointed inside it and
  * every shell's environment built from nothing. It adds about ten seconds.
  *
+ * PHASE 340 ADDED THE THIRD, said here for the same reason. Conditions 127,
+ * 130, 137 and 138 run build/p340/far-check.mts once in the pinned tsx. It
+ * hands the SHIPPING far check to `/bin/sh`, `/bin/dash` and `/bin/ksh` inside
+ * `/bin/zsh` over eighteen fixture trees (stand-in programs
+ * that log every run, and a scratch login-shell stand-in, `/bin/zsh -d`), and
+ * it drives the SHIPPING `startMachineTest` over a FAKE ssh, a `/bin/sh`
+ * script that writes the argv it was handed and prints a canned block, which
+ * the shipping `resolveSsh` must name before anything starts, at a host under
+ * `.invalid`. Everything is under one mkdtemp in `/private/tmp` removed in a
+ * `finally`, every shell's environment built from nothing (a scratch HOME and
+ * ZDOTDIR, HISTFILE=/dev/null, no TERM_SESSION_ID). No ssh, no tmux. About two
+ * seconds.
+ *
  * THE SEVENTY CONDITIONS IT FAILS ON. Each one is a way a person's agreement
  * could come to cover something they did not read, a way a refusal could quietly
  * stop being a refusal, or (from 11 on) a way a command Tortie sends to another
@@ -396,6 +409,33 @@
  * root (".", the folder the prelude checked) and its plants, 88l's reader (the
  * third door), and `REMOTE_SCRIPT_COUNT` 29 to 30 for `folder-pin`.
  *
+ * PHASE 340 APPENDED 125 TO 139 in the same way, as one block at the foot of
+ * this file (build/p340/SPEC.md §9.1), numbered from 125 because Phase 337,
+ * building at the same time, holds 122 to 124 here; the phase that lands
+ * second keeps its numbers. They are about his words re-adding his Mac Pro,
+ * "it should make it automatically look for [tmux] on that machine" and "it
+ * should be much simpler". 125 is the check's text: one line of sh with no
+ * newline, `!`, single quote or backslash pair, `set -f`, the newline guard
+ * and `count=`, no install folder inside it, reaching ssh only as the last
+ * argv element `composeCheckCommand` makes. 126 the login read captured into a
+ * variable nothing prints. 127 the check DRIVEN over eighteen
+ * trees, every "not run" read from a log. 128 two spawn sites and one
+ * `BatchMode=no`. 129 a missing ssh and an ssh that would not start as two
+ * classes, each finished at its one site beside a log line, and node-pty's
+ * one string read as "did not say why", never as a terminal. 130 the Add
+ * press binding only an unmeasured version, driven through the shipping
+ * runner. 131 no hashed field, key or algorithm moving. 132 refusal 8 in the
+ * renderer: no check, prepare or tailnet read started from an effect or a
+ * push. 133 one chain of a confirmation into a prepare, the Add press, and
+ * Confirm chaining none. 134 the ⋯ menu native and D20's five rows. 135 Open
+ * a folder on it… asking the confirmation first and starting nothing. 136
+ * the row's two facts kept in memory and forgotten on Remove. 137 the strict
+ * reader, exactly one block or `unknown`. 138 the visible test naming
+ * Tortie's key as condition 48 requires of the carriage. 139 Ready meaning
+ * answering. Condition 10 gained `client-failed` and `program-choice`. `npm run
+ * ablation:p340` breaks each clause and proves it goes red on its own
+ * condition.
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -572,6 +612,19 @@ import ts from 'typescript';
 // scratch tree under the system temporary directory removed in a `finally`,
 // with `HOME` pointed inside it. Loading the module starts nothing.
 import { ownerOfProblem as ownerOfP336Problem, runArms as runP336Arms } from './p336/script-arms.mjs';
+// PHASE 340. Conditions 127, 130, 137 and 138 read build/p340/far-check.mts,
+// which the pinned tsx runs ONCE: the shipping far check under /bin/sh,
+// /bin/dash and /bin/ksh over eighteen trees, and the shipping
+// test runner over a fake ssh. Loading this module starts nothing.
+import {
+  FIXTURE_IDS as P340_FIXTURE_IDS,
+  GATE_INNERS as P340_GATE_INNERS,
+  agreementProblems as p340AgreementProblems,
+  loadFarCheck as loadP340FarCheck,
+  rowProblems as p340RowProblems
+} from './p340/script-arms.mjs';
+
+const P340_FIXTURE_COUNT = P340_FIXTURE_IDS.length;
 
 const probe = spawnSync(
   process.execPath,
@@ -815,6 +868,45 @@ for (const hit of data.sshConfigMentions) {
 }
 
 /**
+ * PHASE 340's RULED ROUND. One more record file may be named, in one module
+ * only: ssh's own GLOBAL record, `/etc/ssh/ssh_known_hosts` and its `2`, which
+ * `src/main/machines/host-record.ts` READS so that a machine ssh already knows
+ * from it never gets Tortie's first-seen question (the reverify's finding). It
+ * is the system's file and not the person's, and ssh never adds a key to it. A
+ * line there is let through only when, with those two paths taken out, it no
+ * longer names a record file at all, so the person's `.ssh/known_hosts`
+ * written beside them still fails; and that module is held to READING: its
+ * `node:fs` import may name nothing but readers.
+ */
+const GLOBAL_RECORD_READER = 'src/main/machines/host-record.ts';
+const GLOBAL_RECORD_PATH = /\/etc\/ssh\/ssh_known_hosts2?(?![\w.])/;
+const namesOnlyTheGlobalRecord = (hit) =>
+  hit.file === GLOBAL_RECORD_READER &&
+  GLOBAL_RECORD_PATH.test(hit.text) &&
+  !hit.text.replace(new RegExp(GLOBAL_RECORD_PATH.source, 'g'), '').includes('known_hosts');
+{
+  const READERS = new Set(['readFileSync', 'statSync', 'existsSync', 'lstatSync']);
+  let src = '';
+  try {
+    src = readFileSync(join(process.cwd(), GLOBAL_RECORD_READER), 'utf8');
+  } catch {
+    src = '';
+  }
+  if (src.length > 0) {
+    const fsImports = [...src.matchAll(/import\s*(?:type\s*)?\{([^}]*)\}\s*from\s*'node:fs(?:\/promises)?'/g)];
+    const named = fsImports.flatMap((m) => m[1].split(',').map((one) => one.trim().split(/\s+as\s+/)[0]).filter(Boolean));
+    const writers = named.filter((one) => !READERS.has(one));
+    const otherDoors = /from\s*'node:fs\/promises'|import\s+\*\s+as\s+\w+\s+from\s*'node:fs'|import\s+\w+\s+from\s*'node:fs'|require\(\s*'(?:node:)?fs/.test(src);
+    if (writers.length > 0 || otherDoors) {
+      fail(
+        `${GLOBAL_RECORD_READER} names ssh's global record and may only READ it, but its file ` +
+          `imports reach ${writers.length > 0 ? writers.join(', ') : 'another door into node:fs'}.`
+      );
+    }
+  }
+}
+
+/**
  * The one code line allowed to name the person's record file names it in order
  * to READ it, and it is the path helper. Anything else naming that file is a
  * second place that could write to it.
@@ -822,6 +914,7 @@ for (const hit of data.sshConfigMentions) {
 for (const hit of data.knownHostsMentions) {
   if (isDenyingComment(hit.text)) continue;
   if (hit.text.includes('join(home,')) continue;
+  if (namesOnlyTheGlobalRecord(hit)) continue;
   fail(
     `${hit.file}:${hit.line} names the person's own record file somewhere other than ` +
       `the one path helper that exists to read it. The line reads: ${hit.text}`
@@ -936,7 +1029,15 @@ const EXPECTED_CLASSES = [
   // real program prints that question and the golden folder holds the bytes,
   // captured through Tortie's own runner because the question arrives while the
   // client is still running and the capture script runs every case to an exit.
-  'password-required'
+  'password-required',
+  // Phase 340 (D14, D4). `client-failed` is an ssh that IS on this Mac and
+  // would not start, which until this phase was reported as `client-missing`
+  // ("This Mac has no ssh program"), the sentence he read with /usr/bin/ssh in
+  // place. `program-choice` is a check that found more than one distinct
+  // program and ran none of them. Both are Tortie's own words, so both are
+  // `noGolden` rows in the manifest.
+  'client-failed',
+  'program-choice'
 ].sort();
 
 const gotClasses = data.taxonomy.map((row) => row.class).sort();
@@ -956,6 +1057,21 @@ if (alarming.join('|') !== data.alarmClass) {
       `one may, and it is ${data.alarmClass}. An expired key, a changed permission and ` +
       'a dead machine share calm copy on purpose. A changed host key never does.'
   );
+}
+
+// PHASE 340. The two classes say different things: a launch that failed is
+// never told as a missing ssh, which is the whole of the folded-in item.
+{
+  const byClass = new Map(data.taxonomy.map((row) => [row.class, row]));
+  const missing = byClass.get('client-missing');
+  const failed = byClass.get('client-failed');
+  if (missing === undefined || failed === undefined) {
+    fail('condition 10: the taxonomy has no client-missing or no client-failed row, so a launch that failed cannot be told apart from a missing ssh (Phase 340, D14).');
+  } else {
+    if (missing.headline === failed.headline) fail('condition 10: client-failed and client-missing share a headline, so an ssh that would not start still reads as a missing one (Phase 340, D14).');
+    if (/\bno ssh\b/i.test(failed.headline)) fail(`condition 10: client-failed's headline ${JSON.stringify(failed.headline)} says this Mac has no ssh.`);
+    if (!/\bno ssh program\b/i.test(missing.headline)) fail(`condition 10: client-missing's headline ${JSON.stringify(missing.headline)} no longer says this Mac has no ssh program.`);
+  }
 }
 
 for (const row of data.taxonomy) {
@@ -13382,6 +13498,804 @@ const GRANT_SCAN_FIXTURES = [
   );
 }
 
+// ---------------------------------------------------------------------------
+// 125 to 139. PHASE 340. Adding a machine in three steps: Tortie finds tmux by
+// itself, one Add press confirms and prepares, and the row says one thing and
+// offers one next step (build/p340/SPEC.md §9.1). Numbered from 125 because
+// Phase 337, building at the same time, holds 122 to 124 in this file; the
+// phase that lands second keeps its numbers and the two blocks are merged.
+// ---------------------------------------------------------------------------
+//
+// His words, re-adding his Mac Pro: "when we connect to the machine we should
+// make it automatically look for [tmux] on that machine", and "it should be
+// much simpler". So the visible test's far command became a check that asks
+// the machine's login shell, the PATH a command gets and a compiled list of
+// install folders, and runs a program's `-V` only when it is the ONE program
+// his own shell would run by that name (D2, D5 as revised). What these fifteen
+// conditions hold is everything that sentence could quietly stop meaning:
+//
+//   125  the check's text and the one way it reaches ssh
+//   126  the login read, captured and never printed
+//   127  the check DRIVEN over eighteen fixtures under
+//        /bin/sh, /bin/dash and /bin/ksh, every "not run" read from a log
+//   128  two spawn sites and one BatchMode=no, as before
+//   129  a missing ssh and an ssh that would not start are two classes
+//   130  the Add press binds the version the sheet bound, and only an
+//        unmeasured one, DRIVEN through the shipping runner over a fake ssh
+//   131  nothing he confirmed moves
+//   132  refusal 8 in the renderer: nothing starts from an effect or a push
+//   133  ONE chain of a confirmation into a prepare, the Add press
+//   134  the ⋯ menu is native and holds D20's rows
+//   135  Open a folder on it… asks the confirmation first and starts nothing
+//   136  the row's two facts are memory and go with the machine
+//   137  the strict reader: exactly one block, or `unknown`
+//   138  the visible test names Tortie's key as the carriage does (D27)
+//   139  Ready means answering (D11 as revised)
+//
+// THE DRIVEN HALF starts build/p340/far-check.mts under the pinned tsx, which
+// hands the SHIPPING check to /bin/sh, /bin/dash and /bin/ksh inside /bin/zsh
+// over trees under one mkdtemp in /private/tmp removed in a `finally`, every
+// shell with an environment built from nothing (scratch HOME and ZDOTDIR,
+// HISTFILE=/dev/null, no TERM_SESSION_ID), and drives the shipping
+// `startMachineTest` over a FAKE ssh it proves `resolveSsh` answers before
+// anything starts, at a host under `.invalid`. No ssh, no tmux, no Electron.
+//
+// WHAT THIS GATE DOES NOT OWN, named so a later round does not believe it
+// does. Each needs the machines store, the confirm record or a mocked node-pty,
+// which a plain node cannot hold, so the vitest file beside it owns it:
+//
+//   node-pty throwing `posix_spawnp failed.` and EACCES, both runners      129  p340-client-split
+//   an add naming a measured version as accepted writes nothing            130  p340-add-version
+//   machineKeyPairPresent deciding the key on the visible test             138  p340-test-identity
+//   the renderer's chained actions over a fake bridge                      133  p340-add-steps
+//
+// Each failure line begins `condition 1NN:`, so `ablation:p340` reads the
+// owner off the line.
+{
+  const d = data.phase340 ?? {};
+  const J = (v) => JSON.stringify(v);
+  const cantJudge = (which, what) =>
+    failures.push(`condition ${which}: cannot be judged: ${what}. A missing module is a failure and never a skip.`);
+  for (const why of Object.values(d.loadErrors ?? {})) {
+    failures.push(`condition 125 to 139: Phase 340 cannot be judged: ${String(why)}.`);
+  }
+
+  const p340Files = productionSources();
+  const textOf = (file) => p340Files.find((one) => one.file === file)?.text ?? null;
+  const codeOf = (file) => p340Files.find((one) => one.file === file)?.code ?? null;
+  /** One production source parsed with the TypeScript parser, or null. */
+  const astOf = (file) => {
+    const text = textOf(file);
+    if (text === null) return null;
+    return ts.createSourceFile(file, text, ts.ScriptTarget.Latest, true, file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+  };
+  const visit = (node, fn) => {
+    fn(node);
+    ts.forEachChild(node, (child) => visit(child, fn));
+  };
+  /** The called name: `f(` is f, `a.b.f(` is f. */
+  const calleeName = (call) => {
+    const e = call.expression;
+    if (ts.isIdentifier(e)) return e.text;
+    if (ts.isPropertyAccessExpression(e)) return e.name.text;
+    return null;
+  };
+  const ancestorsOf = (node) => {
+    const out = [];
+    for (let p = node.parent; p !== undefined; p = p.parent) out.push(p);
+    return out;
+  };
+  /** The name a function-like node is known by, or null. */
+  const fnName = (node) => {
+    if ((ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node)) && node.name !== undefined) return node.name.getText();
+    if ((ts.isArrowFunction(node) || ts.isFunctionExpression(node)) && node.parent !== undefined) {
+      const p = node.parent;
+      if (ts.isVariableDeclaration(p) || ts.isPropertyAssignment(p)) return p.name.getText();
+    }
+    return null;
+  };
+  const isFunctionLike = (node) =>
+    ts.isFunctionDeclaration(node) || ts.isMethodDeclaration(node) || ts.isArrowFunction(node) || ts.isFunctionExpression(node);
+  /** Every call in `sf`, with the name of each function-like ancestor, innermost first. */
+  const callsIn = (sf) => {
+    const out = [];
+    visit(sf, (node) => {
+      if (!ts.isCallExpression(node)) return;
+      const chain = ancestorsOf(node);
+      out.push({ node, name: calleeName(node), owners: chain.filter(isFunctionLike).map(fnName), chain });
+    });
+    return out;
+  };
+  /** A node's source with its comments blanked, so a sentence about a call never reads as the call. */
+  const codeText = (node, sf) => stripComments(node.getText(sf));
+  const lineOf = (sf, node) => sf.getLineAndCharacterOfPosition(node.getStart(sf)).line + 1;
+  /** The arrow or function handed to `handle(ipc, '<channel>', …)` in one file, or null. */
+  const handlerOf = (sf, channel) => {
+    let found = null;
+    visit(sf, (node) => {
+      if (found !== null || !ts.isCallExpression(node) || calleeName(node) !== 'handle') return;
+      const [, ch, fn] = node.arguments;
+      if (ch !== undefined && ts.isStringLiteral(ch) && ch.text === channel && fn !== undefined) found = fn;
+    });
+    return found;
+  };
+  /** The body of one named function, method or `const` arrow in `sf`, or null. */
+  const fnNodeNamed = (sf, name) => {
+    let found = null;
+    visit(sf, (node) => {
+      if (found === null && isFunctionLike(node) && fnName(node) === name) found = node;
+    });
+    return found;
+  };
+
+  // The driven half (127, 130, 137, 138). It runs once.
+  const far = loadP340FarCheck('--gate');
+  for (const [key, why] of Object.entries(far.loadErrors ?? {})) {
+    const owner = /^(runner|carriage|confirm)/.test(key) ? 130 : 127;
+    failures.push(`condition ${String(owner)}: the far check cannot be judged: ${String(why)}.`);
+  }
+  const farRows = far.rows ?? [];
+  const farTexts = far.texts ?? null;
+
+  const CT = 'src/main/machines/connection-test.ts';
+  const CHECK = 'src/main/machines/check-script.ts';
+  const IPC = 'src/main/machines/ipc.ts';
+  const MENU = 'src/main/menu.ts';
+  const ROW_FACTS = 'src/main/machines/row-facts.ts';
+  const REMOVAL = 'src/main/machines/removal.ts';
+  const STATUS = 'src/renderer/settings/machine-status.ts';
+  const STORE = 'src/renderer/settings/machines-store.ts';
+  const ROW = 'src/renderer/settings/MachineRow.tsx';
+  const SETTINGS_DIR = 'src/renderer/settings/';
+
+  // --- 125. The check's text, and the one way it reaches ssh ----------------
+  {
+    const fail = (message) => failures.push(`condition 125: ${message}`);
+    const t = d.texts ?? null;
+    if (t === null || typeof t.script !== 'string') cantJudge(125, `${CHECK} gave no CHECK_SCRIPT`);
+    else {
+      const s = t.script;
+      if (s.includes('\n')) fail('CHECK_SCRIPT holds a newline. csh and tcsh, as the far account\'s shell, will not carry one inside a quoted word (M14), so the check would never run there.');
+      if (s.includes('!')) fail('CHECK_SCRIPT holds a `!`, which csh reads as history and rewrites before the script runs (M14).');
+      if (s.includes("'")) fail("CHECK_SCRIPT holds a single quote, the one quoting helper's own delimiter.");
+      if (s.includes('\\\\')) fail('CHECK_SCRIPT holds a backslash pair, which the far shells do not all read alike.');
+      for (const needle of ['set -f', 'count=']) {
+        if (!s.includes(needle)) fail(`CHECK_SCRIPT does not hold \`${needle}\` (D2 as revised: T3 for set -f, the strict reader's count for count=).`);
+      }
+      if (!/nl=\$\(printf "\\nx"\); nl=\$\{nl%x\}/.test(s) || !s.includes('*"$nl"*) return 0')) {
+        fail('CHECK_SCRIPT has no newline guard (`nl` made without a newline in the text, and a candidate holding one skipped before it is counted or run, §Attack T2).');
+      }
+      // THE FIX ROUND. The rest of the schema's path rule, skipped before a
+      // candidate is counted or run, at the very top of add(): a path that is
+      // not absolute, one holding a control character and one holding a single
+      // quote (made with printf, because the text may hold no quote). Without
+      // them a login PATH entry such as `bin` or `.`, or a folder named
+      // `o'brien`, made the strict reader refuse the whole check, beside a real
+      // program the parent found (the verifiers' measured regression).
+      const addAt = s.indexOf('add() { ');
+      const addHead = addAt < 0 ? '' : s.slice(addAt, s.indexOf('[ -f "$2" ]', addAt));
+      if (!/sq=\$\(printf "\\047"\)/.test(s)) fail('CHECK_SCRIPT makes no `sq` (a single quote, by printf), so it cannot skip a path holding one.');
+      for (const [needle, what] of [
+        ['case "$2" in /*) ;; *) return 0 ;; esac;', 'a path that is not absolute'],
+        ['*[[:cntrl:]]*', 'a path holding a control character'],
+        ['case "$2" in *"$sq"*) return 0 ;; esac;', 'a path holding a single quote']
+      ]) {
+        if (!addHead.includes(needle)) fail(`add() does not skip ${what} before its first test of the file (the fix round: the strict reader refuses such a candidate, and the whole check with it).`);
+      }
+      const D3 = ['/opt/homebrew/bin', '/usr/local/bin', '/home/linuxbrew/.linuxbrew/bin', '~/.linuxbrew/bin', '/opt/local/bin', '/usr/bin', '/bin', '/snap/bin', '/run/current-system/sw/bin', '/nix/var/nix/profiles/default/bin', '~/.nix-profile/bin', '~/.local/bin', '~/bin'];
+      if (J(t.folders) !== J(D3)) fail(`REMOTE_TMUX_INSTALL_FOLDERS reads ${J(t.folders)}; D3 names ${J(D3)}, in that order.`);
+      for (const f of t.folders ?? []) {
+        if (/[$*?[:]/.test(f)) fail(`the install folder ${J(f)} holds one of $ * ? [ :, and the list crosses as one ':' joined argument (D3).`);
+      }
+      // No install-folder literal in the text: the folders arrive as $3 and
+      // nowhere else. `/bin` is checked against `/bin/sh`, the one place the
+      // text names a program by path.
+      for (const f of (t.folders ?? []).filter((one) => one !== '/bin')) {
+        if (s.includes(f)) fail(`CHECK_SCRIPT names the install folder ${f} in its own text; the folders reach it as $3 only, so the compiled list is the one list.`);
+      }
+      if ((s.match(/\/bin/g) ?? []).length !== (s.match(/\/bin\/sh/g) ?? []).length) fail('CHECK_SCRIPT names /bin other than as /bin/sh.');
+      if (t.composedNull !== t.recomposedNull || t.composedNull === null) {
+        fail('composeCheckCommand(null) is not shellQuoteArgv([/bin/sh, -c, CHECK_SCRIPT, tortie-check, \'\', LOGIN_PATH_PROBE, the folders joined with :]) (D1, D2).');
+      }
+      if (t.composedSaved !== t.recomposedSaved || t.composedSaved === null) fail('composeCheckCommand(<a typed path>) is not the same shape with the path as $1.');
+      const a = d.testArgv ?? null;
+      if (a === null) cantJudge(125, `${CT} gave no composeTestArgv`);
+      else {
+        if (a.draftLast !== t.composedNull) fail(`the last element of a DRAFT test's argv is not composeCheckCommand(null): ${J(String(a.draftLast).slice(0, 80))}.`);
+        if (a.savedLast !== t.composedSaved) fail(`the last element of a SAVED row's test argv is not composeCheckCommand(its path): ${J(String(a.savedLast).slice(0, 80))}.`);
+      }
+      if (farTexts !== null && farTexts.script !== s) fail('the check far-check.mts ran is not the one this gate read.');
+    }
+  }
+
+  // --- 126. The login read --------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 126: ${message}`);
+    const t = d.texts ?? null;
+    if (t !== null && typeof t.script === 'string') {
+      const s = t.script;
+      if (t.loginProbe !== 'printf __TORTIE_LOGIN__%s__TORTIE_LOGIN__ "$PATH"') {
+        fail(`LOGIN_PATH_PROBE reads ${J(t.loginProbe)}; it is exactly printf __TORTIE_LOGIN__%s__TORTIE_LOGIN__ "$PATH" (the Phase 69 recipe with its own marker).`);
+      }
+      if (t.loginMarker !== '__TORTIE_LOGIN__' || t.checkMarker !== '__TORTIE_CHECK__') fail(`the markers read ${J([t.checkMarker, t.loginMarker])}.`);
+      const read = /\b(\w+)=\$\("\$\{SHELL:-\/bin\/sh\}" -lc "\$(\w+)" <\/dev\/null 2>\/dev\/null\)/.exec(s);
+      if (read === null) fail('the script does not run the login probe as "${SHELL:-/bin/sh}" -lc "$q" </dev/null 2>/dev/null into a variable.');
+      else {
+        const [, into, probeVar] = read;
+        if (!s.includes(`${probeVar}="$2"`)) fail(`the login shell is handed $${probeVar}, which is not the probe positional $2.`);
+        // Nothing the login shell printed is ever printed.
+        const named = new RegExp(`\\$\\{?${into}\\b`);
+        for (const m of s.matchAll(/\b(?:printf|echo)\b[^;]*/g)) {
+          if (named.test(m[0])) fail(`\`${m[0].slice(0, 80)}\` prints $${into}, what the login shell printed; a login file could then put anything in the answer (D2).`);
+        }
+        if (new RegExp(`\\beval\\b[^;]*\\$\\{?${into}\\b`).test(s)) fail(`the script evaluates $${into}.`);
+      }
+    }
+  }
+
+  // --- 127. The check, driven ----------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 127: ${message}`);
+    // The adversary's F1 to F12 with F7 in two halves, and the fix round's
+    // F13 to F15 (a relative login PATH entry, a folder holding a quote, one
+    // holding a tab) and F8t and F9t (F8 and F9 with the path typed, which the
+    // typed reading answers): eighteen trees, pinned, so a fixture quietly
+    // dropped from the table reads red here.
+    const WANT_FIXTURES = ['F1-install-only', 'F2-none', 'F3-two-distinct', 'F4-link-same-file', 'F5-login-only', 'F6-home-tilde', 'F7a-typed', 'F7b-typed-missing', 'F8-fake-block-before', 'F9-fake-block-after', 'F10-newline-folder', 'F11-glob', 'F12-space', 'F13-relative-login', 'F14-quote-folder', 'F15-tab-folder', 'F8t-typed-past-block-before', 'F9t-typed-past-trap-after'];
+    if (J(P340_FIXTURE_IDS) !== J(WANT_FIXTURES)) fail(`build/p340/script-arms.mjs holds the fixtures ${J(P340_FIXTURE_IDS)}; condition 127 drives these eighteen, ${J(WANT_FIXTURES)}.`);
+    if (J(P340_GATE_INNERS) !== J(['sh', 'dash', 'ksh'])) fail(`the inner interpreters driven are ${J(P340_GATE_INNERS)}; condition 127 drives /bin/sh, /bin/dash and /bin/ksh (§9.1 as revised).`);
+    const ranFixtures = [...new Set(farRows.map((r) => r.fixture))];
+    if (farRows.length > 0 && J(ranFixtures) !== J(WANT_FIXTURES)) fail(`the far check ran the fixtures ${J(ranFixtures)}.`);
+    if (farRows.length !== P340_FIXTURE_COUNT * 3) {
+      if (Object.keys(far.loadErrors ?? {}).length === 0) fail(`the far check ran ${String(farRows.length)} rows where ${String(P340_FIXTURE_COUNT * 3)} (eighteen fixtures under sh, dash and ksh) were asked for.`);
+    }
+    for (const row of farRows) for (const p of p340RowProblems(row)) fail(p);
+    for (const p of p340AgreementProblems(farRows)) fail(p);
+  }
+
+  // --- 128. Two spawn sites and one BatchMode=no ----------------------------
+  {
+    const fail = (message) => failures.push(`condition 128: ${message}`);
+    const code = codeOf(CT);
+    if (code === null) cantJudge(128, `${CT} is not there`);
+    else {
+      // `[(]` rather than an escaped paren, so gate:background's scanner does not
+      // read this pattern as a start.
+      const spawns = (code.match(/\bnodePty\.spawn[(]/g) ?? []).length;
+      if (spawns !== 2) fail(`${CT} holds ${String(spawns)} nodePty.spawn call site(s); it holds exactly two, the visible test and the key install.`);
+    }
+    if ((data.argv ?? []).filter((a) => a === data.batchModeInteractive).length !== 1) fail('the visible test argv does not carry BatchMode=no exactly once (condition 9).');
+  }
+
+  // --- 129. A missing ssh and an ssh that would not start -------------------
+  {
+    const fail = (message) => failures.push(`condition 129: ${message}`);
+    const sf = astOf(CT);
+    if (sf === null) cantJudge(129, `${CT} is not there`);
+    else {
+      const finishes = [];
+      visit(sf, (node) => {
+        if (!ts.isCallExpression(node) || calleeName(node) !== 'finish') return;
+        const lit = node.arguments.find((a) => ts.isStringLiteral(a) && (a.text === 'client-missing' || a.text === 'client-failed'));
+        if (lit !== undefined) finishes.push({ cls: lit.text, node });
+      });
+      const runnerOf = (node) => ancestorsOf(node).filter(ts.isFunctionDeclaration).map((f) => f.name?.text ?? '?').pop() ?? '?';
+      const noPathIf = (node) =>
+        ancestorsOf(node).find((p) => ts.isIfStatement(p) && /\.path\s*===\s*null/.test(p.expression.getText(sf)) && p.thenStatement.pos <= node.pos && node.end <= p.thenStatement.end) ?? null;
+      const spawnCatch = (node) =>
+        ancestorsOf(node).find((p) => ts.isCatchClause(p) && ts.isTryStatement(p.parent) && /\bnodePty\.spawn[(]/.test(codeText(p.parent.tryBlock, sf))) ?? null;
+      const warns = (block) => /\bmachinesLog\.warn\(/.test(codeText(block, sf));
+      for (const runner of ['startMachineTest', 'startKeyInstall']) {
+        for (const cls of ['client-missing', 'client-failed']) {
+          const n = finishes.filter((f) => f.cls === cls && runnerOf(f.node) === runner).length;
+          if (n !== 1) fail(`${runner} finishes ${cls} ${String(n)} time(s); it finishes it exactly once (D14).`);
+        }
+      }
+      for (const f of finishes) {
+        const at = `${CT}:${String(lineOf(sf, f.node))}`;
+        const branch = noPathIf(f.node);
+        const caught = spawnCatch(f.node);
+        if (f.cls === 'client-missing') {
+          if (branch === null || caught !== null) fail(`${at} finishes client-missing outside the branch where resolveSsh found no ssh; only a missing or non-executable ssh is "no ssh program" (D14).`);
+          else if (!warns(branch.thenStatement)) fail(`${at}: the no-ssh branch finishes client-missing without a machinesLog.warn naming the path.`);
+        } else {
+          if (caught === null || branch !== null) fail(`${at} finishes client-failed outside the catch around nodePty.spawn; a launch that failed is the only "could not start ssh" (D14).`);
+          else if (!warns(caught.block)) fail(`${at}: the spawn catch finishes client-failed without a machinesLog.warn carrying the raw message.`);
+        }
+      }
+      // Nothing else in src/ produces either class: no `finish`, `settle` or
+      // `return` of the literal, no assignment and no `class:` value, outside
+      // the four sites above and errors.ts's own COPY table.
+      for (const one of p340Files) {
+        if (!one.code.includes('client-missing') && !one.code.includes('client-failed')) continue;
+        const other = ts.createSourceFile(one.file, one.text, ts.ScriptTarget.Latest, true, one.file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+        visit(other, (node) => {
+          if (!ts.isStringLiteral(node) || (node.text !== 'client-missing' && node.text !== 'client-failed')) return;
+          const p = node.parent;
+          let producing = false;
+          if (ts.isCallExpression(p) && ['finish', 'settle'].includes(calleeName(p) ?? '')) producing = !(one.file === CT && finishes.some((f) => f.node.pos === p.pos && f.node.end === p.end));
+          else if (ts.isReturnStatement(p) || ts.isConditionalExpression(p)) producing = true;
+          else if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.EqualsToken) producing = true;
+          else if (ts.isVariableDeclaration(p)) producing = true;
+          else if (ts.isPropertyAssignment(p) && p.initializer === node && ['class', 'cls'].includes(p.name.getText(other))) {
+            const table = ancestorsOf(p).find((a) => ts.isVariableDeclaration(a));
+            producing = !(one.file === 'src/main/machines/errors.ts' && table !== undefined && table.name.getText(other) === 'COPY');
+          }
+          if (producing) fail(`${one.file}:${String(lineOf(other, node))} produces ${node.text} (${p.getText(other).slice(0, 80)}); only the two runners' two branches may (D14).`);
+        });
+      }
+    }
+    const r = d.reasons ?? null;
+    if (r === null) cantJudge(129, 'errors.ts gave no clientFailedReason or composeOutcomeCopy');
+    else {
+      const WANT = {
+        'posix_spawnp failed.': 'macOS would not start it and did not say why',
+        EACCES: 'macOS would not let Tortie run it',
+        EPERM: 'macOS would not let Tortie run it',
+        EMFILE: 'Tortie has too many files open',
+        ENFILE: 'Tortie has too many files open',
+        EAGAIN: 'this Mac is running too many programs to start another',
+        ENOENT: 'macOS would not start it and did not say why',
+        'a bare string': 'macOS would not start it and did not say why',
+        'a forkpty failure': 'macOS would not start it and did not say why'
+      };
+      for (const row of r.rows ?? []) {
+        if (row.reason !== WANT[row.name]) fail(`clientFailedReason(${row.name}) reads ${J(row.reason)}; D14 as revised says ${J(WANT[row.name])}.`);
+        if (/terminal|pty/i.test(String(row.reason))) fail(`clientFailedReason(${row.name}) names a terminal; node-pty's one string carries no errno and cannot honestly be read as that (§Attack R10).`);
+      }
+      const fc = r.failedCopy ?? {};
+      if (fc.headline !== 'Tortie could not start ssh on this Mac.') fail(`client-failed's headline reads ${J(fc.headline)}.`);
+      if (fc.detail !== 'ssh is at /usr/bin/ssh, but macOS would not start it and did not say why. Nothing was sent to any machine.') fail(`client-failed's detail reads ${J(fc.detail)}.`);
+      if (/no ssh/i.test(String(fc.headline)) || /no ssh/i.test(String(fc.detail))) fail('client-failed says this Mac has no ssh, which is the sentence he read with /usr/bin/ssh in place.');
+      if (!/no ssh program/i.test(String(r.missingCopy?.headline ?? ''))) fail(`client-missing no longer says this Mac has no ssh program (${J(r.missingCopy?.headline)}).`);
+    }
+  }
+
+  // --- 130. The Add press binds the sheet's version, and only an unmeasured one
+  {
+    const fail = (message) => failures.push(`condition 130: ${message}`);
+    const sf = astOf(IPC);
+    if (sf === null) cantJudge(130, `${IPC} is not there`);
+    else {
+      const add = handlerOf(sf, 'machines:add');
+      if (add === null) fail(`${IPC} registers no machines:add handler.`);
+      else {
+        const body = codeText(add, sf);
+        const at = (needle) => body.indexOf(needle);
+        if (!(at('rowFromAdd(') >= 0 && at('rowFromAdd(') < at('describeMachine(') && at('describeMachine(') < at('addMachineRow('))) {
+          fail('machines:add does not build rowFromAdd(input), then describeMachine over that row, then addMachineRow, in that order; the hash a person read must be recomputed over the row about to be written (Phase 68, D7).');
+        }
+      }
+      const rowFromAdd = fnNodeNamed(sf, 'rowFromAdd');
+      if (rowFromAdd === null) fail(`${IPC} has no rowFromAdd.`);
+      else {
+        // rowFromAdd and the local functions it calls, one level down.
+        const local = new Set();
+        visit(rowFromAdd, (node) => {
+          if (ts.isCallExpression(node) && ts.isIdentifier(node.expression)) local.add(node.expression.text);
+        });
+        const reach = [rowFromAdd, ...[...local].map((n) => fnNodeNamed(sf, n)).filter((n) => n !== null)].map((n) => codeText(n, sf)).join('\n');
+        if (!/\.acceptedTmuxVersion\s*=/.test(codeText(rowFromAdd, sf))) fail('rowFromAdd never puts acceptedTmuxVersion on the row, so a version the sheet bound is dropped and the add refuses its own hash (D7).');
+        if (!/MACHINE_VERSION_PATTERN\)?\.test\(/.test(reach.replace(/new RegExp\(\s*MACHINE_VERSION_PATTERN\s*\)/g, 'MACHINE_VERSION_PATTERN)'))) fail('the add writes an accepted version without testing it against MACHINE_VERSION_PATTERN (D7: a value that fails refuses with nothing written).');
+        if (!/decideRemoteVersionGate\([^)]*\)\.kind\s*===\s*'measured'/.test(reach)) fail('the add accepts a version without asking decideRemoteVersionGate whether Tortie measured it; an acceptance of a measured version is dropped from the lines and kept in the hash (§Attack R9).');
+      }
+    }
+    const runner = far.runner ?? null;
+    if (runner !== null && runner.ran === true) {
+      const by = Object.fromEntries((runner.scenarios ?? []).map((s) => [s.id, s]));
+      for (const id of ['measured', 'unmeasured', 'not-read', 'unmeasured-saved', 'with-key']) {
+        const s = by[id];
+        if (s === undefined) {
+          fail(`the runner drive has no ${id} scenario.`);
+          continue;
+        }
+        if (s.cls !== 'ok') fail(`the ${id} check ended ${J(s.cls)} where the block it was given is one program.`);
+        if (s.sheet === null) {
+          fail(`the ${id} check composed no sheet; every ok draws Add (D8 as revised).`);
+          continue;
+        }
+        if (s.sheet.hash !== s.wantHash) fail(`the ${id} sheet hashes to ${String(s.sheet.hash).slice(0, 12)} where the row it binds hashes to ${String(s.wantHash).slice(0, 12)}.`);
+        if ((s.sheet.acceptedTmuxVersion ?? null) !== s.wantAccepts) fail(`the ${id} sheet binds ${J(s.sheet.acceptedTmuxVersion)} as accepted; it binds ${J(s.wantAccepts)} (only a draft's unmeasured version, D7, D8).`);
+        if (s.wantAccepts === null && s.sheet.hash !== s.baseHash) fail(`the ${id} sheet's hash is not the base hash for the same id and fields, so a machine with nothing to accept would hash unlike today.`);
+        if (s.wantAccepts !== null && !(s.sheet.lines ?? []).some((l) => String(l).includes(s.wantAccepts))) fail(`the ${id} sheet binds ${s.wantAccepts} and no line he reads names it.`);
+        if (s.wantAccepts !== null && (s.sheet.versionHonesty ?? null) === null) fail(`the ${id} sheet binds a version and carries no versionHonesty paragraph.`);
+      }
+    } else if (Object.keys(far.loadErrors ?? {}).length === 0) fail('the runner drive did not run.');
+  }
+
+  // --- 131. Nothing he confirmed moves --------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 131: ${message}`);
+    const confirmCode = codeOf('src/main/machines/confirm.ts') ?? '';
+    const appended = /const APPENDED_KEYS[^=]*=\s*\[([^\]]*)\]/.exec(confirmCode)?.[1] ?? null;
+    const keys = appended === null ? null : [...appended.matchAll(/'([^']+)'/g)].map((m) => m[1]);
+    if (J(keys) !== J(['acceptedTmuxVersion', 'writeRoot'])) fail(`APPENDED_KEYS reads ${J(keys)}; Phase 340 adds no hashed field (D16).`);
+    const algorithm = /export const MACHINE_EXECUTION_HASH_ALGORITHM\s*=\s*'([^']+)'/.exec(confirmCode)?.[1] ?? null;
+    if (algorithm !== 'sha256-machine-exec-v1') fail(`MACHINE_EXECUTION_HASH_ALGORITHM reads ${J(algorithm)}; at the parent it is sha256-machine-exec-v1, and a moved algorithm un-confirms every machine.`);
+    const ROW_KEYS = ['id', 'label', 'color', 'host', 'user', 'port', 'remoteTmuxPath', 'acceptedTmuxVersion', 'writeRoot'];
+    if (J(data.phase336?.machineRowKeys ?? null) !== J(ROW_KEYS)) fail(`MACHINE_ROW_KEYS reads ${J(data.phase336?.machineRowKeys)}; Phase 340 adds no machines.json key, because an older Tortie drops a whole row with a key it does not know (M18, D16).`);
+    if ((data.acceptedVersion ?? {}).unaccepted !== UNACCEPTED_HASH_2026_08_18) fail('condition 42\'s pinned hash moved.');
+  }
+
+  // --- 132. Refusal 8 in the renderer ---------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 132: ${message}`);
+    const STARTERS = ['startDraftTest', 'startSavedTest', 'prepareMachine', 'addMachine', 'installKey', 'findTailnet', 'setUpSignIn', 'sendTestInput', 'answerAsk', 'usePeer', 'pickCandidate', 'checkAgain', 'openAdd', 'beginTest'];
+    const BRIDGE_STARTS = ['test', 'prepare', 'installKey', 'testInput', 'tailscaleNames', 'add', 'acceptVersion'];
+    const SUBSCRIBERS = ['useEffect', 'useLayoutEffect', 'subscribe', 'onStateChanged', 'onAgentsChanged', 'onTestEvent'];
+    const FORBIDDEN_OWNERS = ['refresh', 'reload', 'init', 'receiveTestEvent'];
+    const settingsFiles = p340Files.filter((one) => one.file.startsWith(SETTINGS_DIR) && /\.(tsx?)$/.test(one.file));
+    if (settingsFiles.length < 10) cantJudge(132, `the scan read ${String(settingsFiles.length)} file(s) under ${SETTINGS_DIR}`);
+    let openAddCallers = [];
+    let starterCalls = 0;
+    for (const one of settingsFiles) {
+      const sf = ts.createSourceFile(one.file, one.text, ts.ScriptTarget.Latest, true, one.file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      // A component takes a starter under another name:
+      // `const prepare = useMachinesStore((s) => s.prepareMachine)`.
+      const alias = new Map(STARTERS.map((n) => [n, n]));
+      for (const m of one.code.matchAll(/\bconst\s+(\w+)\s*=\s*useMachinesStore\(\s*\(?\s*(\w+)\s*\)?\s*=>\s*\2\.(\w+)\s*\)/g)) {
+        if (STARTERS.includes(m[3])) alias.set(m[1], m[3]);
+      }
+      for (const call of callsIn(sf)) {
+        const e = call.node.expression;
+        let starter = null;
+        if (ts.isIdentifier(e) && alias.has(e.text)) starter = alias.get(e.text);
+        else if (ts.isPropertyAccessExpression(e) && STARTERS.includes(e.name.text)) starter = e.name.text;
+        else if (ts.isPropertyAccessExpression(e) && BRIDGE_STARTS.includes(e.name.text) && ts.isIdentifier(e.expression) && e.expression.text === 'b') starter = `b.${e.name.text}`;
+        if (starter === null) continue;
+        starterCalls += 1;
+        const at = `${one.file}:${String(lineOf(sf, call.node))}`;
+        // Inside an effect or a subscription's callback.
+        const sub = call.chain.find((p) => ts.isCallExpression(p) && SUBSCRIBERS.includes(calleeName(p) ?? '') && p.arguments.some((arg) => arg.pos <= call.node.pos && call.node.end <= arg.end));
+        if (sub !== undefined) fail(`${at} calls ${starter} inside ${calleeName(sub)}(…); a check, a prepare or a read of the tailnet starts only from his press, never from an effect or a push (refusal 8, D5).`);
+        const owner = call.owners.find((n) => FORBIDDEN_OWNERS.includes(n ?? ''));
+        if (owner !== undefined) fail(`${at} calls ${starter} inside ${owner}, which runs on opening Settings or on a push (refusal 8).`);
+        if (starter === 'openAdd') openAddCallers.push({ at, call });
+      }
+    }
+    if (starterCalls < 10) cantJudge(132, `the scan found ${String(starterCalls)} starter call(s) under ${SETTINGS_DIR}, so it is reading the wrong files`);
+    // `openAdd` has one caller, the Add a machine button's onClick.
+    const outside = openAddCallers.filter(({ call }) => !(call.owners.includes('openAdd')));
+    if (outside.length !== 1) fail(`openAdd is called from ${String(outside.length)} place(s) (${outside.map((o) => o.at).join(', ')}); it has one caller, the Add a machine button, because it reads the tailnet (D6).`);
+    else {
+      const attr = outside[0].call.chain.find((p) => ts.isJsxAttribute(p));
+      const name = attr === undefined ? null : attr.name.getText();
+      if (name === null || !/^on[A-Z]/.test(name)) fail(`openAdd's one call (${outside[0].at}) is not in a JSX event handler.`);
+    }
+  }
+
+  // --- 133. One chain of a confirmation into a prepare ---------------------
+  {
+    const fail = (message) => failures.push(`condition 133: ${message}`);
+    const sf = astOf(STORE);
+    if (sf === null) cantJudge(133, `${STORE} is not there`);
+    else {
+      const prepares = callsIn(sf).filter((c) => ts.isPropertyAccessExpression(c.node.expression) && c.node.expression.name.text === 'prepare' && ts.isIdentifier(c.node.expression.expression) && c.node.expression.expression.text === 'b');
+      const ALLOWED = ['addMachine', 'installKey', 'prepareMachine', 'acceptVersion'];
+      for (const c of prepares) {
+        const owner = c.owners.find((n) => n !== null) ?? '?';
+        if (!ALLOWED.includes(owner)) fail(`${STORE}:${String(lineOf(sf, c.node))} calls b.prepare( inside ${owner}; only the Add press (addMachine), the key step of a saved row (installKey), Prepare itself and Accept may (D7, D12).`);
+      }
+      const confirm = fnNodeNamed(sf, 'confirmMachine');
+      if (confirm === null) fail(`${STORE} has no confirmMachine.`);
+      else if (/\.prepare\(|\bprepareMachine\(/.test(codeText(confirm, sf))) fail('confirmMachine prepares; Confirm on Review… confirms only, and a separate Prepare press keeps a second look before anything starts there (D12 as revised, §Attack R4).');
+      const add = fnNodeNamed(sf, 'addMachine');
+      if (add === null) fail(`${STORE} has no addMachine.`);
+      else {
+        const inAdd = prepares.filter((c) => (c.owners.find((n) => n !== null) ?? '') === 'addMachine');
+        if (inAdd.length !== 1) fail(`addMachine calls b.prepare( ${String(inAdd.length)} time(s); it calls it once (D7).`);
+        let addCall = null;
+        visit(add, (node) => {
+          if (addCall === null && ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === 'add' && ts.isIdentifier(node.expression.expression) && node.expression.expression.text === 'b') addCall = node;
+        });
+        if (addCall === null) fail('addMachine never calls b.add(.');
+        else if (inAdd.length === 1) {
+          const prep = inAdd[0].node;
+          const awaited = ts.isAwaitExpression(addCall.parent);
+          const decl = awaited && ts.isVariableDeclaration(addCall.parent.parent) ? addCall.parent.parent.name.getText(sf) : null;
+          if (!awaited || decl === null) fail('addMachine does not await b.add( into a name, so the prepare cannot take the id the add returned.');
+          if (!(addCall.end <= prep.pos)) fail('addMachine calls b.prepare( before the awaited b.add(; a prepare must follow the agreement it was confirmed by (D7).');
+          const tryOf = (node) => ancestorsOf(node).find((p) => ts.isTryStatement(p)) ?? null;
+          const t1 = tryOf(addCall);
+          const t2 = tryOf(prep);
+          if (t1 === null || t1 !== t2 || !(t1.tryBlock.pos <= addCall.pos && prep.end <= t1.tryBlock.end)) fail('addMachine\'s b.add( and b.prepare( are not inside the same try, so an add main refused could still reach the prepare.');
+          const arg = prep.arguments[0]?.getText(sf) ?? '';
+          if (decl !== null && !new RegExp(`^${decl}\\.id$`).test(arg)) fail(`addMachine prepares ${J(arg)} rather than the id the add returned (${decl}.id).`);
+        }
+      }
+    }
+  }
+
+  // --- 134. The ⋯ menu is native --------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 134: ${message}`);
+    for (const one of p340Files.filter((f) => f.file.startsWith(SETTINGS_DIR))) {
+      if (!one.file.endsWith('.tsx') && !one.code.includes('role')) continue;
+      const sf = ts.createSourceFile(one.file, one.text, ts.ScriptTarget.Latest, true, one.file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
+      visit(sf, (node) => {
+        if (ts.isJsxAttribute(node) && node.name.getText(sf) === 'role' && node.initializer !== undefined) {
+          const v = node.initializer.getText(sf).replace(/^\{?['"`]|['"`]\}?$/g, '');
+          if (/^menu(item(checkbox|radio)?|bar)?$/.test(v)) fail(`${one.file}:${String(lineOf(sf, node))} draws an element with role="${v}"; a machine's menu is native, through ui:popupMenu, and never drawn in the DOM (the UI rule, D20).`);
+        }
+      });
+    }
+    const sf = astOf(ROW);
+    if (sf === null) cantJudge(134, `${ROW} is not there`);
+    else {
+      let button = null;
+      visit(sf, (node) => {
+        if (button === null && (ts.isJsxOpeningElement(node) || ts.isJsxSelfClosingElement(node)) && node.attributes.properties.some((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'data-machines-more')) button = node;
+      });
+      if (button === null) fail(`${ROW} has no element carrying data-machines-more, the ⋯ button (D23).`);
+      else {
+        const onClick = button.attributes.properties.find((a) => ts.isJsxAttribute(a) && a.name.getText(sf) === 'onClick');
+        if (onClick === undefined) fail('the ⋯ button has no onClick.');
+        else {
+          const inline = onClick.initializer === undefined ? '' : codeText(onClick.initializer, sf);
+          // The press handler, or the one local function it hands the press to.
+          const called = [...inline.matchAll(/\b(\w+)\s*\(/g)].map((m) => m[1]).find((n) => fnNodeNamed(sf, n) !== null) ?? null;
+          const handlerNode = called === null ? onClick.initializer : fnNodeNamed(sf, called);
+          const handler = called === null ? inline : codeText(handlerNode, sf);
+          if (!/\.popupMenu\(/.test(handler)) fail('the ⋯ press does not call popupMenu(; its rows are drawn by the native menu and nothing else.');
+          if (!/\bmachineMenuItems\(/.test(handler)) fail('the ⋯ press does not hand popupMenu the rows of machineMenuItems(.');
+          if (!/\brunMachineMenuItem\(/.test(handler)) fail('the ⋯ press does not run the pick through runMachineMenuItem(, the one runner the probe hook also uses.');
+          const head = handler.slice(0, Math.max(0, handler.search(/\.popupMenu\(/)));
+          let drawsJsx = false;
+          if (handlerNode !== undefined) visit(handlerNode, (node) => {
+            if (ts.isJsxElement(node) || ts.isJsxSelfClosingElement(node) || ts.isJsxFragment(node)) drawsJsx = true;
+          });
+          if (drawsJsx) fail('the ⋯ press draws JSX; with no popupMenu on the bridge it draws nothing (D20).');
+          if (/\bset[A-Z]\w*\(|\bsetPanel\(|\btogglePanel\(/.test(head)) fail('the ⋯ press changes what the row draws before it asks for the native menu, which is a branch that draws something when popupMenu is absent (D20).');
+          if (!/typeof\s+[\w.]+\.popupMenu\s*!==\s*'function'[^;]*\)\s*return\b|!\s*[\w.]+\.popupMenu\)\s*return\b/.test(handler)) fail('the ⋯ press does not return when the bridge has no popupMenu (D20: the press does nothing).');
+        }
+      }
+      // Nothing else draws the menu's rows.
+      for (const one of p340Files.filter((f) => f.file.startsWith(SETTINGS_DIR) && f.file.endsWith('.tsx'))) {
+        const n = (one.code.match(/\bmachineMenuItems\(/g) ?? []).length;
+        if (n > 0 && one.file !== ROW) fail(`${one.file} calls machineMenuItems( ${String(n)} time(s); only the ⋯ press hands its rows to the native menu.`);
+        if (one.file === ROW && n !== 1) fail(`${ROW} calls machineMenuItems( ${String(n)} time(s); once, in the ⋯ press.`);
+      }
+    }
+    const m = d.menu ?? null;
+    if (m === null) cantJudge(134, 'machine-menu.ts gave no machineMenuItems');
+    else {
+      const D20 = [
+        ['prepare', 'Prepare this machine'],
+        ['test', 'Test the connection'],
+        ['what', 'What Tortie runs there…'],
+        [null, null],
+        ['forget', 'Stop trusting this machine'],
+        ['remove', 'Remove…']
+      ];
+      const shape = (items) => (items ?? []).map((i) => (i.type === 'separator' ? [null, null] : [i.id, i.label]));
+      for (const state of ['confirmed', 'never', 'accepted']) {
+        const got = m[state];
+        if (got === undefined || got.items === undefined) {
+          fail(`machineMenuItems for a ${state} row threw: ${String(got?.threw)}.`);
+          continue;
+        }
+        if (J(shape(got.items)) !== J(D20)) fail(`a ${state} row's menu reads ${J(shape(got.items))}; D20 is ${J(D20)}, in that order.`);
+        const enabled = Object.fromEntries(got.items.filter((i) => i.type !== 'separator').map((i) => [i.id, i.enabled]));
+        const want = state === 'never' ? { prepare: false, test: false, what: true, forget: false, remove: true } : { prepare: true, test: true, what: true, forget: true, remove: true };
+        if (J(enabled) !== J(want)) fail(`a ${state} row's menu enables ${J(enabled)}; D20 enables ${J(want)}.`);
+        const sub = got.items.find((i) => i.id === 'forget')?.sublabel ?? null;
+        if (state === 'accepted' && sub !== 'Also takes back version 3.9z') fail(`Stop trusting this machine carries ${J(sub)} while an acceptance of 3.9z stands; it carries "Also takes back version 3.9z" (D20).`);
+        if (state !== 'accepted' && sub !== null) fail(`Stop trusting this machine carries a sub-line ${J(sub)} with no acceptance standing.`);
+      }
+    }
+  }
+
+  // --- 135. Open a folder on it… --------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 135: ${message}`);
+    const sf = astOf(IPC);
+    if (sf !== null) {
+      const h = handlerOf(sf, 'machines:openFolder');
+      if (h === null) fail(`${IPC} registers no machines:openFolder handler (D13).`);
+      else {
+        const body = codeText(h, sf);
+        const asked = body.indexOf('isMachineConfirmed(');
+        const opened = body.indexOf('openFolderOnMachine(');
+        if (asked < 0) fail('machines:openFolder never asks isMachineConfirmed, so a row nobody agreed to would raise the main window\'s folder sheet on it (D13).');
+        else if (opened < 0 || !(asked < opened)) fail('machines:openFolder does not ask isMachineConfirmed BEFORE openFolderOnMachine.');
+        if (!/if\s*\(\s*!\s*isMachineConfirmed\([^)]*\)\s*\)\s*return\s+false/.test(body.replace(/\s+/g, ' ').replace(/\(\s*row\.id,\s*machineFieldsOf\(row\)\s*\)/g, '(row)'))) fail('machines:openFolder does not answer false for a row that is not confirmed.');
+      }
+    }
+    const menuSf = astOf(MENU);
+    if (menuSf === null) cantJudge(135, `${MENU} is not there`);
+    else {
+      const fn = fnNodeNamed(menuSf, 'openFolderOnMachine');
+      if (fn === null) fail(`${MENU} has no openFolderOnMachine.`);
+      else {
+        const sends = [];
+        visit(fn, (node) => {
+          if (ts.isCallExpression(node) && calleeName(node) === 'sendMenuAction') sends.push(node.arguments[0]?.getText(menuSf) ?? '');
+        });
+        if (J(sends) !== J(['`${OPEN_FOLDER_ON_PREFIX}${id}`'])) fail(`openFolderOnMachine sends ${J(sends)}; it sends exactly \`\${OPEN_FOLDER_ON_PREFIX}\${id}\` and nothing else (D13).`);
+        if (/\b(spawn|spawnSync|execFile|execFileSync|exec|execSync|fork)\s*\(|child_process|utilityProcess/.test(codeText(fn, menuSf))) fail('openFolderOnMachine starts a process; Open a folder on it… starts nothing (D13).');
+      }
+    }
+  }
+
+  // --- 136. The row's two facts are memory, and go with the machine --------
+  {
+    const fail = (message) => failures.push(`condition 136: ${message}`);
+    const code = codeOf(ROW_FACTS);
+    if (code === null) cantJudge(136, `${ROW_FACTS} is not there`);
+    else {
+      // Any import, type or value, from a module that writes a file, opens the
+      // manifest, writes the machines file or starts a process (SPEC §9.1 136).
+      const imports = [...code.matchAll(/^\s*import\s+(?:type\s+)?[^'"]*from\s*['"]([^'"]+)['"]/gm)].map((m) => m[1]);
+      if (imports.length === 0 && /\bimport\b/.test(code)) cantJudge(136, `${ROW_FACTS}'s imports could not be read`);
+      for (const from of imports) {
+        if (/^(node:)?(fs|fs\/promises|child_process)$|manifest|\/store$|\/schema$|\/removal$|^electron$|\/proc\//.test(from)) {
+          fail(`${ROW_FACTS} imports ${from}; the facts are memory in main, never a file, and start nothing (M18, D24).`);
+        }
+      }
+      if (/\b(writeFileSync|appendFileSync|writeFile|spawn|execFile)\b/.test(code)) fail(`${ROW_FACTS} writes a file or starts a process.`);
+    }
+    const rsf = astOf(REMOVAL);
+    if (rsf === null) cantJudge(136, `${REMOVAL} is not there`);
+    else {
+      const fn = fnNodeNamed(rsf, 'removeMachineCompletely');
+      const body = fn === null ? '' : codeText(fn, rsf);
+      if (!/\bforgetRemoteMachineHome\(/.test(body)) fail('removeMachineCompletely no longer forgets the machine\'s home.');
+      if (!/\bforgetRowFacts\(/.test(body)) fail('removeMachineCompletely does not call forgetRowFacts beside forgetRemoteMachineHome, so a removed machine\'s last sign in and system would be drawn on a machine added again under its name (D24).');
+    }
+  }
+
+  // --- 137. The strict reader -----------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 137: ${message}`);
+    const sf = astOf(CT);
+    if (sf !== null) {
+      const start = fnNodeNamed(sf, 'startMachineTest');
+      let onExit = null;
+      if (start !== null) {
+        visit(start, (node) => {
+          if (onExit === null && ts.isCallExpression(node) && calleeName(node) === 'onExit') onExit = node;
+        });
+      }
+      if (onExit === null) fail('startMachineTest has no pty.onExit handler to read.');
+      else {
+        const t = codeText(onExit, sf);
+        if (!/\bclassifyCheckOutput\(/.test(t)) fail('the live test\'s exit handler does not decide its class with classifyCheckOutput (D15 as revised).');
+        if (/\bclassifyProbeOutput\(/.test(t)) fail('the live test\'s exit handler still reads the retired probe\'s classifier.');
+      }
+    }
+    const recorded = far.recorded ?? [];
+    if (recorded.length < 10 && Object.keys(far.loadErrors ?? {}).length === 0) fail(`the far check read ${String(recorded.length)} recorded buffer(s).`);
+    for (const one of recorded) {
+      const v = one.view ?? {};
+      const want = one.want ?? {};
+      const parsed = v.malformed === true ? 'malformed' : v.none === true ? 'none' : 'facts';
+      if (parsed !== want.parsed) fail(`the recorded buffer ${one.id} read as ${parsed}; it is ${want.parsed}.`);
+      if (want.klass !== undefined && v.klass !== want.klass) fail(`the recorded buffer ${one.id} classed ${J(v.klass)}; it is ${want.klass}.`);
+      if (want.klassNot !== undefined && v.klass === want.klassNot) fail(`the recorded buffer ${one.id} classed ${want.klassNot}: the far side did not run Tortie's check, and the legacy pair alone may never answer ok.`);
+      if (want.candidates !== undefined && J(v.candidates) !== J(want.candidates)) fail(`the recorded buffer ${one.id} named ${J(v.candidates)}.`);
+    }
+    // The same bytes the shells printed: F8 and F9 hostile, F10 honest.
+    for (const row of farRows.filter((r) => r.inner === 'sh')) {
+      const v = row.view ?? {};
+      if (['F8-fake-block-before', 'F9-fake-block-after'].includes(row.fixture) && (v.malformed !== true || v.klass !== 'unknown')) {
+        fail(`${row.fixture}'s real bytes read as ${J({ malformed: v.malformed, klass: v.klass, candidates: v.candidates })}; a buffer holding other than one block is unknown with no sheet (D15, §Attack T1).`);
+      }
+      if (row.fixture === 'F10-newline-folder' && (v.malformed === true || v.klass !== 'no-program')) {
+        fail(`F10's real bytes read as ${J({ malformed: v.malformed, klass: v.klass })}; a folder holding a newline is skipped and the answer stays well formed (D2, §Attack T2).`);
+      }
+      // THE FIX ROUND. A candidate the schema's path rule refuses is skipped
+      // by the script, so the strict reader never meets one from an honest
+      // machine, and the real program beside it decides.
+      if (['F13-relative-login', 'F14-quote-folder', 'F15-tab-folder'].includes(row.fixture) && (v.malformed === true || v.klass !== 'ok')) {
+        fail(`${row.fixture}'s real bytes read as ${J({ malformed: v.malformed, klass: v.klass })}; a candidate the schema refuses is skipped by the script, and the program beside it answers ok (the fix round).`);
+      }
+      // THE FIX ROUND's typed reading, over the same hostile bytes F8 and F9
+      // printed: with the path typed, the one block naming it decides.
+      if (['F8t-typed-past-block-before', 'F9t-typed-past-trap-after'].includes(row.fixture) && (v.malformed === true || v.klass !== 'ok' || !(v.candidates ?? []).every((c) => String(c).startsWith('typed ')))) {
+        fail(`${row.fixture}'s real bytes read as ${J({ malformed: v.malformed, klass: v.klass, candidates: v.candidates })}; a check whose path was typed reads the one block naming that path past a block a login file printed (the fix round).`);
+      }
+    }
+  }
+
+  // --- 138. The visible test names Tortie's key -----------------------------
+  {
+    const fail = (message) => failures.push(`condition 138: ${message}`);
+    const id = d.identity ?? null;
+    if (id === null) cantJudge(138, `${CT} gave no composeTestArgv`);
+    else {
+      const named = (argv) => (argv ?? []).filter((a) => String(a).startsWith('IdentityFile='));
+      for (const [which, argv] of [['a saved row', id.withKey], ['a draft', id.draftWithKey]]) {
+        const n = named(argv);
+        if (n.length !== 1) fail(`the test argv for ${which} with a key pair present names ${String(n.length)} identity file(s); it names exactly one, Tortie's own (D27, condition 48's rule).`);
+        else {
+          const value = String(n[0]).slice('IdentityFile='.length);
+          if (value !== `"${id.keyPath}"`) fail(`the test names ${value}; Tortie's key for that id is "${id.keyPath}", quoted because the data directory holds a space.`);
+          if (!String(id.keyPath).startsWith(String(id.keyDir))) fail(`${id.keyPath} is not inside the key folder ${id.keyDir}.`);
+        }
+      }
+      for (const [which, argv] of [['no key (null)', id.withNull], ['no key (omitted)', id.without]]) {
+        if (named(argv).length > 0) fail(`the test argv with ${which} names an identity file.`);
+      }
+      for (const argv of [id.withKey, id.withNull, id.without, id.draftWithKey]) {
+        if ((argv ?? []).some((a) => String(a).includes('IdentitiesOnly'))) fail('the test argv carries IdentitiesOnly; his own keys are still offered beside Tortie\'s (condition 48\'s reason).');
+      }
+      const ix = (id.withKey ?? []).findIndex((a) => String(a).startsWith('IdentityFile='));
+      const known = (id.withKey ?? []).findIndex((a) => String(a).startsWith('UserKnownHostsFile='));
+      const port = (id.withKey ?? []).indexOf('-p');
+      if (!(known >= 0 && known < ix && (port < 0 || ix < port))) fail('the identity file is not named after the record files and before -p (D27).');
+    }
+    const sf = astOf(IPC);
+    if (sf !== null) {
+      const h = handlerOf(sf, 'machines:test');
+      const body = h === null ? '' : codeText(h, sf).replace(/\s+/g, ' ');
+      if (!/identityFile: (?:\w+ !== null && )?machineKeyPairPresent\((\w+)\) \? machineKeyPath\(\1\) : null/.test(body)) {
+        fail('machines:test does not name Tortie\'s key on the check by the carriage\'s rule: identityFile is machineKeyPairPresent(id) ? machineKeyPath(id) : null (D27).');
+      }
+    }
+    const ctSf = astOf(CT);
+    if (ctSf !== null) {
+      const start = fnNodeNamed(ctSf, 'startMachineTest');
+      let spawnArgs = null;
+      if (start !== null) {
+        visit(start, (node) => {
+          if (spawnArgs === null && ts.isCallExpression(node) && node.expression.getText(ctSf) === 'nodePty.spawn') spawnArgs = node.arguments[1] === undefined ? '' : codeText(node.arguments[1], ctSf);
+        });
+      }
+      if (spawnArgs === null || !/composeTestArgv\([^)]*,[^)]*,\s*\w+/.test(spawnArgs.replace(/\s+/g, ' '))) fail('startMachineTest does not hand the identity file to composeTestArgv in the spawn.');
+    }
+    const runner = far.runner ?? null;
+    if (runner !== null && runner.ran === true) {
+      for (const s of runner.scenarios ?? []) {
+        const want = s.identityFile === null ? [] : [`IdentityFile="${s.identityFile}"`];
+        if (J(s.identityArgs) !== J(want)) fail(`the ${s.id} check's spawned argv named ${J(s.identityArgs)}; it names ${J(want)}.`);
+        if ((s.identitiesOnly ?? []).length > 0) fail(`the ${s.id} check's spawned argv carries IdentitiesOnly.`);
+      }
+    }
+  }
+
+  // --- 139. Ready means answering -------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 139: ${message}`);
+    const rows = d.status ?? null;
+    if (rows === null) cantJudge(139, `${STATUS} gave no machineStatusOf`);
+    else {
+      if (rows.length < 20) cantJudge(139, `the table drove ${String(rows.length)} row(s)`);
+      for (const r of rows) {
+        if (r.got?.threw !== undefined) fail(`machineStatusOf threw on the ${r.name} row: ${String(r.got.threw)}.`);
+        else if (r.got.chip !== r.want.chip || r.got.next !== r.want.next) fail(`the ${r.name} row reads ${J({ chip: r.got.chip, next: r.got.next })}; D11 as revised says ${J(r.want)}.`);
+      }
+      const quiet = rows.find((r) => r.name === 'ready and quiet');
+      if (quiet !== undefined && quiet.got?.chip === 'ready') fail('a machine that went to sleep reads Ready: `ready` stays true on a registered context while the link is quiet (§Attack R1).');
+    }
+    const sf = astOf(STATUS);
+    if (sf === null) cantJudge(139, `${STATUS} is not there`);
+    else {
+      const fn = fnNodeNamed(sf, 'machineStatusOf');
+      const arms = [];
+      if (fn !== null) {
+        visit(fn, (node) => {
+          if (ts.isCallExpression(node) && calleeName(node) === 'status' && ts.isStringLiteral(node.arguments[0] ?? {}) && node.arguments[0].text === 'ready') arms.push(node);
+        });
+      }
+      if (arms.length !== 1) fail(`machineStatusOf has ${String(arms.length)} arm(s) answering the Ready chip; it has one.`);
+      else {
+        const guard = ancestorsOf(arms[0]).find((p) => ts.isIfStatement(p));
+        const cond = guard === undefined ? '' : codeText(guard.expression, sf);
+        if (!/\bready\b/.test(cond) || !cond.includes("'connected'") || !cond.includes("'polling'") || !/&&/.test(cond)) {
+          fail(`the Ready arm's condition is ${J(cond)}; it requires ready AND a link of connected or polling, written out in the arm (the rule of machineAnswering, D11 as revised).`);
+        }
+      }
+    }
+  }
+
+  process.stdout.write(
+    `\nthe machine check holds: one line of sh, ${String(farTexts?.bytes ?? '?')} bytes, read strictly as exactly one block; ` +
+      `${String(farRows.length)} driven rows over eighteen fixtures under sh, dash and ksh, no stand-in run that the view says was not; ` +
+      'a missing ssh and an ssh that would not start are two classes; the Add press binds only an unmeasured version, the one chain into a prepare; ' +
+      "the visible test names Tortie's key; the ⋯ menu is native; Ready means answering.\n"
+  );
+}
+
 if (failures.length > 0) {
   process.stdout.write(`\nFAIL, ${failures.length}:\n`);
   for (const failure of failures) process.stdout.write(`  - ${failure}\n`);
@@ -13394,7 +14308,8 @@ process.stdout.write(
     'before its precheck, which reads the version through the program the child ' +
     "runs, and the rows built here name the pin's own tarball. " +
     'Nothing was started by this gate but ' +
-    "condition 88g's own /bin/sh arms and conditions 115 to 117's /bin/sh and " +
-    '/bin/dash arms (with git and shasum under them), each over a scratch ' +
-    'directory removed in a finally.\n'
+    "condition 88g's own /bin/sh arms, conditions 115 to 117's /bin/sh and " +
+    '/bin/dash arms (with git and shasum under them), and conditions 127 to ' +
+    "138's far check under /bin/sh, /bin/dash and /bin/ksh and its fake ssh, " +
+    'each over a scratch directory removed in a finally.\n'
 );

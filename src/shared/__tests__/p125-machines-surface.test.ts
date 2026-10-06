@@ -19,10 +19,11 @@
  *
  * PHASE 336 REMOVED TWO, `MachineWriteSheetInput` and `MachineAllowWritesInput`
  * in filesystem.ts, with the two channels that took them, so the list holds
- * 103.
+ * 103. PHASE 340 ADDED TWO in connection.ts, `MachineCheckView` and
+ * `MachineTestAsk`, so it holds 105.
  *
  * REACHABILITY IS PROVED BY THE COMPILER, not by this test. The `Reachable`
- * tuple at the bottom names all 103 through src/shared/ipc/index.ts, so a member
+ * tuple at the bottom names all 105 through src/shared/ipc/index.ts, so a member
  * the barrel stops re-exporting fails `npm run typecheck` and names itself.
  *
  * build/assert-import-boundaries.mjs holds the other half, being that nothing
@@ -57,6 +58,8 @@ import type {
   MachineKeySheet,
   MachineKeyInstallInput,
   MachineKeyInstallResult,
+  MachineCheckView,
+  MachineTestAsk,
   MachineLink,
   MachineFeed,
   MachineStateView,
@@ -154,7 +157,8 @@ const FAMILIES = [
  * to see what Phase 125 moved. It was 105 names, 106 since Phase 229, 107 since
  * Phase 231 and 112 since Phase 233, 105 since Phase 320.2 removed
  * sessions.ts's seven, and 103 since Phase 336 removed filesystem.ts's two
- * inputs for the sheet that typed a folder to save under,
+ * inputs for the sheet that typed a folder to save under, and 105 since Phase
+ * 340 added connection.ts's `MachineCheckView` and `MachineTestAsk`,
  * and it is not sorted, because the order is the order the split put them in.
  */
 const MEMBERS: readonly string[] = [
@@ -171,7 +175,8 @@ const MEMBERS: readonly string[] = [
   'MachineAcceptVersionInput',
   'MachinePreparedOption',
   'MachinePrepareResult',
-  // connection.ts, 10
+  // connection.ts, 10, and 12 since Phase 340 added the check's view and the
+  // question a running check is waiting on
   'MachineTestInput',
   'MachineTestStarted',
   'MachineTestClass',
@@ -182,6 +187,8 @@ const MEMBERS: readonly string[] = [
   'MachineKeySheet',
   'MachineKeyInstallInput',
   'MachineKeyInstallResult',
+  'MachineCheckView',
+  'MachineTestAsk',
   // presence.ts, 9
   'MachineLink',
   'MachineFeed',
@@ -295,7 +302,7 @@ const isPlumbing = (name: string): boolean =>
   /^Machines[A-Z]\w*(InvokeChannelMap|Api)$/.test(name) && name !== 'MachinesInvokeChannelMap';
 
 describe('the machines contract after the Phase 125 split', () => {
-  it('holds every one of the 103 members, in one file each', () => {
+  it('holds every one of the 105 members, in one file each', () => {
     const found: string[] = [];
     for (const f of FAMILIES) {
       found.push(...(domainExports.get(f) ?? []).filter((n) => !isPlumbing(n)));
@@ -304,7 +311,8 @@ describe('the machines contract after the Phase 125 split', () => {
     expect(found.length).toBe(MEMBERS.length);
     // PHASE 336. The count itself, so a member list edited in step with a
     // re-added export cannot hide it.
-    expect(MEMBERS.length).toBe(103);
+    // PHASE 340. 105, being Phase 336's 103 and the two the check added.
+    expect(MEMBERS.length).toBe(105);
     expect([...found].sort()).toEqual([...MEMBERS].sort());
   });
 
@@ -378,6 +386,8 @@ export type Reachable = [
   MachineKeySheet,
   MachineKeyInstallInput,
   MachineKeyInstallResult,
+  MachineCheckView,
+  MachineTestAsk,
   MachineLink,
   MachineFeed,
   MachineStateView,

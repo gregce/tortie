@@ -394,7 +394,10 @@ describe('the values the Add flow sends over the bridge', () => {
 
     const said = await useMachinesStore.getState().addMachine();
     expect(recorded.adds).toEqual([]);
-    expect(said).toContain('Run the connection test first.');
+    // PHASE 340. No Add button is drawn before a check has answered, so the
+    // store's own sentence says why a call that should not have come did
+    // nothing.
+    expect(said).toBe('Tortie adds a machine only after it has checked it.');
   });
 
   it('writes the row for the address that was tested, not the one in the form', async () => {
@@ -421,7 +424,10 @@ describe('the values the Add flow sends over the bridge', () => {
     expect(useMachinesStore.getState().test).toBeNull();
     const said = await useMachinesStore.getState().addMachine();
     expect(recorded.adds).toEqual([]);
-    expect(said).toContain('Run the connection test first.');
+    // PHASE 340. No Add button is drawn before a check has answered, so the
+    // store's own sentence says why a call that should not have come did
+    // nothing.
+    expect(said).toBe('Tortie adds a machine only after it has checked it.');
   });
 });
 
@@ -495,10 +501,32 @@ describe('setting up a key on one machine', () => {
   it('sends the row when the test belonged to a saved row', async () => {
     await useMachinesStore.getState().startSavedTest('pop-os');
     testRefused(KEY_SHEET);
-    await useMachinesStore.getState().installKey(PASSWORD);
+    // PHASE 340. For a saved row the install waits for the check it starts
+    // again to end, because a confirmed row is prepared only once its own
+    // machine has answered ok. So the end that main would send is sent here.
+    const pending = useMachinesStore.getState().installKey(PASSWORD);
+    await vi.waitFor(() => expect(recorded.tests).toHaveLength(2));
+    useMachinesStore.getState().receiveTestEvent({
+      testId: STARTED.testId,
+      kind: 'end',
+      outcome: {
+        testId: STARTED.testId,
+        class: 'auth-refused',
+        alarm: false,
+        headline: 'headline',
+        detail: 'detail',
+        resolvedPath: null,
+        exitCode: 255,
+        durationMs: 900,
+        sheet: null
+      }
+    });
+    await pending;
     const target = recorded.installs[0]?.target;
     expect(target).toEqual({ mode: 'saved', id: 'pop-os' });
     expect(useMachinesStore.getState().keyInstall?.savedId).toBe('pop-os');
+    // The check that followed did not answer ok, so nothing was prepared.
+    expect(recorded.prepares).toEqual([]);
   });
 
   it('sends the password once and keeps it nowhere at all', async () => {

@@ -43,10 +43,20 @@
  * a key. Those all arrive from main beside the hash the agreement binds to, so
  * a path written in this file could differ from the path main writes to, and a
  * person would have agreed to the wrong one.
+ *
+ * WHAT PHASE 340 CHANGED (build/p340/SPEC.md section 8, section 5.5). The Add
+ * flow is pick, check and add, and the row is a name, a chip, a line of facts
+ * and one button. The REMEDY keys follow main's class set with its two new
+ * classes, `Agents on it:` joins the labels allowed a colon, one string,
+ * `Version: read when it is added`, is a fact row whose colon follows its first
+ * word and is named for that, and two button words the phase retired, Find
+ * machines on your tailnet and Show what it runs, are held dead by a witness:
+ * the Add a machine press itself now looks at the tailnet.
  */
 
 import { describe, expect, it } from 'vitest';
 import * as copy from '../machines-copy';
+import { useMachinesStore } from '../machines-store';
 import { remoteCreateArgs } from '../../../main/machines/remote-sessions';
 import {
   MACHINE_OUTCOME_CLASSES,
@@ -107,9 +117,24 @@ function everyString(): { name: string; text: string }[] {
   }
   out.push({ name: 'droppedRowsLine(1)', text: copy.droppedRowsLine(1) });
   out.push({ name: 'droppedRowsLine(2)', text: copy.droppedRowsLine(2) });
-  out.push({ name: 'tailnetCountLine(0)', text: copy.tailnetCountLine(0) });
-  out.push({ name: 'tailnetCountLine(1)', text: copy.tailnetCountLine(1) });
-  out.push({ name: 'tailnetCountLine(4)', text: copy.tailnetCountLine(4) });
+  // PHASE 340. Every sentence the check, the Add step, the ready step and the
+  // row compose, each with a sample value. A value is data the machine or main
+  // reported (an address, an account, a path, a version, a fingerprint), so the
+  // samples carry no punctuation of their own and the audit reads Tortie's
+  // words around them. The address with its port is checked by itself below,
+  // because its colon is the address's own notation.
+  out.push({ name: 'checkingLine', text: copy.checkingLine('Studio') });
+  out.push({ name: 'reachedLine(no port)', text: copy.reachedLine('studio', null) });
+  out.push({ name: 'signedInLine', text: copy.signedInLine('greg') });
+  out.push({ name: 'foundLine', text: copy.foundLine('the path') });
+  out.push({ name: 'versionLine', text: copy.versionLine('3.6a') });
+  out.push({ name: 'versionUnmeasuredLine', text: copy.versionUnmeasuredLine('3.9z') });
+  out.push({ name: 'fingerprintLine', text: copy.fingerprintLine('the fingerprint') });
+  out.push({ name: 'addLabel', text: copy.addLabel('Studio') });
+  out.push({ name: 'acceptsVersionLine', text: copy.acceptsVersionLine('3.9z') });
+  out.push({ name: 'readyLine', text: copy.readyLine('Studio') });
+  out.push({ name: 'alsoTakesBackVersion', text: copy.alsoTakesBackVersion('3.9z') });
+  out.push({ name: 'moreLabel', text: copy.moreLabel('Studio') });
   out.push({ name: "lastLookedLine('now')", text: copy.lastLookedLine('now') });
   out.push({ name: "lastLookedLine('2m')", text: copy.lastLookedLine('2m') });
   // PHASE 72. Every shape of the two counting sentences and of the three
@@ -189,18 +214,42 @@ describe('words and punctuation', () => {
 
   it('carries a colon only on a named label, and only as its last character', () => {
     const allowed = new Set<string>(copy.LABELS_ENDING_IN_A_COLON);
+    // PHASE 340. One fact row reads `Version: read when it is added`, a label
+    // and its value on one line. It is named, and its one colon must follow its
+    // first word, so a colon anywhere else in it still fails.
+    const labelled = new Set<string>(copy.LINES_WITH_A_LABEL_COLON);
     for (const { name, text } of STRINGS) {
       // A clock time is not prose. It is removed first and the check below
       // then holds the rule exactly, so a colon that appears anywhere else in
       // this sentence still fails.
       const prose = text.replace(CLOCK_TIME, 'a clock time');
       if (!prose.includes(':')) continue;
+      if (labelled.has(prose)) {
+        const firstWord = prose.split(' ')[0] ?? '';
+        expect({
+          name,
+          colons: prose.split(':').length - 1,
+          afterFirstWord: firstWord.endsWith(':')
+        }).toEqual({ name, colons: 1, afterFirstWord: true });
+        continue;
+      }
       expect({
         name,
         named: allowed.has(prose),
         onlyColonIsTheLastCharacter: prose.indexOf(':') === prose.length - 1
       }).toEqual({ name, named: true, onlyColonIsTheLastCharacter: true });
     }
+  });
+
+  it('names exactly one fact row whose colon follows its first word (Phase 340)', () => {
+    expect([...copy.LINES_WITH_A_LABEL_COLON]).toEqual(['Version: read when it is added']);
+  });
+
+  it('puts the only colon of an address with a port between the two (Phase 340)', () => {
+    // The address and the port are the machine's own, and `host:port` is how
+    // an address names a port, so the colon is data rather than prose.
+    expect(copy.reachedLine('studio', 2222)).toBe('Reached studio:2222');
+    expect(copy.reachedLine('studio', null)).toBe('Reached studio');
   });
 
   it('removes a clock time from nothing but the four sentences that carry one', () => {
@@ -232,7 +281,10 @@ describe('words and punctuation', () => {
       'Version you accepted:',
       // Phase 131. It stands immediately before the first twelve characters of
       // the confirm hash and carries nothing of its own past the colon.
-      'Fingerprint of what you confirmed:'
+      'Fingerprint of what you confirmed:',
+      // Phase 340. It stands immediately before the agents the scan found on a
+      // machine that was just added.
+      'Agents on it:'
     ]);
   });
 
@@ -299,12 +351,15 @@ describe('the sentences the charter fixes', () => {
     // Phase 131 deleted the third sentence. It said that anything already
     // running on that machine is left alone, which is the same fact
     // HONESTY_NO_ADOPTION states two blocks below it on the same row.
+    // PHASE 340 deleted the second, "This is the first thing Tortie runs
+    // there", which stopped being true when the check began asking the one
+    // program it found for its version before the Add press.
     expect(copy.PREPARE_EXPLAIN).toBe(
       'Tortie starts the program on that machine that keeps your work alive, ' +
-        'and sets it up the way Tortie needs. This is the first thing Tortie ' +
-        'runs there.'
+        'and sets it up the way Tortie needs.'
     );
     expect(copy.PREPARE_EXPLAIN).not.toContain('already running');
+    expect(copy.PREPARE_EXPLAIN).not.toContain('first thing');
     expect(copy.BTN_PREPARE).toBe('Prepare this machine');
   });
 
@@ -329,18 +384,30 @@ describe('the sentences the charter fixes', () => {
     );
   });
 
-  it('says why the add button is off, while it is off', () => {
-    expect(copy.ADD_DISABLED_REASON).toBe(
-      'Run the connection test first. Tortie needs to see the machine ' +
-        'answer, and it needs the program path the machine reports.'
-    );
+  it('says why an Add press did nothing when there was no check (Phase 340)', () => {
+    // No Add button is drawn before a check has answered, so this is said
+    // only by the store, to a call that should not have been made.
+    expect(copy.ADD_NEEDS_CHECK).toBe('Tortie adds a machine only after it has checked it.');
+    expect('ADD_DISABLED_REASON' in copy).toBe(false);
   });
 
-  it('reads the same for all three states that cannot be used', () => {
-    expect(copy.STATE_CHIP.confirmed).toBe('Confirmed');
-    expect(copy.STATE_CHIP.never).toBe('Not usable');
-    expect(copy.STATE_CHIP.changed).toBe('Not usable');
-    expect(copy.STATE_CHIP.unknown).toBe('Not usable');
+  it('gives the row ten chip words, one or two words each (Phase 340, D11)', () => {
+    expect({ ...copy.CHIP_WORDS }).toEqual({
+      'not-usable': 'Not usable',
+      'not-confirmed': 'Not confirmed',
+      changed: 'Changed',
+      'identity-changed': 'Identity changed',
+      'needs-key': 'Needs a key',
+      'new-version': 'New version',
+      connecting: 'Connecting',
+      ready: 'Ready',
+      offline: 'Offline',
+      'not-ready': 'Not ready'
+    });
+    for (const word of Object.values(copy.CHIP_WORDS)) {
+      expect(word.split(' ').length).toBeLessThanOrEqual(3);
+    }
+    expect('STATE_CHIP' in copy).toBe(false);
   });
 });
 
@@ -362,7 +429,53 @@ describe('the sentences the charter fixes', () => {
  * that makes a key. Half a claim was retired and the other half shipped. The
  * walk below now reads both sets, and the third row is that sentence.
  */
+/**
+ * PHASE 340's witness, computed once: the Add a machine press itself asks
+ * Tailscale. A fake bridge counts the asks, `openAdd` is called once, and the
+ * real window, if any, is put back. `findTailnet` asks before its first await,
+ * so the count is read synchronously after the call.
+ */
+const ADD_PRESS_LOOKS: boolean = (() => {
+  const g = globalThis as { window?: unknown };
+  const had = 'window' in g;
+  const before = g.window;
+  let asks = 0;
+  g.window = {
+    gmux: {
+      machines: {
+        tailscaleNames: () => {
+          asks += 1;
+          return new Promise(() => undefined);
+        }
+      }
+    }
+  };
+  try {
+    useMachinesStore.setState({ tailscaleBusy: false });
+    useMachinesStore.getState().openAdd();
+    return asks === 1;
+  } finally {
+    useMachinesStore.setState({ adding: false, tailscaleBusy: false });
+    if (had) g.window = before;
+    else delete g.window;
+  }
+})();
+
 const RETIRED_CLAIMS = [
+  {
+    phrase: 'Find machines on your tailnet',
+    rung: 'Phase 340, 2026-10-06',
+    witness: 'the Add a machine press runs the Tailscale look itself (openAdd)',
+    shipped: () => ADD_PRESS_LOOKS
+  },
+  {
+    phrase: 'Show what it runs',
+    rung: 'Phase 340, 2026-10-06',
+    witness:
+      'the row has no disclosure button; What Tortie runs there… is a row of ' +
+      'its native menu, and the Add a machine press looks at the tailnet itself',
+    shipped: () => ADD_PRESS_LOOKS
+  },
   {
     phrase: 'cannot open a session on a machine yet',
     rung: 'Phase 70, 0.34.0, 2026-08-17',
@@ -416,6 +529,10 @@ describe('claims a shipped rung has retired', () => {
     expect(RETIRED_CLAIMS.length).toBeGreaterThan(0);
   });
 
+  it('has a Phase 340 witness that is true, so its two rows are live', () => {
+    expect(ADD_PRESS_LOOKS).toBe(true);
+  });
+
   it('reads main\'s outcome copy as well as this file\'s', () => {
     expect(MAIN_STRINGS.length).toBe(MACHINE_OUTCOME_CLASSES.length * 2);
   });
@@ -454,13 +571,14 @@ describe('the words the accept block writes for itself', () => {
     }
   });
 
-  it('says that withdrawing a version withdraws the confirmation too', () => {
-    expect(copy.WITHDRAW_VERSION_EXPLAIN).toContain(
-      'also withdraws your confirmation'
-    );
-    expect(copy.WITHDRAW_VERSION_EXPLAIN).toContain(
-      'Confirm the machine again to use it.'
-    );
+  it('says on the one menu row that withdrawing also takes the version back', () => {
+    // PHASE 340. Withdraw this version was the same call as Withdraw, so it is
+    // one menu row now, and the paragraph that explained it became that row's
+    // sub-line.
+    expect(copy.MENU_FORGET).toBe('Stop trusting this machine');
+    expect(copy.alsoTakesBackVersion('3.9z')).toBe('Also takes back version 3.9z');
+    expect('WITHDRAW_VERSION_EXPLAIN' in copy).toBe(false);
+    expect('BTN_WITHDRAW_VERSION' in copy).toBe(false);
   });
 });
 
@@ -491,7 +609,28 @@ describe('the three copies of main, checked by machine', () => {
     // Phase 79.1 added `key-installed`. The key is on the machine, the
     // surface has already started the connection test, and the answer a
     // person is waiting for is the machine's own.
-    expect(nothingToDo).toEqual(['cancelled', 'key-installed', 'ok', 'prepared']);
+    // PHASE 340 added `program-choice`: the buttons under the question are the
+    // next step, so there is nothing to add under them.
+    expect(nothingToDo).toEqual([
+      'cancelled',
+      'key-installed',
+      'ok',
+      'prepared',
+      'program-choice'
+    ]);
+  });
+
+  it("carries both of Phase 340's new classes, and tells them apart", () => {
+    // A missing ssh and an ssh that would not start are two classes because
+    // they have two different remedies (D14). The new one says what a person
+    // can do, and it is not what the missing one says.
+    expect(copy.REMEDY['client-failed']).toBe(
+      'Quit Tortie and open it again. If this keeps happening, restart this Mac.'
+    );
+    expect(copy.REMEDY['client-missing']).not.toBe(copy.REMEDY['client-failed']);
+    expect(copy.REMEDY['program-choice']).toBeNull();
+    expect(MACHINE_OUTCOME_CLASSES).toContain('client-failed');
+    expect(MACHINE_OUTCOME_CLASSES).toContain('program-choice');
   });
 });
 
@@ -506,14 +645,12 @@ describe('the words the key block writes for itself', () => {
     // differ from the path main will actually write to, and a person would
     // have agreed to the wrong one.
     const ours = [
-      copy.KEY_BLOCK_LABEL,
-      copy.KEY_LINES_LABEL,
+      copy.KEY_WHAT_THIS_DOES,
       copy.KEY_PASSWORD_LABEL,
       copy.KEY_PASSWORD_HINT,
       copy.BTN_INSTALL_KEY,
       copy.INSTALLING_KEY,
       copy.KEY_DISABLED_REASON,
-      copy.KEY_MORE_LABEL,
       copy.KEY_TRANSCRIPT_LABEL,
       copy.KEY_RESULT_LABEL,
       copy.KEY_MADE_NEW,
@@ -527,15 +664,18 @@ describe('the words the key block writes for itself', () => {
   });
 
   it('says what the button will do, in the words on the button', () => {
-    expect(copy.BTN_INSTALL_KEY).toBe('Make a key and put it on this machine');
-    expect(copy.KEY_BLOCK_LABEL).toBe('Set up a key for this machine');
+    // PHASE 340 (section 8.2). The key step is one line of the check: a field,
+    // one hint and this button. The block's two headings went.
+    expect(copy.BTN_INSTALL_KEY).toBe("Put Tortie's key on it");
+    expect('KEY_BLOCK_LABEL' in copy).toBe(false);
+    expect('KEY_LINES_LABEL' in copy).toBe(false);
   });
 
   it('promises that the password is not kept, beside the field that takes it', () => {
-    expect(copy.KEY_PASSWORD_HINT).toBe(
-      'This goes straight to the sign in program for one call. Tortie keeps ' +
-        'no copy of it.'
-    );
+    // PHASE 340 shortened it to eight words. Both promises are still in it.
+    expect(copy.KEY_PASSWORD_HINT).toBe('Sent once to sign in. Tortie keeps no copy.');
+    expect(copy.KEY_PASSWORD_HINT).toContain('Sent once');
+    expect(copy.KEY_PASSWORD_HINT).toContain('keeps no copy');
   });
 
   it('says why the button is off, while it is off', () => {
@@ -547,9 +687,10 @@ describe('the words the key block writes for itself', () => {
   });
 
   it('names the disclosure by what is behind it', () => {
-    // PHASE 130. Two of main's notes sit behind this summary. Nothing is
-    // deleted, so the label promises more rather than promising details.
-    expect(copy.KEY_MORE_LABEL).toBe('More about this key');
+    // PHASE 340. Every one of main's lines, its warning and its five notes sit
+    // behind one summary, which says what pressing the button does.
+    expect(copy.KEY_WHAT_THIS_DOES).toBe('What this does');
+    expect('KEY_MORE_LABEL' in copy).toBe(false);
   });
 
   it('says which of the two things happened to the key and to the file', () => {
@@ -677,29 +818,19 @@ describe('the advice under a machine that asked for a password', () => {
 });
 
 describe('which answers already told a person about Remote Login', () => {
-  it('names every class whose remedy already says Remote Login, and no others', () => {
-    // The set is derived from the advice text here rather than remembered, so
-    // an edit to a remedy that adds or removes the sentence cannot leave
-    // KeyInstall.tsx hiding main's first note on the wrong screen.
-    const saysIt = Object.entries(copy.REMEDY)
-      .filter(([, text]) => text !== null && text.includes('Remote Login'))
-      .map(([cls]) => cls)
-      .sort();
-    expect([...copy.REMEDY_ALREADY_SAYS_REMOTE_LOGIN].sort()).toEqual(saysIt);
-  });
-
-  it('is a set of class ids, and every one of them is a real class', () => {
-    for (const cls of copy.REMEDY_ALREADY_SAYS_REMOTE_LOGIN) {
-      expect(MACHINE_OUTCOME_CLASSES).toContain(cls);
-    }
+  it('needs no set any more, because every key note stands behind one disclosure', () => {
+    // PHASE 340 put all of main's key notes behind What this does, so no class
+    // decides which of them stands on the face, and the set is gone.
+    expect('REMEDY_ALREADY_SAYS_REMOTE_LOGIN' in copy).toBe(false);
   });
 });
 
-describe('the counting sentences the Tailscale panel writes', () => {
-  it('counts other machines in none, one and many', () => {
-    expect(copy.tailnetCountLine(0)).toBe('No other machines found.');
-    expect(copy.tailnetCountLine(1)).toBe('1 other machine found.');
-    expect(copy.tailnetCountLine(4)).toBe('4 other machines found.');
+describe('the sentences the tailnet list writes (Phase 340)', () => {
+  it('heads the list with two words and counts nothing', () => {
+    expect(copy.TAILNET_TITLE).toBe('Your tailnet');
+    expect('tailnetCountLine' in copy).toBe(false);
+    expect('TAILSCALE_NOT_LOOKED' in copy).toBe(false);
+    expect('BTN_FIND_TAILNET' in copy).toBe(false);
   });
 
   it('says when Tortie last looked, and reads plainly at zero minutes', () => {
@@ -887,8 +1018,61 @@ describe('the one telling that survived (Phase 131)', () => {
     expect([...copy.LABELS_ENDING_IN_A_COLON]).toContain(copy.ROW_HASH_LABEL);
   });
 
-  it('names the disclosure a person presses to reach the rest', () => {
-    expect(copy.ROW_MORE_LABEL).toBe('More about this machine');
-    expect(copy.ROW_MORE_LABEL).not.toContain(':');
+  it('names the menu row a person presses to reach the rest (Phase 340)', () => {
+    // The disclosure went. What it held is the panel this menu row opens.
+    expect(copy.MENU_WHAT).toBe('What Tortie runs there…');
+    expect('ROW_MORE_LABEL' in copy).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 340. Pick, check and add, and the row's one next step
+// ---------------------------------------------------------------------------
+
+describe('the words of the three steps (Phase 340, section 8.2)', () => {
+  it('writes the new strings the spec lists, word for word', () => {
+    expect(copy.BTN_TYPE_ADDRESS).toBe('Type an address…');
+    expect(copy.BTN_CHECK).toBe('Check');
+    expect(copy.BTN_RECHECK).toBe('Check again');
+    expect(copy.checkingLine('Studio')).toBe('Checking Studio…');
+    expect(copy.BTN_STOP).toBe('Stop');
+    expect(copy.signedInLine('greg')).toBe('Signed in as greg');
+    expect(copy.foundLine('/usr/local/bin/x')).toBe('Found /usr/local/bin/x');
+    expect({ ...copy.FOUND_SOURCE_HOVER }).toEqual({
+      login: 'Found by its login shell.',
+      path: 'Found on the list a command uses there.',
+      install: 'Found in a usual install folder.',
+      typed: 'The path you typed.'
+    });
+    expect(copy.versionLine('3.6a')).toBe('Version 3.6a');
+    expect(copy.versionUnmeasuredLine('3.9z')).toBe('Version 3.9z, not yet measured');
+    expect(copy.VERSION_NOT_READ).toBe('Version: read when it is added');
+    expect(copy.VERSION_UNREADABLE).toBe('It did not say its version.');
+    expect(copy.CHOOSE_PROGRAM).toBe('Which one should Tortie run?');
+    expect(copy.HOST_KEY_ASK).toBe('Tortie has not met this machine before.');
+    expect(copy.fingerprintLine('SHA256:x')).toBe('Fingerprint SHA256:x');
+    expect(copy.BTN_TRUST).toBe('Trust it');
+    expect(copy.BTN_TYPE_PATH).toBe('Type its path…');
+    expect(copy.DETAILS_LABEL).toBe('Details');
+    expect(copy.FIELD_NAME).toBe('Name');
+    expect(copy.addLabel('Studio')).toBe('Add Studio');
+    expect(copy.acceptsVersionLine('3.9z')).toBe('Accepts version 3.9z');
+    expect(copy.WHAT_IT_RUNS).toBe('What it runs');
+    expect(copy.ADDING).toBe('Adding…');
+    expect(copy.readyLine('Studio')).toBe('Studio is ready.');
+    expect(copy.AGENTS_ON_IT).toBe('Agents on it:');
+    expect(copy.BTN_OPEN_FOLDER).toBe('Open a folder on it…');
+    expect(copy.BTN_DONE).toBe('Done');
+    expect(copy.BTN_SET_UP_SIGN_IN).toBe('Set up sign-in…');
+    expect(copy.BTN_REVIEW).toBe('Review…');
+    expect(copy.MENU_TEST).toBe('Test the connection');
+    expect(copy.MENU_REMOVE).toBe('Remove…');
+    expect(copy.BTN_CLOSE).toBe('Close');
+    expect(copy.moreLabel('Studio')).toBe('More for Studio');
+    expect(copy.FIELD_REMOTE_PATH_HINT).toBe('Leave this empty and Tortie finds it.');
+  });
+
+  it('keeps Prepare this machine, because seven shipping sentences name it', () => {
+    expect(copy.BTN_PREPARE).toBe('Prepare this machine');
   });
 });

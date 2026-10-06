@@ -131,6 +131,11 @@ const FILES: readonly string[] = [
   // A module that holds log lines as well as copy cannot be audited by reading
   // its strings, and ./remote-restore.ts is one of those.
   'src/renderer/settings/machines-copy.ts',
+  // Phase 340. The row's chip and next step, and its native menu. Both draw
+  // only words that machines-copy.ts holds, and both are read so a later round
+  // cannot type a sentence straight into either.
+  'src/renderer/settings/machine-status.ts',
+  'src/renderer/settings/machine-menu.ts',
   // Phase 93. The three files that say what happened when a person asked to be
   // taken to a session. `reach-copy.ts` holds every sentence, `session-focus.ts`
   // picks which one is said and composes the machine's name, and the ⌘J list is

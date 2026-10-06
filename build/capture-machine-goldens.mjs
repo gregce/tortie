@@ -279,6 +279,21 @@ function runSsh(args, knownHosts = STEADY_RECORD) {
 
 const captures = [];
 
+/**
+ * PHASE 340. `ok` and `no-program` below are captures of the `command -v`
+ * probe the live connection test no longer runs: since Phase 340 it runs the
+ * check in src/main/machines/check-script.ts. They stay because
+ * `classifyProbeOutput` still reads them byte for byte (golden.test.ts and
+ * build/probe-key-install.mjs), and each row says so, with the words the
+ * manifest carries, so a re-run of this script keeps the note rather than
+ * dropping it.
+ */
+const RETIRED_PROBE_NOTE =
+  'Captured from the `command -v` probe Phase 340 retired (build/p340/SPEC.md D1, D15). The live connection test now ' +
+  'runs the check in src/main/machines/check-script.ts and no longer prints these bytes; classifyProbeOutput still ' +
+  'reads them byte for byte, and classifyCheckOutput, the live decision, does not answer ok for them.';
+const RETIRED_PROBE_CLASSES = new Set(['ok', 'no-program']);
+
 /** Record one capture, and write its file. */
 function capture(cls, note, result) {
   const text = result.out;
@@ -287,7 +302,8 @@ function capture(cls, note, result) {
     file: `${cls}.txt`,
     note,
     exitCode: result.code,
-    bytes: Buffer.byteLength(text, 'utf8')
+    bytes: Buffer.byteLength(text, 'utf8'),
+    ...(RETIRED_PROBE_CLASSES.has(cls) ? { retiredProbe: RETIRED_PROBE_NOTE } : {})
   });
   writeFileSync(join(goldenDir, `${cls}.txt`), text, 'utf8');
   say(
@@ -504,6 +520,24 @@ const noGolden = [
   {
     class: 'prepared',
     reason: "Tortie's own answer on success, not a program's output."
+  },
+  // PHASE 340 (D14, D4). Both are Tortie's own words, and the reasons are the
+  // manifest's byte for byte, so a re-run writes the rows builder A wrote.
+  {
+    class: 'client-failed',
+    reason:
+      'Tortie produces this when ssh is on this Mac and would not start. ' +
+      'node-pty on macOS reports every such failure with the one string ' +
+      'posix_spawnp failed. and no errno, so there is no program output to ' +
+      'capture.'
+  },
+  {
+    class: 'program-choice',
+    reason:
+      "Tortie's own judgement that its check found more than one distinct " +
+      "program, decided from a block Tortie's own script printed, so a " +
+      "captured file would be a capture of Tortie's bytes rather than a " +
+      'measurement of what some program says.'
   }
 ];
 

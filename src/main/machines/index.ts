@@ -262,6 +262,10 @@ export {
 export {
   cancelLiveMachineTest,
   cancelMachineTest,
+  // Phase 340. The live decision of a finished check. `classifyProbeOutput`
+  // stays for the goldens of the probe this phase retired, and
+  // `remoteProbeCommand`, that probe, is gone.
+  classifyCheckOutput,
   classifyProbeOutput,
   composeTestArgv,
   composeTestCommandLine,
@@ -269,7 +273,6 @@ export {
   liveMachineTestPid,
   machineSshSpawnCount,
   parseResolvedPath,
-  remoteProbeCommand,
   resetMachineTestForTests,
   sendMachineTestInput,
   startMachineTest,

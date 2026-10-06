@@ -22,8 +22,20 @@ import { REMEDY, REMEDY_LABEL } from './machines-copy';
  * A class with nothing for a person to do draws nothing at all. Advice under
  * an outcome that worked would be noise.
  */
-export function Remedy({ cls }: { cls: MachineTestClass }): React.JSX.Element | null {
-  const text = REMEDY[cls];
+export function Remedy({
+  cls,
+  text: override
+}: {
+  cls: MachineTestClass;
+  /**
+   * PHASE 340's fix round. Advice that replaces the class's own row, for an
+   * outcome main told apart inside one class (a check that signed in and whose
+   * answer could not be read is still `unknown`). It is a constant from
+   * machines-copy.ts, never a sentence composed here.
+   */
+  text?: string;
+}): React.JSX.Element | null {
+  const text = override ?? REMEDY[cls];
   if (text === null) return null;
   return (
     <div className="mach-remedy" data-remedy-class={cls}>

@@ -1,0 +1,44 @@
+{
+  "_note": "Phase 340's tailnet for probe:p340 (build/p340/tailscale-peers.mjs). ipnstate.Status cut to the fields src/main/machines/tailscale.ts reads. Made up: no real tailnet, node or address of his. p340-loop and p340-loop2 are the loopback machine under two names; the probe's ssh wrapper puts the yard's port first, so both reach it.",
+  "BackendState": "Running",
+  "Self": {
+    "HostName": "p340-this-mac",
+    "DNSName": "p340-this-mac.p340-tailnet.ts.net.",
+    "OS": "macOS",
+    "Online": true
+  },
+  "Peer": {
+    "nodekey:p340a": {
+      "HostName": "p340-loop",
+      "DNSName": "127.0.0.1.",
+      "OS": "macOS",
+      "Online": true
+    },
+    "nodekey:p340b": {
+      "HostName": "p340-loop2",
+      "DNSName": "localhost.",
+      "OS": "macOS",
+      "Online": true
+    },
+    "nodekey:p340c": {
+      "HostName": "p340-linux",
+      "DNSName": "p340-linux.p340-tailnet.ts.net.",
+      "OS": "linux",
+      "Online": false
+    },
+    "nodekey:p340d": {
+      "HostName": "p340-iphone",
+      "DNSName": "p340-iphone.p340-tailnet.ts.net.",
+      "OS": "iOS",
+      "Online": true
+    },
+    "nodekey:p340e": {
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "Online": true,
+      "ShareeNode": true,
+      "Tags": ["tag:ingress"]
+    }
+  }
+}

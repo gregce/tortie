@@ -29,11 +29,13 @@ import {
   composeTestArgv,
   composeTestCommandLine,
   parseResolvedPath,
-  remoteProbeCommand,
   splitTranscriptForDisplay,
   stripPathMarkers,
   userHostKeysPath
 } from '../connection-test';
+// PHASE 340. The far command is the check now, and these tests read it through
+// its own composer rather than through the retired `remoteProbeCommand`.
+import { CHECK_MARKER, CHECK_SCRIPT, composeCheckCommand } from '../check-script';
 
 /**
  * The two files a run checks a machine's identity against. Tortie's own path
@@ -102,27 +104,39 @@ describe('the argv', () => {
     expect(hostAt).toBeLessThan(argv.length - 1);
   });
 
+  // PHASE 340. The last element is the check, composed by its own composer,
+  // for a draft with no path and for a row that carries one. The retired
+  // probe's `command -v` is gone from it.
   it('ends with ONE argument carrying the whole remote command', () => {
     const argv = composeTestArgv(FULL, KEYS);
     const last = argv[argv.length - 1] ?? '';
+    expect(last).toBe(composeCheckCommand('/usr/bin/tmux'));
+    expect(last).toContain(CHECK_MARKER);
     expect(last).toContain(REMOTE_PATH_MARKER);
-    expect(last).toContain('command -v');
+    expect(last).not.toContain('command -v');
   });
 
-  it('asks for tmux by name when no program path was chosen', () => {
-    const last = composeTestArgv(BARE, KEYS)[composeTestArgv(BARE, KEYS).length - 1] ?? '';
-    expect(last).toContain('command -v tmux');
+  it('asks the check with no typed path when no program path was chosen', () => {
+    const argv = composeTestArgv(BARE, KEYS);
+    expect(argv[argv.length - 1]).toBe(composeCheckCommand(null));
   });
 
-  it('asks for the exact path when one was chosen', () => {
+  it('hands the exact path to the check when one was chosen', () => {
     const argv = composeTestArgv(FULL, KEYS);
-    expect(argv[argv.length - 1] ?? '').toContain('command -v /usr/bin/tmux');
+    const last = argv[argv.length - 1] ?? '';
+    expect(last).toContain(' tortie-check /usr/bin/tmux ');
   });
 
   it('quotes a program path holding a space', () => {
     const argv = composeTestArgv({ ...FULL, remoteTmuxPath: '/opt/my tools/tmux' }, KEYS);
     const last = argv[argv.length - 1] ?? '';
     expect(last).toContain("'/opt/my tools/tmux'");
+  });
+
+  it('carries the script once, as one quoted word', () => {
+    const last = composeTestArgv(BARE, KEYS).at(-1) ?? '';
+    expect(last.split(CHECK_SCRIPT)).toHaveLength(2);
+    expect(last.startsWith("/bin/sh -c '")).toBe(true);
   });
 });
 
@@ -170,13 +184,11 @@ describe('where a machine’s identity is recorded', () => {
 });
 
 describe('the remote command', () => {
-  it('wraps the answer in the marker pair, twice', () => {
-    const command = remoteProbeCommand('tmux');
-    expect(command.split(REMOTE_PATH_MARKER)).toHaveLength(3);
-  });
-
-  it('does not fail when the program is not there', () => {
-    expect(remoteProbeCommand('tmux')).toContain('|| true');
+  // PHASE 340. The check prints its block between two copies of its own
+  // marker, and the legacy path pair once inside it.
+  it('prints its block between two copies of the check marker', () => {
+    expect(CHECK_SCRIPT.split(CHECK_MARKER)).toHaveLength(3);
+    expect(CHECK_SCRIPT.split(REMOTE_PATH_MARKER)).toHaveLength(3);
   });
 });
 

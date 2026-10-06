@@ -11,6 +11,7 @@ import type {
   CloneMenuActionId,
   OpenRecentActionId,
   OpenRecentOnMachineActionId,
+  OpenFolderOnMachineActionId,
   ProjectMenuActionId,
   RemoteProjectMenuActionId
 } from './projects';
@@ -729,7 +730,10 @@ export type MenuActionWithFind =
   // Phase 92. The fourth template family. A recent row whose folder is on
   // another machine carries the machine and the path, which is one more thing
   // than a union member can hold.
-  | OpenRecentOnMachineActionId;
+  | OpenRecentOnMachineActionId
+  // Phase 340. The fifth template family. Settings then Machines, Open a folder
+  // on it…, carries the machine the main window's sheet opens with.
+  | OpenFolderOnMachineActionId;
 
 // ---------------------------------------------------------------------------
 // APPENDED by Phase 19 item 11 (sleep and wake) — one new EVENT channel, its

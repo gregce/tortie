@@ -1,7 +1,8 @@
 /**
  * A machine as a CONFIGURATION ROW a person confirms (Phase 125, from Phase 68).
  *
- * Twelve members and nine invoke channels. A machine is a row that names a
+ * Twelve members and nine invoke channels (ten since Phase 340 added
+ * `machines:openFolder`, which starts nothing). A machine is a row that names a
  * computer Tortie may sign in to as the user. Before Tortie signs in, a person
  * reads what it will run there and agrees to it once, out of band of any agent
  * turn, and the agreement is bound to a hash of the six fields that decide what
@@ -25,6 +26,9 @@ import type { MachineColor } from '../../machines';
 // `import type` and connection.ts takes two row types back, so the two files
 // reference each other in the type graph and neither is a runtime edge.
 import type { MachineTestClass } from './connection';
+// PHASE 340. The link word a row view carries beside its other facts. Type only,
+// so the two family files stay out of each other's runtime graph.
+import type { MachineLink } from './presence';
 
 // ---------------------------------------------------------------------------
 // The rows
@@ -154,6 +158,40 @@ export interface MachineRowView {
    * Optional, and absent reads as null.
    */
   writeHonesty?: string | null;
+  /**
+   * APPENDED (Phase 340, build/p340/SPEC.md D24): this machine's link word, as
+   * `machines:state` reports it for the same row at the same moment. Absent or
+   * null reads as unknown.
+   *
+   * It is carried on the row so the row's status chip reads one object. It is
+   * memory in main and never a field of machines.json, because an older Tortie
+   * drops a whole row whose file carries a key it does not know.
+   */
+  link?: MachineLink | null;
+  /** APPENDED (Phase 340, D24): the sentence that link state carries, or null. */
+  linkDetail?: string | null;
+  /**
+   * APPENDED (Phase 340, D24): what the last Prepare of this machine in this
+   * run concluded, whoever started it (the launch sign in, its retry or a
+   * press). Null when nothing prepared it in this run. Memory in main only.
+   *
+   * `version` is the last version a Prepare read, kept when a later Prepare
+   * read none.
+   */
+  signIn?: {
+    class: MachineTestClass;
+    /** Local epoch ms when that Prepare answered. */
+    at: number;
+    version: string | null;
+    headline: string;
+    detail: string;
+  } | null;
+  /**
+   * APPENDED (Phase 340, D24): what `uname -s` answered the last time Tortie
+   * read this machine's facts in this run, e.g. `Darwin`. Null when it has not
+   * been read. Memory in main only.
+   */
+  os?: string | null;
 }
 
 /** Everything the Machines section needs in one read. */
@@ -255,6 +293,19 @@ export interface MachineConfirmSheet {
    * drawing site has to remember the rule and none of them can forget it.
    */
   writeHonesty: string | null;
+  /**
+   * APPENDED (Phase 340, build/p340/SPEC.md D8): MACHINE_VERSION_ACCEPT_OFFER
+   * when this sheet accepts a version Tortie has not measured, else null.
+   * Optional, and absent reads as null.
+   */
+  versionHonesty?: string | null;
+  /**
+   * APPENDED (Phase 340, D7 as revised): the version this sheet's hash binds as
+   * accepted, or null when it binds none. The renderer echoes THIS field into
+   * `machines:add` and never derives it from anything else, so one source
+   * decides it. Optional, and absent reads as null.
+   */
+  acceptedTmuxVersion?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -275,6 +326,13 @@ export interface MachineAddInput {
   hashRead: string;
   /** The lines that were on the sheet. Recorded verbatim. */
   linesRead: string[];
+  /**
+   * APPENDED (Phase 340, D7): the version the sheet accepted, echoed from
+   * `MachineConfirmSheet.acceptedTmuxVersion`, or null. Main writes it into the
+   * row only when it is a version and one Tortie has not measured, and refuses
+   * the add otherwise with nothing written. Optional, and absent reads as null.
+   */
+  acceptedTmuxVersion?: string | null;
 }
 
 /** What the renderer sends when a person confirms a row that already exists. */
@@ -379,6 +437,10 @@ export interface MachinesRowsInvokeChannelMap {
   'machines:forget': { req: [id: string]; res: MachineRowView };
   'machines:remove': { req: [id: string]; res: MachinesResult };
   'machines:prepare': { req: [id: string]; res: MachinePrepareResult };
+  // PHASE 340 (D13). Hands Open a folder on it… to the main window with this
+  // machine chosen. It refuses a row that is not confirmed, answering false,
+  // and it starts no process on either computer.
+  'machines:openFolder': { req: [id: string]; res: boolean };
 }
 
 // ---------------------------------------------------------------------------
@@ -397,4 +459,7 @@ export interface MachinesRowsApi {
   forget(id: string): Promise<MachineRowView>;
   remove(id: string): Promise<MachinesResult>;
   prepare(id: string): Promise<MachinePrepareResult>;
+  // Phase 340. Opens the main window's Open a Folder on a Machine sheet with
+  // this machine chosen. False when the row is not confirmed. Starts nothing.
+  openFolder(id: string): Promise<boolean>;
 }

@@ -5,7 +5,10 @@
  * Phase 98, one more in Phase 99 and one more in Phase 100, which Phase
  * 320.2 removed).
  *
- * Thirty six channels, and what is NOT here is the point of the file.
+ * Thirty six channels, and what is NOT here is the point of the file. THIRTY
+ * SEVEN since Phase 340 added `machines:openFolder`, which hands Open a folder
+ * on it… to the main window and starts nothing; `__tests__/ipc.test.ts` names
+ * every one.
  *
  * THIS LINE SAID TWENTY FOUR UNTIL PHASE 336 and it is corrected rather than
  * quietly moved: it was written at Phase 99 and every phase after it added
@@ -179,6 +182,12 @@ import {
 } from '@shared/ipc';
 import { gmuxError } from '../errors';
 import { handle } from '../typed-ipc';
+// PHASE 340 (build/p340/SPEC.md D13). The one helper that raises the app window
+// and sends it `open-folder-on:<id>`. It sends a menu action and starts nothing.
+import { openFolderOnMachine } from '../menu';
+// PHASE 340 (D7). The same gate Prepare asks, so `machines:add` refuses an
+// acceptance of a version Tortie has measured.
+import { decideRemoteVersionGate } from '../tmux/version';
 // Guardrail 1, event half. Every static event channel goes out through this
 // one wrapper, never through a bare `webContents.send`, and
 // src/shared/__tests__/ipc-single-bridge.test.ts fails on any raw send.
@@ -194,9 +203,12 @@ import {
   confirmMachine,
   describeMachine,
   forgetMachine,
+  isMachineConfirmed,
   machineRowStatus,
   type MachineExecutionFields
 } from './confirm';
+// PHASE 340 (D24). Two facts the Settings row draws, held in memory in main.
+import { forgetRowFacts, onRowFactsChanged, rowOsOf, rowSignInOf } from './row-facts';
 import {
   cancelLiveMachineTest,
   cancelMachineTest,
@@ -232,7 +244,11 @@ import {
 // Phase 84, item 8. Whether a create on this machine would get past the ready
 // check, asked here so the create sheet does not have to guess and does not
 // have to ask the machine.
-import { machineCanHoldSession } from './remote-sessions';
+import {
+  machineCanHoldSession,
+  registeredRouteDiffers,
+  retireMachineRoute
+} from './remote-sessions';
 // Phase 84, item 6. The folder listing, which is a read and writes nothing on
 // either computer.
 import { listRemoteDir } from './dir-list';
@@ -365,10 +381,25 @@ import { commitOnMachine } from './remote-commit';
  */
 const watchedSenders = new WeakSet<WebContents>();
 
-/** One row, as the list draws it. */
-function viewOf(row: MachineRowV1): MachineRowView {
+/**
+ * One row, as the list draws it.
+ *
+ * PHASE 340 (D24 as revised). `states` is the link state of every machine,
+ * read ONCE by the caller that composes a whole list, so composing N rows asks
+ * `currentMachineStates()` once rather than N times. A caller composing one row
+ * passes nothing and this asks for it.
+ */
+function viewOf(
+  row: MachineRowV1,
+  states?: ReadonlyMap<string, MachineStateView>
+): MachineRowView {
   const fields = machineFieldsOf(row);
   const status = machineRowStatus(row.id, fields);
+  const state =
+    states !== undefined
+      ? states.get(row.id)
+      : currentMachineStates().find((one) => one.id === row.id);
+  const signIn = rowSignInOf(row.id);
   return {
     id: row.id,
     label: machineLabelOf(row),
@@ -408,7 +439,24 @@ function viewOf(row: MachineRowV1): MachineRowView {
     // are composed in main: `writeHonesty` comes from `writeHonestyOf` through
     // `machineRowStatus`, so no renderer decides the question by reading a line.
     writeRoot: fields.writeRoot ?? null,
-    writeHonesty: status.writeHonesty
+    writeHonesty: status.writeHonesty,
+    // PHASE 340 (D24). The link word and its sentence, as `machines:state`
+    // answers them for this row now; the last Prepare's answer in this run;
+    // and the system name the last facts read answered. All memory in main,
+    // none of it a field of machines.json.
+    link: state?.link ?? null,
+    linkDetail: state?.detail ?? null,
+    signIn:
+      signIn === null
+        ? null
+        : {
+            class: signIn.class,
+            at: signIn.at,
+            version: signIn.version,
+            headline: signIn.headline,
+            detail: signIn.detail
+          },
+    os: rowOsOf(row.id)
   };
 }
 
@@ -416,8 +464,10 @@ function viewOf(row: MachineRowV1): MachineRowView {
 function resultOf(): MachinesResult {
   const snap = currentMachines();
   const ssh = resolveSsh({ packaged: app.isPackaged, env: process.env });
+  // PHASE 340 (D24 as revised). Once for the whole list.
+  const states = new Map(currentMachineStates().map((one) => [one.id, one]));
   return {
-    rows: snap.rows.map(viewOf),
+    rows: snap.rows.map((row) => viewOf(row, states)),
     errors: snap.problems.map((problem) => ({
       id: problem.id ?? problem.field,
       field: problem.field,
@@ -484,6 +534,40 @@ function assertWritable(row: MachineRowV1): void {
   }
 }
 
+/**
+ * The version an add accepts, or null (Phase 340, D7 as revised).
+ *
+ * The renderer echoes the sheet's own `acceptedTmuxVersion`. A value that is
+ * not a version refuses, and so does a version Tortie HAS measured: an
+ * acceptance of a measured version is dropped from the lines a person reads
+ * and kept in the hash text (Phase 324), so it would record an agreement to a
+ * line nobody saw. Either refusal throws before anything is written.
+ */
+function acceptedVersionOfAdd(input: MachineAddInput): string | null {
+  const version = input.acceptedTmuxVersion;
+  if (version === undefined || version === null) return null;
+  if (
+    typeof version !== 'string' ||
+    !new RegExp(MACHINE_VERSION_PATTERN).test(version)
+  ) {
+    throw gmuxError(
+      'INVALID_INPUT',
+      `Tortie did not add ${input.id}, because the version it was asked to ` +
+        `accept is not a version Tortie can read. A version looks like 3.7c. ` +
+        `Nothing was added.`
+    );
+  }
+  if (decideRemoteVersionGate(version).kind === 'measured') {
+    throw gmuxError(
+      'INVALID_INPUT',
+      `Tortie did not add ${input.id}, because it was asked to accept version ` +
+        `${version}, which Tortie has measured and needs no acceptance. Check ` +
+        `the machine again. Nothing was added.`
+    );
+  }
+  return version;
+}
+
 /** The row an add would write, built from what the renderer sent. */
 function rowFromAdd(input: MachineAddInput): MachineRowV1 {
   const row: MachineRowV1 = {
@@ -499,6 +583,11 @@ function rowFromAdd(input: MachineAddInput): MachineRowV1 {
   if (input.label.length > 0) row.label = input.label;
   if (input.user !== null) row.user = input.user;
   if (input.port !== null) row.port = input.port;
+  // PHASE 340 (D7). Only a version that passes the pattern and that Tortie has
+  // not measured, and the hash below is computed over the row WITH it, so the
+  // sheet the check composed is the sheet this add recomputes.
+  const accepted = acceptedVersionOfAdd(input);
+  if (accepted !== null) row.acceptedTmuxVersion = accepted;
   return row;
 }
 
@@ -560,6 +649,15 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     // Settings, because `broadcastEvent` iterates them all.
     onMachineAgentsChanged(() => {
       broadcastEvent(EVT_MACHINE_AGENTS, allMachineAgentsViews());
+    });
+    // PHASE 340 (D24 as revised by §Attack R14). A row's last sign in and its
+    // system name are memory in main, and a link change can fire inside
+    // `prepareMachine` before the wrapper records the class, so the refresh
+    // that push caused would read the previous sign in. When either fact
+    // changes, the state event goes out again; the Settings window already
+    // refreshes its rows on it. No channel is added.
+    onRowFactsChanged(() => {
+      broadcastEvent(EVT_MACHINE_STATE, currentMachineStates());
     });
   }
 
@@ -625,6 +723,16 @@ export function registerMachinesIpc(ipc: IpcMain): void {
         // starts no program. The test needs it because the block a person reads
         // after a refusal names the file, and the hash of that block covers it.
         keyPath: sheetId === null ? null : machineKeyPath(sheetId),
+        // PHASE 340 (D27). Tortie's own key for this id, named on the check
+        // when the pair is on this Mac, by the rule Prepare's caller uses below.
+        // Without it the check after "Put Tortie's key on it" never offered the
+        // key the install had just put there.
+        identityFile:
+          sheetId !== null && machineKeyPairPresent(sheetId)
+            ? machineKeyPath(sheetId)
+            : null,
+        // PHASE 340 (D8). Only a draft's sheet binds a version as accepted.
+        mode: input.mode,
         packaged: app.isPackaged,
         env: process.env,
         hostKeys: hostKeyFilesForTest(),
@@ -684,17 +792,44 @@ export function registerMachinesIpc(ipc: IpcMain): void {
     return viewOf(row);
   });
 
+  // PHASE 340 (build/p340/SPEC.md D13). Open a folder on it…, pressed in
+  // Settings. It refuses a row that is not confirmed by answering false, then
+  // raises the app window and sends it `open-folder-on:<id>`, which opens the
+  // existing Open a Folder on a Machine sheet with this machine chosen. It
+  // starts no process on either computer and asks the machine nothing.
+  handle(ipc, 'machines:openFolder', (_event, id: string): boolean => {
+    if (typeof id !== 'string' || id.length === 0) return false;
+    const row = machineRow(id);
+    if (row === null) return false;
+    if (!isMachineConfirmed(row.id, machineFieldsOf(row))) return false;
+    return openFolderOnMachine(row.id);
+  });
+
   handle(
     ipc,
     'machines:confirm',
     (_event, input: MachineConfirmInput): MachineRowView => {
       const row = rowOrThrow(input.id);
-      recordAgreement(
-        row.id,
-        machineFieldsOf(row),
-        input.hashRead,
-        input.linesRead
-      );
+      const fields = machineFieldsOf(row);
+      // PHASE 340's ruled round (the reverify). Asked BEFORE the agreement is
+      // recorded, because after it the row reads `confirmed` whatever it was.
+      // A confirm of CHANGED details, or of details the registered context
+      // was not built from (an agreement withdrawn, then the file edited),
+      // must never read Ready over the route signed in to under the old ones.
+      const moved =
+        machineRowStatus(row.id, fields).state === 'changed' ||
+        registeredRouteDiffers(row.id, fields);
+      recordAgreement(row.id, fields, input.hashRead, input.linesRead);
+      if (moved) {
+        // Only once the agreement is recorded, so a refused confirm changes
+        // nothing. Confirm still starts nothing (D12): the old route stops,
+        // what the last Prepare read about the machine goes with it, and a
+        // launch sign-in retry still armed for it stops too, so the next step
+        // is Prepare this machine and nothing reaches the machine before it.
+        retireMachineRoute(row.id);
+        forgetRowFacts(row.id);
+        stopSignInRetry(row.id, 'confirmation-moved');
+      }
       return viewOf(row);
     }
   );
@@ -966,7 +1101,9 @@ export function registerMachinesIpc(ipc: IpcMain): void {
       const copy = composeKeyInstallCopy({
         cls: run.cls,
         text: run.transcript,
-        exitCode: run.exitCode
+        exitCode: run.exitCode,
+        // PHASE 340 (D14). ssh there and not starting names its reason.
+        clientFailure: run.clientFailure
       });
       return {
         id,

@@ -10,7 +10,8 @@
       "file": "ok.txt",
       "note": "The scratch sshd answered and the named program was found.",
       "exitCode": 0,
-      "bytes": 53
+      "bytes": 53,
+      "retiredProbe": "Captured from the `command -v` probe Phase 340 retired (build/p340/SPEC.md D1, D15). The live connection test now runs the check in src/main/machines/check-script.ts and no longer prints these bytes; classifyProbeOutput still reads them byte for byte, and classifyCheckOutput, the live decision, does not answer ok for them."
     },
     {
       "class": "no-server",
@@ -24,7 +25,8 @@
       "file": "no-program.txt",
       "note": "The scratch sshd answered and the named program was not on it.",
       "exitCode": 0,
-      "bytes": 31
+      "bytes": 31,
+      "retiredProbe": "Captured from the `command -v` probe Phase 340 retired (build/p340/SPEC.md D1, D15). The live connection test now runs the check in src/main/machines/check-script.ts and no longer prints these bytes; classifyProbeOutput still reads them byte for byte, and classifyCheckOutput, the live decision, does not answer ok for them."
     },
     {
       "class": "host-key-changed",
@@ -99,6 +101,14 @@
     {
       "class": "key-installed",
       "reason": "Tortie's own answer after it put a key on a machine. The marker the far machine prints is text Tortie's own script printed, so a captured file would be a capture of Tortie's bytes rather than a measurement of what some program says."
+    },
+    {
+      "class": "client-failed",
+      "reason": "Tortie produces this when ssh is on this Mac and would not start. node-pty on macOS reports every such failure with the one string posix_spawnp failed. and no errno, so there is no program output to capture."
+    },
+    {
+      "class": "program-choice",
+      "reason": "Tortie's own judgement that its check found more than one distinct program, decided from a block Tortie's own script printed, so a captured file would be a capture of Tortie's bytes rather than a measurement of what some program says."
     }
   ]
 }
