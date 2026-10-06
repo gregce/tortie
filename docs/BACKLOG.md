@@ -39863,6 +39863,56 @@ rulings of 2026-10-05, each binding:
 - **No markdown** in the Conversation (still off).
 - **No release.**
 
+## Phase 337.1 — "why would it not have any scrollback?" — the Screen scrolls back, and the phone's Conversation becomes Catch Me Up (operator, 2026-10-05)
+
+**Subject.** `feat(pocket): scroll back on the phone's Screen, and call the history Catch Me Up`
+
+**First body line.** `Phase 337.1: the Screen's scrollback, and Catch Me Up on the phone`
+
+**Semver.** Minor, unreleased: he can scroll up on a session's Screen through what it printed, and the phone's history
+reads Catch Me Up as on the Mac.
+
+**Tier 3** for the scrollback (a new read of a person's terminal sent off the Mac, local and remote; the per-provider
+matrix and an attack), **Tier 1** for the rename (copy, identifiers, the mock).
+
+**Charter.** Phase 337 builds the Screen as "the screen tmux shows now, never its scrollback", following his Phase 316
+ruling "the full CONVERSATION yes, the raw terminal scrollback no" (`docs/BACKLOG.md:33393`, build/p337/SPEC.md §1 ruling
+1). Shown the design on 2026-10-05 he asked "why would it not have any scrollback? is that what the other phone apps that
+we researched do?" Research 139 read that every product with a phone terminal has one (Paseo's headless state keeps
+`scrollbackLines` and restores them, Orca snapshots up to 1,000 lines, Superset keeps a 2 MiB catch-up ring, Termix
+replays 512K characters, cmux's emulator builds its own). His rulings: "Yes, scroll back on the Screen" (the 316 line is
+lifted for the Screen) and "Yes, rename it": the phone's Conversation is Catch Me Up, the same record the Mac's Catch Me
+Up reads, still first on the session page.
+
+### The mechanism, for the spec to settle on 337 as built
+
+- **A page of history on demand:** scrolling up past the top of the Screen asks main for older lines, a page at a time
+  (`capture-pane -p -e -S <from> -E <to>` through the control client locally and the exec plane remotely), composed by
+  337's composer into the same styled rows, drawn above the live rows, up to the session's `history-limit` (25,000
+  lines). A new page never moves what he is reading; the live rows keep updating below. Whether this rides `/v1/screen`
+  with a range or is its own read is the spec's to decide against the door's caps and 337's long poll.
+- **Full-screen programs** (the alternate screen) have no tmux history; the Screen says nothing extra and simply stops.
+- **The rename:** the session page's row and the screen title read Catch Me Up; `Copy.swift`, the identifiers, the
+  phone mocks under `docs/design/phone/**` and `conformance:phonecopy` move together; `Copy.terminalStaysOnMac` (337 D31)
+  becomes true of a Screen that now scrolls back.
+
+### The proof, run rather than read
+
+- The 337 gates and the phone gates; the per-provider matrix extended to history pages (Claude Code and Codex inline,
+  whose whole conversation is in tmux's history since Phase 331, a shell, a full-screen program, a remote session):
+  every page's rows compared with `capture-pane`'s text for the same range.
+- **The attack:** a range outside the history, a range that moves while output scrolls, a page request flood against
+  the door's caps, a remote session.
+- **The app run:** scroll up through a long stand-in history on both runtimes, the live rows still updating; the rename
+  read on every surface it appears.
+
+### What is NOT in this phase
+
+- **No change to the Mac's own scrollback or history limit.**
+- **No search in the Screen's history.**
+- **No paste** (his "i don't think we need paste to start").
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -40961,3 +41011,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 337 QUEUED IN FULL AND STARTED — the Screen**, on his rulings after research 139: lift "no raw terminal" for a session's own screen; never resize the Mac; every key including Ctrl-C with no Face ID; the Screen first, with the simple delivery (the Mac composes, the phone fetches) and a stream only in Phase 338 if his own use finds it laggy. End's move to the top right joins this phase; Phase 318.1 (the message box) follows it.
 
 - 2026-10-05, **PHASE 336.1 LANDED, `47c3c79e`, unreleased — saving in a project directly inside a remote home.** `~/dev` and its kind are written like any opened project; only the home itself, what holds it, `/`, and `.git` and `.ssh` stay refused. Verify needs_work (a checklist line), fix, reverify needs_work (the never-folder sentence false for `.ssh`/`.git` projects); his ruling "Fix the wording, then land", done by the main session with the copy and machine gates re-run. His history unchanged across every agent run.
+
+- 2026-10-05, **HIS RULINGS ON THE SCREEN AS DESIGNED, and PHASE 337.1 QUEUED IN FULL** (after 337 lands, phone phases one at a time): no paste to start; the Screen scrolls back ("Yes, scroll back on the Screen", lifting his 316 "raw terminal scrollback no" for the Screen); the phone's Conversation is renamed Catch Me Up ("Yes, rename it"). Both ship in TestFlight build 7 with 337.
