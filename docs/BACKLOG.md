@@ -41206,3 +41206,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 341 QUEUED IN FULL AND STARTED** — New Folder on his Mac Pro made `untitled folder` but the inline name failed twice with "could not find untitled folder"; runs beside 337 and 340.
 
 - 2026-10-05, **PHASE 342 QUEUED IN FULL — any ordinary Linux machine**, on his "so we should fix that". Starts after 340, once he rules where the real Linux test machines come from (throwaway containers in his Docker, or cloud VMs), because no test may install anything without his word.
+
+- 2026-10-05, **HIS RULING FOR PHASE 342: "you can do the docker tests but make sure to clean them up".** The real Linux machines are throwaway containers in his Docker: every image, container and volume named `tortie-p342-*`, removed in a finally whatever happened, with `docker images` and `docker ps -a` read afterwards as proof; nothing else in his Docker touched; estimated 1.5 to 2.5 GB at peak; the run checks free disk first and pauses under 10 GB.
