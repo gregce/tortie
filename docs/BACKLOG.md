@@ -40048,6 +40048,48 @@ than the folder's real path, or a name with a space is quoted wrong on the far s
 - **No change to 336's write rules** or to local New Folder.
 - **No release.**
 
+## Phase 342 — "we have support for arbitrary linux vms now, correct?" ... "so we should fix that" — any ordinary Linux machine can be added and used (operator, 2026-10-05)
+
+**Subject.** `feat(machines): add an ordinary Linux machine, whatever tmux it ships`
+
+**First body line.** `Phase 342: Linux machines on the tmux their distribution ships`
+
+**Semver.** Minor, unreleased: Ubuntu 22.04 and 24.04 and Debian 12 and 13 as released can be prepared and used, and a
+refused tmux option is said as what it is.
+
+**Tier 3.** It starts a program on another machine and every remote feature rides it. A per-distribution matrix over real
+Linux machines, and an attack.
+
+**Charter.** Asked whether Tortie supports arbitrary Linux VMs, he was told: only on tmux 3.6 or newer (Ubuntu 26.04 and
+26.10, Debian 13 with backports, Debian testing, Fedora 43 and 44, Arch, Homebrew on Linux); never on Ubuntu 22.04 (tmux
+3.2a), 24.04 (3.4), Debian 12 (3.3a) or Debian 13 as released (3.5a), because Prepare sets twelve options one at a time and
+stops at the first refusal (`src/main/machines/remote-server.ts:165-168`; research 131 §1: `allow-passthrough` on 3.2a,
+`copy-mode-position-format` on 3.3a to 3.5a, `mode-style noattr` before 3.6), then says "Tortie could not reach this
+machine"; and no Linux machine has ever been driven end to end (research 131 read packages as data). He answered "so we
+should fix that".
+
+### The mechanism, for the spec
+
+1. **Prepare on older tmux:** each of the twelve rows declares the oldest tmux it needs and what Tortie does without it
+   (skip it, or a fallback the version accepts), measured per version; `history-limit` and every row that durability or
+   scroll-back rests on is set on every version or the machine is refused with a sentence that names the version.
+2. **The version gates** (`TESTED_REMOTE_TMUX_VERSIONS`, the measured list behind 320.1's scroll-back and 324's live
+   connection) learn the measured Linux versions, or each feature falls back to today on a version it has not measured.
+3. **The sentence:** a refused option is said as the version being too old for that option, never "could not reach".
+4. **Linux far paths:** 336's identity check (GNU `stat -c`), 336.1's home rules and 320.1's scroll-back measured on Linux.
+
+### The proof, run rather than read
+
+- **A per-distribution matrix on real Linux machines:** Ubuntu 22.04, 24.04, 26.04, Debian 12 and 13, Fedora, Arch, each
+  added, prepared, a session created and restored, scroll-back, saving in a project, Catch Me Up's reader where it applies.
+  Where these machines come from is his to rule (throwaway containers in his Docker, or cloud VMs).
+- **The attack:** a tmux that refuses an option this phase thinks it accepts; a version string that lies (Ubuntu 26.04
+  reports 3.6); a machine whose tmux is upgraded under a running server.
+
+### What is NOT in this phase
+
+- **No Windows.** **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41162,3 +41204,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 340 WIDENED, on his word ("make it all one phase please"):** the misleading "This Mac has no ssh program at /usr/bin/ssh" when ssh merely failed to launch (`connection-test.ts:745-755, 974-994`) is fixed in the same phase: a missing ssh keeps its sentence, a failed launch says so with its reason.
 
 - 2026-10-05, **PHASE 341 QUEUED IN FULL AND STARTED** — New Folder on his Mac Pro made `untitled folder` but the inline name failed twice with "could not find untitled folder"; runs beside 337 and 340.
+
+- 2026-10-05, **PHASE 342 QUEUED IN FULL — any ordinary Linux machine**, on his "so we should fix that". Starts after 340, once he rules where the real Linux test machines come from (throwaway containers in his Docker, or cloud VMs), because no test may install anything without his word.
