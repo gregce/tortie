@@ -95,8 +95,16 @@ export interface PocketHandlerDeps {
    * flight refuses it `unpaired`.
    */
   stillPaired(phoneId: string): boolean;
-  /** Answer one of the three reads. Null means there is nothing to answer. */
-  answer(route: PocketRoute, query: URLSearchParams): Promise<unknown | null>;
+  /**
+   * Answer one of the reads. Null means there is nothing to answer.
+   *
+   * `closing` (Phase 337, build/p337/SPEC.md §5.3.1, D3) is the very refusal 1
+   * this handler asks, the quit OR the door that accepted this request
+   * stopping, handed to a read that may hold the request (the Screen's long
+   * poll), so a held poll answers at once when either starts rather than
+   * outliving the door's stop join. Asking it reads state; it changes nothing.
+   */
+  answer(route: PocketRoute, query: URLSearchParams, closing: () => boolean): Promise<unknown | null>;
   /**
    * THE ONE WRITE PATH (Phase 317): `./writes.ts`'s handler, handed a write
    * whose signature held, with the phone it was verified for and the door that
@@ -194,7 +202,10 @@ export function createPocketHandler(deps: PocketHandlerDeps): DoorRequestHandler
       return refuse(deps.stillPaired(verifiedPhone) ? 'route' : 'unpaired');
     }
 
-    const body = await deps.answer(route, queryOf(request.target));
+    // PHASE 337: the read is handed `closing`, the same two asks refusal 1
+    // makes above, so a held screen poll ends the moment the quit starts or
+    // this door instance stops (build/p337/SPEC.md D3).
+    const body = await deps.answer(route, queryOf(request.target), closing);
     // REFUSAL 7. Nothing is awaited from here to the return, so the answer that
     // leaves is one the person had not withdrawn by the time it left. The phone
     // is asked before the door, so a Remove — which also stops the door — is

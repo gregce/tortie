@@ -201,9 +201,13 @@ const msBetween = (from, to) => Number(BigInt(to) - BigInt(from)) / 1e6;
 /** The snapshot 318 is built on (build/p318/SPEC.md §4.1): menu.ts must read as it does there. */
 export const SNAPSHOT = 'c1a5fd38';
 export const MACHINE_ID = 'p318far';
-/** HEAD's route line: 318's writes and 316.7's `sessions` read, eight routes. */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question and send a session one message';
+/**
+ * HEAD's route line and write line: 318's writes, 316.7's `sessions` read and,
+ * since Phase 337, its `screen` read and `keys` write, ten routes (build/p337/
+ * SPEC.md D1, D35). The parent's lines below stay 318's own parent.
+ */
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
 /** The parent's own lines: one write. */
 export const PARENT_WRITE_LINE = 'Lets an allowed phone end a session';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
@@ -550,7 +554,8 @@ export function grade(id, reading) {
 const WORDS = {
   changed: 'This session changed. Nothing was done.',
   notReady: 'This session is not ready for a message. Nothing was sent.',
-  honesty: 'A phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.'
+  // HEAD's door honesty sentence since Phase 337 (build/p337/SPEC.md D35); the run reads the tree's own.
+  honesty: 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.'
 };
 const done = { status: 200, outcome: 'done', reason: null, sentence: null, echoed: true };
 const refused = (reason, sentence = 'x') => ({ status: 200, outcome: 'refused', reason, sentence, echoed: true });
@@ -823,9 +828,11 @@ function graderSelfTest() {
   // rather than the live confirm arm (the replay of 316.7 beside 318 left this line naming one route too few).
   const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'))?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
   say(treeIds.length > 0 && J(ROUTE_LINE.slice(ROUTE_LINE.indexOf(':') + 1).split(',').map((s) => s.trim())) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
+  // The HEAD fixtures' honesty sentence against the tree's own (Phase 337, build/p337/SPEC.md D35), so a phase that rewords it turns this red too.
+  say(constWord(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'), 'POCKET_DOOR_HONESTY') === WORDS.honesty, "the fixtures' honesty sentence is the tree's POCKET_DOOR_HONESTY, byte for byte");
   // The pure readers.
   say(constWord("export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n", 'B') === 'two, three.', 'constWord reads a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(frameHexOf('a\nb') === Buffer.from('\u001b[200~a\rb\u001b[201~\r', 'latin1').toString('hex'), 'frameHexOf writes LF as CR inside the paste marks and ends with one CR');
   say(quantile([1, 2, 3, 4], 0.5) === 2 && quantile([], 0.5) === null, 'quantile reads the nearest rank');
   say(actedOf({ status: 200, body: '{"outcome":"refused","reason":"character"}' }) === 'yes', 'actedOf counts a refusal the verb made (logged after step 5)');

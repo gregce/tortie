@@ -83,6 +83,17 @@
  * are the adversary's F2 and F1, and a text rule alone could miss a spelling of
  * either that nobody has written yet. The clone now carries vitest.config.ts.
  *
+ * PHASE 337 ADDED FIFTY-FIVE (build/p337/SPEC.md §6.1), one or more per new
+ * or widened clause of the Screen: `R2h`, `R2i`, `R3h` and `R4c` the closed
+ * write list, the wall and the pin; `X1i`, `X2h`, `X3p`, `X5p`, `X6p` and
+ * `X12g` the four verbs' write path;
+ * `Y1p`, `Y12b`, `Y13p` and `Y13q` the caps, G1 over src/main/screen and the
+ * keys verb's one bump; and `Z1a` to `Z22b`, at least one arm for each of the
+ * twenty-two Z rules, over the door's table, its wire, the write path, the
+ * keys verb, the watcher, the read, the composer, the far read and the shared
+ * control client's block matching. They run the read gate alone (`needs`),
+ * because the hostile client is the door builder's and drives its own arms.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -198,6 +209,14 @@ const CORE = 'src/main/sessions/core.ts';
 const ATTACH = 'src/main/attach/attach-host.ts';
 const EXEC_PLANE = 'src/main/machines/exec-plane.ts';
 const FOCUS_REPORT = 'src/renderer/terminal/keys/focus-report.ts';
+// PHASE 337: the Screen's read and its keys, outside the door like the reply,
+// and the shared control client whose block matching the Screen relies on.
+const SCREEN_KEYS = 'src/main/screen/keys.ts';
+const SCREEN_WATCH = 'src/main/screen/watch.ts';
+const SCREEN_READ = 'src/main/screen/read.ts';
+const SCREEN_COMPOSE = 'src/main/screen/compose.ts';
+const REMOTE_SCREEN = 'src/main/machines/remote-screen.ts';
+const CONTROL_CLIENT = 'src/main/tmux/control-client.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -1815,8 +1834,9 @@ const ABLATIONS = [
     name: 'a write with no body cap of its own',
     why: 'the door process checks a write’s size before main reads a byte of it; a write with no cap of its own is one the door bounds by somebody else’s number.',
     file: LIMITS,
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512 } as const);',
+    // Phase 337 put keys on this line (D17); the write it drops is still say.
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, keys: 16_384 } as const);',
     needs: ['gate']
   },
   {
@@ -1972,10 +1992,10 @@ const ABLATIONS = [
   {
     n: 'X3b',
     rule: 'X3',
-    name: 'the per-phone ledger cap raised past 512',
-    why: 'D5: at most 512 entries a phone; one phone could otherwise fill the whole ledger.',
+    name: 'the per-phone ledger cap raised past 2,048',
+    why: 'D5: at most 2,048 entries a phone since Phase 337 (build/p337/SPEC.md D24, 512 before it); one phone could otherwise fill the whole ledger.',
     file: WRITES,
-    from: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 512;',
+    from: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 2_048;',
     to: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 100_000;',
     needs: ['gate']
   },
@@ -2045,8 +2065,8 @@ const ABLATIONS = [
     name: 'PocketWrites grows a second member',
     why: 'Restore and Remove stay on the Mac (research 127 §5); a member on the interface is a verb the door can reach.',
     file: ROUTES,
-    from: '  say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n}',
-    to: '  say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
+    from: '  keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n}',
+    to: '  keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;\n  restore(input: { sessionId: string }): Promise<PocketEndOutcome>;\n}',
     needs: ['gate']
   },
   {
@@ -2452,8 +2472,9 @@ const ABLATIONS = [
     name: 'the message’s act moved out of the statement after the last check',
     why: 'every verb’s act is the ONE statement after the last check; an act anywhere else has room for something between the check and the keystroke.',
     file: WRITES,
-    from: /: replySettled\(\(\) => writes\.say\(\{ sessionId: parsed\.session, text: parsed\.text \}, still\)\);/,
-    to: ": Promise.resolve(REPLY_ACT_FAILED);\n      void writes.say;",
+    // Since Phase 337 the say arm is the middle of the chain (keys follows it).
+    from: /\? replySettled\(\(\) => writes\.say\(\{ sessionId: parsed\.session, text: parsed\.text \}, still\)\)/,
+    to: '? (void writes.say, Promise.resolve(REPLY_ACT_FAILED))',
     needs: ['gate']
   },
   {
@@ -2572,8 +2593,9 @@ const ABLATIONS = [
     name: 'the honesty sentence forgets the reply',
     why: 'the sheet’s sentence says what a phone he allows can do; one that names End alone is false after this phase.',
     file: SHARED,
-    from: "  'A phone you allow can end a session, answer a numbered question and send a session one message. ' +",
-    to: "  'A phone you allow can end a session. ' +",
+    // Phase 337 rewrote the sentence (build/p337/SPEC.md D35); the reply is its middle.
+    from: "  'answer a numbered question, send a session one message and end a session.';",
+    to: "  'and end a session.';",
     needs: ['gate']
   },
   {
@@ -2592,8 +2614,8 @@ const ABLATIONS = [
     name: 'the caps not frozen',
     why: 'a cap anything can raise at run time is not a cap.',
     file: LIMITS,
-    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);',
-    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768 } as const;',
+    from: 'export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);',
+    to: 'export const POCKET_WRITE_BODY_CAPS = { end: 512, choose: 512, say: 32_768, keys: 16_384 } as const;',
     needs: ['gate']
   },
   {
@@ -3194,6 +3216,612 @@ const ABLATIONS = [
     file: TABLE,
     from: "  { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },",
     to: "  { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },\n  { id: 'sessions', method: 'GET', path: '/v1/sessions/all', reads: true, windowOnly: false, signed: true },",
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 337, the Screen (build/p337/SPEC.md §6.1): the widened clauses
+  // first, then one arm or more per Z rule. Each is ONE clause, and `needs`
+  // keeps them on the read gate: the hostile client is the door builder's and
+  // drives the same door with its own arms.
+  // -------------------------------------------------------------------------
+  {
+    n: 'R2h',
+    rule: 'R2',
+    name: 'the keys row dropped from the table',
+    why: 'the write list is exactly end, choose, say and keys, in the table and the contract alike; a write the contract names that the table does not is a route the phone is told about and the door answers 404.',
+    file: TABLE,
+    from: ",\n  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'R2i',
+    rule: 'R2',
+    name: 'the contract’s write list loses keys',
+    why: 'the confirm line and the table read the write list from the contract; a contract that forgets keys says the phone cannot type while the table lets it.',
+    file: SHARED,
+    from: "['end', 'choose', 'say', 'keys'] as const satisfies",
+    to: "['end', 'choose', 'say'] as const satisfies",
+    needs: ['gate']
+  },
+  {
+    n: 'R3h',
+    rule: 'R3',
+    name: 'the door names the Screen’s module',
+    why: 'the door reaches the read and the keys only through PocketFacts.screen and PocketWrites.keys; a door that can name src/main/screen can be made to type without the write path.',
+    file: ROUTES,
+    from: 'export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {',
+    to: "export const SCREEN_KEYS_MODULE = '../screen/keys';\nexport function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {",
+    needs: ['gate']
+  },
+  {
+    n: 'R4c',
+    rule: 'R4',
+    name: 'an eleventh route beside /v1/keys',
+    why: 'the pin moved once, on purpose, by /v1/screen and /v1/keys; an eleventh path is a change to what the phone can ask for.',
+    file: TABLE,
+    from: "  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }",
+    to: "  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true },\n  { id: 'keys', method: 'POST', path: '/v1/keys/raw', reads: false, windowOnly: false, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'X1i',
+    rule: 'X1',
+    name: 'the act’s one statement starts no keys verb',
+    why: 'every verb’s act is the one statement right after the last check; a keys write acted anywhere else could be acted after a check that no longer holds.',
+    file: WRITES,
+    from: /writes\.keys\(/,
+    to: 'writes.say(',
+    needs: ['gate']
+  },
+  {
+    n: 'X2h',
+    rule: 'X2',
+    name: 'the keys body takes a sixth key',
+    why: 'a body is compared with its exact key set, so nothing rides along that main would read as part of the write (D17).',
+    file: WRITES,
+    from: "const KEYS_KEYS = 'dialog,keys,session,turn,write';",
+    to: "const KEYS_KEYS = 'dialog,keys,session,size,turn,write';",
+    needs: ['gate']
+  },
+  {
+    n: 'X3p',
+    rule: 'X3',
+    name: 'the ledger’s per-phone cap back at 512',
+    why: 'a phone typing a keys write every 100 ms sends 1,200 in a ledger life; at 512 its own typing is answered busy (D24).',
+    file: WRITES,
+    from: /export const POCKET_WRITE_LEDGER_PER_PHONE = 2_048;/,
+    to: 'export const POCKET_WRITE_LEDGER_PER_PHONE = 512;',
+    needs: ['gate']
+  },
+  {
+    n: 'X5p',
+    rule: 'X5',
+    name: 'the phone’s keys do more than pass through',
+    why: 'PocketWrites is implemented once, and keys passes the call to the Screen’s verb and nothing else; a pass-through that trims the keys is a second verb nobody reviewed.',
+    file: POCKET_WRITES,
+    from: 'deps.keys.keys(input, still)',
+    to: 'deps.keys.keys({ ...input, keys: input.keys.slice(0, 1) }, still)',
+    needs: ['gate']
+  },
+  {
+    n: 'X6p',
+    rule: 'X6',
+    name: 'the keys verb says a sentence of its own',
+    why: 'every sentence the phone is told is a named constant; a literal in the verb is words no gate or copy check has read.',
+    file: SCREEN_KEYS,
+    from: "if (NOT_TYPABLE.includes(row.status)) return refused('unreachable', SCREEN_NOT_TYPABLE);",
+    to: "if (NOT_TYPABLE.includes(row.status)) return refused('unreachable', 'This session cannot take keys.');",
+    needs: ['gate']
+  },
+  {
+    n: 'X12g',
+    rule: 'X12',
+    name: 'the keys clause softened',
+    why: 'the confirm line is what he allows; a write that can run a command in a shell is said plainly (D35).',
+    file: PAIRING,
+    from: "keys: 'type into any session as you would at this Mac'",
+    to: "keys: 'type into a session'",
+    needs: ['gate']
+  },
+  {
+    n: 'Y1p',
+    rule: 'Y1',
+    name: 'the keys cap halved',
+    why: 'the caps are exactly end 512, choose 512, say 32,768 and keys 16,384, keyed by the closed write list.',
+    file: LIMITS,
+    from: 'keys: 16_384',
+    to: 'keys: 8_192',
+    needs: ['gate']
+  },
+  {
+    n: 'Y12b',
+    rule: 'Y12',
+    name: 'the Screen logs a screen it read',
+    why: 'G1’s scope is the Screen too: a screen is whatever a terminal shows, secrets included, and no line of it reaches a log.',
+    file: SCREEN_READ,
+    from: 'export function parseScreenDisplay(',
+    to: "export const noteStyled = (styled: string): void => {\n  console.warn('read', styled);\n};\nexport function parseScreenDisplay(",
+    needs: ['gate']
+  },
+  {
+    n: 'Y13p',
+    rule: 'Y13',
+    name: 'the keys verb bumps under the desk’s cause',
+    why: 'who moved the question id is part of what the press reads; a phone key that bumps as the desk is a phone write that looks like his own keystroke.',
+    file: SCREEN_KEYS,
+    from: "deps.turns.bump(id, 'phone');",
+    to: "deps.turns.bump(id, 'desk');",
+    needs: ['gate']
+  },
+  {
+    n: 'Y13q',
+    rule: 'Y13',
+    name: 'the keys verb bumps twice',
+    why: 'one write moves the id once, as the statement before its act.',
+    file: SCREEN_KEYS,
+    from: "deps.turns.bump(id, 'phone');",
+    to: "deps.turns.bump(id, 'phone');\n      deps.turns.bump(id, 'phone');",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1a',
+    rule: 'Z1',
+    name: 'the screen row only inside the pairing window',
+    why: 'the Screen is a read of a paired phone, alive outside any window, and signed.',
+    file: TABLE,
+    from: "{ id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: false, signed: true }",
+    to: "{ id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1b',
+    rule: 'Z1',
+    name: 'the door’s signed reads forget screen',
+    why: 'the door hands main a signed read only for an id on its own list; the table and the wire lists move together.',
+    file: WIRE,
+    from: "['blocked', 'session', 'turns', 'sessions', 'screen']",
+    to: "['blocked', 'session', 'turns', 'sessions']",
+    needs: ['gate']
+  },
+  {
+    n: 'Z2a',
+    rule: 'Z2',
+    name: 'the keys cap under twice the worst legal body',
+    why: 'a C0 text of the right shape must reach main to be answered refused character in words; a cap that drops it is a 404 the phone reads as "did not take it".',
+    file: LIMITS,
+    from: 'keys: 16_384',
+    to: 'keys: 9_000',
+    needs: ['gate']
+  },
+  {
+    n: 'Z3a',
+    rule: 'Z3',
+    name: 'a named key may share its write',
+    why: 'Escape followed by anything in one read is Meta: a named key other than BSpace is the write’s one item (D17, §Attack A1).',
+    file: WRITES,
+    from: "  if (keys.length > 1 && keys.some((key) => 'k' in key && key.k !== 'BSpace')) return { ok: false, write };\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z3b',
+    rule: 'Z3',
+    name: 'a key name read by its prefix',
+    why: 'a name is one of the 35 by identity; a prefix admits C-Up and anything else that starts like a control key.',
+    file: WRITES,
+    from: /for \(const known of POCKET_SCREEN_KEY_NAMES\) \{\n\s*if \(known === name\) return \{ k: known \};\n\s*\}/,
+    to: "if (typeof name === 'string' && name.startsWith('C-')) return { k: name as never };",
+    needs: ['gate']
+  },
+  {
+    n: 'Z3c',
+    rule: 'Z3',
+    name: 'a text item trimmed in the parse',
+    why: 'nothing a phone sends is rewritten before the verb judges it; a trimmed text is keys he did not type.',
+    file: WRITES,
+    from: "text.length > 0 ? { t: text } : null;",
+    to: "text.length > 0 ? { t: text.trim() } : null;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z4a',
+    rule: 'Z4',
+    name: 'an await between the final check and the act',
+    why: 'the check is synchronous to the act: anything awaited there lets a question appear between what was checked and what is typed (D21).',
+    file: SCREEN_KEYS,
+    from: "deps.turns.bump(id, 'phone');",
+    to: "deps.turns.bump(id, 'phone');\n      await Promise.resolve();",
+    needs: ['gate']
+  },
+  {
+    n: 'Z4b',
+    rule: 'Z4',
+    name: 'two fresh reads',
+    why: 'ONE fresh read, its capture the last thing awaited before the check; a second is a check against a screen nobody compared.',
+    file: SCREEN_KEYS,
+    from: 'const fresh = await deps.watch.readFresh(row);',
+    to: 'await deps.watch.readFresh(row);\n      const fresh = await deps.watch.readFresh(row);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z5a',
+    rule: 'Z5',
+    name: 'the refusal compares the turn alone',
+    why: 'the id moves on the phone’s own key, so after a Return the poll hands back the new id before the next question is drawn; the window’s mark is what changes when a new question is (D22).',
+    file: SCREEN_KEYS,
+    from: /\s*\|\|\s*input\.dialog\s*!==\s*dialog\)/,
+    to: ')',
+    needs: ['gate']
+  },
+  {
+    n: 'Z5b',
+    rule: 'Z5',
+    name: 'asking reads the status alone',
+    why: 'a numbered question drawn with no hook (Codex) is asking too; a refusal that reads only the status lets a Return land on it (D16).',
+    file: SCREEN_COMPOSE,
+    from: "return status === 'needs_input' || detectDialogRows(normalizeCapture(plain)).atChoice;",
+    to: "return status === 'needs_input';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z6a',
+    rule: 'Z6',
+    name: 'text sent with send-keys -l',
+    why: 'NEVER -l: over the control client it expanded $HOME, and as an argv it dropped a trailing ; (§14 M4).',
+    file: SCREEN_KEYS,
+    from: "out.push(['send-keys', '-t', pane, '-H', ...hex]);",
+    to: "out.push(['send-keys', '-t', pane, '-l', ...hex]);",
+    needs: ['gate']
+  },
+  {
+    n: 'Z6b',
+    rule: 'Z6',
+    name: 'a named key with no target',
+    why: 'a key goes to the pane the fresh read named and nowhere else; send-keys with no -t types into whatever the client’s current pane is.',
+    file: SCREEN_KEYS,
+    from: "out.push(['send-keys', '-t', pane, item.k]);",
+    to: "out.push(['send-keys', item.k]);",
+    needs: ['gate']
+  },
+  {
+    n: 'Z7a',
+    rule: 'Z7',
+    name: 'the read reads an error’s text',
+    why: 'an error’s text can hold its argv and the screen it read; nothing in src/main/screen reads it.',
+    file: SCREEN_READ,
+    from: /\} catch \{\n(\s*)return null;/,
+    to: (_m, indent) => `} catch (err) {\n${indent}void (err as Error).message;\n${indent}return null;`,
+    needs: ['gate']
+  },
+  {
+    n: 'Z8a',
+    rule: 'Z8',
+    name: 'the status funnel asked before the act',
+    why: 'a key answers what the session was waiting on only once it has been typed; asked before the act, a refused write moves the status.',
+    file: SCREEN_KEYS,
+    from: 'deps.onLastCheck?.(id);',
+    to: 'deps.onLastCheck?.(id);\n      deps.noteUserInput(id);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z9a',
+    rule: 'Z9',
+    name: 'the screen format one field longer',
+    why: 'the format is one constant and no caller string is ever a format: a format on a long-lived connection can run programs (D6).',
+    file: SCREEN_READ,
+    from: "#{alternate_on}';",
+    to: "#{alternate_on}\\t#{pane_current_command}';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9b',
+    rule: 'Z9',
+    name: 'the read names a resize',
+    why: 'his ruling 2: the phone never changes the size of a session on his Mac, and nothing this phase adds names a size.',
+    file: SCREEN_READ,
+    from: 'export function parseScreenDisplay(',
+    to: "export const NEVER_SIZE = ['resize-window', '-x', '80'];\nexport function parseScreenDisplay(",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9c',
+    rule: 'Z9',
+    name: 'the far read carries a second command',
+    why: 'a far screen is read by one exec of capture-pane and display-message with the one format, and nothing a caller wrote.',
+    file: REMOTE_SCREEN,
+    from: "'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT]",
+    to: "'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'refresh-client', '-C', '80x24']",
+    needs: ['gate']
+  },
+  {
+    n: 'Z10a',
+    rule: 'Z10',
+    name: 'the poll’s own timer awaits',
+    why: 'a waiting poll is answered from its own timer, which never awaits a read, so a remote read in flight can never hold a poll past the door’s stop join (D3, §Attack A7).',
+    file: SCREEN_WATCH,
+    from: 'poll.timer = setInterval(() => evaluate(poll), SCREEN_TICK_MS);',
+    to: 'poll.timer = setInterval(async () => {\n          await Promise.resolve();\n          evaluate(poll);\n        }, SCREEN_TICK_MS);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z10b',
+    rule: 'Z10',
+    name: 'the hold raised past the door’s answer timer',
+    why: 'the answer must leave by SCREEN_HOLD_MS + SCREEN_TICK_MS, under the door’s 15 s with 2 s to spare, or the door answers its own 404.',
+    file: SCREEN_WATCH,
+    from: 'export const SCREEN_HOLD_MS = 10_000;',
+    to: 'export const SCREEN_HOLD_MS = 14_000;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z10c',
+    rule: 'Z10',
+    name: 'a poll’s read raced against no deadline of its own',
+    why: 'every read races its deadline, and one past it counts as not read; a read that hangs must not hold the watcher.',
+    file: SCREEN_WATCH,
+    from: "deadline = setTimeout(() => resolve('late'), remote ? SCREEN_REMOTE_READ_DEADLINE_MS : SCREEN_LOCAL_READ_DEADLINE_MS);",
+    to: "deadline = setTimeout(() => resolve('late'), 60_000);",
+    needs: ['gate']
+  },
+  {
+    n: 'Z10d',
+    rule: 'Z10',
+    name: 'the poll’s tick raised past half the door’s stop join',
+    why: 'a poll under a shutdown is answered within one of its own ticks; two ticks must fit inside DOOR_STOP_JOIN_MS, or a stopping door cuts a poll that was about to answer (D3, §Attack A7).',
+    file: SCREEN_WATCH,
+    from: 'export const SCREEN_TICK_MS = 100;',
+    to: 'export const SCREEN_TICK_MS = 600;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z11a',
+    rule: 'Z11',
+    name: 'a run copied by a spread',
+    why: 'the answer is composed field by field, so a field the watcher added cannot ride along to the phone.',
+    file: ROUTES,
+    from: 'row.push({ text: run.text, style: run.style, cells: run.cells });',
+    to: 'row.push({ ...run });',
+    needs: ['gate']
+  },
+  {
+    n: 'Z11b',
+    rule: 'Z11',
+    name: 'a cap read twice',
+    why: 'each cap is read once, so it cannot be compared one way in one place and another way in the next.',
+    file: ROUTES,
+    from: "if (cols > POCKET_SCREEN_MAX_COLS || rows > POCKET_SCREEN_MAX_ROWS) return 'large';",
+    to: "if (cols > POCKET_SCREEN_MAX_COLS || rows > POCKET_SCREEN_MAX_ROWS) return 'large';\n  if (cols === POCKET_SCREEN_MAX_COLS) return 'large';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z12a',
+    rule: 'Z12',
+    name: 'the composer reads a file',
+    why: 'the composer is pure: it reads no clock, no file and no process, so the same screen composes the same answer.',
+    file: SCREEN_COMPOSE,
+    from: /\nimport /,
+    to: "\nimport { readFileSync as p337ReadFile } from 'node:fs';\nvoid p337ReadFile;\nimport ",
+    needs: ['gate']
+  },
+  {
+    n: 'Z12b',
+    rule: 'Z12',
+    name: 'a second spelling of the window’s mark',
+    why: 'the answer’s dialog, the verb’s check and the nudge’s before are ONE spelling; a second can drift and turn every key inside a question into a false changed.',
+    file: SCREEN_WATCH,
+    from: 'export function createScreenWatch(',
+    to: 'export const markAgain = (p: string): string => hashScreen(readBackWindowOf(p));\nexport function createScreenWatch(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12c',
+    rule: 'Z12',
+    name: 'the composer imports a module outside its two named neighbours',
+    why: 'compose.ts reaches outside src/main/screen and src/shared only for ../activity/screen and ../reply/reader; a third import (here the monitor itself, which a pure fs ban does not name) is the first step to a composer that reads state (§Attack A16).',
+    file: SCREEN_COMPOSE,
+    from: "import { readBackWindowOf } from '../reply/reader';",
+    to: "import { readBackWindowOf } from '../reply/reader';\nimport type { ActivityMonitorDeps as P337Monitor } from '../activity/monitor';\nexport type P337MonitorSeen = P337Monitor;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z13a',
+    rule: 'Z13',
+    name: 'the read handed a closing that never closes',
+    why: 'a held poll ends when the quit starts or the door stops; a closing that is always false holds it past the stop’s join.',
+    file: SERVER,
+    from: 'const body = await deps.answer(route, queryOf(request.target), closing);',
+    to: 'const body = await deps.answer(route, queryOf(request.target), () => false);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z14a',
+    rule: 'Z14',
+    name: 'a Screen row on an ended session',
+    why: 'the phone draws a Screen row only where one can open: a running, idle or waiting session (D32).',
+    file: ROUTES,
+    from: 'screen: facts.screen !== undefined && screenLive(session)',
+    to: 'screen: facts.screen !== undefined',
+    needs: ['gate']
+  },
+  {
+    n: 'Z14b',
+    rule: 'Z14',
+    name: 'the Screen’s live test spelled as a second list of statuses',
+    why: 'the one live partition is sessionActionGates’ live; a second spelling is one more place for the two to drift apart (conformance:manager T23).',
+    file: ROUTES,
+    from: 'return sessionActionGates(session, session.status, DOOR_GATE_ENV).live;',
+    to: "return session.status === 'running' || session.status === 'idle' || session.status === 'needs_input';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z14c',
+    rule: 'Z14',
+    name: 'the watcher decides by its own status list',
+    why: 'whether a row has a screen to read is screenLive’s answer, and the watcher asks it rather than listing statuses (D32, T23).',
+    file: SCREEN_WATCH,
+    from: "if (row === null || !screenLive(row)) {\n      // Not running",
+    to: "if (row === null || !['running', 'idle', 'needs_input'].includes(row.status)) {\n      // Not running",
+    needs: ['gate']
+  },
+  {
+    n: 'Z15a',
+    rule: 'Z15',
+    name: 'the honesty sentence says the phone changes nothing else',
+    why: 'false once a phone can type into a shell (D35).',
+    file: SHARED,
+    from: "'answer a numbered question, send a session one message and end a session.';",
+    to: "'answer a numbered question, send a session one message and end a session. It can change nothing else on this Mac.';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z16a',
+    rule: 'Z16',
+    name: 'an entry with no poll never dropped',
+    why: 'nothing is read for a session nobody is looking at; an entry kept after its last poll is a screen read ten times a second forever.',
+    file: SCREEN_WATCH,
+    from: 'if (entries.get(entry.sessionId) === entry) entries.delete(entry.sessionId);',
+    to: 'void entries;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z16b',
+    rule: 'Z16',
+    name: 'the duty cycle gone',
+    why: 'after a read that composed, the next is not before four times the compose; without it a pathological screen takes main’s loop (D15).',
+    file: SCREEN_WATCH,
+    from: /Math\.max\(tickOf\(core, row\), SCREEN_DUTY_FACTOR \* [A-Za-z.]+\)/g,
+    to: 'tickOf(core, row)',
+    needs: ['gate']
+  },
+  {
+    n: 'Z17a',
+    rule: 'Z17',
+    name: 'any end closes the open block',
+    why: 'a guard-shaped row a screen draws inside a capture’s answer handed the next pane’s answer to the wrong command in 20 of 20 trials at the parent (D8, §14 M3).',
+    file: CONTROL_CLIENT,
+    from: /event\.commandNumber === open\.number &&\s*event\.timestamp === open\.time/,
+    to: 'true',
+    needs: ['gate']
+  },
+  {
+    n: 'Z18a',
+    rule: 'Z18',
+    name: 'the text cap spelled a second time',
+    why: 'POCKET_KEYS_MAX_TEXT_BYTES is declared once, in the contract, so the phone and the verb hold one number.',
+    file: SCREEN_KEYS,
+    from: 'export const SCREEN_KEYS_GAP_MS = 50;',
+    to: 'export const SCREEN_KEYS_GAP_MS = 50;\nexport const POCKET_KEYS_MAX_TEXT_BYTES = 1_024;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z19a',
+    rule: 'Z19',
+    name: 'the nonce memory back at 512',
+    why: 'a phone on a Screen sends 24 signed requests a second; at 512 its own traffic evicts a nonce still inside its window (D40).',
+    file: PAIRING,
+    from: 'export const POCKET_NONCE_MEMORY = 4_096;',
+    to: 'export const POCKET_NONCE_MEMORY = 512;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z19b',
+    rule: 'Z19',
+    name: 'a held poll answered at every tick',
+    why: 'a spinner would be answered ten times a second to each phone, and the nonce budget assumes four (D40).',
+    file: SCREEN_WATCH,
+    from: '    if (poll.held && t - poll.arrivedAt < SCREEN_MIN_ANSWER_GAP_MS && !state.endsSettle) return;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z19c',
+    rule: 'Z19',
+    name: 'the clock window doubled under the same nonce memory',
+    why: 'the memory is held to the arithmetic over the window, not to its number: a phone keeps 2 * POCKET_CLOCK_SKEW_MS of requests acceptable, so a wider window with the same 4,096 lets its own traffic evict a nonce still inside it (D40).',
+    file: PAIRING,
+    from: 'export const POCKET_CLOCK_SKEW_MS = 60_000;',
+    to: 'export const POCKET_CLOCK_SKEW_MS = 120_000;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z20a',
+    rule: 'Z20',
+    name: 'the gap not awaited',
+    why: 'two keys writes a few ms apart reach a busy reader as ONE read, and Escape then a key in one read is Meta (D42, §Attack AM2).',
+    file: SCREEN_KEYS,
+    from: 'await sleep(left);',
+    to: 'break;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z20b',
+    rule: 'Z20',
+    name: 'the last act never recorded',
+    why: 'the gap is measured from the session’s previous act; without it there is nothing to measure from.',
+    file: SCREEN_KEYS,
+    from: 'lastAct.set(id, actAt);',
+    to: 'void actAt;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z21a',
+    rule: 'Z21',
+    name: 'the settle ends on any reading',
+    why: 'a 30 ms nudge answers before agents redraw, handing the phone a turn-only picture whose next key inside a question is refused changed (D4, §Attack A6).',
+    file: SCREEN_WATCH,
+    from: 'state.mark !== settle.before',
+    to: 'state.mark !== state.mark',
+    needs: ['gate']
+  },
+  {
+    n: 'Z21b',
+    rule: 'Z21',
+    name: 'a read started while one is in flight',
+    why: 'one read is in flight per session: 400 ms ticks against a 2 s deadline would otherwise allow five at once (§Attack A7).',
+    file: SCREEN_WATCH,
+    from: 'if (core === null || inFlight.has(entry.sessionId)) {',
+    to: 'if (core === null) {',
+    needs: ['gate']
+  },
+  {
+    n: 'Z21c',
+    rule: 'Z21',
+    name: 'the down path drops its second display',
+    why: 'when the control client is down a read is ONE spawned list of the three; fewer is a read that cannot tell a screen that moved under it (§Attack A8).',
+    file: SCREEN_READ,
+    from: "return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId), ';', ...displayArgs(tmuxId)];",
+    to: "return [...displayArgs(tmuxId), ';', ...captureArgs(tmuxId)];",
+    needs: ['gate']
+  },
+  {
+    n: 'Z21d',
+    rule: 'Z21',
+    name: 'the down path spawns a second tmux per read',
+    why: 'a down control client costs ONE spawn a read, the three commands in one list; a second spawn per read is the thirty a second per watched session the attack measured (§Attack A8).',
+    file: SCREEN_READ,
+    from: '    stdout = await spawn(spawnedReadArgs(tmuxId), { timeoutMs });\n',
+    to: '    stdout = await spawn(spawnedReadArgs(tmuxId), { timeoutMs });\n    await spawn(displayArgs(tmuxId), { timeoutMs });\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z22a',
+    rule: 'Z22',
+    name: 'every keys write logged',
+    why: 'one line a write at ten a second rotates the diagnosis log out in about twenty minutes of typing (D43, §Attack A11).',
+    file: WRITES,
+    from: 'if (logs(verb, done.outcome, session, pending.at)) pocketLog.info(',
+    to: 'pocketLog.info(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z22b',
+    rule: 'Z22',
+    name: 'the quiet minute shortened to a second',
+    why: 'one line per session per quiet minute of typing is the bound; a second is ten times a minute.',
+    file: WRITES,
+    from: 'export const KEYS_LOG_QUIET_MS = 60_000;',
+    to: 'export const KEYS_LOG_QUIET_MS = 1_000;',
     needs: ['gate']
   },
   // -------------------------------------------------------------------------

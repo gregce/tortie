@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import Tortie
 
@@ -45,13 +46,34 @@ final class InfoPlistTests: XCTestCase {
 
     /// Clause: "Dark only. iPhone, portrait. Deployment target 18.1" (section
     /// 4.0), full screen (a launch screen, without which iOS draws the app in a
-    /// letterbox and no frame the probe reads is the device's).
+    /// letterbox and no frame the probe reads is the device's). Since Phase
+    /// 337 the plist lists portrait and BOTH landscapes and no upside down,
+    /// because iOS rotates only to what it lists; App/AppDelegate.swift
+    /// answers portrait for every screen but the Screen (D27, rule an).
     func testDarkPortraitIPhoneFromEighteenPointOne() {
         XCTAssertEqual(info["UIUserInterfaceStyle"] as? String, "Dark")
-        XCTAssertEqual(info["UISupportedInterfaceOrientations"] as? [String], ["UIInterfaceOrientationPortrait"])
+        XCTAssertEqual(
+            info["UISupportedInterfaceOrientations"] as? [String],
+            ["UIInterfaceOrientationPortrait", "UIInterfaceOrientationLandscapeLeft", "UIInterfaceOrientationLandscapeRight"]
+        )
         XCTAssertEqual(info["UIDeviceFamily"] as? [Int], [1])
         XCTAssertEqual(info["MinimumOSVersion"] as? String, "18.1")
         XCTAssertNotNil(info["UILaunchScreen"] as? [String: Any])
+    }
+
+    /// Clause (Phase 337, rule an): landscape on the Screen alone. The app
+    /// delegate answers portrait unless the Screen is on top, and then both
+    /// landscapes too, never upside down.
+    @MainActor
+    func testLandscapeIsTheScreensAlone() {
+        let delegate = AppDelegate()
+        let was = OrientationGate.screenOnTop
+        defer { OrientationGate.screenOnTop = was }
+        OrientationGate.screenOnTop = false
+        XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .portrait)
+        OrientationGate.screenOnTop = true
+        XCTAssertEqual(delegate.application(UIApplication.shared, supportedInterfaceOrientationsFor: nil), .allButUpsideDown)
+        XCTAssertEqual(OrientationGate.allowed, .allButUpsideDown)
     }
 
     /// Clause: the camera sentence is one sentence (the SPEC's Files table).

@@ -399,14 +399,19 @@ export interface PocketDoorSummary {
 
 /**
  * What each write lets an allowed phone do, in the words the line says it
- * (Phase 317, build/p317/SPEC.md §5.6; Phase 318, build/p318/SPEC.md §5.1.7).
- * Keyed by the closed write list, so a write added to it without its clause
- * here is a compile error rather than a route the lines never mention.
+ * (Phase 317, build/p317/SPEC.md §5.6; Phase 318, build/p318/SPEC.md §5.1.7;
+ * Phase 337, build/p337/SPEC.md D35). Keyed by the closed write list, so a
+ * write added to it without its clause here is a compile error rather than a
+ * route the lines never mention.
+ *
+ * `keys` says what typing means plainly: a key can run a command in a shell,
+ * exactly as it can at the desk (his ruling 3, "Every key, including Ctrl-C").
  */
 const WRITE_CLAUSES: Readonly<Record<PocketWriteRouteId, string>> = Object.freeze({
   end: 'end a session',
   choose: 'answer a numbered question',
-  say: 'send a session one message'
+  say: 'send a session one message',
+  keys: 'type into any session as you would at this Mac'
 });
 
 /**
@@ -1699,8 +1704,18 @@ export const POCKET_REQUEST_ALGORITHM = 'tortie-pocket-req-v1';
  */
 export const POCKET_CLOCK_SKEW_MS = 60_000;
 
-/** How many spent nonces are remembered per phone. */
-export const POCKET_NONCE_MEMORY = 512;
+/**
+ * How many spent nonces are remembered per phone.
+ *
+ * 512 until Phase 337 (build/p337/SPEC.md D40), which made every Screen poll
+ * and every keys write a signed request. A phone on a Screen sends at most four
+ * polls a second (a held poll is answered no sooner than 250 ms after it
+ * arrived), one more for each keys write's settled answer, and ten keys writes
+ * a second: 24 a second, 1,440 in one clock window and 2,880 in the 120 s a
+ * skewed clock can stretch it to. So the memory is 4,096, and a phone's own
+ * traffic never evicts a nonce still inside its window.
+ */
+export const POCKET_NONCE_MEMORY = 4_096;
 
 /** The headers a signed request carries. None of them is a secret. */
 export const POCKET_HEADERS = {

@@ -82,6 +82,25 @@
  * cap that refuses, which cuts the socket with no answer; at 2 KB it is the
  * door's 1,024-character target bound, which answers 404.
  *
+ * PHASE 337 ADDED THE SCREEN'S READ AND ITS KEYS (build/p337/SPEC.md §6.2):
+ * a signed `GET /v1/screen` answered by a FAKE watcher whose answers the arms
+ * choose (it records what it was asked and holds a poll as told), composed
+ * field by field by the SHIPPING route, and a signed `POST /v1/keys` through
+ * the same shipping write path over the same recording fake, whose `keys`
+ * records its input and asks the `still` it was handed. The SC arms: an
+ * honest read and an honest long poll, every malformed query (the fake never
+ * asked), a poll held while its phone is Removed (cut, no screen byte after
+ * the Remove), a poll held while the door stops (ended by `closing()` and
+ * never answered after the stop's join), and a poll main holds past the bound
+ * (the door's 404 on a KEPT connection that then answers the next request).
+ * The SK arms: an honest keys write, a replay, a re-signed write id, every
+ * malformed body (65 items, an item with two keys, unknown names, a named key
+ * that is not the write's only item), a body over 16,384 and the worst legal
+ * one under it, a query, a GET signature, another phone's connection, an End
+ * and keys on one session at once, a phone removed before and during the act,
+ * and twenty `done` keys writes on one session in two seconds logged ONCE
+ * with a refusal among them logged on its own line (D43).
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -109,11 +128,13 @@ import type {
   PocketChooseInput,
   PocketEndOutcome,
   PocketFacts,
+  PocketKeysInput,
   PocketReplyOutcome,
   PocketRoute,
   PocketSayInput,
   PocketWrites
 } from '../../src/main/pocket/routes.js';
+import type { PocketScreenAnswer } from '../../src/shared/ipc/pocket.js';
 import type { PocketExecutionFields, PocketIdentity, PocketPhoneFields } from '../../src/main/pocket/pairing.js';
 import type { StoredTurn } from '../../src/main/overview/store/index.js';
 import type { Session, SessionStatus } from '../../src/shared/types.js';
@@ -485,6 +506,127 @@ function signedAsk(
   return ask('GET', target, headers, body.length > 0 ? body : null, { as: options.over ?? phone });
 }
 
+/** One answer read off a kept connection: its status and its body, by its `Content-Length`. */
+interface KeptAnswer {
+  status: number;
+  body: string;
+}
+
+/**
+ * ONE KEPT CONNECTION (Phase 337, build/p337/SPEC.md D25), the Screen's way:
+ * a paired phone's TLS connection whose requests say `Connection: keep-alive`,
+ * each answer read by its `Content-Length` and nothing past it, so an arm can
+ * send a second request on the same line and count any byte the door writes
+ * that no request asked for. Its sockets are in `openSockets`, destroyed in the
+ * `finally` whatever happened.
+ */
+async function keptLine(phone: Phone): Promise<{
+  send(target: string, waitMs: number): Promise<KeptAnswer | null>;
+  unread(): number;
+  handshakes(): number;
+  close(): void;
+}> {
+  const raw = netConnect(localPort, '127.0.0.1');
+  openSockets.add(raw);
+  raw.on('error', () => undefined);
+  await new Promise<void>((resolve) => raw.once('connect', () => resolve()));
+  raw.write(proxyHeader());
+  const tls = tlsConnect({
+    socket: raw,
+    servername: NAME,
+    minVersion: 'TLSv1.3',
+    rejectUnauthorized: false,
+    key: phone.tlsKey,
+    cert: phone.tlsCert ?? ''
+  });
+  openSockets.add(tls);
+  tls.on('error', () => undefined);
+  let handshakes = 0;
+  await new Promise<void>((resolve) =>
+    tls.once('secureConnect', () => {
+      handshakes += 1;
+      resolve();
+    })
+  );
+  const peer = (tls as unknown as { getPeerCertificate: () => { pubkey?: Buffer } }).getPeerCertificate();
+  if (pinnedKey === null || pinOfLeaf(peer) !== pinnedKey) {
+    tls.destroy();
+    throw new Error('the door presented a key that is not the pinned one');
+  }
+  let held = Buffer.alloc(0);
+  let closed = false;
+  let wake: (() => void) | null = null;
+  tls.on('data', (d: Buffer) => {
+    held = Buffer.concat([held, d]);
+    wake?.();
+  });
+  tls.on('close', () => {
+    closed = true;
+    wake?.();
+  });
+  /** One whole answer off the front of what was read, or null. */
+  const takeOne = (): KeptAnswer | null => {
+    const end = held.indexOf('\r\n\r\n');
+    if (end === -1) return null;
+    const head = held.subarray(0, end).toString('utf8');
+    const length = Number(/\r\ncontent-length:\s*(\d+)/i.exec(head)?.[1] ?? 'NaN');
+    if (!Number.isFinite(length) || held.length < end + 4 + length) return null;
+    const answer = {
+      status: Number(/^HTTP\/1\.1 (\d{3})/.exec(head)?.[1] ?? 0),
+      body: held.subarray(end + 4, end + 4 + length).toString('utf8')
+    };
+    held = held.subarray(end + 4 + length);
+    return answer;
+  };
+  return {
+    async send(target, waitMs) {
+      const timestamp = String(Date.now());
+      const nonce = randomBytes(12).toString('hex');
+      const signature = signAsPhone(phone.signPrivate, {
+        method: 'GET',
+        target,
+        bodySha256: createHash('sha256').update(Buffer.alloc(0)).digest('hex'),
+        timestamp,
+        nonce,
+        binding: phone.binding
+      });
+      tls.write(
+        [
+          `GET ${target} HTTP/1.1`,
+          `Host: ${HOST}`,
+          `${POCKET_HEADERS.phone}: ${phone.fields.id}`,
+          `${POCKET_HEADERS.timestamp}: ${timestamp}`,
+          `${POCKET_HEADERS.nonce}: ${nonce}`,
+          `${POCKET_HEADERS.signature}: ${signature}`,
+          'Connection: keep-alive'
+        ].join('\r\n') + '\r\n\r\n'
+      );
+      const deadline = Date.now() + waitMs;
+      for (;;) {
+        const answer = takeOne();
+        if (answer !== null) return answer;
+        if (closed || Date.now() > deadline) return null;
+        await new Promise<void>((resolve) => {
+          const timer = setTimeout(resolve, Math.max(1, deadline - Date.now()));
+          wake = () => {
+            clearTimeout(timer);
+            resolve();
+          };
+        });
+        wake = null;
+      }
+    },
+    unread: () => held.length,
+    handshakes: () => handshakes,
+    close: () => {
+      tls.destroy();
+      raw.destroy();
+      openSockets.delete(tls);
+      openSockets.delete(raw);
+    }
+  };
+}
+
 /**
  * Seal AND SIGN a presentation the way a phone does (build/p330/SPEC.md
  * §4.7.2), spelled here from the wire format and never through the door's own
@@ -667,6 +809,65 @@ try {
   let lastSessions: unknown = 'not-asked';
   /** A phone to take out of the store AFTER the sessions answer is composed and before it leaves. */
   let removeAfterSessions: string | null = null;
+
+  /**
+   * PHASE 337: THE SCREEN'S WATCHER, A FAKE whose answers the arms choose. It
+   * records every poll main hands it (the session and the `since`), and holds a
+   * poll as the arm says: until `closing()` holds (the stop arm), until the arm
+   * releases it (the Remove arm), or past the door's answer bound (the bound
+   * arm). Its answer carries one field the contract does not, which the
+   * shipping route must strip (`screenOf`).
+   */
+  const SCREEN_REV = 'abcdef012345';
+  type ScreenHold =
+    | { kind: 'none' }
+    | { kind: 'until-closing'; seen: boolean }
+    | { kind: 'release'; promise: Promise<void> }
+    | { kind: 'past-bound'; ms: number };
+  let screenHold: ScreenHold = { kind: 'none' };
+  const screenAsks: { sessionId: string; since: string | null }[] = [];
+  const nap = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms));
+  const screenAnswerOf = (sessionId: string, since: string | null): PocketScreenAnswer =>
+    since === SCREEN_REV
+      ? { sessionId, revision: SCREEN_REV, at: Date.now(), unchanged: true, screen: null, why: null, sentence: null }
+      : {
+          sessionId,
+          revision: SCREEN_REV,
+          at: Date.now(),
+          unchanged: false,
+          screen: {
+            cols: 4,
+            rows: 1,
+            cursor: { x: 0, y: 0, visible: true },
+            alternate: false,
+            ground: '#131417',
+            ink: '#d8dbe2',
+            caret: '#e8eaed',
+            styles: [{ fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+            lines: [[{ text: 'p337', style: 0, cells: 4 }]],
+            turn: '0123456789abcdef-1',
+            asking: false,
+            dialog: null,
+            typable: true
+          },
+          why: null,
+          sentence: null
+        };
+  const screenFake = async (session: Session, since: string | null, closing: () => boolean): Promise<PocketScreenAnswer> => {
+    screenAsks.push({ sessionId: session.id, since });
+    const hold = screenHold;
+    if (hold.kind === 'until-closing') {
+      const deadline = Date.now() + 8_000;
+      while (!closing() && Date.now() < deadline) await nap(10);
+      hold.seen = closing();
+    } else if (hold.kind === 'release') {
+      await hold.promise;
+    } else if (hold.kind === 'past-bound') {
+      await nap(hold.ms);
+    }
+    return { ...screenAnswerOf(session.id, since), styledBytes: 'never on the wire' } as PocketScreenAnswer;
+  };
+
   const facts: PocketFacts = {
     sessions: () => listed,
     projects: () => [],
@@ -701,7 +902,8 @@ try {
       const status = listed.find((s) => s.id === sessionId)?.status ?? 'idle';
       return readPocketTurns(fakeStore, sessionId, range, status);
     },
-    handoff: () => null
+    handoff: () => null,
+    screen: (session, since, closing) => screenFake(session, since, closing)
   };
   const routes = createPocketRoutes(facts);
 
@@ -729,6 +931,13 @@ try {
     replies.push({ verb, sessionId: input.sessionId, input, still: allowed });
     return allowed ? { outcome: 'done' } : { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
   };
+  /**
+   * PHASE 337. Every keys write the write path handed the fake, and what the
+   * `still` it was handed answered AFTER any hold, as the keys verb asks it in
+   * its final check. `keysAnswer` lets one arm make the next write a refusal.
+   */
+  const keyed: { sessionId: string; input: PocketKeysInput; still: boolean }[] = [];
+  let keysAnswer: PocketReplyOutcome | null = null;
   const recordingWrites: PocketWrites = {
     end: async (input): Promise<PocketEndOutcome> => {
       acts.push(input);
@@ -737,7 +946,17 @@ try {
       return { outcome: 'done' };
     },
     choose: (input, still) => replyAnswer('choose', input, still),
-    say: (input, still) => replyAnswer('say', input, still)
+    say: (input, still) => replyAnswer('say', input, still),
+    keys: async (input, still): Promise<PocketReplyOutcome> => {
+      actsReached += 1;
+      if (holdAct !== null) await holdAct;
+      const allowed = still();
+      keyed.push({ sessionId: input.sessionId, input, still: allowed });
+      if (!allowed) return { outcome: 'refused', reason: 'stopped', sentence: POCKET_WRITE_SENTENCES.stopped };
+      const told = keysAnswer;
+      keysAnswer = null;
+      return told ?? { outcome: 'done' };
+    }
   };
   const writeHandler = createPocketWriteHandler({
     shuttingDown: () => false,
@@ -779,7 +998,7 @@ try {
       pairedAsked.push({ id, answer });
       return answer;
     },
-    answer: async (route: PocketRoute, query) => {
+    answer: async (route: PocketRoute, query, closing) => {
       switch (route.id) {
         case 'blocked':
           return routes.blocked();
@@ -803,11 +1022,16 @@ try {
           }
           return lastSessions;
         }
+        case 'screen':
+          // PHASE 337: the whole query and refusal 1's `closing` go to the
+          // shipping composer, as in ipc.ts.
+          return routes.screen(query, closing);
         case 'pair':
           return null;
         case 'end':
         case 'choose':
         case 'say':
+        case 'keys':
           return null;
       }
     },
@@ -1901,6 +2125,248 @@ try {
         const list = bodyOf(await signedAsk(good, '/v1/blocked')) as { rows?: Record<string, unknown>[]; others?: Record<string, unknown>[] };
         const carrying = [...(list.rows ?? []), ...(list.others ?? [])].filter((row) => 'reply' in row).length;
         record('RW15b', 'and /v1/blocked’s rows carry no reply', '0', String(carrying), 'D18: the reply is on /v1/session alone; the list answers do not change.');
+      }
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 337 (build/p337/SPEC.md §6.2): the Screen's read, over the fake
+    // watcher, through the SHIPPING route; and its keys, through the same
+    // shipping write path, ledger and claims, over the recording fake.
+    // -----------------------------------------------------------------------
+    {
+      const asksOn = (sessionId: string): number => screenAsks.filter((a) => a.sessionId === sessionId).length;
+
+      // SC1. An honest read, and an honest long poll that is already current.
+      {
+        const before = asksOn('ses_talk');
+        const answer = await signedAsk(good, '/v1/screen?id=ses_talk');
+        const b = bodyOf(answer) as { sessionId?: string; screen?: { lines?: unknown }; styledBytes?: unknown };
+        record('SC1', 'an honest screen read over the phone’s own connection', 'ok-1-ses_talk-composed', `${verdict(answer)}-${String(asksOn('ses_talk') - before)}-${String(b.sessionId)}-${'styledBytes' in b || b.screen === undefined ? 'RAW' : 'composed'}`, 'the read reaches the watcher once, and the shipping route copies its answer field by field, so a field the contract does not name never leaves.');
+        const poll = await signedAsk(good, `/v1/screen?id=ses_talk&since=${SCREEN_REV}`);
+        const asked = screenAsks.at(-1);
+        record('SC1b', 'a long poll naming the revision it holds', `ok-unchanged-${SCREEN_REV}`, `${verdict(poll)}-${bodyOf(poll)['unchanged'] === true && bodyOf(poll)['screen'] === null ? 'unchanged' : 'other'}-${String(asked?.since)}`, 'the watcher is handed the phone’s revision, and an unchanged answer carries nothing else.');
+      }
+
+      // SC2. Every malformed query: 404, and the watcher never asked.
+      {
+        const queries: [string, string, string][] = [
+          ['SC2a', 'a since of 11 hex', `id=ses_talk&since=${SCREEN_REV.slice(1)}`],
+          ['SC2b', 'a since of 13 hex', `id=ses_talk&since=${SCREEN_REV}0`],
+          ['SC2c', 'a since in upper case', `id=ses_talk&since=${SCREEN_REV.toUpperCase()}`],
+          ['SC2d', 'since twice', `id=ses_talk&since=${SCREEN_REV}&since=${SCREEN_REV}`],
+          ['SC2e', 'an unknown parameter, a size', 'id=ses_talk&cols=80'],
+          ['SC2f', 'no id', `since=${SCREEN_REV}`],
+          ['SC2g', 'id twice', 'id=ses_talk&id=ses_1'],
+          ['SC2h', 'an id nobody has', 'id=ses_nobody']
+        ];
+        for (const [n, name, query] of queries) {
+          const before = screenAsks.length;
+          const answer = await signedAsk(good, `/v1/screen?${query}`);
+          record(n, `/v1/screen with ${name}`, 'refused-404:ok-never-asked', `${verdict(answer)}:${lastVerify}-${screenAsks.length === before ? 'never-asked' : 'ASKED'}`, 'D2: the query names one session and the revision the phone holds, and anything else is answered as an unknown id, before the watcher is asked; the signature held, so the refusal is main’s.');
+        }
+        const before = stats();
+        const posted = await writeAs(good, '/v1/screen', Buffer.from('{}', 'utf8'));
+        const after = stats();
+        record('SC2i', 'a POST to /v1/screen', 'refused-404-route-not-forwarded', `${verdict(posted)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'the Screen is a GET and nothing else; the closed table has no POST at its path.');
+      }
+
+      // SC3. A poll held while its phone is Removed: cut at once, and no screen
+      // byte leaves after the Remove (the listener destroys a revoked socket with
+      // no write in flight, and refusal 7 asks the phone again after main answers).
+      {
+        const wS = await allowAnother('a phone removed mid-poll');
+        let release = (): void => undefined;
+        screenHold = {
+          kind: 'release',
+          promise: new Promise<void>((resolve) => {
+            release = resolve;
+          })
+        };
+        const before = screenAsks.length;
+        const held = signedAsk(wS, `/v1/screen?id=ses_talk&since=${SCREEN_REV}`);
+        await until(() => screenAsks.length > before);
+        const removedAt = Date.now();
+        phones = phones.filter((p) => p.id !== wS.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        const answer = await held;
+        const tookMs = Date.now() - removedAt;
+        release();
+        screenHold = { kind: 'none' };
+        await nap(20);
+        record('SC3', 'a screen poll held while its phone is Removed', 'nosocket-nobytes-at-once', `${verdict(answer)}-${answer.body === '' && answer.status === 0 ? 'nobytes' : 'BYTES'}-${tookMs < 1_000 ? 'at-once' : `after ${String(tookMs)} ms`}`, 'his Remove wins over a poll held open: no screen of his leaves for a phone he took away.');
+      }
+
+      // SC4. A poll held while the door stops: ended by `closing()`, and nothing
+      // is answered after the stop's join.
+      {
+        const hold: ScreenHold = { kind: 'until-closing', seen: false };
+        screenHold = hold;
+        const before = screenAsks.length;
+        let settledAt = 0;
+        const held = signedAsk(good, `/v1/screen?id=ses_talk&since=${SCREEN_REV}`).then((a) => {
+          settledAt = Date.now();
+          return a;
+        });
+        await until(() => screenAsks.length > before);
+        const report = await bind.stopPocketDoor();
+        const joinedAt = Date.now();
+        const answer = await held;
+        screenHold = { kind: 'none' };
+        doorStarted = false;
+        const ended = answer.status === 404 || answer.status === 0 ? 'ended' : `answered-${String(answer.status)}`;
+        record('SC4', 'a screen poll held while the door stops', 'ended-closing-seen-joined-by-the-join', `${ended}-${hold.seen ? 'closing-seen' : 'CLOSING-NOT-SEEN'}-${report.joined ? 'joined' : 'NOT-JOINED'}-${settledAt <= joinedAt + 250 ? 'by-the-join' : `after the join by ${String(settledAt - joinedAt)} ms`}`, 'D3: a held poll asks `closing()` on its own timer, so it ends inside the stop’s join rather than holding the door open.');
+        await restart();
+        record('SC4b', 'and the door that starts again answers the Screen', 'ok', verdict(await signedAsk(good, '/v1/screen?id=ses_talk')), 'the control: the stop happened and the door answers again.');
+      }
+
+      // SC5. Main holds a screen answer past the bound: the door's 404, on a
+      // KEPT connection that then answers the next request whole, and the late
+      // answer never reaches the phone.
+      {
+        screenHold = { kind: 'past-bound', ms: HOSTILE_ANSWER_MS + 500 };
+        const line = await keptLine(good);
+        const first = await line.send(`/v1/screen?id=ses_talk&since=${SCREEN_REV}`, 6_000);
+        screenHold = { kind: 'none' };
+        const second = await line.send('/v1/blocked', 3_000);
+        await nap(HOSTILE_ANSWER_MS);
+        const stray = line.unread();
+        line.close();
+        record('SC5', 'a screen answer main holds past the bound, on a kept connection', 'refused-404-then-ok-same-line-no-stray-bytes', `${first === null ? 'nothing' : `refused-${String(first.status)}`}-then-${second === null ? 'nothing' : second.status === 200 ? 'ok' : String(second.status)}-${line.handshakes() === 1 ? 'same-line' : `${String(line.handshakes())} lines`}-${stray === 0 ? 'no-stray-bytes' : `${String(stray)} stray bytes`}`, 'D3 and D25: the door answers 404 at its own bound and keeps the connection, and main’s late answer is dropped rather than written onto the next request’s line.');
+      }
+
+      // ---------------------------------------------------------------------
+      // The keys (D17, D24, D43).
+      // ---------------------------------------------------------------------
+      const KQID = '0123456789abcdef-3';
+      const keysBody = (session: string, write: string, over: Record<string, unknown> = {}): Buffer =>
+        Buffer.from(JSON.stringify({ dialog: null, keys: [{ t: 'ls' }], session, turn: KQID, write, ...over }), 'utf8');
+      const keysOn = (sessionId: string): number => keyed.filter((k) => k.sessionId === sessionId).length;
+      const echoOf = (answer: Answer): string => String(bodyOf(answer)['write']);
+
+      // SK1. An honest keys write: done, one call, exactly its four fields.
+      const keysId = writeId();
+      const honestKeys = keysBody('ses_k1', keysId, { keys: [{ k: 'BSpace' }, { t: 'x' }], dialog: 'a1b2c3d4e5f6' });
+      const keysHeaders = writeHeaders(wA, '/v1/keys', honestKeys);
+      const typed = await ask('POST', '/v1/keys', keysHeaders, honestKeys, { as: wA });
+      {
+        const got = keyed.find((k) => k.sessionId === 'ses_k1');
+        const exact =
+          got !== undefined &&
+          JSON.stringify(got.input) === JSON.stringify({ sessionId: 'ses_k1', keys: [{ k: 'BSpace' }, { t: 'x' }], turn: KQID, dialog: 'a1b2c3d4e5f6' });
+        record('SK1', 'an honest keys write, BSpace and text together', '200:done-1-exact', `${said(typed)}-${String(keysOn('ses_k1'))}-${exact ? 'exact' : 'other'}`, 'the keys reach main’s one write path with the items, the turn and the mark the phone sent, and nothing else; BSpace may share a write with text (D17).');
+        const echo = bodyOf(typed);
+        record('SK1b', 'its answer names the verb keys and echoes the write id', `keys-${keysId}-5`, `${String(echo['verb'])}-${String(echo['write'])}-${String(Object.keys(echo).length)}`, 'the phone accepts an answer only for the write and the verb it sent.');
+      }
+      record('SK2', 'the same keys bytes again', 'refused-404:replay-1', `${verdict(await ask('POST', '/v1/keys', keysHeaders, honestKeys, { as: wA }))}:${lastVerify}-${String(keysOn('ses_k1'))}`, 'a signed request is spent once, whatever it carries.');
+      {
+        const again = await writeAs(wA, '/v1/keys', honestKeys);
+        record('SK3', 'the same keys write id, signed afresh', 'recorded-1', `${again.body === typed.body ? 'recorded' : `other(${said(again)})`}-${String(keysOn('ses_k1'))}`, 'D24: the write id makes a keys write happen at most once, so a retried batch types nothing twice.');
+      }
+
+      // SK4. Every malformed body: 200 refused malformed, the id echoed, no call.
+      {
+        const shapes: [string, string, Record<string, unknown>][] = [
+          ['SK4a', '65 items', { keys: Array.from({ length: 65 }, () => ({ t: 'a' })) }],
+          ['SK4b', 'an item with two keys', { keys: [{ t: 'a', k: 'Enter' }] }],
+          ['SK4c', 'the name M-x', { keys: [{ k: 'M-x' }] }],
+          ['SK4d', 'the name F1', { keys: [{ k: 'F1' }] }],
+          ['SK4e', 'the name C-Up', { keys: [{ k: 'C-Up' }] }],
+          ['SK4f', 'the name C-c;', { keys: [{ k: 'C-c;' }] }],
+          ['SK4g', 'a text that is not a string', { keys: [{ t: 7 }] }],
+          ['SK4h', 'a sixth top-level key', { cols: 80 }],
+          ['SK4i', 'text then Enter in one write', { keys: [{ t: 'a' }, { k: 'Enter' }] }],
+          ['SK4j', 'Escape then text in one write', { keys: [{ k: 'Escape' }, { t: 'b' }] }],
+          ['SK4k', 'Up twice in one write', { keys: [{ k: 'Up' }, { k: 'Up' }] }]
+        ];
+        for (const [n, name, over] of shapes) {
+          const id = writeId();
+          const answer = await writeAs(wA, '/v1/keys', keysBody('ses_k4', id, over));
+          const b = bodyOf(answer);
+          record(n, `a keys body with ${name}`, `200:refused:malformed-${id}-unreadable-0`, `${said(answer)}-${echoOf(answer)}-${b['sentence'] === POCKET_WRITE_SENTENCES.unreadable ? 'unreadable' : String(b['sentence'])}-${String(keysOn('ses_k4'))}`, 'D17: an item is exactly one text or one of the 35 names, and a named key other than BSpace is its write’s only item, because Escape then a key in one read is Meta.');
+        }
+        const control = await writeAs(wA, '/v1/keys', keysBody('ses_k4z', writeId(), { keys: [{ k: 'BSpace' }, { t: 'x' }] }));
+        record('SK4z', 'the control: BSpace then text in one write', '200:done-1', `${said(control)}-${String(keysOn('ses_k4z'))}`, 'BSpace is a single 7f, so a composition rewrite stays one write; a door that refused this would refuse CJK typing.');
+      }
+
+      // SK5. Over the keys cap: dropped whole at the door. The worst legal body
+      // (1,024 C0 bytes and 63 BSpace items, 7,359 bytes) is NOT dropped.
+      {
+        const before = stats();
+        const big = keysBody('ses_k5', writeId(), { keys: [{ t: 'x'.repeat(POCKET_WRITE_BODY_CAPS.keys) }] });
+        const answer = await writeAs(wA, '/v1/keys', big);
+        const after = stats();
+        record('SK5', `a keys body over the cap (${String(big.length)} bytes)`, 'refused-404-oversized-not-forwarded-0', `${verdict(answer)}-${after.refused.oversized > before.refused.oversized ? 'oversized' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}-${String(keysOn('ses_k5'))}`, 'the keys cap is 16,384 and a body over it never reaches main.');
+        const worst = keysBody('ses_k5b', writeId(), {
+          keys: [{ t: String.fromCharCode(0x01).repeat(1_024) }, ...Array.from({ length: 63 }, () => ({ k: 'BSpace' }))]
+        });
+        const reached = await writeAs(wA, '/v1/keys', worst);
+        record('SK5b', `the worst legal keys body (${String(worst.length)} bytes escaped)`, 'under-cap-200:done-1', `${worst.length <= POCKET_WRITE_BODY_CAPS.keys ? 'under-cap' : 'OVER'}-${said(reached)}-${String(keysOn('ses_k5b'))}`, '§14 M15: it must reach main, whose text rules answer it in words; the fake here answers done.');
+      }
+
+      // SK6 to SK8. A query, a GET signature, another phone's connection.
+      {
+        const before = stats();
+        const answer = await writeAs(wA, '/v1/keys?session=ses_k6', keysBody('ses_k6', writeId()));
+        const after = stats();
+        record('SK6', 'a query on /v1/keys', 'refused-404-route-not-forwarded', `${verdict(answer)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'a write takes no query: everything it says is in its signed body.');
+      }
+      record('SK7', 'a GET signature on POST /v1/keys', 'refused-404:signature-0', `${verdict(await writeAs(wA, '/v1/keys', keysBody('ses_k7', writeId()), { signAs: 'GET' }))}:${lastVerify}-${String(keysOn('ses_k7'))}`, 'the method is in the signed bytes.');
+      record('SK8', 'keys signed by one phone, sent over the other’s connection', 'refused-404:channel-0', `${verdict(await writeAs(wA, '/v1/keys', keysBody('ses_k8', writeId()), { over: wB }))}:${lastVerify}-${String(keysOn('ses_k8'))}`, 'a write needs the phone’s own key at the handshake.');
+
+      // SK9. An End and keys on one session at once: the keys are busy.
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const ending = writeAs(wB, '/v1/end', endBody('ses_k9', writeId()));
+        await until(() => actsReached > reachedBefore);
+        const keys = await writeAs(wA, '/v1/keys', keysBody('ses_k9', writeId()));
+        release();
+        const ended = await ending;
+        record('SK9', 'an End and keys on one session at once', '200:done/200:busy-unmarked-0', `${said(ended)}/${said(keys)}-${keys.status === 200 && bodyOf(keys)['outcome'] === 'busy' ? 'unmarked' : 'other'}-${String(keysOn('ses_k9'))}`, 'one write in flight per session ACROSS verbs: no key lands while End is ending the same session.');
+      }
+
+      // SK10. A phone removed before the act (404) and during it (refused stopped).
+      {
+        removeBeforeWrite = wB.fields.id;
+        const answer = await writeAs(wB, '/v1/keys', keysBody('ses_k10', writeId()));
+        record('SK10a', 'a phone removed after its signature held and before the keys act', 'refused-404-0', `${verdict(answer)}-${String(keysOn('ses_k10'))}`, 'the last check before the act asks again whether the phone is paired.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+      }
+      {
+        const release = holding();
+        const reachedBefore = actsReached;
+        const inFlight = writeAs(wB, '/v1/keys', keysBody('ses_k10b', writeId()));
+        await until(() => actsReached > reachedBefore);
+        phones = phones.filter((p) => p.id !== wB.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        await nap(50);
+        release();
+        const answer = await inFlight;
+        const asked = keyed.find((k) => k.sessionId === 'ses_k10b');
+        record('SK10b', 'a phone removed while its keys are being read: refused stopped, 200, never a 404', '200:refused:stopped-still-false-1', `${said(answer)}-still-${String(asked?.still)}-${String(keysOn('ses_k10b'))}`, 'D21: the door’s last check is handed to the keys verb as `still`, and it asks it again before it types.');
+        phones = [...phones, wB.fields];
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+      }
+
+      // SK11. Twenty done keys writes on one session in two seconds: ONE log
+      // line (D43), and a refusal among them on its own line.
+      {
+        const from = logged.length;
+        const startedAt = Date.now();
+        const outcomes: string[] = [];
+        for (let i = 0; i < 20; i += 1) {
+          if (i === 10) keysAnswer = { outcome: 'refused', reason: 'changed', sentence: 'The question on this session changed since your screen was drawn. Nothing was typed.' };
+          outcomes.push(said(await writeAs(wA, '/v1/keys', keysBody('ses_k20', writeId(), { keys: [{ t: `canary-p337-${String(i)}` }] }))));
+        }
+        const tookMs = Date.now() - startedAt;
+        const lines = logged.slice(from);
+        const doneLines = lines.filter((l) => l.includes("the phone's keys: done")).length;
+        const refusedLines = lines.filter((l) => l.includes("the phone's keys: refused")).length;
+        const doneAnswers = outcomes.filter((o) => o === '200:done').length;
+        record('SK11', 'twenty keys writes on one session in two seconds, one of them refused', '19-done-1-refused-1-done-line-1-refused-line-in-2s', `${String(doneAnswers)}-done-${String(outcomes.length - doneAnswers)}-refused-${String(doneLines)}-done-line-${String(refusedLines)}-refused-line-${tookMs <= 2_000 ? 'in-2s' : `in ${String(tookMs)} ms`}`, 'D43: a phone typing would otherwise rotate his diagnosis log out in about twenty minutes; the first done is logged, the rest of the quiet minute are not, and a refusal is logged every time.');
+        const typedWords = logged.filter((l) => l.includes('canary-p337') || l.includes(KQID)).length;
+        record('SK11b', 'and no log line carries a key the phone typed, or the turn it carried', '0', String(typedWords), 'the one log line names the verb, the outcome and the session id, never a key or the question id.');
       }
     }
 

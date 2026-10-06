@@ -1,8 +1,11 @@
-// End, on one session (Phase 317, build/p317/SPEC.md section 5.8.3).
+// End, on one session (Phase 317, build/p317/SPEC.md section 5.8.3; at the
+// top right since Phase 337, build/p337/SPEC.md D33).
 //
-// docs/design/phone/End.html. A bar above the tab bar on a session the Mac
-// offers End for: the owner check's glyph and `End session…` in the error
-// colour. Pressing it shows the Mac's OWN confirmation, word for word (the
+// docs/design/phone/End.html and Session.html. The navigation bar's trailing
+// item on a session the Mac offers End for: the owner check's glyph and
+// `End` in the error colour; its one line is drawn under the session's status
+// (`EndLine`), and the bar that sat above the tab bar until Phase 337 is gone.
+// Pressing it shows the Mac's OWN confirmation, word for word (the
 // door composes it with the Mac's `endSessionConfirm` over main's own row);
 // its destructive press asks iOS for Face ID, Touch ID or the passcode, and
 // only a match sends anything. The Mac asks both of its End gates again by id
@@ -18,8 +21,8 @@
 // keeps the app running to finish a write, and nothing is retried or queued:
 // a new press is a new write id and a new Face ID.
 //
-// AFTER A WRITE the screen reads again, and the line under the bar says what is
-// true: nothing for `done` (the session then reads Ended and the bar goes), the
+// AFTER A WRITE the screen reads again, and End's line says what is true:
+// nothing for `done` (the session then reads Ended and End goes), the
 // Mac's own sentence for a refusal, `Your Mac did not end it. Nothing was
 // changed.` for a 404 or a write that was withheld, and `Your Mac did not
 // answer. This is the session as it reads now.` ONLY when the read that
@@ -106,7 +109,8 @@ final class EndRunner {
 
 // MARK: - What the bar draws, decided before anything is laid out
 
-/// The End bar as drawn. Pure, so the tests read every state of it.
+/// End as drawn: its press at the top right and its line under the status.
+/// Pure, so the tests read every state of it.
 struct EndBarDrawing: Equatable {
     enum Row: Equatable {
         /// Pressable, in the error colour.
@@ -117,7 +121,7 @@ struct EndBarDrawing: Equatable {
 
     /// The row, or nil when no row is drawn.
     let row: Row?
-    /// `End session…`, or `Ending…` while the write is under way.
+    /// `End`, or `Ending…` while the write is under way.
     let label: String
     /// The owner check's glyph: an image, never a word.
     let glyph: String
@@ -134,7 +138,7 @@ struct EndBarDrawing: Equatable {
     init(offer: PocketEndOffer, confirm: PocketEndConfirm?, kind: OwnerKind, phase: EndModel.Phase, line: String?) {
         glyph = Self.glyph(kind)
         confirming = phase == .confirming
-        label = phase == .writing ? Copy.ending : Copy.endSessionMenu
+        label = phase == .writing ? Copy.ending : Copy.endTop
         let said = line.flatMap { $0.isEmpty ? nil : $0 }
         switch offer {
         case .offered:
@@ -275,11 +279,27 @@ final class EndModel {
     }
 }
 
-// MARK: - The bar
+// MARK: - End at the top right (Phase 337, D33)
 
-/// Drawn by the session screen in `.safeAreaInset(edge: .bottom)`, so it sits
-/// above the tab bar and the content ends above it.
-struct EndBar: View {
+/// End's press, the navigation bar's trailing item. A pairing that writes
+/// nothing, or a session End is not offered on, draws none.
+struct EndTopItem: ToolbarContent {
+    let model: EndModel?
+    let offer: PocketEndOffer
+    let confirm: PocketEndConfirm?
+    let reread: @MainActor () async -> Bool
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            if let model {
+                EndTopControl(model: model, offer: offer, confirm: confirm, reread: reread)
+            }
+        }
+    }
+}
+
+/// The press and the Mac's confirmation over it.
+struct EndTopControl: View {
     let model: EndModel
     let offer: PocketEndOffer
     let confirm: PocketEndConfirm?
@@ -293,46 +313,38 @@ struct EndBar: View {
 
     var body: some View {
         let drawing = drawing
-        if model.writer != nil, drawing.drawn {
-            VStack(alignment: .leading, spacing: 0) {
-                Hairline()
-                if let row = drawing.row { self.row(row, drawing: drawing) }
-                if let line = drawing.line {
-                    Words(line, .secondary, Tokens.textSecondary, lines: nil)
-                        .accessibilityIdentifier(ID.sessionEndLine)
-                        .padding(.horizontal, Frame.gutter)
-                        .padding(.vertical, 8)
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(Tokens.bgSurface.ignoresSafeArea(edges: .horizontal))
-            .accessibilityElement(children: .contain)
-            .accessibilityIdentifier(ID.sessionEndBar)
-            .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking, titleVisibility: .visible) {
-                if let shown = drawing.confirm {
-                    Button(shown.confirmLabel, role: .destructive) {
-                        model.press(shown, reread: reread)
+        if model.writer != nil, let row = drawing.row {
+            self.row(row, drawing: drawing)
+                .confirmationDialog(confirm?.title ?? Copy.endSessionMenu, isPresented: $asking, titleVisibility: .visible) {
+                    if let shown = drawing.confirm {
+                        Button(shown.confirmLabel, role: .destructive) {
+                            model.press(shown, reread: reread)
+                        }
+                    }
+                    Button(Copy.cancel, role: .cancel) {}
+                } message: {
+                    if let shown = drawing.confirm {
+                        Text(verbatim: shown.body)
                     }
                 }
-                Button(Copy.cancel, role: .cancel) {}
-            } message: {
-                if let shown = drawing.confirm {
-                    Text(verbatim: shown.body)
-                }
-            }
         }
     }
 
-    /// One 50-tall row: the glyph and `End session…`, left aligned.
+    /// The glyph and `End`, in the error colour while it can be pressed.
     ///
-    /// THE PRESS IS A PLAIN BUTTON, its words alone (Phase 317's fix round):
-    /// a Button made a container of its own children read ENABLED to XCUITest,
+    /// THE PRESS IS A PLAIN BUTTON, its word alone (Phase 317's fix round): a
+    /// Button made a container of its own children read ENABLED to XCUITest,
     /// and so to VoiceOver, while drawn off, which the verify measured on the
     /// unreachable offer. So the glyph and the progress sit beside the press as
     /// elements of their own (a UI test reads which glyph the phone drew, an
     /// image and never a word), and the press says off when it is off.
     private func row(_ row: EndBarDrawing.Row, drawing: EndBarDrawing) -> some View {
-        HStack(spacing: Frame.rowGap) {
+        HStack(spacing: 4) {
+            if drawing.confirming {
+                ProgressView()
+                    .tint(Tokens.textMuted)
+                    .accessibilityIdentifier(ID.endConfirming)
+            }
             Image(systemName: drawing.glyph)
                 .foregroundStyle(row == .on ? Tokens.error : Tokens.textMuted)
                 .accessibilityIdentifier(ID.sessionEndGlyph(drawing.glyph))
@@ -342,26 +354,36 @@ struct EndBar: View {
             } label: {
                 Words(drawing.label, .body, row == .on ? Tokens.error : Tokens.textMuted)
                     .lineBox(.body)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: EndFrame.rowHeight)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .disabled(row == .off)
             .accessibilityIdentifier(ID.sessionEnd)
-            if drawing.confirming {
-                ProgressView()
-                    .tint(Tokens.textMuted)
-                    .accessibilityIdentifier(ID.endConfirming)
-            }
         }
-        .padding(.horizontal, Frame.gutter)
-        .frame(height: EndFrame.rowHeight)
+    }
+}
+
+/// End's one line, drawn under the session's status: the Mac's sentence, the
+/// phone's, or the passcode's. Nothing when there is none.
+struct EndLine: View {
+    let model: EndModel
+    let offer: PocketEndOffer
+    let confirm: PocketEndConfirm?
+
+    var body: some View {
+        let drawing = EndBarDrawing(offer: offer, confirm: confirm, kind: model.kind, phase: model.phase, line: model.line)
+        if model.writer != nil, let line = drawing.line {
+            Words(line, .secondary, Tokens.textSecondary, lines: nil)
+                .accessibilityIdentifier(ID.sessionEndLine)
+                .padding(.horizontal, Frame.gutter)
+                .padding(.bottom, 8)
+                .frame(maxWidth: .infinity, alignment: .leading)
+        }
     }
 }
 
 /// The lengths End.html spells that the other mocks do not.
 enum EndFrame {
-    /// The End bar's row and End these' bar (`height: 50px`).
+    /// End these' bar (`height: 50px`); the End bar's row until Phase 337.
     static let rowHeight: CGFloat = 50
 }

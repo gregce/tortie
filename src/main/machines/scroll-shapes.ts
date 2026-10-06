@@ -1,7 +1,7 @@
 /**
- * THE CARRIAGE DOOR: the seven commands that may cross a machine's control
+ * THE CARRIAGE DOOR: the eight commands that may cross a machine's control
  * connection to scroll a session or type into one, and nothing else (Phase
- * 320.1).
+ * 320.1; the eighth, Phase 337).
  *
  * WHY THIS EXISTS. Issue 31 (Jake Levirne): "Expect it to scroll just like a
  * local session does. Instead, nothing scrolls." A session on this Mac scrolls
@@ -31,11 +31,11 @@
  *    have no UTF-8 locale, tmux then answers every tab as `_`, and a read that
  *    cannot be read is a pane parked where Tortie believes it is live (Phase
  *    320.1's fix round, the reason is at `REMOTE_STATE_FORMAT`).
- *  - no `-l`, no key name, no `-K`, `-M` or `-R`, no `copy-pipe*` (which
- *    investigator B measured running a program from copy mode), no `;`, no `%`
- *    or `=` or name target, no `-c`, no `-e` on the scroll verbs, no `-u` on
- *    copy mode, and no other flag order. `-H` exists in exactly one row, the
- *    seventh, and nowhere else.
+ *  - no `-l`, no key name but the eighth row's closed list, no `-K`, `-M` or
+ *    `-R`, no `copy-pipe*` (which investigator B measured running a program
+ *    from copy mode), no `;`, no `%` or `=` or name target, no `-c`, no `-e` on
+ *    the scroll verbs, no `-u` on copy mode, and no other flag order. `-H`
+ *    exists in exactly one row, the seventh, and nowhere else.
  *  - none of the five `-X` shapes can put a byte in front of the program: with
  *    no mode active each answers "not in a mode" and a raw-mode recorder took 0
  *    bytes, on both measured builds (research 130 §4).
@@ -56,6 +56,22 @@
  * the spec (§4 M3 i): `cancel` then `-H` on ONE control connection delivered
  * 600 of 600, on 3.6a and 3.7b, at every load.
  *
+ * THE EIGHTH ROW, `type-key`, ON HIS WORD OF 2026-10-05 ("Every key,
+ * including Ctrl-C", build/p337/SPEC.md D20). `send-keys -t $N <Name>`: exactly
+ * four elements, the last ONE of the 35 names in `POCKET_SCREEN_KEY_NAMES`
+ * (src/shared/ipc/pocket.ts), imported and never re-spelled, compared with
+ * `===`. tmux encodes a NAME for the program's current mode exactly as it
+ * encodes the same key typed at the desk (`Up` is `ESC O A` in application
+ * cursor mode, `C-c` is `03`), which no byte row can do, because the bytes
+ * depend on a mode only the far tmux knows (§14 M4, M9). No modifier word
+ * (`M-`, `C-Up`), no function key, no second name and no flag is on the list,
+ * so a name can bind nothing and run nothing; it is a key the phone's own key
+ * bar sends. Four elements, so it cannot be read as any other `send-keys`
+ * row (`scroll-lines` 7, `goto-line` 6, `top-line` and `cancel` 5,
+ * `type-bytes` 5 to 260). It is written only behind a `cancel` on the same
+ * connection, by {@link namedKeySequence}, whose one production caller is
+ * `typePhoneKeys` in ./scroll-order.ts.
+ *
  * The table fits the code that already ships: every argv the unmodified
  * `scroll.ts` emitted in research 130's runs, 2,224 on 3.7b and 1,144 on 3.6a,
  * matched one row, and `__tests__/p3201-scroll-shapes.test.ts` records the four
@@ -74,6 +90,7 @@
  * 101 to 106 and 109 pin it.
  */
 
+import { POCKET_SCREEN_KEY_NAMES, type PocketScreenKeyName } from '@shared/ipc/pocket';
 import { gmuxError } from '../errors';
 import { quoteTmuxArg } from '../tmux/control-client';
 import {
@@ -82,7 +99,7 @@ import {
   type TmuxScrollRunner
 } from '../tmux/scroll';
 
-/** The seven rows, by the name each one is known by in the spec and the gates. */
+/** The eight rows, by the name each one is known by in the spec and the gates. */
 export type ScrollShapeId =
   | 'read-state'
   | 'enter-copy-mode'
@@ -90,7 +107,8 @@ export type ScrollShapeId =
   | 'goto-line'
   | 'top-line'
   | 'cancel'
-  | 'type-bytes';
+  | 'type-bytes'
+  | 'type-key';
 
 /** The row that reads a pane, by id. ./scroll-order.ts orders answers by the writes of it. */
 export const READING_SHAPE: ScrollShapeId = 'read-state';
@@ -158,11 +176,11 @@ const word = (w: string): ShapeSlot => ({ kind: 'word', word: w });
 const TARGET: ShapeSlot = { kind: 'target' };
 
 /**
- * THE TABLE. Seven rows, exactly two of them not idempotent (`scroll-lines`
- * and `type-bytes`). An eighth row is a new door and is refused by
+ * THE TABLE. Eight rows, exactly three of them not idempotent (`scroll-lines`,
+ * `type-bytes` and `type-key`). A ninth row is a new door and is refused by
  * conformance:machines condition 102 until the table, the gate and its
  * ablation move together, and the operator has said yes to it, as he did to
- * the seventh on 2026-09-30.
+ * the seventh on 2026-09-30 and to the eighth on 2026-10-05.
  */
 export const SCROLL_SHAPES: readonly ScrollShape[] = [
   {
@@ -225,6 +243,14 @@ export const SCROLL_SHAPES: readonly ScrollShape[] = [
       'NOT idempotent: it TYPES, and a repeat types the same keys twice. It is never retried: a typed ' +
       'command that was written and got no answer is left as it is (research 57\'s at-most-once), and ' +
       'the session core leaves the next key on this connection, behind a cancel.'
+  },
+  {
+    id: 'type-key',
+    argv: [word('send-keys'), word('-t'), TARGET, { kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }],
+    idempotent: false,
+    repeat:
+      'NOT idempotent: it TYPES a key, and a repeat types it twice. It is never retried; a key whose ' +
+      'answer was lost is left as it is.'
   }
 ];
 
@@ -353,6 +379,28 @@ export function typedSequence(target: string, bytes: Uint8Array): string[][] {
     out.push(['send-keys', '-t', target, '-H', ...hex]);
   }
   return out;
+}
+
+/**
+ * THE ONE COMPOSER OF THE EIGHTH SHAPE (build/p337/SPEC.md D20): the `cancel`
+ * that leaves copy mode, then the one named key. Every argv it composes is one
+ * the table admits, for a target the table admits. The caller writes the
+ * `cancel` once ahead of a whole write and each key's own argv after it, in
+ * one tick, on one connection ({@link namedKeySequence}'s second argv is the
+ * key; `typePhoneKeys` in ./scroll-order.ts is its one production caller).
+ *
+ * `name` is typed as one of the 35, and is checked again here with `===`
+ * against the contract's frozen list, because a caller's string reaching the
+ * far side is exactly what this door exists to refuse.
+ */
+export function namedKeySequence(target: string, name: PocketScreenKeyName): string[][] {
+  if (!POCKET_SCREEN_KEY_NAMES.some((known) => known === name)) {
+    throw gmuxError('INVALID_INPUT', 'That key is not one Tortie sends to a machine.');
+  }
+  return [
+    ['send-keys', '-t', target, '-X', 'cancel'],
+    ['send-keys', '-t', target, name]
+  ];
 }
 
 /**

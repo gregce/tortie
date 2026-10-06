@@ -13,7 +13,8 @@
  *    count of acts.
  *  - THE LEDGER on a fake clock: a repeated write id answers its recorded body
  *    and acts on nothing until exactly `2 * POCKET_CLOCK_SKEW_MS` has passed;
- *    the caps of 512 a phone and 4,096 in all answer `busy` and evict nothing.
+ *    the caps of 2,048 a phone and 8,192 in all (Phase 337, D24; 512 and 4,096
+ *    before it) answer `busy` and evict nothing.
  *  - `acted`: on the act's answer, on a recorded hit, and on the `busy` a
  *    same-id duplicate in flight gets, and NOT on any other `busy` (§14
  *    finding 9); a pending entry that never acted leaves nothing behind (§14
@@ -26,6 +27,12 @@
  *    parses, the verb in the ledger key, one in flight per phone and per
  *    session ACROSS verbs, the `still` handed in built from the last check's
  *    three asks, and `replySettled`'s `REPLY_FAILED`.
+ *  - (Phase 337) the keys write through the same path: `parseKeysBody`'s
+ *    exact key set and item shapes, D17's rule that a named key other than
+ *    `BSpace` is the write's ONLY item, the verb handed the items, the turn,
+ *    the mark and the same `still`, and D43's bounded log line: a session's
+ *    `done` keys writes logged once per `KEYS_LOG_QUIET_MS`, every other
+ *    outcome of every verb every time.
  *
  * Nothing here opens a socket, reads a file or touches Electron.
  */
@@ -51,7 +58,9 @@ vi.mock('../../log', async (importOriginal) => {
 const writesModule = await import('../writes');
 const {
   createPocketWriteHandler,
+  KEYS_LOG_QUIET_MS,
   parseEndBody,
+  parseKeysBody,
   POCKET_WRITE_LEDGER_MAX,
   POCKET_WRITE_LEDGER_MS,
   POCKET_WRITE_LEDGER_PER_PHONE
@@ -59,7 +68,7 @@ const {
 const { POCKET_ROUTES } = await import('../door/table');
 const { POCKET_WRITE_BODY_CAPS } = await import('../door/limits');
 const { POCKET_CLOCK_SKEW_MS } = await import('../pairing');
-const { POCKET_WRITE_SENTENCES } = await import('@shared/ipc/pocket');
+const { POCKET_KEYS_MAX_ITEMS, POCKET_SCREEN_KEY_NAMES, POCKET_WRITE_SENTENCES } = await import('@shared/ipc/pocket');
 const { END_FAILED } = await import('@shared/lifecycle-words');
 const { REPLY_FAILED } = await import('@shared/reply-copy');
 type PocketWriteDeps = import('../writes').PocketWriteDeps;
@@ -67,6 +76,7 @@ type PocketEndOutcome = import('../routes').PocketEndOutcome;
 type PocketReplyOutcome = import('../routes').PocketReplyOutcome;
 type PocketChooseInput = import('../routes').PocketChooseInput;
 type PocketSayInput = import('../routes').PocketSayInput;
+type PocketKeysInput = import('../routes').PocketKeysInput;
 type PocketStillAllowed = import('../routes').PocketStillAllowed;
 type PocketRoute = import('../door/table').PocketRoute;
 type DoorAnswer = import('../bind').DoorAnswer;
@@ -76,6 +86,7 @@ type PocketWriteAnswer = import('@shared/ipc/pocket').PocketWriteAnswer;
 const END = POCKET_ROUTES.find((r) => r.id === 'end') as PocketRoute;
 const CHOOSE = POCKET_ROUTES.find((r) => r.id === 'choose') as PocketRoute;
 const SAY = POCKET_ROUTES.find((r) => r.id === 'say') as PocketRoute;
+const KEYS = POCKET_ROUTES.find((r) => r.id === 'keys') as PocketRoute;
 const BLOCKED = POCKET_ROUTES.find((r) => r.id === 'blocked') as PocketRoute;
 const OPEN: DoorAdmission = { stopping: () => false };
 
@@ -101,6 +112,14 @@ function sayBody(session: string, write: string, text: unknown = 'hello phone'):
   return Buffer.from(JSON.stringify({ session, text, write }), 'utf8');
 }
 
+/** A keys body (Phase 337, D17), its fields overridable one at a time. */
+function keysBody(session: string, write: string, over: Record<string, unknown> = {}): Buffer {
+  return Buffer.from(
+    JSON.stringify({ dialog: null, keys: [{ t: 'ls' }], session, turn: QID, write, ...over }),
+    'utf8'
+  );
+}
+
 function parsed(answer: DoorAnswer): PocketWriteAnswer {
   expect(answer.status).toBe(200);
   return JSON.parse(answer.body as string) as PocketWriteAnswer;
@@ -123,6 +142,8 @@ interface Rig {
   readonly chooses: { input: PocketChooseInput; still: PocketStillAllowed }[];
   /** Every message the recording fake was asked for, with the `still` it was handed. */
   readonly says: { input: PocketSayInput; still: PocketStillAllowed }[];
+  /** Every keys write the recording fake was asked for, with the `still` it was handed (Phase 337). */
+  readonly keyed: { input: PocketKeysInput; still: PocketStillAllowed }[];
   /** What was asked, in order: `shuttingDown`, `stillPaired`, `end`, `choose`, `say`. */
   readonly asked: string[];
   clock: number;
@@ -140,6 +161,7 @@ function rig(over: { writes?: false } = {}): Rig {
     ends: [],
     chooses: [],
     says: [],
+    keyed: [],
     asked: [],
     clock: 1_000_000,
     paired: true,
@@ -175,6 +197,11 @@ function rig(over: { writes?: false } = {}): Rig {
               self.asked.push('say');
               self.says.push({ input, still });
               return self.replyWith(still);
+            },
+            keys: (input: PocketKeysInput, still: PocketStillAllowed) => {
+              self.asked.push('keys');
+              self.keyed.push({ input, still });
+              return self.replyWith(still);
             }
           }
         })
@@ -187,7 +214,8 @@ function rig(over: { writes?: false } = {}): Rig {
 const doneWrites = {
   end: async (): Promise<PocketEndOutcome> => ({ outcome: 'done' }),
   choose: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
-  say: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' })
+  say: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' }),
+  keys: async (): Promise<PocketReplyOutcome> => ({ outcome: 'done' })
 };
 
 // ---------------------------------------------------------------------------
@@ -204,7 +232,7 @@ describe('the body caps, computed from the worst legal body (§5.3.3, §14 findi
   });
 
   it('holds it under its cap, each write route has its own cap, and the worst legal body parses', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768 });
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384 });
     expect(endBody(longest, wid(1)).byteLength).toBeLessThanOrEqual(POCKET_WRITE_BODY_CAPS.end);
     // The whole alphabet at the longest length.
     const every = 'aZ09._:-'.repeat(16);
@@ -501,36 +529,50 @@ describe('step 2, the ledger', () => {
     expect(r.ends.map((e) => e.sessionId)).toEqual(['s1', 's2']);
   });
 
-  it('holds at most 512 ids a phone: the next is busy, unmarked, and evicts nothing', async () => {
-    expect(POCKET_WRITE_LEDGER_PER_PHONE).toBe(512);
+  // PHASE 337 (D24): the caps rose from 512 and 4,096, because a phone typing
+  // on a Screen sends a keys write at most every 100 ms, at most 1,200 in one
+  // ledger life of 120 s.
+  it('holds at most 2,048 ids a phone: the next is busy, unmarked, and evicts nothing', async () => {
+    expect(POCKET_WRITE_LEDGER_PER_PHONE).toBe(2_048);
+    expect(POCKET_WRITE_LEDGER_PER_PHONE).toBeGreaterThanOrEqual(POCKET_WRITE_LEDGER_MS / 100);
     const r = rig();
-    for (let i = 0; i < 512; i += 1) await r.handle(END, endBody('s1', wid(i)), 'phone-a', OPEN);
-    expect(r.ends).toHaveLength(512);
-    const full = await r.handle(END, endBody('s1', wid(600)), 'phone-a', OPEN);
+    for (let i = 0; i < 2_048; i += 1) await r.handle(END, endBody('s1', wid(i)), 'phone-a', OPEN);
+    expect(r.ends).toHaveLength(2_048);
+    const full = await r.handle(END, endBody('s1', wid(3_000)), 'phone-a', OPEN);
     expect(full.acted).toBeUndefined();
-    expect(parsed(full)).toMatchObject({ outcome: 'busy', write: wid(600) });
-    expect(r.ends).toHaveLength(512);
+    expect(parsed(full)).toMatchObject({ outcome: 'busy', write: wid(3_000) });
+    expect(r.ends).toHaveLength(2_048);
     // Nothing was evicted: the oldest id still answers its recorded body.
     expect(parsed(await r.handle(END, endBody('s1', wid(0)), 'phone-a', OPEN)).outcome).toBe('done');
-    expect(r.ends).toHaveLength(512);
+    expect(r.ends).toHaveLength(2_048);
     // Another phone is not full.
-    expect(parsed(await r.handle(END, endBody('s1', wid(600)), 'phone-b', OPEN)).outcome).toBe('done');
+    expect(parsed(await r.handle(END, endBody('s1', wid(3_000)), 'phone-b', OPEN)).outcome).toBe('done');
     // And once the lifetime has passed, phone-a writes again.
     r.clock += POCKET_WRITE_LEDGER_MS;
-    expect(parsed(await r.handle(END, endBody('s1', wid(601)), 'phone-a', OPEN)).outcome).toBe('done');
+    expect(parsed(await r.handle(END, endBody('s1', wid(3_001)), 'phone-a', OPEN)).outcome).toBe('done');
   });
 
-  it('holds at most 4,096 ids in all: the next is busy, unmarked, from any phone', async () => {
-    expect(POCKET_WRITE_LEDGER_MAX).toBe(4_096);
+  it('holds at most 8,192 ids in all: the next is busy, unmarked, from any phone', async () => {
+    expect(POCKET_WRITE_LEDGER_MAX).toBe(8_192);
     const r = rig();
-    for (let p = 0; p < 8; p += 1) {
-      for (let i = 0; i < 512; i += 1) await r.handle(END, endBody('s1', wid(i)), `phone-${p}`, OPEN);
+    for (let p = 0; p < 4; p += 1) {
+      for (let i = 0; i < 2_048; i += 1) await r.handle(END, endBody('s1', wid(i)), `phone-${p}`, OPEN);
     }
-    expect(r.ends).toHaveLength(4_096);
+    expect(r.ends).toHaveLength(8_192);
     const full = await r.handle(END, endBody('s1', wid(1)), 'phone-new', OPEN);
     expect(full.acted).toBeUndefined();
     expect(parsed(full).outcome).toBe('busy');
-    expect(r.ends).toHaveLength(4_096);
+    expect(r.ends).toHaveLength(8_192);
+  });
+
+  it('takes 1,200 keys writes from one phone in one ledger life, the most its 100 ms pacing sends, none of them busy', async () => {
+    const r = rig();
+    for (let i = 0; i < 1_200; i += 1) {
+      const answer = parsed(await r.handle(KEYS, keysBody('s1', wid(i)), 'phone-a', OPEN));
+      expect(answer.outcome).toBe('done');
+      r.clock += 100;
+    }
+    expect(r.keyed).toHaveLength(1_200);
   });
 });
 
@@ -1003,6 +1045,295 @@ describe('Phase 318, the door’s own sentence for a verb whose last check faile
     expect(Object.keys(POCKET_WRITE_SENTENCES).sort()).toEqual(['busy', 'stopped', 'unreadable']);
     for (const sentence of Object.values(POCKET_WRITE_SENTENCES)) {
       expect(sentence).not.toMatch(/\b(pane|window|prefix|tmux)\b/i);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 337 (build/p337/SPEC.md §5.5, D17, D24, D43): the keys write through
+// the same path, the same ledger and the same claims.
+// ---------------------------------------------------------------------------
+
+describe('Phase 337, step 1: the strict parse of a keys write', () => {
+  const W = wid(0x337);
+  const ok = (over: Record<string, unknown>): ReturnType<typeof parseKeysBody> =>
+    parseKeysBody(keysBody('s1', W, over));
+
+  it('reads the five keys exactly, the items as sent, and the turn and the mark', () => {
+    expect(ok({})).toEqual({ ok: true, verb: 'keys', write: W, session: 's1', keys: [{ t: 'ls' }], turn: QID, dialog: null });
+    expect(ok({ dialog: MARK, keys: [{ k: 'Enter' }] })).toEqual({
+      ok: true,
+      verb: 'keys',
+      write: W,
+      session: 's1',
+      keys: [{ k: 'Enter' }],
+      turn: QID,
+      dialog: MARK
+    });
+  });
+
+  it('takes every one of the 35 names alone, compared exactly', () => {
+    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(35);
+    for (const name of POCKET_SCREEN_KEY_NAMES) {
+      const read = ok({ keys: [{ k: name }] });
+      expect(read.ok, name).toBe(true);
+      if (read.ok) expect(read.keys).toEqual([{ k: name }]);
+    }
+  });
+
+  it('takes text and BSpace items together in any order, and a lone named key, and nothing is trimmed', () => {
+    for (const keys of [
+      [{ k: 'BSpace' }, { t: 'x' }],
+      [{ t: 'x' }, { k: 'BSpace' }, { k: 'BSpace' }, { t: '  y ' }],
+      [{ k: 'BSpace' }, { k: 'BSpace' }],
+      [{ k: 'C-c' }],
+      [{ k: 'Escape' }],
+      [{ t: ' ' }]
+    ]) {
+      const read = ok({ keys });
+      expect(read.ok, JSON.stringify(keys)).toBe(true);
+      if (read.ok) expect(read.keys).toEqual(keys);
+    }
+  });
+
+  it('hands a text holding control characters to the verb unchanged: its rules are the verb’s, with their sentence', () => {
+    const control = `a${String.fromCharCode(3)}b${String.fromCharCode(0x7f)}${String.fromCharCode(0xd800)}`;
+    const read = ok({ keys: [{ t: control }] });
+    expect(read.ok).toBe(true);
+    if (read.ok) expect(read.keys).toEqual([{ t: control }]);
+  });
+
+  it(`takes 1 to ${String(POCKET_KEYS_MAX_ITEMS)} items and no more`, () => {
+    expect(POCKET_KEYS_MAX_ITEMS).toBe(64);
+    expect(ok({ keys: Array.from({ length: 64 }, () => ({ t: 'a' })) }).ok).toBe(true);
+    expect(ok({ keys: Array.from({ length: 65 }, () => ({ t: 'a' })) })).toEqual({ ok: false, write: W });
+    expect(ok({ keys: [] })).toEqual({ ok: false, write: W });
+  });
+
+  // D17, §Attack A1: a program reads one write as one input, and Escape then a
+  // key in one read is Meta-key, so a named key other than BSpace is alone.
+  const notAlone: [string, unknown][] = [
+    ['text then Enter', [{ t: 'a' }, { k: 'Enter' }]],
+    ['Escape then text', [{ k: 'Escape' }, { t: 'b' }]],
+    ['Up twice', [{ k: 'Up' }, { k: 'Up' }]],
+    ['BSpace then Tab', [{ k: 'BSpace' }, { k: 'Tab' }]],
+    ['C-c sixty-four times', Array.from({ length: 64 }, () => ({ k: 'C-c' }))]
+  ];
+  for (const [name, keys] of notAlone) {
+    it(`refuses a named key that is not the write’s one item: ${name}`, () => {
+      expect(ok({ keys })).toEqual({ ok: false, write: W });
+    });
+  }
+
+  const malformed: [string, Record<string, unknown> | string][] = [
+    ['not JSON', '{"keys":'],
+    ['an array', '[]'],
+    ['a sixth key', { extra: 1 }],
+    ['a size', { cols: 80 }],
+    ['keys that is not an array', { keys: { t: 'a' } }],
+    ['keys that is a string', { keys: 'ls' }],
+    ['an item with two keys', { keys: [{ t: 'a', k: 'Enter' }] }],
+    ['an item with no key', { keys: [{}] }],
+    ['an item that is a string', { keys: ['a'] }],
+    ['an item that is an array', { keys: [['a']] }],
+    ['an item that is null', { keys: [null] }],
+    ['a text that is not a string', { keys: [{ t: 7 }] }],
+    ['an empty text', { keys: [{ t: '' }] }],
+    ['a name that is not a string', { keys: [{ k: 1 }] }],
+    ['the name M-x', { keys: [{ k: 'M-x' }] }],
+    ['the name F1', { keys: [{ k: 'F1' }] }],
+    ['the name C-Up', { keys: [{ k: 'C-Up' }] }],
+    ['the name C-c;', { keys: [{ k: 'C-c;' }] }],
+    ['the name enter in lower case', { keys: [{ k: 'enter' }] }],
+    ['the name with a space', { keys: [{ k: ' Enter' }] }],
+    ['an item key named other', { keys: [{ x: 'a' }] }],
+    ['a turn of the wrong shape', { turn: '0123456789abcdef' }],
+    ['a turn with a leading zero', { turn: '0123456789abcdef-042' }],
+    ['a turn that is null', { turn: null }],
+    ['a dialog of 11 hex', { dialog: MARK.slice(1) }],
+    ['a dialog in upper case', { dialog: 'A1B2C3D4E5F6' }],
+    ['a dialog that is false', { dialog: false }],
+    ['a session with a slash', { session: 'a/b' }],
+    ['a write that is not hex', { write: 'g'.repeat(32) }]
+  ];
+  for (const [name, over] of malformed) {
+    it(`refuses a keys body with ${name}: 200, refused, malformed, and nothing acts`, async () => {
+      const r = rig();
+      const body = typeof over === 'string' ? Buffer.from(over, 'utf8') : keysBody('s1', W, over);
+      const answer = await r.handle(KEYS, body, 'phone-a', OPEN);
+      const read = parsed(answer);
+      expect(read.verb).toBe('keys');
+      expect(read.outcome).toBe('refused');
+      expect(read.reason).toBe('malformed');
+      expect(read.sentence).toBe(POCKET_WRITE_SENTENCES.unreadable);
+      expect(answer.acted).toBeUndefined();
+      expect(r.keyed).toEqual([]);
+      expect(r.asked).toEqual([]);
+    });
+  }
+
+  it('echoes the write id inside a malformed keys body, and "" when there is none', async () => {
+    const r = rig();
+    expect(parsed(await r.handle(KEYS, keysBody('s1', W, { keys: [{ k: 'F1' }] }), 'phone-a', OPEN)).write).toBe(W);
+    expect(parsed(await r.handle(KEYS, keysBody('s1', 'nope'), 'phone-a', OPEN)).write).toBe('');
+  });
+});
+
+describe('Phase 337, steps 2 to 6: the keys write through the one path', () => {
+  it('hands keys the session, the items, the turn and the mark, and nothing else, after the same last check', async () => {
+    const r = rig();
+    let stopping = false;
+    const door: DoorAdmission = {
+      stopping: () => {
+        r.asked.push('stopping');
+        return stopping;
+      }
+    };
+    const keys = [{ k: 'BSpace' }, { t: 'é' }];
+    const answer = await r.handle(KEYS, keysBody('s9', wid(1), { keys, dialog: MARK }), 'phone-a', door);
+    expect(parsed(answer)).toEqual({ verb: 'keys', write: wid(1), outcome: 'done', reason: null, sentence: null });
+    expect(answer.acted).toBe(true);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired', 'keys']);
+    const [call] = r.keyed;
+    if (call === undefined) throw new Error('keys was not called');
+    expect(call.input).toEqual({ sessionId: 's9', keys, turn: QID, dialog: MARK });
+    expect(Object.keys(call.input).sort()).toEqual(['dialog', 'keys', 'sessionId', 'turn']);
+    // The same `still` as the reply's: the three asks, in order, asked only when called.
+    r.asked.length = 0;
+    expect(call.still()).toBe(true);
+    expect(r.asked).toEqual(['shuttingDown', 'stopping', 'stillPaired']);
+    stopping = true;
+    expect(call.still()).toBe(false);
+  });
+
+  it('refuses 404 at the last check and never asks keys', async () => {
+    const r = rig();
+    r.paired = false;
+    expect(await r.handle(KEYS, keysBody('s1', wid(1)), 'phone-a', OPEN)).toEqual({ status: 404, body: null });
+    expect(r.keyed).toEqual([]);
+  });
+
+  it('carries the keys verb’s refusals through, marked acted, and reads a rejection as failed with REPLY_FAILED', async () => {
+    const r = rig();
+    r.replyWith = async () => ({ outcome: 'refused', reason: 'unreachable', sentence: 'This session cannot take keys now. Nothing was typed.' });
+    const refused = await r.handle(KEYS, keysBody('s1', wid(1)), 'phone-a', OPEN);
+    expect(parsed(refused)).toMatchObject({ outcome: 'refused', reason: 'unreachable' });
+    expect(refused.acted).toBe(true);
+    r.replyWith = () => Promise.reject(new Error('boom'));
+    expect(parsed(await r.handle(KEYS, keysBody('s1', wid(2)), 'phone-a', OPEN))).toMatchObject({
+      outcome: 'failed',
+      sentence: REPLY_FAILED
+    });
+  });
+
+  it('keys the ledger on the verb, answers a re-sent keys write what it recorded, and types it once', async () => {
+    const r = rig();
+    const first = await r.handle(KEYS, keysBody('s1', wid(5)), 'phone-a', OPEN);
+    const again = await r.handle(KEYS, keysBody('s1', wid(5)), 'phone-a', OPEN);
+    expect(again).toEqual({ status: 200, body: first.body, acted: true });
+    expect(r.keyed).toHaveLength(1);
+    // The same write id under another verb is its own write.
+    expect(parsed(await r.handle(SAY, sayBody('s1', wid(5)), 'phone-a', OPEN)).outcome).toBe('done');
+  });
+
+  it('holds one write in flight per session ACROSS verbs: a keys write and an End never overlap on one session', async () => {
+    const r = rig();
+    const held = deferred<PocketReplyOutcome>();
+    r.replyWith = () => held.promise;
+    const typing = r.handle(KEYS, keysBody('s1', wid(1)), 'phone-a', OPEN);
+    const ending = await r.handle(END, endBody('s1', wid(2)), 'phone-b', OPEN);
+    expect(parsed(ending).outcome).toBe('busy');
+    expect(r.ends).toEqual([]);
+    held.resolve({ outcome: 'done' });
+    expect(parsed(await typing).outcome).toBe('done');
+  });
+});
+
+describe('Phase 337, step 7: the keys log line, bounded (D43)', () => {
+  it('logs twenty done keys writes on one session in two seconds ONCE, and a second session once more', async () => {
+    logged.length = 0;
+    const r = rig();
+    for (let i = 0; i < 20; i += 1) {
+      await r.handle(KEYS, keysBody('sess-k', wid(i)), 'phone-a', OPEN);
+      r.clock += 100;
+    }
+    await r.handle(KEYS, keysBody('sess-j', wid(100)), 'phone-a', OPEN);
+    expect(r.keyed).toHaveLength(21);
+    expect(logged).toEqual([
+      { level: 'info', msg: "the phone's keys: done", fields: { session: 'sess-k' } },
+      { level: 'info', msg: "the phone's keys: done", fields: { session: 'sess-j' } }
+    ]);
+  });
+
+  it('logs a refused or failed keys write every time, among done ones', async () => {
+    logged.length = 0;
+    const r = rig();
+    await r.handle(KEYS, keysBody('sess-k', wid(1)), 'phone-a', OPEN);
+    r.replyWith = async () => ({ outcome: 'refused', reason: 'changed', sentence: 'moved' });
+    await r.handle(KEYS, keysBody('sess-k', wid(2)), 'phone-a', OPEN);
+    await r.handle(KEYS, keysBody('sess-k', wid(3)), 'phone-a', OPEN);
+    r.replyWith = async () => ({ outcome: 'failed', sentence: REPLY_FAILED });
+    await r.handle(KEYS, keysBody('sess-k', wid(4)), 'phone-a', OPEN);
+    r.replyWith = async () => ({ outcome: 'done' });
+    await r.handle(KEYS, keysBody('sess-k', wid(5)), 'phone-a', OPEN);
+    expect(logged.map((l) => l.msg)).toEqual([
+      "the phone's keys: done",
+      "the phone's keys: refused",
+      "the phone's keys: refused",
+      "the phone's keys: failed"
+    ]);
+  });
+
+  it(`logs the session’s next done keys write once ${String(KEYS_LOG_QUIET_MS)} ms have passed, and not one millisecond before`, async () => {
+    expect(KEYS_LOG_QUIET_MS).toBe(60_000);
+    logged.length = 0;
+    const r = rig();
+    await r.handle(KEYS, keysBody('sess-k', wid(1)), 'phone-a', OPEN);
+    r.clock += KEYS_LOG_QUIET_MS - 1;
+    await r.handle(KEYS, keysBody('sess-k', wid(2)), 'phone-a', OPEN);
+    expect(logged).toHaveLength(1);
+    r.clock += 1;
+    await r.handle(KEYS, keysBody('sess-k', wid(3)), 'phone-a', OPEN);
+    expect(logged).toHaveLength(2);
+    // And the quiet minute starts again from THAT line, not from the first.
+    r.clock += KEYS_LOG_QUIET_MS - 1;
+    await r.handle(KEYS, keysBody('sess-k', wid(4)), 'phone-a', OPEN);
+    expect(logged).toHaveLength(2);
+  });
+
+
+  it('logs end, choose and say every time, whatever keys did on the same session', async () => {
+    logged.length = 0;
+    const r = rig();
+    for (let i = 0; i < 3; i += 1) {
+      await r.handle(KEYS, keysBody('sess-k', wid(10 + i)), 'phone-a', OPEN);
+      await r.handle(SAY, sayBody('sess-k', wid(20 + i)), 'phone-a', OPEN);
+      await r.handle(CHOOSE, chooseBody('sess-k', wid(30 + i)), 'phone-a', OPEN);
+      await r.handle(END, endBody('sess-k', wid(40 + i)), 'phone-a', OPEN);
+    }
+    expect(logged.map((l) => l.msg)).toEqual([
+      "the phone's keys: done",
+      "the phone's say: done",
+      "the phone's choose: done",
+      "the phone's end: done",
+      "the phone's say: done",
+      "the phone's choose: done",
+      "the phone's end: done",
+      "the phone's say: done",
+      "the phone's choose: done",
+      "the phone's end: done"
+    ]);
+  });
+
+  it('never logs a key, a text, the turn, the mark or the write id', async () => {
+    logged.length = 0;
+    const r = rig();
+    await r.handle(KEYS, keysBody('sess-k', wid(0xabc), { keys: [{ t: 'CANARY-337' }], dialog: MARK }), 'phone-a', OPEN);
+    r.replyWith = async () => ({ outcome: 'refused', reason: 'character', sentence: 'That holds a character' });
+    await r.handle(KEYS, keysBody('sess-k', wid(0xdef), { keys: [{ k: 'C-c' }] }), 'phone-a', OPEN);
+    const text = JSON.stringify(logged);
+    for (const never of ['CANARY-337', 'C-c', QID, MARK, wid(0xabc), wid(0xdef), 'That holds', 'phone-a']) {
+      expect(text, never).not.toContain(never);
     }
   });
 });

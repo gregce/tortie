@@ -31,7 +31,12 @@
  * keystroke made has failed, keys there take the attach as today and the core
  * answers no pane; a connection seen again ends it; an ask a live connection
  * answered is never the one a later miss waits on), and `g9` was re-pointed
- * where its clause became the fall back's block. 100 in all.
+ * where its clause became the fall back's block. 100 in all. PHASE 337 added
+ * 13 (build/p337/SPEC.md §6.3): `k1` to `k3` the eighth row's table clauses
+ * (102, 103), `k4` and `k5` its one composer (122), `k6` to `k9`
+ * typePhoneKeys (123), `k10` to `k12` the far screen's one exec read (124)
+ * `k13` the -H spellers (109) and `k14` the control-connection writers
+ * (101). 114 in all.
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. Phase 320.1 opens the first
  * interactive write path on a machine's control connection, the carriage
@@ -123,6 +128,10 @@ const SURFACE = 'src/renderer/terminal/scroll/surface.ts';
 const SCROLL = 'src/main/tmux/scroll.ts';
 const ORDER = 'src/main/machines/scroll-order.ts';
 const HOST = 'src/main/attach/attach-host.ts';
+// PHASE 337: the Screen's two writers on this Mac's own control client, and
+// its far read through the exec plane.
+const SCREEN_KEYS = 'src/main/screen/keys.ts';
+const REMOTE_SCREEN = 'src/main/machines/remote-screen.ts';
 const TESTS = [
   'src/renderer/terminal/scroll/__tests__/p3201-typing.test.ts',
   'src/renderer/terminal/scroll/__tests__/p3201-remote-surface.test.ts',
@@ -1202,6 +1211,151 @@ export const ABLATIONS = [
     file: ORDER,
     from: '  const endedFallBack = askFailed.delete(machineId);\n',
     to: '  const endedFallBack = false;\n'
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 337, the eighth row and the phone's keys on another machine
+  // (build/p337/SPEC.md §6.3): conditions 102 and 103 widened, 101 and 109
+  // widened for the Screen's two writers on this Mac, 122 to 124 new.
+  // -------------------------------------------------------------------------
+  {
+    n: 'k1',
+    check: 'machines',
+    owner: 'C102',
+    name: 'the eighth row called idempotent',
+    why: 'a typed key is pressed twice by a repeat; the not-idempotent rows are exactly scroll-lines, type-bytes and type-key, and none is ever retried.',
+    file: SHAPES,
+    from: "    argv: [word('send-keys'), word('-t'), TARGET, { kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }],\n    idempotent: false,",
+    to: "    argv: [word('send-keys'), word('-t'), TARGET, { kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }],\n    idempotent: true,"
+  },
+  {
+    n: 'k2',
+    check: 'machines',
+    owner: 'C102',
+    name: 'the eighth row takes a Meta key',
+    why: 'his yes was for the key bar\'s keys, the contract\'s 35; a modifier word is a binding the phone never sends and a far program reads as a command.',
+    file: SHAPES,
+    from: "{ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }",
+    to: "{ kind: 'one-of', words: [...POCKET_SCREEN_KEY_NAMES, 'M-x'] }"
+  },
+  {
+    n: 'k3',
+    check: 'machines',
+    owner: 'C103',
+    name: 'the eighth row spells the names itself',
+    why: 'the eighth row reads the contract\'s list, imported; a second spelling can drift from the phone\'s, or grow a name nobody approved.',
+    file: SHAPES,
+    from: "{ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES }",
+    to: "{ kind: 'one-of', words: ['Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right', 'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m', 'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'] }"
+  },
+  {
+    n: 'k4',
+    check: 'machines',
+    owner: 'C122',
+    name: 'namedKeySequence composes any name',
+    why: 'a caller\'s string reaching the far side is what the carriage door exists to refuse; the composer checks the name against the 35 again.',
+    file: SHAPES,
+    from: '  if (!POCKET_SCREEN_KEY_NAMES.some((known) => known === name)) {',
+    to: '  if (name === undefined) {'
+  },
+  {
+    n: 'k5',
+    check: 'machines',
+    owner: 'C122',
+    name: 'a second caller of namedKeySequence',
+    why: 'typePhoneKeys is its one production caller; a second is a second way to press a key on somebody else\'s computer.',
+    file: ORDER,
+    from: '/** Where one keys write from the phone went (Phase 337, D20). */',
+    to: "export const pressUp = (target: string): string[][] => namedKeySequence(target, 'Up');\n/** Where one keys write from the phone went (Phase 337, D20). */"
+  },
+  {
+    n: 'k6',
+    check: 'machines',
+    owner: 'C123',
+    name: 'typePhoneKeys writes no cancel first',
+    why: 'the cancel is what makes sure no copy mode is active to read a typed key as one of its own commands.',
+    file: ORDER,
+    from: 'commands = [cancel, ...sequences.flatMap((sequence) => sequence.slice(1))];',
+    to: 'commands = [...sequences.flatMap((sequence) => sequence.slice(1)), cancel];'
+  },
+  {
+    n: 'k7',
+    check: 'machines',
+    owner: 'C123',
+    name: 'typePhoneKeys writes over a carriage that is not live',
+    why: 'a machine with no live connection is refused unreachable, nothing held and nothing typed later (D20).',
+    file: ORDER,
+    from: "  if (carriage.kind !== 'live') return 'unreachable';\n",
+    to: ''
+  },
+  {
+    n: 'k8',
+    check: 'machines',
+    owner: 'C123',
+    name: 'typePhoneKeys made async',
+    why: 'the keys verb\'s final check is synchronous up to this call, and the order on the connection is the order of the writes; an async typePhoneKeys answers a promise, not a road.',
+    file: ORDER,
+    from: 'export function typePhoneKeys(',
+    to: 'export async function typePhoneKeys('
+  },
+  {
+    n: 'k9',
+    check: 'machines',
+    owner: 'C123',
+    name: 'typePhoneKeys holds a key for later',
+    why: 'a phone has no attach to fall back to and cannot see a key arrive late; keeping one is the late Return research 135 measured.',
+    file: ORDER,
+    from: "  if (carriage.kind !== 'live') return 'unreachable';",
+    to: "  if (carriage.kind !== 'live') {\n    if (keys.length > 9999) hold(sessionId, roadOf(sessionId), address.machineId, '');\n    return 'unreachable';\n  }"
+  },
+  {
+    n: 'k10',
+    check: 'machines',
+    owner: 'C124',
+    name: 'the far screen read twice an exec',
+    why: 'a far screen is read by ONE exec of capture-pane and display-message, the exec plane\'s ledger read.',
+    file: REMOTE_SCREEN,
+    from: '    stdout = await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });',
+    to: '    await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });\n    stdout = await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });'
+  },
+  {
+    n: 'k11',
+    check: 'machines',
+    owner: 'C124',
+    name: 'the far read spells a format of its own',
+    why: 'no caller string is ever a format: a format on a long-lived connection can run programs on the far machine (D6).',
+    file: REMOTE_SCREEN,
+    from: "'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT]",
+    to: "'display-message', '-p', '-t', tmuxId, '#{pane_id}']"
+  },
+  {
+    n: 'k12',
+    check: 'machines',
+    owner: 'C124',
+    name: 'the far read names a third verb',
+    why: 'capture-pane and display-message are its only verbs; nothing it sends sizes, types or runs anything (D7).',
+    file: REMOTE_SCREEN,
+    from: "  return ['capture-pane', '-p', '-e', '-t', tmuxId, ';',",
+    to: "  return ['refresh-client', '-C', '80x24', ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',"
+  },
+  {
+    n: 'k13',
+    check: 'machines',
+    owner: 'C109',
+    name: 'a third file spells -H',
+    why: 'only the carriage\'s seventh row and the Screen\'s keys on this Mac type bytes; a third is a new typing door.',
+    file: REMOTE_SCREEN,
+    from: '/** One exec\'s output as a reading',
+    to: "export const RAW = ['send-keys', '-t', '$1', '-H', '61'];\n/** One exec\'s output as a reading"
+  },
+  {
+    n: 'k14',
+    check: 'machines',
+    owner: 'C101',
+    name: 'a third Screen file writes to the control connection',
+    why: 'the files that write a line to a tmux control connection are a closed list; the Screen\'s are read.ts and keys.ts, on this Mac\'s own client, and a third is a writer nobody gated.',
+    file: 'src/main/screen/watch.ts',
+    from: 'export function createScreenWatch(',
+    to: "export const poke = (c: { sendCommand(line: string): Promise<string[]> }): Promise<string[]> => c.sendCommand('refresh-client');\nexport function createScreenWatch("
   },
   {
     n: 'r13',

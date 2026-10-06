@@ -1525,6 +1525,130 @@ describe('the Sessions tab’s read, through the host', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 337: the Screen's read and its keys, through the host
+// (build/p337/SPEC.md §5.3.1, §5.5)
+// ---------------------------------------------------------------------------
+
+describe('the Screen and its keys, through the host (Phase 337)', () => {
+  /** A paired phone that signs the way the phone does, over its own channel. */
+  async function screenPhone(one: Host, label: string) {
+    const phone = await signingPhone(one, label);
+    expect(phone.allowed).toBe(true);
+    one.cancelPairing();
+    return phone;
+  }
+
+  const LISTED = [
+    { id: 's-live', name: 'live one', tmuxName: 'l', projectPath: '/w/app', cwd: '/w/app', agent: 'claude', status: 'running', createdAt: 5 }
+  ] as Session[];
+  const REV = '0123456789ab';
+  const UNCHANGED = { sessionId: 's-live', revision: REV, at: 7, unchanged: true, screen: null, why: null, sentence: null };
+
+  it('answers GET /v1/screen through the switch, handing the watcher the session, since and refusal 1’s closing', async () => {
+    const asked: [string, string | null, boolean][] = [];
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        screen: async (session, since, closing) => {
+          asked.push([session.id, since, closing()]);
+          return UNCHANGED;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await screenPhone(one, 'Screen');
+    const answer = await one.handler(phone.request('screen', 'GET', `/v1/screen?id=s-live&since=${REV}`), { stopping: () => false });
+    expect(answer.status).toBe(200);
+    expect(JSON.parse(answer.body as string)).toEqual(UNCHANGED);
+    expect(asked).toEqual([['s-live', REV, false]]);
+  });
+
+  it('ends a held poll the moment the door that accepted it begins to stop, and answers nothing', async () => {
+    let stopping = false;
+    let seenClosing: boolean | null = null;
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        screen: async (_session, _since, closing) => {
+          stopping = true;
+          seenClosing = closing();
+          return UNCHANGED;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await screenPhone(one, 'Screen');
+    const answer = await one.handler(phone.request('screen', 'GET', '/v1/screen?id=s-live'), { stopping: () => stopping });
+    expect(seenClosing).toBe(true);
+    expect(answer).toEqual({ status: 404, body: null });
+  });
+
+  it('answers /v1/screen 404 on a host with no watcher, and for a query the route refuses', async () => {
+    let asked = 0;
+    const bare = host({ facts: { ...FACTS, sessions: () => LISTED } });
+    await pairAndAllow(bare);
+    await namePairable(bare);
+    const a = await screenPhone(bare, 'A');
+    expect(await bare.handler(a.request('screen', 'GET', '/v1/screen?id=s-live'), { stopping: () => false })).toEqual({
+      status: 404,
+      body: null
+    });
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        screen: async () => {
+          asked += 1;
+          return UNCHANGED;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const b = await screenPhone(one, 'B');
+    for (const target of ['/v1/screen', '/v1/screen?id=s-live&cols=80', '/v1/screen?id=s-live&since=XYZ', '/v1/screen?id=nobody']) {
+      expect(await one.handler(b.request('screen', 'GET', target), { stopping: () => false }), target).toEqual({
+        status: 404,
+        body: null
+      });
+    }
+    expect(asked).toBe(0);
+  });
+
+  it('types through the writes it was handed: POST /v1/keys reaches keys with the signed items, turn and mark', async () => {
+    const asked: unknown[] = [];
+    const one = host({
+      writes: {
+        end: async () => ({ outcome: 'done' }),
+        choose: async () => ({ outcome: 'done' }),
+        say: async () => ({ outcome: 'done' }),
+        keys: async (input, still) => {
+          asked.push([input, still()]);
+          return { outcome: 'done' };
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await screenPhone(one, 'Keys');
+    const W = 'c'.repeat(32);
+    const body = { dialog: null, keys: [{ k: 'C-c' }], session: 's-live', turn: '0123456789abcdef-2', write: W };
+    const answer = await one.handler(
+      phone.request('keys', 'POST', '/v1/keys', Buffer.from(JSON.stringify(body), 'utf8')),
+      { stopping: () => false }
+    );
+    expect(JSON.parse(answer.body as string)).toEqual({ verb: 'keys', write: W, outcome: 'done', reason: null, sentence: null });
+    expect(answer.acted).toBe(true);
+    expect(asked).toEqual([[{ sessionId: 's-live', keys: [{ k: 'C-c' }], turn: '0123456789abcdef-2', dialog: null }, true]]);
+    expect(logged.some((l) => l.includes("the phone's keys: done") && l.includes('s-live'))).toBe(true);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The phone's writes through the host (Phase 317, build/p317/SPEC.md §5.5)
 // ---------------------------------------------------------------------------
 
@@ -1557,9 +1681,10 @@ describe('the phone’s writes, through the host', () => {
           asked.push(input);
           return { outcome: 'done' };
         },
-        // Phase 318's two verbs, unused here: this test asks End alone.
+        // Phase 318's two verbs and Phase 337's keys, unused here: this test asks End alone.
         choose: async () => ({ outcome: 'done' }),
-        say: async () => ({ outcome: 'done' })
+        say: async () => ({ outcome: 'done' }),
+        keys: async () => ({ outcome: 'done' })
       }
     });
     await pairAndAllow(one);
@@ -1589,7 +1714,8 @@ describe('the phone’s writes, through the host', () => {
       writes: {
         end: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
         choose: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
-        say: async () => ({ outcome: 'failed', sentence: 'not in this test' })
+        say: async () => ({ outcome: 'failed', sentence: 'not in this test' }),
+        keys: async () => ({ outcome: 'failed', sentence: 'not in this test' })
       }
     });
     await pairAndAllow(one);
@@ -1759,9 +1885,20 @@ describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
     // Phase 317 added the write after the reads, Phase 318 the two after it,
-    // and Phase 316.7 the Sessions tab's read after those; the window did not
-    // move.
-    expect(POCKET_ROUTE_IDS).toEqual(['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions']);
+    // Phase 316.7 the Sessions tab's read after those, and Phase 337 the
+    // Screen's read and write last; the window did not move.
+    expect(POCKET_ROUTE_IDS).toEqual([
+      'pair',
+      'blocked',
+      'session',
+      'turns',
+      'end',
+      'choose',
+      'say',
+      'sessions',
+      'screen',
+      'keys'
+    ]);
   });
 });
 

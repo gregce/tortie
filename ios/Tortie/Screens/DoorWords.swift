@@ -48,6 +48,16 @@
 // whose door answers the route with a 404. The Sessions tab reads that
 // refusal as today's tab, never as Pairing, once the list's own read has
 // answered (Screens/SessionsScreen.swift `SessionsModel`).
+//
+// THE SCREEN (Phase 337, build/p337/SPEC.md section 5.8.3). `screenDoor(_:)`
+// is a REQUIREMENT too, for the same reason as `writer`, and its extension
+// default is nil: a reader with no Screen (the tests' fakes, and See a
+// Sample until Phase 333.3 answers one) draws no Screen. A paired reader's
+// Screen door holds its own two kept connections, one for the poll and one
+// for the keys (Door/DoorClient.swift `DoorLine`). Keys ask no Face ID (his
+// ruling 3, "Every key, including Ctrl-C"); a keys write's result becomes a
+// sentence in `keysSentence`, and a failed read of the screen in
+// `screenSentence`.
 
 import Foundation
 
@@ -72,11 +82,17 @@ protocol DoorReading: Sendable {
     /// `GET /v1/sessions` with `query`'s words (Phase 316.7). A requirement,
     /// so `any DoorReading` reads the reader's own.
     func sessions(_ query: SessionsQuery) async throws -> PocketSessionsAnswer
+    /// One session's Screen door (Phase 337), or nil when this reader has
+    /// none. A requirement, so `any DoorReading` reads the reader's own.
+    func screenDoor(_ sessionId: String) -> (any ScreenDoor)?
 }
 
 extension DoorReading {
     /// A reader that writes nothing: no End and no Select.
     var writer: (any DoorWriting)? { nil }
+
+    /// A reader with no Screen: none is drawn.
+    func screenDoor(_ sessionId: String) -> (any ScreenDoor)? { nil }
 
     /// A reader with no sessions read is a Mac older than Phase 316.7: its
     /// door refuses the route.
@@ -100,6 +116,21 @@ protocol DoorWriting: Sendable {
     /// the same words carried when its answer did not come (Revision R13).
     /// The ONE caller in the app is `ReplyRunner.run`.
     func say(_ sessionId: String, text: String, write: String?) async -> SentWrite
+}
+
+/// One session's Screen, through the door (Phase 337): the long poll and the
+/// keys, each on a connection of its own that it keeps between requests.
+protocol ScreenDoor: AnyObject, Sendable {
+    /// `GET /v1/screen`, holding `since`, the revision drawn now.
+    func read(since: String?) async throws -> PocketScreenAnswer
+    /// `POST /v1/keys`: one batch, echoing the question id and the window's
+    /// mark of the picture they were typed against. Never retried. The ONE
+    /// caller in the app is `ScreenKeySender`.
+    func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult
+    /// Whether this door takes keys at all (a pairing that writes).
+    var writes: Bool { get }
+    /// Close both kept connections now (the Screen went away, or the app).
+    func close()
 }
 
 /// How a pairing ended, for the screen.
@@ -294,6 +325,36 @@ enum DoorWords {
     /// which is true of each; no answer is End's own line, whose words are
     /// true of any write; anything else not sent says why.
     static func replySentence(for result: WriteResult) -> String {
+        switch result {
+        case .answered(let answer):
+            guard answer.outcome != .done else { return Copy.replySent }
+            // The decoder refuses a non-done answer with no sentence or an
+            // empty one, so this is the Mac's own sentence.
+            return answer.sentence ?? Copy.answerUnreadable
+        case .notTaken:
+            return Copy.replyNotTaken
+        case .noAnswer:
+            return Copy.endNoAnswer
+        case .notSent(let failure):
+            return failure == .cancelled ? Copy.replyNotTaken : sentence(for: failure)
+        }
+    }
+
+    /// The Screen's line when a read of the screen did not come back and
+    /// there is no picture to keep (Phase 337): ALWAYS a sentence, never
+    /// empty (conformance:ios rule v), the same words as any read's.
+    static func screenSentence(for failure: DoorFailure) -> String {
+        sentence(for: failure)
+    }
+
+    /// The Screen's line for a keys write's result (Phase 337): ALWAYS a
+    /// sentence, never empty (conformance:ios rule v). A `done` batch draws
+    /// nothing on the Screen (the next picture is the echo), and its word
+    /// here is a message's `Sent`. A refusal is the Mac's own sentence
+    /// (`The question on this session changed…`); a 404 and a batch withheld
+    /// because the app left are both "nothing was sent", which is true of
+    /// each; no answer is End's own line, whose words are true of any write.
+    static func keysSentence(for result: WriteResult) -> String {
         switch result {
         case .answered(let answer):
             guard answer.outcome != .done else { return Copy.replySent }

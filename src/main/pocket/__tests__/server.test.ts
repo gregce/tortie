@@ -81,7 +81,11 @@ const HEADERS = {
   'x-tortie-signature': 's'.repeat(86)
 };
 
-function signed(route: 'blocked' | 'session' | 'turns', target: string, channel = 'phone-a'): DoorRequest {
+function signed(
+  route: 'blocked' | 'session' | 'turns' | 'sessions' | 'screen',
+  target: string,
+  channel = 'phone-a'
+): DoorRequest {
   return { route, method: 'GET', target, headers: HEADERS, body: new Uint8Array(0), channel };
 }
 
@@ -282,6 +286,85 @@ describe('refusal 7: the answer is admitted again before it leaves', () => {
       { shuttingDown: () => quitting }
     );
     expect(answer).toEqual({ status: 404, body: null });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 337: a read is handed `closing`, refusal 1's own two asks
+// ---------------------------------------------------------------------------
+
+describe('Phase 337: the read is handed `closing` (build/p337/SPEC.md §5.3.1, D3)', () => {
+  it('hands the composer a `closing` that asks the quit and THE DOOR THAT ACCEPTED THIS REQUEST, live, each time it is called', async () => {
+    let quitting = false;
+    let stopping = false;
+    const asked: string[] = [];
+    let handed: (() => boolean) | null = null;
+    const handle = createPocketHandler(
+      deps({
+        shuttingDown: () => {
+          asked.push('quit');
+          return quitting;
+        },
+        answer: async (route, query, closing) => {
+          expect(route.id).toBe('screen');
+          expect(query.get('id')).toBe('s1');
+          handed = closing;
+          return { unchanged: true };
+        }
+      })
+    );
+    const door: DoorAdmission = {
+      stopping: () => {
+        asked.push('door');
+        return stopping;
+      }
+    };
+    expect((await handle(signed('screen', '/v1/screen?id=s1'), door)).status).toBe(200);
+    const closing = handed as (() => boolean) | null;
+    if (closing === null) throw new Error('the composer was not handed closing');
+    asked.length = 0;
+    expect(closing()).toBe(false);
+    expect(asked).toEqual(['quit', 'door']);
+    quitting = true;
+    expect(closing()).toBe(true);
+    quitting = false;
+    stopping = true;
+    expect(closing()).toBe(true);
+  });
+
+  it('refuses, shutdown, a held read that ended because its door began to stop: nothing it composed leaves', async () => {
+    let stopping = false;
+    const handle = createPocketHandler(
+      deps({
+        answer: async (_route, _query, closing) => {
+          // A poll held until `closing()` holds, as the Screen's watcher does.
+          stopping = true;
+          return closing() ? { sessionId: 's1', unchanged: true } : null;
+        }
+      })
+    );
+    expect(await handle(signed('screen', '/v1/screen?id=s1'), { stopping: () => stopping })).toEqual({ status: 404, body: null });
+    expect(words()).toContain('warn refused a request at the door: shutdown');
+  });
+
+  it('hands every read the same `closing`, not the screen alone', async () => {
+    const seen: string[] = [];
+    const handle = createPocketHandler(
+      deps({
+        answer: async (route, _query, closing) => {
+          seen.push(`${route.id}:${typeof closing}`);
+          return { ok: true };
+        }
+      })
+    );
+    for (const [route, target] of [
+      ['blocked', '/v1/blocked'],
+      ['session', '/v1/session?id=s'],
+      ['sessions', '/v1/sessions']
+    ] as const) {
+      await handle(signed(route, target), open);
+    }
+    expect(seen).toEqual(['blocked:function', 'session:function', 'sessions:function']);
   });
 });
 

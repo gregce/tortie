@@ -1278,6 +1278,41 @@ export const CHECKS = [
   // spends no token; every stand-in pid is ended by pid in its `finally`.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p318'),
+  // PHASE 337's app run, the Mac side of the Screen (build/p337/SPEC.md §7.7):
+  // a session's own screen read through /v1/screen and typed into through
+  // /v1/keys. ONE Electron at HEAD through build/electron-run.mjs's
+  // withElectron, and with P337_PARENT_CHECKOUT the parent's SECOND on the
+  // same profile, one after the other and never at once, on a scratch
+  // profile, a scratch HOME and the socket gmux-p337…, inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell
+  // AND SCRATCH_MACHINE_NO_OWN_KEYS=1 (D37: the far side trusts the run's key
+  // alone, so nothing under ~/.ssh is read and his agent is never asked),
+  // which is why this is `remote` and not `electron`. Tailscale is
+  // build/p330/tailscale-standin.mjs behind its preflight and sampler, the
+  // name check asks build/p332/dns-standin.mjs in the probe's own process,
+  // the phones are build/p316/node-phone.mjs, and every agent is
+  // build/p318/stand-in.mjs, build/p321/stand-in.mjs,
+  // build/p337/key-recorder.mjs or /bin/sh. It renames five agents' binaries
+  // before each launch, runs no vendor process and spends no token; every
+  // stand-in, recorder and sampler pid is ended by pid in its `finally`.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p337'),
+  // PHASE 337's measurement (build/p337/SPEC.md §7.6): the SHIPPING
+  // src/main/screen/** (the read, the composer, the watcher and the keys
+  // verb), TmuxControlClient and the carriage's key composer under the pinned
+  // tsx, against the vendored tmux on a scratch -L socket of its own and
+  // Homebrew's 3.6a on a second when it is installed (that row reads
+  // UNREADABLE when it is not), each under a copy of resources/gmux-tmux.conf,
+  // with build/p337/key-recorder.mjs and committed captures in its panes and a
+  // sized client attached in a pty for the size arm. No Electron, no door, no
+  // agent, no token, no ssh. Every tmux server, pty and recorder it starts is
+  // killed, and its socket unlinked, in a `finally`. `--check` re-measures the
+  // committed width and key fixtures and fails on any difference;
+  // `--self-test` grades recorded fixtures and starts nothing.
+  tmux(
+    'measure:p337',
+    'the vendored tmux on scratch -L sockets of its own (and Homebrew tmux 3.6a when present, on a second); the pinned tsx; /usr/bin/python3 for the sized client pty; the operator server is never named'
+  ),
   // PHASE 318's measurement (build/p318/SPEC.md §7.5): the SHIPPING
   // src/main/reply/writer.ts and reader.ts under the pinned tsx, against the
   // vendored tmux on a scratch -L socket of its own (and Homebrew's 3.6a on a

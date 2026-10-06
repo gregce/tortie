@@ -437,13 +437,24 @@ const HELPER = 'electron-run.mjs';
  * and keep their import of the helper, so none left the population. Phase
  * 337, building at the same time, raises the same constant from 166 to 167
  * for build/p337's probe; whichever of the two lands second makes it 168.
+ * PHASE 337 RAISED IT FROM 166 TO 167, by one for build/p337/probe-p337.mjs
+ * (`probe:p337`), a session's own screen read and typed into from a node
+ * phone: ONE Electron at a time through the helper, the parent's first with
+ * P337_PARENT_CHECKOUT and then HEAD's on the same scratch profile, a scratch
+ * HOME and the socket gmux-p337…, inside the loopback machine
+ * build/with-scratch-machine.mjs starts with the quiet shell and none of the
+ * person's keys, with the stand-in Tailscale behind its preflight and sampler
+ * and build/p332/dns-standin.mjs in the probe's own process. The only process
+ * it signals that it did not start is the scratch machine's own sshd, paused
+ * for S8 and resumed in its `finally` and on exit.
+ * Landed after Phases 341 and 340, so the floor is 169 (166, then 341, 340 and 337 one each).
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 168;
+const HELPER_USER_FLOOR = 169;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

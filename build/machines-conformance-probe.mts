@@ -1929,7 +1929,23 @@ const p3201 = await (async () => {
   const F = STATE_FORMAT_HERE ?? '#{pane_in_mode}';
   const HOSTILE: { label: string; args: unknown[] }[] = [
     { label: '-l literal text', args: ['send-keys', '-t', '$1', '-l', 'abc'] },
-    { label: 'a key name', args: ['send-keys', '-t', '$1', 'Enter'] },
+    // PHASE 337 (build/p337/SPEC.md D20): `send-keys -t $N <Name>` is the
+    // EIGHTH shape now, for exactly the 35 names of POCKET_SCREEN_KEY_NAMES (his
+    // word of 2026-10-05, "Every key, including Ctrl-C"), admitted and driven in
+    // condition 122. What stays hostile is every name off that list, a second
+    // name, a modifier, a flag and any target but $N.
+    { label: 'a key name the eighth row does not carry', args: ['send-keys', '-t', '$1', 'F1'] },
+    { label: 'a key name with Meta', args: ['send-keys', '-t', '$1', 'M-x'] },
+    { label: 'a key name with Control on an arrow', args: ['send-keys', '-t', '$1', 'C-Up'] },
+    { label: 'two key names', args: ['send-keys', '-t', '$1', 'Up', 'Down'] },
+    { label: 'a key name with -l', args: ['send-keys', '-t', '$1', '-l', 'Up'] },
+    { label: 'a key name to a % target', args: ['send-keys', '-t', '%1', 'Up'] },
+    { label: 'a key name to a name target', args: ['send-keys', '-t', 'p320-sh', 'Enter'] },
+    { label: 'a key name in lowercase', args: ['send-keys', '-t', '$1', 'enter'] },
+    { label: 'a key name carrying ;', args: ['send-keys', '-t', '$1', 'C-c;'] },
+    { label: 'a key name carrying a second command', args: ['send-keys', '-t', '$1', 'Enter', ';', 'kill-server'] },
+    { label: 'a key name as a number rather than a string', args: ['send-keys', '-t', '$1', 3] },
+    { label: 'a key name before -t', args: ['send-keys', 'Enter', '-t', '$1'] },
     // PHASE 320.1's SECOND BUILD. `send-keys -t $N -H 41` is the SEVENTH
     // SHAPE now (his word of 2026-09-30), admitted and driven in 109; what
     // stays hostile is every other spelling of -H (build/p3201/SPEC.md §6.3).
@@ -2338,6 +2354,42 @@ const p3201 = await (async () => {
     ];
   }
 
+  // --- 122, the eighth shape: its one composer, driven (Phase 337) -----------------
+  //
+  // His word of 2026-10-05 ("Every key, including Ctrl-C", build/p337/SPEC.md
+  // D20): a named key crosses on the control connection as `cancel`, then
+  // `send-keys -t $N <Name>`, one of the contract's 35. `namedKeySequence` is
+  // the one composer. It is driven here for EVERY name the contract lists,
+  // read from the loaded contract, and for names it must refuse.
+  const namedSeq = fn<(target: string, name: string) => string[][]>(shapesMod, 'namedKeySequence');
+  const pocketContract = await load('pocketContract', 'src/shared/ipc/pocket.ts');
+  const contractNames: string[] | null =
+    pocketContract !== null && Array.isArray(pocketContract['POCKET_SCREEN_KEY_NAMES'])
+      ? (pocketContract['POCKET_SCREEN_KEY_NAMES'] as string[]).slice()
+      : null;
+  const typeKey: Record<string, unknown> = { present: namedSeq !== null, names: contractNames };
+  if (namedSeq !== null && contractNames !== null) {
+    const rows: Record<string, unknown>[] = [];
+    for (const name of contractNames) {
+      try {
+        const seq = namedSeq('$4', name);
+        rows.push({ name, seq, verdicts: seq.map((argv) => verdictOf(argv)) });
+      } catch (err) {
+        rows.push({ name, threw: err instanceof Error ? err.message : String(err) });
+      }
+    }
+    typeKey['rows'] = rows;
+    const refusedNames: Record<string, unknown>[] = [];
+    for (const name of ['F1', 'M-x', 'C-Up', 'enter', 'Up Down', 'C-c;', '', 'Escape ']) {
+      try {
+        refusedNames.push({ name, seq: namedSeq('$4', name) });
+      } catch {
+        refusedNames.push({ name, threw: true });
+      }
+    }
+    typeKey['refused'] = refusedNames;
+  }
+
   // --- 110 and 111, the router and the park gate, driven ---------------------------
   //
   // Over a SCRIPTED runner and an INJECTED clock, through the module's own
@@ -2578,6 +2630,57 @@ const p3201 = await (async () => {
         fix['threw'] = err instanceof Error ? err.message : String(err);
       }
       order['fix'] = fix;
+
+      // 123, driven (Phase 337, build/p337/SPEC.md D20): the phone's keys to a
+      // session on another machine. Over a RECORDING runner, what is written
+      // BEFORE typePhoneKeys returns (no await, so all of it), in order: one
+      // cancel, each item's commands, the road's read; and over a carriage or
+      // an address that is not live, nothing at all.
+      const phoneKeys: Record<string, unknown> = { present: typeof o['typePhoneKeys'] === 'function' };
+      if (typeof o['typePhoneKeys'] === 'function') {
+        try {
+          const pkLines: string[][] = [];
+          const pkRun = Object.assign(
+            (args: readonly string[]): Promise<string> => {
+              pkLines.push([...args].map(String));
+              return Promise.resolve(args[0] === 'display-message' ? ['0', '', '4000', '40', '0', '0', '150', ''].join(' ') : '');
+            },
+            { ordered: true, server: 'machine:probe' }
+          );
+          let pkCarriage: 'live' | 'waiting' | 'none' = 'live';
+          let pkAddress: 'live' | 'waiting' = 'live';
+          o['resetScrollOrderForTests'](clock, {
+            address: () => (pkAddress === 'live' ? { kind: 'live', machineId: 'm7', tmuxId: '$4' } : { kind: 'waiting', machineId: 'm7' }),
+            carriage: () => (pkCarriage === 'live' ? { kind: 'live', run: pkRun, generation: 1 } : { kind: pkCarriage })
+          });
+          const drive = (label: string, keys: unknown[]): Record<string, unknown> => {
+            pkLines.length = 0;
+            const road = o['typePhoneKeys'](`pk-${label}`, keys);
+            const wroteBeforeReturn = pkLines.map((argv) => [...argv]);
+            return { label, road, wrote: wroteBeforeReturn, verdicts: wroteBeforeReturn.map((argv) => verdictOf(argv)) };
+          };
+          const rows = [
+            drive('up', [{ k: 'Up' }]),
+            drive('ctrl-c', [{ k: 'C-c' }]),
+            drive('text and backspace', [{ t: 'hi é' }, { k: 'BSpace' }, { t: '日本' }]),
+            drive('300 bytes of text', [{ t: 'x'.repeat(300) }])
+          ];
+          pkCarriage = 'waiting';
+          const waiting = drive('carriage waiting', [{ k: 'Enter' }]);
+          pkCarriage = 'none';
+          const none = drive('no carriage', [{ k: 'Enter' }]);
+          pkCarriage = 'live';
+          pkAddress = 'waiting';
+          const noAddress = drive('address waiting', [{ k: 'Enter' }]);
+          pkAddress = 'live';
+          await new Promise((resolve) => setTimeout(resolve, 10));
+          phoneKeys['rows'] = rows;
+          phoneKeys['refused'] = [waiting, none, noAddress];
+        } catch (err) {
+          phoneKeys['threw'] = err instanceof Error ? err.message : String(err);
+        }
+      }
+      order['phoneKeys'] = phoneKeys;
       for (const name of ['keysSoFar', 'leaveForProgram', 'noteParkedByUs', 'awaitsReopen']) {
         if (typeof o[name] !== 'function') (order['missing'] as string[]).push(name);
       }
@@ -2668,6 +2771,7 @@ const p3201 = await (async () => {
     history,
     read107,
     typed,
+    typeKey,
     order
   };
 })();

@@ -80,7 +80,16 @@ process.stdout.write(
     'and a re-signed write id typed nothing again, the same id under another verb was its own write, a message ' +
     'on a session End was ending was busy, every malformed body was refused whole with its id echoed, a message ' +
     'over 32,768 bytes was dropped at the door, a phone removed or a door stopping while the verb read was ' +
-    'answered refused stopped and never 404, and a late press was cut. One loopback listener in-process at a time and one scratch ' +
+    'answered refused stopped and never 404, and a late press was cut. The Screen (Phase 337) read through the shipping ' +
+    'route over a fake watcher: an honest read and long poll answered field by field, every malformed query refused ' +
+    'before the watcher was asked, a poll held while its phone was Removed cut with no byte, one held while the door ' +
+    'stopped ended by closing inside the join, and one main held past the bound answered 404 on a kept line that then ' +
+    'answered the next request with no stray byte. Its keys took the one write path: an honest write once, a replay and ' +
+    'a re-signed id typed nothing again, every malformed body and every named key not alone refused whole with its id ' +
+    'echoed, a body over 16,384 dropped at the door and the worst legal one reaching main, a query, a GET signature and ' +
+    'another phone’s connection refused, keys on a session End was ending busy, a removed phone refused before and ' +
+    'during the act, and twenty writes on one session logged once with the refusal among them on its own line. ' +
+    'One loopback listener in-process at a time and one scratch ' +
     'directory, both gone. ' +
     'No Swift, no Apple, no phone, no Electron, no Tailscale, no real interface.\n'
 );

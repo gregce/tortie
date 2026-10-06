@@ -455,6 +455,45 @@ const BRAILLE = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', 
  *                                       command's PermissionRequest first (R12)
  *   { op: 'clear' }                     forget the echoed transcript
  *   { op: 'exit' }                      leave
+ *
+ * PHASE 337's appended ops (build/p337/SPEC.md §7.5), for `probe:p337` and
+ * `probe:p316`'s `screen` group. Nothing above them moved:
+ *   { op: 'alt', on?, then? }           the FULL-SCREEN row of the matrix: enter
+ *                                       the alternate screen with mouse tracking
+ *                                       on (`ESC [ ? 1049 h`, `ESC [ ? 1000 h`,
+ *                                       `ESC [ ? 1006 h`), as a full-screen
+ *                                       Claude Code does, then apply `then`
+ *                                       (default the idle prompt); `on: false`
+ *                                       leaves it again
+ *   { op: 'ask', command, ranMs?, then? }
+ *                                       a question (Enter takes its highlighted
+ *                                       first option, as Codex's does); 60 ms
+ *                                       (AFTER_COMMIT_MS) after a commit the
+ *                                       command's run drawn above the idle
+ *                                       prompt (`ran`), and `ranMs` (default
+ *                                       400) after that a SECOND, IDENTICAL
+ *                                       question with NO HOOK, then `then`
+ *                                       after its own commit: Codex's case of
+ *                                       D22, where the id moves on the phone's
+ *                                       key and the window's mark is what says
+ *                                       a new question was drawn. Two
+ *                                       identical questions with nothing drawn
+ *                                       between could not be told apart by any
+ *                                       picture, which is why the run is drawn
+ *                                       between them, as Codex draws it
+ *   { op: 'ran', command, ms?, then? }  the command's run above the idle
+ *                                       prompt, then `then` `ms` later
+ *   { op: 'picker', options, redrawMs?, then? }
+ *                                       a numbered picker with a `❯` on its
+ *                                       first option; an arrow (`ESC [ A`/`B`
+ *                                       or `ESC O A`/`B`) moves it, REDRAWN
+ *                                       `redrawMs` later (default 120, as an
+ *                                       Ink or ratatui frame throttle does),
+ *                                       its state moving at once (wrapping at
+ *                                       either end) and written down as `moved`
+ *                                       with the option now under the cursor,
+ *                                       its frame `redrawn` after the delay;
+ *                                       Enter commits the option under it
  */
 async function standIn() {
   const agent = process.env['P318_AGENT'] ?? '';
@@ -530,6 +569,16 @@ async function standIn() {
   let transcript = [];
   /** A hand-off is no session end: the agent's hook and registry stay as they were (R12). */
   let handingOff = false;
+  /** Phase 337: the alternate screen with mouse tracking is on (`alt`). */
+  let altOn = false;
+  /** Phase 337 (`ask`): Enter at this press screen commits its first option, as Codex's highlighted Yes does. */
+  let enterCommits = false;
+  /** Phase 337: a picker's options, the option under its cursor, and its redraw delay. */
+  let pickerOptions = [];
+  let pickerAt = 0;
+  /** The option the picker's state is on; drawn as `pickerAt` once its frame is redrawn. */
+  let pickerWant = 0;
+  let pickerRedrawMs = 120;
 
   const later = (ms, fn) => {
     const t = setTimeout(() => {
@@ -719,6 +768,7 @@ async function standIn() {
     const command = String(op.command ?? 'touch p318.txt');
     pressCommand = command;
     onCommit = op.onCommit ?? { op: 'idle' };
+    enterCommits = op.enterCommits === true;
     const dropMs = Number.isFinite(Number(op.dropMs)) && Number(op.dropMs) >= 0 ? Number(op.dropMs) : agent === 'claude' ? CLAUDE_DROP_MS : 0;
     dropNs = BigInt(Math.round(dropMs)) * 1_000_000n;
     committed = false;
@@ -856,9 +906,82 @@ async function standIn() {
       } else {
         leave();
       }
+    } else if (op?.op === 'alt') {
+      // PHASE 337: the full-screen row. Enter (or leave) the alternate screen
+      // with mouse tracking, then what the op says.
+      const on = op.on !== false;
+      if (on !== altOn) {
+        altOn = on;
+        process.stdout.write(on ? `${ESC}[?1049h${ESC}[?1000h${ESC}[?1006h` : `${ESC}[?1006l${ESC}[?1000l${ESC}[?1049l`);
+        log({ kind: on ? 'alt-on' : 'alt-off' });
+      }
+      apply(op.then ?? { op: 'idle' });
+    } else if (op?.op === 'ask') {
+      // PHASE 337 (D22): one question, and after its commit an IDENTICAL one
+      // with no hook, AFTER_COMMIT_MS later.
+      const command = String(op.command ?? 'touch p337.txt');
+      const ranMs = Number.isFinite(Number(op.ranMs)) && Number(op.ranMs) >= 0 ? Number(op.ranMs) : 400;
+      const second = { op: 'press', command, noHook: true, enterCommits: true, onCommit: op.then ?? { op: 'idle' } };
+      showPress({ op: 'press', command, noHook: op.noHook === true, enterCommits: true, onCommit: { op: 'ran', command, ms: ranMs, then: second } });
+    } else if (op?.op === 'ran') {
+      // PHASE 337 (`ask`'s middle): the command's run drawn above the idle
+      // prompt, as Codex draws it once an approval is taken, then `then`
+      // `ms` later. The question is gone from the screen meanwhile, so the
+      // window a picture of it carries is not the question's.
+      transcript.push(`• Ran ${String(op.command ?? '')}`);
+      showIdle();
+      log({ kind: 'ran', command: String(op.command ?? '') });
+      const next = op.then ?? null;
+      if (next !== null) later(Number.isFinite(Number(op.ms)) && Number(op.ms) >= 0 ? Number(op.ms) : 400, () => apply(next));
+    } else if (op?.op === 'picker') {
+      // PHASE 337 (D4, S5(f)): a picker that redraws a while after each arrow.
+      stopWork();
+      mode = 'picker';
+      pickerOptions = (Array.isArray(op.options) ? op.options : ['First', 'Second', 'Third']).map(String).slice(0, 9);
+      pickerAt = 0;
+      pickerWant = 0;
+      pickerRedrawMs = Number.isFinite(Number(op.redrawMs)) && Number(op.redrawMs) >= 0 ? Number(op.redrawMs) : 120;
+      markers = pickerOptions.map((_, i) => String(i + 1));
+      denyMarkers = [];
+      onCommit = op.then ?? { op: 'idle' };
+      committed = false;
+      draw('picker', pickerRows());
+      registry('waiting', 'permission prompt');
+      setTitleLoop('press');
     } else if (op?.op === 'exit') {
       done(0);
     }
+  }
+
+  /** PHASE 337: the picker's rows, its cursor on the option at `pickerAt`. */
+  function pickerRows() {
+    return [
+      ' Pick one (p337 stand-in)',
+      '',
+      ...pickerOptions.map((o, i) => `${i === pickerAt ? '❯' : ' '} ${String(i + 1)}. ${o}`),
+      '',
+      ' ↑/↓ to move · Enter to choose · Esc to cancel'
+    ];
+  }
+
+  /**
+   * PHASE 337: one arrow at the picker. The picker's state moves at once and
+   * wraps at either end, as an Ink or ratatui list does; its FRAME is drawn
+   * `pickerRedrawMs` later, so a key sent against the old frame reads a
+   * picture that is about to change (D4's settle).
+   */
+  function pickerMove(delta, t) {
+    const n = pickerOptions.length;
+    if (n === 0) return;
+    pickerWant = (((pickerWant + delta) % n) + n) % n;
+    const target = pickerWant;
+    log({ kind: 'moved', t, at: target, drawn: pickerAt, option: pickerOptions[target] ?? null });
+    later(pickerRedrawMs, () => {
+      if (mode !== 'picker') return;
+      pickerAt = pickerWant;
+      draw('picker', pickerRows());
+      log({ kind: 'redrawn', at: pickerAt });
+    });
   }
 
   /**
@@ -895,6 +1018,20 @@ async function standIn() {
         }
         continue;
       }
+      // PHASE 337: an arrow at the picker moves it (normal or application cursor mode).
+      if (mode === 'picker') {
+        const arrow = /^\u001b(?:\[|O)([AB])/.exec(s);
+        if (arrow !== null) {
+          s = s.slice(arrow[0].length);
+          pickerMove(arrow[1] === 'B' ? 1 : -1, t);
+          continue;
+        }
+        if (s[0] === '\r') {
+          s = s.slice(1);
+          if (!committed) commit(String(pickerWant + 1), t);
+          continue;
+        }
+      }
       const esc = /^\u001b(?:\[[0-9;?]*[ -/]*[@-~]|\][^\u0007]*\u0007|.)/.exec(s);
       if (esc !== null) {
         // A device-attributes or colour answer, an arrow, Esc: written down above, acted on never.
@@ -915,7 +1052,9 @@ async function standIn() {
       }
       if (mode === 'press') {
         if (ch === '\r' || ch === '\n') {
-          log({ kind: 'enter', t });
+          // Phase 337's `ask` alone: Enter takes the highlighted first option.
+          if (enterCommits && !committed && markers.length > 0) commit(markers[0], t);
+          else log({ kind: 'enter', t });
           continue;
         }
         if (/^[0-9]$/.test(ch)) {
@@ -1004,7 +1143,7 @@ async function standIn() {
       }
     }
     try {
-      process.stdout.write(`${ESC}[?2004l${agent === 'claude' ? `${ESC}[?1004l` : ''}`);
+      process.stdout.write(`${altOn ? `${ESC}[?1006l${ESC}[?1000l${ESC}[?1049l` : ''}${ESC}[?2004l${agent === 'claude' ? `${ESC}[?1004l` : ''}`);
     } catch {
       /* the terminal is gone */
     }

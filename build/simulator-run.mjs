@@ -819,6 +819,9 @@ export async function xcodebuildRun(options) {
  *            BIOMETRY_STEPS, each `simctl spawn <udid> notifyutil …` run as
  *            one of the handle's owned children. Any other step throws before
  *            anything runs.
+ * @property {() => Promise<{code: number, stdout: string, stderr: string}>} pasteboard
+ *            Phase 337: `simctl pbpaste` of THIS udid, read once, as the app's
+ *            Copy left it. It names no other device and writes nothing.
  * @property {() => string} dataPath  The device's data directory, for a read.
  */
 
@@ -986,6 +989,14 @@ export async function withSimulator(options, body) {
           if (last.code !== 0) return last;
         }
         return last;
+      },
+      async pasteboard() {
+        // Phase 337 (build/p337/SPEC.md §7.8 PS6): what THIS device's
+        // pasteboard holds, read once after the app's Copy. The udid this call
+        // CREATED, never `booted` and never a value the caller hands in; it
+        // reads and writes nothing else, and is one of the handle's owned
+        // children like every other verb.
+        return run('xcrun', ['simctl', 'pbpaste', udid], { timeoutMs: 30_000, owner: entry.children });
       },
       dataPath() {
         return join(homedir(), 'Library', 'Developer', 'CoreSimulator', 'Devices', udid, 'data');

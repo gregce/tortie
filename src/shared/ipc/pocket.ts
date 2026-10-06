@@ -44,9 +44,10 @@
  * outbound hand-off, and the answer was to remove the thing rather than to
  * guard it. Pairing establishes keys each way and every request is signed.
  *
- * THREE WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
- * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1).
- * {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`, `choose` and `say`:
+ * FOUR WRITE ROUTES, AND WHAT THEY CAN DO IS ALL THEY CAN DO (Phase 317,
+ * build/p317/SPEC.md §5.3; Phase 318, build/p318/SPEC.md §5.1; Phase 337,
+ * build/p337/SPEC.md §5.1). {@link POCKET_WRITE_ROUTE_IDS} is exactly `end`,
+ * `choose`, `say` and `keys`:
  *
  *   - `end` asks main to end ONE session by id, through both gates the Mac's
  *     own End asks, and main's verb does the ending;
@@ -56,10 +57,17 @@
  *     Enter, only on a question shape measured and compiled in main;
  *   - `say` asks main to put ONE message into a Claude Code or Codex session
  *     on this Mac that sits idle at its own empty prompt, as a paste at the
- *     Mac would, then Return.
+ *     Mac would, then Return;
+ *   - `keys` (Phase 337) asks main to type keys into ONE running session, on
+ *     this Mac or on another machine, as a person types at the desk: text as
+ *     its exact bytes and every other key by tmux's own name from
+ *     {@link POCKET_SCREEN_KEY_NAMES}, refused with nothing typed when the
+ *     numbered question the phone was looking at has moved since.
  *
- * Nothing here can set a status, start a process, or restore, remove, restart
- * or rename a session, and nothing reaches a session on another machine. The
+ * Nothing here can set a status, start a process by itself, or restore,
+ * remove, restart, resize or rename a session. (A key typed into a shell runs
+ * what a person types at the desk would run, and that is the write's whole
+ * point; his ruling of 2026-10-05, "Every key, including Ctrl-C".) The
  * route ids in {@link POCKET_ROUTE_IDS} are a confirmed field of the door's
  * own hash, so each phase that added one asked the person again, and a later
  * phase that adds one asks again too. (The fix round removed a fourth write,
@@ -106,7 +114,11 @@ export const POCKET_ROUTE_IDS = [
    * `GET /v1/sessions` — every listed session, shown, grouped and sorted as
    * asked (Phase 316.7).
    */
-  'sessions'
+  'sessions',
+  /** `GET /v1/screen` — one session's own screen, composed in main, as a long poll (Phase 337). */
+  'screen',
+  /** `POST /v1/keys` — keys typed into one running session, as at the desk (Phase 337). */
+  'keys'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
@@ -114,11 +126,12 @@ export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
 /**
  * The write routes, and there are exactly these (Phase 317; Phase 318 added
  * `choose` and `say` to the same door, the same write path and the same
- * ledger, and no second gate). A `reads: false` row of the door's table is one
- * of these, and `conformance:pocket` R2 holds the table and this list to each
- * other. The ORDER is the order the confirm line names them in.
+ * ledger, and no second gate; Phase 337 added `keys` in the same way). A
+ * `reads: false` row of the door's table is one of these, and
+ * `conformance:pocket` R2 holds the table and this list to each other. The
+ * ORDER is the order the confirm line names them in.
  */
-export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say'] as const satisfies readonly PocketRouteId[];
+export const POCKET_WRITE_ROUTE_IDS = ['end', 'choose', 'say', 'keys'] as const satisfies readonly PocketRouteId[];
 
 export type PocketWriteRouteId = (typeof POCKET_WRITE_ROUTE_IDS)[number];
 
@@ -373,6 +386,15 @@ export interface PocketSessionDetail extends PocketBlockedRow {
    * READS {@link POCKET_NO_REPLY}, here and on the phone.
    */
   reply?: PocketReplyOffer;
+  /**
+   * Whether this session has a screen the phone may open (Phase 337,
+   * build/p337/SPEC.md §5.2, D32): true exactly when this Mac answers
+   * `/v1/screen` and the session is running, idle or waiting on a person. The
+   * door's one composer always sets it. OPTIONAL for Phase 317's reason
+   * (hand-built literals in files no builder of this phase owns), and ABSENT
+   * READS FALSE, here and on the phone, so an older Mac draws no Screen row.
+   */
+  screen?: boolean;
 }
 
 /**
@@ -668,8 +690,9 @@ export type PocketWriteReason =
   | 'character';
 
 /**
- * The answer to `POST /v1/end`, `/v1/choose` and `/v1/say`, composed field by
- * field in main, and these five fields are all of it.
+ * The answer to `POST /v1/end`, `/v1/choose`, `/v1/say` and (Phase 337)
+ * `/v1/keys`, composed field by field in main, and these five fields are all
+ * of it.
  *
  * EVERY OUTCOME A WRITE'S VERB DECIDES IS A 200 WITH THIS BODY. A 404 with no
  * body is the door's own refusal and means nothing was done: the quit, the door
@@ -1021,10 +1044,16 @@ export const POCKET_CONFIRM_WARNING =
  * The phone app says it where it is true, on the phone (End alone, his ruling
  * "Only for End"). It names the three writes in the words the confirm line
  * uses (build/p318/SPEC.md D28).
+ *
+ * REWRITTEN BY PHASE 337 (build/p337/SPEC.md D35): once a phone can type into
+ * a shell, "It can change nothing else on this Mac" is false, so the sentence
+ * says what the Screen and its keys let a phone do. It says "what any
+ * session's screen SHOWS" because the Screen is not redacted (D41): it is the
+ * session's own screen, whatever a terminal shows.
  */
 export const POCKET_DOOR_HONESTY =
-  'A phone you allow can end a session, answer a numbered question and send a session one message. ' +
-  'It can change nothing else on this Mac.';
+  'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, ' +
+  'answer a numbered question, send a session one message and end a session.';
 
 /**
  * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route
@@ -1264,3 +1293,105 @@ export interface GmuxPocketExtras {
     onChanged(cb: (status: PocketStatus) => void): () => void;
   };
 }
+
+// ---------------------------------------------------------------------------
+// The Screen (Phase 337, build/p337/SPEC.md §5.2)
+// ---------------------------------------------------------------------------
+
+/**
+ * The 35 key names the phone may send, by tmux's own name (D17, D18), so tmux
+ * encodes each for the program's current mode exactly as it encodes the same
+ * key typed at the desk. No Page Up, Page Down, Home, End, function key, Alt
+ * or modified arrow (§12). Read-only, and compared with `===` wherever it is
+ * read; the phone's `ScreenKeyName` enum mirrors it (`conformance:ios` rule
+ * ai) and the carriage's `type-key` row reads it (`conformance:machines` 103).
+ *
+ * `BSpace` is the one name that may share a write with text (D17): it is a
+ * single `7f`, never the start of an escape sequence, so a CJK composition
+ * rewrite stays one write. Every other name is the ONLY item of its write,
+ * because a program reads one write as one input and `Escape` followed by
+ * anything in the same read is read as Meta (`../../main/pocket/writes.ts`'s
+ * `parseKeysBody` holds it).
+ */
+export const POCKET_SCREEN_KEY_NAMES = [
+  'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
+  'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m',
+  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'
+] as const;
+export type PocketScreenKeyName = (typeof POCKET_SCREEN_KEY_NAMES)[number];
+
+/** The caps of one screen answer (D15). Over any one, the answer is `why: 'large'` and no rows. */
+export const POCKET_SCREEN_MAX_COLS = 512;
+export const POCKET_SCREEN_MAX_ROWS = 200;
+export const POCKET_SCREEN_MAX_STYLES = 1_024;
+export const POCKET_SCREEN_MAX_RUNS = 16_384;
+export const POCKET_SCREEN_MAX_BYTES = 1_048_576;
+/** The caps of one keys write (D17), read by the door's parse and the keys verb. */
+export const POCKET_KEYS_MAX_ITEMS = 64;
+export const POCKET_KEYS_MAX_TEXT_BYTES = 1_024;
+
+/** One style: colours already resolved on the Mac to `#rrggbb` (D12). */
+export interface PocketScreenStyle {
+  /** `#rrggbb`. */
+  fg: string;
+  /** `#rrggbb`, or null for the ground. */
+  bg: string | null;
+  bold: boolean;
+  dim: boolean;
+  italic: boolean;
+  underline: boolean;
+  strike: boolean;
+}
+
+/** One run: text of one style, and the columns it covers. */
+export interface PocketScreenRun {
+  text: string;
+  /** An index into {@link PocketScreen.styles}. */
+  style: number;
+  /** The columns the run covers, by tmux's own widths. */
+  cells: number;
+}
+
+/** One session's screen as main composed it (D9, D13). */
+export interface PocketScreen {
+  cols: number;
+  rows: number;
+  cursor: { x: number; y: number; visible: boolean };
+  alternate: boolean;
+  /** The Mac's own terminal colours: its ground, its default ink and its cursor. */
+  ground: string;
+  ink: string;
+  caret: string;
+  styles: PocketScreenStyle[];
+  /** Exactly `rows` rows; a row with nothing on it is []. */
+  lines: PocketScreenRun[][];
+  /** The question id now, echoed by a keys write. */
+  turn: string;
+  /** A numbered question is drawn, or the session waits on him. */
+  asking: boolean;
+  /** The window's mark while asking (12 hex), echoed by a keys write; null otherwise. */
+  dialog: string | null;
+  /** Keys are taken now: live, not unknown, and on another machine a live connection. */
+  typable: boolean;
+}
+
+/** Why a screen answer carries no screen (D13). */
+export type PocketScreenAbsence = 'ended' | 'unreachable' | 'large';
+
+/** The answer to `GET /v1/screen`, composed field by field in main. */
+export interface PocketScreenAnswer {
+  sessionId: string;
+  /** 12 lowercase hex (D14). */
+  revision: string;
+  at: number;
+  /** True: `since` was current; nothing else is carried. */
+  unchanged: boolean;
+  /** Null exactly when {@link unchanged} or {@link why}. */
+  screen: PocketScreen | null;
+  why: PocketScreenAbsence | null;
+  /** Main's words for {@link why}, null otherwise. */
+  sentence: string | null;
+}
+
+/** One item of a keys write: text as typed, or one named key (D17). */
+export type PocketKeyItem = { t: string } | { k: PocketScreenKeyName };

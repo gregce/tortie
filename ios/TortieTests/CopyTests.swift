@@ -83,6 +83,10 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["space"], Copy.space)
         XCTAssertEqual(byName["send"], Copy.send)
         XCTAssertEqual(byName["replyNotTaken"], Copy.replyNotTaken)
+        XCTAssertEqual(byName["screen"], Copy.screen)
+        XCTAssertEqual(byName["endTop"], Copy.endTop)
+        XCTAssertEqual(byName["keyBackTab"], Copy.keyBackTab)
+        XCTAssertEqual(byName["terminalStaysOnMac"], Copy.terminalStaysOnMac)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -105,6 +109,8 @@ final class CopyTests: XCTestCase {
         // Phase 316.7: the parent's list is the older-Mac face, byte for byte.
         let older = try StyleSource.text("docs/design/phone/SessionsOlderMac.html")
         let menu = try StyleSource.text("docs/design/phone/SessionsMenu.html")
+        // Phase 337: the Screen, and End at the top right.
+        let screenMock = try StyleSource.text("docs/design/phone/Screen.html")
         let drawn: [(String, String)] = [
             (older, Copy.sessions),
             (older, Copy.needsYourInput(3)),
@@ -184,11 +190,12 @@ final class CopyTests: XCTestCase {
             (conversation, Copy.terminalStaysOnMac),
             (link, Copy.open),
             (link, Copy.cancel),
-            // Phase 317: End above the tab bar, and End these with the Mac
-            // sheet's words, composed with the mock's own counts.
-            (session, Copy.endSessionMenu),
-            (choice, Copy.endSessionMenu),
-            (end, Copy.endSessionMenu),
+            // Phase 317: End, and End these with the Mac sheet's words,
+            // composed with the mock's own counts. Since Phase 337 End is
+            // `End` at the top right of every session's page (D33).
+            (session, Copy.endTop),
+            (choice, Copy.endTop),
+            (end, Copy.endTop),
             (end, Copy.cancel),
             (main, Copy.select),
             (endThese, Copy.selectedCount(3)),
@@ -202,7 +209,15 @@ final class CopyTests: XCTestCase {
             // under the End bar with no line asking him to answer it at the Mac.
             (composer, Copy.messagePlaceholder),
             (composer, Copy.oneMessage),
-            (answer, Copy.endSessionMenu),
+            (answer, Copy.endTop),
+            // Phase 337: the Screen row under Conversation, and the Screen's
+            // key bar, in its own words.
+            (session, Copy.screen),
+            (screenMock, Copy.keyEsc),
+            (screenMock, Copy.keyTab),
+            (screenMock, Copy.keyBackTab),
+            (screenMock, Copy.keyCtrl),
+            (screenMock, Copy.keyReturn),
         ]
         for (mock, line) in drawn {
             XCTAssertTrue(mock.contains(">" + line + "<"), "the mock does not draw \(line)")
@@ -211,6 +226,10 @@ final class CopyTests: XCTestCase {
             answer.contains(">" + Copy.answerInTheSession + "<"),
             "every option Answer.html draws is pressable, so it draws no line sending him to the Mac"
         )
+        // Phase 337 (D33): the bar at the bottom is gone from every page.
+        for (name, mock) in [("Session", session), ("Choice", choice), ("Answer", answer)] {
+            XCTAssertFalse(mock.contains(">" + Copy.endSessionMenu + "<"), "\(name).html still draws the End bar")
+        }
         // The menu button draws no words; its spoken name is the phone's.
         for mock in [main, menu] {
             XCTAssertTrue(mock.contains("aria-label=\"" + Copy.sessionsOptions + "\""), "the menu button is not named \(Copy.sessionsOptions)")
@@ -240,6 +259,11 @@ final class CopyTests: XCTestCase {
             "The agent stops. Its saved output stays.",
             // Phase 316.7, D14: no search, so no word of one.
             "Search",
+            // Phase 337: the Screen is the session's screen, never a remote
+            // desktop or SSH (his ruling 1), and no paste key (section 12);
+            // and the sentence D31 replaced, which the Screen made false.
+            "SSH", "remote desktop", "Remote Desktop", "Paste",
+            "The terminal’s own output stays on your Mac.",
         ]
         for entry in try entries() {
             for word in refused where entry.literal.contains(word) {

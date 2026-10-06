@@ -72,6 +72,71 @@ final class DoorClientTests: XCTestCase {
         )
     }
 
+    /// Clause (Phase 337, D25): a kept line's request asks the door to keep
+    /// the connection, and ONLY a kept line's; every other request still
+    /// says `Connection: close`, which the one-shot test above holds.
+    func testOnlyAKeptLinesRequestSaysKeepAlive() {
+        let kept = DoorHTTP.request(
+            method: "GET", target: "/v1/screen?id=s", name: door.name, port: door.port, headers: [], body: nil, keepAlive: true
+        )
+        XCTAssertEqual(text(kept), "GET /v1/screen?id=s HTTP/1.1\r\nHost: p330-mac.tail00000.ts.net:8443\r\nConnection: keep-alive\r\n\r\n")
+        let once = DoorHTTP.request(method: "GET", target: "/v1/screen?id=s", name: door.name, port: door.port, headers: [], body: nil)
+        XCTAssertEqual(text(once), "GET /v1/screen?id=s HTTP/1.1\r\nHost: p330-mac.tail00000.ts.net:8443\r\nConnection: close\r\n\r\n")
+        XCTAssertFalse(DoorLine.once().keeps)
+        XCTAssertTrue(DoorLine(keeps: true).keeps)
+        XCTAssertLessThanOrEqual(DoorLine.freshFor, 4)
+    }
+
+    /// Clause (Phase 337, §Attack A12): the reader says when an answer said
+    /// `Connection: close`, in any case and in a list, which closes a kept
+    /// line; and a byte past the declared length is refused, so a stray is
+    /// never read as the next answer.
+    func testTheReaderSaysWhenTheDoorSaysClose() throws {
+        for header in ["Connection: close", "connection: Close", "Connection: keep-alive, close"] {
+            var reader = DoorResponseReader(cap: DoorLimits.answerCap)
+            try reader.feed(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19\r\n\(header)", json))
+            XCTAssertTrue(reader.closes, header)
+            XCTAssertTrue(reader.isComplete)
+        }
+        var kept = DoorResponseReader(cap: DoorLimits.answerCap)
+        try kept.feed(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19\r\nConnection: keep-alive", json))
+        XCTAssertFalse(kept.closes)
+        var stray = DoorResponseReader(cap: DoorLimits.answerCap)
+        XCTAssertThrowsError(try stray.feed(answer("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: 19", json + "HTTP/1.1 200 OK"))) {
+            XCTAssertEqual($0 as? DoorFailure, .malformed)
+        }
+    }
+
+    /// Clause (Phase 337, conformance:ios rule ah): the Screen's read names
+    /// the session and the revision held, and NOTHING ELSE: never a size.
+    func testTheScreenTargetIsTheSessionAndTheRevisionAlone() {
+        XCTAssertEqual(DoorClient.screenTarget("s", since: nil), "/v1/screen?id=s")
+        XCTAssertEqual(DoorClient.screenTarget("a b", since: "0123456789ab"), "/v1/screen?id=a%20b&since=0123456789ab")
+        for word in ["cols", "rows", "width", "height", "size", "resize"] {
+            XCTAssertFalse(DoorClient.screenTarget("s", since: "0123456789ab").contains(word), word)
+        }
+        XCTAssertEqual(DoorClient.keysTarget, "/v1/keys")
+        XCTAssertEqual(WriteRoute.keys(session: "s", keys: [], turn: "t", dialog: nil).verb, .keys)
+    }
+
+    /// Clause (Phase 337, D17, rule ah): a keys body is exactly
+    /// `dialog, keys, session, turn, write`, sorted, `dialog` written as
+    /// null when the picture had none, and no size anywhere.
+    func testAKeysBodyIsItsFiveKeys() throws {
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        let id = "0123456789abcdef0123456789abcdef"
+        let body = KeysBody(dialog: nil, keys: [.text("ls"), .key(.backspace)], session: "s", turn: "0123456789abcdef-1", write: id)
+        XCTAssertEqual(
+            String(decoding: try encoder.encode(body), as: UTF8.self),
+            #"{"dialog":null,"keys":[{"t":"ls"},{"k":"BSpace"}],"session":"s","turn":"0123456789abcdef-1","write":"0123456789abcdef0123456789abcdef"}"#
+        )
+        let asking = KeysBody(dialog: "a1b2c3d4e5f6", keys: [.key(.enter)], session: "s", turn: "0123456789abcdef-1", write: id)
+        let fields = try XCTUnwrap(try JSONSerialization.jsonObject(with: try encoder.encode(asking)) as? [String: Any])
+        XCTAssertEqual(fields.keys.sorted(), ["dialog", "keys", "session", "turn", "write"])
+        XCTAssertEqual(fields["dialog"] as? String, "a1b2c3d4e5f6")
+    }
+
     /// Clause: `/pair`'s body is JSON with its length, and nothing streams.
     func testAPresentationCarriesItsLength() {
         let body = Data(#"{"ct":"x"}"#.utf8)

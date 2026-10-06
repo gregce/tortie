@@ -471,6 +471,51 @@
  *   RP  with P318_PARENT_IOS (c1a5fd38's ios/): the parent's app and its OWN
  *       UI test over the same sessions: no press and no strip in its dumps
  *
+ * PHASE 337, THE `screen` GROUP (build/p337/SPEC.md §7.8, `P316_ARMS=screen`):
+ * a session's own screen read and typed into from the phone, with every key
+ * and no Face ID (his rulings 1 and 3), and End at the top right. The sessions
+ * are build/p318/stand-in.mjs as Claude Code and Codex, a shell, and
+ * build/p337/key-recorder.mjs in a shell, whose log of every byte it read is
+ * the ground truth for a key, with this file's own `capture-pane` on the run's
+ * scratch socket for a row. The UI test's steps are `screen-open`,
+ * `screen-zoom`, `screen-rotate`, `screen-type:<b64url>`, `screen-key:<name>`,
+ * `screen-ctrl:<letter>`, `screen-question:<name>:<ms>`, `screen-select:<n>`,
+ * `screen-home:<b64url>`, `screen-wait:<tag>` and `end-top`; before each key
+ * it waits for this file's `screen-<seq>`. The arms:
+ *   PS1 26.3: a session's page: End's frame inside the navigation bar's
+ *       trailing half, no End bar, the Conversation row above the Screen row
+ *   PS2 26.3: the Screen over Claude Code inline, Codex and the shell: every
+ *       row's label the Mac's `capture-pane -p` row (trailing blanks dropped),
+ *       the drawn rows the view's width to the pixel, the cursor at (x × cell,
+ *       y × cell) from row 0's corner (the fix round of 2026-10-06: the grid's
+ *       element is the whole Screen, and the rows are centred in it)
+ *   PS3 26.3: pinch grows the cells, a swipe, a slow drag and a swipe up each
+ *       move the content (the fix round's two drags, the verify's bisect),
+ *       sideways the fitted rows grow, and the session's page is upright again
+ *   PS4 26.3: `echo hi` and return run in the shell; ctrl then c is 03 at the
+ *       recorder; esc, tab, ⇧tab and the arrows their bytes; no Face ID
+ *   PS5 26.3: Codex's question, ↓ twice as close as XCUITest presses (one
+ *       `doubleTap()`): ONE Down at the agent before the phone drew the next
+ *       picture (the UI test says so and waits for this file's ack before its
+ *       third press), `Waiting for the screen to redraw.`, and the press after it
+ *   PS6 26.3: a row selected and Copied: the device's pasteboard, read by
+ *       simulator-run.mjs's `pasteboard()` on the run's own device, holds its
+ *       text; a change at the Mac while selecting is not drawn, and is once
+ *       the selection is cleared
+ *   PS7 26.3: typed, then Home with the relay holding the keys line before
+ *       its handshake: nothing at the recorder in 20 s; back, the Screen reads
+ *   PS8 26.3: no owner check for any key; End at the top right: the Mac's
+ *       confirmation, Face ID matched, the session reads Ended
+ *   PS+ every Mac session's window keeps its size through the drive
+ *   PS9 18.3, the floor: PS1, PS2, PS3's drags, PS4 and PS6 (shell; the
+ *       drags and PS6 since the fix round of 2026-10-06, when the selection's
+ *       long press became UIKit's on both runtimes)
+ *   PSH 26.3: every screen and keys arm of build/p316/hostile-door.mjs
+ *       (SCREEN_ARMS), each ending in its drawn line or its drawn grid, the
+ *       kept-line arms read on a new connection, one POST per batch of keys
+ *   PSP with P337_PARENT_IOS (aebb4ce9's ios/): the parent's app draws no
+ *       Screen row and End at the bottom
+ *
  * PHASE 316.7, THE SESSIONS TAB (build/p3167/SPEC.md §9.4 and §9.5). The
  * Sessions tab reads `GET /v1/sessions` now and lays out what main composed:
  * Show (All, Active, Ended), projects with a count, one menu for Group by,
@@ -578,7 +623,7 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,sessions    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `sessions` Phase 316.7's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
@@ -641,9 +686,10 @@ import {
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, readSessions, shaHex, signedGet } from './node-phone.mjs';
+import { readRecorderLog } from '../p337/key-recorder.mjs';
 import { tsxCli } from '../ts-runner.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -670,7 +716,7 @@ if (PARENT !== '') {
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
 // `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,sessions').split(',').map((s) => s.trim()));
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -679,7 +725,7 @@ if (ARMS.has('ats')) {
 }
 // Phase 317: the end group's E10 is the floor's too; Phase 318's P9 likewise.
 // Phase 316.7: the sessions group's SL1, SL6 and SL8, and the hostile sessions arms marked `floor`, run on the floor too.
-const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('sessions') || ARMS.has('hostile') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -742,6 +788,8 @@ const PARENT_IOS_317 = (process.env['P317_PARENT_IOS'] ?? '').trim();
  * its OWN UI test, which knows no reply step, so RP reads its session dumps.
  */
 const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
+/** Phase 337's PSP: a checkout of `aebb4ce9` whose ios/ is the parent's app, or empty. */
+const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
 /**
  * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
  * file's own `claude` hands a launch to its `claude` when the next mode is
@@ -799,6 +847,13 @@ const deviceDigest = (token) => shaHex(String(token).toLowerCase()).slice(0, 8);
 const QUIET_AFTER_ARM_MS = 10_000;
 /** N9's window, the SPEC's 15 s. */
 const QUIET_AFTER_OFF_MS = 15_000;
+/**
+ * What a quiet wait sleeps past its floor (the fix round of Phase 337,
+ * 2026-10-06). The wait is graded by `Date.now()` and slept by a timer, and
+ * the two clocks are not one: a 15 s sleep measured 14,998 ms once and N9 read
+ * red with nothing sent. Sleeping 100 ms more keeps the grade's floor honest.
+ */
+const QUIET_SLACK_MS = 100;
 /** N7's hostile tap: a session id no door could hold, which must open the list. */
 const HOSTILE_TAP_SESSION = '../x';
 /**
@@ -3215,8 +3270,16 @@ const dialogText = (d) => (d?.texts ?? []).map((t) => String(t)).join(' ').repla
 const foldedAt = (text, needle, from = 0) => (typeof needle === 'string' && needle.trim() !== '' ? text.indexOf(needle.replace(/\s+/g, ' ').trim(), from) : -1);
 
 /**
- * E1 (and E10's half): the bar above the tab bar with the device's mark, the
- * Mac's own confirmation, iOS's first-use question accepted, a match, one act.
+ * E1 (and E10's half): End with the device's mark, the Mac's own
+ * confirmation, iOS's first-use question accepted, a match, one act.
+ *
+ * PHASE 337 MOVED END TO THE TOP RIGHT, and the fix round of 2026-10-06 reads
+ * it there: End's press inside the navigation bar's trailing half (PS1's
+ * place), the bar at the bottom gone, Face ID's mark read by its own
+ * identifier from the UI test's one snapshot, and after the match End's press
+ * gone from the ended session. As first left, E1 read the bar, its 50-tall
+ * row and its glyphs off a container this phase removed, so it failed on
+ * every run whatever the phone did.
  */
 function gradeE1(r) {
   const unread = [];
@@ -3232,12 +3295,17 @@ function gradeE1(r) {
   // that ended when no match was ever sent (the probe answers only on
   // `end-auth-up`), which would be an End past the owner check.
   const premise = unread.length === 0;
-  const bar = r.bar?.bar;
-  const tab = r.bar?.tabBar;
-  if (!Array.isArray(bar) || !Array.isArray(tab)) problems.push('no End bar or no tab bar was read');
-  else if (bar[1] + bar[3] > tab[1] + 0.5) problems.push(`the End bar's bottom ${String(bar[1] + bar[3])} is below the tab bar's top ${String(tab[1])}`);
-  if (Array.isArray(r.bar?.row) && !near(r.bar.row[3], 50, 1)) problems.push(`the End row is ${String(r.bar.row[3])} tall, not 50`);
-  if (!(r.bar?.glyphs ?? []).some((g) => /faceid/i.test(String(g.id)) || /face id/i.test(String(g.label)))) problems.push(`the End row's mark is ${J(r.bar?.glyphs ?? [])}, not Face ID's`);
+  const row = r.bar?.row;
+  const nav = r.bar?.nav;
+  if (!Array.isArray(row) || !Array.isArray(nav)) problems.push('End or the navigation bar was not read');
+  else {
+    const [ex, ey, ew, eh] = row;
+    const [nx, ny, nw, nh] = nav;
+    if (!(ey >= ny - 1 && ey + eh <= ny + nh + 1)) problems.push(`End's frame ${J(row)} is not inside the navigation bar ${J(nav)}`);
+    if (!(ex + ew / 2 > nx + nw / 2)) problems.push(`End's frame ${J(row)} is not in the bar's trailing half`);
+  }
+  if (Array.isArray(r.bar?.bar)) problems.push(`an End bar is still drawn at the bottom (${J(r.bar.bar)})`);
+  if (!(r.bar?.glyphs ?? []).some((g) => /faceid/i.test(String(g.id)) || /face id/i.test(String(g.label)))) problems.push(`End's mark is ${J(r.bar?.glyphs ?? [])}, not Face ID's`);
   const words = dialogWords(r.dialog);
   if (!words.includes(r.want?.title)) problems.push(`the confirmation's title is not the Mac's ${J(r.want?.title)}`);
   if (!words.some((w) => w.includes(r.want?.body ?? '\u0000'))) problems.push('the confirmation does not draw the Mac\'s body for this session');
@@ -3247,11 +3315,11 @@ function gradeE1(r) {
     if (r.tmuxAlive !== false) problems.push('the tmux session is still there');
     if (r.mainStatus !== 'exited') problems.push(`main reads ${J(r.mainStatus)}, not exited`);
     if (r.drawnStatus !== r.doorStatus) problems.push(`the screen draws ${J(r.drawnStatus)} where the door says ${J(r.doorStatus)}`);
-    if (r.barAfter === true) problems.push('the End bar is still drawn on an ended session');
+    if (r.endAfter === true) problems.push('End is still drawn on an ended session');
   } else if (r.authUp !== true && ((typeof r.doneLines === 'number' && r.doneLines > 0) || r.tmuxAlive === false || r.mainStatus === 'exited')) {
     problems.push(`no match was sent, and the session ended (${String(r.doneLines)} done line(s), tmux ${r.tmuxAlive === false ? 'gone' : 'alive'}, main ${J(r.mainStatus)}): an End past the owner check`);
   }
-  return decide(problems, unread, `the bar sits above the tab bar with Face ID's mark; the Mac's confirmation word for word; ${r.permission?.seen === true ? `iOS's first-use question (${J(r.permission?.pressed)}) accepted first, and gone before the match` : 'no first-use question came'}; match ended it once, and the screen read it again`);
+  return decide(problems, unread, `End sits at the top right with Face ID's mark and no bar at the bottom; the Mac's confirmation word for word; ${r.permission?.seen === true ? `iOS's first-use question (${J(r.permission?.pressed)}) accepted first, and gone before the match` : 'no first-use question came'}; match ended it once, and the screen read it again`);
 }
 
 /**
@@ -3518,7 +3586,7 @@ function endSelfTest() {
     authUp: true,
     acked: true,
     permission: { seen: true, pressed: 'OK' },
-    bar: { bar: [0, 711, 402, 51], row: [0, 712, 402, 50], tabBar: [0, 762, 402, 83], glyphs: [{ id: 'faceid', label: 'Face ID' }] },
+    bar: { bar: null, nav: [0, 62, 402, 54], row: [352.7, 73, 29.3, 22], tabBar: [0, 762, 402, 83], glyphs: [{ id: 'session-end-glyph-faceid', label: 'Face Id' }] },
     dialog: { title: want.title, texts: [want.title, want.body], buttons: ['End session', 'Cancel'] },
     want,
     doneLines: 1,
@@ -3526,25 +3594,27 @@ function endSelfTest() {
     mainStatus: 'exited',
     drawnStatus: 'Ended',
     doorStatus: 'Ended',
-    barAfter: false
+    endAfter: false
   };
   add('E1 passes its honest reading', gradeE1, e1, true);
-  add('E1 is red on a bar below the tab bar', gradeE1, edit(e1, (r) => void (r.bar.bar[1] = 800)), false);
+  add('E1 is red on End under the navigation bar', gradeE1, edit(e1, (r) => void (r.bar.row[1] = 800)), false);
+  add('E1 is red on End in the bar\'s leading half', gradeE1, edit(e1, (r) => void (r.bar.row[0] = 12)), false);
+  add('E1 is red on an End bar still drawn at the bottom', gradeE1, edit(e1, (r) => void (r.bar.bar = [0, 711, 402, 51])), false);
   add('E1 is red on a Touch ID mark', gradeE1, edit(e1, (r) => void (r.bar.glyphs = [{ id: 'touchid', label: 'Touch ID' }])), false);
   add('E1 is red on a body the Mac does not say', gradeE1, edit(e1, (r) => void (r.dialog.texts = [want.title, 'The agent stops. Its saved output stays.'])), false);
   add('E1 is red on two acts', gradeE1, edit(e1, (r) => void (r.doneLines = 2)), false);
   add('E1 is red on a session tmux still holds', gradeE1, edit(e1, (r) => void (r.tmuxAlive = true)), false);
   add('E1 is red on a screen that disagrees with the door', gradeE1, edit(e1, (r) => void (r.drawnStatus = 'Working')), false);
-  add('E1 is red on a row that is not 50 tall', gradeE1, edit(e1, (r) => void (r.bar.row[3] = 44)), false);
   add('E1 is red on another press', gradeE1, edit(e1, (r) => void (r.dialog.buttons = ['End', 'Cancel'])), false);
   add('E1 is red on another title', gradeE1, edit(e1, (r) => void (r.dialog = { ...r.dialog, title: 'End?', texts: [want.body] })), false);
   add('E1 is red on main reading it running', gradeE1, edit(e1, (r) => void (r.mainStatus = 'running')), false);
-  add('E1 is red on the bar still drawn', gradeE1, edit(e1, (r) => void (r.barAfter = true)), false);
-  add('E1 is red on no bar read', gradeE1, edit(e1, (r) => void (r.bar = { ...r.bar, bar: null })), false);
+  add('E1 is red on End still drawn on the ended session', gradeE1, edit(e1, (r) => void (r.endAfter = true)), false);
+  add('E1 is red on no End read', gradeE1, edit(e1, (r) => void (r.bar = { ...r.bar, row: null })), false);
+  add('E1 is red on no navigation bar read', gradeE1, edit(e1, (r) => void (r.bar = { ...r.bar, nav: null })), false);
   add('E1 is UNREADABLE with the question still up', gradeE1, edit(e1, (r) => void (r.permission = { seen: true, stillUp: true })), null);
   // The tests round: an unmet premise is UNREADABLE, never a FAIL, and only
   // what is wrong whatever iOS did still fails.
-  const noMatch = (r) => Object.assign(r, { authUp: false, acked: false, doneLines: null, tmuxAlive: true, mainStatus: 'idle', drawnStatus: null, doorStatus: 'Idle', barAfter: false });
+  const noMatch = (r) => Object.assign(r, { authUp: false, acked: false, doneLines: null, tmuxAlive: true, mainStatus: 'idle', drawnStatus: null, doorStatus: 'Idle', endAfter: false });
   add('E1 is UNREADABLE when the owner check was never up and nothing ended', gradeE1, edit(e1, noMatch), null);
   add('E1 is UNREADABLE on the reverify\'s floor run: the question still up after Allow, no match sent, the session running', gradeE1, edit(e1, (r) => void Object.assign(noMatch(r), { permission: { seen: true, pressed: 'OK', stillUp: true } })), null);
   add('E1 is red when no match was sent and the session ended anyway', gradeE1, edit(e1, (r) => void Object.assign(noMatch(r), { tmuxAlive: false, mainStatus: 'exited' })), false);
@@ -3562,7 +3632,7 @@ function endSelfTest() {
   add('E2 is red on a write with the owner check never up', gradeE2, edit(e2, (r) => void Object.assign(r, { authUp: false, acked: false, cancelFound: false, line: null, writeLines: 1 })), false);
   add('E2 is UNREADABLE when Cancel was pressed and the prompt never left', gradeE2, edit(e2, (r) => void (r.cancelGone = false)), null);
   add('E2 is UNREADABLE when Cancel was pressed and no line came', gradeE2, edit(e2, (r) => void (r.line = null)), null);
-  const e3 = { acked: true, bar: { enabled: false, line: END_WORDS.needsPasscode, glyphs: [{ id: 'lock', label: 'Lock' }] }, dialog: false, prompt: false };
+  const e3 = { acked: true, bar: { enabled: false, line: END_WORDS.needsPasscode, glyphs: [{ id: 'session-end-glyph-lock', label: 'Lock' }] }, dialog: false, prompt: false };
   add('E3 passes passcodeNotSet', gradeE3, e3, true);
   add('E3 passes the passcode alone with the lock', gradeE3, edit(e3, (r) => void (r.bar.enabled = true)), true);
   add('E3 is red on Face ID\'s mark unenrolled', gradeE3, edit(e3, (r) => void (r.bar.glyphs = [{ id: 'faceid', label: 'Face ID' }])), false);
@@ -4839,6 +4909,402 @@ function gradeRp(r) {
   return decide(problems, [], 'no press and no message box in the parent\'s app');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 337: the `screen` group's graders (build/p337/SPEC.md §7.8)
+// ---------------------------------------------------------------------------
+
+/** The phone's words the Screen draws, from Copy.swift (never typed here twice). */
+const SCREEN_WORDS = {
+  endTop: copyOf('endTop'),
+  ended: copyOf('ended'),
+  waitForRedraw: copyOf('screenWaitForRedraw'),
+  heldWhileSelecting: copyOf('screenHeldWhileSelecting'),
+  notAnswering: copyOf('screenNotAnswering')
+};
+/** The bytes each key of the bar reaches a program as in normal mode (build/fixtures/screen/keys-encoding.json, 3.7b). */
+const SCREEN_KEY_HEX = Object.freeze({ esc: '1b', tab: '09', btab: '1b5b5a', left: '1b5b44', up: '1b5b41', down: '1b5b42', right: '1b5b43' });
+
+/** PS1: End inside the navigation bar's trailing half, the End bar gone, Conversation above Screen. */
+function gradePs1(r) {
+  const problems = [];
+  const t = r.endTop;
+  if (t === null || t === undefined) return verdict(null, 'the UI test read no session page (no end-top line)');
+  const end = t.end;
+  const nav = t.nav;
+  if (end === null || !Array.isArray(end.frame)) problems.push('no End on the session\'s page');
+  else {
+    if (end.label !== SCREEN_WORDS.endTop) problems.push(`End reads ${J(end.label)}, not ${J(SCREEN_WORDS.endTop)}`);
+    if (!Array.isArray(nav)) problems.push('no navigation bar was read');
+    else {
+      const [ex, ey, ew, eh] = end.frame;
+      const [nx, ny, nw, nh] = nav;
+      if (!(ey >= ny - 1 && ey + eh <= ny + nh + 1)) problems.push(`End's frame ${J(end.frame)} is not inside the navigation bar ${J(nav)}`);
+      if (!(ex + ew / 2 > nx + nw / 2)) problems.push(`End's frame ${J(end.frame)} is not in the bar's trailing half`);
+    }
+  }
+  if (t.endBar === true) problems.push('the End bar is still drawn at the bottom');
+  if (!Array.isArray(t.conversation) || !Array.isArray(t.screen)) problems.push(`the Conversation row (${J(t.conversation)}) and the Screen row (${J(t.screen)}) are not both drawn`);
+  else if (!(t.conversation[1] < t.screen[1])) problems.push('the Screen row is not under the Conversation row');
+  return decide(problems, [], `End at the top right, no bar at the bottom, Screen under Conversation`);
+}
+
+/**
+ * PS2 (and PS9's half): over every session read, every drawn row's label is
+ * the Mac's `capture-pane -p` row with trailing blanks dropped; the drawn rows
+ * at the fitted size fill the view's width to the pixel; and a shown cursor
+ * sits at (x × cell, y × cell) within 1 pt.
+ *
+ * THE FIX ROUND OF 2026-10-06 grades against ROW 0'S OWN FRAME. The grid's
+ * element is the whole Screen (402 × 874 on an iPhone 16 Pro) and the rows
+ * are centred in it, so a cursor placed from the grid's corner was 300 pt off
+ * a cursor drawn exactly on row 0 (the verify recomputed it from the rows'
+ * frames on both runtimes), and "the grid is the view's width" compared the
+ * container with the window, 402 against 402, whatever the rows drew. The
+ * drawn rows are `cols` cells of the cell snapped to the pixel, so their
+ * width is the view's less at most one pixel a column: a cell within
+ * (fitted − 1/2 pt, fitted], half a point being one pixel at 2x, the
+ * coarsest an iPhone draws.
+ */
+function gradePs2(r) {
+  const problems = [];
+  const unread = [];
+  if ((r.sessions ?? []).length === 0) return verdict(null, 'no Screen was read');
+  for (const s of r.sessions) {
+    if (s.labels === null) {
+      unread.push(`${s.name}: the Screen drew no rows`);
+      continue;
+    }
+    const want = (s.capture ?? []).slice(0, s.labels.length).map((row) => String(row).replace(/ +$/, ''));
+    const differ = s.labels.map((label, i) => (label === (want[i] ?? '') ? null : i)).filter((i) => i !== null);
+    if (s.labels.length !== s.rows) problems.push(`${s.name}: ${String(s.labels.length)} row(s) drawn, the Mac's pane has ${String(s.rows)}`);
+    if (differ.length > 0) problems.push(`${s.name}: row(s) ${J(differ.slice(0, 6))} read otherwise than the Mac's capture-pane -p`);
+    const row0 = Array.isArray(s.row0) && s.row0.length === 4 ? s.row0 : null;
+    const fitted = Array.isArray(s.window) && s.cols > 0 ? s.window[0] / s.cols : null;
+    const cell = row0 !== null && s.cols > 0 ? row0[2] / s.cols : null;
+    if (row0 === null || fitted === null) unread.push(`${s.name}: row 0's frame or the view's width was not read`);
+    else if (!(cell <= fitted + 0.01 && cell > fitted - 0.5)) problems.push(`${s.name}: the rows are ${String(row0[2])} pt wide at the fitted size, a cell of ${cell.toFixed(3)} pt where the view's ${String(s.window[0])} pt over ${String(s.cols)} columns is ${fitted.toFixed(3)}`);
+    if (s.cursorAt?.visible === true) {
+      // The probe review (2026-10-05): a cursor drawn with no row frame to
+      // place it against is UNREAD, never "draws none".
+      if (!Array.isArray(s.cursor)) problems.push(`${s.name}: the Mac shows a cursor and the Screen draws none`);
+      else if (row0 === null || !(row0[3] > 0)) unread.push(`${s.name}: the cursor's place could not be read without row 0's frame`);
+      else if (!near(s.cursor[0], row0[0] + s.cursorAt.x * cell, 1) || !near(s.cursor[1], row0[1] + s.cursorAt.y * row0[3], 1)) {
+        problems.push(`${s.name}: the cursor is drawn at ${J(s.cursor.slice(0, 2))}, not at (${String(s.cursorAt.x)} × ${cell.toFixed(2)}, ${String(s.cursorAt.y)} × ${String(row0[3])}) from row 0's corner ${J(row0.slice(0, 2))}`);
+      }
+    }
+  }
+  return decide(problems, unread, `${String(r.sessions.length)} screen(s): every row the Mac's, the rows the view's width to the pixel, the cursor in its cell from row 0's corner`);
+}
+
+/**
+ * PS3: a pinch grows the cells, a swipe and a SLOW drag each move the content
+ * sideways, a swipe up moves it up when it is taller than the view, sideways
+ * the fitted ROWS grow, and the page is upright again.
+ *
+ * THE FIX ROUND OF 2026-10-06. The drags are graded on one row's frame read
+ * in both readings (the rows are lazy, so the row read first after a swipe up
+ * may be another), the slow drag and the swipe up are the verify's bisect's,
+ * and the sideways clause reads row 0's width: it read the grid's element,
+ * which is the whole Screen, so 874 against 402 passed whatever the rows drew.
+ */
+function gradePs3(r) {
+  const problems = [];
+  const unread = [];
+  const w = (rows) => (Array.isArray(rows) && rows[0] !== undefined ? rows[0].frame[2] : null);
+  /** The frames of the one row both readings hold, the lowest index first. */
+  const same = (a, b) => {
+    if (!Array.isArray(a) || !Array.isArray(b)) return null;
+    for (const ra of a) {
+      const rb = b.find((x) => x.n === ra.n);
+      if (rb !== undefined) return [ra.frame, rb.frame];
+    }
+    return null;
+  };
+  if (w(r.before) === null || w(r.pinched) === null || w(r.dragged) === null) return verdict(null, 'the zoom drive read no rows');
+  if (!(w(r.pinched) > w(r.before) * 1.2)) problems.push(`a pinch left row 0 ${String(w(r.pinched))} pt wide (it was ${String(w(r.before))})`);
+  const swipe = same(r.pinched, r.dragged);
+  if (swipe === null) problems.push('the swipe left no row read before and after');
+  else if (!(swipe[1][0] < swipe[0][0] - 1)) problems.push(`a swipe left the content where it was (x ${String(swipe[0][0])} then ${String(swipe[1][0])})`);
+  if (r.slow !== undefined) {
+    const slow = same(r.dragged, r.slow);
+    if (slow === null) problems.push('the slow drag left no row read before and after');
+    else if (!(slow[1][0] > slow[0][0] + 1)) problems.push(`a slow drag right left the content where it was (x ${String(slow[0][0])} then ${String(slow[1][0])})`);
+  }
+  if (r.up !== undefined) {
+    // Graded only when the zoomed rows are taller than the Screen's whole
+    // element, so there is somewhere to go; shorter, it is printed.
+    const ref = r.slow ?? r.dragged;
+    const up = same(ref, r.up);
+    const rowHeight = Array.isArray(ref) && ref[0] !== undefined ? ref[0].frame[3] : null;
+    const tall = rowHeight !== null && Array.isArray(r.gridFrame) && typeof r.rowCount === 'number' ? r.rowCount * rowHeight > r.gridFrame[3] + 1 : null;
+    if (up === null) problems.push('the swipe up left no row read before and after');
+    else if (tall === null) unread.push('whether the zoomed rows are taller than the view was not read');
+    else if (tall && !(up[1][1] < up[0][1] - 1)) problems.push(`a swipe up left rows taller than the view where they were (y ${String(up[0][1])} then ${String(up[1][1])})`);
+  }
+  if (r.selectionAfterDrags === true) problems.push('a drag left a selection drawn');
+  // The floor (PS9) drives the drags and not the turn: `orientation: false`.
+  if (r.orientation === false) return decide(problems, unread, 'pinch grew the cells, a swipe and a slow drag moved them sideways and a swipe up moved them up');
+  const pw = w(r.portrait?.rows);
+  const lw = w(r.landscape?.rows);
+  if (pw === null || lw === null) problems.push('row 0 was not read in both orientations');
+  else if (!(lw > pw * 1.2)) problems.push(`sideways the fitted rows are ${String(lw)} pt wide, upright ${String(pw)}: they did not grow`);
+  if (!Array.isArray(r.pageWindow) || !(r.pageWindow[0] < r.pageWindow[1])) problems.push(`back on the session's page the window is ${J(r.pageWindow)}, not upright`);
+  return decide(problems, unread, 'pinch grew the cells, a swipe and a slow drag moved them sideways and a swipe up moved them up, sideways grew the fitted rows, and the page came back upright');
+}
+
+/** PS4 (and PS9's half): typed words and Return reach the shell; ctrl then c is 03; every key of the bar its bytes; no owner check. */
+function gradePs4(r) {
+  const problems = [];
+  const unread = [];
+  if (r.typed === null) return verdict(null, 'no typing was driven');
+  if (r.typed.paneHas !== true) problems.push(`the shell's pane does not hold ${J(r.typed.output)} after the words and Return`);
+  if (r.ctrl !== undefined) {
+    if (r.ctrl === null) unread.push('ctrl then c was not driven');
+    else if (r.ctrl.hex !== '03') problems.push(`ctrl then c reached the recorder as ${J(r.ctrl.hex)}, not 03`);
+  }
+  for (const [name, hex] of Object.entries(r.keys ?? {})) if (hex !== SCREEN_KEY_HEX[name]) problems.push(`${name} reached the recorder as ${J(hex)}, not ${SCREEN_KEY_HEX[name]}`);
+  if ((r.auth ?? []).some((a) => a === true)) problems.push('a key asked for Face ID ("no Face ID on keys")');
+  return decide(problems, unread, `the words ran, ${r.ctrl === undefined ? '' : 'ctrl-c was 03, '}${String(Object.keys(r.keys ?? {}).length)} key(s) exact, no Face ID`);
+}
+
+/** PS5: inside a question, two presses 50 ms apart send ONE, the line says why, and the next press after the picture is sent. */
+function gradePs5(r) {
+  const problems = [];
+  if (r.drawn !== true) return verdict(null, 'the question was never drawn on the Screen');
+  if (r.waitingLine !== SCREEN_WORDS.waitForRedraw) problems.push(`the line after the second press reads ${J(r.waitingLine)}, not ${J(SCREEN_WORDS.waitForRedraw)}`);
+  if (r.downsBeforePicture !== 1) problems.push(`${String(r.downsBeforePicture)} Down(s) reached the agent before its next picture reached the phone, not one`);
+  if (r.redrawn !== true) problems.push('the next picture never came');
+  if (r.downsInAll !== 2) problems.push(`${String(r.downsInAll)} Down(s) in all, not two (the first, and the press after the picture)`);
+  return decide(problems, [], 'one Down per picture, the line said so, and the press after the picture went');
+}
+
+/** PS6: Copy puts the row's text on the device's pasteboard; a held selection keeps its picture; clearing it draws the Mac's change. */
+function gradePs6(r) {
+  const problems = [];
+  if (r.pasteboard === null) return verdict(null, 'the device\'s pasteboard was not read (simulator-run.mjs\'s pasteboard())');
+  const copied = String(r.pasteboard).trim();
+  if (r.copyDrawn !== true) problems.push('no Copy was drawn over the selection');
+  if (copied === '' || !String(r.rowText).includes(copied)) problems.push(`the pasteboard holds ${J(copied)}, which is not text of the row ${J(r.rowText)}`);
+  if (r.heldLine !== SCREEN_WORDS.heldWhileSelecting) problems.push(`while selecting the line reads ${J(r.heldLine)}, not ${J(SCREEN_WORDS.heldWhileSelecting)}`);
+  if (r.changedOnMac !== true) return decide(problems, ['the Mac\'s screen was not changed while the selection was held'], '');
+  if (J(r.rowsWhileHeld) !== J(r.rowsAtHold)) problems.push('the grid redrew while the selection was held');
+  if (!r.rowsAfterClear.some((row) => row.includes(r.change))) problems.push('clearing the selection did not draw the Mac\'s change');
+  return decide(problems, [], `Copy put ${J(copied)} on the pasteboard; the held picture stayed, and clearing drew the change`);
+}
+
+/**
+ * PS7's floor on the watch (the probe review, 2026-10-05). The UI test sleeps
+ * exactly 20 s between `screen-home-pressed` and `screen-home-away`, and this
+ * file stamps each when it READS it, which `drive` does by tailing the lines
+ * file every 250 ms (or from stdout, whichever is first): each stamp is up to
+ * one tail period late, independently, so a 20 s watch reads 19.75 to 20.25 s
+ * and a floor of 20,000 failed about half of honest runs. A second of slack
+ * still refuses any UI test that watched less than 19 s.
+ */
+const PS7_WATCHED_FLOOR_MS = 19_000;
+
+/** PS7: typed, then Home with the keys line held before its handshake: nothing reaches the program in 20 s; back, the Screen reads. */
+function gradePs7(r) {
+  const problems = [];
+  if (!(r.held > 0)) return verdict(null, 'the relay held no connection, so the keys line was never held');
+  if (r.bytes !== '') problems.push(`the recorder read ${J(r.bytes)} after the app left`);
+  if (!(r.waitedMs >= PS7_WATCHED_FLOOR_MS)) problems.push(`only ${String(Math.round(r.waitedMs))} ms were watched, not the UI test's 20 s (${String(PS7_WATCHED_FLOOR_MS)} with the line reader's lag)`);
+  if (r.readsAgain !== true) problems.push('back in the app the Screen did not read again');
+  return decide(problems, [], 'nothing reached the program in 20 s, and the Screen read again on return');
+}
+
+/** PS8: no owner check for any key; End at the top right asks the Mac, takes Face ID, and the session reads Ended. */
+function gradePs8(r) {
+  const problems = [];
+  if ((r.keyAuth ?? []).length === 0) return verdict(null, 'no key was pressed before End');
+  if (r.keyAuth.some((a) => a === true)) problems.push('a key asked for Face ID');
+  if (r.authUp !== true) problems.push('End did not ask for Face ID');
+  if (r.matched !== 0) problems.push(`Face ID was not matched (notifyutil answered ${String(r.matched)})`);
+  if (r.status !== SCREEN_WORDS.ended) problems.push(`after End the session reads ${J(r.status)}, not ${J(SCREEN_WORDS.ended)}`);
+  if (r.alive !== false) problems.push('the session is still on the Mac after End');
+  return decide(problems, [], 'keys asked nothing; End asked the Mac and Face ID, and the session ended');
+}
+
+/** PSH: each hostile screen and keys arm ends in its drawn line or its drawn grid, the door counting one POST per batch. */
+function gradePsh(r) {
+  const problems = [];
+  if (r.alive !== RUNNING_FOREGROUND) problems.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (r.keys === true && r.posts !== 1) problems.push(`${String(r.posts)} POST(s) reached the door for one batch of keys`);
+  if (r.ends === 'sentence') {
+    const ok = (r.expect ?? []).map((w) => COPY_WORDS[w]).includes(r.line);
+    if (!ok) problems.push(`the line reads ${J(r.line)}, none of the words its row names`);
+  } else if (r.ends === 'drawn') {
+    if (r.rows === 0) problems.push('the grid was not drawn');
+    if (r.kept !== undefined && !(r.lines >= 2)) problems.push(`the read after the first came on ${String(r.lines)} connection(s): the kept line was not ended`);
+  }
+  return decide(problems, [], `ended ${r.ends === 'sentence' ? `in ${J(r.line)}` : `drawn, ${String(r.lines)} connection(s)`}`);
+}
+
+/**
+ * PS+ (the probe review, 2026-10-05): no Mac session changed size while the
+ * phone read and typed. Every size must have been READ on both sides: a size
+ * this file could not read is the empty string, and two empty strings are
+ * equal, so a run whose tmux reads all failed read as nothing moved.
+ */
+function gradePsSizes(before, after) {
+  const names = Object.keys(after ?? {});
+  if (names.length === 0) return verdict(null, 'no size was read after the drive');
+  const unread = names.filter((k) => typeof before?.[k] !== 'string' || before[k] === '' || typeof after[k] !== 'string' || after[k] === '');
+  if (unread.length > 0) return verdict(null, `the size of ${unread.join(', ')} was not read on both sides`);
+  const moved = names.filter((k) => after[k] !== before[k]);
+  return decide(moved.map((k) => `${k} changed from ${before[k]} to ${after[k]}`), [], `${String(names.length)} window(s) kept their sizes`);
+}
+
+/** PSP: the parent's app (aebb4ce9's ios/) draws no Screen row and End at the bottom. */
+function gradePsp(r) {
+  const problems = [];
+  if (r.page === null) return verdict(null, 'the parent\'s app did not draw the session\'s page');
+  if (r.page.screenRow === true) problems.push('the parent draws a Screen row');
+  if (r.page.endBar !== true) problems.push('the parent draws no End bar at the bottom');
+  return decide(problems, [], 'no Screen row and End at the bottom in the parent\'s app');
+}
+
+/** Every Screen grader, proved both ways on readings written here. */
+function screenSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const ps1 = { endTop: { end: { label: SCREEN_WORDS.endTop, frame: [330, 62, 40, 32] }, nav: [0, 54, 402, 44], endBar: false, conversation: [16, 300, 370, 44], screen: [16, 352, 370, 44], window: [402, 874] } };
+  add('PS1 passes its honest reading', gradePs1, ps1, true);
+  add('PS1 is red on End in the leading half', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [12, 62, 40, 32])), false);
+  add('PS1 is red on End under the bar', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [330, 800, 40, 32])), false);
+  add('PS1 is red on the End bar still drawn', gradePs1, edit(ps1, (r) => void (r.endTop.endBar = true)), false);
+  add('PS1 is red on the Screen row above Conversation', gradePs1, edit(ps1, (r) => void (r.endTop.screen = [16, 200, 370, 44])), false);
+  add('PS1 is red on another word for End', gradePs1, edit(ps1, (r) => void (r.endTop.end.label = 'End session…')), false);
+  add('PS1 is UNREADABLE with no page read', gradePs1, { endTop: null }, null);
+  // The fix round of 2026-10-06: the verify's own reading on iOS 26.3, the
+  // whole Screen as the grid's element, row 0 centred in it at y 337.67, the
+  // rows 400 pt wide (80 cells of 5.0, the 5.025 fit snapped to the pixel at
+  // 3x) and the cursor drawn exactly at row 0, column 18.
+  const s2 = { name: 'shell', labels: ['p316 % echo hi', 'hi', 'p316 %'], capture: ['p316 % echo hi   ', 'hi', 'p316 %', ''], rows: 3, cols: 80, grid: [0, 0, 402, 874], window: [402, 874], cellHeight: 9.67, row0: [1, 337.67, 400, 9.67], cursor: [91, 337.67, 5, 9.67], cursorAt: { x: 18, y: 0, visible: true } };
+  const ps2 = { sessions: [s2] };
+  add('PS2 passes its honest reading', gradePs2, ps2, true);
+  add('PS2 passes the verify\'s own run, the cursor exactly on row 0 of rows centred in the Screen', gradePs2, ps2, true);
+  add('PS2 is red on a row that differs', gradePs2, edit(ps2, (r) => void (r.sessions[0].labels[1] = 'h')), false);
+  add('PS2 is red on a row missing', gradePs2, edit(ps2, (r) => void r.sessions[0].labels.pop()), false);
+  add('PS2 is red on rows narrower than the view by more than a pixel a column', gradePs2, edit(ps2, (r) => void (r.sessions[0].row0[2] = 360)), false);
+  add('PS2 is red on rows wider than the view', gradePs2, edit(ps2, (r) => void (r.sessions[0].row0[2] = 410)), false);
+  add('PS2 is red on a cursor one cell off', gradePs2, edit(ps2, (r) => void (r.sessions[0].cursor[0] += 5)), false);
+  add('PS2 is red on a cursor placed from the grid\'s corner rather than row 0\'s', gradePs2, edit(ps2, (r) => void (r.sessions[0].cursor[1] = 0)), false);
+  add('PS2 is UNREADABLE with no row 0 read', gradePs2, edit(ps2, (r) => void (r.sessions[0].row0 = null)), null);
+  add('PS2 is red on a shown cursor not drawn', gradePs2, edit(ps2, (r) => void (r.sessions[0].cursor = null)), false);
+  add('PS2 passes a hidden cursor not drawn', gradePs2, edit(ps2, (r) => Object.assign(r.sessions[0], { cursor: null, cursorAt: { x: 0, y: 0, visible: false } })), true);
+  add('PS2 is UNREADABLE with no rows drawn', gradePs2, edit(ps2, (r) => void (r.sessions[0].labels = null)), null);
+  const rowsAt = (x, w, y = 100) => [{ n: 0, label: 'a', frame: [x, y, w, 20] }];
+  const ps3 = { before: rowsAt(0, 402), pinched: rowsAt(0, 1005), dragged: rowsAt(-300, 1005), slow: rowsAt(-100, 1005), up: rowsAt(-100, 1005, 40), selectionAfterDrags: false, gridFrame: [0, 0, 402, 874], rowCount: 60, portrait: { grid: [0, 0, 402, 874], rows: rowsAt(1, 400) }, landscape: { grid: [0, 0, 874, 402], rows: rowsAt(1, 870) }, pageWindow: [402, 874] };
+  add('PS3 passes its honest reading', gradePs3, ps3, true);
+  add('PS3 is red on a pinch that grew nothing', gradePs3, edit(ps3, (r) => void (r.pinched = rowsAt(0, 402))), false);
+  add('PS3 is red on a swipe that moved nothing (the verify\'s iOS 26.3 reading)', gradePs3, edit(ps3, (r) => void (r.dragged = rowsAt(0, 1005))), false);
+  add('PS3 is red on a slow drag that moved nothing', gradePs3, edit(ps3, (r) => void (r.slow = rowsAt(-300, 1005))), false);
+  add('PS3 is red on a swipe up that left tall rows where they were', gradePs3, edit(ps3, (r) => void (r.up = rowsAt(-100, 1005))), false);
+  add('PS3 passes a swipe up that moved nothing over rows shorter than the view', gradePs3, edit(ps3, (r) => Object.assign(r, { up: rowsAt(-100, 1005), rowCount: 10 })), true);
+  add('PS3 reads the swipe up by the row both readings hold', gradePs3, edit(ps3, (r) => void (r.up = [{ n: 7, label: 'b', frame: [-100, 0, 1005, 20] }, { n: 0, label: 'a', frame: [-100, -60, 1005, 20] }])), true);
+  add('PS3 is red on a drag that left a selection', gradePs3, edit(ps3, (r) => void (r.selectionAfterDrags = true)), false);
+  add('PS3 is red on sideways not growing the fitted rows', gradePs3, edit(ps3, (r) => void (r.landscape.rows = rowsAt(1, 400))), false);
+  add('PS3 is red on the grid\'s element alone growing sideways (the vacuous reading the verify named)', gradePs3, edit(ps3, (r) => void (r.landscape = { grid: [0, 0, 874, 402], rows: rowsAt(1, 400) })), false);
+  add('PS3 is red on the page left sideways', gradePs3, edit(ps3, (r) => void (r.pageWindow = [874, 402])), false);
+  add('PS3 (the floor\'s drags) passes with no turn', gradePs3, edit(ps3, (r) => Object.assign(r, { orientation: false, portrait: null, landscape: null, pageWindow: null })), true);
+  add('PS3 (the floor\'s drags) is red on a swipe that moved nothing', gradePs3, edit(ps3, (r) => Object.assign(r, { orientation: false, portrait: null, landscape: null, pageWindow: null, dragged: rowsAt(0, 1005) })), false);
+  const ps4 = { typed: { paneHas: true, output: 'hi' }, ctrl: { hex: '03' }, keys: { ...SCREEN_KEY_HEX }, auth: [false, false, false] };
+  add('PS4 passes its honest reading', gradePs4, ps4, true);
+  add('PS4 is red on the words not run', gradePs4, edit(ps4, (r) => void (r.typed.paneHas = false)), false);
+  add('PS4 is red on ctrl-c read as c', gradePs4, edit(ps4, (r) => void (r.ctrl.hex = '63')), false);
+  add('PS4 is red on Shift Tab read as Tab', gradePs4, edit(ps4, (r) => void (r.keys.btab = '09')), false);
+  add('PS4 is red on an arrow in application mode bytes', gradePs4, edit(ps4, (r) => void (r.keys.up = '1b4f41')), false);
+  add('PS4 is red on a key that asked for Face ID', gradePs4, edit(ps4, (r) => void (r.auth[1] = true)), false);
+  add('PS4 (the floor\'s shell half) passes with no recorder keys', gradePs4, { typed: { paneHas: true, output: 'hi' }, keys: {}, auth: [false] }, true);
+  const ps5 = { drawn: true, waitingLine: SCREEN_WORDS.waitForRedraw, downsBeforePicture: 1, redrawn: true, downsInAll: 2 };
+  add('PS5 passes its honest reading', gradePs5, ps5, true);
+  add('PS5 is red on both Downs sent before the picture', gradePs5, edit(ps5, (r) => Object.assign(r, { downsBeforePicture: 2, downsInAll: 3 })), false);
+  add('PS5 is red on no line drawn', gradePs5, edit(ps5, (r) => void (r.waitingLine = null)), false);
+  add('PS5 is red on the press after the picture not sent', gradePs5, edit(ps5, (r) => void (r.downsInAll = 1)), false);
+  add('PS5 is UNREADABLE with no question drawn', gradePs5, edit(ps5, (r) => void (r.drawn = false)), null);
+  const held = ['p316 % ls', 'README.md'];
+  const ps6 = { pasteboard: 'p316 % l', rowText: 'p316 % ls', copyDrawn: true, heldLine: SCREEN_WORDS.heldWhileSelecting, changedOnMac: true, change: 'zz', rowsAtHold: held, rowsWhileHeld: held, rowsAfterClear: ['p316 % ls', 'README.md', 'p316 % zz'] };
+  add('PS6 passes its honest reading', gradePs6, ps6, true);
+  add('PS6 is red on the pasteboard holding other text', gradePs6, edit(ps6, (r) => void (r.pasteboard = 'nothing of it')), false);
+  add('PS6 is red on an empty pasteboard', gradePs6, edit(ps6, (r) => void (r.pasteboard = '')), false);
+  add('PS6 is red on the grid redrawn while selecting', gradePs6, edit(ps6, (r) => void (r.rowsWhileHeld = [...held, 'p316 % zz'])), false);
+  add('PS6 is red on the change never drawn after', gradePs6, edit(ps6, (r) => void (r.rowsAfterClear = held)), false);
+  add('PS6 is red on no held line', gradePs6, edit(ps6, (r) => void (r.heldLine = null)), false);
+  add('PS6 is UNREADABLE when the pasteboard was not read', gradePs6, edit(ps6, (r) => void (r.pasteboard = null)), null);
+  const ps7 = { held: 1, bytes: '', waitedMs: 20_400, readsAgain: true };
+  add('PS7 passes its honest reading', gradePs7, ps7, true);
+  add('PS7 is red on a key that arrived', gradePs7, edit(ps7, (r) => void (r.bytes = '61')), false);
+  add('PS7 is red on a Screen that never read again', gradePs7, edit(ps7, (r) => void (r.readsAgain = false)), false);
+  add('PS7 is UNREADABLE when nothing was held', gradePs7, edit(ps7, (r) => void (r.held = 0)), null);
+  const ps8 = { keyAuth: [false, false], authUp: true, matched: 0, status: SCREEN_WORDS.ended, alive: false };
+  add('PS8 passes its honest reading', gradePs8, ps8, true);
+  add('PS8 is red on a key that asked for Face ID', gradePs8, edit(ps8, (r) => void (r.keyAuth[0] = true)), false);
+  add('PS8 is red on End with no Face ID', gradePs8, edit(ps8, (r) => void (r.authUp = false)), false);
+  add('PS8 is red on a session still on the Mac', gradePs8, edit(ps8, (r) => void (r.alive = true)), false);
+  const psh = { alive: RUNNING_FOREGROUND, keys: false, posts: 0, ends: 'sentence', expect: ['screenNotAnswering'], line: SCREEN_WORDS.notAnswering, rows: 40, lines: 1 };
+  add('PSH passes a hostile answer that ends in its line', gradePsh, psh, true);
+  add('PSH is red on another line', gradePsh, edit(psh, (r) => void (r.line = 'Something else.')), false);
+  add('PSH is red on two POSTs for one batch', gradePsh, edit(psh, (r) => Object.assign(r, { keys: true, posts: 2 })), false);
+  add('PSH passes a kept line ended and asked again on a new one', gradePsh, edit(psh, (r) => Object.assign(r, { ends: 'drawn', kept: 'closed', lines: 2 })), true);
+  add('PSH is red on a kept line reused after the door ended it', gradePsh, edit(psh, (r) => Object.assign(r, { ends: 'drawn', kept: 'stray', lines: 1 })), false);
+  add('PSH is red on an app that left the foreground', gradePsh, edit(psh, (r) => void (r.alive = 1)), false);
+  const psp = { page: { screenRow: false, endBar: true } };
+  add('PSP passes its honest reading', gradePsp, psp, true);
+  add('PSP is red on a Screen row in the parent', gradePsp, edit(psp, (r) => void (r.page.screenRow = true)), false);
+  add('PSP is UNREADABLE with no page', gradePsp, { page: null }, null);
+  // THE PROBE REVIEW (2026-10-05). PS7's watch, read the way `drive` stamps
+  // its two events (each up to one 250 ms tail period late): the old floor of
+  // 20,000 failed this honest run.
+  add('PS7 passes a 20 s watch whose home event was read 210 ms later than its away event', gradePs7, edit(ps7, (r) => void (r.waitedMs = 19_790)), true);
+  add('PS7 is red on a watch of 15 s', gradePs7, edit(ps7, (r) => void (r.waitedMs = 15_000)), false);
+  add('PS7 is red on a watch never stamped (no home event read)', gradePs7, edit(ps7, (r) => void (r.waitedMs = 0)), false);
+  // PS+ (gradePsSizes): every size read on both sides, none moved.
+  const sizes = { claude: '120x40', codex: '120x40', shell: '120x40', rec: '120x40', floor: '120x40' };
+  add('PS+ passes every window at the size it had', (r) => gradePsSizes(r.before, r.after), { before: { ...sizes, end: '120x40' }, after: sizes }, true);
+  add('PS+ is red on a window that moved', (r) => gradePsSizes(r.before, r.after), { before: { ...sizes, end: '120x40' }, after: { ...sizes, shell: '50x30' } }, false);
+  add('PS+ is UNREADABLE when no size was read on either side (it passed as "nothing moved")', (r) => gradePsSizes(r.before, r.after), { before: Object.fromEntries(Object.keys(sizes).map((k) => [k, ''])), after: Object.fromEntries(Object.keys(sizes).map((k) => [k, ''])) }, null);
+  add('PS+ is UNREADABLE when one size was read before and not after', (r) => gradePsSizes(r.before, r.after), { before: sizes, after: { ...sizes, rec: '' } }, null);
+  // The review's own hostile readings of the other Screen graders.
+  add('PS1 is red on End drawn below the navigation bar, in its trailing half', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [340, 120, 40, 32])), false);
+  add('PS1 is red on no Conversation row drawn', gradePs1, edit(ps1, (r) => void (r.endTop.conversation = null)), false);
+  add('PS2 is red on a row drawn that the pane does not have (one row too many)', gradePs2, edit(ps2, (r) => void r.sessions[0].labels.push('')), false);
+  add('PS2 is red on a cursor one row off', gradePs2, edit(ps2, (r) => void (r.sessions[0].cursor[1] += 20)), false);
+  add('PS2 is UNREADABLE when the view\'s width was not read', gradePs2, edit(ps2, (r) => void (r.sessions[0].window = null)), null);
+  add('PS3 is UNREADABLE when the zoom drive read no rows', gradePs3, edit(ps3, (r) => void (r.pinched = [])), null);
+  add('PS4 is red on a key that reached the recorder as nothing', gradePs4, edit(ps4, (r) => void (r.keys.left = '')), false);
+  add('PS4 is red on a key whose ready mark was never seen (read as null)', gradePs4, edit(ps4, (r) => void (r.keys.right = null)), false);
+  add('PS4 is UNREADABLE when ctrl then c was not driven', gradePs4, edit(ps4, (r) => void (r.ctrl = null)), null);
+  add('PS5 is red on the second Down queued and sent after the picture (three in all)', gradePs5, edit(ps5, (r) => void (r.downsInAll = 3)), false);
+  add('PS5 is red on the next picture never drawn', gradePs5, edit(ps5, (r) => void (r.redrawn = false)), false);
+  add('PS6 is red on no Copy drawn over the selection', gradePs6, edit(ps6, (r) => void (r.copyDrawn = false)), false);
+  add('PS6 is UNREADABLE when the Mac\'s screen was not changed while held', gradePs6, edit(ps6, (r) => void (r.changedOnMac = false)), null);
+  add('PS8 is red on Face ID not matched', gradePs8, edit(ps8, (r) => void (r.matched = 1)), false);
+  add('PS8 is UNREADABLE when no key was pressed before End', gradePs8, edit(ps8, (r) => void (r.keyAuth = [])), null);
+  add('PSH is red on a drawn arm whose grid is empty', gradePsh, edit(psh, (r) => Object.assign(r, { ends: 'drawn', rows: 0 })), false);
+  add('PSH is red on keys-404 drawn as another sentence', gradePsh, edit(psh, (r) => Object.assign(r, { keys: true, posts: 1, expect: ['replyNotTaken'], line: SCREEN_WORDS.notAnswering })), false);
+  add('PSP is red on the parent drawing no End bar', gradePsp, edit(psp, (r) => void (r.page.endBar = false)), false);
+  cases.push({ what: 'every Screen word was read from Copy.swift', got: () => Object.values(SCREEN_WORDS).every((w) => typeof w === 'string' && w.length > 0), want: true });
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch {
+      got = 'threw';
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (got ${J(got)}, want ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
 /** Every reply grader, proved both ways on readings written here. */
 function replySelfTest() {
   const cases = [];
@@ -5094,6 +5560,13 @@ function selfTest() {
       ? `${TAG} reply self-test PASS: ${String(replies.total)} cases (P1 to P10, RH and RP) graded as they must be.`
       : `${TAG} reply self-test FAIL: ${String(replies.bad)} of ${String(replies.total)} case(s) graded wrongly.`
   );
+  // Phase 337: the Screen (PS1 to PS9, PSH and PSP).
+  const screens = screenSelfTest();
+  console.log(
+    screens.bad === 0
+      ? `${TAG} Screen self-test PASS: ${String(screens.total)} cases (PS1 to PS9, PSH and PSP) graded as they must be.`
+      : `${TAG} Screen self-test FAIL: ${String(screens.bad)} of ${String(screens.total)} case(s) graded wrongly.`
+  );
   // Phase 316.7: the Sessions tab.
   const sessionsCases = sessionsSelfTest();
   console.log(
@@ -5101,7 +5574,7 @@ function selfTest() {
       ? `${TAG} Sessions self-test PASS: ${String(sessionsCases.total)} cases (the dump reader, SL1 to SL8, the cap, the older face and its recovery, the drawn order) graded as they must be.`
       : `${TAG} Sessions self-test FAIL: ${String(sessionsCases.bad)} of ${String(sessionsCases.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && sessionsCases.bad === 0 ? 0 : 1);
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -5543,7 +6016,7 @@ exit 0
           const confirmed = onRead.ok ? await confirmListening(cdp) : { ok: false, why: on.ok ? 'pushAlerts never read on' : on.error };
           for (let i = 0; i < 40 && (await countLogLines('phone alerts armed')) === 0; i += 1) await sleep(500);
           const quietFrom = Date.now();
-          await sleep(QUIET_AFTER_ARM_MS);
+          await sleep(QUIET_AFTER_ARM_MS + QUIET_SLACK_MS);
           const after = await pocket(cdp, 'status');
           const reading = {
             askWaiting,
@@ -6238,7 +6711,7 @@ exit 0
           // Step one: the new wait must be read by main.
           const block = await blockNew(N.quiet);
           const quietFrom = Date.now();
-          if (block.mainBlocked) await sleep(QUIET_AFTER_OFF_MS);
+          if (block.mainBlocked) await sleep(QUIET_AFTER_OFF_MS + QUIET_SLACK_MS);
           const after = await pocket(cdp, 'status');
           const reading = {
             armedAtStart: armedBefore > disarmedBefore,
@@ -6532,7 +7005,7 @@ exit 0
               const events = run.ok ? run.result.events : [];
               report.readings.endMarks = { ...marks };
               if (!run.ok || events.length === 0) {
-                arm('E1 End above the tab bar, the Mac\'s confirmation, Face ID, one act', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                arm('E1 End at the top right, the Mac\'s confirmation, Face ID, one act', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
                 return;
               }
               const auth = (name) => byFor(events, 'end-auth-up', name).length > 0;
@@ -6556,10 +7029,10 @@ exit 0
                   mainStatus: await mainStatusOf(S.e1.id),
                   drawnStatus: el(d, 'session-status')?.label ?? null,
                   doorStatus: await doorStatusOf(S.e1.id),
-                  barAfter: el(d, 'session-end-bar') !== null
+                  endAfter: el(d, 'session-end') !== null
                 };
                 const v = gradeE1(reading);
-                arm('E1 End above the tab bar with Face ID\'s mark, the Mac\'s confirmation, iOS\'s first-use question accepted, a match, one act', v.ok, v.said);
+                arm('E1 End at the top right with Face ID\'s mark, the Mac\'s confirmation, iOS\'s first-use question accepted, a match, one act', v.ok, v.said);
               }
               // E2
               {
@@ -6668,7 +7141,7 @@ exit 0
                 mainStatus: await mainStatusOf(S.e10.id),
                 drawnStatus: el(d, 'session-status')?.label ?? null,
                 doorStatus: await doorStatusOf(S.e10.id),
-                barAfter: el(d, 'session-end-bar') !== null
+                endAfter: el(d, 'session-end') !== null
               });
               arm('E10 the floor (iOS 18.3): E1', v1.ok, v1.said);
             });
@@ -7246,6 +7719,467 @@ exit 0
                 });
               }
             } else report.readings.replyParent = 'not run: P318_PARENT_IOS is not set';
+          }
+        }
+
+        // ==================================================================
+        // Phase 337: THE SCREEN GROUP (build/p337/SPEC.md §7.8). The sessions
+        // are build/p318/stand-in.mjs as Claude Code and Codex, a shell, and
+        // build/p337/key-recorder.mjs in a shell (every byte it reads logged
+        // with a monotonic stamp): those logs and this file's own
+        // `capture-pane` on the run's scratch socket are the ground truth.
+        // Before every key the UI test prints a `…-ready` line and waits for
+        // this file's `screen-<seq>`, so the pane is read, the relay held or
+        // the pasteboard read at THAT moment. Face ID is answered only for End.
+        // ==================================================================
+        if (ARMS.has('screen')) {
+          const hrS = () => process.hrtime.bigint();
+          const sessionsNowS = async () =>
+            JSON.parse(await cdpEval(cdp, 'window.gmux.sessions.list().then((s) => JSON.stringify(s.map((x) => ({ id: x.id, name: x.name, tmuxName: x.tmuxName, status: x.status, agent: x.agent }))))'));
+          const untilS = async (test, ms, every = 250) => {
+            const until = Date.now() + ms;
+            for (;;) {
+              const v = await test();
+              if (v !== null && v !== undefined && v !== false) return v;
+              if (Date.now() > until) return null;
+              await sleep(every);
+            }
+          };
+          const helloS = (id) => p318Hellos(P318_STANDIN).filter((h) => h.session === id).sort((a, b) => Number(a.at) - Number(b.at)).at(-1) ?? null;
+          const seqS = new Map();
+          const tellS = async (id, ops) => {
+            const h = helloS(id);
+            if (h === null) throw new Error(`no stand-in said hello for ${id}`);
+            const n = (seqS.get(h.pid) ?? 0) + 1;
+            seqS.set(h.pid, n);
+            p318SendOps(P318_STANDIN, h.pid, n, ops);
+            await untilS(() => Number(p318ReadState(P318_STANDIN, h.pid)?.seq ?? 0) >= n, 5_000, 25);
+          };
+          const logS = (id, from, to = null) => {
+            const h = helloS(id);
+            return h === null ? [] : p318ReadLog(P318_STANDIN, h.pid).filter((l) => l.t >= BigInt(from) && (to === null || l.t < BigInt(to)));
+          };
+          /** The run's own tmux, on its scratch socket. */
+          const tmuxS = (...args) => {
+            const r = spawnSync('tmux', ['-L', SOCKET, ...args], { encoding: 'utf8', timeout: 10_000 });
+            return r.status === 0 ? String(r.stdout ?? '') : null;
+          };
+          const RECORDER = join(ROOT, 'build', 'p337', 'key-recorder.mjs');
+          const recLogs = new Map();
+          const recBytes = (id, from, to = null) => {
+            try {
+              return readRecorderLog(readFileSync(recLogs.get(id) ?? '', 'utf8')).reads.filter((r) => BigInt(r.t) >= BigInt(from) && (to === null || BigInt(r.t) < BigInt(to))).map((r) => r.hex).join('');
+            } catch {
+              return '';
+            }
+          };
+          /** A session made the way a person makes one; an agent's stand-in has said hello. */
+          const screenSession = async (name, agent) => {
+            if (agent === 'claude') writeFileSync(NEXT, 'p318', 'utf8');
+            await cdpEval(cdp, `window.gmux.sessions.create(${J({ name, projectPath: WORK, cwd: WORK, agent })}).then(() => true).catch(() => false)`);
+            const s = await untilS(async () => (await sessionsNowS()).find((x) => x.name === name && ['running', 'idle', 'needs_input'].includes(x.status)) ?? null, 60_000, 500);
+            const hello = s === null || agent === 'shell' ? null : await untilS(() => helloS(s.id), 60_000);
+            rmSync(NEXT, { force: true });
+            if (s === null || (agent !== 'shell' && hello === null)) return null;
+            return s;
+          };
+          /** A key recorder in a fresh shell session, in `modes`, its log under the run. */
+          const recorderSessionS = async (name, modes) => {
+            const s = await screenSession(name, 'shell');
+            if (s === null) return null;
+            const log = join(RUN, `${name}.jsonl`);
+            recLogs.set(s.id, log);
+            await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${s.tmuxName}:`) ?? '').trim() !== '' ? true : null), 20_000);
+            tmuxS('send-keys', '-t', `=${s.tmuxName}:`, '-l', `exec '${process.execPath}' '${RECORDER}' '${log}' ${modes} --label=${name}`);
+            tmuxS('send-keys', '-t', `=${s.tmuxName}:`, 'Enter');
+            const ready = await untilS(() => {
+              try {
+                return readRecorderLog(readFileSync(log, 'utf8')).ready !== null ? true : null;
+              } catch {
+                return null;
+              }
+            }, 20_000, 200);
+            return ready === true ? s : null;
+          };
+          const ackDirS = (label) => {
+            const dir = join(RUN, `screen-acks-${label}`);
+            mkdirSync(dir, { recursive: true });
+            return { dir, ack: (seq) => writeFileSync(join(dir, `screen-${String(seq)}`), 'ok\n') };
+          };
+          const ofStepS = (events, step) => events.filter((e) => e.step === step);
+          /** The pane's rows and geometry as the Mac's tmux reads them. */
+          const paneOf = (s) => {
+            const target = `=${s.tmuxName}:`;
+            const capture = String(tmuxS('capture-pane', '-p', '-t', target) ?? '').split('\n');
+            const g = String(tmuxS('display-message', '-p', '-t', target, '#{pane_width} #{pane_height} #{cursor_x} #{cursor_y} #{cursor_flag}') ?? '').trim().split(' ').map(Number);
+            return { capture, cols: g[0], rows: g[1], cursorAt: { x: g[2], y: g[3], visible: g[4] === 1 } };
+          };
+          /** One drawn Screen and the pane, as PS2 reads them. */
+          const ps2Of = (name, s, reading, pane) => {
+            const rows = Array.isArray(reading?.rows) ? reading.rows : null;
+            return {
+              name,
+              labels: rows === null || rows.length === 0 ? null : rows.map((r) => String(r.label)),
+              capture: pane.capture,
+              rows: pane.rows,
+              cols: pane.cols,
+              grid: reading?.grid ?? null,
+              window: reading?.window ?? null,
+              cellHeight: rows?.[0]?.frame?.[3] ?? null,
+              row0: rows?.find((r) => r.n === 0)?.frame ?? null,
+              cursor: reading?.cursor ?? null,
+              cursorAt: pane.cursorAt
+            };
+          };
+
+          const S = {
+            claude: await screenSession('p337-screen-claude', 'claude'),
+            codex: await screenSession('p337-screen-codex', 'codex'),
+            shell: await screenSession('p337-screen-shell', 'shell'),
+            rec: await recorderSessionS('p337-screen-rec', 'normal'),
+            end: await screenSession('p337-screen-end', 'shell'),
+            floor: await screenSession('p337-screen-floor', 'shell')
+          };
+          if (Object.values(S).some((x) => x === null)) {
+            arm('PS the Screen group\'s sessions', null, `not every session was made, or a stand-in or recorder never said it was ready: ${J(Object.fromEntries(Object.entries(S).map(([k, v]) => [k, v?.status ?? null])))}`);
+          } else {
+            const marks = { ready: {}, pane: {}, relayHeld: null, homeAt: null, awayAt: null, pasteboard: null, change: null, changedOnMac: false, select: null };
+            const acks = ackDirS('order');
+            const keyPlan = ['type-shell', 'ctrl', 'esc', 'tab', 'btab', 'left', 'up', 'down', 'right', 'question'];
+            const PS_CHANGE = `zz${randomBytes(3).toString('hex')}`;
+            await tellS(S.codex.id, [{ op: 'press', command: 'touch p337-ps5.txt' }]);
+            let simHandle = null;
+            const react = async (event) => {
+              if (/^screen-(?:type|key|ctrl|question)-ready$/.test(event.step)) {
+                const tag = keyPlan.shift() ?? 'extra';
+                marks.ready[tag] = { from: hrS(), seq: event.seq };
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-select-held') {
+                marks.select = { rows: event.rows ?? [], line: event.line ?? null, copy: event.copy === true };
+                tmuxS('send-keys', '-t', `=${S.shell.tmuxName}:`, '-l', PS_CHANGE);
+                marks.changedOnMac = (await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${S.shell.tmuxName}:`) ?? '').includes(PS_CHANGE) ? true : null), 5_000, 100)) === true;
+                await sleep(1_500);
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-copied') {
+                await sleep(800);
+                const pb = simHandle === null ? null : await simHandle.pasteboard().catch(() => null);
+                marks.pasteboard = pb !== null && pb.code === 0 ? String(pb.stdout ?? '') : null;
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-home-ready') {
+                marks.homeHeldBefore = relay.held();
+                marks.ready.home = { from: hrS() };
+                relay.pause();
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-home-pressed') {
+                marks.homeAt = Date.now();
+                await sleep(3_000);
+                marks.relayHeld = relay.held() - (marks.homeHeldBefore ?? relay.held());
+                relay.resume();
+              }
+              if (event.step === 'screen-home-away') {
+                marks.awayAt = Date.now();
+                marks.homeBytes = recBytes(S.rec.id, marks.ready.home?.from ?? hrS());
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-question-pressed') marks.questionPressed = hrS();
+              // The phone drew the picture after the question's first key: the
+              // keys the agent read before THIS moment are PS5's count, and the
+              // UI test's third press waits for this ack.
+              if (event.step === 'screen-question-redrawn') {
+                marks.questionRedrawn = hrS();
+                acks.ack(event.seq);
+              }
+              if (event.step === 'screen-wait') acks.ack(event.seq);
+              if (event.step === 'end-auth-up' && simHandle !== null) {
+                const b = await simHandle.biometry('match').catch(() => ({ code: -1 }));
+                marks.matched = b.code;
+                writeFileSync(join(acks.dir, `auth-${String(event.seq)}`), 'ok\n');
+              }
+            };
+            const typed = 'echo hi';
+            const steps = [
+              'pair',
+              'list',
+              `open:${S.claude.id}`,
+              'end-top',
+              'screen-open',
+              'back',
+              'back',
+              `open:${S.codex.id}`,
+              'screen-open',
+              'back',
+              'back',
+              `open:${S.shell.id}`,
+              'screen-open',
+              'screen-zoom',
+              // The fix round of 2026-10-06: the turn is read from a FRESH
+              // Screen, at its fitted size, because the zoom just chosen is kept
+              // sideways (880 pt both ways), and PS3 grades the fitted rows.
+              'back',
+              `open:${S.shell.id}`,
+              'screen-open',
+              'screen-rotate',
+              'screen-open',
+              `screen-type:${b64uText(typed)}`,
+              'screen-select:0',
+              'back',
+              'back',
+              `open:${S.rec.id}`,
+              'screen-open',
+              'screen-ctrl:c',
+              'screen-key:esc',
+              'screen-key:tab',
+              'screen-key:btab',
+              'screen-key:left',
+              'screen-key:up',
+              'screen-key:down',
+              'screen-key:right',
+              `screen-home:${b64uText('p337 left at once')}`,
+              'back',
+              'back',
+              `open:${S.codex.id}`,
+              'screen-open',
+              'screen-question:down:50',
+              'back',
+              'back',
+              `open:${S.end.id}`,
+              'end'
+            ];
+            const pane = {};
+            try {
+              await withSimulator({ label: 'p316-screen', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-screen'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                simHandle = sim;
+                await sim.biometry('enrol');
+                for (const [k, s] of Object.entries({ claude: S.claude, codex: S.codex, shell: S.shell })) pane[k] = paneOf(s);
+                const sizeBefore = Object.fromEntries(Object.entries(S).map(([k, s]) => [k, String(tmuxS('display-message', '-p', '-t', `=${s.tmuxName}:`, '#{window_width}x#{window_height}') ?? '').trim()]));
+                const run = await pairAndRead(sim, steps, 'screen', { env: { P316_ACKS: acks.dir }, react });
+                const ev = run.ok ? run.result.events : [];
+                if (!run.ok || ev.length === 0) {
+                  arm('PS1 End at the top right; Screen under Conversation', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                  return;
+                }
+                const opens = ofStepS(ev, 'screen-open');
+                // PS1
+                {
+                  const v = gradePs1({ endTop: ofStepS(ev, 'end-top')[0] ?? null });
+                  arm('PS1 a session\'s page: End inside the navigation bar\'s trailing half, no End bar, Conversation above Screen', v.ok, v.said);
+                }
+                // PS2
+                {
+                  const v = gradePs2({ sessions: [ps2Of('Claude Code inline', S.claude, opens[0], pane.claude), ps2Of('Codex', S.codex, opens[1], pane.codex), ps2Of('the shell', S.shell, opens[2], pane.shell)] });
+                  arm('PS2 the Screen over Claude Code, Codex and the shell: every row the Mac\'s capture-pane -p, the grid the view\'s width, the cursor in its cell', v.ok, v.said);
+                }
+                // PS3
+                {
+                  const z = ofStepS(ev, 'screen-zoom')[0] ?? {};
+                  const rot = ofStepS(ev, 'screen-rotate')[0] ?? {};
+                  const v = gradePs3({ before: z.before ?? null, pinched: z.pinched ?? null, dragged: z.dragged ?? null, slow: z.slow ?? null, up: z.up ?? null, selectionAfterDrags: z.selectionAfterDrags ?? null, gridFrame: z.grid ?? null, rowCount: pane.shell.rows, portrait: rot.portrait ?? null, landscape: rot.landscape ?? null, pageWindow: rot.pageWindow ?? null });
+                  arm('PS3 pinch, drag and turn the phone: the cells grow, the content moves, the fit grows sideways, the page comes back upright', v.ok, v.said);
+                }
+                // PS4
+                {
+                  const after = String(tmuxS('capture-pane', '-p', '-S', '-200', '-t', `=${S.shell.tmuxName}:`) ?? '').split('\n').map((l) => l.trim());
+                  const keyHex = {};
+                  const order = ['esc', 'tab', 'btab', 'left', 'up', 'down', 'right'];
+                  for (let i = 0; i < order.length; i += 1) {
+                    const from = marks.ready[order[i]]?.from ?? null;
+                    const to = marks.ready[order[i + 1]]?.from ?? marks.ready.home?.from ?? null;
+                    keyHex[order[i]] = from === null ? null : recBytes(S.rec.id, from, to);
+                  }
+                  const ctrlFrom = marks.ready.ctrl?.from ?? null;
+                  const auth = [...ofStepS(ev, 'screen-type'), ...ofStepS(ev, 'screen-key'), ...ofStepS(ev, 'screen-ctrl')].map((e) => e.auth === true);
+                  const v = gradePs4({ typed: { paneHas: after.includes('hi') && after.some((l) => l.endsWith(typed)), output: 'hi' }, ctrl: ctrlFrom === null ? null : { hex: recBytes(S.rec.id, ctrlFrom, marks.ready.esc?.from ?? null) }, keys: keyHex, auth });
+                  arm('PS4 typing and the key bar: the words run, ctrl then c is 03, each key its bytes, no Face ID', v.ok, v.said);
+                }
+                // PS5
+                {
+                  const q = ofStepS(ev, 'screen-question')[0] ?? null;
+                  const from = marks.ready.question?.from ?? null;
+                  const downs = (lines) => lines.filter((l) => l.kind === 'read').map((l) => String(l.hex)).join('').split('1b5b42').length - 1;
+                  const v = gradePs5({
+                    drawn: (opens.at(-1)?.rows ?? []).length > 0,
+                    waitingLine: q?.waitingLine ?? null,
+                    downsBeforePicture: from === null || marks.questionRedrawn === undefined ? 0 : downs(logS(S.codex.id, from, marks.questionRedrawn)),
+                    redrawn: q?.redrawn === true,
+                    downsInAll: from === null ? 0 : downs(logS(S.codex.id, from))
+                  });
+                  arm('PS5 Codex\'s question: two Downs 50 ms apart send one, the line says why, and the press after the picture goes', v.ok, v.said);
+                }
+                // PS6
+                {
+                  const sel = ofStepS(ev, 'screen-select')[0] ?? null;
+                  const copied = ofStepS(ev, 'screen-copied')[0] ?? null;
+                  const labels = (rows) => (Array.isArray(rows) ? rows.map((r) => String(r.label)) : []);
+                  const v = gradePs6({
+                    pasteboard: marks.pasteboard,
+                    rowText: labels(marks.select?.rows)[0] ?? '',
+                    copyDrawn: marks.select?.copy === true,
+                    heldLine: copied?.lineWhileHeld ?? marks.select?.line ?? null,
+                    changedOnMac: marks.changedOnMac,
+                    change: PS_CHANGE,
+                    rowsAtHold: labels(marks.select?.rows),
+                    rowsWhileHeld: labels(copied?.rowsWhileHeld),
+                    rowsAfterClear: labels(sel?.rows)
+                  });
+                  arm('PS6 a row selected and copied: the device\'s pasteboard holds its text; the held picture stays; clearing draws the change', v.ok, v.said);
+                }
+                // PS7
+                {
+                  const home = ofStepS(ev, 'screen-home')[0] ?? null;
+                  const v = gradePs7({ held: marks.relayHeld ?? 0, bytes: marks.homeBytes ?? '', waitedMs: marks.awayAt === null || marks.homeAt === null ? 0 : marks.awayAt - marks.homeAt, readsAgain: (home?.rows ?? []).length > 0 });
+                  arm('PS7 typed then Home with the keys line held: nothing reached the program in 20 s, and the Screen read again', v.ok, v.said);
+                }
+                // PS8
+                {
+                  const auth = [...ofStepS(ev, 'screen-type'), ...ofStepS(ev, 'screen-key'), ...ofStepS(ev, 'screen-ctrl')].map((e) => e.auth === true);
+                  const endDump = [...ev].reverse().find((e) => e.step === 'screen' && e.name === 'end') ?? null;
+                  const alive = tmuxS('has-session', '-t', `=${S.end.tmuxName}`) !== null;
+                  const v = gradePs8({ keyAuth: auth, authUp: ofStepS(ev, 'end-auth-up').length > 0, matched: marks.matched ?? null, status: el(endDump, 'session-status')?.label ?? null, alive });
+                  arm('PS8 no Face ID for any key; End at the top right asks the Mac and Face ID, and the session ends', v.ok, v.said);
+                }
+                const sizeAfter = Object.fromEntries(Object.entries(S).filter(([k]) => k !== 'end').map(([k, s]) => [k, String(tmuxS('display-message', '-p', '-t', `=${s.tmuxName}:`, '#{window_width}x#{window_height}') ?? '').trim()]));
+                const sizes = gradePsSizes(sizeBefore, sizeAfter);
+                arm('PS+ no Mac session changed size while the phone read and typed', sizes.ok, sizes.said);
+              });
+            } finally {
+              relay.resume();
+            }
+
+            // ---- PS9: the floor, iOS 18.3: PS1, PS2, PS3's drags, PS4 and PS6 (shell)
+            // The fix round of 2026-10-06 adds PS3's drags and PS6 here: the
+            // selection's long press became UIKit's, and both runtimes must
+            // pan a zoomed Screen and select on it.
+            await confirmListening(cdp);
+            {
+              const facks = ackDirS('floor');
+              const fmarks = { select: null, changedOnMac: false, pasteboard: null };
+              const FLOOR_CHANGE = `zz${randomBytes(3).toString('hex')}`;
+              let floorSim = null;
+              const freact = async (event) => {
+                if (/-ready$/.test(event.step) || event.step === 'screen-wait') facks.ack(event.seq);
+                if (event.step === 'screen-select-held') {
+                  fmarks.select = { rows: event.rows ?? [], line: event.line ?? null, copy: event.copy === true };
+                  tmuxS('send-keys', '-t', `=${S.floor.tmuxName}:`, '-l', FLOOR_CHANGE);
+                  fmarks.changedOnMac = (await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${S.floor.tmuxName}:`) ?? '').includes(FLOOR_CHANGE) ? true : null), 5_000, 100)) === true;
+                  await sleep(1_500);
+                  facks.ack(event.seq);
+                }
+                if (event.step === 'screen-copied') {
+                  await sleep(800);
+                  const pb = floorSim === null ? null : await floorSim.pasteboard().catch(() => null);
+                  fmarks.pasteboard = pb !== null && pb.code === 0 ? String(pb.stdout ?? '') : null;
+                  facks.ack(event.seq);
+                }
+              };
+              await withSimulator({ label: 'p316-screen-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-screen-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                floorSim = sim;
+                const p = paneOf(S.floor);
+                const run = await pairAndRead(sim, ['pair', 'list', `open:${S.floor.id}`, 'end-top', 'screen-open', 'screen-zoom', 'back', `open:${S.floor.id}`, 'screen-open', `screen-type:${b64uText(typed)}`, 'screen-select:0'], 'screen-floor', { env: { P316_ACKS: facks.dir }, react: freact });
+                const ev = run.ok ? run.result.events : [];
+                const v1 = gradePs1({ endTop: ofStepS(ev, 'end-top')[0] ?? null });
+                arm('PS9 the floor (iOS 18.3): PS1', v1.ok, v1.said);
+                const v2 = gradePs2({ sessions: [ps2Of('the shell', S.floor, ofStepS(ev, 'screen-open')[0] ?? null, p)] });
+                arm('PS9 the floor (iOS 18.3): PS2, the shell', v2.ok, v2.said);
+                const z = ofStepS(ev, 'screen-zoom')[0] ?? {};
+                const v3 = gradePs3({ before: z.before ?? null, pinched: z.pinched ?? null, dragged: z.dragged ?? null, slow: z.slow ?? null, up: z.up ?? null, selectionAfterDrags: z.selectionAfterDrags ?? null, gridFrame: z.grid ?? null, rowCount: p.rows, orientation: false });
+                arm('PS9 the floor (iOS 18.3): PS3\'s drags, the shell', v3.ok, v3.said);
+                const after = String(tmuxS('capture-pane', '-p', '-S', '-200', '-t', `=${S.floor.tmuxName}:`) ?? '').split('\n').map((l) => l.trim());
+                const v4 = gradePs4({ typed: { paneHas: after.includes('hi') && after.some((l) => l.endsWith(typed)), output: 'hi' }, keys: {}, auth: ofStepS(ev, 'screen-type').map((e) => e.auth === true) });
+                arm('PS9 the floor (iOS 18.3): PS4, the shell', v4.ok, v4.said);
+                const sel = ofStepS(ev, 'screen-select')[0] ?? null;
+                const copied = ofStepS(ev, 'screen-copied')[0] ?? null;
+                const labels = (rows) => (Array.isArray(rows) ? rows.map((r) => String(r.label)) : []);
+                const v6 = gradePs6({
+                  pasteboard: fmarks.pasteboard,
+                  rowText: labels(fmarks.select?.rows)[0] ?? '',
+                  copyDrawn: fmarks.select?.copy === true,
+                  heldLine: copied?.lineWhileHeld ?? fmarks.select?.line ?? null,
+                  changedOnMac: fmarks.changedOnMac,
+                  change: FLOOR_CHANGE,
+                  rowsAtHold: labels(fmarks.select?.rows),
+                  rowsWhileHeld: labels(copied?.rowsWhileHeld),
+                  rowsAfterClear: labels(sel?.rows)
+                });
+                arm('PS9 the floor (iOS 18.3): PS6, the shell', v6.ok, v6.said);
+              });
+            }
+
+            // ---- PSH: the hostile door's screen and keys arms ----------------
+            await withSimulator({ label: 'p316-screen-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-screen-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              for (const name of SCREEN_ARMS) {
+                const spec = HOSTILE_ARMS[name];
+                await sim.simctl('keychain', 'reset');
+                const door = await startDoorChild(name);
+                doorChildren.add(door.child);
+                try {
+                  if (door.facts === null) {
+                    arm(`PSH ${name}`, null, door.why ?? 'the hostile door did not start');
+                    continue;
+                  }
+                  const armAcks = ackDirS(`hostile-${name}`);
+                  // A sentence arm's hostile answer comes on the read after the first: past the phone's 15 s for the one that never answers.
+                  const waitMs = name === 'screen-never-answers' ? 22_000 : 4_000;
+                  const steps = ['pair', 'list', `open:${door.facts.sessionToOpen}`, 'screen-open', ...(spec.keys === true ? ['screen-key:esc'] : []), `screen-wait:${name}`];
+                  const r = await drive(sim, {
+                    test: { id: UI_TEST },
+                    label: `screen-hostile-${name}`,
+                    env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: armAcks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                    onEvent: async (event) => {
+                      if (/-ready$/.test(event.step)) armAcks.ack(event.seq);
+                      if (event.step === 'screen-wait') {
+                        await sleep(waitMs);
+                        armAcks.ack(event.seq);
+                      }
+                    }
+                  });
+                  if (r.events.length === 0) {
+                    arm(`PSH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                    continue;
+                  }
+                  const w = r.events.filter((e) => e.step === 'screen-wait').at(-1) ?? null;
+                  const reads = door.events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/screen' && typeof e.line === 'number');
+                  const v = gradePsh({
+                    alive: aliveOf(r.events),
+                    keys: spec.keys === true,
+                    posts: door.events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/keys').length,
+                    ends: spec.ends,
+                    expect: spec.expect,
+                    kept: spec.kept,
+                    line: w?.line ?? w?.failure ?? null,
+                    rows: (w?.rows ?? []).length,
+                    lines: new Set(reads.map((e) => e.line)).size
+                  });
+                  arm(`PSH ${name}: ${spec.what}`, v.ok, v.said);
+                } finally {
+                  await endDoorChild(door.child);
+                  doorChildren.delete(door.child);
+                }
+              }
+            });
+
+            // ---- PSP: the parent's app ---------------------------------------
+            if (PARENT_IOS_337 !== '') {
+              const parentProject = join(resolve(PARENT_IOS_337), 'ios', 'Tortie.xcodeproj');
+              const parentDd = join(XCODE, 'dd-parent-337');
+              const built = existsSync(parentProject)
+                ? await xcodebuildRun({ label: 'parent-screen', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                : { code: -1 };
+              if (built.code !== 0) arm('PSP the parent\'s app: no Screen row, End at the bottom', null, `the parent's project did not build (${String(built.code)})`);
+              else {
+                await confirmListening(cdp);
+                await withSimulator({ label: 'p316-screen-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-screen-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                  const run = await pairAndRead(sim, ['pair', 'list', `open:${S.shell.id}`], 'screen-parent', { project: parentProject, derivedDataPath: parentDd });
+                  const ev = run.ok ? run.result.events : [];
+                  const d = ev.filter((e) => e.step === 'screen' && e.name === 'session').at(-1);
+                  const v = gradePsp({ page: d === undefined ? null : { screenRow: el(d, 'session-open-screen') !== null, endBar: el(d, 'session-end-bar') !== null } });
+                  arm('PSP the parent\'s app: no Screen row, End at the bottom', v.ok, v.said);
+                });
+              }
+            } else report.readings.screenParent = 'not run: P337_PARENT_IOS is not set';
           }
         }
 

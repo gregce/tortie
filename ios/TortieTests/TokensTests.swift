@@ -42,7 +42,7 @@ final class TokensTests: XCTestCase {
         let held = Set(Token.allCases.map(\.hex))
         XCTAssertEqual(held, spelled)
         XCTAssertEqual(held.count, 15)
-        XCTAssertEqual(Token.allCases.count, 19, "nineteen names: two tokens that hold one hex stay two names")
+        XCTAssertEqual(Token.allCases.count, 20, "twenty names: two tokens that hold one hex stay two names")
     }
 
     /// Clause: the colour IS its hex, in sRGB and opaque. A shifted channel, a
@@ -81,9 +81,19 @@ final class TokensTests: XCTestCase {
         }
     }
 
+    /// Clause (Phase 337): `bgCanvas` is `--bg-canvas`, the Screen's page and
+    /// cover, and adds no hex: the table already holds it for the badge's
+    /// number. The mocks above are the chrome's; Screen.html's rows are the
+    /// session's own colours, data and never tokens, so it is not among them.
+    func testTheCanvasAddsNoHex() {
+        XCTAssertEqual(Token.bgCanvas.hex, Token.statusAttentionBadgeFg.hex)
+        XCTAssertEqual(Tokens.bgCanvas, Token.bgCanvas.color)
+    }
+
     /// Clause: a screen's `Tokens.x` is its own token's colour and no other.
     func testEachNamedColourIsItsOwnToken() {
         let wired: [(Color, Token)] = [
+            (Tokens.bgCanvas, .bgCanvas),
             (Tokens.bgSidebar, .bgSidebar),
             (Tokens.bgSurface, .bgSurface),
             (Tokens.bgRaised, .bgRaised),

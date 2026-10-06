@@ -134,6 +134,438 @@
       "nonce": "c75b54ca6b45a6abd91b46a84b8c3c25",
       "canonical": "tortie-pocket-req-v1\nGET\n/v1/sessions?show=ended&group=none&sort=oldest&agent=claude&machine=studio-mac\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000008000\nc75b54ca6b45a6abd91b46a84b8c3c25\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
       "signature": "vqr024f8KfpctGRSqrfafee2f-QKMAkTkLMQid7fZXwDCOYnTI1H6EuqlekPJuHMHeB4TuVliLIYfcTha0v2CA"
+    },
+    {
+      "name": "screen",
+      "method": "GET",
+      "target": "/v1/screen?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&since=05ded5ce18b1",
+      "id": "4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02",
+      "body": "",
+      "bodySha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "timestamp": "1790000009000",
+      "nonce": "222ab9641da5bc17e1df8cfd9bd53dff",
+      "canonical": "tortie-pocket-req-v1\nGET\n/v1/screen?id=4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02&since=05ded5ce18b1\ne3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\n1790000009000\n222ab9641da5bc17e1df8cfd9bd53dff\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "i_9aPe9R6DHZ-iA1QZ7dZ67bWelJ3oVerSs7rvmwwpjy85LQy2VaAOImxL31ntEygp2y2d8meJu-YToR7HimCQ"
+    },
+    {
+      "name": "keys-text",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":\"23f766fdf655\",\"keys\":[{\"t\":\"echo \\\"a\\\\b\\/c\\\" 👍\"},{\"k\":\"BSpace\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"c675a855e80f98fde42b75819e4e7f6f\"}",
+      "bodySha256": "aa6dad52bc8e1f66062ef048423f1385f9cd2651c06816c02946f2af54d2ceab",
+      "timestamp": "1790000010000",
+      "nonce": "a8b8ab3ec5e8ec8aa4e31aaa6f47ced8",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\naa6dad52bc8e1f66062ef048423f1385f9cd2651c06816c02946f2af54d2ceab\n1790000010000\na8b8ab3ec5e8ec8aa4e31aaa6f47ced8\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "Cr0svyQBsU8Im26-MQBgXs_cwcwRhJnrn3p_z1FQRVwi4LXD9M6I0pwVF_vJAmtmwt9zqD5NhI_ef1t2WOZ4Cw"
+    },
+    {
+      "name": "keys-Escape",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Escape\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"d1c8e40e60eb273c2144fc6d73e21eae\"}",
+      "bodySha256": "8861e673bc9e9d8ef3560ba931e35c3c638099f66ebee8bd8145e9eb633a5c74",
+      "timestamp": "1790000011000",
+      "nonce": "8b04c1cc24910d1c7c0dc6557c01dfb0",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n8861e673bc9e9d8ef3560ba931e35c3c638099f66ebee8bd8145e9eb633a5c74\n1790000011000\n8b04c1cc24910d1c7c0dc6557c01dfb0\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "bJe_7KnilHU2tpxFG84q5Az2W5UPwQ1soyppLXPDMv4Cl4QL2sSh5t2pY-JcULwHIG4VKyGN5uNOb5Fsbi6ADA"
+    },
+    {
+      "name": "keys-Tab",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Tab\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"2c25a81e2ee037c3d75771e114b25320\"}",
+      "bodySha256": "f891937262a138810095f907daf5225807e208b6b2890823a4db189aeaec3697",
+      "timestamp": "1790000012000",
+      "nonce": "d1d996f315201ad58b87f2fd3a1f28ab",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nf891937262a138810095f907daf5225807e208b6b2890823a4db189aeaec3697\n1790000012000\nd1d996f315201ad58b87f2fd3a1f28ab\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "iguNalM9e5h7rj_rJn6dPxHYCQ3t4BkfXsiFBKw2ia224svFwErvBD3z20iL1b-JwMmqUl8fmjxmbwWs-v6dAw"
+    },
+    {
+      "name": "keys-BTab",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"BTab\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"62aefbd95bacdaf0cd56105d2128a49d\"}",
+      "bodySha256": "be01648ae8046a205ab23d20afb856e4a0602b5382e6ac97f0b22eb14b06f511",
+      "timestamp": "1790000013000",
+      "nonce": "92a0231863880166acbfb4e1f3d61b7a",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nbe01648ae8046a205ab23d20afb856e4a0602b5382e6ac97f0b22eb14b06f511\n1790000013000\n92a0231863880166acbfb4e1f3d61b7a\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "gAZ80W-_N2-c56yTdrBrPOShSgC5d_3H82FSZ8LiVZbCnUo30eU9c9DkocE7fYWZ46MjpGuYoJTO-uj9dkRfDw"
+    },
+    {
+      "name": "keys-Enter",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Enter\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"8e6f944d14808e3e874a794f923f5911\"}",
+      "bodySha256": "ab6f5517ae2fb3cd2c631b8ccf2d285d786e0e9ea73598c4d319ca5e3e9bb56b",
+      "timestamp": "1790000014000",
+      "nonce": "c7d4ac406195c389e30b3e5d63f58dbd",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nab6f5517ae2fb3cd2c631b8ccf2d285d786e0e9ea73598c4d319ca5e3e9bb56b\n1790000014000\nc7d4ac406195c389e30b3e5d63f58dbd\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "FUbyqKr5mf-nn3k8r4a_DqXZGXdwtlL7MOD9Oc9eBv9Qj5kJNY_VZj1kwnU1ZFzTO0M6FZyzJVKHoNgs3NKwBg"
+    },
+    {
+      "name": "keys-Up",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Up\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"4154264e2533f3f312d1fd55a597b53e\"}",
+      "bodySha256": "f21a28ceb81caacae873c2eac6bc88632280c98ae8cb5d185e88e20de12c3224",
+      "timestamp": "1790000015000",
+      "nonce": "e0b7071cd86e2c744fbf48563deb044a",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nf21a28ceb81caacae873c2eac6bc88632280c98ae8cb5d185e88e20de12c3224\n1790000015000\ne0b7071cd86e2c744fbf48563deb044a\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "XH2z3iMtQFHfeFQYA5gfpMihjzfjpAz_8bJpn70kOfJ_cIkRCox4Lj6jW9JYu0-jcD1yJ7Z00nbS5TAv_crlDA"
+    },
+    {
+      "name": "keys-Down",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Down\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"1e254551f2bbe134ffd00b71a9eda00e\"}",
+      "bodySha256": "adb22d8f006755aba3bcbe3a3e6f1c45f01752bc710fe1be46ff658019d5dcd6",
+      "timestamp": "1790000016000",
+      "nonce": "5d4540b01bf515d937bc5223cb9d571d",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nadb22d8f006755aba3bcbe3a3e6f1c45f01752bc710fe1be46ff658019d5dcd6\n1790000016000\n5d4540b01bf515d937bc5223cb9d571d\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "kVRdjUm-udqBgetXZOiL26drSiiWtzkRbhIMDCCtXvQZTT0ykLmRJqKgSRmhT_uDXnanGyXeJCBjsR5ESHe0BQ"
+    },
+    {
+      "name": "keys-Left",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Left\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"3f6c164cf10b66a1b8285d971bfe4ba3\"}",
+      "bodySha256": "5d7692e8938770bf06082175e6f4a10546bc17455e2e8a0f703df5102c5a1602",
+      "timestamp": "1790000017000",
+      "nonce": "8dc0bbd118f28e3e481eaec0b88a6cff",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n5d7692e8938770bf06082175e6f4a10546bc17455e2e8a0f703df5102c5a1602\n1790000017000\n8dc0bbd118f28e3e481eaec0b88a6cff\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "Hh5JNLdJr3kOTkdsUuzagRfjHH9Yyy2Ij44Ce5A9ODOpCaaLEnWvAnr-I85kxN0vbAWLT2MA3NS0Cjx3wPt0Aw"
+    },
+    {
+      "name": "keys-Right",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"Right\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"f1ddf858ffb39cd42f96891a205c29f1\"}",
+      "bodySha256": "51d7f11573e72f1c503db66075ab29b3a3a294ca99a330f44e1a90e38859ef9c",
+      "timestamp": "1790000018000",
+      "nonce": "f0af0c1e1eb6fe2067fddaf859b7ac08",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n51d7f11573e72f1c503db66075ab29b3a3a294ca99a330f44e1a90e38859ef9c\n1790000018000\nf0af0c1e1eb6fe2067fddaf859b7ac08\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "lE1nffThRnLo0y8Gg5DtJdgTEQpATnlEhxQGHmydXBbc_0z-warx5r-2HoynXqKLqzg0vRTj695TyHEKp1bvCQ"
+    },
+    {
+      "name": "keys-C-a",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-a\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"776ebd88ab95e85a919259f3f6020335\"}",
+      "bodySha256": "b287d50fb87708dbcaaa4e4a38548477470e1ce3e504696b10d99d258304af87",
+      "timestamp": "1790000019000",
+      "nonce": "9b7e429e6c474adb11aaf8dc02acfb9c",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nb287d50fb87708dbcaaa4e4a38548477470e1ce3e504696b10d99d258304af87\n1790000019000\n9b7e429e6c474adb11aaf8dc02acfb9c\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "cKJarbEVurpEJNsXcbLtowKuwOBbo_Hvj8_OkefJCSFYzXMXFUjAW_JeQH_OPZprJNR_9xGqqrWiqVxrc5VaDA"
+    },
+    {
+      "name": "keys-C-b",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-b\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"d64f92cc93d27e8eb598392d084917ef\"}",
+      "bodySha256": "aeb94f64fd4714dd11f09a3e499c7b8dc52adc3ee149c08df718cd860064ede0",
+      "timestamp": "1790000020000",
+      "nonce": "5c20e5f7691033040f1e6122bcf32814",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\naeb94f64fd4714dd11f09a3e499c7b8dc52adc3ee149c08df718cd860064ede0\n1790000020000\n5c20e5f7691033040f1e6122bcf32814\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "csUHnzitDftpcu6DTKZc_6FF--tfwrX00_dFm6wcM4j6kjUs2pYVroUfM80-p78UVWJmq0VTFV9cEmkpxu4gAA"
+    },
+    {
+      "name": "keys-C-c",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-c\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"2fef72c79638c990dce1a49b8d914d9b\"}",
+      "bodySha256": "d3a2d17c490ff3ea1cf61f67d0d0c60be0eae66d77afeba01e83ca2db69d6165",
+      "timestamp": "1790000021000",
+      "nonce": "68da7df6171def4130f0e33504ff549f",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nd3a2d17c490ff3ea1cf61f67d0d0c60be0eae66d77afeba01e83ca2db69d6165\n1790000021000\n68da7df6171def4130f0e33504ff549f\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "IxzKk9kek60nEOvcY1xK_IaxnLAX_WmMAo53Wr6yeiVPnZBBZfOAmkxpLbd1D_0JnCRER9Q8DCraBPSbcGDkDA"
+    },
+    {
+      "name": "keys-C-d",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-d\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"2b5546b8b208662c9d6b43d7b349cb42\"}",
+      "bodySha256": "2b54a7254fa66ed433a0f92942541fdc605ae659afddb95c02524b1ca37a35fd",
+      "timestamp": "1790000022000",
+      "nonce": "77a589fe90e2033546463ca0ba0b0fad",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n2b54a7254fa66ed433a0f92942541fdc605ae659afddb95c02524b1ca37a35fd\n1790000022000\n77a589fe90e2033546463ca0ba0b0fad\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "kp4kZh750MBLLADkRgbk3IkKDGpGute-GZmkz0myF5ACekzFazySSEj45FAzV92oeGKxcXgITj7JVweTygSVCQ"
+    },
+    {
+      "name": "keys-C-e",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-e\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"f2d9360b3fde3894c9375db4f3c145a2\"}",
+      "bodySha256": "1d0c2318d3f2a8f2e3895c1e5ef709fd5597c26f1052a7925da1967d37402446",
+      "timestamp": "1790000023000",
+      "nonce": "e0602892031315dae0e7595f81faf790",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n1d0c2318d3f2a8f2e3895c1e5ef709fd5597c26f1052a7925da1967d37402446\n1790000023000\ne0602892031315dae0e7595f81faf790\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "y-znTjWFewHeLokEWoYR5kYT_O_kVtAuOEA1O6peM4QyfkdmTV7LAgGViEeJk8KF95jMeRij2F_nggzgAVrnAA"
+    },
+    {
+      "name": "keys-C-f",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-f\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"0849d0fe9a2d53391726d3ee4641ad74\"}",
+      "bodySha256": "284428fa2928c29bad445d1dc289cc829ea9827787f5b2bf3af67a2cc43792bc",
+      "timestamp": "1790000024000",
+      "nonce": "ee029945260f5729c91d61964cc42226",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n284428fa2928c29bad445d1dc289cc829ea9827787f5b2bf3af67a2cc43792bc\n1790000024000\nee029945260f5729c91d61964cc42226\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "qArfiRry0FDDhxZj7PARSW1ZOUwXGMrDtEnTZrY_lItRspz6gfd0k5Q9Cq9IVz67MtDt-dIpcVmiPCK9KWDSDA"
+    },
+    {
+      "name": "keys-C-g",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-g\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"b798760a2332225ba51f9133d51dc68f\"}",
+      "bodySha256": "9852a2852a4bb84b5456fef25807003ff53f94de90f3574aa1ec012a95e6164b",
+      "timestamp": "1790000025000",
+      "nonce": "df8142324643ea3bbf86c2f3c7550910",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n9852a2852a4bb84b5456fef25807003ff53f94de90f3574aa1ec012a95e6164b\n1790000025000\ndf8142324643ea3bbf86c2f3c7550910\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "3jxNhT9bpnoJKgF1Ymtvjj44kA3zmWLDq7puQ7Q4zI6LJGJHVCaIDQsqMJy-VX22sKkY74vU03FI6hr3HtvuDw"
+    },
+    {
+      "name": "keys-C-h",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-h\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"acac30ec138a591422261b0c400fd52b\"}",
+      "bodySha256": "59f9fb3a1925dab5531beb0ddf4307f8c3d9a84613d76669cdcebf4f7c96dc3c",
+      "timestamp": "1790000026000",
+      "nonce": "516c2344064de3a73c5b554832d92070",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n59f9fb3a1925dab5531beb0ddf4307f8c3d9a84613d76669cdcebf4f7c96dc3c\n1790000026000\n516c2344064de3a73c5b554832d92070\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "yKDx-912ihTvOTd0Pfm3YVVz_kVYxgbBmkxaWFntV42GuYD4Vgqlj9FnxTigrHJidRUNE8Scyme-SCpa1ptGCg"
+    },
+    {
+      "name": "keys-C-i",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-i\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"090ce9c396304e752a38f1da716cdd3c\"}",
+      "bodySha256": "b0bfcecdceba4020ed68560f7436f33bbc2972a9e0db5021d091ee7ee32f4a1e",
+      "timestamp": "1790000027000",
+      "nonce": "754c08dd72842eec202646008620ec83",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nb0bfcecdceba4020ed68560f7436f33bbc2972a9e0db5021d091ee7ee32f4a1e\n1790000027000\n754c08dd72842eec202646008620ec83\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "FnQ3r-LwylF5zfIzn4poAJWnJrCqtP3QlNSXhFOnaV4Q9MVLwfMvXAYwmQT9teP3jBMqR3JyEHqdZaweoWrZDg"
+    },
+    {
+      "name": "keys-C-j",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-j\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"159be350f953aebb2d3c3f086a2f5262\"}",
+      "bodySha256": "d3ede264a629f7f338f69ae89a8c48a67c11f9b25068e6492ccc63f0075eed22",
+      "timestamp": "1790000028000",
+      "nonce": "23aa5d25103ecfdc1a38796490bb39f8",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nd3ede264a629f7f338f69ae89a8c48a67c11f9b25068e6492ccc63f0075eed22\n1790000028000\n23aa5d25103ecfdc1a38796490bb39f8\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "PLExilwnLF9teVkfNsbtHZZ8w0iFZNAtGKEsFCMJg0q7GRyBnBF2I0DeET5OgZapV6L5qc60IYNGR_Cn-9XKCQ"
+    },
+    {
+      "name": "keys-C-k",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-k\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"c04320e1c8ed72875a181f6c219c39af\"}",
+      "bodySha256": "c4e7f7fea5109bf2784abcf2b9f8f31c96a1c83b3cd3e09a88dcf8f6a11843e0",
+      "timestamp": "1790000029000",
+      "nonce": "b8a4b13f4a9ec4c45e662d525670e32f",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nc4e7f7fea5109bf2784abcf2b9f8f31c96a1c83b3cd3e09a88dcf8f6a11843e0\n1790000029000\nb8a4b13f4a9ec4c45e662d525670e32f\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "YqGjcUEeuEWIIa-_k8ecMA0_cus__Rb6rYxr2wilHWocr62c_seYDWWCrykqhQFNzpiq2Pko-aTRLuaB-h1HDQ"
+    },
+    {
+      "name": "keys-C-l",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-l\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"f04f757fb3d0e35fbcdcbc74d52eab5c\"}",
+      "bodySha256": "264248c5150971dc80ac45ea38d0b8f82eb9b047ddf4b169dad2c71be4ad2598",
+      "timestamp": "1790000030000",
+      "nonce": "11b6ddffc2a73f361866001180fffee2",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n264248c5150971dc80ac45ea38d0b8f82eb9b047ddf4b169dad2c71be4ad2598\n1790000030000\n11b6ddffc2a73f361866001180fffee2\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "b46wZaZN8taYy1Rj1Y0v26WU1osQXbH4Au1vz9PMys5ay4K9jyi-y6EAXncnUZ1VJ6S68oz1mI3pYfj4CIo4AA"
+    },
+    {
+      "name": "keys-C-m",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-m\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"f170aedc5f82fc4a2af0b062e39e4013\"}",
+      "bodySha256": "fcf44a52c070e16aff81698e2f79d45f6a22ee8e2d339e76cc89e383ab4320a7",
+      "timestamp": "1790000031000",
+      "nonce": "de4b0f1668061948b27f54d9da44f323",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nfcf44a52c070e16aff81698e2f79d45f6a22ee8e2d339e76cc89e383ab4320a7\n1790000031000\nde4b0f1668061948b27f54d9da44f323\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "BjLemgpJrqUtQuXKtkZG6avSdoljvac8-9cT9eWNsFeiwme3G1ToN2TZ0QUAS-ChSIHLtK9I9H2gVszfopMkAA"
+    },
+    {
+      "name": "keys-C-n",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-n\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"9ccfb000503d51e0e772fc8715e6738c\"}",
+      "bodySha256": "a5e1220c3403279562976b9fed1d5e36fdcffb0065970e2edc10a3f2963ee98a",
+      "timestamp": "1790000032000",
+      "nonce": "bbad6b4e3b5653662d66987b2e4a7375",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\na5e1220c3403279562976b9fed1d5e36fdcffb0065970e2edc10a3f2963ee98a\n1790000032000\nbbad6b4e3b5653662d66987b2e4a7375\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "lrWXw__y2of0TFIKnnOby47cJKDG4b2vyTLAeAJVvSCPQKuUBCc6453CiGBpPY3kypwXaGxCJfjfvmoEx4iCAA"
+    },
+    {
+      "name": "keys-C-o",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-o\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"6b10059b25d679997491d7f6e6602b2f\"}",
+      "bodySha256": "b37049ae1a520a5303f7f82db08ec2a68239e09de439c779a5ecdd4c4e8269a6",
+      "timestamp": "1790000033000",
+      "nonce": "14d6202844506cc8138f69e137990b4f",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nb37049ae1a520a5303f7f82db08ec2a68239e09de439c779a5ecdd4c4e8269a6\n1790000033000\n14d6202844506cc8138f69e137990b4f\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "IHD_kdDc1wyR2zRBjBZSemuhrzgoc3ugd5MpHgyCRm2L_k6o7RW93aQ_RnJn1CHsgKKZZCXTNRAtjvZwaxcpDw"
+    },
+    {
+      "name": "keys-C-p",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-p\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"45dad7ca1dd1b8ca339f71a7d6448f2c\"}",
+      "bodySha256": "c7a265fd69b4c3b9d16dbaea5a127774d527a8d3de6962a1a995386e74014535",
+      "timestamp": "1790000034000",
+      "nonce": "65193b4f27ee23ddbafa9f387d012386",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nc7a265fd69b4c3b9d16dbaea5a127774d527a8d3de6962a1a995386e74014535\n1790000034000\n65193b4f27ee23ddbafa9f387d012386\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "cQLP91h_33vKhsOrm44E4bk99W-OFe3oZGMsbNivTl6MKonlM6oTfcylwzEy_XgJ4Qsb3aDhFMY0qZHy1oR3Aw"
+    },
+    {
+      "name": "keys-C-q",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-q\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"83556d1dcfa5761117908990ed2c30bf\"}",
+      "bodySha256": "8f4ea331faf738c6fb51f5679911fdc55109e3cb3a16f787df2297c22597b016",
+      "timestamp": "1790000035000",
+      "nonce": "18510867141a8c40c09a72786d382ed5",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n8f4ea331faf738c6fb51f5679911fdc55109e3cb3a16f787df2297c22597b016\n1790000035000\n18510867141a8c40c09a72786d382ed5\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "mAUMWu2Uh2NLirnfT295s-xZoLgGO8SnNfJV6uXzzoaOArYFv4yzCg7ofzpto8HcdRmKS3klOoPrykyk5-bICw"
+    },
+    {
+      "name": "keys-C-r",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-r\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"ce311e6f8b61ba8a6a7f0e27c95d60bb\"}",
+      "bodySha256": "9ae03b2d0c96cfb856d8e935f41458ea86ccd760d03893c71389836a94d83285",
+      "timestamp": "1790000036000",
+      "nonce": "094b24a05648b8803b8ec88a46a8af4f",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n9ae03b2d0c96cfb856d8e935f41458ea86ccd760d03893c71389836a94d83285\n1790000036000\n094b24a05648b8803b8ec88a46a8af4f\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "E8S_sBBK5-Kqz65O7eoXfo-OEuUxjbCqXKzjDSgxWGiqkoMQGzcWKLWNxe4AbRXGDGSf9dNfQth4DDMvtkWnAg"
+    },
+    {
+      "name": "keys-C-s",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-s\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"332017087dce0a7ae11a1b8dfa08ec79\"}",
+      "bodySha256": "45387aa9cd22f99ef2571e35c1612c39739e9f26c9e23f6e7e59157c02b4f1ec",
+      "timestamp": "1790000037000",
+      "nonce": "0a6ebb013d05ed1a6244d31d1225dece",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n45387aa9cd22f99ef2571e35c1612c39739e9f26c9e23f6e7e59157c02b4f1ec\n1790000037000\n0a6ebb013d05ed1a6244d31d1225dece\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "FXd1z2cqfwpXZFp1sB4-UwwPO97z91tIvrl45cOXrjuUkTLxqUuC_tmmfISpnkHpAG_f36uaSNJw7_Ha304cAw"
+    },
+    {
+      "name": "keys-C-t",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-t\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"1353503ea5c4577da1849134d4a9079c\"}",
+      "bodySha256": "a89cc447b64eff7ab0fe82b7e1ddaad831884e9b3819cff18d9f1cc21a2cd6aa",
+      "timestamp": "1790000038000",
+      "nonce": "ac8b5a828f91518316b43abb6bc6e50b",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\na89cc447b64eff7ab0fe82b7e1ddaad831884e9b3819cff18d9f1cc21a2cd6aa\n1790000038000\nac8b5a828f91518316b43abb6bc6e50b\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "EPzF3KY5sqGDl7DraWwWTs867TwUz6YfDmzrYB4uIKBVbcR-inn1at-2G6-hr7u7GDpY5OndFW8IgpOMJWcGDA"
+    },
+    {
+      "name": "keys-C-u",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-u\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"51474ee6673a67dc6ab6d74b458ae598\"}",
+      "bodySha256": "c2b579be2b36e8ebdc61fb8ac135044c7ec3fc3a1aef2dc523a04f75c0f524a4",
+      "timestamp": "1790000039000",
+      "nonce": "47d7c8943cef213400979375465f493b",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nc2b579be2b36e8ebdc61fb8ac135044c7ec3fc3a1aef2dc523a04f75c0f524a4\n1790000039000\n47d7c8943cef213400979375465f493b\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "COyuokxFkZaN6zAK8wtm3LIPHsEV88Wf0MYomPsmU6wje458PGrEhZM9NDnN8Q2PEp4j178qcX8j2xrMElXiCQ"
+    },
+    {
+      "name": "keys-C-v",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-v\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"df062caf3d780d4b595cc184ff300776\"}",
+      "bodySha256": "9f50be3f870b56a935c84869fadeedb16c48372b995f3db932b894bac965796d",
+      "timestamp": "1790000040000",
+      "nonce": "0c50411da89797b3361b6579cc67c515",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n9f50be3f870b56a935c84869fadeedb16c48372b995f3db932b894bac965796d\n1790000040000\n0c50411da89797b3361b6579cc67c515\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "ri9qi_e8QCO-HyY3eEabTNtaXVb5RR4K-k270tDHKoQCoT2rA81yhXsVra1r7Z3tWOObsYXbz9ZWdSNwcvAhBw"
+    },
+    {
+      "name": "keys-C-w",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-w\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"9a75243b9cee733633a22febc7812db0\"}",
+      "bodySha256": "ed776b90d64c4ce59d7d0900c2519ca3ae25c2707e7230e15b49271ba3bec453",
+      "timestamp": "1790000041000",
+      "nonce": "1675e004dfe854fb056f99ce6d8205f2",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\ned776b90d64c4ce59d7d0900c2519ca3ae25c2707e7230e15b49271ba3bec453\n1790000041000\n1675e004dfe854fb056f99ce6d8205f2\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "GNjxgzFDmhUuGT71ipM6R8iovOMEDk1yvBuL_-aLUj86r69IjG7wYFPhEyJhE5S7lBS6vaUHPZmp4tLnDr9cDQ"
+    },
+    {
+      "name": "keys-C-x",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-x\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"db7eff20173057e5358fb6957a60b10c\"}",
+      "bodySha256": "7f99de3e4d1796c90322c050c2b9ca23459c4d68b03057ff063cc166606feb41",
+      "timestamp": "1790000042000",
+      "nonce": "810bd9ea4badcbacf454248a2093fdb6",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n7f99de3e4d1796c90322c050c2b9ca23459c4d68b03057ff063cc166606feb41\n1790000042000\n810bd9ea4badcbacf454248a2093fdb6\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "tZ8JYeE6O2QZXYzCOXPFnsKh-_uCUcMXiOW2mhmV-lm7s6ttmslckPPB8qmnH9C_M-75KkgynbQcc0b3KNJKDA"
+    },
+    {
+      "name": "keys-C-y",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-y\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"ca85c41280cb49eaf51bb8041a139bf5\"}",
+      "bodySha256": "932579c47b649b3455f16261e1aa9cba30840a952b4f23d14a02e1490768725a",
+      "timestamp": "1790000043000",
+      "nonce": "571ec87814feffd6d7bf45887d45e2b1",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\n932579c47b649b3455f16261e1aa9cba30840a952b4f23d14a02e1490768725a\n1790000043000\n571ec87814feffd6d7bf45887d45e2b1\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "I4uPAEj5vYDHh4-w6xse5bJIPV6ttQkDWIGpwmKk3t5TAvZTVUMi4YvMgUJx1y91ZXViKYPatnha9yBXO2n5DQ"
+    },
+    {
+      "name": "keys-C-z",
+      "method": "POST",
+      "target": "/v1/keys",
+      "id": null,
+      "body": "{\"dialog\":null,\"keys\":[{\"k\":\"C-z\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"bab739a22c0026738ad1bbbe917f7fac\"}",
+      "bodySha256": "f5c3fc310ce6ff81c40ac6588a88564d00a514f6d289dc892f49d417408e06ab",
+      "timestamp": "1790000044000",
+      "nonce": "d0cab330f3cfc9ebbb44740bfd1f1730",
+      "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\nf5c3fc310ce6ff81c40ac6588a88564d00a514f6d289dc892f49d417408e06ab\n1790000044000\nd0cab330f3cfc9ebbb44740bfd1f1730\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+      "signature": "Tkqwh5vgKZJgb93SmFt784SfulzKSYVXcuP4dgGL1JtrlrHks0Be6FSCjUeZ7SJFLhh2Fm3wATY1v1PV3BbWDw"
     }
   ],
   "tampered": {
@@ -154,6 +586,13 @@
     "body": "{\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"text\":\"run \\\"ls \\/tmp\\\" NOW\\nthen \\/exit 👍\",\"write\":\"76831229d2cebba97bc56146567ba5a9\"}",
     "bodySha256": "93747674555e55d5271de6fa00299ad222429ca604d45c958d167587efebe23c",
     "canonical": "tortie-pocket-req-v1\nPOST\n/v1/say\n93747674555e55d5271de6fa00299ad222429ca604d45c958d167587efebe23c\n1790000007000\nf87d4cc515232029c780fe463e5b9ea9\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
+    "doorSays": "signature"
+  },
+  "keysTampered": {
+    "signedFor": "keys-text",
+    "body": "{\"dialog\":\"23f766fdf655\",\"keys\":[{\"t\":\"Echo \\\"a\\\\b\\/c\\\" 👍\"},{\"k\":\"BSpace\"}],\"session\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turn\":\"cf0d9db4f3fd6d11-7\",\"write\":\"c675a855e80f98fde42b75819e4e7f6f\"}",
+    "bodySha256": "cedebd977cdfc2e4a5446add10f0a129906549f4ed4803e10d3b6429d999a5c5",
+    "canonical": "tortie-pocket-req-v1\nPOST\n/v1/keys\ncedebd977cdfc2e4a5446add10f0a129906549f4ed4803e10d3b6429d999a5c5\n1790000010000\na8b8ab3ec5e8ec8aa4e31aaa6f47ced8\n02c0f1317ec3fc7af455e61e4b66b7e44b2c788f9fd3b1bc7edfff6266794d28",
     "doorSays": "signature"
   },
   "pins": [
@@ -231,12 +670,12 @@
       "withUnknown": "{\"rows\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\",\"end\":{\"state\":\"offered\",\"batch\":true},\"futureRowField\":\"ignored\"}],\"others\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\",\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c03\",\"name\":\"quiet\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"idle\",\"statusTitle\":\"Idle\",\"statusDot\":\"idle\",\"question\":null,\"choices\":[],\"blockedSince\":1789913600000,\"seenAtWake\":false,\"ageText\":\"1h\",\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"name\":\"far-away\",\"project\":\"tortie\",\"machine\":\"Mac Pro\",\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"idle\",\"statusTitle\":\"Idle\",\"statusDot\":\"idle\",\"question\":null,\"choices\":[],\"blockedSince\":1789999400000,\"seenAtWake\":false,\"ageText\":\"10m\",\"end\":{\"state\":\"offered\",\"batch\":false}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c05\",\"name\":\"broken\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"failed (exit 1)\",\"statusTitle\":\"Failed (exit 1)\",\"statusDot\":\"failed\",\"question\":null,\"choices\":[],\"blockedSince\":1789999100000,\"seenAtWake\":false,\"ageText\":\"15m\",\"end\":{\"state\":\"none\"}}],\"othersOmitted\":0,\"at\":1790000000000,\"emptyLine\":\"Nothing needs you\",\"ageNote\":\"Waits first seen after your Mac wakes or Tortie restarts are timed from then.\",\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     },
     "session-talk": {
-      "json": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":{\"ask\":\"and now the phone\",\"outcome\":\"Working on it\"},\"lastAnswer\":null,\"turnCount\":45,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"coverage\":\"complete\",\"reason\":null,\"userMessages\":45,\"agentMessages\":42,\"lastMessageAt\":1789999995000,\"lastMessageBy\":\"you\",\"lastMessageClock\":\"message\",\"readAt\":1790000000000},\"lastMessageText\":\"now\",\"endConfirm\":{\"title\":\"End 'talk'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":null,\"mark\":null,\"pressable\":[],\"command\":null,\"canSay\":true}},\"at\":1790000000000}",
-      "withUnknown": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":{\"ask\":\"and now the phone\",\"outcome\":\"Working on it\"},\"lastAnswer\":null,\"turnCount\":45,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"coverage\":\"complete\",\"reason\":null,\"userMessages\":45,\"agentMessages\":42,\"lastMessageAt\":1789999995000,\"lastMessageBy\":\"you\",\"lastMessageClock\":\"message\",\"readAt\":1790000000000},\"lastMessageText\":\"now\",\"endConfirm\":{\"title\":\"End 'talk'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":null,\"mark\":null,\"pressable\":[],\"command\":null,\"canSay\":true},\"futureRowField\":\"ignored\"},\"at\":1790000000000,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+      "json": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":{\"ask\":\"and now the phone\",\"outcome\":\"Working on it\"},\"lastAnswer\":null,\"turnCount\":45,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"coverage\":\"complete\",\"reason\":null,\"userMessages\":45,\"agentMessages\":42,\"lastMessageAt\":1789999995000,\"lastMessageBy\":\"you\",\"lastMessageClock\":\"message\",\"readAt\":1790000000000},\"lastMessageText\":\"now\",\"endConfirm\":{\"title\":\"End 'talk'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":null,\"mark\":null,\"pressable\":[],\"command\":null,\"canSay\":true},\"screen\":true},\"at\":1790000000000}",
+      "withUnknown": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"working\",\"statusTitle\":\"Working\",\"statusDot\":\"working\",\"question\":null,\"choices\":[],\"blockedSince\":1789992800000,\"seenAtWake\":false,\"ageText\":\"now\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":{\"ask\":\"and now the phone\",\"outcome\":\"Working on it\"},\"lastAnswer\":null,\"turnCount\":45,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"coverage\":\"complete\",\"reason\":null,\"userMessages\":45,\"agentMessages\":42,\"lastMessageAt\":1789999995000,\"lastMessageBy\":\"you\",\"lastMessageClock\":\"message\",\"readAt\":1790000000000},\"lastMessageText\":\"now\",\"endConfirm\":{\"title\":\"End 'talk'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":null,\"mark\":null,\"pressable\":[],\"command\":null,\"canSay\":true},\"screen\":true,\"futureRowField\":\"ignored\"},\"at\":1790000000000,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     },
     "session-waiting": {
-      "json": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":null,\"lastAnswer\":null,\"turnCount\":0,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"coverage\":\"not-applicable\",\"reason\":\"remote\",\"userMessages\":null,\"agentMessages\":null,\"lastMessageAt\":null,\"lastMessageBy\":null,\"lastMessageClock\":null,\"readAt\":null},\"lastMessageText\":null,\"endConfirm\":{\"title\":\"End 'fix-login'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":\"8271bc8afaadc703-41\",\"mark\":\"445504fda963\",\"pressable\":[\"1\",\"2\"],\"command\":null,\"canSay\":false}},\"at\":1790000000000}",
-      "withUnknown": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":null,\"lastAnswer\":null,\"turnCount\":0,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"coverage\":\"not-applicable\",\"reason\":\"remote\",\"userMessages\":null,\"agentMessages\":null,\"lastMessageAt\":null,\"lastMessageBy\":null,\"lastMessageClock\":null,\"readAt\":null},\"lastMessageText\":null,\"endConfirm\":{\"title\":\"End 'fix-login'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":\"8271bc8afaadc703-41\",\"mark\":\"445504fda963\",\"pressable\":[\"1\",\"2\"],\"command\":null,\"canSay\":false},\"futureRowField\":\"ignored\"},\"at\":1790000000000,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+      "json": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":null,\"lastAnswer\":null,\"turnCount\":0,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"coverage\":\"not-applicable\",\"reason\":\"remote\",\"userMessages\":null,\"agentMessages\":null,\"lastMessageAt\":null,\"lastMessageBy\":null,\"lastMessageClock\":null,\"readAt\":null},\"lastMessageText\":null,\"endConfirm\":{\"title\":\"End 'fix-login'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":\"8271bc8afaadc703-41\",\"mark\":\"445504fda963\",\"pressable\":[\"1\",\"2\"],\"command\":null,\"canSay\":false},\"screen\":true},\"at\":1790000000000}",
+      "withUnknown": "{\"session\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"project\":\"tortie\",\"machine\":null,\"agent\":\"claude\",\"agentLabel\":\"Claude Code\",\"statusLabel\":\"needs input\",\"statusTitle\":\"Needs input\",\"statusDot\":\"attention\",\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"choices\":[{\"marker\":\"1\",\"text\":\"Yes\"},{\"marker\":\"2\",\"text\":\"No, and tell Claude what to do differently\"}],\"blockedSince\":1789999880000,\"seenAtWake\":false,\"ageText\":\"2m\",\"end\":{\"state\":\"offered\",\"batch\":true},\"catchUp\":null,\"lastAnswer\":null,\"turnCount\":0,\"handoff\":null,\"activity\":{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"coverage\":\"not-applicable\",\"reason\":\"remote\",\"userMessages\":null,\"agentMessages\":null,\"lastMessageAt\":null,\"lastMessageBy\":null,\"lastMessageClock\":null,\"readAt\":null},\"lastMessageText\":null,\"endConfirm\":{\"title\":\"End 'fix-login'?\",\"body\":\"This stops what is running in it. The scrollback is saved first, so you can restore this session later.\",\"confirmLabel\":\"End session\"},\"reply\":{\"question\":\"8271bc8afaadc703-41\",\"mark\":\"445504fda963\",\"pressable\":[\"1\",\"2\"],\"command\":null,\"canSay\":false},\"screen\":true,\"futureRowField\":\"ignored\"},\"at\":1790000000000,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     },
     "turns-newest": {
       "json": "{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"turns\":[{\"index\":25,\"askText\":\"ask 25\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:41:40.000Z\",\"answerText\":\"answer 25\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:42:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":26,\"askText\":\"ask 26\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:42:40.000Z\",\"answerText\":\"answer 26\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:43:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":27,\"askText\":\"ask 27\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:43:40.000Z\",\"answerText\":\"answer 27\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:44:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":28,\"askText\":\"ask 28\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:44:40.000Z\",\"answerText\":\"answer 28\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:45:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":29,\"askText\":\"ask 29\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:45:40.000Z\",\"answerText\":\"answer 29\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:46:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":30,\"askText\":\"squash it\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:46:40.000Z\",\"answerText\":\"Squashed.\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:47:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":\"The conversation was compacted here\",\"absence\":null},{\"index\":31,\"askText\":\"ask 31\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:47:40.000Z\",\"answerText\":\"answer 31\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:48:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":32,\"askText\":\"ask 32\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:48:40.000Z\",\"answerText\":\"answer 32\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:49:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":33,\"askText\":\"ask 33\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:49:40.000Z\",\"answerText\":\"answer 33\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:50:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":34,\"askText\":\"ask 34\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:50:40.000Z\",\"answerText\":\"answer 34\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:51:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":35,\"askText\":\"ask 35\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:51:40.000Z\",\"answerText\":\"answer 35\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:52:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":36,\"askText\":\"ask 36\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:52:40.000Z\",\"answerText\":\"answer 36\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:53:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":37,\"askText\":\"ask 37\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:53:40.000Z\",\"answerText\":\"answer 37\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:54:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":38,\"askText\":\"ask 38\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:54:40.000Z\",\"answerText\":\"answer 38\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:55:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":39,\"askText\":\"ask 39\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:55:40.000Z\",\"answerText\":\"answer 39\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:56:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":40,\"askText\":\"ask 40\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:56:40.000Z\",\"answerText\":\"answer 40\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:57:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":41,\"askText\":\"ask 41\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:57:40.000Z\",\"answerText\":\"answer 41\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:58:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":42,\"askText\":\"ask 42\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:58:40.000Z\",\"answerText\":\"answer 42\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T12:59:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":43,\"askText\":\"ask 43\",\"askClipped\":false,\"askAt\":\"2026-09-21T12:59:40.000Z\",\"answerText\":\"answer 43\",\"answerClipped\":false,\"answerAt\":\"2026-09-21T13:00:10.000Z\",\"closed\":true,\"interrupted\":false,\"notice\":null,\"absence\":null},{\"index\":44,\"askText\":\"and now the phone\",\"askClipped\":false,\"askAt\":\"2026-09-21T13:00:40.000Z\",\"answerText\":null,\"answerClipped\":false,\"answerAt\":null,\"closed\":false,\"interrupted\":false,\"notice\":null,\"absence\":\"the agent has not answered yet\"}],\"more\":true,\"at\":1790000000000,\"note\":null}",
@@ -265,6 +704,10 @@
     "sessions-active-none-name": {
       "json": "{\"asked\":{\"show\":\"active\",\"group\":\"none\",\"sort\":\"name\",\"agent\":null,\"machine\":null},\"rows\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"name\":\"far-away\",\"group\":0,\"machine\":\"Mac Pro\",\"statusDot\":\"idle\",\"statusTitle\":\"Idle\",\"ageText\":\"10m old\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":false}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"group\":1,\"machine\":null,\"statusDot\":\"attention\",\"statusTitle\":\"Needs input\",\"ageText\":\"2m\",\"waiting\":true,\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c03\",\"name\":\"quiet\",\"group\":1,\"machine\":null,\"statusDot\":\"idle\",\"statusTitle\":\"Idle\",\"ageText\":\"1h\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"group\":1,\"machine\":null,\"statusDot\":\"working\",\"statusTitle\":\"Working\",\"ageText\":\"now\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":true}}],\"groups\":[{\"id\":\"ZGhVboqS7oH_dbvC\",\"label\":\"tortie\",\"machine\":\"Mac Pro\",\"folder\":null,\"count\":1,\"omitted\":0,\"waiting\":false,\"collapsed\":false},{\"id\":\"dbUo_bTIXxnSPk3Y\",\"label\":\"tortie\",\"machine\":null,\"folder\":null,\"count\":3,\"omitted\":0,\"waiting\":true,\"collapsed\":false}],\"agents\":[{\"id\":\"claude\",\"label\":\"Claude Code\"}],\"machines\":[{\"id\":\"local\",\"label\":null},{\"id\":\"m1\",\"label\":\"Mac Pro\"}],\"total\":5,\"omitted\":0,\"at\":1790000000000,\"ageNote\":\"Waits first seen after your Mac wakes or Tortie restarts are timed from then.\"}",
       "withUnknown": "{\"asked\":{\"show\":\"active\",\"group\":\"none\",\"sort\":\"name\",\"agent\":null,\"machine\":null},\"rows\":[{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c04\",\"name\":\"far-away\",\"group\":0,\"machine\":\"Mac Pro\",\"statusDot\":\"idle\",\"statusTitle\":\"Idle\",\"ageText\":\"10m old\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":false},\"futureRowField\":\"ignored\"},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c01\",\"name\":\"fix-login\",\"group\":1,\"machine\":null,\"statusDot\":\"attention\",\"statusTitle\":\"Needs input\",\"ageText\":\"2m\",\"waiting\":true,\"question\":\"Do you want to **proceed** with `rm -rf build`?\",\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c03\",\"name\":\"quiet\",\"group\":1,\"machine\":null,\"statusDot\":\"idle\",\"statusTitle\":\"Idle\",\"ageText\":\"1h\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":true}},{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"name\":\"talk\",\"group\":1,\"machine\":null,\"statusDot\":\"working\",\"statusTitle\":\"Working\",\"ageText\":\"now\",\"waiting\":false,\"question\":null,\"end\":{\"state\":\"offered\",\"batch\":true}}],\"groups\":[{\"id\":\"ZGhVboqS7oH_dbvC\",\"label\":\"tortie\",\"machine\":\"Mac Pro\",\"folder\":null,\"count\":1,\"omitted\":0,\"waiting\":false,\"collapsed\":false},{\"id\":\"dbUo_bTIXxnSPk3Y\",\"label\":\"tortie\",\"machine\":null,\"folder\":null,\"count\":3,\"omitted\":0,\"waiting\":true,\"collapsed\":false}],\"agents\":[{\"id\":\"claude\",\"label\":\"Claude Code\"}],\"machines\":[{\"id\":\"local\",\"label\":null},{\"id\":\"m1\",\"label\":\"Mac Pro\"}],\"total\":5,\"omitted\":0,\"at\":1790000000000,\"ageNote\":\"Waits first seen after your Mac wakes or Tortie restarts are timed from then.\",\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
+    },
+    "screen-sample": {
+      "json": "{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"revision\":\"987cbf08c2f5\",\"at\":1791158400000,\"unchanged\":false,\"screen\":{\"cols\":120,\"rows\":40,\"cursor\":{\"x\":2,\"y\":29,\"visible\":false},\"alternate\":false,\"ground\":\"#131417\",\"ink\":\"#d8dbe2\",\"caret\":\"#e8eaed\",\"styles\":[{\"fg\":\"#d78787\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d78787\",\"bg\":\"#000000\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d8dbe2\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d8dbe2\",\"bg\":null,\"bold\":true,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#949494\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#949494\",\"bg\":\"#3a3a3a\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#ffffff\",\"bg\":\"#3a3a3a\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#ff87af\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#808080\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#131417\",\"bg\":\"#d8dbe2\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false}],\"lines\":[[{\"text\":\" ▐\",\"style\":0,\"cells\":2},{\"text\":\"▛███▛█\",\"style\":1,\"cells\":6},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"Claude\",\"style\":3,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Code\",\"style\":3,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"v2.1.287\",\"style\":4,\"cells\":8}],[{\"text\":\"▝▜\",\"style\":0,\"cells\":2},{\"text\":\"█████\",\"style\":1,\"cells\":5},{\"text\":\"█▀\",\"style\":0,\"cells\":2},{\"text\":\"  \",\"style\":2,\"cells\":2},{\"text\":\"Opus\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"5.5\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"API\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Usage\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Billing\",\"style\":4,\"cells\":7}],[{\"text\":\" ▝▝\",\"style\":0,\"cells\":3},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"▝▝\",\"style\":0,\"cells\":2},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"/private/tmp/p318cap-claude-71621/proj-claude\",\"style\":4,\"cells\":45}],[],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-ONE run the command the stand-in names\",\"style\":6,\"cells\":43}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(touch p318-one.txt)\",\"style\":2,\"cells\":20}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Churned\",\"style\":4,\"cells\":7},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-TWO run the command the stand-in names\",\"style\":6,\"cells\":43}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(echo ok\",\"style\":2,\"cells\":8}],[{\"text\":\"      touch p318-two.txt)\",\"style\":2,\"cells\":25}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Brewed\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-LONG run the command the stand-in names\",\"style\":6,\"cells\":44}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(printf '%s\\\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04\",\"style\":2,\"cells\":102}],[{\"text\":\"      p318-long-argument-05 p318-long-argument-06 p318-long-argu…)\",\"style\":2,\"cells\":66}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Sautéed\",\"style\":4,\"cells\":7},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\",\"style\":8,\"cells\":120}],[{\"text\":\"❯ \",\"style\":2,\"cells\":2},{\"text\":\" \",\"style\":9,\"cells\":1}],[{\"text\":\"────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\",\"style\":8,\"cells\":120}],[{\"text\":\"  \",\"style\":2,\"cells\":2},{\"text\":\"⏸\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"manual\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"mode\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"on\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"?\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"shortcuts\",\"style\":4,\"cells\":9},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"←\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"agents\",\"style\":4,\"cells\":6},{\"text\":\"                                                 \",\"style\":2,\"cells\":49},{\"text\":\"◐\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"medium\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"/effort\",\"style\":4,\"cells\":7}],[],[],[],[],[],[],[],[]],\"turn\":\"0000000000000000-0\",\"asking\":false,\"dialog\":null,\"typable\":true},\"why\":null,\"sentence\":null}",
+      "withUnknown": "{\"sessionId\":\"4d8f2c1a-9b7e-4c3d-8a21-5e6f7a8b9c02\",\"revision\":\"987cbf08c2f5\",\"at\":1791158400000,\"unchanged\":false,\"screen\":{\"cols\":120,\"rows\":40,\"cursor\":{\"x\":2,\"y\":29,\"visible\":false},\"alternate\":false,\"ground\":\"#131417\",\"ink\":\"#d8dbe2\",\"caret\":\"#e8eaed\",\"styles\":[{\"fg\":\"#d78787\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d78787\",\"bg\":\"#000000\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d8dbe2\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#d8dbe2\",\"bg\":null,\"bold\":true,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#949494\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#949494\",\"bg\":\"#3a3a3a\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#ffffff\",\"bg\":\"#3a3a3a\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#ff87af\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#808080\",\"bg\":null,\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false},{\"fg\":\"#131417\",\"bg\":\"#d8dbe2\",\"bold\":false,\"dim\":false,\"italic\":false,\"underline\":false,\"strike\":false}],\"lines\":[[{\"text\":\" ▐\",\"style\":0,\"cells\":2},{\"text\":\"▛███▛█\",\"style\":1,\"cells\":6},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"Claude\",\"style\":3,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Code\",\"style\":3,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"v2.1.287\",\"style\":4,\"cells\":8}],[{\"text\":\"▝▜\",\"style\":0,\"cells\":2},{\"text\":\"█████\",\"style\":1,\"cells\":5},{\"text\":\"█▀\",\"style\":0,\"cells\":2},{\"text\":\"  \",\"style\":2,\"cells\":2},{\"text\":\"Opus\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"5.5\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"API\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Usage\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Billing\",\"style\":4,\"cells\":7}],[{\"text\":\" ▝▝\",\"style\":0,\"cells\":3},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"▝▝\",\"style\":0,\"cells\":2},{\"text\":\"   \",\"style\":2,\"cells\":3},{\"text\":\"/private/tmp/p318cap-claude-71621/proj-claude\",\"style\":4,\"cells\":45}],[],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-ONE run the command the stand-in names\",\"style\":6,\"cells\":43}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(touch p318-one.txt)\",\"style\":2,\"cells\":20}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Churned\",\"style\":4,\"cells\":7},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-TWO run the command the stand-in names\",\"style\":6,\"cells\":43}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(echo ok\",\"style\":2,\"cells\":8}],[{\"text\":\"      touch p318-two.txt)\",\"style\":2,\"cells\":25}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Brewed\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"❯ \",\"style\":5,\"cells\":2},{\"text\":\"P318-LONG run the command the stand-in names\",\"style\":6,\"cells\":44}],[],[{\"text\":\"⏺\",\"style\":7,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Bash\",\"style\":3,\"cells\":4},{\"text\":\"(printf '%s\\\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04\",\"style\":2,\"cells\":102}],[{\"text\":\"      p318-long-argument-05 p318-long-argument-06 p318-long-argu…)\",\"style\":2,\"cells\":66}],[{\"text\":\" \",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"⎿\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\" Interrupted\",\"style\":4,\"cells\":12},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"What\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"should\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Claude\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"do\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"instead?\",\"style\":4,\"cells\":8}],[],[{\"text\":\"✻\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"Sautéed\",\"style\":4,\"cells\":7},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"0s\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"done\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"11:17\",\"style\":4,\"cells\":5},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"PM\",\"style\":4,\"cells\":2}],[],[{\"text\":\"────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\",\"style\":8,\"cells\":120}],[{\"text\":\"❯ \",\"style\":2,\"cells\":2},{\"text\":\" \",\"style\":9,\"cells\":1}],[{\"text\":\"────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────\",\"style\":8,\"cells\":120}],[{\"text\":\"  \",\"style\":2,\"cells\":2},{\"text\":\"⏸\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"manual\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"mode\",\"style\":4,\"cells\":4},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"on\",\"style\":4,\"cells\":2},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"?\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"shortcuts\",\"style\":4,\"cells\":9},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"←\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"for\",\"style\":4,\"cells\":3},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"agents\",\"style\":4,\"cells\":6},{\"text\":\"                                                 \",\"style\":2,\"cells\":49},{\"text\":\"◐\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"medium\",\"style\":4,\"cells\":6},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"·\",\"style\":4,\"cells\":1},{\"text\":\" \",\"style\":2,\"cells\":1},{\"text\":\"/effort\",\"style\":4,\"cells\":7}],[],[],[],[],[],[],[],[]],\"turn\":\"0000000000000000-0\",\"asking\":false,\"dialog\":null,\"typable\":true},\"why\":null,\"sentence\":null,\"futureField\":{\"nested\":[1,2,3],\"note\":\"a newer Mac\"}}"
     }
   },
   "alerts": [

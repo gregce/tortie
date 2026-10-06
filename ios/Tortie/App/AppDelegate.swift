@@ -10,6 +10,9 @@
 // which the root view empties; and it asks iOS to show an alert that arrives
 // while the app is open. It reads nothing else of a notification, writes no
 // badge and logs nothing.
+//
+// Since Phase 337 it also answers which way up a window may turn: portrait,
+// unless the Screen is on top (conformance:ios rule an).
 
 import UIKit
 import UserNotifications
@@ -21,6 +24,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     ) -> Bool {
         UNUserNotificationCenter.current().delegate = self
         return true
+    }
+
+    /// Portrait, unless the Screen is on top (Phase 337, D27): then its two
+    /// landscapes too (App/Orientation.swift).
+    func application(_ application: UIApplication, supportedInterfaceOrientationsFor window: UIWindow?) -> UIInterfaceOrientationMask {
+        OrientationGate.screenOnTop ? .allButUpsideDown : .portrait
     }
 
     func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {

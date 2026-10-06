@@ -626,12 +626,28 @@ import {
 
 const P340_FIXTURE_COUNT = P340_FIXTURE_IDS.length;
 
+// THE CEILING IS STATED (Phase 337's landing). The probe prints its whole
+// reading as ONE line of JSON, and spawnSync's default `maxBuffer` is 1 MiB:
+// past it Node SIGTERMs the child and reports ENOBUFS. Main's probe printed
+// 1,043,428 bytes, 5,148 under that line, and Phase 337's two readings took it
+// to 1,055,671, so tsx relayed the SIGTERM, exited 143 with every byte already
+// printed, and this gate said "the probe did not run". 64 MiB is the house
+// ceiling (build/probe-remote-clone.mjs reads this same probe with 32), and a
+// spawn error is now named rather than read as a probe that never started.
 const probe = spawnSync(
   process.execPath,
   [tsxCli(), '--tsconfig', 'tsconfig.node.json', 'build/machines-conformance-probe.mts'],
-  { encoding: 'utf8', cwd: process.cwd() }
+  { encoding: 'utf8', cwd: process.cwd(), maxBuffer: 64 * 1024 * 1024 }
 );
 
+if (probe.error !== undefined) {
+  const code = /** @type {NodeJS.ErrnoException} */ (probe.error).code ?? probe.error.message;
+  process.stderr.write(
+    `the probe could not be read (${code}, status ${probe.status}, signal ${probe.signal}, ` +
+      `${Buffer.byteLength(probe.stdout ?? '')} bytes of stdout)\n${probe.stderr ?? ''}`
+  );
+  process.exit(1);
+}
 if (probe.status !== 0) {
   process.stderr.write(probe.stderr || 'the probe did not run\n');
   process.exit(1);
@@ -11583,6 +11599,28 @@ const GRANT_SCAN_FIXTURES = [
 //
 // The probe DRIVES the shipping modules with a recording send, so nothing here
 // writes to any connection. The source reads below are this file's own.
+/**
+ * PHASE 337 (build/p337/SPEC.md D17, D20): the 35 key names the phone may send,
+ * as the SPEC pins them, held here BY VALUE, and the contract's own list read
+ * from src/shared/ipc/pocket.ts's text. Condition 122 holds the two equal, so a
+ * name added to the contract is a visible edit to this gate as well, and the
+ * eighth carriage row is compared against the contract's list (102, 103).
+ */
+const P337_KEY_NAMES_PINNED = Object.freeze([
+  'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
+  'C-a', 'C-b', 'C-c', 'C-d', 'C-e', 'C-f', 'C-g', 'C-h', 'C-i', 'C-j', 'C-k', 'C-l', 'C-m',
+  'C-n', 'C-o', 'C-p', 'C-q', 'C-r', 'C-s', 'C-t', 'C-u', 'C-v', 'C-w', 'C-x', 'C-y', 'C-z'
+]);
+const P337_KEY_NAMES = (() => {
+  try {
+    const text = stripComments(readFileSync(join(process.cwd(), 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'));
+    const m = /POCKET_SCREEN_KEY_NAMES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/.exec(text);
+    return m === null ? [] : [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+  } catch {
+    return [];
+  }
+})();
+
 {
   const d = data.phase3201 ?? {};
   const loadErrors = d.loadErrors ?? {};
@@ -11719,9 +11757,17 @@ const GRANT_SCAN_FIXTURES = [
     // client, for a session on THIS Mac only (a remote context refuses before
     // any spawn, D22), so it is a fourth writer on purpose and never one on a
     // machine's carriage.
+    // PHASE 337 (build/p337/SPEC.md D5, D19): the Screen reads a session's
+    // screen (src/main/screen/read.ts) and types the phone's keys
+    // (src/main/screen/keys.ts) over the core's OWN control client, for a
+    // session on THIS Mac only; a session on another machine is typed by the
+    // carriage's typePhoneKeys (condition 123) and read by the exec plane
+    // (condition 124). Two writers on purpose, never on a machine's carriage.
     const SEND_FILES = [
       'src/main/machines/control-plane.ts',
       'src/main/reply/writer.ts',
+      'src/main/screen/keys.ts',
+      'src/main/screen/read.ts',
       'src/main/sessions/core.ts',
       'src/main/tmux/control-client.ts'
     ];
@@ -11740,8 +11786,9 @@ const GRANT_SCAN_FIXTURES = [
           `sendCommand( are ${JSON.stringify(senders)} rather than ` +
           `${JSON.stringify(SEND_FILES)}. control-client.ts defines it, core.ts is ` +
           `this Mac's scroll runner, reply/writer.ts is the phone's press on this ` +
-          `Mac's own control client and control-plane.ts is the one machine runner. ` +
-          `A fifth file is a new writer to a control connection.`
+          `Mac's own control client, screen/read.ts and screen/keys.ts are the ` +
+          `Screen's read and keys on that same client (Phase 337) and control-plane.ts ` +
+          `is the one machine runner. A seventh file is a new writer to a control connection.`
       );
     }
     if (JSON.stringify(falseMatches) !== JSON.stringify(DEBUGGER_ONLY)) {
@@ -11762,19 +11809,33 @@ const GRANT_SCAN_FIXTURES = [
     const SIX = ['cancel', 'enter-copy-mode', 'goto-line', 'read-state', 'scroll-lines', 'top-line'];
     // PHASE 320.1's SECOND BUILD: and the seventh, `type-bytes`, on his word of
     // 2026-09-30 ("Yes, allow it"), which only typedSequence composes (109).
-    const SEVEN = [...SIX, 'type-bytes'].sort();
+    // PHASE 337: and the eighth, `type-key`, on his word of 2026-10-05
+    // ("Every key, including Ctrl-C"), which only namedKeySequence composes (122).
+    const EIGHT = [...SIX, 'type-bytes', 'type-key'].sort();
     const shapes = d.shapes ?? [];
     if (d.shapesPresent !== true) {
       cantJudge(102, 'scroll-shapes.ts exports no SCROLL_SHAPES');
     } else {
       const ids = shapes.map((row) => row.id).sort();
-      if (JSON.stringify(ids) !== JSON.stringify(SEVEN)) {
+      if (JSON.stringify(ids) !== JSON.stringify(EIGHT)) {
         fail(
           `SCROLL_SHAPES holds ${JSON.stringify(ids)}. It holds exactly the six ` +
-            `shapes research 130 section 4 measured and the seventh the operator ` +
-            `approved on 2026-09-30, ${JSON.stringify(SEVEN)}. An eighth row is a new ` +
-            `door, and copy-pipe-and-cancel, which research 130 measured running a ` +
-            `program from copy mode, is the shape it would take.`
+            `shapes research 130 section 4 measured, the seventh the operator ` +
+            `approved on 2026-09-30 and the eighth he approved on 2026-10-05, ` +
+            `${JSON.stringify(EIGHT)}. A ninth row is a new door, and ` +
+            `copy-pipe-and-cancel, which research 130 measured running a program ` +
+            `from copy mode, is the shape it would take.`
+        );
+      }
+      // The eighth row's slots, word by word: send-keys, -t, a session id, and
+      // ONE of the contract's 35 names, read here from the contract's own text.
+      const keyRow = shapes.find((row) => row.id === 'type-key');
+      const WANT_KEY = ['send-keys', '-t', 'target', `one-of:${P337_KEY_NAMES.join('|')}`];
+      if (keyRow !== undefined && JSON.stringify(keyRow.slots) !== JSON.stringify(WANT_KEY)) {
+        fail(
+          `the eighth row's slots are ${JSON.stringify(keyRow.slots).slice(0, 200)}, not ` +
+            `send-keys -t <target> and one of the contract's ${String(P337_KEY_NAMES.length)} names in ` +
+            `its own order (build/p337/SPEC.md D20). Four elements, one name, no flag and no modifier.`
         );
       }
       // The seventh row's slots, word by word: send-keys, -t, a session id,
@@ -11799,12 +11860,12 @@ const GRANT_SCAN_FIXTURES = [
         );
       }
       const notIdempotent = shapes.filter((row) => row.idempotent !== true).map((row) => row.id).sort();
-      if (JSON.stringify(notIdempotent) !== JSON.stringify(['scroll-lines', 'type-bytes'])) {
+      if (JSON.stringify(notIdempotent) !== JSON.stringify(['scroll-lines', 'type-bytes', 'type-key'])) {
         fail(
           `the shapes that are not idempotent are ${JSON.stringify(notIdempotent)}. ` +
-            `Exactly two are: the relative scroll, whose only effect is where the ` +
-            `view sits, and the typed bytes, which a repeat would type twice. ` +
-            `Neither is ever retried.`
+            `Exactly three are: the relative scroll, whose only effect is where the ` +
+            `view sits, the typed bytes, which a repeat would type twice, and the ` +
+            `typed key (Phase 337), which a repeat would press twice. None is ever retried.`
         );
       }
     }
@@ -11939,6 +12000,18 @@ const GRANT_SCAN_FIXTURES = [
       );
     }
     const shapesText = p3201Files.find((one) => one.file === 'src/main/machines/scroll-shapes.ts')?.text ?? null;
+    const shapesCode = codeOf('src/main/machines/scroll-shapes.ts');
+    // PHASE 337: the eighth row's words are the contract's list, IMPORTED and
+    // never re-spelled, so the phone's names and the carriage's are one list.
+    if (shapesCode !== null) {
+      if (!/import\s*\{[^}]*\bPOCKET_SCREEN_KEY_NAMES\b[^}]*\}\s*from\s*'@shared\/ipc\/pocket'/.test(shapesCode)) {
+        fail('scroll-shapes.ts does not import POCKET_SCREEN_KEY_NAMES from @shared/ipc/pocket; the eighth row reads the contract’s 35 names and spells none of its own (build/p337/SPEC.md D20).');
+      }
+      const respelled = P337_KEY_NAMES.filter((name) => shapesCode.includes(`'${name}'`) || shapesCode.includes(`"${name}"`));
+      if (respelled.length > 0) {
+        fail(`scroll-shapes.ts spells the key name(s) ${JSON.stringify(respelled)} as literals. The eighth row's words are the contract's, imported, so a second spelling cannot drift or grow a name.`);
+      }
+    }
     if (shapesText === null) cantJudge(103, 'scroll-shapes.ts is not there');
     else if (shapesText.includes('#{')) {
       fail(
@@ -12423,11 +12496,16 @@ const GRANT_SCAN_FIXTURES = [
           `somebody else's computer over its control connection.`
       );
     }
+    // PHASE 337: and src/main/screen/keys.ts, which types the phone's text as
+    // -H bytes into a session on THIS Mac over the core's own control client
+    // (build/p337/SPEC.md D18); it never reaches a machine's carriage, which
+    // takes the phone's keys through typePhoneKeys alone (condition 123).
     const hexSpellers = filesNaming("'-H'");
-    if (JSON.stringify(hexSpellers) !== JSON.stringify(['src/main/machines/scroll-shapes.ts'])) {
+    if (JSON.stringify(hexSpellers) !== JSON.stringify(['src/main/machines/scroll-shapes.ts', 'src/main/screen/keys.ts'])) {
       fail(
         `the production files that spell '-H' are ${JSON.stringify(hexSpellers)}. Only ` +
-          `scroll-shapes.ts may, where the seventh row and its one composer live.`
+          `scroll-shapes.ts may, where the seventh row and its one composer live, and ` +
+          `src/main/screen/keys.ts, the Screen's keys on this Mac's own control client.`
       );
     }
   }
@@ -14293,6 +14371,183 @@ const GRANT_SCAN_FIXTURES = [
       `${String(farRows.length)} driven rows over eighteen fixtures under sh, dash and ksh, no stand-in run that the view says was not; ` +
       'a missing ssh and an ssh that would not start are two classes; the Add press binds only an unmeasured version, the one chain into a prepare; ' +
       "the visible test names Tortie's key; the ⋯ menu is native; Ready means answering.\n"
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PHASE 337, conditions 122 to 124. The phone's keys on another machine, and
+// its read of a far session's screen (build/p337/SPEC.md §6.3, D20, §5.3.3).
+// ---------------------------------------------------------------------------
+//
+// His word of 2026-10-05 ("Every key, including Ctrl-C") put an EIGHTH row on
+// Phase 320.1's carriage, `type-key`, and the Screen reads a far session's
+// screen through the exec plane. Each clause below is one line a later round
+// can delete with a far session still typed into; the driven halves are the
+// probe's (machines-conformance-probe.mts, over a recording runner that
+// reaches no machine), and the source reads are this file's own.
+{
+  const d = data.phase3201 ?? {};
+  const files = productionSources();
+  const codeOf = (file) => files.find((one) => one.file === file)?.code ?? null;
+  const filesNaming = (needle) => files.filter((one) => one.code.includes(needle)).map((one) => one.file).sort();
+  const cantJudge = (which, what) =>
+    failures.push(`condition ${which}: cannot be judged: ${what}. A missing module is a failure and never a skip.`);
+  /** The body of a function, read by matching braces. */
+  const bodyOf = (code, name) => {
+    if (code === null) return null;
+    const head = new RegExp(`(?:^|\\n)[ \\t]*(?:export\\s+)?(?:async\\s+)?function\\s+${name}\\s*(?:<[^>]*>)?\\(`);
+    const m = head.exec(code);
+    if (m === null) return null;
+    let depth = 0;
+    let i = m.index + m[0].length - 1;
+    for (; i < code.length; i += 1) {
+      if (code[i] === '(') depth += 1;
+      else if (code[i] === ')') {
+        depth -= 1;
+        if (depth === 0) break;
+      }
+    }
+    const open = code.indexOf('{', i);
+    if (open === -1) return null;
+    depth = 0;
+    for (let j = open; j < code.length; j += 1) {
+      if (code[j] === '{') depth += 1;
+      else if (code[j] === '}') {
+        depth -= 1;
+        if (depth === 0) return code.slice(open, j + 1);
+      }
+    }
+    return null;
+  };
+
+  // --- 122. One composer of a named key -----------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 122: ${message}`);
+    if (JSON.stringify(P337_KEY_NAMES) !== JSON.stringify(P337_KEY_NAMES_PINNED)) {
+      fail(
+        `src/shared/ipc/pocket.ts's POCKET_SCREEN_KEY_NAMES reads ${JSON.stringify(P337_KEY_NAMES).slice(0, 200)}; it is ` +
+          `exactly the 35 names build/p337/SPEC.md D17 pins, in that order: Escape, Tab, BTab, Enter, BSpace, the four ` +
+          `arrows and C-a to C-z. A name added there is a key the phone can send to another machine, and is an edit here too.`
+      );
+    }
+    const t = d.typeKey ?? {};
+    if (t.present !== true) cantJudge(122, 'scroll-shapes.ts exports no namedKeySequence');
+    else {
+      if (JSON.stringify(t.names) !== JSON.stringify(P337_KEY_NAMES_PINNED)) {
+        fail(`the LOADED contract's names are ${JSON.stringify(t.names).slice(0, 160)}, not the 35 the spec pins.`);
+      }
+      const rows = Array.isArray(t.rows) ? t.rows : [];
+      if (rows.length !== 35) cantJudge(122, `namedKeySequence was driven over ${String(rows.length)} names, not 35`);
+      for (const row of rows) {
+        const want = [['send-keys', '-t', '$4', '-X', 'cancel'], ['send-keys', '-t', '$4', row.name]];
+        if (JSON.stringify(row.seq ?? null) !== JSON.stringify(want)) {
+          fail(`namedKeySequence for ${row.name} composes ${JSON.stringify(row.seq ?? row.threw ?? null).slice(0, 160)}; it is the cancel, then send-keys -t $N ${row.name}, and nothing else (D20).`);
+          continue;
+        }
+        const shapes = (row.verdicts ?? []).map((v) => (v?.ok === true ? v.shape : `refused (${String(v?.reason)})`));
+        if (JSON.stringify(shapes) !== JSON.stringify(['cancel', 'type-key'])) {
+          fail(`the table reads namedKeySequence's commands for ${row.name} as ${JSON.stringify(shapes)}, not the cancel and the eighth shape.`);
+        }
+      }
+      for (const row of t.refused ?? []) {
+        if (row.threw !== true) fail(`namedKeySequence composed ${JSON.stringify(row.seq).slice(0, 120)} for the name ${JSON.stringify(row.name)}, which is not one of the 35; it refuses, so a caller's string never reaches the far side.`);
+      }
+      if ((t.refused ?? []).length < 8) cantJudge(122, 'namedKeySequence was not driven over the eight names it must refuse');
+    }
+    // By NAME, an import included, so a renamed import is still found.
+    const composers = filesNaming('namedKeySequence').filter((file) => file !== 'src/main/machines/scroll-shapes.ts');
+    if (JSON.stringify(composers) !== JSON.stringify(['src/main/machines/scroll-order.ts'])) {
+      fail(`namedKeySequence is named in ${JSON.stringify(composers)}. Its one production caller is scroll-order.ts's typePhoneKeys; a second is a second way to press a key on somebody else's computer.`);
+    }
+    const order = codeOf('src/main/machines/scroll-order.ts');
+    const body = bodyOf(order, 'typePhoneKeys');
+    if (order !== null && body !== null) {
+      const outside = (order.match(/namedKeySequence\s*\(/g) ?? []).length - (body.match(/namedKeySequence\s*\(/g) ?? []).length;
+      if (outside !== 0 || (body.match(/namedKeySequence\s*\(/g) ?? []).length !== 1) {
+        fail('namedKeySequence( is called outside typePhoneKeys in scroll-order.ts, or more than once inside it; typePhoneKeys is its one production caller.');
+      }
+    }
+    // Only the composer spells the eighth row's argv: no other file writes send-keys -t <x> <Name>.
+    const typeKeyRow = (codeOf('src/main/machines/scroll-shapes.ts') ?? '').match(/id:\s*'type-key'/g) ?? [];
+    if (typeKeyRow.length !== 1) fail(`scroll-shapes.ts declares the type-key row ${String(typeKeyRow.length)} time(s); once.`);
+  }
+
+  // --- 123. typePhoneKeys --------------------------------------------------------
+  {
+    const fail = (message) => failures.push(`condition 123: ${message}`);
+    const order = codeOf('src/main/machines/scroll-order.ts');
+    const body = bodyOf(order, 'typePhoneKeys');
+    if (body === null) cantJudge(123, 'scroll-order.ts declares no function typePhoneKeys');
+    else {
+      if (/\bawait\b/.test(body) || /^\s*\{?\s*async\b/.test(body) || /async\s+function\s+typePhoneKeys/.test(order)) {
+        fail('typePhoneKeys awaits. Nothing in it is awaited, so the keys verb\'s final check is synchronous up to its writes and their order on the connection is the order they were written (D20).');
+      }
+      if (/\bhold\s*\(/.test(body)) fail('typePhoneKeys calls hold(. A phone has no attach to fall back to: a write that cannot cross now is refused rather than kept, never typed later (D20).');
+      const firstRun = body.search(/\brun\s*\(/);
+      const asksAddress = body.search(/address\s*\(/);
+      const asksCarriage = body.search(/carriage\s*\(/);
+      const liveChecks = (body.match(/kind\s*!==\s*'live'/g) ?? []).length;
+      if (firstRun === -1 || asksAddress === -1 || asksCarriage === -1 || asksAddress > firstRun || asksCarriage > firstRun || liveChecks < 2) {
+        fail('typePhoneKeys does not ask the session\'s address and its machine\'s carriage, each live, before its first write (D20).');
+      }
+      if (!/admitScrollArgv\s*\(/.test(body)) fail('typePhoneKeys does not ask admitScrollArgv( of every command before it writes one.');
+      if (!/stampedRunner\s*\(/.test(body) || !/noteWritten\s*\(/.test(body)) fail('typePhoneKeys does not write through stampedRunner( and noteWritten(, so the road\'s park state would not see its writes.');
+    }
+    const p = d.order?.phoneKeys ?? {};
+    if (p.present !== true) cantJudge(123, 'scroll-order.ts exports no typePhoneKeys');
+    else if (p.threw !== undefined) fail(`driving typePhoneKeys threw: ${String(p.threw)}.`);
+    else {
+      for (const row of p.rows ?? []) {
+        const wrote = row.wrote ?? [];
+        if (row.road !== 'carriage') fail(`typePhoneKeys answered ${JSON.stringify(row.road)} for ${row.label} over a live carriage; it is 'carriage'.`);
+        if (JSON.stringify(wrote[0] ?? null) !== JSON.stringify(['send-keys', '-t', '$4', '-X', 'cancel'])) {
+          fail(`typePhoneKeys for ${row.label} first wrote ${JSON.stringify(wrote[0] ?? null)}; it writes ONE cancel first, so no copy mode reads a key as its own command.`);
+        }
+        const cancels = wrote.filter((argv) => JSON.stringify(argv) === JSON.stringify(['send-keys', '-t', '$4', '-X', 'cancel'])).length;
+        if (cancels !== 1) fail(`typePhoneKeys for ${row.label} wrote ${String(cancels)} cancel(s); exactly one, ahead of the whole write.`);
+        const shapes = (row.verdicts ?? []).map((v) => (v?.ok === true ? v.shape : 'refused'));
+        if (shapes.includes('refused')) fail(`typePhoneKeys for ${row.label} wrote ${JSON.stringify(wrote).slice(0, 160)}, which the table refuses; every argv it writes is one admitScrollArgv admits.`);
+        if (shapes[shapes.length - 1] !== 'read-state') fail(`typePhoneKeys for ${row.label} did not end its write with the road's read before it returned (read ${JSON.stringify(shapes)}).`);
+        const middle = shapes.slice(1, -1);
+        if (middle.length === 0 || !middle.every((x) => x === 'type-bytes' || x === 'type-key')) fail(`typePhoneKeys for ${row.label} wrote ${JSON.stringify(shapes)} between the cancel and the read; only the seventh and eighth rows type.`);
+      }
+      if ((p.rows ?? []).length < 4) cantJudge(123, 'typePhoneKeys was not driven over its four writes');
+      for (const row of p.refused ?? []) {
+        if (row.road !== 'unreachable' || (row.wrote ?? []).length !== 0) {
+          fail(`typePhoneKeys over ${row.label} answered ${JSON.stringify(row.road)} after writing ${String((row.wrote ?? []).length)} command(s); it answers 'unreachable' with nothing written and nothing kept.`);
+        }
+      }
+    }
+  }
+
+  // --- 124. The far screen is read through the exec plane alone -------------------
+  {
+    const fail = (message) => failures.push(`condition 124: ${message}`);
+    const REMOTE = 'src/main/machines/remote-screen.ts';
+    const code = codeOf(REMOTE);
+    if (code === null) cantJudge(124, `${REMOTE} is not there`);
+    else {
+      const execs = (code.match(/\bexecOn\s*\(/g) ?? []).length;
+      if (execs !== 1) fail(`${REMOTE} calls execOn( ${String(execs)} time(s); a far screen is read by ONE execOn( (build/p337/SPEC.md §5.3.3).`);
+      for (const banned of ['sendCommand(', 'remoteScrollRunner', 'typePhoneKeys', 'spawn(', 'execFile(', 'runRemoteScript', 'routeKey(']) {
+        if (code.includes(banned)) fail(`${REMOTE} names ${banned}; it reaches the machine through execOn( alone, the exec plane's ledger read.`);
+      }
+      const verbs = [...code.matchAll(/'([a-z]+-[a-z]+)'/g)].map((m) => m[1]).filter((w) => /^(?:capture|display|send|copy|resize|refresh|new|kill|run|set|list|attach|switch)-/.test(w));
+      const unknown = [...new Set(verbs)].filter((w) => w !== 'capture-pane' && w !== 'display-message');
+      if (unknown.length > 0) fail(`${REMOTE} names the tmux verb(s) ${JSON.stringify(unknown)}; capture-pane and display-message are its only verbs (D7).`);
+      if (!verbs.includes('capture-pane') || !verbs.includes('display-message')) fail(`${REMOTE} does not name both capture-pane and display-message.`);
+      if (code.includes('#{')) fail(`${REMOTE} spells a format of its own; its one format is SCREEN_FORMAT, imported from src/main/screen/read.ts (D6).`);
+      if (!/\bSCREEN_FORMAT\b/.test(code) || !/import\s*\{[^}]*\bSCREEN_FORMAT\b[^}]*\}\s*from\s*'\.\.\/screen\/read'/.test(code)) {
+        fail(`${REMOTE} does not import SCREEN_FORMAT from ../screen/read; the far read uses the one format and nothing a caller wrote.`);
+      }
+    }
+  }
+
+  process.stdout.write(
+    '\nthe phone\'s keys on another machine hold: the eighth row is send-keys -t $N and one of the contract\'s 35 names, ' +
+      'composed only by namedKeySequence for typePhoneKeys, which asks the address and the carriage live, writes one ' +
+      'cancel, every item and the read in one tick with no await and never holds; and a far screen is read by one ' +
+      'execOn( of capture-pane and display-message with the one format.\n'
   );
 }
 

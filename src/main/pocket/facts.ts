@@ -36,7 +36,12 @@
  *     `endOffer`: the reply's reader (`../reply/`), which reads one session
  *     afresh and says what the phone may press or send on it. This module
  *     never imports it, so the door's domain names nothing that types.
- *     Absent, every session reads the empty offer.
+ *     Absent, every session reads the empty offer;
+ *   - `screen` (Phase 337, build/p337/SPEC.md §5.3.1) is handed in the same
+ *     way: the Screen's watcher (`../screen/watch.ts`), which composes one
+ *     session's own screen and may hold a long poll. This module never imports
+ *     it. Absent, `/v1/screen` is a route this door does not have (404) and
+ *     every session's `screen` reads false.
  *
  * ## What this module never does
  *
@@ -49,7 +54,13 @@
  */
 
 import type { SessionChoiceInfo } from '@shared/ipc/sessions';
-import type { PocketCatchUp, PocketEndOffer, PocketReplyOffer, PocketTurn } from '@shared/ipc/pocket';
+import type {
+  PocketCatchUp,
+  PocketEndOffer,
+  PocketReplyOffer,
+  PocketScreenAnswer,
+  PocketTurn
+} from '@shared/ipc/pocket';
 import type {
   OverviewLineKind,
   OverviewSessionActivity,
@@ -108,6 +119,12 @@ export interface PocketFactsDeps {
    * `../capabilities.ts`. Absent, every session reads the empty offer.
    */
   replyOffer?(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;
+  /**
+   * One session's screen (Phase 337, build/p337/SPEC.md §5.3.1): the Screen
+   * watcher's `answer`, handed in by `../capabilities.ts`. A READ. Absent,
+   * `/v1/screen` answers 404 and no session offers a Screen.
+   */
+  screen?(session: Session, since: string | null, closing: () => boolean): Promise<PocketScreenAnswer>;
   now?(): number;
 }
 
@@ -327,6 +344,7 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     handoff: () => null,
     ...(deps.endOffer !== undefined ? { endOffer: deps.endOffer } : {}),
     ...(deps.replyOffer !== undefined ? { replyOffer: deps.replyOffer } : {}),
+    ...(deps.screen !== undefined ? { screen: deps.screen } : {}),
     now
   };
 }

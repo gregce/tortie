@@ -17,18 +17,24 @@
 // Every word is main's or `Copy`'s. It reads on appear, on return to the
 // foreground and on pull.
 //
-// END IS HERE since Phase 317 (Screens/EndBar.swift): a bar above the tab bar
-// on a session the Mac offers End for, whose press shows the Mac's own
-// confirmation and asks Face ID, Touch ID or the passcode before anything is
-// sent.
+// END IS HERE since Phase 317 (Screens/EndBar.swift), and since Phase 337 at
+// the TOP RIGHT, in the navigation bar (D33): on a session the Mac offers End
+// for, its press shows the Mac's own confirmation and asks Face ID, Touch ID
+// or the passcode before anything is sent. Its one line is drawn under the
+// status, and the bar at the bottom is gone.
 //
 // AND SINCE PHASE 318, REPLY (Screens/Reply.swift, Screens/MessageStrip.swift):
-// pressing an option the Mac offers, and one message from a box above the End
-// bar while the session waits at its own empty prompt. NEITHER ASKS FACE ID
-// (his ruling, "Only for End"). What the agent asks to run is drawn whole
+// pressing an option the Mac offers, and one message from a box at the foot of
+// the page while the session waits at its own empty prompt. NEITHER ASKS FACE
+// ID (his ruling, "Only for End"). What the agent asks to run is drawn whole
 // under its question, and every option whole, so a person never presses what
-// they could not read. While the box has the keyboard the End bar is not
-// drawn.
+// they could not read.
+//
+// AND SINCE PHASE 337, THE SCREEN (Screens/Screen.swift): a `Screen` row under
+// `Conversation`, drawn only when the Mac says the session has one to show
+// (a running session on a Mac with that phase). Conversation stays the first
+// row and the session still opens on this page (his ruling 1); nothing
+// remembers which he used last.
 
 import SwiftUI
 
@@ -63,6 +69,9 @@ struct SessionDrawing: Equatable, Sendable {
     /// What may be pressed or sent (Phase 318): the empty offer from a Mac
     /// older than 318, and from one whose offer did not agree with itself.
     let reply: PocketReplyOffer
+    /// The session's own screen may be opened (Phase 337): false from a Mac
+    /// older than 337.
+    let screen: Bool
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
     /// could send (ActivityCells.swift), so the screen draws one sentence.
@@ -84,6 +93,7 @@ struct SessionDrawing: Equatable, Sendable {
         end = detail.end
         endConfirm = detail.endConfirm
         reply = detail.replyOffer
+        screen = detail.drawsScreen
     }
 
     /// The card is drawn when it has something to say.
@@ -170,6 +180,9 @@ struct SessionScreen: View {
     /// The press and the message (Phase 318), or nil for a pairing that
     /// writes nothing: then no option is a button and no box is drawn.
     var reply: ReplyModel?
+    /// Opens the session's own screen with its name (Phase 337), or nil for a
+    /// reader with no Screen: then no Screen row is drawn.
+    var openScreen: ((String) -> Void)?
     /// Whether the message box has the keyboard.
     @State private var typing = false
 
@@ -204,7 +217,10 @@ struct SessionScreen: View {
                         Task { await model.load() }
                     }
                 case .loaded(let drawing):
-                    SessionBody(drawing: drawing, reply: reply, reread: { await model.load() }) {
+                    SessionBody(
+                        drawing: drawing, reply: reply, end: end, reread: { await model.load() },
+                        openScreen: openScreen.map { open in { open(drawing.name) } }
+                    ) {
                         openConversation(drawing.outcome)
                     }
                 }
@@ -225,17 +241,11 @@ struct SessionScreen: View {
             end?.refreshKind()
             Task { await model.load() }
         }
-        // Above the tab bar, so the content ends above it: the message box,
-        // then the End bar, which is not drawn while the box has the keyboard.
+        // Above the tab bar, so the content ends above it: the message box
+        // alone (End is in the top bar since Phase 337).
         .safeAreaInset(edge: .bottom, spacing: 0) {
-            VStack(spacing: 0) {
-                if let reply, boxDrawn {
-                    MessageStrip(model: reply, focused: $typing) { await model.load() }
-                }
-                if let end, !(typing && boxDrawn) {
-                    let (offer, confirm) = endOffer
-                    EndBar(model: end, offer: offer, confirm: confirm) { await model.load() }
-                }
+            if let reply, boxDrawn {
+                MessageStrip(model: reply, focused: $typing) { await model.load() }
             }
         }
         .accessibilityElement(children: .contain)
@@ -250,6 +260,8 @@ struct SessionScreen: View {
                 Words(title, .navTitle, Tokens.textPrimary)
                     .accessibilityAddTraits(.isHeader)
             }
+            // End, top right (Phase 337, D33).
+            EndTopItem(model: end, offer: endOffer.0, confirm: endOffer.1) { await model.load() }
         }
     }
 }
@@ -258,19 +270,25 @@ private struct SessionBody: View {
     let drawing: SessionDrawing
     /// The press (Phase 318), or nil: then no option is a button.
     let reply: ReplyModel?
+    /// End (Phase 317), whose one line is drawn under the status.
+    let end: EndModel?
     /// Read the session again, after a press.
     let reread: @MainActor () async -> Bool
+    /// Opens the session's own screen (Phase 337), or nil.
+    let openScreen: (() -> Void)?
     let openConversation: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             status
+            if let end { EndLine(model: end, offer: drawing.end, confirm: drawing.endConfirm) }
             if drawing.hasCard { card }
             if !drawing.choices.isEmpty { choices }
             if let line = reply?.pressLine { pressLine(line) }
             cells
             if let answer = drawing.lastAnswerRendered { lastAnswer(answer) }
             conversationRow
+            if drawing.screen, let openScreen { screenRow(openScreen) }
         }
     }
 
@@ -426,6 +444,27 @@ private struct SessionBody: View {
         }
         .buttonStyle(.plain)
         .accessibilityIdentifier(ID.sessionOpenConversation)
+        .padding(.horizontal, Frame.gutter)
+        .padding(.top, Frame.cardGap)
+    }
+
+    /// The row that opens the session's own screen (Phase 337, D32): the
+    /// Conversation row's shape, under it.
+    private func screenRow(_ open: @escaping () -> Void) -> some View {
+        Button(action: open) {
+            HStack {
+                Words(Copy.screen, .body, Tokens.accent)
+                Spacer(minLength: Frame.rowGap)
+                Chevron()
+            }
+            .padding(.horizontal, Frame.gutter)
+            .frame(height: Frame.linkRowHeight)
+            .frame(maxWidth: .infinity)
+            .card()
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier(ID.sessionOpenScreen)
         .padding(.horizontal, Frame.gutter)
         .padding(.top, Frame.cardGap)
     }

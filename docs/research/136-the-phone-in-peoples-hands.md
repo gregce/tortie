@@ -530,6 +530,13 @@ Words in square brackets are added only when the named phase has landed. Every d
 its first sentence, uses no agent vendor's name as a mark, and never says "remote desktop", "SSH" or "remote
 control".
 
+The two `[337: …]` brackets replace this section's own "never a terminal" sentences, edited in place on his ruling of
+2026-10-05 ("Yes, for a session's screen"), which lifted section 7's refusal for a session's own screen, reached from
+inside a session, with Conversation the first-run default (research 139 §6.1, build/p337/SPEC.md §11). They say "the
+session's screen" and name no SSH, remote desktop or remote control, and the remaining sentence says what is still
+true: the scrollback stays on the Mac. The review notes gain "Open See a sample, a session, then Screen" when 333.3
+builds the sample's Screen.
+
 ### 12.1 Beta App Description (public on the link's page)
 
 > Tortie for iPhone works with Tortie for Mac, the free, open-source app at tortie.sh that keeps your
@@ -552,7 +559,7 @@ control".
 > desktop app made by Ita Vero, LLC at https://tortie.sh, with its public repository and release history
 > at https://github.com/gregce/tortie. Tortie for Mac keeps a person's coding-agent sessions running on their
 > own Mac. The iPhone app shows those sessions: which are waiting, how each is going, and its conversation as
-> structured records drawn natively. It never shows or streams a terminal screen. [317: It can end a session
+> structured records drawn natively. [337: Inside a session it can also show that session's screen, drawn natively from text Tortie for Mac sends, and type into it.] [317: It can end a session
 > after Face ID, Touch ID or the passcode.] [318: It can answer a session that is waiting.] [Path A: Tortie
 > belongs to Ita Vero, LLC, and this developer account is its founder's.]
 >
@@ -604,8 +611,9 @@ The description:
 > • scroll back through a session's whole conversation
 > [317: • end a session, confirmed with Face ID, Touch ID or your passcode]
 > [318: • answer a session that is waiting on you]
+> [337: • open a session's screen and type into it]
 >
-> It shows records of the conversation and never a terminal. The terminal's own output stays on your Mac.
+> The terminal's scrollback stays on your Mac.
 >
 > Pairing takes one scan. In Tortie on your Mac, choose Pair a Phone…, press Pair, scan the code with this
 > app and allow the iPhone on your Mac. Nothing is paired until you do.

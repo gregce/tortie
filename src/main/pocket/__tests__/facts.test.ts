@@ -606,3 +606,48 @@ describe('the reply offer on one session (Phase 318, build/p318/SPEC.md §5.2)',
     expect(answer?.session.reply).toEqual({ question: null, mark: null, pressable: [], command: null, canSay: false });
   });
 });
+
+describe('the Screen on one session (Phase 337, build/p337/SPEC.md §5.3.1)', () => {
+  it('hands the routes the injected screen, untouched, so /v1/screen reads the watcher through it', async () => {
+    const seen: [string, string | null, () => boolean][] = [];
+    const answer = {
+      sessionId: 'S1',
+      revision: '0123456789ab',
+      at: NOW,
+      unchanged: true,
+      screen: null,
+      why: null,
+      sentence: null
+    };
+    const screen = async (s: Session, since: string | null, closing: () => boolean) => {
+      seen.push([s.id, since, closing]);
+      return answer;
+    };
+    const withScreen = createPocketFacts({
+      core: () => core,
+      overview: { manifest: () => Promise.reject(new Error('unused')), store: () => store, now: () => NOW },
+      wakes: () => [],
+      screen,
+      now: () => NOW
+    });
+    // A passthrough: the very function handed in, never a wrapper of its own.
+    expect(withScreen.screen).toBe(screen);
+    const closing = (): boolean => false;
+    const got = await createPocketRoutes(withScreen).screen(new URLSearchParams('id=S1&since=0123456789ab'), closing);
+    expect(seen).toEqual([['S1', '0123456789ab', closing]]);
+    expect(got).toEqual(answer);
+    // And /v1/session says this Mac answers a Screen for the running session.
+    const detail = await createPocketRoutes(withScreen).session('S1');
+    expect(live.find((s) => s.id === 'S1')?.status).toBe('running');
+    expect(detail?.session.screen).toBe(true);
+  });
+
+  it('carries no screen when none was handed in, so /v1/screen is no route and no session offers one', async () => {
+    const plain = facts();
+    expect(plain.screen).toBeUndefined();
+    expect('screen' in plain).toBe(false);
+    expect(await createPocketRoutes(plain).screen(new URLSearchParams('id=S1'), () => false)).toBeNull();
+    const detail = await createPocketRoutes(plain).session('S1');
+    expect(detail?.session.screen).toBe(false);
+  });
+});

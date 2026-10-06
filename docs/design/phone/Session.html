@@ -20,7 +20,6 @@ a { color: #4d9de8; }
 .tab.on { color: #4d9de8; }
 .tab .ico { position: relative; width: 28px; height: 26px; display: flex; align-items: center; justify-content: center; }
 .tab .lbl { font-size: 10px; line-height: 12px; font-weight: 500; }
-.endbar { flex-shrink: 0; height: 50px; box-sizing: border-box; background: #191B20; border-top: 1px solid #25282E; display: flex; align-items: center; gap: 10px; padding: 0 16px; color: #e5655e; font-size: 17px; }
 .badge { position: absolute; top: -4px; left: 17px; min-width: 18px; height: 18px; box-sizing: border-box; padding: 0 5px; border-radius: 9px; background: #f5b84a; color: #131417; font-size: 13px; line-height: 18px; font-weight: 600; text-align: center; font-variant-numeric: tabular-nums; }
 </style>
 </head>
@@ -34,7 +33,7 @@ a { color: #4d9de8; }
       <svg width="12" height="18" viewBox="0 0 12 18" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 2 3 9l6 7"></path></svg>Sessions
     </a>
     <div style="font-size: 17px; font-weight: 600; color: #C9CACD;">fix-login</div>
-    <span style="width: 18px;"></span>
+    <a href="End.html" aria-label="End" style="display: flex; align-items: center; gap: 4px; font-size: 17px; color: #e5655e; text-decoration: none;"><svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6V4a2 2 0 0 1 2-2h2M14 2h2a2 2 0 0 1 2 2v2M18 14v2a2 2 0 0 1-2 2h-2M6 18H4a2 2 0 0 1-2-2v-2"></path><path d="M7 7.5v1M13 7.5v1M10 7.5v3.5H9M7.2 13.2a4 4 0 0 0 5.6 0"></path></svg><span>End</span></a>
   </div>
 
   <div style="padding: 12px 16px; display: flex; flex-direction: column; gap: 2px; flex-shrink: 0;">
@@ -69,8 +68,17 @@ a { color: #4d9de8; }
     <div style="font-size: 17px; line-height: 22px; color: #C9CACD;">I can set <span style="font-family: ui-monospace, Menlo, monospace; font-size: 15px;">httpOnly</span> and <span style="font-family: ui-monospace, Menlo, monospace; font-size: 15px;">sameSite: 'lax'</span> on the session cookie. That touches the login handler and the two tests that read the raw header — shall I edit them too?</div>
   </div>
 
-  <a href="Composer.html" style="margin: 12px 16px 0 16px; height: 54px; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 17px; color: #4d9de8; text-decoration: none;">
-    Open in Claude
+  <!-- Phase 337 (build/p337/SPEC.md D32): Conversation is the first row and the
+       session still opens on this page; the Screen row under it opens the
+       session's own screen, drawn only for a running session on a Mac that
+       answers /v1/screen. Nothing remembers which one he used last. The
+       Remote Control hand-off this card once drew was never built. -->
+  <a href="Conversation.html" style="margin: 12px 16px 0 16px; height: 54px; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 17px; color: #4d9de8; text-decoration: none;">
+    Conversation
+    <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
+  </a>
+  <a href="Screen.html" style="margin: 12px 16px 0 16px; height: 54px; background: #191B20; border: 1px solid #25282E; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; padding: 0 16px; font-size: 17px; color: #4d9de8; text-decoration: none;">
+    <span>Screen</span>
     <svg width="9" height="15" viewBox="0 0 9 15" fill="none" stroke="#838996" stroke-width="1.8"><path d="M1.5 1.5 7 7.5l-5.5 6"></path></svg>
   </a>
 
@@ -79,12 +87,9 @@ a { color: #4d9de8; }
   <!-- Phase 318: no message box here. This session needs input, and the box is
        drawn only while the agent sits idle at its own prompt (his ruling of
        2026-10-02, "Only when idle at its prompt"); Composer.html draws it. -->
-  <!-- Phase 317: End sits in a bar above the tab bar, with the mark of what the
-       phone has and the Mac's own words; it replaces the actions button. -->
-  <div class="endbar">
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 6V4a2 2 0 0 1 2-2h2M14 2h2a2 2 0 0 1 2 2v2M18 14v2a2 2 0 0 1-2 2h-2M6 18H4a2 2 0 0 1-2-2v-2"></path><path d="M7 7.5v1M13 7.5v1M10 7.5v3.5H9M7.2 13.2a4 4 0 0 0 5.6 0"></path></svg>
-    <span>End session…</span>
-  </div>
+  <!-- Phase 337 (build/p337/SPEC.md D33): End is at the top right, the
+       toolbar's trailing item, behind Face ID exactly as in Phase 317, and the
+       bar that sat above the tab bar is gone. -->
 
 <!-- Phase 316.6: the tab bar stays on a pushed session, so a session is one tap
      from Needs input. -->

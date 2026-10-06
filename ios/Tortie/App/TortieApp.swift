@@ -45,20 +45,30 @@
 // AND SINCE PHASE 318, REPLY (build/p318/SPEC.md section 5.7): an option the
 // Mac offers to press is a button on the session's screen, and a Claude Code
 // or Codex session waiting at its own empty prompt takes one message from a
-// box above the End bar. Neither asks Face ID (his ruling, "Only for End").
-// The app keeps every live reply's runner too and stops each one on the way
-// to the background, the same way.
+// box at the foot of the session's page. Neither asks Face ID (his ruling,
+// "Only for End"). The app keeps every live reply's runner too and stops each
+// one on the way to the background, the same way.
 //
-// WHAT IT NEVER DOES. It types nothing he did not press or write; it offers
-// no message box while the agent works, asks him something or holds words
-// typed at the Mac (the Mac decides, and asks again when the write arrives);
-// and it retries, queues or stores no write. It draws no terminal scrollback,
-// ever. It restores and removes nothing, and it ends a session only on his
-// press, his confirmation and his face, finger or passcode. It has no timer
-// and no background mode: it reads on appear, on return to the foreground and
-// on pull (build/p316/SPEC.md section 4.0), and an alert that arrives while
-// it is open refreshes nothing. Nothing keeps it running to finish a write.
-// Dark only, iPhone, portrait.
+// AND SINCE PHASE 337, THE SCREEN (build/p337/SPEC.md section 5.8): a running
+// session's page has a Screen row under Conversation that opens the session's
+// own screen as his Mac shows it now, at the Mac's width, read by a long poll
+// and typed into with every key, Ctrl-C included, and no Face ID (his rulings
+// 1 to 4). End moves to the top right of the session's page. The app keeps
+// every live key sender and stops each one on the way to the background:
+// keys waiting are dropped, a keys write not yet handed is withheld, and the
+// Screen's two kept connections close.
+//
+// WHAT IT NEVER DOES. It types nothing he did not press, write or type; it
+// offers no message box while the agent works, asks him something or holds
+// words typed at the Mac (the Mac decides, and asks again when the write
+// arrives); and it retries or stores no write. It draws no terminal
+// scrollback, ever, and it never changes the size of a session on the Mac. It
+// restores and removes nothing, and it ends a session only on his press, his
+// confirmation and his face, finger or passcode. It has no background mode:
+// it reads on appear, on return to the foreground and on pull (build/p316/SPEC.md
+// section 4.0), the Screen alone polls while it is on top, and an alert that
+// arrives while it is open refreshes nothing. Nothing keeps it running to
+// finish a write. Dark only, iPhone, portrait but for the Screen.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -109,6 +119,8 @@ enum Route: Hashable {
     /// no name until the door answers, and a refusal says the Mac's own
     /// sentence for a session it no longer has (SPEC section 5.6.4).
     case alerted(id: String)
+    /// The session's own screen (Phase 337), titled by its name.
+    case screen(id: String, name: String)
 }
 
 @MainActor
@@ -159,6 +171,9 @@ final class AppModel {
     /// Every press and message under way (Phase 318): registered at the
     /// press, before its write starts, and stopped with the Ends.
     @ObservationIgnored private(set) var liveReplies: [ReplyRunner] = []
+    /// Every Screen's key sender (Phase 337): registered as its Screen
+    /// appears, and stopped with the Ends.
+    @ObservationIgnored private(set) var liveKeys: [ScreenKeySender] = []
 
     private let door: any PhoneDoor
     /// What the app asks iOS about alerts (Alerts/SystemAlerts.swift).
@@ -327,6 +342,10 @@ final class AppModel {
     /// Every press and message stops the same way (Phase 318, research 137
     /// section 5): a reply whose bytes were not handed is withheld, never sent
     /// on the way back in, and never retried.
+    ///
+    /// And every Screen's keys (Phase 337, D30): the keys waiting are dropped,
+    /// a write whose bytes were not handed is withheld, and the Screen's two
+    /// kept connections close.
     func wentAway() {
         list?.clearNotice()
         for runner in liveRunners {
@@ -335,6 +354,9 @@ final class AppModel {
         }
         for runner in liveReplies {
             runner.stop()
+        }
+        for sender in liveKeys {
+            sender.stop()
         }
     }
 
@@ -443,6 +465,11 @@ final class AppModel {
         push(.conversation(id: sessionId, honestLine: honestLine), on: tab)
     }
 
+    /// The session's own screen, opened from a session on `tab` (Phase 337).
+    func openScreen(_ sessionId: String, name: String, in tab: AppTab) {
+        push(.screen(id: sessionId, name: name), on: tab)
+    }
+
     /// Whether `route` is the screen a person is looking at: `tab` is on
     /// screen and `route` is on top of it (nil for its list).
     func isTop(_ route: Route?, in tab: AppTab) -> Bool {
@@ -507,6 +534,19 @@ extension AppModel: ReplyRunnerRegistry {
 
     func releaseReply(_ runner: ReplyRunner) {
         liveReplies.removeAll { $0 === runner }
+    }
+}
+
+/// The app keeps every Screen's key sender while its Screen is shown, so
+/// `wentAway` can stop each one (Phase 337).
+extension AppModel: ScreenKeysRegistry {
+    func registerKeys(_ sender: ScreenKeySender) {
+        guard !liveKeys.contains(where: { $0 === sender }) else { return }
+        liveKeys.append(sender)
+    }
+
+    func releaseKeys(_ sender: ScreenKeySender) {
+        liveKeys.removeAll { $0 === sender }
     }
 }
 
@@ -624,7 +664,8 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: name, reader: reader, routing: app.routing(tab),
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app
+                ownerCheck: app.ownerCheck, registry: app, replies: app,
+                openScreen: { shown in app.openScreen(id, name: shown, in: tab) }
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
@@ -637,10 +678,16 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app
+                ownerCheck: app.ownerCheck, registry: app, replies: app,
+                openScreen: { shown in app.openScreen(id, name: shown, in: tab) }
             ) { honestLine in
                 app.openConversation(id, honestLine: honestLine, in: tab)
             }
+        case .screen(let id, let name):
+            ScreenRoute(
+                id: id, name: name, reader: reader, routing: app.routing(tab),
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick, keys: app
+            )
         }
     }
 }
@@ -658,11 +705,14 @@ private struct SessionRoute: View {
     let isTop: Bool
     let foregroundTick: Int
     let openConversation: (String?) -> Void
+    /// Opens the session's own screen, or nil when this reader has none
+    /// (Phase 337): then no Screen row is drawn.
+    let openScreen: ((String) -> Void)?
 
     init(
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
-        replies: any ReplyRunnerRegistry,
+        replies: any ReplyRunnerRegistry, openScreen: @escaping (String) -> Void,
         openConversation: @escaping (String?) -> Void
     ) {
         _model = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
@@ -676,13 +726,52 @@ private struct SessionRoute: View {
         self.isTop = isTop
         self.foregroundTick = foregroundTick
         self.openConversation = openConversation
+        self.openScreen = reader.screenDoor(id) == nil ? nil : openScreen
     }
 
     var body: some View {
         SessionScreen(
             model: model, name: name, isTop: isTop, foregroundTick: foregroundTick,
-            openConversation: openConversation, end: end, reply: reply
+            openConversation: openConversation, end: end, reply: reply, openScreen: openScreen
         )
+    }
+}
+
+/// Holds one Screen's poll and its keys while it is pushed (Phase 337). The
+/// keys are made only for a door that writes; the sender is registered with
+/// the app as the Screen appears and released as it goes, so a trip to the
+/// background stops it.
+private struct ScreenRoute: View {
+    @State private var model: ScreenModel?
+    @State private var keys: ScreenKeySender?
+    let name: String
+    let isTop: Bool
+    let foregroundTick: Int
+    let registry: any ScreenKeysRegistry
+
+    init(
+        id: String, name: String, reader: any DoorReading, routing: ReadRouting,
+        isTop: Bool, foregroundTick: Int, keys registry: any ScreenKeysRegistry
+    ) {
+        let door = reader.screenDoor(id)
+        let model = door.map { ScreenModel(sessionId: id, door: $0, routing: routing) }
+        _model = State(initialValue: model)
+        _keys = State(initialValue: door.flatMap { door in
+            guard door.writes, let model else { return nil }
+            return ScreenKeySender(door: door, picture: { [weak model] in model?.picture })
+        })
+        self.name = name
+        self.isTop = isTop
+        self.foregroundTick = foregroundTick
+        self.registry = registry
+    }
+
+    var body: some View {
+        if let model {
+            ScreenPage(model: model, keys: keys, name: name, isTop: isTop, foregroundTick: foregroundTick)
+                .onAppear { if let keys { registry.registerKeys(keys) } }
+                .onDisappear { if let keys { registry.releaseKeys(keys) } }
+        }
     }
 }
 
@@ -712,8 +801,9 @@ private struct ConversationRoute: View {
 
 /// The kept pairing's four reads (Phase 316.7's Sessions read the fourth) and
 /// three writes (End, and Phase 318's press and message), through the one
-/// network user. It is its own writer, answered through `DoorReading`'s
-/// requirement, so the app's `any DoorReading` reads it.
+/// network user, and since Phase 337 each session's Screen door. It is its
+/// own writer, answered through `DoorReading`'s requirement, so the app's
+/// `any DoorReading` reads it.
 struct PairedReader: DoorReading, DoorWriting {
     let client: DoorClient
     let door: PairedDoor
@@ -762,6 +852,46 @@ struct PairedReader: DoorReading, DoorWriting {
     /// names one.
     func say(_ sessionId: String, text: String, write: String?) async -> SentWrite {
         await client.say(sessionId, text: text, write: write, door: door)
+    }
+
+    /// One session's Screen door (Phase 337): its poll and its keys, each on
+    /// a kept connection of its own.
+    func screenDoor(_ sessionId: String) -> (any ScreenDoor)? {
+        PairedScreenDoor(client: client, door: door, sessionId: sessionId)
+    }
+}
+
+/// One session's Screen through the kept pairing (Phase 337): `GET /v1/screen`
+/// on the poll's kept line and `POST /v1/keys` on the keys' (Door/DoorClient.swift
+/// `DoorLine`), so a poll held by the Mac never waits behind a key, nor a key
+/// behind a poll. At rest it holds one connection, two while he types.
+final class PairedScreenDoor: ScreenDoor {
+    let client: DoorClient
+    let door: PairedDoor
+    let sessionId: String
+    private let poll = DoorLine(keeps: true)
+    private let typing = DoorLine(keeps: true)
+
+    init(client: DoorClient, door: PairedDoor, sessionId: String) {
+        self.client = client
+        self.door = door
+        self.sessionId = sessionId
+    }
+
+    /// A paired door takes keys.
+    var writes: Bool { true }
+
+    func read(since: String?) async throws -> PocketScreenAnswer {
+        try await client.screen(sessionId, since: since, line: poll, door: door)
+    }
+
+    func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult {
+        await client.keys(sessionId, keys: keys, turn: turn, dialog: dialog, line: typing, door: door)
+    }
+
+    func close() {
+        poll.close()
+        typing.close()
     }
 }
 

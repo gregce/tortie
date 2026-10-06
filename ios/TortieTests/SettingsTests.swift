@@ -171,8 +171,8 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 6 (Phase 318, build/p318/SPEC.md D30; build 5 was Phase
-    /// 317's, build/p317/SPEC.md section 4.3).
+    /// 1.0.0, build 7 (Phase 337, build/p337/SPEC.md D38; build 6 was Phase
+    /// 318's, build/p318/SPEC.md D30).
     func testTheVersionLine() {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "4"]), "1.0.0 (4)")
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0"]), "1.0.0 (" + Copy.dash + ")")
@@ -180,7 +180,7 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (6)", "the app these tests are hosted in is not 1.0.0 (6)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (7)", "the app these tests are hosted in is not 1.0.0 (7)")
         #endif
     }
 }

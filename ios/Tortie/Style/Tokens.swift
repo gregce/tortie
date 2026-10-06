@@ -30,6 +30,19 @@ import UIKit
 // A screen writes `Tokens.textPrimary`, a `Color`. It never writes a hex, a
 // `Color(red:green:blue:)`, a system colour or a `UIColor`.
 //
+// PHASE 337 ADDED ONE NAME AND ONE CONSTRUCTOR. `bgCanvas` is the Mac's
+// `--bg-canvas`, the window base and the terminal's ground, drawn around the
+// Screen's grid and as the plate that covers it when the app leaves the
+// foreground; its hex is the one the table already holds for
+// `statusAttentionBadgeFg`, so the fifteen stay fifteen. And `Token.drawn(_:)`
+// is THE ONE PLACE a colour the DOOR names becomes a `Color` (build/p337/SPEC.md
+// D12, conformance:ios rule am): the Screen's cells are the session's own
+// colours, already resolved on the Mac exactly as its dark terminal draws
+// them, carried as three bytes (`ScreenColor`, made only by Door/Contract.swift's
+// reader). They are DATA, like the session's text, and never a token; every
+// colour the phone itself chooses on the Screen (the page around the grid,
+// the selection) is a token.
+//
 // THE ONE UIKIT COLOUR. SwiftUI sets no colour on a tab's badge, so the badge
 // reaches UIKit's tab bar through `UITabBarAppearance` with a `UIColor` made
 // HERE (`Token.uiColor`, `TabBarLook`), from the same hex: the Mac's count
@@ -39,6 +52,7 @@ import UIKit
 /// A `tokens.css` token the phone draws, by its own name.
 enum Token: CaseIterable, Sendable {
     // Grounds and lines.
+    case bgCanvas
     case bgSidebar
     case bgSurface
     case bgRaised
@@ -76,6 +90,7 @@ enum Token: CaseIterable, Sendable {
     /// The dark base's value for this name, as `tokens.css` writes it.
     var hex: UInt32 {
         switch self {
+        case .bgCanvas: 0x131417 // --bg-canvas
         case .bgSidebar: 0x0e0f13 // --bg-sidebar
         case .bgSurface: 0x191b20 // --bg-surface
         case .bgRaised: 0x202329 // --bg-raised
@@ -120,10 +135,25 @@ enum Token: CaseIterable, Sendable {
             alpha: 1
         )
     }
+
+    /// THE ONE CONSTRUCTOR OF A COLOUR THE DOOR NAMES (Phase 337, D12,
+    /// conformance:ios rule am): a Screen cell's colour, three bytes the Mac
+    /// resolved, in sRGB and opaque, exactly as the Mac's dark terminal draws
+    /// it. Data, never a token.
+    static func drawn(_ rgb: ScreenColor) -> Color {
+        Color(
+            .sRGB,
+            red: Double(rgb.red) / 255,
+            green: Double(rgb.green) / 255,
+            blue: Double(rgb.blue) / 255,
+            opacity: 1
+        )
+    }
 }
 
 /// What a screen writes. Each is its `Token`'s colour and nothing else.
 enum Tokens {
+    static let bgCanvas = Token.bgCanvas.color
     static let bgSidebar = Token.bgSidebar.color
     static let bgSurface = Token.bgSurface.color
     static let bgRaised = Token.bgRaised.color

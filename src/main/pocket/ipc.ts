@@ -515,7 +515,7 @@ export class PocketHost {
       // answers no, which refuses.
       stillPaired: (phoneId) => this.stillPaired(phoneId),
       write,
-      answer: async (route: PocketRoute, query) => {
+      answer: async (route: PocketRoute, query, closing) => {
         // The closed table, answered. There is no default arm: a route id this
         // switch does not name cannot exist, because `POCKET_ROUTES` is the
         // only producer of the type.
@@ -540,6 +540,12 @@ export class PocketHost {
             // Phase 316.7: the whole query goes to the route, which reads its
             // five closed parameters and refuses anything else with null.
             return routes.sessions(query);
+          case 'screen':
+            // Phase 337: the whole query goes to the route, which reads `id`
+            // and `since` and refuses anything else with null, and `closing`
+            // with it, so a held poll ends the moment the quit starts or this
+            // door stops (build/p337/SPEC.md D3).
+            return routes.screen(query, closing);
           case 'pair':
             // Answered in `./server.ts`, because presenting reads nothing of
             // main's state and must not reach this composer at all.
@@ -547,9 +553,10 @@ export class PocketHost {
           case 'end':
           case 'choose':
           case 'say':
-            // The writes (Phase 317's end, Phase 318's choose and say) go to
-            // the one write path in `./server.ts` and never reach this
-            // composer of reads.
+          case 'keys':
+            // The writes (Phase 317's end, Phase 318's choose and say, Phase
+            // 337's keys) go to the one write path in `./server.ts` and never
+            // reach this composer of reads.
             return null;
         }
       }

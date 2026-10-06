@@ -235,6 +235,30 @@ const PHONE_COPY = 'ios/Tortie/Style/Copy.swift';
  */
 const LIFECYCLE_WORDS = 'src/shared/lifecycle-words.ts';
 
+/**
+ * The rows of the committed sample screen (Phase 337), as the mock draws them:
+ * each row's runs joined, trailing blanks dropped, split at Tortie's separator
+ * and tidied the way a drawn line is. Unique, in order. Empty when the sample
+ * is not there, which leaves Screen.html's rows uncovered and failing by name.
+ */
+function screenSampleRows() {
+  let sample;
+  try {
+    sample = JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8'));
+  } catch {
+    return [];
+  }
+  const out = [];
+  for (const line of sample?.screen?.lines ?? []) {
+    const text = Array.isArray(line) ? line.map((run) => run.text).join('').replace(/ +$/, '') : '';
+    for (const piece of text.split(' · ')) {
+      const value = piece.replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim();
+      if (value !== '' && !out.includes(value)) out.push(value);
+    }
+  }
+  return out;
+}
+
 const LEDGER = [
   // -------------------------------------------------------------------------
   // Words Tortie already says
@@ -495,13 +519,11 @@ const LEDGER = [
     draws: 'End session',
     why: "endSessionConfirm's press, the confirmation's destructive button; Face ID, Touch ID or the passcode is asked after it and before anything is sent"
   }),
-  owned({
-    is: 'End session…',
-    module: MANAGER_COPY,
-    needle: "END_SESSION = 'End session…'",
-    draws: 'End session…',
-    why: "the End bar's word above the tab bar, the session manager's own row press"
-  }),
+  // PHASE 337 took the End bar above the tab bar out (build/p337/SPEC.md
+  // D33), and with it the last mock drawing `End session…`: End is the top
+  // bar's one word now. The phone still says `End session…` as the fallback
+  // title of the Mac's confirmation, which no mock draws, and Copy.swift's
+  // `/// Mac:` line still holds it to MANAGER_COPY's END_SESSION.
   owned({
     when: /^\d+ selected$/,
     module: MANAGER_COPY,
@@ -687,13 +709,60 @@ const LEDGER = [
     draws: 'Conversation',
     why: "the conversation screen's title, the phone's own word for the turns a session has had"
   }),
+  // PHASE 337 (build/p337/SPEC.md D31): the old line, "own output", is false
+  // once the Screen shows the terminal's output; its scrollback is still not on
+  // the phone, which is his Phase 316 ruling and still true.
   owned({
-    is: 'The terminal’s own output stays on your Mac.',
+    is: 'The terminal’s scrollback stays on your Mac.',
     module: PHONE_COPY,
-    needle: 'static let terminalStaysOnMac = "The terminal’s own output stays on your Mac."',
-    draws: 'The terminal’s own output stays on your Mac.',
-    why: 'the line over the conversation: the phone draws turns and never the terminal (research 128, 4.2.7)'
+    needle: 'static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."',
+    draws: 'The terminal’s scrollback stays on your Mac.',
+    why: "the line over the conversation: the conversation is the history, and the terminal's scrollback is never sent to the phone (his ruling on the Phase 316 entry; build/p337/SPEC.md D31)"
   }),
+  // PHASE 337, the Screen (build/p337/SPEC.md §5.8.7): the Session page's
+  // row, End at the top right, and the key bar's caps and spoken names. Each
+  // is a `/// Phone:` line in Copy.swift; End's top word is the phone's own
+  // because a top bar holds one word (D33). Declared before the data rules
+  // below, because several are single lowercase words that the keyboard and
+  // name rules would otherwise take.
+  ...[
+    ['Screen', 'screen', "the Session page's row that opens the session's own screen, and the Screen's title"],
+    ['End', 'endTop', "End's press at the top right of a session's page (D33); the confirmation is still the Mac's own words"],
+    ['esc', 'keyEsc', "the key bar's Escape cap"],
+    ['tab', 'keyTab', "the key bar's Tab cap"],
+    ['⇧tab', 'keyBackTab', "the key bar's Shift-Tab cap, as the key's own cap draws it"],
+    ['ctrl', 'keyCtrl', "the key bar's one-shot Control cap"],
+    ['return', 'keyReturn', "the key bar's Return cap, and the iOS keyboard's own, which say the same word"],
+    ['Escape', 'keyEscapeLabel', "the spoken name of the key bar's Escape"],
+    ['Tab', 'keyTabLabel', "the spoken name of the key bar's Tab"],
+    ['Shift Tab', 'keyBackTabLabel', "the spoken name of the key bar's Shift-Tab"],
+    ['Left', 'keyLeftLabel', "the spoken name of the key bar's left arrow, drawn as a symbol"],
+    ['Up', 'keyUpLabel', "the spoken name of the key bar's up arrow, drawn as a symbol"],
+    ['Down', 'keyDownLabel', "the spoken name of the key bar's down arrow, drawn as a symbol"],
+    ['Right', 'keyRightLabel', "the spoken name of the key bar's right arrow, drawn as a symbol"],
+    ['Control', 'keyControlLabel', "the spoken name of the key bar's one-shot Control"],
+    ['Return', 'keyReturnLabel', "the spoken name of the key bar's Return"],
+    ['Hide keyboard', 'hideKeyboard', "the spoken name of the key bar's last button, which puts the keyboard away"]
+  ].map(([is, name, why]) =>
+    owned({
+      is,
+      module: PHONE_COPY,
+      needle: `static let ${name} = "${is}"`,
+      draws: is,
+      why
+    })
+  ),
+  // THE SCREEN'S ROWS (Phase 337): the agent's own text, drawn as the Mac's
+  // terminal shows it, so data and never copy. Declared one exact row (or one
+  // separator-split piece of a row) at a time, read from the committed sample
+  // the SHIPPING composer wrote (build/fixtures/screen/sample-claude-2.1.287.json),
+  // so Screen.html draws THAT screen and a row the mock invents fails by name.
+  ...screenSampleRows().map((is) =>
+    data({
+      is,
+      why: "a row of a session's own screen, the agent's own text, drawn as the Mac's terminal shows it: build/fixtures/screen/sample-claude-2.1.287.json, the shipping composer's answer for a committed Claude Code capture"
+    })
+  ),
   // Markdown off (2026-10-02): Link.html's press is owed, not drawn. The word
   // stays the Mac's own (`ARCH_INSPECT_OPEN = 'Open'`), and Copy.swift's
   // `open` still says so under its `/// Mac:` line; the owned-rule floor
@@ -1003,11 +1072,9 @@ const LEDGER = [
     phase: 'no phase: removed by Phase 316 (build/p316/SPEC.md §7)',
     why: "the ssh hand-off's press, research 127 §4. The phone reaches the Mac only at the door's public name and port (Phase 330), so an ssh link could reach nothing. The approved Session.html still draws it until the screen is redrawn"
   }),
-  owed({
-    is: 'Open in Claude',
-    phase: 'the phase that first measures where the Remote Control URL is recorded',
-    why: "the Remote Control hand-off's press, research 127 §4. No module in src/ has the URL, and the door answers `handoff: null` (build/p316/SPEC.md §2 row 20)"
-  }),
+  // PHASE 337 redrew Session.html with the Conversation row and the Screen
+  // row in that card's place, so "Open in Claude", the Remote Control hand-off
+  // press nothing ever built, left with it.
   owed({
     is: 'The last line is only there when the question can be decrypted on this phone. Without it the card stops after the project and the agent — never filler.',
     phase: 'the Notification Service Extension’s later entry',
@@ -1048,7 +1115,12 @@ const OWED_ABSENCE_FLOOR = 16;
    one message.). PHASE 316.7 RAISED IT BY FOURTEEN, FROM 60 TO 74, landing
    second: the fourteen owned rules its Sessions mocks (Main.html,
    SessionsMenu.html, SessionsOlderMac.html) draw. */
-const OWNED_RULE_FLOOR = 74;
+/* PHASE 337 RAISED IT BY SIXTEEN, FROM 74 TO 90, the count the run matches:
+   seventeen owned rules for the Screen joined (Screen, End at the top right,
+   the key bar's five caps and its ten spoken names, all Copy.swift's), and
+   `End session…` left with the End bar above the tab bar, which no mock draws
+   any more (build/p337/SPEC.md D33). */
+const OWNED_RULE_FLOOR = 90;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1266,7 +1338,9 @@ function checkContactSheet(names, sheet) {
  * was already declared, because a word is declared once (the duplicate rule
  * above, and CopyTests.testEveryWordIsDeclaredOnceWithItsOwner).
  */
-const PHONE_MAC_FLOOR = 79;
+/* PHASE 337 RAISED IT FROM 79 TO 80, the count the run matches: the Screen's
+   Copy, the Mac terminal menu's own word (src/renderer/terminal/terminal-menu.ts). */
+const PHONE_MAC_FLOOR = 80;
 const PHONE_NAMES_FLOOR = 7;
 
 /** `src/x.ts ⟦text⟧` to [path, text], or null. */
@@ -1706,6 +1780,17 @@ const MUTATIONS = [
     names: 'Over'
   },
   {
+    // Phase 337: the Session page's Screen row renamed in the mock must go red
+    // against Copy.swift's `screen` (build/p337/SPEC.md §6.4).
+    what: "the Screen row renamed in the mock",
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('<span>Screen</span>', '<span>Terminal</span>'));
+      return next;
+    },
+    names: 'Terminal'
+  },
+  {
     // Phase 316.7: Clear filters is the Mac's own reset (D12).
     what: "the Mac's Clear filters re-worded in the menu",
     apply(screens) {
@@ -1714,6 +1799,19 @@ const MUTATIONS = [
       return next;
     },
     names: 'Clear all filters'
+  }
+];
+
+/**
+ * Phase 337: mutations of a MODULE the ledger reads, judged over the unmutated
+ * mock, so a word moved in Tortie and not in the mock goes red by its needle.
+ */
+const MODULE_MUTATIONS = [
+  {
+    what: "scrollback changed by one letter in Copy.swift's line over a conversation",
+    module: PHONE_COPY,
+    edit: (text) => text.replace('static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."', 'static let terminalStaysOnMac = "The terminal’s scrolback stays on your Mac."'),
+    names: 'static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."'
   }
 ];
 
@@ -2026,6 +2124,25 @@ function main() {
         console.error(
           `phonecopy SELF-TEST FAIL: ${mutation.what} names a string the unmutated run already failed on, so it proves nothing`
         );
+      } else if (!quiet) {
+        console.log(`  self-test: ${mutation.what} → red, as it must be`);
+      }
+    }
+    for (const mutation of MODULE_MUTATIONS) {
+      const was = modules.get(mutation.module) ?? '';
+      const edited = mutation.edit(was);
+      if (edited === was) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} changed nothing in ${mutation.module}, so it proves nothing`);
+        continue;
+      }
+      const mutatedModules = new Map(modules);
+      mutatedModules.set(mutation.module, edited);
+      const mutated = judge(screens, mutatedModules, production);
+      const caught = mutated.findings.some((f) => f.text === mutation.names);
+      if (!caught) {
+        failed = true;
+        console.error(`phonecopy SELF-TEST FAIL: ${mutation.what} produced no finding naming ${JSON.stringify(mutation.names)}`);
       } else if (!quiet) {
         console.log(`  self-test: ${mutation.what} → red, as it must be`);
       }

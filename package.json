@@ -119,6 +119,8 @@
     "probe:p341": "node build/harness-socket.mjs --fresh gmux-p341 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_SCRATCH_HOME=1; node build/with-scratch-machine.mjs -- node build/p341/probe-p341.mjs'",
     "probe:p340": "node build/harness-socket.mjs --fresh gmux-p340 'export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_SCRATCH_HOME=1; export SCRATCH_MACHINE_NO_OWN_KEYS=1; node build/p340/probe-p340.mjs'",
     "probe:p340:script": "node build/p340/script-arms.mjs",
+    "probe:p337": "node build/harness-socket.mjs --fresh gmux-p337 'export GMUX_CONFIG_ROOT=\"$GMUX_HARNESS_DIR\"; export SCRATCH_MACHINE_QUIET_SHELL=1; export SCRATCH_MACHINE_NO_OWN_KEYS=1; node build/with-scratch-machine.mjs -- node build/p337/probe-p337.mjs'",
+    "measure:p337": "node build/p337/measure-screen.mjs",
     "measure:p300-split": "node build/p300/split.mjs",
     "ablation:p268": "node build/p268/ablation.mjs",
     "ablation:p273": "node build/p273/ablation-vocabulary.mjs",

@@ -230,9 +230,11 @@ enum Copy {
     static let noClockNote = "no clock on these turns"
 
     /// Phone: the one line his ruling asks for ("the full CONVERSATION yes, the
-    /// raw terminal scrollback no"). The Mac shows the terminal, so it never
-    /// needs to say where it is.
-    static let terminalStaysOnMac = "The terminal’s own output stays on your Mac."
+    /// raw terminal scrollback no"). Since Phase 337 the Screen shows the
+    /// terminal's output as it is now, so the line says what is still true
+    /// (D31): its scrollback is not on the phone. The Mac shows the terminal,
+    /// so it never needs to say where it is.
+    static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."
 
     /// Phone: a page of older turns the phone refused (indexes that go
     /// backwards or overlap, or `more` on a page that added nothing).
@@ -552,6 +554,93 @@ enum Copy {
     /// the app left before its bytes were handed and it was never sent. Both
     /// are true of each: nothing was sent.
     static let replyNotTaken = "Your Mac did not take it. Nothing was sent."
+
+    // MARK: - The Screen (Phase 337: Screen.html, Session.html, build/p337/SPEC.md section 5.8.7)
+    //
+    // The session's own screen, typed into with every key and no Face ID (his
+    // rulings 1 and 3). Every row on it is the session's own text, drawn as
+    // the door sends it, so none of that is here; the Mac's refusals reach the
+    // phone in the door's own sentences. These are the screen's chrome, which
+    // no Mac surface draws: on the Mac a person is in the terminal itself.
+
+    /// Phone: the row under Conversation that opens the session's own screen.
+    /// The Mac IS that screen, so it needs no word for opening it.
+    static let screen = "Screen"
+
+    /// Phone: End's press, at the top right of a session's page since Phase
+    /// 337 (D33). The Mac's menu item is `End session…` and the phone's
+    /// confirmation is still the Mac's own words; a top bar holds one word.
+    static let endTop = "End"
+
+    /// Mac: src/renderer/terminal/terminal-menu.ts ⟦label: 'Copy',⟧
+    /// The press that puts a selection of the screen on the iPhone's
+    /// clipboard: the Mac's own word for copying from a terminal.
+    static let copy = "Copy"
+
+    /// Phone: the poll did not come back, so the screen drawn is the last one
+    /// the Mac sent. The Mac never shows an old screen.
+    static let screenNotAnswering = "Your Mac is not answering. This is the last screen it sent."
+
+    /// Phone: inside a numbered question the phone sends one batch of keys per
+    /// picture (D29), and a key typed before the next picture is not sent. The
+    /// Mac draws every key at once, so it never waits.
+    static let screenWaitForRedraw = "Waiting for the screen to redraw."
+
+    /// Phone: while a selection is held the Screen keeps the picture it began
+    /// on (D34). The Mac's terminal selects over the live screen.
+    static let screenHeldWhileSelecting = "Showing the screen as it was when you started selecting."
+
+    /// Phone: the session does not take keys now (it is not running, its
+    /// state is unknown, or its machine has no live connection). The Mac's
+    /// own terminal says so by not drawing one.
+    static let screenCannotType = "Keys cannot reach this session now."
+
+    /// Phone: the key bar's Escape. The Mac has a keyboard.
+    static let keyEsc = "esc"
+
+    /// Phone: the key bar's Tab.
+    static let keyTab = "tab"
+
+    /// Phone: the key bar's Shift-Tab, as the key's own cap draws it.
+    static let keyBackTab = "⇧tab"
+
+    /// Phone: the key bar's one-shot Control: the next letter becomes that
+    /// control key.
+    static let keyCtrl = "ctrl"
+
+    /// Phone: the key bar's Return.
+    static let keyReturn = "return"
+
+    /// Phone: the spoken name of the key bar's Escape.
+    static let keyEscapeLabel = "Escape"
+
+    /// Phone: the spoken name of the key bar's Tab.
+    static let keyTabLabel = "Tab"
+
+    /// Phone: the spoken name of the key bar's Shift-Tab.
+    static let keyBackTabLabel = "Shift Tab"
+
+    /// Phone: the spoken name of the key bar's left arrow, drawn as a symbol.
+    static let keyLeftLabel = "Left"
+
+    /// Phone: the spoken name of the key bar's up arrow, drawn as a symbol.
+    static let keyUpLabel = "Up"
+
+    /// Phone: the spoken name of the key bar's down arrow, drawn as a symbol.
+    static let keyDownLabel = "Down"
+
+    /// Phone: the spoken name of the key bar's right arrow, drawn as a symbol.
+    static let keyRightLabel = "Right"
+
+    /// Phone: the spoken name of the key bar's one-shot Control.
+    static let keyControlLabel = "Control"
+
+    /// Phone: the spoken name of the key bar's Return.
+    static let keyReturnLabel = "Return"
+
+    /// Phone: the spoken name of the key bar's last button, drawn as a
+    /// symbol, which puts the keyboard away.
+    static let hideKeyboard = "Hide keyboard"
 
     // MARK: - The answer, drawn as markdown (Phase 316.6: Conversation.html, Link.html)
 

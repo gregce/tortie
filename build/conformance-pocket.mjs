@@ -168,10 +168,10 @@ const RULES = [
   ['L3', 'build/p330/SPEC.md §6.1, §4.2.4', 'the Funnel target’s host is the literal 127.0.0.1 and its port is the listener’s REPORTED localPort, spelled once, and never a stored field or a setting'],
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
-  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose and say, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
-  ['R4', 'the fix round, 2026-09-22', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
+  ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
+  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
@@ -217,20 +217,20 @@ const RULES = [
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
-  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4', 'THE WRITE ORDER, over all three verbs: the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose or say through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
-  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2', 'THE STRICT PARSE, three of them: one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
-  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4', 'THE LEDGER: keyed on the verified phone, THE VERB and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 512 and 4,096 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
+  ['X1', 'build/p317/SPEC.md §5.3.4, D3, D4; build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5', 'THE WRITE ORDER, over all four verbs: the parse, the ledger, the in-flight claim, the last check, the act and the outcome appear in that order; nothing sits between the last check and the act, whose ONE statement starts end, choose, say or keys through a settle function that calls it at once; every 404 precedes the act; after it every return is marked acted: true; before it only the ledger’s returns are marked, a recorded hit with its own acted and the busy for a pending entry of the same write id'],
+  ['X2', 'build/p317/SPEC.md §5.3.4 step 1, D2; build/p318/SPEC.md §5.1.2; build/p337/SPEC.md §5.5', 'THE STRICT PARSE, four of them: one JSON.parse in the write path, inside a try, reached by the parse functions alone; each key set compared exactly (batch,session,write; mark,marker,question,session,write; session,text,write; dialog,keys,session,turn,write); the write id, the session id, the question id, the mark and the marker read one character at a time, and no pattern'],
+  ['X3', 'build/p317/SPEC.md D5, §3 row 18; build/p318/SPEC.md D4; build/p337/SPEC.md D24', 'THE LEDGER: keyed on the verified phone, THE VERB and the write id, joined by a newline no part can hold; each entry stores its acted; its lifetime is 2 * POCKET_CLOCK_SKEW_MS imported from ./pairing; caps of 2,048 and 8,192 compared against; no entry evicted but by its lifetime or, pending and never acted, in the finally; the pending entry made at the in-flight claim; no node:fs'],
   ['X4', 'build/p317/SPEC.md §5.3.4 step 3; build/p318/SPEC.md D4', 'ONE IN FLIGHT, ACROSS VERBS: a claim per phone and per session, each asked first and never under a branch on the verb, claimed before the act and released in the finally of the try that holds the act, so an End and a message can never overlap on one session'],
-  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose and say; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
-  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20', 'THE ANSWER: PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts or src/main/reply sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
+  ['X5', 'build/p317/SPEC.md §5.4, D7, D14; build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4', 'POCKETWRITES: declared once, in routes.ts, with exactly end, choose, say and keys; implemented once, in src/main/sessions/pocket-writes.ts, whose choose and say pass through to deps.reply and keys to deps.keys, and nothing else; built in src/main/capabilities.ts alone; end asks endRefusal( and .canEnd of sessionActionGates( with DOOR_GATE_ENV before its first await, which is killSession(; the batch arm calls the injected machineKnown( and nothing reads .answering; the production machineKnown is machineRow( from src/main/machines/store.ts; no other lifecycle verb and no status setter; PocketFacts.endOffer is optional'],
+  ['X6', 'build/p317/SPEC.md §5.3.1, §5.4, research 135 §4.8; build/p318/SPEC.md D19, D20; build/p337/SPEC.md §5.4', 'THE ANSWER: PocketWriteAnswer is exactly verb, write, outcome, reason and sentence; every sentence the write path, pocket-writes.ts, src/main/reply or src/main/screen sets is a named constant from lifecycle-words.ts, src/shared/reply-copy.ts, src/shared/screen-copy.ts, endRefusal’s own, or POCKET_WRITE_SENTENCES; no .message is read; a caught error is told apart by isGmuxError(, by code, and nothing else'],
   ['X7', 'build/p317/SPEC.md D4, §5.3.2', 'NEVER 404 AFTER THE ACT: bind.ts posts nothing for an acted answer that fails validation; the listener’s late-answer timer cuts a write (writesCut) before it could answer 404; no refusal follows the forward, and every other 404 is a refusal before it or the read half of a choice that cuts a forwarded write'],
   ['X8', 'build/p317/SPEC.md D2, §5.3.1, §5.3.2', 'THE DOOR NEVER PARSES A WRITE: JSON.parse in the door process is presentationOfBody’s, reached by the pairing route alone; a write’s target is url.pathname, a write with a query is refused route, and doorRequestOf refuses a target that is not the write’s path; the cap is read from POCKET_WRITE_BODY_CAPS on both sides'],
   ['X9', 'build/p317/SPEC.md "§Fix round"', 'A PHONE IS REMOVED BY REMOVE ALONE: the one store write that filters a phone out is in removePhone, before its first await; no write route reaches it (the write path’s deps are exactly shuttingDown, stillPaired, writes and now, and name nothing that drops a phone), and no answer carries a step to run after it (DoorAnswer has no after, and nothing in bind.ts, ipc.ts or writes.ts runs one)'],
   ['X10', 'build/p317/SPEC.md §5.3.2, §14 finding 22', 'THE REVOKED SOCKET: applyPins marks it revoked and destroys it at once unless it is answering a write (writes === 0); a forwarded write is counted on its socket and the socket is cut when that answer finishes or closes; handleRequest refuses a revoked socket before anything else'],
   ['X11', 'build/p317/SPEC.md §5.3.4 step 7; build/p318/SPEC.md §5.1.4 step 7', 'ONE LOG LINE PER WRITE, whatever its verb: exactly one log call in the write path, after the act, interpolating the verb and the outcome word, with the session id as its one field, never the body, the write id, a header, a sentence, the question id, the mark, the marker or the text'],
-  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question and send a session one message, joined as a list; POCKET_DOOR_HONESTY names the three and POCKET_READ_ONLY_HONESTY is named nowhere'],
+  ['X12', 'build/p317/SPEC.md D19, §5.6; build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35', 'THE LINES SAY IT: describePocketDoor derives “Lets an allowed phone …” from fields.routes through a compiled map keyed by PocketWriteRouteId, whose clauses are exactly end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac, joined as a list; POCKET_DOOR_HONESTY names the screen, the keys and the three, and no longer says it can change nothing else; POCKET_READ_ONLY_HONESTY is named nowhere'],
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
-  ['Y1', 'build/p318/SPEC.md D3, §Revision R18', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512 and say 32,768, keyed by the closed write list'],
+  ['Y1', 'build/p318/SPEC.md D3, §Revision R18; build/p337/SPEC.md D17', 'THE CAPS: POCKET_WRITE_BODY_CAPS is frozen and exactly end 512, choose 512, say 32,768 and keys 16,384, keyed by the closed write list'],
   ['Y2', 'build/p318/SPEC.md D5, §5.1.4 step 4', 'STILL: the write path builds still from exactly the three asks of its own last check and hands it to writes.choose( and writes.say( as their second argument; a message’s text reaches writes.say( and nothing else'],
   ['Y3', 'build/p318/SPEC.md D8, D9, §5.6, §Revision R19 b', 'THE ARGV, element for element: writer.ts and reader.ts compose only the press’s two control lines and its spawned list, load-buffer -b <name> -, the paste list, delete-buffer -b <name>, list-panes … -F PANE_FORMAT, display-message for the cursor and capture-pane -p [-e]; the press and the paste aim at the reading’s pane and never the session list-panes reads; -l only before -- and the marker; no Enter but the paste list’s'],
   ['Y4', 'build/p318/SPEC.md §5.6.2, research 135 §4.8', 'THE TEXT’S ONE SINK: no argv element is derived from a message’s text, which reaches textRefusal( and load-buffer’s stdin alone; the buffer is named tortie-say- and an id the writer mints (randomBytes(16)), never the phone’s write id; delete-buffer sits in a finally'],
@@ -241,8 +241,8 @@ const RULES = [
   ['Y9', 'build/p318/SPEC.md §5.6', 'NO LOG CALL anywhere in src/main/reply: the one line per write is writes.ts’s'],
   ['Y10', 'build/p318/SPEC.md §5.4.1, D22', 'THE REMOTE ARM FIRST: replyGate( precedes every tmux call in choose and say, and refuses a row on another machine before it reads the status; spawnTmux throws for a stdin on a remote context before tmuxCommand( composes anything'],
   ['Y11', 'build/p318/SPEC.md §6.1, §6.5', 'THE DOOR NAMES NOTHING OF THE WRITER: no file under src/main/pocket imports src/main/reply'],
-  ['Y12', 'build/p318/SPEC.md §3 row 20', 'G1 OVER THE REPLY: no log argument in src/main/reply names a message, a screen, a mark, a marker or any of G1’s words'],
-  ['Y13', 'build/p318/SPEC.md D6, D7, §5.3, §Revision R2, R16', 'WHO MOVES THE QUESTION ID: replyTurns.hook( twice in core.ts (onEvent, onSessionEnd), replyTurns.bump( in core.ts with desk, choice-${kind} and status (the last guarded by !== needs_input), writer.ts’s phone bump twice, and nowhere else; the prefix randomBytes(8) once; the id composed as a string'],
+  ['Y12', 'build/p318/SPEC.md §3 row 20; build/p337/SPEC.md §6.1', 'G1 OVER THE REPLY AND THE SCREEN: no log argument in src/main/reply, src/main/screen or remote-screen.ts names a message, a screen, a mark, a marker or any of G1’s words'],
+  ['Y13', 'build/p318/SPEC.md D6, D7, §5.3, §Revision R2, R16; build/p337/SPEC.md D21', 'WHO MOVES THE QUESTION ID: replyTurns.hook( twice in core.ts (onEvent, onSessionEnd), replyTurns.bump( in core.ts with desk, choice-${kind} and status (the last guarded by !== needs_input), writer.ts’s phone bump twice, src/main/screen/keys.ts’s phone bump once, and nowhere else; the prefix randomBytes(8) once; the id composed as a string'],
   ['Y14', 'build/p318/SPEC.md D13, D18, §5.4.2, §5.2', 'THE READER READS ONE WAY: reader.ts calls detectDialogRows( and choiceMarkOf( and none of detectDialog(, detectShapes(, noteForeground(, foregroundToRead(, agentHoldsTerminal(; routes.ts composes reply field by field, in one place, with a fresh pressable array'],
   ['Y15', 'build/p318/SPEC.md D15, §5.5', 'NOTHING STRIPS A MESSAGE: text-rules.ts and writer.ts call no .replace(, .trim, .normalize( or .slice( on the text; REPLY_TEXT_MAX_BYTES is declared once'],
   ['Y16', 'build/p318/SPEC.md §5.2', 'THE OPTIONAL FIELDS: PocketFacts.replyOffer and PocketSessionDetail.reply are optional; POCKET_NO_REPLY is frozen, its pressable a frozen empty array'],
@@ -264,7 +264,31 @@ const RULES = [
   ['O2l', 'build/p3167/SPEC.md D11, §15 F1', 'NO CLOCK DRAWN AS ANOTHER: no age is composed from the since of an attentionRows( row, and a waiting row’s age reads the stamp map facts.blockedSince() answered'],
   ['O2m', 'build/p3167/SPEC.md §6.2 step 5, §15 F8, F9', 'ONE isSessionsId, called by the query reader AND by the agent choices, and the machine filter and choices read the group identity’s target.machineId, never a session’s .machine'],
   ['O3', 'build/p3167/SPEC.md §6.2 step 3, §8.1', 'THE SESSIONS ANSWER READS NO CONVERSATION: it names none of facts.refresh, catchUp, lastTurn or turns, and routes.ts imports nothing from ../overview/ but MAX_TURN_LIMIT'],
-  ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress']
+  ['D10', 'build/p3321/SPEC.md §5.3, §5.4, §8.1', 'THE PROGRESS DECIDES NOTHING AND CARRIES NOTHING: PocketNameAnswer is exactly record, negative and unreadable; PocketNameProgress is exactly answers, asking, elapsedMs and nextInMs and no string; PocketStatus.nameProgress is PocketNameProgress | null; in ipc.ts the run’s startedAt, nextAt, endedAt and answers, and this.nameShown, are read inside nameProgressNow alone and written only in beginNameCheck, stopNameCheck, armNameRound and settleNameRound; nameProgressNow is called once, in status(), as nameProgress: this.nameProgressNow(); and PhoneSection.tsx’s pairingStage, pairAfterAllowNext and every live onPair name no nameProgress'],
+  // PHASE 337, the Screen (build/p337/SPEC.md §6.1): a read that holds a
+  // request, and a write that types every key.
+  ['Z1', 'build/p337/SPEC.md D1, §5.1', 'THE TWO ROWS: screen a signed GET read and keys a signed POST write, neither window-only, exactly one row each; SIGNED_ROUTES and WRITE_ROUTES in door/wire.ts each gain exactly that id'],
+  ['Z2', 'build/p337/SPEC.md D17, §14 M15', 'THE KEYS CAP: POCKET_WRITE_BODY_CAPS is exactly end 512, choose 512, say 32,768 and keys 16,384 (Y1 widened), and keys is at least twice the worst legal-shape keys body THIS GATE composes, so a C0 text is answered in words rather than dropped'],
+  ['Z3', 'build/p337/SPEC.md D17, §5.5, §Attack A1', 'THE KEYS PARSE: parseKeysBody compares the keys with dialog,keys,session,turn,write; holds 1 to POCKET_KEYS_MAX_ITEMS items, each exactly one own key t or k; compares a name with === against POCKET_SCREEN_KEY_NAMES; takes a named key other than BSpace only as the one item; reads turn by isQuestionId and dialog as null or isMark; and trims, normalises and replaces nothing'],
+  ['Z4', 'build/p337/SPEC.md §5.4, D19, D21', 'THE KEYS VERB’S ORDER: the text rule, the gate, ONE awaited readFresh(, then the final check’s still(, bump(, onLastCheck?.( and the act, with nothing awaited from still( to the act, and the act’s lines written in ONE statement over the control client'],
+  ['Z5', 'build/p337/SPEC.md D16, D21, D22', 'THE ONE REFUSAL: asking is the status needs_input OR detectDialogRows( .atChoice in one function the verb asks; while asking, or when the body’s dialog is not null, the verb compares the turn with turns.current( and the dialog with the fresh one and refuses changed with SCREEN_QUESTION_MOVED; hashScreen(readBackWindowOf( is spelled once, in windowMarkOf, which the verb calls'],
+  ['Z6', 'build/p337/SPEC.md D18, D19, D20', 'THE ACT’S ARGV: locally only copy-mode -q -t <pane>, send-keys -t <pane> -H <hex> and send-keys -t <pane> <name>; never -l; never send-keys without -t; hex as two lowercase digits; on another machine only typePhoneKeys(, handed in by capabilities.ts as typeRemote'],
+  ['Z7', 'build/p337/SPEC.md D18, D41', 'NO TEXT IN AN ARGV, NO .message, NO LOG: a text item reaches tmux only as its bytes; nothing in src/main/screen or remote-screen.ts reads an error’s .message or logs'],
+  ['Z8', 'build/p337/SPEC.md D23; CLAUDE.md refusal 5', 'ONE STATUS CALL: noteUserInput( exactly once in src/main/screen, in keys.ts, after the act and after the final check; no other status setter named there, and needs_input never written'],
+  ['Z9', 'build/p337/SPEC.md D5, D6, D7, §5.3.3', 'THE READS: read.ts sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e -t <x>; remote-screen.ts makes ONE execOn( of exactly capture-pane -p -e -t <x> ; display-message -p -t <x> SCREEN_FORMAT; SCREEN_FORMAT declared once and equal to the spec’s; nothing this phase adds names refresh-client, resize-window, resize-pane, attach-session, new-session, switch-client, -x or -y'],
+  ['Z10', 'build/p337/SPEC.md D3, §Attack A7', 'THE HOLD: SCREEN_HOLD_MS + SCREEN_TICK_MS <= ANSWER_TIMEOUT_MS - 2,000, 2 * SCREEN_TICK_MS < DOOR_STOP_JOIN_MS and the local read deadline <= the remote one, as arithmetic over the declared constants; every read raced against its deadline; a poll answered from its own timer, whose callback asks closing( and awaits nothing'],
+  ['Z11', 'build/p337/SPEC.md D13, D15', 'THE ANSWER FIELD BY FIELD: routes.ts’s screenOf composes the screen answer with no spread, no clone and fresh arrays; the five caps imported from the contract, each read once, and equal to the spec’s; why exactly ended, unreachable or large'],
+  ['Z12', 'build/p337/SPEC.md §5.3.4, §Attack A16', 'THE COMPOSER IS PURE: sgr, cells, cell-widths, palette and compose import no fs, child_process, tmux, settings, config or registry and read no clock; compose.ts imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader; windowMarkOf declared once, in compose.ts, the one readBackWindowOf( in src/main/screen; the width table and the palette are frozen literals'],
+  ['Z13', 'build/p337/SPEC.md D3, §5.3.1', 'CLOSING HANDED TO THE READ: server.ts calls deps.answer( once, with refusal 1’s own closing, deps.shuttingDown() || door.stopping(), as its third argument'],
+  ['Z14', 'build/p337/SPEC.md D32; conformance:manager T23', 'THE SCREEN ROW: /v1/session’s screen is set in ONE place, facts.screen !== undefined && screenLive(session); screenLive is declared once, in routes.ts, and answers sessionActionGates(…).live, the one live partition, naming no status; and the watcher asks screenLive( and names no status list'],
+  ['Z15', 'build/p337/SPEC.md D35', 'THE WORDS AT ALLOW: WRITE_CLAUSES.keys is type into any session as you would at this Mac, and POCKET_DOOR_HONESTY names the screen and typing and no longer says the phone can change nothing else'],
+  ['Z16', 'build/p337/SPEC.md §5.3.2, D15', 'ONE WATCHER A SESSION: entries in one Map, an entry dropped when its last poll is answered, and the duty cycle Math.max( over the tick and four times the last compose'],
+  ['Z17', 'build/p337/SPEC.md D8, §14 M3', 'A BLOCK ENDS ONLY ON ITS OWN GUARD: TmuxControlClient.handleLine closes an open block on an end or command-error only when its commandNumber and timestamp equal the ones the block recorded at its begin'],
+  ['Z18', 'build/p337/SPEC.md D24, §5.2', 'THE CAPS ON KEYS: the ledger caps 2,048 and 8,192, and POCKET_KEYS_MAX_ITEMS (64) and POCKET_KEYS_MAX_TEXT_BYTES (1,024) declared once, in the contract, and imported where the parse and the verb read them'],
+  ['Z19', 'build/p337/SPEC.md D40, §Attack A13', 'THE NONCE MEMORY: POCKET_NONCE_MEMORY is 4,096 and at least (2 * POCKET_CLOCK_SKEW_MS / 1000) * (1000 / SCREEN_MIN_ANSWER_GAP_MS + 20), as arithmetic over the declared constants; SCREEN_MIN_ANSWER_GAP_MS is 250 and measured against a poll’s arrival'],
+  ['Z20', 'build/p337/SPEC.md D42, §Attack A1', 'THE GAP: SCREEN_KEYS_GAP_MS is 50, declared once, in keys.ts; the verb awaits its remainder ONCE, after the gate and before its one readFresh(; and the last-act time is written after the act'],
+  ['Z21', 'build/p337/SPEC.md D3, D4, D5, §Attack A6, A7, A8', 'THE SETTLE AND THE SLOT: nudge(sessionId, before) takes the act’s window mark; a settling session is answered by a read whose windowMarkOf( differs or that starts SCREEN_SETTLE_MS (300, longer than SCREEN_NUDGE_MS) after the nudge; one read in flight per session, its slot given back in a finally; the local down path ONE spawned list per read'],
+  ['Z22', 'build/p337/SPEC.md D43, §Attack A11', 'THE LOG LINE, BOUNDED: writes.ts holds one log call; a keys write answered done reaches it only through the KEYS_LOG_QUIET_MS (60,000) condition, and every other verb and outcome reaches it unconditionally'],
 ];
 
 if (process.argv.includes('--list')) {
@@ -758,12 +782,14 @@ function routeRules() {
   if (pairRows.length > 1) {
     fail('R2', `the table holds ${String(pairRows.length)} pairing rows; there is one window and one route into it`);
   }
-  // THE WRITE LIST IS CLOSED: exactly end, choose and say, in the table and in
-  // the contract alike, each with its own body cap (Phase 317,
+  // THE WRITE LIST IS CLOSED: exactly end, choose, say and keys, in the table
+  // and in the contract alike, each with its own body cap (Phase 317,
   // build/p317/SPEC.md §6.1, its fix round having taken `unpair` out; Phase
-  // 318, build/p318/SPEC.md §6.1, adding the press and the message). Sorted,
-  // because both sides are compared sorted.
-  const WRITE_IDS = ['choose', 'end', 'say'];
+  // 318, build/p318/SPEC.md §6.1, adding the press and the message; Phase 337,
+  // build/p337/SPEC.md D1, adding the keys on his ruling of 2026-10-05,
+  // "Every key, including Ctrl-C"). Sorted, because both sides are compared
+  // sorted.
+  const WRITE_IDS = ['choose', 'end', 'keys', 'say'];
   const tableWrites = writeRows.map((w) => w.id ?? '(no literal id)').sort();
   checked('R2', 3);
   if (tableWrites.join(',') !== WRITE_IDS.join(',')) {
@@ -878,8 +904,16 @@ function routeRules() {
  * `--write-route-pin` and re-derived by `printf '<lines>' | shasum -a 256`,
  * both equal to `d95ecd27…`, the value 318's spec predicted. (316.7 alone, over
  * six lines, had pinned `a6c1bb3c…`.)
+ *
+ * PHASE 337 MOVED IT ON PURPOSE, from Phase 316.7's
+ * `d95ecd272da5fbab8eadd9379ecce4eace9fd69c963be996aa6726ae7a22cf77` (eight
+ * lines) to the value below, by its read row `GET /v1/screen` and its write row
+ * `POST /v1/keys` (build/p337/SPEC.md D1, his ruling of 2026-10-05): ten sorted
+ * lines, re-derived by the proof builder two ways, `printf '<ten lines>' |
+ * shasum -a 256` and node's `createHash('sha256')` over the same ten lines
+ * sorted, both `16115392…`, the value the spec's step measured (§14 M14).
  */
-const ROUTE_PIN = 'd95ecd272da5fbab8eadd9379ecce4eace9fd69c963be996aa6726ae7a22cf77';
+const ROUTE_PIN = '16115392e007ad274fc815f4c8456624f58fd534558be4eaad7d154c59e9b061';
 
 /** The `METHOD path` line of every row of POCKET_ROUTES, sorted. */
 function routeLines(file) {
@@ -1217,6 +1251,11 @@ const FORBIDDEN = [
   ['../reply/', 'the reply writer, written the way a sibling import is'],
   ['createReplyVerbs', 'the reply writer’s factory, which only src/main/capabilities.ts builds'],
   ['replyTurns', 'the question id, which the hook, the desk, the monitor and the writer move and the door never does'],
+  // PHASE 337. The door reaches the Screen's read and its keys only through
+  // PocketFacts.screen and PocketWrites.keys, which src/main/capabilities.ts
+  // hands it, and names nothing of the module that reads a screen and types.
+  ['main/screen/', 'the Screen’s read and its keys, the second module outside the door that types into a session (Phase 337)'],
+  ['../screen/', 'the Screen’s read and its keys, written the way a sibling import is (Phase 337)'],
   // BOTH SPELLINGS. `build/assert-import-boundaries.mjs`'s wall row matches on
   // the src-relative path, so it catches either; a text rule that named only
   // the absolute-looking form would miss `../credentials/vault`, which is how
@@ -5480,7 +5519,7 @@ function writePathAnchors(file, handler) {
   const at = (n) => (n === undefined ? -1 : n.getStart(sf));
   // PHASE 318: the parse dispatches by the verb (parseWriteBody), or names one
   // of the three parses directly.
-  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody)$/.test(calleeName(c) ?? ''));
+  const parse = calls.find((c) => /^(?:parseWriteBody|parseEndBody|parseChooseBody|parseSayBody|parseKeysBody)$/.test(calleeName(c) ?? ''));
   const ledgerGet = calls.find((c) => calleeName(c) === 'get' && /ledger/i.test(receiver(c)));
   const ledgerSet = calls.find((c) => calleeName(c) === 'set' && /ledger/i.test(receiver(c)));
   const lastChecks = nodes.filter((n) => ts.isIfStatement(n) && descendantsOf(n.expression).some((m) => ts.isCallExpression(m) && calleeName(m) === 'stillPaired'));
@@ -5498,7 +5537,7 @@ function writePathAnchors(file, handler) {
       : descendantsOf(actStatement).filter(
           (n) =>
             ts.isCallExpression(n) &&
-            /^(?:end|choose|say)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
+            /^(?:end|choose|say|keys)$/.test(calleeName(n) ?? '') && /writes/.test(receiver(n))
         );
   const actCall = actCalls[0];
   const inflightCheck = nodes.find(
@@ -5576,7 +5615,7 @@ function writePathRules() {
       ['the ledger’s read (ledger.get)', a.ledgerGet],
       ['the in-flight claim (.add)', a.adds[0]],
       ['the last check (stillPaired)', a.lastCheck],
-      ['the act (writes.end, writes.choose or writes.say)', a.actCall],
+      ['the act (writes.end, writes.choose, writes.say or writes.keys)', a.actCall],
       ['the outcome recorded (.acted = true)', a.outcome]
     ];
     for (const [what, node] of order) {
@@ -5609,8 +5648,8 @@ function writePathRules() {
         // names, so no verb's act sits anywhere but right after the check.
         const verbs = new Set(a.actCalls.map((c) => calleeName(c)));
         checked('X1');
-        for (const v of ['end', 'choose', 'say']) {
-          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4)`);
+        for (const v of ['end', 'choose', 'say', 'keys']) {
+          if (!verbs.has(v)) fail('X1', `${where(writes, a.actStatement)}: the act's one statement starts no writes.${v}(; every verb's act is that statement, right after the last check (build/p318/SPEC.md §5.1.4; build/p337/SPEC.md §5.5)`);
         }
         const awaitsFirst = descendantsOf(a.actStatement).some((n) => ts.isAwaitExpression(n) && n.getStart() < a.actCall.getStart());
         if (awaitsFirst) fail('X1', `${where(writes, a.actStatement)}: something is awaited inside the act’s statement before the act is called`);
@@ -5683,10 +5722,16 @@ function writePathRules() {
       if (a.inflightCheck !== undefined && a.ledgerSet.getStart() < a.inflightCheck.getStart()) {
         fail('X3', `${where(writes, a.ledgerSet)}: the pending entry is made before the in-flight check; it is made AT the claim`);
       }
-      // Keyed on the verified phone AND the write id.
+      // Keyed on the verified phone AND the write id. A name is resolved to
+      // its declaration INSIDE the write path first (Phase 337: parseKeysBody
+      // declares a `key` of its own, which a file-wide lookup found first).
+      const localConst = (name) => {
+        const inHandler = descendantsOf(handler).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer !== undefined);
+        return inHandler.length === 1 ? inHandler[0] : constNamed(writes, name);
+      };
       for (const call of [a.ledgerSet, a.ledgerGet].filter((c) => c !== undefined)) {
         let key = call.arguments[0];
-        if (key !== undefined && ts.isIdentifier(key)) key = constNamed(writes, key.text)?.initializer ?? key;
+        if (key !== undefined && ts.isIdentifier(key)) key = localConst(key.text)?.initializer ?? key;
         const text = key === undefined ? '' : key.getText();
         checked('X3');
         if (a.phoneParam === null || !new RegExp(`\\b${a.phoneParam}\\b`).test(text) || !/\.write\b/.test(text)) {
@@ -5707,7 +5752,7 @@ function writePathRules() {
       }
       // Each entry stores its acted.
       let entry = a.ledgerSet.arguments[1];
-      if (entry !== undefined && ts.isIdentifier(entry)) entry = constNamed(writes, entry.text)?.initializer ?? entry;
+      if (entry !== undefined && ts.isIdentifier(entry)) entry = localConst(entry.text)?.initializer ?? entry;
       checked('X3');
       if (entry === undefined || !ts.isObjectLiteralExpression(bare(entry)) || propOf(bare(entry), 'acted') === undefined) {
         fail('X3', `${where(writes, a.ledgerSet)}: the ledger’s entry does not store acted, so a recorded hit cannot say whether its write acted`);
@@ -5787,7 +5832,7 @@ function writePathRules() {
 
   // X2, THE STRICT PARSE.
   const parses = callsOf(writes).filter((c) => c.expression.getText() === 'JSON.parse');
-  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody'].map((name) => [name, oneFunction(writes, name)]);
+  const parseFns = ['parseEndBody', 'parseChooseBody', 'parseSayBody', 'parseKeysBody'].map((name) => [name, oneFunction(writes, name)]);
   checked('X2', 3);
   for (const [name, fn] of parseFns) if (fn === null) fail('X2', `${rel(writes)} declares no single ${name}`);
   if (parses.length !== 1) {
@@ -5810,7 +5855,7 @@ function writePathRules() {
       fail('X2', `${where(writes, call)}: JSON.parse sits in ${String(ownerName)}, which something other than the parse function calls`);
     }
   }
-  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write' };
+  const KEY_SETS = { parseEndBody: 'batch,session,write', parseChooseBody: 'mark,marker,question,session,write', parseSayBody: 'session,text,write', parseKeysBody: 'dialog,keys,session,turn,write' };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     checked('X2');
@@ -5852,7 +5897,9 @@ function writePathRules() {
   };
   // PHASE 318: choose reads three values by hand (the write id, the session
   // id and the question id's count beside the hex its mark shares), say two.
-  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'] };
+  // PHASE 337: keys reads the write id, the session id and the question id
+  // (its turn) the same way, and its dialog by the one mark reader.
+  const READS = { parseEndBody: [2, 'the write id and the session id'], parseChooseBody: [3, 'the write id, the session id and the question id'], parseSayBody: [2, 'the write id and the session id'], parseKeysBody: [3, 'the write id, the session id and the question id'] };
   for (const [name, fn] of parseFns) {
     if (fn === null) continue;
     const [want, what] = READS[name];
@@ -5876,7 +5923,10 @@ function writePathRules() {
   for (const n of nodesOf(writes)) {
     if (ts.isNumericLiteral(n) && Number(n.text.replace(/_/g, '')) === 120_000) fail('X3', `${where(writes, n)}: the literal 120000; the lifetime is 2 * POCKET_CLOCK_SKEW_MS, imported`);
   }
-  for (const cap of [512, 4096]) {
+  // PHASE 337 (D24): the caps rose from 512 and 4,096 to 2,048 and 8,192,
+  // because the phone sends a keys write at most every 100 ms, which is at most
+  // 1,200 in a ledger life (2 * POCKET_CLOCK_SKEW_MS = 120 s).
+  for (const cap of [2048, 8192]) {
     const decl = nodesOf(writes).find((n) => ts.isVariableDeclaration(n) && n.initializer !== undefined && ts.isNumericLiteral(n.initializer) && Number(n.initializer.text.replace(/_/g, '')) === cap && ts.isIdentifier(n.name));
     if (decl === undefined) {
       fail('X3', `${rel(writes)}: no ledger cap of ${String(cap)} is declared`);
@@ -5937,7 +5987,7 @@ function pocketWritesRules() {
       fail('X5', `${rel(routes)} declares no interface PocketWrites`);
     } else {
       const members = iface.members.map(memberName);
-      if ([...members].sort().join(',') !== 'choose,end,say') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose and say (build/p318/SPEC.md §5.1.5), and a fourth member is a verb the door can reach`);
+      if ([...members].sort().join(',') !== 'choose,end,keys,say') fail('X5', `${where(routes, iface)}: PocketWrites holds ${JSON.stringify(members)}; it holds exactly end, choose, say and keys (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4), and a fifth member is a verb the door can reach`);
     }
     const facts = interfaceOf(routes, 'PocketFacts');
     const endOffer = facts?.members.find((m) => memberName(m) === 'endOffer');
@@ -6036,13 +6086,15 @@ function pocketWritesRules() {
     // PHASE 318: choose and say pass through to the reply verbs it is handed,
     // and nothing else, so PocketWrites stays implemented in one place and this
     // module names nothing that types.
-    for (const verb of ['choose', 'say']) {
+    // PHASE 337: and keys passes through to the screen's keys verb it is
+    // handed, deps.keys.keys(, the same way (build/p337/SPEC.md §5.4).
+    for (const [verb, callee] of [['choose', 'deps.reply.choose'], ['say', 'deps.reply.say'], ['keys', 'deps.keys.keys']]) {
       const member = factory === null ? undefined : descendantsOf(factory).find((n) => (ts.isPropertyAssignment(n) && memberName(n) === verb && (ts.isArrowFunction(n.initializer) || ts.isFunctionExpression(n.initializer))) || (ts.isMethodDeclaration(n) && memberName(n) === verb));
       checked('X5');
       const fn = member === undefined ? null : ts.isPropertyAssignment(member) ? member.initializer : member;
       const calls = fn === null ? [] : descendantsOf(fn).filter((n) => ts.isCallExpression(n));
-      const passes = calls.length === 1 && calls[0].expression.getText().replace(/\s+/g, '') === `deps.reply.${verb}`;
-      if (!passes) fail('X5', `${rel(impl)}: createPocketWrites's ${verb} is ${member === undefined ? 'absent' : JSON.stringify(member.getText().slice(0, 80))}; it passes the call to deps.reply.${verb}( and does nothing else (build/p318/SPEC.md §5.1.5)`);
+      const passes = calls.length === 1 && calls[0].expression.getText().replace(/\s+/g, '') === callee;
+      if (!passes) fail('X5', `${rel(impl)}: createPocketWrites's ${verb} is ${member === undefined ? 'absent' : JSON.stringify(member.getText().slice(0, 80))}; it passes the call to ${callee}( and does nothing else (build/p318/SPEC.md §5.1.5; build/p337/SPEC.md §5.4)`);
     }
     // No other lifecycle verb, no status setter.
     const NOT_THE_DOORS = /^(?:restoreSession|restorePastSession|discardSession|removeSession|restartSession|renameSession|createSession|resumeInPlace|discard|restore|restart|rename|noteHookEvent|noteUserInput|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus)$/;
@@ -6067,10 +6119,12 @@ function pocketWritesRules() {
   }
   const writes = moduleNamed('writes', 'X6', WRITES_OWNER);
   // PHASE 318: the reply's verbs say sentences too, and theirs are held the same way.
-  for (const file of [writes, impl, ...sourcesUnder(join(ROOT, 'src', 'main', 'reply'))].filter((f) => f !== null)) {
+  // PHASE 337: and the Screen's keys verb, whose sentences are
+  // src/shared/screen-copy.ts's (build/p337/SPEC.md §5.4).
+  for (const file of [writes, impl, ...sourcesUnder(join(ROOT, 'src', 'main', 'reply')), ...sourcesUnder(join(ROOT, 'src', 'main', 'screen'))].filter((f) => f !== null)) {
     const fromWords = new Set();
     for (const n of nodesOf(file)) {
-      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
+      if (ts.isImportDeclaration(n) && ts.isStringLiteral(n.moduleSpecifier) && /^@shared\/(?:lifecycle-words|reply-copy|screen-copy)$/.test(n.moduleSpecifier.text) && n.importClause?.namedBindings !== undefined && ts.isNamedImports(n.importClause.namedBindings)) {
         for (const el of n.importClause.namedBindings.elements) fromWords.add(el.name.text);
       }
     }
@@ -6467,10 +6521,12 @@ function writeLinesRule() {
     if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze') init = bare(init.arguments[0]);
     const got = {};
     if (init !== undefined && ts.isObjectLiteralExpression(init)) for (const p of init.properties) if (ts.isPropertyAssignment(p) && ts.isStringLiteralLike(p.initializer)) got[memberName(p)] = p.initializer.text;
-    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message' };
+    // PHASE 337 (D35): and keys, in the plainest true words for a write that
+    // can run a command in a shell.
+    const want = { end: 'end a session', choose: 'answer a numbered question', say: 'send a session one message', keys: 'type into any session as you would at this Mac' };
     checked('X12', 2);
     if (JSON.stringify(Object.keys(got).sort().map((k) => [k, got[k]])) !== JSON.stringify(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-      fail('X12', `${rel(pairing)}: the write clauses are ${JSON.stringify(got)}; they are exactly ${JSON.stringify(want)}, so the line reads "Lets an allowed phone end a session, answer a numbered question and send a session one message" (build/p318/SPEC.md §5.1.7)`);
+      fail('X12', `${rel(pairing)}: the write clauses are ${JSON.stringify(got)}; they are exactly ${JSON.stringify(want)}, so the line reads "Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac" (build/p318/SPEC.md §5.1.7; build/p337/SPEC.md D35)`);
     }
     const describe = oneFunction(pairing, 'describePocketDoor');
     const text = describe === null ? '' : codeOfNode(pairing, describe);
@@ -6493,8 +6549,11 @@ function writeLinesRule() {
     };
     collect(honesty.initializer);
     const said = parts.join('');
-    const WANT = 'A phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.';
-    if (said !== WANT) fail('X12', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${JSON.stringify(said)}; it says ${JSON.stringify(WANT)}, which names the three writes and no Face ID (build/p318/SPEC.md §5.1.7, D28)`);
+    // PHASE 337 (D35): the old sentence's "It can change nothing else on this
+    // Mac" is false once a phone can type into a shell, and "what … shows"
+    // because the Screen is not redacted (D41).
+    const WANT = 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+    if (said !== WANT) fail('X12', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${JSON.stringify(said)}; it says ${JSON.stringify(WANT)}, which names the screen, the keys and the three writes and no Face ID (build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35)`);
   }
   for (const file of productionSources()) {
     if (!readFileSync(file, 'utf8').includes('POCKET_READ_ONLY_HONESTY')) continue;
@@ -6526,6 +6585,10 @@ const J = JSON.stringify;
 const REPLY_DIR = join(ROOT, 'src', 'main', 'reply');
 const REPLY_OWNER = "Phase 318 builder verbs's (src/main/reply/)";
 const replyFiles = sourcesUnder(REPLY_DIR);
+/** PHASE 337: the Screen's read and its keys (build/p337/SPEC.md §5.3, §5.4), outside the door like the reply. */
+const SCREEN_DIR = join(ROOT, 'src', 'main', 'screen');
+const screenFiles = sourcesUnder(SCREEN_DIR);
+const REMOTE_SCREEN = join(ROOT, 'src', 'main', 'machines', 'remote-screen.ts');
 const Y_RULES = ['Y1', 'Y2', 'Y3', 'Y4', 'Y5', 'Y6', 'Y7', 'Y8', 'Y9', 'Y10', 'Y11', 'Y12', 'Y13', 'Y14', 'Y15', 'Y16', 'Y17', 'Y18'];
 
 /** A reply module, or null with the rule failed by name. */
@@ -6652,9 +6715,10 @@ function replyRules() {
           if (ts.isPropertyAssignment(p) && memberName(p) !== null) got[memberName(p)] = ts.isNumericLiteral(p.initializer) ? Number(p.initializer.text.replace(/_/g, '')) : null;
         }
       }
-      const want = { choose: 512, end: 512, say: 32_768 };
+      // PHASE 337 widened it (Z2 holds the keys cap's arithmetic).
+      const want = { choose: 512, end: 512, keys: 16_384, say: 32_768 };
       if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
-        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512 and say 32,768. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18)`);
+        fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768 and keys 16,384. The say cap holds a 4,096-byte text of C0 controls escaped \\u00XX (24,771 bytes), so the Mac answers it refused character rather than the door dropping it oversized (D3, §Revision R10, R18; build/p337/SPEC.md D17)`);
       }
       if (!(caps.initializer !== undefined && ts.isCallExpression(bare(caps.initializer)) && calleeName(bare(caps.initializer)) === 'freeze')) {
         fail('Y1', `${where(limits, caps)}: POCKET_WRITE_BODY_CAPS is not Object.freeze(...)`);
@@ -7064,7 +7128,10 @@ function replyRules() {
   }
   {
     const POISON = /\b(?:tokens?|secrets?|keys?|signatures?|nonces?|body|payload|question|answer|prompt|transcript|contents|authorization|jwt|bearer|pem|apt|pushToken|deviceToken|texts?|messages?|words|labels?|typed|repl(?:y|ies)|marks?|markers?|stdin|screen|capture|styled)\b/i;
-    for (const file of replyFiles) {
+    // PHASE 337: G1's scope gains src/main/screen/** and remote-screen.ts,
+    // which read whole screens (build/p337/SPEC.md §6.1; Z7 holds that they
+    // log nothing at all).
+    for (const file of [...replyFiles, ...screenFiles, ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])]) {
       for (const call of callsOf(file)) {
         const name = calleeName(call);
         if (name === null || !/^(?:debug|info|warn|error|log)$/.test(name)) continue;
@@ -7073,12 +7140,14 @@ function replyRules() {
           if (ts.isStringLiteral(arg) || ts.isNoSubstitutionTemplateLiteral(arg)) continue;
           const text = arg.getText(astOf(file));
           const hit = POISON.exec(text);
-          if (hit !== null) fail('Y12', `${where(file, call)} hands ${J(text.slice(0, 80))} to ${name}(), which names ${J(hit[0])}. G1's scope is src/main/pocket/**, pocket-writes.ts and src/main/reply/**: no message, screen, mark or marker reaches a log`);
+          if (hit !== null) fail('Y12', `${where(file, call)} hands ${J(text.slice(0, 80))} to ${name}(), which names ${J(hit[0])}. G1's scope is src/main/pocket/**, pocket-writes.ts, src/main/reply/** and src/main/screen/**: no message, screen, mark or marker reaches a log`);
         }
       }
     }
     checked('Y12');
     if (replyFiles.length === 0) fail('Y12', `src/main/reply/ holds no source file, so G1 read nothing of it. It is ${REPLY_OWNER}.`);
+    checked('Y12');
+    if (screenFiles.length === 0) fail('Y12', `src/main/screen/ holds no source file, so G1 read nothing of it. It is Phase 337 builders screen's and keys's (build/p337/SPEC.md §10).`);
   }
 
   // -------------------------------------------------------------------------
@@ -7101,8 +7170,20 @@ function replyRules() {
     }
     const at = (file) => sites.filter((s) => s.file === file);
     checked('Y13', 6);
+    // PHASE 337 (build/p337/SPEC.md §6.1, D21): and the Screen's keys verb,
+    // once, with the cause 'phone', as the statement before its act.
+    const screenKeys = join(SCREEN_DIR, 'keys.ts');
     for (const s of sites) {
-      if (s.file !== core && s.file !== writer) fail('Y13', `${where(s.file, s.c)} moves the question id (${s.recv}.${s.name}(); only core.ts's hook, onInput, onChoiceMoved and onStatus wiring and writer.ts's two acts do`);
+      if (s.file !== core && s.file !== writer && s.file !== screenKeys) fail('Y13', `${where(s.file, s.c)} moves the question id (${s.recv}.${s.name}(); only core.ts's hook, onInput, onChoiceMoved and onStatus wiring, writer.ts's two acts and src/main/screen/keys.ts's one act do`);
+    }
+    checked('Y13');
+    if (!existsSync(screenKeys)) {
+      fail('Y13', `src/main/screen/keys.ts does not exist, so the keys verb's bump was not read. It is Phase 337 builder keys's.`);
+    } else {
+      const k = at(screenKeys);
+      if (k.length !== 1 || k[0].name !== 'bump' || k[0].cause !== "'phone'") {
+        fail('Y13', `src/main/screen/keys.ts moves the question id as ${J(k.map((x) => `${x.name}(${String(x.cause)})`))}; it bumps 'phone' exactly once, before its act, and never names hook( (build/p337/SPEC.md D21)`);
+      }
     }
     const coreHooks = at(core).filter((s) => s.name === 'hook');
     const coreBumps = at(core).filter((s) => s.name === 'bump');
@@ -8119,6 +8200,1031 @@ function sessionsAnswerRules() {
 }
 
 // ---------------------------------------------------------------------------
+// Z — the Screen (Phase 337, build/p337/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE DOOR GREW A READ THAT HOLDS A REQUEST AND A WRITE THAT TYPES EVERY KEY.
+ * `GET /v1/screen` answers one session's own screen, composed in main and held
+ * as a long poll; `POST /v1/keys` types into a running session, on this Mac or
+ * another machine, through 317's one write path. Every clause below is one
+ * line a later round can delete with the phone still drawing a screen and
+ * still typing, and they are read with the parser against the names
+ * build/p337/SPEC.md §5 pins: `src/main/screen/{keys,watch,read,compose,sgr,
+ * cells,cell-widths,palette}.ts`, `src/main/machines/remote-screen.ts`,
+ * `TmuxControlClient.handleLine`, `parseKeysBody`, `screenOf`, `SCREEN_LIVE`,
+ * `KEYS_LOG_QUIET_MS`, `SCREEN_KEYS_GAP_MS`, `windowMarkOf` and `nudge`.
+ *
+ * Five builders write these files in one round, and a missing module FAILS
+ * the rule that needed it, by name, with its owner: a gate that passed while
+ * `src/main/screen/keys.ts` was absent would go green on the day nothing
+ * checks a key.
+ */
+const Z_RULES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7', 'Z8', 'Z9', 'Z10', 'Z11', 'Z12', 'Z13', 'Z14', 'Z15', 'Z16', 'Z17', 'Z18', 'Z19', 'Z20', 'Z21', 'Z22'];
+const Z_OWNER = {
+  door: "Phase 337 builder door's",
+  screen: "Phase 337 builder screen's",
+  keys: "Phase 337 builder keys's"
+};
+
+/** A file this phase pins, or null with the rule failed by name and owner. */
+function zFile(relPath, ruleId, owner) {
+  const path = join(ROOT, relPath);
+  if (existsSync(path)) return path;
+  fail(ruleId, `${relPath} does not exist, so this rule read nothing. It is ${owner} (build/p337/SPEC.md §10). A gate that passed here would go green on the day the Screen does not exist.`);
+  return null;
+}
+
+/** The numeric value of `const NAME = <literal>` in a file, `_` separators allowed, or null. */
+function zNumber(file, name) {
+  if (file === null) return null;
+  const decls = nodesOf(file).filter((d) => ts.isVariableDeclaration(d) && ts.isIdentifier(d.name) && d.name.text === name && d.initializer !== undefined);
+  if (decls.length !== 1) return null;
+  const init = unwrapped(decls[0].initializer);
+  return init !== undefined && ts.isNumericLiteral(init) ? Number(init.text.replace(/_/g, '')) : null;
+}
+
+/** How many times a name is DECLARED as a const or a function across a list of files. */
+function declarationsOf(files, name) {
+  const out = [];
+  for (const file of files) {
+    for (const n of nodesOf(file)) {
+      if ((ts.isVariableDeclaration(n) || ts.isFunctionDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name) && n.name.text === name) out.push({ file, n });
+    }
+  }
+  return out;
+}
+
+/** Every identifier reference to a name in a file, its declaration and import bindings excluded. */
+function referencesOf(file, name) {
+  return nodesOf(file).filter((n) => {
+    if (!ts.isIdentifier(n) || n.text !== name) return false;
+    const p = n.parent;
+    if (p !== undefined && (ts.isVariableDeclaration(p) || ts.isFunctionDeclaration(p)) && p.name === n) return false;
+    if (p !== undefined && (ts.isImportSpecifier(p) || ts.isExportSpecifier(p))) return false;
+    if (p !== undefined && ts.isPropertyAccessExpression(p) && p.name === n) return false;
+    if (p !== undefined && (ts.isPropertyAssignment(p) || ts.isPropertySignature(p) || ts.isMethodDeclaration(p)) && p.name === n) return false;
+    return true;
+  });
+}
+
+/** The names a file imports from a specifier, `type` imports included. */
+function importedNames(file, specTest) {
+  const out = new Set();
+  for (const n of nodesOf(file)) {
+    if (!ts.isImportDeclaration(n) || !ts.isStringLiteral(n.moduleSpecifier) || !specTest(n.moduleSpecifier.text)) continue;
+    const b = n.importClause?.namedBindings;
+    if (b !== undefined && ts.isNamedImports(b)) for (const el of b.elements) out.add((el.propertyName ?? el.name).text);
+  }
+  return out;
+}
+
+/** The local functions a root reaches by calling them by name, the root included, transitively. */
+function reachedFunctions(file, root) {
+  const seen = new Set([root]);
+  const queue = [root];
+  while (queue.length > 0) {
+    const f = queue.shift();
+    for (const c of descendantsOf(f).filter((n) => ts.isCallExpression(n))) {
+      const name = ts.isIdentifier(c.expression) ? c.expression.text : null;
+      if (name === null) continue;
+      for (const g of functionsNamed(file, name)) {
+        if (!seen.has(g)) {
+          seen.add(g);
+          queue.push(g);
+        }
+      }
+    }
+  }
+  return [...seen];
+}
+
+/** The verb a factory answers: a method or arrow on its returned object, or a shorthand naming a local function. */
+function verbOf(file, factoryName, name) {
+  const direct = returnedMethod(file, factoryName, name);
+  if (direct !== null) return direct;
+  for (const fn of functionsNamed(file, factoryName)) {
+    for (const ret of ownReturnsOf(fn)) {
+      const e = ret.expression === undefined ? undefined : bare(ret.expression);
+      if (e === undefined || !ts.isObjectLiteralExpression(e)) continue;
+      for (const p of e.properties) {
+        if (ts.isShorthandPropertyAssignment(p) && p.name.text === name) {
+          const local = descendantsOf(fn).filter((n) => (ts.isFunctionDeclaration(n) && n.name?.text === name) || (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer !== undefined && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer)))));
+          if (local.length === 1) return ts.isVariableDeclaration(local[0]) ? bare(local[0].initializer) : local[0];
+        }
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * The array literal an argv expression is: the literal itself, a const that
+ * holds one, or the one array a local function's returns hand back (a builder
+ * that composes its argv in a named function is read the same as one that
+ * writes it inline). Null when it is none of those.
+ */
+function arrayOfArg(file, expr) {
+  const e = expr === undefined ? undefined : bare(expr);
+  if (e === undefined) return null;
+  if (ts.isArrayLiteralExpression(e)) return e;
+  if (ts.isIdentifier(e)) {
+    const decl = constNamed(file, e.text);
+    return decl === null ? null : arrayOfArg(file, decl.initializer);
+  }
+  if (ts.isCallExpression(e) && ts.isIdentifier(e.expression)) {
+    const fn = oneFunction(file, e.expression.text);
+    if (fn === null) return null;
+    const rets = ownReturnsOf(fn).map((r) => (r.expression === undefined ? null : bare(r.expression))).filter((r) => r !== null && ts.isArrayLiteralExpression(r));
+    return rets.length === 1 ? rets[0] : null;
+  }
+  return null;
+}
+
+/** A call's position, or -1: `at(undefined)` reads as absent. */
+const zAt = (n) => (n === undefined || n === null ? -1 : n.getStart());
+
+/**
+ * THE KEYS VERB'S ANCHORS (Z4, Z5, Z8, Z20). The verb itself and every local
+ * function it reaches are read as one body in source order, a helper's call
+ * site standing for what the helper does, so a verb split into named steps is
+ * read the same as one written inline.
+ */
+function keysAnchors(file) {
+  const verb = verbOf(file, 'createScreenKeys', 'keys');
+  if (verb === null) return null;
+  const helpers = reachedFunctions(file, verb).filter((f) => f !== verb);
+  /** The position in the verb that stands for a node: the node, or the call of the helper holding it. */
+  const standIn = (node) => {
+    if (inside(node, verb)) return node;
+    for (const h of helpers) {
+      if (!inside(node, h)) continue;
+      const hname = ts.isFunctionDeclaration(h) ? h.name?.text : enclosingName(descendantsOf(h)[1] ?? h);
+      const call = descendantsOf(verb).find((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && (n.expression.text === hname || functionsNamed(file, n.expression.text).includes(h)));
+      if (call !== undefined) return call;
+    }
+    return undefined;
+  };
+  const scope = [verb, ...helpers];
+  const callsNamed = (name) => scope.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && calleeName(n) === name));
+  const first = (name) => {
+    const all = callsNamed(name).map((c) => ({ c, at: zAt(standIn(c)) })).filter((x) => x.at !== -1).sort((a, b) => a.at - b.at);
+    return all[0];
+  };
+  const textRule = first('textRefusal');
+  const readFresh = callsNamed('readFresh');
+  const fresh = first('readFresh');
+  const stillCalls = callsNamed('still').map((c) => ({ c, at: zAt(standIn(c)) })).filter((x) => fresh !== undefined && x.at > fresh.at).sort((a, b) => a.at - b.at);
+  const still = stillCalls[0];
+  const bump = first('bump');
+  const lastCheck = (() => {
+    const all = scope.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && /onLastCheck/.test(n.expression.getText()))).map((c) => ({ c, at: zAt(standIn(c)) })).sort((a, b) => a.at - b.at);
+    return all[0];
+  })();
+  const ACT = /^(?:sendCommand|typeRemote|run|execTmux|spawnTmux)$/;
+  const acts = scope
+    .flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && ACT.test(calleeName(n) ?? '')))
+    .map((c) => ({ c, at: zAt(standIn(c)) }))
+    .filter((x) => x.at !== -1)
+    .sort((a, b) => a.at - b.at);
+  const act = lastCheck === undefined ? acts[0] : acts.find((x) => x.at >= lastCheck.at) ?? acts[0];
+  const awaits = scope.flatMap((f) => descendantsOf(f).filter((n) => ts.isAwaitExpression(n))).map((a) => ({ a, at: zAt(standIn(a)) }));
+  return { verb, helpers, scope, standIn, callsNamed, textRule, readFresh, fresh, still, bump, lastCheck, act, acts, awaits };
+}
+
+function screenRules() {
+  // -------------------------------------------------------------------------
+  // Z1, THE TWO ROWS.
+  // -------------------------------------------------------------------------
+  {
+    const table = zFile('src/main/pocket/door/table.ts', 'Z1', Z_OWNER.door);
+    if (table !== null) {
+      const rows = [];
+      for (const n of nodesOf(table)) {
+        if (!ts.isObjectLiteralExpression(n)) continue;
+        const row = {};
+        for (const p of n.properties) {
+          if (!ts.isPropertyAssignment(p) || memberName(p) === null) continue;
+          const v = bare(p.initializer);
+          row[memberName(p)] = ts.isStringLiteral(v) ? v.text : v.kind === ts.SyntaxKind.TrueKeyword ? true : v.kind === ts.SyntaxKind.FalseKeyword ? false : null;
+        }
+        if (typeof row['id'] === 'string' && typeof row['path'] === 'string') rows.push(row);
+      }
+      const WANT = {
+        screen: { id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: false, signed: true },
+        keys: { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }
+      };
+      for (const [id, want] of Object.entries(WANT)) {
+        checked('Z1');
+        const found = rows.filter((r) => r['id'] === id);
+        if (found.length !== 1 || J(found[0]) !== J(want)) {
+          fail('Z1', `${rel(table)}: the ${id} row is ${J(found)}; it is exactly ${J(want)} (build/p337/SPEC.md D1): ${id === 'screen' ? 'a signed GET read, alive outside any window' : 'a signed POST write through the one write path, alive outside any window'}`);
+        }
+      }
+    }
+    const wire = zFile('src/main/pocket/door/wire.ts', 'Z1', Z_OWNER.door);
+    if (wire !== null) {
+      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say']]]) {
+        checked('Z1');
+        const decl = constNamed(wire, name);
+        const init = decl === null ? undefined : bare(decl.initializer);
+        const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')).sort() : null;
+        if (got === null || J(got) !== J(want)) {
+          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)}, one id more than Phase 316.7 left it (build/p337/SPEC.md §5.1). The door hands main a signed read or a write only for an id on its own list.`);
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z2, THE KEYS CAP, re-derived here from the worst legal body.
+  // -------------------------------------------------------------------------
+  {
+    const limits = zFile('src/main/pocket/door/limits.ts', 'Z2', Z_OWNER.door);
+    const caps = limits === null ? null : constNamed(limits, 'POCKET_WRITE_BODY_CAPS');
+    checked('Z2', 2);
+    let init = caps === null ? undefined : bare(caps.initializer);
+    if (init !== undefined && ts.isCallExpression(init) && calleeName(init) === 'freeze') init = bare(init.arguments[0]);
+    const got = {};
+    if (init !== undefined && ts.isObjectLiteralExpression(init)) {
+      for (const p of init.properties) if (ts.isPropertyAssignment(p) && memberName(p) !== null) got[memberName(p)] = ts.isNumericLiteral(bare(p.initializer)) ? Number(bare(p.initializer).text.replace(/_/g, '')) : null;
+    }
+    const want = { choose: 512, end: 512, keys: 16_384, say: 32_768 };
+    if (J(Object.keys(got).sort().map((k) => [k, got[k]])) !== J(Object.keys(want).sort().map((k) => [k, want[k]]))) {
+      fail('Z2', `${limits === null ? 'src/main/pocket/door/limits.ts' : rel(limits)}: POCKET_WRITE_BODY_CAPS is ${J(got)}; it is exactly end 512, choose 512, say 32,768 and keys 16,384 (build/p337/SPEC.md D17, Y1 widened)`);
+    }
+    // The worst legal-shape keys body, composed HERE by this gate rather than
+    // read from the spec: the longest session id the parse takes (128), a
+    // question id of 16 hex and 16 digits, a mark, a write id, and 1,024 bytes
+    // of C0 text (each escaped \u00XX by JSON) in one item and spread over 64,
+    // and 64 names. The cap is at least twice the worst, so a body of the right
+    // shape reaches main and is answered in words rather than dropped.
+    const c0 = (n) => String.fromCharCode(1).repeat(n);
+    const body = (keys) => JSON.stringify({ dialog: 'a'.repeat(12), keys, session: 's'.repeat(128), turn: `${'f'.repeat(16)}-${'9'.repeat(16)}`, write: '0'.repeat(32) });
+    const worst = Math.max(
+      Buffer.byteLength(body([{ t: c0(1024) }])),
+      Buffer.byteLength(body(Array.from({ length: 64 }, () => ({ t: c0(16) })))),
+      Buffer.byteLength(body(Array.from({ length: 64 }, () => ({ k: 'BSpace' }))))
+    );
+    if (!(typeof got['keys'] === 'number' && got['keys'] >= 2 * worst)) {
+      fail('Z2', `the keys cap is ${String(got['keys'])}; the worst legal-shape keys body this gate composes is ${String(worst)} bytes, and the cap is at least twice it, so a C0 text of the right shape is answered refused character rather than dropped oversized (build/p337/SPEC.md D17, §14 M15)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z3, THE KEYS PARSE.
+  // -------------------------------------------------------------------------
+  {
+    const writes = zFile('src/main/pocket/writes.ts', 'Z3', Z_OWNER.door);
+    const parse = writes === null ? null : oneFunction(writes, 'parseKeysBody');
+    checked('Z3');
+    if (writes !== null && parse === null) fail('Z3', `${rel(writes)} declares no single parseKeysBody, so the keys body is not parsed in the one place a write body is read (build/p337/SPEC.md §5.5)`);
+    if (parse !== null) {
+      const reach = reachedFunctions(writes, parse);
+      const text = reach.map((f) => codeOfNode(writes, f)).join('\n');
+      const nodes = reach.flatMap((f) => descendantsOf(f));
+      checked('Z3', 9);
+      const keysConst = constNamed(writes, 'KEYS_KEYS');
+      const keysValue = keysConst === null ? null : bare(keysConst.initializer);
+      if (keysValue === undefined || keysValue === null || !ts.isStringLiteralLike(keysValue) || keysValue.text !== 'dialog,keys,session,turn,write' || !/\bKEYS_KEYS\b/.test(codeOfNode(writes, parse))) {
+        fail('Z3', `${where(writes, parse)}: parseKeysBody does not compare the body's keys with KEYS_KEYS = 'dialog,keys,session,turn,write' (build/p337/SPEC.md D17)`);
+      }
+      const maxRef = nodes.find((n) => ts.isBinaryExpression(n) && /\bPOCKET_KEYS_MAX_ITEMS\b/.test(n.getText()) && /\.length\b/.test(n.getText()) && n.operatorToken.kind === ts.SyntaxKind.GreaterThanToken);
+      const minRef = nodes.find((n) => ts.isBinaryExpression(n) && /\.length\b/.test(n.left.getText()) && ((n.operatorToken.kind === ts.SyntaxKind.LessThanToken && n.right.getText() === '1') || (n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && n.right.getText() === '0')));
+      if (maxRef === undefined || minRef === undefined) {
+        fail('Z3', `${where(writes, parse)}: parseKeysBody does not hold the items to 1 through POCKET_KEYS_MAX_ITEMS (a length < 1 and a length > POCKET_KEYS_MAX_ITEMS); an empty write or a 65th key would reach the verb`);
+      }
+      const oneKey = nodes.some((n) => ts.isBinaryExpression(n) && /length$/.test(n.left.getText()) && n.right.getText() === '1' && (n.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken || n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken) && /Object\.keys\(|\bown\b|\bkeys\b/.test(n.left.getText()));
+      const tk = ['t', 'k'].every((k) => nodes.some((n) => ts.isStringLiteral(n) && n.text === k));
+      if (!oneKey || !tk) fail('Z3', `${where(writes, parse)}: an item is not held to EXACTLY one own key, t or k; an item with two keys could carry a text and a name at once`);
+      const namesRef = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_SCREEN_KEY_NAMES');
+      const byIdentity = nodes.some((n) => ts.isForOfStatement(n) && n.expression.getText() === 'POCKET_SCREEN_KEY_NAMES' && descendantsOf(n.statement).some((m) => ts.isBinaryExpression(m) && m.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken)) ||
+        nodes.some((n) => ts.isCallExpression(n) && /POCKET_SCREEN_KEY_NAMES\s*(?:as[^)]*\))?\s*\.\s*(?:includes|some|find)$/.test(n.expression.getText().replace(/\s+/g, ' ').replace(/\(\s*/, '')) );
+      if (namesRef.length === 0 || !byIdentity) fail('Z3', `${where(writes, parse)}: a key name is not compared with === against POCKET_SCREEN_KEY_NAMES, the contract's 35 (build/p337/SPEC.md D17); a name read any other way (a lookup, a prefix, a pattern) can admit M-x or C-Up`);
+      for (const bad of ['in POCKET_SCREEN_KEY_NAMES', 'hasOwnProperty', '.toLowerCase(', '.toUpperCase(', '.startsWith(', 'RegExp(']) {
+        if (text.includes(bad)) fail('Z3', `${where(writes, parse)}: the keys parse reads with ${J(bad)}; a name is one of the 35 by identity and nothing else`);
+      }
+      const alone = nodes.some((n) => (ts.isIfStatement(n) || ts.isBinaryExpression(n)) && /'BSpace'/.test(n.getText()) && /\.length\s*(?:>|!==|>=)\s*[12]\b/.test(n.getText()));
+      if (!alone) fail('Z3', `${where(writes, parse)}: nothing holds a named key other than BSpace to be the write's ONE item (build/p337/SPEC.md D17, §Attack A1): Escape followed by anything in the same read is read as Meta`);
+      const turnRead = nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'isQuestionId');
+      const dialogRead = nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'isMark') && nodes.some((n) => ts.isBinaryExpression(n) && /dialog/.test(n.left.getText()) && n.right.kind === ts.SyntaxKind.NullKeyword);
+      if (!turnRead || !dialogRead) fail('Z3', `${where(writes, parse)}: the turn is not read by isQuestionId( and the dialog as null or isMark( (build/p337/SPEC.md D17)`);
+      for (const n of nodes) {
+        if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && /^(?:trim|trimStart|trimEnd|normalize|replace|replaceAll)$/.test(n.expression.name.text)) {
+          fail('Z3', `${where(writes, n)}: the keys parse calls .${n.expression.name.text}(; nothing a phone sends is trimmed, normalised or rewritten before the verb judges it`);
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z4, Z5, Z6, Z7, Z8, Z20: the keys verb.
+  // -------------------------------------------------------------------------
+  const keysFile = zFile('src/main/screen/keys.ts', 'Z4', Z_OWNER.keys);
+  if (keysFile === null) for (const id of ['Z5', 'Z6', 'Z8', 'Z20']) fail(id, `src/main/screen/keys.ts does not exist. It is ${Z_OWNER.keys}.`);
+  const k = keysFile === null ? null : keysAnchors(keysFile);
+  checked('Z4');
+  if (keysFile !== null && k === null) {
+    for (const id of ['Z4', 'Z5', 'Z8', 'Z20']) fail(id, `${rel(keysFile)}: createScreenKeys answers no keys verb, so nothing of its order can be read (build/p337/SPEC.md §5.4)`);
+  }
+  if (k !== null) {
+    // Z4, THE ORDER.
+    checked('Z4', 8);
+    if (k.readFresh.length !== 1) fail('Z4', `${rel(keysFile)} calls readFresh( ${String(k.readFresh.length)} time(s); the verb makes ONE fresh read, its capture the last thing awaited before the final check`);
+    else if (!ts.isAwaitExpression(k.readFresh[0].parent) && !ts.isAwaitExpression(bare(k.readFresh[0].parent) ?? k.readFresh[0])) {
+      const awaited = k.awaits.some((x) => inside(k.readFresh[0], x.a));
+      if (!awaited) fail('Z4', `${where(keysFile, k.readFresh[0])}: the fresh read is not awaited, so the final check could judge a screen that has not been read`);
+    }
+    const order = [
+      ['the text rule (textRefusal)', k.textRule],
+      ['the one fresh read (readFresh)', k.fresh],
+      ['the final check (still)', k.still],
+      ['the question id moved for the phone (bump)', k.bump],
+      ['the measurement hook (onLastCheck?.)', k.lastCheck],
+      ['the act (sendCommand, the spawned list, or typeRemote)', k.act]
+    ];
+    for (const [what, x] of order) if (x === undefined) fail('Z4', `${where(keysFile, k.verb)}: the keys verb names no ${what} (build/p337/SPEC.md §5.4)`);
+    if (order.every(([, x]) => x !== undefined)) {
+      for (let i = 1; i < order.length; i += 1) {
+        if (order[i - 1][1].at >= order[i][1].at) fail('Z4', `${where(keysFile, order[i][1].c)}: ${order[i][0]} comes before ${order[i - 1][0]}; the order is the spec's §5.4 steps 1 to 5, held as code`);
+      }
+      // Nothing awaited from the first still( to the act: an await whose
+      // operand holds the act is the act's own (Promise.allSettled of it).
+      for (const { a, at } of k.awaits) {
+        if (at <= k.still.at || at >= k.act.at) continue;
+        if (inside(k.act.c, a)) continue;
+        fail('Z4', `${where(keysFile, a)}: ${J(a.getText().slice(0, 60))} is awaited between the final check and the act. The check is synchronous to the act: a key judged against one screen lands on that screen or not at all (D21)`);
+      }
+    }
+    // The act's lines are written in ONE statement over the control client.
+    const sends = k.scope.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sendCommand'));
+    const statements = new Set(sends.map((c) => statementOf(c)?.statement));
+    checked('Z4');
+    if (sends.length === 0) fail('Z4', `${rel(keysFile)}: the keys verb writes nothing over the control client (sendCommand); locally its lines go over core.control, one command per line (build/p337/SPEC.md D19)`);
+    if (statements.size > 1) fail('Z4', `${rel(keysFile)}: the act's lines are written by ${String(statements.size)} statements; they are written in ONE synchronous statement, so nothing runs between a key's lines (D19)`);
+    for (const c of sends) {
+      for (let n = c.parent; n !== undefined && !inside(k.verb, n); n = n.parent) {
+        if ((ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n)) && descendantsOf(n).some((m) => ts.isAwaitExpression(m))) {
+          fail('Z4', `${where(keysFile, c)}: a line of the act is written inside a loop that awaits, so the act's lines are not one statement`);
+        }
+      }
+    }
+
+    // Z5, THE ONE REFUSAL.
+    const screenFilesNow = sourcesUnder(join(ROOT, 'src', 'main', 'screen'));
+    const verbText = k.scope.map((f) => codeOfNode(keysFile, f)).join('\n');
+    // Asking, read over the FRESH screen in the verb (its own steps and the
+    // helpers it calls) and over the composed screen in the answer: the row
+    // waiting on him (needs_input) OR a numbered question drawn
+    // (detectDialogRows( … ).atChoice), both halves in each place.
+    const asksBoth = (text) => /status\s*===\s*'needs_input'|'needs_input'\s*===/.test(text) && /detectDialogRows\(/.test(text) && /\.atChoice\b/.test(text) && /\|\|/.test(text);
+    const composeFile = join(ROOT, 'src', 'main', 'screen', 'compose.ts');
+    // The asking functions compose.ts declares: each reads both halves.
+    const askers = existsSync(composeFile)
+      ? nodesOf(composeFile).filter((n) => (ts.isFunctionDeclaration(n) || (ts.isVariableDeclaration(n) && n.initializer !== undefined && ts.isArrowFunction(bare(n.initializer)))) && ts.isIdentifier(n.name) && asksBoth(n.getText())).map((n) => n.name.text)
+      : [];
+    const verbAsks = asksBoth(verbText) || askers.some((name) => new RegExp(`\\b${name}\\(`).test(verbText));
+    checked('Z5', 4);
+    if (!verbAsks) fail('Z5', `${rel(keysFile)}: the verb does not read asking as the status needs_input OR detectDialogRows( .atChoice over its fresh read, itself or through compose.ts's one asking function (build/p337/SPEC.md D16); the refusal would compare nothing while a question is drawn`);
+    if (existsSync(composeFile)) {
+      const composeText = codeTextOf(composeFile);
+      const answerAsks = askers.some((name) => (composeText.match(new RegExp(`\\b${name}\\(`, 'g')) ?? []).length >= 2) || (askers.length === 0 && asksBoth(composeText));
+      if (!answerAsks) fail('Z5', `src/main/screen/compose.ts: the answer's asking is not the status needs_input OR detectDialogRows( .atChoice through one function it calls itself (D16), so the phone and the verb could disagree on what a question is`);
+    }
+    const comparesTurn = /\bcurrent\(/.test(verbText) && /\.turn\s*(?:!==|===)|(?:!==|===)\s*[A-Za-z_.]*\.turn\b/.test(verbText);
+    const comparesDialog = /\.dialog\s*(?:!==|===)\s*(?!null\b)[A-Za-z_]/.test(verbText) || /(?:!==|===)\s*[A-Za-z_.]*\.dialog\b/.test(verbText.replace(/\.dialog\s*(?:!==|===)\s*null/g, ''));
+    const nullGate = /\.dialog\s*!==\s*null/.test(verbText);
+    if (!comparesTurn) fail('Z5', `${rel(keysFile)}: the verb does not compare the body's turn with turns.current( — keys meant for a question reach that question or nothing (D21)`);
+    if (!comparesDialog || !nullGate) fail('Z5', `${rel(keysFile)}: the verb does not compare the body's dialog with the fresh read's, or does not take a non-null dialog as a picture that was asking (D21, D22); the id alone moves on the phone's own key`);
+    const refuses = k.scope.some((f) => descendantsOf(f).some((n) => ts.isIdentifier(n) && n.text === 'SCREEN_QUESTION_MOVED')) && /'changed'/.test(verbText);
+    if (!refuses) fail('Z5', `${rel(keysFile)}: the refusal is not refused changed with SCREEN_QUESTION_MOVED (build/p337/SPEC.md D21)`);
+    const markSites = screenFilesNow.flatMap((file) => nodesOf(file).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'hashScreen' && n.arguments[0] !== undefined && ts.isCallExpression(bare(n.arguments[0])) && calleeName(bare(n.arguments[0])) === 'readBackWindowOf').map((n) => ({ file, n })));
+    checked('Z5', 2);
+    if (markSites.length !== 1 || enclosingName(markSites[0].n) !== 'windowMarkOf') {
+      fail('Z5', `src/main/screen spells hashScreen(readBackWindowOf( ${String(markSites.length)} time(s)${markSites.length === 1 ? ` in ${String(enclosingName(markSites[0].n))}` : ''}; it is spelled ONCE, in windowMarkOf, which the answer's dialog and the verb's check both call (build/p337/SPEC.md §5.3.4)`);
+    }
+    if (!/\bwindowMarkOf\(/.test(verbText)) fail('Z5', `${rel(keysFile)}: the verb never calls windowMarkOf(, so its dialog is not the answer's window mark`);
+
+    // Z6, THE ACT'S ARGV.
+    const strings = codeStringsOf(keysFile).map((s) => s.text);
+    const joined = strings.join('\u0000');
+    checked('Z6', 5);
+    const tmuxHeads = strings.filter((s) => /^(?:[a-z]+-[a-z]+)(?:\s|$)/.test(s) && /^(?:send-keys|copy-mode|paste-buffer|load-buffer|set-buffer|send-prefix|resize-|refresh-client|display-message|capture-pane|new-|kill-|respawn-|run-shell|if-shell)/.test(s));
+    for (const head of tmuxHeads) {
+      if (!/^(?:copy-mode -q -t |send-keys -t |copy-mode$|send-keys$)/.test(head)) {
+        fail('Z6', `${rel(keysFile)}: the act composes ${J(head.slice(0, 50))}; it composes only copy-mode -q -t <pane>, send-keys -t <pane> -H <hex>… and send-keys -t <pane> <name> (build/p337/SPEC.md D18, D19)`);
+      }
+    }
+    if (strings.some((s) => s === '-l' || /\s-l(?:\s|$)/.test(s))) fail('Z6', `${rel(keysFile)}: the act names send-keys -l. NEVER -l: over the control client it EXPANDED $HOME, and as an argv it dropped a trailing ; (§14 M4)`);
+    if (!strings.some((s) => s === '-H' || /\s-H(?:\s|$)/.test(s))) fail('Z6', `${rel(keysFile)}: text is not sent as send-keys -H <hex>; it arrives as the exact bytes typed only that way (D18)`);
+    const sendKeysWithoutTarget = strings.some((s) => /^send-keys(?:\s+(?!-t\b)\S|$)/.test(s) && s !== 'send-keys');
+    const argvSendKeys = nodesOf(keysFile).filter((n) => ts.isArrayLiteralExpression(n)).some((arr) => arr.elements.some((e, i) => ts.isStringLiteral(e) && e.text === 'send-keys' && !(arr.elements[i + 1] !== undefined && ts.isStringLiteral(arr.elements[i + 1]) && arr.elements[i + 1].text === '-t')));
+    if (sendKeysWithoutTarget || argvSendKeys) fail('Z6', `${rel(keysFile)}: a send-keys without -t <pane> right after it; a key goes to the pane the fresh read named and nowhere else`);
+    if (!/toString\(16\)/.test(codeTextOf(keysFile)) || !/padStart\(2,\s*'0'\)/.test(codeTextOf(keysFile))) fail('Z6', `${rel(keysFile)}: text bytes are not written as two lowercase hex digits each (toString(16).padStart(2, '0')), so an element of -H is not ^[0-9a-f]{2}$`);
+    const names = new Set(['POCKET_SCREEN_KEY_NAMES', ...importedNames(keysFile, (s) => /ipc\/pocket$/.test(s))]);
+    void names;
+    // The carriage's byte bound (TYPED_BYTES_PER_COMMAND) is a number and may
+    // be read; nothing that writes to another machine may be named.
+    const remoteValueImports = specifiersOf(keysFile).filter(({ node, text }) => {
+      if (!/machines\//.test(text) || (ts.isImportDeclaration(node) && node.importClause?.isTypeOnly === true)) return false;
+      const b = ts.isImportDeclaration(node) ? node.importClause?.namedBindings : undefined;
+      const named = b !== undefined && ts.isNamedImports(b) ? b.elements.filter((e) => !e.isTypeOnly).map((e) => (e.propertyName ?? e.name).text) : null;
+      return !(/scroll-shapes$/.test(text) && named !== null && named.every((n) => n === 'TYPED_BYTES_PER_COMMAND'));
+    });
+    checked('Z6');
+    for (const { node, text } of remoteValueImports) fail('Z6', `${where(keysFile, node)}: the keys verb imports ${text} by value; on another machine it reaches the far session ONLY through typePhoneKeys(, handed in as typeRemote (build/p337/SPEC.md §5.4 step 5)`);
+    const caps = join(ROOT, 'src', 'main', 'capabilities.ts');
+    if (existsSync(caps)) {
+      checked('Z6');
+      const handed = nodesOf(caps).some((n) => ts.isCallExpression(n) && calleeName(n) === 'createScreenKeys' && n.arguments[0] !== undefined && /typeRemote\s*:\s*(?:typePhoneKeys\b|\([^)]*\)\s*=>\s*typePhoneKeys\()/.test(n.arguments[0].getText()));
+      if (!handed) fail('Z6', 'src/main/capabilities.ts does not hand createScreenKeys typeRemote: typePhoneKeys, so a key on another machine does not go through the carriage’s one composer (build/p337/SPEC.md D20)');
+    }
+
+    // Z8, THE ONE STATUS CALL.
+    const notes = screenFilesNow.flatMap((file) => callsOf(file).filter((c) => calleeName(c) === 'noteUserInput').map((c) => ({ file, c })));
+    checked('Z8', 3);
+    if (notes.length !== 1 || notes[0].file !== keysFile) {
+      fail('Z8', `src/main/screen calls noteUserInput( ${String(notes.length)} time(s) (${notes.map((x) => where(x.file, x.c)).join(', ')}); exactly once, in keys.ts, after the act (build/p337/SPEC.md D23)`);
+    } else if (k.act !== undefined && zAt(k.standIn(notes[0].c)) <= k.act.at) {
+      fail('Z8', `${where(keysFile, notes[0].c)}: noteUserInput( comes before the act; a key answers what the session was waiting on only once it has been typed`);
+    } else if (k.still !== undefined && zAt(k.standIn(notes[0].c)) <= k.still.at) {
+      fail('Z8', `${where(keysFile, notes[0].c)}: noteUserInput( is reached on a path before the final check, so a refused write could move the status`);
+    }
+    const SETTERS = /^(?:noteHookEvent|applyDetectedStatus|setStatus|setSessionStatus|updateStatus|writeStatus|markStatus|noteForeground|raiseNeedsInput)$/;
+    for (const file of screenFilesNow) {
+      for (const c of callsOf(file)) {
+        checked('Z8');
+        if (SETTERS.test(calleeName(c) ?? '')) fail('Z8', `${where(file, c)} calls ${calleeName(c)}(; nothing in src/main/screen names a status setter but noteUserInput, the desk's own funnel (refusal 5)`);
+      }
+      for (const s of codeStringsOf(file)) {
+        if (s.text === 'needs_input' && file === keysFile && !/=== 'needs_input'|!== 'needs_input'|includes\(/.test(s.node.parent.getText())) {
+          fail('Z8', `${where(file, s.node)}: keys.ts writes needs_input other than by comparing; a key never raises needs_input`);
+        }
+      }
+    }
+
+    // Z20, THE GAP.
+    const gapDecls = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'SCREEN_KEYS_GAP_MS');
+    checked('Z20', 4);
+    if (gapDecls.length !== 1 || gapDecls[0].file !== keysFile || zNumber(keysFile, 'SCREEN_KEYS_GAP_MS') !== 50) {
+      fail('Z20', `SCREEN_KEYS_GAP_MS is declared ${String(gapDecls.length)} time(s) (${gapDecls.map((d) => rel(d.file)).join(', ')}) with ${String(zNumber(keysFile, 'SCREEN_KEYS_GAP_MS'))}; it is 50, declared once, in keys.ts (build/p337/SPEC.md D42)`);
+    }
+    const gapRefs = k.scope.flatMap((f) => descendantsOf(f).filter((n) => ts.isIdentifier(n) && n.text === 'SCREEN_KEYS_GAP_MS')).map((n) => zAt(k.standIn(n)));
+    // The gate: the first read of a row's status in the verb, by a literal of
+    // the four, a module constant holding them, or the status itself.
+    const gateAt = (() => {
+      const holders = new Set(nodesOf(keysFile).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && /'unknown'/.test(n.initializer.getText()) && /'exited'/.test(n.initializer.getText())).map((n) => n.name.text));
+      const lits = k.scope
+        .flatMap((f) => descendantsOf(f).filter((n) => (ts.isStringLiteral(n) && /^(?:unknown|exited|restorable|discarded)$/.test(n.text)) || (ts.isIdentifier(n) && holders.has(n.text))))
+        .map((n) => zAt(k.standIn(n)))
+        .filter((x) => x !== -1);
+      return lits.length === 0 ? -1 : Math.min(...lits);
+    })();
+    const gapAwait = k.awaits.filter((x) => k.fresh !== undefined && x.at < k.fresh.at && x.at > gateAt && !inside(k.fresh.c, x.a));
+    if (gateAt === -1) fail('Z20', `${rel(keysFile)}: no gate on the row's status (unknown, exited, restorable, discarded) was found before the gap`);
+    if (gapRefs.length === 0 || gapAwait.length !== 1) {
+      fail('Z20', `${rel(keysFile)}: the verb awaits the gap ${String(gapAwait.length)} time(s) between the gate and its one fresh read; it awaits the remainder of SCREEN_KEYS_GAP_MS ONCE, after the gate and before readFresh(, so two writes reach a busy reader as two reads (D42, §Attack AM2)`);
+    } else if (!gapRefs.some((at) => at > gateAt && at <= gapAwait[0].at)) {
+      fail('Z20', `${where(keysFile, gapAwait[0].a)}: the await before the fresh read is not the gap's: SCREEN_KEYS_GAP_MS is not read between the gate and it`);
+    }
+    const lastWrite = k.scope.flatMap((f) => descendantsOf(f).filter((n) => (ts.isCallExpression(n) && calleeName(n) === 'set' && /last|act/i.test(n.expression.getText())) || (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && /last|act/i.test(n.left.getText()))));
+    if (k.act !== undefined && !lastWrite.some((n) => zAt(k.standIn(n)) > k.act.at)) {
+      fail('Z20', `${rel(keysFile)}: the session's last-act time is not written after the act, so the next write's gap is measured from the wrong moment`);
+    }
+  }
+
+  // Z7, NO TEXT IN AN ARGV, NO .message, NO LOG — over the whole screen domain.
+  {
+    const files = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+    checked('Z7');
+    if (files.length === 0) fail('Z7', `src/main/screen/ holds no source file, so nothing of Z7 was read. It is ${Z_OWNER.screen} and ${Z_OWNER.keys}.`);
+    for (const file of files) {
+      for (const n of nodesOf(file)) {
+        if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
+          checked('Z7');
+          fail('Z7', `${where(file, n)} reads .message. An error's text can hold its argv and the screen it read; nothing in src/main/screen reads it`);
+        }
+        if (ts.isCallExpression(n)) {
+          const name = calleeName(n);
+          const recv = ts.isPropertyAccessExpression(n.expression) ? n.expression.expression.getText() : '';
+          if ((/^(?:debug|info|warn|error|log|trace)$/.test(name ?? '') && /log|console/i.test(recv)) || name === 'getLog') {
+            checked('Z7');
+            fail('Z7', `${where(file, n)} logs (${n.expression.getText().slice(0, 40)}); nothing in src/main/screen or remote-screen.ts logs: a screen is whatever a terminal shows, secrets included (D41)`);
+          }
+        }
+      }
+      for (const { node, text } of specifiersOf(file)) {
+        checked('Z7');
+        if (/(?:^|\/)log(?:\/|$)/.test(text)) fail('Z7', `${where(file, node)} imports the logger (${text}); src/main/screen logs nothing`);
+      }
+    }
+    if (keysFile !== null) {
+      // A text item's .t reaches the argv only as bytes, through Buffer.from.
+      for (const n of nodesOf(keysFile)) {
+        if (!ts.isPropertyAccessExpression(n) || n.name.text !== 't') continue;
+        checked('Z7');
+        for (let p = n.parent; p !== undefined && !ts.isStatement(p); p = p.parent) {
+          if (ts.isCallExpression(p) && /^(?:from|byteLength|textRefusal)$/.test(calleeName(p) ?? '')) break;
+          if (ts.isTemplateExpression(p) || ts.isArrayLiteralExpression(p) || (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.PlusToken)) {
+            fail('Z7', `${where(keysFile, n)}: a text item's characters reach ${ts.isTemplateExpression(p) ? 'a command line' : ts.isArrayLiteralExpression(p) ? 'an argv' : 'a joined string'} directly; text reaches tmux only as its hex bytes (build/p337/SPEC.md D18)`);
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z9, THE READS, AND NOTHING SIZES ANYTHING.
+  // -------------------------------------------------------------------------
+  {
+    const read = zFile('src/main/screen/read.ts', 'Z9', Z_OWNER.screen);
+    const FORMAT = '#{pane_id}\t#{pane_width}\t#{pane_height}\t#{cursor_x}\t#{cursor_y}\t#{cursor_flag}\t#{alternate_on}';
+    // Within the Screen's own modules: src/main/conformance/screen-class.ts has
+    // a SCREEN_FORMAT of its own (Phase 331's screen class), which is not this.
+    const formatDecls = declarationsOf([...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])], 'SCREEN_FORMAT');
+    checked('Z9', 2);
+    if (formatDecls.length !== 1 || (read !== null && formatDecls[0].file !== read)) {
+      fail('Z9', `SCREEN_FORMAT is declared ${String(formatDecls.length)} time(s) (${formatDecls.map((d) => rel(d.file)).join(', ')}); it is declared ONCE, in src/main/screen/read.ts (build/p337/SPEC.md D6)`);
+    } else {
+      const v = bare(formatDecls[0].n.initializer);
+      const value = v !== undefined && ts.isStringLiteralLike(v) ? v.text : null;
+      if (value !== FORMAT) fail('Z9', `${where(formatDecls[0].file, formatDecls[0].n)}: SCREEN_FORMAT is ${J(value)}; it is exactly ${J(FORMAT)}: no caller string is ever a format, because a format on a long-lived connection can run programs (D6)`);
+    }
+    if (read !== null) {
+      for (const { node, text } of codeStringsOf(read)) {
+        if (!/^(?:[a-z]+-[a-z]+)\b/.test(text) || !/^(?:display-message|capture-pane|send-keys|copy-mode|resize|refresh-client|new-|attach-|switch-|run-shell|if-shell|set-|list-)/.test(text)) continue;
+        checked('Z9');
+        if (!/^(?:display-message -p -t |capture-pane -p -e -t |display-message$|capture-pane$)/.test(text)) {
+          fail('Z9', `${where(read, node)}: the read composes ${J(text.slice(0, 50))}; it sends only display-message -p -t <x> SCREEN_FORMAT and capture-pane -p -e -t <x> (build/p337/SPEC.md D5, D7)`);
+        }
+      }
+      // The spawned down path: ONE list per read, the three joined by `;`.
+      const spawned = callsOf(read).filter((c) => /^(?:execTmux|run|spawn|spawnTmux|execFile)$/.test(calleeName(c) ?? ''));
+      checked('Z21');
+      if (spawned.length !== 1) {
+        fail('Z21', `${rel(read)} starts ${String(spawned.length)} spawned tmux call(s); when the control client is down a read is ONE spawned tmux carrying the three as a ; list (build/p337/SPEC.md D5, §Attack A8)`);
+      } else {
+        const list = arrayOfArg(read, spawned[0].arguments[0]);
+        const semis = list === null ? 0 : list.elements.filter((e) => ts.isStringLiteral(e) && e.text === ';').length;
+        if (semis !== 2) fail('Z21', `${where(read, spawned[0])}: the down path's one spawn carries ${String(semis)} ; separator(s); it carries the three commands as ONE list, display ; capture ; display, so a down client costs one spawn a read and never three`);
+      }
+    }
+    const remote = zFile('src/main/machines/remote-screen.ts', 'Z9', Z_OWNER.screen);
+    if (remote !== null) {
+      const execs = callsOf(remote).filter((c) => calleeName(c) === 'execOn');
+      checked('Z9', 2);
+      if (execs.length !== 1) {
+        fail('Z9', `${rel(remote)} calls execOn( ${String(execs.length)} time(s); a remote read is ONE execOn( of capture-pane and display-message (build/p337/SPEC.md §5.3.3)`);
+      } else {
+        const argv = arrayOfArg(remote, execs[0].arguments[1]);
+        const els = argv !== null ? argv.elements.map((e) => (ts.isStringLiteral(e) ? `'${e.text}'` : e.getText())) : null;
+        const shape = els === null ? null : els.map((e, i) => (/^'/.test(e) ? e : i === 4 || i === 9 ? 'TARGET' : e));
+        const want = ["'capture-pane'", "'-p'", "'-e'", "'-t'", 'TARGET', "';'", "'display-message'", "'-p'", "'-t'", 'TARGET', 'SCREEN_FORMAT'];
+        if (shape === null || J(shape) !== J(want)) fail('Z9', `${where(remote, execs[0])}: the remote read's argv is ${J(els)}; it is exactly ${J(want)}, the one format and nothing a caller wrote (D6, §5.3.3)`);
+      }
+    }
+    const phaseFiles = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+    for (const file of phaseFiles) {
+      for (const { node, text } of codeStringsOf(file)) {
+        checked('Z9');
+        const word = /\b(refresh-client|resize-window|resize-pane|attach-session|new-session|switch-client)\b/.exec(text)?.[1] ?? (text === '-x' || text === '-y' || /(?:^|\s)-[xy](?:\s|$)/.test(text) ? text.trim() : null);
+        if (word !== null) fail('Z9', `${where(file, node)} names ${J(word)}. Nothing this phase adds sizes anything: the phone never changes the size of a session on his Mac (his ruling 2, D7)`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z10, THE HOLD.
+  // -------------------------------------------------------------------------
+  const watch = zFile('src/main/screen/watch.ts', 'Z10', Z_OWNER.screen);
+  if (watch === null) for (const id of ['Z16', 'Z19', 'Z21']) fail(id, `src/main/screen/watch.ts does not exist. It is ${Z_OWNER.screen}.`);
+  {
+    const limits = join(DOMAIN, 'door', 'limits.ts');
+    const hold = zNumber(watch, 'SCREEN_HOLD_MS');
+    const tick = zNumber(watch, 'SCREEN_TICK_MS');
+    const local = zNumber(watch, 'SCREEN_LOCAL_READ_DEADLINE_MS');
+    const remoteDeadline = zNumber(watch, 'SCREEN_REMOTE_READ_DEADLINE_MS');
+    const answerTimeout = zNumber(existsSync(limits) ? limits : null, 'ANSWER_TIMEOUT_MS');
+    const stopJoin = zNumber(existsSync(limits) ? limits : null, 'DOOR_STOP_JOIN_MS');
+    checked('Z10', 3);
+    const missing = Object.entries({ SCREEN_HOLD_MS: hold, SCREEN_TICK_MS: tick, SCREEN_LOCAL_READ_DEADLINE_MS: local, SCREEN_REMOTE_READ_DEADLINE_MS: remoteDeadline, ANSWER_TIMEOUT_MS: answerTimeout, DOOR_STOP_JOIN_MS: stopJoin }).filter(([, v]) => v === null).map(([n]) => n);
+    if (missing.length > 0) {
+      if (watch !== null) fail('Z10', `the hold's constants are not each one numeric literal declared once: ${missing.join(', ')} (build/p337/SPEC.md §5.3.2)`);
+    } else {
+      if (!(hold + tick <= answerTimeout - 2_000)) fail('Z10', `SCREEN_HOLD_MS + SCREEN_TICK_MS is ${String(hold + tick)}, and ANSWER_TIMEOUT_MS - 2,000 is ${String(answerTimeout - 2_000)}: a held poll would reach the door's own 404 (D3)`);
+      if (!(2 * tick < stopJoin)) fail('Z10', `2 * SCREEN_TICK_MS is ${String(2 * tick)}, not under DOOR_STOP_JOIN_MS (${String(stopJoin)}): a poll under a stopping door would outlive the stop's join (D3, §Attack A7)`);
+      if (!(local <= remoteDeadline)) fail('Z10', `SCREEN_LOCAL_READ_DEADLINE_MS (${String(local)}) is over SCREEN_REMOTE_READ_DEADLINE_MS (${String(remoteDeadline)})`);
+    }
+    if (watch !== null) {
+      // EVERY READ RACED AGAINST ITS DEADLINE: each call of the watcher's read
+      // (readLocal(, readRemote() sits in a function that races it, through
+      // Promise.race( or a local step that does, against the deadline that is
+      // its own (the local one for readLocal(, the remote one for readRemote().
+      const raced = (fn) => /Promise\.race\(/.test(fn.getText()) || descendantsOf(fn).some((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && functionsNamed(watch, n.expression.text).some((g) => /Promise\.race\(|setTimeout\(/.test(g.getText())));
+      const readCalls = callsOf(watch).filter((c) => /^(?:readLocal|readRemote)$/.test(calleeName(c) ?? '') && ts.isIdentifier(c.expression));
+      checked('Z10');
+      if (readCalls.length === 0) fail('Z10', `${rel(watch)}: no readLocal( or readRemote( call, so nothing of the read's deadline can be read`);
+      for (const c of readCalls) {
+        checked('Z10');
+        let fn = c.parent;
+        while (fn !== undefined && !(ts.isFunctionLike(fn) && fn.parent !== undefined && !ts.isCallExpression(fn.parent) && !ts.isConditionalExpression(fn.parent))) fn = fn.parent;
+        const own = calleeName(c) === 'readLocal' ? 'SCREEN_LOCAL_READ_DEADLINE_MS' : 'SCREEN_REMOTE_READ_DEADLINE_MS';
+        if (fn === undefined || !raced(fn) || !new RegExp(`\\b${own}\\b`).test(fn.getText())) {
+          fail('Z10', `${where(watch, c)}: ${calleeName(c)}( is not raced against ${own} in the function that starts it, so a read past its deadline is still waited on (D3, §Attack A7)`);
+        }
+      }
+      // A poll answered from its own timer, whose callback asks closing( and awaits nothing.
+      // The callback is read with every local function it reaches, so a tick
+      // that hands the poll to a named step is read as the step.
+      const timers = callsOf(watch).filter((c) => /^(?:setInterval|setTimeout)$/.test(calleeName(c) ?? '') && c.arguments[0] !== undefined && (ts.isArrowFunction(bare(c.arguments[0])) || ts.isFunctionExpression(bare(c.arguments[0]))));
+      const reachOf = (c) => reachedFunctions(watch, bare(c.arguments[0]));
+      const pollTimer = timers.find((c) => calleeName(c) === 'setInterval' && reachOf(c).some((f) => /\bclosing\(\)/.test(f.getText())));
+      checked('Z10', 2);
+      if (pollTimer === undefined) {
+        fail('Z10', `${rel(watch)}: no interval's callback asks closing(); a waiting poll is answered from its OWN timer, which asks closing(, the hold's end and the session's latest reading on every tick (D3, §Attack A7)`);
+      } else {
+        const reached = reachOf(pollTimer);
+        const asyncOne = reached.find((f) => f.modifiers?.some((m) => m.kind === ts.SyntaxKind.AsyncKeyword) === true || descendantsOf(f).some((n) => ts.isAwaitExpression(n)));
+        if (asyncOne !== undefined) fail('Z10', `${where(watch, asyncOne)}: the poll's tick reaches a step that awaits; it never awaits a read, so a remote read in flight can never hold a poll past the door's stop join (D3)`);
+        const period = pollTimer.arguments[1]?.getText() ?? '';
+        if (period !== 'SCREEN_TICK_MS') fail('Z10', `${where(watch, pollTimer)}: the poll's own timer runs every ${J(period)}; it runs every SCREEN_TICK_MS on this Mac and on another machine alike (D3)`);
+        if (!reached.some((f) => /SCREEN_HOLD_MS/.test(f.getText()))) fail('Z10', `${where(watch, pollTimer)}: the poll's tick does not ask the hold's end (SCREEN_HOLD_MS), so a poll could outlive the door's answer timer`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z11, THE ANSWER COMPOSED FIELD BY FIELD.
+  // -------------------------------------------------------------------------
+  {
+    const routes = zFile('src/main/pocket/routes.ts', 'Z11', Z_OWNER.door);
+    const fn = routes === null ? null : oneFunction(routes, 'screenOf');
+    checked('Z11');
+    if (routes !== null && fn === null) fail('Z11', `${rel(routes)} declares no single screenOf; the screen answer is re-composed field by field, so nothing else on the watcher's object can leave (D13)`);
+    if (fn !== null) {
+      const reach = reachedFunctions(routes, fn);
+      const nodes = reach.flatMap((f) => descendantsOf(f));
+      for (const n of nodes) {
+        if (ts.isSpreadAssignment(n) || ts.isSpreadElement(n)) {
+          checked('Z11');
+          fail('Z11', `${where(routes, n)}: the screen answer spreads ${J(n.getText().slice(0, 40))}; it is composed field by field, so a field the watcher added cannot ride along`);
+        }
+        if (ts.isPropertyAssignment(n) && ts.isPropertyAccessExpression(bare(n.initializer)) && /^(?:lines|styles|screen|cursor)$/.test(bare(n.initializer).name.text)) {
+          checked('Z11');
+          fail('Z11', `${where(routes, n)}: ${J(n.getText().slice(0, 50))} hands the watcher's own ${bare(n.initializer).name.text} on; the arrays and objects are fresh (D13)`);
+        }
+        if (ts.isCallExpression(n) && /JSON\.parse|structuredClone|Object\.assign/.test(n.expression.getText())) {
+          checked('Z11');
+          fail('Z11', `${where(routes, n)}: the screen answer is copied with ${n.expression.getText()}; it is composed field by field`);
+        }
+      }
+      for (const cap of ['POCKET_SCREEN_MAX_COLS', 'POCKET_SCREEN_MAX_ROWS', 'POCKET_SCREEN_MAX_STYLES', 'POCKET_SCREEN_MAX_RUNS', 'POCKET_SCREEN_MAX_BYTES']) {
+        checked('Z11');
+        const imported = importedNames(routes, (s) => /@shared\/ipc\/pocket$/.test(s)).has(cap);
+        const refs = referencesOf(routes, cap).length;
+        if (!imported || refs !== 1) fail('Z11', `${rel(routes)}: ${cap} is ${imported ? `read ${String(refs)} time(s)` : 'not imported from @shared/ipc/pocket'}; each cap is imported from the contract and read ONCE (D15)`);
+      }
+    }
+    const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+    const absence = existsSync(contract) ? declaredType(contract, 'PocketScreenAbsence') : null;
+    checked('Z11');
+    const words = absence === null ? [] : descendantsOf(absence.type ?? absence).filter((n) => ts.isLiteralTypeNode(n) && ts.isStringLiteral(n.literal)).map((n) => n.literal.text).sort();
+    if (J(words) !== J(['ended', 'large', 'unreachable'])) fail('Z11', `src/shared/ipc/pocket.ts: PocketScreenAbsence is ${J(words)}; why is exactly ended, unreachable or large (D13)`);
+    for (const name of ['POCKET_SCREEN_MAX_COLS', 'POCKET_SCREEN_MAX_ROWS', 'POCKET_SCREEN_MAX_STYLES', 'POCKET_SCREEN_MAX_RUNS', 'POCKET_SCREEN_MAX_BYTES']) {
+      const want = { POCKET_SCREEN_MAX_COLS: 512, POCKET_SCREEN_MAX_ROWS: 200, POCKET_SCREEN_MAX_STYLES: 1_024, POCKET_SCREEN_MAX_RUNS: 16_384, POCKET_SCREEN_MAX_BYTES: 1_048_576 }[name];
+      checked('Z11');
+      const got = existsSync(contract) ? zNumber(contract, name) : null;
+      if (got !== want) fail('Z11', `src/shared/ipc/pocket.ts: ${name} is ${String(got)}; it is ${String(want)} (build/p337/SPEC.md §5.2, D15)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z12, THE COMPOSER IS PURE, AND THE MARK IS SPELLED ONCE.
+  // -------------------------------------------------------------------------
+  {
+    const pure = ['sgr', 'cells', 'cell-widths', 'palette', 'compose'].map((b) => [b, zFile(`src/main/screen/${b}.ts`, 'Z12', Z_OWNER.screen)]);
+    for (const [base, file] of pure) {
+      if (file === null) continue;
+      for (const { node, text } of specifiersOf(file)) {
+        checked('Z12');
+        if (/^(?:node:)?(?:fs|fs\/promises|child_process|net|http|https|dgram)$/.test(text) || /(?:^|\/)(?:tmux|settings|config|agents)(?:\/|$)|registry$/.test(text) || text === 'electron') {
+          fail('Z12', `${where(file, node)}: ${base}.ts imports ${text}. The composer reads no clock, no file and no process (build/p337/SPEC.md §5.3.4)`);
+        }
+        if (base === 'compose' && !(text.startsWith('./') || text.startsWith('@shared/') || text === '../activity/screen' || text === '../reply/reader')) {
+          fail('Z12', `${where(file, node)}: compose.ts imports ${text}; it imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader (§5.3.4, §Attack A16)`);
+        }
+      }
+      for (const c of callsOf(file)) {
+        if (/^(?:now|hrtime|setTimeout|setInterval|spawn|execFile|readFileSync|readFile)$/.test(calleeName(c) ?? '') || /^(?:Date\.now|performance\.now|process\.hrtime)/.test(c.expression.getText())) {
+          checked('Z12');
+          fail('Z12', `${where(file, c)}: ${base}.ts calls ${c.expression.getText()}(; the composer is pure`);
+        }
+      }
+    }
+    const compose = pure.find(([b]) => b === 'compose')?.[1] ?? null;
+    if (compose !== null) {
+      checked('Z12');
+      const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'windowMarkOf');
+      if (decls.length !== 1 || decls[0].file !== compose) fail('Z12', `windowMarkOf is declared ${String(decls.length)} time(s) (${decls.map((d) => rel(d.file)).join(', ')}); ONCE, in compose.ts (§5.3.4)`);
+      const sites = sourcesUnder(join(ROOT, 'src', 'main', 'screen')).flatMap((file) => nodesOf(file).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'readBackWindowOf').map((n) => ({ file, n })));
+      if (sites.length !== 1 || sites[0].file !== compose) fail('Z12', `src/main/screen calls readBackWindowOf( ${String(sites.length)} time(s); once, inside windowMarkOf in compose.ts, the one spelling of the window's mark`);
+    }
+    for (const [base, name] of [['cell-widths', null], ['palette', 'SCREEN_PALETTE']]) {
+      const file = pure.find(([b]) => b === base)?.[1] ?? null;
+      if (file === null) continue;
+      checked('Z12');
+      const frozen = nodesOf(file).some((n) => ts.isVariableDeclaration(n) && (name === null || (ts.isIdentifier(n.name) && n.name.text === name)) && n.initializer !== undefined && ts.isCallExpression(bare(n.initializer)) && bare(n.initializer).expression.getText() === 'Object.freeze' && (name !== null || (bare(n.initializer).arguments[0] !== undefined && ts.isArrayLiteralExpression(bare(bare(n.initializer).arguments[0])) && bare(bare(n.initializer).arguments[0]).elements.length >= 900)));
+      if (!frozen) fail('Z12', `${rel(file)}: ${name ?? 'the width table'} is not a frozen literal${name === null ? ' of the generated ranges (925 at tmux 3.7b)' : ''}; it is data, never computed at run time (D10, D12)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z13, CLOSING HANDED TO THE READ.
+  // -------------------------------------------------------------------------
+  {
+    const server = zFile('src/main/pocket/server.ts', 'Z13', Z_OWNER.door);
+    if (server !== null) {
+      const calls = callsOf(server).filter((c) => calleeName(c) === 'answer' && /deps\.answer$/.test(c.expression.getText()));
+      checked('Z13', 2);
+      if (calls.length !== 1 || calls[0].arguments.length !== 3 || !ts.isIdentifier(calls[0].arguments[2])) {
+        fail('Z13', `${rel(server)}: deps.answer( is called ${String(calls.length)} time(s)${calls.length === 1 ? ` with ${String(calls[0].arguments.length)} argument(s)` : ''}; once, handed closing as its third, so a held poll ends when the quit starts or this door stops (D3)`);
+      } else {
+        const name = calls[0].arguments[2].text;
+        const decl = descendantsOf(astOf(server)).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name && n.initializer !== undefined && inside(calls[0], n.parent.parent.parent ?? n));
+        const body = decl === undefined ? '' : decl.initializer.getText();
+        if (!/shuttingDown\(\)/.test(body) || !/stopping\(\)/.test(body)) fail('Z13', `${where(server, calls[0])}: the ${name} handed to the read is ${J(body.slice(0, 60))}; it is refusal 1's own, deps.shuttingDown() || door.stopping() (D3)`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z14, THE SCREEN ROW ON /v1/session.
+  // -------------------------------------------------------------------------
+  {
+    const routes = zFile('src/main/pocket/routes.ts', 'Z14', Z_OWNER.door);
+    if (routes !== null) {
+      const sets = nodesOf(routes).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'screen' && !ts.isArrowFunction(bare(n.initializer)) && !ts.isFunctionExpression(bare(n.initializer)));
+      const decls = declarationsOf([routes], 'screenLive');
+      checked('Z14', 4);
+      const literal = sets.filter((n) => /screenLive/.test(n.initializer.getText()));
+      if (literal.length !== 1 || !/^facts\.screen\s*!==\s*undefined\s*&&\s*screenLive\(\s*session\s*\)$/.test(literal[0].initializer.getText().trim())) {
+        fail('Z14', `${rel(routes)}: the session answer's screen is set ${String(literal.length)} time(s) from screenLive; ONCE, as facts.screen !== undefined && screenLive(session) (D32)`);
+      }
+      // The one live partition (conformance:manager T23): the gates' own
+      // `live`, and no status literal of this phase's.
+      const fn = decls.length === 1 && ts.isFunctionDeclaration(decls[0].n) ? decls[0].n : null;
+      const fnText = fn?.body?.getText() ?? '';
+      const statusWords = ['running', 'idle', 'needs_input', 'exited', 'restorable', 'unknown', 'discarded'];
+      const named = fn === null ? [] : nodesOf(routes).filter((n) => ts.isStringLiteral(n) && statusWords.includes(n.text) && n.pos >= fn.pos && n.end <= fn.end).map((n) => n.text);
+      if (fn === null || !/^\{\s*return\s+sessionActionGates\(\s*session\s*,\s*session\.status\s*,\s*DOOR_GATE_ENV\s*\)\.live\s*;\s*\}$/.test(fnText) || named.length > 0) {
+        fail('Z14', `${rel(routes)}: screenLive is declared ${String(decls.length)} time(s)${named.length > 0 ? `, naming ${J(named)}` : ''}; once, as a function answering sessionActionGates(session, session.status, DOOR_GATE_ENV).live and naming no status (D32, T23)`);
+      }
+      if (declarationsOf(productionSources(), 'screenLive').length !== 1) fail('Z14', 'screenLive is declared outside routes.ts too; the Screen asks the one partition through one function');
+      const watch = zFile('src/main/screen/watch.ts', 'Z14', Z_OWNER.screen);
+      if (watch !== null) {
+        const asks = nodesOf(watch).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && n.expression.text === 'screenLive');
+        const lists = nodesOf(watch).filter((n) => ts.isArrayLiteralExpression(n) && n.elements.filter((e) => ts.isStringLiteral(e) && statusWords.includes(e.text)).length >= 2);
+        if (asks.length < 1) fail('Z14', `${rel(watch)}: the watcher never asks screenLive(, so whether a row has a screen is decided somewhere else (D32)`);
+        if (lists.length > 0) fail('Z14', `${where(watch, lists[0])}: the watcher holds a list of statuses; it asks screenLive( (T23)`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z15, THE WORDS AT ALLOW.
+  // -------------------------------------------------------------------------
+  {
+    const pairing = zFile('src/main/pocket/pairing.ts', 'Z15', Z_OWNER.door);
+    checked('Z15', 2);
+    if (pairing !== null) {
+      const map = nodesOf(pairing).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'WRITE_CLAUSES');
+      let init = map === undefined ? undefined : bare(map.initializer);
+      if (init !== undefined && ts.isCallExpression(init)) init = bare(init.arguments[0]);
+      const clause = init !== undefined && ts.isObjectLiteralExpression(init) ? propOf(init, 'keys') : undefined;
+      if (clause === undefined || !ts.isStringLiteralLike(bare(clause)) || bare(clause).text !== 'type into any session as you would at this Mac') {
+        fail('Z15', `${rel(pairing)}: WRITE_CLAUSES.keys is ${J(clause?.getText() ?? null)}; it is 'type into any session as you would at this Mac', the plainest true words for a write that can run a command in a shell (D35)`);
+      }
+    }
+    const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+    const honesty = existsSync(contract) ? constNamed(contract, 'POCKET_DOOR_HONESTY') : null;
+    const said = honesty === null ? '' : (() => {
+      const parts = [];
+      const collect = (e) => {
+        const b = bare(e);
+        if (b !== undefined && ts.isStringLiteralLike(b)) parts.push(b.text);
+        else if (b !== undefined && ts.isBinaryExpression(b)) {
+          collect(b.left);
+          collect(b.right);
+        }
+      };
+      collect(honesty.initializer);
+      return parts.join('');
+    })();
+    if (!/screen/.test(said) || !/type into/.test(said) || /change nothing else/.test(said)) {
+      fail('Z15', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it names the screen and typing, and no longer says the phone can change nothing else (D35)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z16, ONE WATCHER A SESSION.
+  // -------------------------------------------------------------------------
+  if (watch !== null) {
+    const text = codeTextOf(watch);
+    checked('Z16', 3);
+    const maps = nodesOf(watch).filter((n) => ts.isNewExpression(n) && n.expression.getText() === 'Map');
+    if (maps.length === 0) fail('Z16', `${rel(watch)}: no Map of entries keyed by session; ONE entry per session with a poll waiting (build/p337/SPEC.md §5.3.2)`);
+    // An if on an empty waiting list whose branch deletes the entry, itself or
+    // through a local step that deletes from a Map.
+    const deleters = new Set(nodesOf(watch).filter((n) => (ts.isVariableDeclaration(n) || ts.isFunctionDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name) && /\.delete\(/.test(n.getText()) && (ts.isFunctionDeclaration(n) || ts.isArrowFunction(bare(n.initializer)))).map((n) => n.name.text));
+    const dropped = nodesOf(watch).some(
+      (n) =>
+        ts.isIfStatement(n) &&
+        /(?:size|length)\s*===\s*0|(?:size|length)\s*<\s*1/.test(n.expression.getText()) &&
+        descendantsOf(n.thenStatement).some((m) => ts.isCallExpression(m) && (calleeName(m) === 'delete' || (ts.isIdentifier(m.expression) && deleters.has(m.expression.text))))
+    );
+    if (!dropped) fail('Z16', `${rel(watch)}: no entry is dropped when its last poll is answered (a .delete( guarded by an empty waiting list); nothing is read for a session nobody is looking at`);
+    // Four times the last compose, as the literal 4 or a const that is 4.
+    const fours = new Set(nodesOf(watch).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && ts.isNumericLiteral(bare(n.initializer)) && Number(bare(n.initializer).text) === 4).map((n) => n.name.text));
+    const timesFour = (text) => /\b4\s*\*|\*\s*4\b/.test(text) || [...fours].some((f) => new RegExp(`\\b${f}\\s*\\*|\\*\\s*${f}\\b`).test(text));
+    const duty = nodesOf(watch).some((n) => ts.isCallExpression(n) && n.expression.getText() === 'Math.max' && n.arguments.some((a) => /TICK|tick/.test(a.getText())) && n.arguments.some((a) => timesFour(a.getText())));
+    if (!duty) fail('Z16', `${rel(watch)}: no duty cycle Math.max( over the tick and four times the last compose (D15): a pathological screen could take main's loop`);
+    void text;
+  }
+
+  // -------------------------------------------------------------------------
+  // Z17, A BLOCK ENDS ONLY ON ITS OWN GUARD.
+  // -------------------------------------------------------------------------
+  {
+    const client = zFile('src/main/tmux/control-client.ts', 'Z17', Z_OWNER.keys);
+    const handle = client === null ? null : methodOf(client, 'TmuxControlClient', 'handleLine');
+    checked('Z17', 3);
+    if (client !== null && handle === null) fail('Z17', `${rel(client)}: TmuxControlClient has no handleLine`);
+    if (handle !== null) {
+      const closes = descendantsOf(handle).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'closeBlock');
+      const guarded = closes.filter((c) => {
+        const g = guardingIf(c);
+        if (g === null) return false;
+        const cond = g.expression.getText();
+        return /commandNumber\s*===\s*[A-Za-z_.]+/.test(cond) && /timestamp\s*===\s*[A-Za-z_.]+/.test(cond);
+      });
+      const inBlock = closes.filter((c) => {
+        const g = guardingIf(c);
+        return g !== null && /'end'|'command-error'/.test(g.expression.getText());
+      });
+      if (inBlock.length === 0 || guarded.length !== inBlock.length) {
+        fail('Z17', `${where(client, handle)}: inside a block, an end or command-error closes it without comparing its commandNumber AND timestamp with the block's own; a guard-shaped row a screen draws would end another command's answer (build/p337/SPEC.md D8, §14 M3: 20 of 20 at the parent)`);
+      }
+      const begins = descendantsOf(handle).filter((n) => ts.isObjectLiteralExpression(n) && /event\.commandNumber/.test(n.getText()) && /event\.timestamp/.test(n.getText()));
+      if (begins.length === 0) fail('Z17', `${where(client, handle)}: the block does not record its %begin's commandNumber and timestamp, so nothing can be compared`);
+      const anyClose = descendantsOf(handle).filter((n) => ts.isIfStatement(n) && /'end'|'command-error'/.test(n.expression.getText()) && /\bblock|open\b/.test(n.expression.getText()) && !/commandNumber/.test(n.expression.getText()));
+      if (anyClose.length > 0) fail('Z17', `${where(client, anyClose[0])}: a branch closes the open block on any end or error`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z18, THE CAPS ON KEYS, DECLARED ONCE.
+  // -------------------------------------------------------------------------
+  {
+    const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+    for (const [name, want, readers] of [['POCKET_KEYS_MAX_ITEMS', 64, ['src/main/pocket/writes.ts']], ['POCKET_KEYS_MAX_TEXT_BYTES', 1_024, ['src/main/screen/keys.ts']]]) {
+      const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')), name);
+      checked('Z18', 2);
+      if (decls.length !== 1 || decls[0].file !== contract || zNumber(contract, name) !== want) {
+        fail('Z18', `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => rel(d.file)).join(', ')}) as ${String(existsSync(contract) ? zNumber(contract, name) : null)}; it is ${String(want)}, declared ONCE in src/shared/ipc/pocket.ts (build/p337/SPEC.md §5.2)`);
+      }
+      for (const r of readers) {
+        const path = join(ROOT, r);
+        if (!existsSync(path)) {
+          fail('Z18', `${r} does not exist, so it cannot read ${name}`);
+          continue;
+        }
+        if (!importedNames(path, (s) => /@shared\/ipc\/pocket$/.test(s)).has(name) || referencesOf(path, name).length === 0) fail('Z18', `${r} does not import and read ${name} from the contract; the ${r.endsWith('writes.ts') ? 'parse' : 'verb'} holds the bound it names`);
+      }
+    }
+    const writes = join(DOMAIN, 'writes.ts');
+    checked('Z18', 2);
+    if (existsSync(writes)) {
+      if (zNumber(writes, 'POCKET_WRITE_LEDGER_PER_PHONE') !== 2_048 || zNumber(writes, 'POCKET_WRITE_LEDGER_MAX') !== 8_192) {
+        fail('Z18', `${rel(writes)}: the ledger caps are ${String(zNumber(writes, 'POCKET_WRITE_LEDGER_PER_PHONE'))} and ${String(zNumber(writes, 'POCKET_WRITE_LEDGER_MAX'))}; they are 2,048 a phone and 8,192 in all, because a phone types a keys write at most every 100 ms (D24)`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z19, THE NONCE MEMORY AND THE ANSWER FLOOR.
+  // -------------------------------------------------------------------------
+  {
+    const pairing = join(DOMAIN, 'pairing.ts');
+    const memory = existsSync(pairing) ? zNumber(pairing, 'POCKET_NONCE_MEMORY') : null;
+    const skew = existsSync(pairing) ? zNumber(pairing, 'POCKET_CLOCK_SKEW_MS') : null;
+    const gap = zNumber(watch, 'SCREEN_MIN_ANSWER_GAP_MS');
+    checked('Z19', 3);
+    if (memory !== 4_096) fail('Z19', `src/main/pocket/pairing.ts: POCKET_NONCE_MEMORY is ${String(memory)}; it is 4,096 (build/p337/SPEC.md D40)`);
+    if (gap !== 250) {
+      if (watch !== null) fail('Z19', `${rel(watch)}: SCREEN_MIN_ANSWER_GAP_MS is ${String(gap)}; it is 250, declared once (D40)`);
+    } else if (memory !== null && skew !== null) {
+      const need = (2 * skew / 1000) * (1000 / gap + 20);
+      if (!(memory >= need)) fail('Z19', `POCKET_NONCE_MEMORY (${String(memory)}) is under (2 * POCKET_CLOCK_SKEW_MS / 1000) * (1000 / SCREEN_MIN_ANSWER_GAP_MS + 20) = ${String(need)}: a phone's own traffic would evict a nonce still inside its window`);
+    }
+    if (watch !== null) {
+      const compares = referencesOf(watch, 'SCREEN_MIN_ANSWER_GAP_MS').filter((r) => {
+        for (let p = r.parent; p !== undefined && !ts.isStatement(p); p = p.parent) {
+          if (ts.isBinaryExpression(p) && [ts.SyntaxKind.LessThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.GreaterThanEqualsToken, ts.SyntaxKind.PlusToken, ts.SyntaxKind.MinusToken].includes(p.operatorToken.kind)) return true;
+          if (ts.isCallExpression(p) && /Math\.(?:max|min)$/.test(p.expression.getText())) return true;
+        }
+        return false;
+      });
+      checked('Z19');
+      if (compares.length === 0) fail('Z19', `${rel(watch)}: SCREEN_MIN_ANSWER_GAP_MS is never measured against a poll's arrival, so a spinner is answered ten times a second to each phone (D40)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z21, THE SETTLE AND THE SLOT.
+  // -------------------------------------------------------------------------
+  if (watch !== null) {
+    const settle = zNumber(watch, 'SCREEN_SETTLE_MS');
+    const nudgeMs = zNumber(watch, 'SCREEN_NUDGE_MS');
+    checked('Z21', 4);
+    if (settle !== 300 || nudgeMs === null || !(settle > nudgeMs)) fail('Z21', `${rel(watch)}: SCREEN_SETTLE_MS is ${String(settle)} and SCREEN_NUDGE_MS ${String(nudgeMs)}; the settle is 300 and longer than the nudge (D4)`);
+    const nudge = verbOf(watch, 'createScreenWatch', 'nudge');
+    if (nudge === null || nudge.parameters.length !== 2) {
+      fail('Z21', `${rel(watch)}: createScreenWatch answers no nudge(sessionId, before); the keys write hands the window mark of its own fresh read, so the answer waits for the redraw (D4, §Attack A6)`);
+    }
+    const text = codeTextOf(watch);
+    // The settle ends on a read whose window mark is not the nudge's `before`,
+    // or on one SCREEN_SETTLE_MS after it; the mark is windowMarkOf('s, in the
+    // watcher or in the composed screen it reads.
+    const comparesBefore = nodesOf(watch).some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.ExclamationEqualsEqualsToken && /\bbefore\b/.test(n.getText()) && /mark/i.test(n.getText()));
+    const settleTimed = referencesOf(watch, 'SCREEN_SETTLE_MS').some((r) => {
+      for (let p = r.parent; p !== undefined && !ts.isStatement(p); p = p.parent) if (ts.isBinaryExpression(p) && [ts.SyntaxKind.GreaterThanEqualsToken, ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.LessThanToken].includes(p.operatorToken.kind)) return true;
+      return false;
+    });
+    const composeFile = join(ROOT, 'src', 'main', 'screen', 'compose.ts');
+    const markIsWindow = /windowMarkOf\(/.test(text) || (existsSync(composeFile) && /\bmark\s*[:=]\s*windowMarkOf\(/.test(codeTextOf(composeFile)));
+    if (!comparesBefore || !settleTimed || !markIsWindow) {
+      fail('Z21', `${rel(watch)}: a settling session is not answered only by a read whose window mark (windowMarkOf() differs from the nudge's before${comparesBefore ? '' : ' [no mark compared with before]'}, or by a read SCREEN_SETTLE_MS after it${settleTimed ? '' : ' [SCREEN_SETTLE_MS never compared]'}${markIsWindow ? '' : ' [the mark is not windowMarkOf(]'} (D4, §Attack A6)`);
+    }
+    // One read in flight: a set taken before the read, asked before a read
+    // starts, and given back when the read SETTLES (a .then( or .finally( on
+    // it, or a finally), whether or not it settled in time.
+    const flightSets = nodesOf(watch).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'add' && /inFlight|reading|busy/i.test(n.expression.getText())).map((n) => n.expression.expression.getText());
+    const name = flightSets[0];
+    // Asked where a read STARTS: in the function that starts the read (the
+    // one calling readLocal( or readRemote(, or the one calling it), an if on
+    // the slot that returns, before the start. A has( elsewhere (a prune) is
+    // not the guard.
+    const starters = nodesOf(watch).filter((n) => (ts.isVariableDeclaration(n) || ts.isFunctionDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name) && (ts.isFunctionDeclaration(n) || (n.initializer !== undefined && ts.isArrowFunction(bare(n.initializer)))) && /\b(?:readLocal|readRemote)\(/.test(n.getText())).map((n) => n.name.text);
+    const startCalls = nodesOf(watch).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && (starters.includes(n.expression.text) || /^(?:readLocal|readRemote)$/.test(n.expression.text)));
+    const asked = name !== undefined && startCalls.some((c) => {
+      let fn = c.parent;
+      while (fn !== undefined && !ts.isFunctionLike(fn)) fn = fn.parent;
+      if (fn === undefined) return false;
+      return descendantsOf(fn).some((n) => ts.isIfStatement(n) && n.getStart() < c.getStart() && new RegExp(`\\b${name}\\.has\\(`).test(n.expression.getText()) && !new RegExp(`!\\s*${name}\\.has\\(`).test(n.expression.getText()) && descendantsOf(n.thenStatement).some((m) => ts.isReturnStatement(m)));
+    });
+    const givenBack = name !== undefined && nodesOf(watch).some((n) => ts.isCallExpression(n) && calleeName(n) === 'delete' && n.expression.getText() === `${name}.delete` && (() => {
+      for (let p = n.parent; p !== undefined; p = p.parent) {
+        if (ts.isCallExpression(p) && /\.(?:then|finally)$/.test(p.expression.getText())) return true;
+        if (ts.isTryStatement(p.parent ?? p) && (p.parent ?? p).finallyBlock === p) return true;
+      }
+      return false;
+    })());
+    if (!asked || !givenBack) fail('Z21', `${rel(watch)}: no read slot (${String(name ?? 'none')}) is asked before a read starts and given back only when the read settles; reads of one session could overlap (D3, §Attack A7)`);
+  }
+
+  // -------------------------------------------------------------------------
+  // Z22, THE LOG LINE, BOUNDED.
+  // -------------------------------------------------------------------------
+  {
+    const writes = zFile('src/main/pocket/writes.ts', 'Z22', Z_OWNER.door);
+    if (writes !== null) {
+      const quiet = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'KEYS_LOG_QUIET_MS');
+      checked('Z22', 3);
+      if (quiet.length !== 1 || quiet[0].file !== writes || zNumber(writes, 'KEYS_LOG_QUIET_MS') !== 60_000) {
+        fail('Z22', `KEYS_LOG_QUIET_MS is declared ${String(quiet.length)} time(s) with ${String(zNumber(writes, 'KEYS_LOG_QUIET_MS'))}; 60,000, once, in writes.ts (build/p337/SPEC.md D43)`);
+      }
+      const logs = callsOf(writes).filter((c) => /^(?:debug|info|warn|error|log)$/.test(calleeName(c) ?? '') && /log/i.test(ts.isPropertyAccessExpression(c.expression) ? c.expression.expression.getText() : ''));
+      if (logs.length !== 1) {
+        fail('Z22', `${rel(writes)} makes ${String(logs.length)} log call(s); one, as Phase 317 left it`);
+      } else {
+        const g = guardingIf(logs[0]);
+        const cond = g === null ? null : g.expression;
+        const helperText = cond === null ? '' : descendantsOf(cond).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression)).map((c) => functionsNamed(writes, c.expression.text).map((f) => f.getText()).join('\n')).join('\n');
+        const all = `${cond?.getText() ?? ''}\n${helperText}`;
+        if (cond === null) {
+          fail('Z22', `${where(writes, logs[0])}: the one log line is written for every write; a keys write answered done is logged only when it is the session's first done keys write for KEYS_LOG_QUIET_MS, or typing rotates the diagnosis log out in about twenty minutes (D43, §Attack A11)`);
+        } else if (!/KEYS_LOG_QUIET_MS/.test(all) || !/'keys'/.test(all) || !/'done'/.test(all)) {
+          fail('Z22', `${where(writes, g)}: the log line's condition (${J(cond.getText().slice(0, 80))}) does not read the keys verb, the done outcome and KEYS_LOG_QUIET_MS; every other verb and outcome is logged every time, and only a keys done is quieted (D43)`);
+        } else if (g.elseStatement !== undefined) {
+          fail('Z22', `${where(writes, g)}: the log line's condition has an else arm; it decides whether the one line is written and nothing else`);
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -8178,7 +9284,9 @@ const PHASES = [
   // PHASE 318, the reply (build/p318/SPEC.md §6.1).
   ['the reply', replyRules, 'Y1'],
   // PHASE 316.7, the sessions answer (build/p3167/SPEC.md §8.1).
-  ['the sessions answer', sessionsAnswerRules, 'O2a']
+  ['the sessions answer', sessionsAnswerRules, 'O2a'],
+  // PHASE 337, the Screen (build/p337/SPEC.md §6.1).
+  ['the Screen', screenRules, 'Z1']
 ];
 
 for (const [name, run, onError] of PHASES) {

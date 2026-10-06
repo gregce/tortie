@@ -133,6 +133,18 @@
  * for every scroll of a session on another machine, and the attach host
  * (src/main/attach/attach-host.ts), through the hook the core hands it, for
  * every keystroke to a remote client. This Mac's sessions never reach it.
+ *
+ * PHASE 337, THE PHONE'S KEYS ({@link typePhoneKeys}, build/p337/SPEC.md D20,
+ * his ruling of 2026-10-05, "Every key, including Ctrl-C"). A keys write from
+ * the phone to a session on another machine takes the control connection
+ * ALWAYS: the phone has no attach. One `cancel`, every item's commands (the
+ * seventh row's bytes for text, the eighth row's name for a key) and the road's
+ * read, in one tick, so the road's park state stays true and a desk key typed
+ * meanwhile queues behind them on the same connection. It never holds: a
+ * session with no live address or connection is answered `unreachable` with
+ * nothing written, and nothing it was handed is ever typed later; a sequence
+ * whose connection closed unanswered is never sent again. The keys verb in
+ * src/main/screen/keys.ts is its one caller, through the core's wiring.
  */
 
 import { getLog } from '../log';
@@ -144,12 +156,14 @@ import {
   type TmuxScrollRunner
 } from '../tmux/scroll';
 import { gmuxErrorPayloadOf } from '../errors';
+import type { PocketKeyItem } from '@shared/ipc/pocket';
 import { isPaneReport } from '@shared/pane-report';
 import {
   LEAVING_SHAPE,
   PARKING_SHAPE,
   READING_SHAPE,
   admitScrollArgv,
+  namedKeySequence,
   typedSequence
 } from './scroll-shapes';
 import { missedGreetingThisRun, openControlPlane, remoteScrollRunner } from './control-plane';
@@ -756,7 +770,9 @@ function sayHeldDropped(machineId: string, why: string): void {
  * failure leaves the pane possibly parked, and nothing is retried on the same
  * connection. A sequence whose `cancel` got NO answer because its connection
  * closed is kept for the next connection (F4), which sends it again only if
- * the pane still reads scrolled back there.
+ * the pane still reads scrolled back there. A sequence handed `data` null (the
+ * phone's keys, Phase 337) is NEVER kept: it is at most once, and a key the
+ * phone typed is never typed later.
  */
 async function settleTyped(
   sessionId: string,
@@ -765,7 +781,7 @@ async function settleTyped(
   writes: readonly Promise<string>[],
   read: Promise<PaneScrollState>,
   stamp: number,
-  data: string
+  data: string | null
 ): Promise<void> {
   try {
     let failure: unknown = null;
@@ -788,7 +804,8 @@ async function settleTyped(
       noteAnswer(sessionId, 'failed', stamp);
       const now = source.carriage(machineId);
       const closed = now.kind !== 'live' || now.generation !== generation;
-      if (closed && cancelUnanswered) {
+      const kept = closed && cancelUnanswered && data !== null;
+      if (kept) {
         const road = roads.get(sessionId);
         if (road !== undefined) {
           road.unanswered.push({ data, stamp });
@@ -796,7 +813,7 @@ async function settleTyped(
           startFlushing(sessionId, road);
         }
       }
-      sayTypedFailed(machineId, generation, failure, closed && cancelUnanswered);
+      sayTypedFailed(machineId, generation, failure, kept);
     }
   } finally {
     noteSettled(sessionId);
@@ -1147,6 +1164,106 @@ export function routeKey(sessionId: string, data: string, now: number = clock.no
   } catch {
     // Before the first write: nothing crossed, so the attach carries it.
     return byAttach();
+  }
+}
+
+/** Where one keys write from the phone went (Phase 337, D20). */
+export type PhoneKeysRoad = 'carriage' | 'unreachable';
+
+/**
+ * PHASE 337, ONE KEYS WRITE FROM THE PHONE to a session on another machine
+ * (build/p337/SPEC.md D20, §5.6; his ruling of 2026-10-05, "Every key,
+ * including Ctrl-C").
+ *
+ * `'carriage'`: BEFORE this returns, the machine's control connection has been
+ * written, in this order and in this tick, ONE `cancel`, then each item's
+ * commands (a text item's UTF-8 bytes as the seventh row's `-H` commands of at
+ * most 256 bytes, without `typedSequence`'s own leading cancel; a named item as
+ * `namedKeySequence`'s second argv, the eighth row), then the road's read.
+ * `'unreachable'`: nothing was written anywhere, and nothing is kept.
+ *
+ * It asks the session's live address and its machine's live connection first,
+ * and answers `unreachable` with nothing written when either is not live, when
+ * that connection's first read could not be read (Phase 320.1's D10: nothing
+ * but that read is written to such a connection by choice), when the items
+ * compose to no command, or when any command is not one the table admits.
+ *
+ * NEVER `hold`: a phone has no attach to fall back to and no way to see a key
+ * arrive late, so a write that cannot cross now is refused rather than kept
+ * (the late Return research 135 measured is what keeping would risk). A
+ * sequence whose connection closed before its answers came is never sent again
+ * ({@link settleTyped} with no data). The write counts once as a keystroke
+ * routed for the session (F2): a park that was waiting when it arrived is
+ * dropped, as it is for a key typed at the desk.
+ *
+ * THERE IS NO AWAIT IN IT. The keys verb's final check is synchronous up to
+ * this call, and the order of everything on the connection is the order of
+ * these writes.
+ */
+export function typePhoneKeys(sessionId: string, keys: readonly PocketKeyItem[]): PhoneKeysRoad {
+  let address: RemoteScrollAddress;
+  let carriage: RemoteScrollCarriage;
+  try {
+    address = source.address(sessionId);
+    if (address.kind !== 'live') return 'unreachable';
+    carriage = source.carriage(address.machineId);
+  } catch {
+    return 'unreachable';
+  }
+  sawConnection(address.machineId, carriage);
+  if (carriage.kind !== 'live') return 'unreachable';
+  if (unreadableConnections.get(address.machineId) === carriage.generation) return 'unreachable';
+  const target = address.tmuxId;
+  let commands: string[][];
+  try {
+    const sequences = keys.map((item) =>
+      'k' in item ? namedKeySequence(target, item.k) : typedSequence(target, Buffer.from(item.t, 'utf8'))
+    );
+    const cancel = sequences[0]?.[0];
+    if (cancel === undefined) return 'unreachable';
+    commands = [cancel, ...sequences.flatMap((sequence) => sequence.slice(1))];
+  } catch {
+    return 'unreachable';
+  }
+  if (commands.length < 2) return 'unreachable';
+  const verdicts = commands.map((argv) => admitScrollArgv(argv));
+  if (!verdicts.every((verdict) => verdict.ok)) return 'unreachable';
+  const head = verdicts[0];
+  if (head === undefined || !head.ok || head.shape !== LEAVING_SHAPE) return 'unreachable';
+  const road = roadOf(sessionId);
+  road.keys += 1;
+  const run = stampedRunner(sessionId, carriage.run);
+  noteWritten(sessionId);
+  let wrote = false;
+  try {
+    // Every command below is written in its call, in this order, in this tick.
+    const writes = commands.map((argv) => {
+      const answer = handled(run(argv));
+      wrote = true;
+      return answer;
+    });
+    const read = handled(readPaneScroll(run, target));
+    void settleTyped(
+      sessionId,
+      address.machineId,
+      carriage.generation,
+      writes,
+      read,
+      run.lastStamp(),
+      null
+    ).catch(() => undefined);
+    return 'carriage';
+  } catch {
+    if (!wrote) {
+      // Nothing reached the runner: uncounted, and nothing was typed.
+      road.keys -= 1;
+      noteWithdrawn(sessionId);
+      return 'unreachable';
+    }
+    // After the first write the carriage has it, and it is never sent twice.
+    noteAnswer(sessionId, 'failed');
+    noteSettled(sessionId);
+    return 'carriage';
   }
 }
 

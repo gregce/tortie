@@ -102,15 +102,17 @@ export type ToDoor =
 
 /**
  * The signed reads, and nothing a phone could name that is not one. Phase
- * 316.7 added `sessions` (build/p3167/SPEC.md §6.2).
+ * 316.7 added `sessions` (build/p3167/SPEC.md §6.2), Phase 337 `screen`
+ * (build/p337/SPEC.md §5.1, D1).
  */
-export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns' | 'sessions'>;
+export type DoorSignedRoute = Extract<PocketRouteId, 'blocked' | 'session' | 'turns' | 'sessions' | 'screen'>;
 
 /**
- * The writes (Phase 317's `end`; Phase 318's `choose` and `say`). Each a
- * `POST`, signed, its target its path exactly, its body at most its own cap.
+ * The writes (Phase 317's `end`; Phase 318's `choose` and `say`; Phase 337's
+ * `keys`). Each a `POST`, signed, its target its path exactly, its body at
+ * most its own cap.
  */
-export type DoorWriteRoute = Extract<PocketRouteId, 'end' | 'choose' | 'say'>;
+export type DoorWriteRoute = Extract<PocketRouteId, 'end' | 'choose' | 'say' | 'keys'>;
 
 /** One request the door admitted, as main is handed it. */
 export type DoorRequest =
@@ -276,8 +278,8 @@ export function presentationOf(value: unknown): DoorPresentation | null {
   return { iv, ct, tag, ek, sig };
 }
 
-const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns', 'sessions'];
-const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say'];
+const SIGNED_ROUTES: readonly DoorSignedRoute[] = ['blocked', 'session', 'turns', 'sessions', 'screen'];
+const WRITE_ROUTES: readonly DoorWriteRoute[] = ['end', 'choose', 'say', 'keys'];
 
 /** A write route's exact path, read from the one table. */
 function writePathOf(route: DoorWriteRoute): string | null {

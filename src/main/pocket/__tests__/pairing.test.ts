@@ -76,6 +76,7 @@ const {
   POCKET_CONFIRM_RECORD_KEY,
   POCKET_EXECUTION_HASH_ALGORITHM,
   POCKET_HEADERS,
+  POCKET_NONCE_MEMORY,
   POCKET_PAIRING_WINDOW_MS,
   POCKET_QR_VERSION,
   POCKET_REQUEST_ALGORITHM,
@@ -474,11 +475,17 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale'
     );
     expect(lines[2]).toBe('Answers only after you turn it on');
-    // PHASE 316.7: the Sessions tab's read joins the list.
-    expect(lines[3]).toBe('Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns');
+    // PHASE 316.7: the Sessions tab's read joins the list; PHASE 337 the
+    // Screen's read and write (build/p337/SPEC.md D35).
+    expect(lines[3]).toBe(
+      'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns'
+    );
     // PHASE 317: what the writes let a phone do, in words, straight after;
-    // PHASE 318 joins its two as a list (build/p318/SPEC.md §5.1.7, D28).
-    expect(lines[4]).toBe('Lets an allowed phone end a session, answer a numbered question and send a session one message');
+    // PHASE 318 joins its two as a list (build/p318/SPEC.md §5.1.7, D28);
+    // PHASE 337 adds the keys' clause last, the closed list's order (D35).
+    expect(lines[4]).toBe(
+      'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac'
+    );
     expect(lines[5]).toBe('Tells your phone nothing through Apple');
     expect(lines[6]).toBe('Allows no phone yet');
     expect(describePocketDoor({ ...BASE, bindAtLaunch: true }).lines[2]).toBe(
@@ -502,6 +509,12 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     expect(line(['say', 'choose', 'end'])).toEqual([
       'Lets an allowed phone end a session, answer a numbered question and send a session one message'
     ]);
+    // PHASE 337 (D35): the keys' clause, alone and last, in plain words.
+    expect(line(['keys'])).toEqual(['Lets an allowed phone type into any session as you would at this Mac']);
+    expect(line(['keys', 'end'])).toEqual([
+      'Lets an allowed phone end a session and type into any session as you would at this Mac'
+    ]);
+    expect(line(['screen', 'pair', 'blocked'])).toEqual([]);
     expect(describePocketDoor({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] }).lines[4]).toBe(
       'Tells your phone nothing through Apple'
     );
@@ -513,19 +526,36 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     expect(POCKET_EXECUTION_HASH_ALGORITHM).toBe('sha256-pocket-exec-v3');
     const before = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] });
     expect(pocketExecutionHash(BASE)).not.toBe(before);
-    expect([...BASE.routes].sort()).toEqual(['blocked', 'choose', 'end', 'pair', 'say', 'session', 'sessions', 'turns']);
+    expect([...BASE.routes].sort()).toEqual([
+      'blocked',
+      'choose',
+      'end',
+      'keys',
+      'pair',
+      'say',
+      'screen',
+      'session',
+      'sessions',
+      'turns'
+    ]);
   });
 
   // PHASE 318 (D28, refusal 8) and PHASE 316.7: Phase 317's door (five routes),
   // 318's alone (seven), 316.7's alone (six) and this one (eight) all hash
   // differently, so a Mac updated from any of them asks Allow once more;
   // nothing else about the fields moves the hash.
-  it('moves the hash from Phase 317’s five routes to the eight, and only by the three 318 and 316.7 add', () => {
+  it('moves the hash from Phase 317’s five routes to the ten, and only by the routes 318, 316.7 and 337 add', () => {
     const p317 = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end'] });
     expect(pocketExecutionHash(BASE)).not.toBe(p317);
-    expect(
-      pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions'] })
-    ).toBe(pocketExecutionHash(BASE));
+    const ten = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions', 'screen', 'keys'] as const;
+    expect(pocketExecutionHash({ ...BASE, routes: [...ten].reverse() })).toBe(pocketExecutionHash(BASE));
+    // PHASE 337 (D35): the eight routes a Mac answered before it hash
+    // differently, so a Mac updated from it asks Allow once more; and the
+    // read or the write alone is not this door either.
+    const eight = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions'] as const;
+    expect(pocketExecutionHash({ ...BASE, routes: [...eight] })).not.toBe(pocketExecutionHash(BASE));
+    expect(pocketExecutionHash({ ...BASE, routes: [...eight, 'screen'] })).not.toBe(pocketExecutionHash(BASE));
+    expect(pocketExecutionHash({ ...BASE, routes: [...eight, 'keys'] })).not.toBe(pocketExecutionHash(BASE));
     expect(pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say'] })).not.toBe(
       pocketExecutionHash(BASE)
     );
@@ -1258,6 +1288,29 @@ describe('every request is signed, over the phone’s own connection', () => {
     const req = request(phone);
     expect(v.verify(req).ok).toBe(true);
     expect(v.verify(req)).toEqual({ ok: false, reason: 'replay' });
+  });
+
+  // PHASE 337 (build/p337/SPEC.md D40): a phone on a Screen signs up to 24
+  // requests a second, 1,440 in one clock window and 2,880 in the 120 s a
+  // skewed clock stretches it to, so the memory is 4,096 and a phone's own
+  // traffic never evicts a nonce still inside its window.
+  it('remembers 4,096 nonces a phone, enough for a Screen’s budget over a stretched window', () => {
+    expect(POCKET_NONCE_MEMORY).toBe(4_096);
+    const pollsPerSecond = 1_000 / 250;
+    const perSecond = pollsPerSecond + 20;
+    expect(POCKET_NONCE_MEMORY).toBeGreaterThanOrEqual(((2 * POCKET_CLOCK_SKEW_MS) / 1_000) * perSecond);
+  });
+
+  it('still refuses a replay of the first of 1,500 signed requests one phone sent inside one clock window', () => {
+    const phone = makePhone();
+    phones = [phoneFields(phone)];
+    const v = verifier();
+    const first = request(phone, { target: '/v1/screen?id=s1' });
+    expect(v.verify(first).ok).toBe(true);
+    for (let i = 1; i < 1_500; i += 1) {
+      expect(v.verify(request(phone, { target: `/v1/screen?id=s1&since=${i.toString(16).padStart(12, '0')}` })).ok).toBe(true);
+    }
+    expect(v.verify(first)).toEqual({ ok: false, reason: 'replay' });
   });
 
   it('does not spend a nonce for a request whose signature failed', () => {

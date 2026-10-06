@@ -4,9 +4,11 @@
  *
  * What it pins, each against the SHIPPING module and nothing copied from it:
  *
- *  - the table is seven rows with the seven ids, each with its repeat
- *    reasoning, and exactly two rows are not idempotent (`scroll-lines`, and
- *    the seventh, `type-bytes`, which types: his word of 2026-09-30, D7);
+ *  - the table is eight rows with the eight ids, each with its repeat
+ *    reasoning, and exactly three rows are not idempotent (`scroll-lines`, the
+ *    seventh, `type-bytes`, which types: his word of 2026-09-30, D7; and the
+ *    eighth, `type-key`, which types one named key: his word of 2026-10-05,
+ *    build/p337/SPEC.md D20, added LAST);
  *  - `typedSequence` composes `cancel` then chunks of at most 256 lowercase hex
  *    bytes whose concatenation is the input's UTF-8 bytes, and every argv it
  *    composes is admitted as the shape it is;
@@ -40,6 +42,7 @@ import {
   scrollPaneTo,
   type TmuxScrollRunner
 } from '../../tmux/scroll';
+import { POCKET_SCREEN_KEY_NAMES } from '@shared/ipc/pocket';
 import {
   GOTO_LINE_MAX,
   REMOTE_SCROLL_DEADLINE_MS,
@@ -116,7 +119,7 @@ async function everyEmittedArgv(flavour: 'serial' | 'ordered'): Promise<string[]
 }
 
 describe('the table', () => {
-  it('has seven rows, the seven ids, each with its reasoning, and exactly two not idempotent', () => {
+  it('has eight rows, the eight ids, each with its reasoning, and exactly three not idempotent', () => {
     const ids: ScrollShapeId[] = SCROLL_SHAPES.map((shape) => shape.id);
     expect(ids).toEqual([
       'read-state',
@@ -125,11 +128,29 @@ describe('the table', () => {
       'goto-line',
       'top-line',
       'cancel',
-      'type-bytes'
+      'type-bytes',
+      'type-key'
     ]);
     for (const shape of SCROLL_SHAPES) expect(shape.repeat.trim().length).toBeGreaterThan(20);
     const notIdempotent = SCROLL_SHAPES.filter((shape) => !shape.idempotent).map((shape) => shape.id);
-    expect(notIdempotent).toEqual(['scroll-lines', 'type-bytes']);
+    expect(notIdempotent).toEqual(['scroll-lines', 'type-bytes', 'type-key']);
+  });
+
+  it('admits the eighth row as send-keys -t $N and exactly one of the contract\'s 35 names, read from the contract', () => {
+    const typeKey = SCROLL_SHAPES.find((shape) => shape.id === 'type-key');
+    expect(typeKey?.argv).toHaveLength(4);
+    const last = typeKey?.argv[3];
+    // The contract's own frozen list, not a copy of it.
+    expect(last).toEqual({ kind: 'one-of', words: POCKET_SCREEN_KEY_NAMES });
+    expect(last?.kind === 'one-of' ? last.words : null).toBe(POCKET_SCREEN_KEY_NAMES);
+    expect(POCKET_SCREEN_KEY_NAMES).toHaveLength(35);
+    for (const name of POCKET_SCREEN_KEY_NAMES) {
+      expect(admitScrollArgv(['send-keys', '-t', '$3', name])).toEqual({ ok: true, shape: 'type-key' });
+    }
+    // A key name the phone never sends, a modifier, a second name, and a flag.
+    for (const refused of ['M-x', 'F1', 'C-Up', 'c-c', 'C-C', 'Home', 'PageUp', 'Space', 'C-c;', ' Enter', 'Enter ']) {
+      expect(admitScrollArgv(['send-keys', '-t', '$3', refused]).ok, refused).toBe(false);
+    }
   });
 
   it('admits the seventh row with 1 to 256 lowercase two-digit bytes, and nothing else after -H', () => {
@@ -196,7 +217,8 @@ describe('every argv the shipping scroll.ts emits is admitted', () => {
         expect(verdict, argv.join(' ')).toMatchObject({ ok: true });
         if (verdict.ok) seen.add(verdict.shape);
       }
-      // Every shape is reached by some entry point, so none of the six is dead.
+      // Every scroll shape is reached by some entry point, so none of the six
+      // is dead. The two typing rows are reached by their own composers.
       expect([...seen].sort()).toEqual(
         ['cancel', 'enter-copy-mode', 'goto-line', 'read-state', 'scroll-lines', 'top-line']
       );
@@ -275,9 +297,11 @@ const FORMAT_ONE_BYTE_OFF = REMOTE_STATE_FORMAT.replace('pane_height', 'pane_hei
 
 /** The hostile corpus: every refused kind of §3.1 and §3.8. Held here, not imported. */
 const HOSTILE: readonly (readonly unknown[])[] = [
-  // Key names, literal text, the other send-keys flags.
+  // Key names outside the eighth row's closed list, literal text, the other
+  // send-keys flags. (`send-keys -t $1 Enter` was here until Phase 337: it is
+  // the eighth row now, on his word of 2026-10-05, and the eighth row's own
+  // edges are below.)
   ['send-keys', '-t', '$1', '-l', 'abc'],
-  ['send-keys', '-t', '$1', 'Enter'],
   ['send-keys', '-t', '$1', 'q'],
   ['send-keys', '-t', '$1', '-K', 'a'],
   ['send-keys', '-t', '$1', '-M'],
@@ -380,7 +404,29 @@ const HOSTILE: readonly (readonly unknown[])[] = [
   ['send-keys', '-t', '%1', '-H', '61'],
   ['send-keys', '-t', '=name', '-H', '61'],
   ['send-keys', '-t', '$01', '-H', '61'],
-  ['send-keys', '-t', '$1 ; kill-server', '-H', '61']
+  ['send-keys', '-t', '$1 ; kill-server', '-H', '61'],
+  // THE EIGHTH ROW'S EDGES (build/p337/SPEC.md D20, §6.3): a name not on the
+  // list, two names, a flag before or after the name, -X or -H with a name,
+  // `;`, and every target that is not a session's immutable id.
+  ['send-keys', '-t', '$1', 'M-x'],
+  ['send-keys', '-t', '$1', 'C-Up'],
+  ['send-keys', '-t', '$1', 'F1'],
+  ['send-keys', '-t', '$1', 'Up', 'Down'],
+  ['send-keys', '-t', '$1', 'Enter', ';', 'kill-server'],
+  ['send-keys', '-t', '$1', '-l', 'Up'],
+  ['send-keys', '-t', '$1', 'Up', '-l'],
+  ['send-keys', '-t', '$1', '-X', 'Up'],
+  ['send-keys', '-t', '$1', '-H', 'Up'],
+  ['send-keys', '-t', '$1', 'C-c;'],
+  ['send-keys', '-t', '$1', 'Enter\n'],
+  ['send-keys', '-t', '$1', ''],
+  ['send-keys', 'Up', '-t', '$1'],
+  ['send-keys', '-t', '%1', 'Up'],
+  ['send-keys', '-t', '=name', 'Up'],
+  ['send-keys', '-t', 'name', 'Up'],
+  ['send-keys', '-t', '$01', 'Up'],
+  ['send-keys', '-t', '$1 ; kill-server', 'Up'],
+  ['send-keys', '-t', '$1', 0x0d]
 ];
 
 describe('the hostile corpus', () => {

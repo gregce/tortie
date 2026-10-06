@@ -31,7 +31,9 @@
 <body>
 <header>
   <h1>Tortie for iPhone</h1>
-  <p class="sub">A remote control for the Tortie client on your Mac — <b>not a terminal</b>. Fifteen screens.
+  <p class="sub">A remote control for the Tortie client on your Mac. Sixteen screens. Since Phase 337 it shows a session's own
+  screen, reached from inside the session, as the Mac draws it now, and types into it; the conversation stays the first row and
+  the terminal's scrollback stays on the Mac.
   Every word on them is a string Tortie already says, taken from the module that owns it, or a word of the
   phone's own, declared once with its reason. Colour is spent on state and nothing else: the amber dot is the loudest
   object on every screen and the only thing that pulses.</p>
@@ -78,11 +80,15 @@
       <div class="phone"><iframe src="Conversation.html" title="5 · The whole conversation" loading="eager"></iframe></div>
     </figure>
     <figure>
+      <figcaption><span class="n">5b · Its own screen</span><span class="d">The session's own screen, composed on the Mac and drawn at the Mac's width: pinch, drag or turn the phone sideways, and the Mac's window never changes size. Every key, Ctrl-C included, with no Face ID; inside a numbered question, one batch per picture.</span></figcaption>
+      <div class="phone"><iframe src="Screen.html" title="5b · Its own screen" loading="eager"></iframe></div>
+    </figure>
+    <figure>
       <figcaption><span class="n">6 · Open a link</span><span class="d">The one way out: the whole address first, and nothing opens until you press Open. Owed by a later phase: markdown is off, so today no link can be pressed.</span></figcaption>
       <div class="phone"><iframe src="Link.html" title="6 · Open a link" loading="eager"></iframe></div>
     </figure>
     <figure>
-      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End sits above the tab bar. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Restore and Remove stay on the Mac.</span></figcaption>
+      <figcaption><span class="n">7 · End, behind Face ID</span><span class="d">End sits at the top right of a session. The confirmation is the Mac's own, word for word, and only Face ID, Touch ID or the passcode sends it. Restore and Remove stay on the Mac.</span></figcaption>
       <div class="phone"><iframe src="End.html" title="7 · End, behind Face ID" loading="eager"></iframe></div>
     </figure>
     <figure>

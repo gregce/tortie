@@ -175,7 +175,8 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
 const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
-const { createPocketRoutes, readSessionsQuery } = await import('../../src/main/pocket/routes.ts');
+const { createPocketRoutes, readSessionsQuery, readScreenQuery } = await import('../../src/main/pocket/routes.ts');
+const { parseKeysBody } = await import('../../src/main/pocket/writes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { POCKET_ROUTE_IDS } = await import('../../src/shared/ipc/pocket.ts');
@@ -329,6 +330,19 @@ const REPLY_MARK = sha256hex('tortie-p318-vector mark').slice(0, 12);
 /** The message: `/`, `"`, a line break and an emoji, the emoji from its code point. */
 const SAY_TEXT = `run "ls /tmp" now\nthen /exit ${String.fromCodePoint(0x1f44d)}`;
 /**
+ * PHASE 337 (build/p337/SPEC.md §6.4, the vectors): the Screen's read and its
+ * keys. The revision the read holds, the keys write ids, and the text, which
+ * holds a quote, a backslash, a slash and an emoji (built from its code point,
+ * so this file holds no such character). Every key name rides in a write of
+ * its own, because a named key other than BSpace is its write's one item (D17).
+ */
+const SCREEN_SINCE = sha256hex('tortie-p337-vector since').slice(0, 12);
+const KEYS_TEXT = `echo "a\\b/c" ${String.fromCodePoint(0x1f44d)}`;
+const KEYS_TURN = `${sha256hex('tortie-p337-vector turn').slice(0, 16)}-7`;
+const KEYS_MARK = sha256hex('tortie-p337-vector mark').slice(0, 12);
+const writeKeysId = (label) => sha256hex(`tortie-p337-vector write keys ${label}`).slice(0, 32);
+const { POCKET_SCREEN_KEY_NAMES } = await import('../../src/shared/ipc/pocket.ts');
+/**
  * A write's body AS SWIFT'S JSONEncoder WRITES IT with `.sortedKeys`: the keys
  * sorted, `/` escaped as `\/`, everything else as JSON.stringify writes it (a
  * quote `\"`, a line break `\n`, a non-ASCII character as itself). Only a
@@ -376,7 +390,27 @@ const requestShapes = [
     body: '',
     id: null,
     asked: SESSIONS_ASKED
-  }
+  },
+  // PHASE 337: the Screen's read, with the revision it holds (`since`), in
+  // the one order DoorClient.screenTarget writes it; and the keys, each body
+  // as Swift writes it. Appended, so every earlier request keeps its clock.
+  { name: 'screen', method: 'GET', target: `/v1/screen?id=${queryValue(SESSION_TALK)}&since=${queryValue(SCREEN_SINCE)}`, body: '', id: SESSION_TALK, screen: { id: SESSION_TALK, since: SCREEN_SINCE } },
+  {
+    name: 'keys-text',
+    method: 'POST',
+    target: '/v1/keys',
+    body: swiftJson({ dialog: KEYS_MARK, keys: [{ t: KEYS_TEXT }, { k: 'BSpace' }], session: SESSION_TALK, turn: KEYS_TURN, write: writeKeysId('text') }),
+    id: null
+  },
+  ...(Array.isArray(POCKET_SCREEN_KEY_NAMES) ? POCKET_SCREEN_KEY_NAMES : [])
+    .filter((name) => name !== 'BSpace')
+    .map((name) => ({
+      name: `keys-${name}`,
+      method: 'POST',
+      target: '/v1/keys',
+      body: swiftJson({ dialog: null, keys: [{ k: name }], session: SESSION_TALK, turn: KEYS_TURN, write: writeKeysId(name) }),
+      id: null
+    }))
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -430,6 +464,15 @@ const requests = requestShapes.map((shape, i) => {
       else if (JSON.stringify(read.asked) !== JSON.stringify(shape.asked)) fail(`request ${shape.name}: the shipping readSessionsQuery reads ${JSON.stringify(read.asked)}, not ${JSON.stringify(shape.asked)}`);
     }
     if (url.pathname !== '/v1/sessions' || !POCKET_ROUTE_IDS.includes('sessions')) fail(`request ${shape.name}: /v1/sessions is not one of the shipping POCKET_ROUTE_IDS`);
+  }
+  // PHASE 337: the door's own screen query reader reads the target back to
+  // the id and the revision it was written from, and the route is the door's.
+  if (shape.screen !== undefined) {
+    const read = typeof readScreenQuery === 'function' ? readScreenQuery(url.searchParams) : null;
+    if (read === null) fail(`request ${shape.name}: the shipping routes.ts exports no readScreenQuery to read it`);
+    else if (!read.ok) fail(`request ${shape.name}: the shipping readScreenQuery refused it (${read.reason})`);
+    else if (read.id !== shape.screen.id || read.since !== shape.screen.since) fail(`request ${shape.name}: the shipping readScreenQuery reads ${JSON.stringify({ id: read.id, since: read.since })}`);
+    if (url.pathname !== '/v1/screen' || !POCKET_ROUTE_IDS.includes('screen')) fail(`request ${shape.name}: /v1/screen is not one of the shipping POCKET_ROUTE_IDS`);
   }
   return {
     name: shape.name,
@@ -488,8 +531,8 @@ const tampered = (() => {
 // PHASE 317: the write is within the shipping cap, written with sorted keys,
 // and a body with one byte changed is refused `signature`.
 const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.ts');
-for (const name of ['end', 'choose', 'say']) {
-  const r = requests.find((x) => x.name === name);
+for (const r of requests.filter((x) => x.method === 'POST' && x.target !== '/pair')) {
+  const name = r.target.slice('/v1/'.length);
   const cap = POCKET_WRITE_BODY_CAPS?.[name];
   if (typeof cap !== 'number') {
     fail(`write ${name}: the shipping door/limits.ts declares no POCKET_WRITE_BODY_CAPS.${name}`);
@@ -499,6 +542,31 @@ for (const name of ['end', 'choose', 'say']) {
   const keys = Object.keys(JSON.parse(r.body));
   if (keys.join() !== [...keys].sort().join()) fail(`write ${name}: its body's keys are not sorted, which is how Swift's JSONEncoder writes them with .sortedKeys`);
   if (!/^[0-9a-f]{32}$/.test(JSON.parse(r.body).write)) fail(`write ${name}: its write id is not 32 lowercase hex`);
+}
+// PHASE 337: every keys body is one the SHIPPING parse takes, as the Mac reads
+// it, back to the very items written; together they carry every key name the
+// contract lists, and the text holds a quote, a backslash, a slash and an emoji.
+{
+  const keysWrites = requests.filter((x) => x.target === '/v1/keys');
+  const named = new Set();
+  let texts = '';
+  for (const r of keysWrites) {
+    const parsed = typeof parseKeysBody === 'function' ? parseKeysBody(Buffer.from(r.body, 'utf8')) : null;
+    if (parsed === null) fail('write keys: the shipping writes.ts exports no parseKeysBody to read it');
+    else if (!parsed.ok) fail(`write ${r.name}: the shipping parseKeysBody refused the Swift bytes as malformed`);
+    else {
+      const sent = JSON.parse(r.body);
+      if (JSON.stringify(parsed.keys) !== JSON.stringify(sent.keys) || parsed.turn !== sent.turn || parsed.dialog !== sent.dialog || parsed.session !== sent.session) fail(`write ${r.name}: the shipping parse reads other items, turn, dialog or session than were written`);
+      for (const item of parsed.keys) {
+        if ('k' in item) named.add(item.k);
+        else texts += item.t;
+      }
+    }
+  }
+  const missing = (Array.isArray(POCKET_SCREEN_KEY_NAMES) ? POCKET_SCREEN_KEY_NAMES : []).filter((n) => !named.has(n));
+  if (missing.length > 0 || named.size === 0) fail(`write keys: the vectors carry no write for the key name(s) ${JSON.stringify(missing)}`);
+  if (!texts.includes('"') || !texts.includes('\\') || !texts.includes('/') || ![...texts].some((c) => (c.codePointAt(0) ?? 0) > 0xffff)) fail('write keys: the vectors\' text does not hold a quote, a backslash, a slash and an emoji');
+  if (!keysWrites.some((r) => r.body.includes('\\/'))) fail('write keys: no keys body holds a slash written as Swift writes it');
 }
 // PHASE 318: the Mac's own reader (JSON.parse) reads the Swift bytes back to
 // the very fields the phone wrote, the slash escapes included, and the text
@@ -563,6 +631,12 @@ function tamperedWrite(name, body) {
 const replyTampered = tamperedWrite('say', (body) => {
   const at = body.indexOf('now');
   return `${body.slice(0, at)}NOW${body.slice(at + 3)}`;
+});
+// PHASE 337: the keys write's body with one byte changed: the text's `echo`
+// becomes `Echo`. The body is covered, not only the target.
+const keysTampered = tamperedWrite('keys-text', (body) => {
+  const at = body.indexOf('echo');
+  return `${body.slice(0, at)}E${body.slice(at + 1)}`;
 });
 // PHASE 317: the end's body with one byte changed: the session id's last
 // character.
@@ -1072,6 +1146,15 @@ const facts = {
       : session.id === S.talk
         ? { question: null, mark: null, pressable: [], command: null, canSay: true }
         : { question: null, mark: null, pressable: [], command: null, canSay: false },
+  // PHASE 337: the Screen, answered by the shipping screenOf over the
+  // committed sample answer the SHIPPING composer wrote
+  // (build/fixtures/screen/sample-claude-2.1.287.json, the screen builder's
+  // sample.test.ts), so every live row's session answer carries screen: true
+  // and `screen-sample` is the door's re-composition of a real screen.
+  screen: async () => {
+    const sample = JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8'));
+    return { ...sample, sessionId: S.talk };
+  },
   now: () => T
 };
 const routes = createPocketRoutes(facts);
@@ -1096,7 +1179,9 @@ const answerShapes = [
   ['turns-remote', () => routes.turns(S.remote, { limit: '20' })],
   // PHASE 316.7: the Sessions tab's read, composed by the shipping composer.
   ['sessions-all-project', () => routes.sessions(new URLSearchParams('show=all&group=project&sort=recent'))],
-  ['sessions-active-none-name', () => routes.sessions(new URLSearchParams('show=active&group=none&sort=name'))]
+  ['sessions-active-none-name', () => routes.sessions(new URLSearchParams('show=active&group=none&sort=name'))],
+  // PHASE 337: the Screen's answer, as the shipping route re-composes it.
+  ['screen-sample', () => (typeof routes.screen === 'function' ? routes.screen(new URLSearchParams(`id=${S.talk}`), () => false) : null)]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {
@@ -1172,6 +1257,7 @@ const vectors = {
   tampered,
   writeTampered,
   replyTampered,
+  keysTampered,
   pins,
   client,
   seal,
@@ -1208,7 +1294,7 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests, 3 of them writes (and 1 tampered target, 2 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
+  `${String(requests.length)} signed requests, ${String(requests.filter((r) => r.method === 'POST' && r.target !== '/pair').length)} of them writes (and 1 tampered target, 3 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
   `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);

@@ -166,10 +166,13 @@ export const MACHINE_ID = 'p317far';
  * Phase 318 added two writes beside End (build/p318/SPEC.md §4.2, §5.1.7), so
  * the route line names `choose` and `say` too and the write line names all
  * three clauses; End's arms below read nothing else of them. Phase 316.7's
- * `sessions` joined the route line when it landed second.
+ * `sessions` joined the route line when it landed second, and Phase 337's
+ * `screen` and `keys` joined both lines (build/p337/SPEC.md D1, D35).
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns';
-export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question and send a session one message';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
+export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
+/** HEAD's door honesty sentence, by value for the fixtures (build/p337/SPEC.md D35); the run reads the tree's own. */
+export const HONESTY_LINE = 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
 export const DONE_LINE = "the phone's end: done";
 export const WRITE_LINE_PREFIX = "the phone's ";
@@ -449,12 +452,12 @@ const okAnswer = { status: 200, outcome: 'done', reason: null, sentence: null };
 /** Each grader's honest reading, and one break per clause (build/probe-graders.mjs). */
 export const GRADER_FIXTURES = {
   W1: {
-    pass: { lines: ['Publishes https://x.ts.net:8443', ROUTE_LINE, WRITE_LINE], honesty: 'A phone you allow can end a session.', confirmBlock: `Publishes https://x.ts.net:8443\n${ROUTE_LINE}\n${WRITE_LINE}\nA phone you allow can end a session.\nAllow`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
+    pass: { lines: ['Publishes https://x.ts.net:8443', ROUTE_LINE, WRITE_LINE], honesty: HONESTY_LINE, confirmBlock: `Publishes https://x.ts.net:8443\n${ROUTE_LINE}\n${WRITE_LINE}\n${HONESTY_LINE}\nAllow`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
     breaks: {
       'the lines name every route, the one write among them': (r) => void (r.lines = r.lines.filter((l) => l !== ROUTE_LINE)),
       'the lines say what the write does': (r) => void (r.lines = r.lines.filter((l) => l !== WRITE_LINE)),
       'Settings then Phone draws the door honesty sentence in its confirm block, before Allow': (r) => void (r.confirmBlock = `${ROUTE_LINE}\n${WRITE_LINE}\nAllow`),
-      'the confirm block draws both lines before Allow': (r) => void (r.confirmBlock = 'A phone you allow can end a session.\nAllow'),
+      'the confirm block draws both lines before Allow': (r) => void (r.confirmBlock = `${HONESTY_LINE}\nAllow`),
       'the agreement read changed after the parent confirmed it, and anything but confirmed on a fresh profile': (r) => void (r.confirmStateBefore = 'confirmed'),
       'Allow listened': (r) => void (r.listening = false)
     },
@@ -629,6 +632,8 @@ function graderSelfTest() {
   // rather than the live confirm arm (the replay of 316.7 beside 318 left this line naming one route too few).
   const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'))?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
   say(treeIds.length > 0 && J(ROUTE_LINE.slice(ROUTE_LINE.indexOf(':') + 1).split(',').map((s) => s.trim())) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
+  // HONESTY_LINE against the tree's own (Phase 337, build/p337/SPEC.md D35), so a phase that rewords it turns this red too.
+  say(constWord(readFileSync(join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), 'utf8'), 'POCKET_DOOR_HONESTY') === HONESTY_LINE, "HONESTY_LINE is the tree's POCKET_DOOR_HONESTY, byte for byte");
   // The probe's own reading of the two gates.
   say(deepEqual(expectedOffer({ status: 'running', remote: false, machineKnown: true }, TITLE), { state: 'offered', batch: true }), 'a live local row is offered End and End these');
   say(deepEqual(expectedOffer({ status: 'idle', remote: true, machineKnown: false }, TITLE), { state: 'offered', batch: false }), 'a live row on a machine with no row is offered End alone');
@@ -642,7 +647,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'pair', 'say', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.

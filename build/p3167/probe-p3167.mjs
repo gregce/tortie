@@ -156,11 +156,13 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 // ---------------------------------------------------------------------------
 
 /**
- * The route list HEAD's door is confirmed over: eight routes, this phase's
- * `sessions` beside Phase 318's `choose` and `say`, which landed first
- * (build/p3167/SPEC.md §12 and the replay's fix round).
+ * The route list HEAD's door is confirmed over: since Phase 337 ten routes,
+ * Phase 337's `screen` and `keys` beside this phase's `sessions` and Phase
+ * 318's `choose` and `say` (build/p3167/SPEC.md §12 and the replay's fix
+ * round; build/p337/SPEC.md D1). The parent's line below stays this phase's
+ * own parent.
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
 /** The parent's line: main before this phase, seven routes and no `sessions`. */
 export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, pair, say, session, turns';
 export const ROUTE_PREFIX = 'Answers these and nothing else:';

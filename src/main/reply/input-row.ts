@@ -40,11 +40,14 @@
  * draft drawn dim or grey on a Claude row that shows no inverse cell reads as
  * placeholder. No real capture drew a draft so.
  *
- * PURE. It imports nothing and logs nothing.
+ * PURE. It imports only the shared style reader, src/main/screen/sgr.ts, which
+ * is pure too, and logs nothing.
  */
 
-const ESC = String.fromCharCode(0x1b);
-const BEL = String.fromCharCode(0x07);
+import { readStyledRows, type Colour } from '../screen/sgr';
+
+/** A tab, which the shared reader keeps as a cell and this reader, as its parent did, does not. */
+const TAB = String.fromCharCode(0x09);
 /**
  * A no-break space. MEASURED, not assumed: Claude Code 2.1.287 draws its
  * composer row as `❯` and U+00A0, where its transcript's echoed prompts and
@@ -55,7 +58,7 @@ const BEL = String.fromCharCode(0x07);
 const NBSP = String.fromCharCode(0xa0);
 
 /** One drawn cell, with the three attributes this reader asks about. */
-interface Cell {
+export interface Cell {
   readonly ch: string;
   readonly dim: boolean;
   readonly grey: boolean;
@@ -63,16 +66,9 @@ interface Cell {
 }
 
 /** One row of cells; `readable` is false when it held an escape this reader does not know. */
-interface Row {
+export interface Row {
   readonly cells: Cell[];
   readable: boolean;
-}
-
-/** The SGR state, carried ACROSS rows: tmux does not reset it at a line's end. */
-interface Pen {
-  dim: boolean;
-  grey: boolean;
-  inverse: boolean;
 }
 
 /** The compiled rules, a frozen literal no configuration reaches. */
@@ -88,8 +84,8 @@ const RULES = Object.freeze({
   /** The grey 256-colour band a placeholder may be drawn in. */
   greyLow: 240,
   greyHigh: 250,
-  /** The bright-black foreground. */
-  greyBasic: 90
+  /** The bright-black foreground, SGR 90, which the shared reader calls basic slot 8. */
+  greyBasic: 8
 });
 
 /** Placeholder: dim or grey. */
@@ -102,122 +98,41 @@ function blank(cell: Cell): boolean {
   return cell.ch === ' ' || cell.ch === NBSP;
 }
 
-/** Whether a 256-colour index is the grey band. */
-function greyIndex(n: number): boolean {
-  return Number.isInteger(n) && n >= RULES.greyLow && n <= RULES.greyHigh;
+/**
+ * Grey: drawn in the bright-black slot (SGR 90) or a 256-colour index of the
+ * grey band (`38;5;240` to `250`). The two spellings are kept apart by the
+ * shared reader (`basic` and `index`), so `38;5;8` is not grey, as it never was.
+ */
+function greyOf(fg: Colour | null): boolean {
+  if (fg === null) return false;
+  if (fg.kind === 'basic') return fg.n === RULES.greyBasic;
+  if (fg.kind === 'index') return fg.n >= RULES.greyLow && fg.n <= RULES.greyHigh;
+  return false;
 }
 
 /**
- * Apply one SGR sequence's parameters to the pen. Answers false for a
- * parameter list this reader cannot follow, which makes the row unreadable.
+ * The styled capture, cut into rows of cells, read through THE ONE READER of
+ * tmux's styles (src/main/screen/sgr.ts, Phase 337 D11) and projected onto the
+ * three attributes this reader asks about. The projection answers what this
+ * module's own reader answered at `aebb4ce9`, byte for byte (src/main/screen/
+ * __tests__/input-row-parity.test.ts holds it against a verbatim copy): the pen
+ * is carried across rows by the shared reader; a tab, which the shared reader
+ * keeps as a cell, is dropped and makes its row unreadable, as every byte below
+ * 0x20 did here.
  */
-function applySgr(params: string, pen: Pen): boolean {
-  const parts = params.length === 0 ? ['0'] : params.split(';');
-  for (let k = 0; k < parts.length; k += 1) {
-    const sub = (parts[k] ?? '').split(':');
-    const code = sub[0] === '' ? 0 : Number(sub[0]);
-    if (!Number.isInteger(code)) return false;
-    if (code === 0) {
-      pen.dim = false;
-      pen.grey = false;
-      pen.inverse = false;
-    } else if (code === 2) {
-      pen.dim = true;
-    } else if (code === 22) {
-      pen.dim = false;
-    } else if (code === 7) {
-      pen.inverse = true;
-    } else if (code === 27) {
-      pen.inverse = false;
-    } else if ((code >= 30 && code <= 37) || code === 39 || (code >= 91 && code <= 97)) {
-      pen.grey = false;
-    } else if (code === RULES.greyBasic) {
-      pen.grey = true;
-    } else if (code === 38 || code === 48) {
-      // An extended colour: `38:5:n` / `38:2:…` in one part, or `38;5;n` /
-      // `38;2;r;g;b` across parts. The background's arguments are consumed and
-      // change nothing.
-      let mode: string | undefined;
-      let index: number | undefined;
-      if (sub.length > 1) {
-        mode = sub[1];
-        index = mode === '5' ? Number(sub[2]) : undefined;
-      } else {
-        mode = parts[k + 1];
-        if (mode === '5') {
-          index = Number(parts[k + 2]);
-          k += 2;
-        } else if (mode === '2') {
-          k += 4;
-        }
-      }
-      if (mode !== '5' && mode !== '2') return false;
-      if (code === 38) pen.grey = mode === '5' && index !== undefined && greyIndex(index);
-    }
-    // Every other attribute (bold, italic, underline, a background) changes
-    // nothing this reader asks about.
-  }
-  return true;
-}
-
-/** The styled capture, cut into rows of cells with the SGR state carried across rows. */
-function rowsOf(styled: string): Row[] {
-  const rows: Row[] = [];
-  const pen: Pen = { dim: false, grey: false, inverse: false };
-  let row: Row = { cells: [], readable: true };
-  let i = 0;
-  while (i < styled.length) {
-    const c = styled.charAt(i);
-    if (c === '\n') {
-      rows.push(row);
-      row = { cells: [], readable: true };
-      i += 1;
-      continue;
-    }
-    if (c === ESC) {
-      const next = styled.charAt(i + 1);
-      if (next === '[') {
-        let j = i + 2;
-        while (j < styled.length && /[0-?]/.test(styled.charAt(j))) j += 1;
-        const params = styled.substring(i + 2, j);
-        const paramsEnd = j;
-        while (j < styled.length && /[ -/]/.test(styled.charAt(j))) j += 1;
-        const final = styled.charAt(j);
-        if (!(final === 'm' && j === paramsEnd && applySgr(params, pen))) row.readable = false;
-        i = j + 1;
+export function readInputRows(styled: string): Row[] {
+  return readStyledRows(styled).map((row) => {
+    let readable = row.readable;
+    const cells: Cell[] = [];
+    for (const cell of row.cells) {
+      if (cell.ch === TAB) {
+        readable = false;
         continue;
       }
-      if (next === ']') {
-        // An OSC (a hyperlink, say) draws no cell: skipped to its terminator.
-        let j = i + 2;
-        while (
-          j < styled.length &&
-          styled.charAt(j) !== BEL &&
-          styled.charAt(j) !== '\n' &&
-          !(styled.charAt(j) === ESC && styled.charAt(j + 1) === '\\')
-        ) {
-          j += 1;
-        }
-        if (styled.charAt(j) === BEL) i = j + 1;
-        else if (styled.charAt(j) === ESC) i = j + 2;
-        else {
-          row.readable = false;
-          i = j;
-        }
-        continue;
-      }
-      row.readable = false;
-      i += 2;
-      continue;
+      cells.push({ ch: cell.ch, dim: cell.pen.dim, grey: greyOf(cell.pen.fg), inverse: cell.pen.inverse });
     }
-    const cp = styled.codePointAt(i) ?? 0;
-    const ch = String.fromCodePoint(cp);
-    if (cp < 0x20 || (cp >= 0x7f && cp <= 0x9f)) row.readable = false;
-    else row.cells.push({ ch, dim: pen.dim, grey: pen.grey, inverse: pen.inverse });
-    i += ch.length;
-  }
-  rows.push(row);
-  return rows;
+    return { cells, readable };
+  });
 }
 
 /** A row's drawn text. */
@@ -311,7 +226,7 @@ export function promptIsEmpty(
   /** tmux's cursor for the pane, 0-based; null for Claude, and null (not empty) when Codex's could not be read. */
   cursor: { x: number; y: number } | null
 ): boolean {
-  const rows = rowsOf(styled);
+  const rows = readInputRows(styled);
   if (agent === 'claude') return claudeEmpty(rows);
   if (agent === 'codex') return codexEmpty(rows, cursor);
   return false;

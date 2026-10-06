@@ -79,7 +79,26 @@ describe('what the door forwards', () => {
     expect(doorRequestOf(read({ route: 'end' }))).toBeNull();
     expect(doorRequestOf(read({ route: 'choose' }))).toBeNull();
     expect(doorRequestOf(read({ route: 'say' }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'keys' }))).toBeNull();
     expect(doorRequestOf(read({ method: 'POST' }))).toBeNull();
+  });
+
+  // PHASE 337 (build/p337/SPEC.md §5.1, D1, D2): the Screen's read is a signed
+  // GET like the others, its query carried in the target untouched, and never
+  // a POST; the door reads nothing of the query, which main refuses itself.
+  it('forwards the Screen read, a signed GET with its query, and refuses it as a POST (Phase 337)', () => {
+    const target = '/v1/screen?id=3f2a1b4c-0000-4000-8000-000000000001&since=0123456789ab';
+    expect(doorRequestOf(read({ route: 'screen', target }))).toEqual({
+      route: 'screen',
+      method: 'GET',
+      target,
+      headers: HEADERS,
+      body: new Uint8Array(0),
+      channel: 'phone-a'
+    });
+    expect(doorRequestOf(read({ route: 'screen', method: 'POST', target }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'screen', target: `/v1/screen?${'x'.repeat(1024)}` }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'screens', target: '/v1/screen' }))).toBeNull();
   });
 
   // PHASE 316.7 (build/p3167/SPEC.md §6.2): the Sessions tab's read is a signed
@@ -179,7 +198,7 @@ describe('a write the door forwards', () => {
   });
 
   it('holds the write to its OWN route’s cap, and lets a body exactly at the cap through', () => {
-    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768 });
+    expect(POCKET_WRITE_BODY_CAPS).toEqual({ end: 512, choose: 512, say: 32_768, keys: 16_384 });
     expect(Object.isFrozen(POCKET_WRITE_BODY_CAPS)).toBe(true);
     expect(doorRequestOf(write({ body: new Uint8Array(512) }))).not.toBeNull();
     expect(doorRequestOf(write({ body: new Uint8Array(513) }))).toBeNull();
@@ -213,8 +232,28 @@ describe('a write the door forwards', () => {
     expect(doorRequestOf(write({ body: new Uint8Array(24_771) }))).toBeNull();
   });
 
-  it('refuses a route that is neither a read nor one of the three writes', () => {
-    for (const route of ['unpair', 'reply', 'type', 'interrupt']) {
+  // PHASE 337 (build/p337/SPEC.md §5.1, D1, D17): the keys write, its own
+  // path, a POST only, never with a query, and its own cap of 16,384.
+  it('lets a POST to /v1/keys through at its own path and holds it to 16,384 bytes (Phase 337)', () => {
+    const got = doorRequestOf(write({ route: 'keys', target: '/v1/keys' }));
+    expect(got).toMatchObject({ route: 'keys', method: 'POST', target: '/v1/keys', channel: 'phone-a' });
+    expect(Object.keys(got ?? {}).sort()).toEqual(['body', 'channel', 'headers', 'method', 'route', 'target']);
+    expect(doorRequestOf(write({ route: 'keys', target: '/v1/keys', method: 'GET' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'keys', target: '/v1/say' }))).toBeNull();
+    expect(doorRequestOf(write({ route: 'say', target: '/v1/keys' }))).toBeNull();
+    for (const near of ['/v1/keys?x=1', '/v1/keys?', '/v1/keys/', '/v1/KEYS', '/v1/key']) {
+      expect(doorRequestOf(write({ route: 'keys', target: near })), near).toBeNull();
+    }
+    const at = (n: number) => doorRequestOf(write({ route: 'keys', target: '/v1/keys', body: new Uint8Array(n) }));
+    expect(at(16_384)).not.toBeNull();
+    expect(at(16_385)).toBeNull();
+    // §14 M15's worst legal keys body crosses; at end's cap it would not.
+    expect(at(7_359)).not.toBeNull();
+    expect(doorRequestOf(write({ body: new Uint8Array(7_359) }))).toBeNull();
+  });
+
+  it('refuses a route that is neither a read nor one of the four writes', () => {
+    for (const route of ['unpair', 'reply', 'type', 'interrupt', 'resize', 'paste']) {
       expect(doorRequestOf(write({ route, target: `/v1/${route}` })), route).toBeNull();
     }
   });

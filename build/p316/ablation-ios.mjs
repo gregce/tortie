@@ -107,6 +107,29 @@
  * taken out, a second `.endBatch(` on SessionsScreen, and the Sessions tab
  * building a ListScreen of its own.
  *
+ * PHASE 337 GAVE THE PHONE THE SCREEN (build/p337/SPEC.md §6.4), and its
+ * forty-seven arms are the ways a session's own screen could size the Mac,
+ * type a key twice or late, take a paste, leave a picture of itself, or draw
+ * a shape someone transcribed: (ah) a width asked for in three places; (ai)
+ * two writes in flight, a 50 ms pace, a 65th item, a named key batched, the
+ * lock read off a clock, the app leaving with a sender running, a 36th name
+ * and the C1 controls let through; (aj) autocorrection, smart dashes, a drop,
+ * Paste and Go, a composition sent while marked and a block of lines run line
+ * by line; (ak) a line fresh past the door's own keep-alive, reused however
+ * long it sat, never closed by the phone, a stray answer kept, Connection:
+ * close ignored, a read retried after any failure and every exchange kept;
+ * (al) the pasteboard read back or named in another file, and (p) the Copy
+ * write moved out of its one file; (am) a second colour constructor and a
+ * public ScreenColor init; (a) the page token gone; (an) upside down, a
+ * landscape opened elsewhere and one left on behind the Screen, and (e) a
+ * device spelling of the orientation list; (ao) the cover drawn only in the
+ * background or carrying words; (ap) a box character transcribed, a glyph
+ * scaled up and the shapes no longer read from their names; (ab) a keys body
+ * built outside signedPost or missing its dialog; (ac) End back at the bottom
+ * and its bar's identifier back; (v) the Screen's sentences optional or
+ * empty; (t) a hostile Screen arm dropped or counting no POST; (k) a keys
+ * write's bytes summed with a trapping `+`. `s8` and `s11` moved to build 7.
+ *
  * PHASE 318 GAVE THE PHONE A REPLY WITH NO FACE ID (build/p318/SPEC.md §6.3),
  * and its twenty-seven arms are the ways a press or a message could go out
  * twice, rewritten, behind a check his ruling refused, or after the app left:
@@ -1251,7 +1274,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 6;/, '$1CURRENT_PROJECT_VERSION = 7;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 7;/, '$1CURRENT_PROJECT_VERSION = 8;')
   },
   {
     id: 's9',
@@ -1282,6 +1305,13 @@ const ARMS = [
     what: 'a signed read opened with no identity',
     file: () => `${APP}/Door/DoorClient.swift`,
     edit: (src) => src.replace('door: door.endpoint, identity: door.identity', 'door: door.endpoint, identity: nil')
+  },
+  {
+    id: 't22',
+    rule: 't',
+    what: "a signed read's one retry on a new line opened with no identity",
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        let again = try await connect(\n            method: "GET", target: target, headers: try readHeaders(target, door: door), body: nil,\n            door: door.endpoint, identity: door.identity,', '        let again = try await connect(\n            method: "GET", target: target, headers: try readHeaders(target, door: door), body: nil,\n            door: door.endpoint, identity: nil,')
   },
   {
     id: 't3',
@@ -1587,9 +1617,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 5, 317's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 6, 318's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 6;/, '$1CURRENT_PROJECT_VERSION = 5;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 7;/, '$1CURRENT_PROJECT_VERSION = 6;')
   },
   {
     id: 'x10',
@@ -1859,14 +1889,16 @@ const ARMS = [
     rule: 'ab',
     what: "handed set in the send's completion, after the bytes may have left",
     file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('        handed = true\n        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self else { return }\n', '        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self else { return }\n            self.handed = true\n')
+    // Phase 337's DoorLine: send() hands to the line's sendable connection,
+    // and its completion reads only an error.
+    edit: (src) => src.replace('        handed = true\n        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self, let error else { return }\n', '        connection.send(content: request, completion: .contentProcessed { [weak self] error in\n            guard let self else { return }\n            self.handed = true\n            guard let error else { return }\n')
   },
   {
     id: 'ab10',
     rule: 'ab',
     what: 'the bytes handed without asking withheld',
     file: () => `${APP}/Door/DoorClient.swift`,
-    edit: (src) => src.replace('guard !withheld, result == nil else { return }', 'guard result == nil else { return }')
+    edit: (src) => src.replace('guard !withheld, result == nil, let connection = line.sendable else { return }', 'guard result == nil, let connection = line.sendable else { return }')
   },
   {
     id: 'ab11',
@@ -2487,6 +2519,450 @@ const ARMS = [
     what: 'the Sessions tab building a ListScreen of its own',
     file: () => `${APP}/App/TortieApp.swift`,
     edit: (src) => src.replace(/\bSessionsTab\s*\(/, 'ListScreen(')
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 337, the Screen (build/p337/SPEC.md §6.4): (ah) to (ap), and the
+  // widened halves of (a), (ab), (ac), (e), (k), (p), (t) and (v).
+  // -------------------------------------------------------------------------
+  {
+    id: 'ah1',
+    rule: 'ah',
+    what: 'the screen target asks for a width',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('        if let since { target += "&since=\\(queryValue(since))" }', '        if let since { target += "&since=\\(queryValue(since))" }\n        target += "&cols=120"')
+  },
+  {
+    id: 'ah2',
+    rule: 'ah',
+    what: 'the keys body carries a size',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct KeysBody: Encodable, Sendable {\n    let dialog: String?', 'struct KeysBody: Encodable, Sendable {\n    let rows: Int\n    let dialog: String?')
+  },
+  {
+    id: 'ah3',
+    rule: 'ah',
+    what: "the Screen's door read takes a size",
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('func read(since: String?) async throws -> PocketScreenAnswer', 'func read(since: String?, cols: Int) async throws -> PocketScreenAnswer')
+  },
+  {
+    id: 'ai1',
+    rule: 'ai',
+    what: 'a second keys write started while one is in flight',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('guard !stopped, inFlight == nil, gapWait == nil,', 'guard !stopped, gapWait == nil,')
+  },
+  {
+    id: 'ai2',
+    rule: 'ai',
+    what: 'the keys paced at 50 ms',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('static let minGap: Duration = .milliseconds(100)', 'static let minGap: Duration = .milliseconds(50)')
+  },
+  {
+    id: 'ai3',
+    rule: 'ai',
+    what: 'a 65th item allowed in a write',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('static let mostItems = 64', 'static let mostItems = 65')
+  },
+  {
+    id: 'ai4',
+    rule: 'ai',
+    what: 'a named key batched with what follows it',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('if first.standsAlone {', 'if first.standsAlone && pending.count == 1 {')
+  },
+  {
+    id: 'ai5',
+    rule: 'ai',
+    what: 'the lock inside a question read off a clock',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('case .done?: drawn.turn == lastTurn', 'case .done?: Date() < Date.distantFuture')
+  },
+  {
+    id: 'ai6',
+    rule: 'ai',
+    what: 'the app leaving stops no key sender',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace(/\n[ \t]*for sender in liveKeys \{\n[ \t]*sender\.stop\(\)\n[ \t]*\}/, '')
+  },
+  {
+    id: 'ai7',
+    rule: 'ai',
+    what: 'a 36th key name, Meta-x, the Mac never takes',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('    case controlZ = "C-z"', '    case controlZ = "C-z"\n    case metaX = "M-x"')
+  },
+  {
+    id: 'ai8',
+    rule: 'ai',
+    what: 'the C1 controls let through a text item',
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('scalar.value <= 0x1f || (scalar.value >= 0x7f && scalar.value <= 0x9f)', 'scalar.value <= 0x1f || scalar.value == 0x7f')
+  },
+  {
+    id: 'aj1',
+    rule: 'aj',
+    what: 'autocorrection on in the hidden field',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('autocorrectionType = .no', 'autocorrectionType = .yes')
+  },
+  {
+    id: 'aj2',
+    rule: 'aj',
+    what: 'smart dashes left at their default',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('smartDashesType = .no', 'smartDashesType = .default')
+  },
+  {
+    id: 'aj3',
+    rule: 'aj',
+    what: 'a drop taken into the field',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('textDropDelegate = ScreenDropRefusal.shared', '_ = ScreenDropRefusal.shared')
+  },
+  {
+    id: 'aj4',
+    rule: 'aj',
+    what: 'Paste and Go offered',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace(/\n[ \t]*#selector\(UIResponderStandardEditActions\.pasteAndGo\(_:\)\),/, '')
+  },
+  {
+    id: 'aj5',
+    rule: 'aj',
+    what: 'an IME composition sent while it is marked',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('guard !marked, !dictating else { return Change() }', 'guard !dictating else { return Change() }')
+  },
+  {
+    id: 'aj6',
+    rule: 'aj',
+    what: 'a pasted block of lines typed line by line',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('if Self.holdsLineBreak(text) {\n            return Change()', 'if text.contains(Self.carriageReturn) {\n            return Change()')
+  },
+  {
+    // THE FIX ROUND OF 2026-10-06: the shape that shipped, a line break asked
+    // for Character by Character, which "\r\n" (one Character) walks past.
+    id: 'aj6b',
+    rule: 'aj',
+    what: 'a Windows line break missed by a Character search',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('text.unicodeScalars.contains { lineBreakScalars.contains($0) }', 'text.contains(lineFeed) || text.contains(carriageReturn)')
+  },
+  {
+    id: 'aj6c',
+    rule: 'aj',
+    what: 'the carriage return left out of the line breaks',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('Set(lineFeed.unicodeScalars).union(carriageReturn.unicodeScalars)', 'Set(lineFeed.unicodeScalars)')
+  },
+  {
+    id: 'aj6d',
+    rule: 'aj',
+    what: 'a field holding a line break read as text',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('if Self.holdsLineBreak(text) {\n            reset()', 'if text == Self.lineFeed {\n            reset()')
+  },
+  {
+    id: 'aj7',
+    rule: 'aj',
+    what: 'the field left with inline predictions on',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        inlinePredictionType = .no\n', '')
+  },
+  {
+    id: 'aj8',
+    rule: 'aj',
+    what: 'Writing Tools allowed to rewrite the field',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('writingToolsBehavior = .none', 'writingToolsBehavior = .complete')
+  },
+  {
+    id: 'aj9',
+    rule: 'aj',
+    what: 'the field given its default paste configuration',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        pasteConfiguration = nil\n', '')
+  },
+  {
+    id: 'aj10',
+    rule: 'aj',
+    what: "dictation's partial text sent while it runs",
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('guard !marked, !dictating else { return Change() }', 'guard !marked else { return Change() }')
+  },
+  {
+    id: 'aj11',
+    rule: 'aj',
+    what: 'a carriage return made Enter outside replacing',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('guard !marked, !dictating else { return Change() }', 'guard !marked, !dictating else { return Change() }\n        if text == Self.carriageReturn { return Change(items: [.key(.enter)], clear: true) }')
+  },
+  {
+    id: 'aj12',
+    rule: 'aj',
+    what: 'Backspace on an empty field sends nothing',
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('let change = state.backspace(marked: markedTextRange != nil)', 'let change = state.changed(to: text ?? "", marked: markedTextRange != nil, dictating: dictating)')
+  },
+  {
+    id: 'ak1',
+    rule: 'ak',
+    what: 'a kept line fresh for 6 s, past the door’s own 5',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('static let freshFor: TimeInterval = 4', 'static let freshFor: TimeInterval = 6')
+  },
+  {
+    id: 'ak2',
+    rule: 'ak',
+    what: 'a kept line reused however long it sat',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('return Date().timeIntervalSince(since) < Self.freshFor', 'return since <= Date()')
+  },
+  {
+    id: 'ak3',
+    rule: 'ak',
+    what: 'an idle line never closed by the phone',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('queue.asyncAfter(deadline: .now() + Double(Self.freshFor), execute: timer)', '_ = timer')
+  },
+  {
+    id: 'ak4',
+    rule: 'ak',
+    what: 'a stray answer kept for the next request',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('guard let exchange = self.current else {', 'guard let exchange = self.current ?? Optional<DoorExchange>.none else {')
+  },
+  {
+    id: 'ak5',
+    rule: 'ak',
+    what: 'an answer saying Connection: close kept',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('whole: !reader.closes)', 'whole: true)')
+  },
+  {
+    id: 'ak6',
+    rule: 'ak',
+    what: 'a read asked again after any failure, not only a reused line closed before an answer',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('guard line != nil, first.reused, case .failure(let failure) = first.result,', 'guard line != nil, case .failure(let failure) = first.result,')
+  },
+  {
+    id: 'ak7',
+    rule: 'ak',
+    what: 'every exchange asks to keep its connection',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('keepAlive: Bool = false', 'keepAlive: Bool = true')
+  },
+  {
+    id: 'al1',
+    rule: 'al',
+    what: 'Copy reads the pasteboard back',
+    file: () => `${APP}/Screens/ScreenSelection.swift`,
+    edit: (src) => src.replace('UIPasteboard.general.string = text', 'UIPasteboard.general.string = text\n        _ = UIPasteboard.general.hasStrings')
+  },
+  {
+    id: 'al2',
+    rule: 'al',
+    what: 'the pasteboard named in another Screen file',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => `${src}\nfunc p337Peek() -> Bool { UIPasteboard.general.hasStrings }\n`
+  },
+  {
+    id: 'p20',
+    rule: 'p',
+    what: "Copy's write to the pasteboard moved out of ScreenSelection.swift",
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => `${src}\nfunc p337Copy(_ text: String) {\n    UIPasteboard.general.string = text\n}\n`
+  },
+  {
+    id: 'p21',
+    rule: 'p',
+    what: 'a read of the pasteboard beside Copy, in ScreenSelection.swift itself',
+    file: () => `${APP}/Screens/ScreenSelection.swift`,
+    edit: (src) => `${src}\nfunc p337Peek() -> String {\n    let peeked = UIPasteboard.general.string ?? ""\n    return peeked\n}\n`
+  },
+  {
+    id: 'am1',
+    rule: 'am',
+    what: 'a second constructor of a colour the door names',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => `${src}\nenum P337Colours {\n    static func drawn(_ rgb: String) -> Color { Tokens.bgCanvas }\n}\n`
+  },
+  {
+    id: 'am2',
+    rule: 'am',
+    what: "a ScreenColor made without the seven-character reader",
+    file: () => `${APP}/Door/Contract.swift`,
+    edit: (src) => src.replace('private init(channels: SIMD3<UInt8>) {', 'init(channels: SIMD3<UInt8>) {')
+  },
+  {
+    id: 'a20',
+    rule: 'a',
+    what: 'the Screen’s page token taken out of Tokens.swift',
+    file: () => `${APP}/Style/Tokens.swift`,
+    edit: (src) => src.replace(/\bcase bgCanvas\b/, 'case bgCanvasGone')
+  },
+  {
+    id: 'an1',
+    rule: 'an',
+    what: 'upside down allowed',
+    file: () => INFO,
+    edit: (src) => src.replace('<string>UIInterfaceOrientationLandscapeRight</string>', '<string>UIInterfaceOrientationLandscapeRight</string>\n\t\t<string>UIInterfaceOrientationPortraitUpsideDown</string>')
+  },
+  {
+    id: 'an2',
+    rule: 'an',
+    what: 'landscape opened from outside the Screen',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => `${src}\n@MainActor func p337Rotate() { OrientationGate.screenOnTop = true }\n`
+  },
+  {
+    id: 'an3',
+    rule: 'an',
+    what: 'the Screen leaving landscape on behind it',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('OrientationGate.screenOnTop = false', 'OrientationGate.screenOnTop = true')
+  },
+  {
+    id: 'e20',
+    rule: 'e',
+    what: 'an iPhone spelling of the orientation list',
+    file: () => INFO,
+    edit: (src) => src.replace('\t<key>UIUserInterfaceStyle</key>', '\t<key>UISupportedInterfaceOrientations~iphone</key>\n\t<array>\n\t\t<string>UIInterfaceOrientationPortrait</string>\n\t</array>\n\t<key>UIUserInterfaceStyle</key>')
+  },
+  {
+    id: 'ao1',
+    rule: 'ao',
+    what: 'the cover drawn only in the background, not while inactive',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('phase != .active', 'phase == .background')
+  },
+  {
+    id: 'ao2',
+    rule: 'ao',
+    what: 'the cover carries words',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('.fill(Tokens.bgCanvas)', '.fill(Tokens.bgCanvas)\n            .overlay(Text(Copy.screen))')
+  },
+  {
+    id: 'ap1',
+    rule: 'ap',
+    what: 'a box character transcribed as a literal',
+    file: () => `${APP}/Screens/ScreenGlyphs.swift`,
+    edit: (src) => `${src}\nlet p337Dashed = "${String.fromCodePoint(0x254c)}"\n`
+  },
+  {
+    id: 'ap2',
+    rule: 'ap',
+    what: 'a fallback glyph scaled up to its box',
+    file: () => `${APP}/Screens/ScreenRows.swift`,
+    edit: (src) => src.replace('return min(1, CGFloat(box) / measured)', 'return CGFloat(box) / measured')
+  },
+  {
+    id: 'ap3',
+    rule: 'ap',
+    what: 'the shapes no longer read from the Unicode names',
+    file: () => `${APP}/Screens/ScreenGlyphs.swift`,
+    edit: (src) => src.replace(/\.properties\.name\b/g, '.properties.nameAlias')
+  },
+  // (aq), the fix round of 2026-10-06: the two iOS 26 behaviours, put back.
+  {
+    id: 'aq1',
+    rule: 'aq',
+    what: 'the SwiftUI long press sequenced before a drag, which held every touch on iOS 26',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => src.replace('.gesture(selectPress(cell))', '.gesture(LongPressGesture(minimumDuration: ScreenGesture.longPressSeconds).sequenced(before: DragGesture(minimumDistance: 0)))')
+  },
+  {
+    id: 'aq2',
+    rule: 'aq',
+    what: 'the rows centred again, so a line under the grid moves them under a still finger',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => src.replace('minHeight: proxy.size.height, alignment: .topLeading)', 'minHeight: proxy.size.height, alignment: .center)')
+  },
+  {
+    id: 'aq3',
+    rule: 'aq',
+    what: 'the gestures on the rows alone, so a pinch below the last row reaches nothing',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) =>
+      src
+        .replace('                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n', '')
+        .replace('                    .gesture(selectPress(cell))\n', '                    .gesture(selectPress(cell))\n                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n')
+  },
+  {
+    id: 'aq4',
+    rule: 'aq',
+    what: 'a long press that is not a UIKit recognizer',
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => src.replace('let press = UILongPressGestureRecognizer()', 'let press = UITapGestureRecognizer()')
+  },
+  {
+    id: 'ab20',
+    rule: 'ab',
+    what: 'a keys body built outside signedPost',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => `${src}\nlet p337Body = KeysBody(dialog: nil, keys: [], session: "s", turn: "t", write: "w")\n`
+  },
+  {
+    id: 'ab21',
+    rule: 'ab',
+    what: 'the keys body loses its dialog',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('struct KeysBody: Encodable, Sendable {\n    let dialog: String?\n', 'struct KeysBody: Encodable, Sendable {\n')
+  },
+  {
+    id: 'ac20',
+    rule: 'ac',
+    what: 'End back in a bar at the bottom',
+    file: () => `${APP}/Screens/EndBar.swift`,
+    edit: (src) => src.replace('ToolbarItem(placement: .topBarTrailing)', 'ToolbarItem(placement: .bottomBar)')
+  },
+  {
+    id: 'ac21',
+    rule: 'ac',
+    what: 'the bottom End bar’s identifier brought back',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: (src) => src.replace('    static let sessionEnd = "session-end"', '    static let sessionEnd = "session-end"\n    static let sessionEndBar = "session-end-bar"')
+  },
+  {
+    id: 'v20',
+    rule: 'v',
+    what: "the Screen's failure sentence optional",
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('static func screenSentence(for failure: DoorFailure) -> String {', 'static func screenSentence(for failure: DoorFailure) -> String? {')
+  },
+  {
+    id: 'v21',
+    rule: 'v',
+    what: "a keys write's done drawn as an empty line",
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('guard answer.outcome != .done else { return Copy.replySent }', 'guard answer.outcome != .done else { return "" }')
+  },
+  {
+    id: 't20',
+    rule: 't',
+    what: "the hostile door's stray-answer arm dropped",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace(/\n[ \t]*'screen-stray-answer': \{[^\n]*\},/, '')
+  },
+  {
+    id: 't21',
+    rule: 't',
+    what: "a hostile keys arm that counts no POST",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace("'keys-404': { what: 'a 404 with no body to a keys write', ends: 'sentence', screen: true, keys: true, posts: 1,", "'keys-404': { what: 'a 404 with no body to a keys write', ends: 'sentence', screen: true, keys: true,")
+  },
+  {
+    id: 'k20',
+    rule: 'k',
+    what: "a keys write's bytes summed with a trapping +",
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('let total = DoorNumber.sum(bytes, next.textBytes)', 'let total = Optional(bytes + next.textBytes)')
   }
 ];
 
@@ -2687,7 +3163,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -2700,5 +3176,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (ag) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (aq) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

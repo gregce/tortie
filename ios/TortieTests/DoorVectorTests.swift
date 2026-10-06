@@ -285,6 +285,76 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertTrue(text.unicodeScalars.contains { $0.properties.isEmoji && !$0.isASCII }, "the vector's text has no emoji")
     }
 
+    /// Clause (Phase 337, build/p337/SPEC.md section 6.4, the vectors): the
+    /// Screen's read and the keys write are the requests the shipping verifier
+    /// accepted: `GET` the client's own `/v1/screen` target with `since`, and
+    /// `POST /v1/keys` with the body Swift's encoder writes, sorted, byte for
+    /// byte, its items holding `"`, `\`, `/`, an emoji and every key name.
+    /// The signature loops above sign and verify both with the rest.
+    func testTheScreenReadAndTheKeysWriteAreTheDoorsByteForByte() throws {
+        let screen = try XCTUnwrap(
+            v.requests.first { $0.target.hasPrefix("/v1/screen?") }, "vectors.json carries no screen read; run build/p316/vectors.mjs"
+        )
+        XCTAssertEqual(screen.method, "GET")
+        let since = try XCTUnwrap(screen.target.split(separator: "=").last.map(String.init))
+        XCTAssertEqual(DoorClient.screenTarget(try XCTUnwrap(screen.id), since: since), screen.target)
+        XCTAssertTrue(screen.target.contains("&since="), "the read carries the revision it holds")
+
+        let writes = v.requests.filter { $0.target == DoorClient.keysTarget }
+        XCTAssertFalse(writes.isEmpty, "vectors.json carries no keys write; run build/p316/vectors.mjs")
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        var texts = ""
+        var named = Set<ScreenKeyName>()
+        for keys in writes {
+            XCTAssertEqual(keys.method, "POST", keys.name)
+            let fields = try XCTUnwrap(try JSONSerialization.jsonObject(with: Data(keys.body.utf8)) as? [String: Any])
+            XCTAssertEqual(fields.keys.sorted(), ["dialog", "keys", "session", "turn", "write"], keys.name)
+            let items = try XCTUnwrap(fields["keys"] as? [[String: String]])
+            let read: [KeyItem] = try items.map { item in
+                if let text = item["t"] { return .text(text) }
+                return .key(try XCTUnwrap(ScreenKeyName(rawValue: try XCTUnwrap(item["k"]))))
+            }
+            let body = KeysBody(
+                dialog: fields["dialog"] as? String, keys: read, session: try XCTUnwrap(fields["session"] as? String),
+                turn: try XCTUnwrap(fields["turn"] as? String), write: try XCTUnwrap(fields["write"] as? String)
+            )
+            XCTAssertEqual(String(decoding: try encoder.encode(body), as: UTF8.self), keys.body, keys.name)
+            XCTAssertTrue(WriteId.isWellFormed(body.write))
+            XCTAssertTrue(PocketReplyOffer.isQuestionId(body.turn), body.turn)
+            for item in read {
+                switch item {
+                case .text(let text): texts += text
+                case .key(let name): named.insert(name)
+                }
+            }
+        }
+        for needed in ["\"", "\\", "/"] { XCTAssertTrue(texts.contains(needed), "the vectors' text has no \(needed)") }
+        XCTAssertTrue(texts.unicodeScalars.contains { $0.properties.isEmoji && !$0.isASCII }, "the vectors' text has no emoji")
+        XCTAssertEqual(named, Set(ScreenKeyName.allCases), "the vectors do not carry every key name")
+    }
+
+    /// Clause (Phase 337): a keys body is covered too. The door refused a
+    /// keys write's signature over its body with one byte changed
+    /// (`signature`), and so does CryptoKit.
+    func testAKeysBodyTheSignatureWasNotMadeForDoesNotVerify() throws {
+        let tampered = try XCTUnwrap(v.keysTampered, "vectors.json carries no tampered keys write; run build/p316/vectors.mjs")
+        XCTAssertEqual(tampered.doorSays, "signature")
+        let signed = try XCTUnwrap(v.requests.first { $0.name == tampered.signedFor })
+        XCTAssertEqual(signed.target, DoorClient.keysTarget)
+        XCTAssertNotEqual(tampered.body, signed.body)
+        XCTAssertEqual(Hex.sha256(Data(tampered.body.utf8)), tampered.bodySha256)
+        let text = DoorSignature.canonicalText(
+            method: signed.method, target: signed.target, bodySha256: tampered.bodySha256,
+            timestamp: signed.timestamp, nonce: signed.nonce, binding: v.identity.binding
+        )
+        XCTAssertEqual(text, tampered.canonical)
+        let keys = try phoneKeys()
+        let signature = try XCTUnwrap(Base64URL.decode(signed.signature))
+        XCTAssertFalse(keys.signing.publicKey.isValidSignature(signature, for: Data(tampered.canonical.utf8)))
+        XCTAssertTrue(keys.signing.publicKey.isValidSignature(signature, for: Data(signed.canonical.utf8)))
+    }
+
     /// Clause: the body is covered, not only the target. The door refused the
     /// end write's signature over its body with one byte changed
     /// (`signature`), and so does CryptoKit.
@@ -668,6 +738,10 @@ struct DoorVectorFile: Decodable {
     let requests: [Request]
     let tampered: Tampered
     let writeTampered: WriteTampered?
+    /// Phase 337: a keys write's signature over its body with one byte
+    /// changed. Optional so a file written before it fails the one test that
+    /// reads it, by name.
+    let keysTampered: WriteTampered?
     let pins: [Pin]
     let client: Client
     let seal: Seal

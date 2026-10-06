@@ -134,6 +134,12 @@ import { createPocketWrites } from './sessions/pocket-writes';
 // door's domain imports neither.
 import { replyTurns } from './reply/question-id';
 import { createReplyVerbs } from './reply/writer';
+// PHASE 337: the Screen (a session's own screen, composed here, and the keys a
+// phone types into it), built once here beside the reply's verbs and handed to
+// the door's facts and writes; the door's domain imports neither.
+import { createScreenWatch } from './screen/watch';
+import { createScreenKeys } from './screen/keys';
+import { typePhoneKeys } from './machines/scroll-order';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
 import { WakeMark } from './power/wake-mark';
@@ -379,6 +385,25 @@ export function installMainCapabilities(
   // `replyOffer`, which `/v1/session` alone asks. Each handed as an arrow, so
   // neither side is handed more of the verbs than its member.
   const reply = createReplyVerbs({ core: () => pocketCore, turns: replyTurns });
+  // PHASE 337 (build/p337/SPEC.md §5.3, §5.4): the Screen's one watcher and
+  // its keys verb, built ONCE over the same core and the same question id the
+  // reply reads. The watcher's `answer` goes to the facts as `screen`, which
+  // `/v1/screen` alone asks; the keys verb's `keys` to the door's writes. The
+  // keys verb is handed the watcher's fresh read and its nudge, which takes
+  // the act's window mark (`nudge(id, before)`, D4), the desk's own status
+  // funnel (`noteUserInput`, D23) and the carriage's one phone writer for a
+  // session on another machine (`typePhoneKeys`, D20). Each handed as an arrow.
+  const screenWatch = createScreenWatch({ core: () => pocketCore, turns: replyTurns });
+  const screenKeys = createScreenKeys({
+    core: () => pocketCore,
+    turns: replyTurns,
+    watch: {
+      readFresh: (session) => screenWatch.readFresh(session),
+      nudge: (sessionId, before) => screenWatch.nudge(sessionId, before)
+    },
+    noteUserInput: (sessionId) => pocketCore?.activity.noteUserInput(sessionId),
+    typeRemote: (sessionId, keys) => typePhoneKeys(sessionId, keys)
+  });
   // PHASE 317: the phone's End. ONE implementation, over the same core the
   // facts read, asking both gates the Mac's End asks; it reaches the verb only
   // through the `PocketWrites` the door is handed, and the rows carry its offer
@@ -388,7 +413,8 @@ export function installMainCapabilities(
     reply: {
       choose: (input, still) => reply.choose(input, still),
       say: (input, still) => reply.say(input, still)
-    }
+    },
+    keys: { keys: (input, still) => screenKeys.keys(input, still) }
   });
   const facts = createPocketFacts({
     core: () => pocketCore,
@@ -399,7 +425,8 @@ export function installMainCapabilities(
     },
     wakes: () => wakes.wakes(),
     endOffer: (session) => pocketWrites.endOffer(session),
-    replyOffer: (session, drawn) => reply.offer(session, drawn)
+    replyOffer: (session, drawn) => reply.offer(session, drawn),
+    screen: (session, since, closing) => screenWatch.answer(session, since, closing)
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

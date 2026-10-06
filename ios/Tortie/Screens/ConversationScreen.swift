@@ -15,10 +15,12 @@
 //                    main's `absence` sentence when there is none on record
 //   the notice       `the session stopped: …`, when the CLI left one
 //
-// Above the turns, one line says the terminal's own output is not here and
+// Above the turns, one line says the terminal's scrollback is not here and
 // stays on the Mac: "the full CONVERSATION yes, the raw terminal scrollback
-// no". There is no message box: nothing on the phone can type into a session
-// until Phase 318 (decision 2).
+// no". Since Phase 337 the session's own screen, as it is now, is the
+// Screen's (Screens/Screen.swift), reached from the session's page and typed
+// into there, and this line says only what is still true (D31). There is no
+// message box here: the session's page has Phase 318's.
 //
 // PAGING. The newest page is read on appear, on return to the foreground and on
 // pull; older pages are read as the top of the conversation scrolls into view.

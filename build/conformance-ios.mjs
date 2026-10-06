@@ -1088,7 +1088,10 @@ export function ruleDebugSeams(name, source, seams) {
  * one checked, and an `INFOPLIST_KEY_NSFaceIDUsageDescription` would generate
  * one the file does not show.
  */
-export const PINNED_PLIST_KEYS = new Set(['NSFaceIDUsageDescription']);
+// Phase 337 (rule an): the orientation list is pinned too, so a device
+// spelling of it (`UISupportedInterfaceOrientations~iphone`) or an
+// INFOPLIST_KEY_ that generates one cannot widen landscape past the Screen.
+export const PINNED_PLIST_KEYS = new Set(['NSFaceIDUsageDescription', 'UISupportedInterfaceOrientations']);
 
 /** What CFBundle reads a key as, said after its path when that is not its spelling. */
 const readAs = (k) => (plistBaseKey(k.key) === k.key ? '' : ` (read as ${plistBaseKey(k.key)} at run time)`);
@@ -2505,6 +2508,10 @@ export function ruleSecretKept(files, named = KEY_NAMED, namesIn = KEY_NAMES_IN)
     // name this file watches.
     const watched = namesIn[f.name] ?? [];
     for (const m of bare.matchAll(CODE_SOURCES)) {
+      // PHASE 337 (§Attack A4): Copy's one write TO the pasteboard, in
+      // Screens/ScreenSelection.swift, is a code leaving and never entering;
+      // every other mention anywhere stays a code source.
+      if (m[0] === 'UIPasteboard' && isCopyWrite(f.name, bare, m.index)) continue;
       said.sources += 1;
       const lines = bare.slice(0, m.index).split('\n');
       let k = lines.length - 1;
@@ -2666,11 +2673,29 @@ export function ruleClientTransport({ client, pairing, keys, files = [], hostile
   // identity, the write path included. The writes reach the connection through
   // `connect(`, under `exchange(`, so every call of it names `identity:`, and
   // signedPost hands it the paired door's.
+  // Phase 337 (§Attack A12, the kept lines): the signed reads reach the
+  // connection through `connect(` too now, beside the writes, and a signed
+  // read has TWO of them (its one retry on a new line). So every `connect(`
+  // names WHICH identity, not only that it names one: the paired door's,
+  // or, inside `exchange(`'s own body, the identity `exchange(` was handed
+  // (whose callers the loop above holds to the paired door's or to nil in
+  // present alone). `identity: nil` on a `connect(` is a signed request
+  // with no certificate.
+  const exchangeBody = exchangeDecl === null ? '' : bodyAfter(c.bare, exchangeDecl.index);
+  const exchangeStart = exchangeDecl === null ? -1 : c.bare.indexOf(exchangeBody, exchangeDecl.index);
   for (const call of c.bare.matchAll(/(?<!func\s)\bconnect\s*\(/g)) {
     said.connects += 1;
     const close = closeParen(c.bare, c.bare.indexOf('(', call.index));
     const args = c.bare.slice(call.index, close === -1 ? c.bare.length : close + 1);
-    if (!/\bidentity\s*:/.test(args)) findings.push(`${at(call.index)} calls connect( without naming identity:, so a write could go out with no decision about what it presents`);
+    const named = /\bidentity\s*:\s*([^,)]+)/.exec(args)?.[1]?.trim();
+    if (named === undefined) {
+      findings.push(`${at(call.index)} calls connect( without naming identity:, so a write could go out with no decision about what it presents`);
+      continue;
+    }
+    const inExchange = exchangeStart !== -1 && call.index > exchangeStart && call.index < exchangeStart + exchangeBody.length;
+    if (named === 'identity' ? !inExchange : !/^door\s*\.\s*identity$/.test(named)) {
+      findings.push(`${at(call.index)} calls connect( with identity: ${named}; a signed request presents the paired door's identity (door.identity), and only exchange( hands on the one it was given`);
+    }
   }
   const signedPostAt = /\bfunc\s+signedPost\b/.exec(c.bare);
   if (signedPostAt !== null && !/\bidentity\s*:\s*door\s*\.\s*identity\b/.test(bodyAfter(c.bare, signedPostAt.index))) {
@@ -2957,7 +2982,7 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * as a duplicate. The round that uploads the next build moves this with the
  * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
  */
-export const PHONE_BUILD = '6';
+export const PHONE_BUILD = '7';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -4649,7 +4674,22 @@ export const END_BATCH_FILE = 'Screens/EndBatch.swift';
 /** Info.plist's Face ID purpose string, pinned (SPEC §5.8.2, research 136 §13). */
 export const FACE_ID_USAGE = 'Tortie asks for Face ID before it ends a session on your Mac.';
 /** Where nothing may name the owner check: reading, pairing, Settings, the door (his ruling: "Only for End"). */
-export const OWNER_CHECK_ABSENT = Object.freeze(['Screens/SettingsScreen.swift', 'Screens/PairingScreen.swift', 'Screens/ConversationScreen.swift', 'Screens/DoorWords.swift', 'Screens/Reply.swift', 'Screens/MessageStrip.swift']);
+export const OWNER_CHECK_ABSENT = Object.freeze([
+  'Screens/SettingsScreen.swift',
+  'Screens/PairingScreen.swift',
+  'Screens/ConversationScreen.swift',
+  'Screens/DoorWords.swift',
+  'Screens/Reply.swift',
+  'Screens/MessageStrip.swift',
+  // Phase 337 (build/p337/SPEC.md D33, his ruling 3): no key asks Face ID.
+  'Screens/Screen.swift',
+  'Screens/ScreenGrid.swift',
+  'Screens/ScreenRows.swift',
+  'Screens/ScreenGlyphs.swift',
+  'Screens/ScreenSelection.swift',
+  'Screens/ScreenKeyField.swift',
+  'Screens/ScreenKeys.swift'
+]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
 
@@ -4730,14 +4770,14 @@ export function ruleWrite(files) {
   // (Phase 318 added the two reply writes).
   const signedPost = fnOf('signedPost');
   if (signedPost === null) findings.push('Door/DoorClient.swift declares no signedPost(route:door:limits:) with a body, so the write has no one path');
-  const callers = { end: 0, choose: 0, say: 0 };
+  const callers = { end: 0, choose: 0, say: 0, keys: 0 };
   for (const file of all) {
     for (const m of file.bare.matchAll(/\bsignedPost\s*\(/g)) {
       if (isDecl(file.bare, m.index)) continue;
       said.signedPosts += 1;
       const p = placeOf(file, m.index);
       if (file.name === 'Door/DoorClient.swift' && p.type === 'DoorClient' && Object.hasOwn(callers, p.fn)) callers[p.fn] += 1;
-      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose and say call it`);
+      else findings.push(`${atLine(file, m.index)} calls signedPost in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only DoorClient.end, choose, say and keys call it`);
     }
   }
   for (const [name, n] of Object.entries(callers)) if (n !== 1) findings.push(`DoorClient.${name} calls signedPost ${String(n)} time(s); each write is one call of the one path`);
@@ -4770,7 +4810,7 @@ export function ruleWrite(files) {
   }
   // (ab4) The body, encoded in signedPost alone, with exactly its keys, sorted.
   for (const file of all) {
-    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody)\s*\(/g)) {
+    for (const m of file.bare.matchAll(/\b(EndBody|ChooseBody|SayBody|KeysBody)\s*\(/g)) {
       if (/\b(?:struct|class|enum)\s+$/.test(file.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
       const p = placeOf(file, m.index);
       if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'signedPost') findings.push(`${atLine(file, m.index)} builds a ${m[1]} in ${p.fn ?? 'no function'}; a write's body is made in signedPost alone`);
@@ -4779,10 +4819,10 @@ export function ruleWrite(files) {
   if (signedPost !== null) {
     const body = bodyText(client, signedPost);
     if (!/\.\s*sortedKeys\b/.test(body)) findings.push('signedPost does not encode the body with .sortedKeys, so its bytes would not be the ones the Mac and the vectors expect');
-    for (const name of ['EndBody', 'ChooseBody', 'SayBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
+    for (const name of ['EndBody', 'ChooseBody', 'SayBody', 'KeysBody']) if (!new RegExp(`\\b${name}\\s*\\(`).test(body)) findings.push(`signedPost does not build a ${name}, so that write is encoded somewhere else`);
     if (/\b(?:while|repeat)\b/.test(body)) findings.push('signedPost holds a while or repeat; a write is sent once and never retried');
   }
-  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write']]) {
+  for (const [name, want] of [['EndBody', 'batch,session,write'], ['ChooseBody', 'mark,marker,question,session,write'], ['SayBody', 'session,text,write'], ['KeysBody', 'dialog,keys,session,turn,write']]) {
     const t = client.types.find((x) => x.name === name && x.kind === 'struct');
     if (t === undefined) {
       findings.push(`Door/DoorClient.swift declares no struct ${name}`);
@@ -4791,7 +4831,7 @@ export function ruleWrite(files) {
     const fields = storedFields(client.bare, t).sort().join(',');
     if (fields !== want) findings.push(`Door/DoorClient.swift's ${name} holds ${fields || 'nothing'}; the Mac reads exactly ${want} and refuses any other key`);
   }
-  for (const name of ['end', 'choose', 'say']) {
+  for (const name of ['end', 'choose', 'say', 'keys']) {
     const fn = fnOf(name, 'DoorClient');
     if (fn !== null && /\b(?:while|repeat|for)\b/.test(bodyText(client, fn))) findings.push(`DoorClient.${name} loops; a write is one call and never retried`);
   }
@@ -6761,7 +6801,10 @@ const expect = (what, ok) => {
   expect('(e) reads a platform and a device modifier together', rulePlist({ ...okPlist, 'BGTaskSchedulerPermittedIdentifiers-iphoneos~ipad': ['x'] }, pbxOk).length > 0);
   expect('(e) reads NSAllowsArbitraryLoads~iphone inside ATS', rulePlist({ ...okPlist, NSAppTransportSecurity: { ...okPlist.NSAppTransportSecurity, 'NSAllowsArbitraryLoads~iphone': true } }, pbxOk).length > 0);
   expect('(e) catches a device spelling of the ATS dictionary beside the checked one', rulePlist({ ...okPlist, 'NSAppTransportSecurity~iphone': { NSAllowsLocalNetworking: false } }, pbxOk).length > 0);
-  expect('(e) leaves a modifier on a key it does not pin alone', rulePlist({ ...okPlist, 'UISupportedInterfaceOrientations~ipad': ['UIInterfaceOrientationPortrait'] }, pbxOk).length === 0);
+  // Phase 337 pins UISupportedInterfaceOrientations (rule an), so the
+  // unpinned key with a modifier is now the status bar's style.
+  expect('(e) leaves a modifier on a key it does not pin alone', rulePlist({ ...okPlist, 'UIStatusBarStyle~ipad': 'UIStatusBarStyleDefault' }, pbxOk).length === 0);
+  expect('(e) catches a device spelling of the pinned orientation list', rulePlist({ ...okPlist, 'UISupportedInterfaceOrientations~iphone': ['UIInterfaceOrientationPortrait'] }, pbxOk).length > 0);
   expect('(e) catches a background mode injected by an xcconfig', rulePlist(okPlist, pbxOk, [{ name: 'X.xcconfig', text: 'INFOPLIST_KEY_UIBackgroundModes = fetch\n' }]).length > 0);
   expect('(e) leaves an xcconfig comment alone', rulePlist(okPlist, pbxOk, [{ name: 'X.xcconfig', text: '// INFOPLIST_KEY_UIBackgroundModes is refused\n' }]).length === 0);
   expect('(e) catches an xcconfig naming another Info.plist', rulePlist(okPlist, pbxOk, [{ name: 'X.xcconfig', text: 'INFOPLIST_FILE = Other.plist\n' }]).length > 0);
@@ -7094,8 +7137,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 7;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 7;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 8;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 8;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -7696,6 +7739,10 @@ const expect = (what, ok) => {
     '    func say(_ sessionId: String, text: String, write: String?, door: PairedDoor) async -> WriteResult {',
     '        await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)',
     '    }',
+    '    func keys(_ sessionId: String, keys: [KeyItem], turn: String, dialog: String?, line: DoorLine, door: PairedDoor) async -> WriteResult {',
+    '        let route = WriteRoute.keys(session: sessionId, keys: keys, turn: turn, dialog: dialog)',
+    '        return await signedPost(route: route, door: door, limits: limits, write: nil)',
+    '    }',
     '    func present(_ p: Data, door: DoorEndpoint) async throws -> DoorReply {',
     '        try await exchange(method: "POST", target: "/pair", headers: [], body: p, door: door, identity: nil)',
     '    }',
@@ -7718,6 +7765,8 @@ const expect = (what, ok) => {
     '                body = try encoder.encode(ChooseBody(mark: mark, marker: marker, question: question, session: session, write: id))',
     '            case .say(let session, let text):',
     '                body = try encoder.encode(SayBody(session: session, text: text, write: id))',
+    '            case .keys(let session, let keys, let turn, let dialog):',
+    '                body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))',
     '            }',
     '        } catch {',
     '            return .notSent(.notPaired)',
@@ -7736,6 +7785,13 @@ const expect = (what, ok) => {
     'struct SayBody: Encodable {',
     '    let session: String',
     '    let text: String',
+    '    let write: String',
+    '}',
+    'struct KeysBody: Encodable {',
+    '    let dialog: String?',
+    '    let keys: [KeyItem]',
+    '    let session: String',
+    '    let turn: String',
     '    let write: String',
     '}',
     'struct EndBody: Encodable {',
@@ -8126,6 +8182,11 @@ const expect = (what, ok) => {
   one('(ad) catches an AppModel with no register', adRun, swap(APPF, '    func register(_ runner: EndRunner) {', '    func keep(_ runner: EndRunner) {'));
   one('(ad) catches no EndBatch.swift', adRun, drop(B));
   expect('(t) catches a connect( that names no identity beside a signedPost that does, on its own', tWrite((s) => `${s}\n        connect(method: "GET")`).length > 0);
+  // Phase 337: a signed read reaches connect( twice (its one retry on a new
+  // line), so WHICH identity each connect( names is asked, not only that it
+  // names one.
+  expect('(t) catches a connect( presenting nil beside a signedPost that presents the paired door\'s, on its own', tWrite((s) => `${s}\n        connect(method: "GET", identity: nil)`).length > 0);
+  expect('(t) catches a connect( handing on an identity outside exchange(, on its own', tWrite((s) => `${s}\n        connect(method: "GET", identity: identity)`).length > 0);
   expect('(t) catches no POCKET_WRITE_SENTENCES to read, on its own', tArms(hostileWrites((s) => s.split("door: ['unreadable']").join('door: []')), null).length > 0);
   expect('(t) catches a write arm not marked write, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true,`, `'write-404': { what: 'x', ends: 'sentence', write: false,`))).length > 0);
   expect('(t) catches a write arm that says nowhere it ends, on its own', tArms(hostileWrites((s) => s.replace(`'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1, at: 'session-end-line',`, `'write-404': { what: 'x', ends: 'sentence', write: true, posts: 1,`))).length > 0);
@@ -8844,6 +8905,771 @@ const expect = (what, ok) => {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE 337, the Screen (build/p337/SPEC.md §6.4): (ah) to (aq) ((aq) the fix round's), and the
+// widened halves of (a), (ab), (ac), (e), (k), (p), (s), (t) and (v)
+// ---------------------------------------------------------------------------
+//
+// His rulings of 2026-10-05 lifted "no raw terminal" for a session's own
+// screen, reached from inside a session, and gave the phone every key with no
+// Face ID. Every clause below is one line of Swift a later round can delete
+// with the Screen still drawing and still typing, so each is read here, as
+// text, with the lexer above, and each has an arm in build/p316/ablation-ios.mjs.
+
+/** The Screen's own files, named relative to the app folder. */
+export const SCREEN_FILES = Object.freeze([
+  'Screens/Screen.swift',
+  'Screens/ScreenGrid.swift',
+  'Screens/ScreenRows.swift',
+  'Screens/ScreenGlyphs.swift',
+  'Screens/ScreenSelection.swift',
+  'Screens/ScreenKeyField.swift',
+  'Screens/ScreenKeys.swift'
+]);
+const isScreenFile = (name) => /^Screens\/Screen[A-Z]?\w*\.swift$/.test(name) && name !== 'Screens/ScreenCover.swift';
+
+/** The 35 names the Mac takes, read from the contract's text (src/shared/ipc/pocket.ts). */
+export function pocketKeyNames(pocketTs) {
+  if (pocketTs === null) return null;
+  const m = /POCKET_SCREEN_KEY_NAMES\s*=\s*\[([\s\S]*?)\]\s*as\s+const/.exec(pocketTs.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, ''));
+  return m === null ? null : [...m[1].matchAll(/'([^']*)'/g)].map((x) => x[1]);
+}
+
+/** The raw values of a Swift `enum NAME: String`, in order, or null. */
+function enumRawValues(source, name) {
+  const lx = lexSwift(source);
+  const t = typeSpans(lx.bare).find((x) => x.name === name && x.kind === 'enum');
+  if (t === undefined) return null;
+  const out = [];
+  for (const s of lx.strings) {
+    if (s.start < t.open || s.start > t.close) continue;
+    const before = lx.bare.slice(Math.max(0, s.start - 60), s.start);
+    if (/\bcase\s+[A-Za-z_]\w*\s*=\s*$/.test(before)) out.push(s.value);
+  }
+  return out;
+}
+
+/** The text of the function `name` in a lexed file (inside `type` when given), or ''. */
+const fnText = (file, name, type = null) => {
+  const fn = file === null ? undefined : funcsNamed(file, name, type)[0];
+  return fn === undefined ? '' : bodyText(file, fn);
+};
+
+// ---- (ah) THE SCREEN NEVER SIZES THE MAC (his ruling 2, D7) -----------------
+
+/** Rule (ah), pure over the app's Swift files (`{ name, source }`). */
+export function ruleScreenSizesNothing(files) {
+  const findings = [];
+  const said = { params: [], keysFields: '', builders: 0 };
+  const client = lexedFile(files, 'Door/DoorClient.swift');
+  if (client === null) return { findings: ['Door/DoorClient.swift does not exist, so the Screen\'s requests cannot be read'], said };
+  // (ah1) The screen target: `id` and `since`, and nothing else.
+  const target = funcsNamed(client, 'screenTarget')[0];
+  if (target === undefined) findings.push('Door/DoorClient.swift declares no screenTarget(_:since:), the one builder of a /v1/screen target');
+  else {
+    const params = new Set();
+    for (const s of client.strings) {
+      if (s.start < target.bodyOpen || s.start > target.bodyClose) continue;
+      for (const m of s.value.matchAll(/[?&]([A-Za-z_]+)=/g)) params.add(m[1]);
+    }
+    said.params = [...params].sort();
+    if (said.params.join(',') !== 'id,since') findings.push(`DoorClient.screenTarget writes the query parameter(s) ${JSON.stringify(said.params)}; it writes exactly id and since: the phone never sends a size (his ruling 2, D7)`);
+  }
+  // (ah2) "/v1/screen" spelled in screenTarget alone.
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const s of file.strings) {
+      if (!s.value.includes('/v1/screen')) continue;
+      said.builders += 1;
+      const p = placeOf(file, s.start);
+      if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'screenTarget') findings.push(`${atLine(file, s.start)} spells "/v1/screen" in ${p.fn ?? 'no function'}; DoorClient.screenTarget is the one place a screen target is built`);
+    }
+  }
+  // (ah3) The keys body: exactly its five keys.
+  const keysBody = client.types.find((x) => x.name === 'KeysBody' && x.kind === 'struct');
+  if (keysBody === undefined) findings.push('Door/DoorClient.swift declares no struct KeysBody');
+  else {
+    said.keysFields = storedFields(client.bare, keysBody).sort().join(',');
+    if (said.keysFields !== 'dialog,keys,session,turn,write') findings.push(`Door/DoorClient.swift's KeysBody holds ${said.keysFields || 'nothing'}; it holds exactly dialog, keys, session, turn and write, and nothing that sizes (D17)`);
+  }
+  // (ah4) No size word in a request builder or a Screen file's write.
+  const SIZE = /\bresize\w*|(?:^|[?&])(?:cols|rows|width|height|size|columns|lines)=|^(?:cols|rows|size|width|height)$/i;
+  const builders = ['screenTarget', 'signedPost', 'signedGet', 'request', 'readHeaders'];
+  for (const f of files) {
+    const file = lexedFile(files, f.name);
+    const inDoorClient = f.name === 'Door/DoorClient.swift';
+    if (!inDoorClient && !isScreenFile(f.name) && f.name !== 'Screens/DoorWords.swift') continue;
+    for (const s of file.strings) {
+      const p = placeOf(file, s.start);
+      if (inDoorClient && !builders.includes(p.fn ?? '')) continue;
+      if (SIZE.test(s.value)) findings.push(`${atLine(file, s.start)} writes ${JSON.stringify(s.value)} in ${p.fn ?? 'no function'}; nothing the phone sends names a size (his ruling 2)`);
+    }
+    if (isScreenFile(f.name)) {
+      for (const m of file.bare.matchAll(/\b(?:requestGeometryUpdate|setNeedsUpdateOfSupportedInterfaceOrientations)\b/g)) void m;
+      for (const m of file.bare.matchAll(/\.\s*(?:read|keys)\s*\([^)]*\b(?:cols|rows|size|width|height)\s*:/g)) findings.push(`${atLine(file, m.index)} hands the Screen's door a size; the door's read takes since and its keys take the items, the turn and the dialog alone`);
+    }
+  }
+  // (ah5) The Screen's door: read(since:) and keys(_:turn:dialog:), nothing more.
+  const words = lexedFile(files, 'Screens/DoorWords.swift');
+  const proto = words === null ? undefined : words.types.find((t) => t.name === 'ScreenDoor' && t.kind === 'protocol');
+  if (proto === undefined) findings.push('Screens/DoorWords.swift declares no protocol ScreenDoor');
+  else {
+    const body = words.bare.slice(proto.open, proto.close + 1);
+    const read = /\bfunc\s+read\s*\(([^)]*)\)/.exec(body);
+    const keys = /\bfunc\s+keys\s*\(([^)]*)\)/.exec(body);
+    const labels = (args) => args.split(',').map((a) => a.trim().split(/\s+|:/)[0]).filter((a) => a !== '');
+    if (read === null || labels(read[1]).join(',') !== 'since') findings.push(`ScreenDoor.read takes ${JSON.stringify(read === null ? null : labels(read[1]))}; it takes since and nothing else`);
+    if (keys === null || labels(keys[1]).join(',') !== '_,turn,dialog') findings.push(`ScreenDoor.keys takes ${JSON.stringify(keys === null ? null : labels(keys[1]))}; it takes the items, turn and dialog, and nothing else`);
+  }
+  return { findings, said };
+}
+
+// ---- (ai) THE KEYS (D17, D29, D30, his ruling 3) ----------------------------
+
+const SENDER_FILE = 'Screens/ScreenKeys.swift';
+/** The least gap between two writes the sender may start (D30): 0.1 s. */
+export const KEYS_MIN_GAP_SECONDS = 0.1;
+
+/** Rule (ai), pure over the app's Swift files and the contract's key names (or null). */
+export function ruleScreenKeys(files, contractNames) {
+  const findings = [];
+  const said = { writerCalls: 0, clientCalls: 0, names: 0, gap: null, owners: [] };
+  const all = files.map((f) => lexedFile(files, f.name));
+  const sender = all.find((f) => f.name === SENDER_FILE) ?? null;
+  if (sender === null) return { findings: [`${SENDER_FILE} does not exist, so nothing sends the Screen's keys`], said };
+  // (ai1) The writer's keys( (the Screen door's, `turn:` and no `line:`) once,
+  // in ScreenKeySender.flush; the client's keys( (with `line:`) once, outside it.
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/\.\s*keys\s*\(/g)) {
+      if (isDecl(file.bare, m.index)) continue;
+      const open = file.bare.indexOf('(', m.index);
+      const close = closeParen(file.bare, open);
+      const args = file.bare.slice(open, close === -1 ? open + 200 : close + 1);
+      // The route's case (`WriteRoute.keys(session: …)`) is no call of a writer.
+      if (!/\bturn\s*:/.test(args) || /\bsession\s*:/.test(args)) continue;
+      const p = placeOf(file, m.index);
+      if (/\bline\s*:/.test(args)) {
+        said.clientCalls += 1;
+        if (file.name === SENDER_FILE || isScreenFile(file.name)) findings.push(`${atLine(file, m.index)} calls the door client's keys( from a Screen file; the Screen reaches the client only through its ScreenDoor`);
+        continue;
+      }
+      said.writerCalls += 1;
+      if (file.name !== SENDER_FILE || p.type !== 'ScreenKeySender' || p.fn !== 'flush') findings.push(`${atLine(file, m.index)} calls the Screen door's keys( in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; ScreenKeySender.flush is its one caller`);
+    }
+  }
+  if (said.writerCalls !== 1) findings.push(`the Screen door's keys( is called ${String(said.writerCalls)} time(s); once, in ScreenKeySender.flush`);
+  if (said.clientCalls !== 1) findings.push(`the door client's keys( is called ${String(said.clientCalls)} time(s) in the app; once, by the Screen door that owns the keys line`);
+  // (ai2) One write in flight.
+  const flush = fnText(sender, 'flush', 'ScreenKeySender');
+  if (!/\binFlight\s*==\s*nil\b/.test(flush) || !/\binFlight\s*=\s*Task\b/.test(flush)) findings.push('ScreenKeySender.flush does not start a write only while inFlight is nil, and keep it as the one inFlight task; two writes could be in flight at once');
+  // (ai3) minGap declared once, at least 0.1 s, and read before a write starts.
+  const gaps = [...sender.bare.matchAll(/\bstatic\s+let\s+minGap\s*(?::\s*[A-Za-z]+)?\s*=\s*([^\n]+)/g)];
+  const allGaps = all.flatMap((f) => [...f.bare.matchAll(/\bminGap\s*(?::\s*[A-Za-z]+)?\s*=/g)]);
+  if (gaps.length !== 1 || allGaps.length !== 1) findings.push(`minGap is declared ${String(allGaps.length)} time(s); once, in ScreenKeySender`);
+  else {
+    const v = gaps[0][1].trim();
+    const ms = /\.milliseconds\(\s*([0-9_]+)\s*\)/.exec(v);
+    const sec = /\.seconds\(\s*([0-9_.]+)\s*\)|^([0-9_.]+)$/.exec(v);
+    said.gap = ms !== null ? Number(ms[1].replace(/_/g, '')) / 1000 : sec !== null ? Number((sec[1] ?? sec[2]).replace(/_/g, '')) : null;
+    if (said.gap === null || said.gap < KEYS_MIN_GAP_SECONDS) findings.push(`ScreenKeySender.minGap is ${v}; it is at least 0.1 s (D30)`);
+  }
+  if (!/\bminGap\b/.test(flush)) findings.push('ScreenKeySender.flush does not read minGap before a write starts');
+  // (ai4) 64 items and 1,024 bytes, from constants declared once and read in the batch.
+  for (const [name, want] of [['mostItems', 64], ['mostTextBytes', 1024]]) {
+    const decls = all.flatMap((f) => [...f.bare.matchAll(new RegExp(`\\bstatic\\s+let\\s+${name}\\s*(?::\\s*Int)?\\s*=\\s*([0-9_]+)`, 'g'))].map((m) => ({ f, v: Number(m[1].replace(/_/g, '')) })));
+    if (decls.length !== 1 || decls[0].f.name !== SENDER_FILE || decls[0].v !== want) findings.push(`${name} is declared ${String(decls.length)} time(s)${decls.length === 1 ? ` as ${String(decls[0].v)} in ${decls[0].f.name}` : ''}; it is ${String(want)}, declared once, in ScreenKeySender (D30)`);
+  }
+  const batch = fnText(sender, 'takeBatch', 'ScreenKeySender');
+  if (!/\bmostItems\b/.test(batch) || !/\bmostTextBytes\b/.test(batch)) findings.push('ScreenKeySender.takeBatch does not hold a write to mostItems items and mostTextBytes bytes of text');
+  // (ai5) A named key other than Backspace alone in its write.
+  if (!/\bif\s+first\s*\.\s*standsAlone\s*\{[^}]*\breturn\s*\[\s*first\s*\]/.test(batch) || !/!\s*next\s*\.\s*standsAlone\b/.test(batch)) findings.push('ScreenKeySender.takeBatch does not send a named key other than Backspace ALONE in its write; Escape then anything in one read is Meta (D17, §Attack A1)');
+  const contract = lexedFile(files, 'Door/Contract.swift');
+  const alone = contract === null ? '' : contract.bare;
+  if (!/\bvar\s+standsAlone\s*:\s*Bool\s*\{[^}]*\bname\s*!=\s*\.backspace\b/.test(alone)) findings.push('Door/Contract.swift\'s KeyItem.standsAlone is not "a named key other than .backspace"');
+  // (ai6) The 35 names, word for word.
+  const raw = contract === null ? null : enumRawValues(contract.source, 'ScreenKeyName');
+  said.names = raw?.length ?? 0;
+  if (raw === null) findings.push('Door/Contract.swift declares no enum ScreenKeyName: String');
+  else if (contractNames === null) findings.push('src/shared/ipc/pocket.ts declares no POCKET_SCREEN_KEY_NAMES this rule can read');
+  else if ([...raw].sort().join('\n') !== [...contractNames].sort().join('\n') || raw.length !== contractNames.length) {
+    findings.push(`ScreenKeyName's raw values (${String(raw.length)}) are not POCKET_SCREEN_KEY_NAMES (${String(contractNames.length)}) word for word: ${JSON.stringify(raw.filter((x) => !contractNames.includes(x)))} more and ${JSON.stringify(contractNames.filter((x) => !raw.includes(x)))} fewer`);
+  }
+  // (ai7) Text filtered of C0, C1 and DEL by ONE function, the one maker of a text item.
+  const typed = contract === null ? '' : fnText(contract, 'typed', 'KeyItem');
+  const isControl = contract === null ? '' : fnText(contract, 'isControl', 'KeyItem');
+  if (!/\bisControl\s*\(/.test(typed) || !/0x1[fF]\b/.test(isControl) || !/0x7[fF]\b/.test(isControl) || !/0x9[fF]\b/.test(isControl)) {
+    findings.push('KeyItem.typed does not take out every C0 control, DEL and C1 control through isControl (U+0000 to U+001F, U+007F to U+009F)');
+  }
+  // Only where a KeyItem can be made: a file that names the type.
+  for (const file of all.filter((f) => /\bKeyItem\b/.test(f.bare))) {
+    for (const m of file.bare.matchAll(/(?<![\w$])(?:KeyItem\s*)?\.\s*text\s*\(/g)) {
+      const before = file.bare.slice(Math.max(0, m.index - 12), m.index);
+      if (/\bcase\s*$/.test(before) || /\bcase\s+let\s*$/.test(before)) continue;
+      const after = file.bare.slice(m.index, m.index + 20);
+      if (/^\.?\s*text\s*\(\s*let\b/.test(after.replace(/^KeyItem\s*/, ''))) continue;
+      const p = placeOf(file, m.index);
+      if (!(file.name === 'Door/Contract.swift' && p.type === 'KeyItem' && (p.fn === 'typed' || p.fn === null))) findings.push(`${atLine(file, m.index)} makes a text item in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; KeyItem.typed is the one maker, so no control character is ever sent`);
+    }
+  }
+  // (ai8) The lock inside a question, off the TURN and the revision, never a clock.
+  const lock = fnText(sender, 'lockHolds', 'ScreenKeySender');
+  if (!/\.done\b[^\n]*\bturn\s*==\s*lastTurn\b/.test(lock) || !/\.changed\b[^\n]*\brevision\s*==\s*lastRevision\b/.test(lock)) {
+    findings.push('ScreenKeySender.lockHolds does not hold the lock after done on the picture\'s turn being lastTurn, and after changed on its revision being lastRevision (D29, §Attack A5)');
+  }
+  if (/\b(?:Date|ContinuousClock|now\s*\(|arrived|received)\b/.test(lock)) findings.push('ScreenKeySender.lockHolds reads a clock or an arrival; the lock is read off the turn the Mac moves at the act, never off which answer came first (§Attack A5)');
+  const send = fnText(sender, 'send', 'ScreenKeySender');
+  if (!/\basking\b/.test(send) || !/\bscreenWaitForRedraw\b/.test(send)) findings.push('ScreenKeySender.send does not refuse keys typed against a spent picture inside a question with Copy.screenWaitForRedraw (D29)');
+  if (/\bpending\s*\.\s*(?:append|insert)\b/.test(send.slice(0, Math.max(0, send.search(/\basking\b/))))) findings.push('ScreenKeySender.send queues keys before it asks whether the picture is spent; a key typed against a spent question is never sent later');
+  // (ai9) Registered before its first write, stopped by wentAway, nothing persisted, no owner check.
+  const app = lexedFile(files, 'App/TortieApp.swift');
+  const went = app === null ? '' : fnText(app, 'wentAway');
+  if (!/\bliveKeys\b[\s\S]*\.\s*stop\s*\(\s*\)/.test(went)) findings.push('AppModel.wentAway does not stop every live key sender (liveKeys … .stop()); keys typed before the app left could go after it');
+  const registered = all.some((f) => /\.onAppear\s*\{[^}]*\bregisterKeys\s*\(/.test(f.bare));
+  if (!registered) findings.push('no Screen registers its key sender at its appear (.onAppear { … registerKeys( … }), so wentAway could not stop it');
+  for (const file of all.filter((f) => isScreenFile(f.name))) {
+    for (const m of file.bare.matchAll(PERSISTS)) findings.push(`${atLine(file, m.index)} names ${m[0]}; nothing of the Screen or its keys is persisted`);
+    if (!OWNER_CHECK_ABSENT.includes(file.name)) findings.push(`${file.name} is not in OWNER_CHECK_ABSENT, so (ac) does not hold it to "no Face ID on any key" (his ruling 3)`);
+    else said.owners.push(file.name);
+    for (const m of file.bare.matchAll(/\b(?:LAContext|evaluatePolicy|OwnerCheck|DeviceOwnerCheck|LocalAuthentication)\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; no key asks Face ID (his ruling 3)`);
+  }
+  return { findings, said };
+}
+
+// ---- (aj) THE INPUT FIELD (D28, §Attack A9) ---------------------------------
+
+const FIELD_FILE = 'Screens/ScreenKeyField.swift';
+const FIELD_SETTINGS = Object.freeze([
+  ['autocorrectionType', '.no'],
+  ['spellCheckingType', '.no'],
+  ['smartQuotesType', '.no'],
+  ['smartDashesType', '.no'],
+  ['smartInsertDeleteType', '.no'],
+  ['autocapitalizationType', '.none'],
+  ['inlinePredictionType', '.no'],
+  ['writingToolsBehavior', '.none'],
+  ['pasteConfiguration', 'nil']
+]);
+const PASTE_ACTIONS = Object.freeze(['paste', 'pasteAndMatchStyle', 'pasteAndGo', 'pasteAndSearch']);
+
+/** Rule (aj), pure over the app's Swift files. */
+export function ruleScreenField(files) {
+  const findings = [];
+  const said = { settings: 0, refused: [] };
+  const field = lexedFile(files, FIELD_FILE);
+  if (field === null) return { findings: [`${FIELD_FILE} does not exist, so the Screen's keyboard cannot be read`], said };
+  const view = field.types.find((t) => t.name === 'ScreenTextView' && t.kind === 'class');
+  if (view === undefined || !/\bclass\s+ScreenTextView\s*:\s*UITextView\b/.test(field.bare)) return { findings: [`${FIELD_FILE} declares no class ScreenTextView: UITextView`], said };
+  const body = field.bare.slice(view.open, view.close + 1);
+  for (const [name, value] of FIELD_SETTINGS) {
+    const set = new RegExp(`(?:^|[^.\\w])(?:self\\s*\\.\\s*)?${name}\\s*=\\s*${value.replace('.', '\\.')}\\b`).test(body);
+    if (set) said.settings += 1;
+    else findings.push(`ScreenTextView does not set ${name} = ${value}; ${name === 'pasteConfiguration' ? 'the field takes no paste' : 'nothing rewrites what he types'} (D28)`);
+  }
+  if (!/\btextDropDelegate\s*=\s*\w/.test(body)) findings.push('ScreenTextView sets no textDropDelegate, so a drop could put a block of lines in the field (D28, §Attack A9)');
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bkeyboardType\s*=\s*\.\s*asciiCapable\w*/g)) findings.push(`${atLine(file, m.index)} sets an ASCII-capable keyboard, which drops the globe key and every other keyboard (D28)`);
+  }
+  // Paste refused, every spelling.
+  const can = /\boverride\s+func\s+canPerformAction\s*\(/.exec(body);
+  if (can === null) findings.push('ScreenTextView does not override canPerformAction(_:withSender:), so the system offers Paste');
+  for (const action of PASTE_ACTIONS) {
+    if (new RegExp(`#selector\\s*\\(\\s*(?:UIResponderStandardEditActions\\s*\\.\\s*)?${action}\\s*\\(\\s*_\\s*:\\s*\\)\\s*\\)`).test(body)) said.refused.push(action);
+    else findings.push(`ScreenTextView does not refuse ${action}(_:) in canPerformAction (D28, §Attack A9)`);
+  }
+  if (can !== null && !/\breturn\s+false\b/.test(bodyAfter(field.bare, view.open + can.index))) findings.push('ScreenTextView.canPerformAction never answers false');
+  // deleteBackward: BSpace, even on an empty field.
+  if (!/\boverride\s+func\s+deleteBackward\s*\(\s*\)/.test(body) || !/\bbackspace\s*\(/.test(fnText(field, 'deleteBackward', 'ScreenTextView'))) findings.push('ScreenTextView does not override deleteBackward() to send Backspace, so Backspace on an empty field would send nothing');
+  if (!/\.\s*key\s*\(\s*\.\s*backspace\s*\)/.test(fnText(field, 'backspace', 'ScreenInputState'))) findings.push('ScreenInputState.backspace does not answer .key(.backspace)');
+  // Nothing while text is marked or dictation runs.
+  const changed = fnText(field, 'changed', 'ScreenInputState');
+  if (!/\bguard\s+!\s*marked\s*,\s*!\s*dictating\b/.test(changed) && !/\bguard\s+!\s*dictating\s*,\s*!\s*marked\b/.test(changed)) findings.push('ScreenInputState.changed does not send nothing while text is marked or dictation runs (guard !marked, !dictating)');
+  if (!/\bmarkedTextRange\s*!=\s*nil\b/.test(field.bare)) findings.push(`${FIELD_FILE} never asks markedTextRange != nil, so an IME composition would be sent half made`);
+  if (!field.strings.some((s) => s.value === 'dictation') || !/\bprimaryLanguage\b/.test(field.bare)) findings.push(`${FIELD_FILE} does not read dictation from the text input mode's primaryLanguage, so dictation's partial text would be sent`);
+  // A line break becomes Enter in ScreenInputState.replacing alone, and only for exactly "\n".
+  const replacing = fnText(field, 'replacing', 'ScreenInputState');
+  if (!/\bif\s+text\s*==\s*Self\s*\.\s*lineFeed\b[^{]*\{[^}]*\.\s*key\s*\(\s*\.\s*enter\s*\)/.test(replacing)) findings.push('ScreenInputState.replacing does not make Enter from a replacement that is exactly "\\n"');
+  for (const fnName of ['replacing', 'changed']) {
+    const t = fnText(field, fnName, 'ScreenInputState');
+    if (!/\bif\s+Self\s*\.\s*holdsLineBreak\s*\(\s*text\s*\)/.test(t)) findings.push(`ScreenInputState.${fnName} does not swallow a change holding "\\n" or "\\r" whole (if Self.holdsLineBreak(text)); a pasted or dictated block of lines would run line by line in a shell (D28, §Attack A9)`);
+  }
+  // THE FIX ROUND OF 2026-10-06: a line break is asked for SCALAR BY SCALAR.
+  // "\r\n" is ONE Character, which neither "\n" nor "\r" equals, so a
+  // Character search (`String.contains`) missed a Windows line break and sent
+  // the block as one line of text; test:ios read it red on both runtimes.
+  const holds = fnText(field, 'holdsLineBreak', 'ScreenInputState');
+  if (!/\btext\s*\.\s*unicodeScalars\s*\.\s*contains\b/.test(holds) || !/\blineBreakScalars\b/.test(holds)) findings.push('ScreenInputState.holdsLineBreak does not ask the text\'s Unicode scalars for lineBreakScalars; "\\r\\n" is one Character, which a Character search misses (D28, the fix round of 2026-10-06)');
+  const scalars = /\bstatic\s+let\s+lineBreakScalars\b[^\n]*/.exec(field.bare)?.[0] ?? '';
+  if (!/\blineFeed\s*\.\s*unicodeScalars\b/.test(scalars) || !/\bcarriageReturn\s*\.\s*unicodeScalars\b/.test(scalars)) findings.push('ScreenInputState.lineBreakScalars is not made of lineFeed\'s and carriageReturn\'s scalars, so one of the two line breaks is not swallowed (D28)');
+  for (const m of field.bare.matchAll(/\.\s*contains\s*\(\s*(?:Self\s*\.\s*)?(?:lineFeed|carriageReturn)\s*\)/g)) findings.push(`${atLine(field, m.index)} asks for a line break Character by Character; "\\r\\n" is one Character and neither "\\n" nor "\\r" (ask ScreenInputState.holdsLineBreak, D28)`);
+  const lf = field.strings.filter((s) => s.value === '\n');
+  if (lf.length !== 1) findings.push(`${FIELD_FILE} spells "\\n" ${String(lf.length)} time(s); once, as ScreenInputState.lineFeed, so one place decides what a line break is`);
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\.\s*key\s*\(\s*\.\s*enter\s*\)/g)) {
+      const p = placeOf(file, m.index);
+      const allowed = (file.name === FIELD_FILE && ((p.type === 'ScreenInputState' && p.fn === 'replacing') || /KeyBar/.test(p.type ?? ''))) || file.name === 'Door/Contract.swift';
+      if (!allowed) findings.push(`${atLine(file, m.index)} sends Enter in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; a line break becomes Enter in ScreenInputState.replacing alone, and the key bar's return is his press`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (ak) THE KEPT LINES (D25, §Attack A12) --------------------------------
+
+/** Rule (ak), pure over the app's Swift files. */
+export function ruleKeptLines(files) {
+  const findings = [];
+  const said = { freshFor: null, keepAliveSites: 0 };
+  const client = lexedFile(files, 'Door/DoorClient.swift');
+  if (client === null) return { findings: ['Door/DoorClient.swift does not exist'], said };
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bclass\s+DoorLine\b/g)) if (file.name !== 'Door/DoorClient.swift') findings.push(`${atLine(file, m.index)} declares DoorLine outside Door/DoorClient.swift, the one network file`);
+    for (const s of file.strings) {
+      if (s.value.toLowerCase() !== 'keep-alive') continue;
+      said.keepAliveSites += 1;
+      if (file.name !== 'Door/DoorClient.swift') findings.push(`${atLine(file, s.start)} writes keep-alive outside the door client`);
+    }
+  }
+  const line = client.types.find((t) => t.name === 'DoorLine' && t.kind === 'class');
+  if (line === undefined) return { findings: [...findings, 'Door/DoorClient.swift declares no final class DoorLine'], said };
+  if (said.keepAliveSites !== 1) findings.push(`"keep-alive" is written ${String(said.keepAliveSites)} time(s); once, as DoorHTTP.keepAlive, written only by a kept line's request`);
+  // Connection: keep-alive only when the request says so, and only a kept line says so.
+  // Read over `code` (comments blanked, strings kept): the header is written
+  // inside an interpolation.
+  const requestFn = funcsNamed(client, 'request', 'DoorHTTP')[0];
+  const request = requestFn === undefined ? '' : client.code.slice(requestFn.bodyOpen, requestFn.bodyClose + 1);
+  if (!/\bkeepAlive\s*\?\s*Self\s*\.\s*keepAlive\s*:\s*close\b/.test(request) || !/\bkeepAlive\s*:\s*Bool\s*=\s*false\b/.test(client.bare)) {
+    findings.push('DoorHTTP.request does not write Connection: close unless its keepAlive flag, false by default, says keep-alive; every exchange but a kept line\'s says close (t widened)');
+  }
+  for (const m of client.bare.matchAll(/\bkeepAlive\s*:(?!\s*Bool\b)\s*([^,)\n]+)/g)) {
+    const v = m[1].trim();
+    if (v !== 'false' && !/\bkeeps\b/.test(v)) findings.push(`${atLine(client, m.index)} hands request keepAlive: ${v}; only a line that keeps asks for keep-alive`);
+  }
+  // freshFor declared once, at most 4, on DoorLine.
+  const fresh = [...client.bare.matchAll(/\bstatic\s+let\s+freshFor\s*(?::\s*TimeInterval)?\s*=\s*([0-9_.]+)/g)];
+  const freshAll = files.flatMap((f) => [...lexSwift(f.source).bare.matchAll(/\bfreshFor\s*(?::\s*\w+)?\s*=/g)]);
+  if (fresh.length !== 1 || freshAll.length !== 1) findings.push(`freshFor is declared ${String(freshAll.length)} time(s); once, on DoorLine`);
+  else {
+    said.freshFor = Number(fresh[0][1].replace(/_/g, ''));
+    if (!(said.freshFor > 0 && said.freshFor <= 4)) findings.push(`DoorLine.freshFor is ${String(said.freshFor)}; at most 4 s, under the door's own 5 s keep-alive (D25)`);
+  }
+  const lineBody = client.bare.slice(line.open, line.close + 1);
+  // Reused only while it keeps, is idle and is fresh.
+  const reuse = fnText(client, 'canReuse', 'DoorLine');
+  if (!/\bkeeps\b/.test(reuse) || !/\bidleSince\b/.test(reuse) || !/<\s*Self\s*\.\s*freshFor\b/.test(reuse)) findings.push('DoorLine.canReuse does not reuse a connection only while the line keeps, is idle and has been idle under freshFor; a write could go on a line the door is about to close');
+  // Closes itself once idle freshFor, by a timer.
+  const ended = fnText(client, 'ended', 'DoorLine');
+  if (!/\basyncAfter\s*\(/.test(ended) || !/\bfreshFor\b/.test(ended) || !/\bdrop\s*\(\s*\)/.test(ended)) findings.push('DoorLine.ended does not close an idle line itself once it has been idle freshFor, by a timer (D25, §Attack A12): an idle line holds one of the door\'s four slots a source');
+  if (!/\bwhole\b/.test(ended) || !/\bguard\s+keeps\s*,\s*whole\b/.test(ended)) findings.push('DoorLine.ended keeps a line whose exchange did not end with a whole answer; it closes on anything but a whole answer');
+  // Closes on an answer saying Connection: close.
+  if (!/\bwhole\s*:\s*!\s*reader\s*\.\s*closes\b/.test(client.bare)) findings.push('an answer saying Connection: close does not end its exchange as not whole, so its line would be kept (D25)');
+  if (!/\bcloses\s*=\s*\(\s*found\s*\[\s*DoorHTTP\s*\.\s*Read\s*\.\s*connection\s*\]/.test(client.bare)) findings.push('the reader does not read the answer\'s Connection header into closes');
+  // Any byte with no exchange waiting closes the line, and is never the next answer.
+  const receive = fnText(client, 'receive', 'DoorLine');
+  if (!/\bguard\s+let\s+\w+\s*=\s*self\s*\.\s*current\s+else\s*\{[^}]*\bdrop\s*\(\s*\)/.test(receive)) findings.push('DoorLine.receive does not close the line on a byte that arrives while no request waits; a stray answer could be read as the next one (§Attack A12)');
+  // A read's one retry, on a new line, after a reused line closed before an answer; a write never.
+  const get = fnText(client, 'signedGet', 'DoorClient');
+  if (!/\bfirst\s*\.\s*reused\b/.test(get) || !/\bclosedBeforeAnswer\b/.test(get) || (get.match(/\bconnect\s*\(/g) ?? []).length !== 2) {
+    findings.push('DoorClient.signedGet does not ask a read once more only when its REUSED line ended before an answer (closedBeforeAnswer); a read is retried once, on a new line, and only then');
+  }
+  const post = fnText(client, 'signedPost', 'DoorClient');
+  if ((post.match(/\bconnect\s*\(/g) ?? []).length !== 1 || /\b(?:while|repeat|for)\b/.test(post)) findings.push('DoorClient.signedPost connects more than once or loops; a write is never retried');
+  if (!/\bclose\s*\(\s*\)/.test(lineBody) || !/\bfunc\s+close\s*\(\s*\)/.test(lineBody)) findings.push('DoorLine has no close(), so the Screen going away cannot close its lines');
+  return { findings, said };
+}
+
+// ---- (al) THE PASTEBOARD IS WRITTEN AND NEVER READ (D34) -------------------
+
+const SELECTION_FILE = 'Screens/ScreenSelection.swift';
+const PASTEBOARD_READS = /\bUIPasteboard\b[\s\S]{0,60}?\.\s*(?:string|strings|items|url|urls|image|images|color|colors|data)\b(?!\s*=(?!=))|\.\s*(?:hasStrings|hasURLs|hasImages|hasColors|detectPatterns|detectValues|changeCount|itemProviders|numberOfItems|value\s*\(\s*forPasteboardType)\b/g;
+
+/** Rule (al), pure over the app's Swift files. */
+export function rulePasteboard(files) {
+  const findings = [];
+  const said = { writes: 0 };
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bUIPasteboard\b/g)) {
+      if (file.name !== SELECTION_FILE) {
+        findings.push(`${atLine(file, m.index)} names UIPasteboard outside ${SELECTION_FILE}; Copy is the one thing that touches it`);
+        continue;
+      }
+      if (/^UIPasteboard\s*\.\s*general\s*\.\s*string\s*=(?!=)/.test(file.bare.slice(m.index)) && /(?:^|[\n;{])\s*$/.test(file.bare.slice(0, m.index))) said.writes += 1;
+      else findings.push(`${atLine(file, m.index)} names UIPasteboard other than as UIPasteboard.general.string = …; the app writes its string and nothing else`);
+    }
+    for (const m of file.bare.matchAll(PASTEBOARD_READS)) {
+      if (!/UIPasteboard|pasteboard/i.test(m[0]) && !/hasStrings|detectPatterns|changeCount|hasURLs|hasImages|hasColors|detectValues|itemProviders|numberOfItems/.test(m[0])) continue;
+      findings.push(`${atLine(file, m.index)} reads the pasteboard (${m[0].replace(/\s+/g, ' ').slice(0, 50)}); nothing in the app ever reads it (D34)`);
+    }
+  }
+  if (said.writes !== 1) findings.push(`UIPasteboard.general.string is written ${String(said.writes)} time(s); once, by Copy in ${SELECTION_FILE}`);
+  return { findings, said };
+}
+
+/**
+ * Rule (p)'s one exception (§Attack A4): the Copy statement, an assignment TO
+ * `UIPasteboard.general.string` in Screens/ScreenSelection.swift, is a code
+ * LEAVING, never entering, so (p) does not count it as a place a pairing code
+ * enters. Every other mention of the pasteboard anywhere stays a code source.
+ */
+export function isCopyWrite(name, bare, at) {
+  // Spelled here rather than read from SELECTION_FILE: (p)'s own fixtures run
+  // above that constant's line, before it is initialised.
+  return name === 'Screens/ScreenSelection.swift' && /^UIPasteboard\s*\.\s*general\s*\.\s*string\s*=(?!=)/.test(bare.slice(at)) && /(?:^|[\n;{])\s*$/.test(bare.slice(0, at));
+}
+
+// ---- (am) A COLOUR THE DOOR NAMES (D12) ------------------------------------
+
+/** Rule (am), pure over the app's Swift files. */
+export function ruleDrawnColour(files) {
+  const findings = [];
+  const said = { drawn: 0, made: 0 };
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bfunc\s+drawn\s*\(\s*_\s+\w+\s*:\s*(\w+)\s*\)\s*->\s*Color\b/g)) {
+      said.drawn += 1;
+      if (file.name !== 'Style/Tokens.swift' || m[1] !== 'ScreenColor') findings.push(`${atLine(file, m.index)} declares drawn(_: ${m[1]}) -> Color; Token.drawn(_: ScreenColor) in Style/Tokens.swift is the one constructor of a colour the door names`);
+    }
+    for (const m of file.bare.matchAll(/\bScreenColor\s*\(\s*channels\s*:/g)) {
+      said.made += 1;
+      const p = placeOf(file, m.index);
+      if (file.name !== 'Door/Contract.swift' || p.type !== 'ScreenColor' || p.fn !== 'read') findings.push(`${atLine(file, m.index)} makes a ScreenColor in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; Contract.swift's seven-character reader is the one maker`);
+    }
+  }
+  if (said.drawn !== 1) findings.push(`Token.drawn(_: ScreenColor) is declared ${String(said.drawn)} time(s); once, in Style/Tokens.swift`);
+  const contract = lexedFile(files, 'Door/Contract.swift');
+  if (contract !== null) {
+    const t = contract.types.find((x) => x.name === 'ScreenColor');
+    const body = t === undefined ? '' : contract.bare.slice(t.open, t.close + 1);
+    if (!/\bprivate\s+init\s*\(/.test(body)) findings.push('ScreenColor\'s init is not private, so a colour could be made without the seven-character reader');
+    const read = fnText(contract, 'read', 'ScreenColor');
+    if (!/\bspelledLength\b/.test(read) || !/\bisLowerHex\b/.test(read) || !/radix\s*:\s*16/.test(read)) findings.push('ScreenColor.read does not check exactly # and six lowercase hex digits before reading them by radix 16');
+  }
+  const tokens = lexedFile(files, 'Style/Tokens.swift');
+  if (tokens !== null && !/\bcase\s+bgCanvas\b/.test(tokens.bare)) findings.push('Style/Tokens.swift declares no bgCanvas, the page around the grid and the cover (D12, D41)');
+  return { findings, said };
+}
+
+// ---- (an) LANDSCAPE ON THE SCREEN ALONE (D27) ------------------------------
+
+export const SCREEN_ORIENTATIONS = Object.freeze(['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight']);
+
+/** Rule (an), pure over the app's Swift files and Info.plist read by CoreFoundation (or null). */
+export function ruleLandscape(files, plist) {
+  const findings = [];
+  const said = { sets: 0 };
+  const listed = plist === null ? null : plist.UISupportedInterfaceOrientations ?? null;
+  if (!Array.isArray(listed) || JSON.stringify([...listed].sort()) !== JSON.stringify([...SCREEN_ORIENTATIONS].sort())) findings.push(`Info.plist lists the orientations ${JSON.stringify(listed)}; exactly portrait, landscape left and landscape right`);
+  for (const k of Object.keys(plist ?? {})) if (/^UISupportedInterfaceOrientations[~-]/.test(k)) findings.push(`Info.plist carries ${k}, a second orientation list the device could read instead`);
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bsupportedInterfaceOrientationsFor\b/g)) {
+      if (file.name !== 'App/AppDelegate.swift') findings.push(`${atLine(file, m.index)} answers the orientations outside App/AppDelegate.swift`);
+    }
+    for (const m of file.bare.matchAll(/\bscreenOnTop\s*=(?!=)\s*(true|false)?/g)) {
+      const p = placeOf(file, m.index);
+      const decl = /\bstatic\s+var\s+$/.test(file.bare.slice(Math.max(0, m.index - 12), m.index));
+      if (decl) continue;
+      said.sets += 1;
+      if (file.name !== 'Screens/Screen.swift') findings.push(`${atLine(file, m.index)} sets OrientationGate.screenOnTop in ${file.name}; only the Screen's appear and disappear set it`);
+      void p;
+    }
+  }
+  const delegate = lexedFile(files, 'App/AppDelegate.swift');
+  const answer = delegate === null ? '' : (/\bfunc\s+application\s*\([^)]*supportedInterfaceOrientationsFor[^)]*\)\s*->\s*UIInterfaceOrientationMask\s*\{([^}]*)\}/.exec(delegate.bare)?.[1] ?? '');
+  if (!/\bOrientationGate\s*\.\s*(?:screenOnTop|allowed)\b/.test(answer) || !/\.portrait\b/.test(answer + (lexedFile(files, 'App/Orientation.swift')?.bare ?? ''))) {
+    findings.push('App/AppDelegate.swift\'s application(_:supportedInterfaceOrientationsFor:) does not answer .portrait unless OrientationGate.screenOnTop');
+  }
+  const screen = lexedFile(files, 'Screens/Screen.swift');
+  if (screen !== null) {
+    if (!/\.onAppear\s*\{[^}]*\bscreenOnTop\s*=\s*true\b/.test(screen.bare)) findings.push('Screens/Screen.swift does not set screenOnTop = true in its appear');
+    if (!/\.onDisappear\s*\{[^}]*\bscreenOnTop\s*=\s*false\b/.test(screen.bare)) findings.push('Screens/Screen.swift does not set screenOnTop = false in its disappear, so every screen after it could turn sideways');
+  }
+  return { findings, said };
+}
+
+// ---- (ao) THE SCREEN LEAVES NO PICTURE (D41) --------------------------------
+
+/** Rule (ao), pure over the app's Swift files. */
+export function ruleScreenCover(files) {
+  const findings = [];
+  const said = { covers: 0 };
+  const screen = lexedFile(files, 'Screens/Screen.swift');
+  if (screen === null) return { findings: ['Screens/Screen.swift does not exist'], said };
+  if (!/@Environment\s*\(\s*\\\s*\.\s*scenePhase\s*\)/.test(screen.bare)) findings.push('Screens/Screen.swift does not read scenePhase, so nothing knows when iOS photographs the app');
+  const cover = screen.types.find((t) => t.name === 'ScreenCover');
+  if (cover === undefined) return { findings: [...findings, 'Screens/Screen.swift declares no ScreenCover'], said };
+  const body = screen.bare.slice(cover.open, cover.close + 1);
+  for (const m of body.matchAll(/\b(?:Text|Label|ScreenGrid|ScreenRow\w*|ForEach|Canvas|Image)\s*\(|\b(?:runs?|rows?|lines|picture)\b/g)) findings.push(`${atLine(screen, cover.open + m.index)} ScreenCover holds ${m[0]}; the cover holds no text, no row and no run (D41)`);
+  if (!/\bTokens\s*\.\s*bgCanvas\b/.test(body)) findings.push('ScreenCover is not drawn in Tokens.bgCanvas');
+  const drawn = fnText(screen, 'drawn', 'ScreenCover');
+  if (!/\bphase\s*!=\s*\.active\b/.test(drawn) && !/\.active\s*!=\s*phase\b/.test(drawn)) findings.push('ScreenCover.drawn(for:) is not "the phase is not .active", so a picture could be taken while the scene is inactive or in the background');
+  for (const m of screen.bare.matchAll(/\bif\s+ScreenCover\s*\.\s*drawn\s*\(\s*for\s*:\s*scenePhase\s*\)\s*\{[^}]*\bScreenCover\s*\(\s*\)/g)) {
+    said.covers += 1;
+    void m;
+  }
+  if (said.covers < 1) findings.push('Screens/Screen.swift does not draw ScreenCover() whenever ScreenCover.drawn(for: scenePhase)');
+  return { findings, said };
+}
+
+// ---- (ap) THE SHAPES ARE TORTIE'S (D26, §Attack A2, A3) ---------------------
+
+/** Rule (ap), pure over the app's Swift files. */
+export function ruleScreenShapes(files) {
+  const findings = [];
+  const said = { split: false, scaled: false };
+  const glyphs = lexedFile(files, 'Screens/ScreenGlyphs.swift');
+  if (glyphs === null) findings.push('Screens/ScreenGlyphs.swift does not exist');
+  else {
+    if (!/\bproperties\s*\.\s*name\b/.test(glyphs.bare)) findings.push('Screens/ScreenGlyphs.swift does not derive its shapes from each code point\'s Unicode name (properties.name)');
+    for (const s of glyphs.strings) if (/[─-▟]/u.test(s.value)) findings.push(`${atLine(glyphs, s.start)} holds a box or block character as a literal; every shape of U+2500 to U+259F is derived from its name, never transcribed (D26, §Attack A3)`);
+    for (const m of glyphs.source.matchAll(/\\u\{0*(?:25[0-9a-fA-F]{2})\}/g)) {
+      const cp = parseInt(/\{0*([0-9a-fA-F]+)\}/.exec(m[0])[1], 16);
+      if (cp >= 0x2500 && cp <= 0x259f) findings.push(`Screens/ScreenGlyphs.swift:${String(lineOf(glyphs.source, m.index))} spells ${m[0]}; no table of the shapes' characters is written`);
+    }
+    if (!/\b0x2500\b/.test(glyphs.bare) || !/\b0x259[fF]\b/.test(glyphs.bare)) findings.push('Screens/ScreenGlyphs.swift does not walk U+2500 to U+259F whole');
+  }
+  const rows = lexedFile(files, 'Screens/ScreenRows.swift');
+  if (rows === null) findings.push('Screens/ScreenRows.swift does not exist');
+  else {
+    said.split = /\bCTFontGetGlyphsForCharacters\s*\(/.test(rows.bare);
+    if (!said.split) findings.push('ScreenLayout does not ask the cell font whether it holds a character (CTFontGetGlyphsForCharacters), so a fallback glyph would drift every cell after it (§Attack A2)');
+    said.scaled = /\bmin\s*\(\s*1\s*,/.test(rows.bare);
+    if (!said.scaled) findings.push('ScreenLayout does not scale a glyph DOWN only (min(1, …)), so a wide fallback glyph could spill past its box');
+    if (/\bmax\s*\(\s*1\s*,\s*[^)]*\/\s*measured/.test(rows.bare)) findings.push('ScreenLayout scales a glyph up to its box; it scales down, never up');
+  }
+  for (const f of files) {
+    const lx = lexSwift(f.source);
+    for (const m of lx.bare.matchAll(/\bNSAttributedString\b|\bNSTextStorage\b|\bNSLayoutManager\b|\bNSTextLayoutManager\b/g)) findings.push(`${f.name}:${String(lineOf(lx.bare, m.index))} names ${m[0]}; the Screen draws with Canvas and no TextKit (rule z1 stands)`);
+  }
+  return { findings, said };
+}
+
+// ---- (ac) widened: End is a toolbar item, top right (D33) ------------------
+
+/** (ac)'s Phase 337 half, pure over the app's Swift files. */
+export function ruleEndTop(files) {
+  const findings = [];
+  const said = { toolbar: false };
+  for (const file of files.map((f) => lexedFile(files, f.name))) {
+    for (const m of file.bare.matchAll(/\bsessionEndBar\b/g)) findings.push(`${atLine(file, m.index)} names sessionEndBar; the bottom End bar is gone (D33)`);
+  }
+  const bar = lexedFile(files, END_BAR_FILE);
+  if (bar === null) return { findings: [...findings, `${END_BAR_FILE} does not exist`], said };
+  const item = /\bToolbarItem\s*\(\s*placement\s*:\s*\.\s*topBarTrailing\s*\)\s*\{/.exec(bar.bare);
+  if (item === null) findings.push(`${END_BAR_FILE} places no ToolbarItem(placement: .topBarTrailing), so End is not at the top right (D33)`);
+  else {
+    const open = item.index + item[0].length - 1;
+    const close = matchForward(bar.bare, open);
+    const inner = bar.bare.slice(open, close + 1);
+    const control = /\b(\w+)\s*\(/.exec(inner)?.[1] ?? null;
+    const t = control === null ? undefined : bar.types.find((x) => x.name === control);
+    const holds = t !== undefined && /\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionEnd\s*\)/.test(bar.bare.slice(t.open, t.close + 1));
+    said.toolbar = holds;
+    if (!holds) findings.push(`${END_BAR_FILE}'s top bar item draws ${String(control)}, which does not hold the ID.sessionEnd press; End is the toolbar's trailing item (D33)`);
+  }
+  const screen = lexedFile(files, 'Screens/SessionScreen.swift');
+  if (screen !== null) {
+    const inset = /\.\s*safeAreaInset\s*\(\s*edge\s*:\s*\.\s*bottom[^)]*\)\s*\{/.exec(screen.bare);
+    if (inset !== null) {
+      const close = matchForward(screen.bare, inset.index + inset[0].length - 1);
+      const inner = screen.bare.slice(inset.index, close + 1);
+      if (/\bEnd\w*\s*\(|\bsessionEnd\b/.test(inner)) findings.push('Screens/SessionScreen.swift draws End in its bottom inset; the inset keeps the message strip alone (D33)');
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (v) widened: the Screen always draws a sentence ----------------------
+
+/** (v)'s Phase 337 half, pure over DoorWords.swift's source (or null) and the app's files. */
+export function ruleScreenSentences(words, files) {
+  const findings = [];
+  const said = { cases: 0 };
+  if (words === null) return { findings: ['Screens/DoorWords.swift does not exist'], said };
+  const w = lexSwift(words);
+  for (const [name, arg] of [['screenSentence', 'DoorFailure'], ['keysSentence', 'WriteResult']]) {
+    const decl = new RegExp(`\\bstatic\\s+func\\s+${name}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${arg}\\s*\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
+    if (decl === null) {
+      findings.push(`Screens/DoorWords.swift declares no ${name}(for: ${arg})`);
+      continue;
+    }
+    if (decl[1].trim() !== 'String') findings.push(`Screens/DoorWords.swift's ${name} returns ${decl[1].trim()}; it returns String, never optional (D13, rule v)`);
+    const body = bodyAfter(w.bare, decl.index);
+    const start = w.bare.indexOf(body, decl.index);
+    for (const m of body.matchAll(/\breturn\s+nil\b/g)) findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, start + m.index))} ${name} returns nil`);
+    for (const x of w.strings) if (x.start > start && x.start < start + body.length && x.value.trim() === '') findings.push(`Screens/DoorWords.swift:${String(lineOf(w.bare, x.start))} ${name} returns an empty string`);
+    if (name === 'keysSentence') {
+      const client = files.find((f) => f.name === 'Door/DoorClient.swift');
+      const cases = client === undefined ? [] : enumCases(client.source, 'WriteResult') ?? [];
+      said.cases = cases.length;
+      if (!/\bdefault\s*:/.test(body)) for (const cs of cases) if (!new RegExp(`\\bcase\\s+\\.${cs}\\b`).test(body)) findings.push(`Screens/DoorWords.swift's keysSentence draws nothing for .${cs}`);
+    }
+  }
+  for (const f of files.filter((x) => isScreenFile(x.name))) {
+    const lx = lexSwift(f.source);
+    for (const m of lx.bare.matchAll(/(?:^|[^\w.?])(?:self\s*\??\s*\.\s*)?line\s*=(?!=)\s*([^\n;]*)/g)) {
+      // A binding (`if let line = …`, `let line = …`) names a line; it sets none.
+      if (/\b(?:let|var)\s*$/.test(lx.bare.slice(Math.max(0, m.index - 8), m.index + 1))) continue;
+      const rhs = m[1].replace(/\s*\}.*$/, '').trim();
+      const strings = lx.strings.filter((x) => x.start > m.index && x.start < m.index + m[0].length);
+      if (strings.some((x) => x.value === '') || (rhs !== 'nil' && !/\b(?:Copy|DoorWords)\s*\./.test(rhs) && !/^(?:sentence|said|words|failure)\b/.test(rhs))) findings.push(`${f.name}:${String(lineOf(lx.bare, m.index + 1))} sets a Screen line to ${rhs.slice(0, 50)}; a Screen's line is nil or a Copy or DoorWords sentence, never empty`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (ab) widened: the keys write's body ------------------------------------
+
+/** The keys write's body keys, which (ab) holds as it holds the other three's. */
+export const KEYS_BODY_FIELDS = 'dialog,keys,session,turn,write';
+
+// ---- (t) widened: the hostile door's Screen arms (SPEC §7.8 PSH) ----------
+
+/**
+ * The Screen's hostile arms (t) requires build/p316/hostile-door.mjs to name,
+ * each `screen: true`, ending where it says in a Copy sentence or drawn, with
+ * the POSTs a batch may send counted for the keys arms.
+ */
+export const HOSTILE_SCREEN_ARMS = Object.freeze([
+  'screen-run-past-cols',
+  'screen-style-out-of-range',
+  'screen-colour-not-hex',
+  'screen-cols-513',
+  'screen-cursor-y-rows',
+  'screen-unchanged-with-screen',
+  'screen-chunked',
+  'screen-never-answers',
+  'screen-kept-closed',
+  'screen-stray-answer',
+  'screen-connection-close',
+  'keys-404',
+  'keys-other-id'
+]);
+const SCREEN_ARM_ENDS = new Set(['sentence', 'drawn']);
+
+/** (t)'s Phase 337 half, over hostile-door.mjs's text (or null) and Copy.swift's. */
+export function ruleHostileScreenArms(hostile, copy) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  for (const arm of HOSTILE_SCREEN_ARMS) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+    if (row === null) {
+      findings.push(`build/p316/hostile-door.mjs names no Screen arm ${JSON.stringify(arm)}`);
+      continue;
+    }
+    said.arms.push(arm);
+    if (!/\bscreen:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} is not marked screen: true`);
+    const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+    if (ends === null || !SCREEN_ARM_ENDS.has(ends)) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not a sentence or a drawn Screen`);
+    if (!/\bat:\s*'[a-z0-9-]+'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say where it ends (at:)`);
+    const words = [...(/\bexpect:\s*\[([^\]]*)\]/.exec(row[1])?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+    if (ends === 'sentence' && words.length === 0) findings.push(`hostile-door.mjs's ${arm} ends in a sentence and names none it may be`);
+    for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+    if (/^keys-/.test(arm) && !/\bposts:\s*1\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not count ONE POST per batch (posts: 1)`);
+  }
+  return { findings, said };
+}
+
+// ---- (aq) THE SCREEN PANS, AND A LONG PRESS SELECTS (the fix round, 2026-10-06)
+//
+// Two measured iOS 26 behaviours a later round could undo with the Screen
+// still drawing. A SwiftUI `LongPressGesture` sequenced before a
+// `DragGesture` on the scroll view's content held every touch on iOS 26.3 (a
+// swipe, a slow drag and a swipe up each left a zoomed Screen in place; the
+// verify's bisect took that one gesture away and the same swipe panned
+// 478 pt), so the selection's long press is UIKit's. And a two-axis scroll
+// view centres content smaller than itself, so the line drawn under the grid
+// when a selection begins shrank the view and moved the rows under a finger
+// that had not moved: the rows sit at the top, the gestures on that whole
+// frame.
+
+const GRID_FILE = 'Screens/ScreenGrid.swift';
+
+/** Rule (aq), pure over the app's Swift files. */
+export function ruleScreenPans(files) {
+  const findings = [];
+  const said = { press: false, topFrame: false };
+  for (const file of files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null && isScreenFile(f.name))) {
+    for (const m of file.bare.matchAll(/\b(?:LongPressGesture|DragGesture)\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}, a SwiftUI gesture on the Screen; on iOS 26 one sequenced on the scroll view's content held every touch and a zoomed Screen could not pan (the fix round of 2026-10-06)`);
+  }
+  const grid = lexedFile(files, GRID_FILE);
+  if (grid === null) return { findings: [...findings, `${GRID_FILE} does not exist`], said };
+  const press = grid.types.find((t) => t.name === 'ScreenLongPress');
+  if (press === undefined || !/\bstruct\s+ScreenLongPress\s*:\s*UIGestureRecognizerRepresentable\b/.test(grid.bare)) findings.push(`${GRID_FILE} declares no struct ScreenLongPress: UIGestureRecognizerRepresentable, UIKit's long press, which the scroll view's pan is arbitrated with by UIKit's own rule`);
+  else {
+    const body = grid.bare.slice(press.open, press.close + 1);
+    if (!/\bUILongPressGestureRecognizer\s*\(/.test(body) || !/\bminimumPressDuration\s*=\s*minimumDuration\b/.test(body)) findings.push('ScreenLongPress does not make a UILongPressGestureRecognizer with minimumPressDuration = minimumDuration');
+    else said.press = true;
+  }
+  const select = fnText(grid, 'selectPress', 'ScreenGrid');
+  if (!/\bScreenLongPress\s*\(/.test(select) || !/\bminimumDuration\s*:\s*ScreenGesture\s*\.\s*longPressSeconds\b/.test(select)) findings.push('ScreenGrid.selectPress does not build ScreenLongPress at ScreenGesture.longPressSeconds');
+  const frameAt = grid.bare.search(/\.\s*frame\s*\(\s*minWidth\s*:\s*proxy\s*\.\s*size\s*\.\s*width\s*,\s*minHeight\s*:\s*proxy\s*\.\s*size\s*\.\s*height\s*,\s*alignment\s*:\s*\.\s*topLeading\s*\)/);
+  const shapeAt = grid.bare.search(/\.\s*contentShape\s*\(\s*Rectangle\s*\(\s*\)\s*\)/);
+  const magnifyAt = grid.bare.search(/\.\s*gesture\s*\(\s*magnify\s*\(/);
+  const selectAt = grid.bare.search(/\.\s*gesture\s*\(\s*selectPress\s*\(/);
+  if (frameAt === -1) findings.push(`${GRID_FILE} does not set the grid's frame to at least the view's size, aligned .topLeading; a scroll view centres smaller content, and a line appearing under the grid moved the rows under a still finger`);
+  else if (shapeAt === -1 || magnifyAt === -1 || selectAt === -1 || !(frameAt < shapeAt && shapeAt < magnifyAt && frameAt < selectAt)) findings.push(`${GRID_FILE} puts the pinch or the long press before the top-anchored frame and its contentShape, so a touch below the last row reaches neither`);
+  else said.topFrame = true;
+  return { findings, said };
+}
+
+// The Phase 337 scanners, proved on texts this file holds, before any file is read.
+{
+  const sel = (src) => [{ name: SELECTION_FILE, source: src }];
+  expect('(p) leaves the Copy write alone', isCopyWrite(SELECTION_FILE, 'func copy() {\n  UIPasteboard.general.string = text\n}\n', 'func copy() {\n  '.length));
+  const pRun = (name, src) => ruleSecretKept([{ name, source: src }]).findings.filter((x) => /UIPasteboard/.test(x)).length;
+  expect('(p) passes the Copy write in ScreenSelection.swift', pRun(SELECTION_FILE, 'func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n') === 0);
+  expect('(p) catches a read of the pasteboard in ScreenSelection.swift', pRun(SELECTION_FILE, 'func peek() -> String? {\n    let got = UIPasteboard.general.string\n    return got\n}\n') > 0);
+  expect('(p) catches the same write in any other file', pRun('Screens/Screen.swift', 'func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n') > 0);
+  expect('(al) passes the one write', rulePasteboard(sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n')).findings.length === 0);
+  expect('(al) catches a read in the selection file', rulePasteboard(sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n    if UIPasteboard.general.hasStrings { }\n}\n')).findings.length > 0);
+  expect('(al) catches the pasteboard named elsewhere', rulePasteboard([...sel('func copy(text: String) {\n    UIPasteboard.general.string = text\n}\n'), { name: 'Screens/Screen.swift', source: 'let p = UIPasteboard.general\n' }]).findings.length > 0);
+  expect('(an) passes the three orientations', ruleLandscape([], { UISupportedInterfaceOrientations: [...SCREEN_ORIENTATIONS] }).findings.filter((x) => /Info\.plist/.test(x)).length === 0);
+  expect('(an) catches portrait alone', ruleLandscape([], { UISupportedInterfaceOrientations: ['UIInterfaceOrientationPortrait'] }).findings.some((x) => /Info\.plist lists/.test(x)));
+  expect('(an) catches upside down', ruleLandscape([], { UISupportedInterfaceOrientations: [...SCREEN_ORIENTATIONS, 'UIInterfaceOrientationPortraitUpsideDown'] }).findings.some((x) => /Info\.plist lists/.test(x)));
+  expect('(an) catches screenOnTop set outside the Screen', ruleLandscape([{ name: 'App/TortieApp.swift', source: 'func f() { OrientationGate.screenOnTop = true }\n' }], null).findings.some((x) => /sets OrientationGate\.screenOnTop/.test(x)));
+  const glyphOk = 'func shapes() { for value in 0x2500...0x259F { guard let s = Unicode.Scalar(value), let name = s.properties.name else { continue } } }\n';
+  expect('(ap) passes shapes derived from names', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' }]).findings.length === 0);
+  expect('(ap) catches a box character written as a literal', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: `${glyphOk}let dashed = "${String.fromCodePoint(0x254c)}"\n` }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' }]).findings.length > 0);
+  expect('(ap) catches a block character spelled as an escape', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: `${glyphOk}let shade = "\\u{2591}"\n` }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = CTFontGetGlyphsForCharacters(a, b, &c, 1); _ = min(1, x / y) }\n' }]).findings.length > 0);
+  expect('(ap) catches a layout that never asks the font', ruleScreenShapes([{ name: 'Screens/ScreenGlyphs.swift', source: glyphOk }, { name: 'Screens/ScreenRows.swift', source: 'func f() { _ = min(1, x / y) }\n' }]).findings.length > 0);
+  const coverOk = '@Environment(\\.scenePhase) private var scenePhase\nstruct ScreenCover: View {\n    static func drawn(for phase: ScenePhase) -> Bool {\n        phase != .active\n    }\n    var body: some View { Rectangle().fill(Tokens.bgCanvas) }\n}\nfunc page() { if ScreenCover.drawn(for: scenePhase) { ScreenCover() } }\n';
+  expect('(ao) passes a plate in bgCanvas', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk }]).findings.length === 0);
+  expect('(ao) catches a cover holding text', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk.replace('Rectangle().fill(Tokens.bgCanvas)', 'Text(Copy.screen).background(Tokens.bgCanvas)') }]).findings.length > 0);
+  expect('(ao) catches a cover drawn only in the background', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk.replace('phase != .active', 'phase == .background') }]).findings.length > 0);
+  const panOk = [
+    'struct ScreenGrid: View {',
+    '    var body: some View {',
+    '        GeometryReader { proxy in',
+    '            ScrollView([.horizontal, .vertical]) {',
+    '                grid(cell)',
+    '                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)',
+    '                    .contentShape(Rectangle())',
+    '                    .gesture(magnify(cell: cell))',
+    '                    .gesture(selectPress(cell))',
+    '            }',
+    '        }',
+    '    }',
+    '    private func selectPress(_ cell: ScreenCell) -> ScreenLongPress {',
+    '        ScreenLongPress(minimumDuration: ScreenGesture.longPressSeconds, moved: { _ in }, ended: {})',
+    '    }',
+    '}',
+    'struct ScreenLongPress: UIGestureRecognizerRepresentable {',
+    '    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {',
+    '        let press = UILongPressGestureRecognizer()',
+    '        press.minimumPressDuration = minimumDuration',
+    '        return press',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const pan = (src, more = []) => ruleScreenPans([{ name: 'Screens/ScreenGrid.swift', source: src }, ...more]).findings.length;
+  expect('(aq) passes UIKit\'s long press and the top-anchored frame', pan(panOk) === 0);
+  expect('(aq) catches the SwiftUI long press sequenced before a drag', pan(panOk.replace('.gesture(selectPress(cell))', '.gesture(LongPressGesture(minimumDuration: 0.45).sequenced(before: DragGesture(minimumDistance: 0)))')) > 0);
+  expect('(aq) catches a SwiftUI drag in another Screen file', pan(panOk, [{ name: 'Screens/Screen.swift', source: 'let d = DragGesture(minimumDistance: 0)\n' }]) > 0);
+  expect('(aq) catches the rows centred (no top-anchored frame)', pan(panOk.replace('alignment: .topLeading)', 'alignment: .center)')) > 0);
+  expect('(aq) catches the gestures put before the frame', pan(panOk.replace('                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n', '').replace('.gesture(selectPress(cell))', '.gesture(selectPress(cell))\n                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())')) > 0);
+  expect('(aq) catches a long press that is not UIKit\'s', pan(panOk.replace('struct ScreenLongPress: UIGestureRecognizerRepresentable', 'struct ScreenLongPress: View')) > 0);
+}
+
+// ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
 
@@ -8853,7 +9679,7 @@ const expect = (what, ok) => {
  * (ab), (ac) and (ad) are Phase 317's; and (aa), the letter Phase 317 left for
  * it (build/p317/SPEC.md §4.3), is Phase 316.7's (build/p3167/SPEC.md §8.4).
  */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad'];
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -8875,6 +9701,14 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     // Phase 316.6: the badge's colour reaches UIKit's tab bar from here alone.
     const look = ruleTabBarLook(appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     f.push(...look.findings);
+    // Phase 337 (D12): the page around the grid is a token, and a colour the
+    // door names becomes a Color in one function of Tokens.swift, so no other
+    // file needs a literal to draw a cell.
+    if (existsSync(TOKENS_SWIFT)) {
+      const tk = lexSwift(read(TOKENS_SWIFT)).bare;
+      if (!/\bcase\s+bgCanvas\b/.test(tk)) f.push('Style/Tokens.swift declares no bgCanvas (--bg-canvas), the Screen\'s page and cover');
+      if (!/\bstatic\s+func\s+drawn\s*\(\s*_\s+\w+\s*:\s*ScreenColor\s*\)\s*->\s*Color\b/.test(tk)) f.push('Style/Tokens.swift declares no drawn(_: ScreenColor) -> Color, the one constructor of a colour the door names');
+    }
     record(
       'a',
       'Tokens.swift is tokens.css, no colour is written anywhere else, and the tab bar\'s badge is the Mac\'s',
@@ -9212,11 +10046,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       // Phase 318: the Mac's own words a reply arm may end in.
       macNames: macWordNames(...[join(ROOT, 'src', 'shared', 'lifecycle-words.ts'), join(ROOT, 'src', 'shared', 'reply-copy.ts')].map((q) => (existsSync(q) ? read(q) : null)))
     });
+    // Phase 337: the Screen's hostile arms, the kept lines' among them.
+    const sh = ruleHostileScreenArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      r.findings,
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, and ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing`
+      [...r.findings, ...sh.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, and ${String(sh.said.arms.length)} Screen arm(s), each ending where it names`
     );
   }
   // (u)
@@ -9232,10 +10068,12 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const e = ruleEndSentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     // Phase 318: a reply's line too.
     const rs = ruleReplySentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    // Phase 337: the Screen's two sentences too.
+    const sc = ruleScreenSentences(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     record(
       'v',
       'the phone always draws a sentence',
-      [...r.findings, ...e.findings, ...rs.findings],
+      [...r.findings, ...e.findings, ...rs.findings, ...sc.findings],
       `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty`
     );
   }
@@ -9350,11 +10188,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const r = ruleOwnerCheck(appNamed, plist);
     // Phase 317's tests round: the press says off when it is drawn off.
     const p = ruleEndPressOff(appNamed);
+    // Phase 337 (D33): End is the toolbar's trailing item, and the bottom bar is gone.
+    const top = ruleEndTop(appNamed);
     record(
       'ac',
       'the owner check: Face ID, Touch ID or the passcode, on the End press and nothing else',
-      [...r.findings, ...p.findings],
-      `the End press, ${String(p.said.presses)} element identified ID.sessionEnd, is a Button whose own chain (${p.said.chain.join(', ')}) holds .disabled(row == .off) over EndBarDrawing.Row's two cases; LocalAuthentication and LAContext in ${OWNER_CHECK_FILE} alone; ${String(r.said.evaluations)} evaluatePolicy( call, with .deviceOwnerAuthentication and a new LAContext in confirm; the biometrics-only policy only asked, in kind(), and no reuse window; the conformer(s) ${r.said.conformers.join(', ') || 'none'}; ${String(r.said.runs)} run(s) of a runner, each inside the .confirmed case of a switch on confirm(; nothing in Settings, the pairing, the conversation, Door/ or an unpair names the check, and no string could key a stored Face ID setting; Info.plist's NSFaceIDUsageDescription is ${JSON.stringify(FACE_ID_USAGE)}`
+      [...r.findings, ...p.findings, ...top.findings],
+      `the End press, ${String(p.said.presses)} element identified ID.sessionEnd, ${top.said.toolbar ? 'the top bar\'s trailing item, ' : ''}is a Button whose own chain (${p.said.chain.join(', ')}) holds .disabled(row == .off) over EndBarDrawing.Row's two cases; LocalAuthentication and LAContext in ${OWNER_CHECK_FILE} alone; ${String(r.said.evaluations)} evaluatePolicy( call, with .deviceOwnerAuthentication and a new LAContext in confirm; the biometrics-only policy only asked, in kind(), and no reuse window; the conformer(s) ${r.said.conformers.join(', ') || 'none'}; ${String(r.said.runs)} run(s) of a runner, each inside the .confirmed case of a switch on confirm(; nothing in Settings, the pairing, the conversation, Door/ or an unpair names the check, and no string could key a stored Face ID setting; Info.plist's NSFaceIDUsageDescription is ${JSON.stringify(FACE_ID_USAGE)}`
     );
   }
   // (ad)
@@ -9392,6 +10232,53 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       r.findings,
       `${String(r.said.runners)} reply runner(s) made at the press, ${String(r.said.registered)} registered before their task starts; AppModel.wentAway stops every one; nothing persists a message or a write; a press or a send while one runs does nothing; the kept say set ${String(r.said.keptSets)} time(s), each from a say's own no-answer or busy, compared as UTF-8 bytes and bounded by one 60 s constant; end and choose pass no id`
     );
+  }
+  // Phase 337: (ah) to (ap), the Screen (build/p337/SPEC.md §6.4).
+  {
+    const r = ruleScreenSizesNothing(appNamed);
+    record('ah', 'the Screen never sizes the Mac', r.findings, `DoorClient.screenTarget writes ${r.said.params.join(' and ') || 'nothing'}, the only builder of /v1/screen (${String(r.said.builders)} spelling); KeysBody holds ${r.said.keysFields || 'nothing'}; no request builder or Screen file names a size, and ScreenDoor takes since, and the items, turn and dialog, alone`);
+  }
+  {
+    const r = ruleScreenKeys(appNamed, pocketKeyNames(existsSync(POCKET_TS) ? read(POCKET_TS) : null));
+    record('ai', 'the keys: one sender, one write in flight, paced, capped, a named key alone, the lock off the turn, and no Face ID', r.findings, `the Screen door's keys( ${String(r.said.writerCalls)} time(s), in ScreenKeySender.flush, and the client's ${String(r.said.clientCalls)}; minGap ${String(r.said.gap)} s; 64 items and 1,024 bytes from constants declared once; ${String(r.said.names)} ScreenKeyName raw values, the contract's word for word; KeyItem.typed the one maker of a text item, taking out C0, DEL and C1; a named key other than Backspace alone; the lock read off the turn and the revision; registered at the Screen's appear and stopped by wentAway; ${String(r.said.owners.length)} Screen file(s) persist nothing and are in OWNER_CHECK_ABSENT`);
+  }
+  {
+    const r = ruleScreenField(appNamed);
+    record('aj', 'the input field: nothing rewritten, nothing pasted, nothing sent while composing or dictating', r.findings, `ScreenTextView sets ${String(r.said.settings)} of ${String(FIELD_SETTINGS.length)} settings and a drop delegate; refuses ${r.said.refused.join(', ')}; Backspace on an empty field is BSpace; a replacement of exactly a line feed is Enter and any other line break is swallowed whole, in ScreenInputState alone`);
+  }
+  {
+    const r = ruleKeptLines(appNamed);
+    record('ak', 'the kept lines: one network file, keep-alive only on a kept line, fresh for 4 s, closed by the phone', r.findings, `DoorLine in Door/DoorClient.swift; keep-alive written ${String(r.said.keepAliveSites)} time(s), only when a line keeps, and every other exchange says close; freshFor ${String(r.said.freshFor)} s; reused only fresh, closed idle by a timer, on Connection: close and on any byte with no request waiting; a read asked once more on a new line only after its reused line closed before an answer, and a write never retried`);
+  }
+  {
+    const r = rulePasteboard(appNamed);
+    record('al', 'the pasteboard is written and never read', r.findings, `UIPasteboard named in ${SELECTION_FILE} alone, written ${String(r.said.writes)} time(s) as UIPasteboard.general.string = …, and read nowhere`);
+  }
+  {
+    const r = ruleDrawnColour(appNamed);
+    record('am', 'a colour the door names is made in one place and drawn in one place', r.findings, `Token.drawn(_: ScreenColor) declared ${String(r.said.drawn)} time(s), in Style/Tokens.swift; ScreenColor made ${String(r.said.made)} time(s), by Contract.swift's seven-character reader, its init private; bgCanvas a token`);
+  }
+  {
+    let plist = null;
+    try {
+      plist = existsSync(INFO_PLIST) ? readPlistFile(INFO_PLIST) : null;
+    } catch {
+      plist = null;
+    }
+    const r = ruleLandscape(appNamed, plist);
+    record('an', 'landscape on the Screen alone', r.findings, `Info.plist lists portrait and both landscapes; application(_:supportedInterfaceOrientationsFor:) in App/AppDelegate.swift answers portrait unless OrientationGate.screenOnTop, set ${String(r.said.sets)} time(s), in the Screen's appear and disappear`);
+  }
+  {
+    const r = ruleScreenCover(appNamed);
+    record('ao', 'the Screen leaves no picture', r.findings, `Screens/Screen.swift reads scenePhase and draws ScreenCover, a Tokens.bgCanvas plate with no text, row or run, ${String(r.said.covers)} time(s), whenever the scene is not active`);
+  }
+  {
+    const r = ruleScreenShapes(appNamed);
+    record('ap', 'the shapes are Tortie\'s', r.findings, `every box and block shape of U+2500 to U+259F derived from its Unicode name, none written as a character; ScreenLayout ${r.said.split ? 'asks the cell font' : 'does not ask the font'} and scales a glyph ${r.said.scaled ? 'down only' : 'without a bound'}; no TextKit`);
+  }
+  {
+    const r = ruleScreenPans(appNamed);
+    record('aq', 'the Screen pans, and a long press selects', r.findings, `no LongPressGesture or DragGesture in the Screen's files; the selection's long press is UIKit's (ScreenLongPress, ${r.said.press ? 'a UILongPressGestureRecognizer at ScreenGesture.longPressSeconds' : 'unread'}); the rows sit at the top of a frame at least the view's size, with the pinch and the long press on that whole frame (${r.said.topFrame ? 'in that order' : 'unread'})`);
   }
 }
 

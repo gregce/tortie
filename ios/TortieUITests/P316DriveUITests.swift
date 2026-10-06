@@ -87,6 +87,22 @@ import XCTest
 /// optional planted defaults value (`relaunch-choices:<key>=<value>`, a launch
 /// argument in UserDefaults' own argument domain, so no DEBUG seam is added).
 /// Nothing here sorts, filters or decides what is drawn; it reads.
+///
+/// THE SCREEN (Phase 337, build/p337/SPEC.md section 7.8, the `screen`
+/// group). Steps open a session's Screen (`screen-open`), pinch and drag it
+/// (`screen-zoom`), turn the device and come back (`screen-rotate`), type
+/// (`screen-type:<b64url>`, the words base64url because the step list is
+/// split on commas), press one key of the bar (`screen-key:<name>`) or ctrl
+/// then a letter (`screen-ctrl:<letter>`), press a key twice inside a question
+/// (`screen-question:<name>:<ms>`), select a row and Copy it
+/// (`screen-select:<n>`), type then leave at once (`screen-home:<b64url>`),
+/// wait with the Screen up (`screen-wait:<tag>`) and read End in the top bar
+/// (`end-top`). Before every key and every press of the bar the step prints a
+/// `…-ready` line and waits for the probe's file `screen-<seq>` in P316_ACKS,
+/// so the probe reads the pane, holds the relay or reads the pasteboard at
+/// THAT moment. Every reading is a label or a frame: each `screen-row-<n>`'s
+/// label is the row's text. Nothing here asks Face ID, and `auth` in a line
+/// says whether iOS's owner check was up, which must never be so for a key.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -271,6 +287,32 @@ private enum Seen {
     static let safari = "com.apple.mobilesafari"
     /// A screen the app is paired on: either list tab.
     static func paired(_ id: String) -> Bool { id == listScreen || id == needsScreen }
+    /// The Screen (Phase 337, Identifiers.swift's section 5.8.7 names).
+    static let sessionOpenScreen = "session-open-screen"
+    static let screenScreen = "screen-screen"
+    static let screenGrid = "screen-grid"
+    static let screenLoading = "screen-loading"
+    static let screenFailure = "screen-failure"
+    static let screenRow = "screen-row-"
+    static let screenCursor = "screen-cursor"
+    static let screenLine = "screen-line"
+    static let screenKeyField = "screen-key-field"
+    static let screenKeyBar = "screen-key-bar"
+    static let screenKey = "screen-key-"
+    static let screenCopy = "screen-copy"
+    static let screenSelection = "screen-selection"
+    static let screenCover = "screen-cover"
+    /// End's glyph beside its press at the top right (Identifiers.swift's
+    /// `sessionEndGlyph`): read by this prefix since Phase 337 moved End out
+    /// of the bar it was read off (the fix round of 2026-10-06).
+    static let sessionEndGlyph = "session-end-glyph-"
+    /// iOS 26's one-time Slide to Type introduction, by the identifier UIKit
+    /// gives its view, and its one press, by label. A fresh Simulator draws it
+    /// over the keyboard and the key bar the first time a keyboard rises, and
+    /// every key of the bar under it reads not hittable (the verify of
+    /// 2026-10-06 read it in the app's own tree). Not a word Tortie says.
+    static let keyboardIntroduction = "UIContinuousPathIntroductionView"
+    static let keyboardIntroductionContinue = "Continue"
 }
 
 /// One element read from a snapshot: its identifier, its label and its frame.
@@ -304,6 +346,9 @@ private final class Drive {
     /// presses that answer its alert print that and press nothing, and the
     /// drive goes on (the fix round: one unreached link cut a whole drive).
     private var linkUnreached = false
+    /// iOS's Slide to Type introduction has been looked for once in this
+    /// run, so a later keyboard looks for it only briefly.
+    private var introductionLooked = false
 
     init(run: String, env: [String: String]) {
         lines = ProbeLines(run: run, file: env["P316_LINES"])
@@ -449,6 +494,28 @@ private final class Drive {
                 sessionsFirstRow()
             } else if step == "batch-pull" {
                 batchPull()
+            } else if step == "screen-open" {
+                screenOpen()
+            } else if step == "screen-zoom" {
+                screenZoom()
+            } else if step == "screen-rotate" {
+                screenRotate()
+            } else if step.hasPrefix("screen-type:") {
+                screenType(String(step.dropFirst("screen-type:".count)))
+            } else if step.hasPrefix("screen-key:") {
+                screenKey(String(step.dropFirst("screen-key:".count)))
+            } else if step.hasPrefix("screen-ctrl:") {
+                screenCtrl(String(step.dropFirst("screen-ctrl:".count)))
+            } else if step.hasPrefix("screen-question:") {
+                screenQuestion(String(step.dropFirst("screen-question:".count)))
+            } else if step.hasPrefix("screen-select:") {
+                screenSelect(Int(String(step.dropFirst("screen-select:".count))) ?? 0)
+            } else if step.hasPrefix("screen-home:") {
+                screenHome(String(step.dropFirst("screen-home:".count)))
+            } else if step.hasPrefix("screen-wait:") {
+                screenWait(String(step.dropFirst("screen-wait:".count)))
+            } else if step == "end-top" {
+                endTop()
             } else if step == "relaunch-choices" || step.hasPrefix("relaunch-choices:") {
                 relaunchChoices(step.hasPrefix("relaunch-choices:") ? String(step.dropFirst("relaunch-choices:".count)) : nil)
             } else {
@@ -1143,12 +1210,23 @@ private final class Drive {
     /// row is `kind()` exactly: the Face ID or Touch ID mark, the lock on a
     /// row that can be pressed (the passcode), or the lock on a row drawn off
     /// with the passcode line (no passcode at all).
+    ///
+    /// PHASE 337 MOVED END TO THE TOP RIGHT (the fix round of 2026-10-06):
+    /// there is no bar to read the glyph off, so the glyph is read from ONE
+    /// snapshot by its own identifier's prefix (`session-end-glyph-<name>`),
+    /// and the navigation bar's frame is printed beside End's so the probe
+    /// places End inside it. `bar` stays in the line, null on this build and
+    /// a frame on a parent's.
     private func emitBar(_ step: String) {
         let bar = element(Seen.sessionEndBar)
         let row = element(Seen.sessionEnd)
         let tabBar = app.tabBars.firstMatch
+        let nav = app.navigationBars.firstMatch
         let line = element(Seen.sessionEndLine)
-        let glyphs: [[String: String]] = bar.exists ? bar.images.allElementsBoundByIndex.map { ["id": $0.identifier, "label": $0.label] } : []
+        var seenGlyph = Set<String>()
+        let glyphs: [[String: String]] = tree()
+            .filter { $0.id.hasPrefix(Seen.sessionEndGlyph) && seenGlyph.insert($0.id).inserted }
+            .map { ["id": $0.id, "label": $0.label] }
         let glyph = glyphs.first?["id"] ?? ""
         let enabled = row.exists ? row.isEnabled : false
         let kind: String
@@ -1165,6 +1243,7 @@ private final class Drive {
             "step": "end-bar",
             "for": step,
             "bar": bar.exists ? frameOf(bar.frame) as Any : NSNull(),
+            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
             "row": row.exists ? frameOf(row.frame) as Any : NSNull(),
             "enabled": row.exists ? row.isEnabled as Any : NSNull(),
             "tabBar": tabBar.exists ? frameOf(tabBar.frame) as Any : NSNull(),
@@ -1290,9 +1369,14 @@ private final class Drive {
         lines.emit(["step": "end-auth-answered", "for": step, "acked": answered])
         switch after {
         case .reread:
+            // End's press gone (the session ended) or its line drawn: the
+            // bar's own question before Phase 337 moved End to the top right,
+            // asked of the press, because a bar that is never drawn made it
+            // true at once and EH write-late read the screen before the
+            // phone's 15 s (the fix round of 2026-10-06).
             _ = poll { found in
                 !self.has(found, Seen.endConfirming) && self.has(found, Seen.sessionScreen)
-                    && (!self.has(found, Seen.sessionEndBar) || self.has(found, Seen.sessionEndLine))
+                    && (!self.has(found, Seen.sessionEnd) || self.has(found, Seen.sessionEndLine))
             }
             Thread.sleep(forTimeInterval: 2)
             _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
@@ -2121,6 +2205,331 @@ private final class Drive {
     }
 
     // MARK: Reading
+
+    // MARK: Phase 337: the Screen
+
+    /// The grid's rows as drawn: each `screen-row-<n>`'s label and frame, the
+    /// cursor's frame, the grid's, the line under it, the key bar's keys, and
+    /// whether Copy and the selection are up, from ONE snapshot.
+    private func screenReading() -> [String: Any] {
+        let found = tree()
+        var rows: [[String: Any]] = []
+        for f in found {
+            guard let n = index(f.id, after: Seen.screenRow) else { continue }
+            rows.append(["n": n, "label": f.label, "frame": frameOf(f.frame)])
+        }
+        rows.sort { ($0["n"] as? Int ?? 0) < ($1["n"] as? Int ?? 0) }
+        let keys = found.filter { $0.id.hasPrefix(Seen.screenKey) && $0.id != Seen.screenKeyBar && $0.id != Seen.screenKeyField }.map { ["id": $0.id, "label": $0.label, "frame": frameOf($0.frame)] as [String: Any] }
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        return [
+            "rows": rows,
+            "grid": find(found, Seen.screenGrid).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "cursor": find(found, Seen.screenCursor).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "line": find(found, Seen.screenLine).map { $0.label as Any } ?? NSNull(),
+            "failure": find(found, Seen.screenFailure).map { $0.label as Any } ?? NSNull(),
+            "keys": keys,
+            "copy": has(found, Seen.screenCopy),
+            "selection": has(found, Seen.screenSelection),
+            "cover": has(found, Seen.screenCover),
+            "window": [Double(window.width), Double(window.height)],
+            "orientation": XCUIDevice.shared.orientation.rawValue,
+            "endTop": has(found, Seen.sessionEnd),
+            "endBar": has(found, Seen.sessionEndBar)
+        ]
+    }
+
+    private func emitScreen(_ step: String, _ extra: [String: Any] = [:]) {
+        var o = screenReading()
+        o["step"] = step
+        for (k, v) in extra { o[k] = v }
+        lines.emit(o)
+    }
+
+    /// From a session's page, its Screen row pressed and the first picture drawn.
+    private func screenOpen() {
+        let button = element(Seen.sessionOpenScreen)
+        guard button.waitForExistence(timeout: 10) else { return missing("screen-open") }
+        var tries = 0
+        while !button.isHittable && tries < 6 {
+            element(Seen.sessionScreen).swipeUp()
+            tries += 1
+        }
+        button.tap()
+        guard poll({ found in
+            self.has(found, Seen.screenScreen) && !self.has(found, Seen.screenLoading)
+                && (found.contains { self.index($0.id, after: Seen.screenRow) != nil } || self.has(found, Seen.screenFailure))
+        }) else { return missing("screen-open") }
+        emitScreen("screen-open")
+    }
+
+    /// Pinch out, then drag: the first row's frame before and after each.
+    ///
+    /// The fix round of 2026-10-06 adds the two drags the verify's bisect
+    /// used, because a swipe alone is the gesture least likely to be held: a
+    /// SLOW drag to the right (pressed 0.1 s, well under the selection's
+    /// 450 ms, then moved at 300 pt a second) and a swipe up.
+    private func screenZoom() {
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("screen-zoom") }
+        let before = screenReading()
+        grid.pinch(withScale: 2.5, velocity: 2)
+        Thread.sleep(forTimeInterval: 1)
+        let pinched = screenReading()
+        grid.swipeLeft()
+        Thread.sleep(forTimeInterval: 1)
+        let dragged = screenReading()
+        let from = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.3, dy: 0.5))
+        let to = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.8, dy: 0.5))
+        from.press(forDuration: 0.1, thenDragTo: to, withVelocity: XCUIGestureVelocity(300), thenHoldForDuration: 0)
+        Thread.sleep(forTimeInterval: 1)
+        let slow = screenReading()
+        grid.swipeUp()
+        Thread.sleep(forTimeInterval: 1)
+        let up = screenReading()
+        lines.emit([
+            "step": "screen-zoom",
+            "before": before["rows"] as Any,
+            "pinched": pinched["rows"] as Any,
+            "dragged": dragged["rows"] as Any,
+            "slow": slow["rows"] as Any,
+            "up": up["rows"] as Any,
+            "selectionAfterDrags": up["selection"] as Any,
+            "grid": dragged["grid"] as Any
+        ])
+    }
+
+    /// Sideways and back: the fitted row width in each, and the session's
+    /// page read upright again after Back.
+    private func screenRotate() {
+        guard element(Seen.screenGrid).waitForExistence(timeout: 10) else { return missing("screen-rotate") }
+        let portrait = screenReading()
+        XCUIDevice.shared.orientation = .landscapeLeft
+        Thread.sleep(forTimeInterval: 2)
+        let landscape = screenReading()
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
+        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.screenScreen) }
+        Thread.sleep(forTimeInterval: 1)
+        let page = (try? app.snapshot())?.frame.size ?? .zero
+        lines.emit([
+            "step": "screen-rotate",
+            "portrait": portrait,
+            "landscape": landscape,
+            "pageWindow": [Double(page.width), Double(page.height)],
+            "pageOrientation": XCUIDevice.shared.orientation.rawValue
+        ])
+        XCUIDevice.shared.orientation = .portrait
+        Thread.sleep(forTimeInterval: 1)
+    }
+
+    /// Tap the grid (the keyboard comes up), type the words, press the key
+    /// bar's return. Before typing it prints `screen-type-ready` and waits for
+    /// the probe's file, so the probe reads the pane at that moment.
+    private func screenType(_ b64url: String) {
+        guard let text = Self.words(b64url) else { return missing("screen-type") }
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("screen-type") }
+        grid.tap()
+        let up = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        passKeyboardIntroduction()
+        let seq = lines.emit(["step": "screen-type-ready", "keyboard": up])
+        _ = ack("screen-\(seq)")
+        app.typeText(text)
+        let ret = element(Seen.screenKey + "return")
+        if ret.waitForExistence(timeout: 5) { ret.tap() }
+        Thread.sleep(forTimeInterval: 1.5)
+        emitScreen("screen-type", ["typed": text.count, "auth": ownerCheckUp()])
+    }
+
+    /// iOS's one-time Slide to Type introduction, passed by its own Continue
+    /// once a keyboard is up (the fix round of 2026-10-06). On a fresh iOS 26
+    /// Simulator it covers the keyboard and the key bar the first time any
+    /// keyboard rises, so the bar's first press lands on it: PS4's return and
+    /// keys-404's esc never reached the app. It shows once per device, so it
+    /// is looked for 2 s the first time in a run and 0.3 s after; the line
+    /// says whether it was seen and whether it left.
+    private func passKeyboardIntroduction() {
+        let intro = app.otherElements[Seen.keyboardIntroduction]
+        let seen = intro.waitForExistence(timeout: introductionLooked ? 0.3 : 2)
+        introductionLooked = true
+        guard seen else { return }
+        let go = intro.buttons[Seen.keyboardIntroductionContinue]
+        if go.exists { go.tap() }
+        var gone = false
+        let deadline = Date().addingTimeInterval(5)
+        while Date() < deadline {
+            if !intro.exists {
+                gone = true
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.2)
+        }
+        lines.emit(["step": "keyboard-introduction", "pressed": go.exists || gone, "gone": gone])
+    }
+
+    /// The key bar is the hidden field's inputAccessoryView, so it is on the
+    /// screen only while the keyboard is up. A Screen just opened has neither:
+    /// one tap on the grid raises them (Paseo's release table, `.focus`). Asked
+    /// before every key, so a step works whether the step before it left the
+    /// keyboard up or not.
+    private func raiseKeys(_ name: String) -> XCUIElement {
+        let key = element(Seen.screenKey + name)
+        if key.exists {
+            if app.otherElements[Seen.keyboardIntroduction].exists { passKeyboardIntroduction() }
+            return key
+        }
+        let grid = element(Seen.screenGrid)
+        if grid.waitForExistence(timeout: 10) {
+            grid.tap()
+            _ = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+            passKeyboardIntroduction()
+        }
+        return key
+    }
+
+    /// One key of the bar pressed by its short name (`esc`, `tab`, `btab`,
+    /// `left`, `up`, `down`, `right`, `return`).
+    private func screenKey(_ name: String) {
+        let key = raiseKeys(name)
+        guard key.waitForExistence(timeout: 10) else { return missing("screen-key") }
+        let seq = lines.emit(["step": "screen-key-ready", "key": name])
+        _ = ack("screen-\(seq)")
+        key.tap()
+        Thread.sleep(forTimeInterval: 1)
+        emitScreen("screen-key", ["key": name, "auth": ownerCheckUp()])
+    }
+
+    /// ctrl on the key bar, then one letter on the keyboard: Control-letter.
+    private func screenCtrl(_ letter: String) {
+        let ctrl = raiseKeys("ctrl")
+        guard ctrl.waitForExistence(timeout: 10) else { return missing("screen-ctrl") }
+        let seq = lines.emit(["step": "screen-ctrl-ready", "letter": letter])
+        _ = ack("screen-\(seq)")
+        ctrl.tap()
+        app.typeText(letter)
+        Thread.sleep(forTimeInterval: 1)
+        emitScreen("screen-ctrl", ["letter": letter, "auth": ownerCheckUp()])
+    }
+
+    /// Inside a question: the key pressed twice, `gapMs` apart, then the line
+    /// under the grid read at once, and again once the next picture is drawn,
+    /// and the key pressed a third time after it (PS5).
+    private func screenQuestion(_ arg: String) {
+        let parts = arg.split(separator: ":").map(String.init)
+        let name = parts.first ?? "down"
+        let gap = (Double(parts.count > 1 ? parts[1] : "") ?? 50) / 1000
+        let key = raiseKeys(name)
+        guard key.waitForExistence(timeout: 10) else { return missing("screen-question") }
+        let seq = lines.emit(["step": "screen-question-ready", "key": name])
+        _ = ack("screen-\(seq)")
+        // Two presses as close together as XCUITest can make them. Two
+        // `tap()` calls each wait for the app to go idle first, which can put
+        // them further apart than the Mac's settle (300 ms, D4), and then the
+        // second press would rightly go against the next picture; one
+        // `doubleTap()` is one synthesized pair of touches. A gap asked for
+        // past 200 ms is two taps with that sleep between.
+        if gap <= 0.2 {
+            key.doubleTap()
+        } else {
+            key.tap()
+            Thread.sleep(forTimeInterval: gap)
+            key.tap()
+        }
+        let waiting = screenReading()
+        lines.emit(["step": "screen-question-pressed", "line": waiting["line"] as Any])
+        let drawn = poll { found in self.find(found, Seen.screenLine)?.label != (waiting["line"] as? String) || !self.has(found, Seen.screenLine) }
+        // The next picture is drawn: say so and wait for the probe's file
+        // before the third press, so the probe counts the keys that reached
+        // the agent BEFORE this picture by its own clock, never racing the
+        // third press's bytes.
+        let redrawn = lines.emit(["step": "screen-question-redrawn", "drawn": drawn])
+        _ = ack("screen-\(redrawn)")
+        let after = screenReading()
+        key.tap()
+        Thread.sleep(forTimeInterval: 1)
+        emitScreen("screen-question", ["waitingLine": waiting["line"] as Any, "redrawn": drawn, "afterLine": after["line"] as Any])
+    }
+
+    /// Long press on row `n` and drag across it; while the selection is held
+    /// the probe changes the Mac's screen (it waits for this step's file);
+    /// then Copy, and the probe reads the device's pasteboard (another file);
+    /// then a tap clears the selection and the grid reads again (PS6).
+    private func screenSelect(_ n: Int) {
+        let row = element(Seen.screenRow + String(n))
+        guard row.waitForExistence(timeout: 10) else { return missing("screen-select") }
+        let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+        let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.6, dy: 0.5))
+        start.press(forDuration: 1.0, thenDragTo: end)
+        let copy = element(Seen.screenCopy).waitForExistence(timeout: 5)
+        let held = screenReading()
+        let seq = lines.emit(["step": "screen-select-held", "copy": copy, "line": held["line"] as Any, "rows": held["rows"] as Any])
+        _ = ack("screen-\(seq)")
+        Thread.sleep(forTimeInterval: 1.5)
+        let whileHeld = screenReading()
+        if element(Seen.screenCopy).exists { element(Seen.screenCopy).tap() }
+        let copied = lines.emit(["step": "screen-copied", "rowsWhileHeld": whileHeld["rows"] as Any, "lineWhileHeld": whileHeld["line"] as Any])
+        _ = ack("screen-\(copied)")
+        element(Seen.screenGrid).tap()
+        Thread.sleep(forTimeInterval: 1.5)
+        emitScreen("screen-select")
+    }
+
+    /// Type, then Home at once (the probe holds the keys line before its
+    /// handshake, waiting on `screen-home-ready`), away 20 s, back, and the
+    /// Screen read again (PS7).
+    private func screenHome(_ b64url: String) {
+        guard let text = Self.words(b64url) else { return missing("screen-home") }
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("screen-home") }
+        grid.tap()
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        passKeyboardIntroduction()
+        // The keys line the keys before this step used is kept while it has
+        // been idle under DoorLine.freshFor (4 s) and is closed by the phone
+        // once it has (D25). Past that, the next write opens a NEW connection,
+        // which is the one the probe's relay holds before its handshake; a
+        // write on a line still kept would go out on a connection the relay
+        // already forwarded, and the arm would read nothing about a held line.
+        Thread.sleep(forTimeInterval: 5)
+        let seq = lines.emit(["step": "screen-home-ready"])
+        _ = ack("screen-\(seq)")
+        app.typeText(text)
+        home()
+        lines.emit(["step": "screen-home-pressed", "state": Int(app.state.rawValue)])
+        Thread.sleep(forTimeInterval: 20)
+        let away = lines.emit(["step": "screen-home-away"])
+        _ = ack("screen-\(away)")
+        app.activate()
+        _ = app.wait(for: .runningForeground, timeout: 30)
+        _ = poll { found in found.contains { self.index($0.id, after: Seen.screenRow) != nil } }
+        emitScreen("screen-home")
+    }
+
+    /// Wait for the probe's file `screen-wait-<tag>` with the Screen up, then read it.
+    private func screenWait(_ tag: String) {
+        let seq = lines.emit(["step": "screen-wait", "tag": tag])
+        _ = ack("screen-\(seq)")
+        Thread.sleep(forTimeInterval: 1)
+        emitScreen("screen-wait", ["tag": tag])
+    }
+
+    /// The session's page: End's frame and the navigation bar's, the End bar
+    /// absent, and the Conversation row above the Screen row (PS1).
+    private func endTop() {
+        guard poll({ self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) && self.has($0, Seen.sessionEnd) }) else { return missing("end-top") }
+        let found = tree()
+        let nav = app.navigationBars.firstMatch
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        lines.emit([
+            "step": "end-top",
+            "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
+            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "endBar": has(found, Seen.sessionEndBar),
+            "conversation": find(found, Seen.sessionOpenConversation).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "screen": find(found, Seen.sessionOpenScreen).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "window": [Double(window.width), Double(window.height)]
+        ])
+    }
 
     private func missing(_ step: String) {
         dump(step + "-missing")

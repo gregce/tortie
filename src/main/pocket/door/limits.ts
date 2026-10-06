@@ -42,7 +42,7 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
 
 /**
  * A write's body, per route (Phase 317, build/p317/SPEC.md §5.3.3; Phase 318,
- * build/p318/SPEC.md §5.1.3, D3). The door process checks the size and drops a
+ * build/p318/SPEC.md §5.1.3, D3; Phase 337, build/p337/SPEC.md §5.1, D17). The door process checks the size and drops a
  * body over it whole (404 `oversized`); main parses.
  *
  * Computed from the worst legal body, not guessed, and a vitest
@@ -62,11 +62,19 @@ export const POCKET_PAIR_BODY_CAP_BYTES = 4 * 1024;
  *     32,768, which holds those and an encoder escaping every astral character
  *     as a surrogate pair. A text past about 5,400 characters may still exceed
  *     it and is the door's 404, which the phone reads as "did not take it".
+ *   - `keys` (Phase 337, D17, §14 M15): `{"dialog":<12 hex or null>,"keys":
+ *     [...],"session":"<128>","turn":"<16 hex>-<digits>","write":"<32 hex>"}`
+ *     with at most 64 items and 1,024 UTF-8 bytes of text in all. The worst
+ *     legal-shape body is 1,024 C0 bytes in ONE item, each escaped `\u00XX`:
+ *     7,359 bytes (in 64 items, 6,981; 256 astral characters escaped as
+ *     surrogate pairs, 4,287; 64 names, 1,221). It must reach main to be
+ *     answered `refused character` in words rather than be dropped here, so
+ *     the cap is 16,384, more than twice the worst.
  *
  * Keyed by the route id, so the listener reads the cap of the row it matched
  * and a write route with no cap here is a type error.
  */
-export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768 } as const);
+export const POCKET_WRITE_BODY_CAPS = Object.freeze({ end: 512, choose: 512, say: 32_768, keys: 16_384 } as const);
 
 /** The timings a test may shorten. Production passes none of these. */
 export interface DoorTimings {

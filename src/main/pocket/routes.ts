@@ -9,13 +9,13 @@
  * for everything else. A path that is not in the list does not exist, and the
  * door refuses it before it reads a header, a query or a byte of body.
  *
- * ## Four questions, and three narrow writes declared here and done elsewhere
+ * ## Five questions, and four narrow writes declared here and done elsewhere
  *
  * The blocked list (with, since Phase 316, every other session Tortie lists),
- * one session, that session's turns, and (Phase 316.7) every listed session
- * shown, grouped and sorted as the phone asked. Every answer is composed here
- * in main from what main already computes, and every string a person reads is
- * one main already drew:
+ * one session, that session's turns, (Phase 316.7) every listed session
+ * shown, grouped and sorted as the phone asked, and (Phase 337) one session's
+ * own screen. Every answer is composed here in main from what main already
+ * computes, and every string a person reads is one main already drew:
  *
  *   - the ORDER and the SET come from `../tray/attention.ts`'s own
  *     `attentionRows`, which is what already drives the menu-bar sentinel, so
@@ -48,13 +48,19 @@
  *     own functions, moved to `@shared/session-list` so the sheet and this
  *     door call the same ones. The phone sorts, filters and groups nothing
  *     (build/p3167/SPEC.md D1): it sends five closed words and lays out what
- *     this module answers.
+ *     this module answers;
+ *   - (Phase 337) one session's screen is composed outside this domain by the
+ *     Screen's watcher ({@link PocketFacts.screen}), which may hold the request
+ *     as a long poll, and copied here FIELD BY FIELD ({@link screenOf}) with
+ *     fresh arrays and the contract's caps held again, so nothing but the
+ *     answer's own fields can leave.
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
- * build/p318/SPEC.md §5.1.5) are DECLARED here, as {@link PocketWrites}, a
- * hand-written interface with three members, and done outside this domain
- * (`src/main/sessions/pocket-writes.ts`, which hands the reply's two to the
- * verbs in `src/main/reply/`), which is handed in. Nothing in this module can
+ * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4) are DECLARED
+ * here, as {@link PocketWrites}, a hand-written interface with four members,
+ * and done outside this domain (`src/main/sessions/pocket-writes.ts`, which
+ * hands the reply's two to the verbs in `src/main/reply/` and the keys to the
+ * verb in `src/main/screen/`), which is handed in. Nothing in this module can
  * name the verb a write reaches.
  *
  * ## Fresh before read (Phase 316)
@@ -94,7 +100,8 @@
  *
  * It opens no socket and binds nothing. It has no timer. It holds no state at
  * all: every answer is composed from the facts it is handed, at the moment it
- * is asked.
+ * is asked. (The Screen's long poll holds its request in the watcher it is
+ * handed, never here.)
  */
 
 import { createHash } from 'node:crypto';
@@ -120,6 +127,11 @@ import {
   POCKET_NO_REPLY,
   POCKET_OTHERS_MAX,
   POCKET_ROUTE_IDS,
+  POCKET_SCREEN_MAX_BYTES,
+  POCKET_SCREEN_MAX_COLS,
+  POCKET_SCREEN_MAX_ROWS,
+  POCKET_SCREEN_MAX_RUNS,
+  POCKET_SCREEN_MAX_STYLES,
   POCKET_SESSIONS_BUDGET_BYTES,
   POCKET_SESSIONS_CHOICES_MAX,
   POCKET_SESSIONS_CLIP_CHARS,
@@ -135,8 +147,14 @@ import {
   type PocketEndConfirm,
   type PocketEndOffer,
   type PocketHandoff,
+  type PocketKeyItem,
   type PocketReplyOffer,
   type PocketRouteId,
+  type PocketScreen,
+  type PocketScreenAbsence,
+  type PocketScreenAnswer,
+  type PocketScreenRun,
+  type PocketScreenStyle,
   type PocketSessionAnswer,
   type PocketSessionDetail,
   type PocketSessionsAnswer,
@@ -149,6 +167,7 @@ import {
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { endSessionConfirm } from '@shared/lifecycle-words';
+import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE } from '@shared/screen-copy';
 import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';
 // THE CEILING, IMPORTED RATHER THAN RE-SPELLED. `../overview/turn-view.ts` owns
 // the number and this door holds itself to it; a second literal here would be a
@@ -177,9 +196,10 @@ function isWriteRouteId(id: PocketRouteId): id is PocketWriteRouteId {
 }
 
 /**
- * The write rows' ids, read from the table (Phase 317; Phase 318 added two).
- * Exactly `end`, `choose` and `say`, and `routes.test.ts` holds it to that
- * list. It replaces `pocketTableIsReadOnly()`, which Phase 317 made false.
+ * The write rows' ids, read from the table (Phase 317; Phase 318 added two;
+ * Phase 337 one). Exactly `end`, `choose`, `say` and `keys`, and
+ * `routes.test.ts` holds it to that list. It replaces
+ * `pocketTableIsReadOnly()`, which Phase 317 made false.
  */
 export function pocketWriteRouteIds(): readonly PocketWriteRouteId[] {
   const ids: PocketWriteRouteId[] = [];
@@ -305,6 +325,15 @@ export interface PocketFacts {
    * the session read still answers.
    */
   replyOffer?(session: Session, drawn: PocketReplyDrawn): Promise<PocketReplyOffer>;
+  /**
+   * One session's screen, composed in main (Phase 337, build/p337/SPEC.md
+   * §5.3): answered at once when `since` is null or not current, else held
+   * until the screen moves or SCREEN_HOLD_MS passes, ending at once when
+   * `closing()` holds. A READ: it writes nothing, sets no status and types
+   * nothing. OPTIONAL, AND ABSENT IS THE ROUTE NOT EXISTING (404): the push
+   * seam and the tests build their own facts.
+   */
+  screen?(session: Session, since: string | null, closing: () => boolean): Promise<PocketScreenAnswer>;
   now?(): number;
 }
 
@@ -334,6 +363,20 @@ export interface PocketSayInput {
 }
 
 /**
+ * One keys write, as the phone sent it (Phase 337, build/p337/SPEC.md §5.4,
+ * D17, D21): the items, already held to their shape by `./writes.ts`'s
+ * `parseKeysBody` (a named key other than `BSpace` is the write's one item),
+ * and the question id and the window's mark of the picture the keys were sent
+ * against, which the verb compares with a fresh reading before it types.
+ */
+export interface PocketKeysInput {
+  sessionId: string;
+  keys: readonly PocketKeyItem[];
+  turn: string;
+  dialog: string | null;
+}
+
+/**
  * The door's last check, handed to a verb that reads before it acts (Phase 318,
  * D5): the quit, this door instance stopping, the signing phone still paired.
  * The verb asks it AGAIN in its own final synchronous check, with nothing
@@ -343,12 +386,13 @@ export type PocketStillAllowed = () => boolean;
 
 /**
  * THE PHONE'S WRITES (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
- * build/p318/SPEC.md §5.1.5), implemented ONCE, OUTSIDE this domain
- * (`src/main/sessions/pocket-writes.ts`), and handed in. Nothing here can name
- * the verb it reaches (`conformance:pocket` R3).
+ * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4),
+ * implemented ONCE, OUTSIDE this domain (`src/main/sessions/pocket-writes.ts`),
+ * and handed in. Nothing here can name the verb it reaches
+ * (`conformance:pocket` R3).
  *
- * Hand written and narrow, like {@link PocketFacts}, with THREE members and no
- * fourth; no member may set a status.
+ * Hand written and narrow, like {@link PocketFacts}, with FOUR members and no
+ * fifth; no member may set a status.
  */
 export interface PocketWrites {
   /**
@@ -361,6 +405,11 @@ export interface PocketWrites {
   choose(input: PocketChooseInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
   /** Send one message. Answers an outcome and never throws. */
   say(input: PocketSayInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
+  /**
+   * Type keys into one running session, on this Mac or another machine (Phase
+   * 337). Answers an outcome and never throws.
+   */
+  keys(input: PocketKeysInput, still: PocketStillAllowed): Promise<PocketReplyOutcome>;
 }
 
 /** What one End came to, as the write path answers it. */
@@ -369,7 +418,12 @@ export type PocketEndOutcome =
   | { outcome: 'refused'; reason: 'removed' | 'unreachable' | 'ended' | 'gone'; sentence: string }
   | { outcome: 'failed'; sentence: string };
 
-/** Why a press or a message was refused, as the door's answer words it (Phase 318, D19). */
+/**
+ * Why a press, a message or (Phase 337) a keys write was refused, as the
+ * door's answer words it (Phase 318, D19). Phase 337 adds `unreachable`, End's
+ * own word, for a session that cannot take keys now (build/p337/SPEC.md §5.4
+ * step 2): no new word reaches the contract.
+ */
 export type PocketReplyRefusal =
   | 'gone'
   | 'changed'
@@ -378,7 +432,8 @@ export type PocketReplyRefusal =
   | 'stopped'
   | 'empty'
   | 'long'
-  | 'character';
+  | 'character'
+  | 'unreachable';
 
 /** What one press or one message came to, as the write path answers it. */
 export type PocketReplyOutcome =
@@ -776,7 +831,230 @@ interface SessionsPlace {
   folder: string | null;
 }
 
-/** The four answers. Holds no state; composes on every call. */
+// ---------------------------------------------------------------------------
+// The Screen (Phase 337, build/p337/SPEC.md §5.3.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Whether a session has a screen (D32): running, idle, or waiting on a person,
+ * which is the ONE live partition Tortie already spells, `sessionActionGates`'s
+ * `live`, read here and never listed again. `conformance:manager` T23 holds
+ * the session domain and this file to that one live-status set (Phase 303: a
+ * second spelling is one more place for the two to drift apart), so the Screen
+ * asks the gates rather than naming statuses. Declared ONCE; `session()` reads
+ * it for the answer's `screen` field and the watcher (`../screen/watch.ts`) for
+ * whether a row has a screen to read. A row in any other status (unknown,
+ * exited, restorable, discarded) offers no Screen, and the watcher answers it
+ * `ended`.
+ */
+export function screenLive(session: Session): boolean {
+  return sessionActionGates(session, session.status, DOOR_GATE_ENV).live;
+}
+
+/** The two names a screen query may carry, and no other (D2). */
+const SCREEN_QUERY_NAMES: readonly string[] = ['id', 'since'];
+
+/** A revision: 12 lowercase hex (D14). */
+const SCREEN_REVISION_CHARS = 12;
+
+/** A window's mark, the answer's `dialog`: `hashScreen`'s 12 lowercase hex (D16). */
+const SCREEN_MARK_CHARS = 12;
+
+/**
+ * The longest id a screen query may name. Tortie's session ids are UUIDs (36
+ * characters), and the writes read a session id of 1 to 128 characters
+ * (`./writes.ts`), so the same bound holds here. The id is only ever compared
+ * for EQUALITY with a listed session's, so a value nobody has is answered as
+ * an unknown id is.
+ */
+const SCREEN_ID_MAX_CHARS = 128;
+
+/** Why a screen query was refused. A word, never a value. */
+export type PocketScreenQueryRefusal = 'parameter' | 'repeated' | 'id' | 'since';
+
+/**
+ * Exactly `chars` lowercase hex, read one character at a time rather than by a
+ * pattern (`conformance:pocket` R1 refuses any pattern in this module).
+ */
+function isLowerHexOf(value: string, chars: number): boolean {
+  if (value.length !== chars) return false;
+  for (const ch of value) {
+    const digit = ch >= '0' && ch <= '9';
+    const lower = ch >= 'a' && ch <= 'f';
+    if (!digit && !lower) return false;
+  }
+  return true;
+}
+
+/** A colour the Mac resolved (D12): `#` and exactly six lowercase hex. */
+function isScreenColour(value: unknown): value is string {
+  return typeof value === 'string' && value.length === 7 && value.charAt(0) === '#' && isLowerHexOf(value.slice(1), 6);
+}
+
+/** A whole number in `[min, max]`. */
+function wholeIn(value: unknown, min: number, max: number): value is number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= min && value <= max;
+}
+
+/**
+ * What a `/v1/screen` query asks, or why it is refused (D2): `id` exactly once,
+ * 1 to {@link SCREEN_ID_MAX_CHARS} characters, and `since` at most once, absent
+ * or {@link SCREEN_REVISION_CHARS} lowercase hex. Anything else in the query
+ * (another name, a repeat, a `since` of another shape) refuses the request
+ * whole, and the route answers it as it answers an unknown id. No size, no
+ * width and no height: the phone never sizes the Mac (D7, his ruling 2).
+ */
+export function readScreenQuery(
+  query: URLSearchParams
+): { ok: true; id: string; since: string | null } | { ok: false; reason: PocketScreenQueryRefusal } {
+  const seen = new Set<string>();
+  for (const name of query.keys()) {
+    if (!SCREEN_QUERY_NAMES.includes(name)) return { ok: false, reason: 'parameter' };
+    if (seen.has(name)) return { ok: false, reason: 'repeated' };
+    seen.add(name);
+  }
+  const id = query.get('id');
+  if (id === null || id.length < 1 || id.length > SCREEN_ID_MAX_CHARS) return { ok: false, reason: 'id' };
+  const since = query.get('since');
+  if (since !== null && !isLowerHexOf(since, SCREEN_REVISION_CHARS)) return { ok: false, reason: 'since' };
+  return { ok: true, id, since };
+}
+
+/** Main's words for each absence, the one map from the word to its sentence. */
+const SCREEN_ABSENCE_SENTENCES: Readonly<Record<PocketScreenAbsence, string>> = Object.freeze({
+  ended: SCREEN_ENDED,
+  unreachable: SCREEN_UNREACHABLE,
+  large: SCREEN_TOO_LARGE
+});
+
+/** `why`, compared for EQUALITY with the three words, or null. */
+function screenAbsenceOf(value: unknown): PocketScreenAbsence | null {
+  return value === 'ended' || value === 'unreachable' || value === 'large' ? value : null;
+}
+
+/** One style, copied field by field (D12), or null when it is not one. */
+function screenStyleOf(style: PocketScreenStyle): PocketScreenStyle | null {
+  if (typeof style !== 'object' || style === null) return null;
+  if (!isScreenColour(style.fg) || !(style.bg === null || isScreenColour(style.bg))) return null;
+  const flags = [style.bold, style.dim, style.italic, style.underline, style.strike];
+  if (!flags.every((flag) => typeof flag === 'boolean')) return null;
+  return {
+    fg: style.fg,
+    bg: style.bg,
+    bold: style.bold,
+    dim: style.dim,
+    italic: style.italic,
+    underline: style.underline,
+    strike: style.strike
+  };
+}
+
+/**
+ * The screen, copied FIELD BY FIELD with fresh arrays (D13), the contract's
+ * caps held again (D15): past any one of them the answer is `large`, and a
+ * value of the wrong shape is null, so nothing the watcher's object carries
+ * beyond these fields, and nothing the phone's decoder would refuse whole, can
+ * leave. Each cap is read once.
+ */
+function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
+  if (typeof screen !== 'object' || screen === null) return null;
+  const { cols, rows } = screen;
+  if (!wholeIn(cols, 1, Number.MAX_SAFE_INTEGER) || !wholeIn(rows, 1, Number.MAX_SAFE_INTEGER)) return null;
+  if (cols > POCKET_SCREEN_MAX_COLS || rows > POCKET_SCREEN_MAX_ROWS) return 'large';
+  const cursor = screen.cursor;
+  if (typeof cursor !== 'object' || cursor === null) return null;
+  if (!wholeIn(cursor.x, 0, cols) || !wholeIn(cursor.y, 0, rows - 1) || typeof cursor.visible !== 'boolean') return null;
+  if (typeof screen.alternate !== 'boolean' || typeof screen.asking !== 'boolean' || typeof screen.typable !== 'boolean') {
+    return null;
+  }
+  if (!isScreenColour(screen.ground) || !isScreenColour(screen.ink) || !isScreenColour(screen.caret)) return null;
+  if (typeof screen.turn !== 'string' || screen.turn.length === 0) return null;
+  if (!(screen.dialog === null || (typeof screen.dialog === 'string' && isLowerHexOf(screen.dialog, SCREEN_MARK_CHARS)))) return null;
+  if (!Array.isArray(screen.styles)) return null;
+  if (screen.styles.length > POCKET_SCREEN_MAX_STYLES) return 'large';
+  const styles: PocketScreenStyle[] = [];
+  for (const style of screen.styles) {
+    const copied = screenStyleOf(style);
+    if (copied === null) return null;
+    styles.push(copied);
+  }
+  if (!Array.isArray(screen.lines) || screen.lines.length !== rows) return null;
+  const lines: PocketScreenRun[][] = [];
+  let runs = 0;
+  for (const line of screen.lines) {
+    if (!Array.isArray(line)) return null;
+    const row: PocketScreenRun[] = [];
+    let used = 0;
+    for (const run of line) {
+      if (typeof run !== 'object' || run === null || typeof run.text !== 'string') return null;
+      if (!wholeIn(run.style, 0, styles.length - 1) || !wholeIn(run.cells, 1, cols)) return null;
+      used += run.cells;
+      if (used > cols) return null;
+      row.push({ text: run.text, style: run.style, cells: run.cells });
+    }
+    runs += row.length;
+    lines.push(row);
+  }
+  if (runs > POCKET_SCREEN_MAX_RUNS) return 'large';
+  return {
+    cols,
+    rows,
+    cursor: { x: cursor.x, y: cursor.y, visible: cursor.visible },
+    alternate: screen.alternate,
+    ground: screen.ground,
+    ink: screen.ink,
+    caret: screen.caret,
+    styles,
+    lines,
+    turn: screen.turn,
+    asking: screen.asking,
+    dialog: screen.dialog,
+    typable: screen.typable
+  };
+}
+
+/**
+ * THE SCREEN ANSWER AS THE DOOR SERVES IT (D13), composed FIELD BY FIELD from
+ * what the watcher answered, so nothing else on its object can ever leave, and
+ * its invariants held HERE whatever a watcher says: the session id is the one
+ * the query named; the revision is 12 lowercase hex or there is no answer;
+ * `unchanged` carries nothing else; `why` is exactly one of three words and
+ * its sentence is main's own word for it; a screen past any cap, the whole
+ * answer's bytes included, is `large`. Null when there is nothing honest to
+ * answer, which the door answers as an unknown id.
+ */
+export function screenOf(answer: PocketScreenAnswer, sessionId: string, fallbackAt: number): PocketScreenAnswer | null {
+  if (typeof answer !== 'object' || answer === null) return null;
+  const revision = answer.revision;
+  if (typeof revision !== 'string' || !isLowerHexOf(revision, SCREEN_REVISION_CHARS)) return null;
+  const at = typeof answer.at === 'number' && Number.isFinite(answer.at) ? answer.at : fallbackAt;
+  const absent = (why: PocketScreenAbsence): PocketScreenAnswer => ({
+    sessionId,
+    revision,
+    at,
+    unchanged: false,
+    screen: null,
+    why,
+    sentence: SCREEN_ABSENCE_SENTENCES[why]
+  });
+  if (answer.unchanged === true) {
+    return { sessionId, revision, at, unchanged: true, screen: null, why: null, sentence: null };
+  }
+  if (answer.unchanged !== false) return null;
+  if (answer.why !== null) {
+    const why = screenAbsenceOf(answer.why);
+    return why === null ? null : absent(why);
+  }
+  const screen = screenBodyOf(answer.screen as PocketScreen);
+  if (screen === null) return null;
+  if (screen === 'large') return absent('large');
+  const composed: PocketScreenAnswer = { sessionId, revision, at, unchanged: false, screen, why: null, sentence: null };
+  // The whole answer's bytes, as the door will send them, under the cap.
+  if (Buffer.byteLength(JSON.stringify(composed), 'utf8') > POCKET_SCREEN_MAX_BYTES) return absent('large');
+  return composed;
+}
+
+/** The five answers. Holds no state; composes on every call. */
 export function createPocketRoutes(facts: PocketFacts): {
   blocked(): PocketBlockedAnswer;
   session(sessionId: string): Promise<PocketSessionAnswer | null>;
@@ -785,6 +1063,7 @@ export function createPocketRoutes(facts: PocketFacts): {
     query: { limit?: string | null; from?: string | null; to?: string | null }
   ): Promise<PocketTurnsAnswer | null>;
   sessions(query: URLSearchParams): PocketSessionsAnswer | null;
+  screen(query: URLSearchParams, closing: () => boolean): Promise<PocketScreenAnswer | null>;
 } {
   const now = (): number => facts.now?.() ?? Date.now();
 
@@ -927,7 +1206,11 @@ export function createPocketRoutes(facts: PocketFacts): {
         endConfirm: base.end?.state === 'offered' ? endConfirmOf(session) : null,
         // PHASE 318. Always set, field by field (`replyOf`), so a client never
         // draws a button or a box main did not offer on this very answer.
-        reply
+        reply,
+        // PHASE 337 (build/p337/SPEC.md D32). Always set, in this one place:
+        // true exactly when this Mac answers `/v1/screen` and the session is
+        // live, so the phone draws a Screen row only where one can open.
+        screen: facts.screen !== undefined && screenLive(session)
       };
       return { session: detail, at };
     },
@@ -1252,6 +1535,34 @@ export function createPocketRoutes(facts: PocketFacts): {
         at,
         ageNote: POCKET_AGE_HONESTY
       };
+    },
+
+    /**
+     * ONE SESSION'S SCREEN (Phase 337, build/p337/SPEC.md §5.3.1). The query,
+     * then the session by id, then the watcher, which may hold the request as
+     * a long poll and ends it at once when `closing()` holds (D3). Its answer
+     * is re-composed field by field ({@link screenOf}). A refused query, an id
+     * nobody has, a host with no watcher, a watcher that rejects, and a session
+     * removed while the request was held, are each answered as an unknown id.
+     * A READ: nothing here writes, types or sets a status.
+     */
+    async screen(query: URLSearchParams, closing: () => boolean): Promise<PocketScreenAnswer | null> {
+      const read = readScreenQuery(query);
+      if (!read.ok) return null;
+      const session = sessionById(read.id);
+      if (session === undefined) return null;
+      if (facts.screen === undefined) return null;
+      let answer: PocketScreenAnswer;
+      try {
+        answer = await facts.screen(session, read.since, closing);
+      } catch {
+        // Answered, never left hanging (see `session`).
+        return null;
+      }
+      // AGAIN, after the hold: removed while the request was held is answered
+      // as an id nobody has, and nothing of it leaves.
+      if (sessionById(session.id) === undefined) return null;
+      return screenOf(answer, session.id, now());
     }
   };
 }

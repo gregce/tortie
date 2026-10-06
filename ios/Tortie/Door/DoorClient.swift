@@ -40,6 +40,15 @@
 //   exchange has 15 seconds. The door always writes an explicit length and
 //   never streams (conformance:pocket C1).
 //
+//   EXCEPT THE SCREEN'S TWO KEPT LINES (Phase 337, build/p337/SPEC.md D25):
+//   the Screen's long poll and its keys each keep their connection
+//   (`DoorLine`), `Connection: keep-alive`, reused only while idle under 4 s
+//   and closed by the phone at 4 s, on an answer saying `Connection: close`
+//   and on any byte that is not the answer asked for. A READ whose reused
+//   connection ended before an answer is asked once more on a new one,
+//   freshly signed; a WRITE is never sent again. Every other exchange is
+//   still one request on one connection that says `Connection: close`.
+//
 //   FOUR READS SINCE PHASE 316.7: `/v1/blocked`, `/v1/session`, `/v1/turns`
 //   and `/v1/sessions`, whose query is five closed words the door refuses
 //   whole when one is not its own.
@@ -49,12 +58,12 @@
 //   values are percent-encoded here so the door's URL parser reads back the
 //   same bytes (see `queryValue`).
 //
-//   THREE WRITES SINCE PHASE 318, `POST /v1/end` (317), `/v1/choose` and
-//   `/v1/say` (318), through ONE `signedPost`: a fresh 128-bit write id per
-//   call (`WriteId`), or for a message whose answer did not come the id that
-//   message carried (build/p318/SPEC.md section 5.7.1, Revision R13),
-//   a JSON body with sorted keys, the signature over the method, the path and
-//   the body, and the phone's identity presented. A write is never retried:
+//   FOUR WRITES SINCE PHASE 337, `POST /v1/end` (317), `/v1/choose` and
+//   `/v1/say` (318) and `/v1/keys` (337), through ONE `signedPost`: a fresh
+//   128-bit write id per call (`WriteId`), or for a message whose answer did
+//   not come the id that message carried (build/p318/SPEC.md section 5.7.1,
+//   Revision R13), a JSON body with sorted keys, the signature over the
+//   method, the path and the body, and the phone's identity presented. A write is never retried:
 //   the Mac answers a repeated id with its first answer and never acts twice,
 //   and a new press is a new id (build/p317/SPEC.md D5, D6). Its result says
 //   what is TRUE of it (`WriteResult`): answered (with the id it carried
@@ -276,6 +285,29 @@ final class DoorClient: DoorExchanging {
         await signedPost(route: .say(session: sessionId, text: text), door: door, limits: limits, write: write)
     }
 
+    // MARK: The Screen (Phase 337), on its two kept lines
+
+    /// `GET /v1/screen?id=<session>[&since=<revision>]`: the session's own
+    /// screen, or `unchanged` when `since` is still it (the Mac holds the
+    /// answer until the screen moves or about 10 s pass). On the poll's kept
+    /// line. An answer about another session is not this answer.
+    func screen(_ sessionId: String, since: String?, line: DoorLine, door: PairedDoor) async throws -> PocketScreenAnswer {
+        let answer = try await signedGet(
+            PocketScreenAnswer.self, target: Self.screenTarget(sessionId, since: since), door: door, line: line
+        )
+        guard answer.sessionId == sessionId else { throw DoorFailure.malformed }
+        return answer
+    }
+
+    /// `POST /v1/keys`: ONE batch of keys, carrying the question id and the
+    /// window's mark of the picture they were typed against, which the Mac
+    /// compares while a question is drawn (D21). On the keys' kept line, a
+    /// fresh write id, never retried and never a kept id.
+    func keys(_ sessionId: String, keys: [KeyItem], turn: String, dialog: String?, line: DoorLine, door: PairedDoor) async -> WriteResult {
+        let route = WriteRoute.keys(session: sessionId, keys: keys, turn: turn, dialog: dialog)
+        return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).result
+    }
+
     // MARK: Pairing
 
     /// `POST /pair`. Unsigned by a request signature and with no client
@@ -299,9 +331,19 @@ final class DoorClient: DoorExchanging {
     static let endTarget = "/v1/end"
     static let chooseTarget = "/v1/choose"
     static let sayTarget = "/v1/say"
+    static let keysTarget = "/v1/keys"
 
     static func sessionTarget(_ sessionId: String) -> String {
         "/v1/session?id=\(queryValue(sessionId))"
+    }
+
+    /// The ONE builder of a `/v1/screen` target (Phase 337, conformance:ios
+    /// rule ah): the session's id, and the revision held when there is one.
+    /// Nothing else, and never a size: the phone never sizes the Mac.
+    static func screenTarget(_ sessionId: String, since: String?) -> String {
+        var target = "/v1/screen?id=\(queryValue(sessionId))"
+        if let since { target += "&since=\(queryValue(since))" }
+        return target
     }
 
     /// The ONE builder of a `/v1/sessions` target (Phase 316.7, conformance:ios
@@ -348,10 +390,31 @@ final class DoorClient: DoorExchanging {
 
     // MARK: The exchange
 
-    private func signedGet<T: Decodable>(_ type: T.Type, target: String, door: PairedDoor) async throws -> T {
-        let headers: [(name: String, value: String)]
+    /// A signed read. On a kept `line` (the Screen's poll, Phase 337), a read
+    /// whose REUSED connection ended before a byte of an answer is asked once
+    /// more, freshly signed, on a new connection: the door closes an idle
+    /// connection at its own time, and a read changes nothing on the Mac.
+    private func signedGet<T: Decodable>(_ type: T.Type, target: String, door: PairedDoor, line: DoorLine? = nil) async throws -> T {
+        // A paired read ALWAYS presents the phone's identity (conformance:ios t).
+        let first = try await connect(
+            method: "GET", target: target, headers: try readHeaders(target, door: door), body: nil,
+            door: door.endpoint, identity: door.identity, limits: limits, write: false, line: line
+        )
+        guard line != nil, first.reused, case .failure(let failure) = first.result,
+              failure as? DoorFailure == .closedBeforeAnswer else {
+            return try Self.decode(type, from: try first.result.get())
+        }
+        let again = try await connect(
+            method: "GET", target: target, headers: try readHeaders(target, door: door), body: nil,
+            door: door.endpoint, identity: door.identity, limits: limits, write: false, line: line
+        )
+        return try Self.decode(type, from: try again.result.get())
+    }
+
+    /// A read's four signature headers, with a fresh nonce and the clock now.
+    private func readHeaders(_ target: String, door: PairedDoor) throws -> [(name: String, value: String)] {
         do {
-            headers = try door.signer.headers(
+            return try door.signer.headers(
                 method: "GET",
                 target: target,
                 timestamp: DoorSignature.timestamp(clock()),
@@ -360,24 +423,22 @@ final class DoorClient: DoorExchanging {
         } catch {
             throw DoorFailure.notPaired
         }
-        // A paired read ALWAYS presents the phone's identity (conformance:ios t).
-        let reply = try await exchange(
-            method: "GET", target: target, headers: headers, body: nil, door: door.endpoint, identity: door.identity
-        )
-        return try Self.decode(type, from: reply)
     }
 
     /// The one write path (build/p317/SPEC.md section 5.8.1, widened by
-    /// build/p318/SPEC.md section 5.7.1): a write id, the body with sorted
-    /// keys, the signature over `POST`, the path and the body, and the phone's
-    /// identity presented. Called by `end`, `choose` and `say` alone, once per
-    /// press, and never in a loop: nothing retries a write.
+    /// build/p318/SPEC.md section 5.7.1 and build/p337/SPEC.md section 5.8.2):
+    /// a write id, the body with sorted keys, the signature over `POST`, the
+    /// path and the body, and the phone's identity presented. Called by `end`,
+    /// `choose`, `say` and `keys` alone, once per press, and never in a loop:
+    /// nothing retries a write. A keys write goes on the Screen's kept `line`,
+    /// which carries it only while idle under 4 s (`DoorLine`), and is never
+    /// sent again on another.
     ///
-    /// THE ID. `end` and `choose` always pass nil, and so does a new message:
-    /// `WriteId.fresh()` makes one here. The one id that is ever handed in is
-    /// a message's whose answer did not come (Revision R13), used as it is
-    /// when it is well formed; anything else gets a fresh one.
-    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?) async -> SentWrite {
+    /// THE ID. `end`, `choose` and `keys` always pass nil, and so does a new
+    /// message: `WriteId.fresh()` makes one here. The one id that is ever
+    /// handed in is a message's whose answer did not come (Revision R13), used
+    /// as it is when it is well formed; anything else gets a fresh one.
+    private func signedPost(route: WriteRoute, door: PairedDoor, limits: DoorLimits, write kept: String?, line: DoorLine? = nil) async -> SentWrite {
         // Not one id per phone or per session: one per call, kept only by a
         // say whose answer did not come.
         let id: String
@@ -399,6 +460,8 @@ final class DoorClient: DoorExchanging {
                 body = try encoder.encode(ChooseBody(mark: mark, marker: marker, question: question, session: session, write: id))
             case .say(let session, let text):
                 body = try encoder.encode(SayBody(session: session, text: text, write: id))
+            case .keys(let session, let keys, let turn, let dialog):
+                body = try encoder.encode(KeysBody(dialog: dialog, keys: keys, session: session, turn: turn, write: id))
             }
             headers = try door.signer.headers(
                 method: "POST",
@@ -415,7 +478,7 @@ final class DoorClient: DoorExchanging {
         do {
             ended = try await connect(
                 method: "POST", target: route.target, headers: headers, body: body,
-                door: door.endpoint, identity: door.identity, limits: limits, write: true
+                door: door.endpoint, identity: door.identity, limits: limits, write: true, line: line
             )
         } catch {
             // Nothing was dialled, so nothing was handed.
@@ -437,15 +500,18 @@ final class DoorClient: DoorExchanging {
     ) async throws -> DoorReply {
         let ended = try await connect(
             method: method, target: target, headers: headers, body: body,
-            door: door, identity: identity, limits: limits, write: false
+            door: door, identity: identity, limits: limits, write: false, line: nil
         )
         return try ended.result.get()
     }
 
-    /// The connection under both: the request built, the door routed, and one
-    /// `DoorExchange` run. It throws only for what fails BEFORE a connection
-    /// is made; once one is, its end says whether the request's bytes were
-    /// handed to it, which is what a write's result is classified by.
+    /// The connection under every exchange: the request built, the door
+    /// routed, and one exchange run on a line: the kept `line` the Screen
+    /// handed in, or a line for this one request (`DoorLine.once()`), which
+    /// says `Connection: close`. It throws only for what fails BEFORE a
+    /// connection is made; once one is, its end says whether the request's
+    /// bytes were handed to it, which is what a write's result is classified
+    /// by.
     private func connect(
         method: String,
         target: String,
@@ -454,10 +520,12 @@ final class DoorClient: DoorExchanging {
         door: DoorEndpoint,
         identity: ClientIdentity?,
         limits: DoorLimits,
-        write: Bool
+        write: Bool,
+        line kept: DoorLine?
     ) async throws -> ExchangeEnd {
+        let line = kept ?? DoorLine.once()
         guard let request = DoorHTTP.request(
-            method: method, target: target, name: door.name, port: door.port, headers: headers, body: body
+            method: method, target: target, name: door.name, port: door.port, headers: headers, body: body, keepAlive: line.keeps
         ) else { throw DoorFailure.notPaired }
         let route: DoorRoute
         do {
@@ -467,19 +535,10 @@ final class DoorClient: DoorExchanging {
         } catch {
             throw DoorFailure.notPaired
         }
-        guard (1...65535).contains(route.port),
-              let port = NWEndpoint.Port(rawValue: UInt16(clamping: route.port)) else { throw DoorFailure.notPaired }
+        guard (1...65535).contains(route.port) else { throw DoorFailure.notPaired }
         if Task.isCancelled { throw DoorFailure.cancelled }
-        let exchange = try DoorExchange(
-            endpoint: .hostPort(host: NWEndpoint.Host(route.host), port: port),
-            serverName: door.name,
-            pin: door.pin,
-            identity: identity,
-            request: request,
-            limits: limits,
-            write: write
-        )
-        return await exchange.run()
+        let to = LineTarget(host: route.host, port: route.port, serverName: door.name, pin: door.pin, presents: identity?.identity)
+        return await line.run(request, to: to, identity: identity, limits: limits, write: write)
     }
 
     /// The TLS the door is spoken to with: 1.3 at the least, the door's NAME
@@ -561,12 +620,16 @@ enum WriteRoute: Equatable, Sendable {
     case choose(session: String, question: String, mark: String, marker: String)
     /// Phase 318: one message, exactly the words given.
     case say(session: String, text: String)
+    /// Phase 337: one batch of keys, with the question id and the window's
+    /// mark of the picture they were typed against.
+    case keys(session: String, keys: [KeyItem], turn: String, dialog: String?)
 
     var target: String {
         switch self {
         case .end: DoorClient.endTarget
         case .choose: DoorClient.chooseTarget
         case .say: DoorClient.sayTarget
+        case .keys: DoorClient.keysTarget
         }
     }
 
@@ -576,6 +639,7 @@ enum WriteRoute: Equatable, Sendable {
         case .end: .end
         case .choose: .choose
         case .say: .say
+        case .keys: .keys
         }
     }
 }
@@ -611,6 +675,32 @@ struct SayBody: Encodable, Sendable {
     let session: String
     let text: String
     let write: String
+}
+
+/// `POST /v1/keys`'s body (Phase 337, D17): exactly these five keys
+/// (`dialog,keys,session,turn,write`), read strictly by the Mac. `keys` is 1
+/// to 64 items, each `{"t":…}` or `{"k":…}`; `turn` and `dialog` are the
+/// picture's own, echoed; and NOTHING HERE IS A SIZE: the phone never sizes a
+/// session on the Mac (his ruling 2, conformance:ios rule ah). `dialog` is
+/// written as `null` when the picture had none, because the Mac reads the key
+/// as always present. Encoded with sorted keys.
+struct KeysBody: Encodable, Sendable {
+    let dialog: String?
+    let keys: [KeyItem]
+    let session: String
+    let turn: String
+    let write: String
+
+    enum CodingKeys: String, CodingKey { case dialog, keys, session, turn, write }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(dialog, forKey: .dialog)
+        try c.encode(keys, forKey: .keys)
+        try c.encode(session, forKey: .session)
+        try c.encode(turn, forKey: .turn)
+        try c.encode(write, forKey: .write)
+    }
 }
 
 /// A write's id: 128 bits from the system's random source, as 32 lowercase
@@ -729,7 +819,8 @@ enum DoorPin {
 // MARK: - HTTP/1.1, by hand and bounded
 
 /// The request the phone writes and the answer it reads, with no HTTP library
-/// between them: one request, one answer, then the connection is closed.
+/// between them: one request, one answer, then the connection is closed, or,
+/// on the Screen's kept lines alone (Phase 337), kept for the next request.
 enum DoorHTTP {
     /// The most bytes the answer's head may take, and its most lines.
     static let headCap = 16 * 1024
@@ -754,20 +845,26 @@ enum DoorHTTP {
         static let contentLength = "content-length"
         static let contentType = "content-type"
         static let transferEncoding = "transfer-encoding"
+        /// Phase 337: an answer saying `close` closes a kept line.
+        static let connection = "connection"
     }
 
     static let json = "application/json"
     static let close = "close"
+    /// Written only by a kept line's request (`DoorLine`, Phase 337).
+    static let keepAlive = "keep-alive"
 
     /// The request's bytes, or nil when any part of it could not be written
-    /// as one line of plain ASCII.
+    /// as one line of plain ASCII. `Connection: close`, except on a kept line
+    /// (`keepAlive`), which asks the door to keep the connection.
     static func request(
         method: String,
         target: String,
         name: String,
         port: Int,
         headers: [(name: String, value: String)],
-        body: Data?
+        body: Data?,
+        keepAlive: Bool = false
     ) -> Data? {
         guard isToken(method), isTarget(target), isFieldValue(name) else { return nil }
         var lines = ["\(method) \(target) \(version)", "\(Name.host): \(name):\(port)"]
@@ -779,7 +876,7 @@ enum DoorHTTP {
             lines.append("\(Name.contentType): \(json)")
             lines.append("\(Name.contentLength): \(body.count)")
         }
-        lines.append("\(Name.connection): \(close)")
+        lines.append("\(Name.connection): \(keepAlive ? Self.keepAlive : close)")
         var out = Data((lines.joined(separator: lineEnd) + lineEnd + lineEnd).utf8)
         if let body { out.append(body) }
         return out
@@ -831,6 +928,9 @@ struct DoorResponseReader: Sendable {
     private var body = Data()
     /// Whether a byte of the answer arrived at all.
     private(set) var answered = false
+    /// Whether the answer said `Connection: close`, which closes a kept line
+    /// (Phase 337).
+    private(set) var closes = false
 
     init(cap: Int) {
         self.cap = cap
@@ -918,6 +1018,10 @@ struct DoorResponseReader: Sendable {
         }
         status = code
         expected = length
+        // `Connection: close`, in any case, alone or in a list.
+        closes = (found[DoorHTTP.Read.connection] ?? []).contains { value in
+            value.split(separator: ",").contains { $0.trimmingCharacters(in: .whitespaces).lowercased() == DoorHTTP.close }
+        }
     }
 
     /// `HTTP/1.1 <three digits>` and, optionally, a space and a reason.
@@ -937,17 +1041,278 @@ struct DoorResponseReader: Sendable {
 
 // MARK: - One exchange
 
-/// How one exchange ended: its answer or its failure, and whether the
-/// request's bytes had been HANDED to the connection by then. A write's
-/// result is classified by `handed` (`WriteResult.of`); a read ignores it.
+/// How one exchange ended: its answer or its failure, whether the request's
+/// bytes had been HANDED to the connection by then, and (Phase 337) whether it
+/// went on a connection an earlier exchange had already answered on. A
+/// write's result is classified by `handed` (`WriteResult.of`); a read
+/// ignores it, and asks once more on a new line only when `reused` and the
+/// connection ended before an answer.
 struct ExchangeEnd: Sendable {
     let result: Result<DoorReply, Error>
     let handed: Bool
+    var reused = false
 }
 
-/// One connection, one request, one answer. Everything it holds is touched
-/// only on its own serial queue, which is also the queue Network.framework
-/// calls it on; `run` hands the end to the caller's task.
+// MARK: - The line: where every exchange runs (Phase 337)
+
+/// ONE CONNECTION AT A TIME, and the one place in the app a connection is
+/// made. Every exchange runs on a line. Most lines carry one request with
+/// `Connection: close` and are done (`DoorLine.once()`), exactly as every
+/// exchange ran before Phase 337. The Screen holds two lines that KEEP their
+/// connection (build/p337/SPEC.md D25, section 5.8.2), one for its poll and
+/// one for its keys, so a read every second or two is not a new mutual-TLS
+/// handshake through Funnel each time. A kept line:
+///
+///   - sends `Connection: keep-alive` and carries ONE exchange at a time;
+///   - is reused only while it has been idle less than `freshFor` (4 s) and
+///     its last exchange ended with a whole answer, to the same door, name,
+///     pin and identity;
+///   - CLOSES ITSELF once idle `freshFor`, by a timer and not at its next use
+///     (the door's own `keepAliveTimeout` is 5 s), so a Screen at rest holds
+///     one connection and leaves room under the door's four per source
+///     (§Attack A12);
+///   - closes on an answer that says `Connection: close`;
+///   - closes on ANY byte that arrives while no request is waiting, and an
+///     answer whose bytes run past its `Content-Length` is refused whole: a
+///     stray byte is never read as the next answer, so a kept line cannot
+///     fall out of step with the door;
+///   - closes when the task waiting on its exchange is cancelled, when the
+///     exchange times out or fails, and when `close()` is called (the Screen
+///     going away, the app leaving).
+///
+/// Everything a line holds is touched only on its own serial queue, which is
+/// also the queue Network.framework calls it on.
+final class DoorLine: @unchecked Sendable {
+    /// Seconds a kept line may sit idle and still carry a request. At this
+    /// age the phone closes it itself, before the door's 5 s (D25).
+    static let freshFor: TimeInterval = 4
+
+    /// Whether this line keeps its connection after an answer.
+    let keeps: Bool
+
+    private let queue = DispatchQueue(label: "tortie.door.line")
+    // Everything below is touched on `queue` alone.
+    private var connection: NWConnection?
+    /// What `connection` was dialled for.
+    private var dialled: LineTarget?
+    /// The handshake on `connection` finished.
+    private var ready = false
+    /// Whether the verify block refused `connection`'s leaf.
+    private var refusal = PinRefusal()
+    /// The one exchange under way on `connection`.
+    private var current: DoorExchange?
+    /// When a whole answer last ended an exchange on `connection`, which may
+    /// then carry another request: nil once anything else happened.
+    private var idleSince: Date?
+    /// Closes the connection once it has been idle `freshFor`.
+    private var idleTimer: DispatchWorkItem?
+
+    /// A kept line (`keeps` true), or a line for one request.
+    init(keeps: Bool) {
+        self.keeps = keeps
+    }
+
+    /// One request, one answer, `Connection: close`.
+    static func once() -> DoorLine {
+        DoorLine(keeps: false)
+    }
+
+    /// Close the connection now. The next exchange opens a new one.
+    func close() {
+        queue.async { self.drop() }
+    }
+
+    /// One request on this line, and how it ended. A cancelled task closes
+    /// the line; a WRITE cancelled before its bytes were handed is withheld.
+    func run(_ request: Data, to target: LineTarget, identity: ClientIdentity?, limits: DoorLimits, write: Bool) async -> ExchangeEnd {
+        let exchange = DoorExchange(line: self, request: request, cap: limits.cap, timeout: limits.timeout, write: write)
+        return await withTaskCancellationHandler {
+            await withCheckedContinuation { (waiting: CheckedContinuation<ExchangeEnd, Never>) in
+                queue.async { self.begin(exchange, waiting: waiting, target: target, identity: identity) }
+            }
+        } onCancel: {
+            queue.async { exchange.cancelled() }
+        }
+    }
+
+    private func begin(
+        _ exchange: DoorExchange,
+        waiting: CheckedContinuation<ExchangeEnd, Never>,
+        target: LineTarget,
+        identity: ClientIdentity?
+    ) {
+        guard exchange.wait(on: waiting) else { return }
+        if let earlier = current {
+            // One exchange at a time: a second request never shares the
+            // first's connection, so the first ends and its line closes.
+            earlier.fail(DoorFailure.cancelled)
+        }
+        exchange.arm(on: queue)
+        if canReuse(for: target) {
+            idleSince = nil
+            idleTimer?.cancel()
+            idleTimer = nil
+            current = exchange
+            exchange.reused = true
+            exchange.send()
+            return
+        }
+        drop()
+        current = exchange
+        open(for: target, identity: identity)
+    }
+
+    /// The connection is open, to this door, idle, and fresh.
+    private func canReuse(for target: LineTarget) -> Bool {
+        guard keeps, connection != nil, ready, dialled == target, let since = idleSince else { return false }
+        return Date().timeIntervalSince(since) < Self.freshFor
+    }
+
+    private func open(for target: LineTarget, identity: ClientIdentity?) {
+        guard let port = NWEndpoint.Port(rawValue: UInt16(clamping: target.port)) else {
+            current?.fail(DoorFailure.notPaired)
+            return
+        }
+        let refused = PinRefusal()
+        let parameters: NWParameters
+        do {
+            parameters = try DoorClient.parameters(
+                serverName: target.serverName, pin: target.pin, identity: identity, queue: queue, onPinRefused: { refused.mark() }
+            )
+        } catch {
+            current?.fail(DoorFailure.notPaired)
+            return
+        }
+        let made = NWConnection(to: .hostPort(host: NWEndpoint.Host(target.host), port: port), using: parameters)
+        connection = made
+        dialled = target
+        refusal = refused
+        ready = false
+        made.stateUpdateHandler = { [weak self, weak made] state in
+            guard let self, let made else { return }
+            self.changed(state, on: made)
+        }
+        made.start(queue: queue)
+    }
+
+    private func changed(_ state: NWConnection.State, on made: NWConnection) {
+        guard made === connection else { return }
+        switch state {
+        case .ready:
+            ready = true
+            receive(on: made)
+            current?.send()
+        case .waiting(let error), .failed(let error):
+            // A connection that is waiting is not waited on: a name that does
+            // not resolve, or a Mac that does not answer, is said now.
+            current?.fail(failure(error))
+            drop()
+        case .cancelled:
+            current?.fail(DoorFailure.cancelled)
+            drop()
+        default:
+            break
+        }
+    }
+
+    /// One receive at a time for as long as the connection lives: bytes for
+    /// the exchange under way, or, with none under way, a stray that closes
+    /// the line.
+    private func receive(on made: NWConnection) {
+        made.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
+            guard let self, made === self.connection else { return }
+            if let data, !data.isEmpty {
+                guard let exchange = self.current else {
+                    // Nobody asked: never the next answer.
+                    self.drop()
+                    return
+                }
+                exchange.feed(data)
+                guard made === self.connection else { return }
+            }
+            if let error {
+                self.current?.fail(self.failure(error))
+                self.drop()
+                return
+            }
+            if isComplete {
+                self.current?.closedByDoor()
+                self.drop()
+                return
+            }
+            self.receive(on: made)
+        }
+    }
+
+    /// The bytes a sent request's connection failed with.
+    fileprivate func sendFailed(_ exchange: DoorExchange, _ error: NWError) {
+        guard exchange === current else { return }
+        exchange.fail(failure(error))
+        drop()
+    }
+
+    /// An exchange ended. A whole answer on a kept line that did not say
+    /// close leaves the line idle for the next request; anything else
+    /// closes it.
+    fileprivate func ended(_ exchange: DoorExchange, whole: Bool) {
+        guard exchange === current else { return }
+        current = nil
+        guard keeps, whole, connection != nil else {
+            drop()
+            return
+        }
+        idleSince = Date()
+        let timer = DispatchWorkItem { [weak self] in self?.drop() }
+        idleTimer = timer
+        queue.asyncAfter(deadline: .now() + Double(Self.freshFor), execute: timer)
+    }
+
+    /// The connection as the exchange under way may send on it.
+    fileprivate var sendable: NWConnection? {
+        ready ? connection : nil
+    }
+
+    private func failure(_ error: NWError) -> DoorFailure {
+        DoorClient.failure(for: error, ready: ready, pinRefused: refusal.happened, answered: current?.answered ?? false)
+    }
+
+    /// Close whatever is open, and end the exchange under way with it.
+    private func drop() {
+        idleTimer?.cancel()
+        idleTimer = nil
+        idleSince = nil
+        let made = connection
+        connection = nil
+        dialled = nil
+        ready = false
+        made?.stateUpdateHandler = nil
+        made?.cancel()
+        if let exchange = current {
+            current = nil
+            exchange.fail(DoorFailure.cancelled)
+        }
+    }
+}
+
+/// Where a line's connection goes and what it presents: reused only for the
+/// same route, name, pin and identity.
+struct LineTarget: Equatable, @unchecked Sendable {
+    let host: String
+    let port: Int
+    let serverName: String
+    let pin: String
+    /// The identity the connection presents, compared as the same Keychain
+    /// object; nil for `POST /pair`.
+    let presents: SecIdentity?
+
+    static func == (lhs: LineTarget, rhs: LineTarget) -> Bool {
+        lhs.host == rhs.host && lhs.port == rhs.port && lhs.serverName == rhs.serverName && lhs.pin == rhs.pin
+            && lhs.presents === rhs.presents
+    }
+}
+
+/// One request on a line, and its answer. Everything it holds is touched only
+/// on its line's queue.
 ///
 /// A WRITE IS WITHHELD WHEN ITS TASK IS CANCELLED BEFORE ITS BYTES ARE HANDED
 /// (build/p317/SPEC.md section 5.8.1, D6). `AppModel.wentAway()` cancels every
@@ -958,158 +1323,112 @@ struct ExchangeEnd: Sendable {
 /// resuming one on the way back in) sends nothing; once `handed` is true it
 /// does nothing, and the exchange ends by its answer, its failure or its timer.
 private final class DoorExchange: @unchecked Sendable {
-    private let queue: DispatchQueue
-    private let connection: NWConnection
+    private let line: DoorLine
     private let request: Data
     private let timeout: TimeInterval
-    private let refused: PinRefusal
-    /// A write (`POST /v1/end`, `/v1/choose` or `/v1/say`), whose cancellation
-    /// withholds rather than abandons.
+    /// A write (`POST /v1/end`, `/v1/choose`, `/v1/say` or `/v1/keys`), whose
+    /// cancellation withholds rather than abandons.
     private let write: Bool
     private var reader: DoorResponseReader
     private var continuation: CheckedContinuation<ExchangeEnd, Never>?
     private var result: Result<DoorReply, Error>?
     private var timer: DispatchWorkItem?
-    private var ready = false
     /// Set in `send()` alone, as the statement just before the bytes are
     /// handed to the connection, and never cleared.
     private var handed = false
     /// Set by a write's cancellation while `handed` is false; `send()` then
     /// hands nothing.
     private var withheld = false
+    /// The request went on a connection an earlier exchange had answered on.
+    var reused = false
 
-    init(
-        endpoint: NWEndpoint,
-        serverName: String,
-        pin: String,
-        identity: ClientIdentity?,
-        request: Data,
-        limits: DoorLimits,
-        write: Bool
-    ) throws {
-        let queue = DispatchQueue(label: "tortie.door.exchange")
-        let refused = PinRefusal()
-        let parameters = try DoorClient.parameters(
-            serverName: serverName, pin: pin, identity: identity, queue: queue, onPinRefused: { refused.mark() }
-        )
-        self.queue = queue
-        self.refused = refused
-        connection = NWConnection(to: endpoint, using: parameters)
+    init(line: DoorLine, request: Data, cap: Int, timeout: TimeInterval, write: Bool) {
+        self.line = line
         self.request = request
-        timeout = limits.timeout
-        reader = DoorResponseReader(cap: limits.cap)
+        self.timeout = timeout
         self.write = write
+        reader = DoorResponseReader(cap: cap)
     }
 
-    func run() async -> ExchangeEnd {
-        await withTaskCancellationHandler {
-            await withCheckedContinuation { (continuation: CheckedContinuation<ExchangeEnd, Never>) in
-                queue.async { self.start(continuation) }
-            }
-        } onCancel: {
-            queue.async { self.cancelled() }
+    /// Whether a byte of the answer arrived.
+    var answered: Bool { reader.answered }
+
+    /// Keep the task waiting, or answer it now when the exchange already
+    /// ended (cancelled before it began). True when it is still to run.
+    func wait(on waiting: CheckedContinuation<ExchangeEnd, Never>) -> Bool {
+        if let result {
+            waiting.resume(returning: ExchangeEnd(result: result, handed: handed, reused: reused))
+            return false
         }
+        continuation = waiting
+        return true
+    }
+
+    /// The whole exchange's deadline: the handshake, the request and the
+    /// answer, on a new connection or a kept one.
+    func arm(on queue: DispatchQueue) {
+        let timer = DispatchWorkItem { [weak self] in self?.fail(DoorFailure.timedOut) }
+        self.timer = timer
+        queue.asyncAfter(deadline: .now() + timeout, execute: timer)
     }
 
     /// The task asking was cancelled. A read stops now. A write is withheld
     /// if its bytes were not handed yet, and otherwise runs to its end.
-    private func cancelled() {
+    func cancelled() {
         if write {
             guard !handed else { return }
             withheld = true
         }
-        finish(.failure(DoorFailure.cancelled))
+        fail(DoorFailure.cancelled)
     }
 
-    private func start(_ waiting: CheckedContinuation<ExchangeEnd, Never>) {
-        if let result {
-            // Cancelled before it began.
-            waiting.resume(returning: ExchangeEnd(result: result, handed: handed))
-            return
-        }
-        continuation = waiting
-        let timer = DispatchWorkItem { [weak self] in self?.finish(.failure(DoorFailure.timedOut)) }
-        self.timer = timer
-        queue.asyncAfter(deadline: .now() + timeout, execute: timer)
-        connection.stateUpdateHandler = { [weak self] state in self?.changed(state) }
-        connection.start(queue: queue)
-    }
-
-    private func changed(_ state: NWConnection.State) {
-        switch state {
-        case .ready:
-            ready = true
-            send()
-        case .waiting(let error), .failed(let error):
-            // A connection that is waiting is not waited on: a name that does
-            // not resolve, or a Mac that does not answer, is said now.
-            finish(.failure(failure(error)))
-        case .cancelled:
-            finish(.failure(DoorFailure.cancelled))
-        default:
-            break
-        }
-    }
-
-    private func failure(_ error: NWError) -> DoorFailure {
-        DoorClient.failure(for: error, ready: ready, pinRefused: refused.happened, answered: reader.answered)
-    }
-
-    private func send() {
-        // Withheld, or already ended: hand nothing.
-        guard !withheld, result == nil else { return }
+    /// Hand the request to the line's connection.
+    func send() {
+        // Withheld, or already ended, or nothing to send on: hand nothing.
+        guard !withheld, result == nil, let connection = line.sendable else { return }
         handed = true
         connection.send(content: request, completion: .contentProcessed { [weak self] error in
-            guard let self else { return }
-            if let error {
-                self.finish(.failure(self.failure(error)))
-                return
-            }
-            self.receive()
+            guard let self, let error else { return }
+            self.line.sendFailed(self, error)
         })
     }
 
-    private func receive() {
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, isComplete, error in
-            guard let self, self.result == nil else { return }
-            if let data, !data.isEmpty {
-                do {
-                    try self.reader.feed(data)
-                } catch {
-                    self.finish(.failure(error))
-                    return
-                }
-                if self.reader.isComplete {
-                    self.finish(Result { try self.reader.finish() })
-                    return
-                }
-            }
-            if let error {
-                self.finish(.failure(self.failure(error)))
-                return
-            }
-            if isComplete {
-                self.finish(Result { try self.reader.finish() })
-                return
-            }
-            self.receive()
+    /// More of the answer.
+    func feed(_ data: Data) {
+        guard result == nil else { return }
+        do {
+            try reader.feed(data)
+        } catch {
+            fail(error)
+            return
+        }
+        if reader.isComplete {
+            finish(Result { try reader.finish() }, whole: !reader.closes)
         }
     }
 
-    private func finish(_ outcome: Result<DoorReply, Error>) {
+    /// The door closed the connection: whatever the answer is by now.
+    func closedByDoor() {
+        finish(Result { try reader.finish() }, whole: false)
+    }
+
+    func fail(_ error: Error) {
+        finish(.failure(error), whole: false)
+    }
+
+    private func finish(_ outcome: Result<DoorReply, Error>, whole: Bool) {
         guard result == nil else { return }
         result = outcome
         timer?.cancel()
         timer = nil
-        connection.stateUpdateHandler = nil
-        connection.cancel()
         let waiting = continuation
         continuation = nil
-        waiting?.resume(returning: ExchangeEnd(result: outcome, handed: handed))
+        line.ended(self, whole: whole && (try? outcome.get()) != nil)
+        waiting?.resume(returning: ExchangeEnd(result: outcome, handed: handed, reused: reused))
     }
 }
 
-/// Whether the verify block refused the leaf, set on the exchange's queue and
+/// Whether the verify block refused the leaf, set on the line's queue and
 /// read there.
 private final class PinRefusal: @unchecked Sendable {
     private(set) var happened = false

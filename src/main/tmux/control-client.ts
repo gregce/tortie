@@ -72,6 +72,33 @@
  * must own a slot, and the one this client writes for itself on every connect,
  * `refresh-client -f no-output`, had none. Its empty block went to whichever
  * caller came first after a connect. See `pushOwnSlot`.
+ *
+ * ## Phase 337: a block ends only on its own guard (build/p337/SPEC.md D8)
+ *
+ * tmux writes what a command prints RAW inside its block: `capture-pane -p`
+ * hands back a screen's rows exactly as the screen shows them, and `-C`
+ * escapes nothing printable (§14 M2). So a row a session DRAWS can be shaped
+ * like `%end …` or `%begin …`. Before this phase any `%end` or `%error` inside
+ * an open block closed it, and a session drawing two guard-shaped rows, read
+ * pipelined beside three other panes, handed the next pane's answer to the
+ * wrong command in 20 of 20 trials on both measured builds, and left later
+ * answers shifted after it (§14 M3). The monitor captures every session's
+ * screen over this client on its tick, and the phone's Screen reads screens
+ * through it ten times a second, so the class is every caller's.
+ *
+ * The rule: a block remembers the command number and the time its `%begin`
+ * carried, and only an `%end` or `%error` carrying the SAME two closes it; any
+ * other line, guard-shaped or not, is body. tmux writes one command's number
+ * and time on both of its guards (201 of 201 pairs on 3.7b and on 3.6a, §14
+ * M16), so a real answer loses nothing. Flags are not compared.
+ *
+ * What is left, stated by its class: a row that carries the live block's own
+ * number AND second still ends it. The number is the server's command counter
+ * at the moment of the read, which content drawn earlier does not know, so
+ * reaching it takes a guess that lands on both; a program that can read the
+ * counter is one already talking to this server, and such a program holds the
+ * server whatever this client does. Accidental content, a transcript of a
+ * control session shown in a pane, would have to match both by coincidence.
  */
 
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
@@ -234,8 +261,12 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   /** Commands queued until the greeting block is consumed. */
   private readonly outbox: string[] = [];
   private greetingConsumed = false;
-  /** Lines collected for the currently open %begin block (null = no block). */
-  private blockLines: string[] | null = null;
+  /**
+   * The currently open %begin block (null = no block): its body so far, and
+   * the command number and time its `%begin` carried. Only an `%end` or
+   * `%error` carrying the same two closes it (Phase 337, D8).
+   */
+  private block: { lines: string[]; number: number; time: number } | null = null;
   private stopped = false;
   private reconnectDelayMs = RECONNECT_MIN_MS;
   private reconnectTimer: NodeJS.Timeout | null = null;
@@ -292,7 +323,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
       });
       this.child = child;
       this.greetingConsumed = false;
-      this.blockLines = null;
+      this.block = null;
       this.lineBuffer.reset();
       // PHASE 83. Armed immediately after spawn and before any listener, so a
       // child that answers nothing at all is still covered.
@@ -431,21 +462,28 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
   private handleLine(line: string): void {
     const event = parseControlLine(line);
 
-    // Inside a %begin block, everything except the closing guard is body.
-    if (this.blockLines !== null) {
-      if (event.kind === 'end' || event.kind === 'command-error') {
-        const lines = this.blockLines;
-        this.blockLines = null;
-        this.closeBlock(event.kind === 'end', lines);
+    // Inside a %begin block, everything except ITS OWN closing guard is body
+    // (Phase 337, D8): an `%end` or `%error` closes the block only when its
+    // command number and time are the ones the block's `%begin` carried. A
+    // guard-shaped row a screen drew, inside a capture's answer, is body.
+    const open = this.block;
+    if (open !== null) {
+      if (
+        (event.kind === 'end' || event.kind === 'command-error') &&
+        event.commandNumber === open.number &&
+        event.timestamp === open.time
+      ) {
+        this.block = null;
+        this.closeBlock(event.kind === 'end', open.lines);
         return;
       }
-      this.blockLines.push(line);
+      open.lines.push(line);
       return;
     }
 
     switch (event.kind) {
       case 'begin':
-        this.blockLines = [];
+        this.block = { lines: [], number: event.commandNumber, time: event.timestamp };
         return;
       case 'end':
       case 'command-error':
@@ -510,7 +548,7 @@ export class TmuxControlClient extends EventEmitter<ControlClientEvents> {
     }
     if (!hadChild) return; // already handled (exit after %exit, etc.)
     this.greetingConsumed = false;
-    this.blockLines = null;
+    this.block = null;
     this.lineBuffer.reset();
     this.failPending(
       gmuxError(

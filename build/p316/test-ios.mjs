@@ -68,6 +68,27 @@
  * verified and answered. The classes 318 adds are `P318_SUITES`, each named in
  * xcodebuild's own suite lines.
  *
+ * AND THE SCREEN'S KEPT LINES, MEASURED (Phase 337, build/p337/SPEC.md D25,
+ * §6.4, §Attack A12). A fifth listener under door A's key and admission KEEPS
+ * its connections (`keepAliveTimeout` 5 s, `SCREEN_DOOR_KEEP_MS`, the shipping
+ * door's) and answers `GET /v1/screen` with the committed sample
+ * (build/fixtures/screen/sample-claude-2.1.287.json, the id echoed; a `since`
+ * equal to its revision answered `unchanged`) and `POST /v1/keys` with `done`
+ * under the verb `keys`, both verified as the vectors' phone. By the session a
+ * request names, `p337-close-on-next` is answered and the NEXT request on that
+ * connection is read, counted and ended with no answer; `p337-stray` is
+ * answered and a second, unasked answer follows 50 ms later on the same
+ * connection; `p337-says-close` is answered with `Connection: close`.
+ * `GET /p337/counts` answers its handshakes, the connections the PHONE ended
+ * first, its screen reads and its keys writes. Its port reaches the tests as
+ * `TEST_RUNNER_P337_SCREEN_PORT`, so `P337ScreenTransportTests` drives the
+ * SHIPPING `DoorClient` and `DoorLine` over it; after each configuration
+ * `screenProblems` reads its counts and xcodebuild's own output, which must
+ * hold every `P337_TRANSPORT|<row>|<reading>` row reading what it must
+ * (`P337_TRANSPORT_ROWS`) and both `P337_GRID` lines of `ScreenGridCostTests`,
+ * the top size under 64 MB. The classes 337 adds are `P337_SUITES`, each named
+ * in xcodebuild's own suite lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
  *      device type. Missing any, it REFUSES with a sentence naming what is
@@ -506,6 +527,12 @@ export const P317_HOLD_MS = 2_000;
 export const WRITE_ROUTES = Object.freeze({ '/v1/end': 'end', '/v1/choose': 'choose', '/v1/say': 'say' });
 /** The most of a write's body door A reads: the say cap (Phase 318, `POCKET_WRITE_BODY_CAPS.say`). */
 export const WRITE_READ_CAP = 32_768;
+/** Phase 337: how long the screen door keeps an idle connection, the shipping door's own (D25). */
+export const SCREEN_DOOR_KEEP_MS = 5_000;
+/** Phase 337: the rows P337ScreenTransportTests prints, `P337_TRANSPORT|<row>|<what it read>`, and what each must read. */
+export const P337_TRANSPORT_ROWS = Object.freeze({ 'one-line': '1', idle: '1', 'closed-read': '3', 'keys-once': 'noAnswer', stray: '1', 'says-close': '1' });
+/** Phase 337: the grid's ceiling at the top size (ScreenGridCostTests, §Attack A24), 64 MB. */
+export const P337_GRID_CEILING = 64 * 1024 * 1024;
 
 /**
  * The vectors' phone and the vectors' Mac (ios/TortieTests/Fixtures/vectors.json,
@@ -580,7 +607,11 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     // Phase 317. Every write door A read, by route and by the signature's word.
     writes: { end: 0, choose: 0, say: 0, verified: 0, refused: [], answered: 0 },
     holdTls: { connections: 0, closedWhileHeld: 0, handshakes: 0, requests: 0, answered: 0 },
-    holdAnswer: { connections: 0, handshakes: 0, requests: 0, answered: 0, hungUp: 0 }
+    holdAnswer: { connections: 0, handshakes: 0, requests: 0, answered: 0, hungUp: 0 },
+    // Phase 337. The screen door's own: every handshake (the counts request's
+    // included), every connection the PHONE ended first, every screen read and
+    // keys write it read, and every signature that did not hold.
+    screen: { handshakes: 0, phoneCloses: 0, screenReads: 0, keysPosts: 0, refused: [] }
   });
   let counts = fresh();
   // Every key door A ever issued over, which a `reset` between configurations
@@ -740,7 +771,109 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
   holdAnswer.on('connection', () => {
     counts.holdAnswer.connections += 1;
   });
-  const servers = [doorA, doorB, holdTls, holdAnswer];
+  // PHASE 337: the screen door, under door A's key and admission, that KEEPS
+  // its connections (`keepAliveTimeout` 5 s, the shipping door's) and answers
+  // `GET /v1/screen` and `POST /v1/keys`, each verified as the vectors' phone.
+  // By the session a request names: `p337-close-on-next` is answered and the
+  // NEXT request on that connection is read, counted and its connection ended
+  // with no answer; `p337-stray` is answered and, 50 ms later, a second answer
+  // nobody asked for is written on the same connection; `p337-says-close` is
+  // answered with `Connection: close`. A read whose `since` is the sample's
+  // revision is answered `unchanged`.
+  const sample = JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8'));
+  const screenAnswerFor = (id, since) =>
+    since === sample.revision
+      ? { sessionId: id, revision: sample.revision, at: Date.now(), unchanged: true, screen: null, why: null, sentence: null }
+      : { ...sample, sessionId: id, at: Date.now() };
+  const keepAnswer = (res, status, body, { close = false } = {}) => {
+    const bytes = Buffer.from(body ?? '', 'utf8');
+    const headers = { 'Content-Length': String(bytes.length), Connection: close ? 'close' : 'keep-alive' };
+    if (body !== null) headers['Content-Type'] = 'application/json; charset=utf-8';
+    if (close) res.socket.p337ServerEnded = true;
+    res.writeHead(status, headers);
+    res.end(bytes);
+  };
+  const screenHttp = createHttp({ maxHeaderSize: 8192, keepAliveTimeout: SCREEN_DOOR_KEEP_MS }, (req, res) => {
+    const chunks = [];
+    let size = 0;
+    req.on('data', (c) => {
+      size += c.length;
+      if (size <= WRITE_READ_CAP) chunks.push(c);
+    });
+    req.on('end', () => {
+      const socket = req.socket;
+      const body = Buffer.concat(chunks);
+      const url = new URL(req.url ?? '/', 'https://door.invalid');
+      const reading = req.method === 'GET' && url.pathname === '/v1/screen';
+      const writing = req.method === 'POST' && req.url === '/v1/keys';
+      if (reading) counts.screen.screenReads += 1;
+      if (writing) counts.screen.keysPosts += 1;
+      if (socket.p337CloseNext === true && (reading || writing)) {
+        // The request after `p337-close-on-next`: read, counted, never answered.
+        socket.p337ServerEnded = true;
+        socket.destroy();
+        return;
+      }
+      if (req.method === 'GET' && req.url === '/p337/counts') {
+        const { handshakes, phoneCloses, screenReads, keysPosts, refused } = counts.screen;
+        // THE DOOR ENDS THE COUNTS CONNECTION (the probe review, 2026-10-05).
+        // The tests read the counts through the one-shot `DoorClient.exchange`,
+        // which asks `Connection: close` and closes its connection once it has
+        // the answer. Kept open here, that close was counted as the phone
+        // ending a line first, so `idle`, which reads the counts on each side
+        // of a 4.5 s wait, read 2 for the ONE line the phone closed (measured
+        // with a node client that closes as DoorClient does). Ended by the
+        // door, it is never the phone's.
+        return keepAnswer(res, 200, JSON.stringify({ handshakes, phoneCloses, screenReads, keysPosts, refused: refused.length }), { close: true });
+      }
+      if (!reading && !writing) return keepAnswer(res, 404, null);
+      const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
+      if (verdict !== 'ok') {
+        counts.screen.refused.push(verdict);
+        return keepAnswer(res, 404, null);
+      }
+      let session = '';
+      if (reading) session = url.searchParams.get('id') ?? '';
+      else {
+        try {
+          session = String(JSON.parse(body.toString('utf8')).session ?? '');
+        } catch {
+          session = '';
+        }
+      }
+      const reply = reading ? JSON.stringify(screenAnswerFor(session, url.searchParams.get('since'))) : JSON.stringify(writeAnswerOf('keys', body, POCKET_WRITE_SENTENCES.unreadable));
+      if (session === 'p337-close-on-next') socket.p337CloseNext = true;
+      keepAnswer(res, 200, reply, { close: session === 'p337-says-close' });
+      if (session === 'p337-stray') {
+        setTimeout(() => {
+          if (socket.destroyed) return;
+          const stray = Buffer.from(reply, 'utf8');
+          socket.write(`HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${String(stray.length)}\r\nConnection: keep-alive\r\n\r\n`);
+          socket.write(stray);
+        }, 50).unref?.();
+      }
+    });
+  });
+  const screenDoor = createTls(tlsOptions);
+  screenDoor.on('secureConnection', (socket) => {
+    counts.screen.handshakes += 1;
+    const peer = socket.getPeerX509Certificate();
+    const pin = peer === undefined ? null : pinOfSpki(peer.publicKey.export({ type: 'spki', format: 'der' }));
+    if (pin === null || !admitted.has(pin)) {
+      counts.a.refused += 1;
+      socket.destroy();
+      return;
+    }
+    socket.p330Pin = pin;
+    // The PHONE ended this connection first: its end reached a socket the door had not ended.
+    socket.on('end', () => {
+      if (socket.p337ServerEnded !== true) counts.screen.phoneCloses += 1;
+    });
+    socket.on('error', () => undefined);
+    screenHttp.emit('connection', socket);
+  });
+  screenDoor.on('tlsClientError', () => undefined);
+  const servers = [doorA, doorB, holdTls, holdAnswer, screenDoor];
   const listening = [];
   const close = async () => {
     for (const raw of held) raw.destroy();
@@ -755,6 +888,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
       )
     );
     http.closeAllConnections?.();
+    screenHttp.closeAllConnections?.();
   };
   try {
     for (const server of servers) {
@@ -774,6 +908,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     portB: doorB.address().port,
     portHoldTls: holdTls.address().port,
     portHoldAnswer: holdAnswer.address().port,
+    portScreen: screenDoor.address().port,
     holdMs,
     pinA: A.pin,
     counts: () => counts,
@@ -834,6 +969,48 @@ export function replyProblems(counts, configuration) {
 
 /** The test classes Phase 318 adds or changes (build/p318/SPEC.md §7.2, §10). */
 export const P318_SUITES = Object.freeze(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests', 'CopyTests', 'DoorVectorTests', 'WriterTests']);
+
+/**
+ * What one configuration's Screen rows left (Phase 337, build/p337/SPEC.md
+ * §6.4): the screen door read at least one screen read and one keys write,
+ * every signature held, and xcodebuild's output holds every
+ * `P337_TRANSPORT|<row>|<reading>` row reading what it must, and the grid's
+ * two `P337_GRID|<size>|<bytes>|…` lines with the top size under 64 MB.
+ * Returns the problems (sentences).
+ */
+export function screenProblems(counts, configuration, text) {
+  const problems = [];
+  const s = counts.screen;
+  if (s.screenReads === 0) problems.push(`${configuration}: the screen door read no GET /v1/screen, so P337ScreenTransportTests never reached it`);
+  if (s.keysPosts === 0) problems.push(`${configuration}: the screen door read no POST /v1/keys, so the keys row never reached it`);
+  if (s.refused.length > 0) problems.push(`${configuration}: the screen door refused ${String(s.refused.length)} signature(s) (${[...new Set(s.refused)].join(', ')})`);
+  const rows = new Map([...String(text).matchAll(/P337_TRANSPORT\|([a-z-]+)\|([^\s|]+)/g)].map((m) => [m[1], m[2]]));
+  for (const [row, want] of Object.entries(P337_TRANSPORT_ROWS)) {
+    if (!rows.has(row)) problems.push(`${configuration}: no P337_TRANSPORT|${row} line, so that row did not run to its end`);
+    else if (rows.get(row) !== want) problems.push(`${configuration}: P337_TRANSPORT|${row} read ${String(rows.get(row))}, not ${want}`);
+  }
+  const grid = new Map([...String(text).matchAll(/P337_GRID\|([a-z]+)\|(\d+)\|/g)].map((m) => [m[1], Number(m[2])]));
+  for (const size of ['fitted', 'top']) if (!grid.has(size)) problems.push(`${configuration}: no P337_GRID|${size} line, so the grid's cost was not read`);
+  if (grid.has('top') && grid.get('top') >= P337_GRID_CEILING) problems.push(`${configuration}: the grid at its top size grew the app by ${String(grid.get('top'))} bytes, over 64 MB (needs_work, §Attack A24)`);
+  return problems;
+}
+
+/** The test classes Phase 337 adds (build/p337/SPEC.md §6.4), each of which must appear in xcodebuild's own suite lines. */
+export const P337_SUITES = Object.freeze([
+  'P337ScreenTransportTests',
+  'ScreenGridCostTests',
+  'ScreenDecodeTests',
+  'ScreenColourTests',
+  'ScreenRowsTests',
+  'ScreenKeysTests',
+  'ScreenInputTests',
+  'ScreenSelectionTests',
+  'ScreenCoverTests',
+  'ScreenGlyphTests',
+  'EndTopTests',
+  'DoorVectorTests',
+  'CopyTests'
+]);
 
 /**
  * The test classes Phase 317 adds or changes (build/p317/SPEC.md §7.3), each of
@@ -1024,12 +1201,143 @@ async function doorsSelfTest() {
     await new Promise((r) => setTimeout(r, hold + 400));
     check('the control: a held answer whose client hung up is not counted answered', goneGot.status === 0 && doors.counts().holdAnswer.requests === 1 && doors.counts().holdAnswer.answered === 0 && doors.counts().holdAnswer.hungUp === 1, J(doors.counts().holdAnswer));
 
+    // Phase 337: the screen door, over connections it keeps.
+    doors.reset();
+    {
+      const getSigned = (target) => ({ ...phoneMod.signedHeadersFor(vectorPhone, 'GET', target, Buffer.alloc(0)) });
+      /** One TLS connection to the screen door, with a reader of one HTTP/1.1 answer at a time. */
+      const line = async () => {
+        const socket = tlsConnect({ host: '127.0.0.1', port: doors.portScreen, servername: doors.name, minVersion: 'TLSv1.3', rejectUnauthorized: false, cert: identity.certPem, key: identity.clientPrivatePem });
+        socket.on('error', () => undefined);
+        await new Promise((ok) => socket.once('secureConnect', ok));
+        let buf = Buffer.alloc(0);
+        let ended = false;
+        socket.on('data', (c) => {
+          buf = Buffer.concat([buf, c]);
+        });
+        socket.on('close', () => {
+          ended = true;
+        });
+        const oneAnswer = async (ms = 2_000) => {
+          const until = Date.now() + ms;
+          for (;;) {
+            const head = buf.indexOf('\r\n\r\n');
+            if (head !== -1) {
+              const text = buf.subarray(0, head).toString('latin1');
+              const length = Number(/content-length: *(\d+)/i.exec(text)?.[1] ?? '0');
+              if (buf.length >= head + 4 + length) {
+                const body = buf.subarray(head + 4, head + 4 + length).toString('utf8');
+                buf = buf.subarray(head + 4 + length);
+                return { status: Number(text.split(' ')[1]), head: text, body };
+              }
+            }
+            if (ended || Date.now() > until) return null;
+            await new Promise((r) => setTimeout(r, 10));
+          }
+        };
+        const ask = async (method, target, headers, body = '') => {
+          const lines = [`${method} ${target} HTTP/1.1`, `Host: ${doors.name}`, ...Object.entries(headers).map(([k, v]) => `${k}: ${v}`), `Content-Length: ${String(Buffer.byteLength(body))}`, '', ''];
+          socket.write(lines.join('\r\n'));
+          if (body !== '') socket.write(body);
+          return oneAnswer();
+        };
+        return { socket, ask, oneAnswer, ended: () => ended, waiting: () => buf.length };
+      };
+      const read = (l, id, since = null) => {
+        const target = `/v1/screen?id=${encodeURIComponent(id)}${since === null ? '' : `&since=${since}`}`;
+        return l.ask('GET', target, getSigned(target));
+      };
+      const keysBody = (session) => JSON.stringify({ dialog: null, keys: [{ t: 'a' }], session, turn: '0123456789abcdef-1', write: randomBytes(16).toString('hex') });
+      const post = (l, session) => {
+        const body = keysBody(session);
+        return l.ask('POST', '/v1/keys', { ...phoneMod.signedHeadersFor(vectorPhone, 'POST', '/v1/keys', Buffer.from(body, 'utf8')), 'Content-Type': 'application/json' }, body);
+      };
+      const one = await line();
+      const first = await read(one, 'p337-session');
+      const firstSaid = (() => { try { return JSON.parse(first?.body ?? ''); } catch { return null; } })();
+      check('an honest screen read is answered with the sample, its id echoed, on a kept connection', first?.status === 200 && firstSaid?.sessionId === 'p337-session' && firstSaid?.screen?.cols === 120 && /connection: keep-alive/i.test(first?.head ?? ''), `${String(first?.status)} ${first?.head ?? ''}`);
+      const second = await read(one, 'p337-session', firstSaid?.revision ?? 'x');
+      const secondSaid = (() => { try { return JSON.parse(second?.body ?? ''); } catch { return null; } })();
+      check('a second read on the same connection, with the revision, is answered unchanged', second?.status === 200 && secondSaid?.unchanged === true && secondSaid?.screen === null && doors.counts().screen.handshakes === 1, `${String(second?.status)}, ${String(doors.counts().screen.handshakes)} handshake(s)`);
+      const k = await post(one, 'p337-session');
+      const kSaid = (() => { try { return JSON.parse(k?.body ?? ''); } catch { return null; } })();
+      check('a keys write is verified and answered done under the verb keys, its id echoed', k?.status === 200 && kSaid?.verb === 'keys' && kSaid?.outcome === 'done' && /^[0-9a-f]{32}$/.test(String(kSaid?.write)), k?.body ?? 'no answer');
+      const forgedTarget = '/v1/screen?id=p337-session';
+      const forged = await one.ask('GET', `${forgedTarget}&since=0123456789ab`, getSigned(forgedTarget));
+      check('a read whose target changed after signing is answered 404 and counted refused', forged?.status === 404 && doors.counts().screen.refused.includes('signature'), `${String(forged?.status)} ${J(doors.counts().screen.refused)}`);
+      const closesBefore = doors.counts().screen.phoneCloses;
+      one.socket.end();
+      await new Promise((r) => setTimeout(r, 200));
+      check('a connection the phone ends first is counted the phone\'s', doors.counts().screen.phoneCloses === closesBefore + 1, J(doors.counts().screen));
+
+      const two = await line();
+      const readsBefore = doors.counts().screen.screenReads;
+      const closeFirst = await read(two, 'p337-close-on-next');
+      const closeNext = await read(two, 'p337-session');
+      check('p337-close-on-next: answered, and the next request read, counted and ended with no answer', closeFirst?.status === 200 && closeNext === null && two.ended() && doors.counts().screen.screenReads === readsBefore + 2, `${String(closeFirst?.status)} then ${J(closeNext)}, ${String(doors.counts().screen.screenReads - readsBefore)} read(s)`);
+      const closedByDoor = doors.counts().screen.phoneCloses;
+      await new Promise((r) => setTimeout(r, 100));
+      check('a connection the door ended is not counted the phone\'s', doors.counts().screen.phoneCloses === closedByDoor);
+
+      const three = await line();
+      const strayFirst = await read(three, 'p337-stray');
+      await new Promise((r) => setTimeout(r, 200));
+      const unasked = await three.oneAnswer(500);
+      check('p337-stray: answered, then a second answer nobody asked for on the same connection', strayFirst?.status === 200 && unasked?.status === 200, `${String(strayFirst?.status)} then ${String(unasked?.status)}`);
+      three.socket.destroy();
+
+      const four = await line();
+      const closing = await read(four, 'p337-says-close');
+      await new Promise((r) => setTimeout(r, 200));
+      check('p337-says-close: answered with Connection: close, and the connection ends', closing?.status === 200 && /connection: close/i.test(closing?.head ?? '') && four.ended(), closing?.head ?? 'no answer');
+
+      const five = await line();
+      const idleFrom = Date.now();
+      await read(five, 'p337-session');
+      for (let i = 0; i < 80 && !five.ended(); i += 1) await new Promise((r) => setTimeout(r, 100));
+      const idleMs = Date.now() - idleFrom;
+      check('an idle kept connection is ended by the door at its 5 s, not before', five.ended() && idleMs >= SCREEN_DOOR_KEEP_MS - 200, `${String(idleMs)} ms`);
+
+      // The counts read the tests make, the one-shot way (`Connection: close`,
+      // the client closing once it has the answer), on each side of a kept line
+      // the phone ends: ONE phone close between them, not two (the probe
+      // review: kept open, the counts connection's own close was the second).
+      {
+        const countsOnce = async () => {
+          const c = await line();
+          const got = await c.ask('GET', '/p337/counts', { Connection: 'close' });
+          c.socket.end();
+          await new Promise((r) => setTimeout(r, 150));
+          return (() => { try { return JSON.parse(got?.body ?? ''); } catch { return null; } })();
+        };
+        const kept = await line();
+        await read(kept, 'p337-session');
+        const before = await countsOnce();
+        kept.socket.end();
+        await new Promise((r) => setTimeout(r, 200));
+        const after = await countsOnce();
+        check('a one-shot counts read closed by its client is not the phone ending a line: one phone close for the one kept line', before !== null && after !== null && after.phoneCloses - before.phoneCloses === 1, `${J(before)} then ${J(after)}`);
+      }
+
+      const counted = doors.counts();
+      const honestText =Object.entries(P337_TRANSPORT_ROWS).map(([row, want]) => `P337_TRANSPORT|${row}|${want}`).join('\n') + '\nP337_GRID|fitted|1048576|1|2\nP337_GRID|top|4194304|1|2\n';
+      const clean = structuredClone(counted);
+      clean.screen.refused = [];
+      check('screenProblems passes a run that read, wrote and printed every row', screenProblems(clean, 'self-test', honestText).length === 0, J(screenProblems(clean, 'self-test', honestText)));
+      check('screenProblems refuses the forged read it saw', screenProblems(counted, 'self-test', honestText).length === 1);
+      check('screenProblems refuses a row that read wrong', screenProblems(clean, 'self-test', honestText.replace('P337_TRANSPORT|keys-once|noAnswer', 'P337_TRANSPORT|keys-once|answered')).length === 1);
+      check('screenProblems refuses a row that never printed', screenProblems(clean, 'self-test', honestText.replace('P337_TRANSPORT|stray|1\n', '')).length === 1);
+      check('screenProblems refuses a grid over 64 MB at its top size', screenProblems(clean, 'self-test', honestText.replace('P337_GRID|top|4194304', `P337_GRID|top|${String(P337_GRID_CEILING)}`)).length === 1);
+      check('screenProblems refuses a run with no keys write', screenProblems({ ...clean, screen: { ...clean.screen, keysPosts: 0 } }, 'self-test', honestText).length === 1);
+    }
+
     // The suites, read from xcodebuild's own words.
     const ran = P317_SUITES.map((n) => `Test Suite '${n}' passed at 2026-10-01 12:00:00.000.`).join('\n');
     check('suitesNotRun reads every suite xcodebuild says passed', suitesNotRun(ran).length === 0);
     check('suitesNotRun names a suite that never ran', J(suitesNotRun(ran.replace("'EndBatchTests' passed", "'EndBatchTests' started"))) === J(['EndBatchTests']));
     check('suitesNotRun counts a failed suite as run', suitesNotRun(ran.replace("'WriterTests' passed", "'WriterTests' failed")).length === 0);
     check('suitesNotRun names a Phase 318 suite that never ran', J(suitesNotRun(ran, P318_SUITES)) === J(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests']));
+    check('suitesNotRun names the Phase 337 suites that never ran', J(suitesNotRun(ran, P337_SUITES)) === J(P337_SUITES.filter((n) => !P317_SUITES.includes(n))));
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -1202,6 +1510,7 @@ async function main() {
         doors = await startTransportDoors(join(scratch, 'doors'));
         say(`door A on 127.0.0.1:${String(doors.portA)} (pin ${doors.pinA}), the wrong door on 127.0.0.1:${String(doors.portB)}`);
         say(`(ad)'s doors: the handshake held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldTls)}, the answer held ${String(doors.holdMs)} ms on 127.0.0.1:${String(doors.portHoldAnswer)}`);
+        say(`the screen door, keeping its connections ${String(SCREEN_DOOR_KEEP_MS)} ms, on 127.0.0.1:${String(doors.portScreen)}`);
         const testEnv = {
           P330_DOOR_NAME: doors.name,
           P330_DOOR_PORT: String(doors.portA),
@@ -1211,6 +1520,8 @@ async function main() {
           P317_HOLD_TLS_PORT: String(doors.portHoldTls),
           P317_HOLD_ANSWER_PORT: String(doors.portHoldAnswer),
           P317_HOLD_MS: String(doors.holdMs),
+          // Phase 337: the screen door, under door A's key and name.
+          P337_SCREEN_PORT: String(doors.portScreen),
           ...outline
         };
         if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
@@ -1223,7 +1534,8 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name)];
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
+            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P337_(?:TRANSPORT|GRID)\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
               `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
@@ -1244,7 +1556,7 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...P317_SUITES, ...P318_SUITES.filter((n) => !P317_SUITES.includes(n))]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');

@@ -5,7 +5,9 @@
  * names, so no importer moved, and `conformance:pocket` R1 and R4 read the
  * table here. R4's membership sha256 did not move then; Phase 317 moved it on
  * purpose by the `end` row below, Phase 318 by its `choose` and `say` rows, and
- * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1).
+ * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1), and
+ * Phase 337 by the read row `screen` and the write row `keys`
+ * (build/p337/SPEC.md §5.1, D1).
  *
  * ## Closed means closed
  *
@@ -32,7 +34,8 @@ export interface PocketRoute {
    *
    * A ROW WITH `reads: false` IS A WRITE, AND THE SET OF WRITES IS CLOSED
    * (Phase 317, build/p317/SPEC.md §5.3.1; Phase 318, build/p318/SPEC.md
-   * §5.1.1): exactly `end`, `choose` and `say`, each a `POST` that is signed,
+   * §5.1.1; Phase 337, build/p337/SPEC.md §5.1): exactly `end`, `choose`,
+   * `say` and `keys`, each a `POST` that is signed,
    * alive outside any window, takes no query string and has its own body cap
    * (`./limits.ts`). `build/conformance-pocket.mjs` R2 and X1 read it. The field is what makes adding a write a visible edit to this
    * table rather than a quiet change inside a handler, and a write's body is
@@ -72,6 +75,16 @@ export interface PocketRoute {
  * (`../writes.ts`) and its ledger: a press on a numbered question main
  * offered, and one message. Their bodies, the question id and the words
  * included, ride in the signed body too.
+ *
+ * `screen` is the Screen's read (Phase 337, build/p337/SPEC.md §5.1, D1, D2):
+ * a signed `GET` whose query names one session and, optionally, the revision
+ * the phone already holds, so main may hold it as a long poll inside the
+ * door's answer timer. It changes nothing on this Mac and sizes nothing (D7).
+ *
+ * `keys` is the Screen's write (Phase 337, build/p337/SPEC.md §5.1, D1, D17):
+ * a signed `POST` alive outside any window, in the same shape as the reply's
+ * two writes and through the same one write path (`../writes.ts`) and ledger.
+ * The keys, the question id and the window's mark ride in the signed body.
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
@@ -79,9 +92,11 @@ export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'session', method: 'GET', path: '/v1/session', reads: true, windowOnly: false, signed: true },
   { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },
   { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },
+  { id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: false, signed: true },
   { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },
   { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
-  { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true }
+  { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true },
+  { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }
 ]);
 
 /**

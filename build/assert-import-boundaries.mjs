@@ -280,7 +280,7 @@ const DIRECTORY_WALLS = [
   },
   {
     dir: 'main/pocket/',
-    forbidden: ['main/credentials/', 'main/logins/', 'main/push/', 'main/alerts/', 'main/reply/'],
+    forbidden: ['main/credentials/', 'main/logins/', 'main/push/', 'main/alerts/', 'main/reply/', 'main/screen/'],
     why:
       'the tailnet door is the first surface Tortie offers to anything outside ' +
       'this Mac. A door that cannot NAME the ' +
@@ -301,7 +301,10 @@ const DIRECTORY_WALLS = [
       'reaches the press and the message only through the PocketWrites and ' +
       'PocketFacts members src/main/capabilities.ts hands it, so it cannot ' +
       'name the writer, its tmux argv or its reader (conformance:pocket R3 ' +
-      'and Y11).'
+      'and Y11). Phase 337 adds main/screen/, the module that reads a ' +
+      'session’s screen and TYPES its keys: the door reaches the read and ' +
+      'the keys only through PocketFacts.screen and PocketWrites.keys, which ' +
+      'src/main/capabilities.ts hands it (conformance:pocket R3).'
   },
   {
     dir: 'main/push/',
@@ -756,6 +759,14 @@ const FIXTURES = [
   ['main/alerts/p3165-fixture.ts', "const l = await import('../logins/store');", '../logins/store'],
   ['main/pocket/p3165-fixture.ts', "import { createPhoneAlerts } from '../alerts';", '../alerts'],
   ['main/pocket/p3165-fixture.ts', "import type { PhoneAlerts } from '../alerts/index';", '../alerts/index'],
+  // Phase 337, the screen's wall. The door may not name the module that reads
+  // a screen and types keys, by its directory, by a file in it, or by a
+  // dynamic import; the screen's own test is exempt as every test is.
+  ['main/pocket/p337-fixture.ts', "import { createScreenKeys } from '../screen/keys';", '../screen/keys'],
+  ['main/pocket/p337-fixture.ts', "import { createScreenWatch } from '../screen';", '../screen'],
+  ['main/pocket/p337-fixture.ts', "const w = await import('../screen/watch');", '../screen/watch'],
+  ['main/pocket/__tests__/p337-fixture.ts', "import { createScreenKeys } from '../../screen/keys';", null],
+  ['main/screen/p337-fixture.ts', "import type { PocketKeysInput } from '../pocket/routes';", null],
   ['main/alerts/p3165-fixture.ts', "import { apnsKeyStoreForApp } from '../credentials';", null],
   ['main/alerts/__tests__/p3165-fixture.ts', "import { loginsRoot } from '../../logins/paths';", null],
   // Phase 316.2, the phone's tree. Three shapes that reach into ios/ from

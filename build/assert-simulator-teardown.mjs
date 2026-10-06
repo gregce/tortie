@@ -43,7 +43,7 @@
  *   5. THE HELPER'S TARGETS. The helper itself names no `all`, no `booted` and
  *      no `unavailable`: it ends the udid it created and nothing else.
  *   6. THE FIXTURES. Every scanner above is run over texts this gate holds
- *      itself, twenty-four of them, thirteen of which must be caught, and the floor is
+ *      itself, twenty-nine of them, sixteen of which must be caught, and the floor is
  *      driven one below itself and at itself. A checker nobody has seen fail is
  *      a checker nobody has seen work.
  *   7. THE HELPER'S PUSH (Phase 316.5). Delivering a notification is a verb
@@ -70,6 +70,18 @@
  *      BiometricKit; and neither verb is named anywhere else in the helper.
  *      Six one-clause ablations prove it, the first being the device check
  *      removed.
+ *   9. THE HELPER'S PASTEBOARD (Phase 337, build/p337/SPEC.md §6.5 and §7.8
+ *      PS6). Reading a device's pasteboard is a verb only the helper names: in
+ *      a file that names `simctl`, the strings `pbpaste`, `pbcopy` and
+ *      `pbsync` are caught like `boot`, and a whole command line `simctl
+ *      pbpaste …` (or `pbcopy`, `pbsync`) is caught in any file. The Mac's own
+ *      `pbpaste`, in a file that never names `simctl`, is not a device and is
+ *      left alone. In the helper, the handle's `pasteboard` takes NO parameter,
+ *      runs exactly `['simctl', 'pbpaste', udid]` with the udid the call
+ *      CREATED as one of the handle's owned children, and neither writes a
+ *      pasteboard (`pbcopy`, `pbsync`) nor names `pbpaste` anywhere else in
+ *      the helper. Five one-clause ablations prove it, the first being the
+ *      device check removed.
  *
  * ## What it does not assert
  *
@@ -128,6 +140,13 @@ const DELIVERY_VERBS = ['push'];
  * `biometry` names only the udid its own call created, with a closed step.
  */
 const BIOMETRY_VERBS = ['spawn', 'notifyutil'];
+/**
+ * Reading or writing a device's pasteboard (Phase 337, PS6). It makes and
+ * ends nothing, but it names a device, and only the helper's handle may: the
+ * handle's `pasteboard` reads (`pbpaste`) only the udid its own call created,
+ * and nothing in build/ writes one.
+ */
+const PASTEBOARD_VERBS = ['pbpaste', 'pbcopy', 'pbsync'];
 
 // ---------------------------------------------------------------------------
 // Reading source
@@ -198,6 +217,8 @@ export function simulatorStarts(name, source) {
     if (delivery !== null) hit(s.at, `a command line delivering a notification with simctl ${delivery[1]}, which is the helper handle's alone`);
     if (/\bsimctl\s+spawn\b/.test(s.text)) hit(s.at, "a command line running a program inside a device with simctl spawn, which is the helper handle's biometry alone");
     if (/\bnotifyutil\s+-[sp]\b/.test(s.text)) hit(s.at, "a command line posting a notification inside a device with notifyutil, which is the helper handle's biometry alone");
+    const board = new RegExp(`\\bsimctl\\s+(${PASTEBOARD_VERBS.join('|')})\\b`).exec(s.text);
+    if (board !== null) hit(s.at, `a command line naming simctl ${board[1]}, a device's pasteboard, which is the helper handle's pasteboard alone`);
     if (new RegExp(`\\bxcodebuild\\b[^\\n]*\\s(${TEST_ACTIONS.join('|')})(\\s|$)`).test(s.text)) {
       hit(s.at, 'a command line running an xcodebuild test, which boots its destination');
     }
@@ -205,6 +226,7 @@ export function simulatorStarts(name, source) {
       if (DEVICE_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}'`);
       if (DELIVERY_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}', which delivers to a device and is the helper handle's alone`);
       if (BIOMETRY_VERBS.includes(s.text)) hit(s.at, `'${s.text}', which runs Face ID's notifications inside a device and is the helper handle's biometry alone`);
+      if (PASTEBOARD_VERBS.includes(s.text)) hit(s.at, `the simctl verb '${s.text}', a device's pasteboard, which is the helper handle's pasteboard alone`);
       if (FOREIGN_TARGETS.includes(s.text)) hit(s.at, `the simctl target '${s.text}', a device this script did not make`);
       if (PHOTOGRAPHS.includes(s.text)) hit(s.at, `'${s.text}', a photograph`);
     }
@@ -267,7 +289,7 @@ function functionBody(code, name) {
   return open === -1 ? null : blockAt(code, open);
 }
 
-/** Rules 3, 4, 5 and 7 over the helper's source. Returns findings, empty when it holds. */
+/** Rules 3, 4, 5, 7, 8 and 9 over the helper's source. Returns findings, empty when it holds. */
 export function helperShape(source) {
   const code = stripComments(source);
   const out = [];
@@ -313,6 +335,7 @@ export function helperShape(source) {
   }
   out.push(...pushShape(code));
   out.push(...biometryShape(code));
+  out.push(...pasteboardShape(code));
   return out;
 }
 
@@ -418,6 +441,36 @@ export function biometryShape(code) {
   return out;
 }
 
+/**
+ * Rule 9 over the helper's comment-stripped source: the handle's `pasteboard`
+ * (Phase 337). Returns findings, empty when it holds.
+ */
+export function pasteboardShape(code) {
+  const out = [];
+  const board = methodBody(code, 'pasteboard');
+  if (board === null) return ['the handle declares no pasteboard(), so nothing holds whose pasteboard may be read.'];
+  if (board.params.trim() !== '') {
+    out.push(`pasteboard() takes (${board.params.trim()}), so its caller can name something; it must take nothing and read its own udid.`);
+  }
+  const argv = /\[\s*['"]simctl['"]\s*,\s*['"]pbpaste['"]\s*,\s*([A-Za-z_$][\w$]*)\s*\]/.exec(board.body);
+  if (argv === null) out.push('pasteboard() runs no simctl argv of the shape [simctl, pbpaste, <device>].');
+  else if (argv[1] !== 'udid') out.push(`pasteboard() names '${argv[1]}' as its device, not the udid this call created.`);
+  if (!/\brun\s*\([^;]*\bowner\s*:\s*entry\.children\b/.test(board.body)) out.push("pasteboard() does not run its read as one of the handle's owned children.");
+  for (const verb of PASTEBOARD_VERBS) {
+    const re = new RegExp(`['"]${verb}['"]`, 'g');
+    const everywhere = (code.match(re) ?? []).length;
+    const inside = verb === 'pbpaste' ? (board.body.match(re) ?? []).length : 0;
+    if (everywhere !== inside) {
+      out.push(
+        verb === 'pbpaste'
+          ? `the verb pbpaste is named ${String(everywhere - inside)} time(s) in the helper outside the handle's pasteboard().`
+          : `the helper names ${verb}, which writes a device's pasteboard; the handle only reads one.`
+      );
+    }
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // The fixtures. Every verb is spelled from parts, so this gate's own source
 // carries no literal the forward rule looks for.
@@ -430,6 +483,8 @@ const MAKE = V('cre|ate');
 const PUSH = V('pu|sh');
 const SPAWN = V('spa|wn');
 const NOTIFY = V('notify|util');
+const PBPASTE = V('pb|paste');
+const PBCOPY = V('pb|copy');
 
 const FIXTURES = [
   {
@@ -555,6 +610,32 @@ const FIXTURES = [
     name: 'node spawn imported in a file that never names the tool',
     caught: false,
     text: `import { ${SPAWN} } from 'node:child_process';\nconst names = ['${SPAWN}', 'exec'];\n`
+  },
+  {
+    name: "a device's pasteboard read in argv, outside the helper",
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${PBPASTE}', udid]);\n`
+  },
+  {
+    name: "the booted device's pasteboard read as a whole command line",
+    caught: true,
+    text: `import { execSync } from 'node:child_process';\nexecSync('xcrun ${SIM} ${PBPASTE} ${BOOT}ed');\n`
+  },
+  {
+    name: "a device's pasteboard written in argv, outside the helper",
+    caught: true,
+    text: `import { spawn } from 'node:child_process';\nspawn('xcrun', ['${SIM}', '${PBCOPY}', udid], { input: 'x' });\n`
+  },
+  {
+    name: "a device's pasteboard read through the helper handle",
+    caught: false,
+    user: true,
+    text: `import { withSimulator } from './${HELPER}';\nawait withSimulator({ label: 'x' }, (sim) => sim.pasteboard());\n`
+  },
+  {
+    name: "the Mac's own pasteboard in a file that never names the tool",
+    caught: false,
+    text: `import { execFileSync } from 'node:child_process';\nexecFileSync('${PBPASTE}', []);\n`
   }
 ];
 
@@ -642,7 +723,23 @@ const HELPER_ABLATIONS = [
     what: 'spawn named in the helper outside biometry',
     edit: (src) => src.replace("  'listapps'\n]);", "  'listapps',\n  'spawn'\n]);")
   },
-  { what: 'the handle has no biometry()', edit: (src) => src.replace('async biometry(step) {', 'async faceId(step) {') }
+  { what: 'the handle has no biometry()', edit: (src) => src.replace('async biometry(step) {', 'async faceId(step) {') },
+  // Rule 9, the handle's pasteboard (Phase 337). The first is the one that
+  // matters most: the device check removed, so a caller could name any device.
+  {
+    what: 'the pasteboard device check removed: a caller names the device',
+    edit: (src) =>
+      src
+        .replace('async pasteboard() {', 'async pasteboard(device = udid) {')
+        .replace("['simctl', 'pbpaste', udid]", "['simctl', 'pbpaste', device]")
+  },
+  { what: 'the pasteboard read of the booted device', edit: (src) => src.replace("['simctl', 'pbpaste', udid]", `['simctl', 'pbpaste', '${BOOT}ed']`) },
+  {
+    what: 'the pasteboard read not owned by the handle',
+    edit: (src) => src.replace("['simctl', 'pbpaste', udid], { timeoutMs: 30_000, owner: entry.children }", "['simctl', 'pbpaste', udid], { timeoutMs: 30_000 }")
+  },
+  { what: 'the pasteboard written as well as read', edit: (src) => src.replace("['simctl', 'pbpaste', udid]", "['simctl', 'pbcopy', udid]") },
+  { what: 'the handle has no pasteboard()', edit: (src) => src.replace('async pasteboard() {', 'async clipboard() {') }
 ];
 
 // ---------------------------------------------------------------------------
@@ -720,7 +817,7 @@ process.stdout.write(
   `gate:simulator PASS. ${String(scanned)} scripts under build/ read, none makes, boots, photographs or ends a Simulator ` +
     `outside build/${HELPER}; ${String(users.length)} reach it against a floor of ${String(SIMULATOR_USER_FLOOR)}; ` +
     `its teardown is inside a finally and its net covers exit, SIGINT, SIGTERM and SIGHUP; ` +
-    `its handle's push and biometry name only the device its call created; ` +
+    `its handle's push, biometry and pasteboard name only the device its call created; ` +
     `${String(caughtFixtures)} of ${String(FIXTURES.filter((f) => f.caught).length)} bad fixtures caught, ` +
     `${String(FIXTURES.filter((f) => !f.caught).length)} controls left alone, ` +
     `${String(ablationsRed)} of ${String(HELPER_ABLATIONS.length)} helper ablations red.\n`

@@ -134,10 +134,11 @@ const LINES = [
   `Answers on the internet at https://${NAME}:8443, through Tailscale Funnel on example.github`,
   'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale',
   'Starts answering when Tortie starts',
-  // The eight routes since Phases 318 and 316.7 (build/p3167/SPEC.md §3 row 1),
-  // and the line the three writes add after them, as main composes them.
-  'Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns',
-  'Lets an allowed phone end a session, answer a numbered question and send a session one message',
+  // The ten routes since Phase 337 (build/p337/SPEC.md D35), after Phases 318
+  // and 316.7 (build/p3167/SPEC.md §3 row 1), and the line the four writes add
+  // after them, as main composes them.
+  'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns',
+  'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac',
   'Tells your phone nothing through Apple',
   'Allows no phone yet'
 ];
@@ -330,12 +331,16 @@ describe('nothing starts before a person reads', () => {
     // answer a numbered question and send one message too, named in the words
     // the confirm line uses, and "Nothing on it can type into a session" is
     // gone because it is no longer true.
+    // PHASE 337 (build/p337/SPEC.md D35, D41) rewrote it again: a phone can
+    // now see a session's own screen and type into it, so "It can change
+    // nothing else on this Mac" is gone because it is no longer true, and it
+    // says what the screen SHOWS because the Screen is not redacted.
     expect(POCKET_DOOR_HONESTY).toBe(
-      'A phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.'
+      'A phone you allow can see what any session\u2019s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.'
     );
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/change nothing else|cannot type|Nothing on it/);
     expect(POCKET_DOOR_HONESTY).not.toMatch(/Face ID|Touch ID|passcode/);
-    expect(POCKET_DOOR_HONESTY).not.toMatch(/cannot type|can type into|Nothing on it/);
-    expect(POCKET_DOOR_HONESTY).not.toMatch(/\b(pane|window|prefix)\b/);
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/\b(pane|window|prefix|terminal|SSH|remote desktop)\b/i);
     expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
     expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
     expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');

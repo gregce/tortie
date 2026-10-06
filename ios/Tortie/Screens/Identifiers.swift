@@ -93,11 +93,12 @@
 //   settings-about, settings-version
 //                                the About card and its `1.0.0 (4)`
 //
-// END (Phase 317, build/p317/SPEC.md section 5.8.8):
+// END (Phase 317, build/p317/SPEC.md section 5.8.8; moved to the top bar in
+// Phase 337, D33, and its bar at the bottom is gone):
 //
-//   session-end-bar              the bar above the tab bar; a container
-//   session-end                  its row, `End session…`; a button
-//   session-end-line             the one line under it
+//   session-end                  `End`, the navigation bar's trailing item; a
+//                                button
+//   session-end-line             the one line about End, under the status
 //   session-end-glyph-<name>     the row's glyph, an image: faceid, touchid or
 //                                lock
 //   end-confirming               present while iOS asks Face ID, Touch ID or
@@ -129,6 +130,33 @@
 //   session-message-line         the one line under the box: `Goes to this
 //                                session as one message.`, `Sending…`, `Sent`
 //                                or the Mac's sentence
+//
+// THE SCREEN (Phase 337, build/p337/SPEC.md section 5.8.7):
+//
+//   session-open-screen          the row under Conversation that opens the
+//                                session's own screen
+//   screen-screen                the Screen; a container
+//   screen-grid                  the grid of rows, at the Mac's width
+//   screen-loading, screen-failure
+//                                the spinner before the first picture, and the
+//                                one sentence in place of the grid: none came
+//                                and none is kept, or the Mac's own sentence
+//                                for a session with no screen to show
+//   screen-row-<n>               one row, n counting from 0 at the top; its
+//                                label is the row's text, trailing blanks
+//                                dropped
+//   screen-cursor                the cursor's block, when it is shown
+//   screen-line                  the one line under the grid: not answering,
+//                                waiting for the redraw, held while
+//                                selecting, cannot type, or the Mac's sentence
+//   screen-key-field             the hidden field that holds the keyboard
+//   screen-key-bar               the key bar above the keyboard; a container
+//   screen-key-<name>            one of its keys: esc, tab, btab, left, up,
+//                                down, right, ctrl, return, hide
+//   screen-copy                  `Copy`, while a selection is held; a button
+//   screen-selection             the selection's highlight
+//   screen-cover                 the plate over the grid while the app is not
+//                                active, so iOS keeps no picture of it
 //
 // THE SESSIONS TAB (Phase 316.7, build/p3167/SPEC.md section 6.4.9) keeps
 // every name above on its new screen: screen-list, list-title, list-select,
@@ -294,8 +322,7 @@ enum ID {
     static let settingsUnpair = "settings-unpair"
     static let settingsUnpairLine = "settings-unpair-line"
 
-    // End and End these (Phase 317).
-    static let sessionEndBar = "session-end-bar"
+    // End and End these (Phase 317; End in the top bar since Phase 337).
     static let sessionEnd = "session-end"
     static let sessionEndLine = "session-end-line"
     /// The owner check's glyph on the End row: `faceid`, `touchid` or `lock`.
@@ -322,6 +349,23 @@ enum ID {
     static let sessionMessageField = "session-message-field"
     static let sessionMessageSend = "session-message-send"
     static let sessionMessageLine = "session-message-line"
+
+    // The Screen (Phase 337).
+    static let sessionOpenScreen = "session-open-screen"
+    static let screen = "screen-screen"
+    static let screenGrid = "screen-grid"
+    static let screenLoading = "screen-loading"
+    static let screenFailure = "screen-failure"
+    static func screenRow(_ n: Int) -> String { "screen-row-" + String(n) }
+    static let screenCursor = "screen-cursor"
+    static let screenLine = "screen-line"
+    static let screenKeyField = "screen-key-field"
+    static let screenKeyBar = "screen-key-bar"
+    /// One key of the bar, by its short name (`esc`, `ctrl`, `hide`, …).
+    static func screenKey(_ name: String) -> String { "screen-key-" + name }
+    static let screenCopy = "screen-copy"
+    static let screenSelection = "screen-selection"
+    static let screenCover = "screen-cover"
 
     // The Sessions tab (Phase 316.7).
     static let listShow = "list-show"

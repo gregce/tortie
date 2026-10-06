@@ -1,0 +1,1080 @@
+{
+  "sessionId": "sample-claude",
+  "revision": "987cbf08c2f5",
+  "at": 1791158400000,
+  "unchanged": false,
+  "screen": {
+    "cols": 120,
+    "rows": 40,
+    "cursor": {
+      "x": 2,
+      "y": 29,
+      "visible": false
+    },
+    "alternate": false,
+    "ground": "#131417",
+    "ink": "#d8dbe2",
+    "caret": "#e8eaed",
+    "styles": [
+      {
+        "fg": "#d78787",
+        "bg": null,
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#d78787",
+        "bg": "#000000",
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#d8dbe2",
+        "bg": null,
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#d8dbe2",
+        "bg": null,
+        "bold": true,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#949494",
+        "bg": null,
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#949494",
+        "bg": "#3a3a3a",
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#ffffff",
+        "bg": "#3a3a3a",
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#ff87af",
+        "bg": null,
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#808080",
+        "bg": null,
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      },
+      {
+        "fg": "#131417",
+        "bg": "#d8dbe2",
+        "bold": false,
+        "dim": false,
+        "italic": false,
+        "underline": false,
+        "strike": false
+      }
+    ],
+    "lines": [
+      [
+        {
+          "text": " \u2590",
+          "style": 0,
+          "cells": 2
+        },
+        {
+          "text": "\u259b\u2588\u2588\u2588\u259b\u2588",
+          "style": 1,
+          "cells": 6
+        },
+        {
+          "text": "   ",
+          "style": 2,
+          "cells": 3
+        },
+        {
+          "text": "Claude",
+          "style": 3,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Code",
+          "style": 3,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "v2.1.287",
+          "style": 4,
+          "cells": 8
+        }
+      ],
+      [
+        {
+          "text": "\u259d\u259c",
+          "style": 0,
+          "cells": 2
+        },
+        {
+          "text": "\u2588\u2588\u2588\u2588\u2588",
+          "style": 1,
+          "cells": 5
+        },
+        {
+          "text": "\u2588\u2580",
+          "style": 0,
+          "cells": 2
+        },
+        {
+          "text": "  ",
+          "style": 2,
+          "cells": 2
+        },
+        {
+          "text": "Opus",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "5.5",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "API",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Usage",
+          "style": 4,
+          "cells": 5
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Billing",
+          "style": 4,
+          "cells": 7
+        }
+      ],
+      [
+        {
+          "text": " \u259d\u259d",
+          "style": 0,
+          "cells": 3
+        },
+        {
+          "text": "   ",
+          "style": 2,
+          "cells": 3
+        },
+        {
+          "text": "\u259d\u259d",
+          "style": 0,
+          "cells": 2
+        },
+        {
+          "text": "   ",
+          "style": 2,
+          "cells": 3
+        },
+        {
+          "text": "/private/tmp/p318cap-claude-71621/proj-claude",
+          "style": 4,
+          "cells": 45
+        }
+      ],
+      [],
+      [],
+      [
+        {
+          "text": "\u276f ",
+          "style": 5,
+          "cells": 2
+        },
+        {
+          "text": "P318-ONE run the command the stand-in names",
+          "style": 6,
+          "cells": 43
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u23fa",
+          "style": 7,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Bash",
+          "style": 3,
+          "cells": 4
+        },
+        {
+          "text": "(touch p318-one.txt)",
+          "style": 2,
+          "cells": 20
+        }
+      ],
+      [
+        {
+          "text": " ",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u23bf",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00a0Interrupted",
+          "style": 4,
+          "cells": 12
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "What",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "should",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Claude",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "do",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "instead?",
+          "style": 4,
+          "cells": 8
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u273b",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Churned",
+          "style": 4,
+          "cells": 7
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "for",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "0s",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "done",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "11:17",
+          "style": 4,
+          "cells": 5
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "PM",
+          "style": 4,
+          "cells": 2
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u276f ",
+          "style": 5,
+          "cells": 2
+        },
+        {
+          "text": "P318-TWO run the command the stand-in names",
+          "style": 6,
+          "cells": 43
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u23fa",
+          "style": 7,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Bash",
+          "style": 3,
+          "cells": 4
+        },
+        {
+          "text": "(echo ok",
+          "style": 2,
+          "cells": 8
+        }
+      ],
+      [
+        {
+          "text": "      touch p318-two.txt)",
+          "style": 2,
+          "cells": 25
+        }
+      ],
+      [
+        {
+          "text": " ",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u23bf",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00a0Interrupted",
+          "style": 4,
+          "cells": 12
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "What",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "should",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Claude",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "do",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "instead?",
+          "style": 4,
+          "cells": 8
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u273b",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Brewed",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "for",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "0s",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "done",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "11:17",
+          "style": 4,
+          "cells": 5
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "PM",
+          "style": 4,
+          "cells": 2
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u276f ",
+          "style": 5,
+          "cells": 2
+        },
+        {
+          "text": "P318-LONG run the command the stand-in names",
+          "style": 6,
+          "cells": 44
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u23fa",
+          "style": 7,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Bash",
+          "style": 3,
+          "cells": 4
+        },
+        {
+          "text": "(printf '%s\\n' p318-long-argument-01 p318-long-argument-02 p318-long-argument-03 p318-long-argument-04",
+          "style": 2,
+          "cells": 102
+        }
+      ],
+      [
+        {
+          "text": "      p318-long-argument-05 p318-long-argument-06 p318-long-argu\u2026)",
+          "style": 2,
+          "cells": 66
+        }
+      ],
+      [
+        {
+          "text": " ",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u23bf",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00a0Interrupted",
+          "style": 4,
+          "cells": 12
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "What",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "should",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Claude",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "do",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "instead?",
+          "style": 4,
+          "cells": 8
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u273b",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "Saut\u00e9ed",
+          "style": 4,
+          "cells": 7
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "for",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "0s",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "done",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "11:17",
+          "style": 4,
+          "cells": 5
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "PM",
+          "style": 4,
+          "cells": 2
+        }
+      ],
+      [],
+      [
+        {
+          "text": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+          "style": 8,
+          "cells": 120
+        }
+      ],
+      [
+        {
+          "text": "\u276f\u00a0",
+          "style": 2,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 9,
+          "cells": 1
+        }
+      ],
+      [
+        {
+          "text": "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500",
+          "style": 8,
+          "cells": 120
+        }
+      ],
+      [
+        {
+          "text": "  ",
+          "style": 2,
+          "cells": 2
+        },
+        {
+          "text": "\u23f8",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "manual",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "mode",
+          "style": 4,
+          "cells": 4
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "on",
+          "style": 4,
+          "cells": 2
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "?",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "for",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "shortcuts",
+          "style": 4,
+          "cells": 9
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u2190",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "for",
+          "style": 4,
+          "cells": 3
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "agents",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": "                                                 ",
+          "style": 2,
+          "cells": 49
+        },
+        {
+          "text": "\u25d0",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "medium",
+          "style": 4,
+          "cells": 6
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "\u00b7",
+          "style": 4,
+          "cells": 1
+        },
+        {
+          "text": " ",
+          "style": 2,
+          "cells": 1
+        },
+        {
+          "text": "/effort",
+          "style": 4,
+          "cells": 7
+        }
+      ],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      [],
+      []
+    ],
+    "turn": "0000000000000000-0",
+    "asking": false,
+    "dialog": null,
+    "typable": true
+  },
+  "why": null,
+  "sentence": null
+}

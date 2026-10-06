@@ -297,8 +297,9 @@ extension PocketEndConfirm: Codable {
 /// `WriteResult`), because the bytes reached the Mac and what it did is not
 /// known.
 struct PocketWriteAnswer: Equatable, Sendable {
-    /// The write the answer is about. `choose` and `say` are Phase 318's.
-    enum Verb: String, Sendable, Codable { case end, choose, say }
+    /// The write the answer is about. `choose` and `say` are Phase 318's,
+    /// `keys` Phase 337's.
+    enum Verb: String, Sendable, Codable { case end, choose, say, keys }
     enum Outcome: String, Sendable, Codable { case done, refused, failed, busy }
     /// Why a write was refused. The last seven are Phase 318's: the question
     /// moved (`changed`), a press the Mac does not offer (`unpressable`), a
@@ -568,9 +569,18 @@ struct PocketSessionDetail: Equatable, Sendable {
     /// what it sent does not agree with itself or with this answer's options.
     /// Read through `replyOffer`.
     var reply: PocketReplyOffer?
+    /// Whether the session's own screen may be opened (Phase 337): true for a
+    /// running session on a Mac with that phase, which composes it in one
+    /// place (`session()` in src/main/pocket/routes.ts). Absent from an older
+    /// Mac, which is false: no Screen row, and nothing to refuse. Read through
+    /// `drawsScreen`.
+    var screen: Bool?
 
     /// The offer to draw: absent reads as the empty offer (no button, no box).
     var replyOffer: PocketReplyOffer { reply ?? .empty }
+
+    /// The Screen row is drawn: the Mac said true. Absent is false.
+    var drawsScreen: Bool { screen ?? false }
 
     subscript<T>(dynamicMember path: KeyPath<PocketBlockedRow, T>) -> T {
         row[keyPath: path]
@@ -579,7 +589,7 @@ struct PocketSessionDetail: Equatable, Sendable {
 
 extension PocketSessionDetail: Codable {
     enum CodingKeys: String, CodingKey {
-        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm, reply
+        case catchUp, lastAnswer, turnCount, handoff, activity, lastMessageText, endConfirm, reply, screen
     }
 
     init(from decoder: Decoder) throws {
@@ -602,6 +612,9 @@ extension PocketSessionDetail: Codable {
         } else {
             reply = nil
         }
+        // Absent on a Mac older than Phase 337; anything but a boolean
+        // refuses the answer, as every field does here.
+        screen = try c.decodeIfPresent(Bool.self, forKey: .screen)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -615,6 +628,7 @@ extension PocketSessionDetail: Codable {
         try c.encodeIfPresent(lastMessageText, forKey: .lastMessageText)
         try c.encodeIfPresent(endConfirm, forKey: .endConfirm)
         try c.encodeIfPresent(reply, forKey: .reply)
+        try c.encodeIfPresent(screen, forKey: .screen)
     }
 }
 
@@ -972,6 +986,407 @@ extension PairAnswer: Decodable {
             self = .allowed(certificate: der)
         default:
             throw DecodingError.dataCorruptedError(forKey: .state, in: c, debugDescription: "not one of pending, allowed, refused")
+        }
+    }
+}
+
+// MARK: - The session's own screen (Phase 337)
+//
+// `GET /v1/screen?id=<session>[&since=<revision>]`, build/p337/SPEC.md
+// sections 5.2 and 5.8.2. The Mac composes the screen tmux shows now: rows of
+// runs, each run text of one style and the columns it covers, measured by
+// tmux's own widths; every colour already resolved to `#rrggbb` exactly as
+// the Mac's own dark terminal draws it (D12). The phone draws it and decides
+// nothing about it: no emulator, no parser of the session's bytes (his
+// ruling 4).
+//
+// DECODED STRICTLY, because a picture somebody else composed is drawn into a
+// grid whose every index the phone trusts: the revision is 12 lowercase hex;
+// `unchanged` is true exactly when the screen and the absence are both null;
+// the width is 1 to 512 and the height 1 to 200; the cursor's column is 0 to
+// the width and its row inside the height; every run's style is an index into
+// the styles, every run covers 1 to the width, and a row's runs together
+// cover no more than the width, summed through `DoorNumber`; there are
+// exactly as many rows as the height and at most 1,024 styles; every colour is
+// `#` and six lowercase hex digits; the question id is main's shape and the
+// window's mark 12 lowercase hex or null. Anything else refuses the whole
+// answer (`DoorFailure.malformed`), so no half-trusted picture is ever drawn.
+//
+// THE NAMES. Every whole number here is a door number, decoded through the
+// bound, under a Swift name no other value in the app has (`screenColumns`,
+// `screenRows`, `cursorColumn`, `cursorRow`, `runStyle`, `runCells`), for
+// rule (k)'s reason stated above `PocketSessionsAsked`.
+
+/// A colour the door names (D12), as the three bytes `#rrggbb` spells. Made
+/// ONLY by `read(_:)`, the seven-character reader below (conformance:ios rule
+/// am), and drawn only through `Token.drawn(_:)` in Style/Tokens.swift, the
+/// one file that makes a colour.
+struct ScreenColor: Equatable, Hashable, Sendable {
+    /// Red, green and blue, in that order: each the byte two of the six hex
+    /// digits spell. Three bytes, not a number the door sent.
+    let channels: SIMD3<UInt8>
+
+    var red: UInt8 { channels.x }
+    var green: UInt8 { channels.y }
+    var blue: UInt8 { channels.z }
+
+    private init(channels: SIMD3<UInt8>) {
+        self.channels = channels
+    }
+
+    /// `#` and six digits.
+    static let spelledLength = 7
+
+    /// The one maker: exactly `#` and six LOWERCASE hex digits, the shape
+    /// checked byte by byte first, then the six digits read by
+    /// `UInt32(_:radix:)`, which can only answer a value under 2^24 for them.
+    /// Anything else is nil, and the answer that carried it is refused.
+    static func read(_ text: String) -> ScreenColor? {
+        let bytes = Array(text.utf8)
+        guard bytes.count == spelledLength, bytes.first == UInt8(ascii: "#"),
+              bytes.dropFirst().allSatisfy(isLowerHex),
+              let value = UInt32(String(text.dropFirst()), radix: 16) else { return nil }
+        return ScreenColor(channels: SIMD3(
+            UInt8(truncatingIfNeeded: value >> 16),
+            UInt8(truncatingIfNeeded: value >> 8),
+            UInt8(truncatingIfNeeded: value)
+        ))
+    }
+
+    private static func isLowerHex(_ byte: UInt8) -> Bool {
+        (byte >= UInt8(ascii: "0") && byte <= UInt8(ascii: "9")) || (byte >= UInt8(ascii: "a") && byte <= UInt8(ascii: "f"))
+    }
+}
+
+extension KeyedDecodingContainer {
+    /// A `#rrggbb` the contract always sends, or a refusal of the answer.
+    func screenColor(forKey key: Key) throws -> ScreenColor {
+        guard let color = ScreenColor.read(try decode(String.self, forKey: key)) else {
+            throw DecodingError.dataCorruptedError(forKey: key, in: self, debugDescription: "not #rrggbb in lowercase")
+        }
+        return color
+    }
+}
+
+/// `PocketScreenStyle`: one style of the answer's table, its colours already
+/// resolved on the Mac (D12). `bg` null is the screen's own ground.
+struct PocketScreenStyle: Equatable, Hashable, Sendable {
+    let fg: ScreenColor
+    let bg: ScreenColor?
+    let bold: Bool
+    let dim: Bool
+    let italic: Bool
+    let underline: Bool
+    let strike: Bool
+}
+
+extension PocketScreenStyle: Decodable {
+    enum CodingKeys: String, CodingKey { case fg, bg, bold, dim, italic, underline, strike }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fg = try c.screenColor(forKey: .fg)
+        if try c.nullable(String.self, forKey: .bg) == nil {
+            bg = nil
+        } else {
+            bg = try c.screenColor(forKey: .bg)
+        }
+        bold = try c.decode(Bool.self, forKey: .bold)
+        dim = try c.decode(Bool.self, forKey: .dim)
+        italic = try c.decode(Bool.self, forKey: .italic)
+        underline = try c.decode(Bool.self, forKey: .underline)
+        strike = try c.decode(Bool.self, forKey: .strike)
+    }
+}
+
+/// `PocketScreenRun`: text of one style, and the columns it covers by tmux's
+/// own widths: one column for each narrow cell, or the one wide cell's two
+/// (a cell wider or narrower than one column is always its own run, D9).
+struct PocketScreenRun: Equatable, Hashable, Sendable {
+    let text: String
+    /// An index into the answer's `styles`.
+    let runStyle: Int
+    /// The columns this run covers.
+    let runCells: Int
+}
+
+extension PocketScreenRun: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case text
+        case runStyle = "style"
+        case runCells = "cells"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        text = try c.decode(String.self, forKey: .text)
+        runStyle = try c.doorNumber(forKey: .runStyle)
+        runCells = try c.doorNumber(forKey: .runCells)
+    }
+}
+
+/// `PocketScreen.cursor`: where tmux's cursor is, and whether it is shown.
+struct PocketScreenCursor: Equatable, Sendable {
+    /// `x`: 0 to the width (tmux puts the cursor one past the last column
+    /// after a full row).
+    let cursorColumn: Int
+    /// `y`: a row of the screen.
+    let cursorRow: Int
+    let visible: Bool
+}
+
+extension PocketScreenCursor: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case visible
+        case cursorColumn = "x"
+        case cursorRow = "y"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        cursorColumn = try c.doorNumber(forKey: .cursorColumn)
+        cursorRow = try c.doorNumber(forKey: .cursorRow)
+        visible = try c.decode(Bool.self, forKey: .visible)
+    }
+}
+
+/// `PocketScreen`: the screen tmux shows now, at the Mac's own width and
+/// height. The phone never sizes it (his ruling 2).
+struct PocketScreen: Equatable, Sendable {
+    /// The caps the Mac composes under (`POCKET_SCREEN_MAX_COLS`,
+    /// `POCKET_SCREEN_MAX_ROWS`, `POCKET_SCREEN_MAX_STYLES`).
+    static let widest = 512
+    static let tallest = 200
+    static let mostStyles = 1_024
+
+    /// `cols`.
+    let screenColumns: Int
+    /// `rows`.
+    let screenRows: Int
+    let cursor: PocketScreenCursor
+    /// The program drew on the alternate screen.
+    let alternate: Bool
+    /// The Mac's own terminal colours: its ground, its default ink, its cursor.
+    let ground: ScreenColor
+    let ink: ScreenColor
+    let caret: ScreenColor
+    let styles: [PocketScreenStyle]
+    /// Exactly `screenRows` rows; a row with nothing on it is empty.
+    let lines: [[PocketScreenRun]]
+    /// The question id now, echoed by a keys write.
+    let turn: String
+    /// A numbered question is drawn, or the session waits on him.
+    let asking: Bool
+    /// The window's mark while asking, echoed by a keys write; nil otherwise.
+    let dialog: String?
+    /// Keys are taken now.
+    let typable: Bool
+}
+
+extension PocketScreen: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable
+        case screenColumns = "cols"
+        case screenRows = "rows"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        screenColumns = try c.doorNumber(forKey: .screenColumns)
+        screenRows = try c.doorNumber(forKey: .screenRows)
+        cursor = try c.decode(PocketScreenCursor.self, forKey: .cursor)
+        alternate = try c.decode(Bool.self, forKey: .alternate)
+        ground = try c.screenColor(forKey: .ground)
+        ink = try c.screenColor(forKey: .ink)
+        caret = try c.screenColor(forKey: .caret)
+        styles = try c.decode([PocketScreenStyle].self, forKey: .styles)
+        lines = try c.decode([[PocketScreenRun]].self, forKey: .lines)
+        turn = try c.decode(String.self, forKey: .turn)
+        asking = try c.decode(Bool.self, forKey: .asking)
+        dialog = try c.nullable(String.self, forKey: .dialog)
+        typable = try c.decode(Bool.self, forKey: .typable)
+        guard Self.holdsTogether(
+            columns: screenColumns, rows: screenRows, cursor: cursor, styles: styles.count,
+            lines: lines, turn: turn, dialog: dialog
+        ) else {
+            throw DecodingError.dataCorruptedError(forKey: .lines, in: c, debugDescription: "a screen no Mac composed")
+        }
+    }
+
+    /// Every bound of section 5.8.2, asked once, in order. Only comparisons and
+    /// `DoorNumber`'s checked sum: no arithmetic of its own on a door number.
+    static func holdsTogether(
+        columns: Int, rows: Int, cursor: PocketScreenCursor, styles: Int,
+        lines: [[PocketScreenRun]], turn: String, dialog: String?
+    ) -> Bool {
+        guard (1...widest).contains(columns), (1...tallest).contains(rows),
+              cursor.cursorColumn <= columns, cursor.cursorRow < rows,
+              styles <= mostStyles, lines.count == rows,
+              PocketReplyOffer.isQuestionId(turn),
+              dialog.map(PocketReplyOffer.isMark) ?? true else { return false }
+        for row in lines {
+            var covered = 0
+            for run in row {
+                guard run.runStyle < styles, run.runCells >= 1, run.runCells <= columns,
+                      let next = DoorNumber.sum(covered, run.runCells), next <= columns else { return false }
+                covered = next
+            }
+        }
+        return true
+    }
+}
+
+/// Why there is no screen to draw (`PocketScreenAbsence`); main says which
+/// in its own sentence, drawn as it is.
+enum PocketScreenAbsence: String, Sendable, Decodable {
+    case ended, unreachable, large
+}
+
+/// `PocketScreenAnswer`: one answer to `GET /v1/screen`. `unchanged` says the
+/// revision the phone holds is still the screen and carries nothing else;
+/// otherwise exactly one of a screen or an absence with main's sentence.
+struct PocketScreenAnswer: Equatable, Sendable {
+    let sessionId: String
+    /// 12 lowercase hex: what the phone sends back as `since`.
+    let revision: String
+    let at: Double
+    let unchanged: Bool
+    let screen: PocketScreen?
+    let why: PocketScreenAbsence?
+    /// Main's words for `why`; nil otherwise.
+    let sentence: String?
+}
+
+extension PocketScreenAnswer: Decodable {
+    enum CodingKeys: String, CodingKey { case sessionId, revision, at, unchanged, screen, why, sentence }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sessionId = try c.decode(String.self, forKey: .sessionId)
+        revision = try c.decode(String.self, forKey: .revision)
+        at = try c.decode(Double.self, forKey: .at)
+        unchanged = try c.decode(Bool.self, forKey: .unchanged)
+        screen = try c.nullable(PocketScreen.self, forKey: .screen)
+        why = try c.nullable(PocketScreenAbsence.self, forKey: .why)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        guard PocketReplyOffer.isMark(revision) else {
+            throw DecodingError.dataCorruptedError(forKey: .revision, in: c, debugDescription: "not 12 lowercase hex")
+        }
+        // Unchanged carries nothing; otherwise a screen or an absence, never both.
+        let carries = (screen != nil) != (why != nil)
+        guard unchanged ? (screen == nil && why == nil) : carries else {
+            throw DecodingError.dataCorruptedError(forKey: .unchanged, in: c, debugDescription: "unchanged exactly when nothing is carried")
+        }
+        // A sentence, and a non-empty one, exactly with an absence.
+        let said = sentence.map { !$0.isEmpty } ?? false
+        guard said == (why != nil), sentence == nil || said else {
+            throw DecodingError.dataCorruptedError(forKey: .sentence, in: c, debugDescription: "a sentence comes with an absence, and only with it")
+        }
+    }
+}
+
+// MARK: - Keys (Phase 337)
+
+/// The 35 keys the phone may send, by tmux's own names (D17, D18): the raw
+/// values are `POCKET_SCREEN_KEY_NAMES` in src/shared/ipc/pocket.ts, word for
+/// word (conformance:ios rule ai reads both). A closed set: nothing else is
+/// ever named.
+enum ScreenKeyName: String, CaseIterable, Sendable {
+    case escape = "Escape"
+    case tab = "Tab"
+    case backTab = "BTab"
+    case enter = "Enter"
+    case backspace = "BSpace"
+    case up = "Up"
+    case down = "Down"
+    case left = "Left"
+    case right = "Right"
+    case controlA = "C-a"
+    case controlB = "C-b"
+    case controlC = "C-c"
+    case controlD = "C-d"
+    case controlE = "C-e"
+    case controlF = "C-f"
+    case controlG = "C-g"
+    case controlH = "C-h"
+    case controlI = "C-i"
+    case controlJ = "C-j"
+    case controlK = "C-k"
+    case controlL = "C-l"
+    case controlM = "C-m"
+    case controlN = "C-n"
+    case controlO = "C-o"
+    case controlP = "C-p"
+    case controlQ = "C-q"
+    case controlR = "C-r"
+    case controlS = "C-s"
+    case controlT = "C-t"
+    case controlU = "C-u"
+    case controlV = "C-v"
+    case controlW = "C-w"
+    case controlX = "C-x"
+    case controlY = "C-y"
+    case controlZ = "C-z"
+
+    /// The control key of a letter, either case (`c` and `C` are `C-c`), or
+    /// nil for anything that is not one ASCII letter.
+    static func control(_ character: Character) -> ScreenKeyName? {
+        guard character.isASCII, character.isLetter, let lower = character.lowercased().first else { return nil }
+        return ScreenKeyName(rawValue: controlLead + String(lower))
+    }
+
+    /// `C-`, before the letter.
+    static let controlLead = "C-"
+}
+
+/// One item of a keys write: text typed, or one named key (D17).
+enum KeyItem: Equatable, Hashable, Sendable {
+    case text(String)
+    case key(ScreenKeyName)
+
+    /// THE ONE MAKER OF A TEXT ITEM (conformance:ios rule ai): the text with
+    /// every C0 control, DEL and C1 control taken out, which is what the Mac
+    /// refuses whole (`refused character`); nil when nothing is left. A
+    /// typed line break never reaches here: Return is the `Enter` key.
+    static func typed(_ text: String) -> KeyItem? {
+        var kept = String.UnicodeScalarView()
+        for scalar in text.unicodeScalars where !isControl(scalar) {
+            kept.append(scalar)
+        }
+        return kept.isEmpty ? nil : .text(String(kept))
+    }
+
+    /// U+0000 to U+001F, U+007F and U+0080 to U+009F.
+    static func isControl(_ scalar: Unicode.Scalar) -> Bool {
+        scalar.value <= 0x1f || (scalar.value >= 0x7f && scalar.value <= 0x9f)
+    }
+
+    /// Whether this is a named key other than Backspace, which the Mac takes
+    /// only as the one item of its write (D17).
+    var standsAlone: Bool {
+        if case .key(let name) = self { return name != .backspace }
+        return false
+    }
+
+    /// The UTF-8 bytes of a text item; zero for a key.
+    var textBytes: Int {
+        if case .text(let text) = self { return text.utf8.count }
+        return 0
+    }
+}
+
+extension KeyItem: Encodable {
+    enum CodingKeys: String, CodingKey {
+        case typedText = "t"
+        case keyName = "k"
+    }
+
+    /// `{"t":"…"}` or `{"k":"…"}`, exactly one key.
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .text(let text): try c.encode(text, forKey: .typedText)
+        case .key(let name): try c.encode(name.rawValue, forKey: .keyName)
         }
     }
 }

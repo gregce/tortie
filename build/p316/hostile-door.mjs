@@ -130,6 +130,39 @@
  *   src/shared/lifecycle-words.ts or src/shared/reply-copy.ts) and the words it
  *   must never draw (`never`).
  *
+ * THE SCREEN ARMS (Phase 337, build/p337/SPEC.md §7.8 PSH and §6.4 (t)).
+ * Every arm answers `GET /v1/screen` and `POST /v1/keys` now: the honest
+ * screen is the vectors' `screen-sample` answer, which the SHIPPING
+ * `screenOf` re-composed from the sample the shipping composer wrote, its
+ * revision moving only when the door is told to (`screen-next` on a served
+ * door's stdin, or `nextScreen()`), a `since` that is current held 2 s and
+ * answered `unchanged`; and an honest keys write is counted, verified over its
+ * body and answered `done`. The screen arms answer the FIRST `/v1/screen`
+ * honestly, so the Screen draws, and meet the phone's NEXT read their way:
+ *   screen-run-past-cols        a run whose cells pass `cols`
+ *   screen-style-out-of-range   a run whose style index is past the table
+ *   screen-colour-not-hex       a style colour that is not `#rrggbb`
+ *   screen-cols-513             `cols` 513, over the contract's 512
+ *   screen-cursor-y-rows        `cursor.y` equal to `rows`
+ *   screen-unchanged-with-screen  `unchanged: true` with a screen carried
+ *   screen-chunked              the answer chunked, as raw bytes
+ *   screen-never-answers        no answer, for longer than the phone's 15 s
+ *   THE KEPT LINES (D25, §Attack A12): the answer is honest, the line is not:
+ *   screen-kept-closed          the kept connection closed after its first
+ *                               answer: the read asked once more, and drawn
+ *   screen-stray-answer         a SECOND, unasked answer written on the kept
+ *                               line after the first: the line closed, the
+ *                               stray never drawn
+ *   screen-connection-close     the first answer says `Connection: close`:
+ *                               the next read on a new line
+ *   THE KEYS (D17, D30): one POST per batch, answered its own way:
+ *   keys-404                    a 404 with no body: not taken
+ *   keys-other-id               a 200 whose write id is not the one sent
+ * Each names where it ends (`at`) and the Copy.swift words it may end in
+ * (`expect`); a keys arm counts its POSTs (`posts`). Every `/v1/screen` and
+ * `/v1/keys` event carries the connection's own serial, so the probe can count
+ * handshakes against reads and say which line carried which request.
+ *
  * THE SESSIONS READ (Phase 316.7, build/p3167/SPEC.md §9.5). Every arm now
  * answers `GET /v1/sessions` too, because the Sessions tab reads it first: the
  * honest answer is composed by the SHIPPING `createPocketRoutes(facts).sessions`
@@ -229,7 +262,12 @@ import {
   readSessions,
   sessionsAnswerProblems,
   sessionsBudgetBytes,
-  sessionsTarget
+  sessionsTarget,
+  screenRead,
+  screenAnswerProblems,
+  screenTarget,
+  sendKeys,
+  signedHeadersFor
 } from './node-phone.mjs';
 
 const HERE = fileURLToPath(import.meta.url);
@@ -323,8 +361,70 @@ export const HOSTILE_ARMS = Object.freeze({
   'sessions-omitted-negative': { what: 'a /v1/sessions omitted below zero', ends: 'sentence', sessions: 'malformed', breaks: 'omitted -1', at: 'list-failure', expect: ['answerUnreadable'] },
   'sessions-omitted-max': { what: 'a /v1/sessions omitted of Int.max', ends: 'sentence', sessions: 'malformed', breaks: 'omitted 9223372036854776000', at: 'list-failure', expect: ['answerUnreadable'] },
   'sessions-asked': { what: 'a /v1/sessions answer to another question', ends: 'sentence', sessions: 'malformed', breaks: 'is not the question sent', at: 'list-failure', expect: ['answerUnreadable'] },
-  'sessions-show-word': { what: 'a /v1/sessions answer with a Show word the Mac never says', ends: 'sentence', sessions: 'malformed', breaks: 'is not a Show word', at: 'list-failure', expect: ['answerUnreadable'] }
+  'sessions-show-word': { what: 'a /v1/sessions answer with a Show word the Mac never says', ends: 'sentence', sessions: 'malformed', breaks: 'is not a Show word', at: 'list-failure', expect: ['answerUnreadable'] },
+  // THE SCREEN ARMS (Phase 337, build/p337/SPEC.md §7.8 PSH). The first
+  // /v1/screen read is answered honestly, so a picture is drawn; the next
+  // meets the arm, and a refused answer keeps the last picture under
+  // Copy.screenNotAnswering at the Screen's line.
+  'screen-run-past-cols': { what: 'a /v1/screen run whose cells pass cols', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-style-out-of-range': { what: 'a /v1/screen run whose style index is past the table', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-colour-not-hex': { what: 'a /v1/screen style colour that is not #rrggbb', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-cols-513': { what: 'a /v1/screen answer of 513 columns', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-cursor-y-rows': { what: 'a /v1/screen cursor whose y is rows', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-unchanged-with-screen': { what: 'a /v1/screen answer unchanged that carries a screen', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-chunked': { what: 'a /v1/screen answer chunked', ends: 'sentence', screen: true, raw: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-never-answers': { what: 'a /v1/screen read never answered, past the phone\'s 15 s', ends: 'sentence', screen: true, at: 'screen-line', expect: ['screenNotAnswering'] },
+  'screen-kept-closed': { what: 'the kept connection closed after its first answer: the read asked once more on a new line', ends: 'drawn', screen: true, at: 'screen-grid', expect: [], kept: 'closed' },
+  'screen-stray-answer': { what: 'a second, unasked answer on the kept line after the first: the line closed, the stray never drawn', ends: 'drawn', screen: true, at: 'screen-grid', expect: [], kept: 'stray' },
+  'screen-connection-close': { what: 'the first /v1/screen answer says Connection: close: the next read on a new line', ends: 'drawn', screen: true, at: 'screen-grid', expect: [], kept: 'close' },
+  'keys-404': { what: 'a 404 with no body to a keys write', ends: 'sentence', screen: true, keys: true, posts: 1, at: 'screen-line', expect: ['replyNotTaken'] },
+  'keys-other-id': { what: 'a 200 to a keys write whose write id is not the one sent', ends: 'sentence', screen: true, keys: true, posts: 1, at: 'screen-line', expect: ['endNoAnswer'] }
 });
+
+/** The names of the Screen's arms (Phase 337). */
+export const SCREEN_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].screen === true));
+
+/** How long an honest door holds a /v1/screen read whose `since` is current, before `unchanged`. */
+export const SCREEN_HOLD_HONEST_MS = 2_000;
+
+/** The honest screen answer the door serves, from the vectors' `screen-sample`, at a revision of its own. */
+export function honestScreen(world, sessionId, serial) {
+  const revision = createHash('sha256').update(`p316 hostile screen ${String(serial)}`).digest('hex').slice(0, 12);
+  if (world.screenSample === null) return { sessionId, revision, at: Date.now(), unchanged: false, screen: null, why: 'unreachable', sentence: 'Tortie cannot reach this session’s machine now.' };
+  return { ...structuredClone(world.screenSample), sessionId, revision, at: Date.now(), unchanged: false, why: null, sentence: null };
+}
+
+/** The screen arm's hostile answer to the phone's second read, over an honest one. */
+export function hostileScreen(arm, honest) {
+  const a = structuredClone(honest);
+  const sc = a.screen;
+  switch (arm) {
+    case 'screen-run-past-cols': {
+      const row = sc.lines.findIndex((l) => l.length > 0);
+      sc.lines[Math.max(0, row)] = [{ text: 'x', style: 0, cells: sc.cols + 1 }];
+      return a;
+    }
+    case 'screen-style-out-of-range': {
+      const row = sc.lines.findIndex((l) => l.length > 0);
+      sc.lines[Math.max(0, row)] = [{ text: 'x', style: sc.styles.length, cells: 1 }];
+      return a;
+    }
+    case 'screen-colour-not-hex':
+      sc.styles[0] = { ...sc.styles[0], fg: 'red' };
+      return a;
+    case 'screen-cols-513':
+      sc.cols = 513;
+      return a;
+    case 'screen-cursor-y-rows':
+      sc.cursor = { ...sc.cursor, y: sc.rows };
+      return a;
+    case 'screen-unchanged-with-screen':
+      a.unchanged = true;
+      return a;
+    default:
+      return a;
+  }
+}
 
 /** The names of the sessions arms (Phase 316.7). */
 export const SESSIONS_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => typeof HOSTILE_ARMS[a].sessions === 'string'));
@@ -510,7 +610,11 @@ function honestWorld() {
   for (let i = 0; i < count; i += 1) {
     turns.push({ ...template, index: i, askText: `p316 ask ${String(i)} **x**`, answerText: `p316 answer ${String(i)} **x**`, absence: null });
   }
-  return { blocked, session, turns, sessionId: session.session.sessionId, at: newest.at };
+  // PHASE 337: the Screen's honest answer, the shipping screenOf's
+  // re-composition of the committed sample (null on vectors older than it).
+  const sampleText = vectors?.answers?.['screen-sample']?.json;
+  const screenSample = typeof sampleText === 'string' ? JSON.parse(sampleText) : null;
+  return { blocked, session, turns, sessionId: session.session.sessionId, at: newest.at, screenSample };
 }
 
 /** An honest page, the way the door's reader cuts one. */
@@ -910,6 +1014,25 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       });
     };
 
+    /** Phase 337: each connection's serial, so an event says which line carried it. */
+    const lineOf = new WeakMap();
+    let lines = 0;
+    const lineSerial = (socket) => {
+      if (!lineOf.has(socket)) {
+        lines += 1;
+        lineOf.set(socket, lines);
+      }
+      return lineOf.get(socket);
+    };
+    /** Signed /v1/screen reads answered, and the revision the honest screen is at. */
+    let screenReads = 0;
+    let screenSerial = 0;
+    /** The Mac drew something new: the honest screen's revision moves. */
+    const nextScreen = () => {
+      screenSerial += 1;
+      emit({ kind: 'screen-next', arm, at: Date.now(), screenSerial });
+    };
+
     const handler = (req, res) => {
       counts.requests += 1;
       const chunks = [];
@@ -982,6 +1105,92 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             default:
               return send(res, 200, done, event);
           }
+        }
+        if (req.method === 'POST' && url.pathname === '/v1/keys') {
+          // PHASE 337's keys write: counted, verified over the body, answered
+          // the arm's way; an honest door answers done. Logged by shape only:
+          // never a key or a text.
+          counts.writes += 1;
+          const verifiedWrite = verifySigned({ method: 'POST', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelWrite = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          let parsed = null;
+          try {
+            parsed = JSON.parse(body.toString('utf8'));
+          } catch {
+            parsed = null;
+          }
+          const id = typeof parsed?.write === 'string' && /^[0-9a-f]{32}$/.test(parsed.write) ? parsed.write : '';
+          const keys = parsed === null || typeof parsed !== 'object' ? '' : Object.keys(parsed).sort().join(',');
+          const items = Array.isArray(parsed?.keys) ? parsed.keys.length : -1;
+          const event = { route, ...seen, verified: verifiedWrite, channelHeld: channelWrite, write: counts.writes, verb: 'keys', keys, items, line: lineSerial(req.socket), query: url.search !== '' };
+          if (verifiedWrite !== 'ok' || url.search !== '') return send(res, 404, '', event);
+          if (arm === 'keys-404') return send(res, 404, '', event);
+          if (arm === 'keys-other-id') return send(res, 200, J({ verb: 'keys', write: otherWriteId(id), outcome: 'done', reason: null, sentence: null }), event);
+          return send(res, 200, J({ verb: 'keys', write: id, outcome: 'done', reason: null, sentence: null }), event);
+        }
+        if (req.method === 'GET' && url.pathname === '/v1/screen') {
+          // PHASE 337's read: signed, answered the arm's way.
+          const verifiedRead = verifySigned({ method: 'GET', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelRead = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          const params = [...url.searchParams.keys()].sort().join(',');
+          screenReads += 1;
+          const n = screenReads;
+          const ev = { route, ...seen, verified: verifiedRead, channelHeld: channelRead, screenRead: n, params, line: lineSerial(req.socket), at: Date.now() };
+          if (verifiedRead !== 'ok' || (params !== 'id' && params !== 'id,since')) return send(res, 404, '', ev);
+          if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
+          const honest = honestScreen(world, url.searchParams.get('id') ?? world.sessionId, screenSerial);
+          const spec = HOSTILE_ARMS[arm];
+          const since = url.searchParams.get('since');
+          const first = n === 1;
+          if (spec.screen === true && spec.keys !== true && spec.kept === undefined && !first) {
+            if (arm === 'screen-never-answers') {
+              emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
+              return;
+            }
+            if (spec.raw === true) return sendRaw(req, rawAnswerOf('chunked', J(honest)), ev);
+            return send(res, 200, J(hostileScreen(arm, honest)), { ...ev, hostile: arm });
+          }
+          const answerNow = () => {
+            if (spec.kept === 'close' && first) {
+              res.setHeader('connection', 'close');
+              return send(res, 200, J(honest), { ...ev, kept: 'close' });
+            }
+            if (spec.kept === 'closed' && first) {
+              res.on('finish', () => req.socket.end());
+              return send(res, 200, J(honest), { ...ev, kept: 'closed' });
+            }
+            if (spec.kept === 'stray' && first) {
+              res.on('finish', () => {
+                const stray = J({ ...honest, revision: 'ffffffffffff' });
+                req.socket.write(`HTTP/1.1 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nContent-Length: ${String(Buffer.byteLength(stray))}\r\n\r\n${stray}`);
+                emit({ kind: 'request', arm, ...ev, status: 'stray', bytes: Buffer.byteLength(stray) });
+              });
+              return send(res, 200, J(honest), { ...ev, kept: 'stray' });
+            }
+            return send(res, 200, J(honest), ev);
+          };
+          if (since !== null && since === honest.revision) {
+            // Current: held, then unchanged, unless the Mac draws meanwhile.
+            emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
+            const at = screenSerial;
+            const started = Date.now();
+            const tick = setInterval(() => {
+              if (req.socket.destroyed) {
+                clearInterval(tick);
+                return;
+              }
+              if (screenSerial !== at) {
+                clearInterval(tick);
+                answerNow();
+              } else if (Date.now() - started >= SCREEN_HOLD_HONEST_MS) {
+                clearInterval(tick);
+                send(res, 200, J({ sessionId: honest.sessionId, revision: honest.revision, at: Date.now(), unchanged: true, screen: null, why: null, sentence: null }), { ...ev, unchanged: true });
+              }
+            }, 50);
+            tick.unref?.();
+            return;
+          }
+          return answerNow();
         }
         if (req.method === 'POST' && (url.pathname === '/v1/choose' || url.pathname === '/v1/say')) {
           // PHASE 318's two writes: counted, verified over the body, and
@@ -1093,7 +1302,12 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
           // The first signed read is pairing's: a list arm answers it
           // honestly, so the app pairs and its LIST meets the body.
           if (HOSTILE_ARMS[arm].list === true && blockedReads === 1) return send(res, 200, J(answer), { ...event, honestFirst: true });
-          if (HOSTILE_ARMS[arm].raw === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), event);
+          // A raw arm answers the LIST raw. The screen's raw arm
+          // (screen-chunked) is the Screen's, so the list, pairing's first
+          // read included, answers it honestly: answered raw, the phone
+          // rightly refused to pair and never reached the Screen, and the arm
+          // proved nothing about a chunked screen (the fix round of 2026-10-06).
+          if (HOSTILE_ARMS[arm].raw === true && HOSTILE_ARMS[arm].list === true) return sendRaw(req, rawAnswerOf(arm, J(answer)), event);
           if (arm === 'huge-row') {
             const row = { ...answer.rows[0], question: 'q'.repeat(HUGE_BYTES) };
             return send(res, 200, J({ ...answer, rows: [row] }), event);
@@ -1208,6 +1422,9 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       capMachine: cap === null ? null : sessionsKit.seed.CAP_MACHINE,
       composeSessions,
       releaseSessions,
+      // Phase 337: the Mac draws something new, and the Screen's lines so far.
+      nextScreen,
+      lines: () => lines,
       phone: () => phone,
       close: closeAll
     };
@@ -1243,6 +1460,8 @@ async function serve(arm, md3) {
     let at;
     while ((at = said.indexOf('\n')) !== -1) {
       if (said.slice(0, at).trim() === 'sessions-honest') door.releaseSessions();
+      // Phase 337: the Mac drew something new on the Screen.
+      if (said.slice(0, at).trim() === 'screen-next') door.nextScreen();
       said = said.slice(at + 1);
     }
   });
@@ -1397,6 +1616,65 @@ async function selfTest() {
       const cert = paired.ok ? new X509Certificate(paired.cert.der) : null;
       if (!paired.ok || JSON.parse(forged.body).state !== 'refused') {
         check(arm, false, `pairing answered ${J(paired.words)} (${paired.why}); a proof by another key answered ${J(forged.body)}`);
+        continue;
+      }
+      // PHASE 337: THE SCREEN ARMS, read with the node phone's own
+      // re-derivation of the phone's refusals (`screenAnswerProblems`), and
+      // the kept-line arms read as RAW bytes on one TLS connection.
+      if (HOSTILE_ARMS[arm].screen === true) {
+        const spec = HOSTILE_ARMS[arm];
+        const sid = door.sessionToOpen;
+        /** One signed GET of the screen, written as raw bytes, kept alive, on its own TLS connection. */
+        const rawScreen = (timeoutMs) => {
+          const target = screenTarget(sid);
+          const h = signedHeadersFor(phone, 'GET', target, Buffer.alloc(0));
+          const bytes = `GET ${target} HTTP/1.1\r\nHost: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}\r\n${Object.entries(h).map(([k, v]) => `${k}: ${v}`).join('\r\n')}\r\nConnection: keep-alive\r\n\r\n`;
+          return rawExchange({ door: d, bytes: Buffer.from(bytes, 'utf8'), identity: phone, timeoutMs });
+        };
+        if (spec.kept !== undefined) {
+          // The FIRST read is the one the arm answers its way.
+          const got = await rawScreen(7_000);
+          const text = got.bytes.toString('utf8');
+          const answers = (text.match(/HTTP\/1\.1 200/g) ?? []).length;
+          const closeSaid = /\r\nconnection: close\r\n/i.test(text);
+          const keptSaid = /\r\nconnection: keep-alive\r\n/i.test(text);
+          const ok = spec.kept === 'stray' ? answers === 2 && keptSaid : spec.kept === 'close' ? answers === 1 && closeSaid : answers === 1 && keptSaid && got.error !== 'timed out';
+          check(arm, ok, `one kept-alive request answered ${String(answers)} time(s) on its connection${closeSaid ? ', saying Connection: close' : keptSaid ? ', saying keep-alive' : ''}, then the door ${got.error === 'timed out' ? 'kept it open' : 'closed it'}`);
+          continue;
+        }
+        // Pairing's first signed read is /v1/blocked, and a screen arm answers
+        // it, and every list read, honestly (the fix round of 2026-10-06).
+        const pairingRead = await signedGet(phone, d, '/v1/blocked');
+        let pairingOk = false;
+        try {
+          pairingOk = pairingRead.status === 200 && Array.isArray(JSON.parse(pairingRead.body).rows);
+        } catch {
+          pairingOk = false;
+        }
+        const first = await screenRead(phone, d, sid);
+        const firstOk = pairingOk && first.status === 200 && first.answer !== null && screenAnswerProblems(first.answer).length === 0 && first.answer.screen !== null;
+        if (spec.keys === true) {
+          const sent = await sendKeys(phone, d, sid, [{ t: 'echo p316' }], { turn: first.answer?.screen?.turn ?? `${'0'.repeat(16)}-0`, dialog: null });
+          const said = sent.status === 200 ? JSON.parse(sent.body) : null;
+          const posts = events.filter((e) => e.kind === 'request' && e.route === 'POST /v1/keys').length;
+          const ok = arm === 'keys-404' ? sent.status === 404 : sent.status === 200 && said?.write !== sent.write && said?.outcome === 'done';
+          check(arm, firstOk && ok && posts === 1, `the first /v1/screen answered ${String(first.status)} and drew; the keys write answered ${String(sent.status)}${said === null ? '' : ` echoing ${said.write === sent.write ? 'its own id' : 'another id'}`}; ${String(posts)} POST(s)`);
+          continue;
+        }
+        if (arm === 'screen-never-answers') {
+          const second = await screenRead(phone, d, sid, { timeoutMs: 1_500 });
+          check(arm, firstOk && second.status !== 200, `the first /v1/screen drew; the second answered ${second.status === 0 ? 'nothing' : String(second.status)} within 1.5 s (${String(second.error)})`);
+          continue;
+        }
+        if (spec.raw === true) {
+          const raw = await rawScreen(5_000);
+          const chunked = /\r\ntransfer-encoding: chunked\r\n/i.test(raw.bytes.toString('utf8'));
+          check(arm, firstOk && chunked, `the first /v1/screen drew; the second was written as raw bytes${chunked ? ' with Transfer-Encoding: chunked' : ' WITHOUT Transfer-Encoding: chunked'}, which the phone's reader refuses`);
+          continue;
+        }
+        const second = await screenRead(phone, d, sid);
+        const problems = second.answer === null ? ['no answer'] : screenAnswerProblems(second.answer);
+        check(arm, firstOk && second.status === 200 && problems.length > 0, `the first /v1/screen drew; the second is refused for ${J(problems.slice(0, 2))}`);
         continue;
       }
       // PHASE 316.7: THE SESSIONS ARMS, read with the node phone's own

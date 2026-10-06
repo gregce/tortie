@@ -33,8 +33,11 @@ import {
   pocketRouteIds,
   pocketRouteIdsAgree,
   pocketWriteRouteIds,
+  readScreenQuery,
   readSessionsQuery,
   readTurnRange,
+  screenLive,
+  screenOf,
   type PocketFacts,
   type PocketRoute
 } from '../routes';
@@ -189,8 +192,9 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    // Eight since Phase 318's `choose` and `say` and Phase 316.7's `GET /v1/sessions`.
-    expect(POCKET_ROUTES).toHaveLength(8);
+    // Ten since Phase 337's `GET /v1/screen` and `POST /v1/keys`, after Phase
+    // 318's `choose` and `say` and Phase 316.7's `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(10);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -205,16 +209,17 @@ describe('the table is closed', () => {
         signed: true
       })
     ).toThrow();
-    // Eight since Phase 318's two writes and Phase 316.7's `GET /v1/sessions`.
-    expect(POCKET_ROUTES).toHaveLength(8);
+    // Ten since Phase 337's read and write.
+    expect(POCKET_ROUTES).toHaveLength(10);
     expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
   // PHASE 317 (SPEC §5.3.1, §14 finding 18) replaced the Phase 313 test "holds
   // NO write route in this phase"; PHASE 318 (build/p318/SPEC.md §5.1.1) widens
   // it to the reply's two writes, on the same door and no second family.
-  it('holds EXACTLY three write routes, end, choose and say, each a signed POST alive outside a window', () => {
-    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say']);
+  // PHASE 337 (build/p337/SPEC.md §5.1, D1) adds `keys`, the fourth.
+  it('holds EXACTLY four write routes, end, choose, say and keys, each a signed POST alive outside a window', () => {
+    expect(pocketWriteRouteIds()).toEqual(['end', 'choose', 'say', 'keys']);
     expect([...pocketWriteRouteIds()]).toEqual([...POCKET_WRITE_ROUTE_IDS]);
     for (const route of POCKET_ROUTES) {
       if (route.reads) continue;
@@ -222,19 +227,31 @@ describe('the table is closed', () => {
       expect(route.signed, route.id).toBe(true);
       expect(route.windowOnly, route.id).toBe(false);
     }
-    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end', '/v1/choose', '/v1/say']);
+    expect(POCKET_ROUTES.filter((r) => !r.reads).map((r) => r.path)).toEqual(['/v1/end', '/v1/choose', '/v1/say', '/v1/keys']);
     // Every other row is still a read.
-    expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual(['blocked', 'pair', 'session', 'sessions', 'turns']);
+    expect(POCKET_ROUTES.filter((r) => r.reads).map((r) => r.id).sort()).toEqual([
+      'blocked',
+      'pair',
+      'screen',
+      'session',
+      'sessions',
+      'turns'
+    ]);
   });
 
   it('matches a write only as a POST to its exact path', () => {
     expect(matchPocketRoute('POST', '/v1/end')?.id).toBe('end');
     expect(matchPocketRoute('POST', '/v1/choose')?.id).toBe('choose');
     expect(matchPocketRoute('POST', '/v1/say')?.id).toBe('say');
+    expect(matchPocketRoute('POST', '/v1/keys')?.id).toBe('keys');
     for (const method of ['GET', 'PUT', 'DELETE', 'post']) {
       expect(matchPocketRoute(method, '/v1/end')).toBeNull();
       expect(matchPocketRoute(method, '/v1/choose')).toBeNull();
       expect(matchPocketRoute(method, '/v1/say')).toBeNull();
+      expect(matchPocketRoute(method, '/v1/keys')).toBeNull();
+    }
+    for (const near of ['/v1/keys/', '/v1/Keys', '/v1/key', '/v1/keys?x', '/v1/type', '/v1/screen']) {
+      expect(matchPocketRoute('POST', near), near).toBeNull();
     }
     for (const near of ['/v1/choose/', '/v1/Choose', '/v1/chooses', '/v1/say/', '/v1/Say', '/v1/says', '/v1/say?x', '/v1/reply']) {
       expect(matchPocketRoute('POST', near), near).toBeNull();
@@ -274,10 +291,35 @@ describe('the table is closed', () => {
     const pair = POCKET_ROUTES.find((r) => r.id === 'pair');
     expect(pair?.windowOnly).toBe(true);
     expect(pair?.signed).toBe(false);
-    for (const id of ['blocked', 'session', 'turns', 'sessions'] as const) {
+    for (const id of ['blocked', 'session', 'turns', 'sessions', 'screen', 'keys'] as const) {
       const route = POCKET_ROUTES.find((r) => r.id === id);
       expect(route?.windowOnly).toBe(false);
       expect(route?.signed).toBe(true);
+    }
+  });
+
+  // PHASE 337 (build/p337/SPEC.md §5.1, D1, D2): the Screen's read is a GET
+  // to its exact path and nothing else.
+  it('matches the Screen read only as a GET to its exact path', () => {
+    expect(matchPocketRoute('GET', '/v1/screen')).toEqual({
+      id: 'screen',
+      method: 'GET',
+      path: '/v1/screen',
+      reads: true,
+      windowOnly: false,
+      signed: true
+    });
+    expect(matchPocketRoute('POST', '/v1/keys')).toEqual({
+      id: 'keys',
+      method: 'POST',
+      path: '/v1/keys',
+      reads: false,
+      windowOnly: false,
+      signed: true
+    });
+    for (const method of ['POST', 'PUT', 'get']) expect(matchPocketRoute(method, '/v1/screen')).toBeNull();
+    for (const near of ['/v1/screen/', '/v1/Screen', '/v1/screens', '/v1/screen?id=a', '/v1/terminal']) {
+      expect(matchPocketRoute('GET', near), near).toBeNull();
     }
   });
 });
@@ -1848,5 +1890,311 @@ describe('the Sessions tab: the caps choose by Recent activity and the answer sa
     expect(answer.omitted).toBe(1);
     expect(answer.groups.reduce((sum, g) => sum + g.omitted, 0)).toBe(0);
     holdsTogether(answer);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// PHASE 337 (build/p337/SPEC.md §5.2, §5.3.1): one session's screen
+// ---------------------------------------------------------------------------
+
+describe('the Screen (Phase 337, build/p337/SPEC.md §5.3.1)', () => {
+  type ScreenAnswer = import('@shared/ipc/pocket').PocketScreenAnswer;
+  type Screen = import('@shared/ipc/pocket').PocketScreen;
+  const copy = import('@shared/screen-copy');
+  const contract = import('@shared/ipc/pocket');
+
+  const REV = '0123456789ab';
+  const MARK = 'a1b2c3d4e5f6';
+
+  /** A small honest screen, two rows, two styles. */
+  function screenOfSize(cols = 4, rows = 2, over: Partial<Screen> = {}): Screen {
+    const lines = Array.from({ length: rows }, (_, y) => (y === 0 ? [{ text: 'ab', style: 0, cells: 2 }, { text: String.fromCodePoint(0x6f22), style: 1, cells: 2 }] : []));
+    return {
+      cols,
+      rows,
+      cursor: { x: 1, y: 0, visible: true },
+      alternate: false,
+      ground: '#131417',
+      ink: '#d8dbe2',
+      caret: '#e8eaed',
+      styles: [
+        { fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false },
+        { fg: '#ff8800', bg: '#000000', bold: true, dim: false, italic: true, underline: true, strike: false }
+      ],
+      lines,
+      turn: '0123456789abcdef-7',
+      asking: false,
+      dialog: null,
+      typable: true,
+      ...over
+    };
+  }
+
+  function answerOf(over: Partial<ScreenAnswer> = {}): ScreenAnswer {
+    return { sessionId: 'a', revision: REV, at: 99, unchanged: false, screen: screenOfSize(), why: null, sentence: null, ...over };
+  }
+
+  describe('the query (D2)', () => {
+    it('reads id exactly once and since at most once, 12 lowercase hex', () => {
+      expect(readScreenQuery(new URLSearchParams('id=3f2a1b4c-0000-4000-8000-000000000001'))).toEqual({
+        ok: true,
+        id: '3f2a1b4c-0000-4000-8000-000000000001',
+        since: null
+      });
+      expect(readScreenQuery(new URLSearchParams(`id=a&since=${REV}`))).toEqual({ ok: true, id: 'a', since: REV });
+      expect(readScreenQuery(new URLSearchParams(`since=${REV}&id=a`))).toEqual({ ok: true, id: 'a', since: REV });
+    });
+
+    it('takes a UUID, which is the id Tortie mints, and an id of 128 characters', () => {
+      expect(readScreenQuery(new URLSearchParams('id=9e6c0d6a-1a51-4b33-8d0f-2a1b3c4d5e6f')).ok).toBe(true);
+      expect(readScreenQuery(new URLSearchParams(`id=${'a'.repeat(128)}`)).ok).toBe(true);
+    });
+
+    const refused: [string, string, string][] = [
+      ['no id', `since=${REV}`, 'id'],
+      ['an empty id', 'id=', 'id'],
+      ['an id of 129', `id=${'a'.repeat(129)}`, 'id'],
+      ['a since of 11 hex', `id=a&since=${REV.slice(1)}`, 'since'],
+      ['a since of 13 hex', `id=a&since=${REV}0`, 'since'],
+      ['a since in upper case', 'id=a&since=0123456789AB', 'since'],
+      ['a since that is not hex', 'id=a&since=0123456789ag', 'since'],
+      ['an empty since', 'id=a&since=', 'since'],
+      ['id twice', 'id=a&id=b', 'repeated'],
+      ['since twice', `id=a&since=${REV}&since=${REV}`, 'repeated'],
+      ['a size', 'id=a&cols=80', 'parameter'],
+      ['rows', 'id=a&rows=24', 'parameter'],
+      ['an unknown name', 'id=a&x=1', 'parameter']
+    ];
+    for (const [name, query, reason] of refused) {
+      it(`refuses ${name} with ${reason}`, () => {
+        expect(readScreenQuery(new URLSearchParams(query))).toEqual({ ok: false, reason });
+      });
+    }
+  });
+
+  describe('the route', () => {
+    it('hands the watcher the session, since and the very closing, and answers what it composed', async () => {
+      const asked: unknown[] = [];
+      const closing = (): boolean => false;
+      const routes = createPocketRoutes(
+        facts({
+          screen: async (session, since, handed) => {
+            asked.push([session.id, since, handed]);
+            return answerOf();
+          }
+        })
+      );
+      const got = await routes.screen(new URLSearchParams(`id=e&since=${REV}`), closing);
+      expect(asked).toEqual([['e', REV, closing]]);
+      expect(got).toEqual({ ...answerOf(), sessionId: 'e' });
+    });
+
+    it('answers null, and asks no watcher, for a refused query or an id nobody has', async () => {
+      let asked = 0;
+      const routes = createPocketRoutes(
+        facts({
+          screen: async () => {
+            asked += 1;
+            return answerOf();
+          }
+        })
+      );
+      for (const query of ['', 'id=nobody', 'id=a&since=nope', 'id=a&cols=80', 'id=a&id=a']) {
+        expect(await routes.screen(new URLSearchParams(query), () => false), query).toBeNull();
+      }
+      expect(asked).toBe(0);
+    });
+
+    it('answers null when this Mac has no watcher: the route does not exist (404)', async () => {
+      const routes = createPocketRoutes(facts());
+      expect(await routes.screen(new URLSearchParams('id=a'), () => false)).toBeNull();
+    });
+
+    it('answers null, never a hang, when the watcher rejects or throws', async () => {
+      const rejects = createPocketRoutes(facts({ screen: () => Promise.reject(new Error('read failed')) }));
+      expect(await rejects.screen(new URLSearchParams('id=a'), () => false)).toBeNull();
+      const throws = createPocketRoutes(
+        facts({
+          screen: () => {
+            throw new Error('before the promise');
+          }
+        })
+      );
+      expect(await throws.screen(new URLSearchParams('id=a'), () => false)).toBeNull();
+    });
+
+    it('answers a session removed while the poll was held as an id nobody has, and nothing of it leaves', async () => {
+      let listed: Session[] = SESSIONS;
+      const routes = createPocketRoutes(
+        facts({
+          sessions: () => listed,
+          screen: async () => {
+            listed = SESSIONS.filter((s) => s.id !== 'a');
+            return answerOf();
+          }
+        })
+      );
+      expect(await routes.screen(new URLSearchParams('id=a'), () => false)).toBeNull();
+    });
+  });
+
+  describe('the answer, composed field by field (screenOf, D13)', () => {
+    it('copies every field and nothing else, with fresh arrays, and the session the query named', () => {
+      const from = answerOf({ sessionId: 'someone-else' });
+      const extra = { ...from, secret: 'x', screen: { ...(from.screen as Screen), raw: 'styled bytes' } } as unknown as ScreenAnswer;
+      (extra.screen as unknown as { styles: unknown[] }).styles = [
+        { ...(from.screen as Screen).styles[0], colourSpace: 'p3' },
+        (from.screen as Screen).styles[1]
+      ];
+      const got = screenOf(extra, 'a', 5);
+      expect(got).toEqual({ ...from, sessionId: 'a' });
+      expect(Object.keys(got ?? {})).toEqual(['sessionId', 'revision', 'at', 'unchanged', 'screen', 'why', 'sentence']);
+      expect(Object.keys(got?.screen ?? {}).sort()).toEqual(
+        ['alternate', 'caret', 'cols', 'cursor', 'dialog', 'ground', 'ink', 'lines', 'rows', 'styles', 'turn', 'typable', 'asking'].sort()
+      );
+      expect(got?.screen?.lines).not.toBe(from.screen?.lines);
+      expect(got?.screen?.lines[0]).not.toBe(from.screen?.lines[0]);
+      expect(got?.screen?.styles).not.toBe(from.screen?.styles);
+      expect(Object.keys(got?.screen?.styles[0] ?? {}).sort()).toEqual(['bg', 'bold', 'dim', 'fg', 'italic', 'strike', 'underline']);
+    });
+
+    it('carries unchanged and nothing else', () => {
+      expect(screenOf(answerOf({ unchanged: true }), 'a', 5)).toEqual({
+        sessionId: 'a',
+        revision: REV,
+        at: 99,
+        unchanged: true,
+        screen: null,
+        why: null,
+        sentence: null
+      });
+    });
+
+    it('answers each absence with main’s own sentence for its word, whatever the watcher said', async () => {
+      const words = await copy;
+      expect(screenOf(answerOf({ screen: null, why: 'ended', sentence: 'anything' }), 'a', 5)).toMatchObject({
+        why: 'ended',
+        screen: null,
+        sentence: words.SCREEN_ENDED
+      });
+      expect(screenOf(answerOf({ screen: null, why: 'unreachable', sentence: null }), 'a', 5)?.sentence).toBe(words.SCREEN_UNREACHABLE);
+      expect(screenOf(answerOf({ screen: null, why: 'large', sentence: null }), 'a', 5)?.sentence).toBe(words.SCREEN_TOO_LARGE);
+      expect(screenOf(answerOf({ screen: null, why: 'gone' as never }), 'a', 5)).toBeNull();
+    });
+
+    it('answers null for a revision that is not 12 lowercase hex, or an unchanged that is not a boolean', () => {
+      for (const revision of ['', REV.slice(1), `${REV}0`, '0123456789AB', 7 as unknown as string]) {
+        expect(screenOf(answerOf({ revision }), 'a', 5), String(revision)).toBeNull();
+      }
+      expect(screenOf(answerOf({ unchanged: 'no' as unknown as boolean }), 'a', 5)).toBeNull();
+      expect(screenOf(null as unknown as ScreenAnswer, 'a', 5)).toBeNull();
+    });
+
+    it('stamps the time it was handed when the watcher carried none', () => {
+      expect(screenOf(answerOf({ at: Number.NaN }), 'a', 5)?.at).toBe(5);
+    });
+
+    it('answers large past each cap, read from the contract (D15)', async () => {
+      const c = await contract;
+      const words = await copy;
+      const large = (screen: Screen): void => {
+        expect(screenOf(answerOf({ screen }), 'a', 5)).toMatchObject({ why: 'large', screen: null, sentence: words.SCREEN_TOO_LARGE });
+      };
+      large(screenOfSize(c.POCKET_SCREEN_MAX_COLS + 1, 2));
+      large(screenOfSize(4, c.POCKET_SCREEN_MAX_ROWS + 1));
+      const style = screenOfSize().styles[0];
+      large(screenOfSize(4, 2, { styles: Array.from({ length: c.POCKET_SCREEN_MAX_STYLES + 1 }, () => ({ ...style })) as Screen['styles'] }));
+      // Runs: 200 rows of 82 one-cell runs is 16,400, past 16,384.
+      const many = Array.from({ length: 200 }, () => Array.from({ length: 82 }, () => ({ text: 'x', style: 0, cells: 1 })));
+      large(screenOfSize(82, 200, { lines: many }));
+      // Bytes: 200 rows of 512 cells, each a letter under nine combining
+      // accents (19 bytes a cell), is about 1.9 MB as JSON: within every other
+      // cap and over the answer's.
+      const cell = `a${String.fromCodePoint(0x301).repeat(9)}`;
+      const heavy = Array.from({ length: 200 }, () => [{ text: cell.repeat(512), style: 0, cells: 512 }]);
+      large(screenOfSize(512, 200, { lines: heavy }));
+      // And one row of the same is drawn: the byte cap reads the whole answer, not a row.
+      const light = [[{ text: cell.repeat(512), style: 0, cells: 512 }], []];
+      expect(screenOf(answerOf({ screen: screenOfSize(512, 2, { lines: light }) }), 'a', 5)?.screen?.cols).toBe(512);
+      // And exactly at the caps it is drawn.
+      const atCols = screenOf(answerOf({ screen: screenOfSize(c.POCKET_SCREEN_MAX_COLS, c.POCKET_SCREEN_MAX_ROWS) }), 'a', 5);
+      expect(atCols?.screen?.cols).toBe(512);
+    });
+
+    const malformed: [string, Partial<Screen>][] = [
+      ['cols of 0', { cols: 0 }],
+      ['cols that is not whole', { cols: 4.5 }],
+      ['a cursor past the columns', { cursor: { x: 5, y: 0, visible: true } }],
+      ['a cursor on the row past the last', { cursor: { x: 0, y: 2, visible: true } }],
+      ['a cursor visible that is not a boolean', { cursor: { x: 0, y: 0, visible: 1 as unknown as boolean } }],
+      ['a ground that is not #rrggbb', { ground: '#13141' }],
+      ['an ink in upper case', { ink: '#D8DBE2' }],
+      ['a caret with no #', { caret: 'e8eaed0' }],
+      ['a dialog of 11 hex', { dialog: MARK.slice(1) }],
+      ['an empty turn', { turn: '' }],
+      ['asking that is not a boolean', { asking: 'yes' as unknown as boolean }],
+      ['lines one short of rows', { lines: [[]] }],
+      ['a run whose style is out of range', { lines: [[{ text: 'a', style: 2, cells: 1 }], []] }],
+      ['a run of no cells', { lines: [[{ text: 'a', style: 0, cells: 0 }], []] }],
+      ['a run wider than cols', { lines: [[{ text: 'abcde', style: 0, cells: 5 }], []] }],
+      [
+        'a row whose runs together pass cols',
+        { lines: [[{ text: 'abc', style: 0, cells: 3 }, { text: 'de', style: 0, cells: 2 }], []] }
+      ],
+      ['a run whose text is not a string', { lines: [[{ text: 7 as unknown as string, style: 0, cells: 1 }], []] }],
+      [
+        'a style whose fg is not a colour',
+        { styles: [{ fg: 'red', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }] }
+      ]
+    ];
+    for (const [name, over] of malformed) {
+      it(`answers null, never a malformed screen, for ${name}`, () => {
+        expect(screenOf(answerOf({ screen: screenOfSize(4, 2, over) }), 'a', 5)).toBeNull();
+      });
+    }
+
+    it('takes a dialog mark while asking, and a cursor at the last column', () => {
+      const got = screenOf(answerOf({ screen: screenOfSize(4, 2, { asking: true, dialog: MARK, cursor: { x: 4, y: 1, visible: false } }) }), 'a', 5);
+      expect(got?.screen).toMatchObject({ asking: true, dialog: MARK, cursor: { x: 4, y: 1, visible: false } });
+    });
+  });
+
+  describe('`screen` on one session (D32)', () => {
+    it('is true exactly for a running, idle or waiting session when this Mac answers the Screen', async () => {
+      const statuses = ['running', 'idle', 'needs_input', 'exited', 'restorable', 'unknown', 'discarded'] as const;
+      const rows = statuses.map((status) => session({ id: `s-${status}`, name: status, status }));
+      // The one live partition, read off the gates and never listed (T23).
+      for (const row of rows) expect(screenLive(row), row.status).toBe(row.status === 'running' || row.status === 'idle' || row.status === 'needs_input');
+      const routes = createPocketRoutes(facts({ sessions: () => rows, screen: async () => answerOf() }));
+      for (const status of statuses) {
+        const got = await routes.session(`s-${status}`);
+        expect(got?.session.screen, status).toBe(status === 'running' || status === 'idle' || status === 'needs_input');
+      }
+    });
+
+    it('is false on every session when this Mac has no watcher, and always present', async () => {
+      const routes = createPocketRoutes(facts());
+      for (const id of ['a', 'e', 'f']) {
+        const got = await routes.session(id);
+        expect(got?.session.screen, id).toBe(false);
+        expect(Object.keys(got?.session ?? {})).toContain('screen');
+      }
+    });
+
+    it('never asks the watcher to answer /v1/session, and no blocked or other row carries it', async () => {
+      let asked = 0;
+      const routes = createPocketRoutes(
+        facts({
+          screen: async () => {
+            asked += 1;
+            return answerOf();
+          }
+        })
+      );
+      await routes.session('a');
+      const blocked = routes.blocked();
+      expect(asked).toBe(0);
+      for (const row of [...blocked.rows, ...blocked.others]) expect('screen' in row, row.sessionId).toBe(false);
+    });
   });
 });

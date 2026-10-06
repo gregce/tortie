@@ -23,6 +23,10 @@
  * one place and this module names nothing that types. `end` and `endOffer`
  * are Phase 317's, unchanged.
  *
+ * PHASE 337 (build/p337/SPEC.md §5.4): `keys` is delegated the same way, to
+ * the Screen's keys verb (`createScreenKeys` in `src/main/screen/keys.ts`),
+ * handed in by `../capabilities.ts`.
+ *
  * Neither alone is enough (D7), and `conformance:manager` G2 holds the place
  * where they disagree. The batch adds the Mac batch's ONE narrowing (D14,
  * `batchEligibility` in src/renderer/session-manager/batch-end.ts): a session
@@ -171,6 +175,12 @@ export function createPocketWrites(deps: {
    * outcome and never throws; this module only passes the call through.
    */
   reply: Pick<PocketWrites, 'choose' | 'say'>;
+  /**
+   * The keys (Phase 337): the Screen's keys verb, `createScreenKeys`'s `keys`,
+   * handed in by `../capabilities.ts`. It answers an outcome and never throws;
+   * this module only passes the call through.
+   */
+  keys: Pick<PocketWrites, 'keys'>;
 }): PocketWrites & { endOffer(session: Session): PocketEndOffer } {
   const machineKnown = deps.machineKnown ?? machineKnownNow;
 
@@ -208,6 +218,8 @@ export function createPocketWrites(deps: {
 
     // PHASE 318. Passed through to the reply verbs, and nothing else.
     choose: (input, still): Promise<PocketReplyOutcome> => deps.reply.choose(input, still),
-    say: (input, still): Promise<PocketReplyOutcome> => deps.reply.say(input, still)
+    say: (input, still): Promise<PocketReplyOutcome> => deps.reply.say(input, still),
+    // PHASE 337. Passed through to the Screen's keys verb, and nothing else.
+    keys: (input, still): Promise<PocketReplyOutcome> => deps.keys.keys(input, still)
   };
 }

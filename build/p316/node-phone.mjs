@@ -55,6 +55,18 @@
  * `sessionsAnswerProblems` is the phone's refusals of an answer re-derived
  * from build/p3167/SPEC.md §6.1 and §6.4.5, never from the door's composer
  * or the Swift: an empty list is an answer the phone draws.
+ *
+ * PHASE 337 (build/p337/SPEC.md §5.2, §7.7): the Screen. `screenTarget` spells
+ * a `/v1/screen` target the phone's way (`id`, then `since` when the phone
+ * holds a revision, and nothing else: the phone never sends a size),
+ * `screenRead` is one signed read of it, and `screenAnswerProblems` is the
+ * phone's refusals of an answer re-derived from §5.8.2, never from the door's
+ * composer or the Swift. `sendKeys` is `POST /v1/keys` through the same
+ * `signedPost`, the body `{ dialog, keys, session, turn, write }` with sorted
+ * keys and a fresh write id, its items exactly `{ "t": text }` or
+ * `{ "k": name }` as given: it decides nothing, so a probe can send a body the
+ * Mac must refuse. `SCREEN_KEY_NAMES` is the 35 names, spelled here from the
+ * wire format as a third reading.
  */
 
 import {
@@ -410,8 +422,21 @@ export async function sayText(phone, door, sessionId, text, { write = freshWrite
   return { ...answer, write };
 }
 
-/** The verbs a write answer may name (Phase 317's `end`, Phase 318's `choose` and `say`). */
-export const WRITE_VERBS = Object.freeze(['end', 'choose', 'say']);
+/**
+ * `POST /v1/keys` (Phase 337, build/p337/SPEC.md D17): the items exactly as
+ * given (`{ t }` or `{ k }`), the `turn` and `dialog` of the picture they were
+ * sent against, and a fresh write id unless the caller hands one. Nothing here
+ * decides whether a write is legal, so an arm can send one the Mac must
+ * refuse; the phone's own sender keeps a named key other than `BSpace` alone.
+ * Answers `request`'s reading with the write id it sent.
+ */
+export async function sendKeys(phone, door, sessionId, keys, { turn, dialog = null, write = freshWriteId(), ...options } = {}) {
+  const answer = await signedPost(phone, door, '/v1/keys', { dialog, keys, session: sessionId, turn, write }, options);
+  return { ...answer, write };
+}
+
+/** The verbs a write answer may name (Phase 317's `end`, Phase 318's `choose` and `say`, Phase 337's `keys`). */
+export const WRITE_VERBS = Object.freeze(['end', 'choose', 'say', 'keys']);
 
 /** Every refusal word a write answer may carry (End's, the door's, and the reply's seven). */
 export const WRITE_REASONS = Object.freeze([
@@ -625,6 +650,118 @@ export function askedOf(query = {}) {
     machine: query.machine ?? null
   };
 }
+
+// ---------------------------------------------------------------------------
+// The Screen (Phase 337, build/p337/SPEC.md §5.2, §5.8.2)
+// ---------------------------------------------------------------------------
+
+/** The 35 key names a keys write may carry, by tmux's own name (D17), spelled here from the wire format. */
+export const SCREEN_KEY_NAMES = Object.freeze([
+  'Escape', 'Tab', 'BTab', 'Enter', 'BSpace', 'Up', 'Down', 'Left', 'Right',
+  ...'abcdefghijklmnopqrstuvwxyz'.split('').map((letter) => `C-${letter}`)
+]);
+
+/** The caps the phone holds a screen answer to (§5.8.2). */
+export const SCREEN_MAX_COLS = 512;
+export const SCREEN_MAX_ROWS = 200;
+export const SCREEN_MAX_STYLES = 1024;
+
+/** The phone's one spelling of a `/v1/screen` target: `id`, then `since` when it holds a revision, and nothing else. */
+export function screenTarget(sessionId, since = null) {
+  let target = `/v1/screen?id=${queryValue(sessionId)}`;
+  if (since !== null && since !== undefined) target += `&since=${queryValue(since)}`;
+  return target;
+}
+
+/** One signed `/v1/screen` read: the status, the parsed answer or null, its bytes and how long it took. */
+export async function screenRead(phone, door, sessionId, { since = null, ...options } = {}) {
+  const target = options.target ?? screenTarget(sessionId, since);
+  const started = Date.now();
+  const reply = await signedGet(phone, door, target, options);
+  const ms = Date.now() - started;
+  let answer = null;
+  try {
+    answer = reply.status === 200 ? JSON.parse(reply.body) : null;
+  } catch {
+    answer = null;
+  }
+  return { target, status: reply.status, answer, bytes: reply.bytes ?? 0, ms, error: reply.error ?? null };
+}
+
+const HEX12 = /^[0-9a-f]{12}$/;
+const COLOUR = /^#[0-9a-f]{6}$/;
+const TURN = /^[0-9a-f]{16}-(?:0|[1-9][0-9]{0,15})$/;
+const isWhole = (n, min, max) => Number.isSafeInteger(n) && n >= min && n <= max;
+
+/**
+ * What the phone refuses in a `/v1/screen` answer (§5.8.2), re-derived here.
+ * Answers a list of reasons; an empty list is an answer the phone draws.
+ * Refused WHOLE: a revision that is not 12 lowercase hex; `unchanged` true
+ * with a screen or a `why`; neither a screen nor a `why` when not unchanged;
+ * `cols` outside 1 to 512, `rows` outside 1 to 200; a cursor outside the grid;
+ * more than 1,024 styles; a style index or a run's cells out of range, or a
+ * row whose cells pass `cols`; `lines` not exactly `rows` long; a colour that
+ * is not `#` and six lowercase hex; a `dialog` that is neither null nor 12
+ * hex; a `turn` not a question id's shape.
+ */
+export function screenAnswerProblems(answer) {
+  const problems = [];
+  const say = (p) => problems.push(p);
+  if (answer === null || typeof answer !== 'object') return ['the answer is not an object'];
+  if (typeof answer.sessionId !== 'string' || answer.sessionId === '') say('sessionId is not an id');
+  if (typeof answer.revision !== 'string' || !HEX12.test(answer.revision)) say(`revision ${J(answer.revision)} is not 12 lowercase hex`);
+  if (typeof answer.at !== 'number' || !Number.isFinite(answer.at)) say('at is not a time');
+  if (typeof answer.unchanged !== 'boolean') say('unchanged is not a Bool');
+  const absent = answer.why;
+  if (absent !== null && !['ended', 'unreachable', 'large'].includes(absent)) say(`why ${J(absent)} is not one of the three words`);
+  if ((absent === null) !== (answer.sentence === null)) say('a sentence without a why, or a why without a sentence');
+  if (answer.unchanged === true) {
+    if (answer.screen !== null || absent !== null) say('unchanged carries a screen or a why');
+    return problems;
+  }
+  if (absent !== null) {
+    if (answer.screen !== null) say('a why carries a screen');
+    return problems;
+  }
+  const s = answer.screen;
+  if (s === null || typeof s !== 'object') return [...problems, 'neither a screen nor a why'];
+  if (!isWhole(s.cols, 1, SCREEN_MAX_COLS)) say(`cols ${J(s.cols)} is outside 1 to ${String(SCREEN_MAX_COLS)}`);
+  if (!isWhole(s.rows, 1, SCREEN_MAX_ROWS)) say(`rows ${J(s.rows)} is outside 1 to ${String(SCREEN_MAX_ROWS)}`);
+  const cols = isWhole(s.cols, 1, SCREEN_MAX_COLS) ? s.cols : 0;
+  const rows = isWhole(s.rows, 1, SCREEN_MAX_ROWS) ? s.rows : 0;
+  const c = s.cursor;
+  if (c === null || typeof c !== 'object' || !isWhole(c.x, 0, cols) || !isWhole(c.y, 0, rows - 1) || typeof c.visible !== 'boolean') {
+    say(`the cursor ${J(c)} is outside the grid`);
+  }
+  for (const k of ['alternate', 'asking', 'typable']) if (typeof s[k] !== 'boolean') say(`${k} is not a Bool`);
+  for (const k of ['ground', 'ink', 'caret']) if (typeof s[k] !== 'string' || !COLOUR.test(s[k])) say(`${k} ${J(s[k])} is not #rrggbb`);
+  if (s.dialog !== null && (typeof s.dialog !== 'string' || !HEX12.test(s.dialog))) say(`dialog ${J(s.dialog)} is neither null nor 12 hex`);
+  if (typeof s.turn !== 'string' || !TURN.test(s.turn)) say(`turn ${J(s.turn)} is not a question id`);
+  if (!Array.isArray(s.styles) || s.styles.length > SCREEN_MAX_STYLES) say('styles is not a list of at most 1,024');
+  const styles = Array.isArray(s.styles) ? s.styles : [];
+  styles.forEach((st, i) => {
+    if (st === null || typeof st !== 'object') return say(`style ${String(i)} is not an object`);
+    if (typeof st.fg !== 'string' || !COLOUR.test(st.fg)) say(`style ${String(i)}'s fg is not #rrggbb`);
+    if (st.bg !== null && (typeof st.bg !== 'string' || !COLOUR.test(st.bg))) say(`style ${String(i)}'s bg is neither null nor #rrggbb`);
+    for (const k of ['bold', 'dim', 'italic', 'underline', 'strike']) if (typeof st[k] !== 'boolean') say(`style ${String(i)}'s ${k} is not a Bool`);
+  });
+  if (!Array.isArray(s.lines) || s.lines.length !== rows) return [...problems, `lines is not exactly ${String(rows)} rows`];
+  s.lines.forEach((line, y) => {
+    if (!Array.isArray(line)) return say(`row ${String(y)} is not a list`);
+    let used = 0;
+    for (const run of line) {
+      if (run === null || typeof run !== 'object' || typeof run.text !== 'string') return say(`row ${String(y)} holds a run that is not { text, style, cells }`);
+      if (!isWhole(run.style, 0, styles.length - 1)) return say(`row ${String(y)} names style ${J(run.style)}, outside the table`);
+      if (!isWhole(run.cells, 1, cols)) return say(`row ${String(y)} holds a run of ${J(run.cells)} cells`);
+      used += run.cells;
+    }
+    if (used > cols) say(`row ${String(y)} covers ${String(used)} cells, past ${String(cols)}`);
+  });
+  return problems;
+}
+
+/** A screen's row as the phone's accessibility label reads it: the runs' text joined, trailing blanks dropped. */
+export const screenRowText = (line) => (Array.isArray(line) ? line.map((run) => run.text).join('').replace(/ +$/, '') : '');
 
 /** One signed `/v1/sessions` read: the status, the parsed answer or null, its bytes and how long it took. */
 export async function readSessions(phone, door, query = {}, options = {}) {

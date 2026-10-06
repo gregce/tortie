@@ -127,6 +127,42 @@ function ownPublicKeys() {
   return [...new Set(keys)];
 }
 
+/**
+ * NOT HIS KEYS, opt in (Phase 337, build/p337/SPEC.md D37):
+ * `SCRATCH_MACHINE_NO_OWN_KEYS=1` writes the yard's `authorized_keys` from THIS
+ * RUN'S key alone, and never calls {@link ownPublicKeys}: nothing reads a file
+ * under `~/.ssh` and nothing asks the person's own agent (`ssh-add -L`) for the
+ * keys it holds.
+ *
+ * WHY. Phase 337's rules forbid reading `~/.ssh`, and the default above reads
+ * every `*.pub` there and lists his agent's keys to trust them on the far side.
+ * The app still signs in with this on: the yard starts an agent of its OWN
+ * holding the run's key and hands its socket to the command
+ * (`build/with-scratch-machine.mjs` sets `SSH_AUTH_SOCK` to it), so the far
+ * side trusts exactly the key that agent offers.
+ *
+ * STATED, NOT CLOSED (build/p337/SPEC.md §Attack A18): the `ssh` the APP
+ * spawns takes `~` from the account record rather than `HOME`, so it opens the
+ * account's own ssh client configuration as every remote probe since Phase 69
+ * has. No harness reads it.
+ *
+ * OFF BY DEFAULT, so every other harness's `authorized_keys` is byte for byte
+ * what it was. Answers true when it is on.
+ */
+export function noOwnKeysFor(env) {
+  return String(env?.['SCRATCH_MACHINE_NO_OWN_KEYS'] ?? '') === '1';
+}
+
+/**
+ * The lines of the yard's `authorized_keys`: the run's own key, then the
+ * person's own keys unless {@link noOwnKeysFor} holds, then the closing empty
+ * line. `own` is called only when it is needed, so the person's keys are never
+ * read under the option.
+ */
+export function authorizedLinesFor(runKey, env, own = ownPublicKeys) {
+  return [runKey, ...(noOwnKeysFor(env) ? [] : own()), ''];
+}
+
 function portAnswers(p) {
   return sh('/usr/bin/nc', ['-z', '127.0.0.1', String(p)]).code === 0;
 }
@@ -368,11 +404,11 @@ export function scratchYard({ root, prefix, record }) {
   sh('/usr/bin/ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', hostKey]);
   sh('/usr/bin/ssh-keygen', ['-q', '-t', 'ed25519', '-N', '', '-f', userKey]);
 
+  // PHASE 337 (D37): under SCRATCH_MACHINE_NO_OWN_KEYS=1 the run's key alone,
+  // and the person's keys are never read.
   writeFileSync(
     authorized,
-    [readFileSync(`${userKey}.pub`, 'utf8').trim(), ...ownPublicKeys(), ''].join(
-      '\n'
-    ),
+    authorizedLinesFor(readFileSync(`${userKey}.pub`, 'utf8').trim(), process.env).join('\n'),
     'utf8'
   );
   chmodSync(authorized, 0o600);

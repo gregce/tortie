@@ -128,7 +128,7 @@ final class EndTests: XCTestCase {
     func testAnOfferedSessionDrawsTheRowOn() {
         let drawing = EndBarDrawing(offer: .offered(batch: true), confirm: WriteAnswers.confirm, kind: .faceID, phase: .idle, line: nil)
         XCTAssertEqual(drawing.row, .on)
-        XCTAssertEqual(drawing.label, Copy.endSessionMenu)
+        XCTAssertEqual(drawing.label, Copy.endTop, "End at the top right says End (Phase 337)")
         XCTAssertEqual(drawing.glyph, "faceid")
         XCTAssertEqual(drawing.confirm, WriteAnswers.confirm)
         XCTAssertNil(drawing.line)
