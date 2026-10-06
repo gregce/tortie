@@ -40015,6 +40015,39 @@ shell, which is wrong).
 - **No change to saving on a machine (336), its scrollback (320.1) or the phone.**
 - **No release.**
 
+## Phase 341 — "i wasn't able to add a folder in one step like i can on this" — New Folder on another machine names it in one go, as on his Mac (operator, 2026-10-05)
+
+**Subject.** `fix(machines): make and name a folder on another machine in one step`
+
+**First body line.** `Phase 341: New Folder on another machine, in one step`
+
+**Semver.** Patch, unreleased: New Folder in a project on another machine makes the folder and takes its name in one go.
+
+**Tier 3.** It writes his files on another computer. Two independent methods, one an attack, on the loopback machine, beside
+the parent.
+
+**Charter.** After 336.1 he opened `~/dev` on his Mac Pro, made a file, then pressed New Folder in the Explorer. The tree
+drew `untitled folder` under the collapsed row `test-tortie / test-1`, and two toasts read "Tortie could not find untitled
+folder on Greg's Mac Pro. Press Refresh to read that folder again." (`remoteEntryGone`, `src/renderer/machines/explorer.ts:118-123`).
+On his Mac the same press makes the folder and the inline name commits it under the typed name. The create and rename on
+another machine are `remote-entry.ts` (Phase 102, made writable by 336 and 336.1), reached from the tree through
+`src/renderer/tree/tree-ops.ts`, `remote-bridge.ts` and `use-tree-rename.ts`. Suspects, for the build to measure: the
+rename commits before the far create has answered, or the path it renames is built from the collapsed chain's label rather
+than the folder's real path, or a name with a space is quoted wrong on the far side.
+
+### The proof, run rather than read
+
+- **The app run**, parent and HEAD, loopback machine: New Folder at the project root, inside a collapsed chain, inside a
+  plain folder; type a name with spaces, one with a unicode letter, press Return fast and slow; New File the same way.
+  Parent: the failure reproduced. HEAD: one folder under the typed name, no toast, the far disk read afterwards.
+- **The attack:** a name that already exists, a name with a slash, `.git` in any case, a folder swapped after the pin
+  (336's rules must still refuse), the machine going away mid-create.
+
+### What is NOT in this phase
+
+- **No change to 336's write rules** or to local New Folder.
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41127,3 +41160,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 340 QUEUED IN FULL AND STARTED — add a machine in three steps**, on his words after re-adding his Mac Pro (the test missed `/usr/local/bin/tmux`; Prepare a separate press; too many words on the row). Runs beside 337, Mac-only. The tmux miss is a defect in the probe: `command -v tmux` over ssh runs without a login shell's PATH.
 
 - 2026-10-05, **PHASE 340 WIDENED, on his word ("make it all one phase please"):** the misleading "This Mac has no ssh program at /usr/bin/ssh" when ssh merely failed to launch (`connection-test.ts:745-755, 974-994`) is fixed in the same phase: a missing ssh keeps its sentence, a failed launch says so with its reason.
+
+- 2026-10-05, **PHASE 341 QUEUED IN FULL AND STARTED** — New Folder on his Mac Pro made `untitled folder` but the inline name failed twice with "could not find untitled folder"; runs beside 337 and 340.
