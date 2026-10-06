@@ -423,6 +423,31 @@ describe('the Tailscale panel once it has looked', () => {
     expect(one).toContain('1 other machine found.');
   });
 
+  it('counts exactly the rows it draws, this Mac aside (Phase 339)', () => {
+    // Main leaves Tailscale's Funnel relays out of `peers`, and the count line
+    // reads the same `peers`, so the number and the rows can never disagree.
+    const peer = (name: string, isThisMac = false) => ({
+      host: `${name}.fixture-p339.ts.net`,
+      name,
+      os: 'linux',
+      online: true,
+      isThisMac,
+      alreadyAdded: false
+    });
+    const html = seed({
+      tailscale: installed([
+        peer('studio-mac', true),
+        peer('attic'),
+        peer('build-box'),
+        peer('friends-server')
+      ]),
+      tailscaleReadAt: 1_760_000_000_000
+    });
+    const drawn = (html.match(/class="mach-peer"/g) ?? []).length;
+    expect(drawn).toBe(4);
+    expect(html).toContain(`${drawn - 1} other machines found.`);
+  });
+
   it('says so plainly when the tailnet answered with nothing, once', () => {
     const html = seed({
       tailscale: installed(

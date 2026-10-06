@@ -184,12 +184,42 @@ function readNode(raw: unknown, isSelf: boolean): TailscaleParsedPeer | null {
   };
 }
 
+/** The tag Tailscale puts on the relays it shares in for Funnel. */
+const FUNNEL_RELAY_TAG = 'tag:ingress';
+
+/**
+ * True for one of Tailscale's own Funnel relays (Phase 339). Once this Mac
+ * publishes through Funnel, `status --json` lists each relay as a peer: shared
+ * in (`ShareeNode` true), tagged `tag:ingress`, no `DNSName` and no `OS`
+ * (measured 2026-10-05: 23 of 26 peers, every one `funnel-ingress-node`).
+ * ALL FOUR must hold, so a machine a person could add is never hidden: a tag is
+ * the tailnet owner's to choose, and a peer with a name or an OS stays listed.
+ * `HostName` is not asked; with no DNS name there is nothing to dial, whatever
+ * the peer calls itself.
+ */
+function isFunnelRelay(raw: unknown): boolean {
+  if (typeof raw !== 'object' || raw === null || Array.isArray(raw)) return false;
+  const node = raw as Record<string, unknown>;
+  const tags = node['Tags'];
+  const dns = typeof node['DNSName'] === 'string' ? trimTrailingDot(node['DNSName']) : '';
+  const os = typeof node['OS'] === 'string' ? node['OS'] : '';
+  return (
+    node['ShareeNode'] === true &&
+    Array.isArray(tags) &&
+    tags.includes(FUNNEL_RELAY_TAG) &&
+    dns.length === 0 &&
+    os.length === 0
+  );
+}
+
 /**
  * Read `tailscale status --json`. Pure.
  *
  * `Self` is included and marked, because a person may legitimately want to
  * point at the Mac they are sitting at. Order is Self first, then the peers
- * sorted by name, so the list does not reshuffle between reads.
+ * sorted by name, so the list does not reshuffle between reads. Tailscale's
+ * Funnel relays are left out ({@link isFunnelRelay}), and because the count
+ * line counts these same rows, it counts only what is listed.
  */
 export function parseTailscaleStatus(text: string): TailscaleParsedPeer[] {
   let parsed: unknown;
@@ -209,6 +239,7 @@ export function parseTailscaleStatus(text: string): TailscaleParsedPeer[] {
   if (typeof peers === 'object' && peers !== null && !Array.isArray(peers)) {
     const rows: TailscaleParsedPeer[] = [];
     for (const value of Object.values(peers as Record<string, unknown>)) {
+      if (isFunnelRelay(value)) continue;
       const peer = readNode(value, false);
       if (peer !== null) rows.push(peer);
     }

@@ -1,0 +1,645 @@
+{
+  "Version": "0.0.0-p339-fixture",
+  "BackendState": "Running",
+  "TailscaleIPs": [
+    "192.0.2.1",
+    "2001:db8::01"
+  ],
+  "Self": {
+    "ID": "nP3390001",
+    "PublicKey": "nodekey:p339-self",
+    "HostName": "studio-mac",
+    "DNSName": "studio-mac.fixture-p339.ts.net.",
+    "OS": "macOS",
+    "UserID": 1,
+    "TailscaleIPs": [
+      "192.0.2.1",
+      "2001:db8::01"
+    ],
+    "Online": true,
+    "ExitNode": false,
+    "ExitNodeOption": false,
+    "Active": false,
+    "LastSeen": "2026-10-01T09:00:00Z"
+  },
+  "Health": [],
+  "MagicDNSSuffix": "fixture-p339.ts.net",
+  "CurrentTailnet": {
+    "Name": "fixture-p339",
+    "MagicDNSSuffix": "fixture-p339.ts.net",
+    "MagicDNSEnabled": true
+  },
+  "CertDomains": [
+    "studio-mac.fixture-p339.ts.net"
+  ],
+  "Peer": {
+    "nodekey:p339-relay-01": {
+      "ID": "nP3390009",
+      "PublicKey": "nodekey:p339-relay-01",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.9",
+        "2001:db8::09"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-02": {
+      "ID": "nP339000a",
+      "PublicKey": "nodekey:p339-relay-02",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.10",
+        "2001:db8::0a"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-online-mac": {
+      "ID": "nP3390002",
+      "PublicKey": "nodekey:p339-online-mac",
+      "HostName": "travel-laptop",
+      "DNSName": "travel-laptop.fixture-p339.ts.net.",
+      "OS": "macOS",
+      "UserID": 1,
+      "TailscaleIPs": [
+        "192.0.2.2",
+        "2001:db8::02"
+      ],
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-03": {
+      "ID": "nP339000b",
+      "PublicKey": "nodekey:p339-relay-03",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.11",
+        "2001:db8::0b"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-04": {
+      "ID": "nP339000c",
+      "PublicKey": "nodekey:p339-relay-04",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.12",
+        "2001:db8::0c"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-offline-linux": {
+      "ID": "nP3390003",
+      "PublicKey": "nodekey:p339-offline-linux",
+      "HostName": "attic",
+      "DNSName": "attic.fixture-p339.ts.net.",
+      "OS": "linux",
+      "UserID": 1,
+      "TailscaleIPs": [
+        "192.0.2.3",
+        "2001:db8::03"
+      ],
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-05": {
+      "ID": "nP339000d",
+      "PublicKey": "nodekey:p339-relay-05",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.13",
+        "2001:db8::0d"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-06": {
+      "ID": "nP339000e",
+      "PublicKey": "nodekey:p339-relay-06",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.14",
+        "2001:db8::0e"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-expired-key": {
+      "ID": "nP3390004",
+      "PublicKey": "nodekey:p339-expired-key",
+      "HostName": "old-laptop",
+      "DNSName": "old-laptop.fixture-p339.ts.net.",
+      "OS": "macOS",
+      "UserID": 1,
+      "TailscaleIPs": [
+        "192.0.2.4",
+        "2001:db8::04"
+      ],
+      "Expired": true,
+      "KeyExpiry": "2026-01-01T00:00:00Z",
+      "Online": false,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-07": {
+      "ID": "nP339000f",
+      "PublicKey": "nodekey:p339-relay-07",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.15",
+        "2001:db8::0f"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-08": {
+      "ID": "nP3390010",
+      "PublicKey": "nodekey:p339-relay-08",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.16",
+        "2001:db8::10"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-phone": {
+      "ID": "nP3390005",
+      "PublicKey": "nodekey:p339-phone",
+      "HostName": "localhost",
+      "DNSName": "pocket-phone.fixture-p339.ts.net.",
+      "OS": "iOS",
+      "UserID": 1,
+      "TailscaleIPs": [
+        "192.0.2.5",
+        "2001:db8::05"
+      ],
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-09": {
+      "ID": "nP3390011",
+      "PublicKey": "nodekey:p339-relay-09",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.17",
+        "2001:db8::11"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0a": {
+      "ID": "nP3390012",
+      "PublicKey": "nodekey:p339-relay-0a",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.18",
+        "2001:db8::12"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-linux-box": {
+      "ID": "nP3390006",
+      "PublicKey": "nodekey:p339-linux-box",
+      "HostName": "build-box",
+      "DNSName": "build-box.fixture-p339.ts.net.",
+      "OS": "linux",
+      "UserID": 1,
+      "TailscaleIPs": [
+        "192.0.2.6",
+        "2001:db8::06"
+      ],
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0b": {
+      "ID": "nP3390013",
+      "PublicKey": "nodekey:p339-relay-0b",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.19",
+        "2001:db8::13"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0c": {
+      "ID": "nP3390014",
+      "PublicKey": "nodekey:p339-relay-0c",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.20",
+        "2001:db8::14"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-shared-in": {
+      "ID": "nP3390007",
+      "PublicKey": "nodekey:p339-shared-in",
+      "HostName": "friends-server",
+      "DNSName": "friends-server.sharer-p339.ts.net.",
+      "OS": "linux",
+      "UserID": 2,
+      "TailscaleIPs": [
+        "192.0.2.7",
+        "2001:db8::07"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0d": {
+      "ID": "nP3390015",
+      "PublicKey": "nodekey:p339-relay-0d",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.21",
+        "2001:db8::15"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0e": {
+      "ID": "nP3390016",
+      "PublicKey": "nodekey:p339-relay-0e",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.22",
+        "2001:db8::16"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-tagged-own": {
+      "ID": "nP3390008",
+      "PublicKey": "nodekey:p339-tagged-own",
+      "HostName": "ci-runner",
+      "DNSName": "ci-runner.fixture-p339.ts.net.",
+      "OS": "linux",
+      "UserID": 3,
+      "TailscaleIPs": [
+        "192.0.2.8",
+        "2001:db8::08"
+      ],
+      "Tags": [
+        "tag:ci"
+      ],
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-0f": {
+      "ID": "nP3390017",
+      "PublicKey": "nodekey:p339-relay-0f",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.23",
+        "2001:db8::17"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-10": {
+      "ID": "nP3390018",
+      "PublicKey": "nodekey:p339-relay-10",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.24",
+        "2001:db8::18"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-11": {
+      "ID": "nP3390019",
+      "PublicKey": "nodekey:p339-relay-11",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.25",
+        "2001:db8::19"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-12": {
+      "ID": "nP339001a",
+      "PublicKey": "nodekey:p339-relay-12",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.26",
+        "2001:db8::1a"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-13": {
+      "ID": "nP339001b",
+      "PublicKey": "nodekey:p339-relay-13",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.27",
+        "2001:db8::1b"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-14": {
+      "ID": "nP339001c",
+      "PublicKey": "nodekey:p339-relay-14",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.28",
+        "2001:db8::1c"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-15": {
+      "ID": "nP339001d",
+      "PublicKey": "nodekey:p339-relay-15",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.29",
+        "2001:db8::1d"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-16": {
+      "ID": "nP339001e",
+      "PublicKey": "nodekey:p339-relay-16",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.30",
+        "2001:db8::1e"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    },
+    "nodekey:p339-relay-17": {
+      "ID": "nP339001f",
+      "PublicKey": "nodekey:p339-relay-17",
+      "HostName": "funnel-ingress-node",
+      "DNSName": "",
+      "OS": "",
+      "UserID": 4,
+      "TailscaleIPs": [
+        "192.0.2.31",
+        "2001:db8::1f"
+      ],
+      "Tags": [
+        "tag:ingress"
+      ],
+      "ShareeNode": true,
+      "Online": true,
+      "ExitNode": false,
+      "ExitNodeOption": false,
+      "Active": false,
+      "LastSeen": "2026-10-01T09:00:00Z"
+    }
+  }
+}

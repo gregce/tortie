@@ -13,6 +13,15 @@
  * is the one the resolver decided. Nothing on the way out rewrites it, because a
  * rewritten source is how a screen comes to claim a pinned path Tortie did not
  * run.
+ *
+ * A fourth, added in Phase 339. Tailscale's Funnel relays are not listed, and
+ * nothing else is hidden with them. The fixture
+ * `fixtures/tailscale-status-funnel.json` is SYNTHETIC (no real key, address or
+ * name: documentation addresses, made-up names): 23 relays in the shape measured
+ * on 2026-10-05, beside an online Mac, an offline Linux box, an expired key, a
+ * phone, a Linux box, a machine shared in WITH a name and a tagged machine of
+ * the person's own. Peers one field away from a relay are built from the
+ * fixture's own relay, so a filter that is removed or widened goes red here.
  */
 
 import {
@@ -31,6 +40,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
   TAILSCALE_CANDIDATES,
+  TAILSCALE_EMPTY_NOTE,
   TAILSCALE_MISSING_NOTE,
   parseTailscaleStatus,
   readTailnetMachines,
@@ -275,6 +285,181 @@ describe('the one call', () => {
     expect(out.peers.filter((peer) => peer.alreadyAdded).map((peer) => peer.name)).toEqual([
       'attic'
     ]);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 339: Tailscale's Funnel relays are not machines
+// ---------------------------------------------------------------------------
+
+const FUNNEL_FIXTURE = join(
+  dirname(fileURLToPath(import.meta.url)),
+  'fixtures',
+  'tailscale-status-funnel.json'
+);
+const FUNNEL_STATUS = readFileSync(FUNNEL_FIXTURE, 'utf8');
+const FUNNEL_DOC = JSON.parse(FUNNEL_STATUS) as {
+  Self: Record<string, unknown>;
+  Peer: Record<string, Record<string, unknown>>;
+};
+
+/** Self first, then every machine in the fixture by name. No relay. */
+const FUNNEL_LISTED = [
+  'studio-mac',
+  'attic',
+  'build-box',
+  'ci-runner',
+  'friends-server',
+  'localhost',
+  'old-laptop',
+  'travel-laptop'
+];
+
+/** True when a raw peer has every field of the relay shape measured on 2026-10-05. */
+function hasMeasuredRelayShape(peer: Record<string, unknown>): boolean {
+  return (
+    peer['HostName'] === 'funnel-ingress-node' &&
+    peer['DNSName'] === '' &&
+    peer['OS'] === '' &&
+    peer['ShareeNode'] === true &&
+    JSON.stringify(peer['Tags']) === JSON.stringify(['tag:ingress'])
+  );
+}
+
+/** The fixture's first relay, copied, with `change` applied to it. */
+function relayWith(change: (peer: Record<string, unknown>) => void): Record<string, unknown> {
+  const relay = Object.values(FUNNEL_DOC.Peer).find(hasMeasuredRelayShape);
+  if (relay === undefined) throw new Error('the fixture holds no relay');
+  const copy = JSON.parse(JSON.stringify(relay)) as Record<string, unknown>;
+  change(copy);
+  return copy;
+}
+
+/** The names the parse lists for a tailnet of the fixture's Self and one peer. */
+function listedWith(peer: Record<string, unknown>): string[] {
+  const text = JSON.stringify({ Self: FUNNEL_DOC.Self, Peer: { 'nodekey:p339-one': peer } });
+  return parseTailscaleStatus(text)
+    .filter((row) => !row.isSelf)
+    .map((row) => row.host);
+}
+
+describe('Tailscale’s Funnel relays (Phase 339)', () => {
+  it('the fixture holds 23 relays in the measured shape among 30 peers', () => {
+    // Without this the tests below could pass over a fixture with no relay in it.
+    const peers = Object.values(FUNNEL_DOC.Peer);
+    expect(peers).toHaveLength(30);
+    expect(peers.filter(hasMeasuredRelayShape)).toHaveLength(23);
+  });
+
+  it('lists every machine and no relay', () => {
+    const rows = parseTailscaleStatus(FUNNEL_STATUS);
+    expect(rows.map((r) => r.name)).toEqual(FUNNEL_LISTED);
+    expect(rows.some((r) => r.host === 'funnel-ingress-node')).toBe(false);
+  });
+
+  it('keeps each kind of machine with its own fields', () => {
+    const rows = parseTailscaleStatus(FUNNEL_STATUS);
+    const by = (name: string) => rows.find((r) => r.name === name);
+    expect(by('travel-laptop')).toMatchObject({ os: 'macOS', online: true });
+    expect(by('attic')).toMatchObject({ os: 'linux', online: false });
+    expect(by('old-laptop')).toMatchObject({ host: 'old-laptop.fixture-p339.ts.net' });
+    expect(by('localhost')).toMatchObject({
+      host: 'pocket-phone.fixture-p339.ts.net',
+      os: 'iOS'
+    });
+    expect(by('build-box')).toMatchObject({ os: 'linux', online: true });
+    expect(by('friends-server')).toMatchObject({
+      host: 'friends-server.sharer-p339.ts.net',
+      os: 'linux'
+    });
+    expect(by('ci-runner')).toMatchObject({ host: 'ci-runner.fixture-p339.ts.net' });
+  });
+
+  // One field away from a relay, so still a peer Tortie lists. Each row is the
+  // case a WIDER rule would wrongly hide.
+  const listed: Array<[string, (peer: Record<string, unknown>) => void]> = [
+    ['not shared in (ShareeNode false)', (p) => { p['ShareeNode'] = false; }],
+    ['not shared in (no ShareeNode field)', (p) => { delete p['ShareeNode']; }],
+    ['untagged', (p) => { delete p['Tags']; }],
+    ['tagged with no tags', (p) => { p['Tags'] = []; }],
+    ['tagged tag:ingress-proxy', (p) => { p['Tags'] = ['tag:ingress-proxy']; }],
+    ['tagged tag:Ingress', (p) => { p['Tags'] = ['tag:Ingress']; }],
+    ['tagged with the tag as a string, not a list', (p) => { p['Tags'] = 'tag:ingress'; }],
+    ['with a DNS name', (p) => { p['DNSName'] = 'ingress-box.sharer-p339.ts.net.'; }],
+    ['with an OS', (p) => { p['OS'] = 'linux'; }]
+  ];
+  for (const [label, change] of listed) {
+    it(`lists a peer that is a relay but ${label}`, () => {
+      expect(listedWith(relayWith(change))).toHaveLength(1);
+    });
+  }
+
+  // Still every one of the four, so still a relay. Each row is the case a
+  // NARROWER rule would let back onto the list.
+  const dropped: Array<[string, (peer: Record<string, unknown>) => void]> = [
+    ['exactly as measured', () => undefined],
+    ['under another HostName', (p) => { p['HostName'] = 'funnel-ingress-node-2'; }],
+    ['carrying a second tag', (p) => { p['Tags'] = ['tag:ingress', 'tag:other']; }],
+    ['offline', (p) => { p['Online'] = false; }],
+    ['with no OS field at all', (p) => { delete p['OS']; }],
+    ['with no DNSName field at all', (p) => { delete p['DNSName']; }]
+  ];
+  for (const [label, change] of dropped) {
+    it(`does not list a relay ${label}`, () => {
+      expect(listedWith(relayWith(change))).toEqual([]);
+    });
+  }
+
+  describe('through the one call', () => {
+    let dir = '';
+    let standIn = '';
+
+    beforeEach(() => {
+      resetTailscaleWarningsForTests();
+      dir = mkdtempSync(join(tmpdir(), 'tortie-tailscale-funnel-'));
+      standIn = join(dir, 'stand-in-tailscale');
+      // Prints the committed fixture and nothing else. No real Tailscale runs.
+      writeFileSync(standIn, `#!/bin/sh\nexec /bin/cat '${FUNNEL_FIXTURE}'\n`, 'utf8');
+      chmodSync(standIn, 0o755);
+    });
+
+    afterEach(() => {
+      rmSync(dir, { recursive: true, force: true });
+    });
+
+    it('sends the screen the machines alone, so the count is the rows it lists', async () => {
+      const out = await readTailnetMachines({
+        packaged: false,
+        env: { GMUX_TAILSCALE_BIN: standIn },
+        alreadyAdded: []
+      });
+      expect(out.peers.map((peer) => peer.name)).toEqual(FUNNEL_LISTED);
+      // The count line counts every row but this Mac: 7, where it said 30.
+      expect(out.peers.filter((peer) => !peer.isThisMac)).toHaveLength(7);
+      expect(out.note).toBeNull();
+    });
+
+    it('answers as an empty tailnet when every peer is a relay', async () => {
+      const onlyRelays = {
+        ...FUNNEL_DOC,
+        Peer: Object.fromEntries(
+          Object.entries(FUNNEL_DOC.Peer).filter(([, peer]) => hasMeasuredRelayShape(peer))
+        )
+      };
+      writeFileSync(join(dir, 'only-relays.json'), JSON.stringify(onlyRelays), 'utf8');
+      writeFileSync(
+        standIn,
+        `#!/bin/sh\nexec /bin/cat '${join(dir, 'only-relays.json')}'\n`,
+        'utf8'
+      );
+      const out = await readTailnetMachines({
+        packaged: false,
+        env: { GMUX_TAILSCALE_BIN: standIn },
+        alreadyAdded: []
+      });
+      expect(out.peers.map((peer) => peer.name)).toEqual(['studio-mac']);
+      expect(out.note).toBe(TAILSCALE_EMPTY_NOTE);
+    });
   });
 });
 
