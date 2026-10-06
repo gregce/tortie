@@ -39950,6 +39950,71 @@ the phone, and Tailscale then lists its Funnel relays as peers. Measured on 2026
 - **No change to Funnel, pairing or the phone door.**
 - **No release.**
 
+## Phase 340 — "end to end i want to redesign the add a machine steps ... it should be much simpler" — add a machine in three steps, find tmux by itself, and a machine row with just enough words (operator, 2026-10-05)
+
+**Subject.** `feat(machines): add a machine by picking it, and Tortie checks and prepares it`
+
+**First body line.** `Phase 340: add a machine in three steps`
+
+**Semver.** Minor, unreleased: adding a machine is pick, check, add; tmux is found where Homebrew and Linux put it; a
+machine's row is a name, a status and one button.
+
+**Tier 3.** It starts a program on another machine, carries his password once for the key install, and reshapes the one
+human act refusal 8 rests on for machines (the confirm agreement bound to the hash of the fields that decide what runs).
+Two independent methods, one an attack, on the loopback machine, beside the parent.
+
+**Charter.** His words of 2026-10-05, re-adding his Mac Pro: after Remove and Add, the test said tmux was missing until he
+typed `/usr/local/bin/tmux` under Advanced; then he had to press Prepare; "can we look at the code and catalog (simply) the
+steps to add a machine... its not super user friendly. Also when we connect to the machine we should make it automatically
+look for [tmux] on that machine"; "end to end i want to redesign the add a machine steps because it is not very easy to
+understand what to do and it should be much simpler"; and of the machine row's expanded card, "there are also way too many
+words on this screen". Today it is up to ten steps (`src/renderer/settings/AddMachine.tsx`, `MachineRow.tsx`, the copy in
+`machines-copy.ts`): Add, find on the tailnet, fill the fields, Test the connection (a transcript), make and install a key,
+type the tmux path, accept an untested version, Add and confirm, Prepare, then open a folder. The tmux miss is a defect:
+the test asks `command -v tmux` over ssh (`src/main/machines/connection-test.ts:212-250`), a command ssh runs in a shell
+that is not a login shell, so `/usr/local/bin` and `/opt/homebrew/bin` are not on its PATH (the comment there says login
+shell, which is wrong).
+
+### The design he was shown
+
+1. **Which machine?** The tailnet list (Phase 339: relays hidden) or "Type an address…".
+2. **Tortie checks it, by itself,** once he picks: reached it, signed in as, found tmux (its login shell first, then the
+   usual install folders, and the Advanced field only for an odd place), its version, the agents there. A checklist with
+   ticks; the transcript behind a disclosure. Questions appear inline only when needed: trust a first-seen fingerprint;
+   a password once to put Tortie's key on it.
+3. **One press: "Add <name>"**, with "what it runs" one click away; that press confirms the machine (the hashed agreement
+   refusal 8 requires) AND prepares it. An untested tmux version is one line on that button, not its own step. Then
+   "<name> is ready" and "Open a folder on it…".
+4. **The machine row**: name, a status chip (Ready, Needs a key, Changed, Offline), host, OS and tmux version on one line,
+   one button for the next thing ("Open a folder on it…", or "Set up sign-in…", or "Review…"), and a ⋯ NATIVE menu
+   (`ui:popupMenu`, CLAUDE.md's UI rule) holding Test the connection, What Tortie runs there…, Stop trusting this machine
+   and Remove…. The paragraphs move behind that menu item and hover text ("just enough words"; his memory "remote feels
+   identical to local": no explanatory text on remote surfaces just because they are remote).
+
+### What the spec must keep
+
+- Refusal 8 for machines: nothing starts on another machine from a configuration change alone; the Add press is the human
+  act, out of band of any agent turn, and it binds the same hashed fields. The automatic check is a READ started by his
+  pick in Tortie's own window, and the spec says why that is consistent with the rule, or keeps a press for it.
+- No machine's confirm hash moves for a row confirmed today; no confirmed machine becomes unconfirmed.
+- The password goes to the sign-in program for one call and is kept nowhere (today's key install).
+- Every gate the Machines settings and `src/main/machines/**` already pass (`conformance:machines`, `:farattach`,
+  `:remoteclose`, the menu gates).
+
+### The proof, run rather than read
+
+- **The app run**, parent and HEAD, on the loopback machine with tmux in `/usr/local/bin` and in `/opt/homebrew/bin` and
+  on a far PATH that lacks both: count the presses and the words from "Add a machine" to "ready", and read the row.
+- **The attack:** a far `tmux` planted earlier on the far PATH than the real one; a far login shell that prints noise; a
+  first-seen and a changed host key; a refused key install; an untested version; a changed machine; an agent editing
+  `machines.json` between the check and the press.
+- The menus: the ⋯ menu is native and the application menus do not move, or the brief says what changed in them.
+
+### What is NOT in this phase
+
+- **No change to saving on a machine (336), its scrollback (320.1) or the phone.**
+- **No release.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41058,3 +41123,5 @@ cycle rather than only the evening it was written.
 - 2026-10-05, **PHASE 339 QUEUED IN FULL AND STARTED, beside 337 on his word ("something you can parallelize")** — Add a Machine stops listing Tailscale's Funnel relay nodes (23 of his 26 peers).
 
 - 2026-10-05, **PHASE 339 LANDED, `c10a5892`, unreleased — Add a Machine lists only machines.** A peer is skipped only when shared in, tagged `tag:ingress`, nameless and with no OS (all four; the builder narrowed the entry's OR so a machine of his own tagged `tag:ingress` stays listed). Approved first time at Tier 2: a 47-peer hostile fixture judged at parent and HEAD with 0 mismatches, one app run per build. The first landing battery failed on a full disk (1.6 GB free; his Docker image holds 44 GB), cleared by removing our idle leftovers, and the re-run passed whole.
+
+- 2026-10-05, **PHASE 340 QUEUED IN FULL AND STARTED — add a machine in three steps**, on his words after re-adding his Mac Pro (the test missed `/usr/local/bin/tmux`; Prepare a separate press; too many words on the row). Runs beside 337, Mac-only. The tmux miss is a defect in the probe: `command -v tmux` over ssh runs without a login shell's PATH.
