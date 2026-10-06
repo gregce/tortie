@@ -1134,6 +1134,19 @@ export const CHECKS = [
   // under its /tmp/p3201-<pid>/far/, removed in that harness's finally.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p336'),
+  // PHASE 341's app run: New Folder and New File in a project on another
+  // machine, pressed in the Explorer with the box open past a machine state
+  // push, beside the same press on this Mac. ONE Electron through
+  // build/electron-run.mjs's withElectron on a scratch profile, a scratch HOME
+  // and the socket gmux-p341-<pid>, inside build/with-scratch-machine.mjs's
+  // loopback machine with the quiet shell and its scratch HOME (D23), which is
+  // why this is `remote` and not `electron`. What the renderer asked main is
+  // read by logpoints in the shipped chunks, and the far disk by `ls`. Every
+  // far folder is under the run's own directory. A scratch agents.json renames
+  // the Gemini, Qwen, Antigravity, Grok and Droid binaries. No model turn and
+  // no token. `P341_CHECKOUT` launches a built parent; `--grader-self-test`
+  // grades hand-written readings and starts nothing.
+  remote('probe:p341'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
   // profile through build/electron-run.mjs's withElectron, a scratch HOME and

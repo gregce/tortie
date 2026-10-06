@@ -35,6 +35,7 @@ The operator set the style on 2026-08-23 by rewriting every entry, and it binds 
 - A file an agent changed now shows its new contents when you switch back to its tab, return to its project or click into the editor, even in a folder your repository ignores, where it used to keep the old text until a save refused because the file had changed on disk; a file in an ignored folder still does not update while you watch it without looking away and back ([`b07c12f1`](https://github.com/gregce/tortie/commit/b07c12f1))
 - A Redline tab now opens where you left it, instead of at the top or at the place you had reached in another Redline tab; a tab you close and open again starts at the top ([`b07c12f1`](https://github.com/gregce/tortie/commit/b07c12f1))
 - Find machines on your tailnet, in Settings then Machines, now lists only your machines; once your Mac was reaching the iPhone app through Tailscale Funnel it also listed a row named funnel-ingress-node for each of Tailscale's relays and counted them among the machines it found ([`c10a5892`](https://github.com/gregce/tortie/commit/c10a5892))
+- New Folder and New File in a project on another machine now make the folder or file under the name you type, however long you take to type it, as they do on your Mac; a name that took more than a few seconds used to come back with "Tortie could not find untitled folder" and leave an untitled row in the tree
 
 ## 0.110.0 (2026-09-21)
 

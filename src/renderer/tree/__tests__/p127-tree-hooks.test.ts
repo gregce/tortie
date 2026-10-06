@@ -82,7 +82,10 @@ const MOVED_EFFECTS: { what: string; file: string; deps: string }[] = [
   {
     what: 'build the verbs for this mounted root',
     file: 'use-tree-rename.ts',
-    deps: '}, [model, rootPath, hold, editorBridge, remote, remoteWriteFolder]);'
+    // PHASE 341 CHANGED THIS ARRAY ON PURPOSE: the machine's id replaced the
+    // `remote` object, which was new on every machine state push and rebuilt
+    // the verbs under an open New Folder box (p341-create-across-push.test.ts).
+    deps: '}, [model, rootPath, hold, editorBridge, machineId, remoteWriteFolder]);'
   },
   {
     what: 'the create editor listeners on the host',
@@ -150,8 +153,10 @@ describe('every effect that stayed is still in the component', () => {
 
 describe('every moved effect kept its cleanup', () => {
   it('the verbs drop the ref on unmount', () => {
+    // PHASE 341 ADDED ONE CALL BEFORE IT: the verbs end an open New File or
+    // New Folder box on their way out (TreeOps.dispose in ../tree-ops.ts).
     expect(rename).toContain(
-      '    return () => {\n      opsRef.current = null;\n    };'
+      '      ops.dispose();\n      opsRef.current = null;\n    };'
     );
   });
 

@@ -115,12 +115,26 @@ export function useTreeRename({
   // ----- the verbs ---------------------------------------------------------
   // Built once per mounted root: they hold the model and the feed baseline,
   // which are exactly the two things a file operation has to keep in step.
+  //
+  // PHASE 341. THEY ARE REBUILT ONLY WHEN WHAT THEY CLOSE OVER CHANGES, which
+  // is the machine's id and the folder Tortie may write under, and never when
+  // the `remote` OBJECT is merely new. FilesSection composes that object from
+  // the machine states, and main pushes the whole list after every completed
+  // session poll of that machine (`noteMachineAnswered`, every 5 s while the
+  // window is focused), so the object was new every few seconds. Each new one
+  // rebuilt these verbs, and a rebuilt set starts with no pending create: a New
+  // Folder box open across one poll committed into verbs that had never heard
+  // of it, which sent `machines:renameEntry` for `untitled folder`, a folder
+  // nobody had made, and the machine answered `gone`. Measured at the parent by
+  // build/p341/probe-p341.mjs: every create whose box stayed open past a push
+  // did that, and every one pressed within 150 ms made its folder. A tree on
+  // this Mac has no `remote`, which is why the same press never failed there.
+  const machineId = remote?.machineId ?? null;
   useEffect(() => {
     // PHASE 101. The one member that says where a create lands. It is absent
     // for a folder on this Mac and for a tree in no folder Tortie may write
     // under (Phase 336), and `finishCreate` in ./tree-ops.ts branches on
     // exactly that.
-    const machineId = remote?.machineId ?? null;
     const remoteCreate =
       machineId === null || remoteWriteFolder === null
         ? undefined
@@ -172,7 +186,7 @@ export function useTreeRename({
               await refreshRemoteTree(rootPath, machineId);
             }
           };
-    opsRef.current = createTreeOps({
+    const ops = createTreeOps({
       rootPath,
       model,
       readFed: () => fedRef.current,
@@ -185,11 +199,17 @@ export function useTreeRename({
       ...(remoteCreate === undefined ? {} : { remoteCreate }),
       ...(remoteEntry === undefined ? {} : { remoteEntry })
     });
+    opsRef.current = ops;
     setOpsCreated((n) => n + 1);
     return () => {
+      // PHASE 341. A New File or New Folder box these verbs opened ends with
+      // them, the way Esc ends it, so the next set never receives its commit
+      // as a rename of a row that was never made, and its hold on the row is
+      // released rather than leaked.
+      ops.dispose();
       opsRef.current = null;
     };
-  }, [model, rootPath, hold, editorBridge, remote, remoteWriteFolder]);
+  }, [model, rootPath, hold, editorBridge, machineId, remoteWriteFolder]);
 
   // ----- the create editor's live refusal (Phase 37) ------------------------
   // While a New File / New Folder editor is open, every keystroke is judged

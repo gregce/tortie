@@ -186,6 +186,21 @@ export interface TreeOps {
    */
   settle(): void;
   /**
+   * PHASE 341. These verbs are being replaced or unmounted. An open New File
+   * or New Folder box is ended the way Esc ends it: the editor is cancelled,
+   * the placeholder row comes out of the model, and its hold is released.
+   * Nothing is written anywhere.
+   *
+   * WHY IT EXISTS. The pending create lives in THESE verbs, and the box lives
+   * in the library's model, which outlives them. Before this, a set of verbs
+   * built while a box was open never heard of it, so Return committed the box
+   * into a set that read it as a RENAME of `untitled folder`, a row nobody had
+   * made: on a machine that sent `machines:renameEntry` and the machine
+   * answered `gone`. The old set's hold on the row was never released either,
+   * so the row stayed drawn until the tree was mounted again.
+   */
+  dispose(): void;
+  /**
    * A completed drop. `modelAlreadyMoved` separates Pierre's optimistic path
    * (onDropComplete) from the ones where the model refused the move or never
    * had a target (onDropError, and our own root drop).
@@ -1114,6 +1129,39 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       release?.();
       // Treat it as a commit of the typed name: the one disk write.
       finishCreate(create.placeholder, create.kind, create.placeholder);
+    },
+
+    dispose() {
+      // PHASE 341. Cleared FIRST, so whatever the cancel below emits (the
+      // library removes a row born with `removeIfCanceled`) finds no pending
+      // create to settle and commits nothing.
+      const create = pending;
+      const release = pendingRelease;
+      pending = null;
+      pendingRelease = null;
+      if (create === null) return;
+      // On an unmount the library's own controller may already be torn down,
+      // so neither step below may throw out of a cleanup.
+      try {
+        const view = ctx.renameView();
+        if (view !== null && view.getPath() === create.placeholder) {
+          view.cancel();
+        }
+      } catch {
+        /* the editor is already gone */
+      }
+      // The library removes the row itself on a cancel; this is for the editor
+      // that could not be reached, and for one that had already closed.
+      try {
+        if (ctx.model.getItem(create.placeholder) !== null) {
+          ctx.model.remove(create.placeholder, {
+            recursive: create.kind === 'dir'
+          });
+        }
+      } catch {
+        /* already gone */
+      }
+      release?.();
     },
 
     onRenameCommitted(event) {
