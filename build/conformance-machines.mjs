@@ -4411,6 +4411,23 @@ const READ_ONLY_GIT_VERBS = new Set(ALLOWED_GIT_VERBS);
 //
 // A guard in main would be a SECOND COPY of a rule the far side has to enforce
 // anyway, and two copies of one rule is how one of them goes stale.
+//
+// PHASE 343 WIDENED 51 (build/p343/SPEC.md D14 and §9.1), once and on purpose.
+// A link to a folder on another machine now opens in the Explorer, so
+// `tree-list` hands `find` the option `-H`, and ONLY when the folder it was
+// asked about is itself a link: the text holds `h=` and then
+// `if [ -L "$p" ]; then h=-H; fi` once, `h=-H` nowhere else, and both walks read
+// `find $h "$p"`. `$h` is empty or that constant, never a positional, so
+// condition 36 reads the text as it always did. No `find` is followed by `-L`
+// before its path and `-follow` is not in the text at all. A walk that follows
+// every link follows every loop down to the depth cap, and one that follows a
+// link below its root lists folders outside the one it was asked about; the
+// tree opens such a link one level per click instead, each a walk of its own.
+// The clause reads `find`'s options and never the `[ -L ]` tests, because the
+// text names `-L` twice as a test and that is what tells a link from a folder.
+// `ablation:p343` breaks it four ways (the option made unconditional, `-H`
+// written `-L`, `-follow` added to the first walk, the second walk losing `$h`)
+// and each must turn this condition red.
 
 const REVIEW_FILE_GUARD = 'case "$2" in /*|*..*) exit 1;; esac';
 
@@ -4591,6 +4608,16 @@ const writeReservedFor = (name) => WRITE_RESERVED_GUARD.replace('%s', name);
       fail(
         'tree-list does not cap its output with head -n "$3". One folder ' +
           'holding a home directory would then send an answer of any size.'
+      );
+    }
+    // PHASE 343: -H only when the folder asked about is itself a link.
+    if (tree.followsRootLinkOnly !== true) {
+      fail(
+        'condition 51: tree-list does not hand find -H only when the folder it ' +
+          'was asked about is itself a link: a walk that follows links follows ' +
+          'every loop to the depth cap, and one that follows a link below its ' +
+          'root lists folders outside the one asked about ' +
+          `(${(Array.isArray(tree.linkWalkFaults) ? tree.linkWalkFaults : ['the probe printed no reading']).join('; ')}).`
       );
     }
   }

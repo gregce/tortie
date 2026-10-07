@@ -11,9 +11,10 @@
  *    menu are written elsewhere. The captured options read both, so both must
  *    already exist. `use-tree-rename.ts` fills the first and
  *    `use-tree-menu.ts` fills the second.
- *  - `canRenameHereRef` and `conflictsRef` are refs written on every render,
- *    never values closed over. A person can confirm a folder in Settings while
- *    this tree is mounted, and the once-captured predicate has to see it.
+ *  - `canRenameHereRef`, `conflictsRef` and (PHASE 343) `linksRef` are refs
+ *    written on every render, never values closed over. A person can confirm a
+ *    folder in Settings while this tree is mounted, and a listing can draw a
+ *    new link at any time, and the once-captured predicates have to see both.
  *  - the five feeders below are effects, so the listing, git status, the
  *    ignored lane and the dot suppression reach a model that was built from a
  *    snapshot.
@@ -38,8 +39,8 @@ import { useFileTree as usePierreModel } from '@pierre/trees/react';
 import type { UseFileTreeResult } from '@pierre/trees/react';
 import { isProtectedFsPath } from '@shared/fs-ops';
 import { targetKey, workspaceTarget } from '@shared/workspace-target';
-import type { FsDirEntry, GitFileStatus } from '@shared/types';
-import { treeGitLane } from './decorations';
+import type { GitFileStatus } from '@shared/types';
+import { treeGitLane, treeRowDecoration } from './decorations';
 import type { TreeDensity } from './density';
 import { FILTER_SANCTION_MS } from './filter-guard';
 import { expandedDirs } from './header-actions';
@@ -49,6 +50,13 @@ import { mayWriteEntriesHere } from './remote-bridge';
 import { useFileTree } from './store';
 import { useTreeHandle } from './tree-handle';
 import type { TreeOps } from './tree-ops';
+import {
+  isAtOrUnderLink,
+  isUnderLink,
+  NO_TREE_LINKS,
+  treeInputOf
+} from './tree-paths';
+import type { TreeLinks } from './tree-paths';
 
 /** The @pierre/trees model this component drives. */
 export type TreeModel = UseFileTreeResult['model'];
@@ -91,6 +99,17 @@ export interface TreeModelOptions {
   statusFiles: readonly GitFileStatus[];
   isRepo: boolean;
   density: TreeDensity;
+}
+
+/** True when two sets hold the same members. */
+function sameMembers(
+  a: ReadonlySet<string>,
+  b: ReadonlySet<string>
+): boolean {
+  if (a === b) return true;
+  if (a.size !== b.size) return false;
+  for (const member of a) if (!b.has(member)) return false;
+  return true;
 }
 
 // ---------------------------------------------------------------------------
@@ -346,20 +365,32 @@ export function useTreeModel({
   );
 
   // Canonical path set + kind lookup derived from the lazy listing cache.
-  const treeInput = useMemo(() => {
-    const paths = new Set<string>();
-    const kinds = new Map<string, FsDirEntry['kind']>();
-    for (const [dirAbs, entries] of Object.entries(entriesByDir)) {
-      if (dirAbs !== rootPath && !dirAbs.startsWith(rootPath + '/')) continue;
-      for (const entry of entries) {
-        const rel = entry.path.slice(rootPath.length + 1);
-        if (rel.length === 0) continue;
-        kinds.set(rel, entry.kind);
-        paths.add(entry.kind === 'dir' ? rel + '/' : rel);
-      }
-    }
-    return { paths, kinds };
-  }, [entriesByDir, rootPath]);
+  // PHASE 343. Built by `treeInputOf` in ./tree-paths.ts, which also spells a
+  // link to a folder as a folder and collects the link rows, so the rule can be
+  // tested without a tree.
+  const treeInput = useMemo(
+    () => treeInputOf(entriesByDir, rootPath),
+    [entriesByDir, rootPath]
+  );
+
+  /**
+   * PHASE 343. The link rows of the last listing, for every once-captured
+   * predicate below (drag, drop, rename, the row mark) and for the verbs, which
+   * are NOT rebuilt on a listing and read it through `TreeOpsContext.links`.
+   */
+  const linksRef = useRef<TreeLinks>(treeInput.links);
+  linksRef.current = treeInput.links;
+
+  /**
+   * PHASE 343. The link FOLDERS, as one set object that keeps its identity
+   * while its members do not change, so the git lane below is not rebuilt (and
+   * the model's git status not re-fed) on every listing that draws no new link.
+   */
+  const linkFoldersRef = useRef<ReadonlySet<string>>(NO_TREE_LINKS.folders);
+  if (!sameMembers(linkFoldersRef.current, treeInput.links.folders)) {
+    linkFoldersRef.current = treeInput.links.folders;
+  }
+  const linkFolders = linkFoldersRef.current;
 
   // ----- what the repository ignores (Phase 47 item 1) ---------------------
   const ignoredPaths = useTreeIgnored((s) => s.ignored);
@@ -372,28 +403,29 @@ export function useTreeModel({
   // otherwise turn on by mistake. The rules are in decorations.ts and
   // ignored.ts so they can be tested without a tree.
   const gitState = useMemo(() => {
-    const lane = treeGitLane(statusFiles, ignoredPaths);
+    // PHASE 343. Given the link folders, so a porcelain row for a link drawn as
+    // a folder (`?? newLink`) is keyed onto that folder's row (`newLink/`).
+    const lane = treeGitLane(statusFiles, ignoredPaths, linkFolders);
     return {
       ...lane,
       dotSuppression: ignoredOnlyAncestors(ignoredPaths, lane.changed)
     };
-  }, [statusFiles, ignoredPaths]);
+  }, [statusFiles, ignoredPaths, linkFolders]);
 
   const conflictsRef = useRef(gitState.conflicts);
   conflictsRef.current = gitState.conflicts;
 
   // Conflict '!' rides the custom decoration lane next to the git lane.
   // Captured once by the model at construction — reads through the ref.
+  //
+  // PHASE 343. The same lane carries the link mark, `⤷` (U+2937, VS Code's own
+  // letter for a link) in the muted text colour, titled `Link`, on EVERY link
+  // row, folder or leaf. The library gives a row one decoration, so the
+  // conflict `!` keeps the lane when both apply. A chain row (`.claude/skills`
+  // drawn as one row) is marked when any folder it names is a link.
   const renderConflictDecoration = useCallback(
-    (ctx: FileTreeRowDecorationContext): FileTreeRowDecoration | null => {
-      if (ctx.item.kind !== 'file') return null;
-      if (!conflictsRef.current.has(ctx.item.path)) return null;
-      return {
-        text: '!',
-        title: 'Merge conflict',
-        parts: [{ text: '!', color: 'var(--git-conflict)' }]
-      };
-    },
+    (ctx: FileTreeRowDecorationContext): FileTreeRowDecoration | null =>
+      treeRowDecoration(ctx, conflictsRef.current, linksRef.current.rows),
     []
   );
 
@@ -450,6 +482,11 @@ export function useTreeModel({
       if (!canRenameHereRef.current) return false;
       const ops = opsRef.current;
       if (ops === null || paths.some(isProtectedFsPath)) return false;
+      // PHASE 343. A row under a link is never a source: no move in the tree,
+      // no attach to a terminal and no drag out to Finder, because all three
+      // start here. The link row itself still drags; it moves the link.
+      const links = linksRef.current;
+      if (paths.some((path) => isUnderLink(path, links))) return false;
       const pending = ops.pendingPath();
       return pending === null || !paths.includes(pending);
     },
@@ -469,6 +506,10 @@ export function useTreeModel({
       const dir = event.target.directoryPath;
       if (dir === null) return true;
       if (isProtectedFsPath(dir)) return false;
+      // PHASE 343. Never INTO a link or a folder under one. The library aims a
+      // drop over a folder row into that folder and, refused, at nothing, so a
+      // drop over a link row moves nothing at all.
+      if (isAtOrUnderLink(dir, linksRef.current)) return false;
       return dir !== opsRef.current?.pendingPath();
     },
     []
@@ -536,9 +577,12 @@ export function useTreeModel({
       // sanction here is what stops the guard from reopening the filter over
       // the inline name editor. A refusal stamps nothing.
       canRename: (item) => {
+        // PHASE 343. Nothing under a link is renamed from the Explorer; the
+        // link row itself still is, and that renames the link.
         const allowed =
           opsRef.current !== null &&
           !isProtectedFsPath(item.path) &&
+          !isUnderLink(item.path, linksRef.current) &&
           canRenameHereRef.current;
         if (allowed) sanctionFilterClose();
         return allowed;
@@ -709,7 +753,15 @@ export function useTreeModel({
       resetIgnored();
       return;
     }
-    void syncIgnored(workspaceTarget(rootPath, null), treeInput.paths);
+    // PHASE 343. The link folders go with the paths: git is asked about a
+    // link row in its LEAF spelling and never about a path under it, because
+    // one such path makes `git check-ignore` exit 128 and the whole batch
+    // answer nothing (measured, A4 and A8).
+    void syncIgnored(
+      workspaceTarget(rootPath, null),
+      treeInput.paths,
+      treeInput.links.folders
+    );
   }, [
     isRepo,
     isRemote,
@@ -775,6 +827,8 @@ export function useTreeModel({
     opsRef,
     openMenuRef,
     fedRef,
+    /** PHASE 343. The link rows of the last listing, read at call time. */
+    linksRef,
     hold,
     /** PHASE 155. What the Refresh button calls so it can never be a no-op. */
     reconcile,

@@ -130,7 +130,7 @@ describe('the mapper, over the store\'s own entry', () => {
     ]);
     // The U the local row carries, through the same lane the local tree
     // feeds, and the M and the rename beside it.
-    const lane = treeGitLane(files, []);
+    const lane = treeGitLane(files, [], new Set());
     const byPath = new Map(lane.entries.map((e) => [e.path, e.status]));
     expect(byPath.get('NOTES-untracked.md')).toBe('untracked');
     expect(byPath.get('src/auth.ts')).toBe('modified');

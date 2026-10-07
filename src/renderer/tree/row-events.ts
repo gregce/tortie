@@ -30,6 +30,77 @@ export function rowFromEvent(event: Event): RowHit | null {
 }
 
 /**
+ * PHASE 343 (its fix round). The folder a drop at this event would aim at,
+ * read THE LIBRARY'S OWN WAY, or null when the pointer is over no row.
+ *
+ * @pierre/trees resolves a drop target from the element under the pointer
+ * (`resolveDropTargetFromElement` in its FileTreeView): a segment of a chain
+ * row (`.claude / skills`) is the folder that segment names, a folder row is
+ * that folder, and a file row is the folder holding it ('' at the root). The
+ * host's link-row drop (`besideLinkDrop`) must ask exactly the folder the
+ * library asked `canDrop` about, or a drop the library ACCEPTED (a chain row's
+ * outer segment) could be carried a second time by the host, so this reads the
+ * same three attributes in the same order and nothing else.
+ */
+export function dropDirFromEvent(event: Event): string | null {
+  let segment: string | null = null;
+  for (const target of event.composedPath()) {
+    if (!(target instanceof HTMLElement)) continue;
+    const named = target.getAttribute('data-item-flattened-subitem');
+    if (segment === null && named !== null) segment = named;
+    if (target.dataset['type'] !== 'item') continue;
+    const path = target.dataset['itemPath'];
+    if (path === undefined) return null;
+    if (segment !== null && segment.endsWith('/')) return segment;
+    if (target.dataset['itemType'] === 'folder') return path;
+    return target.dataset['itemParentPath'] ?? '';
+  }
+  return null;
+}
+
+/** A chain row's segments, and the one under the pointer. */
+export interface RowChain {
+  /** Every segment's folder, outermost first, canonically. */
+  segments: string[];
+  /**
+   * The segment the pointer is on, or null when it is on the row but off every
+   * segment: its icon, its padding, its marks.
+   */
+  on: string | null;
+}
+
+/**
+ * PHASE 343's folded-row fix (2026-10-07). The chain row under an event, or
+ * null when the pointer is over no row or over a row that is not a chain row.
+ *
+ * @pierre/trees folds a folder that holds exactly one folder into one row
+ * (`.claude / skills / only`) and draws each folder as a segment carrying
+ * `data-item-flattened-subitem`. `dropDirFromEvent` answers which folder the
+ * library aims at; this answers what that answer cannot, being whether the
+ * pointer is OFF every segment, where the library aims at the row's deepest
+ * folder, and which folders the row folds. Read across the shadow boundary,
+ * the same reach `boxOfRow` makes, and nothing else.
+ */
+export function chainFromEvent(event: Event): RowChain | null {
+  let on: string | null = null;
+  for (const target of event.composedPath()) {
+    if (!(target instanceof HTMLElement)) continue;
+    const named = target.getAttribute('data-item-flattened-subitem');
+    if (on === null && named !== null) on = named;
+    if (target.dataset['type'] !== 'item') continue;
+    const segments: string[] = [];
+    for (const segment of Array.from(
+      target.querySelectorAll('[data-item-flattened-subitem]')
+    )) {
+      const path = segment.getAttribute('data-item-flattened-subitem');
+      if (path !== null && path.length > 0) segments.push(path);
+    }
+    return segments.length === 0 ? null : { segments, on };
+  }
+  return null;
+}
+
+/**
  * True when the keystroke came out of a text field inside the tree — the
  * rename input or the filter field. Pierre passes unhandled keys straight
  * through from both, so without this ⌫ in a rename would delete the file

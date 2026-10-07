@@ -771,6 +771,17 @@ export interface ReadFileResult {
 // nothing above was modified.
 // ---------------------------------------------------------------------------
 
+/**
+ * What a link in a listing points at (Phase 343), read by ONE `stat` through
+ * the link in main (`src/main/fs/link-target.ts`).
+ *
+ * 'dir' and 'file' are what the stat said. 'other' is anything else it can
+ * point at, being a FIFO, a socket or a device. 'none' is a stat that failed,
+ * being a link whose target is gone (ENOENT), a loop (ELOOP), a folder the
+ * account cannot enter (EACCES) or a path through a file (ENOTDIR).
+ */
+export type FsLinkTarget = 'dir' | 'file' | 'other' | 'none';
+
 /** One entry of a directory listing (`fs:readDir`). */
 export interface FsDirEntry {
   /** Base name within the directory. */
@@ -778,11 +789,23 @@ export interface FsDirEntry {
   /** Absolute path (`join(dirPath, name)`). */
   path: string;
   /**
-   * 'dir' ONLY for real directories (`Dirent.isDirectory()`); symlinks are
-   * reported as 'symlink' even when they target directories, so the tree
-   * never follows link cycles. 'other' covers sockets/FIFOs/devices.
+   * What the entry itself is, read without following it. 'dir' ONLY for a
+   * real directory (`Dirent.isDirectory()`). A link is 'symlink' whatever it
+   * points at, including a link to a folder, so every reader that only knows
+   * these four words reads a link as it always has. Since Phase 343 the tree
+   * opens a link to a folder (see `link`) one level per click rather than
+   * never following it, so a loop is walked one level at a time and never to
+   * the bottom. 'other' covers sockets, FIFOs and devices.
    */
   kind: 'file' | 'dir' | 'symlink' | 'other';
+  /**
+   * What a link points at (Phase 343). Present ONLY on a `kind: 'symlink'`
+   * entry whose stat answered within main's wait. ABSENT means not known,
+   * because main's wait ran out or its one lane was closed by a stat that has
+   * not come back, and every reader treats an absent field exactly as before
+   * Phase 343: the link is a leaf.
+   */
+  link?: FsLinkTarget;
 }
 
 export interface ReadDirResult {

@@ -75,7 +75,10 @@ import {
   baseNameOf,
   destinationFor,
   invertMoves,
+  isAtOrUnderLink,
   isDirPath,
+  isUnderLink,
+  NO_TREE_LINKS,
   parentOf,
   planMoves,
   remapPathSet,
@@ -84,7 +87,7 @@ import {
   touchedDirs,
   uniqueName
 } from './tree-paths';
-import type { PathMove } from './tree-paths';
+import type { PathMove, TreeLinks } from './tree-paths';
 
 type PierreModel = UseFileTreeResult['model'];
 
@@ -121,6 +124,23 @@ export interface TreeOpsContext {
   renameView(): TreeRenameView | null;
   /** Make this row the only selected one (controller-level selection). */
   selectOnly(canonical: string): void;
+  /**
+   * PHASE 343. The link rows of the tree's last listing, read at CALL time.
+   *
+   * It is a function and not a value so the verbs are NOT rebuilt on every
+   * listing (Phase 341: a rebuild forgets an open New File box); the tree hands
+   * `() => linksRef.current`. Every verb below asks it as its SECOND door,
+   * behind the gesture's own refusal: a source under a link, or a destination
+   * at or under one, sends nothing to any disk. And main answers `kind: 'file'`
+   * for a link whatever it points at (it reads `lstat`), so after main answers
+   * for a link row the move, trash and duplicate arms take the kind from the
+   * tree's own row, as `finishRename` already does from the event.
+   *
+   * Optional only so a test that never draws a link need not say so; absent is
+   * a tree with no link rows. The one production caller, ./use-tree-rename.ts,
+   * always passes it.
+   */
+  links?(): TreeLinks;
   /**
    * PHASE 101. How a create lands when the tree is on another machine, or
    * undefined for a folder on this Mac.
@@ -232,8 +252,23 @@ export interface TreeOps {
   pendingPath(): string | null;
 }
 
+/**
+ * PHASE 343. The sentence Move to Trash's confirm adds when any target is a
+ * link row: the link moves, and what it points to does not. `linkCount` is how
+ * many targets are link rows; none adds nothing.
+ */
+export function trashBody(linkCount: number): string {
+  const base = 'It moves to the Trash, so you can put it back from Finder.';
+  if (linkCount <= 0) return base;
+  return linkCount === 1
+    ? `${base} Only the link moves, and what it points to stays.`
+    : `${base} Only the links move, and what they point to stays.`;
+}
+
 export function createTreeOps(ctx: TreeOpsContext): TreeOps {
   const app = (): ReturnType<typeof useApp.getState> => useApp.getState();
+  /** PHASE 343. The tree's link rows now, or none when nobody said. */
+  const links = (): TreeLinks => ctx.links?.() ?? NO_TREE_LINKS;
   const files = (): ReturnType<typeof useFileTree.getState> =>
     useFileTree.getState();
 
@@ -833,6 +868,14 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     modelHoldsTheMove: boolean,
     overwrite: boolean
   ): void => {
+    // PHASE 343. Read at the gesture, before a watcher tick can re-list the
+    // source folder: a moved link drawn as a folder is still a folder row.
+    const linkFolders = links().folders;
+    const movedAsDir = (pair: {
+      from: { relPath: string; kind: string };
+    }): boolean =>
+      pair.from.kind === 'dir' ||
+      linkFolders.has(toCanonical(pair.from.relPath, true));
     const release = ctx.hold(moves.flatMap((m) => [m.from, m.to]));
     void fsOps
       .move({
@@ -860,10 +903,16 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
           return;
         }
 
-        const applied: PathMove[] = result.moved.map((pair) => ({
-          from: toCanonical(pair.from.relPath, pair.from.kind === 'dir'),
-          to: toCanonical(pair.to.relPath, pair.to.kind === 'dir')
-        }));
+        // PHASE 343. Main answers `file` for a link (it reads `lstat`), so a
+        // link drawn as a folder takes its kind from the tree's own row, and
+        // the moved row keeps the spelling the model already gave it.
+        const applied: PathMove[] = result.moved.map((pair) => {
+          const asDir = movedAsDir(pair);
+          return {
+            from: toCanonical(pair.from.relPath, asDir),
+            to: toCanonical(pair.to.relPath, asDir || pair.to.kind === 'dir')
+          };
+        });
 
         if (!modelHoldsTheMove) {
           // We own the model update. A replace clears the displaced row
@@ -892,14 +941,13 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
           result.moved.map((pair) => ({
             from: pair.from.path,
             to: pair.to.path,
-            kind: pair.from.kind
+            // PHASE 343. A tab opened under a moved link follows it.
+            kind: movedAsDir(pair) ? 'dir' : pair.from.kind
           }))
         );
         void resync(
           applied,
-          result.moved
-            .filter((pair) => pair.from.kind === 'dir')
-            .map((pair) => pair.from.path)
+          result.moved.filter(movedAsDir).map((pair) => pair.from.path)
         ).finally(release);
       })
       .catch((err: unknown) => {
@@ -1046,6 +1094,10 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
 
   return {
     newEntry(destDirCanonical, kind) {
+      // PHASE 343. The second door: nothing is created in a link or in a
+      // folder under one. The menu and the header already aim outside every
+      // link (D7), so only a caller that skipped them reaches this.
+      if (isAtOrUnderLink(destDirCanonical, links())) return;
       revealDestination(destDirCanonical);
       // Phase 37: no editor without its adapter. The library seeds the box
       // with the placeholder's leaf name, and only the adapter can empty it
@@ -1097,6 +1149,8 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
 
     startRename(canonical) {
       if (isProtectedFsPath(canonical)) return;
+      // PHASE 343. Nothing under a link is renamed from here; the link row is.
+      if (isUnderLink(canonical, links())) return;
       ctx.model.startRenaming(canonical);
     },
 
@@ -1176,11 +1230,14 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
         return;
       }
       createRelease?.();
-      finishRename(
-        source,
-        toCanonical(event.destinationPath, event.isFolder),
-        event.isFolder ? 'dir' : 'file'
-      );
+      const dest = toCanonical(event.destinationPath, event.isFolder);
+      // PHASE 343. The second door behind `canRename`. The library has
+      // already moved the row, so a refusal puts it back and sends nothing.
+      if (isUnderLink(source, links()) || isUnderLink(dest, links())) {
+        revertModel([{ from: source, to: dest }]);
+        return;
+      }
+      finishRename(source, dest, event.isFolder ? 'dir' : 'file');
     },
 
     onRenameRejected(message) {
@@ -1207,6 +1264,14 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     },
 
     duplicate(canonical) {
+      // PHASE 343. Duplicate of a row under a link WRITES beside the target
+      // (measured, A3), so it is refused here and sends nothing. Duplicate of
+      // the link row itself copies the LINK and never its target.
+      const atAsk = links();
+      if (isUnderLink(canonical, atAsk)) return;
+      // Main answers `file` for the copy of a link; a copy of a link drawn as
+      // a folder is a folder row, as its source is.
+      const sourceIsLinkFolder = atAsk.folders.has(canonical);
       // The copy's name is main's to choose (only it can stat the directory),
       // so the hold cannot name the destination up front — the source is
       // enough to keep the diff off the row the copy lands beside.
@@ -1214,7 +1279,10 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       void fsOps
         .duplicate({ root: ctx.rootPath, path: toRel(canonical) })
         .then((entry) => {
-          const created = toCanonical(entry.relPath, entry.kind === 'dir');
+          const created = toCanonical(
+            entry.relPath,
+            entry.kind === 'dir' || sourceIsLinkFolder
+          );
           try {
             ctx.model.add(created);
           } catch {
@@ -1236,17 +1304,34 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
     },
 
     trash(canonicals) {
-      const targets = canonicals.filter((c) => !isProtectedFsPath(c));
+      // PHASE 343. ⌫ and Delete reach here too, so a row under a link is
+      // dropped from the targets exactly as `.git` is: nothing under a link is
+      // trashed from the Explorer. The link row itself still is.
+      const atAsk = links();
+      const targets = canonicals.filter(
+        (c) => !isProtectedFsPath(c) && !isUnderLink(c, atAsk)
+      );
       if (targets.length === 0) return;
+      const linkRows = targets.filter((c) => atAsk.rows.has(c)).length;
 
       app().setConfirm({
         title: `Delete ${describeEntries(targets)}?`,
         // Recoverable by construction — say so, so nobody hesitates over a
-        // reversible action or mistakes it for an unrecoverable one.
-        body: 'It moves to the Trash, so you can put it back from Finder.',
+        // reversible action or mistakes it for an unrecoverable one. PHASE 343:
+        // over a link it also says only the link moves.
+        body: trashBody(linkRows),
         confirmLabel: 'Move to Trash',
         destructive: true,
         onConfirm: () => {
+          // PHASE 343. Read when the trash really starts. A link drawn as a
+          // folder is a folder row whatever kind main answers for it.
+          const linkFolders = links().folders;
+          const trashedAsDir = (entry: {
+            relPath: string;
+            kind: string;
+          }): boolean =>
+            entry.kind === 'dir' ||
+            linkFolders.has(toCanonical(entry.relPath, true));
           const release = ctx.hold(targets);
           void fsOps
             .trash({
@@ -1256,24 +1341,18 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
             .then((result) => {
               const removed: string[] = [];
               for (const entry of result.trashed) {
-                const canonical = toCanonical(
-                  entry.relPath,
-                  entry.kind === 'dir'
-                );
+                const asDir = trashedAsDir(entry);
+                const canonical = toCanonical(entry.relPath, asDir);
                 removed.push(canonical);
                 try {
-                  ctx.model.remove(canonical, {
-                    recursive: entry.kind === 'dir'
-                  });
+                  ctx.model.remove(canonical, { recursive: asDir });
                 } catch {
                   /* already gone from the model */
                 }
               }
               dropFromFed(removed);
               files().forgetUnder(
-                result.trashed
-                  .filter((e) => e.kind === 'dir')
-                  .map((e) => e.path)
+                result.trashed.filter(trashedAsDir).map((e) => e.path)
               );
               void files()
                 .relist([
@@ -1298,6 +1377,24 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
 
     drop(draggedCanonical, destDirCanonical, modelAlreadyMoved) {
       if (isProtectedFsPath(destDirCanonical)) return;
+      // PHASE 343. The second door behind `canDrag` and `canDrop`: nothing
+      // under a link moves, and nothing moves into a link or under one. The
+      // whole drop is refused, and a model that already moved is put back.
+      const atDrop = links();
+      if (
+        isAtOrUnderLink(destDirCanonical, atDrop) ||
+        draggedCanonical.some((path) => isUnderLink(path, atDrop))
+      ) {
+        if (modelAlreadyMoved) {
+          revertModel(
+            planMoves(
+              draggedCanonical.filter((p) => !isProtectedFsPath(p)),
+              destDirCanonical
+            )
+          );
+        }
+        return;
+      }
       const draggable = draggedCanonical.filter((p) => !isProtectedFsPath(p));
       const moves = planMoves(draggable, destDirCanonical);
       // Everything was already where it landed: Pierre allows the gesture,
@@ -1321,6 +1418,8 @@ export function createTreeOps(ctx: TreeOpsContext): TreeOps {
       // The destination is decided in the drag hook and refused there; this
       // is the second door, and it is the same predicate at both ends.
       if (isProtectedFsPath(destDirCanonical)) return;
+      // PHASE 343. Nothing is copied into a link or a folder under one.
+      if (isAtOrUnderLink(destDirCanonical, links())) return;
       if (sources.length === 0) {
         if (unresolved > 0) {
           app().toast(

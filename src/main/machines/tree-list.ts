@@ -63,7 +63,10 @@ export interface RemoteTreeAnswer {
   readonly root: string;
   /** How many entries are really under there. Zero for every refusal. */
   readonly total: number;
-  /** The absolute paths, with a trailing slash on a directory. */
+  /**
+   * The absolute paths, with a trailing slash on a directory, and since Phase
+   * 343 `//` on a link to a folder and `///` on any other link.
+   */
   readonly lines: readonly string[];
 }
 
@@ -82,6 +85,13 @@ export interface RemoteTreeAnswer {
  * the module header says so.
  */
 export function parseTreeList(payload: string): RemoteTreeAnswer | null {
+  // PHASE 343 (its fix round). The root is the rest of the line EXACTLY, with
+  // nothing taken off but a carriage return. It was trimmed, so a folder whose
+  // name ends in a space (`trail `) was read as `trail`, no line began with
+  // that root, and every row was dropped: such a folder, or a link with such a
+  // name, opened empty on another machine while it listed on this Mac.
+  const rootOf = (text: string): string =>
+    text.endsWith('\r') ? text.slice(0, -1) : text;
   const lines = payload.split('\n');
   const head = lines[0] ?? '';
   const firstSpace = head.indexOf(' ');
@@ -89,14 +99,14 @@ export function parseTreeList(payload: string): RemoteTreeAnswer | null {
   const word = head.slice(0, firstSpace);
   const rest = head.slice(firstSpace + 1);
   if (word === 'missing' || word === 'notdir' || word === 'denied') {
-    return { status: word, root: rest.trim(), total: 0, lines: [] };
+    return { status: word, root: rootOf(rest), total: 0, lines: [] };
   }
   if (word !== 'ok') return null;
   const secondSpace = rest.indexOf(' ');
   if (secondSpace <= 0) return null;
   const total = Number(rest.slice(0, secondSpace));
   if (!Number.isFinite(total) || total < 0) return null;
-  const root = rest.slice(secondSpace + 1).trim();
+  const root = rootOf(rest.slice(secondSpace + 1));
   if (!root.startsWith('/')) return null;
   const under = root === '/' ? '/' : root + '/';
   const kept: string[] = [];
@@ -108,8 +118,23 @@ export function parseTreeList(payload: string): RemoteTreeAnswer | null {
   return { status: 'ok', root, total: Math.max(total, kept.length), lines: kept };
 }
 
-/** One printed line into one entry. PURE. A trailing slash means a directory. */
+/**
+ * One printed line into one entry. PURE. A trailing slash means a directory.
+ *
+ * PHASE 343. A link line carries a mark no name can produce, because a name
+ * never holds `/`: `//` for a link to a folder and `///` for any other link.
+ * The marks are read LONGEST FIRST, `///`, then `//`, then today's `/`, so a
+ * link to a file is never read as a folder and a link to a folder never keeps
+ * a slash in its path. `kind` keeps the meaning it had, being what the far
+ * side's `[ -d ]` said, so a reader that ignores `link` reads today's answer.
+ */
 export function entryOfLine(line: string): RemoteTreeEntry {
+  if (line.endsWith('///')) {
+    return { path: line.slice(0, -3), kind: 'file', link: 'leaf' };
+  }
+  if (line.endsWith('//')) {
+    return { path: line.slice(0, -2), kind: 'dir', link: 'dir' };
+  }
   return line.endsWith('/')
     ? { path: line.slice(0, -1), kind: 'dir' }
     : { path: line, kind: 'file' };

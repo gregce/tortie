@@ -16,6 +16,24 @@
  * leave a folder that has since been emptied showing rows that are gone. So the
  * rule is by DEPTH: every covered key is replaced, with the empty list when the
  * answer names nothing for it, and every deeper key is left alone.
+ *
+ * PHASE 343 ADDED TWO SENTENCES TO THAT RULE, both about what a walk never
+ * read, and both keep the cut honest to the header's own words.
+ *
+ *  - A LINK IS NEVER DESCENDED by a walk that is not rooted at it (the far
+ *    `find` takes `-H` only for its own root), so a link names no children it
+ *    could speak for. The cut turns a far link to a folder into the entry a
+ *    local one is, `kind: 'symlink'` with `link: 'dir'`, and gives it NO key,
+ *    so expanding it asks that machine once with the link as the root; and the
+ *    merge keeps every cached key at or under a link the answer names, so a
+ *    root Refresh never empties an opened link (measured, M11: 1 row, then 0).
+ *    A far link that is not a folder is today's leaf: `kind: 'symlink'` with no
+ *    field, because the far `review-file` reads a regular file only and such a
+ *    link cannot hang a read.
+ *  - A FOLDER AT THE WALK'S LAST LEVEL was named by the walk and never read:
+ *    `find -maxdepth D` lists it and none of its children. It gets NO key
+ *    either, so expanding it asks once rather than opening empty and asking
+ *    nothing (Phase 343 mechanism 7.7, measured A6).
  */
 
 import type { FsDirEntry } from '@shared/types';
@@ -50,30 +68,74 @@ export function depthUnder(root: string, path: string): number | null {
 /**
  * One subtree answer, cut into the per-directory lists the tree reads.
  *
- * Every directory the answer names gets a key, even when nothing is under it,
+ * Every directory the answer READ gets a key, even when nothing is under it,
  * so an empty folder reads as empty rather than as never listed. The root
  * always gets one for the same reason.
+ *
+ * PHASE 343. Two directories the answer NAMES but never read get no key, so
+ * expanding either asks the machine once: a link to a folder, and a folder at
+ * `depth` below the root, the walk's last level. `depth` is REQUIRED and is
+ * the depth the walk was asked for (`REMOTE_TREE_DEPTH`).
  */
 export function groupRemoteEntries(
   root: string,
-  entries: readonly RemoteTreeEntry[]
+  entries: readonly RemoteTreeEntry[],
+  depth: number
 ): Record<string, FsDirEntry[]> {
   const groups: Record<string, FsDirEntry[]> = { [root]: [] };
   for (const entry of entries) {
-    if (entry.kind === 'dir') groups[entry.path] ??= [];
+    if (entry.kind !== 'dir' || entry.link !== undefined) continue;
+    if (depthUnder(root, entry.path) === depth) continue;
+    groups[entry.path] ??= [];
   }
   for (const entry of entries) {
     const parent = remoteParentOf(entry.path);
     if (parent === null) continue;
     const list = groups[parent];
     if (list === undefined) continue;
-    list.push({
-      name: remoteNameOf(entry.path),
-      path: entry.path,
-      kind: entry.kind
-    });
+    list.push(remoteEntryOf(entry));
   }
   return groups;
+}
+
+/**
+ * PHASE 343. One far entry as the listing entry the tree reads. A far link is
+ * spelled exactly as a local one is: `symlink`, with `link: 'dir'` when it
+ * points at a folder, and with no field (today's leaf) otherwise. An entry with
+ * no mark is today's answer, byte for byte.
+ */
+function remoteEntryOf(entry: RemoteTreeEntry): FsDirEntry {
+  const name = remoteNameOf(entry.path);
+  if (entry.link === 'dir') {
+    return { name, path: entry.path, kind: 'symlink', link: 'dir' };
+  }
+  if (entry.link === 'leaf') return { name, path: entry.path, kind: 'symlink' };
+  return { name, path: entry.path, kind: entry.kind };
+}
+
+/** PHASE 343. True for a listing entry that is a link drawn as a folder. */
+function isLinkFolder(entry: FsDirEntry): boolean {
+  return entry.kind === 'symlink' && entry.link === 'dir';
+}
+
+/**
+ * PHASE 343. Every cached directory that is a link drawn as a folder: a key
+ * the cache holds whose path some cached listing names as such a link. These
+ * are the folders a remote Refresh walks beside the root (D19), because the
+ * root's walk never descends a link. Sorted, and each named once.
+ */
+export function loadedLinkFolders(
+  cache: Readonly<Record<string, readonly FsDirEntry[]>>
+): string[] {
+  const found = new Set<string>();
+  for (const entries of Object.values(cache)) {
+    for (const entry of entries) {
+      if (isLinkFolder(entry) && cache[entry.path] !== undefined) {
+        found.add(entry.path);
+      }
+    }
+  }
+  return [...found].sort();
 }
 
 /**
@@ -90,11 +152,20 @@ export function mergeRemoteGroups(
   depth: number,
   groups: Readonly<Record<string, FsDirEntry[]>>
 ): Record<string, FsDirEntry[]> {
+  // PHASE 343. The links this answer names. The walk did not descend any of
+  // them, so it can speak for nothing at or under one.
+  const links: string[] = [];
+  for (const entries of Object.values(groups)) {
+    for (const entry of entries) if (isLinkFolder(entry)) links.push(entry.path);
+  }
+  const atOrUnderLink = (dir: string): boolean =>
+    links.some((link) => dir === link || dir.startsWith(link + '/'));
   const next: Record<string, FsDirEntry[]> = {};
   for (const [dir, entries] of Object.entries(cache)) {
     const under = depthUnder(root, dir);
-    // Not under this answer at all, or deeper than the answer can speak for.
-    if (under === null || under > depth - 1) {
+    // Not under this answer at all, or deeper than the answer can speak for,
+    // or (PHASE 343) at or under a link the answer names but never read.
+    if (under === null || under > depth - 1 || atOrUnderLink(dir)) {
       next[dir] = [...entries];
       continue;
     }

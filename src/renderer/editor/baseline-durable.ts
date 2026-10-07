@@ -61,7 +61,7 @@ void ORIGINS_AGREE;
 /** What a tab must be for its baseline to be worth keeping. */
 export type BaselineTab = Pick<
   EditorTab,
-  'commit' | 'remote' | 'repoPath' | 'relPath' | 'path' | 'truncated'
+  'commit' | 'remote' | 'repoPath' | 'relPath' | 'path' | 'truncated' | 'throughLink'
 >;
 
 /**
@@ -77,11 +77,16 @@ export type BaselineTab = Pick<
  *    section 3.1: 2,098 prose files against a seven-day working set of 67);
  *  - a TRUNCATED tab's bytes are not the file. Research 83 E.7a measured what
  *    acting on them costs, and main refuses one at the door too.
+ *
+ * PHASE 343 added a fifth: a tab the Explorer opened through a link to a
+ * folder is read only, and its relPath names a link's spelling rather than
+ * the file, so nothing read through a link is kept in Tortie's durable store.
  */
 export function keepsBaseline(tab: BaselineTab): boolean {
   return (
     tab.commit === null &&
     tab.remote === undefined &&
+    tab.throughLink !== true &&
     !tab.truncated &&
     fileInRepo(tab.repoPath, tab.path) &&
     isProsePath(tab.path)

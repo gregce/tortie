@@ -102,6 +102,14 @@
  * What stayed here is the name filter with its clear affordance, the click,
  * double-click and key gestures, and the markup.
  *
+ * ── PHASE 343, a link to a folder ─────────────────────────────────────────
+ * A link to a folder is drawn as a folder marked `⤷` and opens one level per
+ * click, on both computers. From here, through a link, Tortie reads and never
+ * writes: a file under a link opens read only (`throughLink` on the open
+ * request, set below and nowhere else), and every verb that writes refuses a
+ * row under a link, at the gesture and again in the verb. The two questions
+ * every door asks are in ./tree-paths.ts (`isUnderLink`, `isAtOrUnderLink`).
+ *
  * Model options are captured ONCE (usePierreModel snapshots them on the first
  * render), so every callback reads the live state through a ref.
  */
@@ -132,7 +140,7 @@ import { headerDestDir } from './header-actions';
 import { requestOpenFile } from './open-file';
 import { fromTextField, rowFromEvent } from './row-events';
 import { useTreeHandle } from './tree-handle';
-import { toRel } from './tree-paths';
+import { isUnderLink, toRel } from './tree-paths';
 import {
   asDirectory,
   useTreeExpansionWatch,
@@ -215,6 +223,7 @@ export function FileTree({
     opsRef,
     openMenuRef,
     fedRef,
+    linksRef,
     reconcile,
     openDirs,
     sanctionFilterClose,
@@ -230,6 +239,7 @@ export function FileTree({
     treeShadow,
     opsRef,
     fedRef,
+    linksRef,
     hold: bridge.hold
   });
 
@@ -265,7 +275,9 @@ export function FileTree({
       paths: () => [...fedRef.current],
       reconcile,
       startRename: (canonical) => ops.startRename(canonical),
-      newEntryTarget: () => headerDestDir(model.getSelectedPaths()),
+      // PHASE 343. Never into a link: the folder holding the outermost one.
+      newEntryTarget: () =>
+        headerDestDir(model.getSelectedPaths(), linksRef.current),
       collapseAll: () => {
         // Deepest first, so a parent is never closed out from under a child
         // that is still open — Collapse All has to leave NOTHING expanded, or
@@ -498,8 +510,15 @@ export function FileTree({
   const openRel = useCallback(
     (canonical: string, keep = false): void => {
       const rel = toRel(canonical);
-      const kind = treeInput.kinds.get(rel);
-      if (kind === 'other') return; // sockets/FIFOs/devices stay inert
+      // Sockets, FIFOs and devices stay inert, and (PHASE 343) so does a link
+      // to one: reading through it waits for a writer on one of main's file
+      // threads (measured, A5).
+      if (treeInput.inert.has(rel)) return;
+      // PHASE 343. A file under a link opens READ ONLY, on both computers: the
+      // flag is the Explorer's, set only here, and the editor applies it when
+      // it creates the tab. The link row itself is not under a link, so a link
+      // to a file keeps its plain door.
+      const throughLink = isUnderLink(rel, treeInput.links);
       requestOpenFile({
         repoPath: rootPath,
         relPath: rel,
@@ -513,6 +532,7 @@ export function FileTree({
             : 'file',
         source: 'tree',
         preview: !keep,
+        ...(throughLink ? { throughLink: true as const } : {}),
         // PHASE 90.3. Its presence is what makes the editor fill both sides
         // from that machine and treat the tab as read only.
         ...(remote === null
@@ -622,6 +642,7 @@ export function FileTree({
     model,
     hostRef,
     opsRef,
+    linksRef,
     treeShadow
   });
 

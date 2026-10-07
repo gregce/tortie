@@ -12,8 +12,14 @@
  * in --git-conflict on top (see FileTree.tsx).
  */
 
-import type { GitStatus, GitStatusEntry } from '@pierre/trees';
+import type {
+  FileTreeRowDecoration,
+  FileTreeRowDecorationContext,
+  GitStatus,
+  GitStatusEntry
+} from '@pierre/trees';
 import type { GitFileStatus } from '@shared/types';
+import { toCanonical, toRel } from './tree-paths';
 
 /** True when the file is ignored (dim row, no badge — Pierre 'ignored'). */
 export function isIgnored(status: GitFileStatus): boolean {
@@ -76,25 +82,35 @@ export interface TreeGitLane {
  *    directory means the trailing '/'. That slash is what tells the library
  *    the entry is a directory, and a directory is what lets it dim the whole
  *    subtree without a single further question to git.
+ *  - PHASE 343. Git lists a link as a FILE (`?? newLink`), and the tree draws
+ *    a link to a folder as the folder row `newLink/`. `linkFolders`, REQUIRED,
+ *    is the canonical spelling of every such row, and a porcelain path that
+ *    names one is keyed onto it, so the mark lands on the row that is drawn.
+ *    `byPath` keeps git's own spelling, because the open-mode rule asks it by
+ *    the rel path. Git never lists a path under a link, so nothing else moves.
  */
 export function treeGitLane(
   statusFiles: readonly GitFileStatus[],
-  ignoredPaths: Iterable<string>
+  ignoredPaths: Iterable<string>,
+  linkFolders: ReadonlySet<string>
 ): TreeGitLane {
   const entries: GitStatusEntry[] = [];
   const conflicts = new Set<string>();
   const byPath = new Map<string, GitFileStatus>();
   const changed: string[] = [];
+  const laned = new Set<string>();
   for (const file of statusFiles) {
     byPath.set(file.path, file);
     const status = pierreGitStatus(file);
     if (status === null) continue;
-    entries.push({ path: file.path, status });
-    changed.push(file.path);
-    if (isConflicted(file)) conflicts.add(file.path);
+    const path = linkFolders.has(file.path + '/') ? file.path + '/' : file.path;
+    entries.push({ path, status });
+    laned.add(path);
+    changed.push(path);
+    if (isConflicted(file)) conflicts.add(path);
   }
   for (const path of ignoredPaths) {
-    if (byPath.has(path)) continue;
+    if (byPath.has(path) || laned.has(path)) continue;
     entries.push({ path, status: 'ignored' });
   }
   return { entries, conflicts, byPath, changed };
@@ -111,4 +127,52 @@ export function openModeFor(
   return mapped === null || mapped === 'untracked' || mapped === 'ignored'
     ? 'plain'
     : 'diff';
+}
+
+/**
+ * PHASE 343. The mark a link row wears, VS Code's own letter for a link
+ * (`explorerDecorationsProvider.ts`): U+2937, ARROW POINTING DOWNWARDS THEN
+ * CURVING RIGHTWARDS.
+ */
+export const LINK_MARK = '\u2937';
+
+/**
+ * The one custom decoration a row may carry (the library gives it one lane).
+ *
+ * A merge conflict's `!` in `--git-conflict` wins the lane, as it always has.
+ * Otherwise (PHASE 343) every LINK row, folder or leaf, carries `⤷` in the
+ * muted text colour, titled `Link`. A chain row (`.claude/skills` drawn as one
+ * row) is marked when any folder it names is a link. `linkRows` is the
+ * canonical spelling of every link row (`TreeLinks.rows`).
+ */
+export function treeRowDecoration(
+  ctx: Pick<FileTreeRowDecorationContext, 'item'> & {
+    row: Pick<FileTreeRowDecorationContext['row'], 'flattenedSegments'>;
+  },
+  conflicts: ReadonlySet<string>,
+  linkRows: ReadonlySet<string>
+): FileTreeRowDecoration | null {
+  if (conflicts.has(ctx.item.path)) {
+    return {
+      text: '!',
+      title: 'Merge conflict',
+      parts: [{ text: '!', color: 'var(--git-conflict)' }]
+    };
+  }
+  if (linkRows.size === 0) return null;
+  const named = [
+    ctx.item.path,
+    ...(ctx.row.flattenedSegments ?? []).map((segment) => segment.path)
+  ];
+  const isLink = named.some(
+    (path) =>
+      linkRows.has(path) ||
+      linkRows.has(toCanonical(toRel(path), ctx.item.kind === 'directory'))
+  );
+  if (!isLink) return null;
+  return {
+    text: LINK_MARK,
+    title: 'Link',
+    parts: [{ text: LINK_MARK, color: 'var(--text-muted)' }]
+  };
 }

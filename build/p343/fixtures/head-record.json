@@ -1,0 +1,1256 @@
+{
+  "build": "head",
+  "checkout": "/private/tmp/wt-p343",
+  "arms": {
+    "L1": {
+      "chain": {
+        "path": ".claude/skills/",
+        "type": "folder",
+        "expanded": "false",
+        "label": ".claude / skills",
+        "deco": "⤷",
+        "decoTitle": "Link",
+        "git": null,
+        "selected": false
+      },
+      "claudeRow": {
+        "path": ".claude/",
+        "type": "folder",
+        "expanded": "false",
+        "label": ".claude",
+        "deco": "",
+        "decoTitle": null,
+        "git": null,
+        "selected": false
+      },
+      "children": [
+        ".claude/skills/a-skill/",
+        ".claude/skills/notes.md"
+      ],
+      "band": "Read only · opened through a link"
+    },
+    "L2": {
+      "links": [
+        {
+          "rel": ".claude/skills",
+          "stat": "dir",
+          "drawn": {
+            "path": ".claude/skills/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkIn",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkIn/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkInAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkInAbs/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOut",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOut/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOutAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOutAbs/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFile",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFile",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFileOut",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFileOut",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "dangling",
+          "stat": "none",
+          "drawn": {
+            "path": "dangling",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "self",
+          "stat": "none",
+          "drawn": {
+            "path": "self",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "loopRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "loopRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "up",
+          "stat": "dir",
+          "drawn": {
+            "path": "up/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFsRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkFsRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkHome",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkHome/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkSsh",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkSsh/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkDotGit",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkDotGit/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOther",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOther/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "chainA",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainA/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "chainB",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainB/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "src/linkIgnored",
+          "stat": "dir",
+          "drawn": {
+            "path": "src/linkIgnored/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": ".venv",
+          "stat": "dir",
+          "drawn": {
+            "path": ".venv/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "bazel-out",
+          "stat": "dir",
+          "drawn": {
+            "path": "bazel-out/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "node_modules/pkgb",
+          "stat": "dir",
+          "drawn": {
+            "path": "node_modules/pkgb/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkVarRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkVarRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkLocked",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkLocked/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkGone",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkGone/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkPipe",
+          "stat": "other",
+          "drawn": {
+            "path": "linkPipe",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l0",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l0/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l1",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l1/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l2",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l2/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l3",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l3/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l4",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l4/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l5",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l5/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l6",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l6/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l7",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l7/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l8",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l8/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l9",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l9/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "newLink",
+          "stat": "dir",
+          "drawn": {
+            "path": "newLink/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        }
+      ]
+    },
+    "L5": {
+      "freshDimmed": true,
+      "dimmed": {
+        "node_modules/": true,
+        "ignored.log": true,
+        ".venv": true,
+        "bazel-out": true,
+        "node_modules/pkgb": true,
+        "node_modules/pkgb/b.js": true,
+        "fresh.log": true
+      },
+      "newLinkGit": "untracked",
+      "underSkills": {
+        ".claude/skills/a-skill/": null,
+        ".claude/skills/notes.md": null
+      }
+    },
+    "L6": {
+      "inProject": {
+        "shown": true,
+        "ms": 1180
+      },
+      "outside": {
+        "before": false,
+        "afterRefresh": true
+      }
+    },
+    "L3": {
+      "menus": {
+        "underSkills": [
+          "Open",
+          "Open in New Tab",
+          "Open With",
+          "—",
+          "—",
+          "Reveal in Finder",
+          "Copy Path",
+          "Copy Relative Path",
+          "—",
+          "Read only through a link [off]"
+        ],
+        "underLinkOut": [
+          "Open",
+          "Open in New Tab",
+          "Open With",
+          "—",
+          "—",
+          "Reveal in Finder",
+          "Copy Path",
+          "Copy Relative Path",
+          "—",
+          "Read only through a link [off]"
+        ],
+        "linkRow": [
+          "Open With",
+          "History",
+          "—",
+          "New File…",
+          "New Folder…",
+          "—",
+          "Rename…",
+          "Duplicate",
+          "—",
+          "Move to Trash",
+          "—",
+          "Reveal in Finder",
+          "Copy Path",
+          "Copy Relative Path"
+        ]
+      },
+      "keys": {
+        "control": {
+          "f2Box": true,
+          "backspaceDialog": true,
+          "deleteDialog": true,
+          "focused": true
+        },
+        "underSkills": {
+          "f2Box": false,
+          "backspaceDialog": false,
+          "deleteDialog": false,
+          "focused": true
+        },
+        "underLinkOut": {
+          "f2Box": false,
+          "backspaceDialog": false,
+          "deleteDialog": false,
+          "focused": true
+        }
+      },
+      "drags": {
+        "control": {
+          "intercepted": true,
+          "dragstarts": [
+            {
+              "t": 1,
+              "prevented": false,
+              "alt": false
+            }
+          ]
+        },
+        "treeMove": {
+          "intercepted": false,
+          "dragstarts": [
+            {
+              "t": 2,
+              "prevented": true,
+              "alt": false
+            }
+          ]
+        },
+        "toTerminal": {
+          "intercepted": false,
+          "dragstarts": [
+            {
+              "t": 3,
+              "prevented": true,
+              "alt": false
+            }
+          ]
+        },
+        "finderControl": {
+          "intercepted": false,
+          "dragstarts": [
+            {
+              "t": 4,
+              "prevented": true,
+              "alt": true
+            }
+          ],
+          "startDrag": 1
+        },
+        "toFinder": {
+          "intercepted": false,
+          "dragstarts": [
+            {
+              "t": 5,
+              "prevented": true,
+              "alt": true
+            }
+          ],
+          "startDrag": 0
+        }
+      },
+      "drops": {
+        "control": {
+          "landed": true
+        },
+        "underLink": {
+          "landed": false
+        },
+        "linkRow": {
+          "landed": true,
+          "where": [
+            "local:proj/.claude/p343-dropped-link.txt"
+          ]
+        }
+      },
+      "creates": {
+        "claude": [
+          "p343-hdr-dir-link",
+          "p343-hdr-dir-under",
+          "p343-hdr-file-link.txt",
+          "p343-hdr-file-under.txt",
+          "p343-menu-file.txt",
+          "skills"
+        ],
+        "agentSkills": [
+          "a-skill",
+          "l6-new.md",
+          "notes.md"
+        ],
+        "made": {
+          "hdrFileUnder": true,
+          "hdrDirUnder": true,
+          "hdrFileLink": true,
+          "hdrDirLink": true,
+          "menuFileLink": true
+        }
+      },
+      "duplicate": {
+        "path": ".claude/skills copy/",
+        "type": "folder",
+        "deco": "⤷",
+        "decoTitle": "Link"
+      },
+      "editor": {
+        "dirtyTabs": [],
+        "monaco": {
+          "typedInto": true,
+          "before": "export {}\n",
+          "after": "export {}\n",
+          "focused": true
+        },
+        "saveToasts": [],
+        "savesPressed": 3,
+        "redlineShown": true,
+        "redlineToasts": [
+          "notes.md is read-only, so it cannot be rewound."
+        ],
+        "autoSaveWaited": true,
+        "files": {
+          "notes": {
+            "before": "774891218 1791400000123.456",
+            "after": "774891218 1791400000123.456"
+          },
+          "index": {
+            "before": "774891101 1791400000123.456",
+            "after": "774891101 1791400000123.456"
+          },
+          "secret": {
+            "before": "774891140 1791400000123.456",
+            "after": "774891140 1791400000123.456"
+          }
+        },
+        "savedWithText": 3,
+        "notes": {
+          "bytes": "notes\nappended by p343\n",
+          "expected": "notes\nappended by p343\n",
+          "appended": true
+        }
+      },
+      "reachable": {
+        "underSkills": true,
+        "underLinkOut": true
+      }
+    },
+    "L4": {
+      "body": "It moves to the Trash, so you can put it back from Finder. Only the link moves, and what it points to stays.",
+      "cancelled": true,
+      "dialogAfter": false,
+      "linkBefore": "link ../.agent/skills",
+      "linkAfter": "link ../.agent/skills",
+      "targetBefore": "[[\"proj/.agent/skills/\",\"dir a-skill|l6-new.md|notes.md\"]]",
+      "targetAfter": "[[\"proj/.agent/skills/\",\"dir a-skill|l6-new.md|notes.md\"]]"
+    },
+    "C1": {
+      "opened": "/h/p343/head/local/proj/.claude/skills/a-skill/SKILL.md",
+      "relPath": ".claude/skills/a-skill/SKILL.md",
+      "typed": "Q",
+      "fileHasTyped": true,
+      "toasts": []
+    },
+    "L7": {
+      "clicked": true,
+      "tabOpened": false,
+      "idsBefore": [
+        "tree:/h/p343/head/local/proj/.claude/skills/a-skill/SKILL.md"
+      ],
+      "idsAfter": [
+        "tree:/h/p343/head/local/proj/.claude/skills/a-skill/SKILL.md"
+      ]
+    },
+    "R0": {
+      "rowsUnder": [
+        "deep/a/b/c/"
+      ],
+      "walks": 2,
+      "row": {
+        "path": "deep/a/b/",
+        "type": "folder",
+        "expanded": "false",
+        "label": "deep / a / b",
+        "deco": "",
+        "decoTitle": null,
+        "git": null,
+        "selected": false
+      },
+      "clicked": true
+    },
+    "R1": {
+      "links": [
+        {
+          "rel": ".claude/skills",
+          "stat": "dir",
+          "drawn": {
+            "path": ".claude/skills/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkIn",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkIn/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkInAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkInAbs/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOut",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOut/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOutAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOutAbs/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFile",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFile",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFileOut",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFileOut",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "dangling",
+          "stat": "none",
+          "drawn": {
+            "path": "dangling",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "self",
+          "stat": "none",
+          "drawn": {
+            "path": "self",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "loopRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "loopRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "up",
+          "stat": "dir",
+          "drawn": {
+            "path": "up/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkFsRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkFsRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkHome",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkHome/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkSsh",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkSsh/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkDotGit",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkDotGit/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkOther",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOther/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "chainA",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainA/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "chainB",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainB/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "src/linkIgnored",
+          "stat": "dir",
+          "drawn": {
+            "path": "src/linkIgnored/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": ".venv",
+          "stat": "dir",
+          "drawn": {
+            "path": ".venv/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "bazel-out",
+          "stat": "dir",
+          "drawn": {
+            "path": "bazel-out/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "node_modules/pkgb",
+          "stat": "dir",
+          "drawn": {
+            "path": "node_modules/pkgb/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkVarRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkVarRoot/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkLocked",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkLocked/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkGone",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkGone/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "linkPipe",
+          "stat": "other",
+          "drawn": {
+            "path": "linkPipe",
+            "type": "file",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l0",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l0/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l1",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l1/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l2",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l2/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l3",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l3/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l4",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l4/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l5",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l5/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l6",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l6/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l7",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l7/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l8",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l8/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "ten/l9",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l9/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        },
+        {
+          "rel": "newLink",
+          "stat": "dir",
+          "drawn": {
+            "path": "newLink/",
+            "type": "folder",
+            "deco": "⤷",
+            "decoTitle": "Link"
+          }
+        }
+      ],
+      "skills": {
+        "children": [
+          ".claude/skills/a-skill/",
+          ".claude/skills/notes.md"
+        ],
+        "afterRefresh": [
+          ".claude/skills/a-skill/",
+          ".claude/skills/notes.md"
+        ]
+      },
+      "menu": [
+        "Open",
+        "Open in New Tab",
+        "—",
+        "—",
+        "Copy Path",
+        "Copy Relative Path",
+        "—",
+        "Read only through a link [off]"
+      ],
+      "band": "Read only · opened through a link",
+      "farFile": {
+        "before": "774891300 1791400000123.456",
+        "after": "774891300 1791400000123.456"
+      },
+      "saveToasts": [],
+      "savePressed": true,
+      "saveWithText": true
+    },
+    "R2": {
+      "rowsUnder": 21,
+      "ms": 1400,
+      "note": null
+    },
+    "R3": {
+      "steps": [
+        {
+          "what": "linkVarRoot",
+          "rows": 41,
+          "stub": null,
+          "opened": true
+        },
+        {
+          "what": "linkLocked",
+          "rows": 41,
+          "stub": null,
+          "opened": true
+        },
+        {
+          "what": "linkGone",
+          "rows": 41,
+          "stub": null,
+          "opened": true
+        },
+        {
+          "what": "reopened",
+          "rows": 38,
+          "stub": null,
+          "opened": null,
+          "closed": true
+        }
+      ]
+    },
+    "R4": {
+      "maxInFlight": 10,
+      "linkWalks": 40,
+      "windowMax": 10,
+      "linkPaths": [
+        "ten/l0",
+        "ten/l1",
+        "ten/l2",
+        "ten/l3",
+        "ten/l4",
+        "ten/l5",
+        "ten/l6",
+        "ten/l7",
+        "ten/l8",
+        "ten/l9"
+      ],
+      "closed": true,
+      "refreshPaths": [
+        "ten/l0",
+        "ten/l1",
+        "ten/l2",
+        "ten/l3",
+        "ten/l4",
+        "ten/l5",
+        "ten/l6",
+        "ten/l7",
+        "ten/l8",
+        "ten/l9"
+      ],
+      "reopenPaths": [
+        "ten/l0",
+        "ten/l1",
+        "ten/l2",
+        "ten/l3",
+        "ten/l4",
+        "ten/l5",
+        "ten/l6",
+        "ten/l7",
+        "ten/l8",
+        "ten/l9"
+      ]
+    }
+  },
+  "run": {
+    "ran": [
+      "L1",
+      "L2",
+      "L5",
+      "L6",
+      "L3",
+      "L4",
+      "C1",
+      "L7",
+      "R0",
+      "R1",
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "census": {
+      "measured": true,
+      "changed": [
+        "far:./",
+        "far:gone/",
+        "far:gone/g.txt",
+        "local:outside/",
+        "local:outside/l6-out.txt",
+        "local:proj/",
+        "local:proj/.agent/skills/",
+        "local:proj/.agent/skills/a-skill/SKILL.md",
+        "local:proj/.agent/skills/l6-new.md",
+        "local:proj/.agent/skills/notes.md",
+        "local:proj/.claude/",
+        "local:proj/.claude/p343-hdr-dir-link/",
+        "local:proj/.claude/p343-hdr-dir-under/",
+        "local:proj/.claude/p343-hdr-file-link.txt",
+        "local:proj/.claude/p343-hdr-file-under.txt",
+        "local:proj/.claude/p343-menu-file.txt",
+        "local:proj/.claude/skills copy",
+        "local:proj/fresh.log",
+        "local:proj/p343-l5-touch.txt",
+        "local:proj/src/",
+        "local:proj/src/p343-dropped-control.txt"
+      ],
+      "allowed": [
+        "local:proj/p343-l5-touch.txt",
+        "local:proj/fresh.log",
+        "local:proj/",
+        "local:proj/.agent/skills/l6-new.md",
+        "local:proj/.agent/skills/",
+        "local:outside/l6-out.txt",
+        "local:outside/",
+        "local:proj/src/p343-dropped-control.txt",
+        "local:proj/src/",
+        "local:proj/.agent/skills/notes.md",
+        "local:proj/.claude/p343-hdr-file-under.txt",
+        "local:proj/.claude/p343-hdr-dir-under/",
+        "local:proj/.claude/p343-hdr-file-link.txt",
+        "local:proj/.claude/p343-hdr-dir-link/",
+        "local:proj/.claude/p343-menu-file.txt",
+        "local:proj/.claude/",
+        "local:proj/.claude/skills copy",
+        "local:proj/.agent/skills/a-skill/SKILL.md",
+        "far:gone/**",
+        "far:./"
+      ]
+    },
+    "baselines": {
+      "read": true,
+      "records": 1,
+      "underLink": [],
+      "excluded": [
+        ".claude/skills/a-skill/SKILL.md"
+      ]
+    },
+    "dotfiles": {
+      "before": {
+        "files": {
+          ".zsh_history": "733966 1791325581",
+          ".bash_history": "23166 1790702242",
+          ".zshrc": "4120 1790000000"
+        },
+        "printed": {},
+        "done": true,
+        "home": "/Users/gdc"
+      },
+      "after": {
+        "files": {
+          ".zsh_history": "733966 1791325581",
+          ".bash_history": "23166 1790702242",
+          ".zshrc": "4120 1790000000"
+        },
+        "printed": {},
+        "done": true,
+        "home": "/Users/gdc"
+      },
+      "moved": []
+    },
+    "electronsLeft": 0,
+    "launched": {
+      "recorded": 2,
+      "stillUp": []
+    }
+  }
+}

@@ -1371,7 +1371,15 @@ const GIT_CLONE = [
  * it is a directory. The reader in `./tree-list.ts` drops any line that does not
  * begin with the root.
  *
- * ## Seven properties of this text, and each one is a rule the gate reads
+ * A LINK IS MARKED (Phase 343). A line that is a link ends `//` when the link
+ * points at a folder and `///` when it points at anything else, a file, a
+ * FIFO or nothing at all. No name can produce either mark, because a name never
+ * holds `/`, so a name that ends `@`, `.` or a space prints exactly as it did.
+ * Once the marks are taken off, an ordinary folder answers byte for byte what
+ * this text answered before Phase 343 (measured under `/bin/sh` and `/bin/dash`
+ * in build/p343/SPEC.md S1, and held by `p343-tree-list-links.test.ts`).
+ *
+ * ## Eight properties of this text, and each one is a rule the gate reads
  *
  *  1. It begins `set -e` and then `umask 077`.
  *  2. Every positional is read double quoted, and there are three.
@@ -1382,10 +1390,25 @@ const GIT_CLONE = [
  *     QUOTED name for `find` to prune. The quotes are what keep the word `git`
  *     from being followed by a space in this text, which is what the gate's
  *     git verb reader looks for.
- *  6. `.git` is pruned, so a repository's internals never cross the link.
+ *  6. `.git` is pruned, so a repository's internals never cross the link. The
+ *     prune is BY NAME, so a link that points at a `.git` folder is listed as
+ *     a link and, when a person expands it by hand, it is walked and drawn,
+ *     read only (Phase 343).
  *  7. It writes nothing, so running it twice reads the same folder twice.
+ *  8. It passes `-H` to `find` only when the folder it was asked about is
+ *     itself a link, so it walks what that link points at and never follows a
+ *     link below it; it never names `find -L` or `-follow` (Phase 343). `$h` is
+ *     its one unquoted expansion, and it is not a positional: it is empty or
+ *     the constant `-H`. A walk that followed every link would walk every loop
+ *     to the depth cap, and one that followed a link below its root would list
+ *     folders outside the one asked about.
  *
  * ## What it cannot do, said plainly
+ *
+ * A link below the folder asked about arrives as ONE marked line with nothing
+ * under it, because the walk never descends it. The Explorer asks again with
+ * the link as the folder when a person expands it. The `///` mark does not say
+ * what a link that is not a folder points at, only that it is not a folder.
  *
  * A file whose name holds a NEWLINE arrives as two lines. The second one does
  * not begin with the root and the reader drops it, and the first one is a path
@@ -1404,6 +1427,8 @@ const TREE_LIST = [
   'set -e',
   'umask 077',
   'p="$1"',
+  'h=',
+  'if [ -L "$p" ]; then h=-H; fi',
   'if [ ! -e "$p" ]; then',
   "  printf '__TORTIE_RUN__missing %s\\n__TORTIE_RUN__\\n' \"$p\"",
   'elif [ ! -d "$p" ]; then',
@@ -1411,13 +1436,15 @@ const TREE_LIST = [
   'elif [ ! -r "$p" ] || [ ! -x "$p" ]; then',
   "  printf '__TORTIE_RUN__denied %s\\n__TORTIE_RUN__\\n' \"$p\"",
   'else',
-  '  o=$(find "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
+  '  o=$(find $h "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
     ' 2>/dev/null |',
   '    head -n "$3" |',
   '    while IFS= read -r f; do',
-  '      if [ -d "$f" ]; then printf "%s/\\n" "$f"; else printf "%s\\n" "$f"; fi',
+  '      if [ -L "$f" ]; then',
+  '        if [ -d "$f" ]; then printf "%s//\\n" "$f"; else printf "%s///\\n" "$f"; fi',
+  '      elif [ -d "$f" ]; then printf "%s/\\n" "$f"; else printf "%s\\n" "$f"; fi',
   '    done)',
-  '  c=$(find "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
+  '  c=$(find $h "$p" -maxdepth "$2" -mindepth 1 -name ".git" -prune -o -print' +
     ' 2>/dev/null | wc -l | tr -d " ")',
   "  printf '__TORTIE_RUN__ok %s %s\\n%s__TORTIE_RUN__\\n' \"${c:-0}\" \"$p\" \"${o:-}\"",
   'fi'

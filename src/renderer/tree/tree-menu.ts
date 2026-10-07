@@ -24,7 +24,7 @@ import type { FsImportConflict, FsMoveConflict } from '@shared/fs-ops';
 import type { MenuItemSpec } from '../state/store';
 import { menuGlyph } from '../icons';
 import { OPEN_WITH_LABEL } from './open-with';
-import { baseNameOf, isDirPath } from './tree-paths';
+import { baseNameOf, isDirPath, toRel } from './tree-paths';
 
 /** What was right-clicked, with the selection rule already resolved. */
 export interface TreeMenuTarget {
@@ -36,7 +36,35 @@ export interface TreeMenuTarget {
   destDir: string;
   /** False for rows that cannot be opened at all (sockets, FIFOs, devices). */
   openable: boolean;
+  /**
+   * PHASE 343. True when the right-clicked row, or any row of the selection
+   * the verbs act on, sits UNDER a link (strictly below a link drawn as a
+   * folder). From the Explorer, through a link, Tortie reads and never writes,
+   * so every verb that writes is absent and the menu ends with
+   * `LINK_READ_ONLY_NOTE`. The link row itself is not under a link and keeps
+   * every item it had. Absent reads as false, as the remote flags below do.
+   */
+  underLink?: boolean;
+  /**
+   * PHASE 343 (its fix round). True when the right-clicked row is a LINK drawn
+   * as a folder. Before this phase that row was drawn as a leaf, so it carried
+   * the file rows' Open With and History, and both worked: Open With handed the
+   * linked folder to another app, and History showed the link's own commits.
+   * A folder row offers neither, so this flag keeps both on the link row, each
+   * aimed at the LINK's own spelling (`.claude/skills`, never `.claude/skills/`),
+   * exactly as before. Open and Open in New Tab are not kept: on a link to a
+   * folder they opened a tab that could not be read, and a click on the row now
+   * opens the folder. Absent reads as false.
+   */
+  linkRow?: boolean;
 }
+
+/**
+ * PHASE 343. The one disabled line a menu over a row under a link ends with,
+ * on either computer. On another machine it REPLACES the machine's own note
+ * rather than standing beside it: one footnote, never two.
+ */
+export const LINK_READ_ONLY_NOTE = 'Read only through a link';
 
 /** Which verbs this build can actually perform (preload feature detection). */
 export interface TreeMenuCapabilities {
@@ -67,6 +95,11 @@ export interface TreeMenuCapabilities {
    *  - Move to Trash is absent PERMANENTLY. `shell.trashItem` has no far side
    *    equal, and a remote `rm` would turn a recoverable delete into an
    *    unrecoverable one.
+   *  - PHASE 343. On a row UNDER A LINK nothing that writes crosses, on either
+   *    computer: New File, New Folder, Rename, Duplicate, Move to Trash and
+   *    History are absent, and `LINK_READ_ONLY_NOTE` replaces this sentence.
+   *    The LINK ROW itself keeps every verb it had, Open With and History
+   *    included (`TreeMenuTarget.linkRow`).
    *
    * The sentence itself is written once in src/renderer/machines/explorer.ts and
    * this module never composes one.
@@ -142,6 +175,41 @@ export function buildTreeMenu(
   // the one disabled line at the end says why once.
   const note = caps.readOnlyNote ?? null;
   const remote = note !== null;
+  // PHASE 343. A row under a link, or a selection holding one. Every verb that
+  // writes is absent rather than disabled, for the reason the remote note gives
+  // above, and History too, because `git log` through a link prints nothing
+  // with exit 0, which would read as a file with no history (measured, A8).
+  const underLink = target.underLink === true;
+
+  // Open With and History, built once for the two rows that carry them: one
+  // openable file (below) and (PHASE 343) the link row drawn as a folder.
+  const openWithItem = (): MenuItemSpec | null =>
+    openWith !== null && !remote
+      ? {
+          label: OPEN_WITH_LABEL,
+          // A CHOSEN mark, and one reason covers all six rows that wear it. It
+          // hands the file to a program outside Tortie, which is the same
+          // journey `Reveal in Finder` makes below and the same mark.
+          ...menuGlyph('link-external'),
+          submenu: openWith,
+          // A parent item never fires on macOS; the id that comes back is
+          // always a leaf's.
+          run: () => undefined
+        }
+      : null;
+  // PHASE 198. Absent for a folder on another machine, because the walk runs
+  // git on this Mac against a repository that is not here; and (PHASE 343)
+  // absent under a link, because `git log` past a link prints nothing.
+  const historyItem = (subject: string): MenuItemSpec | null =>
+    !remote && !underLink
+      ? {
+          label: 'History',
+          // The mark the View menu's File History row wears, and the one the
+          // codicon set binds to a history.
+          ...menuGlyph('history'),
+          run: () => actions.history(subject)
+        }
+      : null;
 
   // -- open ----------------------------------------------------------------
   // The preview/pinned tab model is invisible until something says it out
@@ -171,35 +239,27 @@ export function buildTreeMenu(
     // Open With sits with the two openings, under exactly their condition:
     // one file, not a folder, not a multi-row selection, and openable. A
     // folder, a socket, a FIFO or a device is not a document.
-    if (openWith !== null && !remote) {
-      items.push({
-        label: OPEN_WITH_LABEL,
-        // A CHOSEN mark, and one reason covers all six rows that wear it. It
-        // hands the file to a program outside Tortie, which is the same
-        // journey `Reveal in Finder` makes below and the same mark.
-        ...menuGlyph('link-external'),
-        submenu: openWith,
-        // A parent item never fires on macOS; the id that comes back is
-        // always a leaf's.
-        run: () => undefined
-      });
-    }
+    const withApp = openWithItem();
+    if (withApp !== null) items.push(withApp);
     // PHASE 198. History sits with the openings because it IS one: the file
     // opens for keeps and the sidebar switches to Source Control, where the
     // File history section follows the tab that just opened. Under Open's
-    // own gate, one file and not a folder, because git follows one file. It
-    // is absent for a folder on another machine, because the walk runs git on
-    // this Mac against a repository that is not here.
-    if (!remote) {
-      items.push({
-        label: 'History',
-        // The mark the View menu's File History row wears, and the one the
-        // codicon set binds to a history.
-        ...menuGlyph('history'),
-        run: () => actions.history(canonical)
-      });
-    }
+    // own gate, one file and not a folder, because git follows one file.
+    const history = historyItem(canonical);
+    if (history !== null) items.push(history);
     items.push('sep');
+  } else if (canonical !== null && target.linkRow === true && !many) {
+    // PHASE 343 (its fix round). The link row keeps the two items it carried
+    // when it was drawn as a leaf, aimed at the link's own spelling: Open With
+    // hands the linked folder to another app, and History follows the link's
+    // own commits (`git log -- .claude/skills`), as they did before this phase.
+    const leaf = toRel(canonical);
+    const before = items.length;
+    const withApp = openWithItem();
+    if (withApp !== null) items.push(withApp);
+    const history = historyItem(leaf);
+    if (history !== null) items.push(history);
+    if (items.length > before) items.push('sep');
   }
 
   // -- create --------------------------------------------------------------
@@ -212,9 +272,11 @@ export function buildTreeMenu(
   // stay separate, because the two flags are separate and a build may set one
   // without the other.
   const canCreateFile =
-    (caps.mutate && !remote) || (remote && caps.remoteCreateFile === true);
+    !underLink &&
+    ((caps.mutate && !remote) || (remote && caps.remoteCreateFile === true));
   const canCreateFolder =
-    (caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true);
+    !underLink &&
+    ((caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true));
   if (canCreateFile) {
     items.push({
       label: 'New File…',
@@ -238,7 +300,8 @@ export function buildTreeMenu(
   // one condition. Duplicate keeps the local one, because it has no script on
   // the far side.
   const canRename =
-    (caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true);
+    !underLink &&
+    ((caps.mutate && !remote) || (remote && caps.remoteWriteEntries === true));
   if (canRename && single !== undefined) {
     items.push('sep', {
       label: 'Rename…',
@@ -250,7 +313,13 @@ export function buildTreeMenu(
       run: () => actions.rename(single)
     });
   }
-  if (caps.mutate && !remote && single !== undefined && caps.duplicate) {
+  if (
+    caps.mutate &&
+    !remote &&
+    !underLink &&
+    single !== undefined &&
+    caps.duplicate
+  ) {
     items.push({
       label: 'Duplicate',
       // A second copy of the file on disk, which is the same idea the copy
@@ -260,7 +329,7 @@ export function buildTreeMenu(
     });
   }
 
-  if (caps.mutate && !remote && selection.length > 0) {
+  if (caps.mutate && !remote && !underLink && selection.length > 0) {
     items.push('sep', {
       // Honest label: gmux never unlinks. `shell.trashItem` is the only
       // deletion in the app, so the menu says where the file is going.
@@ -321,8 +390,13 @@ export function buildTreeMenu(
   // It is DISABLED, so it cannot be pressed, and it is last, so it reads as a
   // footnote rather than as a verb. An empty menu would be the alternative, and
   // a person right clicking a row deserves an answer.
-  if (remote && note !== null && items.length > 0) {
-    items.push('sep', { label: note, disabled: true, run: () => undefined });
+  //
+  // PHASE 343. ONE footnote. Under a link it is the link's line on either
+  // computer, and on another machine it REPLACES the machine's note: the link
+  // is the nearer reason, and two disabled lines would be noise.
+  const footnote = underLink ? LINK_READ_ONLY_NOTE : remote ? note : null;
+  if (footnote !== null && items.length > 0) {
+    items.push('sep', { label: footnote, disabled: true, run: () => undefined });
   }
 
   return items;

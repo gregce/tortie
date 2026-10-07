@@ -47,3 +47,9 @@ export type { TreeHandle } from './tree-handle';
  */
 export { canMutate } from './fs-ops-bridge';
 export { expandedDirs, headerDestDir } from './header-actions';
+/**
+ * PHASE 343. What `headerDestDir` is handed beside the selection: the link
+ * rows of the tree's last listing, so a header create never lands in a link.
+ */
+export { NO_TREE_LINKS } from './tree-paths';
+export type { TreeLinks } from './tree-paths';

@@ -38,6 +38,19 @@ describe('reading what the machine printed', () => {
     expect(answer?.lines).toEqual(['/Users/gdc/my work/a.txt']);
   });
 
+  // PHASE 343 (its fix round). The root was TRIMMED, so a folder whose name
+  // ends in a space was read as another folder and every line was dropped.
+  it('keeps a root whose name ENDS in a space, and the lines under it', () => {
+    const answer = parseTreeList(
+      'ok 2 /root/trail \n/root/trail /a.txt\n/root/trail /sub/'
+    );
+    expect(answer?.root).toBe('/root/trail ');
+    expect(answer?.lines).toEqual(['/root/trail /a.txt', '/root/trail /sub/']);
+    expect(parseTreeList('missing /root/gone ')?.root).toBe('/root/gone ');
+    // A carriage return is still not part of the name.
+    expect(parseTreeList('ok 1 /root\r\n/root/a')?.root).toBe('/root');
+  });
+
   it('DROPS a line that does not begin with the root', () => {
     // This is the shape a file whose name holds a newline arrives in. The
     // second half is not under the root, so it never reaches a surface.
@@ -85,6 +98,54 @@ describe('one line into one entry', () => {
 
   it('reads everything else as a file', () => {
     expect(entryOfLine('/root/a.ts')).toEqual({ path: '/root/a.ts', kind: 'file' });
+  });
+
+  // PHASE 343. A link line carries `//` (to a folder) or `///` (any other
+  // link). No name can end in either, because a name never holds `/`.
+  it('reads // as a link to a folder, a folder whose path keeps no slash', () => {
+    expect(entryOfLine('/root/.claude/skills//')).toStrictEqual({
+      path: '/root/.claude/skills',
+      kind: 'dir',
+      link: 'dir'
+    });
+  });
+
+  it('reads /// as any other link, a file, and never as a folder', () => {
+    expect(entryOfLine('/root/linkFile///')).toStrictEqual({
+      path: '/root/linkFile',
+      kind: 'file',
+      link: 'leaf'
+    });
+    // The order: `///` is read before `//`, and `//` before `/`.
+    const read = entryOfLine('/root/dangling///');
+    expect(read.kind).toBe('file');
+    expect(read.path.endsWith('/')).toBe(false);
+    expect(entryOfLine('/root/up//').path).toBe('/root/up');
+  });
+
+  it('gives no link field to a line that is not a link', () => {
+    expect(entryOfLine('/root/src/')).toStrictEqual({ path: '/root/src', kind: 'dir' });
+    expect(entryOfLine('/root/a.ts')).toStrictEqual({ path: '/root/a.ts', kind: 'file' });
+  });
+
+  it('reads a name ending @, . or a space as the plain name it is', () => {
+    expect(entryOfLine('/root/ends-with-at@')).toStrictEqual({
+      path: '/root/ends-with-at@',
+      kind: 'file'
+    });
+    expect(entryOfLine('/root/dot.')).toStrictEqual({ path: '/root/dot.', kind: 'file' });
+    expect(entryOfLine('/root/sp ace ')).toStrictEqual({ path: '/root/sp ace ', kind: 'file' });
+    expect(entryOfLine('/root/dot./')).toStrictEqual({ path: '/root/dot.', kind: 'dir' });
+  });
+
+  it('keeps a marked line through the parse, because it still begins with the root', () => {
+    const answer = parseTreeList('ok 3 /root\n/root/skills//\n/root/linkFile///\n/root/src/');
+    expect(answer?.lines).toEqual(['/root/skills//', '/root/linkFile///', '/root/src/']);
+    expect(answer?.lines.map(entryOfLine)).toStrictEqual([
+      { path: '/root/skills', kind: 'dir', link: 'dir' },
+      { path: '/root/linkFile', kind: 'file', link: 'leaf' },
+      { path: '/root/src', kind: 'dir' }
+    ]);
   });
 });
 

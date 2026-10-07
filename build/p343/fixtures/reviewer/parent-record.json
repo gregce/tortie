@@ -1,0 +1,1080 @@
+{
+  "build": "parent",
+  "checkout": "/private/tmp/wt-p343-parent",
+  "derivedBy": "RECORDED by the probe review (docs/method/HOW-WE-BUILT-THIS.md rule 9), 2026-10-07, not by a builder: every value not listed in handWritten came out of the SHIPPING code of this tree over a real build/p343/fixture.mjs tree (main link-target entriesOf over readdir; treeInputOf and treeRowDecoration; the TREE_LIST text under /bin/sh with parseTreeList, entryOfLine, groupRemoteEntries and mergeRemoteGroups; buildTreeMenu as main and Electron record it; trashBody; redlineRefusalSentence; pathsToAsk, canonicalAnswer and coveredByIgnored against real git check-ignore; treeGitLane over real porcelain; headerDestDir and outsideLinks; the far counts from real logs of this probe's own find wrapper read by parseFindLog; the census of an honest run against the drive's own allowances). handWritten lists what only a running app can say.",
+  "arms": {
+    "L1": {
+      "chain": null,
+      "claudeRow": {
+        "path": ".claude/",
+        "type": "folder",
+        "expanded": "false",
+        "label": ".claude",
+        "deco": "",
+        "decoTitle": null,
+        "git": null,
+        "selected": false
+      },
+      "children": [],
+      "band": null
+    },
+    "L2": {
+      "links": [
+        {
+          "rel": ".claude/skills",
+          "stat": "dir",
+          "drawn": {
+            "path": ".claude/skills",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkIn",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkIn",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkInAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkInAbs",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOut",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOut",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOutAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOutAbs",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFile",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFile",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFileOut",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFileOut",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "dangling",
+          "stat": "none",
+          "drawn": {
+            "path": "dangling",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "self",
+          "stat": "none",
+          "drawn": {
+            "path": "self",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "loopRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "loopRoot",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "up",
+          "stat": "dir",
+          "drawn": {
+            "path": "up",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFsRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkFsRoot",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkHome",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkHome",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkSsh",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkSsh",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkDotGit",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkDotGit",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOther",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOther",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "chainA",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainA",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "chainB",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainB",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "src/linkIgnored",
+          "stat": "dir",
+          "drawn": {
+            "path": "src/linkIgnored",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": ".venv",
+          "stat": "dir",
+          "drawn": {
+            "path": ".venv",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "bazel-out",
+          "stat": "dir",
+          "drawn": {
+            "path": "bazel-out",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "node_modules/pkgb",
+          "stat": "dir",
+          "drawn": {
+            "path": "node_modules/pkgb",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkVarRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkVarRoot",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkLocked",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkLocked",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkGone",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkGone",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkPipe",
+          "stat": "other",
+          "drawn": {
+            "path": "linkPipe",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l0",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l0",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l1",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l1",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l2",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l2",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l3",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l3",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l4",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l4",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l5",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l5",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l6",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l6",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l7",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l7",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l8",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l8",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l9",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l9",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "newLink",
+          "stat": "dir",
+          "drawn": {
+            "path": "newLink",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        }
+      ]
+    },
+    "L5": {
+      "freshDimmed": true,
+      "dimmed": {
+        "node_modules/": true,
+        "ignored.log": true,
+        ".venv": true,
+        "bazel-out": true,
+        "node_modules/pkgb": true,
+        "node_modules/pkgb/b.js": false,
+        "fresh.log": true
+      },
+      "newLinkGit": "untracked",
+      "underSkills": {
+        ".claude/skills/a-skill/": "absent",
+        ".claude/skills/notes.md": "absent"
+      }
+    },
+    "L6": {
+      "inProject": {
+        "shown": false,
+        "ms": null
+      },
+      "outside": {
+        "before": false,
+        "afterRefresh": false
+      }
+    },
+    "L3": {
+      "menus": {
+        "underSkills": null,
+        "underLinkOut": null,
+        "linkRow": [
+          "Open",
+          "Open in New Tab",
+          "Open With",
+          "History",
+          "—",
+          "New File…",
+          "New Folder…",
+          "—",
+          "Rename…",
+          "Duplicate",
+          "—",
+          "Move to Trash",
+          "—",
+          "Reveal in Finder",
+          "Copy Path",
+          "Copy Relative Path"
+        ]
+      },
+      "keys": {
+        "control": {
+          "f2Box": true,
+          "backspaceDialog": true,
+          "deleteDialog": true,
+          "focused": true
+        }
+      },
+      "drags": {
+        "control": {
+          "intercepted": true,
+          "dragstarts": []
+        }
+      },
+      "drops": {
+        "control": {
+          "landed": true
+        },
+        "linkRow": {
+          "landed": true,
+          "where": [
+            "local:proj/.claude/p343-dropped-link.txt"
+          ]
+        }
+      },
+      "creates": {
+        "claude": [
+          "p343-hdr-dir-link",
+          "p343-hdr-dir-under",
+          "p343-hdr-file-link.txt",
+          "p343-hdr-file-under.txt",
+          "p343-menu-file.txt",
+          "skills"
+        ],
+        "agentSkills": [
+          "a-skill",
+          "notes.md"
+        ],
+        "made": {
+          "hdrFileUnder": true,
+          "hdrDirUnder": true,
+          "hdrFileLink": true,
+          "hdrDirLink": true,
+          "menuFileLink": true
+        },
+        "dests": [
+          {
+            "id": "hdrFileUnder",
+            "dest": ".claude/"
+          },
+          {
+            "id": "hdrDirUnder",
+            "dest": ".claude/"
+          },
+          {
+            "id": "hdrFileLink",
+            "dest": ".claude/"
+          },
+          {
+            "id": "hdrDirLink",
+            "dest": ".claude/"
+          },
+          {
+            "id": "menuFileLink",
+            "dest": ".claude/"
+          }
+        ]
+      },
+      "duplicate": {
+        "path": ".claude/skills copy",
+        "type": "file",
+        "deco": "",
+        "decoTitle": null
+      },
+      "editor": {
+        "dirtyTabs": [],
+        "monaco": {
+          "typedInto": true,
+          "focused": true,
+          "before": "export {}\n",
+          "after": "export {}\n"
+        },
+        "saveToasts": [],
+        "savesPressed": 3,
+        "savedWithText": 3,
+        "redlineShown": true,
+        "redlineToasts": [
+          "notes.md is read-only, so it cannot be rewound."
+        ],
+        "autoSaveWaited": true,
+        "files": {
+          "notes": {
+            "before": "777061522 1791349778308.195",
+            "after": "777061522 1791349778308.195"
+          },
+          "index": {
+            "before": "777061520 1791349778308.0781",
+            "after": "777061520 1791349778308.0781"
+          },
+          "secret": {
+            "before": "777061526 1791349778308.4187",
+            "after": "777061526 1791349778308.4187"
+          }
+        },
+        "notes": {
+          "bytes": "notes\nappended by p343\n",
+          "expected": "notes\nappended by p343\n",
+          "appended": true
+        }
+      },
+      "reachable": {
+        "underSkills": true,
+        "underLinkOut": true
+      }
+    },
+    "L4": {
+      "body": "It moves to the Trash, so you can put it back from Finder.",
+      "cancelled": true,
+      "dialogAfter": false,
+      "linkBefore": "link ../.agent/skills",
+      "linkAfter": "link ../.agent/skills",
+      "targetBefore": "[[\"proj/.agent/skills/\",\"dir a-skill|notes.md\"],[\"proj/.agent/skills/a-skill/\",\"dir SKILL.md\"],[\"proj/.agent/skills/a-skill/SKILL.md\",\"file e3a7b20e79d648480b0dab1a6c1cb510e042c9f754f3f58a365417c55e016561\"],[\"proj/.agent/skills/notes.md\",\"file 8b8973e9db79096cac3b492e43688a5e040f9b401fdd3d18f37e675cea7c0dc7\"]]",
+      "targetAfter": "[[\"proj/.agent/skills/\",\"dir a-skill|notes.md\"],[\"proj/.agent/skills/a-skill/\",\"dir SKILL.md\"],[\"proj/.agent/skills/a-skill/SKILL.md\",\"file e3a7b20e79d648480b0dab1a6c1cb510e042c9f754f3f58a365417c55e016561\"],[\"proj/.agent/skills/notes.md\",\"file 8b8973e9db79096cac3b492e43688a5e040f9b401fdd3d18f37e675cea7c0dc7\"]]"
+    },
+    "C1": {
+      "opened": "/h/p343/reviewer/local/proj/.claude/skills/a-skill/SKILL.md",
+      "relPath": ".claude/skills/a-skill/SKILL.md",
+      "typed": "Q",
+      "fileHasTyped": true,
+      "toasts": []
+    },
+    "L7": {
+      "clicked": true,
+      "tabOpened": true,
+      "idsBefore": [
+        "skill-tab"
+      ],
+      "idsAfter": [
+        "skill-tab",
+        "pipe-tab"
+      ]
+    },
+    "R0": {
+      "rowsUnder": [],
+      "walks": 0,
+      "row": {
+        "path": "deep/a/b/",
+        "type": "folder",
+        "expanded": "false",
+        "label": "deep / a / b",
+        "deco": "",
+        "decoTitle": null,
+        "git": null,
+        "selected": false
+      },
+      "clicked": true
+    },
+    "R1": {
+      "links": [
+        {
+          "rel": ".claude/skills",
+          "stat": "dir",
+          "drawn": {
+            "path": ".claude/skills/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkIn",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkIn/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkInAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkInAbs/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOut",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOut/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOutAbs",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOutAbs/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFile",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFile",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFileOut",
+          "stat": "file",
+          "drawn": {
+            "path": "linkFileOut",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "dangling",
+          "stat": "none",
+          "drawn": {
+            "path": "dangling",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "self",
+          "stat": "none",
+          "drawn": {
+            "path": "self",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "loopRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "loopRoot/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "up",
+          "stat": "dir",
+          "drawn": {
+            "path": "up/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkFsRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkFsRoot/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkHome",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkHome/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkSsh",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkSsh/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkDotGit",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkDotGit/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkOther",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkOther/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "chainA",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainA/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "chainB",
+          "stat": "dir",
+          "drawn": {
+            "path": "chainB/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "src/linkIgnored",
+          "stat": "dir",
+          "drawn": {
+            "path": "src/linkIgnored/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": ".venv",
+          "stat": "dir",
+          "drawn": {
+            "path": ".venv/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "bazel-out",
+          "stat": "dir",
+          "drawn": {
+            "path": "bazel-out/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "node_modules/pkgb",
+          "stat": "dir",
+          "drawn": {
+            "path": "node_modules/pkgb/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkVarRoot",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkVarRoot/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkLocked",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkLocked/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkGone",
+          "stat": "dir",
+          "drawn": {
+            "path": "linkGone/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "linkPipe",
+          "stat": "other",
+          "drawn": {
+            "path": "linkPipe",
+            "type": "file",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l0",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l0/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l1",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l1/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l2",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l2/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l3",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l3/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l4",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l4/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l5",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l5/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l6",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l6/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l7",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l7/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l8",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l8/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "ten/l9",
+          "stat": "dir",
+          "drawn": {
+            "path": "ten/l9/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        },
+        {
+          "rel": "newLink",
+          "stat": "dir",
+          "drawn": {
+            "path": "newLink/",
+            "type": "folder",
+            "deco": "",
+            "decoTitle": null
+          }
+        }
+      ],
+      "skills": {
+        "children": [],
+        "afterRefresh": []
+      },
+      "menu": null,
+      "band": null,
+      "farFile": {
+        "before": "777062008 1791349778425.8174",
+        "after": "777062008 1791349778425.8174"
+      },
+      "saveToasts": [],
+      "savePressed": true,
+      "saveWithText": false
+    },
+    "R2": {
+      "rowsUnder": 0,
+      "ms": null,
+      "note": null
+    },
+    "R3": {
+      "steps": [
+        {
+          "what": "linkVarRoot",
+          "opened": true,
+          "rows": 41,
+          "stub": null
+        },
+        {
+          "what": "linkLocked",
+          "opened": true,
+          "rows": 41,
+          "stub": null
+        },
+        {
+          "what": "linkGone",
+          "opened": true,
+          "rows": 41,
+          "stub": null
+        },
+        {
+          "what": "reopened",
+          "opened": null,
+          "rows": 38,
+          "stub": null,
+          "closed": true
+        }
+      ],
+      "answers": [
+        {
+          "rel": "linkVarRoot",
+          "status": "denied"
+        },
+        {
+          "rel": "linkLocked",
+          "status": "denied"
+        },
+        {
+          "rel": "linkGone",
+          "status": "missing"
+        }
+      ]
+    },
+    "R4": {
+      "maxInFlight": 1,
+      "linkWalks": 0,
+      "linkPaths": [],
+      "windowMax": 1,
+      "closed": true,
+      "refreshPaths": [],
+      "reopenPaths": []
+    }
+  },
+  "run": {
+    "ran": [
+      "L1",
+      "L2",
+      "L5",
+      "L6",
+      "L3",
+      "L4",
+      "C1",
+      "L7",
+      "R0",
+      "R1",
+      "R2",
+      "R3",
+      "R4"
+    ],
+    "census": {
+      "measured": true,
+      "changed": [],
+      "allowed": []
+    },
+    "baselines": {
+      "read": true,
+      "records": 1,
+      "underLink": [],
+      "excluded": [
+        ".claude/skills/a-skill/SKILL.md"
+      ]
+    },
+    "dotfiles": null,
+    "electronsLeft": null
+  },
+  "fixRound": "The fix round (2026-10-07) added L3.drops.linkRow.where (the parent lands the drop beside the link, as the verifier measured), R3.steps[3].closed and the R4 windows, each hand-written."
+}

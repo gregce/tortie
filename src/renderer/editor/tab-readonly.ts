@@ -48,6 +48,11 @@ import type { EditorTab } from './tab-types';
  * Tortie can save there now OPENS, read only, where Phase 101 refused it at
  * open on a machine with saving on.
  *
+ * PHASE 343 ADDED `throughLink`, which is not conditional either: a file the
+ * Explorer opened through a link to a folder is read only on this Mac and on
+ * another machine, and it is asked in the first `if` so it wins over a write
+ * folder. Auto save asks this function, so it stops that too.
+ *
  * The caller reads the folder from the link state and the project list main
  * pushes, so the answer is never older than the last confirmation or the last
  * project opened. This function decides nothing about whether a write is
@@ -62,7 +67,16 @@ export function tabIsReadOnly(
   // there is nothing under it a keystroke could legitimately change. It never
   // reaches File mode — its mode chip offers nothing and setMode refuses — and
   // this is the same belt-and-braces the commit tab has carried since Phase 12.
-  if (tab.deleted || tab.truncated || tab.commit !== null || tab.compare !== undefined) {
+  // PHASE 343: a file the Explorer opened through a link to a folder is read
+  // only on both computers, and it is asked here, before the remote reason, so
+  // a write folder on that machine never makes such a tab an edit surface.
+  if (
+    tab.deleted ||
+    tab.truncated ||
+    tab.commit !== null ||
+    tab.compare !== undefined ||
+    tab.throughLink === true
+  ) {
     return true;
   }
   if (tab.remote === undefined) return false;

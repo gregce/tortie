@@ -28,6 +28,23 @@
  * measured in research 56 section 1.5. The cost of the departure is that a file
  * an agent writes over there does not appear until Refresh is pressed, and the
  * Explorer says so in one line.
+ *
+ * PHASE 343 ADDED A COUNT, AND STILL NO TIMER. Every walk that is not the tab's
+ * own root, being an expanded link, a folder at a walk's last level, a folder
+ * a person opened past the fetched depth, or one of those re-read by Refresh
+ * or restored when the tab opens, is counted, and never more than
+ * `REMOTE_EXTRA_READS` (9) of them are in flight beside the root's. A tenth
+ * waits its turn in the order it asked; a waiting lazy load looks at the cache
+ * again when its turn comes and is dropped if a walk has covered it since; and
+ * pointing the tree at another folder drops every waiter. Research 56 section
+ * 1.5 measured ten calls at once at 46.3 ms median and eleven at 258.8 ms, and
+ * research 55 saw the first refusals at thirty. Nothing here waits on a clock:
+ * a waiter starts when a walk ends.
+ *
+ * And a walk that is not the tab's root never touches the tab's status or its
+ * line. A link to a folder the account cannot read, or whose target went away,
+ * answers `denied` or `missing` for THAT folder, and the folder stays unlisted,
+ * as a failed child read on this Mac does; the Explorer keeps every row.
  */
 
 import { create } from 'zustand';
@@ -42,15 +59,62 @@ import {
 import { errorText } from '../state/store';
 import { canReadDir, readDir } from './fs-bridge';
 import { canListTree, listTree } from './remote-bridge';
-import { groupRemoteEntries, mergeRemoteGroups } from './remote-plan';
+import {
+  groupRemoteEntries,
+  loadedLinkFolders,
+  mergeRemoteGroups
+} from './remote-plan';
+import { drawsAsFolder } from './tree-paths';
 
-/** Sort: directories first, then case-insensitive by name (dotfiles mixed in). */
+/**
+ * PHASE 343. How many walks that are not the tab's own root may be in flight
+ * to a machine at once, beside the root's. See the module header.
+ */
+export const REMOTE_EXTRA_READS = 9;
+
+/**
+ * Sort: directories first, then case-insensitive by name (dotfiles mixed in).
+ * PHASE 343: a link drawn as a folder sorts with the folders.
+ */
 export function sortEntries(entries: readonly FsDirEntry[]): FsDirEntry[] {
   return [...entries].sort((a, b) => {
-    const aDir = a.kind === 'dir' ? 0 : 1;
-    const bDir = b.kind === 'dir' ? 0 : 1;
+    const aDir = drawsAsFolder(a) ? 0 : 1;
+    const bDir = drawsAsFolder(b) ? 0 : 1;
     if (aDir !== bDir) return aDir - bDir;
     return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
+  });
+}
+
+/**
+ * PHASE 343 (D4). A link main could not answer for in time keeps what the
+ * same name pointed at in that folder's previous listing.
+ *
+ * Main waits for a link's `stat` at most a short time, and a link not answered
+ * by then arrives with no `link` field. Read as a leaf, an OPEN linked folder
+ * would collapse on the next watcher tick and the listing diff would remove its
+ * whole subtree. So an entry that is a link with no field takes the field the
+ * same name carried in `previous`, when it was a link there too; only a link
+ * never answered reads as today's leaf. This Mac only: a far answer's marks
+ * are never partial.
+ */
+export function carryLinkTargets(
+  next: readonly FsDirEntry[],
+  previous: readonly FsDirEntry[] | undefined
+): FsDirEntry[] {
+  if (previous === undefined || previous.length === 0) return [...next];
+  let known: Map<string, NonNullable<FsDirEntry['link']>> | null = null;
+  return next.map((entry) => {
+    if (entry.kind !== 'symlink' || entry.link !== undefined) return entry;
+    if (known === null) {
+      known = new Map();
+      for (const old of previous) {
+        if (old.kind === 'symlink' && old.link !== undefined) {
+          known.set(old.name, old.link);
+        }
+      }
+    }
+    const link = known.get(entry.name);
+    return link === undefined ? entry : { ...entry, link };
   });
 }
 
@@ -164,12 +228,46 @@ export const useFileTree = create<FileTreeState>((set, get) => {
    */
   const remoteInFlight = new Set<string>();
 
+  /**
+   * PHASE 343. The count of walks that are not a tab's root, and the line of
+   * those waiting for one to end. A waiter is resolved `true` when it may
+   * start and `false` when it was dropped. See the module header.
+   */
+  let extraRunning = 0;
+  const extraWaiting: Array<(go: boolean) => void> = [];
+  const takeExtraSlot = (): Promise<boolean> => {
+    if (extraRunning < REMOTE_EXTRA_READS) {
+      extraRunning += 1;
+      return Promise.resolve(true);
+    }
+    return new Promise<boolean>((resolve) => {
+      extraWaiting.push((go) => {
+        if (go) extraRunning += 1;
+        resolve(go);
+      });
+    });
+  };
+  const giveExtraSlot = (): void => {
+    extraRunning -= 1;
+    extraWaiting.shift()?.(true);
+  };
+  const dropExtraWaiters = (): void => {
+    for (const waiter of extraWaiting.splice(0)) waiter(false);
+  };
+
   const readInto = async (dirPath: string, seq: number): Promise<void> => {
     try {
       const result = await readDir(dirPath);
       if (seq !== rootSeq) return; // root switched while listing
       set((s) => ({
-        entriesByDir: { ...s.entriesByDir, [dirPath]: prepare(result.entries) }
+        entriesByDir: {
+          ...s.entriesByDir,
+          // PHASE 343 (D4). A link main did not answer for in time keeps the
+          // kind this folder's last listing gave it.
+          [dirPath]: prepare(
+            carryLinkTargets(result.entries, s.entriesByDir[dirPath])
+          )
+        }
       }));
     } catch (err) {
       if (seq !== rootSeq) return;
@@ -236,17 +334,42 @@ export const useFileTree = create<FileTreeState>((set, get) => {
    * refresh, and the expanded folder for a lazy load. Every directory the
    * answer covers is replaced, and anything deeper than the answer can speak
    * for is left exactly as it is (see ./remote-plan.ts).
+   *
+   * PHASE 343. A walk of any folder but the tab's own root is COUNTED (it waits
+   * for one of `REMOTE_EXTRA_READS` places) and is SILENT: it never sets the
+   * tab's status, its root, its read time, its counts or its loading flag. A
+   * refusal leaves that one folder unlisted; an answer only merges its rows.
+   * `lazy` is a lazy load's walk, which is dropped when its turn comes if a
+   * walk has covered the folder since it asked.
    */
   const treeInto = async (
     machineId: string,
     dir: string,
-    seq: number
+    seq: number,
+    lazy = false
   ): Promise<void> => {
     if (remoteInFlight.has(dir)) return;
+    const isRoot = dir === get().root?.path;
     remoteInFlight.add(dir);
-    set((s) => ({
-      remote: { ...(s.remote ?? REMOTE_IDLE), root: dir, loading: true }
-    }));
+    if (!isRoot) {
+      const go = await takeExtraSlot();
+      if (!go) {
+        remoteInFlight.delete(dir);
+        return;
+      }
+      if (
+        seq !== rootSeq ||
+        (lazy && get().entriesByDir[dir] !== undefined)
+      ) {
+        remoteInFlight.delete(dir);
+        giveExtraSlot();
+        return;
+      }
+    } else {
+      set((s) => ({
+        remote: { ...(s.remote ?? REMOTE_IDLE), root: dir, loading: true }
+      }));
+    }
     let answer: RemoteTreeListing;
     try {
       answer = await listTree({ machineId, root: dir, depth: REMOTE_TREE_DEPTH });
@@ -256,9 +379,21 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       answer = { status: 'unreachable', root: dir };
     } finally {
       remoteInFlight.delete(dir);
+      if (!isRoot) giveExtraSlot();
     }
     if (seq !== rootSeq) return;
     if (answer.status !== 'ok') {
+      if (!isRoot) {
+        // PHASE 343. That one folder stays unlisted, as a failed child read on
+        // this Mac does, and the Explorer keeps every other row.
+        set((s) => {
+          if (s.entriesByDir[dir] === undefined) return {};
+          const next = { ...s.entriesByDir };
+          delete next[dir];
+          return { entriesByDir: next };
+        });
+        return;
+      }
       set((s) => ({
         remote: {
           ...(s.remote ?? REMOTE_IDLE),
@@ -272,9 +407,25 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       }));
       return;
     }
-    const groups = groupRemoteEntries(answer.root, answer.entries);
+    const groups = groupRemoteEntries(
+      answer.root,
+      answer.entries,
+      REMOTE_TREE_DEPTH
+    );
     for (const key of Object.keys(groups)) {
       groups[key] = prepare(groups[key] ?? []);
+    }
+    if (!isRoot) {
+      // PHASE 343. Rows only. The line under the Explorer is the root's.
+      set((s) => ({
+        entriesByDir: mergeRemoteGroups(
+          s.entriesByDir,
+          answer.root,
+          REMOTE_TREE_DEPTH,
+          groups
+        )
+      }));
+      return;
     }
     set((s) => ({
       entriesByDir: mergeRemoteGroups(
@@ -312,6 +463,8 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       inFlight.clear();
       queued.clear();
       remoteInFlight.clear();
+      // PHASE 343. Nobody waiting for a walk of the old folder is started.
+      dropExtraWaiters();
       const remoteTab = target !== null && !isLocalTarget(target);
       const bridgeMissing = remoteTab ? !canListTree() : !canReadDir();
       set({
@@ -351,8 +504,10 @@ export const useFileTree = create<FileTreeState>((set, get) => {
       if (!isLocalTarget(root)) {
         // The answer for the tab's root already carried every directory down to
         // the fetched depth, so reaching here means the person expanded PAST
-        // it. That is exactly one more call, rooted where they expanded.
-        await treeInto(root.machineId, dirPath, rootSeq);
+        // it, or (PHASE 343) expanded a link or a folder at the walk's last
+        // level. That is exactly one more call, rooted where they expanded,
+        // counted, and dropped if a walk covers the folder while it waits.
+        await treeInto(root.machineId, dirPath, rootSeq, true);
         return;
       }
       await listInto(dirPath, rootSeq);
@@ -408,11 +563,31 @@ export const useFileTree = create<FileTreeState>((set, get) => {
         // ONE call from the tab's root, and never one per cached folder. A
         // folder a person opened past the fetched depth keeps what it has, and
         // pressing Refresh on that folder's own root is how it is re-read.
+        //
+        // PHASE 343 (D19). Beside it, one walk of every opened link drawn as a
+        // folder, because the root's walk never descends a link; all of them
+        // through the count. When the root's answer has landed, every opened
+        // link it now names that was not walked yet is walked too: a real
+        // folder replaced by a link keeps its old key (the merge keeps keys at
+        // a link), and that key would otherwise show what the folder held.
         const bridgeNow = !canListTree();
         if (bridgeNow !== bridgeMissing) set({ bridgeMissing: bridgeNow });
         if (bridgeNow) return;
         const seq = rootSeq;
-        await treeInto(root.machineId, root.path, seq);
+        const machineId = root.machineId;
+        const walked = new Set(loadedLinkFolders(get().entriesByDir));
+        const rootWalk = (async () => {
+          await treeInto(machineId, root.path, seq);
+          if (seq !== rootSeq) return;
+          const since = loadedLinkFolders(get().entriesByDir).filter(
+            (dir) => !walked.has(dir)
+          );
+          await Promise.all(since.map((dir) => treeInto(machineId, dir, seq)));
+        })();
+        await Promise.all([
+          rootWalk,
+          ...[...walked].map((dir) => treeInto(machineId, dir, seq))
+        ]);
         if (seq === rootSeq && !get().rootLoaded) set({ rootLoaded: true });
         return;
       }

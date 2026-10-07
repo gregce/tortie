@@ -43,7 +43,7 @@ describe('one answer, cut into the cache the tree reads', () => {
       { path: `${ROOT}/src/a.ts`, kind: 'file' },
       { path: `${ROOT}/empty`, kind: 'dir' },
       { path: `${ROOT}/README.md`, kind: 'file' }
-    ]);
+    ], 3);
     expect(Object.keys(groups).sort()).toEqual(
       [ROOT, `${ROOT}/empty`, `${ROOT}/src`].sort()
     );
@@ -61,7 +61,7 @@ describe('one answer, cut into the cache the tree reads', () => {
   it('drops an entry whose parent is not in the answer', () => {
     const groups = groupRemoteEntries(ROOT, [
       { path: '/somewhere/else/a.ts', kind: 'file' }
-    ]);
+    ], 3);
     expect(groups[ROOT]).toEqual([]);
     expect(Object.keys(groups)).toEqual([ROOT]);
   });

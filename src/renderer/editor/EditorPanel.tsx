@@ -1031,6 +1031,17 @@ activeTab.error !== null ? (
               Close tab
             </button>
           </div>
+        ) : activeTab.throughLink === true ? (
+          // PHASE 343. A file the Explorer opened through a link to a folder,
+          // read only on both computers. Asked first after a deleted file,
+          // because the link is why the tab is read only whatever else is
+          // true of it: a tab inside a project open on a confirmed machine
+          // would otherwise draw no band at all over an editor that takes no
+          // keystroke.
+          <div className="banner ed-banner-readonly">
+            <Codicon name="lock" size="md" />
+            <span className="banner-text">Read only · opened through a link</span>
+          </div>
         ) : remoteCapBand !== null ? (
           // PHASE 336. A file larger than Tortie can save on that machine,
           // opened read only rather than refused. See `remoteCapBand` above.

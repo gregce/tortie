@@ -72,10 +72,13 @@ beforeEach(() => {
       [`${ROOT}/src`, 'dir'],
       [`${ROOT}/src/a.ts`, 'file'],
       [`${ROOT}/src/deep`, 'dir'],
+      // PHASE 343. A folder at the walk's last level (depth 3): named by the
+      // answer, never read by it.
+      [`${ROOT}/src/deep/edge`, 'dir'],
       [`${ROOT}/README.md`, 'file']
     ]),
-    [`${ROOT}/src/deep`]: ok(`${ROOT}/src/deep`, [
-      [`${ROOT}/src/deep/b.ts`, 'file']
+    [`${ROOT}/src/deep/edge`]: ok(`${ROOT}/src/deep/edge`, [
+      [`${ROOT}/src/deep/edge/b.ts`, 'file']
     ])
   };
   vi.useFakeTimers();
@@ -111,16 +114,19 @@ describe('opening a tab whose folder is on another machine', () => {
     await useFileTree.getState().setRoot(workspaceTarget(ROOT, 'mac-pro'));
     asks = [];
     // The root's answer named the folder but not its children, which is the
-    // state a person reaches by expanding at the edge of the walk.
-    useFileTree.setState((s) => {
-      const next = { ...s.entriesByDir };
-      delete next[`${ROOT}/src/deep`];
-      return { entriesByDir: next };
-    });
-    await useFileTree.getState().loadDir(`${ROOT}/src/deep`);
-    expect(asks).toEqual([`${ROOT}/src/deep`]);
+    // state a person reaches by expanding at the edge of the walk. PHASE 343
+    // (7.7): the cut gives that folder no key, so nothing is deleted by hand
+    // here any more; before it, the key was an empty list and the expand
+    // asked nothing and opened empty.
     expect(
-      useFileTree.getState().entriesByDir[`${ROOT}/src/deep`]?.map((one) => one.name)
+      useFileTree.getState().entriesByDir[`${ROOT}/src/deep/edge`]
+    ).toBeUndefined();
+    await useFileTree.getState().loadDir(`${ROOT}/src/deep/edge`);
+    expect(asks).toEqual([`${ROOT}/src/deep/edge`]);
+    expect(
+      useFileTree
+        .getState()
+        .entriesByDir[`${ROOT}/src/deep/edge`]?.map((one) => one.name)
     ).toEqual(['b.ts']);
   });
 

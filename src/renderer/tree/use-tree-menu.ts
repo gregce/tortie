@@ -33,7 +33,14 @@ import {
   copiedMessage,
   pathsForClipboard
 } from './tree-menu';
-import { absOf, isDirPath, parentOf, toRel } from './tree-paths';
+import {
+  absOf,
+  isDirPath,
+  isUnderLink,
+  outsideLinks,
+  parentOf,
+  toRel
+} from './tree-paths';
 import type { TreeModelBridge, TreeRemote } from './use-tree-model';
 
 export interface TreeMenuOptions
@@ -176,14 +183,24 @@ export function useTreeMenu({
             ? [...selected]
             : [canonical];
       const rel = canonical === null ? '' : toRel(canonical);
+      // PHASE 343. New File… and New Folder… on a link row land in the folder
+      // holding the OUTERMOST link, which is where they landed on it before
+      // this phase, when the link was a leaf (D7). On a row under a link they
+      // are not offered at all, so this answer is never pressed there.
+      const links = treeInput.links;
       const destDir =
         canonical === null
           ? ''
-          : isDirPath(canonical)
-            ? canonical
-            : parentOf(canonical);
-
-      const openable = treeInput.kinds.get(rel) !== 'other';
+          : outsideLinks(
+              isDirPath(canonical) ? canonical : parentOf(canonical),
+              links
+            );
+      // PHASE 343. The rule `openRel` uses, being one set: a socket, a FIFO, a
+      // device, or a link to one, opens nothing.
+      const openable = !treeInput.inert.has(rel);
+      const underLink =
+        (canonical !== null && isUnderLink(canonical, links)) ||
+        selection.some((path) => isUnderLink(path, links));
       // One file, not a folder, not a multi-row selection, and openable —
       // exactly the condition Open and Open in New Tab appear under.
       const single =
@@ -191,15 +208,31 @@ export function useTreeMenu({
         !isDirPath(canonical) &&
         openable &&
         selection.length <= 1;
+      // PHASE 343 (its fix round). The LINK ROW drawn as a folder keeps the
+      // Open With and History it carried as a leaf, both aimed at the link's
+      // own spelling, so main is asked about the same path as before.
+      const linkRow =
+        canonical !== null &&
+        links.folders.has(canonical) &&
+        selection.length <= 1;
+      const openWithSubject = single
+        ? canonical
+        : linkRow
+          ? toRel(canonical)
+          : null;
       const openWithItems =
-        single && !isRemote ? await openWithItemsFor(canonical) : null;
+        openWithSubject !== null && !isRemote
+          ? await openWithItemsFor(openWithSubject)
+          : null;
 
       const items = buildTreeMenu(
         {
           canonical,
           selection,
           destDir,
-          openable
+          openable,
+          underLink,
+          linkRow
         },
         {
           mutate: !isRemote && ops !== null && canMutate(),

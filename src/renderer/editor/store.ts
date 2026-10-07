@@ -1088,6 +1088,11 @@ export const useEditor = create<EditorState>((set, get) => {
         // Every reader treats it the way it treats `commit`: read only, no
         // save, no watcher refresh, no read of a working tree on this Mac.
         ...(req.remote !== undefined ? { remote: req.remote } : {}),
+        // PHASE 343. Present only when the Explorer opened this file through a
+        // link to a folder. Taken HERE, where the tab is created, and nowhere
+        // else: a request that lands on an open tab (above) leaves that tab as
+        // it is, so a tab a person is typing in is never turned read only.
+        ...(req.throughLink === true ? { throughLink: true as const } : {}),
         // Phase 160. Present only for the architecture map tab. Every reader
         // treats it the way it treats `commit`: no save, no dirty state, no
         // watcher refresh, and the panel draws the map instead of a file.
@@ -1562,6 +1567,11 @@ export const useEditor = create<EditorState>((set, get) => {
       //
       // PHASE 336. The folder is now the open project that holds the file, read
       // through the same `remoteTabWriteFolder` MonacoHost reads.
+      //
+      // PHASE 343. A file the Explorer opened through a link to a folder is read
+      // only on both computers, so it joins the list below. It is a condition in
+      // the list and nothing else: Phase 268's order after it (patch, then arm)
+      // does not move.
       const remoteReadOnly =
         tab.remote !== undefined &&
         tabIsReadOnly(
@@ -1577,7 +1587,8 @@ export const useEditor = create<EditorState>((set, get) => {
         remoteReadOnly ||
         tab.archMap !== undefined ||
         tab.diagnostics !== undefined ||
-        tab.compare !== undefined
+        tab.compare !== undefined ||
+        tab.throughLink === true
       ) {
         return;
       }

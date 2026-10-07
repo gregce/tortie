@@ -243,6 +243,41 @@ describe('the recents record', () => {
     stop();
   });
 
+  it('PHASE 343: never records a file the Explorer opened through a link', () => {
+    const stop = startRecordingRecents();
+    for (const remote of [
+      undefined,
+      { machineId: 'studio', machineLabel: 'Studio', repoPath: '/home/greg/api' }
+    ]) {
+      const repoPath = remote === undefined ? '/Users/gdc/gmux' : '/home/greg/api';
+      openOnTheBus({
+        repoPath,
+        relPath: '.claude/skills/p343-notes.md',
+        path: `${repoPath}/.claude/skills/p343-notes.md`,
+        mode: 'file',
+        source: 'tree',
+        throughLink: true,
+        ...(remote === undefined ? {} : { remote })
+      });
+    }
+    // The control: the same open with no flag IS recorded, so the refusal
+    // above is the flag's and not the path's.
+    openOnTheBus({
+      repoPath: '/Users/gdc/gmux',
+      relPath: '.claude/skills/p343-control.md',
+      path: '/Users/gdc/gmux/.claude/skills/p343-control.md',
+      mode: 'file',
+      source: 'tree'
+    });
+    const keys = recentKeys();
+    expect(keys.some((k) => k.relPath === '.claude/skills/p343-notes.md')).toBe(false);
+    expect(keys).toContainEqual({
+      root: '/Users/gdc/gmux',
+      relPath: '.claude/skills/p343-control.md'
+    });
+    stop();
+  });
+
   it('records a file on a machine, with the machine inside the root', () => {
     const stop = startRecordingRecents();
     openOnTheBus({

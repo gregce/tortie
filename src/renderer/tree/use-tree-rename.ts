@@ -33,7 +33,7 @@ import type { TreeEditorBridge } from './rename-view';
 import { useFileTree } from './store';
 import { useRemoteChanges } from '../scm/remote-changes';
 import { createTreeOps } from './tree-ops';
-import { baseNameOf, parentOf } from './tree-paths';
+import { baseNameOf, NO_TREE_LINKS, parentOf } from './tree-paths';
 import type { TreeModelBridge, TreeRemote } from './use-tree-model';
 
 /**
@@ -66,7 +66,13 @@ export interface TreeNameError {
 export interface TreeRenameOptions
   extends Pick<
     TreeModelBridge,
-    'model' | 'hostRef' | 'treeShadow' | 'opsRef' | 'fedRef' | 'hold'
+    | 'model'
+    | 'hostRef'
+    | 'treeShadow'
+    | 'opsRef'
+    | 'fedRef'
+    | 'linksRef'
+    | 'hold'
   > {
   rootPath: string;
   remote: TreeRemote | null;
@@ -97,6 +103,7 @@ export function useTreeRename({
   treeShadow,
   opsRef,
   fedRef,
+  linksRef,
   hold
 }: TreeRenameOptions): TreeRenameResult {
   /** Bumped when the verbs exist, so the handle effect can wait for them. */
@@ -194,6 +201,12 @@ export function useTreeRename({
         fedRef.current = next;
       },
       hold,
+      // PHASE 343. Read through the ref at call time, so the verbs see every
+      // listing's links and are still NOT rebuilt on a listing (Phase 341's
+      // rule above: a rebuild forgets an open New File box). A harness that
+      // mounts this hook with no tree model behind it hands no ref, and reads
+      // as a tree with no link rows.
+      links: () => linksRef?.current ?? NO_TREE_LINKS,
       renameView: () => editorBridge()?.view ?? null,
       selectOnly: (canonical) => editorBridge()?.selectOnly(canonical),
       ...(remoteCreate === undefined ? {} : { remoteCreate }),

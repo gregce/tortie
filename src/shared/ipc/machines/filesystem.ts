@@ -99,10 +99,12 @@ export interface RemoteDirListing {
 // answers about one folder per call.
 //
 // WHAT IT DOES NOT DO. It carries no file contents. It writes nothing on
-// either computer. It reaches nothing outside the folder it was asked about,
-// because the far side is given that folder as a positional parameter and
-// walks down from it. It cannot be reached while Tortie is not connected to
-// the machine.
+// either computer. It walks only below the folder it was asked about, because
+// the far side is given that folder as a positional parameter and walks down
+// from it, and it never follows a link below that folder. When the folder
+// asked about is ITSELF a link (Phase 343), it walks what that link points at,
+// which can be outside the project. It cannot be reached while Tortie is not
+// connected to the machine.
 //
 // NO TIMER READS IT. The Explorer calls it when a tab is opened, when a folder
 // is expanded past the fetched depth, and when a person presses Refresh. It is
@@ -170,8 +172,21 @@ export interface RemoteTreeListInput {
 export interface RemoteTreeEntry {
   /** The absolute path ON THAT MACHINE. */
   path: string;
-  /** Only these two. A link and a socket are reported as files. */
+  /**
+   * Only these two, being what that machine's `[ -d ]` said, which follows a
+   * link. A link to a folder is 'dir' (with `link: 'dir'`). Any other link,
+   * being one to a file, to something else or to nothing, is 'file' (with
+   * `link: 'leaf'`). A socket, a FIFO and a device are 'file'.
+   */
   kind: 'dir' | 'file';
+  /**
+   * Set only when the entry is a LINK (Phase 343): 'dir' for a link to a
+   * folder and 'leaf' for any other link. Absent for everything that is not a
+   * link, so a reader that ignores it reads exactly the answer it read before.
+   * The walk never descends a link below the folder it was asked about, so a
+   * link to a folder arrives with nothing under it.
+   */
+  link?: 'dir' | 'leaf';
 }
 
 /** Why a tree could not be read, or the tree. */

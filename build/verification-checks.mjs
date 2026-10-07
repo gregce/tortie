@@ -1197,6 +1197,22 @@ export const CHECKS = [
   // Antigravity, Grok and Droid binaries. No model turn and no token.
   // `--grader-self-test` grades recorded fixtures and starts nothing.
   remote('probe:p340'),
+  // PHASE 343's app run (build/p343/SPEC.md §10): a link to a folder opened in
+  // the Explorer on this Mac and on another machine, read only through the
+  // link, graded at HEAD with the parent's reading printed beside it. ONE
+  // Electron at a time through build/electron-run.mjs's withElectron, the
+  // parent's first with P343_PARENT_CHECKOUT, each on its own scratch profile
+  // with a scratch HOME and ZDOTDIR and the socket gmux-p343-<pid>, inside
+  // build/with-scratch-machine.mjs's loopback machine with the quiet shell and
+  // its scratch HOME, which is why this is `remote` and not `electron`. Rows
+  // and marks are read from the tree's shadow DOM, the native menu as main
+  // built it over --inspect with nothing raised, and the far side's walks by a
+  // find wrapper named only by a .zshenv in the yard's own ZDOTDIR, removed in
+  // its finally. Every fixture is under the run's own directory and nothing is
+  // emptied into the Trash. A scratch agents.json renames the Gemini, Qwen,
+  // Antigravity, Grok and Droid binaries. No model turn and no token.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  remote('probe:p343'),
   // PHASE 326's app run (build/p326/SPEC.md §8): the first session in a remote
   // tab draws its screen. TWO Electrons one after the other on one scratch
   // profile through build/electron-run.mjs's withElectron, a scratch HOME and
@@ -2395,6 +2411,21 @@ export const CHECKS = [
   // --self-test run nothing. No Electron, no tmux, no real ssh, no agent.
   // About twenty minutes for every arm (1,182 s measured, 31 arms).
   pure('ablation:p340'),
+  // PHASE 343's attack on its own rules (build/p343/SPEC.md §9.2): one clause
+  // at a time broken in the SHIPPING source of a `cp -Rc` clone of src/,
+  // build/ and resources/ under /private/tmp (node_modules symlinked), each
+  // required to turn THE CONDITION OR CASE THAT OWNS IT newly red, being
+  // condition 51 of `conformance:machines` or a named p343 vitest case (the
+  // link stat's lane and wait, the far walk's marks, the tree's two questions,
+  // its second doors and kind arithmetic, git's leaf spelling, the far cut and
+  // count, the editor's six read-only places and Quick Open's recents), plus
+  // one control arm that edits a comment and must leave every check as it
+  // found it. Every clone file is restored and proved by sha256 in a
+  // `finally`, the clone is removed in a `finally` and on a signal, and the
+  // worktree's bytes are asserted unmoved. P343_ONLY runs named arms; --list
+  // and --self-test run nothing. No Electron, no tmux, no ssh, no agent, no
+  // token.
+  pure('ablation:p343', NEEDS.vitest),
   // PHASE 321's attack on its own behaviour (build/p321/SPEC.md §5.3), one
   // clause at a time from the SHIPPING source over a `cp -Rc` clone of src/:
   // each shape's options, focus, hint and tail clauses, the shapes' term in

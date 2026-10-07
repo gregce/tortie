@@ -192,6 +192,20 @@ export interface EditorTab {
    */
   remote?: OpenFileRemoteRef;
   /**
+   * PHASE 343. The Explorer opened this tab through a link to a folder.
+   *
+   * Taken from the open request only when the store CREATES the tab, so a
+   * request that lands on an open tab never turns it read only under a
+   * person's edits. Present means read only in every place a tab's bytes
+   * could reach a disk: `tabIsReadOnly`, `markDirty`, `redlineTypable`, the
+   * Redline press, `keepsBaseline` and `saveOnce`. Tabs are not persisted,
+   * so the flag lives as long as the tab.
+   *
+   * Optional, for the reason `remote` is: every older tab and every fixture
+   * is still a valid tab.
+   */
+  throughLink?: true;
+  /**
    * PHASE 336. A file on another machine that is larger than Tortie can save
    * there, so the tab opened READ ONLY rather than being refused.
    *

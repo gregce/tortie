@@ -171,6 +171,12 @@ export function startRecordingRecents(): () => void {
     // A historical file is a view of the past, not a file you are working in;
     // recording it would put `<sha>` versions in tomorrow's empty palette.
     if (req.commit !== undefined) return;
+    // PHASE 343. A file the Explorer opened THROUGH A LINK is read only, and the
+    // flag lives on the tab alone. Recorded here, it would come back from the
+    // palette as a plain open, editable and saving through the link, one step
+    // past the Explorer's rule. Before Phase 343 the Explorer could not open
+    // such a file, so leaving it out keeps the palette exactly as it was.
+    if (req.throughLink === true) return;
     // PHASE 99 DELETED THE REFUSAL THAT STOOD HERE. Phase 90.3 dropped a file
     // on another machine, because quick open listed this Mac only and such an
     // entry could only ever match a DIFFERENT file that this Mac happens to

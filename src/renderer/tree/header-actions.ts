@@ -11,7 +11,8 @@
  * than by a screenshot of a tree.
  */
 
-import { isDirPath, parentOf } from './tree-paths';
+import { isDirPath, outsideLinks, parentOf } from './tree-paths';
+import type { TreeLinks } from './tree-paths';
 
 /**
  * VS Code's rule, and the one people already expect: a header create lands in
@@ -21,11 +22,20 @@ import { isDirPath, parentOf } from './tree-paths';
  * With several rows selected the FIRST is what the destination follows.
  * Picking the last, or refusing to act, both fail the same way: the user
  * pressed a create button and something has to appear somewhere they can see.
+ *
+ * PHASE 343. Never into a link, or into a folder under one: the answer is the
+ * folder holding the OUTERMOST link above the selection (`outsideLinks`). With
+ * the link row itself selected that is the folder holding the link, which is
+ * where the header's create landed on it before this phase, when the link was
+ * drawn as a leaf. `links` is required so no caller can forget the question.
  */
-export function headerDestDir(selected: readonly string[]): string {
+export function headerDestDir(
+  selected: readonly string[],
+  links: TreeLinks
+): string {
   const first = selected[0];
   if (first === undefined || first === '') return '';
-  return isDirPath(first) ? first : parentOf(first);
+  return outsideLinks(isDirPath(first) ? first : parentOf(first), links);
 }
 
 /**

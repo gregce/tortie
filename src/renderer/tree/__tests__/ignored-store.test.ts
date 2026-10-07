@@ -44,6 +44,9 @@ vi.stubGlobal('window', { gmux: { git: { checkIgnore } } });
 
 const { useTreeIgnored } = await import('../ignored');
 
+/** PHASE 343. These trees draw no link, so no path is under one. */
+const NO_LINKS: ReadonlySet<string> = new Set<string>();
+
 /**
  * PHASE 90.3. The store is keyed on a TARGET now, because two machines can hold
  * the same path. Every call below passes the local target for `/repo`, so these
@@ -71,7 +74,7 @@ beforeEach(() => {
 describe('invalidate', () => {
   it('NEVER empties the rendered set while a previous answer exists', async () => {
     truth = ['node_modules/'];
-    await store().sync(REPO, ['node_modules/', 'src/', 'README.md']);
+    await store().sync(REPO, ['node_modules/', 'src/', 'README.md'], NO_LINKS);
     expect(shown()).toEqual(['node_modules/']);
 
     // Record the size of the rendered set at every single state change, so a
@@ -82,7 +85,7 @@ describe('invalidate', () => {
     store().invalidate();
     expect(store().ignored.size).toBe(1);
 
-    const inFlight = store().sync(REPO, ['node_modules/', 'src/', 'README.md']);
+    const inFlight = store().sync(REPO, ['node_modules/', 'src/', 'README.md'], NO_LINKS);
     expect(store().ignored.size).toBe(1);
     await inFlight;
     stop();
@@ -93,7 +96,7 @@ describe('invalidate', () => {
 
   it('bumps the epoch so the tree re-asks, and changes nothing else', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     const before = store();
     store().invalidate();
     expect(store().epoch).toBe(before.epoch + 1);
@@ -103,7 +106,7 @@ describe('invalidate', () => {
 
   it('coalesces a burst into one leading and one trailing pass', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
 
     store().invalidate();
     const leading = store().epoch;
@@ -126,24 +129,24 @@ describe('invalidate', () => {
 describe('the revalidation pass', () => {
   it('lets a path that stopped being ignored leave the set', async () => {
     truth = ['dist/', 'notes.log'];
-    await store().sync(REPO, ['dist/', 'notes.log', 'src/']);
+    await store().sync(REPO, ['dist/', 'notes.log', 'src/'], NO_LINKS);
     expect(shown()).toEqual(['dist/', 'notes.log']);
 
     // The operator deletes the *.log line from .gitignore.
     truth = ['dist/'];
     store().invalidate();
-    await store().sync(REPO, ['dist/', 'notes.log', 'src/']);
+    await store().sync(REPO, ['dist/', 'notes.log', 'src/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
   });
 
   it('asks about the whole loaded tree, not the delta', async () => {
     truth = ['node_modules/'];
     const paths = ['node_modules/', 'node_modules/react/', 'src/'];
-    await store().sync(REPO, paths);
+    await store().sync(REPO, paths, NO_LINKS);
     expect(asks).toEqual([['src/', 'node_modules/', 'node_modules/react/']]);
 
     store().invalidate();
-    await store().sync(REPO, paths);
+    await store().sync(REPO, paths, NO_LINKS);
     // The current set cannot be used to skip node_modules/ here. Finding out
     // whether it is STILL ignored is the whole point of the pass.
     expect(asks[1]).toEqual(asks[0]);
@@ -151,21 +154,21 @@ describe('the revalidation pass', () => {
 
   it('settles on the empty set when the tree has nothing loaded', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/']);
+    await store().sync(REPO, ['dist/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
 
     store().invalidate();
-    await store().sync(REPO, []);
+    await store().sync(REPO, [], NO_LINKS);
     expect(shown()).toEqual([]);
   });
 
   it('runs once, then hands the next sync back to the merging path', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     store().invalidate();
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     asks = [];
-    await store().sync(REPO, ['dist/', 'src/', 'new.ts']);
+    await store().sync(REPO, ['dist/', 'src/', 'new.ts'], NO_LINKS);
     expect(asks).toEqual([['new.ts']]);
   });
 });
@@ -173,17 +176,17 @@ describe('the revalidation pass', () => {
 describe('the ordinary growing pass', () => {
   it('keeps earlier answers and never re-asks an answered path', async () => {
     truth = ['dist/', 'notes.log'];
-    await store().sync(REPO, ['dist/']);
+    await store().sync(REPO, ['dist/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
 
-    await store().sync(REPO, ['dist/', 'notes.log']);
+    await store().sync(REPO, ['dist/', 'notes.log'], NO_LINKS);
     expect(shown()).toEqual(['dist/', 'notes.log']);
     expect(asks).toEqual([['dist/'], ['notes.log']]);
   });
 
   it('dims a file written into an ignored directory without asking git', async () => {
     truth = ['node_modules/'];
-    await store().sync(REPO, ['node_modules/', 'src/']);
+    await store().sync(REPO, ['node_modules/', 'src/'], NO_LINKS);
     asks = [];
 
     // An agent writes node_modules/.package-lock.json. Git cannot re-include
@@ -194,7 +197,7 @@ describe('the ordinary growing pass', () => {
       'node_modules/',
       'node_modules/.package-lock.json',
       'src/'
-    ]);
+    ], NO_LINKS);
     expect(asks).toEqual([]);
     expect(shown()).toEqual([
       'node_modules/',
@@ -206,14 +209,14 @@ describe('the ordinary growing pass', () => {
 describe('staleness', () => {
   it('drops an answer that was in flight when the rules changed', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
 
     let release = (): void => {};
     gate = new Promise<void>((resolve) => {
       release = resolve;
     });
     truth = ['dist/', 'new.ts'];
-    const inFlight = store().sync(REPO, ['dist/', 'src/', 'new.ts']);
+    const inFlight = store().sync(REPO, ['dist/', 'src/', 'new.ts'], NO_LINKS);
 
     store().invalidate();
     release();
@@ -227,9 +230,9 @@ describe('staleness', () => {
   it('starts clean when the project moves to another repository', async () => {
     const other = localTarget('/other');
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     truth = [];
-    await store().sync(other, ['src/']);
+    await store().sync(other, ['src/'], NO_LINKS);
     expect(store().target).toBe(other);
     expect(shown()).toEqual([]);
   });
@@ -238,14 +241,14 @@ describe('staleness', () => {
 
   it('p903-b: the same path on another machine is a different key', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
 
     // The SAME path string, on a machine. Before this phase the store compared
     // the path alone, returned early, and this Mac's answers went on dimming
     // another machine's rows.
     asks = [];
-    await store().sync(workspaceTarget('/repo', 'mac-pro'), ['dist/', 'src/']);
+    await store().sync(workspaceTarget('/repo', 'mac-pro'), ['dist/', 'src/'], NO_LINKS);
     expect(shown()).toEqual([]);
     expect(store().target).toBeNull();
     expect(asks).toEqual([]);
@@ -256,23 +259,23 @@ describe('staleness', () => {
     await store().sync(workspaceTarget('/elsewhere', 'mac-pro'), [
       'node_modules/',
       'src/'
-    ]);
+    ], NO_LINKS);
     expect(asks).toEqual([]);
     expect(shown()).toEqual([]);
   });
 
   it('keeps the last answer when the read fails, and retries in full', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
 
     fail = true;
     store().invalidate();
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
 
     fail = false;
     asks = [];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     expect(asks).toEqual([['src/', 'dist/']]);
     expect(shown()).toEqual(['dist/']);
   });
@@ -281,7 +284,7 @@ describe('staleness', () => {
 describe('reset', () => {
   it('DOES empty the set, because leaving a repository is not a refresh', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     expect(shown()).toEqual(['dist/']);
 
     store().reset();
@@ -291,7 +294,7 @@ describe('reset', () => {
 
   it('cancels a pending revalidation instead of leaving it to fire', async () => {
     truth = ['dist/'];
-    await store().sync(REPO, ['dist/', 'src/']);
+    await store().sync(REPO, ['dist/', 'src/'], NO_LINKS);
     store().invalidate();
     store().invalidate();
     const epoch = store().epoch;

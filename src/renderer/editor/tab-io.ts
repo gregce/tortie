@@ -1566,6 +1566,13 @@ export function createTabIo(deps: TabIoDeps): TabIo {
     // be this phase's own defect wearing a different tab. Refused silently,
     // like the map, because the tab can never be dirty.
     if (tab.compare !== undefined) return false;
+    // PHASE 343. A tab the Explorer opened through a link to a folder is read
+    // only on both computers. Refused silently, like the map and the
+    // comparison, and BEFORE the remote branch: an explicit ⌘S on a CLEAN tab
+    // still writes (below), so without this a ⌘S with no typing replaced the
+    // file an in-project link points at, and through a link out of the project
+    // it raised the `outside` sentence a person should never meet.
+    if (tab.throughLink === true) return false;
     // PHASE 90.3. A review tab was refused here silently since Phase 73, so a
     // person who typed and pressed Save was told nothing at all, which reads as
     // a save that worked. It was refused OUT LOUD from that phase, naming the

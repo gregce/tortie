@@ -231,6 +231,17 @@ export interface OpenFileRequest {
    */
   remote?: OpenFileRemoteRef;
   /**
+   * PHASE 343 — the Explorer opened this file THROUGH A LINK to a folder.
+   *
+   * Set by the Explorer alone, for a row under a link it drew as a folder,
+   * never for the link row itself (a link to a file keeps its plain door).
+   * The editor applies it only when it CREATES the tab, and such a tab is
+   * read only on both computers: from the Explorer, through a link, Tortie
+   * reads and never writes. Context, a link inside a document and every other
+   * opener never set it, and keep saving as they did.
+   */
+  throughLink?: true;
+  /**
    * PHASE 63 — a DRAFT. The bytes to open, for a file that may not exist.
    *
    * Present means: put this text in the buffer, read nothing from disk, and

@@ -68,7 +68,7 @@ import { useLiveTabText } from './live-text';
 import { changeAtCaret } from './redline-caret';
 import { useRedlineTyping } from './redline-edits';
 import { changesOf } from './rewind';
-import type { RedlineChange } from './rewind';
+import type { RedlineChange, RewindRefusal } from './rewind';
 import {
   CHANGE_SELECTOR,
   CURRENT_ATTRIBUTE,
@@ -284,6 +284,19 @@ export function chipAnchorFor(
   return current ?? hovered;
 }
 
+/**
+ * PHASE 343. THE PRESS REFUSED BEFORE IT READS A BYTE. A tab the Explorer
+ * opened through a link to a folder is read only on both computers, so ⌥⌫ and
+ * ⌥⇧⌫ answer `readOnly`, whose sentences ./redline-sentences already says,
+ * before `pressRedline` is called. Null for every other tab, which presses as
+ * it did. Pure, and exported for its test; the press asks it first.
+ */
+export function pressRefusedUpFront(
+  tab: Pick<EditorTab, 'throughLink'>
+): RewindRefusal | null {
+  return tab.throughLink === true ? 'readOnly' : null;
+}
+
 export function RedlineDocument({
   tab
 }: RedlineDocumentProps): React.JSX.Element {
@@ -444,6 +457,29 @@ export function RedlineDocument({
       // prop both trail disk, and the generation guard needs the value now.
       const live = useEditor.getState().tabs.find((t) => t.id === tab.id);
       if (live === undefined) return;
+      // A refusal is never silent. A success shows nothing on the face:
+      // the watcher recomposes the view, exactly as an outside write does.
+      // PHASE 238's FIX ROUND. THE SENTENCE IS THE VERB'S OWN. An undo
+      // refused with `baselineMoved` used to be answered with the rewind
+      // map's "Look again, then rewind", which told a person who pressed
+      // the recovery to press the destructive one, and which is false
+      // besides: looking again cannot bring back an offset into a
+      // baseline that has been replaced.
+      const refuse = (why: RewindRefusal): void => {
+        const say =
+          kind === 'undo'
+            ? redlineUndoRefusalSentence(why, live.name)
+            : redlineRefusalSentence(why, live.name);
+        useApp.getState().toast('info', say);
+      };
+      // PHASE 343. A tab the Explorer opened through a link to a folder is read
+      // only, so the press says the existing read-only sentence and stops HERE,
+      // before `pressRedline` is called and before a byte is read.
+      const upFront = pressRefusedUpFront(live);
+      if (upFront !== null) {
+        refuse(upFront);
+        return;
+      }
       // The change the press will act on, read once as an ELEMENT, exactly as
       // the accept below reads it: the same two clauses. PHASE 282: and the
       // change drawn after it, by identity, so a rewind can hand that change
@@ -470,21 +506,8 @@ export function RedlineDocument({
           // step yet — the DOM answer stands, exactly as Phase 236 left it.
           focused: () => pressed,
           apply: applyRewind,
-          // A refusal is never silent. A success shows nothing on the face:
-          // the watcher recomposes the view, exactly as an outside write does.
-          // PHASE 238's FIX ROUND. THE SENTENCE IS THE VERB'S OWN. An undo
-          // refused with `baselineMoved` used to be answered with the rewind
-          // map's "Look again, then rewind", which told a person who pressed
-          // the recovery to press the destructive one, and which is false
-          // besides: looking again cannot bring back an offset into a
-          // baseline that has been replaced.
-          refuse: (why) => {
-            const say =
-              kind === 'undo'
-                ? redlineUndoRefusalSentence(why, live.name)
-                : redlineRefusalSentence(why, live.name);
-            useApp.getState().toast('info', say);
-          },
+          // The verb's own sentence, composed above.
+          refuse,
           // PHASE 282. ONE PRESS AT A TIME: a second ⌥⌫ on the change this
           // view is still rewinding answers `held` before it reads a byte.
           holds: rewindHolds.current

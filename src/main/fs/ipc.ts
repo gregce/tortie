@@ -4,7 +4,9 @@
  *
  * Registers:
  *   - fs:readDir   one directory listing, unfiltered/unsorted (the renderer
- *                  hides `.git`, keeps dotfiles, and sorts)      [tree]
+ *                  hides `.git`, keeps dotfiles, and sorts); since Phase 343
+ *                  a link says what it points at, read through the one
+ *                  bounded lane in ./link-target.ts            [tree]
  *   - fs:reveal    Finder reveal (tree context menu)             [tree]
  *   - fs:readFile  UTF-8 file read for the Monaco editor, capped at
  *                  READ_CAP_BYTES with `truncated` set when hit; binary
@@ -56,6 +58,7 @@ import type { OpenWithDeps } from './open-with';
 import { createOpenWith, defaultOpenWithDeps } from './open-with';
 import type { DragOutDeps } from './drag-out';
 import { createDragOut } from './drag-out';
+import { entriesOf, linkTargetsOf } from './link-target';
 import { writeGuarded } from './guarded-write';
 // PHASE 336. The one reader of "which folders on this Mac are open projects",
 // shared by the file operations, the guarded save and the drag out here, by
@@ -209,12 +212,16 @@ export function registerFsIpc(
     const abs = resolvePath(dirPath);
     try {
       const dirents = await readdir(abs, { withFileTypes: true });
-      const entries: FsDirEntry[] = dirents.map((d) => ({
-        name: d.name,
-        path: `${abs}/${d.name}`,
-        kind: entryKind(d)
-      }));
-      return { path: abs, entries };
+      const kinds = dirents.map((d) => ({ name: d.name, kind: entryKind(d) }));
+      // PHASE 343. Each LINK, and only links, is statted through main's one
+      // bounded lane (./link-target.ts), so the tree can open a link to a
+      // folder. `kind` does not move; a link that did not answer in time
+      // carries no field and reads as it always has.
+      const links = await linkTargetsOf(
+        abs,
+        kinds.filter((k) => k.kind === 'symlink').map((k) => k.name)
+      );
+      return { path: abs, entries: entriesOf(abs, kinds, links) };
     } catch (err) {
       throw gmuxError(
         'FS_FAILED',

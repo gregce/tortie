@@ -191,11 +191,15 @@ export interface RedlineTyping {
  * refused by `save` already, so offering a caret over one would be an edit
  * nothing could write; a deleted tab has no file and an errored tab has no
  * bytes. Everything else is an ordinary prose file in an open project.
+ *
+ * PHASE 343: a file the Explorer opened through a link to a folder is read
+ * only, so it offers no caret either.
  */
 export function redlineTypable(tab: EditorTab): boolean {
   return (
     tab.commit === null &&
     tab.remote === undefined &&
+    tab.throughLink !== true &&
     !tab.truncated &&
     !tab.deleted &&
     !tab.error &&

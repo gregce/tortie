@@ -47,6 +47,23 @@
  * dimmed another machine's rows from it. A remote target asks nothing and holds
  * nothing: `git check-ignore` runs on this Mac, so there is no honest answer for
  * a folder that is not here, and an undimmed tree is the true state.
+ *
+ * PHASE 343, RULE 6: GIT IS NEVER ASKED ABOUT A PATH PAST A LINK, AND A LINK
+ * ROW IS STILL ASKED AS TODAY. Git stops at a link. Handed any path under one,
+ * or a link spelled as a folder (`.venv/`), `git check-ignore` prints
+ * `fatal: pathspec ... is beyond a symbolic link` and exits 128, and the
+ * service maps that to an EMPTY answer for the WHOLE batch (measured, A8). An
+ * ordinary sync merges, so that hides at first; the first revalidation after
+ * any change in the project REPLACES the set with that empty answer and the
+ * whole tree goes undimmed, `node_modules` included (measured through this very
+ * store with real git, A4). So both arms of `pathsToAsk` drop every path under
+ * a link drawn as a folder and send the link row itself in today's LEAF
+ * spelling (`.venv`), which is how it was asked when it was drawn as a leaf and
+ * how git answers it (exit 0). A hit is keyed back onto the folder spelling
+ * (`.venv/`) before it lands, so the rows under an ignored link are covered by
+ * `coveredByIgnored` as rows under any ignored folder are, and `answered`
+ * holds the canonical spelling. Rows under a link that is NOT ignored stay
+ * undimmed, which is true: git does not look past a link.
  */
 
 import { create } from 'zustand';
@@ -99,6 +116,29 @@ export function isUnderIgnored(
   return false;
 }
 
+/** PHASE 343. True when `path` sits strictly under a link drawn as a folder. */
+function isUnderLinkFolder(
+  path: string,
+  linkFolders: ReadonlySet<string>
+): boolean {
+  if (linkFolders.size === 0) return false;
+  for (const dir of ancestorDirsOf(path)) {
+    if (linkFolders.has(dir)) return true;
+  }
+  return false;
+}
+
+/**
+ * PHASE 343. A path as git spelled it, back in the tree's canonical spelling:
+ * a link row asked as a leaf (`.venv`) is the folder row `.venv/`.
+ */
+export function canonicalAnswer(
+  path: string,
+  linkFolders: ReadonlySet<string>
+): string {
+  return linkFolders.has(path + '/') ? path + '/' : path;
+}
+
 /**
  * Loaded paths the set already covers, spelled out one by one (Phase 47.1).
  *
@@ -139,11 +179,18 @@ export function coveredByIgnored(
  * to be ignored. Sorted shortest first so that when the cap does bite it is
  * the outermost directories that get asked, and those are the ones whose
  * answers cover the most rows.
+ *
+ * PHASE 343. `linkFolders` is the canonical spelling of every link the tree
+ * drew as a folder, and it is REQUIRED. Every path under one is dropped, and a
+ * link row itself is returned in its LEAF spelling (`.venv`, never `.venv/`),
+ * which is what git is handed. `answered` and `ignored` are still canonical.
+ * See RULE 6 in the module header.
  */
 export function pathsToAsk(
   paths: Iterable<string>,
   ignored: ReadonlySet<string>,
   answered: ReadonlySet<string>,
+  linkFolders: ReadonlySet<string>,
   limit: number = MAX_ASK
 ): string[] {
   const ask: string[] = [];
@@ -151,7 +198,8 @@ export function pathsToAsk(
     if (path.length === 0) continue;
     if (answered.has(path) || ignored.has(path)) continue;
     if (isUnderIgnored(path, ignored)) continue;
-    ask.push(path);
+    if (isUnderLinkFolder(path, linkFolders)) continue;
+    ask.push(linkFolders.has(path) ? path.slice(0, -1) : path);
   }
   ask.sort((a, b) => (a.length === b.length ? (a < b ? -1 : 1) : a.length - b.length));
   return ask.length > limit ? ask.slice(0, limit) : ask;
@@ -229,8 +277,16 @@ interface TreeIgnoredState {
    * A target on another machine is dropped whole: the set is emptied and no
    * call is made, because `git check-ignore` reads this Mac and a folder over
    * there is not here to read.
+   *
+   * PHASE 343. `linkFolders` is required: the link rows the tree drew as
+   * folders, so git is asked about each in its leaf spelling and never about a
+   * path under one (RULE 6 in the module header).
    */
-  sync(target: WorkspaceTarget, paths: Iterable<string>): Promise<void>;
+  sync(
+    target: WorkspaceTarget,
+    paths: Iterable<string>,
+    linkFolders: ReadonlySet<string>
+  ): Promise<void>;
   /**
    * Distrust the remembered answers and ask again (git:changed). The set the
    * tree renders is left alone until the replacement lands. See the rule in
@@ -299,7 +355,7 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
     ignored: NONE,
     epoch: 0,
 
-    async sync(target, paths) {
+    async sync(target, paths, linkFolders) {
       const repoPath = localPathOf(target);
       if (repoPath === null) {
         // A folder on another machine. Nothing on this Mac can answer for it,
@@ -328,10 +384,15 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       // are exactly what may now be wrong, and the current set cannot be used
       // to skip a subtree either, because the whole point is to find out
       // whether that subtree is still ignored.
+      //
+      // PHASE 343. BOTH arms take the link folders. The revalidation arm is
+      // the one that matters most: it asks every loaded path, and one path
+      // past a link would make git answer nothing for the whole batch and this
+      // arm then REPLACES the set with that nothing.
       const replace = revalidating;
       const ask = replace
-        ? pathsToAsk(paths, NONE, NONE)
-        : pathsToAsk(paths, get().ignored, answered);
+        ? pathsToAsk(paths, NONE, NONE, linkFolders)
+        : pathsToAsk(paths, get().ignored, answered, linkFolders);
 
       if (ask.length === 0) {
         // Nothing to ask git, which is still an answer. Spell out any newly
@@ -346,7 +407,11 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       const epoch = get().epoch;
       let hits: string[];
       try {
-        hits = await checkIgnore.call(gmux.git, { repoPath, paths: ask });
+        // PHASE 343. A link row is asked in its leaf spelling and its hit is
+        // keyed back onto the folder spelling before it lands.
+        hits = (
+          await checkIgnore.call(gmux.git, { repoPath, paths: ask })
+        ).map((path) => canonicalAnswer(path, linkFolders));
       } catch {
         // Dimming is a decoration. A failed read leaves the tree plain, and
         // leaves `revalidating` set so the next tick tries the full ask again.
@@ -358,11 +423,14 @@ export const useTreeIgnored = create<TreeIgnoredState>((set, get) => {
       if (seq !== syncSeq) return;
       if (!sameTarget(get().target, target) || get().epoch !== epoch) return;
 
+      // `answered` holds the canonical spelling, which is what the next
+      // `pathsToAsk` compares against.
+      const asked = ask.map((path) => canonicalAnswer(path, linkFolders));
       if (replace) {
-        answered = new Set(ask);
+        answered = new Set(asked);
         revalidating = false;
       } else {
-        for (const path of ask) answered.add(path);
+        for (const path of asked) answered.add(path);
       }
       commit(hits, paths, replace);
     },

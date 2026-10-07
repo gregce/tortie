@@ -59,18 +59,29 @@ import { useDropUi } from '../terminal/drop/state';
 import { remoteTreeNoImport } from '../machines/explorer';
 import { useApp } from '../state/store';
 import {
+  chainFromEvent,
   dragOutModifierHeld,
+  dropDirFromEvent,
   rowElementFromEvent,
   rowFromEvent
 } from './row-events';
 import * as fsOps from './fs-ops-bridge';
-import { absOf, importTargetFor, toRel } from './tree-paths';
+import {
+  absOf,
+  besideLinkDrop,
+  importRowFor,
+  importTargetFor,
+  isUnderLink,
+  linkAimOf,
+  toRel,
+  type TreeLinks
+} from './tree-paths';
 import type { TreeModelBridge } from './use-tree-model';
 
 export interface TreeDragOptions
   extends Pick<
     TreeModelBridge,
-    'model' | 'hostRef' | 'opsRef' | 'treeShadow'
+    'model' | 'hostRef' | 'opsRef' | 'linksRef' | 'treeShadow'
   > {
   rootPath: string;
   isRemote: boolean;
@@ -78,7 +89,11 @@ export interface TreeDragOptions
   remoteLabel: string | null;
 }
 
-/** Where a drop from outside will land, and how to draw that. */
+/**
+ * Where a drop the HOST carries will land, and how to draw that: a drop from
+ * outside (Phase 154), or (PHASE 343, its fix round) a move dragged over a link
+ * row, which lands in the folder holding the link.
+ */
 export interface TreeImportHover {
   /** Canonical destination directory; '' is the project root. */
   dest: string;
@@ -94,7 +109,10 @@ export interface TreeImportHover {
 export interface TreeDragResult {
   /** True while the empty space below the rows is the drop target. */
   rootArmed: boolean;
-  /** Phase 154: where a drop from outside would land, or null. */
+  /**
+   * Phase 154: where a drop from outside would land, or null. PHASE 343: also
+   * where a move dragged over a link row lands, beside the link.
+   */
   importHover: TreeImportHover | null;
   onDragStart: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
@@ -106,6 +124,17 @@ export interface TreeDragResult {
 /** A drag from another application, carrying files. */
 function isExternalFileDrag(event: DragEvent): boolean {
   return !isTreeDragEvent(event) && dragHasFiles(event);
+}
+
+/**
+ * PHASE 343's folded-row fix. The folder a drop at this event is aimed at for
+ * the link rule, the same for a move and for a drop from Finder: the library's
+ * own reading (`dropDirFromEvent`, which knows the segment), with the area off
+ * every segment of a row that folds a link read as that link's row
+ * (`linkAimOf`).
+ */
+function linkAimFromEvent(event: Event, links: TreeLinks): string | null {
+  return linkAimOf(dropDirFromEvent(event), chainFromEvent(event), links);
 }
 
 function sameHover(
@@ -131,6 +160,7 @@ export function useTreeDrag({
   model,
   hostRef,
   opsRef,
+  linksRef,
   treeShadow
 }: TreeDragOptions): TreeDragResult {
   const dragPathsRef = useRef<readonly string[]>([]);
@@ -165,11 +195,10 @@ export function useTreeDrag({
     (canonical: string): TreeImportHover['box'] => {
       const host = hostRef.current;
       if (host === null || canonical.length === 0) return null;
-      const rows = treeShadow()?.querySelectorAll('[data-item-path]');
+      const shadow = treeShadow();
+      const rows = shadow?.querySelectorAll('[data-item-path]');
       if (rows === undefined) return null;
-      for (const row of Array.from(rows)) {
-        if (!(row instanceof HTMLElement)) continue;
-        if (row.dataset['itemPath'] !== canonical) continue;
+      const boxOf = (row: HTMLElement): TreeImportHover['box'] => {
         const rect = row.getBoundingClientRect();
         if (rect.width === 0 && rect.height === 0) return null;
         const hostRect = host.getBoundingClientRect();
@@ -179,6 +208,21 @@ export function useTreeDrag({
           width: Math.round(rect.width),
           height: Math.round(rect.height)
         };
+      };
+      for (const row of Array.from(rows)) {
+        if (!(row instanceof HTMLElement)) continue;
+        if (row.dataset['itemPath'] !== canonical) continue;
+        return boxOf(row);
+      }
+      // PHASE 343 (its fix round). A folder folded into a chain row has no row
+      // of its own: `.claude` holding only the link is drawn as `.claude /
+      // skills`, and a drop over the link lands in `.claude/`. The row that
+      // shows that folder is ringed, never the whole box, which says the root.
+      const segments = shadow?.querySelectorAll('[data-item-flattened-subitem]');
+      for (const segment of Array.from(segments ?? [])) {
+        if (segment.getAttribute('data-item-flattened-subitem') !== canonical) continue;
+        const row = segment.closest('[data-type="item"]');
+        if (row instanceof HTMLElement) return boxOf(row);
       }
       return null;
     },
@@ -207,15 +251,21 @@ export function useTreeDrag({
       rowElementFromEvent(e.nativeEvent)?.dispatchEvent(
         new DragEvent('dragend', { bubbles: true, composed: true })
       );
+      // PHASE 343. Nothing under a link leaves for Finder from here. `canDrag`
+      // already refuses the gesture in the model; this is the second door.
+      const links = linksRef.current;
       const paths = dragged
-        .filter((canonical) => !isProtectedFsPath(canonical))
+        .filter(
+          (canonical) =>
+            !isProtectedFsPath(canonical) && !isUnderLink(canonical, links)
+        )
         .map(toRel);
       if (paths.length === 0) return;
       void fsOps.startDrag({ root: rootPath, paths }).catch(() => {
         useApp.getState().toast('error', 'Could not start that drag.');
       });
     },
-    [rootPath]
+    [rootPath, linksRef]
   );
 
   const onDragStart = useCallback(
@@ -249,6 +299,15 @@ export function useTreeDrag({
       // ATTACH contract below must never arm with a row that is not a file.
       const pendingCreate = opsRef.current?.pendingPath() ?? null;
       if (pendingCreate !== null && dragged.includes(pendingCreate)) {
+        e.preventDefault();
+        dragPathsRef.current = [];
+        return;
+      }
+      // PHASE 343. The same third door for a row under a link: `canDrag`
+      // refuses it in the model, and neither the attach below nor the drag out
+      // may ever arm with one.
+      const links = linksRef.current;
+      if (dragged.some((canonical) => isUnderLink(canonical, links))) {
         e.preventDefault();
         dragPathsRef.current = [];
         return;
@@ -292,7 +351,7 @@ export function useTreeDrag({
         rootPath
       );
     },
-    [model, rootPath, isRemote, opsRef, startNativeDragOut]
+    [model, rootPath, isRemote, opsRef, linksRef, startNativeDragOut]
   );
 
   const onDragOver = useCallback(
@@ -315,12 +374,22 @@ export function useTreeDrag({
           return;
         }
         const hit = rowFromEvent(e.nativeEvent);
+        const links = linksRef.current;
+        // THE FOLDED-ROW FIX: a folder row at or under a link is aimed the way
+        // a move is, by the segment under the pointer, so a row that folds a
+        // link with the one folder it holds lands beside the link.
         const dest = importTargetFor(
-          hit === null ? null : { rel: hit.rel, isFolder: hit.type === 'folder' },
-          opsRef.current?.pendingPath() ?? null
+          importRowFor(
+            hit === null ? null : { rel: hit.rel, isFolder: hit.type === 'folder' },
+            linkAimFromEvent(e.nativeEvent, links),
+            links
+          ),
+          opsRef.current?.pendingPath() ?? null,
+          links
         );
         if (dest === null) {
-          // `.git`, or a row that is not on disk yet. NOT prevented: an
+          // `.git`, a row that is not on disk yet, or (PHASE 343) a link row or
+          // a row under one. NOT prevented: an
           // un-prevented dragover is Chromium's own way of saying "not a drop
           // target", which keeps the no-drop cursor honest and stops a stray
           // drop firing here at all.
@@ -333,19 +402,52 @@ export function useTreeDrag({
         return;
       }
 
-      // ---- the internal MOVE, unchanged ----------------------------------
-      armImport(null);
-      if (dragPathsRef.current.length === 0) return;
-      // Over a row, Pierre owns the target. Only the empty space is ours.
-      if (rowFromEvent(e.nativeEvent) !== null) {
-        armRoot(false);
+      // ---- the internal MOVE ----------------------------------------------
+      if (dragPathsRef.current.length === 0) {
+        armImport(null);
         return;
       }
+      // Over a row, Pierre owns the target. Only the empty space is ours, and
+      // (PHASE 343, its fix round) a LINK ROW, which Pierre refuses because a
+      // drop never goes INTO a link: there the host carries the move to the
+      // folder holding the link, which is where Pierre aimed it before this
+      // phase, when the link was a leaf. The ring is drawn on that folder, the
+      // root's ring when it is the root, so the drop lands where it says. THE
+      // FOLDED-ROW FIX: off every segment of a row that folds a link with the
+      // one folder it holds, the row is that link's row too.
+      const overRow = rowFromEvent(e.nativeEvent);
+      if (overRow !== null) {
+        // THE NARROW FIX: the row itself is asked too, so a move over a FILE
+        // row under a link (whose folder the library reads as the link) is
+        // refused, with no ring, like every other row under a link.
+        const beside = besideLinkDrop(
+          dragPathsRef.current,
+          linkAimFromEvent(e.nativeEvent, linksRef.current),
+          linksRef.current,
+          overRow
+        );
+        if (beside === null) {
+          armImport(null);
+          armRoot(false);
+          return;
+        }
+        e.preventDefault();
+        if (e.dataTransfer !== null) e.dataTransfer.dropEffect = 'move';
+        if (beside === '') {
+          armImport(null);
+          armRoot(true);
+          return;
+        }
+        armRoot(false);
+        armImport({ dest: beside, box: boxOfRow(beside), refused: false });
+        return;
+      }
+      armImport(null);
       e.preventDefault();
       if (e.dataTransfer !== null) e.dataTransfer.dropEffect = 'move';
       armRoot(true);
     },
-    [armRoot, armImport, boxOfRow, isRemote, opsRef]
+    [armRoot, armImport, boxOfRow, isRemote, opsRef, linksRef]
   );
 
   const onDragLeave = useCallback(
@@ -396,18 +498,37 @@ export function useTreeDrag({
         return;
       }
 
-      // ---- the internal MOVE, unchanged ----------------------------------
+      // ---- the internal MOVE ----------------------------------------------
       const armedForRoot = rootArmedRef.current;
       const dragged = dragPathsRef.current;
       armRoot(false);
+      armImport(null);
       dragPathsRef.current = [];
-      if (!armedForRoot || dragged.length === 0) return;
+      if (dragged.length === 0) return;
+      // PHASE 343 (its fix round). Over a LINK ROW the drop lands beside the
+      // link. The folder is read again from THIS event, the way Pierre's own
+      // drop handler reads it, rather than trusted from the last dragover, so
+      // the host never carries a drop Pierre has carried itself.
+      const overRow = rowFromEvent(e.nativeEvent);
+      if (overRow !== null) {
+        const beside = besideLinkDrop(
+          dragged,
+          linkAimFromEvent(e.nativeEvent, linksRef.current),
+          linksRef.current,
+          overRow
+        );
+        if (beside === null) return;
+        e.preventDefault();
+        opsRef.current?.drop(dragged, beside, false);
+        return;
+      }
+      if (!armedForRoot) return;
       // Pierre's own drop handler already ran with a null target, so nothing
       // moved in the model: this verb owns both sides of the move.
       e.preventDefault();
       opsRef.current?.drop(dragged, '', false);
     },
-    [armRoot, armImport, isRemote, remoteLabel, opsRef]
+    [armRoot, armImport, isRemote, remoteLabel, opsRef, linksRef]
   );
 
   const onDragEnd = useCallback((): void => {

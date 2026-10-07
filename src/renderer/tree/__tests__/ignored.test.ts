@@ -54,6 +54,7 @@ describe('pathsToAsk', () => {
         'node_modules/react/index.js'
       ],
       IGNORED,
+      new Set(),
       new Set()
     );
     expect(ask).toEqual(['src/']);
@@ -63,7 +64,8 @@ describe('pathsToAsk', () => {
     const ask = pathsToAsk(
       ['src/', 'README.md', 'LICENSE'],
       new Set(),
-      new Set(['src/', 'README.md'])
+      new Set(['src/', 'README.md']),
+      new Set()
     );
     expect(ask).toEqual(['LICENSE']);
   });
@@ -73,13 +75,16 @@ describe('pathsToAsk', () => {
       ['a/b/c/deep.ts', 'a/', 'a/b/', 'z.ts'],
       new Set(),
       new Set(),
+      new Set(),
       3
     );
     expect(ask).toEqual(['a/', 'a/b/', 'z.ts']);
   });
 
   it('drops the empty string rather than sending it to git', () => {
-    expect(pathsToAsk(['', 'a.ts'], new Set(), new Set())).toEqual(['a.ts']);
+    expect(pathsToAsk(['', 'a.ts'], new Set(), new Set(), new Set())).toEqual([
+      'a.ts'
+    ]);
   });
 });
 
@@ -168,7 +173,7 @@ describe('ignoredDotSuppressionCss', () => {
 
 describe('treeGitLane', () => {
   it('gives ignored directories the trailing slash the library needs', () => {
-    const lane = treeGitLane([], ['dist/', 'notes.log']);
+    const lane = treeGitLane([], ['dist/', 'notes.log'], new Set());
     expect(lane.entries).toEqual([
       { path: 'dist/', status: 'ignored' },
       { path: 'notes.log', status: 'ignored' }
@@ -176,20 +181,21 @@ describe('treeGitLane', () => {
   });
 
   it('lets porcelain win a collision', () => {
-    const lane = treeGitLane([status('a.ts', '.', 'M')], ['a.ts']);
+    const lane = treeGitLane([status('a.ts', '.', 'M')], ['a.ts'], new Set());
     expect(lane.entries).toEqual([{ path: 'a.ts', status: 'modified' }]);
   });
 
   it('counts only real changes towards the dirty-descendant dot', () => {
     const lane = treeGitLane(
       [status('src/a.ts', '.', 'M'), status('src/b.ts', '.', '.')],
-      ['dist/']
+      ['dist/'],
+      new Set()
     );
     expect(lane.changed).toEqual(['src/a.ts']);
   });
 
   it('keeps the conflict overlay set unchanged', () => {
-    const lane = treeGitLane([status('c.ts', 'U', 'U')], ['dist/']);
+    const lane = treeGitLane([status('c.ts', 'U', 'U')], ['dist/'], new Set());
     expect([...lane.conflicts]).toEqual(['c.ts']);
   });
 });

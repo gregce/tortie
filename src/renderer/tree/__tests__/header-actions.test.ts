@@ -10,32 +10,33 @@
 
 import { describe, expect, it } from 'vitest';
 import { expandedDirs, headerDestDir } from '../header-actions';
+import { NO_TREE_LINKS } from '../tree-paths';
 
 describe('headerDestDir', () => {
   it('lands at the project root when nothing is selected', () => {
-    expect(headerDestDir([])).toBe('');
+    expect(headerDestDir([], NO_TREE_LINKS)).toBe('');
   });
 
   it('lands INSIDE a selected folder', () => {
-    expect(headerDestDir(['src/components/'])).toBe('src/components/');
+    expect(headerDestDir(['src/components/'], NO_TREE_LINKS)).toBe('src/components/');
   });
 
   it('lands BESIDE a selected file, in its parent folder', () => {
-    expect(headerDestDir(['src/components/Button.tsx'])).toBe(
+    expect(headerDestDir(['src/components/Button.tsx'], NO_TREE_LINKS)).toBe(
       'src/components/'
     );
   });
 
   it('puts a top-level file at the root, not at "/"', () => {
-    expect(headerDestDir(['README.md'])).toBe('');
+    expect(headerDestDir(['README.md'], NO_TREE_LINKS)).toBe('');
   });
 
   it('follows the FIRST row of a multi-row selection', () => {
-    expect(headerDestDir(['docs/', 'src/index.ts'])).toBe('docs/');
+    expect(headerDestDir(['docs/', 'src/index.ts'], NO_TREE_LINKS)).toBe('docs/');
   });
 
   it('treats an empty first entry as the root', () => {
-    expect(headerDestDir([''])).toBe('');
+    expect(headerDestDir([''], NO_TREE_LINKS)).toBe('');
   });
 });
 

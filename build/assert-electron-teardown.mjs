@@ -448,13 +448,25 @@ const HELPER = 'electron-run.mjs';
  * it signals that it did not start is the scratch machine's own sshd, paused
  * for S8 and resumed in its `finally` and on exit.
  * Landed after Phases 341 and 340, so the floor is 169 (166, then 341, 340 and 337 one each).
+ * PHASE 343 RAISED IT FROM 169 TO 170, by one for build/p343/probe-p343.mjs
+ * (`probe:p343`), a link to a folder opened in the Explorer on this Mac and on
+ * another machine: ONE Electron at a time through the helper, the parent's
+ * first with P343_PARENT_CHECKOUT and then HEAD's, each on its own scratch
+ * profile with a scratch HOME and ZDOTDIR and the socket gmux-p343…, inside the
+ * loopback machine build/with-scratch-machine.mjs starts with the quiet shell
+ * and the scratch home, the five hidden agents renamed before each launch and
+ * read back through agents:list. It counts the far side's walks through a find
+ * wrapper named only by a .zshenv in the yard's own ZDOTDIR, removed in its
+ * `finally`, and it never empties anything into the Trash. Phase 337.1,
+ * building at the same time, may raise this too; whichever lands second makes
+ * the floor the count of both.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 169;
+const HELPER_USER_FLOOR = 170;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

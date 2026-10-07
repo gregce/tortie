@@ -4050,13 +4050,42 @@ process.stdout.write(
         const script = REMOTE_SCRIPTS.find((row) => row.id === 'tree-list');
         if (script === undefined) return null;
         const text = script.text;
+        // PHASE 343 (build/p343/SPEC.md D14, §9.1): `find` is handed `-H` only
+        // when the folder asked about is itself a link. Every clause below is
+        // about `find`'s OPTIONS; the `[ -L ]` tests are what tell a link from
+        // a folder and are not read as an option.
+        const linkWalkFaults: string[] = [];
+        const textLines = text.split('\n').map((line) => line.trim());
+        const IF_LINK = 'if [ -L "$p" ]; then h=-H; fi';
+        const ifLinkAt = textLines.indexOf(IF_LINK);
+        const ifLinkCount = textLines.filter((line) => line === IF_LINK).length;
+        if (ifLinkCount !== 1) {
+          linkWalkFaults.push(`the line ${IF_LINK} is there ${String(ifLinkCount)} time(s), not once`);
+        }
+        const hClearedAt = textLines.indexOf('h=');
+        if (hClearedAt < 0 || (ifLinkAt >= 0 && hClearedAt > ifLinkAt)) {
+          linkWalkFaults.push('no line h= stands before it, so $h could carry a value the far environment set');
+        }
+        const hSet = text.split('h=-H').length - 1;
+        if (hSet !== 1) linkWalkFaults.push(`h=-H is written ${String(hSet)} time(s), not once`);
+        const walkerCount = [...text.matchAll(/find /g)].length;
+        const linkWalks = text.split('find $h "$p"').length - 1;
+        if (linkWalks !== 2 || walkerCount !== 2) {
+          linkWalkFaults.push(`${String(linkWalks)} of ${String(walkerCount)} walk(s) read find $h "$p", where both of the two must`);
+        }
+        for (const m of text.matchAll(/\bfind\b([^"\n]*)"/g)) {
+          if (/-L(?![A-Za-z])/.test(m[1] ?? '')) linkWalkFaults.push(`a walk hands find -L before its path: ${JSON.stringify(m[0])}`);
+        }
+        if (text.includes('-follow')) linkWalkFaults.push('the text names -follow');
         return {
           params: script.params,
           mode: script.mode,
           prunesGit: text.includes('-name ".git" -prune'),
-          walkers: [...text.matchAll(/find /g)].length,
+          walkers: walkerCount,
           capped: text.includes('head -n "$3"'),
-          depthFromCaller: text.includes('-maxdepth "$2"')
+          depthFromCaller: text.includes('-maxdepth "$2"'),
+          followsRootLinkOnly: linkWalkFaults.length === 0,
+          linkWalkFaults
         };
       })()
     },
