@@ -1,5 +1,10 @@
 # 136. The phone in people's hands: a public TestFlight link, then the App Store
 
+> Superseded in part by research 140 (`140-the-public-beta-beside-the-release.md`, 6 October 2026). Since Phases 337
+> and 337.1 the phone opens a session's live terminal, by his rulings of 5 October, so this document's "no raw
+> terminal" lines (sections 2, 7 and 8), its 4.2.7 rating, its section 12 drafts and its upload method ("TestFlight
+> Internal Only") no longer hold. Read 140 first; it cites the sections of this one that still stand.
+
 Phase 333. Written 30 September 2026 against the tree at `984b3163` ("docs(backlog): the phone on TestFlight
 and the store, research started"). This is documents only. Nothing was installed, signed into, uploaded or
 run, and no Electron and no Simulator was started. No keychain, credential, APNs key, App Store Connect page
