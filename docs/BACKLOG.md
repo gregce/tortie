@@ -37574,100 +37574,778 @@ screenshot, unless he opens 333.8; an App Store Connect API key, unless he asks.
 
 ---
 
-## Phase 333.1 — "so that people can download it" — a stranger's phone says where Tortie for Mac comes from, links privacy and support, and names which side to update (research 136 §7 and §14, 2026-09-30)
+## Phase 333.1 — "so that people can download it" — a stranger's first run on both sides: Settings then Phone in three steps, and the phone says where Tortie for Mac comes from (research 140 §8 row 3; his design, "yes i do", 2026-10-07)
 
-**Subject.** `feat(ios): say where Tortie for Mac comes from, and which side to update`
+**Subject.** `feat(pocket): set up the phone in three steps, and say where Tortie for Mac comes from`
 
-**First body line.** `Phase 333.1: the phone's words for a stranger`
+**First body line.** `Phase 333.1: a stranger's first run, on the Mac and the phone`
 
-**Semver.** The iOS app only. It stays 1.0.0 and takes its next build number when 333.6 archives. No Mac
-change, and nothing is released.
+**Semver.** Minor for the Mac: a reworked setup surface and two new renderer channels, unreleased under his
+rule, riding the next minor release (0.111.0 if that is the tag). The iPhone app stays 1.0.0 and becomes **build
+8**, the build submitted to Beta App Review (research 140 §8 row 3, §9). Nothing is released or uploaded by this
+phase.
 
-What a person notices:
+What a person notices, on the Mac:
 
-- **The pairing screen says where Tortie for Mac comes from**, in one line naming tortie.sh.
-- **Privacy and Support open `tortie.sh/privacy` and `tortie.sh/support` in Safari**, from the pairing
-  screen and from one place on the list the spec step chooses (the list hides its navigation bar,
-  `ios/Tortie/Screens/ListScreen.swift:225`).
-- **A Tortie code from another version says which side to update.** Today it reads "That is not a Tortie
-  pairing code.", which is false.
-- **If 316.5 did not take it**, the phone asks for alerts only when its Mac can send.
+- **Settings then Phone is three steps**: Tailscale on this Mac, Publish this Mac, Pair your phone. Tortie fills
+  in each step itself. The step that waits on you has one button.
+- **The first problem has a button that fixes it.** Not installed: **Get Tailscale** opens Tailscale's download
+  page. Not running: **Open Tailscale**, with "Turn it on, then come back." Signed out: **Open Tailscale**, with
+  "Sign in, then come back."
+- **Coming back to the window checks again by itself.** Nothing runs on a timer. A quiet **Try again** stays
+  beside the button (question 2).
+- **Publishing asks exactly what it asks today.** The same lines, the same two warnings, the same Allow, bound to
+  the same hash.
+- **Tailscale's one-time approval is one button**, **Approve in Tailscale**, and the step moves on by itself once
+  approved. A person who is not their tailnet's admin reads "Ask your Tailscale admin to approve Funnel." with
+  **Copy link**, and the step moves on the next time they come back after the admin approves.
+- **While the Mac's name goes live**, today's progress stays, with one more line: "This can take several minutes.
+  You can leave this open or come back later."
+- **On a first setup the code shows by itself** once the name answers, with "Scan with Tortie on your iPhone." and
+  "Get it at tortie.sh/iphone."
+- **The Alerts card says who can send alerts**: "Only Tortie’s publisher can send alerts for now."
 
-**Tier 2**: a rendered surface and words, with no new state. **It becomes Tier 3 if it carries the push
-permission**, because that needs a door field and so a contract change. **Independent method: a hostile
-fixture of pairing codes**, and **the parent measurement** (the same codes read the old sentence at the
-parent).
+And on the iPhone:
 
-**Charter.** Research 136 §7 (guidelines 5.1.1(i), 1.5 and 4.2.3(i)), §14 (versions on separate clocks)
-and §12 (the words). Needs 318 landed, because the phone line is serial and `Copy.swift` is shared, and
-333.5's two URLs fixed.
+- **The first screen is three numbered steps**: Get Tortie for Mac (free at tortie.sh, Apple silicon, 0.111 or
+  later), Open Settings then Phone, Scan the code. One button, **Scan code**. Then "Nothing else to install on this
+  phone." and **Privacy** and **Support**.
+- **The camera opens, and iOS asks for it, only after Scan code.**
+- **Settings then About** gains Tortie for Mac (tortie.sh), Privacy and Support. All three open in Safari.
+- **"Tortie could not reach your Mac."** gains one line: "If Tortie on your Mac just updated, press Allow in its
+  Settings then Phone."
+- **A pairing code from another version says which side to update.** Today it says "That is not a Tortie pairing
+  code.", which is false.
+- **Never "beta" or "TestFlight"** on either side, and no "See a sample" yet (333.3, build 9).
+
+**Tier 3.** CLAUDE.md's tier questions: "Does it spawn a process ... **Tier 3**". Coming back to the window runs
+Tailscale's two reads with no press, and on confirmed fields it starts the door process and the Funnel child.
+**Open Tailscale** launches an app. The phone gains a way out of the app (rule (z)). Budget: the gates, a per-row
+matrix over every Tailscale state at the parent and at HEAD, the phone on iOS 26.3 and the 18.3 floor, and two
+independent methods, one an attack. Then a fix round if any verdict is needs_work, and an independent reverify of
+that fix.
+
+**Independent methods, named now.** (1) **Attack**: hostile returns, a moved field, a held port and a Mac update
+while a step waits. (2) **Measure the parent**: presses from each starting state to a code, parent against HEAD,
+and the confirm block's text and hash byte for byte. (3) **Hostile fixture**: pairing codes of every version and
+shape, on the phone. (4) **Re-derive**: the stand-in's own call log and the store's writes, each paired with the
+press or return the rules allow.
+
+**Charter.**
+- His design of 2026-10-07 and his "yes i do" to writing it up as part of 333.1 so it ships in the build sent to
+  Apple. The faces are below. Where this entry draws something other than his mock, it says so and why.
+- His four answers to research 140 (the running log, 2026-10-07). (2) Build 8 goes to Beta App Review before See
+  a sample is built, so this build draws no sample. (3) Words say "terminal", never "remote desktop", "mirror",
+  "stream" or "SSH". (4) 318.1 waits for 333.12. **This phase adds no door route**, so it does not wait for 333.12.
+- Research 140 §8 row 3 (this entry's revision), §5 rows 1, 9, 12 and 14, §6 (launch day for a stranger), §7.2
+  (build 8's routes must equal the Mac tag's) and §10 (never "beta" or "TestFlight").
+- Research 136 §7 (guidelines 5.1.1(i), 1.5 and 4.2.3(i)) and §14 (the phone and the Mac update on separate
+  clocks).
+- Research 132 §3.1 (Funnel on the App Store variant is "probably yes, not settled"), §3.3 (a non-admin's
+  `tailscale funnel` exits 0 having published nothing) and §7.6 (the Funnel right).
+- Phase 330 as built (the door, its confirm, CLAUDE.md refusal 8), Phase 332 and 332.1 (the name check, unchanged
+  here), Phase 333.2 (`SCAN_LINE`), Phase 316.6 (`docs/BACKLOG.md:39138`, "333.1: its links go into" Settings then
+  About), Phase 317 and 318 (the honesty sentence read at Allow), Phase 337.1 (build 7).
+- CLAUDE.md refusal 8 and its UI rules: just enough words, every colour a token, no tmux words, native menus. His
+  no-regression rule: no scenario worse than today.
+- **His stop of 1 October holds.** His "yes i do" approved this write-up. Building it starts on his word.
+
+### What changed from the entry queued on 2026-09-30
+
+- **The Mac half is new**: the three steps, the return check and the setup buttons, from his design.
+- **Items 5 and 6 are dropped.** 316.5 made the phone ask for alerts only when its Mac can send. CLAUDE.md's
+  `conformance:ios` row already says rule (e) refuses the local network string.
+- **The links do not use a SwiftUI `Link`.** Rule (z) refuses `Link(` (`build/conformance-ios.mjs:280-290`). They
+  go through one site opener in `Markdown/Links.swift`, the file rule (z) already lets open an address.
+- **The rule letter is (av), not (w).** 316.5 took (w), and `RULE_IDS` ends at `au` since 337.1
+  (`build/conformance-ios.mjs:10687`).
+- **The version sentence stays, at the lowest priority.** No public Mac ever sent v:1 or v:2, but a later Mac's
+  v:4 code will meet an older phone.
+- **Tier 2 became Tier 3**, for the return check.
 
 ### What was measured before this entry was written, so no round re-derives it
 
-- **No privacy link and no pointer to the Mac app.** No `privacy` or `tortie.sh` string exists under
-  `ios/Tortie` (research 136 §5). Guideline 5.1.1(i) requires the link "within the app in an easily
-  accessible manner", and 2.2 applies the guidelines to TestFlight builds.
-- **The version sentence is wrong, and it is wrong one step earlier than it looks.** `PairingOffer.version`
-  is 3 (`ios/Tortie/Door/Pairing.swift:52`). `parse` decodes the whole `Wire` shape first (`:93-97`) and
-  checks `v` only after (`:98`), so a code whose other fields differ (v:2 carried a tailnet key and no
-  public name) fails as `badCode` before its version is read. Both failures map to `Copy.pairNotACode`,
-  "That is not a Tortie pairing code." (`ios/Tortie/Screens/DoorWords.swift:155`,
-  `ios/Tortie/Style/Copy.swift:214`). Build 1 already met this against the newer door
-  (`build/p330/CHECKLIST.md`).
-- **Where the words live.** Every drawn word is a one-line `static let` in `Copy.swift`, with a `/// Mac:`
-  or `/// Phone:` owner above it (`Copy.swift:1-35`), read by `conformance:phonecopy` and `CopyTests.swift`.
-  `conformance:ios` rule (b) refuses a drawn literal anywhere else.
-- **Opening Safari is not a network call.** Rule (c) refuses Network.framework types outside the door
-  client and the URL loading system everywhere (`build/conformance-ios.mjs:713-760`). A SwiftUI `Link` or
-  `openURL` names none of them, and no rule yet pins which URLs the app may open.
-- **CLAUDE.md is stale in one clause.** Its `conformance:ios` row says rule (e) "requires the local network
-  string", but the gate refuses `NSLocalNetworkUsageDescription` (`build/conformance-ios.mjs:868`).
+- **The sheet today** (`src/renderer/settings/PhoneSection.tsx`). The switch's caption is the refusal sentence
+  (`doorLine`, `:314-324`). Every refusal gets Try again, which is the switch pressed again (`doorMayRetry`,
+  `:306-311`; the button `:801-813`; `onRetryDoor`, `:1162`). The button on Tailscale's approval page is
+  `BTN_OPEN_TAILSCALE` (`ApprovalBlock`, `:689-728`). The lines and the warnings are drawn at rest (`:774-797`).
+  Pair with the door off turns the door on and pairs after Allow (`onPair`, `:1166-1176`); **the switch itself sets
+  no wish today**, and the wish is dropped by any refusal with no lines to Allow (`pairAfterAllowNext`, `:365-375`).
+  The Alerts card (`:861-916`) says nothing about who can send. The file's header says "THERE IS NO KEY FIELD AND
+  NO DISCLOSURE", and `p316-phone-section.test.tsx:248-254` asserts no `<details`.
+- **The two warnings at Allow are load bearing.** `PocketDoorSummary.warning` carries `POCKET_CONFIRM_WARNING` "so
+  no sheet can omit it" (`src/main/pocket/pairing.ts:396`). Phase 317's fix round made `probe:p317` W1 read
+  `POCKET_DOOR_HONESTY` inside `[data-phone-confirm]` before Allow (`build/p317/SPEC.md:1591-1592`,
+  `build/p317/probe-p317.mjs:1273-1290`), and `probe:p318` R0 does the same (`build/p318/probe-p318.mjs:1760-1770`).
+  A closed `<details>` hides its body from `innerText`, so moving either sentence behind a disclosure turns both
+  arms red and drops the only plain sentence at Allow that says a phone sees what every terminal shows.
+- **Opening the sheet reads nothing today** (`publicName`, `src/shared/ipc/pocket.ts:842-846`), and Tailscale is
+  read "from a person's press or a confirmed start, never from opening a sheet and never on a timer"
+  (`src/main/pocket/funnel.ts:689-692`). A confirmed start already runs without a press: at launch (`openAtLaunch`,
+  `src/main/pocket/ipc.ts:1298-1316`) and on the restart timer after an unexpected exit (`armRestart`,
+  `ipc.ts:1135`). **An unconfirmed door is never read without a press**: `openNow` asks the gate before it reads
+  (`ipc.ts:954-963`).
+- **The confirm.** The lines are exactly the hashed facts (`describePocketDoor`,
+  `src/main/pocket/pairing.ts:430-479`). The record binds the hash (`confirmPocketDoor`, `:601-638`). The sheet hands
+  back the very lines and hash it drew (`PhoneSection.tsx:1123-1129`). The algorithm is `sha256-pocket-exec-v3`
+  (`pairing.ts:324`).
+- **A press chooses and WRITES the public port** (`readAtPress`, `ipc.ts:1712-1739`; the write at `:1727`), and
+  "A CONFIRMED PORT THAT IS HELD REFUSES AND NEVER MOVES ... Only a person's switch chooses again"
+  (`ipc.ts:1005-1006`). So a return may not reuse the press's job as it stands.
+- **Which existing read answers each step**:
+
+  | State | The read that answers it | Where |
+  | --- | --- | --- |
+  | Not installed | A stat of the three pinned paths, no process: `resolveTailscale` → `funnelProgramOf` answers `no-tailscale`. Or an exec that fails `ENOENT` or `EACCES` | `src/main/machines/tailscale.ts:69-73`, `:104-140`; `funnel.ts:309-318`, `:676-678` |
+  | Not running | `status --json --peers=false` says `Stopped`, `Starting` or `NoState`, or stderr says it is not running → `not-running` | `funnel.ts:404-406`, `:679-686` |
+  | Signed out | `NeedsLogin`, `NeedsMachineAuth`, or no `CurrentTailnet` → `signed-out` | `funnel.ts:401-415` |
+  | Needs approval | `Self.CapMap` lacks `https` and `funnel` → `funnel.asksApproval`; then the child prints a URL → `funnel.state` `approval` | `funnel.ts:442`; `ipc.ts:1057-1066` |
+  | Not an admin | The child prints the URL and exits 0, or stderr says `Funnel not available` → `not-approved` | `funnel.ts:643`, `:653`; research 132 §3.3 |
+  | Shields up | ONLY the Funnel child's stderr says it (`shields-up`); no read Tortie may run shows it | `funnel.ts:641`; `U1` allows `status` and `serve status` alone |
+  | Publishing the name | Phase 332's check: `nameCheck`, `pairable`, `nameProgress` | `ipc.ts:1356-1590` |
+
+- **The sheet cannot tell the start's refusals apart.** The read's refusal is kept as a word (`readRefusal`,
+  `ipc.ts:415`). The start's is kept only as a sentence (`startRefusal`, `ipc.ts:417`, set at `:948`, `:971`,
+  `:1000`, `:1008`, `:1033`, `:1075`, `:1728`). So "not an admin" and "failed" both arrive as a sentence. The
+  approval URL is dropped when the start ends (`ipc.ts:1069`), so there is no link left to copy.
+- **The account, measured in Tailscale's source.** `parseTailnetStatus` reads `BackendState`, `Self` and
+  `CurrentTailnet` alone (`funnel.ts:386-445`). `--peers=false` calls `StatusWithoutPeers`
+  (`cmd/tailscale/cli/status.go:82-84`; `ipn/localapi/localapi.go:853-856` at v1.94.1). Up to v1.98.0 the `User`
+  map is filled only with the peers (`ipn/ipnlocal/local.go:1349-1362` at v1.94.1), so it is empty. From v1.100.0
+  the self user is always added "so that callers can resolve the self node's owner to a login name"
+  (`local.go:1548-1552` at v1.100.0, `:1553-1561` at v1.102.2; tailscale issue 19894). His Mac runs Standalone
+  1.102.2 (`build/p330/CHECKLIST.md`, "Already done"), so his account shows. Older Tailscales show the tailnet
+  alone. For a personal tailnet `CurrentTailnet.Name` is often the account itself (the stand-in's default is
+  `standin@example.com`, `build/p330/tailscale-standin.mjs:139`), so equal values are drawn once.
+- **A missing interpreter reads as `ENOENT`.** A wrapper whose first line names an interpreter that does not exist,
+  run with `execFile`, failed `code: "ENOENT"`, `errno: -2`, measured on this Mac under Node 22.23.1. The build
+  measures it again under Electron.
+- **The coming-back hook already exists.** `onWindowLooked` (`src/renderer/machines/remote-writes.ts:166-170`)
+  fires on the window's `focus` and when the document becomes visible, attaches on the first subscriber and
+  detaches with the last, and "A synthetic `focus` dispatched on `window` reaches it too, which is how a harness can
+  drive the moment". The Settings window is its own `BrowserWindow` (`src/main/settings/window.ts:1-12`).
+- **Unmeasured, and it decides question 2.** Clicking Tailscale's menu bar icon to connect may never take focus
+  away from Tortie's window, because a menu bar extra's menu does not make its app frontmost. If so, no `focus`
+  event follows and the step has nothing to press. His checklist row C2 measures it.
+- **The phone's first screen** opens the camera at once (`QRScanner(active: !model.busy)`,
+  `ios/Tortie/Screens/PairingScreen.swift:200-229`). It says "In Tortie on your Mac, open Settings then Phone and
+  press Pair." (`ios/Tortie/Style/Copy.swift:252`) and "There is nothing else to install." (`:268`). Its resting
+  line is `Copy.notPaired`, "This iPhone is not paired with a Mac." (`:298`; `PairingScreen.swift:58`). The DEBUG
+  payload seam is read in `App/TortieApp.swift`, not by `QRScanner` (`PairingScreen.swift:36-40`), and the UI drive
+  reads `pairing-screen`, `pairing-fingerprint`, `pairing-again` and `pairing-line`, never the scanner
+  (`ios/TortieUITests/P316DriveUITests.swift:209-215`).
+- **The app holds no `https://` literal** outside comments under `ios/Tortie`, and no `privacy` or `tortie.sh`
+  string. `linkGate()` is applied only to the paired tabs (`ios/Tortie/App/TortieApp.swift:652`), so the pairing
+  screen has no way out. Rule (z) refuses `Link(` and lets `UIApplication.shared.open(` appear only in
+  `Markdown/Links.swift` and `Screens/SettingsScreen.swift`; it counts the opens in Links.swift and asks that each
+  sits in a closure that asks `LinkPolicy.opens(` first (`build/conformance-ios.mjs:4568-4668`).
+  `LinkPolicy.opens` accepts `https://tortie.sh/…` (`Markdown/Links.swift:51-64`).
+- **`Markdown/Links.swift` is inside rule (y)'s renderer scope** (`isRenderer`, `build/conformance-ios.mjs:4166`):
+  nothing there may throw, trap or force-unwrap (y3), name a `Door` or `Pocket` type (y9), or import beyond
+  Foundation, SwiftUI and UIKit (y1).
+- **Settings then About** draws Version alone (`SettingsScreen.swift:284-307`). Settings is reachable only once
+  paired.
+- **A shut door reads as "could not reach".** `FailureView` draws one sentence and Try again
+  (`ios/Tortie/Screens/Pieces.swift:326-345`), on six screens (`App/TortieApp.swift:837`, `Screens/Screen.swift:354`,
+  `ListScreen.swift:369`, `SessionsScreen.swift:646`, `ConversationScreen.swift:367`, `:418`). `.unreachable` and
+  `.nameNotFound` both become `Copy.cannotReachMac` (`DoorWords.swift:293`, `Copy.swift:682`). A shut door never
+  finishes a handshake, so it is never `.closedBeforeAnswer`, which needs `ready` (`DoorClient.swift:631-650`).
+- **The version.** `parse` decodes the whole v:3 shape before it reads `v` (`ios/Tortie/Door/Pairing.swift:104-109`;
+  `version = 3` at `:63`). Both failures become `pairNotACode` (`DoorWords.swift:411`, `Copy.swift:291`).
+- **Build 7 is pinned in SIX places**, every configuration of the three targets
+  (`ios/Tortie.xcodeproj/project.pbxproj:417`, `:449`, `:479`, `:501`, `:522`, `:543`), and as `PHONE_BUILD = '7'`
+  (`build/conformance-ios.mjs:3010`), and rule (s) refuses any configuration that differs (`:3254-3255`).
+- **A stranger's own push key cannot work.** Every key is stamped with his team (`src/main/alerts/key-file.ts:103`),
+  so Apple refuses it (`PUSH_KEY_REFUSED`, `src/shared/push-copy.ts:27`).
+- **The Tailscale stand-in** (`build/p330/tailscale-standin.mjs:47-75`) has scenarios for Stopped, NeedsLogin,
+  approval `wait` and `exit0`, and every refusal. It has no `User` map and no way to be absent. Its preflight
+  compares the wrapper with the hash recorded when it was written, and the file it execs with the stand-in's own
+  bytes, both at run time (`:688-720`, `:760-790`), so it can be edited.
+- **The readers of this sheet's faces**: `src/renderer/settings/__tests__/p316-phone-section.test.tsx`;
+  `build/p330/probe-p330.mjs` (`BTN_OPEN_TAILSCALE` picked by name from the sheet and found by its text, `:241`,
+  `:285`, `:1365`; A3's "one press after Pair", `:338-340`); `build/p332/probe-p332.mjs` (`:753`, `:768-769`);
+  `build/p3321/probe-p3321.mjs` (`:1077-1078`, `:1102-1138`); `build/p3332/probe-p3332.mjs` (its rectangle model,
+  `:392-422`, and `:888-889`, `:1119`); `build/p317/probe-p317.mjs:1285` and `build/p318/probe-p318.mjs:1767` (the
+  confirm block's text); `build/p330/CHECKLIST.md` row 3.
+- **The menu row** is `Pair a Phone…` (`src/main/menu.ts:643`), held by `conformance:pocket` MENU1.
+- **Research 140's What to Test** says "press Pair and scan the code" (`docs/research/140-the-public-beta-beside-the-release.md` §10.2). On a first
+  setup this build shows the code by itself.
+
+### The faces (his design, decided against the code)
+
+**The switch row.** "Let my phone reach this Mac" and its switch, as today. Its caption becomes one line that does
+not change: "Your iPhone needs only the Tortie app. This Mac needs Tailscale (free)." Today's section caption,
+`POCKET_REACH_HONESTY`, moves behind step 1's **What’s this?**. Today's states move into the steps.
+
+**Step 1, Tailscale on this Mac.** Its state comes from the stat and from THIS RUN's reads, never from the store.
+
+| Main says | Right side | Body |
+| --- | --- | --- |
+| `missing` | Not installed | **Get Tailscale** |
+| `stopped` | Not running | "Turn it on, then come back.", **Open Tailscale** when main offers it, quiet **Try again** |
+| `signed-out` | Signed out | "Sign in, then come back.", **Open Tailscale** when main offers it, quiet **Try again** |
+| `installed`, the switch off | Installed | Nothing: the switch is the next press |
+| `installed`, a read under way | Checking… | Nothing |
+| `installed`, a read refused another way (`no-name`, `unreadable`, `override-unusable`, a port) | — | Main's sentence and **Try again**, as today |
+| `ready` | ✓ account · tailnet | Nothing. The account is left out when the read carried none, and drawn once when it equals the tailnet |
+
+**What’s this?** (shut, the house `<details className="set-disclosure">`) is on step 1 in every state and holds
+`POCKET_REACH_HONESTY`.
+
+**Step 2, Publish this Mac.** Drawn whenever the door is on and main has something for it. It does NOT wait for
+step 1's ✓: after a Mac update moves a field, launch reads nothing (the gate is asked first), so step 1 says
+Installed while step 2 must still offer Allow.
+
+| Main says | Right side | Body |
+| --- | --- | --- |
+| A start under way | Starting Tailscale Funnel… | Nothing |
+| Lines to agree to (`doorNeedsConfirm`, unchanged) | Read, then allow; or, when the gate says `changed`, Changed since you allowed it | **Today's `[data-phone-confirm]` block, byte for byte**: every hashed line, `POCKET_CONFIRM_WARNING`, `POCKET_DOOR_HONESTY`, `POCKET_FUNNEL_RIGHT_WARNING` when `funnel.asksApproval`, and **Allow**. Nothing in a disclosure (question 1) |
+| Waiting on Tailscale's page, a page Tortie opens | Waiting for Tailscale | "Tailscale needs your OK, once." and **Approve in Tailscale**. **What this allows** (shut) holds `POCKET_FUNNEL_RIGHT_WARNING`, which was also at rest before Allow |
+| Waiting on a page Tortie does not open | Waiting for Tailscale | Today's `POCKET_FUNNEL_APPROVAL_ELSEWHERE` and the address as selectable text |
+| Refused `not-approved` | Waiting for your admin | "Ask your Tailscale admin to approve Funnel.", **Copy link** when main holds a link that passes `approvalOpens`, else the address as selectable text, and quiet **Try again** |
+| Refused `shields-up` | — | Main's sentence, **Open Tailscale** when offered, and **Try again**. A return does not re-check it |
+| Any other refusal | — | Main's sentence and **Try again**, as today |
+| Restarting | — | `POCKET_FUNNEL_RESTARTING` |
+| Listening | ✓ Published | Nothing. The hover says "Answering at https://…" |
+
+**Step 3, Pair your phone.**
+
+| State | Right side | Body |
+| --- | --- | --- |
+| The door off or not answering, no phone yet | — | Empty; `data-phone-stage` keeps today's value |
+| The name is being checked | — | Phase 332.1's block, unchanged, then "This can take several minutes. You can leave this open or come back later.", drawn for as long as the block is, so nothing above Pair moves (332.1's rule) |
+| Ready, no phone yet | — | The code by itself if the switch was pressed on in this section; else **Pair** |
+| The code is showing | — | The code, "Scan with Tortie on your iPhone.", "Get it at tortie.sh/iphone.", "Do not show this code on a shared screen.", the countdown and **Cancel** |
+| A phone presented | — | Today's match face and **Allow**, unchanged |
+| A phone is paired | ✓ Paired | **Pair**, which works with the door off exactly as it does today |
+
+Done is the codicon `check` in `--success`. The current step's number is `--accent`. A step not reached yet is
+`--text-muted`. Lines are `--text-secondary`. Every disclosure is the house `<details className="set-disclosure">`
+(`src/renderer/settings/settings.css:1440-1465`) and ships shut. The sheet draws no `<a>`.
+
+**The mock and the design, where this entry differs.** It draws no "about N min": 332.1 draws how long the check
+has run, and nothing knows how long it will take. It says "This can take several minutes", not "This only happens
+the first time", which would be false: on 30 September his Mac's public record did not survive overnight
+(`docs/BACKLOG.md:41657`). It splits stopped from signed out, because "Sign in" is wrong for a Mac that is signed
+in and disconnected. It keeps a quiet Try again (question 2). It keeps the confirm whole at rest (question 1).
+
+**The phone's first screen** (unpaired):
+
+```
+Pair with your Mac
+1  Get Tortie for Mac
+   Free at tortie.sh · Apple silicon · 0.111 or later
+2  Open Settings then Phone
+3  Scan the code
+[ Scan code ]
+Nothing else to install on this phone.
+This iPhone is not paired with a Mac.
+Privacy · Support
+```
+
+Step 1's row opens tortie.sh. **Scan code** draws the camera square where the steps were, with "Point this at the
+QR code in Tortie on your Mac." under it. The fingerprint card, the one line (rule (v): never empty) and **Pair
+again** are today's. The step numbers are drawn from their position, never a string literal (rule (b)). Each link
+is at least 44 points tall. No "See a sample": 333.3 adds it, in build 9. The mock's "Settings → Phone" is "Settings
+then Phone", as every other sentence on both sides says it (`Copy.swift:374`), and VoiceOver reads an arrow aloud.
 
 ### The mechanism
 
-1. **The version is read first.** `Pairing.swift` decodes `{ v }` alone before the full shape. A `v` above 3
-   throws a new `codeFromNewerMac`, a `v` from 1 to 2 throws `codeFromOlderMac`, and anything else that is
-   not the full v:3 shape stays `badCode`. `DoorWords.pairingSentence` maps each to its own sentence.
-2. **The words, in `Copy.swift`, each with a `/// Phone:` owner.** Drafts, for his approval:
-   - `pairGetMac`: "Tortie for Mac is free at tortie.sh."
-   - `pairNewerMac`: "This code is from a newer Tortie for Mac. Update Tortie on this iPhone."
-   - `pairOlderMac`: "This code is from an older Tortie for Mac. Update Tortie on your Mac."
-   - `privacyLink`: "Privacy", and `supportLink`: "Support".
-3. **Two URLs and no more.** `https://tortie.sh/privacy` and `https://tortie.sh/support`, each a constant
-   in one file, opened in Safari with `Link` and never in a view inside the app. They carry no query
-   string and no identifier.
-4. **A new `conformance:ios` rule (w)**: the app opens exactly these two URLs, both `https` and both on
-   `tortie.sh`, and names no other URL literal. Its fixtures and one `ablation:p316` arm each go red on a
-   third URL, an `http` URL and an added query string.
-5. **The push permission, only if 316.5 did not take it**: the phone asks only when its paired Mac reports
-   an alert key with its switch on, through one door field. `gate:contract`'s baseline is then regenerated
-   and the commit body names the lines that moved.
-6. **CLAUDE.md**: the `conformance:ios` row's rule (e) clause says the gate refuses the local network
-   string, and the row names rule (w).
+#### The Mac: what main reads and answers (`src/main/pocket/ipc.ts`, `funnel.ts`, `src/shared/ipc/pocket.ts`, `src/main/machines/tailscale.ts`)
+
+1. **The install check is a stat.** `status()` asks `funnelProgramOf(this.funnel.resolve())` and nothing more:
+   at most four `statSync`s and `accessSync`s, no process. It answers a new field, `tailscale`:
+   - `missing` for `no-tailscale`, from the stat or from this run's last read;
+   - `stopped` and `signed-out` from this run's last read's refusal;
+   - `ready` while this run's last read answered (`this.read !== null && this.readRefusal === null`);
+   - `installed` otherwise. **Never from the stored facts**: a tailnet an earlier run wrote is not proof that
+     Tailscale is running and signed in now.
+   `status()` and `pocket:status` still start nothing (D4). In a development build an override that is set and
+   unusable logs one warning per `resolveTailscale` call (`tailscale.ts:130-133`), so `status()` asks it at most
+   once per call.
+2. **The read carries the account.** `parseTailnetStatus` (`funnel.ts:390`) also reads
+   `User[String(Self.UserID)].LoginName` when it is there (Tailscale 1.100 and later). `TailnetRead` gains
+   `account: string | null`. Status gains `account` and `tailnet`, both from this run's read and drawn only. **The
+   account is not a field of `PocketExecutionFields`, not in `NORMALIZE`, not in the store, not in `facts.ts` or any
+   door answer, not in the pairing view, and not in any log line.** So the hash and the algorithm do not move, and
+   no paired phone is asked to Allow again.
+3. **The start's refusal keeps its word.** `startRefusalWord` sits beside `startRefusal` and is set and cleared
+   with it at every site (`ipc.ts:948`, `:971`, `:1000`, `:1008`, `:1033`, `:1075`, `:1728`, and every
+   `startRefusal = null`), null where the sentence is not Tailscale's. `PocketFunnelView` gains `refused:
+   PocketFunnelRefusal | null`: the word behind the sentence when Tailscale refused, from the read or the start.
+4. **The admin link.** When a start refuses `not-approved` after the child printed a URL: if the URL passes
+   `approvalOpens` (`funnel.ts:599-619`: `https`, exactly `login.tailscale.com`, no port, no credentials) main
+   keeps it and it never crosses to the renderer; otherwise it crosses as `funnel.approvalText`, selectable text,
+   today's rule for a page Tortie does not open. Either is dropped by a press of the switch, a confirm, a start
+   that publishes, a read that shows Funnel's two capabilities, and the quit. **A return's read that still shows
+   no capabilities does not drop it**, or the person would lose the link on their first return.
+5. **`rechecks()`, main's one predicate for "a return would read now"**, answered in status as `rechecks`. True only
+   when every one of these holds:
+   - the switch is on, the door is not published, `opening === 0`, the Funnel state is `idle`, no restart is armed
+     and the quit has not begun;
+   - the last refusal is one a person finishes outside Tortie AND a read can see finished: `no-tailscale`,
+     `not-running`, `signed-out` (the read's word) or `not-approved` (the start's word). **Not `shields-up`**: only
+     a spawn of the Funnel child can see it (`funnel.ts:641`), so a return there would fork the door process and
+     spawn the child on every focus;
+   - and EITHER the gate says the fields are the confirmed ones (then a read without a press is what launch and the
+     restart already do) OR the switch was pressed on in this run of Tortie (`pressedOnThisRun`, set by
+     `setDoor(on)`, cleared by `setDoor(off)`). So a door nobody has allowed is read on a return only in the run
+     whose press started the setup, which keeps today's exposure: no planted program at a pinned path runs because
+     a window came forward on a later day.
+6. **One new channel for the return, `pocket:recheck()`.** It answers the status, always. It reads only when
+   `rechecks()` holds, inside `serially`, counting `opening` as a start does, under `this.lastPress.press` and
+   **counting no press**, so any later press supersedes it. A return that arrives while one is queued or running is
+   dropped, not queued.
+   - **Confirmed fields**: it runs `openNow(press, 'start', { approvedOnly })`, the gate first, exactly as launch
+     does. `approvedOnly` is set after `not-approved`: after its read and before the fork, `openNow` returns
+     `stopped` when the read still asks approval. So a return before the admin approves forks and spawns nothing.
+   - **Unconfirmed fields** (first setup, pressed this run): it runs `sweepAndRead` and chooses a public port **only
+     when none is stored** (`publicPort === 0`). **A return never moves a stored port**: a held one refuses
+     `port-taken` as `openNow` does (`ipc.ts:1005-1011`), and Try again is the press that chooses again. Nothing
+     starts; the lines and Allow are drawn.
+   - A focus during the approval wait, a start, a restart or while published reads nothing, so it never supersedes
+     the wait.
+7. **`setupActions`**, main's one predicate for which setup press it would act on now:
+   - `get-tailscale` while `tailscale` is `missing`;
+   - `open-tailscale` while `tailscale` is `stopped` or `signed-out`, or the start refused `shields-up`, AND the
+     resolution's source is `pinned` and its path is `TAILSCALE_APP_PROGRAM`, **never a development override**, so
+     no probe can open his real Tailscale;
+   - `copy-admin-link` while an admin link is held.
+   The sheet draws a button only when main lists it, exactly as the approval button is drawn on `approvalOpens`
+   today.
+8. **One new press channel, `pocket:setupAction(action)`**, taking one closed word and nothing else. Each word acts
+   only when `setupActions` lists it at that moment, and each returns `false` first, doing nothing, on
+   `isHarnessLaunch(process.env)`, the precedent of `conformance:push` P3:
+   - `get-tailscale` calls `shell.openExternal(TAILSCALE_DOWNLOAD_PAGE)`, the one constant
+     `https://tailscale.com/download`, declared in `funnel.ts` beside `FUNNEL_APPROVAL_HOST` and compared with
+     `===`;
+   - `open-tailscale` calls `shell.openPath(TAILSCALE_APP_BUNDLE)` and answers whether it returned `''`;
+   - `copy-admin-link` calls `clipboard.writeText` with the held link, checked with `approvalOpens` again.
+   Nothing takes a URL or a path from the renderer. The opener, the path opener and the clipboard are a
+   `PocketHostDeps` seam handed only by tests (U4's rule). `tailscale.ts` exports `TAILSCALE_APP_BUNDLE =
+   '/Applications/Tailscale.app'` and `TAILSCALE_APP_PROGRAM`, its first candidate, derived from it, so the pocket
+   domain names no Tailscale path (U2). **Approve in Tailscale is today's `openApproval`, unchanged.**
+9. **The words main owns**, in the contract beside its other sentences:
+   - `POCKET_SETUP_LINE`: "Your iPhone needs only the Tortie app. This Mac needs Tailscale (free)."
+   - `POCKET_TURN_ON_LINE`: "Turn it on, then come back."
+   - `POCKET_SIGN_IN_LINE`: "Sign in, then come back."
+   - `POCKET_ASK_ADMIN`: "Ask your Tailscale admin to approve Funnel."
+   - `POCKET_NAME_WAIT_NOTE`: "This can take several minutes. You can leave this open or come back later."
+   - `POCKET_FUNNEL_APPROVAL` becomes "Tailscale needs your OK, once." (approval adds the `funnel` attribute for the
+     tailnet, research 132 §7.6).
+   - `PUSH_PUBLISHER_ONLY` in `src/shared/push-copy.ts`: "Only Tortie’s publisher can send alerts for now." Its
+     header's "drawn by Phase 316's app or written to the log" gains the Settings caption.
+
+   `POCKET_FUNNEL_SENTENCES` does not move. Its setup sentences stay for `pocket:confirmDoor`'s refusal and the
+   errors line.
+10. **Comments that become false are rewritten in the same commit**: `readTailnet`'s "never from opening a sheet"
+    (`funnel.ts:689-692`) and `publicName`'s "opening the sheet reads nothing" (`pocket.ts:842-846`) say a return
+    reads under `rechecks()`; `tailscale.ts`'s header names the stat in `status()`; `PhoneSection.tsx`'s header
+    loses "NO DISCLOSURE".
+
+#### The Mac: the sheet (`src/renderer/settings/PhoneSection.tsx`, new `phone/steps.ts` and `phone/Steps.tsx`, `phone-section.css`)
+
+11. **A pure composer, `checklistOf(status, offer, view, now, wished)`**, in `phone/steps.ts`, turns main's fields
+    into the three steps' faces in the tables above. It spells no predicate main owns: it reads `confirmable`,
+    `pairable`, `rechecks`, `setupActions` and `tailscale` and never works them out. `phone/Steps.tsx` draws them.
+    `pairingStage`, `pairAfterAllowNext` and `onPair` stay in `PhoneSection.tsx`, where D6 and D10 read them. So do
+    the constants the phone quotes (`PHONE_TITLE`, `BTN_PAIR`, `BTN_TRY_AGAIN`, `CODE_EXPIRED`, `BTN_REMOVE`,
+    `BTN_CANCEL`) and `BTN_ALLOW`, which the phone now quotes too.
+12. **The labels**, renderer words in `PhoneSection.tsx`:
+    - step titles: `STEP_TAILSCALE` "Tailscale on this Mac", `STEP_PUBLISH` "Publish this Mac", `STEP_PAIR` "Pair
+      your phone";
+    - step 1: "Not installed", "Not running", "Signed out", "Installed", "Checking…";
+    - step 2: "Read, then allow", "Changed since you allowed it", "Waiting for Tailscale", "Waiting for your admin",
+      "Published";
+    - step 3: "Paired";
+    - buttons: `BTN_GET_TAILSCALE` "Get Tailscale"; **`BTN_OPEN_TAILSCALE` keeps its role, the approval page's
+      button, and its words become "Approve in Tailscale"**, so `probe:p330`, which picks the constant by name, finds
+      it; the new app button is `BTN_OPEN_TAILSCALE_APP` "Open Tailscale"; `BTN_COPY_LINK` "Copy link";
+    - disclosures: "What’s this?", "What this allows";
+    - the code: `SCAN_LINE` becomes "Scan with Tortie on your iPhone." and `GET_PHONE_APP` is "Get it at
+      tortie.sh/iphone." Words only, never a link (333.2's rule);
+    - `DOOR_OFF`, `DOOR_WAITING` and `PAIR_WAITING` are no longer drawn and are removed.
+13. **Every `data-phone-*` hook a probe reads keeps its name and values**: `confirm-door`, `retry-door`,
+    `open-approval`, `pair`, `cancel-pairing`, `allow-phone`, `remove-phone`, `choose-key`, `forget-key`,
+    `[data-phone-stage]` with today's six values on step 3's block, `[data-phone-confirm]` with today's children,
+    `[data-phone-name*]`, `[data-phone-key]`, `[data-phone-alerts]` and `[data-phone-id]`. New hooks:
+    `data-phone-step="tailscale|publish|pair"`, `data-phone-action="get-tailscale"`, `open-tailscale` and
+    `copy-link`.
+14. **The return.** The section subscribes once to `onWindowLooked` (`remote-writes.ts:168`, the existing helper,
+    not a second listener) and calls `api.recheck()` on each event, and once at mount while `document.hasFocus()`.
+    Nowhere else: no interval, no timeout, no animation frame. It unsubscribes on unmount, so
+    `lookedListenerCount()` returns to where it was.
+15. **The code asked for.** The switch's on press in this section sets the wish **only while no phone is paired**.
+    `pairAfterAllowNext` keeps the wish across a refusal **while `status.rechecks` is true**, and otherwise answers
+    exactly as today; it still names no `nameProgress` (D10) and compares no `nameCheck` (D6). Without that clause
+    the first refusal of a first setup (Tailscale missing) would drop the wish, and the code would not show by
+    itself. With a phone paired, step 3's **Pair** keeps today's behaviour, door off included.
+16. **The Alerts card** draws `PUSH_PUBLISHER_ONLY` as a caption under the key row, with or without a key. It is true
+    in both cases.
+17. **Who else moves in the same commit**:
+    - `p316-phone-section.test.tsx`, re-based on the steps; its "no disclosure" clause becomes "no disclosure around
+      the confirm block";
+    - `probe-p330.mjs`: its A3 presses the switch where it pressed Pair with the door off, and `SPEC_WORDS` follows
+      the new words;
+    - `probe-p332.mjs`, `probe-p3321.mjs` and `probe-p3332.mjs`: a first setup now shows the code by itself where
+      they pressed Pair, and p3332's rectangle model is re-pinned on this layout, since its claim was 333.2's;
+    - `probe-p317.mjs` W1 and `probe-p318.mjs` R0 do NOT move: the confirm block and its text are today's;
+    - `build/p330/CHECKLIST.md` row 3;
+    - the preload's header, and `conformance:pocket` B1: thirteen channels becomes fifteen.
+
+#### The phone (`ios/Tortie/**`)
+
+18. **The first screen** (`Screens/PairingScreen.swift`). `PairingModel` gains `scanning`, set only by **Scan
+    code**. `QRScanner(` is built only inside that branch, so iOS asks for the camera after the press, in context.
+    The DEBUG payload seam still reads a code without the press, so `probe:p316` and the UI drive pair as before.
+    Rule (v) holds: the one line is never empty, and `pairingSentence` returns a `String`.
+19. **The site's three addresses** (`Markdown/Links.swift`):
+    - `enum SiteLink: CaseIterable { case home, privacy, support }`, whose addresses are the only three `https://`
+      literals in the app: `https://tortie.sh`, `https://tortie.sh/privacy` and `https://tortie.sh/support`;
+    - each address is made with `URL(string:)` and a `guard`, never `!`, because the file is inside rule (y)'s
+      renderer scope (y3); a nil address opens nothing;
+    - one `SiteOpener` that takes a `SiteLink`, never a `URL` or `String`, asks `LinkPolicy.opens(` in the closure
+      that opens, then calls `UIApplication.shared.open(` (z4's shape).
+
+    No alert comes first: the address is compiled and the words say where it goes. The answer-link gate is
+    unchanged, for bytes somebody else wrote. A test hands a fake opener. The pairing screen opens `home` from step
+    1, and `privacy` and `support` from its foot. `Screens/SettingsScreen.swift`'s About card gains three rows:
+    Tortie for Mac (`tortie.sh`), Privacy and Support. Neither file calls `UIApplication.shared.open(` itself, so
+    rule (z)'s file list does not grow, and z5 (Settings opens only iOS's notification settings) still holds.
+20. **The Allow line** (`Screens/Pieces.swift`). `FailureView` draws `Copy.reachAllowAgain` under its sentence only
+    when `DoorWords.reachNote(for:)` says so, which is only for `Copy.cannotReachMac`. A time-out ("Your Mac did not
+    answer in time.") gets no line, and the pairing screen's own `.unreachable` line gets none.
+21. **The version, lowest priority** (`Door/Pairing.swift`, `Screens/DoorWords.swift`). `parse` decodes `{ v }`
+    alone first:
+    - an integer from 4 to 99 throws `codeFromNewerMac`;
+    - 1 or 2 throws `codeFromOlderMac`;
+    - 3 goes on to the whole shape, where any wrong field is still `badCode`;
+    - anything else is `badCode`.
+
+    `pairingSentence` maps each to its own sentence. If the build runs short, this is the item dropped, said in the
+    commit body.
+22. **The words** (`Style/Copy.swift`), each a one-line `static let` with its owner above it:
+    - `/// Phone:` `setupGetMac` "Get Tortie for Mac"; `freeAtSite` "Free at tortie.sh"; `appleSilicon` "Apple
+      silicon"; `macVersion` "0.111 or later"; `setupScan` "Scan the code"; `scanCode` "Scan code";
+      `pairNothingElse` "Nothing else to install on this phone."; `privacy` "Privacy"; `support` "Support";
+      `macOnSite` "Tortie for Mac"; `siteName` "tortie.sh"; `pairNewerMac` "This code is from a newer Tortie for Mac.
+      Update Tortie on this iPhone."; `pairOlderMac` "This code is from an older Tortie for Mac. Update Tortie on your
+      Mac."
+    - `setupOpenPhone` "Open Settings then Phone", with `/// Names:` for the Settings window's title and
+      `PHONE_TITLE`.
+    - `reachAllowAgain` "If Tortie on your Mac just updated, press Allow in its Settings then Phone.", with `///
+      Names:` for `BTN_ALLOW` and `PHONE_TITLE`.
+    - `pairStepOnMac` and `pairPrivateNetwork` are removed. `pairStepScan` stays, under the camera.
+
+    The `/// Names:` count goes from 7 to 8 (three leave with `pairStepOnMac`, four arrive), and
+    `PHONE_NAMES_FLOOR` (`build/p311/copy-drift.mjs:1351`) rises to 8. "0.111" changes with the tag if the tag is
+    another number (research 140 §10).
+23. **Build 8.** `CURRENT_PROJECT_VERSION = 8` in all six configurations, and `PHONE_BUILD = '8'`. Rule (s)'s "not
+    uploaded" fixtures become 9.
+24. **The mock follows the app.** `docs/design/phone/Pairing.html` and `Settings.html` draw the new faces.
+    `build/p311/copy-drift.mjs`'s ledger (`:297-335`) gains a rule per new word and drops the two removed, and
+    `OWNED_RULE_FLOOR` rises by the net count. `ios/TortieTests/CopyTests.swift` (`:78`, `:159-165`) follows.
+
+### The menus
+
+**No native menu row moves.** `Pair a Phone…` stays directly under `Settings…` and opens Settings at Phone
+(`src/main/menu.ts:643`, MENU1), which now leads with the three steps. The Settings sidebar's Phone row does not
+change. The checklist has no context menu. On the phone, the tab bar does not change.
+
+### The CHANGELOG item (draft, under Changed)
+
+- Settings then Phone now sets up the iPhone app in three steps, getting Tailscale, publishing this Mac and pairing your phone, each with the one button that comes next, and checks again by itself when you come back to the window. The iPhone app's first screen says where to get Tortie for Mac and links its privacy and support pages, and when it cannot reach your Mac it says to press Allow there if Tortie just updated; Tortie for Mac needs an Apple silicon Mac, and for now only the app's publisher can send alerts
+
+The phase commit writes it on one line under `## Unreleased`. The follow-up docs commit adds the commit link.
+
+### The gates this phase's paths trigger, and what each gains
+
+- **Always**: `typecheck`, `build`, `test` and `smoke:t1`. `build` runs `conformance:ios`, `gate:contract`,
+  `gate:electron`, `gate:background`, `gate:checks` and `gate:simulator`. Integrators run the full battery: smoke,
+  `smoke:t3`, package.
+- **`gate:contract`**: the baseline is regenerated. The commit body names the lines that moved: two channels; the
+  status fields `tailscale`, `account`, `tailnet`, `rechecks` and `setupActions`; `PocketFunnelView.refused`; and
+  the `PocketTailscaleState` and `PocketSetupAction` words.
+- **`conformance:pocket` and `conformance:pocket:hostile`** (`src/main/pocket/**`, `src/main/machines/tailscale.ts`,
+  `src/shared/ipc/pocket.ts`, `src/preload/pocket.ts`, `PhoneSection.tsx`, `phone/**`). **B1** becomes fifteen
+  channels. **R3**'s sentence names the two LaunchServices opens a person's press makes (SU3), so its words stay
+  true. New rules:
+  - **SU1, the return**: `recheck` reads only under `rechecks()`, which is one method, also answered in `status()`;
+    its body names no `pressed()`; it runs inside `serially`; on confirmed fields it calls `openNow` with
+    `approvedOnly` after `not-approved` and nothing else that forks or spawns; on unconfirmed fields it requires
+    `pressedOnThisRun` and writes `publicPort` only when the stored one is 0; `shields-up` is not in its set.
+  - **SU2, no timer and no read at open**: `recheck` is called from exactly one `onWindowLooked` subscription and
+    the mount effect; no interval, timeout or animation frame names it; with the switch off it reaches no read; a
+    return while one is queued or running is dropped.
+  - **SU3, the setup presses**: exactly three words, each acting only when `setupActions` lists it;
+    `shell.openExternal` named in the domain only in `openApproval` and `setupAction`; `shell.openPath` and
+    `clipboard` only in `setupAction`; `TAILSCALE_DOWNLOAD_PAGE` and the bundle compared with `===`;
+    `open-tailscale` never under a development override; every path returns first on
+    `isHarnessLaunch(process.env)`; no URL or path from the renderer; the opener seam handed only by tests.
+  - **SU4, the stat**: `status()` reaches the program only through `funnelProgramOf(this.funnel.resolve())`, never
+    `readTailnet`, `readServe`, an exec or a spawn; `tailscale` is never computed from the stored facts.
+  - **SU5, drawn and never hashed**: no account in `PocketExecutionFields`, `NORMALIZE`, the store, `facts.ts`, a
+    door answer, the pairing view or a log call; the algorithm, the route list and R4's pin unchanged.
+  - **SU6, the confirm unchanged**: inside `[data-phone-confirm]`, the lines, `POCKET_CONFIRM_WARNING`,
+    `POCKET_DOOR_HONESTY`, the right warning under `asksApproval` and `confirm-door`, none inside a `<details>`; the
+    lines and hash handed back unedited.
+  - **SU7, the code asked for**: the switch sets the wish only while no phone is paired; `pairAfterAllowNext`
+    reads `rechecks` and nothing of the name.
+  - **SU8, the admin link**: kept only after `not-approved` and only through `approvalOpens`; not dropped by a
+    return's read that shows no capabilities.
+  - **SU9, the words**: no string literal the sheet draws (`PhoneSection.tsx`, `phone/**`, the pocket sentences,
+    `PUSH_PUBLISHER_ONLY`) says "beta", "TestFlight", "remote desktop", "mirror", "stream" or "SSH". Comments are
+    not read.
+- **`conformance:ios`** (`ios/**`). **(av), the site's three addresses**:
+  - av1: `SiteLink` declared once, in `Markdown/Links.swift`, with exactly three cases and exactly those three
+    literals: `https`, host exactly `tortie.sh`, no port, user, query or fragment;
+  - av2: no other `https://` literal in the app outside comments and DEBUG;
+  - av3: the one `SiteOpener` takes a `SiteLink` and asks `LinkPolicy.opens(` in the closure that opens;
+  - av4: it is called only from `PairingScreen.swift` and `SettingsScreen.swift`;
+  - av5: `QRScanner(` only inside the branch Scan code opens;
+  - av6: no `Copy.swift` value says "beta", "TestFlight", "remote desktop", "mirror", "stream" or "SSH";
+  - av7: the Allow line drawn only for `cannotReachMac`, and only by `FailureView`.
+
+  **(s)** holds build 8 in six configurations. **(v)** widens to the two version sentences and `reachNote`. **(b)**
+  covers the new words and the step numbers. **(y)** and **(z)** hold unchanged over the new code in Links.swift.
+- **`conformance:phonecopy`** (`Copy.swift`, `docs/design/phone/**`, `PhoneSection.tsx`): the ledger, the mock, the
+  new `/// Names:` and the raised floors.
+- **`conformance:push`** (`src/shared/push-copy.ts`): one sentence added. Run because the path is touched.
+- **`conformance:machines`** (`src/main/machines/tailscale.ts`): two constants. Run because the path is touched.
+- **`gate:checks`**: the new test files.
+- **`gate:electron`**: `HELPER_USER_FLOOR` 169 becomes 170 for `probe:p3331`.
+- **`ablation:p313`** gains one arm per SU clause. **`ablation:p316`** gains one arm per (av) clause.
+
+### The ablations, one clause each, each red on the rule that owns it
+
+- **SU**:
+  - `rechecks()`'s refusal set gains `shields-up`;
+  - `pressedOnThisRun` dropped, so an unconfirmed door is read on a return after a relaunch;
+  - a `this.pressed()` added to `recheck`;
+  - the Funnel-idle guard dropped, so a return supersedes the approval wait;
+  - `approvedOnly` dropped, so a return after `not-approved` spawns the child;
+  - a return that writes a stored `publicPort`;
+  - a `setInterval` calling `recheck`;
+  - a second `focus` listener beside `onWindowLooked`;
+  - `recheck` called from `status()`;
+  - `setupAction` opening a URL the renderer sent;
+  - `open-tailscale` allowed under a development override;
+  - `openPath` handed the program's path rather than the bundle;
+  - the link copied without `approvalOpens`;
+  - the admin link dropped by a return's read;
+  - the harness return removed;
+  - `readTailnet` called from `status()`;
+  - `tailscale: 'ready'` computed from the stored facts;
+  - the account added to `NORMALIZE`, and the account in a log line;
+  - `POCKET_CONFIRM_WARNING` moved inside a `<details>`, and `POCKET_DOOR_HONESTY` moved inside one;
+  - the lines sliced before they are handed back;
+  - the wish set with a phone paired;
+  - "TestFlight" planted in a sheet word.
+- **(av)**:
+  - a fourth `tortie.sh` address;
+  - an `http://` site address;
+  - `?ref=app` on privacy;
+  - a `#top` fragment;
+  - `https://tortie.sh.example.com/privacy`;
+  - an address made with `!`;
+  - an opener taking a `String`;
+  - the opener without `LinkPolicy.opens(`;
+  - a third caller of the opener;
+  - `QRScanner(` outside the Scan code branch;
+  - "beta" in a `Copy.swift` value;
+  - the Allow line under "Your Mac did not answer in time.";
+  - the build left at 7 in one configuration.
 
 ### The proof, run rather than read
 
-- **The gates.** `typecheck`, `build` (which runs `conformance:ios` and `gate:contract`), `test`,
-  `smoke:t1`, `conformance:phonecopy`, `ablation:p316`, and `test:ios` in Debug and Release on iOS 26.3 and
-  18.3.
-- **The hostile fixture.** `DoorPairingTests.swift` reads codes with `v` of 1, 2, 4, 99, `"3"`, -1, 2^53
-  and missing, a v:2 code as the 316.4 Mac drew it, and a v:3 code with one field wrong. Each must give
-  its own sentence, and none may crash.
-- **The parent measurement.** The same fixture at the parent reads `pairNotACode` for v:2 and v:4, which
-  is the defect this entry fixes.
-- **One app run.** `probe:p316` gains one arm that reads, as XCUITest labels, the pairing screen's
-  tortie.sh line, both links' destinations and the two version sentences. No photograph.
+1. **The gates above, green, run once.** `test:ios` in Debug and Release on iOS 26.3 and 18.3, and `test-ios.mjs
+   --read-app` on a Release archive. The Release Mach-O must hold the three `tortie.sh` addresses, no DEBUG seam,
+   and no NetworkExtension or TailscaleKit. A vitest drives `setupAction` over the opener seam: each word listed
+   acts once with the exact constant, each word not listed acts never, and a harness launch acts never. This is the
+   only drive of a real press, because no probe may press one.
+2. **The Mac app run, `probe:p3331`** (new). One Electron per build, the parent first (`P3331_PARENT_CHECKOUT`, a
+   built checkout of `f5ff5183` or the main tip it lands on, or it exits 2), never at once. Each on a scratch
+   profile, HOME and socket `gmux-p3331-<pid>`, through `build/electron-run.mjs`, with `GMUX_PROBES=1`. The rest of
+   the set-up:
+   - the Tailscale stand-in, preflighted by sha256 and sampled every second; any real Tailscale fails the run;
+   - the DNS stand-in in the probe's own process;
+   - `build/hidden-agents.mjs` before each launch;
+   - `build/p316/node-phone.mjs` for the scan.
+
+   The stand-in gains a `User` map (`selfUser: true`, a made-up `person@example.com`, as Tailscale 1.100 and later
+   answer; `false` as 1.98 and earlier) and an **absent** mode. In absent mode `makeStandin` writes the wrapper with
+   a first line naming an interpreter that does not exist, which the read reports as `ENOENT`, Tortie's own
+   `no-tailscale`. Leaving absent mode rewrites it and records its hash again. The stat's own `missing` cannot be
+   driven under an override (an unusable override refuses `override-unusable`), so the vitest of item 1 owns it.
+
+   **The probe never presses Get Tailscale, Open Tailscale, Approve in Tailscale or Copy link.** They would open his
+   browser or his Tailscale, or write his clipboard. It reads them drawn and listed by `setupActions`. "Coming back"
+   is driven two ways: the real one at least once per build (the Settings window's focus taken away and given back,
+   measured, `probe:p321`'s precedent) and the synthetic `focus` the helper documents for every count. **The
+   per-row matrix**, parent and HEAD:
+
+   | Row | Stand-in | HEAD must show | The parent shows |
+   | --- | --- | --- | --- |
+   | 1 | absent, door on, first setup | Not installed, Get Tailscale listed; after "install" and one return, one read (`status` then `serve status`), step 1 ✓ and the lines with Allow; after Allow the code by itself | Its sentence and Try again; one more press, and Pair at the end |
+   | 2 | `Stopped` | Not running, "Turn it on, then come back.", no Open Tailscale (override), quiet Try again; Running and one return gives ✓ | Its sentence and Try again |
+   | 3 | `NeedsLogin`, then `NeedsMachineAuth` | Signed out, "Sign in, then come back.", as row 2 | As row 2 |
+   | 4 | ready, never confirmed | The confirm block's `innerText`, lines and hash **byte-equal** to the parent's for the same scenario; Allow | The same block |
+   | 5 | `caps: false`, approval `wait` | Waiting for Tailscale, Approve in Tailscale drawn; `<dir>/approve` publishes with no press | The approval button; the same |
+   | 6 | `caps: false`, approval `exit0` | Waiting for your admin, Copy link listed; a return before the grant: one read, zero forks and spawns, Copy link still listed; the grant and one return publish with no press | A dead end: its sentence and Try again |
+   | 7 | `refuse: shields-up` | Main's sentence and Try again; a return makes **zero** stand-in calls; fixed and Try again publishes | The same |
+   | 8 | `port-taken`, `busy`, `failed` | Main's sentence and Try again, unchanged; a return makes zero calls | The same |
+   | 9 | name silent, then answering | 332.1's block and the new line; the code by itself (no phone); `nameProgress` unchanged | The same block; the code only if Pair was pressed with the door off |
+   | 10 | phones paired, door off | Step 3 ✓ Paired with Pair; Pair gives a code after the start, no Allow if confirmed | Pair gives the same |
+   | 11 | tailnet moved after a read (`tailnetAfterReads`), confirmed | A return reads; Changed since you allowed it, the new lines and Allow; zero forks and spawns | Its lines and Allow, after a press |
+   | 12 | switch on, never allowed, relaunched, stand-in now present | A return makes zero calls (not pressed this run); Try again reads | The same |
+   | 13 | `selfUser` true, false, and the account equal to the tailnet | ✓ account · tailnet; ✓ tailnet; one value drawn once | No step 1 |
+   | 14 | Alerts card, with and without a key | The publisher line, both times | No line |
+
+   **The presses table (no regression).** For each row's starting state, count every press from it to a code a
+   phone scans, at the parent and at HEAD. HEAD must be no higher in any row. It is lower in rows 1, 2, 3 and 6.
+3. **Attack (method 1)**, in the same run:
+   - A1: a return with the switch off: zero stand-in calls;
+   - A2: a return during the approval wait: zero calls, the child still alive, approval still publishing;
+   - A3: twenty focus events in one second: reads never overlap, each follows a return, and a return during a read
+     adds none;
+   - A4: a return while published: zero calls;
+   - A5: a return with a stored port held by another serve: the store's `publicPort` the same before and after,
+     the refusal `port-taken`, zero forks and spawns;
+   - A6: a return racing an off press: the off wins, nothing published, no child alive;
+   - A7: the quit during a return's read: nothing left by the end-of-run count;
+   - A8: a return after `shields-up`, `port-taken`, `busy` and `failed`: zero calls;
+   - A9: Open Tailscale never listed under a development override, and `setupAction` answering false under the
+     harness.
+4. **Re-derive (method 4).** The verifier reads the stand-in's own `invocations.log` and the store's writes, and
+   pairs every `status`, `serve status` and `funnel` call, every `publicPort` write and every `tailnetFacts` write
+   with the press or return that caused it. A call or a write with no cause is a finding.
+5. **The moved probes, once each at HEAD**: `probe:p330`, `probe:p3321`, `probe:p3332`, and `probe:p332`'s arms that
+   press the sheet, each green as edited, and `probe:p313` once, because `src/main/pocket/**` moved.
+6. **The phone app run, `probe:p316` with `P316_ARMS=setup`**, on iOS 26.3 and the 18.3 floor, each Simulator
+   through `withSimulator`. The arms:
+   - the first screen's labels as XCUITest reads them;
+   - no scanner element before Scan code, and one after (a Simulator has no camera, so iOS never asks there; the
+     camera question is his device row);
+   - no "See a sample";
+   - Privacy, Support and Get Tortie for Mac present, each at least 44 points tall;
+   - About's three rows;
+   - the hostile relay shut: "Tortie could not reach your Mac." with the Allow line;
+   - a held relay that times out: no line;
+   - v:4 and v:2 codes through the DEBUG payload seam: the two sentences.
+
+   **The UI drive presses no link**, so Safari never opens and no request leaves the Simulator. The presses are
+   `SiteLinkTests` with a fake opener. **The parent (`P3331_PARENT_IOS`, build 7's `ios/` at `f5ff5183`)** draws the
+   camera at once, no links and "That is not a Tortie pairing code." for v:4. That is the phone's parent
+   measurement.
+7. **Hostile fixture (method 3).** `DoorPairingTests.swift` reads codes whose `v` is 1, 2, 4, 99, 100, `"3"`, -1,
+   `3.5`, 2^53, null and missing. It also reads a v:2 code as the 316.4 Mac drew it, a v:3 code with one field wrong,
+   a 5 KB code and not-JSON. Each gives its own sentence and none crashes. At the parent the same fixture reads
+   `pairNotACode` for v:2 and v:4, the defect.
+8. **His checklist (real data)**, `build/p3331/CHECKLIST.md`, rows only he can run:
+   - C1: on his Mac with his real Tailscale, quit Tailscale with the door on, see Not running and **Open Tailscale**,
+     press it, come back, see step 1 ✓ with his account by itself;
+   - C2: disconnect from Tailscale's menu bar icon, then reconnect from it **without clicking Tortie**: does step 1
+     move by itself? This measures question 2;
+   - C3: **Get Tailscale** opens the download page in his browser;
+   - C4: on build 8 on his iPhone, once 333.5's pages answer: Get Tortie for Mac, Privacy and Support open the three
+     pages in Safari, and iOS asks for the camera only after Scan code;
+   - C5: with the door switched off on the Mac, the list shows the Allow line.
+
+### Order
+
+- **After 337.1** (landed, `f5ff5183`). **Never beside 337.2**: both edit `build/p316/probe-p316.mjs` and
+  `ios/TortieUITests/P316DriveUITests.swift`. **Before 333.3**, because both edit `Copy.swift` and the pairing
+  screen. Phone phases get the test slot first.
+- **Build 8 is archived when this lands and left in his Organizer.** It is uploaded through "App Store Connect" and
+  submitted (333.6) only once 333.5's three pages answer and support@tortie.sh receives mail (research 140 §9
+  steps 1 and 8). Until then its links point at pages that return 404.
+- **The Mac tag that pairs with build 8 is cut from a commit whose `POCKET_ROUTE_IDS` equal build 8's** (research
+  140 §7.2). This phase moves no route.
+- **Sent to 333.6**: research 140 §10.2's What to Test says "press Pair and scan the code"; on a first setup the
+  code now shows by itself, so it says "follow the three steps and scan the code". **Sent to 333.5**: the support
+  page names the menu bar case if C2 finds it.
 
 ### What is NOT in this phase
 
-- **No web view and no in-app browser.** The pages open in Safari.
-- **No typed-code fallback for a person who denies the camera.** It stays a known 5.1.1(iv) exposure.
-- **No change to the QR version or the door's routes.** From the first public build, both change only by
-  adding, or with a sentence on both sides naming which one to update.
-- **No fix for the 'iPhone' label**, which is a follow-up.
-- **No release.**
+- **No door route, no QR version change and no hashed field.** No paired phone is asked to Allow again, which is
+  why this phase does not wait for 333.12. 318.1 still does.
+- **No See a sample.** That is 333.3, in build 9, after Beta App Review has build 8.
+- **No change to the confirm**: its lines, its two warnings, its hash, its record, its gate, refusal 8.
+- **No timer and no poll.** No read of Tailscale while the switch is off, none for an unconfirmed door in a run
+  whose switch was not pressed, and none on opening the sheet with the door off.
+- **No return re-check of `shields-up`**, because only a start can see it.
+- **Tortie installs nothing.** No `tailscale up`, no LocalAPI, no admin-console automation, no click on Tailscale's
+  page, and no code-signature check of Tailscale.
+- **No measurement of the App Store variant of Tailscale.** Get Tailscale opens the page that offers both; Funnel on
+  the App Store variant stays "probably yes, not settled" (research 132 §3.1), and the support page names it.
+- **No way to tell an admin whose Tailscale did not wait from a non-admin.** Both read "Ask your Tailscale admin".
+  The page a non-admin's link opens is unmeasured, because his tailnet is approved and he is its admin.
+- **No new button for `no-name`, `funnel-ports` or `port-taken`.** Their sentence and Try again stay.
+- **No web view and no in-app browser.** The pages open in Safari, or in the app that owns the address.
+- **No typed-code fallback** for a person who denies the camera.
+- **No Mac version on the wire**, no Intel build, and no fix for the 'iPhone' label.
+- **No page content.** The privacy and support pages are 333.5's, and tortie.sh/iphone is 333.5's holding page and
+  333.7's link.
+- **Never "beta" or "TestFlight"**, and no "remote desktop", "mirror", "stream" or "SSH".
+- **No menu change. No release, and no upload**: uploading is his.
 
----
+### Questions only he can answer, answered on 2026-10-07
+
+1. **The confirm at Allow.** His mock shows three labelled rows (Program, Tailnet, Address) and puts the honesty
+   lines behind "What can a phone do?". This entry draws today's block whole, at rest: every hashed line and both
+   warnings. They are what refusal 8 binds the agreement to, `PocketDoorSummary` carries the warning "so no sheet
+   can omit it", and Phase 317 and 318 made the honesty sentence a clause read at Allow. **He ruled: "Keep today's block."** The other way removes from the resting face the only sentence that says a phone sees every terminal.
+2. **Try again on the steps that wait on Tailscale.** His mock has none. This entry keeps a quiet Try again beside
+   the one button. Connecting from Tailscale's menu bar icon may never take focus from Tortie's window, and then no
+   return happens and the step has nothing to press, which is worse than today. **He ruled: "Keep it"**, to be dropped
+   in a later round if his checklist row C2 shows the step moves by itself.
+
+### Attack (2026-10-07)
+
+The adversary read the draft against the tree at `54cc1cf4` and against Tailscale's source, measured what it could,
+and revised the entry. What changed:
+
+- **The heading** used the main session's words, not his. It now quotes his: "so that people can download it", and
+  names his "yes i do".
+- **The confirm stays whole.** The draft moved `POCKET_CONFIRM_WARNING` and `POCKET_DOOR_HONESTY` behind "What can a
+  phone do?". That turns `probe:p317` W1 and `probe:p318` R0 red, goes against `PocketDoorSummary`'s "so no sheet
+  can omit it", and leaves the resting face without the sentence that a phone sees every terminal. Folded into
+  question 1.
+- **A return no longer reuses the press's job as it stands.** That job chooses and writes the public port, and the
+  tree says only a person's switch chooses again. A return now never moves a stored port, and runs `openNow`, gate
+  first, on confirmed fields.
+- **A return no longer reads an unconfirmed door on a later day.** It reads one only in the run whose press started
+  the setup. This keeps today's exposure exactly, so the draft's question on how often a return reads is no
+  longer his to answer.
+- **`shields-up` left the return set.** No read shows it, so each return would have forked the door process and
+  spawned the Funnel child.
+- **Step 1 no longer claims ✓ from the stored facts**, and step 2 no longer waits for step 1. That ✓ claimed a
+  state the code cannot read, and the draft needed it only because step 2 waited for step 1, which would otherwise
+  have hidden Allow after a Mac update.
+- **The wish survives a refusal a return re-checks.** The draft kept `pairAfterAllowNext` unchanged, which drops the
+  wish at the first refusal, so the code would not have shown by itself in the very rows it claimed.
+- **The admin link survives a return before approval.** The draft dropped it on the next read.
+- **The account is measured, not guessed**: Tailscale 1.100 and later carry it in `--peers=false`; 1.98 and earlier
+  do not. His 1.102.2 does.
+- **Stopped and signed out say different things.** "Sign in" is wrong for a Mac that is signed in and disconnected.
+- **The existing `onWindowLooked` helper is reused**, under CLAUDE.md's "grep for an existing helper".
+- **`BTN_OPEN_TAILSCALE` keeps its role** (the approval button), so `probe:p330` finds it by name; the new app
+  button gets its own constant.
+- **Six configurations, not five**, hold the build number, and rule (s) reads all six.
+- **Links.swift is inside rule (y)'s renderer scope**, so the site addresses cannot be force-unwrapped.
+- **A quiet Try again stays** pending question 2, for the menu bar case nobody has measured.
+- **A3's claim was false as written** ("at most one read" from twenty focus events); it now claims no overlap and
+  no read without a return.
+- **Added**: rows 12 and 13, attack A5, the vitest that is the only drive of a real setup press, the moved probes
+  run once, his checklist row C2, the order against 337.2, and the note to 333.6's What to Test.
+
+What held: no door route, no QR change and no hashed field, so 333.1 does not wait for 333.12; the stat for "Not
+installed" starts no process; `setupActions` as main's one predicate, with nothing from the renderer and nothing
+under a harness or an override; the opener in Links.swift fits rule (z) without widening its file list; the Allow
+line only under `cannotReachMac`; the version sentence at the lowest priority; the "several minutes" line; Tier 3;
+build 8 with no "See a sample"; and every citation the draft gave, re-read. The corrections: the build number
+sits in six places, not five; the algorithm is at `pairing.ts:324`, not `:323`; and the start's refusal is set at
+two more sites (`ipc.ts:971`, `:1728`).
 
 ## Phase 333.2 — "Where do I get the phone app?" — the Mac says it (research 136 §5 and §11, 2026-09-30) ✅ LANDED `ac9c1e45`, 2026-10-01
 
@@ -41809,3 +42487,5 @@ cycle rather than only the evening it was written.
 - 2026-10-07, **PHASE 343's NARROW FIX AND ITS RE-CHECK.** He ruled the second needs_work "Narrow fix, then land": the probe now writes the file its link-row drop hands the app, and a move dropped over anything under a link is refused with no ring. The independent re-check held both live on this Mac and the loopback machine (probe:p343 13 of 13 graders PASS, R0 "7.7 STANDS"), and found one row worse than the parent: once a link holding exactly one folder is opened, the tree folds the two into one row, and a Finder drop on that row, or a move on its icon, lands nothing where today it lands beside the link. He ruled "Tiny fix + recheck that case": aim those drops at the link as the link's own segment already is, own the refusal's ring-clearing in a test, correct §0's far Finder wording, then an independent live re-check of the folded rows at the parent and HEAD before landing.
 
 - 2026-10-07, **PHASE 343 LANDED, `91d19bea`, unreleased — linked folders open in the Explorer (issue 36, John Berryman).** A link to a folder lists as a folder with a link mark and expands, on this Mac and on another machine, read only through the link at every door; a far link to an unreadable folder no longer blanks the remote Explorer, and a far folder at a walk's last level now walks. His two rulings on the second needs_work ("Narrow fix, then land"; "Tiny fix + recheck that case") ran, and the independent recheck approved with no row worse than the parent over 68 drop cases per computer at both builds. Full battery green, his shell history unmoved. Stated: no test yet owns aiming at the OUTERMOST link of a two-link fold (the shipping code was driven correct), Linux unmeasured (342 carries a row), probe:p268 and probe:p336 not run (both name -L gmux). 343.1, editing through an in-project link on both computers, is mentioned and gets its full section when he asks. Issue 36 can close when the release ships; a closing note is drafted and NOT posted.
+
+- 2026-10-07, **PHASE 333.1 REWRITTEN IN PLACE AND QUEUED IN FULL — a stranger's first run, on the Mac and the phone; and HE LIFTED HIS STOP FOR 333.1, 333.5, 333.4 AND 333.6.** His words: "can u show me how you would design it" ... "yes i do" (to writing his three-step setup into 333.1 so it ships in the build sent to Apple), then "Start all four". The section is rewritten where it stood, under the exception for an entry queued earlier and never started, because its siblings 333.2 to 333.10 sit beside it: research 140's revision (privacy and support links in the app, "Tortie for Mac is free at tortie.sh", Apple silicon and the Mac version, the Allow-again line), his design (Settings then Phone as three steps that fill themselves in, one button each, a re-read when he comes back to the window and never on a timer, the confirm whole and unchanged), and an attack that kept the confirm at rest, kept a return from moving a stored port, took shields-up out of the return set and kept the code showing by itself. He answered its two questions: "Keep today's block" at Allow, and "Keep it" for a quiet Try again. Tier 3. It ships as phone build 8, the build submitted to Beta App Review. 333.1 and 333.5 start now; 333.4 and 333.6 follow on build 8. 342 waits for his Docker, whose engine stopped answering.
