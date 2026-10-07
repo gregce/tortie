@@ -41,7 +41,12 @@
  *     way: the Screen's watcher (`../screen/watch.ts`), which composes one
  *     session's own screen and may hold a long poll. This module never imports
  *     it. Absent, `/v1/screen` is a route this door does not have (404) and
- *     every session's `screen` reads false.
+ *     every session's `screen` reads false;
+ *   - `scrollback` (Phase 337.1, build/p3371/SPEC.md §5.3.1) is handed in the
+ *     same way: the page reader (`../screen/scrollback.ts`), which reads and
+ *     composes one page of a session's history and is never held. This module
+ *     never imports it. Absent, `/v1/scrollback` is a route this door does not
+ *     have (404).
  *
  * ## What this module never does
  *
@@ -59,6 +64,7 @@ import type {
   PocketEndOffer,
   PocketReplyOffer,
   PocketScreenAnswer,
+  PocketScrollbackAnswer,
   PocketTurn
 } from '@shared/ipc/pocket';
 import type {
@@ -77,7 +83,7 @@ import type { OverviewStore, StoredSession, StoredTurn } from '../overview/store
 import { toTurnView } from '../overview/turn-view';
 import { NOTHING_NEEDS_YOU, type WakeWindow } from '../tray/attention';
 import { blockedSinceMap, installBlockedFeed } from '../tray/blocked-feed';
-import type { PocketFacts, PocketReplyDrawn } from './routes';
+import type { PocketFacts, PocketReplyDrawn, PocketScrollbackAsk } from './routes';
 
 /** What the facts read from the session core. Every member is a read but the feed's slot. */
 export interface PocketFactsCore {
@@ -125,6 +131,13 @@ export interface PocketFactsDeps {
    * `/v1/screen` answers 404 and no session offers a Screen.
    */
   screen?(session: Session, since: string | null, closing: () => boolean): Promise<PocketScreenAnswer>;
+  /**
+   * One page of a session's history (Phase 337.1, build/p3371/SPEC.md
+   * §5.3.1): the page reader's `page`, handed in by `../capabilities.ts`. A
+   * READ, answered at once and never held. Absent, `/v1/scrollback` answers
+   * 404.
+   */
+  scrollback?(session: Session, ask: PocketScrollbackAsk, closing: () => boolean): Promise<PocketScrollbackAnswer>;
   now?(): number;
 }
 
@@ -345,6 +358,7 @@ export function createPocketFacts(deps: PocketFactsDeps): PocketFacts & {
     ...(deps.endOffer !== undefined ? { endOffer: deps.endOffer } : {}),
     ...(deps.replyOffer !== undefined ? { replyOffer: deps.replyOffer } : {}),
     ...(deps.screen !== undefined ? { screen: deps.screen } : {}),
+    ...(deps.scrollback !== undefined ? { scrollback: deps.scrollback } : {}),
     now
   };
 }

@@ -8,8 +8,13 @@
 //
 // THE TABLE, and every entry is read by `probe:p316` or its UI test:
 //
-//   screen-list, screen-session, screen-conversation, screen-pairing
-//                                the four screens, one container each
+//   screen-list, screen-session, screen-catch-up, screen-pairing
+//                                the four screens, one container each. Since
+//                                Phase 337.1 screen-session is a session's
+//                                route WHICHEVER face it draws (the Terminal
+//                                or Catch Me Up, build/p3371/SPEC.md D16), and
+//                                screen-catch-up is Catch Me Up, as a face
+//                                inside it or pushed by the Terminal's icon
 //   screen-needs-input, screen-settings
 //                                the first and third tabs (Phase 316.6); the
 //                                Sessions tab is screen-list. A tab's button
@@ -38,18 +43,26 @@
 //   session-choice-marker-<n>, session-choice-text-<n>
 //   session-messages, session-messages-small,
 //   session-last-message, session-last-message-small
+//                                Since Phase 337.1 every session-* name above
+//                                is drawn by Catch Me Up's now card, and the
+//                                Terminal's status line keeps session-dot,
+//                                session-status, session-agent and
+//                                session-machine: a name names the thing, not
+//                                the page, and one face is on screen at a time
 //   session-answer               the agent's last answer, drawn as markdown
-//   session-open-conversation    the row that opens the conversation
 //   session-loading, session-failure
-//   conversation-terminal-line   the line saying the terminal is not here
-//   conversation-older           the spinner, present exactly while older
+//                                the session route's first read: the spinner,
+//                                and its one sentence when it did not come back
+//   session-open-catch-up        the Terminal's Catch Me Up icon, a button in
+//                                the top bar beside End (Phase 337.1, D18)
+//   catch-up-older               the spinner, present exactly while older
 //                                turns remain to be asked for
-//   conversation-older-line      the one line when a page of older turns was
+//   catch-up-older-line          the one line when a page of older turns was
 //                                refused or did not come back; paging stopped
-//   conversation-no-clock        the desktop's note when no turn has a clock
-//   conversation-note            main's `note` (a session on another machine)
-//   conversation-empty           the session's own line when it has no turns
-//   conversation-loading, conversation-failure
+//   catch-up-no-clock            the desktop's note when no turn has a clock
+//   catch-up-note                main's `note` (a session on another machine)
+//   catch-up-empty               the session's own line when it has no turns
+//   catch-up-loading, catch-up-failure
 //   turn-<index>                 one turn; a container
 //   turn-clock-<index>, turn-ask-<index>, turn-ask-clipped-<index>,
 //   turn-answer-<index>, turn-answer-clipped-<index>, turn-absence-<index>,
@@ -59,7 +72,7 @@
 //   pairing-network, pairing-line, pairing-again
 //   <failure id>-retry           `Try again` under list-failure,
 //                                needs-list-failure, session-failure and
-//                                conversation-failure
+//                                catch-up-failure
 //
 // THE NEEDS INPUT TAB (Phase 316.6) is the list's first section alone, under
 // a title of its own, and every element it shares with the Sessions tab
@@ -116,35 +129,49 @@
 //   batch-line                   the one line in End these' bar (the owner
 //                                check's answer when it did not confirm)
 //
-// REPLY (Phase 318, build/p318/SPEC.md section 5.7.6):
+// REPLY (Phase 318, build/p318/SPEC.md section 5.7.6). Since Phase 337.1 the
+// Terminal's question tray draws session-choice-<n>, session-choice-press-<n>,
+// session-command and session-reply-line under the terminal, the same names
+// Catch Me Up's now card draws (build/p3371/SPEC.md D19):
 //
 //   session-choice-press-<n>     an option the Mac offers to press, a button
 //                                inside session-choice-<n> (n counts from 0)
 //   session-reply-line           the one line under the options after a press
 //   session-command              the command the agent asks to run, drawn
 //                                under the question (Codex's `$` line)
-//   session-message-strip        the message box above the End bar; a
-//                                container
+//   session-message-strip        the message box at the foot of Catch Me Up
+//                                (Phase 337.1); a container
 //   session-message-field        the box itself, `Message this session`
 //   session-message-send         `Send`; a button
 //   session-message-line         the one line under the box: `Goes to this
 //                                session as one message.`, `Sending…`, `Sent`
 //                                or the Mac's sentence
 //
-// THE SCREEN (Phase 337, build/p337/SPEC.md section 5.8.7):
+// THE SCREEN (Phase 337, build/p337/SPEC.md section 5.8.7), THE TERMINAL
+// since Phase 337.1 (build/p3371/SPEC.md section 5.5.7): a running session
+// opens on it, and every name below is its own as 337 gave it:
 //
-//   session-open-screen          the row under Conversation that opens the
-//                                session's own screen
-//   screen-screen                the Screen; a container
+//   screen-screen                the Terminal; a container inside
+//                                screen-session
+//   terminal-status              the Terminal's one status line under the
+//                                title; a container of session-dot,
+//                                session-status, session-agent and
+//                                session-machine
 //   screen-grid                  the grid of rows, at the Mac's width
 //   screen-loading, screen-failure
 //                                the spinner before the first picture, and the
 //                                one sentence in place of the grid: none came
 //                                and none is kept, or the Mac's own sentence
 //                                for a session with no screen to show
-//   screen-row-<n>               one row, n counting from 0 at the top; its
-//                                label is the row's text, trailing blanks
-//                                dropped
+//   screen-row-<n>               one live row, n counting from 0 at the top
+//                                of the live screen; its label is the row's
+//                                text, trailing blanks dropped
+//   screen-history-<i>           one row of history (Phase 337.1), i its index
+//                                from the oldest line the Mac holds; its label
+//                                is the row's text
+//   screen-to-live               the button that returns a terminal scrolled
+//                                back to its live bottom
+//   screen-scrollback-line       the one line where paging back stopped
 //   screen-cursor                the cursor's block, when it is shown
 //   screen-line                  the one line under the grid: not answering,
 //                                waiting for the redraw, held while
@@ -194,7 +221,7 @@
 //
 // THE ANSWER DRAWN AS MARKDOWN (Phase 316.6, Screens/MarkdownView.swift).
 // `<scope>` is the turn's index in the conversation, or `last` for the
-// Session screen's last answer; `<n>` a block's PRE-ORDER ordinal from 0 over
+// now card's last answer (Catch Me Up with no turns, Phase 337.1); `<n>` a block's PRE-ORDER ordinal from 0 over
 // the drawn tree (a container before its children, items in order, a table
 // once and its cells not):
 //
@@ -212,8 +239,16 @@
 enum ID {
     // The four screens.
     static let listScreen = "screen-list"
+    /// A session's route, whichever face it draws (Phase 337.1, D16).
     static let sessionScreen = "screen-session"
-    static let conversationScreen = "screen-conversation"
+    /// The route's second child, beside its face, hidden from VoiceOver and
+    /// drawn as nothing (the 337.1 fix round): with the face its one child,
+    /// SwiftUI folded the face's own container into the route's and only
+    /// `screen-session` reached the tree, never `screen-screen` or
+    /// `screen-catch-up` (the verifier's element dumps).
+    static let sessionRouteMark = "session-route-mark"
+    /// Catch Me Up (Phase 337.1, D20, D21).
+    static let catchUpScreen = "screen-catch-up"
     static let pairingScreen = "screen-pairing"
 
     // The list.
@@ -254,19 +289,19 @@ enum ID {
     static let sessionLastMessage = "session-last-message"
     static let sessionLastMessageSmall = "session-last-message-small"
     static let sessionAnswer = "session-answer"
-    static let sessionOpenConversation = "session-open-conversation"
     static let sessionLoading = "session-loading"
     static let sessionFailure = "session-failure"
+    /// The Terminal's Catch Me Up icon (Phase 337.1, D18).
+    static let sessionOpenCatchUp = "session-open-catch-up"
 
-    // The conversation.
-    static let conversationTerminalLine = "conversation-terminal-line"
-    static let conversationOlder = "conversation-older"
-    static let conversationOlderLine = "conversation-older-line"
-    static let conversationNoClock = "conversation-no-clock"
-    static let conversationNote = "conversation-note"
-    static let conversationEmpty = "conversation-empty"
-    static let conversationLoading = "conversation-loading"
-    static let conversationFailure = "conversation-failure"
+    // Catch Me Up's conversation (Phase 337.1: the conversation's names).
+    static let catchUpOlder = "catch-up-older"
+    static let catchUpOlderLine = "catch-up-older-line"
+    static let catchUpNoClock = "catch-up-no-clock"
+    static let catchUpNote = "catch-up-note"
+    static let catchUpEmpty = "catch-up-empty"
+    static let catchUpLoading = "catch-up-loading"
+    static let catchUpFailure = "catch-up-failure"
     static func turn(_ index: Int) -> String { "turn-" + String(index) }
     static func turnClock(_ index: Int) -> String { "turn-clock-" + String(index) }
     static func turnAsk(_ index: Int) -> String { "turn-ask-" + String(index) }
@@ -350,13 +385,20 @@ enum ID {
     static let sessionMessageSend = "session-message-send"
     static let sessionMessageLine = "session-message-line"
 
-    // The Screen (Phase 337).
-    static let sessionOpenScreen = "session-open-screen"
+    // The Screen (Phase 337), the Terminal since Phase 337.1.
     static let screen = "screen-screen"
+    /// The Terminal's one status line (Phase 337.1, D17).
+    static let terminalStatus = "terminal-status"
     static let screenGrid = "screen-grid"
     static let screenLoading = "screen-loading"
     static let screenFailure = "screen-failure"
     static func screenRow(_ n: Int) -> String { "screen-row-" + String(n) }
+    /// One row of history, by its index from the oldest line (Phase 337.1).
+    static func screenHistoryRow(_ i: Int) -> String { "screen-history-" + String(i) }
+    /// Back to the live terminal (Phase 337.1, D27).
+    static let screenToLive = "screen-to-live"
+    /// The one line where paging back stopped (Phase 337.1).
+    static let screenScrollbackLine = "screen-scrollback-line"
     static let screenCursor = "screen-cursor"
     static let screenLine = "screen-line"
     static let screenKeyField = "screen-key-field"
@@ -394,7 +436,7 @@ enum ID {
     static let listSessionsLeftOut = "list-sessions-left-out"
 
     // The answer drawn as markdown (Phase 316.6).
-    /// The Session screen's scope; a conversation's is the turn's index.
+    /// The now card's scope; a conversation's is the turn's index.
     static let mdLastScope = "last"
     static func md(_ scope: String, _ n: Int) -> String { "md-" + scope + "-" + String(n) }
     static func mdCell(_ scope: String, _ n: Int, row: Int, column: Int) -> String { md(scope, n) + "-r" + String(row) + "c" + String(column) }

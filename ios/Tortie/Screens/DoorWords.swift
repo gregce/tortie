@@ -58,6 +58,11 @@
 // ruling 3, "Every key, including Ctrl-C"); a keys write's result becomes a
 // sentence in `keysSentence`, and a failed read of the screen in
 // `screenSentence`.
+//
+// THE TERMINAL'S HISTORY (Phase 337.1, build/p3371/SPEC.md D7, D30). The same
+// door reads pages of the session's history (`scrollback`) and the status
+// line's session (`session()`), both on a third kept connection, one exchange
+// at a time; a page that is refused stops paging with `scrollbackSentence`.
 
 import Foundation
 
@@ -118,8 +123,11 @@ protocol DoorWriting: Sendable {
     func say(_ sessionId: String, text: String, write: String?) async -> SentWrite
 }
 
-/// One session's Screen, through the door (Phase 337): the long poll and the
-/// keys, each on a connection of its own that it keeps between requests.
+/// One session's Terminal, through the door (Phase 337): the long poll and
+/// the keys, each on a connection of its own that it keeps between requests;
+/// and since Phase 337.1 (build/p3371/SPEC.md D30) a third kept connection,
+/// the side line, which carries the pages of history and the status line's
+/// re-reads, one exchange at a time.
 protocol ScreenDoor: AnyObject, Sendable {
     /// `GET /v1/screen`, holding `since`, the revision drawn now.
     func read(since: String?) async throws -> PocketScreenAnswer
@@ -127,9 +135,16 @@ protocol ScreenDoor: AnyObject, Sendable {
     /// mark of the picture they were typed against. Never retried. The ONE
     /// caller in the app is `ScreenKeySender`.
     func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult
+    /// `GET /v1/scrollback` (Phase 337.1, D7): one page of the session's
+    /// history, on the side line. A read: it changes nothing on the Mac. The
+    /// ONE caller in the app is `ScrollbackModel`.
+    func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer
+    /// `GET /v1/session` for this door's session (Phase 337.1, D17), on the
+    /// side line: the Terminal's status line reads it.
+    func session() async throws -> PocketSessionAnswer
     /// Whether this door takes keys at all (a pairing that writes).
     var writes: Bool { get }
-    /// Close both kept connections now (the Screen went away, or the app).
+    /// Close every kept connection now (the Terminal went away, or the app).
     func close()
 }
 
@@ -345,6 +360,23 @@ enum DoorWords {
     /// empty (conformance:ios rule v), the same words as any read's.
     static func screenSentence(for failure: DoorFailure) -> String {
         sentence(for: failure)
+    }
+
+    /// The Terminal's scrollback line when a page of history was REFUSED and
+    /// paging stops (Phase 337.1, D27): ALWAYS a sentence, never empty
+    /// (conformance:ios rule v). A refusal (404, or the connection ended on
+    /// this phone's key) is a history the Mac no longer answers for here, and
+    /// the way back is the live terminal, which reads it all again: the
+    /// phone's own `Earlier lines changed…`. Anything else is any read's
+    /// sentence. A page that failed for a reason a later ask can mend is
+    /// asked again after its back-off and draws nothing (section 5.6).
+    static func scrollbackSentence(for failure: DoorFailure) -> String {
+        switch failure {
+        case .refused, .closedBeforeAnswer:
+            return Copy.scrollbackMoved
+        default:
+            return sentence(for: failure)
+        }
     }
 
     /// The Screen's line for a keys write's result (Phase 337): ALWAYS a

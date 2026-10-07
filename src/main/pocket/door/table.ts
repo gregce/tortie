@@ -5,9 +5,10 @@
  * names, so no importer moved, and `conformance:pocket` R1 and R4 read the
  * table here. R4's membership sha256 did not move then; Phase 317 moved it on
  * purpose by the `end` row below, Phase 318 by its `choose` and `say` rows, and
- * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1), and
+ * Phase 316.7 by the read row `sessions` (build/p3167/SPEC.md §3 row 1),
  * Phase 337 by the read row `screen` and the write row `keys`
- * (build/p337/SPEC.md §5.1, D1).
+ * (build/p337/SPEC.md §5.1, D1), and Phase 337.1 by the read row
+ * `scrollback` (build/p3371/SPEC.md §5.1, D1).
  *
  * ## Closed means closed
  *
@@ -85,6 +86,15 @@ export interface PocketRoute {
  * a signed `POST` alive outside any window, in the same shape as the reply's
  * two writes and through the same one write path (`../writes.ts`) and ledger.
  * The keys, the question id and the window's mark ride in the signed body.
+ *
+ * `scrollback` is one page of the Screen's history (Phase 337.1,
+ * build/p3371/SPEC.md §5.1, D1, D7): a signed `GET` whose query names one
+ * session and the rows it wants by their index from the oldest line tmux
+ * holds. Its own row and never a range on `screen`, because a page is a
+ * one-shot read that is never held and must not share the long poll's
+ * watcher, slot or floor; and its own id, so the Allow line names the new
+ * read and the person who allows the phone sees that it can now read what a
+ * session printed before. It changes nothing on this Mac and sizes nothing.
  */
 export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'pair', method: 'POST', path: '/pair', reads: true, windowOnly: true, signed: false },
@@ -93,6 +103,7 @@ export const POCKET_ROUTES: readonly PocketRoute[] = Object.freeze([
   { id: 'turns', method: 'GET', path: '/v1/turns', reads: true, windowOnly: false, signed: true },
   { id: 'sessions', method: 'GET', path: '/v1/sessions', reads: true, windowOnly: false, signed: true },
   { id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: false, signed: true },
+  { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true },
   { id: 'end', method: 'POST', path: '/v1/end', reads: false, windowOnly: false, signed: true },
   { id: 'choose', method: 'POST', path: '/v1/choose', reads: false, windowOnly: false, signed: true },
   { id: 'say', method: 'POST', path: '/v1/say', reads: false, windowOnly: false, signed: true },

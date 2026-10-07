@@ -702,22 +702,26 @@ const LEDGER = [
     draws: 'Version',
     why: "the row that says the app's version and build"
   }),
+  // PHASE 337.1 (build/p3371/SPEC.md D20 to D22, his rulings "Yes, rename it"
+  // and "lets do B"): the conversation is CATCH ME UP, the Mac's own View menu
+  // word for the record it reads, drawn as the page's second title line and as
+  // the spoken name of the Terminal's icon; the Terminal is his word for the
+  // session's own terminal, the grid's spoken name. `Conversation`, `Screen`
+  // and the line that kept the terminal's scrollback on the Mac left with the
+  // rename (the Terminal scrolls back now, so that line was false).
   owned({
-    is: 'Conversation',
+    is: 'Catch Me Up',
     module: PHONE_COPY,
-    needle: 'static let conversation = "Conversation"',
-    draws: 'Conversation',
-    why: "the conversation screen's title, the phone's own word for the turns a session has had"
+    needle: 'static let catchMeUp = "Catch Me Up"',
+    draws: 'Catch Me Up',
+    why: "the page that reads a session's conversation and where it stands now, and the Terminal's icon that opens it; the phone's line names src/main/menu.ts's item('Catch Me Up', …) as its owner"
   }),
-  // PHASE 337 (build/p337/SPEC.md D31): the old line, "own output", is false
-  // once the Screen shows the terminal's output; its scrollback is still not on
-  // the phone, which is his Phase 316 ruling and still true.
   owned({
-    is: 'The terminal’s scrollback stays on your Mac.',
+    is: 'Terminal',
     module: PHONE_COPY,
-    needle: 'static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."',
-    draws: 'The terminal’s scrollback stays on your Mac.',
-    why: "the line over the conversation: the conversation is the history, and the terminal's scrollback is never sent to the phone (his ruling on the Phase 316 entry; build/p337/SPEC.md D31)"
+    needle: 'static let terminal = "Terminal"',
+    draws: 'Terminal',
+    why: "the spoken name of a session's own terminal on the phone, his word; the Mac draws the terminal itself and never names it"
   }),
   // PHASE 337, the Screen (build/p337/SPEC.md §5.8.7): the Session page's
   // row, End at the top right, and the key bar's caps and spoken names. Each
@@ -726,7 +730,6 @@ const LEDGER = [
   // below, because several are single lowercase words that the keyboard and
   // name rules would otherwise take.
   ...[
-    ['Screen', 'screen', "the Session page's row that opens the session's own screen, and the Screen's title"],
     ['End', 'endTop', "End's press at the top right of a session's page (D33); the confirmation is still the Mac's own words"],
     ['esc', 'keyEsc', "the key bar's Escape cap"],
     ['tab', 'keyTab', "the key bar's Tab cap"],
@@ -1047,10 +1050,9 @@ const LEDGER = [
     when: /^\d+(?:Yes|No)\b/,
     why: "a numbered choice the agent's own screen drew, read back by the detector"
   }),
-  data({
-    is: "I can set httpOnly and sameSite: 'lax' on the session cookie. That touches the login handler and the two tests that read the raw header — shall I edit them too?",
-    why: "the agent's own answer, from the store, redacted and clipped there"
-  }),
+  // PHASE 337.1 took out the agent's last answer card: the Session mock is the
+  // Terminal now, and Catch Me Up draws the last answer only when a session has
+  // no turns, because it IS the newest turn's answer (build/p3371/SPEC.md D20).
   // PHASE 318 took out the person's sent message: Composer.html was redrawn as
   // the strip at rest (build/p318/SPEC.md §3 row 18), and the phone draws no
   // bubble for a message it sent; the box clears and its line reads Sent.
@@ -1120,7 +1122,12 @@ const OWED_ABSENCE_FLOOR = 16;
    the key bar's five caps and its ten spoken names, all Copy.swift's), and
    `End session…` left with the End bar above the tab bar, which no mock draws
    any more (build/p337/SPEC.md D33). */
-const OWNED_RULE_FLOOR = 90;
+/* PHASE 337.1 LOWERED IT BY ONE, FROM 90 TO 89, the count the run matches:
+   three owned rules left with the rename (Conversation, Screen, and The
+   terminal's scrollback stays on your Mac., which the Terminal scrolling back
+   made false), and two joined (Catch Me Up, the Mac's own word, and Terminal),
+   build/p3371/SPEC.md D21, D22. */
+const OWNED_RULE_FLOOR = 89;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1646,8 +1653,8 @@ const MUTATIONS = [
     apply(screens) {
       const next = new Map(screens);
       next.set(
-        'Session.html',
-        (next.get('Session.html') ?? '')
+        'Conversation.html',
+        (next.get('Conversation.html') ?? '')
           .replace(/“/g, '"')
           .replace(/”/g, '"')
       );
@@ -1780,15 +1787,25 @@ const MUTATIONS = [
     names: 'Over'
   },
   {
-    // Phase 337: the Session page's Screen row renamed in the mock must go red
-    // against Copy.swift's `screen` (build/p337/SPEC.md §6.4).
-    what: "the Screen row renamed in the mock",
+    // Phase 337.1: the Terminal's icon spoken in other words must go red
+    // against Copy.swift's `catchMeUp`, the Mac's word (build/p3371/SPEC.md §6.4).
+    what: "the Catch Me Up icon's spoken name re-cased in the mock",
     apply(screens) {
       const next = new Map(screens);
-      next.set('Session.html', (next.get('Session.html') ?? '').replace('<span>Screen</span>', '<span>Terminal</span>'));
+      next.set('Session.html', (next.get('Session.html') ?? '').replace('aria-label="Catch Me Up"', 'aria-label="Catch me up"'));
       return next;
     },
-    names: 'Terminal'
+    names: 'Catch me up'
+  },
+  {
+    // Phase 337.1: the word the rename took away, put back in a mock (D21).
+    what: 'Conversation put back as the title',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Conversation.html', (next.get('Conversation.html') ?? '').replace('>Catch Me Up</div>', '>Conversation</div>'));
+      return next;
+    },
+    names: 'Conversation'
   },
   {
     // Phase 316.7: Clear filters is the Mac's own reset (D12).
@@ -1808,10 +1825,11 @@ const MUTATIONS = [
  */
 const MODULE_MUTATIONS = [
   {
-    what: "scrollback changed by one letter in Copy.swift's line over a conversation",
+    // Phase 337.1: Catch Me Up cased differently in Copy.swift (build/p3371/SPEC.md §6.4).
+    what: 'Catch Me Up cased differently in Copy.swift',
     module: PHONE_COPY,
-    edit: (text) => text.replace('static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."', 'static let terminalStaysOnMac = "The terminal’s scrolback stays on your Mac."'),
-    names: 'static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."'
+    edit: (text) => text.replace('static let catchMeUp = "Catch Me Up"', 'static let catchMeUp = "Catch me up"'),
+    names: 'static let catchMeUp = "Catch Me Up"'
   }
 ];
 

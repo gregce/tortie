@@ -427,6 +427,31 @@
  *        sentence, never empty.
  *   (s)  the build is 6 (`PHONE_BUILD`), and its "not uploaded" fixtures 7.
  *
+ *   PHASE 337.1, terminal first, scrollback and Catch Me Up (build/p3371/SPEC.md
+ *   §6.4; his rulings "Yes, scroll back on the Screen", "Yes, rename it" and
+ *   "lets do B"). (aq) is rewritten and four rules are new:
+ *
+ *   (aq) THE TERMINAL PANS, A PAGE NEVER MOVES IT, AND A LONG PRESS SELECTS.
+ *        No SwiftUI ScrollView or gesture in a Screen file; ScreenScrollView a
+ *        UIScrollView that never centres, its gestures UIKit's on itself, read
+ *        in the content view; every offset change a delta from layoutSubviews;
+ *        the content the rows plus D25's pad from the view's own bounds.
+ *   (ar) THE KEYBOARD NEVER MOVES THE TERMINAL'S FRAME. ScreenPage's root opts
+ *        out once and nothing inside it does; the insets written, the offset
+ *        clamped and the overlap published in keyboardOverlap(_:) alone.
+ *   (as) THE SCROLLBACK CLIENT. The target's six names in order; one page in
+ *        flight, 0.25 s apart; a page joined only in its space, width and
+ *        depth and by its overlap rows' text; reserve( the one place top
+ *        moves; 3,000 rows; points by absolute index; Copy only over drawn rows.
+ *   (at) TERMINAL FIRST. The Terminal exactly when screen and a screen door,
+ *        decided once; the icon then End; 318's tray identifiers.
+ *   (au) THE RENAME. Catch Me Up, the Mac's word; no Conversation.
+ *   Widened: (ah) the scrollback target and ScreenDoor's two new requirements;
+ *   (ai) minGap counted outside ScrollbackModel; (ak) the side line; (t) the
+ *   eight scrollback arms; (v) scrollbackSentence; (x) the keyboard's own
+ *   userInfo inside keyboardOverlap; SCREEN_FILES and OWNER_CHECK_ABSENT gain
+ *   the two new files. The build stays 7.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -3448,6 +3473,8 @@ export const ALERT_FILES = Object.freeze({
   screen: 'Screens/PairingScreen.swift',
   app: 'App/TortieApp.swift'
 });
+/** The Terminal's scroll view, whose ONE keyboard function reads the keyboard's own userInfo (Phase 337.1, D24). */
+export const KEYBOARD_FILE = 'Screens/ScreenScroller.swift';
 
 /** The `{ … }` body of the innermost function around `index` in `bare`, as [open, close], or null. */
 function enclosingFunction(bare, index) {
@@ -3476,7 +3503,7 @@ function declBody(bare, kind, name) {
  */
 export function ruleAlerts(files, tests = []) {
   const findings = [];
-  const said = { registrations: 0, asks: 0, unFiles: new Set(), userInfo: 0, arms: 0, fields: 0, flowAsks: 0, pairingAsks: 0, launchReads: 0 };
+  const said = { registrations: 0, asks: 0, unFiles: new Set(), userInfo: 0, keyboardReads: 0, arms: 0, fields: 0, flowAsks: 0, pairingAsks: 0, launchReads: 0 };
   const lexedFiles = files.map((f) => ({ ...f, lx: lexSwift(f.source) }));
   const byName = new Map(lexedFiles.map((f) => [f.name, f]));
   const at = (f, index) => `${f.name}:${String(lineOf(f.lx.bare, index))}`;
@@ -3539,7 +3566,20 @@ export function ruleAlerts(files, tests = []) {
         if (/\buserInfo\b/.test(f.lx.bare.slice(open, close))) handed += 1;
       }
     }
+    // Phase 337.1 (build/p3371/SPEC.md D24): the keyboard's own notification
+    // carries its frame, its duration and its curve in a userInfo too. Those
+    // reads, and only those (a `UIResponder.keyboard…UserInfoKey` subscript),
+    // sit inside the Terminal's ONE keyboard function, which is no
+    // notification's payload; anything else read there is still a finding.
+    const keyboard = [];
+    if (f.name === KEYBOARD_FILE) {
+      for (const fn of funcSpans(f.lx.bare)) if (fn.name === 'keyboardOverlap' && fn.bodyOpen !== -1) keyboard.push([fn.bodyOpen, fn.bodyClose]);
+    }
     for (const m of f.lx.bare.matchAll(/\buserInfo\b/g)) {
+      if (keyboard.some(([a, b]) => m.index > a && m.index < b) && /^userInfo\s*\?\s*\[\s*UIResponder\s*\.\s*keyboard[A-Za-z]+UserInfoKey\s*\]/.test(f.lx.bare.slice(m.index))) {
+        said.keyboardReads += 1;
+        continue;
+      }
       said.userInfo += 1;
       if (!allowed.some(([a, b]) => m.index > a && m.index < b)) {
         findings.push(`${at(f, m.index)} reads userInfo; a notification's payload is read by AlertTap.parse alone (${ALERT_FILES.alerts}), which ${ALERT_FILES.delegate} hands it`);
@@ -4688,7 +4728,11 @@ export const OWNER_CHECK_ABSENT = Object.freeze([
   'Screens/ScreenGlyphs.swift',
   'Screens/ScreenSelection.swift',
   'Screens/ScreenKeyField.swift',
-  'Screens/ScreenKeys.swift'
+  'Screens/ScreenKeys.swift',
+  // Phase 337.1 (build/p3371/SPEC.md §6.4, §Attack B15): the Terminal's scroll
+  // view and its history, inside the Screen family and its walls.
+  'Screens/ScreenScroller.swift',
+  'Screens/ScreenScrollback.swift'
 ]);
 /** What persists anything; none of it may sit in End's files or the write path. */
 const PERSISTS = /\bUserDefaults\b|@AppStorage\b|@SceneStorage\b|\bSecItemAdd\b|\bSecItemUpdate\b|\bFileManager\b|\.\s*write\s*\(\s*to\s*:|\bNSKeyedArchiver\b|\bcreateFile\b|\bNSUbiquitousKeyValueStore\b/g;
@@ -7212,6 +7256,12 @@ const expect = (what, ok) => {
   expect('(x) catches the notification center named in a screen', xRun({ 'Screens/ListScreen.swift': 'let c = UNUserNotificationCenter.current()\n' }).length > 0);
   expect('(x) catches userInfo read in a screen', xRun({ 'Screens/ListScreen.swift': 'func f(_ n: UNNotification) { _ = n.request.content.userInfo }\n' }).length > 0);
   expect('(x) catches the delegate handing the tap nowhere', xRun(xEdit(ALERT_FILES.delegate, 'AlertInbox.shared.post(AlertTap.parse(r.notification.request.content.userInfo))', 'AlertInbox.shared.post(.list)')).length > 0);
+  // Phase 337.1 (D24): the keyboard's own userInfo, read by its key inside the Terminal's one keyboard function.
+  const kbOk = 'final class ScreenScrollView {\n  @objc func keyboardOverlap(_ note: Notification) {\n    let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue\n    let d = (note.userInfo?[UIResponder.keyboardAnimationDurationUserInfoKey] as? Double) ?? 0\n  }\n}\n';
+  expect('(x) admits the keyboard\'s own keys inside keyboardOverlap', xRun({ [KEYBOARD_FILE]: kbOk }).length === 0);
+  expect('(x) catches the keyboard\'s userInfo read outside keyboardOverlap', xRun({ [KEYBOARD_FILE]: kbOk.replace('func keyboardOverlap(', 'func keyboardMoved(') }).length > 0);
+  expect('(x) catches another key read inside keyboardOverlap', xRun({ [KEYBOARD_FILE]: kbOk.replace('[UIResponder.keyboardAnimationDurationUserInfoKey]', '["tortie"]') }).length > 0);
+  expect('(x) catches keyboardOverlap in another file reading userInfo', xRun({ 'Screens/Screen.swift': kbOk }).length > 0);
   expect('(x) catches production under DEBUG', xRun(xEdit(ALERT_FILES.alerts, 'static let current: PushEnvironment = .development', 'static let current: PushEnvironment = .production')).length > 0);
   expect('(x) catches development in the #else', xRun(xEdit(ALERT_FILES.alerts, 'static let current: PushEnvironment = .production', 'static let current: PushEnvironment = .development')).length > 0);
   expect('(x) catches apt declared outside the presentation and its record', xRun({ 'Screens/ListScreen.swift': 'struct Sneak { let apt: String }\n' }).length > 0);
@@ -8923,7 +8973,10 @@ export const SCREEN_FILES = Object.freeze([
   'Screens/ScreenGlyphs.swift',
   'Screens/ScreenSelection.swift',
   'Screens/ScreenKeyField.swift',
-  'Screens/ScreenKeys.swift'
+  'Screens/ScreenKeys.swift',
+  // Phase 337.1 (§Attack B15): the scroll view and the history.
+  'Screens/ScreenScroller.swift',
+  'Screens/ScreenScrollback.swift'
 ]);
 const isScreenFile = (name) => /^Screens\/Screen[A-Z]?\w*\.swift$/.test(name) && name !== 'Screens/ScreenCover.swift';
 
@@ -8992,7 +9045,8 @@ export function ruleScreenSizesNothing(files) {
   }
   // (ah4) No size word in a request builder or a Screen file's write.
   const SIZE = /\bresize\w*|(?:^|[?&])(?:cols|rows|width|height|size|columns|lines)=|^(?:cols|rows|size|width|height)$/i;
-  const builders = ['screenTarget', 'signedPost', 'signedGet', 'request', 'readHeaders'];
+  // Phase 337.1 (D7): the scrollback target too; `wrap` is an echo it compares, never a size.
+  const builders = ['screenTarget', 'scrollbackTarget', 'signedPost', 'signedGet', 'request', 'readHeaders'];
   for (const f of files) {
     const file = lexedFile(files, f.name);
     const inDoorClient = f.name === 'Door/DoorClient.swift';
@@ -9018,6 +9072,13 @@ export function ruleScreenSizesNothing(files) {
     const labels = (args) => args.split(',').map((a) => a.trim().split(/\s+|:/)[0]).filter((a) => a !== '');
     if (read === null || labels(read[1]).join(',') !== 'since') findings.push(`ScreenDoor.read takes ${JSON.stringify(read === null ? null : labels(read[1]))}; it takes since and nothing else`);
     if (keys === null || labels(keys[1]).join(',') !== '_,turn,dialog') findings.push(`ScreenDoor.keys takes ${JSON.stringify(keys === null ? null : labels(keys[1]))}; it takes the items, turn and dialog, and nothing else`);
+    // Phase 337.1 (D7, D17): a page names rows of the index space and the width it was read at; the re-read names nothing.
+    const page = /\bfunc\s+scrollback\s*\(([^)]*)\)/.exec(body);
+    const reread = /\bfunc\s+session\s*\(([^)]*)\)/.exec(body);
+    if (page === null || labels(page[1]).join(',') !== 'from,count,depth,wrap,keep') findings.push(`ScreenDoor.scrollback takes ${JSON.stringify(page === null ? null : labels(page[1]))}; it takes from, count, depth, wrap and keep, and nothing that sizes (D7)`);
+    if (reread === null || labels(reread[1]).length !== 0) findings.push(`ScreenDoor.session takes ${JSON.stringify(reread === null ? null : labels(reread[1]))}; it takes nothing (D17)`);
+    const funcs = [...body.matchAll(/\bfunc\s+([A-Za-z_]\w*)/g)].map((m) => m[1]).sort().join(',');
+    if (funcs !== 'close,keys,read,scrollback,session') findings.push(`ScreenDoor declares ${funcs}; exactly read, keys, scrollback, session and close`);
   }
   return { findings, said };
 }
@@ -9062,8 +9123,9 @@ export function ruleScreenKeys(files, contractNames) {
   if (!/\binFlight\s*==\s*nil\b/.test(flush) || !/\binFlight\s*=\s*Task\b/.test(flush)) findings.push('ScreenKeySender.flush does not start a write only while inFlight is nil, and keep it as the one inFlight task; two writes could be in flight at once');
   // (ai3) minGap declared once, at least 0.1 s, and read before a write starts.
   const gaps = [...sender.bare.matchAll(/\bstatic\s+let\s+minGap\s*(?::\s*[A-Za-z]+)?\s*=\s*([^\n]+)/g)];
-  const allGaps = all.flatMap((f) => [...f.bare.matchAll(/\bminGap\s*(?::\s*[A-Za-z]+)?\s*=/g)]);
-  if (gaps.length !== 1 || allGaps.length !== 1) findings.push(`minGap is declared ${String(allGaps.length)} time(s); once, in ScreenKeySender`);
+  // Phase 337.1: the Terminal's pages keep their own floor, ScrollbackModel.minGap, which rule (as) holds.
+  const allGaps = all.flatMap((f) => [...f.bare.matchAll(/\bminGap\s*(?::\s*[A-Za-z]+)?\s*=/g)].filter((m) => innermost(f.types, m.index)?.name !== 'ScrollbackModel'));
+  if (gaps.length !== 1 || allGaps.length !== 1) findings.push(`minGap is declared ${String(allGaps.length)} time(s) outside ScrollbackModel; once, in ScreenKeySender`);
   else {
     const v = gaps[0][1].trim();
     const ms = /\.milliseconds\(\s*([0-9_]+)\s*\)/.exec(v);
@@ -9206,6 +9268,26 @@ export function ruleScreenField(files) {
       const p = placeOf(file, m.index);
       const allowed = (file.name === FIELD_FILE && ((p.type === 'ScreenInputState' && p.fn === 'replacing') || /KeyBar/.test(p.type ?? ''))) || file.name === 'Door/Contract.swift';
       if (!allowed) findings.push(`${atLine(file, m.index)} sends Enter in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; a line break becomes Enter in ScreenInputState.replacing alone, and the key bar's return is his press`);
+    }
+  }
+  // THE KEYBOARD IS TAKEN AND GIVEN BACK OUTSIDE SWIFTUI'S UPDATE (Phase
+  // 337.1's fix round). Becoming first responder inside updateUIView posts the
+  // keyboard's notifications and SwiftUI's focus change while the update is
+  // still running; with the question tray drawn that re-entered the view
+  // graph in an AttributeGraph cycle and the app froze when he tapped the
+  // terminal (the verifier's sample of its main thread, iOS 26.3 and 18.3).
+  // updateUIView names neither call and hands the change to the main queue;
+  // the field's first responder changes in the coordinator's settle alone.
+  const update = fnText(field, 'updateUIView', 'ScreenKeyField');
+  if (update === '') findings.push('ScreenKeyField declares no updateUIView, so where the keyboard is taken cannot be read');
+  else {
+    if (/\b(?:becomeFirstResponder|resignFirstResponder)\s*\(/.test(update)) findings.push('ScreenKeyField.updateUIView takes or gives back the keyboard itself, inside SwiftUI\'s update; with the question tray drawn that froze the app in an AttributeGraph cycle (Phase 337.1\'s fix round). It hands the change to the main queue');
+    if (!/\bDispatchQueue\s*\.\s*main\s*\.\s*async\s*\{/.test(update)) findings.push('ScreenKeyField.updateUIView does not hand the keyboard\'s change to DispatchQueue.main.async, so it is made inside SwiftUI\'s update (Phase 337.1\'s fix round)');
+  }
+  for (const file of files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null && isScreenFile(f.name))) {
+    for (const m of file.bare.matchAll(/\bbecomeFirstResponder\s*\(/g)) {
+      const p = placeOf(file, m.index);
+      if (!(file.name === FIELD_FILE && p.type === 'Coordinator' && p.fn === 'settle')) findings.push(`${atLine(file, m.index)} takes the keyboard in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; the Terminal's field takes it in ScreenKeyField.Coordinator.settle alone, outside SwiftUI's update (Phase 337.1's fix round)`);
     }
   }
   return { findings, said };
@@ -9482,7 +9564,8 @@ export function ruleScreenSentences(words, files) {
   const said = { cases: 0 };
   if (words === null) return { findings: ['Screens/DoorWords.swift does not exist'], said };
   const w = lexSwift(words);
-  for (const [name, arg] of [['screenSentence', 'DoorFailure'], ['keysSentence', 'WriteResult']]) {
+  // Phase 337.1: a refused page's line too (scrollbackSentence).
+  for (const [name, arg] of [['screenSentence', 'DoorFailure'], ['keysSentence', 'WriteResult'], ['scrollbackSentence', 'DoorFailure']]) {
     const decl = new RegExp(`\\bstatic\\s+func\\s+${name}\\s*\\(\\s*for\\s+\\w+\\s*:\\s*${arg}\\s*\\)\\s*->\\s*([^{]+)\\{`).exec(w.bare);
     if (decl === null) {
       findings.push(`Screens/DoorWords.swift declares no ${name}(for: ${arg})`);
@@ -9567,46 +9650,628 @@ export function ruleHostileScreenArms(hostile, copy) {
   return { findings, said };
 }
 
-// ---- (aq) THE SCREEN PANS, AND A LONG PRESS SELECTS (the fix round, 2026-10-06)
+// ---- (aq) THE TERMINAL PANS, A PAGE NEVER MOVES IT, AND A LONG PRESS SELECTS
+//      (REWRITTEN BY PHASE 337.1, build/p3371/SPEC.md D24 to D26, D31, D32)
 //
-// Two measured iOS 26 behaviours a later round could undo with the Screen
-// still drawing. A SwiftUI `LongPressGesture` sequenced before a
-// `DragGesture` on the scroll view's content held every touch on iOS 26.3 (a
-// swipe, a slow drag and a swipe up each left a zoomed Screen in place; the
-// verify's bisect took that one gesture away and the same swipe panned
-// 478 pt), so the selection's long press is UIKit's. And a two-axis scroll
-// view centres content smaller than itself, so the line drawn under the grid
-// when a selection begins shrank the view and moved the rows under a finger
-// that had not moved: the rows sit at the top, the gestures on that whole
-// frame.
+// The 337 fix round's rule held a two-axis SwiftUI scroll view to a
+// top-anchored frame. That view is gone: on iOS 26.3 it CENTRED content smaller
+// than itself, and when the keyboard went the view grew back while its content
+// kept its keyboard-up height, so the rows sat 134.7 pt low until the first
+// long press (§14 M12). The Terminal's scroll view is UIKit's now. Every clause
+// below is one line of Swift a later round can delete with the Terminal still
+// drawing: the SwiftUI scroll view put back, the inset adjustment left on, a
+// gesture that is SwiftUI's, a tap that does not wait for the double, a hosting
+// view that takes touches, an offset moved anywhere but by the delta, the pin
+// and the clamp, or a pad that reads a SwiftUI geometry.
 
-const GRID_FILE = 'Screens/ScreenGrid.swift';
+/** The Terminal's UIKit scroll view (Phase 337.1, SPEC §5.5.4). */
+export const SCROLLER_FILE = 'Screens/ScreenScroller.swift';
+/** The Terminal's history (Phase 337.1, SPEC §5.5.4). */
+export const SCROLLBACK_FILE = 'Screens/ScreenScrollback.swift';
+/** The SwiftUI gestures and the scroll view the Terminal never uses again. */
+const SWIFTUI_PAN = /\b(?:ScrollView|LongPressGesture|DragGesture|MagnifyGesture|MagnificationGesture)\b/g;
+
+/** The `{`…`}` span of a computed property `var NAME` inside the type named `type` (or anywhere), or null. */
+function varSpan(file, name, type = null) {
+  for (const m of file.bare.matchAll(new RegExp(`\\bvar\\s+${name}\\s*:[^{=\\n]*\\{`, 'g'))) {
+    if (type !== null && innermost(file.types, m.index)?.name !== type) continue;
+    const open = m.index + m[0].length - 1;
+    const close = matchForward(file.bare, open);
+    return { open, close: close === -1 ? file.bare.length : close };
+  }
+  return null;
+}
 
 /** Rule (aq), pure over the app's Swift files. */
 export function ruleScreenPans(files) {
   const findings = [];
-  const said = { press: false, topFrame: false };
+  const said = { press: false, waits: false, hostOff: false, delta: false, pad: false, writers: [] };
+  // (aq1) No SwiftUI ScrollView, LongPressGesture, DragGesture or MagnifyGesture in any Screen file.
   for (const file of files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null && isScreenFile(f.name))) {
-    for (const m of file.bare.matchAll(/\b(?:LongPressGesture|DragGesture)\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}, a SwiftUI gesture on the Screen; on iOS 26 one sequenced on the scroll view's content held every touch and a zoomed Screen could not pan (the fix round of 2026-10-06)`);
+    for (const m of file.bare.matchAll(SWIFTUI_PAN)) findings.push(`${atLine(file, m.index)} names ${m[0]}, SwiftUI's on the Terminal; its scroll view is UIKit's, because a SwiftUI one centred the rows and left them 134.7 pt low after the keyboard (build/p3371/SPEC.md D24, §14 M12), and its gestures are UIKit's (the 337 fix round)`);
+    for (const m of file.bare.matchAll(/\bGeometryReader\b/g)) findings.push(`${atLine(file, m.index)} names GeometryReader; no SwiftUI geometry frames the Terminal's rows (D24, D25)`);
   }
-  const grid = lexedFile(files, GRID_FILE);
-  if (grid === null) return { findings: [...findings, `${GRID_FILE} does not exist`], said };
-  const press = grid.types.find((t) => t.name === 'ScreenLongPress');
-  if (press === undefined || !/\bstruct\s+ScreenLongPress\s*:\s*UIGestureRecognizerRepresentable\b/.test(grid.bare)) findings.push(`${GRID_FILE} declares no struct ScreenLongPress: UIGestureRecognizerRepresentable, UIKit's long press, which the scroll view's pan is arbitrated with by UIKit's own rule`);
+  const scroller = lexedFile(files, SCROLLER_FILE);
+  if (scroller === null) return { findings: [...findings, `${SCROLLER_FILE} does not exist, so the Terminal's scroll view cannot be read (build/p3371/SPEC.md §5.5.4)`], said };
+  const view = scroller.types.find((t) => t.name === 'ScreenScrollView' && t.kind === 'class');
+  // (aq2) A UIScrollView, its inset adjustment off.
+  if (view === undefined || !/\bclass\s+ScreenScrollView\s*:\s*UIScrollView\b/.test(scroller.bare)) return { findings: [...findings, `${SCROLLER_FILE} declares no final class ScreenScrollView: UIScrollView`], said };
+  const body = scroller.bare.slice(view.open, view.close + 1);
+  if (!/\bcontentInsetAdjustmentBehavior\s*=\s*\.never\b/.test(body)) findings.push('ScreenScrollView does not set contentInsetAdjustmentBehavior = .never, so UIKit moves its content with the keyboard and the safe area behind the inset this file sets (D24)');
+  // (aq3) The gestures: UIKit's, each on the scroll view, each point read in the content view.
+  const press = /\blet\s+(\w+)\s*=\s*UILongPressGestureRecognizer\s*\(/.exec(body);
+  const pinch = /\blet\s+(\w+)\s*=\s*UIPinchGestureRecognizer\s*\(/.exec(body);
+  const taps = [...body.matchAll(/\blet\s+(\w+)\s*=\s*UITapGestureRecognizer\s*\(/g)].map((m) => m[1]);
+  if (press === null) findings.push('ScreenScrollView makes no UILongPressGestureRecognizer; the selection is UIKit\'s long press, arbitrated with the pan by UIKit\'s own rule (the 337 fix round)');
+  else if (!new RegExp(`\\b${press[1]}\\s*\\.\\s*minimumPressDuration\\s*=\\s*ScreenGesture\\s*\\.\\s*longPressSeconds\\b`).test(body)) findings.push('ScreenScrollView\'s long press does not wait ScreenGesture.longPressSeconds (minimumPressDuration)');
+  else said.press = true;
+  if (pinch === null) findings.push('ScreenScrollView makes no UIPinchGestureRecognizer; the pinch is UIKit\'s, recognised together with the pan (D32)');
+  const double = taps.find((t) => new RegExp(`\\b${t}\\s*\\.\\s*numberOfTapsRequired\\s*=\\s*2\\b`).test(body));
+  const single = taps.find((t) => t !== double);
+  if (double === undefined || single === undefined) findings.push('ScreenScrollView does not make a double tap (numberOfTapsRequired = 2) and a single tap, both UITapGestureRecognizers');
+  else if (!new RegExp(`\\b${single}\\s*\\.\\s*require\\s*\\(\\s*toFail\\s*:\\s*${double}\\s*\\)`).test(body)) findings.push(`ScreenScrollView's single tap does not require(toFail: ${double}); a double tap would raise the keyboard first (D32)`);
+  else said.waits = true;
+  for (const m of body.matchAll(/(\w+(?:\s*\.\s*\w+)*)\s*\.\s*addGestureRecognizer\s*\(/g)) findings.push(`${atLine(scroller, view.open + m.index)} adds a gesture to ${m[1].replace(/\s+/g, '')}; every gesture is the scroll view's own (addGestureRecognizer on self), so the hosting view takes no touch (D24)`);
+  if (!/(?:^|[^.\w])addGestureRecognizer\s*\(/.test(body)) findings.push('ScreenScrollView adds no gesture to itself');
+  for (const m of scroller.bare.matchAll(/\.\s*location\s*\(\s*in\s*:\s*([^)]*)\)/g)) {
+    if (m[1].trim() !== 'contentView') findings.push(`${atLine(scroller, m.index)} reads a gesture's point in ${m[1].trim() || 'nothing'}; every point is read with location(in: contentView), the content's own coordinates, which a page landing above never moves (D31)`);
+  }
+  // (aq4) ONE hosting controller, its view taking no touch.
+  const hosts = [...scroller.bare.matchAll(/\bUIHostingController\s*(?:<[^>]*>)?\s*\(/g)];
+  if (hosts.length !== 1) findings.push(`${SCROLLER_FILE} makes ${String(hosts.length)} UIHostingController(s); ONE draws the rows (§5.5.4)`);
+  if (!/\b\w+\s*\.\s*view\s*\.\s*isUserInteractionEnabled\s*=\s*false\b/.test(body)) findings.push('ScreenScrollView does not set its hosting view\'s isUserInteractionEnabled = false, so a touch could reach a SwiftUI view under the scroll view\'s recognisers (§5.5.4)');
+  else said.hostOff = true;
+  // (aq5) The delta: apply(above:) adds to the CURRENT offset, without animation, and is called from layoutSubviews alone.
+  const apply = funcsNamed(scroller, 'apply', 'ScreenScrollView').find((f) => /\babove\b/.test(f.params));
+  const layout = funcsNamed(scroller, 'layoutSubviews', 'ScreenScrollView')[0];
+  if (apply === undefined) findings.push('ScreenScrollView declares no apply(above:), the one delta a reservation, a return to live and an eviction move the offset by (D26)');
   else {
-    const body = grid.bare.slice(press.open, press.close + 1);
-    if (!/\bUILongPressGestureRecognizer\s*\(/.test(body) || !/\bminimumPressDuration\s*=\s*minimumDuration\b/.test(body)) findings.push('ScreenLongPress does not make a UILongPressGestureRecognizer with minimumPressDuration = minimumDuration');
-    else said.press = true;
+    const a = bodyText(scroller, apply);
+    if (!/\bUIView\s*\.\s*performWithoutAnimation\b/.test(a) || !/\bcontentOffset\s*=\s*CGPoint\s*\([^)]*contentOffset\s*\.\s*x[^)]*\+[^)]*contentOffset\s*\.\s*y[^)]*\+|\bcontentOffset\s*=\s*CGPoint\s*\([\s\S]*?contentOffset\s*\.\s*x\)?\s*\+[\s\S]*?contentOffset\s*\.\s*y\)?\s*\+/.test(a)) {
+      findings.push('apply(above:) does not add its delta to the CURRENT contentOffset inside UIView.performWithoutAnimation; a drag or a fling under way continues from where it is only when the offset is moved by the change (D26)');
+    }
+    const callers = [];
+    for (const m of scroller.bare.matchAll(/\bapply\s*\(\s*above\s*:/g)) {
+      if (m.index > apply.bodyOpen && m.index < apply.bodyClose) continue;
+      if (isDecl(scroller.bare, m.index)) continue;
+      callers.push({ at: m.index, fn: placeOf(scroller, m.index).fn });
+    }
+    // A helper apply( is called from is itself called from layoutSubviews alone.
+    const fromLayout = (fn, seen = new Set()) => {
+      if (fn === 'layoutSubviews') return true;
+      if (fn === null || seen.has(fn)) return false;
+      seen.add(fn);
+      const sites = [...scroller.bare.matchAll(new RegExp(`\\b${fn}\\s*\\(`, 'g'))].filter((m) => !isDecl(scroller.bare, m.index));
+      return sites.length > 0 && sites.every((m) => fromLayout(placeOf(scroller, m.index).fn, seen));
+    };
+    if (callers.length === 0) findings.push('apply(above:) is never called, so no reservation moves the offset by what it added (D26)');
+    for (const c of callers) if (!fromLayout(c.fn)) findings.push(`${atLine(scroller, c.at)} applies a delta in ${c.fn ?? 'no function'}; the delta is applied in layoutSubviews, the pass that grew or shrank the content, so a page landing or a reservation moves what he reads by exactly nothing (D26)`);
+    if (callers.length > 0 && callers.every((c) => fromLayout(c.fn))) said.delta = true;
   }
-  const select = fnText(grid, 'selectPress', 'ScreenGrid');
-  if (!/\bScreenLongPress\s*\(/.test(select) || !/\bminimumDuration\s*:\s*ScreenGesture\s*\.\s*longPressSeconds\b/.test(select)) findings.push('ScreenGrid.selectPress does not build ScreenLongPress at ScreenGesture.longPressSeconds');
-  const frameAt = grid.bare.search(/\.\s*frame\s*\(\s*minWidth\s*:\s*proxy\s*\.\s*size\s*\.\s*width\s*,\s*minHeight\s*:\s*proxy\s*\.\s*size\s*\.\s*height\s*,\s*alignment\s*:\s*\.\s*topLeading\s*\)/);
-  const shapeAt = grid.bare.search(/\.\s*contentShape\s*\(\s*Rectangle\s*\(\s*\)\s*\)/);
-  const magnifyAt = grid.bare.search(/\.\s*gesture\s*\(\s*magnify\s*\(/);
-  const selectAt = grid.bare.search(/\.\s*gesture\s*\(\s*selectPress\s*\(/);
-  if (frameAt === -1) findings.push(`${GRID_FILE} does not set the grid's frame to at least the view's size, aligned .topLeading; a scroll view centres smaller content, and a line appearing under the grid moved the rows under a still finger`);
-  else if (shapeAt === -1 || magnifyAt === -1 || selectAt === -1 || !(frameAt < shapeAt && shapeAt < magnifyAt && frameAt < selectAt)) findings.push(`${GRID_FILE} puts the pinch or the long press before the top-anchored frame and its contentShape, so a touch below the last row reaches neither`);
-  else said.topFrame = true;
+  // (aq6) Nothing else writes the offset but the delta, following's pin and the keyboard's clamp.
+  for (const m of scroller.bare.matchAll(/(?:^|[^.\w])(?:self\s*\.\s*)?contentOffset\s*=(?!=)|\bsetContentOffset\s*\(|\bscrollRectToVisible\s*\(/g)) {
+    const fn = placeOf(scroller, m.index).fn;
+    said.writers.push(fn);
+    if (!['apply', 'pin', 'keyboardOverlap'].includes(fn ?? '')) findings.push(`${atLine(scroller, m.index)} writes the offset in ${fn ?? 'no function'}; only apply(above:), following's pin and the keyboard's clamp move it (D26)`);
+  }
+  for (const f of files.filter((x) => isScreenFile(x.name) && x.name !== SCROLLER_FILE)) {
+    const lx = lexSwift(f.source);
+    for (const m of lx.bare.matchAll(/\bcontentOffset\s*=(?!=)|\bsetContentOffset\s*\(/g)) findings.push(`${f.name}:${String(lineOf(lx.bare, m.index))} writes a scroll view's offset outside ${SCROLLER_FILE}`);
+  }
+  // (aq7) The content: the rows and D25's pad, from the view's own bounds and the overlap, in layoutSubviews.
+  if (layout === undefined) findings.push('ScreenScrollView does not override layoutSubviews, where the pad and the delta are computed (D25, D26)');
+  else {
+    const l = bodyText(scroller, layout);
+    const visible = /\blet\s+(\w+)\s*=\s*max\s*\(\s*0\s*,[^\n]*\bbounds\s*\.\s*height\b[^\n]*\boverlap\b/.exec(l);
+    const pad = visible === null ? null : new RegExp(`\\blet\\s+(\\w+)\\s*=\\s*max\\s*\\(\\s*0\\s*,[^\\n]*\\b${visible[1]}\\b[^\\n]*rowCount`).exec(l);
+    const sized = pad === null ? false : new RegExp(`\\bheight\\s*:[^\\n]*\\+\\s*${pad[1]}\\b`).test(l) && /\bcontentSize\s*=/.test(l);
+    if (visible === null || pad === null || !sized) findings.push('ScreenScrollView.layoutSubviews does not size the content as the rows plus D25\'s pad, the view\'s visible height (bounds.height less the keyboard\'s overlap) less the live rows\' height, never below 0; without it a page landing above the live rows moved them 492 pt at the 337 build\'s own geometry (§Attack B5)');
+    else said.pad = true;
+  }
+  for (const m of scroller.bare.matchAll(/\bcontentSize\s*=(?!=)/g)) {
+    const fn = placeOf(scroller, m.index).fn;
+    if (fn !== 'layoutSubviews') findings.push(`${atLine(scroller, m.index)} sizes the content in ${fn ?? 'no function'}; the content is sized in layoutSubviews alone, from the view's own bounds (D25)`);
+  }
+  for (const m of scroller.bare.matchAll(/\b(?:proxy|geometry)\s*\.\s*size\b|\bGeometryProxy\b|\bonGeometryChange\b/g)) findings.push(`${atLine(scroller, m.index)} reads a SwiftUI geometry; the pad is computed from the scroll view's own bounds (§Attack B5)`);
+  // UIKit never centres: nothing here centres the content in the view.
+  for (const m of body.matchAll(/\bcontentInset\s*\.\s*top\s*=(?!=)|\bcontentInset\s*=\s*UIEdgeInsets\s*\(\s*top\s*:/g)) findings.push(`${atLine(scroller, view.open + m.index)} sets a top inset; content shorter than the view sits at its top, as UIKit lays it, never centred (D24)`);
+  // (aq8, Phase 337.1's fix round) ONLY THE ROWS IN VIEW ARE ELEMENTS. Every
+  // row of the window, about 300 scrolled back where 337 had 40, was one, and
+  // on iOS 18.3 the test framework's own logging of them put the app in log
+  // quarantine and crashed it twice while it scrolled. A row out of view is an
+  // empty container with no name and no label (a hidden element alone still
+  // reached the test framework's tree, the fix round's measurement); the
+  // window marks which rows are in view each time it is drawn.
+  const grid = lexedFile(files, 'Screens/ScreenGrid.swift');
+  if (grid === null) findings.push('Screens/ScreenGrid.swift does not exist, so which rows are elements cannot be read');
+  else {
+    const g = grid.bare;
+    if (!/\.\s*accessibilityElement\s*\(\s*children\s*:\s*item\s*\.\s*spoken\s*\?\s*\.ignore\s*:\s*\.contain\s*\)/.test(g) || !/\.\s*accessibilityIdentifier\s*\(\s*item\s*\.\s*spoken\s*\?/.test(g) || !/\.\s*accessibilityLabel\s*\(\s*Text\s*\(\s*verbatim\s*:\s*item\s*\.\s*spoken\s*\?/.test(g)) {
+      findings.push('Screens/ScreenGrid.swift makes every row of the window an element; a row out of view is an empty container with no name and no label (item.spoken ? … : …), or the test framework\'s logging of ~300 rows quarantines and crashes the app on iOS 18.3 (Phase 337.1\'s fix round)');
+    }
+  }
+  if (!/\bspoken\s*=\s*\w+\s*\.\.<\s*\w+/.test(scroller.bare)) findings.push(`${SCROLLER_FILE} never marks which of the window's rows are in view (spoken = …..<…), so every row stays an element (Phase 337.1's fix round)`);
+  return { findings, said };
+}
+
+// ---- (ar) THE KEYBOARD NEVER MOVES THE TERMINAL'S FRAME (D24, §Attack B4) --
+
+/** Is index `i` at the top level of the braces opened at `open` (depth 1), outside any nested ( { [? */
+function atTopLevel(bare, open, i) {
+  let depth = 0;
+  for (let k = open; k < i; k += 1) {
+    const c = bare[k];
+    if (c === '{' || c === '(' || c === '[') depth += 1;
+    else if (c === '}' || c === ')' || c === ']') depth -= 1;
+  }
+  return depth === 1;
+}
+
+/** Rule (ar), pure over the app's Swift files. */
+export function ruleScreenKeyboard(files) {
+  const findings = [];
+  const said = { root: false, insets: 0, published: 0 };
+  const screen = lexedFile(files, 'Screens/Screen.swift');
+  const sessionScreen = lexedFile(files, SESSION_SCREEN_FILE);
+  // (ar1) The page's ROOT opts out, once, and nothing inside it does.
+  const optOut = /\.\s*ignoresSafeArea\s*\(\s*\.keyboard\b/g;
+  let rootOuts = 0;
+  if (screen === null) findings.push('Screens/Screen.swift does not exist, so the Terminal page\'s keyboard opt-out cannot be read');
+  else {
+    const page = screen.types.find((t) => t.name === 'ScreenPage' && t.kind === 'struct');
+    const pageBody = page === undefined ? null : varSpan(screen, 'body', 'ScreenPage');
+    if (page === undefined || pageBody === null) findings.push('Screens/Screen.swift declares no struct ScreenPage with a body');
+    else {
+      for (const m of screen.bare.matchAll(optOut)) {
+        if (m.index > pageBody.open && m.index < pageBody.close && atTopLevel(screen.bare, pageBody.open, m.index)) rootOuts += 1;
+      }
+      said.root = rootOuts === 1;
+      if (rootOuts !== 1) findings.push(`ScreenPage's root carries .ignoresSafeArea(.keyboard ${String(rootOuts)} time(s); exactly ONCE, on the outermost view of its body, so the terminal's frame never follows the keyboard (D24, §Attack B4: a child with a view below it cannot opt out of a keyboard its parent avoids)`);
+    }
+  }
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  let outs = 0;
+  for (const file of all.filter((f) => isScreenFile(f.name) || f.name === SESSION_SCREEN_FILE)) {
+    for (const m of file.bare.matchAll(optOut)) {
+      if (file.name === SESSION_SCREEN_FILE) {
+        const terminal = file.types.find((t) => t.name === 'TerminalPage');
+        if (terminal === undefined || m.index < terminal.open || m.index > terminal.close) continue;
+      }
+      outs += 1;
+    }
+  }
+  if (outs !== rootOuts || (screen !== null && rootOuts === 0)) findings.push(`the Terminal's files carry .ignoresSafeArea(.keyboard ${String(outs)} time(s) and ScreenPage's root ${String(rootOuts)}; the root's is the only one, so no view inside the page (the scroller, the line, the tray) opts out on its own and the inset never counts the keyboard twice (§Attack B4)`);
+  // (ar2) The inset and the indicators' written in keyboardOverlap( alone.
+  const scroller = lexedFile(files, SCROLLER_FILE);
+  if (scroller === null) return { findings: [...findings, `${SCROLLER_FILE} does not exist, so the keyboard's overlap cannot be read`], said };
+  const overlapFn = funcsNamed(scroller, 'keyboardOverlap')[0];
+  if (overlapFn === undefined) return { findings: [...findings, `${SCROLLER_FILE} declares no keyboardOverlap(_:), the ONE function that reads the keyboard (D24)`], said };
+  for (const file of all) {
+    for (const m of file.bare.matchAll(/(?:^|[^.\w])(?:self\s*\.\s*)?(?:contentInset|verticalScrollIndicatorInsets|scrollIndicatorInsets|horizontalScrollIndicatorInsets)(?:\s*\.\s*\w+)?\s*=(?!=)/g)) {
+      said.insets += 1;
+      const inside = file === scroller || file.name === SCROLLER_FILE ? m.index > overlapFn.bodyOpen && m.index < overlapFn.bodyClose : false;
+      if (!inside) findings.push(`${atLine(file, m.index + 1)} writes a scroll view's inset outside keyboardOverlap(_:); the keyboard's overlap is computed and applied in ONE function (D24)`);
+    }
+  }
+  const o = bodyText(scroller, overlapFn);
+  if (!/\bcontentInset\s*=/.test(o) || !/\bverticalScrollIndicatorInsets\s*=/.test(o)) findings.push('keyboardOverlap(_:) does not write the bottom inset and the vertical indicators\' from the overlap (D24)');
+  if (!/\bconvert\s*\(/.test(o)) findings.push('keyboardOverlap(_:) does not convert the keyboard\'s frame into the scroll view with convert(, so the overlap is read in another coordinate space (D24)');
+  if (!/\bkeyboardFrameEndUserInfoKey\b/.test(o)) findings.push('keyboardOverlap(_:) does not read the keyboard\'s end frame (keyboardFrameEndUserInfoKey)');
+  const published = [...o.matchAll(/\.\s*overlap\s*\(/g)].length;
+  said.published = published;
+  if (published !== 1) findings.push(`keyboardOverlap(_:) publishes the overlap ${String(published)} time(s); ONCE a change, to the page that places the line and the back-to-live button above it (D24)`);
+  if (!/\bmaxOffsetY\b/.test(o) || !/\bmin\s*\(/.test(o)) findings.push('keyboardOverlap(_:) does not clamp the offset to the content (min( … maxOffsetY) when the keyboard goes; a keyboard going is an overlap of 0 and the offset back inside the content in the same pass (D24)');
+  for (const name of ['keyboardWillChangeFrameNotification', 'keyboardWillHideNotification']) {
+    if (!new RegExp(`\\b${name}\\b`).test(scroller.bare)) findings.push(`${SCROLLER_FILE} does not observe ${name}; the overlap follows the keyboard's change and its hide (D24)`);
+  }
+  if (!/#selector\s*\(\s*keyboardOverlap\s*\(\s*_\s*:\s*\)\s*\)/.test(scroller.bare)) findings.push(`${SCROLLER_FILE} does not route the keyboard's notifications to keyboardOverlap(_:)`);
+  // (ar4, Phase 337.1's fix round) MEASURED AGAIN WHEN THE VIEW GROWS UNDER IT.
+  // The question tray hides as the keyboard rises and the view grows into its
+  // place; the overlap the first notification measured (107 pt in the
+  // verifier's instrumented run) was never measured again (269 pt), so the
+  // line and the button back to live sat behind the keyboard. layoutSubviews
+  // hands the keyboard's last notification back to keyboardOverlap(_:) once
+  // the pass is over, never inside it.
+  const relayout = funcsNamed(scroller, 'layoutSubviews', 'ScreenScrollView')[0];
+  const remeasure = funcsNamed(scroller, 'remeasureKeyboard', 'ScreenScrollView')[0];
+  if (remeasure === undefined || relayout === undefined || !/\bremeasureKeyboard\s*\(/.test(bodyText(scroller, relayout))) findings.push('ScreenScrollView.layoutSubviews never measures the keyboard again (remeasureKeyboard()), so when the view grows under a keyboard that is up (the tray hiding) its overlap stays the first one and the line sits behind the keyboard (Phase 337.1\'s fix round)');
+  else {
+    const r = bodyText(scroller, remeasure);
+    if (!/\bDispatchQueue\s*\.\s*main\s*\.\s*async\b/.test(r) || !/\bkeyboardOverlap\s*\(/.test(r)) findings.push('remeasureKeyboard() does not hand the keyboard\'s last notification back to keyboardOverlap(_:) on the main queue, after the layout pass (Phase 337.1\'s fix round)');
+  }
+  for (const file of all.filter((f) => f.name !== SCROLLER_FILE)) {
+    for (const m of file.bare.matchAll(/\bkeyboardWillChangeFrameNotification\b|\bkeyboardWillShowNotification\b|\bkeyboardFrameEndUserInfoKey\b|\bkeyboardLayoutGuide\b/g)) {
+      if (!isScreenFile(file.name) && file.name !== SESSION_SCREEN_FILE) continue;
+      findings.push(`${atLine(file, m.index)} reads the keyboard (${m[0]}) outside ${SCROLLER_FILE}'s keyboardOverlap(_:)`);
+    }
+  }
+  // (ar3) The line and the back-to-live button padded by the published overlap, and by nothing else.
+  if (screen !== null) {
+    const bottom = varSpan(screen, 'bottom', 'ScreenPage');
+    if (bottom === null) findings.push('ScreenPage declares no bottom view holding the back-to-live button and the lines');
+    else {
+      const b = screen.bare.slice(bottom.open, bottom.close + 1);
+      if (!/\bID\s*\.\s*screenToLive\b/.test(b)) findings.push('ScreenPage\'s bottom view does not hold the back-to-live button (ID.screenToLive)');
+      const pads = [...b.matchAll(/\.\s*padding\s*\(\s*\.bottom\s*,\s*([^)]*)\)/g)].map((m) => m[1].trim());
+      if (pads.length !== 1 || pads[0] !== 'overlap') findings.push(`ScreenPage's bottom view is padded at its bottom by ${JSON.stringify(pads)}; by the published overlap alone, so the line and the button stay just above the keyboard (D24, §Attack B4)`);
+    }
+    for (const m of screen.bare.matchAll(/(?:^|[^.\w])overlap\s*=(?!=)\s*([^\n}]*)/g)) {
+      const rhs = m[1].trim();
+      if (/\bprivate\s+var\s*$|@State\s+private\s+var\s*$/.test(screen.bare.slice(Math.max(0, m.index - 24), m.index + 1))) continue;
+      if (rhs !== '$0') findings.push(`${atLine(screen, m.index + 1)} sets the page's overlap to ${rhs.slice(0, 40)}; it is the scroll view's published overlap and nothing else (D24)`);
+    }
+  }
+  return { findings, said };
+}
+
+// ---- (as) THE SCROLLBACK CLIENT (D7, D13, D25 to D28, D31) -----------------
+
+/** The scrollback query's names, in the order the target spells them (D7). */
+export const SCROLLBACK_PARAMS = Object.freeze(['id', 'from', 'count', 'depth', 'wrap', 'keep']);
+
+/** Rule (as), pure over the app's Swift files. */
+export function ruleScrollbackClient(files) {
+  const findings = [];
+  const said = { params: [], minGap: null, pageRows: null, overlapRows: null, mostHeld: null };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const client = lexedFile(files, 'Door/DoorClient.swift');
+  // (as1) The target: exactly its six names, in order, spelled in scrollbackTarget alone; no size.
+  if (client === null) findings.push('Door/DoorClient.swift does not exist');
+  else {
+    const target = funcsNamed(client, 'scrollbackTarget')[0];
+    if (target === undefined) findings.push('Door/DoorClient.swift declares no scrollbackTarget, the one builder of a /v1/scrollback target');
+    else {
+      const params = [];
+      for (const s of client.strings) {
+        if (s.start < target.bodyOpen || s.start > target.bodyClose) continue;
+        for (const m of s.value.matchAll(/[?&]([A-Za-z_]+)=/g)) params.push(m[1]);
+      }
+      said.params = params;
+      if (params.join(',') !== SCROLLBACK_PARAMS.join(',')) findings.push(`DoorClient.scrollbackTarget writes ${JSON.stringify(params)}; exactly ${SCROLLBACK_PARAMS.join(', ')}, in that order, each once (D7)`);
+      for (const p of params) if (/^(?:cols|rows|resize\w*|width|height|size|columns|lines)$/i.test(p)) findings.push(`DoorClient.scrollbackTarget names ${p}; no name the phone sends is a size of the Mac, and wrap is an echo it compares (D7, rule ah)`);
+      // What each name is handed: the id through queryValue(…), four whole numbers by name, and the closed keep word.
+      const holes = client.strings.filter((s) => s.start > target.bodyOpen && s.start < target.bodyClose).flatMap((s) => s.holes.map((h) => client.code.slice(h.start, h.end).trim()));
+      const shaped = holes.length === 6 && /^(?:(?:Self|DoorClient)\s*\.\s*)?queryValue\s*\(\s*\w+\s*\)$/.test(holes[0]) && holes.slice(1, 5).every((h) => /^[a-z]\w*$/.test(h)) && /^keep\s*\.\s*rawValue$/.test(holes[5]);
+      if (!shaped) findings.push(`DoorClient.scrollbackTarget hands its names ${JSON.stringify(holes)}; the id through queryValue(…), from, count, depth and wrap as the whole numbers it was given, and keep's raw word`);
+    }
+    for (const file of all) {
+      for (const s of file.strings) {
+        if (!s.value.includes('/v1/scrollback')) continue;
+        const p = placeOf(file, s.start);
+        if (file.name !== 'Door/DoorClient.swift' || p.fn !== 'scrollbackTarget') findings.push(`${atLine(file, s.start)} spells "/v1/scrollback" in ${p.fn ?? 'no function'}; DoorClient.scrollbackTarget is the one place it is built`);
+      }
+    }
+  }
+  const sb = lexedFile(files, SCROLLBACK_FILE);
+  if (sb === null) return { findings: [...findings, `${SCROLLBACK_FILE} does not exist, so the Terminal's history cannot be read (build/p3371/SPEC.md §5.5.4)`], said };
+  // (as2) The constants, declared once: 100 rows a page, 8 overlap rows, 3,000 held, minGap at least 0.25 s.
+  for (const [name, want, key] of [['pageRows', 100, 'pageRows'], ['overlapRows', 8, 'overlapRows'], ['mostHeld', 3000, 'mostHeld']]) {
+    const decls = all.flatMap((f) => [...f.bare.matchAll(new RegExp(`\\bstatic\\s+let\\s+${name}\\s*(?::\\s*Int)?\\s*=\\s*([0-9_]+)`, 'g'))].map((m) => ({ f, v: Number(m[1].replace(/_/g, '')) })));
+    said[key] = decls[0]?.v ?? null;
+    if (decls.length !== 1 || decls[0].f.name !== SCROLLBACK_FILE || decls[0].v !== want) findings.push(`${name} is declared ${String(decls.length)} time(s)${decls.length === 1 ? ` as ${String(decls[0].v)} in ${decls[0].f.name}` : ''}; it is ${String(want)}, declared once, in ${SCROLLBACK_FILE} (D27, D28)`);
+  }
+  const model = sb.types.find((t) => t.name === 'ScrollbackModel' && t.kind === 'class');
+  if (model === undefined) findings.push(`${SCROLLBACK_FILE} declares no final class ScrollbackModel`);
+  else {
+    const mb = sb.bare.slice(model.open, model.close + 1);
+    const gaps = [...mb.matchAll(/\bstatic\s+let\s+minGap\s*(?::\s*[A-Za-z]+)?\s*=\s*([^\n]+)/g)];
+    if (gaps.length !== 1) findings.push(`ScrollbackModel declares minGap ${String(gaps.length)} time(s); once`);
+    else {
+      const v = gaps[0][1].trim();
+      const ms = /\.milliseconds\(\s*([0-9_]+)\s*\)/.exec(v);
+      const sec = /\.seconds\(\s*([0-9_.]+)\s*\)|^([0-9_.]+)$/.exec(v);
+      said.minGap = ms !== null ? Number(ms[1].replace(/_/g, '')) / 1000 : sec !== null ? Number((sec[1] ?? sec[2]).replace(/_/g, '')) : null;
+      if (said.minGap === null || said.minGap < 0.25) findings.push(`ScrollbackModel.minGap is ${v}; at least 0.25 s, the Mac's own floor, which the nonce budget assumes (D27, D29)`);
+    }
+    // (as3) One page in flight, started only while none is, at least minGap after the last.
+    if (!/\binFlight\s*==\s*nil\b/.test(mb) || !/\binFlight\s*=\s*Task\b/.test(mb)) findings.push('ScrollbackModel does not start a page only while inFlight is nil and keep it as its one inFlight task; two pages could be in flight at once (D27)');
+    if (!/\bSelf\s*\.\s*minGap\b/.test(mb)) findings.push('ScrollbackModel never waits Self.minGap before a page starts (D27)');
+    if ([...mb.matchAll(/\.\s*scrollback\s*\(/g)].length !== 1) findings.push('ScrollbackModel does not ask its door for a page in exactly one place');
+  }
+  // (as4) accept( checks space, wrap, depth and the overlap before it joins, and moves no layout height.
+  const accept = funcsNamed(sb, 'accept')[0];
+  if (accept === undefined) findings.push(`${SCROLLBACK_FILE} declares no accept(_:for:), the one joiner of a page (D13)`);
+  else {
+    const a = bodyText(sb, accept);
+    const joinAt = a.search(/\bheld\s*\[[^\]]*\]\s*=(?!=)/);
+    const gate = joinAt === -1 ? a : a.slice(0, joinAt);
+    for (const [what, re] of [['its space', /\bspace\s*==\s*space\b|\.space\s*==|==\s*[\w.]*\.space\b/], ['its wrap', /\bWrap\s*==\s*wrap\b|\.pageWrap\s*==|==\s*[\w.]*wrap\b/], ['its depth against depthSeen', /\bdepth\s*>=\s*depthSeen\b|\bdepthSeen\s*<=\s*\w+/], ['the overlap rows\' text', /\boverlap\w*\s*\(/]]) {
+      if (!re.test(gate)) findings.push(`accept(_:for:) does not compare ${what} before it joins a page; a page is joined only in the space, the width and the depth it was asked in, and by its overlap rows' text (D13, §Attack B8)`);
+    }
+    if (joinAt === -1) findings.push('accept(_:for:) never fills a held row (held[i] = …)');
+    for (const m of a.matchAll(/(?:^|[^.\w])(?:top|live)\s*(?:=|\+=|-=)(?!=)/g)) findings.push(`${atLine(sb, accept.bodyOpen + m.index)} accept(_:for:) moves the layout (${m[0].trim()}); a page FILLS reserved rows and changes no layout height, so it never moves what he reads (D26)`);
+    const overlap = funcsNamed(sb, 'overlapAgrees')[0];
+    if (overlap === undefined || !/\blabel\b|\btext\b/.test(bodyText(sb, overlap))) findings.push(`${SCROLLBACK_FILE} declares no overlapAgrees comparing the shared rows' text (D13)`);
+  }
+  // (as5) reserve( is the one place top moves.
+  for (const m of sb.bare.matchAll(/(?:^|[^.\w])(?:self\s*\.\s*)?top\s*(?:=|\+=|-=)(?!=)/g)) {
+    const p = placeOf(sb, m.index + 1);
+    if (/\bvar\s*$|\blet\s*$|private\s*\(\s*set\s*\)\s*var\s*$/.test(sb.bare.slice(Math.max(0, m.index - 24), m.index + 1))) continue;
+    if (p.fn !== 'reserve') findings.push(`${atLine(sb, m.index + 1)} moves the reserved range's top in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; reserve( is the one place it moves, one page at a time as he nears it (D26)`);
+  }
+  // (as6) A live picture raises depthSeen while scrolled.
+  const picture = funcsNamed(sb, 'picture', 'ScrollbackLayout')[0];
+  if (picture === undefined || !/\bdepthSeen\s*=(?!=)/.test(bodyText(sb, picture))) findings.push('ScrollbackLayout.picture( does not raise depthSeen from a live picture\'s depth; a trim is then caught only by the next page (D27, §Attack B13)');
+  // (as7) At most 3,000 rows held, the farthest evicted, back to reserved.
+  const evict = funcsNamed(sb, 'evict')[0];
+  if (evict === undefined || !/\bmostHeld\b/.test(bodyText(sb, evict))) findings.push(`${SCROLLBACK_FILE} declares no evict( holding the rows to mostHeld (D28)`);
+  // (as8) ScreenPoint is an absolute index; Copy waits for every selected row.
+  const sel = lexedFile(files, 'Screens/ScreenSelection.swift');
+  const hit = sel === null ? undefined : funcsNamed(sel, 'hit')[0];
+  if (hit === undefined || !/\bfirst\s*:/.test(hit.params) || !/\bfirst\b/.test(bodyText(sel, hit))) findings.push('ScreenSelecting.hit does not number a point by the layout\'s first index; a point is named by its ABSOLUTE index, never its place in the layout, so a reservation above moves no selection (D31, §Attack B11)');
+  const screen = lexedFile(files, 'Screens/Screen.swift');
+  const copyDrawn = screen === null ? null : varSpan(screen, 'copyDrawn', 'ScreenPage');
+  if (copyDrawn === null || !/\.\s*drawn\s*\(/.test(screen.bare.slice(copyDrawn.open, copyDrawn.close + 1))) findings.push('ScreenPage\'s Copy is not drawn only while every selected row is drawn (scrollback.drawn(…)); a selection reaching rows not yet fetched would copy blank lines where his were (D31, §Attack B11)');
+  // (as9) Sending any key returns to following.
+  const keys = lexedFile(files, 'Screens/ScreenKeys.swift');
+  if (keys === null || !/\bonSend\s*\?\s*\(\s*\)/.test(keys.bare)) findings.push('ScreenKeySender never calls onSend?() when it sends; typing returns the Terminal to its live bottom, as at the desk (D27)');
+  if (screen === null || !/\bonSend\s*=\s*\{[^}]*\bfollow\s*\(\s*\)/.test(screen.bare)) findings.push('ScreenPage does not point the sender\'s onSend at scrollback.follow() (D27)');
+  // (as11) The history and its scroll view are declared in their own files, inside the
+  // Screen family, so rules (ah), (al) and the owner-check wall read them (§Attack B15).
+  for (const f of all) {
+    for (const m of f.bare.matchAll(/\b(?:class|struct|actor|enum)\s+(ScrollbackModel|ScrollbackLayout|ScreenScrollView)\b/g)) {
+      const home = m[1] === 'ScreenScrollView' ? SCROLLER_FILE : SCROLLBACK_FILE;
+      if (f.name !== home) findings.push(`${atLine(f, m.index)} declares ${m[1]} outside ${home}; the Terminal's history and its scroll view live in their own Screen* files, inside the walls those files are held to (§Attack B15)`);
+    }
+  }
+  // (as10) Nothing of the history persisted.
+  for (const name of [SCROLLBACK_FILE, SCROLLER_FILE]) {
+    const f = lexedFile(files, name);
+    if (f === null) continue;
+    for (const m of f.bare.matchAll(PERSISTS)) findings.push(`${atLine(f, m.index)} names ${m[0]}; nothing of the Terminal's history is kept past the Terminal (§12)`);
+  }
+  return { findings, said };
+}
+
+// ---- (at) TERMINAL FIRST (D16 to D20, §Attack B6, B12) ----------------------
+
+/** Rule (at), pure over the app's Swift files. */
+export function ruleTerminalFirst(files) {
+  const findings = [];
+  const said = { trailing: [], status: [], faces: 0 };
+  const all = files.map((f) => lexedFile(files, f.name)).filter((f) => f !== null);
+  const app = lexedFile(files, 'App/TortieApp.swift');
+  const screen = lexedFile(files, SESSION_SCREEN_FILE);
+  // (at1) The face: the Terminal exactly when screen and a screen door, decided once.
+  if (app === null) findings.push('App/TortieApp.swift does not exist');
+  else {
+    const faceFn = funcsNamed(app, 'face')[0];
+    const f = faceFn === undefined ? '' : bodyText(app, faceFn).replace(/\s+/g, ' ');
+    if (!/\{ ?(?:return )?screen && hasDoor \? \.terminal : \.catchUp ?\}/.test(f)) findings.push(`the session route's face is ${JSON.stringify(f.slice(0, 80))}; it is the Terminal exactly when the answer's screen is true and there is a screen door, else Catch Me Up (D16)`);
+    const sets = [...app.bare.matchAll(/(?:^|[^.\w])(?:self\s*\.\s*)?face\s*=(?!=)/g)].filter((m) => !/\bvar\s*$|private\s*\(\s*set\s*\)\s*var\s*$/.test(app.bare.slice(Math.max(0, m.index - 24), m.index + 1)));
+    const decide = funcsNamed(app, 'decide')[0];
+    if (sets.length !== 1 || decide === undefined || sets[0].index < decide.bodyOpen || sets[0].index > decide.bodyClose) findings.push(`the face is set ${String(sets.length)} time(s); once, in decide(), so nothing he is looking at swaps under him (D16)`);
+    else if (!/\bguard\s+face\s*==\s*nil\b/.test(bodyText(app, decide))) findings.push('decide() does not decide only while no face is (guard face == nil); a later answer could swap the page under him (D16)');
+    if (decide !== undefined && !/\bscreenDoor\s*\(/.test(bodyText(app, decide))) findings.push('decide() never asks screenDoor(, so the Terminal could be drawn for a reader with no screen door (D16)');
+    // (at2) The route's container is ID.sessionScreen over both faces.
+    const route = app.types.find((t) => t.name === 'SessionRoute');
+    const routeBody = route === undefined ? null : varSpan(app, 'body', 'SessionRoute');
+    if (routeBody === null) findings.push('App/TortieApp.swift declares no SessionRoute with a body');
+    else {
+      const b = app.bare.slice(routeBody.open, routeBody.close + 1);
+      said.faces = (/\bTerminal(?:Face|Page)\s*\(/.test(b) ? 1 : 0) + (/\bCatchUpPage\s*\(/.test(b) ? 1 : 0);
+      if (said.faces !== 2) findings.push('SessionRoute does not draw both faces, the Terminal and Catch Me Up, in its one body (D16)');
+      const ids = [...b.matchAll(/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*(\w+)\s*\)/g)].filter((m) => atTopLevel(app.bare, routeBody.open, routeBody.open + m.index)).map((m) => m[1]);
+      if (!ids.includes('sessionScreen')) findings.push(`SessionRoute's outer container carries ${JSON.stringify(ids)}; it is ID.sessionScreen whichever face it draws, so a drive that waits for a session's page still finds it (D16, §Attack B12)`);
+      // THE ROUTE'S SECOND CHILD (Phase 337.1's fix round): with the face its one
+      // accessibility child, SwiftUI folded the face's own container into the
+      // route's and only screen-session reached the tree (the verifier's element
+      // dumps: never screen-screen, and never screen-catch-up as a face). The
+      // route's stack holds, beside its face, one element identified
+      // ID.sessionRouteMark, hidden from VoiceOver and drawn as nothing.
+      const mark = /\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionRouteMark\s*\)/.exec(b);
+      if (mark === null) findings.push('SessionRoute holds no second child beside its face (an element identified ID.sessionRouteMark); with the face its one child, SwiftUI folds the face\'s own container into the route\'s and screen-screen and screen-catch-up never reach the tree (Phase 337.1\'s fix round)');
+      else {
+        const tail = b.slice(mark.index, mark.index + 200);
+        if (!/\.\s*accessibilityHidden\s*\(\s*true\s*\)/.test(tail)) findings.push('SessionRoute\'s mark is not hidden from VoiceOver (.accessibilityHidden(true)); it is structure, never a stop he hears (Phase 337.1\'s fix round)');
+        if (!/\bswitch\s+route\s*\.\s*face\b/.test(b.slice(mark.index))) findings.push('SessionRoute\'s mark is not drawn beside the face, ahead of its switch on route.face (Phase 337.1\'s fix round)');
+      }
+    }
+    for (const m of app.bare.matchAll(/\bcase\s+screen\s*\(|\bRoute\s*\.\s*screen\b|\bopenScreen\s*\(|\bcase\s+conversation\s*\(|\bopenConversation\s*\(/g)) findings.push(`${atLine(app, m.index)} names ${m[0].replace(/\s+/g, '')}; the Terminal is the session's own page (no Route.screen, no openScreen) and Catch Me Up is Route.catchUp (D16, D21)`);
+  }
+  for (const file of all) for (const m of file.bare.matchAll(/\bsessionOpenScreen\b|\bsessionOpenConversation\b/g)) findings.push(`${atLine(file, m.index)} names ${m[0]}; the session page's two rows are gone (D16, D21)`);
+  if (screen === null) return { findings: [...findings, `${SESSION_SCREEN_FILE} does not exist`], said };
+  // (at3) The trailing items: exactly the Catch Me Up icon, then End.
+  const terminal = screen.types.find((t) => t.name === 'TerminalPage');
+  if (terminal === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no TerminalPage`);
+  else {
+    const tb = screen.bare.slice(terminal.open, terminal.close + 1);
+    const tr = /\btrailing\s*:\s*\{/.exec(tb);
+    if (tr === null) findings.push('TerminalPage hands ScreenPage no trailing items');
+    else {
+      const open = terminal.open + tr.index + tr[0].length - 1;
+      const close = matchForward(screen.bare, open);
+      const inner = screen.bare.slice(open + 1, close);
+      said.trailing = [...inner.matchAll(/(?:^|\n)\s*([A-Z]\w*)\s*[({]/g)].map((m) => m[1]);
+      if (said.trailing.join(',') !== 'CatchUpItem,EndTopItem') findings.push(`TerminalPage's trailing items are ${JSON.stringify(said.trailing)}; exactly the Catch Me Up icon then End, End rightmost (D17, D18)`);
+    }
+    if (!/\bScreenPage\s*\(/.test(tb)) findings.push('TerminalPage is not built from ScreenPage, so the landscape gate and the keyboard opt-out are not its (D33, rule an)');
+  }
+  const item = screen.types.find((t) => t.name === 'CatchUpItem');
+  if (item === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no CatchUpItem, the Terminal's Catch Me Up icon (D18)`);
+  else {
+    const ib = screen.bare.slice(item.open, item.close + 1);
+    const symbols = screen.strings.filter((s) => s.start > item.open && s.start < item.close).map((s) => s.value);
+    if (!/\bImage\s*\(\s*systemName\s*:/.test(ib) || !symbols.includes('text.bubble')) findings.push(`CatchUpItem draws ${JSON.stringify(symbols)}; Image(systemName: "text.bubble"), the Mac's own speech bubble for Catch Me Up (D18)`);
+    if (!/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*sessionOpenCatchUp\s*\)/.test(ib)) findings.push('CatchUpItem is not identified ID.sessionOpenCatchUp');
+    if (!/\.\s*accessibilityLabel\s*\(\s*Text\s*\(\s*verbatim\s*:\s*Copy\s*\.\s*catchMeUp\s*\)\s*\)/.test(ib)) findings.push('CatchUpItem\'s spoken name is not Copy.catchMeUp (D18, D21)');
+    if (/\bWords\s*\(|\bText\s*\(\s*Copy/.test(ib)) findings.push('CatchUpItem draws a word; it is an icon, not prominent (his ruling: "as most people will want to use their terminal")');
+  }
+  // (at4) The tray presses through ReplyModel.press alone, on 318's identifiers, every option whole.
+  const tray = screen.types.find((t) => t.name === 'ChoiceTray');
+  if (tray === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no ChoiceTray, the Terminal's question tray (D19)`);
+  else {
+    const tb = screen.bare.slice(tray.open, tray.close + 1);
+    const presses = [...tb.matchAll(/(\w+)\s*\.\s*press\s*\(/g)].map((m) => m[1]);
+    if (presses.length === 0 || presses.some((p) => p !== 'reply')) findings.push(`ChoiceTray presses through ${JSON.stringify(presses)}; through 318's ReplyModel.press alone, exactly as the session page pressed (D19)`);
+    if (!/\bOptionRow\s*\(/.test(tb)) findings.push('ChoiceTray does not draw its options as 318\'s OptionRow, so they carry other identifiers than session-choice-press-<n> (§Attack B6)');
+    for (const m of tb.matchAll(/\bWords\s*\(/g)) {
+      const open = tray.open + m.index + m[0].length - 1;
+      const close = closeParen(screen.bare, open);
+      if (!/\blines\s*:\s*nil\b/.test(screen.bare.slice(open, close))) findings.push(`${atLine(screen, tray.open + m.index)} ChoiceTray draws words with a line limit; a person never presses what he could not read (D19, rule ae)`);
+    }
+    for (const m of tb.matchAll(/\b(?:OwnerCheck|ownerCheck|LAContext|evaluatePolicy|LocalAuthentication)\b/g)) findings.push(`${atLine(screen, tray.open + m.index)} ChoiceTray names ${m[0]}; a press asks no Face ID (his ruling, "Only for End")`);
+  }
+  const row = screen.types.find((t) => t.name === 'OptionRow');
+  if (row === undefined || !/\bID\s*\.\s*sessionChoicePress\s*\(/.test(screen.bare.slice(row.open, row.close + 1)) || !/\bID\s*\.\s*sessionChoice\s*\(/.test(screen.bare.slice(row.open, row.close + 1))) findings.push('OptionRow does not carry 318\'s ID.sessionChoice( and ID.sessionChoicePress(; an identifier names the control, not the page, so 318\'s press arms run on the Terminal unedited (§Attack B6)');
+  // (at5) The status line reads SessionDrawing fields alone.
+  const status = screen.types.find((t) => t.name === 'StatusLine');
+  if (status === undefined) findings.push(`${SESSION_SCREEN_FILE} declares no StatusLine (D17)`);
+  else {
+    // Its stored members: a computed one (its body) holds nothing.
+    said.status = storedFields(screen.bare, status).filter((n) => !new RegExp(`\\b(?:let|var)\\s+${n}\\s*:[^=\\n]*\\{`).test(screen.bare.slice(status.open, status.close)));
+    if (said.status.join(',') !== 'drawing' || !/\blet\s+drawing\s*:\s*SessionDrawing\b/.test(screen.bare.slice(status.open, status.close + 1))) findings.push(`StatusLine holds ${JSON.stringify(said.status)}; it holds the SessionDrawing alone, so the line says what the session answer says and nothing else (D17)`);
+    if (!/\.\s*accessibilityIdentifier\s*\(\s*ID\s*\.\s*terminalStatus\s*\)/.test(screen.bare.slice(status.open, status.close + 1))) findings.push('StatusLine is not identified ID.terminalStatus');
+  }
+  return { findings, said };
+}
+
+// ---- (au) THE RENAME (D21 to D23) -------------------------------------------
+
+/** Rule (au), pure over the app's Swift files and the Mac's menu.ts text (or null). */
+export function ruleRename(files, menuTs) {
+  const findings = [];
+  const said = { owned: false, terminal: false };
+  const copy = files.find((f) => f.name === 'Style/Copy.swift');
+  if (copy === undefined) return { findings: ['Style/Copy.swift does not exist'], said };
+  const lx = lexSwift(copy.source);
+  const words = [...lx.code.matchAll(/\bstatic\s+let\s+(\w+)\s*=\s*"([^"\n]*)"/g)].map((m) => ({ name: m[1], value: m[2], at: m.index }));
+  for (const w of words) if (w.value === 'Conversation' || w.value === 'Screen') findings.push(`Style/Copy.swift:${String(lineOf(copy.source, w.at))} Copy.${w.name} is ${JSON.stringify(w.value)}; the history is Catch Me Up and the session's own terminal is Terminal (his rulings, D21)`);
+  for (const name of ['conversation', 'screen', 'terminalStaysOnMac']) {
+    if (words.some((w) => w.name === name)) findings.push(`Style/Copy.swift still declares Copy.${name}; it is gone (D21, D22: the terminal's scrollback is no longer only on the Mac)`);
+  }
+  const catchMeUp = words.find((w) => w.name === 'catchMeUp');
+  // The doc block right above the declaration, and nothing farther up: a word's owner is said on its own lines.
+  const block = [];
+  if (catchMeUp !== undefined) {
+    const above = copy.source.slice(0, catchMeUp.at).split('\n');
+    above.pop();
+    while (above.length > 0 && /^\s*\/\/\//.test(above[above.length - 1])) block.unshift(above.pop());
+  }
+  const ownerLine = block.find((l) => /\/\/\/\s*Mac:/.test(l)) ?? '';
+  if (catchMeUp === undefined || catchMeUp.value !== 'Catch Me Up') findings.push(`Copy.catchMeUp is ${JSON.stringify(catchMeUp?.value ?? null)}; it is "Catch Me Up", the Mac's own word (D21)`);
+  else if (!/\/\/\/\s*Mac:\s*src\/main\/menu\.ts\s*⟦item\('Catch Me Up'/.test(ownerLine)) findings.push('Copy.catchMeUp is not owned by src/main/menu.ts\'s word on its /// Mac: line (D21)');
+  else if (menuTs === null || !menuTs.includes("item('Catch Me Up',")) findings.push('src/main/menu.ts does not say item(\'Catch Me Up\', …), the word the phone borrows byte for byte (D21)');
+  else said.owned = true;
+  const terminal = words.find((w) => w.name === 'terminal');
+  if (terminal === undefined || terminal.value !== 'Terminal') findings.push(`Copy.terminal is ${JSON.stringify(terminal?.value ?? null)}; it is "Terminal", his word for the session's own terminal (D21)`);
+  else said.terminal = true;
+  for (const f of files) {
+    const fl = lexSwift(f.source);
+    for (const s of fl.strings) {
+      if (s.value === 'Conversation') findings.push(`${f.name}:${String(lineOf(f.source, s.start))} draws the word "Conversation"; the history is Catch Me Up (his ruling, "Yes, rename it")`);
+      if (/conversation/i.test(s.value) && (f.name === 'Screens/Identifiers.swift' || /accessibilityIdentifier\s*\(\s*$/.test(fl.bare.slice(Math.max(0, s.start - 30), s.start)))) findings.push(`${f.name}:${String(lineOf(f.source, s.start))} spells an accessibility identifier ${JSON.stringify(s.value)}; every conversation-* identifier spells catch-up-* (D21)`);
+    }
+    for (const m of fl.bare.matchAll(/\bterminalStaysOnMac\b/g)) findings.push(`${f.name}:${String(lineOf(fl.bare, m.index))} names terminalStaysOnMac, which is false since the terminal scrolls back (D22)`);
+  }
+  return { findings, said };
+}
+
+// ---- (ak) widened: THE SIDE LINE (D30, §Attack B19) --------------------------
+//
+// A third kept line carries the Terminal's pages and its status re-reads, ONE
+// EXCHANGE AT A TIME: a second exchange on a busy DoorLine cancels the first
+// (Door/DoorClient.swift), so a page and a re-read asked together would end
+// one another without the gate. And the Terminal going away closes it with the
+// other two, so an idle side line never holds one of the door's four slots.
+
+/** (ak)'s Phase 337.1 half, pure over the app's Swift files. */
+export function ruleSideLine(files) {
+  const findings = [];
+  const said = { lines: [], gate: null, users: [] };
+  const app = lexedFile(files, 'App/TortieApp.swift');
+  if (app === null) return { findings: ['App/TortieApp.swift does not exist, so the Terminal\'s kept lines cannot be read'], said };
+  const door = app.types.find((t) => t.name === 'PairedScreenDoor' && t.kind === 'class');
+  if (door === undefined) return { findings: ['App/TortieApp.swift declares no final class PairedScreenDoor'], said };
+  const body = app.bare.slice(door.open, door.close + 1);
+  said.lines = [...body.matchAll(/\blet\s+(\w+)\s*=\s*DoorLine\s*\(\s*keeps\s*:\s*true\s*\)/g)].map((m) => m[1]);
+  if ([...said.lines].sort().join(',') !== 'poll,side,typing') findings.push(`PairedScreenDoor keeps the lines ${JSON.stringify(said.lines)}; exactly three, the poll's, the keys' and the side line (D30)`);
+  const gates = [...body.matchAll(/\blet\s+(\w+)\s*=\s*OneExchange\s*\(\s*\)/g)].map((m) => m[1]);
+  said.gate = gates[0] ?? null;
+  if (gates.length !== 1) findings.push(`PairedScreenDoor holds ${String(gates.length)} OneExchange gate(s); ONE, for the side line, so a page and a status re-read never overlap (D30)`);
+  // close() closes all three.
+  const close = funcsNamed(app, 'close', 'PairedScreenDoor')[0];
+  const closeText = close === undefined ? '' : bodyText(app, close);
+  for (const name of said.lines) if (!new RegExp(`\\b${name}\\s*\\.\\s*close\\s*\\(\\s*\\)`).test(closeText)) findings.push(`PairedScreenDoor.close() does not close ${name}; the Terminal going away closes every kept line it holds`);
+  // The side line carries scrollback and session alone, each inside the gate.
+  if (said.lines.includes('side') && said.gate !== null) {
+    for (const m of body.matchAll(/\bside\b/g)) {
+      const at = door.open + m.index;
+      if (/\blet\s+$/.test(app.bare.slice(Math.max(0, at - 6), at))) continue;
+      if (/\.\s*$/.test(app.bare.slice(Math.max(0, at - 2), at))) continue;
+      const p = placeOf(app, at);
+      if (p.fn === 'close') continue;
+      said.users.push(p.fn);
+      if (p.fn !== 'scrollback' && p.fn !== 'session') findings.push(`${atLine(app, at)} names the side line in ${p.fn ?? 'no function'}; it carries the pages and the status re-reads alone (D30)`);
+    }
+    for (const name of ['scrollback', 'session']) {
+      const fn = funcsNamed(app, name, 'PairedScreenDoor')[0];
+      const t = fn === undefined ? '' : bodyText(app, fn);
+      const run = new RegExp(`\\b${said.gate}\\s*\\.\\s*run\\s*\\{`).exec(t);
+      if (run === null) {
+        findings.push(`PairedScreenDoor.${name} does not go through ${said.gate}.run; one exchange at a time on the side line (D30)`);
+        continue;
+      }
+      const inner = t.slice(run.index);
+      if (!/\bline\s*:\s*side\b/.test(inner)) findings.push(`PairedScreenDoor.${name} does not hand the client the side line inside ${said.gate}.run`);
+    }
+    for (const m of app.bare.matchAll(new RegExp(`\\b${said.gate}\\s*\\.\\s*run\\b`, 'g'))) {
+      const p = placeOf(app, m.index);
+      if (p.type !== 'PairedScreenDoor' || (p.fn !== 'scrollback' && p.fn !== 'session')) findings.push(`${atLine(app, m.index)} runs an exchange through the side line's gate in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}`);
+    }
+  }
+  // The gate itself: an actor that lets one run in at a time.
+  const gate = app.types.find((t) => t.name === 'OneExchange' && t.kind === 'actor');
+  if (gate === undefined) findings.push('App/TortieApp.swift declares no actor OneExchange');
+  else {
+    const run = funcsNamed(app, 'run', 'OneExchange')[0];
+    const t = run === undefined ? '' : bodyText(app, run);
+    if (!/\bawait\s+enter\s*\(\s*\)/.test(t) || !/\bdefer\s*\{\s*leave\s*\(\s*\)\s*\}/.test(t)) findings.push('OneExchange.run does not wait to enter and leave on every way out (defer); a second exchange could start while the first is on the line');
+    const enter = funcsNamed(app, 'enter', 'OneExchange')[0];
+    if (enter === undefined || !/\bguard\s+busy\s+else\b/.test(bodyText(app, enter)) || !/\bwithCheckedContinuation\b/.test(bodyText(app, enter))) findings.push('OneExchange.enter does not wait while an exchange is on the line');
+  }
+  return { findings, said };
+}
+
+// ---- (t) widened: the hostile door's scrollback arms (SPEC §6.4, §7.8 PSH) ----
+
+/** The names (t) requires build/p316/hostile-door.mjs to carry, pinned by the spec so the two builders agree. */
+export const HOSTILE_SCROLLBACK_ARMS = Object.freeze([
+  'scrollback-extra-rows',
+  'scrollback-from',
+  'scrollback-colour',
+  'scrollback-overlap-lie',
+  'scrollback-space',
+  'scrollback-chunked',
+  'scrollback-never',
+  'scrollback-404'
+]);
+
+/** (t)'s Phase 337.1 half, over hostile-door.mjs's text (or null) and Copy.swift's. */
+export function ruleHostileScrollbackArms(hostile, copy) {
+  const findings = [];
+  const said = { arms: [] };
+  if (hostile === null) return { findings: ['build/p316/hostile-door.mjs does not exist'], said };
+  const copyWords = new Set(copy === null ? [] : [...copy.matchAll(/\bstatic\s+let\s+([A-Za-z0-9_]+)\s*=\s*"/g)].map((m) => m[1]));
+  for (const arm of HOSTILE_SCROLLBACK_ARMS) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+    if (row === null) {
+      findings.push(`build/p316/hostile-door.mjs names no scrollback arm ${JSON.stringify(arm)}`);
+      continue;
+    }
+    said.arms.push(arm);
+    if (!/\bscrollback:\s*'[a-z-]+'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say which pages it spoils (scrollback:)`);
+    const ends = /\bends:\s*'([^']*)'/.exec(row[1])?.[1] ?? null;
+    if (ends === null || !SCREEN_ARM_ENDS.has(ends)) findings.push(`hostile-door.mjs's ${arm} ends in ${JSON.stringify(ends)}, not a sentence or the live terminal drawn`);
+    if (!/\bat:\s*'[a-z0-9-]+'/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say where it ends (at:)`);
+    const words = [...(/\bexpect:\s*\[([^\]]*)\]/.exec(row[1])?.[1] ?? '').matchAll(/'([A-Za-z0-9_]+)'/g)].map((m) => m[1]);
+    if (ends === 'sentence' && words.length === 0) findings.push(`hostile-door.mjs's ${arm} ends in a sentence and names none it may be`);
+    for (const w of words) if (!copyWords.has(w)) findings.push(`hostile-door.mjs's ${arm} expects Copy.${w}, which Copy.swift does not hold`);
+  }
+  for (const arm of ['scrollback-overlap-lie', 'scrollback-space']) {
+    const row = new RegExp(`(?:^|\\n)\\s*'${arm}':\\s*\\{([^\\n]*)\\}`).exec(hostile);
+    if (row !== null && !/\bstops:\s*true\b/.test(row[1])) findings.push(`hostile-door.mjs's ${arm} does not say paging stops there (stops: true); the phone draws the moved line and asks nothing more (§7.8 PSH)`);
+  }
   return { findings, said };
 }
 
@@ -9634,39 +10299,379 @@ export function ruleScreenPans(files) {
   expect('(ao) passes a plate in bgCanvas', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk }]).findings.length === 0);
   expect('(ao) catches a cover holding text', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk.replace('Rectangle().fill(Tokens.bgCanvas)', 'Text(Copy.screen).background(Tokens.bgCanvas)') }]).findings.length > 0);
   expect('(ao) catches a cover drawn only in the background', ruleScreenCover([{ name: 'Screens/Screen.swift', source: coverOk.replace('phase != .active', 'phase == .background') }]).findings.length > 0);
-  const panOk = [
-    'struct ScreenGrid: View {',
-    '    var body: some View {',
-    '        GeometryReader { proxy in',
-    '            ScrollView([.horizontal, .vertical]) {',
-    '                grid(cell)',
-    '                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)',
-    '                    .contentShape(Rectangle())',
-    '                    .gesture(magnify(cell: cell))',
-    '                    .gesture(selectPress(cell))',
-    '            }',
+  // Phase 337.1: (aq) rewritten, (ar) to (au), and the widened (ak) and (t), each proved on a
+  // minimal app that keeps the rule and on the shapes a later round could ship with it green.
+  const scrollerOk = [
+    'final class ScreenScrollView: UIScrollView, UIScrollViewDelegate {',
+    '    let contentView = UIView()',
+    '    private let host: UIHostingController<ScreenWindow>',
+    '    init() {',
+    '        host = UIHostingController(rootView: ScreenWindow.empty)',
+    '        super.init(frame: .zero)',
+    '        contentInsetAdjustmentBehavior = .never',
+    '        host.view.isUserInteractionEnabled = false',
+    '        let press = UILongPressGestureRecognizer(target: self, action: #selector(pressed(_:)))',
+    '        press.minimumPressDuration = ScreenGesture.longPressSeconds',
+    '        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched(_:)))',
+    '        let double = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))',
+    '        double.numberOfTapsRequired = 2',
+    '        let single = UITapGestureRecognizer(target: self, action: #selector(tapped(_:)))',
+    '        single.require(toFail: double)',
+    '        for gesture in [press, pinch, double, single] as [UIGestureRecognizer] {',
+    '            addGestureRecognizer(gesture)',
+    '        }',
+    '        for name in [UIResponder.keyboardWillChangeFrameNotification, UIResponder.keyboardWillHideNotification] {',
+    '            NotificationCenter.default.addObserver(self, selector: #selector(keyboardOverlap(_:)), name: name, object: nil)',
     '        }',
     '    }',
-    '    private func selectPress(_ cell: ScreenCell) -> ScreenLongPress {',
-    '        ScreenLongPress(minimumDuration: ScreenGesture.longPressSeconds, moved: { _ in }, ended: {})',
+    '    @objc private func pressed(_ press: UILongPressGestureRecognizer) {',
+    '        _ = press.location(in: contentView)',
     '    }',
-    '}',
-    'struct ScreenLongPress: UIGestureRecognizerRepresentable {',
-    '    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {',
-    '        let press = UILongPressGestureRecognizer()',
-    '        press.minimumPressDuration = minimumDuration',
-    '        return press',
+    '    @objc func keyboardOverlap(_ note: Notification) {',
+    '        let end = (note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? NSValue)?.cgRectValue ?? .zero',
+    '        let mine = convert(end, from: nil)',
+    '        overlap = max(0, bounds.maxY - mine.minY)',
+    '        var inset = contentInset',
+    '        inset.bottom = overlap',
+    '        contentInset = inset',
+    '        var bars = verticalScrollIndicatorInsets',
+    '        bars.bottom = overlap',
+    '        verticalScrollIndicatorInsets = bars',
+    '        actions?.overlap(overlap)',
+    '        let y = min(contentOffset.y, maxOffsetY)',
+    '        contentOffset = CGPoint(x: contentOffset.x, y: y)',
+    '    }',
+    '    private func remeasureKeyboard() {',
+    '        DispatchQueue.main.async { [weak self] in',
+    '            if let note = self?.keyboardNote { self?.keyboardOverlap(note) }',
+    '        }',
+    '    }',
+    '    override func layoutSubviews() {',
+    '        super.layoutSubviews()',
+    '        remeasureKeyboard()',
+    '        let visible = max(0, bounds.height - overlap)',
+    '        let pad = max(0, visible - CGFloat(picture.rowCount) * cell.height)',
+    '        let size = CGSize(width: 1, height: CGFloat(rows) * cell.height + pad)',
+    '        contentSize = size',
+    '        apply(above: CGPoint(x: 0, y: added))',
+    '        keep()',
+    '    }',
+    '    private func keep() {',
+    '        apply(above: CGPoint(x: 0, y: 1))',
+    '    }',
+    '    private func apply(above delta: CGPoint) {',
+    '        UIView.performWithoutAnimation {',
+    '            contentOffset = CGPoint(x: contentOffset.x + delta.x, y: contentOffset.y + delta.y)',
+    '        }',
+    '    }',
+    '    private func pin() {',
+    '        contentOffset = CGPoint(x: contentOffset.x, y: maxOffsetY)',
+    '    }',
+    '    func drawWindow(force: Bool) {',
+    '        spoken = spokenFrom..<spokenTo',
     '    }',
     '}',
     ''
   ].join('\n');
-  const pan = (src, more = []) => ruleScreenPans([{ name: 'Screens/ScreenGrid.swift', source: src }, ...more]).findings.length;
-  expect('(aq) passes UIKit\'s long press and the top-anchored frame', pan(panOk) === 0);
-  expect('(aq) catches the SwiftUI long press sequenced before a drag', pan(panOk.replace('.gesture(selectPress(cell))', '.gesture(LongPressGesture(minimumDuration: 0.45).sequenced(before: DragGesture(minimumDistance: 0)))')) > 0);
-  expect('(aq) catches a SwiftUI drag in another Screen file', pan(panOk, [{ name: 'Screens/Screen.swift', source: 'let d = DragGesture(minimumDistance: 0)\n' }]) > 0);
-  expect('(aq) catches the rows centred (no top-anchored frame)', pan(panOk.replace('alignment: .topLeading)', 'alignment: .center)')) > 0);
-  expect('(aq) catches the gestures put before the frame', pan(panOk.replace('                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n', '').replace('.gesture(selectPress(cell))', '.gesture(selectPress(cell))\n                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())')) > 0);
-  expect('(aq) catches a long press that is not UIKit\'s', pan(panOk.replace('struct ScreenLongPress: UIGestureRecognizerRepresentable', 'struct ScreenLongPress: View')) > 0);
+  const pageOk = [
+    'struct ScreenPage<Header: View, Tray: View>: View {',
+    '    @State private var overlap: CGFloat = 0',
+    '    var body: some View {',
+    '        ZStack {',
+    '            VStack(spacing: 0) {',
+    '                header',
+    '                content',
+    '                    .overlay(alignment: .bottom) { bottom }',
+    '                if overlap == 0 { tray }',
+    '            }',
+    '        }',
+    '        .ignoresSafeArea(.keyboard, edges: .bottom)',
+    '        .onAppear { keys?.onSend = { [weak history] in history?.follow() } }',
+    '    }',
+    '    private var content: some View {',
+    '        ScreenScroller(actions: ScreenScrollerActions(overlap: { overlap = $0 }))',
+    '    }',
+    '    private var bottom: some View {',
+    '        VStack {',
+    '            Button { scrollback.follow() } label: { Image(systemName: "arrow.down.to.line") }',
+    '                .accessibilityIdentifier(ID.screenToLive)',
+    '        }',
+    '        .padding(.bottom, overlap)',
+    '    }',
+    '    private var copyDrawn: Bool {',
+    '        !selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  // Phase 337.1's fix round: the window's rows, an element only while in view.
+  const gridOk = [
+    'struct ScreenWindow: View {',
+    '    private func drawn(_ item: ScreenWindowRow) -> some View {',
+    '        ScreenRowView(row: row)',
+    '            .accessibilityElement(children: item.spoken ? .ignore : .contain)',
+    '            .accessibilityLabel(Text(verbatim: item.spoken ? row.label : ""))',
+    '            .accessibilityIdentifier(item.spoken ? ID.screenRow(n) : "")',
+    '            .accessibilityHidden(!item.spoken)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const scr = (s = scrollerOk, more = {}) => Object.entries({ 'Screens/ScreenScroller.swift': s, 'Screens/Screen.swift': pageOk, 'Screens/ScreenGrid.swift': gridOk, ...more }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }));
+  const aq = (s, more) => ruleScreenPans(scr(s, more)).findings.length;
+  const fixSwap = (label, text, from, to) => {
+    if (!text.includes(from)) selfFailures.push(`${label} fixture holds no ${JSON.stringify(from.slice(0, 60))}`);
+    return text.replace(from, to);
+  };
+  const sq = (from, to) => fixSwap('(aq)', scrollerOk, from, to);
+  expect('(aq) passes a UIKit scroll view that never centres and moves by the delta', aq() === 0);
+  expect('(aq) catches a SwiftUI ScrollView put back in a Screen file', aq(scrollerOk, { 'Screens/ScreenGrid.swift': 'struct G: View { var body: some View { ScrollView([.horizontal, .vertical]) { rows } } }\n' }) > 0);
+  expect('(aq) catches the SwiftUI long press', aq(scrollerOk, { 'Screens/ScreenGrid.swift': 'let p = LongPressGesture(minimumDuration: 0.45)\n' }) > 0);
+  expect('(aq) catches a GeometryReader framing the rows', aq(scrollerOk, { 'Screens/ScreenGrid.swift': 'struct G: View { var body: some View { GeometryReader { proxy in rows } } }\n' }) > 0);
+  expect('(aq) catches the inset adjustment left on', aq(sq('contentInsetAdjustmentBehavior = .never', 'contentInsetAdjustmentBehavior = .automatic')) > 0);
+  expect('(aq) catches a long press that does not wait longPressSeconds', aq(sq('press.minimumPressDuration = ScreenGesture.longPressSeconds', 'press.minimumPressDuration = 0.2')) > 0);
+  expect('(aq) catches the single tap not waiting for the double', aq(sq('        single.require(toFail: double)\n', '')) > 0);
+  expect('(aq) catches a gesture added to the hosting view', aq(sq('            addGestureRecognizer(gesture)', '            host.view.addGestureRecognizer(gesture)')) > 0);
+  expect('(aq) catches a point read in the view, not the content', aq(sq('press.location(in: contentView)', 'press.location(in: self)')) > 0);
+  expect('(aq) catches a hosting view that takes touches', aq(sq('host.view.isUserInteractionEnabled = false', 'host.view.isUserInteractionEnabled = true')) > 0);
+  expect('(aq) catches the delta applied outside layoutSubviews', aq(sq('    private func pin() {', '    func scrollViewDidScroll(_ s: UIScrollView) {\n        apply(above: CGPoint(x: 0, y: 1))\n    }\n    private func pin() {')) > 0);
+  expect('(aq) catches an offset set rather than moved by the delta', aq(sq('contentOffset = CGPoint(x: contentOffset.x + delta.x, y: contentOffset.y + delta.y)', 'contentOffset = delta')) > 0);
+  expect('(aq) catches the delta applied with animation', aq(sq('        UIView.performWithoutAnimation {\n            contentOffset = CGPoint(x: contentOffset.x + delta.x, y: contentOffset.y + delta.y)\n        }', '        contentOffset = CGPoint(x: contentOffset.x + delta.x, y: contentOffset.y + delta.y)')) > 0);
+  expect('(aq) catches another writer of the offset', aq(sq('    private func pin() {', '    func jump() {\n        setContentOffset(.zero, animated: false)\n    }\n    private func pin() {')) > 0);
+  expect('(aq) catches the pad removed', aq(sq('height: CGFloat(rows) * cell.height + pad)', 'height: CGFloat(rows) * cell.height)')) > 0);
+  expect('(aq) catches a pad from a SwiftUI geometry', aq(sq('let visible = max(0, bounds.height - overlap)', 'let visible = max(0, proxy.size.height - overlap)')) > 0);
+  expect('(aq) catches content sized outside layoutSubviews', aq(sq('    private func pin() {', '    func grow() {\n        contentSize = .zero\n    }\n    private func pin() {')) > 0);
+  expect('(aq) catches a top inset that centres', aq(sq('        inset.bottom = overlap\n', '        inset.bottom = overlap\n        contentInset.top = 40\n')) > 0);
+  expect('(aq) catches every row of the window an element again (the fix round)', aq(scrollerOk, { 'Screens/ScreenGrid.swift': gridOk.replace('.accessibilityIdentifier(item.spoken ? ID.screenRow(n) : "")', '.accessibilityIdentifier(ID.screenRow(n))') }) > 0);
+  expect('(aq) catches an out-of-view row a hidden element rather than none (the fix round)', aq(scrollerOk, { 'Screens/ScreenGrid.swift': gridOk.replace('.accessibilityElement(children: item.spoken ? .ignore : .contain)', '.accessibilityElement()') }) > 0);
+  expect('(aq) catches the rows in view never marked (the fix round)', aq(sq('        spoken = spokenFrom..<spokenTo\n', '')) > 0);
+  const ar = (s = scrollerOk, page = pageOk, more = {}) => ruleScreenKeyboard(scr(s, { 'Screens/Screen.swift': page, ...more })).findings.length;
+  const pq = (from, to) => fixSwap('(ar)', pageOk, from, to);
+  expect('(ar) passes the root\'s one opt-out and the one keyboard function', ar() === 0);
+  expect('(ar) catches the first draft: the opt-out on the representable alone, a view below it', ar(scrollerOk, pq('                content\n                    .overlay(alignment: .bottom) { bottom }\n', '                content\n                    .ignoresSafeArea(.keyboard, edges: .bottom)\n                    .overlay(alignment: .bottom) { bottom }\n').replace('        .ignoresSafeArea(.keyboard, edges: .bottom)\n        .onAppear', '        .onAppear')) > 0);
+  expect('(ar) catches a second opt-out inside the page', ar(scrollerOk, pq('                if overlap == 0 { tray }', '                if overlap == 0 { tray.ignoresSafeArea(.keyboard) }')) > 0);
+  expect('(ar) catches an opt-out in TerminalPage', ar(scrollerOk, pageOk, { [SESSION_SCREEN_FILE]: 'struct TerminalPage: View {\n    var body: some View { ScreenPage().ignoresSafeArea(.keyboard) }\n}\n' }) > 0);
+  expect('(ar) catches the inset written outside keyboardOverlap', ar(sq('    private func pin() {', '    func again() {\n        contentInset = .zero\n    }\n    private func pin() {')) > 0);
+  expect('(ar) catches the keyboard frame not converted', ar(sq('let mine = convert(end, from: nil)', 'let mine = end')) > 0);
+  expect('(ar) catches the overlap never published', ar(sq('        actions?.overlap(overlap)\n', '')) > 0);
+  expect('(ar) catches the offset not clamped when the keyboard goes', ar(sq('let y = min(contentOffset.y, maxOffsetY)', 'let y = contentOffset.y')) > 0);
+  expect('(ar) catches the hide not observed', ar(sq('UIResponder.keyboardWillHideNotification]', 'UIResponder.keyboardDidShowNotification]')) > 0);
+  expect('(ar) catches the keyboard read in the page', ar(scrollerOk, pq('    private var content: some View {', '    let g = UIResponder.keyboardWillChangeFrameNotification\n    private var content: some View {')) > 0);
+  expect('(ar) catches the overlap never measured again when the view grows (the fix round)', ar(sq('        remeasureKeyboard()\n', '')) > 0);
+  expect('(ar) catches the overlap measured again inside the layout pass (the fix round)', ar(sq('        DispatchQueue.main.async { [weak self] in\n            if let note = self?.keyboardNote { self?.keyboardOverlap(note) }\n        }\n', '        if let note = keyboardNote { keyboardOverlap(note) }\n')) > 0);
+  expect('(ar) catches the line padded by something else', ar(scrollerOk, pq('.padding(.bottom, overlap)', '.padding(.bottom, 300)')) > 0);
+  expect('(ar) catches the overlap set from anything but the scroll view', ar(scrollerOk, pq('overlap: { overlap = $0 }', 'overlap: { overlap = $0 + 20 }')) > 0);
+  // (as)
+  const clientAs = 'final class DoorClient {\n    static func scrollbackTarget(_ id: String, from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) -> String {\n        "/v1/scrollback?id=\\(queryValue(id))&from=\\(from)&count=\\(count)&depth=\\(depth)&wrap=\\(wrap)&keep=\\(keep.rawValue)"\n    }\n}\n';
+  const historyAs = [
+    'struct ScrollbackLayout {',
+    '    static let pageRows = 100',
+    '    static let overlapRows = 8',
+    '    static let mostHeld = 3_000',
+    '    private(set) var top = 0',
+    '    mutating func picture(_ p: ScreenPicture) {',
+    '        depthSeen = p.depth',
+    '    }',
+    '    mutating func reserve(visibleTop: Int) -> Int {',
+    '        top = reached',
+    '        return 1',
+    '    }',
+    '    mutating func accept(_ page: PocketScrollbackAnswer, for ask: ScrollbackAsk) -> ScrollbackLanding {',
+    '        guard page.pageWrap == wrap, page.space == space, depth >= depthSeen else { return .moved }',
+    '        guard overlapAgrees(rows, ask: ask) else { return .moved }',
+    '        held[index] = row',
+    '        return .joined(1)',
+    '    }',
+    '    private func overlapAgrees(_ rows: [Int: ScrollbackRow], ask: ScrollbackAsk) -> Bool {',
+    '        rows.allSatisfy { held[$0.key]?.row.label == $0.value.row.label }',
+    '    }',
+    '    mutating func evict(visibleTop: Int, visibleBottom: Int) -> Int {',
+    '        while held.count > Self.mostHeld { held[lo] = nil }',
+    '        return 0',
+    '    }',
+    '}',
+    'final class ScrollbackModel {',
+    '    static let minGap: Duration = .milliseconds(250)',
+    '    private func pump() {',
+    '        guard inFlight == nil else { return }',
+    '        if let s = lastStarted, s.advanced(by: Self.minGap) > now() { return }',
+    '        inFlight = Task { _ = try await door.scrollback(from: 0, count: 1, depth: 1, wrap: 1, keep: .top) }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const selectionAs = 'enum ScreenSelecting {\n    static func hit(_ p: CGPoint, cell: ScreenCell, columns: Int, first: Int, rows: Int) -> ScreenPoint? {\n        ScreenPoint(row: first + Int(p.y), column: 0)\n    }\n}\n';
+  const keysAs = 'final class ScreenKeySender {\n    var onSend: (() -> Void)?\n    func flush() {\n        onSend?()\n    }\n}\n';
+  const asFiles = (edits = {}) => Object.entries({ 'Door/DoorClient.swift': clientAs, 'Screens/ScreenScrollback.swift': historyAs, 'Screens/ScreenSelection.swift': selectionAs, 'Screens/ScreenKeys.swift': keysAs, 'Screens/Screen.swift': pageOk, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }));
+  const as = (edits) => ruleScrollbackClient(asFiles(edits)).findings.length;
+  const hq = (from, to) => ({ 'Screens/ScreenScrollback.swift': fixSwap('(as)', historyAs, from, to) });
+  expect('(as) passes the client and the history that keep it', as() === 0);
+  expect('(as) catches cols in the scrollback target', as({ 'Door/DoorClient.swift': clientAs.replace('&wrap=', '&cols=') }) > 0);
+  expect('(as) catches the target\'s names out of order', as({ 'Door/DoorClient.swift': clientAs.replace('&from=\\(from)&count=\\(count)', '&count=\\(count)&from=\\(from)') }) > 0);
+  expect('(as) catches /v1/scrollback spelled outside the target', as({ 'Screens/Screen.swift': `${pageOk}let u = "/v1/scrollback"\n` }) > 0);
+  expect('(as) catches minGap 0.1', as(hq('.milliseconds(250)', '.milliseconds(100)')) > 0);
+  expect('(as) catches a second pageRows', as(hq('    static let mostHeld = 3_000', '    static let mostHeld = 3_000\n    static let pageRows = 200')) > 0);
+  expect('(as) catches 5,000 rows held', as(hq('static let mostHeld = 3_000', 'static let mostHeld = 5_000')) > 0);
+  expect('(as) catches two pages in flight (no inFlight check)', as(hq('        guard inFlight == nil else { return }\n', '')) > 0);
+  expect('(as) catches the space check removed', as(hq('page.space == space, ', '')) > 0);
+  expect('(as) catches the overlap check removed', as(hq('        guard overlapAgrees(rows, ask: ask) else { return .moved }\n', '')) > 0);
+  expect('(as) catches a page that moves top', as(hq('        held[index] = row\n', '        held[index] = row\n        top = 0\n')) > 0);
+  expect('(as) catches top moved outside reserve', as(hq('    mutating func evict(visibleTop: Int, visibleBottom: Int) -> Int {', '    mutating func jump() { top = 0 }\n    mutating func evict(visibleTop: Int, visibleBottom: Int) -> Int {')) > 0);
+  expect('(as) catches a live picture that does not raise depthSeen', as(hq('        depthSeen = p.depth\n', '')) > 0);
+  expect('(as) catches a point by its layout row', as({ 'Screens/ScreenSelection.swift': selectionAs.replace('first: Int, rows', 'top: Int, rows').replace('first + Int', 'top + Int') }) > 0);
+  expect('(as) catches Copy unguarded', as({ 'Screens/Screen.swift': pageOk.replace('!selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)', '!selection.isEmpty') }) > 0);
+  expect('(as) catches a key that does not return to live', as({ 'Screens/ScreenKeys.swift': keysAs.replace('        onSend?()\n', '') }) > 0);
+  expect('(as) catches the history persisted', as(hq('    static let minGap', '    let kept = UserDefaults.standard\n    static let minGap')) > 0);
+  expect('(as) catches the model declared outside its Screen-family file', as({ 'Screens/Scrollback.swift': 'final class ScrollbackModel {}\n' }) > 0);
+  // (at)
+  const appAt = [
+    'final class SessionRouteModel {',
+    '    private(set) var face: Face?',
+    '    nonisolated static func face(screen: Bool, hasDoor: Bool) -> Face {',
+    '        screen && hasDoor ? .terminal : .catchUp',
+    '    }',
+    '    func decide() {',
+    '        guard face == nil, case .loaded(let drawing) = session.phase else { return }',
+    '        let door = drawing.screen ? reader.screenDoor(sessionId) : nil',
+    '        face = Self.face(screen: drawing.screen, hasDoor: door != nil)',
+    '    }',
+    '}',
+    'private struct SessionRoute: View {',
+    '    var body: some View {',
+    '        ZStack {',
+    '            Color.clear.frame(width: 0, height: 0).accessibilityElement().accessibilityIdentifier(ID.sessionRouteMark).accessibilityHidden(true)',
+    '            switch route.face {',
+    '            case .terminal?: TerminalFace(door: door)',
+    '            case .catchUp?: CatchUpPage(conversation: conversation)',
+    '            case nil: deciding',
+    '            }',
+    '        }',
+    '        .accessibilityIdentifier(ID.sessionScreen)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const pageAt = [
+    'struct StatusLine: View {',
+    '    let drawing: SessionDrawing',
+    '    var body: some View { Words(drawing.statusTitle, .secondary, drawing.dot.color).accessibilityIdentifier(ID.terminalStatus) }',
+    '}',
+    'struct TerminalPage: View {',
+    '    var body: some View {',
+    '        ScreenPage(model: screen) {',
+    '            StatusLine(drawing: drawing)',
+    '        } tray: {',
+    '            ChoiceTray(drawing: drawing, reply: reply)',
+    '        } trailing: {',
+    '            CatchUpItem { openCatchUp(drawing.outcome) }',
+    '            EndTopItem(model: end) { await session.load() }',
+    '        }',
+    '    }',
+    '}',
+    'struct CatchUpItem: ToolbarContent {',
+    '    var body: some ToolbarContent {',
+    '        ToolbarItem(placement: .topBarTrailing) {',
+    '            Button(action: open) { Image(systemName: "text.bubble") }',
+    '                .accessibilityLabel(Text(verbatim: Copy.catchMeUp))',
+    '                .accessibilityIdentifier(ID.sessionOpenCatchUp)',
+    '        }',
+    '    }',
+    '}',
+    'struct ChoiceTray: View {',
+    '    var body: some View {',
+    '        ForEach(shown) { item in OptionRow(option: item.option, n: item.n, press: press(item.option)) }',
+    '        Words(command, .body, Tokens.textPrimary, lines: nil)',
+    '    }',
+    '    private func press(_ option: PocketChoiceOption) -> OptionPress {',
+    '        OptionPress { reply.press(option.marker, offer: offer, reread: reread) }',
+    '    }',
+    '}',
+    'private struct OptionRow: View {',
+    '    var body: some View { Button { } label: { Text("") }.accessibilityIdentifier(ID.sessionChoicePress(n)).accessibilityIdentifier(ID.sessionChoice(n)) }',
+    '}',
+    ''
+  ].join('\n');
+  const atFiles = (edits = {}) => Object.entries({ 'App/TortieApp.swift': appAt, [SESSION_SCREEN_FILE]: pageAt, ...edits }).filter(([, v]) => v !== null).map(([name, source]) => ({ name, source }));
+  const at = (edits) => ruleTerminalFirst(atFiles(edits)).findings.length;
+  const aA = (from, to) => ({ 'App/TortieApp.swift': fixSwap('(at)', appAt, from, to) });
+  const pA = (from, to) => ({ [SESSION_SCREEN_FILE]: fixSwap('(at)', pageAt, from, to) });
+  expect('(at) passes the Terminal first, the icon then End, and 318\'s tray', at() === 0);
+  expect('(at) catches the Terminal drawn with no screen door', at(aA('screen && hasDoor ? .terminal : .catchUp', 'screen ? .terminal : .catchUp')) > 0);
+  expect('(at) catches the face decided again on a later answer', at(aA('guard face == nil, case', 'guard case')) > 0);
+  expect('(at) catches the face set a second time', at(aA('    func decide() {', '    func swap() { face = .catchUp }\n    func decide() {')) > 0);
+  expect('(at) catches the route\'s container not screen-session', at(aA('.accessibilityIdentifier(ID.sessionScreen)', '.accessibilityIdentifier(ID.screen)')) > 0);
+  expect('(at) catches the route\'s second child taken out, so the face folds into the route (the fix round)', at(aA('            Color.clear.frame(width: 0, height: 0).accessibilityElement().accessibilityIdentifier(ID.sessionRouteMark).accessibilityHidden(true)\n', '')) > 0);
+  expect('(at) catches the route\'s second child spoken by VoiceOver (the fix round)', at(aA('.accessibilityIdentifier(ID.sessionRouteMark).accessibilityHidden(true)', '.accessibilityIdentifier(ID.sessionRouteMark)')) > 0);
+  expect('(at) catches Route.screen put back', at({ 'App/TortieApp.swift': `${appAt}enum Route { case screen(id: String) }\n` }) > 0);
+  expect('(at) catches End before the icon', at(pA('            CatchUpItem { openCatchUp(drawing.outcome) }\n            EndTopItem(model: end) { await session.load() }', '            EndTopItem(model: end) { await session.load() }\n            CatchUpItem { openCatchUp(drawing.outcome) }')) > 0);
+  expect('(at) catches the icon drawn as a word', at(pA('Image(systemName: "text.bubble")', 'Words(Copy.catchMeUp, .body, Tokens.accent)')) > 0);
+  expect('(at) catches another symbol', at(pA('"text.bubble"', '"bubble.left"')) > 0);
+  expect('(at) catches the tray pressing outside ReplyModel.press', at(pA('reply.press(option.marker', 'writer.press(option.marker')) > 0);
+  expect('(at) catches the tray on new identifiers', at(pA('ID.sessionChoicePress(n)', 'ID.terminalChoice(n)')) > 0);
+  expect('(at) catches a line limit in the tray', at(pA('lines: nil)', 'lines: 2)')) > 0);
+  expect('(at) catches the status line reading more than the drawing', at(pA('    let drawing: SessionDrawing\n    var body', '    let drawing: SessionDrawing\n    let picture: ScreenPicture\n    var body')) > 0);
+  // (au)
+  const copyAu = '    /// Mac: src/main/menu.ts ⟦item(\'Catch Me Up\', \'show-overview\'⟧\n    static let catchMeUp = "Catch Me Up"\n    /// Phone: the terminal.\n    static let terminal = "Terminal"\n';
+  const menuAu = "item('Catch Me Up', 'show-overview', accel('view.overview'), 'comment'),\n";
+  const au = (copy = copyAu, menu = menuAu, more = []) => ruleRename([{ name: 'Style/Copy.swift', source: copy }, ...more], menu).findings.length;
+  expect('(au) passes Catch Me Up owned by the menu and Terminal', au() === 0);
+  expect('(au) catches Catch Me Up cased differently', au(copyAu.replace('"Catch Me Up"', '"Catch me up"')) > 0);
+  expect('(au) catches a Copy word "Conversation" put back', au(`${copyAu}    static let conversation = "Conversation"\n`) > 0);
+  expect('(au) catches the owner line on another word', au(copyAu.replace('    /// Mac: src/main/menu.ts ⟦item(\'Catch Me Up\', \'show-overview\'⟧\n    static let catchMeUp', '    /// Mac: src/main/menu.ts ⟦item(\'Catch Me Up\', \'show-overview\'⟧\n    static let other = "x"\n    static let catchMeUp')) > 0);
+  expect('(au) catches the menu no longer saying it', au(copyAu, "item('Overview', 'show-overview'),\n") > 0);
+  expect('(au) catches terminalStaysOnMac put back', au(`${copyAu}    static let terminalStaysOnMac = "x"\n`) > 0);
+  expect('(au) catches a drawn "Conversation"', au(copyAu, menuAu, [{ name: 'Screens/X.swift', source: 'let t = Text(verbatim: "Conversation")\n' }]) > 0);
+  expect('(au) catches a conversation identifier', au(copyAu, menuAu, [{ name: 'Screens/Identifiers.swift', source: 'static let x = "conversation-turn"\n' }]) > 0);
+  // (ak) widened: the side line
+  const sideOk = [
+    'final class PairedScreenDoor: ScreenDoor {',
+    '    private let poll = DoorLine(keeps: true)',
+    '    private let typing = DoorLine(keeps: true)',
+    '    private let side = DoorLine(keeps: true)',
+    '    private let sideGate = OneExchange()',
+    '    func scrollback(from: Int) async throws -> PocketScrollbackAnswer {',
+    '        let side = side',
+    '        return try await sideGate.run { try await client.scrollback(id, from: from, line: side, door: door) }',
+    '    }',
+    '    func session() async throws -> PocketSessionAnswer {',
+    '        let side = side',
+    '        return try await sideGate.run { try await client.session(id, door: door, line: side) }',
+    '    }',
+    '    func close() {',
+    '        poll.close()',
+    '        typing.close()',
+    '        side.close()',
+    '    }',
+    '}',
+    'actor OneExchange {',
+    '    func run<T: Sendable>(_ exchange: @Sendable () async throws -> T) async throws -> T {',
+    '        await enter()',
+    '        defer { leave() }',
+    '        return try await exchange()',
+    '    }',
+    '    private func enter() async {',
+    '        guard busy else { busy = true; return }',
+    '        await withCheckedContinuation { waiting.append($0) }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const side = (src) => ruleSideLine([{ name: 'App/TortieApp.swift', source: src }]).findings.length;
+  const sd = (from, to) => fixSwap('(ak)', sideOk, from, to);
+  expect('(ak) passes three kept lines, the side one gated', side(sideOk) === 0);
+  expect('(ak) catches the side line not closed', side(sd('        side.close()\n', '')) > 0);
+  expect('(ak) catches a page off the gate', side(sd('return try await sideGate.run { try await client.scrollback(id, from: from, line: side, door: door) }', 'return try await client.scrollback(id, from: from, line: side, door: door)')) > 0);
+  expect('(ak) catches the side line carrying the poll', side(sd('    func close() {', '    func read() async throws { _ = try await client.screen(id, line: side) }\n    func close() {')) > 0);
+  expect('(ak) catches a second gate', side(sd('    private let sideGate = OneExchange()', '    private let sideGate = OneExchange()\n    private let other = OneExchange()')) > 0);
+  expect('(ak) catches a gate that never waits', side(sd('        await withCheckedContinuation { waiting.append($0) }\n', '')) > 0);
+  // (t) widened: the scrollback arms
+  const hostileSb = HOSTILE_SCROLLBACK_ARMS.map((a) => `  '${a}': { what: 'x', ends: '${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? 'sentence' : 'drawn'}', scrollback: 'every', at: 'screen-grid', expect: [${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? "'scrollbackMoved'" : ''}]${a === 'scrollback-overlap-lie' || a === 'scrollback-space' ? ', stops: true' : ''} },`).join('\n');
+  const copySb = 'static let scrollbackMoved = "Earlier lines changed."\n';
+  const tSb = (h, c = copySb) => ruleHostileScrollbackArms(h, c).findings.length;
+  expect('(t) passes the eight scrollback arms', tSb(hostileSb) === 0);
+  expect('(t) catches a scrollback arm missing', tSb(hostileSb.replace("'scrollback-404'", "'scrollback-410'")) > 0);
+  expect('(t) catches a lie that does not stop paging', tSb(hostileSb.replace(", stops: true },\n  'scrollback-space'", " },\n  'scrollback-space'")) > 0);
+  expect('(t) catches an arm expecting a word Copy.swift lacks', tSb(hostileSb, 'static let other = "x"\n') > 0);
 }
 
 // ---------------------------------------------------------------------------
@@ -9679,7 +10684,7 @@ export function ruleScreenPans(files) {
  * (ab), (ac) and (ad) are Phase 317's; and (aa), the letter Phase 317 left for
  * it (build/p317/SPEC.md §4.3), is Phase 316.7's (build/p3167/SPEC.md §8.4).
  */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq'];
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq', 'ar', 'as', 'at', 'au'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -10048,11 +11053,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     });
     // Phase 337: the Screen's hostile arms, the kept lines' among them.
     const sh = ruleHostileScreenArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
+    // Phase 337.1: the scrollback arms, named as build/p3371/SPEC.md §6.4 pins them.
+    const sb = ruleHostileScrollbackArms(existsSync(hostilePath) ? read(hostilePath) : null, existsSync(COPY_SWIFT) ? read(COPY_SWIFT) : null);
     record(
       't',
       'the client is pinned mutual TLS 1.3 to a public name, and reads HTTP by hand, bounded',
-      [...r.findings, ...sh.findings],
-      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, and ${String(sh.said.arms.length)} Screen arm(s), each ending where it names`
+      [...r.findings, ...sh.findings, ...sb.findings],
+      `a local identity on every paired connection (${String(r.said.identityCalls)} exchange(s) with one, and POST /pair alone with none; ${String(r.said.connects)} connect( call(s) naming one, the writes' with the paired door's); the verify block completes with DoorPin's answer; TLS 1.3 the minimum and nothing older; a .ts.net name at 8443 or 10000, checked by the parse; one Content-Length required, Transfer-Encoding refused, Connection: close; hostile-door.mjs names ${String(r.said.arms.length)} HTTP arm(s) (${r.said.arms.join(', ')}), each ending in a Copy sentence, ${String(r.said.writeArms.length)} write arm(s), each ending where it names, in a Copy sentence or the door's own, ${String(r.said.replyArms.length)} reply arm(s), each with its verb and one POST, ending in the press line, the message line or Pairing, ${String(sh.said.arms.length)} Screen arm(s), each ending where it names, and ${String(sb.said.arms.length)} scrollback arm(s), each ending in the live terminal drawn or the moved line`
     );
   }
   // (u)
@@ -10116,7 +11123,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
       'the alert\'s refusals',
       [...r.findings, ...u.findings],
       `registerForRemoteNotifications ${String(r.said.registrations)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}; requestAuthorization ${String(r.said.asks)} time(s); UserNotifications named in ${r.said.unFiles.join(' and ') || 'no file'}; ` +
-        `userInfo read ${String(r.said.userInfo)} time(s), inside AlertTap.parse or handed to it; PushEnvironment.current .development under DEBUG and .production in its #else (${String(r.said.arms)} arms); apt and ape declared ${String(r.said.fields)} time(s), by Inner and Record; ` +
+        `userInfo read ${String(r.said.userInfo)} time(s), inside AlertTap.parse or handed to it, and the keyboard's own ${String(r.said.keyboardReads)} time(s), by its keys inside ${KEYBOARD_FILE}'s keyboardOverlap; PushEnvironment.current .development under DEBUG and .production in its #else (${String(r.said.arms)} arms); apt and ape declared ${String(r.said.fields)} time(s), by Inner and Record; ` +
         `iOS asked only for a Mac that says it can send: askForAlerts() ${String(r.said.flowAsks)} time(s) in the pending arm behind its word, askForPairing() ${String(r.said.pairingAsks)} time(s) inside the closure the pairing asks through, ${String(r.said.launchReads)} launch read(s) behind a guard on macSends; ` +
         `no badge write, service extension, background delivery, print or log in ${String(files.length)} app files, and no test of ${String(tests.length)} names the registration; ` +
         `unregisterForRemoteNotifications ${String(u.said.unregisters)} time(s), in the #else of #if DEBUG in ${ALERT_FILES.system}, and forgetAddress() ${String(u.said.forgets)} time(s), in AppModel.unpair's .forgotten arm after door.unpair()`
@@ -10236,7 +11243,7 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   // Phase 337: (ah) to (ap), the Screen (build/p337/SPEC.md §6.4).
   {
     const r = ruleScreenSizesNothing(appNamed);
-    record('ah', 'the Screen never sizes the Mac', r.findings, `DoorClient.screenTarget writes ${r.said.params.join(' and ') || 'nothing'}, the only builder of /v1/screen (${String(r.said.builders)} spelling); KeysBody holds ${r.said.keysFields || 'nothing'}; no request builder or Screen file names a size, and ScreenDoor takes since, and the items, turn and dialog, alone`);
+    record('ah', 'the Screen never sizes the Mac', r.findings, `DoorClient.screenTarget writes ${r.said.params.join(' and ') || 'nothing'}, the only builder of /v1/screen (${String(r.said.builders)} spelling); KeysBody holds ${r.said.keysFields || 'nothing'}; no request builder or Screen file names a size, and ScreenDoor takes since, and the items, turn and dialog, alone; its page takes from, count, depth, wrap and keep and its re-read nothing`);
   }
   {
     const r = ruleScreenKeys(appNamed, pocketKeyNames(existsSync(POCKET_TS) ? read(POCKET_TS) : null));
@@ -10248,7 +11255,9 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleKeptLines(appNamed);
-    record('ak', 'the kept lines: one network file, keep-alive only on a kept line, fresh for 4 s, closed by the phone', r.findings, `DoorLine in Door/DoorClient.swift; keep-alive written ${String(r.said.keepAliveSites)} time(s), only when a line keeps, and every other exchange says close; freshFor ${String(r.said.freshFor)} s; reused only fresh, closed idle by a timer, on Connection: close and on any byte with no request waiting; a read asked once more on a new line only after its reused line closed before an answer, and a write never retried`);
+    // Phase 337.1 (D30): the Terminal's third kept line, the side line.
+    const sl = ruleSideLine(appNamed);
+    record('ak', 'the kept lines: one network file, keep-alive only on a kept line, fresh for 4 s, closed by the phone', [...r.findings, ...sl.findings], `PairedScreenDoor keeps ${sl.said.lines.join(', ') || 'no'} line(s), the side line carrying ${[...new Set(sl.said.users)].join(' and ') || 'nothing'} alone, one exchange at a time through ${sl.said.gate ?? 'no gate'}, and close() closes all three; DoorLine in Door/DoorClient.swift; keep-alive written ${String(r.said.keepAliveSites)} time(s), only when a line keeps, and every other exchange says close; freshFor ${String(r.said.freshFor)} s; reused only fresh, closed idle by a timer, on Connection: close and on any byte with no request waiting; a read asked once more on a new line only after its reused line closed before an answer, and a write never retried`);
   }
   {
     const r = rulePasteboard(appNamed);
@@ -10278,7 +11287,25 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
   }
   {
     const r = ruleScreenPans(appNamed);
-    record('aq', 'the Screen pans, and a long press selects', r.findings, `no LongPressGesture or DragGesture in the Screen's files; the selection's long press is UIKit's (ScreenLongPress, ${r.said.press ? 'a UILongPressGestureRecognizer at ScreenGesture.longPressSeconds' : 'unread'}); the rows sit at the top of a frame at least the view's size, with the pinch and the long press on that whole frame (${r.said.topFrame ? 'in that order' : 'unread'})`);
+    record('aq', 'the Terminal pans, a page never moves it, and a long press selects', r.findings, `no SwiftUI ScrollView, LongPressGesture, DragGesture, MagnifyGesture or GeometryReader in the Screen's files; ScreenScrollView a UIScrollView with contentInsetAdjustmentBehavior = .never; its long press ${r.said.press ? 'waits ScreenGesture.longPressSeconds' : 'unread'}, its pinch and its two taps UIKit's, each on the scroll view and read in the content view, the single tap ${r.said.waits ? 'waiting for the double' : 'unread'}; one hosting view ${r.said.hostOff ? 'taking no touch' : 'unread'}; apply(above:) ${r.said.delta ? 'adds its delta to the current offset without animation, from layoutSubviews alone' : 'unread'}, and the offset written by ${[...new Set(r.said.writers)].join(', ') || 'nothing'} alone; the content the rows ${r.said.pad ? 'and D25\'s pad, from the view\'s own bounds and the overlap' : 'unread'}`);
+  }
+  // Phase 337.1: (ar) to (au) (build/p3371/SPEC.md §6.4).
+  {
+    const r = ruleScreenKeyboard(appNamed);
+    record('ar', 'the keyboard never moves the Terminal\'s frame', r.findings, `ScreenPage's root carries .ignoresSafeArea(.keyboard ${r.said.root ? 'once, and no view inside the page or TerminalPage does' : 'unread'}; the scroll view's insets written ${String(r.said.insets)} time(s), in keyboardOverlap(_:) alone, from the keyboard's change and hide converted into the view, the offset clamped there and the overlap published ${String(r.said.published)} time(s); the line and the back-to-live button padded by that overlap alone`);
+  }
+  {
+    const r = ruleScrollbackClient(appNamed);
+    record('as', 'the scrollback client', r.findings, `DoorClient.scrollbackTarget writes ${r.said.params.join(', ') || 'nothing'}, the one builder of /v1/scrollback; ${String(r.said.pageRows)} rows a page, ${String(r.said.overlapRows)} overlap rows and at most ${String(r.said.mostHeld)} held, each declared once in ${SCROLLBACK_FILE}; one page in flight, ScrollbackModel.minGap ${String(r.said.minGap)} s; accept( compares the space, the wrap, the depth and the overlap rows' text before it fills a row and moves no layout; reserve( the one place top moves; a live picture raises depthSeen; a point an absolute index and Copy only over drawn rows; a key returns to the live rows; nothing of the history persisted`);
+  }
+  {
+    const r = ruleTerminalFirst(appNamed);
+    record('at', 'terminal first', r.findings, `the session route draws ${String(r.said.faces)} face(s), the Terminal exactly when the answer's screen is true and a screen door answers, decided once, in ID.sessionScreen; TerminalPage's trailing items ${r.said.trailing.join(' then ') || 'none'}; the icon text.bubble, spoken Copy.catchMeUp; the tray presses through ReplyModel.press on 318's identifiers, every word whole; StatusLine holds ${r.said.status.join(', ') || 'nothing'}; no Route.screen, no openScreen`);
+  }
+  {
+    const menuPath = join(ROOT, 'src', 'main', 'menu.ts');
+    const r = ruleRename(appNamed, existsSync(menuPath) ? read(menuPath) : null);
+    record('au', 'the rename', r.findings, `no Copy word is Conversation or Screen, and conversation, screen and terminalStaysOnMac are gone; Copy.catchMeUp ${r.said.owned ? 'is src/main/menu.ts\'s word, owned on its /// Mac: line' : 'unread'}; Copy.terminal ${r.said.terminal ? 'is Terminal' : 'unread'}; no drawn "Conversation" and no conversation identifier`);
   }
 }
 

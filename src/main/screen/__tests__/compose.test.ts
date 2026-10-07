@@ -7,11 +7,25 @@
  * of every code point in it; a wide cell and a tab are each their own run; the
  * caps answer `large`; and `asking` and `dialog` over Claude's and Codex's
  * committed question screens. Control characters are built at run time.
+ *
+ * Phase 337.1 (build/p3371/SPEC.md D3, D11, §5.3.4, §7.2): `depth` and `space`
+ * set together and null together (alternate, unsteady, past the deepest
+ * index); `spaceOf` the watcher's own construction, one value a pane; and
+ * `composePage`, which reads every pen of the whole capture before it cuts,
+ * builds runs for the asked rows alone (counted through `clusterCells`), keeps
+ * the end the phone names past each cap, keeps a single row whatever it holds,
+ * and gives the page a style table of its own.
  */
 
 import { readdirSync } from 'node:fs';
-import { describe, expect, it } from 'vitest';
-import type { PocketScreenStyle } from '@shared/ipc/pocket';
+import { describe, expect, it, vi } from 'vitest';
+import {
+  POCKET_SCREEN_MAX_BYTES,
+  POCKET_SCREEN_MAX_RUNS,
+  POCKET_SCREEN_MAX_STYLES,
+  POCKET_SCROLLBACK_MAX_INDEX,
+  type PocketScreenStyle
+} from '@shared/ipc/pocket';
 import { detectDialogRows, hashScreen, normalizeCapture } from '../../activity/screen';
 import { readBackWindowOf } from '../../reply/reader';
 import {
@@ -21,20 +35,51 @@ import {
   REPLY_FIXTURES,
   styledFixture
 } from '../../reply/__tests__/fixtures';
-import { askingOf, composeScreen, plainOf, questionOf, windowMarkOf, type ComposedScreen } from '../compose';
+import {
+  askingOf,
+  composePage,
+  composePageSteps,
+  composeScreen,
+  PAGE_STEP_ROWS,
+  plainOf,
+  questionOf,
+  spaceOf,
+  windowMarkOf,
+  type ComposedScreen
+} from '../compose';
 import { SCREEN_PALETTE } from '../palette';
 import type { ScreenDisplay, ScreenReading } from '../read';
+import { screenRevisionOf } from '../watch';
+
+/** How many rows the composer has cut into cells: a page builds runs for the rows it was asked for, and no others. */
+const clustered = vi.hoisted(() => ({ rows: 0 }));
+
+vi.mock('../cells', async (original) => {
+  const real = await original<typeof import('../cells')>();
+  return {
+    ...real,
+    clusterCells: (...args: Parameters<typeof real.clusterCells>) => {
+      clustered.rows += 1;
+      return real.clusterCells(...args);
+    }
+  };
+});
 
 const ESC = String.fromCharCode(0x1b);
 const TAB = String.fromCharCode(0x09);
 const cp = (...points: number[]): string => String.fromCodePoint(...points);
 
 function display(cols: number, rows: number, extra: Partial<ScreenDisplay> = {}): ScreenDisplay {
-  return { paneId: '%1', cols, rows, cursorX: 0, cursorY: 0, cursorVisible: true, alternate: false, ...extra };
+  return { paneId: '%1', cols, rows, cursorX: 0, cursorY: 0, cursorVisible: true, alternate: false, history: 0, ...extra };
 }
 
-function reading(styled: string, cols = 120, rows = 40, extra: Partial<ScreenDisplay> = {}): ScreenReading {
-  return { styled, display: display(cols, rows, extra), displayLine: `%1\t${String(cols)}\t${String(rows)}\t0\t0\t1\t0` };
+function reading(styled: string, cols = 120, rows = 40, extra: Partial<ScreenDisplay> = {}, steady = true): ScreenReading {
+  return {
+    styled,
+    display: display(cols, rows, extra),
+    displayLine: `%1\t${String(cols)}\t${String(rows)}\t0\t0\t1\t0\t0`,
+    steady
+  };
 }
 
 const IDLE = { turn: '0000000000000000-0', status: 'idle', typable: true } as const;
@@ -474,5 +519,201 @@ describe('asking and dialog (D16)', () => {
     expect(askingOf(c.plain, 'idle')).toBe(true);
     expect(askingOf('nothing here', 'idle')).toBe(false);
     expect(askingOf('nothing here', 'needs_input')).toBe(true);
+  });
+});
+
+describe('where the picture sits in the history (Phase 337.1 D3)', () => {
+  const at = (extra: Partial<ScreenDisplay>, steady = true): ComposedScreen =>
+    composed(reading('x', 80, 24, { history: 2961, ...extra }, steady));
+
+  it('a steady read of the normal screen carries the history size and the pane’s space, together', () => {
+    const c = at({ paneId: '%7' });
+    expect(c.screen.depth).toBe(2961);
+    expect(c.screen.space).toBe(spaceOf('%7'));
+    expect(c.screen.space).toMatch(/^[0-9a-f]{12}$/);
+  });
+
+  it('both null together: the alternate screen, a read whose displays disagreed, a history past the deepest index', () => {
+    for (const [why, c] of [
+      ['alternate', at({ alternate: true })],
+      ['unsteady', at({}, false)],
+      ['past the deepest index', at({ history: POCKET_SCROLLBACK_MAX_INDEX + 1 })],
+      ['nine digits', at({ history: 999_999_999 })]
+    ] as const) {
+      expect(c.screen.depth, why).toBeNull();
+      expect(c.screen.space, why).toBeNull();
+    }
+    // The deepest index itself is still a place.
+    expect(at({ history: POCKET_SCROLLBACK_MAX_INDEX }).screen.depth).toBe(POCKET_SCROLLBACK_MAX_INDEX);
+    // A history of nothing is a place: 0.
+    expect(at({ history: 0 }).screen.depth).toBe(0);
+  });
+
+  it('spaceOf is the watcher’s own construction over `space` and the pane: one value a pane, another for another', () => {
+    expect(spaceOf('%7')).toBe(screenRevisionOf(['space', '%7']));
+    expect(spaceOf('%7')).toBe(spaceOf('%7'));
+    expect(spaceOf('%7')).not.toBe(spaceOf('%8'));
+    expect(spaceOf('%70')).not.toBe(spaceOf('%7'));
+    // No tmux id crosses the wire: the space is a hash, never the id.
+    expect(spaceOf('%7')).not.toContain('%');
+  });
+});
+
+/** Numbered history lines as tmux prints them: `L000001` is index 0. */
+function numbered(first: number, count: number): string[] {
+  return Array.from({ length: count }, (_, i) => `L${String(first + i + 1).padStart(6, '0')}`);
+}
+
+/** A page's row texts. */
+function pageTexts(rows: readonly (readonly { text: string }[])[]): string[] {
+  return rows.map((runs) => runs.map((run) => run.text).join(''));
+}
+
+describe('composePage (Phase 337.1 D11): composed whole, then cut', () => {
+  it('the rows asked, by index, from a capture that starts in the overscan', () => {
+    // The capture holds lines 72 to 299; the page is lines 200 to 299.
+    const lines = numbered(72, 228);
+    const page = composePage(lines.join('\n'), 72, 120, { from: 200, count: 100, keep: 'bottom' });
+    expect(page.from).toBe(200);
+    expect(pageTexts(page.rows)).toEqual(numbered(200, 100));
+    expect(page.styles).toHaveLength(1);
+    expect(page.bytes).toBe(Buffer.byteLength(JSON.stringify({ styles: page.styles, rows: page.rows }), 'utf8'));
+  });
+
+  it('reads every pen before it cuts: a pen opened in the overscan is carried into the first kept row', () => {
+    // tmux writes each cell's style as a change from the cell before it,
+    // ACROSS rows, so the kept row carries no SGR of its own.
+    const capture = [`${ESC}[31mred above`, 'still red', `${ESC}[1mbold too`, 'kept'].join('\n');
+    const page = composePage(capture, 10, 40, { from: 13, count: 1, keep: 'top' });
+    expect(pageTexts(page.rows)).toEqual(['kept']);
+    expect(page.styles).toHaveLength(1);
+    expect(page.styles[0]).toMatchObject({ fg: SCREEN_PALETTE.ansi[9], bold: true });
+    // Cut BEFORE composing, the same row would have lost its pen.
+    const cut = composePage('kept', 13, 40, { from: 13, count: 1, keep: 'top' });
+    expect(cut.styles[0]).toMatchObject({ fg: SCREEN_PALETTE.ink, bold: false });
+  });
+
+  it('builds runs for the asked rows alone, never for the overscan it read (§Attack B10)', () => {
+    const lines = numbered(0, 236);
+    clustered.rows = 0;
+    composePage(lines.join('\n'), 0, 120, { from: 128, count: 108, keep: 'bottom' });
+    expect(clustered.rows).toBe(108);
+  });
+
+  it('a step at a time (the fix round): a stop after every PAGE_STEP_ROWS rows read and built, and the same page', () => {
+    // A pen opened in the overscan, carried into the kept rows across the steps.
+    const lines = [`${ESC}[1;35mL000001`, ...numbered(1, 235)];
+    const want = { from: 128, count: 108, keep: 'bottom' } as const;
+    const steps = composePageSteps(lines.join('\n'), 0, 120, want);
+    let stops = 0;
+    let step = steps.next();
+    while (step.done !== true) {
+      stops += 1;
+      step = steps.next();
+    }
+    expect(PAGE_STEP_ROWS).toBe(4);
+    expect(stops).toBe(Math.floor(236 / PAGE_STEP_ROWS) + Math.floor(108 / PAGE_STEP_ROWS));
+    expect(step.value).toEqual(composePage(lines.join('\n'), 0, 120, want));
+    expect(step.value.styles[0]).toMatchObject({ fg: SCREEN_PALETTE.ansi[13], bold: true });
+  });
+
+  it('a row the capture does not hold is empty', () => {
+    const page = composePage(numbered(0, 3).join('\n'), 0, 40, { from: 2, count: 3, keep: 'top' });
+    expect(pageTexts(page.rows)).toEqual(['L000003', '', '']);
+  });
+
+  it('a page’s own style table: only the kept rows’ styles, numbered in their order from 0', () => {
+    const capture = [`${ESC}[32mgreen`, `${ESC}[33myellow`, `${ESC}[34mblue`].join('\n');
+    const page = composePage(capture, 0, 40, { from: 1, count: 2, keep: 'top' });
+    expect(page.styles.map((st) => st.fg)).toEqual([SCREEN_PALETTE.ansi[3], SCREEN_PALETTE.ansi[4]]);
+    expect(page.rows.map((runs) => runs.map((run) => run.style))).toEqual([[0], [1]]);
+  });
+
+  /** One row of `cols` cells, each its own 24-bit colour, unique across the whole capture. */
+  const colourRows = (rows: number, cols: number): string =>
+    Array.from({ length: rows }, (_, r) => {
+      let row = '';
+      for (let c = 0; c < cols; c += 1) {
+        const n = r * cols + c;
+        row += `${ESC}[38;2;${String(n >> 16)};${String((n >> 8) & 255)};${String(n & 255)}mx`;
+      }
+      return row;
+    }).join('\n');
+
+  it('past the style cap it keeps the longest run of rows from the end it is told, bottom or top', () => {
+    // 120 styles a row: 8 rows are 960 styles, 9 are 1,080.
+    const capture = colourRows(20, 120);
+    const bottom = composePage(capture, 500, 120, { from: 500, count: 20, keep: 'bottom' });
+    expect(bottom.rows).toHaveLength(8);
+    expect(bottom.from).toBe(512);
+    expect(bottom.styles).toHaveLength(960);
+    const top = composePage(capture, 500, 120, { from: 500, count: 20, keep: 'top' });
+    expect(top.rows).toHaveLength(8);
+    expect(top.from).toBe(500);
+    expect(top.styles.length).toBeLessThanOrEqual(POCKET_SCREEN_MAX_STYLES);
+    // The kept rows are the asked rows nearest that end, whole.
+    expect(bottom.rows[7]?.length).toBe(120);
+  });
+
+  it('the cut is decided from the end it keeps: plain rows above heavy ones keep only heavy rows that fit', () => {
+    // Ten plain rows, then ten rows of 120 styles each.
+    const capture = [...numbered(0, 10), colourRows(10, 120)].join('\n');
+    const bottom = composePage(capture, 0, 120, { from: 0, count: 20, keep: 'bottom' });
+    expect(bottom.rows).toHaveLength(8);
+    expect(bottom.from).toBe(12);
+    expect(bottom.styles.length).toBeLessThanOrEqual(POCKET_SCREEN_MAX_STYLES);
+    const top = composePage(capture, 0, 120, { from: 0, count: 20, keep: 'top' });
+    expect(top.from).toBe(0);
+    expect(top.rows).toHaveLength(18);
+    expect(top.styles.length).toBeLessThanOrEqual(POCKET_SCREEN_MAX_STYLES);
+    expect(pageTexts(top.rows).slice(0, 10)).toEqual(numbered(0, 10));
+  });
+
+  it('past the run cap it keeps what fits from the end it is told', () => {
+    // 512 runs a row (two colours alternating): 32 rows are 16,384.
+    const row = Array.from({ length: 512 }, (_, c) => `${ESC}[3${String(c % 2)}mx`).join('');
+    const capture = Array.from({ length: 40 }, () => row).join('\n');
+    const bottom = composePage(capture, 0, 512, { from: 0, count: 40, keep: 'bottom' });
+    expect(bottom.rows).toHaveLength(32);
+    expect(bottom.from).toBe(8);
+    expect(bottom.rows.reduce((n, runs) => n + runs.length, 0)).toBe(POCKET_SCREEN_MAX_RUNS);
+    const top = composePage(capture, 0, 512, { from: 0, count: 40, keep: 'top' });
+    expect(top.rows).toHaveLength(32);
+    expect(top.from).toBe(0);
+  });
+
+  it('past 1 MiB it keeps what fits, with room left for the answer’s envelope', () => {
+    // Each cell a base and twenty combining marks: one column, 41 bytes.
+    const cell = `e${cp(0x301).repeat(20)}`;
+    const capture = Array.from({ length: 60 }, () => cell.repeat(512)).join('\n');
+    const bottom = composePage(capture, 0, 512, { from: 0, count: 60, keep: 'bottom' });
+    expect(bottom.rows.length).toBeGreaterThan(20);
+    expect(bottom.rows.length).toBeLessThan(60);
+    expect(bottom.from).toBe(60 - bottom.rows.length);
+    expect(bottom.bytes).toBeLessThanOrEqual(POCKET_SCREEN_MAX_BYTES - 1_024);
+    // One more row would not have fitted.
+    const more = composePage(capture, 0, 512, { from: bottom.from - 1, count: bottom.rows.length + 1, keep: 'top' });
+    expect(more.rows.length).toBe(bottom.rows.length);
+    const top = composePage(capture, 0, 512, { from: 0, count: 60, keep: 'top' });
+    expect(top.from).toBe(0);
+    expect(top.rows.length).toBe(bottom.rows.length);
+  });
+
+  it('a single row always fits: 512 cells of 512 styles is kept whole', () => {
+    const page = composePage(colourRows(1, 512), 0, 512, { from: 0, count: 1, keep: 'bottom' });
+    expect(page.rows).toHaveLength(1);
+    expect(page.styles).toHaveLength(512);
+    // Two such rows are exactly 1,024 styles, which fits; a third passes the
+    // cap, and the end asked for is the one kept, its table numbered from 0.
+    const three = composePage(colourRows(3, 512), 0, 512, { from: 0, count: 3, keep: 'bottom' });
+    expect(three.rows).toHaveLength(2);
+    expect(three.from).toBe(1);
+    expect(three.styles).toHaveLength(POCKET_SCREEN_MAX_STYLES);
+    expect(three.rows[0]?.[0]?.style).toBe(0);
+  });
+
+  it('every row’s cells stop at the width, as the live screen’s do', () => {
+    const page = composePage(`${'abcdefghij'.repeat(10)}`, 0, 40, { from: 0, count: 1, keep: 'top' });
+    expect(page.rows[0]?.reduce((n, run) => n + run.cells, 0)).toBe(40);
   });
 });

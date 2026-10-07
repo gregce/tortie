@@ -43,6 +43,7 @@ import type { ManifestSessionRecord, ManifestStore } from '../../manifest';
 import type { ReadResult, ReadTurn } from '../../overview/reader';
 import { openOverviewStore, type OverviewStore } from '../../overview/store';
 import { resetBlockedFeedForTests } from '../../tray/blocked-feed';
+import type { PocketScrollbackAsk } from '../routes';
 
 const seams = vi.hoisted(() => ({
   readSessionLog: vi.fn(),
@@ -649,5 +650,53 @@ describe('the Screen on one session (Phase 337, build/p337/SPEC.md §5.3.1)', ()
     expect(await createPocketRoutes(plain).screen(new URLSearchParams('id=S1'), () => false)).toBeNull();
     const detail = await createPocketRoutes(plain).session('S1');
     expect(detail?.session.screen).toBe(false);
+  });
+});
+
+describe('the Screen’s history on one session (Phase 337.1, build/p3371/SPEC.md §5.3.1)', () => {
+  const PAGE = {
+    sessionId: 'S1',
+    at: NOW,
+    from: 10,
+    depth: 40,
+    wrap: 8,
+    space: '0a1b2c3d4e5f',
+    styles: [{ fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    rows: [[{ text: 'L11', style: 0, cells: 3 }], []],
+    why: null,
+    sentence: null
+  };
+
+  it('hands the routes the injected page reader, untouched, so /v1/scrollback reads through it', async () => {
+    const seen: unknown[] = [];
+    const scrollback = async (s: Session, ask: PocketScrollbackAsk, closing: () => boolean) => {
+      seen.push([s.id, ask, closing]);
+      return PAGE;
+    };
+    const withPages = createPocketFacts({
+      core: () => core,
+      overview: { manifest: () => Promise.reject(new Error('unused')), store: () => store, now: () => NOW },
+      wakes: () => [],
+      scrollback,
+      now: () => NOW
+    });
+    // A passthrough: the very function handed in, never a wrapper of its own.
+    expect(withPages.scrollback).toBe(scrollback);
+    const closing = (): boolean => false;
+    const got = await createPocketRoutes(withPages).scrollback(
+      new URLSearchParams('id=S1&from=10&count=2&depth=40&wrap=8&keep=bottom'),
+      closing
+    );
+    expect(seen).toEqual([['S1', { from: 10, count: 2, depth: 40, wrap: 8, keep: 'bottom' }, closing]]);
+    expect(got).toEqual(PAGE);
+  });
+
+  it('carries no page reader when none was handed in, so /v1/scrollback is no route', async () => {
+    const plain = facts();
+    expect(plain.scrollback).toBeUndefined();
+    expect('scrollback' in plain).toBe(false);
+    expect(
+      await createPocketRoutes(plain).scrollback(new URLSearchParams('id=S1&from=10&count=2&depth=40&wrap=8&keep=bottom'), () => false)
+    ).toBeNull();
   });
 });

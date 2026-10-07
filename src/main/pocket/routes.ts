@@ -53,7 +53,12 @@
  *     Screen's watcher ({@link PocketFacts.screen}), which may hold the request
  *     as a long poll, and copied here FIELD BY FIELD ({@link screenOf}) with
  *     fresh arrays and the contract's caps held again, so nothing but the
- *     answer's own fields can leave.
+ *     answer's own fields can leave;
+ *   - (Phase 337.1) one page of that screen's history is read and composed
+ *     outside this domain by the page reader ({@link PocketFacts.scrollback}),
+ *     answered at once and never held, and copied here FIELD BY FIELD
+ *     ({@link scrollbackOf}) with every invariant of the index space held
+ *     again, whatever the reader said.
  *
  * The writes (Phase 317, build/p317/SPEC.md §5.4; Phase 318,
  * build/p318/SPEC.md §5.1.5; Phase 337, build/p337/SPEC.md §5.4) are DECLARED
@@ -132,6 +137,8 @@ import {
   POCKET_SCREEN_MAX_ROWS,
   POCKET_SCREEN_MAX_RUNS,
   POCKET_SCREEN_MAX_STYLES,
+  POCKET_SCROLLBACK_MAX_COUNT,
+  POCKET_SCROLLBACK_MAX_INDEX,
   POCKET_SESSIONS_BUDGET_BYTES,
   POCKET_SESSIONS_CHOICES_MAX,
   POCKET_SESSIONS_CLIP_CHARS,
@@ -155,6 +162,9 @@ import {
   type PocketScreenAnswer,
   type PocketScreenRun,
   type PocketScreenStyle,
+  type PocketScrollbackAbsence,
+  type PocketScrollbackAnswer,
+  type PocketScrollbackKeep,
   type PocketSessionAnswer,
   type PocketSessionDetail,
   type PocketSessionsAnswer,
@@ -167,7 +177,7 @@ import {
   type PocketWriteRouteId
 } from '@shared/ipc/pocket';
 import { endSessionConfirm } from '@shared/lifecycle-words';
-import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE } from '@shared/screen-copy';
+import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE, SCROLLBACK_BUSY, SCROLLBACK_MOVED } from '@shared/screen-copy';
 import { attentionRows, blockedAge, type WakeWindow } from '../tray/attention';
 // THE CEILING, IMPORTED RATHER THAN RE-SPELLED. `../overview/turn-view.ts` owns
 // the number and this door holds itself to it; a second literal here would be a
@@ -334,7 +344,39 @@ export interface PocketFacts {
    * seam and the tests build their own facts.
    */
   screen?(session: Session, since: string | null, closing: () => boolean): Promise<PocketScreenAnswer>;
+  /**
+   * One page of a session's history (Phase 337.1, build/p3371/SPEC.md §5.3).
+   * Answered at once, never held: it asks `closing()` while it waits its turn
+   * and its read, and answers `unreachable` the moment it holds (D14). A READ:
+   * it writes nothing, sets no status and types nothing. OPTIONAL, AND ABSENT
+   * IS THE ROUTE NOT EXISTING (404): the push seam and the tests build their
+   * own facts.
+   */
+  scrollback?(session: Session, ask: PocketScrollbackAsk, closing: () => boolean): Promise<PocketScrollbackAnswer>;
   now?(): number;
+}
+
+/**
+ * What one `/v1/scrollback` query asks, once {@link readScrollbackQuery} has
+ * read it (Phase 337.1, build/p3371/SPEC.md §5.3.1, D7). Every number is whole
+ * and inside its bound, and `from + count <= depth`. NO NUMBER IS A SIZE OF THE
+ * MAC: `wrap` is the width the phone's index space was read at, which the page
+ * reader compares and never acts on, and `depth` is the newest history size the
+ * phone has seen, which the reader uses only as its first guess of where the
+ * line numbers stand and as the floor under which the index space has moved
+ * (D9, D12). Main only, and the page reader's one input.
+ */
+export interface PocketScrollbackAsk {
+  /** The index of the first row asked, 0 being the oldest line tmux holds. */
+  readonly from: number;
+  /** How many rows, 1 to {@link POCKET_SCROLLBACK_MAX_COUNT}. */
+  readonly count: number;
+  /** The largest history size the phone has seen in its index space. */
+  readonly depth: number;
+  /** The width that index space was read at, 1 to {@link POCKET_SCREEN_MAX_COLS}. */
+  readonly wrap: number;
+  /** Which end of the page to keep when it cannot all be sent (D11). */
+  readonly keep: PocketScrollbackKeep;
 }
 
 /**
@@ -861,6 +903,12 @@ const SCREEN_REVISION_CHARS = 12;
 const SCREEN_MARK_CHARS = 12;
 
 /**
+ * The history's index space's name, `PocketScreen.space` and a page's `space`
+ * (Phase 337.1, build/p3371/SPEC.md D3, §Attack B8): 12 lowercase hex.
+ */
+const SCROLLBACK_SPACE_CHARS = 12;
+
+/**
  * The longest id a screen query may name. Tortie's session ids are UUIDs (36
  * characters), and the writes read a session id of 1 to 128 characters
  * (`./writes.ts`), so the same bound holds here. The id is only ever compared
@@ -970,6 +1018,15 @@ function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
   if (!isScreenColour(screen.ground) || !isScreenColour(screen.ink) || !isScreenColour(screen.caret)) return null;
   if (typeof screen.turn !== 'string' || screen.turn.length === 0) return null;
   if (!(screen.dialog === null || (typeof screen.dialog === 'string' && isLowerHexOf(screen.dialog, SCREEN_MARK_CHARS)))) return null;
+  // PHASE 337.1 (build/p3371/SPEC.md D3): the history's depth and the pane it
+  // belongs to, NULL TOGETHER, or a whole number inside the index bound beside
+  // 12 lowercase hex. Anything else is the wrong shape.
+  const { depth, space } = screen;
+  if (depth === null || space === null) {
+    if (depth !== null || space !== null) return null;
+  } else if (!wholeIn(depth, 0, POCKET_SCROLLBACK_MAX_INDEX) || typeof space !== 'string' || !isLowerHexOf(space, SCROLLBACK_SPACE_CHARS)) {
+    return null;
+  }
   if (!Array.isArray(screen.styles)) return null;
   if (screen.styles.length > POCKET_SCREEN_MAX_STYLES) return 'large';
   const styles: PocketScreenStyle[] = [];
@@ -1009,7 +1066,9 @@ function screenBodyOf(screen: PocketScreen): PocketScreen | 'large' | null {
     turn: screen.turn,
     asking: screen.asking,
     dialog: screen.dialog,
-    typable: screen.typable
+    typable: screen.typable,
+    depth,
+    space
   };
 }
 
@@ -1054,7 +1113,205 @@ export function screenOf(answer: PocketScreenAnswer, sessionId: string, fallback
   return composed;
 }
 
-/** The five answers. Holds no state; composes on every call. */
+// ---------------------------------------------------------------------------
+// The Screen's history (Phase 337.1, build/p3371/SPEC.md §5.3.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * The six names a scrollback query carries, EACH EXACTLY ONCE, and no other
+ * (D7). Read once, here; `cols`, `rows`, `width` and `height` are not among
+ * them, so a query that names one is refused as an unknown name: the phone
+ * never sizes the Mac (337's rule (ah), widened).
+ */
+const SCROLLBACK_QUERY_NAMES: readonly string[] = ['id', 'from', 'count', 'depth', 'wrap', 'keep'];
+
+/**
+ * The most digits a query number is read with. Every bound below has six
+ * digits or fewer, so nine is generous, and it keeps the walk's value a safe
+ * integer whatever the phone sent. A longer spelling is not a number this
+ * route reads.
+ */
+const SCROLLBACK_NUMBER_MAX_DIGITS = 9;
+
+/** Why a scrollback query was refused. A word, never a value. */
+export type PocketScrollbackQueryRefusal = 'parameter' | 'repeated' | 'id' | 'number' | 'range' | 'keep';
+
+/**
+ * A query number, read ONE CHARACTER AT A TIME with no pattern
+ * (`conformance:pocket` R1 refuses any pattern in this module): ASCII digits
+ * only, at least one and at most {@link SCROLLBACK_NUMBER_MAX_DIGITS}, and no
+ * leading zero unless the number is 0. No sign, no space, no point and no
+ * exponent. Null when the text is not that spelling (or is absent).
+ */
+function queryWhole(text: string | null): number | null {
+  if (text === null || text.length === 0 || text.length > SCROLLBACK_NUMBER_MAX_DIGITS) return null;
+  if (text.length > 1 && text.charAt(0) === '0') return null;
+  let value = 0;
+  for (const ch of text) {
+    if (ch < '0' || ch > '9') return null;
+    value = value * 10 + (ch.charCodeAt(0) - 48);
+  }
+  return value;
+}
+
+/**
+ * What a `/v1/scrollback` query asks, or why it is refused (D7): exactly the
+ * six names, each once; `id` 1 to {@link SCREEN_ID_MAX_CHARS} characters, as
+ * `/v1/screen`'s; `from` and `depth` 0 to {@link POCKET_SCROLLBACK_MAX_INDEX},
+ * `count` 1 to {@link POCKET_SCROLLBACK_MAX_COUNT}, `wrap` 1 to
+ * {@link POCKET_SCREEN_MAX_COLS}, each a whole number by a character walk; and
+ * `from + count <= depth`, because a page past the top of the phone's own
+ * index space is no page (§Attack B1); and `keep` exactly `top` or `bottom`,
+ * compared with `===`. Anything else refuses the request whole, and the route
+ * answers it as it answers an unknown id. Each bound is read from the
+ * contract's constants, never re-spelled.
+ */
+export function readScrollbackQuery(
+  query: URLSearchParams
+): { ok: true; id: string; ask: PocketScrollbackAsk } | { ok: false; reason: PocketScrollbackQueryRefusal } {
+  const seen = new Set<string>();
+  for (const name of query.keys()) {
+    if (!SCROLLBACK_QUERY_NAMES.includes(name)) return { ok: false, reason: 'parameter' };
+    if (seen.has(name)) return { ok: false, reason: 'repeated' };
+    seen.add(name);
+  }
+  const id = query.get('id');
+  if (id === null || id.length < 1 || id.length > SCREEN_ID_MAX_CHARS) return { ok: false, reason: 'id' };
+  const from = queryWhole(query.get('from'));
+  const count = queryWhole(query.get('count'));
+  const depth = queryWhole(query.get('depth'));
+  const wrap = queryWhole(query.get('wrap'));
+  if (from === null || count === null || depth === null || wrap === null) return { ok: false, reason: 'number' };
+  // `from`'s own bound is also implied by `from + count <= depth <= the bound`
+  // below; it is read here anyway, so every name meets its bound where it is
+  // checked and no later edit to the clause below can widen it unseen.
+  if (from > POCKET_SCROLLBACK_MAX_INDEX || depth > POCKET_SCROLLBACK_MAX_INDEX) return { ok: false, reason: 'range' };
+  if (count < 1 || count > POCKET_SCROLLBACK_MAX_COUNT) return { ok: false, reason: 'range' };
+  if (wrap < 1 || wrap > POCKET_SCREEN_MAX_COLS) return { ok: false, reason: 'range' };
+  if (from + count > depth) return { ok: false, reason: 'range' };
+  const keep = query.get('keep');
+  if (keep !== 'top' && keep !== 'bottom') return { ok: false, reason: 'keep' };
+  return { ok: true, id, ask: { from, count, depth, wrap, keep } };
+}
+
+/** Main's words for each absence of a page, the one map from the word to its sentence (D23). */
+const SCROLLBACK_ABSENCE_SENTENCES: Readonly<Record<PocketScrollbackAbsence, string>> = Object.freeze({
+  ended: SCREEN_ENDED,
+  unreachable: SCREEN_UNREACHABLE,
+  moved: SCROLLBACK_MOVED,
+  busy: SCROLLBACK_BUSY
+});
+
+/** A page's `why`, compared for EQUALITY with the four words, or null. */
+function scrollbackAbsenceOf(value: unknown): PocketScrollbackAbsence | null {
+  return value === 'ended' || value === 'unreachable' || value === 'moved' || value === 'busy' ? value : null;
+}
+
+/**
+ * THE PAGE AS THE DOOR SERVES IT (D8, §5.3.1), composed FIELD BY FIELD from
+ * what the page reader answered, with fresh arrays, so nothing else on its
+ * object can ever leave; and the index space's invariants held HERE whatever a
+ * reader says:
+ *
+ *   - `why` is exactly one of the four words, its sentence is main's own word
+ *     for it, and NOTHING ELSE IS CARRIED: a reader that answered a `why`
+ *     beside rows, styles or a number is answering two things, and is refused;
+ *   - otherwise `from`, `depth` and `wrap` are whole numbers inside the
+ *     contract's bounds, `space` is 12 lowercase hex, there is at least one
+ *     row and at most {@link POCKET_SCROLLBACK_MAX_COUNT}, `from + rows.length
+ *     <= depth` (a page is history, never the live screen, D12), every style
+ *     is a style with `#rrggbb` colours and every run's style index is in the
+ *     page's own table, every run covers 1 to `wrap` cells and a row's cells
+ *     sum to at most `wrap`, the runs and the styles inside the live screen's
+ *     caps, and the whole answer at most {@link POCKET_SCREEN_MAX_BYTES};
+ *   - when the route hands the ask it read (`ask`), the page is inside it: its
+ *     rows lie in `[ask.from, ask.from + ask.count)`, its `wrap` is the ask's
+ *     and its `depth` is at least the ask's, which the reader answers `moved`
+ *     for otherwise (D12) and which this composer therefore never serves.
+ *
+ * A value of the wrong shape is null, which the door answers as an unknown id.
+ */
+export function scrollbackOf(
+  answer: PocketScrollbackAnswer,
+  sessionId: string,
+  fallbackAt: number,
+  ask?: PocketScrollbackAsk
+): PocketScrollbackAnswer | null {
+  if (typeof answer !== 'object' || answer === null) return null;
+  const at = typeof answer.at === 'number' && Number.isFinite(answer.at) ? answer.at : fallbackAt;
+  if (answer.why !== null) {
+    const why = scrollbackAbsenceOf(answer.why);
+    if (why === null) return null;
+    // Nothing else is carried beside a `why`, or the answer says two things.
+    if (answer.from !== null || answer.depth !== null || answer.wrap !== null || answer.space !== null) return null;
+    if (!Array.isArray(answer.rows) || answer.rows.length !== 0) return null;
+    if (!Array.isArray(answer.styles) || answer.styles.length !== 0) return null;
+    return {
+      sessionId,
+      at,
+      from: null,
+      depth: null,
+      wrap: null,
+      space: null,
+      styles: [],
+      rows: [],
+      why,
+      sentence: SCROLLBACK_ABSENCE_SENTENCES[why]
+    };
+  }
+  const { from, depth, wrap, space } = answer;
+  if (!wholeIn(from, 0, POCKET_SCROLLBACK_MAX_INDEX) || !wholeIn(depth, 0, POCKET_SCROLLBACK_MAX_INDEX)) return null;
+  if (!wholeIn(wrap, 1, POCKET_SCREEN_MAX_COLS)) return null;
+  if (typeof space !== 'string' || !isLowerHexOf(space, SCROLLBACK_SPACE_CHARS)) return null;
+  if (!Array.isArray(answer.styles) || answer.styles.length > POCKET_SCREEN_MAX_STYLES) return null;
+  const styles: PocketScreenStyle[] = [];
+  for (const style of answer.styles) {
+    const copied = screenStyleOf(style);
+    if (copied === null) return null;
+    styles.push(copied);
+  }
+  if (!Array.isArray(answer.rows) || answer.rows.length < 1 || answer.rows.length > POCKET_SCROLLBACK_MAX_COUNT) return null;
+  // A page is history: its last row is below the live screen's top (D12).
+  if (from + answer.rows.length > depth) return null;
+  if (ask !== undefined) {
+    if (from < ask.from || from + answer.rows.length > ask.from + ask.count) return null;
+    if (wrap !== ask.wrap || depth < ask.depth) return null;
+  }
+  const rows: PocketScreenRun[][] = [];
+  let runs = 0;
+  for (const line of answer.rows) {
+    if (!Array.isArray(line)) return null;
+    const row: PocketScreenRun[] = [];
+    let used = 0;
+    for (const run of line) {
+      if (typeof run !== 'object' || run === null || typeof run.text !== 'string') return null;
+      if (!wholeIn(run.style, 0, styles.length - 1) || !wholeIn(run.cells, 1, wrap)) return null;
+      used += run.cells;
+      if (used > wrap) return null;
+      row.push({ text: run.text, style: run.style, cells: run.cells });
+    }
+    runs += row.length;
+    rows.push(row);
+  }
+  if (runs > POCKET_SCREEN_MAX_RUNS) return null;
+  const composed: PocketScrollbackAnswer = {
+    sessionId,
+    at,
+    from,
+    depth,
+    wrap,
+    space,
+    styles,
+    rows,
+    why: null,
+    sentence: null
+  };
+  // The whole answer's bytes, as the door will send them, under the cap.
+  if (Buffer.byteLength(JSON.stringify(composed), 'utf8') > POCKET_SCREEN_MAX_BYTES) return null;
+  return composed;
+}
+
+/** The answers. Holds no state; composes on every call. */
 export function createPocketRoutes(facts: PocketFacts): {
   blocked(): PocketBlockedAnswer;
   session(sessionId: string): Promise<PocketSessionAnswer | null>;
@@ -1064,6 +1321,7 @@ export function createPocketRoutes(facts: PocketFacts): {
   ): Promise<PocketTurnsAnswer | null>;
   sessions(query: URLSearchParams): PocketSessionsAnswer | null;
   screen(query: URLSearchParams, closing: () => boolean): Promise<PocketScreenAnswer | null>;
+  scrollback(query: URLSearchParams, closing: () => boolean): Promise<PocketScrollbackAnswer | null>;
 } {
   const now = (): number => facts.now?.() ?? Date.now();
 
@@ -1563,6 +1821,35 @@ export function createPocketRoutes(facts: PocketFacts): {
       // as an id nobody has, and nothing of it leaves.
       if (sessionById(session.id) === undefined) return null;
       return screenOf(answer, session.id, now());
+    },
+
+    /**
+     * ONE PAGE OF A SESSION'S HISTORY (Phase 337.1, build/p3371/SPEC.md
+     * §5.3.1). The query, then the session by id, then the page reader, which
+     * answers at once and is never held (it asks `closing()` while it waits its
+     * turn and its exec, D14), then the page re-composed field by field
+     * ({@link scrollbackOf}) inside the ask it read. A refused query, an id
+     * nobody has, a host with no page reader, a reader that rejects, and a
+     * session removed while it was read, are each answered as an unknown id. A
+     * READ: nothing here writes, types or sets a status.
+     */
+    async scrollback(query: URLSearchParams, closing: () => boolean): Promise<PocketScrollbackAnswer | null> {
+      const read = readScrollbackQuery(query);
+      if (!read.ok) return null;
+      const session = sessionById(read.id);
+      if (session === undefined) return null;
+      if (facts.scrollback === undefined) return null;
+      let answer: PocketScrollbackAnswer;
+      try {
+        answer = await facts.scrollback(session, read.ask, closing);
+      } catch {
+        // Answered, never left hanging (see `session`).
+        return null;
+      }
+      // AGAIN, after the read: removed while it was read is answered as an id
+      // nobody has, and nothing of it leaves.
+      if (sessionById(session.id) === undefined) return null;
+      return scrollbackOf(answer, session.id, now(), read.ask);
     }
   };
 }

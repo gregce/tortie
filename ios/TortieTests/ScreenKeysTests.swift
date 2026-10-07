@@ -45,7 +45,7 @@ final class ScreenKeysTests: XCTestCase {
     private var changedAnswer: WriteResult {
         .answered(PocketWriteAnswer(
             verb: .keys, write: "0123456789abcdef0123456789abcdef", outcome: .refused, reason: .changed,
-            sentence: "The question on this session changed since your screen was drawn. Nothing was typed."
+            sentence: "The question on this session changed since your terminal was drawn. Nothing was typed."
         ))
     }
 
@@ -242,12 +242,30 @@ final class ScreenKeysTests: XCTestCase {
     /// files names the owner check.
     func testNoKeyAsksTheOwnerCheck() throws {
         for file in ["Screens/ScreenKeys.swift", "Screens/ScreenKeyField.swift", "Screens/Screen.swift", "Screens/ScreenGrid.swift",
-                     "Screens/ScreenSelection.swift", "Screens/ScreenRows.swift", "Screens/ScreenGlyphs.swift"] {
+                     "Screens/ScreenSelection.swift", "Screens/ScreenRows.swift", "Screens/ScreenGlyphs.swift",
+                     "Screens/ScreenScroller.swift", "Screens/ScreenScrollback.swift"] {
             let source = try StyleSource.text("ios/Tortie/" + file)
             for name in ["OwnerCheck", "ownerCheck", "LAContext", "LocalAuthentication", "confirm(reason"] {
                 XCTAssertFalse(source.contains(name), "\(file) names \(name)")
             }
         }
+    }
+
+    /// Clause (Phase 337.1, D27): every batch he types first calls
+    /// `onSend` (the Terminal points it at its history's `follow()`, back to
+    /// the live rows, as a key at the desk does); a key that is not sent
+    /// (the picture takes none) calls nothing.
+    func testEveryBatchHeTypesCallsOnSendFirst() async {
+        let keys = sender()
+        var called: [Int] = []
+        keys.onSend = { called.append(self.door.asked.count) }
+        keys.send([.text("a")])
+        XCTAssertEqual(called, [0], "onSend before the batch is sent")
+        await settle()
+        XCTAssertEqual(door.asked.count, 1)
+        drawn = ScreenSample.picture(typable: false)
+        keys.send([.text("b")])
+        XCTAssertEqual(called.count, 1, "a key that is not sent returns nothing to live")
     }
 
     /// Clause: nothing the sender holds is persisted.
@@ -259,8 +277,9 @@ final class ScreenKeysTests: XCTestCase {
     }
 }
 
-/// A Screen door whose keys answer when the test says, and every write
-/// asked, in order.
+/// A Screen door whose keys and pages answer when the test says, and every
+/// write and page asked, in order. Its status read (Phase 337.1) answers the
+/// door's refusal, counted.
 @MainActor
 final class ScriptedScreenDoor: ScreenDoor {
     struct Asked: Equatable {
@@ -269,12 +288,56 @@ final class ScriptedScreenDoor: ScreenDoor {
         let dialog: String?
     }
 
+    /// One page asked (Phase 337.1).
+    struct PageAsked: Equatable {
+        let from: Int
+        let count: Int
+        let depth: Int
+        let wrap: Int
+        let keep: ScrollbackKeep
+    }
+
     private(set) var asked: [Asked] = []
     private(set) var closes = 0
     private(set) var cancelledWhileAsked = false
     private var waiting: [CheckedContinuation<WriteResult, Never>] = []
     var reads: [Result<PocketScreenAnswer, DoorFailure>] = []
     private(set) var sinces: [String?] = []
+    private(set) var pageAsks: [PageAsked] = []
+    private(set) var pagesCancelled = 0
+    private(set) var sessionReads = 0
+    private var pageWaiting: [CheckedContinuation<Result<PocketScrollbackAnswer, DoorFailure>, Never>] = []
+
+    /// Pages asked and not yet answered.
+    var pagesWaiting: Int { pageWaiting.count }
+
+    nonisolated func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer {
+        let result = await withTaskCancellationHandler {
+            await withCheckedContinuation { (continuation: CheckedContinuation<Result<PocketScrollbackAnswer, DoorFailure>, Never>) in
+                Task { @MainActor in
+                    self.pageAsks.append(PageAsked(from: from, count: count, depth: depth, wrap: wrap, keep: keep))
+                    self.pageWaiting.append(continuation)
+                }
+            }
+        } onCancel: {
+            Task { @MainActor in
+                self.pagesCancelled += 1
+                self.answerPage(.failure(.cancelled))
+            }
+        }
+        return try result.get()
+    }
+
+    /// Answer the oldest page waiting.
+    func answerPage(_ result: Result<PocketScrollbackAnswer, DoorFailure>) {
+        guard !pageWaiting.isEmpty else { return }
+        pageWaiting.removeFirst().resume(returning: result)
+    }
+
+    nonisolated func session() async throws -> PocketSessionAnswer {
+        await MainActor.run { self.sessionReads += 1 }
+        throw DoorFailure.refused
+    }
 
     nonisolated var writes: Bool { true }
 

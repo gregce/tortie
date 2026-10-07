@@ -197,14 +197,23 @@ function applySgr(params: string, pen: PenDraft): boolean {
  * Exactly one row per `\n`-separated line, as many as the text has.
  */
 export function readStyledRows(styled: string): StyledRow[] {
-  const rows: StyledRow[] = [];
+  return Array.from(styledRows(styled));
+}
+
+/**
+ * {@link readStyledRows} one row at a time, in order, the pen carried across
+ * rows exactly as there (Phase 337.1's fix round): a page of history is read
+ * a few rows a step, so a capture of per-cell colours never holds main for the
+ * whole of its reading (./compose.ts `composePageSteps`, ./scrollback.ts).
+ */
+export function* styledRows(styled: string): Generator<StyledRow, void, undefined> {
   let pen: Pen = DEFAULT_PEN;
   let row: StyledRow = { cells: [], readable: true };
   let i = 0;
   while (i < styled.length) {
     const c = styled.charAt(i);
     if (c === '\n') {
-      rows.push(row);
+      yield row;
       row = { cells: [], readable: true };
       i += 1;
       continue;
@@ -262,6 +271,5 @@ export function readStyledRows(styled: string): StyledRow[] {
     else row.cells.push({ ch, pen });
     i += ch.length;
   }
-  rows.push(row);
-  return rows;
+  yield row;
 }

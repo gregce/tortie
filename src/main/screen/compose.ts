@@ -30,6 +30,19 @@
  *     `dialog`, while asking, is {@link windowMarkOf} the plain text.
  *  5. THE CAPS (D15): over 512 columns, 200 rows, 1,024 styles, 16,384 runs or
  *     1 MiB composed, the answer is `'large'` and no rows.
+ *  6. WHERE IT SITS IN THE HISTORY (Phase 337.1 D3): `depth`, tmux's history
+ *     size at this read, and `space`, {@link spaceOf} the pane, set TOGETHER,
+ *     and only when the read was steady (its two displays agreed), the screen
+ *     is not the alternate screen and the history is at most
+ *     `POCKET_SCROLLBACK_MAX_INDEX`; otherwise both null, and the phone offers
+ *     no scrollback from that one picture.
+ *
+ * A PAGE OF HISTORY (Phase 337.1 D11, {@link composePage}) is composed WHOLE,
+ * then cut: every pen of the whole capture is read first, because tmux writes
+ * each cell's style as a change from the cell before it across rows, then runs
+ * are built for the kept rows alone, by the same per-row body the screen uses
+ * ({@link rowRuns}), and past a cap the rows nearest the end the phone keeps
+ * are kept, with a style table of their own.
  *
  * {@link windowMarkOf} IS THE ONE SPELLING of the window's mark: the answer's
  * `dialog`, the keys verb's final check (D21) and the watcher's nudge (D4) all
@@ -37,18 +50,22 @@
  *
  * PURE. It reads no clock, no file and no process, and logs nothing. Outside
  * src/main/screen and src/shared it imports ../activity/screen and
- * ../reply/reader alone (§5.3.4, `conformance:pocket` Z12).
+ * ../reply/reader alone, and node's sha256 for {@link spaceOf} (§5.3.4,
+ * `conformance:pocket` Z12).
  */
 
+import { createHash } from 'node:crypto';
 import {
   POCKET_SCREEN_MAX_BYTES,
   POCKET_SCREEN_MAX_COLS,
   POCKET_SCREEN_MAX_ROWS,
   POCKET_SCREEN_MAX_RUNS,
   POCKET_SCREEN_MAX_STYLES,
+  POCKET_SCROLLBACK_MAX_INDEX,
   type PocketScreen,
   type PocketScreenRun,
-  type PocketScreenStyle
+  type PocketScreenStyle,
+  type PocketScrollbackKeep
 } from '@shared/ipc/pocket';
 import type { SessionStatus } from '@shared/types';
 import { detectDialogRows, hashScreen, normalizeCapture } from '../activity/screen';
@@ -56,7 +73,7 @@ import { readBackWindowOf } from '../reply/reader';
 import { clusterCells, type TaggedCell, type TaggedPoint } from './cells';
 import { SCREEN_PALETTE, xterm256 } from './palette';
 import type { ScreenReading } from './read';
-import { DEFAULT_PEN, readStyledRows, type Colour, type Pen } from './sgr';
+import { DEFAULT_PEN, readStyledRows, styledRows, type Colour, type Pen, type StyledRow } from './sgr';
 
 /** tmux's default tab stops: every eighth column (measured, ./cells.ts). */
 const TAB_STOP = 8;
@@ -96,6 +113,24 @@ interface ComposedRows {
  */
 export function windowMarkOf(plain: string): string {
   return hashScreen(readBackWindowOf(plain));
+}
+
+/**
+ * WHICH PANE AN INDEX SPACE BELONGS TO (Phase 337.1 D3, §Attack B8), declared
+ * once, here: 12 lowercase hex of sha256 over the length-prefixed parts
+ * `space` and the pane's `%`-id, the construction of the watcher's
+ * `screenRevisionOf` (./watch.ts, which imports this module, so this one does
+ * not import it), so no tmux id crosses the wire. A session's active pane can
+ * change under the phone (the desk, or a program), and MEASURED (BM2, arm P,
+ * both builds) a page asked after the switch was served from the other pane
+ * with the width and the depth checks passing; this names the index space, so
+ * the phone joins a page only to rows of the same one. The live picture and
+ * every page (./scrollback.ts) call it over their agreed display.
+ */
+export function spaceOf(paneId: string): string {
+  const hash = createHash('sha256');
+  for (const part of ['space', paneId]) hash.update(`${String(part.length)}:${part};`, 'utf8');
+  return hash.digest('hex').slice(0, 12);
 }
 
 /** Whether a session is asking him something: waiting on him, or a numbered question drawn (D16). */
@@ -169,6 +204,73 @@ interface Placed {
   readonly droppable: boolean;
 }
 
+/** A style table being built: each style once, in the order it was first met. */
+interface StyleTable {
+  readonly styles: PocketScreenStyle[];
+  /** A pen's index in the table (added if new), and whether a blank in it may be trimmed. */
+  indexOf(pen: Pen, overline: boolean, blank: boolean): { style: number; droppable: boolean };
+}
+
+function styleTable(): StyleTable {
+  const table = new Map<string, number>();
+  const styles: PocketScreenStyle[] = [];
+  return {
+    styles,
+    indexOf(pen: Pen, overline: boolean, blank: boolean): { style: number; droppable: boolean } {
+      const style = styleOf(pen);
+      const key = keyOf(style);
+      let at = table.get(key);
+      if (at === undefined) {
+        at = styles.length;
+        table.set(key, at);
+        styles.push(style);
+      }
+      return { style: at, droppable: blank && style.bg === null && !style.underline && !style.strike && !overline };
+    }
+  };
+}
+
+/**
+ * ONE ROW'S RUNS, the per-row body the screen and a page of history share
+ * (Phase 337.1 §Attack B10: never copied): the row's cells cut into tmux's own
+ * cells, stopped at `cols` columns, the trailing droppable blanks trimmed, and
+ * width-1 cells of one style run together, against `table`.
+ */
+function rowRuns(row: StyledRow, cols: number, table: StyleTable): PocketScreenRun[] {
+  // A row the reader could not follow is drawn as its text in the default style.
+  const points: TaggedPoint<Pen>[] = row.cells.map((cell) => ({
+    ch: cell.ch,
+    tag: row.readable ? cell.pen : DEFAULT_PEN
+  }));
+  const cells: TaggedCell<Pen>[] = clusterCells(points);
+  const placed: Placed[] = [];
+  let col = 0;
+  for (const cell of cells) {
+    const span = cell.tab ? Math.min(TAB_STOP - (col % TAB_STOP), cols - col) : cell.w;
+    // A row never covers more than the pane's columns: the phone refuses an
+    // answer whose row does (build/p337/SPEC.md §5.8.2), and tmux never
+    // draws a cell past its last column.
+    if (span < 1 || col + span > cols) break;
+    const { style, droppable } = table.indexOf(cell.tag, cell.tag.overline, cell.text === ' ');
+    placed.push({ text: cell.text, cells: span, style, plain: !cell.tab && span === 1, droppable });
+    col += span;
+  }
+  while (placed.length > 0 && placed[placed.length - 1]?.droppable === true) placed.pop();
+  const runs: PocketScreenRun[] = [];
+  let open: PocketScreenRun | null = null;
+  for (const p of placed) {
+    if (open !== null && p.plain && open.style === p.style) {
+      open.text += p.text;
+      open.cells += 1;
+      continue;
+    }
+    open = { text: p.text, style: p.style, cells: p.cells };
+    runs.push(open);
+    if (!p.plain) open = null;
+  }
+  return runs;
+}
+
 /**
  * The rows of one styled capture: exactly `rows` rows (more are cut, fewer are
  * padded with empty rows), each a list of runs, and the style table. Every
@@ -178,19 +280,7 @@ interface Placed {
  */
 function composeRows(styled: string, rows: number, cols: number, caps = false): ComposedRows | null {
   const read = readStyledRows(styled);
-  const table = new Map<string, number>();
-  const styles: PocketScreenStyle[] = [];
-  const indexOf = (pen: Pen, overline: boolean, blank: boolean): { style: number; droppable: boolean } => {
-    const style = styleOf(pen);
-    const key = keyOf(style);
-    let at = table.get(key);
-    if (at === undefined) {
-      at = styles.length;
-      table.set(key, at);
-      styles.push(style);
-    }
-    return { style: at, droppable: blank && style.bg === null && !style.underline && !style.strike && !overline };
-  };
+  const table = styleTable();
   const lines: PocketScreenRun[][] = [];
   const texts: string[] = [];
   let runCount = 0;
@@ -201,43 +291,13 @@ function composeRows(styled: string, rows: number, cols: number, caps = false): 
       texts.push('');
       continue;
     }
-    // A row the reader could not follow is drawn as its text in the default style.
-    const points: TaggedPoint<Pen>[] = row.cells.map((cell) => ({
-      ch: cell.ch,
-      tag: row.readable ? cell.pen : DEFAULT_PEN
-    }));
-    const cells: TaggedCell<Pen>[] = clusterCells(points);
-    const placed: Placed[] = [];
-    let col = 0;
-    for (const cell of cells) {
-      const span = cell.tab ? Math.min(TAB_STOP - (col % TAB_STOP), cols - col) : cell.w;
-      // A row never covers more than the pane's columns: the phone refuses an
-      // answer whose row does (build/p337/SPEC.md §5.8.2), and tmux never
-      // draws a cell past its last column.
-      if (span < 1 || col + span > cols) break;
-      const { style, droppable } = indexOf(cell.tag, cell.tag.overline, cell.text === ' ');
-      placed.push({ text: cell.text, cells: span, style, plain: !cell.tab && span === 1, droppable });
-      col += span;
-    }
-    while (placed.length > 0 && placed[placed.length - 1]?.droppable === true) placed.pop();
-    const runs: PocketScreenRun[] = [];
-    let open: PocketScreenRun | null = null;
-    for (const p of placed) {
-      if (open !== null && p.plain && open.style === p.style) {
-        open.text += p.text;
-        open.cells += 1;
-        continue;
-      }
-      open = { text: p.text, style: p.style, cells: p.cells };
-      runs.push(open);
-      if (!p.plain) open = null;
-    }
+    const runs = rowRuns(row, cols, table);
     runCount += runs.length;
-    if (caps && (styles.length > POCKET_SCREEN_MAX_STYLES || runCount > POCKET_SCREEN_MAX_RUNS)) return null;
+    if (caps && (table.styles.length > POCKET_SCREEN_MAX_STYLES || runCount > POCKET_SCREEN_MAX_RUNS)) return null;
     lines.push(runs);
     texts.push(runs.map((run) => run.text).join(''));
   }
-  return { lines, styles, plain: texts.join('\n'), runs: runCount };
+  return { lines, styles: table.styles, plain: texts.join('\n'), runs: runCount };
 }
 
 /**
@@ -275,6 +335,11 @@ export function composeScreen(reading: ScreenReading, extra: ComposeExtra): Comp
   }
   const asking = askingOf(composed.plain, extra.status);
   const mark = windowMarkOf(composed.plain);
+  // WHERE THIS PICTURE SITS IN THE HISTORY (Phase 337.1 D3): set together, or
+  // both null: a read whose displays disagreed, the alternate screen (the
+  // history belongs to a screen the program covered), or a history past the
+  // deepest index a page may name.
+  const placed = reading.steady && !display.alternate && display.history <= POCKET_SCROLLBACK_MAX_INDEX;
   const screen: PocketScreen = {
     cols: display.cols,
     rows: display.rows,
@@ -292,9 +357,156 @@ export function composeScreen(reading: ScreenReading, extra: ComposeExtra): Comp
     turn: extra.turn,
     asking,
     dialog: asking ? mark : null,
-    typable: extra.typable
+    typable: extra.typable,
+    depth: placed ? display.history : null,
+    space: placed ? spaceOf(display.paneId) : null
   };
   const bytes = Buffer.byteLength(JSON.stringify(screen), 'utf8');
   if (bytes > POCKET_SCREEN_MAX_BYTES) return 'large';
   return { screen, plain: composed.plain, mark, bytes };
+}
+
+/**
+ * Room left in a page's 1 MiB for the answer's envelope (the session id, the
+ * time, `from`, `depth`, `wrap`, `space`, `why` and `sentence`): the door holds
+ * the WHOLE answer under `POCKET_SCREEN_MAX_BYTES` (src/main/pocket/routes.ts
+ * `scrollbackOf`), so the page's styles and rows keep this much clear. A
+ * session id the door finds is at most 128 characters, 768 bytes as JSON at
+ * the very worst; the rest is under 200.
+ */
+const PAGE_ENVELOPE_BYTES = 1_024;
+
+/** What a page's rows are asked for (D7, D11): the first index, how many, and which end matters. */
+export interface PageWant {
+  readonly from: number;
+  readonly count: number;
+  readonly keep: PocketScrollbackKeep;
+}
+
+/** A page of history composed (D8, D11): its first row's index, its own style table, its rows, and their bytes. */
+export interface ComposedPage {
+  readonly from: number;
+  readonly styles: PocketScreenStyle[];
+  readonly rows: PocketScreenRun[][];
+  /** `{ styles, rows }` as JSON, in bytes. */
+  readonly bytes: number;
+}
+
+/** A run's JSON with its style index at its widest (four digits: a kept table holds at most 1,024). */
+function runBytes(runs: readonly PocketScreenRun[]): number {
+  return Buffer.byteLength(JSON.stringify(runs.map((run) => ({ text: run.text, style: 9_999, cells: run.cells }))), 'utf8');
+}
+
+/**
+ * The rows of a capture one step of a page's composition reads, or builds
+ * runs for, before it stops for its reader (Phase 337.1's fix round): four
+ * rows of per-cell truecolor at 512 columns are about 70 KB of capture, a few
+ * milliseconds of main (eight held it 11 ms at p50 on a machine at a load of
+ * 177, the fix round's own measurement).
+ */
+export const PAGE_STEP_ROWS = 4;
+
+/**
+ * A PAGE OF HISTORY, COMPOSED WHOLE, THEN CUT (Phase 337.1 D11, §5.3.4).
+ *
+ * `styled` is a styled capture whose rows are history lines `firstLine …`.
+ * Every pen of the WHOLE capture is read first (the overscan included), so a
+ * pen opened above the page is carried into its first row, as it is in the
+ * live screen; then runs are built ONLY for the rows `[want.from, want.from +
+ * want.count)` by index, through {@link rowRuns}, against one table; a row the
+ * capture does not hold is empty. When the kept rows pass a cap (1,024 styles,
+ * 16,384 runs, or 1 MiB with the envelope's room), the longest run of them
+ * from the end `want.keep` names that fits is kept, a single row always (512
+ * cells hold at most 512 styles and runs); then the page's own style table is
+ * built from the kept rows alone, in their order. Pure, as the rest of this
+ * module: the reader times it for its duty cycle (D14).
+ *
+ * A STEP AT A TIME (the fix round): {@link composePageSteps} is this
+ * composition, yielding after every `PAGE_STEP_ROWS` rows it reads and every
+ * `PAGE_STEP_ROWS` rows it builds, so its reader (./scrollback.ts) can hand
+ * the event loop back between steps. A page of a dense history (300 columns,
+ * every cell its own truecolor pair, 2.7 MB of capture) took 80 to 98 ms of
+ * main in ONE block (Lens 1's measurement over the SHIPPING composer), every
+ * page a stall the phone's door never caused before. This drives the same
+ * steps to the end at once, for every caller that wants the page whole.
+ */
+export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {
+  const steps = composePageSteps(styled, firstLine, cols, want);
+  for (;;) {
+    const step = steps.next();
+    if (step.done === true) return step.value;
+  }
+}
+
+/** {@link composePage}, a step at a time: it yields between steps and returns the page. Pure. */
+export function* composePageSteps(
+  styled: string,
+  firstLine: number,
+  cols: number,
+  want: PageWant
+): Generator<void, ComposedPage, undefined> {
+  // 1. EVERY PEN, over the whole capture, PAGE_STEP_ROWS rows a step.
+  const read: StyledRow[] = [];
+  for (const row of styledRows(styled)) {
+    read.push(row);
+    if (read.length % PAGE_STEP_ROWS === 0) yield;
+  }
+  // 2. RUNS FOR THE ASKED ROWS ONLY, against one table, PAGE_STEP_ROWS a step.
+  const table = styleTable();
+  const built: PocketScreenRun[][] = [];
+  for (let index = want.from; index < want.from + want.count; index += 1) {
+    const row = read[index - firstLine];
+    built.push(row === undefined ? [] : rowRuns(row, cols, table));
+    if (built.length % PAGE_STEP_ROWS === 0) yield;
+  }
+  // 3. THE CAPS: the longest run of rows from `keep`'s end that fits.
+  const order = built.map((_, i) => i);
+  if (want.keep === 'bottom') order.reverse();
+  const used = new Set<number>();
+  let styleBytes = 0;
+  let runs = 0;
+  let rowBytes = 0;
+  let kept = 0;
+  const budget = POCKET_SCREEN_MAX_BYTES - PAGE_ENVELOPE_BYTES;
+  for (const i of order) {
+    const row = built[i] ?? [];
+    const fresh = new Set<number>();
+    for (const run of row) if (!used.has(run.style)) fresh.add(run.style);
+    let freshBytes = 0;
+    for (const at of fresh) freshBytes += Buffer.byteLength(JSON.stringify(table.styles[at]), 'utf8') + 1;
+    const nextBytes = '{"styles":[],"rows":[]}'.length + styleBytes + freshBytes + rowBytes + runBytes(row) + 1;
+    const fits =
+      used.size + fresh.size <= POCKET_SCREEN_MAX_STYLES &&
+      runs + row.length <= POCKET_SCREEN_MAX_RUNS &&
+      nextBytes <= budget;
+    if (!fits && kept > 0) break;
+    for (const at of fresh) used.add(at);
+    styleBytes += freshBytes;
+    runs += row.length;
+    rowBytes += runBytes(row) + 1;
+    kept += 1;
+  }
+  const first = want.keep === 'bottom' ? want.count - kept : 0;
+  const keptRows = built.slice(first, first + kept);
+  // 4. THE PAGE'S OWN STYLE TABLE, from the kept rows alone.
+  const remap = new Map<number, number>();
+  const styles: PocketScreenStyle[] = [];
+  const rows = keptRows.map((row) =>
+    row.map((run) => {
+      let at = remap.get(run.style);
+      if (at === undefined) {
+        at = styles.length;
+        remap.set(run.style, at);
+        const style = table.styles[run.style];
+        if (style !== undefined) styles.push(style);
+      }
+      return { text: run.text, style: at, cells: run.cells };
+    })
+  );
+  return {
+    from: want.from + first,
+    styles,
+    rows,
+    bytes: Buffer.byteLength(JSON.stringify({ styles, rows }), 'utf8')
+  };
 }

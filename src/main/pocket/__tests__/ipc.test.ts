@@ -1649,6 +1649,138 @@ describe('the Screen and its keys, through the host (Phase 337)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Phase 337.1: one page of the Screen's history, through the host
+// (build/p3371/SPEC.md §5.3.1, D14)
+// ---------------------------------------------------------------------------
+
+describe('the Screen’s history, through the host (Phase 337.1)', () => {
+  async function pagePhone(one: Host, label: string) {
+    const phone = await signingPhone(one, label);
+    expect(phone.allowed).toBe(true);
+    one.cancelPairing();
+    return phone;
+  }
+
+  const LISTED = [
+    { id: 's-live', name: 'live one', tmuxName: 'l', projectPath: '/w/app', cwd: '/w/app', agent: 'claude', status: 'running', createdAt: 5 }
+  ] as Session[];
+  const TARGET = '/v1/scrollback?id=s-live&from=10&count=2&depth=40&wrap=8&keep=bottom';
+  const PAGE = {
+    sessionId: 's-live',
+    at: 7,
+    from: 10,
+    depth: 40,
+    wrap: 8,
+    space: '0a1b2c3d4e5f',
+    styles: [{ fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    rows: [[{ text: 'L11', style: 0, cells: 3 }], []],
+    why: null,
+    sentence: null
+  };
+
+  it('answers GET /v1/scrollback through the switch, handing the reader the session, the ask and refusal 1’s closing', async () => {
+    const asked: unknown[] = [];
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        scrollback: async (session, ask, closing) => {
+          asked.push([session.id, ask, closing()]);
+          return PAGE;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await pagePhone(one, 'Pages');
+    const answer = await one.handler(phone.request('scrollback', 'GET', TARGET), { stopping: () => false });
+    expect(answer.status).toBe(200);
+    expect(JSON.parse(answer.body as string)).toEqual(PAGE);
+    expect(asked).toEqual([['s-live', { from: 10, count: 2, depth: 40, wrap: 8, keep: 'bottom' }, false]]);
+  });
+
+  it('ends a page the moment the door that accepted it begins to stop, and answers nothing', async () => {
+    let stopping = false;
+    let seenClosing: boolean | null = null;
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        scrollback: async (_session, _ask, closing) => {
+          stopping = true;
+          seenClosing = closing();
+          return { ...PAGE, from: null, depth: null, wrap: null, space: null, styles: [], rows: [], why: 'unreachable', sentence: null };
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await pagePhone(one, 'Pages');
+    const answer = await one.handler(phone.request('scrollback', 'GET', TARGET), { stopping: () => stopping });
+    expect(seenClosing).toBe(true);
+    expect(answer).toEqual({ status: 404, body: null });
+  });
+
+  it('answers /v1/scrollback 404 on a host with no page reader, and for a query the route refuses', async () => {
+    let asked = 0;
+    const bare = host({ facts: { ...FACTS, sessions: () => LISTED } });
+    await pairAndAllow(bare);
+    await namePairable(bare);
+    const a = await pagePhone(bare, 'A');
+    expect(await bare.handler(a.request('scrollback', 'GET', TARGET), { stopping: () => false })).toEqual({ status: 404, body: null });
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        scrollback: async () => {
+          asked += 1;
+          return PAGE;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const b = await pagePhone(one, 'B');
+    for (const target of [
+      '/v1/scrollback',
+      `${TARGET}&cols=80`,
+      TARGET.replace('count=2', 'count=129'),
+      TARGET.replace('from=10', 'from=010'),
+      TARGET.replace('depth=40', 'depth=11'),
+      TARGET.replace('keep=bottom', 'keep=TOP'),
+      TARGET.replace('s-live', 'nobody')
+    ]) {
+      expect(await one.handler(b.request('scrollback', 'GET', target), { stopping: () => false }), target).toEqual({
+        status: 404,
+        body: null
+      });
+    }
+    expect(asked).toBe(0);
+  });
+
+  it('refuses a page signed for the Screen’s poll: the signature covers the target', async () => {
+    let asked = 0;
+    const one = host({
+      facts: {
+        ...FACTS,
+        sessions: () => LISTED,
+        scrollback: async () => {
+          asked += 1;
+          return PAGE;
+        }
+      }
+    });
+    await pairAndAllow(one);
+    await namePairable(one);
+    const phone = await pagePhone(one, 'Pages');
+    const signedForScreen = phone.request('screen', 'GET', '/v1/screen?id=s-live');
+    const replayed = { ...signedForScreen, route: 'scrollback' as const, target: TARGET } as Parameters<Host['handler']>[0];
+    expect(await one.handler(replayed, { stopping: () => false })).toEqual({ status: 404, body: null });
+    expect(asked).toBe(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // The phone's writes through the host (Phase 317, build/p317/SPEC.md §5.5)
 // ---------------------------------------------------------------------------
 
@@ -1885,8 +2017,9 @@ describe('the window’s deadline', () => {
   it('is three minutes, unchanged in this phase', () => {
     expect(POCKET_PAIRING_WINDOW_MS).toBe(3 * 60_000);
     // Phase 317 added the write after the reads, Phase 318 the two after it,
-    // Phase 316.7 the Sessions tab's read after those, and Phase 337 the
-    // Screen's read and write last; the window did not move.
+    // Phase 316.7 the Sessions tab's read after those, Phase 337 the
+    // Screen's read and write, and Phase 337.1 its history's read last; the
+    // window did not move.
     expect(POCKET_ROUTE_IDS).toEqual([
       'pair',
       'blocked',
@@ -1897,7 +2030,8 @@ describe('the window’s deadline', () => {
       'say',
       'sessions',
       'screen',
-      'keys'
+      'keys',
+      'scrollback'
     ]);
   });
 });

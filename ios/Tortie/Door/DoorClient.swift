@@ -40,18 +40,21 @@
 //   exchange has 15 seconds. The door always writes an explicit length and
 //   never streams (conformance:pocket C1).
 //
-//   EXCEPT THE SCREEN'S TWO KEPT LINES (Phase 337, build/p337/SPEC.md D25):
-//   the Screen's long poll and its keys each keep their connection
-//   (`DoorLine`), `Connection: keep-alive`, reused only while idle under 4 s
-//   and closed by the phone at 4 s, on an answer saying `Connection: close`
-//   and on any byte that is not the answer asked for. A READ whose reused
-//   connection ended before an answer is asked once more on a new one,
-//   freshly signed; a WRITE is never sent again. Every other exchange is
-//   still one request on one connection that says `Connection: close`.
+//   EXCEPT THE TERMINAL'S KEPT LINES (Phase 337, build/p337/SPEC.md D25;
+//   build/p3371/SPEC.md D30): the Terminal's long poll, its keys, and since
+//   Phase 337.1 its side line (its pages of history and its status re-reads,
+//   one exchange at a time) each keep their connection (`DoorLine`),
+//   `Connection: keep-alive`, reused only while idle under 4 s and closed by
+//   the phone at 4 s, on an answer saying `Connection: close` and on any byte
+//   that is not the answer asked for. A READ whose reused connection ended
+//   before an answer is asked once more on a new one, freshly signed; a WRITE
+//   is never sent again. Every other exchange is still one request on one
+//   connection that says `Connection: close`.
 //
-//   FOUR READS SINCE PHASE 316.7: `/v1/blocked`, `/v1/session`, `/v1/turns`
-//   and `/v1/sessions`, whose query is five closed words the door refuses
-//   whole when one is not its own.
+//   FIVE READS SINCE PHASE 337.1: `/v1/blocked`, `/v1/session`, `/v1/turns`,
+//   `/v1/sessions`, whose query is five closed words the door refuses whole
+//   when one is not its own, and `/v1/scrollback`, one page of a session's
+//   history (the Terminal's poll, `/v1/screen`, is Phase 337's).
 //
 //   EVERY READ IS SIGNED, exactly as src/main/pocket/server.ts verifies it:
 //   the target signed is the path and query exactly as sent, whose query
@@ -222,10 +225,12 @@ final class DoorClient: DoorExchanging {
     }
 
     /// `GET /v1/session?id=`: one session. An answer about another session
-    /// is not this answer.
-    func session(_ sessionId: String, door: PairedDoor) async throws -> PocketSessionAnswer {
+    /// is not this answer. On a one-shot line, or (Phase 337.1, D30) on the
+    /// Terminal's kept side line, where its status re-reads ride beside its
+    /// pages.
+    func session(_ sessionId: String, door: PairedDoor, line: DoorLine? = nil) async throws -> PocketSessionAnswer {
         let answer = try await signedGet(
-            PocketSessionAnswer.self, target: Self.sessionTarget(sessionId), door: door
+            PocketSessionAnswer.self, target: Self.sessionTarget(sessionId), door: door, line: line
         )
         guard answer.session.sessionId == sessionId else { throw DoorFailure.malformed }
         return answer
@@ -308,6 +313,30 @@ final class DoorClient: DoorExchanging {
         return await signedPost(route: route, door: door, limits: limits, write: nil, line: line).result
     }
 
+    // MARK: The Terminal's history (Phase 337.1), on its side line
+
+    /// `GET /v1/scrollback?id=&from=&count=&depth=&wrap=&keep=`
+    /// (build/p3371/SPEC.md D7): ONE page of the session's history, `count`
+    /// rows from index `from` of the index space whose newest history size
+    /// the phone saw is `depth`, wrapped at `wrap` columns, keeping the end
+    /// `keep` names when it cannot all be sent. A read: signed as every read,
+    /// on the Terminal's kept side `line`, asked once more on a new one when a
+    /// reused line ended before an answer. An answer about another session is
+    /// not this answer; whether it joins the rows held is the Terminal's to
+    /// decide (Screens/ScreenScrollback.swift).
+    func scrollback(
+        _ sessionId: String, from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep,
+        line: DoorLine, door: PairedDoor
+    ) async throws -> PocketScrollbackAnswer {
+        let answer = try await signedGet(
+            PocketScrollbackAnswer.self,
+            target: Self.scrollbackTarget(sessionId, from: from, count: count, depth: depth, wrap: wrap, keep: keep),
+            door: door, line: line
+        )
+        guard answer.sessionId == sessionId else { throw DoorFailure.malformed }
+        return answer
+    }
+
     // MARK: Pairing
 
     /// `POST /pair`. Unsigned by a request signature and with no client
@@ -344,6 +373,16 @@ final class DoorClient: DoorExchanging {
         var target = "/v1/screen?id=\(queryValue(sessionId))"
         if let since { target += "&since=\(queryValue(since))" }
         return target
+    }
+
+    /// The ONE builder of a `/v1/scrollback` target (Phase 337.1, D7,
+    /// conformance:ios rules ah and as): exactly `id`, `from`, `count`,
+    /// `depth`, `wrap` and `keep`, in that order, the id through `queryValue`
+    /// and the rest whole numbers and one closed word. `wrap` is an ECHO of
+    /// the width the phone's index space was read at, which the Mac compares
+    /// and never acts on: nothing here sizes the Mac (his ruling 2).
+    static func scrollbackTarget(_ sessionId: String, from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) -> String {
+        "/v1/scrollback?id=\(queryValue(sessionId))&from=\(from)&count=\(count)&depth=\(depth)&wrap=\(wrap)&keep=\(keep.rawValue)"
     }
 
     /// The ONE builder of a `/v1/sessions` target (Phase 316.7, conformance:ios
@@ -1058,10 +1097,11 @@ struct ExchangeEnd: Sendable {
 /// ONE CONNECTION AT A TIME, and the one place in the app a connection is
 /// made. Every exchange runs on a line. Most lines carry one request with
 /// `Connection: close` and are done (`DoorLine.once()`), exactly as every
-/// exchange ran before Phase 337. The Screen holds two lines that KEEP their
-/// connection (build/p337/SPEC.md D25, section 5.8.2), one for its poll and
-/// one for its keys, so a read every second or two is not a new mutual-TLS
-/// handshake through Funnel each time. A kept line:
+/// exchange ran before Phase 337. The Terminal holds lines that KEEP their
+/// connection (build/p337/SPEC.md D25, section 5.8.2), one for its poll, one
+/// for its keys and, since Phase 337.1, one for its pages and its status
+/// re-reads (build/p3371/SPEC.md D30), so a read every second or two is not a
+/// new mutual-TLS handshake through Funnel each time. A kept line:
 ///
 ///   - sends `Connection: keep-alive` and carries ONE exchange at a time;
 ///   - is reused only while it has been idle less than `freshFor` (4 s) and

@@ -507,7 +507,7 @@ final class AlertsTests: XCTestCase {
     @MainActor
     func testATapOpensWhatItNames() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.waitingPath = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        app.waitingPath = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
         app.sessionsPath = [.session(id: "k", name: "k")]
         app.tab = .settings
         app.openFromAlert(.session("s"))

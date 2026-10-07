@@ -79,6 +79,9 @@
 
 import type { OverviewSessionActivity } from '../overview';
 import type { SessionChoiceOption } from './sessions';
+// PHASE 337.1: the deepest index a page of history may name is the Scrollback
+// depth setting's own maximum, imported rather than re-spelled.
+import { MAX_SCROLLBACK_LINES } from '../settings';
 
 // ---------------------------------------------------------------------------
 // The closed route table, named once
@@ -118,7 +121,9 @@ export const POCKET_ROUTE_IDS = [
   /** `GET /v1/screen` — one session's own screen, composed in main, as a long poll (Phase 337). */
   'screen',
   /** `POST /v1/keys` — keys typed into one running session, as at the desk (Phase 337). */
-  'keys'
+  'keys',
+  /** `GET /v1/scrollback` — one page of what a session's terminal printed before, never held (Phase 337.1). */
+  'scrollback'
 ] as const;
 
 export type PocketRouteId = (typeof POCKET_ROUTE_IDS)[number];
@@ -1050,10 +1055,16 @@ export const POCKET_CONFIRM_WARNING =
  * says what the Screen and its keys let a phone do. It says "what any
  * session's screen SHOWS" because the Screen is not redacted (D41): it is the
  * session's own screen, whatever a terminal shows.
+ *
+ * REWRITTEN BY PHASE 337.1 (build/p3371/SPEC.md D35): the phone names the
+ * Screen Terminal now (his ruling, "named Terminal in the app"), and it can
+ * scroll back through what a session printed, which his Phase 316 ruling
+ * refused until then; so the sentence says the phone sees what a session's
+ * terminal shows AND WHAT IT PRINTED BEFORE. No write clause moved.
  */
 export const POCKET_DOOR_HONESTY =
-  'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, ' +
-  'answer a numbered question, send a session one message and end a session.';
+  'A phone you allow can see what any session’s terminal shows and what it printed before, ' +
+  'type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 
 /**
  * How the phone reaches this Mac (rewritten in Phase 330, research 132 Route
@@ -1373,6 +1384,21 @@ export interface PocketScreen {
   dialog: string | null;
   /** Keys are taken now: live, not unknown, and on another machine a live connection. */
   typable: boolean;
+  /**
+   * tmux's history size at this read (Phase 337.1, build/p3371/SPEC.md D3): the
+   * index of the live top row in the history's index space, numbered from the
+   * oldest line tmux holds (D2). NULL TOGETHER WITH {@link space}: on the
+   * alternate screen, when the read's two displays did not agree, or past
+   * {@link POCKET_SCROLLBACK_MAX_INDEX}. Null offers no scrollback for this one
+   * picture. Required: the one composer always sets it.
+   */
+  depth: number | null;
+  /**
+   * WHICH PANE that index space belongs to (D3, §Attack B8): 12 lowercase hex,
+   * a hash of the pane, so no tmux id crosses the wire. Null exactly with
+   * {@link depth}.
+   */
+  space: string | null;
 }
 
 /** Why a screen answer carries no screen (D13). */
@@ -1395,3 +1421,44 @@ export interface PocketScreenAnswer {
 
 /** One item of a keys write: text as typed, or one named key (D17). */
 export type PocketKeyItem = { t: string } | { k: PocketScreenKeyName };
+
+// ---------------------------------------------------------------------------
+// The Screen's history (Phase 337.1, build/p3371/SPEC.md §5.2, D7, D8)
+// ---------------------------------------------------------------------------
+
+/** The most rows one page of history may ask for (D7): 100 and the 8 overlap rows fit. */
+export const POCKET_SCROLLBACK_MAX_COUNT = 128;
+
+/** The deepest index a page may name: the Scrollback depth setting's maximum (src/shared/settings.ts). */
+export const POCKET_SCROLLBACK_MAX_INDEX = MAX_SCROLLBACK_LINES;
+
+/** Which end of a page matters when it cannot all be sent (D11): an older page keeps its bottom, a newer one its top. */
+export type PocketScrollbackKeep = 'top' | 'bottom';
+
+/**
+ * Why a page carries no rows (D8): the session is not running; it cannot be
+ * reached now; the history moved under the phone's index space (a trim, a
+ * clear, a rewrap, another width, the alternate screen); or main could not
+ * read a steady page just now, or holds too many waiting for this session.
+ */
+export type PocketScrollbackAbsence = 'ended' | 'unreachable' | 'moved' | 'busy';
+
+/** The answer to `GET /v1/scrollback`, composed field by field in main (D8). Sent whole, never streamed. */
+export interface PocketScrollbackAnswer {
+  sessionId: string;
+  at: number;
+  /** The index of rows[0] (0 = the oldest line tmux holds); null exactly with `why`. */
+  from: number | null;
+  /** tmux's history size and the width it is wrapped at, as this read found them; null exactly with `why`. */
+  depth: number | null;
+  wrap: number | null;
+  /** Which pane this index space is (D3, §Attack B8): 12 lowercase hex, as `PocketScreen.space`; null exactly with `why`. */
+  space: string | null;
+  /** The page's own style table, colours resolved on the Mac as the live screen's (337 D12). */
+  styles: PocketScreenStyle[];
+  /** One entry per row, runs exactly as PocketScreen.lines; empty exactly with `why`. */
+  rows: PocketScreenRun[][];
+  why: PocketScrollbackAbsence | null;
+  /** Main's words for {@link why}, null otherwise. */
+  sentence: string | null;
+}

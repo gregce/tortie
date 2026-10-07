@@ -4,9 +4,11 @@
 //
 //   the list          every session, "Needs your input (n)" then "Everything
 //                     else (n)" (his ruling: the phone opens anything)
-//   one session       its status, the Catch Me Up line, the two cells, the
-//                     last answer
-//   the conversation  paged back from the newest turn
+//   one session       its Terminal, or Catch Me Up when it has none (since
+//                     Phase 337.1, below)
+//   Catch Me Up       the conversation paged back from the newest turn, then
+//                     where the session stands now: its status, the Catch Me
+//                     Up card, the options, the two cells
 //   pairing           the Mac's code, the fingerprint, and his Allow
 //
 // THREE TABS since Phase 316.6 (build/p3166/SPEC.md section 5.1): Needs input
@@ -50,25 +52,35 @@
 // one on the way to the background, the same way.
 //
 // AND SINCE PHASE 337, THE SCREEN (build/p337/SPEC.md section 5.8): a running
-// session's page has a Screen row under Conversation that opens the session's
-// own screen as his Mac shows it now, at the Mac's width, read by a long poll
-// and typed into with every key, Ctrl-C included, and no Face ID (his rulings
-// 1 to 4). End moves to the top right of the session's page. The app keeps
-// every live key sender and stops each one on the way to the background:
-// keys waiting are dropped, a keys write not yet handed is withheld, and the
-// Screen's two kept connections close.
+// session's own screen as his Mac shows it now, at the Mac's width, read by a
+// long poll and typed into with every key, Ctrl-C included, and no Face ID
+// (his rulings 1 to 4). End moved to the top right. The app keeps every live
+// key sender and stops each one on the way to the background: keys waiting
+// are dropped, a keys write not yet handed is withheld, and the screen's kept
+// connections close.
+//
+// AND SINCE PHASE 337.1, TERMINAL FIRST (build/p3371/SPEC.md D16 to D23, his
+// ruling "lets do B"): tapping a session opens its TERMINAL at once, full
+// screen, with one status line under its name, the numbered question's
+// options under it, and the Catch Me Up icon then End at the top right; the
+// terminal scrolls back through what the session printed ("Yes, scroll back
+// on the Screen"). A session with no terminal, an ended one or one on a Mac
+// older than Phase 337, opens on CATCH ME UP, the conversation renamed ("Yes,
+// rename it") with where the session stands now after its newest turn. The
+// face is decided at the session's first answer and kept (`SessionRoute`).
 //
 // WHAT IT NEVER DOES. It types nothing he did not press, write or type; it
 // offers no message box while the agent works, asks him something or holds
 // words typed at the Mac (the Mac decides, and asks again when the write
-// arrives); and it retries or stores no write. It draws no terminal
-// scrollback, ever, and it never changes the size of a session on the Mac. It
-// restores and removes nothing, and it ends a session only on his press, his
-// confirmation and his face, finger or passcode. It has no background mode:
-// it reads on appear, on return to the foreground and on pull (build/p316/SPEC.md
-// section 4.0), the Screen alone polls while it is on top, and an alert that
-// arrives while it is open refreshes nothing. Nothing keeps it running to
-// finish a write. Dark only, iPhone, portrait but for the Screen.
+// arrives); and it retries or stores no write. It keeps no line of a
+// terminal past the Terminal it is drawn on, pastes nothing, and never changes
+// the size of a session on the Mac. It restores and removes nothing, and it
+// ends a session only on his press, his confirmation and his face, finger or
+// passcode. It has no background mode: it reads on appear, on return to the
+// foreground and on pull (build/p316/SPEC.md section 4.0), the Terminal alone
+// polls while it is on top, and an alert that arrives while it is open
+// refreshes nothing. Nothing keeps it running to finish a write. Dark only,
+// iPhone, portrait but for the Terminal.
 //
 // THIS FILE COMPOSES and draws nothing of its own: Door/ holds the keys, the
 // signature and the one network user, Screens/ draws, and `LiveDoor` below is
@@ -112,15 +124,16 @@ enum AppTab: Hashable, Sendable {
 
 /// A screen pushed over a list.
 enum Route: Hashable {
+    /// One session: its Terminal, or Catch Me Up when it has none (Phase
+    /// 337.1, D16), decided at its first answer.
     case session(id: String, name: String)
+    /// Catch Me Up, pushed by the Terminal's icon (Phase 337.1, D18).
     /// `honestLine` is the session's own line, drawn when it has no turns.
-    case conversation(id: String, honestLine: String?)
+    case catchUp(id: String, honestLine: String?)
     /// The session an alert named, opened by a tap. Drawn as `session`, with
     /// no name until the door answers, and a refusal says the Mac's own
     /// sentence for a session it no longer has (SPEC section 5.6.4).
     case alerted(id: String)
-    /// The session's own screen (Phase 337), titled by its name.
-    case screen(id: String, name: String)
 }
 
 @MainActor
@@ -343,9 +356,9 @@ final class AppModel {
     /// section 5): a reply whose bytes were not handed is withheld, never sent
     /// on the way back in, and never retried.
     ///
-    /// And every Screen's keys (Phase 337, D30): the keys waiting are dropped,
-    /// a write whose bytes were not handed is withheld, and the Screen's two
-    /// kept connections close.
+    /// And every Terminal's keys (Phase 337, D30): the keys waiting are
+    /// dropped, a write whose bytes were not handed is withheld, and the
+    /// Terminal's kept connections close.
     func wentAway() {
         list?.clearNotice()
         for runner in liveRunners {
@@ -460,14 +473,9 @@ final class AppModel {
         }
     }
 
-    /// The conversation, opened from a session on `tab`.
-    func openConversation(_ sessionId: String, honestLine: String?, in tab: AppTab) {
-        push(.conversation(id: sessionId, honestLine: honestLine), on: tab)
-    }
-
-    /// The session's own screen, opened from a session on `tab` (Phase 337).
-    func openScreen(_ sessionId: String, name: String, in tab: AppTab) {
-        push(.screen(id: sessionId, name: name), on: tab)
+    /// Catch Me Up, opened by the Terminal's icon on `tab` (Phase 337.1).
+    func openCatchUp(_ sessionId: String, honestLine: String?, in tab: AppTab) {
+        push(.catchUp(id: sessionId, honestLine: honestLine), on: tab)
     }
 
     /// Whether `route` is the screen a person is looking at: `tab` is on
@@ -664,58 +672,109 @@ struct RootView: View {
             SessionRoute(
                 id: id, name: name, reader: reader, routing: app.routing(tab),
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app,
-                openScreen: { shown in app.openScreen(id, name: shown, in: tab) }
+                ownerCheck: app.ownerCheck, registry: app, replies: app, keys: app
             ) { honestLine in
-                app.openConversation(id, honestLine: honestLine, in: tab)
+                app.openCatchUp(id, honestLine: honestLine, in: tab)
             }
-        case .conversation(let id, let honestLine):
-            ConversationRoute(
+        case .catchUp(let id, let honestLine):
+            CatchUpRoute(
                 id: id, honestLine: honestLine, reader: reader, routing: app.routing(tab),
-                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick
+                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
+                ownerCheck: app.ownerCheck, registry: app, replies: app
             )
         case .alerted(let id):
             SessionRoute(
                 id: id, name: "", reader: reader, routing: app.alertedRouting,
                 isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick,
-                ownerCheck: app.ownerCheck, registry: app, replies: app,
-                openScreen: { shown in app.openScreen(id, name: shown, in: tab) }
+                ownerCheck: app.ownerCheck, registry: app, replies: app, keys: app
             ) { honestLine in
-                app.openConversation(id, honestLine: honestLine, in: tab)
+                app.openCatchUp(id, honestLine: honestLine, in: tab)
             }
-        case .screen(let id, let name):
-            ScreenRoute(
-                id: id, name: name, reader: reader, routing: app.routing(tab),
-                isTop: app.isTop(route, in: tab), foregroundTick: app.foregroundTick, keys: app
-            )
         }
     }
 }
 
-/// Holds one session screen's model, its End's and its reply's, for as long
-/// as the screen is pushed. Both are built from the reader's writer: a reader
-/// that writes nothing draws no End, no button and no message box. The reply
-/// asks no owner check (his ruling, "Only for End"), and its box, its kept
-/// say and its lines are forgotten when the screen is left.
+/// Which face a session's route draws, decided at its first answer and then
+/// kept for the route's life (Phase 337.1, build/p3371/SPEC.md D16): the
+/// Terminal exactly when the answer says the session has one (`screen`) and
+/// this reader has a screen door for it, else Catch Me Up. A session that ends
+/// while he watches keeps its Terminal, whose poll then says the Mac's
+/// sentence where the rows were; nothing he is looking at swaps under him.
+@MainActor
+@Observable
+final class SessionRouteModel {
+    enum Face: Equatable, Sendable {
+        case terminal
+        case catchUp
+    }
+
+    let sessionId: String
+    /// The route's read: the first answer, which decides the face, and
+    /// Catch Me Up's now card on that face. Through the reader, never a kept
+    /// line: the Terminal makes its own (`TerminalFace`).
+    let session: SessionModel
+    /// Nil until an answer decides it; then never changed.
+    private(set) var face: Face?
+    /// The Terminal's door, made only when the Terminal is the face.
+    private(set) var terminalDoor: (any ScreenDoor)?
+    private let reader: any DoorReading
+
+    init(sessionId: String, reader: any DoorReading, routing: ReadRouting) {
+        self.sessionId = sessionId
+        self.reader = reader
+        session = SessionModel(sessionId: sessionId, door: reader, routing: routing)
+    }
+
+    /// The face for an answer: the Terminal exactly when the session has one
+    /// and there is a door to it.
+    nonisolated static func face(screen: Bool, hasDoor: Bool) -> Face {
+        screen && hasDoor ? .terminal : .catchUp
+    }
+
+    /// Read the session, and decide the face if this is the first answer.
+    func load() async {
+        await session.load()
+        decide()
+    }
+
+    /// The first loaded answer decides, once.
+    func decide() {
+        guard face == nil, case .loaded(let drawing) = session.phase else { return }
+        let door = drawing.screen ? reader.screenDoor(sessionId) : nil
+        face = Self.face(screen: drawing.screen, hasDoor: door != nil)
+        terminalDoor = face == .terminal ? door : nil
+    }
+}
+
+/// One session's route (Phase 337.1, D16): its name and the loading view
+/// until the first answer, then the Terminal or Catch Me Up, kept. Holds the
+/// session's End and its reply for as long as it is pushed, both built from
+/// the reader's writer: a reader that writes nothing draws no End, no button
+/// and no message box. The reply asks no owner check (his ruling, "Only for
+/// End"), and its box, its kept say and its lines are forgotten when the
+/// route is left. Its outer container is `screen-session` whichever face it
+/// draws, the face's own inside it.
 private struct SessionRoute: View {
-    @State private var model: SessionModel
+    @State private var route: SessionRouteModel
+    @State private var conversation: ConversationModel
     @State private var end: EndModel?
     @State private var reply: ReplyModel?
     let name: String
+    let reader: any DoorReading
+    let routing: ReadRouting
     let isTop: Bool
     let foregroundTick: Int
-    let openConversation: (String?) -> Void
-    /// Opens the session's own screen, or nil when this reader has none
-    /// (Phase 337): then no Screen row is drawn.
-    let openScreen: ((String) -> Void)?
+    let keys: any ScreenKeysRegistry
+    let openCatchUp: (String?) -> Void
 
     init(
         id: String, name: String, reader: any DoorReading, routing: ReadRouting,
         isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
-        replies: any ReplyRunnerRegistry, openScreen: @escaping (String) -> Void,
-        openConversation: @escaping (String?) -> Void
+        replies: any ReplyRunnerRegistry, keys: any ScreenKeysRegistry,
+        openCatchUp: @escaping (String?) -> Void
     ) {
-        _model = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
+        _route = State(initialValue: SessionRouteModel(sessionId: id, reader: reader, routing: routing))
+        _conversation = State(initialValue: ConversationModel(sessionId: id, door: reader, routing: routing))
         _end = State(initialValue: reader.writer.map {
             EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
         })
@@ -723,77 +782,172 @@ private struct SessionRoute: View {
             ReplyModel(sessionId: id, writer: $0, registry: replies)
         })
         self.name = name
+        self.reader = reader
+        self.routing = routing
         self.isTop = isTop
         self.foregroundTick = foregroundTick
-        self.openConversation = openConversation
-        self.openScreen = reader.screenDoor(id) == nil ? nil : openScreen
+        self.keys = keys
+        self.openCatchUp = openCatchUp
     }
 
     var body: some View {
-        SessionScreen(
-            model: model, name: name, isTop: isTop, foregroundTick: foregroundTick,
-            openConversation: openConversation, end: end, reply: reply, openScreen: openScreen
-        )
+        ZStack {
+            // THE ROUTE'S SECOND CHILD (the 337.1 fix round). With the face as
+            // the route's one accessibility child, SwiftUI folded the face's
+            // own container into this one: only `screen-session` reached the
+            // tree, never `screen-screen` or `screen-catch-up`, and every drive
+            // that read the face read none (the verifier's element dumps on
+            // iOS 26.3). A second child keeps the two containers apart. It
+            // draws nothing, takes no touch and is hidden from VoiceOver.
+            Color.clear
+                .frame(width: 0, height: 0)
+                .allowsHitTesting(false)
+                .accessibilityElement()
+                .accessibilityIdentifier(ID.sessionRouteMark)
+                .accessibilityHidden(true)
+            switch route.face {
+            case .terminal?:
+                if let door = route.terminalDoor, let first = route.session.latest {
+                    TerminalFace(
+                        sessionId: route.sessionId, door: door, reader: reader, routing: routing, first: first,
+                        isTop: isTop, foregroundTick: foregroundTick, end: end, reply: reply, registry: keys,
+                        openCatchUp: openCatchUp
+                    )
+                }
+            case .catchUp?:
+                CatchUpPage(
+                    conversation: conversation, honestLine: route.session.latest?.outcome, session: route.session,
+                    end: end, reply: reply, name: route.session.latest?.name ?? name,
+                    isTop: isTop, foregroundTick: foregroundTick
+                )
+            case nil:
+                deciding
+            }
+        }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(ID.sessionScreen)
     }
-}
 
-/// Holds one Screen's poll and its keys while it is pushed (Phase 337). The
-/// keys are made only for a door that writes; the sender is registered with
-/// the app as the Screen appears and released as it goes, so a trip to the
-/// background stops it.
-private struct ScreenRoute: View {
-    @State private var model: ScreenModel?
-    @State private var keys: ScreenKeySender?
-    let name: String
-    let isTop: Bool
-    let foregroundTick: Int
-    let registry: any ScreenKeysRegistry
-
-    init(
-        id: String, name: String, reader: any DoorReading, routing: ReadRouting,
-        isTop: Bool, foregroundTick: Int, keys registry: any ScreenKeysRegistry
-    ) {
-        let door = reader.screenDoor(id)
-        let model = door.map { ScreenModel(sessionId: id, door: $0, routing: routing) }
-        _model = State(initialValue: model)
-        _keys = State(initialValue: door.flatMap { door in
-            guard door.writes, let model else { return nil }
-            return ScreenKeySender(door: door, picture: { [weak model] in model?.picture })
-        })
-        self.name = name
-        self.isTop = isTop
-        self.foregroundTick = foregroundTick
-        self.registry = registry
-    }
-
-    var body: some View {
-        if let model {
-            ScreenPage(model: model, keys: keys, name: name, isTop: isTop, foregroundTick: foregroundTick)
-                .onAppear { if let keys { registry.registerKeys(keys) } }
-                .onDisappear { if let keys { registry.releaseKeys(keys) } }
+    /// Before an answer decides the face: the name, and the spinner or the
+    /// one sentence with Try again. A refusal goes where the session page's
+    /// went (`DoorWords.consequence`, or the alerted route's own sentence).
+    private var deciding: some View {
+        VStack(spacing: 0) {
+            if case .failed(let sentence) = route.session.phase {
+                FailureView(sentence: sentence, id: ID.sessionFailure) {
+                    Task { await route.load() }
+                }
+            } else {
+                LoadingView(id: ID.sessionLoading)
+            }
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+        .background(Tokens.bgSidebar.ignoresSafeArea())
+        .task { await route.load() }
+        .onChange(of: foregroundTick) {
+            guard isTop else { return }
+            Task { await route.load() }
+        }
+        .navigationTitle(name)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .principal) {
+                Words(name, .navTitle, Tokens.textPrimary)
+                    .accessibilityAddTraits(.isHeader)
+            }
         }
     }
 }
 
-/// Holds one conversation's model, and every page it read, while it is pushed.
-private struct ConversationRoute: View {
-    @State private var model: ConversationModel
+/// The Terminal face: its poll, its keys and its own reads of the session,
+/// held while the face is up (337's `ScreenRoute`, which this replaces). The
+/// keys are made only for a door that writes; the sender is registered with
+/// the app as the Terminal appears and released as it goes, so a trip to the
+/// background stops it. The status line's reads go through the door's side
+/// line (D17, D30), one exchange at a time with the pages.
+private struct TerminalFace: View {
+    @State private var screen: ScreenModel
+    @State private var keys: ScreenKeySender?
+    @State private var status: SessionModel
+    @State private var follow: StatusFollow
+    let first: SessionDrawing
+    let isTop: Bool
+    let foregroundTick: Int
+    let end: EndModel?
+    let reply: ReplyModel?
+    let registry: any ScreenKeysRegistry
+    let openCatchUp: (String?) -> Void
+
+    init(
+        sessionId: String, door: any ScreenDoor, reader: any DoorReading, routing: ReadRouting,
+        first: SessionDrawing, isTop: Bool, foregroundTick: Int, end: EndModel?, reply: ReplyModel?,
+        registry: any ScreenKeysRegistry, openCatchUp: @escaping (String?) -> Void
+    ) {
+        let screen = ScreenModel(sessionId: sessionId, door: door, routing: routing)
+        _screen = State(initialValue: screen)
+        _keys = State(initialValue: door.writes ? ScreenKeySender(door: door, picture: { [weak screen] in screen?.picture }) : nil)
+        let status = SessionModel(sessionId: sessionId, door: reader, routing: routing, read: { try await door.session() })
+        _status = State(initialValue: status)
+        _follow = State(initialValue: StatusFollow(read: { [weak status] in _ = await status?.load() }))
+        self.first = first
+        self.isTop = isTop
+        self.foregroundTick = foregroundTick
+        self.end = end
+        self.reply = reply
+        self.registry = registry
+        self.openCatchUp = openCatchUp
+    }
+
+    var body: some View {
+        TerminalPage(
+            screen: screen, keys: keys, session: status, follow: follow, first: first,
+            isTop: isTop, foregroundTick: foregroundTick, end: end, reply: reply, openCatchUp: openCatchUp
+        )
+        .onAppear { if let keys { registry.registerKeys(keys) } }
+        .onDisappear { if let keys { registry.releaseKeys(keys) } }
+    }
+}
+
+/// Catch Me Up pushed by the Terminal's icon (Phase 337.1, D18): its own
+/// conversation, its own read of the session, End and the reply, for as long
+/// as it is pushed. Its reads are the reader's own, never the Terminal's kept
+/// lines, which close as the Terminal goes under it.
+private struct CatchUpRoute: View {
+    @State private var conversation: ConversationModel
+    @State private var session: SessionModel
+    @State private var end: EndModel?
+    @State private var reply: ReplyModel?
     let honestLine: String?
     let isTop: Bool
     let foregroundTick: Int
 
     init(
         id: String, honestLine: String?, reader: any DoorReading, routing: ReadRouting,
-        isTop: Bool, foregroundTick: Int
+        isTop: Bool, foregroundTick: Int, ownerCheck: any OwnerCheck, registry: any EndRunnerRegistry,
+        replies: any ReplyRunnerRegistry
     ) {
-        _model = State(initialValue: ConversationModel(sessionId: id, door: reader, routing: routing))
+        _conversation = State(initialValue: ConversationModel(sessionId: id, door: reader, routing: routing))
+        _session = State(initialValue: SessionModel(sessionId: id, door: reader, routing: routing))
+        _end = State(initialValue: reader.writer.map {
+            EndModel(sessionId: id, writer: $0, ownerCheck: ownerCheck, registry: registry)
+        })
+        _reply = State(initialValue: reader.writer.map {
+            ReplyModel(sessionId: id, writer: $0, registry: replies)
+        })
         self.honestLine = honestLine
         self.isTop = isTop
         self.foregroundTick = foregroundTick
     }
 
     var body: some View {
-        ConversationScreen(model: model, honestLine: honestLine, isTop: isTop, foregroundTick: foregroundTick)
+        CatchUpPage(
+            conversation: conversation, honestLine: honestLine, session: session, end: end, reply: reply,
+            name: "", isTop: isTop, foregroundTick: foregroundTick
+        )
     }
 }
 
@@ -861,16 +1015,27 @@ struct PairedReader: DoorReading, DoorWriting {
     }
 }
 
-/// One session's Screen through the kept pairing (Phase 337): `GET /v1/screen`
-/// on the poll's kept line and `POST /v1/keys` on the keys' (Door/DoorClient.swift
-/// `DoorLine`), so a poll held by the Mac never waits behind a key, nor a key
-/// behind a poll. At rest it holds one connection, two while he types.
+/// One session's Terminal through the kept pairing (Phase 337, widened in
+/// 337.1): `GET /v1/screen` on the poll's kept line, `POST /v1/keys` on the
+/// keys', and, since Phase 337.1, THE SIDE LINE (build/p3371/SPEC.md D30): a
+/// third kept line carrying `GET /v1/scrollback`'s pages and the Terminal's
+/// `GET /v1/session` re-reads, ONE EXCHANGE AT A TIME through its one gate,
+/// because a second exchange on a busy line cancels the first
+/// (Door/DoorClient.swift `DoorLine`). So a poll held by the Mac never waits
+/// behind a key or a page, nor a key behind either. At rest it holds one
+/// connection, two while he types, two while he scrolls back or the status
+/// re-reads, and each kept line closes itself once idle 4 s.
 final class PairedScreenDoor: ScreenDoor {
     let client: DoorClient
     let door: PairedDoor
     let sessionId: String
     private let poll = DoorLine(keeps: true)
     private let typing = DoorLine(keeps: true)
+    /// Pages and status re-reads, one exchange at a time through `sideGate`.
+    private let side = DoorLine(keeps: true)
+    /// The side line's one gate: a page and a status re-read never overlap,
+    /// the second waits for the first.
+    private let sideGate = OneExchange()
 
     init(client: DoorClient, door: PairedDoor, sessionId: String) {
         self.client = client
@@ -889,9 +1054,65 @@ final class PairedScreenDoor: ScreenDoor {
         await client.keys(sessionId, keys: keys, turn: turn, dialog: dialog, line: typing, door: door)
     }
 
+    /// One page of the session's history, on the side line (Phase 337.1).
+    func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer {
+        let client = client
+        let door = door
+        let sessionId = sessionId
+        let side = side
+        return try await sideGate.run {
+            try await client.scrollback(
+                sessionId, from: from, count: count, depth: depth, wrap: wrap, keep: keep, line: side, door: door
+            )
+        }
+    }
+
+    /// The Terminal's status re-read, on the side line (Phase 337.1, D17).
+    func session() async throws -> PocketSessionAnswer {
+        let client = client
+        let door = door
+        let sessionId = sessionId
+        let side = side
+        return try await sideGate.run {
+            try await client.session(sessionId, door: door, line: side)
+        }
+    }
+
+    /// Close all three kept lines now (the Terminal went away, or the app).
     func close() {
         poll.close()
         typing.close()
+        side.close()
+    }
+}
+
+/// One exchange at a time (Phase 337.1, D30): a second `run` waits until the
+/// first has ended, in the order they came. It holds no answer and no request,
+/// and gives every exchange its own task's cancellation.
+actor OneExchange {
+    private var busy = false
+    private var waiting: [CheckedContinuation<Void, Never>] = []
+
+    func run<T: Sendable>(_ exchange: @Sendable () async throws -> T) async throws -> T {
+        await enter()
+        defer { leave() }
+        return try await exchange()
+    }
+
+    private func enter() async {
+        guard busy else {
+            busy = true
+            return
+        }
+        await withCheckedContinuation { waiting.append($0) }
+    }
+
+    private func leave() {
+        guard !waiting.isEmpty else {
+            busy = false
+            return
+        }
+        waiting.removeFirst().resume()
     }
 }
 

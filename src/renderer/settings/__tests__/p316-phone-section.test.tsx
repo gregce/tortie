@@ -134,10 +134,11 @@ const LINES = [
   `Answers on the internet at https://${NAME}:8443, through Tailscale Funnel on example.github`,
   'Publishes it with /Applications/Tailscale.app/Contents/MacOS/Tailscale',
   'Starts answering when Tortie starts',
-  // The ten routes since Phase 337 (build/p337/SPEC.md D35), after Phases 318
-  // and 316.7 (build/p3167/SPEC.md §3 row 1), and the line the four writes add
-  // after them, as main composes them.
-  'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns',
+  // The eleven routes since Phase 337.1's history read (build/p3371/SPEC.md
+  // D1, D35), after Phase 337 (build/p337/SPEC.md D35), Phases 318 and 316.7
+  // (build/p3167/SPEC.md §3 row 1), and the line the four writes add after
+  // them, as main composes them.
+  'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns',
   'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac',
   'Tells your phone nothing through Apple',
   'Allows no phone yet'
@@ -335,12 +336,19 @@ describe('nothing starts before a person reads', () => {
     // now see a session's own screen and type into it, so "It can change
     // nothing else on this Mac" is gone because it is no longer true, and it
     // says what the screen SHOWS because the Screen is not redacted.
+    // PHASE 337.1 (build/p3371/SPEC.md D35) rewrote it once more: the phone
+    // names the Screen Terminal (his ruling 3), and it can scroll back through
+    // what a session printed, which his Phase 316 ruling had refused, so the
+    // sentence says the phone sees what the terminal shows AND WHAT IT
+    // PRINTED BEFORE. Terminal is his word for the feature, never a tmux one.
     expect(POCKET_DOOR_HONESTY).toBe(
-      'A phone you allow can see what any session\u2019s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.'
+      'A phone you allow can see what any session\u2019s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.'
     );
+    expect(POCKET_DOOR_HONESTY).toContain('what it printed before');
+    expect(POCKET_DOOR_HONESTY).not.toContain('screen shows');
     expect(POCKET_DOOR_HONESTY).not.toMatch(/change nothing else|cannot type|Nothing on it/);
     expect(POCKET_DOOR_HONESTY).not.toMatch(/Face ID|Touch ID|passcode/);
-    expect(POCKET_DOOR_HONESTY).not.toMatch(/\b(pane|window|prefix|terminal|SSH|remote desktop)\b/i);
+    expect(POCKET_DOOR_HONESTY).not.toMatch(/\b(pane|window|prefix|scrollback|history|SSH|remote desktop)\b/i);
     expect(page).not.toContain(POCKET_FUNNEL_RIGHT_WARNING);
     expect(html).toMatch(/<button[^>]*data-phone-action="confirm-door"[^>]*>/);
     expect(/<button[^>]*data-phone-action="confirm-door"[^>]*>/.exec(html)?.[0]).not.toContain('disabled');

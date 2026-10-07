@@ -163,6 +163,32 @@
  * `/v1/keys` event carries the connection's own serial, so the probe can count
  * handshakes against reads and say which line carried which request.
  *
+ * THE SCROLLBACK ARMS (Phase 337.1, build/p3371/SPEC.md §7.8 PSH and §6.4
+ * (t), names pinned there). Every arm's honest screen now carries a history,
+ * `depth` HOSTILE_HISTORY_DEPTH and `space` HOSTILE_SPACE, and every arm
+ * answers `GET /v1/scrollback` (the six names, each once, signed) with a page
+ * of that history, numbered lines `L000001 …` (build/p3371/history-stand-in.mjs's
+ * own spelling) cut to the `wrap` asked, one style. The scrollback arms answer
+ * the Screen honestly and their PAGES their own way, so each must end with the
+ * live terminal drawn and the app in the foreground:
+ *   scrollback-extra-rows   every page carries ten rows more than asked
+ *   scrollback-from         every page's `from` is one past the one asked
+ *   scrollback-colour       every page's style colour is not `#rrggbb`
+ *   scrollback-overlap-lie  the first page honest; every page after it a lie
+ *                           in every row, so the overlap rows are not the
+ *                           held rows: the moved line drawn, nothing more asked
+ *   scrollback-space        every page names another space than the live
+ *                           picture's: the moved line drawn, nothing more asked
+ *   scrollback-chunked      every page chunked, as raw bytes
+ *   scrollback-never        no page ever answered, past the phone's 15 s: asked
+ *                           again after the back-off, the live rows still drawn
+ *   scrollback-404          every page a 404 with no body
+ * Each names where it ends (`at`) and the Copy.swift words it may end in
+ * (`expect`); `retried` marks an arm whose page must be asked again after its
+ * back-off, `stops` one after which no page may be asked. Every
+ * `/v1/scrollback` event carries the ask's numbers and the connection's own
+ * serial, never a row.
+ *
  * THE SESSIONS READ (Phase 316.7, build/p3167/SPEC.md §9.5). Every arm now
  * answers `GET /v1/sessions` too, because the Sessions tab reads it first: the
  * honest answer is composed by the SHIPPING `createPocketRoutes(facts).sessions`
@@ -230,6 +256,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { tsxCli } from '../ts-runner.mjs';
+import { lineOf as historyLineOf } from '../p3371/history-stand-in.mjs';
 import {
   adoptCertificate,
   b64u,
@@ -265,7 +292,11 @@ import {
   sessionsTarget,
   screenRead,
   screenAnswerProblems,
+  screenRowText,
   screenTarget,
+  scrollbackAnswerProblems,
+  scrollbackRead,
+  scrollbackTarget,
   sendKeys,
   signedHeadersFor
 } from './node-phone.mjs';
@@ -378,11 +409,113 @@ export const HOSTILE_ARMS = Object.freeze({
   'screen-stray-answer': { what: 'a second, unasked answer on the kept line after the first: the line closed, the stray never drawn', ends: 'drawn', screen: true, at: 'screen-grid', expect: [], kept: 'stray' },
   'screen-connection-close': { what: 'the first /v1/screen answer says Connection: close: the next read on a new line', ends: 'drawn', screen: true, at: 'screen-grid', expect: [], kept: 'close' },
   'keys-404': { what: 'a 404 with no body to a keys write', ends: 'sentence', screen: true, keys: true, posts: 1, at: 'screen-line', expect: ['replyNotTaken'] },
-  'keys-other-id': { what: 'a 200 to a keys write whose write id is not the one sent', ends: 'sentence', screen: true, keys: true, posts: 1, at: 'screen-line', expect: ['endNoAnswer'] }
+  'keys-other-id': { what: 'a 200 to a keys write whose write id is not the one sent', ends: 'sentence', screen: true, keys: true, posts: 1, at: 'screen-line', expect: ['endNoAnswer'] },
+  // THE SCROLLBACK ARMS (Phase 337.1, build/p3371/SPEC.md §7.8 PSH, names
+  // pinned in §6.4 (t)). The Screen is answered honestly; the pages meet the
+  // arm. `scrollback` says which pages: 'every' or 'after-first'.
+  // A page well formed but holding rows not asked is a page the phone does not join (ScrollbackLayout.accept,
+  // build/p3371/SPEC.md §5.5.4 "anything else sets edge = .moved"), so it draws the moved line and asks no more,
+  // where a page its decoder refuses (from, colour, chunked) is a read that failed and is asked again.
+  'scrollback-extra-rows': { what: 'a /v1/scrollback page with ten rows more than asked', ends: 'sentence', scrollback: 'every', at: 'screen-scrollback-line', expect: ['scrollbackMoved'], stops: true },
+  'scrollback-from': { what: 'a /v1/scrollback page whose from is not the one asked', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [], retried: true },
+  'scrollback-colour': { what: 'a /v1/scrollback page whose style colour is not #rrggbb', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [], retried: true },
+  'scrollback-overlap-lie': { what: 'an older page whose overlap rows are not the rows the phone holds', ends: 'sentence', scrollback: 'after-first', at: 'screen-scrollback-line', expect: ['scrollbackMoved'], stops: true },
+  'scrollback-space': { what: 'a page of another space than the live picture', ends: 'sentence', scrollback: 'every', at: 'screen-scrollback-line', expect: ['scrollbackMoved'], stops: true },
+  'scrollback-chunked': { what: 'a /v1/scrollback page chunked', ends: 'drawn', scrollback: 'every', raw: true, at: 'screen-grid', expect: [], retried: true },
+  'scrollback-never': { what: 'a /v1/scrollback page never answered, past the phone\'s 15 s', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [], retried: true, live: true },
+  'scrollback-404': { what: 'a 404 with no body to a page', ends: 'drawn', scrollback: 'every', at: 'screen-grid', expect: [] }
 });
 
 /** The names of the Screen's arms (Phase 337). */
 export const SCREEN_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => HOSTILE_ARMS[a].screen === true));
+/** The names of the scrollback arms (Phase 337.1), as conformance:ios (t) and probe:p316's PSH read them. */
+export const SCROLLBACK_ARMS = Object.freeze(Object.keys(HOSTILE_ARMS).filter((a) => typeof HOSTILE_ARMS[a].scrollback === 'string'));
+/** Phase 337.1: the depth of the history every arm's honest screen offers, and the space it names. */
+export const HOSTILE_HISTORY_DEPTH = 600;
+export const HOSTILE_SPACE = '5c3a1f0e9d8b';
+/** The space a scrollback-space arm's pages name instead. */
+export const HOSTILE_OTHER_SPACE = '0f1e2d3c4b5a';
+/** The six names of a `/v1/scrollback` query, sorted. */
+const SCROLLBACK_PARAMS = 'count,depth,from,id,keep,wrap';
+const WHOLE_TEXT = /^(0|[1-9][0-9]{0,5})$/;
+
+/**
+ * A `/v1/scrollback` query read as the Mac reads it (build/p3371/SPEC.md D7):
+ * the six names each once and nothing else, every number whole and bounded,
+ * `from + count` within `depth`, `keep` `top` or `bottom`. The ask, or null.
+ */
+export function scrollbackAskOf(searchParams) {
+  const names = [...searchParams.keys()];
+  if (names.length !== 6 || [...names].sort().join(',') !== SCROLLBACK_PARAMS) return null;
+  const id = searchParams.get('id') ?? '';
+  const keep = searchParams.get('keep');
+  const n = {};
+  for (const k of ['from', 'count', 'depth', 'wrap']) {
+    const v = searchParams.get(k) ?? '';
+    if (!WHOLE_TEXT.test(v)) return null;
+    n[k] = Number(v);
+  }
+  if (!(id.length >= 1 && id.length <= 128) || (keep !== 'top' && keep !== 'bottom')) return null;
+  if (!(n.count >= 1 && n.count <= 128 && n.depth <= 100_000 && n.from + n.count <= n.depth && n.wrap >= 1 && n.wrap <= 512)) return null;
+  return { id, from: n.from, count: n.count, depth: n.depth, wrap: n.wrap, keep };
+}
+
+/** The honest page of the door's history for an ask: numbered lines cut to its wrap, one style. */
+export function honestPageOf(ask, lineOf) {
+  const rows = [];
+  for (let i = ask.from; i < Math.min(ask.from + ask.count, HOSTILE_HISTORY_DEPTH); i += 1) {
+    const text = lineOf(i + 1).slice(0, ask.wrap);
+    rows.push([{ text, style: 0, cells: text.length }]);
+  }
+  return {
+    sessionId: ask.id,
+    at: Date.now(),
+    from: ask.from,
+    depth: Math.max(ask.depth, HOSTILE_HISTORY_DEPTH),
+    wrap: ask.wrap,
+    space: HOSTILE_SPACE,
+    styles: [{ fg: '#d4d4d4', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    rows,
+    why: null,
+    sentence: null
+  };
+}
+
+/** A scrollback arm's page over an honest one (the raw, never and 404 arms are written by the door itself). */
+export function hostilePage(arm, honest, lineOf) {
+  const a = structuredClone(honest);
+  switch (arm) {
+    case 'scrollback-extra-rows': {
+      // Ten rows more than asked, inside the 128-row bound and the depth, so a decoder that reads its bounds alone
+      // takes them: below the page when the history has room, above it (from ten earlier) when the page is its newest.
+      const row = (n) => {
+        const text = lineOf(n).slice(0, a.wrap);
+        return [{ text, style: 0, cells: text.length }];
+      };
+      if (a.from + a.rows.length + 10 <= a.depth) for (let k = 0; k < 10; k += 1) a.rows.push(row(a.from + a.rows.length + 1));
+      else {
+        const from = Math.max(0, a.from - 10);
+        a.rows = [...Array.from({ length: a.from - from }, (_, k) => row(from + k + 1)), ...a.rows];
+        a.from = from;
+      }
+      return a;
+    }
+    case 'scrollback-from':
+      a.from += 1;
+      return a;
+    case 'scrollback-colour':
+      a.styles[0] = { ...a.styles[0], fg: 'red' };
+      return a;
+    case 'scrollback-overlap-lie':
+      a.rows = a.rows.map((row) => row.map((run) => ({ ...run, text: `Z${run.text.slice(1)}` })));
+      return a;
+    case 'scrollback-space':
+      a.space = HOSTILE_OTHER_SPACE;
+      return a;
+    default:
+      return a;
+  }
+}
 
 /** How long an honest door holds a /v1/screen read whose `since` is current, before `unchanged`. */
 export const SCREEN_HOLD_HONEST_MS = 2_000;
@@ -391,7 +524,13 @@ export const SCREEN_HOLD_HONEST_MS = 2_000;
 export function honestScreen(world, sessionId, serial) {
   const revision = createHash('sha256').update(`p316 hostile screen ${String(serial)}`).digest('hex').slice(0, 12);
   if (world.screenSample === null) return { sessionId, revision, at: Date.now(), unchanged: false, screen: null, why: 'unreachable', sentence: 'Tortie cannot reach this session’s machine now.' };
-  return { ...structuredClone(world.screenSample), sessionId, revision, at: Date.now(), unchanged: false, why: null, sentence: null };
+  const answer = { ...structuredClone(world.screenSample), sessionId, revision, at: Date.now(), unchanged: false, why: null, sentence: null };
+  // PHASE 337.1 (D3): the honest screen offers the door's own history, which `/v1/scrollback` pages.
+  if (answer.screen !== null && typeof answer.screen === 'object' && answer.screen.alternate !== true) {
+    answer.screen.depth = HOSTILE_HISTORY_DEPTH;
+    answer.screen.space = HOSTILE_SPACE;
+  }
+  return answer;
 }
 
 /** The screen arm's hostile answer to the phone's second read, over an honest one. */
@@ -1024,6 +1163,8 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
       }
       return lineOf.get(socket);
     };
+    /** Phase 337.1: signed /v1/scrollback reads, counted for the arm that answers after the first. */
+    let scrollbackReads = 0;
     /** Signed /v1/screen reads answered, and the revision the honest screen is at. */
     let screenReads = 0;
     let screenSerial = 0;
@@ -1191,6 +1332,29 @@ export async function startHostileDoor(arm, emit = () => undefined, options = {}
             return;
           }
           return answerNow();
+        }
+        if (req.method === 'GET' && url.pathname === '/v1/scrollback') {
+          // PHASE 337.1's page: signed, the six names, answered the arm's way.
+          // Logged by its numbers only: never a row.
+          const verifiedRead = verifySigned({ method: 'GET', target: req.url ?? '', headers: req.headers, body, phone, doorExchangePrivate: doorX.privateKey, doorExchangeKey: dx });
+          const channelRead = phone !== null && seen.clientPin === clientKeyPinOf(phone.clientKey);
+          const ask = scrollbackAskOf(url.searchParams);
+          scrollbackReads += 1;
+          const n = scrollbackReads;
+          const ev = { route, ...seen, verified: verifiedRead, channelHeld: channelRead, pageRead: n, ask: ask === null ? null : { from: ask.from, count: ask.count, depth: ask.depth, wrap: ask.wrap, keep: ask.keep }, line: lineSerial(req.socket), at: Date.now() };
+          if (verifiedRead !== 'ok' || ask === null || ask.from >= HOSTILE_HISTORY_DEPTH) return send(res, 404, '', ev);
+          if (refuseReads) return send(res, 404, '', { ...ev, refusedAfterWrite: true });
+          const honest = honestPageOf(ask, historyLineOf);
+          const spec = HOSTILE_ARMS[arm];
+          const hostileNow = typeof spec.scrollback === 'string' && (spec.scrollback === 'every' || n > 1);
+          if (!hostileNow) return send(res, 200, J(honest), ev);
+          if (arm === 'scrollback-never') {
+            emit({ kind: 'request', arm, ...ev, status: 200, bytes: 0, held: true });
+            return;
+          }
+          if (arm === 'scrollback-404') return send(res, 404, '', { ...ev, hostile: arm });
+          if (spec.raw === true) return sendRaw(req, rawAnswerOf('chunked', J(honest)), { ...ev, hostile: arm });
+          return send(res, 200, J(hostilePage(arm, honest, historyLineOf)), { ...ev, hostile: arm });
         }
         if (req.method === 'POST' && (url.pathname === '/v1/choose' || url.pathname === '/v1/say')) {
           // PHASE 318's two writes: counted, verified over the body, and
@@ -1677,6 +1841,60 @@ async function selfTest() {
         check(arm, firstOk && second.status === 200 && problems.length > 0, `the first /v1/screen drew; the second is refused for ${J(problems.slice(0, 2))}`);
         continue;
       }
+      // PHASE 337.1: THE SCROLLBACK ARMS, read with the node phone's own
+      // re-derivation of the phone's refusals (`scrollbackAnswerProblems`):
+      // the Screen honest and offering the door's history, each page the arm's.
+      if (typeof HOSTILE_ARMS[arm].scrollback === 'string') {
+        const spec = HOSTILE_ARMS[arm];
+        const sid = door.sessionToOpen;
+        const pairingRead = await signedGet(phone, d, '/v1/blocked');
+        const screen = await screenRead(phone, d, sid);
+        const sc = screen.answer?.screen ?? null;
+        const screenOk = pairingRead.status === 200 && screen.status === 200 && sc !== null && screenAnswerProblems(screen.answer).length === 0 && sc.depth === HOSTILE_HISTORY_DEPTH && sc.space === HOSTILE_SPACE;
+        const H = typeof sc?.depth === 'number' ? sc.depth : HOSTILE_HISTORY_DEPTH;
+        const wrap = typeof sc?.cols === 'number' ? sc.cols : 120;
+        const firstAsk = { from: H - 100, count: 100, depth: H, wrap, keep: 'bottom' };
+        const olderAsk = { from: H - 192, count: 100, depth: H, wrap, keep: 'bottom' };
+        const honestTexts = (ask) => honestPageOf({ id: sid, ...ask }, historyLineOf).rows.map(screenRowText);
+        if (arm === 'scrollback-never') {
+          const p = await scrollbackRead(phone, d, sid, { ...firstAsk, timeoutMs: 1_500 });
+          check(arm, screenOk && p.status !== 200, `the Screen drew with a history of ${String(H)}; the page answered ${p.status === 0 ? 'nothing' : String(p.status)} within 1.5 s (${String(p.error)})`);
+          continue;
+        }
+        if (arm === 'scrollback-404') {
+          const p = await scrollbackRead(phone, d, sid, firstAsk);
+          check(arm, screenOk && p.status === 404 && p.answer === null, `the Screen drew; the page answered ${String(p.status)}`);
+          continue;
+        }
+        if (spec.raw === true) {
+          const target = scrollbackTarget(sid, firstAsk);
+          const request = Buffer.from([`GET ${target} HTTP/1.1`, `Host: ${HOSTILE_NAME}:${String(HOSTILE_PUBLIC_PORT)}`, ...Object.entries(signedHeaders(phone, target)).map(([k, v]) => `${k}: ${v}`), 'Connection: close', '', ''].join('\r\n'), 'utf8');
+          const raw = await rawExchange({ door: d, bytes: request, identity: phone, capBytes: 8 * 1024 * 1024 });
+          const chunked = /\r\ntransfer-encoding: chunked\r\n/i.test(raw.bytes.toString('utf8'));
+          check(arm, screenOk && raw.handshook && chunked, `the Screen drew; the page was written as raw bytes${chunked ? ' with Transfer-Encoding: chunked' : ' WITHOUT Transfer-Encoding: chunked'}, which the phone's reader refuses`);
+          continue;
+        }
+        // extra-rows is read on an older page, where its rows stay inside the depth, so only the asked range refuses it.
+        const ask1 = arm === 'scrollback-extra-rows' ? olderAsk : firstAsk;
+        const p1 = await scrollbackRead(phone, d, sid, ask1);
+        const prob1 = p1.answer === null ? ['no answer'] : scrollbackAnswerProblems(p1.answer, ask1);
+        if (arm === 'scrollback-overlap-lie') {
+          const p2 = await scrollbackRead(phone, d, sid, olderAsk);
+          const prob2 = p2.answer === null ? ['no answer'] : scrollbackAnswerProblems(p2.answer, olderAsk);
+          const want = honestTexts(olderAsk);
+          const lied = p2.answer !== null && p2.answer.rows.length === want.length && p2.answer.rows.every((row, k) => screenRowText(row) !== want[k]);
+          const firstHonest = p1.answer !== null && J(p1.answer.rows.map(screenRowText)) === J(honestTexts(firstAsk));
+          check(arm, screenOk && prob1.length === 0 && firstHonest && prob2.length === 0 && lied, `the first page honest (${String(firstHonest)}, refused for ${J(prob1)}); the older page well formed (${J(prob2)}) and every row of it a lie, its 8 overlap rows among them: ${String(lied)}`);
+          continue;
+        }
+        if (arm === 'scrollback-space') {
+          check(arm, screenOk && prob1.length === 0 && p1.answer?.space === HOSTILE_OTHER_SPACE && p1.answer.space !== sc?.space, `the page is well formed (${J(prob1)}) and names the space ${J(p1.answer?.space)}, the picture ${J(sc?.space)}`);
+          continue;
+        }
+        const shaped = arm !== 'scrollback-extra-rows' || (p1.answer !== null && p1.answer.rows.length === ask1.count + 10 && p1.answer.from + p1.answer.rows.length <= p1.answer.depth);
+        check(arm, screenOk && p1.status === 200 && prob1.length > 0 && shaped, `the Screen drew with a history of ${String(H)}; the page${arm === 'scrollback-extra-rows' ? ` holds ${String(p1.answer?.rows?.length)} rows for ${String(ask1.count)} asked, inside its depth: ${String(shaped)}, and` : ''} is refused for ${J(prob1.slice(0, 2))}`);
+        continue;
+      }
       // PHASE 316.7: THE SESSIONS ARMS, read with the node phone's own
       // re-derivation of the phone's refusals (`sessionsAnswerProblems`).
       if (typeof HOSTILE_ARMS[arm].sessions === 'string') {
@@ -1958,6 +2176,17 @@ async function selfTest() {
           const known = new Set([...(body?.rows ?? []), ...(body?.others ?? [])].map((r) => r.sessionId));
           const sessionsProblems = sessionsRead.answer === null ? ['no answer'] : sessionsAnswerProblems(sessionsRead.answer, askedOf({}));
           const sessionsHold = sessionsRead.status === 200 && sessionsProblems.length === 0 && sessionsRead.answer.rows.length > 0 && sessionsRead.answer.rows.every((r) => known.has(r.sessionId)) && sessionsRead.answer.rows.some((r) => r.sessionId === door.sessionToOpen);
+          // Phase 337.1: the honest Screen offers the door's history, and an honest page of it is one the phone joins.
+          {
+            const screen = await screenRead(phone, d, door.sessionToOpen);
+            const sc = screen.answer?.screen ?? null;
+            const ask = { from: HOSTILE_HISTORY_DEPTH - 108, count: 108, depth: HOSTILE_HISTORY_DEPTH, wrap: sc?.cols ?? 120, keep: 'bottom' };
+            const page = await scrollbackRead(phone, d, door.sessionToOpen, ask);
+            const problems = page.answer === null ? ['no answer'] : scrollbackAnswerProblems(page.answer, ask);
+            const rowsHold = page.answer !== null && page.answer.rows.every((row, k) => screenRowText(row) === historyLineOf(ask.from + k + 1).slice(0, ask.wrap));
+            const refusedQuery = await signedGet(phone, d, `${scrollbackTarget(door.sessionToOpen, ask)}&cols=80`);
+            check('honest (scrollback)', sc?.depth === HOSTILE_HISTORY_DEPTH && sc?.space === HOSTILE_SPACE && page.status === 200 && problems.length === 0 && rowsHold && page.answer?.space === sc?.space && refusedQuery.status === 404, `the Screen offers a history of ${J(sc?.depth)} in space ${J(sc?.space)}; a page of 108 answered ${String(page.status)}, refused for ${J(problems)}, its rows the numbered lines: ${String(rowsHold)}; a seventh name answered ${String(refusedQuery.status)}`);
+          }
           check(
             arm,
             blocked.status === 200 && body !== null && paged.ok && all.length === door.turnCount && contiguous && indexes[0] === 0 && verified && mtls && bareEvent?.clientPin === null && bareEvent?.channelHeld === false && writesHold && sessionsHold,

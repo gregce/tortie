@@ -467,7 +467,7 @@ final class ScreensModelTests: XCTestCase {
     /// Clause: a refusal about one session pops THAT tab to its list.
     func testBackToListPops() {
         let app = AppModel(door: StandInPhone(kept: ScriptedReader()), label: "iPhone", alerts: StandInAlerts())
-        app.sessionsPath = [.session(id: "s", name: "s"), .conversation(id: "s", honestLine: nil)]
+        app.sessionsPath = [.session(id: "s", name: "s"), .catchUp(id: "s", honestLine: nil)]
         app.routing(.sessions).backToList()
         XCTAssertTrue(app.sessionsPath.isEmpty)
         XCTAssertEqual(app.root, .reading)

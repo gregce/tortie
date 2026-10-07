@@ -208,9 +208,14 @@ enum Copy {
     /// Mac: src/renderer/choice.ts ⟦CHOICE_NOT_PRESSABLE = 'Answer this in the session.'⟧
     static let answerInTheSession = "Answer this in the session."
 
-    /// Phone: the row that opens the whole conversation. The Mac opens it with
-    /// a key (`⏎ open this session’s conversation`), so it has no label.
-    static let conversation = "Conversation"
+    // MARK: - Catch Me Up (Phase 337.1: Conversation.html, build/p3371/SPEC.md D20, D21)
+
+    /// Mac: src/main/menu.ts ⟦item('Catch Me Up', 'show-overview'⟧
+    /// The page that reads the session's conversation and where it stands now
+    /// (his ruling, "Yes, rename it"): the Mac's own View menu word for the
+    /// record it reads. The Terminal's icon says it as its spoken name, and
+    /// the page draws it under the session's name.
+    static let catchMeUp = "Catch Me Up"
 
     // MARK: - The conversation (the desktop's turn block, drawn in the Session style)
 
@@ -228,13 +233,6 @@ enum Copy {
 
     /// Mac: src/shared/overview-copy.ts ⟦NO_CLOCK_NOTE = 'no clock on these turns'⟧
     static let noClockNote = "no clock on these turns"
-
-    /// Phone: the one line his ruling asks for ("the full CONVERSATION yes, the
-    /// raw terminal scrollback no"). Since Phase 337 the Screen shows the
-    /// terminal's output as it is now, so the line says what is still true
-    /// (D31): its scrollback is not on the phone. The Mac shows the terminal,
-    /// so it never needs to say where it is.
-    static let terminalStaysOnMac = "The terminal’s scrollback stays on your Mac."
 
     /// Phone: a page of older turns the phone refused (indexes that go
     /// backwards or overlap, or `more` on a page that added nothing).
@@ -555,21 +553,36 @@ enum Copy {
     /// are true of each: nothing was sent.
     static let replyNotTaken = "Your Mac did not take it. Nothing was sent."
 
-    // MARK: - The Screen (Phase 337: Screen.html, Session.html, build/p337/SPEC.md section 5.8.7)
+    // MARK: - The Terminal (Phase 337: Screen.html; Phase 337.1: Session.html, build/p3371/SPEC.md D21 to D23)
     //
-    // The session's own screen, typed into with every key and no Face ID (his
-    // rulings 1 and 3). Every row on it is the session's own text, drawn as
-    // the door sends it, so none of that is here; the Mac's refusals reach the
-    // phone in the door's own sentences. These are the screen's chrome, which
-    // no Mac surface draws: on the Mac a person is in the terminal itself.
+    // The session's own terminal, opened at once from a list (his ruling,
+    // "lets do B"), typed into with every key and no Face ID (337's rulings 1
+    // and 3), and scrolled back through what it printed ("Yes, scroll back on
+    // the Screen"). Every row on it is the session's own text, drawn as the
+    // door sends it, so none of that is here; the Mac's refusals reach the
+    // phone in the door's own sentences. These are the terminal's chrome,
+    // which no Mac surface draws: on the Mac a person is in the terminal itself.
 
-    /// Phone: the row under Conversation that opens the session's own screen.
-    /// The Mac IS that screen, so it needs no word for opening it.
-    static let screen = "Screen"
+    /// Phone: what the app calls a session's own terminal (his word, "named
+    /// Terminal in the app"), and the spoken name of its grid. The Mac draws
+    /// the terminal itself and never needs to name it.
+    static let terminal = "Terminal"
+
+    /// Phone: the spoken name of the arrow that returns a terminal scrolled
+    /// back to its live bottom (D27). The Mac's terminal follows its output
+    /// when a person scrolls to the bottom and has no such button.
+    static let backToLive = "Back to the live terminal"
+
+    /// Mac: src/shared/screen-copy.ts ⟦SCROLLBACK_MOVED = 'Earlier lines changed on your Mac. Go back to the live terminal to read them again.'⟧
+    /// Drawn where paging stopped when the phone's own check refuses a page
+    /// (its overlap, its depth, its width or its pane), in the words the Mac
+    /// sends when main refuses one itself.
+    static let scrollbackMoved = "Earlier lines changed on your Mac. Go back to the live terminal to read them again."
 
     /// Phone: End's press, at the top right of a session's page since Phase
-    /// 337 (D33). The Mac's menu item is `End session…` and the phone's
-    /// confirmation is still the Mac's own words; a top bar holds one word.
+    /// 337 (D33), on the Terminal and on Catch Me Up since Phase 337.1. The
+    /// Mac's menu item is `End session…` and the phone's confirmation is still
+    /// the Mac's own words; a top bar holds one word.
     static let endTop = "End"
 
     /// Mac: src/renderer/terminal/terminal-menu.ts ⟦label: 'Copy',⟧
@@ -577,18 +590,19 @@ enum Copy {
     /// clipboard: the Mac's own word for copying from a terminal.
     static let copy = "Copy"
 
-    /// Phone: the poll did not come back, so the screen drawn is the last one
-    /// the Mac sent. The Mac never shows an old screen.
-    static let screenNotAnswering = "Your Mac is not answering. This is the last screen it sent."
+    /// Phone: the poll did not come back, so the terminal drawn is the last
+    /// picture the Mac sent (Phase 337.1, D23: the feature is the Terminal).
+    /// The Mac never shows an old terminal.
+    static let screenNotAnswering = "Your Mac is not answering. This is what the terminal last showed."
 
     /// Phone: inside a numbered question the phone sends one batch of keys per
-    /// picture (D29), and a key typed before the next picture is not sent. The
-    /// Mac draws every key at once, so it never waits.
-    static let screenWaitForRedraw = "Waiting for the screen to redraw."
+    /// picture (337 D29), and a key typed before the next picture is not sent.
+    /// The Mac draws every key at once, so it never waits.
+    static let screenWaitForRedraw = "Waiting for the terminal to redraw."
 
-    /// Phone: while a selection is held the Screen keeps the picture it began
-    /// on (D34). The Mac's terminal selects over the live screen.
-    static let screenHeldWhileSelecting = "Showing the screen as it was when you started selecting."
+    /// Phone: while a selection is held the Terminal keeps the picture it
+    /// began on (337 D34). The Mac's terminal selects over the live screen.
+    static let screenHeldWhileSelecting = "Showing the terminal as it was when you started selecting."
 
     /// Phone: the session does not take keys now (it is not running, its
     /// state is unknown, or its machine has no live connection). The Mac's

@@ -334,6 +334,54 @@ final class DoorVectorTests: XCTestCase {
         XCTAssertEqual(named, Set(ScreenKeyName.allCases), "the vectors do not carry every key name")
     }
 
+    /// Clause (Phase 337.1, build/p3371/SPEC.md section 6.4, the vectors): a
+    /// page of the Terminal's history is the request the shipping verifier
+    /// accepted: `GET` the client's own `/v1/scrollback` target, its six names
+    /// in the one order the door's own reader read back (vectors.mjs asserts
+    /// that half). The signature loops above sign and verify it with the rest.
+    func testTheScrollbackReadIsTheDoorsByteForByte() throws {
+        let page = try XCTUnwrap(
+            v.requests.first { $0.target.hasPrefix("/v1/scrollback?") }, "vectors.json carries no scrollback read; run build/p316/vectors.mjs"
+        )
+        XCTAssertEqual(page.method, "GET")
+        XCTAssertEqual(page.body, "")
+        var values: [String: String] = [:]
+        let query = try XCTUnwrap(page.target.split(separator: "?", maxSplits: 1).last)
+        for pair in query.split(separator: "&") {
+            let parts = pair.split(separator: "=", maxSplits: 1).map(String.init)
+            XCTAssertEqual(parts.count, 2, page.target)
+            XCTAssertNil(values[parts[0]], "\(parts[0]) is named twice")
+            if parts.count == 2 { values[parts[0]] = parts[1] }
+        }
+        XCTAssertEqual(values.keys.sorted(), ["count", "depth", "from", "id", "keep", "wrap"])
+        let number = { (name: String) throws -> Int in try XCTUnwrap(values[name].flatMap { Int($0) }, name) }
+        let keep = try XCTUnwrap(values["keep"].flatMap(ScrollbackKeep.init(rawValue:)))
+        let target = DoorClient.scrollbackTarget(
+            try XCTUnwrap(page.id), from: try number("from"), count: try number("count"),
+            depth: try number("depth"), wrap: try number("wrap"), keep: keep
+        )
+        XCTAssertEqual(target, page.target)
+    }
+
+    /// Clause (Phase 337.1): a page's target is covered. The door refused a
+    /// page's signature presented with one byte of its target changed
+    /// (`signature`), and so does CryptoKit.
+    func testAScrollbackTargetTheSignatureWasNotMadeForDoesNotVerify() throws {
+        let tampered = try XCTUnwrap(v.scrollbackTampered, "vectors.json carries no tampered page; run build/p316/vectors.mjs")
+        XCTAssertEqual(tampered.doorSays, "signature")
+        let signed = try XCTUnwrap(v.requests.first { $0.name == tampered.signedFor })
+        XCTAssertNotEqual(signed.target, tampered.target)
+        XCTAssertEqual(signed.target.utf8.count, tampered.target.utf8.count, "one byte changed, none added")
+        let text = DoorSignature.canonicalText(
+            method: "GET", target: tampered.target, bodySha256: signed.bodySha256,
+            timestamp: signed.timestamp, nonce: signed.nonce, binding: v.identity.binding
+        )
+        XCTAssertEqual(text, tampered.canonical)
+        let keys = try phoneKeys()
+        let signature = try XCTUnwrap(Base64URL.decode(signed.signature))
+        XCTAssertFalse(keys.signing.publicKey.isValidSignature(signature, for: Data(tampered.canonical.utf8)))
+    }
+
     /// Clause (Phase 337): a keys body is covered too. The door refused a
     /// keys write's signature over its body with one byte changed
     /// (`signature`), and so does CryptoKit.
@@ -742,6 +790,10 @@ struct DoorVectorFile: Decodable {
     /// changed. Optional so a file written before it fails the one test that
     /// reads it, by name.
     let keysTampered: WriteTampered?
+    /// Phase 337.1: a page's signature presented with one byte of its target
+    /// changed. Optional so a file written before it fails the one test that
+    /// reads it, by name.
+    let scrollbackTampered: Tampered?
     let pins: [Pin]
     let client: Client
     let seal: Seal

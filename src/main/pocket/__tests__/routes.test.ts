@@ -192,9 +192,10 @@ describe('the table is closed', () => {
   it('holds exactly the ids the contract names, and no more', () => {
     expect(pocketRouteIdsAgree()).toBe(true);
     expect([...pocketRouteIds()].sort()).toEqual([...POCKET_ROUTE_IDS].sort());
-    // Ten since Phase 337's `GET /v1/screen` and `POST /v1/keys`, after Phase
-    // 318's `choose` and `say` and Phase 316.7's `GET /v1/sessions`.
-    expect(POCKET_ROUTES).toHaveLength(10);
+    // Eleven since Phase 337.1's `GET /v1/scrollback`, after Phase 337's
+    // `GET /v1/screen` and `POST /v1/keys`, Phase 318's `choose` and `say` and
+    // Phase 316.7's `GET /v1/sessions`.
+    expect(POCKET_ROUTES).toHaveLength(11);
   });
 
   it('cannot be pushed onto at run time', () => {
@@ -209,8 +210,8 @@ describe('the table is closed', () => {
         signed: true
       })
     ).toThrow();
-    // Ten since Phase 337's read and write.
-    expect(POCKET_ROUTES).toHaveLength(10);
+    // Eleven since Phase 337.1's read.
+    expect(POCKET_ROUTES).toHaveLength(11);
     expect(matchPocketRoute('POST', '/v1/type')).toBeNull();
   });
 
@@ -233,6 +234,7 @@ describe('the table is closed', () => {
       'blocked',
       'pair',
       'screen',
+      'scrollback',
       'session',
       'sessions',
       'turns'
@@ -250,7 +252,7 @@ describe('the table is closed', () => {
       expect(matchPocketRoute(method, '/v1/say')).toBeNull();
       expect(matchPocketRoute(method, '/v1/keys')).toBeNull();
     }
-    for (const near of ['/v1/keys/', '/v1/Keys', '/v1/key', '/v1/keys?x', '/v1/type', '/v1/screen']) {
+    for (const near of ['/v1/keys/', '/v1/Keys', '/v1/key', '/v1/keys?x', '/v1/type', '/v1/screen', '/v1/scrollback']) {
       expect(matchPocketRoute('POST', near), near).toBeNull();
     }
     for (const near of ['/v1/choose/', '/v1/Choose', '/v1/chooses', '/v1/say/', '/v1/Say', '/v1/says', '/v1/say?x', '/v1/reply']) {
@@ -291,7 +293,7 @@ describe('the table is closed', () => {
     const pair = POCKET_ROUTES.find((r) => r.id === 'pair');
     expect(pair?.windowOnly).toBe(true);
     expect(pair?.signed).toBe(false);
-    for (const id of ['blocked', 'session', 'turns', 'sessions', 'screen', 'keys'] as const) {
+    for (const id of ['blocked', 'session', 'turns', 'sessions', 'screen', 'scrollback', 'keys'] as const) {
       const route = POCKET_ROUTES.find((r) => r.id === id);
       expect(route?.windowOnly).toBe(false);
       expect(route?.signed).toBe(true);
@@ -319,6 +321,26 @@ describe('the table is closed', () => {
     });
     for (const method of ['POST', 'PUT', 'get']) expect(matchPocketRoute(method, '/v1/screen')).toBeNull();
     for (const near of ['/v1/screen/', '/v1/Screen', '/v1/screens', '/v1/screen?id=a', '/v1/terminal']) {
+      expect(matchPocketRoute('GET', near), near).toBeNull();
+    }
+  });
+
+  // PHASE 337.1 (build/p3371/SPEC.md §5.1, D1): one page of the Screen's
+  // history is its own signed GET read, after `screen`, alive outside any
+  // window, and nothing else at that path.
+  it('matches the history read only as a GET to its exact path, the row after the Screen', () => {
+    expect(matchPocketRoute('GET', '/v1/scrollback')).toEqual({
+      id: 'scrollback',
+      method: 'GET',
+      path: '/v1/scrollback',
+      reads: true,
+      windowOnly: false,
+      signed: true
+    });
+    const ids = POCKET_ROUTES.map((r) => r.id);
+    expect(ids.indexOf('scrollback')).toBe(ids.indexOf('screen') + 1);
+    for (const method of ['POST', 'PUT', 'DELETE', 'get']) expect(matchPocketRoute(method, '/v1/scrollback')).toBeNull();
+    for (const near of ['/v1/scrollback/', '/v1/Scrollback', '/v1/scrollbacks', '/v1/scrollback?id=a', '/v1/screen/scrollback', '/v1/history']) {
       expect(matchPocketRoute('GET', near), near).toBeNull();
     }
   });
@@ -1926,6 +1948,9 @@ describe('the Screen (Phase 337, build/p337/SPEC.md §5.3.1)', () => {
       asking: false,
       dialog: null,
       typable: true,
+      // PHASE 337.1 (build/p3371/SPEC.md D3): required, null together.
+      depth: 1_234,
+      space: 'feedc0ffee01',
       ...over
     };
   }
@@ -2050,7 +2075,23 @@ describe('the Screen (Phase 337, build/p337/SPEC.md §5.3.1)', () => {
       expect(got).toEqual({ ...from, sessionId: 'a' });
       expect(Object.keys(got ?? {})).toEqual(['sessionId', 'revision', 'at', 'unchanged', 'screen', 'why', 'sentence']);
       expect(Object.keys(got?.screen ?? {}).sort()).toEqual(
-        ['alternate', 'caret', 'cols', 'cursor', 'dialog', 'ground', 'ink', 'lines', 'rows', 'styles', 'turn', 'typable', 'asking'].sort()
+        [
+          'alternate',
+          'caret',
+          'cols',
+          'cursor',
+          'dialog',
+          'ground',
+          'ink',
+          'lines',
+          'rows',
+          'styles',
+          'turn',
+          'typable',
+          'asking',
+          'depth',
+          'space'
+        ].sort()
       );
       expect(got?.screen?.lines).not.toBe(from.screen?.lines);
       expect(got?.screen?.lines[0]).not.toBe(from.screen?.lines[0]);
@@ -2145,13 +2186,36 @@ describe('the Screen (Phase 337, build/p337/SPEC.md §5.3.1)', () => {
       [
         'a style whose fg is not a colour',
         { styles: [{ fg: 'red', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }] }
-      ]
+      ],
+      // PHASE 337.1 (build/p3371/SPEC.md D3): `depth` and `space` are null
+      // TOGETHER, or a whole number in the index bound beside 12 lowercase hex.
+      ['a depth with no space', { space: null }],
+      ['a space with no depth', { depth: null }],
+      ['a depth that is not whole', { depth: 12.5 }],
+      ['a negative depth', { depth: -1 }],
+      ['a depth past the index bound', { depth: 100_001 }],
+      ['a depth that is a string', { depth: '12' as unknown as number }],
+      ['a depth that is absent', { depth: undefined as unknown as number }],
+      ['a space of 11 hex', { space: 'feedc0ffee0' }],
+      ['a space in upper case', { space: 'FEEDC0FFEE01' }],
+      ['a space that is not hex', { space: 'feedc0ffee0g' }],
+      ['a space that is absent', { space: undefined as unknown as string }]
     ];
     for (const [name, over] of malformed) {
       it(`answers null, never a malformed screen, for ${name}`, () => {
         expect(screenOf(answerOf({ screen: screenOfSize(4, 2, over) }), 'a', 5)).toBeNull();
       });
     }
+
+    it('carries depth and space as the watcher composed them, and both null together', () => {
+      expect(screenOf(answerOf(), 'a', 5)?.screen).toMatchObject({ depth: 1_234, space: 'feedc0ffee01' });
+      expect(screenOf(answerOf({ screen: screenOfSize(4, 2, { depth: 0 }) }), 'a', 5)?.screen?.depth).toBe(0);
+      expect(screenOf(answerOf({ screen: screenOfSize(4, 2, { depth: 100_000 }) }), 'a', 5)?.screen?.depth).toBe(100_000);
+      const none = screenOf(answerOf({ screen: screenOfSize(4, 2, { depth: null, space: null }) }), 'a', 5);
+      expect(none?.screen).toMatchObject({ depth: null, space: null });
+      expect(Object.keys(none?.screen ?? {})).toContain('depth');
+      expect(Object.keys(none?.screen ?? {})).toContain('space');
+    });
 
     it('takes a dialog mark while asking, and a cursor at the last column', () => {
       const got = screenOf(answerOf({ screen: screenOfSize(4, 2, { asking: true, dialog: MARK, cursor: { x: 4, y: 1, visible: false } }) }), 'a', 5);

@@ -83,10 +83,14 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["space"], Copy.space)
         XCTAssertEqual(byName["send"], Copy.send)
         XCTAssertEqual(byName["replyNotTaken"], Copy.replyNotTaken)
-        XCTAssertEqual(byName["screen"], Copy.screen)
         XCTAssertEqual(byName["endTop"], Copy.endTop)
         XCTAssertEqual(byName["keyBackTab"], Copy.keyBackTab)
-        XCTAssertEqual(byName["terminalStaysOnMac"], Copy.terminalStaysOnMac)
+        // Phase 337.1: the rename, the Terminal and its scrollback.
+        XCTAssertEqual(byName["catchMeUp"], Copy.catchMeUp)
+        XCTAssertEqual(byName["terminal"], Copy.terminal)
+        XCTAssertEqual(byName["backToLive"], Copy.backToLive)
+        XCTAssertEqual(byName["scrollbackMoved"], Copy.scrollbackMoved)
+        XCTAssertEqual(byName["screenNotAnswering"], Copy.screenNotAnswering)
     }
 
     /// Clause: the words the approved screens draw are drawn as they are
@@ -136,12 +140,18 @@ final class CopyTests: XCTestCase {
             (menu, Copy.showAll),
             (menu, Copy.showActive),
             (menu, Copy.ended),
-            (session, Copy.youAsked("make the session cookie httpOnly and…")),
-            (session, Copy.messages),
-            (session, Copy.lastMessage),
-            (session, Copy.messageCounts(you: 20, agent: 21)),
-            (session, Copy.yourPromptWord),
-            (session, raised(Copy.agentLabel)),
+            // Phase 337.1 (build/p3371/SPEC.md section 5.5.8): Session.html is
+            // the Terminal at rest, its status line composed from the mock's
+            // own sample; the card, the two cells, the counts, the prompt
+            // word and the raised agent label moved to Conversation.html,
+            // which is Catch Me Up.
+            (session, Copy.joined(["Claude Code", "webapp"])),
+            (conversation, Copy.youAsked("make the session cookie httpOnly and…")),
+            (conversation, Copy.messages),
+            (conversation, Copy.lastMessage),
+            (conversation, Copy.messageCounts(you: 20, agent: 21)),
+            (conversation, Copy.yourPromptWord),
+            (conversation, raised(Copy.agentLabel)),
             (choice, Copy.answerInTheSession),
             (pairing, Copy.pairTitle),
             // The mock's first step was corrected to this in 316.2: it named the
@@ -186,14 +196,14 @@ final class CopyTests: XCTestCase {
             // link reaches the alert: Conversation.html's answer and Link.html
             // are owed by the later phase that switches markdown back on, and
             // `Copy.open` stays declared for it.
-            (conversation, Copy.conversation),
-            (conversation, Copy.terminalStaysOnMac),
+            (conversation, Copy.catchMeUp),
             (link, Copy.open),
             (link, Copy.cancel),
             // Phase 317: End, and End these with the Mac sheet's words,
             // composed with the mock's own counts. Since Phase 337 End is
             // `End` at the top right of every session's page (D33).
             (session, Copy.endTop),
+            (conversation, Copy.endTop),
             (choice, Copy.endTop),
             (end, Copy.endTop),
             (end, Copy.cancel),
@@ -210,9 +220,8 @@ final class CopyTests: XCTestCase {
             (composer, Copy.messagePlaceholder),
             (composer, Copy.oneMessage),
             (answer, Copy.endTop),
-            // Phase 337: the Screen row under Conversation, and the Screen's
-            // key bar, in its own words.
-            (session, Copy.screen),
+            // Phase 337: the Screen's key bar, in its own words (the Terminal
+            // with the keyboard up since Phase 337.1).
             (screenMock, Copy.keyEsc),
             (screenMock, Copy.keyTab),
             (screenMock, Copy.keyBackTab),
@@ -229,6 +238,20 @@ final class CopyTests: XCTestCase {
         // Phase 337 (D33): the bar at the bottom is gone from every page.
         for (name, mock) in [("Session", session), ("Choice", choice), ("Answer", answer)] {
             XCTAssertFalse(mock.contains(">" + Copy.endSessionMenu + "<"), "\(name).html still draws the End bar")
+        }
+        // Phase 337.1 (D18): the Terminal's Catch Me Up icon draws no word;
+        // its spoken name is the Mac's word. And no page the rename touched
+        // draws the words it took away: no Conversation row or title, no
+        // Screen row or title, and no line keeping the scrollback on the Mac.
+        XCTAssertTrue(session.contains("aria-label=\"" + Copy.catchMeUp + "\""), "Session.html's icon is not named \(Copy.catchMeUp)")
+        XCTAssertFalse(session.contains(">" + Copy.catchMeUp + "<"), "Session.html draws Catch Me Up as a word; it is an icon")
+        for (name, mock) in [("Session", session), ("Conversation", conversation), ("Screen", screenMock)] {
+            XCTAssertFalse(mock.contains(">Conversation<"), "\(name).html still draws Conversation")
+            XCTAssertFalse(mock.contains(">Screen<"), "\(name).html still draws Screen")
+            XCTAssertFalse(mock.contains("scrollback stays on your Mac"), "\(name).html still says the scrollback stays on the Mac")
+        }
+        for word in [Copy.youAsked("make the session cookie httpOnly and…"), Copy.messages, Copy.lastMessage, Copy.messageCounts(you: 20, agent: 21)] {
+            XCTAssertFalse(session.contains(">" + word + "<"), "Session.html still draws \(word), which is Catch Me Up's now")
         }
         // The menu button draws no words; its spoken name is the phone's.
         for mock in [main, menu] {
@@ -264,11 +287,46 @@ final class CopyTests: XCTestCase {
             // and the sentence D31 replaced, which the Screen made false.
             "SSH", "remote desktop", "Remote Desktop", "Paste",
             "The terminal’s own output stays on your Mac.",
+            // Phase 337.1 (D22): the Terminal scrolls back, so the line that
+            // kept its scrollback on the Mac is false and gone; and no paste
+            // (his ruling, "i don't think we need paste to start").
+            "The terminal’s scrollback stays on your Mac.", "paste",
         ]
         for entry in try entries() {
             for word in refused where entry.literal.contains(word) {
                 XCTFail("\(entry.name) carries \(word), which the phone does not draw")
             }
+        }
+    }
+
+    /// Clause (Phase 337.1, D21 to D23, rule au): the rename. No word is
+    /// `Conversation` or `Screen`; Catch Me Up is the Mac's word, owned by
+    /// the Mac's menu; the Terminal is the phone's word for the feature, and
+    /// every sentence that names the feature says terminal, not screen.
+    func testTheRenameIsCatchMeUpAndTerminal() throws {
+        let entries = try entries()
+        for entry in entries {
+            XCTAssertNotEqual(entry.literal, "Conversation", entry.name)
+            XCTAssertNotEqual(entry.literal, "Screen", entry.name)
+        }
+        let byName = Dictionary(uniqueKeysWithValues: entries.map { ($0.name, $0) })
+        XCTAssertNil(byName["conversation"], "Copy.conversation is still declared")
+        XCTAssertNil(byName["screen"], "Copy.screen is still declared")
+        XCTAssertNil(byName["terminalStaysOnMac"], "Copy.terminalStaysOnMac is still declared")
+        let catchUp = try XCTUnwrap(byName["catchMeUp"])
+        guard case let .mac(path, needle)? = catchUp.owner else { return XCTFail("Catch Me Up is not owned by a Mac word") }
+        XCTAssertEqual(path, "src/main/menu.ts")
+        XCTAssertEqual(needle, "item('Catch Me Up', 'show-overview'")
+        XCTAssertEqual(Copy.catchMeUp, "Catch Me Up")
+        XCTAssertEqual(Copy.terminal, "Terminal")
+        guard case .phone? = try XCTUnwrap(byName["terminal"]).owner else { return XCTFail("Terminal is not the phone's word") }
+        let moved = try XCTUnwrap(byName["scrollbackMoved"])
+        guard case let .mac(movedPath, _)? = moved.owner else { return XCTFail("the moved sentence is not the Mac's") }
+        XCTAssertEqual(movedPath, "src/shared/screen-copy.ts")
+        // The feature is the Terminal in every sentence that names it.
+        for line in [Copy.screenNotAnswering, Copy.screenWaitForRedraw, Copy.screenHeldWhileSelecting, Copy.backToLive, Copy.scrollbackMoved] {
+            XCTAssertTrue(line.contains("terminal"), line)
+            XCTAssertFalse(line.contains("screen"), line)
         }
     }
 

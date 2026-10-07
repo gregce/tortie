@@ -22,7 +22,7 @@ final class TokensTests: XCTestCase {
     }
 
     /// Clause: "the 15 colours" (Phase 316.6; 14 before it). The screens the
-    /// phone draws are the twelve mocks below, and the set of hexes their CSS
+    /// phone draws are the eleven mocks below, and the set of hexes their CSS
     /// spells is exactly the set this file holds: a colour dropped from
     /// Tokens.swift, or one the mocks do not use, fails here. Phase 318 took
     /// the message strip off the two screens that need input (Session, Choice),
@@ -31,8 +31,12 @@ final class TokensTests: XCTestCase {
     /// which is where the app draws that colour now (MessageStrip.swift).
     func testTheMocksSpellExactlyTheseColours() throws {
         var spelled = Set<UInt32>()
+        // Phase 337.1: Session.html is the Terminal now (build/p3371/SPEC.md
+        // D16), and its rows are the session's own colours, data and never
+        // tokens, as Screen.html's are, so it is not among the chrome's
+        // mocks; every hex of its chrome is spelled by the others too.
         let mocks = [
-            "Main", "NeedsInput", "Session", "Idle", "Choice", "Pairing", "Settings", "Unpair", "Conversation", "Link",
+            "Main", "NeedsInput", "Idle", "Choice", "Pairing", "Settings", "Unpair", "Conversation", "Link",
             // Phase 316.7: the menu, and the older-Mac face (the parent's list).
             "SessionsMenu", "SessionsOlderMac",
         ]

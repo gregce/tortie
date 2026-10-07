@@ -1,18 +1,30 @@
-// The Screen's grid: the session's rows, drawn at the Mac's width (Phase 337,
-// build/p337/SPEC.md D26, D27 and section 5.8.4).
+// The Terminal's rows, drawn at the Mac's width (Phase 337, build/p337/SPEC.md
+// D26, D27 and section 5.8.4; rebuilt by Phase 337.1, build/p3371/SPEC.md D24
+// to D26, D32).
 //
 // APPLE'S OWN DRAWING AND NO PACKAGE (rules f and g): a SwiftUI `Canvas` per
-// row inside a lazy, two-axis scroll view, so a screen costs about forty
-// views rather than a view per run, and each run is placed at its own column,
-// which one `Text` of the whole row cannot do for a wide cell. Each row is
-// `.equatable()`: a row that did not change between two pictures is not
-// drawn again. A row draws, in order: each run's ground; each box of
-// Screens/ScreenRows.swift's layout, clipped to exactly its columns (text,
-// a character alone and scaled down to fit, or a box or block shape from
-// Screens/ScreenGlyphs.swift); its underline and its line through. The
-// cursor's block (at 0.45 opacity, in the Mac's cursor colour) and the
-// selection are drawn over the rows. Every row is one accessibility element
-// whose label is its text.
+// row, so a screen costs about forty views rather than a view per run, and
+// each run is placed at its own column, which one `Text` of the whole row
+// cannot do for a wide cell. Each row is `.equatable()`: a row that did not
+// change between two pictures is not drawn again. A row draws, in order: each
+// run's ground; each box of Screens/ScreenRows.swift's layout, clipped to
+// exactly its columns (text, a character alone and scaled down to fit, or a
+// box or block shape from Screens/ScreenGlyphs.swift); its underline and its
+// line through. The cursor's block (at 0.45 opacity, in the Mac's cursor
+// colour) and the selection are drawn over the rows. Every row is one
+// accessibility element whose label is its text.
+//
+// SINCE PHASE 337.1 THE ROWS ARE DRAWN IN A WINDOW (`ScreenWindow`), hosted by
+// the Terminal's UIKit scroll view (Screens/ScreenScroller.swift): only the
+// rows in view and one screen above and below, live rows and rows of history
+// alike, each placed by its index. A row of history is `screen-history-<i>`,
+// a live row keeps `screen-row-<n>`, and a row reserved but not yet fetched is
+// drawn as the ground and is no element. Only the rows in view are elements
+// (the fix round): those a screen above and below are drawn and not spoken.
+// The SwiftUI scroll view, its long press and its pinch are gone: a two-axis
+// SwiftUI scroll view centres content smaller than itself, and on iOS 26.3
+// the rows sat 134.7 pt low after the keyboard went until the first long
+// press re-laid them (build/p3371/SPEC.md section 14 M12).
 //
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // terminal-grid-view.native.tsx and terminal-grid-metrics.ts at
@@ -23,26 +35,17 @@
 // opacity; a row's label as its text. Not taken: its column clipping (the
 // phone pans instead), its view per run (one `Canvas` per row draws them),
 // and its claim of the terminal's size (`terminal-resize-policy.ts`): the
-// phone never sizes the Mac (his ruling 2), and the grid only MEASURES the
-// view it is drawn in.
+// phone never sizes the Mac (his ruling 2), and the Terminal only MEASURES
+// the view it is drawn in.
 //
-// ZOOM (D27). The grid first fits the view's width. A pinch scales the drawn
-// grid by a transform while the fingers move and sets the font ONCE when it
-// ends (a font change redraws every row); the zoom runs from the fitted size
-// to 18 pt, its top held so a row's width in pixels is at most 8,192 (a
-// 512-column row at 18 pt is about 17,000 px at 3x, past the GPU's texture
-// bound, §Attack A24). A double tap moves between the fitted size and 12 pt
-// (or the top). The scroll view pans both ways.
-//
-// THE SELECTION'S LONG PRESS IS UIKIT'S (the fix round of 2026-10-06). As a
-// SwiftUI `LongPressGesture` sequenced before a `DragGesture` on the scroll
-// view's content it held every touch on iOS 26: a swipe, a slow press-drag
-// and a vertical swipe each left a zoomed Screen where it was, and taking
-// that one gesture away made the same swipe pan 478 pt (the verify's bisect;
-// iOS 18.3 panned with it). A `UILongPressGestureRecognizer` is arbitrated
-// with the scroll view's pan by UIKit's own rule, as a text view's selection
-// is: a finger that moves before 450 ms fails the press and pans, and a
-// press held still for 450 ms begins, and the pan is not given the touch.
+// ZOOM (D27 of 337, D32 of 337.1). The Terminal first fits the view's width.
+// A pinch scales the drawn rows by a transform while the fingers move and
+// sets the font ONCE when they lift (a font change redraws every row); the
+// zoom runs from the fitted size to 18 pt, its top held so a row's width in
+// pixels is at most 8,192 (a 512-column row at 18 pt is about 17,000 px at
+// 3x, past the GPU's texture bound, §Attack A24). A double tap moves between
+// the fitted size and 12 pt (or the top). The row under the pinch's centre
+// stays under it when the font is set.
 
 import SwiftUI
 import UIKit
@@ -82,96 +85,94 @@ enum ScreenZoom {
         let reading = held(CGFloat(readingFont) * ScreenFont.advancePerPoint, fitted: fitted, top: top)
         return current > CGFloat(fitted) * 1.01 ? fitted : reading
     }
+
+    /// A light line's thickness: about a tenth of a cell, at least one pixel.
+    static func lightLine(_ cell: ScreenCell, scale: CGFloat) -> CGFloat {
+        max(CGFloat(1.0) / max(scale, 1), CGFloat(cell.width) * 0.12)
+    }
 }
 
-// MARK: - The grid
+// MARK: - The window of rows
 
-struct ScreenGrid: View {
-    let picture: ScreenPicture
-    /// The selection drawn over the rows, or nil.
-    let selection: ScreenSelectionRange?
-    /// A tap on a cell (nil outside the grid).
-    let tap: (ScreenPoint?) -> Void
-    /// A long press, then a drag: the cell where it began, then each cell it
-    /// reaches.
-    let select: (ScreenPoint, Bool) -> Void
+/// One row of the window, as drawn: its absolute index, the row (nil while
+/// it is reserved and not yet fetched), the styles its runs index, and for a
+/// live row its place on the live screen.
+struct ScreenWindowRow: Identifiable, Equatable {
+    /// The row's absolute index in the session's index space.
+    let id: Int
+    let row: ScreenRowModel?
+    let styles: [ScreenStyle]
+    /// Live row `n`, or nil for a row of history.
+    let live: Int?
+    /// In view when the window was drawn, so an accessibility element; the
+    /// rows a screen above and below are drawn and not spoken.
+    var spoken = true
+}
 
-    @Environment(\.displayScale) private var scale
-    /// The cell width he chose, or nil for the fitted one.
-    @State private var chosen: CGFloat?
-    /// The pinch while the fingers move: a transform, not a font.
-    @GestureState private var pinch: CGFloat = 1
-    /// The long press has begun a selection in this gesture.
-    @State private var selecting = false
+/// The rows the Terminal's scroll view draws: the window in view and one
+/// screen above and below, from its first row, with the cursor and the
+/// selection over them, in the window's own points. Hosted by one
+/// `UIHostingController` that takes no touch (Screens/ScreenScroller.swift).
+struct ScreenWindow: View {
+    let rows: [ScreenWindowRow]
+    let columns: Int
+    let cell: ScreenCell
+    let ink: Color
+    let ground: Color
+    let caret: Color
+    let light: CGFloat
+    /// Where the cursor's block is, in the window's points, or nil.
+    let cursor: CGPoint?
+    /// One rectangle per selected row, in the window's points.
+    let highlights: [CGRect]
+
+    /// Nothing to draw yet.
+    static let empty = ScreenWindow(
+        rows: [], columns: 0, cell: ScreenCell(fontSize: 1, width: 1, height: 1),
+        ink: Tokens.textPrimary, ground: Tokens.bgCanvas, caret: Tokens.textPrimary, light: 1, cursor: nil, highlights: []
+    )
 
     var body: some View {
-        GeometryReader { proxy in
-            let fitted = ScreenZoom.fitted(columns: picture.columns, width: proxy.size.width)
-            let top = ScreenZoom.top(columns: picture.columns, scale: scale, fitted: fitted)
-            let cell = ScreenCell.wide(ScreenZoom.held(chosen ?? fitted, fitted: fitted, top: top), scale: scale)
-            ScrollView([.horizontal, .vertical]) {
-                grid(cell)
-                    .scaleEffect(pinch, anchor: .topLeading)
-                    // THE ROWS SIT AT THE TOP (the fix round of 2026-10-06),
-                    // as Screen.html draws them: a two-axis scroll view centres
-                    // content smaller than itself, so the line that appears
-                    // under the grid when a selection begins (or the keyboard
-                    // rising) shrank the view and moved every row up under a
-                    // finger that had not moved, and a long press then a drag
-                    // along one row selected four rows down on a fitted
-                    // screen (the fixer's bench, both runtimes). The gestures
-                    // are on this whole frame, so a pinch, a tap or a long
-                    // press below the last row still reaches them; a point
-                    // outside the rows is no cell (`ScreenSelecting.hit`).
-                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)
-                    .contentShape(Rectangle())
-                    .gesture(magnify(cell: cell, fitted: fitted, top: top))
-                    .onTapGesture(count: 2) {
-                        chosen = ScreenZoom.toggled(cell.width, fitted: fitted, top: top)
-                    }
-                    .onTapGesture { location in
-                        tap(ScreenSelecting.hit(location, cell: cell, columns: picture.columns, rows: picture.rowCount))
-                    }
-                    .gesture(selectPress(cell))
+        VStack(alignment: .leading, spacing: 0) {
+            ForEach(rows) { item in
+                drawn(item)
             }
-            .scrollIndicators(.hidden)
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(ID.screenGrid)
+        .frame(width: CGFloat(columns) * cell.width, alignment: .topLeading)
+        .background(ground)
+        .overlay(alignment: .topLeading) { caretBlock }
+        .overlay(alignment: .topLeading) { highlight }
     }
 
-    /// The rows, the cursor and the selection, at one cell size.
-    private func grid(_ cell: ScreenCell) -> some View {
-        LazyVStack(alignment: .leading, spacing: 0) {
-            ForEach(picture.rows, id: \.index) { row in
-                ScreenRowView(
-                    row: row,
-                    styles: picture.styles,
-                    ink: picture.ink,
-                    cell: cell,
-                    light: lightLine(cell)
-                )
+    /// A held or live row in its `Canvas`; a reserved row as the ground.
+    @ViewBuilder
+    private func drawn(_ item: ScreenWindowRow) -> some View {
+        if let row = item.row {
+            ScreenRowView(row: row, styles: item.styles, ink: ink, cell: cell, light: light)
                 .equatable()
-                .frame(width: CGFloat(picture.columns) * cell.width, height: cell.height, alignment: .topLeading)
-                .accessibilityElement()
-                .accessibilityLabel(Text(verbatim: row.label))
-                .accessibilityIdentifier(ID.screenRow(row.index))
-            }
+                .frame(width: CGFloat(columns) * cell.width, height: cell.height, alignment: .topLeading)
+                // A row out of view is no element at all (the fix round): an
+                // empty container with no name, no label and no child is not
+                // one, where a hidden element still was to the test framework.
+                .accessibilityElement(children: item.spoken ? .ignore : .contain)
+                .accessibilityLabel(Text(verbatim: item.spoken ? row.label : ""))
+                .accessibilityIdentifier(item.spoken ? item.live.map(ID.screenRow) ?? ID.screenHistoryRow(item.id) : "")
+                .accessibilityHidden(!item.spoken)
+        } else {
+            Spacer(minLength: 0)
+                .frame(width: CGFloat(columns) * cell.width, height: cell.height)
+                .accessibilityHidden(true)
         }
-        .frame(width: CGFloat(picture.columns) * cell.width, alignment: .topLeading)
-        .background(picture.ground)
-        .overlay(alignment: .topLeading) { cursor(cell) }
-        .overlay(alignment: .topLeading) { highlight(cell) }
     }
 
     /// The cursor's block, at 0.45 opacity, where tmux's cursor is.
     @ViewBuilder
-    private func cursor(_ cell: ScreenCell) -> some View {
-        if picture.caretShown {
+    private var caretBlock: some View {
+        if let cursor {
             Rectangle()
-                .fill(picture.caret.opacity(0.45))
+                .fill(caret.opacity(0.45))
                 .frame(width: cell.width, height: cell.height)
-                .offset(x: CGFloat(picture.caretColumn) * cell.width, y: CGFloat(picture.caretRow) * cell.height)
+                .offset(x: cursor.x, y: cursor.y)
                 .allowsHitTesting(false)
                 .accessibilityElement()
                 .accessibilityIdentifier(ID.screenCursor)
@@ -180,11 +181,10 @@ struct ScreenGrid: View {
 
     /// The selection, one rectangle per row, in the accent.
     @ViewBuilder
-    private func highlight(_ cell: ScreenCell) -> some View {
-        let rects = ScreenSelecting.rects(selection, cell: cell, columns: picture.columns)
-        if !rects.isEmpty {
+    private var highlight: some View {
+        if !highlights.isEmpty {
             ZStack(alignment: .topLeading) {
-                ForEach(Array(rects.enumerated()), id: \.offset) { _, rect in
+                ForEach(Array(highlights.enumerated()), id: \.offset) { _, rect in
                     Rectangle()
                         .fill(Tokens.accent.opacity(0.3))
                         .frame(width: rect.width, height: rect.height)
@@ -194,65 +194,6 @@ struct ScreenGrid: View {
             .allowsHitTesting(false)
             .accessibilityElement()
             .accessibilityIdentifier(ID.screenSelection)
-        }
-    }
-
-    /// A light line's thickness: a tenth of a cell, at least one pixel.
-    private func lightLine(_ cell: ScreenCell) -> CGFloat {
-        max(CGFloat(1.0) / max(scale, 1), CGFloat(cell.width) * 0.12)
-    }
-
-    /// The pinch: a transform while it moves, the font set once at its end.
-    private func magnify(cell: ScreenCell, fitted: CGFloat, top: CGFloat) -> some Gesture {
-        MagnifyGesture()
-            .updating($pinch) { value, state, _ in
-                state = value.magnification
-            }
-            .onEnded { value in
-                chosen = ScreenZoom.held(CGFloat(cell.width) * value.magnification, fitted: fitted, top: top)
-            }
-    }
-
-    /// A long press of 450 ms, then a drag: a selection that grows. UIKit's
-    /// long press (above), so the scroll view still pans.
-    private func selectPress(_ cell: ScreenCell) -> ScreenLongPress {
-        ScreenLongPress(
-            minimumDuration: ScreenGesture.longPressSeconds,
-            moved: { location in
-                guard let point = ScreenSelecting.hit(location, cell: cell, columns: picture.columns, rows: picture.rowCount) else { return }
-                select(point, !selecting)
-                selecting = true
-            },
-            ended: { selecting = false }
-        )
-    }
-}
-
-// MARK: - The long press
-
-/// UIKit's long press on the grid, handed to SwiftUI: where the finger is, in
-/// the grid's own coordinates, as the press begins and each time it moves
-/// after, and when it lets go. Before it begins it hands nothing, so a finger
-/// that moves first is the scroll view's.
-struct ScreenLongPress: UIGestureRecognizerRepresentable {
-    let minimumDuration: Double
-    let moved: (CGPoint) -> Void
-    let ended: () -> Void
-
-    func makeUIGestureRecognizer(context: Context) -> UILongPressGestureRecognizer {
-        let press = UILongPressGestureRecognizer()
-        press.minimumPressDuration = minimumDuration
-        return press
-    }
-
-    func handleUIGestureRecognizerAction(_ recognizer: UILongPressGestureRecognizer, context: Context) {
-        switch recognizer.state {
-        case .began, .changed:
-            moved(context.converter.localLocation)
-        case .ended, .cancelled, .failed:
-            ended()
-        default:
-            break
         }
     }
 }

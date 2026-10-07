@@ -103,6 +103,32 @@ import XCTest
 /// THAT moment. Every reading is a label or a frame: each `screen-row-<n>`'s
 /// label is the row's text. Nothing here asks Face ID, and `auth` in a line
 /// says whether iOS's owner check was up, which must never be so for a key.
+///
+/// TERMINAL FIRST (Phase 337.1, build/p3371/SPEC.md section 7.8). A list row
+/// now opens a running session on its Terminal at once, and an ended one on
+/// Catch Me Up (the Conversation renamed). `open:` waits for the session's
+/// route WHICHEVER face it draws and prints a `face` line saying which;
+/// `screen-open` is a wait for the grid. Every earlier step that read the
+/// session page's card, counts, last answer, message box or Conversation row
+/// (`conversation`, `first`, `markdown`, `link:`, the `reply-` steps that send
+/// a message or read the box, `idle:`, `end-read` and the alert taps' reads)
+/// presses the Catch Me Up icon first when the Terminal is the face, through
+/// ONE helper, `toCatchUp(for:)`, which does nothing when Catch Me Up already
+/// is and prints its own `face` line; `reply-press:<n>` presses 318's
+/// `session-choice-press-<n>` wherever it is drawn, which on a live session is
+/// the Terminal's tray; End is pressed in the top bar of whichever face is up.
+/// The new steps: `terminal-open:<id>` (a row tapped, the time to the first
+/// row printed, the status line and the top bar read), `catch-up` (the icon,
+/// Catch Me Up read, Back), `scroll-up:<n>` (n drags up, a reading after
+/// each), `scroll-hold` (the finger lifted, readings until pages land),
+/// `scroll-drag-hold` (a drag, then the hold as its finger lifts; the fix
+/// round), `fling-up`, `to-live`, `scroll-key:<name>` (scrolled back, then a
+/// key), `keyboard-glitch` (row 0 before, with and after the keyboard, a long
+/// press along row 3 and Copy; section 14 M12), `tray-keyboard` (the keyboard
+/// raised over the question's tray and put away; the fix round) and
+/// `tray-press:<n>`. A reading is
+/// every `screen-row-<n>` and `screen-history-<i>` with its label and frame,
+/// never a photograph.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -165,14 +191,20 @@ private enum Seen {
     static let listNotice = "list-notice"
     static let listLoading = "list-loading"
     static let listFailure = "list-failure"
+    /// A session's route, WHICHEVER face it draws (Phase 337.1, D16): the
+    /// Terminal (`screenScreen` inside it) or Catch Me Up (`catchUpScreen`).
     static let sessionScreen = "screen-session"
     static let sessionLoading = "session-loading"
-    static let sessionOpenConversation = "session-open-conversation"
-    static let conversationScreen = "screen-conversation"
-    static let conversationLoading = "conversation-loading"
-    static let conversationOlder = "conversation-older"
-    static let conversationOlderLine = "conversation-older-line"
-    static let conversationFailure = "conversation-failure"
+    static let sessionFailureId = "session-failure"
+    /// Phase 337.1 (D18, D21): the Terminal's Catch Me Up icon, and Catch Me
+    /// Up, the Conversation renamed: a face inside the session's route, or a
+    /// page of its own pushed by the icon, which carries this alone.
+    static let sessionOpenCatchUp = "session-open-catch-up"
+    static let catchUpScreen = "screen-catch-up"
+    static let catchUpLoading = "catch-up-loading"
+    static let catchUpOlder = "catch-up-older"
+    static let catchUpOlderLine = "catch-up-older-line"
+    static let catchUpFailure = "catch-up-failure"
     static let pairingScreen = "screen-pairing"
     static let pairingFingerprint = "pairing-fingerprint"
     static let pairingAgain = "pairing-again"
@@ -185,7 +217,7 @@ private enum Seen {
     /// Where a screen says what it could not read: a `*-failure`, the pairing
     /// screen's line, or the line where older turns would be.
     static func isSentence(_ id: String) -> Bool {
-        id.hasSuffix("-failure") || id == pairingLine || id == conversationOlderLine
+        id.hasSuffix("-failure") || id == pairingLine || id == catchUpOlderLine || id == screenScrollbackLine
     }
     static func retry(_ failure: String) -> String { failure + "-retry" }
 
@@ -287,7 +319,9 @@ private enum Seen {
     static let safari = "com.apple.mobilesafari"
     /// A screen the app is paired on: either list tab.
     static func paired(_ id: String) -> Bool { id == listScreen || id == needsScreen }
-    /// The Screen (Phase 337, Identifiers.swift's section 5.8.7 names).
+    /// The Screen (Phase 337, Identifiers.swift's section 5.8.7 names), the
+    /// TERMINAL since Phase 337.1. `session-open-screen` is the parent's row,
+    /// which this build never draws; a step that finds it presses it.
     static let sessionOpenScreen = "session-open-screen"
     static let screenScreen = "screen-screen"
     static let screenGrid = "screen-grid"
@@ -313,6 +347,18 @@ private enum Seen {
     /// 2026-10-06 read it in the app's own tree). Not a word Tortie says.
     static let keyboardIntroduction = "UIContinuousPathIntroductionView"
     static let keyboardIntroductionContinue = "Continue"
+    /// Phase 337.1 (build/p3371/SPEC.md section 5.5.7): the Terminal's status
+    /// line and its parts, a history row by its index from the oldest line the
+    /// Mac holds, the button back to the live bottom, the line where paging
+    /// back stopped, and the key bar's key that puts the keyboard away.
+    static let terminalStatus = "terminal-status"
+    static let sessionDot = "session-dot"
+    static let sessionAgent = "session-agent"
+    static let sessionMachine = "session-machine"
+    static let screenHistory = "screen-history-"
+    static let screenToLive = "screen-to-live"
+    static let screenScrollbackLine = "screen-scrollback-line"
+    static let keyHide = "hide"
 }
 
 /// One element read from a snapshot: its identifier, its label and its frame.
@@ -516,6 +562,32 @@ private final class Drive {
                 screenWait(String(step.dropFirst("screen-wait:".count)))
             } else if step == "end-top" {
                 endTop()
+            } else if step.hasPrefix("terminal-open:") {
+                terminalOpen(String(step.dropFirst("terminal-open:".count)))
+            } else if step == "catch-up" {
+                catchUp()
+            } else if step.hasPrefix("scroll-up:") {
+                scrollUp(Int(String(step.dropFirst("scroll-up:".count))) ?? 1)
+            } else if step == "scroll-hold" {
+                scrollHold(seconds: 10, step: "scroll-hold")
+            } else if step == "scroll-drag-hold" {
+                // The hold begins as the drag's finger lifts (the 337.1 fix
+                // round): read 1.2 s after a drag, as `scroll-up` reads, the
+                // page that drag asked had already landed and no hold saw it.
+                dragUp()
+                scrollHold(seconds: 6, step: "scroll-hold", every: 0.25)
+            } else if step == "fling-up" {
+                flingUp()
+            } else if step == "to-live" {
+                toLive()
+            } else if step.hasPrefix("scroll-key:") {
+                scrollKey(String(step.dropFirst("scroll-key:".count)))
+            } else if step == "keyboard-glitch" {
+                keyboardGlitch()
+            } else if step.hasPrefix("tray-press:") {
+                trayPress(Int(String(step.dropFirst("tray-press:".count))) ?? 0)
+            } else if step == "tray-keyboard" {
+                trayKeyboard()
             } else if step == "relaunch-choices" || step.hasPrefix("relaunch-choices:") {
                 relaunchChoices(step.hasPrefix("relaunch-choices:") ? String(step.dropFirst("relaunch-choices:".count)) : nil)
             } else {
@@ -585,9 +657,12 @@ private final class Drive {
         // Phase 316.7: the list is lazy, so the row is brought into view first.
         guard let row = reveal(Seen.row(sessionId)) else { return missing("open") }
         row.tap()
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else {
+        // Phase 337.1: the session's route, whichever face its first answer
+        // decided (the Terminal or Catch Me Up), and one line saying which.
+        guard poll({ self.sessionSettled($0) }) else {
             return missing(name)
         }
+        emitFace(name)
         dump(name)
     }
 
@@ -600,7 +675,7 @@ private final class Drive {
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             let found = tree()
-            if found.contains(where: { Seen.paired($0.id) }) && !has(found, Seen.sessionScreen) && !has(found, Seen.conversationScreen) && !has(found, Seen.listLoading) && !has(found, Seen.needsLoading) {
+            if found.contains(where: { Seen.paired($0.id) }) && !onSessionPage(found) && !has(found, Seen.listLoading) && !has(found, Seen.needsLoading) {
                 dump("back")
                 return
             }
@@ -611,16 +686,11 @@ private final class Drive {
         missing("back")
     }
 
+    /// Catch Me Up (Phase 337.1): the Terminal's icon pressed when the
+    /// Terminal is the face, nothing when Catch Me Up already is; dumped as
+    /// `conversation`, the step's name since Phase 316.2.
     private func conversation() {
-        let button = element(Seen.sessionOpenConversation)
-        guard button.waitForExistence(timeout: 5) else { return missing("conversation") }
-        var tries = 0
-        while !button.isHittable && tries < 6 {
-            element(Seen.sessionScreen).swipeUp()
-            tries += 1
-        }
-        button.tap()
-        guard poll({ has($0, Seen.conversationScreen) && !has($0, Seen.conversationLoading) }) else {
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: "conversation") else {
             return missing("conversation")
         }
         dump("conversation")
@@ -629,7 +699,7 @@ private final class Drive {
     /// Toward the oldest turn: swipe down until no older page remains to ask for
     /// and three swipes add nothing, or the screen says why it stopped.
     private func first() {
-        guard has(tree(), Seen.conversationScreen) else { return missing("first") }
+        guard toCatchUp(for: "first") else { return missing("first") }
         var asks: [String: String] = [:]
         var answers: [String: String] = [:]
         var absences: [String: String] = [:]
@@ -637,7 +707,7 @@ private final class Drive {
         var quiet = 0
         var lastCount = -1
         var mdSeen: [String: String] = [:]
-        let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
+        let scroll = element(Seen.catchUpScreen).scrollViews.firstMatch
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             let found = tree()
@@ -655,8 +725,8 @@ private final class Drive {
                     indexes.insert(i)
                 }
             }
-            if has(found, Seen.conversationFailure) || has(found, Seen.conversationOlderLine) { break }
-            if !has(found, Seen.conversationOlder) {
+            if has(found, Seen.catchUpFailure) || has(found, Seen.catchUpOlderLine) { break }
+            if !has(found, Seen.catchUpOlder) {
                 quiet = indexes.count == lastCount ? quiet + 1 : 0
                 if quiet >= 3 { break }
             }
@@ -771,6 +841,10 @@ private final class Drive {
         // once its own read answers: give it that read before reading.
         Thread.sleep(forTimeInterval: 3)
         _ = poll { settled($0) }
+        // Phase 337.1: a live session's alert opens its Terminal; the reads
+        // the alert taps make are Catch Me Up's, so its icon is pressed first
+        // (`toCatchUpIfTerminal`, which leaves a list or Catch Me Up alone).
+        toCatchUpIfTerminal(for: name)
         dump(name)
     }
 
@@ -815,7 +889,7 @@ private final class Drive {
 
     /// A screen the app settles on after a tap: the session read, or the list.
     private func settled(_ found: [Found]) -> Bool {
-        (has(found, Seen.sessionScreen) && !has(found, Seen.sessionLoading)) || settledList(found)
+        sessionSettled(found) || settledList(found)
     }
 
     /// Either list tab, read: since Phase 316.6 an alert's tap selects the
@@ -828,7 +902,7 @@ private final class Drive {
     /// The Sessions tab's list is the screen on top.
     private func onSessionsList() -> Bool {
         let found = tree()
-        return has(found, Seen.listScreen) && !has(found, Seen.sessionScreen) && !has(found, Seen.conversationScreen)
+        return has(found, Seen.listScreen) && !onSessionPage(found)
     }
 
     /// Tortie's banner in SpringBoard, looked for four times a second in ONE
@@ -927,7 +1001,7 @@ private final class Drive {
         guard selectTab(pick.label) else { return missing("tab-" + name) }
         // Sessions keeps its place: a session pushed on it is on top again.
         guard poll({ found in
-            has(found, pick.screen) || (name == "sessions" && (has(found, Seen.sessionScreen) || has(found, Seen.conversationScreen)))
+            has(found, pick.screen) || (name == "sessions" && onSessionPage(found))
         }) else { return missing("tab-" + name) }
         _ = poll { found in !has(found, Seen.needsLoading) && !has(found, Seen.listLoading) && !has(found, Seen.sessionLoading) }
         Thread.sleep(forTimeInterval: 1)
@@ -940,7 +1014,7 @@ private final class Drive {
     /// or above the bar's top (T2d).
     private func bar() {
         let found = tree()
-        guard let top = [Seen.conversationScreen, Seen.sessionScreen, Seen.settingsScreen, Seen.listScreen, Seen.needsScreen].first(where: { has(found, $0) }) else {
+        guard let top = [Seen.catchUpScreen, Seen.sessionScreen, Seen.settingsScreen, Seen.listScreen, Seen.needsScreen].first(where: { has(found, $0) }) else {
             return missing("bar")
         }
         let screen = element(top)
@@ -974,12 +1048,12 @@ private final class Drive {
     /// element's identifier, label and first frame, and every link's label,
     /// the turn and block it sits in and its frame. One line, `markdown`.
     private func markdown() {
-        guard has(tree(), Seen.conversationScreen) else { return missing("markdown") }
+        guard toCatchUp(for: "markdown") else { return missing("markdown") }
         var elements: [String: [String: Any]] = [:]
         var links: [String: [String: Any]] = [:]
         var quiet = 0
         var lastCount = -1
-        let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
+        let scroll = element(Seen.catchUpScreen).scrollViews.firstMatch
         let deadline = Date().addingTimeInterval(wait)
         while Date() < deadline {
             walkAnswers { node, turn, block in
@@ -996,8 +1070,8 @@ private final class Drive {
                 }
             }
             let found = tree()
-            if has(found, Seen.conversationFailure) || has(found, Seen.conversationOlderLine) { break }
-            if !has(found, Seen.conversationOlder) {
+            if has(found, Seen.catchUpFailure) || has(found, Seen.catchUpOlderLine) { break }
+            if !has(found, Seen.catchUpOlder) {
                 quiet = elements.count == lastCount ? quiet + 1 : 0
                 if quiet >= 3 { break }
             }
@@ -1037,10 +1111,10 @@ private final class Drive {
     /// it does not, toward the top, then back. A link it cannot bring into view
     /// is said as that, `reached: false`, and the drive goes on.
     private func link(_ label: String) {
-        guard has(tree(), Seen.conversationScreen) else { return missing("link") }
+        guard toCatchUp(for: "link") else { return missing("link") }
         linkUnreached = false
         let target = app.links[label]
-        let scroll = element(Seen.conversationScreen).scrollViews.firstMatch
+        let scroll = element(Seen.catchUpScreen).scrollViews.firstMatch
         var tries = 0
         var blind = 0
         while !(target.exists && target.isHittable) && tries < 160 && scroll.exists {
@@ -1099,7 +1173,7 @@ private final class Drive {
         if safari.state != .notRunning { safari.terminate() }
         app.activate()
         _ = app.wait(for: .runningForeground, timeout: 30)
-        _ = poll { has($0, Seen.conversationScreen) }
+        _ = poll { has($0, Seen.catchUpScreen) }
         dump("link-open")
     }
 
@@ -1165,6 +1239,9 @@ private final class Drive {
     /// Nothing pressed for `seconds`, bracketed by two lines, so the probe can
     /// count what the app sends while nobody touches it (U1's 20 s).
     private func idle(seconds: TimeInterval) {
+        // Phase 337.1: a Terminal polls while it is up; the idle reading is
+        // made where the session page's was, on Catch Me Up.
+        toCatchUpIfTerminal(for: "idle")
         lines.emit(["step": "idle-start", "seconds": seconds])
         Thread.sleep(forTimeInterval: seconds)
         lines.emit(["step": "idle-end"])
@@ -1375,11 +1452,12 @@ private final class Drive {
             // true at once and EH write-late read the screen before the
             // phone's 15 s (the fix round of 2026-10-06).
             _ = poll { found in
-                !self.has(found, Seen.endConfirming) && self.has(found, Seen.sessionScreen)
+                !self.has(found, Seen.endConfirming) && self.onSessionPage(found)
                     && (!self.has(found, Seen.sessionEnd) || self.has(found, Seen.sessionEndLine))
             }
             Thread.sleep(forTimeInterval: 2)
-            _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+            _ = poll { self.sessionSettled($0) }
+            emitFace(step)
             dump(step)
         case .cancel:
             // What iOS drew after the failed match, read by its own labels
@@ -1425,7 +1503,8 @@ private final class Drive {
             app.activate()
             _ = app.wait(for: .runningForeground, timeout: 30)
             Thread.sleep(forTimeInterval: 3)
-            _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+            _ = poll { self.sessionSettled($0) }
+            emitFace(step)
             dump(step)
         case .kill(let id):
             app.terminate()
@@ -1441,7 +1520,9 @@ private final class Drive {
     /// The End bar read on the session on screen, its row pressed if it can be,
     /// and whether a confirmation came: the hostile door's unreachable offer.
     private func endRead() {
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("end-read") }
+        guard poll({ self.sessionSettled($0) }) else { return missing("end-read") }
+        // Phase 337.1: read where the session page was read, on Catch Me Up.
+        toCatchUpIfTerminal(for: "end-read")
         Thread.sleep(forTimeInterval: 1)
         emitBar("end-read")
         let row = element(Seen.sessionEnd)
@@ -1457,7 +1538,7 @@ private final class Drive {
         let seq = lines.emit(["step": "ready-for-unenrol"])
         lines.emit(["step": "unenrolled", "acked": ack("unenrol-\(seq)")])
         open(sessionId, dumping: "end-off-open")
-        guard has(tree(), Seen.sessionScreen) else { return }
+        guard onSessionPage(tree()) else { return }
         Thread.sleep(forTimeInterval: 1)
         emitBar("end-off")
         let row = element(Seen.sessionEnd)
@@ -1600,9 +1681,11 @@ private final class Drive {
     /// Press option `n`: the offer read, the probe told (it reads the agent's
     /// screen then), the press, and what the screen draws after it.
     private func replyPress(_ n: Int) {
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-press") }
+        guard poll({ self.sessionSettled($0) }) else { return missing("reply-press") }
         Thread.sleep(forTimeInterval: 1)
-        guard replyAck("reply-offer", ["for": "reply-press", "n": n, "reading": replyReading()]) else { return missing("reply-press") }
+        // Phase 337.1 (D19): the press is 318's `session-choice-press-<n>`
+        // wherever it is drawn, which on a live session is the Terminal's tray.
+        guard replyAck("reply-offer", ["for": "reply-press", "n": n, "reading": replyReading(), "face": faceOf(tree())]) else { return missing("reply-press") }
         let press = element(Seen.sessionChoicePress(n))
         guard press.exists, press.isHittable else { return missing("reply-press") }
         press.tap()
@@ -1618,8 +1701,8 @@ private final class Drive {
             Thread.sleep(forTimeInterval: 0.1)
         }
         Thread.sleep(forTimeInterval: 2)
-        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
-        lines.emit(["step": "reply-pressed", "faceId": faceID, "line": line.map { $0 as Any } ?? NSNull(), "after": replyReading()])
+        _ = poll { self.sessionSettled($0) }
+        lines.emit(["step": "reply-pressed", "faceId": faceID, "line": line.map { $0 as Any } ?? NSNull(), "after": replyReading(), "face": faceOf(tree())])
         dump("reply-press")
     }
 
@@ -1639,12 +1722,12 @@ private final class Drive {
     /// The strip, the End bar, the tab bar and the content's lowest edge, read
     /// with the session screen scrolled to its end.
     private func stripFrames() -> [String: Any] {
-        let screen = element(Seen.sessionScreen)
+        let screen = pageElement()
         for _ in 0..<3 where screen.exists { screen.swipeUp() }
         Thread.sleep(forTimeInterval: 1)
         let found = tree()
         let strip = find(found, Seen.sessionMessageStrip)
-        let skip: Set<String> = [Seen.sessionScreen, Seen.sessionMessageStrip, Seen.sessionMessageField, Seen.sessionMessageSend, Seen.sessionMessageLine, Seen.sessionEndBar, Seen.sessionEnd, Seen.sessionEndLine]
+        let skip: Set<String> = [Seen.sessionScreen, Seen.catchUpScreen, Seen.sessionMessageStrip, Seen.sessionMessageField, Seen.sessionMessageSend, Seen.sessionMessageLine, Seen.sessionEndBar, Seen.sessionEnd, Seen.sessionEndLine]
         var bottom: CGFloat = 0
         if let strip {
             for item in found where !skip.contains(item.id) && item.frame.minY < strip.frame.minY && item.frame.height > 0 {
@@ -1690,7 +1773,7 @@ private final class Drive {
     /// One message: the strip read (the first Send of a step that sets the
     /// box), the words typed, the probe told, Send, and every line after it.
     private func replySay(_ b64url: String?, step: String, fresh: Bool) {
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing(step) }
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: step) else { return missing(step) }
         let frames = step == "reply-say" ? stripFrames() : [:]
         if fresh {
             guard let b64url, let text = Self.words(b64url), setBox(text) else { return missing(step) }
@@ -1706,7 +1789,7 @@ private final class Drive {
 
     /// Nothing offered here: the options and the strip as drawn.
     private func replyNone() {
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-none") }
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: "reply-none") else { return missing("reply-none") }
         Thread.sleep(forTimeInterval: 2)
         lines.emit(["step": "reply-none", "reading": replyReading()])
         dump("reply-none")
@@ -1715,7 +1798,9 @@ private final class Drive {
     /// Send or press, then Home at once (Paseo #3464); 10 s away, back, and
     /// the screen read.
     private func replyHome(say b64url: String?, press n: Int?) {
-        guard poll({ has($0, Seen.sessionScreen) && !has($0, Seen.sessionLoading) }) else { return missing("reply-home") }
+        guard poll({ self.sessionSettled($0) }) else { return missing("reply-home") }
+        // Phase 337.1: a message is sent from Catch Me Up's box; a press from wherever it is drawn.
+        if b64url != nil, !toCatchUp(for: "reply-home") { return missing("reply-home") }
         if let b64url {
             guard let text = Self.words(b64url), setBox(text) else { return missing("reply-home") }
             guard replyAck("reply-send-ready", ["for": "reply-home", "reading": replyReading()]) else { return missing("reply-home") }
@@ -1734,7 +1819,7 @@ private final class Drive {
         app.activate()
         _ = app.wait(for: .runningForeground, timeout: 30)
         Thread.sleep(forTimeInterval: 3)
-        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+        _ = poll { self.sessionSettled($0) }
         let found = tree()
         let line = find(found, Seen.sessionMessageLine)?.label ?? find(found, Seen.sessionReplyLine)?.label
         let box = element(Seen.sessionMessageField)
@@ -1750,6 +1835,7 @@ private final class Drive {
     /// The box focused: whether End is drawn beside the keyboard, and where
     /// the strip and the keyboard are.
     private func replyFocus() {
+        guard toCatchUp(for: "reply-focus") else { return missing("reply-focus") }
         let field = element(Seen.sessionMessageField)
         guard field.waitForExistence(timeout: 10) else { return missing("reply-focus") }
         field.tap()
@@ -1774,9 +1860,10 @@ private final class Drive {
     /// again, as a person pulls it.
     private func replyWait(_ tag: String) {
         guard replyAck("reply-wait", ["tag": tag]) else { return missing("reply-wait") }
-        pull(Seen.sessionScreen)
+        // Phase 337.1: the page on top is pulled, Catch Me Up's when it is up.
+        pull(has(tree(), Seen.catchUpScreen) ? Seen.catchUpScreen : Seen.sessionScreen)
         Thread.sleep(forTimeInterval: 2)
-        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) }
+        _ = poll { self.sessionSettled($0) }
         dump("reply-wait")
     }
 
@@ -1821,6 +1908,7 @@ private final class Drive {
     /// view, else the first scroll view inside it.
     private func scrollTarget() -> XCUIElement {
         let list = element(Seen.listScreen)
+        guard list.exists else { return app.scrollViews.firstMatch }
         if list.elementType == .scrollView { return list }
         let inner = list.scrollViews.firstMatch
         return inner.exists ? inner : list
@@ -1870,7 +1958,12 @@ private final class Drive {
         let target = element(id)
         let shown = { target.exists && target.isHittable && target.frame.midY < self.barTop() - 4 }
         if target.waitForExistence(timeout: 2) && shown() { return target }
-        guard has(tree(), Seen.listScreen) else { return target.exists ? target : nil }
+        // The Sessions tab while End these takes taps is still the list, and a
+        // snapshot that came back empty is no answer about it: both are
+        // scrolled as the list is (the 337.1 fix round: a row under End
+        // these' bar was handed back unrevealed and its tap found no point).
+        let found = tree()
+        guard has(found, Seen.listScreen) || has(found, Seen.listEndSelected) || found.isEmpty else { return target.exists ? target : nil }
         scrollToTop()
         let scroll = scrollTarget()
         var last = "\u{0}"
@@ -2245,16 +2338,19 @@ private final class Drive {
         lines.emit(o)
     }
 
-    /// From a session's page, its Screen row pressed and the first picture drawn.
+    /// The Terminal's first picture drawn. Since Phase 337.1 a live session
+    /// OPENS on its Terminal, so this is a wait for the grid; a page that still
+    /// draws the parent's Screen row has it pressed first.
     private func screenOpen() {
         let button = element(Seen.sessionOpenScreen)
-        guard button.waitForExistence(timeout: 10) else { return missing("screen-open") }
-        var tries = 0
-        while !button.isHittable && tries < 6 {
-            element(Seen.sessionScreen).swipeUp()
-            tries += 1
+        if button.waitForExistence(timeout: 1) {
+            var tries = 0
+            while !button.isHittable && tries < 6 {
+                element(Seen.sessionScreen).swipeUp()
+                tries += 1
+            }
+            button.tap()
         }
-        button.tap()
         guard poll({ found in
             self.has(found, Seen.screenScreen) && !self.has(found, Seen.screenLoading)
                 && (found.contains { self.index($0.id, after: Seen.screenRow) != nil } || self.has(found, Seen.screenFailure))
@@ -2308,7 +2404,8 @@ private final class Drive {
         let landscape = screenReading()
         let back = app.navigationBars.buttons.element(boundBy: 0)
         if back.exists { back.tap() }
-        _ = poll { self.has($0, Seen.sessionScreen) && !self.has($0, Seen.screenScreen) }
+        // Since Phase 337.1 Back from the Terminal is the list: any page with no Terminal on it.
+        _ = poll { !self.has($0, Seen.screenScreen) && !$0.isEmpty }
         Thread.sleep(forTimeInterval: 1)
         let page = (try? app.snapshot())?.frame.size ?? .zero
         lines.emit([
@@ -2514,21 +2611,425 @@ private final class Drive {
     }
 
     /// The session's page: End's frame and the navigation bar's, the End bar
-    /// absent, and the Conversation row above the Screen row (PS1).
+    /// absent, and (Phase 337.1, PS1 re-pointed) the Catch Me Up icon beside
+    /// End on the Terminal, its frame and whether each can be pressed; the
+    /// parent's Screen row is printed when drawn.
     private func endTop() {
-        guard poll({ self.has($0, Seen.sessionScreen) && !self.has($0, Seen.sessionLoading) && self.has($0, Seen.sessionEnd) }) else { return missing("end-top") }
+        guard poll({ self.sessionSettled($0) && self.has($0, Seen.sessionEnd) }) else { return missing("end-top") }
         let found = tree()
         let nav = app.navigationBars.firstMatch
         let window = (try? app.snapshot())?.frame.size ?? .zero
+        let icon = element(Seen.sessionOpenCatchUp)
         lines.emit([
             "step": "end-top",
-            "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
+            "face": faceOf(found),
+            "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": element(Seen.sessionEnd).isHittable] as Any } ?? NSNull(),
+            "catchUp": find(found, Seen.sessionOpenCatchUp).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": icon.isHittable] as Any } ?? NSNull(),
             "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
             "endBar": has(found, Seen.sessionEndBar),
-            "conversation": find(found, Seen.sessionOpenConversation).map { frameOf($0.frame) as Any } ?? NSNull(),
             "screen": find(found, Seen.sessionOpenScreen).map { frameOf($0.frame) as Any } ?? NSNull(),
             "window": [Double(window.width), Double(window.height)]
         ])
+    }
+
+    // MARK: Phase 337.1: terminal first, scrollback, Catch Me Up
+
+    /// A session's page is up: its route, whichever face it draws, or Catch
+    /// Me Up pushed over the Terminal (which carries `screen-catch-up` alone).
+    private func onSessionPage(_ found: [Found]) -> Bool {
+        has(found, Seen.sessionScreen) || has(found, Seen.catchUpScreen)
+    }
+
+    /// ...and read: neither the route's first read nor Catch Me Up's is loading.
+    private func sessionSettled(_ found: [Found]) -> Bool {
+        onSessionPage(found) && !has(found, Seen.sessionLoading) && !has(found, Seen.catchUpLoading)
+    }
+
+    /// The face on top: `terminal`, `catch-up`, or `none`.
+    private func faceOf(_ found: [Found]) -> String {
+        if has(found, Seen.screenScreen) { return "terminal" }
+        if has(found, Seen.catchUpScreen) { return "catch-up" }
+        return "none"
+    }
+
+    /// The page to swipe and pull: Catch Me Up when it is up, else the route.
+    private func pageElement() -> XCUIElement {
+        element(has(tree(), Seen.catchUpScreen) ? Seen.catchUpScreen : Seen.sessionScreen)
+    }
+
+    /// The navigation bar's words (its static texts), in order: the title,
+    /// and Catch Me Up's second line under it.
+    private func navTexts() -> [String] {
+        let nav = app.navigationBars.firstMatch
+        guard nav.exists else { return [] }
+        return nav.staticTexts.allElementsBoundByIndex.filter(\.exists).map(\.label).filter { !$0.isEmpty }
+    }
+
+    /// One line saying which face a step read (`face`), and the title's words.
+    private func emitFace(_ step: String) {
+        lines.emit(["step": "face", "for": step, "was": faceOf(tree()), "now": faceOf(tree()), "title": navTexts()])
+    }
+
+    /// THE ONE HELPER (build/p3371/SPEC.md section 7.8, section Attack B6):
+    /// when the Terminal is the face, its Catch Me Up icon pressed and Catch
+    /// Me Up waited for; when Catch Me Up already is, nothing. One line says
+    /// which face the step found and which it read. False when Catch Me Up
+    /// could not be reached.
+    @discardableResult
+    private func toCatchUp(for step: String) -> Bool {
+        let was = faceOf(tree())
+        if was == "catch-up" {
+            lines.emit(["step": "face", "for": step, "was": was, "now": was, "title": navTexts()])
+            return true
+        }
+        let icon = element(Seen.sessionOpenCatchUp)
+        guard icon.waitForExistence(timeout: 10) else {
+            lines.emit(["step": "face", "for": step, "was": was, "now": NSNull(), "title": navTexts()])
+            return false
+        }
+        icon.tap()
+        let ok = poll { self.has($0, Seen.catchUpScreen) && !self.has($0, Seen.catchUpLoading) }
+        lines.emit(["step": "face", "for": step, "was": was, "now": ok ? "catch-up" : NSNull(), "title": navTexts()])
+        return ok
+    }
+
+    /// `toCatchUp`, only when a Terminal is the page on top: a list, Pairing
+    /// or Catch Me Up are left as they are.
+    private func toCatchUpIfTerminal(for step: String) {
+        if faceOf(tree()) == "terminal" { _ = toCatchUp(for: step) }
+    }
+
+    /// Every label the app draws, identified or not, from ONE snapshot.
+    private func allLabels() -> [String] {
+        guard let root = try? app.snapshot() else { return [] }
+        var out: [String] = []
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            if !node.label.isEmpty { out.append(node.label) }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        return out
+    }
+
+    /// The Terminal as drawn, from ONE snapshot: every live row and every
+    /// history row with its label and frame, the grid, the button back to
+    /// live, the scrollback line, the line under the grid, the keyboard and
+    /// the face, stamped by the clock.
+    private func terminalReading() -> [String: Any] {
+        let found = tree()
+        var live: [[String: Any]] = []
+        var history: [[String: Any]] = []
+        for f in found {
+            if let n = index(f.id, after: Seen.screenRow) {
+                live.append(["n": n, "label": f.label, "frame": frameOf(f.frame)])
+            } else if let i = index(f.id, after: Seen.screenHistory) {
+                history.append(["i": i, "label": f.label, "frame": frameOf(f.frame)])
+            }
+        }
+        live.sort { ($0["n"] as? Int ?? 0) < ($1["n"] as? Int ?? 0) }
+        history.sort { ($0["i"] as? Int ?? 0) < ($1["i"] as? Int ?? 0) }
+        let keyboard = app.keyboards.firstMatch
+        return [
+            "at": Date().timeIntervalSince1970 * 1000,
+            "face": faceOf(found),
+            "live": live,
+            "history": history,
+            "grid": find(found, Seen.screenGrid).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "toLive": find(found, Seen.screenToLive).map { frameOf($0.frame) as Any } ?? NSNull(),
+            "scrollbackLine": find(found, Seen.screenScrollbackLine).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
+            "line": find(found, Seen.screenLine).map { ["label": $0.label, "frame": frameOf($0.frame)] as Any } ?? NSNull(),
+            "keyboard": keyboard.exists ? frameOf(keyboard.frame) as Any : NSNull(),
+            "copy": has(found, Seen.screenCopy)
+        ]
+    }
+
+    /// `terminal-open:<id>` (PS10): a list row tapped and the Terminal waited
+    /// for, the tap-to-first-row time printed (it holds the one session read
+    /// that decides the face); the status line's parts, the top bar's trailing
+    /// items (the icon, then End), every label the app draws, and whether the
+    /// icon is row-shaped.
+    private func terminalOpen(_ sessionId: String) {
+        if !onSessionsList() { goToSessionsList() }
+        guard onSessionsList(), let row = reveal(Seen.row(sessionId)) else { return missing("terminal-open") }
+        let tapped = Date()
+        row.tap()
+        var firstRowMs: Double?
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            let found = tree()
+            if found.contains(where: { index($0.id, after: Seen.screenRow) != nil }) {
+                firstRowMs = Date().timeIntervalSince(tapped) * 1000
+                break
+            }
+            if has(found, Seen.catchUpScreen) || has(found, Seen.sessionFailureId) { break }
+            Thread.sleep(forTimeInterval: 0.05)
+        }
+        let found = tree()
+        let window = (try? app.snapshot())?.frame.size ?? .zero
+        let part = { (id: String) -> Any in self.find(found, id).map { ["label": $0.label, "frame": self.frameOf($0.frame)] as Any } ?? NSNull() }
+        let icon = element(Seen.sessionOpenCatchUp)
+        let end = element(Seen.sessionEnd)
+        let nav = app.navigationBars.firstMatch
+        lines.emit([
+            "step": "terminal-open",
+            "id": sessionId,
+            "firstRowMs": firstRowMs.map { $0 as Any } ?? NSNull(),
+            "face": faceOf(found),
+            "status": part(Seen.terminalStatus),
+            "dot": part(Seen.sessionDot),
+            "statusWord": part(Seen.sessionStatus),
+            "agent": part(Seen.sessionAgent),
+            "machine": part(Seen.sessionMachine),
+            "catchUp": find(found, Seen.sessionOpenCatchUp).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": icon.isHittable] as Any } ?? NSNull(),
+            "end": find(found, Seen.sessionEnd).map { ["label": $0.label, "frame": frameOf($0.frame), "hittable": end.isHittable] as Any } ?? NSNull(),
+            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "title": navTexts(),
+            "labels": allLabels(),
+            "window": [Double(window.width), Double(window.height)],
+            "reading": terminalReading()
+        ])
+        dump("terminal")
+    }
+
+    /// `catch-up` (PS15): the icon pressed; Catch Me Up's turns, its now card,
+    /// its message box, End and the title read; Back; the Terminal read.
+    private func catchUp() {
+        guard poll({ self.sessionSettled($0) }), toCatchUp(for: "catch-up") else { return missing("catch-up") }
+        Thread.sleep(forTimeInterval: 1.5)
+        let found = tree()
+        var turns: [[String: Any]] = []
+        for f in found {
+            guard let i = index(f.id, after: Seen.turn) else { continue }
+            turns.append(["i": i, "frame": frameOf(f.frame)])
+        }
+        let part = { (id: String) -> Any in self.find(found, id).map { ["label": $0.label, "frame": self.frameOf($0.frame)] as Any } ?? NSNull() }
+        let nav = app.navigationBars.firstMatch
+        let reading: [String: Any] = [
+            "turns": turns,
+            "status": part(Seen.sessionStatus),
+            "dot": part(Seen.sessionDot),
+            "strip": part(Seen.sessionMessageStrip),
+            "end": part(Seen.sessionEnd),
+            "nav": nav.exists ? frameOf(nav.frame) as Any : NSNull(),
+            "title": navTexts(),
+            "grid": has(found, Seen.screenGrid),
+            "labels": allLabels()
+        ]
+        dump("catch-up")
+        let back = app.navigationBars.buttons.element(boundBy: 0)
+        if back.exists { back.tap() }
+        let returned = poll { found in self.has(found, Seen.screenScreen) }
+        lines.emit(["step": "catch-up", "reading": reading, "backToTerminal": returned, "after": terminalReading()])
+    }
+
+    /// One drag of the finger DOWN the grid, which scrolls the terminal up
+    /// into what it printed before: pressed briefly, moved at a person's
+    /// speed, lifted.
+    private func dragUp() {
+        let grid = element(Seen.screenGrid)
+        guard grid.exists else { return }
+        let from = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+        let to = grid.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.75))
+        from.press(forDuration: 0.05, thenDragTo: to, withVelocity: XCUIGestureVelocity(600), thenHoldForDuration: 0.3)
+    }
+
+    /// `scroll-up:<n>` (PS13): n drags up, a reading after each (the finger
+    /// lifted, 1.2 s for a page to land).
+    private func scrollUp(_ n: Int) {
+        guard element(Seen.screenGrid).waitForExistence(timeout: 10) else { return missing("scroll-up") }
+        let before = terminalReading()
+        var readings: [[String: Any]] = []
+        for _ in 0..<max(1, n) {
+            dragUp()
+            Thread.sleep(forTimeInterval: 1.2)
+            readings.append(terminalReading())
+        }
+        lines.emit(["step": "scroll-up", "n": n, "before": before, "readings": readings])
+    }
+
+    /// `scroll-hold` (PS13): the finger lifted, a reading every half second (or
+    /// `every`) for `seconds`, so pages landing are seen one by one.
+    private func scrollHold(seconds: TimeInterval, step: String, every: TimeInterval = 0.5) {
+        var readings: [[String: Any]] = []
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline {
+            readings.append(terminalReading())
+            Thread.sleep(forTimeInterval: every)
+        }
+        lines.emit(["step": step, "readings": readings])
+    }
+
+    /// `fling-up` (PS13): one fast swipe down the grid, then four seconds of readings.
+    private func flingUp() {
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("fling-up") }
+        let before = terminalReading()
+        grid.swipeDown(velocity: .fast)
+        lines.emit(["step": "fling-up", "before": before])
+        scrollHold(seconds: 4, step: "fling-hold")
+    }
+
+    /// `to-live` (PS13): the button back to the live bottom pressed, then read.
+    private func toLive() {
+        let button = element(Seen.screenToLive)
+        let found = button.waitForExistence(timeout: 5)
+        let before = terminalReading()
+        if found { button.tap() }
+        Thread.sleep(forTimeInterval: 1.2)
+        lines.emit(["step": "to-live", "found": found, "before": before, "after": terminalReading()])
+    }
+
+    /// `scroll-key:<name>` (PS13): scrolled back with one drag, then one key
+    /// of the bar pressed (its ready line waits for the probe's file), and the
+    /// Terminal read: typing returns it to the live bottom (D27).
+    private func scrollKey(_ name: String) {
+        guard element(Seen.screenGrid).waitForExistence(timeout: 10) else { return missing("scroll-key") }
+        let key = raiseKeys(name)
+        guard key.waitForExistence(timeout: 10) else { return missing("scroll-key") }
+        dragUp()
+        Thread.sleep(forTimeInterval: 1.2)
+        let scrolled = terminalReading()
+        let seq = lines.emit(["step": "scroll-key-ready", "key": name])
+        _ = ack("screen-\(seq)")
+        if key.exists { key.tap() }
+        Thread.sleep(forTimeInterval: 1.2)
+        lines.emit(["step": "scroll-key", "key": name, "scrolled": scrolled, "after": terminalReading(), "auth": ownerCheckUp()])
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        if hide.exists { hide.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+    }
+
+    /// `keyboard-glitch` (PS14, section 14 M12): row 0 and the grid read at
+    /// rest, with the keyboard up (and the line under the grid against the
+    /// keyboard's top), right after the bar's hide key, and 2 s later; then a
+    /// long press and drag along row 3 with Copy, the icon and End read for
+    /// whether each can be pressed while it is held, Copy pressed (the probe
+    /// reads the pasteboard on its file), and row 0 read after. Then, with the
+    /// keyboard up again and the terminal scrolled back, the button back to
+    /// live against the keyboard's top, and the hide key.
+    private func keyboardGlitch() {
+        let grid = element(Seen.screenGrid)
+        guard grid.waitForExistence(timeout: 10) else { return missing("keyboard-glitch") }
+        let rest = terminalReading()
+        grid.tap()
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        passKeyboardIntroduction()
+        Thread.sleep(forTimeInterval: 1)
+        let up = terminalReading()
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        let hid = hide.waitForExistence(timeout: 5)
+        if hid { hide.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+        let after = terminalReading()
+        Thread.sleep(forTimeInterval: 2)
+        let later = terminalReading()
+        // The long press along row 3, read where the row is drawn now.
+        let row = element(Seen.screenRow + "3")
+        var copyHeld: [String: Any] = [:]
+        var rowLabel: String?
+        if row.waitForExistence(timeout: 5) {
+            rowLabel = row.label
+            let start = row.coordinate(withNormalizedOffset: CGVector(dx: 0.02, dy: 0.5))
+            let end = row.coordinate(withNormalizedOffset: CGVector(dx: 0.9, dy: 0.5))
+            start.press(forDuration: 1.0, thenDragTo: end)
+            let copy = element(Seen.screenCopy)
+            let copyUp = copy.waitForExistence(timeout: 5)
+            copyHeld = [
+                "copy": copyUp && copy.isHittable,
+                "catchUp": element(Seen.sessionOpenCatchUp).exists && element(Seen.sessionOpenCatchUp).isHittable,
+                "end": element(Seen.sessionEnd).exists && element(Seen.sessionEnd).isHittable,
+                "reading": terminalReading()
+            ]
+            if copyUp { copy.tap() }
+        }
+        let copied = lines.emit(["step": "glitch-copied", "row": rowLabel.map { $0 as Any } ?? NSNull(), "held": copyHeld])
+        _ = ack("screen-\(copied)")
+        Thread.sleep(forTimeInterval: 0.6)
+        let afterPress = terminalReading()
+        // The keyboard up again, scrolled back: the button over the keyboard's top.
+        grid.tap()
+        _ = app.keyboards.firstMatch.waitForExistence(timeout: 5)
+        Thread.sleep(forTimeInterval: 0.8)
+        dragUp()
+        Thread.sleep(forTimeInterval: 1.2)
+        let scrolledUp = terminalReading()
+        let hide2 = element(Seen.screenKey + Seen.keyHide)
+        if hide2.exists { hide2.tap() }
+        Thread.sleep(forTimeInterval: 0.6)
+        let live = element(Seen.screenToLive)
+        if live.exists { live.tap() }
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit([
+            "step": "keyboard-glitch",
+            "hideKey": hid,
+            "rest": rest,
+            "up": up,
+            "after": after,
+            "later": later,
+            "afterPress": afterPress,
+            "scrolledUp": scrolledUp,
+            "end": terminalReading()
+        ])
+    }
+
+    /// `tray-keyboard` (PS12k, the 337.1 fix round): on the Terminal with the
+    /// question's tray drawn, the terminal tapped so the keyboard rises, read,
+    /// the bar's key that puts it away pressed, and read again. Raising the
+    /// keyboard over the tray froze the 337.1 build (an AttributeGraph cycle
+    /// reached from the key field taking the keyboard inside SwiftUI's own
+    /// update). A line says the step began, so a step that began and never
+    /// ended is told from one that never ran.
+    private func trayKeyboard() {
+        guard poll({ self.has($0, Seen.screenScreen) && $0.contains { self.index($0.id, after: Seen.sessionChoicePressPrefix) != nil } }) else { return missing("tray-keyboard") }
+        let count = { (found: [Found]) in found.filter { self.index($0.id, after: Seen.sessionChoicePressPrefix) != nil }.count }
+        let trayBefore = count(tree())
+        lines.emit(["step": "tray-keyboard-start", "trayBefore": trayBefore])
+        element(Seen.screenGrid).tap()
+        let up = app.keyboards.firstMatch.waitForExistence(timeout: 10)
+        passKeyboardIntroduction()
+        Thread.sleep(forTimeInterval: 1)
+        let trayUp = count(tree())
+        let hide = element(Seen.screenKey + Seen.keyHide)
+        let hid = hide.waitForExistence(timeout: 5)
+        if hid { hide.tap() }
+        Thread.sleep(forTimeInterval: 1.5)
+        let trayAfter = count(tree())
+        lines.emit(["step": "tray-keyboard", "keyboard": up, "hideKey": hid, "trayBefore": trayBefore, "trayUp": trayUp, "trayAfter": trayAfter, "state": Int(app.state.rawValue)])
+    }
+
+    /// `tray-press:<n>` (PS12): on the Terminal, the question's tray read (each
+    /// press's label and frame, the command, the grid), the probe told, option
+    /// `n` pressed, and the Terminal read after; no owner check at any moment.
+    private func trayPress(_ n: Int) {
+        guard poll({ self.has($0, Seen.screenScreen) && $0.contains { self.index($0.id, after: Seen.sessionChoicePressPrefix) != nil } }) else { return missing("tray-press") }
+        let found = tree()
+        var presses: [[String: Any]] = []
+        for f in found {
+            guard let i = index(f.id, after: Seen.sessionChoicePressPrefix) else { continue }
+            presses.append(["n": i, "label": f.label, "frame": frameOf(f.frame), "enabled": element(f.id).isEnabled])
+        }
+        let tray: [String: Any] = [
+            "face": faceOf(found),
+            "presses": presses,
+            "command": find(found, Seen.sessionCommand).map { $0.label as Any } ?? NSNull(),
+            "grid": find(found, Seen.screenGrid).map { frameOf($0.frame) as Any } ?? NSNull()
+        ]
+        guard replyAck("tray-offer", ["n": n, "tray": tray]) else { return missing("tray-press") }
+        let press = element(Seen.sessionChoicePress(n))
+        guard press.exists, press.isHittable else { return missing("tray-press") }
+        press.tap()
+        var faceID = false
+        var line: String?
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            if ownerCheckUp() { faceID = true }
+            let now = tree()
+            if let l = find(now, Seen.sessionReplyLine), !l.label.isEmpty { line = l.label }
+            if line != nil || !now.contains(where: { index($0.id, after: Seen.sessionChoicePressPrefix) != nil }) { break }
+            Thread.sleep(forTimeInterval: 0.1)
+        }
+        Thread.sleep(forTimeInterval: 1.5)
+        lines.emit(["step": "tray-pressed", "n": n, "faceId": faceID, "line": line.map { $0 as Any } ?? NSNull(), "after": terminalReading()])
     }
 
     private func missing(_ step: String) {

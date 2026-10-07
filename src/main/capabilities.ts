@@ -139,6 +139,9 @@ import { createReplyVerbs } from './reply/writer';
 // the door's facts and writes; the door's domain imports neither.
 import { createScreenWatch } from './screen/watch';
 import { createScreenKeys } from './screen/keys';
+// PHASE 337.1: the page reader of the Screen's history, built once beside the
+// watcher and handed to the door's facts; the door's domain imports neither.
+import { createScreenScrollback } from './screen/scrollback';
 import { typePhoneKeys } from './machines/scroll-order';
 // Phase 314's wake record, composed here in Phase 316 over Electron's own
 // powerMonitor so the door can say which waits were first seen at a wake.
@@ -394,6 +397,11 @@ export function installMainCapabilities(
   // funnel (`noteUserInput`, D23) and the carriage's one phone writer for a
   // session on another machine (`typePhoneKeys`, D20). Each handed as an arrow.
   const screenWatch = createScreenWatch({ core: () => pocketCore, turns: replyTurns });
+  // PHASE 337.1 (build/p3371/SPEC.md §5.3.5): the Screen's page reader, built
+  // ONCE over the same core, beside the watcher and sharing none of its poll,
+  // slot or floor. Its `page` goes to the facts as `scrollback`, which
+  // `/v1/scrollback` alone asks; it reads, writes nothing and types nothing.
+  const screenScrollback = createScreenScrollback({ core: () => pocketCore });
   const screenKeys = createScreenKeys({
     core: () => pocketCore,
     turns: replyTurns,
@@ -426,7 +434,8 @@ export function installMainCapabilities(
     wakes: () => wakes.wakes(),
     endOffer: (session) => pocketWrites.endOffer(session),
     replyOffer: (session, drawn) => reply.offer(session, drawn),
-    screen: (session, since, closing) => screenWatch.answer(session, since, closing)
+    screen: (session, since, closing) => screenWatch.answer(session, since, closing),
+    scrollback: (session, ask, closing) => screenScrollback.page(session, ask, closing)
   });
   // PHASE 316.5: the phone alerts. The engine's rows are the door's own
   // `/v1/blocked` rows from the same stateless composer over the same facts,

@@ -546,6 +546,13 @@ export class PocketHost {
             // with it, so a held poll ends the moment the quit starts or this
             // door stops (build/p337/SPEC.md D3).
             return routes.screen(query, closing);
+          case 'scrollback':
+            // Phase 337.1: the whole query goes to the route, which reads its
+            // six names and refuses anything else with null, and `closing`
+            // with it, so a page waiting its turn or its read answers at once
+            // when the quit starts or this door stops (build/p3371/SPEC.md
+            // D14, §Attack B3).
+            return routes.scrollback(query, closing);
           case 'pair':
             // Answered in `./server.ts`, because presenting reads nothing of
             // main's state and must not reach this composer at all.

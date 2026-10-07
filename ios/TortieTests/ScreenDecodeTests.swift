@@ -186,6 +186,45 @@ final class ScreenDecodeTests: XCTestCase {
         XCTAssertFalse(older.session.drawsScreen, "a Mac older than 337 offers no Screen")
     }
 
+    /// Clause (Phase 337.1, D3, section 5.5.2): the index space is `depth`, a
+    /// whole number 0 to 100,000, and `space`, 12 lowercase hex, both or
+    /// neither: both absent (a Mac older than 337.1) and both null decode with
+    /// no scrollback; one without the other, a depth past the deepest index, a
+    /// negative or fractional depth and a space that is not 12 lowercase hex
+    /// each refuse the whole answer; and the picture carries both.
+    func testTheIndexSpaceIsADepthAndASpaceTogether() throws {
+        let older = try XCTUnwrap(try ScreenSample.decode(ScreenSample.answer()).screen)
+        XCTAssertNil(older.historyDepth)
+        XCTAssertNil(older.space)
+        XCTAssertTrue(decodes(ScreenSample.answer(screen: ScreenSample.screen(depth: NSNull(), space: NSNull()))), "both null")
+        let read = try XCTUnwrap(try ScreenSample.decode(ScreenSample.answer(screen: ScreenSample.screen(depth: 2_961, space: ScreenSample.space))).screen)
+        XCTAssertEqual(read.historyDepth, 2_961)
+        XCTAssertEqual(read.space, ScreenSample.space)
+        XCTAssertTrue(decodes(ScreenSample.answer(screen: ScreenSample.screen(depth: 0, space: ScreenSample.space))), "an empty history")
+        XCTAssertTrue(decodes(ScreenSample.answer(screen: ScreenSample.screen(depth: 100_000, space: ScreenSample.space))), "the deepest index")
+        let refused: [(String, Any?, Any?)] = [
+            ("a depth with no space", 10, nil),
+            ("a space with no depth", nil, ScreenSample.space),
+            ("a depth with a null space", 10, NSNull()),
+            ("a null depth with a space", NSNull(), ScreenSample.space),
+            ("a depth past the deepest index", 100_001, ScreenSample.space),
+            ("a negative depth", -1, ScreenSample.space),
+            ("a fractional depth", 1.5, ScreenSample.space),
+            ("a depth no door could send", Int.max, ScreenSample.space),
+            ("a space in capitals", 10, "5EED0123ABCD"),
+            ("a space too short", 10, "5eed0123abc"),
+            ("a space that is not hex", 10, "5eed0123abcg"),
+            ("a space that is a number", 10, 12),
+        ]
+        for (name, depth, space) in refused {
+            XCTAssertFalse(decodes(ScreenSample.answer(screen: ScreenSample.screen(depth: depth, space: space))), name)
+        }
+        let picture = ScreenSample.picture(depth: 40, space: ScreenSample.space)
+        XCTAssertEqual(picture.historyDepth, 40)
+        XCTAssertEqual(picture.space, ScreenSample.space)
+        XCTAssertNil(ScreenSample.picture().historyDepth, "a picture with no index space offers no scrollback")
+    }
+
     /// Clause (D39): the committed sample, composed by the SHIPPING composer,
     /// decodes whole through the phone's own decoder and lays out.
     func testTheCommittedSampleDecodes() throws {
@@ -196,7 +235,8 @@ final class ScreenDecodeTests: XCTestCase {
         let picture = ScreenPicture(screen, revision: answer.revision)
         XCTAssertEqual(picture.rows.count, screen.screenRows)
         XCTAssertTrue(picture.rows.contains { $0.label.contains("Claude Code") }, "the sample is not Claude Code's screen")
-        print("P337_DECODE|sample|\(screen.screenColumns)x\(screen.screenRows)|styles \(screen.styles.count)|runs \(screen.lines.map(\.count).reduce(0, +))")
+        XCTAssertEqual(screen.historyDepth == nil, screen.space == nil, "the sample names its index space whole or not at all")
+        print("P337_DECODE|sample|\(screen.screenColumns)x\(screen.screenRows)|styles \(screen.styles.count)|runs \(screen.lines.map(\.count).reduce(0, +))|depth \(screen.historyDepth.map(String.init) ?? "none")")
     }
 }
 
@@ -217,6 +257,10 @@ enum ScreenSample {
         ]
     }
 
+    /// The index space a screen names (Phase 337.1): `depth` and `space` as
+    /// JSON values, each left out when nil (a Mac older than 337.1).
+    static let space = "5eed0123abcd"
+
     static func screen(
         cols: Int = 4,
         rows: Int = 2,
@@ -229,19 +273,25 @@ enum ScreenSample {
         turn: String = ScreenSample.turn,
         asking: Bool = false,
         dialog: String? = nil,
-        typable: Bool = true
+        typable: Bool = true,
+        alternate: Bool = false,
+        depth: Any? = nil,
+        space: Any? = nil
     ) -> [String: Any] {
         let drawn: [[[String: Any]]] = lines ?? [
             [["text": "ab", "style": 0, "cells": 2], ["text": "cd", "style": 1, "cells": 2]],
             [],
         ]
-        return [
+        var built: [String: Any] = [
             "cols": cols, "rows": rows,
             "cursor": ["x": cursor.0, "y": cursor.1, "visible": true],
-            "alternate": false, "ground": ground, "ink": ink, "caret": caret,
+            "alternate": alternate, "ground": ground, "ink": ink, "caret": caret,
             "styles": styles ?? [style(fg: colour("d8dbe2")), style(fg: colour("c9cdd6"), bg: colour("202329"))],
             "lines": drawn, "turn": turn, "asking": asking, "dialog": dialog ?? NSNull(), "typable": typable,
         ]
+        if let depth { built["depth"] = depth }
+        if let space { built["space"] = space }
+        return built
     }
 
     static func answer(
@@ -262,7 +312,8 @@ enum ScreenSample {
         try JSONDecoder().decode(PocketScreenAnswer.self, from: try JSONSerialization.data(withJSONObject: answer))
     }
 
-    /// A picture the phone would draw.
+    /// A picture the phone would draw; `depth` with `space` (both or
+    /// neither) names its index space (Phase 337.1).
     static func picture(
         revision: String = ScreenSample.revision,
         turn: String = ScreenSample.turn,
@@ -270,9 +321,15 @@ enum ScreenSample {
         dialog: String? = nil,
         typable: Bool = true,
         lines: [[[String: Any]]]? = nil,
-        cols: Int = 4
+        cols: Int = 4,
+        alternate: Bool = false,
+        depth: Int? = nil,
+        space: String? = nil
     ) -> ScreenPicture {
-        let built = screen(cols: cols, rows: lines?.count ?? 2, lines: lines, turn: turn, asking: asking, dialog: dialog, typable: typable)
+        let built = screen(
+            cols: cols, rows: lines?.count ?? 2, lines: lines, turn: turn, asking: asking, dialog: dialog, typable: typable,
+            alternate: alternate, depth: depth, space: space
+        )
         let read = try? decode(answer(screen: built, revision: revision))
         guard let screen = read?.screen else { fatalError("the sample screen does not decode") }
         return ScreenPicture(screen, revision: revision)

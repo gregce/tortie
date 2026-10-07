@@ -27,6 +27,11 @@
 // Outside a question keys are gathered while a write is in flight and go in
 // the next one.
 //
+// BACK TO LIVE (Phase 337.1, build/p3371/SPEC.md D27). Every batch he types
+// first calls `onSend`, which the Terminal points at its scrollback's
+// `follow()`: typing returns a Terminal scrolled back into its history to the
+// live rows, as a key at the desk does (src/renderer/terminal/TerminalPane.tsx).
+//
 // LEAVING. The app registers the sender at the Screen's appear and stops it
 // when it goes to the background (`AppModel.wentAway`): the keys waiting are
 // dropped, a write whose bytes were not yet handed to its connection is
@@ -78,6 +83,9 @@ final class ScreenKeySender {
     @ObservationIgnored private(set) var inFlight: Task<Void, Never>?
     @ObservationIgnored private var gapWait: Task<Void, Never>?
     @ObservationIgnored private var lastStarted: ContinuousClock.Instant?
+    /// Called first by every batch he types (Phase 337.1, D27): the Terminal
+    /// returns to its live rows.
+    @ObservationIgnored var onSend: (@MainActor () -> Void)?
 
     private let door: any ScreenDoor
     /// The picture drawn now, which every write is typed against.
@@ -112,6 +120,8 @@ final class ScreenKeySender {
             line = Copy.screenWaitForRedraw
             return
         }
+        // A key he sends returns the Terminal to its live rows (D27).
+        onSend?()
         pending.append(contentsOf: items.flatMap(Self.withinCap))
         flush()
     }

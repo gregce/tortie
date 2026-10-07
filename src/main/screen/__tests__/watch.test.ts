@@ -15,6 +15,7 @@ import { SCREEN_ENDED, SCREEN_TOO_LARGE, SCREEN_UNREACHABLE } from '@shared/scre
 import { createQuestionIds } from '../../reply/question-id';
 import { plainOf, windowMarkOf } from '../compose';
 import { readScreenLocal, type ScreenCore, type ScreenReading } from '../read';
+import { row } from './session-row';
 import {
   createScreenWatch,
   readingRevisionOf,
@@ -45,25 +46,12 @@ vi.mock('../compose', async (original) => {
   };
 });
 
-function row(id: string, extra: Partial<Session> = {}): Session {
-  return {
-    id,
-    name: id,
-    tmuxName: id,
-    projectPath: '/p',
-    cwd: '/p',
-    agent: 'shell',
-    status: 'running',
-    createdAt: 0,
-    ...extra
-  } as Session;
-}
-
 function readingOf(text: string, cols = 20, rows = 3): ScreenReading {
   return {
     styled: text,
-    display: { paneId: '%1', cols, rows, cursorX: 0, cursorY: 0, cursorVisible: true, alternate: false },
-    displayLine: `%1\t${String(cols)}\t${String(rows)}\t0\t0\t1\t0`
+    display: { paneId: '%1', cols, rows, cursorX: 0, cursorY: 0, cursorVisible: true, alternate: false, history: 0 },
+    displayLine: `%1\t${String(cols)}\t${String(rows)}\t0\t0\t1\t0\t0`,
+    steady: true
   };
 }
 
@@ -537,7 +525,7 @@ describe('the cadence (§Attack A8)', () => {
         readScreenLocal(core, tmuxId, {
           spawn: (args) => {
             spawns.push(args);
-            const line = '%1\t80\t3\t0\t0\t1\t0';
+            const line = '%1\t80\t3\t0\t0\t1\t0\t0';
             return Promise.resolve(`${line}\n${line}\nrow\nrow\n${line}\n`);
           }
         })
@@ -546,7 +534,7 @@ describe('the cadence (§Attack A8)', () => {
     const first = poll(h, 's1', null);
     await vi.advanceTimersByTimeAsync(0);
     // The capture's first row is shaped like a display, and is drawn as the row it is.
-    expect((first.answer?.screen?.lines[0] ?? []).map((run) => run.text).join('')).toBe('%1\t80\t3\t0\t0\t1\t0');
+    expect((first.answer?.screen?.lines[0] ?? []).map((run) => run.text).join('')).toBe('%1\t80\t3\t0\t0\t1\t0\t0');
     expect(spawns).toHaveLength(1);
     const rev = first.answer?.revision ?? '';
     spawns.length = 0;

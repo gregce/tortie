@@ -54,6 +54,11 @@ if (line === undefined) {
 }
 
 const { arms, problems } = JSON.parse(line.slice('P313_HOSTILE:'.length));
+// PHASE 337.1: the page reader's measured lines (counts and milliseconds, never
+// a row's text), printed as they were written.
+for (const measured of (probe.stdout ?? '').split('\n').filter((l) => l.startsWith('[p3371 hostile]'))) {
+  process.stdout.write(`${measured}\n`);
+}
 for (const arm of arms) {
   process.stdout.write(
     `${arm.ok ? 'ok  ' : 'FAIL'} ${String(arm.n).padEnd(14)} ${String(arm.got).padEnd(14)} ${arm.name}\n`
@@ -89,6 +94,13 @@ process.stdout.write(
     'echoed, a body over 16,384 dropped at the door and the worst legal one reaching main, a query, a GET signature and ' +
     'another phone’s connection refused, keys on a session End was ending busy, a removed phone refused before and ' +
     'during the act, and twenty writes on one session logged once with the refusal among them on its own line. ' +
+    'A page of its history (Phase 337.1) read through the shipping route: an honest page copied field by field, every ' +
+    'malformed query and another route’s signature refused before the reader was asked, a page held while its phone ' +
+    'was Removed cut with no byte, one held while the door stopped ended inside the join, and every page of the wrong ' +
+    'shape the reader could answer refused by the composer; and through the SHIPPING page reader over a scripted ' +
+    'core, fifty pages from one phone each answered or refused at the source cap with one statement in flight and ' +
+    'starts the floor apart, a fifth waiting page busy at once, and a page inside its read with four waiting answered ' +
+    'unreachable within a tick of the door stopping, before its join. ' +
     'One loopback listener in-process at a time and one scratch ' +
     'directory, both gone. ' +
     'No Swift, no Apple, no phone, no Electron, no Tailscale, no real interface.\n'

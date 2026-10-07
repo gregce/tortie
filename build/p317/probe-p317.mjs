@@ -166,13 +166,15 @@ export const MACHINE_ID = 'p317far';
  * Phase 318 added two writes beside End (build/p318/SPEC.md §4.2, §5.1.7), so
  * the route line names `choose` and `say` too and the write line names all
  * three clauses; End's arms below read nothing else of them. Phase 316.7's
- * `sessions` joined the route line when it landed second, and Phase 337's
- * `screen` and `keys` joined both lines (build/p337/SPEC.md D1, D35).
+ * `sessions` joined the route line when it landed second, Phase 337's
+ * `screen` and `keys` joined both lines (build/p337/SPEC.md D1, D35), and
+ * Phase 337.1's `scrollback` read joined the route line alone, eleven routes,
+ * no write clause moving (build/p3371/SPEC.md D1, D35, §Attack B7).
  */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
 export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
-/** HEAD's door honesty sentence, by value for the fixtures (build/p337/SPEC.md D35); the run reads the tree's own. */
-export const HONESTY_LINE = 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+/** HEAD's door honesty sentence, by value for the fixtures (build/p3371/SPEC.md D35: the terminal and what it printed before); the run reads the tree's own. */
+export const HONESTY_LINE = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
 export const DONE_LINE = "the phone's end: done";
 export const WRITE_LINE_PREFIX = "the phone's ";
@@ -647,7 +649,7 @@ function graderSelfTest() {
   // The word reader and the route reader.
   const src = "export const A = 'one';\nexport const B: string =\n  'two, ' +\n  \"three.\";\n";
   say(constWord(src, 'A') === 'one' && constWord(src, 'B') === 'two, three.' && constWord(src, 'C') === null, 'constWord reads a literal and a concatenation over a line break');
-  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
+  say(deepEqual(routeIdsOf([ROUTE_LINE]), ['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns']) && routeIdsOf(['x']) === null, 'routeIdsOf reads the route line');
   say(answerOf({ status: 200, body: '{"outcome":"done"}' })?.outcome === 'done' && answerOf({ status: 404, body: '' }) === null && answerOf({ status: 200, body: 'x' }) === null, 'answerOf reads a 200 answer and nothing else');
   say(deepEqual(descendantsOf(new Map([[1, [2, 3]], [3, [4]]]), 1), [2, 4, 3]), 'descendantsOf walks a tree deepest first');
   // The tests round: W6b's listener, both ways.

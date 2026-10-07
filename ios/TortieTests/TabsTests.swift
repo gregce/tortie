@@ -104,15 +104,15 @@ final class TabsTests: XCTestCase {
     }
 
     /// Clause: each tab keeps its own path. A row opened on one tab is pushed
-    /// on that tab alone, its conversation on the same tab, and moving between
+    /// on that tab alone, its Catch Me Up on the same tab, and moving between
     /// tabs moves nothing that is pushed.
     func testEachTabKeepsItsPath() {
         let app = app()
         app.open(RowDrawing(Answers.row("w", dot: "attention"), waiting: true), in: .needsInput)
-        app.openConversation("w", honestLine: nil, in: .needsInput)
+        app.openCatchUp("w", honestLine: nil, in: .needsInput)
         app.tab = .sessions
         app.open(RowDrawing(Answers.row("o"), waiting: false), in: .sessions)
-        let waiting: [Route] = [.session(id: "w", name: "w"), .conversation(id: "w", honestLine: nil)]
+        let waiting: [Route] = [.session(id: "w", name: "w"), .catchUp(id: "w", honestLine: nil)]
         let sessions: [Route] = [.session(id: "o", name: "o")]
         XCTAssertEqual(app.waitingPath, waiting)
         XCTAssertEqual(app.sessionsPath, sessions)
@@ -133,11 +133,11 @@ final class TabsTests: XCTestCase {
         let app = app()
         app.tab = .sessions
         app.waitingPath = [.session(id: "w", name: "w")]
-        app.sessionsPath = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        app.sessionsPath = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
         app.openFromAlert(.session("s"))
         XCTAssertEqual(app.tab, .needsInput)
         XCTAssertEqual(app.waitingPath, [.alerted(id: "s")])
-        XCTAssertEqual(app.sessionsPath, [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)])
+        XCTAssertEqual(app.sessionsPath, [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)])
         app.tab = .settings
         app.openFromAlert(.list)
         XCTAssertEqual(app.tab, .needsInput)
@@ -150,7 +150,7 @@ final class TabsTests: XCTestCase {
     func testARefusalPopsOnlyItsTab() {
         let app = app()
         let w: [Route] = [.session(id: "w", name: "w")]
-        let o: [Route] = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        let o: [Route] = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
         app.waitingPath = w
         app.sessionsPath = o
         app.routing(.sessions).backToList()
@@ -177,7 +177,7 @@ final class TabsTests: XCTestCase {
     func testOneReturnIsOneRead() {
         let app = app()
         let s: Route = .session(id: "s", name: "s")
-        let c: Route = .conversation(id: "s", honestLine: nil)
+        let c: Route = .catchUp(id: "s", honestLine: nil)
         let o: Route = .session(id: "o", name: "o")
         let cases: [(AppTab, [Route], [Route], String)] = [
             (.needsInput, [], [], "needs-list"),

@@ -101,6 +101,32 @@
  * and twenty `done` keys writes on one session in two seconds logged ONCE
  * with a refusal among them logged on its own line (D43).
  *
+ * PHASE 337.1 ADDED ONE PAGE OF THE SCREEN'S HISTORY (build/p3371/SPEC.md
+ * §6.2): a signed `GET /v1/scrollback` through the SHIPPING route. The SB arms
+ * run over a RECORDING FAKE page reader whose answers the arms choose: an
+ * honest page (the fake asked once with the parsed ask, the answer copied
+ * field by field), each of the six names missing and repeated, an unknown
+ * name, a sign, a leading zero, 100,001, a count of 0 and 129, a wrap of 513,
+ * `keep` of `middle` and `TOP`, `from + count` past `depth` and an id nobody
+ * has (each 404 with the fake never asked), a POST at its path, a `/v1/screen`
+ * signature, another phone's connection, a page held while its phone is
+ * Removed (cut, no byte) and while the door stops (ended inside the join), and
+ * every page of the wrong shape a reader could answer (each refused by the
+ * shipping `scrollbackOf`). The SBS arms run the SHIPPING
+ * `createScreenScrollback` over a SCRIPTED CORE that answers each control
+ * client line as tmux would over 3,000 numbered lines, and records every verb,
+ * every statement's start and how many are out at once: fifty pages from one
+ * phone in two seconds from one source (each a page of exactly its index's
+ * lines, busy, or refused at the door's source cap, one statement in flight per
+ * session, starts the floor apart, two verbs, nothing typed); and over a
+ * statement that NEVER answers (§Attack B3), a page inside its read, three
+ * waiting their turn and one waiting behind three others (a second source,
+ * past the first one's cap), a fifth waiting page answered busy at once, then
+ * the door stopping: every one of the five answered `unreachable` within one
+ * `SCREEN_TICK_MS` and before `DOOR_STOP_JOIN_MS`, and none answered on the
+ * wire. Its measured lines, counts and milliseconds only, start
+ * `[p3371 hostile]`, and the runner prints them.
+ *
  * It prints one line, `P313_HOSTILE:{...}`, which the runner beside it reads.
  */
 
@@ -132,9 +158,11 @@ import type {
   PocketReplyOutcome,
   PocketRoute,
   PocketSayInput,
+  PocketScrollbackAsk,
   PocketWrites
 } from '../../src/main/pocket/routes.js';
-import type { PocketScreenAnswer } from '../../src/shared/ipc/pocket.js';
+import type { PocketScreenAnswer, PocketScrollbackAnswer } from '../../src/shared/ipc/pocket.js';
+import type { ScreenCore } from '../../src/main/screen/read.js';
 import type { PocketExecutionFields, PocketIdentity, PocketPhoneFields } from '../../src/main/pocket/pairing.js';
 import type { StoredTurn } from '../../src/main/overview/store/index.js';
 import type { Session, SessionStatus } from '../../src/shared/types.js';
@@ -181,6 +209,12 @@ const { POCKET_NO_REPLY, POCKET_OTHERS_MAX, POCKET_WRITE_SENTENCES } = await imp
 const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.js');
 const { OUTCOME_REMOTE } = await import('../../src/shared/overview-copy.js');
 const { statusVisual } = await import('../../src/shared/status-words.js');
+// PHASE 337.1: the SHIPPING page reader, driven over a scripted core by the
+// arms that need it (build/p3371/SPEC.md §6.2), and the numbers it is held to.
+const { createScreenScrollback, SCROLLBACK_MIN_GAP_MS, SCROLLBACK_QUEUE_MAX } = await import('../../src/main/screen/scrollback.js');
+const { SCREEN_TICK_MS } = await import('../../src/main/screen/watch.js');
+const { DOOR_STOP_JOIN_MS } = await import('../../src/main/pocket/door/limits.js');
+const { SCROLLBACK_BUSY, SCROLLBACK_MOVED } = await import('../../src/shared/screen-copy.js');
 
 const {
   PocketPairing,
@@ -483,6 +517,8 @@ function signedAsk(
     omit?: (keyof typeof POCKET_HEADERS)[];
     /** Present ANOTHER phone's client certificate on the connection. */
     over?: Phone;
+    /** The PROXY header to write first (Phase 337.1: another source, past one source's cap). Default: an honest one. */
+    proxy?: Buffer;
   } = {}
 ): Promise<Answer> {
   const body = options.body ?? Buffer.alloc(0);
@@ -503,7 +539,10 @@ function signedAsk(
     [POCKET_HEADERS.signature]: signature
   };
   for (const name of options.omit ?? []) delete headers[POCKET_HEADERS[name]];
-  return ask('GET', target, headers, body.length > 0 ? body : null, { as: options.over ?? phone });
+  return ask('GET', target, headers, body.length > 0 ? body : null, {
+    as: options.over ?? phone,
+    ...(options.proxy !== undefined ? { proxy: options.proxy } : {})
+  });
 }
 
 /** One answer read off a kept connection: its status and its body, by its `Content-Length`. */
@@ -848,7 +887,10 @@ try {
             turn: '0123456789abcdef-1',
             asking: false,
             dialog: null,
-            typable: true
+            typable: true,
+            // PHASE 337.1 (build/p3371/SPEC.md D3): required, null together.
+            depth: 3_000,
+            space: 'abcdef012345'
           },
           why: null,
           sentence: null
@@ -866,6 +908,49 @@ try {
       await nap(hold.ms);
     }
     return { ...screenAnswerOf(session.id, since), styledBytes: 'never on the wire' } as PocketScreenAnswer;
+  };
+
+  /**
+   * PHASE 337.1: THE PAGE READER (build/p3371/SPEC.md §6.2). By default A
+   * RECORDING FAKE whose answers the arms choose: it records every ask main
+   * hands it, answers the honest page for the ask (numbered lines, one style,
+   * and one field the contract does not name, which the shipping `scrollbackOf`
+   * must strip), or the one answer an arm planted, and holds as the arm says.
+   * The arms that need the SHIPPING reader set `pageReader` to
+   * `createScreenScrollback` over a scripted core, and put it back.
+   */
+  const PAGE_SPACE = 'abcdef012345';
+  type PageReader = (session: Session, ask: PocketScrollbackAsk, closing: () => boolean) => Promise<PocketScrollbackAnswer>;
+  const pageAsks: { sessionId: string; ask: PocketScrollbackAsk }[] = [];
+  let pagePlanted: PocketScrollbackAnswer | null = null;
+  let pageHold: ScreenHold = { kind: 'none' };
+  let pageReader: PageReader | null = null;
+  const numbered = (index: number): string => `L${String(index + 1).padStart(6, '0')}`;
+  const honestPage = (sessionId: string, ask: PocketScrollbackAsk): PocketScrollbackAnswer => ({
+    sessionId,
+    at: Date.now(),
+    from: ask.from,
+    depth: ask.depth,
+    wrap: ask.wrap,
+    space: PAGE_SPACE,
+    styles: [{ fg: '#d8dbe2', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    rows: Array.from({ length: ask.count }, (_, i) => [{ text: numbered(ask.from + i), style: 0, cells: Math.min(7, ask.wrap) }]),
+    why: null,
+    sentence: null
+  });
+  const pageFake: PageReader = async (session, ask, closing) => {
+    pageAsks.push({ sessionId: session.id, ask });
+    const hold = pageHold;
+    if (hold.kind === 'until-closing') {
+      const deadline = Date.now() + 8_000;
+      while (!closing() && Date.now() < deadline) await nap(10);
+      hold.seen = closing();
+    } else if (hold.kind === 'release') {
+      await hold.promise;
+    }
+    const planted = pagePlanted;
+    pagePlanted = null;
+    return { ...(planted ?? honestPage(session.id, ask)), styledBytes: 'never on the wire' } as PocketScrollbackAnswer;
   };
 
   const facts: PocketFacts = {
@@ -903,7 +988,8 @@ try {
       return readPocketTurns(fakeStore, sessionId, range, status);
     },
     handoff: () => null,
-    screen: (session, since, closing) => screenFake(session, since, closing)
+    screen: (session, since, closing) => screenFake(session, since, closing),
+    scrollback: (session, ask, closing) => (pageReader ?? pageFake)(session, ask, closing)
   };
   const routes = createPocketRoutes(facts);
 
@@ -1026,6 +1112,9 @@ try {
           // PHASE 337: the whole query and refusal 1's `closing` go to the
           // shipping composer, as in ipc.ts.
           return routes.screen(query, closing);
+        case 'scrollback':
+          // PHASE 337.1: the same, for one page of the Screen's history.
+          return routes.scrollback(query, closing);
         case 'pair':
           return null;
         case 'end':
@@ -2356,7 +2445,7 @@ try {
         const startedAt = Date.now();
         const outcomes: string[] = [];
         for (let i = 0; i < 20; i += 1) {
-          if (i === 10) keysAnswer = { outcome: 'refused', reason: 'changed', sentence: 'The question on this session changed since your screen was drawn. Nothing was typed.' };
+          if (i === 10) keysAnswer = { outcome: 'refused', reason: 'changed', sentence: 'The question on this session changed since your terminal was drawn. Nothing was typed.' };
           outcomes.push(said(await writeAs(wA, '/v1/keys', keysBody('ses_k20', writeId(), { keys: [{ t: `canary-p337-${String(i)}` }] }))));
         }
         const tookMs = Date.now() - startedAt;
@@ -2368,6 +2457,365 @@ try {
         const typedWords = logged.filter((l) => l.includes('canary-p337') || l.includes(KQID)).length;
         record('SK11b', 'and no log line carries a key the phone typed, or the turn it carried', '0', String(typedWords), 'the one log line names the verb, the outcome and the session id, never a key or the question id.');
       }
+    }
+
+    // -----------------------------------------------------------------------
+    // PHASE 337.1 (build/p3371/SPEC.md §6.2): one page of the Screen's
+    // history through the SHIPPING route. The SB arms run over the recording
+    // fake: an honest page, every malformed query (the fake never asked),
+    // another route's signature, another phone's connection, a page held while
+    // its phone is Removed and while the door stops, and every page the
+    // shipping composer must refuse. The SBS arms run over the SHIPPING page
+    // reader (`createScreenScrollback`) and a SCRIPTED CORE: fifty reads from
+    // one phone in two seconds, and, over a statement that never answers, a
+    // page waiting its turn behind three others and a page inside its read
+    // when the door stops, and a fifth waiting page answered busy at once.
+    // -----------------------------------------------------------------------
+    {
+      const SB_ASK = { from: 100, count: 108, depth: 3_000, wrap: 8, keep: 'bottom' } as const;
+      const SB_BASE: Record<string, string> = { id: 'ses_talk', from: '100', count: '108', depth: '3000', wrap: '8', keep: 'bottom' };
+      /** A `/v1/scrollback` target: the honest six with some replaced (null removes one), and `extra` appended raw. */
+      const sbTarget = (over: Record<string, string | null> = {}, extra = ''): string => {
+        const parts: string[] = [];
+        for (const [name, value] of Object.entries({ ...SB_BASE, ...over })) if (value !== null) parts.push(`${name}=${value}`);
+        return `/v1/scrollback?${parts.join('&')}${extra}`;
+      };
+      const pageBody = (answer: Answer): { sessionId?: string; from?: number | null; depth?: number | null; rows?: { text: string }[][]; why?: string | null; sentence?: string | null; space?: string | null; styledBytes?: unknown } =>
+        bodyOf(answer) as never;
+
+      // SB1. An honest page: the fake asked once with the ask the route read,
+      // and its answer copied field by field.
+      {
+        const before = pageAsks.length;
+        const answer = await signedAsk(good, sbTarget());
+        const b = pageBody(answer);
+        const asked = pageAsks.at(-1);
+        const exact = pageAsks.length === before + 1 && asked?.sessionId === 'ses_talk' && JSON.stringify(asked.ask) === JSON.stringify(SB_ASK);
+        const rows = Array.isArray(b.rows) && b.rows.length === 108 && b.rows[0]?.[0]?.text === numbered(100) && b.rows[107]?.[0]?.text === numbered(207);
+        record(
+          'SB1',
+          'an honest page over the phone’s own connection',
+          'ok-asked-once-exact-composed-rows',
+          `${verdict(answer)}-${exact ? 'asked-once-exact' : `asked ${String(pageAsks.length - before)} ${JSON.stringify(asked?.ask)}`}-${'styledBytes' in b ? 'RAW' : 'composed'}-${rows ? 'rows' : 'ROWS-WRONG'}`,
+          'the route hands the reader the six names it read and nothing else, and copies the page field by field, so a field the contract does not name never leaves.'
+        );
+      }
+
+      // SB2. Every malformed query: 404, and the reader never asked.
+      {
+        const names = ['id', 'from', 'count', 'depth', 'wrap', 'keep'];
+        const queries: [string, string, string][] = [
+          ...names.map((name): [string, string, string] => [`SB2-no-${name}`, `no ${name}`, sbTarget({ [name]: null })]),
+          ...names.map((name): [string, string, string] => [`SB2-two-${name}`, `${name} twice`, sbTarget({}, `&${name}=${SB_BASE[name] ?? ''}`)]),
+          ['SB2-cols', 'an unknown parameter, a size', sbTarget({}, '&cols=80')],
+          ['SB2-rows', 'an unknown parameter, rows', sbTarget({}, '&rows=24')],
+          ['SB2-since', 'the poll’s since', sbTarget({}, '&since=abcdef012345')],
+          ['SB2-sign', 'a number with a sign', sbTarget({ from: '%2B100' })],
+          ['SB2-minus', 'a negative number', sbTarget({ from: '-1' })],
+          ['SB2-zero', 'a number with a leading zero', sbTarget({ from: '0100' })],
+          ['SB2-from', 'a from of 100,001', sbTarget({ from: '100001', depth: '100000' })],
+          ['SB2-depth', 'a depth of 100,001', sbTarget({ depth: '100001' })],
+          ['SB2-count0', 'a count of 0', sbTarget({ count: '0' })],
+          ['SB2-count129', 'a count of 129', sbTarget({ count: '129' })],
+          ['SB2-wrap', 'a wrap of 513', sbTarget({ wrap: '513' })],
+          ['SB2-middle', 'keep middle', sbTarget({ keep: 'middle' })],
+          ['SB2-TOP', 'keep TOP', sbTarget({ keep: 'TOP' })],
+          ['SB2-past', 'from + count past depth', sbTarget({ from: '2950', count: '51' })],
+          ['SB2-nobody', 'an id nobody has', sbTarget({ id: 'ses_nobody' })]
+        ];
+        for (const [n, name, target] of queries) {
+          const before = pageAsks.length;
+          const answer = await signedAsk(good, target);
+          record(n, `/v1/scrollback with ${name}`, 'refused-404:ok-never-asked', `${verdict(answer)}:${lastVerify}-${pageAsks.length === before ? 'never-asked' : 'ASKED'}`, 'D7: the query is exactly six names, each once, every number whole and in its bounds and the page inside the phone’s own index space; anything else is answered as an unknown id before the reader is asked, and the signature held, so the refusal is main’s.');
+        }
+        const before = stats();
+        const posted = await writeAs(good, '/v1/scrollback', Buffer.from('{}', 'utf8'));
+        const after = stats();
+        record('SB2-post', 'a POST to /v1/scrollback', 'refused-404-route-not-forwarded', `${verdict(posted)}-${after.refused.route > before.refused.route ? 'route' : 'other'}-${after.forwarded === before.forwarded ? 'not-forwarded' : 'FORWARDED'}`, 'a page is a GET and nothing else; the closed table has no POST at its path.');
+      }
+
+      // SB3. Another route's signature, and another phone's connection.
+      {
+        const before = pageAsks.length;
+        const answer = await signedAsk(good, sbTarget(), { signedTarget: '/v1/screen?id=ses_talk' });
+        record('SB3', 'a /v1/screen signature on /v1/scrollback', 'refused-404:signature-never-asked', `${verdict(answer)}:${lastVerify}-${pageAsks.length === before ? 'never-asked' : 'ASKED'}`, 'the signature covers the target, so the Screen’s poll signed by the phone is not a page.');
+        const crossed = await signedAsk(wA, sbTarget(), { over: good });
+        record('SB3b', 'a paired phone’s page signed over another phone’s connection', 'refused-404:channel-never-asked', `${verdict(crossed)}:${lastVerify}-${pageAsks.length === before ? 'never-asked' : 'ASKED'}`, 'a page is answered only to the phone whose key completed this connection’s handshake.');
+      }
+
+      // SB4. A page held while its phone is Removed: cut at once, no byte after.
+      {
+        const wP = await allowAnother('a phone removed mid-page');
+        let release = (): void => undefined;
+        pageHold = {
+          kind: 'release',
+          promise: new Promise<void>((resolve) => {
+            release = resolve;
+          })
+        };
+        const before = pageAsks.length;
+        const held = signedAsk(wP, sbTarget());
+        await until(() => pageAsks.length > before);
+        const removedAt = Date.now();
+        phones = phones.filter((p) => p.id !== wP.fields.id);
+        bind.updatePocketDoor({ pins: pinsOf(phones) });
+        const answer = await held;
+        const tookMs = Date.now() - removedAt;
+        release();
+        pageHold = { kind: 'none' };
+        await nap(20);
+        record('SB4', 'a page held while its phone is Removed', 'nosocket-nobytes-at-once', `${verdict(answer)}-${answer.body === '' && answer.status === 0 ? 'nobytes' : 'BYTES'}-${tookMs < 1_000 ? 'at-once' : `after ${String(tookMs)} ms`}`, 'his Remove wins over a page in flight: no line of his history leaves for a phone he took away.');
+      }
+
+      // SB5. A page held while the door stops: ended by `closing()`, and
+      // nothing answered after the stop's join.
+      {
+        const hold: ScreenHold = { kind: 'until-closing', seen: false };
+        pageHold = hold;
+        const before = pageAsks.length;
+        let settledAt = 0;
+        const held = signedAsk(good, sbTarget()).then((a) => {
+          settledAt = Date.now();
+          return a;
+        });
+        await until(() => pageAsks.length > before);
+        const report = await bind.stopPocketDoor();
+        const joinedAt = Date.now();
+        const answer = await held;
+        pageHold = { kind: 'none' };
+        doorStarted = false;
+        const ended = answer.status === 404 || answer.status === 0 ? 'ended' : `answered-${String(answer.status)}`;
+        record('SB5', 'a page held while the door stops', 'ended-closing-seen-joined-by-the-join', `${ended}-${hold.seen ? 'closing-seen' : 'CLOSING-NOT-SEEN'}-${report.joined ? 'joined' : 'NOT-JOINED'}-${settledAt <= joinedAt + 250 ? 'by-the-join' : `after the join by ${String(settledAt - joinedAt)} ms`}`, 'D14: a page is handed `closing()`, so it ends inside the stop’s join rather than holding the door open.');
+        await restart();
+        record('SB5b', 'and the door that starts again answers a page', 'ok', verdict(await signedAsk(good, sbTarget())), 'the control: the stop happened and the door answers again.');
+      }
+
+      // SB6. Pages main's reader answers wrongly: the SHIPPING composer
+      // refuses each, and the door answers it as an unknown id.
+      {
+        const honest = honestPage('ses_talk', SB_ASK);
+        const planted: [string, string, PocketScrollbackAnswer][] = [
+          ['SB6a', 'a row past wrap', { ...honest, rows: [[{ text: 'x'.repeat(9), style: 0, cells: 9 }], ...honest.rows.slice(1)] }],
+          ['SB6b', 'a style index out of range', { ...honest, rows: [[{ text: 'L', style: 3, cells: 1 }], ...honest.rows.slice(1)] }],
+          ['SB6c', 'from + rows past depth, a page reaching into the live screen', { ...honest, from: 2_950, rows: Array.from({ length: 51 }, (_, i) => [{ text: numbered(2_950 + i), style: 0, cells: 7 }]) }],
+          ['SB6d', 'a space that is not 12 lowercase hex', { ...honest, space: PAGE_SPACE.toUpperCase() }],
+          ['SB6e', 'a why with rows', { ...honest, why: 'busy', sentence: null, from: null, depth: null, wrap: null, space: null, styles: [] }],
+          ['SB6e2', 'a why with a style table', { ...honest, why: 'busy', sentence: null, from: null, depth: null, wrap: null, space: null, rows: [] }],
+          ['SB6e3', 'a why with a from', { ...honest, why: 'moved', sentence: null, depth: null, wrap: null, space: null, styles: [], rows: [] }],
+          ['SB6f', 'a from not asked', { ...honest, from: 99 }],
+          ['SB6g', 'a colour that is not #rrggbb', { ...honest, styles: [{ ...(honest.styles[0] as PocketScrollbackAnswer['styles'][number]), fg: 'red' }] }],
+          ['SB6h', 'a why that is not one of the four', { ...honest, why: 'large' as never, sentence: null, from: null, depth: null, wrap: null, space: null, styles: [], rows: [] }]
+        ];
+        for (const [n, name, answerOf] of planted) {
+          pagePlanted = answerOf;
+          const before = pageAsks.length;
+          const answer = await signedAsk(good, sbTarget());
+          pagePlanted = null;
+          record(n, `a page main’s reader answered with ${name}`, 'refused-404:ok-asked-once', `${verdict(answer)}:${lastVerify}-${pageAsks.length === before + 1 ? 'asked-once' : `asked ${String(pageAsks.length - before)}`}`, 'scrollbackOf holds the index space’s invariants HERE whatever a reader says, so a page of the wrong shape is no page.');
+        }
+        // The control: an honest absence, carrying main's own sentence whatever the reader wrote.
+        pagePlanted = { ...honest, why: 'moved', sentence: 'the reader’s own words', from: null, depth: null, wrap: null, space: null, styles: [], rows: [] };
+        const moved = pageBody(await signedAsk(good, sbTarget()));
+        pagePlanted = null;
+        record('SB6z', 'an honest moved, with the reader’s own words', 'moved-main’s-sentence-no-rows', `${String(moved.why)}-${moved.sentence === SCROLLBACK_MOVED ? 'main’s-sentence' : JSON.stringify(moved.sentence)}-${Array.isArray(moved.rows) && moved.rows.length === 0 ? 'no-rows' : 'ROWS'}`, 'D8: an absence carries its word and main’s sentence for it, and nothing else.');
+      }
+
+      // ---------------------------------------------------------------------
+      // THE SHIPPING PAGE READER over a SCRIPTED CORE (§6.2, §Attack B3).
+      // ---------------------------------------------------------------------
+      /** The scripted pane: width 8, four rows, 3,000 numbered lines of history. */
+      const SB_COLS = 8;
+      const SB_HISTORY = 3_000;
+      const SB_TMUX = new Map<string, string>([
+        ['ses_sb_flood', '$41'],
+        ['ses_sb_stop', '$42']
+      ]);
+      const sbPane = (tmuxId: string): string => `%${tmuxId.slice(1)}`;
+      /** The verbs the reader sent, the statements in flight per pane, and when each started. */
+      const verbsSeen = new Set<string>();
+      const inFlightOn = new Map<string, number>();
+      let mostInFlight = 0;
+      const startsOn = new Map<string, number[]>();
+      let notedInput = 0;
+      /** The panes whose statement never answers. */
+      const stuck = new Set<string>(['$42']);
+      const displayOf = (tmuxId: string): string => [sbPane(tmuxId), String(SB_COLS), '4', '0', '3', '1', '0', String(SB_HISTORY)].join('\t');
+      const scriptedCore: ScreenCore = {
+        listSessions: () => listed,
+        tmuxIdOf: (sessionId) => SB_TMUX.get(sessionId) ?? null,
+        manifest: { getSession: () => ({ status: 'running' }) as never },
+        control: {
+          connected: true,
+          sendCommand: (line: string): Promise<string[]> => {
+            const words = line.split(' ').map((w) => w.replace(/^'|'$/g, ''));
+            const verb = words[0] ?? '';
+            verbsSeen.add(verb);
+            const target = words[words.indexOf('-t') + 1] ?? '';
+            if (verb === 'capture-pane') {
+              // A statement starts at its capture: when, and how many are out on this pane.
+              startsOn.set(target, [...(startsOn.get(target) ?? []), performance.now()]);
+              const count = (inFlightOn.get(target) ?? 0) + 1;
+              inFlightOn.set(target, count);
+              mostInFlight = Math.max(mostInFlight, count);
+            }
+            if (stuck.has(target)) return new Promise<string[]>(() => undefined);
+            if (verb === 'display-message') return new Promise((resolve) => setTimeout(() => resolve([displayOf(target)]), 20));
+            if (verb !== 'capture-pane') return Promise.reject(new Error('a verb the reader must never send'));
+            const a = Number(words[words.indexOf('-S') + 1]);
+            const b = Number(words[words.indexOf('-E') + 1]);
+            const lines: string[] = [];
+            for (let i = Math.max(a + SB_HISTORY, 0); i <= b + SB_HISTORY; i += 1) lines.push(numbered(i));
+            return new Promise((resolve) =>
+              setTimeout(() => {
+                inFlightOn.set(target, (inFlightOn.get(target) ?? 1) - 1);
+                resolve(lines);
+              }, 20)
+            );
+          }
+        },
+        activity: {
+          noteUserInput: () => {
+            notedInput += 1;
+          }
+        }
+      };
+      const shipped = createScreenScrollback({ core: () => scriptedCore });
+      /** Every page the shipping reader was handed, when it was entered and what it answered when. */
+      const pageLog: { sessionId: string; enteredAt: number; answeredAt: number; why: string }[] = [];
+      pageReader = async (session, ask, closing) => {
+        const entry = { sessionId: session.id, enteredAt: Date.now(), answeredAt: 0, why: 'pending' };
+        pageLog.push(entry);
+        const answer = await shipped.page(session, ask, closing);
+        entry.answeredAt = Date.now();
+        entry.why = answer.why ?? 'page';
+        return answer;
+      };
+      listed = [...listed, aSession('ses_sb_flood', 'pages', 'running'), aSession('ses_sb_stop', 'stuck pages', 'running')];
+
+      // SBS1. Fifty page reads from one phone in two seconds, from one source:
+      // each answered (a page whose every row is its index's line, or busy) or
+      // refused at the source cap, never a crash; the reader never runs two
+      // statements at once for one session, and starts them its floor apart.
+      {
+        const before = stats();
+        const sent: Promise<{ answer: Answer; from: number }>[] = [];
+        for (let i = 0; i < 50; i += 1) {
+          const from = 100 * (i % 29);
+          sent.push(signedAsk(good, `/v1/scrollback?id=ses_sb_flood&from=${String(from)}&count=100&depth=3000&wrap=8&keep=bottom`).then((answer) => ({ answer, from })));
+          await nap(40);
+        }
+        const answers = await Promise.all(sent);
+        const after = stats();
+        let pages = 0;
+        let busy = 0;
+        let capped = 0;
+        const other: string[] = [];
+        for (const { answer, from } of answers) {
+          if (answer.status === 0) {
+            capped += 1;
+            continue;
+          }
+          const b = pageBody(answer);
+          if (answer.status === 200 && b.why === 'busy' && b.sentence === SCROLLBACK_BUSY) {
+            busy += 1;
+            continue;
+          }
+          const exact =
+            answer.status === 200 &&
+            b.why === null &&
+            b.from === from &&
+            b.depth === SB_HISTORY &&
+            Array.isArray(b.rows) &&
+            b.rows.length === 100 &&
+            b.rows.every((row, i) => row.map((r) => r.text).join('').replace(/ +$/, '') === numbered(from + i));
+          if (exact) pages += 1;
+          else other.push(`${verdict(answer)} ${answer.body.slice(0, 80)}`);
+        }
+        const sourceCapped = after.refused['source-cap'] - before.refused['source-cap'];
+        const starts = startsOn.get('$41') ?? [];
+        let leastGap = Infinity;
+        for (let i = 1; i < starts.length; i += 1) leastGap = Math.min(leastGap, (starts[i] ?? 0) - (starts[i - 1] ?? 0));
+        leastGap = Math.round(leastGap * 10) / 10;
+        // A Node timer counts whole milliseconds from the loop's own clock, so a
+        // floor waited out by one `setTimeout` can start up to about a
+        // millisecond before `performance.now()` says the floor has passed
+        // (measured here: 248.8 to 249.7 ms over five runs). Two milliseconds
+        // is that grain and no more: a page let through by anything but the
+        // grain is tens of milliseconds early (a run over an earlier draft of
+        // the reader measured 235.7 here).
+        const TIMER_GRAIN_MS = 2;
+        const verbs = [...verbsSeen].sort().join(',');
+        const control = verdict(await signedAsk(good, '/v1/blocked'));
+        process.stdout.write(
+          `[p3371 hostile] SBS1: ${String(pages)} pages, ${String(busy)} busy, ${String(capped)} refused at the source cap (${String(sourceCapped)} by the door's count), ${String(other.length)} other; ${String(starts.length)} statements, the least gap ${String(leastGap)} ms, at most ${String(mostInFlight)} at once\n`
+        );
+        record(
+          'SBS1',
+          'fifty page reads from one phone in two seconds, through the shipping reader',
+          'answered-or-capped-one-at-once-floor-held-two-verbs-typed-nothing-door-ok',
+          `${other.length === 0 && pages >= 1 && capped === sourceCapped && pages + busy + capped === 50 ? 'answered-or-capped' : `OTHER ${JSON.stringify(other.slice(0, 3))} pages ${String(pages)} capped ${String(capped)}/${String(sourceCapped)}`}-${mostInFlight === 1 ? 'one-at-once' : `${String(mostInFlight)}-AT-ONCE`}-${starts.length >= 2 && leastGap >= SCROLLBACK_MIN_GAP_MS - TIMER_GRAIN_MS ? 'floor-held' : `least gap ${String(leastGap)} ms over ${String(starts.length)}`}-${verbs === 'capture-pane,display-message' ? 'two-verbs' : `VERBS ${verbs}`}-${notedInput === 0 ? 'typed-nothing' : 'NOTED-INPUT'}-door-${control}`,
+          'D14: a paired phone that does not pace cannot keep main busy: one statement in flight per session, starts at least the floor apart, every page either its index’s own lines or busy, and the door’s own cap refusing the rest.'
+        );
+      }
+
+      // SBS2. Over a statement that NEVER answers (§Attack B3): page A inside
+      // its read, B, C and D waiting their turn (one source's four), E waiting
+      // behind three others and F, a fifth waiting page, from a second source.
+      // F is busy at once; then the door stops, and A to E each answer
+      // unreachable within one tick, before the stop's join.
+      {
+        // The flood's sockets close on the door's side a moment after ours.
+        await nap(150);
+        const SECOND = proxyHeader('198.51.100.9');
+        const target = '/v1/scrollback?id=ses_sb_stop&from=2800&count=100&depth=3000&wrap=8&keep=bottom';
+        const entered = (): number => pageLog.filter((p) => p.sessionId === 'ses_sb_stop').length;
+        const startsBefore = (startsOn.get('$42') ?? []).length;
+        const http: Promise<Answer>[] = [];
+        http.push(signedAsk(good, target));
+        await until(() => entered() === 1);
+        await nap(30);
+        for (let i = 0; i < 3; i += 1) http.push(signedAsk(good, target));
+        http.push(signedAsk(good, target, { proxy: SECOND }));
+        await until(() => entered() === 5);
+        await nap(30);
+        const fAsked = Date.now();
+        const f = await signedAsk(good, target, { proxy: SECOND });
+        const fTook = Date.now() - fAsked;
+        const fb = pageBody(f);
+        record(
+          'SBS2a',
+          'a fifth page waiting on one session',
+          'ok-busy-main’s-sentence-at-once',
+          `${verdict(f)}-${String(fb.why)}-${fb.sentence === SCROLLBACK_BUSY ? 'main’s-sentence' : JSON.stringify(fb.sentence)}-${fTook < SCREEN_TICK_MS ? 'at-once' : `after ${String(fTook)} ms`}`,
+          `D14: at most ${String(SCROLLBACK_QUEUE_MAX)} pages wait their turn on one session; one more is answered busy at once and holds nothing.`
+        );
+        const five = pageLog.filter((p) => p.sessionId === 'ses_sb_stop' && p.why === 'pending');
+        const stopAt = Date.now();
+        const report = await bind.stopPocketDoor();
+        const answers = await Promise.all(http);
+        doorStarted = false;
+        const lags = five.map((p) => (p.answeredAt === 0 ? Infinity : p.answeredAt - stopAt));
+        const worst = Math.max(...lags);
+        const allUnreachable = five.length === 5 && five.every((p) => p.why === 'unreachable');
+        const noneAnswered = answers.every((a) => a.status === 404 || a.status === 0);
+        const statements = (startsOn.get('$42') ?? []).length - startsBefore;
+        process.stdout.write(
+          `[p3371 hostile] SBS2: ${String(five.length)} pages in flight or waiting at the stop, each answered ${five.map((p) => p.why).join(',')}, the latest ${String(worst)} ms after it (one tick is ${String(SCREEN_TICK_MS)} ms, the join ${String(DOOR_STOP_JOIN_MS)} ms), statements started ${String(statements)}\n`
+        );
+        record(
+          'SBS2b',
+          'a page inside its read and four waiting their turn, one behind three others, when the door stops',
+          'one-statement-unreachable-within-a-tick-before-the-join-joined-nothing-answered',
+          `${statements === 1 ? 'one-statement' : `${String(statements)} statements`}-${allUnreachable ? 'unreachable' : `ANSWERED ${five.map((p) => p.why).join(',')}`}-${worst <= SCREEN_TICK_MS + 50 ? 'within-a-tick' : `after ${String(worst)} ms`}-${worst < DOOR_STOP_JOIN_MS ? 'before-the-join' : 'PAST-THE-JOIN'}-${report.joined ? 'joined' : 'NOT-JOINED'}-${noneAnswered ? 'nothing-answered' : `ANSWERED ${answers.map((a) => verdict(a)).join(',')}`}`,
+          '§Attack B3: the wait for a turn and the read each ask closing() at every SCREEN_TICK_MS, so no page outlives the door’s stop join, whatever it was waiting on.'
+        );
+        await restart();
+        const again = await signedAsk(good, '/v1/scrollback?id=ses_sb_flood&from=0&count=10&depth=3000&wrap=8&keep=top');
+        const ab = pageBody(again);
+        record('SBS2c', 'and the door that starts again answers a page through the shipping reader', 'ok-page', `${verdict(again)}-${ab.why === null && ab.rows?.[0]?.[0]?.text === numbered(0) ? 'page' : JSON.stringify(ab).slice(0, 60)}`, 'the control: the stop happened, and a page on another session is read as before.');
+      }
+      pageReader = null;
+      listed = listed.filter((s) => s.id !== 'ses_sb_flood' && s.id !== 'ses_sb_stop');
     }
 
     phones = phonesBefore;

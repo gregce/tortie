@@ -82,7 +82,7 @@ const HEADERS = {
 };
 
 function signed(
-  route: 'blocked' | 'session' | 'turns' | 'sessions' | 'screen',
+  route: 'blocked' | 'session' | 'turns' | 'sessions' | 'screen' | 'scrollback',
   target: string,
   channel = 'phone-a'
 ): DoorRequest {
@@ -360,11 +360,47 @@ describe('Phase 337: the read is handed `closing` (build/p337/SPEC.md §5.3.1, D
     for (const [route, target] of [
       ['blocked', '/v1/blocked'],
       ['session', '/v1/session?id=s'],
-      ['sessions', '/v1/sessions']
+      ['sessions', '/v1/sessions'],
+      ['scrollback', '/v1/scrollback?id=s&from=0&count=1&depth=1&wrap=1&keep=top']
     ] as const) {
       await handle(signed(route, target), open);
     }
-    expect(seen).toEqual(['blocked:function', 'session:function', 'sessions:function']);
+    expect(seen).toEqual(['blocked:function', 'session:function', 'sessions:function', 'scrollback:function']);
+  });
+
+  // PHASE 337.1 (build/p3371/SPEC.md D14, §Attack B3): a page that waits its
+  // turn or its read asks the same `closing`, and a page that ended because
+  // its door began to stop leaves nothing it composed.
+  it('refuses, shutdown, a page that ended because its door began to stop: nothing it composed leaves', async () => {
+    let stopping = false;
+    const routes: string[] = [];
+    const handle = createPocketHandler(
+      deps({
+        answer: async (route, _query, closing) => {
+          routes.push(route.id);
+          stopping = true;
+          return closing() ? { sessionId: 's1', why: 'unreachable', rows: [] } : null;
+        }
+      })
+    );
+    const page = signed('scrollback', '/v1/scrollback?id=s1&from=0&count=1&depth=1&wrap=1&keep=top');
+    expect(await handle(page, { stopping: () => stopping })).toEqual({ status: 404, body: null });
+    expect(routes).toEqual(['scrollback']);
+    expect(words()).toContain('warn refused a request at the door: shutdown');
+  });
+
+  it('answers a page as a read: its route is a signed GET of the table, and its body leaves whole', async () => {
+    const handle = createPocketHandler(
+      deps({
+        answer: async (route) => {
+          expect(route).toMatchObject({ id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, signed: true });
+          return { sessionId: 's1', rows: [[{ text: 'L1', style: 0, cells: 2 }]] };
+        }
+      })
+    );
+    const got = await handle(signed('scrollback', '/v1/scrollback?id=s1&from=0&count=1&depth=1&wrap=2&keep=top'), open);
+    expect(got.status).toBe(200);
+    expect(JSON.parse(String(got.body))).toEqual({ sessionId: 's1', rows: [[{ text: 'L1', style: 0, cells: 2 }]] });
   });
 });
 

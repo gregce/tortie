@@ -1,25 +1,33 @@
-// The Screen: one session's own terminal screen, as the Mac shows it now,
-// typed into with every key (Phase 337, build/p337/SPEC.md sections 5.8.3 to
-// 5.8.5).
+// The Terminal: one session's own terminal, as the Mac shows it now, typed
+// into with every key (Phase 337, build/p337/SPEC.md sections 5.8.3 to 5.8.5),
+// and since Phase 337.1 scrolled back through what the session printed, and
+// the page a session opens on (build/p3371/SPEC.md D16 to D33).
 //
 // HIS RULINGS. The session's own screen may be shown and typed into on the
-// phone ("Yes, for a session's screen"), reached from inside a session, with
-// Conversation still the first row; it is the screen tmux shows NOW and never
-// its scrollback. The phone never changes the size of a session on his Mac
-// ("Never"): it draws the Mac's width and he zooms, pans or turns the phone.
-// Every key, Ctrl-C included, and no Face ID on any ("Every key, including
-// Ctrl-C"). The Mac composes the screen and the phone fetches it with a long
-// poll; no stream and no emulator on the phone ("simple delivery first").
+// phone ("Yes, for a session's screen"). It scrolls back ("Yes, scroll back on
+// the Screen", which lifts his Phase 316 "the raw terminal scrollback no" for
+// it), and tapping a session opens it at once, full screen ("lets do B"), its
+// name in the app Terminal. The phone never changes the size of a session on
+// his Mac ("Never"): it draws the Mac's width and he zooms, pans or turns the
+// phone. Every key, Ctrl-C included, and no Face ID on any ("Every key,
+// including Ctrl-C"); no paste ("i don't think we need paste to start"). The
+// Mac composes the screen and each page of history, and the phone fetches
+// them; no stream and no emulator on the phone ("simple delivery first").
 //
 // THE POLL (`ScreenModel`). One task, while the Screen is on top and the app
 // in the foreground: read with the revision drawn; a new revision draws; an
 // `unchanged` answer asks again at once (the Mac held it up to about 10 s);
-// a failure keeps the last picture, says `Your Mac is not answering. This is
-// the last screen it sent.`, and asks again after 1, 2, 4, then every 8 s; a
+// a failure keeps the last picture, says `Copy.screenNotAnswering`, and asks
+// again after 1, 2, 4, then every 8 s; a
 // 404 goes where the Session screen's own refusal goes. It stops when the
 // Screen goes away and when the app leaves, and starts again when it comes
 // back. While a selection is held the Screen keeps drawing the picture it
 // began on, and draws the newest once the selection is copied or cleared.
+//
+// THE HISTORY (Phase 337.1) is Screens/ScreenScrollback.swift's, drawn by the
+// UIKit scroll view of Screens/ScreenScroller.swift; this page holds both,
+// feeds the history every picture it draws, and returns it to the live rows
+// when he sends a key or presses the back-to-live button.
 //
 // THE SCREEN KEEPS NONE OF IT (D41). It is not redacted: any redaction would
 // move cells off the Mac's. So nothing of it is stored: no file, no log, no
@@ -29,9 +37,10 @@
 // plate over the grid, with no text and no rows (`ScreenCover`,
 // conformance:ios rule ao).
 //
-// LANDSCAPE ON THIS SCREEN ALONE (D27, rule an): it says it is on top as it
-// appears and that it is not as it goes, and App/AppDelegate.swift answers
-// portrait whenever it is not (App/Orientation.swift).
+// LANDSCAPE ON THIS SCREEN ALONE (D27, rule an; D33 of 337.1): it says it is
+// on top as it appears and that it is not as it goes, and App/AppDelegate.swift
+// answers portrait whenever it is not (App/Orientation.swift), so Catch Me Up
+// pushed over the Terminal is portrait.
 
 import SwiftUI
 
@@ -180,31 +189,80 @@ struct ScreenCover: View {
 
 // MARK: - The screen
 
-struct ScreenPage: View {
+/// The Terminal's page (Phase 337, rebuilt by Phase 337.1, build/p3371/SPEC.md
+/// D17, D19, D24, D27, D31 and section 5.5.4): generic over the page that
+/// holds it, which hands it the header under the navigation bar (the
+/// Terminal's status line), the tray under the terminal (the question's
+/// buttons), and the trailing items of its top bar (the Catch Me Up icon, then
+/// End). It draws the header, the terminal, the line (D23's words, or the
+/// scrollback edge's) and the back-to-live button over the terminal's bottom,
+/// the tray while the keyboard is down, and its toolbar: the principal title,
+/// Copy while a selection is held and every selected row is drawn, then the
+/// trailing items.
+///
+/// THE KEYBOARD (D24, §Attack B4): the page's ROOT opts out of the keyboard's
+/// safe area, ONCE, and nothing inside it does, so the terminal's frame never
+/// follows the keyboard; the terminal's own scroll view reads the keyboard's
+/// overlap and publishes it here, and the line and the back-to-live button are
+/// placed just above it.
+struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {
     let model: ScreenModel
     /// The keys, or nil for a pairing that writes nothing.
     let keys: ScreenKeySender?
     let name: String
     let isTop: Bool
     let foregroundTick: Int
+    let header: Header
+    let tray: Tray
+    let trailing: Trailing
 
     @Environment(\.scenePhase) private var scenePhase
     /// The keyboard is wanted.
     @State private var typing = false
     @State private var selection = ScreenSelectionModel()
     @State private var bar = ScreenKeyBarModel()
+    /// What the Terminal holds of the session's history (D25 to D28).
+    @State private var scrollback: ScrollbackModel
+    /// The keyboard's overlap of the terminal, published by its scroll view.
+    @State private var overlap: CGFloat = 0
+
+    init(
+        model: ScreenModel,
+        keys: ScreenKeySender?,
+        name: String,
+        isTop: Bool,
+        foregroundTick: Int,
+        @ViewBuilder header: () -> Header,
+        @ViewBuilder tray: () -> Tray,
+        @ToolbarContentBuilder trailing: () -> Trailing
+    ) {
+        self.model = model
+        self.keys = keys
+        self.name = name
+        self.isTop = isTop
+        self.foregroundTick = foregroundTick
+        self.header = header()
+        self.tray = tray()
+        self.trailing = trailing()
+        _scrollback = State(initialValue: ScrollbackModel(door: model.door))
+    }
 
     var body: some View {
         ZStack {
             Tokens.bgCanvas.ignoresSafeArea()
             VStack(spacing: 0) {
+                header
                 content
-                if let line = shownLine {
-                    Words(line, .secondary, Tokens.textSecondary, lines: nil)
-                        .accessibilityIdentifier(ID.screenLine)
-                        .padding(.horizontal, Frame.gutter)
-                        .padding(.vertical, 8)
-                        .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                    .overlay(alignment: .bottom) { bottom }
+                // The tray is hidden while the keyboard is wanted as well as
+                // while it covers the terminal (the fix round): a tray tall
+                // enough to fill the space below the keyboard's top left the
+                // terminal itself uncovered, so its overlap read 0 and the
+                // tray stayed drawn under the keyboard (iOS 18.3, the fix
+                // round's own drive).
+                if overlap == 0, !typing {
+                    tray
                 }
             }
             if let keys {
@@ -217,6 +275,7 @@ struct ScreenPage: View {
                 ScreenCover()
             }
         }
+        .ignoresSafeArea(.keyboard, edges: .bottom)
         .accessibilityElement(children: .contain)
         .accessibilityIdentifier(ID.screen)
         .navigationTitle(name)
@@ -230,7 +289,7 @@ struct ScreenPage: View {
                     .accessibilityAddTraits(.isHeader)
             }
             ToolbarItem(placement: .topBarTrailing) {
-                if !selection.isEmpty {
+                if copyDrawn {
                     Button { copySelection() } label: {
                         Words(Copy.copy, .body, Tokens.accent)
                     }
@@ -238,12 +297,19 @@ struct ScreenPage: View {
                     .accessibilityIdentifier(ID.screenCopy)
                 }
             }
+            trailing
         }
         .onAppear {
             OrientationGate.screenOnTop = true
             OrientationGate.apply()
-            model.onPicture = { [weak keys] in keys?.pictureChanged() }
+            let (screen, history) = (model, scrollback)
+            model.onPicture = { [weak keys, weak screen, weak history] in
+                keys?.pictureChanged()
+                history?.picture(screen?.picture)
+            }
+            keys?.onSend = { [weak history] in history?.follow() }
             keys?.resume()
+            scrollback.resume()
             model.start()
         }
         .onDisappear {
@@ -252,16 +318,28 @@ struct ScreenPage: View {
             typing = false
             model.stop()
             keys?.stop()
+            scrollback.stop()
         }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
             keys?.resume()
+            scrollback.resume()
             model.start()
         }
         .onChange(of: scenePhase) { _, phase in
             if phase == .background {
                 typing = false
                 model.stop()
+                scrollback.stop()
+            }
+        }
+        .onChange(of: scrollback.mode) { _, mode in
+            // Back to live: a selection over rows of history that are no
+            // longer held is let go, never copied half blank (D31).
+            if mode == .following, !selection.isEmpty, !scrollback.drawn(selection.range, picture: model.picture) {
+                selection.clear()
+                scrollback.selecting = false
+                model.letGo()
             }
         }
     }
@@ -282,23 +360,72 @@ struct ScreenPage: View {
                 .frame(maxWidth: .infinity, alignment: .leading)
             Spacer(minLength: 0)
         case .drawn(let picture):
-            ScreenGrid(
+            ScreenScroller(
                 picture: picture,
+                scrollback: scrollback,
                 selection: selection.range,
-                tap: { point in tapped(point, picture: picture) },
-                select: { point, first in selected(point, first: first) }
+                actions: ScreenScrollerActions(
+                    tap: { point in tapped(point, picture: picture) },
+                    select: { point, first in selected(point, first: first) },
+                    overlap: { overlap = $0 }
+                )
             )
         }
     }
 
-    /// The one line under the grid: a held selection, the Mac not answering,
-    /// what the keys came to, or that keys cannot reach the session now.
+    /// The back-to-live button while scrolled back, then the scrollback's
+    /// line and the Terminal's own, just above the keyboard's overlap (D24,
+    /// D27).
+    @ViewBuilder
+    private var bottom: some View {
+        VStack(alignment: .trailing, spacing: 8) {
+            if scrollback.mode == .scrolled {
+                Button { scrollback.follow() } label: {
+                    Image(systemName: "arrow.down.to.line")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(Tokens.accent)
+                        .frame(width: 44, height: 44)
+                        .background(Circle().fill(Tokens.bgRaised))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(Text(verbatim: Copy.backToLive))
+                .accessibilityIdentifier(ID.screenToLive)
+                .padding(.trailing, Frame.gutter)
+            }
+            if let said = scrollback.line {
+                lineView(said, id: ID.screenScrollbackLine)
+            }
+            if let line = shownLine {
+                lineView(line, id: ID.screenLine)
+            }
+        }
+        .padding(.bottom, overlap)
+    }
+
+    private func lineView(_ text: String, id: String) -> some View {
+        Words(text, .secondary, Tokens.textSecondary, lines: nil)
+            .accessibilityIdentifier(id)
+            .padding(.horizontal, Frame.gutter)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Tokens.bgCanvas)
+    }
+
+    /// The one line under the terminal: a held selection, the Mac not
+    /// answering, what the keys came to, or that keys cannot reach the
+    /// session now.
     private var shownLine: String? {
         if model.selecting { return Copy.screenHeldWhileSelecting }
         if let line = model.line { return line }
         if let said = keys?.line { return said }
         if keys != nil, let picture = model.picture, !picture.typable { return Copy.screenCannotType }
         return nil
+    }
+
+    /// Copy is drawn while a selection is held and every row of it is drawn
+    /// (D31): a selection that reaches rows not yet fetched waits for them.
+    private var copyDrawn: Bool {
+        !selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)
     }
 
     /// A tap: clear a selection, or raise the keyboard (Paseo's release
@@ -314,6 +441,7 @@ struct ScreenPage: View {
         switch action {
         case .clear:
             selection.clear()
+            scrollback.selecting = false
             model.letGo()
         case .focus:
             // Not typable: the keyboard is not raised, and the line says so.
@@ -323,22 +451,28 @@ struct ScreenPage: View {
         }
     }
 
-    /// A long press began a selection, or a drag grew it.
+    /// A long press began a selection, or a drag grew it. Its points are
+    /// absolute indices (D31); while it is held the picture is held and no
+    /// row of history is evicted.
     private func selected(_ point: ScreenPoint, first: Bool) {
         if first {
             selection.begin(at: point)
             model.hold()
+            scrollback.selecting = true
         } else {
             selection.update(to: point)
         }
     }
 
-    /// Copy: the selected text onto the clipboard, the selection cleared, the
+    /// Copy: the selected text, read by absolute index from the held history
+    /// and the live rows, onto the clipboard; the selection cleared, the
     /// newest picture drawn.
     private func copySelection() {
-        guard let picture = model.picture else { return }
-        ScreenSelecting.copy(ScreenSelecting.text(selection.range, in: picture))
+        guard let picture = model.picture, copyDrawn else { return }
+        let held = scrollback
+        ScreenSelecting.copy(ScreenSelecting.text(selection.range, columns: picture.columns) { held.row(at: $0, picture: picture) })
         selection.clear()
+        scrollback.selecting = false
         model.letGo()
     }
 }

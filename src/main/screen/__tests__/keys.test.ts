@@ -60,9 +60,10 @@ function readingOf(styled: string, pane = PANE): ScreenReading {
     cursorX: 0,
     cursorY: 0,
     cursorVisible: true,
-    alternate: false
+    alternate: false,
+    history: 0
   };
-  return { styled, display, displayLine: `${pane}\t120\t40\t0\t0\t1\t0` };
+  return { styled, display, displayLine: `${pane}\t120\t40\t0\t0\t1\t0\t0`, steady: true };
 }
 
 function rowOf(status: SessionStatus, machine?: string): Session {

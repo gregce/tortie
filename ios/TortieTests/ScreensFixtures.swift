@@ -349,3 +349,86 @@ actor Seen<Value: Sendable> {
         self.value = value
     }
 }
+
+/// A Terminal's door, scripted (Phase 337.1): its status reads answer from a
+/// script, one per call, each counted, and may be held until the test lets
+/// them go; its poll, keys and pages answer nothing a route test reads.
+final class ScriptedSideDoor: ScreenDoor, @unchecked Sendable {
+    private let lock = NSLock()
+    private var answers: [Result<PocketSessionAnswer, DoorFailure>]
+    private var reads = 0
+    private var closed = 0
+
+    init(session: [Result<PocketSessionAnswer, DoorFailure>] = []) {
+        answers = session
+    }
+
+    /// How many status reads were asked.
+    var sessionCalls: Int { lock.withLock { reads } }
+    /// How many times its lines were closed.
+    var closes: Int { lock.withLock { closed } }
+
+    var writes: Bool { true }
+
+    func read(since: String?) async throws -> PocketScreenAnswer {
+        throw DoorFailure.cancelled
+    }
+
+    func keys(_ keys: [KeyItem], turn: String, dialog: String?) async -> WriteResult {
+        .notSent(.cancelled)
+    }
+
+    func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep) async throws -> PocketScrollbackAnswer {
+        throw DoorFailure.refused
+    }
+
+    func session() async throws -> PocketSessionAnswer {
+        let next: Result<PocketSessionAnswer, DoorFailure>? = lock.withLock {
+            reads += 1
+            return answers.isEmpty ? nil : answers.removeFirst()
+        }
+        guard let next else { throw DoorFailure.unreachable(code: -1004) }
+        return try next.get()
+    }
+
+    func close() {
+        lock.withLock { closed += 1 }
+    }
+}
+
+/// A scripted reader with a Terminal's door to hand out (Phase 337.1), or
+/// none: every read is the scripted reader's.
+struct ScreenedReader: DoorReading {
+    let base: ScriptedReader
+    let door: (any ScreenDoor)?
+
+    var alerts: AlertsKept { base.alerts }
+    var facts: PairedFacts { base.facts }
+
+    func blocked() async throws -> PocketBlockedAnswer {
+        try await base.blocked()
+    }
+
+    func session(_ sessionId: String) async throws -> PocketSessionAnswer {
+        try await base.session(sessionId)
+    }
+
+    func turns(_ sessionId: String, to: Int?) async throws -> PocketTurnsAnswer {
+        try await base.turns(sessionId, to: to)
+    }
+
+    func screenDoor(_ sessionId: String) -> (any ScreenDoor)? {
+        door
+    }
+}
+
+/// One session's answer that says whether it has a terminal (Phase 337.1):
+/// `nil` leaves the field out, as a Mac older than 337 does.
+func sessionAnswer(_ id: String = "s", screen: Bool?, title: String = "Working", outcome: String? = nil) -> PocketSessionAnswer {
+    var detail = Answers.detail(
+        Answers.row(id, title: title),
+        catchUp: outcome.map { PocketCatchUp(ask: nil, outcome: $0) }
+    )
+    detail.screen = screen
+    return PocketSessionAnswer(session: detail, at: 1_759_700_000_000)
+}

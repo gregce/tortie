@@ -78,19 +78,25 @@ final class ScreenSelectionTests: XCTestCase {
         XCTAssertTrue(model.isEmpty)
     }
 
-    /// Clause: a point is the cell under it, and nothing outside the grid.
+    /// Clause: a point is the cell under it, and nothing outside the rows
+    /// laid out; since Phase 337.1 (D31) its row is the ABSOLUTE index, the
+    /// layout's first index plus the rows down, hit by arithmetic in the
+    /// content's own coordinates.
     func testAPointIsTheCellUnderIt() {
         let cell = ScreenCell(fontSize: 10, width: 6, height: 12)
-        XCTAssertEqual(ScreenSelecting.hit(CGPoint(x: 0, y: 0), cell: cell, columns: 4, rows: 2), ScreenPoint(row: 0, column: 0))
-        XCTAssertEqual(ScreenSelecting.hit(CGPoint(x: 13, y: 13), cell: cell, columns: 4, rows: 2), ScreenPoint(row: 1, column: 2))
-        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: 24, y: 0), cell: cell, columns: 4, rows: 2))
-        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: 0, y: 24), cell: cell, columns: 4, rows: 2))
-        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: -1, y: 0), cell: cell, columns: 4, rows: 2))
-        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: CGFloat.infinity, y: 0), cell: cell, columns: 4, rows: 2))
+        XCTAssertEqual(ScreenSelecting.hit(CGPoint(x: 0, y: 0), cell: cell, columns: 4, first: 0, rows: 2), ScreenPoint(row: 0, column: 0))
+        XCTAssertEqual(ScreenSelecting.hit(CGPoint(x: 13, y: 13), cell: cell, columns: 4, first: 0, rows: 2), ScreenPoint(row: 1, column: 2))
+        XCTAssertEqual(ScreenSelecting.hit(CGPoint(x: 13, y: 13), cell: cell, columns: 4, first: 2_900, rows: 140), ScreenPoint(row: 2_901, column: 2), "an absolute index")
+        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: 24, y: 0), cell: cell, columns: 4, first: 0, rows: 2))
+        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: 0, y: 24), cell: cell, columns: 4, first: 0, rows: 2))
+        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: -1, y: 0), cell: cell, columns: 4, first: 0, rows: 2))
+        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: CGFloat.infinity, y: 0), cell: cell, columns: 4, first: 0, rows: 2))
+        XCTAssertNil(ScreenSelecting.hit(CGPoint(x: 0, y: CGFloat.infinity), cell: cell, columns: 4, first: 0, rows: 2))
     }
 
     /// Clause: one highlight rectangle per selected row: the first row from
-    /// its column, the middle rows whole, the last row to its column.
+    /// its column, the middle rows whole, the last row to its column, placed
+    /// from the layout's first index (D31).
     func testOneHighlightPerRow() {
         let cell = ScreenCell(fontSize: 10, width: 6, height: 12)
         let range = ScreenSelectionRange(start: ScreenPoint(row: 0, column: 2), end: ScreenPoint(row: 2, column: 1))
@@ -100,6 +106,24 @@ final class ScreenSelectionTests: XCTestCase {
             CGRect(x: 0, y: 24, width: 12, height: 12),
         ])
         XCTAssertEqual(ScreenSelecting.rects(nil, cell: cell, columns: 4), [])
+        let deep = ScreenSelectionRange(start: ScreenPoint(row: 2_901, column: 0), end: ScreenPoint(row: 2_901, column: 3))
+        XCTAssertEqual(ScreenSelecting.rects(deep, cell: cell, columns: 4, first: 2_900), [CGRect(x: 0, y: 12, width: 24, height: 12)])
+    }
+
+    /// Clause (D31, §Attack B11): the text is read by absolute index from
+    /// whatever holds each row, and Copy is drawn only while EVERY selected
+    /// row is drawn: a row reserved and not yet fetched withholds it.
+    func testTheTextIsReadByIndexAndCopyWaitsForEveryRow() {
+        let held: [Int: ScreenRowModel] = [
+            2_900: ScreenRowModel(index: 2_900, runs: [ScreenRun(text: "L002901 ", styleIndex: 0, span: 8)], holds: { _ in true }),
+            2_902: ScreenRowModel(index: 2_902, runs: [ScreenRun(text: "L002903", styleIndex: 0, span: 7)], holds: { _ in true }),
+        ]
+        let range = ScreenSelectionRange(start: ScreenPoint(row: 2_900, column: 0), end: ScreenPoint(row: 2_902, column: 6))
+        XCTAssertFalse(ScreenSelecting.drawn(range) { held[$0] }, "row 2,901 is reserved: no Copy")
+        var filled = held
+        filled[2_901] = ScreenRowModel(index: 2_901, runs: [ScreenRun(text: "L002902", styleIndex: 0, span: 7)], holds: { _ in true })
+        XCTAssertTrue(ScreenSelecting.drawn(range) { filled[$0] })
+        XCTAssertEqual(ScreenSelecting.text(range, columns: 8) { filled[$0] }, "L002901\nL002902\nL002903")
     }
 
     /// Clause: the selected text is each row's cells joined, trailing blanks
@@ -124,7 +148,8 @@ final class ScreenSelectionTests: XCTestCase {
     /// app reads it.
     func testThePasteboardIsWrittenAndNeverRead() throws {
         let files = ["App/TortieApp.swift", "Screens/Screen.swift", "Screens/ScreenGrid.swift", "Screens/ScreenKeyField.swift",
-                     "Screens/ScreenKeys.swift", "Screens/ScreenRows.swift", "Screens/SessionScreen.swift", "Door/DoorClient.swift"]
+                     "Screens/ScreenKeys.swift", "Screens/ScreenRows.swift", "Screens/SessionScreen.swift", "Door/DoorClient.swift",
+                     "Screens/ScreenScroller.swift", "Screens/ScreenScrollback.swift"]
         for file in files {
             XCTAssertFalse(try StyleSource.text("ios/Tortie/" + file).contains("UIPasteboard"), file)
         }

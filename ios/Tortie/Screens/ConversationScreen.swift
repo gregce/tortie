@@ -1,4 +1,8 @@
-// One session's whole conversation, paged back from the newest turn (Phase 316.2).
+// Catch Me Up: one session's whole conversation, paged back from the newest
+// turn (Phase 316.2), and where it stands now (Phase 337.1, build/p3371/SPEC.md
+// D20 to D22). The file and its model keep the name they had; the page is
+// named Catch Me Up everywhere a person reads it (his ruling, "Yes, rename
+// it"), the Mac's own word for the record it reads.
 //
 // HIS RULING (build/p316/SPEC.md section 6, decision 3): there is no approved
 // mock, so this is drawn in the Session screen's style from the desktop's turn
@@ -15,12 +19,20 @@
 //                    main's `absence` sentence when there is none on record
 //   the notice       `the session stopped: …`, when the CLI left one
 //
-// Above the turns, one line says the terminal's scrollback is not here and
-// stays on the Mac: "the full CONVERSATION yes, the raw terminal scrollback
-// no". Since Phase 337 the session's own screen, as it is now, is the
-// Screen's (Screens/Screen.swift), reached from the session's page and typed
-// into there, and this line says only what is still true (D31). There is no
-// message box here: the session's page has Phase 318's.
+// THE NOW CARD (D20) comes after the newest turn: the status, End's line,
+// Catch Me Up's card, the options, the press line and the two cells
+// (Screens/SessionScreen.swift `NowCard`), and the agent's last answer only
+// when there are no turns, because otherwise it IS the newest turn's answer.
+// The page is drawn bottom-anchored, so it opens on the now card with the
+// conversation above it, as the Mac's Catch Me Up reads. Phase 318's message
+// box sits in the bottom inset while the session waits at its own empty
+// prompt, and End at the top right. The title is two lines: the session's
+// name, then `Catch Me Up`.
+//
+// THE TERMINAL LINE IS GONE (D22). Until Phase 337.1 a line above the turns
+// said the terminal's scrollback stayed on the Mac; the Terminal now scrolls
+// back through what the session printed (his ruling, "Yes, scroll back on the
+// Screen"), so that line would be false.
 //
 // PAGING. The newest page is read on appear, on return to the foreground and on
 // pull; older pages are read as the top of the conversation scrolls into view.
@@ -236,92 +248,179 @@ struct ConversationScreen: View {
     let model: ConversationModel
     /// The session's own line, drawn when it has no turns at all (the
     /// desktop's honest line: `no agent here`, `started 10:02, nothing asked
-    /// yet`). Main composed it for the session screen's card.
+    /// yet`). Main composed it for the session's card.
     let honestLine: String?
+    /// The session as it stands now (Phase 337.1): its read, which the now
+    /// card draws from.
+    let session: SessionModel
+    /// End (Phase 317), or nil for a pairing that writes nothing.
+    let end: EndModel?
+    /// The press and the message (Phase 318), or nil for a pairing that
+    /// writes nothing: then no option is a button and no box is drawn.
+    let reply: ReplyModel?
+    /// The name the list drew, for the title until the session's read
+    /// answers (empty for a session an alert opened).
+    let name: String
     let isTop: Bool
     let foregroundTick: Int
+    /// Whether the message box has the keyboard.
+    @State private var typing = false
 
     /// How much of the older-turns spinner must be on screen before it counts
     /// as in view. Any sliver: the spinner is 20 pt tall and sits above the
     /// oldest turn read, so a person who has scrolled to it has reached the top.
     private static let olderInView: Double = 0.01
 
+    /// The door's name once it answered; the list's until then.
+    private var title: String {
+        session.latest?.name ?? name
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            header
-            Hairline()
-            switch model.phase {
-            case .loading:
-                LoadingView(id: ID.conversationLoading)
-                Spacer(minLength: 0)
-            case .failed(let sentence):
-                FailureView(sentence: sentence, id: ID.conversationFailure) {
-                    Task { await model.loadNewest() }
-                }
-                Spacer(minLength: 0)
-            case .loaded:
-                turns
+            if model.noClocks {
+                header
+                Hairline()
             }
+            page
         }
         .background(Tokens.bgSidebar.ignoresSafeArea())
-        .task { await model.loadNewest() }
+        // The session is read on appear only when nothing has read it yet:
+        // a session that opened on this face was read by its route.
+        .task { await readBoth(session: session.latest == nil) }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
-            Task { await model.loadNewest() }
+            end?.refreshKind()
+            Task { await readBoth(session: true) }
+        }
+        // Above the tab bar, so the page ends above it: the message box
+        // alone (End is in the top bar).
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            if let reply, CatchUpParts.boxDrawn(reply: reply, offer: replyOffer) {
+                MessageStrip(model: reply, focused: $typing) { await session.load() }
+            }
         }
         .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(ID.conversationScreen)
+        .accessibilityIdentifier(ID.catchUpScreen)
+        .navigationTitle(title)
         .navigationBarTitleDisplayMode(.inline)
         .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .principal) {
-                Words(Copy.conversation, .navTitle, Tokens.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
+                VStack(spacing: 0) {
+                    Words(title, .navTitle, Tokens.textPrimary)
+                        .accessibilityAddTraits(.isHeader)
+                    Words(Copy.catchMeUp, .small, Tokens.textSecondary)
+                }
             }
+            // End, top right (Phase 337, D33).
+            EndTopItem(model: end, offer: endOffer.0, confirm: endOffer.1) { await session.load() }
         }
     }
 
-    /// The terminal line, and the desktop's note when no turn has a clock.
+    /// The offer and the confirmation the session's newest answer carries.
+    private var endOffer: (PocketEndOffer, PocketEndConfirm?) {
+        guard let drawing = session.latest else { return (.none, nil) }
+        return (drawing.end, drawing.endConfirm)
+    }
+
+    /// The reply offer the session's newest answer carries; the empty one
+    /// otherwise.
+    private var replyOffer: PocketReplyOffer {
+        session.latest?.reply ?? .empty
+    }
+
+    /// The conversation and the session, read together: on a pull, and on a
+    /// return to the foreground while this is on top; on appear, the session
+    /// too unless it is already read.
+    private func readBoth(session reading: Bool) async {
+        let model = model
+        let session = session
+        guard reading else {
+            await model.loadNewest()
+            return
+        }
+        async let turns: Void = model.loadNewest()
+        async let now: Bool = session.load()
+        _ = await (turns, now)
+    }
+
+    /// The desktop's note when no turn has a clock.
     private var header: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Words(Copy.terminalStaysOnMac, .small, Tokens.textMuted, lines: nil)
-                .accessibilityIdentifier(ID.conversationTerminalLine)
-            if model.noClocks {
-                Words(Copy.noClockNote, .small, Tokens.textMuted)
-                    .accessibilityIdentifier(ID.conversationNoClock)
-            }
-        }
-        .padding(.horizontal, Frame.gutter)
-        .padding(.vertical, 8)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        Words(Copy.noClockNote, .small, Tokens.textMuted)
+            .accessibilityIdentifier(ID.catchUpNoClock)
+            .padding(.horizontal, Frame.gutter)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    private var turns: some View {
+    /// The turns, oldest at the top, then the now card, bottom-anchored.
+    private var page: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: Frame.cardGap) {
-                older
-                if model.pages.turns.isEmpty {
-                    empty
-                } else {
-                    // Not lazy: every turn read is in the accessibility tree,
-                    // so a UI test counts what was drawn, not what is on screen.
-                    ForEach(model.pages.turns) { turn in
-                        TurnCard(
-                            turn: turn,
-                            clock: TurnClock.clock(turn.askAt, answeredAt: model.answeredAt),
-                            answer: model.rendered[turn.index]
-                        )
+                switch model.phase {
+                case .loading:
+                    LoadingView(id: ID.catchUpLoading)
+                case .failed(let sentence):
+                    FailureView(sentence: sentence, id: ID.catchUpFailure) {
+                        Task { await model.loadNewest() }
                     }
+                case .loaded:
+                    turns
                 }
+                now
             }
             .padding(.vertical, Frame.cardGap)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
         .defaultScrollAnchor(.bottom)
         .scrollIndicators(.hidden)
-        .refreshable { await model.loadNewest() }
+        .scrollDismissesKeyboard(.interactively)
+        .refreshable {
+            reply?.readingAgain()
+            await readBoth(session: true)
+        }
+    }
+
+    /// The turns read, or the line drawn in place of them.
+    @ViewBuilder
+    private var turns: some View {
+        older
+        if model.pages.turns.isEmpty {
+            empty
+        } else {
+            // Not lazy: every turn read is in the accessibility tree,
+            // so a UI test counts what was drawn, not what is on screen.
+            ForEach(model.pages.turns) { turn in
+                TurnCard(
+                    turn: turn,
+                    clock: TurnClock.clock(turn.askAt, answeredAt: model.answeredAt),
+                    answer: model.rendered[turn.index]
+                )
+            }
+        }
+    }
+
+    /// Where things stand now, after the newest turn (D20): the now card from
+    /// the session's newest answer, its spinner before the first, or its one
+    /// sentence when that read did not come back.
+    @ViewBuilder
+    private var now: some View {
+        if let drawing = session.latest {
+            NowCard(
+                drawing: drawing, reply: reply, end: end,
+                lastAnswer: CatchUpParts.drawsLastAnswer(turns: model.pages.turns),
+                reread: { await session.load() }
+            )
+        } else if case .failed(let sentence) = session.phase {
+            FailureView(sentence: sentence, id: ID.sessionFailure) {
+                Task { await session.load() }
+            }
+        } else {
+            LoadingView(id: ID.sessionLoading)
+        }
     }
 
     /// Where older turns arrive: a spinner while there are more, the one line
@@ -339,7 +438,7 @@ struct ConversationScreen: View {
     private var older: some View {
         if let line = model.olderLine {
             Words(line, .small, Tokens.textMuted, lines: nil)
-                .accessibilityIdentifier(ID.conversationOlderLine)
+                .accessibilityIdentifier(ID.catchUpOlderLine)
                 .padding(.horizontal, Frame.gutter)
         } else if model.pagingBack {
             ProgressView()
@@ -348,12 +447,12 @@ struct ConversationScreen: View {
                 .onScrollVisibilityChange(threshold: Self.olderInView) { visible in
                     model.top(visible: visible)
                 }
-                .accessibilityIdentifier(ID.conversationOlder)
+                .accessibilityIdentifier(ID.catchUpOlder)
         }
     }
 
     /// No turns: main's note (a session on another machine), else the
-    /// session's own line.
+    /// session's own line, unless the now card's card already says it.
     @ViewBuilder
     private var empty: some View {
         if let note = model.pages.note {
@@ -362,15 +461,15 @@ struct ConversationScreen: View {
                 .padding(Frame.cardPadding)
                 .card()
                 .accessibilityElement(children: .combine)
-                .accessibilityIdentifier(ID.conversationNote)
+                .accessibilityIdentifier(ID.catchUpNote)
                 .padding(.horizontal, Frame.gutter)
-        } else if let honestLine {
-            Words(honestLine, .body, Tokens.textSecondary, lines: nil)
+        } else if let line = CatchUpParts.emptyLine(note: nil, honestLine: honestLine, now: session.latest) {
+            Words(line, .body, Tokens.textSecondary, lines: nil)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(Frame.cardPadding)
                 .card()
                 .accessibilityElement(children: .combine)
-                .accessibilityIdentifier(ID.conversationEmpty)
+                .accessibilityIdentifier(ID.catchUpEmpty)
                 .padding(.horizontal, Frame.gutter)
         }
     }

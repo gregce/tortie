@@ -33,13 +33,19 @@ final class ScreenCoverTests: XCTestCase {
         }
     }
 
-    /// Clause: the cover is drawn ABOVE the grid, last in the Screen's stack.
+    /// Clause: the cover is drawn ABOVE the terminal, the header and the
+    /// tray, last in the page's stack (Phase 337.1: `ScreenPage` is generic
+    /// over the page that holds it, build/p3371/SPEC.md section 5.5.4).
     func testTheCoverIsOverTheGrid() throws {
         let source = try StyleSource.text("ios/Tortie/Screens/Screen.swift")
-        let body = try XCTUnwrap(source.range(of: "struct ScreenPage: View {"))
+        let body = try XCTUnwrap(source.range(of: "struct ScreenPage<Header: View, Tray: View, Trailing: ToolbarContent>: View {"))
         let rest = source[body.upperBound...]
-        let content = try XCTUnwrap(rest.range(of: "content\n"))
-        let cover = try XCTUnwrap(rest.range(of: "ScreenCover()"))
-        XCTAssertLessThan(content.lowerBound, cover.lowerBound, "the cover is drawn under the grid")
+        let stack = try XCTUnwrap(rest.range(of: "var body: some View {"))
+        let drawn = rest[stack.upperBound...]
+        let cover = try XCTUnwrap(drawn.range(of: "ScreenCover()"))
+        for piece in ["header\n", "content\n", "tray\n"] {
+            let at = try XCTUnwrap(drawn.range(of: piece), piece)
+            XCTAssertLessThan(at.lowerBound, cover.lowerBound, "the cover is drawn under \(piece)")
+        }
     }
 }

@@ -1,10 +1,13 @@
 // End, on one session (Phase 317, build/p317/SPEC.md section 5.8.3; at the
-// top right since Phase 337, build/p337/SPEC.md D33).
+// top right since Phase 337, build/p337/SPEC.md D33; on both of a session's
+// faces since Phase 337.1, build/p3371/SPEC.md D17 and D20).
 //
 // docs/design/phone/End.html and Session.html. The navigation bar's trailing
-// item on a session the Mac offers End for: the owner check's glyph and
-// `End` in the error colour; its one line is drawn under the session's status
-// (`EndLine`), and the bar that sat above the tab bar until Phase 337 is gone.
+// item on a session the Mac offers End for, rightmost, after the Terminal's
+// Catch Me Up icon: the owner check's glyph and `End` in the error colour;
+// its one line is drawn under the session's status (`EndLine`), on the
+// Terminal under its status line and on Catch Me Up under the now card's
+// status, and the bar that sat above the tab bar until Phase 337 is gone.
 // Pressing it shows the Mac's OWN confirmation, word for word (the
 // door composes it with the Mac's `endSessionConfirm` over main's own row);
 // its destructive press asks iOS for Face ID, Touch ID or the passcode, and

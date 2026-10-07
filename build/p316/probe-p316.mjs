@@ -248,12 +248,17 @@
  *                       {"step":"list-before"}, pull to refresh 2 s later,
  *                       dump "list" 3 s after that (the probe reads the door on
  *                       both lines, so the two reads bracket the app's)
- *       open:<id>       tap `row-<id>`, wait for `screen-session`, dump "session"
- *       conversation    tap `session-open-conversation`, wait, dump "conversation"
- *       first           scroll toward the oldest turn until `conversation-older`
- *                       is gone and three swipes add nothing (or a
- *                       `conversation-failure` or `conversation-older-line`
- *                       appears), then print
+ *       open:<id>       tap `row-<id>`, wait for `screen-session` (since Phase
+ *                       337.1 the Terminal or Catch Me Up, whichever face the
+ *                       first answer decided), print {"step":"face",…}, dump
+ *                       "session"
+ *       conversation    Catch Me Up (the Conversation renamed in Phase 337.1):
+ *                       its icon pressed when the Terminal is the face
+ *                       (`toCatchUp`), wait, dump "conversation"
+ *       first           Catch Me Up first, then scroll toward the oldest turn
+ *                       until `catch-up-older` is gone and three swipes add
+ *                       nothing (or a `catch-up-failure` or
+ *                       `catch-up-older-line` appears), then print
  *                       {"step":"turns","indexes":[…],"asks":{i:label},
  *                       "answers":{i:label},"absences":{i:label}} over every
  *                       `turn-<i>` seen on the way, and dump "conversation-top"
@@ -262,8 +267,8 @@
  *                       `list-failure-retry`), until `screen-pairing` is
  *                       drawn, and dump "unpaired"
  *       sentence        wait for a sentence drawn in place of a screen (a
- *                       `*-failure`, `pairing-line` or
- *                       `conversation-older-line` with words), and dump
+ *                       `*-failure`, `pairing-line`, `catch-up-older-line` or
+ *                       `screen-scrollback-line` with words), and dump
  *                       "sentence": the hostile list arms, whose body arrives on
  *                       the list's refresh, some only after the client's 15 s
  *     and ends with {"step":"alive","state":<XCUIApplication.State raw>} and
@@ -516,6 +521,70 @@
  *   PSP with P337_PARENT_IOS (aebb4ce9's ios/): the parent's app draws no
  *       Screen row and End at the bottom
  *
+ * PHASE 337.1, TERMINAL FIRST (build/p3371/SPEC.md §7.8, in the `screen`
+ * group). A list row opens a running session's TERMINAL at once and an ended
+ * one's CATCH ME UP (the Conversation renamed); the Terminal scrolls back. So
+ * 337's drive above opens each session onto its Terminal (`screen-open` is a
+ * wait for the grid, one Back is the list), PS1 reads the Catch Me Up icon
+ * beside End where it read the two rows, and EVERY EARLIER GROUP that opened a
+ * session (`end`, `reply`, `markdown`, the alert taps) is run as it was: the
+ * UI test's `toCatchUp(for:)` presses the icon before any step that read the
+ * session page's card, counts, answer or box, and says which face it read in
+ * a `face` line; a press is 318's `session-choice-press-<n>` wherever it is
+ * drawn, the Terminal's tray on a live session. The sessions: a shell whose
+ * program is build/p3371/history-stand-in.mjs (3,000 numbered lines, a live
+ * counter rewritten in place; 300 lines then a full-screen program), a Claude
+ * Code stand-in at its prompt, a Codex stand-in at its approval, and a shell
+ * ended on the Mac. tmux's own lines by index (this file's `capture-pane -p -S
+ * - -E -1`) and the stand-in's log of every byte it read are the ground truth.
+ * The UI test's new steps are `terminal-open:<id>`, `catch-up`,
+ * `scroll-up:<n>`, `scroll-hold`, `scroll-drag-hold` (a drag, then the hold
+ * as its finger lifts, the fix round), `fling-up`, `to-live`,
+ * `scroll-key:<name>`, `keyboard-glitch`, `tray-keyboard` (the fix round) and
+ * `tray-press:<n>`; a reading is every `screen-row-<n>`
+ * and `screen-history-<i>` with its label and frame. The arms:
+ *   PS10 26.3: a row opens the grid at once (the tap-to-first-row time
+ *       printed, the one session read that decides the face included); no
+ *       row-shaped Catch Me Up and no `Conversation` or `Screen` anywhere; the
+ *       status line's words the door's statusTitle and agent and project; the
+ *       icon then End in the bar's trailing half, End rightmost, both
+ *       pressable, and with a selection held Copy, the icon and End all three
+ *   PS11 26.3: an ended session (Sessions, Show all) opens on Catch Me Up:
+ *       the name with `Catch Me Up` under it, its turns or its empty line,
+ *       the now card, no grid
+ *   PS12 26.3: Codex's question: the tray's buttons the door's pressable
+ *       options, whole, under the grid; `tray-press:1` puts exactly its marker
+ *       (32) at the stand-in, no owner check
+ *   PS12k 26.3 (the fix round): the keyboard raised over that tray and put
+ *       away: the app still answers (the 337.1 build froze here), the tray
+ *       hidden while the keyboard is up and back after
+ *   PS13 26.3 and 18.3: the first drag up from rest shows history (a
+ *       reservation, not a bounce); every drawn `screen-history-<i>` is tmux's
+ *       line at index i; the counter changes while scrolled back; across three
+ *       or more older pages landing with the finger lifted, the first row on
+ *       screen keeps its line and its place within half a point; after a fling
+ *       the rows are tmux's and contiguous; back to live and a key typed while
+ *       scrolled back each put row 0 where it was at rest
+ *   PS14 26.3 and 18.3: row 0 where it was at rest after the keyboard is put
+ *       away, 2 s later and after the first long press (§14 M12's 134.7 pt on
+ *       26.3); the grid's frame never follows the keyboard; the line and the
+ *       button back to live above the keyboard's top; the long press along row
+ *       3 copies row 3 (the pasteboard read through simulator-run.mjs). 337's
+ *       own PS3 and PS6 run on the rebuilt view on both runtimes (PS3, PS6, PS9)
+ *   PS15 26.3: Catch Me Up from its icon: the now card after the newest turn,
+ *       318's box on an idle stand-in, End top right, Back to the Terminal
+ *   PS16 26.3: a full-screen stand-in: drags up draw no history and no line
+ *   PSH 26.3: every scrollback arm of build/p316/hostile-door.mjs
+ *       (SCROLLBACK_ARMS): the live terminal drawn and the app in front; a
+ *       moved arm draws Copy.scrollbackMoved and asks no page after it; a
+ *       retried arm asks again after its back-off; a page that never comes
+ *       leaves the screen still read
+ *   PSP with P3371_PARENT_IOS (e3837139's ios/; the spec names
+ *       P316_PARENT_IOS, read when this is unset): the parent's own UI test
+ *       opens the session page, not a terminal, and its rows sit at least
+ *       50 pt low after the keyboard (printed as the parent's defect, the arm
+ *       that proves PS14 can fail); a parent with no Screen row is UNREADABLE
+ *
  * PHASE 316.7, THE SESSIONS TAB (build/p3167/SPEC.md §9.4 and §9.5). The
  * Sessions tab reads `GET /v1/sessions` now and lays out what main composed:
  * Show (All, Active, Ended), projects with a count, one menu for Group by,
@@ -636,6 +705,8 @@
  *                                         own re-derivation. The private key is
  *                                         deleted whatever this says.
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
+ *   P3371_PARENT_IOS=<dir>                Phase 337.1's PSP: e3837139's checkout (its ios/);
+ *                                         P316_PARENT_IOS is read when it is unset
  *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
  *                                         parent's ios/ (`git archive 28d89295 ios | tar -x`
  *                                         into scratch), built and driven by its own UI test
@@ -686,10 +757,11 @@ import {
 import { startApnsStandIn } from '../p314/apns-stand-in.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, nameQuestionsSelfTest, nameQuestionsVerdict, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
-import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
+import { HOSTILE_ARMS, HOSTILE_NAME, HOSTILE_PUBLIC_PORT, REPLY_ARMS, SCREEN_ARMS, SCROLLBACK_ARMS, UNKNOWN_STATUS_TITLE, hostileDoorArgv, markdownFixtures } from './hostile-door.mjs';
 import { hellos as p318Hellos, readLog as p318ReadLog, readState as p318ReadState, sendOps as p318SendOps, writeWrappers as p318WriteWrappers } from '../p318/stand-in.mjs';
 import { fingerprintDigits, makePhone, pageBack, pairThrough, readOffer, readSessions, shaHex, signedGet } from './node-phone.mjs';
 import { readRecorderLog } from '../p337/key-recorder.mjs';
+import { lineOf as lineOfStandIn, numberOf as numberedLine } from '../p3371/history-stand-in.mjs';
 import { tsxCli } from '../ts-runner.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
@@ -790,6 +862,14 @@ const PARENT_IOS_317 = (process.env['P317_PARENT_IOS'] ?? '').trim();
 const PARENT_IOS_318 = (process.env['P318_PARENT_IOS'] ?? '').trim();
 /** Phase 337's PSP: a checkout of `aebb4ce9` whose ios/ is the parent's app, or empty. */
 const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
+/**
+ * Phase 337.1's PSP: a checkout of `e3837139` whose ios/ is the parent's app
+ * (337's Screen, its rows low after the keyboard on iOS 26.3), or empty. The
+ * spec names P316_PARENT_IOS, which PR also reads (at 28d89295), so this
+ * phase's own variable is read first and that one after it; a parent with no
+ * Screen row reads PSP UNREADABLE, never a failure.
+ */
+const PARENT_IOS_3371 = (process.env['P3371_PARENT_IOS'] ?? '').trim() || PARENT_IOS;
 /**
  * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
  * file's own `claude` hands a launch to its `claude` when the next mode is
@@ -934,7 +1014,6 @@ const COPY = {
   othersLead: copyOf('everythingElseLead'),
   close: copyOf('countClose'),
   notPaired: copyOf('notPaired'),
-  terminal: copyOf('terminalStaysOnMac'),
   readLead: copyOf('readLead')
 };
 
@@ -1537,6 +1616,13 @@ async function drive(sim, { test, env, derivedDataPath, label, onEvent = null, t
 const dumps = (events, name) => events.filter((e) => e.step === 'screen' && e.name === name);
 const lastDump = (events, name) => dumps(events, name).at(-1) ?? null;
 const el = (dump, id) => dump?.elements?.find((e) => e.id === id) ?? null;
+/**
+ * Phase 337.1 (build/p3371/SPEC.md D16): a session's page in a dump, whichever
+ * face it draws: its route (`screen-session`, the Terminal or Catch Me Up
+ * inside it), or Catch Me Up pushed over the Terminal by its icon, which
+ * carries `screen-catch-up` alone.
+ */
+const sessionPageOf = (dump) => el(dump, 'screen-session') ?? el(dump, 'screen-catch-up');
 const els = (dump, prefix) => (dump?.elements ?? []).filter((e) => typeof e.id === 'string' && e.id.startsWith(prefix));
 const near = (a, b, tol = 0.5) => typeof a === 'number' && typeof b === 'number' && Math.abs(a - b) <= tol;
 const aliveOf = (events) => events.find((e) => e.step === 'alive')?.state ?? null;
@@ -1981,7 +2067,7 @@ function gradeTap(r) {
   if (r.dump === null) p.push('no screen was dumped after the tap');
   else {
     if (String(r.dump.name).endsWith('-missing')) p.push(`the UI test dumped ${J(r.dump.name)}: no session or list after the tap`);
-    if (el(r.dump, 'screen-session') === null) p.push(`the tap opened no session${el(r.dump, 'screen-list') !== null || el(r.dump, 'screen-needs-input') !== null ? ' (a list is drawn)' : ''}`);
+    if (sessionPageOf(r.dump) === null) p.push(`the tap opened no session${el(r.dump, 'screen-list') !== null || el(r.dump, 'screen-needs-input') !== null ? ' (a list is drawn)' : ''}`);
     else if (el(r.dump, 'session-failure') !== null) p.push(`the session drew a failure${r.cold === true ? ' (a tap that launches the app carries none of the DEBUG launch arguments, so the door endpoint seam is absent unless the app keeps it)' : ''}`);
     else if (!titledWith(r.dump, r.name)) p.push(`the session is not titled with the door's name for it (${String(r.name).length} characters)`);
   }
@@ -1998,8 +2084,8 @@ function gradeTap(r) {
 const TAP_FROM = {
   // Since Phase 316.6 the list on top is either tab's: N5's tap opened its
   // session on the Needs input tab, so `back` returns to that tab's list.
-  list: { name: 'back', holds: (d) => (el(d, 'screen-list') !== null || el(d, 'screen-needs-input') !== null) && el(d, 'screen-session') === null },
-  session: { name: 'visit', holds: (d) => el(d, 'screen-session') !== null }
+  list: { name: 'back', holds: (d) => (el(d, 'screen-list') !== null || el(d, 'screen-needs-input') !== null) && sessionPageOf(d) === null },
+  session: { name: 'visit', holds: (d) => sessionPageOf(d) !== null }
 };
 
 /** N6 and N6b: a gone session draws the Mac's own sentence on the list. */
@@ -2019,7 +2105,7 @@ function gradeGone(r) {
     // Phase 316.6: an alert's tap selects the Needs input tab, whose list
     // says the Mac's sentence (SPEC §5.1.5, §7.4).
     if (el(r.dump, 'screen-needs-input') === null) p.push(`the Needs input list is not drawn${el(r.dump, 'screen-list') !== null ? ' (the Sessions list is)' : ''}`);
-    if (el(r.dump, 'screen-session') !== null) p.push('a session screen is still drawn');
+    if (sessionPageOf(r.dump) !== null) p.push('a session screen is still drawn');
     const notice = el(r.dump, 'needs-list-notice')?.label ?? null;
     if (r.word !== null && notice !== r.word) p.push(`the Needs input list's notice reads ${notice === null ? 'nothing' : `${String(notice.length)} characters that are not the Mac's sentence`}`);
   }
@@ -2037,7 +2123,7 @@ function gradeListTaps(r) {
     if (t.dump === null) p.push(`tap ${String(i + 1)}: no screen dumped`);
     else {
       if (el(t.dump, 'screen-needs-input') === null) p.push(`tap ${String(i + 1)}: the Needs input list is not drawn`);
-      if (el(t.dump, 'screen-session') !== null) p.push(`tap ${String(i + 1)}: a session screen opened`);
+      if (sessionPageOf(t.dump) !== null) p.push(`tap ${String(i + 1)}: a session screen opened`);
       const notice = el(t.dump, 'needs-list-notice')?.label ?? '';
       if (notice !== '') p.push(`tap ${String(i + 1)}: the list carries a notice`);
     }
@@ -2096,9 +2182,10 @@ function gradeDeny(r) {
   }
   if (r.phoneRow === null) p.push('the Mac lists no new phone');
   else if (r.phoneRow.alerts !== 'none') p.push(`the phone's row reads alerts ${J(r.phoneRow.alerts)}, not none`);
-  for (const [name, screen] of [['list', 'screen-list'], ['session', 'screen-session'], ['conversation', 'screen-conversation']]) {
-    if (el(lastDump(r.events, name), screen) === null) p.push(`the ${name} was not drawn`);
-  }
+  // Phase 337.1: the session's page is either face, and its conversation is Catch Me Up.
+  if (el(lastDump(r.events, 'list'), 'screen-list') === null) p.push('the list was not drawn');
+  if (sessionPageOf(lastDump(r.events, 'session')) === null) p.push('the session was not drawn');
+  if (el(lastDump(r.events, 'conversation'), 'screen-catch-up') === null) p.push('the conversation was not drawn');
   if (r.delivery === null || r.delivery.code !== 0) u.push(`the body was ${r.delivery === null ? 'never delivered' : `delivered with code ${String(r.delivery.code)}`}, so "no banner" says nothing`);
   const banner = r.events.find((e) => e.step === 'banner') ?? null;
   if (banner === null) u.push('the UI test printed no banner line');
@@ -2283,23 +2370,29 @@ function gradeT2c(r) {
   const d = r.tabSessions;
   if (d === null || d === undefined) return verdict(null, 'the UI test printed no "tab-sessions" dump');
   const p = [];
-  if (el(d, 'screen-session') === null) p.push(`after Needs input and back, Sessions shows ${el(d, 'screen-list') !== null ? 'its list' : 'no session'}, not the session opened on it`);
+  if (sessionPageOf(d) === null) p.push(`after Needs input and back, Sessions shows ${el(d, 'screen-list') !== null ? 'its list' : 'no session'}, not the session opened on it`);
   else if (r.name !== null && !titledWith(d, r.name)) p.push('the session on top is not the one opened');
   return decide(p, [], 'the session opened in Sessions was still on top after Needs input and back');
 }
 
 /** T2d: at the end of a pushed session, its last element ends at or above the tab bar's top. */
+/** T2d (Phase 337.1): the Terminal's own bottom-most elements, measured beside every session-* element. */
+const T2D_TERMINAL_IDS = Object.freeze(['screen-grid', 'screen-line', 'screen-scrollback-line', 'screen-to-live']);
 function gradeT2d(r) {
   if (r.bar === null || r.bar === undefined) return verdict(null, 'the UI test printed no bar line');
   if (!Array.isArray(r.bar.frame)) return verdict(null, `the tab bar's frame could not be read (${J(r.bar.via ?? null)}; SPEC §12 concern 1)`);
   if (r.dump === null || r.dump === undefined) return verdict(null, 'the UI test printed no "bar" dump');
   const top = r.bar.frame[1];
-  const content = (r.dump.elements ?? []).filter((e) => typeof e.id === 'string' && e.id.startsWith('session-') && Array.isArray(e.frame) && e.frame[3] > 0);
+  // Since Phase 337.1 a live session's page is its Terminal, whose own session-* elements (the status line, the
+  // icon, End) sit at the top: its lowest content is the terminal itself, the line under it and the button back to
+  // live, so those are measured too. A row of the terminal is not: rows above and below the view are drawn inside
+  // the scroll view on purpose (build/p3371/SPEC.md D25) and their frames lie outside it.
+  const content = (r.dump.elements ?? []).filter((e) => typeof e.id === 'string' && (e.id.startsWith('session-') || T2D_TERMINAL_IDS.includes(e.id)) && Array.isArray(e.frame) && e.frame[3] > 0);
   if (content.length === 0) return verdict(null, 'the "bar" dump holds no session element to measure');
   const lowest = content.reduce((a, b) => (a.frame[1] + a.frame[3] >= b.frame[1] + b.frame[3] ? a : b));
   const end = lowest.frame[1] + lowest.frame[3];
   const p = [];
-  if (r.bar.screen !== 'screen-session') p.push(`the bar was read over ${J(r.bar.screen)}, not a pushed session`);
+  if (r.bar.screen !== 'screen-session' && r.bar.screen !== 'screen-catch-up') p.push(`the bar was read over ${J(r.bar.screen)}, not a pushed session`);
   if (end > top + 0.5) p.push(`the session's last element (${lowest.id}) ends at y ${String(Math.round(end * 100) / 100)}, under the tab bar's top at ${String(Math.round(top * 100) / 100)}`);
   return decide(p, [], `the session's last element ends at y ${String(Math.round(end * 100) / 100)}, at or above the tab bar's top at ${String(Math.round(top * 100) / 100)}`);
 }
@@ -2509,7 +2602,7 @@ function gradeHm(r) {
   const u = [];
   const md = r.events.find((e) => e.step === 'markdown') ?? null;
   const d = lastDump(r.events, 'markdown') ?? lastDump(r.events, 'conversation');
-  if (d === null || el(d, 'screen-conversation') === null) p.push('the conversation was not drawn');
+  if (d === null || el(d, 'screen-catch-up') === null) p.push('the conversation was not drawn');
   const failures = r.events.filter((e) => e.step === 'screen').flatMap((x) => x.elements ?? []).filter((e) => /-failure$/.test(String(e.id)) && String(e.label ?? '') !== '');
   if (failures.length > 0) p.push(`a failure was drawn (${[...new Set(failures.map((e) => e.id))].join(', ')})`);
   const scopes = new Set((md?.elements ?? []).map((e) => /^md-(\d+)-/.exec(String(e.id))?.[1]).filter((s) => s !== undefined).map(Number));
@@ -2676,12 +2769,20 @@ function tabsSelfTest() {
   add('T2c Sessions lost its place', gradeT2c, { tabSessions: { ...tabSessions, elements: [{ id: 'screen-list', label: '' }] }, name: 'p316-talk' }, false);
   add('T2c another session on top', gradeT2c, { tabSessions, name: 'p316-md' }, false);
   add('T2c no dump (UNREADABLE)', gradeT2c, { tabSessions: null, name: 'p316-talk' }, null);
+  add('T2c Catch Me Up on top (Phase 337.1)', gradeT2c, { tabSessions: { ...tabSessions, elements: [{ id: 'screen-catch-up', label: '' }, { id: 'p316-talk', label: 'p316-talk' }] }, name: 'p316-talk' }, true);
   // T2d
-  const barDump = { step: 'screen', name: 'bar', elements: [{ id: 'screen-session', label: '', frame: [0, 0, 402, 874] }, { id: 'session-status', label: 'Working', frame: [16, 100, 100, 20] }, { id: 'session-open-conversation', label: '', frame: [16, 700, 370, 54] }] };
+  const barDump = { step: 'screen', name: 'bar', elements: [{ id: 'screen-session', label: '', frame: [0, 0, 402, 874] }, { id: 'session-status', label: 'Working', frame: [16, 100, 100, 20] }, { id: 'session-open-catch-up', label: '', frame: [16, 700, 370, 54] }] };
   const t2d = { bar: { step: 'bar', screen: 'screen-session', via: 'tabBar', frame: [0, 791, 402, 83] }, dump: barDump };
   add('T2d honest', gradeT2d, t2d, true);
   add('T2d the last element under the bar', gradeT2d, edit(t2d, (x) => { x.dump.elements[2].frame[1] = 760; }), false);
   add('T2d read over the list', gradeT2d, edit(t2d, (x) => { x.bar.screen = 'screen-list'; }), false);
+  add('T2d read over Catch Me Up pushed (Phase 337.1)', gradeT2d, edit(t2d, (x) => { x.bar.screen = 'screen-catch-up'; }), true);
+  // Phase 337.1: over the Terminal the grid is the lowest content; its rows outside the view are not measured.
+  const termDump = { step: 'screen', name: 'bar', elements: [{ id: 'screen-session', label: '', frame: [0, 0, 402, 874] }, { id: 'screen-screen', label: '', frame: [0, 0, 402, 874] }, { id: 'session-status', label: 'Working', frame: [16, 104, 100, 20] }, { id: 'screen-grid', label: 'Terminal', frame: [0, 128, 402, 663] }, { id: 'screen-row-39', label: '', frame: [0, 900, 402, 7] }] };
+  const t2dTerm = { bar: { step: 'bar', screen: 'screen-session', via: 'tabBar', frame: [0, 791, 402, 83] }, dump: termDump };
+  add('T2d honest over the Terminal, a row outside the view not measured (Phase 337.1)', gradeT2d, t2dTerm, true);
+  add('T2d the Terminal\'s grid under the tab bar (Phase 337.1)', gradeT2d, edit(t2dTerm, (x) => { x.dump.elements[3].frame[3] = 746; }), false);
+  add('T2d the line under the Terminal under the tab bar (Phase 337.1)', gradeT2d, edit(t2dTerm, (x) => { x.dump.elements.push({ id: 'screen-line', label: 'x', frame: [16, 790, 370, 20] }); }), false);
   add('T2d no bar frame (UNREADABLE)', gradeT2d, edit(t2d, (x) => { x.bar.frame = null; }), null);
   add('T2d no bar line (UNREADABLE)', gradeT2d, { bar: null, dump: barDump }, null);
   // MD1
@@ -2812,14 +2913,15 @@ function tabsSelfTest() {
     connections: 0,
     events: [
       { step: 'markdown', elements: [{ id: 'md-0-0', label: 'a' }, { id: 'md-1-0', label: 'b' }], links: [] },
-      { step: 'screen', name: 'markdown', elements: [{ id: 'screen-conversation', label: '' }] }
+      { step: 'screen', name: 'markdown', elements: [{ id: 'screen-catch-up', label: '' }] }
     ]
   };
   add('HM honest', gradeHm, hm, true);
   add('HM the newest turn drew nothing', gradeHm, edit(hm, (x) => { x.turnCount = 3; }), false);
   add('HM a turn between two that drew drew nothing', gradeHm, edit(hm, (x) => { x.turnCount = 3; x.events[0].elements.push({ id: 'md-2-0', label: 'c' }); x.events[0].elements = x.events[0].elements.filter((e) => e.id !== 'md-1-0'); }), false);
   add('HM older turns never reached (UNREADABLE)', gradeHm, edit(hm, (x) => { x.turnCount = 4; x.events[0].elements = [{ id: 'md-2-0', label: 'c' }, { id: 'md-3-0', label: 'd' }]; }), null);
-  add('HM a failure drawn', gradeHm, edit(hm, (x) => { x.events[1].elements.push({ id: 'conversation-failure', label: 'x' }); }), false);
+  add('HM a failure drawn', gradeHm, edit(hm, (x) => { x.events[1].elements.push({ id: 'catch-up-failure', label: 'x' }); }), false);
+  add('HM the old conversation screen, which this build never draws (Phase 337.1)', gradeHm, edit(hm, (x) => { x.events[1].elements = [{ id: 'screen-conversation', label: '' }]; }), false);
   add('HM the app ended', gradeHm, edit(hm, (x) => { x.alive = 1; }), false);
   add('HM the listener dialled', gradeHm, edit(hm, (x) => { x.connections = 1; }), false);
   add('HM no conversation', gradeHm, edit(hm, (x) => { x.events[1].elements = []; }), false);
@@ -3114,7 +3216,7 @@ function alertsSelfTest() {
     { step: 'notifications', answered: 'deny', seq: 3 },
     { step: 'screen', name: 'list', elements: [{ id: 'screen-list', label: '' }], seq: 4 },
     { step: 'screen', name: 'session', elements: [{ id: 'screen-session', label: '' }], seq: 5 },
-    { step: 'screen', name: 'conversation', elements: [{ id: 'screen-conversation', label: '' }], seq: 6 },
+    { step: 'screen', name: 'conversation', elements: [{ id: 'screen-catch-up', label: '' }], seq: 6 },
     { step: 'ready-for-alert', seq: 7 },
     { step: 'banner', label: null, seq: 8 }
   ];
@@ -3136,6 +3238,7 @@ function alertsSelfTest() {
   add('ND the Mac\'s lines never read', gradeDeny, { ...deny, macLines: null }, false);
   add('ND no list drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'list') }, false);
   add('ND no conversation drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'conversation') }, false);
+  add('ND the session opened on Catch Me Up pushed (Phase 337.1)', gradeDeny, edit(deny, (d) => { d.events[4].elements = [{ id: 'screen-catch-up', label: '' }]; }), true);
   add('ND delivered with a failure (UNREADABLE)', gradeDeny, { ...deny, delivery: { code: 1 } }, null);
   add('ND a banner shown', gradeDeny, edit(deny, (d) => { d.events[7].label = 'Tortie'; }), false);
   add('ND no session drawn', gradeDeny, { ...deny, events: denyEvents.filter((e) => e.name !== 'session') }, false);
@@ -3378,6 +3481,9 @@ function gradeE4(r) {
   const unread = [];
   const problems = [];
   if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never answered');
+  // A step that never ran is UNREADABLE, never a FAIL (the 337.1 fix round):
+  // only more acts than targets is wrong whenever End these ran.
+  if (unread.length > 0) return decide(typeof r.doneLines === 'number' && r.doneLines > 2 ? [`${String(r.doneLines)} done lines: more acts than targets`] : [], unread, '');
   const words = dialogWords(r.dialog);
   if (!words.includes(r.wantHeading)) problems.push(`the confirmation's title is not ${J(r.wantHeading)}`);
   const text = dialogText(r.dialog);
@@ -3406,6 +3512,18 @@ function gradeAfterLeaving(r) {
   const unread = [];
   const problems = [];
   if (r.authUp !== true || r.acked !== true) unread.push('the owner check was never answered');
+  // A STEP THAT NEVER RAN IS UNREADABLE, NEVER A FAIL (the 337.1 fix round):
+  // when the drive stopped before E5 or E6 (the 337.1 verifier's run stopped
+  // at E4's Select), every field below is a null from a step that never ran,
+  // and the line, the drawn status and the log were graded against each
+  // other as if they had. Only what is wrong whenever the step ran still
+  // fails then: more than one act, and a write after the return.
+  if (unread.length > 0) {
+    const wrong = [];
+    if (typeof r.doneLines === 'number' && r.doneLines > 1) wrong.push(`${String(r.doneLines)} done lines: more than one act`);
+    if (typeof r.writeLinesAfter === 'number' && r.writeLinesAfter > 0) wrong.push(`${String(r.writeLinesAfter)} write line(s) after the return`);
+    return decide(wrong, unread, '');
+  }
   // THE FIX ROUND'S HOLD (E5): the relay held the write's connection before
   // its handshake, so its bytes were never handed and the only honest end is
   // the withheld one: not taken, no act, the session still there.
@@ -3663,6 +3781,8 @@ function endSelfTest() {
   add('E4 is red on a target that did not end', gradeE4, edit(e4, (r) => void (r.outcomes.ib = 'Not run')), false);
   add('E4 is red on another heading', gradeE4, edit(e4, (r) => void (r.heading = '1 of 2 sessions ended')), false);
   add('E4 is UNREADABLE when the owner check was never answered', gradeE4, edit(e4, (r) => void (r.acked = false)), null);
+  add('E4 is UNREADABLE when its step never ran, every field a null (the 337.1 fix round)', gradeE4, edit(e4, (r) => void Object.assign(r, { authUp: null, acked: null, dialog: null, outcomes: {}, heading: null, doneLines: null })), null);
+  add('E4 is red on three acts even when the owner check was not read', gradeE4, edit(e4, (r) => void Object.assign(r, { acked: false, doneLines: 3 })), false);
   const e5 = { authUp: true, acked: true, doneLines: 0, tmuxAlive: true, drawnStatus: 'Working', doorStatus: 'Working', line: END_WORDS.notTaken, writeLinesAfter: 0, relayAfter: 0 };
   add('E5 passes the withheld case', gradeAfterLeaving, e5, true);
   add('E5 passes the done case', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended', line: null })), true);
@@ -3671,6 +3791,8 @@ function endSelfTest() {
   add('E5 is red on not-taken drawn after an act', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended' })), false);
   add('E5 is red on a write after the return', gradeAfterLeaving, edit(e5, (r) => void (r.writeLinesAfter = 1)), false);
   add('E5 is red on a log that disagrees with tmux', gradeAfterLeaving, edit(e5, (r) => void (r.tmuxAlive = false)), false);
+  add('E5 is UNREADABLE when its step never ran (every field a null, the 337.1 fix round)', gradeAfterLeaving, { authUp: null, acked: null, line: null, doneLines: 0, tmuxAlive: null, drawnStatus: null, doorStatus: null, writeLinesAfter: null, relayAfter: null }, null);
+  add('E5 is red on two acts even when the owner check was not read', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { acked: false, doneLines: 2 })), false);
   add('E5 passes the withheld case with the relay\'s hold read', gradeAfterLeaving, edit(e5, (r) => void (r.held = 1)), true);
   add('E5 is red on an act after the relay held the write', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { held: 1, doneLines: 1, tmuxAlive: false, drawnStatus: 'Ended', doorStatus: 'Ended', line: null })), false);
   add('E5 is red on the no-answer line after the relay held the write', gradeAfterLeaving, edit(e5, (r) => Object.assign(r, { held: 1, line: END_WORDS.noAnswer })), false);
@@ -4687,10 +4809,10 @@ async function endDoorChild(child) {
 /** A sentence the app drew in place of a screen: any failure element or pairing line with words. */
 function drawnSentence(events) {
   for (const d of [...events].reverse().filter((e) => e.step === 'screen')) {
-    // `conversation-older-line` is where the conversation says a page of older
-    // turns was refused (ConversationScreen.swift): the turns already read stay
-    // above it, and paging stops with it.
-    const hit = (d.elements ?? []).find((e) => (/-failure$/.test(e.id) || e.id === 'pairing-line' || e.id === 'conversation-older-line') && typeof e.label === 'string' && e.label.trim() !== '');
+    // `catch-up-older-line` is where Catch Me Up (the Conversation until
+    // Phase 337.1) says a page of older turns was refused: the turns already
+    // read stay above it, and paging stops with it.
+    const hit = (d.elements ?? []).find((e) => (/-failure$/.test(e.id) || e.id === 'pairing-line' || e.id === 'catch-up-older-line') && typeof e.label === 'string' && e.label.trim() !== '');
     if (hit !== undefined) {
       // The `Copy.swift` word it is, by name, or null. The report keeps the
       // name, the length and a digest; the words stay out of it.
@@ -4924,7 +5046,11 @@ const SCREEN_WORDS = {
 /** The bytes each key of the bar reaches a program as in normal mode (build/fixtures/screen/keys-encoding.json, 3.7b). */
 const SCREEN_KEY_HEX = Object.freeze({ esc: '1b', tab: '09', btab: '1b5b5a', left: '1b5b44', up: '1b5b41', down: '1b5b42', right: '1b5b43' });
 
-/** PS1: End inside the navigation bar's trailing half, the End bar gone, Conversation above Screen. */
+/**
+ * PS1: End inside the navigation bar's trailing half, the End bar gone, and
+ * (Phase 337.1, re-pointed from 337's "Conversation above Screen", rows this
+ * build no longer draws) the Catch Me Up icon in the bar to End's left.
+ */
 function gradePs1(r) {
   const problems = [];
   const t = r.endTop;
@@ -4943,9 +5069,14 @@ function gradePs1(r) {
     }
   }
   if (t.endBar === true) problems.push('the End bar is still drawn at the bottom');
-  if (!Array.isArray(t.conversation) || !Array.isArray(t.screen)) problems.push(`the Conversation row (${J(t.conversation)}) and the Screen row (${J(t.screen)}) are not both drawn`);
-  else if (!(t.conversation[1] < t.screen[1])) problems.push('the Screen row is not under the Conversation row');
-  return decide(problems, [], `End at the top right, no bar at the bottom, Screen under Conversation`);
+  const icon = t.catchUp ?? null;
+  if (icon === null || !Array.isArray(icon.frame)) problems.push('no Catch Me Up icon beside End');
+  else if (Array.isArray(end?.frame)) {
+    if (Array.isArray(nav) && !insideBar(icon.frame, nav)) problems.push(`the icon ${J(icon.frame)} is not in the navigation bar ${J(nav)}`);
+    if (!(centreX(icon.frame) < centreX(end.frame))) problems.push('the icon is not to End\'s left');
+  }
+  if (Array.isArray(t.screen)) problems.push('the parent\'s Screen row is still drawn');
+  return decide(problems, [], `End at the top right, no bar at the bottom, the Catch Me Up icon beside it`);
 }
 
 /**
@@ -5164,6 +5295,346 @@ function gradePsp(r) {
   return decide(problems, [], 'no Screen row and End at the bottom in the parent\'s app');
 }
 
+// ---------------------------------------------------------------------------
+// Phase 337.1: terminal first, the scrollback, Catch Me Up (build/p3371/SPEC.md §7.8)
+// ---------------------------------------------------------------------------
+
+/** The phone's words the Terminal and Catch Me Up draw, from Copy.swift (never typed here twice). */
+const TERMINAL_WORDS = {
+  catchMeUp: copyOf('catchMeUp'),
+  terminal: copyOf('terminal'),
+  backToLive: copyOf('backToLive'),
+  scrollbackMoved: copyOf('scrollbackMoved')
+};
+/** The two pages' old names, which no face may draw since Phase 337.1 (D21). */
+const OLD_PAGE_WORDS = Object.freeze(['Conversation', 'Screen']);
+/** PS13 and PS14: how far a row or a grid may move and still read as where it was (half a point, one pixel at 2x). */
+const STILL_PT = 0.5;
+/** PS13: the older pages that must land under a still first row. */
+const PS13_LANDINGS = 3;
+/** PSP: the parent's rows sit at least this far below where they were after the keyboard (§14 M12 read 134.7 on iOS 26.3). */
+const PSP_LOW_PT = 50;
+/** A frame inside a bar's height, a point either way. */
+const insideBar = (f, bar) => Array.isArray(f) && Array.isArray(bar) && f[1] >= bar[1] - 1 && f[1] + f[3] <= bar[1] + bar[3] + 1;
+const centreX = (f) => f[0] + f[2] / 2;
+/** A Terminal reading's history rows on screen: the ones whose frame lies inside the grid's, top first. */
+const visibleHistory = (reading) => {
+  const g = reading?.grid;
+  const rows = Array.isArray(reading?.history) ? reading.history : [];
+  if (!Array.isArray(g)) return rows;
+  return rows.filter((h) => Array.isArray(h.frame) && h.frame[1] + h.frame[3] > g[1] && h.frame[1] < g[1] + g[3]).sort((a, b) => a.frame[1] - b.frame[1]);
+};
+const liveRow0 = (reading) => (Array.isArray(reading?.live) ? reading.live.find((r) => r.n === 0) ?? null : null);
+
+/**
+ * PS10: a list row opens the Terminal at once; no row-shaped Catch Me Up, no
+ * `Conversation` or `Screen` anywhere; the status line the door's words; the
+ * icon then End in the navigation bar's trailing half, End rightmost, both
+ * pressable; and with a selection held, Copy, the icon and End all pressable.
+ */
+function gradePs10(r) {
+  const o = r.open;
+  if (o === null || o === undefined) return verdict(null, 'the UI test printed no terminal-open line');
+  if (r.door === null || r.door === undefined) return verdict(null, 'the node reader could not read the session it opened');
+  const p = [];
+  const u = [];
+  if (o.face !== 'terminal') p.push(`the row opened ${J(o.face)}, not the Terminal`);
+  if ((o.reading?.live ?? []).length === 0) p.push('no live row was drawn');
+  if (typeof o.firstRowMs !== 'number') p.push('the first row was never drawn after the tap');
+  const window = Array.isArray(o.window) ? o.window : null;
+  const icon = o.catchUp ?? null;
+  const end = o.end ?? null;
+  if (icon === null) p.push('no Catch Me Up icon');
+  else {
+    if (icon.label !== TERMINAL_WORDS.catchMeUp) p.push(`the icon is named ${J(icon.label)}, not ${J(TERMINAL_WORDS.catchMeUp)}`);
+    if (window !== null && Array.isArray(icon.frame) && icon.frame[2] > window[0] / 2) p.push(`the icon is ${String(icon.frame[2])} pt wide: a row, not an icon`);
+    if (icon.hittable !== true) p.push('the icon cannot be pressed');
+  }
+  if (end === null) p.push('no End');
+  else {
+    if (end.label !== SCREEN_WORDS.endTop) p.push(`End reads ${J(end.label)}, not ${J(SCREEN_WORDS.endTop)}`);
+    if (end.hittable !== true) p.push('End cannot be pressed');
+  }
+  if (icon !== null && end !== null) {
+    if (!Array.isArray(o.nav)) p.push('no navigation bar was read');
+    else {
+      if (!insideBar(icon.frame, o.nav) || !insideBar(end.frame, o.nav)) p.push(`the icon ${J(icon.frame)} and End ${J(end.frame)} are not both in the navigation bar ${J(o.nav)}`);
+      if (!(centreX(icon.frame) > centreX(o.nav) && centreX(end.frame) > centreX(o.nav))) p.push('the icon and End are not both in the bar\'s trailing half');
+      if (!(centreX(end.frame) > centreX(icon.frame))) p.push('End is not rightmost');
+    }
+  }
+  const old = [...new Set((o.labels ?? []).filter((l) => OLD_PAGE_WORDS.includes(l)))];
+  if (old.length > 0) p.push(`the Terminal draws ${J(old)}`);
+  if (o.statusWord?.label !== r.door.statusTitle) p.push(`the status line reads ${J(o.statusWord?.label ?? null)}, the door ${J(r.door.statusTitle)}`);
+  if (o.agent?.label !== r.door.agentLine) p.push(`the agent line reads ${J(o.agent?.label ?? null)}, the door's agent and project ${J(r.door.agentLine)}`);
+  if (r.held === null || r.held === undefined) u.push('no selection was held, so Copy beside the icon and End was not read');
+  else if (!(r.held.copy === true && r.held.catchUp === true && r.held.end === true)) p.push(`with a selection held: Copy ${String(r.held.copy)}, the icon ${String(r.held.catchUp)}, End ${String(r.held.end)} (each must be pressable)`);
+  return decide(p, u, `the Terminal at once (its first row ${typeof o.firstRowMs === 'number' ? String(Math.round(o.firstRowMs)) : '?'} ms after the tap, the session read that decides the face included, printed); the status line the door's; the icon then End top right; Copy beside them while selecting`);
+}
+
+/** PS11: an ended session opens on Catch Me Up: the two-line title, its turns or its empty line, the now card, no grid. */
+function gradePs11(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the ended session was not opened');
+  const p = [];
+  if (el(d, 'screen-catch-up') === null) p.push('Catch Me Up is not drawn');
+  if (el(d, 'screen-grid') !== null || el(d, 'screen-screen') !== null) p.push('a terminal is drawn for a session that has none');
+  if (r.turnCount > 0 ? !(d.elements ?? []).some((e) => /^turn-\d+$/.test(String(e.id))) : el(d, 'catch-up-empty') === null && !(d.elements ?? []).some((e) => /^turn-\d+$/.test(String(e.id)))) p.push(r.turnCount > 0 ? `no turn drawn of the door's ${String(r.turnCount)}` : 'neither a turn nor the empty line is drawn');
+  if (el(d, 'session-status') === null) p.push('no now card (no status)');
+  const title = r.title ?? [];
+  if (!title.includes(TERMINAL_WORDS.catchMeUp)) p.push(`the title reads ${J(title)}, without ${J(TERMINAL_WORDS.catchMeUp)} under the name`);
+  if (r.name !== null && !title.includes(r.name)) p.push(`the title reads ${J(title)}, not the session's name`);
+  return decide(p, [], 'an ended session opened on Catch Me Up: the name, Catch Me Up under it, the conversation and the now card, no terminal');
+}
+
+/**
+ * PS12k (the 337.1 fix round): the keyboard raised over the question's tray and
+ * put away. The 337.1 build froze here (an AttributeGraph cycle reached from
+ * the key field taking the keyboard inside SwiftUI's update, the verifier's
+ * sample of its main thread on iOS 26.3 and 18.3). A step that began and never
+ * ended is the app that stopped answering; one that never began is unread.
+ */
+function gradePs12k(r) {
+  if (r.start === null || r.start === undefined) return verdict(null, 'the drive never reached the tray-keyboard step');
+  if (r.done === null || r.done === undefined) return verdict(false, 'the step began and never ended: the app stopped answering after the keyboard rose over the tray');
+  const d = r.done;
+  if (!(d.trayBefore >= 1)) return verdict(null, 'no tray was drawn when the keyboard was raised');
+  if (d.keyboard !== true) return verdict(null, 'the keyboard never rose');
+  const p = [];
+  if (d.state !== RUNNING_FOREGROUND) p.push(`the app's state is ${J(d.state)}, not running in the foreground`);
+  if (d.trayUp !== 0) p.push(`${String(d.trayUp)} tray button(s) drawn while the keyboard was up`);
+  if (d.hideKey !== true) p.push('the key bar had no key to put the keyboard away');
+  else if (d.trayAfter !== d.trayBefore) p.push(`the tray came back with ${String(d.trayAfter)} button(s), not its ${String(d.trayBefore)}`);
+  return decide(p, [], `the keyboard rose over the tray and went, the tray hidden while it was up and back after, the app answering throughout`);
+}
+
+/** PS12: the tray's buttons are the pressable options, whole, under the grid; a press puts exactly its marker at the agent, no owner check. */
+function gradePs12(r) {
+  if (r.offer === null || r.offer === undefined) return verdict(null, 'no tray was read on the Terminal');
+  if (!Array.isArray(r.choices) || r.choices.length === 0) return verdict(null, 'the door offered no option to press');
+  const p = [];
+  const t = r.offer.tray ?? {};
+  if (t.face !== 'terminal') p.push(`the tray was read on ${J(t.face)}, not the Terminal`);
+  const presses = Array.isArray(t.presses) ? [...t.presses].sort((a, b) => a.n - b.n) : [];
+  if (presses.length !== r.choices.length) p.push(`${String(presses.length)} button(s) drawn for the door's ${String(r.choices.length)} pressable option(s)`);
+  r.choices.forEach((c, i) => {
+    // `n` is the option's place among the agent's choices (318's identifiers), when the door says it.
+    const b = presses.find((x) => x.n === (typeof c.n === 'number' ? c.n : i));
+    if (b === undefined) p.push(`option ${String(i)} has no button`);
+    else if (!String(b.label).includes(c.text)) p.push(`button ${String(i)} reads ${String(b.label).length} characters that do not hold its option whole`);
+  });
+  if (Array.isArray(t.grid) && presses.some((b) => Array.isArray(b.frame) && b.frame[1] < t.grid[1] + t.grid[3] - 1)) p.push('a button is drawn over the terminal, not under it');
+  if (r.pressed === null || r.pressed === undefined) p.push('the press never answered');
+  else if (r.pressed.faceId === true) p.push('a press asked for Face ID');
+  if (r.bytes !== r.want) p.push(`the agent read ${J(r.bytes)}, not exactly ${J(r.want)}`);
+  return decide(p, [], `the options as buttons under the terminal, whole; the press put ${J(r.want)} at the agent and nothing more, no Face ID`);
+}
+
+/**
+ * PS13: the scrollback. The first drag up from rest shows history at once (a
+ * reservation, never a bounce); every drawn history row is tmux's line at its
+ * index; the live counter changes while he reads; across older pages landing
+ * with the finger lifted the first row on screen keeps its line and its place;
+ * after a fling the rows are tmux's and contiguous; back to live, and a key,
+ * each return the live rows to where they were at rest.
+ */
+function gradePs13(r) {
+  const p = [];
+  const u = [];
+  // tmux's own lines by index (0 = the oldest), read by this file's capture-pane, never by the reader.
+  if (!Array.isArray(r.lines) || r.lines.length === 0) return verdict(null, "the Mac's history was not read");
+  const expect = (i) => String(r.lines[i] ?? '').replace(/ +$/, '');
+  const first = r.firstDrag;
+  if (first === null || first === undefined) return verdict(null, 'no first drag was read');
+  if (visibleHistory(first).length === 0) p.push('the first drag up from rest drew no history row (a bounce)');
+  if (first.toLive === null || first.toLive === undefined) p.push('the first drag up drew no button back to live');
+  // Every drawn history row against tmux's own line at its index. A reserved row is no element at all
+  // (ScreenGrid.swift draws it `accessibilityHidden`), so a history element is a HELD row and its label is its
+  // text: THE PROBE REVIEW (2026-10-06) took out a skip of every empty label, which passed a held row drawn blank
+  // where tmux's line has words.
+  const all = [...(r.readings ?? [])];
+  let checked = 0;
+  const wrong = [];
+  for (const reading of all) {
+    for (const h of reading.history ?? []) {
+      checked += 1;
+      if (h.label !== expect(h.i) && wrong.length < 5) wrong.push(h.i);
+    }
+  }
+  if (checked === 0) p.push('no history row was read');
+  if (wrong.length > 0) p.push(`history row(s) ${J(wrong)} read otherwise than tmux's line at that index`);
+  // The holds: one run of readings for each `scroll-hold` step, the finger lifted throughout. A flat list is one run.
+  // THE PROBE REVIEW (2026-10-06): the holds were one flat list, so the last reading of one hold and the first of the
+  // next, three drags apart, were compared as a page landing under a still finger, and every honest run read the
+  // drags as a jump (the first row moved by the drags or out of the grid).
+  const runs = Array.isArray(r.holds) && r.holds.length > 0 && r.holds.every(Array.isArray) ? r.holds : [Array.isArray(r.holds) ? r.holds : []];
+  // The live counter, while scrolled back.
+  const counters = runs.flat().flatMap((reading) => (reading.live ?? []).filter((x) => /^C\d{6}/.test(String(x.label))).map((x) => x.label));
+  if (new Set(counters).size < 2) p.push(`the live counter did not change while scrolled back (${String(new Set(counters).size)} value(s) read)`);
+  // Older pages landing under a still first row, each pair of readings inside one hold.
+  let landings = 0;
+  const moved = [];
+  for (const holds of runs) for (let k = 1; k < holds.length; k += 1) {
+    const a = holds[k - 1];
+    const b = holds[k];
+    const minA = Math.min(...(a.history ?? []).filter((h) => h.label !== '').map((h) => h.i), Infinity);
+    const minB = Math.min(...(b.history ?? []).filter((h) => h.label !== '').map((h) => h.i), Infinity);
+    if (!(minB < minA)) continue;
+    const va = visibleHistory(a)[0];
+    const vb = va === undefined ? undefined : visibleHistory(b).find((h) => h.i === va.i);
+    if (va === undefined) continue;
+    landings += 1;
+    if (vb === undefined || vb.label !== va.label || !near(vb.frame[1], va.frame[1], STILL_PT)) moved.push(va.i);
+  }
+  if (landings < PS13_LANDINGS) u.push(`${String(landings)} older page(s) landed while read with the finger lifted, under the ${String(PS13_LANDINGS)} asked`);
+  if (moved.length > 0) p.push(`a page landing moved the first row on screen (index ${J(moved.slice(0, 3))})`);
+  // After the fling.
+  const fl = r.fling ?? [];
+  const last = fl.at(-1);
+  if (last === undefined) u.push('no reading after the fling');
+  else {
+    const vis = visibleHistory(last).filter((h) => h.label !== '');
+    const idx = vis.map((h) => h.i).sort((a, b) => a - b);
+    if (vis.some((h) => h.label !== expect(h.i))) p.push('after the fling a drawn row is not tmux\'s line at its index');
+    if (idx.some((ix, k) => k > 0 && ix !== idx[k - 1] + 1)) p.push('after the fling the rows on screen are not contiguous');
+  }
+  // Back to live, and a key.
+  const rest = liveRow0(r.rest);
+  if (rest === null) u.push('row 0 was not read at rest');
+  else {
+    const tl = liveRow0(r.toLive?.after);
+    if (tl === null || !near(tl.frame[1], rest.frame[1], STILL_PT)) p.push(`back to live left row 0 at ${J(tl?.frame ?? null)}, at rest ${J(rest.frame)}`);
+    if (r.toLive?.found !== true) p.push('no button back to live was found');
+    const k = liveRow0(r.key?.after);
+    if (r.key === null || r.key === undefined) u.push('no key was typed while scrolled back');
+    else if (visibleHistory(r.key.scrolled).length === 0) u.push('the drag before the key did not scroll back');
+    else if (k === null || !near(k.frame[1], rest.frame[1], STILL_PT)) p.push(`a key typed while scrolled back left row 0 at ${J(k?.frame ?? null)}, at rest ${J(rest.frame)}`);
+  }
+  return decide(p, u, `history at once, ${String(checked)} row(s) tmux's own, the counter live, ${String(landings)} older page(s) under a still first row, the fling contiguous, back to live by the button and by a key`);
+}
+
+/**
+ * PS14: the keyboard never moves the terminal: live row 0 where it was at
+ * rest after the keyboard is put away, 2 s later and after the first long
+ * press; the grid's own frame the same with and without it; the line and the
+ * button back to live above the keyboard's top; and the long press along row
+ * 3 copies row 3.
+ */
+function gradePs14(r) {
+  const g = r.glitch;
+  if (g === null || g === undefined) return verdict(null, 'the UI test printed no keyboard-glitch line');
+  const p = [];
+  const u = [];
+  if (g.hideKey !== true) u.push('the key bar had no key to put the keyboard away');
+  const rest = liveRow0(g.rest);
+  if (rest === null) return verdict(null, 'row 0 was not read at rest');
+  // THE PROBE REVIEW (2026-10-06): the step's own rest is read after `scroll-key` has raised and put away the
+  // keyboard once, so rows left low by THAT keyboard read as the rest and every clause below held them equal. The
+  // last reading before any keyboard (`to-live`'s, at the live bottom) is the rest the step's must equal.
+  const pristine = liveRow0(r.beforeKeyboard);
+  if (r.beforeKeyboard === undefined || pristine === null) u.push('row 0 was not read before any keyboard was raised');
+  else if (!near(rest.frame[1], pristine.frame[1], STILL_PT)) p.push(`row 0 sits at y ${String(rest.frame[1])} when the keyboard step begins, at ${String(pristine.frame[1])} before any keyboard was raised (${String(Math.round((rest.frame[1] - pristine.frame[1]) * 10) / 10)} pt): an earlier keyboard left the rows moved`);
+  for (const [name, reading] of [['after the keyboard was put away', g.after], ['2 s later', g.later], ['after the first long press', g.afterPress]]) {
+    const r0 = liveRow0(reading);
+    if (r0 === null) p.push(`row 0 was not drawn ${name}`);
+    else if (!near(r0.frame[1], rest.frame[1], STILL_PT)) p.push(`row 0 sits at y ${String(r0.frame[1])} ${name}, at rest ${String(rest.frame[1])} (${String(Math.round((r0.frame[1] - rest.frame[1]) * 10) / 10)} pt)`);
+  }
+  for (const [name, reading] of [['with the keyboard up', g.up], ['after it', g.after]]) {
+    if (!Array.isArray(reading?.grid) || !Array.isArray(g.rest?.grid) || !reading.grid.every((v, i) => near(v, g.rest.grid[i], STILL_PT))) p.push(`the grid's frame ${name} is ${J(reading?.grid ?? null)}, at rest ${J(g.rest?.grid ?? null)}`);
+  }
+  const kb = Array.isArray(g.up?.keyboard) ? g.up.keyboard[1] : null;
+  if (kb === null) u.push('no keyboard was read');
+  else if (g.up?.line !== null && g.up?.line !== undefined && g.up.line.frame[1] + g.up.line.frame[3] > kb + STILL_PT) p.push(`the line under the terminal ends at ${String(g.up.line.frame[1] + g.up.line.frame[3])}, under the keyboard's top ${String(kb)}`);
+  const kb2 = Array.isArray(g.scrolledUp?.keyboard) ? g.scrolledUp.keyboard[1] : null;
+  if (g.scrolledUp?.toLive === null || g.scrolledUp?.toLive === undefined) u.push('the button back to live was not drawn while scrolled back with the keyboard up');
+  else if (kb2 !== null && g.scrolledUp.toLive[1] + g.scrolledUp.toLive[3] > kb2 + STILL_PT) p.push(`the button back to live ends at ${String(g.scrolledUp.toLive[1] + g.scrolledUp.toLive[3])}, under the keyboard's top ${String(kb2)}`);
+  if (r.pasteboard === null) u.push("the device's pasteboard was not read");
+  else {
+    const copied = String(r.pasteboard).trim();
+    if (copied === '' || !String(r.row ?? '').includes(copied)) p.push(`the pasteboard holds ${J(copied)}, which is not text of row 3 ${J(r.row)}`);
+  }
+  return decide(p, u, `row 0 at y ${String(rest.frame[1])} before, after, 2 s later and after the long press; the grid never moved; the line and the button above the keyboard; row 3 copied`);
+}
+
+/** PS15: Catch Me Up from the icon: the two-line title, the now card after the newest turn, the box on an idle session, End top right, and Back to the Terminal. */
+function gradePs15(r) {
+  const c = r.line;
+  if (c === null || c === undefined) return verdict(null, 'the UI test printed no catch-up line');
+  const p = [];
+  const x = c.reading ?? {};
+  if (!(x.title ?? []).includes(TERMINAL_WORDS.catchMeUp)) p.push(`the title reads ${J(x.title ?? [])}, without ${J(TERMINAL_WORDS.catchMeUp)}`);
+  if (x.grid === true) p.push('a terminal is drawn on Catch Me Up');
+  if (x.status === null || x.status === undefined) p.push('no now card (no status)');
+  else {
+    const newest = (x.turns ?? []).reduce((a, b) => (a === null || b.i > a.i ? b : a), null);
+    if (newest !== null && !(x.status.frame[1] >= newest.frame[1] + newest.frame[3] - 1)) p.push(`the now card's status (y ${String(x.status.frame[1])}) is not after the newest turn (ends ${String(newest.frame[1] + newest.frame[3])})`);
+  }
+  if (r.idle === true && (x.strip === null || x.strip === undefined)) p.push('no message box on a session idle at its prompt');
+  if (x.end === null || x.end === undefined) p.push('no End on Catch Me Up');
+  else if (!Array.isArray(x.nav) || !insideBar(x.end.frame, x.nav) || !(centreX(x.end.frame) > centreX(x.nav))) p.push(`End ${J(x.end.frame)} is not top right in ${J(x.nav ?? null)}`);
+  const old = [...new Set((x.labels ?? []).filter((l) => OLD_PAGE_WORDS.includes(l)))];
+  if (old.length > 0) p.push(`Catch Me Up draws ${J(old)}`);
+  if (c.backToTerminal !== true || c.after?.face !== 'terminal') p.push('Back did not return to the Terminal');
+  return decide(p, [], 'Catch Me Up from its icon: the title, the now card after the newest turn, the box, End top right, Back to the Terminal');
+}
+
+/** PS16: a full-screen program: drags up draw no history row and no line. */
+function gradePs16(r) {
+  const s = r.scroll;
+  if (s === null || s === undefined) return verdict(null, 'the full-screen session was not dragged');
+  const readings = [s.before, ...(s.readings ?? [])].filter((x) => x !== undefined && x !== null);
+  if (readings.length < 2) return verdict(null, 'no reading after a drag');
+  const p = [];
+  if (readings.some((x) => (x.live ?? []).length === 0)) p.push('the full-screen program\'s rows were not drawn');
+  if (readings.some((x) => (x.history ?? []).length > 0)) p.push('a history row was drawn above a full-screen program');
+  if (readings.some((x) => x.scrollbackLine !== null && x.scrollbackLine !== undefined)) p.push('a scrollback line was drawn for a full-screen program');
+  return decide(p, [], `${String(readings.length - 1)} drag(s) up over a full-screen program drew no history and no line`);
+}
+
+/**
+ * PSH (Phase 337.1): each hostile scrollback arm ends with the live terminal
+ * drawn and the app in front; a moved arm draws the moved line and asks no
+ * page after it; a retried arm asks its page again; a page that never comes
+ * leaves the screen still read.
+ */
+function gradePshScroll(r) {
+  const p = [];
+  const u = [];
+  if (r.alive !== RUNNING_FOREGROUND) p.push(`the app's state is ${J(r.alive)}, not running in the foreground`);
+  if (!(r.rows > 0)) p.push('the live terminal was not drawn');
+  if (r.pages === 0) u.push('no page was ever asked, so the arm was never met');
+  if (r.ends === 'sentence') {
+    const ok = (r.expect ?? []).map((w) => COPY_WORDS[w]).includes(r.line);
+    if (!ok) p.push(`the scrollback line reads ${J(r.line)}, none of the words its row names`);
+    if (r.stops === true && r.pagesAfterLine > 0) p.push(`${String(r.pagesAfterLine)} page(s) were asked after the moved line was drawn`);
+  }
+  if (r.retried === true && !(r.pages >= 2)) p.push(`the page was asked ${String(r.pages)} time(s): not again after its back-off`);
+  if (r.live === true && !(r.screenReadsAfterPage >= 2)) p.push(`only ${String(r.screenReadsAfterPage)} screen read(s) after the page that never came: the live rows stopped`);
+  // THE PROBE REVIEW (2026-10-06): no hostile page is ever JOINED. Read from the drawn rows, which no clause above
+  // read, so a phone that took a page with its `from` shifted, its colour broken or its rows a lie, and then paged
+  // on, passed. A reserved row is no element (ScreenGrid.swift), so every history element is a held row: on an arm
+  // whose every page is hostile none may be drawn, and on any arm every drawn row is the door's honest line at its
+  // index (build/p3371/history-stand-in.mjs's numbered line i + 1, which `hostile-door.mjs` serves).
+  if (Array.isArray(r.history)) {
+    if (r.every === true && r.history.length > 0) p.push(`${String(r.history.length)} history row(s) drawn from pages that were all hostile (the first at index ${String(r.history[0].i)})`);
+    const off = r.history.filter((h) => !(numberedLine(h.label)?.prefix === 'L' && numberedLine(h.label)?.n === h.i + 1));
+    if (off.length > 0) p.push(`history row(s) at ${J(off.slice(0, 3).map((h) => h.i))} drawn otherwise than the door's line at that index`);
+  } else u.push('the drawn history rows were not read');
+  return decide(p, u, `ended with the terminal drawn${r.ends === 'sentence' ? ` and ${J(r.line)}` : ''}, ${String(r.pages)} page ask(s)`);
+}
+
+/** PSP (Phase 337.1): the parent (e3837139's ios/) opens a session page, not a terminal, and its rows sit low after the keyboard: the defect PS14 proves gone. */
+function gradePsp3371(r) {
+  if (r.page === null || r.page === undefined) return verdict(null, "the parent's app did not draw the session's page");
+  const p = [];
+  if (r.page.terminal === true) p.push('the parent opens a terminal from the list');
+  // A parent with no Screen row is not 337 (e3837139): its keyboard cannot be read here, so PSP says so rather than fail.
+  if (r.page.screenRow !== true) return verdict(null, 'this parent draws no Screen row, so it is not e3837139 (set P3371_PARENT_IOS to its ios/)');
+  if (typeof r.before !== 'number' || typeof r.after !== 'number') return decide(p, ["the parent's row 0 was not read before and after the keyboard"], '');
+  if (!(r.after - r.before >= PSP_LOW_PT)) p.push(`the parent's row 0 moved ${String(Math.round((r.after - r.before) * 10) / 10)} pt after the keyboard, not the defect (at least ${String(PSP_LOW_PT)} pt low)`);
+  return decide(p, [], `the parent opens its session page, and its rows sat ${String(Math.round((r.after - r.before) * 10) / 10)} pt low after the keyboard (the defect, printed)`);
+}
+
 /** Every Screen grader, proved both ways on readings written here. */
 function screenSelfTest() {
   const cases = [];
@@ -5173,12 +5644,15 @@ function screenSelfTest() {
     fn(copy);
     return copy;
   };
-  const ps1 = { endTop: { end: { label: SCREEN_WORDS.endTop, frame: [330, 62, 40, 32] }, nav: [0, 54, 402, 44], endBar: false, conversation: [16, 300, 370, 44], screen: [16, 352, 370, 44], window: [402, 874] } };
+  const ps1 = { endTop: { face: 'terminal', end: { label: SCREEN_WORDS.endTop, frame: [330, 62, 40, 32], hittable: true }, catchUp: { label: TERMINAL_WORDS.catchMeUp, frame: [286, 62, 36, 32], hittable: true }, nav: [0, 54, 402, 44], endBar: false, screen: null, window: [402, 874] } };
   add('PS1 passes its honest reading', gradePs1, ps1, true);
   add('PS1 is red on End in the leading half', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [12, 62, 40, 32])), false);
   add('PS1 is red on End under the bar', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [330, 800, 40, 32])), false);
   add('PS1 is red on the End bar still drawn', gradePs1, edit(ps1, (r) => void (r.endTop.endBar = true)), false);
-  add('PS1 is red on the Screen row above Conversation', gradePs1, edit(ps1, (r) => void (r.endTop.screen = [16, 200, 370, 44])), false);
+  add('PS1 is red on the parent\'s Screen row still drawn (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.screen = [16, 200, 370, 44])), false);
+  add('PS1 is red on no Catch Me Up icon (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.catchUp = null)), false);
+  add('PS1 is red on the icon to End\'s right (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.catchUp.frame = [370, 62, 30, 32])), false);
+  add('PS1 is red on the icon under the bar (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.catchUp.frame = [286, 140, 36, 32])), false);
   add('PS1 is red on another word for End', gradePs1, edit(ps1, (r) => void (r.endTop.end.label = 'End session…')), false);
   add('PS1 is UNREADABLE with no page read', gradePs1, { endTop: null }, null);
   // The fix round of 2026-10-06: the verify's own reading on iOS 26.3, the
@@ -5272,7 +5746,7 @@ function screenSelfTest() {
   add('PS+ is UNREADABLE when one size was read before and not after', (r) => gradePsSizes(r.before, r.after), { before: sizes, after: { ...sizes, rec: '' } }, null);
   // The review's own hostile readings of the other Screen graders.
   add('PS1 is red on End drawn below the navigation bar, in its trailing half', gradePs1, edit(ps1, (r) => void (r.endTop.end.frame = [340, 120, 40, 32])), false);
-  add('PS1 is red on no Conversation row drawn', gradePs1, edit(ps1, (r) => void (r.endTop.conversation = null)), false);
+  add('PS1 is red on an icon with no frame (Phase 337.1)', gradePs1, edit(ps1, (r) => void (r.endTop.catchUp = { label: TERMINAL_WORDS.catchMeUp })), false);
   add('PS2 is red on a row drawn that the pane does not have (one row too many)', gradePs2, edit(ps2, (r) => void r.sessions[0].labels.push('')), false);
   add('PS2 is red on a cursor one row off', gradePs2, edit(ps2, (r) => void (r.sessions[0].cursor[1] += 20)), false);
   add('PS2 is UNREADABLE when the view\'s width was not read', gradePs2, edit(ps2, (r) => void (r.sessions[0].window = null)), null);
@@ -5289,6 +5763,191 @@ function screenSelfTest() {
   add('PSH is red on a drawn arm whose grid is empty', gradePsh, edit(psh, (r) => Object.assign(r, { ends: 'drawn', rows: 0 })), false);
   add('PSH is red on keys-404 drawn as another sentence', gradePsh, edit(psh, (r) => Object.assign(r, { keys: true, posts: 1, expect: ['replyNotTaken'], line: SCREEN_WORDS.notAnswering })), false);
   add('PSP is red on the parent drawing no End bar', gradePsp, edit(psp, (r) => void (r.page.endBar = false)), false);
+  // ---- Phase 337.1: PS10 to PS16, PSH's scrollback arms, PSP ----------------
+  const tr = (live, history = [], extra = {}) => ({ face: 'terminal', live, history, grid: [0, 160, 402, 600], toLive: null, scrollbackLine: null, line: null, keyboard: null, ...extra });
+  const liveAt = (y, labels = ['p316 % ', 'C000004 abc']) => labels.map((label, n) => ({ n, label, frame: [0, y + n * 7, 402, 7] }));
+  const ps10 = {
+    open: {
+      face: 'terminal',
+      firstRowMs: 412,
+      reading: tr(liveAt(166)),
+      window: [402, 874],
+      nav: [0, 54, 402, 44],
+      catchUp: { label: TERMINAL_WORDS.catchMeUp, frame: [300, 60, 32, 32], hittable: true },
+      end: { label: SCREEN_WORDS.endTop, frame: [340, 60, 50, 32], hittable: true },
+      statusWord: { label: 'Working' },
+      agent: { label: 'Claude Code · p316' },
+      labels: ['p3371-hist', 'Working', 'Claude Code · p316', TERMINAL_WORDS.catchMeUp, SCREEN_WORDS.endTop, 'L000001 abc']
+    },
+    door: { statusTitle: 'Working', agentLine: 'Claude Code · p316' },
+    held: { copy: true, catchUp: true, end: true }
+  };
+  add('PS10 passes its honest reading', gradePs10, ps10, true);
+  add('PS10 is red on a row that opened Catch Me Up', gradePs10, edit(ps10, (r) => void (r.open.face = 'catch-up')), false);
+  add('PS10 is red on no live row', gradePs10, edit(ps10, (r) => void (r.open.reading.live = [])), false);
+  add('PS10 is red on a row-shaped Catch Me Up', gradePs10, edit(ps10, (r) => void (r.open.catchUp.frame = [16, 700, 370, 54])), false);
+  add('PS10 is red on End left of the icon', gradePs10, edit(ps10, (r) => Object.assign(r.open, { end: { ...r.open.end, frame: [250, 60, 40, 32] } })), false);
+  add('PS10 is red on the icon in the leading half', gradePs10, edit(ps10, (r) => void (r.open.catchUp.frame = [12, 60, 32, 32])), false);
+  add('PS10 is red on Conversation drawn', gradePs10, edit(ps10, (r) => void r.open.labels.push('Conversation')), false);
+  add('PS10 is red on Screen drawn', gradePs10, edit(ps10, (r) => void r.open.labels.push('Screen')), false);
+  add('PS10 is red on a status word other than the door\'s', gradePs10, edit(ps10, (r) => void (r.open.statusWord.label = 'Idle')), false);
+  add('PS10 is red on an agent line other than the door\'s', gradePs10, edit(ps10, (r) => void (r.open.agent.label = 'Claude Code')), false);
+  add('PS10 is red on End that cannot be pressed', gradePs10, edit(ps10, (r) => void (r.open.end.hittable = false)), false);
+  add('PS10 is red on Copy that hides End while selecting', gradePs10, edit(ps10, (r) => void (r.held.end = false)), false);
+  add('PS10 is red on the icon named otherwise', gradePs10, edit(ps10, (r) => void (r.open.catchUp.label = 'Conversation')), false);
+  add('PS10 is red on no first row timed', gradePs10, edit(ps10, (r) => void (r.open.firstRowMs = null)), false);
+  add('PS10 is UNREADABLE with no selection held', gradePs10, edit(ps10, (r) => void (r.held = null)), null);
+  add('PS10 is UNREADABLE with no door reading', gradePs10, edit(ps10, (r) => void (r.door = null)), null);
+  const ps11 = { dump: { step: 'screen', name: 'session', elements: [{ id: 'screen-session', label: '' }, { id: 'screen-catch-up', label: '' }, { id: 'catch-up-empty', label: 'x' }, { id: 'session-status', label: 'Ended' }] }, title: ['p3371-ended', TERMINAL_WORDS.catchMeUp], name: 'p3371-ended', turnCount: 0 };
+  add('PS11 passes its honest reading', gradePs11, ps11, true);
+  add('PS11 is red on a terminal drawn for an ended session', gradePs11, edit(ps11, (r) => void r.dump.elements.push({ id: 'screen-grid', label: '' })), false);
+  add('PS11 is red on no Catch Me Up', gradePs11, edit(ps11, (r) => void (r.dump.elements = r.dump.elements.filter((e) => e.id !== 'screen-catch-up'))), false);
+  add('PS11 is red on a one-line title', gradePs11, edit(ps11, (r) => void (r.title = ['p3371-ended'])), false);
+  add('PS11 is red on turns the door holds and none drawn', gradePs11, edit(ps11, (r) => void (r.turnCount = 4)), false);
+  add('PS11 passes turns the door holds, drawn', gradePs11, edit(ps11, (r) => Object.assign(r, { turnCount: 4, dump: { ...r.dump, elements: [...r.dump.elements, { id: 'turn-3', label: '' }] } })), true);
+  add('PS11 is red on no now card', gradePs11, edit(ps11, (r) => void (r.dump.elements = r.dump.elements.filter((e) => e.id !== 'session-status'))), false);
+  add('PS11 is UNREADABLE with nothing opened', gradePs11, { dump: null }, null);
+  const ps12 = {
+    offer: { tray: { face: 'terminal', grid: [0, 160, 402, 400], presses: [{ n: 0, label: 'Yes, proceed', frame: [16, 570, 370, 44] }, { n: 1, label: "Yes, and don't ask again for commands that start with `touch`", frame: [16, 620, 370, 60] }] } },
+    choices: [{ marker: '1', text: 'Yes, proceed' }, { marker: '2', text: "Yes, and don't ask again for commands that start with `touch`" }],
+    pressed: { faceId: false },
+    bytes: '32',
+    want: '32'
+  };
+  add('PS12 passes its honest reading', gradePs12, ps12, true);
+  add('PS12 is red on two bytes at the agent', gradePs12, edit(ps12, (r) => void (r.bytes = '320d')), false);
+  add('PS12 is red on an option cut', gradePs12, edit(ps12, (r) => void (r.offer.tray.presses[1].label = "Yes, and don't ask again…")), false);
+  add('PS12 is red on a button missing', gradePs12, edit(ps12, (r) => void r.offer.tray.presses.pop()), false);
+  add('PS12 is red on a button over the terminal', gradePs12, edit(ps12, (r) => void (r.offer.tray.presses[0].frame = [16, 300, 370, 44])), false);
+  add('PS12 is red on Face ID at the press', gradePs12, edit(ps12, (r) => void (r.pressed.faceId = true)), false);
+  add('PS12 is red on a tray read on Catch Me Up', gradePs12, edit(ps12, (r) => void (r.offer.tray.face = 'catch-up')), false);
+  add('PS12 is UNREADABLE with no tray read', gradePs12, edit(ps12, (r) => void (r.offer = null)), null);
+  const ps12k = { start: { trayBefore: 2 }, done: { keyboard: true, hideKey: true, trayBefore: 2, trayUp: 0, trayAfter: 2, state: RUNNING_FOREGROUND } };
+  add('PS12k passes its honest reading (the fix round)', gradePs12k, ps12k, true);
+  add('PS12k is red on a step that began and never ended (the freeze)', gradePs12k, edit(ps12k, (r) => void (r.done = null)), false);
+  add('PS12k is red on the tray drawn under the keyboard', gradePs12k, edit(ps12k, (r) => void (r.done.trayUp = 2)), false);
+  add('PS12k is red on the tray not back after the keyboard', gradePs12k, edit(ps12k, (r) => void (r.done.trayAfter = 0)), false);
+  add('PS12k is red on the app not in the foreground', gradePs12k, edit(ps12k, (r) => void (r.done.state = 2)), false);
+  add('PS12k is UNREADABLE when the step never began', gradePs12k, { start: null, done: null }, null);
+  add('PS12k is UNREADABLE when the keyboard never rose', gradePs12k, edit(ps12k, (r) => void (r.done.keyboard = false)), null);
+  const lines13 = Array.from({ length: 3004 }, (_, i) => (i < 2 ? `p316 % row ${String(i)}` : `L${String(i - 1).padStart(6, '0')} abc`));
+  const hrow = (i, y) => ({ i, label: lines13[i], frame: [0, y, 402, 7] });
+  const holdsHonest = [
+    tr(liveAt(800, ['C000010']), [hrow(2900, 170), hrow(2901, 177), hrow(2902, 184)]),
+    tr(liveAt(800, ['C000011']), [hrow(2800, -530), hrow(2900, 170), hrow(2901, 177)]),
+    tr(liveAt(800, ['C000012']), [hrow(2700, -1230), hrow(2900, 170)]),
+    tr(liveAt(800, ['C000013']), [hrow(2600, -1930), hrow(2900, 170)])
+  ];
+  const ps13 = {
+    lines: lines13,
+    firstDrag: tr(liveAt(600), [hrow(2950, 200), hrow(2951, 207)], { toLive: [350, 780, 40, 40] }),
+    readings: holdsHonest,
+    holds: holdsHonest,
+    fling: [tr(liveAt(900), [hrow(1000, 170), hrow(1001, 177), hrow(1002, 184)])],
+    rest: tr(liveAt(166)),
+    toLive: { found: true, after: tr(liveAt(166)) },
+    key: { scrolled: tr(liveAt(600), [hrow(2950, 200)]), after: tr(liveAt(166)) }
+  };
+  add('PS13 passes its honest reading', gradePs13, ps13, true);
+  add('PS13 is red on a first drag that bounced (no history drawn)', gradePs13, edit(ps13, (r) => void (r.firstDrag.history = [])), false);
+  add('PS13 is red on a history row that is not tmux\'s line at its index', gradePs13, edit(ps13, (r) => void (r.readings[0].history[1].label = 'L002999 abc')), false);
+  add('PS13 is red on a landing that moved the first row (the jump §Attack B5 found)', gradePs13, edit(ps13, (r) => void (r.holds[2].history[1].frame[1] = 662)), false);
+  add('PS13 is red on a counter that never changed', gradePs13, edit(ps13, (r) => r.holds.forEach((h) => void (h.live[0].label = 'C000010'))), false);
+  add('PS13 is red on rows after a fling with a gap', gradePs13, edit(ps13, (r) => void (r.fling[0].history[1] = hrow(1005, 177))), false);
+  add('PS13 is red on back to live leaving row 0 elsewhere', gradePs13, edit(ps13, (r) => void (r.toLive.after = tr(liveAt(170)))), false);
+  add('PS13 is red on a key that left the terminal scrolled back', gradePs13, edit(ps13, (r) => void (r.key.after = tr(liveAt(600)))), false);
+  add('PS13 is UNREADABLE with fewer than three older pages landed', gradePs13, edit(ps13, (r) => void (r.holds = r.holds.slice(0, 2))), null);
+  // The probe review (2026-10-06): a reserved row is no element (ScreenGrid.swift), so a history element with no words where tmux's line has words is a HELD row drawn blank.
+  add('PS13 is red on a held row drawn blank where tmux has words (a reserved row is no element)', gradePs13, edit(ps13, (r) => void r.readings[0].history.push({ i: 2850, label: '', frame: [0, 100, 402, 7] })), false);
+  const glitch = {
+    hideKey: true,
+    rest: tr(liveAt(116)),
+    up: tr(liveAt(116), [], { keyboard: [0, 520, 402, 354], line: { label: 'x', frame: [16, 480, 370, 20] } }),
+    after: tr(liveAt(116)),
+    later: tr(liveAt(116)),
+    afterPress: tr(liveAt(116)),
+    scrolledUp: tr(liveAt(400), [hrow(2950, 200)], { keyboard: [0, 520, 402, 354], toLive: [350, 460, 40, 40] }),
+    end: tr(liveAt(116))
+  };
+  const ps14 = { glitch, pasteboard: 'L000004', row: 'L000004 abcdefghijkl', beforeKeyboard: tr(liveAt(116)) };
+  add('PS14 passes its honest reading', gradePs14, ps14, true);
+  add('PS14 is red on the rows 134.7 pt low after the keyboard (§14 M12, iOS 26.3)', gradePs14, edit(ps14, (r) => void (r.glitch.after = tr(liveAt(250.7)))), false);
+  add('PS14 is red on the rows still low 2 s later', gradePs14, edit(ps14, (r) => void (r.glitch.later = tr(liveAt(250.7)))), false);
+  add('PS14 is red on a grid whose frame follows the keyboard', gradePs14, edit(ps14, (r) => void (r.glitch.up.grid = [0, 160, 402, 360])), false);
+  add('PS14 is red on the line under the keyboard', gradePs14, edit(ps14, (r) => void (r.glitch.up.line.frame = [16, 800, 370, 20])), false);
+  add('PS14 is red on the button back to live under the keyboard', gradePs14, edit(ps14, (r) => void (r.glitch.scrolledUp.toLive = [350, 780, 40, 40])), false);
+  add('PS14 is red on another row copied', gradePs14, edit(ps14, (r) => void (r.pasteboard = 'L000005')), false);
+  add('PS14 is UNREADABLE with no pasteboard read', gradePs14, edit(ps14, (r) => void (r.pasteboard = null)), null);
+  add('PS14 is UNREADABLE with no rest reading', gradePs14, edit(ps14, (r) => void (r.glitch.rest = tr([]))), null);
+  const ps15 = {
+    line: {
+      reading: { title: ['p3371-idle', TERMINAL_WORDS.catchMeUp], grid: false, turns: [{ i: 0, frame: [16, 200, 370, 80] }, { i: 1, frame: [16, 290, 370, 80] }], status: { label: 'Idle', frame: [16, 380, 100, 20] }, strip: { label: '', frame: [0, 700, 402, 90] }, end: { label: SCREEN_WORDS.endTop, frame: [340, 60, 50, 32] }, nav: [0, 54, 402, 44], labels: [TERMINAL_WORDS.catchMeUp] },
+      backToTerminal: true,
+      after: tr(liveAt(166))
+    },
+    idle: true
+  };
+  add('PS15 passes its honest reading', gradePs15, ps15, true);
+  add('PS15 is red on the now card above the newest turn', gradePs15, edit(ps15, (r) => void (r.line.reading.status.frame[1] = 250)), false);
+  add('PS15 is red on no box on an idle session', gradePs15, edit(ps15, (r) => void (r.line.reading.strip = null)), false);
+  add('PS15 is red on End not top right', gradePs15, edit(ps15, (r) => void (r.line.reading.end.frame = [12, 60, 50, 32])), false);
+  add('PS15 is red on Back that did not return to the Terminal', gradePs15, edit(ps15, (r) => void (r.line.backToTerminal = false)), false);
+  add('PS15 is red on a title with no Catch Me Up', gradePs15, edit(ps15, (r) => void (r.line.reading.title = ['p3371-idle'])), false);
+  add('PS15 is red on Conversation drawn', gradePs15, edit(ps15, (r) => void r.line.reading.labels.push('Conversation')), false);
+  add('PS15 is UNREADABLE with no catch-up line', gradePs15, { line: null }, null);
+  const ps16 = { scroll: { before: tr(liveAt(166, ['A000161 full screen row'])), readings: [tr(liveAt(166, ['A000161 full screen row'])), tr(liveAt(166, ['A000161 full screen row']))] } };
+  add('PS16 passes its honest reading', gradePs16, ps16, true);
+  add('PS16 is red on a history row over a full-screen program', gradePs16, edit(ps16, (r) => void (r.scroll.readings[1].history = [hrow(100, 120)])), false);
+  add('PS16 is red on a scrollback line over a full-screen program', gradePs16, edit(ps16, (r) => void (r.scroll.readings[0].scrollbackLine = { label: 'x', frame: [0, 0, 1, 1] })), false);
+  add('PS16 is red on the program\'s rows not drawn', gradePs16, edit(ps16, (r) => void (r.scroll.readings[0].live = [])), false);
+  add('PS16 is UNREADABLE with no drag read', gradePs16, { scroll: null }, null);
+  const pshs = { alive: RUNNING_FOREGROUND, rows: 40, pages: 3, ends: 'drawn', expect: [], retried: true, live: false, stops: false, line: null, pagesAfterLine: 0, screenReadsAfterPage: 5, history: [], every: true };
+  add('PSH (scrollback) passes a retried arm drawn', gradePshScroll, pshs, true);
+  add('PSH (scrollback) is red on a retried arm asked once', gradePshScroll, edit(pshs, (r) => void (r.pages = 1)), false);
+  add('PSH (scrollback) is red on the terminal gone', gradePshScroll, edit(pshs, (r) => void (r.rows = 0)), false);
+  add('PSH (scrollback) is red on the app out of the foreground', gradePshScroll, edit(pshs, (r) => void (r.alive = 1)), false);
+  const pshMoved = { ...pshs, ends: 'sentence', expect: ['scrollbackMoved'], retried: false, stops: true, line: TERMINAL_WORDS.scrollbackMoved, pagesAfterLine: 0 };
+  add('PSH (scrollback) passes a moved arm that drew the line and asked no more', gradePshScroll, pshMoved, true);
+  add('PSH (scrollback) is red on a page asked after the moved line', gradePshScroll, edit(pshMoved, (r) => void (r.pagesAfterLine = 2)), false);
+  add('PSH (scrollback) is red on another line', gradePshScroll, edit(pshMoved, (r) => void (r.line = SCREEN_WORDS.notAnswering)), false);
+  add('PSH (scrollback) is red on a page that never came stopping the live rows', gradePshScroll, edit(pshs, (r) => Object.assign(r, { live: true, screenReadsAfterPage: 0 })), false);
+  add('PSH (scrollback) is UNREADABLE when no page was asked', gradePshScroll, edit(pshs, (r) => Object.assign(r, { pages: 0, retried: false })), null);
+  const psp3 = { page: { terminal: false, screenRow: true }, before: 116, after: 250.7 };
+  add('PSP (Phase 337.1) passes the parent\'s defect read', gradePsp3371, psp3, true);
+  add('PSP (Phase 337.1) is red on a parent whose rows stayed (the defect not read, so PS14 proves nothing)', gradePsp3371, edit(psp3, (r) => void (r.after = 116.3)), false);
+  add('PSP (Phase 337.1) is red on a parent that opens a terminal', gradePsp3371, edit(psp3, (r) => void (r.page.terminal = true)), false);
+  add('PSP (Phase 337.1) is UNREADABLE with no page', gradePsp3371, { page: null }, null);
+  add('PSP (Phase 337.1) is UNREADABLE with the rows not read', gradePsp3371, edit(psp3, (r) => void (r.after = null)), null);
+  add('PSP (Phase 337.1) is UNREADABLE on a parent with no Screen row (not e3837139)', gradePsp3371, edit(psp3, (r) => void (r.page.screenRow = false)), null);
+  // ---- THE PROBE REVIEW OF PHASE 337.1 (2026-10-06): readings of the review's own, in the shapes the arms compose ----
+  // PS13 as `ps13Of` hands it: the holds one run per `scroll-hold` step, three drags between two runs. The first
+  // row on screen at the end of one hold is out of the grid at the start of the next, and older rows are held.
+  // Seven points a row: a row `k` lines above the first on screen (at y 170) sits at 170 - 7k, above the grid.
+  const runHold = (top, oldest, counter) => [
+    tr(liveAt(800, [`C${String(counter).padStart(6, '0')}`]), [hrow(oldest, 170 - 7 * (top - oldest)), hrow(top, 170), hrow(top + 1, 177)]),
+    tr(liveAt(800, [`C${String(counter + 1).padStart(6, '0')}`]), [hrow(oldest - 100, 170 - 7 * (top - oldest + 100)), hrow(oldest, 170 - 7 * (top - oldest)), hrow(top, 170), hrow(top + 1, 177)])
+  ];
+  const ps13Runs = { ...structuredClone(ps13), holds: [runHold(2700, 2600, 20), runHold(2500, 2400, 30), runHold(2300, 2200, 40), runHold(2100, 2000, 50)] };
+  ps13Runs.readings = [...ps13Runs.holds.flat()];
+  add('PS13 passes four holds with a landing in each, three drags apart (the review: the flat list read the drags as a jump)', gradePs13, ps13Runs, true);
+  add('PS13 read as one flat list, the shape the arm handed before the review, is red on those very drags', gradePs13, { ...structuredClone(ps13Runs), holds: ps13Runs.holds.flat() }, false);
+  add('PS13 is red on a page that moved the first row inside one hold', gradePs13, edit(ps13Runs, (r) => void (r.holds[2][1].history[2].frame[1] = 240)), false);
+  add('PS13 is red on a page that put another line under the finger inside one hold', gradePs13, edit(ps13Runs, (r) => Object.assign(r.holds[1][1].history[2], { i: 2499, label: lines13[2499] })), false);
+  add('PS13 is UNREADABLE when no hold saw a page land (the pages landed during the drags)', gradePs13, edit(ps13Runs, (r) => void (r.holds = r.holds.map((h) => [h[1], h[1]]))), null);
+  // PS14: the rows moved by `scroll-key`'s keyboard and never back. Every reading of the step agrees with its own
+  // rest, so before the review every clause passed; the reading before any keyboard says otherwise.
+  const low = tr(liveAt(250.7));
+  const ps14Low = edit(ps14, (r) => Object.assign(r.glitch, { rest: low, after: low, later: low, afterPress: low, end: low }));
+  add('PS14 is red on rows low before the step and never back (an earlier keyboard moved them)', gradePs14, ps14Low, false);
+  add('PS14 with no reading before any keyboard is UNREADABLE, never a pass', gradePs14, edit(ps14Low, (r) => void delete r.beforeKeyboard), null);
+  add('PS14 passes rows that sat where they were before any keyboard throughout', gradePs14, edit(ps14, (r) => void (r.beforeKeyboard = tr(liveAt(116.2)))), true);
+  // PSH: a page joined is a defect whatever else the arm read.
+  add('PSH (scrollback) is red on a retried arm that drew history from its hostile pages (a joined page asks the next one too)', gradePshScroll, edit(pshs, (r) => void (r.history = [{ i: 500, label: lineOfStandIn(502) }, { i: 501, label: lineOfStandIn(503) }])), false);
+  const pshLie = { ...pshMoved, every: false, history: [{ i: 500, label: lineOfStandIn(501) }, { i: 501, label: lineOfStandIn(502) }] };
+  add('PSH (scrollback) passes the overlap lie whose honest first page is drawn and whose lie is not', gradePshScroll, pshLie, true);
+  add("PSH (scrollback) is red on the overlap lie's rows drawn", gradePshScroll, edit(pshLie, (r) => void r.history.push({ i: 410, label: `Z${lineOfStandIn(411).slice(1)}` })), false);
+  add('PSH (scrollback) with no drawn rows read is UNREADABLE', gradePshScroll, edit(pshs, (r) => void delete r.history), null);
+  cases.push({ what: 'every Terminal word was read from Copy.swift', got: () => Object.values(TERMINAL_WORDS).every((w) => typeof w === 'string' && w.length > 0), want: true });
   cases.push({ what: 'every Screen word was read from Copy.swift', got: () => Object.values(SCREEN_WORDS).every((w) => typeof w === 'string' && w.length > 0), want: true });
   let bad = 0;
   for (const c of cases) {
@@ -5560,11 +6219,11 @@ function selfTest() {
       ? `${TAG} reply self-test PASS: ${String(replies.total)} cases (P1 to P10, RH and RP) graded as they must be.`
       : `${TAG} reply self-test FAIL: ${String(replies.bad)} of ${String(replies.total)} case(s) graded wrongly.`
   );
-  // Phase 337: the Screen (PS1 to PS9, PSH and PSP).
+  // Phase 337: the Screen (PS1 to PS9, PSH and PSP), and Phase 337.1's Terminal (PS10 to PS16, PSH's scrollback arms and PSP).
   const screens = screenSelfTest();
   console.log(
     screens.bad === 0
-      ? `${TAG} Screen self-test PASS: ${String(screens.total)} cases (PS1 to PS9, PSH and PSP) graded as they must be.`
+      ? `${TAG} Screen self-test PASS: ${String(screens.total)} cases (PS1 to PS16, PSH with its scrollback arms, and both PSPs) graded as they must be.`
       : `${TAG} Screen self-test FAIL: ${String(screens.bad)} of ${String(screens.total)} case(s) graded wrongly.`
   );
   // Phase 316.7: the Sessions tab.
@@ -6642,10 +7301,12 @@ exit 0
                     if (ask === null || !ask.includes('**x**')) tProblems.push(`the planted ask reads back ${ask === null ? 'nowhere' : 'WITHOUT its asterisks'}: it was drawn as markdown`);
                     if (ans === null || ans.includes('**')) tProblems.push(`the planted answer reads back ${ans === null ? 'nowhere' : 'WITH its asterisks'}: it was not drawn as markdown`);
                   } else tProblems.push('the planted turn is not in the door\'s record');
-                  const top = lastDump(ev, 'conversation-top') ?? lastDump(ev, 'conversation');
-                  if (COPY.terminal !== null && el(top, 'conversation-terminal-line')?.label !== COPY.terminal && el(lastDump(ev, 'conversation'), 'conversation-terminal-line')?.label !== COPY.terminal) tProblems.push('the terminal line is not drawn');
+                  // Phase 337.1 (D22): the line saying the terminal's scrollback stays on the
+                  // Mac is false now and is gone; no conversation dump may draw it.
+                  const topDumps = [lastDump(ev, 'conversation-top'), lastDump(ev, 'conversation')].filter((x) => x !== null);
+                  if (topDumps.some((x) => (x.elements ?? []).some((e) => /terminal-line$/.test(String(e.id))))) tProblems.push('a terminal line is still drawn above the conversation');
                 }
-                arm('T1 the conversation, paged to the first turn, ask plain and answer formatted', tProblems.length === 0, tProblems.length === 0 ? `${String(all.length)} turn(s) drawn of ${String(detail.turnCount)} over the door's ${String(paged.pages.length)} pages; **x** kept in the ask, rendered in the answer; the terminal line drawn` : tProblems.join('; '));
+                arm('T1 the conversation, paged to the first turn, ask plain and answer formatted', tProblems.length === 0, tProblems.length === 0 ? `${String(all.length)} turn(s) drawn of ${String(detail.turnCount)} over the door's ${String(paged.pages.length)} pages; **x** kept in the ask, rendered in the answer; no terminal line (Phase 337.1 D22)` : tProblems.join('; '));
               }
               // ---- Phase 316.6: T2a to T2d, MD1, MD2 and S6 -----------------
               gradeTabArms(ev, run, 'iOS 26.3');
@@ -7182,7 +7843,7 @@ exit 0
                     door: (spec.door ?? []).map((k) => door.facts.writeSentences?.[k] ?? null).filter((x) => x !== null),
                     never: spec.never,
                     line: el(d, 'session-end-line')?.label ?? (spec.posts === 0 ? bar?.line ?? null : null),
-                    onList: el(d, 'screen-list') !== null && el(d, 'screen-session') === null,
+                    onList: el(d, 'screen-list') !== null && sessionPageOf(d) === null,
                     onPairing: el(d, 'screen-pairing') !== null,
                     enabled: bar?.enabled ?? null,
                     title: door.facts.endOffer?.title ?? null,
@@ -7759,9 +8420,13 @@ exit 0
             const h = helloS(id);
             return h === null ? [] : p318ReadLog(P318_STANDIN, h.pid).filter((l) => l.t >= BigInt(from) && (to === null || l.t < BigInt(to)));
           };
-          /** The run's own tmux, on its scratch socket. */
+          /**
+           * The run's own tmux, on its scratch socket. Since Phase 337.1 PS13 reads a whole history through it
+           * (`capture-pane -p -S - -E -1`), whose output grows with the history, so its buffer is set, as
+           * probe:p337's is: past spawnSync's default a capture would read as null, never as the lines.
+           */
           const tmuxS = (...args) => {
-            const r = spawnSync('tmux', ['-L', SOCKET, ...args], { encoding: 'utf8', timeout: 10_000 });
+            const r = spawnSync('tmux', ['-L', SOCKET, ...args], { encoding: 'utf8', timeout: 10_000, maxBuffer: 64 * 1024 * 1024 });
             return r.status === 0 ? String(r.stdout ?? '') : null;
           };
           const RECORDER = join(ROOT, 'build', 'p337', 'key-recorder.mjs');
@@ -7901,6 +8566,9 @@ exit 0
               }
             };
             const typed = 'echo hi';
+            // PHASE 337.1 (option B): a row opens the session's Terminal at once,
+            // so `screen-open` is a wait for the grid, ONE Back is the list, and
+            // after the turn's Back the shell is opened again before typing.
             const steps = [
               'pair',
               'list',
@@ -7908,10 +8576,8 @@ exit 0
               'end-top',
               'screen-open',
               'back',
-              'back',
               `open:${S.codex.id}`,
               'screen-open',
-              'back',
               'back',
               `open:${S.shell.id}`,
               'screen-open',
@@ -7923,10 +8589,10 @@ exit 0
               `open:${S.shell.id}`,
               'screen-open',
               'screen-rotate',
+              `open:${S.shell.id}`,
               'screen-open',
               `screen-type:${b64uText(typed)}`,
               'screen-select:0',
-              'back',
               'back',
               `open:${S.rec.id}`,
               'screen-open',
@@ -7940,11 +8606,9 @@ exit 0
               'screen-key:right',
               `screen-home:${b64uText('p337 left at once')}`,
               'back',
-              'back',
               `open:${S.codex.id}`,
               'screen-open',
               'screen-question:down:50',
-              'back',
               'back',
               `open:${S.end.id}`,
               'end'
@@ -7959,14 +8623,14 @@ exit 0
                 const run = await pairAndRead(sim, steps, 'screen', { env: { P316_ACKS: acks.dir }, react });
                 const ev = run.ok ? run.result.events : [];
                 if (!run.ok || ev.length === 0) {
-                  arm('PS1 End at the top right; Screen under Conversation', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                  arm('PS1 End at the top right; the Catch Me Up icon beside it', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
                   return;
                 }
                 const opens = ofStepS(ev, 'screen-open');
                 // PS1
                 {
                   const v = gradePs1({ endTop: ofStepS(ev, 'end-top')[0] ?? null });
-                  arm('PS1 a session\'s page: End inside the navigation bar\'s trailing half, no End bar, Conversation above Screen', v.ok, v.said);
+                  arm('PS1 a session\'s page: End inside the navigation bar\'s trailing half, no End bar, the Catch Me Up icon beside it', v.ok, v.said);
                 }
                 // PS2
                 {
@@ -8180,6 +8844,343 @@ exit 0
                 });
               }
             } else report.readings.screenParent = 'not run: P337_PARENT_IOS is not set';
+
+            // ==============================================================
+            // PHASE 337.1 (build/p3371/SPEC.md §7.8): TERMINAL FIRST, THE
+            // SCROLLBACK, CATCH ME UP. A shell whose program is
+            // build/p3371/history-stand-in.mjs (3,000 numbered lines and a
+            // live counter; 300 lines then a full-screen program), a Claude
+            // Code stand-in idle at its prompt, a Codex stand-in at its
+            // approval, and a shell ended on the Mac. tmux's own lines by
+            // index, read by this file's capture-pane, and the stand-in's log
+            // of every byte it read are the ground truth; the node reader's
+            // /v1/session is the door's word for a status line or a tray.
+            // ==============================================================
+            {
+              const STAND_IN_3371 = join(ROOT, 'build', 'p3371', 'history-stand-in.mjs');
+              const standInSession = async (name, args) => {
+                const s = await screenSession(name, 'shell');
+                if (s === null) return null;
+                await untilS(() => (String(tmuxS('capture-pane', '-p', '-t', `=${s.tmuxName}:`) ?? '').trim() !== '' ? true : null), 20_000);
+                tmuxS('send-keys', '-t', `=${s.tmuxName}:`, '-l', `exec '${process.execPath}' '${STAND_IN_3371}' ${args}`);
+                tmuxS('send-keys', '-t', `=${s.tmuxName}:`, 'Enter');
+                return s;
+              };
+              const T = {
+                hist: await standInSession('p3371-hist', '--lines 3000 --counter'),
+                alt: await standInSession('p3371-alt', '--lines 300 --alt'),
+                idle: await screenSession('p3371-idle', 'claude'),
+                question: await screenSession('p3371-question', 'codex'),
+                ended: await screenSession('p3371-ended', 'shell')
+              };
+              const readSession3371 = async (id) => {
+                const got = await signedGet(reader, readerDoor, `/v1/session?id=${encodeURIComponent(id)}`);
+                try {
+                  return got.status === 200 ? JSON.parse(got.body).session ?? null : null;
+                } catch {
+                  return null;
+                }
+              };
+              /** tmux's own lines of a session's history, by index (0 = the oldest), read with capture-pane. */
+              const historyLines = (s) => {
+                const text = tmuxS('capture-pane', '-p', '-S', '-', '-E', '-1', '-t', `=${s.tmuxName}:`);
+                if (text === null) return [];
+                const lines = String(text).split('\n');
+                if (lines.length > 0 && lines[lines.length - 1] === '') lines.pop();
+                return lines;
+              };
+              if (Object.values(T).some((x) => x === null)) {
+                arm('PS10 to PS16 the Terminal group\'s sessions', null, `not every session was made: ${J(Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v?.status ?? null])))}`);
+              } else {
+                // The 3,000 lines drawn, the question up, the ended shell ended.
+                // The history read once it is whole AND still (the probe review, 2026-10-06): the stand-in writes
+                // its lines 500 at a time, so 2,900 can be read inside its last write, and PS13 holds every row the
+                // phone draws (the newest first) to the lines read here, once.
+                {
+                  let seen = -1;
+                  await untilS(() => {
+                    const h = Number(String(tmuxS('display-message', '-p', '-t', `=${T.hist.tmuxName}:`, '#{history_size}') ?? '0').trim());
+                    const still = h >= 2_900 && h === seen;
+                    seen = h;
+                    return still ? true : null;
+                  }, 30_000, 1_000);
+                }
+                await tellS(T.question.id, [{ op: 'press', command: 'touch p3371-ps12.txt' }]);
+                tmuxS('kill-session', '-t', `=${T.ended.tmuxName}`);
+                await untilS(async () => ((await sessionsNowS()).some((x) => x.id === T.ended.id && ['exited', 'restorable'].includes(x.status)) ? true : null), 60_000, 500);
+                const lines3371 = historyLines(T.hist);
+                /** The reactions every 337.1 drive shares: acks, the pasteboard after Copy, the press's moment, the door's word at the Terminal. */
+                const react3371 = (acksT, marksT, simRef) => async (event) => {
+                  if (/-ready$/.test(event.step) || event.step === 'screen-wait') acksT.ack(event.seq);
+                  if (event.step === 'glitch-copied') {
+                    await sleep(800);
+                    const pb = simRef.sim === null ? null : await simRef.sim.pasteboard().catch(() => null);
+                    marksT.pasteboard = pb !== null && pb.code === 0 ? String(pb.stdout ?? '') : null;
+                    acksT.ack(event.seq);
+                  }
+                  if (event.step === 'tray-offer') {
+                    marksT.trayFrom = hrS();
+                    marksT.trayDoor = await readSession3371(T.question.id);
+                    writeFileSync(join(acksT.dir, `reply-${String(event.seq)}`), 'ok\n');
+                  }
+                  if (event.step === 'terminal-open' && typeof event.id === 'string') marksT.door ??= await readSession3371(event.id);
+                };
+                /** The 337.1 readings of one drive's events, cut where each step began. */
+                const of3371 = (ev, step) => ev.filter((e) => e.step === step);
+                const doorOf = (session) => (session === null ? null : { statusTitle: session.statusTitle, agentLine: [session.agentLabel, session.project].filter((x) => typeof x === 'string' && x !== '').join(' · ') });
+                /** PS13's reading of the steps between `terminal-open` and `keyboard-glitch`. */
+                const ps13Of = (ev) => {
+                  const start = ev.findIndex((e) => e.step === 'terminal-open');
+                  const stop = ev.findIndex((e) => e.step === 'keyboard-glitch');
+                  const span = ev.slice(Math.max(0, start), stop < 0 ? ev.length : stop);
+                  const ups = of3371(span, 'scroll-up');
+                  // One run of readings per `scroll-hold` step (the probe review, 2026-10-06): a landing is read
+                  // between two readings of ONE hold, never across the drags between two holds.
+                  const holds = of3371(span, 'scroll-hold').map((e) => e.readings ?? []);
+                  const fling = of3371(span, 'fling-hold').flatMap((e) => e.readings ?? []);
+                  const key = of3371(span, 'scroll-key')[0] ?? null;
+                  return {
+                    lines: lines3371,
+                    firstDrag: ups[0]?.readings?.[0] ?? null,
+                    readings: [...ups.flatMap((e) => e.readings ?? []), ...holds.flat(), ...fling, ...(key === null ? [] : [key.scrolled])],
+                    holds,
+                    fling,
+                    rest: of3371(span, 'terminal-open')[0]?.reading ?? null,
+                    toLive: of3371(span, 'to-live')[0] ?? null,
+                    key
+                  };
+                };
+                const ps14Of = (ev, marksT) => {
+                  const g = of3371(ev, 'keyboard-glitch')[0] ?? null;
+                  const copied = of3371(ev, 'glitch-copied')[0] ?? null;
+                  // The last reading before any keyboard was raised on this Terminal: `to-live`'s, at the live
+                  // bottom (the probe review, 2026-10-06; `scroll-key` raises and puts away the keyboard before the
+                  // glitch step reads its own rest).
+                  const before = of3371(ev, 'to-live')[0]?.after ?? of3371(ev, 'terminal-open')[0]?.reading ?? null;
+                  return { glitch: g, pasteboard: marksT.pasteboard ?? null, row: copied?.row ?? null, beforeKeyboard: before };
+                };
+                // Each hold begins as a drag's finger lifts (`scroll-drag-hold`, the fix round): read 1.2 s
+                // after a drag, as `scroll-up` reads, the page it asked had landed already, and the 337.1
+                // verifier's PS13 saw fewer than three landings (UNREADABLE).
+                const terminalSteps = [
+                  `terminal-open:${T.hist.id}`,
+                  'scroll-up:1',
+                  'scroll-drag-hold',
+                  'scroll-up:2',
+                  'scroll-drag-hold',
+                  'scroll-up:2',
+                  'scroll-drag-hold',
+                  'scroll-up:2',
+                  'scroll-drag-hold',
+                  'fling-up',
+                  'to-live',
+                  'scroll-key:esc',
+                  'keyboard-glitch',
+                  'back'
+                ];
+                // ---- PS10 to PS16, iOS 26.3 ------------------------------------
+                await confirmListening(cdp);
+                {
+                  const acksT = ackDirS('terminal');
+                  const marksT = { pasteboard: null, trayFrom: null, trayDoor: null, door: null };
+                  const simRef = { sim: null };
+                  await withSimulator({ label: 'p316-terminal', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-terminal'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                    simRef.sim = sim;
+                    const steps = [
+                      'pair',
+                      'list',
+                      ...terminalSteps,
+                      `open:${T.idle.id}`,
+                      'catch-up',
+                      'back',
+                      `open:${T.question.id}`,
+                      'tray-keyboard',
+                      'tray-press:1',
+                      'back',
+                      `open:${T.alt.id}`,
+                      'screen-open',
+                      'scroll-up:3',
+                      'back',
+                      'show:all',
+                      `open:${T.ended.id}`,
+                      'back'
+                    ];
+                    const run = await pairAndRead(sim, steps, 'terminal', { env: { P316_ACKS: acksT.dir }, react: react3371(acksT, marksT, simRef) });
+                    const ev = run.ok ? run.result.events : [];
+                    if (!run.ok || ev.length === 0) {
+                      arm('PS10 to PS16 the Terminal', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                      return;
+                    }
+                    const open = of3371(ev, 'terminal-open')[0] ?? null;
+                    const copied = of3371(ev, 'glitch-copied')[0] ?? null;
+                    {
+                      const v = gradePs10({ open, door: open === null ? null : (doorOf(marksT.door ?? (await readSession3371(T.hist.id)))), held: copied?.held ?? null });
+                      arm('PS10 terminal first: a list row opens the Terminal at once, the status line the door\'s, the icon then End top right', v.ok, v.said);
+                      if (typeof open?.firstRowMs === 'number') report.readings.terminalFirstRowMs = open.firstRowMs;
+                    }
+                    {
+                      const showAt = ev.findIndex((e) => e.step === 'show');
+                      const after = showAt < 0 ? [] : ev.slice(showAt);
+                      const dump = after.find((e) => e.step === 'screen' && e.name === 'session') ?? null;
+                      const face = after.find((e) => e.step === 'face' && e.for === 'session') ?? null;
+                      const endedDoor = await readSession3371(T.ended.id);
+                      const v = gradePs11({ dump, title: face?.title ?? [], name: T.ended.name, turnCount: Number(endedDoor?.turnCount ?? 0) });
+                      arm('PS11 an ended session opens on Catch Me Up', v.ok, v.said);
+                    }
+                    {
+                      const offer = of3371(ev, 'tray-offer')[0] ?? null;
+                      const pressed = of3371(ev, 'tray-pressed')[0] ?? null;
+                      const door = marksT.trayDoor;
+                      const pressable = new Set(door?.reply?.pressable ?? []);
+                      const choices = (door?.choices ?? []).map((c, n) => ({ n, marker: c.marker, text: c.text })).filter((c) => pressable.has(c.marker));
+                      const pressedChoice = (door?.choices ?? [])[1] ?? null;
+                      const bytes = marksT.trayFrom === null ? null : logS(T.question.id, marksT.trayFrom).filter((l) => l.kind === 'read').map((l) => String(l.hex)).join('');
+                      const v = gradePs12({ offer, choices, pressed, bytes, want: pressedChoice === null ? null : Buffer.from(String(pressedChoice.marker), 'utf8').toString('hex') });
+                      arm('PS12 the question\'s tray under the Terminal: the options whole, one press its marker, no Face ID', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePs12k({ start: of3371(ev, 'tray-keyboard-start')[0] ?? null, done: of3371(ev, 'tray-keyboard')[0] ?? null });
+                      arm('PS12k the keyboard raised over the question\'s tray and put away: the app answers, the tray hides and comes back (the fix round)', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePs13(ps13Of(ev));
+                      arm('PS13 the scrollback (iOS 26.3): history at once, tmux\'s own rows, nothing moved by a page, back to live', v.ok, v.said);
+                    }
+                    {
+                      const v = gradePs14(ps14Of(ev, marksT));
+                      arm('PS14 the keyboard (iOS 26.3): the rows where they were after it, the grid never moved, row 3 copied', v.ok, v.said);
+                    }
+                    {
+                      const idleDoor = await readSession3371(T.idle.id);
+                      const v = gradePs15({ line: of3371(ev, 'catch-up')[0] ?? null, idle: idleDoor?.reply?.canSay === true });
+                      arm('PS15 Catch Me Up from its icon: the now card after the newest turn, the box, End top right, Back to the Terminal', v.ok, v.said);
+                    }
+                    {
+                      // The drags over the full-screen session itself (the probe review, 2026-10-06): the first
+                      // scroll-up after its own open, never the last of the run, which is the 3,000-line shell's
+                      // when the full-screen session's drags did not run.
+                      const altOpen = ev.findLastIndex((e) => e.step === 'face' && e.for === 'session' && Array.isArray(e.title) && e.title.includes(T.alt.name));
+                      const v = gradePs16({ scroll: altOpen < 0 ? null : (ev.slice(altOpen).find((e) => e.step === 'scroll-up') ?? null) });
+                      arm('PS16 a full-screen program scrolls back nothing', v.ok, v.said);
+                    }
+                  });
+                }
+
+                // ---- PS13 and PS14 on the floor, iOS 18.3 -------------------------
+                await confirmListening(cdp);
+                {
+                  const acksF = ackDirS('terminal-floor');
+                  const marksF = { pasteboard: null, trayFrom: null, trayDoor: null, door: null };
+                  const simRef = { sim: null };
+                  await withSimulator({ label: 'p316-terminal-floor', runtime: RUNTIME_FLOOR, scratch: join(XCODE, 'sim-terminal-floor'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                    simRef.sim = sim;
+                    const run = await pairAndRead(sim, ['pair', 'list', ...terminalSteps], 'terminal-floor', { env: { P316_ACKS: acksF.dir }, react: react3371(acksF, marksF, simRef) });
+                    const ev = run.ok ? run.result.events : [];
+                    if (!run.ok || ev.length === 0) {
+                      arm('PS13 and PS14 the floor (iOS 18.3)', null, `the drive did not run: ${String(run.why ?? 'no P316 line')}`);
+                      return;
+                    }
+                    const v13 = gradePs13(ps13Of(ev));
+                    arm('PS13 the scrollback (iOS 18.3, the floor)', v13.ok, v13.said);
+                    const v14 = gradePs14(ps14Of(ev, marksF));
+                    arm('PS14 the keyboard (iOS 18.3, the floor)', v14.ok, v14.said);
+                  });
+                }
+
+                // ---- PSH: the hostile door's scrollback arms -----------------------
+                await withSimulator({ label: 'p316-terminal-hostile', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-terminal-hostile'), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+                  for (const name of SCROLLBACK_ARMS) {
+                    const spec = HOSTILE_ARMS[name];
+                    await sim.simctl('keychain', 'reset');
+                    const door = await startDoorChild(name);
+                    doorChildren.add(door.child);
+                    try {
+                      if (door.facts === null) {
+                        arm(`PSH ${name}`, null, door.why ?? 'the hostile door did not start');
+                        continue;
+                      }
+                      const armAcks = ackDirS(`hostile-${name}`);
+                      // Past the phone's 15 s for the page that never comes, and the 1, 2, 4 s back-off after a refused one.
+                      const waitMs = name === 'scrollback-never' ? 26_000 : 9_000;
+                      const steps = ['pair', 'list', `open:${door.facts.sessionToOpen}`, 'screen-open', 'scroll-up:2', 'scroll-hold', `screen-wait:${name}`, 'scroll-hold'];
+                      const r = await drive(sim, {
+                        test: { id: UI_TEST },
+                        label: `terminal-hostile-${name}`,
+                        env: { P316_PAYLOAD: door.facts.payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P316_ACKS: armAcks.dir, P330_DOOR_ENDPOINT: `127.0.0.1:${String(door.facts.port)}` },
+                        onEvent: async (event) => {
+                          if (/-ready$/.test(event.step)) armAcks.ack(event.seq);
+                          if (event.step === 'screen-wait') {
+                            await sleep(waitMs);
+                            armAcks.ack(event.seq);
+                          }
+                        }
+                      });
+                      if (r.events.length === 0) {
+                        arm(`PSH ${name}: ${spec.what}`, null, `the UI test printed no P316 line (xcodebuild exited ${String(r.code)})`);
+                        continue;
+                      }
+                      const readings = r.events.filter((e) => e.step === 'scroll-hold' || e.step === 'scroll-up').flatMap((e) => e.readings ?? []);
+                      const last = readings.at(-1) ?? null;
+                      const lineSeen = readings.find((x) => typeof x.scrollbackLine?.label === 'string' && x.scrollbackLine.label !== '') ?? null;
+                      const pages = door.events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/scrollback');
+                      const firstPageAt = pages[0]?.at ?? null;
+                      const v = gradePshScroll({
+                        alive: aliveOf(r.events),
+                        rows: (last?.live ?? []).length,
+                        pages: pages.length,
+                        ends: spec.ends,
+                        expect: spec.expect,
+                        retried: spec.retried === true,
+                        live: spec.live === true,
+                        stops: spec.stops === true,
+                        line: last?.scrollbackLine?.label ?? null,
+                        pagesAfterLine: lineSeen === null ? 0 : pages.filter((e) => typeof e.at === 'number' && e.at > lineSeen.at + 500).length,
+                        screenReadsAfterPage: firstPageAt === null ? 0 : door.events.filter((e) => e.kind === 'request' && e.route === 'GET /v1/screen' && typeof e.at === 'number' && e.at > firstPageAt).length,
+                        // The probe review (2026-10-06): every history row the phone drew, and whether every page was hostile.
+                        history: readings.flatMap((x) => x.history ?? []).map((h) => ({ i: h.i, label: h.label })),
+                        every: spec.scrollback === 'every'
+                      });
+                      arm(`PSH ${name}: ${spec.what}`, v.ok, v.said);
+                    } finally {
+                      await endDoorChild(door.child);
+                      doorChildren.delete(door.child);
+                    }
+                  }
+                });
+
+                // ---- PSP (Phase 337.1): the parent's app, 337's own -----------------
+                if (PARENT_IOS_3371 !== '') {
+                  const parentProject = join(resolve(PARENT_IOS_3371), 'ios', 'Tortie.xcodeproj');
+                  const parentDd = join(XCODE, 'dd-parent-3371');
+                  const built = existsSync(parentProject)
+                    ? await xcodebuildRun({ label: 'parent-terminal', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+                    : { code: -1 };
+                  if (built.code !== 0) arm('PSP (Phase 337.1) the parent opens a page, and its rows sit low after the keyboard', null, `the parent's project did not build (${String(built.code)})`);
+                  else {
+                    await confirmListening(cdp);
+                    const acksP = ackDirS('terminal-parent');
+                    await withSimulator({ label: 'p316-terminal-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-terminal-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                      // Its OWN UI test (337's): §14 M12's steps over the 3,000-line shell.
+                      const parentSteps = ['pair', 'list', `open:${T.hist.id}`, 'screen-open', 'screen-wait:a', 'screen-key:esc', 'screen-key:hide', 'screen-wait:b', 'screen-wait:c'];
+                      const run = await pairAndRead(sim, parentSteps, 'terminal-parent', { project: parentProject, derivedDataPath: parentDd, env: { P316_ACKS: acksP.dir }, react: async (event) => { if (/-ready$/.test(event.step) || event.step === 'screen-wait') acksP.ack(event.seq); } });
+                      const ev = run.ok ? run.result.events : [];
+                      const d = ev.filter((e) => e.step === 'screen' && e.name === 'session').at(-1);
+                      const row0 = (e) => (Array.isArray(e?.rows) ? e.rows.find((x) => x.n === 0)?.frame?.[1] ?? null : null);
+                      // Each wait is two lines with its tag: the ack's ask, which carries no rows, and then the
+                      // reading itself (337's emitScreen); the reading is the one with rows (the fix round: the
+                      // first of the two was read, and PSP was UNREADABLE on every run).
+                      const waits = ev.filter((e) => e.step === 'screen-wait' && Array.isArray(e.rows));
+                      const v = gradePsp3371({
+                        page: d === undefined ? null : { terminal: el(d, 'screen-grid') !== null, screenRow: el(d, 'session-open-screen') !== null },
+                        before: row0(waits.filter((e) => e.tag === 'a').at(-1)),
+                        after: row0(waits.filter((e) => e.tag === 'b').at(-1))
+                      });
+                      arm('PSP (Phase 337.1) the parent opens a page, and its rows sit low after the keyboard (the defect PS14 proves gone)', v.ok, v.said);
+                    });
+                  }
+                } else report.readings.terminalParent = 'not run: neither P3371_PARENT_IOS nor P316_PARENT_IOS is set';
+              }
+            }
           }
         }
 

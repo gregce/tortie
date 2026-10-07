@@ -28,7 +28,7 @@ final class UnpairTests: XCTestCase {
         XCTAssertEqual(app.alertPermission, .authorized)
         app.tab = .settings
         app.waitingPath = [.session(id: "w", name: "w")]
-        app.sessionsPath = [.session(id: "o", name: "o"), .conversation(id: "o", honestLine: nil)]
+        app.sessionsPath = [.session(id: "o", name: "o"), .catchUp(id: "o", honestLine: nil)]
 
         app.unpair()
 

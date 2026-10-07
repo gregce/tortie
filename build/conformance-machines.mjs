@@ -436,6 +436,28 @@
  * ablation:p340` breaks each clause and proves it goes red on its own
  * condition.
  *
+ * PHASE 337.1 WIDENED 124 AND APPENDED 140 AND 141 (build/p3371/SPEC.md §6.3),
+ * leaving 125 to 139, Phases 340 and 340.1's, as they are. The Screen scrolls
+ * back, and a session on another machine is paged through the exec plane. 124
+ * now reads the far live read as THREE commands in one exec (display ; capture
+ * ; display, so a far picture is steady by D5's rule) and every `execOn(` in
+ * remote-screen.ts handed one of its two composers, `remoteScreenArgv(` or
+ * `remoteScrollbackArgv(`, once each. 140 is a far page round's numbers and its
+ * one exec: `remoteScrollbackArgv` checks `-S` and `-E` clause for clause as
+ * remote-pane-history.ts's `wholeNumber` does and throws before any argv
+ * exists, aims at a `$N` that `SCROLL_TARGET` admits, composes ONE exec of the
+ * three, and nothing in the file composes a display-only round; the composer is
+ * DRIVEN in-process, lifted out of the file with its helpers, the target
+ * pattern and the format, over ten refusals (a fraction, NaN, an infinity, past
+ * a safe integer, a number as a string, a caller string, an end that is a
+ * fraction, a pane, a target with a list in it, an empty target). 141 is the
+ * far page reader asking `remoteScrollAddress(` and refusing anything but a
+ * live address before it composes, through `readyRemoteContext(`, naming no
+ * carriage row, no `send-keys` and no `copy-mode`. 101's list of
+ * control-connection writers does not grow: a page round on this Mac goes
+ * through screen/read.ts's one statement. `npm run ablation:p320` breaks each
+ * clause (`k15` to `k23`).
+ *
  * 55. `repo-facts` is not a one value read in the catalogue; it names a git verb
  *     other than `rev-parse`; `ALLOWED_GIT_VERBS` is not exactly `ls-files`,
  *     `rev-parse`, `show` and `status`; the script text or the bytes the door
@@ -11763,6 +11785,12 @@ const P337_KEY_NAMES = (() => {
     // session on THIS Mac only; a session on another machine is typed by the
     // carriage's typePhoneKeys (condition 123) and read by the exec plane
     // (condition 124). Two writers on purpose, never on a machine's carriage.
+    // PHASE 337.1 (build/p3371/SPEC.md D9): a page of a session's history is
+    // read over the core's OWN control client too, for a session on THIS Mac
+    // only, through screen/read.ts's one statement (statementOverControl:
+    // display, capture -S -E, display), so the list does not grow; a far page
+    // is the exec plane's (conditions 124, 140, 141). conformance:pocket Z26
+    // holds scrollback.ts to that one statement.
     const SEND_FILES = [
       'src/main/machines/control-plane.ts',
       'src/main/reply/writer.ts',
@@ -11787,7 +11815,8 @@ const P337_KEY_NAMES = (() => {
           `${JSON.stringify(SEND_FILES)}. control-client.ts defines it, core.ts is ` +
           `this Mac's scroll runner, reply/writer.ts is the phone's press on this ` +
           `Mac's own control client, screen/read.ts and screen/keys.ts are the ` +
-          `Screen's read and keys on that same client (Phase 337) and control-plane.ts ` +
+          `Screen's read and keys on that same client (Phase 337; read.ts's one ` +
+          `statement also carries a page of history, Phase 337.1) and control-plane.ts ` +
           `is the one machine runner. A seventh file is a new writer to a control connection.`
       );
     }
@@ -14521,24 +14550,175 @@ const P337_KEY_NAMES = (() => {
   }
 
   // --- 124. The far screen is read through the exec plane alone -------------------
+  // WIDENED BY PHASE 337.1 (build/p3371/SPEC.md §6.3, D6, D10): the far live
+  // read is THREE commands in one exec (display ; capture ; display), and a
+  // page of history is a second reader whose rounds are remoteScrollbackArgv's,
+  // each ONE exec of the same three. Every execOn( is handed one of the two
+  // composers and nothing else.
+  const REMOTE = 'src/main/machines/remote-screen.ts';
+  const remoteCode = codeOf(REMOTE);
   {
     const fail = (message) => failures.push(`condition 124: ${message}`);
-    const REMOTE = 'src/main/machines/remote-screen.ts';
-    const code = codeOf(REMOTE);
+    const code = remoteCode;
     if (code === null) cantJudge(124, `${REMOTE} is not there`);
     else {
-      const execs = (code.match(/\bexecOn\s*\(/g) ?? []).length;
-      if (execs !== 1) fail(`${REMOTE} calls execOn( ${String(execs)} time(s); a far screen is read by ONE execOn( (build/p337/SPEC.md §5.3.3).`);
+      const execs = [...code.matchAll(/\bexecOn\s*\(/g)];
+      const handed = execs.map((m) => {
+        const args = callArguments(code, m.index + m[0].length - 1);
+        return args === null ? null : (args[1] ?? '').trim();
+      });
+      if (execs.length === 0 || execs.length > 2) fail(`${REMOTE} calls execOn( ${String(execs.length)} time(s); a far live read is ONE execOn( and a far page round ONE more, no other (build/p3371/SPEC.md D6, D10).`);
+      for (const arg of handed) {
+        if (arg === null || !/^(?:remoteScreenArgv|remoteScrollbackArgv)\(/.test(arg)) fail(`${REMOTE} hands execOn( ${JSON.stringify(arg)}; every far exec is handed remoteScreenArgv( or remoteScrollbackArgv(, the two composers no caller string reaches.`);
+      }
+      for (const name of ['remoteScreenArgv', 'remoteScrollbackArgv']) {
+        const n = handed.filter((a) => a !== null && a.startsWith(`${name}(`)).length;
+        if (n !== 1) fail(`${REMOTE} hands ${name}( to execOn( ${String(n)} time(s); once, in its one reader.`);
+      }
       for (const banned of ['sendCommand(', 'remoteScrollRunner', 'typePhoneKeys', 'spawn(', 'execFile(', 'runRemoteScript', 'routeKey(']) {
         if (code.includes(banned)) fail(`${REMOTE} names ${banned}; it reaches the machine through execOn( alone, the exec plane's ledger read.`);
       }
-      const verbs = [...code.matchAll(/'([a-z]+-[a-z]+)'/g)].map((m) => m[1]).filter((w) => /^(?:capture|display|send|copy|resize|refresh|new|kill|run|set|list|attach|switch)-/.test(w));
+      const verbs = [...code.matchAll(/'([a-z]+-[a-z]+)'/g)].map((m) => m[1]).filter((w) => /^(?:capture|display|send|copy|resize|refresh|new|kill|run|set|list|attach|switch|clear|load|paste|select|split|show)-/.test(w));
       const unknown = [...new Set(verbs)].filter((w) => w !== 'capture-pane' && w !== 'display-message');
       if (unknown.length > 0) fail(`${REMOTE} names the tmux verb(s) ${JSON.stringify(unknown)}; capture-pane and display-message are its only verbs (D7).`);
       if (!verbs.includes('capture-pane') || !verbs.includes('display-message')) fail(`${REMOTE} does not name both capture-pane and display-message.`);
       if (code.includes('#{')) fail(`${REMOTE} spells a format of its own; its one format is SCREEN_FORMAT, imported from src/main/screen/read.ts (D6).`);
       if (!/\bSCREEN_FORMAT\b/.test(code) || !/import\s*\{[^}]*\bSCREEN_FORMAT\b[^}]*\}\s*from\s*'\.\.\/screen\/read'/.test(code)) {
         fail(`${REMOTE} does not import SCREEN_FORMAT from ../screen/read; the far read uses the one format and nothing a caller wrote.`);
+      }
+      // The live read: three commands, display ; capture ; display.
+      const live = bodyOf(code, 'remoteScreenArgv');
+      if (live === null) cantJudge(124, `${REMOTE} declares no function remoteScreenArgv`);
+      else {
+        const ret = /return\s*\[([\s\S]*?)\]\s*;/.exec(live)?.[1] ?? '';
+        const words = [...ret.matchAll(/'([^']*)'|(\w+)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2]));
+        const want = ["'display-message'", "'-p'", "'-t'", 'tmuxId', 'SCREEN_FORMAT', "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", 'tmuxId', "';'", "'display-message'", "'-p'", "'-t'", 'tmuxId', 'SCREEN_FORMAT'];
+        if (JSON.stringify(words) !== JSON.stringify(want)) fail(`remoteScreenArgv answers ${JSON.stringify(words)}; the far live read is the display, the capture and the display in ONE exec, so a far picture is steady by D5's rule (build/p3371/SPEC.md D6).`);
+      }
+    }
+  }
+
+  // --- 140. A far page round's numbers, and one exec of three ---------------------
+  // PHASE 337.1 (build/p3371/SPEC.md §6.3, D9, D10, §Attack B2). The page's
+  // -S and -E are tmux line numbers main computed; a number tmux cannot read
+  // silently starts at the VISIBLE TOP (§14 M1), so remoteScrollbackArgv takes
+  // only whole numbers, checked clause for clause as remote-pane-history.ts's
+  // wholeNumber is, throws before any argv exists, aims at a $N, and composes
+  // ONE exec of the three commands. Its composer is DRIVEN here, lifted out of
+  // the file with the target pattern and the format it reads, over a table of
+  // numbers and targets: nothing reaches a machine, nothing is spawned.
+  {
+    const fail = (message) => failures.push(`condition 140: ${message}`);
+    const code = remoteCode;
+    const argvBody = code === null ? null : bodyOf(code, 'remoteScrollbackArgv');
+    if (argvBody === null) cantJudge(140, `${REMOTE} declares no function remoteScrollbackArgv`);
+    else {
+      // The whole-number check: remote-pane-history.ts's, clause for clause.
+      const helpers = [...namedFunctions(code).keys()].filter((name) => name !== 'remoteScrollbackArgv' && /^[A-Za-z_]\w*$/.test(name) && new RegExp(`\\b${name}\\s*\\(`).test(argvBody) && bodyOf(code, name) !== null);
+      const whole = helpers.find((name) => {
+        const b = bodyOf(code, name);
+        return b !== null && /if\s*\(\s*!\s*Number\.isSafeInteger\(\s*(\w+)\s*\)\s*\)\s*\{?\s*throw\b/.test(b) && /return\s+String\(\s*\w+\s*\)\s*;/.test(b);
+      });
+      const inline = /if\s*\(\s*!\s*Number\.isSafeInteger\(\s*a\s*\)\s*\|\|\s*!\s*Number\.isSafeInteger\(\s*b\s*\)\s*\)\s*\{?\s*throw\b/.test(argvBody);
+      if (whole === undefined && !inline) fail(`remoteScrollbackArgv's -S and -E are not checked by a wholeNumber that matches remote-pane-history.ts's clause for clause (if (!Number.isSafeInteger(n)) throw …; return String(n)), so a fraction, an infinity or a string could reach the far tmux (build/p3371/SPEC.md D9).`);
+      if (!/\bSCROLL_TARGET\.test\(\s*tmuxId\s*\)/.test(argvBody) || !/throw\b/.test(argvBody)) fail('remoteScrollbackArgv does not throw for a target that is not a $N (SCROLL_TARGET.test(tmuxId)) before it composes.');
+      // ONE exec of three, and no display-only round anywhere in the file.
+      const rets = [...argvBody.matchAll(/return\s*\[([\s\S]*?)\]\s*;/g)];
+      const words = rets.length === 1 ? [...rets[0][1].matchAll(/'([^']*)'|(\w+(?:\([^)]*\))?)/g)].map((m) => (m[1] !== undefined ? `'${m[1]}'` : m[2])) : null;
+      if (words === null || words.filter((w) => w === "';'").length !== 2 || words.filter((w) => w === "'display-message'").length !== 2 || words.filter((w) => w === "'capture-pane'").length !== 1) {
+        fail(`remoteScrollbackArgv answers ${JSON.stringify(words)}; it composes ONE exec of the display, the capture and the display, never a separate display round (two execs a page on another machine, §Attack B2).`);
+      }
+      for (const m of code.matchAll(/\[([^\[\]]*'display-message'[^\[\]]*)\]/g)) {
+        if (!/'capture-pane'/.test(m[1])) fail(`${REMOTE} composes a display with no capture beside it (${m[0].slice(0, 80)}); nothing composes a display-only page round (§Attack B2).`);
+      }
+      // DRIVEN: the composer, lifted out with its helpers.
+      const declOf = (name) => {
+        const head = new RegExp(`(?:^|\\n)[ \\t]*(?:export\\s+)?function\\s+${name}\\s*\\(`).exec(code);
+        const body = bodyOf(code, name);
+        if (head === null || body === null) return null;
+        const at = code.indexOf(body, head.index);
+        return code.slice(head.index, at + body.length).replace(/^\n/, '').replace(/^\s*export\s+/, '');
+      };
+      // The RAW text: a regular expression's body is blanked in the comment-free code.
+      const shapes = files.find((one) => one.file === 'src/main/machines/scroll-shapes.ts')?.text ?? '';
+      const target = /export const SCROLL_TARGET\s*=\s*(\/[^\n;]+\/[a-z]*)\s*;/.exec(shapes)?.[1] ?? null;
+      const readText = readFileSync(join(process.cwd(), 'src', 'main', 'screen', 'read.ts'), 'utf8');
+      const format = /export const SCREEN_FORMAT\s*=\s*\n?\s*'([^']*)'/.exec(readText)?.[1] ?? null;
+      const decls = ['remoteScrollbackArgv', ...helpers].map((n) => declOf(n));
+      if (target === null || format === null || decls.some((d) => d === null)) cantJudge(140, 'remoteScrollbackArgv, its helpers, SCROLL_TARGET or SCREEN_FORMAT could not be read to drive it');
+      else {
+        let argvOf = null;
+        try {
+          const src = `const SCROLL_TARGET = ${target};\nconst SCREEN_FORMAT = ${JSON.stringify(format.replace(/\\t/g, '\t'))};\n${decls.join('\n')}\nreturn remoteScrollbackArgv;`;
+          const js = ts.transpileModule(src, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText;
+          argvOf = new Function(js)();
+        } catch (err) {
+          cantJudge(140, `remoteScrollbackArgv could not be lifted out to drive it: ${err instanceof Error ? err.message : String(err)}`);
+        }
+        if (typeof argvOf === 'function') {
+          const fmt = format.replace(/\\t/g, '\t');
+          const display = ['display-message', '-p', '-t', '$4', fmt];
+          const want = [...display, ';', 'capture-pane', '-p', '-e', '-t', '$4', '-S', '-228', '-E', '-101', ';', ...display];
+          let got;
+          try {
+            got = argvOf('$4', -228, -101);
+          } catch (err) {
+            got = `threw: ${err instanceof Error ? err.message : String(err)}`;
+          }
+          if (JSON.stringify(got) !== JSON.stringify(want)) fail(`remoteScrollbackArgv('$4', -228, -101) composes ${JSON.stringify(got).slice(0, 240)}; it is exactly the display, the capture of -228 to -101 and the display, one exec.`);
+          const refused = [
+            ['a fraction', '$4', -228.5, -101],
+            ['NaN', '$4', NaN, -101],
+            ['an infinity', '$4', -Infinity, -101],
+            ['past a safe integer', '$4', -(2 ** 53), -101],
+            ['a number as a string', '$4', '-228', -101],
+            ['a caller string', '$4', '-1;kill-server', -101],
+            ['an end that is a fraction', '$4', -228, -0.5],
+            ['a pane, not a session', '%4', -228, -101],
+            ['a target with a list in it', '$4;kill-server', -228, -101],
+            ['an empty target', '', -228, -101]
+          ];
+          for (const [what, t, a, b] of refused) {
+            let threw = false;
+            let out = null;
+            try {
+              out = argvOf(t, a, b);
+            } catch {
+              threw = true;
+            }
+            if (!threw) fail(`remoteScrollbackArgv composed ${JSON.stringify(out).slice(0, 160)} for ${what}; it throws before any argv exists, so nothing but a $N and two checked whole numbers reaches the far tmux (D9, D10).`);
+          }
+        }
+      }
+    }
+  }
+
+  // --- 141. The far page reader asks the live address first ----------------------
+  // PHASE 337.1 (build/p3371/SPEC.md §6.3, §5.3.5): the page reader on another
+  // machine reaches the session only at its LIVE address (remoteScrollAddress,
+  // the scroll's own rule), asked before anything is composed, and names no
+  // carriage row, no send-keys and no copy-mode: a page is a read over the exec
+  // plane, never the control connection's closed door.
+  {
+    const fail = (message) => failures.push(`condition 141: ${message}`);
+    const code = remoteCode;
+    const body = code === null ? null : bodyOf(code, 'readScrollbackRemote');
+    if (body === null) cantJudge(141, `${REMOTE} declares no function readScrollbackRemote`);
+    else {
+      const asks = body.search(/\bremoteScrollAddress\s*\(/);
+      const composes = body.search(/\bremoteScrollbackArgv\s*\(/);
+      const live = body.search(/\.kind\s*!==\s*'live'\s*\)\s*return\s+'unreachable'/);
+      if (asks === -1 || composes === -1 || live === -1 || !(asks < live && live < composes)) {
+        fail('readScrollbackRemote does not ask remoteScrollAddress( and answer unreachable for anything but a live address BEFORE it composes remoteScrollbackArgv(; a $N a far restart handed to somebody else\'s session is never read (build/p3371/SPEC.md §5.3.5).');
+      }
+      if (!/\breadyRemoteContext\s*\(/.test(body)) fail('readScrollbackRemote does not reach the machine through readyRemoteContext(, the ready connection 337\'s far read uses.');
+      for (const banned of ['send-keys', 'copy-mode', 'carriage', 'typePhoneKeys', 'remoteScrollRunner', 'scrollShapeOf', 'admitScrollArgv', 'stampedRunner', 'sendCommand']) {
+        if (body.includes(banned)) fail(`readScrollbackRemote names ${banned}; a far page is a read over the exec plane and names no carriage row, no send-keys and no copy-mode.`);
+      }
+    }
+    if (code !== null) {
+      for (const banned of ["'send-keys'", "'copy-mode'", 'type-key', 'type-bytes']) {
+        if (code.includes(banned)) fail(`${REMOTE} names ${banned}; the far reads type nothing and enter no copy mode.`);
       }
     }
   }
@@ -14547,7 +14727,9 @@ const P337_KEY_NAMES = (() => {
     '\nthe phone\'s keys on another machine hold: the eighth row is send-keys -t $N and one of the contract\'s 35 names, ' +
       'composed only by namedKeySequence for typePhoneKeys, which asks the address and the carriage live, writes one ' +
       'cancel, every item and the read in one tick with no await and never holds; and a far screen is read by one ' +
-      'execOn( of capture-pane and display-message with the one format.\n'
+      'execOn( of the display, the capture and the display with the one format, and a far page by one more of the ' +
+      'same three, its -S and -E whole numbers checked before any argv exists (driven over ten refusals), at the ' +
+      'live address asked first, naming no carriage row.\n'
   );
 }
 

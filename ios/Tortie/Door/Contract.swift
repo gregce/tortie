@@ -1152,12 +1152,23 @@ extension PocketScreenCursor: Decodable {
 
 /// `PocketScreen`: the screen tmux shows now, at the Mac's own width and
 /// height. The phone never sizes it (his ruling 2).
+///
+/// SINCE PHASE 337.1 (build/p3371/SPEC.md D3, section 5.5.2) it also says
+/// where the live top row sits in tmux's own index space (`depth`, the
+/// history size at that read, 0 to 100,000) and WHICH pane that index space
+/// is (`space`, 12 lowercase hex), both or neither: null together on the
+/// alternate screen, on a read whose two displays did not agree, or past the
+/// deepest index; ABSENT together from a Mac older than this phase, whose
+/// Terminal simply has no scrollback.
 struct PocketScreen: Equatable, Sendable {
     /// The caps the Mac composes under (`POCKET_SCREEN_MAX_COLS`,
     /// `POCKET_SCREEN_MAX_ROWS`, `POCKET_SCREEN_MAX_STYLES`).
     static let widest = 512
     static let tallest = 200
     static let mostStyles = 1_024
+    /// The deepest index a history may name (`POCKET_SCROLLBACK_MAX_INDEX`,
+    /// the Scrollback depth setting's maximum).
+    static let deepest = 100_000
 
     /// `cols`.
     let screenColumns: Int
@@ -1181,13 +1192,22 @@ struct PocketScreen: Equatable, Sendable {
     let dialog: String?
     /// Keys are taken now.
     let typable: Bool
+    /// `depth` (Phase 337.1, D3): tmux's history size at this read, so the
+    /// live top row is index `historyDepth` of the session's index space; nil
+    /// exactly when `space` is. Under a name no other value in the app has,
+    /// for rule (k)'s reason above `PocketSessionsAsked`.
+    let historyDepth: Int?
+    /// Which pane the index space belongs to, 12 lowercase hex; nil exactly
+    /// when `historyDepth` is.
+    let space: String?
 }
 
 extension PocketScreen: Decodable {
     enum CodingKeys: String, CodingKey {
-        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable
+        case cursor, alternate, ground, ink, caret, styles, lines, turn, asking, dialog, typable, space
         case screenColumns = "cols"
         case screenRows = "rows"
+        case historyDepth = "depth"
     }
 
     init(from decoder: Decoder) throws {
@@ -1205,11 +1225,32 @@ extension PocketScreen: Decodable {
         asking = try c.decode(Bool.self, forKey: .asking)
         dialog = try c.nullable(String.self, forKey: .dialog)
         typable = try c.decode(Bool.self, forKey: .typable)
+        // Absent from a Mac older than Phase 337.1, both of them; present,
+        // each a number in its bound or null, and null together.
+        if c.contains(.historyDepth) {
+            historyDepth = try c.nullableDoorNumber(forKey: .historyDepth)
+        } else {
+            historyDepth = nil
+        }
+        space = try c.decodeIfPresent(String.self, forKey: .space)
         guard Self.holdsTogether(
             columns: screenColumns, rows: screenRows, cursor: cursor, styles: styles.count,
             lines: lines, turn: turn, dialog: dialog
-        ) else {
+        ), Self.indexSpaceHolds(depth: historyDepth, space: space) else {
             throw DecodingError.dataCorruptedError(forKey: .lines, in: c, debugDescription: "a screen no Mac composed")
+        }
+    }
+
+    /// D3: the depth and the space, both or neither; the depth at most the
+    /// deepest index, the space 12 lowercase hex.
+    static func indexSpaceHolds(depth: Int?, space: String?) -> Bool {
+        switch (depth, space) {
+        case (nil, nil):
+            return true
+        case (let depth?, let space?):
+            return depth <= deepest && PocketReplyOffer.isMark(space)
+        default:
+            return false
         }
     }
 
@@ -1282,6 +1323,117 @@ extension PocketScreenAnswer: Decodable {
         guard said == (why != nil), sentence == nil || said else {
             throw DecodingError.dataCorruptedError(forKey: .sentence, in: c, debugDescription: "a sentence comes with an absence, and only with it")
         }
+    }
+}
+
+// MARK: - One page of a session's history (Phase 337.1)
+//
+// `GET /v1/scrollback?id=&from=&count=&depth=&wrap=&keep=`, build/p3371/SPEC.md
+// D7, D8 and section 5.5.2. A page is rows of tmux's own history, numbered
+// from the OLDEST line tmux holds (index 0), composed on the Mac exactly as
+// the live screen is (runs, a style table of its own, colours resolved), and
+// sent whole. The phone joins it to the rows it holds only when its index
+// space is the one it holds (Screens/ScreenScrollback.swift).
+//
+// DECODED STRICTLY: `from`, `depth` and `wrap` are whole numbers in their
+// bounds and `space` 12 lowercase hex, or all four null exactly with `why`;
+// at most 128 rows, none exactly with `why`; every run covers 1 to `wrap`
+// cells and a row's runs no more than `wrap`, summed through `DoorNumber`;
+// every style index in range; every colour `#` and six lowercase hex;
+// `from + rows.count` at most `depth`; `why` one of the four words with a
+// non-empty sentence exactly when set. Anything else refuses the answer whole.
+// Every whole number has a name no other value in the app has (`pageFrom`,
+// `pageDepth`, `pageWrap`), for rule (k)'s reason above `PocketSessionsAsked`.
+
+/// Which end of a page matters when it cannot all be sent (D11): an older page
+/// keeps its bottom, a newer one its top.
+enum ScrollbackKeep: String, Equatable, Sendable {
+    case top, bottom
+}
+
+/// Why a page was not sent (`PocketScrollbackAbsence`); main says which in its
+/// own sentence.
+enum PocketScrollbackAbsence: String, Sendable, Decodable {
+    case ended, unreachable, moved, busy
+}
+
+/// `PocketScrollbackAnswer`: one page, or one absence.
+struct PocketScrollbackAnswer: Equatable, Sendable {
+    /// `POCKET_SCROLLBACK_MAX_COUNT`: the most rows one page may hold.
+    static let mostRows = 128
+
+    let sessionId: String
+    let at: Double
+    /// `from`: the index of `rows[0]`, 0 being the oldest line tmux holds.
+    let pageFrom: Int?
+    /// `depth`: tmux's history size as this read found it.
+    let pageDepth: Int?
+    /// `wrap`: the width the history is wrapped at.
+    let pageWrap: Int?
+    /// Which pane this index space is, 12 lowercase hex.
+    let space: String?
+    let styles: [PocketScreenStyle]
+    let rows: [[PocketScreenRun]]
+    let why: PocketScrollbackAbsence?
+    /// Main's words for `why`; nil otherwise.
+    let sentence: String?
+}
+
+extension PocketScrollbackAnswer: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case sessionId, at, space, styles, rows, why, sentence
+        case pageFrom = "from"
+        case pageDepth = "depth"
+        case pageWrap = "wrap"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        sessionId = try c.decode(String.self, forKey: .sessionId)
+        at = try c.decode(Double.self, forKey: .at)
+        pageFrom = try c.nullableDoorNumber(forKey: .pageFrom)
+        pageDepth = try c.nullableDoorNumber(forKey: .pageDepth)
+        pageWrap = try c.nullableDoorNumber(forKey: .pageWrap)
+        space = try c.nullable(String.self, forKey: .space)
+        styles = try c.decode([PocketScreenStyle].self, forKey: .styles)
+        rows = try c.decode([[PocketScreenRun]].self, forKey: .rows)
+        why = try c.nullable(PocketScrollbackAbsence.self, forKey: .why)
+        sentence = try c.nullable(String.self, forKey: .sentence)
+        guard Self.holdsTogether(
+            from: pageFrom, depth: pageDepth, wrap: pageWrap, space: space, styles: styles.count,
+            rows: rows, why: why, sentence: sentence
+        ) else {
+            throw DecodingError.dataCorruptedError(forKey: .rows, in: c, debugDescription: "a page no Mac composed")
+        }
+    }
+
+    /// Every bound of section 5.5.2, asked once, in order. Only comparisons and
+    /// `DoorNumber`'s checked sum: no arithmetic of its own on a door number.
+    static func holdsTogether(
+        from: Int?, depth: Int?, wrap: Int?, space: String?, styles: Int,
+        rows: [[PocketScreenRun]], why: PocketScrollbackAbsence?, sentence: String?
+    ) -> Bool {
+        guard styles <= PocketScreen.mostStyles, rows.count <= mostRows else { return false }
+        // A sentence, and a non-empty one, exactly with an absence.
+        let said = sentence.map { !$0.isEmpty } ?? false
+        guard said == (why != nil), sentence == nil || said else { return false }
+        if why != nil {
+            // An absence carries no index space and no row.
+            return from == nil && depth == nil && wrap == nil && space == nil && rows.isEmpty
+        }
+        guard let from, let depth, let wrap, let space, !rows.isEmpty,
+              from <= PocketScreen.deepest, depth <= PocketScreen.deepest,
+              (1...PocketScreen.widest).contains(wrap), PocketReplyOffer.isMark(space),
+              let end = DoorNumber.sum(from, rows.count), end <= depth else { return false }
+        for row in rows {
+            var covered = 0
+            for run in row {
+                guard run.runStyle < styles, run.runCells >= 1, run.runCells <= wrap,
+                      let next = DoorNumber.sum(covered, run.runCells), next <= wrap else { return false }
+                covered = next
+            }
+        }
+        return true
     }
 }
 

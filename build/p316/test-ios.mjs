@@ -89,6 +89,31 @@
  * the top size under 64 MB. The classes 337 adds are `P337_SUITES`, each named
  * in xcodebuild's own suite lines.
  *
+ * AND THE HISTORY'S SIDE LINE, MEASURED (Phase 337.1, build/p3371/SPEC.md
+ * §6.4, D30). The same screen door answers `GET /v1/scrollback` with a page of
+ * a history it composes itself, `SCROLLBACK_DOOR_DEPTH` numbered lines
+ * (`L000001 …`, build/p3371/history-stand-in.mjs's own spelling), one style,
+ * the space `SCROLLBACK_DOOR_SPACE`, each row cut to the `wrap` asked; and
+ * `GET /v1/session` with the vectors' `session-talk` answer, the id echoed.
+ * Both are verified as the vectors' phone and keep the screen door's rules by
+ * session name (`p337-close-on-next` and the rest), so
+ * `P3371ScrollbackTransportTests` drives the SHIPPING `DoorClient` and
+ * `DoorLine` over it: two pages on one kept line, a page on a line the door
+ * closed, a page beside a poll, a page beside a status re-read on the side
+ * line. Its depth and space are handed to the runner as `TEST_RUNNER_P3371_DEPTH`
+ * and `TEST_RUNNER_P3371_SPACE` (the transport test pages inside the depth the
+ * door's own screen answer names); the door's screen answers are the committed
+ * sample, which since this phase carries `depth` and `space` (D3), and the run
+ * refuses, before anything boots, a sample that does not. After each
+ * configuration `scrollbackProblems` reads the door's counts (at least one
+ * page and one session read, every page ask in its form) and xcodebuild's
+ * output, which must hold every `P3371_TRANSPORT|<row>|<handshakes>` row the
+ * test prints reading what it must (`P3371_TRANSPORT_ROWS`: two pages on one
+ * kept line one handshake, a page on a line the door ended two, a page beside
+ * the poll two, a page beside a status re-read on the side line one). The
+ * classes 337.1 adds are `P3371_SUITES`, each named in xcodebuild's own suite
+ * lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
  *      device type. Missing any, it REFUSES with a sentence naming what is
@@ -200,6 +225,8 @@ import {
   xcodebuildRun
 } from '../simulator-run.mjs';
 import { verifySigned } from './node-phone.mjs';
+// Phase 337.1: the screen door's history is the stand-in's own numbered lines, at its default width.
+import { lineOf as standInLineOf } from '../p3371/history-stand-in.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TAG = '[test:ios]';
@@ -534,6 +561,76 @@ export const P337_TRANSPORT_ROWS = Object.freeze({ 'one-line': '1', idle: '1', '
 /** Phase 337: the grid's ceiling at the top size (ScreenGridCostTests, §Attack A24), 64 MB. */
 export const P337_GRID_CEILING = 64 * 1024 * 1024;
 
+/** Phase 337.1: the screen door's history, numbered lines L000001 to L003000, and the space it names. */
+export const SCROLLBACK_DOOR_DEPTH = 3_000;
+export const SCROLLBACK_DOOR_SPACE = '3371a0b1c2d3';
+/** The names a `/v1/scrollback` query carries, each once, and nothing else (D7). */
+const SCROLLBACK_NAMES = Object.freeze(['id', 'from', 'count', 'depth', 'wrap', 'keep']);
+const WHOLE_TEXT = /^(0|[1-9][0-9]{0,5})$/;
+
+/**
+ * The page this door answers a `/v1/scrollback` target with, or null (404):
+ * the six names each once and nothing else, every number whole, `count` 1 to
+ * 128, `from + count` within the ask's `depth`, `wrap` 1 to 512, `keep` `top`
+ * or `bottom`, and `from` inside the door's own history. The rows are
+ * `SCROLLBACK_DOOR_DEPTH` numbered lines, each cut to `wrap` cells, one style.
+ */
+export function scrollbackPageOf(target, lineOf) {
+  let url;
+  try {
+    url = new URL(String(target), 'https://door.invalid');
+  } catch {
+    return null;
+  }
+  if (url.pathname !== '/v1/scrollback') return null;
+  const names = [...url.searchParams.keys()];
+  if (names.length !== SCROLLBACK_NAMES.length || new Set(names).size !== names.length || !names.every((n) => SCROLLBACK_NAMES.includes(n))) return null;
+  const q = Object.fromEntries(url.searchParams.entries());
+  if (!(q.id.length >= 1 && q.id.length <= 128)) return null;
+  for (const n of ['from', 'count', 'depth', 'wrap']) if (!WHOLE_TEXT.test(q[n])) return null;
+  const [from, count, depth, wrap] = ['from', 'count', 'depth', 'wrap'].map((n) => Number(q[n]));
+  if (!(count >= 1 && count <= 128 && depth <= 100_000 && from + count <= depth && wrap >= 1 && wrap <= 512) || (q.keep !== 'top' && q.keep !== 'bottom')) return null;
+  if (from >= SCROLLBACK_DOOR_DEPTH) return null;
+  const rows = [];
+  for (let i = from; i < Math.min(from + count, SCROLLBACK_DOOR_DEPTH); i += 1) {
+    const text = lineOf(i + 1).slice(0, wrap);
+    rows.push([{ text, style: 0, cells: text.length }]);
+  }
+  return {
+    sessionId: q.id,
+    at: Date.now(),
+    from,
+    depth: Math.max(depth, SCROLLBACK_DOOR_DEPTH),
+    wrap,
+    space: SCROLLBACK_DOOR_SPACE,
+    styles: [{ fg: '#d4d4d4', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }],
+    rows,
+    why: null,
+    sentence: null
+  };
+}
+
+/** The vectors' `session-talk` answer (the shipping composer's own bytes), with the asked id put in. */
+export function sessionAnswerOf(id, file = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json')) {
+  const a = JSON.parse(JSON.parse(readFileSync(file, 'utf8')).answers['session-talk'].json);
+  if (a.session !== null && typeof a.session === 'object') a.session.sessionId = id;
+  return a;
+}
+
+/**
+ * The committed screen sample the door answers with must carry D3's `depth`
+ * and `space` (a whole number and 12 lowercase hex, or both null), so the
+ * phone's Terminal is shown the shape it reads. Answers the problem, or null.
+ */
+export function sampleDepthProblem(sample) {
+  const s = sample?.screen;
+  if (s === null || typeof s !== 'object') return 'the committed screen sample has no screen';
+  if (!Object.hasOwn(s, 'depth') || !Object.hasOwn(s, 'space')) return "the committed screen sample carries no depth or no space (Phase 337.1 D3); regenerate it with the screen's own test";
+  const none = s.depth === null && s.space === null;
+  const both = Number.isSafeInteger(s.depth) && s.depth >= 0 && s.depth <= 100_000 && typeof s.space === 'string' && /^[0-9a-f]{12}$/.test(s.space);
+  return none || both ? null : `the committed screen sample's depth ${JSON.stringify(s.depth)} and space ${JSON.stringify(s.space)} are not null together nor a whole number beside 12 lowercase hex`;
+}
+
 /**
  * The vectors' phone and the vectors' Mac (ios/TortieTests/Fixtures/vectors.json,
  * from public seeds; they pair with nothing), as `verifySigned` takes them: a
@@ -611,7 +708,7 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
     // Phase 337. The screen door's own: every handshake (the counts request's
     // included), every connection the PHONE ended first, every screen read and
     // keys write it read, and every signature that did not hold.
-    screen: { handshakes: 0, phoneCloses: 0, screenReads: 0, keysPosts: 0, refused: [] }
+    screen: { handshakes: 0, phoneCloses: 0, screenReads: 0, keysPosts: 0, refused: [], scrollbackReads: 0, sessionReads: 0, scrollbackRefused: 0 }
   });
   let counts = fresh();
   // Every key door A ever issued over, which a `reset` between configurations
@@ -806,16 +903,21 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
       const url = new URL(req.url ?? '/', 'https://door.invalid');
       const reading = req.method === 'GET' && url.pathname === '/v1/screen';
       const writing = req.method === 'POST' && req.url === '/v1/keys';
+      // PHASE 337.1: a page of the door's own history, and a session read (the Terminal's status re-read).
+      const paging = req.method === 'GET' && url.pathname === '/v1/scrollback';
+      const sessionRead = req.method === 'GET' && url.pathname === '/v1/session';
       if (reading) counts.screen.screenReads += 1;
       if (writing) counts.screen.keysPosts += 1;
-      if (socket.p337CloseNext === true && (reading || writing)) {
+      if (paging) counts.screen.scrollbackReads += 1;
+      if (sessionRead) counts.screen.sessionReads += 1;
+      if (socket.p337CloseNext === true && (reading || writing || paging || sessionRead)) {
         // The request after `p337-close-on-next`: read, counted, never answered.
         socket.p337ServerEnded = true;
         socket.destroy();
         return;
       }
       if (req.method === 'GET' && req.url === '/p337/counts') {
-        const { handshakes, phoneCloses, screenReads, keysPosts, refused } = counts.screen;
+        const { handshakes, phoneCloses, screenReads, keysPosts, refused, scrollbackReads, sessionReads } = counts.screen;
         // THE DOOR ENDS THE COUNTS CONNECTION (the probe review, 2026-10-05).
         // The tests read the counts through the one-shot `DoorClient.exchange`,
         // which asks `Connection: close` and closes its connection once it has
@@ -824,16 +926,16 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
         // of a 4.5 s wait, read 2 for the ONE line the phone closed (measured
         // with a node client that closes as DoorClient does). Ended by the
         // door, it is never the phone's.
-        return keepAnswer(res, 200, JSON.stringify({ handshakes, phoneCloses, screenReads, keysPosts, refused: refused.length }), { close: true });
+        return keepAnswer(res, 200, JSON.stringify({ handshakes, phoneCloses, screenReads, keysPosts, refused: refused.length, scrollbackReads, sessionReads }), { close: true });
       }
-      if (!reading && !writing) return keepAnswer(res, 404, null);
+      if (!reading && !writing && !paging && !sessionRead) return keepAnswer(res, 404, null);
       const verdict = verifySigned({ method: req.method, target: req.url, headers: req.headers, body, ...writeSigner });
       if (verdict !== 'ok') {
         counts.screen.refused.push(verdict);
         return keepAnswer(res, 404, null);
       }
       let session = '';
-      if (reading) session = url.searchParams.get('id') ?? '';
+      if (reading || paging || sessionRead) session = url.searchParams.get('id') ?? '';
       else {
         try {
           session = String(JSON.parse(body.toString('utf8')).session ?? '');
@@ -841,7 +943,16 @@ export async function startTransportDoors(dir, { holdMs = P317_HOLD_MS } = {}) {
           session = '';
         }
       }
-      const reply = reading ? JSON.stringify(screenAnswerFor(session, url.searchParams.get('since'))) : JSON.stringify(writeAnswerOf('keys', body, POCKET_WRITE_SENTENCES.unreadable));
+      let reply;
+      if (paging) {
+        const page = scrollbackPageOf(req.url, (n) => standInLineOf(n));
+        if (page === null) {
+          counts.screen.scrollbackRefused += 1;
+          return keepAnswer(res, 404, null);
+        }
+        reply = JSON.stringify(page);
+      } else if (sessionRead) reply = JSON.stringify(sessionAnswerOf(session));
+      else reply = reading ? JSON.stringify(screenAnswerFor(session, url.searchParams.get('since'))) : JSON.stringify(writeAnswerOf('keys', body, POCKET_WRITE_SENTENCES.unreadable));
       if (session === 'p337-close-on-next') socket.p337CloseNext = true;
       keepAnswer(res, 200, reply, { close: session === 'p337-says-close' });
       if (session === 'p337-stray') {
@@ -1010,6 +1121,48 @@ export const P337_SUITES = Object.freeze([
   'EndTopTests',
   'DoorVectorTests',
   'CopyTests'
+]);
+
+/**
+ * Phase 337.1: what each row of P3371ScrollbackTransportTests must print as
+ * `P3371_TRANSPORT|<row>|<handshakes>` (the connections it opened, the counts
+ * read's own taken out): build/p3371/SPEC.md §6.4, D30.
+ */
+export const P3371_TRANSPORT_ROWS = Object.freeze({ 'two-pages': '1', 'closed-page': '2', 'page-and-poll': '2', 'side-line': '1' });
+
+/**
+ * What one configuration's history rows left (Phase 337.1, build/p3371/SPEC.md
+ * §6.4): the screen door read at least one page and one session read (the
+ * Terminal's status re-read on its side line), and refused no page the
+ * shipping client asked; and, given xcodebuild's output, every
+ * `P3371_TRANSPORT|<row>|<handshakes>` row read what `P3371_TRANSPORT_ROWS`
+ * says. Returns the problems (sentences).
+ */
+export function scrollbackProblems(counts, configuration, text = null) {
+  const problems = [];
+  const s = counts.screen;
+  if ((s.scrollbackReads ?? 0) === 0) problems.push(`${configuration}: the screen door read no GET /v1/scrollback, so P3371ScrollbackTransportTests never reached it`);
+  if ((s.sessionReads ?? 0) === 0) problems.push(`${configuration}: the screen door read no GET /v1/session, so the side line's status re-read never reached it`);
+  if ((s.scrollbackRefused ?? 0) > 0) problems.push(`${configuration}: the screen door refused ${String(s.scrollbackRefused)} page ask(s) the shipping client spelled; a phone's target names the six, each once and in bounds`);
+  if (text !== null) {
+    const rows = new Map([...String(text).matchAll(/P3371_TRANSPORT\|([a-z-]+)\|([^\s|]+)/g)].map((m) => [m[1], m[2]]));
+    for (const [row, want] of Object.entries(P3371_TRANSPORT_ROWS)) {
+      if (!rows.has(row)) problems.push(`${configuration}: no P3371_TRANSPORT|${row} line, so that row did not run to its end`);
+      else if (rows.get(row) !== want) problems.push(`${configuration}: P3371_TRANSPORT|${row} read ${String(rows.get(row))} handshake(s), not ${want}`);
+    }
+  }
+  return problems;
+}
+
+/** The test classes Phase 337.1 adds (build/p3371/SPEC.md §7.3), each of which must appear in xcodebuild's own suite lines. */
+export const P3371_SUITES = Object.freeze([
+  'ScrollbackModelTests',
+  'ScreenScrollerTests',
+  'ScrollbackDecodeTests',
+  'P3371ScrollbackTransportTests',
+  'TerminalRouteTests',
+  'CatchUpPageTests',
+  'StatusLineTests'
 ]);
 
 /**
@@ -1319,6 +1472,65 @@ async function doorsSelfTest() {
         check('a one-shot counts read closed by its client is not the phone ending a line: one phone close for the one kept line', before !== null && after !== null && after.phoneCloses - before.phoneCloses === 1, `${J(before)} then ${J(after)}`);
       }
 
+      // PHASE 337.1: the history and the side line's status read, on the same door.
+      {
+        const pageTarget = (id, from, count, extra = '') => `/v1/scrollback?id=${encodeURIComponent(id)}&from=${String(from)}&count=${String(count)}&depth=3000&wrap=80&keep=bottom${extra}`;
+        const page = (l, target) => l.ask('GET', target, getSigned(target));
+        const said = (a) => (() => { try { return JSON.parse(a?.body ?? ''); } catch { return null; } })();
+        const kept = await line();
+        const handshakesBefore = doors.counts().screen.handshakes;
+        const p1 = await page(kept, pageTarget('p3371-session', 100, 108));
+        const s1 = said(p1);
+        const ask1 = { from: 100, count: 108, depth: 3000, wrap: 80, keep: 'bottom' };
+        check(
+          "an honest page is answered with the door's numbered lines from its index, cut to the wrap asked, on a kept connection",
+          p1?.status === 200 && s1?.sessionId === 'p3371-session' && s1?.from === 100 && s1?.rows?.length === 108 && s1?.rows?.[0]?.[0]?.text === standInLineOf(101).slice(0, 80) && s1?.space === SCROLLBACK_DOOR_SPACE && phoneMod.scrollbackAnswerProblems(s1, ask1).length === 0 && /connection: keep-alive/i.test(p1?.head ?? ''),
+          `${String(p1?.status)} ${J(phoneMod.scrollbackAnswerProblems(s1, ask1))}`
+        );
+        const p2 = await page(kept, pageTarget('p3371-session', 0, 50));
+        const sessionTarget = '/v1/session?id=p3371-session';
+        const st = await kept.ask('GET', sessionTarget, getSigned(sessionTarget));
+        const stSaid = said(st);
+        check('a second page and a status read ride the SAME kept connection: one handshake for the three', p2?.status === 200 && said(p2)?.rows?.[0]?.[0]?.text === standInLineOf(1).slice(0, 80) && st?.status === 200 && stSaid?.session?.sessionId === 'p3371-session' && doors.counts().screen.handshakes === handshakesBefore + 1, `${String(p2?.status)} ${String(st?.status)}, ${String(doors.counts().screen.handshakes - handshakesBefore)} handshake(s)`);
+        const refusedBefore = doors.counts().screen.scrollbackRefused;
+        const hostile = [pageTarget('p3371-session', 0, 10, '&cols=80'), pageTarget('p3371-session', 3000, 10).replace('depth=3000', 'depth=3010'), pageTarget('p3371-session', 2995, 10), pageTarget('p3371-session', 0, 129), pageTarget('p3371-session', 0, 10).replace('keep=bottom', 'keep=TOP')];
+        const hostileStatus = [];
+        for (const t of hostile) hostileStatus.push((await page(kept, t))?.status ?? null);
+        check('a page asking a seventh name, past the history, past its own depth, 129 rows or keep TOP is answered 404 and counted', hostileStatus.every((x) => x === 404) && doors.counts().screen.scrollbackRefused === refusedBefore + hostile.length, `${J(hostileStatus)}, ${String(doors.counts().screen.scrollbackRefused - refusedBefore)} counted`);
+        const forgedPage = pageTarget('p3371-session', 0, 10);
+        const forged = await kept.ask('GET', forgedPage.replace('from=0', 'from=1'), getSigned(forgedPage));
+        check('a page whose target changed after signing is answered 404 and counted refused', forged?.status === 404 && doors.counts().screen.refused.filter((x) => x === 'signature').length >= 2, `${String(forged?.status)} ${J(doors.counts().screen.refused)}`);
+        kept.socket.end();
+        const closer = await line();
+        const pagesBefore = doors.counts().screen.scrollbackReads;
+        const closeFirst = await page(closer, pageTarget('p337-close-on-next', 0, 10));
+        const closeNext = await page(closer, pageTarget('p3371-session', 0, 10));
+        check('p337-close-on-next holds for a page: answered, and the next page read, counted and ended with no answer', closeFirst?.status === 200 && closeNext === null && closer.ended() && doors.counts().screen.scrollbackReads === pagesBefore + 2, `${String(closeFirst?.status)} then ${J(closeNext)}`);
+        const c = doors.counts();
+        check('scrollbackProblems passes a run that paged and read a session (its hostile asks are this self-test\'s own)', scrollbackProblems({ ...c, screen: { ...c.screen, scrollbackRefused: 0 } }, 'self-test').length === 0, J(scrollbackProblems(c, 'self-test')));
+        check('scrollbackProblems refuses a run that paged nothing', scrollbackProblems({ ...c, screen: { ...c.screen, scrollbackRefused: 0, scrollbackReads: 0 } }, 'self-test').length === 1);
+        check('scrollbackProblems refuses a run with no status read on the side line', scrollbackProblems({ ...c, screen: { ...c.screen, scrollbackRefused: 0, sessionReads: 0 } }, 'self-test').length === 1);
+        check('scrollbackProblems refuses a page ask the door refused', scrollbackProblems(c, 'self-test').length === 1);
+        {
+          const cleanPages = { ...c, screen: { ...c.screen, scrollbackRefused: 0 } };
+          const rowsText = Object.entries(P3371_TRANSPORT_ROWS).map(([row, want]) => `P3371_TRANSPORT|${row}|${want}`).join('\n') + '\n';
+          check('scrollbackProblems passes a run whose four transport rows read what they must', scrollbackProblems(cleanPages, 'self-test', rowsText).length === 0, J(scrollbackProblems(cleanPages, 'self-test', rowsText)));
+          check('scrollbackProblems refuses a page and a status read that opened two connections on the side line', scrollbackProblems(cleanPages, 'self-test', rowsText.replace('P3371_TRANSPORT|side-line|1', 'P3371_TRANSPORT|side-line|2')).length === 1);
+          check('scrollbackProblems refuses a page the door ended that was never asked again on a new line', scrollbackProblems(cleanPages, 'self-test', rowsText.replace('P3371_TRANSPORT|closed-page|2', 'P3371_TRANSPORT|closed-page|1')).length === 1);
+          check('scrollbackProblems refuses a transport row that never printed', scrollbackProblems(cleanPages, 'self-test', rowsText.replace('P3371_TRANSPORT|two-pages|1\n', '')).length === 1);
+          check("scrollbackProblems does not read Phase 337's rows as this phase's", scrollbackProblems(cleanPages, 'self-test', 'P337_TRANSPORT|one-line|1\n').length === Object.keys(P3371_TRANSPORT_ROWS).length);
+        }
+        let sample = null;
+        try {
+          sample = JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8'));
+        } catch {
+          sample = null;
+        }
+        check("the committed screen sample carries D3's depth and space", sampleDepthProblem(sample) === null, String(sampleDepthProblem(sample)));
+        check('sampleDepthProblem refuses a sample with no depth, and one whose space is not 12 hex', sampleDepthProblem({ screen: { cols: 120 } }) !== null && sampleDepthProblem({ screen: { depth: 4, space: 'XYZ' } }) !== null && sampleDepthProblem({ screen: { depth: null, space: null } }) === null);
+        check('scrollbackPageOf refuses a repeated name and an id over 128 characters', scrollbackPageOf(`${pageTarget('a', 0, 10)}&from=0`, standInLineOf) === null && scrollbackPageOf(pageTarget('x'.repeat(129), 0, 10), standInLineOf) === null && scrollbackPageOf(pageTarget('a', 0, 10), standInLineOf) !== null);
+      }
+
       const counted = doors.counts();
       const honestText =Object.entries(P337_TRANSPORT_ROWS).map(([row, want]) => `P337_TRANSPORT|${row}|${want}`).join('\n') + '\nP337_GRID|fitted|1048576|1|2\nP337_GRID|top|4194304|1|2\n';
       const clean = structuredClone(counted);
@@ -1338,6 +1550,7 @@ async function doorsSelfTest() {
     check('suitesNotRun counts a failed suite as run', suitesNotRun(ran.replace("'WriterTests' passed", "'WriterTests' failed")).length === 0);
     check('suitesNotRun names a Phase 318 suite that never ran', J(suitesNotRun(ran, P318_SUITES)) === J(['ReplyTests', 'ReplyClientTests', 'P318ReplyTransportTests']));
     check('suitesNotRun names the Phase 337 suites that never ran', J(suitesNotRun(ran, P337_SUITES)) === J(P337_SUITES.filter((n) => !P317_SUITES.includes(n))));
+    check('suitesNotRun names every Phase 337.1 suite that never ran', J(suitesNotRun(ran, P3371_SUITES)) === J([...P3371_SUITES]));
   } catch (err) {
     check('the self-test ran', false, String(err?.stack ?? err));
   } finally {
@@ -1390,7 +1603,19 @@ async function main() {
     process.stderr.write(`${TAG} ${missing}\n`);
     process.exit(2);
   }
-  // 2. The vectors.
+  // 2. The vectors, and (Phase 337.1) the screen sample the door answers with, which must carry D3's depth and space.
+  {
+    let sampleProblem = null;
+    try {
+      sampleProblem = sampleDepthProblem(JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8')));
+    } catch (err) {
+      sampleProblem = `the committed screen sample could not be read: ${String(err?.message ?? err)}`;
+    }
+    if (sampleProblem !== null) {
+      process.stderr.write(`${TAG} ${sampleProblem}\n`);
+      process.exit(1);
+    }
+  }
   const vectors = spawnSync(process.execPath, [join(ROOT, 'build', 'p316', 'vectors.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8', timeout: 120_000 });
   if (vectors.status !== 0) {
     process.stderr.write(`${TAG} the vectors are stale, so the Swift would be held to the wrong bytes: ${`${vectors.stdout ?? ''}${vectors.stderr ?? ''}`.trim().split('\n').slice(-2).join(' ')}\n`);
@@ -1522,6 +1747,9 @@ async function main() {
           P317_HOLD_MS: String(doors.holdMs),
           // Phase 337: the screen door, under door A's key and name.
           P337_SCREEN_PORT: String(doors.portScreen),
+          // Phase 337.1: the screen door's history, which P3371ScrollbackTransportTests pages.
+          P3371_DEPTH: String(SCROLLBACK_DOOR_DEPTH),
+          P3371_SPACE: SCROLLBACK_DOOR_SPACE,
           ...outline
         };
         if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
@@ -1534,8 +1762,8 @@ async function main() {
               { label: `unit-${c.name}`, derivedDataPath: c.derivedDataPath, timeoutMs: 900_000, testEnv }
             );
             const counted = doors.counts();
-            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
-            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P337_(?:TRANSPORT|GRID)\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
+            const transport = [...transportProblems(counted, c.name), ...writeProblems(counted, c.name), ...replyProblems(counted, c.name), ...screenProblems(counted, c.name, `${run.stdout}${run.stderr}`), ...scrollbackProblems(counted, c.name, `${run.stdout}${run.stderr}`)];
+            for (const l of `${run.stdout}${run.stderr}`.split('\n').filter((x) => /^P3371?_(?:TRANSPORT|GRID)\|/.test(x.trim()))) process.stdout.write(`  ${l.trim()}\n`);
             for (const p of transport) process.stdout.write(`  ${p}\n`);
             say(
               `the write doors after ${c.name}: door A read ${String(counted.writes.end)} end write(s), ${String(counted.writes.choose)} press(es) and ${String(counted.writes.say)} message(s), ` +
@@ -1556,7 +1784,7 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
             if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');

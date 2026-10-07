@@ -49,10 +49,12 @@ final class ScreenColourTests: XCTestCase {
         let tokens = try StyleSource.text("ios/Tortie/Style/Tokens.swift")
         XCTAssertEqual(tokens.components(separatedBy: "static func drawn(_ rgb: ScreenColor) -> Color").count, 2)
         for file in ["Screens/Screen.swift", "Screens/ScreenGrid.swift", "Screens/ScreenRows.swift", "Screens/ScreenGlyphs.swift",
-                     "Screens/ScreenKeyField.swift", "Screens/ScreenSelection.swift", "Door/Contract.swift"] {
+                     "Screens/ScreenKeyField.swift", "Screens/ScreenSelection.swift", "Door/Contract.swift",
+                     "Screens/ScreenScroller.swift", "Screens/ScreenScrollback.swift"] {
             let source = try StyleSource.text("ios/Tortie/" + file)
             XCTAssertFalse(source.contains("Color(.sRGB"), file)
             XCTAssertFalse(source.contains("Color(red:"), file)
+            XCTAssertFalse(source.contains("UIColor("), file)
         }
     }
 }

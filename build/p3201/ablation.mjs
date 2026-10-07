@@ -36,7 +36,13 @@
  * (102, 103), `k4` and `k5` its one composer (122), `k6` to `k9`
  * typePhoneKeys (123), `k10` to `k12` the far screen's one exec read (124)
  * `k13` the -H spellers (109) and `k14` the control-connection writers
- * (101). 114 in all.
+ * (101). 114 in all. PHASE 337.1 added 9 (build/p3371/SPEC.md §6.3): `k15`
+ * and `k16` the far reads' three commands and their two composers (124
+ * widened), `k17` to `k20` a far page round's whole numbers, its target and
+ * its one exec (140), `k21` and `k22` the live address first and no carriage
+ * row (141), and `k23` the closed list of control-connection writers (101,
+ * which the page round joins through read.ts's one statement); `k12` was re-pointed where the far live read
+ * now begins with its first display. 123 in all.
  *
  * A GREEN GATE IS ONLY EVIDENCE IF IT CAN GO RED. Phase 320.1 opens the first
  * interactive write path on a machine's control connection, the carriage
@@ -1334,8 +1340,9 @@ export const ABLATIONS = [
     name: 'the far read names a third verb',
     why: 'capture-pane and display-message are its only verbs; nothing it sends sizes, types or runs anything (D7).',
     file: REMOTE_SCREEN,
-    from: "  return ['capture-pane', '-p', '-e', '-t', tmuxId, ';',",
-    to: "  return ['refresh-client', '-C', '80x24', ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',"
+    // Phase 337.1 (D6): the far live read begins with its first display now.
+    from: "  return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane'",
+    to: "  return ['refresh-client', '-C', '80x24', ';', 'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane'"
   },
   {
     n: 'k13',
@@ -1344,8 +1351,9 @@ export const ABLATIONS = [
     name: 'a third file spells -H',
     why: 'only the carriage\'s seventh row and the Screen\'s keys on this Mac type bytes; a third is a new typing door.',
     file: REMOTE_SCREEN,
-    from: '/** One exec\'s output as a reading',
-    to: "export const RAW = ['send-keys', '-t', '$1', '-H', '61'];\n/** One exec\'s output as a reading"
+    // Phase 337.1: the comment above splitRemoteRead is a block of its own now.
+    from: "/**\n * One exec's output as a reading (D6)",
+    to: "export const RAW = ['send-keys', '-t', '$1', '-H', '61'];\n/**\n * One exec's output as a reading (D6)"
   },
   {
     n: 'k14',
@@ -1356,6 +1364,103 @@ export const ABLATIONS = [
     file: 'src/main/screen/watch.ts',
     from: 'export function createScreenWatch(',
     to: "export const poke = (c: { sendCommand(line: string): Promise<string[]> }): Promise<string[]> => c.sendCommand('refresh-client');\nexport function createScreenWatch("
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 337.1, the far page of history (build/p3371/SPEC.md §6.3):
+  // condition 124 widened (the far live read is three commands, and every far
+  // exec is handed one of the two composers), 140 new (a far page round's
+  // numbers and its one exec) and 141 new (the live address first, no
+  // carriage row). 101 widened for the page round on this Mac's own client.
+  // -------------------------------------------------------------------------
+  {
+    n: 'k15',
+    check: 'machines',
+    owner: 'C124',
+    name: 'the far live read back to two commands',
+    why: 'a far picture needs a depth as a local one does, so it is the display, the capture and the display in one exec, steady by D5\'s rule (D6).',
+    file: REMOTE_SCREEN,
+    from: "  return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',\n    'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];",
+    to: "  return ['capture-pane', '-p', '-e', '-t', tmuxId, ';', 'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];"
+  },
+  {
+    n: 'k16',
+    check: 'machines',
+    owner: 'C124',
+    name: 'a far page exec handed an argv written in its reader',
+    why: 'every far exec is handed remoteScreenArgv( or remoteScrollbackArgv(, the two composers no caller string reaches (D10).',
+    file: REMOTE_SCREEN,
+    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
+    to: "    stdout = await execOn(ctx, ['capture-pane', '-p', '-e', '-t', address.tmuxId, '-S', String(a), '-E', String(b)], { timeoutMs });"
+  },
+  {
+    n: 'k17',
+    check: 'machines',
+    owner: 'C140',
+    name: 'the page\'s whole-number check loosened to any number',
+    why: 'a number tmux cannot read silently starts the capture at the VISIBLE TOP (§14 M1), so a fraction, an infinity or a NaN is refused before any argv exists, as remote-pane-history.ts\'s wholeNumber refuses it (D9).',
+    file: REMOTE_SCREEN,
+    from: '  if (!Number.isSafeInteger(n)) {',
+    to: "  if (typeof n !== 'number') {"
+  },
+  {
+    n: 'k18',
+    check: 'machines',
+    owner: 'C140',
+    name: 'the page\'s start composed from the raw number',
+    why: 'every -S and -E is a whole number checked before composing; String( of an unchecked value carries a fraction or a caller\'s string to the far tmux (D9, D10).',
+    file: REMOTE_SCREEN,
+    from: '  const start = wholeNumber(a);',
+    to: '  const start = String(a);'
+  },
+  {
+    n: 'k19',
+    check: 'machines',
+    owner: 'C140',
+    name: 'the page read aimed at any target',
+    why: 'a far page is aimed at a $N session id alone, which SCROLL_TARGET admits; a pane, an empty target or a list in the target is refused before composing (D10).',
+    file: REMOTE_SCREEN,
+    from: "  if (!SCROLL_TARGET.test(tmuxId)) throw new Error('a remote page read is aimed at a $N session id');\n",
+    to: ''
+  },
+  {
+    n: 'k20',
+    check: 'machines',
+    owner: 'C140',
+    name: 'a display-only page round composed',
+    why: 'a separate display round costs a far machine two execs a page and never served the oldest page while output scrolled (§Attack B1, B2).',
+    file: REMOTE_SCREEN,
+    from: "/**\n * One exec's output as a reading (D6)",
+    to: "export function remotePageDepthArgv(tmuxId: string): string[] {\n  return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];\n}\n\n/**\n * One exec's output as a reading (D6)"
+  },
+  {
+    n: 'k21',
+    check: 'machines',
+    owner: 'C141',
+    name: 'the far page read past an address that is not live',
+    why: 'a $N a far restart handed to somebody else\'s session is never read: the page asks the live address first and answers unreachable for anything else (§5.3.5).',
+    file: REMOTE_SCREEN,
+    from: "  timeoutMs: number\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n  if (address.kind !== 'live') return 'unreachable';\n",
+    to: "  timeoutMs: number\n): Promise<PageRound | 'unreachable' | null> {\n  const address = remoteScrollAddress(sessionId);\n"
+  },
+  {
+    n: 'k22',
+    check: 'machines',
+    owner: 'C141',
+    name: 'the far page read leaves copy mode on its way',
+    why: 'a page is a read over the exec plane; it names no carriage row, no send-keys and no copy-mode, so it never moves a pane he is reading at the Mac (§5.3.5).',
+    file: REMOTE_SCREEN,
+    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
+    to: "    void ['copy-mode', '-q'];\n    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });"
+  },
+  {
+    n: 'k23',
+    check: 'machines',
+    owner: 'C101',
+    name: 'the composer writes to the control connection',
+    why: 'the files that write a line to a tmux control connection are a closed list; the Screen\'s are read.ts and keys.ts, on this Mac\'s own client, and since Phase 337.1 a page of history goes through read.ts\'s one statement rather than a writer of its own.',
+    file: 'src/main/screen/compose.ts',
+    from: 'export function spaceOf(',
+    to: "export const poke = (c: { sendCommand(line: string): Promise<string[]> }): Promise<string[]> => c.sendCommand('refresh-client');\nexport function spaceOf("
   },
   {
     n: 'r13',

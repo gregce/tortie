@@ -148,6 +148,27 @@
  * and 5 is the one App Store Connect has seen). THIS SCRIPT PLANTS EACH ONE IN A CLONE OF THE SHIPPING
  * TREE AND PROVES IT REDDENS THE RULE THAT OWNS IT.
  *
+ * PHASE 337.1 OPENED A SESSION ON ITS TERMINAL, SCROLLED IT BACK AND RENAMED
+ * THE CONVERSATION CATCH ME UP (build/p3371/SPEC.md §6.4), and its arms are the
+ * ways the rebuilt view could move under him or the pages reach further than
+ * they may: (aq) a SwiftUI scroll view or GeometryReader back, the inset
+ * adjustment on, the single tap not waiting, the hosting view taking touches,
+ * the delta applied outside layoutSubviews or set rather than added, D25's pad
+ * removed, a point read in the view, a fourth writer of the offset (the fix
+ * round's four SwiftUI arms left with the view they planted into); (ar) the
+ * first draft's opt-out on the representable alone, an inset written outside
+ * keyboardOverlap, the line not padded by the overlap, the frame not
+ * converted, the overlap never published, a second opt-out; (as) cols in the
+ * target, the overlap or space check removed, two pages in flight, a 0.1 s
+ * pace, a point by its layout row, Copy over unfetched rows, 5,000 rows held, a
+ * key that stays scrolled back, a picture that raises no depth, top moved
+ * outside reserve, the history persisted, its model outside the Screen*
+ * family; (at) Route.screen back, End before the icon, the tray on new
+ * identifiers, the Terminal with no door, the face decided twice, the icon a
+ * word, the container renamed; (au) Conversation back, Catch Me Up re-cased,
+ * a conversation identifier; and the widened (ak) side line, (ah) page width,
+ * (ai) second minGap, (x) keyboard userInfo, (v) page sentence and (t) arm.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -2709,6 +2730,13 @@ const ARMS = [
     edit: (src) => src.replace('let change = state.backspace(marked: markedTextRange != nil)', 'let change = state.changed(to: text ?? "", marked: markedTextRange != nil, dictating: dictating)')
   },
   {
+    id: 'aj13',
+    rule: 'aj',
+    what: "the keyboard taken inside SwiftUI's update again, which froze the app over the question's tray (Phase 337.1's fix round)",
+    file: () => `${APP}/Screens/ScreenKeyField.swift`,
+    edit: (src) => src.replace('        let coordinator = context.coordinator\n        DispatchQueue.main.async { [weak field] in\n            guard let field else { return }\n            coordinator.settle(field)\n        }\n', '        context.coordinator.settle(field)\n        field.becomeFirstResponder()\n')
+  },
+  {
     id: 'ak1',
     rule: 'ak',
     what: 'a kept line fresh for 6 s, past the door’s own 5',
@@ -2869,37 +2897,363 @@ const ARMS = [
     file: () => `${APP}/Screens/ScreenGlyphs.swift`,
     edit: (src) => src.replace(/\.properties\.name\b/g, '.properties.nameAlias')
   },
-  // (aq), the fix round of 2026-10-06: the two iOS 26 behaviours, put back.
+  // (aq), REWRITTEN BY PHASE 337.1 (build/p3371/SPEC.md §6.4): the Terminal's
+  // scroll view is UIKit's, never centres, and moves its offset by a delta.
+  // The fix round's four SwiftUI arms left with the view they planted into.
   {
     id: 'aq1',
     rule: 'aq',
-    what: 'the SwiftUI long press sequenced before a drag, which held every touch on iOS 26',
+    what: 'a SwiftUI ScrollView put back in a Screen file',
     file: () => `${APP}/Screens/ScreenGrid.swift`,
-    edit: (src) => src.replace('.gesture(selectPress(cell))', '.gesture(LongPressGesture(minimumDuration: ScreenGesture.longPressSeconds).sequenced(before: DragGesture(minimumDistance: 0)))')
+    edit: append('struct P3371Back: View {\n    var body: some View { ScrollView([.horizontal, .vertical]) { EmptyView() } }\n}\n')
   },
   {
     id: 'aq2',
     rule: 'aq',
-    what: 'the rows centred again, so a line under the grid moves them under a still finger',
-    file: () => `${APP}/Screens/ScreenGrid.swift`,
-    edit: (src) => src.replace('minHeight: proxy.size.height, alignment: .topLeading)', 'minHeight: proxy.size.height, alignment: .center)')
+    what: "the scroll view's inset adjustment left on, so UIKit moves the rows with the keyboard",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('contentInsetAdjustmentBehavior = .never', 'contentInsetAdjustmentBehavior = .automatic')
   },
   {
     id: 'aq3',
     rule: 'aq',
-    what: 'the gestures on the rows alone, so a pinch below the last row reaches nothing',
-    file: () => `${APP}/Screens/ScreenGrid.swift`,
-    edit: (src) =>
-      src
-        .replace('                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n', '')
-        .replace('                    .gesture(selectPress(cell))\n', '                    .gesture(selectPress(cell))\n                    .frame(minWidth: proxy.size.width, minHeight: proxy.size.height, alignment: .topLeading)\n                    .contentShape(Rectangle())\n')
+    what: 'the single tap no longer waiting for the double',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        single.require(toFail: double)\n', '')
   },
   {
     id: 'aq4',
     rule: 'aq',
-    what: 'a long press that is not a UIKit recognizer',
+    what: 'the hosting view taking touches',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('host.view.isUserInteractionEnabled = false', 'host.view.isUserInteractionEnabled = true')
+  },
+  {
+    id: 'aq5',
+    rule: 'aq',
+    what: 'the offset delta applied outside layoutSubviews, while scrolling',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        pinned = contentOffset.y >= CGFloat(maxOffsetY) - 0.5\n', '        pinned = contentOffset.y >= CGFloat(maxOffsetY) - 0.5\n        apply(above: CGPoint(x: 0, y: 0))\n')
+  },
+  {
+    id: 'aq6',
+    rule: 'aq',
+    what: 'the delta set as the offset instead of added to the current one',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('contentOffset = CGPoint(x: CGFloat(contentOffset.x) + delta.x, y: CGFloat(contentOffset.y) + delta.y)', 'contentOffset = delta')
+  },
+  {
+    id: 'aq7',
+    rule: 'aq',
+    what: "D25's pad removed, so a page landing above moves the live rows (§Attack B5)",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('height: CGFloat(CGFloat(rows) * now.height) + pad)', 'height: CGFloat(CGFloat(rows) * now.height))')
+  },
+  {
+    id: 'aq8',
+    rule: 'aq',
+    what: "a long press's point read in the view rather than the content",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('press.location(in: contentView)', 'press.location(in: self)')
+  },
+  {
+    id: 'aq9',
+    rule: 'aq',
+    what: 'a fourth writer of the offset, when a fling settles',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {\n        drawWindow(force: true)\n        settled()\n', '    func scrollViewDidEndDecelerating(_ scrollView: UIScrollView) {\n        drawWindow(force: true)\n        setContentOffset(contentOffset, animated: false)\n        settled()\n')
+  },
+  {
+    id: 'aq10',
+    rule: 'aq',
+    what: 'a GeometryReader framing the rows again',
     file: () => `${APP}/Screens/ScreenGrid.swift`,
-    edit: (src) => src.replace('let press = UILongPressGestureRecognizer()', 'let press = UITapGestureRecognizer()')
+    edit: append('struct P3371Geometry: View {\n    var body: some View { GeometryReader { _ in EmptyView() } }\n}\n')
+  },
+  // (ar) THE KEYBOARD NEVER MOVES THE TERMINAL'S FRAME (D24, §Attack B4).
+  {
+    id: 'ar1',
+    rule: 'ar',
+    what: "the first draft's shape: the opt-out on the representable alone, with the line and the tray below it",
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) =>
+      src
+        .replace('        .ignoresSafeArea(.keyboard, edges: .bottom)\n', '')
+        .replace('                content\n                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n', '                content\n                    .ignoresSafeArea(.keyboard, edges: .bottom)\n                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)\n')
+  },
+  {
+    id: 'ar2',
+    rule: 'ar',
+    what: "the indicators' inset written outside keyboardOverlap(_:)",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        super.layoutSubviews()\n', '        super.layoutSubviews()\n        verticalScrollIndicatorInsets.bottom = overlap\n')
+  },
+  {
+    id: 'ar3',
+    rule: 'ar',
+    what: 'the line and the back-to-live button no longer padded by the overlap',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('.padding(.bottom, overlap)', '.padding(.bottom, 0)')
+  },
+  {
+    id: 'ar4',
+    rule: 'ar',
+    what: "the keyboard's frame taken in the screen's coordinates, not converted into the view",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('let mine = convert(end, from: screen.coordinateSpace)', 'let mine = end')
+  },
+  {
+    id: 'ar5',
+    rule: 'ar',
+    what: 'the overlap never published to the page',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        actions?.overlap(covered)\n', '')
+  },
+  {
+    id: 'ar6',
+    rule: 'ar',
+    what: 'a second opt-out inside the page, on the tray',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('                    tray\n', '                    tray.ignoresSafeArea(.keyboard)\n')
+  },
+  {
+    id: 'ar7',
+    rule: 'ar',
+    what: "the overlap never measured again when the view grows under the keyboard (the tray hiding), so the line sits behind it (Phase 337.1's fix round)",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: (src) => src.replace('        super.layoutSubviews()\n        remeasureKeyboard()\n', '        super.layoutSubviews()\n')
+  },
+  {
+    id: 'aq11',
+    rule: 'aq',
+    what: "every row of the window an element again, ~300 where 337 had 40, which quarantined and crashed the app under test on iOS 18.3 (Phase 337.1's fix round)",
+    file: () => `${APP}/Screens/ScreenGrid.swift`,
+    edit: (src) => src.replace('.accessibilityIdentifier(item.spoken ? item.live.map(ID.screenRow) ?? ID.screenHistoryRow(item.id) : "")', '.accessibilityIdentifier(item.live.map(ID.screenRow) ?? ID.screenHistoryRow(item.id))')
+  },
+  // (as) THE SCROLLBACK CLIENT (D7, D13, D25 to D28, D31).
+  {
+    id: 'as1',
+    rule: 'as',
+    what: 'cols in the scrollback target',
+    file: () => `${APP}/Door/DoorClient.swift`,
+    edit: (src) => src.replace('&wrap=\\(wrap)', '&cols=\\(wrap)')
+  },
+  {
+    id: 'as2',
+    rule: 'as',
+    what: "the overlap check removed from a page's join",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard overlapAgrees(rows, ask: ask, askedEnd: asked) else {\n            edge = .moved(Copy.scrollbackMoved)\n            return .moved\n        }\n', '')
+  },
+  {
+    id: 'as3',
+    rule: 'as',
+    what: "the space check removed, so another pane's page joins (§Attack B8)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('page.pageWrap == wrap, page.space == space,', 'page.pageWrap == wrap,')
+  },
+  {
+    id: 'as4',
+    rule: 'as',
+    what: 'two pages in flight',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        guard !stopped, inFlight == nil, waiting == nil,', '        guard !stopped, waiting == nil,')
+  },
+  {
+    id: 'as5',
+    rule: 'as',
+    what: 'the pages paced at 0.1 s, under the Mac\'s own floor',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('static let minGap: Duration = .milliseconds(250)', 'static let minGap: Duration = .milliseconds(100)')
+  },
+  {
+    id: 'as6',
+    rule: 'as',
+    what: 'a selection point named by its place in the layout, not its absolute index',
+    file: () => `${APP}/Screens/ScreenSelection.swift`,
+    edit: (src) => src.replace('static func hit(_ point: CGPoint, cell: ScreenCell, columns: Int, first: Int, rows: Int)', 'static func hit(_ point: CGPoint, cell: ScreenCell, columns: Int, top: Int, rows: Int)').replace('let row = DoorNumber.sum(first, place)', 'let row = DoorNumber.sum(top, place)')
+  },
+  {
+    id: 'as7',
+    rule: 'as',
+    what: 'Copy drawn over rows not yet fetched (§Attack B11)',
+    file: () => `${APP}/Screens/Screen.swift`,
+    edit: (src) => src.replace('!selection.isEmpty && scrollback.drawn(selection.range, picture: model.picture)', '!selection.isEmpty')
+  },
+  {
+    id: 'as8',
+    rule: 'as',
+    what: '5,000 rows held',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('static let mostHeld = 3_000', 'static let mostHeld = 5_000')
+  },
+  {
+    id: 'as9',
+    rule: 'as',
+    what: 'a key sent that no longer returns the Terminal to its live rows',
+    file: () => `${APP}/Screens/ScreenKeys.swift`,
+    edit: (src) => src.replace('onSend?()', '_ = 0')
+  },
+  {
+    id: 'as10',
+    rule: 'as',
+    what: "a live picture that no longer raises depthSeen while scrolled (§Attack B13)",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('            depthSeen = offer.depth\n            live = max(live, offer.depth)\n', '            live = max(live, offer.depth)\n')
+  },
+  {
+    id: 'as11',
+    rule: 'as',
+    what: 'the reserved top moved outside reserve(',
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: (src) => src.replace('        mode = .following\n        held = [:]\n', '        mode = .following\n        top = live\n        held = [:]\n')
+  },
+  {
+    id: 'as12',
+    rule: 'as',
+    what: "the Terminal's history persisted",
+    file: () => `${APP}/Screens/ScreenScrollback.swift`,
+    edit: append('let p3371Kept = UserDefaults.standard\n')
+  },
+  {
+    id: 'as13',
+    rule: 'as',
+    what: "the history's model in a file outside the Screen* family, outside its walls (§Attack B15)",
+    file: () => `${APP}/Screens/Scrollback.swift`,
+    create: true,
+    edit: () => 'import Foundation\n\nfinal class ScrollbackModel {}\n'
+  },
+  // (at) TERMINAL FIRST (D16 to D20, §Attack B6, B12).
+  {
+    id: 'at1',
+    rule: 'at',
+    what: 'Route.screen put back',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('    case catchUp(id: String, honestLine: String?)\n', '    case catchUp(id: String, honestLine: String?)\n    case screen(id: String)\n')
+  },
+  {
+    id: 'at2',
+    rule: 'at',
+    what: 'End before the Catch Me Up icon',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) =>
+      src
+        .replace('            CatchUpItem { openCatchUp(drawing.outcome) }\n', '')
+        .replace('            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n        }\n', '            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }\n            CatchUpItem { openCatchUp(drawing.outcome) }\n        }\n')
+  },
+  {
+    id: 'at3',
+    rule: 'at',
+    what: "the tray's presses on new identifiers, so Phase 318's press arms miss them (§Attack B6)",
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('ID.sessionChoicePress(', 'ID.terminalChoicePress(')
+  },
+  {
+    id: 'at4',
+    rule: 'at',
+    what: 'the Terminal drawn for a reader with no screen door',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('screen && hasDoor ? .terminal : .catchUp', 'screen ? .terminal : .catchUp')
+  },
+  {
+    id: 'at5',
+    rule: 'at',
+    what: 'the face decided again on a later answer, swapping the page under him',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('guard face == nil, case .loaded', 'guard case .loaded')
+  },
+  {
+    id: 'at6',
+    rule: 'at',
+    what: 'the Catch Me Up icon drawn as a word',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: (src) => src.replace('Image(systemName: "text.bubble")', 'Words(Copy.catchMeUp, .body, Tokens.accent)')
+  },
+  {
+    id: 'at7',
+    rule: 'at',
+    what: "the session route's container no longer screen-session (§Attack B12)",
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('        .accessibilityElement(children: .contain)\n        .accessibilityIdentifier(ID.sessionScreen)\n', '        .accessibilityElement(children: .contain)\n        .accessibilityIdentifier(ID.screen)\n')
+  },
+  {
+    id: 'at8',
+    rule: 'at',
+    what: "the route's second child taken out, so the face's container folds into the route's and screen-screen never reaches the tree (Phase 337.1's fix round)",
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('                .accessibilityIdentifier(ID.sessionRouteMark)\n', '')
+  },
+  // (au) THE RENAME (D21 to D23).
+  {
+    id: 'au1',
+    rule: 'au',
+    what: 'a Conversation word put back in Copy.swift',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: (src) => src.replace('    static let catchMeUp = "Catch Me Up"\n', '    static let catchMeUp = "Catch Me Up"\n    static let conversation = "Conversation"\n')
+  },
+  {
+    id: 'au2',
+    rule: 'au',
+    what: 'Catch Me Up cased differently from the Mac\'s word',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: (src) => src.replace('    static let catchMeUp = "Catch Me Up"\n', '    static let catchMeUp = "Catch me up"\n')
+  },
+  {
+    id: 'au3',
+    rule: 'au',
+    what: 'an accessibility identifier spelling conversation again',
+    file: () => `${APP}/Screens/Identifiers.swift`,
+    edit: append('extension ID {\n    static let p3371Old = "conversation-turn"\n}\n')
+  },
+  // Phase 337.1's widenings of earlier rules.
+  {
+    id: 'ak8',
+    rule: 'ak',
+    what: 'the side line left open when the Terminal goes away',
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('        side.close()\n', '')
+  },
+  {
+    id: 'ak9',
+    rule: 'ak',
+    what: "a page put on the side line around its gate, beside a status re-read",
+    file: () => `${APP}/App/TortieApp.swift`,
+    edit: (src) => src.replace('return try await sideGate.run {', 'return try await withoutGate {')
+  },
+  {
+    id: 'ah4',
+    rule: 'ah',
+    what: "the Screen door's page asking for a width",
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep)', 'func scrollback(from: Int, count: Int, depth: Int, wrap: Int, keep: ScrollbackKeep, cols: Int)')
+  },
+  {
+    id: 'ai9',
+    rule: 'ai',
+    what: 'a second minGap outside ScrollbackModel',
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: append('enum P3371Pace {\n    static let minGap: Duration = .milliseconds(10)\n}\n')
+  },
+  {
+    id: 'x20',
+    rule: 'x',
+    what: "the keyboard's userInfo read outside the Terminal's one keyboard function",
+    file: () => `${APP}/Screens/ScreenScroller.swift`,
+    edit: append('func p3371Keyboard(_ note: Notification) -> Any? {\n    note.userInfo?[UIResponder.keyboardFrameEndUserInfoKey]\n}\n')
+  },
+  {
+    id: 'v30',
+    rule: 'v',
+    what: "a refused page's sentence made optional",
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('static func scrollbackSentence(for failure: DoorFailure) -> String {', 'static func scrollbackSentence(for failure: DoorFailure) -> String? {')
+  },
+  {
+    id: 't30',
+    rule: 't',
+    what: "a hostile scrollback arm dropped from the phone's attack",
+    file: () => 'build/p316/hostile-door.mjs',
+    edit: (src) => src.replace("'scrollback-404':", "'scrollback-410':")
   },
   {
     id: 'ab20',
@@ -3176,5 +3530,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (aq) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (au) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

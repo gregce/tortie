@@ -1,40 +1,42 @@
-// One session: its status, where it is, and what it last said (Phase 316.2).
+// One session, on its two faces (Phase 316.2; terminal first since Phase
+// 337.1, build/p3371/SPEC.md D16 to D20).
 //
-// docs/design/phone/Session.html, frame for frame, WITHOUT "Open in Claude"
-// (316 draws no hand-off; the door answers `handoff: null`). Plus the
-// options when the agent drew any: Choice.html's, drawn unpressable under
-// "Answer this in the session.", and since Phase 318 Answer.html's, where
-// each option the Mac offers to press is a button.
+// HIS RULING, "lets do B". Tapping a session in a list opens ITS TERMINAL at
+// once, full screen (`TerminalPage`): the session's name as the title, ONE
+// status line under it (the status in its dot's colour, then `agent ·
+// project`, then the machine's badge for a session elsewhere), End's one line
+// under that when End has said anything, the terminal filling the rest, and
+// the numbered question's options as buttons under it (`ChoiceTray`). Top
+// right: the Catch Me Up icon, then End, End rightmost and still behind Face
+// ID. A session with no terminal (it ended, or the Mac is older than Phase
+// 337) opens on CATCH ME UP instead (`CatchUpPage`), and the face is decided
+// at the route's first answer and then kept (App/TortieApp.swift
+// `SessionRoute`), so nothing he is looking at swaps under him.
 //
-// From the top: the status title in its dot's colour, `agent · project`; the
-// Catch Me Up card (main's outcome, the question, `you asked “…”`); the
-// options; the two cells, Messages and Last message, where a null is drawn the
-// way the Mac draws a null and never as 0 (ActivityCells.swift); the agent's
-// last answer as inline markdown, as written (markdown off since his ruling of
-// 2026-10-02), parsed once when the answer lands (316.6); and the
-// row that opens the whole conversation.
+// CATCH ME UP is the conversation (Screens/ConversationScreen.swift), paged
+// back from the newest turn, with THE NOW CARD after the newest turn
+// (`NowCard`): where things stand now, as the 337 session page drew it, less
+// its two rows. From the top: the status title in its dot's colour, `agent ·
+// project`; End's line; the Catch Me Up card (main's outcome, the question,
+// what it asks to run, `you asked “…”`); the options; the press line; the two
+// cells, Messages and Last message, where a null is drawn the way the Mac
+// draws a null and never as 0 (ActivityCells.swift); and the agent's last
+// answer, only when there are no turns, because otherwise it IS the newest
+// turn's answer. Docs/design/phone/Conversation.html; Session.html is the
+// Terminal at rest.
 //
-// Every word is main's or `Copy`'s. It reads on appear, on return to the
-// foreground and on pull.
+// END (Phase 317, Screens/EndBar.swift) is at the top right of both faces: on
+// a session the Mac offers End for, its press shows the Mac's own confirmation
+// and asks Face ID, Touch ID or the passcode before anything is sent.
 //
-// END IS HERE since Phase 317 (Screens/EndBar.swift), and since Phase 337 at
-// the TOP RIGHT, in the navigation bar (D33): on a session the Mac offers End
-// for, its press shows the Mac's own confirmation and asks Face ID, Touch ID
-// or the passcode before anything is sent. Its one line is drawn under the
-// status, and the bar at the bottom is gone.
+// REPLY (Phase 318, Screens/Reply.swift, Screens/MessageStrip.swift): pressing
+// an option the Mac offers, on the Terminal's tray or on the now card, and one
+// message from a box at the foot of Catch Me Up while the session waits at its
+// own empty prompt. NEITHER ASKS FACE ID (his ruling, "Only for End"). What the
+// agent asks to run is drawn whole under its question, and every option
+// whole, so a person never presses what they could not read.
 //
-// AND SINCE PHASE 318, REPLY (Screens/Reply.swift, Screens/MessageStrip.swift):
-// pressing an option the Mac offers, and one message from a box at the foot of
-// the page while the session waits at its own empty prompt. NEITHER ASKS FACE
-// ID (his ruling, "Only for End"). What the agent asks to run is drawn whole
-// under its question, and every option whole, so a person never presses what
-// they could not read.
-//
-// AND SINCE PHASE 337, THE SCREEN (Screens/Screen.swift): a `Screen` row under
-// `Conversation`, drawn only when the Mac says the session has one to show
-// (a running session on a Mac with that phase). Conversation stays the first
-// row and the session still opens on this page (his ruling 1); nothing
-// remembers which he used last.
+// Every word is main's or `Copy`'s.
 
 import SwiftUI
 
@@ -69,8 +71,9 @@ struct SessionDrawing: Equatable, Sendable {
     /// What may be pressed or sent (Phase 318): the empty offer from a Mac
     /// older than 318, and from one whose offer did not agree with itself.
     let reply: PocketReplyOffer
-    /// The session's own screen may be opened (Phase 337): false from a Mac
-    /// older than 337.
+    /// The session has a terminal to open (Phase 337): false from a Mac older
+    /// than 337 and for a session that is not running. It decides the
+    /// route's face (Phase 337.1, D16).
     let screen: Bool
 
     /// Throws `DoorFailure.malformed` when the counts are not ones the door
@@ -98,6 +101,28 @@ struct SessionDrawing: Equatable, Sendable {
 
     /// The card is drawn when it has something to say.
     var hasCard: Bool { outcome != nil || question != nil || reply.command != nil || asked != nil }
+
+    /// The options the Mac offers to press, each with its place among the
+    /// agent's options (318's `n`, so a name names the same option on both
+    /// faces), for a pairing that writes. The Terminal's tray draws these
+    /// and nothing else (D19): an option the Mac does not offer is on the
+    /// terminal itself, and he types it there.
+    func pressable(writes: Bool) -> [PressableOption] {
+        guard writes else { return [] }
+        let offered = Set(reply.pressable)
+        return choices.enumerated()
+            .filter { offered.contains($0.element.marker) }
+            .map { PressableOption(n: $0.offset, option: $0.element) }
+    }
+}
+
+/// One option the Mac offers to press, with its place among the agent's
+/// options (318's `n`).
+struct PressableOption: Equatable, Identifiable, Sendable {
+    let n: Int
+    let option: PocketChoiceOption
+
+    var id: Int { n }
 }
 
 // MARK: - The model
@@ -113,14 +138,28 @@ final class SessionModel {
 
     let sessionId: String
     private(set) var phase: Phase = .loading
+    /// The newest answer this model drew, kept when a later read fails, so the
+    /// Terminal's status line and Catch Me Up's now card say the last thing
+    /// the Mac said rather than nothing (Phase 337.1).
+    private(set) var latest: SessionDrawing?
     private let door: any DoorReading
     private let routing: ReadRouting
+    /// The read the Terminal hands (Phase 337.1, D17, D30): `/v1/session` on
+    /// its side line, one exchange at a time with its pages. Every other
+    /// caller leaves it out and reads through the reader.
+    private let read: (@Sendable () async throws -> PocketSessionAnswer)?
     private var generation = 0
 
-    init(sessionId: String, door: any DoorReading, routing: ReadRouting) {
+    init(
+        sessionId: String,
+        door: any DoorReading,
+        routing: ReadRouting,
+        read: (@Sendable () async throws -> PocketSessionAnswer)? = nil
+    ) {
         self.sessionId = sessionId
         self.door = door
         self.routing = routing
+        self.read = read
     }
 
     /// Read the session. True exactly when THIS read's answer is what the
@@ -131,7 +170,12 @@ final class SessionModel {
         generation += 1
         let mine = generation
         do {
-            let answer = try await door.session(sessionId)
+            let answer: PocketSessionAnswer
+            if let read {
+                answer = try await read()
+            } else {
+                answer = try await door.session(sessionId)
+            }
             guard mine == generation else { return false }
             // An answer about another session is not an answer to this read.
             guard answer.session.sessionId == sessionId else {
@@ -144,6 +188,7 @@ final class SessionModel {
                 phase = .failed(Copy.answerUnreadable)
                 return false
             }
+            latest = drawing
             phase = .loaded(drawing)
             return true
         } catch {
@@ -158,125 +203,401 @@ final class SessionModel {
     }
 }
 
-// MARK: - The screen
+// MARK: - The Terminal's status line follows the session (D17)
 
-struct SessionScreen: View {
-    let model: SessionModel
-    /// The name the list drew, for the title until the answer lands (empty
-    /// for a session an alert opened, which the list never drew).
-    let name: String
+/// When the Terminal reads `/v1/session` again, so its status line follows
+/// the session with no timer of its own (build/p3371/SPEC.md D17).
+///
+/// The Mac moves a picture's `turn` on every committed status but
+/// `needs_input`, and `asking` covers that one, so a status change shows in a
+/// picture before anything else. A drawn picture whose turn or asking differs
+/// from the values when the last read started asks for a read; AT MOST ONE IS
+/// IN FLIGHT and they START AT LEAST A SECOND APART, so a burst of pictures
+/// while he types is one read a second at most. A change seen while a read is
+/// in flight or cooling is read once both have ended, if the newest picture
+/// still differs from what the last read started at.
+///
+/// The page's appear and a return to the foreground read too, except within
+/// a second of a read: the route's first answer, which decided this face, is
+/// the read on its first appear. The first picture after a read that saw
+/// none is that read's, and asks nothing.
+///
+/// No arithmetic and no clock is read here: the second is a wait, handed in
+/// so a test can hold it.
+@MainActor
+final class StatusFollow {
+    /// What a picture says about the session's status.
+    struct Mark: Equatable, Sendable {
+        let turn: String
+        let asking: Bool
 
-    /// The door's name once it answered, so a session an alert opened is
-    /// titled by the door; the list's until then.
-    private var title: String {
-        if case .loaded(let drawing) = model.phase { return drawing.name }
-        return name
+        init(turn: String, asking: Bool) {
+            self.turn = turn
+            self.asking = asking
+        }
+
+        /// A drawn picture's mark, or nil while none is drawn.
+        init?(_ picture: ScreenPicture?) {
+            guard let picture else { return nil }
+            self.init(turn: picture.turn, asking: picture.asking)
+        }
     }
-    let isTop: Bool
-    let foregroundTick: Int
-    let openConversation: (_ honestLine: String?) -> Void
-    /// End (Phase 317), or nil for a pairing that writes nothing.
-    var end: EndModel?
-    /// The press and the message (Phase 318), or nil for a pairing that
-    /// writes nothing: then no option is a button and no box is drawn.
-    var reply: ReplyModel?
-    /// Opens the session's own screen with its name (Phase 337), or nil for a
-    /// reader with no Screen: then no Screen row is drawn.
-    var openScreen: ((String) -> Void)?
-    /// Whether the message box has the keyboard.
-    @State private var typing = false
 
-    /// The offer and the confirmation the loaded answer carries.
-    private var endOffer: (PocketEndOffer, PocketEndConfirm?) {
-        guard case .loaded(let drawing) = model.phase else { return (.none, nil) }
-        return (drawing.end, drawing.endConfirm)
+    /// The least time between two reads' starts.
+    nonisolated static let gap: Duration = .seconds(1)
+
+    private let read: @MainActor () async -> Void
+    private let wait: @Sendable () async -> Void
+    /// The newest picture's mark when the last read started.
+    private var seen: Mark?
+    /// The newest picture's mark.
+    private var newest: Mark?
+    /// A change arrived while a read was in flight or cooling.
+    private var wanted = false
+    /// The route's read decided this face; its first appear reads nothing.
+    private var opened = false
+    /// The read in flight, held so a test can wait for it. Never drawn from.
+    private(set) var reading: Task<Void, Never>?
+    /// The second after a read started.
+    private(set) var cooling: Task<Void, Never>?
+
+    init(
+        read: @escaping @MainActor () async -> Void,
+        wait: @escaping @Sendable () async -> Void = { try? await Task.sleep(for: StatusFollow.gap) }
+    ) {
+        self.read = read
+        self.wait = wait
     }
 
-    /// The reply offer the loaded answer carries; the empty one otherwise.
-    private var replyOffer: PocketReplyOffer {
-        guard case .loaded(let drawing) = model.phase else { return .empty }
-        return drawing.reply
+    /// A picture was drawn.
+    func picture(_ mark: Mark?) {
+        guard let mark else { return }
+        newest = mark
+        guard let seen else {
+            // The first picture after a read that saw none: that read's.
+            self.seen = mark
+            return
+        }
+        guard mark != seen else { return }
+        ask()
     }
 
-    /// The box is drawn while the Mac says the session can take a message,
-    /// and after a message that was not sent, to hold his words and its line
-    /// until he pulls to read again.
-    private var boxDrawn: Bool {
-        guard let reply else { return false }
-        return replyOffer.canSay || reply.holdsWords
+    /// The page appeared, or the app came back to the foreground with it on
+    /// top: read, unless a read is in flight or started within the second.
+    func appeared() {
+        guard opened else {
+            opened = true
+            return
+        }
+        guard reading == nil, cooling == nil else { return }
+        start()
     }
+
+    /// The page went away: a read still in flight finishes and draws, and
+    /// nothing more starts until it appears again.
+    func stop() {
+        cooling?.cancel()
+        cooling = nil
+        wanted = false
+    }
+
+    private func ask() {
+        guard reading == nil, cooling == nil else {
+            wanted = true
+            return
+        }
+        start()
+    }
+
+    private func start() {
+        wanted = false
+        seen = newest
+        let read = read
+        let wait = wait
+        reading = Task { [weak self] in
+            await read()
+            self?.reading = nil
+            self?.again()
+        }
+        cooling = Task { [weak self] in
+            await wait()
+            guard !Task.isCancelled else { return }
+            self?.cooling = nil
+            self?.again()
+        }
+    }
+
+    /// A read ended or its second passed: read again for a change that came
+    /// meanwhile, if the newest picture still differs from what it started at.
+    private func again() {
+        guard wanted, reading == nil, cooling == nil else { return }
+        guard newest != seen else {
+            wanted = false
+            return
+        }
+        start()
+    }
+}
+
+// MARK: - The Terminal (D17)
+
+/// One line under the Terminal's title: the dot, the status in its colour,
+/// `·`, `agent · project` in the secondary colour, and the machine's badge
+/// for a session elsewhere. One line; the agent line's tail is cut first.
+/// It reads `SessionDrawing` fields and nothing else.
+struct StatusLine: View {
+    let drawing: SessionDrawing
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 0) {
-                switch model.phase {
-                case .loading:
-                    LoadingView(id: ID.sessionLoading)
-                case .failed(let sentence):
-                    FailureView(sentence: sentence, id: ID.sessionFailure) {
-                        Task { await model.load() }
-                    }
-                case .loaded(let drawing):
-                    SessionBody(
-                        drawing: drawing, reply: reply, end: end, reread: { await model.load() },
-                        openScreen: openScreen.map { open in { open(drawing.name) } }
-                    ) {
-                        openConversation(drawing.outcome)
-                    }
-                }
+        HStack(spacing: Frame.rowGap) {
+            DotView(dot: drawing.dot, title: drawing.statusTitle)
+                .accessibilityIdentifier(ID.sessionDot)
+            HStack(spacing: 0) {
+                Words(drawing.statusTitle, .secondary, drawing.dot.color)
+                    .fixedSize()
+                    .accessibilityIdentifier(ID.sessionStatus)
+                Words(Copy.separator, .secondary, Tokens.textSecondary)
+                    .fixedSize()
+                    .accessibilityHidden(true)
+                Words(drawing.agentLine, .secondary, Tokens.textSecondary)
+                    .accessibilityIdentifier(ID.sessionAgent)
             }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.bottom, Frame.gutter)
+            if let machine = drawing.machine {
+                MachineBadge(name: machine)
+                    .fixedSize()
+                    .accessibilityIdentifier(ID.sessionMachine)
+            }
+            Spacer(minLength: 0)
         }
-        .scrollIndicators(.hidden)
-        .scrollDismissesKeyboard(.interactively)
-        .background(Tokens.bgSidebar.ignoresSafeArea())
-        .refreshable {
-            reply?.readingAgain()
-            await model.load()
+        .padding(.horizontal, Frame.gutter)
+        .padding(.vertical, Frame.rowVertical)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(ID.terminalStatus)
+    }
+}
+
+/// The Terminal: the session's live terminal (Screens/Screen.swift's
+/// `ScreenPage`, which scrolls it back), with the status line and End's line
+/// above it, the question tray under it, and the Catch Me Up icon then End at
+/// the top right.
+struct TerminalPage: View {
+    let screen: ScreenModel
+    /// The keys, or nil for a pairing that writes nothing.
+    let keys: ScreenKeySender?
+    /// The Terminal's own reads of the session, on the side line (D30).
+    let session: SessionModel
+    let follow: StatusFollow
+    /// The route's first answer, drawn until the Terminal's own read lands.
+    let first: SessionDrawing
+    let isTop: Bool
+    let foregroundTick: Int
+    /// End (Phase 317), or nil for a pairing that writes nothing.
+    let end: EndModel?
+    /// The press (Phase 318), or nil: then no option is a button.
+    let reply: ReplyModel?
+    /// Push Catch Me Up, with the session's own line for a conversation
+    /// that has no turns.
+    let openCatchUp: (_ honestLine: String?) -> Void
+
+    /// The page's own height, for the tray's share of it.
+    @State private var pageHeight: CGFloat = 0
+
+    /// The newest answer the Terminal read, or the route's.
+    private var drawing: SessionDrawing { session.latest ?? first }
+
+    var body: some View {
+        let drawing = drawing
+        ScreenPage(model: screen, keys: keys, name: drawing.name, isTop: isTop, foregroundTick: foregroundTick) {
+            VStack(alignment: .leading, spacing: 0) {
+                StatusLine(drawing: drawing)
+                if let end { EndLine(model: end, offer: drawing.end, confirm: drawing.endConfirm) }
+            }
+            .background(Tokens.bgSidebar)
+        } tray: {
+            // At most 40 percent of the page tall (D19), scrolling inside
+            // itself past that: a CGFloat times a floating literal.
+            ChoiceTray(drawing: drawing, reply: reply, cap: pageHeight * 0.4) { await session.load() }
+        } trailing: {
+            CatchUpItem { openCatchUp(drawing.outcome) }
+            // End, rightmost (Phase 337, D33).
+            EndTopItem(model: end, offer: drawing.end, confirm: drawing.endConfirm) { await session.load() }
         }
-        .task { await model.load() }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { pageHeight = $0 }
+        .onAppear { follow.appeared() }
+        .onDisappear { follow.stop() }
         .onChange(of: foregroundTick) {
             guard isTop else { return }
             end?.refreshKind()
-            Task { await model.load() }
+            follow.appeared()
         }
-        // Above the tab bar, so the content ends above it: the message box
-        // alone (End is in the top bar since Phase 337).
-        .safeAreaInset(edge: .bottom, spacing: 0) {
-            if let reply, boxDrawn {
-                MessageStrip(model: reply, focused: $typing) { await model.load() }
-            }
-        }
-        .accessibilityElement(children: .contain)
-        .accessibilityIdentifier(ID.sessionScreen)
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(Tokens.bgSidebar, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .principal) {
-                Words(title, .navTitle, Tokens.textPrimary)
-                    .accessibilityAddTraits(.isHeader)
-            }
-            // End, top right (Phase 337, D33).
-            EndTopItem(model: end, offer: endOffer.0, confirm: endOffer.1) { await model.load() }
+        .onChange(of: StatusFollow.Mark(screen.picture)) { _, mark in
+            follow.picture(mark)
         }
     }
 }
 
-private struct SessionBody: View {
+/// The Terminal's Catch Me Up icon (D18): SF Symbols' `text.bubble` in the
+/// accent, the Mac's own speech bubble for Catch Me Up, and `Catch Me Up` as
+/// its spoken name. Not prominent (his ruling: most people will want their
+/// terminal).
+struct CatchUpItem: ToolbarContent {
+    let open: () -> Void
+
+    var body: some ToolbarContent {
+        ToolbarItem(placement: .topBarTrailing) {
+            Button(action: open) {
+                Image(systemName: "text.bubble")
+                    .foregroundStyle(Tokens.accent)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(verbatim: Copy.catchMeUp))
+            .accessibilityIdentifier(ID.sessionOpenCatchUp)
+        }
+    }
+}
+
+/// The question's tray under the Terminal (D19): what the agent asks to run,
+/// WHOLE, then each option the Mac offers to press as a button with its
+/// marker chip and its text WHOLE, pressed exactly as Phase 318 presses them
+/// and with no Face ID, then the press line. Options the Mac does not offer
+/// are on the terminal and he types them. At most `cap` tall, scrolling inside
+/// itself past that. `ScreenPage` hides it while the keyboard is up.
+struct ChoiceTray: View {
+    let drawing: SessionDrawing
+    /// The press (Phase 318), or nil for a pairing that writes nothing: then
+    /// there is no tray.
+    let reply: ReplyModel?
+    /// The most it may be tall; 0 before the page has a height, which caps
+    /// nothing.
+    let cap: CGFloat
+    /// Read the session again, after a press.
+    let reread: @MainActor () async -> Bool
+
+    var body: some View {
+        let shown = drawing.pressable(writes: reply != nil)
+        if let reply, !shown.isEmpty || reply.pressLine != nil {
+            ViewThatFits(in: .vertical) {
+                choices(shown, reply: reply)
+                ScrollView {
+                    choices(shown, reply: reply)
+                }
+                .scrollIndicators(.visible)
+            }
+            .frame(maxHeight: cap > 0 ? cap : nil)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Tokens.bgSidebar.ignoresSafeArea(edges: .horizontal))
+            .overlay(alignment: .top) { Hairline() }
+        }
+    }
+
+    /// The command, the pressable options and the press line.
+    private func choices(_ shown: [PressableOption], reply: ReplyModel) -> some View {
+        let offer = drawing.reply
+        return VStack(alignment: .leading, spacing: Frame.optionGap) {
+            // What the agent asks to run, when its question does not say it
+            // (Codex's `$` line, Phase 318): the agent's words, WHOLE, with
+            // no line limit, because Yes runs exactly this.
+            if !shown.isEmpty, let command = offer.command {
+                Words(command, .body, Tokens.textPrimary, lines: nil)
+                    .accessibilityIdentifier(ID.sessionCommand)
+            }
+            ForEach(shown) { item in
+                OptionRow(option: item.option, n: item.n, press: press(item.option, offer: offer, reply: reply))
+            }
+            if let line = reply.pressLine { pressLine(line) }
+        }
+        .padding(Frame.gutter)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// The press of one option the Mac offers. Asks nothing first (his
+    /// ruling, "Only for End").
+    private func press(_ option: PocketChoiceOption, offer: PocketReplyOffer, reply: ReplyModel) -> OptionPress {
+        OptionPress(on: reply.phase == .idle, pressing: reply.phase == .pressing(option.marker)) {
+            reply.press(option.marker, offer: offer, reread: reread)
+        }
+    }
+
+    /// The one line under the options after a press: the Mac's sentence, or
+    /// the phone's when no answer came.
+    private func pressLine(_ line: String) -> some View {
+        Words(line, .secondary, Tokens.textSecondary, lines: nil)
+            .accessibilityIdentifier(ID.sessionReplyLine)
+    }
+}
+
+// MARK: - Catch Me Up (D20)
+
+/// What Catch Me Up draws besides the turns, decided before anything is laid
+/// out, so the tests read every case of it.
+enum CatchUpParts {
+    /// The agent's last answer is drawn on the now card only when there are
+    /// no turns: otherwise it IS the newest turn's answer
+    /// (src/main/pocket/routes.ts `session()`), drawn above.
+    static func drawsLastAnswer(turns: [PocketTurn]) -> Bool {
+        turns.isEmpty
+    }
+
+    /// The line drawn in place of turns when there are none: main's note for
+    /// a session elsewhere, else the session's own line, unless the now card's
+    /// card already says those very words.
+    static func emptyLine(note: String?, honestLine: String?, now: SessionDrawing?) -> String? {
+        if let note { return note }
+        guard let honestLine else { return nil }
+        return now?.outcome == honestLine ? nil : honestLine
+    }
+
+    /// Phase 318's box: drawn while the Mac says the session can take a
+    /// message, and after a message that was not sent, to hold his words and
+    /// its line until he pulls to read again. A pairing that writes nothing
+    /// draws none.
+    @MainActor
+    static func boxDrawn(reply: ReplyModel?, offer: PocketReplyOffer) -> Bool {
+        guard let reply else { return false }
+        return offer.canSay || reply.holdsWords
+    }
+}
+
+/// Catch Me Up (D20, D21): the conversation, oldest at the top and paged back
+/// as before, then the now card after the newest turn, the message box at the
+/// foot while the session waits at its own empty prompt, End at the top right,
+/// and the title in two lines, the session's name then `Catch Me Up`. It opens
+/// at its bottom, so what he reads first is where things stand now.
+struct CatchUpPage: View {
+    let conversation: ConversationModel
+    /// The session's own line, for a conversation with no turns.
+    let honestLine: String?
+    let session: SessionModel
+    /// End (Phase 317), or nil for a pairing that writes nothing.
+    let end: EndModel?
+    /// The press and the message (Phase 318), or nil.
+    let reply: ReplyModel?
+    /// The name the list drew, until the session's read answers.
+    let name: String
+    let isTop: Bool
+    let foregroundTick: Int
+
+    var body: some View {
+        ConversationScreen(
+            model: conversation, honestLine: honestLine, session: session, end: end, reply: reply,
+            name: name, isTop: isTop, foregroundTick: foregroundTick
+        )
+    }
+}
+
+/// Where things stand now (D20): 337's session page less its two rows.
+struct NowCard: View {
     let drawing: SessionDrawing
     /// The press (Phase 318), or nil: then no option is a button.
     let reply: ReplyModel?
     /// End (Phase 317), whose one line is drawn under the status.
     let end: EndModel?
+    /// Whether the agent's last answer is drawn (no turns above it).
+    let lastAnswer: Bool
     /// Read the session again, after a press.
     let reread: @MainActor () async -> Bool
-    /// Opens the session's own screen (Phase 337), or nil.
-    let openScreen: (() -> Void)?
-    let openConversation: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -286,10 +607,9 @@ private struct SessionBody: View {
             if !drawing.choices.isEmpty { choices }
             if let line = reply?.pressLine { pressLine(line) }
             cells
-            if let answer = drawing.lastAnswerRendered { lastAnswer(answer) }
-            conversationRow
-            if drawing.screen, let openScreen { screenRow(openScreen) }
+            if lastAnswer, let answer = drawing.lastAnswerRendered { lastAnswer(answer) }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// `padding: 12px 16px`: the dot and the raised word in the dot's colour,
@@ -423,48 +743,6 @@ private struct SessionBody: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Frame.cardPadding)
         .card()
-        .padding(.horizontal, Frame.gutter)
-        .padding(.top, Frame.cardGap)
-    }
-
-    /// The hand-off row's shape (54 tall, the label in the accent, a chevron),
-    /// opening the conversation on the phone.
-    private var conversationRow: some View {
-        Button(action: openConversation) {
-            HStack {
-                Words(Copy.conversation, .body, Tokens.accent)
-                Spacer(minLength: Frame.rowGap)
-                Chevron()
-            }
-            .padding(.horizontal, Frame.gutter)
-            .frame(height: Frame.linkRowHeight)
-            .frame(maxWidth: .infinity)
-            .card()
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(ID.sessionOpenConversation)
-        .padding(.horizontal, Frame.gutter)
-        .padding(.top, Frame.cardGap)
-    }
-
-    /// The row that opens the session's own screen (Phase 337, D32): the
-    /// Conversation row's shape, under it.
-    private func screenRow(_ open: @escaping () -> Void) -> some View {
-        Button(action: open) {
-            HStack {
-                Words(Copy.screen, .body, Tokens.accent)
-                Spacer(minLength: Frame.rowGap)
-                Chevron()
-            }
-            .padding(.horizontal, Frame.gutter)
-            .frame(height: Frame.linkRowHeight)
-            .frame(maxWidth: .infinity)
-            .card()
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityIdentifier(ID.sessionOpenScreen)
         .padding(.horizontal, Frame.gutter)
         .padding(.top, Frame.cardGap)
     }

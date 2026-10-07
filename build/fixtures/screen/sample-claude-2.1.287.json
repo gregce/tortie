@@ -1,6 +1,6 @@
 {
   "sessionId": "sample-claude",
-  "revision": "987cbf08c2f5",
+  "revision": "cce4c89a96d7",
   "at": 1791158400000,
   "unchanged": false,
   "screen": {
@@ -1073,7 +1073,9 @@
     "turn": "0000000000000000-0",
     "asking": false,
     "dialog": null,
-    "typable": true
+    "typable": true,
+    "depth": 0,
+    "space": "03e46941cb2a"
   },
   "why": null,
   "sentence": null

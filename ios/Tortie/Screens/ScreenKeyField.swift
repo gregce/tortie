@@ -329,11 +329,20 @@ struct ScreenKeyField: UIViewRepresentable {
 
     func updateUIView(_ field: ScreenTextView, context: Context) {
         context.coordinator.parent = self
-        if typing, !field.isFirstResponder {
-            field.empty()
-            field.becomeFirstResponder()
-        } else if !typing, field.isFirstResponder {
-            field.resignFirstResponder()
+        // NEVER INSIDE SWIFTUI'S UPDATE (the 337.1 fix round). Becoming or
+        // resigning first responder posts the keyboard's notifications and
+        // SwiftUI's own focus change synchronously, and they write the page's
+        // state (the keyboard's overlap, which hides the question tray) while
+        // this update is still running: with the tray drawn that re-entered
+        // the view graph in an AttributeGraph cycle and the app froze when he
+        // tapped the terminal (the verifier's sample of its main thread, iOS
+        // 26.3 and 18.3). The change is made on the next turn of the main
+        // queue, against what `typing` says THEN.
+        guard (typing && !field.isFirstResponder) || (!typing && field.isFirstResponder) else { return }
+        let coordinator = context.coordinator
+        DispatchQueue.main.async { [weak field] in
+            guard let field else { return }
+            coordinator.settle(field)
         }
     }
 
@@ -374,6 +383,17 @@ struct ScreenKeyField: UIViewRepresentable {
 
         func hide() {
             parent.typing = false
+        }
+
+        /// The field takes or gives up the keyboard as `typing` says now,
+        /// outside any SwiftUI update (`updateUIView` schedules it).
+        func settle(_ field: ScreenTextView) {
+            if parent.typing, !field.isFirstResponder {
+                field.empty()
+                field.becomeFirstResponder()
+            } else if !parent.typing, field.isFirstResponder {
+                field.resignFirstResponder()
+            }
         }
 
         func textView(_ textView: UITextView, shouldChangeTextIn range: NSRange, replacementText text: String) -> Bool {

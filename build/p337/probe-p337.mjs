@@ -10,7 +10,7 @@
  * scratch machine build/with-scratch-machine.mjs starts around this file
  * (`SCRATCH_MACHINE_QUIET_SHELL=1`, `SCRATCH_MACHINE_NO_OWN_KEYS=1`: its own
  * sshd on 127.0.0.1, its own keys and none of the person's, its own
- * TMUX_TMPDIR). With `P337_PARENT_CHECKOUT` (a BUILT `aebb4ce9`) a SECOND
+ * TMUX_TMPDIR). With `P337_PARENT_CHECKOUT` (a BUILT `e3837139` since Phase 337.1) a SECOND
  * Electron runs that parent on the same profile, one after the other and
  * never at once: it runs FIRST, so the HEAD launch that follows reads the
  * door's agreement `changed` (S0), the route list being a hashed field.
@@ -75,8 +75,53 @@
  *       phone key brings the pane out, the desk's own scroll state reads live,
  *       and the next desk wheel scrolls back again
  *   RN  ⌘J's rows and Catch Me Up's lines read the same at the parent and HEAD
- *   RP  with P337_PARENT_CHECKOUT: `/v1/screen` and `/v1/keys` 404; no byte at
- *       any recorder; the lines name neither; the forged rows printed
+ *   RP  with P337_PARENT_CHECKOUT (since Phase 337.1 a BUILT `e3837139`, 337
+ *       itself): `/v1/scrollback` 404 with the door's `route` word logged; a
+ *       screen answer carries no `depth` and no `space`; the lines name the
+ *       screen and no `scrollback`; the forged rows printed. Nothing is typed
+ *       at the parent (its keys route is real, and a write there is a line S11
+ *       does not owe)
+ *
+ * PHASE 337.1, THE SB ARMS (build/p3371/SPEC.md §7.7), at HEAD after RN, the
+ * histories drawn by build/p3371/history-stand-in.mjs and the committed
+ * captures, every page read the phone's way (node-phone.mjs `scrollbackRead`)
+ * and held to the probe's OWN `capture-pane -p` and `-p -e` of the same index
+ * range and its OWN SGR reader (measure-screen.mjs `ownStyles`, which imports
+ * nothing of src/main/screen):
+ *   SB0 S0's reading held to the scrollback route (eleven routes) and D35's
+ *       honesty sentence, the terminal and what it printed before
+ *   SB1 every history paged whole: Claude Code and Codex inline after their
+ *       committed screens (each drawn over the last, which tmux scrolls into
+ *       its history), a shell with 3,000 numbered lines, Gemini's and Qwen's
+ *       committed screens stacked, a shell on the loopback machine, and a
+ *       canary history (SB6's): every row's text, every run's pen, every
+ *       window's size unchanged
+ *   SB2 100 pages each while a stand-in prints 200 and 2,000 lines a second
+ *       (the scratch server's history-limit raised to 100,000 for those two,
+ *       so nothing trims), each verified by number; busy counted; a second
+ *       phone's live poll answering 20 changes within 250 ms p99 meanwhile
+ *   SB3 THE ATTACK, with main's inspector (`--inspect=0`) stamping each page
+ *       statement main writes and sampling its event-loop lag: every refused
+ *       query of §6.2 live, 404 with no statement written; another wrap, a
+ *       depth past the history, a `from` past it and the alternate screen,
+ *       each `moved`; 200 page reads from one phone in 2 s, every answer a
+ *       page, `busy` or a connection refused at the door's per-source cap
+ *       (one source holds four, and every phone reaches the door from one),
+ *       none waiting past the queue, main's lag p99 under 50 ms and one
+ *       session's starts 250 ms apart by main's stamps; a worst-colour
+ *       history's starts at least SCREEN_DUTY_FACTOR times the compose before
+ *       them (the compose read as main's largest lag after the start, an
+ *       upper bound); a session ended before its page, `ended`; and the door
+ *       switched off while three pages wait their floors, every one answered
+ *       or cut within the stop join, by the phone's own clock (the door logs
+ *       no line for its join)
+ *   SB4 a session made under a history-limit of 1,000 trimmed under a held
+ *       depth, `moved`; `clear` in a shell, `moved` (UNREADABLE when its
+ *       terminfo sends no E3 and the history stays)
+ *   SB5 the loopback machine's sshd paused: `unreachable`; resumed: paged
+ *   SB6 after the app is gone: no canary row in app.log, under the profile
+ *       or HOME (the sessions' own saved screens counted apart), or in `ps
+ *       -ww` sampled through SB1 to SB3
  *   RUN both preflights, the quiet agents, no real Tailscale, nothing
  *       forbidden at the stand-in, every stand-in ended, his history unmoved
  *
@@ -95,7 +140,7 @@
  * VERIFIERS ONLY: it starts an Electron. Take the orchestrator's lock.
  *
  *   npm run build && npm run -s probe:p337
- *   P337_PARENT_CHECKOUT=<a BUILT aebb4ce9 checkout> npm run -s probe:p337
+ *   P337_PARENT_CHECKOUT=<a BUILT e3837139 checkout> npm run -s probe:p337
  *   P337_KEEP=1                    keep the scratch world (every log) for a re-derivation
  *   node build/p337/probe-p337.mjs --grader-self-test   every grader on its fixtures; starts nothing
  *
@@ -113,12 +158,14 @@ import { cdpEval, wsConnect } from '../cdp-client.mjs';
 import { pickRendererTarget } from '../cdp-target.mjs';
 import { gradeFixtures } from '../probe-graders.mjs';
 import { keyscanText } from '../ssh-run.mjs';
-import { freshWriteId, makePhone, pairThrough, readOffer, screenAnswerProblems, screenRead, screenRowText, sendKeys, signedGet, signedPost } from '../p316/node-phone.mjs';
+import { freshWriteId, makePhone, pairThrough, readOffer, screenAnswerProblems, screenRead, screenRowText, scrollbackAnswerProblems, scrollbackRead, scrollbackTarget, sendKeys, signedGet, signedPost } from '../p316/node-phone.mjs';
 import { DEFAULT_SCENARIO, endStandinProcesses, makeStandin, preflightStandin, processRows, watchForRealTailscale } from '../p330/tailscale-standin.mjs';
 import { NAME_SERVERS_VAR, loopbackOnlyServers, makeDnsStandin, quietAgentsHeld, writeQuietAgents } from '../p332/dns-standin.mjs';
 import { hellos, readLog, readState, sendOps, writeWrappers } from '../p318/stand-in.mjs';
 import { authorizedLinesFor } from '../scratch-machine.mjs';
 import { readRecorderLog } from './key-recorder.mjs';
+import { h2Groups, ownStyles, runsAgainstOwn } from './measure-screen.mjs';
+import { numberOf as numberedRow } from '../p3371/history-stand-in.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const J = JSON.stringify;
@@ -130,13 +177,20 @@ const msBetween = (from, to) => Number(BigInt(to) - BigInt(from)) / 1e6;
 // What the run holds the app against, BY VALUE or read from the checkout
 // ---------------------------------------------------------------------------
 
-/** The phase's parent on main, the build RP and RN compare with. */
-export const SNAPSHOT = 'aebb4ce9';
+/**
+ * The phase's parent on main, the build RP and RN compare with. Since Phase
+ * 337.1 the parent is `e3837139`, 337 itself (build/p3371/SPEC.md §7.7): RP
+ * reads there that `/v1/scrollback` is no route and a screen answer carries
+ * no depth. RN, S9's parent half and S12 read any parent the same way.
+ */
+export const SNAPSHOT = 'e3837139';
 export const MACHINE_ID = 'p337far';
 /** D35: HEAD's route line and write line, by value. */
-export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
+export const ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns';
 export const WRITE_LINE = 'Lets an allowed phone end a session, answer a numbered question, send a session one message and type into any session as you would at this Mac';
-export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'session', 'sessions', 'turns']);
+export const ROUTE_IDS = Object.freeze(['blocked', 'choose', 'end', 'keys', 'pair', 'say', 'screen', 'scrollback', 'session', 'sessions', 'turns']);
+/** The parent's (337's) route line: ten routes and no `scrollback`. */
+export const PARENT_ROUTE_LINE = 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns';
 export const LIVE = Object.freeze(['running', 'idle', 'needs_input']);
 /** D43: the keys write's one log line, and its quiet minute. */
 export const KEYS_LOG_LINE = "the phone's keys:";
@@ -161,6 +215,38 @@ export const SESSION_P50_BOUND_MS = 50;
 export const MODES = Object.freeze(['normal', 'decckm', 'decckm,keypad', 'mok1', 'mok2', 'kitty', 'paste']);
 /** S10's length. */
 export const S10_MS = 60_000;
+
+// ---------------------------------------------------------------------------
+// PHASE 337.1, the SB arms (build/p3371/SPEC.md §7.7): the reader's bounds by
+// value, each held equal to the tree's own by the self-test
+// ---------------------------------------------------------------------------
+
+/** D35's honesty sentence, by value; the run reads the tree's own and the self-test holds the two equal. */
+export const HONESTY_D35 = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+/** D14: one page start per session no sooner than this after the last, on this Mac. */
+export const SB_MIN_GAP_MS = 250;
+/** D14: pages waiting their turn on one session; one more is `busy` at once. */
+export const SB_QUEUE_MAX = 4;
+/** D14 (337 D15): a start waits this many times the session's last page compose. */
+export const SB_DUTY_FACTOR = 4;
+/** The door's stop join (src/main/pocket/door/limits.ts DOOR_STOP_JOIN_MS). */
+export const SB_STOP_JOIN_MS = 1_000;
+/** How late after the join a page may still settle at the phone (a cut travels the forwarder). */
+export const SB_STOP_SLACK_MS = 500;
+/** D7: the most rows one page may ask for. */
+export const SB_MAX_COUNT = 128;
+/** SB2: pages at each rate; SB2's poll changes; SB3's burst. */
+export const SB2_PAGES = 100;
+export const SB2_CHANGES = 20;
+export const SB3_BURST = 200;
+/** SB3: main's event-loop lag p99 bound while the burst lasts. */
+export const SB3_LAG_P99_MS = 50;
+/** How much earlier than its floor a start may be stamped (two clocks, a millisecond either way). */
+export const SB_GAP_SLACK_MS = 2;
+/** The four absences a page may answer with (D8). */
+export const SB_ABSENCES = Object.freeze(['ended', 'unreachable', 'moved', 'busy']);
+/** SB1's matrix (§7.7): each session's history paged whole. */
+export const SB1_MATRIX = Object.freeze(['p3371-claude', 'p3371-codex', 'p3371-shell', 'p3371-gemini', 'p3371-qwen', 'p3371-far', 'p3371-canary']);
 
 /** A string literal's value: `NAME = '…'` (or with a type), joined across `+` pieces and a line break. */
 export function constWord(src, name) {
@@ -289,6 +375,129 @@ export function noOwnKeysLine(authorized, runKey) {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE 337.1: the SB arms' pure readers (build/p3371/SPEC.md §7.7)
+// ---------------------------------------------------------------------------
+
+/**
+ * SB3's refused queries (§6.2, live): each a `/v1/scrollback` target the
+ * Mac must answer 404, built from an honest ask by one change. The honest
+ * target itself is never among them.
+ */
+export function refusedTargets(id, ask) {
+  const pairs = (over = {}, drop = null, extra = '') => {
+    const q = { id, from: String(ask.from), count: String(ask.count), depth: String(ask.depth), wrap: String(ask.wrap), keep: ask.keep, ...over };
+    const names = ['id', 'from', 'count', 'depth', 'wrap', 'keep'].filter((n) => n !== drop);
+    return `/v1/scrollback?${names.map((n) => `${n}=${encodeURIComponent(q[n])}`).join('&')}${extra}`;
+  };
+  return [
+    ...['id', 'from', 'count', 'depth', 'wrap', 'keep'].map((n) => ({ what: `${n} missing`, target: pairs({}, n) })),
+    { what: 'from repeated', target: pairs({}, null, `&from=${String(ask.from)}`) },
+    { what: 'an unknown name', target: pairs({}, null, '&x=1') },
+    { what: 'cols named (rule ah)', target: pairs({}, null, `&cols=${String(ask.wrap)}`) },
+    { what: 'a sign on from', target: pairs({ from: `+${String(ask.from)}` }) },
+    { what: 'a negative from', target: pairs({ from: '-1' }) },
+    { what: 'a leading zero', target: pairs({ count: `0${String(ask.count)}` }) },
+    { what: 'a depth of 100,001', target: pairs({ depth: '100001' }) },
+    { what: 'a count of 0', target: pairs({ count: '0' }) },
+    { what: 'a count of 129', target: pairs({ count: '129' }) },
+    { what: 'a wrap of 513', target: pairs({ wrap: '513' }) },
+    { what: 'keep middle', target: pairs({ keep: 'middle' }) },
+    { what: 'keep TOP', target: pairs({ keep: 'TOP' }) },
+    { what: 'from + count past depth', target: pairs({ from: String(ask.depth - 5), count: '10' }) },
+    { what: 'an id nobody has', target: pairs({ id: randomUUID() }) }
+  ];
+}
+
+/**
+ * A served page against the probe's own captures of the same index range:
+ * rows whose text differs from `capture-pane -p`, and runs that disagree with
+ * the probe's own SGR reader over `capture-pane -p -e` (measure-screen.mjs's
+ * `ownStyles`, `runsAgainstOwn`, which import nothing of src/main/screen).
+ */
+export function pageAgainst(rows, plainText, styledText) {
+  const plain = String(plainText ?? '').split('\n');
+  if (plain.length > 0 && plain[plain.length - 1] === '') plain.pop();
+  let textMismatch = plain.length === rows.length ? 0 : 1;
+  rows.forEach((row, k) => {
+    if (screenRowText(row) !== (plain[k] ?? '').replace(/ +$/, '')) textMismatch += 1;
+  });
+  const styled = String(styledText ?? '').replace(/\n$/, '');
+  return { textMismatch, styleMismatch: runsAgainstOwn(rows, ownStyles(styled, rows.length)) };
+}
+
+/** SB3's burst: past this a page waited behind more than the queue (four waiting at the floor, and a second for the trip). */
+export const SB_LATE_MS = (SB_QUEUE_MAX + 1) * SB_MIN_GAP_MS + 1_000;
+
+/**
+ * SB3's burst, each settled read `{ r: { status, answer, ms }, ask }` sorted
+ * into what it came to. A connection with no answer (status 0) is a refusal at
+ * the door's per-source cap only when it came back at once: THE PROBE REVIEW
+ * (2026-10-06) found every status 0 counted as refused at the cap, so a page
+ * main held until the phone's own 20 s timeout cut it read as the cap's
+ * refusal and the clause passed over a page that waited past the queue. One
+ * that took longer than `SB_LATE_MS` is `late`, as a served page that did.
+ */
+export function burstOf(settled) {
+  const burst = { sent: settled.length, served: 0, busy: 0, refusedAtCap: 0, malformed: 0, notFound: 0, late: 0, other: 0 };
+  for (const { r, ask } of settled) {
+    if (r.status === 0) {
+      if (typeof r.ms === 'number' && r.ms <= SB_LATE_MS) burst.refusedAtCap += 1;
+      else burst.late += 1;
+    } else if (r.status === 404) burst.notFound += 1;
+    else if (r.status !== 200 || r.answer === null) burst.malformed += 1;
+    else if (scrollbackAnswerProblems(r.answer, r.answer.why === null ? ask : null).length > 0) burst.malformed += 1;
+    else if (r.answer.why === 'busy') burst.busy += 1;
+    else if (r.answer.why === null) {
+      burst.served += 1;
+      if (r.ms > SB_LATE_MS) burst.late += 1;
+    } else burst.other += 1;
+  }
+  burst.malformed += burst.other;
+  return burst;
+}
+
+/** The index of the first `L000001` row of a capture (the numbered lines' offset in a history), or null. */
+export function offsetOfFirst(captureText) {
+  const at = String(captureText ?? '').split('\n').findIndex((l) => numberedRow(l)?.n === 1 && numberedRow(l)?.prefix === 'L');
+  return at < 0 ? null : at;
+}
+
+/** Whether a served page's rows hold the numbered lines its index range names, `off` lines below index 0. */
+export function numberedRowsHold(rows, from, off) {
+  return rows.length > 0 && rows.every((row, k) => numberedRow(screenRowText(row))?.n === from + k - off + 1);
+}
+
+/** Main's page starts for one tmux target, stamped by main (`at`, ms), in order; and the least gap between two. */
+export function startsOf(stamps, target) {
+  const at = stamps.filter((x) => x.target === target).map((x) => x.at).sort((a, b) => a - b);
+  let minGapMs = null;
+  for (let i = 1; i < at.length; i += 1) {
+    const g = at[i] - at[i - 1];
+    if (minGapMs === null || g < minGapMs) minGapMs = g;
+  }
+  return { n: at.length, minGapMs, at };
+}
+
+/** The largest event-loop lag main sampled in `[from, to]` (ms by main's own clock), or 0. */
+export function lagWithin(lags, from, to) {
+  let most = 0;
+  for (const x of lags) if (x.at >= from && x.at <= to && x.lag > most) most = x.lag;
+  return most;
+}
+
+/**
+ * SB3's duty check over one session's starts: each gap beside the compose
+ * that preceded it, read as main's largest lag in the 200 ms after a start
+ * (a compose runs synchronously on main's loop, so it shows as that lag; the
+ * read is an upper bound, which makes the check stricter, never looser).
+ */
+export function dutyGaps(starts, lags) {
+  const out = [];
+  for (let i = 1; i < starts.length; i += 1) out.push({ gapMs: starts[i] - starts[i - 1], composeMs: lagWithin(lags, starts[i - 1], starts[i - 1] + 200) });
+  return out;
+}
+
+// ---------------------------------------------------------------------------
 // The graders: pure, over a recorded reading, each clause shown to fail
 // ---------------------------------------------------------------------------
 
@@ -300,7 +509,7 @@ export const GRADERS = {
     title: 'the door asks again, and its lines say what the Screen does',
     clauses: [
       ['the door reads changed after the parent confirmed it', (r) => r.parentRanFirst !== true || r.confirmStateBefore === 'changed'],
-      ['the route line names keys and screen among the ten', (r) => J(routeIdsOf(r.lines)) === J(ROUTE_IDS)],
+      ['the route line names keys and screen among the eleven', (r) => J(routeIdsOf(r.lines)) === J(ROUTE_IDS)],
       ["the lines hold D35's write line", (r) => Array.isArray(r.lines) && r.lines.includes(WRITE_LINE)],
       ['the confirm block draws the honesty sentence', (r) => typeof r.honesty === 'string' && r.honesty !== '' && typeof r.confirmBlock === 'string' && r.confirmBlock.includes(r.honesty)],
       ['Allow: the door listens', (r) => r.listening === true]
@@ -439,12 +648,85 @@ export const GRADERS = {
     ]
   },
   RP: {
-    title: 'the parent has no Screen',
+    // PHASE 337.1 (build/p3371/SPEC.md §7.7): the parent is 337 itself
+    // (`e3837139`), which has the Screen and no history. 337's own RP read a
+    // parent with no Screen at all; that parent is no longer this phase's.
+    title: 'the parent has no scrollback',
     clauses: [
-      ['GET /v1/screen is 404', (r) => r.screen === 404],
-      ['POST /v1/keys is 404', (r) => r.keys === 404],
-      ['no recorder read a byte', (r) => r.bytes === ''],
-      ['the lines name neither keys nor screen', (r) => Array.isArray(routeIdsOf(r.lines)) && !routeIdsOf(r.lines).includes('keys') && !routeIdsOf(r.lines).includes('screen')]
+      ['GET /v1/scrollback is 404', (r) => r.scrollback === 404],
+      ["the door logged the refusal's word, route", (r) => r.routeLogged === true],
+      ["the parent's screen answer carries no depth and no space", (r) => r.screen === 200 && r.depthField === false && r.spaceField === false],
+      ['the lines name the screen and no scrollback', (r) => Array.isArray(routeIdsOf(r.lines)) && routeIdsOf(r.lines).includes('screen') && !routeIdsOf(r.lines).includes('scrollback')]
+    ]
+  },
+  // ------------------------------------------------------------------ PHASE 337.1, the SB arms (§7.7)
+  SB0: {
+    title: 'the door asks again for the scrollback route, and says the phone can read what a session printed',
+    clauses: [
+      ['the door reads changed after the parent confirmed it', (r) => r.parentRanFirst !== true || r.confirmStateBefore === 'changed'],
+      ['the route line holds scrollback, eleven routes', (r) => J(routeIdsOf(r.lines)) === J(ROUTE_IDS) && routeIdsOf(r.lines).includes('scrollback')],
+      ["the confirm block draws D35's honesty sentence: the terminal and what it printed before", (r) => r.honesty === HONESTY_D35 && typeof r.confirmBlock === 'string' && r.confirmBlock.includes(HONESTY_D35)],
+      ['Allow: the door listens', (r) => r.listening === true]
+    ]
+  },
+  SB1: {
+    title: "every session's history paged whole, as tmux holds it",
+    clauses: [
+      ['every session of the matrix was paged whole', (r) => r.required.length > 0 && r.required.every((n) => r.rows.some((x) => x.name === n && x.depth > 0 && x.unserved === 0 && x.rowsCompared === x.depth))],
+      ['every page is one the phone joins', (r) => r.rows.length > 0 && r.rows.every((x) => x.problems === 0)],
+      ["every row's text equals the probe's own capture-pane -p of its index", (r) => r.rows.length > 0 && r.rows.every((x) => x.textMismatch === 0)],
+      ["every run is one pen by the probe's own SGR reader", (r) => r.rows.length > 0 && r.rows.every((x) => x.styleMismatch === 0)],
+      ['no window changed size', (r) => r.rows.length > 0 && r.rows.every((x) => x.sizeSame === true)]
+    ]
+  },
+  SB2: {
+    title: 'pages while a stand-in prints, and the live poll beside them',
+    clauses: [
+      ['100 pages each at 200 and at 2,000 lines a second', (r) => ['200', '2000'].every((k) => (r.rates[k]?.pages ?? 0) >= SB2_PAGES)],
+      ['every served page verified by number', (r) => ['200', '2000'].every((k) => (r.rates[k]?.served ?? 0) > 0 && r.rates[k].wrong === 0)],
+      ['nothing moved, ended or unanswered (busy counted)', (r) => ['200', '2000'].every((k) => r.rates[k]?.moved === 0 && r.rates[k]?.other === 0)],
+      ["the live poll's change-to-answer p99 stayed under 250 ms while paging", (r) => r.poll.n >= SB2_CHANGES && r.poll.missed === 0 && typeof r.poll.p99 === 'number' && r.poll.p99 < CHANGE_WITHIN_MS]
+    ]
+  },
+  SB3: {
+    title: 'the attack on the page route',
+    clauses: [
+      ['every refused query is 404 and composes nothing', (r) => r.refused.length >= 15 && r.refused.every((x) => x.status === 404) && r.statementsDuringRefused === 0],
+      ['wrap not the width, depth above the history, from past it and the alternate screen: each moved', (r) => ['wrap', 'deep', 'past', 'alt'].every((k) => r.moved[k] === 'moved')],
+      // One source holds at most PER_SOURCE_MAX (4) connections (door/limits.ts), and every phone of a run reaches the door
+      // through the stand-in forwarder from ONE source, so at most four pages are ever in main at once from outside: one
+      // in flight and three waiting, inside SCROLLBACK_QUEUE_MAX. The rest are refused at the cap (status 0). The queue's
+      // own bound past four is the hostile client's arm over the SHIPPING reader (build/p3371/SPEC.md §6.2).
+      ['200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue', (r) => r.burst.sent === SB3_BURST && r.burst.malformed === 0 && r.burst.notFound === 0 && r.burst.served > 0 && r.burst.late === 0 && r.burst.served + r.burst.busy + r.burst.refusedAtCap === r.burst.sent],
+      ["main's event-loop lag p99 stayed under 50 ms through the burst", (r) => r.lag.samples > 0 && typeof r.lag.p99 === 'number' && r.lag.p99 < SB3_LAG_P99_MS],
+      ["one session's starts at least 250 ms apart by main's own stamps", (r) => r.starts.n >= 3 && typeof r.starts.minGapMs === 'number' && r.starts.minGapMs >= SB_MIN_GAP_MS - SB_GAP_SLACK_MS],
+      // Read only when it was readable: with fewer than three gaps the run says SB3-worst UNREADABLE instead.
+      ['on a worst-colour history each start waited SCREEN_DUTY_FACTOR times the compose before it', (r) => (typeof r.worst.unread === 'string' && r.worst.gaps.length < 3) || (r.worst.gaps.length >= 3 && r.worst.gaps.every((g) => g.gapMs >= Math.max(SB_MIN_GAP_MS, SB_DUTY_FACTOR * g.composeMs) - SB_GAP_SLACK_MS))],
+      ['a page on a session that ended: ended', (r) => r.ended === 'ended'],
+      ['the door switched off while pages waited: every one answered or cut within the stop join', (r) => r.doorOff.pending >= 2 && r.doorOff.settled === r.doorOff.pending && typeof r.doorOff.maxMs === 'number' && r.doorOff.maxMs <= SB_STOP_JOIN_MS + SB_STOP_SLACK_MS]
+    ]
+  },
+  SB4: {
+    title: 'the history moved under a held depth',
+    clauses: [
+      ['a session with history-limit 1,000 trimmed under a held depth: moved', (r) => r.trim.staged === true && r.trim.why === 'moved'],
+      ['clear in the shell emptied the history: moved', (r) => r.clear.staged === true && r.clear.why === 'moved']
+    ]
+  },
+  SB5: {
+    title: 'the loopback machine stops answering, and comes back',
+    clauses: [
+      ['the machine stopped: unreachable', (r) => r.paused.staged === true && r.paused.why === 'unreachable'],
+      ['back: paged again', (r) => r.back.why === null && r.back.rows > 0 && r.back.problems === 0]
+    ]
+  },
+  SB6: {
+    title: 'no paged row is kept or shown anywhere',
+    clauses: [
+      ['app.log was read and every file under the profile and HOME was scanned', (r) => r.appLogRead === true && r.filesScanned > 0],
+      ['a canary row was paged to the phone', (r) => r.canaryPaged === true],
+      ["no paged row in any file but the sessions' own saved screens", (r) => r.hits.length === 0],
+      ['no paged row on any command line', (r) => r.psSamples > 0 && r.psHits === 0]
     ]
   },
   RUN: {
@@ -478,9 +760,11 @@ export function grade(id, reading) {
 // The fixtures: each grader's honest reading and one break per clause
 // ---------------------------------------------------------------------------
 
-const HONESTY = 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+/** HEAD's honesty sentence since Phase 337.1 (D35); S0 reads it as SB0 does. */
+const HONESTY = HONESTY_D35;
 const LINES = ['Tortie for Mac on p337 (tortie-test.ts.net)', ROUTE_LINE, WRITE_LINE];
-const PARENT_LINES = ['Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns', 'Lets an allowed phone end a session, answer a numbered question and send a session one message'];
+/** The parent's (337's) lines: ten routes, the same write line. */
+const PARENT_LINES = [PARENT_ROUTE_LINE, WRITE_LINE];
 const row1 = (name, extra = {}) => ({ name, status: 200, screen: true, problems: [], rowsEqual: true, geometryEqual: true, sizeSame: true, ...extra });
 const moves = (n) => Array.from({ length: n }, (_, i) => ({ drawn: i % 9, picture: i % 9 }));
 
@@ -489,13 +773,13 @@ export const GRADER_FIXTURES = {
     pass: { lines: LINES, honesty: HONESTY, confirmBlock: `${LINES.join('\n')}\n${HONESTY}`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
     breaks: {
       'the door reads changed after the parent confirmed it': (r) => void (r.confirmStateBefore = 'confirmed'),
-      'the route line names keys and screen among the ten': (r) => void (r.lines = [LINES[0], PARENT_LINES[0], WRITE_LINE]),
-      "the lines hold D35's write line": (r) => void (r.lines = [LINES[0], ROUTE_LINE, PARENT_LINES[1]]),
+      'the route line names keys and screen among the eleven': (r) => void (r.lines = [LINES[0], PARENT_LINES[0], WRITE_LINE]),
+      "the lines hold D35's write line": (r) => void (r.lines = [LINES[0], ROUTE_LINE, 'Lets an allowed phone end a session, answer a numbered question and send a session one message']),
       'the confirm block draws the honesty sentence': (r) => void (r.confirmBlock = LINES.join('\n')),
       'Allow: the door listens': (r) => void (r.listening = false)
     },
     refused: [
-      { what: 'a route line one route short', clause: 'the route line names keys and screen among the ten', edit: (r) => void (r.lines = [LINES[0], 'Answers these and nothing else: blocked, choose, end, keys, pair, say, session, sessions, turns', WRITE_LINE]) },
+      { what: 'a route line one route short', clause: 'the route line names keys and screen among the eleven', edit: (r) => void (r.lines = [LINES[0], 'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns', WRITE_LINE]) },
       // The probe review's own (2026-10-05).
       { what: "a confirm block still drawing 318's honesty sentence", clause: 'the confirm block draws the honesty sentence', edit: (r) => void (r.confirmBlock = `${LINES.join('\n')}\nA phone you allow can end a session, answer a numbered question and send a session one message. It can change nothing else on this Mac.`) },
       { what: 'a door already confirmed when the parent ran first (the hash did not move)', clause: 'the door reads changed after the parent confirmed it', edit: (r) => void (r.confirmStateBefore = 'confirmed') },
@@ -755,19 +1039,124 @@ export const GRADER_FIXTURES = {
     ]
   },
   RP: {
-    pass: { screen: 404, keys: 404, bytes: '', lines: PARENT_LINES },
+    pass: { scrollback: 404, routeLogged: true, screen: 200, depthField: false, spaceField: false, lines: PARENT_LINES },
     breaks: {
-      'GET /v1/screen is 404': (r) => void (r.screen = 200),
-      'POST /v1/keys is 404': (r) => void (r.keys = 200),
-      'no recorder read a byte': (r) => void (r.bytes = '1b'),
-      'the lines name neither keys nor screen': (r) => void (r.lines = LINES)
+      'GET /v1/scrollback is 404': (r) => void (r.scrollback = 200),
+      "the door logged the refusal's word, route": (r) => void (r.routeLogged = false),
+      "the parent's screen answer carries no depth and no space": (r) => void (r.depthField = true),
+      'the lines name the screen and no scrollback': (r) => void (r.lines = LINES)
     },
-    // The probe review's own (2026-10-05).
     refused: [
-      { what: 'the parent answering a screen read', clause: 'GET /v1/screen is 404', edit: (r) => void (r.screen = 200) },
-      { what: 'a parent whose lines were never read', clause: 'the lines name neither keys nor screen', edit: (r) => void (r.lines = []) },
-      { what: 'a canary typed into the parent', clause: 'no recorder read a byte', edit: (r) => void (r.bytes = '7033333763') }
+      { what: 'a parent with no Screen either (the screen read 404, as 337 read its own parent)', clause: "the parent's screen answer carries no depth and no space", edit: (r) => void (r.screen = 404) },
+      { what: 'a parent answer carrying a space with no depth', clause: "the parent's screen answer carries no depth and no space", edit: (r) => void (r.spaceField = true) },
+      { what: 'a parent whose lines were never read', clause: 'the lines name the screen and no scrollback', edit: (r) => void (r.lines = []) },
+      { what: "a parent before 337 (its lines name no screen)", clause: 'the lines name the screen and no scrollback', edit: (r) => void (r.lines = ['Answers these and nothing else: blocked, choose, end, pair, say, session, sessions, turns']) },
+      { what: 'a scrollback read cut before HTTP (status 0, not 404)', clause: 'GET /v1/scrollback is 404', edit: (r) => void (r.scrollback = 0) }
     ]
+  },
+  SB0: {
+    pass: { lines: LINES, honesty: HONESTY_D35, confirmBlock: `${LINES.join('\n')}\n${HONESTY_D35}\nAllow`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
+    breaks: {
+      'the door reads changed after the parent confirmed it': (r) => void (r.confirmStateBefore = 'confirmed'),
+      'the route line holds scrollback, eleven routes': (r) => void (r.lines = [LINES[0], PARENT_ROUTE_LINE, WRITE_LINE]),
+      "the confirm block draws D35's honesty sentence: the terminal and what it printed before": (r) => void (r.confirmBlock = `${LINES.join('\n')}\nAllow`),
+      'Allow: the door listens': (r) => void (r.listening = false)
+    },
+    refused: [
+      { what: "337's honesty sentence, which says nothing of what a session printed before", clause: "the confirm block draws D35's honesty sentence: the terminal and what it printed before", edit: (r) => Object.assign(r, { honesty: 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.', confirmBlock: `${LINES.join('\n')}\nA phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.\nAllow` }) },
+      { what: 'a route line with scrollback and without screen', clause: 'the route line holds scrollback, eleven routes', edit: (r) => void (r.lines = [LINES[0], 'Answers these and nothing else: blocked, choose, end, keys, pair, say, scrollback, session, sessions, turns', WRITE_LINE]) }
+    ]
+  },
+  SB1: {
+    pass: { required: ['p3371-claude', 'p3371-shell'], rows: [{ name: 'p3371-claude', depth: 480, pages: 5, unserved: 0, rowsCompared: 480, problems: 0, textMismatch: 0, styleMismatch: 0, sizeSame: true }, { name: 'p3371-shell', depth: 3004, pages: 31, unserved: 0, rowsCompared: 3004, problems: 0, textMismatch: 0, styleMismatch: 0, sizeSame: true }] },
+    breaks: {
+      'every session of the matrix was paged whole': (r) => void (r.rows[1].unserved = 1),
+      'every page is one the phone joins': (r) => void (r.rows[0].problems = 1),
+      "every row's text equals the probe's own capture-pane -p of its index": (r) => void (r.rows[1].textMismatch = 1),
+      "every run is one pen by the probe's own SGR reader": (r) => void (r.rows[0].styleMismatch = 1),
+      'no window changed size': (r) => void (r.rows[0].sizeSame = false)
+    },
+    refused: [
+      { what: 'a session left out of the matrix', clause: 'every session of the matrix was paged whole', edit: (r) => void (r.required = [...r.required, 'p3371-far']) },
+      { what: 'a history paged with a hole (rows compared short of its depth)', clause: 'every session of the matrix was paged whole', edit: (r) => void (r.rows[1].rowsCompared = 2904) },
+      { what: 'a session with no history at all', clause: 'every session of the matrix was paged whole', edit: (r) => Object.assign(r.rows[0], { depth: 0, rowsCompared: 0 }) }
+    ]
+  },
+  SB2: {
+    pass: { rates: { 200: { pages: 100, served: 100, busy: 0, moved: 0, other: 0, wrong: 0 }, 2000: { pages: 100, served: 99, busy: 1, moved: 0, other: 0, wrong: 0 } }, poll: { n: 20, missed: 0, p50: 104, p99: 141 } },
+    breaks: {
+      '100 pages each at 200 and at 2,000 lines a second': (r) => void (r.rates['2000'].pages = 99),
+      'every served page verified by number': (r) => void (r.rates['200'].wrong = 1),
+      'nothing moved, ended or unanswered (busy counted)': (r) => void (r.rates['2000'].moved = 1),
+      "the live poll's change-to-answer p99 stayed under 250 ms while paging": (r) => void (r.poll.p99 = 250)
+    },
+    refused: [
+      { what: 'a change the poll never answered', clause: "the live poll's change-to-answer p99 stayed under 250 ms while paging", edit: (r) => void (r.poll.missed = 1) },
+      { what: 'a rate with no page served (every one busy)', clause: 'every served page verified by number', edit: (r) => Object.assign(r.rates['2000'], { served: 0, busy: 100 }) }
+    ]
+  },
+  SB3: {
+    pass: {
+      refused: Array.from({ length: 22 }, (_, i) => ({ what: `q${String(i)}`, status: 404 })),
+      statementsDuringRefused: 0,
+      moved: { wrap: 'moved', deep: 'moved', past: 'moved', alt: 'moved' },
+      burst: { sent: 200, served: 9, busy: 0, refusedAtCap: 191, malformed: 0, notFound: 0, late: 0 },
+      lag: { samples: 410, p99: 12.4 },
+      starts: { n: 9, minGapMs: 250.4 },
+      worst: { gaps: [{ gapMs: 251.1, composeMs: 22 }, { gapMs: 250.6, composeMs: 19 }, { gapMs: 250.2, composeMs: 25 }], unread: null },
+      ended: 'ended',
+      doorOff: { pending: 4, settled: 4, maxMs: 1_090 }
+    },
+    breaks: {
+      'every refused query is 404 and composes nothing': (r) => void (r.statementsDuringRefused = 1),
+      'wrap not the width, depth above the history, from past it and the alternate screen: each moved': (r) => void (r.moved.alt = null),
+      '200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue': (r) => void (r.burst.malformed = 1),
+      "main's event-loop lag p99 stayed under 50 ms through the burst": (r) => void (r.lag.p99 = 50),
+      "one session's starts at least 250 ms apart by main's own stamps": (r) => void (r.starts.minGapMs = 120),
+      'on a worst-colour history each start waited SCREEN_DUTY_FACTOR times the compose before it': (r) => void (r.worst.gaps[1] = { gapMs: 250.6, composeMs: 80 }),
+      'a page on a session that ended: ended': (r) => void (r.ended = 'unreachable'),
+      'the door switched off while pages waited: every one answered or cut within the stop join': (r) => void (r.doorOff.maxMs = 8_000)
+    },
+    refused: [
+      { what: 'a refused query that was asked of tmux anyway', clause: 'every refused query is 404 and composes nothing', edit: (r) => void (r.statementsDuringRefused = 2) },
+      { what: 'a query main answered 200', clause: 'every refused query is 404 and composes nothing', edit: (r) => void (r.refused[3].status = 200) },
+      { what: 'a page that waited behind more than the queue (late)', clause: '200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue', edit: (r) => void (r.burst.late = 1) },
+      { what: 'a burst whose answers do not add up to what was sent (one lost)', clause: '200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue', edit: (r) => void (r.burst.refusedAtCap = 190) },
+      { what: 'a burst answer that was neither a page, busy nor refused at the cap (a 404)', clause: '200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue', edit: (r) => void (r.burst.notFound = 1) },
+      { what: 'a page held past the join (8 s, the queue at 250 ms a start, §Attack B3)', clause: 'the door switched off while pages waited: every one answered or cut within the stop join', edit: (r) => void (r.doorOff.settled = 3) },
+      { what: 'no stamps read from main', clause: "one session's starts at least 250 ms apart by main's own stamps", edit: (r) => void (r.starts = { n: 0, minGapMs: null }) },
+      { what: 'two worst-colour gaps and no word saying why (the fix round: never a silent pass)', clause: 'on a worst-colour history each start waited SCREEN_DUTY_FACTOR times the compose before it', edit: (r) => void (r.worst.gaps = r.worst.gaps.slice(0, 2)) },
+      { what: 'a worst-colour gap too short beside an unread word', clause: 'on a worst-colour history each start waited SCREEN_DUTY_FACTOR times the compose before it', edit: (r) => void Object.assign(r.worst, { unread: 'x', gaps: [...r.worst.gaps, { gapMs: 251, composeMs: 90 }] }) }
+    ]
+  },
+  SB4: {
+    pass: { trim: { staged: true, why: 'moved', held: 991, dropped: 904 }, clear: { staged: true, why: 'moved', held: 480, after: 0 } },
+    breaks: {
+      'a session with history-limit 1,000 trimmed under a held depth: moved': (r) => void (r.trim.why = null),
+      'clear in the shell emptied the history: moved': (r) => void (r.clear.why = null)
+    },
+    refused: [{ what: 'a trim never staged', clause: 'a session with history-limit 1,000 trimmed under a held depth: moved', edit: (r) => void (r.trim.staged = false) }]
+  },
+  SB5: {
+    pass: { paused: { staged: true, why: 'unreachable' }, back: { why: null, rows: 100, problems: 0 } },
+    breaks: {
+      'the machine stopped: unreachable': (r) => void (r.paused.why = 'busy'),
+      'back: paged again': (r) => void (r.back.why = 'unreachable')
+    },
+    refused: [
+      { what: 'a pause never staged', clause: 'the machine stopped: unreachable', edit: (r) => void (r.paused.staged = false) },
+      { what: 'a page after it came back the phone would refuse', clause: 'back: paged again', edit: (r) => void (r.back.problems = 1) }
+    ]
+  },
+  SB6: {
+    pass: { appLogRead: true, filesScanned: 1_904, canaryPaged: true, hits: [], snapshotHits: 2, psSamples: 120, psHits: 0 },
+    breaks: {
+      'app.log was read and every file under the profile and HOME was scanned': (r) => void (r.filesScanned = 0),
+      'a canary row was paged to the phone': (r) => void (r.canaryPaged = false),
+      "no paged row in any file but the sessions' own saved screens": (r) => void (r.hits = [{ file: 'profile/logs/app.log', canary: 'p3371sb' }]),
+      'no paged row on any command line': (r) => void (r.psHits = 1)
+    },
+    refused: [{ what: 'a ps sampler that never sampled', clause: 'no paged row on any command line', edit: (r) => Object.assign(r, { psSamples: 0, psHits: 0 }) }]
   },
   RUN: {
     pass: { tailscalePreflight: true, dnsPreflights: [true, true], resolved: true, agentsHeld: [true, true], realTailscale: 0, samples: 900, forbidden: 0, standinLeft: 0, agentsLeft: 0, historyBefore: '733025 1791244365 | 23166 1790702242', historyAfter: '733025 1791244365 | 23166 1790702242' },
@@ -806,7 +1195,31 @@ function graderSelfTest() {
   } catch {
     contract = '';
   }
-  say(constWord(contract, 'POCKET_DOOR_HONESTY') === HONESTY, "the fixtures' honesty sentence is the contract's own, byte for byte");
+  say(constWord(contract, 'POCKET_DOOR_HONESTY') === HONESTY_D35, "the fixtures' honesty sentence is the contract's own, byte for byte (D35)");
+  say(HONESTY_D35.includes('terminal shows and what it printed before'), "D35's sentence says the phone sees what a terminal printed before");
+  // ROUTE_LINE against the tree's own POCKET_ROUTE_IDS (Phase 337.1 added scrollback), and the parent's line one route short of it.
+  const treeIds = [...(/POCKET_ROUTE_IDS = \[([\s\S]*?)\] as const/.exec(contract)?.[1] ?? '').replace(/\/\*[\s\S]*?\*\//g, '').matchAll(/'([a-z]+)'/g)].map((m) => m[1]).sort();
+  say(treeIds.length > 0 && J(routeIdsOf([ROUTE_LINE])) === J(treeIds), `ROUTE_LINE names exactly the tree's POCKET_ROUTE_IDS (${treeIds.join(', ')})`);
+  say(J(routeIdsOf([PARENT_ROUTE_LINE])) === J(ROUTE_IDS.filter((id) => id !== 'scrollback')), "PARENT_ROUTE_LINE is HEAD's less scrollback");
+  // The reader's bounds by value against the tree's own (src/main/screen/scrollback.ts, watch.ts, door/limits.ts).
+  {
+    const src = (rel) => {
+      try {
+        return readFileSync(join(ROOT, rel), 'utf8');
+      } catch {
+        return '';
+      }
+    };
+    const num = (text, name) => {
+      const m = new RegExp(`export const ${name} = ([0-9_]+);`).exec(text);
+      return m === null ? null : Number(m[1].replace(/_/g, ''));
+    };
+    const sb = src('src/main/screen/scrollback.ts');
+    say(num(sb, 'SCROLLBACK_MIN_GAP_MS') === SB_MIN_GAP_MS && num(sb, 'SCROLLBACK_QUEUE_MAX') === SB_QUEUE_MAX, `SB_MIN_GAP_MS and SB_QUEUE_MAX are the tree's (${String(num(sb, 'SCROLLBACK_MIN_GAP_MS'))}, ${String(num(sb, 'SCROLLBACK_QUEUE_MAX'))})`);
+    say(num(src('src/main/screen/watch.ts'), 'SCREEN_DUTY_FACTOR') === SB_DUTY_FACTOR, "SB_DUTY_FACTOR is the tree's SCREEN_DUTY_FACTOR");
+    say(num(src('src/main/pocket/door/limits.ts'), 'DOOR_STOP_JOIN_MS') === SB_STOP_JOIN_MS, "SB_STOP_JOIN_MS is the tree's DOOR_STOP_JOIN_MS");
+    say(num(src('src/shared/ipc/pocket.ts'), 'POCKET_SCROLLBACK_MAX_COUNT') === SB_MAX_COUNT, "SB_MAX_COUNT is the tree's POCKET_SCROLLBACK_MAX_COUNT");
+  }
   // Rows against a capture, the phone's way.
   const screen = { lines: [[{ text: 'ab  ', style: 0, cells: 4 }], [], [{ text: 'é', style: 0, cells: 1 }, { text: '漢', style: 1, cells: 2 }]] };
   say(rowsDiffer(screen, 'ab\n\né漢\n').length === 0, 'rowsDiffer takes rows equal with trailing blanks dropped');
@@ -844,7 +1257,9 @@ function graderSelfTest() {
     S10: { reads: 1_180, sessions: 5, unread: 0, foreign: 0, ownMissing: 0, waitingSamples: 0, missingSamples: 0 },
     S11: { appLogRead: true, filesScanned: 1_904, hits: [], snapshotHits: 5, psSamples: 140, psHits: 0, logged: 38, owed: 38 },
     S12: { parentP50: 12.4, headP50: 11.9, watchedP50: 13.1, watchedReads: 31 },
-    RP: { screen: 404, keys: 404, bytes: '', lines: ['Publishes https://tortie-test.ts.net:8443', ...PARENT_LINES] },
+    RP: { scrollback: 404, routeLogged: true, screen: 200, depthField: false, spaceField: false, lines: ['Publishes https://tortie-test.ts.net:8443', ...PARENT_LINES] },
+    SB0: { lines: ['Publishes https://tortie-test.ts.net:8443', ROUTE_LINE, WRITE_LINE], honesty: HONESTY_D35, confirmBlock: `Publishes https://tortie-test.ts.net:8443\n${ROUTE_LINE}\n${WRITE_LINE}\n${HONESTY_D35}\nAllow`, parentRanFirst: false, confirmStateBefore: 'unconfirmed', listening: true },
+    SB1: { required: [...SB1_MATRIX], rows: SB1_MATRIX.map((name) => ({ name, depth: 700, pages: 7, unserved: 0, rowsCompared: 700, problems: 0, textMismatch: 0, styleMismatch: 0, sizeSame: true })) },
     RUN: { tailscalePreflight: true, dnsPreflights: [true, true], resolved: true, agentsHeld: [true, true], realTailscale: 0, samples: 2_410, forbidden: 0, standinLeft: 0, agentsLeft: 0, historyBefore: '733190 1791250793 | 23166 1790702242', historyAfter: '733190 1791250793 | 23166 1790702242' }
   };
   for (const [id, reading] of Object.entries(honest)) {
@@ -894,6 +1309,89 @@ function graderSelfTest() {
     const calls = [...yard.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').matchAll(/\bownPublicKeys\s*\(/g)].length;
     say(/\bauthorizedLinesFor\s*\(/.test(body) && !/\bownPublicKeys\s*\(/.test(body) && calls === 1, "D37: scratchYard writes authorized_keys through authorizedLinesFor, and ownPublicKeys( is called nowhere but by it (its one spelling is its declaration)");
     say(noOwnKeysLine(['ssh-ed25519 RUN', ''].join('\n'), 'ssh-ed25519 RUN') === null && noOwnKeysLine(['ssh-ed25519 RUN', 'ssh-ed25519 HIS', ''].join('\n'), 'ssh-ed25519 RUN') !== null && noOwnKeysLine('', 'ssh-ed25519 RUN') !== null, "D37's live read: the yard's authorized_keys holds the run's key and nothing else");
+  }
+  // PHASE 337.1: the SB readers.
+  {
+    const ask = { from: 100, count: 10, depth: 500, wrap: 80, keep: 'bottom' };
+    const honest = scrollbackTarget('s1', ask);
+    const refused = refusedTargets('s1', ask);
+    say(refused.length >= 15 && refused.every((x) => x.target !== honest) && new Set(refused.map((x) => x.target)).size === refused.length, `refusedTargets builds ${String(refused.length)} distinct hostile targets, none the honest one`);
+    say(refused.some((x) => /[?&]cols=/.test(x.target)) && refused.some((x) => /count=129/.test(x.target)) && refused.some((x) => /keep=TOP/.test(x.target)), 'refusedTargets names cols, a count of 129 and keep TOP among them');
+    const run1 = (text, style = 0) => ({ text, style, cells: [...text].length });
+    const rows = [[run1('L000001 a')], [run1('L000002', 0), run1(' b', 1)]];
+    const same = pageAgainst(rows, 'L000001 a\nL000002 b\n', 'L000001 a\nL000002\u001b[1m b\u001b[0m\n');
+    say(same.textMismatch === 0 && same.styleMismatch === 0, 'pageAgainst takes a page equal to the probe\'s own two captures');
+    say(pageAgainst(rows, 'L000001 a\nL000003 b\n', 'L000001 a\nL000002 b\n').textMismatch === 1, 'pageAgainst names a row whose text differs');
+    say(pageAgainst(rows, 'L000001 a\n', 'L000001 a\n').textMismatch >= 1, 'pageAgainst refuses a page longer than the capture');
+    say(pageAgainst(rows, 'L000001 a\nL000002 b\n', 'L000001 a\nL000002 b\n').styleMismatch === 0 && pageAgainst([[run1('L000001 a')], [run1('L000002 b')]], 'L000001 a\nL000002 b\n', 'L000001 a\nL000002\u001b[1m b\n').styleMismatch === 1, 'pageAgainst refuses a run that spans two pens by the probe\'s own reader');
+    say(offsetOfFirst('p337 % seq\nL000001 x\nL000002 x\n') === 1 && offsetOfFirst('nothing\n') === null, 'offsetOfFirst finds the first numbered line');
+    say(numberedRowsHold([[run1('L000004 x')], [run1('L000005 x')]], 4, 1) && !numberedRowsHold([[run1('L000004 x')], [run1('L000006 x')]], 4, 1) && !numberedRowsHold([], 4, 1), 'numberedRowsHold takes contiguous lines at their index and refuses a skipped one');
+    const st = startsOf([{ target: '$3', at: 1000 }, { target: '$4', at: 1100 }, { target: '$3', at: 1251 }, { target: '$3', at: 1500 }], '$3');
+    say(st.n === 3 && st.minGapMs === 249, "startsOf reads one target's starts and the least gap between them");
+    const lags = [{ at: 1005, lag: 3 }, { at: 1020, lag: 22 }, { at: 1300, lag: 40 }];
+    say(lagWithin(lags, 1000, 1200) === 22 && lagWithin(lags, 2000, 3000) === 0, 'lagWithin reads the largest lag in a window');
+    const dg = dutyGaps([1000, 1251], lags);
+    say(dg.length === 1 && dg[0].gapMs === 251 && dg[0].composeMs === 22, 'dutyGaps pairs each gap with the compose lag after the start before it');
+  }
+  // THE PROBE REVIEW OF PHASE 337.1 (2026-10-06): each SB grader and RP on a
+  // reading of the review's own, composed the way its arm composes it (an
+  // honest run), and on broken ones, each the symptom of a defect class.
+  {
+    const sbPage = (rows) => ({ r: { status: 200, answer: { sessionId: 's', at: 1, from: 100, depth: 900, wrap: 80, space: '0123456789ab', styles: [{ fg: '#d4d4d4', bg: null, bold: false, dim: false, italic: false, underline: false, strike: false }], rows: Array.from({ length: rows }, (_, k) => [{ text: `L${String(101 + k).padStart(6, '0')}`, style: 0, cells: 7 }]), why: null, sentence: null }, ms: 260 }, ask: { from: 100, count: rows, depth: 900, wrap: 80, keep: 'bottom' } });
+    const absent = (why, ms = 3) => ({ r: { status: 200, answer: { sessionId: 's', at: 1, from: null, depth: null, wrap: null, space: null, styles: [], rows: [], why, sentence: 'x' }, ms }, ask: null });
+    const capCut = (ms) => ({ r: { status: 0, answer: null, ms, error: 'socket hang up' }, ask: null });
+    // An honest burst as the arm settles it: four reach main past the per-source cap, one in flight and three
+    // waiting, the rest refused at the cap at once.
+    const honestBurst = [...Array.from({ length: 9 }, () => sbPage(100)), absent('busy'), ...Array.from({ length: 190 }, () => capCut(4))];
+    const bOk = burstOf(honestBurst);
+    say(bOk.sent === 200 && bOk.served === 9 && bOk.busy === 1 && bOk.refusedAtCap === 190 && bOk.late === 0 && bOk.malformed === 0, `burstOf sorts an honest burst: ${J(bOk)}`);
+    const sb3Of = (burst) => ({ ...structuredClone(GRADER_FIXTURES.SB3.pass), burst });
+    const g3 = grade('SB3', sb3Of(bOk));
+    say(g3.ok, `SB3 passes the review's honest burst${g3.ok ? '' : `, failing ${J(g3.failed)}`}`);
+    // A page main held past the queue until the phone's own 20 s cut it: status 0, as a cap refusal is.
+    const hung = burstOf([...honestBurst.slice(0, 199), { r: { status: 0, answer: null, ms: 20_004, error: 'timed out' }, ask: null }]);
+    const g3h = grade('SB3', sb3Of(hung));
+    say(hung.late === 1 && !g3h.ok && g3h.failed.includes('200 page reads from one phone in 2 s: every answer in its form, none waiting past the queue'), `SB3 refuses a page held until the phone's timeout, which the arm counted as refused at the cap before the review (${J(hung)})`);
+    const lateServed = burstOf([...honestBurst.slice(0, 8), { ...sbPage(100), r: { ...sbPage(100).r, ms: SB_LATE_MS + 1 } }, ...honestBurst.slice(9)]);
+    say(lateServed.late === 1 && !grade('SB3', sb3Of(lateServed)).ok, 'SB3 refuses a page served after waiting past the queue');
+    const wrongRows = burstOf([...honestBurst.slice(0, 8), { ...sbPage(100), ask: { from: 100, count: 50, depth: 900, wrap: 80, keep: 'bottom' } }, ...honestBurst.slice(9)]);
+    say(wrongRows.malformed === 1 && !grade('SB3', sb3Of(wrongRows)).ok, 'SB3 refuses a burst page holding rows it was not asked for');
+    // The readings each other arm composes on a run that went right, and the broken one beside each.
+    const mine = {
+      SB0: { lines: ['Publishes https://tortie-test.ts.net:8443', ROUTE_LINE, WRITE_LINE], honesty: HONESTY_D35, confirmBlock: `Publishes https://tortie-test.ts.net:8443\n${ROUTE_LINE}\n${WRITE_LINE}\n${HONESTY_D35}\nAllow`, parentRanFirst: true, confirmStateBefore: 'changed', listening: true },
+      SB1: { required: [...SB1_MATRIX], rows: SB1_MATRIX.map((name) => ({ name, depth: name === 'p3371-shell' ? 3_004 : 1_472, pages: name === 'p3371-shell' ? 31 : 15, unserved: 0, rowsCompared: name === 'p3371-shell' ? 3_004 : 1_472, problems: 0, textMismatch: 0, styleMismatch: 0, sizeSame: true, canary: name === 'p3371-canary' })) },
+      SB2: { rates: { 200: { pages: 100, served: 100, busy: 0, moved: 0, other: 0, wrong: 0 }, 2000: { pages: 100, served: 97, busy: 3, moved: 0, other: 0, wrong: 0 } }, poll: { n: 20, missed: 0, p50: 96, p99: 188 } },
+      SB4: { trim: { staged: true, why: 'moved', held: 996, dropped: 900 }, clear: { staged: true, why: 'moved', held: 476, after: 0 } },
+      SB5: { paused: { staged: true, why: 'unreachable', statusThen: 'running' }, back: { why: null, rows: 100, problems: 0 } },
+      SB6: { appLogRead: true, filesScanned: 2_311, canaryPaged: true, hits: [], snapshotHits: 1, psSamples: 233, psHits: 0 },
+      RP: { scrollback: 404, routeLogged: true, screen: 200, depthField: false, spaceField: false, lines: ['Publishes https://tortie-test.ts.net:8443', PARENT_ROUTE_LINE, WRITE_LINE] }
+    };
+    const broken = [
+      ['SB0', 'a door whose confirm block still drew 337\'s sentence beside the route line with scrollback', (r) => void (r.confirmBlock = r.confirmBlock.replace(HONESTY_D35, 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.'))],
+      ['SB0', 'a HEAD launch after the parent that read the door confirmed, so Allow was never asked again', (r) => void (r.confirmStateBefore = 'confirmed')],
+      ['SB1', "the far shell's last page answered unreachable (a hole at the top of its history)", (r) => Object.assign(r.rows[5], { unserved: 1, rowsCompared: 1_372 })],
+      ['SB1', 'a page of Codex\'s history whose rows hold the pen of the row above', (r) => void (r.rows[1].styleMismatch = 3)],
+      ['SB2', "the 2,000-a-second pane trimmed at 25,000 under the held depth (the arm's own staging before the review): pages moved and the lines read off by the trim", (r) => Object.assign(r.rates['2000'], { served: 61, moved: 39, wrong: 61 })],
+      ['SB2', 'the live poll missing a change while pages were read', (r) => Object.assign(r.poll, { n: 19, missed: 1 })],
+      ['SB4', "a trim that never came, because the session's limit fell back to 25,000 (the arm's own staging before the review)", (r) => Object.assign(r.trim, { staged: false, why: null, dropped: null })],
+      ['SB4', 'a clear that left the page served from the old history', (r) => void (r.clear.why = null)],
+      ['SB5', "a paused machine answered busy, as if it were this Mac's", (r) => void (r.paused.why = 'busy')],
+      ['SB5', 'the machine back, and its page cut short of what was asked', (r) => void (r.back.problems = 1)],
+      ['SB6', 'a canary row written into app.log', (r) => void r.hits.push({ file: 'profile/gmux/logs/app.log', canary: 'p3371sb0011223344aa' })],
+      ['SB6', 'a canary row on a command line', (r) => void (r.psHits = 2)],
+      ['RP', 'a parent whose door answered the page (it is no parent of this phase)', (r) => void (r.scrollback = 200)],
+      ['RP', 'a parent whose screen answer already carried a depth', (r) => void (r.depthField = true)]
+    ];
+    for (const [id, reading] of Object.entries(mine)) {
+      const g = grade(id, structuredClone(reading));
+      say(g.ok, `${id} passes the review's own honest reading of 2026-10-06${g.ok ? '' : `, failing ${J(g.failed)}`}`);
+    }
+    for (const [id, what, edit] of broken) {
+      const reading = structuredClone(mine[id]);
+      edit(reading);
+      const g = grade(id, reading);
+      say(!g.ok, `${id} refuses ${what}${g.ok ? ' (it PASSED)' : ''}`);
+    }
   }
   // normalizeRn.
   const n = normalizeRn({ rows: [{ name: 'x-head', label: 'started 14:24', excerpt: '' }], lines: ['x-head :: a'] }, 'head');
@@ -958,6 +1456,8 @@ const SOURCES = [
   'src/main/screen/compose.ts',
   'src/main/screen/watch.ts',
   'src/main/screen/keys.ts',
+  'src/main/screen/scrollback.ts',
+  'src/main/pocket/routes.ts',
   'src/main/machines/remote-screen.ts',
   'src/main/machines/scroll-order.ts',
   'src/main/tmux/control-client.ts',
@@ -1323,13 +1823,15 @@ function writeMachines(withMachine, path = MACHINES_JSON) {
   writeFileSync(path, `${J({ schema: 1, machines })}\n`, 'utf8');
 }
 
-function launchOptions(label, checkout) {
+function launchOptions(label, checkout, { inspect = false } = {}) {
   return {
     label,
     userDataDir: PROFILE,
     cwd: checkout,
     tmuxSocket: SOCKET,
-    args: ['--remote-debugging-port=0', '--use-mock-keychain'],
+    // Phase 337.1: HEAD's launch opens main's inspector (`--inspect=0`, as probe:p320 does), so SB3 reads main's
+    // own stamps of each page start and its event-loop lag; the recorder is put in and taken out around SB3.
+    args: ['--remote-debugging-port=0', ...(inspect ? ['--inspect=0'] : []), '--use-mock-keychain'],
     env: withoutDevRenderer({
       ...INHERITED,
       HOME,
@@ -1352,14 +1854,14 @@ function launchOptions(label, checkout) {
 }
 
 /** One launch through the helper, after both preflights and the quiet agents. */
-async function launch(label, checkout, body) {
+async function launch(label, checkout, body, options = {}) {
   const pre = preflightStandin(standin, standin.binPath);
   if (!pre.ok) throw new Error(`the Tailscale preflight refused the launch: ${pre.problems.join('; ')}`);
   const dnsPre = await dns.preflight(dns.servers);
   dnsPreflights.push(dnsPre.ok && loopbackOnlyServers(dns.servers));
   if (!dnsPre.ok) throw new Error(`the DNS preflight refused the launch: ${dnsPre.problems.join('; ')}`);
   writeQuietAgents(PROFILE);
-  return withElectron(launchOptions(label, checkout), async (handle) => {
+  return withElectron(launchOptions(label, checkout, options), async (handle) => {
     lastShim = handle.pid;
     const appNow = () => {
       try {
@@ -1682,6 +2184,513 @@ async function captureFile(name, rel, header) {
 }
 
 // ---------------------------------------------------------------------------
+// PHASE 337.1 — the SB arms (build/p3371/SPEC.md §7.7), at HEAD, after RN
+// ---------------------------------------------------------------------------
+
+const STAND_IN = join(ROOT, 'build', 'p3371', 'history-stand-in.mjs');
+/** SB6's canaries: rows a page carries, never typed on any command line (a file the stand-in stacks). */
+const sbCanaries = new Set();
+/** SB6's sampler and whether a canary row reached the phone; read after the app has gone. */
+const SB_STATE = { ps: null, canaryPaged: false, ran: false };
+
+/** A history stand-in started in a shell session, by the probe's own tmux, once its prompt is drawn. */
+const standInIn = (main, id, args, options) => startIn(main, id, `exec '${process.execPath}' '${STAND_IN}' ${args}`, options);
+/** A list file of captures for the stand-in's `--stack`, repeated until at least `lines` rows. */
+function stackList(name, files, lines) {
+  const perPass = files.reduce((n, f) => n + readFileSync(f, 'latin1').split('\n').length, 0);
+  const reps = Math.max(1, Math.ceil(lines / Math.max(1, perPass)));
+  const list = join(DRAWN, `${name}.list`);
+  writeFileSync(list, `${Array.from({ length: reps }, () => files).flat().join('\n')}\n`);
+  return list;
+}
+/** The probe's own `#{history_size}` of a session (local or far), or null. */
+const historyOf = async (main, id, far = false) => {
+  const t = String((far ? farOut : tmuxOut)('display-message', '-p', '-t', await targetOf(main, id), '#{history_size}') ?? '').trim();
+  return /^\d+$/.test(t) ? Number(t) : null;
+};
+/** The phone's picture of a session until it carries a numeric depth: `{ depth, space, cols }`, or null. */
+async function depthOf(P, id, ms = 15_000) {
+  return waitFor(async () => {
+    const s = (await screenRead(P.phone, P.door, id)).answer?.screen ?? null;
+    return s !== null && typeof s.depth === 'number' ? { depth: s.depth, space: s.space, cols: s.cols, alternate: s.alternate } : null;
+  }, ms, 200);
+}
+/**
+ * A history-limit HELD by the sessions `make` makes (one id, or an object of
+ * ids), for as long as they live (SB2, SB4). The global is set while they are
+ * made, for a tmux that reads the limit only when a pane is made; then each
+ * made session's OWN option is set to it and read back, and the global is put
+ * back. THE PROBE REVIEW (2026-10-06): this put the global back the moment the
+ * shell was made and set nothing on the session, and the vendored tmux 3.7b
+ * (the one the app runs here) applies a changed limit to the panes that exist,
+ * so SB4's pane was handed 25,000 again and never trimmed, and SB2's flood
+ * pane trimmed at 25,000 (measured on a scratch server: a pane made under a
+ * global of 1,000 read `#{history_limit}` 25000 and held 4,971 lines once the
+ * global was put back; one whose session option was set kept 1,000, and one
+ * set to 100,000 kept it, after the global moved; measure:p337 met the same,
+ * §As built item 7). A made session whose limit does not read back THROWS,
+ * which its arm reads as UNREADABLE, never as the product's failure. Stated:
+ * on 3.7b the global set for a moment also trims every other session of the
+ * run to a lower limit (SB4's 1,000), which the arms after SB4 read afresh.
+ */
+async function withHistoryLimit(main, limit, make) {
+  const was = String(tmuxOut('show-options', '-gv', 'history-limit') ?? '').trim();
+  tmuxOut('set-option', '-g', 'history-limit', String(limit));
+  try {
+    const made = await make();
+    for (const id of typeof made === 'string' ? [made] : Object.values(made)) {
+      const target = await targetOf(main, id);
+      tmuxOut('set-option', '-t', target, 'history-limit', String(limit));
+      const held = String(tmuxOut('display-message', '-p', '-t', target, '#{history_limit}') ?? '').trim();
+      if (held !== String(limit)) throw new Error(`the session ${id} holds a history-limit of ${held === '' ? 'nothing read' : held}, not the ${String(limit)} its arm needs`);
+    }
+    return made;
+  } finally {
+    if (/^\d+$/.test(was)) tmuxOut('set-option', '-g', 'history-limit', was);
+  }
+}
+
+/**
+ * MAIN'S OWN STAMPS (SB3), over main's inspector: every page statement's
+ * capture (`capture-pane … -S <a> -E <b>`, which only the page reader writes)
+ * stamped as main writes it to the control client's pipe, and main's
+ * event-loop lag sampled every 10 ms. The command line holds a `$`-id and two
+ * numbers, never a row. Put in before SB3 and taken out after it, whatever
+ * happened.
+ */
+const SB_MAIN_PATCH = `(() => {
+  if (globalThis.__p3371) return true;
+  const rec = { starts: [], lags: [], timer: null, pipes: 0 };
+  let last = performance.now();
+  rec.timer = setInterval(() => { const t = performance.now(); rec.lags.push({ at: Date.now(), lag: Math.max(0, t - last - 10) }); last = t; if (rec.lags.length > 100000) rec.lags.shift(); }, 10);
+  for (const h of process._getActiveHandles()) {
+    if (h === null || typeof h !== 'object' || typeof h.write !== 'function' || h.__p3371 !== undefined) continue;
+    const original = h.write;
+    h.__p3371 = original;
+    h.write = function (chunk, ...rest) {
+      try {
+        const text = typeof chunk === 'string' ? chunk : Buffer.isBuffer(chunk) ? chunk.toString('latin1') : '';
+        for (const line of text.split('\\n')) {
+          const m = /^capture-pane .*-t '?(\\$[0-9]+)'? -S (-?[0-9]+) -E (-?[0-9]+)/.exec(line);
+          if (m !== null) rec.starts.push({ at: Date.now(), target: m[1], a: Number(m[2]), b: Number(m[3]) });
+        }
+      } catch {}
+      return original.call(this, chunk, ...rest);
+    };
+    rec.pipes += 1;
+  }
+  globalThis.__p3371 = rec;
+  return rec.pipes > 0;
+})()`;
+const SB_MAIN_RESTORE = `(() => { const rec = globalThis.__p3371; if (!rec) return true; clearInterval(rec.timer); for (const h of process._getActiveHandles()) if (h && h.__p3371) { h.write = h.__p3371; delete h.__p3371; } delete globalThis.__p3371; return true; })()`;
+const SB_MAIN_READ = (from) => `JSON.stringify(globalThis.__p3371 ? { starts: globalThis.__p3371.starts.filter((x) => x.at >= ${String(from)}), lags: globalThis.__p3371.lags.filter((x) => x.at >= ${String(from)}) } : null)`;
+/** The MAIN process, over the node inspector `--inspect=0` opened (probe:p320's reader). */
+async function cdpForMain(handle, timeoutMs) {
+  const started = Date.now();
+  for (;;) {
+    const m = /Debugger listening on (ws:\/\/127\.0\.0\.1:\d+\/[0-9a-f-]+)/i.exec(handle.text());
+    if (m !== null) {
+      try {
+        return await wsConnect(m[1]);
+      } catch {
+        /* not up yet */
+      }
+    }
+    if (Date.now() - started > timeoutMs) throw new Error('the main process inspector never appeared');
+    await sleep(300);
+  }
+}
+async function mainEval(cdp, expression, ms = 20_000) {
+  const r = await cdp.call('Runtime.evaluate', { expression, returnByValue: true, awaitPromise: true, includeCommandLineAPI: true }, ms);
+  if (r.result?.exceptionDetails) throw new Error(`main threw: ${J(r.result.exceptionDetails).slice(0, 300)}`);
+  return r.result?.result?.value;
+}
+
+/** One session's whole history paged by phone P, each page against the probe's own captures (SB1). */
+async function pageWhole(main, P, name, id, { far = false } = {}) {
+  const read = far ? farOut : tmuxOut;
+  const target = await targetOf(main, id);
+  const sizeBefore = String(read('display-message', '-p', '-t', target, SIZE) ?? '').trim();
+  const pic = await depthOf(P, id);
+  const row = { name, depth: pic?.depth ?? 0, pages: 0, unserved: 0, rowsCompared: 0, problems: 0, textMismatch: 0, styleMismatch: 0, sizeSame: false, canary: false };
+  if (pic !== null) {
+    for (let from = 0; from < pic.depth; ) {
+      const ask = { from, count: Math.min(100, pic.depth - from), depth: pic.depth, wrap: pic.cols, keep: 'top' };
+      row.pages += 1;
+      const r = await scrollbackRead(P.phone, P.door, id, ask);
+      const a = r.answer;
+      if (r.status !== 200 || a === null || a.why !== null || a.rows.length === 0) {
+        row.unserved += 1;
+        from += ask.count;
+        continue;
+      }
+      if (scrollbackAnswerProblems(a, ask).length > 0) row.problems += 1;
+      const lo = a.from - a.depth;
+      const hi = a.from + a.rows.length - 1 - a.depth;
+      const plain = read('capture-pane', '-p', '-t', target, '-S', String(lo), '-E', String(hi));
+      const styled = read('capture-pane', '-p', '-e', '-t', target, '-S', String(lo), '-E', String(hi));
+      const against = pageAgainst(a.rows, plain, styled);
+      row.textMismatch += against.textMismatch;
+      row.styleMismatch += against.styleMismatch;
+      row.rowsCompared += a.rows.length;
+      if (a.rows.some((runs) => [...sbCanaries].some((c) => screenRowText(runs).includes(c)))) row.canary = true;
+      from = a.from + a.rows.length;
+    }
+  }
+  row.sizeSame = sizeBefore !== '' && sizeBefore === String(read('display-message', '-p', '-t', target, SIZE) ?? '').trim();
+  return row;
+}
+
+/** The scratch machine's sshd and every child of it, paused for `body` and resumed after, whatever happened (S8's way). */
+async function withMachinePaused(body) {
+  if (!existsSync(SSHD_CONF)) return { staged: false, value: null };
+  const table = processTable();
+  const listener = [...table.rows.values()].find((row) => isScratchSshd(row.command, SSHD_CONF)) ?? null;
+  if (listener === null) return { staged: false, value: null };
+  const recorded = [listener.pid, ...descendantsOf(table.children, listener.pid)];
+  try {
+    for (const pid of recorded) {
+      try {
+        process.kill(pid, 'SIGSTOP');
+        stopped.add(pid);
+      } catch {
+        /* gone */
+      }
+    }
+    return { staged: stopped.size > 0, value: await body() };
+  } finally {
+    resumeStopped();
+  }
+}
+
+async function runSb(main, handle, A) {
+  SB_STATE.ran = true;
+  const D = await pairPhone(main, 'p3371 phone D');
+  if (!D.ok) throw new Error(`phone D did not pair: ${D.why}`);
+  // ---- the sessions ----------------------------------------------------------------------------------
+  const sb = {};
+  const groups = h2Groups(ROOT);
+  sb.claude = await agentSession(main, 'p3371-claude', 'claude', join(PROJECTS, 'p3371-claude'));
+  sb.codex = await agentSession(main, 'p3371-codex', 'codex', join(PROJECTS, 'p3371-codex'));
+  // Claude Code and Codex inline after their committed screens: each screen is drawn over the last, and the
+  // stand-in's clear (ESC [ H ESC [ 2 J) scrolls the screen it clears into tmux's history (§14 M8).
+  const named = (re) => readdirSync(join(ROOT, 'build', 'fixtures', 'reply')).filter((n) => re.test(n)).sort();
+  await tell(sb.claude, [...named(/^claude-.*\.(?:ansi|txt)$/).map((fixture) => ({ op: 'screen', fixture })), { op: 'idle' }]);
+  await tell(sb.codex, [...named(/^codex-.*\.(?:ansi|txt)$/).map((fixture) => ({ op: 'screen', fixture })), { op: 'idle' }]);
+  sb.shell = await shell(main, join(PROJECTS, 'p3371-shell'), 'p3371-shell');
+  await startIn(main, sb.shell, `seq -f 'L%06g' 1 3000`);
+  sb.gemini = await shell(main, join(PROJECTS, 'p3371-gemini'), 'p3371-gemini');
+  await standInIn(main, sb.gemini, `--stack '${stackList('p3371-gemini', groups.gemini, 600)}'`);
+  sb.qwen = await shell(main, join(PROJECTS, 'p3371-qwen'), 'p3371-qwen');
+  await standInIn(main, sb.qwen, `--stack '${stackList('p3371-qwen', groups.qwen, 600)}'`);
+  const canaryFile = join(DRAWN, 'p3371-canary.txt');
+  {
+    const rows = [];
+    for (let i = 0; i < 40; i += 1) {
+      const c = `p3371sb${randomBytes(6).toString('hex')}`;
+      sbCanaries.add(c);
+      rows.push(`${c} row ${String(i)}`);
+    }
+    writeFileSync(canaryFile, `${rows.join('\n')}\n`);
+  }
+  sb.canary = await shell(main, join(PROJECTS, 'p3371-canary'), 'p3371-canary');
+  await standInIn(main, sb.canary, `--stack '${stackList('p3371-canary', [canaryFile], 400)}'`);
+  const farPath = join(FAR, 'p3371');
+  mkdirSync(farPath, { recursive: true });
+  sb.far = await shell(main, farPath, 'p3371-far', MACHINE_ID);
+  await startIn(main, sb.far, `seq -f 'L%06g' 1 1500`, { far: true });
+  await sleep(3_000);
+  say(`SB sessions made: ${J(sb)}`);
+
+  // SB6's sampler, from the first page to the last.
+  SB_STATE.ps = startPsSampler(sbCanaries);
+
+  // ---- SB1: every session's history, paged whole ----------------------------------------------------
+  await armSafely('SB1', async () => {
+    const matrix = [
+      ['p3371-claude', sb.claude],
+      ['p3371-codex', sb.codex],
+      ['p3371-shell', sb.shell],
+      ['p3371-gemini', sb.gemini],
+      ['p3371-qwen', sb.qwen],
+      ['p3371-far', sb.far, true],
+      ['p3371-canary', sb.canary]
+    ];
+    const rows = [];
+    for (const [name, id, far] of matrix) rows.push(await pageWhole(main, A, name, id, { far: far === true }));
+    SB_STATE.canaryPaged = rows.find((r) => r.name === 'p3371-canary')?.canary === true;
+    say(`SB1 paged: ${rows.map((r) => `${r.name} ${String(r.rowsCompared)} of ${String(r.depth)} rows in ${String(r.pages)} pages`).join('; ')}`);
+    arm('SB1', { required: [...SB1_MATRIX], rows });
+  });
+
+  // ---- SB2: pages while a stand-in prints, the live poll beside them --------------------------------
+  await armSafely('SB2', async () => {
+    const made = await withHistoryLimit(main, 100_000, async () => {
+      const r200 = await shell(main, join(PROJECTS, 'p3371-r200'), 'p3371-r200');
+      const r2000 = await shell(main, join(PROJECTS, 'p3371-r2000'), 'p3371-r2000');
+      return { r200, r2000 };
+    });
+    await standInIn(main, made.r200, '--rate 200 --total 40000');
+    await standInIn(main, made.r2000, '--rate 2000 --total 90000');
+    const pollShell = await shell(main, join(PROJECTS, 'p3371-poll'), 'p3371-poll');
+    const offsetFor = async (id) => {
+      await waitFor(async () => ((await historyOf(main, id)) ?? 0) >= 400 ? true : null, 30_000, 200);
+      const h = (await historyOf(main, id)) ?? 0;
+      return offsetOfFirst(tmuxOut('capture-pane', '-p', '-t', await targetOf(main, id), '-S', '-', '-E', String(-Math.max(0, h - 80))));
+    };
+    const pageLoop = async (id, off) => {
+      const t = { pages: 0, served: 0, busy: 0, moved: 0, other: 0, wrong: 0 };
+      const until = Date.now() + 120_000;
+      while (t.pages < SB2_PAGES && Date.now() < until) {
+        const pic = await depthOf(A, id, 5_000);
+        if (pic === null || pic.depth < 300) continue;
+        const ask = { from: pic.depth - 250, count: 100, depth: pic.depth, wrap: pic.cols, keep: 'bottom' };
+        const r = await scrollbackRead(A.phone, A.door, id, ask);
+        t.pages += 1;
+        const a = r.answer;
+        if (r.status !== 200 || a === null) t.other += 1;
+        else if (a.why === 'busy') t.busy += 1;
+        else if (a.why === 'moved') t.moved += 1;
+        else if (a.why !== null) t.other += 1;
+        else {
+          t.served += 1;
+          if (scrollbackAnswerProblems(a, ask).length > 0 || a.from !== ask.from || !numberedRowsHold(a.rows, a.from, off)) t.wrong += 1;
+        }
+      }
+      return t;
+    };
+    const pollLoop = async () => {
+      const target = await targetOf(main, pollShell);
+      await waitFor(() => (String(tmuxOut('capture-pane', '-p', '-t', target) ?? '').includes('p337') ? true : null), 30_000, 250);
+      const times = [];
+      let missed = 0;
+      for (let i = 0; i < SB2_CHANGES; i += 1) {
+        const base = await screenRead(D.phone, D.door, pollShell);
+        let settledAt = null;
+        const pending = screenRead(D.phone, D.door, pollShell, { since: base.answer?.revision ?? null, timeoutMs: 30_000 }).then((r) => {
+          settledAt = Date.now();
+          return r;
+        });
+        await sleep(1_000);
+        const drawnAt = Date.now();
+        tmuxOut('send-keys', '-t', target, '-l', 'z');
+        const changed = await pending;
+        if (changed.answer === null || changed.answer.unchanged !== false || settledAt === null || settledAt < drawnAt) missed += 1;
+        else times.push(settledAt - drawnAt);
+        tmuxOut('send-keys', '-t', target, 'C-u');
+        await sleep(300);
+      }
+      return { n: times.length, missed, p50: quantile(times, 0.5), p99: quantile(times, 0.99) };
+    };
+    const [off200, off2000] = [await offsetFor(made.r200), await offsetFor(made.r2000)];
+    if (off200 === null || off2000 === null) return cannotRead('SB2', `the numbered lines were not found in the history (offsets ${J([off200, off2000])})`);
+    const [t200, t2000, poll] = await Promise.all([pageLoop(made.r200, off200), pageLoop(made.r2000, off2000), pollLoop()]);
+    say(`SB2: 200/s ${J(t200)}; 2000/s ${J(t2000)}; the live poll while paging ${J(poll)}`);
+    arm('SB2', { rates: { 200: t200, 2000: t2000 }, poll });
+  });
+
+  // ---- SB4: the history moved under a held depth --------------------------------------------------------
+  await armSafely('SB4', async () => {
+    const trim = { staged: false, why: null, held: null, dropped: null };
+    const trimId = await withHistoryLimit(main, 1_000, () => shell(main, join(PROJECTS, 'p3371-trim'), 'p3371-trim'));
+    await standInIn(main, trimId, '--rate 400 --total 4000');
+    const pic = await waitFor(async () => {
+      const p = await depthOf(A, trimId, 2_000);
+      return p !== null && p.depth >= 980 ? p : null;
+    }, 30_000, 50);
+    if (pic !== null) {
+      trim.held = pic.depth;
+      let last = pic.depth;
+      for (let k = 0; k < 2_000 && trim.dropped === null; k += 1) {
+        const h = await historyOf(main, trimId);
+        if (h !== null && h < last) trim.dropped = h;
+        else {
+          if (h !== null) last = h;
+          await sleep(5);
+        }
+      }
+      if (trim.dropped !== null) {
+        const r = await scrollbackRead(A.phone, A.door, trimId, { from: 600, count: 50, depth: pic.depth, wrap: pic.cols, keep: 'bottom' });
+        trim.staged = true;
+        trim.why = r.answer?.why ?? `status ${String(r.status)}`;
+      }
+    }
+    const clear = { staged: false, why: null, held: null, after: null };
+    const clearId = await shell(main, join(PROJECTS, 'p3371-clear'), 'p3371-clear');
+    await startIn(main, clearId, `seq -f 'L%06g' 1 500`);
+    const held = await waitFor(async () => {
+      const p = await depthOf(A, clearId, 2_000);
+      return p !== null && p.depth >= 400 ? p : null;
+    }, 20_000, 200);
+    if (held !== null) {
+      clear.held = held.depth;
+      const target = await targetOf(main, clearId);
+      tmuxOut('send-keys', '-t', target, '-l', 'clear');
+      tmuxOut('send-keys', '-t', target, 'Enter');
+      clear.after = await waitFor(async () => ((await historyOf(main, clearId)) === 0 ? 0 : null), 5_000, 100);
+      if (clear.after === 0) {
+        const r = await scrollbackRead(A.phone, A.door, clearId, { from: held.depth - 150, count: 100, depth: held.depth, wrap: held.cols, keep: 'bottom' });
+        clear.staged = true;
+        clear.why = r.answer?.why ?? `status ${String(r.status)}`;
+      } else clear.after = await historyOf(main, clearId);
+    }
+    if (!clear.staged && held !== null) return cannotRead('SB4', `clear in the scratch shell left a history of ${String(clear.after)} lines (its terminfo sent no E3), so the clear could not be read`, { trim, clear });
+    arm('SB4', { trim, clear });
+  });
+
+  // ---- SB5: the loopback machine stops answering, then comes back --------------------------------------
+  await armSafely('SB5', async () => {
+    const pic = await depthOf(A, sb.far);
+    if (pic === null) return cannotRead('SB5', 'the far shell never drew a picture with a depth');
+    const ask = { from: Math.max(0, pic.depth - 100), count: Math.min(100, pic.depth), depth: pic.depth, wrap: pic.cols, keep: 'bottom' };
+    const paused = await withMachinePaused(async () => {
+      await sleep(300);
+      const r = await scrollbackRead(A.phone, A.door, sb.far, ask);
+      // A served page's `why` is null, which `??` would have read as no answer (the fix round).
+      return { why: r.answer === null ? `status ${String(r.status)}` : r.answer.why, statusThen: await statusOf(main, sb.far) };
+    });
+    await waitFor(async () => (LIVE.includes(await statusOf(main, sb.far)) ? true : null), 120_000, 1_000);
+    await sleep(2_000);
+    const again = await depthOf(A, sb.far, 30_000);
+    const askAgain = again === null ? ask : { from: Math.max(0, again.depth - 100), count: Math.min(100, again.depth), depth: again.depth, wrap: again.cols, keep: 'bottom' };
+    const r = await scrollbackRead(A.phone, A.door, sb.far, askAgain);
+    const back = { why: r.answer === null ? `status ${String(r.status)}` : r.answer.why, rows: r.answer?.rows?.length ?? 0, problems: r.answer === null ? 1 : scrollbackAnswerProblems(r.answer, askAgain).length };
+    say(`SB5: paused ${J(paused)}; back ${J(back)}`);
+    arm('SB5', { paused: { staged: paused.staged, why: paused.value?.why ?? null, statusThen: paused.value?.statusThen ?? null }, back });
+  });
+
+  // ---- SB3: the attack, main's own stamps around it --------------------------------------------------------
+  let mainCdp = null;
+  try {
+    await armSafely('SB3', async () => {
+      mainCdp = await cdpForMain(handle, 30_000);
+      const took = (await mainEval(mainCdp, SB_MAIN_PATCH)) === true;
+      if (!took) return cannotRead('SB3', "main's inspector took no recorder (no pipe to stamp)");
+      const out = {};
+      const shellPic = await depthOf(A, sb.shell);
+      if (shellPic === null) return cannotRead('SB3', 'the 3,000-line shell never drew a picture with a depth');
+      // (a) every refused query, 404, and no statement written while they were asked.
+      {
+        const t0 = Date.now();
+        const logBefore = (appLogText() ?? '').length;
+        const refused = [];
+        for (const { what, target } of refusedTargets(sb.shell, { from: 100, count: 10, depth: shellPic.depth, wrap: shellPic.cols, keep: 'bottom' })) {
+          refused.push({ what, status: (await signedGet(A.phone, A.door, target)).status });
+        }
+        await sleep(300);
+        const seen = JSON.parse((await mainEval(mainCdp, SB_MAIN_READ(t0))) ?? 'null');
+        out.refused = refused;
+        out.statementsDuringRefused = seen === null ? -1 : seen.starts.length;
+        out.appLogDuringRefused = (appLogText() ?? '').slice(logBefore).split('\n').filter((l) => l.trim() !== '').length;
+      }
+      // (b) moved: another wrap, a depth past the history, a from past it, and the alternate screen.
+      {
+        const one = async (id, ask) => (await scrollbackRead(A.phone, A.door, id, ask)).answer?.why ?? null;
+        const base = { from: 100, count: 100, depth: shellPic.depth, wrap: shellPic.cols, keep: 'bottom' };
+        out.moved = {
+          wrap: await one(sb.shell, { ...base, wrap: shellPic.cols === 512 ? 511 : shellPic.cols + 1 }),
+          deep: await one(sb.shell, { ...base, depth: shellPic.depth + 50 }),
+          past: await one(sb.shell, { from: shellPic.depth + 10, count: 10, depth: shellPic.depth + 30, wrap: shellPic.cols, keep: 'bottom' })
+        };
+        const claudePic = await depthOf(A, sb.claude);
+        await tell(sb.claude, [{ op: 'alt', on: true }]);
+        await sleep(600);
+        out.moved.alt = claudePic === null ? 'no depth before' : await one(sb.claude, { from: Math.max(0, claudePic.depth - 100), count: Math.min(100, claudePic.depth), depth: claudePic.depth, wrap: claudePic.cols, keep: 'bottom' });
+        await tell(sb.claude, [{ op: 'alt', on: false }]);
+      }
+      // (c) 200 page reads from one phone in 2 s, each on a connection of its own; main's stamps and lag around them.
+      {
+        await sleep(400);
+        const t0 = Date.now();
+        const asks = [];
+        for (let i = 0; i < SB3_BURST; i += 1) {
+          const from = (i * 37) % Math.max(1, shellPic.depth - 100);
+          const ask = { from, count: 100, depth: shellPic.depth, wrap: shellPic.cols, keep: 'bottom' };
+          asks.push(scrollbackRead(A.phone, A.door, sb.shell, ask).then((r) => ({ r, ask })).catch(() => ({ r: { status: 0, answer: null, ms: 0 }, ask })));
+          await sleep(10);
+        }
+        const settled = await Promise.all(asks);
+        const tEnd = Date.now();
+        const burst = burstOf(settled);
+        const seen = JSON.parse((await mainEval(mainCdp, SB_MAIN_READ(t0))) ?? 'null');
+        const target = await targetOf(main, sb.shell);
+        const tmuxId = String(tmuxOut('display-message', '-p', '-t', target, '#{session_id}') ?? '').trim();
+        const lags = (seen?.lags ?? []).filter((x) => x.at <= tEnd + 500).map((x) => x.lag);
+        out.burst = burst;
+        out.lag = { samples: lags.length, p99: quantile(lags, 0.99), max: quantile(lags, 1) };
+        const st = startsOf(seen?.starts ?? [], tmuxId);
+        out.starts = { n: st.n, minGapMs: st.minGapMs };
+      }
+      // (d) a worst-colour history: each start and the compose before it, by main's own stamps and lag.
+      {
+        const worst = await shell(main, join(PROJECTS, 'p3371-worst'), 'p3371-worst');
+        // The worst rows, then a plain live screen over them: a live screen of
+        // per-cell colours is over the 1,024-style cap and carries no depth, so
+        // with the worst rows still live no page was ever asked (the fix round).
+        await standInIn(main, worst, '--worst 400 --cols 80 --quiet-after 60');
+        const pic = await waitFor(async () => {
+          const p = await depthOf(A, worst, 2_000);
+          return p !== null && p.depth >= 300 ? p : null;
+        }, 30_000, 300);
+        const t0 = Date.now();
+        if (pic !== null) for (let i = 0; i < 4; i += 1) await scrollbackRead(A.phone, A.door, worst, { from: 150 + i * 20, count: 100, depth: pic.depth, wrap: pic.cols, keep: i % 2 === 0 ? 'bottom' : 'top' });
+        const seen = JSON.parse((await mainEval(mainCdp, SB_MAIN_READ(t0))) ?? 'null');
+        const tmuxId = String(tmuxOut('display-message', '-p', '-t', await targetOf(main, worst), '#{session_id}') ?? '').trim();
+        const gaps = dutyGaps(startsOf(seen?.starts ?? [], tmuxId).at, seen?.lags ?? []);
+        out.worst = { gaps, unread: pic === null ? 'the worst-colour history never drew a picture with a depth of 300 or more' : gaps.length < 3 ? `${String(gaps.length)} start gap(s) seen, of the 3 the clause reads` : null };
+      }
+      // (e) a session that ended between its picture and its page.
+      {
+        const endMe = await shell(main, join(PROJECTS, 'p3371-endme'), 'p3371-endme');
+        await startIn(main, endMe, `seq -f 'L%06g' 1 300`);
+        const pic = await depthOf(A, endMe);
+        tmuxOut('kill-session', '-t', await targetOf(main, endMe));
+        await waitFor(async () => (!LIVE.includes(await statusOf(main, endMe)) ? true : null), 30_000, 250);
+        const r = pic === null ? null : await scrollbackRead(A.phone, A.door, endMe, { from: Math.max(0, pic.depth - 100), count: Math.min(100, pic.depth), depth: pic.depth, wrap: pic.cols, keep: 'bottom' });
+        out.ended = r === null ? 'no depth before' : (r.answer?.why ?? `status ${String(r.status)}`);
+      }
+      // (f) the door switched off while pages wait their turn: four asked at once on a session paged by nobody
+      // before, so the first starts at once and three wait their floors; the switch goes off 60 ms later.
+      {
+        const fresh = await shell(main, join(PROJECTS, 'p3371-doorstop'), 'p3371-doorstop');
+        await startIn(main, fresh, `seq -f 'L%06g' 1 600`);
+        const pic = await depthOf(A, fresh);
+        if (pic === null) return cannotRead('SB3', 'the door-stop shell never drew a picture with a depth', out);
+        const settledAt = [];
+        const pages = Array.from({ length: 4 }, (_, i) =>
+          scrollbackRead(A.phone, A.door, fresh, { from: 100 + i * 50, count: 100, depth: pic.depth, wrap: pic.cols, keep: 'bottom' }).then(
+            (r) => void settledAt.push({ i, at: Date.now(), status: r.status, why: r.answer?.why ?? null }),
+            () => void settledAt.push({ i, at: Date.now(), status: 0, why: null })
+          )
+        );
+        await sleep(60);
+        const offAt = Date.now();
+        const pendingAtOff = 4 - settledAt.length;
+        await pocket(main, 'setDoor', { on: false });
+        await Promise.race([Promise.all(pages), sleep(10_000)]);
+        const after = settledAt.filter((x) => x.at >= offAt);
+        out.doorOff = { pending: pendingAtOff, settled: after.length, maxMs: after.length === 0 ? null : Math.max(...after.map((x) => x.at - offAt)), answers: settledAt.map((x) => ({ status: x.status, why: x.why })) };
+      }
+      say(`SB3: ${J({ refused: out.refused.length, statementsDuringRefused: out.statementsDuringRefused, moved: out.moved, burst: out.burst, lag: out.lag, starts: out.starts, worst: out.worst, ended: out.ended, doorOff: out.doorOff })}`);
+      arm('SB3', out);
+      // The worst-colour clause read no data: UNREADABLE by its own name, never
+      // a FAIL of the product and never a silent PASS (the fix round).
+      if (typeof out.worst?.unread === 'string') cannotRead('SB3-worst', out.worst.unread, out.worst);
+    });
+  } finally {
+    if (mainCdp !== null) {
+      await mainEval(mainCdp, SB_MAIN_RESTORE).catch(() => undefined);
+      try {
+        mainCdp.close();
+      } catch {
+        /* closed */
+      }
+    }
+    SB_STATE.ps?.stop();
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -1750,10 +2759,15 @@ try {
       } catch (err) {
         say(`S9's parent half could not be read: ${String(err?.message ?? err)}`);
       }
-      const rec = await recorderSession(main, 'p337-rp-rec', 'normal');
-      const from = hr();
-      const screen = await screenRead(P.phone, P.door, rec);
-      const k = await sendKeys(P.phone, P.door, rec, [{ t: canary() }], { turn: '0123456789abcdef-1', dialog: null, nonce: nonce() });
+      // RP (Phase 337.1): the parent is 337 (e3837139). A shell with a history; its screen answer, read the
+      // phone's way, and a page of that history, which the parent has no route for. Nothing is typed here: the
+      // parent's keys route is real, and a write here would be a line S11 does not owe.
+      const rpShell = await shell(main, join(PROJECTS, 'rp-shell'), 'p3371-rp-shell');
+      await startIn(main, rpShell, `seq -f 'L%06g' 1 300`);
+      await sleep(1_500);
+      const screen = await screenRead(P.phone, P.door, rpShell);
+      const pageAsk = { from: 0, count: 10, depth: Math.max(10, Number(screen.answer?.screen?.depth ?? 200) || 200), wrap: Number(screen.answer?.screen?.cols ?? 80) || 80, keep: 'bottom' };
+      const page = await scrollbackRead(P.phone, P.door, rpShell, pageAsk);
       await sleep(800);
       // The forged rows at the parent, printed: its monitor reads every pane through the control client.
       const forgedIds = [];
@@ -1768,7 +2782,16 @@ try {
       const st = await status(main);
       report.readings.parentForged = { samples: seen.length, statuses: [...new Set(seen.flat())] };
       say(`RP the forged rows at the parent, printed: ${J(report.readings.parentForged)}`);
-      arm('RP', { screen: screen.status, keys: k.status, bytes: recBytesFrom(rec, from), lines: st?.confirmLines ?? [] });
+      const s0 = screen.answer?.screen ?? null;
+      arm('RP', {
+        scrollback: page.status,
+        routeLogged: countLog('refused a connection at the door: route') > 0,
+        screen: screen.status,
+        // Null when no screen came back to read, which the grader takes as no reading at all.
+        depthField: s0 === null ? null : Object.hasOwn(s0, 'depth'),
+        spaceField: s0 === null ? null : Object.hasOwn(s0, 'space'),
+        lines: st?.confirmLines ?? []
+      });
     });
     // THE PARENT'S CLAUDE STAND-INS' REGISTRY FILES, once their process is
     // gone (the fix round of 2026-10-06, probe:p318's own sweep of 2026-10-04).
@@ -1789,7 +2812,7 @@ try {
   // ======================================================================
   // HEAD — S0 to S13 and RN's head half, one launch
   // ======================================================================
-  await launch('p337-head', ROOT, async (main) => {
+  await launch('p337-head', ROOT, async (main, handle) => {
     const ids = {};
     // ---- the sessions ----------------------------------------------------------
     ids.claude = await agentSession(main, N.claude, 'claude', join(PROJECTS, 'claude'));
@@ -1835,7 +2858,10 @@ try {
         : null;
       const door = await confirmDoor(main);
       const st = await status(main);
-      arm('S0', { lines: door.lines, honesty: WORDS_HEAD.honesty, confirmBlock, parentRanFirst: PARENT !== '', confirmStateBefore: door.before, listening: door.ok && st?.state === 'listening' });
+      const doorReading = { lines: door.lines, honesty: WORDS_HEAD.honesty, confirmBlock, parentRanFirst: PARENT !== '', confirmStateBefore: door.before, listening: door.ok && st?.state === 'listening' };
+      arm('S0', doorReading);
+      // Phase 337.1: the same reading, held to the scrollback route and D35's sentence.
+      arm('SB0', doorReading);
       if (!door.ok) throw new Error(`the door never listened: ${door.why}`);
     } finally {
       settings?.close();
@@ -2332,14 +3358,21 @@ try {
       if (parentRead.rn === null) return cannotRead('RN', 'no parent ran (P337_PARENT_CHECKOUT unset), so there is nothing to compare HEAD with', { head: head.reading });
       arm('RN', { parent: parentRead.rn, head: head.reading });
     });
+    // ---- Phase 337.1: the SB arms, last, because SB3 ends by switching the door off ---------------------------
+    try {
+      await runSb(main, handle, A);
+    } catch (err) {
+      for (const id of ['SB1', 'SB2', 'SB3', 'SB4', 'SB5']) if (!report.arms.some((x) => x.id === id)) cannotRead(id, `the SB arms stopped: ${String(err?.message ?? err)}`);
+    }
     HEAD_DONE.value = true;
-  });
+  }, { inspect: true });
 } catch (err) {
   failures += 1;
   report.error = String(err?.message ?? err);
   say(`the run stopped: ${report.error}`);
 } finally {
   psSampler?.stop();
+  SB_STATE.ps?.stop();
   resumeStopped();
   const leaked = watch === null ? [] : watch.stop();
   const ended = standin === null ? { ended: [], left: [] } : endStandinProcesses(standin.dir, 1_500);
@@ -2406,6 +3439,44 @@ try {
     walk(PROFILE);
     walk(HOME);
     arm('S11', { appLogRead: text !== null, filesScanned, hits, snapshotHits, psSamples: psSampler?.samples() ?? 0, psHits: psSampler?.hits() ?? 0, logged: countLog(KEYS_LOG_LINE), owed: owedKeysLines(keysWrites) });
+    // SB6 (Phase 337.1): the same scan for the rows a page carried, the sessions' own saved screens counted apart.
+    // A scan is read only when SB1 paged (the probe review, 2026-10-06): with SB1 unread no canary row reached the
+    // phone, and SB6's own control clause would have counted that as the product's FAIL.
+    if (SB_STATE.ran && !report.arms.some((x) => x.id === 'SB1' && x.ok !== null)) cannotRead('SB6', 'SB1 never paged a history, so no canary row reached the phone to look for');
+    else if (SB_STATE.ran) {
+      const sbHits = [];
+      let sbSnapshotHits = 0;
+      let sbFiles = 0;
+      const sbWalk = (dir) => {
+        let names = [];
+        try {
+          names = readdirSync(dir, { withFileTypes: true });
+        } catch {
+          return;
+        }
+        for (const e of names) {
+          const p = join(dir, e.name);
+          if (e.isDirectory()) sbWalk(p);
+          else if (e.isFile()) {
+            sbFiles += 1;
+            let body;
+            try {
+              body = readFileSync(p).toString('latin1');
+            } catch {
+              continue;
+            }
+            for (const c of sbCanaries) {
+              if (!body.includes(c)) continue;
+              if (p.startsWith(SNAPSHOTS)) sbSnapshotHits += 1;
+              else sbHits.push({ file: p.slice(RUN.length + 1), canary: c });
+            }
+          }
+        }
+      };
+      sbWalk(PROFILE);
+      sbWalk(HOME);
+      arm('SB6', { appLogRead: text !== null, filesScanned: sbFiles, canaryPaged: SB_STATE.canaryPaged, hits: sbHits, snapshotHits: sbSnapshotHits, psSamples: SB_STATE.ps?.samples() ?? 0, psHits: SB_STATE.ps?.hits() ?? 0 });
+    }
   }
   arm('RUN', {
     tailscalePreflight,

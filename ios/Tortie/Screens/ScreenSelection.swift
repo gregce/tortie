@@ -6,6 +6,17 @@
 // clipboard. While a selection exists the Screen draws the picture it began
 // on (Screens/Screen.swift), so the cells under it do not move.
 //
+// A POINT IS AN ABSOLUTE INDEX (Phase 337.1, build/p3371/SPEC.md D31). Since
+// the Terminal scrolls back, a point names its row by its index in the
+// session's index space: a row of history by its own index, live row `r` of
+// the held picture by `H + r`, never by its place in the layout, so a page
+// reserved above moves no selection. The point is hit by arithmetic in the
+// scroll view's own content coordinates (row `y / cellHeight` from the first
+// row laid out, column `x / cellWidth`), and the text is read from the held
+// rows and the live rows by index. COPY IS DRAWN ONLY WHILE EVERY SELECTED ROW
+// IS DRAWN: a selection that reaches rows not yet fetched waits for them, and
+// never copies a blank line where a line of his was (§Attack B11).
+//
 // THE DESIGN IS PASEO'S (packages/app/src/terminal/native-renderer/
 // terminal-selection-gesture.ts and terminal-selection.ts at getpaseo/paseo
 // 2f0cb2f54be5742d6fc7e9b85ba39808ac22ad93, Apache-2.0, by the Paseo authors),
@@ -16,9 +27,9 @@
 // test of a point to a cell; one highlight rectangle per row; and the
 // selected text, each row's cells joined, trailing blanks dropped, rows
 // joined by a line break. Not taken: Paseo's coordinate epoch (the Screen
-// holds its picture instead), its word selection, and its scroll intent
-// driving a terminal's scrollback (there is none on the phone: the scroll
-// view pans).
+// holds its picture instead, and names a point by its absolute index), its
+// word selection, and its scroll intent driving a terminal's scrollback (the
+// phone's scroll view pans, into the history since Phase 337.1).
 //
 // THE PASTEBOARD IS WRITTEN AND NEVER READ (conformance:ios rule al). This
 // file is the one that names `UIPasteboard`, and only to set its string on
@@ -95,7 +106,9 @@ enum ScreenGesture {
 
 // MARK: - The selection
 
-/// A cell of the picture: its row and its column, from 0.
+//// A cell of the Terminal: its row, an ABSOLUTE index in the session's index
+/// space (a history row's own, or `H + r` for live row `r`, D31), and its
+/// column, from 0.
 struct ScreenPoint: Equatable, Hashable, Sendable {
     let row: Int
     let column: Int
@@ -148,36 +161,42 @@ struct ScreenSelectionModel: Equatable, Sendable {
 }
 
 enum ScreenSelecting {
-    /// The cell under `point` in a grid of `cell`s, or nil outside it.
-    static func hit(_ point: CGPoint, cell: ScreenCell, columns: Int, rows: Int) -> ScreenPoint? {
+    /// The cell under `point`, a point in the scroll view's own content
+    /// coordinates, where row 0 of the layout is index `first` and `rows` rows
+    /// are laid out; nil outside them. Arithmetic, never a hit test of a view
+    /// (D31).
+    static func hit(_ point: CGPoint, cell: ScreenCell, columns: Int, first: Int, rows: Int) -> ScreenPoint? {
         guard point.x >= 0, point.y >= 0, cell.width > 0, cell.height > 0 else { return nil }
         let across = (Double(point.x) / Double(cell.width)).rounded(.down)
         let down = (Double(point.y) / Double(cell.height)).rounded(.down)
-        guard across < Double(columns), down < Double(rows), let column = Int(exactly: across), let row = Int(exactly: down) else { return nil }
+        guard across < Double(columns), down < Double(rows), let column = Int(exactly: across), let place = Int(exactly: down),
+              let row = DoorNumber.sum(first, place) else { return nil }
         return ScreenPoint(row: row, column: column)
     }
 
-    /// One highlight rectangle per selected row, in the grid's points.
-    static func rects(_ range: ScreenSelectionRange?, cell: ScreenCell, columns: Int) -> [CGRect] {
+    /// One highlight rectangle per selected row, in the content's points,
+    /// where row 0 of the layout is index `first`.
+    static func rects(_ range: ScreenSelectionRange?, cell: ScreenCell, columns: Int, first: Int = 0) -> [CGRect] {
         guard let range else { return [] }
         return (range.start.row...range.end.row).compactMap { row in
             guard let selected = range.columns(on: row, of: columns) else { return nil }
             let lead = CGFloat(selected.lowerBound) * cell.width
             let span = CGFloat(selected.count) * cell.width
-            return CGRect(x: lead, y: CGFloat(row) * cell.height, width: span, height: cell.height)
+            let down = CGFloat(row) - CGFloat(first)
+            return CGRect(x: lead, y: CGFloat(down) * cell.height, width: span, height: cell.height)
         }
     }
 
     /// The selected text: each row's selected cells joined, trailing blanks
-    /// dropped, rows joined by a line break. A wide cell's character is
-    /// taken once.
-    static func text(_ range: ScreenSelectionRange?, in picture: ScreenPicture) -> String {
+    /// dropped, rows joined by a line break, every row read by its absolute
+    /// index through `rows` (the held history and the live rows, D31). A wide
+    /// cell's character is taken once.
+    static func text(_ range: ScreenSelectionRange?, columns: Int, rows: (Int) -> ScreenRowModel?) -> String {
         guard let range else { return "" }
         var lines: [String] = []
         for row in range.start.row...range.end.row {
-            guard picture.rows.indices.contains(row) else { continue }
-            let cells = picture.rows[row].cells
-            guard let selected = range.columns(on: row, of: picture.columns) else {
+            guard let cells = rows(row)?.cells else { continue }
+            guard let selected = range.columns(on: row, of: columns) else {
                 lines.append("")
                 continue
             }
@@ -185,6 +204,18 @@ enum ScreenSelecting {
             lines.append(String(taken.reversed().drop(while: { $0 == " " }).reversed()))
         }
         return lines.joined(separator: lineBreak)
+    }
+
+    /// The selected text of one picture alone, its rows from index 0.
+    static func text(_ range: ScreenSelectionRange?, in picture: ScreenPicture) -> String {
+        text(range, columns: picture.columns) { picture.rows.indices.contains($0) ? picture.rows[$0] : nil }
+    }
+
+    /// Whether every row of `range` is DRAWN, held or live (D31, §Attack
+    /// B11): Copy is drawn only then, so a selection over rows not yet
+    /// fetched copies nothing until they land.
+    static func drawn(_ range: ScreenSelectionRange, rows: (Int) -> ScreenRowModel?) -> Bool {
+        (range.start.row...range.end.row).allSatisfy { rows($0) != nil }
     }
 
     static let lineBreak = "\n"

@@ -175,7 +175,7 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
 const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
-const { createPocketRoutes, readSessionsQuery, readScreenQuery } = await import('../../src/main/pocket/routes.ts');
+const { createPocketRoutes, readSessionsQuery, readScreenQuery, readScrollbackQuery } = await import('../../src/main/pocket/routes.ts');
 const { parseKeysBody } = await import('../../src/main/pocket/writes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
@@ -341,6 +341,10 @@ const KEYS_TEXT = `echo "a\\b/c" ${String.fromCodePoint(0x1f44d)}`;
 const KEYS_TURN = `${sha256hex('tortie-p337-vector turn').slice(0, 16)}-7`;
 const KEYS_MARK = sha256hex('tortie-p337-vector mark').slice(0, 12);
 const writeKeysId = (label) => sha256hex(`tortie-p337-vector write keys ${label}`).slice(0, 32);
+// PHASE 337.1: one page of the Terminal's history, as DoorClient.scrollbackTarget
+// writes it (build/p3371/SPEC.md D7): the 100 rows above a live screen at depth
+// 2,969 and the 8 the phone holds under them, an older page keeping its bottom.
+const SCROLLBACK_ASKED = Object.freeze({ from: 2861, count: 108, depth: 2969, wrap: 120, keep: 'bottom' });
 const { POCKET_SCREEN_KEY_NAMES } = await import('../../src/shared/ipc/pocket.ts');
 /**
  * A write's body AS SWIFT'S JSONEncoder WRITES IT with `.sortedKeys`: the keys
@@ -410,7 +414,18 @@ const requestShapes = [
       target: '/v1/keys',
       body: swiftJson({ dialog: null, keys: [{ k: name }], session: SESSION_TALK, turn: KEYS_TURN, write: writeKeysId(name) }),
       id: null
-    }))
+    })),
+  // PHASE 337.1: the Terminal's page of history, the six names in the one order
+  // DoorClient.scrollbackTarget writes them. Appended, so every earlier request
+  // keeps its clock.
+  {
+    name: 'scrollback',
+    method: 'GET',
+    target: `/v1/scrollback?id=${queryValue(SESSION_TALK)}&from=${String(SCROLLBACK_ASKED.from)}&count=${String(SCROLLBACK_ASKED.count)}&depth=${String(SCROLLBACK_ASKED.depth)}&wrap=${String(SCROLLBACK_ASKED.wrap)}&keep=${SCROLLBACK_ASKED.keep}`,
+    body: '',
+    id: SESSION_TALK,
+    page: { id: SESSION_TALK, ...SCROLLBACK_ASKED }
+  }
 ];
 
 const requests = requestShapes.map((shape, i) => {
@@ -474,12 +489,22 @@ const requests = requestShapes.map((shape, i) => {
     else if (read.id !== shape.screen.id || read.since !== shape.screen.since) fail(`request ${shape.name}: the shipping readScreenQuery reads ${JSON.stringify({ id: read.id, since: read.since })}`);
     if (url.pathname !== '/v1/screen' || !POCKET_ROUTE_IDS.includes('screen')) fail(`request ${shape.name}: /v1/screen is not one of the shipping POCKET_ROUTE_IDS`);
   }
+  // PHASE 337.1: the door's own page query reader reads the target back to the
+  // id and the five numbers and word it was written from, and the route is the door's.
+  if (shape.page !== undefined) {
+    const read = typeof readScrollbackQuery === 'function' ? readScrollbackQuery(url.searchParams) : null;
+    if (read === null) fail(`request ${shape.name}: the shipping routes.ts exports no readScrollbackQuery to read it`);
+    else if (!read.ok) fail(`request ${shape.name}: the shipping readScrollbackQuery refused it (${read.reason})`);
+    else if (JSON.stringify({ id: read.id, ...read.ask }) !== JSON.stringify(shape.page)) fail(`request ${shape.name}: the shipping readScrollbackQuery reads ${JSON.stringify({ id: read.id, ...read.ask })}, not ${JSON.stringify(shape.page)}`);
+    if (url.pathname !== '/v1/scrollback' || !POCKET_ROUTE_IDS.includes('scrollback')) fail(`request ${shape.name}: /v1/scrollback is not one of the shipping POCKET_ROUTE_IDS`);
+  }
   return {
     name: shape.name,
     method: shape.method,
     target: shape.target,
     id: shape.id,
     ...(shape.asked === undefined ? {} : { asked: shape.asked }),
+    ...(shape.page === undefined ? {} : { page: shape.page }),
     body: shape.body,
     bodySha256: facts.bodySha256,
     timestamp,
@@ -489,10 +514,12 @@ const requests = requestShapes.map((shape, i) => {
   };
 });
 
-// A signature for one target presented with another: refused `signature`.
-const tampered = (() => {
-  const base = requests[1];
-  const target = `/v1/session?id=${queryValue('another-session')}`;
+/**
+ * A GET's signature presented with another target, through the door's own
+ * verifier at the request's own clock: refused `signature`, and the text the
+ * phone would have had to sign for it. `what` names the vector in a failure.
+ */
+function refusedTarget(base, target, what) {
   const verifier = new pairing.PocketRequestVerifier({
     identity: () => identity,
     phones: () => [phoneFields],
@@ -511,7 +538,7 @@ const tampered = (() => {
     }
   });
   if (verdict.ok || verdict.reason !== 'signature') {
-    fail(`the tampered target was not refused 'signature' (${verdict.ok ? 'accepted' : verdict.reason})`);
+    fail(`${what} was not refused 'signature' (${verdict.ok ? 'accepted' : verdict.reason})`);
   }
   return {
     signedFor: base.name,
@@ -526,10 +553,27 @@ const tampered = (() => {
     }),
     doorSays: verdict.ok ? 'ok' : verdict.reason
   };
-})();
+}
+
+// A signature for one target presented with another: refused `signature`.
+const tampered = refusedTarget(requests[1], `/v1/session?id=${queryValue('another-session')}`, 'the tampered target');
 
 // PHASE 317: the write is within the shipping cap, written with sorted keys,
 // and a body with one byte changed is refused `signature`.
+// PHASE 337.1: the page's signature presented with ONE byte of its target
+// changed (`from` one row lower): refused `signature`, so no page the phone did
+// not ask can ride a signature it made.
+const scrollbackTampered = (() => {
+  const base = requests.find((r) => r.name === 'scrollback');
+  if (base === undefined) {
+    fail('no scrollback request to tamper with');
+    return null;
+  }
+  const target = base.target.replace(`&from=${String(SCROLLBACK_ASKED.from)}&`, `&from=${String(SCROLLBACK_ASKED.from + 1)}&`);
+  if (target === base.target || target.length !== base.target.length) fail('the tampered page target is not the signed one with one byte changed');
+  return refusedTarget(base, target, 'the tampered page target');
+})();
+
 const { POCKET_WRITE_BODY_CAPS } = await import('../../src/main/pocket/door/limits.ts');
 for (const r of requests.filter((x) => x.method === 'POST' && x.target !== '/pair')) {
   const name = r.target.slice('/v1/'.length);
@@ -1258,6 +1302,7 @@ const vectors = {
   writeTampered,
   replyTampered,
   keysTampered,
+  scrollbackTampered,
   pins,
   client,
   seal,
@@ -1294,7 +1339,7 @@ if (problems.length > 0) {
 }
 
 const counts =
-  `${String(requests.length)} signed requests, ${String(requests.filter((r) => r.method === 'POST' && r.target !== '/pair').length)} of them writes (and 1 tampered target, 3 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
+  `${String(requests.length)} signed requests, ${String(requests.filter((r) => r.method === 'POST' && r.target !== '/pair').length)} of them writes (and 2 tampered targets, 3 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
   `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);

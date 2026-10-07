@@ -4,7 +4,8 @@
  * holds it equal, byte for byte, to what the SHIPPING composer makes of the
  * committed real capture build/fixtures/reply/claude-prompt-after-decline-
  * 2.1.287.ansi under a fixed display (real-captures.json's own: 120x40, the
- * cursor at 2,29 and hidden, no alternate screen).
+ * cursor at 2,29 and hidden, no alternate screen, and since Phase 337.1 no
+ * history above it, read steady, so `depth` 0 and the pane's `space`).
  *
  * `P337_WRITE_SAMPLE=1` writes the file; otherwise this test only reads it and
  * fails on any difference, so the file can never drift from the composer.
@@ -20,7 +21,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { PocketScreenAnswer } from '@shared/ipc/pocket';
 import { REPO, realCaptures, styledFixture } from '../../reply/__tests__/fixtures';
-import { composeScreen } from '../compose';
+import { composeScreen, spaceOf } from '../compose';
 import { parseScreenDisplay, type ScreenReading } from '../read';
 import { readingRevisionOf } from '../watch';
 
@@ -35,10 +36,12 @@ const AT = 1_791_158_400_000;
 function sampleAnswer(): PocketScreenAnswer {
   const truth = realCaptures().find((c) => c.files[0] === SOURCE);
   if (truth === undefined) throw new Error(`${SOURCE} is not in real-captures.json`);
-  const displayLine = ['%0', '120', '40', String(truth.cursor.x), String(truth.cursor.y), truth.cursor.visible ? '1' : '0', '0'].join('\t');
+  // The eighth field (Phase 337.1 D4) is the history size: a sample has none
+  // above its screen, so its `depth` is 0 and a page of it is `moved`.
+  const displayLine = ['%0', '120', '40', String(truth.cursor.x), String(truth.cursor.y), truth.cursor.visible ? '1' : '0', '0', '0'].join('\t');
   const display = parseScreenDisplay(displayLine);
   if (display === null) throw new Error('the fixed display does not parse');
-  const reading: ScreenReading = { styled: styledFixture(SOURCE), display, displayLine };
+  const reading: ScreenReading = { styled: styledFixture(SOURCE), display, displayLine, steady: true };
   const composed = composeScreen(reading, { turn: TURN, status: 'idle', typable: true });
   if (composed === 'large') throw new Error('the sample is large');
   return {
@@ -76,6 +79,11 @@ describe('build/fixtures/screen/sample-claude-2.1.287.json', () => {
     expect(rows[29]?.startsWith(`${String.fromCodePoint(0x276f)}${String.fromCharCode(0xa0)}`)).toBe(true);
     expect(answer.screen?.asking).toBe(false);
     expect(answer.screen?.dialog).toBeNull();
+    // Where it sits in the history (Phase 337.1 D3): a steady read of a pane
+    // with no history above it, and the pane's space.
+    expect(answer.screen?.depth).toBe(0);
+    expect(answer.screen?.space).toBe(spaceOf('%0'));
+    expect(answer.screen?.space).toMatch(/^[0-9a-f]{12}$/);
     for (const runs of answer.screen?.lines ?? []) {
       expect(runs.reduce((n, r) => n + r.cells, 0)).toBeLessThanOrEqual(120);
     }

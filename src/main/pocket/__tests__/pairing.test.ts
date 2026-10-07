@@ -476,9 +476,11 @@ describe('the lines a person reads are exactly the hashed facts', () => {
     );
     expect(lines[2]).toBe('Answers only after you turn it on');
     // PHASE 316.7: the Sessions tab's read joins the list; PHASE 337 the
-    // Screen's read and write (build/p337/SPEC.md D35).
+    // Screen's read and write (build/p337/SPEC.md D35); PHASE 337.1 the
+    // Screen's history, by derivation from the hashed route list
+    // (build/p3371/SPEC.md D1, D35).
     expect(lines[3]).toBe(
-      'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, session, sessions, turns'
+      'Answers these and nothing else: blocked, choose, end, keys, pair, say, screen, scrollback, session, sessions, turns'
     );
     // PHASE 317: what the writes let a phone do, in words, straight after;
     // PHASE 318 joins its two as a list (build/p318/SPEC.md §5.1.7, D28);
@@ -515,6 +517,9 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'Lets an allowed phone end a session and type into any session as you would at this Mac'
     ]);
     expect(line(['screen', 'pair', 'blocked'])).toEqual([]);
+    // PHASE 337.1 (D35): the history's read is a read, and moves no write clause.
+    expect(line(['scrollback', 'screen', 'pair'])).toEqual([]);
+    expect(line(['scrollback', 'keys'])).toEqual(['Lets an allowed phone type into any session as you would at this Mac']);
     expect(describePocketDoor({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns'] }).lines[4]).toBe(
       'Tells your phone nothing through Apple'
     );
@@ -534,6 +539,7 @@ describe('the lines a person reads are exactly the hashed facts', () => {
       'pair',
       'say',
       'screen',
+      'scrollback',
       'session',
       'sessions',
       'turns'
@@ -544,11 +550,17 @@ describe('the lines a person reads are exactly the hashed facts', () => {
   // 318's alone (seven), 316.7's alone (six) and this one (eight) all hash
   // differently, so a Mac updated from any of them asks Allow once more;
   // nothing else about the fields moves the hash.
-  it('moves the hash from Phase 317’s five routes to the ten, and only by the routes 318, 316.7 and 337 add', () => {
+  it('moves the hash from Phase 317’s five routes to the eleven, and only by the routes 318, 316.7, 337 and 337.1 add', () => {
     const p317 = pocketExecutionHash({ ...BASE, routes: ['pair', 'blocked', 'session', 'turns', 'end'] });
     expect(pocketExecutionHash(BASE)).not.toBe(p317);
-    const ten = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions', 'screen', 'keys'] as const;
-    expect(pocketExecutionHash({ ...BASE, routes: [...ten].reverse() })).toBe(pocketExecutionHash(BASE));
+    const eleven = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions', 'screen', 'keys', 'scrollback'] as const;
+    expect(pocketExecutionHash({ ...BASE, routes: [...eleven].reverse() })).toBe(pocketExecutionHash(BASE));
+    // PHASE 337.1 (build/p3371/SPEC.md D1, D35): the ten routes Phase 337's
+    // Mac answered hash differently, so a Mac updated from it asks Allow
+    // once more, and the algorithm did not move.
+    const ten = eleven.filter((id) => id !== 'scrollback');
+    expect(ten).toHaveLength(10);
+    expect(pocketExecutionHash({ ...BASE, routes: [...ten] })).not.toBe(pocketExecutionHash(BASE));
     // PHASE 337 (D35): the eight routes a Mac answered before it hash
     // differently, so a Mac updated from it asks Allow once more; and the
     // read or the write alone is not this door either.
@@ -1294,11 +1306,35 @@ describe('every request is signed, over the phone’s own connection', () => {
   // requests a second, 1,440 in one clock window and 2,880 in the 120 s a
   // skewed clock stretches it to, so the memory is 4,096 and a phone's own
   // traffic never evicts a nonce still inside its window.
-  it('remembers 4,096 nonces a phone, enough for a Screen’s budget over a stretched window', () => {
+  // PHASE 337.1 (build/p3371/SPEC.md D29) widens the budget: 4 polls, 20 keys
+  // and their answers, 4 pages (the Mac's own 250 ms floor between a
+  // session's page starts) and 1 status re-read, 29 a second, 3,480 in the
+  // stretched window, still under the 4,096 that does not move.
+  it('remembers 4,096 nonces a phone, enough for a Terminal’s budget over a stretched window', () => {
     expect(POCKET_NONCE_MEMORY).toBe(4_096);
     const pollsPerSecond = 1_000 / 250;
-    const perSecond = pollsPerSecond + 20;
+    const pagesPerSecond = 1_000 / 250;
+    const statusReadsPerSecond = 1;
+    const perSecond = pollsPerSecond + 20 + pagesPerSecond + statusReadsPerSecond;
+    expect(perSecond).toBe(29);
+    expect(((2 * POCKET_CLOCK_SKEW_MS) / 1_000) * perSecond).toBe(3_480);
     expect(POCKET_NONCE_MEMORY).toBeGreaterThanOrEqual(((2 * POCKET_CLOCK_SKEW_MS) / 1_000) * perSecond);
+  });
+
+  it('still refuses a replay of the first page a phone asked, among 3,480 signed requests of a Terminal’s budget', () => {
+    const phone = makePhone();
+    phones = [phoneFields(phone)];
+    const v = verifier();
+    const first = request(phone, { target: '/v1/scrollback?id=s1&from=0&count=108&depth=3000&wrap=120&keep=bottom' });
+    expect(v.verify(first).ok).toBe(true);
+    for (let i = 1; i < 3_480; i += 1) {
+      const target =
+        i % 7 === 0
+          ? `/v1/scrollback?id=s1&from=${String(i % 2_892)}&count=108&depth=3000&wrap=120&keep=bottom`
+          : `/v1/screen?id=s1&since=${i.toString(16).padStart(12, '0')}`;
+      expect(v.verify(request(phone, { target })).ok).toBe(true);
+    }
+    expect(v.verify(first)).toEqual({ ok: false, reason: 'replay' });
   });
 
   it('still refuses a replay of the first of 1,500 signed requests one phone sent inside one clock window', () => {

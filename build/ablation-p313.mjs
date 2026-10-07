@@ -217,6 +217,8 @@ const SCREEN_READ = 'src/main/screen/read.ts';
 const SCREEN_COMPOSE = 'src/main/screen/compose.ts';
 const REMOTE_SCREEN = 'src/main/machines/remote-screen.ts';
 const CONTROL_CLIENT = 'src/main/tmux/control-client.ts';
+// PHASE 337.1: the page reader.
+const SCREEN_SCROLLBACK = 'src/main/screen/scrollback.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -2594,8 +2596,10 @@ const ABLATIONS = [
     why: 'the sheet’s sentence says what a phone he allows can do; one that names End alone is false after this phase.',
     file: SHARED,
     // Phase 337 rewrote the sentence (build/p337/SPEC.md D35); the reply is its middle.
-    from: "  'answer a numbered question, send a session one message and end a session.';",
-    to: "  'and end a session.';",
+    // Phase 337.1 rewrote it again (build/p3371/SPEC.md D35): the reply is now
+    // inside its second line.
+    from: "answer a numbered question, send a session one message and end a session.';",
+    to: "and end a session.';",
     needs: ['gate']
   },
   {
@@ -3380,8 +3384,9 @@ const ABLATIONS = [
     name: 'the door’s signed reads forget screen',
     why: 'the door hands main a signed read only for an id on its own list; the table and the wire lists move together.',
     file: WIRE,
-    from: "['blocked', 'session', 'turns', 'sessions', 'screen']",
-    to: "['blocked', 'session', 'turns', 'sessions']",
+    // Phase 337.1 added scrollback after screen (build/p3371/SPEC.md §5.1).
+    from: "'sessions', 'screen', 'scrollback']",
+    to: "'sessions', 'scrollback']",
     needs: ['gate']
   },
   {
@@ -3510,8 +3515,9 @@ const ABLATIONS = [
     name: 'the screen format one field longer',
     why: 'the format is one constant and no caller string is ever a format: a format on a long-lived connection can run programs (D6).',
     file: SCREEN_READ,
-    from: "#{alternate_on}';",
-    to: "#{alternate_on}\\t#{pane_current_command}';",
+    // Phase 337.1 (D4): the history size is the last field now.
+    from: "#{history_size}';",
+    to: "#{history_size}\\t#{pane_current_command}';",
     needs: ['gate']
   },
   {
@@ -3670,8 +3676,9 @@ const ABLATIONS = [
     name: 'the honesty sentence says the phone changes nothing else',
     why: 'false once a phone can type into a shell (D35).',
     file: SHARED,
-    from: "'answer a numbered question, send a session one message and end a session.';",
-    to: "'answer a numbered question, send a session one message and end a session. It can change nothing else on this Mac.';",
+    // Phase 337.1 rewrote the sentence (build/p3371/SPEC.md D35); its last clause ends its second line.
+    from: "send a session one message and end a session.';",
+    to: "send a session one message and end a session. It can change nothing else on this Mac.';",
     needs: ['gate']
   },
   {
@@ -3822,6 +3829,706 @@ const ABLATIONS = [
     file: WRITES,
     from: 'export const KEYS_LOG_QUIET_MS = 60_000;',
     to: 'export const KEYS_LOG_QUIET_MS = 1_000;',
+    needs: ['gate']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 337.1, the Screen scrolls back (build/p3371/SPEC.md §6.1): one arm
+  // or more per new or widened clause, the adversary's list among them
+  // (§Attack B1 to B3, B8, B10, B16, B22). They run the read gate alone; the
+  // hostile client is the door builder's and drives its own scrollback arms.
+  // -------------------------------------------------------------------------
+  {
+    n: 'R4d',
+    rule: 'R4',
+    name: 'the scrollback row re-pathed',
+    why: 'a route re-pathed is a change to what the phone can ask for, and the pin makes it a visible edit (build/p3371/SPEC.md D1).',
+    file: TABLE,
+    from: "path: '/v1/scrollback'",
+    to: "path: '/v1/history'",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1c',
+    rule: 'Z1',
+    name: 'the door’s signed reads forget scrollback',
+    why: 'the door hands main a signed read only for an id on its own list; a page the table offers and the wire refuses is a route nobody can read (§5.1).',
+    file: WIRE,
+    from: "'screen', 'scrollback']",
+    to: "'screen']",
+    needs: ['gate']
+  },
+  {
+    n: 'Z1d',
+    rule: 'Z1',
+    name: 'the scrollback row only inside a pairing window',
+    why: 'a page of history is a read of a paired phone, alive outside any window, and signed (D1).',
+    file: TABLE,
+    from: "{ id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true }",
+    to: "{ id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: true, signed: true }",
+    needs: ['gate']
+  },
+  {
+    n: 'Z7b',
+    rule: 'Z7',
+    name: 'the page read reads an error’s text',
+    why: 'an error’s text can hold its argv and the lines it read; nothing in src/main/screen reads it (D15).',
+    file: SCREEN_SCROLLBACK,
+    from: /\} catch \{\n(\s*)return null;/,
+    to: (_m, indent) => `} catch (err) {\n${indent}void (err as Error).message;\n${indent}return null;`,
+    needs: ['gate']
+  },
+  {
+    n: 'Z7c',
+    rule: 'Z7',
+    name: 'the page read logs the session it reads',
+    why: 'a page is whatever a terminal printed, secrets included; the page read logs nothing (D15).',
+    file: SCREEN_SCROLLBACK,
+    from: '    const id = session.id;\n',
+    to: "    const id = session.id;\n    console.warn('page', id);\n",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9d',
+    rule: 'Z9',
+    name: 'a page’s start built from a string',
+    why: 'a number tmux cannot read silently starts the capture at the VISIBLE TOP (§14 M1), so every -S and -E is String( of a whole number main checked (D9, D15).',
+    file: SCREEN_SCROLLBACK,
+    from: "'-S', String(a)",
+    to: "'-S', `${a}`",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9e',
+    rule: 'Z9',
+    name: 'the far live read back to two commands',
+    why: 'a far picture needs depth as a local one does, so its read is the display, the capture and the display in one exec, steady by D5’s rule (D6).',
+    file: REMOTE_SCREEN,
+    from: "return ['display-message', '-p', '-t', tmuxId, SCREEN_FORMAT, ';', 'capture-pane', '-p', '-e', '-t', tmuxId, ';',\n    'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];",
+    to: "return ['capture-pane', '-p', '-e', '-t', tmuxId, ';', 'display-message', '-p', '-t', tmuxId, SCREEN_FORMAT];",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9f',
+    rule: 'Z9',
+    name: 'the page capture joins wrapped lines',
+    why: 'the page read names -p, -e, -t, -S and -E alone; -J rewraps the history, which moves every index under the phone (D12, D15).',
+    file: SCREEN_SCROLLBACK,
+    from: "capture: ['capture-pane', '-p', '-e', '-t', tmuxId, '-S'",
+    to: "capture: ['capture-pane', '-p', '-e', '-J', '-t', tmuxId, '-S'",
+    needs: ['gate']
+  },
+  {
+    n: 'Z9g',
+    rule: 'Z9',
+    name: 'a far page round costs a second exec',
+    why: 'ONE exec a page attempt; a second exec doubles what a far machine pays for every page (§Attack B2).',
+    file: REMOTE_SCREEN,
+    from: '    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
+    to: '    await execOn(ctx, remoteScreenArgv(address.tmuxId), { timeoutMs });\n    stdout = await execOn(ctx, remoteScrollbackArgv(address.tmuxId, a, b), { timeoutMs });',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12f',
+    rule: 'Z12',
+    name: 'the page composer reads a clock',
+    why: 'the composer is pure; the page reader times it from outside for the duty cycle (§5.3.4).',
+    file: SCREEN_COMPOSE,
+    from: 'export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {\n',
+    to: 'export function composePage(styled: string, firstLine: number, cols: number, want: PageWant): ComposedPage {\n  void Date.now();\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12g',
+    rule: 'Z12',
+    name: 'the composer imports the watcher',
+    why: 'watch.ts imports compose.ts, so spaceOf is built in compose.ts and never borrowed from the watcher (§5.3.4).',
+    file: SCREEN_COMPOSE,
+    from: "import { createHash } from 'node:crypto';",
+    to: "import { createHash } from 'node:crypto';\nimport './watch';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z12h',
+    rule: 'Z12',
+    name: 'a second composePage',
+    why: 'one composer of a page, beside the live screen’s pens; a second is a second way to read a style (§5.3.4).',
+    file: SCREEN_SCROLLBACK,
+    from: '/** What one raced round came to. */',
+    to: 'export function composePage(): void {}\n/** What one raced round came to. */',
+    needs: ['gate']
+  },
+  {
+    n: 'Z12i',
+    rule: 'Z12',
+    name: 'a second composePageSteps',
+    why: 'one composition of a page a step at a time, in compose.ts (the fix round).',
+    file: SCREEN_SCROLLBACK,
+    from: '/** What one raced round came to. */',
+    to: 'export function composePageSteps(): void {}\n/** What one raced round came to. */',
+    needs: ['gate']
+  },
+  {
+    n: 'Z19d',
+    rule: 'Z19',
+    name: 'the page floor at 100 ms',
+    why: 'the nonce budget assumes at most four pages a second from a phone, which is the Mac’s own floor (D29); ten a second evicts nonces still inside the window.',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const SCROLLBACK_MIN_GAP_MS = 250;',
+    to: 'export const SCROLLBACK_MIN_GAP_MS = 100;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23a',
+    rule: 'Z23',
+    name: 'agree without the pane',
+    why: 'a page or a key could be served from another pane’s frame: D5’s pane clause (§Attack B8).',
+    file: SCREEN_READ,
+    from: '    a.paneId === b.paneId &&\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23b',
+    rule: 'Z23',
+    name: 'agree without the history',
+    why: 'the three-line block is not atomic under a flood: the two displays disagreed on the history size in 16 of 400 blocks, and every wrong page was in such a block (§14 M4).',
+    file: SCREEN_READ,
+    from: '    a.alternate === b.alternate &&\n    a.history === b.history\n',
+    to: '    a.alternate === b.alternate\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23c',
+    rule: 'Z23',
+    name: 'a third attempt in readScreenLocal',
+    why: 'a read is taken once more and never a third time: a third would wait on a flood, and the second is served with steady false (D5).',
+    file: SCREEN_READ,
+    from: '  const twice = await attempt();\n  if (twice === null) return null;\n  return readingOf(twice);',
+    to: '  const twice = await attempt();\n  if (twice === null) return null;\n  if (agree(twice.first, twice.second)) return readingOf(twice);\n  const thrice = await attempt();\n  if (thrice === null) return null;\n  return readingOf(thrice);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23d',
+    rule: 'Z23',
+    name: 'the reading framed by its first display',
+    why: 'the keys aim at the pane the reading’s display names; the first display is the older, so a key could reach the pane the read had already left (D5’s pane clause).',
+    file: SCREEN_READ,
+    from: '    display: attempt.second,',
+    to: '    display: attempt.first,',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23e',
+    rule: 'Z23',
+    name: 'the far read compares the panes by its own spelling',
+    why: 'one comparison of two displays; a second drifts, and this one forgets the history, so a far picture taken while lines scrolled would offer a depth (D6).',
+    file: REMOTE_SCREEN,
+    from: '      const steady = agree(first, last);',
+    to: '      const steady = first.paneId === last.paneId;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23f',
+    rule: 'Z23',
+    name: 'the page’s agreement skipped',
+    why: 'a page read inside a disagreeing block sat in neither display’s frame (§14 M4: every wrong page was in such a block); the page is accepted only when its two displays agree (D9).',
+    file: SCREEN_SCROLLBACK,
+    from: '      if (!agree(first, last)) {',
+    to: '      if (first.history !== last.history) {',
+    needs: ['gate']
+  },
+  {
+    n: 'Z23g',
+    rule: 'Z23',
+    name: 'the keys aimed at the session rather than the fresh pane',
+    why: 'a session’s active pane can change under it (§Attack B8); the keys write aims at the %pane the fresh read’s display names (keys.ts:296).',
+    file: SCREEN_KEYS,
+    from: 'localArgvs(pane, input.keys)',
+    to: "localArgvs(tmuxId ?? pane, input.keys)",
+    needs: ['gate']
+  },
+  {
+    n: 'Z24a',
+    rule: 'Z24',
+    name: 'tickOf answers 100 ms for a remote row',
+    why: 'an exec to another machine costs ten times a local read, so a far session is read at 400 ms (337 §Attack A8, D36).',
+    file: SCREEN_WATCH,
+    from: 'row !== null && !remoteRow(row) && core !== null && core.control.connected ? SCREEN_TICK_MS : SCREEN_TICK_REMOTE_MS',
+    to: 'row !== null && core !== null && core.control.connected ? SCREEN_TICK_MS : SCREEN_TICK_REMOTE_MS',
+    needs: ['gate']
+  },
+  {
+    n: 'Z24b',
+    rule: 'Z24',
+    name: 'a literal 100 in pump',
+    why: 'no numeric literal schedules a read: a tick is tickOf(’s, so a far row cannot be read at this Mac’s cadence by a number written in the loop (D36).',
+    file: SCREEN_WATCH,
+    from: '    const tick = tickOf(core, row);\n    if (core === null || inFlight.has(entry.sessionId)) {',
+    to: '    const tick = 100;\n    if (core === null || inFlight.has(entry.sessionId)) {',
+    needs: ['gate']
+  },
+  {
+    n: 'Z24c',
+    rule: 'Z24',
+    name: 'the remote tick at 300 ms',
+    why: 'the remote cadence is 400 ms, at least four times this Mac’s (D36).',
+    file: SCREEN_WATCH,
+    from: 'export const SCREEN_TICK_REMOTE_MS = 400;',
+    to: 'export const SCREEN_TICK_REMOTE_MS = 300;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z24d',
+    rule: 'Z24',
+    name: 'a second SCREEN_NUDGE_MS schedule outside the settle',
+    why: 'the nudge is 337 D4’s ONE named exception, brought forward after a keys write; a second cannot hide behind it (§Attack B22).',
+    file: SCREEN_WATCH,
+    from: "      settleWith(entry, absence(entry.sessionId, 'ended'), reads, now());\n      schedule(entry, tickOf(core, row));",
+    to: "      settleWith(entry, absence(entry.sessionId, 'ended'), reads, now());\n      schedule(entry, SCREEN_NUDGE_MS);",
+    needs: ['gate']
+  },
+  {
+    n: 'Z24e',
+    rule: 'Z24',
+    name: 'startRead paces by the local tick itself',
+    why: 'a read’s cadence is asked of tickOf( alone; the local tick named in startRead reads a far row ten times a second (D36).',
+    file: SCREEN_WATCH,
+    from: 'pace.nextReadAt = startedAt + Math.max(tickOf(core, row), SCREEN_DUTY_FACTOR * pace.lastComposeMs);',
+    to: 'pace.nextReadAt = startedAt + Math.max(SCREEN_TICK_MS, SCREEN_DUTY_FACTOR * pace.lastComposeMs);',
+    needs: ['gate']
+  },
+  {
+    n: 'Z25a',
+    rule: 'Z25',
+    name: 'keep read case-insensitively',
+    why: 'a query value is compared exactly as the phone sent it; TOP is no keep (D7, hostile arm keep of TOP).',
+    file: ROUTES,
+    from: "  const keep = query.get('keep');",
+    to: "  const keep = query.get('keep')?.toLowerCase() ?? null;",
+    needs: ['gate']
+  },
+  {
+    n: 'Z25b',
+    rule: 'Z25',
+    name: 'a page past the top of the phone’s index space admitted',
+    why: 'from + count <= depth: a page past the top of the phone’s own index space is no page, and the read as first written could not serve the oldest one (§Attack B1).',
+    file: ROUTES,
+    from: "  if (from + count > depth) return { ok: false, reason: 'range' };\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z25c',
+    rule: 'Z25',
+    name: 'the query takes a width',
+    why: 'no name is a size of the Mac; the six names are the whole query (D7, rule (ah)).',
+    file: ROUTES,
+    from: "const SCROLLBACK_QUERY_NAMES: readonly string[] = ['id', 'from', 'count', 'depth', 'wrap', 'keep'];",
+    to: "const SCROLLBACK_QUERY_NAMES: readonly string[] = ['id', 'from', 'count', 'depth', 'wrap', 'keep', 'cols'];",
+    needs: ['gate']
+  },
+  {
+    n: 'Z25d',
+    rule: 'Z25',
+    name: 'an absent page reader not answered as no route',
+    why: 'absent is the route not existing, 404, never a throw the door turns into something else (§5.3.1).',
+    file: ROUTES,
+    from: '      if (facts.scrollback === undefined) return null;',
+    to: "      if (facts.scrollback === undefined) throw new Error('no page reader');",
+    needs: ['gate']
+  },
+  {
+    n: 'Z25e',
+    rule: 'Z25',
+    name: 'a session removed while its page was read still answered',
+    why: 'a session removed while read is answered as an id nobody has, and nothing of it leaves (§5.3.1).',
+    file: ROUTES,
+    from: '      if (sessionById(session.id) === undefined) return null;\n      return scrollbackOf(',
+    to: '      return scrollbackOf(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z25f',
+    rule: 'Z25',
+    name: 'the page answer hands the reader’s rows on',
+    why: 'the answer is composed field by field with fresh arrays, so nothing else on the reader’s object can leave (§5.3.1).',
+    file: ROUTES,
+    from: '    styles,\n    rows,\n    why: null,',
+    to: '    styles,\n    rows: answer.rows,\n    why: null,',
+    needs: ['gate']
+  },
+  {
+    n: 'Z25g',
+    rule: 'Z25',
+    name: 'a page’s why taken as any string',
+    why: 'why is one of four words with main’s own sentence; a word the reader made up never leaves (§5.3.1).',
+    file: ROUTES,
+    from: "return value === 'ended' || value === 'unreachable' || value === 'moved' || value === 'busy' ? value : null;",
+    to: 'return typeof value === \'string\' ? (value as PocketScrollbackAbsence) : null;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26a',
+    rule: 'Z26',
+    name: 'the overscan dropped',
+    why: 'without the overscan a page asked by a separate read’s numbers was the page asked in only 13 and 10 of 400 at a flood (§14 M4).',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const SCROLLBACK_OVERSCAN = 128;',
+    to: 'export const SCROLLBACK_OVERSCAN = 0;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26b',
+    rule: 'Z26',
+    name: 'a fourth attempt',
+    why: 'at most three statements a page, then busy, which the phone asks again after its back-off (D9).',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const SCROLLBACK_ATTEMPTS = 3;',
+    to: 'export const SCROLLBACK_ATTEMPTS = 4;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26c',
+    rule: 'Z26',
+    name: 'the page floor removed',
+    why: 'a paired phone that does not pace cannot keep main busy: 250 ms between a session’s page starts (D14).',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const SCROLLBACK_MIN_GAP_MS = 250;',
+    to: 'export const SCROLLBACK_MIN_GAP_MS = 0;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26d',
+    rule: 'Z26',
+    name: 'a display-only round put back before the statement',
+    why: 'a separate first round is the read that never served the OLDEST page while output scrolled, and two execs a page on another machine (§Attack B1, B2).',
+    file: SCREEN_SCROLLBACK,
+    from: '    const three = await statementOverControl(',
+    to: '    await core.control.sendCommand(lineOf(display));\n    const three = await statementOverControl(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26e',
+    rule: 'Z26',
+    name: 'max(0, from − SCROLLBACK_OVERSCAN) put back',
+    why: 'a start forbidden from reaching above the oldest line could never cover the oldest page once any line arrived (§Attack B1: 0 and 1 of 60 at a far machine’s spacing).',
+    file: SCREEN_SCROLLBACK,
+    from: '  const a = from - SCROLLBACK_OVERSCAN - h0;',
+    to: '  const a = Math.max(0, from - SCROLLBACK_OVERSCAN) - h0;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26f',
+    rule: 'Z26',
+    name: 'the first index without its max(0, …)',
+    why: 'a start above the oldest line begins at the oldest, index 0; a + h1 alone places the page above line 0 (D9).',
+    file: SCREEN_SCROLLBACK,
+    from: '      const firstIndex = Math.max(0, a + h1);',
+    to: '      const firstIndex = a + h1;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26g',
+    rule: 'Z26',
+    name: 'the queue bound removed',
+    why: 'one more page than SCROLLBACK_QUEUE_MAX waiting on one session is busy at once, or 32 connections’ worth outlive the door’s stop join (§Attack B3).',
+    file: SCREEN_SCROLLBACK,
+    from: "      if (lane.waiting.length >= SCROLLBACK_QUEUE_MAX) return absent(id, 'busy');\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26h',
+    rule: 'Z26',
+    name: 'the wait for a turn not asking closing()',
+    why: 'a page waiting its turn behind others outlived the door’s 1,000 ms stop join, which is 337 §Attack A7’s class (§Attack B3).',
+    file: SCREEN_SCROLLBACK,
+    from: '        if (!closing()) return;',
+    to: '        if (!false) return;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26i',
+    rule: 'Z26',
+    name: 'an exec not raced against closing()',
+    why: 'a page awaiting a far exec (2 s) outlived the stop join; each attempt is raced against its deadline AND closing() at every tick (§Attack B3).',
+    file: SCREEN_SCROLLBACK,
+    from: /const outcome: RoundOutcome = await raced\(\n\s*round,\n\s*closing,\n\s*remote \? SCREEN_REMOTE_READ_DEADLINE_MS : SCREEN_LOCAL_READ_DEADLINE_MS\n\s*\);/,
+    to: 'const outcome: RoundOutcome = await round;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26j',
+    rule: 'Z26',
+    name: 'the far floor set to the local one',
+    why: 'a far page costs the far machine an exec, so its floor is the far poll’s tick (§Attack B2).',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const SCROLLBACK_MIN_GAP_REMOTE_MS = SCREEN_TICK_REMOTE_MS;',
+    to: 'export const SCROLLBACK_MIN_GAP_REMOTE_MS = SCROLLBACK_MIN_GAP_MS;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26k',
+    rule: 'Z26',
+    name: 'the duty cycle removed',
+    why: 'a page of per-cell colours composes in tens of ms on main (BM1: 24.9 ms p50), so a page starts no sooner than four composes after the last (§Attack B10).',
+    file: SCREEN_SCROLLBACK,
+    from: '    const gap = Math.max(floor, SCREEN_DUTY_FACTOR * lane.lastComposeMs);',
+    to: '    const gap = floor;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26l',
+    rule: 'Z26',
+    name: 'a far page paced at this Mac’s floor',
+    why: 'the floor is chosen by where the session runs: 400 ms on another machine (§Attack B2).',
+    file: SCREEN_SCROLLBACK,
+    from: '    const floor = remote ? SCROLLBACK_MIN_GAP_REMOTE_MS : SCROLLBACK_MIN_GAP_MS;',
+    to: '    const floor = SCROLLBACK_MIN_GAP_MS;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26m',
+    rule: 'Z26',
+    name: 'h0 kept at the phone’s depth after a disagreement',
+    why: 'attempts 2 and 3 number their lines by the frame main just read; a stale h0 wastes every attempt under a flood (D9, §13 item 11).',
+    file: SCREEN_SCROLLBACK,
+    from: '        h0 = last.history;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26n',
+    rule: 'Z26',
+    name: 'an attempt that does not ask closing() first',
+    why: 'each attempt asks closing() first: true answers unreachable at once and reads nothing more (§5.3.5 step 3).',
+    file: SCREEN_SCROLLBACK,
+    from: "      if (closing()) return answer(absent(id, 'unreachable'));\n      const range = pageRange(",
+    to: '      const range = pageRange(',
+    needs: ['gate']
+  },
+  {
+    n: 'Z27a',
+    rule: 'Z27',
+    name: 'a cut before composing',
+    why: 'tmux writes each cell’s style as a change from the cell before it, across rows, so a row cut before its pens are read can lose its pen (D11).',
+    file: SCREEN_COMPOSE,
+    // Since the fix round the page's pens are read a step at a time, in composePageSteps' loop over styledRows.
+    from: '  for (const row of styledRows(styled)) {',
+    to: "  for (const row of styledRows(styled.split('\\n').slice(want.from - firstLine).join('\\n'))) {",
+    needs: ['gate']
+  },
+  {
+    n: 'Z27b',
+    rule: 'Z27',
+    name: 'runs built for the dropped overscan rows',
+    why: 'a page’s capture is up to 236 rows with the overscan; building runs for rows it drops costs main the composing too (§Attack B10).',
+    file: SCREEN_COMPOSE,
+    from: '  for (let index = want.from; index < want.from + want.count; index += 1) {',
+    to: '  for (let index = firstLine; index < firstLine + read.length; index += 1) {',
+    needs: ['gate']
+  },
+  {
+    n: 'Z27c',
+    rule: 'Z27',
+    name: 'the pane’s own id on the wire as the page’s space',
+    why: 'a hash of the pane names the index space; no tmux id crosses the wire (§Attack B8).',
+    file: SCREEN_SCROLLBACK,
+    from: '        space: spaceOf(last.paneId),',
+    to: '        space: last.paneId,',
+    needs: ['gate']
+  },
+  {
+    n: 'Z27d',
+    rule: 'Z27',
+    name: 'the page’s runs uncapped',
+    why: 'past a cap the page keeps the longest run of rows from keep’s end that fits (D11); uncapped, a page of per-cell colours passes the phone’s decoder whole.',
+    file: SCREEN_COMPOSE,
+    from: '      runs + row.length <= POCKET_SCREEN_MAX_RUNS &&\n',
+    to: '',
+    needs: ['gate']
+  },
+  // THE COMPOSITION IN STEPS (the 337.1 fix round, Lens 1's minor): a page of
+  // per-cell truecolor composed in 80 to 98 ms in one block.
+  {
+    n: 'Z27e',
+    rule: 'Z27',
+    name: 'the pens of a page read in one block again',
+    why: 'a dense capture (300 columns, every cell its own truecolor pair, 2.7 MB) held main 80 ms reading its pens; the steps stop inside that reading (the fix round).',
+    file: SCREEN_COMPOSE,
+    from: '    read.push(row);\n    if (read.length % PAGE_STEP_ROWS === 0) yield;\n',
+    to: '    read.push(row);\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z27f',
+    rule: 'Z27',
+    name: 'the runs of a page built in one block again',
+    why: 'the asked rows’ runs are built a few rows a step, as the pens are read (the fix round).',
+    file: SCREEN_COMPOSE,
+    from: '    if (built.length % PAGE_STEP_ROWS === 0) yield;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z27g',
+    rule: 'Z27',
+    name: 'composePage composing beside the steps rather than through them',
+    why: 'a page composed whole and a page composed in steps would be two compositions of one page (the fix round).',
+    file: SCREEN_COMPOSE,
+    from: '  const steps = composePageSteps(styled, firstLine, cols, want);\n  for (;;) {\n    const step = steps.next();\n    if (step.done === true) return step.value;\n  }\n',
+    to: '  return { from: want.from, styles: [], rows: [], bytes: 0 };\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26o',
+    rule: 'Z26',
+    name: 'the page verb composing a page whole',
+    why: 'composePage holds main for the whole of a dense capture; the verb composes through composePageSteps (the fix round).',
+    file: SCREEN_SCROLLBACK,
+    // One edit over both places: the import, and a whole composition in the verb before its steps.
+    from: /import \{ composePageSteps, spaceOf, type ComposedPage \} from '\.\/compose';([\s\S]*?)(      const steps = composePageSteps\()/,
+    to: (_m, mid, call) => `import { composePage, composePageSteps, spaceOf, type ComposedPage } from './compose';${mid}      void composePage(rows.join('\\n'), firstIndex, last.cols, { from: ask.from, count: 1, keep: ask.keep });\n${call}`,
+    needs: ['gate']
+  },
+  {
+    n: 'Z26p',
+    rule: 'Z26',
+    name: 'the composition never handing the event loop back',
+    why: 'with no hand-back between steps a dense page holds main in one block again (the fix round: lag p99 62 ms where the door never cost it 30).',
+    file: SCREEN_SCROLLBACK,
+    from: '      await handBack();\n      slice = 0;\n',
+    to: '      slice = 0;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26q',
+    rule: 'Z26',
+    name: 'the composition not asking closing() after a hand-back',
+    why: 'a composition handed back the loop may outlive the door’s stop; closing() is asked after every hand-back (the fix round, §Attack B3’s class).',
+    file: SCREEN_SCROLLBACK,
+    from: '      slice = 0;\n      if (closing()) return null;\n',
+    to: '      slice = 0;\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z26r',
+    rule: 'Z26',
+    name: 'a slice of 400 ms',
+    why: 'the slice is the most a page’s composition holds main between hand-backs, at most 8 ms (the fix round).',
+    file: SCREEN_SCROLLBACK,
+    from: 'export const PAGE_SLICE_MS = 4;',
+    to: 'export const PAGE_SLICE_MS = 400;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z28a',
+    rule: 'Z28',
+    name: 'depth set when the reading is not steady',
+    why: 'a picture whose displays disagreed names no place in the history; the next steady picture does (D3, D5).',
+    file: SCREEN_COMPOSE,
+    from: '  const placed = reading.steady && !display.alternate && display.history <= POCKET_SCROLLBACK_MAX_INDEX;',
+    to: '  const placed = !display.alternate && display.history <= POCKET_SCROLLBACK_MAX_INDEX;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z28b',
+    rule: 'Z28',
+    name: 'space set when depth is null',
+    why: 'depth and space are null together; a space riding a null depth names an index space nothing can page (§Attack B8).',
+    file: SCREEN_COMPOSE,
+    from: '    space: placed ? spaceOf(display.paneId) : null',
+    to: '    space: spaceOf(display.paneId)',
+    needs: ['gate']
+  },
+  {
+    n: 'Z28c',
+    rule: 'Z28',
+    name: 'the eighth field read as six digits',
+    why: 'a display that fails to parse fails the whole LIVE read, so a far history deeper than six digits would cost him the terminal he has today (§Attack B16).',
+    file: SCREEN_READ,
+    from: 'const WHOLE9 = /^(0|[1-9][0-9]{0,8})$/;',
+    to: 'const WHOLE9 = /^(0|[1-9][0-9]{0,5})$/;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z28d',
+    rule: 'Z28',
+    name: 'the alternate screen offered a depth',
+    why: 'the alternate screen covers the history: the Mac’s own terminal shows nothing above it (D3, §3 row 3).',
+    file: SCREEN_COMPOSE,
+    from: '  const placed = reading.steady && !display.alternate && display.history <= POCKET_SCROLLBACK_MAX_INDEX;',
+    to: '  const placed = reading.steady && display.history <= POCKET_SCROLLBACK_MAX_INDEX;',
+    needs: ['gate']
+  },
+  {
+    n: 'Z29a',
+    rule: 'Z29',
+    name: 'moved for a shallower history skipped',
+    why: 'a trim at the limit, a clear or a rewrap shrinks the history and every index then holds another line (§14 M6, M8, M9); main SAW it shrink and says moved (D12).',
+    file: SCREEN_SCROLLBACK,
+    from: '        h1 < ask.depth ||\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z29b',
+    rule: 'Z29',
+    name: 'moved for another width skipped',
+    why: 'a rewrap from 120 to 80 columns moved index 100 to another line (§14 M9); a page of another width is moved (D12).',
+    file: SCREEN_SCROLLBACK,
+    from: '        last.cols !== ask.wrap ||\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z29c',
+    rule: 'Z29',
+    name: 'moved for the alternate screen skipped',
+    why: 'a capture above the alternate screen returns the lines from BEFORE the program (§14 M7), which the Mac’s own terminal does not show (D12).',
+    file: SCREEN_SCROLLBACK,
+    from: '        last.alternate ||\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z29d',
+    rule: 'Z29',
+    name: 'moved for a frame shallower than the last attempt’s skipped',
+    why: 'a history below the previous attempt’s display shrank while main read it (D12).',
+    file: SCREEN_SCROLLBACK,
+    from: '        (previous !== null && h1 < previous) ||\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'Z29e',
+    rule: 'Z29',
+    name: 'a page at or past the live screen served',
+    why: 'rows at indices at or past the history size are the live screen, which a page never is (D12).',
+    file: SCREEN_SCROLLBACK,
+    from: '        (previous !== null && h1 < previous) ||\n        ask.from >= h1\n',
+    to: '        (previous !== null && h1 < previous)\n',
+    needs: ['gate']
+  },
+  {
+    n: 'Z30a',
+    rule: 'Z30',
+    name: 'the honesty sentence left as Phase 337 wrote it',
+    why: 'the person who allows the phone is told it can now read what a session printed before, which his Phase 316 ruling refused until his ruling of 2026-10-05 (D35).',
+    file: SHARED,
+    from: "  'A phone you allow can see what any session’s terminal shows and what it printed before, ' +\n  'type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';",
+    to: "  'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, ' +\n  'answer a numbered question, send a session one message and end a session.';",
+    needs: ['gate']
+  },
+  {
+    n: 'Z30b',
+    rule: 'Z30',
+    name: 'the Allow line names scrollback by hand',
+    why: 'the route list is derived from the hashed table, never written; a hand-written word drifts from what the door answers (D35).',
+    file: PAIRING,
+    from: "  lines.push(`Answers these and nothing else: ${[...fields.routes].sort().join(', ')}`);",
+    to: "  lines.push(`Answers these and nothing else: ${[...fields.routes].sort().join(', ')}`);\n  void 'scrollback';",
     needs: ['gate']
   },
   // -------------------------------------------------------------------------

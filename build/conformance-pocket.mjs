@@ -148,6 +148,7 @@
 
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
@@ -169,7 +170,7 @@ const RULES = [
   ['L4', 'build/p330/SPEC.md §6.1, §3 row 8', 'the local port is ephemeral, listen(0) and nothing else, and a confirmed public port that is taken refuses port-taken: 443 is never named'],
   ['R1', 'SPEC §2', 'the route table is CLOSED: frozen, every path an exact string, no pattern, no wildcard, no default arm (read in door/table.ts, where Phase 330 moved it, and in routes.ts, which re-exports it)'],
   ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
-  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
+  ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
   ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
@@ -289,6 +290,17 @@ const RULES = [
   ['Z20', 'build/p337/SPEC.md D42, §Attack A1', 'THE GAP: SCREEN_KEYS_GAP_MS is 50, declared once, in keys.ts; the verb awaits its remainder ONCE, after the gate and before its one readFresh(; and the last-act time is written after the act'],
   ['Z21', 'build/p337/SPEC.md D3, D4, D5, §Attack A6, A7, A8', 'THE SETTLE AND THE SLOT: nudge(sessionId, before) takes the act’s window mark; a settling session is answered by a read whose windowMarkOf( differs or that starts SCREEN_SETTLE_MS (300, longer than SCREEN_NUDGE_MS) after the nudge; one read in flight per session, its slot given back in a finally; the local down path ONE spawned list per read'],
   ['Z22', 'build/p337/SPEC.md D43, §Attack A11', 'THE LOG LINE, BOUNDED: writes.ts holds one log call; a keys write answered done reaches it only through the KEYS_LOG_QUIET_MS (60,000) condition, and every other verb and outcome reaches it unconditionally'],
+  // PHASE 337.1, terminal first (build/p3371/SPEC.md §6.1): the Screen scrolls
+  // back through one more signed read, and two of 337's rules that only a
+  // vitest held (D5's pane clause, the remote cadence) get a gate.
+  ['Z23', 'build/p3371/SPEC.md D5, D36, §5.4', 'THE TWO DISPLAYS AND THE PANE: agree is declared once, exported from read.ts, and compares exactly paneId, cols, rows, alternate and history with ===; it is the one comparison readScreenLocal, splitRemoteRead and scrollback.ts call, and no second spelling of it exists; readScreenLocal calls its attempt exactly twice, serves the second attempt when the first did not agree, framed by its second display, with steady never a literal true; and keys.ts aims every -t at the fresh reading’s display.paneId and at no pane named anywhere else'],
+  ['Z24', 'build/p3371/SPEC.md D36, §5.4, §Attack B22', 'THE CADENCE: SCREEN_TICK_MS is 100, SCREEN_TICK_REMOTE_MS 400 and at least four times it; tickOf is declared once and answers SCREEN_TICK_REMOTE_MS for a row with a machine or a core whose control client is not connected, SCREEN_TICK_MS otherwise; outside tickOf no read is scheduled at either tick but through tickOf(, and SCREEN_TICK_MS is otherwise only a poll’s own interval; no numeric literal schedules a read; and the ONE other delay a read is scheduled at is SCREEN_NUDGE_MS, behind the settle (settles.has( or a settles.get( guard) or in nudge( alone'],
+  ['Z25', 'build/p3371/SPEC.md D7, D8, §5.3.1', 'THE PAGE ROUTE: readScrollbackQuery takes exactly id, from, count, depth, wrap and keep, each once, refuses with the six words, reads every number by a character walk with no pattern and in D7’s bounds read from the contract’s constants, holds from + count <= depth, and compares keep with ===; the route answers a refusal, an unknown id, an absent facts.scrollback, a rejection and a session removed while read as null; and scrollbackOf composes field by field with fresh arrays, why one of four words with main’s own sentence, and holds from + rows <= depth, cells <= wrap, the page’s own styles, a 12-hex space, the row cap and the byte cap'],
+  ['Z26', 'build/p3371/SPEC.md D9, D10, D14, §5.3.5, §Attack B1, B2, B3, B10', 'THE PAGE READ: scrollback.ts’s constants (overscan 128, 3 attempts, floors 250 and SCREEN_TICK_REMOTE_MS, queue 4); its order (the row by screenLive(; the turn, a queue bounded by SCROLLBACK_QUEUE_MAX answering busy past it, the floor Math.max( of the session’s floor and SCREEN_DUTY_FACTOR times the last compose, the wait asking closing( on a SCREEN_TICK_MS timer; then per attempt closing( first, ONE three-line statement with no display-only round, the agreement through read.ts’s agree(, the refusals, the cover, compose); attempt 1’s h0 the ask’s depth and later ones the previous display’s history; a = from − SCROLLBACK_OVERSCAN − h0 with no Math.max( around from − SCROLLBACK_OVERSCAN, the first index Math.max(0, a + h1); at most SCROLLBACK_ATTEMPTS; and every exec raced against closing( on a timer as well as its deadline; and (the fix round) the page composed through composePageSteps a step at a time, never composePage whole, the event loop handed back once the steps have held it PAGE_SLICE_MS (at most 8 ms) with closing( asked after each hand-back'],
+  ['Z27', 'build/p3371/SPEC.md D11, §5.3.4, §Attack B10', 'THE PAGE’S ROWS: composePage is declared once, in compose.ts, reads the WHOLE capture’s pens before it cuts and builds runs only for the kept rows, keeps keep’s end past a cap, and builds the page’s own style table; the page answer’s space comes from spaceOf( over the agreed display, and its rows are bounded by from + rows <= depth; and (the fix round) composePage drives the one generator composePageSteps, which stops inside its reading of the pens and inside its building of the runs, PAGE_STEP_ROWS (at most 16) rows a stop'],
+  ['Z28', 'build/p3371/SPEC.md D3, D4, §5.3.4, §Attack B8, B16', 'THE LIVE DEPTH AND SPACE: SCREEN_FORMAT is declared once with #{history_size} its eighth and last field, read as WHOLE9, at most nine digits; composeScreen sets depth and space together, from the display only when the reading is steady, not the alternate screen and the history at most POCKET_SCROLLBACK_MAX_INDEX, and both null otherwise; spaceOf is declared once, in compose.ts, and imports nothing of watch.ts'],
+  ['Z29', 'build/p3371/SPEC.md D12, §Attack B1', 'MOVED, AND NOTHING SENT: moved is answered for exactly D12’s conditions over each attempt’s AGREED frame (the alternate screen, cols !== wrap, h1 < depth, h1 below the previous attempt’s display, from >= h1), each BEFORE anything is composed, and the capture of a refused attempt reaches no answer, no log and no store'],
+  ['Z30', 'build/p3371/SPEC.md D35', 'THE HONESTY SENTENCE names what a session’s terminal shows AND what it printed before, still typing and ending, and never says the phone can change nothing else; the Allow line’s route list is still derived from the table'],
 ];
 
 if (process.argv.includes('--list')) {
@@ -912,8 +924,19 @@ function routeRules() {
  * lines, re-derived by the proof builder two ways, `printf '<ten lines>' |
  * shasum -a 256` and node's `createHash('sha256')` over the same ten lines
  * sorted, both `16115392…`, the value the spec's step measured (§14 M14).
+ *
+ * PHASE 337.1 MOVED IT ON PURPOSE, from Phase 337's
+ * `16115392e007ad274fc815f4c8456624f58fd534558be4eaad7d154c59e9b061` (ten
+ * lines) to the value below, by its one read row `GET /v1/scrollback`
+ * (build/p3371/SPEC.md D1, his ruling "Yes, scroll back on the Screen"):
+ * eleven sorted lines, re-derived by the gates builder two ways before the
+ * table held the row, node's `createHash('sha256')` over the eleven lines
+ * sorted and joined by a newline (`--write-route-pin`'s method), and
+ * `printf '<eleven lines>' | LC_ALL=C sort | shasum -a 256` with the final
+ * newline taken off, both `ea5930e0…`, the value the spec step measured (§14
+ * M13) and the adversary re-derived (BM3).
  */
-const ROUTE_PIN = '16115392e007ad274fc815f4c8456624f58fd534558be4eaad7d154c59e9b061';
+const ROUTE_PIN = 'ea5930e0f87bba2da4912971431d254526f39480b1bb8c326045938391b39a14';
 
 /** The `METHOD path` line of every row of POCKET_ROUTES, sorted. */
 function routeLines(file) {
@@ -6552,8 +6575,12 @@ function writeLinesRule() {
     // PHASE 337 (D35): the old sentence's "It can change nothing else on this
     // Mac" is false once a phone can type into a shell, and "what … shows"
     // because the Screen is not redacted (D41).
-    const WANT = 'A phone you allow can see what any session’s screen shows and type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
-    if (said !== WANT) fail('X12', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${JSON.stringify(said)}; it says ${JSON.stringify(WANT)}, which names the screen, the keys and the three writes and no Face ID (build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35)`);
+    // PHASE 337.1 (build/p3371/SPEC.md D35): the phone names it Terminal, and
+    // it can read what a session printed BEFORE, which his Phase 316 ruling
+    // refused until his ruling "Yes, scroll back on the Screen"; no write
+    // clause moved. Z30 holds the new half on its own.
+    const WANT = 'A phone you allow can see what any session’s terminal shows and what it printed before, type into it as you would at this Mac, answer a numbered question, send a session one message and end a session.';
+    if (said !== WANT) fail('X12', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${JSON.stringify(said)}; it says ${JSON.stringify(WANT)}, which names the terminal, what it printed before, the keys and the three writes and no Face ID (build/p318/SPEC.md §5.1.7, D28; build/p337/SPEC.md D35; build/p3371/SPEC.md D35)`);
   }
   for (const file of productionSources()) {
     if (!readFileSync(file, 'utf8').includes('POCKET_READ_ONLY_HONESTY')) continue;
@@ -8224,8 +8251,49 @@ const Z_RULES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5', 'Z6', 'Z7', 'Z8', 'Z9', 'Z10', 'Z
 const Z_OWNER = {
   door: "Phase 337 builder door's",
   screen: "Phase 337 builder screen's",
-  keys: "Phase 337 builder keys's"
+  keys: "Phase 337 builder keys's",
+  door3371: "Phase 337.1 builder door's",
+  screen3371: "Phase 337.1 builder screen's"
 };
+
+/** The page reader (Phase 337.1, build/p3371/SPEC.md §5.3.5). */
+const SCROLLBACK = join(ROOT, 'src', 'main', 'screen', 'scrollback.ts');
+
+/**
+ * The ONE format (build/p3371/SPEC.md D4): 337's seven fields, then the
+ * history size LAST, so the seven keep their places.
+ */
+const SCREEN_FORMAT_8 = '#{pane_id}\t#{pane_width}\t#{pane_height}\t#{cursor_x}\t#{cursor_y}\t#{cursor_flag}\t#{alternate_on}\t#{history_size}';
+
+/**
+ * An argv expression as a flat list of element spellings: a string literal
+ * as `'text'`, anything else as its source text, with a spread of a local
+ * array-returning function (or of a const array) expanded in place, so a
+ * composer written as `[...displayArgv(t), ';', …]` reads the same as one
+ * written out. Null when the expression is not an argv this can read.
+ */
+function flatArgvOf(file, expr) {
+  const arr = arrayOfArg(file, expr);
+  if (arr === null) return null;
+  const out = [];
+  for (const e of arr.elements) {
+    if (ts.isSpreadElement(e)) {
+      const inner = flatArgvOf(file, e.expression);
+      if (inner === null) return null;
+      const fn = ts.isCallExpression(bare(e.expression)) && ts.isIdentifier(bare(e.expression).expression) ? oneFunction(file, bare(e.expression).expression.text) : null;
+      // A spread helper's own parameter stands for the argument it was handed.
+      const params = fn === null ? [] : fn.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : null));
+      const args = fn === null ? [] : bare(e.expression).arguments.map((a) => a.getText());
+      out.push(...inner.map((x) => {
+        const at = params.indexOf(x);
+        return at === -1 || args[at] === undefined ? x : args[at];
+      }));
+      continue;
+    }
+    out.push(ts.isStringLiteral(e) ? `'${e.text}'` : e.getText());
+  }
+  return out;
+}
 
 /** A file this phase pins, or null with the rule failed by name and owner. */
 function zFile(relPath, ruleId, owner) {
@@ -8412,25 +8480,28 @@ function screenRules() {
       }
       const WANT = {
         screen: { id: 'screen', method: 'GET', path: '/v1/screen', reads: true, windowOnly: false, signed: true },
-        keys: { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true }
+        keys: { id: 'keys', method: 'POST', path: '/v1/keys', reads: false, windowOnly: false, signed: true },
+        // PHASE 337.1 (build/p3371/SPEC.md D1, §5.1): one page of a session's
+        // history, a one-shot signed read alive outside any window.
+        scrollback: { id: 'scrollback', method: 'GET', path: '/v1/scrollback', reads: true, windowOnly: false, signed: true }
       };
       for (const [id, want] of Object.entries(WANT)) {
         checked('Z1');
         const found = rows.filter((r) => r['id'] === id);
         if (found.length !== 1 || J(found[0]) !== J(want)) {
-          fail('Z1', `${rel(table)}: the ${id} row is ${J(found)}; it is exactly ${J(want)} (build/p337/SPEC.md D1): ${id === 'screen' ? 'a signed GET read, alive outside any window' : 'a signed POST write through the one write path, alive outside any window'}`);
+          fail('Z1', `${rel(table)}: the ${id} row is ${J(found)}; it is exactly ${J(want)} (build/p337/SPEC.md D1, build/p3371/SPEC.md D1): ${id === 'keys' ? 'a signed POST write through the one write path, alive outside any window' : 'a signed GET read, alive outside any window'}`);
         }
       }
     }
     const wire = zFile('src/main/pocket/door/wire.ts', 'Z1', Z_OWNER.door);
     if (wire !== null) {
-      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say']]]) {
+      for (const [name, want] of [['SIGNED_ROUTES', ['blocked', 'screen', 'scrollback', 'session', 'sessions', 'turns']], ['WRITE_ROUTES', ['choose', 'end', 'keys', 'say']]]) {
         checked('Z1');
         const decl = constNamed(wire, name);
         const init = decl === null ? undefined : bare(decl.initializer);
         const got = init !== undefined && ts.isArrayLiteralExpression(init) ? init.elements.map((e) => (ts.isStringLiteral(e) ? e.text : '?')).sort() : null;
         if (got === null || J(got) !== J(want)) {
-          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)}, one id more than Phase 316.7 left it (build/p337/SPEC.md §5.1). The door hands main a signed read or a write only for an id on its own list.`);
+          fail('Z1', `${rel(wire)}: ${name} is ${J(got)}; it is exactly ${J(want)} (build/p337/SPEC.md §5.1; build/p3371/SPEC.md §5.1 adds scrollback to the signed reads and nothing to the writes). The door hands main a signed read or a write only for an id on its own list.`);
         }
       }
     }
@@ -8698,6 +8769,11 @@ function screenRules() {
     const files = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
     checked('Z7');
     if (files.length === 0) fail('Z7', `src/main/screen/ holds no source file, so nothing of Z7 was read. It is ${Z_OWNER.screen} and ${Z_OWNER.keys}.`);
+    // PHASE 337.1 (build/p3371/SPEC.md D15, §6.1): the page reader is read
+    // here with the rest, and its absence is a failure rather than a file
+    // quietly left out of the walk.
+    checked('Z7');
+    if (!existsSync(SCROLLBACK)) fail('Z7', `src/main/screen/scrollback.ts does not exist, so the page read's logs and errors were not read. It is ${Z_OWNER.screen3371}.`);
     for (const file of files) {
       for (const n of nodesOf(file)) {
         if (ts.isPropertyAccessExpression(n) && n.name.text === 'message') {
@@ -8739,7 +8815,9 @@ function screenRules() {
   // -------------------------------------------------------------------------
   {
     const read = zFile('src/main/screen/read.ts', 'Z9', Z_OWNER.screen);
-    const FORMAT = '#{pane_id}\t#{pane_width}\t#{pane_height}\t#{cursor_x}\t#{cursor_y}\t#{cursor_flag}\t#{alternate_on}';
+    // PHASE 337.1 (D4): the eighth field, the history size, LAST, so the seven
+    // keep their places. Z28 reads its parse.
+    const FORMAT = SCREEN_FORMAT_8;
     // Within the Screen's own modules: src/main/conformance/screen-class.ts has
     // a SCREEN_FORMAT of its own (Phase 331's screen class), which is not this.
     const formatDecls = declarationsOf([...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])], 'SCREEN_FORMAT');
@@ -8749,7 +8827,7 @@ function screenRules() {
     } else {
       const v = bare(formatDecls[0].n.initializer);
       const value = v !== undefined && ts.isStringLiteralLike(v) ? v.text : null;
-      if (value !== FORMAT) fail('Z9', `${where(formatDecls[0].file, formatDecls[0].n)}: SCREEN_FORMAT is ${J(value)}; it is exactly ${J(FORMAT)}: no caller string is ever a format, because a format on a long-lived connection can run programs (D6)`);
+      if (value !== FORMAT) fail('Z9', `${where(formatDecls[0].file, formatDecls[0].n)}: SCREEN_FORMAT is ${J(value)}; it is exactly ${J(FORMAT)} (build/p3371/SPEC.md D4: the seven fields of 337 and #{history_size} last): no caller string is ever a format, because a format on a long-lived connection can run programs (D6)`);
     }
     if (read !== null) {
       for (const { node, text } of codeStringsOf(read)) {
@@ -8770,18 +8848,90 @@ function screenRules() {
         if (semis !== 2) fail('Z21', `${where(read, spawned[0])}: the down path's one spawn carries ${String(semis)} ; separator(s); it carries the three commands as ONE list, display ; capture ; display, so a down client costs one spawn a read and never three`);
       }
     }
+    // THE FAR READS (build/p3371/SPEC.md D6, D10, §5.3.3, §5.3.5). Every
+    // execOn( is handed remoteScreenArgv( (the live picture) or
+    // remoteScrollbackArgv( (one page's attempt), and each of the two composes
+    // ONE exec of THREE commands, display ; capture ; display, the page's
+    // capture carrying -S and -E and nothing else.
     const remote = zFile('src/main/machines/remote-screen.ts', 'Z9', Z_OWNER.screen);
     if (remote !== null) {
       const execs = callsOf(remote).filter((c) => calleeName(c) === 'execOn');
-      checked('Z9', 2);
-      if (execs.length !== 1) {
-        fail('Z9', `${rel(remote)} calls execOn( ${String(execs.length)} time(s); a remote read is ONE execOn( of capture-pane and display-message (build/p337/SPEC.md §5.3.3)`);
-      } else {
-        const argv = arrayOfArg(remote, execs[0].arguments[1]);
-        const els = argv !== null ? argv.elements.map((e) => (ts.isStringLiteral(e) ? `'${e.text}'` : e.getText())) : null;
-        const shape = els === null ? null : els.map((e, i) => (/^'/.test(e) ? e : i === 4 || i === 9 ? 'TARGET' : e));
-        const want = ["'capture-pane'", "'-p'", "'-e'", "'-t'", 'TARGET', "';'", "'display-message'", "'-p'", "'-t'", 'TARGET', 'SCREEN_FORMAT'];
-        if (shape === null || J(shape) !== J(want)) fail('Z9', `${where(remote, execs[0])}: the remote read's argv is ${J(els)}; it is exactly ${J(want)}, the one format and nothing a caller wrote (D6, §5.3.3)`);
+      checked('Z9', 3);
+      const builders = new Map([['remoteScreenArgv', []], ['remoteScrollbackArgv', []]]);
+      if (execs.length === 0) fail('Z9', `${rel(remote)} calls execOn( nowhere; a far read is ONE execOn( an attempt (build/p337/SPEC.md §5.3.3)`);
+      for (const c of execs) {
+        const arg = bare(c.arguments[1]);
+        const name = arg !== undefined && ts.isCallExpression(arg) && ts.isIdentifier(arg.expression) ? arg.expression.text : null;
+        if (name === null || !builders.has(name)) {
+          fail('Z9', `${where(remote, c)}: execOn( is handed ${J(arg?.getText().slice(0, 60) ?? null)}; every far exec is handed remoteScreenArgv( or remoteScrollbackArgv(, the two composers no caller string reaches (build/p3371/SPEC.md D6, D10)`);
+          continue;
+        }
+        builders.get(name).push(c);
+      }
+      for (const [name, calls] of builders) {
+        if (calls.length > 1) fail('Z9', `${rel(remote)} hands ${name}( to execOn( ${String(calls.length)} times; once, in its one reader, so an attempt is ONE exec`);
+      }
+      if (builders.get('remoteScreenArgv').length !== 1) fail('Z9', `${rel(remote)}: the far live read does not hand remoteScreenArgv( to one execOn(`);
+      const T = 'TARGET';
+      const DISPLAY = ["'display-message'", "'-p'", "'-t'", T, 'SCREEN_FORMAT'];
+      const wants = {
+        remoteScreenArgv: [...DISPLAY, "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", T, "';'", ...DISPLAY],
+        remoteScrollbackArgv: [...DISPLAY, "';'", "'capture-pane'", "'-p'", "'-e'", "'-t'", T, "'-S'", 'START', "'-E'", 'END', "';'", ...DISPLAY]
+      };
+      for (const [name, want] of Object.entries(wants)) {
+        const fn = oneFunction(remote, name);
+        checked('Z9');
+        if (fn === null) {
+          fail('Z9', `${rel(remote)} declares no single ${name}; ${name === 'remoteScreenArgv' ? 'the far live read' : 'a far page attempt'} is composed by it alone (build/p3371/SPEC.md §5.3.3, §5.3.5)`);
+          continue;
+        }
+        const target = fn.parameters[0] !== undefined && ts.isIdentifier(fn.parameters[0].name) ? fn.parameters[0].name.text : null;
+        const rets = ownReturnsOf(fn).map((r) => (r.expression === undefined ? null : flatArgvOf(remote, r.expression))).filter((r) => r !== null);
+        if (rets.length !== 1) {
+          fail('Z9', `${where(remote, fn)}: ${name} answers ${String(rets.length)} argv literal(s); it answers ONE, three commands in one exec`);
+          continue;
+        }
+        const shape = rets[0].map((e, i, all) => {
+          if (/^'/.test(e)) return e;
+          if (target !== null && e === target) return T;
+          if (all[i - 1] === "'-S'") return 'START';
+          if (all[i - 1] === "'-E'") return 'END';
+          return e;
+        });
+        if (J(shape) !== J(want)) fail('Z9', `${where(remote, fn)}: ${name}'s argv is ${J(rets[0])}; it is exactly ${J(want)}: the display, the capture, the display, in ONE exec, the one format and nothing a caller wrote (build/p3371/SPEC.md D6, D10)`);
+      }
+    }
+    // THE LOCAL PAGE READ (build/p3371/SPEC.md D9, D15, §5.3.5): scrollback.ts
+    // names no tmux verb but display-message and capture-pane, no flag but
+    // -p, -e, -t, -S and -E, and every -S and -E value is String( of a name it
+    // checked whole with Number.isSafeInteger( (a number tmux cannot read
+    // silently starts at the visible top, §14 M1).
+    const page = existsSync(SCROLLBACK) ? SCROLLBACK : null;
+    checked('Z9');
+    if (page === null) fail('Z9', `src/main/screen/scrollback.ts does not exist, so the page read's verbs were not read. It is ${Z_OWNER.screen3371} (build/p3371/SPEC.md §10).`);
+    else {
+      const VERB = /^(?:[a-z]+-[a-z]+)(?:\s|$)/;
+      const TMUX_VERBS = /^(?:display-message|capture-pane|send-keys|copy-mode|resize-\w+|refresh-client|new-\w+|attach-\w+|switch-\w+|run-shell|if-shell|set-\w+|list-\w+|kill-\w+|respawn-\w+|load-buffer|paste-buffer|clear-history|select-\w+|split-window|show-\w+)(?:\s|$)/;
+      for (const { node, text } of codeStringsOf(page)) {
+        if (!VERB.test(text) || !TMUX_VERBS.test(text)) continue;
+        checked('Z9');
+        if (!/^(?:display-message|capture-pane)(?:$| -p -t | -p -e -t )/.test(text)) fail('Z9', `${where(page, node)}: the page read composes ${J(text.slice(0, 50))}; its only verbs are display-message -p … SCREEN_FORMAT and capture-pane -p -e … -S <int> -E <int> (build/p3371/SPEC.md D15)`);
+      }
+      for (const arr of nodesOf(page).filter((n) => ts.isArrayLiteralExpression(n) && n.elements.some((e) => ts.isStringLiteral(e) && /^(?:display-message|capture-pane)$/.test(e.text)))) {
+        for (const [i, e] of arr.elements.entries()) {
+          if (!ts.isStringLiteral(e) || !/^-/.test(e.text)) continue;
+          checked('Z9');
+          if (!/^-(?:p|e|t|S|E)$/.test(e.text)) fail('Z9', `${where(page, e)}: the page read's argv names the flag ${J(e.text)}; it names -p, -e, -t, -S and -E alone (no -a, no -J, nothing that sizes, D15)`);
+          if (e.text === '-S' || e.text === '-E') {
+            const v = bare(arr.elements[i + 1]);
+            const named = v !== undefined && ts.isCallExpression(v) && ts.isIdentifier(v.expression) && v.expression.text === 'String' && v.arguments.length === 1 && ts.isIdentifier(bare(v.arguments[0])) ? bare(v.arguments[0]).text : null;
+            const checkedWhole = named !== null && nodesOf(page).some((n) => ts.isCallExpression(n) && /^Number\.isSafeInteger$/.test(n.expression.getText()) && n.arguments[0] !== undefined && bare(n.arguments[0]).getText() === named);
+            if (named === null || !checkedWhole) fail('Z9', `${where(page, e)}: the value after ${e.text} is ${J(v?.getText().slice(0, 50) ?? null)}; it is String( of a name scrollback.ts checks with Number.isSafeInteger(, so no number tmux cannot read is ever sent (build/p3371/SPEC.md D9, §14 M1)`);
+          }
+        }
+      }
+      for (const { node, text } of codeStringsOf(page)) {
+        if (/#\{/.test(text)) fail('Z9', `${where(page, node)} spells a format of its own (${J(text.slice(0, 40))}); the page read's one format is SCREEN_FORMAT, imported from ./read (D15)`);
       }
     }
     const phaseFiles = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
@@ -8879,11 +9029,24 @@ function screenRules() {
           fail('Z11', `${where(routes, n)}: the screen answer is copied with ${n.expression.getText()}; it is composed field by field`);
         }
       }
+      // PHASE 337.1 (build/p3371/SPEC.md §5.3.1): the page answer holds the
+      // byte cap (and may hold the width, styles and runs caps) in its own
+      // composer, so "read once" is read over the SCREEN answer's reach, and a
+      // cap read anywhere else in routes.ts is read inside the page answer's
+      // reach (scrollbackOf, readScrollbackQuery), once.
+      const pageReach = ['scrollbackOf', 'readScrollbackQuery'].flatMap((n) => {
+        const f = oneFunction(routes, n);
+        return f === null ? [] : reachedFunctions(routes, f);
+      });
       for (const cap of ['POCKET_SCREEN_MAX_COLS', 'POCKET_SCREEN_MAX_ROWS', 'POCKET_SCREEN_MAX_STYLES', 'POCKET_SCREEN_MAX_RUNS', 'POCKET_SCREEN_MAX_BYTES']) {
         checked('Z11');
         const imported = importedNames(routes, (s) => /@shared\/ipc\/pocket$/.test(s)).has(cap);
-        const refs = referencesOf(routes, cap).length;
-        if (!imported || refs !== 1) fail('Z11', `${rel(routes)}: ${cap} is ${imported ? `read ${String(refs)} time(s)` : 'not imported from @shared/ipc/pocket'}; each cap is imported from the contract and read ONCE (D15)`);
+        const all = referencesOf(routes, cap);
+        const inScreen = all.filter((r) => reach.some((f) => inside(r, f)));
+        const elsewhere = all.filter((r) => !reach.some((f) => inside(r, f)));
+        const strays = elsewhere.filter((r) => !pageReach.some((f) => inside(r, f)));
+        if (!imported || inScreen.length !== 1) fail('Z11', `${rel(routes)}: ${cap} is ${imported ? `read ${String(inScreen.length)} time(s) by the screen answer` : 'not imported from @shared/ipc/pocket'}; each cap is imported from the contract and read ONCE there (D15)`);
+        if (strays.length > 0 || elsewhere.length > pageReach.length) fail('Z11', `${where(routes, strays[0] ?? elsewhere[0])}: ${cap} is read outside the screen answer${strays.length > 0 ? ' and outside the page answer' : ' more often than the page answer has functions'}; a cap is read where an answer is composed, and nowhere else`);
       }
     }
     const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
@@ -8911,8 +9074,15 @@ function screenRules() {
         if (/^(?:node:)?(?:fs|fs\/promises|child_process|net|http|https|dgram)$/.test(text) || /(?:^|\/)(?:tmux|settings|config|agents)(?:\/|$)|registry$/.test(text) || text === 'electron') {
           fail('Z12', `${where(file, node)}: ${base}.ts imports ${text}. The composer reads no clock, no file and no process (build/p337/SPEC.md §5.3.4)`);
         }
-        if (base === 'compose' && !(text.startsWith('./') || text.startsWith('@shared/') || text === '../activity/screen' || text === '../reply/reader')) {
-          fail('Z12', `${where(file, node)}: compose.ts imports ${text}; it imports nothing outside src/main/screen and src/shared but ../activity/screen and ../reply/reader (§5.3.4, §Attack A16)`);
+        // PHASE 337.1 (build/p3371/SPEC.md §5.3.4): spaceOf hashes the pane id
+        // in compose.ts, so node:crypto, which reads no clock, no file and no
+        // process, is the one module it may add; watch.ts is never imported
+        // (it imports compose.ts).
+        if (base === 'compose' && !(text.startsWith('./') || text.startsWith('@shared/') || text === '../activity/screen' || text === '../reply/reader' || text === 'node:crypto')) {
+          fail('Z12', `${where(file, node)}: compose.ts imports ${text}; it imports nothing outside src/main/screen and src/shared but ../activity/screen, ../reply/reader and node:crypto (§5.3.4, §Attack A16; build/p3371/SPEC.md §5.3.4)`);
+        }
+        if (base === 'compose' && /^\.\/watch$/.test(text)) {
+          fail('Z12', `${where(file, node)}: compose.ts imports ./watch, which imports compose.ts; spaceOf is declared in compose.ts in screenRevisionOf's construction rather than borrowed (build/p3371/SPEC.md §5.3.4)`);
         }
       }
       for (const c of callsOf(file)) {
@@ -8923,6 +9093,17 @@ function screenRules() {
       }
     }
     const compose = pure.find(([b]) => b === 'compose')?.[1] ?? null;
+    // PHASE 337.1: composePage is pure as the rest of compose.ts is (the file
+    // walk above reads it), and the page reader times it from OUTSIDE, so no
+    // clock is read inside it; it is declared once, there.
+    if (compose !== null) {
+      checked('Z12');
+      const pages = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'composePage');
+      if (pages.length !== 1 || pages[0].file !== compose) fail('Z12', `composePage is declared ${String(pages.length)} time(s) (${pages.map((d) => rel(d.file)).join(', ')}); ONCE, in compose.ts, where the live screen's pens are read (build/p3371/SPEC.md §5.3.4)`);
+      checked('Z12');
+      const steps = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'composePageSteps');
+      if (steps.length !== 1 || steps[0].file !== compose) fail('Z12', `composePageSteps is declared ${String(steps.length)} time(s) (${steps.map((d) => rel(d.file)).join(', ')}); ONCE, in compose.ts, the page's composition a step at a time (the fix round)`);
+    }
     if (compose !== null) {
       checked('Z12');
       const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'windowMarkOf');
@@ -9021,8 +9202,10 @@ function screenRules() {
       collect(honesty.initializer);
       return parts.join('');
     })();
-    if (!/screen/.test(said) || !/type into/.test(said) || /change nothing else/.test(said)) {
-      fail('Z15', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it names the screen and typing, and no longer says the phone can change nothing else (D35)`);
+    // PHASE 337.1 (build/p3371/SPEC.md D21, D35): the phone names the Screen
+    // Terminal, so the sentence may name either; Z30 holds its new half.
+    if (!/screen|terminal/.test(said) || !/type into/.test(said) || /change nothing else/.test(said)) {
+      fail('Z15', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it names the screen (or, since Phase 337.1, the terminal) and typing, and no longer says the phone can change nothing else (D35)`);
     }
   }
 
@@ -9121,11 +9304,19 @@ function screenRules() {
     const gap = zNumber(watch, 'SCREEN_MIN_ANSWER_GAP_MS');
     checked('Z19', 3);
     if (memory !== 4_096) fail('Z19', `src/main/pocket/pairing.ts: POCKET_NONCE_MEMORY is ${String(memory)}; it is 4,096 (build/p337/SPEC.md D40)`);
+    // PHASE 337.1 (build/p3371/SPEC.md D29): a phone on a Terminal also asks
+    // up to one page a SCROLLBACK_MIN_GAP_MS (the Mac's own floor) and one
+    // status re-read a second, so the budget is 4 + 20 + 4 + 1 = 29 a second.
+    const pageGap = zNumber(existsSync(SCROLLBACK) ? SCROLLBACK : null, 'SCROLLBACK_MIN_GAP_MS');
+    checked('Z19');
+    if (pageGap === null) fail('Z19', `src/main/screen/scrollback.ts declares no single numeric SCROLLBACK_MIN_GAP_MS, so the page term of the nonce budget cannot be read (build/p3371/SPEC.md D29). It is ${Z_OWNER.screen3371}.`);
+    else if (!(pageGap >= 250)) fail('Z19', `SCROLLBACK_MIN_GAP_MS is ${String(pageGap)}; it is at least 250, the floor the nonce budget assumes (build/p3371/SPEC.md D14, D29)`);
     if (gap !== 250) {
       if (watch !== null) fail('Z19', `${rel(watch)}: SCREEN_MIN_ANSWER_GAP_MS is ${String(gap)}; it is 250, declared once (D40)`);
     } else if (memory !== null && skew !== null) {
-      const need = (2 * skew / 1000) * (1000 / gap + 20);
-      if (!(memory >= need)) fail('Z19', `POCKET_NONCE_MEMORY (${String(memory)}) is under (2 * POCKET_CLOCK_SKEW_MS / 1000) * (1000 / SCREEN_MIN_ANSWER_GAP_MS + 20) = ${String(need)}: a phone's own traffic would evict a nonce still inside its window`);
+      const pages = pageGap === null || pageGap <= 0 ? Infinity : 1000 / pageGap;
+      const need = (2 * skew / 1000) * (1000 / gap + 20 + pages + 1);
+      if (!(memory >= need)) fail('Z19', `POCKET_NONCE_MEMORY (${String(memory)}) is under (2 * POCKET_CLOCK_SKEW_MS / 1000) * (1000 / SCREEN_MIN_ANSWER_GAP_MS + 20 + 1000 / SCROLLBACK_MIN_GAP_MS + 1) = ${String(need)}: a phone's own traffic (polls, keys, pages and the status re-read) would evict a nonce still inside its window (build/p3371/SPEC.md D29)`);
     }
     if (watch !== null) {
       const compares = referencesOf(watch, 'SCREEN_MIN_ANSWER_GAP_MS').filter((r) => {
@@ -9225,6 +9416,1098 @@ function screenRules() {
 }
 
 // ---------------------------------------------------------------------------
+// Z23 to Z30 — the Screen scrolls back (Phase 337.1, build/p3371/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+
+/**
+ * THE SCREEN SCROLLS BACK, AND TWO OF 337'S RULES GET A GATE. Phase 337.1 adds
+ * ONE signed read, `GET /v1/scrollback`, answered at once and never held, a
+ * page reader in main (`src/main/screen/scrollback.ts`), an eighth display
+ * field (`#{history_size}`), a `depth` and a `space` on every live picture,
+ * and a three-command far read. And the main session folded into it two of
+ * 337's rules that only a vitest held: D5's agreement and pane clause, and the
+ * 400 ms remote cadence.
+ *
+ * Two of these rules DRIVE the shipping code in-process rather than only read
+ * it (Z23's readScreenLocal and splitRemoteRead, Z24's tickOf), because each
+ * is a rule about what a function ANSWERS, and a reading of its text can be
+ * satisfied by a spelling nobody has written yet. They load the module through
+ * the TypeScript compiler's own transpiler, with the modules that would reach
+ * tmux or another machine stood in by objects that throw, so nothing is
+ * started, nothing is opened and nothing under the person's home is read.
+ */
+
+/** Is `name` exported from `file`, by its declaration's modifier or an `export { … }`? */
+function zExported(file, name) {
+  for (const n of nodesOf(file)) {
+    if (ts.isFunctionDeclaration(n) && n.name?.text === name && n.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) return true;
+    if (ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === name) {
+      const stmt = n.parent?.parent;
+      if (stmt !== undefined && ts.isVariableStatement(stmt) && stmt.modifiers?.some((m) => m.kind === ts.SyntaxKind.ExportKeyword)) return true;
+    }
+    if (ts.isExportDeclaration(n) && n.moduleSpecifier === undefined && n.exportClause !== undefined && ts.isNamedExports(n.exportClause)) {
+      if (n.exportClause.elements.some((e) => e.name.text === name)) return true;
+    }
+  }
+  return false;
+}
+
+/** The one expression a function answers: an arrow's expression body, or its one own return. */
+function zAnswered(fn) {
+  if (fn === null || fn === undefined) return null;
+  if (ts.isArrowFunction(fn) && !ts.isBlock(fn.body)) return bare(fn.body);
+  const rets = ownReturnsOf(fn).filter((r) => r.expression !== undefined);
+  return rets.length === 1 ? bare(rets[0].expression) : null;
+}
+
+/** The operands of an `&&` chain, parentheses taken off. */
+function zAnds(e) {
+  const b = bare(e);
+  if (b !== undefined && ts.isBinaryExpression(b) && b.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken) return [...zAnds(b.left), ...zAnds(b.right)];
+  return [b];
+}
+
+/** Every call named `name` inside a list of functions. */
+const zCallsIn = (fns, name) => fns.flatMap((f) => descendantsOf(f).filter((n) => ts.isCallExpression(n) && calleeName(n) === name));
+
+/** Is `node` inside a loop that sits inside `fn`? */
+function zInLoop(node, fn) {
+  for (let p = node.parent; p !== undefined && p !== fn; p = p.parent) {
+    if (ts.isForStatement(p) || ts.isForOfStatement(p) || ts.isForInStatement(p) || ts.isWhileStatement(p) || ts.isDoStatement(p)) return true;
+  }
+  return false;
+}
+
+/**
+ * A TypeScript module loaded IN THIS PROCESS for a rule to drive: transpiled
+ * by the compiler's own transpiler to CommonJS, its relative and `@shared/`
+ * imports loaded the same way, Node's built-ins required as they are, and
+ * every module named in `stubs` (by its path under `src/`, extension off)
+ * answered by the object given, so nothing reaches tmux, a machine or a file.
+ * Throws when a module cannot be found or loaded; the rule says so by name.
+ */
+function zLoad(path, stubs) {
+  const cache = new Map();
+  const nodeRequire = createRequire(import.meta.url);
+  const resolveTs = (from, spec) => {
+    let base;
+    if (spec.startsWith('@shared/')) base = join(ROOT, 'src', 'shared', spec.slice('@shared/'.length));
+    else if (spec.startsWith('.')) base = resolve(dirname(from), spec);
+    else return null;
+    for (const candidate of [`${base}.ts`, `${base}.tsx`, join(base, 'index.ts')]) if (existsSync(candidate)) return candidate;
+    throw new Error(`${relative(ROOT, from)} imports ${spec}, which resolves to no .ts file`);
+  };
+  const load = (file) => {
+    const seen = cache.get(file);
+    if (seen !== undefined) return seen.exports;
+    const text = readFileSync(file, 'utf8');
+    const js = ts.transpileModule(text, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, esModuleInterop: true }, fileName: file }).outputText;
+    const module = { exports: {} };
+    cache.set(file, module);
+    const req = (spec) => {
+      if (spec === 'electron') return stubs['electron'] ?? {};
+      const target = resolveTs(file, spec);
+      if (target === null) return nodeRequire(spec);
+      const key = relative(join(ROOT, 'src'), target).replace(/\.tsx?$/, '').replace(/\/index$/, '');
+      if (Object.prototype.hasOwnProperty.call(stubs, key)) return stubs[key];
+      return load(target);
+    };
+    new Function('require', 'module', 'exports', js)(req, module, module.exports);
+    return module.exports;
+  };
+  return load(path);
+}
+
+/** A promise's outcome within one turn of the queue, for a driven async function that awaits only fakes. */
+async function zSettle(promise) {
+  try {
+    return { ok: true, value: await promise };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+/** The five fields D5's agreement compares (build/p3371/SPEC.md D5). */
+const AGREE_FIELDS = ['alternate', 'cols', 'history', 'paneId', 'rows'];
+
+/** One display line in SCREEN_FORMAT's eight fields. */
+const zDisplay = ({ pane = '%1', cols = 120, rows = 3, x = 0, y = 2, visible = 1, alternate = 0, history = 500 } = {}) =>
+  [pane, cols, rows, x, y, visible, alternate, history].map(String).join('\t');
+
+/**
+ * Z23, DRIVEN: readScreenLocal over a fake control client. Each case scripts
+ * the two displays of each attempt; the read answers its three lines as one
+ * statement, so a display line is answered from the script and a capture
+ * with its rows.
+ */
+async function zDriveReadLocal(read) {
+  const mod = zLoad(read, {
+    'main/tmux': {
+      execTmux: () => Promise.reject(new Error('the gate stands in for tmux; nothing is spawned')),
+      quoteTmuxArg: (s) => (/^[A-Za-z0-9_%$#{}\-.,:\/=]+$/.test(s) ? s : `'${s.replace(/'/g, "'\\''")}'`)
+    },
+    'main/manifest': {}
+  });
+  const readScreenLocal = mod.readScreenLocal;
+  if (typeof readScreenLocal !== 'function') return { error: 'read.ts exports no readScreenLocal' };
+  const run = async (displays) => {
+    const queue = [...displays];
+    let sends = 0;
+    let attempts = 0;
+    const core = {
+      control: {
+        connected: true,
+        sendCommand: (line) => {
+          sends += 1;
+          if (/^display-message\b/.test(line)) {
+            const next = queue.shift();
+            if (next === undefined) return Promise.resolve([zDisplay()]);
+            return Promise.resolve([zDisplay(next)]);
+          }
+          attempts += 1;
+          return Promise.resolve(['row one', 'row two', 'row three']);
+        }
+      },
+      listSessions: () => [],
+      tmuxIdOf: () => '$1',
+      manifest: { getSession: () => undefined },
+      activity: { noteUserInput: () => {} }
+    };
+    const got = await zSettle(readScreenLocal(core, '$1'));
+    return { ...got, sends, attempts };
+  };
+  const out = [];
+  // A: the first attempt agrees: one attempt, steady, framed by its second display.
+  out.push({ name: 'agree at once', want: { attempts: 1, steady: true, pane: '%1', history: 500 }, got: await run([{}, {}]) });
+  // B: the history alone moves under the first attempt, the second agrees.
+  out.push({ name: 'history moves once', want: { attempts: 2, steady: true, pane: '%1', history: 520 }, got: await run([{ history: 500 }, { history: 510 }, { history: 520 }, { history: 520 }]) });
+  // C to G: each of the five fields disagreeing in BOTH attempts: two attempts and no third, the second's second display served, steady false.
+  const moves = {
+    paneId: [{ pane: '%1' }, { pane: '%2' }, { pane: '%2' }, { pane: '%3' }],
+    cols: [{ cols: 120 }, { cols: 100 }, { cols: 100 }, { cols: 90 }],
+    rows: [{ rows: 3 }, { rows: 4 }, { rows: 4 }, { rows: 5 }],
+    alternate: [{ alternate: 0 }, { alternate: 1 }, { alternate: 1 }, { alternate: 0 }],
+    history: [{ history: 500 }, { history: 600 }, { history: 600 }, { history: 700 }]
+  };
+  for (const [field, script] of Object.entries(moves)) {
+    const last = script[3];
+    out.push({
+      name: `${field} disagrees twice`,
+      want: { attempts: 2, steady: false, pane: last.pane ?? '%1', history: last.history ?? 500 },
+      got: await run(script)
+    });
+  }
+  return { cases: out };
+}
+
+/** Z23, DRIVEN: splitRemoteRead over three answers, each split by count. */
+function zDriveSplitRemote(remote) {
+  const throwing = () => {
+    throw new Error('the gate stands in for the machine; nothing is reached');
+  };
+  const mod = zLoad(remote, {
+    'main/tmux': { execTmux: () => Promise.reject(new Error('no tmux')), quoteTmuxArg: (s) => s },
+    'main/manifest': {},
+    'main/machines/exec-plane': { execOn: throwing },
+    'main/machines/ready-context': { readyRemoteContext: throwing },
+    'main/machines/remote-sessions': { remoteScrollAddress: () => ({ kind: 'gone' }) },
+    // scroll-shapes reaches the control client and the supervisor; the far
+    // read takes its target pattern alone from it.
+    'main/machines/scroll-shapes': { SCROLL_TARGET: /^\$(0|[1-9][0-9]{0,8})$/ }
+  });
+  const split = mod.splitRemoteRead;
+  if (typeof split !== 'function') return { error: 'remote-screen.ts exports no splitRemoteRead' };
+  const three = (a, b) => [zDisplay(a), 'row one', 'row two', 'row three', zDisplay(b), ''].join('\n');
+  const cases = [];
+  const one = (name, stdout, want) => {
+    let value;
+    try {
+      value = split(stdout);
+    } catch (err) {
+      value = { threw: err instanceof Error ? err.message : String(err) };
+    }
+    cases.push({ name, want, value });
+  };
+  one('agreeing displays', three({}, {}), { steady: true });
+  for (const [field, a, b] of [['paneId', { pane: '%1' }, { pane: '%2' }], ['history', { history: 500 }, { history: 530 }], ['cols', { cols: 120 }, { cols: 80 }], ['rows', { rows: 3 }, { rows: 4 }], ['alternate', { alternate: 0 }, { alternate: 1 }]]) {
+    // The capture's count follows the FIRST display (split by count), so a
+    // moved rows field is answered with its own count.
+    const rows = a.rows ?? 3;
+    const stdout = [zDisplay(a), ...Array.from({ length: rows }, (_, i) => `row ${String(i)}`), zDisplay(b), ''].join('\n');
+    one(`${field} disagrees`, stdout, { steady: false });
+  }
+  return { cases };
+}
+
+/**
+ * Z24, DRIVEN: tickOf, lifted out of createScreenWatch's closure with every
+ * declaration it names from watch.ts, transpiled, and asked about four rows.
+ */
+function zDriveTickOf(watch) {
+  const decls = functionsNamed(watch, 'tickOf');
+  if (decls.length !== 1) return { error: `watch.ts declares tickOf ${String(decls.length)} time(s)` };
+  const wanted = new Set(['tickOf']);
+  const texts = new Map();
+  const queue = ['tickOf'];
+  const declOf = (name) => nodesOf(watch).find((n) => (ts.isVariableDeclaration(n) || ts.isFunctionDeclaration(n)) && n.name !== undefined && ts.isIdentifier(n.name) && n.name.text === name && (ts.isFunctionDeclaration(n) || n.initializer !== undefined));
+  while (queue.length > 0) {
+    const name = queue.shift();
+    const d = declOf(name);
+    if (d === undefined) continue;
+    const text = ts.isFunctionDeclaration(d) ? d.getText() : `const ${d.getText()};`;
+    texts.set(name, text);
+    const fn = ts.isFunctionDeclaration(d) ? d : bare(d.initializer);
+    const bound = new Set(ts.isFunctionLike(fn) ? fn.parameters.map((p) => (ts.isIdentifier(p.name) ? p.name.text : '')) : []);
+    for (const id of descendantsOf(d).filter((n) => ts.isIdentifier(n) && n !== d.name)) {
+      if (wanted.has(id.text) || bound.has(id.text)) continue;
+      const p = id.parent;
+      if (p !== undefined && ((ts.isPropertyAccessExpression(p) && p.name === id) || (ts.isPropertyAssignment(p) && p.name === id) || ts.isTypeReferenceNode(p) || ts.isQualifiedName(p))) continue;
+      const decl = declOf(id.text);
+      if (decl === undefined) continue;
+      // Only module-level literals and the closure's own local functions: a
+      // name the factory's deps hand in is not read here.
+      const init = ts.isFunctionDeclaration(decl) ? decl : bare(decl.initializer);
+      if (!(ts.isFunctionLike(init) || ts.isNumericLiteral(init) || ts.isStringLiteralLike(init))) continue;
+      wanted.add(id.text);
+      queue.push(id.text);
+    }
+  }
+  const order = [...texts.keys()].reverse();
+  const source = `${order.map((n) => texts.get(n)).join('\n')}\nreturn tickOf;`;
+  const js = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.None, target: ts.ScriptTarget.ES2022 } }).outputText;
+  let tickOf;
+  try {
+    tickOf = new Function(js)();
+  } catch (err) {
+    return { error: `tickOf could not be lifted out of watch.ts: ${err instanceof Error ? err.message : String(err)}` };
+  }
+  const tick = zNumber(watch, 'SCREEN_TICK_MS');
+  const far = zNumber(watch, 'SCREEN_TICK_REMOTE_MS');
+  const connected = { control: { connected: true } };
+  const down = { control: { connected: false } };
+  const local = { id: 's1', status: 'running' };
+  const remote = { id: 's2', status: 'running', machine: { id: 'm1', label: 'far' } };
+  const cases = [
+    ['a row on this Mac, the control client connected', connected, local, tick],
+    ['a row on another machine, the control client connected', connected, remote, far],
+    ['a row on this Mac, the control client down', down, local, far],
+    ['a row on another machine, the control client down', down, remote, far],
+    ['no core at all', null, local, far]
+  ];
+  const out = [];
+  for (const [name, core, row, want] of cases) {
+    let got;
+    try {
+      got = tickOf(core, row);
+    } catch (err) {
+      got = `threw: ${err instanceof Error ? err.message : String(err)}`;
+    }
+    out.push({ name, want, got });
+  }
+  return { cases: out };
+}
+
+async function scrollbackRules() {
+  const READ = join(ROOT, 'src', 'main', 'screen', 'read.ts');
+  const KEYS = join(ROOT, 'src', 'main', 'screen', 'keys.ts');
+  const WATCH = join(ROOT, 'src', 'main', 'screen', 'watch.ts');
+  const COMPOSE = join(ROOT, 'src', 'main', 'screen', 'compose.ts');
+  const ROUTES = join(DOMAIN, 'routes.ts');
+  const CONTRACT = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  const screenDomain = [...sourcesUnder(join(ROOT, 'src', 'main', 'screen')), ...(existsSync(REMOTE_SCREEN) ? [REMOTE_SCREEN] : [])];
+  const has = (p, id, owner) => {
+    if (existsSync(p)) return p;
+    fail(id, `${rel(p)} does not exist, so this rule read nothing. It is ${owner} (build/p3371/SPEC.md §10). A gate that passed here would go green on the day the scrollback does not exist.`);
+    return null;
+  };
+
+  // -------------------------------------------------------------------------
+  // Z23, THE TWO DISPLAYS AND THE PANE.
+  // -------------------------------------------------------------------------
+  {
+    const read = has(READ, 'Z23', Z_OWNER.screen3371);
+    const decls = declarationsOf(screenDomain, 'agree');
+    checked('Z23', 3);
+    let agreeFn = null;
+    if (decls.length !== 1 || read === null || decls[0].file !== read) {
+      fail('Z23', `agree is declared ${String(decls.length)} time(s) (${decls.map((d) => rel(d.file)).join(', ') || 'nowhere'}); ONCE, in src/main/screen/read.ts, the one comparison of two displays (build/p3371/SPEC.md §5.3.2, D5)`);
+    } else {
+      agreeFn = ts.isFunctionDeclaration(decls[0].n) ? decls[0].n : bare(decls[0].n.initializer);
+      if (!zExported(read, 'agree')) fail('Z23', `${where(read, decls[0].n)}: agree is not exported, so scrollback.ts and remote-screen.ts would spell a second comparison (§5.3.2: EXPORTED once for both)`);
+      const params = (agreeFn.parameters ?? []).map((p) => (ts.isIdentifier(p.name) ? p.name.text : null));
+      const answered = zAnswered(agreeFn);
+      const operands = answered === null ? [] : zAnds(answered);
+      const fields = [];
+      let shapeOk = answered !== null && params.length === 2 && params.every((p) => p !== null);
+      for (const o of operands) {
+        if (!ts.isBinaryExpression(o) || o.operatorToken.kind !== ts.SyntaxKind.EqualsEqualsEqualsToken) {
+          shapeOk = false;
+          continue;
+        }
+        const l = bare(o.left);
+        const r = bare(o.right);
+        if (!ts.isPropertyAccessExpression(l) || !ts.isPropertyAccessExpression(r) || l.name.text !== r.name.text) {
+          shapeOk = false;
+          continue;
+        }
+        const sides = [l.expression.getText(), r.expression.getText()].sort();
+        if (J(sides) !== J([...params].sort())) shapeOk = false;
+        fields.push(l.name.text);
+      }
+      if (!shapeOk || J([...fields].sort()) !== J(AGREE_FIELDS) || fields.length !== AGREE_FIELDS.length) {
+        fail('Z23', `${where(read, agreeFn)}: agree answers ${J(answered?.getText().replace(/\s+/g, ' ').slice(0, 160) ?? null)}; it is ONE && chain of exactly five === comparisons of its two displays, paneId, cols, rows, alternate and history (build/p3371/SPEC.md D5: the history size disagreed in 16 of 400 blocks at a flood, §14 M4)`);
+      }
+    }
+    // The one comparison: readScreenLocal, splitRemoteRead and scrollback.ts call it.
+    if (read !== null) {
+      const local = oneFunction(read, 'readScreenLocal');
+      checked('Z23');
+      if (local === null) fail('Z23', `${rel(read)} declares no single readScreenLocal`);
+      else if (zCallsIn(reachedFunctions(read, local), 'agree').length === 0) fail('Z23', `${where(read, local)}: readScreenLocal never calls agree(, so its two displays are not compared by the one comparison (D5)`);
+    }
+    const remote = has(REMOTE_SCREEN, 'Z23', Z_OWNER.screen3371);
+    if (remote !== null) {
+      const split = oneFunction(remote, 'splitRemoteRead');
+      checked('Z23', 2);
+      if (!importedNames(remote, (sp) => /(?:^|\/)screen\/read$/.test(sp)).has('agree')) fail('Z23', `${rel(remote)} does not import agree from ../screen/read; the far read compares its two displays by the one comparison (D6)`);
+      if (split === null || zCallsIn(reachedFunctions(remote, split), 'agree').length === 0) fail('Z23', `${rel(remote)}: splitRemoteRead does not call agree(, so a far picture is not steady by D5's rule (D6)`);
+    }
+    const page = has(SCROLLBACK, 'Z23', Z_OWNER.screen3371);
+    if (page !== null) {
+      checked('Z23', 2);
+      if (!importedNames(page, (sp) => /^\.\/read$/.test(sp)).has('agree')) fail('Z23', `${rel(page)} does not import agree from ./read; a page's two displays are compared by the one comparison (build/p3371/SPEC.md D9)`);
+      if (callsOf(page).filter((c) => calleeName(c) === 'agree').length === 0) fail('Z23', `${rel(page)} never calls agree(, so a page could be served from two frames (D9)`);
+    }
+    // NO SECOND SPELLING: no a.F === b.F (or !==) of one of the five fields
+    // outside agree, in read.ts, remote-screen.ts or scrollback.ts.
+    for (const file of [read, remote, page].filter((f) => f !== null)) {
+      for (const n of nodesOf(file)) {
+        if (!ts.isBinaryExpression(n) || ![ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken, ts.SyntaxKind.EqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsToken].includes(n.operatorToken.kind)) continue;
+        const l = bare(n.left);
+        const r = bare(n.right);
+        if (!ts.isPropertyAccessExpression(l) || !ts.isPropertyAccessExpression(r) || l.name.text !== r.name.text || !AGREE_FIELDS.includes(l.name.text)) continue;
+        if (agreeFn !== null && inside(n, agreeFn)) continue;
+        checked('Z23');
+        fail('Z23', `${where(file, n)}: ${J(n.getText().slice(0, 60))} compares two displays' ${l.name.text} outside agree; a second spelling of the agreement drifts from the first (§5.3.2)`);
+      }
+    }
+    // readScreenLocal: the attempt exactly twice, never in a loop, the second served.
+    if (read !== null) {
+      const local = oneFunction(read, 'readScreenLocal');
+      if (local !== null) {
+        const localArrows = descendantsOf(local).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && (ts.isArrowFunction(bare(n.initializer)) || ts.isFunctionExpression(bare(n.initializer))));
+        const attemptNames = new Set([...localArrows.map((n) => n.name.text), ...nodesOf(read).filter((n) => ts.isFunctionDeclaration(n) && n.name !== undefined && /^attempt/i.test(n.name.text)).map((n) => n.name.text)]);
+        const own = localArrows.map((n) => bare(n.initializer));
+        const calls = descendantsOf(local).filter((n) => ts.isCallExpression(n) && ts.isIdentifier(n.expression) && attemptNames.has(n.expression.text) && !own.some((f) => inside(n, f)) && !localArrows.some((d) => d.name === n.expression));
+        checked('Z23', 3);
+        if (calls.length !== 2) fail('Z23', `${where(read, local)}: readScreenLocal calls its attempt ${String(calls.length)} time(s); exactly twice, once and once more on a disagreement, and a second disagreement is served (D5; a third read would wait on a flood)`);
+        for (const c of calls) if (zInLoop(c, local)) fail('Z23', `${where(read, c)}: an attempt is called inside a loop; readScreenLocal reads at most twice`);
+        const second = calls.length === 2 ? calls[1] : null;
+        let holder = null;
+        for (let p = second?.parent; p !== undefined && p !== local; p = p.parent) {
+          if (ts.isVariableDeclaration(p) && ts.isIdentifier(p.name)) {
+            holder = p.name.text;
+            break;
+          }
+        }
+        const served = holder !== null && ownReturnsOf(local).some((r) => r.expression !== undefined && descendantsOf(r.expression).some((n) => ts.isIdentifier(n) && n.text === holder) && !(ts.isBinaryExpression(bare(r.expression)) && /===|!==/.test(bare(r.expression).operatorToken.getText())));
+        if (!served) fail('Z23', `${where(read, local)}: no return of readScreenLocal serves the second attempt's reading; a second disagreement is served with the second's values, steady false, never dropped (D5)`);
+      }
+      // Framed by the attempt's SECOND display, the youngest.
+      const displays = nodesOf(read).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'display' && ts.isPropertyAccessExpression(bare(n.initializer)));
+      checked('Z23');
+      if (displays.length === 0 || displays.some((n) => bare(n.initializer).name.text !== 'second')) {
+        fail('Z23', `${rel(read)}: a reading's display is ${J(displays.map((n) => n.initializer.getText()))}; it is the attempt's SECOND display, the youngest, so the keys aim at the pane the read last saw (D5)`);
+      }
+      const steadyTrue = nodesOf(read).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'steady' && bare(n.initializer).kind === ts.SyntaxKind.TrueKeyword);
+      for (const n of steadyTrue) {
+        checked('Z23');
+        fail('Z23', `${where(read, n)}: a reading is made with steady: true as a literal; steady is what agree( answered for the attempt served (§5.3.2)`);
+      }
+    }
+    // DRIVEN: what readScreenLocal and splitRemoteRead answer.
+    if (read !== null) {
+      let driven;
+      try {
+        driven = await zDriveReadLocal(read);
+      } catch (err) {
+        driven = { error: err instanceof Error ? err.message : String(err) };
+      }
+      checked('Z23');
+      if (driven.error !== undefined) fail('Z23', `readScreenLocal could not be driven in-process: ${driven.error}`);
+      else {
+        for (const c of driven.cases) {
+          checked('Z23');
+          const v = c.got.ok ? c.got.value : null;
+          const got = { attempts: c.got.attempts, steady: v?.steady ?? null, pane: v?.display?.paneId ?? null, history: v?.display?.history ?? null };
+          if (J(got) !== J(c.want)) fail('Z23', `readScreenLocal, driven, "${c.name}": answered ${c.got.ok ? J(got) : `a throw (${String(c.got.error)})`}; it answers ${J(c.want)} (D5: a disagreement on any of the five fields is read once more, a second is served from the second attempt's second display with steady false, and no third read)`);
+        }
+      }
+    }
+    if (remote !== null) {
+      let driven;
+      try {
+        driven = zDriveSplitRemote(remote);
+      } catch (err) {
+        driven = { error: err instanceof Error ? err.message : String(err) };
+      }
+      checked('Z23');
+      if (driven.error !== undefined) fail('Z23', `splitRemoteRead could not be driven in-process: ${driven.error}`);
+      else {
+        for (const c of driven.cases) {
+          checked('Z23');
+          const steady = c.value !== null && typeof c.value === 'object' ? c.value.steady : undefined;
+          if (steady !== c.want.steady) fail('Z23', `splitRemoteRead, driven, "${c.name}": answered ${J(c.value === null ? null : { steady, threw: c.value.threw })}; a far picture is steady exactly when its two displays agree on the five fields (D6)`);
+        }
+      }
+    }
+    // THE KEYS' PANE (D5's pane clause): every -t aims at the fresh reading's display.paneId.
+    const keys = has(KEYS, 'Z23', Z_OWNER.keys);
+    if (keys !== null) {
+      const fresh = nodesOf(keys).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && descendantsOf(n.initializer).some((m) => ts.isCallExpression(m) && calleeName(m) === 'readFresh')).map((n) => n.name.text);
+      const isFreshPane = (e) => {
+        const b = bare(e);
+        return b !== undefined && ts.isPropertyAccessExpression(b) && b.name.text === 'paneId' && ts.isPropertyAccessExpression(b.expression) && b.expression.name.text === 'display' && ts.isIdentifier(b.expression.expression) && fresh.includes(b.expression.expression.text);
+      };
+      const paneVars = nodesOf(keys).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && isFreshPane(n.initializer)).map((n) => n.name.text);
+      checked('Z23', 2);
+      if (fresh.length === 0) fail('Z23', `${rel(keys)}: no reading is taken from readFresh(, so the act's pane cannot be the fresh read's`);
+      for (const n of nodesOf(keys).filter((m) => ts.isPropertyAccessExpression(m) && m.name.text === 'paneId')) {
+        checked('Z23');
+        if (!isFreshPane(n)) fail('Z23', `${where(keys, n)}: ${J(n.getText())} names a pane other than the fresh reading's display.paneId; the act aims at the pane the fresh read named and nowhere else (D5)`);
+      }
+      const targets = [];
+      for (const arr of nodesOf(keys).filter((n) => ts.isArrayLiteralExpression(n))) {
+        arr.elements.forEach((e, i) => {
+          if (ts.isStringLiteral(e) && e.text === '-t') targets.push({ arr, at: i, value: arr.elements[i + 1] });
+        });
+      }
+      if (targets.length === 0) fail('Z23', `${rel(keys)}: no argv names -t, so nothing of the act's pane can be read`);
+      for (const t of targets) {
+        checked('Z23');
+        const v = t.value === undefined ? undefined : bare(t.value);
+        if (v === undefined || !ts.isIdentifier(v)) {
+          fail('Z23', `${where(keys, t.arr)}: -t is followed by ${J(v?.getText() ?? null)}; it is followed by the fresh reading's pane`);
+          continue;
+        }
+        let fn = t.arr.parent;
+        while (fn !== undefined && !ts.isFunctionLike(fn)) fn = fn.parent;
+        const at = fn === undefined ? -1 : fn.parameters.findIndex((p) => ts.isIdentifier(p.name) && p.name.text === v.text);
+        // Scope first: a parameter of the function holding the argv shadows
+        // any const of the same name, so it is read through its call sites.
+        if (at === -1) {
+          const decl = nodesOf(keys).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === v.text && n.initializer !== undefined && isFreshPane(n.initializer) && n.parent?.parent?.parent !== undefined && inside(t.arr, n.parent.parent.parent));
+          if (decl !== undefined) continue;
+        }
+        const fname = fn === undefined ? null : ts.isFunctionDeclaration(fn) ? fn.name?.text ?? null : enclosingName(descendantsOf(fn)[1] ?? fn);
+        const sites = fname === null ? [] : callsOf(keys).filter((c) => ts.isIdentifier(c.expression) && c.expression.text === fname);
+        const ok = at !== -1 && sites.length > 0 && sites.every((c) => {
+          const a = bare(c.arguments[at]);
+          return a !== undefined && ((ts.isIdentifier(a) && paneVars.includes(a.text)) || isFreshPane(a));
+        });
+        if (!ok) fail('Z23', `${where(keys, t.arr)}: -t ${v.text} is not the fresh reading's display.paneId at every call of ${String(fname)}; the keys write aims at the pane the fresh read's display names (build/p3371/SPEC.md D5, keys.ts:296)`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z24, THE CADENCE.
+  // -------------------------------------------------------------------------
+  {
+    const watch = has(WATCH, 'Z24', Z_OWNER.screen);
+    if (watch !== null) {
+      const tick = zNumber(watch, 'SCREEN_TICK_MS');
+      const far = zNumber(watch, 'SCREEN_TICK_REMOTE_MS');
+      checked('Z24', 3);
+      if (tick !== 100) fail('Z24', `${rel(watch)}: SCREEN_TICK_MS is ${String(tick)}; it is 100, one numeric literal declared once (build/p337/SPEC.md D3)`);
+      if (far !== 400) fail('Z24', `${rel(watch)}: SCREEN_TICK_REMOTE_MS is ${String(far)}; it is 400 (build/p337/SPEC.md §Attack A8: an exec to another machine costs ten times a local read)`);
+      if (tick !== null && far !== null && !(far >= 4 * tick)) fail('Z24', `SCREEN_TICK_REMOTE_MS (${String(far)}) is under four times SCREEN_TICK_MS (${String(tick)}); a far machine is read at most a quarter as often as this Mac (D36)`);
+      const tickOfs = functionsNamed(watch, 'tickOf');
+      const tickOfDecls = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'tickOf');
+      checked('Z24');
+      if (tickOfs.length !== 1 || tickOfDecls.length !== 1) fail('Z24', `tickOf is declared ${String(tickOfDecls.length)} time(s); ONCE, in watch.ts, the one place a read's cadence is decided (D36)`);
+      else {
+        const driven = zDriveTickOf(watch);
+        if (driven.error !== undefined) fail('Z24', `${rel(watch)}: ${driven.error}`);
+        else {
+          for (const c of driven.cases) {
+            checked('Z24');
+            if (c.got !== c.want) fail('Z24', `tickOf, driven, for ${c.name}: answered ${J(c.got)}; it answers ${J(c.want)} (SCREEN_TICK_REMOTE_MS for a row with a machine or a core whose control client is not connected, SCREEN_TICK_MS otherwise, D36)`);
+          }
+        }
+        const body = tickOfs[0];
+        const scheduleFn = oneFunction(watch, 'schedule');
+        // Outside tickOf, SCREEN_TICK_REMOTE_MS is read nowhere, and
+        // SCREEN_TICK_MS only as a poll's own interval.
+        for (const r of referencesOf(watch, 'SCREEN_TICK_REMOTE_MS')) {
+          checked('Z24');
+          if (!inside(r, body)) fail('Z24', `${where(watch, r)}: SCREEN_TICK_REMOTE_MS is read outside tickOf; a read's cadence is asked of tickOf( alone`);
+        }
+        for (const r of referencesOf(watch, 'SCREEN_TICK_MS')) {
+          if (inside(r, body)) continue;
+          checked('Z24');
+          const call = r.parent !== undefined && ts.isCallExpression(r.parent) ? r.parent : null;
+          const pollInterval = call !== null && calleeName(call) === 'setInterval' && call.arguments[1] === r;
+          if (!pollInterval) fail('Z24', `${where(watch, r)}: SCREEN_TICK_MS is read outside tickOf other than as a poll's own interval (${J(r.parent?.getText().slice(0, 60) ?? '')}); a read is scheduled at tickOf( alone (D36)`);
+        }
+        // pump, startRead and the answer's freshness test each name tickOf(,
+        // and the read loop writes no number but 0 and 1 (a count and an
+        // emptiness test), so no cadence is spelled inside it.
+        for (const name of ['pump', 'startRead']) {
+          const fn = oneFunction(watch, name);
+          checked('Z24');
+          if (fn === null || !descendantsOf(fn).some((n) => ts.isCallExpression(n) && calleeName(n) === 'tickOf')) fail('Z24', `${rel(watch)}: ${name} ${fn === null ? 'is not declared once' : 'names no tickOf('}; its cadence is tickOf('s (D36)`);
+          for (const lit of fn === null ? [] : descendantsOf(fn).filter((n) => ts.isNumericLiteral(n) && !/^[01]$/.test(n.text))) {
+            checked('Z24');
+            fail('Z24', `${where(watch, lit)}: ${name} writes the number ${lit.text}; no numeric literal paces a read, a tick is tickOf('s (D36)`);
+          }
+        }
+        const answer = verbOf(watch, 'createScreenWatch', 'answer');
+        const fresh = answer === null ? [] : descendantsOf(answer).filter((n) => ts.isBinaryExpression(n) && [ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.LessThanToken].includes(n.operatorToken.kind) && /\blatest\b/.test(n.left.getText()));
+        checked('Z24');
+        if (fresh.length === 0 || fresh.some((n) => !(ts.isCallExpression(bare(n.right)) && calleeName(bare(n.right)) === 'tickOf'))) {
+          fail('Z24', `${rel(watch)}: the answer's freshness test (a reading younger than a tick) is ${J(fresh.map((n) => n.getText()))}; it compares against tickOf( (D36)`);
+        }
+        // No numeric literal schedules a read.
+        const schedules = callsOf(watch).filter((c) => ts.isIdentifier(c.expression) && c.expression.text === 'schedule');
+        const timers = callsOf(watch).filter((c) => /^(?:setTimeout|setInterval)$/.test(calleeName(c) ?? '') && !(scheduleFn !== null && inside(c, scheduleFn)));
+        const nexts = nodesOf(watch).filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && /\.nextReadAt$/.test(n.left.getText()));
+        for (const [what, list, argOf] of [['schedule(', schedules, (c) => c.arguments[1]], ['a timer', timers, (c) => c.arguments[1]], ['nextReadAt =', nexts, (n) => n.right]]) {
+          for (const x of list) {
+            checked('Z24');
+            const arg = argOf(x);
+            const lits = arg === undefined ? [] : descendantsOf(arg).filter((n) => ts.isNumericLiteral(n));
+            if (lits.length > 0) fail('Z24', `${where(watch, x)}: ${what} is handed ${J(arg.getText().slice(0, 60))}, which holds the number ${lits[0].text}; no numeric literal schedules a read, a tick is tickOf('s and a nudge SCREEN_NUDGE_MS (D36)`);
+          }
+        }
+        // SCREEN_NUDGE_MS: in nudge( alone, or behind the settle.
+        const nudge = verbOf(watch, 'createScreenWatch', 'nudge');
+        const settleVars = new Set(nodesOf(watch).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && /\bsettles\.get\(/.test(n.initializer.getText())).map((n) => n.name.text));
+        const behindSettle = (r) => {
+          for (let p = r.parent, child = r; p !== undefined; child = p, p = p.parent) {
+            if (ts.isConditionalExpression(p) && p.whenTrue === child && /\bsettles\.has\(/.test(p.condition.getText())) return true;
+            if (ts.isIfStatement(p) && p.thenStatement === child) {
+              const cond = p.expression.getText();
+              if (/\bsettles\.has\(/.test(cond) || [...settleVars].some((v) => new RegExp(`^${v}\\s*!==\\s*undefined$|^${v}$`).test(cond.trim()))) return true;
+            }
+            if (ts.isFunctionLike(p)) return false;
+          }
+          return false;
+        };
+        for (const r of referencesOf(watch, 'SCREEN_NUDGE_MS')) {
+          checked('Z24');
+          if (nudge !== null && inside(r, nudge)) continue;
+          if (behindSettle(r)) continue;
+          fail('Z24', `${where(watch, r)}: a read is scheduled at SCREEN_NUDGE_MS outside nudge( and outside the settle (${J(r.parent?.getText().slice(0, 70) ?? '')}); the nudge is 337 D4's ONE named exception, brought forward after a keys write, and a second cannot hide behind it (build/p3371/SPEC.md §Attack B22)`);
+        }
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z25, THE PAGE ROUTE.
+  // -------------------------------------------------------------------------
+  {
+    const routes = has(ROUTES, 'Z25', Z_OWNER.door3371);
+    if (routes !== null) {
+      const q = oneFunction(routes, 'readScrollbackQuery');
+      checked('Z25');
+      if (q === null) fail('Z25', `${rel(routes)} declares no single readScrollbackQuery, the one reader of a page's query (build/p3371/SPEC.md §5.3.1)`);
+      else {
+        const reach = reachedFunctions(routes, q);
+        const nodes = reach.flatMap((f) => descendantsOf(f));
+        const literals = new Set(nodes.filter((n) => ts.isStringLiteral(n)).map((n) => n.text));
+        // The names, from the reach or a const array it reads.
+        const arrays = nodes.filter((n) => ts.isIdentifier(n)).map((n) => constNamed(routes, n.text)).filter((d) => d !== null && ts.isArrayLiteralExpression(bare(d.initializer)));
+        for (const d of arrays) for (const e of bare(d.initializer).elements) if (ts.isStringLiteral(e)) literals.add(e.text);
+        const NAMES = ['count', 'depth', 'from', 'id', 'keep', 'wrap'];
+        checked('Z25', 6);
+        const nameLists = [...nodes.filter((n) => ts.isArrayLiteralExpression(n)), ...arrays.map((d) => bare(d.initializer))].map((a) => a.elements.filter((e) => ts.isStringLiteral(e)).map((e) => e.text).sort()).filter((l) => l.length >= 2 && l.every((x) => /^[a-z]+$/.test(x)));
+        if (!nameLists.some((l) => J(l) === J(NAMES))) fail('Z25', `${where(routes, q)}: readScrollbackQuery holds no list of exactly id, from, count, depth, wrap and keep (lists read: ${J(nameLists)}); a page's query names those six and nothing else (D7)`);
+        for (const word of ['parameter', 'repeated', 'id', 'number', 'range', 'keep']) {
+          if (!literals.has(word)) fail('Z25', `${where(routes, q)}: readScrollbackQuery never refuses with ${J(word)}; a refusal is one of the six words, never a value (§5.3.1)`);
+        }
+        for (const n of nodes) {
+          if (n.kind === ts.SyntaxKind.RegularExpressionLiteral || (ts.isNewExpression(n) && n.expression.getText() === 'RegExp') || (ts.isCallExpression(n) && /^(?:RegExp|parseInt|parseFloat)$|^Number\.(?:parseInt|parseFloat)$/.test(n.expression.getText()))) {
+            checked('Z25');
+            fail('Z25', `${where(routes, n)}: readScrollbackQuery reads with ${J(n.getText().slice(0, 40))}; every number is read by a character walk with no pattern, so a sign, a space, a leading zero or an exponent is refused (D7, R1)`);
+          }
+        }
+        const walks = nodes.some((n) => ts.isBinaryExpression(n) && /^'0'$|^'9'$/.test(n.right.getText()) && /[<>]=?/.test(n.operatorToken.getText())) || nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'charCodeAt');
+        checked('Z25');
+        if (!walks) fail('Z25', `${where(routes, q)}: no character walk over the digits ('0' to '9', or charCodeAt) in readScrollbackQuery's reach; a number is read one character at a time (D7)`);
+        const refs = new Set(nodes.filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+        for (const c of ['POCKET_SCROLLBACK_MAX_COUNT', 'POCKET_SCROLLBACK_MAX_INDEX', 'POCKET_SCREEN_MAX_COLS']) {
+          checked('Z25');
+          if (!refs.has(c) || !importedNames(routes, (sp) => /@shared\/ipc\/pocket$/.test(sp)).has(c)) fail('Z25', `${where(routes, q)}: readScrollbackQuery does not read ${c} from the contract; D7's bounds (count 1 to 128, an index 0 to 100,000, wrap 1 to 512) are the contract's constants, never re-spelled`);
+        }
+        const sum = nodes.some((n) => ts.isBinaryExpression(n) && [ts.SyntaxKind.GreaterThanToken, ts.SyntaxKind.LessThanEqualsToken, ts.SyntaxKind.LessThanToken, ts.SyntaxKind.GreaterThanEqualsToken].includes(n.operatorToken.kind) && /\bfrom\b[^<>]*\+[^<>]*\bcount\b|\bcount\b[^<>]*\+[^<>]*\bfrom\b/.test(n.getText()) && /\bdepth\b/.test(n.getText()));
+        checked('Z25');
+        if (!sum) fail('Z25', `${where(routes, q)}: readScrollbackQuery does not hold from + count <= depth; a page past the top of the phone's own index space is no page (build/p3371/SPEC.md D7, §Attack B1)`);
+        const strict = [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken];
+        const keepEq = ['top', 'bottom'].every((w) => nodes.some((n) => ts.isBinaryExpression(n) && strict.includes(n.operatorToken.kind) && (n.left.getText() === `'${w}'` || n.right.getText() === `'${w}'`)));
+        checked('Z25');
+        if (!keepEq) fail('Z25', `${where(routes, q)}: keep is not compared strictly (=== or !==) with 'top' and 'bottom'; it is exactly one of the two words, never cased or trimmed (D7)`);
+        for (const n of nodes) {
+          if (ts.isCallExpression(n) && ts.isPropertyAccessExpression(n.expression) && /^(?:toLowerCase|toUpperCase|trim|trimStart|trimEnd|normalize|localeCompare)$/.test(n.expression.name.text)) {
+            checked('Z25');
+            fail('Z25', `${where(routes, n)}: readScrollbackQuery calls .${n.expression.name.text}(; a query value is compared exactly as the phone sent it (D7)`);
+          }
+        }
+      }
+      // The route: null for every refusal, absence, rejection and removal.
+      const verb = returnedMethod(routes, 'createPocketRoutes', 'scrollback') ?? verbOf(routes, 'createPocketRoutes', 'scrollback');
+      checked('Z25', 5);
+      if (verb === null) fail('Z25', `${rel(routes)}: createPocketRoutes answers no scrollback verb (build/p3371/SPEC.md §5.3.1)`);
+      else {
+        const text = codeOfNode(routes, verb);
+        if (!/\breadScrollbackQuery\(/.test(text) || !/!\s*\w+\.ok\)\s*return null|\.ok\s*(?:===|!==)\s*(?:false|true)/.test(text)) fail('Z25', `${where(routes, verb)}: the route does not read its query through readScrollbackQuery( and answer a refusal null (§5.3.1)`);
+        if (!/facts\.scrollback\s*===\s*undefined\)\s*return null/.test(text)) fail('Z25', `${where(routes, verb)}: an absent facts.scrollback is not answered null; ABSENT IS THE ROUTE NOT EXISTING (§5.3.1)`);
+        const catches = descendantsOf(verb).filter((n) => ts.isCatchClause(n) && /\breturn null\b/.test(n.block.getText()));
+        if (catches.length === 0 && !/\.catch\(\s*\(\)\s*=>\s*null\s*\)/.test(text)) fail('Z25', `${where(routes, verb)}: a reader that rejects is not answered null; every page is answered, never left hanging`);
+        const lookups = descendantsOf(verb).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sessionById');
+        const firstAwait = descendantsOf(verb).find((n) => ts.isAwaitExpression(n));
+        if (lookups.length < 2 || firstAwait === undefined || !lookups.some((c) => c.getStart() > firstAwait.getEnd())) fail('Z25', `${where(routes, verb)}: the session is not looked up again after the read; a session removed while its page was read is answered as an id nobody has (§5.3.1)`);
+        if (!/\bscrollbackOf\(/.test(text)) fail('Z25', `${where(routes, verb)}: the page is not re-composed through scrollbackOf(`);
+      }
+      // scrollbackOf, field by field.
+      const of = oneFunction(routes, 'scrollbackOf');
+      checked('Z25');
+      if (of === null) fail('Z25', `${rel(routes)} declares no single scrollbackOf; the page answer is re-composed field by field (§5.3.1)`);
+      else {
+        const reach = reachedFunctions(routes, of);
+        const nodes = reach.flatMap((f) => descendantsOf(f));
+        const text = reach.map((f) => codeOfNode(routes, f)).join('\n');
+        for (const n of nodes) {
+          if (ts.isSpreadAssignment(n) || ts.isSpreadElement(n)) {
+            checked('Z25');
+            fail('Z25', `${where(routes, n)}: the page answer spreads ${J(n.getText().slice(0, 40))}; it is composed field by field, so nothing else on the reader's object can leave`);
+          }
+          if (ts.isPropertyAssignment(n) && ts.isPropertyAccessExpression(bare(n.initializer)) && /^(?:rows|styles)$/.test(bare(n.initializer).name.text)) {
+            checked('Z25');
+            fail('Z25', `${where(routes, n)}: ${J(n.getText().slice(0, 50))} hands the reader's own ${bare(n.initializer).name.text} on; the arrays are fresh`);
+          }
+          if (ts.isCallExpression(n) && /JSON\.parse|structuredClone|Object\.assign/.test(n.expression.getText())) {
+            checked('Z25');
+            fail('Z25', `${where(routes, n)}: the page answer is copied with ${n.expression.getText()}; it is composed field by field`);
+          }
+        }
+        // Read through the module consts the reach names (a sentence map), one level.
+        const refs = new Set(nodes.filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+        for (const name of [...refs]) {
+          const d = constNamed(routes, name);
+          if (d !== null && d.initializer !== undefined && !ts.isFunctionLike(bare(d.initializer))) for (const m of descendantsOf(d.initializer)) if (ts.isIdentifier(m)) refs.add(m.text);
+        }
+        for (const [name, why] of [['SCREEN_ENDED', 'ended'], ['SCREEN_UNREACHABLE', 'unreachable'], ['SCROLLBACK_MOVED', 'moved'], ['SCROLLBACK_BUSY', 'busy'], ['POCKET_SCROLLBACK_MAX_COUNT', 'the row cap'], ['POCKET_SCREEN_MAX_BYTES', 'the byte cap']]) {
+          checked('Z25');
+          if (!refs.has(name)) fail('Z25', `${where(routes, of)}: scrollbackOf does not read ${name} (${why}); ${/^SCR/.test(name) ? 'why is one of four words with main’s own sentence' : 'the page holds the contract’s cap'} (§5.3.1)`);
+        }
+        const words = ['ended', 'unreachable', 'moved', 'busy'];
+        checked('Z25');
+        if (!words.every((w) => nodes.some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && (n.left.getText() === `'${w}'` || n.right.getText() === `'${w}'`)) || nodes.some((n) => ts.isPropertyAssignment(n) && n.name.getText() === w))) {
+          fail('Z25', `${where(routes, of)}: why is not compared for equality with ended, unreachable, moved and busy; a word the reader made up never leaves (§5.3.1)`);
+        }
+        const bounded = /\bfrom\b[^;\n]*\+[^;\n]*\.length[^;\n]*>[^;\n]*\bdepth\b|\.length[^;\n]*\+[^;\n]*\bfrom\b[^;\n]*>[^;\n]*\bdepth\b|\bdepth\b[^;\n]*<[^;\n]*\bfrom\b[^;\n]*\+/.test(text);
+        checked('Z25', 4);
+        if (!bounded) fail('Z25', `${where(routes, of)}: scrollbackOf does not hold from + rows.length <= depth; rows past the reader's own history size are no page (§5.3.1)`);
+        if (!/\bwrap\b/.test(text) || !/\bcells\b/.test(text)) fail('Z25', `${where(routes, of)}: scrollbackOf does not hold every row's cells to at most wrap (§5.3.1)`);
+        if (!/isLowerHexOf\(\s*[^,]*space[^,]*,\s*(?:12|SCREEN_REVISION_CHARS|SCREEN_MARK_CHARS|\w*SPACE\w*)\s*\)/.test(text)) fail('Z25', `${where(routes, of)}: scrollbackOf does not read space as 12 lowercase hex, one character at a time (§5.3.1, §Attack B8)`);
+        if (!/Buffer\.byteLength\(\s*JSON\.stringify\(/.test(text)) fail('Z25', `${where(routes, of)}: scrollbackOf does not measure the whole answer's bytes against POCKET_SCREEN_MAX_BYTES, as the door will send them`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z26, THE PAGE READ; Z27, THE PAGE'S ROWS; Z29, MOVED.
+  // -------------------------------------------------------------------------
+  const page = has(SCROLLBACK, 'Z26', Z_OWNER.screen3371);
+  if (page === null) {
+    for (const id of ['Z27', 'Z29']) fail(id, `src/main/screen/scrollback.ts does not exist. It is ${Z_OWNER.screen3371}.`);
+  } else {
+    const consts = { SCROLLBACK_OVERSCAN: 128, SCROLLBACK_ATTEMPTS: 3, SCROLLBACK_MIN_GAP_MS: 250, SCROLLBACK_QUEUE_MAX: 4 };
+    for (const [name, want] of Object.entries(consts)) {
+      const decls = declarationsOf(sourcesUnder(join(ROOT, 'src')), name);
+      checked('Z26');
+      if (decls.length !== 1 || decls[0].file !== page || zNumber(page, name) !== want) fail('Z26', `${name} is declared ${String(decls.length)} time(s) (${decls.map((d) => rel(d.file)).join(', ')}) as ${String(zNumber(page, name))}; it is ${String(want)}, declared once, in scrollback.ts (build/p3371/SPEC.md §5.3.5)`);
+    }
+    const farFloor = constNamed(page, 'SCROLLBACK_MIN_GAP_REMOTE_MS');
+    checked('Z26');
+    if (farFloor === null || bare(farFloor.initializer).getText() !== 'SCREEN_TICK_REMOTE_MS' || !importedNames(page, (sp) => /^\.\/watch$/.test(sp)).has('SCREEN_TICK_REMOTE_MS')) {
+      fail('Z26', `${rel(page)}: SCROLLBACK_MIN_GAP_REMOTE_MS is ${J(farFloor?.initializer.getText() ?? null)}; it is SCREEN_TICK_REMOTE_MS, imported from ./watch: a far page costs the far machine an exec, so its floor is the far poll's tick (§Attack B2)`);
+    }
+    const verb = verbOf(page, 'createScreenScrollback', 'page');
+    checked('Z26');
+    if (verb === null) {
+      fail('Z26', `${rel(page)}: createScreenScrollback answers no page verb (build/p3371/SPEC.md §5.3.5)`);
+      for (const id of ['Z27', 'Z29']) fail(id, `${rel(page)}: createScreenScrollback answers no page verb, so nothing of the page could be read`);
+    } else {
+      const reach = reachedFunctions(page, verb);
+      // The factory's own local arrows the verb hands work to are reached
+      // through their names; anything in the file the verb's reach never
+      // calls is not the page read.
+      const nodes = reach.flatMap((f) => descendantsOf(f));
+      const text = reach.map((f) => codeOfNode(page, f)).join('\n');
+      const refs = new Set(nodes.filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+      // (1) The row.
+      checked('Z26');
+      if (!nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'screenLive')) fail('Z26', `${where(page, verb)}: the page read never asks screenLive( of the row it re-read by id; a session not running is ended, read from the row and never from tmux (§5.3.5 step 1)`);
+      // (2) The turn: one in flight, a queue bounded, busy past it.
+      const queueGuard = nodes.filter((n) => ts.isIfStatement(n) && /\bSCROLLBACK_QUEUE_MAX\b/.test(n.expression.getText()) && /\bbusy\b|SCROLLBACK_BUSY/.test(n.thenStatement.getText()));
+      checked('Z26');
+      if (queueGuard.length === 0) fail('Z26', `${where(page, verb)}: no guard answers busy once SCROLLBACK_QUEUE_MAX pages wait on one session; the queue is bounded (build/p3371/SPEC.md D14, §Attack B3)`);
+      // (3) The floor: Math.max( of the session's floor and the duty cycle.
+      const duty = nodes.some((n) => ts.isCallExpression(n) && n.expression.getText() === 'Math.max' && n.arguments.some((a) => /\bSCREEN_DUTY_FACTOR\b/.test(a.getText())) && n.arguments.some((a) => /SCROLLBACK_MIN_GAP|floor|gap/i.test(a.getText()) && !/\bSCREEN_DUTY_FACTOR\b/.test(a.getText())));
+      checked('Z26', 2);
+      if (!duty) fail('Z26', `${where(page, verb)}: no Math.max( of the session's floor and SCREEN_DUTY_FACTOR times its last page's compose; a page of per-cell colours composes in tens of ms, so a page starts no sooner than four composes after the last (§Attack B10)`);
+      const picks = nodes.some((n) => ts.isConditionalExpression(n) && /\bSCROLLBACK_MIN_GAP_REMOTE_MS\b/.test(n.getText()) && /\bSCROLLBACK_MIN_GAP_MS\b/.test(n.getText()));
+      if (!picks || !refs.has('SCROLLBACK_MIN_GAP_REMOTE_MS')) fail('Z26', `${where(page, verb)}: the floor is not chosen as SCROLLBACK_MIN_GAP_REMOTE_MS on another machine and SCROLLBACK_MIN_GAP_MS here (one ?: over both); a far session's floor is the far poll's tick (§Attack B2)`);
+      // (4) closing() on a SCREEN_TICK_MS timer, the wait and the exec alike.
+      const closingTimers = callsOf(page).filter((c) => /^(?:setInterval|setTimeout)$/.test(calleeName(c) ?? '') && c.arguments[1] !== undefined && bare(c.arguments[1]).getText() === 'SCREEN_TICK_MS' && c.arguments[0] !== undefined && (ts.isArrowFunction(bare(c.arguments[0])) || ts.isFunctionExpression(bare(c.arguments[0]))) && reachedFunctions(page, bare(c.arguments[0])).some((f) => descendantsOf(f).some((m) => ts.isCallExpression(m) && /\bclosing$/.test(m.expression.getText()))));
+      checked('Z26', 2);
+      if (closingTimers.length === 0 || !importedNames(page, (sp) => /^\.\/watch$/.test(sp)).has('SCREEN_TICK_MS')) fail('Z26', `${rel(page)}: no timer at SCREEN_TICK_MS (imported from ./watch) asks closing(; a page waiting its turn, its floor or its exec answers unreachable within one tick of the door stopping, inside the stop join (build/p3371/SPEC.md D14, §Attack B3)`);
+      // EVERY WAIT OF THE PAGE ASKS closing() ON A TICK (§Attack B3): each
+      // await in the page verb's own body awaits a local function whose reach
+      // holds one of those timers (the turn, the floor and the exec alike).
+      const timerHolders = nodesOf(page).filter((n) => ts.isFunctionLike(n) && n.body !== undefined && closingTimers.some((c) => inside(c, n)));
+      const reachesTimer = (call) => {
+        const callee = ts.isIdentifier(call.expression) ? call.expression.text : null;
+        if (callee === null) return false;
+        return functionsNamed(page, callee).some((g) => reachedFunctions(page, g).some((f) => timerHolders.includes(f) || timerHolders.some((h) => inside(h, f))));
+      };
+      const ownAwaits = descendantsOf(verb).filter((n) => ts.isAwaitExpression(n) && (() => {
+        for (let p = n.parent; p !== undefined; p = p.parent) {
+          if (p === verb) return true;
+          if (ts.isFunctionLike(p)) return false;
+        }
+        return false;
+      })());
+      checked('Z26');
+      if (ownAwaits.length === 0) fail('Z26', `${where(page, verb)}: the page verb awaits nothing, so nothing of its waits can be read`);
+      for (const a of ownAwaits) {
+        checked('Z26');
+        const e = bare(a.expression);
+        if (!(ts.isCallExpression(e) && reachesTimer(e))) fail('Z26', `${where(page, a)}: the page awaits ${J(a.getText().slice(0, 70))}, which asks closing() on no SCREEN_TICK_MS timer; a page waiting its turn, its floor or its exec answers unreachable within one tick of the door stopping (build/p3371/SPEC.md D14, §Attack B3)`);
+      }
+
+      for (const d of ['SCREEN_LOCAL_READ_DEADLINE_MS', 'SCREEN_REMOTE_READ_DEADLINE_MS']) {
+        checked('Z26');
+        if (!refs.has(d)) fail('Z26', `${where(page, verb)}: the page read does not race its attempts against ${d}, 337's own deadline (D14)`);
+      }
+      // (5) The attempts: a loop under SCROLLBACK_ATTEMPTS, closing( first, ONE statement.
+      const loops = nodes.filter((n) => (ts.isForStatement(n) && n.condition !== undefined && /\bSCROLLBACK_ATTEMPTS\b/.test(n.condition.getText())) || (ts.isWhileStatement(n) && /\bSCROLLBACK_ATTEMPTS\b/.test(n.expression.getText())));
+      checked('Z26', 2);
+      let loop = null;
+      if (loops.length !== 1) fail('Z26', `${where(page, verb)}: the attempts are ${String(loops.length)} loop(s) bounded by SCROLLBACK_ATTEMPTS; ONE loop of at most SCROLLBACK_ATTEMPTS attempts (D9)`);
+      else {
+        loop = loops[0];
+        const first = descendantsOf(loop.statement).find((n) => ts.isCallExpression(n) && /\bclosing$/.test(n.expression.getText()));
+        const reads = descendantsOf(loop.statement).filter((n) => ts.isAwaitExpression(n));
+        if (first === undefined || reads.length === 0 || first.getStart() > reads[0].getStart()) fail('Z26', `${where(page, loop)}: an attempt does not ask closing() before it reads; true answers unreachable at once and reads nothing more (§5.3.5 step 3)`);
+      }
+      // ONE statement, no display-only round: every function of the file
+      // that composes a display also composes the capture, and the control
+      // client is written to in ONE statement of exactly three lines.
+      for (const fn of nodesOf(page).filter((n) => ts.isFunctionLike(n) && n.body !== undefined)) {
+        const own = descendantsOf(fn).filter((m) => ts.isStringLiteral(m));
+        const displays = own.filter((m) => m.text === 'display-message' || /^display-message /.test(m.text));
+        if (displays.length === 0) continue;
+        checked('Z26');
+        if (!own.some((m) => m.text === 'capture-pane' || /^capture-pane /.test(m.text)) && !descendantsOf(fn).some((m) => ts.isCallExpression(m) && /capture/i.test(calleeName(m) ?? ''))) {
+          fail('Z26', `${where(page, fn)}: a display is composed with no capture beside it, a display-only round; an attempt is ONE statement of display, capture and display, numbered by main and never by a separate first read (build/p3371/SPEC.md D9, §Attack B1)`);
+        }
+      }
+      // Over the control client an attempt is ONE statement of three lines:
+      // written here, or through read.ts's statementOverControl, the live
+      // read's own statement, which then writes exactly three in one.
+      const sends = callsOf(page).filter((c) => calleeName(c) === 'sendCommand');
+      const statements = new Set(sends.map((c) => statementOf(c)?.statement));
+      const viaShared = importedNames(page, (sp) => /^\.\/read$/.test(sp)).has('statementOverControl') && callsOf(page).some((c) => calleeName(c) === 'statementOverControl');
+      checked('Z26', 2);
+      if (sends.length > 0 && (sends.length !== 3 || statements.size !== 1 || viaShared)) fail('Z26', `${rel(page)} writes ${String(sends.length)} line(s) to the control client in ${String(statements.size)} statement(s)${viaShared ? ' beside read.ts’s statementOverControl' : ''}; an attempt is ONE statement of exactly three lines, with no display-only round before it (D9, §Attack B1)`);
+      if (sends.length === 0 && !viaShared) fail('Z26', `${rel(page)} writes no line to the control client and calls no statementOverControl; a page round on this Mac is one control-client statement while the client is connected (D9)`);
+      if (viaShared && existsSync(join(ROOT, 'src', 'main', 'screen', 'read.ts'))) {
+        const readFile = join(ROOT, 'src', 'main', 'screen', 'read.ts');
+        const shared = oneFunction(readFile, 'statementOverControl');
+        const own = shared === null ? [] : descendantsOf(shared).filter((n) => ts.isCallExpression(n) && calleeName(n) === 'sendCommand');
+        const one = new Set(own.map((c) => statementOf(c)?.statement));
+        if (shared === null || own.length !== 3 || one.size !== 1) fail('Z26', `src/main/screen/read.ts: statementOverControl writes ${String(own.length)} line(s) in ${String(one.size)} statement(s); the one statement is exactly three lines, display, capture and display, in one tick (D9)`);
+      }
+      const spawns = callsOf(page).filter((c) => /^(?:execTmux|spawn|spawnTmux|execFile)$/.test(calleeName(c) ?? ''));
+      checked('Z26');
+      if (spawns.length > 1) fail('Z26', `${rel(page)} starts ${String(spawns.length)} spawned tmux call(s); with the control client down an attempt is ONE spawned list of the three (D9)`);
+      for (const c of spawns) {
+        const list = arrayOfArg(page, c.arguments[0]);
+        const semis = list === null ? 0 : list.elements.filter((e) => ts.isStringLiteral(e) && e.text === ';').length;
+        if (semis !== 2) fail('Z26', `${where(page, c)}: the down path's spawn carries ${String(semis)} ; separator(s); it carries the three commands as ONE ; list (D9)`);
+      }
+      if (callsOf(page).some((c) => calleeName(c) === 'execOn')) fail('Z26', `${rel(page)} calls execOn( itself; a far page reaches the machine through remote-screen.ts's readScrollbackRemote alone (D10, condition 124)`);
+      // h0: the ask's depth first, the previous display's history after.
+      const h0s = nodes.filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && /\.depth\b/.test(n.initializer.getText()) && (n.parent.flags & ts.NodeFlags.Let) !== 0).map((n) => n.name.text);
+      const h0 = h0s.find((name) => nodes.some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && n.left.getText() === name && /\.history\b/.test(n.right.getText())));
+      checked('Z26', 3);
+      if (h0 === undefined) fail('Z26', `${where(page, verb)}: no h0 starts as the ask's depth and becomes the previous attempt's display's history; attempt 1 numbers its lines by the phone's newest depth and attempts 2 and 3 by the frame main just read (D9, §Attack B1)`);
+      const aExpr = nodes.find((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.MinusToken && h0 !== undefined && bare(n.right).getText() === h0 && /\bSCROLLBACK_OVERSCAN\b/.test(n.left.getText()) && /\bfrom\b/.test(n.left.getText()));
+      if (aExpr === undefined) fail('Z26', `${where(page, verb)}: the capture's start is not a = from − SCROLLBACK_OVERSCAN − h0; it may name a line above the oldest on purpose (D9)`);
+      for (const n of nodes) {
+        if (ts.isCallExpression(n) && n.expression.getText() === 'Math.max' && n.arguments.some((a) => /\bSCROLLBACK_OVERSCAN\b/.test(a.getText()))) {
+          checked('Z26');
+          fail('Z26', `${where(page, n)}: ${J(n.getText().slice(0, 60))} keeps the start from reaching above the oldest line; that is the read that never served the OLDEST page while output scrolled (§Attack B1: 0 and 1 of 60)`);
+        }
+      }
+      const firstIndex = nodes.some((n) => ts.isCallExpression(n) && n.expression.getText() === 'Math.max' && n.arguments.length === 2 && n.arguments[0].getText() === '0' && ts.isBinaryExpression(bare(n.arguments[1])) && bare(n.arguments[1]).operatorToken.kind === ts.SyntaxKind.PlusToken);
+      if (!firstIndex) fail('Z26', `${where(page, verb)}: the capture's first index is not Math.max(0, a + h1); a start above the oldest begins at the oldest, index 0 (D9)`);
+
+      // ---------------------------------------------------------------------
+      // Z29, MOVED, AND NOTHING SENT.
+      // ---------------------------------------------------------------------
+      const movedIfs = nodes.filter((n) => ts.isIfStatement(n) && /\bmoved\b|SCROLLBACK_MOVED/.test(n.thenStatement.getText()));
+      const conds = movedIfs.map((n) => n.expression.getText().replace(/\s+/g, ' ')).join(' || ');
+      const clauses = [
+        ['the alternate screen', /\.alternate\b/],
+        ['another width (cols !== wrap)', /\.cols\s*!==\s*[\w.]*wrap\b|\bwrap\s*!==\s*[\w.]*\.cols\b/],
+        ['a history below the phone’s depth', /(?:\.history|\bh1)\s*<\s*[\w.]*depth\b|\b[\w.]*depth\s*>\s*(?:[\w.]*\.history|h1)\b/],
+        ['a history below the previous attempt’s display', /(?:\.history|\bh1)\s*<\s*(?!\s*[\w.]*depth\b)[\w.]+|\b(?!\w*depth\b)[\w.]+\s*>\s*(?:[\w.]*\.history|h1)\b/],
+        ['from at or past the history', /\bfrom\s*>=\s*(?:[\w.]*\.history|h1)\b|(?:[\w.]*\.history|\bh1)\s*<=\s*[\w.]*\bfrom\b/]
+      ];
+      checked('Z29', clauses.length);
+      if (movedIfs.length === 0) fail('Z29', `${where(page, verb)}: no branch of the page read answers moved; a trim, a clear, a rewrap, another width or the alternate screen moves the phone's index space (D12)`);
+      for (const [what, re] of clauses) if (!re.test(conds)) fail('Z29', `${where(page, verb)}: moved is not answered for ${what} (the moved branches read ${J(conds.slice(0, 200))}); D12's conditions are read over each attempt's AGREED frame`);
+      const composes = nodes.filter((n) => ts.isCallExpression(n) && (calleeName(n) === 'composePage' || calleeName(n) === 'composePageSteps'));
+      checked('Z29', 2);
+      if (composes.length === 0) fail('Z29', `${where(page, verb)}: the page read never calls composePageSteps( (or composePage()`);
+      for (const m of movedIfs) {
+        const later = composes.filter((c) => c.getStart() < m.getStart() && statementOf(c) !== undefined);
+        // A moved branch after a compose in the SAME function composed first.
+        const fnOf = (x) => {
+          let p = x.parent;
+          while (p !== undefined && !ts.isFunctionLike(p)) p = p.parent;
+          return p;
+        };
+        if (later.some((c) => fnOf(c) === fnOf(m))) fail('Z29', `${where(page, m)}: moved is decided after composePage( in the same function; nothing is composed for a refused attempt (D12)`);
+        const branch = m.thenStatement;
+        for (const x of descendantsOf(branch)) {
+          if (ts.isIdentifier(x) && /^(?:styled|capture|captured|lines|text)$/.test(x.text)) {
+            checked('Z29');
+            fail('Z29', `${where(page, x)}: the moved branch names ${x.text}; the capture of a refused attempt reaches no answer, log or store (D12)`);
+          }
+          if (ts.isCallExpression(x) && /^(?:set|push|unshift|add)$/.test(calleeName(x) ?? '') && /capture|styled|rows|lines/i.test(x.getText())) {
+            checked('Z29');
+            fail('Z29', `${where(page, x)}: the moved branch keeps something of the capture; a refused attempt's capture is dropped unsent and unkept (D12)`);
+          }
+        }
+      }
+
+      // ---------------------------------------------------------------------
+      // Z27, THE PAGE'S ROWS (the reader's half).
+      // ---------------------------------------------------------------------
+      const answers = nodes.filter((n) => ts.isObjectLiteralExpression(n) && propOf(n, 'space') !== undefined && propOf(n, 'rows') !== undefined);
+      checked('Z27', 2);
+      if (answers.length === 0) fail('Z27', `${where(page, verb)}: no page answer of the reader carries space and rows`);
+      for (const a of answers) {
+        const sp = bare(propOf(a, 'space'));
+        if (sp.kind === ts.SyntaxKind.NullKeyword) continue;
+        if (!descendantsOf(sp).some((m) => ts.isCallExpression(m) && calleeName(m) === 'spaceOf') && !(ts.isIdentifier(sp) && nodes.some((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === sp.text && m.initializer !== undefined && /\bspaceOf\(/.test(m.initializer.getText())))) {
+          fail('Z27', `${where(page, a)}: the page's space is ${J(sp.getText())}; it is spaceOf( over the agreed display's pane, the same hash the live picture carries (§Attack B8)`);
+        }
+      }
+      if (!importedNames(page, (sp) => /^\.\/compose$/.test(sp)).has('spaceOf') || !importedNames(page, (sp) => /^\.\/compose$/.test(sp)).has('composePageSteps')) fail('Z27', `${rel(page)} does not import spaceOf and composePageSteps from ./compose; the page is composed and named by the live screen's own composer, a step at a time (the fix round)`);
+
+      // ---------------------------------------------------------------------
+      // Z26, THE COMPOSITION IN STEPS (the 337.1 fix round). A page of per-cell
+      // truecolor at 300 columns composed in 80 to 98 ms in ONE block, about
+      // three a second while a phone paged, and main's lag rose to a p99 of
+      // 62 ms where the phone's door had never cost it more than 30 (Lens 1's
+      // measurement beside the parent). The verb composes through
+      // composePageSteps and never composePage whole; a function of the file
+      // steps the generator (`.next(`), hands the event loop back only behind
+      // PAGE_SLICE_MS, and asks closing() after the hand-back; PAGE_SLICE_MS
+      // is declared once, here, and is at most 8 ms.
+      // ---------------------------------------------------------------------
+      {
+        checked('Z26', 4);
+        const slice = zNumber(page, 'PAGE_SLICE_MS');
+        const sliceDecls = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'PAGE_SLICE_MS');
+        if (sliceDecls.length !== 1 || sliceDecls[0].file !== page || slice === null || !(slice >= 1 && slice <= 8)) fail('Z26', `PAGE_SLICE_MS is declared ${String(sliceDecls.length)} time(s) as ${String(slice)}; once, in scrollback.ts, at most 8 ms: the most a page's composition holds main before it hands the event loop back (the fix round)`);
+        if (!nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'composePageSteps')) fail('Z26', `${where(page, verb)}: the page verb does not compose through composePageSteps(; a page composed whole holds main for the whole of a dense capture (the fix round)`);
+        for (const n of nodes) if (ts.isCallExpression(n) && calleeName(n) === 'composePage') fail('Z26', `${where(page, n)}: the page verb composes a page whole with composePage(, in one block; it composes a step at a time (composePageSteps) and hands the loop back between steps (the fix round)`);
+        const steppers = nodesOf(page).filter((f) => ts.isFunctionLike(f) && f.body !== undefined && descendantsOf(f).some((m) => ts.isCallExpression(m) && ts.isPropertyAccessExpression(m.expression) && m.expression.name.text === 'next'));
+        const handsBack = steppers.some((f) =>
+          descendantsOf(f).some((i) => {
+            if (!ts.isIfStatement(i) || !/\bPAGE_SLICE_MS\b/.test(i.expression.getText())) return false;
+            const inner = descendantsOf(i.thenStatement);
+            const waits = inner.filter((m) => ts.isAwaitExpression(m));
+            const asks = inner.filter((m) => ts.isCallExpression(m) && /\bclosing$/.test(m.expression.getText()));
+            return waits.length > 0 && asks.some((c) => c.getStart() > waits[0].getStart());
+          })
+        );
+        if (!handsBack) fail('Z26', `${rel(page)}: no step of the page's composition hands the event loop back once the steps have held it PAGE_SLICE_MS, asking closing() after the hand-back (an await inside an if on PAGE_SLICE_MS, a closing( after it); a dense page then holds main in one block, or outlives the door's stop (the fix round)`);
+      }
+      const cut = nodes.some((n) => ts.isCallExpression(n) && n.expression.getText() === 'Math.min' && n.getText().includes('- from') || (ts.isCallExpression(n) && n.expression.getText() === 'Math.min' && /-\s*[\w.]*from\b/.test(n.getText())));
+      checked('Z27');
+      if (!cut) fail('Z27', `${where(page, verb)}: composePage is not asked for min(count, h1 − from) rows; a page is never served from the live screen, rows at indices at or past the history size are not in it (D12)`);
+    }
+  }
+  {
+    const compose = has(COMPOSE, 'Z27', Z_OWNER.screen3371);
+    const fn = compose === null ? null : oneFunction(compose, 'composePage');
+    // The page's composition a step at a time (the fix round): composePage
+    // drives the one generator composePageSteps, and the body below is read
+    // over everything composePage reaches, the generator included.
+    const stepsFn = compose === null ? null : oneFunction(compose, 'composePageSteps');
+    checked('Z27', 3);
+    if (compose !== null && fn === null) fail('Z27', `${rel(compose)} declares no single composePage (build/p3371/SPEC.md §5.3.4)`);
+    if (compose !== null && (stepsFn === null || !ts.isFunctionDeclaration(stepsFn) || stepsFn.asteriskToken === undefined)) fail('Z27', `${rel(compose)} declares no single generator composePageSteps, the page's composition a step at a time (the fix round)`);
+    if (fn !== null && stepsFn !== null && !descendantsOf(fn).some((n) => ts.isCallExpression(n) && calleeName(n) === 'composePageSteps')) fail('Z27', `${where(compose, fn)}: composePage does not drive composePageSteps(; a page composed whole and a page composed in steps would be two compositions (the fix round)`);
+    if (stepsFn !== null && ts.isFunctionDeclaration(stepsFn)) {
+      const loops = descendantsOf(stepsFn).filter((n) => ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n));
+      const stops = (l) => descendantsOf(l.statement).some((n) => ts.isYieldExpression(n));
+      const pens = loops.find((l) => ts.isForOfStatement(l) && ts.isCallExpression(bare(l.expression)) && calleeName(bare(l.expression)) === 'styledRows');
+      const runs = loops.find((l) => ts.isForStatement(l) && /\bwant\b/.test(`${l.initializer?.getText() ?? ''};${l.condition?.getText() ?? ''}`));
+      checked('Z27', 3);
+      if (pens === undefined || !stops(pens)) fail('Z27', `${where(compose, stepsFn)}: composePageSteps does not stop inside its reading of the pens (a yield in the loop over styledRows(…)); a dense capture is read in one block again (the fix round: 80 to 98 ms)`);
+      if (runs === undefined || !stops(runs)) fail('Z27', `${where(compose, stepsFn)}: composePageSteps does not stop inside its building of the asked rows' runs (a yield in the loop over want's rows) (the fix round)`);
+      const step = zNumber(compose, 'PAGE_STEP_ROWS');
+      if (step === null || !(step >= 1 && step <= 16)) fail('Z27', `${rel(compose)}: PAGE_STEP_ROWS is ${String(step)}; one constant, 1 to 16 rows a stop (the fix round)`);
+    }
+    if (fn !== null) {
+      const reach = reachedFunctions(compose, fn);
+      const nodes = reach.flatMap((f) => descendantsOf(f));
+      const head = stepsFn ?? fn;
+      const first = head.parameters[0] !== undefined && ts.isIdentifier(head.parameters[0].name) ? head.parameters[0].name.text : null;
+      const reads = nodes.filter((n) => ts.isCallExpression(n) && (calleeName(n) === 'readStyledRows' || calleeName(n) === 'styledRows'));
+      checked('Z27', 4);
+      if (reads.length === 0 || !reads.some((c) => c.arguments[0] !== undefined && bare(c.arguments[0]).getText() === first)) {
+        fail('Z27', `${where(compose, fn)}: composePage does not read the WHOLE capture's pens (styledRows(${String(first)}) or readStyledRows(${String(first)})); tmux writes each cell's style as a change from the cell before it, across rows, so a row cut before its pens are read can lose its pen (D11)`);
+      }
+      if (nodes.some((n) => ts.isCallExpression(n) && calleeName(n) === 'composeRows')) fail('Z27', `${where(compose, fn)}: composePage calls composeRows(, which builds runs for every row of the capture; runs are built for the kept rows only, through composeRows' per-row body, shared (§Attack B10)`);
+      const keptLoop = nodes.some((n) => (ts.isForStatement(n) || ts.isForOfStatement(n) || ts.isWhileStatement(n)) && /\b(?:from|count|want)\b/.test((ts.isForStatement(n) ? `${n.initializer?.getText() ?? ''};${n.condition?.getText() ?? ''}` : ts.isForOfStatement(n) ? n.expression.getText() : n.expression.getText())));
+      if (!keptLoop) fail('Z27', `${where(compose, fn)}: no loop over the asked rows (from, count) builds the runs; the rows it drops cost the reading and not the composing (§Attack B10)`);
+      const refs = new Set(nodes.filter((n) => ts.isIdentifier(n)).map((n) => n.text));
+      for (const cap of ['POCKET_SCREEN_MAX_STYLES', 'POCKET_SCREEN_MAX_RUNS', 'POCKET_SCREEN_MAX_BYTES']) {
+        checked('Z27');
+        if (!refs.has(cap)) fail('Z27', `${where(compose, fn)}: composePage does not hold the kept rows to ${cap}; past a cap it keeps the longest run from keep's end that fits (D11)`);
+      }
+      const keepRead = nodes.some((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsEqualsEqualsToken && /'top'|'bottom'/.test(n.getText()));
+      if (!keepRead) fail('Z27', `${where(compose, fn)}: composePage never reads keep ('top' or 'bottom'); an older page keeps its bottom and a newer one its top (D11)`);
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z28, THE LIVE DEPTH AND SPACE.
+  // -------------------------------------------------------------------------
+  {
+    const read = has(READ, 'Z28', Z_OWNER.screen3371);
+    if (read !== null) {
+      const parse = oneFunction(read, 'parseScreenDisplay');
+      checked('Z28', 3);
+      if (parse === null) fail('Z28', `${rel(read)} declares no single parseScreenDisplay`);
+      else {
+        const eight = descendantsOf(parse).some((n) => ts.isBinaryExpression(n) && /\.length$/.test(n.left.getText()) && n.right.getText() === '8' && /^(?:!==|===)$/.test(n.operatorToken.getText()));
+        if (!eight) fail('Z28', `${where(read, parse)}: parseScreenDisplay does not read exactly eight fields; the eighth is the history size (D4)`);
+        const whole9 = nodesOf(read).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.initializer !== undefined && bare(n.initializer).kind === ts.SyntaxKind.RegularExpressionLiteral && bare(n.initializer).getText() === '/^(0|[1-9][0-9]{0,8})$/').map((n) => n.name.text);
+        const used = whole9.some((name) => descendantsOf(parse).some((n) => ts.isIdentifier(n) && n.text === name));
+        if (!used) fail('Z28', `${where(read, parse)}: the history field is not read by WHOLE9, /^(0|[1-9][0-9]{0,8})$/, declared once in read.ts: a display that fails to parse fails the whole LIVE read, so a far history deeper than six digits must never cost him the terminal he has today (§Attack B16)`);
+        if (!/\bhistory\b/.test(parse.getText())) fail('Z28', `${where(read, parse)}: parseScreenDisplay answers no history`);
+      }
+    }
+    const compose = has(COMPOSE, 'Z28', Z_OWNER.screen3371);
+    if (compose !== null) {
+      const spaces = declarationsOf(sourcesUnder(join(ROOT, 'src')), 'spaceOf');
+      checked('Z28', 2);
+      if (spaces.length !== 1 || spaces[0].file !== compose) fail('Z28', `spaceOf is declared ${String(spaces.length)} time(s) (${spaces.map((d) => rel(d.file)).join(', ')}); ONCE, in compose.ts (§5.3.4)`);
+      else {
+        const fn = oneFunction(compose, 'spaceOf');
+        const reachText = fn === null ? '' : reachedFunctions(compose, fn).map((f) => f.getText()).join('\n');
+        if (!/'space'/.test(reachText) || !/sha256/.test(reachText) || !/\b12\b/.test(reachText)) fail('Z28', `${rel(compose)}: spaceOf is not 12 lowercase hex of sha256 over the length-prefixed parts 'space' and the pane id (§5.3.4: screenRevisionOf's construction, so no tmux id crosses the wire)`);
+      }
+      const cs = oneFunction(compose, 'composeScreen');
+      checked('Z28', 2);
+      if (cs === null) fail('Z28', `${rel(compose)} declares no single composeScreen`);
+      else {
+        const reach = reachedFunctions(compose, cs);
+        const nodes = reach.flatMap((f) => descendantsOf(f));
+        const gateOf = (name) => {
+          const props = nodes.filter((n) => (ts.isPropertyAssignment(n) && memberName(n) === name) || (ts.isShorthandPropertyAssignment(n) && n.name.text === name));
+          const out = [];
+          for (const p of props) {
+            let init = ts.isShorthandPropertyAssignment(p) ? p.name : bare(p.initializer);
+            if (ts.isIdentifier(init)) {
+              const d = nodes.find((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === init.text && m.initializer !== undefined);
+              if (d !== undefined) init = bare(d.initializer);
+            }
+            if (init.kind === ts.SyntaxKind.NullKeyword) continue;
+            if (!ts.isConditionalExpression(init) || bare(init.whenFalse).kind !== ts.SyntaxKind.NullKeyword) {
+              out.push({ p, cond: null, value: init.getText() });
+              continue;
+            }
+            let cond = bare(init.condition);
+            if (ts.isIdentifier(cond)) {
+              const d = nodes.find((m) => ts.isVariableDeclaration(m) && ts.isIdentifier(m.name) && m.name.text === cond.text && m.initializer !== undefined);
+              if (d !== undefined) cond = bare(d.initializer);
+            }
+            out.push({ p, cond: cond.getText().replace(/\s+/g, ' '), value: bare(init.whenTrue).getText() });
+          }
+          return out;
+        };
+        const depth = gateOf('depth');
+        const space = gateOf('space');
+        if (depth.length === 0 || space.length === 0) fail('Z28', `${where(compose, cs)}: composeScreen sets ${depth.length === 0 ? 'no depth' : 'no space'}; the live picture carries both, null together (D3)`);
+        for (const g of [...depth, ...space]) {
+          if (g.cond === null) {
+            fail('Z28', `${where(compose, g.p)}: ${J(g.p.getText().slice(0, 60))} is not "<condition> ? <value> : null"; depth and space are set from the display only when the reading is steady, not the alternate screen, and the history at most POCKET_SCROLLBACK_MAX_INDEX (D3)`);
+            continue;
+          }
+          for (const [what, re] of [['steady', /\bsteady\b/], ['not the alternate screen', /!\s*[\w.]*alternate\b|alternate\s*===\s*false|alternate\s*!==\s*true/], ['the history at most POCKET_SCROLLBACK_MAX_INDEX', /\bPOCKET_SCROLLBACK_MAX_INDEX\b/]]) {
+            if (!re.test(g.cond)) fail('Z28', `${where(compose, g.p)}: ${J(g.p.getText().slice(0, 40))} is gated by ${J(g.cond.slice(0, 120))}, which does not ask ${what} (D3, D5)`);
+          }
+        }
+        if (depth.length > 0 && space.length > 0 && J([...new Set(depth.map((g) => g.cond))]) !== J([...new Set(space.map((g) => g.cond))])) {
+          fail('Z28', `${where(compose, cs)}: depth is gated by ${J(depth.map((g) => g.cond))} and space by ${J(space.map((g) => g.cond))}; the two are set TOGETHER, so a space never rides a null depth (§Attack B8)`);
+        }
+        for (const g of depth) if (g.cond !== null && !/\.history\b/.test(g.value)) fail('Z28', `${where(compose, g.p)}: depth is ${J(g.value)}; it is the display's history size`);
+        for (const g of space) if (g.cond !== null && !/\bspaceOf\(/.test(g.value)) fail('Z28', `${where(compose, g.p)}: space is ${J(g.value)}; it is spaceOf( over the display's pane`);
+      }
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Z30, THE HONESTY SENTENCE.
+  // -------------------------------------------------------------------------
+  {
+    const honesty = existsSync(CONTRACT) ? constNamed(CONTRACT, 'POCKET_DOOR_HONESTY') : null;
+    const parts = [];
+    const collect = (e) => {
+      const b = bare(e);
+      if (b !== undefined && ts.isStringLiteralLike(b)) parts.push(b.text);
+      else if (b !== undefined && ts.isBinaryExpression(b)) {
+        collect(b.left);
+        collect(b.right);
+      }
+    };
+    if (honesty !== null) collect(honesty.initializer);
+    const said = parts.join('');
+    checked('Z30', 4);
+    if (!/session’s terminal shows/.test(said)) fail('Z30', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it names what a session’s terminal shows (D35, his word "Terminal")`);
+    if (!/what it printed before/.test(said)) fail('Z30', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it says the phone can see what a session printed BEFORE, which his Phase 316 ruling refused until now (D35)`);
+    if (!/type into/.test(said) || !/end a session/.test(said)) fail('Z30', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says ${J(said)}; it still names typing and ending (D35: no write clause moves)`);
+    if (/change nothing else/.test(said)) fail('Z30', `src/shared/ipc/pocket.ts: POCKET_DOOR_HONESTY says the phone can change nothing else, which has not been true since Phase 317`);
+    const pairing = join(DOMAIN, 'pairing.ts');
+    if (existsSync(pairing)) {
+      checked('Z30');
+      const describe = oneFunction(pairing, 'describePocketDoor');
+      const line = describe === null ? '' : codeOfNode(pairing, describe);
+      if (!/Answers these and nothing else: \$\{\[\.\.\.fields\.routes\]\.sort\(\)\.join\(', '\)\}/.test(line)) fail('Z30', `${rel(pairing)}: the Allow line's route list is not derived from the hashed fields.routes; it names scrollback because the table does, never by a list written here (D35)`);
+      for (const { node, text } of codeStringsOf(pairing)) {
+        if (/\bscrollback\b/.test(text)) {
+          checked('Z30');
+          fail('Z30', `${where(pairing, node)} spells scrollback; the route line is derived from the table, never written (D35)`);
+        }
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -9286,12 +10569,15 @@ const PHASES = [
   // PHASE 316.7, the sessions answer (build/p3167/SPEC.md §8.1).
   ['the sessions answer', sessionsAnswerRules, 'O2a'],
   // PHASE 337, the Screen (build/p337/SPEC.md §6.1).
-  ['the Screen', screenRules, 'Z1']
+  ['the Screen', screenRules, 'Z1'],
+  // PHASE 337.1, the Screen scrolls back (build/p3371/SPEC.md §6.1). Its
+  // rules drive two functions in-process, so this phase is awaited.
+  ['the scrollback', scrollbackRules, 'Z23']
 ];
 
 for (const [name, run, onError] of PHASES) {
   try {
-    run();
+    await run();
   } catch (err) {
     fail(onError, `${name} could not be read: ${err instanceof Error ? err.message : String(err)}`);
   }

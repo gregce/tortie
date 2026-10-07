@@ -115,7 +115,9 @@ struct ScreenGlyphCode: Equatable, Hashable, Sendable {
 /// (Paseo's row model: an unchanged row compares equal and is not drawn
 /// again).
 struct ScreenRowModel: Equatable, Hashable, Sendable {
-    /// The row's place, from 0 at the top.
+    /// The row's place: from 0 at the top for a live row, and for a row of
+    /// history (Phase 337.1) its index in tmux's own index space, 0 being the
+    /// oldest line tmux holds (build/p3371/SPEC.md D2).
     let index: Int
     let runs: [ScreenRun]
     let boxes: [ScreenBox]
@@ -161,6 +163,12 @@ struct ScreenPicture: Equatable, Sendable {
     let dialog: String?
     let asking: Bool
     let typable: Bool
+    /// Where the live top row sits in the session's index space, and which
+    /// pane that index space is (Phase 337.1, D3): both or neither. Neither is
+    /// a picture that offers no scrollback (the alternate screen, an unsteady
+    /// read, or a Mac older than 337.1).
+    let historyDepth: Int?
+    let space: String?
 
     init(_ screen: PocketScreen, revision: String, holds: (Character) -> Bool = ScreenFont.holds) {
         self.revision = revision
@@ -186,6 +194,8 @@ struct ScreenPicture: Equatable, Sendable {
         dialog = screen.dialog
         asking = screen.asking
         typable = screen.typable
+        historyDepth = screen.historyDepth
+        space = screen.space
     }
 
     /// The style of a run, or the screen's own ink for an index the decoder

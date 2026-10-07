@@ -101,6 +101,26 @@ describe('what the door forwards', () => {
     expect(doorRequestOf(read({ route: 'screens', target: '/v1/screen' }))).toBeNull();
   });
 
+  // PHASE 337.1 (build/p3371/SPEC.md §5.1, D1, D7): one page of the Screen's
+  // history is a signed GET like the others, its six names carried in the
+  // target untouched, and never a POST; the door reads nothing of the query,
+  // which main refuses itself.
+  it('forwards the history read, a signed GET with its query, and refuses it as a POST (Phase 337.1)', () => {
+    const target = '/v1/scrollback?id=3f2a1b4c-0000-4000-8000-000000000001&from=2900&count=108&depth=3000&wrap=120&keep=bottom';
+    expect(doorRequestOf(read({ route: 'scrollback', target }))).toEqual({
+      route: 'scrollback',
+      method: 'GET',
+      target,
+      headers: HEADERS,
+      body: new Uint8Array(0),
+      channel: 'phone-a'
+    });
+    expect(doorRequestOf(read({ route: 'scrollback', method: 'POST', target }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'scrollback', target: `/v1/scrollback?${'x'.repeat(1024)}` }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'scrollbacks', target: '/v1/scrollback' }))).toBeNull();
+    expect(doorRequestOf(read({ route: 'history', target: '/v1/scrollback' }))).toBeNull();
+  });
+
   // PHASE 316.7 (build/p3167/SPEC.md §6.2): the Sessions tab's read is a signed
   // GET like the other three, its query carried in the target untouched, and
   // nothing else about the door moved.

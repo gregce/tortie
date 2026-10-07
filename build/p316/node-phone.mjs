@@ -67,6 +67,17 @@
  * `{ "k": name }` as given: it decides nothing, so a probe can send a body the
  * Mac must refuse. `SCREEN_KEY_NAMES` is the 35 names, spelled here from the
  * wire format as a third reading.
+ *
+ * PHASE 337.1 (build/p3371/SPEC.md §5.2, D7, D8, D13): the Screen's history.
+ * `scrollbackTarget` spells a `/v1/scrollback` target the phone's way (`id`,
+ * `from`, `count`, `depth`, `wrap`, `keep`, in that order, every value through
+ * `queryValue`, and nothing else: the phone never sends a size),
+ * `scrollbackRead` is one signed read of it, and `scrollbackAnswerProblems`
+ * is the phone's refusals of a page re-derived from §5.5.2, never from the
+ * door's composer or the Swift, the ask it was answering held beside it when
+ * given. `screenAnswerProblems` reads the live answer's `depth` and `space`
+ * too: absent or null together (a Mac older than this phase sends neither),
+ * or a whole number to 100,000 beside 12 lowercase hex.
  */
 
 import {
@@ -737,6 +748,15 @@ export function screenAnswerProblems(answer) {
   for (const k of ['ground', 'ink', 'caret']) if (typeof s[k] !== 'string' || !COLOUR.test(s[k])) say(`${k} ${J(s[k])} is not #rrggbb`);
   if (s.dialog !== null && (typeof s.dialog !== 'string' || !HEX12.test(s.dialog))) say(`dialog ${J(s.dialog)} is neither null nor 12 hex`);
   if (typeof s.turn !== 'string' || !TURN.test(s.turn)) say(`turn ${J(s.turn)} is not a question id`);
+  // PHASE 337.1 (D3): the history's depth and its index space's name, absent
+  // or null together, or a whole number to 100,000 beside 12 lowercase hex.
+  const depthNone = s.depth === null || s.depth === undefined;
+  const spaceNone = s.space === null || s.space === undefined;
+  if (depthNone !== spaceNone) say(`depth ${J(s.depth)} and space ${J(s.space)} are not null together`);
+  else if (!depthNone) {
+    if (!isWhole(s.depth, 0, SCROLLBACK_MAX_INDEX)) say(`depth ${J(s.depth)} is outside 0 to ${String(SCROLLBACK_MAX_INDEX)}`);
+    if (typeof s.space !== 'string' || !HEX12.test(s.space)) say(`space ${J(s.space)} is not 12 lowercase hex`);
+  }
   if (!Array.isArray(s.styles) || s.styles.length > SCREEN_MAX_STYLES) say('styles is not a list of at most 1,024');
   const styles = Array.isArray(s.styles) ? s.styles : [];
   styles.forEach((st, i) => {
@@ -762,6 +782,108 @@ export function screenAnswerProblems(answer) {
 
 /** A screen's row as the phone's accessibility label reads it: the runs' text joined, trailing blanks dropped. */
 export const screenRowText = (line) => (Array.isArray(line) ? line.map((run) => run.text).join('').replace(/ +$/, '') : '');
+
+// ---------------------------------------------------------------------------
+// The Screen's history (Phase 337.1, build/p3371/SPEC.md §5.2, §5.5.2)
+// ---------------------------------------------------------------------------
+
+/** The bounds a page is asked and held to (D7), spelled here from the wire format. */
+export const SCROLLBACK_MAX_COUNT = 128;
+export const SCROLLBACK_MAX_INDEX = 100_000;
+export const SCROLLBACK_KEEP = Object.freeze(['top', 'bottom']);
+export const SCROLLBACK_ABSENCES = Object.freeze(['ended', 'unreachable', 'moved', 'busy']);
+
+/**
+ * The phone's one spelling of a `/v1/scrollback` target: the six names in
+ * the order the phone writes them, every value through `queryValue`, and
+ * nothing else. It decides nothing: a probe may hand it a value the Mac must
+ * refuse.
+ */
+export function scrollbackTarget(sessionId, { from, count, depth, wrap, keep }) {
+  return (
+    `/v1/scrollback?id=${queryValue(sessionId)}&from=${queryValue(String(from))}&count=${queryValue(String(count))}` +
+    `&depth=${queryValue(String(depth))}&wrap=${queryValue(String(wrap))}&keep=${queryValue(String(keep))}`
+  );
+}
+
+/** One signed `/v1/scrollback` read: the status, the parsed answer or null, its bytes and how long it took. */
+export async function scrollbackRead(phone, door, sessionId, { from, count, depth, wrap, keep = 'bottom', ...options } = {}) {
+  const target = options.target ?? scrollbackTarget(sessionId, { from, count, depth, wrap, keep });
+  const started = Date.now();
+  const reply = await signedGet(phone, door, target, options);
+  const ms = Date.now() - started;
+  let answer = null;
+  try {
+    answer = reply.status === 200 ? JSON.parse(reply.body) : null;
+  } catch {
+    answer = null;
+  }
+  return { target, status: reply.status, answer, bytes: reply.bytes ?? 0, ms, error: reply.error ?? null };
+}
+
+/**
+ * What the phone refuses in a `/v1/scrollback` answer (§5.5.2), re-derived
+ * here. Answers a list of reasons; an empty list is a page the phone may
+ * join (D13 decides that, over the rows it holds). Refused WHOLE: `from`,
+ * `depth` and `wrap` not whole numbers in bounds, or `space` not 12 lowercase
+ * hex, unless all four are null exactly with a `why`; a `why` that is not one
+ * of the four words, or a sentence without one; rows beside a `why`, or none
+ * without one; more than 128 rows; a run of no cells or past `wrap`, or a
+ * row's cells past `wrap`; a style index out of the page's table; a colour
+ * that is not `#` and six lowercase hex; `from + rows > depth`. Given the ask
+ * it answered (`asked`, as `scrollbackTarget` takes), also: rows outside the
+ * asked range, another `wrap`, or a `depth` below the ask's.
+ */
+export function scrollbackAnswerProblems(answer, asked = null) {
+  const problems = [];
+  const say = (p) => problems.push(p);
+  if (answer === null || typeof answer !== 'object' || Array.isArray(answer)) return ['the answer is not an object'];
+  if (typeof answer.sessionId !== 'string' || answer.sessionId === '') say('sessionId is not an id');
+  if (typeof answer.at !== 'number' || !Number.isFinite(answer.at)) say('at is not a time');
+  const why = answer.why;
+  if (why !== null && !SCROLLBACK_ABSENCES.includes(why)) say(`why ${J(why)} is not one of the four words`);
+  if ((why === null) !== (answer.sentence === null)) say('a sentence without a why, or a why without a sentence');
+  if (typeof answer.sentence === 'string' && answer.sentence === '') say('an empty sentence');
+  if (!Array.isArray(answer.rows) || !Array.isArray(answer.styles)) return [...problems, 'rows or styles is not a list'];
+  if (why !== null) {
+    for (const k of ['from', 'depth', 'wrap', 'space']) if (answer[k] !== null) say(`${k} ${J(answer[k])} beside a why`);
+    if (answer.rows.length !== 0 || answer.styles.length !== 0) say('rows or styles beside a why');
+    return problems;
+  }
+  if (!isWhole(answer.from, 0, SCROLLBACK_MAX_INDEX)) say(`from ${J(answer.from)} is outside 0 to ${String(SCROLLBACK_MAX_INDEX)}`);
+  if (!isWhole(answer.depth, 0, SCROLLBACK_MAX_INDEX)) say(`depth ${J(answer.depth)} is outside 0 to ${String(SCROLLBACK_MAX_INDEX)}`);
+  if (!isWhole(answer.wrap, 1, SCREEN_MAX_COLS)) say(`wrap ${J(answer.wrap)} is outside 1 to ${String(SCREEN_MAX_COLS)}`);
+  if (typeof answer.space !== 'string' || !HEX12.test(answer.space)) say(`space ${J(answer.space)} is not 12 lowercase hex`);
+  if (answer.rows.length < 1 || answer.rows.length > SCROLLBACK_MAX_COUNT) say(`${String(answer.rows.length)} rows, outside 1 to ${String(SCROLLBACK_MAX_COUNT)}`);
+  if (answer.styles.length > SCREEN_MAX_STYLES) say(`${String(answer.styles.length)} styles, past ${String(SCREEN_MAX_STYLES)}`);
+  answer.styles.forEach((st, i) => {
+    if (st === null || typeof st !== 'object') return say(`style ${String(i)} is not an object`);
+    if (typeof st.fg !== 'string' || !COLOUR.test(st.fg)) say(`style ${String(i)}'s fg is not #rrggbb`);
+    if (st.bg !== null && (typeof st.bg !== 'string' || !COLOUR.test(st.bg))) say(`style ${String(i)}'s bg is neither null nor #rrggbb`);
+    for (const k of ['bold', 'dim', 'italic', 'underline', 'strike']) if (typeof st[k] !== 'boolean') say(`style ${String(i)}'s ${k} is not a Bool`);
+  });
+  const wrap = isWhole(answer.wrap, 1, SCREEN_MAX_COLS) ? answer.wrap : 0;
+  answer.rows.forEach((line, y) => {
+    if (!Array.isArray(line)) return say(`row ${String(y)} is not a list`);
+    let used = 0;
+    for (const run of line) {
+      if (run === null || typeof run !== 'object' || typeof run.text !== 'string') return say(`row ${String(y)} holds a run that is not { text, style, cells }`);
+      if (!isWhole(run.style, 0, answer.styles.length - 1)) return say(`row ${String(y)} names style ${J(run.style)}, outside the table`);
+      if (!isWhole(run.cells, 1, wrap)) return say(`row ${String(y)} holds a run of ${J(run.cells)} cells`);
+      used += run.cells;
+    }
+    if (used > wrap) say(`row ${String(y)} covers ${String(used)} cells, past ${String(wrap)}`);
+  });
+  if (isWhole(answer.from, 0, SCROLLBACK_MAX_INDEX) && isWhole(answer.depth, 0, SCROLLBACK_MAX_INDEX) && answer.from + answer.rows.length > answer.depth) {
+    say(`from ${String(answer.from)} and ${String(answer.rows.length)} rows pass depth ${String(answer.depth)}, into the live screen`);
+  }
+  if (asked !== null && isWhole(answer.from, 0, SCROLLBACK_MAX_INDEX)) {
+    if (answer.from < asked.from || answer.from + answer.rows.length > asked.from + asked.count) say(`rows ${String(answer.from)} to ${String(answer.from + answer.rows.length - 1)} are outside the ${String(asked.count)} asked from ${String(asked.from)}`);
+    if (answer.wrap !== asked.wrap) say(`wrap ${J(answer.wrap)} is not the ${String(asked.wrap)} asked`);
+    if (isWhole(answer.depth, 0, SCROLLBACK_MAX_INDEX) && answer.depth < asked.depth) say(`depth ${String(answer.depth)} is below the ${String(asked.depth)} the phone saw`);
+  }
+  return problems;
+}
 
 /** One signed `/v1/sessions` read: the status, the parsed answer or null, its bytes and how long it took. */
 export async function readSessions(phone, door, query = {}, options = {}) {
