@@ -40128,6 +40128,533 @@ reads Offline, which is false. The main session landed 340 and queued this, reco
 
 - **No change to 340's flow or words.** **No release.**
 
+## Phase 343 — "Make symlinked folders appear as folders" — a link to a folder opens in the Explorer like a folder, read only through the link, on your Mac and on another machine (John Berryman, issue 36, 2026-09-29)
+
+**Subject.** `feat(tree): a link to a folder shows as a folder and opens`
+
+**First body line.** `Phase 343: a linked folder opens in the Explorer, read only through the link`
+
+**Semver.** Minor, unreleased, for the next release: a link to a folder in a project draws as a folder with a link mark and
+opens to show what is inside, on this Mac and on another machine; a file opened from the Explorer through a link is read
+only, and nothing can be created, moved, renamed or deleted under one from the Explorer.
+
+**Tier 2.** Asked against CLAUDE.md's tier questions: it cannot lose or corrupt work (no tmux, manifest, restore or
+lifecycle change); it starts no new process and sends nobody's words anywhere; it is a rendered surface whose one new
+state is a field on a listing and a flag on a tab. Two things keep it from being a plain Tier 2 surface, and both are
+bought with the independent method rather than a higher tier. First, it decides what a person may WRITE through a link,
+and the attack below found four renderer doors (Redline typing, the Redline rewind, Duplicate and New File) that would
+have written through an in-project link with every gate green. Second, it changes one far text (`tree-list`, a read).
+That change takes `-H` ONLY when the root asked about is itself a link, so every ordinary listing on every machine runs
+today's argv and answers today's bytes (measured, A7); an unconditional `-H` would have changed every listing on every
+far machine and would have earned Tier 3's per-machine matrix. So the independent method is the ATTACK, a hostile
+fixture of links driven through every door a person has in the app (not only main's gates), with the parent measured
+beside HEAD because his rule is that a phase lands only when a side-by-side shows no scenario worse than today. One app
+run per build.
+
+**Charter.** Issue 36, filed 2026-09-29 by John Berryman (JnBrymn), with a screenshot of the Explorer: "Here .claude/skills
+is symlinked to .agent/skills, but you can see that it looks like a file of unknown type. It would be nice to easily
+interact with its contents." No pull request and no comments; he reported it, so he is named as the reporter in the
+commit body and in the changelog item's `Reported by`, and never as a contributor. The operator asked for a QUICK phase
+that ships in the next release. His standing rule that remote feels identical to local binds it: a linked folder on
+another machine must look and behave as one on his Mac, and with no extra words because it is remote.
+
+### What was measured before this entry was written, so no round re-derives it
+
+Plain node over scratch trees, no Electron, no ssh, no tmux, at `b22cf903`. The writer's scripts are under
+`scratchpad/issues/entry36/` (M1 to M11); the attack's are under `scratchpad/issues/attack36/` (A1 to A8), and the
+attack re-ran M1, M1b, M2, M4, M5, M6, M7, M8, M9, M10 and M11 on its own fixture and got the same answers. The shipping
+TypeScript was loaded unmodified through a resolve hook (`hooks.mjs`; `hooks2.mjs` also reads `zustand` from the
+operator's checkout, read only, so the shipping ignored store can run); where a module imports electron or the live ssh
+plane, the few lines needed were copied and say so. The fixture (`make-fixture.sh`) is a committed git project holding
+the issue's shape `.claude/skills -> ../.agent/skills` and eighteen more links: in the project (`linkIn`, `linkInAbs`, a
+two-link chain, `src/linkIgnored -> ../node_modules/pkg`), out of it (`linkOut`, `linkOutAbs`, `linkOther` to a second
+project, `linkHome` and `linkSsh` to a stand-in home, `linkFsRoot -> /`), to the project itself (`loopRoot -> .`) and its
+parent (`up -> ..`), to `.git` (`linkDotGit`), to files in and out (`linkFile`, `linkFileOut`), to nothing (`dangling`)
+and to itself (`self`). The attack added `.venv` and `bazel-out` as IGNORED links, a pnpm-shaped
+`node_modules/pkgb -> .pnpm/pkgb`, a link to `/var/root`, a link to a `0300` folder, a link whose target is removed, and
+a link to a FIFO.
+
+- **Local, today, every link is a leaf (M1, M1b).** `fs:readDir` (`src/main/fs/ipc.ts:205-224`) maps each dirent through
+  `entryKind` (`:67-81`), which answers `symlink` for every link, and `FsDirEntry` (`src/shared/types.ts:775-786`) says
+  why: "'dir' ONLY for real directories ... so the tree never follows link cycles". The tree adds a trailing slash only for
+  `kind === 'dir'` (`src/renderer/tree/use-tree-model.ts:349-366`), so a link is drawn as a file and gets the unknown-type
+  icon, which is the screenshot. A click goes through `openRel` (`src/renderer/tree/FileTree.tsx:498-529`) to the
+  editor's read, which on a link to a folder throws `EISDIR`; the editor opens a tab that reads "Could not open skills"
+  (`src/renderer/editor/tab-io.ts:416-420`, not a toast). A link to a file opens (including `linkFileOut`, whose target is
+  outside the project); `dangling` and `self` fail with `ENOENT` and `ELOOP`. Following each link with one `stat`: 15 of
+  the 19 point at a folder, 2 at a file, 1 at nothing, 1 loops.
+- **What following costs (M6, A2).** A folder of 5,000 files and 50 links, 200 reads each, median: the writer measured
+  1.77 ms, 2.06 ms with one `stat` per link and 2.50 ms with a `realpath` too; the attack's re-run read 2.81, 2.51 and
+  3.53 ms, so at 50 links the `stat` is inside the noise. At pnpm's shape, where `node_modules` holds one link per package
+  (A2, 1,000 folder links): `readdir` 0.44 ms, with one `stat` per link 4.59 ms. A folder with no links stats nothing.
+- **Main's write gates refuse every write through a link that leaves the project, and admit one through a link that
+  stays (M2, M9, M10, A3).** The shipping `resolveInsideRoot` (`src/main/fs/paths.ts`, SYMLINK RULE at `:15-21`) answers
+  `OK` for `.claude/skills/new.md` (resolved to `.agent/skills/new.md`), `chainA/new.md`, `linkIn/new.ts`,
+  `loopRoot/new.md` and even `up/proj/new.md`; `outside` for `linkOut`, `linkOutAbs`, `linkFsRoot`, `linkHome`, `linkSsh`,
+  `linkOther` and `up/outside`; `protected` for `linkDotGit/config`; `unreadable` for `self/x`. The shipping
+  `createFileOps` agrees verb by verb: create, rename and trash under `linkOut` refused `outside` with nothing written
+  outside; trash of the link row itself handed `trashItem` the LINK's path; trash of `.claude/skills/notes.md` handed it
+  `.agent/skills/notes.md`. **Duplicate (A3)** of the link row copies the LINK verbatim (`verbatimSymlinks: true`,
+  `file-ops.ts:426-432`): `skills copy -> ../.agent/skills`, `linkFsRoot copy -> /`, never the target; Duplicate of
+  `.claude/skills/notes.md` WRITES `.agent/skills/notes copy.md`; under `linkOut` it is refused `outside`. Every answer
+  under an in-project link is spelled at the TARGET, and every answer about a link itself says `kind: 'file'`, because
+  `kindOf` reads `lstat` (`src/main/fs/file-ops.ts:245`). A move whose destination is a link answers
+  `"skills" is not a folder.` (ENOTDIR). The shipping `writeGuarded` on `linkOut/secret.txt` answers `refused/outside`,
+  which reaches a person as the sentence `src/renderer/editor/save-sentences.ts:103-113` says nobody should ever meet; on
+  `.claude/skills/notes.md` it answers `wrote` and the real file changes.
+- **A link to a FILE out of the project is written through today (M9).** `writeGuarded` on `linkFileOut` answers
+  `refused/link`, `save-write.ts:59-66` turns that into `unguarded`, and `tab-io.ts:1459-1462` takes the plain door, which
+  is node's `writeFile` and follows the link: `outside/secret.txt` changed and the link stayed a link. That is Phase 240's
+  ruled door, and this phase does not touch it (see the rulings below).
+- **Other doors already write through an in-project link today (read, not driven).** The Explorer is not the only way
+  into `.claude/skills`. Context opens a skill file by the path it found (`src/renderer/context/open-detail.ts:154-173`,
+  which reads `<project>/.claude/skills`), and a relative link inside a document opens the path it names
+  (`src/renderer/editor/markdown/MarkdownPreview.tsx:124-138`); neither carries any read-only reason, and `writeGuarded`
+  answers `wrote` for that path (M9). A terminal path link opens the REAL path (`src/renderer/terminal/path-links.ts:357`),
+  so it is not "through a link". So "read only through a link" is a property of the Explorer's opening, and this entry
+  says so rather than claiming it of the file.
+- **Redline and the durable baseline do not ask the read-only question (read).** `tabIsReadOnly`
+  (`src/renderer/editor/tab-readonly.ts:57-70`) is asked by Monaco, auto save and the tab strip, but Redline's typing gate
+  `redlineTypable` (`src/renderer/editor/redline-edits.ts:195-206`) lists its own reasons; `markDirty` refuses only a
+  READ-ONLY REMOTE tab (`src/renderer/editor/store.ts:1565-1582`); the rewind press (`RedlineDocument.tsx:441-490`) calls
+  `applyRewind`, which writes through `fs:writeGuarded` with no tab check (`redline-write.ts:104-145`); and
+  `keepsBaseline` (`src/renderer/editor/baseline-durable.ts:81-89`) asks `fileInRepo` lexically, while main's baseline
+  store admits a relative path without resolving it (`src/main/baselines/store.ts:438-485`). So a flag that only
+  `tabIsReadOnly` reads would leave Redline typing and ⌥⌫ writing through `.claude/skills` (`writeGuarded` answers
+  `wrote`), and would store the contents of prose files read through `linkHome` or `linkFsRoot` in Tortie's durable
+  baseline store.
+- **git stops at a link, and one path past it empties the whole ignored answer (M3, A8, A4).** `git check-ignore -z
+  --stdin` with `node_modules/`, `ignored.log` and `.claude/skills/` (the link spelled as a folder, as the tree would after
+  this phase) prints the first two and then `fatal: pathspec '.claude/skills/' is beyond a symbolic link`, exit 128; the
+  children, `linkOut/secret.txt` and `node_modules/pkgb/b.js` (a path under a link inside an IGNORED folder) do the same.
+  `checkIgnore` (`src/main/git/service.ts:719-741`) maps any non-zero exit to `[]` for the WHOLE batch. **Two things the
+  writer did not have.** (1) An IGNORED link row is dimmed today: asked in today's leaf spelling, `.venv` and `bazel-out`
+  answer ignored, exit 0; spelled as folders they exit 128 (A8). (2) Driven through the SHIPPING ignored store with real
+  git (A4): opening a linked folder changes nothing at first, because an ordinary sync MERGES and a failed batch adds
+  nothing; the FIRST REVALIDATION after any change in the project (at most 10 s later, `ignored.ts:65-88`) asks every
+  loaded path on its own arm (`ignored.ts:332-334`, `pathsToAsk(paths, NONE, NONE)`), gets exit 128 and REPLACES the set
+  with nothing: the whole tree, `node_modules` included, goes undimmed, and stays so while the folder is open. That holds
+  for the pnpm shape too, because the revalidation arm does not skip a path under an ignored folder. The writer's rule 6
+  as written (drop every path AT or under a link) keeps `node_modules/` and `ignored.log` dimmed but LOSES `.venv`,
+  `bazel-out` and `node_modules/pkgb`; asking a link row in its leaf spelling and nothing under it keeps all five, exactly
+  as today. `git log` through a link prints nothing with exit 0; `git log -- .agent/skills/notes.md` prints the commit;
+  `git show HEAD:.claude/skills/notes.md` exits 128 with "exists on disk, but not in 'HEAD'".
+- **The watcher (M7, re-run).** `@parcel/watcher` subscribed as `repo-watcher.ts` does: a file written through
+  `.claude/skills/` arrives as a create at `.agent/skills/...`; a file written through `linkOut/` arrives as nothing. Any
+  event ends in `refreshLoaded` (`FilesSection.tsx:352-372`, the call at `:365`), which re-lists every cached folder including a link's, so a
+  link inside the project refreshes within the debounce and a link out of it, or into a folder the watcher leaves out
+  (`src/main/watcher/ignored-roots.ts`, such as `node_modules`), does not.
+- **Search and Quick Open skip every link.** Neither argv carries `--follow` (`src/main/search/args.ts:118-157`,
+  `files-args.ts:35-43`). The bundled ripgrep 15.0.0 with Quick Open's flags lists the fixture's five real files and no
+  path through any link; a content search for `skill` finds `.agent/skills/a-skill/SKILL.md` only.
+- **The tree library (@pierre/trees 1.0.0-beta.6, read).** A drop over a FOLDER row targets that folder itself, and a drop
+  over a file row targets its parent (`render/FileTreeView.js:100-131`); when `canDrop` answers false the target becomes
+  nothing, never the parent (`model/FileTreeController.js:467-477`). So once a link draws as a folder, a drop over it aims
+  INTO it, and the writer's "lands in the folder that holds the link" cannot happen for a drag inside the tree.
+  Single-child folder chains draw as one row (`path-store/src/options.js:4`, on by default), and a chain row's open state
+  is its last folder's, which starts closed (`path-store/src/state.js:37-49`, `projection.js:335-344`), so a loop opens
+  one level per click and never cascades. Nothing in the library or the tree expands recursively.
+- **Another machine, today: a linked folder is drawn as an EMPTY folder (M4, M11).** The shipping `tree-list` text
+  (`src/main/machines/remote-scripts.ts:1403-1427`), run under `/bin/sh` and `/bin/dash` against the fixture, prints every
+  link to a folder with a trailing slash, because `[ -d "$f" ]` follows the link (so `RemoteTreeEntry`'s comment "A link
+  and a socket are reported as files", `src/shared/ipc/machines/filesystem.ts:173`, is false for a link to a folder), and
+  `find` never descends it. The shipping `groupRemoteEntries` (`src/renderer/tree/remote-plan.ts:57-78`, the pre-seed at
+  `:61-63`) then gives each one an empty list, so expanding it shows nothing and asks nothing. Asked directly with the link
+  as the root, the far side answers `ok 0` with no rows; the same text with `find -H` answers the link's entries. And
+  `mergeRemoteGroups` (`:87-104`) empties a link's rows on a root Refresh: 1 row before, 0 after. A project on another
+  machine whose own folder is a link reads `ok 0` today for the same reason.
+- **A far link to a folder the account cannot read, or whose target has gone, blanks the whole Explorer once it opens
+  (A1).** With `-H`, the link as root, under `/bin/sh` and `/bin/dash`: a link to `/var/root` (a folder that exists and is
+  `0750 root:wheel`) and a link to a `0300` folder answer `denied`; a link whose target was removed after the listing
+  answers `missing`. Every walk sets the ONE remote status of the tab (`src/renderer/tree/store.ts:261-272`), and a
+  `missing`, `notdir` or `denied` status replaces the whole tree with a refusal sentence and the Prepare and Confirm
+  actions (`src/renderer/tree/FilesSection.tsx:412-454`, `:488-497`). Expansion is saved and re-asked when the tab opens
+  (`use-tree-model.ts:684-691`), so the next open does it again. On this Mac the same click leaves the folder quietly
+  unlisted (`store.ts:176-185`). A capped walk of a link sets the tab's "showing 4,000 of N" line the same way.
+- **A pre-existing far defect the link walk would inherit (A6, read and driven through the shipping functions, not in the
+  app).** `groupRemoteEntries` gives EVERY folder an answer names an empty list, including a folder at the walk's last
+  level, whose children the walk never read: for `a/b/c/d.txt` at the shipped depth 3, the key for `a/b/c` is `[]`. The
+  lazy load returns early for a cached key (`store.ts:343-348`), so on another machine a folder three levels below the
+  folder asked about opens empty and asks nothing. The store test that covers "expand PAST the fetched depth" deletes that
+  key by hand first (`p903-b-tree-store-remote.test.ts:110-124`), and the module header states the intended rule ("it
+  knows nothing about anything deeper", `remote-plan.ts:12-18`). Nothing in the backlog records it, and `remote-plan.ts`
+  has not changed since `9d247ab1` (Phase 90.3). A linked folder's third level would hit it. Fixed here by ruling 5 (mechanism 7.7).
+- **Every far write through a link is refused today (M5).** `file-put` and `dir-new` with the legacy pin, through
+  `.claude/skills` and through `linkOut`, answer `outside` on both shells, and the control in `src/` answers `wrote`:
+  Phase 242's `noLinkWalk` (`remote-scripts.ts:2466-2486`) refuses any link among a write path's FOLDERS, inside the
+  project or not. It skips the last segment, so renaming the link row itself is allowed on both computers. Nothing was
+  written through a link.
+- **Far reading through a link already works (read).** The far `review-file` (`remote-scripts.ts:968-981`) refuses only
+  an absolute path or one holding `..`, then `[ -f "$2" ]` and `head -c` follow links, so a file under a far link opens.
+- **A far walk of a link to `/` (M8, re-run).** With `-H`, the link as root, depth 3, on this Mac's own `/`: `ok 6700`,
+  4,000 lines sent, median 370 ms (the writer read 6,674 and 328 ms); depth 1, 10 ms.
+- **The far machine's ceiling on calls at once.** Research 56 §1.5: ten listings at once cost 46.3 ms median, eleven
+  258.8 ms; research 55: the first failures appear at thirty at once ("Session open refused by peer"). Restored expansion
+  and Refresh would each ask one far call per expanded link.
+- **One `-H` only when the root is a link changes nothing else (A7).** A candidate text that sets `h=-H` only when
+  `[ -L "$p" ]` and marks link lines with a suffix (`//` for a link to a folder, `///` for any other link, illustration
+  only) answers, on an ordinary root under `/bin/sh` and `/bin/dash`, byte for byte what the shipping text answers once
+  the marks are taken off, and walks a link root (`ok 5`). BSD `find` with and without `-H` over the fixture's root lists
+  identical paths, and a trailing slash on the root does not double any slash.
+- **A link to a FIFO hangs a read today (A5).** `open(link to a FIFO, 'r')`, as `readTextCapped` does
+  (`ipc.ts:87-117`), had not returned after 3 s: it waits for a writer, holding one of main's file threads. Today the tree
+  sends any `symlink` row to the editor (`FileTree.tsx:502` makes only a real `other` inert).
+- **VS Code**, read from `microsoft/vscode` main on 2026-10-06 and spot-checked by the attack: its disk provider's
+  `readdir` stats each link child and leaves out one whose stat throws, such as a loop
+  (`src/vs/platform/files/node/diskFileSystemProvider.ts`, the `readdir` at about `:115-139`); a dangling link is
+  `Unknown | SymbolicLink`; its Explorer marks every link with the letter `⤷` (U+2937) and the tooltip "Symbolic Link"
+  (`src/vs/workbench/contrib/files/browser/views/explorerDecorationsProvider.ts:26-29`), and expands a linked folder. VS Code
+  writes through a link like any folder; Tortie's Explorer does not, and this phase keeps that.
+- **Phase 343 is free:** no `## Phase 343` heading in `docs/BACKLOG.md`, no commit body names it, and no other scratch
+  entry claims it. Issue 36 has no comments, and its reporter has no pull request for it.
+
+### The decision, and the reading it takes
+
+**From the Explorer, through a link, Tortie reads and never writes, on both computers.** A link to a folder draws as a
+folder with the link mark and opens, one level per click, wherever it points. From the Explorer, nothing under it can be
+created, renamed, moved, duplicated, deleted or saved, whether the link stays in the project or leaves it, and a file
+opened from the Explorer through a link is read only in every editor surface (Monaco, Redline, auto save). The link row
+itself keeps today's verbs, Rename, Duplicate and Move to Trash, which act on the link and never on what it points at
+(paths.ts's SYMLINK RULE and `verbatimSymlinks`, measured).
+
+This is the safe reading for the Explorer: today nothing can be written through a link to a folder from the Explorer
+(locally the row never opens; on another machine every write through one is refused), and after this phase still nothing
+can. It makes the two computers' Explorers identical, because the far side refuses every write through a link (Phase 242)
+while main admits one that stays in the project. It does NOT make a file read only everywhere: Context and a link inside
+a document open the same file today by the link's spelling and save it through the link, and this phase leaves them
+exactly as they are, because narrowing them would be worse than today for a person who edits skills from Context.
+Editing through an in-project link from the Explorer is the natural next step and is left for his ruling, not slipped in
+(ruling 2).
+
+The one widening is of READING, and it is named rather than hidden: the Explorer can now list, and open read only, files
+outside the project that a link inside it points at, including a home folder or `/`, on this Mac and on another machine.
+Main's `fs:readDir` and `fs:readFile` have never had containment (the renderer runs no third-party code), the far
+`review-file` already follows a link, and the editor already opens a file outside the project through a file link today
+(measured, `linkFileOut`). Such a file is never copied into Tortie's durable baseline store (mechanism 5).
+
+### The mechanism
+
+1. **Main says what a link points at, and nothing else changes for anyone else.** In `fs:readDir`
+   (`src/main/fs/ipc.ts:205-224`), each dirent `entryKind` calls `symlink`, and only those, gets one `stat`, and the
+   entry carries one new optional field saying whether the link points at a folder, a file, something else (a FIFO, a
+   socket or a device) or nothing (any `stat` error, `ENOENT`, `ELOOP` or `EACCES`). `kind` stays `symlink`, so every
+   other reader of a listing answers exactly as today: `tab-io.ts:1848-1858`'s existence check and
+   `session-manager/actions.ts:525-533`'s gone check read names and errors only. THE STAT IS BOUNDED, because today no
+   listing stats through a link and a link to a stale network mount can hold a `stat` for tens of seconds while it holds
+   one of main's four file threads: the listing waits for a link's `stat` at most a short fixed time (the spec measures and
+   names it), a link that has not answered by then reads as today's leaf, and no second `stat` of the same link starts
+   while one is still outstanding, so a re-list on every watcher tick cannot pile them up. `FsDirEntry`'s comment
+   (`src/shared/types.ts:780-784`) is rewritten to say the tree opens a link to a folder one level per click. No `realpath`
+   and no containment call are added, so `conformance:samefolder`'s `realpathSync` set and `paths.ts` are untouched. No
+   channel is added or renamed.
+2. **The tree draws it as a folder with VS Code's mark.** `use-tree-model.ts:349-366` gives a link to a folder its
+   trailing slash; `sortEntries` (`src/renderer/tree/store.ts:48-55`) sorts it with the folders. The row decoration
+   (`use-tree-model.ts:387-399`, wired at `:524`, the one renderer @pierre/trees allows a row) keeps the conflict `!` first
+   and otherwise puts `⤷` on every link row, folder or file, in an existing muted token, titled `Link`. A link to a file,
+   to nothing or to itself keeps today's leaf and today's click with the mark added; a link to a file still opens and
+   saves exactly as today. A link to something that is neither a file nor a folder is INERT, by the rule a real FIFO
+   already gets (`FileTree.tsx:502`), because today's click on it hangs a read (A5). A loop (`loopRoot`, `up`) opens one
+   level per click and no more: expansion is per click (`use-tree-model.ts:805-860`), a chain row's open state is its last
+   folder's and starts closed (the library, above), restored expansion is capped at 500 (`:140-150`), and nothing in the
+   tree expands recursively. A folder holding only the link (`.claude` in the issue) now draws as one chain row
+   `.claude/skills`, which is the library's ordinary rule.
+3. **Two questions about links, asked everywhere `.git` is asked.** Pure functions beside `isProtectedFsPath` in
+   `src/renderer/tree/tree-paths.ts`, reading the loaded listing's kinds (a link above the project root is not a row and
+   never counts, so issue 25's project opened through a link still saves):
+   - **Under a link** (strictly below a link row) is asked of every SOURCE: `canRename`, `canDrag`
+     (`use-tree-model.ts:538-546`, `:428-457`), the ops' own second doors `startRename` (`tree-ops.ts:1098-1101`),
+     `onRenameCommitted` (`:1167`), `duplicate` (`:1209`, which has no `.git` gate today), `trash` (`:1238-1240`, which
+     the ⌫ and Delete keys reach through `FileTree.tsx:580-592`) and the drag out (`use-tree-drag.ts:211`). A row under a
+     link cannot be dragged at all, which also refuses dragging it to a terminal or to Finder; that is a narrowing of a
+     read gesture and the entry names it.
+   - **At or under a link** is asked of every DESTINATION: `canDropInto` (`use-tree-model.ts:463-474`), `importTargetFor`
+     (`tree-paths.ts:208-224`), the ops' `drop` and `importPaths` (`tree-ops.ts:1299-1301`, `:1320-1323`) and `newEntry`
+     (`:1048`, which has no gate of its own today). A drop over a link row, from the tree or from Finder, is REFUSED and
+     paints nothing, because the library aims a drop over a folder row into it and never at its parent; today the same
+     drop over the leaf landed beside it, so this one gesture changes, and nothing is written either way. The header's
+     New File and New Folder (`headerDestDir`, `src/renderer/tree/header-actions.ts:25-29`) aim at the folder that holds
+     the OUTERMOST link above the selection, which for the link row itself is where the gesture lands today.
+   - Renaming, dragging, duplicating or trashing the link row itself goes on working, and because main answers
+     `kind: 'file'` for a link (measured, `lstat`), the tree's arithmetic after the answer takes the kind from its own row
+     for a link, as `finishRename` already does (`tree-ops.ts:791-794`), in the move (`:863-866`), trash (`:1258-1262`)
+     and duplicate (`:1216-1218`) arms too, so a folder row is never removed, moved or added under a file's spelling.
+4. **The menu says it once.** `buildTreeMenu` (`src/renderer/tree/tree-menu.ts:128-330`) drops New File…, New Folder…,
+   Rename…, Duplicate, Move to Trash and History for a row under a link (History because `git log` through a link prints
+   nothing, measured, which would read as a file with no history), and New File… and New Folder… on the link row, and ends
+   with one disabled line in Phase 90.3's shape (`:139-144`, `:321-326`): `Read only through a link`. On another machine
+   that line is the ONLY footnote on such a row, never beside the machine's own note. Open, Open in New Tab, Open With,
+   Reveal in Finder and the two Copy Path rows stay where they are offered today. Move to Trash on a link row keeps its
+   confirm with one clause added to the body: only the link moves, and the folder it points to stays.
+5. **A file opened from the Explorer through a link is read only, everywhere it could be typed into, and says so.**
+   `openRel` (`FileTree.tsx:498-529`) puts one flag on the open request (`src/renderer/state/open-file.ts:111`) when the
+   row is under a link; the flag is applied when the tab is CREATED, and a request that lands on a tab already open leaves
+   that tab as it is, so a dirty tab is never turned read only under a person's edits. The flag is one more reason in each
+   of the five places that decide whether bytes can reach the disk from a tab: `tabIsReadOnly`
+   (`src/renderer/editor/tab-readonly.ts:57-70`, before the remote reason, which also stops auto save, because auto save
+   asks the same function); `markDirty`'s refusal (`src/renderer/editor/store.ts:1565-1582`, which today refuses only a
+   read-only remote tab); `redlineTypable` (`src/renderer/editor/redline-edits.ts:195-206`); the Redline rewind and undo
+   press (`RedlineDocument.tsx:441-472`), which refuses before it reads a byte with the sentence that already exists for a
+   read-only file (`redline-sentences.ts:32`, `:162`); and `keepsBaseline` (`src/renderer/editor/baseline-durable.ts:81-89`),
+   so a file read through a link is never stored in Tortie's durable baseline store. `EditorPanel.tsx`'s band chain
+   (`:726-775`) draws one band, `Read only · opened through a link`. Tabs do not persist across a relaunch (no tab is in
+   `localStorage`; read in `src/renderer/editor/`), so the flag lives as long as the tab. On another machine the same flag
+   wins over `remoteWriteFolderIn`, so a file under a far link never offers a save the far side would refuse `outside`.
+   Context, a link inside a document and every other opener are untouched (above).
+6. **git is never asked about a path past a link, and a link row is still asked as today.** `pathsToAsk`
+   (`src/renderer/tree/ignored.ts:143-157`) is handed the link rows and, on BOTH of its arms (the ordinary sync and the
+   revalidation, `:332-334`), sends a link row in today's LEAF spelling (`.claude/skills`, no slash) and drops every path
+   under it, so the batch can never hold the path that makes git exit 128 (measured). A hit on a link row is keyed onto the
+   row's folder spelling in the set (`commit`, `:284-295`, and `treeGitLane`, `src/renderer/tree/decorations.ts:80-101`),
+   so an ignored link (`.venv`, `bazel-out`, a pnpm package) stays dimmed and the rows under it are covered by
+   `coveredByIgnored` as rows under any ignored folder are. Rows under a link that is not ignored are drawn undimmed and
+   unmarked, which is true: git does not look past a link. The link row keeps the mark git gives it (`?? newLink`, no
+   slash), keyed onto the folder row's spelling.
+7. **Another machine, the same rows.**
+   1. The far `tree-list` (`remote-scripts.ts:1403-1427`) takes `-H` ONLY when the root asked about is itself a link
+      (`[ -L "$p" ]`), on both `find` calls, so every ordinary listing runs today's argv (A7), a link asked as the root is
+      walked, and a walk never descends a link below its root. It marks a link in its line grammar with a suffix no name
+      can produce (a name never holds `/`), one mark for a link to a folder and one for any other link. It still names only
+      `find`, `head`, `printf`, `wc`, `tr`, `read` and `test`, prunes `.git`, reads its depth from `$2` and caps with
+      `head -n "$3"`, so `conformance:machines` condition 51 and the bundle refusal `machine.tree-list-prunes-git`
+      (`build/assert-bundle-refusals.mjs:1136`) read as they do; condition 51 gains one clause, that the text never names
+      `-L` or `-follow`, because a later round that "simplifies" `-H` to `-L` walks every loop to the depth cap. Its
+      header's seven properties, the false comment at `filesystem.ts:173`, and `filesystem.ts:102`'s "It reaches nothing
+      outside the folder it was asked about" are corrected (a link asked about reaches its target). A project whose own
+      folder is a link lists its files as a side effect.
+   2. `parseTreeList`/`entryOfLine` (`src/main/machines/tree-list.ts:84-119`) read the mark into one optional field on
+      `RemoteTreeEntry`, checking the mark before the plain trailing slash.
+   3. `groupRemoteEntries` (`remote-plan.ts:57`) turns a far link into the same entry a local one is, `kind: 'symlink'`
+      with the field, and gives it NO empty list, so expanding it asks the machine once with the link as the root
+      (`store.ts:343-358` to `treeInto`). `mergeRemoteGroups` (`:87`) never counts a key at or under a link as covered by a
+      walk rooted above it, because that walk never descends one.
+   4. **A walk that is not the tab's own root never sets the tab's status or its line.** In `treeInto`
+      (`store.ts:240-299`), an answer for a folder other than the tab's root that is `missing`, `notdir` or `denied` leaves
+      that folder unlisted, as a failed child read does on this Mac (`store.ts:176-185`), and an `ok` answer for it never
+      moves `remote.status`, `root`, `total`, `shown` or `truncated`. So a far link to a folder the account cannot read, or
+      one whose target went away, can never replace the Explorer with a refusal (A1), on open or on a restored expansion.
+   5. **Never more than nine link reads at once per Explorer.** Refresh re-reads the tab's root and the expanded links at
+      once, and a restored expansion asks its links at once, but no more than nine link reads are in flight beside the
+      root's read (research 56 §1.5: ten at once cost 46 ms, eleven 259 ms; research 55: failures from thirty); a tenth
+      waits for one to finish. This is a count, not a clock, and Phase 90.3's NO TIMER rule (`store.ts:23-30`) stands.
+   6. The two questions, the menu, the band and the git rule above are the same functions, so a far link and a local link
+      cannot be told apart on screen. The far write texts are not touched: every write through a far link is refused
+      today (measured) and stays refused.
+   7. **Ruling 5, answered yes:** `groupRemoteEntries` is told the walk's depth and gives a folder at the walk's last
+      level no key, so expanding it asks the machine once, which is what the module header already says the rule is.
+
+### What moves against today, scenario by scenario
+
+| Scenario | Today (`b22cf903`) | After |
+| --- | --- | --- |
+| The issue: `.claude/skills -> ../.agent/skills`, on this Mac | A file of unknown type; a click opens a tab reading "Could not open skills" | A folder with `⤷` (one chain row `.claude/skills` when `.claude` holds only the link); opens to `a-skill/` and `notes.md`; files open read only |
+| A link to a folder outside the project, on this Mac | The same unknown file and failed tab | Opens and lists it read only (the named widening of reading) |
+| A linked folder on another machine | A folder that is always empty; New File inside refused `outside` | Opens to what is inside, read only, and keeps it across Refresh |
+| A far link to a folder the account cannot read, or whose target went away | An empty folder | Opens to nothing, and the Explorer keeps its rows (without 7.4, the WHOLE Explorer is replaced by a refusal, and again on every reopen) |
+| A link to a file, in or out | Opens; ⌘S writes through it by the plain door | Unchanged, plus the mark |
+| A dangling or looping link | A file; the click's tab says ENOENT or ELOOP | Unchanged, plus the mark |
+| A link to a FIFO | A click hangs the read, holding a main file thread | Inert, as a FIFO is |
+| Dimming with a linked folder open | Dimmed | Still dimmed after a revalidation (without rule 6, the first revalidation undims the whole tree, A4) |
+| An ignored link row (`.venv`, `bazel-out`, a pnpm package) | Dimmed | Still dimmed, and its rows dimmed when opened (with rule 6 as first written, LOST, A4) |
+| A file opened from the Explorer through an in-project link, typed into in Redline, or rewound with ⌥⌫ | Not reachable | Refused, with the existing read-only sentence (without mechanism 5's other four places, written through the link) |
+| The same file opened from Context or a link in a document | Opens and saves through the link | Unchanged |
+| Delete on a link row | The link goes to the Trash | The same, and the confirm says the folder it points to stays |
+| Duplicate on a link row | Copies the link | The same |
+| A header New File with a link row selected | Lands in the folder holding the link | The same folder |
+| A drop over a link row, from the tree or Finder | Lands in the folder holding the link | Refused, nothing moves (the library aims a drop over a folder row into it) |
+| A row under a link dragged to a terminal or to Finder | Not reachable | Refused with every other drag of such a row |
+| Rows under a loop link (`loopRoot`, `up`) | Not reachable | One level per click; each opened level is re-listed on each watcher tick |
+| A linked folder whose target is outside the project or in a folder the watcher leaves out | Not reachable | Does not refresh itself; Refresh, or any change in the project, re-reads it |
+| A folder of 1,000 links (pnpm `node_modules`) | 0.44 ms a listing | 4.59 ms a listing (A2) |
+| A link to a stale network mount | Never statted | Read as today's leaf after the bound; never a second stat while one waits |
+| Ten or more expanded far links on Refresh or reopen | Not reachable | At most nine far reads at once beside the root's |
+
+No row reads worse. Rule 6, mechanism 5's five places and 7.4 are the items whose absence would be worse than today, and
+the app run measures each at the parent and at HEAD. The drop over a link row is the one gesture that changes, and it
+changes from a write beside the link to nothing.
+
+### The proof, run rather than read
+
+- **The gates.** `npm run typecheck && npm run build && npm run smoke:t1` and the whole vitest; the integrator runs the
+  full battery (test, smoke, smoke:t3, package). `npm run build` already runs `gate:electron`, `gate:background`,
+  `gate:knownhosts` and `gate:contract`; no channel name moves, but a new bundle refusal or a changed refusal count moves
+  the baseline, which is then regenerated in the commit with the body saying which line and why (obligation 3).
+  Path-triggered, from CLAUDE.md's table: `conformance:machines` (`src/main/machines/**`,
+  `src/shared/ipc/machines/**`); `conformance:save` (the typing effect in `redline-edits.ts` and the `markDirty` seam in
+  `store.ts`, and the `fs:writeFile`/`fs:writeGuarded` registrations beside the edited handler in `src/main/fs/ipc.ts`);
+  `conformance:redline` (`redline-edits.ts`, `RedlineDocument.tsx` and `baseline-durable.ts` are in rule 9's derived set,
+  so its floor is checked and raised only if a file is added); and `conformance:redline-write` for the shared `ipc.ts`.
+  `conformance:containment` is run too and must read as at the parent, because the safety claim rests on `paths.ts` and
+  this phase must not have touched it. Probes the verifier runs once, because the phase touches their paths:
+  `probe:p336` (the read-only reasons in `tab-readonly.ts`) and `probe:p268` (the auto-save seam in `store.ts`).
+- **New unit cases, each shown red on the shape it forbids:** a listing's link field for every fixture row, including a
+  `stat` that never answers (the listing answers within the bound with the link as a leaf, and a second listing starts no
+  second `stat`); the tree's folder spelling and sort; both questions (under a link, at a link, the link row itself, a
+  loop, a chain, a link under a link, and a link ABOVE the root that must not count); `buildTreeMenu` under a link and on
+  a link row, local and remote, with one footnote; `headerDestDir` and `importTargetFor` on a link row and under one;
+  `tabIsReadOnly`, `markDirty`, `redlineTypable`, the press and `keepsBaseline` with the flag, local and remote; the flag
+  applied at creation only; `pathsToAsk` on both arms emitting a link row in its leaf spelling and nothing under it, and a
+  hit keyed onto the folder spelling; `parseTreeList` with both marks, a name ending in `@`, `.` or a space, and a root
+  of `/`; `groupRemoteEntries` giving a link no empty list; `mergeRemoteGroups` keeping a link's rows across a root
+  answer; `treeInto` leaving the tab's status alone on a non-root `denied`, `missing` and capped answer; the nine-read
+  count.
+- **The attack, which is the independent method, driven through the doors a person has, not only through main.**
+  `build/p343/` holds the fixture this entry measured (the issue's shape, the eighteen hostile links, the attack's
+  ignored links, pnpm shape, `/var/root`, `0300`, vanishing and FIFO links, a stand-in home under the scratch HOME, a
+  second project). In the app run, at the parent and at HEAD, every door is pressed on a row under `.claude/skills` and
+  under `linkOut`: each menu item, F2, ⌫ and Delete, Duplicate, a drag within the tree, a drag to a terminal, a Finder
+  drop onto a row under the link and onto the link row, the header's New File and New Folder with a row under the link
+  selected and with the link row selected, typing in Monaco and ⌘S, typing in Redline, ⌥⌫ in Redline after a `/bin/sh`
+  changed the file underneath, and a wait past auto save's delay; the sha256 of every file in and out of the project (the
+  outside folder, the stand-in home, the second project, `.agent/skills`) must read the same before and after the whole
+  run at HEAD, and the durable baseline store must hold no record for a path under a link. The main-side driver the writer
+  described (every write through the SHIPPING `createFileOps`, `writeGuarded` and the far `file-put`, `dir-new` and
+  `entry-rename` under `/bin/sh` and `/bin/dash`, each answer equal to the parent's) stays as the check that no write rule
+  moved; it cannot see a renderer door, so it is not the attack. The verifier adds shapes of its own: a link swapped from
+  an in-project target to `/` while its folder is open, a link replaced by a real folder of the same name, a real folder
+  replaced by a link while a file under it is open, a link whose name holds a newline or ends in the far mark's suffix, and
+  a chain of forty links.
+- **The app run, `probe:p343`, the parent first, then HEAD, one Electron at a time** through `withElectron`, on a scratch
+  profile, a scratch HOME and its own socket, the fixture opened as a project and again on the loopback machine of
+  `build/with-scratch-machine.mjs` with its quiet shell (ended in its `finally`); no conversation store and no live
+  profile is read; his three dotfiles' size and time are read before and after, as `probe:p336` does. Arms: (L1) the
+  issue's own shape, including `.claude` holding only the link, so the tree draws its chain row: row kind, mark, children,
+  a file opened and its band; (L2) every fixture row's kind and mark, read from the tree, against the probe's own
+  `lstat`/`stat` of the disk, which is the verifier's re-derivation; (L3) the door list above; (L4) Move to Trash on the
+  link row, the target folder's files identical afterwards; (L5) dimming, read only AFTER a revalidation has demonstrably
+  run: open `.claude/skills`, `src/linkIgnored` and `node_modules/pkgb`, write a file inside the project, wait past
+  `INVALIDATE_MIN_MS` (`ignored.ts:88`, 10 s) and the watcher's debounce, then create `fresh.log` as a witness; `node_modules/`,
+  `ignored.log`, `.venv`, `bazel-out`, `node_modules/pkgb` and `fresh.log` must be dimmed exactly as at the parent, and
+  `?? newLink` marked on its row. Read straight after the expand, this arm passes with rule 6 absent (A4), which is why it
+  waits; (L6) a `/bin/sh` writing into `.agent/skills` shows under `.claude/skills` with no Refresh, and one writing into
+  the outside target shows after Refresh, every writer ended in a `finally`; (L7) a click on the FIFO link returns at once
+  and opens nothing; (R1) on the loopback machine: the same rows and marks, a linked folder that opens and keeps its rows
+  across Refresh, no write verb under it, a file there read only; (R2) a far link to `/` opened once, inside the 20 s
+  deadline, the Explorer's line still the root's; (R3) a far link to `/var/root` and one whose target is removed after the
+  listing, each expanded, then the tab closed and reopened: the Explorer keeps its rows every time (at the parent this arm
+  is UNREADABLE by construction, because the link never asks; record what the parent draws); (R4) ten far links expanded,
+  then Refresh: the far side's own count of `tree-list` runs in flight never exceeds ten. Count the Electrons once at the
+  end. `HELPER_USER_FLOOR` goes from 169 (`build/assert-electron-teardown.mjs:457`) to 170 in the same commit
+  (obligation 1).
+
+### The CHANGELOG item, drafted under `## Unreleased`, `### Added`
+
+- A link to a folder now shows in the Explorer as a folder marked as a link, and opens to show what is inside, on your Mac and on another machine; a file you open from the Explorer through a link is read only, and a linked folder outside the project updates when you press Refresh. Reported by [John Berryman](https://github.com/JnBrymn) in [#36](https://github.com/gregce/tortie/issues/36)
+
+The commit link is added by the follow-up docs commit, after the last word, as the house rule says. He reported the issue
+and wrote no code, so the item says `Reported by` (the precedent is `CHANGELOG.md:17`, `:33` and `:36`) and never
+`Contributed by`. It says "from the Explorer" because Context and a link inside a document still open such a file as
+today.
+
+### The menus
+
+The Explorer's right-click menu, which is native through `ui:popupMenu`: on a row under a link, New File…, New Folder…,
+Rename…, Duplicate, Move to Trash and History are absent and one disabled line ends the menu, `Read only through a link`,
+the only footnote on that row on either computer; on a link row, New File… and New Folder… are absent and Rename…,
+Duplicate and Move to Trash stay. The Explorer header's New File and New Folder aim at the folder holding the outermost
+link above the selection. Nothing in the menu bar moves.
+
+### What is NOT in this phase
+
+- **No write through a link from the Explorer, on either computer.** Not to an in-project target either, although main
+  would admit it (measured); that is ruling 2.
+- **No change to Context, a link inside a document or any other opener.** A file they open by a link's spelling opens and
+  saves exactly as today.
+- **No change to any write rule.** `paths.ts`, `file-ops.ts`, `guarded-write.ts`, `save-write.ts`, the save doors in
+  `tab-io.ts`, main's baseline store, and the far `noLinkWalk`, `file-put`, `dir-new` and `entry-rename` stay byte for
+  byte.
+- **No change to a link to a FILE.** It still opens, and ⌘S still writes through it by Phase 240's plain door (measured);
+  that is ruling 3.
+- **No search, Quick Open, Catch Me Up, Architecture or Context through a link.** ripgrep keeps not following links.
+- **No git status, dimming or history for rows under a link that is not ignored**, because git does not look past one.
+- **No watch on a link's target outside the project or in a folder the watcher leaves out.**
+- **No new depth for a far walk, and no single far call carrying several roots.** A linked folder walks at today's depth
+  3 from its own root; folding the root and the links into one `find` would change `tree-list`'s three parameters and is
+  its own phase.
+- **No change to Open Folder or Add a Project's folder pickers** (`src/main/machines/dir-list.ts` and the local picker).
+- **No Linux far side measured.** The far change is POSIX `find -H` and `test -L`, measured under macOS's `/bin/sh` and
+  `/bin/dash`; Phase 342's Linux matrix should add one linked-folder row. BusyBox `find` is not measured either.
+- **No release of its own.** It rides the next one.
+
+### Rulings, answered by the operator on 2026-10-06
+
+He answered 1, 2 and 5 in the session that queued this entry, each with the recommendation; 3 and 4 were not
+asked and take the entry's own recommendation, because each keeps today's behaviour or only states a limit.
+
+1. **A link that leaves the project: open and list it read only, or draw it as a folder that does not open?** Recommended:
+   open it read only, as above, on both computers. **He ruled: "Open it, read only."** It is what VS Code and Finder do, it is the common shape
+   (`.claude/skills` linked to a shared folder outside the repository), it widens reading only, and a file read that way
+   is never stored in Tortie's baseline store.
+2. **Should a file opened from the Explorer through a link that STAYS in the project be editable, as in Finder and VS
+   Code?** The fact he should have: today the same file opened from Context or from a link inside a document is already
+   saved through the link (`writeGuarded` answers `wrote`, measured), and the reporter asked to "easily interact with its
+   contents". Recommended: not in 343. Main admits the write, but the far side refuses it (Phase 242), so making the two
+   computers' Explorers match means relaxing a far write rule, which is Tier 3 and its own phase (343.1) if he wants it.
+   **He ruled: "Read only in 343"**, with 343.1 (editing through an in-project link on both computers) to follow; its
+   full section is written once 343 lands, because it builds on 343's as-built.
+3. **A link to a file outside the project is written through by ⌘S today. Keep it?** Recommended: keep it in 343, which
+   does not touch it, and decide it on its own, because it narrows a door Phase 240 ruled.
+4. **Linux unmeasured.** Recommended: state it and let 342's Docker rig carry one row.
+5. **On another machine, a folder three levels below the folder asked about opens empty today (A6, read and driven
+   through the shipping functions; to be confirmed by `probe:p343` at the parent). Fold the fix into 343?** Recommended:
+   yes, as mechanism 7.7, because it is the same function this phase changes, the module header already states the rule
+   it breaks, and a linked folder's third level would otherwise open empty; it costs one far call per such expand.
+   **He ruled: "Yes, fold it in"**, so mechanism 7.7 is in, provided `probe:p343` confirms the defect at the parent; if the
+   parent does not show it, 7.7 is dropped and the finding is recorded as refuted.
+
+### Attack (2026-10-06)
+
+An independent attacker re-ran the writer's measurements on its own fixture (same answers; M6's 50-link cost is inside
+the noise) and tried to break the entry. What it found, and what changed above:
+
+1. **Rule 6 as written was worse than today (A8, A4, re-derived through the SHIPPING ignored store with real git).** An
+   ignored link row (`.venv`, `bazel-out`, a pnpm package) is dimmed today in its leaf spelling; dropping every path AT a
+   link loses it. Without rule 6, the failure is hidden at first (an ordinary sync merges) and appears at the first
+   revalidation, at most 10 s after any change, as a fully undimmed tree. Changed: rule 6 asks a link row in its leaf
+   spelling and nothing under it, on both arms of `pathsToAsk`, and keys the hit onto the folder spelling; L5 now waits
+   for a revalidation and plants a witness, because read straight after the expand it passes with rule 6 absent.
+2. **The read-only flag reached one of five places (read).** `tabIsReadOnly` alone leaves Redline typing
+   (`redlineTypable`), `markDirty` (which refuses only a remote tab) and the ⌥⌫ rewind writing through an in-project link,
+   and `keepsBaseline` storing prose read through `linkHome` or `linkFsRoot` in the durable baseline store. Changed:
+   mechanism 5 names all five, and the attack presses Redline's doors.
+3. **The tree's second doors.** `newEntry` and `duplicate` in `tree-ops.ts` have no gate of their own; Duplicate under
+   an in-project link WRITES `.agent/skills/notes copy.md` (A3). Changed: both are named; Duplicate on the link row is
+   kept, because it copies the link and never its target (A3).
+4. **A drop over a link row cannot land beside it.** The library aims a drop over a folder row into it and, when refused,
+   at nothing (`FileTreeView.js:100-131`, `FileTreeController.js:467-477`). The writer's "lands in the folder that holds
+   the link" was not possible; with only "strictly under" asked, the drop would have reached main and come back as
+   `"skills" is not a folder.` over a row drawn as a folder. Changed: destinations ask "at or under", the drop is refused,
+   and the table says this one gesture changes.
+5. **A far link to an unreadable or vanished folder blanks the whole remote Explorer, and again on every reopen (A1).**
+   Measured `denied` for a link to `/var/root` and a `0300` folder and `missing` for a removed target; read through
+   `store.ts:261-272` and `FilesSection.tsx:488-497`. Changed: mechanism 7.4, and arm R3.
+6. **A far walk of every expanded link at once can pass the far machine's ceiling** (research 56, research 55), and
+   restored expansion asks them all at open. Changed: mechanism 7.5's count of nine.
+7. **An unconditional `-H` changes every far listing on every machine.** Changed: `-H` only when the root is a link,
+   measured byte-identical for an ordinary root under `/bin/sh` and `/bin/dash` (A7), and a gate clause forbidding `-L`.
+   It also fixes a remote project whose own folder is a link, which lists nothing today.
+8. **History under a link would show an empty history** (`git log` through a link prints nothing, exit 0), contradicting
+   the entry's own NOT list. Changed: History is absent there.
+9. **The flag is the Explorer's, not the file's.** Context and a link inside a document open the same file by the link's
+   spelling and save it through the link today. Changed: the decision, the semver line and the changelog say "from the
+   Explorer", the NOT list names the other openers, and ruling 2 gives him that fact.
+10. **New stats can hang.** Today no listing stats through a link; a link to a stale network mount can hold one of main's
+    four file threads. Not measured (no such mount here). Changed: mechanism 1 bounds the wait and never stacks a second
+    stat; a unit case drives a stat that never answers.
+11. **A link to a FIFO hangs a read today (A5).** Changed: it is inert, by the rule a real FIFO already gets.
+12. **A pre-existing far defect (A6):** a folder at a far walk's last level opens empty and asks nothing. Not this
+    phase's, but a linked folder's third level would hit it. Changed: ruling 5.
+13. **Gates the entry missed:** `conformance:redline` and `conformance:save`'s Redline and `markDirty` triggers (now
+    earned), `probe:p336` (`tab-readonly.ts`) and `probe:p268` (the auto-save seam), the dotfile guard and the quiet shell
+    for the loopback arms. Added.
+14. **Smaller corrections:** a failed open is a tab's error, not a toast; several line ranges were tightened; the far
+    `review-file` already reads through a link, so the reading widening is on both computers; `filesystem.ts:102` is a
+    second false comment.
+
+What the attack could not break: main's write gates refused every write through a link that leaves the project on both
+computers (re-measured), no new watch is added so the eight-stream cap is untouched, search and Quick Open still follow no
+link, a loop cannot cascade because a chain row's last folder starts closed, Duplicate never copies a link's target,
+and `paths.ts` is not touched.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -41266,3 +41793,7 @@ cycle rather than only the evening it was written.
 - 2026-10-06, **PHASE 340.1 LANDED, `b23135e3`, unreleased — the late Prepare.** Confirming a machine's changed details now stops a Prepare already running under the old ones: no further sign-in over the old details, no late feed, and the row reads Not ready with a sentence saying to press Prepare again, instead of a false Offline. The portless host record was left as it was: its reverify measured, with ssh itself as the oracle, 108 machines that would lose Tortie's first-seen question for every 192 it fixed, and a reading of the files cannot tell the two apart, so the change was taken out and pinned by a test. 342 (Linux in Docker) is next once 337.1 and TestFlight build 7 are done.
 
 - 2026-10-06, **RESEARCH 140 STARTED — the public beta beside the release.** His words: "i think we can probably ship a test flight build for the public first so we don't block on the app store" ... "can you research what the best approach would be to do that and how we could handle and ship that? weigh how others do it". Research 136 (30 September) already mapped a public TestFlight link then the App Store and queued 333.1 to 333.10, paused by his stop; this round is its delta, because since then the phone gained the Screen (a live terminal, which 136 refused for review), reply and End. Investigate (Apple today, how others ship, the review risk with the Screen, Tortie's own shipping), attack, judge, one document. Runs beside 337.1, which still leads to TestFlight build 7.
+
+- 2026-10-06, **PHASE 343 QUEUED IN FULL — issue 36 (John Berryman): a link to a folder opens in the Explorer like a folder, read only through the link, on this Mac and on another machine.** He ruled the three questions it asked, each with its recommendation: a link that leaves the project opens read only ("Open it, read only"); files under an in-project link stay read only from the Explorer in 343 ("Read only in 343"), with 343.1, editing through such a link on both computers, MENTIONED here and written in full once 343 lands; and the far defect where a folder at a walk's last level opens empty is folded in ("Yes, fold it in"), provided the parent shows it. Tier 2, the attack a hostile fixture of links driven through every door in the app at the parent and at HEAD. Measured first, the regressions it must not ship: one path past a link makes `git check-ignore` exit 128 and the first revalidation undims the whole tree, an ignored link row loses its dimming if it is never asked, Redline and Duplicate write through an in-project link unless they ask, and a far link to an unreadable folder blanks the whole remote Explorer. He wants it in the next release; it starts now, beside 337.1, and touches no file 337.1 owns.
+
+- 2026-10-06, **THE OPEN ISSUES MAPPED TO THEIR PHASES (each mapping checked by a second agent trying to refute it).** #35 (Jake Levirne, a closed remote tab comes back) is fixed by 306 `6f194ddb` and #31 (Jake Levirne, no scrolling in a remote session) by 320, 320.1, 320.2 and 324: both unreleased, both closable when the next release ships, closing notes drafted and NOT posted. #33 (ignored files go stale) and #32 (Redline like Source) are partly done by 334 (one of #32's five asks). #34 (Redline pairs the wrong paragraphs, reproduced at HEAD on his texts), #23, #26 (richer status, the design is Phase 50, never queued) and #14 (transfer a conversation, research 84 only) are not covered. #36 is 343.
