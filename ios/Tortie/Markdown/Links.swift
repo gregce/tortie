@@ -1,5 +1,18 @@
-// The one way out of the app: a link in an answer (Phase 316.6,
-// build/p3166/SPEC.md §5.5.5; `conformance:ios` rule (z)).
+// The two ways out of the app (`conformance:ios` rules (z) and (av)): a link
+// in an answer, behind its alert (Phase 316.6, build/p3166/SPEC.md §5.5.5),
+// and a page of Tortie's own site, on a press (Phase 333.1,
+// build/p3331/SPEC.md D21).
+//
+// TORTIE'S OWN SITE, at the foot of this file, is the ONE other way out, and
+// it is not an answer's link. Its three addresses are compiled here
+// (`SiteLink`), the only `https://` literals in the app, and never an address
+// anyone wrote or sent. `SiteOpener` takes a `SiteLink`, never a URL or a
+// string, asks `LinkPolicy.opens` before its one open, and is reached only
+// when a person presses Get Tortie for Mac, Privacy or Support on the pairing
+// screen, or Tortie for Mac, Privacy or Support in Settings then About. No
+// alert comes first, because the address is the app's own and the words on
+// the row say where it goes. `LinkPolicy` and `LinkGate` below are unchanged
+// by it, and stay the gate for bytes somebody else wrote.
 //
 // THE 316.2 RULE MOVES HERE, IN WRITING. 316.2 drew every link as its words
 // and never opened one, because an answer is somebody else's bytes read over a
@@ -39,8 +52,9 @@
 // MARKDOWN IS OFF (his ruling of 2026-10-02): every answer is drawn as written
 // (`MarkdownCaps.pieces` is 0), every link address removed, so no link reaches
 // this gate and 316.2's rule holds again in practice: a link is drawn as its
-// words and never opened. The gate stays installed, and this file stays as it
-// is, for the later phase that switches markdown back on.
+// words and never opened. The gate stays installed, and `LinkPolicy` and
+// `LinkGate` stay as they are, for the later phase that switches markdown
+// back on.
 
 import Foundation
 import SwiftUI
@@ -169,5 +183,40 @@ private struct LinkGate: ViewModifier {
                     }
                 }
             }
+    }
+}
+
+// MARK: - Tortie's own site (Phase 333.1, build/p3331/SPEC.md D21)
+
+/// The three pages of Tortie's own site the app may open, and nothing else:
+/// the Mac app's page, the privacy page and the support page. Each address
+/// is compiled here and made with `URL(string:)`, never forced; an address
+/// that could not be made opens nothing.
+enum SiteLink: CaseIterable {
+    case home, privacy, support
+
+    /// The page, or nil, which opens nothing.
+    var address: URL? {
+        switch self {
+        case .home: URL(string: "https://tortie.sh")
+        case .privacy: URL(string: "https://tortie.sh/privacy")
+        case .support: URL(string: "https://tortie.sh/support")
+        }
+    }
+}
+
+/// What a screen's site presses call. A test hands its own; the app hands
+/// `SiteOpener`.
+@MainActor
+protocol SiteOpening {
+    func open(_ link: SiteLink)
+}
+
+/// The one opener of Tortie's own site: a `SiteLink` in, the policy asked
+/// again, then Safari or the app that owns the address.
+struct SiteOpener: SiteOpening {
+    func open(_ link: SiteLink) {
+        guard let url = link.address, LinkPolicy.opens(url) else { return }
+        UIApplication.shared.open(url)
     }
 }

@@ -129,6 +129,20 @@ import XCTest
 /// `tray-press:<n>`. A reading is
 /// every `screen-row-<n>` and `screen-history-<i>` with its label and frame,
 /// never a photograph.
+///
+/// A STRANGER'S FIRST RUN (Phase 333.1, build/p3331/SPEC.md section 7.7). With
+/// no code (`P316_PAYLOAD` empty) the launch leaves the payload seam out,
+/// because an empty one reads as a code that is not Tortie's. The new steps:
+/// `setup-read` (the resting pairing face dumped, with a `setup-inventory`
+/// line: every label on the screen and each pairing, settings and failure
+/// id with whether it is a button), `setup-scan` (Scan code pressed, whether
+/// the camera's square was there before it, the screen after), `setup-settings`
+/// (the Settings tab, About brought into view and dumped), `setup-failure:<tag>`
+/// (the probe shuts or holds the door on `setup-failure-before` and writes
+/// `setup-<tag>`; the list is asked again until it draws a failure that is
+/// not the one before it) and `setup-code` (the pairing line after a code the
+/// seam handed). THE UI DRIVE PRESSES NO LINK: Safari never opens and no
+/// request leaves the Simulator; the presses are SiteLinkTests'.
 final class P316DriveUITests: XCTestCase {
     @MainActor
     func testDrive() throws {
@@ -359,6 +373,29 @@ private enum Seen {
     static let screenToLive = "screen-to-live"
     static let screenScrollbackLine = "screen-scrollback-line"
     static let keyHide = "hide"
+    // Phase 333.1 (build/p3331/SPEC.md §5.5.6): the resting pairing face, its
+    // camera after Scan code, and About's three pages of Tortie's own site.
+    static let pairingTitle = "pairing-title"
+    static let pairingScanner = "pairing-scanner"
+    static let pairingPoint = "pairing-point"
+    static let pairingGetMac = "pairing-get-mac"
+    static let pairingStepOpen = "pairing-step-open"
+    static let pairingStepScan = "pairing-step-scan"
+    static let pairingScanCode = "pairing-scan-code"
+    static let pairingNothingElse = "pairing-nothing-else"
+    static let pairingPrivacy = "pairing-privacy"
+    static let pairingSupport = "pairing-support"
+    static let settingsMacSite = "settings-mac-site"
+    static let settingsMacSiteName = "settings-mac-site-name"
+    static let settingsPrivacy = "settings-privacy"
+    static let settingsSupport = "settings-support"
+    /// Copy.notPaired, spelled again: the pairing line before any code is read.
+    static let notPairedLine = "This iPhone is not paired with a Mac."
+    /// The ids `setup-inventory` prints with their element type, so the probe
+    /// reads a press as a button and not only as a frame.
+    static func isSetup(_ id: String) -> Bool {
+        id.hasPrefix("pairing-") || id.hasPrefix("settings-") || id.hasSuffix("-failure") || id.hasSuffix("-failure-note")
+    }
 }
 
 /// One element read from a snapshot: its identifier, its label and its frame.
@@ -424,7 +461,10 @@ private final class Drive {
         // forwarder on this Mac while the code's name stays the TLS name.
         // Since Phase 316.5 it also hands over the alert address, when the
         // probe names one.
-        app.launchArguments = ["-TortieDebugForgetPairing", "-TortieDebugPairingPayload", payload] + carried
+        // Phase 333.1: with no code the seam is LEFT OUT, because an empty
+        // one is read as a code that is not Tortie's and the resting face
+        // would draw that sentence where it draws `notPaired`.
+        app.launchArguments = ["-TortieDebugForgetPairing"] + (payload.isEmpty ? [] : ["-TortieDebugPairingPayload", payload]) + carried
         app.launch()
         for step in steps where !stuck {
             if step == "pair" {
@@ -590,6 +630,16 @@ private final class Drive {
                 trayKeyboard()
             } else if step == "relaunch-choices" || step.hasPrefix("relaunch-choices:") {
                 relaunchChoices(step.hasPrefix("relaunch-choices:") ? String(step.dropFirst("relaunch-choices:".count)) : nil)
+            } else if step == "setup-read" {
+                setupRead()
+            } else if step == "setup-scan" {
+                setupScan()
+            } else if step == "setup-settings" {
+                setupSettings()
+            } else if step.hasPrefix("setup-failure:") {
+                setupFailure(String(step.dropFirst("setup-failure:".count)))
+            } else if step == "setup-code" {
+                setupCode()
             } else {
                 lines.emit(["step": "unknown-step", "name": step])
             }
@@ -3030,6 +3080,128 @@ private final class Drive {
         }
         Thread.sleep(forTimeInterval: 1.5)
         lines.emit(["step": "tray-pressed", "n": n, "faceId": faceID, "line": line.map { $0 as Any } ?? NSNull(), "after": terminalReading()])
+    }
+
+    // MARK: Phase 333.1: a stranger's first run (build/p3331/SPEC.md §7.7)
+
+    /// The resting pairing face, read before anything is pressed: the steps,
+    /// Scan code and the foot, then every label on the screen and the setup
+    /// ids with their element type (`setup-inventory`). Nothing is pressed,
+    /// and no link ever is: the presses are SiteLinkTests'.
+    private func setupRead() {
+        guard poll({ has($0, Seen.pairingScreen) && has($0, Seen.pairingScanCode) }) else { return missing("setup-read") }
+        Thread.sleep(forTimeInterval: 1)
+        setupInventory("setup-read")
+        dump("setup-read")
+    }
+
+    /// Scan code pressed, and nothing else: whether the camera's square was
+    /// there before the press, and the screen after it. A Simulator has no
+    /// camera, so iOS asks nothing here; the question is his checklist's C4.
+    private func setupScan() {
+        let press = element(Seen.pairingScanCode)
+        guard press.waitForExistence(timeout: wait) else { return missing("setup-scan") }
+        let before = tree()
+        lines.emit(["step": "setup-scan-before", "scanner": has(before, Seen.pairingScanner), "point": has(before, Seen.pairingPoint)])
+        press.tap()
+        _ = poll { has($0, Seen.pairingScanner) }
+        Thread.sleep(forTimeInterval: 1)
+        dump("setup-scan")
+    }
+
+    /// The Settings tab's About card, brought into view: its version and the
+    /// three pages of Tortie's own site, each printed with its type. Pressed:
+    /// nothing.
+    private func setupSettings() {
+        guard selectTab(Seen.tabSettings), poll({ has($0, Seen.settingsScreen) && has($0, Seen.settingsSupport) }) else {
+            return missing("setup-settings")
+        }
+        var tries = 0
+        while !element(Seen.settingsSupport).isHittable && tries < 6 {
+            element(Seen.settingsScreen).swipeUp()
+            tries += 1
+        }
+        Thread.sleep(forTimeInterval: 1)
+        setupInventory("setup-settings")
+        dump("setup-settings")
+    }
+
+    /// The list's failure under a door the probe shuts (`shut`) or holds
+    /// (`held`): the probe hears `setup-failure-before`, does it, and writes
+    /// `setup-<tag>`; the list is then asked again (its Try again when drawn,
+    /// else a pull) until it draws a failure whose words are not the ones it
+    /// drew before this step, because the step before may have left its own
+    /// sentence on screen. A held read is said only after the client's own
+    /// 15 s, so it is asked again no sooner than 20 s apart.
+    private func setupFailure(_ tag: String) {
+        let name = "setup-failure-" + tag
+        if !has(tree(), Seen.listScreen) { _ = selectTab(Seen.tabSessions) }
+        guard poll({ has($0, Seen.listScreen) }) else { return missing(name) }
+        let before = find(tree(), Seen.listFailure)?.label
+        lines.emit(["step": "setup-failure-before", "tag": tag, "failure": before.map { $0 as Any } ?? NSNull()])
+        guard ack("setup-" + tag) else { return missing(name) }
+        let deadline = Date().addingTimeInterval(wait)
+        var asked = Date.distantPast
+        var asks = 0
+        while Date() < deadline {
+            let found = tree()
+            if let failure = find(found, Seen.listFailure), !failure.label.isEmpty, failure.label != before { break }
+            if Date().timeIntervalSince(asked) > 20 {
+                let retry = element(Seen.retry(Seen.listFailure))
+                if has(found, Seen.retry(Seen.listFailure)) && retry.exists {
+                    retry.tap()
+                } else {
+                    pull(Seen.listScreen)
+                }
+                asked = Date()
+                asks += 1
+            }
+            Thread.sleep(forTimeInterval: 0.5)
+        }
+        Thread.sleep(forTimeInterval: 1)
+        lines.emit(["step": "setup-failure", "tag": tag, "asks": asks])
+        setupInventory(name)
+        dump(name)
+    }
+
+    /// The pairing line after a code the seam handed at launch: once it is
+    /// no longer the not-paired line (a code from another version is said at
+    /// once), or after the step's wait.
+    private func setupCode() {
+        let deadline = Date().addingTimeInterval(wait)
+        while Date() < deadline {
+            let found = tree()
+            if let line = find(found, Seen.pairingLine), !line.label.isEmpty, line.label != Seen.notPairedLine { break }
+            Thread.sleep(forTimeInterval: 0.25)
+        }
+        Thread.sleep(forTimeInterval: 1)
+        dump("setup-code")
+    }
+
+    /// Every label on the screen, named or not, so a word the probe must never
+    /// see (`sample`) is looked for everywhere; and each setup id with its
+    /// element type, label and frame.
+    private func setupInventory(_ name: String) {
+        guard let root = try? app.snapshot() else {
+            lines.emit(["step": "setup-inventory", "for": name, "labels": [String](), "elements": [[String: Any]]()])
+            return
+        }
+        var labels: [String] = []
+        var elements: [[String: Any]] = []
+        var stack: [XCUIElementSnapshot] = [root]
+        while let node = stack.popLast() {
+            if !node.label.isEmpty { labels.append(node.label) }
+            if !node.identifier.isEmpty, Seen.isSetup(node.identifier) {
+                elements.append([
+                    "id": node.identifier,
+                    "label": node.label,
+                    "button": node.elementType == .button,
+                    "frame": frameOf(node.frame)
+                ])
+            }
+            stack.append(contentsOf: node.children.reversed())
+        }
+        lines.emit(["step": "setup-inventory", "for": name, "labels": labels, "elements": elements])
     }
 
     private func missing(_ step: String) {

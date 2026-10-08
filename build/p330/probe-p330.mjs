@@ -14,9 +14,12 @@
  * or run as a command line anywhere, FAILS the run. The stand-in's log must hold
  * every Tailscale call the app made, and a forbidden argv (`--bg`, `reset`,
  * `off`, a TLS-terminating mode) in it fails the run on sight. This probe never
- * presses Open Tailscale, because that would open a browser on this Mac to a
- * made-up page. No real Funnel is proved here: his checklist
- * (build/p330/CHECKLIST.md) is the only proof of Funnel itself.
+ * presses Approve in Tailscale (BTN_OPEN_TAILSCALE, "Open Tailscale" before
+ * Phase 333.1), because that would open a browser on this Mac to a made-up
+ * page, and since Phase 333.1 never Get Tailscale, Open Tailscale or Copy link
+ * and never calls `pocket:setupAction` (build/p3331/SPEC.md D35). No real
+ * Funnel is proved here: his checklist (build/p330/CHECKLIST.md) is the only
+ * proof of Funnel itself.
  *
  * WHAT IS REAL: the app's own `pocket:*` channels and the Settings then Phone
  * sheet, pressed through its DOM the way a person presses it; the door process
@@ -35,10 +38,14 @@
  *       carrying `--utility-sub-type=node.mojom.NodeService`), no Tailscale
  *       child, and the app's listening sockets the parent's (opening
  *       Settings then Phone first, so opening the sheet is shown to read nothing)
- *   A2  Pair pressed: the stand-in saw `status --json --peers=false` and
+ *   A2  the first setup's press (Pair with the door off at a build without
+ *       the three steps; since Phase 333.1 the switch, because a first setup
+ *       shows the code by itself, `pressFirstSetup`): the stand-in saw
+ *       `status --json --peers=false` and
  *       `serve status --json` and nothing else; the lines name
  *       https://<name>:8443, the tailnet and the program; the approval warning
- *   A3  Allow, with the approval scenario: Open Tailscale drawn and enabled,
+ *   A3  Allow, with the approval scenario: the approval press (BTN_OPEN_TAILSCALE,
+ *       "Approve in Tailscale" since Phase 333.1) drawn and enabled,
  *       approvalOpens true and approvalText null; NEVER PRESSED. Then the
  *       stand-in is approved, the door listens and the code shows WITH NO
  *       OTHER PRESS
@@ -52,7 +59,9 @@
  *       first turn; a read with no client certificate is closed after the
  *       handshake
  *   A6  every refusal sentence, one scenario each, in the sheet and in the
- *       status: not-running, signed-out, shields-up, ports443 (funnel-ports),
+ *       status (since Phase 333.1 the step's own line where the sheet draws
+ *       one in its place, for not-running, signed-out and not-approved,
+ *       `sheetWords`): not-running, signed-out, shields-up, ports443 (funnel-ports),
  *       port-taken, busy, exit0 (not-approved), and late in the run
  *       ports-taken and no program (a wrapper path that does not exist: it
  *       must refuse override-unusable and MUST NOT fall back)
@@ -238,7 +247,10 @@ export const SPEC_WORDS = Object.freeze({
   POCKET_FUNNEL_APPROVAL: 'Tailscale needs your OK to publish this door.',
   POCKET_FUNNEL_RESTARTING: 'Tailscale stopped publishing the door. Tortie is trying again.',
   BTN_PAIR: 'Pair',
-  BTN_OPEN_TAILSCALE: 'Open Tailscale',
+  // Phase 333.1 (build/p3331/SPEC.md D14, §5.4.3): the approval face's press
+  // says what it opens; Open Tailscale is step 1's press now, never pressed here.
+  BTN_OPEN_TAILSCALE: 'Approve in Tailscale',
+  DOOR_LABEL: 'Let my phone reach this Mac',
   // Phase 333.2 moved the scan line (build/p3332/SPEC.md).
   SCAN_LINE: 'Scan it with Tortie on your iPhone, from tortie.sh/iphone.',
   PHONES_DROPPED: 'Phones paired before this version must pair again.',
@@ -277,6 +289,20 @@ export function wordsFrom(contractSrc, sheetSrc, funnelSrc) {
   }
   const floor = /FUNNEL_RESTART_FLOOR_MS\s*=\s*([0-9_]+)/.exec(funnelSrc);
   from.FUNNEL_RESTART_FLOOR_MS = floor === null ? 'spec' : 'source';
+  // Phase 333.1 (build/p3331/SPEC.md D14, §5.4.2, §5.4.3): for three refusals
+  // the sheet draws a STEP'S OWN LINE where it drew the sentence, Not running's
+  // "Turn it on, then come back.", Signed out's "Sign in, then come back." and
+  // Waiting for your admin's "Ask your Tailscale admin to approve Funnel.";
+  // main's status still carries the sentence. The line is read from the
+  // contract where the build defines it and is the sentence otherwise, so a
+  // parent build without the steps is graded on what it draws.
+  const STEP_LINES = { 'not-running': 'POCKET_TURN_ON_LINE', 'signed-out': 'POCKET_SIGN_IN_LINE', 'not-approved': 'POCKET_ASK_ADMIN' };
+  const stepLines = {};
+  for (const [word, name] of Object.entries(STEP_LINES)) {
+    const v = stringConst(contractSrc, name);
+    stepLines[word] = v;
+    from[`step:${word}`] = v === null ? `none (the sentence, ${from[`sentence:${word}`]})` : 'source';
+  }
   return {
     rightWarning: pick('POCKET_FUNNEL_RIGHT_WARNING', contractSrc),
     approval: pick('POCKET_FUNNEL_APPROVAL', contractSrc),
@@ -285,8 +311,11 @@ export function wordsFrom(contractSrc, sheetSrc, funnelSrc) {
     btnOpen: pick('BTN_OPEN_TAILSCALE', sheetSrc),
     scanLine: pick('SCAN_LINE', sheetSrc),
     phonesDropped: pick('PHONES_DROPPED', sheetSrc),
+    doorLabel: pick('DOOR_LABEL', sheetSrc),
     sentences,
     sentence: (word, port) => (word === 'port-taken' ? sentences[word].replace('PORT', String(port)) : sentences[word]),
+    /** What the SHEET draws for a refusal: the step's own line where the build has one, else the sentence. */
+    sheetWords: (word, port) => stepLines[word] ?? (word === 'port-taken' ? sentences[word].replace('PORT', String(port)) : sentences[word]),
     floorMs: floor === null ? SPEC_WORDS.FUNNEL_RESTART_FLOOR_MS : Number(floor[1].replace(/_/g, '')),
     from
   };
@@ -335,9 +364,10 @@ export const GRADERS = {
       ['the child waits on approval', (r) => r.funnelState === 'approval'],
       ['approvalOpens', (r) => r.approvalOpens === true],
       ['approvalText is null', (r) => r.approvalText === null],
-      ['Open Tailscale is drawn and enabled', (r) => r.openButton === 'enabled'],
+      // Phase 333.1: the press is BTN_OPEN_TAILSCALE by name, "Approve in Tailscale" now.
+      ['the approval press is drawn and enabled', (r) => r.openButton === 'enabled'],
       ['the approval sentence is drawn', (r) => r.approvalSheetText.includes(r.words.approval)],
-      ['Open Tailscale was never pressed', (r) => r.openPressed === false],
+      ['the approval press was never pressed', (r) => r.openPressed === false],
       ['listening after the approval', (r) => r.stateAfter === 'listening'],
       ['the code shows', (r) => r.codeShown === true],
       ['one press after Pair', (r) => r.pressesAfterPair === 1]
@@ -546,9 +576,9 @@ export const GRADER_FIXTURES = {
       'the child waits on approval': (r) => void (r.funnelState = 'starting'),
       approvalOpens: (r) => void (r.approvalOpens = false),
       'approvalText is null': (r) => void (r.approvalText = 'https://login.tailscale.com/f/funnel?node=nMADEUP'),
-      'Open Tailscale is drawn and enabled': (r) => void (r.openButton = 'disabled'),
+      'the approval press is drawn and enabled': (r) => void (r.openButton = 'disabled'),
       'the approval sentence is drawn': (r) => void (r.approvalSheetText = ''),
-      'Open Tailscale was never pressed': (r) => void (r.openPressed = true),
+      'the approval press was never pressed': (r) => void (r.openPressed = true),
       'listening after the approval': (r) => void (r.stateAfter = 'opening'),
       'the code shows': (r) => void (r.codeShown = false),
       'one press after Pair': (r) => void (r.pressesAfterPair = 2)
@@ -798,6 +828,13 @@ function graderSelfTest() {
   say(t['port-taken'] === 'port PORT taken' && t.busy === 'Try again.' && t.unreadable === 'no', `sentenceTable reads quoted and bare keys (${J(t)})`);
   const w = wordsFrom(src.replace('T:', 'POCKET_FUNNEL_SENTENCES:'), '', 'const FUNNEL_RESTART_FLOOR_MS = 2_000;');
   say(w.sentence('port-taken', 10000) === 'port 10000 taken' && w.from['sentence:busy'] === 'source' && w.from['sentence:no-name'] === 'spec' && w.floorMs === 2000, 'wordsFrom takes the source first and names the spec fallback');
+  // Phase 333.1: a step line is the sheet's words only where the build defines it.
+  const withSteps = wordsFrom("export const POCKET_TURN_ON_LINE = 'Turn it on, then come back.';\n", "export const DOOR_LABEL = 'Let my phone reach this Mac';\nexport const BTN_OPEN_TAILSCALE = 'Approve in Tailscale';\n", '');
+  say(
+    withSteps.sheetWords('not-running', 8443) === 'Turn it on, then come back.' && withSteps.sheetWords('signed-out', 8443) === SPEC_WORDS.sentences['signed-out'] && withSteps.from['step:signed-out'].startsWith('none') &&
+      w.sheetWords('not-running', 8443) === SPEC_WORDS.sentences['not-running'] && w.sheetWords('port-taken', 10000) === 'port 10000 taken' && withSteps.btnOpen === 'Approve in Tailscale' && withSteps.doorLabel === 'Let my phone reach this Mac',
+    `sheetWords takes a step line only from the source, else the sentence (${J([withSteps.sheetWords('not-running', 8443), w.sheetWords('not-running', 8443)])})`
+  );
   say(nameQuestionsSelfTest(FIX_NAME, (line) => process.stdout.write(`  ${line}\n`)), 'the Phase 332 name-question clause grades its own cases');
   process.stdout.write(failures === 0 ? `[p330] grader self-test PASS: ${String(Object.keys(GRADERS).length)} graders, ${String(clauses)} clauses, each shown to go red on its own break.\n` : `[p330] grader self-test FAIL: ${String(failures)}.\n`);
   return failures === 0;
@@ -1040,6 +1077,22 @@ async function sheet(settings) {
       `(() => { const s = document.querySelector('section[aria-label="Phone"]'); if (s === null) return JSON.stringify({ text: '', buttons: [] }); return JSON.stringify({ text: s.innerText, buttons: [...s.querySelectorAll('button')].map((b) => ({ text: b.innerText.trim(), disabled: b.disabled })) }); })()`
     )
   );
+}
+/**
+ * A FIRST SETUP'S PRESS from rest (Phase 333.1, build/p3331/SPEC.md §7.6):
+ * Pair where the sheet draws it with the door off (the parent always; a build
+ * with the three steps only with a phone paired), else the switch, whose on
+ * press asks for the code at HEAD (D17), so the code shows by itself after
+ * Allow at both builds. Answers which was pressed, or false.
+ */
+async function pressFirstSetup(settings) {
+  if (await press(settings, WORDS.btnPair)) return 'pair';
+  const on =
+    (await cdpEval(
+      settings,
+      `(() => { const s = document.querySelector('section[aria-label="Phone"]'); if (s === null) return false; const b = [...s.querySelectorAll('button[role="switch"]')].find((x) => x.getAttribute('aria-label') === ${J(WORDS.doorLabel)} && x.getAttribute('aria-checked') === 'false' && !x.disabled); if (b === undefined) return false; b.click(); return true; })()`
+    )) === true;
+  return on ? 'switch' : false;
 }
 /** Press the Phone section's button whose words are exactly `label` (within `scope` when given). */
 async function press(settings, label, scope = null) {
@@ -1297,7 +1350,7 @@ exit 0
       if (ARMS.has('12')) {
         standin.setScenario({ ...DEFAULT_SCENARIO, servedPorts: [8443, 10000] }, { merge: false });
         const from12 = standin.readLog().length;
-        const pressed12 = await press(settings, WORDS.btnPair);
+        const pressed12 = await pressFirstSetup(settings);
         const got12 = await waitStatus(main, (s) => s.state === 'refused' && typeof s.refusal === 'string' && s.refusal.length > 0, 20_000);
         const sentence12 = WORDS.sentence('ports-taken', 0);
         await waitFor(async () => (await sheet(settings)).text.includes(sentence12), 5_000);
@@ -1306,7 +1359,7 @@ exit 0
         const tried = got12.status === null ? { ok: false } : await pocket(main, 'confirmDoor', { linesRead: got12.status.confirmLines, hashRead: got12.status.confirmHash });
         await sleep(1_500);
         const after12 = await pocket(main, 'status');
-        if (!pressed12) cannotRead('A12', `the sheet drew no ${WORDS.btnPair} button to press: ${J(sheet12.buttons)}`);
+        if (!pressed12) cannotRead('A12', `the sheet drew no ${WORDS.btnPair} button and no enabled off switch to press: ${J(sheet12.buttons)}`);
         else if (!got12.ok) cannotRead('A12', `the door never settled into a refusal: ${J({ state: got12.status?.state, refusal: got12.status?.refusal })}`);
         else {
           arm('A12', {
@@ -1332,14 +1385,16 @@ exit 0
       // ---- A2: Pair pressed, the approval scenario ------------------------
       standin.setScenario({ caps: false, approval: 'wait' });
       const beforePair = standin.readLog().length;
-      const pairPressed = await press(settings, WORDS.btnPair);
+      // Phase 333.1: the switch where the sheet draws no Pair with the door off.
+      const pairPressed = await pressFirstSetup(settings);
+      say(`A2: the first setup's press was ${pairPressed === false ? 'none' : pairPressed}`);
       // NOT the status the switch answered with: its lines are over empty
       // fields until the read lands (the first build graded `https://:0`).
       const drawn = await waitStatus(main, linesReady(NAME), 20_000);
       await sleep(1_000);
       const sheet2 = await sheet(settings);
       if (ARMS.has('2')) {
-        if (!pairPressed) cannotRead('A2', `the sheet drew no ${WORDS.btnPair} button to press: ${J(sheet2.buttons)}`);
+        if (!pairPressed) cannotRead('A2', `the sheet drew no ${WORDS.btnPair} button and no enabled off switch to press: ${J(sheet2.buttons)}`);
         else if (!drawn.ok) cannotRead('A2', `main never drew lines that name ${NAME}: ${J({ state: drawn.status?.state, confirmable: drawn.status?.confirmable, lines: drawn.status?.confirmLines, refusal: drawn.status?.refusal })}`);
         else {
           arm('A2', {
@@ -1534,12 +1589,16 @@ exit 0
           clearInterval(fast);
         }
         const sentence = WORDS.sentence(word, got.status?.publicPort || 8443);
-        const shows = await waitFor(async () => (await sheet(settings)).text.includes(sentence), 5_000);
+        // Phase 333.1: the sheet draws the step's own line for three of these
+        // (WORDS.sheetWords); the status still says the sentence.
+        const drawn = WORDS.sheetWords(word, got.status?.publicPort || 8443);
+        const shows = await waitFor(async () => (await sheet(settings)).text.includes(drawn), 5_000);
         rows.push({
           scenario: label,
           word,
           refusal: got.status?.refusal ?? null,
           sentence,
+          drawn,
           sheetShows: shows,
           published: liveFunnels().length > 0 || got.status?.state === 'listening',
           standinCalls: standin.readLog().length - from,

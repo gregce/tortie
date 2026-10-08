@@ -9,18 +9,24 @@
  * What these tests hold, each red if its clause is taken out of
  * PhoneSection.tsx:
  *
- * - THE ORDER: the switch, Pair a phone, the phones, the alert switch, and NO
- *   disclosure: there is no grant, no narrowing and no key field any more.
- * - THE SWITCH'S LINE says what is true: off, starting Funnel, Tortie trying
+ * - THE ORDER (re-based on Phase 333.1's three steps, build/p3331/SPEC.md
+ *   §5.4.1): the switch, the three steps, the phones, the alert switch, and
+ *   NO DISCLOSURE AROUND THE CONFIRM BLOCK: there is no grant, no narrowing
+ *   and no key field any more, and how the phone reaches this Mac sits behind
+ *   step 1's shut What’s this?.
+ * - THE SWITCH'S ONE CAPTION never changes (D1); where the door stands moved
+ *   into the steps and says what is true: starting Funnel, Tortie trying
  *   again, answering at the public name and port, waiting for the person to
  *   allow it, or main's own refusal sentence.
  * - NOTHING STARTS BEFORE A PERSON READS. The lines main hashed, with main's
  *   warnings, the standing-right warning when Funnel still needs approving,
  *   and Allow — never while a read is under way.
- * - THE APPROVAL: Open Tailscale only for the page main will open; any other
- *   page as selectable text, never a link.
- * - THE PAIR CARD'S FIVE FACES, and one Pair button whether the door is off or
- *   answering; the code with its private line and its countdown.
+ * - THE APPROVAL: Approve in Tailscale only for the page main will open; any
+ *   other page as selectable text, never a link.
+ * - THE PAIR CARD'S SIX FACES on step 3, and one Pair button whether the door
+ *   is off or answering once a phone is paired; on a first setup the switch is
+ *   the press; the code with its two lines, its private line and its
+ *   countdown.
  * - THE REMOVE NOTICE is keyed to the phone it names (316.4 owed item 1): a
  *   removed phone's "Paired with" is never drawn.
  * - A FIRST CODE that shuts with nobody presenting says why, only when it was
@@ -62,6 +68,9 @@ import {
   POCKET_NAME_SENTENCES,
   POCKET_REACH_HONESTY,
   POCKET_DOOR_HONESTY,
+  POCKET_SETUP_LINE,
+  POCKET_TURN_ON,
+  POCKET_TURN_ON_LINE,
   type PocketNameAnswer,
   type PocketNameCheck,
   type PocketNameProgress,
@@ -70,6 +79,7 @@ import {
   type PocketStatus
 } from '@shared/ipc';
 import { PUSH_NO_KEY, PUSH_TOKEN_STOPPED } from '@shared/push-copy';
+import { STATE_READ_ALLOW, STEP_PAIR, STEP_PUBLISH, STEP_TAILSCALE } from '../phone/steps';
 
 import {
   ALERTS_GROUP,
@@ -80,11 +90,8 @@ import {
   CODE_FIRST_NAME,
   CODE_PRIVATE,
   DOOR_LABEL,
-  DOOR_OFF,
   DOOR_OPENING,
-  DOOR_WAITING,
-  PAIR_GROUP,
-  PAIR_WAITING,
+  GET_PHONE_APP,
   ALERTS_ON_CHIP,
   PHONES_DROPPED,
   PHONES_GROUP,
@@ -108,7 +115,6 @@ import {
   nameTimeLine,
   nameTook,
   nameWatchedNext,
-  doorLine,
   doorMayRetry,
   doorNeedsConfirm,
   expiredNotice,
@@ -148,6 +154,8 @@ const LINES = [
  * A status as main composes one. `pairable` and `nameCheck` default to what
  * main answers for the state: a listening door whose name is confirmed is
  * pairable, and nothing else is (main's one predicate, build/p332/SPEC.md §4.9).
+ * Since Phase 333.1, `tailscale` defaults to `ready` for a listening door and
+ * `installed` otherwise, with no account and nothing re-checked or listed.
  */
 function status(over: Partial<PocketStatus> = {}): PocketStatus {
   const listening = (over.state ?? 'listening') === 'listening';
@@ -160,13 +168,18 @@ function status(over: Partial<PocketStatus> = {}): PocketStatus {
     refusal: null,
     phones: [],
     droppedPhones: 0,
-    funnel: { state: 'publishing', asksApproval: false, approvalOpens: false, approvalText: null },
+    funnel: { state: 'publishing', asksApproval: false, approvalOpens: false, approvalText: null, refused: null },
     confirmState: 'confirmed',
     confirmLines: LINES,
     confirmHash: 'h'.repeat(64),
     confirmable: true,
     nameCheck: listening ? 'confirmed' : 'none',
     pairable: listening,
+    tailscale: listening ? 'ready' : 'installed',
+    account: null,
+    tailnet: listening ? 'example.github' : null,
+    rechecks: false,
+    setupActions: [],
     nameProgress: null,
     routes: ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions'],
     pushAlerts: false,
@@ -210,10 +223,12 @@ function draw(over: Partial<PhoneViewProps> = {}): string {
     notice: null,
     error: null,
     busy: false,
+    wished: false,
     onSetDoor: noop,
     onConfirmDoor: noop,
     onRetryDoor: noop,
     onOpenApproval: noop,
+    onSetupAction: noop,
     onPair: noop,
     onCancelPairing: noop,
     onAllowPhone: noop,
@@ -245,21 +260,32 @@ const phone = {
 };
 
 describe('the order the SPEC gives', () => {
-  it('draws the switch, pairing, the phones and the alerts, in that order, and no disclosure', () => {
+  it('draws the switch, the three steps, the phones and the alerts, in that order, and no disclosure around the confirm block', () => {
     const html = draw();
     const page = text(html);
-    const at = [DOOR_LABEL, PAIR_GROUP, PHONES_GROUP, ALERTS_GROUP].map((w) => page.indexOf(w));
+    const at = [DOOR_LABEL, STEP_TAILSCALE, STEP_PUBLISH, STEP_PAIR, PHONES_GROUP, ALERTS_GROUP].map((w) => page.indexOf(w));
     for (const i of at) expect(i).toBeGreaterThanOrEqual(0);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
-    expect(html).not.toContain('<details');
     expect(page).not.toMatch(/grant|narrow|autogroup|Keep the phone to this door/i);
+    // Phase 333.1: ONE disclosure at rest, step 1's What’s this?, shut; the
+    // confirm block is never inside one (his ruling 2).
+    expect(html.match(/<details/g)).toHaveLength(1);
+    const confirming = draw({ status: status({ state: 'refused', confirmState: 'never' }) });
+    const block = confirming.indexOf('data-phone-confirm');
+    expect(block).toBeGreaterThan(0);
+    const before = confirming.slice(0, block);
+    expect((before.match(/<details/g) ?? []).length).toBe((before.match(/<\/details>/g) ?? []).length);
   });
 
-  it('says under the title how the phone reaches this Mac', () => {
+  it('keeps how the phone reaches this Mac behind step 1’s shut What’s this?, no longer under the title', () => {
     expect(POCKET_REACH_HONESTY).toBe(
       'Your phone reaches this Mac through Tailscale Funnel. Only a phone you pair gets an answer.'
     );
-    expect(text(draw())).toContain(POCKET_REACH_HONESTY);
+    const html = draw();
+    const details = /<details class="set-disclosure" data-phone-whats-this="true">([\s\S]*?)<\/details>/.exec(html);
+    expect(details?.[1]).toContain(POCKET_REACH_HONESTY);
+    expect(html.split(POCKET_REACH_HONESTY)).toHaveLength(2);
+    expect(html).not.toContain(`<div class="set-section-caption">${POCKET_REACH_HONESTY}</div>`);
   });
 
   it('has no key field on any face', () => {
@@ -276,30 +302,67 @@ describe('the order the SPEC gives', () => {
   });
 });
 
-describe('the switch’s one line', () => {
-  it('says off, starting Funnel, and trying again', () => {
-    expect(doorLine(status({ state: 'off' }))).toBe(DOOR_OFF);
-    expect(DOOR_OPENING).toBe('Starting Tailscale Funnel…');
-    expect(doorLine(status({ state: 'opening', funnel: { ...status().funnel, state: 'starting' } }))).toBe(DOOR_OPENING);
-    expect(doorLine(status({ state: 'opening', funnel: { ...status().funnel, state: 'restarting' } }))).toBe(
-      POCKET_FUNNEL_RESTARTING
-    );
+/** Step 2's whole element. */
+function publishStep(html: string): string {
+  const at = html.indexOf('<div class="phone-step" data-phone-step="publish"');
+  const end = html.indexOf('<div class="phone-step" data-phone-step="pair"');
+  expect(at).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(at);
+  return html.slice(at, end);
+}
+
+describe('the switch’s one caption, and where step 2 stands (Phase 333.1, D1)', () => {
+  it('says the same one caption under the switch whatever the door is doing', () => {
+    for (const s of [
+      status({ state: 'off' }),
+      status({ state: 'opening', funnel: { ...status().funnel, state: 'starting' } }),
+      status({ state: 'refused', confirmState: 'never' }),
+      status()
+    ]) {
+      expect(draw({ status: s }), s.state).toContain(
+        `<span class="set-row-label">${DOOR_LABEL}</span><span class="set-row-caption">${POCKET_SETUP_LINE}</span>`
+      );
+    }
+    expect(draw()).not.toContain('data-phone-door-line');
   });
 
-  it('names the public name and port a phone is told when answering', () => {
-    expect(doorLine(status())).toBe(`Answering at https://${NAME}:8443`);
+  it('says starting Funnel, and trying again, on step 2', () => {
+    expect(DOOR_OPENING).toBe('Starting Tailscale Funnel…');
+    const starting = publishStep(draw({ status: status({ state: 'opening', funnel: { ...status().funnel, state: 'starting' } }) }));
+    expect(starting).toContain(`<span class="phone-step-state">${DOOR_OPENING}</span>`);
+    const restarting = publishStep(draw({ status: status({ state: 'opening', funnel: { ...status().funnel, state: 'restarting' } }) }));
+    expect(text(restarting)).toContain(POCKET_FUNNEL_RESTARTING);
+  });
+
+  it('names the public name and port a phone is told when answering, on Published’s hover', () => {
+    expect(publishStep(draw())).toContain(`title="Answering at https://${NAME}:8443">Published</span>`);
   });
 
   it('asks the person to read and allow while the details are not agreed to', () => {
-    expect(doorLine(status({ state: 'refused', confirmState: 'never', refusal: 'main says why' }))).toBe(DOOR_WAITING);
+    const step = publishStep(draw({ status: status({ state: 'refused', confirmState: 'never', refusal: 'main says why' }) }));
+    expect(step).toContain(`<span class="phone-step-state">${STATE_READ_ALLOW}</span>`);
+    expect(STATE_READ_ALLOW).toBe('Read, then allow');
   });
 
-  it('draws main’s own refusal sentence otherwise, never one of its own', () => {
-    const sentence = 'Tailscale is not running on this Mac. Open Tailscale, then try again.';
-    expect(doorLine(status({ state: 'refused', refusal: sentence }))).toBe(sentence);
-    expect(doorLine(status({ state: 'refused', publicName: null, confirmState: 'never', refusal: sentence }))).toBe(
-      sentence
-    );
+  it('draws main’s own words otherwise, never its own', () => {
+    // A refusal step 2 owns: main's sentence.
+    const sentence = 'Tailscale did not publish the door. Nothing was published.';
+    expect(text(publishStep(draw({ status: status({ state: 'refused', refusal: sentence }) })))).toContain(sentence);
+    // Tailscale not running: step 1's own line, main's, in place of the sentence.
+    const stopped = draw({
+      status: status({
+        state: 'refused',
+        publicName: null,
+        confirmState: 'never',
+        confirmable: false,
+        tailscale: 'stopped',
+        refusal: 'Tailscale is not running on this Mac. Open Tailscale, then try again.',
+        rechecks: true,
+        funnel: { ...status().funnel, state: 'idle', refused: 'not-running' }
+      })
+    });
+    expect(text(stopped)).toContain(POCKET_TURN_ON_LINE);
+    expect(stopped.split('data-phone-action="retry-door"')).toHaveLength(2);
   });
 
   it('draws the switch on for every state but off', () => {
@@ -382,7 +445,12 @@ describe('nothing starts before a person reads', () => {
   // THE FIX ROUND'S FACES (lens 2, F1 and F4): main answered `confirmable`
   // false, so its refusal is drawn with Try again and nobody is asked to agree
   // to a line that names port 0, or a Mac whose Tailscale is not running.
-  const faces: [string, Partial<PocketStatus>][] = [
+  // Since Phase 333.1 a stopped Tailscale is step 1's Not running, whose line
+  // is main's `POCKET_TURN_ON_LINE` while main says a return checks again and
+  // `POCKET_TURN_ON` otherwise (the fix round), and whose Try again is the
+  // quiet one.
+  const stoppedFunnel = { ...status().funnel, state: 'idle' as const, refused: 'not-running' as const };
+  const faces: [string, Partial<PocketStatus>, string][] = [
     [
       'both ports held on a first Pair (the lines would name :0)',
       {
@@ -391,31 +459,51 @@ describe('nothing starts before a person reads', () => {
         confirmable: false,
         publicPort: 0,
         refusal: POCKET_FUNNEL_SENTENCES['ports-taken'],
+        funnel: { ...status().funnel, state: 'idle', refused: 'ports-taken' },
         confirmLines: [`Answers on the internet at https://${NAME}:0, through Tailscale Funnel on example.github`]
-      }
+      },
+      POCKET_FUNNEL_SENTENCES['ports-taken']
     ],
     [
       'Tailscale stopped, the gate never agreed to',
-      { state: 'refused', confirmState: 'never', confirmable: false, refusal: POCKET_FUNNEL_SENTENCES['not-running'] }
+      {
+        state: 'refused',
+        confirmState: 'never',
+        confirmable: false,
+        tailscale: 'stopped',
+        funnel: stoppedFunnel,
+        refusal: POCKET_FUNNEL_SENTENCES['not-running'],
+        rechecks: true
+      },
+      POCKET_TURN_ON_LINE
     ],
     [
       'Tailscale stopped, the gate changed',
-      { state: 'refused', confirmState: 'changed', confirmable: false, refusal: POCKET_FUNNEL_SENTENCES['not-running'] }
+      {
+        state: 'refused',
+        confirmState: 'changed',
+        confirmable: false,
+        tailscale: 'stopped',
+        funnel: stoppedFunnel,
+        refusal: POCKET_FUNNEL_SENTENCES['not-running']
+      },
+      POCKET_TURN_ON
     ]
   ];
-  for (const [name, over] of faces) {
+  for (const [name, over, said] of faces) {
     it(`draws main’s refusal and Try again, never the lines or Allow: ${name}`, () => {
       const face = status(over);
       expect(doorNeedsConfirm(face)).toBe(false);
       expect(doorMayRetry(face)).toBe(true);
-      expect(doorLine(face)).toBe(face.refusal);
       const html = draw({ status: face });
-      expect(text(html)).toContain(face.refusal ?? 'no refusal');
+      expect(text(html)).toContain(said);
       expect(html).not.toContain('data-phone-confirm');
       expect(html).not.toContain('data-phone-action="confirm-door"');
-      expect(html).toContain('data-phone-action="retry-door"');
+      expect(html.split('data-phone-action="retry-door"')).toHaveLength(2);
       expect(text(html)).not.toContain(':0,');
-      expect(pairAfterAllowNext('on', face)).toEqual({ phase: 'no', pair: false });
+      // A refusal main would check again on a return keeps the wish for the
+      // code (D17); one it would not drops it.
+      expect(pairAfterAllowNext('on', face)).toEqual({ phase: face.rechecks ? 'on' : 'no', pair: false });
     });
   }
 
@@ -428,7 +516,7 @@ describe('nothing starts before a person reads', () => {
 });
 
 describe('Tailscale’s approval', () => {
-  it('offers Open Tailscale only for the page main will open', () => {
+  it('offers Approve in Tailscale only for the page main will open', () => {
     const waiting = status({
       state: 'opening',
       funnel: { ...status().funnel, state: 'approval', approvalOpens: true, approvalText: null }
@@ -436,6 +524,8 @@ describe('Tailscale’s approval', () => {
     const html = draw({ status: waiting });
     expect(text(html)).toContain(POCKET_FUNNEL_APPROVAL);
     expect(html).toContain('data-phone-action="open-approval"');
+    // The name keeps its role, the approval page's button; its words moved (D14).
+    expect(BTN_OPEN_TAILSCALE).toBe('Approve in Tailscale');
     expect(text(html)).toContain(BTN_OPEN_TAILSCALE);
   });
 
@@ -459,22 +549,33 @@ describe('Tailscale’s approval', () => {
 });
 
 describe('the pairing card', () => {
-  it('wears one Pair button when the door is off, and the same when it answers', () => {
+  it('wears one Pair button when the door is off, and the same when it answers, once a phone is paired', () => {
+    const paired = { phones: [phone] };
     expect(pairingStage(status({ state: 'off' }), null, null, NOW)).toBe('start');
-    const off = draw({ status: status({ state: 'off' }) });
+    const off = draw({ status: status({ ...paired, state: 'off' }) });
     expect(off).toContain('data-phone-stage="start"');
     expect(off).toContain('data-phone-action="pair"');
     expect(pairingStage(status(), null, null, NOW)).toBe('ready');
-    const ready = draw();
+    const ready = draw({ status: status(paired) });
     expect(ready).toContain('data-phone-stage="ready"');
     expect(ready).toContain('data-phone-action="pair"');
   });
 
-  it('waits, with no button, while the door is on and not answering', () => {
+  it('on a first setup: no Pair with the door off, where the switch is the press, and Pair once it answers unless the code is on its way (Phase 333.1)', () => {
+    const off = draw({ status: status({ state: 'off' }) });
+    expect(off).toContain('data-phone-stage="start"');
+    expect(off).not.toContain('data-phone-action="pair"');
+    expect(draw()).toContain('data-phone-action="pair"');
+    expect(draw({ wished: true })).not.toContain('data-phone-action="pair"');
+    expect(draw({ wished: true })).toContain('data-phone-stage="ready"');
+  });
+
+  it('waits, with no button and no line of its own, while the door is on and not answering', () => {
     expect(pairingStage(status({ state: 'opening' }), null, null, NOW)).toBe('waiting');
     expect(pairingStage(status({ state: 'refused' }), null, null, NOW)).toBe('waiting');
     const html = draw({ status: status({ state: 'opening' }) });
-    expect(text(html)).toContain(PAIR_WAITING);
+    expect(html).toContain('<div class="phone-block" data-phone-stage="waiting"></div>');
+    expect(text(html)).not.toContain('The code shows once this Mac is answering.');
     expect(html).not.toContain('data-phone-action="pair"');
   });
 
@@ -489,8 +590,8 @@ describe('the pairing card', () => {
     expect(POCKET_NAME_SENTENCES.checking).toBe(
       'Pair opens once your Mac’s name is on the internet, which can take a few minutes.'
     );
-    // The switch's line is still the door's own.
-    expect(text(html)).toContain(`Answering at https://${NAME}:8443`);
+    // Step 2 still says the door answers, at its address.
+    expect(publishStep(html)).toContain(`title="Answering at https://${NAME}:8443">Published</span>`);
     // Just enough words: the resting face gains one line, and only this one.
     expect(text(draw())).not.toContain(POCKET_NAME_SENTENCES.checking);
   });
@@ -545,27 +646,32 @@ describe('the pairing card', () => {
     const html = draw({ offer: offer(), view: pairing() });
     expect(html).toContain('<svg');
     expect(text(html)).toContain(SCAN_LINE);
-    expect(SCAN_LINE).toBe('Scan it with Tortie on your iPhone, from tortie.sh/iphone.');
+    expect(SCAN_LINE).toBe('Scan with Tortie on your iPhone.');
     expect(text(html)).toContain(CODE_PRIVATE);
   });
 
-  it('names where the phone app comes from in words, never a link (Phase 333.2)', () => {
+  it('names where the phone app comes from in words, never a link (Phase 333.2; two lines since Phase 333.1)', () => {
     const html = draw({ offer: offer(), view: pairing() });
     // The code's column: everything from its opening tag to the end of the face.
     const at = html.indexOf('<div class="phone-qr-side">');
     expect(at).toBeGreaterThanOrEqual(0);
     const side = html.slice(at);
-    const lines = [...side.matchAll(/<p class="phone-line">([\s\S]*?)<\/p>/g)].map((m) => m[1]);
-    // The scan line is the column's first line and holds the words alone, no element; the private line second.
+    const lines = [...side.matchAll(/<p class="phone-line"[^>]*>([\s\S]*?)<\/p>/g)].map((m) => m[1]);
+    // The scan line is the column's first line and holds the words alone, no
+    // element; where the app comes from second, by its own hook; the private line third.
     expect(side.indexOf('<p class="phone-line">')).toBe('<div class="phone-qr-side">'.length);
     expect(lines[0]).toBe(SCAN_LINE);
     expect(lines[0]).not.toContain('<');
-    expect(lines[1]).toBe(CODE_PRIVATE);
+    expect(lines[1]).toBe(GET_PHONE_APP);
+    expect(side).toContain(`<p class="phone-line" data-phone-get-app="true">${GET_PHONE_APP}</p>`);
+    expect(lines[2]).toBe(CODE_PRIVATE);
     // Where it comes from: the site's address as words, and no scheme, no store and no TestFlight.
-    expect(SCAN_LINE).toContain('tortie.sh/iphone');
-    expect(SCAN_LINE).not.toContain('://');
-    expect(SCAN_LINE).not.toMatch(/TestFlight/i);
-    expect(SCAN_LINE).not.toMatch(/App Store/i);
+    expect(GET_PHONE_APP).toBe('Get it at tortie.sh/iphone.');
+    for (const words of [SCAN_LINE, GET_PHONE_APP]) {
+      expect(words).not.toContain('://');
+      expect(words).not.toMatch(/TestFlight|\bbeta\b/i);
+      expect(words).not.toMatch(/App Store/i);
+    }
   });
 
   it('counts down in minutes and seconds, never below zero', () => {
@@ -755,7 +861,12 @@ describe('the words the phone quotes stay byte for byte', () => {
       "PHONE_TITLE = 'Phone'",
       "BTN_PAIR = 'Pair'",
       "BTN_TRY_AGAIN = 'Try again'",
-      "CODE_EXPIRED = 'The code expired. Nothing was paired.'"
+      "CODE_EXPIRED = 'The code expired. Nothing was paired.'",
+      "BTN_REMOVE = 'Remove'",
+      "BTN_CANCEL = 'Cancel'",
+      "ALERTS_GROUP = 'Alerts'",
+      // Phase 333.1: the phone names Allow too (`reachAllowAgain`).
+      "BTN_ALLOW = 'Allow'"
     ]) {
       expect(source).toContain(line);
     }

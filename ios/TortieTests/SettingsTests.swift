@@ -171,8 +171,9 @@ final class SettingsTests: XCTestCase {
 
     /// Clause: the version line is the bundle's own version and build, a dash
     /// for either it does not say; and the app this test is hosted in is
-    /// 1.0.0, build 7 (Phase 337, build/p337/SPEC.md D38; build 6 was Phase
-    /// 318's, build/p318/SPEC.md D30).
+    /// 1.0.0, build 8 (Phase 333.1, build/p3331/SPEC.md D26, the build
+    /// submitted to Beta App Review; build 7 was Phase 337's, build 6 Phase
+    /// 318's).
     func testTheVersionLine() {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0", "CFBundleVersion": "4"]), "1.0.0 (4)")
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "1.0.0"]), "1.0.0 (" + Copy.dash + ")")
@@ -180,7 +181,43 @@ final class SettingsTests: XCTestCase {
         XCTAssertEqual(AppVersion.line(["CFBundleShortVersionString": "", "CFBundleVersion": 4]), Copy.dash + " (" + Copy.dash + ")")
         XCTAssertEqual(AppVersion.line(nil), Copy.dash + " (" + Copy.dash + ")")
         #if os(iOS)
-        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (7)", "the app these tests are hosted in is not 1.0.0 (7)")
+        XCTAssertEqual(AppVersion.line(Bundle.main.infoDictionary), "1.0.0 (8)", "the app these tests are hosted in is not 1.0.0 (8)")
         #endif
+    }
+
+    /// Clause (Phase 333.1, D22): About holds the version and then exactly
+    /// three rows of Tortie's own site, in this order: Tortie for Mac with
+    /// `tortie.sh` on its right, Privacy, Support. Each is a button whose
+    /// action is its one named press, each at least 44 tall, and the card
+    /// opens nothing itself: the one address Settings hands iOS is still its
+    /// notification settings. Read from the source, because SwiftUI draws
+    /// nothing in a unit test.
+    func testAboutHoldsTheThreePagesOfTheSite() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/SettingsScreen.swift")
+        let start = try XCTUnwrap(source.range(of: "private func aboutCard(")).lowerBound
+        let end = try XCTUnwrap(source.range(of: "private func siteRow(", range: start..<source.endIndex)).lowerBound
+        let card = String(source[start..<end])
+        func at(_ needle: String) throws -> String.Index {
+            try XCTUnwrap(card.range(of: needle), "About does not draw \(needle)").lowerBound
+        }
+        let order = [
+            "ID.settingsVersion",
+            "Button(action: openMacSite)", "Copy.macOnSite", "Copy.siteName", "ID.settingsMacSiteName", "ID.settingsMacSite)",
+            "Button(action: openPrivacy)", "Copy.privacy", "ID.settingsPrivacy",
+            "Button(action: openSupport)", "Copy.support", "ID.settingsSupport"
+        ]
+        let places = try order.map(at)
+        XCTAssertEqual(places, places.sorted(), "About's rows are not in the order Version, Tortie for Mac, Privacy, Support")
+        XCTAssertEqual(card.components(separatedBy: "Button(").count, 4, "About holds a button beside the three pages")
+        XCTAssertFalse(card.contains("UIApplication"), "About opens a page itself")
+        let row = try XCTUnwrap(source.range(of: "private func siteRow(")).lowerBound
+        let rowBody = String(source[row...].prefix(600))
+        XCTAssertTrue(rowBody.contains(".frame(minHeight: SettingsFrame.lineHeight)"), "a site row is not 44 tall")
+        XCTAssertEqual(source.components(separatedBy: "UIApplication.shared.open(").count, 2, "Settings opens a second address itself")
+        // The identifiers the probe reads.
+        XCTAssertEqual(ID.settingsMacSite, "settings-mac-site")
+        XCTAssertEqual(ID.settingsMacSiteName, "settings-mac-site-name")
+        XCTAssertEqual(ID.settingsPrivacy, "settings-privacy")
+        XCTAssertEqual(ID.settingsSupport, "settings-support")
     }
 }

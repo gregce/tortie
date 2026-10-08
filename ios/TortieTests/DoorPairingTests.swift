@@ -357,8 +357,10 @@ final class DoorPairingTests: XCTestCase {
     /// shape, or the whole code is refused; unknown fields are ignored.
     func testACodeIsCheckedFieldByField() throws {
         XCTAssertNoThrow(try PairingOffer.parse(try code { $0["later"] = ["x": 1] }))
-        refused(try code { $0["v"] = 2 }, .unsupportedCode)
-        refused(try code { $0["v"] = 4 }, .unsupportedCode)
+        // Phase 333.1 (D24): a Tortie code of another version says which side
+        // to update (testACodeFromAnotherVersionSaysWhichSideToUpdate).
+        refused(try code { $0["v"] = 2 }, .codeFromOlderMac)
+        refused(try code { $0["v"] = 4 }, .codeFromNewerMac)
         for key in ["v", "host", "port", "fp", "dk", "dx", "ps", "exp"] {
             refused(try code { $0.removeValue(forKey: key) })
         }
@@ -375,6 +377,113 @@ final class DoorPairingTests: XCTestCase {
         refused("[]")
         refused("")
         refused(try code { $0["pad"] = String(repeating: "x", count: 5000) })
+    }
+
+    /// Clause (Phase 333.1, build/p3331/SPEC.md D24, r2 §Attack F24): the
+    /// version is read only behind THE TORTIE MARKER, an `fp` of 32 bytes
+    /// beside a `dk` and a `dx`, so somebody else's code never says which side
+    /// to update, and it is compared with this app's own version, never
+    /// computed. The hostile table: every way to spell a version on a code
+    /// that carries the marker, the 316.4 Mac's v:2 shape, and the foreign
+    /// codes, each its own failure and none a crash. Fails when the marker's
+    /// guard is taken out (the foreign rows then say older or newer) or when a
+    /// version arm is written as one number.
+    func testACodeFromAnotherVersionSaysWhichSideToUpdate() throws {
+        let real = try XCTUnwrap(JSONSerialization.jsonObject(with: Data(offerText.utf8)) as? [String: Any])
+        let marker: [String: Any] = ["fp": try XCTUnwrap(real["fp"]), "dk": try XCTUnwrap(real["dk"]), "dx": try XCTUnwrap(real["dx"])]
+        func json(_ fields: [String: Any]) throws -> String {
+            String(decoding: try JSONSerialization.data(withJSONObject: fields), as: UTF8.self)
+        }
+        // Every version, on a code that is otherwise the Mac's own.
+        let versions: [(Any?, PairingFailure)] = [
+            (1, .codeFromOlderMac),
+            (2, .codeFromOlderMac),
+            (4, .codeFromNewerMac),
+            (99, .codeFromNewerMac),
+            (100, .badCode),
+            (0, .badCode),
+            (-1, .badCode),
+            ("3", .badCode),
+            (3.5, .badCode),
+            (9_007_199_254_740_992, .badCode),
+            (Int.max, .badCode),
+            (NSNull(), .badCode),
+            (true, .badCode),
+            (nil, .badCode)
+        ]
+        for (value, failure) in versions {
+            let text = try code { fields in
+                if let value { fields["v"] = value } else { fields.removeValue(forKey: "v") }
+            }
+            refused(text, failure)
+        }
+        // The same versions on the marker ALONE: what decides is the marker
+        // and the version, never the rest of the shape.
+        refused(try json(marker.merging(["v": 1]) { $1 }), .codeFromOlderMac)
+        refused(try json(marker.merging(["v": 4]) { $1 }), .codeFromNewerMac)
+        refused(try json(marker.merging(["v": 3]) { $1 }), .badCode)
+        // The v:2 code as the 316.4 Mac drew it: its bind address, its port,
+        // the pin, the two keys, the secret and the window's end, with its
+        // tailnet-key field left out (rule p), which cannot move the verdict.
+        var v2 = marker
+        v2["v"] = 2
+        v2["host"] = "100.64.0.7"
+        v2["port"] = 7443
+        v2["ps"] = try XCTUnwrap(real["ps"])
+        v2["exp"] = try XCTUnwrap(real["exp"])
+        refused(try json(v2), .codeFromOlderMac)
+        // A v:3 code with one field wrong is still not a code.
+        refused(try code { $0["port"] = 443 })
+        refused(try code { $0["host"] = "100.64.0.7" })
+        // THE FOREIGN CODES: no marker, so not Tortie's, whatever `v` says.
+        var noPin = marker
+        noPin.removeValue(forKey: "fp")
+        noPin["v"] = 4
+        var noSigning = marker
+        noSigning.removeValue(forKey: "dk")
+        noSigning["v"] = 2
+        var noExchange = marker
+        noExchange.removeValue(forKey: "dx")
+        noExchange["v"] = 1
+        var shortPin = marker
+        shortPin["v"] = 4
+        shortPin["fp"] = Base64URL.encode(Data(count: 16))
+        var numberKey = marker
+        numberKey["v"] = 1
+        numberKey["dk"] = 5
+        for foreign in [
+            #"{"v":1}"#,
+            #"{"v":2,"name":"x"}"#,
+            #"{"v":4}"#,
+            #"{"v":4,"fp":"short","dk":"a","dx":"b"}"#,
+            try json(noPin),
+            try json(noSigning),
+            try json(noExchange),
+            try json(shortPin),
+            try json(numberKey)
+        ] {
+            refused(foreign, .badCode)
+        }
+        // Too large, not JSON, nothing: not a code, before anything is read.
+        refused(try code { $0["v"] = 4; $0["pad"] = String(repeating: "x", count: 5000) }, .badCode)
+        refused("not json", .badCode)
+        refused(#"{"v":4,"#, .badCode)
+        refused("", .badCode)
+        // And each failure draws its own sentence (DoorWords).
+        XCTAssertEqual(DoorWords.pairingSentence(for: .codeFromNewerMac), Copy.pairNewerMac)
+        XCTAssertEqual(DoorWords.pairingSentence(for: .codeFromOlderMac), Copy.pairOlderMac)
+        XCTAssertEqual(DoorWords.pairingSentence(for: .badCode), Copy.pairNotACode)
+    }
+
+    /// Clause (D24, conformance:ios rule k): the version arms read this app's
+    /// own `PairingOffer.version`, compared and never computed, so the next
+    /// version moves them with it.
+    func testTheVersionArmsReadThisAppsVersion() throws {
+        XCTAssertEqual(PairingOffer.version, 3)
+        let source = try StyleSource.text("ios/Tortie/Door/Pairing.swift")
+        XCTAssertTrue(source.contains("if marker.v > version && marker.v <= 99 { throw PairingFailure.codeFromNewerMac }"), "the newer arm is not compared with this app's version")
+        XCTAssertTrue(source.contains("if marker.v >= 1 && marker.v < version { throw PairingFailure.codeFromOlderMac }"), "the older arm is not compared with this app's version")
+        XCTAssertTrue(source.contains("guard marker.v == version,"), "this app's version does not go on to the whole shape")
     }
 
     /// The same 32 bytes spelled another way: the last character's two

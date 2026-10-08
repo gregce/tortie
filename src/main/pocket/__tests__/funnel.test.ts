@@ -46,11 +46,13 @@ vi.mock('../../log', async (importOriginal) => {
 
 const funnel = await import('../funnel');
 const {
+  ACCOUNT_MARK_RUN_MAX,
   FUNNEL_APPROVAL_WAIT_MS,
   FUNNEL_OUTPUT_CAP_BYTES,
   FUNNEL_RESTART_CAP_MS,
   FUNNEL_RESTART_FLOOR_MS,
   FUNNEL_START_DEADLINE_MS,
+  approvalCopyText,
   approvalOpens,
   armFunnelRestart,
   beginFunnelShutdown,
@@ -324,7 +326,9 @@ describe('the status read', () => {
         [443, 443],
         [8443, 8443],
         [10000, 10000]
-      ]
+      ],
+      // Phase 333.1 (D4): Tailscale 1.98 and earlier send no User map.
+      account: null
     });
   });
 
@@ -351,6 +355,121 @@ describe('the status read', () => {
     expect(parseTailnetStatus(statusJson({}, { DNSName: 'mac.example.com.' }))).toEqual({ ok: false, reason: 'no-name' });
     expect(parseTailnetStatus('not json')).toEqual({ ok: false, reason: 'unreadable' });
     expect(parseTailnetStatus('[]')).toEqual({ ok: false, reason: 'unreadable' });
+  });
+
+  // -------------------------------------------------------------------------
+  // The account (Phase 333.1, build/p3331/SPEC.md D4; r2 §Attack F21, F22)
+  // -------------------------------------------------------------------------
+
+  /** Tailscale 1.100 and later under --peers=false: the self user, and nobody else. */
+  const SELF_USER = { ID: 123456, LoginName: 'person@example.com', DisplayName: 'Person', ProfilePicURL: '' };
+  const withUser = (users: unknown, uid: unknown = 123456): string =>
+    statusJson({ User: users }, { UserID: uid });
+  const accountOf = (text: string): string | null | 'refused' => {
+    const facts = parseTailnetStatus(text);
+    return facts.ok ? facts.account : 'refused';
+  };
+
+  it('reads the account from the 1.102 shape, and none from the 1.94 shape', () => {
+    expect(accountOf(withUser({ '123456': SELF_USER }))).toBe('person@example.com');
+    // 1.94.1: `User` is filled only when peers are asked for, so it is absent or null.
+    expect(accountOf(statusJson({}, { UserID: 123456 }))).toBeNull();
+    expect(accountOf(withUser(null))).toBeNull();
+    // Every other field reads what it read without the account.
+    const { account, ...rest } = parseTailnetStatus(withUser({ '123456': SELF_USER })) as Extract<
+      ReturnType<typeof parseTailnetStatus>,
+      { ok: true }
+    >;
+    expect(account).toBe('person@example.com');
+    const { account: none, ...without } = parseTailnetStatus(statusJson()) as Extract<
+      ReturnType<typeof parseTailnetStatus>,
+      { ok: true }
+    >;
+    expect(none).toBeNull();
+    expect(rest).toEqual(without);
+  });
+
+  it('moves no refusal: a User map beside every refusing state still refuses the same word', () => {
+    const user = { User: { '123456': SELF_USER } };
+    expect(parseTailnetStatus(statusJson({ ...user, BackendState: 'Stopped' }))).toEqual({ ok: false, reason: 'not-running' });
+    expect(parseTailnetStatus(statusJson({ ...user, BackendState: 'NeedsLogin' }))).toEqual({ ok: false, reason: 'signed-out' });
+    expect(parseTailnetStatus(statusJson({ ...user, CurrentTailnet: null }))).toEqual({ ok: false, reason: 'signed-out' });
+    expect(parseTailnetStatus(statusJson(user, { DNSName: '', UserID: 123456 }))).toEqual({ ok: false, reason: 'no-name' });
+  });
+
+  it('reads the one entry for a user id past 2^53, whose key JSON.parse cannot spell, and nothing for two entries', () => {
+    // MEASURED by the spec step: 9007199254740993 parses to 9007199254740992,
+    // whose key misses the map's "9007199254740993".
+    const big = (users: Record<string, unknown>): string =>
+      withUser(users, 'BIGID').replace('"BIGID"', '9007199254740993');
+    expect(accountOf(big({ '9007199254740993': { ...SELF_USER, ID: 1 } }))).toBe('person@example.com');
+    expect(
+      accountOf(big({ '9007199254740993': SELF_USER, '9007199254740995': { ...SELF_USER, LoginName: 'other@example.com' } }))
+    ).toBeNull();
+  });
+
+  it('draws nothing for a SAFE id whose key is absent, even from a one-entry map (r2 F21)', () => {
+    expect(accountOf(withUser({ '999': SELF_USER }, 123456))).toBeNull();
+    expect(accountOf(withUser({ '123456': SELF_USER }, '123456'))).toBeNull();
+    expect(accountOf(statusJson({ User: { '123456': SELF_USER } }))).toBeNull();
+    expect(accountOf(withUser({ '123456': SELF_USER }, null))).toBeNull();
+    expect(accountOf(withUser({ '123456': SELF_USER }, 1.5))).toBeNull();
+  });
+
+  it('draws nothing it cannot draw safely: empty, not a string, over 256 units, or holding a control or format character (r2 F22)', () => {
+    const named = (login: unknown): string | null | 'refused' => accountOf(withUser({ '123456': { ...SELF_USER, LoginName: login } }));
+    expect(named('')).toBeNull();
+    expect(named(42)).toBeNull();
+    expect(named(null)).toBeNull();
+    expect(named({ name: 'x' })).toBeNull();
+    expect(accountOf(withUser({ '123456': 'person@example.com' }))).toBeNull();
+    expect(named('a'.repeat(256))).toBe('a'.repeat(256));
+    expect(named('a'.repeat(257))).toBeNull();
+    expect(named('x'.repeat(64 * 1024))).toBeNull();
+    // Written as escapes, so no raw control, bidi or zero-width character enters this file.
+    for (const odd of ['\u202E', '\u0007', '\u200B', '\uFEFF', '\u2066', '\u0000', '\u001B']) {
+      expect(named(`person${odd}@example.com`), JSON.stringify(odd)).toBeNull();
+    }
+    // A letter outside ASCII is drawn: only what cannot be drawn safely is refused.
+    expect(named('pérson@example.com')).toBe('pérson@example.com');
+  });
+
+  it('draws nothing that breaks step 1 onto other lines or stacks over it (the fix round): separators, surrogates, private and unassigned code points, long runs of marks', () => {
+    const named = (login: unknown): string | null | 'refused' => accountOf(withUser({ '123456': { ...SELF_USER, LoginName: login } }));
+    // Built from code points, so no raw character of these classes enters this file.
+    const at = (cp: number): string => `person${String.fromCodePoint(cp)}@example.com`;
+    // A line separator and a paragraph separator, alone and two hundred in a row.
+    for (const cp of [0x2028, 0x2029]) {
+      expect(named(at(cp)), cp.toString(16)).toBeNull();
+      expect(named(String.fromCodePoint(cp).repeat(200)), cp.toString(16)).toBeNull();
+    }
+    // A lone surrogate, each half (JSON carries it as an escape).
+    for (const unit of ['\\ud800', '\\udfff']) {
+      const text = withUser({ '123456': { ...SELF_USER, LoginName: 'PLACEHOLDER' } }).replace('PLACEHOLDER', `person${unit}@example.com`);
+      expect(accountOf(text), unit).toBeNull();
+    }
+    // A private-use code point, in the BMP and past it; and an unassigned one.
+    for (const cp of [0xe000, 0xf8ff, 0xf0000, 0xe0080]) expect(named(at(cp)), cp.toString(16)).toBeNull();
+    // Combining marks: a real name's few on one letter are drawn, a tower is not.
+    const marks = (n: number): string => `pe${String.fromCodePoint(0x0301).repeat(n)}rson@example.com`;
+    expect(named(marks(1))).toBe(marks(1));
+    expect(named(marks(ACCOUNT_MARK_RUN_MAX))).toBe(marks(ACCOUNT_MARK_RUN_MAX));
+    expect(named(marks(ACCOUNT_MARK_RUN_MAX + 1))).toBeNull();
+    expect(named(`a${String.fromCodePoint(0x0301).repeat(250)}`)).toBeNull();
+    // An Indic syllable's nukta, vowel sign and anusvara, three marks on one letter, is a real name's.
+    const syllable = [0x0921, 0x093c, 0x0947, 0x0902].map((p) => String.fromCodePoint(p)).join('');
+    expect(named(`${syllable}@example.com`)).toBe(`${syllable}@example.com`);
+    // A long name with no break in it is still drawn: the sheet cuts it to one line.
+    expect(named('W'.repeat(256))).toBe('W'.repeat(256));
+  });
+
+  it('carries the account through the read', async () => {
+    const w = world({
+      exec: (args) =>
+        args[0] === 'status' ? { stdout: withUser({ '123456': SELF_USER }) } : { stdout: 'null' }
+    });
+    const read = await readTailnet(w.deps);
+    expect(read.ok && read.account).toBe('person@example.com');
   });
 
   it('runs exactly the two argvs, of the resolved program, and nothing else', async () => {
@@ -452,6 +571,93 @@ describe('the approval page Tortie will open', () => {
       expect(approvalOpens(bad), bad).toBe(false);
     }
     expect(approvalOpens(null)).toBe(false);
+  });
+
+  // The 333.1 reverify (2026-10-08): Copy link hands the held text to a second
+  // person, who pastes it into whatever reads it, and two parsers can read one
+  // text as two hosts. What is copied is new URL's spelling, which every parser
+  // reads as login.tailscale.com; opening is today's, unchanged.
+  describe('what Copy link writes (approvalCopyText)', () => {
+    // RFC 3986 Appendix B, the reading a paste into another app may use.
+    const rfc3986Authority = (text: string): string | null => /^(?:[^:/?#]+:)?(?:\/\/([^/?#]*))?/.exec(text)?.[1] ?? null;
+    const backslashed = 'https://login.tailscale.com\\@evil.example/f/funnel';
+
+    it('the finding: one text, two hosts, and approvalOpens passes it as it did before the phase', () => {
+      expect(new URL(backslashed).hostname).toBe('login.tailscale.com');
+      expect(rfc3986Authority(backslashed)).toBe('login.tailscale.com\\@evil.example');
+      expect(approvalOpens(backslashed)).toBe(true);
+    });
+
+    it('writes new URL’s spelling, which begins https://login.tailscale.com/ and every parser reads as that host', () => {
+      expect(approvalCopyText(backslashed)).toBe('https://login.tailscale.com/@evil.example/f/funnel');
+      expect(approvalCopyText('HTTPS://LOGIN.TAILSCALE.COM/f/funnel')).toBe('https://login.tailscale.com/f/funnel');
+      expect(approvalCopyText('https://login.tailscale.com\\\\evil.example/f')).toBe('https://login.tailscale.com//evil.example/f');
+      for (const printed of [
+        backslashed,
+        'https://login.tailscale.com\\f\\funnel',
+        'https://login.tailscale.com\\\\evil.example/f',
+        'HTTPS://LOGIN.TAILSCALE.COM/f/funnel',
+        'https://Login.Tailscale.com/f/funnel',
+        'https:login.tailscale.com/f/funnel',
+        'https:/login.tailscale.com/f/funnel',
+        'https:///login.tailscale.com/f/funnel',
+        'https://login%2etailscale.com/f/funnel',
+        'https://login.tailscale.com',
+        'https://login.tailscale.com?node=nMADEUP',
+        'https://login.tailscale.com/./f/funnel',
+        'https://login.tailscale.com/%2e%2e/f/funnel',
+        'https://login.tailscale.com/f/fun nel',
+        'https://login.tailscale.com/f/funnel?node=n\tMADEUP',
+        'https://login.tailscale.com/f/\nfunnel',
+        ' https://login.tailscale.com/f/funnel',
+        'https://login.tailscale.com/f/funnel ',
+        'https://login.tailscale.com/f/<funnel>',
+        'https://login.tailscale.com/f/funnel?q=a\\@evil.example',
+        'https://login.tailscale.com/f/funnel#\\@evil.example',
+        'https://login.tailscale.com/@evil.example/f/funnel',
+        'https://login.tailscale.com/f/funnel?next=https://evil.example/'
+      ]) {
+        const copied = approvalCopyText(printed);
+        expect(copied, JSON.stringify(printed)).toBe(new URL(printed).href);
+        expect(copied?.startsWith('https://login.tailscale.com/'), JSON.stringify(printed)).toBe(true);
+        expect(rfc3986Authority(copied ?? ''), JSON.stringify(printed)).toBe('login.tailscale.com');
+        expect(new URL(copied ?? '').href, JSON.stringify(printed)).toBe(copied);
+        expect(copied, JSON.stringify(printed)).not.toMatch(/\s/u);
+      }
+    });
+
+    it('copies the link Tailscale prints byte for byte', () => {
+      expect(approvalCopyText('https://login.tailscale.com/f/funnel?node=nMADEUP')).toBe('https://login.tailscale.com/f/funnel?node=nMADEUP');
+    });
+
+    it('copies nothing approvalOpens refuses', () => {
+      for (const bad of [
+        'http://login.tailscale.com/f/funnel',
+        'https://login.tailscale.com.evil/f/funnel',
+        'https://login.tailscale.com./f/funnel',
+        'https://login.tailscale.com.\\@evil.example/',
+        'https://login.tailscale.com%5C@evil.example/f',
+        'https://login.tailscale.com\t@evil.example/f',
+        'https://evil.example/login.tailscale.com',
+        'https://login.tailscale.com:8443/f/funnel',
+        'https://login.tailscale.com:443/f/funnel',
+        'https://user@login.tailscale.com/f/funnel',
+        'https://user:pass@login.tailscale.com/f/funnel',
+        'https://:pass@login.tailscale.com/f/funnel',
+        'javascript:alert(1)',
+        'not a url',
+        ''
+      ]) {
+        expect(approvalOpens(bad), JSON.stringify(bad)).toBe(false);
+        expect(approvalCopyText(bad), JSON.stringify(bad)).toBeNull();
+      }
+      expect(approvalCopyText(null)).toBeNull();
+    });
+  });
+
+  it('never takes Tailscale’s download page for an approval page (Phase 333.1, D13)', () => {
+    expect(funnel.TAILSCALE_DOWNLOAD_PAGE).toBe('https://tailscale.com/download');
+    expect(approvalOpens(funnel.TAILSCALE_DOWNLOAD_PAGE)).toBe(false);
   });
 });
 

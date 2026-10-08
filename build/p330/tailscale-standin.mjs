@@ -72,6 +72,35 @@
  *                      documentation range); proxy: false sends no header
  *   coalesce           false: the header and the first client bytes are two writes
  *
+ * PHASE 333.1 ADDED THREE (build/p3331/SPEC.md D36). None is in
+ * `DEFAULT_SCENARIO`, so a probe that does not ask for them reads, byte for
+ * byte, the status it read before (the self-test pins its sha256):
+ *
+ *   selfUser           true: `User` is `{"<UserID>": {ID, LoginName,
+ *                      DisplayName, ProfilePicURL}}`, the self user Tailscale
+ *                      1.100 and later put in `--peers=false` (v1.102.2
+ *                      ipn/ipnlocal/local.go:1554-1561); absent or false, the
+ *                      default: `User: null`, as 1.98 and earlier answer
+ *   account            the self user's `LoginName` when `selfUser` is true,
+ *                      answered EXACTLY as given, whatever its type, so a
+ *                      verifier can plant a number or a 64 KB login (SPEC
+ *                      §7.9); a made-up `person@example.com` when not given
+ *   readDelayMs        holds every `status` and `serve status` answer this
+ *                      long (at most 60 s), then logs a `held` line just before
+ *                      the answer is written, so a probe can read when a read
+ *                      began (its `status` or `serve-status` line) and when it
+ *                      ended (its `held` line). Absent or 0: no hold, no line
+ *
+ * THE ABSENT MODE (Phase 333.1). `setAbsent(true)` rewrites the wrapper's
+ * FIRST line to name an interpreter that does not exist
+ * (`ABSENT_INTERPRETER`), and `setAbsent(false)` restores it; each records the
+ * wrapper's hash again, so the preflight still passes, and the wrapper's
+ * `exec` line never moves. A stat still finds an executable file, so Tortie's
+ * resolver accepts it, and the read that runs it fails `ENOENT`, which is
+ * Tortie's own `no-tailscale`: Tailscale "not installed" as far as a run can
+ * see, with nothing of his ever touched. Nothing runs in absent mode, so the
+ * log holds no line for a read that failed there.
+ *
  * THE DECOY. With `P330_STANDIN_ROLE=decoy` in its environment, `funnel` prints
  * the same lines and holds no forwarder and no entry: a process whose command
  * line is byte for byte a real child's, which the orphan arm starts between two
@@ -93,7 +122,7 @@
  *   node build/p330/tailscale-standin.mjs --self-test
  */
 
-import { spawn, spawnSync } from 'node:child_process';
+import { execFile, spawn, spawnSync } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
 import {
   accessSync,
@@ -128,6 +157,28 @@ export const STANDIN_ROLE_ENV = 'P330_STANDIN_ROLE';
 export const STANDIN_PATH = join(ROOT, 'build', 'p330', 'tailscale-standin.mjs');
 /** The approval URL it prints. MADE UP: the real page's host was not recorded (SPEC §2.2 O3). */
 export const MADE_UP_APPROVAL_URL = 'https://login.tailscale.com/f/funnel?node=nMADEUP';
+/** The self user's login name when `selfUser` is true and no `account` is given (Phase 333.1). Made up. */
+export const MADE_UP_ACCOUNT = 'person@example.com';
+/**
+ * `Self.UserID`, and the self user's key and `ID` in the `User` map: ONE
+ * constant (Phase 333.1), so the map's key is always the id Tortie looks up.
+ */
+export const SELF_USER_ID = 1;
+/**
+ * The interpreter the ABSENT wrapper names on its first line (Phase 333.1). It
+ * exists nowhere, so running the wrapper fails `ENOENT` while a stat of it
+ * still finds an executable file (build/p3331/SPEC.md §15 M1).
+ */
+export const ABSENT_INTERPRETER = '/p3331-no-such-interpreter/sh';
+/** The longest hold `readDelayMs` may ask for, so a typo cannot park a read for a day. */
+const READ_DELAY_CEILING_MS = 60_000;
+/**
+ * The sha256 of `JSON.stringify(statusOf(DEFAULT_SCENARIO), null, 2)` at
+ * `cb8d52a6`, before Phase 333.1 added its three scenario keys. The self-test
+ * holds the default to it, so every probe that asks for none of them reads
+ * byte for byte what it read.
+ */
+const DEFAULT_STATUS_SHA256 = '98eb0e9e680dc6c6ac44f738e3ed858a637ace2964f65df284eba4af4f387977';
 /** The node's tailnet addresses in the PROXY header and the tcp lines. Made up. */
 const SELF_V4 = '100.64.0.7';
 const SELF_V6 = 'fd7a:115c:a1e0::7';
@@ -342,7 +393,7 @@ export function statusOf(scenario, { statusReadsBefore = 0, approved = false } =
       HostName: 'p330-mac',
       DNSName: dnsName,
       OS: 'macOS',
-      UserID: 1,
+      UserID: SELF_USER_ID,
       TailscaleIPs: [SELF_V4, SELF_V6],
       Addrs: null,
       CurAddr: '',
@@ -372,9 +423,38 @@ export function statusOf(scenario, { statusReadsBefore = 0, approved = false } =
     CurrentTailnet: signedOut ? null : { Name: tailnet, MagicDNSSuffix: suffix, MagicDNSEnabled: dnsName !== '' },
     CertDomains: dnsName === '' ? null : [dnsName.replace(/\.$/, '')],
     Peer: null,
-    User: null,
+    User: selfUserOf(scenario),
     ClientVersion: null
   };
+}
+
+/**
+ * The `User` map `status --json --peers=false` carries (Phase 333.1, D36): the
+ * self user alone, keyed by `Self.UserID` as a string, when `selfUser` is true
+ * (Tailscale 1.100 and later); null otherwise, as 1.98 and earlier answer and
+ * as every scenario before Phase 333.1 read. Pure.
+ */
+export function selfUserOf(scenario) {
+  if (scenario?.selfUser !== true) return null;
+  // ANSWERED EXACTLY AS GIVEN (build/p3331/SPEC.md §7.9): a verifier plants a
+  // number, an object or a 64 KB login here and Tortie's bound is what reads
+  // it; only an account not given at all is the made-up one.
+  const login = scenario.account === undefined ? MADE_UP_ACCOUNT : scenario.account;
+  return { [String(SELF_USER_ID)]: { ID: SELF_USER_ID, LoginName: login, DisplayName: 'P3331 Stand-in Person', ProfilePicURL: '' } };
+}
+
+/** How long this scenario holds a read, in ms: 0 unless `readDelayMs` is a positive number, never above the ceiling. Pure. */
+export function readDelayOf(scenario) {
+  const ms = Number(scenario?.readDelayMs ?? 0);
+  return Number.isFinite(ms) && ms > 0 ? Math.min(Math.round(ms), READ_DELAY_CEILING_MS) : 0;
+}
+
+/** Hold a read for the scenario's delay, then say so in the log, just before the answer is written. */
+async function holdRead(dir, scenario, of) {
+  const ms = readDelayOf(scenario);
+  if (ms === 0) return;
+  await new Promise((done) => setTimeout(done, ms));
+  logLine(dir, { kind: 'held', of, heldMs: ms, verdict: 'released' });
 }
 
 /** `ipn.ServeConfig` for this directory, or null when nothing is served. */
@@ -449,10 +529,11 @@ function refuseArgv(dir, argv, classified, why) {
   process.exitCode = 2;
 }
 
-function runStatus(dir, argv, classified) {
+async function runStatus(dir, argv, classified) {
   const scenario = scenarioOf(dir);
   const before = answeredStatusReads(dir);
   logLine(dir, { kind: 'status', argv, verdict: 'answered', peers: classified.peers });
+  await holdRead(dir, scenario, 'status');
   if (scenario.unreadable === 'status') {
     out('{"BackendState": "Running", "Self": {\n');
     return;
@@ -460,9 +541,10 @@ function runStatus(dir, argv, classified) {
   out(`${J(statusOf(scenario, { statusReadsBefore: before, approved: existsSync(join(dir, 'approve')) }), null, 2)}\n`);
 }
 
-function runServeStatus(dir, argv) {
+async function runServeStatus(dir, argv) {
   const scenario = scenarioOf(dir);
   logLine(dir, { kind: 'serve-status', argv, verdict: 'answered' });
+  await holdRead(dir, scenario, 'serve-status');
   if (scenario.unreadable === 'serve') {
     out('{"TCP": {"8443": \n');
     return;
@@ -665,11 +747,16 @@ async function program() {
 
 export const sha256File = (path) => createHash('sha256').update(readFileSync(path)).digest('hex');
 
-/** The wrapper's text: a /bin/sh that execs this file with the directory baked in. */
-export function wrapperText(dir, node = process.execPath, target = STANDIN_PATH) {
+/**
+ * The wrapper's text: a /bin/sh that execs this file with the directory baked
+ * in. `absent` (Phase 333.1) names `ABSENT_INTERPRETER` on the first line
+ * instead and changes nothing else, so the `exec` line the preflight reads is
+ * the same in both.
+ */
+export function wrapperText(dir, node = process.execPath, target = STANDIN_PATH, { absent = false } = {}) {
   const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
   return [
-    '#!/bin/sh',
+    absent ? `#!${ABSENT_INTERPRETER}` : '#!/bin/sh',
     '# NOT TAILSCALE. Phase 330\'s stand-in (build/p330/tailscale-standin.mjs),',
     '# written by a probe into its own scratch directory. It answers status,',
     '# serve status and one funnel shape, and refuses everything else.',
@@ -694,11 +781,27 @@ export function makeStandin({ dir, scenario = {}, node = process.execPath }) {
   const targetSha256 = sha256File(STANDIN_PATH);
   const setScenario = (next, { merge = true } = {}) => writeJsonAtomic(join(dir, 'scenario.json'), merge ? { ...readJson(join(dir, 'scenario.json'), {}), ...next } : next);
   setScenario(scenario, { merge: false });
-  return {
+  let absent = false;
+  const standin = {
     dir,
     binPath,
     wrapperSha256,
     targetSha256,
+    /**
+     * THE ABSENT MODE (Phase 333.1, D36): true rewrites the wrapper's first
+     * line to an interpreter that does not exist; false restores it. Each
+     * records the wrapper's hash again on THIS object, which is what the
+     * preflight compares, so a probe's next preflight passes in either mode.
+     * Refuses if the interpreter it names has come to exist.
+     */
+    setAbsent: (on) => {
+      if (existsSync(ABSENT_INTERPRETER)) throw new Error(`${ABSENT_INTERPRETER} exists on this Mac, so the absent wrapper would run it; the stand-in refuses`);
+      absent = on === true;
+      writeFileSync(binPath, wrapperText(dir, node, STANDIN_PATH, { absent }), { mode: 0o755 });
+      standin.wrapperSha256 = sha256File(binPath);
+      return standin.wrapperSha256;
+    },
+    absent: () => absent,
     readLog: () => readLogOf(dir),
     readFunnel: () => readFunnelOf(dir),
     scenario: () => scenarioOf(dir),
@@ -711,6 +814,7 @@ export function makeStandin({ dir, scenario = {}, node = process.execPath }) {
     pids: () => standinPidsOf(dir),
     endAll: (graceMs) => endStandinProcesses(dir, graceMs)
   };
+  return standin;
 }
 
 function commandOf(pid) {
@@ -1028,6 +1132,112 @@ async function selfTest() {
     });
     check('status: tailnetAfterReads moves the tailnet after n reads', J(names) === J(['standin@example.com', 'standin@example.com', 'moved@example.com']), J(names));
     standin.setScenario({ ...DEFAULT_SCENARIO }, { merge: false });
+
+    // ---- Phase 333.1: the default unmoved, the self user, the hold --------
+    const statusNow = () => {
+      try {
+        return JSON.parse(runSync(standin, ['status', '--json', '--peers=false']).stdout);
+      } catch {
+        return null;
+      }
+    };
+    const defaultDigest = createHash('sha256').update(J(statusOf(DEFAULT_SCENARIO), null, 2)).digest('hex');
+    const plain = statusNow();
+    check(
+      'the default scenario answers what it answered before Phase 333.1 (User null, UserID 1, the pinned sha256)',
+      defaultDigest === DEFAULT_STATUS_SHA256 && plain?.User === null && plain?.Self?.UserID === 1 && !('selfUser' in DEFAULT_SCENARIO) && !('readDelayMs' in DEFAULT_SCENARIO),
+      `sha256 ${defaultDigest.slice(0, 12)}…, User ${J(plain?.User)}, UserID ${J(plain?.Self?.UserID)}`
+    );
+    standin.setScenario({ selfUser: true });
+    const withUser = statusNow();
+    const userEntry = withUser?.User?.[String(withUser?.Self?.UserID)];
+    check(
+      'selfUser true: the User map holds the self user under String(Self.UserID), made up, as 1.100 and later answer',
+      Object.keys(withUser?.User ?? {}).length === 1 && userEntry?.ID === 1 && userEntry?.LoginName === MADE_UP_ACCOUNT && typeof userEntry?.DisplayName === 'string' && userEntry?.ProfilePicURL === '' && withUser?.CurrentTailnet?.Name === DEFAULT_SCENARIO.tailnet,
+      J(withUser?.User)
+    );
+    standin.setScenario({ selfUser: true, account: DEFAULT_SCENARIO.tailnet });
+    const sameAsTailnet = statusNow();
+    standin.setScenario({ selfUser: false, account: 'ignored@example.com' });
+    const userOff = statusNow();
+    check(
+      'account names the login; selfUser false answers User null whatever account says',
+      sameAsTailnet?.User?.['1']?.LoginName === DEFAULT_SCENARIO.tailnet && userOff?.User === null,
+      `login ${J(sameAsTailnet?.User?.['1']?.LoginName)}, off ${J(userOff?.User)}`
+    );
+    // Exactly as given (SPEC §7.9): a number and a 64 KB login reach Tortie's
+    // bound untouched, keyed by the one user id Self names.
+    const big = 'x'.repeat(64 * 1024);
+    standin.setScenario({ selfUser: true, account: 42 });
+    const asNumber = statusNow();
+    standin.setScenario({ selfUser: true, account: big });
+    const asBig = statusNow();
+    check(
+      'account is answered exactly as given, a number or 64 KB, under the one user id Self names',
+      asNumber?.User?.[String(SELF_USER_ID)]?.LoginName === 42 && asBig?.User?.[String(SELF_USER_ID)]?.LoginName === big && asBig?.Self?.UserID === SELF_USER_ID && asBig?.User?.[String(SELF_USER_ID)]?.ID === SELF_USER_ID,
+      `number ${J(asNumber?.User?.[String(SELF_USER_ID)]?.LoginName)}, big ${String(String(asBig?.User?.[String(SELF_USER_ID)]?.LoginName ?? '').length)} units`
+    );
+    standin.setScenario({ ...DEFAULT_SCENARIO }, { merge: false });
+    check(
+      'readDelayOf: 0 for absent, 0, negative, NaN and text; the ceiling for a day',
+      readDelayOf({}) === 0 && readDelayOf({ readDelayMs: 0 }) === 0 && readDelayOf({ readDelayMs: -5 }) === 0 && readDelayOf({ readDelayMs: Number.NaN }) === 0 && readDelayOf({ readDelayMs: 'x' }) === 0 && readDelayOf({ readDelayMs: 300 }) === 300 && readDelayOf({ readDelayMs: 86_400_000 }) === READ_DELAY_CEILING_MS,
+      J([readDelayOf({}), readDelayOf({ readDelayMs: 300 }), readDelayOf({ readDelayMs: 86_400_000 })])
+    );
+    const heldFrom = standin.readLog().length;
+    standin.setScenario({ readDelayMs: 400 });
+    const t400 = Date.now();
+    const heldStatus = runSync(standin, ['status', '--json', '--peers=false']);
+    const statusMs = Date.now() - t400;
+    const t401 = Date.now();
+    const heldServe = runSync(standin, ['serve', 'status', '--json']);
+    const serveMs = Date.now() - t401;
+    const heldLines = standin.readLog().slice(heldFrom);
+    const kinds = heldLines.map((e) => (e.kind === 'held' ? `held:${String(e.of)}` : e.kind));
+    check(
+      'readDelayMs holds each read that long and logs a held line after its start line, before the answer',
+      statusMs >= 400 && serveMs >= 400 && heldStatus.code === 0 && heldStatus.stdout.startsWith('{') && heldServe.code === 0 && heldServe.stdout.trim() === 'null' &&
+        J(kinds) === J(['status', 'held:status', 'serve-status', 'held:serve-status']) && heldLines[1].at - heldLines[0].at >= 390 && heldLines.every((e) => e.kind !== 'held' || e.heldMs === 400),
+      `status ${String(statusMs)} ms, serve ${String(serveMs)} ms, lines ${J(kinds)}`
+    );
+    standin.setScenario({ readDelayMs: 0 });
+    const unheldFrom = standin.readLog().length;
+    runSync(standin, ['status', '--json', '--peers=false']);
+    check('readDelayMs 0 holds nothing and logs no held line', standin.readLog().slice(unheldFrom).every((e) => e.kind !== 'held'), J(standin.readLog().slice(unheldFrom).map((e) => e.kind)));
+    standin.setScenario({ ...DEFAULT_SCENARIO }, { merge: false });
+
+    // ---- Phase 333.1: the absent mode -------------------------------------
+    const shaBefore = standin.wrapperSha256;
+    const absentFrom = standin.readLog().length;
+    standin.setAbsent(true);
+    const absentText = readFileSync(standin.binPath, 'utf8');
+    const absentRun = await new Promise((done) => execFile(standin.binPath, ['status', '--json', '--peers=false'], { timeout: 10_000 }, (err) => done(err)));
+    let statOk = false;
+    try {
+      accessSync(standin.binPath, fsConstants.X_OK);
+      statOk = statSync(standin.binPath).isFile();
+    } catch {
+      statOk = false;
+    }
+    const absentPre = preflightStandin(standin, standin.binPath);
+    const stalePre = preflightStandin({ ...standin, wrapperSha256: shaBefore }, standin.binPath);
+    check(
+      'setAbsent(true): the first line names an interpreter that does not exist, the stat finds an executable file, the run fails ENOENT, and nothing ran',
+      standin.absent() === true && absentText.split('\n')[0] === `#!${ABSENT_INTERPRETER}` && !existsSync(ABSENT_INTERPRETER) && statOk && absentRun?.code === 'ENOENT' && standin.readLog().length === absentFrom,
+      `first line ${J(absentText.split('\n')[0])}, stat ${String(statOk)}, run ${J(absentRun?.code ?? null)}, log lines added ${String(standin.readLog().length - absentFrom)}`
+    );
+    check(
+      'setAbsent keeps the exec line, records the hash again, and the preflight passes; the old hash would not',
+      absentPre.ok && !stalePre.ok && stalePre.problems.some((p) => p.includes('changed')) && standin.wrapperSha256 !== shaBefore &&
+        absentText.split('\n').slice(1).join('\n') === wrapperText(standin.dir).split('\n').slice(1).join('\n'),
+      `absent preflight ${J(absentPre.problems)}, with the old hash ${J(stalePre.problems)}`
+    );
+    standin.setAbsent(false);
+    const back = statusNow();
+    check(
+      'setAbsent(false) restores the wrapper byte for byte, its first hash, the preflight and the answers',
+      standin.absent() === false && readFileSync(standin.binPath, 'utf8') === wrapperText(standin.dir) && standin.wrapperSha256 === shaBefore && preflightStandin(standin, standin.binPath).ok && back?.BackendState === 'Running',
+      `restored ${String(readFileSync(standin.binPath, 'utf8') === wrapperText(standin.dir))}, BackendState ${J(back?.BackendState)}`
+    );
 
     // ---- serve status ----------------------------------------------------
     r = runSync(standin, ['serve', 'status', '--json']);

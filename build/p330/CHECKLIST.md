@@ -69,10 +69,12 @@ where each button and sentence was checked against the tree, and is for the agen
    Terminal, runs your Tailscale's funnel, and whether it can do so unprompted is O5.
 
 3. **If a page opened** (SPEC row 2; O3). Your tailnet is already approved, so it should not. If Tortie drew
-   "Tailscale needs your OK to publish this door." with **Open Tailscale**, press it, count the clicks on
-   Tailscale's page until it says Funnel is on, and **write down the page's host** (the part after
-   `https://` and before the next `/`). Tortie opens only `https://login.tailscale.com/…`, which is the host
-   the stand-in guesses at and nobody has recorded. If no page opened, write "not seen again".
+   "Tailscale needs your OK, once." under step 2, **Publish this Mac**, with **Approve in Tailscale** (the
+   button Phase 333.1 renamed from Open Tailscale, which is step 1's own press now and opens the Tailscale
+   app), press it, count the clicks on Tailscale's page until it says Funnel is on, and **write down the
+   page's host** (the part after `https://` and before the next `/`). Tortie opens only
+   `https://login.tailscale.com/…`, which is the host the stand-in guesses at and nobody has recorded. If
+   no page opened, write "not seen again".
 
 4. **Archive, check, upload and pair Tortie 1.0.0 (2)** (SPEC row 3; O8). Leave `npm run dev` running and
    open a **new Terminal tab** (⌘T). In `~/gmux`, run `open ios/Tortie.xcodeproj`. There is no vendoring step
@@ -216,7 +218,7 @@ Tailscale, App Store Connect or TestFlight, which no agent may sign in to.
 | 11 | **Pair** at once on a relaunch, one question in the background | the switch-on round, `beginNameCheck` in `src/main/pocket/ipc.ts`. Driven by `probe:p332` H4 |
 | 12 | Off keeps the name; **Pair** at once, one question in the background | the off write keeps `nameConfirmed`, so the next counted start is the switch-on round (`beginNameCheck`, `src/main/pocket/ipc.ts`). Driven by `probe:p332` H2 |
 | Three things | "Tortie could not confirm your Mac’s name, so a first scan may fail." after one unreadable round, or after a no that lasts about fifteen minutes | `POCKET_NAME_SENTENCES.unreadable`, `src/shared/ipc/pocket.ts`; `NAME_UNREADABLE_ROUNDS` (one) and `NAME_OPEN_AFTER_ROUNDS` (18), `public-name.ts`. Driven by `probe:p332` H6 |
-| 3 | "Tailscale needs your OK to publish this door.", **Open Tailscale**, the host it opens | `POCKET_FUNNEL_APPROVAL`, `src/shared/ipc/pocket.ts:596`; `BTN_OPEN_TAILSCALE`, `PhoneSection.tsx:66`; the host check, `funnel.ts` (`approvalOpens`). The real page's host is his side and unrecorded (SPEC §2.2 O3); the stand-in prints a made-up one |
+| 3 | "Tailscale needs your OK, once.", **Approve in Tailscale**, the host it opens | `POCKET_FUNNEL_APPROVAL`, `src/shared/ipc/pocket.ts` (Phase 333.1, D14); `BTN_OPEN_TAILSCALE`, `src/renderer/settings/PhoneSection.tsx` ("Approve in Tailscale" since Phase 333.1, §5.4.3; step 1's own **Open Tailscale** is `BTN_OPEN_TAILSCALE_APP`); the host check, `funnel.ts` (`approvalOpens`). The real page's host is his side and unrecorded (SPEC §2.2 O3); the stand-in prints a made-up one. Driven by `probe:p330` A3 and `probe:p3331` R5 |
 | 4 | No vendoring step | `vendor:tailscalekit` and `build/build-tailscalekit.mjs` removed in this phase |
 | 4 | Tortie 1.0.0 (2) | `CURRENT_PROJECT_VERSION = 2` and `MARKETING_VERSION = 1.0.0` in every configuration of `ios/Tortie.xcodeproj/project.pbxproj` (`:417`, `:427`) |
 | 4 | `--read-app` and its line | `build/p316/test-ios.mjs` `PASS_WORDS`; the words quoted are SPEC §4.12.7's, "none links NetworkExtension or TailscaleKit, none carries code coverage, no DEBUG seam", and the integrator confirms the landed text |

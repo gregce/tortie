@@ -66,8 +66,22 @@
  * It reads no credential and names neither `main/credentials/` nor
  * `main/logins/`. It sets no status. It writes no tailnet policy, holds no
  * Tailscale credential and calls no LocalAPI, by refusal (research 128 §3.2).
- * It opens one URL, Tailscale's approval page, only on a person's press and
- * only after `./funnel.ts`'s check says it is Tailscale's own login host.
+ * It opens two URLs and one app, each only on a person's press: Tailscale's
+ * approval page, only after `./funnel.ts`'s check says it is Tailscale's own
+ * login host; and since Phase 333.1 Tailscale's download page and the
+ * Tailscale app, each only when {@link PocketHost.setupActionsNow} lists it,
+ * and never under a harness launch. The one thing it writes outside itself is
+ * the admin's approval link, to the clipboard, on Copy link.
+ *
+ * ## A return to the window checks again (Phase 333.1, build/p3331/SPEC.md D7)
+ *
+ * `pocket:recheck` is the Settings window coming back to the front. It reads
+ * Tailscale only while {@link PocketHost.rechecks} says a return could now
+ * see a step finished, and only while a program is there to read (on an
+ * allowed door, only the program the person allowed). It counts no press, it
+ * runs inside the one queue, it starts the door at most once per press, and
+ * it never runs after the person's own off press in this run, even one Tortie
+ * could not save. There is no timer and no poll.
  *
  * ## A code waits for the Mac's public name (Phase 332, build/p332/SPEC.md §4.9)
  *
@@ -85,12 +99,15 @@
  */
 
 import { app, shell, type IpcMain, type WebContents } from 'electron';
+// Its own line (Phase 333.1): the line above is an ablation's anchor, read byte for byte.
+import { clipboard } from 'electron';
 
 import {
   EVT_POCKET_CHANGED,
   POCKET_FUNNEL_RESTARTING,
   POCKET_NAME_SENTENCES,
   POCKET_ROUTE_IDS,
+  POCKET_SETUP_ACTIONS,
   pocketFunnelSentence,
   type PocketAllowInput,
   type PocketAllowResult,
@@ -101,12 +118,16 @@ import {
   type PocketPairingOffer,
   type PocketPairingView,
   type PocketPushKeyResult,
+  type PocketSetupAction,
   type PocketStatus,
-  type PocketSwitchInput
+  type PocketSwitchInput,
+  type PocketTailscaleState
 } from '@shared/ipc/pocket';
 import { broadcastEvent } from '../typed-events';
 import { gmuxError } from '../errors';
+import { isHarnessLaunch } from '../harness/launch-gate';
 import { getLog } from '../log';
+import { TAILSCALE_APP_BUNDLE, TAILSCALE_APP_PROGRAM } from '../machines/tailscale';
 import { handle } from '../typed-ipc';
 import {
   DOOR_SENTENCES,
@@ -120,6 +141,8 @@ import {
 import type { DoorPin, DoorSpawner } from './door/wire';
 import {
   FUNNEL_PORTS,
+  TAILSCALE_DOWNLOAD_PAGE,
+  approvalCopyText,
   approvalOpens,
   armFunnelRestart,
   choosePublicPort,
@@ -134,6 +157,8 @@ import {
   startFunnel,
   sweepFunnelOrphan,
   type FunnelDeps,
+  type FunnelProgram,
+  type FunnelResolution,
   type FunnelRun,
   type TailnetRead
 } from './funnel';
@@ -208,6 +233,35 @@ function notASwitch(): Error {
     'Tortie could not read that switch, so it changed nothing.'
   );
 }
+
+/**
+ * One setup press, by its closed word (Phase 333.1, D12), compared by
+ * membership. Never a URL and never a path: a renderer that sends either is
+ * answered with a sentence and nothing is opened.
+ */
+function setupActionOf(input: unknown): PocketSetupAction {
+  for (const word of POCKET_SETUP_ACTIONS) if (input === word) return word;
+  throw gmuxError('INVALID_INPUT', 'Tortie could not read that press, so it changed nothing.');
+}
+
+/** The three setup presses' doors (Phase 333.1, D12). TESTS ONLY; production takes Electron's shell and clipboard. */
+export interface PocketSetupSeam {
+  openExternal(url: string): Promise<void>;
+  openPath(path: string): Promise<string>;
+  writeClipboard(text: string): void;
+}
+
+/**
+ * Electron's own three, READ AT CALL TIME (Phase 333.1, D12; r2 §Attack F23):
+ * each member is an arrow whose body names `shell` or `clipboard`, so nothing
+ * here reads either at module load, and a test's `electron` mock that has no
+ * `shell` or `clipboard` loads this module unharmed.
+ */
+const electronSetupSeam: PocketSetupSeam = {
+  openExternal: (url) => shell.openExternal(url),
+  openPath: (path) => shell.openPath(path),
+  writeClipboard: (text) => clipboard.writeText(text)
+};
 
 /**
  * THE ALERTS' PORT (Phase 316.5, build/p3165/SPEC.md §5.2.2): what the sheet's
@@ -285,6 +339,12 @@ export interface PocketHostDeps {
    * and hands none, so its sheet has no key row to press.
    */
   alerts?: PocketAlertsPort;
+  /**
+   * The three setup presses' doors (Phase 333.1, D12). TESTS ONLY
+   * (`conformance:pocket` U4's rule): production takes Electron's `shell` and
+   * `clipboard`, read when a press is acted on.
+   */
+  setup?: PocketSetupSeam;
 }
 
 /** `app.isPackaged`, and false outside Electron, as `./funnel.ts` reads it. */
@@ -359,6 +419,14 @@ const RETRIED: ReadonlySet<PocketFunnelRefusal> = new Set([
 ]);
 
 /**
+ * The READ's refusals a return to the window re-checks (Phase 333.1, D7 (g)):
+ * each is a step the person finishes in Tailscale, and a read can see it
+ * finished. NEVER `shields-up`, which only a spawn of the Funnel child can see,
+ * so a return there would fork and spawn on every focus.
+ */
+const RETURN_READ_WORDS: ReadonlySet<PocketFunnelRefusal> = new Set(['no-tailscale', 'not-running', 'signed-out']);
+
+/**
  * One press of the door's switch, as a start remembers it (Phase 316.1).
  *
  * `n` is its place in the order the presses arrived in. `superseded` settles
@@ -415,6 +483,33 @@ export class PocketHost {
   private readRefusal: PocketFunnelRefusal | null = null;
   /** The last start's sentence: the listener's, Funnel's, or the sessions'. */
   private startRefusal: string | null = null;
+  /**
+   * The last start's refusal WORD, set and cleared WITH {@link startRefusal}
+   * at every site (Phase 333.1, D5); null where the sentence is not
+   * Tailscale's (the sessions, the door process, a port that could not be
+   * saved, lines that name nothing).
+   */
+  private startRefusalWord: PocketFunnelRefusal | null = null;
+  /**
+   * The approval link a start that refused `not-approved` printed, kept only
+   * when {@link approvalOpens} passes it (Phase 333.1, D6). MAIN'S ALONE: it
+   * never crosses to the renderer; Copy link writes it to the clipboard.
+   */
+  private adminLink: string | null = null;
+  /** The switch was pressed on in this run and not off since (Phase 333.1, D8). Memory only. */
+  private pressedOnThisRun = false;
+  /**
+   * The last switch press of this run was OFF, saved or not (Phase 333.1, D8;
+   * r2 §Attack F18). After it, only the person's next on press starts or reads
+   * the door. Memory only.
+   */
+  private switchedOffThisRun = false;
+  /**
+   * A return has forked the door process and spawned the Funnel child since
+   * the last press, confirm or counted start (Phase 333.1, D8b): at most once
+   * per press. Memory only.
+   */
+  private returnForked = false;
   /** The Funnel child while the door is published. */
   private run: FunnelRun | null = null;
   private funnelState: PocketFunnelView['state'] = 'idle';
@@ -757,11 +852,17 @@ export class PocketHost {
   }
 
   status(): PocketStatus {
+    // THE STAT, ONCE PER STATUS (Phase 333.1, D3): at most eight stat and
+    // access calls and no process, handed to step 1 and to the setup presses.
+    // The program is reached only through `funnelProgramOf`: never a read.
+    const resolution = this.funnel.resolve();
     const fields = this.fields();
     const gate = pocketConfirmStatus(fields);
     const door = pocketDoorStatus();
     const store = this.readStore();
     const listening = door.listening && this.published();
+    const tailscale = this.tailscaleNow(funnelProgramOf(resolution), store?.enabled === true);
+    const ready = tailscale === 'ready';
     const state: PocketStatus['state'] =
       store?.enabled !== true
         ? 'off'
@@ -797,7 +898,8 @@ export class PocketHost {
         state: this.funnelState,
         asksApproval: this.read?.asksApproval ?? false,
         approvalOpens: opens,
-        approvalText: waiting !== null && !opens ? waiting : null
+        approvalText: waiting !== null && !opens ? waiting : null,
+        refused: this.funnelRefused()
       },
       confirmState: gate.state,
       confirmLines: gate.lines,
@@ -805,6 +907,13 @@ export class PocketHost {
       confirmable,
       nameCheck: this.nameCheckNow(),
       pairable: this.pairable(),
+      // STEP 1 (Phase 333.1, D2, D4): drawn only. The account and the tailnet
+      // are this run's read's, and only while that read answered.
+      tailscale,
+      account: ready ? (this.read?.account ?? null) : null,
+      tailnet: ready ? (this.read?.tailnet ?? null) : null,
+      rechecks: this.rechecks(),
+      setupActions: this.setupActionsNow(resolution),
       nameProgress: this.nameProgressNow(),
       routes: POCKET_ROUTE_IDS,
       pushAlerts: fields.pushAlerts,
@@ -813,6 +922,93 @@ export class PocketHost {
       pushKeyId: this.deps.alerts?.keyId() ?? null,
       pushSentence: this.deps.alerts?.sentence() ?? null
     };
+  }
+
+  /**
+   * STEP 1's STATE (Phase 333.1, D2), from the stat and THIS RUN's last read,
+   * never from the stored facts: a tailnet an earlier run wrote is no proof
+   * Tailscale runs now. With the switch off, the stat alone, because the last
+   * read belongs to a press the person has since undone. `on` is handed in by
+   * `status()` from the store it already read. Called once, by `status()`.
+   */
+  private tailscaleNow(program: FunnelProgram, on: boolean): PocketTailscaleState {
+    const statMissing = !program.ok && program.reason === 'no-tailscale';
+    if (!on) return statMissing ? 'missing' : 'installed';
+    if (statMissing || this.readRefusal === 'no-tailscale') return 'missing';
+    if (this.readRefusal === 'not-running') return 'stopped';
+    if (this.readRefusal === 'signed-out') return 'signed-out';
+    if (this.read !== null && this.readRefusal === null) return 'ready';
+    return 'installed';
+  }
+
+  /**
+   * The refusal's WORD the sheet draws (Phase 333.1, D5): the read's, else the
+   * start's; null while the switch is off and while the door listens.
+   */
+  private funnelRefused(): PocketFunnelRefusal | null {
+    if (this.readStore()?.enabled !== true) return null;
+    if (pocketDoorStatus().listening && this.published()) return null;
+    return this.readRefusal ?? this.startRefusalWord;
+  }
+
+  /** Would a return to the window re-check this refusal? (Phase 333.1, D7.) `held`: the openings the caller's own job holds. */
+  private rechecks(held: 0 | 1 = 0): boolean {
+    if (this.readStore()?.enabled !== true || this.switchedOffThisRun) return false; // (a) the switch, as the person last left it
+    if (this.published()) return false; // (b)
+    if (this.opening !== held) return false; // (c)
+    if (this.funnelState !== 'idle') return false; // (d)
+    if (this.restartCancel !== null) return false; // (e)
+    if (pocketShutdownStarted() || funnelShutdownStarted()) return false; // (f)
+    if (this.returnForked) return false; // (i)
+    const refusal =
+      this.readRefusal !== null
+        ? RETURN_READ_WORDS.has(this.readRefusal)
+        : this.startRefusalWord === 'not-approved'; // (g)
+    if (!refusal) return false;
+    return pocketConfirmStatus(this.fields()).state === 'confirmed' || this.pressedOnThisRun; // (h)
+  }
+
+  /**
+   * MAY A RETURN RUN THIS PROGRAM? (Phase 333.1, D7b.) Only one the stat finds,
+   * and on CONFIRMED fields only the program the person allowed: a Tailscale
+   * that appeared at another pinned path is run by a press, never by a focus.
+   * Not part of {@link rechecks}, so a first setup's wish for the code is kept
+   * while the person is still installing.
+   */
+  private returnMayRun(program: FunnelProgram): boolean {
+    return (
+      program.ok &&
+      (pocketConfirmStatus(this.fields()).state !== 'confirmed' || program.path === this.fields().funnelProgram)
+    );
+  }
+
+  /**
+   * THE SETUP PRESSES MAIN WOULD ACT ON NOW (Phase 333.1, D11), in
+   * {@link POCKET_SETUP_ACTIONS} order: Get Tailscale while step 1 says it is
+   * missing; Open Tailscale while it says stopped or signed out, or a start
+   * refused `shields-up`, and ONLY when this run resolved the program to the
+   * app's own copy at its pinned place, never under a development override, so
+   * no probe can open his real Tailscale; Copy link while main holds an admin
+   * link, and not once the quit has begun. Step 1's state is read from the
+   * same stat and read as {@link tailscaleNow} reads them, and the two are held
+   * to agree by `p3331-setup.test.ts`.
+   */
+  private setupActionsNow(resolution: FunnelResolution): PocketSetupAction[] {
+    const program = funnelProgramOf(resolution);
+    const word = this.readStore()?.enabled === true ? this.readRefusal : null;
+    const missing = (!program.ok && program.reason === 'no-tailscale') || word === 'no-tailscale';
+    const waitsOnTheApp =
+      (!missing && (word === 'not-running' || word === 'signed-out')) || this.funnelRefused() === 'shields-up';
+    const theApp =
+      !resolution.overrideSet &&
+      resolution.resolution.source === 'pinned' &&
+      resolution.resolution.path === TAILSCALE_APP_PROGRAM;
+    const quitting = pocketShutdownStarted() || funnelShutdownStarted();
+    const listed: PocketSetupAction[] = [];
+    if (missing) listed.push('get-tailscale');
+    if (waitsOnTheApp && theApp) listed.push('open-tailscale');
+    if (this.adminLink !== null && !quitting) listed.push('copy-admin-link');
+    return listed;
   }
 
   // -------------------------------------------------------------------------
@@ -888,6 +1084,44 @@ export class PocketHost {
     void this.start();
   }
 
+  /**
+   * THE RETURN (Phase 333.1, D9): the Settings window came back to the front.
+   * It answers the status at once, always. It queues ONE job only when
+   * {@link rechecks} and {@link returnMayRun} hold, under the last press and
+   * COUNTING NO PRESS, holding `opening` from before its first await as a start
+   * does, so a second return while it is queued or running is dropped rather
+   * than queued (`rechecks` asks `opening`). Inside the job, what ran or queued
+   * while it waited decides again: a restart that published, a confirm's start
+   * queued behind it, an off press. Then confirmed fields start exactly as
+   * launch does, the gate first; unconfirmed fields pressed on in this run are
+   * read and their lines drawn. Nothing else: no timer, no poll.
+   */
+  recheck(): PocketStatus {
+    if (!this.rechecks()) return this.status();
+    if (!this.returnMayRun(funnelProgramOf(this.funnel.resolve()))) return this.status();
+    const press = this.lastPress.press; // never this.pressed(): a return is not a press
+    this.opening += 1;
+    void this.serially(async () => {
+      try {
+        if (this.superseded(press)) return;
+        // r2 §Attack F19, F20: what ran or queued while this return waited decides again.
+        if (!this.rechecks(1)) return;
+        if (!this.returnMayRun(funnelProgramOf(this.funnel.resolve()))) return;
+        if (pocketConfirmStatus(this.fields()).state === 'confirmed') {
+          const outcome = await this.openNow(press, 'start', { returned: true });
+          if (outcome !== 'published' && this.funnelState !== 'restarting') this.funnelState = 'idle';
+        } else if (this.pressedOnThisRun) {
+          await this.readOnReturn(press);
+        }
+      } finally {
+        this.opening -= 1;
+        this.changed();
+      }
+    });
+    this.changed();
+    return this.status();
+  }
+
   /** The funnel's state, drawn at once. */
   private setFunnel(state: PocketFunnelView['state']): void {
     this.funnelState = state;
@@ -919,6 +1153,10 @@ export class PocketHost {
     // A READ THAT ASKS APPROVAL FORGETS THE NAME (Phase 332): the Funnel this
     // Mac publishes through is being set up again, so its name is asked again.
     if (read.asksApproval) this.forgetNameConfirmed();
+    // A READ THAT SHOWS FUNNEL'S TWO CAPABILITIES DROPS THE ADMIN LINK (Phase
+    // 333.1, D6): it was approved. One that still lacks them keeps it, so a
+    // return before the approval still offers Copy link.
+    if (!read.asksApproval) this.adminLink = null;
     const store = this.readStore();
     const stored = store?.tailnetFacts ?? null;
     if (
@@ -946,6 +1184,7 @@ export class PocketHost {
    */
   private orphanWouldNotEnd(): void {
     this.startRefusal = pocketFunnelSentence('port-taken', this.fields().publicPort);
+    this.startRefusalWord = 'port-taken';
   }
 
   /**
@@ -956,8 +1195,17 @@ export class PocketHost {
    * IT: a start whose press is no longer the last one forks and spawns
    * nothing, and the statement IMMEDIATELY before the fork and before the spawn
    * is that question (`conformance:pocket` L5).
+   *
+   * `options.returned` is handed by {@link recheck} alone (Phase 333.1, D9):
+   * a return stops after its read while Tailscale still has not approved the
+   * start that refused `not-approved`, and otherwise marks itself before the
+   * fork, so a return forks and spawns at most once per press (D8b).
    */
-  private async openNow(press: SwitchPress, why: 'start' | 'restart' = 'start'): Promise<OpenOutcome> {
+  private async openNow(
+    press: SwitchPress,
+    why: 'start' | 'restart' = 'start',
+    options: { returned?: boolean } = {}
+  ): Promise<OpenOutcome> {
     // 1, 2.
     if (this.superseded(press)) return 'stopped';
     if (!this.mayOpen()) return 'stopped';
@@ -969,6 +1217,7 @@ export class PocketHost {
       } catch {
         if (this.superseded(press)) return 'stopped';
         this.startRefusal = SESSIONS_NOT_READY;
+        this.startRefusalWord = null;
         pocketLog.warn('the phone door did not open: the sessions were not ready');
         this.changed();
         return 'retry';
@@ -986,6 +1235,13 @@ export class PocketHost {
       this.setFunnel('idle');
       return this.readRefusal !== null && !RETRIED.has(this.readRefusal) ? 'stopped' : 'retry';
     }
+    // A RETURN DOES NOT START AGAIN WHAT TAILSCALE HAS NOT APPROVED (Phase
+    // 333.1, D9): after a start that refused `not-approved`, a read that still
+    // lacks Funnel's two capabilities means nobody has approved it yet.
+    if (options.returned === true && this.startRefusalWord === 'not-approved' && read.asksApproval) {
+      this.setFunnel('idle');
+      return 'stopped';
+    }
     if (!this.mayOpen()) {
       this.setFunnel('idle');
       return 'stopped';
@@ -998,6 +1254,7 @@ export class PocketHost {
     // by the one path that forks.
     if (!this.confirmable(fields)) {
       this.startRefusal = this.unconfirmableSentence(fields);
+      this.startRefusalWord = null;
       pocketLog.warn('the phone door did not open: it has no public name or port');
       this.setFunnel('idle');
       return 'stopped';
@@ -1006,10 +1263,15 @@ export class PocketHost {
     // it. Only a person's switch chooses again.
     if (portsHeld(read.serve).has(fields.publicPort)) {
       this.startRefusal = pocketFunnelSentence('port-taken', fields.publicPort);
+      this.startRefusalWord = 'port-taken';
       pocketLog.warn('the phone door did not open: port-taken');
       this.setFunnel('idle');
       return 'stopped';
     }
+    // A RETURN FORKS AND SPAWNS AT MOST ONCE PER PRESS (Phase 333.1, D8b):
+    // marked here, after the port check, so the last-press check stays the
+    // statement immediately before the fork.
+    if (options.returned === true) this.returnForked = true;
     // 7, 8. The door process listens on 127.0.0.1:0.
     this.setFunnel('starting');
     if (this.superseded(press)) {
@@ -1031,6 +1293,7 @@ export class PocketHost {
     }
     if (!door.ok) {
       this.startRefusal = door.sentence;
+      this.startRefusalWord = null;
       pocketLog.warn(`the phone door did not open: ${door.reason}`);
       this.setFunnel('idle');
       return door.reason === 'quitting' ? 'stopped' : 'retry';
@@ -1066,6 +1329,10 @@ export class PocketHost {
           }
         }
       );
+      // Kept before it is dropped (Phase 333.1, D6): a start that refuses
+      // `not-approved` after printing Tailscale's own page hands the person
+      // the link to send to their admin.
+      const urlSeen = this.approvalUrl;
       this.approvalUrl = null;
       if (started.kind === 'superseded') {
         outcome = 'stopped';
@@ -1073,6 +1340,13 @@ export class PocketHost {
       }
       if (started.kind === 'refused') {
         this.startRefusal = pocketFunnelSentence(started.reason, fields.publicPort);
+        this.startRefusalWord = started.reason;
+        // ONLY A LINK TORTIE WOULD OPEN IS KEPT (D6, §Attack F9): one that
+        // fails `approvalOpens` is kept nowhere, never drawn beside "ask your
+        // admin" as an address to send.
+        if (started.reason === 'not-approved' && urlSeen !== null && approvalOpens(urlSeen)) {
+          this.adminLink = urlSeen;
+        }
         outcome = RETRIED.has(started.reason) ? 'retry' : 'stopped';
         return outcome;
       }
@@ -1084,6 +1358,10 @@ export class PocketHost {
       // 12. THE COUNTED START. The restart's spacing starts again at its floor.
       this.adopt(started.run);
       this.startRefusal = null;
+      this.startRefusalWord = null;
+      // Published: no admin link is needed, and the next return is a new one.
+      this.adminLink = null;
+      this.returnForked = false;
       this.cancelRestart();
       this.restartDelay = 0;
       this.funnelState = 'publishing';
@@ -1632,6 +1910,14 @@ export class PocketHost {
     if (!on) {
       this.pressed();
       let saved = true;
+      // THE PERSON'S OFF (Phase 333.1, D8, D8b; r2 §Attack F18): after it, no
+      // return reads or starts the door in this run, whether or not the switch
+      // could be saved. Here, after the press is counted and before the first
+      // await, and never between those two lines.
+      this.pressedOnThisRun = false;
+      this.switchedOffThisRun = true;
+      this.returnForked = false;
+      this.adminLink = null;
       try {
         const store = this.readStore();
         // OFF KEEPS THE NAME (Phase 332's fix round): "starts again if they
@@ -1680,6 +1966,12 @@ export class PocketHost {
     // Counted only now: a press refused above changed nothing, so it
     // supersedes nothing either.
     const press = this.pressed();
+    // THE PERSON'S ON (Phase 333.1, D8, D8b, D6): a door nobody has allowed is
+    // read on a return only in the run whose press started the setup.
+    this.pressedOnThisRun = true;
+    this.switchedOffThisRun = false;
+    this.returnForked = false;
+    this.adminLink = null;
     this.opening += 1;
     void this.serially(async () => {
       try {
@@ -1727,11 +2019,64 @@ export class PocketHost {
     if (chosen.port !== store.publicPort && !this.writeStore({ ...store, publicPort: chosen.port })) {
       this.startRefusal =
         'Tortie could not save the port it chose, so the door stays shut. Nothing was changed.';
+      this.startRefusalWord = null;
       this.setFunnel('idle');
       return false;
     }
     this.startRefusal = null;
+    this.startRefusalWord = null;
     return true;
+  }
+
+  /**
+   * A RETURN'S READ on fields nobody has allowed (Phase 333.1, D9): the
+   * press's read, {@link readAtPress}, with ONE difference, the port. A return
+   * NEVER MOVES A STORED PORT, because only a person's switch chooses again: a
+   * port is chosen and written only when none is stored; a stored one that is
+   * held is refused `port-taken`, and one the tailnet's policy no longer
+   * allows `funnel-ports`. EVERY REFUSAL IS KEPT AS THE READ'S, never as a
+   * start's sentence (§Attack F3), so `confirmable` is false and no Allow is
+   * drawn over a held port; the sentence and Try again are. Nothing starts.
+   */
+  private async readOnReturn(press: SwitchPress): Promise<void> {
+    const read = await this.sweepAndRead();
+    if (read === null || this.superseded(press)) {
+      this.setFunnel('idle');
+      return;
+    }
+    const store = this.readStore();
+    if (store === null) {
+      this.setFunnel('idle');
+      return;
+    }
+    const held = portsHeld(read.serve);
+    if (store.publicPort === 0) {
+      const chosen = choosePublicPort(0, held, read.funnelPorts);
+      if (!chosen.ok) {
+        this.readRefusal = chosen.reason;
+        pocketLog.warn(`no public port: ${chosen.reason}`);
+      } else if (this.writeStore({ ...store, publicPort: chosen.port })) {
+        this.startRefusal = null;
+        this.startRefusalWord = null;
+      } else {
+        // The port stays 0, so nothing is confirmable and Try again is drawn:
+        // the press's own read then says the port could not be saved.
+        pocketLog.warn('a return could not save the port it chose');
+      }
+    } else if (held.has(store.publicPort)) {
+      this.readRefusal = 'port-taken';
+    } else {
+      // The press's own rule, asked of the stored port: anything but that
+      // port back means the tailnet's policy no longer allows it.
+      const kept = choosePublicPort(store.publicPort, held, read.funnelPorts);
+      if (!kept.ok || kept.port !== store.publicPort) {
+        this.readRefusal = 'funnel-ports';
+      } else {
+        this.startRefusal = null;
+        this.startRefusalWord = null;
+      }
+    }
+    this.setFunnel('idle');
   }
 
   /**
@@ -1824,6 +2169,12 @@ export class PocketHost {
       linesRead: input.linesRead,
       hashRead: input.hashRead
     });
+    // An agreement recorded is a new start's to make (Phase 333.1, D8b, D6):
+    // the next return is a new one, and the admin link belonged to the last.
+    if (record !== null) {
+      this.returnForked = false;
+      this.adminLink = null;
+    }
     // `start` opens only a door the person has switched on.
     if (record !== null && this.readStore()?.enabled === true && !this.published()) {
       this.queueStart();
@@ -1882,6 +2233,44 @@ export class PocketHost {
     if (this.funnelState !== 'approval' || url === null || !approvalOpens(url)) return false;
     await shell.openExternal(url);
     return true;
+  }
+
+  /**
+   * One setup press (Phase 333.1, D12): ONE closed word, acted on only when
+   * {@link setupActionsNow} lists it at this moment, and never under a harness
+   * launch, so no probe opens his browser or his Tailscale or writes his
+   * clipboard. Get Tailscale opens Tailscale's download page; Open Tailscale
+   * opens the Tailscale app's bundle and answers whether it opened; Copy link
+   * writes the held admin link after asking {@link approvalOpens} again,
+   * spelled by {@link approvalCopyText} as every parser reads it (the 333.1
+   * reverify). Nothing takes a URL or a path from the renderer.
+   */
+  async setupAction(input: unknown): Promise<boolean> {
+    const action = setupActionOf(input);
+    if (isHarnessLaunch(process.env)) return false;
+    if (this.setupActionsNow(this.funnel.resolve()).includes(action)) {
+      const seam = this.deps.setup ?? electronSetupSeam;
+      switch (action) {
+        case 'get-tailscale':
+          await seam.openExternal(TAILSCALE_DOWNLOAD_PAGE);
+          return true;
+        case 'open-tailscale':
+          return (await seam.openPath(TAILSCALE_APP_BUNDLE)) === '';
+        case 'copy-admin-link': {
+          // The held link, asked of approvalOpens again, and written as
+          // approvalCopyText spells it, never as the program printed it: a
+          // second person pastes it, and a backslash can name two hosts to two
+          // parsers (the 333.1 reverify).
+          const link = this.adminLink;
+          if (link === null || !approvalOpens(link)) return false;
+          const copied = approvalCopyText(link);
+          if (copied === null) return false;
+          seam.writeClipboard(copied);
+          return true;
+        }
+      }
+    }
+    return false;
   }
 
   // -------------------------------------------------------------------------
@@ -2029,4 +2418,7 @@ export function registerPocketIpc(ipc: IpcMain, host: PocketHost): void {
   handle(ipc, 'pocket:openApproval', () => host.openApproval());
   handle(ipc, 'pocket:choosePushKey', (event) => host.choosePushKey(event.sender));
   handle(ipc, 'pocket:forgetPushKey', () => host.forgetPushKey());
+  // Phase 333.1: the window's return, and one setup press by its word.
+  handle(ipc, 'pocket:recheck', () => host.recheck());
+  handle(ipc, 'pocket:setupAction', (_event, action) => host.setupAction(action));
 }

@@ -298,15 +298,100 @@ const LEDGER = [
     draws: 'Pair with your Mac',
     why: "the pairing screen's title"
   }),
+  // Phase 333.1 (build/p3331/SPEC.md §5.6.3): the resting face's three steps,
+  // Scan code and the foot, each the phone's own word in Copy.swift; the old
+  // first step ("In Tortie on your Mac, open Settings then Phone and press
+  // Pair.") left with the mock that drew it.
   owned({
-    // The approved mock said "press Pair a phone", which is the Mac's group
-    // HEADING and cannot be pressed; the button under it is "Pair" (316.1 as
-    // built, concern 8). The mock's line was corrected to the phone's in 316.2.
-    is: 'In Tortie on your Mac, open Settings then Phone and press Pair.',
+    is: 'Get Tortie for Mac',
     module: PHONE_COPY,
-    needle: 'static let pairStepOnMac = "In Tortie on your Mac, open Settings then Phone and press Pair."',
-    draws: 'In Tortie on your Mac, open Settings then Phone and press Pair.',
-    why: 'the first step of pairing; its three nouns are the Mac\'s own, pinned by the `/// Names:` lines above it in Copy.swift'
+    needle: 'static let setupGetMac = "Get Tortie for Mac"',
+    draws: 'Get Tortie for Mac',
+    why: 'the first step: Tortie for Mac is where the code comes from (D20)'
+  }),
+  owned({
+    is: 'Free at tortie.sh',
+    module: PHONE_COPY,
+    needle: 'static let freeAtSite = "Free at tortie.sh"',
+    draws: 'Free at tortie.sh',
+    why: 'where the Mac app is, in words; the row opens it (research 140 §8 row 3)'
+  }),
+  owned({
+    is: 'Apple silicon',
+    module: PHONE_COPY,
+    needle: 'static let appleSilicon = "Apple silicon"',
+    draws: 'Apple silicon',
+    why: 'the Mac app is arm64 only, so an Intel Mac can never pair (research 140 §5 row 9)'
+  }),
+  owned({
+    is: '0.111 or later',
+    module: PHONE_COPY,
+    needle: 'static let macVersion = "0.111 or later"',
+    draws: '0.111 or later',
+    why: 'the first Mac release with Settings then Phone; it moves with the tag (research 140 §10)'
+  }),
+  owned({
+    is: 'Open Settings then Phone',
+    module: PHONE_COPY,
+    needle: 'static let setupOpenPhone = "Open Settings then Phone"',
+    draws: 'Open Settings then Phone',
+    why: 'the second step; its two nouns are the Mac\'s own, pinned by the `/// Names:` lines above it in Copy.swift'
+  }),
+  owned({
+    is: 'Scan the code',
+    module: PHONE_COPY,
+    needle: 'static let setupScan = "Scan the code"',
+    draws: 'Scan the code',
+    why: 'the third step'
+  }),
+  owned({
+    is: 'Scan code',
+    module: PHONE_COPY,
+    needle: 'static let scanCode = "Scan code"',
+    draws: 'Scan code',
+    why: 'the press that opens the camera, and only then asks for it (D20, av5)'
+  }),
+  owned({
+    is: 'This iPhone is not paired with a Mac.',
+    module: PHONE_COPY,
+    needle: 'static let notPaired = "This iPhone is not paired with a Mac."',
+    draws: 'This iPhone is not paired with a Mac.',
+    why: "the resting face's one line, under Scan code"
+  }),
+  owned({
+    is: 'Privacy',
+    module: PHONE_COPY,
+    needle: 'static let privacy = "Privacy"',
+    draws: 'Privacy',
+    why: 'the privacy page on tortie.sh (research 136 §7, 5.1.1(i)); no Mac surface links it'
+  }),
+  owned({
+    is: 'Support',
+    module: PHONE_COPY,
+    needle: 'static let support = "Support"',
+    draws: 'Support',
+    why: 'the support page on tortie.sh (research 136 §7, 1.5); no Mac surface links it'
+  }),
+  owned({
+    is: 'Waiting for you to allow this iPhone on your Mac.',
+    module: PHONE_COPY,
+    needle: 'static let pairWaitingForAllow = "Waiting for you to allow this iPhone on your Mac."',
+    draws: 'Waiting for you to allow this iPhone on your Mac.',
+    why: "the camera face's foot once the code is read: the Mac's press is next"
+  }),
+  owned({
+    is: 'Tortie for Mac',
+    module: PHONE_COPY,
+    needle: 'static let macOnSite = "Tortie for Mac"',
+    draws: 'Tortie for Mac',
+    why: "About's row for the Mac app's page (D22)"
+  }),
+  owned({
+    is: 'tortie.sh',
+    module: PHONE_COPY,
+    needle: 'static let siteName = "tortie.sh"',
+    draws: 'tortie.sh',
+    why: 'the address that row opens, as words'
   }),
   owned({
     is: 'Point this at the QR code in Tortie on your Mac.',
@@ -330,11 +415,13 @@ const LEDGER = [
     why: 'the promise that a human confirms every pairing on the Mac'
   }),
   owned({
-    is: 'There is nothing else to install.',
+    // Phase 333.1 replaced "There is nothing else to install.", which read as
+    // the Mac too: the Mac has its own Tailscale.
+    is: 'Nothing else to install on this phone.',
     module: PHONE_COPY,
-    needle: 'static let pairPrivateNetwork = "There is nothing else to install."',
-    draws: 'There is nothing else to install.',
-    why: 'the phone installs nothing besides Tortie. Phase 330 took the tailnet node out of the app, so the sentence no longer claims a private network of its own (build/p330/SPEC.md §4.12.6)'
+    needle: 'static let pairNothingElse = "Nothing else to install on this phone."',
+    draws: 'Nothing else to install on this phone.',
+    why: 'the phone installs nothing besides Tortie (Phase 330 took the tailnet node out of the app, build/p330/SPEC.md §4.12.6)'
   }),
   owned({
     is: 'Needs your input (3)',
@@ -918,11 +1005,7 @@ const LEDGER = [
   }),
   data({
     when: /^\d+$/,
-    why: "a count from the store, under the integer rule's data-quoted span"
-  }),
-  data({
-    when: /^[0-9A-Z]{4}$/,
-    why: "a group of the pairing fingerprint, which is a key's digest"
+    why: "a count from the store, under the integer rule's data-quoted span, or a step's place in a list, drawn from its position (Phase 333.1, D25)"
   }),
   // PHASE 316.6's data, each declared before the name rule below, because
   // several are single lowercase words that rule would otherwise take.
@@ -1081,12 +1164,9 @@ const LEDGER = [
     is: 'The last line is only there when the question can be decrypted on this phone. Without it the card stops after the project and the agent — never filler.',
     phase: 'the Notification Service Extension’s later entry',
     why: "the mock's own note about the push, drawn on the lock screen sheet rather than in a caption. Phase 314 REFUSED the question line — a native alert is JSON Apple reads — so the decrypting extension that would add it is later Swift and its own entry, and this note is owed there rather than to 314"
-  }),
-  owed({
-    is: 'Enter a code instead',
-    phase: 'a later phase (build/p316/SPEC.md §7)',
-    why: 'the pairing fallback when a camera cannot read the code. The payload is several hundred characters and no short-code design exists'
   })
+  // "Enter a code instead" left with Phase 333.1's resting face
+  // (build/p3331/SPEC.md §5.6.3): no mock draws the fallback any more.
 ];
 
 /** The shortest owed string whose absence from the tree is asserted. */
@@ -1127,7 +1207,17 @@ const OWED_ABSENCE_FLOOR = 16;
    terminal's scrollback stays on your Mac., which the Terminal scrolling back
    made false), and two joined (Catch Me Up, the Mac's own word, and Terminal),
    build/p3371/SPEC.md D21, D22. */
-const OWNED_RULE_FLOOR = 89;
+/* PHASE 333.1 RAISED IT BY TWELVE, FROM 89 TO 101, the count the run matches:
+   fourteen owned rules joined for the resting pairing face, the camera's face
+   and About (Get Tortie for Mac, Free at tortie.sh, Apple silicon, 0.111 or
+   later, Open Settings then Phone, Scan the code, Scan code, This iPhone is
+   not paired with a Mac., Privacy, Support, Waiting for you to allow this
+   iPhone on your Mac., Tortie for Mac, tortie.sh, and Nothing else to install
+   on this phone. in place of There is nothing else to install.), and two left
+   with the old mock (the first step "In Tortie on your Mac, open Settings then
+   Phone and press Pair." and "There is nothing else to install."),
+   build/p3331/SPEC.md §5.6.3. */
+const OWNED_RULE_FLOOR = 101;
 
 // ---------------------------------------------------------------------------
 // Judgement
@@ -1348,7 +1438,10 @@ function checkContactSheet(names, sheet) {
 /* PHASE 337 RAISED IT FROM 79 TO 80, the count the run matches: the Screen's
    Copy, the Mac terminal menu's own word (src/renderer/terminal/terminal-menu.ts). */
 const PHONE_MAC_FLOOR = 80;
-const PHONE_NAMES_FLOOR = 7;
+/* PHASE 333.1 RAISED PHONE_NAMES_FLOOR FROM 7 TO 9, the count the run matches:
+   the second step names Settings and Phone, and the Allow line under "could
+   not reach" names Allow, Settings and Phone (build/p3331/SPEC.md §5.6.1). */
+const PHONE_NAMES_FLOOR = 9;
 
 /** `src/x.ts ⟦text⟧` to [path, text], or null. */
 function pathAndNeedle(body) {
@@ -1593,10 +1686,13 @@ const PHONE_MUTATIONS = [
     module: ['src/renderer/settings/PhoneSection.tsx', (t) => t.replace("BTN_PAIR = 'Pair'", "BTN_PAIR = 'Pair a phone'")]
   },
   {
+    // Phase 333.1: the line that named the Mac's Pair left; the Allow line
+    // under "could not reach" names Allow, Settings and Phone instead.
     what: 'a phone line that stops naming the Mac control it points at',
-    swift: (t) => t.replace('Phone and press Pair."', 'Phone and press Go."'),
+    swift: (t) => t.replace('press Allow in its Settings then Phone."', 'press Go in its Settings then Phone."'),
     module: null
   },
+
   {
     what: 'a word declared twice',
     swift: (t) => t.replace('static let pairAgain = "Pair again"', 'static let pairAgain = "Try again"'),
@@ -1717,6 +1813,17 @@ const MUTATIONS = [
     names: 'Claude Coder'
   },
   {
+    // Phase 333.1 (build/p3331/SPEC.md §5.6.3): the press that opens the
+    // camera, renamed in the resting face's mock.
+    what: 'Scan code renamed in Pairing.html',
+    apply(screens) {
+      const next = new Map(screens);
+      next.set('Pairing.html', (next.get('Pairing.html') ?? '').replace('>Scan code<', '>Scan a code<'));
+      return next;
+    },
+    names: 'Scan a code'
+  },
+  {
     // THE FIX ROUND'S ARM. A question the mock invents is the one string class
     // this gate exists for, and the shape rule it used to carry passed one: a
     // verifier changed `Run rm -rf build?` to a sentence no payload can compose
@@ -1830,6 +1937,15 @@ const MODULE_MUTATIONS = [
     module: PHONE_COPY,
     edit: (text) => text.replace('static let catchMeUp = "Catch Me Up"', 'static let catchMeUp = "Catch me up"'),
     names: 'static let catchMeUp = "Catch Me Up"'
+  },
+  {
+    // Phase 333.1 (build/p3331/SPEC.md §5.6.3): the address About opens, as
+    // words, changed by one letter in Copy.swift; the mock's row then names
+    // an address the phone does not say.
+    what: "tortie.sh changed by one letter in Copy.swift's siteName",
+    module: PHONE_COPY,
+    edit: (text) => text.replace('static let siteName = "tortie.sh"', 'static let siteName = "tortie.io"'),
+    names: 'static let siteName = "tortie.sh"'
   }
 ];
 

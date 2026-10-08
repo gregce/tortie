@@ -48,6 +48,114 @@
   color: var(--status-attention);
 }
 
+/* ----------------------------------------------- the steps (Phase 333.1) */
+
+/* Three rows in one card (build/p3331/SPEC.md §5.4.1, §5.4.9): a header (the
+   number or the done mark, the title, where the step stands on the right) and
+   a body indented under the title. A step that is done shows the check in
+   --success; the current step's number is --accent; one not reached yet is
+   --text-muted. Every colour a token, every measure a --space. */
+.phone-steps {
+  --phone-step-mark: var(--space-6);
+}
+
+.phone-step {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-4) var(--space-5);
+}
+
+.phone-step-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-height: var(--lh-base);
+}
+
+/* The number and the done mark take one slot, so the title never moves. */
+.phone-step-num,
+.phone-step-done {
+  flex: 0 0 var(--phone-step-mark);
+  width: var(--phone-step-mark);
+  text-align: center;
+}
+
+.phone-step-num {
+  font-size: var(--text-sm);
+  font-weight: var(--weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+}
+
+.phone-step[data-current] .phone-step-num {
+  color: var(--accent);
+}
+
+.phone-step-done {
+  color: var(--success);
+}
+
+/* The title keeps its words whole; where the row is short of room it is the
+   state that gives way. */
+.phone-step-title {
+  flex: 1 0 auto;
+  min-width: 0;
+  font-size: var(--text-base);
+  color: var(--text-primary);
+}
+
+/* ONE LINE, cut with an ellipsis (Phase 333.1's fix round): step 1's state is
+   the account and the tailnet Tailscale answered, which main bounds but which
+   can still be longer than the row. Its hover holds the whole of it. */
+.phone-step-state {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-align: right;
+  font-size: var(--text-sm);
+  line-height: var(--lh-sm);
+  color: var(--text-secondary);
+}
+
+/* The body sits under the title. A body with nothing drawn in it (a step
+   with no piece, or the pair card's empty start face) takes no room. */
+.phone-step-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0 calc(var(--phone-step-mark) + var(--space-4));
+}
+
+.phone-step-body:not(:has(> :not(:empty))) {
+  display: none;
+}
+
+/* Today's blocks keep their markup inside a step (the confirm block byte for
+   byte, his ruling 2); the step's own padding replaces theirs. */
+.phone-step-body > .phone-block {
+  align-self: stretch;
+  padding: 0;
+}
+
+.phone-step-body > .set-config-actions {
+  margin-top: 0;
+}
+
+/* The quiet Try again beside a step's one button: the actions row's gap is
+   the space between them. */
+.phone-step-actions > .set-inline-btn {
+  margin-left: 0;
+}
+
+/* The house disclosure (settings.css) sits at a section's foot with a top
+   margin; inside a step the body's gap is the space above it. */
+.phone-step-body > .set-disclosure {
+  margin-top: 0;
+}
+
 /* ------------------------------------------------------------ the code */
 
 .phone-showing {

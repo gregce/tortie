@@ -2,7 +2,8 @@
  * What Tortie says about the alerts it sends to a paired phone (Phase 314).
  *
  * Every sentence here is NEW copy, and each one is drawn by Phase 316's app or
- * written to the log by the push engine, and by nothing else in this phase. The
+ * written to the log by the push engine, or drawn on Settings then Phone's
+ * Alerts card (Phase 333.1), and by nothing else in this phase. The
  * words are held in one place so the log, the phone and the Settings line
  * cannot say three different things about one fault.
  *
@@ -39,6 +40,14 @@ export const PUSH_UNREACHABLE = 'Tortie could not reach Apple, so this alert was
  * not {@link PUSH_KEY_REFUSED}, and nothing stops: the next alert tries again.
  */
 export const PUSH_CLOCK_BEHIND = 'This Mac’s clock is behind Apple’s, so this alert was not sent.';
+
+/**
+ * The Alerts card's standing caption (Phase 333.1, D14; research 140 §6): an
+ * alert is signed with the phone app's own Apple push key, and a key anybody
+ * else chooses is stamped with another team and refused by Apple, so for now
+ * only the app's publisher can send them. Drawn whatever the key.
+ */
+export const PUSH_PUBLISHER_ONLY = 'Only Tortie’s publisher can send alerts for now.';
 
 /** Which sentence the push engine is saying. Each is said at most once per run. */
 export type PushSentenceId = 'no-key' | 'refused-key' | 'clock' | 'dropped' | 'unreachable';

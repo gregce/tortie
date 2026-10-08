@@ -7,7 +7,10 @@
 //   1. The Mac draws a QR (v:3) holding its PUBLIC NAME (`<mac>.<tailnet>.ts.net`,
 //      published by Tailscale Funnel), the public port (8443 or 10000), `fp`
 //      (the pin), its two public keys, a one-shot secret `ps` and the window's
-//      end `exp`. No address and no credential.
+//      end `exp`. No address and no credential. A code from another version
+//      that carries `fp`, `dk` and `dx`, as every Tortie code since v:2 has,
+//      says which side to update; one without them is not Tortie's (Phase
+//      333.1, `PairingOffer.parse`).
 //   2. The phone makes its two key pairs and a P-256 CLIENT KEY
 //      (Door/Keys.swift), and draws the fingerprint of all THREE public keys,
 //      six groups of four, which the Mac draws too.
@@ -99,14 +102,41 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
         var customMirror: Mirror { Mirror(self, children: [:], displayStyle: .struct) }
     }
 
-    /// The code, or `badCode` / `unsupportedCode`. Unknown fields are
-    /// ignored; a field that is present and wrong refuses the whole code.
+    /// What every code a Tortie Mac has drawn since v:2 carries beside its
+    /// version: the pin `fp` and the Mac's two public keys `dk` and `dx`
+    /// (Phase 333.1, build/p3331/SPEC.md D24). Read before the version, so a
+    /// code that is not Tortie's never says which side to update. Nothing in
+    /// it is secret.
+    private struct Marker: Decodable {
+        let v: Int
+        let fp: String?
+        let dk: String?
+        let dx: String?
+    }
+
+    /// The code, or `badCode`, `codeFromNewerMac` or `codeFromOlderMac`.
+    ///
+    /// THE ORDER (Phase 333.1, D24): the size; then THE TORTIE MARKER, an
+    /// integer `v` beside an `fp` of exactly 32 bytes and a `dk` and a `dx`,
+    /// or the code is not Tortie's (`badCode`) whatever its `v`; then the
+    /// version against this app's, compared and never computed: above it,
+    /// up to 99, is a newer Mac's code, and from 1 up to below it an older
+    /// Mac's; this app's version goes on to the whole v:3 shape; anything
+    /// else is `badCode`. Unknown fields are ignored; a field that is present
+    /// and wrong refuses the whole code.
     static func parse(_ payload: String) throws -> PairingOffer {
         guard !payload.isEmpty, payload.utf8.count <= maxPayloadBytes,
+              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),
+              let fp = marker.fp, let markerPin = Base64URL.decode(fp), markerPin.count == 32,
+              marker.dk != nil, marker.dx != nil else {
+            throw PairingFailure.badCode
+        }
+        if marker.v > version && marker.v <= 99 { throw PairingFailure.codeFromNewerMac }
+        if marker.v >= 1 && marker.v < version { throw PairingFailure.codeFromOlderMac }
+        guard marker.v == version,
               let wire = try? JSONDecoder().decode(Wire.self, from: Data(payload.utf8)) else {
             throw PairingFailure.badCode
         }
-        guard wire.v == version else { throw PairingFailure.unsupportedCode }
         guard DoorEndpoint.isPublicName(wire.host),
               DoorEndpoint.publicPorts.contains(wire.port),
               let pin = Base64URL.decode(wire.fp), pin.count == 32, Base64URL.encode(pin) == wire.fp,
@@ -133,8 +163,10 @@ struct PairingOffer: Sendable, Equatable, CustomReflectable {
 enum PairingFailure: Error, Equatable, Sendable {
     /// Not a Tortie pairing code.
     case badCode
-    /// A Tortie code of another version.
-    case unsupportedCode
+    /// A code from a newer Tortie for Mac than this app reads.
+    case codeFromNewerMac
+    /// A code from an older Tortie for Mac.
+    case codeFromOlderMac
     /// The window shut before the Mac allowed this phone.
     case codeExpired
     /// The Mac has no pairing window open (`/pair` answered 404).

@@ -44,6 +44,18 @@
  * Tailscale on their tailnet the moment a probe's stand-in path was wrong.
  * Funnel's reads, like this one, inherit the environment and use this module's
  * deadline and output cap.
+ *
+ * ## The stat in the door's status, and the app's two paths (Phase 333.1)
+ *
+ * Settings then Phone's first step says whether Tailscale is on this Mac, so
+ * the door's `status()` calls {@link resolveTailscale} once per status, through
+ * `../pocket/funnel.ts`'s resolver: at most eight `statSync` and `accessSync`
+ * calls and NO process. Under an unusable development override that is one
+ * warning per status, a development-build limit. The app's bundle and its
+ * command line copy are named here, as {@link TAILSCALE_APP_BUNDLE} and
+ * {@link TAILSCALE_APP_PROGRAM}, because the pocket domain spells no Tailscale
+ * path (`conformance:pocket` U2): Open Tailscale opens the bundle, and only
+ * when this run resolved the program to the bundle's own copy.
  */
 
 import { execFile } from 'node:child_process';
@@ -60,6 +72,12 @@ export const TAILSCALE_DEADLINE_MS = 5_000;
 /** The most output Tortie will buffer from it. */
 export const TAILSCALE_MAX_OUTPUT = 4 * 1024 * 1024;
 
+/** The Tailscale app's bundle, which Open Tailscale opens (Phase 333.1, D13). */
+export const TAILSCALE_APP_BUNDLE = '/Applications/Tailscale.app';
+
+/** Its command line copy, the first place Tortie looks (Phase 333.1, D13). */
+export const TAILSCALE_APP_PROGRAM = `${TAILSCALE_APP_BUNDLE}/Contents/MacOS/Tailscale`;
+
 /**
  * The paths Tortie looks at, in order. The first one that is an executable file
  * wins.
@@ -69,7 +87,7 @@ export const TAILSCALE_MAX_OUTPUT = 4 * 1024 * 1024;
  * two places Homebrew and the standalone installer use.
  */
 export const TAILSCALE_CANDIDATES: readonly string[] = [
-  '/Applications/Tailscale.app/Contents/MacOS/Tailscale',
+  TAILSCALE_APP_PROGRAM,
   '/usr/local/bin/tailscale',
   '/opt/homebrew/bin/tailscale'
 ];

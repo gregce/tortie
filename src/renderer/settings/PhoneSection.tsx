@@ -1,34 +1,54 @@
 /**
  * Settings → Phone (Phase 316.1; rewritten for Phase 330, build/p330/SPEC.md
- * §4.10).
+ * §4.10; laid out in three steps by Phase 333.1, build/p3331/SPEC.md §5.4).
  *
  * The one surface that switches the door on, pairs a phone with it and takes a
  * phone away. Top to bottom, and nothing else:
  *
- *   1. "Let my phone reach this Mac", its state line, and, whenever the door's
- *      details are not the ones a person agreed to, the lines to read and
- *      Allow. Those lines name the internet, the tailnet, the public port and
- *      the program that publishes it, so nothing starts until a person has read
- *      them (CLAUDE.md refusal 8). While Tailscale waits on its own approval
- *      page, Open Tailscale.
- *   2. Pair a phone: with the door off, ONE Pair button, which turns it on and
- *      reads Tailscale; once it answers, the code, the time it has left, the
- *      fingerprint to match on the phone, the lines, and Allow. While the Mac's
- *      name is not yet on the internet (Phase 332), one line in place of Pair.
- *      Since Phase 332.1 that face draws the check: a dot per name server.
+ *   1. "Let my phone reach this Mac" and its switch, with ONE caption that
+ *      never changes: what each side needs (D1).
+ *   2. THE THREE STEPS (Phase 333.1): Tailscale on this Mac, Publish this Mac,
+ *      Pair your phone. Each says where it stands on the right, and the step
+ *      that waits on the person has one button, with a quiet Try again beside
+ *      it while Tailscale is waited on (his ruling 3). `phone/steps.ts`
+ *      composes the faces from main's predicates and `phone/StepsCard.tsx`
+ *      draws the frame; this file fills the bodies.
+ *      - Step 2 draws, whenever the door's details are not the ones a person
+ *        agreed to, TODAY'S CONFIRM BLOCK, whole and at rest (his ruling 2):
+ *        the lines to read, both warnings, and Allow. Those lines name the
+ *        internet, the tailnet, the public port and the program that publishes
+ *        it, so nothing starts until a person has read them (CLAUDE.md refusal
+ *        8). While Tailscale waits on its own approval page, Approve in
+ *        Tailscale.
+ *      - Step 3 is the pair card: on a first setup the code shows by itself
+ *        once the door answers and the name is live (D17); with a phone
+ *        paired, ONE Pair button, which turns the door on when it is off. The
+ *        code, the time it has left, the fingerprint to match on the phone,
+ *        the lines, and Allow. While the Mac's name is not yet on the internet
+ *        (Phase 332), the check: a dot per name server (Phase 332.1).
  *   3. The phones, each with Remove.
  *   4. Alerts (Phase 316.5, research 136): the Apple push key row, Choose…
- *      (the file panel opens IN MAIN) and Forget; then, ONLY while a key is
+ *      (the file panel opens IN MAIN) and Forget, and the caption that only
+ *      Tortie's publisher can send alerts for now; then, ONLY while a key is
  *      kept or the alerts are already on, Phase 314's alert switch and the
  *      push's standing sentence under it. Alerts are the key holder's alone,
  *      so a Mac with no key shows no switch and promises no alert.
  *
- * THERE IS NO KEY FIELD AND NO DISCLOSURE (Phase 330): the phone never joins
- * the tailnet, so there is no tailnet key to paste, no grant to copy and no
- * policy to narrow.
+ * COMING BACK TO THE WINDOW CHECKS AGAIN BY ITSELF (D16): the section hears a
+ * return through the one `onWindowLooked` helper and asks main, which reads
+ * Tailscale only while its own `rechecks` says a read could now see the step
+ * finished. No timer and no poll.
+ *
+ * THERE IS NO KEY FIELD (Phase 330): the phone never joins the tailnet, so
+ * there is no tailnet key to paste, no grant to copy and no policy to narrow.
+ * Two shut disclosures hold what a person needs once (What’s this? on step 1,
+ * What this allows while Tailscale's page is waited on), and the confirm at
+ * Allow is never inside one.
  *
  * JUST ENOUGH WORDS (CLAUDE.md UI rule). The resting face is labels and one
  * line each. Every sentence of explanation is main's, from the shared contract.
+ * The sheet draws no link: every address is words, and every page it opens is
+ * main's to open on a press.
  *
  * WHY THERE ARE TWO EXPORTS, on MachinesSection's precedent. `PhoneView` draws,
  * and takes everything it draws as a prop, so the unit tests can render it on
@@ -40,52 +60,77 @@ import {
   POCKET_CONFIRM_WARNING,
   POCKET_FUNNEL_APPROVAL,
   POCKET_FUNNEL_APPROVAL_ELSEWHERE,
-  POCKET_FUNNEL_RESTARTING,
   POCKET_FUNNEL_RIGHT_WARNING,
   POCKET_NAME_ROUND_RULE,
   POCKET_NAME_SENTENCES,
-  POCKET_REACH_HONESTY,
+  POCKET_NAME_WAIT_NOTE,
+  POCKET_SETUP_LINE,
   POCKET_DOOR_HONESTY,
   type PocketNameAnswer,
   type PocketNameProgress,
   type PocketPairingOffer,
   type PocketPairingView,
+  type PocketSetupAction,
   type PocketStatus
 } from '@shared/ipc';
-import { PUSH_TOKEN_STOPPED } from '@shared/push-copy';
+import { PUSH_PUBLISHER_ONLY, PUSH_TOKEN_STOPPED } from '@shared/push-copy';
 import { gmuxBridge } from '../bridge';
+import { onWindowLooked } from '../machines/remote-writes';
 import { errorText } from '../state/errors';
 import { Qr } from './phone/Qr';
+import { StepsCard } from './phone/StepsCard';
+import {
+  BTN_COPY_LINK,
+  BTN_GET_TAILSCALE,
+  BTN_OPEN_TAILSCALE_APP,
+  DOOR_NOT_LISTENING,
+  DOOR_OPENING,
+  checklistOf,
+  doorListening,
+  doorMayRetry,
+  doorNeedsConfirm,
+  type PairingStage,
+  type StepFace,
+  type StepPiece
+} from './phone/steps';
 import { Switch } from './Switch';
 import './phone-section.css';
+
+// Moved to phone/steps.ts with unchanged bodies (Phase 333.1, D19) and
+// re-exported here, so every reader of this module keeps working.
+export { DOOR_NOT_LISTENING, DOOR_OPENING, doorListening, doorMayRetry, doorNeedsConfirm, type PairingStage };
 
 // ---------------------------------------------------------------------------
 // The words this surface owns. Every other sentence it draws is main's. A word
 // the phone quotes (`ios/Tortie/Style/Copy.swift`, `/// Names:` and `/// Mac:`)
-// must not move by a byte: PHONE_TITLE, BTN_PAIR, BTN_TRY_AGAIN, CODE_EXPIRED.
+// must not move by a byte: PHONE_TITLE, BTN_PAIR, BTN_TRY_AGAIN, CODE_EXPIRED,
+// BTN_REMOVE, BTN_CANCEL, ALERTS_GROUP, and since Phase 333.1 BTN_ALLOW. The
+// steps' own words, which the phone does not quote, are phone/steps.ts's.
 // ---------------------------------------------------------------------------
 
 export const PHONE_TITLE = 'Phone';
 export const DOOR_LABEL = 'Let my phone reach this Mac';
-export const DOOR_OFF = 'Off. Nothing is listening.';
-export const DOOR_OPENING = 'Starting Tailscale Funnel…';
-export const DOOR_WAITING = 'Read what it answers, then allow it.';
-export const DOOR_NOT_LISTENING = 'Not listening.';
 export const BTN_ALLOW = 'Allow';
 export const BTN_TRY_AGAIN = 'Try again';
-export const BTN_OPEN_TAILSCALE = 'Open Tailscale';
+/**
+ * The approval page's button (Phase 330), whose words became "Approve in
+ * Tailscale" in Phase 333.1 (D14): the page asks Tailscale's OK, once. The
+ * name keeps its role, because `probe:p330` picks it by name. The button that
+ * opens the Tailscale app is phone/steps.ts's `BTN_OPEN_TAILSCALE_APP`.
+ */
+export const BTN_OPEN_TAILSCALE = 'Approve in Tailscale';
 
-export const PAIR_GROUP = 'Pair a phone';
-export const PAIR_WAITING = 'The code shows once this Mac is answering.';
 export const BTN_PAIR = 'Pair';
 export const BTN_CANCEL = 'Cancel';
 export const QR_LABEL = 'Pairing code';
 /**
- * Where the phone app comes from (Phase 333.2, research 136 §5): words only,
- * never a link, a button or a badge. tortie.sh/iphone is the site's redirect,
- * which 333.7 makes on launch day; no Mac release carries this line before it.
+ * Beside the code (Phase 333.2, research 136 §5; two lines since Phase 333.1):
+ * what to do with it, and where the phone app comes from. Words only, never a
+ * link, a button or a badge. tortie.sh/iphone is the site's redirect, which
+ * 333.7 makes on launch day; no Mac release carries this line before it.
  */
-export const SCAN_LINE = 'Scan it with Tortie on your iPhone, from tortie.sh/iphone.';
+export const SCAN_LINE = 'Scan with Tortie on your iPhone.';
+export const GET_PHONE_APP = 'Get it at tortie.sh/iphone.';
 /** Research 132 §7.7: the code is a way in for anybody who sees it in time. */
 export const CODE_PRIVATE = 'Do not show this code on a shared screen.';
 export const MATCH_LABEL = 'Match this on your iPhone';
@@ -229,11 +274,6 @@ export function pushKeyChosen(keyId: string): string {
 
 export const BRIDGE_MISSING = 'Phone is not available in this build.';
 
-/** `Answering at https://mac.tail0000.ts.net:8443`, what a phone is told. */
-export function doorListening(publicName: string, publicPort: number): string {
-  return `Answering at https://${publicName}:${String(publicPort)}`;
-}
-
 /** `Paired with <the label the phone presented>.` */
 export function pairedWith(label: string): string {
   return `Paired with ${label}.`;
@@ -279,57 +319,10 @@ export function expiredNotice(shownUnreadable: boolean, presented: boolean): Pho
 }
 
 /**
- * True when the door is on, its lines may be agreed to, and they are not the
- * ones a person agreed to, so the lines and Allow are drawn.
- *
- * `confirmable` is MAIN'S answer and is never spelled here (the Phase 330 fix
- * round): with no public name, no public port, or a Tailscale read or port
- * choice that just failed, the lines name no address or one Tailscale said it
- * cannot publish, so main's refusal is drawn instead and nobody is asked to
- * agree to it.
+ * Which of the six faces the pairing card wears (the type is phone/steps.ts's
+ * since Phase 333.1, D19). `naming`: the door answers and main says a code may
+ * not show yet, because the Mac's name is not on the internet (Phase 332).
  */
-export function doorNeedsConfirm(status: PocketStatus): boolean {
-  return (
-    status.state !== 'off' &&
-    status.confirmable &&
-    status.publicName !== null &&
-    status.confirmState !== 'confirmed'
-  );
-}
-
-/**
- * True when the door is on and not answering, and either it was agreed to (a
- * start that was refused) or there is nothing to agree to yet (Tailscale's own
- * refusal, or lines never read). Try again is the switch's own press again: it
- * reads Tailscale and records no agreement.
- */
-export function doorMayRetry(status: PocketStatus): boolean {
-  return (
-    status.state === 'refused' &&
-    (status.confirmState === 'confirmed' || !status.confirmable)
-  );
-}
-
-/** The one line under the switch. */
-export function doorLine(status: PocketStatus): string {
-  if (status.state === 'off') return DOOR_OFF;
-  if (status.state === 'opening') {
-    return status.funnel.state === 'restarting' ? POCKET_FUNNEL_RESTARTING : DOOR_OPENING;
-  }
-  if (status.state === 'listening') {
-    return doorListening(status.publicName ?? '', status.publicPort);
-  }
-  if (doorNeedsConfirm(status)) return DOOR_WAITING;
-  return status.refusal ?? DOOR_NOT_LISTENING;
-}
-
-/**
- * Which of the six faces the pairing card wears. `naming`: the door answers
- * and main says a code may not show yet, because the Mac's name is not on the
- * internet (Phase 332).
- */
-export type PairingStage = 'start' | 'waiting' | 'naming' | 'ready' | 'showing' | 'match';
-
 export function pairingStage(
   status: PocketStatus | null,
   offer: PocketPairingOffer | null,
@@ -348,9 +341,11 @@ export function pairingStage(
 }
 
 /**
- * Where "pair after Allow" stands (SPEC §4.10). `pressed`: Pair was pressed
- * with the door off, and main has not yet answered with the door on. `on`:
- * the door is on and the sheet is waiting for it to answer. `no`: nothing.
+ * Where "pair after Allow" stands (SPEC §4.10). `pressed`: the code was asked
+ * for (Pair with the door off; since Phase 333.1 also the switch's on press
+ * and Try again while no phone is paired, D17), and main has not yet answered
+ * with the door on. `on`: the door is on and the sheet is waiting for it to
+ * answer. `no`: nothing.
  */
 export type PairAfterAllow = 'no' | 'pressed' | 'on';
 
@@ -360,7 +355,9 @@ export type PairAfterAllow = 'no' | 'pressed' | 'on';
  * will show one (`pairable`, Phase 332): a door that answers while its name is
  * checked keeps the wish. The wish is dropped when the door goes off after it
  * was on, or when a start is refused with nothing more coming (no lines to
- * Allow).
+ * Allow, and, since Phase 333.1, no return main would check again: while
+ * `rechecks` holds, coming back to the window after fixing Tailscale goes on
+ * by itself, so the code still shows by itself, D17).
  */
 export function pairAfterAllowNext(
   phase: PairAfterAllow,
@@ -370,8 +367,25 @@ export function pairAfterAllowNext(
   if (phase === 'pressed' && status.state === 'off') return { phase, pair: false };
   if (status.pairable) return { phase: 'no', pair: true };
   if (status.state === 'off') return { phase: 'no', pair: false };
-  if (status.state === 'refused' && !doorNeedsConfirm(status)) return { phase: 'no', pair: false };
+  if (status.state === 'refused' && !doorNeedsConfirm(status) && !status.rechecks) return { phase: 'no', pair: false };
   return { phase: 'on', pair: false };
+}
+
+/**
+ * True while a press that asked for the code waits for main's answer to it
+ * (Phase 333.1, D17): the wish was just set, and the status is still the one
+ * {@link pairAfterAllowNext} last judged, drawn BEFORE the press. Try again is
+ * pressed over a refusal, and that refusal says nothing about the press, so
+ * judged again it would drop the wish the press just set, before main had
+ * read anything. Main answers an on press at once, with the door opening, and
+ * that answer is the first status the wish is judged by.
+ */
+export function wishAwaitsAnswer(
+  phase: PairAfterAllow,
+  status: PocketStatus | null,
+  judged: PocketStatus | null
+): boolean {
+  return phase === 'pressed' && status === judged;
 }
 
 /**
@@ -477,10 +491,17 @@ export interface PhoneViewProps {
   /** Main's sentence for the last press that was refused. */
   error: string | null;
   busy: boolean;
+  /**
+   * The code was asked for in this section and is on its way (Phase 333.1,
+   * D17), so a first setup's ready face draws no Pair.
+   */
+  wished: boolean;
   onSetDoor(on: boolean): void;
   onConfirmDoor(): void;
   onRetryDoor(): void;
   onOpenApproval(): void;
+  /** One setup press main listed (Phase 333.1, D12): main acts, or does nothing. */
+  onSetupAction(action: PocketSetupAction): void;
   /** Pair: with the door off, turn it on and pair once it answers. */
   onPair(): void;
   onCancelPairing(): void;
@@ -575,9 +596,18 @@ function NameCheck(props: {
   );
 }
 
-function PairCard(props: PhoneViewProps): React.JSX.Element {
-  const { status, offer, view, now, busy } = props;
-  const stage = pairingStage(status, offer, view, now);
+/** The props a step's body is filled from: the view's, its stage, and the face. */
+interface StepBodyProps extends PhoneViewProps {
+  stage: PairingStage;
+}
+
+/**
+ * Step 3's body (Phase 333.1, §5.4.4): today's pair card, `[data-phone-stage]`
+ * with today's six values. `pair`: whether the start or the ready face draws
+ * Pair, the composer's answer (D17).
+ */
+function PairCard(props: StepBodyProps & { pair: boolean }): React.JSX.Element {
+  const { status, offer, view, now, busy, stage } = props;
   const notice = noticeToDraw(props.notice, status);
   // The name check's block, the first thing after the notice on the naming
   // and the ready faces alike (Phase 332.1).
@@ -585,6 +615,14 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
   const nameBlock =
     status === null || progress === null ? null : (
       <NameCheck status={status} progress={progress} ageMs={props.nameAgeMs} titled={stage === 'naming'} />
+    );
+  // ONE MORE LINE UNDER THE BLOCK (Phase 333.1, D14), drawn for exactly as
+  // long as the block is, so nothing above Pair moves when Pair appears.
+  const nameNote =
+    nameBlock === null ? null : (
+      <p className="phone-line" data-phone-name-note>
+        {POCKET_NAME_WAIT_NOTE}
+      </p>
     );
 
   if (stage === 'match' && view !== null) {
@@ -632,6 +670,9 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
         <Qr payload={offer.payload} label={QR_LABEL} />
         <div className="phone-qr-side">
           <p className="phone-line">{SCAN_LINE}</p>
+          <p className="phone-line" data-phone-get-app>
+            {GET_PHONE_APP}
+          </p>
           <p className="phone-line">{CODE_PRIVATE}</p>
           <p className="phone-countdown" data-phone-countdown>
             {shutsIn(offer.expiresAt - now)}
@@ -651,10 +692,10 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
   }
 
   if (stage === 'waiting') {
+    // The door is on and not answering: steps 1 and 2 say why (Phase 333.1).
     return (
       <div className="phone-block" data-phone-stage="waiting">
         {notice === null ? null : <p className="phone-notice">{notice}</p>}
-        <p className="phone-line">{PAIR_WAITING}</p>
       </div>
     );
   }
@@ -664,14 +705,15 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
       <div className="phone-block" data-phone-stage="naming">
         {notice === null ? null : <p className="phone-notice">{notice}</p>}
         {nameBlock ?? <p className="phone-line">{POCKET_NAME_SENTENCES.checking}</p>}
+        {nameNote}
       </div>
     );
   }
 
-  // `start` (the door is off) and `ready` (it is answering) both wear ONE
-  // Pair button; what it does is the connected section's to decide. `ready`
-  // over a name main could not confirm says so above it, inside the name
-  // check's block when there is one (Phase 332.1).
+  // `start` (the door is off) and `ready` (it is answering) wear ONE Pair
+  // button when the composer says so; what it does is the connected
+  // section's to decide. `ready` over a name main could not confirm says so
+  // above it, inside the name check's block when there is one (Phase 332.1).
   return (
     <div className="phone-block" data-phone-stage={stage}>
       {notice === null ? null : <p className="phone-notice">{notice}</p>}
@@ -681,7 +723,8 @@ function PairCard(props: PhoneViewProps): React.JSX.Element {
             {POCKET_NAME_SENTENCES.unreadable}
           </p>
         ) : null)}
-      <PairButton busy={busy || status === null} onPair={props.onPair} />
+      {nameNote}
+      {props.pair ? <PairButton busy={busy || status === null} onPair={props.onPair} /> : null}
     </div>
   );
 }
@@ -727,6 +770,148 @@ function ApprovalBlock({
   );
 }
 
+/**
+ * The setup presses' faces (Phase 333.1, §5.4.1, §5.4.8): each word, its hook,
+ * and whether it is the step's one button. Drawn only for a press main listed.
+ */
+const SETUP_BUTTONS: Readonly<Record<PocketSetupAction, { words: string; hook: string; primary: boolean }>> = {
+  'get-tailscale': { words: BTN_GET_TAILSCALE, hook: 'get-tailscale', primary: true },
+  'open-tailscale': { words: BTN_OPEN_TAILSCALE_APP, hook: 'open-tailscale', primary: true },
+  'copy-admin-link': { words: BTN_COPY_LINK, hook: 'copy-link', primary: false }
+};
+
+/** One press of a step's actions row, or null for a piece that is not a press. */
+function stepAction(props: StepBodyProps, piece: StepPiece, key: string): React.JSX.Element | null {
+  const { busy } = props;
+  if (piece.kind === 'setup-button') {
+    const face = SETUP_BUTTONS[piece.action];
+    return (
+      <button
+        key={key}
+        type="button"
+        className={face.primary ? 'btn btn-primary' : 'btn btn-secondary'}
+        disabled={busy}
+        data-phone-action={face.hook}
+        onClick={() => props.onSetupAction(piece.action)}
+      >
+        {face.words}
+      </button>
+    );
+  }
+  if (piece.kind === 'try-again-quiet' || piece.kind === 'try-again') {
+    // Try again is the switch's own press again: it reads Tailscale and
+    // records no agreement. Quiet beside a step's one button while Tailscale
+    // is waited on (his ruling 3).
+    return (
+      <button
+        key={key}
+        type="button"
+        className={piece.kind === 'try-again-quiet' ? 'set-inline-btn' : 'btn btn-secondary'}
+        disabled={busy}
+        data-phone-action="retry-door"
+        onClick={props.onRetryDoor}
+      >
+        {BTN_TRY_AGAIN}
+      </button>
+    );
+  }
+  return null;
+}
+
+/** One piece of a step's body that is not a press. */
+function stepPiece(props: StepBodyProps, piece: StepPiece, key: string): React.JSX.Element | null {
+  const { status, busy } = props;
+  switch (piece.kind) {
+    case 'line':
+      return (
+        <p key={key} className="phone-line">
+          {piece.text}
+        </p>
+      );
+    case 'disclosure':
+      // The house disclosure, SHUT (§5.4.1). Never the confirm block's home.
+      return (
+        <details
+          key={key}
+          className="set-disclosure"
+          data-phone-whats-this={piece.which === 'whats-this' ? true : undefined}
+          data-phone-what-allows={piece.which === 'what-allows' ? true : undefined}
+        >
+          <summary>{piece.summary}</summary>
+          <p className="set-section-caption">{piece.text}</p>
+        </details>
+      );
+    case 'confirm':
+      // TODAY'S BLOCK, BYTE FOR BYTE (his ruling 2, D18): every hashed line,
+      // both warnings, the standing right while Funnel still needs approving,
+      // and Allow. Nothing of it goes behind a disclosure.
+      return status === null ? null : (
+        <div key={key} className="phone-block" data-phone-confirm>
+          <Lines lines={status.confirmLines} />
+          <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
+          <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>
+          {status.funnel.asksApproval ? (
+            <p className="set-config-warning" data-phone-funnel-right>
+              {POCKET_FUNNEL_RIGHT_WARNING}
+            </p>
+          ) : null}
+          <div className="set-config-actions">
+            <button
+              type="button"
+              className="btn btn-primary"
+              // Never while a read is under way: the lines may be about to move.
+              disabled={busy || status.state === 'opening'}
+              data-phone-action="confirm-door"
+              onClick={props.onConfirmDoor}
+            >
+              {BTN_ALLOW}
+            </button>
+          </div>
+        </div>
+      );
+    case 'approval':
+      return status === null ? null : (
+        <ApprovalBlock key={key} status={status} busy={busy} onOpenApproval={props.onOpenApproval} />
+      );
+    case 'pair-card':
+      return <PairCard key={key} {...props} pair={piece.pair} />;
+    default:
+      return null;
+  }
+}
+
+/**
+ * A step's body, filled from its face's pieces in their order. Consecutive
+ * presses share one actions row, so the quiet Try again sits beside the
+ * step's one button.
+ */
+function StepBody(props: StepBodyProps & { face: StepFace }): React.JSX.Element {
+  const out: React.JSX.Element[] = [];
+  let row: React.JSX.Element[] = [];
+  const endRow = (): void => {
+    if (row.length === 0) return;
+    out.push(
+      <div key={`actions-${String(out.length)}`} className="set-config-actions phone-step-actions">
+        {row}
+      </div>
+    );
+    row = [];
+  };
+  props.face.body.forEach((piece, i) => {
+    const key = `${piece.kind}-${String(i)}`;
+    const press = stepAction(props, piece, key);
+    if (press !== null) {
+      row.push(press);
+      return;
+    }
+    endRow();
+    const drawn = stepPiece(props, piece, key);
+    if (drawn !== null) out.push(drawn);
+  });
+  endRow();
+  return <>{out}</>;
+}
+
 export function PhoneView(props: PhoneViewProps): React.JSX.Element {
   const { supported, status, error, busy } = props;
 
@@ -741,14 +926,15 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
     );
   }
 
-  const confirm = status !== null && doorNeedsConfirm(status);
-  const retry = status !== null && doorMayRetry(status);
   const on = status !== null && status.state !== 'off';
+  // The pair card's face, worked out once: the composer reads it for step 3,
+  // and the card draws it.
+  const stage = pairingStage(status, props.offer, props.view, props.now);
+  const faces = checklistOf(status, stage, props.wished);
 
   return (
     <section aria-label={PHONE_TITLE} className="phone-section">
       <h1 className="set-title">{PHONE_TITLE}</h1>
-      <div className="set-section-caption">{POCKET_REACH_HONESTY}</div>
 
       {error === null ? null : (
         <div className="set-row-error phone-error" role="alert">
@@ -760,9 +946,8 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
         <div className="set-row tall">
           <div className="set-row-text">
             <span className="set-row-label">{DOOR_LABEL}</span>
-            <span className="set-row-caption" data-phone-door-line>
-              {status === null ? '' : doorLine(status)}
-            </span>
+            {/* ONE caption that never changes (D1): what each side needs. */}
+            <span className="set-row-caption">{POCKET_SETUP_LINE}</span>
           </div>
           <Switch
             checked={on}
@@ -771,52 +956,9 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
             onChange={props.onSetDoor}
           />
         </div>
-        {confirm && status !== null ? (
-          <div className="phone-block" data-phone-confirm>
-            <Lines lines={status.confirmLines} />
-            <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>
-            <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>
-            {status.funnel.asksApproval ? (
-              <p className="set-config-warning" data-phone-funnel-right>
-                {POCKET_FUNNEL_RIGHT_WARNING}
-              </p>
-            ) : null}
-            <div className="set-config-actions">
-              <button
-                type="button"
-                className="btn btn-primary"
-                // Never while a read is under way: the lines may be about to move.
-                disabled={busy || status.state === 'opening'}
-                data-phone-action="confirm-door"
-                onClick={props.onConfirmDoor}
-              >
-                {BTN_ALLOW}
-              </button>
-            </div>
-          </div>
-        ) : null}
-        {status === null ? null : (
-          <ApprovalBlock status={status} busy={busy} onOpenApproval={props.onOpenApproval} />
-        )}
-        {retry ? (
-          <div className="phone-block">
-            <button
-              type="button"
-              className="btn btn-secondary"
-              disabled={busy}
-              data-phone-action="retry-door"
-              onClick={props.onRetryDoor}
-            >
-              {BTN_TRY_AGAIN}
-            </button>
-          </div>
-        ) : null}
       </div>
 
-      <div className="set-group-label">{PAIR_GROUP}</div>
-      <div className="set-card">
-        <PairCard {...props} />
-      </div>
+      <StepsCard faces={faces} body={(face) => <StepBody {...props} stage={stage} face={face} />} />
 
       <div className="set-group-label">{PHONES_GROUP}</div>
       <div className="set-card">
@@ -866,6 +1008,10 @@ export function PhoneView(props: PhoneViewProps): React.JSX.Element {
               <span className="set-row-label">{PUSH_KEY_LABEL}</span>
               <span className="set-row-caption" data-phone-key-line>
                 {status.pushKeyId === null ? PUSH_KEY_NONE : pushKeyChosen(status.pushKeyId)}
+              </span>
+              {/* True with a key and without one (Phase 333.1, D14; research 140 §6). */}
+              <span className="set-row-caption" data-phone-publisher>
+                {PUSH_PUBLISHER_ONLY}
               </span>
             </div>
             <div className="phone-key-actions">
@@ -941,11 +1087,15 @@ export function PhoneSection(): React.JSX.Element {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   /**
-   * Pair was pressed with the door off: once main says the door is answering,
-   * the code is asked for, once. Cleared by off, a refusal, and leaving (it is
-   * state, so it goes with the section).
+   * The code was asked for (Pair with the door off, or, while no phone is
+   * paired, the switch's on press or Try again: Phase 333.1, D17): once main
+   * says one may show, it is asked for, once. Cleared by off, a refusal no
+   * return will check again, and leaving (it is state, so it goes with the
+   * section).
    */
   const [pairAfterAllow, setPairAfterAllow] = useState<PairAfterAllow>('no');
+  /** The status the wish was last judged by (see {@link wishAwaitsAnswer}). */
+  const wishJudgedRef = useRef<PocketStatus | null>(null);
   /** Whether a phone presented during the code that is showing. */
   const presentedRef = useRef(false);
   /**
@@ -1001,6 +1151,22 @@ export function PhoneSection(): React.JSX.Element {
         void api.cancelPairing().catch(() => undefined);
       }
     };
+  }, [api, adopt]);
+
+  // THE RETURN (Phase 333.1, D16): coming back to the window asks main again,
+  // and so does opening the section in a window that has the focus. Main
+  // reads Tailscale only while its own `rechecks` says a read could now see
+  // the step finished, drops a return while one is under way, and counts no
+  // press. ONE listener, the existing helper, which fires on the window's
+  // focus and on the page becoming visible; no timer and no poll. Leaving the
+  // section unsubscribes, so the helper's count returns to where it was.
+  useEffect(() => {
+    if (api === null) return;
+    const off = onWindowLooked(() => {
+      void api.recheck().then(adopt).catch(() => undefined);
+    });
+    if (document.hasFocus()) void api.recheck().then(adopt).catch(() => undefined);
+    return off;
   }, [api, adopt]);
 
   // THE NAME CHECK (Phase 332.1): whether this mount watched the wait, and a
@@ -1085,8 +1251,12 @@ export function PhoneSection(): React.JSX.Element {
   }, [api, run]);
 
   // PAIR AFTER ALLOW: the push that says a code may show asks for it once; an
-  // off or a refusal with nothing more coming drops the wish.
+  // off, or a refusal with nothing more coming and no return main would check
+  // again, drops the wish. A press is judged by main's answer to it, never by
+  // the status drawn before it (see `wishAwaitsAnswer`).
   useEffect(() => {
+    if (wishAwaitsAnswer(pairAfterAllow, status, wishJudgedRef.current)) return;
+    wishJudgedRef.current = status;
     const next = pairAfterAllowNext(pairAfterAllow, status);
     if (next.phase !== pairAfterAllow) setPairAfterAllow(next.phase);
     if (next.pair) beginPairing();
@@ -1105,10 +1275,12 @@ export function PhoneSection(): React.JSX.Element {
         notice={null}
         error={null}
         busy={false}
+        wished={false}
         onSetDoor={() => undefined}
         onConfirmDoor={() => undefined}
         onRetryDoor={() => undefined}
         onOpenApproval={() => undefined}
+        onSetupAction={() => undefined}
         onPair={() => undefined}
         onCancelPairing={() => undefined}
         onAllowPhone={() => undefined}
@@ -1151,17 +1323,33 @@ export function PhoneSection(): React.JSX.Element {
       notice={notice}
       error={error}
       busy={busy}
+      wished={pairAfterAllow !== 'no'}
       onSetDoor={(on) => {
         setNotice(null);
+        // THE CODE ASKED FOR (Phase 333.1, D17): a first setup's on press
+        // shows the code by itself once the door answers. Only while main has
+        // answered and no phone is paired: a paired Mac is never handed a code
+        // it did not ask for, and its step 3 keeps Pair.
         if (!on) setPairAfterAllow('no');
+        else if (status !== null && status.phones.length === 0) setPairAfterAllow('pressed');
         setDoor(on);
       }}
       onConfirmDoor={() => {
         if (status !== null) void confirmDoor(status);
       }}
-      onRetryDoor={() => setDoor(true)}
+      onRetryDoor={() => {
+        // Try again is the switch's own press again, so it asks for the code
+        // under the same condition (D17).
+        if (status !== null && status.phones.length === 0) setPairAfterAllow('pressed');
+        setDoor(true);
+      }}
       onOpenApproval={() => {
         void run(() => api.openApproval());
+      }}
+      onSetupAction={(action) => {
+        // One closed word; main acts only on a press its status lists, and
+        // takes no URL or path from here (D12).
+        void run(() => api.setupAction(action));
       }}
       onPair={() => {
         if (status?.pairable === true) {

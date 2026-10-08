@@ -57,15 +57,22 @@ final class CopyTests: XCTestCase {
     /// the Mac still has, by the word the Mac draws on it.
     func testEveryMacControlAPhoneLineNamesStillExists() throws {
         var named = 0
+        var byEntry: [String: Int] = [:]
         for entry in try entries() {
             for (path, needle) in entry.names {
                 named += 1
+                byEntry[entry.name, default: 0] += 1
                 XCTAssertTrue(try StyleSource.text(path).contains(needle), "\(entry.name): \(path) no longer says ⟦\(needle)⟧")
                 let word = try XCTUnwrap(StyleSource.quotedWord(needle), "\(entry.name): ⟦\(needle)⟧ quotes no word")
                 XCTAssertTrue(entry.literal.contains(word), "\(entry.name) does not name \(word)")
             }
         }
-        XCTAssertGreaterThanOrEqual(named, 3)
+        // Phase 333.1 (D25): nine, being Pair under the name that did not
+        // reach the internet, Remove, Settings and Phone under Unpair's note,
+        // Settings and Phone under the second step, and Allow, Settings and
+        // Phone under the line that sends a person back to Allow.
+        XCTAssertEqual(named, 9)
+        XCTAssertEqual(byEntry, ["pairNameNotFound": 1, "unpairNote": 3, "setupOpenPhone": 2, "reachAllowAgain": 3])
     }
 
     /// The reader reads what compiles: a few parsed values against the values
@@ -75,7 +82,14 @@ final class CopyTests: XCTestCase {
         XCTAssertEqual(byName["sessions"], Copy.sessions)
         XCTAssertEqual(byName["separator"], Copy.separator)
         XCTAssertEqual(byName["closeQuote"], Copy.closeQuote)
-        XCTAssertEqual(byName["pairStepOnMac"], Copy.pairStepOnMac)
+        // Phase 333.1: the second step and the Allow line, each naming the
+        // Mac's own words, a version's sentence, and the site's name.
+        XCTAssertEqual(byName["setupOpenPhone"], Copy.setupOpenPhone)
+        XCTAssertEqual(byName["reachAllowAgain"], Copy.reachAllowAgain)
+        XCTAssertEqual(byName["pairNewerMac"], Copy.pairNewerMac)
+        XCTAssertEqual(byName["siteName"], Copy.siteName)
+        XCTAssertNil(byName["pairStepOnMac"], "the step that said press Pair is still declared")
+        XCTAssertNil(byName["pairPrivateNetwork"], "the nothing-to-install line that read as the Mac too is still declared")
         XCTAssertEqual(byName["notPaired"], Copy.notPaired)
         XCTAssertEqual(byName["unpairNote"], Copy.unpairNote)
         XCTAssertEqual(byName["buildOpen"], Copy.buildOpen)
@@ -100,7 +114,10 @@ final class CopyTests: XCTestCase {
         let main = try StyleSource.text("docs/design/phone/Main.html")
         let session = try StyleSource.text("docs/design/phone/Session.html")
         let choice = try StyleSource.text("docs/design/phone/Choice.html")
+        // Phase 333.1 (D27): Pairing.html is the resting face, and
+        // PairingScan.html the camera's, after Scan code.
         let pairing = try StyleSource.text("docs/design/phone/Pairing.html")
+        let pairingScan = try StyleSource.text("docs/design/phone/PairingScan.html")
         let needsInput = try StyleSource.text("docs/design/phone/NeedsInput.html")
         let settings = try StyleSource.text("docs/design/phone/Settings.html")
         let unpair = try StyleSource.text("docs/design/phone/Unpair.html")
@@ -153,16 +170,28 @@ final class CopyTests: XCTestCase {
             (conversation, Copy.yourPromptWord),
             (conversation, raised(Copy.agentLabel)),
             (choice, Copy.answerInTheSession),
+            // Phase 333.1: the resting face, the three steps, Scan code and
+            // the foot, with the Mac app's facts on one line the Mac's way.
             (pairing, Copy.pairTitle),
-            // The mock's first step was corrected to this in 316.2: it named the
-            // Mac's group heading, which cannot be pressed.
-            (pairing, Copy.pairStepOnMac),
-            (pairing, Copy.pairStepScan),
-            (pairing, Copy.pairMatchLabel),
-            (pairing, Copy.pairMatchNote),
-            // Since Phase 330 the phone installs nothing but Tortie; the mock
-            // says so in the same words.
-            (pairing, Copy.pairPrivateNetwork),
+            (pairing, Copy.setupGetMac),
+            (pairing, Copy.joined([Copy.freeAtSite, Copy.appleSilicon, Copy.macVersion])),
+            (pairing, Copy.setupOpenPhone),
+            (pairing, Copy.setupScan),
+            (pairing, Copy.scanCode),
+            (pairing, Copy.pairNothingElse),
+            (pairing, Copy.notPaired),
+            (pairing, Copy.privacy),
+            (pairing, Copy.support),
+            // And the camera's face after Scan code: the line under it, the
+            // fingerprint card and the foot.
+            (pairingScan, Copy.pairTitle),
+            (pairingScan, Copy.pairStepScan),
+            (pairingScan, Copy.pairMatchLabel),
+            (pairingScan, Copy.pairMatchNote),
+            (pairingScan, Copy.pairNothingElse),
+            (pairingScan, Copy.pairWaitingForAllow),
+            (pairingScan, Copy.privacy),
+            (pairingScan, Copy.support),
             // Phase 316.6: the three tabs, on every screen that draws the bar.
             (needsInput, Copy.needsInput),
             (needsInput, Copy.sessions),
@@ -183,6 +212,11 @@ final class CopyTests: XCTestCase {
             (settings, Copy.about),
             (settings, Copy.version),
             (settings, Copy.versionLine("1.0.0", "4")),
+            // Phase 333.1 (D22): About's three pages of Tortie's site.
+            (settings, Copy.macOnSite),
+            (settings, Copy.siteName),
+            (settings, Copy.privacy),
+            (settings, Copy.support),
             // Unpair's question, every word of the sheet.
             (unpair, Copy.unpairQuestion),
             (unpair, Copy.unpairNote),
@@ -327,6 +361,29 @@ final class CopyTests: XCTestCase {
         for line in [Copy.screenNotAnswering, Copy.screenWaitForRedraw, Copy.screenHeldWhileSelecting, Copy.backToLive, Copy.scrollbackMoved] {
             XCTAssertTrue(line.contains("terminal"), line)
             XCTAssertFalse(line.contains("screen"), line)
+        }
+    }
+
+    /// Clause (Phase 333.1, D29, research 140 section 10): no word the phone
+    /// draws says beta, TestFlight, remote desktop, mirror, stream or SSH, in
+    /// any case, as a whole word. The phone is a terminal on the Mac's
+    /// sessions, and the build is the app.
+    func testNoWordSaysBetaOrWhatTheTerminalIsNot() throws {
+        let refused = try NSRegularExpression(pattern: #"\b(?:beta|testflight|remote desktop|mirror|stream|ssh)\b"#, options: [.caseInsensitive])
+        var read = 0
+        for entry in try entries() {
+            read += 1
+            let range = NSRange(entry.literal.startIndex..., in: entry.literal)
+            XCTAssertNil(refused.firstMatch(in: entry.literal, range: range), "\(entry.name) says \(entry.literal)")
+        }
+        XCTAssertGreaterThanOrEqual(read, 170, "the reader found too few words to be reading the file")
+        // The pattern is a word's: it finds each refused word in a sentence,
+        // and leaves a longer word alone.
+        for said in ["Join the Beta.", "Get it on TestFlight", "a remote desktop", "MIRROR", "stream it", "over ssh"] {
+            XCTAssertNotNil(refused.firstMatch(in: said, range: NSRange(said.startIndex..., in: said)), said)
+        }
+        for said in ["streamed", "alphabetical", "mirrored"] {
+            XCTAssertNil(refused.firstMatch(in: said, range: NSRange(said.startIndex..., in: said)), said)
         }
     }
 

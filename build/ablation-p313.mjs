@@ -94,6 +94,40 @@
  * control client's block matching. They run the read gate alone (`needs`),
  * because the hostile client is the door builder's and drives its own arms.
  *
+ * PHASE 333.1 ADDED SIXTY-THREE (build/p3331/SPEC.md §6.1): forty-six, `SU01` to `SU29`
+ * with their letters, numbered as the SPEC numbers them: one arm per clause of
+ * the return (rechecks' every clause, the job asking rechecks(1) and
+ * returnMayRun again, the one fork a press, the port a return never moves, the
+ * off press that stays off), the stat, the setup presses and their seam read
+ * at call time, the account kept out of the hash and the logs, the confirm
+ * block whole, the wish for the code, the admin link, the words, B1's fifteen,
+ * Q1's readOnReturn and D6 over the whole sheet. Eight of them must ALSO
+ * redden a third check, `return`, which runs the main builder's
+ * `src/main/pocket/__tests__/p3331-return.test.ts` in the clone: those are
+ * the clauses whose window only a driven owner shows (a return in recoverNow's
+ * window, a second return while the first is queued, a return while a restart
+ * is armed, a program at another pinned path, the off press whose save fails,
+ * a return queued behind a restart, the job's rechecks(1) written as
+ * rechecks(), and a held port kept as a start's sentence). The gates
+ * builder's own round added `SU30` to `SU36`, for parts of SU1 and SU8 the SPEC's list left
+ * unproven (the return asking rechecks() before it queues, its opening given
+ * back in a finally, Allow clearing returnForked, the fork mark's place
+ * against the last-press check, only the return handing openNow its options,
+ * returnMayRun asking that the program was found, the admin link requiring
+ * approvalOpens), and the fix round `SU37` to `SU39b`, each red on a DRIVEN
+ * owner of its own: `setup` (p3331-setup.test.ts: a Tailscale deleted after a
+ * read that answered reads missing, the stat deciding over the last read),
+ * `funnel` (funnel.test.ts: the account's bound refusing line and paragraph
+ * separators, surrogates, private-use and unassigned code points, and a tower
+ * of combining marks) and `steps` (p3331-steps.test.tsx: "then come back" only
+ * while main's rechecks is true, and step 1's whole line as its hover). The
+ * reverify's fix (2026-10-08) added `SU40`, readOnReturn's own last-press
+ * check after its read, which every rule and every vitest file left green
+ * until SU1 read it and `return` drove it (an off press while the read is out),
+ * and `SU41` to `SU41c` for its minor finding, Copy link writing the text the
+ * program printed: each red on SU3 and on `setup` or `funnel`, which drive the
+ * link as `approvalCopyText` spells it.
+ *
  * An ablation that leaves the check green is a hole in the check. An ablation
  * that reddens only rules OTHER than its own is a finding about the check
  * rather than about the build, and it is printed as one.
@@ -219,6 +253,8 @@ const REMOTE_SCREEN = 'src/main/machines/remote-screen.ts';
 const CONTROL_CLIENT = 'src/main/tmux/control-client.ts';
 // PHASE 337.1: the page reader.
 const SCREEN_SCROLLBACK = 'src/main/screen/scrollback.ts';
+// PHASE 333.1: the sheet's step composer.
+const STEPS = 'src/renderer/settings/phone/steps.ts';
 
 /**
  * The checks this harness runs inside the clone, in order. Each prints its
@@ -231,7 +267,18 @@ const CHECKS = [
   // clause a text rule could miss in a shape nobody wrote yet (O2k, O2l). It
   // runs vitest over the one file, in the clone, and a failure is the tag
   // `[p313 unit]`, which this harness writes itself because vitest prints none.
-  ['unit', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/routes.test.ts'], { tag: 'unit', relative: true }]
+  ['unit', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/routes.test.ts'], { tag: 'unit', relative: true }],
+  // PHASE 333.1: the return's own windows, DRIVEN over the shipping owner
+  // (build/p3331/SPEC.md §7.2), for the arms whose clause only an interleaving
+  // shows. `[p313 return]` is this harness's own tag, as `unit` is.
+  ['return', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p3331-return.test.ts'], { tag: 'return', relative: true }],
+  // PHASE 333.1's fix round: three more driven owners, for the arms whose
+  // clause no text rule reads: the stat deciding over a read that answered
+  // (`setup`), the account's bound (`funnel`) and step 1's line and hover
+  // (`steps`). Each is this harness's own tag, as `unit` and `return` are.
+  ['setup', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/p3331-setup.test.ts'], { tag: 'setup', relative: true }],
+  ['funnel', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/main/pocket/__tests__/funnel.test.ts'], { tag: 'funnel', relative: true }],
+  ['steps', ['node_modules/vitest/vitest.mjs', 'run', '--no-cache', 'src/renderer/settings/__tests__/p3331-steps.test.tsx'], { tag: 'steps', relative: true }]
 ];
 
 /**
@@ -4553,6 +4600,663 @@ const ABLATIONS = [
     from: "    if (req.headers.host !== `${host.name}:${String(host.port)}`) return refuseRequest(res, 'host');",
     to: "    if (req.headers.host === 'nobody.invalid') return refuseRequest(res, 'host');",
     needs: ['gate', 'hostile']
+  },
+  // -------------------------------------------------------------------------
+  // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1), numbered
+  // as the SPEC numbers them. A return reads Tailscale with no press, and on
+  // confirmed fields forks the door and spawns the Funnel child, so every
+  // clause of its predicate is one line between a focus and a process.
+  // -------------------------------------------------------------------------
+  {
+    n: 'SU01',
+    rule: 'SU1',
+    name: 'the return re-checks shields-up',
+    why: 'only a spawn of the Funnel child can see shields-up, so a return there forks the door process and spawns the child on every focus (§Attack F4).',
+    file: IPC,
+    from: "const RETURN_READ_WORDS: ReadonlySet<PocketFunnelRefusal> = new Set(['no-tailscale', 'not-running', 'signed-out']);",
+    to: "const RETURN_READ_WORDS: ReadonlySet<PocketFunnelRefusal> = new Set(['no-tailscale', 'not-running', 'signed-out', 'shields-up']);",
+    needs: ['gate']
+  },
+  {
+    n: 'SU02',
+    rule: 'SU1',
+    name: 'pressedOnThisRun dropped from rechecks()',
+    why: 'a door nobody has allowed is read on a return only in the run whose press started the setup; without it a planted program at a pinned path runs because a window came forward on a later day (D8).',
+    file: IPC,
+    from: "    return pocketConfirmStatus(this.fields()).state === 'confirmed' || this.pressedOnThisRun; // (h)",
+    to: "    return pocketConfirmStatus(this.fields()).state === 'confirmed'; // (h)",
+    needs: ['gate']
+  },
+  {
+    n: 'SU02b',
+    rule: 'SU1',
+    name: 'pressedOnThisRun dropped from the job’s unconfirmed branch',
+    why: 'the job asks it again because a press that cleared it can land while the return waits its turn (D8, D9).',
+    file: IPC,
+    from: '        } else if (this.pressedOnThisRun) {\n          await this.readOnReturn(press);',
+    to: '        } else {\n          await this.readOnReturn(press);',
+    needs: ['gate']
+  },
+  {
+    n: 'SU03',
+    rule: 'SU1',
+    name: 'the return counts itself as a press',
+    why: 'a return is not a press: counted as one it supersedes the start a person’s press is running, and a focus ends an approval wait.',
+    file: IPC,
+    from: '    const press = this.lastPress.press; // never this.pressed(): a return is not a press',
+    to: '    const press = this.pressed(); // never this.pressed(): a return is not a press',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the funnel-idle clause (d) dropped',
+    why: 'in recoverNow’s window between its timer and its opening += 1 the opening is 0 and the funnel restarting; only (d) refuses a return there, and the driven owner reads one read where it reads none on a restart whose read answers signed-out.',
+    file: IPC,
+    from: "    if (this.funnelState !== 'idle') return false; // (d)\n",
+    to: '',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04a',
+    rule: 'SU1',
+    name: 'the switch clause (a) dropped',
+    why: 'a return with the switch off reads Tailscale, which no press asked for.',
+    file: IPC,
+    from: '    if (this.readStore()?.enabled !== true || this.switchedOffThisRun) return false; // (a) the switch, as the person last left it\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04b',
+    rule: 'SU1',
+    name: 'the published clause (b) dropped',
+    why: 'a return while published starts a second start, which refuses port-taken against its own child (r2 M9).',
+    file: IPC,
+    from: '    if (this.published()) return false; // (b)\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04c',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the opening clause (c) dropped',
+    why: 'a second return while the first is queued is queued too, and the driven owner reads two jobs where it reads one.',
+    file: IPC,
+    from: '    if (this.opening !== held) return false; // (c)\n',
+    to: '',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04d',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the restart clause (e) dropped',
+    why: 'a confirm’s start() cancels no restart, so a return while one is armed and the funnel idle reads Tailscale beside it; the driven owner reads one read where it reads none.',
+    file: IPC,
+    from: '    if (this.restartCancel !== null) return false; // (e)\n',
+    to: '',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04e',
+    rule: 'SU1',
+    name: 'the quit clause (f) dropped',
+    why: 'a return during the quit forks a door process the quit is ending.',
+    file: IPC,
+    from: '    if (pocketShutdownStarted() || funnelShutdownStarted()) return false; // (f)\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04f',
+    rule: 'SU1',
+    name: 'returnForked dropped from rechecks()',
+    why: 'a start that refuses again with Funnel’s capabilities present forks and spawns on every focus (§Attack F5); probe:p3331 A10 reads it red.',
+    file: IPC,
+    from: '    if (this.returnForked) return false; // (i)\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04g',
+    rule: 'SU1',
+    name: 'the return’s one fork no longer marked',
+    why: 'D8b’s bound is that one line: without it every focus after a refused return-started start forks and spawns again.',
+    file: IPC,
+    from: '    if (options.returned === true) this.returnForked = true;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04h',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'returnMayRun no longer compares the program with the one allowed',
+    why: 'a Tailscale that appeared at ANOTHER pinned path is run by a press and never by a focus (§Attack F6); the driven owner reads two runs of it.',
+    file: IPC,
+    from: 'program.path === this.fields().funnelProgram',
+    to: 'program.path.length > 0',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04i',
+    rule: 'SU1',
+    name: 'returnMayRun dropped from inside the job',
+    why: 'a program swapped in while the return waited its turn runs on a focus (D7b, D9).',
+    file: IPC,
+    from: '        if (!this.returnMayRun(funnelProgramOf(this.funnel.resolve()))) return;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU04j',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the person’s own off press dropped from clause (a)',
+    why: 'r2 §Attack F18: an off whose save fails leaves the held store saying on, and once Tailscale runs one focus forks the door and spawns Funnel against his off; the driven owner reads one fork and one spawn where it reads none.',
+    file: IPC,
+    from: 'if (this.readStore()?.enabled !== true || this.switchedOffThisRun) return false;',
+    to: 'if (this.readStore()?.enabled !== true) return false;',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04k',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the job no longer asks rechecks(1)',
+    why: 'r2 §Attack F19: a return queued behind a restart whose timer just fired runs a second start while published, which refuses port-taken against its own child while the child and the door answer.',
+    file: IPC,
+    from: '        if (!this.rechecks(1)) return;\n',
+    to: '',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU04l',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'the job asks rechecks() rather than rechecks(1)',
+    why: 'inside its own job the return holds one opening, so held must be 1; asked as 0 every return refuses itself and the driven owner reads zero reads where it reads one.',
+    file: IPC,
+    from: '        if (!this.rechecks(1)) return;',
+    to: '        if (!this.rechecks()) return;',
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU05',
+    rule: 'SU1',
+    name: 'the return no longer stops after not-approved while approval is asked',
+    why: 'a return before the admin approves forks the door process and spawns the Funnel child on every focus (D9).',
+    file: IPC,
+    from: "    if (options.returned === true && this.startRefusalWord === 'not-approved' && read.asksApproval) {\n      this.setFunnel('idle');\n      return 'stopped';\n    }\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU06',
+    rule: 'SU1',
+    name: 'a return writes a stored public port',
+    why: 'a return never moves a stored port: a phone may have been told it, and only a person’s switch chooses again.',
+    file: IPC,
+    from: "    } else if (held.has(store.publicPort)) {\n      this.readRefusal = 'port-taken';",
+    to: "    } else if (held.has(store.publicPort)) {\n      this.writeStore({ ...store, publicPort: 10000 });\n      this.readRefusal = 'port-taken';",
+    needs: ['gate']
+  },
+  {
+    n: 'SU06b',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'a held port a return found kept as a start’s sentence',
+    why: '§Attack F3: confirmable stays true, the sheet draws the lines and Allow over the held port, and Allow then refuses port-taken at the start, two presses worse than today.',
+    file: IPC,
+    from: "      this.readRefusal = 'port-taken';",
+    to: "      this.startRefusal = pocketFunnelSentence('port-taken', store.publicPort);\n      this.startRefusalWord = 'port-taken';",
+    needs: ['gate', 'return']
+  },
+  {
+    n: 'SU07',
+    rule: 'SU2',
+    name: 'a timer that asks for a recheck',
+    why: 'a return is the window coming back and nothing else; a timer that reads Tailscale is a poll.',
+    file: PHONE_SECTION,
+    from: '    if (document.hasFocus()) void api.recheck().then(adopt).catch(() => undefined);',
+    to: '    if (document.hasFocus()) void api.recheck().then(adopt).catch(() => undefined);\n    const poll = setInterval(() => {\n      void api.recheck().then(adopt).catch(() => undefined);\n    }, 5000);\n    void poll;',
+    needs: ['gate']
+  },
+  {
+    n: 'SU08',
+    rule: 'SU2',
+    name: 'a focus listener of the sheet’s own beside onWindowLooked',
+    why: 'one bus hears every return; a second listener reads twice per focus.',
+    file: PHONE_SECTION,
+    from: '    if (document.hasFocus()) void api.recheck().then(adopt).catch(() => undefined);',
+    to: "    if (document.hasFocus()) void api.recheck().then(adopt).catch(() => undefined);\n    window.addEventListener('focus', () => {\n      void api.recheck().then(adopt).catch(() => undefined);\n    });",
+    needs: ['gate']
+  },
+  {
+    n: 'SU09',
+    rule: 'SU1',
+    name: 'status() runs a return',
+    why: 'every push would then read Tailscale, which is a poll with no timer.',
+    file: IPC,
+    from: '    const resolution = this.funnel.resolve();\n    const fields = this.fields();',
+    to: '    const resolution = this.funnel.resolve();\n    if (this.opening < 0) this.recheck();\n    const fields = this.fields();',
+    needs: ['gate']
+  },
+  {
+    n: 'SU10',
+    rule: 'SU3',
+    name: 'Get Tailscale opens what the renderer sent',
+    why: 'nothing takes a URL from the renderer: the one page is TAILSCALE_DOWNLOAD_PAGE, compiled.',
+    file: IPC,
+    from: '          await seam.openExternal(TAILSCALE_DOWNLOAD_PAGE);',
+    to: '          await seam.openExternal(String(input));',
+    needs: ['gate']
+  },
+  {
+    n: 'SU11',
+    rule: 'SU3',
+    name: 'Open Tailscale listed under a development override',
+    why: 'under the override a probe’s run would list, and a regression press, his real Tailscale (D11, D35).',
+    file: IPC,
+    from: "      !resolution.overrideSet &&\n      resolution.resolution.source === 'pinned' &&",
+    to: "      resolution.resolution.source === 'pinned' &&",
+    needs: ['gate']
+  },
+  {
+    n: 'SU12',
+    rule: 'SU3',
+    name: 'Open Tailscale hands openPath the command line program',
+    why: 'the press opens the app bundle; LaunchServices handed the program inside it runs a binary as a document.',
+    file: IPC,
+    from: 'seam.openPath(TAILSCALE_APP_BUNDLE)',
+    to: 'seam.openPath(TAILSCALE_APP_PROGRAM)',
+    needs: ['gate']
+  },
+  {
+    n: 'SU13',
+    rule: 'SU3',
+    name: 'Copy link writes without asking approvalOpens again',
+    why: 'a link Tortie refuses to open, handed to a person to send to someone (§Attack F9).',
+    file: IPC,
+    from: '          if (link === null || !approvalOpens(link)) return false;',
+    to: '          if (link === null) return false;',
+    needs: ['gate']
+  },
+  {
+    n: 'SU14',
+    rule: 'SU3',
+    name: 'the harness no longer refuses a setup press',
+    why: 'a probe or a smoke that reached the press would open his browser or his Tailscale, or write his clipboard (D12, D35).',
+    file: IPC,
+    from: '    if (isHarnessLaunch(process.env)) return false;\n',
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU15',
+    rule: 'SU4',
+    name: 'status() reads Tailscale',
+    why: 'a status is a stat and the fields already held; one that runs Tailscale runs it on every push.',
+    file: IPC,
+    from: '    const resolution = this.funnel.resolve();\n    const fields = this.fields();',
+    to: '    const resolution = this.funnel.resolve();\n    void readTailnet(this.funnel);\n    const fields = this.fields();',
+    needs: ['gate']
+  },
+  {
+    n: 'SU16',
+    rule: 'SU4',
+    name: 'step 1 says ready from the stored facts',
+    why: 'a tailnet an earlier run wrote is no proof Tailscale runs now (D2, the attack).',
+    file: IPC,
+    from: "    if (this.read !== null && this.readRefusal === null) return 'ready';",
+    to: "    if (this.readStore()?.tailnetFacts != null) return 'ready';\n    if (this.read !== null && this.readRefusal === null) return 'ready';",
+    needs: ['gate']
+  },
+  {
+    n: 'SU17',
+    rule: 'SU5',
+    name: 'the account hashed',
+    why: 'a hashed field that moves asks every paired phone to Allow again, and this phase moves none (D30).',
+    file: PAIRING,
+    from: '  funnelProgram: (v) => v,\n  tailnet: (v) => v,',
+    to: '  funnelProgram: (v) => v,\n  account: (v) => v,\n  tailnet: (v) => v,',
+    needs: ['gate']
+  },
+  {
+    n: 'SU18',
+    rule: 'SU5',
+    name: 'the account in a log line',
+    why: 'who is signed in to Tailscale on this Mac is drawn in his Settings window and written nowhere (D4).',
+    file: IPC,
+    from: '    this.readRefusal = null;\n    this.read = read;',
+    to: "    this.readRefusal = null;\n    this.read = read;\n    pocketLog.info(`Tailscale answered for ${read.account ?? 'nobody'}`);",
+    needs: ['gate']
+  },
+  {
+    n: 'SU19',
+    rule: 'SU6',
+    name: 'the confirm warning behind a disclosure',
+    why: 'his ruling 2: the confirm at Allow is today’s block, whole, at rest.',
+    file: PHONE_SECTION,
+    from: '          <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>',
+    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{POCKET_CONFIRM_WARNING}</p>\n          </details>',
+    needs: ['gate']
+  },
+  {
+    n: 'SU20',
+    rule: 'SU6',
+    name: 'the door’s honesty sentence behind a disclosure',
+    why: 'probe:p317 W1 and probe:p318 R0 read it inside the block, at rest (D18).',
+    file: PHONE_SECTION,
+    from: '          <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>',
+    to: '          <details className="set-disclosure">\n            <p className="set-config-warning">{POCKET_DOOR_HONESTY}</p>\n          </details>',
+    needs: ['gate']
+  },
+  {
+    n: 'SU21',
+    rule: 'SU6',
+    name: 'the lines sliced before they are handed back',
+    why: 'the lines a person read are the lines main hashes; a sheet that hands back fewer agrees to something nobody read.',
+    file: PHONE_SECTION,
+    from: '        linesRead: current.confirmLines,',
+    to: '        linesRead: current.confirmLines.slice(0, 3),',
+    needs: ['gate']
+  },
+  {
+    n: 'SU22',
+    rule: 'SU7',
+    name: 'the switch asks for the code with a phone paired',
+    why: 'his paired Mac is never handed a code it did not ask for (D17).',
+    file: PHONE_SECTION,
+    from: "else if (status !== null && status.phones.length === 0) setPairAfterAllow('pressed');",
+    to: "else if (status !== null) setPairAfterAllow('pressed');",
+    needs: ['gate']
+  },
+  {
+    n: 'SU22b',
+    rule: 'SU7',
+    name: 'Try again asks for the code whatever is paired',
+    why: 'r2 §Attack F27: with no phones.length check a paired Mac’s Try again shows a code, and a status not loaded yet reads as "no phones".',
+    file: PHONE_SECTION,
+    from: "        if (status !== null && status.phones.length === 0) setPairAfterAllow('pressed');",
+    to: "        setPairAfterAllow('pressed');",
+    needs: ['gate']
+  },
+  {
+    n: 'SU22c',
+    rule: 'SU7',
+    name: 'Try again no longer carries the wish',
+    why: '§Attack F11: a first setup that met shields-up, busy, failed or a port still needed Pair after the fix.',
+    file: PHONE_SECTION,
+    from: "        if (status !== null && status.phones.length === 0) setPairAfterAllow('pressed');\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU23',
+    rule: 'SU8',
+    name: 'a return’s read drops the admin link',
+    why: 'a return before the admin approves keeps Copy link, so the non-admin is not handed a dead end again (D6, the entry’s attack).',
+    file: IPC,
+    from: /(  private async readOnReturn\([^)]*\)[^{]*\{\n)/,
+    to: (_m, head) => `${head}    this.adminLink = null;\n`,
+    needs: ['gate']
+  },
+  {
+    n: 'SU23b',
+    rule: 'SU8',
+    name: 'a non-opening URL kept as text',
+    why: '§Attack F9: an address Tortie refuses to open, drawn beside an instruction to send it to someone.',
+    file: IPC,
+    from: '          this.adminLink = urlSeen;\n        }',
+    to: "          this.adminLink = urlSeen;\n        } else if (started.reason === 'not-approved' && urlSeen !== null) {\n          this.adminText = urlSeen;\n        }",
+    needs: ['gate']
+  },
+  {
+    n: 'SU24',
+    rule: 'SU9',
+    name: '"TestFlight" in a sheet word',
+    why: 'research 140 §10 and his answer (3): never beta or TestFlight on either side.',
+    file: PHONE_SECTION,
+    from: "export const GET_PHONE_APP = 'Get it at tortie.sh/iphone.';",
+    to: "export const GET_PHONE_APP = 'Get it on TestFlight.';",
+    needs: ['gate']
+  },
+  {
+    n: 'SU25',
+    rule: 'B1',
+    name: 'the registrar drops pocket:setupAction while the contract and the bridge keep it',
+    why: 'fifteen channels in three places: the missing one is a setup button that throws.',
+    file: IPC,
+    from: "  handle(ipc, 'pocket:setupAction', (_event, action) => host.setupAction(action));\n",
+    to: '',
+    needs: ['gate']
+  },
+  {
+    n: 'SU26',
+    rule: 'Q1',
+    name: 'the return reads outside the queue',
+    why: 'a read beside another press is the race his ruling of 2026-09-23 ended; readOnReturn runs inside the return’s queued job.',
+    file: IPC,
+    from: '    const press = this.lastPress.press; // never this.pressed(): a return is not a press\n    this.opening += 1;',
+    to: '    const press = this.lastPress.press; // never this.pressed(): a return is not a press\n    void this.readOnReturn(press);\n    this.opening += 1;',
+    needs: ['gate']
+  },
+  {
+    n: 'SU27',
+    rule: 'D6',
+    name: 'the step composer decides from nameCheck',
+    why: 'r2 §Attack F25: the name block is the pair card’s, and a composer that decides a face from the name check is a second spelling of pairable.',
+    file: STEPS,
+    from: /(export function checklistOf\([^)]*\)[^{]*\{\n)/,
+    to: (_m, head) => `${head}  if (status !== null && status.nameCheck === 'unreadable') return [];\n`,
+    needs: ['gate']
+  },
+  {
+    n: 'SU28',
+    rule: 'SU3',
+    name: 'the setup seam reads Electron’s shell and clipboard at module load',
+    why: 'r2 §Attack F23: three test files outside this phase import the host under an electron mock with no shell or clipboard, and vitest throws on the first read of a member a mock lacks.',
+    file: IPC,
+    from: /const electronSetupSeam: PocketSetupSeam = \{[\s\S]*?\n\};/,
+    to: 'const electronSetupSeam: PocketSetupSeam = {\n  openExternal: shell.openExternal,\n  openPath: shell.openPath,\n  writeClipboard: clipboard.writeText\n};',
+    needs: ['gate']
+  },
+  {
+    n: 'SU29',
+    rule: 'SU1',
+    name: 'the off press’s two new statements moved between this.pressed(); and let saved = true;',
+    why: 'D8 places them after let saved = true;: between the two lines they split what L5e reads together, which turns that arm red by its anchor alone (r2 §Attack F26).',
+    file: IPC,
+    from: /( {6}this\.pressed\(\);\n)( {6}let saved = true;\n)((?: {6}\/\/[^\n]*\n)*)( {6}this\.pressedOnThisRun = false;\n {6}this\.switchedOffThisRun = true;\n)/,
+    to: (_m, pressed, saved, comment, moved) => `${pressed}${comment}${moved}${saved}`,
+    needs: ['gate']
+  },
+  // The gates builder's own round: parts of SU1 and SU8 the SPEC's list left unproven.
+  {
+    n: 'SU30',
+    rule: 'SU1',
+    name: 'the return no longer asks rechecks() before it queues',
+    why: 'a return that queues first and asks later holds an opening for every focus, and the job’s own rechecks(1) then refuses every one of them (D7, D10).',
+    file: IPC,
+    from: "  recheck(): PocketStatus {\n    if (!this.rechecks()) return this.status();\n",
+    to: '  recheck(): PocketStatus {\n',
+    needs: ['gate']
+  },
+  {
+    n: 'SU31',
+    rule: 'SU1',
+    name: 'the return’s opening given back only when its job throws',
+    why: 'an opening a return never gives back refuses every later return and press through clause (c) for the rest of the run (D7).',
+    file: IPC,
+    from: "          await this.readOnReturn(press);\n        }\n      } finally {\n        this.opening -= 1;\n        this.changed();\n      }",
+    to: "          await this.readOnReturn(press);\n        }\n      } catch {\n        this.opening -= 1;\n        this.changed();\n      }",
+    needs: ['gate']
+  },
+  {
+    n: 'SU32',
+    rule: 'SU1',
+    name: 'Allow no longer clears returnForked',
+    why: 'an agreement recorded is a new start’s to make: a return after Allow whose fork mark the last press left set never forks the door the person just allowed (D8b, D6).',
+    file: IPC,
+    from: "    if (record !== null) {\n      this.returnForked = false;\n      this.adminLink = null;\n    }",
+    to: "    if (record !== null) {\n      this.adminLink = null;\n    }",
+    needs: ['gate']
+  },
+  {
+    n: 'SU33',
+    rule: 'SU1',
+    name: 'the fork mark moved to the statement immediately before the fork',
+    why: 'L5 reads the last-press check as the statement before startPocketDoor; the mark between them splits what L5 reads together, so D8b’s mark sits after the port check and before the state move (§Attack F26).',
+    file: IPC,
+    from: "    if (options.returned === true) this.returnForked = true;\n    // 7, 8. The door process listens on 127.0.0.1:0.\n    this.setFunnel('starting');\n    if (this.superseded(press)) {\n      this.setFunnel('idle');\n      return 'stopped';\n    }\n    const door = await startPocketDoor({",
+    to: "    // 7, 8. The door process listens on 127.0.0.1:0.\n    this.setFunnel('starting');\n    if (this.superseded(press)) {\n      this.setFunnel('idle');\n      return 'stopped';\n    }\n    if (options.returned === true) this.returnForked = true;\n    const door = await startPocketDoor({",
+    needs: ['gate']
+  },
+  {
+    n: 'SU34',
+    rule: 'SU1',
+    name: 'the on press handing openNow a return’s options',
+    why: 'the one-fork-a-press mark is the return’s alone; a press that sets it leaves the next return refused by (i) before it reads anything (D8b).',
+    file: IPC,
+    from: "        if (pocketConfirmStatus(this.fields()).state === 'confirmed') {\n          const outcome = await this.openNow(press);\n          if (outcome !== 'published') this.setFunnel('idle');\n",
+    to: "        if (pocketConfirmStatus(this.fields()).state === 'confirmed') {\n          const outcome = await this.openNow(press, 'start', { returned: true });\n          if (outcome !== 'published') this.setFunnel('idle');\n",
+    needs: ['gate']
+  },
+  {
+    n: 'SU35',
+    rule: 'SU1',
+    name: 'returnMayRun no longer asks that the stat found a program',
+    why: 'a return may run only a program the stat finds; without .ok a return on unconfirmed fields reads a Tailscale that is not there and draws its refusal as a read’s (D7b).',
+    file: IPC,
+    from: "    return (\n      program.ok &&\n      (pocketConfirmStatus(this.fields()).state !== 'confirmed' || program.path === this.fields().funnelProgram)\n    );",
+    to: "    return pocketConfirmStatus(this.fields()).state !== 'confirmed' || program.path === this.fields().funnelProgram;",
+    needs: ['gate']
+  },
+  {
+    n: 'SU36',
+    rule: 'SU8',
+    name: 'the admin link kept without approvalOpens',
+    why: 'only a link Tortie would open is kept; one that fails approvalOpens is drawn beside “ask your admin” as an address to send, which is the dead end D6 and §Attack F9 refuse.',
+    file: IPC,
+    from: "        if (started.reason === 'not-approved' && urlSeen !== null && approvalOpens(urlSeen)) {\n          this.adminLink = urlSeen;\n        }",
+    to: "        if (started.reason === 'not-approved' && urlSeen !== null) {\n          this.adminLink = urlSeen;\n        }",
+    needs: ['gate']
+  },
+  // The fix round: three driven owners, one per finding.
+  {
+    n: 'SU37',
+    rule: 'setup',
+    name: 'statMissing dropped from tailscaleNow’s switch-on arm',
+    why: 'with the switch on, after a read that answered, a Tailscale that has since been deleted would still show step 1 done while setupActions lists Get Tailscale; the stat, not the last read, decides (the verifier’s M16).',
+    file: IPC,
+    from: "    if (statMissing || this.readRefusal === 'no-tailscale') return 'missing';\n",
+    to: "    if (this.readRefusal === 'no-tailscale') return 'missing';\n",
+    needs: ['setup']
+  },
+  {
+    n: 'SU38',
+    rule: 'funnel',
+    name: 'line and paragraph separators drawn in the account',
+    why: '200 of U+2028 turned step 1 into three lines in the verifier’s hostile LoginName set; the bound refuses what the row cannot draw (D4, finding 6).',
+    file: FUNNEL,
+    from: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}\\\\p{Cs}\\\\p{Co}\\\\p{Cn}]|\\\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,",
+    to: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Cs}\\\\p{Co}\\\\p{Cn}]|\\\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,",
+    needs: ['funnel']
+  },
+  {
+    n: 'SU38b',
+    rule: 'funnel',
+    name: 'a lone surrogate, a private-use or an unassigned code point drawn in the account',
+    why: 'a half of a surrogate pair and a private-use glyph are drawn as nothing a person can read, and an unassigned one as whatever the font has (D4, finding 6).',
+    file: FUNNEL,
+    from: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}\\\\p{Cs}\\\\p{Co}\\\\p{Cn}]|\\\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,",
+    to: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}]|\\\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,",
+    needs: ['funnel']
+  },
+  {
+    n: 'SU38c',
+    rule: 'funnel',
+    name: 'a tower of combining marks drawn in the account',
+    why: '250 stacked combining marks on one letter draw over the rows above and below; a real name’s few on one letter are kept (D4, finding 6).',
+    file: FUNNEL,
+    from: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}\\\\p{Cs}\\\\p{Co}\\\\p{Cn}]|\\\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,",
+    to: "  `[\\\\p{Cc}\\\\p{Cf}\\\\p{Zl}\\\\p{Zp}\\\\p{Cs}\\\\p{Co}\\\\p{Cn}]`,",
+    needs: ['funnel']
+  },
+  {
+    n: 'SU39',
+    rule: 'steps',
+    name: '“then come back” drawn while no return would check',
+    why: 'while a restart is armed it is the restart, not a return, that publishes the door again; a line that promises a return there promises what the return does not do (finding 4, D7 (e)).',
+    file: STEPS,
+    from: "  return status.rechecks || (status.state === 'opening' && status.funnel.state !== 'restarting');\n",
+    to: '  return true;\n',
+    needs: ['steps']
+  },
+  {
+    n: 'SU39b',
+    rule: 'steps',
+    name: 'step 1’s whole line no longer its hover',
+    why: 'the state is one line cut with an ellipsis, so the account and tailnet past the cut are read nowhere but the hover (finding 6).',
+    file: STEPS,
+    from: "      : { state: line, stateKey: 'ready', hover: line, body: [] };\n",
+    to: "      : { state: line, stateKey: 'ready', body: [] };\n",
+    needs: ['steps']
+  },
+  // The reverify (2026-10-08): its V1 dropped this clause and every rule and
+  // every vitest file stayed green. SU1 now reads it, and the driven owner is
+  // p3331-return.test.ts's "an off press while its read is out".
+  {
+    n: 'SU40',
+    rule: 'SU1',
+    alsoRed: ['return'],
+    name: 'readOnReturn’s own last-press check dropped after its read',
+    why: 'a person’s off that arrives while a return’s read is out must win; without the check the read lands after the off and writes the public port it chose into a door the person just turned off (D8).',
+    file: IPC,
+    from: '  private async readOnReturn(press: SwitchPress): Promise<void> {\n    const read = await this.sweepAndRead();\n    if (read === null || this.superseded(press)) {\n',
+    to: '  private async readOnReturn(press: SwitchPress): Promise<void> {\n    const read = await this.sweepAndRead();\n    if (read === null) {\n',
+    needs: ['gate', 'return']
+  },
+  // The reverify (2026-10-08), its minor finding: Copy link wrote the text the
+  // program printed, and `https://login.tailscale.com\@evil.example/f/funnel`
+  // is login.tailscale.com to new URL and evil.example to an RFC 3986 parser.
+  // SU3 reads the spelling, and setup.test and funnel.test drive it.
+  {
+    n: 'SU41',
+    rule: 'SU3',
+    alsoRed: ['setup'],
+    name: 'Copy link writes the text the program printed',
+    why: 'a second person pastes the link into whatever reads it, and a backslash names login.tailscale.com to one parser and another host to the next; the link is written as new URL spells it (the 333.1 reverify).',
+    file: IPC,
+    from: '          const copied = approvalCopyText(link);\n          if (copied === null) return false;\n          seam.writeClipboard(copied);\n',
+    to: '          seam.writeClipboard(link);\n',
+    needs: ['gate', 'setup']
+  },
+  {
+    n: 'SU41b',
+    rule: 'SU3',
+    alsoRed: ['funnel', 'setup'],
+    name: 'approvalCopyText answers the printed text',
+    why: 'the one spelling Copy link writes would be the program’s own, which two parsers can read as two hosts (the 333.1 reverify).',
+    file: FUNNEL,
+    from: '  const href = new URL(text).href;\n  return href.startsWith(`https://${FUNNEL_APPROVAL_HOST}/`) ? href : null;\n',
+    to: '  return text;\n',
+    needs: ['gate', 'funnel', 'setup']
+  },
+  {
+    n: 'SU41c',
+    rule: 'SU3',
+    alsoRed: ['funnel'],
+    name: 'approvalCopyText asks no approvalOpens',
+    why: 'a link Tortie refuses to open (an explicit :443, which new URL drops) would be spelled for a person to send to someone (§Attack F9, the 333.1 reverify).',
+    file: FUNNEL,
+    from: '  if (text === null || !approvalOpens(text)) return null;\n  const href = new URL(text).href;\n',
+    to: '  if (text === null) return null;\n  const href = new URL(text).href;\n',
+    needs: ['gate', 'funnel']
   }
 ];
 
@@ -4695,7 +5399,7 @@ try {
   const base = runChecks();
   const baseRed = new Set(base.red);
   if (base.code === 0) {
-    say('base: the three checks are green, 0 rules red');
+    say(`base: the ${String(CHECKS.length)} checks are green, 0 rules red`);
   } else {
     say(`base: ALREADY RED on ${baseRed.size === 0 ? 'no numbered rule, so a check failed to run' : [...baseRed].join(', ')}`);
     for (const line of base.text.split('\n').filter((l) => l.includes('[p313 ')).slice(0, 8)) {

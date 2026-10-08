@@ -683,7 +683,16 @@ export const CHECKS = [
   // written holding every word of its 51 rows. MARKDOWN OFF (his ruling of
   // 2026-10-02): MD1 holds EVERY planted answer to one element drawn as
   // written, MD2 to no link element at all (the drive taps none), and PR each
-  // answer to the parent's, character for character.
+  // answer to the parent's, character for character. PHASE 333.1 adds the
+  // `setup` group (SE1 to SE8 and SEP, on by default, the floor runtime with
+  // it): the resting pairing face launched with no code (the seam left out),
+  // no camera before Scan code, every site row a button at least 44 points
+  // tall on Pairing and in Settings then About under 1.0.0 (8) (read LAST, the
+  // fix round), the Allow line under "could not reach" with the relay SHUT and
+  // none under a time-out with it HELD, a v:4 and a v:2 code made from a real
+  // window's code, SE1, SE2, SE3, SE5 and SE7 again on 18.3, and with
+  // P3331_PARENT_IOS the parent's own app and UI test (SEP). The UI drive
+  // presses no link, so Safari never opens and no request leaves the Simulator.
   // `--grader-self-test` grades every arm's fixtures and starts nothing.
   xcode(
     'probe:p316',
@@ -746,6 +755,24 @@ export const CHECKS = [
   // No phone, no agent, no token. `--grader-self-test` grades recorded fixtures
   // and starts nothing. P3332_PARENT_CHECKOUT reads the same arms at a parent.
   electron('probe:p3332'),
+  // PHASE 333.1's app run, and the parent measurement: a stranger's first run
+  // on the Mac, Settings then Phone's three steps and the return that reads
+  // Tailscale again by itself. ONE Electron at a time through
+  // build/electron-run.mjs's withElectron, the parent's first
+  // (P3331_PARENT_CHECKOUT, required) and then HEAD's, each on a scratch
+  // profile inside a harness directory, a scratch HOME and ZDOTDIR with
+  // HISTFILE=/dev/null and the socket gmux-p3331-<pid>, with
+  // build/p330/tailscale-standin.mjs behind its preflight and sampler (its
+  // setAbsent, selfUser, account and readDelayMs modes driven here),
+  // build/p332/dns-standin.mjs and build/p314/apns-stand-in.mjs IN THE PROBE'S
+  // OWN PROCESS on 127.0.0.1, main's UDP sampled with lsof every 2 s, two
+  // build/p316/node-phone.mjs phones, and build/hidden-agents.mjs before every
+  // launch. It presses the sheet's own switch, Allow, Try again and Pair and
+  // dispatches a return as the helper documents it; it NEVER presses Get
+  // Tailscale, Open Tailscale, Approve in Tailscale or Copy link and never
+  // calls pocket:setupAction. No agent, no token, no request off the Mac.
+  // `--grader-self-test` grades recorded fixtures and starts nothing.
+  electron('probe:p3331'),
   // PHASE 311's app run, and the only reading of what a blocked row SAYS. ONE
   // Electron on a scratch profile with a scratch HOME and the socket
   // gmux-p311-<pid>, over one git project it builds itself. The `claude` on that

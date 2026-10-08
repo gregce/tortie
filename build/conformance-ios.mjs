@@ -452,6 +452,47 @@
  *   userInfo inside keyboardOverlap; SCREEN_FILES and OWNER_CHECK_ABSENT gain
  *   the two new files. The build stays 7.
  *
+ *   PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.3; research 140
+ *   §8 row 3; his answers of 2026-10-07). One rule is new and four widen:
+ *
+ *   (av) THE SITE'S THREE ADDRESSES, THE CAMERA AFTER SCAN CODE, THE ALLOW LINE
+ *        AND THE TORTIE MARKER. av1 `enum SiteLink` once, in Markdown/Links.swift,
+ *        with exactly home, privacy and support and exactly three literals,
+ *        each https on tortie.sh at the root, /privacy or /support, with no
+ *        port, user, query or fragment, made with URL(string:) and never
+ *        forced; av2 no other `https://` literal in the app outside comments
+ *        and DEBUG; av3 ONE `struct SiteOpener`, the app's only SiteOpening,
+ *        its one `open` taking a SiteLink and asking `LinkPolicy.opens(`
+ *        before its one open; av4 the three types named outside Links.swift
+ *        only by the pairing screen and Settings; av5 `QRScanner(` built only
+ *        inside an `if` on `scanning` in the pairing screen, `scanning` set
+ *        true only in `startScanning()`, called only from Scan code's own
+ *        action, and `AVCaptureDevice.requestAccess(` once, in
+ *        `ScannerView.start()`; av6 no Copy word says beta, TestFlight, remote
+ *        desktop, mirror, stream or SSH; av7 the Allow line answered by
+ *        `DoorWords.reachNote(for:)` for Copy.cannotReachMac alone and asked
+ *        by FailureView alone; av8 THE MARKER (r2 §Attack F24):
+ *        `codeFromNewerMac` and `codeFromOlderMac` thrown only in
+ *        `PairingOffer.parse`, behind a guard naming fp, dk and dx and asking
+ *        `Base64URL.decode(` of fp, under a comparison with `version`, and no
+ *        number but 1 and 99 compared with `v`; av9 (the fix round) each of
+ *        the two screens' three site presses the one `Button(action: <press>)`
+ *        that names it, its label drawing its own Copy word first and the same
+ *        expression identified by its own ID (`SITE_PRESSES`), its body
+ *        exactly its own `site.open(.<case>)`, and no `site.open(` outside the
+ *        three, so a swap of two actions, which every gate and test passed,
+ *        is read.
+ *   (s)  the build is 8 (`PHONE_BUILD`), the build submitted to Beta App
+ *        Review, and its "not uploaded" fixtures 9.
+ *   (v)  also: the two new PairingFailure cases each draw a Copy sentence (the
+ *        rule reads the enum), and `reachNote` is `-> String?` with exactly two
+ *        returns, `Copy.reachAllowAgain` and `nil`.
+ *   (z)  says the app has TWO ways out, an answer's link behind its alert and
+ *        a page of Tortie's own site on a press, both in Links.swift; its
+ *        clauses do not move, and z4 now reads two opens there.
+ *   (p)  names one line more, the marker's decode in PairingOffer.parse,
+ *        which holds v, fp, dk and dx and never `ps`.
+ *
  * Every rule also proves its own scanner on texts it holds, before it reads a
  * file, so a scanner that stopped finding is never taken for a clean tree.
  *
@@ -923,9 +964,15 @@ export function ruleNoColourLiteral(name, source) {
   return findings;
 }
 
-/** The SwiftUI calls whose string arguments a person reads or hears. */
+/**
+ * The SwiftUI calls whose string arguments a person reads or hears. Since
+ * Phase 333.1's fix round `Words(`, the app's own text view, and `stepRow(`,
+ * the pairing screen's step row, are drawing calls too: a step's number
+ * handed to stepRow as a literal passed this rule while D28 said it was held
+ * to the step's position (the 333.1 verifier's M19).
+ */
 const VISIBLE_CALLS = new RegExp(
-  '(?<![A-Za-z0-9_.])(Text|Label|Button|Toggle|Link|Tab|TextField|SecureField|Section|Picker|Menu|NavigationLink|ProgressView|Stepper|LabeledContent|ContentUnavailableView|ShareLink|GroupBox|DisclosureGroup|LocalizedStringKey)\\s*\\(' +
+  '(?<![A-Za-z0-9_.])(Text|Label|Button|Toggle|Link|Tab|TextField|SecureField|Section|Picker|Menu|NavigationLink|ProgressView|Stepper|LabeledContent|ContentUnavailableView|ShareLink|GroupBox|DisclosureGroup|LocalizedStringKey|Words|stepRow)\\s*\\(' +
     '|\\.(navigationTitle|navigationSubtitle|accessibilityLabel|accessibilityHint|accessibilityValue|help|alert|confirmationDialog|badge|searchable|toolbarTitleMenu)\\s*\\(' +
     '|\\b(NSLocalizedString|String\\s*\\(\\s*localized)\\s*[(:]',
   'g'
@@ -2356,6 +2403,15 @@ export const KEY_NAMED = [
     why: 'the parse measures the code before it decodes it: a Bool and a count, nothing kept'
   },
   {
+    // Phase 333.1 (build/p3331/SPEC.md D24; r2 §Attack F24): THE TORTIE MARKER,
+    // read before the version so somebody else's code with an integer `v`
+    // never says which side to update.
+    file: 'Door/Pairing.swift',
+    line: 'let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),',
+    uses: 1,
+    why: "the parse decodes the code's marker into Marker, which holds v, fp, dk and dx and never `ps` (the decoder drops every key it does not declare), is never Encodable, and lives only for the guard and the two version comparisons after it; the secret is read only by the Wire decode below"
+  },
+  {
     file: 'Door/Pairing.swift',
     line: 'let wire = try? JSONDecoder().decode(Wire.self, from: Data(payload.utf8)) else {',
     uses: 1,
@@ -3006,8 +3062,11 @@ export const PHONE_BUNDLE_ID = 'com.itavero.tortie.phone';
  * 330's, so a build that did not move would be refused by App Store Connect
  * as a duplicate. The round that uploads the next build moves this with the
  * project, in the same commit (6 if Phase 316.7 lands first, SPEC §4.2 item 4).
+ * 1.0.0 (8) since Phase 333.1 (build/p3331/SPEC.md D26), the build submitted
+ * to Beta App Review; (7) is Phase 337.1's, and the "not uploaded" fixtures
+ * below are 9.
  */
-export const PHONE_BUILD = '7';
+export const PHONE_BUILD = '8';
 
 /** The asset catalog, relative to the app folder, and the one set it holds. */
 const ICON_CATALOG = 'Assets.xcassets';
@@ -6553,6 +6612,9 @@ const expect = (what, ok) => {
   expect('(b) leaves an SF Symbol name alone', ruleNoVisibleLiteral('F', 'Label(Copy.sessions, systemImage: "gearshape")\n').length === 0);
   expect('(b) leaves an identifier alone', ruleNoVisibleLiteral('F', 'x.accessibilityIdentifier("row-name")\n').length === 0);
   expect('(b) catches a sentence outside a Text', ruleNoVisibleLiteral('F', 'let why = "Your Mac did not answer."\n').length > 0);
+  expect('(b) catches a literal in Words(', ruleNoVisibleLiteral('F', 'Words("Scan code", .body, Tokens.accent)\n').length > 0);
+  expect('(b) catches a literal step number handed to stepRow', ruleNoVisibleLiteral('F', 'stepRow("1", Copy.setupGetMac, detail: nil)\n').length > 0);
+  expect('(b) leaves a step row drawn from its place alone', ruleNoVisibleLiteral('F', 'stepRow(placed.place, Copy.setupGetMac, detail: nil)\n').length === 0);
   expect('(c) catches URLSession anywhere in the app', ruleNoUrlLoading('F', 'let s = URLSession.shared\n').length > 0);
   expect('(c) catches URLSession in the door client too', ruleNoUrlLoading('Door/DoorClient.swift', 'let r = URLRequest(url: u)\n').length > 0);
   expect('(c) catches a proxy configuration', ruleNoUrlLoading('F', 'var p = ProxyConfiguration(socksv5Proxy: e)\n').length > 0);
@@ -7181,8 +7243,8 @@ const expect = (what, ok) => {
   expect('(s) catches a team set by an xcconfig', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length > 0);
   expect('(s) leaves an xcconfig comment alone', sRun(pbxSign(), [{ name: 'S.xcconfig', text: `// DEVELOPMENT_TEAM = ${RELEASE_TEAM}\n` }]).length === 0);
   expect('(s) catches another bundle id', sRun(pbxSign({ appRelease: his + identity.replace('com.itavero.tortie.phone;', 'com.itavero.tortie.phone2;') })).length > 0);
-  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 8;') })).length > 0);
-  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 8;');
+  expect('(s) catches versions that disagree', sRun(pbxSign({ appRelease: his + identity.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 9;') })).length > 0);
+  const nextBuild = (text) => text.replace(`CURRENT_PROJECT_VERSION = ${PHONE_BUILD};`, 'CURRENT_PROJECT_VERSION = 9;');
   expect('(s) catches the app at a build this round does not upload, even when Debug and Release agree', sRun(pbxSign({ appDebug: adHoc + nextBuild(identity), appRelease: his + nextBuild(identity) })).length > 0);
   expect('(s) catches a test bundle at another build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = 2;\n` })).length > 0);
   expect('(s) accepts a test bundle at this build', sRun(pbxSign({ testRelease: `${adHoc}        CURRENT_PROJECT_VERSION = ${PHONE_BUILD};\n` })).length === 0);
@@ -10275,6 +10337,387 @@ export function ruleHostileScrollbackArms(hostile, copy) {
   return { findings, said };
 }
 
+// ---------------------------------------------------------------------------
+// Phase 333.1: a stranger's first run (build/p3331/SPEC.md §6.3)
+// ---------------------------------------------------------------------------
+//
+// THE SECOND WAY OUT OF THE APP. Until this phase the app handed iOS an address
+// in two places: an answer's link behind its alert (Links.swift, rule z) and
+// iOS's own notification settings (Settings, z5). Now a person's press on Get
+// Tortie for Mac, Privacy or Support opens a page of Tortie's own site, so the
+// app holds three compiled addresses and one opener, and nothing an answer, a
+// code or the door sent can reach either. And the first screen builds the
+// camera only after Scan code, says a shut door may want Allow on the Mac, and
+// reads a code's version only behind the marker every Tortie code carries.
+// Each of those is one line a later round can move, and (av) holds them.
+
+/** The three pages of Tortie's own site the app may open (D21), by case. */
+export const SITE_ADDRESSES = Object.freeze({ home: 'https://tortie.sh', privacy: 'https://tortie.sh/privacy', support: 'https://tortie.sh/support' });
+/** The two screens that may name the site's types besides Links.swift (D21, av4). */
+export const SITE_SCREENS = Object.freeze(['Screens/PairingScreen.swift', 'Screens/SettingsScreen.swift']);
+/** av6, and conformance:pocket SU9 over the Mac's words (D29): word-bounded, case-insensitive. */
+export const REFUSED_DRAWN_WORDS = Object.freeze([/\bbeta\b/i, /\btestflight\b/i, /\bremote desktop\b/i, /\bmirror(?:s|ed|ing)?\b/i, /\bstream(?:s|ed|ing)?\b/i, /\bssh\b/i]);
+/** The pairing screen, relative to the app folder, where the camera is built (av5). */
+const PAIRING_SCREEN_FILE = 'Screens/PairingScreen.swift';
+
+/** Every `struct|class|enum|actor|extension NAME: … {` header whose inheritance list names `proto`, over bare text. */
+function conformersOf(bare, proto) {
+  const out = [];
+  for (const m of bare.matchAll(/\b(struct|class|enum|actor|extension)\s+([A-Za-z_]\w*)\s*(?:<[^>{]*>)?\s*:\s*([^{]*)\{/g)) {
+    if (new RegExp(`(?:^|[\\s,&])${proto}(?![\\w])`).test(m[3])) out.push({ kind: m[1], name: m[2], at: m.index, open: m.index + m[0].length - 1 });
+  }
+  return out;
+}
+
+/** The blocks enclosing `index`, innermost first, each as `{ open, header }`. */
+function enclosingBlocks(bare, index) {
+  const out = [];
+  let k = innermostOpener(bare, index);
+  while (k !== -1) {
+    if (bare[k] === '{') out.push({ open: k, header: blockHeader(bare, k) });
+    k = innermostOpener(bare, k);
+  }
+  return out;
+}
+
+/** Rule (av), pure over the app's Swift files named relative to the app folder. */
+export function ruleSite(files) {
+  const findings = [];
+  const said = { cases: [], addresses: 0, conformers: [], scanners: 0, asks: 0, words: 0, notes: 0, newer: 0, older: 0 };
+  const lexed = files.map((f) => ({ ...f, lx: lexSwift(f.source) }));
+  const at = (f, i) => `${f.name}:${String(lineOf(f.lx.bare, i))}`;
+  const links = lexed.find((f) => f.name === LINKS_FILE);
+  let siteSpan = null;
+
+  // av1: the one enum, its three cases and its three addresses.
+  const enums = lexed.flatMap((f) => typeSpans(f.lx.bare).filter((t) => t.name === 'SiteLink' && t.kind === 'enum').map((t) => ({ f, t })));
+  if (enums.length !== 1 || enums[0].f !== links) {
+    findings.push(`enum SiteLink is declared ${String(enums.length)} time(s)${enums.length === 0 ? '' : `, in ${enums.map((e) => e.f.name).join(', ')}`}; ONCE, in ${LINKS_FILE}, beside the gate it is not (av1)`);
+  }
+  if (links !== undefined && enums.length > 0 && enums[0].f === links) {
+    const bare = links.lx.bare;
+    siteSpan = enums[0].t;
+    const cases = enumCases(links.source, 'SiteLink') ?? [];
+    said.cases = cases;
+    if (JSON.stringify([...cases].sort()) !== JSON.stringify(Object.keys(SITE_ADDRESSES).sort())) findings.push(`enum SiteLink's cases are ${JSON.stringify(cases)}; exactly home, privacy and support, the three pages the app may open (av1)`);
+    const inside = links.lx.strings.filter((s) => s.start > siteSpan.open && s.end <= siteSpan.close);
+    said.addresses = inside.length;
+    if (inside.length !== 3) findings.push(`enum SiteLink holds ${String(inside.length)} string literal(s); exactly three, its three addresses (av1)`);
+    for (const s of inside) {
+      let u = null;
+      try {
+        u = new URL(s.value);
+      } catch {
+        u = null;
+      }
+      const why =
+        u === null
+          ? 'is not an address'
+          : u.protocol !== 'https:'
+            ? `is ${u.protocol.replace(/:$/, '')}, not https`
+            : u.hostname !== 'tortie.sh'
+              ? `names the host ${u.hostname}, not tortie.sh`
+              : u.port !== ''
+                ? `names the port ${u.port}`
+                : u.username !== '' || u.password !== ''
+                  ? 'carries a user or a password'
+                  : u.search !== ''
+                    ? `carries the query ${u.search}`
+                    : u.hash !== ''
+                      ? `carries the fragment ${u.hash}`
+                      : !Object.values(SITE_ADDRESSES).includes(s.value)
+                        ? 'is not one of https://tortie.sh, https://tortie.sh/privacy and https://tortie.sh/support, written plainly'
+                        : null;
+      if (why !== null) findings.push(`${at(links, s.start)} SiteLink's address ${JSON.stringify(s.value)} ${why}; the three are https on tortie.sh at the root, /privacy and /support, with nothing else (av1)`);
+      if (!/\bURL\s*\(\s*string\s*:\s*$/.test(bare.slice(Math.max(0, s.start - 40), s.start))) findings.push(`${at(links, s.start)} SiteLink's address is not made with URL(string:), so a nil it answers is not one that opens nothing (av1)`);
+    }
+    for (const m of bare.slice(siteSpan.open, siteSpan.close).matchAll(/(?<=[\w)\]"])\s*!(?!=)/g)) {
+      findings.push(`${at(links, siteSpan.open + m.index)} SiteLink forces an address with !; one that cannot be made is nil and opens nothing (av1, y3)`);
+    }
+  } else if (links === undefined) {
+    findings.push(`${LINKS_FILE} does not exist, so the site's three addresses cannot be read (av1)`);
+  }
+
+  // av2: no other https:// literal in the app, outside comments and DEBUG.
+  for (const f of lexed) {
+    const debug = debugLines(f.lx.code);
+    for (const s of f.lx.strings) {
+      if (!/https:\/\//i.test(s.value)) continue;
+      if (f === links && siteSpan !== null && s.start > siteSpan.open && s.end <= siteSpan.close) continue;
+      if (debug[lineOf(f.lx.bare, s.start)] === true) continue;
+      findings.push(`${at(f, s.start)} holds the address ${JSON.stringify(s.value.slice(0, 60))}; the app's only https:// literals are SiteLink's three (av2)`);
+    }
+  }
+
+  // av3: one opener, the only conformer, a SiteLink in and the policy asked before the one open.
+  const protocols = lexed.flatMap((f) => typeSpans(f.lx.bare).filter((t) => t.kind === 'protocol' && t.name === 'SiteOpening').map((t) => ({ f, t })));
+  if (protocols.length !== 1 || protocols[0].f !== links) findings.push(`protocol SiteOpening is declared ${String(protocols.length)} time(s); ONCE, in ${LINKS_FILE} (av3)`);
+  const conformers = lexed.flatMap((f) => conformersOf(f.lx.bare, 'SiteOpening').map((c) => ({ f, c })));
+  said.conformers = conformers.map((x) => `${x.f.name}:${x.c.name}`);
+  if (conformers.length !== 1 || conformers[0].f !== links || conformers[0].c.name !== 'SiteOpener' || conformers[0].c.kind !== 'struct') {
+    findings.push(`the app's types conforming to SiteOpening are ${JSON.stringify(said.conformers)}; exactly one, struct SiteOpener in ${LINKS_FILE} (a test's fake lives under ios/TortieTests/) (av3)`);
+  }
+  if (links !== undefined) {
+    const bare = links.lx.bare;
+    const opener = typeSpans(bare).find((t) => t.kind === 'struct' && t.name === 'SiteOpener');
+    if (opener === undefined) findings.push(`${LINKS_FILE} declares no struct SiteOpener (av3)`);
+    else {
+      const opens = funcSpans(bare).filter((fn) => fn.name === 'open' && fn.at > opener.open && fn.at < opener.close);
+      if (opens.length !== 1) findings.push(`struct SiteOpener declares open ${String(opens.length)} time(s); once (av3)`);
+      for (const fn of opens) {
+        if (!/^\s*(?:_\s+)?[A-Za-z_]\w*\s*:\s*SiteLink\s*$/.test(fn.params)) findings.push(`${at(links, fn.at)} SiteOpener.open takes (${fn.params.trim()}); exactly one parameter, a SiteLink, never a URL or a String (av3)`);
+        const body = fn.bodyOpen === -1 ? '' : bare.slice(fn.bodyOpen, fn.bodyClose);
+        const opensIn = [...body.matchAll(OPENS)];
+        const ask = /\bLinkPolicy\s*\.\s*opens\s*\(/.exec(body);
+        if (opensIn.length !== 1) findings.push(`${at(links, fn.at)} SiteOpener.open calls UIApplication.shared.open( ${String(opensIn.length)} time(s); once (av3)`);
+        else if (ask === null || ask.index > opensIn[0].index) findings.push(`${at(links, fn.at)} SiteOpener.open does not ask LinkPolicy.opens( before its one open, so an address that is not Tortie's could be handed to iOS (av3, z4)`);
+      }
+    }
+  }
+
+  // av4: the site's types named only where a press opens one.
+  for (const f of lexed) {
+    if (f === links) continue;
+    for (const m of f.lx.bare.matchAll(/\b(SiteLink|SiteOpener|SiteOpening)\b/g)) {
+      if (!SITE_SCREENS.includes(f.name)) findings.push(`${at(f, m.index)} names ${m[1]}; only ${LINKS_FILE}, ${SITE_SCREENS.join(' and ')} name Tortie's own site (av4)`);
+    }
+  }
+
+  // av5: the camera built only after Scan code, and asked for once.
+  for (const f of lexed) {
+    for (const m of f.lx.bare.matchAll(/(?<![\w.])QRScanner\s*\(/g)) {
+      if (/\bstruct\s+$/.test(f.lx.bare.slice(Math.max(0, m.index - 10), m.index))) continue;
+      said.scanners += 1;
+      const guarded = f.name === PAIRING_SCREEN_FILE && enclosingBlocks(f.lx.bare, m.index).some((b) => /^\s*(?:\}\s*else\s+)?if\b[^{]*\bscanning\b/.test(b.header));
+      if (!guarded) findings.push(`${at(f, m.index)} builds QRScanner( outside the braces of an if on scanning in ${PAIRING_SCREEN_FILE}, so iOS asks for the camera before Scan code (av5)`);
+    }
+  }
+  if (said.scanners === 0) findings.push(`no app file builds QRScanner(, so the camera this rule holds to Scan code is not read (av5)`);
+  const screen = lexed.find((f) => f.name === PAIRING_SCREEN_FILE);
+  if (screen === undefined) findings.push(`${PAIRING_SCREEN_FILE} does not exist (av5)`);
+  else {
+    const pf = { ...screen, ...screen.lx, types: typeSpans(screen.lx.bare), funcs: funcSpans(screen.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+    for (const f of lexed) {
+      // A dotted write (`model.scanning = true`) is a write too.
+      for (const m of f.lx.bare.matchAll(/(?<!\w)scanning\s*=(?!=)\s*([^\n;]*)/g)) {
+        const decl = /\bvar\s+$/.test(f.lx.bare.slice(Math.max(0, m.index - 6), m.index));
+        if (decl) continue;
+        const where_ = f === screen ? placeOf(pf, m.index) : { fn: null };
+        if (f !== screen || where_.fn !== 'startScanning' || m[1].trim() !== 'true') findings.push(`${at(f, m.index)} sets scanning = ${m[1].trim()} in ${where_.fn ?? 'no function'}; it becomes true in startScanning() and nowhere else (av5)`);
+      }
+    }
+    const starts = [];
+    for (const f of lexed) for (const m of f.lx.bare.matchAll(/(?<![\w])startScanning\s*\(/g)) if (!isDecl(f.lx.bare, m.index)) starts.push({ f, i: m.index });
+    if (starts.length === 0) findings.push(`nothing calls startScanning(), so Scan code opens no camera (av5)`);
+    for (const { f, i } of starts) {
+      const blocks = f === screen ? enclosingBlocks(f.lx.bare, i) : [];
+      const action = blocks[0];
+      let ok = false;
+      if (action !== undefined && /\bButton\s*$/.test(action.header)) {
+        const close = matchForward(f.lx.bare, action.open);
+        const tail = close === -1 ? '' : f.lx.bare.slice(close + 1, close + 400);
+        const label = /^\s*label\s*:\s*\{/.exec(tail);
+        if (label !== null) {
+          const lOpen = close + 1 + label.index + label[0].length - 1;
+          const lClose = matchForward(f.lx.bare, lOpen);
+          ok = /\bCopy\s*\.\s*scanCode\b/.test(f.lx.bare.slice(lOpen, lClose === -1 ? lOpen : lClose));
+        }
+      }
+      if (!ok) findings.push(`${at(f, i)} calls startScanning() outside the Scan code button's own action (a Button whose label draws Copy.scanCode), so the camera can open before the press (av5)`);
+    }
+  }
+  const asks = lexed.flatMap((f) => [...f.lx.bare.matchAll(/\bAVCaptureDevice\s*\.\s*requestAccess\s*\(/g)].map((m) => ({ f, i: m.index })));
+  said.asks = asks.length;
+  if (asks.length !== 1) findings.push(`AVCaptureDevice.requestAccess( is named ${String(asks.length)} time(s) in the app; once, in ScannerView.start(), so nothing asks for the camera before the scanner is built (av5)`);
+  for (const { f, i } of asks) {
+    const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+    const p = placeOf(pf, i);
+    if (p.type !== 'ScannerView' || p.fn !== 'start') findings.push(`${at(f, i)} asks for the camera in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only ScannerView.start(), which only the built scanner reaches (av5)`);
+  }
+
+  // av6: no Copy word says what his answer refuses.
+  const copy = lexed.find((f) => f.name === 'Style/Copy.swift');
+  if (copy === undefined) findings.push('Style/Copy.swift does not exist (av6)');
+  else {
+    for (const s of copy.lx.strings) {
+      said.words += 1;
+      for (const re of REFUSED_DRAWN_WORDS) {
+        const m = re.exec(s.value);
+        if (m !== null) findings.push(`${at(copy, s.start)} Copy says ${JSON.stringify(m[0])} in ${JSON.stringify(s.value.slice(0, 60))}; every word says terminal, and never beta, TestFlight, remote desktop, mirror, stream or SSH (av6; his answer (3), research 140 §10)`);
+      }
+    }
+  }
+
+  // av7: the Allow line, under "could not reach" alone, drawn by FailureView alone.
+  for (const f of lexed) {
+    for (const m of f.lx.bare.matchAll(/\breachAllowAgain\b/g)) {
+      if (f.name === 'Style/Copy.swift') continue;
+      const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+      const p = placeOf(pf, m.index);
+      if (f.name !== 'Screens/DoorWords.swift' || p.fn !== 'reachNote') findings.push(`${at(f, m.index)} names Copy.reachAllowAgain in ${p.fn ?? 'no function'}; only DoorWords.reachNote(for:) answers it (av7)`);
+    }
+  }
+  const words = lexed.find((f) => f.name === 'Screens/DoorWords.swift');
+  const note = words === undefined ? null : funcSpans(words.lx.bare).find((fn) => fn.name === 'reachNote' && fn.bodyOpen !== -1) ?? null;
+  if (note === null) findings.push('Screens/DoorWords.swift declares no reachNote(for:) with a body (av7)');
+  else {
+    const body = words.lx.bare.slice(note.bodyOpen, note.bodyClose);
+    const named = [...new Set([...body.matchAll(/\bCopy\s*\.\s*(\w+)/g)].map((m) => m[1]))].sort();
+    if (JSON.stringify(named) !== JSON.stringify(['cannotReachMac', 'reachAllowAgain']) || !/==\s*Copy\s*\.\s*cannotReachMac\b|\bCopy\s*\.\s*cannotReachMac\s*==/.test(body)) {
+      findings.push(`${at(words, note.at)} reachNote names Copy.${named.join(', Copy.') || '(nothing)'}; it compares with Copy.cannotReachMac and answers Copy.reachAllowAgain, and nil for every other sentence (av7)`);
+    }
+  }
+  for (const f of lexed) {
+    for (const m of f.lx.bare.matchAll(/\b(?:DoorWords\s*\.\s*)?reachNote\s*\(\s*for\s*:/g)) {
+      if (isDecl(f.lx.bare, m.index)) continue;
+      said.notes += 1;
+      const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+      if (f.name !== 'Screens/Pieces.swift' || placeOf(pf, m.index).type !== 'FailureView') findings.push(`${at(f, m.index)} asks reachNote(for:) outside Screens/Pieces.swift's FailureView; the Allow line is drawn under a failure's sentence and nowhere else (av7)`);
+    }
+  }
+  if (said.notes === 0) findings.push('nothing asks DoorWords.reachNote(for:), so the Allow line is drawn nowhere (av7)');
+
+  // av8: THE TORTIE MARKER before the version (r2 §Attack F24).
+  const pairing = lexed.find((f) => f.name === 'Door/Pairing.swift');
+  for (const f of lexed) {
+    for (const m of f.lx.bare.matchAll(/\bthrow\s+(?:PairingFailure)?\s*\.\s*(codeFromNewerMac|codeFromOlderMac)\b/g)) {
+      const pf = { ...f.lx, types: typeSpans(f.lx.bare), funcs: funcSpans(f.lx.bare).filter((fn) => fn.bodyOpen !== -1) };
+      const p = placeOf(pf, m.index);
+      if (m[1] === 'codeFromNewerMac') said.newer += 1;
+      else said.older += 1;
+      if (f !== pairing || p.type !== 'PairingOffer' || p.fn !== 'parse') {
+        findings.push(`${at(f, m.index)} throws ${m[1]} in ${p.type ?? 'no type'}.${p.fn ?? 'no function'}; only PairingOffer.parse says which side to update (av8)`);
+        continue;
+      }
+      const parse = pf.funcs.find((fn) => fn.name === 'parse' && m.index > fn.bodyOpen && m.index < fn.bodyClose);
+      const before = f.lx.bare.slice(parse.bodyOpen, m.index);
+      const guards = [...before.matchAll(/\bguard\b([\s\S]*?)\belse\s*\{/g)].map((g) => g[1]);
+      const marker = guards.some((g) => /\bfp\b/.test(g) && /\bdk\b/.test(g) && /\bdx\b/.test(g) && /\bBase64URL\s*\.\s*decode\s*\([^)]*\bfp\b/.test(g));
+      if (!marker) findings.push(`${at(f, m.index)} throws ${m[1]} with no guard before it naming fp, dk and dx and asking Base64URL.decode( of fp, so somebody else's code with an integer v says to update Tortie (av8, r2 §Attack F24)`);
+      const lineStart = f.lx.bare.lastIndexOf('\n', m.index) + 1;
+      const cond = /\bif\b([^{]*)\{\s*$/.exec(f.lx.bare.slice(lineStart, m.index));
+      if (cond === null || !/(?:\bSelf\s*\.\s*|\bPairingOffer\s*\.\s*|(?<![\w.]))version\b/.test(cond[1])) findings.push(`${at(f, m.index)} throws ${m[1]} under no comparison with version (Self.version or PairingOffer.version), so the arm is not about this app's version (av8)`);
+    }
+  }
+  if (said.newer === 0 || said.older === 0) findings.push(`PairingOffer.parse throws codeFromNewerMac ${String(said.newer)} and codeFromOlderMac ${String(said.older)} time(s); each at least once, so a code from another version says which side to update (av8)`);
+  if (pairing !== undefined) {
+    const parse = funcSpans(pairing.lx.bare).find((fn) => fn.name === 'parse' && fn.bodyOpen !== -1 && typeSpans(pairing.lx.bare).some((t) => t.name === 'PairingOffer' && fn.at > t.open && fn.at < t.close));
+    const body = parse === undefined ? '' : pairing.lx.bare.slice(parse.bodyOpen, parse.bodyClose);
+    for (const m of body.matchAll(/(?:(?<![\w.])|\.)v\s*(?:==|!=|<=|>=|<|>)\s*(\d+)|(\d+)\s*(?:==|!=|<=|>=|<|>)\s*(?:[\w.]*\.)?v(?![\w])/g)) {
+      const n = m[1] ?? m[2];
+      if (n !== '1' && n !== '99') findings.push(`${at(pairing, parse.bodyOpen + m.index)} compares v with ${n}; only 1 and 99 are written, and this app's version is PairingOffer.version, never a number (av8)`);
+    }
+  }
+  return { findings, said };
+}
+
+/**
+ * (av9), Phase 333.1's fix round: EACH SITE PRESS IS DRAWN BY ITS OWN WORDS.
+ * The verifier swapped the pairing screen's Privacy and Support actions and
+ * every gate and test stayed green, because each method was still named by
+ * exactly one Button: Privacy then opened the support page. So each press is
+ * read as one triple in one expression, the Button's action, the first Copy
+ * word its label draws and the identifier set on that same Button, and the
+ * method's body is exactly its own `site.open(.<case>)`.
+ */
+export const SITE_PRESSES = Object.freeze({
+  'Screens/PairingScreen.swift': Object.freeze([
+    Object.freeze({ method: 'openMacSite', link: 'home', copy: 'setupGetMac', id: 'pairingGetMac' }),
+    Object.freeze({ method: 'openPrivacy', link: 'privacy', copy: 'privacy', id: 'pairingPrivacy' }),
+    Object.freeze({ method: 'openSupport', link: 'support', copy: 'support', id: 'pairingSupport' })
+  ]),
+  'Screens/SettingsScreen.swift': Object.freeze([
+    Object.freeze({ method: 'openMacSite', link: 'home', copy: 'macOnSite', id: 'settingsMacSite' }),
+    Object.freeze({ method: 'openPrivacy', link: 'privacy', copy: 'privacy', id: 'settingsPrivacy' }),
+    Object.freeze({ method: 'openSupport', link: 'support', copy: 'support', id: 'settingsSupport' })
+  ])
+});
+
+/** The modifiers chained from `end` on, each `{ name, args }`, up to the first token that is not `.name(…)`. */
+function modifiersAfter(bare, end) {
+  const out = [];
+  let k = end;
+  for (;;) {
+    const m = /^\s*\.\s*([A-Za-z_]\w*)\s*\(/.exec(bare.slice(k, k + 240));
+    if (m === null) return out;
+    const open = k + m[0].length - 1;
+    const close = closeParen(bare, open);
+    if (close === -1) return out;
+    out.push({ name: m[1], args: bare.slice(open + 1, close) });
+    k = close + 1;
+  }
+}
+
+/** Rule (av)'s ninth clause, pure over the app's Swift files named relative to the app folder. */
+export function ruleSitePresses(files) {
+  const findings = [];
+  const said = { presses: [] };
+  for (const [name, presses] of Object.entries(SITE_PRESSES)) {
+    const f = files.find((x) => x.name === name);
+    if (f === undefined) {
+      findings.push(`${name} does not exist, so its site presses are not read (av9)`);
+      continue;
+    }
+    const { bare } = lexSwift(f.source);
+    const at = (i) => `${name}:${String(lineOf(bare, i))}`;
+    const bodies = [];
+    for (const p of presses) {
+      const decls = [...bare.matchAll(new RegExp(`\\bfunc\\s+${p.method}\\s*\\(\\s*\\)\\s*\\{`, 'g'))];
+      if (decls.length !== 1) {
+        findings.push(`${name} declares func ${p.method}() ${String(decls.length)} time(s); once, the press its one Button names (av9)`);
+        continue;
+      }
+      const open = decls[0].index + decls[0][0].length - 1;
+      const close = matchForward(bare, open);
+      bodies.push([open, close]);
+      const body = close === -1 ? '' : bare.slice(open + 1, close).replace(/\s+/g, '');
+      if (body !== `site.open(.${p.link})`) {
+        findings.push(`${at(decls[0].index)} ${p.method}'s body is ${JSON.stringify(body.slice(0, 60))}; exactly site.open(.${p.link}), its own page and nothing else (av9)`);
+      }
+      const buttons = [...bare.matchAll(new RegExp(`\\bButton\\s*\\(\\s*action\\s*:\\s*${p.method}\\s*\\)`, 'g'))];
+      if (buttons.length !== 1) {
+        findings.push(`${name} names ${p.method} in ${String(buttons.length)} Button(action:) expression(s); exactly one, drawn by its own words (av9)`);
+        continue;
+      }
+      const after = buttons[0].index + buttons[0][0].length;
+      const labelOpen = after + Math.max(0, bare.slice(after).search(/\S/));
+      if (bare[labelOpen] !== '{') {
+        findings.push(`${at(buttons[0].index)} Button(action: ${p.method}) draws no label of its own, so nothing says which page it opens (av9)`);
+        continue;
+      }
+      const labelClose = matchForward(bare, labelOpen);
+      const label = labelClose === -1 ? '' : bare.slice(labelOpen, labelClose + 1);
+      const word = /\bCopy\s*\.\s*([A-Za-z_]\w*)/.exec(label)?.[1] ?? null;
+      if (word !== p.copy) {
+        findings.push(`${at(buttons[0].index)} Button(action: ${p.method}) draws Copy.${word ?? '(nothing)'} first; ${p.method} opens the ${p.link} page and is drawn by Copy.${p.copy}, so the words a person presses say the page they get (av9)`);
+      }
+      const ids = (labelClose === -1 ? [] : modifiersAfter(bare, labelClose + 1)).filter((x) => x.name === 'accessibilityIdentifier').map((x) => x.args.replace(/\s+/g, ''));
+      if (ids.length !== 1 || ids[0] !== `ID.${p.id}`) {
+        findings.push(`${at(buttons[0].index)} Button(action: ${p.method}) is identified ${JSON.stringify(ids)} on its own expression; exactly ID.${p.id} (av9)`);
+      }
+      said.presses.push(`${name.replace(/^Screens\//, '')} ${p.method}: .${p.link}, Copy.${word ?? '(nothing)'}, ${ids.join(' ') || 'no id'}`);
+    }
+    for (const m of bare.matchAll(/\bsite\s*\.\s*open\s*\(/g)) {
+      if (!bodies.some(([o, c]) => m.index > o && (c === -1 || m.index < c))) findings.push(`${at(m.index)} opens a page of the site outside its three presses (av9)`);
+    }
+  }
+  return { findings, said };
+}
+
+/** Rule (v), widened by Phase 333.1 (D23): reachNote is optional, and answers the Allow line or nil. */
+export function ruleReachNote(words) {
+  const findings = [];
+  if (words === null) return ['Screens/DoorWords.swift does not exist'];
+  const w = lexSwift(words);
+  const decl = /\bstatic\s+func\s+reachNote\s*\(\s*for\s+\w+\s*:\s*String\s*\)\s*->\s*([^{]+)\{/.exec(w.bare);
+  if (decl === null) return ['Screens/DoorWords.swift declares no static func reachNote(for: String)'];
+  if (decl[1].trim() !== 'String?') findings.push(`Screens/DoorWords.swift's reachNote returns ${decl[1].trim()}; it returns String?, nil being no line at all`);
+  const body = bodyAfter(w.bare, decl.index);
+  const returns = [...body.matchAll(/\breturn\s+([^\n;}]+)/g)].map((m) => m[1].replace(/\s+/g, ''));
+  if (JSON.stringify([...returns].sort()) !== JSON.stringify(['Copy.reachAllowAgain', 'nil'])) findings.push(`Screens/DoorWords.swift's reachNote returns ${JSON.stringify(returns)}; exactly two returns, Copy.reachAllowAgain and nil (D23)`);
+  return findings;
+}
+
 // The Phase 337 scanners, proved on texts this file holds, before any file is read.
 {
   const sel = (src) => [{ name: SELECTION_FILE, source: src }];
@@ -10674,6 +11117,243 @@ export function ruleHostileScrollbackArms(hostile, copy) {
   expect('(t) catches an arm expecting a word Copy.swift lacks', tSb(hostileSb, 'static let other = "x"\n') > 0);
 }
 
+// The Phase 333.1 scanners, (av) and (v)'s Allow line, proved on texts this file holds.
+{
+  const fixSwap = (label, text, from, to) => {
+    if (!text.includes(from)) selfFailures.push(`${label} fixture holds no ${JSON.stringify(from.slice(0, 60))}`);
+    return text.replace(from, to);
+  };
+  const linksAv = [
+    'import Foundation',
+    'import SwiftUI',
+    'import UIKit',
+    'enum LinkPolicy {',
+    '    static func opens(_ url: URL) -> Bool { url.scheme == "https" }',
+    '}',
+    'enum SiteLink: CaseIterable {',
+    '    case home, privacy, support',
+    '    var address: URL? {',
+    '        switch self {',
+    '        case .home: URL(string: "https://tortie.sh")',
+    '        case .privacy: URL(string: "https://tortie.sh/privacy")',
+    '        case .support: URL(string: "https://tortie.sh/support")',
+    '        }',
+    '    }',
+    '}',
+    '@MainActor',
+    'protocol SiteOpening {',
+    '    func open(_ link: SiteLink)',
+    '}',
+    'struct SiteOpener: SiteOpening {',
+    '    func open(_ link: SiteLink) {',
+    '        guard let url = link.address, LinkPolicy.opens(url) else { return }',
+    '        UIApplication.shared.open(url)',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const screenAv = [
+    'final class PairingModel {',
+    '    private(set) var scanning = false',
+    '    func startScanning() {',
+    '        scanning = true',
+    '    }',
+    '}',
+    'struct PairingScreen: View {',
+    '    let model: PairingModel',
+    '    let site: any SiteOpening',
+    '    init(model: PairingModel, site: any SiteOpening = SiteOpener()) { self.model = model; self.site = site }',
+    '    func openMacSite() {',
+    '        site.open(.home)',
+    '    }',
+    '    var body: some View {',
+    '        VStack {',
+    '            if model.scanning {',
+    '                scanner(QRScanner(active: true) { code in',
+    '                    Task { await model.read(code) }',
+    '                })',
+    '            } else {',
+    '                scanButton',
+    '            }',
+    '        }',
+    '    }',
+    '    private var scanButton: some View {',
+    '        Button {',
+    '            model.startScanning()',
+    '        } label: {',
+    '            Words(Copy.scanCode, .body, Tokens.accent)',
+    '        }',
+    '    }',
+    '}',
+    'struct QRScanner: UIViewRepresentable {',
+    '    let active: Bool',
+    '}',
+    'final class ScannerView: UIView {',
+    '    func start() {',
+    '        AVCaptureDevice.requestAccess(for: .video) { granted in }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const copyAv = [
+    'enum Copy {',
+    '    /// Phone: the first step.',
+    '    static let setupGetMac = "Get Tortie for Mac"',
+    '    /// Phone: could not reach.',
+    '    static let cannotReachMac = "Tortie could not reach your Mac."',
+    '    /// Phone: the Allow line.',
+    '    static let reachAllowAgain = "If Tortie on your Mac just updated, press Allow in its Settings then Phone."',
+    '}',
+    ''
+  ].join('\n');
+  const wordsAv = [
+    'enum DoorWords {',
+    '    static func reachNote(for sentence: String) -> String? {',
+    '        if sentence == Copy.cannotReachMac {',
+    '            return Copy.reachAllowAgain',
+    '        }',
+    '        return nil',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const piecesAv = [
+    'struct FailureView: View {',
+    '    let sentence: String',
+    '    var body: some View {',
+    '        VStack {',
+    '            if let note = DoorWords.reachNote(for: sentence) {',
+    '                Words(note, .secondary, Tokens.textSecondary, lines: nil)',
+    '            }',
+    '        }',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const pairingAv = [
+    'struct PairingOffer {',
+    '    static let version = 3',
+    '    private struct Marker: Decodable {',
+    '        let v: Int',
+    '        let fp: String?',
+    '        let dk: String?',
+    '        let dx: String?',
+    '    }',
+    '    static func parse(_ payload: String) throws -> PairingOffer {',
+    '        guard !payload.isEmpty,',
+    '              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),',
+    '              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,',
+    '              marker.dk != nil, marker.dx != nil else {',
+    '            throw PairingFailure.badCode',
+    '        }',
+    '        if marker.v > version && marker.v <= 99 { throw PairingFailure.codeFromNewerMac }',
+    '        if marker.v >= 1 && marker.v < version { throw PairingFailure.codeFromOlderMac }',
+    '        guard marker.v == version else { throw PairingFailure.badCode }',
+    '        return PairingOffer()',
+    '    }',
+    '}',
+    ''
+  ].join('\n');
+  const avFiles = (edits = {}) =>
+    Object.entries({ [LINKS_FILE]: linksAv, [PAIRING_SCREEN_FILE]: screenAv, 'Style/Copy.swift': copyAv, 'Screens/DoorWords.swift': wordsAv, 'Screens/Pieces.swift': piecesAv, 'Door/Pairing.swift': pairingAv, ...edits })
+      .filter(([, v]) => v !== null)
+      .map(([name, source]) => ({ name, source }));
+  const av = (edits) => ruleSite(avFiles(edits)).findings.length;
+  const lA = (from, to) => ({ [LINKS_FILE]: fixSwap('(av)', linksAv, from, to) });
+  const sA = (from, to) => ({ [PAIRING_SCREEN_FILE]: fixSwap('(av)', screenAv, from, to) });
+  const pA = (from, to) => ({ 'Door/Pairing.swift': fixSwap('(av)', pairingAv, from, to) });
+  expect('(av) passes the three addresses, the one opener, the camera after Scan code, the Allow line and the marker', av() === 0);
+  expect('(av1) catches a fourth case', av(lA('    case home, privacy, support', '    case home, privacy, support, blog')) > 0);
+  expect('(av1) catches an http:// address', av(lA('"https://tortie.sh/privacy"', '"http://tortie.sh/privacy"')) > 0);
+  expect('(av1) catches a query', av(lA('"https://tortie.sh/privacy"', '"https://tortie.sh/privacy?ref=app"')) > 0);
+  expect('(av1) catches a fragment', av(lA('"https://tortie.sh/support"', '"https://tortie.sh/support#top"')) > 0);
+  expect('(av1) catches another host that begins tortie.sh', av(lA('"https://tortie.sh/privacy"', '"https://tortie.sh.example.com/privacy"')) > 0);
+  expect('(av1) catches a port', av(lA('"https://tortie.sh/support"', '"https://tortie.sh:8443/support"')) > 0);
+  expect('(av1) catches an address forced with !', av(lA('URL(string: "https://tortie.sh")', 'URL(string: "https://tortie.sh")!')) > 0);
+  expect('(av1) catches an address made another way', av(lA('URL(string: "https://tortie.sh")', 'URL(fileURLWithPath: "https://tortie.sh")')) > 0);
+  expect('(av2) catches a https:// literal in a screen', av({ 'Screens/SessionScreen.swift': 'let u = "https://example.com"\n' }) > 0);
+  expect('(av2) leaves a https:// literal inside #if DEBUG alone', av({ 'Screens/SessionScreen.swift': '#if DEBUG\nlet u = "https://example.com"\n#endif\n' }) === 0);
+  expect('(av2) leaves a https:// in a comment alone', av({ 'Screens/SessionScreen.swift': '// https://tortie.sh\nlet x = 1\n' }) === 0);
+  expect('(av3) catches an opener that takes a String', av(lA('struct SiteOpener: SiteOpening {\n    func open(_ link: SiteLink) {', 'struct SiteOpener: SiteOpening {\n    func open(_ link: String) {')) > 0);
+  expect('(av3) catches an opener that does not ask the policy', av(lA('guard let url = link.address, LinkPolicy.opens(url) else { return }', 'guard let url = link.address else { return }')) > 0);
+  expect('(av3) catches a second conformer', av({ 'Screens/SettingsScreen.swift': 'struct OtherOpener: SiteOpening {\n    func open(_ link: SiteLink) { }\n}\n' }) > 0);
+  expect('(av4) catches a third file naming SiteOpener', av({ 'Screens/ListScreen.swift': 'let o = SiteOpener()\n' }) > 0);
+  expect('(av4) leaves the Settings screen naming it alone', av({ 'Screens/SettingsScreen.swift': 'let o: any SiteOpening = SiteOpener()\n' }) === 0);
+  expect('(av5) catches QRScanner( built outside the Scan code branch', av(sA('            } else {\n                scanButton', '            } else {\n                QRScanner(active: false)\n                scanButton')) > 0);
+  expect('(av5) catches the camera asked for in PairingModel', av(sA('    func startScanning() {\n        scanning = true', '    func startScanning() {\n        AVCaptureDevice.requestAccess(for: .video) { _ in }\n        scanning = true')) > 0);
+  expect('(av5) catches scanning set true elsewhere', av(sA('    func openMacSite() {\n        site.open(.home)', '    func openMacSite() {\n        model.scanning = true\n        site.open(.home)')) > 0);
+  expect('(av5) catches startScanning() called outside Scan code', av(sA('    func openMacSite() {\n        site.open(.home)', '    func openMacSite() {\n        model.startScanning()\n        site.open(.home)')) > 0);
+  expect('(av6) catches beta in a Copy word', av({ 'Style/Copy.swift': copyAv.replace('"Get Tortie for Mac"', '"Get the Tortie beta for Mac"') }) > 0);
+  expect('(av6) catches TestFlight in a Copy word', av({ 'Style/Copy.swift': copyAv.replace('"Get Tortie for Mac"', '"Get Tortie on TestFlight"') }) > 0);
+  expect('(av6) catches streamed in a Copy word', av({ 'Style/Copy.swift': copyAv.replace('"Get Tortie for Mac"', '"Your terminal, streamed"') }) > 0);
+  expect('(av6) leaves upstream alone, word-bounded', av({ 'Style/Copy.swift': copyAv.replace('"Get Tortie for Mac"', '"Get Tortie for Mac upstream"') }) === 0);
+  expect('(av7) catches the Allow line under another sentence', av({ 'Screens/DoorWords.swift': wordsAv.replace('if sentence == Copy.cannotReachMac {', 'if sentence == Copy.cannotReachMac || sentence == Copy.macDidNotAnswer {') }) > 0);
+  expect('(av7) catches reachNote asked in a list screen', av({ 'Screens/ListScreen.swift': 'let n = DoorWords.reachNote(for: Copy.cannotReachMac)\n' }) > 0);
+  expect('(av8) catches the marker guard removed', av(pA('              let fp = marker.fp, let pin = Base64URL.decode(fp), pin.count == 32,\n              marker.dk != nil, marker.dx != nil else {', '              true else {')) > 0);
+  expect('(av8) catches a version arm written as v == 4', av(pA('if marker.v > version && marker.v <= 99 {', 'if marker.v == 4 {')) > 0);
+  expect('(av8) catches codeFromOlderMac thrown outside parse', av({ 'Screens/PairingScreen.swift': `${screenAv}func p() throws { throw PairingFailure.codeFromOlderMac }\n` }) > 0);
+  // (av9), the fix round: each site press drawn by its own words and identifier.
+  const pressesAv = (pairingScreen) => {
+    const [type, ids, first] = pairingScreen
+      ? ['PairingScreen', ['pairingGetMac', 'pairingPrivacy', 'pairingSupport'], 'setupGetMac']
+      : ['SettingsScreen', ['settingsMacSite', 'settingsPrivacy', 'settingsSupport'], 'macOnSite'];
+    return [
+      `struct ${type}: View {`,
+      '    let site: any SiteOpening',
+      '    var body: some View {',
+      '        VStack {',
+      '            Button(action: openMacSite) {',
+      `                Words(Copy.${first}, .body, Tokens.textPrimary)`,
+      '                    .accessibilityIdentifier(ID.insideTheLabel)',
+      '            }',
+      '            .buttonStyle(.plain)',
+      `            .accessibilityIdentifier(ID.${ids[0]})`,
+      '            Button(action: openPrivacy) {',
+      '                Words(Copy.privacy, .small, Tokens.textSecondary)',
+      '            }',
+      '            .buttonStyle(.plain)',
+      `            .accessibilityIdentifier(ID.${ids[1]})`,
+      '            Button(action: openSupport) {',
+      '                Words(Copy.support, .small, Tokens.textSecondary)',
+      '            }',
+      '            .buttonStyle(.plain)',
+      `            .accessibilityIdentifier(ID.${ids[2]})`,
+      '        }',
+      '    }',
+      '    func openMacSite() {',
+      '        site.open(.home)',
+      '    }',
+      '    func openPrivacy() {',
+      '        site.open(.privacy)',
+      '    }',
+      '    func openSupport() {',
+      '        site.open(.support)',
+      '    }',
+      '}',
+      ''
+    ].join('\n');
+  };
+  const sp = (pairingSrc = pressesAv(true), settingsSrc = pressesAv(false)) =>
+    ruleSitePresses([
+      ...(pairingSrc === null ? [] : [{ name: 'Screens/PairingScreen.swift', source: pairingSrc }]),
+      ...(settingsSrc === null ? [] : [{ name: 'Screens/SettingsScreen.swift', source: settingsSrc }])
+    ]).findings.length;
+  const swapActions = (src) =>
+    fixSwap('(av9)', fixSwap('(av9)', fixSwap('(av9)', src, 'Button(action: openPrivacy)', 'Button(action: SWAP)'), 'Button(action: openSupport)', 'Button(action: openPrivacy)'), 'Button(action: SWAP)', 'Button(action: openSupport)');
+  expect('(av9) passes each site press drawn by its own words and identifier, on both screens', sp() === 0);
+  expect('(av9) catches Privacy and Support’s actions swapped on the pairing screen (the verifier’s M6)', sp(swapActions(pressesAv(true))) > 0);
+  expect('(av9) catches a press whose body opens another page', sp(undefined, fixSwap('(av9)', pressesAv(false), '    func openPrivacy() {\n        site.open(.privacy)', '    func openPrivacy() {\n        site.open(.support)')) > 0);
+  expect('(av9) catches the other press’s identifier on a site press', sp(undefined, fixSwap('(av9)', pressesAv(false), '.accessibilityIdentifier(ID.settingsPrivacy)', '.accessibilityIdentifier(ID.settingsSupport)')) > 0);
+  expect('(av9) catches Get Tortie for Mac drawn with another word', sp(fixSwap('(av9)', pressesAv(true), 'Words(Copy.setupGetMac', 'Words(Copy.privacy')) > 0);
+  expect('(av9) catches one press named by two buttons', sp(fixSwap('(av9)', pressesAv(true), 'Button(action: openSupport)', 'Button(action: openPrivacy)')) > 0);
+  expect('(av9) catches a page opened outside the three presses', sp(fixSwap('(av9)', pressesAv(true), '    var body: some View {', '    func extra() { site.open(.home) }\n    var body: some View {')) > 0);
+  expect('(av9) catches a screen that is not there', sp(undefined, null) > 0);
+  const rn = (src) => ruleReachNote(src).length;
+  expect('(v) passes the Allow line, optional, Copy.reachAllowAgain or nil', rn(wordsAv) === 0);
+  expect('(v) catches the Allow line made non-optional', rn(wordsAv.replace('-> String? {', '-> String {')) > 0);
+  expect('(v) catches the Allow line answering an empty string', rn(wordsAv.replace('return nil', 'return ""')) > 0);
+}
+
 // ---------------------------------------------------------------------------
 // Run the rules over the tree
 // ---------------------------------------------------------------------------
@@ -10684,7 +11364,7 @@ export function ruleHostileScrollbackArms(hostile, copy) {
  * (ab), (ac) and (ad) are Phase 317's; and (aa), the letter Phase 317 left for
  * it (build/p317/SPEC.md §4.3), is Phase 316.7's (build/p3167/SPEC.md §8.4).
  */
-export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq', 'ar', 'as', 'at', 'au'];
+export const RULE_IDS = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq', 'ar', 'as', 'at', 'au', 'av'];
 
 const results = {};
 const record = (id, title, findings, said) => {
@@ -11077,11 +11757,13 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const rs = ruleReplySentence(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
     // Phase 337: the Screen's two sentences too.
     const sc = ruleScreenSentences(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null, appSwift.map((p) => ({ name: relative(APP, p).split(sep).join('/'), source: read(p) })));
+    // Phase 333.1 (D23): the Allow line is optional, and the Allow line or nothing.
+    const rn = ruleReachNote(existsSync(DOOR_WORDS) ? read(DOOR_WORDS) : null);
     record(
       'v',
       'the phone always draws a sentence',
-      [...r.findings, ...e.findings, ...rs.findings, ...sc.findings],
-      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty`
+      [...r.findings, ...e.findings, ...rs.findings, ...sc.findings, ...rn],
+      `pairingSentence draws a Copy sentence for each of ${String(r.said.failures)} PairingFailure case(s) and stepSentence for each of ${String(r.said.steps)} PairingStep case(s), never nil or empty; PairingModel's line is a non-optional String, assigned a sentence ${String(r.said.assignments)} time(s); endSentence draws a sentence for each of ${String(e.said.cases)} WriteResult case(s), and End's two lines are assigned nil or a sentence ${String(e.said.assignments)} time(s), never empty; replySentence draws a sentence for each of ${String(rs.said.cases)} WriteResult case(s), and a reply's two lines are assigned nil or a sentence ${String(rs.said.assignments)} time(s), never empty; reachNote is String? and answers Copy.reachAllowAgain or nil`
     );
   }
   // (w)
@@ -11306,6 +11988,17 @@ if (!existsSync(IOS) || !statSync(IOS).isDirectory()) {
     const menuPath = join(ROOT, 'src', 'main', 'menu.ts');
     const r = ruleRename(appNamed, existsSync(menuPath) ? read(menuPath) : null);
     record('au', 'the rename', r.findings, `no Copy word is Conversation or Screen, and conversation, screen and terminalStaysOnMac are gone; Copy.catchMeUp ${r.said.owned ? 'is src/main/menu.ts\'s word, owned on its /// Mac: line' : 'unread'}; Copy.terminal ${r.said.terminal ? 'is Terminal' : 'unread'}; no drawn "Conversation" and no conversation identifier`);
+  }
+  // Phase 333.1: (av) (build/p3331/SPEC.md §6.3), and av9 since its fix round.
+  {
+    const r = ruleSite(appNamed);
+    const presses = ruleSitePresses(appNamed);
+    record(
+      'av',
+      "the site's three addresses, the camera after Scan code, the Allow line and the Tortie marker",
+      [...r.findings, ...presses.findings],
+      `enum SiteLink in ${LINKS_FILE} with ${r.said.cases.join(', ') || 'no'} case(s) and ${String(r.said.addresses)} address(es), each https on tortie.sh made with URL(string:) and never forced, the app's only https:// literals; SiteOpener the one SiteOpening (${r.said.conformers.join(', ') || 'none'}), taking a SiteLink and asking LinkPolicy.opens before its one open, named only in ${SITE_SCREENS.join(' and ')}; QRScanner( built ${String(r.said.scanners)} time(s), each inside if … scanning, scanning set true in startScanning() alone, called from Scan code's own action, and AVCaptureDevice.requestAccess( ${String(r.said.asks)} time(s), in ScannerView.start(); ${String(r.said.words)} Copy word(s) say none of beta, TestFlight, remote desktop, mirror, stream or SSH; the Allow line answered for Copy.cannotReachMac alone and asked ${String(r.said.notes)} time(s), by FailureView; codeFromNewerMac (${String(r.said.newer)}) and codeFromOlderMac (${String(r.said.older)}) thrown only in PairingOffer.parse, behind the marker's guard on fp, dk and dx, against version and the literals 1 and 99 alone; and ${String(presses.said.presses.length)} site presses each the one Button(action:) that names it, drawn by its own Copy word and identified by its own ID on that expression, its body its own site.open (${presses.said.presses.join('; ')})`
+    );
   }
 }
 

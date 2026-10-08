@@ -49,6 +49,14 @@
  * does not move and a computed opacity read there photographs the old value
  * (probe-p1812-bar-and-card.mjs's trap).
  *
+ * SINCE PHASE 333.1 (build/p3331/SPEC.md §5.4.4, §7.6) the card is step 3's
+ * body under the three steps, and draws `POCKET_NAME_WAIT_NOTE` under the
+ * block for exactly as long as the block (`[data-phone-name-note]`, read
+ * beside the others here and graded by probe:p3331 R9). The switch is pressed
+ * through the bridge, as it was, so the sheet asks for no code (D17 sets the
+ * wish on the sheet's own press alone) and the ready face still draws Pair,
+ * where a first setup through the sheet shows the code by itself.
+ *
  * THE ARMS, in ONE launch per build. `P3321_ARMS` picks; the parent runs
  * `P9,P7`, HEAD runs `H9,H7,H8`. The same scripts run at both builds and only
  * the grading differs.
@@ -68,8 +76,10 @@
  *          opacity 0.5); no animation and one opacity transition on the dot
  *          row over `--dur-base`; `Your Mac’s name is live` and `Took 2 min`
  *          with Pair below and nothing above it moved; app.log saying each
- *          change of verdict once and no port, name or address
- *   H8     reduced motion: the switch-on round over H7's kept confirmation
+ *          change of verdict once and no port, name or address (read as the
+ *          logger writes it, one JSON object a line, by its `msg`:
+ *          `logLines`, the 333.1 reverify's fix)
+ *   H8    reduced motion: the switch-on round over H7's kept confirmation
  *          answers no, the block appears, round two holds one server to its
  *          deadline and confirms on three; no transition, no animation, the
  *          dim in one frame, `live` after round two
@@ -234,6 +244,36 @@ export function verdictChanges(rounds) {
     last = v.verdict;
   }
   return out;
+}
+
+/**
+ * app.log's lines, each as what it SAYS and as what the leak scan reads (the
+ * 333.1 reverify, 2026-10-08). The logger writes one JSON object a line (`ts`,
+ * `level`, `scope`, `pid`, `proctype`, `msg`, and any field a call adds), so a
+ * verdict sliced from the raw line kept the object's closing `"}` and H7 read
+ * red over a log that said each change once. A line that parses as an object
+ * with a string `msg` says its `msg`, and the scan reads every field but `ts`
+ * and `pid`, whose digits after a colon are a clock and a process, never a
+ * stand-in's port; any other line is read whole, both ways, as the logger once
+ * wrote it. Pure.
+ */
+export function logLines(text) {
+  return String(text ?? '')
+    .split('\n')
+    .filter((line) => line.trim() !== '')
+    .map((line) => {
+      let o = null;
+      try {
+        o = JSON.parse(line);
+      } catch {
+        o = null;
+      }
+      if (o === null || typeof o !== 'object' || Array.isArray(o) || typeof o.msg !== 'string') return { says: line, scan: line };
+      const rest = { ...o };
+      delete rest.ts;
+      delete rest.pid;
+      return { says: o.msg, scan: JSON.stringify(rest) };
+    });
 }
 
 /** `0.16s`, `160ms` → 160. */
@@ -474,9 +514,11 @@ export const GRADERS = {
         return r.parent === null || (first !== undefined && r.pairableAt - first.start - r.parent.pairableFromFirstMs <= TOL_MS);
       }],
       ['app.log says each change of verdict once, and no port, name or address', (r) => {
-        const lines = String(r.appLog).split('\n').filter((l) => l.includes(WORDS.verdict)).map((l) => l.slice(l.indexOf(WORDS.verdict)).trim());
-        const leaks = String(r.appLog)
-          .split('\n')
+        // Each line by what it says, the JSON object's msg (the reverify).
+        const read = logLines(r.appLog);
+        const lines = read.map((l) => l.says).filter((l) => l.includes(WORDS.verdict)).map((l) => l.slice(l.indexOf(WORDS.verdict)).trim());
+        const leaks = read
+          .map((l) => l.scan)
           .filter((l) => l.toLowerCase().includes(r.name) || l.includes(STANDIN_ADDRESS) || r.ports.some((p) => l.includes(`127.0.0.1:${String(p)}`) || new RegExp(`:${String(p)}(?![0-9])`).test(l)));
         return r.appLogRead === true && sameList(lines, verdictChanges(roundsOf(r.logs))) && leaks.length === 0;
       }]
@@ -673,6 +715,22 @@ function silentFixture(atParent) {
   return { idleQuestions: 0, idleMs: 5_040, logs, name: FIX_NAME, listeningAt: m.listeningAt, pairableAt: m.pairableAt, samples, parent: atParent ? null : { pairableAfterListeningMs: m.pairableAt - m.listeningAt + 120 } };
 }
 
+/**
+ * One line as the logger writes it today, a JSON object, with a `pid` equal to
+ * a stand-in's port and a clock full of colons, neither of which is a leak
+ * (the reverify, 2026-10-08).
+ */
+const jsonLine = (msg, extra = {}) => JSON.stringify({ ts: '2026-10-08T18:14:18.041Z', level: 'info', scope: 'pocket', pid: PORTS[0], proctype: 'main', msg, ...extra });
+/** The fixture's plain lines (`date time level scope words`) as JSON lines. */
+const asJsonLines = (text) =>
+  String(text)
+    .split('\n')
+    .map((l) => {
+      const m = /^\S+ \S+ \S+ \S+ (.*)$/.exec(l);
+      return jsonLine(m === null ? l : m[1]);
+    })
+    .join('\n');
+
 function flapFixture(atParent) {
   const t0 = 2_000_000;
   const logs = fixtureLogs(H7_SCRIPTS, H7_STARTS_MS, t0);
@@ -767,6 +825,11 @@ export const GRADER_FIXTURES = {
     refused: [
       { what: 'a log line naming a stand-in’s port', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog += `\nasked 127.0.0.1:${String(PORTS[2])}`) },
       { what: 'a log line naming the Mac’s name', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog += `\nasked ${FIX_NAME}`) },
+      // The logger's JSON lines (the reverify): read by their msg, never let through.
+      { what: 'app.log as JSON lines, saying a change of verdict twice', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog = `${asJsonLines(r.appLog)}\n${jsonLine(`${WORDS.verdict} no: nxdomain`)}`) },
+      { what: 'app.log as JSON lines, missing a change of verdict', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog = asJsonLines(r.appLog.split('\n').filter((l) => !l.includes(`${WORDS.verdict} yes`)).join('\n'))) },
+      { what: 'a JSON line whose message names a stand-in’s port', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog = `${asJsonLines(r.appLog)}\n${jsonLine(`asked 127.0.0.1:${String(PORTS[1])}`)}`) },
+      { what: 'a JSON line naming the Mac’s name in a field of its own', clause: 'app.log says each change of verdict once, and no port, name or address', edit: (r) => void (r.appLog = `${asJsonLines(r.appLog)}\n${jsonLine('asked', { host: FIX_NAME })}`) },
       { what: 'a transition on something in the card that is not the dot row', clause: 'no animation, and every transition in the card is the dot row’s opacity over --dur-base', edit: (r) => void r.events.push({ type: 'transitionrun', property: 'height', animationName: null, target: 'phone-name', inCard: true, t: R(r)[2].start }) },
       { what: 'a breath that is not --dur-base', clause: 'no animation, and every transition in the card is the dot row’s opacity over --dur-base', edit: (r) => r.samples.forEach((s) => void (s.transitionDuration = s.block ? '0.4s' : s.transitionDuration)) },
       { what: 'a card that never breathed', clause: 'no animation, and every transition in the card is the dot row’s opacity over --dur-base', edit: (r) => void (r.events = r.events.filter((e) => !e.inCard)) }
@@ -847,6 +910,15 @@ function graderSelfTest() {
   say(flap.length === 5 && flap[1].end === flap[1].start + 3 + ROUND_DEADLINE_MS && flap[0].end === flap[0].start + 3, `roundsOf reads five rounds and ends round two at its deadline (${J(flap.map((x) => [x.start, x.end]))})`);
   say(J(flap.map((x) => x.dots.filter((d) => d === 'record').length)) === J([2, 1, 3, 2, 4]), 'the flap sees 2, 1, 3, 2 then 4 of 4, his measurement');
   say(J(verdictChanges(flap)) === J([`${WORDS.verdict} no: nxdomain`, `${WORDS.verdict} yes: record`]), 'the flap says two changes of verdict, no then yes');
+  // The reverify (2026-10-08): app.log is one JSON object a line. The line his
+  // run wrote, byte for byte, reads as its msg; a plain line reads whole; and
+  // the H7 fixture written as JSON lines, its pid one of the stand-ins' ports
+  // and its clock full of colons, passes the clause the plain one passes.
+  const hisLine = '{"ts":"2026-10-08T18:14:18.041Z","level":"info","scope":"pocket","pid":5241,"proctype":"main","msg":"the Mac’s name check read no: nxdomain"}';
+  say(J(logLines(`${hisLine}\nplain words\n`)) === J([{ says: 'the Mac’s name check read no: nxdomain', scan: '{"level":"info","scope":"pocket","proctype":"main","msg":"the Mac’s name check read no: nxdomain"}' }, { says: 'plain words', scan: 'plain words' }]), 'logLines reads a JSON line as its msg, scans it without ts and pid, and reads a plain line whole');
+  const jsonH7 = structuredClone(GRADER_FIXTURES.H7.pass);
+  jsonH7.appLog = asJsonLines(jsonH7.appLog);
+  say(jsonH7.appLog.split('\n').every((l) => JSON.parse(l).pid === PORTS[0]) && grade('H7', jsonH7).ok, 'H7 passes the flap’s app.log written as JSON lines, a pid equal to a stand-in’s port and a clock of colons included');
   say(J(flap.map((x, i) => x.start - flap[0].start)) === J(H7_STARTS_MS.map((s, i) => s + 0 * i)), 'the fixture rounds start where SPEC §9.3’s table says');
   // Each script's round k answers its k-th entry, as the stand-in's script mode does.
   const h8 = roundsOf(fixtureLogs(H8_SCRIPTS, [0, 20_000], 0));
@@ -1130,6 +1202,10 @@ const CARD_READER = `(async () => {
   const row = q('[data-phone-name-dots]');
   const line = q('[data-phone-name-line]') ?? q('[data-phone-name-unreadable]') ?? q('.phone-line');
   const time = q('[data-phone-name-time]');
+  // Phase 333.1 (build/p3331/SPEC.md §5.4.4): the card is step 3's body, and
+  // POCKET_NAME_WAIT_NOTE is drawn under the block for exactly as long as the
+  // block; read beside the others, graded by probe:p3331 R9.
+  const note = q('[data-phone-name-note]');
   const pair = q('[data-phone-action="pair"]');
   const cs = row === null ? null : getComputedStyle(row);
   const first = block ?? line;
@@ -1154,7 +1230,8 @@ const CARD_READER = `(async () => {
     lineLive: line !== null && line.getAttribute('aria-live'),
     time: time === null ? null : time.innerText.trim(),
     timeTitle: time === null ? null : time.getAttribute('title'),
-    rects: { row: rect(row), line: rect(line), time: rect(time), pair: rect(pair), card: rect(c) },
+    note: note === null ? null : note.innerText.trim(),
+    rects: { row: rect(row), line: rect(line), time: rect(time), note: rect(note), pair: rect(pair), card: rect(c) },
     pairButton: pair !== null,
     blockBeforePair: first !== null && pair !== null && (first.compareDocumentPosition(pair) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0,
     anims: c === null ? [] : c.getAnimations({ subtree: true }).map((a) => [a.constructor.name, a.transitionProperty ?? a.animationName ?? null]),

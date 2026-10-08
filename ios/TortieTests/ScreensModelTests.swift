@@ -381,7 +381,7 @@ final class ScreensModelTests: XCTestCase {
     func testTheFootAlwaysSaysSomething() async {
         let steps: [PairingStep] = [.presenting, .findingName, .waitingForMac, .confirming]
         let failures: [PairingFailure] = [
-            .badCode, .unsupportedCode, .codeExpired, .windowClosed, .macRefused, .strangeAnswer, .wrongKey,
+            .badCode, .codeFromNewerMac, .codeFromOlderMac, .codeExpired, .windowClosed, .macRefused, .strangeAnswer, .wrongKey,
             .notAccepted, .unreachable, .nameNotFound, .couldNotSave, .notAvailable, .cancelled
         ]
         for failure in failures {
@@ -406,6 +406,109 @@ final class ScreensModelTests: XCTestCase {
         let (model, _) = pairing(begun)
         await model.read("not a code")
         XCTAssertEqual(model.line, Copy.pairNotACode)
+    }
+
+    /// Clause (Phase 333.1, D20): the camera is built only after Scan code.
+    /// `scanning` is false when the screen opens, true after `startScanning()`
+    /// and nothing sets it back: not `Pair again`, not a stopped pairing, not
+    /// a camera that is off. A code read with no press (the DEBUG launch
+    /// argument) pairs with `scanning` still false, so the steps stay and the
+    /// fingerprint card is drawn under them.
+    func testTheCameraWaitsForScanCode() async {
+        let phone = StandInPhone(outcomes: [.failed(.codeExpired), .failed(.codeExpired)])
+        let (model, _) = pairing(phone)
+        XCTAssertFalse(model.scanning, "the camera is built before Scan code")
+        let seen = Seen<String>()
+        phone.duringPair = {
+            let drawn = await MainActor.run { model.fingerprint }
+            await seen.set(drawn)
+        }
+        await model.read("launch-code")
+        XCTAssertEqual(phone.begun, ["launch-code"], "a code read with no press was not presented")
+        let whilePresenting = await seen.value
+        XCTAssertEqual(whilePresenting, "aaaa bbbb cccc dddd eeee ffff", "the fingerprint card was not drawn for a code read with no press")
+        XCTAssertFalse(model.scanning, "reading a code turned the camera on")
+        model.pairAgain()
+        XCTAssertFalse(model.scanning, "Pair again turned the camera on")
+        model.camera(.denied)
+        XCTAssertFalse(model.scanning)
+        model.startScanning()
+        XCTAssertTrue(model.scanning, "Scan code did not turn the camera on")
+        model.startScanning()
+        XCTAssertTrue(model.scanning)
+        await model.read("other-code")
+        XCTAssertTrue(model.stopped)
+        XCTAssertTrue(model.scanning, "a pairing that stopped took the camera away")
+        model.pairAgain()
+        XCTAssertTrue(model.scanning, "Pair again took the camera away")
+        XCTAssertEqual(model.line, Copy.notPaired)
+    }
+
+    /// Clause (D24): a code from another version, as the door's parse says,
+    /// draws which side to update on the pairing screen's one line.
+    func testACodeFromAnotherVersionSaysWhichSide() async {
+        for (failure, line) in [(PairingFailure.codeFromNewerMac, Copy.pairNewerMac), (.codeFromOlderMac, Copy.pairOlderMac)] {
+            let phone = StandInPhone(beginFailure: failure)
+            let (model, _) = pairing(phone)
+            await model.read("a code from another version")
+            XCTAssertEqual(model.line, line, "\(failure)")
+            XCTAssertTrue(model.stopped)
+            XCTAssertEqual(phone.pairs, 0)
+        }
+    }
+
+    /// Clause (D20, conformance:ios av5): the camera is CONSTRUCTED only
+    /// inside the branch Scan code opens, so iOS cannot ask for it before the
+    /// press; `startScanning()` is called once, by Scan code's button; the
+    /// camera's one ask is in `ScannerView.start()`. Read from the source,
+    /// because SwiftUI builds nothing in a unit test.
+    func testTheCameraIsBuiltOnlyAfterScanCode() throws {
+        let source = try StyleSource.text("ios/Tortie/Screens/PairingScreen.swift")
+        let branch = try XCTUnwrap(source.range(of: "if model.scanning {"), "no branch on scanning").lowerBound
+        let otherwise = try XCTUnwrap(source.range(of: "} else {", range: branch..<source.endIndex), "the scanning branch has no else").lowerBound
+        let built = try XCTUnwrap(source.range(of: "QRScanner(active:"), "the camera is never built").lowerBound
+        XCTAssertEqual(source.components(separatedBy: "QRScanner(").count, 2, "the camera is built in two places")
+        XCTAssertTrue(branch < built && built < otherwise, "the camera is built outside the branch Scan code opens")
+        let scanButton = try XCTUnwrap(source.range(of: "private var scanButton: some View {")).lowerBound
+        let call = try XCTUnwrap(source.range(of: "model.startScanning()"), "nothing calls startScanning").lowerBound
+        XCTAssertLessThan(scanButton, call, "startScanning is called outside Scan code's button")
+        XCTAssertEqual(source.components(separatedBy: "startScanning()").count, 3, "startScanning is called, or declared, other than once each")
+        XCTAssertEqual(source.components(separatedBy: "scanning = true").count, 2, "scanning becomes true outside startScanning")
+        XCTAssertTrue(source.contains(".accessibilityIdentifier(ID.pairingScanCode)"))
+        let ask = try XCTUnwrap(source.range(of: "AVCaptureDevice.requestAccess("), "the camera is never asked for").lowerBound
+        let start = try XCTUnwrap(source.range(of: "    func start() {")).lowerBound
+        let stop = try XCTUnwrap(source.range(of: "    func stop() {")).lowerBound
+        XCTAssertTrue(start < ask && ask < stop, "the camera is asked for outside ScannerView.start()")
+        XCTAssertEqual(source.components(separatedBy: "requestAccess(").count, 2)
+        // The resting face's identifiers, as the probe reads them.
+        XCTAssertEqual(
+            [ID.pairingGetMac, ID.pairingStepOpen, ID.pairingStepScan, ID.pairingScanCode, ID.pairingNothingElse, ID.pairingPrivacy, ID.pairingSupport],
+            ["pairing-get-mac", "pairing-step-open", "pairing-step-scan", "pairing-scan-code", "pairing-nothing-else", "pairing-privacy", "pairing-support"]
+        )
+    }
+
+    /// Clause (D23): a failure's view draws the Allow line under its sentence
+    /// only when `DoorWords.reachNote` answers, as `<id>-note`, between the
+    /// sentence and Try again.
+    func testTheFailureViewDrawsTheAllowLine() throws {
+        XCTAssertEqual(ID.reachNote("list-failure"), "list-failure-note")
+        let source = try StyleSource.text("ios/Tortie/Screens/Pieces.swift")
+        let view = try XCTUnwrap(source.range(of: "struct FailureView: View {")).lowerBound
+        let end = try XCTUnwrap(source.range(of: "struct LoadingView: View {")).lowerBound
+        let body = String(source[view..<end])
+        let sentence = try XCTUnwrap(body.range(of: "Words(sentence,"), "the sentence is not drawn").lowerBound
+        let note = try XCTUnwrap(body.range(of: "if let note = DoorWords.reachNote(for: sentence) {"), "the Allow line is not asked for").lowerBound
+        let id = try XCTUnwrap(body.range(of: ".accessibilityIdentifier(ID.reachNote(id))"), "the Allow line has no identifier").lowerBound
+        let retry = try XCTUnwrap(body.range(of: "Button(action: retry)")).lowerBound
+        XCTAssertTrue(sentence < note && note < id && id < retry, "the Allow line is not between the sentence and Try again")
+    }
+
+    /// Clause (D20, D28): the steps are three, in their order, each drawn
+    /// beside its place in the list, which is its position.
+    func testTheStepsAreThreeInTheirPlaces() {
+        XCTAssertEqual(SetupStep.allCases, [.getMac, .openPhone, .scan])
+        XCTAssertEqual(SetupStep.placed.map(\.step), SetupStep.allCases)
+        XCTAssertEqual(SetupStep.placed.map(\.place), ["1", "2", "3"])
     }
 
     /// Clause: a camera he turned off says where to turn it on; no camera at

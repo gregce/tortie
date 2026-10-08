@@ -128,6 +128,29 @@ const PID_POLL_MS = 100;
 /** The only host whose approval page Tortie will open. */
 export const FUNNEL_APPROVAL_HOST = 'login.tailscale.com';
 
+/**
+ * Tailscale's download page, which Get Tailscale opens on a person's press
+ * (Phase 333.1, D13). A constant of its own, compared with `===`, and NEVER an
+ * approval URL: {@link approvalOpens} refuses it, because its host is not
+ * {@link FUNNEL_APPROVAL_HOST}.
+ */
+export const TAILSCALE_DOWNLOAD_PAGE = 'https://tailscale.com/download';
+
+/**
+ * The longest account Tortie draws, in UTF-16 units (Phase 333.1, D4). A
+ * longer one, or one holding a character {@link ACCOUNT_NOT_DRAWN} names, is
+ * not drawn.
+ */
+export const ACCOUNT_MAX_UNITS = 256;
+
+/**
+ * The most combining marks in a row an account Tortie draws may hold (Phase
+ * 333.1's fix round). A real name stacks at most three or four on one letter
+ * (an Indic syllable's nukta, vowel sign and anusvara); a run longer than this
+ * is drawn as a tower over step 1, so the account is not drawn at all.
+ */
+export const ACCOUNT_MARK_RUN_MAX = 4;
+
 /** What `Available on the internet:` is, verbatim (`serve_v2.go:950`). */
 const MSG_FUNNEL_AVAILABLE = 'Available on the internet:';
 
@@ -379,13 +402,74 @@ export type StatusFacts =
       readonly asksApproval: boolean;
       /** The funnel-ports capability's ranges, or null when it is absent. */
       readonly funnelPorts: readonly PortRange[] | null;
+      /**
+       * The self user's `LoginName` (Phase 333.1, D4), or null. DRAWN ONLY:
+       * never a hashed field, never stored, never logged.
+       */
+      readonly account: string | null;
     }
   | { readonly ok: false; readonly reason: PocketFunnelRefusal };
 
 /**
+ * What an account Tortie draws may not hold (D4, widened by the fix round): a
+ * control, format, bidi, zero-width or BOM character (`Cc`, `Cf`); a line or
+ * paragraph separator, which breaks step 1 onto lines of its own (`Zl`, `Zp`);
+ * a lone surrogate, a private-use or an unassigned code point (`Cs`, `Co`,
+ * `Cn`), which no font draws as the name it stands for; or a run of more than
+ * {@link ACCOUNT_MARK_RUN_MAX} combining marks. Written with property escapes,
+ * so no raw character is in this file.
+ */
+export const ACCOUNT_NOT_DRAWN = new RegExp(
+  `[\\p{Cc}\\p{Cf}\\p{Zl}\\p{Zp}\\p{Cs}\\p{Co}\\p{Cn}]|\\p{M}{${String(ACCOUNT_MARK_RUN_MAX + 1)},}`,
+  'u'
+);
+
+/**
+ * The account this Mac's Tailscale is signed in as (Phase 333.1, D4), or null.
+ *
+ * `User` is filled under `--peers=false` only from Tailscale 1.100 on, which
+ * adds the self user "so that callers can resolve the self node's owner to a
+ * login name" (v1.102.2 `ipn/ipnlocal/local.go:1554-1561`); 1.98 and earlier
+ * send none, and the answer is null. The entry is the one under
+ * `String(Self.UserID)` for a SAFE integer id; and the map's ONE entry only
+ * for an integer id past 2^53, which `JSON.parse` rounds so its key cannot be
+ * spelled (with `--peers=false` the map holds the self user alone). A safe id
+ * whose key is absent proves no entry is the self user, so it reads null. The
+ * name is bounded: non-empty, at most {@link ACCOUNT_MAX_UNITS} units, and
+ * nothing {@link ACCOUNT_NOT_DRAWN} names, so no character in it can hide
+ * what follows it, break step 1 onto other lines or stack over it; and the
+ * sheet draws the state on one line, cut with an ellipsis. It is drawn as
+ * Tailscale answers it: a name spelled with look-alike letters is drawn as
+ * written, because it is this Mac's own Tailscale's answer and is drawn only,
+ * in his Settings window, never sent anywhere.
+ */
+function selfAccountOf(root: Record<string, unknown>, self: Record<string, unknown>): string | null {
+  const users = objectOf(root['User']);
+  if (users === null) return null;
+  const id = self['UserID'];
+  if (typeof id !== 'number') return null;
+  let entry: unknown;
+  if (Number.isSafeInteger(id)) {
+    const key = String(id);
+    if (!Object.prototype.hasOwnProperty.call(users, key)) return null;
+    entry = users[key];
+  } else if (Number.isInteger(id)) {
+    const keys = Object.keys(users);
+    if (keys.length !== 1) return null;
+    entry = users[keys[0] as string];
+  } else {
+    return null;
+  }
+  const login = objectOf(entry)?.['LoginName'];
+  if (typeof login !== 'string' || login.length === 0 || login.length > ACCOUNT_MAX_UNITS) return null;
+  return ACCOUNT_NOT_DRAWN.test(login) ? null : login;
+}
+
+/**
  * Read `tailscale status --json --peers=false` (`ipn/ipnstate/ipnstate.go`).
- * Only `BackendState`, `Self` and `CurrentTailnet` are read: the flag asks for
- * the answer WITHOUT his other devices, so their names are never in it.
+ * Only `BackendState`, `Self`, `CurrentTailnet` and (Phase 333.1) the self
+ * user's entry in `User` are read: the flag asks for the answer WITHOUT his
+ * other devices, so their names are never in it.
  */
 export function parseTailnetStatus(text: string): StatusFacts {
   let parsed: unknown;
@@ -440,7 +524,9 @@ export function parseTailnetStatus(text: string): StatusFacts {
     tailnet,
     publicName,
     asksApproval: !(caps.has(CAP_HTTPS) && caps.has(CAP_FUNNEL)),
-    funnelPorts
+    funnelPorts,
+    // After every clause above, so no refusal moves (Phase 333.1, D4).
+    account: selfAccountOf(root, self)
   };
 }
 
@@ -594,7 +680,9 @@ export function funnelArgv(publicPort: number, localPort: number): readonly stri
 /**
  * May Tortie open this approval URL? Only an `https:` page on exactly
  * `login.tailscale.com`, with no explicit port and no user name or password.
- * Anything else is drawn as text and never opened.
+ * Anything else is drawn as text and never opened, and never copied: Phase
+ * 333.1's Copy link writes only a link this passes, spelled as
+ * {@link approvalCopyText} spells it.
  */
 export function approvalOpens(text: string | null): boolean {
   if (text === null) return false;
@@ -614,6 +702,31 @@ export function approvalOpens(text: string | null): boolean {
     // page Tailscale prints.
     !/^https:\/\/[^/@]*:\d/i.test(text.trim())
   );
+}
+
+/**
+ * What Copy link writes for an admin link (Phase 333.1, D6; the 333.1
+ * reverify, 2026-10-08), or null: a link {@link approvalOpens} passes, spelled
+ * as `new URL` serializes it and never as the program printed it.
+ *
+ * Copy link hands the text to a SECOND person, who pastes it into whatever
+ * reads it, and two parsers can read one text as two hosts:
+ * `https://login.tailscale.com\@evil.example/f/funnel` is login.tailscale.com
+ * to `new URL` (and to the browser {@link approvalOpens} opens it in), which
+ * turns the backslash into a slash, and evil.example to an RFC 3986 parser,
+ * which reads the backslash as part of a user name. The serialization is
+ * `https://login.tailscale.com/@evil.example/f/funnel`, which every parser
+ * reads as login.tailscale.com, because an authority ends at its first slash.
+ * So the answer always begins `https://login.tailscale.com/`, and a link whose
+ * serialization did not would be refused rather than copied. Opening is
+ * unchanged: {@link approvalOpens} accepts what it accepted, and the browser
+ * reads the text as `new URL` does. Tailscale prints this one spelling, so a
+ * real link is copied byte for byte as printed.
+ */
+export function approvalCopyText(text: string | null): string | null {
+  if (text === null || !approvalOpens(text)) return null;
+  const href = new URL(text).href;
+  return href.startsWith(`https://${FUNNEL_APPROVAL_HOST}/`) ? href : null;
 }
 
 /** A line the CLI printed that is an approval URL (`serve_legacy.go:814-818`). */
@@ -668,6 +781,8 @@ export type TailnetRead =
       readonly publicName: string;
       readonly asksApproval: boolean;
       readonly funnelPorts: readonly PortRange[] | null;
+      /** The self user's login name, drawn only (Phase 333.1, D4); null when the read named none. */
+      readonly account: string | null;
       /** His serve config as read now; null when nothing is served. */
       readonly serve: ServeConfigLike | null;
     }
@@ -689,7 +804,9 @@ function execRefusal(result: FunnelExecResult): PocketFunnelRefusal {
 /**
  * Read Tailscale: the status (with no peers) and the serve config. Two
  * `execFile`s of the resolved program and nothing else. Reached from a person's
- * press or a confirmed start, never from opening a sheet and never on a timer.
+ * press, a confirmed start, or (Phase 333.1) a return to the window while the
+ * owner's `rechecks()` holds; never from opening a sheet with the door off and
+ * never on a timer.
  */
 export async function readTailnet(deps: FunnelDeps): Promise<TailnetRead> {
   const program = funnelProgramOf(deps.resolve());
@@ -710,6 +827,7 @@ export async function readTailnet(deps: FunnelDeps): Promise<TailnetRead> {
     publicName: facts.publicName,
     asksApproval: facts.asksApproval,
     funnelPorts: facts.funnelPorts,
+    account: facts.account,
     serve
   };
 }

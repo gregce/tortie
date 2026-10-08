@@ -302,6 +302,18 @@ enum DoorWords {
         }
     }
 
+    /// The line a failure draws under its sentence (Phase 333.1, D23): Allow
+    /// on the Mac, under `Tortie could not reach your Mac.` and nothing else. A
+    /// Mac that updated to a build with a new route shuts its door until Allow,
+    /// and a paired phone reads a shut door as a connection that never
+    /// finishes, which is that sentence. A time-out is not that.
+    static func reachNote(for sentence: String) -> String? {
+        if sentence == Copy.cannotReachMac {
+            return Copy.reachAllowAgain
+        }
+        return nil
+    }
+
     /// The line drawn where older turns would be, when a page of them failed.
     static func olderPageSentence(for error: Error) -> String {
         if let failure = error as? DoorFailure, failure == .badPage || failure == .malformed {
@@ -408,7 +420,9 @@ enum DoorWords {
     /// line (conformance:ios rule v).
     static func pairingSentence(for failure: PairingFailure) -> String {
         switch failure {
-        case .badCode, .unsupportedCode: return Copy.pairNotACode
+        case .badCode: return Copy.pairNotACode
+        case .codeFromNewerMac: return Copy.pairNewerMac
+        case .codeFromOlderMac: return Copy.pairOlderMac
         case .codeExpired, .windowClosed: return Copy.codeExpired
         case .macRefused: return Copy.pairRefused
         case .strangeAnswer: return Copy.pairAnswerUnknown

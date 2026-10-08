@@ -323,6 +323,11 @@ struct Chevron: View {
 /// The one sentence a screen draws in place of its content when a read failed,
 /// and the press that asks again. NO HALF-DRAWN SCREEN: a screen is its answer
 /// or this, never a mixture, so what a person reads was all read together.
+///
+/// Under `Tortie could not reach your Mac.` alone it draws one more line
+/// (Phase 333.1, D23): a Mac that updated to a build with a new route shuts
+/// its door until Allow, and a shut door is a connection that never finishes,
+/// which is that sentence. No other sentence gets the line.
 struct FailureView: View {
     let sentence: String
     let id: String
@@ -332,6 +337,10 @@ struct FailureView: View {
         VStack(alignment: .leading, spacing: Frame.cardGap) {
             Words(sentence, .body, Tokens.textSecondary, lines: nil)
                 .accessibilityIdentifier(id)
+            if let note = DoorWords.reachNote(for: sentence) {
+                Words(note, .secondary, Tokens.textSecondary, lines: nil)
+                    .accessibilityIdentifier(ID.reachNote(id))
+            }
             Button(action: retry) {
                 Words(Copy.tryAgain, .body, Tokens.accent)
             }

@@ -172,13 +172,13 @@ const RULES = [
   ['R2', 'SPEC §2, entry mechanism 4; build/p317/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'every row is a read (reads: true, a GET or the one pairing row, window-only and unsigned) or a write (reads: false, POST, signed: true, windowOnly: false); the writes are EXACTLY end, choose, say and keys, the contract’s POCKET_WRITE_ROUTE_IDS says the same, and each has its own cap in POCKET_WRITE_BODY_CAPS'],
   ['R4', 'the fix round, 2026-09-22; build/p337/SPEC.md D1; build/p3371/SPEC.md D1', 'the table’s MEMBERSHIP is pinned: the exact set of method-and-path pairs, by sha256, so a fourth route is a visible edit rather than a green build'],
   ['R5', 'entry, mechanism 4', 'the turn limit is clamped AT THE DOOR against the overview store’s own MAX_TURN_LIMIT, which is imported and never re-spelled'],
-  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork'],
+  ['R3', 'entry, mechanism 4; build/p330/SPEC.md §6.1; build/p318/SPEC.md §6.1; build/p337/SPEC.md §6.1; build/p3331/SPEC.md §6.1', 'the domain names no write verb, no status setter, no credential read and nothing of the reply writer (main/reply/) or of the Screen (main/screen/), and starts NO process but funnel.ts’s spawn of the resolved program, its execFile of that program and of /bin/ps, and bind.ts’s one utilityProcess.fork, and two LaunchServices opens a person’s press makes, Tailscale’s download page and the Tailscale app (SU3)'],
   ['A1', 'entry, mechanism 5', 'no Authorization header and no cookie is read or written anywhere in the domain'],
   ['A2', 'entry, mechanism 5, research 127 §7', 'no secret is in a path or a query: no route path interpolates and no 32-hex token is matched out of one'],
   ['A3', 'entry, mechanism 3', '/pair is dead outside its window, and the window is checked before anything is read off the request'],
   ['S1', 'entry, mechanism 5', 'Referrer-Policy: no-referrer is emitted from exactly ONE place'],
   ['W1', 'the fix round, 2026-09-22', 'every file and directory this domain creates names an owner-only mode, so one write in it cannot drift looser than its sibling'],
-  ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11; build/p3165/SPEC.md §6.1', 'the bridge and the registrar move together, and they carry the same THIRTEEN pocket channels the contract declares'],
+  ['B1', 'the judge, 2026-09-22; build/p330/SPEC.md §4.11; build/p3165/SPEC.md §6.1; build/p3331/SPEC.md §6.1', 'the bridge and the registrar move together, and they carry the same FIFTEEN pocket channels the contract declares (pocket:recheck and pocket:setupAction since Phase 333.1)'],
   ['S3', 'entry, proof; hooks.ts:256-316', 'the disposer owns the door: admission closes on the first line of every stop, before any await, in main AND in the door process, and the stop ends the process and closes the listener'],
   ['G1', 'entry, proof; hooks.ts:368-385; build/p317/SPEC.md §6.1', 'no token, no body, no header value, no message, no typed text and no line of conversation is reachable from any log call in the domain or in src/main/sessions/pocket-writes.ts'],
   ['T1', 'the operator, 2026-09-22', 'nothing in this repository binds a real interface: every test and every gate drives the door on loopback'],
@@ -214,7 +214,7 @@ const RULES = [
   ['D3', 'build/p332/SPEC.md §4.5', 'NAME_REFUSED_V4 is declared once, in public-name.ts, holds [100, 64, 0, 0, 10] and the seven other ranges, isPublicV4 is its only reader, and no other file under src/main/pocket/ spells any of the eight'],
   ['D4', 'build/p332/SPEC.md §4.9; build/p3321/SPEC.md §8.1', 'beginNameCheck is called ONCE, in openNow, after closeNowUnlessConfirmed; stopNameCheck is the first statement of unpublish and unexpectedlyDown; status, nameCheckNow, pairable, nameProgressNow, openAtLaunch and the pocket:status and pocket:pairingState handlers start nothing; the timer is armed through armFunnelRestart alone; no name-check method reads the wall clock, and the monotonic one is read in four methods only, for the sheet, as this.names.monotonic(), with () => performance.now() its one shipping body; and names: is handed to PocketHost only by tests'],
   ['D5', 'build/p332/SPEC.md §4.14; build/p3321/SPEC.md §8.1', 'public-name.ts names no log call, every log call in a name-check method of ipc.ts interpolates only a verdict or a reason, never the public name, a target, an address, the servers, the tailnet or the bytes, and every log call in settleNameRound sits behind an if whose condition names last, opened or confirmed: a line per change, never a line per round'],
-  ['D6', 'build/p332/SPEC.md §4.11, §4.12 and its fix round; build/p3321/SPEC.md §8.1', 'pairable is ONE method of PocketHost, status() answers pairable: this.pairable(), beginPairing asks this.pairable() before stillPublished() and AGAIN after it and before its one this.pairing.open(), and PhoneSection.tsx reads .pairable in pairingStage, pairAfterAllowNext and onPair and compares nameCheck only with unreadable or confirmed, never inside those three'],
+  ['D6', 'build/p332/SPEC.md §4.11, §4.12 and its fix round; build/p3321/SPEC.md §8.1; build/p3331/SPEC.md §6.1 (r2 §Attack F25)', 'pairable is ONE method of PocketHost, status() answers pairable: this.pairable(), beginPairing asks this.pairable() before stillPublished() and AGAIN after it and before its one this.pairing.open(), and PhoneSection.tsx reads .pairable in pairingStage, pairAfterAllowNext and onPair; EVERY file of the sheet’s surface compares nameCheck only with unreadable or confirmed, never inside those three, and phone/steps.ts and the step frame (phone/StepsCard.tsx) name no nameCheck and no nameProgress at all'],
   ['D7', 'build/p332/SPEC.md §4.8', 'GMUX_POCKET_NAME_SERVERS is read in nameServersFrom alone, which answers the search for a packaged build before it looks, matches every entry against a pattern anchored on ^127\\.0\\.0\\.1:, answers refused for anything else and never the search; and askNameRound returns override-unusable for a refused source before it names findZoneServers'],
   ['D8', 'build/p332/SPEC.md §4.3 step 1', 'the shipping transport answers an error for a server that is not 127.0.0.1 unless process.versions.electron is a string, BEFORE it creates a socket: no test and no script reaches a real DNS server through it'],
   ['D9', 'build/p332/SPEC.md §4.13; after his ruling, 2026-09-30', 'THE PUSH SEAM PAIRS NOTHING WITHOUT THE NAME STAND-IN: nameStandInOnly answers nameServersFrom(…).kind === \'fixed\' alone, openDoorForPairing returns false on it before it first calls its host, waits a bounded time for host.status().pairable after the switch and before every return true, with the wait’s answer deciding a return false, and the seam presses beginPairing only on openDoorForPairing’s true'],
@@ -301,6 +301,18 @@ const RULES = [
   ['Z28', 'build/p3371/SPEC.md D3, D4, §5.3.4, §Attack B8, B16', 'THE LIVE DEPTH AND SPACE: SCREEN_FORMAT is declared once with #{history_size} its eighth and last field, read as WHOLE9, at most nine digits; composeScreen sets depth and space together, from the display only when the reading is steady, not the alternate screen and the history at most POCKET_SCROLLBACK_MAX_INDEX, and both null otherwise; spaceOf is declared once, in compose.ts, and imports nothing of watch.ts'],
   ['Z29', 'build/p3371/SPEC.md D12, §Attack B1', 'MOVED, AND NOTHING SENT: moved is answered for exactly D12’s conditions over each attempt’s AGREED frame (the alternate screen, cols !== wrap, h1 < depth, h1 below the previous attempt’s display, from >= h1), each BEFORE anything is composed, and the capture of a refused attempt reaches no answer, no log and no store'],
   ['Z30', 'build/p3371/SPEC.md D35', 'THE HONESTY SENTENCE names what a session’s terminal shows AND what it printed before, still typing and ending, and never says the phone can change nothing else; the Allow line’s route list is still derived from the table'],
+  // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1): a return
+  // to the window reads Tailscale with no press, three setup presses open a
+  // page, an app or the clipboard, and the sheet draws three steps.
+  ['SU1', 'build/p3331/SPEC.md D7 to D9, §5.2.3; r2 §Attack F18 to F20', 'THE RETURN: rechecks(held) is ONE method holding every clause of D7 in order, (a) the switch as the person last left it (readStore()?.enabled !== true || this.switchedOffThisRun), (b) published, (c) opening !== held, (d) funnel not idle, (e) a restart armed, (f) the quit, (i) returnForked, (g) a read word of RETURN_READ_WORDS (exactly no-tailscale, not-running, signed-out) or not-approved on the start’s arm, (h) confirmed or pressedOnThisRun; status() answers rechecks: this.rechecks(), and recheck alone asks it again; recheck counts no press, asks rechecks() and returnMayRun before opening += 1, runs its job inside serially with if (!this.rechecks(1)) return; right after the superseded check and returnMayRun again before anything runs, opens only through openNow(…, { returned: true }) on confirmed fields and readOnReturn under pressedOnThisRun otherwise; readOnReturn returns on its read’s own last-press check (this.superseded(press), the statement right after the read) before it writes anything, writes a port only from 0 and keeps every refusal in readRefusal; openNow stops a return after not-approved while approval is asked, and sets returnForked once, before the fork and never as the statement before it; switchedOffThisRun and pressedOnThisRun move only with the switch, the off after let saved = true;'],
+  ['SU2', 'build/p3331/SPEC.md D10, D16', 'NO TIMER AND NO READ AT OPEN: the sheet’s surface calls recheck( exactly twice, once in an onWindowLooked( callback and once under document.hasFocus(), in ONE effect that hands back the unsubscribe; onWindowLooked is imported from machines/remote-writes and is the only listener (no focus or visibilitychange listener of the surface’s own); no setInterval, setTimeout or requestAnimationFrame callback names it; rechecks()’s first statement asks the switch and recheck’s first statement asks rechecks()'],
+  ['SU3', 'build/p3331/SPEC.md D11 to D13, §5.2.3; r2 §Attack F23', 'THE SETUP PRESSES: POCKET_SETUP_ACTIONS is exactly get-tailscale, open-tailscale and copy-admin-link; setupAction’s first statement after the parse returns false under isHarnessLaunch(process.env); each act once, after setupActionsNow(, the page TAILSCALE_DOWNLOAD_PAGE, the app TAILSCALE_APP_BUNDLE and the held link after approvalOpens(, written as funnel.ts’s one approvalCopyText( spells it (null unless approvalOpens(, else new URL(…).href beginning https://login.tailscale.com/, never the printed text; the 333.1 reverify); the press’s word reaches no act; shell.openExternal only in openApproval and electronSetupSeam, shell.openPath and clipboard only in electronSetupSeam, each read inside an arrow’s body; open-tailscale listed only for a pinned, non-override program at TAILSCALE_APP_PROGRAM; PocketHostDeps.setup handed by tests alone'],
+  ['SU4', 'build/p3331/SPEC.md D2, D3', 'THE STAT: status() calls this.funnel.resolve() exactly once, reaches the program only through funnelProgramOf( and hands the same resolution to setupActionsNow(, and names no readTailnet(, readServe(, exec, spawn or sweepFunnelOrphan(; tailscale is this.tailscaleNow( called once, in status(), and its body names no tailnetFacts, readStore(, facts( or fields('],
+  ['SU5', 'build/p3331/SPEC.md D4, D30', 'DRAWN AND NEVER HASHED: no account in PocketExecutionFields, NORMALIZE, PocketStore, facts.ts, routes.ts, door/**, any contract type but PocketStatus, or any log call’s arguments in the domain; POCKET_EXECUTION_HASH_ALGORITHM is sha256-pocket-exec-v3 and POCKET_ROUTE_IDS the eleven routes it was'],
+  ['SU6', 'build/p3331/SPEC.md D18; his ruling 2, “Keep today’s block”', 'THE CONFIRM UNCHANGED: the one element carrying data-phone-confirm holds the confirmLines, POCKET_CONFIRM_WARNING, POCKET_DOOR_HONESTY, POCKET_FUNNEL_RIGHT_WARNING under funnel.asksApproval and confirm-door, and none of it sits inside a <details>; confirmDoor hands linesRead: current.confirmLines and hashRead: current.confirmHash, unsliced and unmapped'],
+  ['SU7', 'build/p3331/SPEC.md D17; r2 §Attack F11, F27', 'THE CODE ASKED FOR: setPairAfterAllow(\'pressed\') is called exactly twice outside onPair, in the live onSetDoor and the live onRetryDoor, each under a condition holding status !== null && status.phones.length === 0; pairAfterAllowNext reads .rechecks and names no nameProgress and no nameCheck'],
+  ['SU8', 'build/p3331/SPEC.md D6; §Attack F9', 'THE ADMIN LINK: adminLink is assigned a URL exactly once, in the start’s not-approved arm, under approvalOpens(; no adminText exists; status() names no adminLink, which is read in setupActionsNow and in setupAction’s copy-admin-link arm alone; it is never cleared in readOnReturn or recheck, and sweepAndRead clears it only under !read.asksApproval; approvalText is composed from this.approvalUrl as today'],
+  ['SU9', 'build/p3331/SPEC.md D29; research 140 §10; his answer (3)', 'THE WORDS: no string literal, template text or JSX text in PhoneSection.tsx, phone/** or src/shared/ipc/pocket.ts, nor PUSH_PUBLISHER_ONLY’s value, says beta, TestFlight, remote desktop, mirror, stream or SSH, word-bounded and case-insensitive; comments are not read']
 ];
 
 if (process.argv.includes('--list')) {
@@ -1224,7 +1236,9 @@ function bridgeRule() {
   // them, the preload invokes them and the host registers them, and
   // `pocket:openApproval` joined all three in one commit. THIRTEEN since
   // Phase 316.5, whose `pocket:choosePushKey` and `pocket:forgetPushKey` joined
-  // all three in one commit too.
+  // all three in one commit too. FIFTEEN since Phase 333.1 (build/p3331/SPEC.md
+  // §6.1): `pocket:recheck`, the window coming back to the front, and
+  // `pocket:setupAction`, one setup press by one closed word.
   const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
   const bridge = join(ROOT, 'src', 'preload', 'pocket.ts');
   const declaredChannels = new Set();
@@ -1241,8 +1255,12 @@ function bridgeRule() {
   const served = matched(ipcModule, /\bhandle\(\s*\w+\s*,\s*'(pocket:[A-Za-z]+)'/g);
   const same = (a, b) => a.size === b.size && [...a].every((x) => b.has(x));
   checked('B1', 3);
-  if (declaredChannels.size !== 13) {
-    fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares ${String(declaredChannels.size)} channel(s), not thirteen (${[...declaredChannels].join(', ')})`);
+  if (declaredChannels.size !== 15) {
+    fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares ${String(declaredChannels.size)} channel(s), not fifteen (${[...declaredChannels].join(', ')})`);
+  }
+  checked('B1', 2);
+  for (const channel of ['pocket:recheck', 'pocket:setupAction']) {
+    if (!declaredChannels.has(channel)) fail('B1', `src/shared/ipc/pocket.ts's PocketInvokeChannelMap declares no ${channel} (Phase 333.1, build/p3331/SPEC.md §5.1)`);
   }
   if (!same(declaredChannels, bridged)) {
     fail('B1', `the preload invokes ${[...bridged].sort().join(', ') || 'nothing'} where the contract declares ${[...declaredChannels].sort().join(', ')}. A channel one side has and the other does not is a button that throws.`);
@@ -3026,7 +3044,11 @@ function switchQueueRule() {
   // child's start and the orphan sweep, are each called only from a method
   // that runs inside a queued job (Phase 330: the child is started and
   // stopped beside the door, never beside the queue).
-  const JOBS = new Set(['openNow', 'recoverNow', 'closeNow', 'closeNowUnlessConfirmed', 'unpublish', 'sweepAndRead', 'readAtPress']);
+  // PHASE 333.1 (build/p3331/SPEC.md §6.1, §Attack F1): readOnReturn, the
+  // return's read on unconfirmed fields, runs only inside recheck()'s queued
+  // job and calls this.sweepAndRead(), so it is a job; without it Q1 reads the
+  // correct code red.
+  const JOBS = new Set(['openNow', 'recoverNow', 'closeNow', 'closeNowUnlessConfirmed', 'unpublish', 'sweepAndRead', 'readAtPress', 'readOnReturn']);
   const inQueue = (call) => {
     let n = call.parent;
     while (n !== undefined) {
@@ -3080,7 +3102,7 @@ function switchQueueRule() {
   // (c) REACHED ONLY FROM INSIDE A QUEUED JOB. Every call of the start, the
   // restart and the stops is an argument of this.serially(...), or is made by
   // a method that itself only ever runs inside one.
-  const viaQueue = { openNow: 0, closeNow: 0, closeNowUnlessConfirmed: 0, recoverNow: 0, unpublish: 0, sweepAndRead: 0, readAtPress: 0 };
+  const viaQueue = { openNow: 0, closeNow: 0, closeNowUnlessConfirmed: 0, recoverNow: 0, unpublish: 0, sweepAndRead: 0, readAtPress: 0, readOnReturn: 0 };
   for (const call of callsOf(ipc)) {
     const e = call.expression;
     if (!ts.isPropertyAccessExpression(e) || e.expression.kind !== ts.SyntaxKind.ThisKeyword) continue;
@@ -3096,6 +3118,8 @@ function switchQueueRule() {
   checked('Q1', 2);
   if (viaQueue.openNow === 0 && viaQueue.recoverNow === 0) fail('Q1', `${rel(ipc)}: nothing reaches openNow() or recoverNow() through this.serially(...), so the queue holds no start and this rule proved nothing`);
   if (viaQueue.closeNow === 0) fail('Q1', `${rel(ipc)}: nothing reaches closeNow() through this.serially(...), so the queue holds no stop and this rule proved nothing`);
+  checked('Q1');
+  if (viaQueue.readOnReturn === 0) fail('Q1', `${rel(ipc)}: nothing reaches readOnReturn() through this.serially(...) (Phase 333.1), so the return's read on unconfirmed fields runs outside the queue, beside another press, or not at all`);
 
   // (d) BOTH HALVES OF THE SWITCH count themselves as the last press before
   // their first await, and their first await is the queue.
@@ -4992,17 +5016,49 @@ function pairableRule() {
   const NAME_WORDS = new Set(['unreadable', 'confirmed']);
   const pairDeciders = [oneFunction(phone, 'pairingStage'), oneFunction(phone, 'pairAfterAllowNext'), ...live.map((n) => n.initializer.expression)].filter((x) => x !== null);
   const insideDecider = (node) => pairDeciders.some((d) => node.getStart(astOf(phone)) >= d.getStart(astOf(phone)) && node.getEnd() <= d.getEnd());
-  for (const n of nodesOf(phone)) {
-    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'nameCheck') continue;
-    checked('D6');
-    const p = n.parent;
-    const ok =
-      p !== undefined &&
-      ts.isBinaryExpression(p) &&
-      [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(p.operatorToken.kind) &&
-      ((p.left === n && ts.isStringLiteralLike(p.right) && NAME_WORDS.has(p.right.text)) || (p.right === n && ts.isStringLiteralLike(p.left) && NAME_WORDS.has(p.left.text)));
-    if (!ok) fail('D6', `${where(phone, n)} reads nameCheck other than to compare it with 'unreadable' or 'confirmed'. The sheet reads it for the lines it draws above Pair and decides nothing else from it.`);
-    else if (insideDecider(n)) fail('D6', `${where(phone, n)} compares nameCheck inside pairingStage, pairAfterAllowNext or onPair. Whether Pair shows, and whether a carried press asks for the code, is main's pairable and nothing the sheet works out from the name.`);
+  // WIDENED BY PHASE 333.1 (build/p3331/SPEC.md §6.1, r2 §Attack F25): the
+  // sheet is now PhoneSection.tsx AND phone/steps.ts and phone/StepsCard.tsx, which
+  // compose and draw its three steps, so this clause reads EVERY file of the
+  // sheet's surface. Read over PhoneSection.tsx alone, the composer could
+  // decide a face from nameCheck with this rule green.
+  for (const file of phoneSurfaceFiles()) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'nameCheck') continue;
+      checked('D6');
+      const p = n.parent;
+      const ok =
+        p !== undefined &&
+        ts.isBinaryExpression(p) &&
+        [ts.SyntaxKind.EqualsEqualsEqualsToken, ts.SyntaxKind.ExclamationEqualsEqualsToken].includes(p.operatorToken.kind) &&
+        ((p.left === n && ts.isStringLiteralLike(p.right) && NAME_WORDS.has(p.right.text)) || (p.right === n && ts.isStringLiteralLike(p.left) && NAME_WORDS.has(p.left.text)));
+      if (!ok) fail('D6', `${where(file, n)} reads nameCheck other than to compare it with 'unreadable' or 'confirmed'. The sheet reads it for the lines it draws above Pair and decides nothing else from it.`);
+      else if (file === phone && insideDecider(n)) fail('D6', `${where(phone, n)} compares nameCheck inside pairingStage, pairAfterAllowNext or onPair. Whether Pair shows, and whether a carried press asks for the code, is main's pairable and nothing the sheet works out from the name.`);
+    }
+  }
+  // AND THE STEPS NAME THE NAME CHECK NOT AT ALL (D19): the name block is drawn
+  // inside the pair card's body, which is PhoneSection.tsx's, so the composer
+  // and the frame have no reason to read either field. It is read over EVERY
+  // file under phone/, so the frame is held whatever it is called: the SPEC
+  // named it Steps.tsx, which sits beside steps.ts and differs from it by the
+  // case of one letter on a volume that folds case. A missing composer or
+  // frame fails by name: the split is the phase's (D19), and a rule over a
+  // file that is not there would go green on the day the steps do not exist.
+  const phoneDir = join(ROOT, 'src', 'renderer', 'settings', 'phone');
+  const stepFiles = sourcesUnder(phoneDir);
+  checked('D6', 2);
+  if (!stepFiles.some((f) => f === join(phoneDir, 'steps.ts'))) {
+    fail('D6', 'src/renderer/settings/phone/steps.ts does not exist (build/p3331/SPEC.md D19, the sheet builder\'s), so whether the step composer decides anything from the name check is not read');
+  }
+  if (!stepFiles.some((f) => f.endsWith('.tsx') && !/\/Qr\.tsx$/.test(f) && /\bcheckListOf\b|\bStepFace\b/i.test(readFileSync(f, 'utf8')))) {
+    fail('D6', 'no .tsx under src/renderer/settings/phone/ draws a StepFace (build/p3331/SPEC.md D19, the step frame), so whether the frame decides anything from the name check is not read');
+  }
+  for (const file of stepFiles) {
+    for (const n of nodesOf(file)) {
+      const text = ts.isIdentifier(n) || ts.isPrivateIdentifier(n) || ts.isStringLiteralLike(n) ? n.text : null;
+      if (text !== 'nameCheck' && text !== 'nameProgress') continue;
+      checked('D6');
+      fail('D6', `${where(file, n)} names ${text}. The three steps draw the name block inside the pair card, which is PhoneSection.tsx's, and decide nothing from the name check (build/p3331/SPEC.md §6.1, r2 §Attack F25).`);
+    }
   }
 }
 
@@ -10508,6 +10564,1150 @@ async function scrollbackRules() {
 }
 
 // ---------------------------------------------------------------------------
+// SU — a stranger's first run (Phase 333.1, build/p3331/SPEC.md §6.1)
+// ---------------------------------------------------------------------------
+//
+// THE FIRST THING IN TORTIE THAT READS TAILSCALE WITH NO PRESS. A return to the
+// Settings window (`pocket:recheck`) reads Tailscale while a refusal a read can
+// see finished is pending, and on confirmed fields forks the door process and
+// spawns the Funnel child. Three setup presses open Tailscale's download page,
+// open the Tailscale app, or write the admin's approval link to the clipboard.
+// Each promise that keeps that inside his ruling and refusal 8 is ONE clause:
+// the switch as he last left it (r2 §Attack F18), the job asking the predicate
+// again (F19, F20), a return forking at most once per press (F5), the program
+// he allowed and no other (F6), the harness that opens nothing, and the seam
+// that reads Electron's shell only when called (F23). Every clause below is
+// read with the TypeScript parser and has its own arm in `ablation:p313`.
+
+const SU_IPC_OWNER = "Phase 333.1 builder main's (src/main/pocket/ipc.ts)";
+/** D7 (g): the READ's refusals a return re-checks, and never shields-up. */
+const RETURN_READ_SET = ['no-tailscale', 'not-running', 'signed-out'];
+/** D11: the three setup words, in this order. */
+const SETUP_WORDS = ['get-tailscale', 'open-tailscale', 'copy-admin-link'];
+/** POCKET_ROUTE_IDS as it was before this phase (D30): no route moves. */
+const ROUTES_BEFORE_3331 = ['pair', 'blocked', 'session', 'turns', 'end', 'choose', 'say', 'sessions', 'screen', 'keys', 'scrollback'];
+/** SU9 and conformance:ios av6 (D29): word-bounded, case-insensitive. */
+const REFUSED_DRAWN_WORDS = [/\bbeta\b/i, /\btestflight\b/i, /\bremote desktop\b/i, /\bmirror(?:s|ed|ing)?\b/i, /\bstream(?:s|ed|ing)?\b/i, /\bssh\b/i];
+
+const squash = (s) => s.replace(/\s+/g, '');
+
+/** Every member of class PocketHost named `name`: methods, properties and accessors. */
+function hostMembers(ipc, name) {
+  const out = [];
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isClassDeclaration(n) || n.name?.text !== 'PocketHost') continue;
+    for (const m of n.members) if (memberName(m) === name) out.push(m);
+  }
+  return out;
+}
+
+/** The ONE method of PocketHost named `name`, or null with SU<id> failed by name. */
+function oneHostMethod(ipc, name, id) {
+  const found = hostMembers(ipc, name);
+  checked(id);
+  if (found.length === 1 && ts.isMethodDeclaration(found[0]) && found[0].body !== undefined) return found[0];
+  fail(id, `PocketHost declares ${name} ${String(found.length)} time(s)${found.length === 1 ? ', not as a method with a body' : ''}; it is ONE method (build/p3331/SPEC.md §5.2.3). It is ${SU_IPC_OWNER}.`);
+  return null;
+}
+
+/** The PocketHost method a node sits in, by name, or null. */
+function hostMethodOf(node) {
+  for (let n = node.parent; n !== undefined; n = n.parent) {
+    if (ts.isMethodDeclaration(n) && n.name !== undefined && ts.isIdentifier(n.name)) {
+      const cls = n.parent;
+      return cls !== undefined && ts.isClassDeclaration(cls) && cls.name?.text === 'PocketHost' ? n.name.text : null;
+    }
+  }
+  return null;
+}
+
+/** `this.<prop> = <rhs>` everywhere in a file. */
+function thisAssigns(file, prop) {
+  return nodesOf(file).filter(
+    (n) =>
+      ts.isBinaryExpression(n) &&
+      n.operatorToken.kind === ts.SyntaxKind.EqualsToken &&
+      ts.isPropertyAccessExpression(n.left) &&
+      n.left.expression.kind === ts.SyntaxKind.ThisKeyword &&
+      n.left.name.text === prop
+  );
+}
+
+/**
+ * The conditions that must hold for `node` to run, read outward to `stop`
+ * (excluded), each squashed: an if's condition for its then-branch, the
+ * negation for its else, a ternary's for its true arm, the left of an `&&`
+ * for its right, and a case's own expression.
+ */
+function guardsOf(file, node, stop = null) {
+  const out = [];
+  for (let n = node; n.parent !== undefined && n !== stop; n = n.parent) {
+    const p = n.parent;
+    if (p === stop) break;
+    if (ts.isIfStatement(p) && p.thenStatement === n) out.push(squash(codeOfNode(file, p.expression)));
+    else if (ts.isIfStatement(p) && p.elseStatement === n) out.push(`!(${squash(codeOfNode(file, p.expression))})`);
+    else if (ts.isConditionalExpression(p) && p.whenTrue === n) out.push(squash(codeOfNode(file, p.condition)));
+    else if (ts.isBinaryExpression(p) && p.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && p.right === n) out.push(squash(codeOfNode(file, p.left)));
+    else if (ts.isCaseClause(p)) out.push(`case:${squash(codeOfNode(file, p.expression))}`);
+  }
+  return out;
+}
+
+/** `if (<cond>) return <x>;` (or a one-statement block), as its squashed condition, or null. */
+function earlyReturnCond(file, st, wantFalse = false) {
+  if (st === undefined || !ts.isIfStatement(st) || st.elseStatement !== undefined) return null;
+  const then = st.thenStatement;
+  const ret = ts.isReturnStatement(then) ? then : ts.isBlock(then) && then.statements.length === 1 && ts.isReturnStatement(then.statements[0]) ? then.statements[0] : null;
+  if (ret === null) return null;
+  if (wantFalse && (ret.expression === undefined || ret.expression.kind !== ts.SyntaxKind.FalseKeyword)) return null;
+  return squash(codeOfNode(file, st.expression));
+}
+
+/** The calls in a subtree whose callee is named `name`. */
+const callsIn = (root, name) => descendantsOf(root).filter((n) => ts.isCallExpression(n) && calleeName(n) === name);
+
+/** Is `n` the object-literal value `{ returned: true }` and nothing else? */
+function isReturnedTrue(n) {
+  return (
+    n !== undefined &&
+    ts.isObjectLiteralExpression(n) &&
+    n.properties.length === 1 &&
+    ts.isPropertyAssignment(n.properties[0]) &&
+    memberName(n.properties[0]) === 'returned' &&
+    n.properties[0].initializer.kind === ts.SyntaxKind.TrueKeyword
+  );
+}
+
+/** The `if (!on)` branch of setDoor, as the switch rules read it, or undefined. */
+function setDoorOffBranch(ipc, setDoor) {
+  return nodesOf(ipc).find((n) => ts.isIfStatement(n) && n.pos >= setDoor.pos && n.end <= setDoor.end && /^!\s*on$/.test(codeOfNode(ipc, n.expression).trim()));
+}
+
+// ---- SU1, the return ------------------------------------------------------
+
+function returnRule(ipc) {
+  const sf = astOf(ipc);
+  const at = (n) => n.getStart(sf);
+
+  // (1) ONE rechecks, taking held, holding every clause of D7 in order.
+  const rechecks = oneHostMethod(ipc, 'rechecks', 'SU1');
+  if (rechecks !== null) {
+    const p = rechecks.parameters;
+    checked('SU1');
+    if (p.length !== 1 || !ts.isIdentifier(p[0].name) || p[0].name.text !== 'held') {
+      fail('SU1', `${where(ipc, rechecks)}: rechecks takes (${p.map((x) => x.name.getText(sf)).join(', ')}); it takes ONE parameter, held, the openings the caller's own job holds (0 for a return arriving, 1 inside its own job)`);
+    }
+    const stmts = rechecks.body.statements;
+    const conds = stmts.map((s) => earlyReturnCond(ipc, s, true));
+    const CLAUSES = [
+      ['a', '(a) the switch', ['this.readStore()?.enabled!==true']],
+      ['a2', "(a) the person's own off press in this run (r2 §Attack F18: an off whose save failed leaves the held store saying on)", ['this.switchedOffThisRun']],
+      ['b', '(b) the door published', ['this.published()']],
+      ['c', '(c) an opening the caller does not hold (a return arriving while a start is queued or waiting on approval)', ['this.opening!==held']],
+      ['d', "(d) the funnel not idle (recoverNow's window between its timer and its opening += 1)", ["this.funnelState!=='idle'"]],
+      ['e', '(e) a restart armed', ['this.restartCancel!==null']],
+      ['f', '(f) the quit', ['pocketShutdownStarted()', 'funnelShutdownStarted()']],
+      ['i', '(i) a return that already forked this press (D8b)', ['this.returnForked']]
+    ];
+    const index = new Map();
+    for (const [key, what, texts] of CLAUSES) {
+      checked('SU1');
+      const k = conds.findIndex((c) => c !== null && texts.every((t) => c.includes(t)));
+      if (k === -1) fail('SU1', `${where(ipc, rechecks)}: rechecks() holds no \`if (…${texts.join('…')}…) return false;\`, so clause ${what} is gone and a return reads Tailscale, or forks and spawns, where D7 says it may not`);
+      else index.set(key, k);
+    }
+    checked('SU1', 2);
+    // The clause keys by name, because T1 reads a one-letter hex-shaped literal
+    // handed to a `get(` as an address.
+    const SWITCH = CLAUSES[0][0];
+    const OFF_PRESS = CLAUSES[1][0];
+    if (index.has(SWITCH) && index.get(SWITCH) !== 0) fail('SU1', `${where(ipc, stmts[index.get(SWITCH)])}: rechecks()'s first statement does not ask the switch; clause (a) comes first, so nothing after it runs for a door that is off`);
+    if (index.has(SWITCH) && index.has(OFF_PRESS) && index.get(SWITCH) !== index.get(OFF_PRESS)) fail('SU1', `${where(ipc, rechecks)}: the off press in this run is asked in another statement than the stored switch; both are clause (a), the switch as the person last left it`);
+    // (g): the refusal, the read's words or the start's not-approved.
+    const conditional = descendantsOf(rechecks.body).find(
+      (n) =>
+        ts.isConditionalExpression(n) &&
+        squash(codeOfNode(ipc, n.condition)) === 'this.readRefusal!==null' &&
+        squash(codeOfNode(ipc, n.whenTrue)) === 'RETURN_READ_WORDS.has(this.readRefusal)' &&
+        squash(codeOfNode(ipc, n.whenFalse)) === "this.startRefusalWord==='not-approved'"
+    );
+    checked('SU1');
+    let gAt = -1;
+    if (conditional === undefined) {
+      fail('SU1', `${where(ipc, rechecks)}: rechecks() holds no \`this.readRefusal !== null ? RETURN_READ_WORDS.has(this.readRefusal) : this.startRefusalWord === 'not-approved'\`, so clause (g), which refusals a return re-checks, is not the one D7 pins`);
+    } else {
+      const home = stmts.findIndex((s) => conditional.pos >= s.pos && conditional.end <= s.end);
+      const decl = conditional.parent !== undefined && ts.isVariableDeclaration(conditional.parent) && ts.isIdentifier(conditional.parent.name) ? conditional.parent.name.text : null;
+      if (conds[home] !== null) gAt = home;
+      else if (decl !== null && conds[home + 1] === `!${decl}`) gAt = home + 1;
+      if (gAt === -1) fail('SU1', `${where(ipc, conditional)}: clause (g)'s answer does not end rechecks() with return false when no re-checked refusal is pending`);
+    }
+    // (h): the last statement, confirmed or pressed in this run.
+    const last = stmts[stmts.length - 1];
+    const lastText = last !== undefined && ts.isReturnStatement(last) && last.expression !== undefined ? squash(codeOfNode(ipc, last.expression)) : '';
+    checked('SU1', 2);
+    if (!lastText.includes("pocketConfirmStatus(this.fields()).state==='confirmed'")) fail('SU1', `${where(ipc, rechecks)}: rechecks() does not end by asking the gate (pocketConfirmStatus(this.fields()).state === 'confirmed'), clause (h)`);
+    if (!lastText.includes('this.pressedOnThisRun') || !lastText.includes('||')) fail('SU1', `${where(ipc, rechecks)}: rechecks()'s last clause (h) is not \`confirmed || this.pressedOnThisRun\`, so an unconfirmed door is read on a return in a run whose switch nobody pressed, or never in the run that pressed it (D8)`);
+    // The order D7 pins: a, b, c, d, e, f, i, g, h.
+    const order = ['a', 'b', 'c', 'd', 'e', 'f', 'i'].map((k) => index.get(k)).filter((k) => k !== undefined);
+    if (gAt !== -1) order.push(gAt);
+    checked('SU1');
+    if (order.some((k, j) => j > 0 && k <= order[j - 1])) fail('SU1', `${where(ipc, rechecks)}: rechecks()'s clauses are not in D7's order (a, b, c, d, e, f, i, g, h), which build/p3331/SPEC.md §5.2.3 pins so the gate and the ablations read one text`);
+  }
+
+  // (2) RETURN_READ_WORDS: declared once, exactly the three READ words.
+  const sets = nodesOf(ipc).filter((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'RETURN_READ_WORDS');
+  checked('SU1');
+  if (sets.length !== 1) {
+    fail('SU1', `${rel(ipc)} declares RETURN_READ_WORDS ${String(sets.length)} time(s); it is declared once, beside RETRIED`);
+  } else {
+    let init = sets[0].initializer;
+    while (init !== undefined && (ts.isAsExpression(init) || ts.isParenthesizedExpression(init))) init = init.expression;
+    const list = init !== undefined && ts.isNewExpression(init) && init.arguments?.[0] !== undefined && ts.isArrayLiteralExpression(init.arguments[0]) ? init.arguments[0].elements.map((e) => (ts.isStringLiteralLike(e) ? e.text : null)) : null;
+    if (list === null || JSON.stringify([...list].sort()) !== JSON.stringify([...RETURN_READ_SET].sort())) {
+      fail('SU1', `${where(ipc, sets[0])}: RETURN_READ_WORDS is ${list === null ? 'not a Set of literals' : JSON.stringify(list)}, not exactly ${JSON.stringify(RETURN_READ_SET)}${list?.includes('shields-up') ? '. shields-up is seen only by a spawn of the Funnel child (funnel.ts), so a return there forks and spawns on every focus (§Attack F4)' : ''}`);
+    }
+  }
+
+  // (3) status() answers it; recheck asks it twice; nothing else calls it.
+  const status = hostMethod(ipc, 'status');
+  checked('SU1');
+  const answered = status === null ? [] : descendantsOf(status).filter((n) => ts.isPropertyAssignment(n) && memberName(n) === 'rechecks');
+  if (answered.length !== 1 || squash(codeOfNode(ipc, answered[0].initializer)) !== 'this.rechecks()') {
+    fail('SU1', `${status === null ? rel(ipc) : where(ipc, status)}: status() does not answer rechecks: this.rechecks(). The sheet keeps a first setup's wish on main's one predicate (D7, D17)`);
+  }
+  let inStatus = 0;
+  const inRecheck = [];
+  for (const call of callsOf(ipc).filter((c) => calleeName(c) === 'rechecks')) {
+    checked('SU1');
+    const owner = hostMethodOf(call);
+    const text = squash(codeOfNode(ipc, call));
+    if (owner === 'status' && text === 'this.rechecks()') inStatus += 1;
+    else if (owner === 'recheck') inRecheck.push(text);
+    else fail('SU1', `${where(ipc, call)}: ${owner ?? 'module scope'} calls rechecks. It is answered in status() and asked by recheck() and nowhere else, so nothing else starts on its answer`);
+  }
+  checked('SU1', 2);
+  if (inStatus !== 1) fail('SU1', `status() calls this.rechecks() ${String(inStatus)} time(s); once, as the field`);
+  if (JSON.stringify([...inRecheck].sort()) !== JSON.stringify(['this.rechecks()', 'this.rechecks(1)'])) {
+    fail('SU1', `recheck() asks ${JSON.stringify(inRecheck)}; it asks this.rechecks() once before it queues and this.rechecks(1) once inside its own job (r2 §Attack F19, F20)`);
+  }
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'rechecks') continue;
+    checked('SU1');
+    if (!(ts.isCallExpression(n.parent) && n.parent.expression === n)) fail('SU1', `${where(ipc, n)} takes rechecks without calling it, so a caller this rule cannot see can follow`);
+  }
+  // recheck itself is reached from the registrar's handler alone (arm 9).
+  const recheckCalls = callsOf(ipc).filter((c) => calleeName(c) === 'recheck');
+  checked('SU1', recheckCalls.length + 1);
+  if (recheckCalls.length === 0) fail('SU1', `${rel(ipc)}: nothing calls recheck(), so pocket:recheck reaches no return`);
+  for (const call of recheckCalls) {
+    const e = call.expression;
+    const receiver = ts.isPropertyAccessExpression(e) ? e.expression.getText(sf) : null;
+    if (enclosingName(call) !== 'registerPocketIpc' || receiver !== 'host') {
+      fail('SU1', `${where(ipc, call)}: recheck() is called from ${enclosingName(call) ?? 'module scope'}. A return is the window coming back to the front, reached through pocket:recheck's handler and nothing else: a status that reads Tailscale is a poll`);
+    }
+  }
+
+  // (4) returnMayRun (D7b): the stat finds a program, and on confirmed fields
+  // it is the program the person allowed.
+  const mayRun = oneHostMethod(ipc, 'returnMayRun', 'SU1');
+  if (mayRun !== null) {
+    const body = squash(codeOfNode(ipc, mayRun.body));
+    checked('SU1', 2);
+    if (!/\.ok\b/.test(body)) fail('SU1', `${where(ipc, mayRun)}: returnMayRun does not read the stat's .ok, so a return sweeps and reads while nothing is there to read`);
+    if (!/\.path===this\.fields\(\)\.funnelProgram/.test(body) || !body.includes('pocketConfirmStatus(')) {
+      fail('SU1', `${where(ipc, mayRun)}: returnMayRun does not compare the program's .path with this.fields().funnelProgram on confirmed fields, so a Tailscale that appeared at another pinned path runs on a focus rather than on a press (§Attack F6)`);
+    }
+  }
+
+  // (5) recheck's shape (D9).
+  const recheck = oneHostMethod(ipc, 'recheck', 'SU1');
+  if (recheck !== null) {
+    const stmts = recheck.body.statements;
+    const openingAt = stmts.findIndex((s) => squash(codeOfNode(ipc, s)) === 'this.opening+=1;');
+    const seriallyCalls = callsIn(recheck.body, 'serially').filter((c) => ts.isPropertyAccessExpression(c.expression) && c.expression.expression.kind === ts.SyntaxKind.ThisKeyword);
+    const seriallyAt = seriallyCalls.length === 0 ? -1 : stmts.findIndex((s) => seriallyCalls[0].pos >= s.pos && seriallyCalls[0].end <= s.end);
+    const before = openingAt === -1 ? [] : stmts.slice(0, openingAt);
+    const guardsBefore = before.map((s) => earlyReturnCond(ipc, s)).filter((c) => c !== null);
+    checked('SU1', 6);
+    if (openingAt === -1) fail('SU1', `${where(ipc, recheck)}: recheck() does not hold an opening (this.opening += 1) as a start does, so a second return while its job is queued is queued too rather than dropped`);
+    if (!guardsBefore.includes('!this.rechecks()')) fail('SU1', `${where(ipc, recheck)}: recheck() does not return before this.opening += 1 unless rechecks() holds`);
+    if (!guardsBefore.some((c) => c.startsWith('!this.returnMayRun('))) fail('SU1', `${where(ipc, recheck)}: recheck() does not return before this.opening += 1 unless returnMayRun(…) holds, so a return sweeps and reads while nothing is there to read (D7b)`);
+    if (seriallyCalls.length !== 1) fail('SU1', `${where(ipc, recheck)}: recheck() calls this.serially( ${String(seriallyCalls.length)} time(s); its one job runs inside the switch's one queue`);
+    if (openingAt !== -1 && seriallyAt !== -1 && openingAt > seriallyAt) fail('SU1', `${where(ipc, recheck)}: recheck() queues its job before it holds an opening`);
+    if (seriallyAt !== -1 && stmts.slice(0, seriallyAt).some((s) => /\bawait\b/.test(codeOfNode(ipc, s)))) fail('SU1', `${where(ipc, recheck)}: recheck() awaits before it queues, so a press can arrive between its predicate and its job`);
+    // It counts no press (arm 3).
+    for (const call of callsIn(recheck, 'pressed')) {
+      checked('SU1');
+      fail('SU1', `${where(ipc, call)}: recheck() calls pressed(). A return is not a press: counted as one, it supersedes the start a person's press is running`);
+    }
+    // Nothing else that starts or reads.
+    for (const name of ['startPocketDoor', 'startFunnel', 'start', 'queueStart', 'recoverNow', 'readAtPress', 'sweepAndRead', 'setDoor', 'readTailnet']) {
+      for (const call of callsIn(recheck, name)) {
+        checked('SU1');
+        fail('SU1', `${where(ipc, call)}: recheck() calls ${name}(. It opens only through openNow(…, { returned: true }) on confirmed fields and reads only through readOnReturn on unconfirmed ones`);
+      }
+    }
+    const job = seriallyCalls[0]?.arguments[0];
+    if (job !== undefined && (ts.isArrowFunction(job) || ts.isFunctionExpression(job)) && ts.isBlock(job.body)) {
+      const first = job.body.statements[0];
+      const tried = first !== undefined && ts.isTryStatement(first) ? first : null;
+      const jobStmts = tried === null ? job.body.statements : tried.tryBlock.statements;
+      checked('SU1', 4);
+      if (tried === null || tried.finallyBlock === undefined || !squash(codeOfNode(ipc, tried.finallyBlock)).includes('this.opening-=1')) {
+        fail('SU1', `${where(ipc, job)}: recheck()'s job does not give its opening back (this.opening -= 1) in a finally, so one failed read drops every return after it`);
+      }
+      if (!isLastPressCheck(ipc, jobStmts[0] ?? null)) fail('SU1', `${where(ipc, job)}: recheck()'s job does not begin with \`if (this.superseded(press)) return;\`, so a return whose press is no longer the last one still runs`);
+      const second = jobStmts[1];
+      const secondCond = earlyReturnCond(ipc, second);
+      if (secondCond !== '!this.rechecks(1)') {
+        fail('SU1', `${second === undefined ? where(ipc, job) : where(ipc, second)}: the statement right after the superseded check is not \`if (!this.rechecks(1)) return;\` (it is ${JSON.stringify(second === undefined ? '(nothing)' : codeOfNode(ipc, second).replace(/\s+/g, ' ').slice(0, 80))}). A return queued behind a restart whose timer just fired, or behind a close a Remove and an Allow followed, runs a second start while published (r2 §Attack F19, F20)`);
+      }
+      const firstRunner = [...callsIn(job, 'openNow'), ...callsIn(job, 'readOnReturn')].sort((x, y) => at(x) - at(y))[0];
+      const mayRunAgain = callsIn(job, 'returnMayRun').find((c) => second !== undefined && at(c) > second.getEnd() && (firstRunner === undefined || at(c) < at(firstRunner)));
+      if (mayRunAgain === undefined) fail('SU1', `${where(ipc, job)}: recheck()'s job does not ask returnMayRun( again after rechecks(1) and before it runs anything, so a program swapped in while the return waited its turn runs on a focus (D7b, D9)`);
+      const opens = callsIn(job, 'openNow');
+      checked('SU1', 2);
+      if (opens.length !== 1) fail('SU1', `${where(ipc, job)}: recheck()'s job calls openNow ${String(opens.length)} time(s); once, on confirmed fields`);
+      for (const call of opens) {
+        if (!isReturnedTrue(call.arguments[2])) fail('SU1', `${where(ipc, call)}: recheck() calls openNow without exactly { returned: true } as its third argument, so its start cannot stop after not-approved nor count its one fork (D8b, D9)`);
+        if (!guardsOf(ipc, call, job).some((g) => g.includes("pocketConfirmStatus(this.fields()).state==='confirmed'"))) fail('SU1', `${where(ipc, call)}: recheck() starts the door on fields the gate does not say are confirmed`);
+      }
+      const reads = callsIn(job, 'readOnReturn');
+      checked('SU1', 2);
+      if (reads.length !== 1) fail('SU1', `${where(ipc, job)}: recheck()'s job calls readOnReturn ${String(reads.length)} time(s); once, on unconfirmed fields`);
+      for (const call of reads) {
+        if (!guardsOf(ipc, call, job).some((g) => g.includes('this.pressedOnThisRun') && !g.startsWith('!'))) {
+          fail('SU1', `${where(ipc, call)}: recheck() reads unconfirmed fields without requiring pressedOnThisRun again, so a door nobody allowed is read because a window came forward on a later day (D8)`);
+        }
+      }
+    } else if (seriallyCalls.length === 1) {
+      checked('SU1');
+      fail('SU1', `${where(ipc, seriallyCalls[0])}: recheck()'s job is not a function with a body this rule can read`);
+    }
+  }
+  // Every other start passes no options: the return is the only caller that marks itself.
+  for (const call of callsOf(ipc).filter((c) => calleeName(c) === 'openNow')) {
+    if (hostMethodOf(call) === 'recheck') continue;
+    checked('SU1');
+    if (call.arguments.length > 2) fail('SU1', `${where(ipc, call)}: ${hostMethodOf(call) ?? 'module scope'} hands openNow options; only recheck() does (§5.2.3)`);
+  }
+
+  // (6) readOnReturn (D9, §Attack F3).
+  const ror = oneHostMethod(ipc, 'readOnReturn', 'SU1');
+  if (ror !== null) {
+    checked('SU1', 4);
+    if (callsIn(ror, 'sweepAndRead').length !== 1) fail('SU1', `${where(ipc, ror)}: readOnReturn does not read through this.sweepAndRead() once, the orphan sweep and the read in their order`);
+    const portWrites = descendantsOf(ror.body).filter(
+      (n) =>
+        ((ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'publicPort') ||
+        (ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.EqualsToken && ts.isPropertyAccessExpression(n.left) && n.left.name.text === 'publicPort')
+    );
+    if (portWrites.length === 0) fail('SU1', `${where(ipc, ror)}: readOnReturn writes no public port, so a first setup's return never chooses one and no lines can be drawn`);
+    for (const w of portWrites) {
+      checked('SU1');
+      if (!guardsOf(ipc, w, ror).some((g) => /publicPort===0\b/.test(g) && !g.startsWith('!'))) {
+        fail('SU1', `${where(ipc, w)}: readOnReturn writes the public port outside the branch where the stored port is 0. A return never moves a stored port: a phone may have been told it, and only a person's switch chooses again`);
+      }
+    }
+    for (const prop of ['startRefusal', 'startRefusalWord']) {
+      for (const a of thisAssigns(ipc, prop).filter((n) => n.pos >= ror.pos && n.end <= ror.end)) {
+        checked('SU1');
+        if (a.right.kind !== ts.SyntaxKind.NullKeyword) fail('SU1', `${where(ipc, a)}: readOnReturn keeps a refusal in this.${prop}. A return's refusal is a READ's, kept in readRefusal, so confirmable is false and no Allow is drawn over a held port (§Attack F3)`);
+      }
+    }
+    const readWords = thisAssigns(ipc, 'readRefusal').filter((n) => n.pos >= ror.pos && n.end <= ror.end && ts.isStringLiteralLike(n.right)).map((n) => n.right.text);
+    for (const word of ['port-taken', 'funnel-ports']) {
+      checked('SU1');
+      if (!readWords.includes(word)) fail('SU1', `${where(ipc, ror)}: readOnReturn never keeps ${JSON.stringify(word)} in this.readRefusal, so a stored port it may not take is drawn as one a person can allow (§Attack F3)`);
+    }
+    // THE READ'S OWN LAST-PRESS CHECK (the 333.1 reverify, 2026-10-08): the
+    // statement right after the read returns when its press was superseded,
+    // so a person's off that arrived while the read was out wins, and nothing
+    // the read found is written after it. Dropping that clause left this rule
+    // and every vitest file green until p3331-return.test.ts's "an off press
+    // while its read is out".
+    const rorStmts = ror.body.statements;
+    const readAt = rorStmts.findIndex((s) => callsIn(s, 'sweepAndRead').length > 0);
+    const afterRead = readAt === -1 ? undefined : rorStmts[readAt + 1];
+    const lastPress = afterRead !== undefined && ts.isIfStatement(afterRead) ? squash(codeOfNode(ipc, afterRead.expression)).split('||') : [];
+    const returnsThen = afterRead !== undefined && ts.isIfStatement(afterRead) && descendantsOf(afterRead.thenStatement).some((x) => ts.isReturnStatement(x));
+    checked('SU1', 2);
+    if (!lastPress.includes('this.superseded(press)') || !returnsThen) {
+      fail('SU1', `${where(ipc, afterRead ?? ror)}: the statement right after readOnReturn's read is not \`if (… || this.superseded(press)) { …; return; }\`, so a person's off that arrives while the read is out is overruled by the read: it writes a port or keeps a refusal after the off (D8, the 333.1 reverify)`);
+    }
+    for (const w of [...portWrites, ...thisAssigns(ipc, 'readRefusal').filter((n) => n.pos >= ror.pos && n.end <= ror.end)]) {
+      checked('SU1');
+      if (afterRead === undefined || w.pos < afterRead.end) fail('SU1', `${where(ipc, w)}: readOnReturn writes before its read's last-press check, so a superseded read still lands`);
+    }
+  }
+
+  // (7) openNow: the return's stop after not-approved, and its one fork.
+  const openNow = hostMethod(ipc, 'openNow');
+  checked('SU1');
+  if (openNow === null) {
+    fail('SU1', `${rel(ipc)}: PocketHost declares no openNow(), so the return's start cannot be read`);
+  } else {
+    const params = openNow.parameters.map((x) => x.name.getText(sf));
+    checked('SU1');
+    if (params[2] !== 'options') fail('SU1', `${where(ipc, openNow)}: openNow takes (${params.join(', ')}); its third parameter is options, handed by recheck() alone`);
+    const fork = callsIn(openNow, 'startPocketDoor')[0];
+    const stop = descendantsOf(openNow.body).find((n) => {
+      if (!ts.isIfStatement(n)) return false;
+      const c = squash(codeOfNode(ipc, n.expression));
+      return c.includes('options.returned') && c.includes("this.startRefusalWord==='not-approved'") && c.includes('read.asksApproval') && descendantsOf(n.thenStatement).some((x) => ts.isReturnStatement(x));
+    });
+    checked('SU1', 2);
+    if (stop === undefined || fork === undefined || at(stop) > at(fork)) {
+      fail('SU1', `${where(ipc, openNow)}: openNow does not return before startPocketDoor when options.returned, this.startRefusalWord === 'not-approved' and read.asksApproval all hold, so a return before the admin approves forks the door process and spawns the Funnel child on every focus (D9)`);
+    }
+    const marks = thisAssigns(ipc, 'returnForked').filter((a) => a.right.kind === ts.SyntaxKind.TrueKeyword);
+    if (marks.length !== 1) {
+      fail('SU1', `${rel(ipc)} sets this.returnForked = true ${String(marks.length)} time(s); once, in openNow, before the fork (D8b)`);
+    } else {
+      const m = marks[0];
+      const home = statementBefore(fork ?? m);
+      const markStatement = (() => {
+        let s = m;
+        while (s.parent !== undefined && !ts.isBlock(s.parent) && !ts.isSourceFile(s.parent)) s = s.parent;
+        return s;
+      })();
+      if (hostMethodOf(m) !== 'openNow' || !guardsOf(ipc, m, openNow).some((g) => g.includes('options.returned')) || fork === undefined || at(m) > at(fork)) {
+        fail('SU1', `${where(ipc, m)}: this.returnForked = true is not set in openNow under options.returned before startPocketDoor, so a start that refuses again with Funnel's capabilities present forks and spawns on every focus (§Attack F5)`);
+      } else if (home === markStatement) {
+        fail('SU1', `${where(ipc, m)}: this.returnForked = true is the statement immediately before startPocketDoor. The last-press check is that statement (L5): an ask placed earlier is the first thing a later round puts an await after`);
+      }
+    }
+  }
+
+  // (8) returnForked = false: setDoor's two arms, confirmDoor and the counted start.
+  const setDoor = hostMethod(ipc, 'setDoor');
+  const off = setDoor === null ? undefined : setDoorOffBranch(ipc, setDoor);
+  const offText = off === undefined ? '' : codeOfNode(ipc, off.thenStatement);
+  const offStart = off === undefined ? -1 : at(off.thenStatement);
+  const inOff = (n) => off !== undefined && n.pos >= off.thenStatement.pos && n.end <= off.thenStatement.end;
+  const inOn = (n) => setDoor !== null && off !== undefined && n.pos >= off.end && n.end <= setDoor.end;
+  checked('SU1');
+  if (setDoor === null || off === undefined) fail('SU1', `${rel(ipc)}: setDoor() or its \`if (!on)\` branch is missing, so the switch's own clauses cannot be read`);
+  const clears = thisAssigns(ipc, 'returnForked').filter((a) => a.right.kind === ts.SyntaxKind.FalseKeyword);
+  for (const a of thisAssigns(ipc, 'returnForked')) {
+    if (a.right.kind !== ts.SyntaxKind.FalseKeyword && a.right.kind !== ts.SyntaxKind.TrueKeyword) {
+      checked('SU1');
+      fail('SU1', `${where(ipc, a)}: this.returnForked is set to ${codeOfNode(ipc, a.right)}; it is true in one place and false in four`);
+    }
+  }
+  const confirm = hostMethod(ipc, 'confirmDoor');
+  const countedBlock = openNow === null ? undefined : descendantsOf(openNow.body).find((n) => ts.isBlock(n) && n.statements.some((s) => /\bthis\.adopt\(/.test(codeOfNode(ipc, s))) && n.statements.some((s) => squash(codeOfNode(ipc, s)) === 'this.startRefusal=null;'));
+  for (const [where_, ok] of [
+    ["setDoor()'s off arm", clears.some(inOff)],
+    ["setDoor()'s on arm", clears.some(inOn)],
+    ['confirmDoor() when it records an agreement', confirm !== null && clears.some((a) => a.pos >= confirm.pos && a.end <= confirm.end && guardsOf(ipc, a, confirm).some((g) => g.includes('record!==null')))],
+    ["openNow()'s counted start, beside this.startRefusal = null", countedBlock !== undefined && clears.some((a) => countedBlock.statements.some((s) => a.pos >= s.pos && a.end <= s.end))]
+  ]) {
+    checked('SU1');
+    if (!ok) fail('SU1', `${rel(ipc)}: this.returnForked = false is not written in ${where_}, so after one return-started start the next press is not today's (D8b)`);
+  }
+
+  // (9) switchedOffThisRun and pressedOnThisRun move with the switch alone (D8).
+  const savedAt = offText.search(/\blet\s+saved\s*=\s*true\s*;/);
+  const firstAwait = offText.search(/\bawait\b/);
+  for (const [prop, value, arm, why] of [
+    ['switchedOffThisRun', true, 'off', "after a person's off, nothing but their next on press starts or reads the door in this run, saved or not (r2 §Attack F18)"],
+    ['switchedOffThisRun', false, 'on', 'an on press clears it'],
+    ['pressedOnThisRun', true, 'on', 'an unconfirmed door is read on a return only in the run whose press started the setup'],
+    ['pressedOnThisRun', false, 'off', 'an off press clears it']
+  ]) {
+    const all = thisAssigns(ipc, prop);
+    const these = all.filter((a) => a.right.kind === (value ? ts.SyntaxKind.TrueKeyword : ts.SyntaxKind.FalseKeyword));
+    checked('SU1', these.length + 1);
+    if (these.length === 0) fail('SU1', `${rel(ipc)} never sets this.${prop} = ${String(value)}; ${why} (D8)`);
+    for (const a of these) {
+      if (arm === 'off' ? !inOff(a) : !inOn(a)) {
+        fail('SU1', `${where(ipc, a)}: this.${prop} = ${String(value)} is written outside setDoor()'s ${arm} arm; ${why} (D8)`);
+      } else if (arm === 'off') {
+        const k = at(a) - offStart;
+        if (savedAt === -1 || k < savedAt) fail('SU1', `${where(ipc, a)}: this.${prop} = ${String(value)} is written before \`let saved = true;\` in the off arm. D8 places it after: between \`this.pressed();\` and \`let saved = true;\` it splits the two lines L5's off arm reads together (build/ablation-p313.mjs, L5e; r2 §Attack F26)`);
+        if (firstAwait !== -1 && k > firstAwait) fail('SU1', `${where(ipc, a)}: this.${prop} = ${String(value)} is written after the off arm's first await, so a return queued while the off waits still reads the switch as on`);
+      } else if (prop === 'pressedOnThisRun') {
+        const onText = codeTextOf(ipc).slice(off.getEnd(), setDoor.body.getEnd());
+        const pressedAt = onText.search(/this\.pressed\(\)/);
+        if (pressedAt === -1 || at(a) - off.getEnd() < pressedAt) fail('SU1', `${where(ipc, a)}: this.pressedOnThisRun = true is written before the on press is counted (const press = this.pressed()), so a press refused above it would count as the run's press (D8)`);
+      }
+    }
+    for (const a of all.filter((x) => x.right.kind !== ts.SyntaxKind.TrueKeyword && x.right.kind !== ts.SyntaxKind.FalseKeyword)) {
+      checked('SU1');
+      fail('SU1', `${where(ipc, a)}: this.${prop} is set to ${codeOfNode(ipc, a.right)}; it is true or false, by the switch alone`);
+    }
+  }
+}
+
+// ---- SU2, no timer and no read at open ------------------------------------
+
+function returnSurfaceRule(ipc) {
+  const surface = phoneSurfaceFiles();
+  const calls = [];
+  for (const file of surface) for (const call of callsOf(file)) if (calleeName(call) === 'recheck') calls.push({ file, call });
+  checked('SU2', 2);
+  if (calls.length !== 2) {
+    fail('SU2', `the sheet's surface calls recheck( ${String(calls.length)} time(s) (${calls.map((x) => where(x.file, x.call)).join(', ') || 'nowhere'}); exactly twice, once for each return the helper hears and once at mount with focus (D16)`);
+  }
+  const looked = calls.filter((x) => insideCallbackOf(x.call, 'onWindowLooked'));
+  const focused = calls.filter((x) => guardsOf(x.file, x.call).some((g) => g === 'document.hasFocus()'));
+  if (looked.length !== 1) fail('SU2', `${String(looked.length)} recheck( call(s) sit inside an onWindowLooked( callback; one, so every return the helper hears is one recheck`);
+  if (focused.length !== 1) fail('SU2', `${String(focused.length)} recheck( call(s) sit under \`if (document.hasFocus())\`; one, at mount, so a sheet opened in front reads once and a sheet opened behind reads nothing`);
+  const effectOf = (node) => {
+    for (let n = node.parent; n !== undefined; n = n.parent) {
+      if ((ts.isArrowFunction(n) || ts.isFunctionExpression(n)) && n.parent !== undefined && ts.isCallExpression(n.parent) && calleeName(n.parent) === 'useEffect' && n.parent.arguments[0] === n) return n;
+    }
+    return null;
+  };
+  const effects = new Set(calls.map((x) => effectOf(x.call)));
+  checked('SU2');
+  if (effects.has(null) || effects.size !== 1) fail('SU2', `the sheet's recheck( calls are not in ONE useEffect, so the return and the mount read could be wired twice or never unwired (D16)`);
+  const subscribes = [];
+  for (const file of surface) for (const call of callsOf(file)) if (calleeName(call) === 'onWindowLooked') subscribes.push({ file, call });
+  checked('SU2', 2);
+  if (subscribes.length !== 1) fail('SU2', `the sheet's surface subscribes to onWindowLooked ${String(subscribes.length)} time(s); once (D16)`);
+  for (const { file, call } of subscribes) {
+    const effect = effectOf(call);
+    const decl = call.parent !== undefined && ts.isVariableDeclaration(call.parent) && ts.isIdentifier(call.parent.name) ? call.parent.name.text : null;
+    const hands = effect !== null && ownReturnsOf(effect).some((r) => r.expression !== undefined && ((decl !== null && ts.isIdentifier(r.expression) && r.expression.text === decl) || r.expression === call));
+    if (!hands) fail('SU2', `${where(file, call)}: the effect does not hand back onWindowLooked's unsubscribe, so the listener outlives the section and lookedListenerCount() never returns to where it was`);
+  }
+  // onWindowLooked is the existing helper, not a second one.
+  const imports = [];
+  for (const file of surface) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isImportDeclaration(n) || !ts.isStringLiteral(n.moduleSpecifier)) continue;
+      const named = n.importClause?.namedBindings;
+      if (named !== undefined && ts.isNamedImports(named) && named.elements.some((e) => (e.propertyName ?? e.name).text === 'onWindowLooked')) imports.push({ file, n, spec: n.moduleSpecifier.text });
+    }
+  }
+  checked('SU2');
+  if (imports.length === 0 || imports.some((x) => !/(?:^|\/)machines\/remote-writes$/.test(x.spec))) {
+    fail('SU2', `onWindowLooked is ${imports.length === 0 ? 'imported by no surface file' : `imported from ${imports.map((x) => x.spec).join(', ')}`}; it is the existing helper in src/renderer/machines/remote-writes.ts, one bus for every return (CLAUDE.md: grep for an existing helper)`);
+  }
+  for (const file of surface) {
+    for (const call of callsOf(file)) {
+      const name = calleeName(call);
+      if (name === 'setInterval' || name === 'setTimeout' || name === 'requestAnimationFrame' || name === 'queueMicrotask') {
+        checked('SU2');
+        if (descendantsOf(call).some((n) => (ts.isIdentifier(n) && n.text === 'recheck') || (ts.isPropertyAccessExpression(n) && n.name.text === 'recheck'))) {
+          fail('SU2', `${where(file, call)}: a ${name} callback names recheck. A return is the window coming back and nothing else: a timer that reads Tailscale is a poll`);
+        }
+      }
+      if (name === 'addEventListener') {
+        const first = call.arguments[0];
+        checked('SU2');
+        if (first !== undefined && ts.isStringLiteralLike(first) && ['focus', 'focusin', 'visibilitychange'].includes(first.text)) {
+          fail('SU2', `${where(file, call)}: the sheet listens for ${JSON.stringify(first.text)} itself. onWindowLooked is the only listener, so every return is heard once (D10, D16)`);
+        }
+      }
+    }
+  }
+  // Main: the predicate asks the switch first, and recheck asks the predicate first.
+  const rechecks = hostMethod(ipc, 'rechecks');
+  const recheck = hostMethod(ipc, 'recheck');
+  checked('SU2', 2);
+  const firstCond = rechecks === null ? null : earlyReturnCond(ipc, rechecks.body.statements[0], true);
+  if (firstCond === null || !firstCond.includes('this.readStore()?.enabled!==true')) fail('SU2', `${rechecks === null ? rel(ipc) : where(ipc, rechecks)}: rechecks()'s first statement does not ask the switch, so a sheet opened with the door off is asked anything at all`);
+  if (recheck === null || earlyReturnCond(ipc, recheck.body.statements[0]) !== '!this.rechecks()') fail('SU2', `${recheck === null ? rel(ipc) : where(ipc, recheck)}: recheck()'s first statement is not \`if (!this.rechecks()) return …\`, so a return while a job holds an opening is not dropped before anything else is asked`);
+}
+
+// ---- SU3, the setup presses -------------------------------------------------
+
+function setupPressRule(ipc) {
+  const sf = astOf(ipc);
+  const at = (n) => n.getStart(sf);
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  checked('SU3');
+  const words = existsSync(contract)
+    ? (() => {
+        const d = nodesOf(contract).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'POCKET_SETUP_ACTIONS');
+        let e = d?.initializer;
+        while (e !== undefined && (ts.isAsExpression(e) || ts.isParenthesizedExpression(e))) e = e.expression;
+        return e !== undefined && ts.isArrayLiteralExpression(e) ? e.elements.map((x) => (ts.isStringLiteralLike(x) ? x.text : null)) : null;
+      })()
+    : null;
+  if (JSON.stringify(words) !== JSON.stringify(SETUP_WORDS)) fail('SU3', `src/shared/ipc/pocket.ts's POCKET_SETUP_ACTIONS is ${JSON.stringify(words)}, not exactly ${JSON.stringify(SETUP_WORDS)} (D11): one closed word per press, never a URL or a path`);
+
+  const action = oneHostMethod(ipc, 'setupAction', 'SU3');
+  if (action !== null) {
+    const stmts = action.body.statements;
+    const param = action.parameters[0]?.name;
+    const paramName = param !== undefined && ts.isIdentifier(param) ? param.text : null;
+    checked('SU3');
+    if (action.parameters.length !== 1 || paramName === null) fail('SU3', `${where(ipc, action)}: setupAction takes ${String(action.parameters.length)} parameter(s); ONE, the press's word`);
+    // The harness first after the parse (D12; the precedent of conformance:push P3).
+    const harnessAt = stmts.findIndex((s) => earlyReturnCond(ipc, s, true) === 'isHarnessLaunch(process.env)');
+    checked('SU3', 2);
+    if (harnessAt === -1) {
+      fail('SU3', `${where(ipc, action)}: setupAction does not return false under isHarnessLaunch(process.env), so a probe or a smoke that reached it would open his browser or his Tailscale, or write his clipboard (D12, D35)`);
+    } else {
+      const parse = stmts.slice(0, harnessAt);
+      const acting = ['setupActionsNow', 'resolve', 'openExternal', 'openPath', 'writeClipboard', 'approvalOpens', 'funnelProgramOf'];
+      for (const s of parse) {
+        for (const name of acting) {
+          if (callsIn(s, name).length > 0) fail('SU3', `${where(ipc, s)}: setupAction calls ${name}( before it asks isHarnessLaunch(process.env); the harness is its first statement after the parse`);
+        }
+      }
+      // The parse: the word by membership in POCKET_SETUP_ACTIONS, or a throw.
+      const reached = [...parse, ...parse.flatMap((s) => callsOf(ipc).filter((c) => c.pos >= s.pos && c.end <= s.end).flatMap((c) => (calleeName(c) === null ? [] : functionsNamed(ipc, calleeName(c)))))];
+      const parseText = reached.map((n) => codeOfNode(ipc, n)).join('\n');
+      if (!/\bPOCKET_SETUP_ACTIONS\b/.test(parseText) || !/\bthrow\b/.test(parseText)) fail('SU3', `${where(ipc, action)}: setupAction does not read its input by membership in POCKET_SETUP_ACTIONS, throwing otherwise, before the harness check (D12)`);
+    }
+    // Each act once, after setupActionsNow(, with its one constant.
+    const asked = callsIn(action, 'setupActionsNow');
+    checked('SU3');
+    if (asked.length === 0) fail('SU3', `${where(ipc, action)}: setupAction never asks setupActionsNow(, so a press acts on a word main does not list now`);
+    const firstAsk = asked.length === 0 ? Infinity : Math.min(...asked.map(at));
+    const localInit = (id) => {
+      const d = descendantsOf(action.body).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === id);
+      return d?.initializer === undefined ? null : squash(codeOfNode(ipc, d.initializer));
+    };
+    // A local's name reads as its initializer, two levels deep, so
+    // `copied = approvalCopyText(link)` over `link = this.adminLink` reads as
+    // approvalCopyText(this.adminLink) and a bare `link` as this.adminLink.
+    const resolved = (text) => {
+      let t = text;
+      for (let i = 0; i < 2; i += 1) {
+        const whole = /^[A-Za-z_$][\w$]*$/.test(t) ? localInit(t) : null;
+        if (whole !== null) {
+          t = whole;
+          continue;
+        }
+        t = t.replace(/\(([A-Za-z_$][\w$]*)\)/g, (all, id) => {
+          const init = localInit(id);
+          return init === null ? all : `(${init})`;
+        });
+      }
+      return t;
+    };
+    for (const [name, constant, why] of [
+      ['openExternal', 'TAILSCALE_DOWNLOAD_PAGE', 'Get Tailscale opens the download page and nothing else'],
+      ['openPath', 'TAILSCALE_APP_BUNDLE', 'Open Tailscale opens the app bundle, never the command line program'],
+      // The 333.1 reverify: the held link as approvalCopyText spells it, never
+      // the text the program printed, which two parsers can read as two hosts.
+      ['writeClipboard', 'approvalCopyText(this.adminLink)', 'Copy link writes the held link as approvalCopyText spells it (new URL’s serialization, which every parser reads as login.tailscale.com) and nothing else, never the text the program printed (the 333.1 reverify: `https://login.tailscale.com\\@evil.example/f/funnel` is evil.example to an RFC 3986 parser)']
+    ]) {
+      const acts = callsIn(action, name);
+      checked('SU3', acts.length + 1);
+      if (acts.length !== 1) fail('SU3', `${where(ipc, action)}: setupAction calls ${name}( ${String(acts.length)} time(s); once (D12)`);
+      for (const call of acts) {
+        const arg = call.arguments[0];
+        const argText = arg === undefined ? '' : squash(codeOfNode(ipc, arg));
+        const ok = resolved(argText) === constant;
+        if (!ok) fail('SU3', `${where(ipc, call)}: ${name}( is handed ${JSON.stringify(argText)}, not ${constant}; ${why}`);
+        if (at(call) < firstAsk) fail('SU3', `${where(ipc, call)}: ${name}( runs before setupActionsNow( is asked, so it acts on a word main does not list`);
+        if (paramName !== null && descendantsOf(call).some((n) => ts.isIdentifier(n) && n.text === paramName)) fail('SU3', `${where(ipc, call)}: the press's word reaches ${name}(. Nothing takes a URL or a path from the renderer`);
+        const receiver = ts.isPropertyAccessExpression(call.expression) ? call.expression.expression.getText(sf) : '';
+        if (receiver === 'shell' || receiver === 'clipboard') fail('SU3', `${where(ipc, call)}: setupAction calls Electron's ${receiver} itself; it acts through the seam (this.deps.setup ?? electronSetupSeam)`);
+        if (name === 'writeClipboard') {
+          let block = call.parent;
+          while (block !== undefined && !ts.isBlock(block) && !ts.isCaseClause(block)) block = block.parent;
+          const asks = block === undefined ? [] : callsIn(block, 'approvalOpens').filter((c) => at(c) < at(call));
+          if (asks.length === 0) fail('SU3', `${where(ipc, call)}: Copy link writes the held link without asking approvalOpens( again in the same branch, so a link Tortie refuses to open could be handed to a person to send to someone (§Attack F9)`);
+        }
+      }
+    }
+  }
+
+  // What Copy link writes (the 333.1 reverify, 2026-10-08): funnel.ts's ONE
+  // approvalCopyText answers null unless approvalOpens passes the text, and
+  // otherwise new URL's serialization, and only one that begins
+  // https://<FUNNEL_APPROVAL_HOST>/, so every parser ends the authority at
+  // that slash. The text the program printed is never the answer.
+  const funnelFile = domainFiles.find((f) => f.endsWith(join('pocket', 'funnel.ts'))) ?? null;
+  const copyFns = funnelFile === null ? [] : functionsNamed(funnelFile, 'approvalCopyText');
+  checked('SU3', 4);
+  if (copyFns.length !== 1) {
+    fail('SU3', `${funnelFile === null ? 'src/main/pocket/funnel.ts' : rel(funnelFile)} declares approvalCopyText ${String(copyFns.length)} time(s); once, the one spelling Copy link writes (the 333.1 reverify)`);
+  } else {
+    const fn = copyFns[0];
+    const p0 = fn.parameters[0]?.name;
+    const pn = p0 !== undefined && ts.isIdentifier(p0) ? p0.text : null;
+    const body = squash(codeOfNode(funnelFile, fn.body));
+    const stmts = fn.body.statements;
+    const first = stmts[0] === undefined ? '' : squash(codeOfNode(funnelFile, stmts[0]));
+    if (fn.parameters.length !== 1 || pn === null || first !== `if(${pn}===null||!approvalOpens(${pn}))returnnull;`) {
+      fail('SU3', `${where(funnelFile, fn)}: approvalCopyText's first statement is not \`if (${String(pn)} === null || !approvalOpens(${String(pn)})) return null;\`, so a link Tortie refuses to open could be copied for a person to send to someone (§Attack F9, the 333.1 reverify)`);
+    }
+    const hrefOf = body.match(/const(\w+)=newURL\((\w+)\)\.href;/);
+    if (hrefOf === null || hrefOf[2] !== pn) {
+      fail('SU3', `${where(funnelFile, fn)}: approvalCopyText does not take new URL(${String(pn)}).href, so what is copied is the text the program printed, which two parsers can read as two hosts (the 333.1 reverify)`);
+    }
+    const name = hrefOf === null ? '\\w+' : hrefOf[1];
+    if (!new RegExp(`return${name}\\.startsWith\\(\`https://\\$\\{FUNNEL_APPROVAL_HOST\\}/\`\\)\\?${name}:null;$`).test(body.replace(/}$/, ''))) {
+      fail('SU3', `${where(funnelFile, fn)}: approvalCopyText's last statement is not \`return ${name}.startsWith(\`https://\${FUNNEL_APPROVAL_HOST}/\`) ? ${name} : null;\`, so a copied link need not end its authority at the host's own slash (the 333.1 reverify)`);
+    }
+    if (descendantsOf(fn.body).some((n) => ts.isReturnStatement(n) && n.expression !== undefined && ts.isIdentifier(n.expression) && n.expression.text === pn)) {
+      fail('SU3', `${where(funnelFile, fn)}: approvalCopyText returns ${String(pn)} itself, the text the program printed (the 333.1 reverify)`);
+    }
+  }
+
+  // The doors: Electron's shell and clipboard, read at call time, in two places.
+  const seam = nodesOf(ipc).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'electronSetupSeam');
+  checked('SU3', 2);
+  let seamInit = seam?.initializer;
+  while (seamInit !== undefined && (ts.isAsExpression(seamInit) || ts.isSatisfiesExpression?.(seamInit) || ts.isParenthesizedExpression(seamInit))) seamInit = seamInit.expression;
+  if (seamInit === undefined || !ts.isObjectLiteralExpression(seamInit) || JSON.stringify(seamInit.properties.map(memberName).sort()) !== JSON.stringify(['openExternal', 'openPath', 'writeClipboard'])) {
+    fail('SU3', `${rel(ipc)} declares no electronSetupSeam of exactly openExternal, openPath and writeClipboard, so what production presses is not what this rule reads`);
+  }
+  if (!/\bthis\.deps\.setup\s*\?\?\s*electronSetupSeam\b/.test(codeTextOf(ipc))) fail('SU3', `${rel(ipc)} does not fall back from this.deps.setup to electronSetupSeam, so what production presses is not what this rule reads`);
+  const inSeam = (n) => seam !== undefined && n.pos >= seam.pos && n.end <= seam.end;
+  const inArrowBody = (n) => {
+    for (let p = n.parent; p !== undefined && p !== seam; p = p.parent) if (ts.isArrowFunction(p) || ts.isFunctionExpression(p)) return n.pos >= p.body.pos && n.end <= p.body.end;
+    return false;
+  };
+  for (const file of domainFiles) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isIdentifier(n) || (n.text !== 'shell' && n.text !== 'clipboard')) continue;
+      let p = n.parent;
+      while (p !== undefined && !ts.isImportDeclaration(p) && !ts.isSourceFile(p)) p = p.parent;
+      if (p !== undefined && ts.isImportDeclaration(p)) continue;
+      const parent = n.parent;
+      // A NAME, not a read: `x.shell`, `{ shell: false }` (execFile's own
+      // option, funnel.ts), a declared member.
+      if (ts.isPropertyAccessExpression(parent) && parent.name === n) continue;
+      if ((ts.isPropertyAssignment(parent) || ts.isPropertySignature(parent) || ts.isPropertyDeclaration(parent) || ts.isMethodDeclaration(parent) || ts.isBindingElement(parent)) && parent.name === n) continue;
+      checked('SU3');
+      const member = ts.isPropertyAccessExpression(parent) && parent.expression === n ? parent.name.text : null;
+      const method = hostMethodOf(n);
+      const allowed =
+        file === ipc &&
+        ((inSeam(n) && inArrowBody(n)) || (n.text === 'shell' && member === 'openExternal' && method === 'openApproval'));
+      if (!allowed) {
+        fail(
+          'SU3',
+          `${where(file, n)} names ${n.text}${member === null ? '' : `.${member}`} ${inSeam(n) ? 'in electronSetupSeam outside an arrow’s body, so it is read when the module loads and three test files whose electron mock has no shell or clipboard go red (r2 §Attack F23)' : 'outside electronSetupSeam and openApproval'}. Electron's shell opens Tailscale's approval page in openApproval and the setup presses' page and app through the seam; its clipboard is written through the seam alone`
+        );
+      }
+    }
+  }
+  // The seam's own two opens, everywhere in the host, take their one constant.
+  for (const call of callsOf(ipc)) {
+    const name = calleeName(call);
+    if (name !== 'openExternal' && name !== 'openPath') continue;
+    const receiver = ts.isPropertyAccessExpression(call.expression) ? call.expression.expression.getText(sf) : '';
+    if (receiver === 'shell') continue;
+    checked('SU3');
+    const want = name === 'openExternal' ? 'TAILSCALE_DOWNLOAD_PAGE' : 'TAILSCALE_APP_BUNDLE';
+    const arg = call.arguments[0];
+    const argText = arg === undefined ? '' : squash(codeOfNode(ipc, arg));
+    if (argText !== want) fail('SU3', `${where(ipc, call)}: the seam's ${name}( is handed ${JSON.stringify(argText)}, not ${want}; nothing the seam opens is worked out at the press`);
+  }
+
+  // Which presses main lists (D11).
+  const now = oneHostMethod(ipc, 'setupActionsNow', 'SU3');
+  if (now !== null) {
+    const nodes = descendantsOf(now.body);
+    const literal = (word) => nodes.filter((n) => ts.isStringLiteralLike(n) && n.text === word);
+    const isAppChain = (text) => /!(?:\w+\.)*overrideSet/.test(text) && /source==='pinned'/.test(text) && /path===TAILSCALE_APP_PROGRAM/.test(text);
+    const chains = nodes.filter((n) => ts.isBinaryExpression(n) && n.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && isAppChain(squash(codeOfNode(ipc, n))) && !(n.parent !== undefined && ts.isBinaryExpression(n.parent) && n.parent.operatorToken.kind === ts.SyntaxKind.AmpersandAmpersandToken && isAppChain(squash(codeOfNode(ipc, n.parent)))));
+    const names = chains.map((c) => (c.parent !== undefined && ts.isVariableDeclaration(c.parent) && ts.isIdentifier(c.parent.name) ? c.parent.name.text : null)).filter((x) => x !== null);
+    const opens = literal('open-tailscale');
+    checked('SU3', 3);
+    if (opens.length !== 1) fail('SU3', `${where(ipc, now)}: setupActionsNow names open-tailscale ${String(opens.length)} time(s); once`);
+    for (const o of opens) {
+      const guards = guardsOf(ipc, o, now);
+      const guarded = guards.some((g) => isAppChain(g) || names.some((nm) => new RegExp(`(?:^|[^\\w.!])${nm}(?![\\w])`).test(g)));
+      if (!guarded) fail('SU3', `${where(ipc, o)}: open-tailscale is listed without asking !overrideSet && source === 'pinned' && path === TAILSCALE_APP_PROGRAM, so under a development override a probe's press could open his real Tailscale (D11, D35)`);
+    }
+    for (const g of literal('get-tailscale')) {
+      checked('SU3');
+      if (!guardsOf(ipc, g, now).some((x) => /missing|no-tailscale/.test(x))) fail('SU3', `${where(ipc, g)}: get-tailscale is listed while Tailscale is not missing (D11)`);
+    }
+    for (const c of literal('copy-admin-link')) {
+      checked('SU3');
+      if (!guardsOf(ipc, c, now).some((x) => x.includes('this.adminLink!==null'))) fail('SU3', `${where(ipc, c)}: copy-admin-link is listed without main holding an admin link (this.adminLink !== null, D6, D11)`);
+    }
+  }
+  // PocketHostDeps.setup is the tests' alone (U4's rule; D12).
+  for (const file of sourcesUnder(join(ROOT, 'src'))) {
+    if (!/new PocketHost\(/.test(readFileSync(file, 'utf8'))) continue;
+    for (const node of nodesOf(file)) {
+      if (!ts.isNewExpression(node) || !ts.isIdentifier(node.expression) || node.expression.text !== 'PocketHost') continue;
+      const arg = node.arguments?.[0];
+      if (arg === undefined || !ts.isObjectLiteralExpression(arg)) continue;
+      for (const p of arg.properties) {
+        if (memberName(p) !== 'setup') continue;
+        checked('SU3');
+        fail('SU3', `${where(file, p)}: PocketHost is handed \`setup\` outside a test. Production takes Electron's shell and clipboard, so what a person's press opens is what this rule reads`);
+      }
+    }
+  }
+}
+
+// ---- SU4, the stat ------------------------------------------------------------
+
+function statRule(ipc) {
+  const status = hostMethod(ipc, 'status');
+  checked('SU4');
+  if (status === null) {
+    fail('SU4', `${rel(ipc)}: PocketHost declares no status()`);
+    return;
+  }
+  const resolves = callsIn(status, 'resolve').filter((c) => ts.isPropertyAccessExpression(c.expression) && squash(codeOfNode(ipc, c.expression.expression)) === 'this.funnel');
+  checked('SU4', 3);
+  if (resolves.length !== 1) fail('SU4', `${where(ipc, status)}: status() calls this.funnel.resolve() ${String(resolves.length)} time(s); once, handed to step 1 and to the setup presses (D3): an unusable override warns once per call`);
+  if (callsIn(status, 'funnelProgramOf').length === 0) fail('SU4', `${where(ipc, status)}: status() reaches the program through no funnelProgramOf(`);
+  if (callsIn(status, 'setupActionsNow').length !== 1) fail('SU4', `${where(ipc, status)}: status() does not hand its one resolution to setupActionsNow( once (D3)`);
+  for (const name of ['readTailnet', 'readServe', 'sweepFunnelOrphan', 'exec', 'execFile', 'execReal', 'spawn', 'startFunnel', 'readAtPress', 'sweepAndRead']) {
+    for (const call of callsIn(status, name)) {
+      checked('SU4');
+      fail('SU4', `${where(ipc, call)}: status() calls ${name}(. A status is a stat and the fields already held; a status that runs Tailscale is a poll every push`);
+    }
+  }
+  const field = descendantsOf(status).filter((n) => (ts.isPropertyAssignment(n) || ts.isShorthandPropertyAssignment(n)) && memberName(n) === 'tailscale');
+  const tsCalls = callsOf(ipc).filter((c) => calleeName(c) === 'tailscaleNow');
+  checked('SU4', 2);
+  const fieldFrom = (() => {
+    if (field.length !== 1) return null;
+    const f = field[0];
+    if (ts.isPropertyAssignment(f)) return f.initializer;
+    const d = descendantsOf(status).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'tailscale');
+    return d?.initializer ?? null;
+  })();
+  if (fieldFrom === null || !ts.isCallExpression(fieldFrom) || squash(codeOfNode(ipc, fieldFrom.expression)) !== 'this.tailscaleNow') {
+    fail('SU4', `${where(ipc, status)}: status()'s tailscale is not this.tailscaleNow(…), the one place step 1's state is composed`);
+  }
+  if (tsCalls.length !== 1 || hostMethodOf(tsCalls[0]) !== 'status') fail('SU4', `${rel(ipc)} calls tailscaleNow ${String(tsCalls.length)} time(s)${tsCalls.length === 1 ? ` from ${String(hostMethodOf(tsCalls[0]))}` : ''}; once, in status()`);
+  const now = oneHostMethod(ipc, 'tailscaleNow', 'SU4');
+  if (now !== null) {
+    checked('SU4', 2);
+    if (now.parameters.length !== 2) fail('SU4', `${where(ipc, now)}: tailscaleNow takes ${String(now.parameters.length)} parameter(s); two, the stat's program and the switch status() already read`);
+    for (const n of descendantsOf(now.body)) {
+      const named = ts.isIdentifier(n) ? n.text : null;
+      if (named === 'tailnetFacts') fail('SU4', `${where(ipc, n)}: tailscaleNow names tailnetFacts. A tailnet an earlier run wrote is no proof Tailscale runs now (D2)`);
+      if (ts.isCallExpression(n) && ['readStore', 'facts', 'fields'].includes(calleeName(n) ?? '')) fail('SU4', `${where(ipc, n)}: tailscaleNow calls ${calleeName(n)}(; it reads the stat and this run's last read, and takes the switch as a parameter (D2)`);
+    }
+  }
+}
+
+// ---- SU5, drawn and never hashed ---------------------------------------------
+
+function accountRule() {
+  const pairing = join(DOMAIN, 'pairing.ts');
+  const contract = join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts');
+  checked('SU5', 2);
+  if (!existsSync(pairing) || !existsSync(contract)) {
+    fail('SU5', 'src/main/pocket/pairing.ts or src/shared/ipc/pocket.ts is missing, so what is hashed cannot be read');
+    return;
+  }
+  const namesAccount = (root) => descendantsOf(root).filter((n) => (ts.isIdentifier(n) || ts.isStringLiteralLike(n) || ts.isPrivateIdentifier(n)) && n.text === 'account');
+  for (const [what, node] of [
+    ['PocketExecutionFields', interfaceOf(pairing, 'PocketExecutionFields')],
+    ['PocketStore', interfaceOf(pairing, 'PocketStore')],
+    ['NORMALIZE', nodesOf(pairing).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'NORMALIZE') ?? null]
+  ]) {
+    checked('SU5');
+    if (node === null) {
+      fail('SU5', `src/main/pocket/pairing.ts declares no ${what}, so whether the account is hashed or stored cannot be read`);
+      continue;
+    }
+    for (const n of namesAccount(node)) fail('SU5', `${where(pairing, n)}: ${what} names account. The account is drawn on step 1 and nothing else: no hashed field, no store (D4)`);
+  }
+  const algo = nodesOf(pairing).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'POCKET_EXECUTION_HASH_ALGORITHM');
+  checked('SU5');
+  if (algo?.initializer === undefined || !ts.isStringLiteralLike(algo.initializer) || algo.initializer.text !== 'sha256-pocket-exec-v3') {
+    fail('SU5', `src/main/pocket/pairing.ts's POCKET_EXECUTION_HASH_ALGORITHM is ${algo?.initializer === undefined ? 'not declared' : codeOfNode(pairing, algo.initializer)}, not 'sha256-pocket-exec-v3'. No hashed field moves in this phase, so no paired phone is asked to Allow again (D30)`);
+  }
+  const routes = nodesOf(contract).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'POCKET_ROUTE_IDS');
+  let rinit = routes?.initializer;
+  while (rinit !== undefined && (ts.isAsExpression(rinit) || ts.isParenthesizedExpression(rinit))) rinit = rinit.expression;
+  const ids = rinit !== undefined && ts.isArrayLiteralExpression(rinit) ? rinit.elements.map((e) => (ts.isStringLiteralLike(e) ? e.text : null)) : null;
+  checked('SU5');
+  if (JSON.stringify(ids) !== JSON.stringify(ROUTES_BEFORE_3331)) fail('SU5', `src/shared/ipc/pocket.ts's POCKET_ROUTE_IDS is ${JSON.stringify(ids)}, not the eleven it was (${ROUTES_BEFORE_3331.join(', ')}): this phase adds no door route (D30; 318.1 waits for 333.12)`);
+  // The contract: account is a member of PocketStatus and of no other type.
+  for (const n of nodesOf(contract)) {
+    if (!(ts.isPropertySignature(n) || ts.isPropertyDeclaration(n)) || memberName(n) !== 'account') continue;
+    checked('SU5');
+    const owner = n.parent !== undefined && ts.isInterfaceDeclaration(n.parent) ? n.parent.name.text : null;
+    if (owner !== 'PocketStatus') fail('SU5', `${where(contract, n)}: ${owner ?? 'a type literal'} carries account. It is PocketStatus's alone, drawn on step 1; no door answer, pairing view or other type carries it (D4)`);
+  }
+  // The door's own modules: never the word.
+  const doorSide = domainFiles.filter((f) => /\/pocket\/(?:facts|routes)\.ts$/.test(f) || f.includes(`${join('pocket', 'door')}/`) || f.endsWith(join('pocket', 'door-process.ts')));
+  checked('SU5', doorSide.length);
+  for (const file of doorSide) for (const n of namesAccount(astOf(file))) fail('SU5', `${where(file, n)} names account. The door answers no account: it is drawn on the Mac's own Settings window and leaves it never (D4)`);
+  // Every log call in the domain: never the account.
+  for (const file of domainFiles) {
+    for (const call of callsOf(file)) {
+      const e = call.expression;
+      if (!ts.isPropertyAccessExpression(e)) continue;
+      const recv = e.expression.getText(astOf(file));
+      if (!/(?:^|\.)(?:\w*[lL]og|console)$/.test(recv)) continue;
+      checked('SU5');
+      for (const a of call.arguments) {
+        const hit = descendantsOf(a).find((n) => (ts.isIdentifier(n) && /^account$/i.test(n.text)) || (ts.isPropertyAccessExpression(n) && n.name.text === 'account'));
+        if (hit !== undefined) fail('SU5', `${where(file, call)}: a log line names the account. No log line holds who is signed in to Tailscale on this Mac (D4, §5.2.3)`);
+      }
+    }
+  }
+}
+
+// ---- SU6, the confirm unchanged ------------------------------------------------
+
+function confirmBlockRule() {
+  const surface = phoneSurfaceFiles();
+  const blocks = [];
+  for (const file of surface) {
+    for (const n of nodesOf(file)) {
+      if (!ts.isJsxAttribute(n) || n.name.getText(astOf(file)) !== 'data-phone-confirm') continue;
+      // JsxAttribute → JsxAttributes → the opening (or self-closing) element → the element.
+      let el = n.parent;
+      while (el !== undefined && !ts.isJsxElement(el) && !ts.isJsxSelfClosingElement(el)) el = el.parent;
+      if (el !== undefined) blocks.push({ file, el });
+    }
+  }
+  checked('SU6');
+  if (blocks.length !== 1) {
+    fail('SU6', `the sheet's surface holds ${String(blocks.length)} element(s) carrying data-phone-confirm; one, today's confirm block (D18)`);
+  }
+  const tagOf = (el) => (ts.isJsxElement(el) ? el.openingElement.tagName.getText() : ts.isJsxSelfClosingElement(el) ? el.tagName.getText() : null);
+  for (const { file, el } of blocks) {
+    const nodes = descendantsOf(el);
+    const has = (pred) => nodes.some(pred);
+    for (const [what, ok] of [
+      ['the confirmLines', has((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'confirmLines')],
+      ['POCKET_CONFIRM_WARNING', has((n) => ts.isIdentifier(n) && n.text === 'POCKET_CONFIRM_WARNING')],
+      ['POCKET_DOOR_HONESTY', has((n) => ts.isIdentifier(n) && n.text === 'POCKET_DOOR_HONESTY')],
+      ['confirm-door', has((n) => ts.isStringLiteralLike(n) && n.text === 'confirm-door')]
+    ]) {
+      checked('SU6');
+      if (!ok) fail('SU6', `${where(file, el)}: the confirm block holds no ${what}. The confirm at Allow is today's block, byte for byte (his ruling 2, "Keep today's block")`);
+    }
+    const right = nodes.filter((n) => ts.isIdentifier(n) && n.text === 'POCKET_FUNNEL_RIGHT_WARNING');
+    checked('SU6');
+    if (right.length !== 1 || !guardsOf(file, right[0], el).some((g) => /funnel\.asksApproval$/.test(g) || /funnel\.asksApproval/.test(g))) {
+      fail('SU6', `${where(file, el)}: POCKET_FUNNEL_RIGHT_WARNING is ${right.length === 0 ? 'not in' : 'not under funnel.asksApproval in'} the confirm block; when Funnel asks approval it is read at rest before Allow (D18)`);
+    }
+    // None of it behind a disclosure.
+    checked('SU6');
+    for (let p = el.parent; p !== undefined; p = p.parent) {
+      if ((ts.isJsxElement(p) || ts.isJsxSelfClosingElement(p)) && tagOf(p) === 'details') fail('SU6', `${where(file, el)}: the confirm block sits inside a <details>. Nothing of it goes behind a disclosure (his ruling 2)`);
+    }
+    for (const n of nodes) {
+      if (n !== el && (ts.isJsxElement(n) || ts.isJsxSelfClosingElement(n)) && tagOf(n) === 'details') fail('SU6', `${where(file, n)}: a <details> inside the confirm block hides part of it; every line, both warnings and the honesty sentence are at rest (his ruling 2)`);
+    }
+  }
+  // The lines and the hash handed back unedited.
+  const sends = [];
+  for (const file of surface) {
+    for (const call of callsOf(file)) {
+      if (calleeName(call) !== 'confirmDoor' || !ts.isPropertyAccessExpression(call.expression)) continue;
+      const arg = call.arguments[0];
+      if (arg !== undefined && ts.isObjectLiteralExpression(arg)) sends.push({ file, call, arg });
+    }
+  }
+  checked('SU6');
+  if (sends.length === 0) fail('SU6', 'the sheet never hands confirmDoor the lines and the hash it drew');
+  for (const { file, call, arg } of sends) {
+    const prop = (name) => arg.properties.find((p) => memberName(p) === name);
+    const lines = prop('linesRead');
+    const hash = prop('hashRead');
+    const text = (p) => (p !== undefined && ts.isPropertyAssignment(p) ? squash(codeOfNode(file, p.initializer)) : '');
+    checked('SU6', 2);
+    if (text(lines) !== 'current.confirmLines') fail('SU6', `${where(file, call)}: confirmDoor is handed linesRead: ${text(lines) || '(nothing)'}, not current.confirmLines unsliced and unmapped; the lines a person read are the lines main hashes`);
+    if (text(hash) !== 'current.confirmHash') fail('SU6', `${where(file, call)}: confirmDoor is handed hashRead: ${text(hash) || '(nothing)'}, not current.confirmHash`);
+  }
+}
+
+// ---- SU7, the code asked for -------------------------------------------------
+
+function wishRule() {
+  const phone = join(ROOT, 'src', 'renderer', 'settings', 'PhoneSection.tsx');
+  checked('SU7');
+  if (!existsSync(phone)) {
+    fail('SU7', 'src/renderer/settings/PhoneSection.tsx does not exist');
+    return;
+  }
+  const psf = astOf(phone);
+  const liveHandler = (name) =>
+    nodesOf(phone).filter(
+      (n) =>
+        ts.isJsxAttribute(n) &&
+        n.name.getText(psf) === name &&
+        n.initializer !== undefined &&
+        ts.isJsxExpression(n.initializer) &&
+        n.initializer.expression !== undefined &&
+        ts.isFunctionLike(n.initializer.expression) &&
+        !/^\(\)\s*=>\s*undefined$/.test(n.initializer.expression.getText(psf).trim())
+    );
+  const handlers = { onSetDoor: liveHandler('onSetDoor'), onRetryDoor: liveHandler('onRetryDoor'), onPair: liveHandler('onPair') };
+  const inside = (n, list) => list.some((h) => n.pos >= h.pos && n.end <= h.end);
+  const wishes = callsOf(phone).filter((c) => calleeName(c) === 'setPairAfterAllow' && c.arguments[0] !== undefined && ts.isStringLiteralLike(c.arguments[0]) && c.arguments[0].text === 'pressed');
+  const outside = wishes.filter((c) => !inside(c, handlers.onPair));
+  checked('SU7', 3);
+  if (outside.length !== 2) fail('SU7', `${rel(phone)} calls setPairAfterAllow('pressed') ${String(outside.length)} time(s) outside onPair (${outside.map((c) => where(phone, c)).join(', ') || 'nowhere'}); exactly twice, once by the switch's on press and once by Try again (D17, §Attack F11)`);
+  for (const [name, list] of [['onSetDoor', handlers.onSetDoor], ['onRetryDoor', handlers.onRetryDoor]]) {
+    const here = outside.filter((c) => inside(c, list));
+    checked('SU7');
+    if (list.length === 0) {
+      fail('SU7', `${rel(phone)} wires no live ${name}`);
+      continue;
+    }
+    if (here.length !== 1) fail('SU7', `the live ${name} sets the wish ${String(here.length)} time(s); once`);
+    for (const c of here) {
+      const guarded = guardsOf(phone, c).some((g) => g.includes('status!==null&&status.phones.length===0'));
+      if (!guarded) fail('SU7', `${where(phone, c)}: ${name} sets the wish without \`status !== null && status.phones.length === 0\`. His paired Mac is never handed a code it did not ask for, and a status not loaded yet is not "no phones" (r2 §Attack F27)`);
+    }
+  }
+  const next = oneFunction(phone, 'pairAfterAllowNext');
+  checked('SU7', 2);
+  if (next === null) {
+    fail('SU7', `${rel(phone)} declares no single pairAfterAllowNext`);
+  } else {
+    const nodes = descendantsOf(next);
+    if (!nodes.some((n) => ts.isPropertyAccessExpression(n) && n.name.text === 'rechecks')) fail('SU7', `${where(phone, next)}: pairAfterAllowNext does not read .rechecks, so a first setup that meets a refusal a return re-checks loses its wish and still needs Pair (D17)`);
+    for (const n of nodes) {
+      if ((ts.isIdentifier(n) || ts.isStringLiteralLike(n)) && (n.text === 'nameProgress' || n.text === 'nameCheck')) fail('SU7', `${where(phone, n)}: pairAfterAllowNext names ${n.text}; the carried press follows main's pairable and rechecks alone (D10, D6)`);
+    }
+  }
+}
+
+// ---- SU8, the admin link ------------------------------------------------------
+
+function adminLinkRule(ipc) {
+  const sf = astOf(ipc);
+  const sets = thisAssigns(ipc, 'adminLink');
+  const urls = sets.filter((a) => a.right.kind !== ts.SyntaxKind.NullKeyword);
+  checked('SU8');
+  if (urls.length !== 1) {
+    fail('SU8', `${rel(ipc)} assigns this.adminLink a URL ${String(urls.length)} time(s); once, in the start's not-approved arm (D6)`);
+  }
+  for (const a of urls) {
+    const guards = guardsOf(ipc, a).join('\n');
+    checked('SU8');
+    if (hostMethodOf(a) !== 'openNow' || !guards.includes('approvalOpens(') || !guards.includes("'not-approved'")) {
+      fail('SU8', `${where(ipc, a)}: this.adminLink is kept ${hostMethodOf(a) === 'openNow' ? '' : `in ${String(hostMethodOf(a))} `}without asking the start refused not-approved AND approvalOpens(…) of the URL, so a link Tortie refuses to open could be handed to a person to send to someone (§Attack F9)`);
+    }
+  }
+  // No adminText anywhere: a link that does not open is not kept at all.
+  for (const file of [...domainFiles, join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts'), ...phoneSurfaceFiles()]) {
+    if (!existsSync(file)) continue;
+    for (const n of nodesOf(file)) {
+      if ((ts.isIdentifier(n) || ts.isStringLiteralLike(n)) && n.text === 'adminText') {
+        checked('SU8');
+        fail('SU8', `${where(file, n)} names adminText. A URL that fails approvalOpens is not kept at all (D6, §Attack F9)`);
+      }
+    }
+  }
+  // Read in setupActionsNow and setupAction's copy-admin-link arm alone.
+  const action = hostMethod(ipc, 'setupAction');
+  const copyBlock = (() => {
+    const call = action === null ? undefined : callsIn(action, 'writeClipboard')[0];
+    let b = call?.parent;
+    while (b !== undefined && !ts.isBlock(b) && !ts.isCaseClause(b)) b = b.parent;
+    return b === action?.body ? undefined : b;
+  })();
+  for (const n of nodesOf(ipc)) {
+    if (!ts.isPropertyAccessExpression(n) || n.name.text !== 'adminLink' || n.expression.kind !== ts.SyntaxKind.ThisKeyword) continue;
+    const p = n.parent;
+    if (p !== undefined && ts.isBinaryExpression(p) && p.left === n && p.operatorToken.kind === ts.SyntaxKind.EqualsToken) continue;
+    checked('SU8');
+    const owner = hostMethodOf(n);
+    const ok = owner === 'setupActionsNow' || (owner === 'setupAction' && copyBlock !== undefined && n.pos >= copyBlock.pos && n.end <= copyBlock.end);
+    if (!ok) fail('SU8', `${where(ipc, n)}: ${owner ?? 'module scope'} reads this.adminLink. It is read only to list Copy link and to write it, and it never crosses to the renderer (D6)`);
+  }
+  const status = hostMethod(ipc, 'status');
+  checked('SU8');
+  if (status !== null && descendantsOf(status).some((n) => ts.isIdentifier(n) && n.text === 'adminLink')) fail('SU8', `${where(ipc, status)}: status() names adminLink; the link is main's alone and never crosses to the renderer (D6)`);
+  // Never cleared by a return's read that still lacks Funnel's capabilities.
+  const clears = sets.filter((a) => a.right.kind === ts.SyntaxKind.NullKeyword);
+  for (const a of clears) {
+    const owner = hostMethodOf(a);
+    checked('SU8');
+    if (owner === 'readOnReturn' || owner === 'recheck') fail('SU8', `${where(ipc, a)}: ${owner} drops the admin link. A return before the admin approves keeps Copy link (D6, the entry's attack)`);
+    if (owner === 'sweepAndRead' && !guardsOf(ipc, a).some((g) => g === '!read.asksApproval')) fail('SU8', `${where(ipc, a)}: sweepAndRead drops the admin link on a read that still asks approval; only a read that shows Funnel's two capabilities (!read.asksApproval) drops it (D6)`);
+  }
+  const sweep = hostMethod(ipc, 'sweepAndRead');
+  checked('SU8');
+  if (sweep === null || !clears.some((a) => hostMethodOf(a) === 'sweepAndRead' && guardsOf(ipc, a).some((g) => g === '!read.asksApproval'))) {
+    fail('SU8', `${sweep === null ? rel(ipc) : where(ipc, sweep)}: sweepAndRead never drops the admin link on a read that shows Funnel's two capabilities, so Copy link outlives the approval (D6)`);
+  }
+  // approvalText from this.approvalUrl, as today.
+  if (status !== null) {
+    const prop = descendantsOf(status).find((n) => ts.isPropertyAssignment(n) && memberName(n) === 'approvalText');
+    checked('SU8');
+    if (prop === undefined) fail('SU8', `${where(ipc, status)}: status() answers no approvalText`);
+    else {
+      const ids = descendantsOf(prop.initializer).filter((n) => ts.isIdentifier(n)).map((n) => n.text);
+      const locals = ids.map((id) => descendantsOf(status).find((d) => ts.isVariableDeclaration(d) && ts.isIdentifier(d.name) && d.name.text === id)).filter((d) => d?.initializer !== undefined);
+      const text = [codeOfNode(ipc, prop.initializer), ...locals.map((d) => codeOfNode(ipc, d.initializer))].join('\n');
+      if (!/\bthis\.approvalUrl\b/.test(text) || /adminLink/.test(text)) fail('SU8', `${where(ipc, prop)}: approvalText is not composed from this.approvalUrl alone, as today (D6: the wait's own text arm is unchanged)`);
+    }
+  }
+  void sf;
+}
+
+// ---- SU9, the words ------------------------------------------------------------
+
+function drawnWordsRule() {
+  const files = [...phoneSurfaceFiles(), join(ROOT, 'src', 'shared', 'ipc', 'pocket.ts')];
+  let read = 0;
+  const judge = (file, node, text) => {
+    for (const re of REFUSED_DRAWN_WORDS) {
+      const m = re.exec(text);
+      if (m !== null) fail('SU9', `${where(file, node)} says ${JSON.stringify(m[0])}. Every word says "terminal", and never beta, TestFlight, remote desktop, mirror, stream or SSH (his answer (3); research 140 §10)`);
+    }
+  };
+  for (const file of files) {
+    if (!existsSync(file)) continue;
+    for (const { node, text } of codeStringsOf(file)) {
+      read += 1;
+      judge(file, node, text);
+    }
+    for (const n of nodesOf(file)) {
+      if (!ts.isJsxText(n)) continue;
+      read += 1;
+      judge(file, n, n.text);
+    }
+  }
+  const push = join(ROOT, 'src', 'shared', 'push-copy.ts');
+  const decl = existsSync(push) ? nodesOf(push).find((n) => ts.isVariableDeclaration(n) && ts.isIdentifier(n.name) && n.name.text === 'PUSH_PUBLISHER_ONLY') : undefined;
+  checked('SU9', read + 1);
+  if (decl?.initializer === undefined) {
+    fail('SU9', 'src/shared/push-copy.ts declares no PUSH_PUBLISHER_ONLY, the Alerts card\'s line (D14), so its words are not read');
+  } else {
+    for (const s of descendantsOf(decl.initializer).filter((n) => ts.isStringLiteralLike(n) || ts.isTemplateHead(n) || ts.isTemplateMiddle(n) || ts.isTemplateTail(n))) judge(push, s, s.text);
+  }
+  if (read === 0) fail('SU9', 'no string of the sheet or the contract was read, so this rule asserts nothing');
+}
+
+function setupRules() {
+  const ipc = moduleNamed('ipc', 'SU1', SU_IPC_OWNER);
+  if (ipc === null) {
+    for (const id of ['SU2', 'SU3', 'SU4', 'SU8']) fail(id, `src/main/pocket/ipc.ts does not exist, so this rule read nothing. It is ${SU_IPC_OWNER}.`);
+  } else {
+    for (const [id, run] of [
+      ['SU1', returnRule],
+      ['SU2', returnSurfaceRule],
+      ['SU3', setupPressRule],
+      ['SU4', statRule],
+      ['SU8', adminLinkRule]
+    ]) {
+      try {
+        run(ipc);
+      } catch (err) {
+        fail(id, `could not be read: ${err instanceof Error ? err.message : String(err)}`);
+      }
+    }
+  }
+  for (const [id, run] of [
+    ['SU5', accountRule],
+    ['SU6', confirmBlockRule],
+    ['SU7', wishRule],
+    ['SU9', drawnWordsRule]
+  ]) {
+    try {
+      run();
+    } catch (err) {
+      fail(id, `could not be read: ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // The run
 // ---------------------------------------------------------------------------
 
@@ -10572,7 +11772,9 @@ const PHASES = [
   ['the Screen', screenRules, 'Z1'],
   // PHASE 337.1, the Screen scrolls back (build/p3371/SPEC.md §6.1). Its
   // rules drive two functions in-process, so this phase is awaited.
-  ['the scrollback', scrollbackRules, 'Z23']
+  ['the scrollback', scrollbackRules, 'Z23'],
+  // PHASE 333.1, a stranger's first run (build/p3331/SPEC.md §6.1).
+  ['a stranger’s first run', setupRules, 'SU1']
 ];
 
 for (const [name, run, onError] of PHASES) {

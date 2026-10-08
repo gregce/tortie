@@ -677,10 +677,17 @@ describe('the status the sheet draws', () => {
       state: 'idle',
       asksApproval: false,
       approvalOpens: false,
-      approvalText: null
+      approvalText: null,
+      refused: null
     });
     expect(status.nameCheck).toBe('none');
     expect(status.pairable).toBe(false);
+    // Phase 333.1: step 1 from the stat alone, and nothing to re-check or press.
+    expect(status.tailscale).toBe('installed');
+    expect(status.account).toBeNull();
+    expect(status.tailnet).toBeNull();
+    expect(status.rechecks).toBe(false);
+    expect(status.setupActions).toEqual([]);
     expect(names.questions).toEqual([]);
     expect(names.sleeps).toEqual([]);
     expect(Object.keys(status)).not.toContain('address');
@@ -1928,7 +1935,7 @@ describe('the registrar', () => {
     return handlers;
   }
 
-  it('serves exactly the thirteen pocket channels, openApproval and the push key’s two among them', () => {
+  it('serves exactly the fifteen pocket channels, openApproval, the push key’s two and Phase 333.1’s two among them', () => {
     expect([...registered().keys()].sort()).toEqual(
       [
         'pocket:allowPhone',
@@ -1940,12 +1947,28 @@ describe('the registrar', () => {
         'pocket:forgetPushKey',
         'pocket:openApproval',
         'pocket:pairingState',
+        'pocket:recheck',
         'pocket:removePhone',
         'pocket:setDoor',
         'pocket:setPushAlerts',
+        'pocket:setupAction',
         'pocket:status'
       ].sort()
     );
+  });
+
+  it('answers a return with the status at once, and refuses a setup press that is not one closed word (Phase 333.1)', async () => {
+    const handlers = registered();
+    const answered = (await handlers.get('pocket:recheck')?.({})) as PocketStatus;
+    expect(answered.state).toBe('off');
+    // At rest, with the door off, a return reads nothing.
+    expect(ts.log).toEqual([]);
+    for (const bad of ['https://tailscale.com/download', '/Applications/Tailscale.app', 'GET-TAILSCALE', '', 7, null, { action: 'get-tailscale' }]) {
+      await expect(Promise.resolve().then(() => handlers.get('pocket:setupAction')?.({}, bad))).rejects.toThrow(
+        /could not read that press/
+      );
+    }
+    expect(opened).toEqual([]);
   });
 
   it('opens a pairing window from no input at all, and openApproval opens nothing at rest', async () => {

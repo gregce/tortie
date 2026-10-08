@@ -14,8 +14,13 @@
 // send (Phase 316.5's `sends`), and it says what iOS allows, never that alerts
 // are "on": the phone cannot see the Mac's switch. Its row opens iOS Settings
 // at Tortie's notifications, a system constant, and it is the one address this
-// file ever opens. There is no Face ID switch (his ruling of 2026-09-30: End
-// always asks, and a switch before End exists is "dormant").
+// file ever opens itself. There is no Face ID switch (his ruling of
+// 2026-09-30: End always asks, and a switch before End exists is "dormant").
+//
+// ABOUT (Phase 333.1, build/p3331/SPEC.md D22) adds three rows under the
+// version: Tortie for Mac (tortie.sh), Privacy and Support. Each press is a
+// named method that hands a `SiteLink` to the site opener (Markdown/Links.swift),
+// which asks the link policy and opens it; this file opens no page itself.
 //
 // UNPAIR forgets the pairing on this iPhone only. The Mac keeps listing the
 // phone until he presses Remove there; its half is Phase 317's, and the
@@ -110,8 +115,15 @@ enum PairedClock {
 
 struct SettingsScreen: View {
     let app: AppModel
+    /// Tortie's own site. The app hands `SiteOpener`; a test hands its own.
+    let site: any SiteOpening
     /// Unpair's question is up.
     @State private var asking = false
+
+    init(app: AppModel, site: any SiteOpening = SiteOpener()) {
+        self.app = app
+        self.site = site
+    }
 
     private var drawing: SettingsDrawing {
         SettingsDrawing(
@@ -281,7 +293,8 @@ struct SettingsScreen: View {
         .padding(.horizontal, Frame.gutter)
     }
 
-    /// About: the app's version and build.
+    /// About: the app's version and build, then the three pages of Tortie's
+    /// own site, each a row at least 44 tall (Phase 333.1, D22).
     private func aboutCard(_ version: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             RaisedLabel(Copy.about)
@@ -295,6 +308,29 @@ struct SettingsScreen: View {
                     .accessibilityIdentifier(ID.settingsVersion)
             }
             .frame(minHeight: SettingsFrame.lineHeight)
+            Hairline()
+            Button(action: openMacSite) {
+                siteRow(Copy.macOnSite) {
+                    Words(Copy.siteName, .body, Tokens.textSecondary)
+                        .lineBox(.body)
+                        .fixedSize()
+                        .accessibilityIdentifier(ID.settingsMacSiteName)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(ID.settingsMacSite)
+            Hairline()
+            Button(action: openPrivacy) {
+                siteRow(Copy.privacy) { EmptyView() }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(ID.settingsPrivacy)
+            Hairline()
+            Button(action: openSupport) {
+                siteRow(Copy.support) { EmptyView() }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier(ID.settingsSupport)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, Frame.cardPadding)
@@ -307,8 +343,39 @@ struct SettingsScreen: View {
         .padding(.horizontal, Frame.gutter)
     }
 
+    /// One of About's site rows: its words, what it says on the right, and
+    /// the chevron of a row that opens something.
+    private func siteRow(_ words: String, @ViewBuilder trailing: () -> some View) -> some View {
+        HStack(spacing: Frame.rowGap) {
+            Words(words, .body, Tokens.textPrimary)
+                .lineBox(.body)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            trailing()
+            Chevron()
+        }
+        .frame(minHeight: SettingsFrame.lineHeight)
+        .contentShape(Rectangle())
+    }
+
+    // MARK: Tortie's own site, one named press each (D21)
+
+    /// Tortie for Mac: the Mac app's page.
+    func openMacSite() {
+        site.open(.home)
+    }
+
+    /// Privacy.
+    func openPrivacy() {
+        site.open(.privacy)
+    }
+
+    /// Support.
+    func openSupport() {
+        site.open(.support)
+    }
+
     /// iOS Settings, at Tortie's notifications: a system constant, never an
-    /// address anyone wrote, and the only thing this screen ever opens.
+    /// address anyone wrote, and the only address this screen opens itself.
     private func openNotificationSettings() {
         guard let url = URL(string: UIApplication.openNotificationSettingsURLString) else { return }
         UIApplication.shared.open(url)

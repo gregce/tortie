@@ -39,6 +39,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import {
+  TAILSCALE_APP_BUNDLE,
+  TAILSCALE_APP_PROGRAM,
   TAILSCALE_CANDIDATES,
   TAILSCALE_EMPTY_NOTE,
   TAILSCALE_MISSING_NOTE,
@@ -137,6 +139,13 @@ describe('the pinned paths', () => {
     for (const candidate of TAILSCALE_CANDIDATES) {
       expect(candidate.startsWith('/')).toBe(true);
     }
+  });
+
+  it('name the app’s bundle and its command line copy once, the copy first among the candidates (Phase 333.1, D13)', () => {
+    expect(TAILSCALE_APP_BUNDLE).toBe('/Applications/Tailscale.app');
+    expect(TAILSCALE_APP_PROGRAM).toBe(TAILSCALE_CANDIDATES[0]);
+    expect(TAILSCALE_APP_PROGRAM.startsWith(`${TAILSCALE_APP_BUNDLE}/`)).toBe(true);
+    expect(TAILSCALE_APP_PROGRAM).toBe('/Applications/Tailscale.app/Contents/MacOS/Tailscale');
   });
 });
 

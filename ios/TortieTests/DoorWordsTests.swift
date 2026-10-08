@@ -58,7 +58,10 @@ final class DoorWordsTests: XCTestCase {
     func testEveryPairingFailureHasItsLine() {
         let lines: [(PairingFailure, String)] = [
             (.badCode, Copy.pairNotACode),
-            (.unsupportedCode, Copy.pairNotACode),
+            // Phase 333.1 (D24): a code from another version says which side
+            // to update, where it said "That is not a Tortie pairing code."
+            (.codeFromNewerMac, Copy.pairNewerMac),
+            (.codeFromOlderMac, Copy.pairOlderMac),
             (.codeExpired, Copy.codeExpired),
             (.windowClosed, Copy.codeExpired),
             (.macRefused, Copy.pairRefused),
@@ -75,6 +78,29 @@ final class DoorWordsTests: XCTestCase {
             XCTAssertEqual(DoorWords.pairingSentence(for: failure), line, "\(failure)")
             XCTAssertFalse(DoorWords.pairingSentence(for: failure).isEmpty, "\(failure)")
         }
+    }
+
+    /// Clause (Phase 333.1, D23): the Allow line is drawn under
+    /// `Tortie could not reach your Mac.` and under no other sentence: not a
+    /// time-out, not any other read's sentence, and not a pairing's line. A
+    /// paired phone reads a shut door as unreachable, which is that sentence.
+    func testTheAllowLineIsForCouldNotReachAlone() {
+        XCTAssertEqual(DoorWords.reachNote(for: Copy.cannotReachMac), Copy.reachAllowAgain)
+        XCTAssertEqual(DoorWords.reachNote(for: DoorWords.sentence(for: DoorFailure.unreachable(code: -1004))), Copy.reachAllowAgain)
+        XCTAssertEqual(DoorWords.reachNote(for: DoorWords.sentence(for: DoorFailure.nameNotFound)), Copy.reachAllowAgain)
+        let others: [DoorFailure] = [.timedOut, .wrongKey, .tooLarge, .malformed, .unexpectedStatus(500), .badPage, .refused, .closedBeforeAnswer, .notPaired, .cancelled]
+        for failure in others {
+            XCTAssertNil(DoorWords.reachNote(for: DoorWords.sentence(for: failure)), "\(failure)")
+        }
+        XCTAssertNil(DoorWords.reachNote(for: Copy.macDidNotAnswer))
+        XCTAssertNil(DoorWords.reachNote(for: Copy.answerUnreadable))
+        XCTAssertNil(DoorWords.reachNote(for: ""))
+        // The sentence the line follows, cut short or changed by a letter, gets none.
+        XCTAssertNil(DoorWords.reachNote(for: String(Copy.cannotReachMac.dropLast())))
+        XCTAssertNil(DoorWords.reachNote(for: Copy.cannotReachMac + " "))
+        // It names the Mac's own press and where it is.
+        XCTAssertTrue(Copy.reachAllowAgain.contains("Allow"))
+        XCTAssertTrue(Copy.reachAllowAgain.contains("Settings then Phone"))
     }
 
     /// Clause: every step of a pairing under way has its line.

@@ -460,13 +460,24 @@ const HELPER = 'electron-run.mjs';
  * `finally`, and it never empties anything into the Trash. Phase 337.1,
  * building at the same time, may raise this too; whichever lands second makes
  * the floor the count of both.
+ * PHASE 333.1 RAISED IT FROM 170 TO 171, by one for build/p3331/probe-p3331.mjs
+ * (`probe:p3331`), a stranger's first run on the Mac: Settings then Phone's
+ * three steps, read in the real app at the parent (P3331_PARENT_CHECKOUT,
+ * required) and then at HEAD, never two Electrons at once, each launch through
+ * the helper on a scratch profile inside a harness directory, a scratch HOME
+ * and ZDOTDIR and the socket gmux-p3331-<pid>, with build/p330/tailscale-standin.mjs
+ * behind its preflight and sampler, build/p332/dns-standin.mjs and
+ * build/p314/apns-stand-in.mjs in the probe's own process and node phones
+ * from build/p316/node-phone.mjs. It never presses Get Tailscale, Open
+ * Tailscale, Approve in Tailscale or Copy link, never calls pocket:setupAction,
+ * and ends every stand-in read it left alive by pid in its `finally`.
  *
  * RAISE IT WHEN YOU ADD ONE, in the same commit, and that is not optional
  * bookkeeping. Adding a probe cannot turn this gate red, so a floor left where
  * it was is a floor that would let the probe you just added be deleted again in
  * silence, which is the drift this constant replaced a hand list to stop.
  */
-const HELPER_USER_FLOOR = 170;
+const HELPER_USER_FLOOR = 171;
 
 /**
  * This file is not a helper user, and it reads as one to its own scanner.

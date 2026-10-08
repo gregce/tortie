@@ -776,7 +776,21 @@ export interface PocketFunnelView {
   approvalOpens: boolean;
   /** The approval URL as text, only when Tortie will NOT open it; else null. */
   approvalText: string | null;
+  /**
+   * The refusal's WORD (Phase 333.1, D5): the last Tailscale read's, else the
+   * last start's when it was Tailscale's. Null while the switch is off, while
+   * the door listens, and when the sentence is not Tailscale's.
+   */
+  refused: PocketFunnelRefusal | null;
 }
+
+/** Where Tortie stands with Tailscale on this Mac, as step 1 draws it (Phase 333.1, D2). */
+export type PocketTailscaleState = 'missing' | 'stopped' | 'signed-out' | 'installed' | 'ready';
+
+/** The setup presses main may act on (Phase 333.1, D11, D12): ONE closed word each, never a URL or a path. */
+export const POCKET_SETUP_ACTIONS = ['get-tailscale', 'open-tailscale', 'copy-admin-link'] as const;
+/** One of {@link POCKET_SETUP_ACTIONS} (Phase 333.1). */
+export type PocketSetupAction = (typeof POCKET_SETUP_ACTIONS)[number];
 
 /**
  * Whether the Mac's public name answers from the internet, as Tortie last read
@@ -842,7 +856,9 @@ export interface PocketStatus {
   /**
    * The Mac's public name the door is published at, `<mac>.<tailnet>.ts.net`,
    * or null while Tailscale has not been read and nothing is stored (Phase
-   * 330). Reading it takes a press: opening the sheet reads nothing.
+   * 330). Reading it takes a press, a confirmed start, or a return while
+   * `rechecks` holds (Phase 333.1); opening the sheet with the door off reads
+   * nothing.
    */
   publicName: string | null;
   /** The public port a phone is told, 8443 or 10000, or 0 when none is chosen. */
@@ -905,6 +921,32 @@ export interface PocketStatus {
    * {@link confirmable}.
    */
   pairable: boolean;
+  /**
+   * Where Tortie stands with Tailscale on this Mac (Phase 333.1, D2): from a
+   * stat of the program and THIS RUN's last read, never from the stored facts.
+   * With the switch off, the stat alone (`missing` or `installed`).
+   */
+  tailscale: PocketTailscaleState;
+  /**
+   * The account the last read named (Phase 333.1, D4), only while
+   * {@link tailscale} is `ready`; else null. DRAWN ONLY: no hashed field, no
+   * store, no door answer and no log line carries it.
+   */
+  account: string | null;
+  /** The tailnet the last read named, only while {@link tailscale} is `ready`; else null (Phase 333.1, D4). */
+  tailnet: string | null;
+  /**
+   * MAIN'S ONE PREDICATE (Phase 333.1, D7): would a return to the window
+   * re-check this refusal? The sheet keeps a first setup's wish for the code
+   * on it and never works it out again.
+   */
+  rechecks: boolean;
+  /**
+   * MAIN'S ONE PREDICATE (Phase 333.1, D11): which setup presses main would
+   * act on now, in {@link POCKET_SETUP_ACTIONS} order. The sheet draws a setup
+   * button only when it is listed here.
+   */
+  setupActions: readonly PocketSetupAction[];
   /**
    * The Mac's name check, drawn (Phase 332.1): its last round, whether one is
    * out, how long it has run and when it asks next. Null before a check, for
@@ -1089,8 +1131,44 @@ export const POCKET_FUNNEL_RIGHT_WARNING =
   'Approving Funnel lets any device signed in to your tailnet publish to the ' +
   'internet, not only this Mac.';
 
-/** Drawn while the Funnel child waits on Tailscale's approval page. */
-export const POCKET_FUNNEL_APPROVAL = 'Tailscale needs your OK to publish this door.';
+/**
+ * Drawn while the Funnel child waits on Tailscale's approval page. ONCE since
+ * Phase 333.1 (D14): approving adds the `funnel` attribute for the tailnet
+ * (research 132 §7.6), so it is never asked again on this tailnet.
+ */
+export const POCKET_FUNNEL_APPROVAL = 'Tailscale needs your OK, once.';
+
+/**
+ * The switch row's one caption (Phase 333.1, D1, D14). It never changes, so a
+ * person reads what each side needs before anything is pressed.
+ */
+export const POCKET_SETUP_LINE = 'Your iPhone needs only the Tortie app. This Mac needs Tailscale (free).';
+
+/** Step 1 while Tailscale is not running (Phase 333.1, D14): a return checks again by itself. */
+export const POCKET_TURN_ON_LINE = 'Turn it on, then come back.';
+
+/** Step 1 while Tailscale is signed out (Phase 333.1, D14). */
+export const POCKET_SIGN_IN_LINE = 'Sign in, then come back.';
+
+/**
+ * Step 1's two lines where coming back to the window would check nothing
+ * (Phase 333.1's fix round): main's `rechecks` is false, most often because a
+ * restart is armed and the restart, not a return, publishes the door again.
+ * They promise no return; step 2 says Tortie is trying again, and a refusal a
+ * return does not check has Try again beside it.
+ */
+export const POCKET_TURN_ON = 'Turn it on.';
+export const POCKET_SIGN_IN = 'Sign in.';
+
+/**
+ * Step 2 when a start refused `not-approved` (Phase 333.1, D6, D14): Tailscale
+ * did not wait, which is what a person who is not their tailnet's admin meets.
+ * Copy link sits beside it only when main holds a link it would open.
+ */
+export const POCKET_ASK_ADMIN = 'Ask your Tailscale admin to approve Funnel.';
+
+/** Under the name check's progress, drawn for exactly as long as it is (Phase 333.1, D14). */
+export const POCKET_NAME_WAIT_NOTE = 'This can take several minutes. You can leave this open or come back later.';
 
 /**
  * Drawn when the approval page is not one Tortie opens (not `https:` on
@@ -1208,6 +1286,16 @@ export const POCKET_AGE_HONESTY =
  * channels, reached by a person pressing a button in Tortie on this Mac. The
  * door's own route table holds none of them, and its one write (Phase 317) is
  * `end` and nothing else.
+ *
+ * Phase 333.1 adds two. `pocket:recheck` is the window coming back to the
+ * front: it reads Tailscale only while `rechecks` holds, counts no press and
+ * is never a timer. On fields the person allowed it starts the door exactly as
+ * launch does; on fields nobody has allowed, in the run whose press began the
+ * setup, it reads them and draws the lines, choosing a port only when none is
+ * stored, and starts nothing. `pocket:setupAction` is one setup press, one
+ * closed word, acted on only when `setupActions` lists it: Tailscale's
+ * download page, the Tailscale app, or the admin's approval link copied.
+ * Neither takes a URL or a path from the renderer.
  */
 export interface PocketInvokeChannelMap {
   /** Everything the sheet draws. Reads the record; binds nothing. */
@@ -1268,6 +1356,10 @@ export interface PocketInvokeChannelMap {
   'pocket:choosePushKey': { req: []; res: PocketPushKeyResult };
   /** Forget the kept Apple push key (Phase 316.5). Nothing is sent until one is chosen again. */
   'pocket:forgetPushKey': { req: []; res: PocketStatus };
+  /** A return to the window (Phase 333.1, D9): reads only when `rechecks` holds; never a press, never a timer. */
+  'pocket:recheck': { req: []; res: PocketStatus };
+  /** One setup press (Phase 333.1, D12): acts only when `setupActions` lists it; false under a harness. */
+  'pocket:setupAction': { req: [action: PocketSetupAction]; res: boolean };
 }
 
 /**
@@ -1301,6 +1393,8 @@ export interface GmuxPocketExtras {
     openApproval(): Promise<boolean>;
     choosePushKey(): Promise<PocketPushKeyResult>;
     forgetPushKey(): Promise<PocketStatus>;
+    recheck(): Promise<PocketStatus>;
+    setupAction(action: PocketSetupAction): Promise<boolean>;
     onChanged(cb: (status: PocketStatus) => void): () => void;
   };
 }

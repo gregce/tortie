@@ -153,7 +153,11 @@
  *      §6.4), both ways too, each with its own problem line: a Release build
  *      must hold `unregisterForRemoteNotifications` whole, because Unpair is
  *      how this install tells Apple to stop taking alerts for it, and a Debug
- *      build must hold none. PASS_WORDS do not change: his checklist quotes
+ *      build must hold none. AND TORTIE'S OWN SITE (Phase 333.1,
+ *      build/p3331/SPEC.md §7.8): every build, Debug and Release, must hold
+ *      each of SiteLink's three addresses (`https://tortie.sh`, `/privacy`,
+ *      `/support`) WHOLE, its bytes ended by a NUL, so an address cut short or
+ *      a byte off names itself. PASS_WORDS do not change: his checklist quotes
  *      them. Each Simulator build's entitlements are read
  *      too: a Simulator app is signed ad hoc and its signature carries none
  *      (`codesign -d --entitlements` answers an empty dictionary), so what the
@@ -298,6 +302,49 @@ export const UNREGISTER_SELECTOR = 'unregisterForRemoteNotifications';
 const UNREGISTER_BYTES = Buffer.concat([Buffer.from([0]), Buffer.from(UNREGISTER_SELECTOR, 'utf8'), Buffer.from([0])]);
 
 /**
+ * Tortie's own site (Phase 333.1, build/p3331/SPEC.md D21, §7.8): the app's
+ * only three `https://` literals, `SiteLink`'s, in Markdown/Links.swift. Each is
+ * 17 to 25 bytes, longer than Swift's 15-byte small-string form, so a build
+ * emits each as its own bytes, ended by a NUL. Every build must hold each one
+ * WHOLE: its bytes followed by a NUL and not preceded by a byte an address can
+ * hold, so neither a longer address that begins with it (`https://tortie.sh`
+ * inside `https://tortie.sh/privacy`) nor one cut short or a byte off passes
+ * for it, and an address that is missing names itself.
+ */
+export const SITE_ADDRESSES = Object.freeze(['https://tortie.sh', 'https://tortie.sh/privacy', 'https://tortie.sh/support']);
+/** A byte an address may hold (RFC 3986's unreserved, reserved and `%`). */
+const ADDRESS_BYTE = /[A-Za-z0-9\-._~:/?#[\]@!$&'()*+,;=%]/;
+
+/** How many times `address` is held whole in `bytes`. Pure. */
+export function wholeAddressCount(bytes, address) {
+  const needle = Buffer.concat([Buffer.from(address, 'utf8'), Buffer.from([0])]);
+  let count = 0;
+  for (let at = bytes.indexOf(needle); at !== -1; at = bytes.indexOf(needle, at + 1)) {
+    if (at === 0 || !ADDRESS_BYTE.test(String.fromCharCode(bytes[at - 1]))) count += 1;
+  }
+  return count;
+}
+
+/** How many times each of the three addresses is held whole across `buffers`. Pure. */
+export function siteAddressCounts(buffers) {
+  const counts = new Map(SITE_ADDRESSES.map((a) => [a, 0]));
+  for (const bytes of buffers) {
+    for (const a of SITE_ADDRESSES) counts.set(a, (counts.get(a) ?? 0) + wholeAddressCount(bytes, a));
+  }
+  return counts;
+}
+
+/**
+ * One problem for each address a build does not hold whole, naming it, from
+ * `siteAddressCounts`. Pure, so the self-test holds it on bytes it writes.
+ */
+export function siteAddressProblems(where, counts) {
+  return SITE_ADDRESSES.filter((a) => (counts.get(a) ?? 0) === 0).map(
+    (a) => `no Mach-O file of ${where} holds ${a} whole, so the press that opens it opens nothing (Phase 333.1, D21: SiteLink's three addresses are the app's only https:// literals)`
+  );
+}
+
+/**
  * A section only a build instrumented for code coverage carries: clang's and
  * swiftc's `-profile-generate` counters and names (`__llvm_prf_cnts`,
  * `__llvm_prf_data`, `__llvm_prf_names`, …) and `-profile-coverage-mapping`'s
@@ -367,8 +414,11 @@ export function builtAppProblems(app, { debug = false } = {}) {
   const seamsFound = new Set();
   const registering = [];
   const unregistering = [];
+  // Phase 333.1: the site's three addresses, held whole somewhere in every build.
+  const siteHeld = new Map(SITE_ADDRESSES.map((a) => [a, 0]));
   for (const f of files) {
     const bytes = readFileSync(f);
+    for (const [a, n] of siteAddressCounts([bytes])) siteHeld.set(a, (siteHeld.get(a) ?? 0) + n);
     if (bytes.indexOf(REGISTRATION_BYTES) !== -1) {
       registering.push(f);
       if (debug) problems.push(`${relative(app, f)} carries the selector ${REGISTRATION_SELECTOR}, so a DEBUG build, which is every Simulator run, could ask Apple for an alert address; conformance:ios (x) holds it in the #else of #if DEBUG`);
@@ -417,7 +467,16 @@ export function builtAppProblems(app, { debug = false } = {}) {
   if (!debug && files.length > 0 && unregistering.length === 0) {
     problems.push(`no Mach-O file of ${app} carries the selector ${UNREGISTER_SELECTOR}, so Unpair never tells Apple to stop taking alerts for this install (Phase 316.6)`);
   }
-  return { problems, files: files.length, seams: seamsFound.size, registering: registering.length, unregistering: unregistering.length };
+  // Phase 333.1 (build/p3331/SPEC.md §7.8): Debug and Release alike.
+  if (files.length > 0) problems.push(...siteAddressProblems(app, siteHeld));
+  return {
+    problems,
+    files: files.length,
+    seams: seamsFound.size,
+    registering: registering.length,
+    unregistering: unregistering.length,
+    siteAddresses: Object.fromEntries(siteHeld)
+  };
 }
 
 /**
@@ -1542,6 +1601,20 @@ async function doorsSelfTest() {
       check('screenProblems refuses a grid over 64 MB at its top size', screenProblems(clean, 'self-test', honestText.replace('P337_GRID|top|4194304', `P337_GRID|top|${String(P337_GRID_CEILING)}`)).length === 1);
       check('screenProblems refuses a run with no keys write', screenProblems({ ...clean, screen: { ...clean.screen, keysPosts: 0 } }, 'self-test', honestText).length === 1);
     }
+
+    // Phase 333.1 (§7.8): the site's three addresses, read whole, on bytes
+    // written here the way a build lays its literals out (each ended by a NUL).
+    const lit = (...texts) => Buffer.concat(texts.flatMap((t) => [Buffer.from(t, 'utf8'), Buffer.from([0])]));
+    const honestSite = lit('Tortie', ...SITE_ADDRESSES, 'tortie.sh');
+    check('siteAddressProblems passes a build holding the three addresses whole', siteAddressProblems('self-test', siteAddressCounts([honestSite])).length === 0);
+    check(
+      'siteAddressProblems names the one address changed by a byte, and only it',
+      J(siteAddressProblems('self-test', siteAddressCounts([lit('Tortie', SITE_ADDRESSES[0], 'https://tortie.sh/privacz', SITE_ADDRESSES[2])])).map((p) => SITE_ADDRESSES.find((a) => p.includes(` ${a} `)))) === J([SITE_ADDRESSES[1]])
+    );
+    check('a longer address that begins with tortie.sh is not the home page', siteAddressCounts([lit('https://tortie.sh/privacy', 'https://tortie.sh/support')]).get(SITE_ADDRESSES[0]) === 0);
+    check('an address inside a longer one is not held whole', siteAddressCounts([lit('xhttps://tortie.sh/privacy', 'https://tortie.sh/support?ref=app')]).get(SITE_ADDRESSES[1]) === 0 && siteAddressCounts([lit('https://tortie.sh/support?ref=app')]).get(SITE_ADDRESSES[2]) === 0);
+    check('the three addresses may sit in three files', siteAddressProblems('self-test', siteAddressCounts(SITE_ADDRESSES.map((a) => lit(a)))).length === 0);
+    check('a build holding none names all three', siteAddressProblems('self-test', siteAddressCounts([lit('Tortie'), Buffer.alloc(0)])).length === 3);
 
     // The suites, read from xcodebuild's own words.
     const ran = P317_SUITES.map((n) => `Test Suite '${n}' passed at 2026-10-01 12:00:00.000.`).join('\n');

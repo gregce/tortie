@@ -41,7 +41,9 @@
  *   H0  the door never on, Settings then Phone open, 30 s idle: the stand-in is
  *       asked nothing, main's UDP sockets are the parent's, and at HEAD
  *       `nameCheck` is `none` and `pairable` false
- *   P1  (parent) Pair pressed with the door off and Allow on the sheet; the
+ *   P1  (parent) the first setup's press with the door off (Pair where the
+ *       sheet draws it, since Phase 333.1 the switch, `pressFirstSetup`) and
+ *       Allow on the sheet; the
  *       stand-in answers NXDOMAIN until 110 s after `listening`: the code shows
  *       at once, the phone's first lookup misses, every lookup after the record
  *       is the cached miss, nothing presents, the window shuts, and the sheet
@@ -164,6 +166,9 @@ export function tableWord(src, table, key) {
 
 /** The words SPEC §4.11 (as its fix round left `unreadable`) and the parent's sheet say, for any the source does not yield. */
 export const SPEC_WORDS = Object.freeze({
+  // Phase 333.1: the switch's label, for the first setup's press where the
+  // sheet draws no Pair with the door off (build/p3331/SPEC.md §7.6).
+  doorLabel: 'Let my phone reach this Mac',
   checking: 'Pair opens once your Mac’s name is on the internet, which can take a few minutes.',
   unreadable: 'Tortie could not confirm your Mac’s name, so a first scan may fail.',
   expired: 'The code expired. Nothing was paired.',
@@ -181,6 +186,7 @@ export function wordsFrom(contractSrc, sheetSrc) {
     unreadable: pick('unreadable', tableWord(contractSrc, 'POCKET_NAME_SENTENCES', 'unreadable')),
     expired: pick('expired', constWord(sheetSrc, 'CODE_EXPIRED')),
     firstName: pick('firstName', constWord(sheetSrc, 'CODE_FIRST_NAME')),
+    doorLabel: pick('doorLabel', constWord(sheetSrc, 'DOOR_LABEL')),
     from
   };
 }
@@ -760,6 +766,22 @@ async function click(settings, selector) {
     (await cdpEval(settings, `(() => { const b = document.querySelector(${J(selector)}); if (b === null || b.disabled) return false; b.click(); return true; })()`)) === true
   );
 }
+/**
+ * A FIRST SETUP'S PRESS from rest (Phase 333.1, build/p3331/SPEC.md §7.6, D17):
+ * Pair where the sheet draws it with the door off (the parent always; a build
+ * with the three steps only with a phone paired), else the switch, whose on
+ * press asks for the code, so at both builds the code shows by itself once
+ * the name answers. Answers 'pair', 'switch' or false.
+ */
+async function pressFirstSetup(settings) {
+  if (await click(settings, '[data-phone-action="pair"]')) return 'pair';
+  const on =
+    (await cdpEval(
+      settings,
+      `(() => { const s = document.querySelector('section[aria-label="Phone"]'); if (s === null) return false; const b = [...s.querySelectorAll('button[role="switch"]')].find((x) => x.getAttribute('aria-label') === ${J(WORDS.doorLabel)} && x.getAttribute('aria-checked') === 'false' && !x.disabled); if (b === undefined) return false; b.click(); return true; })()`
+    )) === true;
+  return on ? 'switch' : false;
+}
 const linesReady = (s) => s.confirmable === true && s.state !== 'opening' && s.publicName === NAME && s.confirmState !== 'confirmed' && s.confirmLines.some((l) => l.includes(`https://${NAME}:${String(s.publicPort)}`));
 /** Press the sheet's Allow for the door once its lines are ready (probe:p330's shape). */
 async function allowDoor(settings, main, ms = 20_000) {
@@ -937,8 +959,10 @@ try {
 
       // ---- P1 / H1: the same script at both builds ------------------------
       const from1 = dns.log().length;
-      const pressed = await click(settings, '[data-phone-action="pair"]');
-      if (!pressed) throw new Error('the sheet drew no Pair button to press with the door off');
+      // Phase 333.1: the switch where the sheet draws no Pair with the door off.
+      const pressed = await pressFirstSetup(settings);
+      if (!pressed) throw new Error('the sheet drew no Pair button and no enabled off switch to press with the door off');
+      say(`P1: the first setup's press was ${pressed}`);
       if (!(await allowDoor(settings, main))) throw new Error('the lines were never ready to Allow after Pair');
       const listening = await waitStatus(main, (s) => s.state === 'listening', 60_000);
       if (!listening.ok) throw new Error(`the door never listened after Allow: ${J({ state: listening.status?.state, refusal: listening.status?.refusal })}`);

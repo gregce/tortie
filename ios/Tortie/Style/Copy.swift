@@ -238,20 +238,42 @@ enum Copy {
     /// backwards or overlap, or `more` on a page that added nothing).
     static let earlierTurnsUnreadable = "Tortie could not read the earlier turns."
 
-    // MARK: - Pairing (Pairing.html, without its typed code fallback)
+    // MARK: - Pairing (Pairing.html at rest, PairingScan.html after Scan code)
 
     /// Phone: the pairing screen's title, owed to Phase 313 and now the phone's.
     static let pairTitle = "Pair with your Mac"
 
-    /// Phone: the first step. The mock said "press Pair a phone", which is the
-    /// Mac's group heading and not something a person can press; the button
-    /// under it is "Pair" (the SPEC's section As built, concern 8).
+    // The three steps (Phase 333.1, build/p3331/SPEC.md D20, D25), each drawn
+    // beside its place in the list, which is its position and never a word.
+
+    /// Phone: the first step: Tortie for Mac is where the code comes from. No
+    /// Mac surface sends a person to itself.
+    static let setupGetMac = "Get Tortie for Mac"
+
+    /// Phone: where the Mac app is, in words; the row opens it (research 140
+    /// §8 row 3).
+    static let freeAtSite = "Free at tortie.sh"
+
+    /// Phone: the Mac app is arm64 only (electron-builder.yml:1), so an Intel
+    /// Mac can never pair (research 140 §5 row 9).
+    static let appleSilicon = "Apple silicon"
+
+    /// Phone: the first Mac release with Settings then Phone; it moves with
+    /// the tag (research 140 §10).
+    static let macVersion = "0.111 or later"
+
+    /// Phone: the second step.
     /// Names: src/main/settings/window.ts ⟦title: 'Settings'⟧
     /// Names: src/renderer/settings/PhoneSection.tsx ⟦PHONE_TITLE = 'Phone'⟧
-    /// Names: src/renderer/settings/PhoneSection.tsx ⟦BTN_PAIR = 'Pair'⟧
-    static let pairStepOnMac = "In Tortie on your Mac, open Settings then Phone and press Pair."
+    static let setupOpenPhone = "Open Settings then Phone"
 
-    /// Phone: the second step, under the camera.
+    /// Phone: the third step.
+    static let setupScan = "Scan the code"
+
+    /// Phone: the press that opens the camera, and only then asks for it.
+    static let scanCode = "Scan code"
+
+    /// Phone: under the camera, once Scan code opened it.
     static let pairStepScan = "Point this at the QR code in Tortie on your Mac."
 
     /// Phone: the label over the fingerprint. The Mac's side of the same match
@@ -261,11 +283,18 @@ enum Copy {
     /// Phone: the promise that a person on the Mac allows every pairing.
     static let pairMatchNote = "Your Mac will ask you to allow this iPhone. Nothing is paired until you do."
 
-    /// Phone: the phone needs nothing beside Tortie: no Tailscale, no VPN, no
-    /// profile, no sign-in (Phase 330: the phone reaches the Mac's public name
-    /// as an ordinary TLS client). No Mac surface says it, because the Mac
-    /// has its own Tailscale.
-    static let pairPrivateNetwork = "There is nothing else to install."
+    /// Phone: the phone needs nothing beside Tortie (Phase 330); replaces
+    /// "There is nothing else to install.", which read as the Mac too. No
+    /// Mac surface says it, because the Mac has its own Tailscale.
+    static let pairNothingElse = "Nothing else to install on this phone."
+
+    /// Phone: the privacy page on tortie.sh (research 136 §7, 5.1.1(i)). No
+    /// Mac surface links it.
+    static let privacy = "Privacy"
+
+    /// Phone: the support page on tortie.sh (research 136 §7, 1.5). No Mac
+    /// surface links it.
+    static let support = "Support"
 
     /// Mac: src/renderer/settings/PhoneSection.tsx ⟦CODE_EXPIRED = 'The code expired. Nothing was paired.'⟧
     static let codeExpired = "The code expired. Nothing was paired."
@@ -289,6 +318,12 @@ enum Copy {
     /// Phone: what was read is not a QR v:3 pairing payload. The TestFlight
     /// build of 316.4 says this to a v:3 code too.
     static let pairNotACode = "That is not a Tortie pairing code."
+
+    /// Phone: a code whose version is above this app's (D24).
+    static let pairNewerMac = "This code is from a newer Tortie for Mac. Update Tortie on this iPhone."
+
+    /// Phone: a code whose version is below this app's (D24).
+    static let pairOlderMac = "This code is from an older Tortie for Mac. Update Tortie on your Mac."
 
     /// Phone: the camera is off for Tortie, so the code cannot be read.
     static let cameraOff = "Allow the camera for Tortie in your iPhone’s Settings to scan the code."
@@ -383,12 +418,18 @@ enum Copy {
     /// nothing else was touched (Door/Keys.swift `PairingStore.forget`).
     static let unpairFailed = "This iPhone could not forget your Mac. Nothing was changed."
 
-    /// Phone: the heading over the app's own facts (Phase 333.1's links land
-    /// here).
+    /// Phone: the heading over the app's own facts: its version, and the three
+    /// pages of Tortie's own site (Phase 333.1).
     static let about = "About"
 
     /// Phone: the row that says the app's version.
     static let version = "Version"
+
+    /// Phone: About's row for the Mac app's page.
+    static let macOnSite = "Tortie for Mac"
+
+    /// Phone: the address that row opens, as words.
+    static let siteName = "tortie.sh"
 
     /// Phone: between the version and its build, `1.0.0 (4)`, as Xcode and
     /// TestFlight write it; `countClose` closes it.
@@ -680,6 +721,13 @@ enum Copy {
 
     /// Phone: no connection, or the connection was cut.
     static let cannotReachMac = "Tortie could not reach your Mac."
+
+    /// Phone: under "could not reach", because a Mac update that adds a route
+    /// shuts the door until Allow (research 140 §7.3).
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦BTN_ALLOW = 'Allow'⟧
+    /// Names: src/main/settings/window.ts ⟦title: 'Settings'⟧
+    /// Names: src/renderer/settings/PhoneSection.tsx ⟦PHONE_TITLE = 'Phone'⟧
+    static let reachAllowAgain = "If Tortie on your Mac just updated, press Allow in its Settings then Phone."
 
     /// Phone: nothing came back inside the client's time limit.
     static let macDidNotAnswer = "Your Mac did not answer in time."

@@ -169,6 +169,22 @@
  * a conversation identifier; and the widened (ak) side line, (ah) page width,
  * (ai) second minGap, (x) keyboard userInfo, (v) page sentence and (t) arm.
  *
+ * PHASE 333.1, A STRANGER'S FIRST RUN (build/p3331/SPEC.md §6.3), gave the
+ * phone three numbered steps, Scan code, the three pages of Tortie's own site
+ * and the Tortie marker, and its arms are the ways those could reach further
+ * than they may: (av) a fourth page, an address over http, with a query, a
+ * fragment, a look-alike host or forced with `!`, a second `https://` literal
+ * in a screen, the opener taking a String or skipping LinkPolicy, a second
+ * opener, a third file naming SiteOpener, QRScanner built outside the Scan
+ * code branch, scanning set true or startScanning() called anywhere but Scan
+ * code, the camera asked for by the model, "beta" in a Copy word, the Allow line under
+ * a time-out or asked by the list, the marker's guard taken out, a version
+ * arm written as one number, and (the fix round, av9) the Privacy and
+ * Support actions swapped on either screen or a row identified as the other;
+ * (s) the build left at 7, 337.1's; (v) `unsupportedCode` back with no
+ * sentence; (b) a step's number handed to stepRow as a literal (b12, the fix
+ * round). `s8` and `s11` moved to build 8.
+ *
  * THE DELTA RULE. The base is run first. An arm passes only when its own rule
  * was GREEN at the base and is RED with the plant, so a rule that was already
  * red proves nothing and says so. An arm whose anchor is gone from the tree
@@ -338,6 +354,21 @@ const fileMatching = (root, re) => {
   return hit === undefined ? null : relative(root, hit).split(sep).join('/');
 };
 const append = (text) => (src) => `${src}${src.endsWith('\n') ? '' : '\n'}${text}`;
+/**
+ * Several replacements in order, each `[from, to]`, every one of which must
+ * match (an arm whose anchor is gone leaves the text unmoved and FAILS by
+ * name): the way two actions are swapped through a placeholder.
+ */
+const allOf = (...pairs) => (src) => {
+  let out = src;
+  for (const [from, to] of pairs) {
+    if (!out.includes(from)) return src;
+    out = out.replace(from, to);
+  }
+  return out;
+};
+const PAIRING_SCREEN = `${APP}/Screens/PairingScreen.swift`;
+const LINKS = `${APP}/Markdown/Links.swift`;
 
 const PBX = 'ios/Tortie.xcodeproj/project.pbxproj';
 const INFO = `${APP}/Info.plist`;
@@ -1295,7 +1326,7 @@ const ARMS = [
     rule: 's',
     what: 'Release a build ahead of Debug',
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 7;/, '$1CURRENT_PROJECT_VERSION = 8;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 8;/, '$1CURRENT_PROJECT_VERSION = 9;')
   },
   {
     id: 's9',
@@ -1638,9 +1669,9 @@ const ARMS = [
   {
     id: 's11',
     rule: 's',
-    what: "the app's Release left at build 6, 318's, which App Store Connect refuses as a duplicate",
+    what: "the app's Release left at build 7, 337.1's, which App Store Connect refuses as a duplicate",
     file: () => PBX,
-    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 7;/, '$1CURRENT_PROJECT_VERSION = 6;')
+    edit: (src) => src.replace(/(316A00000000000000000073 \/\* Release \*\/ = \{[\s\S]*?)CURRENT_PROJECT_VERSION = 8;/, '$1CURRENT_PROJECT_VERSION = 7;')
   },
   {
     id: 'x10',
@@ -3317,6 +3348,206 @@ const ARMS = [
     what: "a keys write's bytes summed with a trapping +",
     file: () => `${APP}/Screens/ScreenKeys.swift`,
     edit: (src) => src.replace('let total = DoorNumber.sum(bytes, next.textBytes)', 'let total = Optional(bytes + next.textBytes)')
+  },
+  // PHASE 333.1, A STRANGER'S FIRST RUN (build/p3331/SPEC.md §6.3): (av) the
+  // site's three addresses, the camera after Scan code, the Allow line and the
+  // Tortie marker, and the three rules it widened, (s), (v) and (b).
+  {
+    id: 'av1',
+    rule: 'av',
+    what: 'a fourth tortie.sh page',
+    file: () => LINKS,
+    edit: allOf(['    case home, privacy, support\n', '    case home, privacy, support, blog\n'], ['        case .support: URL(string: "https://tortie.sh/support")\n', '        case .support: URL(string: "https://tortie.sh/support")\n        case .blog: URL(string: "https://tortie.sh/blog")\n'])
+  },
+  {
+    id: 'av1b',
+    rule: 'av',
+    what: 'the privacy page over http://',
+    file: () => LINKS,
+    edit: (src) => src.replace('"https://tortie.sh/privacy"', '"http://tortie.sh/privacy"')
+  },
+  {
+    id: 'av1c',
+    rule: 'av',
+    what: 'a query on the privacy page',
+    file: () => LINKS,
+    edit: (src) => src.replace('"https://tortie.sh/privacy"', '"https://tortie.sh/privacy?ref=app"')
+  },
+  {
+    id: 'av1d',
+    rule: 'av',
+    what: 'a fragment on the support page',
+    file: () => LINKS,
+    edit: (src) => src.replace('"https://tortie.sh/support"', '"https://tortie.sh/support#top"')
+  },
+  {
+    id: 'av1e',
+    rule: 'av',
+    what: 'a host that merely starts with tortie.sh',
+    file: () => LINKS,
+    edit: (src) => src.replace('"https://tortie.sh/privacy"', '"https://tortie.sh.example.com/privacy"')
+  },
+  {
+    id: 'av1f',
+    rule: 'av',
+    what: 'an address forced with !',
+    file: () => LINKS,
+    edit: (src) => src.replace('        case .home: URL(string: "https://tortie.sh")\n', '        case .home: URL(string: "https://tortie.sh")!\n')
+  },
+  {
+    id: 'av2',
+    rule: 'av',
+    what: 'a second https:// literal, in a screen',
+    file: () => `${APP}/Screens/SessionScreen.swift`,
+    edit: append('extension SessionScreen {\n    static let p3331Site = "https://tortie.sh/sessions"\n}\n')
+  },
+  {
+    id: 'av3',
+    rule: 'av',
+    what: 'the opener taking a String rather than a SiteLink',
+    file: () => LINKS,
+    edit: allOf(['    func open(_ link: SiteLink)\n}', '    func open(_ link: String)\n}'], ['struct SiteOpener: SiteOpening {\n    func open(_ link: SiteLink) {\n        guard let url = link.address, LinkPolicy.opens(url) else { return }', 'struct SiteOpener: SiteOpening {\n    func open(_ link: String) {\n        guard let url = URL(string: link), LinkPolicy.opens(url) else { return }'])
+  },
+  {
+    id: 'av3b',
+    rule: 'av',
+    what: 'the opener no longer asking LinkPolicy.opens before its open',
+    file: () => LINKS,
+    edit: (src) => src.replace('        guard let url = link.address, LinkPolicy.opens(url) else { return }\n        UIApplication.shared.open(url)', '        guard let url = link.address else { return }\n        UIApplication.shared.open(url)')
+  },
+  {
+    id: 'av3c',
+    rule: 'av',
+    what: 'a second opener: another type conforming to SiteOpening, in Settings',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: append('struct P3331OtherOpener: SiteOpening {\n    func open(_ link: SiteLink) { }\n}\n')
+  },
+  {
+    id: 'av4',
+    rule: 'av',
+    what: 'a third file naming SiteOpener',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: append('extension ListScreen {\n    static let p3331Opener = SiteOpener()\n}\n')
+  },
+  {
+    id: 'av5',
+    rule: 'av',
+    what: 'QRScanner( built outside the Scan code branch, so iOS asks for the camera at once',
+    file: () => PAIRING_SCREEN,
+    edit: (src) => src.replace('                    } else {\n                        steps\n                        scanButton\n                    }', '                    } else {\n                        scanner(QRScanner(active: false) { _ in })\n                        steps\n                        scanButton\n                    }')
+  },
+  {
+    id: 'av5b',
+    rule: 'av',
+    what: 'the camera asked for by PairingModel itself',
+    file: () => PAIRING_SCREEN,
+    edit: (src) => src.replace('    func startScanning() {\n        scanning = true', '    func startScanning() {\n        AVCaptureDevice.requestAccess(for: .video) { _ in }\n        scanning = true')
+  },
+  {
+    id: 'av5c',
+    rule: 'av',
+    what: 'scanning set true by Pair again too, so a second pairing opens the camera with no Scan code',
+    file: () => PAIRING_SCREEN,
+    edit: (src) => src.replace('    func pairAgain() {\n        spent = nil\n', '    func pairAgain() {\n        scanning = true\n        spent = nil\n')
+  },
+  {
+    id: 'av5d',
+    rule: 'av',
+    what: 'startScanning() called from Get Tortie for Mac, so the camera opens with no Scan code',
+    file: () => PAIRING_SCREEN,
+    edit: (src) => src.replace('    func openMacSite() {\n        site.open(.home)\n', '    func openMacSite() {\n        model.startScanning()\n        site.open(.home)\n')
+  },
+  {
+    id: 'av6',
+    rule: 'av',
+    what: '"beta" in a Copy.swift value',
+    file: () => `${APP}/Style/Copy.swift`,
+    edit: (src) => src.replace('    static let setupGetMac = "Get Tortie for Mac"', '    static let setupGetMac = "Get the Tortie for Mac beta"')
+  },
+  {
+    id: 'av7',
+    rule: 'av',
+    what: 'the Allow line drawn under a time-out too',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('        if sentence == Copy.cannotReachMac {\n            return Copy.reachAllowAgain\n        }', '        if sentence == Copy.cannotReachMac || sentence == Copy.macDidNotAnswer {\n            return Copy.reachAllowAgain\n        }')
+  },
+  {
+    id: 'av7b',
+    rule: 'av',
+    what: 'reachNote( asked by the list',
+    file: () => `${APP}/Screens/ListScreen.swift`,
+    edit: append('extension ListScreen {\n    static var p3331Note: String? { DoorWords.reachNote(for: Copy.cannotReachMac) }\n}\n')
+  },
+  {
+    id: 'av8',
+    rule: 'av',
+    what: "the marker's guard taken out, so the version arms answer for {\"v\":1}",
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)),\n              let fp = marker.fp, let markerPin = Base64URL.decode(fp), markerPin.count == 32,\n              marker.dk != nil, marker.dx != nil else {', '              let marker = try? JSONDecoder().decode(Marker.self, from: Data(payload.utf8)) else {')
+  },
+  {
+    id: 'av8b',
+    rule: 'av',
+    what: 'the newer arm written as v == 4, so a v:5 code from a later Mac reads as not a Tortie code',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('if marker.v > version && marker.v <= 99 { throw PairingFailure.codeFromNewerMac }', 'if marker.v == 4 { throw PairingFailure.codeFromNewerMac }')
+  },
+  // (av9), the fix round: each site press drawn by its own words.
+  {
+    id: 'av9',
+    rule: 'av',
+    what: 'the pairing screen’s Privacy and Support actions swapped, so Privacy opens the support page (the 333.1 verifier’s M6, green in every gate before av9)',
+    file: () => PAIRING_SCREEN,
+    edit: allOf(['Button(action: openPrivacy)', 'Button(action: P3331SWAP)'], ['Button(action: openSupport)', 'Button(action: openPrivacy)'], ['Button(action: P3331SWAP)', 'Button(action: openSupport)'])
+  },
+  {
+    id: 'b12',
+    rule: 'b',
+    what: 'the first step’s number handed to stepRow as a literal (the 333.1 verifier’s M19, green before the fix round taught (b) that stepRow draws it)',
+    file: () => PAIRING_SCREEN,
+    edit: (src) => src.replace('stepRow(placed.place, Copy.setupGetMac,', 'stepRow("1", Copy.setupGetMac,')
+  },
+  {
+    id: 'av9b',
+    rule: 'av',
+    what: 'Settings’ Privacy press opening the support page',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: (src) => src.replace('    func openPrivacy() {\n        site.open(.privacy)\n', '    func openPrivacy() {\n        site.open(.support)\n')
+  },
+  {
+    id: 'av9c',
+    rule: 'av',
+    what: 'Settings’ Privacy row identified as Support',
+    file: () => `${APP}/Screens/SettingsScreen.swift`,
+    edit: (src) => src.replace('            .accessibilityIdentifier(ID.settingsPrivacy)\n', '            .accessibilityIdentifier(ID.settingsSupport)\n')
+  },
+  {
+    id: 's12',
+    rule: 's',
+    what: 'the build left at 7 in one configuration (Debug), 337.1’s',
+    file: () => PBX,
+    edit: (src) => src.replace('CURRENT_PROJECT_VERSION = 8;', 'CURRENT_PROJECT_VERSION = 7;')
+  },
+  {
+    id: 'v32',
+    rule: 'v',
+    what: 'the Allow line made non-optional, so every failure gets one',
+    file: () => `${APP}/Screens/DoorWords.swift`,
+    edit: (src) => src.replace('    static func reachNote(for sentence: String) -> String? {\n        if sentence == Copy.cannotReachMac {\n            return Copy.reachAllowAgain\n        }\n        return nil\n    }', '    static func reachNote(for sentence: String) -> String {\n        if sentence == Copy.cannotReachMac {\n            return Copy.reachAllowAgain\n        }\n        return Copy.reachAllowAgain\n    }')
+  },
+  {
+    id: 'p22',
+    rule: 'p',
+    what: 'the marker decoding the pairing secret too',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('        let dx: String?\n    }\n', '        let dx: String?\n        let ps: String?\n    }\n')
+  },
+  {
+    id: 'v31',
+    rule: 'v',
+    what: 'unsupportedCode put back with no sentence',
+    file: () => `${APP}/Door/Pairing.swift`,
+    edit: (src) => src.replace('    /// A code from an older Tortie for Mac.\n    case codeFromOlderMac\n', '    /// A code from an older Tortie for Mac.\n    case codeFromOlderMac\n    case unsupportedCode\n')
   }
 ];
 
@@ -3517,7 +3748,7 @@ if (after !== before) {
 }
 const rulesProved = new Set(rows.filter((r) => r.verdict === 'red').map((r) => r.arm.rule));
 if (only.length === 0) {
-  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq']) {
+  for (const rule of ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'n', 'o', 'p', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', 'aa', 'ab', 'ac', 'ad', 'ae', 'af', 'ag', 'ah', 'ai', 'aj', 'ak', 'al', 'am', 'an', 'ao', 'ap', 'aq', 'ar', 'as', 'at', 'au', 'av']) {
     if (!rulesProved.has(rule)) {
       failed += 1;
       say(`rule (${rule}) has no arm that turned it red, so nothing here proves it can fail`);
@@ -3530,5 +3761,5 @@ if (failed > 0) {
 }
 say(
   `PASS: ${String(arms.length)} of ${String(arms.length)} arms red on the rule that owns them, ` +
-    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (au) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
+    `${only.length === 0 ? 'every rule (a) to (z) and (aa) to (av) proved able to fail' : 'the named arms only (a full run is what proves every rule)'}, the clone removed, the working tree unmoved.`
 );

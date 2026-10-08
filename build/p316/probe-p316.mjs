@@ -655,6 +655,50 @@
  *   `relaunch-choices[:<key>=<value>]`; `open:` and `select:` bring a row into
  *   view before they press it.
  *
+ * PHASE 333.1, A STRANGER'S FIRST RUN (build/p3331/SPEC.md §7.7). The pairing
+ * screen's resting face is three numbered steps and Scan code, the camera is
+ * built only after Scan code, About gains three pages of Tortie's own site, a
+ * shut door's "could not reach" gains the Allow line, and a code from another
+ * version says which side to update.
+ *   THE `setup` GROUP (P316_ARMS=setup, in the default list and the floor's),
+ *   on a fresh Simulator per runtime, each read three ways: the app launched
+ *   with NO code (the seam left out, since an empty one reads as a code that
+ *   is not Tortie's), a code from a newer and from an older Mac made from a
+ *   real window's code with its marker kept and its version moved, and a
+ *   paired drive whose door this file SHUTS (every connection ended before its
+ *   handshake) and then HOLDS (every connection kept and never answered) on
+ *   the drive's own `setup-failure-before` line, with Settings read LAST
+ *   (the fix round: read first, it left SE5 and SE6 unreadable in every run).
+ *   SE1 26.3: `pairing-title`, the three step rows top to bottom, Scan code,
+ *       `pairing-nothing-else`, `pairing-line` the not-paired line,
+ *       `pairing-privacy` and `pairing-support`, and no label anywhere on the
+ *       screen holding "sample" (`setup-inventory` prints every label)
+ *   SE2 26.3: no `pairing-scanner` before Scan code; it and `pairing-point`
+ *       after (a Simulator has no camera, so iOS never asks; his checklist's C4)
+ *   SE3 26.3: `pairing-get-mac`, `pairing-privacy` and `pairing-support` each
+ *       a button at least 44 points tall
+ *   SE4 26.3, paired: Settings' `settings-version` the project's `1.0.0 (8)`,
+ *       then `settings-mac-site` (Tortie for Mac, tortie.sh), `settings-privacy`
+ *       and `settings-support`, each a button at least 44 points tall
+ *   SE5 26.3: the door shut, the list's `list-failure` "Tortie could not reach
+ *       your Mac." and `list-failure-note` the Allow line under it
+ *   SE6 26.3: the door held past the client's 15 s, "Your Mac did not answer
+ *       in time." and no `*-note`
+ *   SE7 26.3: a v:4 code and a v:2 code through the payload seam:
+ *       `pairing-line` Copy.pairNewerMac and Copy.pairOlderMac
+ *   SE8 18.3, the floor: SE1, SE2, SE3, SE5 and SE7
+ *   SEP 26.3, with P3331_PARENT_IOS (cb8d52a6's ios/, build 7): its own UI
+ *       test, graded on its own Copy.swift: `pairing-scanner` drawn at once, no
+ *       `pairing-privacy`, the v:4 code "That is not a Tortie pairing code.",
+ *       and no `*-note` under the shut door (shut on its `list-before` line)
+ *   The steps P316DriveUITests.swift adds: `setup-read`, `setup-scan`,
+ *   `setup-settings`, `setup-failure:<shut|held>` (waits for this file's
+ *   `setup-<tag>`, then asks the list again until it draws a failure whose
+ *   words are not the one before it) and `setup-code`, with a
+ *   `setup-inventory` line. THE UI DRIVE PRESSES NO LINK: no Get Tortie for
+ *   Mac, Privacy or Support, so Safari never opens and no request leaves the
+ *   Simulator; the presses are SiteLinkTests'.
+ *
  * PHASE 332: THE NAME CHECK, AGAINST A LOOPBACK DNS STAND-IN. A published door
  * now asks the `ts.net` zone's own servers whether its public name answers
  * before a code may show. The Mac is handed `GMUX_POCKET_NAME_SERVERS`, naming
@@ -692,7 +736,7 @@
  * (exit 2) when the checkout has no build.
  *
  *   npm run -s probe:p316
- *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's)
+ *   P316_ARMS=order,floor,deny,hostile,end,reply,screen,sessions,setup    which arms (default all; `order` holds N11 and N0 to N8; `end` is Phase 317's, `reply` Phase 318's, `screen` Phase 337's, `sessions` Phase 316.7's, `setup` Phase 333.1's)
  *   P316_HOSTILE=honest,wrong-key         which hostile arms (default all)
  *   P316_HOSTILE_FLOOR=all|<arm,…>        which hostile sessions arms also run on iOS 18.3 (default those marked `floor`)
  *   P316_DERIVED_DATA=<dir>               derived data (never the repo, never home; kept)
@@ -705,6 +749,7 @@
  *                                         own re-derivation. The private key is
  *                                         deleted whatever this says.
  *   P316_PARENT_CHECKOUT=<dir>            the parent reading: whether it has ios/
+ *   P3331_PARENT_IOS=<dir>                Phase 333.1's SEP: cb8d52a6's checkout (its ios/, build 7)
  *   P3371_PARENT_IOS=<dir>                Phase 337.1's PSP: e3837139's checkout (its ios/);
  *                                         P316_PARENT_IOS is read when it is unset
  *   P316_PARENT_IOS=<dir>                 Phase 316.6's PR arm: the directory holding the
@@ -788,7 +833,8 @@ if (PARENT !== '') {
 const PROJECT = join(ROOT, 'ios', 'Tortie.xcodeproj');
 // `deny` is Phase 316.5's (SPEC §7.4 ND): a fourth Simulator, notifications denied.
 // `sessions` is Phase 316.7's (build/p3167/SPEC.md §9.4): SL1 to SL8 on a fresh Simulator of its own, and SL1, SL6 and SL8 on the floor.
-const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions').split(',').map((s) => s.trim()));
+// `setup` is Phase 333.1's (build/p3331/SPEC.md §7.7): SE1 to SE7 on a fresh Simulator, SE8 on the floor, SEP with P3331_PARENT_IOS.
+const ARMS = new Set(((process.env['P316_ARMS'] ?? '').trim() || 'order,floor,deny,hostile,end,reply,screen,sessions,setup').split(',').map((s) => s.trim()));
 if (ARMS.has('ats')) {
   // The ATS arm left with TailscaleKit (Phase 330): the phone has no tailnet
   // and no ATS exception, so there is nothing for it to prove.
@@ -797,7 +843,8 @@ if (ARMS.has('ats')) {
 }
 // Phase 317: the end group's E10 is the floor's too; Phase 318's P9 likewise.
 // Phase 316.7: the sessions group's SL1, SL6 and SL8, and the hostile sessions arms marked `floor`, run on the floor too.
-const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
+// Phase 333.1: the setup group's SE8 is the floor's.
+const runtimes = ARMS.has('floor') || ARMS.has('end') || ARMS.has('reply') || ARMS.has('screen') || ARMS.has('sessions') || ARMS.has('hostile') || ARMS.has('setup') ? [RUNTIME_CURRENT, RUNTIME_FLOOR] : [RUNTIME_CURRENT];
 
 /** B0, asked once, synchronously, before anything is started or served. */
 function preflight() {
@@ -870,6 +917,14 @@ const PARENT_IOS_337 = (process.env['P337_PARENT_IOS'] ?? '').trim();
  * Screen row reads PSP UNREADABLE, never a failure.
  */
 const PARENT_IOS_3371 = (process.env['P3371_PARENT_IOS'] ?? '').trim() || PARENT_IOS;
+/**
+ * Phase 333.1's SEP (build/p3331/SPEC.md §7.7): a checkout of `cb8d52a6` whose
+ * ios/ is the parent's app (build 7, the camera at once, no site rows), or
+ * empty. Its own variable, as every phase's parent has had since 317.
+ */
+const PARENT_IOS_3331 = (process.env['P3331_PARENT_IOS'] ?? '').trim();
+/** Phase 333.1: where the probe writes `setup-<tag>` once it shut or held the door. */
+const ACKS_SETUP = join(RUN, 'acks-setup');
 /**
  * Phase 318: build/p318/stand-in.mjs's wrappers (never on the PATH: this
  * file's own `claude` hands a launch to its `claude` when the next mode is
@@ -1250,12 +1305,20 @@ async function startRelay() {
   // for XCUITest to read it; nothing is changed and nothing is dropped.
   let delayNext = 0;
   let closed = false;
+  // Phase 333.1 (SE5, SEP): a SHUT door. Every connection is taken and ended
+  // at once, before its handshake can finish, as a door that is not listening
+  // ends it; the phone reads that as a Mac it could not reach. `open()` ends it.
+  let shut = false;
   const server = createNetServer((client) => {
     // Phase 316.6 (U1): every connection the app opens to the door is counted.
     connections += 1;
     sockets.add(client);
     client.on('close', () => sockets.delete(client));
     client.on('error', () => undefined);
+    if (shut) {
+      client.destroy();
+      return;
+    }
     if (allowance <= 0) {
       heldTotal += 1;
       held.add(client);
@@ -1395,6 +1458,15 @@ async function startRelay() {
       allowance = Infinity;
       for (const s of held) s.destroy();
       held.clear();
+    },
+    /** Phase 333.1: shut the door, every connection open now ended and every new one ended at once. */
+    shut: () => {
+      shut = true;
+      for (const s of sockets) s.destroy();
+    },
+    /** Phase 333.1: the door no longer shut (a pause or a hold is the caller's to end with `resume`). */
+    open: () => {
+      shut = false;
     }
   };
 }
@@ -6114,6 +6186,441 @@ function replySelfTest() {
   return { total: cases.length, bad };
 }
 
+// ---------------------------------------------------------------------------
+// PHASE 333.1, A STRANGER'S FIRST RUN (build/p3331/SPEC.md §7.7): the `setup`
+// group, SE1 to SE8 and SEP. Each grader is pure over what a drive printed, so
+// --grader-self-test shows every clause red on its own break. The UI drive
+// presses no link: the presses are SiteLinkTests'.
+// ---------------------------------------------------------------------------
+
+/** The phone's words the setup group reads, by name. */
+const SETUP_WORD_NAMES = Object.freeze([
+  'pairTitle',
+  'setupGetMac',
+  'setupOpenPhone',
+  'setupScan',
+  'scanCode',
+  'pairStepScan',
+  'pairNothingElse',
+  'notPaired',
+  'privacy',
+  'support',
+  'macOnSite',
+  'siteName',
+  'cannotReachMac',
+  'reachAllowAgain',
+  'macDidNotAnswer',
+  'pairNewerMac',
+  'pairOlderMac',
+  'pairNotACode'
+]);
+
+/**
+ * Those words, SPELLED from one Copy.swift's text: HEAD's for SE1 to SE8, and
+ * the parent's own (P3331_PARENT_IOS's) for SEP, so each build is graded on
+ * the words it draws. A word the file does not hold is null.
+ */
+function setupWordsOf(text) {
+  const of = (name) => {
+    const m = new RegExp(`static let ${name}\\s*=\\s*"((?:[^"\\\\]|\\\\.)*)"`).exec(String(text));
+    return m === null ? null : m[1].replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  };
+  return Object.fromEntries(SETUP_WORD_NAMES.map((n) => [n, of(n)]));
+}
+const SETUP_WORDS = setupWordsOf(COPY_SWIFT);
+/** The shortest a press may be, in points: Apple's 44, `SettingsFrame.lineHeight` and `PairingFrame.pressHeight`. */
+const SETUP_PRESS_MIN = 44;
+/** XCUITest reports a frame in fractions of a point; a third of one is its rounding, never a shorter press. */
+const SETUP_FRAME_SLACK = 0.34;
+/** No surface of build 8 draws See a sample (his answer, research 140: 333.3 adds it in build 9). */
+const SETUP_NEVER = /sample/i;
+
+const setupLabel = (dump, id) => el(dump, id)?.label ?? null;
+const setupY = (e) => (Array.isArray(e?.frame) ? Number(e.frame[1]) : Number.NaN);
+const setupH = (e) => (Array.isArray(e?.frame) ? Number(e.frame[3]) : Number.NaN);
+const setupHolds = (label, word) => typeof label === 'string' && typeof word === 'string' && word !== '' && label.includes(word);
+/** The words a grader needs that Copy.swift does not hold, as UNREADABLE reasons. */
+const setupWordsMissing = (words, names) => names.filter((n) => typeof words?.[n] !== 'string').map((n) => `Copy.swift holds no ${n}, so it cannot be read`);
+
+/** SE1: the resting face, launched with no code: the title, the three steps in their places, Scan code, the foot, and no "sample". */
+function gradeSe1(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "setup-read" dump');
+  const missingWords = setupWordsMissing(r.words, ['pairTitle', 'setupGetMac', 'setupOpenPhone', 'setupScan', 'scanCode', 'pairNothingElse', 'notPaired', 'privacy', 'support']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (el(d, 'screen-pairing') === null) return verdict(false, 'the app did not open on Pairing with no code');
+  const w = r.words;
+  const p = [];
+  const u = [];
+  if (setupLabel(d, 'pairing-title') !== w.pairTitle) p.push(`pairing-title reads ${J(setupLabel(d, 'pairing-title'))}, not ${J(w.pairTitle)}`);
+  for (const [id, word] of [
+    ['pairing-get-mac', w.setupGetMac],
+    ['pairing-step-open', w.setupOpenPhone],
+    ['pairing-step-scan', w.setupScan],
+    ['pairing-scan-code', w.scanCode],
+    ['pairing-privacy', w.privacy],
+    ['pairing-support', w.support]
+  ]) {
+    if (!setupHolds(setupLabel(d, id), word)) p.push(`${id} reads ${J(setupLabel(d, id))}, which does not say ${J(word)}`);
+  }
+  // In their places: the three steps top to bottom, then Scan code under them.
+  const order = ['pairing-get-mac', 'pairing-step-open', 'pairing-step-scan', 'pairing-scan-code'].map((id) => setupY(el(d, id)));
+  if (order.some((y) => !Number.isFinite(y)) || !order.every((y, i) => i === 0 || y > order[i - 1])) p.push(`the three steps and Scan code are not drawn top to bottom (${J(order)})`);
+  if (setupLabel(d, 'pairing-nothing-else') !== w.pairNothingElse) p.push(`pairing-nothing-else reads ${J(setupLabel(d, 'pairing-nothing-else'))}, not ${J(w.pairNothingElse)}`);
+  if (setupLabel(d, 'pairing-line') !== w.notPaired) p.push(`pairing-line reads ${J(setupLabel(d, 'pairing-line'))}, not ${J(w.notPaired)}`);
+  const labels = r.inventory?.labels;
+  if (!Array.isArray(labels)) u.push('the UI test printed no setup-inventory line, so "sample" was not looked for in every label');
+  else {
+    const sample = [...labels, ...(d.elements ?? []).map((e) => e.label)].filter((l) => typeof l === 'string' && SETUP_NEVER.test(l));
+    if (sample.length > 0) p.push(`a label holds "sample": ${J(sample.slice(0, 3))}`);
+  }
+  return decide(p, u, `Pairing at rest: the title, the three steps top to bottom, Scan code, ${J(w.pairNothingElse)}, the not-paired line, Privacy and Support, and no "sample" in ${String(labels?.length ?? 0)} label(s)`);
+}
+
+/** SE2: no camera before Scan code; the camera's square and the line under it after. */
+function gradeSe2(r) {
+  if (r.before === null || r.before === undefined) return verdict(null, 'the UI test printed no setup-scan-before line, so Scan code was not pressed');
+  if (r.scanDump === null || r.scanDump === undefined) return verdict(null, 'the UI test printed no "setup-scan" dump');
+  const p = [];
+  if (r.before.scanner !== false) p.push('the camera\'s square was on the screen before Scan code was pressed');
+  if (r.readDump !== null && r.readDump !== undefined && el(r.readDump, 'pairing-scanner') !== null) p.push('the resting face drew pairing-scanner');
+  if (el(r.scanDump, 'pairing-scanner') === null) p.push('Scan code drew no pairing-scanner');
+  if (el(r.scanDump, 'pairing-point') === null) p.push('Scan code drew no pairing-point');
+  else if (typeof r.words?.pairStepScan === 'string' && setupLabel(r.scanDump, 'pairing-point') !== r.words.pairStepScan) p.push(`pairing-point reads ${J(setupLabel(r.scanDump, 'pairing-point'))}, not ${J(r.words.pairStepScan)}`);
+  return decide(p, [], 'no camera before Scan code, and the camera\'s square with the line under it after');
+}
+
+/** SE3: Get Tortie for Mac, Privacy and Support are each a button at least 44 points tall. */
+function gradeSe3(r) {
+  const items = r.inventory?.elements;
+  if (!Array.isArray(items)) return verdict(null, 'the UI test printed no setup-inventory line for the resting face');
+  const p = [];
+  const heights = [];
+  for (const id of ['pairing-get-mac', 'pairing-privacy', 'pairing-support']) {
+    const e = items.find((x) => x.id === id);
+    if (e === undefined) {
+      p.push(`${id} is not drawn`);
+      continue;
+    }
+    if (e.button !== true) p.push(`${id} is not a button`);
+    const h = setupH(e);
+    heights.push(h);
+    if (!(h + SETUP_FRAME_SLACK >= SETUP_PRESS_MIN)) p.push(`${id} is ${String(h)} pt tall, under ${String(SETUP_PRESS_MIN)}`);
+  }
+  return decide(p, [], `Get Tortie for Mac, Privacy and Support are buttons ${heights.map((h) => String(Math.round(h * 100) / 100)).join(', ')} pt tall, each at least ${String(SETUP_PRESS_MIN)}`);
+}
+
+/** SE4: Settings' About, paired: the version, then Tortie for Mac (tortie.sh), Privacy and Support, each a button at least 44 points tall under it. */
+function gradeSe4(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "setup-settings" dump');
+  const missingWords = setupWordsMissing(r.words, ['macOnSite', 'siteName', 'privacy', 'support']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  if (el(d, 'screen-settings') === null) return verdict(false, 'the Settings tab was not drawn');
+  const items = r.inventory?.elements;
+  if (!Array.isArray(items)) return verdict(null, 'the UI test printed no setup-inventory line for Settings');
+  if (r.version === null || r.version === undefined) return verdict(null, 'the project\'s version could not be read');
+  const w = r.words;
+  const p = [];
+  const version = el(d, 'settings-version');
+  if (version === null || version.label !== r.version) p.push(`settings-version reads ${J(version?.label ?? null)}, not ${J(r.version)}`);
+  const site = setupLabel(d, 'settings-mac-site');
+  const siteNameDrawn = setupHolds(site, w.siteName) || setupLabel(d, 'settings-mac-site-name') === w.siteName;
+  if (!setupHolds(site, w.macOnSite) || !siteNameDrawn) p.push(`settings-mac-site reads ${J(site)}, not ${J(w.macOnSite)} with ${J(w.siteName)}`);
+  if (!setupHolds(setupLabel(d, 'settings-privacy'), w.privacy)) p.push(`settings-privacy reads ${J(setupLabel(d, 'settings-privacy'))}, not ${J(w.privacy)}`);
+  if (!setupHolds(setupLabel(d, 'settings-support'), w.support)) p.push(`settings-support reads ${J(setupLabel(d, 'settings-support'))}, not ${J(w.support)}`);
+  const heights = [];
+  for (const id of ['settings-mac-site', 'settings-privacy', 'settings-support']) {
+    const e = items.find((x) => x.id === id);
+    if (e === undefined) {
+      p.push(`${id} is not drawn`);
+      continue;
+    }
+    if (e.button !== true) p.push(`${id} is not a button`);
+    const h = setupH(e);
+    heights.push(h);
+    if (!(h + SETUP_FRAME_SLACK >= SETUP_PRESS_MIN)) p.push(`${id} is ${String(h)} pt tall, under ${String(SETUP_PRESS_MIN)}`);
+    if (version !== null && !(setupY(e) > setupY(version))) p.push(`${id} is not under the version`);
+  }
+  return decide(p, [], `About: ${String(r.version)}, then Tortie for Mac (${String(w.siteName)}), Privacy and Support, buttons ${heights.map((h) => String(Math.round(h * 100) / 100)).join(', ')} pt tall`);
+}
+
+/** SE5: the door shut: the list's failure is "could not reach", and the Allow line is drawn under it, above Try again. */
+function gradeSe5(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "setup-failure-shut" dump');
+  const missingWords = setupWordsMissing(r.words, ['cannotReachMac', 'reachAllowAgain']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  const failure = el(d, 'list-failure');
+  if (failure === null) return verdict(null, 'the list drew no failure under the shut door');
+  const p = [];
+  if (failure.label !== r.words.cannotReachMac) p.push(`the list's failure reads ${J(failure.label)}, not ${J(r.words.cannotReachMac)}`);
+  const note = el(d, 'list-failure-note');
+  if (note === null) p.push('no list-failure-note is drawn under it');
+  else {
+    if (note.label !== r.words.reachAllowAgain) p.push(`list-failure-note reads ${J(note.label)}, not ${J(r.words.reachAllowAgain)}`);
+    if (!(setupY(note) > setupY(failure))) p.push('the Allow line is not under the sentence');
+    const retry = el(d, 'list-failure-retry');
+    if (retry !== null && !(setupY(retry) > setupY(note))) p.push('Try again is not under the Allow line');
+  }
+  return decide(p, [], `the shut door reads ${J(r.words.cannotReachMac)} with the Allow line under it`);
+}
+
+/** SE6: the door held past the client's time-out: "did not answer in time", and no note under it. */
+function gradeSe6(r) {
+  const d = r.dump;
+  if (d === null || d === undefined) return verdict(null, 'the UI test printed no "setup-failure-held" dump');
+  const missingWords = setupWordsMissing(r.words, ['macDidNotAnswer', 'cannotReachMac']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  const failure = el(d, 'list-failure');
+  if (failure === null) return verdict(null, 'the list drew no failure under the held door');
+  // The step asks until the words change; the shut door's still drawn is a
+  // held read that never timed out, which this file did not see happen.
+  if (failure.label === r.words.cannotReachMac) return verdict(null, 'the list still drew the shut door\'s sentence, so the held read\'s time-out was never seen');
+  const p = [];
+  if (failure.label !== r.words.macDidNotAnswer) p.push(`the list's failure reads ${J(failure.label)}, not ${J(r.words.macDidNotAnswer)}`);
+  const notes = (d.elements ?? []).filter((e) => typeof e.id === 'string' && e.id.endsWith('-note'));
+  if (notes.length > 0) p.push(`a note is drawn under the time-out: ${J(notes.map((e) => e.id))}`);
+  return decide(p, [], `the held door reads ${J(r.words.macDidNotAnswer)} and no note`);
+}
+
+/** SE7: a code from a newer Mac and one from an older Mac each say which side to update. */
+function gradeSe7(r) {
+  const missingWords = setupWordsMissing(r.words, ['pairNewerMac', 'pairOlderMac']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  const u = [];
+  const p = [];
+  for (const [which, dump, word] of [
+    ['the v:4 code', r.newer, r.words.pairNewerMac],
+    ['the v:2 code', r.older, r.words.pairOlderMac]
+  ]) {
+    if (dump === null || dump === undefined) {
+      u.push(`the UI test printed no "setup-code" dump for ${which}`);
+      continue;
+    }
+    const line = setupLabel(dump, 'pairing-line');
+    if (line !== word) p.push(`${which} reads ${J(line)}, not ${J(word)}`);
+  }
+  return decide(p, u, `a v:4 code reads ${J(r.words.pairNewerMac)} and a v:2 code ${J(r.words.pairOlderMac)}`);
+}
+
+/**
+ * SEP, the parent's own app (P3331_PARENT_IOS, cb8d52a6's ios/, build 7): the
+ * camera at once, no Privacy, a v:4 code "not a Tortie pairing code", and no
+ * note under the shut door. Graded on the parent's own words.
+ */
+function gradeSep(r) {
+  const missingWords = setupWordsMissing(r.words, ['pairNotACode', 'cannotReachMac']);
+  if (missingWords.length > 0) return verdict(null, missingWords.join('; '));
+  const p = [];
+  const u = [];
+  if (r.code === null || r.code === undefined) u.push('the parent printed no dump after the v:4 code');
+  else {
+    if (el(r.code, 'pairing-scanner') === null) p.push('the parent drew no camera at once');
+    if (el(r.code, 'pairing-privacy') !== null) p.push('the parent drew pairing-privacy');
+    if (setupLabel(r.code, 'pairing-line') !== r.words.pairNotACode) p.push(`the parent's v:4 code reads ${J(setupLabel(r.code, 'pairing-line'))}, not ${J(r.words.pairNotACode)}`);
+  }
+  if (r.failure === null || r.failure === undefined) u.push('the parent printed no dump under the shut door');
+  else {
+    const f = el(r.failure, 'list-failure');
+    if (f === null) u.push('the parent drew no list failure under the shut door');
+    else {
+      if (f.label !== r.words.cannotReachMac) p.push(`the parent's failure reads ${J(f.label)}, not ${J(r.words.cannotReachMac)}`);
+      const notes = (r.failure.elements ?? []).filter((e) => typeof e.id === 'string' && e.id.endsWith('-note'));
+      if (notes.length > 0) p.push(`the parent drew a note under its failure: ${J(notes.map((e) => e.id))}`);
+    }
+  }
+  return decide(p, u, `the parent: the camera at once, no Privacy, ${J(r.words.pairNotACode)} for a v:4 code, and ${J(r.words.cannotReachMac)} with no note`);
+}
+
+/**
+ * The codes SE7 and SEP hand the seam, made from a REAL code's marker (its
+ * fp, dk and dx), so the version arm is what is read and never the marker:
+ * a v:4 code, and a v:2 code shaped as the 316.4 Mac drew it (its bind
+ * address and port, the pin, the two keys, the secret and the window's end,
+ * with its tailnet key's field left out, conformance:ios rule p). Null when
+ * the code is not one this file can read.
+ */
+function setupCodes(payload) {
+  let real;
+  try {
+    real = JSON.parse(String(payload));
+  } catch {
+    return null;
+  }
+  if (real === null || typeof real !== 'object' || typeof real.fp !== 'string' || typeof real.dk !== 'string' || typeof real.dx !== 'string') return null;
+  const newer = { ...real, v: 4 };
+  const older = { v: 2, host: '100.64.0.7', port: 7443, fp: real.fp, dk: real.dk, dx: real.dx, ps: real.ps, exp: real.exp };
+  return { newer: JSON.stringify(newer), older: JSON.stringify(older) };
+}
+
+function setupSelfTest() {
+  const cases = [];
+  const add = (what, grader, input, want) => cases.push({ what, got: () => grader(input).ok, want });
+  const edit = (base, fn) => {
+    const copy = structuredClone(base);
+    fn(copy);
+    return copy;
+  };
+  const words = setupWordsOf(
+    SETUP_WORD_NAMES.map((n) => `    static let ${n} = "${n === 'siteName' ? 'tortie.sh' : n === 'notPaired' ? 'This iPhone is not paired with a Mac.' : `word ${n}`}"`).join('\n')
+  );
+  const E = (id, label, y, h = 20, x = 16, w = 370) => ({ id, label, frame: [x, y, w, h] });
+  const rest = {
+    step: 'screen',
+    name: 'setup-read',
+    elements: [
+      E('screen-pairing', '', 0, 874, 0, 402),
+      E('pairing-title', words.pairTitle, 80),
+      E('pairing-get-mac', `1, ${words.setupGetMac}, Free at tortie.sh · Apple silicon · 0.111 or later`, 130, 51),
+      E('pairing-step-open', `2, ${words.setupOpenPhone}`, 181, 44),
+      E('pairing-step-scan', `3, ${words.setupScan}`, 225, 44),
+      E('pairing-scan-code', words.scanCode, 293, 50),
+      E('pairing-nothing-else', words.pairNothingElse, 700),
+      E('pairing-line', words.notPaired, 732),
+      E('pairing-privacy', words.privacy, 770, 44, 16, 60),
+      E('pairing-support', words.support, 770, 44, 90, 70)
+    ]
+  };
+  const restInventory = {
+    step: 'setup-inventory',
+    for: 'setup-read',
+    labels: rest.elements.map((e) => e.label).filter((l) => l !== ''),
+    elements: [
+      { id: 'pairing-get-mac', label: rest.elements[2].label, button: true, frame: [16, 130, 370, 51] },
+      { id: 'pairing-privacy', label: words.privacy, button: true, frame: [16, 770, 60, 44] },
+      { id: 'pairing-support', label: words.support, button: true, frame: [90, 770, 70, 44] }
+    ]
+  };
+  const se1 = { dump: rest, inventory: restInventory, words };
+  add('SE1 passes its honest reading', gradeSe1, se1, true);
+  add('SE1 is red on the wrong title', gradeSe1, edit(se1, (r) => void (r.dump.elements[1].label = 'Pair a phone')), false);
+  add('SE1 is red on a step that does not say its words', gradeSe1, edit(se1, (r) => void (r.dump.elements[3].label = '2, Open Settings')), false);
+  add('SE1 is red on a step out of its place', gradeSe1, edit(se1, (r) => void (r.dump.elements[4].frame[1] = 120)), false);
+  add('SE1 is red on a missing step', gradeSe1, edit(se1, (r) => void r.dump.elements.splice(4, 1)), false);
+  add('SE1 is red on the camera ask moved above the steps (Scan code first)', gradeSe1, edit(se1, (r) => void (r.dump.elements[5].frame[1] = 100)), false);
+  add('SE1 is red on the old nothing-to-install line', gradeSe1, edit(se1, (r) => void (r.dump.elements[6].label = 'There is nothing else to install.')), false);
+  add('SE1 is red on a pairing line that is not the not-paired line', gradeSe1, edit(se1, (r) => void (r.dump.elements[7].label = 'That is not a Tortie pairing code.')), false);
+  add('SE1 is red with no Privacy', gradeSe1, edit(se1, (r) => void r.dump.elements.splice(8, 1)), false);
+  add('SE1 is red on "sample" in a label no identifier names', gradeSe1, edit(se1, (r) => void r.inventory.labels.push('See a sample')), false);
+  add('SE1 is red on "Sample" in a drawn element', gradeSe1, edit(se1, (r) => void (r.dump.elements[6].label = 'Sample session')), false);
+  add('SE1 is red on "Samples" anywhere in a label', gradeSe1, edit(se1, (r) => void r.inventory.labels.push('Try the Samples')), false);
+  add('SE1 with no inventory line is UNREADABLE', gradeSe1, edit(se1, (r) => void (r.inventory = null)), null);
+  add('SE1 with no dump is UNREADABLE', gradeSe1, edit(se1, (r) => void (r.dump = null)), null);
+  add('SE1 with a word Copy.swift does not hold is UNREADABLE', gradeSe1, edit(se1, (r) => void (r.words.scanCode = null)), null);
+
+  const scan = { step: 'screen', name: 'setup-scan', elements: [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-scanner', '', 120, 370), E('pairing-point', words.pairStepScan, 506)] };
+  const se2 = { readDump: rest, before: { step: 'setup-scan-before', scanner: false, point: false }, scanDump: scan, words };
+  add('SE2 passes its honest reading', gradeSe2, se2, true);
+  add('SE2 is red on the camera there before Scan code', gradeSe2, edit(se2, (r) => void (r.before.scanner = true)), false);
+  add('SE2 is red on the resting face drawing the scanner', gradeSe2, edit(se2, (r) => void r.readDump.elements.push(E('pairing-scanner', '', 400, 370))), false);
+  add('SE2 is red on no scanner after Scan code', gradeSe2, edit(se2, (r) => void r.scanDump.elements.splice(1, 1)), false);
+  add('SE2 is red on no line under the camera', gradeSe2, edit(se2, (r) => void r.scanDump.elements.splice(2, 1)), false);
+  add('SE2 with Scan code never pressed is UNREADABLE', gradeSe2, edit(se2, (r) => void (r.before = null)), null);
+
+  const se3 = { inventory: restInventory };
+  add('SE3 passes 51, 44 and 44 points', gradeSe3, se3, true);
+  add('SE3 is red at 43 points', gradeSe3, edit(se3, (r) => void (r.inventory.elements[1].frame[3] = 43)), false);
+  add('SE3 is red on a site press that is not a button', gradeSe3, edit(se3, (r) => void (r.inventory.elements[2].button = false)), false);
+  add('SE3 is red on Get Tortie for Mac not drawn', gradeSe3, edit(se3, (r) => void r.inventory.elements.splice(0, 1)), false);
+  add('SE3 with no inventory is UNREADABLE', gradeSe3, { inventory: null }, null);
+
+  const settingsDump = {
+    step: 'screen',
+    name: 'setup-settings',
+    elements: [
+      E('screen-settings', '', 0, 874, 0, 402),
+      E('settings-version', '1.0.0 (8)', 600, 20, 300, 80),
+      E('settings-mac-site', `${words.macOnSite}, ${words.siteName}`, 645, 44),
+      E('settings-privacy', words.privacy, 690, 44),
+      E('settings-support', words.support, 735, 44)
+    ]
+  };
+  const settingsInventory = {
+    step: 'setup-inventory',
+    for: 'setup-settings',
+    labels: [],
+    elements: settingsDump.elements.filter((e) => e.id !== 'screen-settings' && e.id !== 'settings-version').map((e) => ({ id: e.id, label: e.label, button: true, frame: e.frame }))
+  };
+  const se4 = { dump: settingsDump, inventory: settingsInventory, version: '1.0.0 (8)', words };
+  add('SE4 passes its honest reading', gradeSe4, se4, true);
+  add('SE4 is red on build 7', gradeSe4, edit(se4, (r) => void (r.dump.elements[1].label = '1.0.0 (7)')), false);
+  add('SE4 is red on Tortie for Mac without tortie.sh', gradeSe4, edit(se4, (r) => void (r.dump.elements[2].label = words.macOnSite)), false);
+  add('SE4 passes tortie.sh read as its own element', gradeSe4, edit(se4, (r) => void ((r.dump.elements[2].label = words.macOnSite), r.dump.elements.push(E('settings-mac-site-name', words.siteName, 657)))), true);
+  add('SE4 is red on a row under 44 points', gradeSe4, edit(se4, (r) => void (r.inventory.elements[1].frame[3] = 40)), false);
+  add('SE4 is red on a row above the version', gradeSe4, edit(se4, (r) => void (r.inventory.elements[2].frame[1] = 500)), false);
+  add('SE4 is red on Support not drawn', gradeSe4, edit(se4, (r) => void (r.inventory.elements.splice(2, 1), r.dump.elements.splice(4, 1))), false);
+  add('SE4 with no project version is UNREADABLE', gradeSe4, edit(se4, (r) => void (r.version = null)), null);
+
+  const failure = (label, withNote) => ({
+    step: 'screen',
+    name: 'setup-failure',
+    elements: [
+      E('screen-list', '', 0, 874, 0, 402),
+      E('list-failure', label, 200),
+      ...(withNote ? [E('list-failure-note', words.reachAllowAgain, 230)] : []),
+      E('list-failure-retry', 'Try again', 270, 44)
+    ]
+  });
+  const se5 = { dump: failure(words.cannotReachMac, true), words };
+  add('SE5 passes its honest reading', gradeSe5, se5, true);
+  add('SE5 is red on no Allow line', gradeSe5, { dump: failure(words.cannotReachMac, false), words }, false);
+  add('SE5 is red on the Allow line in other words', gradeSe5, edit(se5, (r) => void (r.dump.elements[2].label = 'Press Allow on your Mac.')), false);
+  add('SE5 is red on the Allow line above its sentence', gradeSe5, edit(se5, (r) => void (r.dump.elements[2].frame[1] = 150)), false);
+  add('SE5 is red on another sentence', gradeSe5, { dump: failure(words.macDidNotAnswer, true), words }, false);
+  add('SE5 with no failure drawn is UNREADABLE', gradeSe5, edit(se5, (r) => void r.dump.elements.splice(1, 2)), null);
+
+  const se6 = { dump: failure(words.macDidNotAnswer, false), words };
+  add('SE6 passes its honest reading', gradeSe6, se6, true);
+  add('SE6 is red on the Allow line under a time-out', gradeSe6, { dump: failure(words.macDidNotAnswer, true), words }, false);
+  add('SE6 is red on another sentence', gradeSe6, { dump: failure('Tortie could not read your Mac.', false), words }, false);
+  add('SE6 with the shut door\'s sentence still drawn is UNREADABLE', gradeSe6, { dump: failure(words.cannotReachMac, true), words }, null);
+
+  const codeDump = (line) => ({ step: 'screen', name: 'setup-code', elements: [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-line', line, 732)] });
+  const se7 = { newer: codeDump(words.pairNewerMac), older: codeDump(words.pairOlderMac), words };
+  add('SE7 passes its honest reading', gradeSe7, se7, true);
+  add('SE7 is red on the two sentences swapped', gradeSe7, { newer: codeDump(words.pairOlderMac), older: codeDump(words.pairNewerMac), words }, false);
+  add('SE7 is red on "not a Tortie pairing code" for a newer code', gradeSe7, edit(se7, (r) => void (r.newer.elements[1].label = words.pairNotACode)), false);
+  add('SE7 with no dump for the v:2 code is UNREADABLE', gradeSe7, edit(se7, (r) => void (r.older = null)), null);
+
+  const parentCode = { step: 'screen', name: 'sentence', elements: [E('screen-pairing', '', 0, 874, 0, 402), E('pairing-scanner', '', 120, 370), E('pairing-line', words.pairNotACode, 732)] };
+  const sep = { code: parentCode, failure: failure(words.cannotReachMac, false), words };
+  add('SEP passes its honest reading', gradeSep, sep, true);
+  add('SEP is red on a parent with no camera at once', gradeSep, edit(sep, (r) => void r.code.elements.splice(1, 1)), false);
+  add('SEP is red on a parent that draws Privacy', gradeSep, edit(sep, (r) => void r.code.elements.push(E('pairing-privacy', words.privacy, 770))), false);
+  add('SEP is red on a parent that says which side to update', gradeSep, edit(sep, (r) => void (r.code.elements[2].label = words.pairNewerMac)), false);
+  add('SEP is red on a parent with a note under the shut door', gradeSep, { ...sep, failure: failure(words.cannotReachMac, true) }, false);
+  add('SEP with no parent failure drawn is UNREADABLE', gradeSep, edit(sep, (r) => void (r.failure = { step: 'screen', name: 'sentence', elements: [] })), null);
+
+  // The codes: the marker kept, the version moved, the tailnet key never carried.
+  const real = { v: 3, host: 'mac.tail00000.ts.net', port: 8443, fp: 'A'.repeat(43), dk: 'B'.repeat(43), dx: 'C'.repeat(43), ps: 'D'.repeat(43), exp: 1 };
+  const codes = setupCodes(JSON.stringify(real));
+  add('setupCodes keeps the marker and moves the version', () => {
+    const n = JSON.parse(codes?.newer ?? '{}');
+    const o = JSON.parse(codes?.older ?? '{}');
+    return verdict(n.v === 4 && o.v === 2 && n.fp === real.fp && o.fp === real.fp && o.dk === real.dk && o.dx === real.dx && !('tk' in o) && o.port === 7443, '');
+  }, null, true);
+  add('setupCodes refuses a code with no marker', () => verdict(setupCodes(JSON.stringify({ v: 3 })) === null && setupCodes('not json') === null, ''), null, true);
+  add('setupWordsOf reads a word with an escaped quote, and null for a word not there', () => {
+    const w = setupWordsOf('    static let privacy = "Pri\\"vacy"\n');
+    return verdict(w.privacy === 'Pri"vacy' && w.support === null, '');
+  }, null, true);
+
+  let bad = 0;
+  for (const c of cases) {
+    let got;
+    try {
+      got = c.got();
+    } catch (err) {
+      got = `threw ${String(err?.message ?? err)}`;
+    }
+    const ok = got === c.want;
+    if (!ok) bad += 1;
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${c.what}${ok ? '' : ` (graded ${J(got)}, wanted ${J(c.want)})`}`);
+  }
+  return { total: cases.length, bad };
+}
+
 function selfTest() {
   const reads = [
     {
@@ -6233,7 +6740,14 @@ function selfTest() {
       ? `${TAG} Sessions self-test PASS: ${String(sessionsCases.total)} cases (the dump reader, SL1 to SL8, the cap, the older face and its recovery, the drawn order) graded as they must be.`
       : `${TAG} Sessions self-test FAIL: ${String(sessionsCases.bad)} of ${String(sessionsCases.total)} case(s) graded wrongly.`
   );
-  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 ? 0 : 1);
+  // Phase 333.1: a stranger's first run (SE1 to SE8, SEP).
+  const setupCases = setupSelfTest();
+  console.log(
+    setupCases.bad === 0
+      ? `${TAG} setup self-test PASS: ${String(setupCases.total)} cases (SE1 to SE7, which SE8 reads again on the floor, SEP, the codes and the words) graded as they must be.`
+      : `${TAG} setup self-test FAIL: ${String(setupCases.bad)} of ${String(setupCases.total)} case(s) graded wrongly.`
+  );
+  process.exit(bad === 0 && alerts.bad === 0 && tabs.bad === 0 && ends.bad === 0 && replies.bad === 0 && screens.bad === 0 && sessionsCases.bad === 0 && setupCases.bad === 0 ? 0 : 1);
 }
 // NOT `--self-test`: build/cdp-target.mjs, imported above, runs ITS fixtures
 // and exits when argv holds that exact word.
@@ -9393,6 +9907,163 @@ exit 0
               }
             }
           }
+        }
+
+        // ==================================================================
+        // Phase 333.1: A STRANGER'S FIRST RUN (build/p3331/SPEC.md §7.7). A
+        // fresh Simulator on 26.3 and one on the floor, each read three ways:
+        // the resting face with NO code (SE1 to SE3), a code from a newer and
+        // from an older Mac made from a real window's code (SE7), and a paired
+        // drive whose door this file SHUTS, then HOLDS, on the drive's own
+        // `setup-failure-before` (SE5, SE6), with Settings read LAST (SE4).
+        // The fix round moved Settings after the two failures: read first, it
+        // left SE5 and SE6 unreadable in every run (the 333.1 verifier, 2 of 2).
+        // SEP is the parent's own app and UI test with P3331_PARENT_IOS. The UI
+        // drive presses no link and this file calls no setup press.
+        // ==================================================================
+        if (ARMS.has('setup')) {
+          mkdirSync(ACKS_SETUP, { recursive: true });
+          await confirmListening(cdp);
+          // The codes, from a REAL window's code: its marker kept, its version moved.
+          const window3331 = await openWindow(cdp);
+          await pocket(cdp, 'cancelPairing');
+          const codes = window3331.ok ? setupCodes(window3331.payload) : null;
+          const codesWhy = window3331.ok ? 'the window\'s code carries no marker' : String(window3331.why);
+          /** The door shut or held as the drive asks, then `setup-<tag>` written for it. */
+          const setupReact = async (event) => {
+            if (event.step !== 'setup-failure-before') return;
+            if (event.tag === 'shut') relay.shut();
+            else if (event.tag === 'held') {
+              relay.open();
+              relay.pause();
+            }
+            writeFileSync(join(ACKS_SETUP, `setup-${String(event.tag)}`), 'ok\n');
+          };
+          /** A drive with no pairing: the app launched with this code, or none. */
+          const unpairedDrive = (sim, label, payload, steps, test = { id: UI_TEST }, derivedDataPath = DD) =>
+            drive(sim, {
+              test,
+              derivedDataPath,
+              label,
+              timeoutMs: 600_000,
+              env: { P316_PAYLOAD: payload, P316_STEPS: steps.join(','), P316_WAIT_S: '60', P330_DOOR_ENDPOINT: `127.0.0.1:${String(relay.port)}` }
+            });
+          /** One runtime's readings: the resting face, the two codes, then the paired drive. */
+          const setupOn = (runtime, label, pairedSteps) =>
+            withSimulator({ label, runtime, scratch: join(XCODE, `sim-${label}`), derivedDataPath: DD, keep: KEEP }, async (sim) => {
+              const rest = await unpairedDrive(sim, `${label}-rest`, '', ['setup-read', 'setup-scan']);
+              const newer = codes === null ? null : await unpairedDrive(sim, `${label}-newer`, codes.newer, ['setup-code']);
+              const older = codes === null ? null : await unpairedDrive(sim, `${label}-older`, codes.older, ['setup-code']);
+              await confirmListening(cdp);
+              let paired;
+              try {
+                paired = await pairAndRead(sim, pairedSteps, `${label}-paired`, { env: { P316_ACKS: ACKS_SETUP }, react: setupReact, waitS: '150', timeoutMs: 1_800_000 });
+              } finally {
+                relay.open();
+                relay.resume();
+                rmSync(ACKS_SETUP, { recursive: true, force: true });
+                mkdirSync(ACKS_SETUP, { recursive: true });
+              }
+              return { runtime: sim.runtime, rest, newer, older, paired };
+            });
+          const inventoryOf = (events, name) => events.filter((e) => e.step === 'setup-inventory' && e.for === name).at(-1) ?? null;
+          const readingsOf = (got) => {
+            const restEv = got.rest?.events ?? [];
+            const pairedEv = got.paired?.ok ? got.paired.result.events : [];
+            return {
+              se1: { dump: lastDump(restEv, 'setup-read'), inventory: inventoryOf(restEv, 'setup-read'), words: SETUP_WORDS },
+              se2: { readDump: lastDump(restEv, 'setup-read'), before: restEv.find((e) => e.step === 'setup-scan-before') ?? null, scanDump: lastDump(restEv, 'setup-scan'), words: SETUP_WORDS },
+              se3: { inventory: inventoryOf(restEv, 'setup-read') },
+              se4: { dump: lastDump(pairedEv, 'setup-settings'), inventory: inventoryOf(pairedEv, 'setup-settings'), version: PHONE_VERSION, words: SETUP_WORDS },
+              se5: { dump: lastDump(pairedEv, 'setup-failure-shut'), words: SETUP_WORDS },
+              se6: { dump: lastDump(pairedEv, 'setup-failure-held'), words: SETUP_WORDS },
+              se7: { newer: lastDump(got.newer?.events ?? [], 'setup-code'), older: lastDump(got.older?.events ?? [], 'setup-code'), words: SETUP_WORDS },
+              asks: pairedEv.filter((e) => e.step === 'setup-failure').map((e) => ({ tag: e.tag, asks: e.asks })),
+              paired: got.paired?.ok ? got.paired.result.code : String(got.paired?.why ?? 'not run'),
+              rest: got.rest?.code ?? null
+            };
+          };
+          const se7Of = (R) => (codes === null ? verdict(null, `no code to make the two from: ${codesWhy}`) : gradeSe7(R.se7));
+          const cur = await setupOn(RUNTIME_CURRENT, 'p316-setup', ['pair', 'list', 'setup-failure:shut', 'setup-failure:held', 'setup-settings']);
+          const R = readingsOf(cur);
+          report.readings.setup = { codes: codes !== null, rest: R.rest, paired: R.paired, asks: R.asks };
+          let v = gradeSe1(R.se1);
+          arm(`SE1 iOS ${String(cur.runtime)}: with no code, Pairing draws its title, the three steps in their places, Scan code, the foot's two lines, Privacy and Support, and no "sample"`, v.ok, v.said);
+          v = gradeSe2(R.se2);
+          arm(`SE2 iOS ${String(cur.runtime)}: no camera before Scan code, the camera and the line under it after`, v.ok, v.said);
+          v = gradeSe3(R.se3);
+          arm(`SE3 iOS ${String(cur.runtime)}: Get Tortie for Mac, Privacy and Support are buttons at least 44 points tall`, v.ok, v.said);
+          v = gradeSe4(R.se4);
+          arm(`SE4 iOS ${String(cur.runtime)}: paired, Settings then About draws ${String(PHONE_VERSION)}, then Tortie for Mac (tortie.sh), Privacy and Support, each a button at least 44 points tall`, v.ok, v.said);
+          v = gradeSe5(R.se5);
+          arm(`SE5 iOS ${String(cur.runtime)}: the door shut, the list says "Tortie could not reach your Mac." with the Allow line under it`, v.ok, v.said);
+          v = gradeSe6(R.se6);
+          arm(`SE6 iOS ${String(cur.runtime)}: the door held past the client's time-out, the list says "Your Mac did not answer in time." with no note`, v.ok, v.said);
+          v = se7Of(R);
+          arm(`SE7 iOS ${String(cur.runtime)}: a v:4 code says to update this iPhone, and a v:2 code to update the Mac`, v.ok, v.said);
+
+          // ---- SE8: SE1, SE2, SE3, SE5 and SE7 on the floor, iOS 18.3 ------
+          const floor = await setupOn(RUNTIME_FLOOR, 'p316-setup-floor', ['pair', 'list', 'setup-failure:shut']);
+          const F = readingsOf(floor);
+          report.readings.setupFloor = { rest: F.rest, paired: F.paired, asks: F.asks };
+          for (const [id, got] of [
+            ['SE1', gradeSe1(F.se1)],
+            ['SE2', gradeSe2(F.se2)],
+            ['SE3', gradeSe3(F.se3)],
+            ['SE5', gradeSe5(F.se5)],
+            ['SE7', se7Of(F)]
+          ]) {
+            arm(`SE8 iOS ${String(floor.runtime)}, ${id}: as on ${String(cur.runtime)}`, got.ok, got.said);
+          }
+
+          // ---- SEP: the parent's own app and UI test ------------------------
+          if (PARENT_IOS_3331 !== '') {
+            const parentRoot = resolve(PARENT_IOS_3331);
+            const parentProject = join(parentRoot, 'ios', 'Tortie.xcodeproj');
+            const parentDd = join(XCODE, 'dd-parent-3331');
+            // The parent is graded on ITS words, read from its own Copy.swift.
+            const parentWords = (() => {
+              try {
+                return setupWordsOf(readFileSync(join(parentRoot, 'ios', 'Tortie', 'Style', 'Copy.swift'), 'utf8'));
+              } catch {
+                return setupWordsOf('');
+              }
+            })();
+            const sepName = 'SEP the parent\'s app: the camera at once, no Privacy, a v:4 code "not a Tortie pairing code", and no note under the shut door';
+            const built = existsSync(parentProject)
+              ? await xcodebuildRun({ label: 'parent-setup', scratch: XCODE, derivedDataPath: parentDd, args: ['build-for-testing', '-project', parentProject, '-scheme', SCHEME, '-configuration', 'Debug', '-destination', 'generic/platform=iOS Simulator'] })
+              : { code: -1 };
+            if (built.code !== 0) arm(sepName, null, `the parent's project did not build (${String(built.code)}); P3331_PARENT_IOS names the directory holding cb8d52a6's ios/`);
+            else if (codes === null) arm(sepName, null, `no code to hand the parent: ${codesWhy}`);
+            else {
+              await confirmListening(cdp);
+              const sep = await withSimulator({ label: 'p316-setup-parent', runtime: RUNTIME_CURRENT, scratch: join(XCODE, 'sim-setup-parent'), derivedDataPath: parentDd, keep: KEEP }, async (sim) => {
+                // The parent's UI test knows no setup step: its `sentence` reads the line.
+                const code = await unpairedDrive(sim, 'setup-parent-code', codes.newer, ['sentence'], { id: UI_TEST, project: parentProject }, parentDd);
+                await confirmListening(cdp);
+                let paired;
+                try {
+                  // The door shut on the parent's own `list-before` line, before its pull.
+                  paired = await pairAndRead(sim, ['pair', 'list', 'sentence'], 'setup-parent', {
+                    project: parentProject,
+                    derivedDataPath: parentDd,
+                    waitS: '150',
+                    timeoutMs: 1_800_000,
+                    react: async (event) => {
+                      if (event.step === 'list-before') relay.shut();
+                    }
+                  });
+                } finally {
+                  relay.open();
+                  relay.resume();
+                }
+                return { code, paired };
+              });
+              const ev = sep.paired?.ok ? sep.paired.result.events : [];
+              v = gradeSep({ code: lastDump(sep.code?.events ?? [], 'sentence'), failure: lastDump(ev, 'sentence'), words: parentWords });
+              arm(sepName, v.ok, v.said);
+            }
+          } else report.readings.setupParent = 'not run: P3331_PARENT_IOS is not set';
         }
 
         if (ARMS.has('hostile')) {

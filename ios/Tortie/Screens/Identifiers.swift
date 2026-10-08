@@ -67,12 +67,24 @@
 //   turn-clock-<index>, turn-ask-<index>, turn-ask-clipped-<index>,
 //   turn-answer-<index>, turn-answer-clipped-<index>, turn-absence-<index>,
 //   turn-notice-<index>
-//   pairing-title, pairing-step, pairing-scanner, pairing-point,
+//   pairing-title, pairing-scanner, pairing-point,
 //   pairing-match, pairing-fingerprint, pairing-allow-on-mac,
-//   pairing-network, pairing-line, pairing-again
+//   pairing-line, pairing-again
+//   pairing-get-mac              the first step, Get Tortie for Mac: a button,
+//                                the whole row, that opens tortie.sh (Phase
+//                                333.1, build/p3331/SPEC.md section 5.5.1)
+//   pairing-step-open, pairing-step-scan
+//                                the second and third steps
+//   pairing-scan-code            Scan code, the press that opens the camera
+//   pairing-nothing-else         `Nothing else to install on this phone.`
+//   pairing-privacy, pairing-support
+//                                the foot's two pages of Tortie's site; buttons
 //   <failure id>-retry           `Try again` under list-failure,
 //                                needs-list-failure, session-failure and
 //                                catch-up-failure
+//   <failure id>-note            the line under a failure's sentence when it
+//                                is `Tortie could not reach your Mac.` (Phase
+//                                333.1, D23)
 //
 // THE NEEDS INPUT TAB (Phase 316.6) is the list's first section alone, under
 // a title of its own, and every element it shares with the Sessions tab
@@ -105,6 +117,11 @@
 //   settings-unpair-line         the sentence when the phone could not forget
 //   settings-about, settings-version
 //                                the About card and its `1.0.0 (4)`
+//   settings-mac-site            Tortie for Mac, a button that opens tortie.sh
+//                                (Phase 333.1, D22)
+//   settings-mac-site-name       `tortie.sh`, on that row's right
+//   settings-privacy, settings-support
+//                                the privacy and support pages; buttons
 //
 // END (Phase 317, build/p317/SPEC.md section 5.8.8; moved to the top bar in
 // Phase 337, D33, and its bar at the bottom is gone):
@@ -313,15 +330,21 @@ enum ID {
 
     // Pairing.
     static let pairingTitle = "pairing-title"
-    static let pairingStep = "pairing-step"
     static let pairingScanner = "pairing-scanner"
     static let pairingPoint = "pairing-point"
     static let pairingMatch = "pairing-match"
     static let pairingFingerprint = "pairing-fingerprint"
     static let pairingAllowOnMac = "pairing-allow-on-mac"
-    static let pairingNetwork = "pairing-network"
     static let pairingLine = "pairing-line"
     static let pairingAgain = "pairing-again"
+    // The resting face's three steps and its foot (Phase 333.1).
+    static let pairingGetMac = "pairing-get-mac"
+    static let pairingStepOpen = "pairing-step-open"
+    static let pairingStepScan = "pairing-step-scan"
+    static let pairingScanCode = "pairing-scan-code"
+    static let pairingNothingElse = "pairing-nothing-else"
+    static let pairingPrivacy = "pairing-privacy"
+    static let pairingSupport = "pairing-support"
 
     // The Needs input tab (Phase 316.6).
     static let needsInputScreen = "screen-needs-input"
@@ -374,6 +397,11 @@ enum ID {
     static let batchLine = "batch-line"
     static let settingsAbout = "settings-about"
     static let settingsVersion = "settings-version"
+    // About's three pages of Tortie's own site (Phase 333.1).
+    static let settingsMacSite = "settings-mac-site"
+    static let settingsMacSiteName = "settings-mac-site-name"
+    static let settingsPrivacy = "settings-privacy"
+    static let settingsSupport = "settings-support"
 
     // Reply (Phase 318).
     /// An option the Mac offers to press: a button.
@@ -446,4 +474,7 @@ enum ID {
 
     /// The `Try again` under a screen's failure sentence.
     static func retry(_ failure: String) -> String { failure + "-retry" }
+    /// The line under a failure's sentence that names Allow on the Mac
+    /// (Phase 333.1, D23).
+    static func reachNote(_ id: String) -> String { id + "-note" }
 }
