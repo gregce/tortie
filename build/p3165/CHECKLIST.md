@@ -58,6 +58,7 @@ developer.apple.com → **Certificates, Identifiers & Profiles** → **Identifie
    In the Organizer press **Distribute App**, choose **TestFlight Internal Only** as you did for build 2,
    then **Distribute**. At appstoreconnect.apple.com, if build 1.0.0 (3) says **Missing Compliance**, press
    **Manage** and answer as before: the app uses TLS to your Mac.
+   **Superseded for any build that may go to the public:** choose **App Store Connect**, as `build/p333/CHECKLIST.md` says.
 
 3. **Install 1.0.0 (3)** from TestFlight on the iPhone and open it.
    **You should see** your list of sessions as before, and no line about alerts. The pairing it keeps was

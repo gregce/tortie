@@ -93,6 +93,7 @@ says where each button and sentence was checked against the tree, and is for the
 
 7. **Upload it.** In the Organizer, with the archive selected, press **Distribute App** on the right. Choose
    **TestFlight Internal Only**, then **Distribute**.
+   **Superseded for any build that may go to the public:** choose **App Store Connect**, as `build/p333/CHECKLIST.md` says.
    **You should see** the upload finish with a success message. Apple then takes a few minutes to process the
    build and emails you when it is done. A build sent this way can only go to internal testers. Xcode may
    warn that it could not upload symbols for TailscaleKit, because the Tailscale library is built without

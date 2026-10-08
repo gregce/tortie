@@ -41,6 +41,7 @@ sentence was checked against the tree, and is for the agents rather than for you
    can tell Apple to stop alerts when you unpair; if it prints anything else, do not upload.
    In the Organizer press **Distribute App**, choose **TestFlight Internal Only** as before, then
    **Distribute**. If App Store Connect says **Missing Compliance**, press **Manage** and answer as before.
+   **Superseded for any build that may go to the public:** choose **App Store Connect**, as `build/p333/CHECKLIST.md` says.
    Install 1.0.0 (4) from TestFlight on the iPhone.
 
 3. **Open Tortie.**

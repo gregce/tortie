@@ -88,6 +88,7 @@ where each button and sentence was checked against the tree, and is for the agen
    instrumentation and none of the debug switches the agents' runs use. If it prints anything else, do not
    upload.
    In the Organizer press **Distribute App**, choose **TestFlight Internal Only**, then **Distribute**.
+   **Superseded for any build that may go to the public:** choose **App Store Connect**, as `build/p333/CHECKLIST.md` says.
    **You should see** the upload finish with a success message, and no warning about TailscaleKit's
    symbols any more. At appstoreconnect.apple.com, if build 1.0.0 (2) says **Missing Compliance**, press
    **Manage** and answer as you did for build 1: the app uses TLS to your Mac. When Apple has processed it,
