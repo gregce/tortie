@@ -1,0 +1,26 @@
+// A plain decoder: one read a line, one key renamed in CodingKeys, every
+// helper read once (decode, doorNumber, nullable, nullableDoorNumber).
+struct Thing: Equatable {
+    let name: String
+    let count: Int
+    let note: String?
+    let seen: Double
+    let total: Int?
+}
+
+extension Thing: Codable {
+    enum CodingKeys: String, CodingKey {
+        case name, note, seen
+        case count = "n"
+        case total
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        name = try c.decode(String.self, forKey: .name)
+        count = try c.doorNumber(forKey: .count)
+        note = try c.nullable(String.self, forKey: .note)
+        seen = try c.decode(Double.self, forKey: .seen)
+        total = try c.nullableDoorNumber(forKey: .total)
+    }
+}

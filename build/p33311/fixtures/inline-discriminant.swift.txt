@@ -1,0 +1,40 @@
+// A discriminant switched on inline, its labels `Word` constants, each read
+// inside an enum payload, and a `default:` that ASSIGNS: an open set.
+enum Offer: Equatable {
+    case offered(batch: Bool)
+    case unreachable(title: String)
+    case none
+}
+
+extension Offer: Codable {
+    enum CodingKeys: String, CodingKey { case state, batch, title }
+
+    enum Word {
+        static let offered = "offered"
+        static let unreachable = "unreachable"
+        static let none = "none"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        switch try c.decode(String.self, forKey: .state) {
+        case Word.offered:
+            self = .offered(batch: try c.decode(Bool.self, forKey: .batch))
+        case Word.unreachable:
+            self = .unreachable(title: try c.decode(String.self, forKey: .title))
+        default:
+            self = .none
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .offered(let batch):
+            try c.encode(Word.offered, forKey: .state)
+            try c.encode(batch, forKey: .batch)
+        default:
+            try c.encode(Word.none, forKey: .state)
+        }
+    }
+}

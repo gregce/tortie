@@ -1,0 +1,19 @@
+{
+  "roots": ["Wide"],
+  "types": {
+    "Wide": {
+      "fields": {
+        "rows": { "presence": "required", "null": false, "kind": { "array": { "array": { "type": "Cell" } } } },
+        "flag": { "presence": "optional", "null": true, "kind": "bool" }
+      },
+      "relations": false
+    },
+    "Cell": {
+      "fields": {
+        "text": { "presence": "required", "null": false, "kind": "string" }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

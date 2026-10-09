@@ -1,0 +1,21 @@
+{
+  "roots": ["Screen"],
+  "types": {
+    "Screen": {
+      "fields": {
+        "cols": { "presence": "required", "null": false, "kind": "count" },
+        "deep": { "presence": "optional", "null": true, "kind": "count" },
+        "space": { "presence": "optional", "null": true, "kind": "string" },
+        "reply": { "presence": "optional", "null": true, "kind": { "type": "Reply" } }
+      },
+      "relations": true
+    },
+    "Reply": {
+      "fields": {
+        "canSay": { "presence": "required", "null": false, "kind": "bool" }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

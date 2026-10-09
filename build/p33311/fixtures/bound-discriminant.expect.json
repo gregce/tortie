@@ -1,0 +1,23 @@
+{
+  "roots": ["Answer"],
+  "types": {
+    "Answer": {
+      "tag": "state",
+      "words": "closed",
+      "cases": {
+        "pending": {
+          "alerts": { "presence": "optional", "null": true, "kind": "bool" },
+          "cert": { "presence": "absent" }
+        },
+        "refused": {
+          "cert": { "presence": "absent" }
+        },
+        "allowed": {
+          "cert": { "presence": "required", "null": false, "kind": "string" }
+        }
+      },
+      "relations": true
+    }
+  },
+  "unread": []
+}

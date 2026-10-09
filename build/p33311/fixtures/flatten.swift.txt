@@ -1,0 +1,24 @@
+// A detail that reads its row through the same decoder (`try Row(from:)`),
+// then its own keys, declared with `;` between stored properties.
+struct Row { let id: String }
+
+extension Row: Codable {
+    enum CodingKeys: String, CodingKey { case id }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        id = try c.decode(String.self, forKey: .id)
+    }
+}
+
+struct Detail { let row: Row; let extra: Int }
+
+extension Detail: Codable {
+    enum CodingKeys: String, CodingKey { case extra }
+
+    init(from decoder: Decoder) throws {
+        row = try Row(from: decoder)
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        extra = try c.doorNumber(forKey: .extra)
+    }
+}

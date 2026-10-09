@@ -1,0 +1,16 @@
+{
+  "roots": ["Thing"],
+  "types": {
+    "Thing": {
+      "fields": {
+        "name": { "presence": "required", "null": false, "kind": "string" },
+        "n": { "presence": "required", "null": false, "kind": "count" },
+        "note": { "presence": "required", "null": true, "kind": "string" },
+        "seen": { "presence": "required", "null": false, "kind": "double" },
+        "total": { "presence": "required", "null": true, "kind": "count" }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

@@ -1,0 +1,19 @@
+{
+  "roots": ["Detail"],
+  "types": {
+    "Detail": {
+      "fields": {
+        "extra": { "presence": "required", "null": false, "kind": "count" }
+      },
+      "flattens": ["Row"],
+      "relations": false
+    },
+    "Row": {
+      "fields": {
+        "id": { "presence": "required", "null": false, "kind": "string" }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

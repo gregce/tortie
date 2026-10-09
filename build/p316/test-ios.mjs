@@ -114,6 +114,19 @@
  * classes 337.1 adds are `P3371_SUITES`, each named in xcodebuild's own suite
  * lines.
  *
+ * AND THE FROZEN WIRE (Phase 333.11, build/p33311/SPEC.md §8.3, §8.4).
+ * `DoorFrozenTests` holds today's phone to every frozen set under
+ * ios/TortieTests/Fixtures/frozen/ (an old Mac, a new phone) and prints one
+ * `P33311|<label>|<item>|<expect>|<got>` row per item. Before anything builds,
+ * the reader of build/p33311/swift-wire.mjs reads today's phone, and each set
+ * whose projection equals it is handed to the tests in `P33311_PROOF`, so its
+ * refuse arms are asserted; a set whose phone files are byte-identical to the
+ * ones it was frozen from while the projections differ refuses the run. After
+ * each configuration every row the SEALED files name (each arm, decode,
+ * request, and today's answers on a frozen route) must be printed exactly
+ * once and read as sealed (`frozenRowProblems`), and `P33311_SUITES` must be
+ * named in xcodebuild's own suite lines.
+ *
  * THE ORDER.
  *   1. The preflight: xcodebuild, simctl, the runtime and the iPhone 16 Pro
  *      device type. Missing any, it REFUSES with a sentence naming what is
@@ -1255,6 +1268,390 @@ export const P317_SUITES = Object.freeze([
   'DoorVectorTests'
 ]);
 
+// ---------------------------------------------------------------------------
+// Phase 333.11: the frozen wire's phone half (build/p33311/SPEC.md §8.3, §8.4)
+// ---------------------------------------------------------------------------
+//
+// `DoorFrozenTests` holds today's phone to every frozen set under
+// ios/TortieTests/Fixtures/frozen/ (an old Mac, a new phone) and prints one row
+// per item, `P33311|<label>|<item>|<expect>|<got>`. The rows it MUST print are
+// read here from the SEALED files and today's vectors, never from the test, so
+// a test that printed less, twice or wrong is caught by a count it does not
+// control. Its refuse arms are asserted only while the phone's decoders read
+// exactly a set (D10): before the runs the reader of build/p33311/swift-wire.mjs
+// reads today's phone, and every set whose projection equals today's is named
+// in `P33311_PROOF`, handed to the tests.
+
+/** The test class Phase 333.11 adds, which must appear in xcodebuild's own suite lines. */
+export const P33311_SUITES = Object.freeze(['DoorFrozenTests']);
+
+/** Where the frozen sets live, beside the vectors the phone's tests read. */
+export const FROZEN_DIR = join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'frozen');
+
+const sha256Hex = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+/** A JSON value with every object's keys sorted, written with no spaces. */
+export function canonicalJson(value) {
+  const sort = (v) => {
+    if (Array.isArray(v)) return v.map(sort);
+    if (v !== null && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])]));
+    return v;
+  };
+  return JSON.stringify(sort(value));
+}
+
+/** The route an answer's name belongs to: the name up to its first `-`, or the whole name. */
+export function answerRoute(name) {
+  const at = String(name).indexOf('-');
+  return at === -1 ? String(name) : String(name).slice(0, at);
+}
+
+/**
+ * Every frozen set under `dir`: `{ label, file, wire, vectors }`, each set's
+ * vectors held to the sha256 sealed in its wire file. `problems` names a file
+ * that does not read, a vectors file that moved, and a directory with no set.
+ */
+export function frozenSets(dir = FROZEN_DIR) {
+  const problems = [];
+  const sets = [];
+  const names = existsSync(dir) ? readdirSync(dir).filter((n) => n.endsWith('.wire.json')).sort() : [];
+  for (const name of names) {
+    let wire;
+    try {
+      wire = JSON.parse(readFileSync(join(dir, name), 'utf8'));
+    } catch (err) {
+      problems.push(`${name} does not read as JSON: ${String(err?.message ?? err)}`);
+      continue;
+    }
+    const file = typeof wire?.vectors?.file === 'string' ? wire.vectors.file : '';
+    if (typeof wire?.label !== 'string' || wire.label === '' || file === '' || file.includes('/')) {
+      problems.push(`${name} names no label or no vectors file of its own`);
+      continue;
+    }
+    let bytes;
+    try {
+      bytes = readFileSync(join(dir, file));
+    } catch {
+      problems.push(`${name}: its vectors file ${file} is not beside it`);
+      continue;
+    }
+    if (sha256Hex(bytes) !== wire.vectors.sha256) {
+      problems.push(`${name}: ${file} is not the file the set was sealed over (sha256 ${sha256Hex(bytes)}); a frozen set is never edited by hand`);
+      continue;
+    }
+    let vectors;
+    try {
+      vectors = JSON.parse(bytes.toString('utf8'));
+    } catch (err) {
+      problems.push(`${name}: ${file} does not read as JSON: ${String(err?.message ?? err)}`);
+      continue;
+    }
+    sets.push({ label: wire.label, file: name, wire, vectors });
+  }
+  if (sets.length === 0 && problems.length === 0) {
+    problems.push(`no frozen set under ${relative(ROOT, dir) || dir}, so DoorFrozenTests has nothing to hold the phone to (node build/assert-door-only-adds.mjs --freeze launch)`);
+  }
+  return { sets, problems };
+}
+
+/** Every leaf path where two JSON values differ, `/`-joined, objects by key and arrays by index. */
+export function jsonPathsDiffer(a, b, at = '') {
+  const isObject = (v) => v !== null && typeof v === 'object';
+  if (!isObject(a) || !isObject(b) || Array.isArray(a) !== Array.isArray(b)) return J(a) === J(b) ? [] : [at === '' ? '/' : at];
+  const keys = [...new Set([...Object.keys(a), ...Object.keys(b)])].sort();
+  return keys.flatMap((k) => jsonPathsDiffer(a[k], b[k], `${at}/${k}`));
+}
+
+/** A projection as a JSON value, whether the reader answered text or a value. */
+function projectionValue(p) {
+  if (typeof p === 'string') {
+    try {
+      return JSON.parse(p);
+    } catch {
+      return p;
+    }
+  }
+  return p;
+}
+
+/**
+ * Before the runs: the frozen sets, today's phone read by the reader, and the
+ * labels whose refuse arms this run asserts. A set whose projection equals
+ * today's is PROVEN. A set whose phone files are every one byte-identical to
+ * the hashes it was frozen over, yet whose projection differs, is a problem:
+ * the reader read one set of bytes two ways (P0's consistency, asked again
+ * here), and every refuse arm would print `skipped` forever. `reader` is the
+ * module, for the self-test; by default build/p33311/swift-wire.mjs.
+ */
+export async function frozenProof({ root = ROOT, dir = FROZEN_DIR, reader = null } = {}) {
+  const { sets, problems } = frozenSets(dir);
+  const proof = [];
+  const said = [];
+  let mod = reader;
+  if (mod === null) {
+    try {
+      mod = await import('../p33311/swift-wire.mjs');
+    } catch (err) {
+      problems.push(`the phone's reader, build/p33311/swift-wire.mjs, could not be loaded: ${String(err?.message ?? err)}`);
+      return { sets, problems, proof, said };
+    }
+  }
+  // Every scanner proves itself first: the reader reads its own fixtures
+  // before any projection of it is trusted (build/p33311/SPEC.md §5.6).
+  if (typeof mod.proveReader === 'function') {
+    const proved = mod.proveReader(join(root, 'build', 'p33311', 'fixtures'));
+    if (proved.problems.length > 0) {
+      problems.push(...proved.problems.slice(0, 10).map((p) => `the phone's reader misreads its own fixture: ${p}`));
+      return { sets, problems, proof, said };
+    }
+    said.push(`the phone's reader read its ${String(proved.files)} fixture(s) as expected`);
+  }
+  let today;
+  try {
+    const read = mod.readPhoneWire(root);
+    if (Array.isArray(read?.unread) && read.unread.length > 0) said.push(`the reader found ${String(read.unread.length)} statement(s) it does not read in today's phone (gate:onlyadd's P0): ${read.unread.slice(0, 3).map((u) => (typeof u === 'string' ? u : J(u))).join('; ')}`);
+    today = projectionValue(mod.projection(read));
+  } catch (err) {
+    problems.push(`the phone's reader could not read today's phone: ${String(err?.message ?? err)}`);
+    return { sets, problems, proof, said };
+  }
+  for (const set of sets) {
+    let frozen;
+    try {
+      frozen = projectionValue(typeof mod.frozenProjection === 'function' ? mod.frozenProjection(set.wire) : mod.projection(set.wire));
+    } catch (err) {
+      problems.push(`${set.label}: the reader could not project the sealed set: ${String(err?.message ?? err)}`);
+      continue;
+    }
+    if (canonicalJson(frozen) === canonicalJson(today)) {
+      proof.push(set.label);
+      said.push(`the phone's decoders read exactly ${set.label}: its refuse arms are asserted`);
+      continue;
+    }
+    const paths = jsonPathsDiffer(frozen, today);
+    said.push(`the phone's decoders differ from ${set.label} at ${String(paths.length)} path(s) (${paths.slice(0, 5).join(', ')}): its refuse arms print skipped`);
+    const phoneFiles = Object.entries(set.wire.read ?? {}).filter(([p]) => p.startsWith('ios/Tortie/'));
+    const identical = phoneFiles.length > 0 && phoneFiles.every(([p, hash]) => {
+      try {
+        return sha256Hex(readFileSync(join(root, p))) === hash;
+      } catch {
+        return false;
+      }
+    });
+    if (identical) {
+      problems.push(`${set.label}: every phone file it was frozen from (${phoneFiles.map(([p]) => p).join(', ')}) is byte-identical today, yet the reader's projection differs at ${String(paths.length)} path(s): the reader reads one set of bytes two ways, so the refuse arms would never be asserted`);
+    }
+  }
+  return { sets, problems, proof, said };
+}
+
+/**
+ * Every row `DoorFrozenTests` must print for one set, as a map from item to
+ * `{ expect, want }`: `expect` is the row's own column, `want` what it must
+ * read. Read from the SEALED set and from today's vectors' answers alone.
+ */
+export function frozenRowsWanted(set, todayAnswers, proven) {
+  const rows = new Map();
+  const accept = { expect: 'accept', want: 'accept' };
+  const same = { expect: 'same', want: 'same' };
+  for (const key of Object.keys(set.wire.instances ?? {}).sort()) {
+    rows.set(`decode:${key}`, accept);
+    if (key.startsWith('answers/') && typeof set.vectors?.answers?.[key.slice('answers/'.length)]?.withUnknown === 'string') rows.set(`decode:${key}+unknown`, accept);
+  }
+  const asserted = proven.has(set.label);
+  for (const arm of set.wire.arms ?? []) {
+    rows.set(`arm:${String(arm.id)}`, { expect: String(arm.expect), want: arm.expect === 'refuse' && !asserted ? 'skipped' : String(arm.expect) });
+  }
+  for (const r of set.vectors?.requests ?? []) rows.set(`request:${String(r.name)}`, same);
+  if (set.vectors?.seal !== undefined) rows.set('request:seal', same);
+  if (set.vectors?.pushSeal !== undefined) rows.set('request:pushSeal', same);
+  const routes = new Set((set.wire.routes ?? []).map((r) => r.id));
+  for (const name of Object.keys(todayAnswers ?? {}).sort()) {
+    if (routes.has(answerRoute(name))) rows.set(`today:${name}`, accept);
+  }
+  return rows;
+}
+
+/** Every `P33311|…` row in xcodebuild's output, wherever on its line it starts. */
+export function frozenRowsPrinted(text) {
+  const rows = [];
+  for (const line of String(text).split('\n')) {
+    const at = line.indexOf('P33311|');
+    if (at === -1) continue;
+    const fields = line.slice(at).trim().split('|');
+    if (fields.length !== 5) {
+      rows.push({ malformed: line.slice(at).trim() });
+      continue;
+    }
+    rows.push({ label: fields[1], item: fields[2], expect: fields[3], got: fields[4] });
+  }
+  return rows;
+}
+
+/**
+ * One configuration's rows, graded against every sealed set: every row the
+ * set names exactly once, its expect column the sealed one, and what it read
+ * `accept` for accept, `same` for same, and for a refuse arm `refuse` when the
+ * set is proven and `skipped` when it is not. A missing, doubled, wrong or
+ * unnamed row is a problem; `lines` says one summary per set.
+ */
+export function frozenRowProblems(text, sets, proven, todayAnswers, configuration) {
+  const problems = [];
+  const lines = [];
+  const printed = new Map();
+  for (const row of frozenRowsPrinted(text)) {
+    if (row.malformed !== undefined) {
+      problems.push(`${configuration}: a P33311 row that is not five fields: ${row.malformed.slice(0, 160)}`);
+      continue;
+    }
+    const key = `${row.label}|${row.item}`;
+    printed.set(key, [...(printed.get(key) ?? []), row]);
+  }
+  const labels = new Set(sets.map((s) => s.label));
+  for (const set of sets) {
+    const wanted = frozenRowsWanted(set, todayAnswers, proven);
+    const tally = { held: 0, refused: 0, skipped: 0, accepted: 0 };
+    for (const [item, w] of wanted) {
+      const got = printed.get(`${set.label}|${item}`) ?? [];
+      if (got.length === 0) problems.push(`${configuration}: ${set.label}: no row for ${item}, so it never ran`);
+      else if (got.length > 1) problems.push(`${configuration}: ${set.label}: ${item} printed ${String(got.length)} rows, not one`);
+      else if (got[0].expect !== w.expect) problems.push(`${configuration}: ${set.label}: ${item} expects ${got[0].expect}, and the sealed set says ${w.expect}`);
+      else if (got[0].got !== w.want) problems.push(`${configuration}: ${set.label}: ${item} read ${got[0].got}, not ${w.want}`);
+      else {
+        tally.held += 1;
+        if (item.startsWith('arm:')) {
+          if (w.want === 'refuse') tally.refused += 1;
+          else if (w.want === 'skipped') tally.skipped += 1;
+          else tally.accepted += 1;
+        }
+      }
+    }
+    for (const [key, rows] of printed) {
+      const [label, item] = [key.slice(0, key.indexOf('|')), key.slice(key.indexOf('|') + 1)];
+      if (label === set.label && !wanted.has(item)) problems.push(`${configuration}: ${set.label}: a row for ${item}, which the sealed set does not name (${String(rows.length)} printed)`);
+    }
+    lines.push(
+      `${configuration}: frozen set ${set.label}: ${String(tally.held)} of ${String(wanted.size)} rows as sealed; ` +
+        `arms ${String(tally.refused)} refused, ${String(tally.accepted)} accepted, ${String(tally.skipped)} skipped${proven.has(set.label) ? '' : ' (the phone no longer reads exactly this set)'}`
+    );
+  }
+  const strangers = new Set([...printed.keys()].map((key) => key.slice(0, key.indexOf('|'))).filter((label) => !labels.has(label)));
+  for (const label of strangers) problems.push(`${configuration}: rows for a set named ${label}, which test:ios does not hold`);
+  return { problems, lines };
+}
+
+/**
+ * `--self-test`'s half for Phase 333.11: the grader above, held both ways over
+ * a set made here, with no Xcode, no Simulator and no reader of the real phone.
+ * Every check names the clause of §8.3 it holds; each one fails when that
+ * clause is taken out of the grader.
+ */
+export async function frozenGraderSelfTest() {
+  const { writeFileSync } = await import('node:fs');
+  const results = [];
+  const check = (what, ok, said = '') => {
+    results.push(ok);
+    process.stdout.write(`${ok ? 'ok  ' : 'FAIL'} ${what}${ok || said === '' ? '' : `: ${said.slice(0, 600)}`}\n`);
+  };
+  const scratch = mkdtempSync(join(tmpdir(), 'p33311-test-ios-frozen-'));
+  try {
+    const vectorsText = J({ answers: { blocked: { json: '{}', withUnknown: '{}' }, 'end-done': { json: '{}' } }, requests: [{ name: 'blocked' }, { name: 'end' }], seal: {}, pushSeal: {} });
+    const wire = {
+      format: 1,
+      label: 'self',
+      routes: [{ id: 'blocked' }, { id: 'end' }],
+      instances: { 'answers/blocked': 'blocked', 'answers/end-done': 'end' },
+      arms: [
+        { id: 'A0001', instance: 'answers/blocked', pointer: '/ageNote', op: 'remove', expect: 'refuse' },
+        { id: 'A0002', instance: 'answers/blocked', pointer: '', op: 'unknown', expect: 'accept' }
+      ],
+      vectors: { file: 'self.vectors.json', sha256: sha256Hex(Buffer.from(vectorsText, 'utf8')) },
+      types: { PocketBlockedAnswer: { fields: { ageNote: { presence: 'required' } } } },
+      read: {}
+    };
+    const set = { label: 'self', file: 'self.wire.json', wire, vectors: JSON.parse(vectorsText) };
+    const today = { blocked: {}, 'end-done': {}, 'scrollback-page': {} };
+    const proven = new Set(['self']);
+    const none = new Set();
+    const rowsOf = (wanted, label = 'self') => [...wanted].map(([item, w]) => `P33311|${label}|${item}|${w.expect}|${w.want}`);
+    const wantedProven = frozenRowsWanted(set, today, proven);
+    const clean = rowsOf(wantedProven);
+    // xcodebuild may put words before a row; the row is read from its marker.
+    const text = (lines) => ['Test Suite \'DoorFrozenTests\' started', ...lines.map((l, i) => (i === 0 ? `    ${l}` : l)), 'Test Suite \'DoorFrozenTests\' passed'].join('\n');
+    const grade = (lines, p = proven) => frozenRowProblems(text(lines), [set], p, today, 'self-test');
+
+    check('the sealed set names its rows: 11, today only on its own routes', wantedProven.size === 11 && wantedProven.has('today:end-done') && !wantedProven.has('today:scrollback-page') && wantedProven.has('decode:answers/blocked+unknown') && !wantedProven.has('decode:answers/end-done+unknown'), J([...wantedProven.keys()]));
+    const passed = grade(clean);
+    check('a clean run passes, its summary counting every row', passed.problems.length === 0 && /11 of 11 rows as sealed; arms 1 refused, 1 accepted, 0 skipped/.test(passed.lines[0] ?? ''), J(passed));
+    const unproven = rowsOf(frozenRowsWanted(set, today, none));
+    check('a run whose phone no longer reads the set passes with its refuse arm skipped', grade(unproven, none).problems.length === 0 && unproven.includes('P33311|self|arm:A0001|refuse|skipped'), J(grade(unproven, none).problems));
+    const named = (lines, p, needle) => {
+      const r = grade(lines, p).problems;
+      return r.length === 1 && r[0].includes(needle);
+    };
+    check('a missing arm row is named', named(clean.filter((l) => !l.includes('|arm:A0001|')), proven, 'no row for arm:A0001'));
+    check('a refuse arm skipped while the proof holds is named', named(clean.map((l) => l.replace('arm:A0001|refuse|refuse', 'arm:A0001|refuse|skipped')), proven, 'arm:A0001 read skipped, not refuse'));
+    check('a refuse arm asserted while the proof does not hold is named', named(clean, none, 'arm:A0001 read refuse, not skipped'));
+    check('an accept arm that refused is named', named(clean.map((l) => l.replace('arm:A0002|accept|accept', 'arm:A0002|accept|refuse')), proven, 'arm:A0002 read refuse, not accept'));
+    check('a doubled row is named', named([...clean, clean[3]], proven, 'printed 2 rows, not one'));
+    check('a row whose expect is not the sealed one is named', named(clean.map((l) => l.replace('arm:A0001|refuse|refuse', 'arm:A0001|accept|refuse')), proven, 'arm:A0001 expects accept'));
+    check('a row the sealed set does not name is named', named([...clean, 'P33311|self|arm:A9999|accept|accept'], proven, 'arm:A9999, which the sealed set does not name'));
+    check('rows for a set test:ios does not hold are named', named([...clean, 'P33311|other|decode:answers/blocked|accept|accept'], proven, 'a set named other'));
+    check('a row that is not five fields is named', named([...clean, 'P33311|self|decode:answers/blocked|accept'], proven, 'not five fields'));
+    check('a decode with unknown keys that never printed is named', named(clean.filter((l) => !l.includes('+unknown')), proven, 'no row for decode:answers/blocked+unknown'));
+    check('a request this phone no longer sends is named', named(clean.map((l) => l.replace('request:end|same|same', 'request:end|same|differs:body')), proven, 'request:end read differs:body, not same'));
+    check('a today row that refused is named', named(clean.map((l) => l.replace('today:end-done|accept|accept', 'today:end-done|accept|refuse')), proven, 'today:end-done read refuse'));
+    check('a run that printed nothing names every row', grade([], proven).problems.length === wantedProven.size);
+    check('suitesNotRun names DoorFrozenTests when it never ran', J(suitesNotRun('', P33311_SUITES)) === J(['DoorFrozenTests']) && suitesNotRun("Test Suite 'DoorFrozenTests' failed at 2026-10-08 12:00:00.000.", P33311_SUITES).length === 0);
+
+    // The sets on disk.
+    const dir = join(scratch, 'frozen');
+    mkdirSync(dir, { recursive: true });
+    const empty = frozenSets(dir);
+    check('a directory with no frozen set is a problem', empty.sets.length === 0 && empty.problems.length === 1 && empty.problems[0].includes('no frozen set'), J(empty));
+    writeFileSync(join(dir, 'self.wire.json'), J(wire));
+    writeFileSync(join(dir, 'self.vectors.json'), vectorsText);
+    const read = frozenSets(dir);
+    check('a sealed set reads, its vectors held to its sha256', read.problems.length === 0 && read.sets.length === 1 && read.sets[0].label === 'self', J(read.problems));
+    writeFileSync(join(dir, 'self.vectors.json'), vectorsText.replace('blocked', 'blockeD'));
+    const moved = frozenSets(dir);
+    check('a vectors file edited after its seal is named', moved.sets.length === 0 && moved.problems.length === 1 && moved.problems[0].includes('not the file the set was sealed over'), J(moved.problems));
+    writeFileSync(join(dir, 'self.vectors.json'), vectorsText);
+
+    // The proof, over a reader made here.
+    const root = join(scratch, 'root');
+    mkdirSync(join(root, 'ios', 'Tortie'), { recursive: true });
+    writeFileSync(join(root, 'ios', 'Tortie', 'X.swift'), 'struct X {}\n');
+    const xHash = sha256Hex(readFileSync(join(root, 'ios', 'Tortie', 'X.swift')));
+    const reader = (todayTypes) => ({ readPhoneWire: () => ({ types: todayTypes, unread: [] }), projection: (w) => canonicalJson({ types: w.types }) });
+    const writeWire = (extra) => writeFileSync(join(dir, 'self.wire.json'), J({ ...wire, ...extra }));
+    writeWire({});
+    const same = await frozenProof({ root, dir, reader: reader(wire.types) });
+    check('a phone that reads exactly the set proves it', same.problems.length === 0 && J(same.proof) === J(['self']) && same.said.some((s) => s.includes('read exactly self')), J(same));
+    const relaxed = { PocketBlockedAnswer: { fields: { ageNote: { presence: 'optional' } } } };
+    writeWire({ read: { 'ios/Tortie/X.swift': `${xHash.slice(0, -1)}${xHash.endsWith('0') ? '1' : '0'}` } });
+    const changed = await frozenProof({ root, dir, reader: reader(relaxed) });
+    check('a phone that changed proves nothing and is not a problem', changed.problems.length === 0 && changed.proof.length === 0 && changed.said.some((s) => s.includes('differ from self at 1 path(s)')), J(changed));
+    writeWire({ read: { 'ios/Tortie/X.swift': xHash, 'src/main/pocket/door/table.ts': 'f'.repeat(64) } });
+    const twoWays = await frozenProof({ root, dir, reader: reader(relaxed) });
+    check('byte-identical phone files with a differing projection are a problem', twoWays.problems.length === 1 && twoWays.problems[0].includes('reads one set of bytes two ways') && twoWays.proof.length === 0, J(twoWays));
+    const broken = await frozenProof({ root, dir, reader: { readPhoneWire: () => { throw new Error('unread'); }, projection: () => '' } });
+    check('a reader that cannot read the phone is a problem', broken.problems.length === 1 && broken.problems[0].includes('could not read'), J(broken.problems));
+    writeWire({});
+    const unproved = await frozenProof({ root, dir, reader: { ...reader(wire.types), proveReader: () => ({ files: 1, problems: ['f.swift.txt: types read wrong'] }) } });
+    check('a reader that misreads its own fixture is trusted with nothing', unproved.problems.length === 1 && unproved.problems[0].includes('misreads its own fixture') && unproved.proof.length === 0, J(unproved));
+    const proved = await frozenProof({ root, dir, reader: { ...reader(wire.types), proveReader: () => ({ files: 3, problems: [] }) } });
+    check('a reader that reads its own fixtures is asked about the phone', proved.problems.length === 0 && J(proved.proof) === J(['self']) && proved.said.some((s) => s.includes('read its 3 fixture(s)')), J(proved));
+  } catch (err) {
+    check('the frozen grader self-test ran', false, String(err?.stack ?? err));
+  } finally {
+    rmSync(scratch, { recursive: true, force: true });
+  }
+  const failed = results.filter((ok) => !ok).length;
+  say(failed === 0 ? `frozen grader self-test PASS: ${String(results.length)} checks` : `frozen grader self-test FAIL: ${String(failed)} of ${String(results.length)}`);
+  return failed === 0;
+}
+
 /** The suites of `names` that xcodebuild's output never says passed or failed. */
 export function suitesNotRun(text, names = P317_SUITES) {
   const ran = new Set([...String(text).matchAll(/Test Suite '([A-Za-z0-9_]+)' (?:passed|failed)/g)].map((m) => m[1]));
@@ -1680,7 +2077,12 @@ async function main() {
   }
 
   // Phase 317: the doors alone, driven by node, with no Xcode and no Simulator.
-  if (process.argv.includes('--self-test')) process.exit((await doorsSelfTest()) ? 0 : 1);
+  if (process.argv.includes('--self-test')) {
+    const doorsHeld = await doorsSelfTest();
+    // Phase 333.11: the frozen wire's grader, over a set made here.
+    const frozenHeld = await frozenGraderSelfTest();
+    process.exit(doorsHeld && frozenHeld ? 0 : 1);
+  }
 
   const runtime = (process.env['P316_RUNTIME'] ?? '').trim() || RUNTIME_CURRENT;
 
@@ -1708,6 +2110,15 @@ async function main() {
     process.stderr.write(`${TAG} the vectors are stale, so the Swift would be held to the wrong bytes: ${`${vectors.stdout ?? ''}${vectors.stderr ?? ''}`.trim().split('\n').slice(-2).join(' ')}\n`);
     process.exit(1);
   }
+  // Phase 333.11: the frozen sets, and which of them the phone's decoders still
+  // read exactly, whose refuse arms the tests then assert (P33311_PROOF).
+  const frozenPre = await frozenProof();
+  for (const line of frozenPre.said) say(line);
+  if (frozenPre.problems.length > 0) {
+    for (const p of frozenPre.problems.slice(0, 25)) process.stderr.write(`${TAG} ${p}\n`);
+    process.exit(1);
+  }
+  const frozenToday = JSON.parse(readFileSync(join(ROOT, 'ios', 'TortieTests', 'Fixtures', 'vectors.json'), 'utf8')).answers ?? {};
 
   // Phase 316.6's outline (Method 2): where the markdown outline tests write,
   // and what they read instead of fixtures.json. Each is refused inside the
@@ -1839,6 +2250,8 @@ async function main() {
           P3371_SPACE: SCROLLBACK_DOOR_SPACE,
           ...outline
         };
+        // Phase 333.11: the sets whose refuse arms DoorFrozenTests asserts.
+        testEnv['P33311_PROOF'] = frozenPre.proof.join(',');
         if (Object.keys(outline).length > 0) say(`the markdown outline: ${Object.entries(outline).map(([k, v]) => `${k}=${v}`).join(', ')}`);
         await withSimulator({ label: 'test:ios', runtime, scratch: join(scratch, 'sim'), derivedDataPath, keep }, async (sim) => {
           let passed = 0;
@@ -1871,9 +2284,14 @@ async function main() {
                 `${String(s.executed)} test(s) executed, ${String(s.failures)} failure(s), ${String(s.skipped)} skipped`
             );
             // Phase 317: every class it adds or changes must have run.
-            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES])]);
+            const notRun = suitesNotRun(`${run.stdout}${run.stderr}`, [...new Set([...P317_SUITES, ...P318_SUITES, ...P337_SUITES, ...P3371_SUITES, ...P3373_SUITES, ...P33311_SUITES])]);
             if (notRun.length > 0) say(`${c.name}: xcodebuild names no run of ${notRun.join(', ')}, so those rows were not run`);
-            if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0) passed += 1;
+            // Phase 333.11: every frozen row, graded against the sealed sets.
+            const frozen = frozenRowProblems(`${run.stdout}${run.stderr}`, frozenPre.sets, new Set(frozenPre.proof), frozenToday, c.name);
+            for (const l of frozen.lines) say(l);
+            for (const p of frozen.problems.slice(0, 25)) process.stdout.write(`  ${p}\n`);
+            if (frozen.problems.length > 25) process.stdout.write(`  … and ${String(frozen.problems.length - 25)} more\n`);
+            if (run.code === 0 && s.executed !== null && s.executed > 0 && s.failures === 0 && transport.length === 0 && notRun.length === 0 && frozen.problems.length === 0) passed += 1;
             if (run.code === 0 && (s.executed ?? 0) === 0) say(`${c.name}: ` + 'xcodebuild exited 0 and ran no test, which is not a pass');
           }
           code = passed === CONFIGURATIONS.length ? 0 : 1;

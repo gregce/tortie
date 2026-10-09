@@ -1,0 +1,19 @@
+{
+  "roots": ["Offer"],
+  "types": {
+    "Offer": {
+      "tag": "state",
+      "words": "open",
+      "cases": {
+        "offered": {
+          "batch": { "presence": "required", "null": false, "kind": "bool" }
+        },
+        "unreachable": {
+          "title": { "presence": "required", "null": false, "kind": "string" }
+        }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

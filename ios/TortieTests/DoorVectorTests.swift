@@ -202,7 +202,7 @@ final class DoorVectorTests: XCTestCase {
 
     /// The words a `/v1/sessions` target asks with, or nil when it is not
     /// spelled as the door reads one.
-    private static func sessionsQuery(_ target: String) -> SessionsQuery? {
+    static func sessionsQuery(_ target: String) -> SessionsQuery? {
         guard let question = target.split(separator: "?", maxSplits: 1).last, target.contains("?") else { return nil }
         var values: [String: String] = [:]
         for pair in question.split(separator: "&") {

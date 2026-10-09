@@ -1,0 +1,50 @@
+// The optional halves: `if c.contains(.k)` makes .k optional in its branch,
+// `if let x = try c.decodeIfPresent(…)` reads an optional object, a plain
+// `decodeIfPresent`, and a multi-line `guard Self.holdsTogether(…) else
+// { throw }` after every read: a relation, recorded and nothing else.
+struct Reply { let canSay: Bool }
+
+extension Reply: Codable {
+    enum CodingKeys: String, CodingKey { case canSay }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        canSay = try c.decode(Bool.self, forKey: .canSay)
+    }
+}
+
+struct Screen { let depth: Int?; let space: String?; let reply: Reply?; let cols: Int }
+
+extension Screen: Decodable {
+    enum CodingKeys: String, CodingKey {
+        case space, reply
+        case cols
+        case depth = "deep"
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        cols = try c.doorNumber(forKey: .cols)
+        if c.contains(.depth) {
+            depth = try c.nullableDoorNumber(forKey: .depth)
+        } else {
+            depth = nil
+        }
+        space = try c.decodeIfPresent(String.self, forKey: .space)
+        if let offered = try c.decodeIfPresent(Reply.self, forKey: .reply) {
+            reply = offered.canSay ? offered : nil
+        } else {
+            reply = nil
+        }
+        guard Self.holdsTogether(
+            cols: cols,
+            depth: depth
+        ) else {
+            throw DecodingError.dataCorruptedError(forKey: .cols, in: c, debugDescription: "a screen no Mac composed")
+        }
+    }
+
+    static func holdsTogether(cols: Int, depth: Int?) -> Bool {
+        cols > 0 && (depth ?? 0) >= 0
+    }
+}

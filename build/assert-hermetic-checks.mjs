@@ -271,13 +271,14 @@ for (const name of buildScripts) {
  * and is raised to 50 here, whose `build/conformance-shellenv.mjs` is the
  * fiftieth. Phase 314 raises it to 51, whose `build/conformance-push.mjs` is
  * the fifty first, and Phase 342 to 52, whose `build/p342/measure-p342.mjs`
- * is the fifty second. The floor is
+ * is the fifty second. Phase 333.11 raises it to 53, whose
+ * `build/assert-door-only-adds.mjs` is the fifty third. The floor is
  * raised in the commit that brings a caller in for the same reason
  * `HELPER_USER_FLOOR` is: adding one can never turn this rule red, so a floor
  * left behind is a floor that would let the new probe be deleted again in
  * silence.
  */
-const RUNNER_CALLER_FLOOR = 52;
+const RUNNER_CALLER_FLOOR = 53;
 if (runnerCallers < RUNNER_CALLER_FLOOR) {
   fail(
     `${String(runnerCallers)} script(s) under build/ call tsxCli() against a ` +

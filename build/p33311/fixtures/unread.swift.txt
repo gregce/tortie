@@ -1,0 +1,19 @@
+// Idioms this reader does NOT know, each of which must be reported with its
+// line and never read as something else: a container call it has no rule for
+// (line 13), `try?` swallowing a refusal (line 14), a loop (line 15), a key
+// that is not a case of CodingKeys (line 16) and a read under a ternary (17).
+struct Bad { let a: String; let b: String?; let d: [String]; let e: String; let f: String }
+
+extension Bad: Decodable {
+    enum CodingKeys: String, CodingKey { case a, b, d }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        a = try c.decode(String.self, forKey: .a)
+        b = try c.decodeIfPresentOrDefault(String.self, forKey: .b)
+        d = (try? c.decode([String].self, forKey: .d)) ?? []
+        for key in c.allKeys { _ = key }
+        e = try c.decode(String.self, forKey: .e)
+        f = a.isEmpty ? try c.decode(String.self, forKey: .b) : ""
+    }
+}

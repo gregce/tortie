@@ -99,6 +99,29 @@
  *             projects by Recent activity, and Active with no grouping by
  *             Name), so the phone's decoder and its SessionsDrawing meet main's
  *             own bytes in DoorVectorTests.
+ *             Since Phase 333.11 (build/p33311/SPEC.md §7, D12), the answers
+ *             the vectors never composed, so every route the phone calls has
+ *             a shipping instance for the frozen set to hold: a page of
+ *             history (`scrollback-page`) composed by the SHIPPING
+ *             `routes.scrollback` over the scrollback request's own ask, its
+ *             rows the committed screen sample's lines and styles cut to the
+ *             ask's `wrap`, and the page's absence on an exited session
+ *             (`scrollback-ended`); the screen `unchanged` for the sample's
+ *             own revision (`screen-unchanged`) and its absence on an exited
+ *             session (`screen-ended`), by the SHIPPING `routes.screen`, the
+ *             facts deciding live or ended by the shipping `screenLive`; and
+ *             five write answers (`end-done`, `choose-changed`, `say-failed`,
+ *             `keys-done`, `end-malformed`), each from a FRESH shipping
+ *             `createPocketWriteHandler` handed the very bodies the request
+ *             vectors hold (and, for the last, a body that is not JSON) over
+ *             a recording `writes` whose outcomes and sentences are the
+ *             shipping verbs' own words. Appended, so every earlier answer and
+ *             every request keeps its bytes. Each is read back against what
+ *             its facts were chosen to produce, and what the route handed
+ *             them. Every answer's name is its route id, a `-` and a label
+ *             (or the route id alone), which is how the frozen set maps an
+ *             instance to its route, and every route but `/pair` (whose
+ *             answers are `pairAnswers`) has one.
  *
  * --check. Regenerates everything in memory and compares. The deterministic
  * vectors must match byte for byte. The ones that carry a random value (the
@@ -175,8 +198,8 @@ if (process.env.P316_VECTORS_INNER !== '1') {
 const pairing = await import('../../src/main/pocket/pairing.ts');
 const tls = await import('../../src/main/pocket/tls.ts');
 const { createPocketHandler } = await import('../../src/main/pocket/server.ts');
-const { createPocketRoutes, readSessionsQuery, readScreenQuery, readScrollbackQuery } = await import('../../src/main/pocket/routes.ts');
-const { parseKeysBody } = await import('../../src/main/pocket/writes.ts');
+const { createPocketRoutes, readSessionsQuery, readScreenQuery, readScrollbackQuery, matchPocketRoute, screenLive, pocketWriteRouteIds } = await import('../../src/main/pocket/routes.ts');
+const { parseKeysBody, createPocketWriteHandler } = await import('../../src/main/pocket/writes.ts');
 const { readPocketTurns, pocketTurnOf } = await import('../../src/main/pocket/facts.ts');
 const { statusVisual } = await import('../../src/shared/status-words.ts');
 const { POCKET_ROUTE_IDS } = await import('../../src/shared/ipc/pocket.ts');
@@ -1208,9 +1231,162 @@ function withUnknown(answer) {
   const copy = JSON.parse(JSON.stringify(answer));
   copy.futureField = { nested: [1, 2, 3], note: 'a newer Mac' };
   const row = copy.rows?.[0] ?? copy.others?.[0] ?? copy.session ?? copy.turns?.[0];
-  if (row !== undefined) row.futureRowField = 'ignored';
+  // A page's row (Phase 333.11) is an ARRAY of runs, on which a named field
+  // would be dropped by JSON.stringify without a word: its first run takes it.
+  const holder = Array.isArray(row) ? row[0] : row;
+  if (holder !== undefined) holder.futureRowField = 'ignored';
   return copy;
 }
+
+// ---------------------------------------------------------------------------
+// PHASE 333.11 (build/p33311/SPEC.md §7, D12): the answers the vectors never
+// composed, so every route the phone calls has an instance the SHIPPING code
+// wrote, for the frozen set to hold every later Mac to.
+// ---------------------------------------------------------------------------
+
+/** The committed screen sample the SHIPPING composer wrote; `screen-sample` is its re-composition. */
+const SAMPLE = JSON.parse(readFileSync(join(ROOT, 'build', 'fixtures', 'screen', 'sample-claude-2.1.287.json'), 'utf8'));
+/**
+ * The owners' words the new answers carry: the shipping reply writer's own
+ * sentences for a question that moved and a message it could not type
+ * (src/main/reply/writer.ts), handed back by the recording verbs below; and
+ * the two the door composes itself, the write path's sentence for a body it
+ * could not read and main's sentence for a session with no terminal, which
+ * the checks below read off the composed answers.
+ */
+const { LIFECYCLE_SESSION_CHANGED } = await import('../../src/shared/lifecycle-words.ts');
+const { REPLY_FAILED } = await import('../../src/shared/reply-copy.ts');
+const { SCREEN_ENDED } = await import('../../src/shared/screen-copy.ts');
+const { POCKET_WRITE_SENTENCES } = await import('../../src/shared/ipc/pocket.ts');
+/** The route an answer's name names: the name up to its first `-`, or the whole name. */
+const routeOfAnswer = (name) => (name.includes('-') ? name.slice(0, name.indexOf('-')) : name);
+/** The revision an ended screen answers under: 12 lowercase hex, from a public label. */
+const SCREEN_ENDED_REVISION = sha256hex('tortie-p33311-vector screen ended').slice(0, 12);
+if (typeof screenLive !== 'function') fail('the shipping routes.ts exports no screenLive, so no screen or page can be told live from ended');
+/**
+ * One line of the sample cut to `wrap`: whole runs while they fit, each copied
+ * field by field, never a run split or widened. The sample is as wide as the
+ * request's `wrap` today, so nothing is cut; a wider sample still makes a page
+ * the shipping `scrollbackOf` accepts (§Attack T19).
+ */
+const cutToWrap = (line, wrap) => {
+  const row = [];
+  let used = 0;
+  for (const run of line) {
+    if (used + run.cells > wrap) break;
+    row.push({ text: run.text, style: run.style, cells: run.cells });
+    used += run.cells;
+  }
+  return row;
+};
+/**
+ * The facts above with a Screen and a page reader that answer as the shipping
+ * watcher and page reader do: `ended` for a session the SHIPPING live
+ * partition (`screenLive`) does not hold live, read from the row and never
+ * from tmux; `unchanged` when the phone holds the sample's own revision; and a
+ * page of the ask's own `count` rows at its `from`, `depth` and `wrap`, the
+ * sample's lines in turn under the sample's own style table, in the sample's
+ * index space. A separate composer, so no earlier answer moves. Each records
+ * what the shipping route handed it, so the checks below can say the route
+ * read the request's own query.
+ */
+const historyAsked = { screen: [], scrollback: [] };
+const historyRoutes = createPocketRoutes({
+  ...facts,
+  screen: async (session, since) => {
+    historyAsked.screen.push({ sessionId: session.id, since });
+    if (!screenLive(session)) {
+      return { sessionId: session.id, revision: SCREEN_ENDED_REVISION, at: T, unchanged: false, screen: null, why: 'ended', sentence: null };
+    }
+    if (since === SAMPLE.revision) {
+      return { sessionId: session.id, revision: since, at: T, unchanged: true, screen: null, why: null, sentence: null };
+    }
+    return facts.screen(session, since);
+  },
+  scrollback: async (session, ask) => {
+    historyAsked.scrollback.push({ sessionId: session.id, ask: { ...ask } });
+    if (!screenLive(session)) {
+      return { sessionId: session.id, at: T, from: null, depth: null, wrap: null, space: null, styles: [], rows: [], why: 'ended', sentence: null };
+    }
+    const lines = SAMPLE.screen.lines;
+    return {
+      sessionId: session.id,
+      at: T,
+      from: ask.from,
+      depth: ask.depth,
+      wrap: ask.wrap,
+      space: SAMPLE.screen.space,
+      styles: SAMPLE.screen.styles.map((style) => ({ ...style })),
+      rows: Array.from({ length: ask.count }, (_, i) => cutToWrap(lines[i % lines.length], ask.wrap)),
+      why: null,
+      sentence: null
+    };
+  }
+});
+/** The scrollback request's own query, as the door's URL parser reads its signed target, with `id` set to `sessionId`. */
+const scrollbackQueryFor = (sessionId) => {
+  const query = new URL(requests.find((r) => r.name === 'scrollback').target, `https://${PUBLIC_NAME}:${String(PUBLIC_PORT)}`).searchParams;
+  query.set('id', sessionId);
+  return query;
+};
+
+/** The body a request vector holds, so each write answer answers a request the phone signed. */
+const bodyOf = (name) => requests.find((r) => r.name === name).body;
+/** The end request's body with its closing brace cut off: a body that is not JSON. */
+const END_NOT_JSON = bodyOf('end').slice(0, -1);
+/** What each write answer's verb was handed and what the door answered, by vector name, for the checks below. */
+const writesSeen = new Map();
+/**
+ * One write answer from a FRESH shipping write path (`createPocketWriteHandler`,
+ * src/main/pocket/writes.ts): the door's own route match for the path, the
+ * body, the phone's own id, a door that is not stopping, the clock T, and a
+ * recording `writes` whose every verb answers `outcome`. Its value is the
+ * door's body parsed, whose bytes are exactly what JSON.stringify writes of
+ * it, so the vector's `json` is the door's own bytes.
+ */
+async function writeVector(name, path, body, outcome) {
+  if (typeof createPocketWriteHandler !== 'function' || typeof matchPocketRoute !== 'function') {
+    fail(`answer ${name}: the shipping writes.ts or routes.ts exports no createPocketWriteHandler or matchPocketRoute`);
+    return null;
+  }
+  const route = matchPocketRoute('POST', path);
+  if (route === null) {
+    fail(`answer ${name}: the shipping route table matches no POST ${path}`);
+    return null;
+  }
+  const handed = [];
+  const verb = (id) => async (input, still) => {
+    handed.push({ verb: id, input, still: typeof still === 'function' ? still() : null });
+    return outcome;
+  };
+  const handle = createPocketWriteHandler({
+    shuttingDown: () => false,
+    stillPaired: () => true,
+    writes: { end: verb('end'), choose: verb('choose'), say: verb('say'), keys: verb('keys') },
+    now: () => T
+  });
+  // Step 7's one log line goes to the console outside Electron, naming the
+  // made-up session; the vectors print no line of a write's own.
+  const consoleLog = console.log;
+  console.log = () => {};
+  let answer;
+  try {
+    answer = await handle(route, Buffer.from(body, 'utf8'), identityVectors.phoneId, { stopping: () => false });
+  } finally {
+    console.log = consoleLog;
+  }
+  writesSeen.set(name, { status: answer.status, acted: answer.acted ?? false, handed });
+  if (answer.status !== 200 || typeof answer.body !== 'string') {
+    fail(`answer ${name}: the shipping write path answered ${String(answer.status)} with no body`);
+    return null;
+  }
+  const parsed = JSON.parse(answer.body);
+  if (JSON.stringify(parsed) !== answer.body) fail(`answer ${name}: the door's bytes are not what JSON.stringify writes of them`);
+  return parsed;
+}
+const WROTE = { outcome: 'done' };
+const QUESTION_MOVED = { outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED };
+const COULD_NOT_TYPE = { outcome: 'failed', sentence: REPLY_FAILED };
 
 const answerShapes = [
   ['blocked', () => routes.blocked()],
@@ -1225,7 +1401,23 @@ const answerShapes = [
   ['sessions-all-project', () => routes.sessions(new URLSearchParams('show=all&group=project&sort=recent'))],
   ['sessions-active-none-name', () => routes.sessions(new URLSearchParams('show=active&group=none&sort=name'))],
   // PHASE 337: the Screen's answer, as the shipping route re-composes it.
-  ['screen-sample', () => (typeof routes.screen === 'function' ? routes.screen(new URLSearchParams(`id=${S.talk}`), () => false) : null)]
+  ['screen-sample', () => (typeof routes.screen === 'function' ? routes.screen(new URLSearchParams(`id=${S.talk}`), () => false) : null)],
+  // PHASE 333.11: the page over the scrollback request's own ask, and its
+  // absence on the exited session; the screen held at the sample's revision,
+  // and its absence on the exited session (the Terminal was showing the
+  // sample when the session ended).
+  ['scrollback-page', () => historyRoutes.scrollback(scrollbackQueryFor(S.talk), () => false)],
+  ['scrollback-ended', () => historyRoutes.scrollback(scrollbackQueryFor(S.failed), () => false)],
+  ['screen-unchanged', () => historyRoutes.screen(new URLSearchParams(`id=${S.talk}&since=${SAMPLE.revision}`), () => false)],
+  ['screen-ended', () => historyRoutes.screen(new URLSearchParams(`id=${S.failed}&since=${SAMPLE.revision}`), () => false)],
+  // PHASE 333.11: the write answers, each from a fresh shipping write path
+  // over the body its request vector holds; the last over the end body with
+  // its closing brace cut off, which is not JSON.
+  ['end-done', () => writeVector('end-done', '/v1/end', bodyOf('end'), WROTE)],
+  ['choose-changed', () => writeVector('choose-changed', '/v1/choose', bodyOf('choose'), QUESTION_MOVED)],
+  ['say-failed', () => writeVector('say-failed', '/v1/say', bodyOf('say'), COULD_NOT_TYPE)],
+  ['keys-done', () => writeVector('keys-done', '/v1/keys', bodyOf('keys-text'), WROTE)],
+  ['end-malformed', () => writeVector('end-malformed', '/v1/end', END_NOT_JSON, WROTE)]
 ];
 const answers = {};
 for (const [name, compose] of answerShapes) {
@@ -1263,6 +1455,125 @@ for (const [name, compose] of answerShapes) {
   const talkConfirm = JSON.parse(answers['session-talk']?.json ?? '{}').session?.endConfirm;
   if (talkConfirm?.title !== "End 'talk'?" || talkConfirm?.confirmLabel !== 'End session' || typeof talkConfirm?.body !== 'string' || talkConfirm.body === '') {
     fail(`the shipping /v1/session answers ${JSON.stringify(talkConfirm)} as the talk session's endConfirm, not the Mac's own confirmation`);
+  }
+}
+// PHASE 333.11 (build/p33311/SPEC.md §7, D12): each answer the vectors never
+// composed before, read back against what its facts were chosen to produce, so
+// a vector set that composed the wrong shape, read the wrong question or
+// carried the wrong words is refused by name.
+{
+  const read = (name) => JSON.parse(answers[name]?.json ?? 'null');
+  const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  /** What a page or write answer is, briefly, for a failure line: never 40 KB of rows. */
+  const brief = (answer) =>
+    JSON.stringify(
+      answer === null || typeof answer !== 'object'
+        ? answer
+        : Object.fromEntries(Object.entries(answer).map(([k, v]) => [k, Array.isArray(v) ? `${String(v.length)} items` : v]))
+    );
+  // Every answer is named for the route it answers, and every route the phone
+  // calls but `/pair` (whose answers are `pairAnswers`) has one the shipping
+  // code composed: the frozen set maps an instance to its route by its name.
+  const names = Object.keys(answers);
+  for (const name of names) {
+    if (!POCKET_ROUTE_IDS.includes(routeOfAnswer(name))) fail(`answer ${name}: its name names no shipping route (${routeOfAnswer(name)})`);
+  }
+  for (const id of POCKET_ROUTE_IDS) {
+    if (id !== 'pair' && !names.some((name) => routeOfAnswer(name) === id)) fail(`route ${id}: the vectors hold no answer the shipping code composed for it`);
+  }
+  // The live partition the absences were decided by: the talking session has
+  // a terminal and the exited one has none, by the SHIPPING screenLive.
+  const rowOf = (id) => sessions.find((s) => s.id === id);
+  if (screenLive(rowOf(S.talk)) !== true || screenLive(rowOf(S.failed)) !== false) {
+    fail('the shipping screenLive does not hold the talking session live and the exited one ended, so the absences below were not decided by it');
+  }
+
+  // THE PAGE. The door's own query reader read the scrollback request's
+  // signed target and handed the page reader exactly the ask the phone wrote;
+  // the page is that ask's rows, the sample's lines in turn cut to its wrap,
+  // under the sample's style table, in the sample's index space.
+  const pageAsked = historyAsked.scrollback.find((a) => a.sessionId === S.talk)?.ask;
+  if (!same(pageAsked, SCROLLBACK_ASKED)) fail(`answer scrollback-page: the shipping route handed the page reader ${JSON.stringify(pageAsked)}, not the request vector's own ask ${JSON.stringify(SCROLLBACK_ASKED)}`);
+  const lines = SAMPLE.screen.lines;
+  const wantRows = Array.from({ length: SCROLLBACK_ASKED.count }, (_, i) => cutToWrap(lines[i % lines.length], SCROLLBACK_ASKED.wrap));
+  const page = read('scrollback-page');
+  const wantPage = {
+    sessionId: S.talk,
+    at: T,
+    from: SCROLLBACK_ASKED.from,
+    depth: SCROLLBACK_ASKED.depth,
+    wrap: SCROLLBACK_ASKED.wrap,
+    space: SAMPLE.screen.space,
+    styles: SAMPLE.screen.styles,
+    rows: wantRows,
+    why: null,
+    sentence: null
+  };
+  if (!same(page, wantPage)) fail(`answer scrollback-page: the shipping routes.scrollback composed ${brief(page)}, not ${brief(wantPage)} with the sample's lines as its rows`);
+  // Its copy with fields no phone knows carries one on a RUN, because a
+  // page's row is an array, on which a named field would be lost unseen.
+  if (JSON.parse(answers['scrollback-page']?.withUnknown ?? 'null')?.rows?.[0]?.[0]?.futureRowField !== 'ignored') {
+    fail('answer scrollback-page: its copy with unknown fields carries none on a row\'s run');
+  }
+  // A page that proves something: rows that carry runs, in more than one style.
+  const runs = wantRows.flat();
+  if (runs.length === 0 || new Set(runs.map((run) => run.style)).size < 2) fail('answer scrollback-page: the page carries no runs, or runs in one style only, so it proves no style index');
+  // THE PAGE'S ABSENCE. The exited session, asked the same page, has none, in
+  // main's own sentence, and carries nothing beside it.
+  if (historyAsked.scrollback.find((a) => a.sessionId === S.failed) === undefined) fail('answer scrollback-ended: the shipping route never asked the page reader for the exited session');
+  const pageEnded = read('scrollback-ended');
+  const wantPageEnded = { sessionId: S.failed, at: T, from: null, depth: null, wrap: null, space: null, styles: [], rows: [], why: 'ended', sentence: SCREEN_ENDED };
+  if (!same(pageEnded, wantPageEnded)) fail(`answer scrollback-ended: the shipping routes.scrollback composed ${brief(pageEnded)}, not ${brief(wantPageEnded)}`);
+
+  // THE SCREEN UNCHANGED. The phone holds the revision `screen-sample` sent;
+  // the door's own query reader handed that revision on as `since`, and the
+  // answer carries nothing else.
+  if (read('screen-sample')?.revision !== SAMPLE.revision) fail(`answer screen-unchanged: screen-sample's revision is not the sample's ${SAMPLE.revision}, so no phone holds the revision it is unchanged for`);
+  const screenAsked = historyAsked.screen.find((a) => a.sessionId === S.talk);
+  if (!same(screenAsked, { sessionId: S.talk, since: SAMPLE.revision })) fail(`answer screen-unchanged: the shipping route handed the Screen ${JSON.stringify(screenAsked)}, not the sample's revision as since`);
+  const unchanged = read('screen-unchanged');
+  const wantUnchanged = { sessionId: S.talk, revision: SAMPLE.revision, at: T, unchanged: true, screen: null, why: null, sentence: null };
+  if (!same(unchanged, wantUnchanged)) fail(`answer screen-unchanged: the shipping routes.screen composed ${brief(unchanged)}, not ${brief(wantUnchanged)}`);
+  // THE SCREEN'S ABSENCE, in main's own sentence: the facts said `ended` and
+  // no sentence, so the sentence is the door's.
+  const screenEnded = read('screen-ended');
+  const wantScreenEnded = { sessionId: S.failed, revision: SCREEN_ENDED_REVISION, at: T, unchanged: false, screen: null, why: 'ended', sentence: SCREEN_ENDED };
+  if (!same(screenEnded, wantScreenEnded)) fail(`answer screen-ended: the shipping routes.screen composed ${brief(screenEnded)}, not ${brief(wantScreenEnded)}`);
+
+  // THE WRITES. Each answer is the shipping write path's, over the body its
+  // request vector holds; each verb was handed exactly what that body says,
+  // once, with every ask of the last check still holding; and the body that is
+  // not JSON reached no verb and echoes no write id.
+  try {
+    JSON.parse(END_NOT_JSON);
+    fail('answer end-malformed: its body is JSON, so it proves nothing about a body the door cannot read');
+  } catch {
+    // Not JSON, as it must be.
+  }
+  const wantWrites = [
+    ['end-done', { verb: 'end', write: WRITE_END, outcome: 'done', reason: null, sentence: null }, [{ verb: 'end', input: { sessionId: SESSION_TALK, batch: false }, still: null }]],
+    [
+      'choose-changed',
+      { verb: 'choose', write: WRITE_CHOOSE, outcome: 'refused', reason: 'changed', sentence: LIFECYCLE_SESSION_CHANGED },
+      [{ verb: 'choose', input: { sessionId: SESSION_TALK, question: QUESTION_ID, mark: REPLY_MARK, marker: '2' }, still: true }]
+    ],
+    ['say-failed', { verb: 'say', write: WRITE_SAY, outcome: 'failed', reason: null, sentence: REPLY_FAILED }, [{ verb: 'say', input: { sessionId: SESSION_TALK, text: SAY_TEXT }, still: true }]],
+    [
+      'keys-done',
+      { verb: 'keys', write: writeKeysId('text'), outcome: 'done', reason: null, sentence: null },
+      [{ verb: 'keys', input: { sessionId: SESSION_TALK, keys: [{ t: KEYS_TEXT }, { k: 'BSpace' }], turn: KEYS_TURN, dialog: KEYS_MARK }, still: true }]
+    ],
+    ['end-malformed', { verb: 'end', write: '', outcome: 'refused', reason: 'malformed', sentence: POCKET_WRITE_SENTENCES?.unreadable }, []]
+  ];
+  const writeRows = typeof pocketWriteRouteIds === 'function' ? pocketWriteRouteIds() : null;
+  if (writeRows === null) fail('the shipping routes.ts exports no pocketWriteRouteIds, so no answer can be told a write answer');
+  for (const [name, want, handed] of wantWrites) {
+    if (writeRows !== null && !writeRows.includes(routeOfAnswer(name))) fail(`answer ${name}: ${routeOfAnswer(name)} is not one of the shipping table's write rows`);
+    const got = read(name);
+    if (!same(got, want)) fail(`answer ${name}: the shipping write path answered ${brief(got)}, not ${brief(want)}`);
+    const seen = writesSeen.get(name);
+    if (!same(seen?.handed, handed)) fail(`answer ${name}: the recording verbs were handed ${JSON.stringify(seen?.handed)}, not ${JSON.stringify(handed)}`);
+    if (seen?.acted !== (handed.length > 0)) fail(`answer ${name}: the shipping write path says it ${seen?.acted ? 'acted' : 'did not act'}`);
   }
 }
 
@@ -1338,9 +1649,15 @@ if (problems.length > 0) {
   process.exit(1);
 }
 
+// PHASE 333.11: the answers counted by the routes they answer, and how many
+// of them answer a write, by the shipping table's own write rows.
+const answerNames = Object.keys(answers);
+const writeRouteIds = typeof pocketWriteRouteIds === 'function' ? pocketWriteRouteIds() : [];
+const answeredRoutes = new Set(answerNames.map(routeOfAnswer)).size;
+const writeAnswers = answerNames.filter((name) => writeRouteIds.includes(routeOfAnswer(name))).length;
 const counts =
   `${String(requests.length)} signed requests, ${String(requests.filter((r) => r.method === 'POST' && r.target !== '/pair').length)} of them writes (and 2 tampered targets, 3 tampered write bodies), ${String(pins.length)} pins, 1 client certificate, 3 seals (1 with an alert address), ` +
-  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(Object.keys(answers).length)} answers, ${String(alerts.length)} alerts`;
+  `${String(qr.length)} QR payloads, ${String(Object.keys(pairAnswers).length)} /pair answers, ${String(answerNames.length)} answers to ${String(answeredRoutes)} routes (${String(writeAnswers)} of them to writes), ${String(alerts.length)} alerts`;
 if (CHECK) {
   process.stdout.write(`${TAG} PASS: ios/TortieTests/Fixtures/vectors.json is what the shipping TypeScript produces: ${counts}.\n`);
 } else {

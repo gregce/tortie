@@ -1,0 +1,29 @@
+{
+  "roots": ["Offer.Wire"],
+  "types": {
+    "Offer.Wire": {
+      "fields": {
+        "v": { "presence": "required", "null": false, "kind": "int" },
+        "host": { "presence": "required", "null": false, "kind": "string" },
+        "exp": { "presence": "required", "null": false, "kind": "double" },
+        "note": { "presence": "optional", "null": true, "kind": "string" },
+        "kind": { "presence": "required", "null": false, "kind": { "words": "Kind" } }
+      },
+      "relations": false,
+      "synthesized": true
+    },
+    "Kind": { "words": ["B", "D", "alpha", "gamma"] }
+  },
+  "unread": [],
+  "constants": {
+    "Offer.version": 3,
+    "Offer.maxBytes": 4096,
+    "Offer.cap": 2097152,
+    "Offer.wait": 15,
+    "Offer.ports": [8443, 10000],
+    "Offer.standard": "Offer.standard is not a literal, a product of literals or a Set/array literal (synthesized.swift.txt:11)"
+  },
+  "words": {
+    "Kind": ["alpha", "B", "gamma", "D"]
+  }
+}

@@ -1,0 +1,29 @@
+// A synthesized `Decodable` nested in its owner (stored properties, one
+// `String?`, one closed enum, and a computed property that is not decoded),
+// a closed enum with raw values, and the constants §5.2 rule 9 folds: an
+// integer, products with `_`, a `TimeInterval` and a `Set<Int>` literal.
+struct Offer {
+    static let version = 3
+    static let maxBytes = 4 * 1_024
+    static let cap = 2 * 1024 * 1024
+    static let wait: TimeInterval = 15
+    static let ports: Set<Int> = [10000, 8443]
+    static let standard = Offer.make(cap: cap)
+
+    private struct Wire: Decodable {
+        let v: Int
+        let host: String
+        let exp: Double
+        let note: String?
+        let kind: Kind
+        var customMirror: String { "" }
+    }
+}
+
+enum Kind: String, Sendable, Codable {
+    case alpha
+    case beta = "B"
+    case gamma, delta = "D"
+
+    static let standard = Kind.alpha
+}

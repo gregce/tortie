@@ -1,0 +1,18 @@
+// One key read twice: `nullable(String)` as the condition, `screenColor` in
+// the else. Merged: required (the strongest read), null accepted (the
+// nullable read takes it), and the narrowest non-null kind, a colour.
+struct Style { let fg: String; let bg: String? }
+
+extension Style: Decodable {
+    enum CodingKeys: String, CodingKey { case fg, bg }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        fg = try c.screenColor(forKey: .fg)
+        if try c.nullable(String.self, forKey: .bg) == nil {
+            bg = nil
+        } else {
+            bg = try c.screenColor(forKey: .bg)
+        }
+    }
+}

@@ -1,0 +1,13 @@
+{
+  "roots": ["Style"],
+  "types": {
+    "Style": {
+      "fields": {
+        "fg": { "presence": "required", "null": false, "kind": "color" },
+        "bg": { "presence": "required", "null": true, "kind": "color" }
+      },
+      "relations": false
+    }
+  },
+  "unread": []
+}

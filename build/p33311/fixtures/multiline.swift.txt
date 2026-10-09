@@ -1,0 +1,32 @@
+// A read whose call spans four lines, a container named `container`, a nested
+// array of a decodable type, and `decodeIfPresent … ?? default`.
+struct Wide: Equatable {
+    let rows: [[Cell]]
+    let flag: Bool
+}
+
+struct Cell: Equatable {
+    let text: String
+}
+
+extension Cell: Decodable {
+    enum CodingKeys: String, CodingKey { case text }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        text = try container.decode(String.self, forKey: .text)
+    }
+}
+
+extension Wide: Decodable {
+    enum CodingKeys: String, CodingKey { case rows, flag }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        rows = try container.decode(
+            [[Cell]].self,
+            forKey: .rows
+        )
+        flag = try container.decodeIfPresent(Bool.self, forKey: .flag) ?? false
+    }
+}

@@ -1,0 +1,37 @@
+// A discriminant BOUND first (`let word = …`, then `switch word`), a case
+// listing two words, `guard !c.contains(.cert)` refusing a key in both,
+// `if word == "pending"` narrowing to one of them, a relation after a read
+// in another case, and a `default:` that THROWS: a closed set.
+enum Answer {
+    case pending(sends: Bool)
+    case refused
+    case allowed(cert: String)
+}
+
+extension Answer: Decodable {
+    enum CodingKeys: String, CodingKey { case state, cert, alerts }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        let word = try c.decode(String.self, forKey: .state)
+        switch word {
+        case "pending", "refused":
+            guard !c.contains(.cert) else {
+                throw DecodingError.dataCorruptedError(forKey: .cert, in: c, debugDescription: "only with allowed")
+            }
+            if word == "pending" {
+                self = .pending(sends: try c.decodeIfPresent(Bool.self, forKey: .alerts) ?? false)
+            } else {
+                self = .refused
+            }
+        case "allowed":
+            let text = try c.decode(String.self, forKey: .cert)
+            guard !text.isEmpty else {
+                throw DecodingError.dataCorruptedError(forKey: .cert, in: c, debugDescription: "empty")
+            }
+            self = .allowed(cert: text)
+        default:
+            throw DecodingError.dataCorruptedError(forKey: .state, in: c, debugDescription: "not one of three")
+        }
+    }
+}

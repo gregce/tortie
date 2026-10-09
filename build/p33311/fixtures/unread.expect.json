@@ -1,0 +1,12 @@
+{
+  "roots": ["Bad"],
+  "types": {
+    "Bad": {
+      "fields": {
+        "a": { "presence": "required", "null": false, "kind": "string" }
+      },
+      "relations": false
+    }
+  },
+  "unread": [13, 14, 15, 16, 17]
+}
