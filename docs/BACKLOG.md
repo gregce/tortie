@@ -41439,6 +41439,184 @@ and a `confirmationDialog` attached to the menu presents from its item as a shee
 - **No paste**, **no change to the session's size on the Mac**, **no iPad**, **no release** and **no upload**.
 - **No probe repair that 337.2 owns.**
 
+## Phase 333.11 — the door's answers only add: freeze what the launch phone reads and sends, and one gate keeps every later Mac inside it (research 140 §8 row 7; his word, 2026-10-08) ✅ LANDED `85f90247`, 2026-10-09
+
+**Subject.** `test(pocket): freeze what the phone relies on, and let the Mac only add to it`
+
+**First body line.** `Phase 333.11: the door's answers only add`
+
+**Semver.** None, and no release follows. Nothing a person sees moves: no route, no answer, no QR or hashed field, no
+phone code, no copy, no menu; no CHANGELOG item, because a person never hits a gate.
+
+**Tier 2.** Invisible to a person, so the gates ARE the evidence and the verifier re-derives and attacks rather than
+photographs. It touches no tmux, manifest, restore or session, spawns nothing for a person, holds no credential and sends
+nothing anywhere. One `test:ios` run under the lock is its app run.
+
+**Charter.** Research 140 §5 row 13 and §8 row 7, started at his word on 2026-10-08 ("ok that sounds great. do it"). What
+he was told: the phone and the Mac update separately, so a phone on an older build talks to a newer Mac and the reverse.
+Today `ios/Tortie/Door/Contract.swift:12-17` refuses a whole answer when a key it requires is missing, and nothing stops a
+Mac release removing or renaming one, or removing a route the phone uses. The rule is Paseo's, which research 140 cites
+(`getpaseo_paseo/docs/protocol-compatibility.md:16`): "Never flip optional to required, remove a field, or narrow a type."
+Adding a route, an optional key or a field the phone ignores stays allowed. Bound by `build/p33311/SPEC.md`.
+
+The spec step measured one finding the rule has to carry for Tortie: every phone decoder ignores unknown keys (no
+`allKeys` anywhere, every decoder keyed), so adding a key is safe, but EIGHT word sets refuse the whole answer on a word
+the phone does not know (a write's verb, outcome and reason, a screen's and a page's absence, `/pair`'s state, the QR's
+version, the echoed Sessions words), and the phone's bounds (512 columns, 200 rows, 1,024 styles, a 100,000-line history,
+128 rows a page, 2 MiB, 15 s) are part of the type. So adding a WORD to one of those sets, raising a Mac cap past a phone
+bound, or lowering a limit an old phone's requests fit inside (the body caps, `PER_SOURCE_MAX`, `KEEP_ALIVE_TIMEOUT_MS`)
+is a narrowing and is refused.
+
+### The mechanism
+
+1. **The frozen set**, labelled `launch`: `ios/TortieTests/Fixtures/frozen/launch.vectors.json` (a byte copy of
+   `ios/TortieTests/Fixtures/vectors.json` at the freeze) and `launch.wire.json` (the eleven routes from
+   `src/main/pocket/door/table.ts` that the phone's `ios/Tortie/Door/DoorClient.swift` calls, with the membership hash
+   R4 pins; every answer's keys, presence, nullability, kind, closed words, discriminated cases, formats and bounds READ
+   FROM THE PHONE'S OWN DECODERS; the words the phone sends; the statuses it reads; the launch Mac's request and
+   connection limits; the arms of §8.2; a `history` of replacements; and a sha256 `seal`).
+2. **The reader**, `build/p33311/swift-wire.mjs`: reads every `.swift` under `ios/Tortie/` with `lexSwift`, which moves
+   byte for byte from `build/conformance-ios.mjs` to `build/swift-lex.mjs` (re-exported, so `conformance:ios` is
+   unchanged); understands exactly the decoding idioms the phone uses and reports anything else as an unread statement;
+   proves itself on `build/p33311/fixtures/*.swift.txt` first.
+3. **The gate**, `gate:onlyadd`, `build/assert-door-only-adds.mjs`, inside `npm run build` right after
+   `node build/conformance-ios.mjs`, one spawn of the pinned tsx, budget 3 s. Clauses: F1 to F4 (the seal, the vectors
+   copy, the set's own consistency and floor, the gate and the phone half still wired); R1 to R6 (every frozen route in the
+   table and still dispatched in `src/main/pocket/ipc.ts`; every frozen request replayed through the shipping
+   `matchPocketRoute`, `PocketRequestVerifier`, query readers and `createPocketWriteHandler`; the frozen presentations
+   opened; limits and sent words kept; identities computed the same); A1 to A5 (coverage; every instance in today's
+   `vectors.json` conforming to the frozen shape; the Mac's TypeScript types in `src/shared/ipc/pocket.ts` and
+   `PocketPairAnswer` still promising every frozen key and keeping every closed union inside its frozen set; Mac caps
+   inside phone bounds; statuses); P0 to P4 (the phone, read as text: no new required key, nothing narrowed, no bound
+   shrunk; whether today's wire equals `launch`, printed). `--freeze <label> [--replace --why "…"]` is the regenerate
+   flag. `ablation:p33311` (`build/p33311/ablation.mjs`) plants one break per clause in a `cp -Rc` clone, each red on its
+   clause, with five controls that must stay green (an optional key added, a route added, an open word added, a limit
+   raised, the phone reading a new key only if present).
+4. **The vectors**, `build/p316/vectors.mjs`: gain the answers they never composed, by the shipping composers: a
+   scrollback page and absence, a screen `unchanged` and absence, and five write answers through the shipping write
+   handler. No request moves.
+5. **The phone's half**, `ios/TortieTests/DoorFrozenTests.swift`, run by `test:ios` and graded row by row by
+   `build/p316/test-ios.mjs` (`P33311_SUITES`): every frozen answer decodes, as sent, with every optional key removed and
+   with unknown keys at every depth; every frozen request is still written byte for byte; today's vectors decode by their
+   routes; and while the phone's decoders read exactly the frozen set (`P33311_PROOF`), every refuse arm refuses, which is
+   the phone itself proving the freeze was read right.
+6. **CLAUDE.md**: `gate:onlyadd` joins the gates inside `npm run build`; a fifth obligation (a deliberate change to what a
+   released phone reads or sends regenerates its frozen set with `--replace --why`, on his ruling or before the launch Mac
+   tag, and the commit body names every moved line); one sentence on the `test:ios` row.
+
+### The proof, run rather than read
+
+- The battery: `npm run typecheck`, `npm run build` (the gate inside it, `gate:contract`'s baseline unmoved),
+  `npm run -s ablation:p33311` (every arm red on its clause, every control green), `vectors.mjs --check`,
+  `conformance:ios` and `ablation:p316` once (the lexer moved), `test-ios.mjs --self-test`, `gate:checks`, `npm test`,
+  smoke, smoke:t3 and package under the lock; `git diff` over `src/`, `ios/Tortie/` and the contract baseline empty.
+- `test:ios` once, on iOS 26.3, by the verifier under the lock: `DoorFrozenTests` named in xcodebuild's suite lines,
+  every frozen row printed, `P33311_PROOF=launch` and every refuse arm refusing.
+- The verifier's independent methods: re-derive three answers' required keys and the six bound rows from `Contract.swift`
+  by a method of its own; plant at least three breaks the ablation does not list; and show two of the ablation's plants
+  pass `npm run build` at the parent `01a25b99`, which is the defect this phase closes.
+
+### What is NOT in this phase
+
+- **No route added, no answer changed, no QR or hashed field moved, no phone code**; nothing under `src/` or
+  `ios/Tortie/` is edited and the contract baseline does not move.
+- **No phone UI, no copy, no CHANGELOG item, no semver, no menu, no build number.**
+- **No release cut.** The Mac tag, its order with build 8 and 333.7's steps are not this phase's; 333.7 reads the gate's
+  "the phone's wire today equals launch" line at the tag.
+- **Not 333.12.** A Mac update that adds a route still shuts the door until Allow. This gate ALLOWS adding a route.
+- **No cross-field relations frozen.** A write answer's reason-with-refused, a screen's cursor and run widths, a page's
+  overlap, the Sessions answer's counts and order, the turns' rising indexes and every session id echo are still checked
+  only by whichever phone is running; the frozen instances exercise them for a new phone, and nothing exercises them for an
+  old phone against a new Mac. Named in the spec's §13.
+- **No frozen copy of the launch decoder compiled into the tests**, no push payload, no transport (TLS, SNI, framing,
+  Funnel, the door's key).
+- **No second set and no retirement**: `launch` is the only one; a later public build that reads something new freezes its
+  own, and a set is retired only by his word.
+
+---
+
+Running-log line (append at the end of `docs/BACKLOG.md`, newest last):
+
+- 2026-10-08, **PHASE 333.11 STARTED at his word ("ok that sounds great. do it") — the door's answers only add.** The spec (`build/p33311/SPEC.md`) freezes, as `launch`, the eleven routes the phone calls, every key, word, bound and format its own decoders require, the words it sends and the Mac's request limits, beside a byte copy of the vectors, and adds `gate:onlyadd` inside `npm run build`: a new Mac with an old phone (routes still dispatched, frozen requests replayed through the shipping door, answers and TypeScript types inside the frozen shape, caps inside the phone's bounds) and an old Mac with a new phone (read as text; and `DoorFrozenTests` in `test:ios`). The spec step found that adding a key is safe but adding a word to one of eight closed sets is not, and that the phone's bounds and the door's connection limits are part of the type. Tier 2, no semver, no CHANGELOG item; it lands after 333.1 and 337.3, and is re-frozen at landing only if the gate says the phone's wire moved.
+
+## Phase 333.11.1 — "Land it, queue the gaps": the guardrail replays every way the launch phone asks, and a resealed Mac limit is caught (operator, 2026-10-08)
+
+**Subject.** `test(pocket): replay every request the launch phone can make, and hold the Mac's limits to the phone`
+
+**First body line.** `Phase 333.11.1: the guardrail's two gaps`
+
+**Semver.** None, and no release follows. Nothing a person sees moves: no route, answer, QR field, hashed field, phone
+code, copy or menu, and no CHANGELOG item.
+
+**Tier 2.** Invisible to a person, so the gates are the evidence and the verifier re-derives and attacks. It touches no
+tmux, manifest, restore or session, spawns nothing for a person, holds no credential and sends nothing anywhere.
+
+**Charter.** His ruling of 2026-10-08 on Phase 333.11's second needs_work, "Land it, queue the gaps". 333.11 landed the
+frozen record of what the launch phone relies on (`ios/TortieTests/Fixtures/frozen/launch.wire.json`) and `gate:onlyadd`
+(`build/assert-door-only-adds.mjs`). Its reverify planted thirteen breaks in a clone and judged it with
+`node build/assert-door-only-adds.mjs --root <clone> --json`. Six stayed green, and they are this phase. The plants are
+written here in full, because the scratch that held them is removed when 333.11 lands:
+
+| Plant | What it changes | Clause that should read red |
+| --- | --- | --- |
+| V1 | The `turns` arm of the read switch in `src/main/pocket/ipc.ts` returns null unless `to` is present. The phone's newest page sends no `to` (`ConversationScreen.swift`, `to: nil`) | R5 |
+| V2 | The `screen` arm returns null unless `since` is present. The phone's first Screen read sends none | R5 |
+| V3 | The `sessions` arm requires `agent`. `SessionsQuery.standard` sends none | R5 |
+| V4 | The `sessions` arm refuses `show=active`, the phone's default word. The one frozen request carries `show=ended` | R5 |
+| G3 | `macLimits`' `PER_SOURCE_MAX` lowered from 4 to 2 in `launch.wire.json`, the file resealed, and `src/main/pocket/door/limits.ts` changed to match | R4 or F |
+| G4 | The `PocketScreen.widest` bound's Mac list emptied, resealed, and `POCKET_SCREEN_MAX_COLS` raised from 512 to 1024 in `src/shared/ipc/pocket.ts` | A4 or F |
+| G5 | The `KEEP_ALIVE_TIMEOUT_MS` row removed from `macLimits`, resealed, and the constant lowered to 3,000 | R4 or F |
+
+So the two gaps are:
+
+1. **One request per route (major).** R2 and R5 replay the ONE frozen request each route has. The phone's request
+   builders in `ios/Tortie/Door/DoorClient.swift` send some query names only sometimes and draw values from five closed
+   word sets (`SessionsShow`, `SessionsGroupBy`, `SessionsSortBy`, `ScrollbackKeep`, `ScreenKeyName`). A Mac that newly
+   requires a sometimes-sent name, or refuses a word the phone sends, still passes, and the launch phone's requests would
+   fail against it. R5's comment also claims coverage it does not have (the reverify's nit).
+2. **The Mac-side rows can be resealed (minor).** The seal is a sha256 anyone can recompute. 333.11's fix round
+   re-derives the arms and the formats from what is sealed beside them, but not `macLimits` or each bound's Mac constant
+   list. Lowering or removing one, resealing and changing the Mac to match passes every clause.
+
+### The mechanism
+
+1. **Every request the launch phone can make, frozen and replayed.** `build/p33311/swift-wire.mjs` already reads the
+   phone's decoders. It gains a reader of the phone's request builders in `DoorClient.swift` (`sessionsTarget`, the
+   turns, screen and scrollback targets, and the write bodies), recording per route each query name and whether the phone
+   sends it always or only sometimes, and the closed set each value is drawn from. That record goes into the frozen set at
+   the next freeze as a new sealed field. R2 and R5 then replay, per route: every sometimes-sent name absent and present,
+   and every word of each closed set the phone sends, through the shipping `matchPocketRoute` and the driven read switch.
+   The spec step measures the number of replays (five closed sets, the largest `ScreenKeyName` at 35 words) and caps it
+   only by that measurement. An idiom the request reader does not understand is red by name, as P0 is for decoders.
+2. **The Mac-side rows held to the phone, not to the seal.** Wherever the phone's own Swift says the number, the floor
+   comes from the Swift and not from `launch.wire.json`: the largest body each write can carry (the message cap, the keys
+   write's 64 items and 1,024 text bytes), how long the phone keeps a line open (4 s, so `KEEP_ALIVE_TIMEOUT_MS` must
+   exceed it), and how many connections it opens at once (so `PER_SOURCE_MAX` must hold them). A4 already reads the
+   phone's bounds from the Swift and only needs a non-empty Mac list to be required for every `mac<=phone` row. Where
+   only the Mac knows the number, `--replace` refuses a set whose Mac-side rows are lower, shorter or missing compared
+   with the set it replaces, and the spec step decides whether F1 also checks the set against the copy at the commit it
+   was frozen in (`git show`), and measures what that costs when `git` is absent.
+3. **The ablation.** `build/p33311/ablation.mjs` gains V1 to V4 and G3 to G5 from the table above as arms, each red on
+   its owning clause, beside the reverify's green controls (V5 to V8, G1, G2 and the empty plant Z0, which 333.11 already
+   catches or must leave green).
+
+### The proof, run rather than read
+
+- `npm run gate:onlyadd` green on main, and `npm run ablation:p33311` with the seven new arms red and every control green.
+- P4 still reads EQUALS launch, or, if adding the request record changes the format, the set is re-frozen once with
+  `--replace --why` and the commit body says which lines moved.
+- `test:ios` on iOS 26.3 and 18.3 with `DoorFrozenTests` green, because the frozen file the phone reads changes.
+- The verifier's independent step: plant breaks of its own from the phone's request builders that this entry does not
+  list, and re-derive the request record by hand for at least two routes.
+
+### What is NOT in this phase
+
+- No change to the phone app, the door, any route, answer, QR field or hashed field, so no build number moves.
+- Not 333.12 (a Mac update that adds a door route asks every paired phone to press Allow again). That stays its own
+  phase, and 318.1 still waits for it.
+- No new clause family. R2, R4, R5 and A4 widen; F1 gains at most the commit check the spec step decides on.
+- No change to the rule itself: adding stays allowed, and nothing here may turn a control (C1 to C5) red.
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -42631,3 +42809,7 @@ cycle rather than only the evening it was written.
 - 2026-10-09, **PHASE 337.3 LANDED, `20453f2e`, unreleased — the terminal fills the phone.** Upright, the phone's terminal opens on what the session printed with the live rows at the bottom; sideways it shows the terminal alone; one ⋯ menu at the top right holds Catch Me Up and End session (End still behind Face ID). Phone build 9. Merged onto 333.1 and 342 keeping both sides; full battery green with test:ios on 26.3 and 18.3, his shell history unmoved. Landed as is by his ruling; its two limits and the probe defects are queued as 337.4. Its full section, written by its spec step and recovered from that agent's transcript after the reboot, is appended above this log.
 
 - 2026-10-09, **TESTFLIGHT BUILD 1.0.0 (9) ARCHIVED** from `dd7c8934` (333.1 and 337.3 on main) and read by `test-ios.mjs --read-app` (no NetworkExtension or TailscaleKit, no coverage, no DEBUG seam, asks Apple for its alert address), and left in his Organizer. It is the build for his own check, his two review videos and the first Beta App Review submission through build/p333/CHECKLIST.md (Distribute App then App Store Connect, never TestFlight Internal Only). 333.11 is being merged onto main and lands next; it changes no app code.
+
+- 2026-10-09, **PHASE 333.11 LANDED, `85f90247`, unreleased — the door's answers only add.** A frozen record of what the launch phone relies on (the 11 routes it calls, the keys and kinds its own decoders require, the eight closed word sets that refuse a whole answer on an unknown word, its bounds and the words it sends), `gate:onlyadd` on every build, and the phone's `DoorFrozenTests` decoding it (617 of 617 rows on iOS 26.3 and 18.3, Debug and Release). Merged over 333.1, 342 and 337.3: 333.1's QR version check before the full read made the reader take the wrong type, so the reader now takes the last type the parse decodes and holds the earlier one to asking nothing more; P4 then read EQUALS launch and the set was not re-frozen. Full battery green. Nothing a person sees moves, no CHANGELOG item.
+
+- 2026-10-09, **QUEUED 333.11.1 — the guardrail's two gaps** (his ruling of 2026-10-08, "Land it, queue the gaps"): the gate replays one request per route, so a Mac that newly requires a query name the launch phone sends only sometimes, or refuses a word it sends, still passes; and a Mac-side limit lowered with the record resealed by hand still passes. The section above the log lists the reverify's seven green plants in full. Next in the queue: 337.4, 337.2, 343.1, 333.12 then 318.1, 333.3 (build 10), 333.4.
