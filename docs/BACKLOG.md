@@ -41333,6 +41333,112 @@ computers (re-measured), no new watch is added so the eight-stream cap is untouc
 link, a loop cannot cascade because a chain row's last folder starts closed, Duplicate never copies a link's target,
 and `paths.ts` is not touched.
 
+## Phase 337.3 — "i'd rather more of the scrollback (if available) in vertical mode could be shown" ... "i want to show as much of the terminal as possible" ... "an ellipses in in the top right that show the option to catch me up or end session" — the terminal fills the phone: it opens on what the session printed, sideways it is the terminal alone, and one ⋯ holds Catch Me Up and End (operator, 2026-10-07) ✅ LANDED `20453f2e`, 2026-10-09
+
+**Subject.** `feat(pocket): open the phone's terminal full, alone when sideways, with Catch Me Up and End in one menu`
+
+**First body line.** `Phase 337.3: the terminal fills the phone`
+
+**Semver.** Minor, unreleased: the phone's terminal opens on what the session printed with its live rows at the bottom,
+shows the terminal alone when the phone is sideways, and moves Catch Me Up and End into one ⋯ menu. The iPhone app 1.0.0;
+its build is 9 at landing (the main session's; this phase changes no build number).
+
+**Tier 2.** A rendered surface with no new state on the Mac: nothing under `src/` moves, no door route, no write, no
+contract line. He reported it, so the parent measurement (TestFlight build 7, `dfa878b5`) is mandatory whatever the tier.
+The proof is ONE app run that drives every claim on iOS 26.3 and the 18.3 floor, upright and sideways, beside build 7, and
+ONE independent method, an attack on the fill. It loses no work (the phone's carried rows live in memory while the Terminal
+is up and a page replaces each), claims nothing per provider that 337.1 did not already prove, and spawns nothing new.
+
+**Charter.** His words of 2026-10-07, testing TestFlight build 7: "a few little things about the terminal view that would
+be ideal to fix if its possible in parallel. 1. when it opens today, it is shown like this [the live rows at the top of the
+screen and empty space below] but i'd rather more of the scrollback (if available) in vertical mode could be shown like this
+[the screen filled with earlier output, the live rows at the bottom] 2. when you're in horiztonal mode, i want to show as much
+of the terminal as possible and not the top which shows you which session you're in or the different bottom needs input,
+sessions or settings menu 3. In vertical mode, I'd rather have an ellipses in in the top right that show the option to catch
+me up or end session (we can keep face input for end session)." With his screenshot of landscape: "this is the image of
+horiztonal mode that i'd prefer to sho as much of the terminal as possible". Phase 337.1 (`f5ff5183`) built the look he is
+changing on purpose: `following` holds nothing and the pad puts the live rows at the view's top (build/p3371/SPEC.md D25,
+D27), the tab bar is never hidden (`conformance:ios` (b)), and the Terminal's top right is the Catch Me Up icon then End
+(D17, D18, rule (at)). The spec is `build/p3373/SPEC.md`; its §14 MEASURED, before it was written, on a scratch copy of the
+app against the hostile door's honest arm, on iOS 26.3 and 18.3: SwiftUI's own `toolbarVisibility(.hidden, for:
+.navigationBar, .tabBar)` on the Terminal sideways takes the terminal from 750 × 230 points to 750 × 382 (26.3) and from
+750 × 275 to 750 × 381 (18.3), about 20 or 24 rows of a 120-column session to 33, and every bar comes back to its frame
+upright; a toolbar `Menu`'s items reach XCUITest by their SwiftUI identifiers, each item's image by its SF Symbol's name,
+and a `confirmationDialog` attached to the menu presents from its item as a sheet, on both runtimes.
+
+### The mechanism
+
+- **The fill (his item 1), `ios/Tortie/Screens/ScreenScrollback.swift` and `ScreenScroller.swift`.** `following` now holds
+  an index space whenever the live picture offers one, at any depth, and lays out history above the live rows: the scroll
+  view computes, in every layout pass and BEFORE it sizes the content, the rows its own bounds hold less the live rows, and
+  `reserve(visibleTop:fill:)` (still the one place `top` moves) reserves that many in whole pages of 100 above the live top,
+  so the first frame already draws the live rows at the bottom and 337.1's own `/v1/scrollback` page fills the reserved rows
+  (one page at the measured geometry). The pad becomes the visible height less EVERY row laid out
+  (`ScreenScroller.swift:393-394` computed it against the live rows alone, which is his defect). While the session prints,
+  the lines that scroll off the live screen are CARRIED from the last steady picture's top rows at once (never an overlap
+  anchor, replaced by a check page at most once a second, `ScrollbackModel.checkGap`), so no blank band flickers above the
+  prompt; following drops its history on the alternate screen, a trim, another width or pane, and does not ask again for a
+  page it refused until the picture changes. `scrolled` is entered when the view leaves its bottom; back to live keeps a
+  contiguous fill. Following's delta keeps the live rows' place as output arrives (`rowsAdded`, `ScreenScroller.swift:445-456`).
+  The Terminal's lines (held while selecting, not answering, the keys' line) move to the terminal's TOP, because the fill puts
+  the prompt where 337.1 drew them (`Screens/Screen.swift:379-403`).
+- **Landscape (his item 2), `ios/Tortie/Screens/Screen.swift`.** A pure `TerminalChrome` over
+  `@Environment(\.verticalSizeClass)`: sideways `ScreenPage` applies `.toolbarVisibility(.hidden, for: .navigationBar,
+  .tabBar)` and `.statusBarHidden(true)`, and draws no status line, no End line and no question tray; upright everything is
+  as today. The terminal stays inside the safe area (the island's and the far side's strips and the home indicator's stay
+  the ground colour). Copy for a selection moves to the terminal's bottom right; the keyboard and the key bar
+  (`Screens/ScreenKeyField.swift:320`, the field's input accessory) work as upright; turning upright is the way back.
+- **The ⋯ (his item 3), `ios/Tortie/Screens/SessionScreen.swift` and `EndBar.swift`.** `TerminalPage`'s trailing items
+  (`SessionScreen.swift:421-425`, the icon then End) become ONE `TerminalMenu`: a native SwiftUI `Menu` labelled `ellipsis`
+  (iOS 26) or `ellipsis.circle` (earlier), spoken `More` (the one new word, `Copy.more`), holding `Catch Me Up` then
+  `End session…` (the Mac's own words, already in `Copy.swift`), End with the owner check's glyph, drawn off and absent exactly
+  where End is today. End session… opens the Mac's own confirmation from a `confirmationDialog` that is now ONE modifier in
+  `EndBar.swift` shared with Catch Me Up's top-bar End, and its press is `EndModel.press` (`EndBar.swift:230-257`): Face ID,
+  Touch ID or the passcode exactly as today. A progress mark sits left of the ⋯ while End runs. Catch Me Up keeps End at its
+  own top right; an ended session still opens on Catch Me Up.
+- **The gates.** `conformance:ios` (b) allows the one landscape hide in ScreenPage and nothing else; (ac) holds two End
+  presses, each `.disabled(row == .off)`; (aq), (ar), (as), (at), (t) and (k) widen; new (aw) the fill, (ax) landscape is the
+  terminal alone, (ay) the ⋯ menu; `ablation:p316` gains about 30 arms, the parent's pad (his defect) among them.
+  `conformance:phonecopy` owns `More`; the mocks follow (`Session.html` and `Screen.html` redrawn, new `TerminalMenu.html`
+  and `Landscape.html`).
+
+### The proof, run rather than read
+
+- The battery and `conformance:ios`, `ablation:p316` in its own clone, `conformance:phonecopy` and its self-test, the
+  vectors, every grader self-test, `test:ios` Debug and Release on iOS 26.3 and 18.3, and `git diff dfa878b5 -- src/
+  docs/audits/contract-baseline.txt` empty.
+- **The app run**, `probe:p316` `P316_ARMS=screen,end` on 26.3 and the 18.3 floor: PF1 to PF7 (the fill on open, following
+  while an agent prints, no history and a full-screen program as today, back to live, the keyboard, a turn), PL1 to PL5
+  (sideways the terminal alone, the keyboard and Copy sideways, every bar back upright, every other page upright), PM1 (the ⋯
+  and its two items) and the re-pointed PS1, PS3, PS10, PS15 and E1 to E6 through the menu, each graded on drawn labels and
+  frames and the probe's own `capture-pane -p`.
+- **The parent**, build 7 (`P3373_PARENT_IOS`): PP1 the live rows at the top, PP2 the bars kept sideways with the grid's
+  height beside HEAD's, PP3 the icon and End in the bar.
+- **The attack**: a trim at a 1,000-line limit, a pane switch, a narrower Mac window, the alternate screen entering and
+  leaving, a flood, a selection held while checks land, the keyboard and a turn while the first page is in flight, the
+  hostile door's `scrollback-fill-moved`, `scrollback-404` and `scrollback-never`, a program that rewrites a row before it
+  scrolls off (the carried row replaced within a check), and End from the menu with no Face ID, no passcode, an unreachable
+  session and two quick presses.
+
+### Order
+
+- **After 333.1**, replayed on top of it: both edit `ios/Tortie/Style/Copy.swift`, `ios/Tortie/Screens/Identifiers.swift`,
+  `build/conformance-ios.mjs`, `build/p316/ablation-ios.mjs` and the mocks, and this phase's edits there are additive.
+- **Never beside 337.2**: both edit `build/p316/probe-p316.mjs` and `ios/TortieUITests/P316DriveUITests.swift`.
+- **TestFlight build 9** at this phase's landing (the main session raises the number then).
+
+### What is NOT in this phase
+
+- **No door route and no Mac change**: nothing under `src/` moves, and the phone is not asked to be allowed again.
+- **No build number** in the phase's own diff.
+- **No change to End's owner check**, its runner, its confirmation's words, End these, or Catch Me Up's End.
+- **No change to scrolling back** (337.1's paging, overlap, line and arrow), the page floor, the queue, the caps or the nonce
+  budget.
+- **No landscape for any other page**, Catch Me Up included, and no new gesture to show the bars sideways.
+- **Nothing drawn under the Dynamic Island or the home indicator**, and the home indicator is not hidden.
+- **No paste**, **no change to the session's size on the Mac**, **no iPad**, **no release** and **no upload**.
+- **No probe repair that 337.2 owns.**
+
 ## THE RUNNING LOG. APPEND HERE, NEWEST LAST. `tail` THIS FILE TO SEE WHERE THE QUEUE IS
 
 The operator asked for this on 2026-08-21, in his words, because the end of this file had drifted
@@ -42521,3 +42627,5 @@ cycle rather than only the evening it was written.
 - 2026-10-08, **PHASE 342 APPROVED by its independent reverify** (ordinary Linux machines; the fix round closed the create and restore paths and the probe; residual nits stated in its spec). Not yet landed: its commit and landing battery are next. 337.3 is in its reverify; 333.11 waits to land last. The account usage limit was reached at about 20:50; every phase's uncommitted tree is backed up outside /private/tmp under the session's backups folder.
 
 - 2026-10-08, **PHASE 342 LANDED, `5d3e3c99`, unreleased — ordinary Linux machines.** Ubuntu 22.04 and 24.04 and Debian 12 and 13 can be added, prepared and used on the tmux they ship: each of Prepare's settings declares the oldest tmux it needs and what Tortie does without it, a refused required setting is said in a sentence on Prepare, create and restore, and saving and New Folder work on every Linux machine. Proved on throwaway Docker containers, all removed. Full battery green, his shell history unmoved, Docker as found. HELPER_USER_FLOOR 172 (333.1 and 342 each added a probe). **HE RULED ON 337.3's SECOND needs_work: "Land as is".** It lands with two stated limits, queued as **337.4**: a session printing in periodic bursts (about 1,000 lines every few seconds) flashes the history band in for about half a second, 10 to 25 times a minute, where build 7 shows it empty; and once in two runs the first End through the ⋯ menu on a fresh iOS 26.3 device read "Not confirmed" with no Face ID prompt, not reproduced. Its live proof: test:ios on 26.3 and 18.3 (734 and 731 tests, 0 failures), the fill (43 rows in view), landscape terminal-only and the ⋯ menu all read live.
+
+- 2026-10-09, **PHASE 337.3 LANDED, `20453f2e`, unreleased — the terminal fills the phone.** Upright, the phone's terminal opens on what the session printed with the live rows at the bottom; sideways it shows the terminal alone; one ⋯ menu at the top right holds Catch Me Up and End session (End still behind Face ID). Phone build 9. Merged onto 333.1 and 342 keeping both sides; full battery green with test:ios on 26.3 and 18.3, his shell history unmoved. Landed as is by his ruling; its two limits and the probe defects are queued as 337.4. Its full section, written by its spec step and recovered from that agent's transcript after the reboot, is appended above this log.
